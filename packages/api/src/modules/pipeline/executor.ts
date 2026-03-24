@@ -1,0 +1,257 @@
+import { prisma } from "../../lib/db";
+import { logger } from "../../lib/logger";
+import { runAgentLoop, type AgentLoopResult } from "../agent/claude";
+import { AppError } from "../../middleware/error";
+import { DEFAULT_GOVERNANCE_CONFIG } from "@ai-company-os/core";
+
+interface StepDef {
+  name: string;
+  agentRole: string;
+  order: number;
+  config?: Record<string, unknown>;
+}
+
+export interface StepExecutionResult {
+  stepId: string;
+  status: "COMPLETED" | "FAILED";
+  reasoning: string;
+  output: unknown;
+  costUsd: number;
+  toolCallIds: string[];
+}
+
+/**
+ * Execute a single pipeline step using the assigned agent.
+ * Handles tool call logging, reasoning enforcement, and cost tracking.
+ */
+export async function executeStep(
+  runId: string,
+  stepDef: StepDef,
+  stepIndex: number,
+  input: unknown,
+): Promise<StepExecutionResult> {
+  // Find the run and its pipeline/company
+  const run = await prisma.run.findUnique({
+    where: { id: runId },
+    include: {
+      pipeline: {
+        include: {
+          company: {
+            include: { agents: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!run) throw new AppError(404, "Run not found");
+
+  // Find the agent for this step
+  const agent = run.pipeline.company.agents.find(
+    (a) => a.role === stepDef.agentRole,
+  );
+  if (!agent) {
+    throw new AppError(400, `No agent with role "${stepDef.agentRole}" in company`);
+  }
+
+  // Create run step record
+  const runStep = await prisma.runStep.create({
+    data: {
+      runId,
+      agentId: agent.id,
+      stepIndex,
+      name: stepDef.name,
+      status: "RUNNING",
+      reasoning: "", // Will be updated after execution
+      input: input as any,
+      startedAt: new Date(),
+    },
+  });
+
+  try {
+    // Build the step-specific prompt
+    const stepPrompt = buildStepPrompt(stepDef, input, run.pipeline.company.name);
+
+    // Execute agent loop
+    const result = await runAgentLoop({
+      systemPrompt: agent.systemPrompt,
+      userMessage: stepPrompt,
+      toolNames: agent.tools as string[],
+      model: agent.model,
+      maxTokens: agent.maxTokens,
+      maxTurns: 10,
+      budgetUsd: Number(run.budgetUsd ?? 1),
+    });
+
+    // Extract reasoning from agent response (MANDATORY)
+    const reasoning = extractReasoning(result);
+    if (!reasoning) {
+      logger.warn({ runStepId: runStep.id }, "Agent did not provide reasoning — adding default");
+    }
+
+    // Log all tool calls
+    const toolCallIds = await logToolCalls(runStep.id, result);
+
+    // Update run step
+    await prisma.runStep.update({
+      where: { id: runStep.id },
+      data: {
+        status: "COMPLETED",
+        reasoning: reasoning || "Agent completed step without explicit reasoning.",
+        output: { content: result.finalContent, turns: result.turns.length } as any,
+        costUsd: result.totalCostUsd,
+        completedAt: new Date(),
+      },
+    });
+
+    return {
+      stepId: runStep.id,
+      status: "COMPLETED",
+      reasoning: reasoning || "No explicit reasoning provided.",
+      output: result.finalContent,
+      costUsd: result.totalCostUsd,
+      toolCallIds,
+    };
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+
+    await prisma.runStep.update({
+      where: { id: runStep.id },
+      data: {
+        status: "FAILED",
+        reasoning: `Step failed: ${errorMsg}`,
+        error: errorMsg,
+        completedAt: new Date(),
+      },
+    });
+
+    return {
+      stepId: runStep.id,
+      status: "FAILED",
+      reasoning: `Step failed: ${errorMsg}`,
+      output: null,
+      costUsd: 0,
+      toolCallIds: [],
+    };
+  }
+}
+
+/**
+ * Build a context-rich prompt for a pipeline step.
+ */
+function buildStepPrompt(
+  stepDef: StepDef,
+  input: unknown,
+  companyName: string,
+): string {
+  const parts = [
+    `You are executing step "${stepDef.name}" for company "${companyName}".`,
+    "",
+    "IMPORTANT: You MUST explain your reasoning for every decision you make.",
+    'Start your response with "## Reasoning" followed by why you chose this approach.',
+    "",
+    `Step: ${stepDef.name}`,
+    `Your role: ${stepDef.agentRole}`,
+  ];
+
+  if (input && typeof input === "object" && Object.keys(input as object).length > 0) {
+    parts.push("", "Input from previous step:", JSON.stringify(input, null, 2));
+  }
+
+  if (stepDef.config) {
+    parts.push("", "Step configuration:", JSON.stringify(stepDef.config, null, 2));
+  }
+
+  parts.push(
+    "",
+    "Use the tools available to you to complete this step.",
+    "Provide your final output as structured text.",
+  );
+
+  return parts.join("\n");
+}
+
+/**
+ * Extract reasoning from agent response.
+ * Looks for "## Reasoning" section or first paragraph.
+ */
+function extractReasoning(result: AgentLoopResult): string {
+  const content = result.finalContent;
+  if (!content) return "";
+
+  // Look for explicit reasoning section
+  const reasoningMatch = content.match(/## Reasoning\s*\n([\s\S]*?)(?=\n## |\n---|\Z)/i);
+  if (reasoningMatch) return reasoningMatch[1].trim();
+
+  // Fallback: use first paragraph
+  const firstPara = content.split("\n\n")[0];
+  return firstPara?.trim() ?? "";
+}
+
+/**
+ * Log all tool calls from an agent loop to the database.
+ */
+async function logToolCalls(
+  runStepId: string,
+  result: AgentLoopResult,
+): Promise<string[]> {
+  const ids: string[] = [];
+
+  for (const turn of result.turns) {
+    for (const tc of turn.toolCalls) {
+      const record = await prisma.toolCall.create({
+        data: {
+          runStepId,
+          toolName: tc.name,
+          input: tc.input as any,
+          output: tc.output as any,
+          status: tc.error ? "FAILED" : "COMPLETED",
+          durationMs: tc.durationMs,
+          error: tc.error,
+        },
+      });
+      ids.push(record.id);
+    }
+  }
+
+  return ids;
+}
+
+/**
+ * Check governance rules during execution.
+ */
+export async function checkGovernance(
+  runId: string,
+  currentCost: number,
+): Promise<{ allowed: boolean; reason?: string }> {
+  const run = await prisma.run.findUnique({
+    where: { id: runId },
+    include: {
+      steps: true,
+      pipeline: { include: { company: true } },
+    },
+  });
+
+  if (!run) return { allowed: false, reason: "Run not found" };
+
+  const config = DEFAULT_GOVERNANCE_CONFIG;
+
+  // Cost anomaly check
+  if (run.budgetUsd && currentCost > Number(run.budgetUsd) * config.costAnomalyThreshold) {
+    return { allowed: false, reason: "cost_anomaly_stop: Run cost exceeds budget threshold" };
+  }
+
+  // Loop detection — consecutive failures
+  const recentSteps = run.steps
+    .sort((a, b) => b.stepIndex - a.stepIndex)
+    .slice(0, config.maxConsecutiveFailures);
+
+  if (
+    recentSteps.length >= config.maxConsecutiveFailures &&
+    recentSteps.every((s) => s.status === "FAILED")
+  ) {
+    return { allowed: false, reason: "loop_stop: Too many consecutive failures" };
+  }
+
+  return { allowed: true };
+}

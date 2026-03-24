@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
+import { enqueueRun } from "../pipeline/runner";
 
 export const webhookRouter = Router();
 
@@ -10,7 +11,7 @@ webhookRouter.post("/:companySlug/:event", async (req, res, next) => {
     const { companySlug, event } = req.params;
 
     const company = await prisma.company.findFirst({
-      where: { slug: companySlug },
+      where: { slug: companySlug, status: "ACTIVE" },
     });
     if (!company) {
       res.status(404).json({ error: "Company not found" });
@@ -30,9 +31,42 @@ webhookRouter.post("/:companySlug/:event", async (req, res, next) => {
       },
     });
 
-    // TODO: Faz 1 — route webhook to appropriate pipeline trigger
-    // Find pipelines with trigger=WEBHOOK and matching event config
+    // Find pipelines with WEBHOOK trigger for this company
+    const pipelines = await prisma.pipeline.findMany({
+      where: {
+        companyId: company.id,
+        trigger: "WEBHOOK",
+        enabled: true,
+      },
+    });
 
-    res.json({ received: true, company: companySlug, event });
+    const runs: string[] = [];
+
+    for (const pipeline of pipelines) {
+      // Create a run for each matching pipeline
+      const run = await prisma.run.create({
+        data: {
+          pipelineId: pipeline.id,
+          status: "PENDING",
+          trigger: `webhook:${event}`,
+          input: { event, payload: req.body },
+        },
+      });
+
+      await enqueueRun(run.id);
+      runs.push(run.id);
+
+      logger.info(
+        { pipelineId: pipeline.id, runId: run.id, event },
+        "Webhook triggered pipeline run",
+      );
+    }
+
+    res.json({
+      received: true,
+      company: companySlug,
+      event,
+      triggeredRuns: runs,
+    });
   } catch (err) { next(err); }
 });

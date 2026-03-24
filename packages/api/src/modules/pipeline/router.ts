@@ -3,6 +3,7 @@ import { authMiddleware } from "../../middleware/auth";
 import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { z } from "zod";
+import { enqueueRun } from "./runner";
 
 export const pipelineRouter = Router();
 pipelineRouter.use(authMiddleware);
@@ -96,9 +97,9 @@ pipelineRouter.post("/:id/run", async (req, res, next) => {
       },
     });
 
-    // TODO: Faz 1 — enqueue run to BullMQ for processing
-    // await runQueue.add("execute-run", { runId: run.id });
+    // Enqueue run for BullMQ processing
+    const jobId = await enqueueRun(run.id);
 
-    res.status(201).json(run);
+    res.status(201).json({ ...run, jobId });
   } catch (err) { next(err); }
 });

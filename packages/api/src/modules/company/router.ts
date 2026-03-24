@@ -4,6 +4,12 @@ import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { z } from "zod";
+import {
+  startBuildSession,
+  continueBuildSession,
+  confirmBuild,
+  getSession,
+} from "./builder";
 
 export const companyRouter = Router();
 companyRouter.use(authMiddleware);
@@ -142,5 +148,90 @@ companyRouter.post("/:id/resume", async (req, res, next) => {
     });
 
     res.json({ success: true, status: "ACTIVE" });
+  } catch (err) { next(err); }
+});
+
+// ─── COMPANY BUILDER (Freeform text → AI company) ──────
+
+// POST /api/v1/companies/build — start building from freeform text
+companyRouter.post("/build", async (req, res, next) => {
+  try {
+    const { description } = z
+      .object({ description: z.string().min(10) })
+      .parse(req.body);
+
+    const session = await startBuildSession(req.auth!.tenantId, description);
+
+    if (session.status === "error") {
+      throw new AppError(403, "Company limit reached for your plan");
+    }
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "company.build_start",
+        resource: "company",
+        details: { sessionId: session.sessionId, description: description.slice(0, 200) },
+      },
+    });
+
+    res.status(201).json({
+      sessionId: session.sessionId,
+      status: session.status,
+      turn: session.turn,
+      companySpec: session.companySpec,
+      // Return last assistant message for the client to display
+      message: session.messages[session.messages.length - 1]?.content,
+    });
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/companies/build/:sessionId/answer — answer clarification questions
+companyRouter.post("/build/:sessionId/answer", async (req, res, next) => {
+  try {
+    const { answer } = z
+      .object({ answer: z.string().min(1) })
+      .parse(req.body);
+
+    const session = await continueBuildSession(req.params.sessionId, answer);
+
+    res.json({
+      sessionId: session.sessionId,
+      status: session.status,
+      turn: session.turn,
+      companySpec: session.companySpec,
+      message: session.messages[session.messages.length - 1]?.content,
+    });
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/companies/build/:sessionId/confirm — confirm and create the company
+companyRouter.post("/build/:sessionId/confirm", async (req, res, next) => {
+  try {
+    const session = await confirmBuild(req.params.sessionId);
+
+    res.status(201).json({
+      sessionId: session.sessionId,
+      status: session.status,
+      companyId: session.companyId,
+      companySpec: session.companySpec,
+    });
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/companies/build/:sessionId — get session status
+companyRouter.get("/build/:sessionId", async (req, res, next) => {
+  try {
+    const session = getSession(req.params.sessionId);
+    if (!session) throw new AppError(404, "Build session not found");
+
+    res.json({
+      sessionId: session.sessionId,
+      status: session.status,
+      turn: session.turn,
+      companySpec: session.companySpec,
+      companyId: session.companyId,
+    });
   } catch (err) { next(err); }
 });

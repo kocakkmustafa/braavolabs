@@ -111,7 +111,7 @@ tenants, users, companies, agents, pipelines, runs, run_steps, tool_calls, appro
 
 ## Mevcut Durum ve Sıradaki İş
 - [x] Faz 0: Proje iskeleti + Docker Compose + DB şeması
-- [ ] Faz 1: Orchestrator API + Company Builder + Pipeline Runner + Claude Agent
+- [x] Faz 1: Orchestrator API + Company Builder + Pipeline Runner + Claude Agent
 - [ ] Faz 2: Memory Engine (episodic + semantic + graph)
 - [ ] Faz 3: HubSpot CRM + Outreach Automation
 - [ ] Faz 4: Dashboard UI (Next.js)

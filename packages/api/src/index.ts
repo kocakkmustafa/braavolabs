@@ -14,6 +14,10 @@ import { memoryRouter } from "./modules/memory/router";
 import { draftRouter } from "./modules/draft/router";
 import { dashboardRouter } from "./modules/dashboard/router";
 import { webhookRouter } from "./modules/webhook/router";
+import { initPipelineRunner } from "./modules/pipeline/runner";
+
+// Import tool registry to trigger tool registration on startup
+import "./modules/agent/registry";
 
 const app = express();
 
@@ -49,6 +53,9 @@ app.use(errorHandler);
 
 app.listen(env.API_PORT, env.API_HOST, () => {
   logger.info(`AI Company OS API running on ${env.API_HOST}:${env.API_PORT}`);
+
+  // Initialize pipeline runner (BullMQ worker)
+  initPipelineRunner();
 });
 
 export default app;
