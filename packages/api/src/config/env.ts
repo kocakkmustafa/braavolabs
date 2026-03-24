@@ -9,6 +9,7 @@ const envSchema = z.object({
   REDIS_URL: z.string().default("redis://localhost:6379"),
   JWT_SECRET: z.string().min(8),
   JWT_EXPIRES_IN: z.string().default("7d"),
+  LLM_PROVIDER: z.enum(["local", "api"]).default("api"),
   ANTHROPIC_API_KEY: z.string().optional(),
   CLAUDE_MODEL: z.string().default("claude-sonnet-4-20250514"),
   STRIPE_SECRET_KEY: z.string().optional(),
@@ -16,6 +17,9 @@ const envSchema = z.object({
   STRIPE_PRO_PRICE_ID: z.string().optional(),
   STRIPE_ENTERPRISE_PRICE_ID: z.string().optional(),
   APP_URL: z.string().default("http://localhost:3000"),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_REDIRECT_URI: z.string().optional(),
   SENDGRID_API_KEY: z.string().optional(),
   SENDGRID_FROM_EMAIL: z.string().optional(),
 });

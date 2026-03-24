@@ -1,12 +1,62 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { env } from "../../config/env";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { slugify } from "@ai-company-os/core";
 import { PRIMITIVES, PLAN_LIMITS } from "@ai-company-os/core";
 
-const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+const isLocalMode = env.LLM_PROVIDER === "local";
+const client = isLocalMode ? null : new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+const execFileAsync = promisify(execFile);
+
+/**
+ * Call Claude via CLI or API based on LLM_PROVIDER.
+ */
+async function callClaude(
+  systemPrompt: string,
+  messages: MessageParam[],
+): Promise<string> {
+  if (isLocalMode) {
+    // Build conversation as text for CLI
+    const prompt = messages
+      .map((m) => {
+        const text = typeof m.content === "string"
+          ? m.content
+          : (m.content as any[]).map((b: any) => b.text ?? "").join("\n");
+        return `${m.role === "user" ? "User" : "Assistant"}: ${text}`;
+      })
+      .join("\n\n");
+
+    const { stdout } = await execFileAsync("claude", [
+      "-p", prompt,
+      "--output-format", "json",
+      "--system-prompt", systemPrompt,
+    ], {
+      timeout: 120_000,
+      maxBuffer: 10 * 1024 * 1024,
+      env: { ...process.env },
+    });
+
+    const response = JSON.parse(stdout);
+    return response.result ?? "";
+  }
+
+  // API mode
+  const response = await client!.messages.create({
+    model: env.CLAUDE_MODEL,
+    max_tokens: 4096,
+    system: systemPrompt,
+    messages,
+  });
+
+  return response.content
+    .filter((b) => b.type === "text")
+    .map((b) => b.text)
+    .join("\n");
+}
 
 const MAX_CLARIFICATION_TURNS = 3;
 
@@ -125,7 +175,7 @@ export async function startBuildSession(
   // Check plan limits
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
-    include: { companies: true },
+    include: { companies: { where: { status: { not: "ARCHIVED" } } } },
   });
 
   if (tenant) {
@@ -147,17 +197,7 @@ export async function startBuildSession(
     { role: "user", content: description },
   ];
 
-  const response = await client.messages.create({
-    model: env.CLAUDE_MODEL,
-    max_tokens: 4096,
-    system: SYSTEM_PROMPT,
-    messages,
-  });
-
-  const assistantText = response.content
-    .filter((b) => b.type === "text")
-    .map((b) => b.text)
-    .join("\n");
+  const assistantText = await callClaude(SYSTEM_PROMPT, messages);
 
   messages.push({ role: "assistant", content: assistantText });
 
@@ -196,17 +236,7 @@ export async function continueBuildSession(
   session.messages.push({ role: "user", content: userResponse });
   session.turn++;
 
-  const response = await client.messages.create({
-    model: env.CLAUDE_MODEL,
-    max_tokens: 4096,
-    system: SYSTEM_PROMPT,
-    messages: session.messages,
-  });
-
-  const assistantText = response.content
-    .filter((b) => b.type === "text")
-    .map((b) => b.text)
-    .join("\n");
+  const assistantText = await callClaude(SYSTEM_PROMPT, session.messages);
 
   session.messages.push({ role: "assistant", content: assistantText });
 
@@ -223,17 +253,7 @@ export async function continueBuildSession(
         "No more questions. Please create the company with your best judgment based on the information provided so far. Output the JSON spec now.",
     });
 
-    const finalResponse = await client.messages.create({
-      model: env.CLAUDE_MODEL,
-      max_tokens: 4096,
-      system: SYSTEM_PROMPT,
-      messages: session.messages,
-    });
-
-    const finalText = finalResponse.content
-      .filter((b) => b.type === "text")
-      .map((b) => b.text)
-      .join("\n");
+    const finalText = await callClaude(SYSTEM_PROMPT, session.messages);
 
     session.messages.push({ role: "assistant", content: finalText });
     session.turn++;

@@ -9,8 +9,10 @@ import type {
 import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
 import { getTool } from "./registry";
+import { runLocalAgentLoop } from "./claude-local";
 
-const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+const isLocalMode = env.LLM_PROVIDER === "local";
+const client = isLocalMode ? null : new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
 
 // Approximate pricing per 1M tokens (Claude Sonnet 4)
 const INPUT_COST_PER_M = 3.0;
@@ -99,8 +101,12 @@ async function executeTurn(
   model: string,
   maxTokens: number,
 ): Promise<AgentTurnResult> {
+  if (!client) {
+    throw new Error("Anthropic API client not initialized. Set LLM_PROVIDER=api and ANTHROPIC_API_KEY.");
+  }
+
   const response = await withRetry(() =>
-    client.messages.create({
+    client!.messages.create({
       model,
       max_tokens: maxTokens,
       system: systemPrompt,
@@ -190,6 +196,18 @@ export async function runAgentLoop(config: {
   budgetUsd?: number;
   context?: MessageParam[];
 }): Promise<AgentLoopResult> {
+  // Route to local CLI if configured
+  if (isLocalMode) {
+    logger.info("Using local Claude CLI for agent loop");
+    return runLocalAgentLoop({
+      systemPrompt: config.systemPrompt,
+      userMessage: config.userMessage,
+      toolNames: config.toolNames,
+      maxTurns: config.maxTurns,
+      budgetUsd: config.budgetUsd,
+    });
+  }
+
   const {
     systemPrompt,
     userMessage,

@@ -128,3 +128,4 @@ tenants, users, companies, agents, pipelines, runs, run_steps, tool_calls, appro
 - [x] Faz 10: Self-Hosted + CI/CD
 - [x] Faz 11: Auth + Context Builder + Tool Executor + Outreach Runner + UI Pages
 - [x] Faz 12: PQL Scoring + Blueprint Sharing + Model Graders + Kanban Board
+- [x] Faz 13: Google OAuth + Local CLI Mode + UI Redesign

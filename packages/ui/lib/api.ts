@@ -35,6 +35,8 @@ export const api = {
     apiFetch<{ token: string; user: any; tenant: any }>("/auth/register", {
       method: "POST", body: JSON.stringify(data),
     }),
+  googleAuthUrl: () =>
+    apiFetch<{ url: string }>("/auth/google"),
 
   // Dashboard
   health: (token: string) => apiFetch<{
