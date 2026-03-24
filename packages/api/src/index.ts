@@ -13,6 +13,8 @@ import { approvalRouter } from "./modules/approval/router";
 import { memoryRouter } from "./modules/memory/router";
 import { draftRouter } from "./modules/draft/router";
 import { dashboardRouter } from "./modules/dashboard/router";
+import { crmRouter } from "./modules/crm/router";
+import { outreachRouter } from "./modules/outreach/router";
 import { webhookRouter } from "./modules/webhook/router";
 import { initPipelineRunner } from "./modules/pipeline/runner";
 
@@ -42,6 +44,8 @@ api.use("/approvals", approvalRouter);
 api.use("/memory", memoryRouter);
 api.use("/drafts", draftRouter);
 api.use("/dashboard", dashboardRouter);
+api.use("/crm", crmRouter);
+api.use("/outreach", outreachRouter);
 
 app.use("/api/v1", api);
 
