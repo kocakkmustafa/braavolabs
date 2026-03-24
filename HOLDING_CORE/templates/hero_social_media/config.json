@@ -1,0 +1,33 @@
+{
+  "name": "Hero Social Media Agency",
+  "description": "Autonomous social media management + content studio. The default free-plan company template.",
+  "primitives": ["CONTENT", "ACQUISITION", "ANALYTICS", "DELIVERY"],
+  "channels": ["tiktok", "linkedin"],
+  "agents": [
+    {
+      "name": "Content Creator",
+      "role": "content_creator",
+      "tools": ["generate_post", "create_draft", "schedule_content", "analyze_trends"]
+    },
+    {
+      "name": "Analytics Agent",
+      "role": "analytics",
+      "tools": ["fetch_metrics", "generate_report", "compare_performance"]
+    }
+  ],
+  "pipelines": [
+    {
+      "name": "Daily Content Pipeline",
+      "trigger": "SCHEDULED",
+      "schedule": "0 9 * * *",
+      "steps": [
+        { "name": "analyze_trends", "agentRole": "analytics", "order": 1 },
+        { "name": "create_content", "agentRole": "content_creator", "order": 2 },
+        { "name": "review_draft", "agentRole": "content_creator", "order": 3 },
+        { "name": "publish", "agentRole": "content_creator", "order": 4 }
+      ]
+    }
+  ],
+  "contentTypes": ["social_post", "video_script"],
+  "postingFrequency": "daily"
+}

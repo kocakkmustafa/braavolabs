@@ -1,0 +1,86 @@
+# Tool Permission Matrix
+# Defines which tools are available per primitive and plan level
+
+primitives:
+  content:
+    tools:
+      - generate_post
+      - create_draft
+      - schedule_content
+      - analyze_trends
+      - edit_draft
+    requires_approval: []
+
+  acquisition:
+    tools:
+      - find_leads
+      - enrich_contact
+      - create_outreach
+      - send_message
+    requires_approval: []
+
+  sales:
+    tools:
+      - create_deal
+      - update_deal_stage
+      - send_proposal
+      - generate_quote
+    requires_approval:
+      - send_proposal  # if it involves payment terms
+
+  delivery:
+    tools:
+      - create_deliverable
+      - update_status
+      - notify_client
+    requires_approval: []
+
+  operations:
+    tools:
+      - create_task
+      - assign_task
+      - update_workflow
+    requires_approval: []
+
+  finance:
+    tools:
+      - create_invoice
+      - track_expense
+      - generate_report
+      - process_payment
+    requires_approval:
+      - process_payment
+
+  analytics:
+    tools:
+      - fetch_metrics
+      - generate_report
+      - compare_performance
+    requires_approval: []
+
+  memory:
+    tools:
+      - store_memory
+      - recall_memory
+      - consolidate_memories
+    requires_approval: []
+
+  governance:
+    tools:
+      - check_risk
+      - enforce_policy
+      - audit_action
+    requires_approval: []
+
+plan_restrictions:
+  free:
+    max_tools_per_run: 20
+    blocked_tools:
+      - process_payment
+      - send_proposal
+  pro:
+    max_tools_per_run: 100
+    blocked_tools: []
+  enterprise:
+    max_tools_per_run: -1  # unlimited
+    blocked_tools: []

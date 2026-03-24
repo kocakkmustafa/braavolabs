@@ -1,0 +1,29 @@
+{
+  "name": "Lead Generation Agency",
+  "description": "Automated lead generation, outreach, and CRM management.",
+  "primitives": ["ACQUISITION", "SALES", "ANALYTICS", "MEMORY"],
+  "agents": [
+    {
+      "name": "Lead Hunter",
+      "role": "lead_hunter",
+      "tools": ["find_leads", "enrich_contact", "create_outreach"]
+    },
+    {
+      "name": "Sales Agent",
+      "role": "sales_agent",
+      "tools": ["create_deal", "update_deal_stage", "send_proposal"]
+    }
+  ],
+  "pipelines": [
+    {
+      "name": "Lead Discovery Pipeline",
+      "trigger": "SCHEDULED",
+      "schedule": "0 10 * * 1-5",
+      "steps": [
+        { "name": "find_leads", "agentRole": "lead_hunter", "order": 1 },
+        { "name": "enrich_contacts", "agentRole": "lead_hunter", "order": 2 },
+        { "name": "create_outreach", "agentRole": "lead_hunter", "order": 3 }
+      ]
+    }
+  ]
+}

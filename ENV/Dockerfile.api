@@ -1,0 +1,35 @@
+FROM node:20-alpine AS base
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+WORKDIR /app
+
+# Install dependencies
+FROM base AS deps
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY packages/db/package.json ./packages/db/
+COPY packages/core/package.json ./packages/core/
+COPY packages/api/package.json ./packages/api/
+COPY packages/memory/package.json ./packages/memory/
+COPY packages/integrations/package.json ./packages/integrations/
+RUN pnpm install --frozen-lockfile
+
+# Build
+FROM base AS build
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/packages/*/node_modules ./packages/*/node_modules
+COPY . .
+RUN pnpm --filter @ai-company-os/db exec prisma generate
+RUN pnpm --filter @ai-company-os/core build
+RUN pnpm --filter @ai-company-os/api build
+
+# Production
+FROM base AS runner
+ENV NODE_ENV=production
+COPY --from=build /app/packages/api/dist ./packages/api/dist
+COPY --from=build /app/packages/core/dist ./packages/core/dist
+COPY --from=build /app/packages/db/prisma ./packages/db/prisma
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/packages/*/node_modules ./packages/*/node_modules
+COPY --from=build /app/package.json ./
+
+EXPOSE 8080
+CMD ["node", "packages/api/dist/index.js"]
