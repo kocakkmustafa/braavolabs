@@ -235,6 +235,69 @@ growthRouter.post("/referral/redeem", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /api/v1/growth/pql — get PQL score for current tenant
+growthRouter.get("/pql", async (req, res, next) => {
+  try {
+    const { calculatePQLScore } = await import("./pql");
+    const score = await calculatePQLScore(req.auth!.tenantId);
+    res.json(score);
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/growth/blueprint/publish — publish a company as a blueprint
+const publishBlueprintSchema = z.object({
+  companyId: z.string().uuid(),
+  title: z.string().min(1).optional(),
+  description: z.string().optional(),
+  isPublic: z.boolean().optional(),
+});
+
+growthRouter.post("/blueprint/publish", async (req, res, next) => {
+  try {
+    const data = publishBlueprintSchema.parse(req.body);
+    const { publishBlueprint } = await import("./blueprint");
+    const blueprint = await publishBlueprint(data.companyId, req.auth!.tenantId, {
+      title: data.title,
+      description: data.description,
+      isPublic: data.isPublic,
+    });
+    res.status(201).json(blueprint);
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/growth/blueprints — list public blueprints
+growthRouter.get("/blueprints", async (req, res, next) => {
+  try {
+    const { listBlueprints } = await import("./blueprint");
+    const blueprints = await listBlueprints(20);
+    res.json(blueprints);
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/growth/blueprint/:slug — get a blueprint by slug
+growthRouter.get("/blueprint/:slug", async (req, res, next) => {
+  try {
+    const { getBlueprint } = await import("./blueprint");
+    const blueprint = await getBlueprint(req.params.slug);
+    if (!blueprint) throw new AppError(404, "Blueprint not found");
+    res.json(blueprint);
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/growth/blueprint/:slug/clone — clone a blueprint
+const cloneBlueprintSchema = z.object({
+  name: z.string().min(1).optional(),
+});
+
+growthRouter.post("/blueprint/:slug/clone", async (req, res, next) => {
+  try {
+    const { name } = cloneBlueprintSchema.parse(req.body);
+    const { cloneBlueprint } = await import("./blueprint");
+    const result = await cloneBlueprint(req.params.slug, req.auth!.tenantId, { name });
+    res.status(201).json(result);
+  } catch (err) { next(err); }
+});
+
 // GET /api/v1/growth/stats — growth dashboard stats
 growthRouter.get("/stats", async (req, res, next) => {
   try {

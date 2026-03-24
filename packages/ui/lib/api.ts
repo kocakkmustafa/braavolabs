@@ -128,4 +128,18 @@ export const api = {
     apiFetch<{ success: boolean; reward: string }>("/growth/referral/redeem", { method: "POST", body: JSON.stringify({ code }), token }),
   growthStats: (token: string) =>
     apiFetch<any>("/growth/stats", { token }),
+
+  // PQL
+  pqlScore: (token: string) =>
+    apiFetch<any>("/growth/pql", { token }),
+
+  // Blueprints
+  listBlueprints: (token: string) =>
+    apiFetch<any[]>("/growth/blueprints", { token }),
+  getBlueprint: (token: string, slug: string) =>
+    apiFetch<any>(`/growth/blueprint/${slug}`, { token }),
+  publishBlueprint: (token: string, companyId: string, data: { title?: string; description?: string; isPublic?: boolean }) =>
+    apiFetch<any>("/growth/blueprint/publish", { method: "POST", body: JSON.stringify({ companyId, ...data }), token }),
+  cloneBlueprint: (token: string, slug: string, name?: string) =>
+    apiFetch<any>(`/growth/blueprint/${slug}/clone`, { method: "POST", body: JSON.stringify({ name }), token }),
 };

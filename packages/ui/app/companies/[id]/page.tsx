@@ -182,12 +182,102 @@ export default function CompanyDetailPage() {
       )}
 
       {tab === "contacts" && (
-        <p className="text-gray-500 text-center py-8">CRM contacts and deals will appear here.</p>
+        <DealsKanban companyId={company.id} token={token} />
       )}
 
       {tab === "memory" && (
         <p className="text-gray-500 text-center py-8">Company memory items will appear here.</p>
       )}
+    </div>
+  );
+}
+
+const DEAL_STAGES = [
+  { key: "LEAD", label: "Lead", color: "bg-gray-100" },
+  { key: "QUALIFIED", label: "Qualified", color: "bg-blue-50" },
+  { key: "PROPOSAL_SENT", label: "Proposal", color: "bg-yellow-50" },
+  { key: "NEGOTIATION", label: "Negotiation", color: "bg-orange-50" },
+  { key: "CLOSED_WON", label: "Won", color: "bg-green-50" },
+  { key: "CLOSED_LOST", label: "Lost", color: "bg-red-50" },
+];
+
+function DealsKanban({ companyId, token }: { companyId: string; token: string }) {
+  const [deals, setDeals] = useState<any[]>([]);
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      apiFetch<any[]>(`/crm/companies/${companyId}/deals`, { token }).catch(() => []),
+      apiFetch<any[]>(`/crm/companies/${companyId}/contacts`, { token }).catch(() => []),
+    ]).then(([d, c]) => {
+      setDeals(d);
+      setContacts(c);
+      setLoading(false);
+    });
+  }, [companyId, token]);
+
+  if (loading) return <p className="text-gray-500">Loading CRM data...</p>;
+
+  const dealsByStage = DEAL_STAGES.map((stage) => ({
+    ...stage,
+    deals: deals.filter((d) => d.stage === stage.key),
+  }));
+
+  return (
+    <div>
+      {/* Contacts Summary */}
+      <div className="mb-6">
+        <h3 className="text-sm font-medium text-gray-500 mb-2">Contacts ({contacts.length})</h3>
+        {contacts.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {contacts.slice(0, 10).map((c: any) => (
+              <div key={c.id} className="bg-white rounded-lg shadow px-3 py-2 text-sm">
+                <span className="font-medium">{c.name}</span>
+                <span className="text-gray-400 ml-2">{c.email}</span>
+                <span className={`ml-2 px-1.5 py-0.5 rounded text-xs ${
+                  c.status === "CUSTOMER" ? "bg-green-100 text-green-700" :
+                  c.status === "SQL" ? "bg-blue-100 text-blue-700" :
+                  "bg-gray-100 text-gray-600"
+                }`}>{c.status}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-400 text-sm">No contacts yet.</p>
+        )}
+      </div>
+
+      {/* Kanban Board */}
+      <h3 className="text-sm font-medium text-gray-500 mb-2">Deal Pipeline</h3>
+      <div className="grid grid-cols-6 gap-3 overflow-x-auto">
+        {dealsByStage.map((stage) => (
+          <div key={stage.key} className={`${stage.color} rounded-lg p-3 min-h-[200px]`}>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-semibold text-gray-700">{stage.label}</h4>
+              <span className="text-xs bg-white text-gray-500 px-1.5 py-0.5 rounded-full">
+                {stage.deals.length}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {stage.deals.map((deal: any) => (
+                <div key={deal.id} className="bg-white rounded-lg shadow-sm p-3">
+                  <p className="text-sm font-medium truncate">{deal.title}</p>
+                  {deal.valueUsd > 0 && (
+                    <p className="text-xs text-green-600 font-semibold mt-1">${deal.valueUsd}</p>
+                  )}
+                  <p className="text-xs text-gray-400 mt-1">
+                    {new Date(deal.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              ))}
+              {stage.deals.length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-4">No deals</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
