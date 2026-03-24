@@ -219,39 +219,16 @@ async function logToolCalls(
 
 /**
  * Check governance rules during execution.
+ * Delegates to the centralized governance engine.
  */
 export async function checkGovernance(
   runId: string,
   currentCost: number,
 ): Promise<{ allowed: boolean; reason?: string }> {
-  const run = await prisma.run.findUnique({
-    where: { id: runId },
-    include: {
-      steps: true,
-      pipeline: { include: { company: true } },
-    },
-  });
-
-  if (!run) return { allowed: false, reason: "Run not found" };
-
-  const config = DEFAULT_GOVERNANCE_CONFIG;
-
-  // Cost anomaly check
-  if (run.budgetUsd && currentCost > Number(run.budgetUsd) * config.costAnomalyThreshold) {
-    return { allowed: false, reason: "cost_anomaly_stop: Run cost exceeds budget threshold" };
-  }
-
-  // Loop detection — consecutive failures
-  const recentSteps = run.steps
-    .sort((a, b) => b.stepIndex - a.stepIndex)
-    .slice(0, config.maxConsecutiveFailures);
-
-  if (
-    recentSteps.length >= config.maxConsecutiveFailures &&
-    recentSteps.every((s) => s.status === "FAILED")
-  ) {
-    return { allowed: false, reason: "loop_stop: Too many consecutive failures" };
-  }
-
-  return { allowed: true };
+  const { runGovernanceChecks } = await import("../governance/engine");
+  const result = await runGovernanceChecks(runId, currentCost);
+  return {
+    allowed: result.allowed,
+    reason: result.reason,
+  };
 }
