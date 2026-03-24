@@ -104,4 +104,18 @@ export const api = {
     }>("/onboarding/status", { token }),
   createHeroCompany: (token: string, data: { companyName?: string; niche?: string; targetAudience?: string }) =>
     apiFetch<any>("/onboarding/hero-company", { method: "POST", body: JSON.stringify(data), token }),
+
+  // Growth & Referrals
+  getReferral: (token: string) =>
+    apiFetch<{
+      code: string;
+      stats: { totalReferred: number; converted: number; rewardsApplied: number };
+      referrals: any[];
+    }>("/growth/referral", { token }),
+  generateReferralCode: (token: string) =>
+    apiFetch<{ code: string; id: string }>("/growth/referral/generate", { method: "POST", token }),
+  redeemReferral: (token: string, code: string) =>
+    apiFetch<{ success: boolean; reward: string }>("/growth/referral/redeem", { method: "POST", body: JSON.stringify({ code }), token }),
+  growthStats: (token: string) =>
+    apiFetch<any>("/growth/stats", { token }),
 };

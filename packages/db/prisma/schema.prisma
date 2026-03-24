@@ -428,6 +428,24 @@ model Draft {
   @@map("drafts")
 }
 
+// ─── REFERRALS ─────────────────────────────────────────
+
+model Referral {
+  id              String         @id @default(cuid())
+  referrerTenantId String        @map("referrer_tenant_id")
+  referralCode    String         @unique @map("referral_code")
+  referredTenantId String?       @map("referred_tenant_id")
+  status          ReferralStatus @default(PENDING)
+  rewardType      String?        @map("reward_type") // e.g. "extra_runs", "plan_upgrade"
+  rewardApplied   Boolean        @default(false) @map("reward_applied")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  convertedAt     DateTime?      @map("converted_at")
+
+  @@index([referrerTenantId])
+  @@index([referralCode])
+  @@map("referrals")
+}
+
 // ─── ENUMS ──────────────────────────────────────────────
 
 enum Plan {
@@ -545,4 +563,10 @@ enum DraftStatus {
   PUBLISHED
   REJECTED
   ARCHIVED
+}
+
+enum ReferralStatus {
+  PENDING
+  CONVERTED
+  EXPIRED
 }

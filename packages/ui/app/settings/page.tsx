@@ -35,11 +35,15 @@ export default function SettingsPage() {
   const [billingUsage, setBillingUsage] = useState<BillingUsage | null>(null);
   const [subscription, setSubscription] = useState<BillingSubscription | null>(null);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [referral, setReferral] = useState<{ code: string; stats: any; referrals: any[] } | null>(null);
+  const [redeemCode, setRedeemCode] = useState("");
+  const [redeemResult, setRedeemResult] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
     api.billingUsage(token).then(setBillingUsage).catch(() => {});
     api.billingSubscription(token).then(setSubscription).catch(() => {});
+    api.getReferral(token).then(setReferral).catch(() => {});
   }, [token]);
 
   if (!token) return <p className="text-gray-500">Please login first.</p>;
@@ -175,6 +179,77 @@ export default function SettingsPage() {
               loading={upgradeLoading}
             />
           </div>
+        </div>
+
+        {/* Referral Program */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold mb-4">Referral Program</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Share your referral code and both you and your friend get 5 bonus runs!
+          </p>
+
+          {referral && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-xs text-blue-600 mb-1">Your Referral Code</p>
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-lg font-bold text-blue-800">{referral.code}</span>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(referral.code)}
+                    className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="text-center p-3 bg-gray-50 rounded">
+                  <p className="text-2xl font-bold">{referral.stats.totalReferred}</p>
+                  <p className="text-xs text-gray-500">Referred</p>
+                </div>
+                <div className="text-center p-3 bg-gray-50 rounded">
+                  <p className="text-2xl font-bold text-green-600">{referral.stats.converted}</p>
+                  <p className="text-xs text-gray-500">Converted</p>
+                </div>
+                <div className="text-center p-3 bg-gray-50 rounded">
+                  <p className="text-2xl font-bold text-blue-600">{referral.stats.rewardsApplied}</p>
+                  <p className="text-xs text-gray-500">Rewards</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium mb-2">Redeem a Code</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={redeemCode}
+                    onChange={(e) => setRedeemCode(e.target.value)}
+                    placeholder="AICOS-XXXXXXXX"
+                    className="flex-1 border rounded-lg px-3 py-2 text-sm font-mono"
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!redeemCode.trim()) return;
+                      try {
+                        const res = await api.redeemReferral(token!, redeemCode.trim());
+                        setRedeemResult(res.reward);
+                        setRedeemCode("");
+                      } catch (err) {
+                        setRedeemResult((err as Error).message);
+                      }
+                    }}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700"
+                  >
+                    Redeem
+                  </button>
+                </div>
+                {redeemResult && (
+                  <p className="text-sm mt-2 text-green-600">{redeemResult}</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Integrations */}
