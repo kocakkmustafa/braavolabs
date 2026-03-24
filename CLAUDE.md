@@ -114,7 +114,7 @@ tenants, users, companies, agents, pipelines, runs, run_steps, tool_calls, appro
 - [x] Faz 1: Orchestrator API + Company Builder + Pipeline Runner + Claude Agent
 - [x] Faz 2: Memory Engine (episodic + semantic + graph)
 - [x] Faz 3: HubSpot CRM + Outreach Automation
-- [ ] Faz 4: Dashboard UI (Next.js)
+- [x] Faz 4: Dashboard UI (Next.js)
 - [ ] Faz 5: Stripe Billing + Usage Metering
 - [ ] Faz 6: Governance + Risk Detection + Eval Suite
 - [ ] Faz 7: OpenTelemetry + Observability

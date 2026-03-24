@@ -77,6 +77,81 @@ dashboardRouter.get("/usage", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /api/v1/dashboard/runs — recent runs list
+dashboardRouter.get("/runs", async (req, res, next) => {
+  try {
+    const tenantId = req.auth!.tenantId;
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const offset = Number(req.query.offset) || 0;
+
+    const runs = await prisma.run.findMany({
+      where: { pipeline: { company: { tenantId } } },
+      include: {
+        pipeline: { include: { company: { select: { id: true, name: true } } } },
+        _count: { select: { steps: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      skip: offset,
+    });
+
+    const total = await prisma.run.count({
+      where: { pipeline: { company: { tenantId } } },
+    });
+
+    res.json({ runs, total, limit, offset });
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/dashboard/activity — recent activity log
+dashboardRouter.get("/activity", async (req, res, next) => {
+  try {
+    const tenantId = req.auth!.tenantId;
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const offset = Number(req.query.offset) || 0;
+
+    const logs = await prisma.activityLog.findMany({
+      where: { tenantId },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      skip: offset,
+    });
+
+    const total = await prisma.activityLog.count({ where: { tenantId } });
+
+    res.json({ logs, total, limit, offset });
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/dashboard/risk-events — risk stops and anomalies from activity log
+dashboardRouter.get("/risk-events", async (req, res, next) => {
+  try {
+    const tenantId = req.auth!.tenantId;
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+
+    const events = await prisma.activityLog.findMany({
+      where: {
+        tenantId,
+        action: {
+          in: [
+            "governance.hard_stop",
+            "governance.loop_stop",
+            "governance.cost_anomaly_stop",
+            "governance.spam_stop",
+            "governance.brand_violation_stop",
+            "run.failed",
+            "run.stop",
+          ],
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
+
+    res.json(events);
+  } catch (err) { next(err); }
+});
+
 // GET /api/v1/dashboard/finance — cost summary
 dashboardRouter.get("/finance", async (req, res, next) => {
   try {
