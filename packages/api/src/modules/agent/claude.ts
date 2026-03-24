@@ -59,6 +59,36 @@ export function buildAnthropicTools(toolNames: string[]): Tool[] {
 }
 
 /**
+ * Retry a function with exponential backoff.
+ */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  baseDelayMs = 1000,
+): Promise<T> {
+  let lastError: Error | undefined;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      const isRetryable =
+        lastError.message.includes("overloaded") ||
+        lastError.message.includes("529") ||
+        lastError.message.includes("rate_limit") ||
+        lastError.message.includes("429") ||
+        lastError.message.includes("500") ||
+        lastError.message.includes("503");
+      if (!isRetryable || attempt === maxRetries) throw lastError;
+      const delay = baseDelayMs * Math.pow(2, attempt) + Math.random() * 500;
+      logger.warn({ attempt: attempt + 1, maxRetries, delayMs: delay }, "Retrying Claude API call");
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw lastError;
+}
+
+/**
  * Execute a single Claude API call with tool use.
  * Returns the response and any tool call results.
  */
@@ -69,13 +99,15 @@ async function executeTurn(
   model: string,
   maxTokens: number,
 ): Promise<AgentTurnResult> {
-  const response = await client.messages.create({
-    model,
-    max_tokens: maxTokens,
-    system: systemPrompt,
-    messages,
-    tools: tools.length > 0 ? tools : undefined,
-  });
+  const response = await withRetry(() =>
+    client.messages.create({
+      model,
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages,
+      tools: tools.length > 0 ? tools : undefined,
+    }),
+  );
 
   const inputTokens = response.usage.input_tokens;
   const outputTokens = response.usage.output_tokens;

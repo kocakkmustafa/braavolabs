@@ -96,3 +96,60 @@ draftRouter.patch("/:id", async (req, res, next) => {
     res.json(updated);
   } catch (err) { next(err); }
 });
+
+// POST /api/v1/drafts/:id/approve — approve and optionally send a draft
+draftRouter.post("/:id/approve", async (req, res, next) => {
+  try {
+    const draft = await prisma.draft.findUnique({
+      where: { id: req.params.id },
+      include: { company: true },
+    });
+    if (!draft || draft.company.tenantId !== req.auth!.tenantId) {
+      throw new AppError(404, "Draft not found");
+    }
+    if (draft.status !== "PENDING") {
+      throw new AppError(400, "Draft is not in PENDING status");
+    }
+
+    const { send } = z.object({ send: z.boolean().optional() }).parse(req.body ?? {});
+
+    const updated = await prisma.draft.update({
+      where: { id: draft.id },
+      data: {
+        status: send ? "PUBLISHED" : "APPROVED",
+        ...(send && { publishedAt: new Date() }),
+      },
+    });
+
+    // If send=true and it's an email draft, actually send it
+    if (send && draft.type === "EMAIL") {
+      try {
+        const { sendEmail } = await import("../../integrations/email");
+        const content = draft.content as { to?: string; subject?: string; body?: string };
+        if (content.to && content.subject && content.body) {
+          await sendEmail({
+            to: content.to,
+            subject: content.subject,
+            html: content.body,
+          });
+        }
+      } catch (emailErr) {
+        // Log but don't fail the approval
+        const { logger } = await import("../../lib/logger");
+        logger.error({ draftId: draft.id, error: emailErr }, "Failed to send draft email");
+      }
+    }
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: send ? "draft.publish" : "draft.approve",
+        resource: "draft",
+        resourceId: draft.id,
+      },
+    });
+
+    res.json(updated);
+  } catch (err) { next(err); }
+});

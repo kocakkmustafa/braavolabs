@@ -27,6 +27,7 @@ import { growthRouter } from "./modules/growth/router";
 import { authRouter } from "./modules/auth/auth.router";
 import { initPipelineRunner } from "./modules/pipeline/runner";
 import { initOutreachWorker } from "./modules/outreach/sequence-runner";
+import { initConsolidationCron, stopConsolidationCron } from "./modules/memory/consolidation-cron";
 
 // Import tool registry to trigger tool registration on startup
 import "./modules/agent/registry";
@@ -79,11 +80,15 @@ app.listen(env.API_PORT, env.API_HOST, () => {
 
   // Initialize outreach sequence worker
   initOutreachWorker();
+
+  // Initialize memory consolidation cron (daily)
+  initConsolidationCron();
 });
 
 // Graceful shutdown
 process.on("SIGTERM", async () => {
   logger.info("SIGTERM received — shutting down");
+  stopConsolidationCron();
   await shutdownTelemetry();
   process.exit(0);
 });

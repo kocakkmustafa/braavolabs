@@ -67,6 +67,9 @@ export default function DashboardPage() {
         <StatCard title="Pending Approvals" value={health?.pendingApprovals ?? "—"} color="yellow" />
       </div>
 
+      {/* Activity Timeline */}
+      <ActivityTimeline token={token} />
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold mb-4">Usage This Month</h2>
@@ -130,6 +133,53 @@ function StatCard({ title, value, color }: { title: string; value: string | numb
     <div className="bg-white rounded-lg shadow p-6">
       <p className="text-sm text-gray-500">{title}</p>
       <p className={`text-3xl font-bold mt-1 ${colorMap[color] ?? ""}`}>{value}</p>
+    </div>
+  );
+}
+
+function ActivityTimeline({ token }: { token: string }) {
+  const [logs, setLogs] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!token) return;
+    api.activityLog(token, 10, 0)
+      .then((data) => setLogs(data.logs ?? []))
+      .catch(() => {});
+  }, [token]);
+
+  if (logs.length === 0) return null;
+
+  const actionColors: Record<string, string> = {
+    "company.create": "text-blue-600",
+    "run.start": "text-green-600",
+    "run.stop": "text-red-600",
+    "draft.create": "text-purple-600",
+    "draft.publish": "text-indigo-600",
+    "contact.create": "text-teal-600",
+    "crm.sync": "text-orange-600",
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow p-6 mb-8">
+      <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
+      <div className="space-y-3">
+        {logs.map((log: any) => (
+          <div key={log.id} className="flex items-start gap-3">
+            <div className="w-2 h-2 mt-2 rounded-full bg-gray-400 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm">
+                <span className={`font-medium ${actionColors[log.action] ?? "text-gray-700"}`}>
+                  {log.action}
+                </span>
+                {log.resourceId && (
+                  <span className="text-gray-400 ml-2 text-xs">{log.resourceId.slice(0, 8)}...</span>
+                )}
+              </p>
+              <p className="text-xs text-gray-400">{new Date(log.createdAt).toLocaleString()}</p>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

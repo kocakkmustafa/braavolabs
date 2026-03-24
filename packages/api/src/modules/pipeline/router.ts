@@ -103,3 +103,74 @@ pipelineRouter.post("/:id/run", async (req, res, next) => {
     res.status(201).json({ ...run, jobId });
   } catch (err) { next(err); }
 });
+
+// GET /api/v1/pipelines/:id — get pipeline by ID
+pipelineRouter.get("/:id", async (req, res, next) => {
+  try {
+    const pipeline = await prisma.pipeline.findUnique({
+      where: { id: req.params.id },
+      include: { company: true, runs: { orderBy: { createdAt: "desc" }, take: 10 } },
+    });
+    if (!pipeline || pipeline.company.tenantId !== req.auth!.tenantId) {
+      throw new AppError(404, "Pipeline not found");
+    }
+    res.json(pipeline);
+  } catch (err) { next(err); }
+});
+
+// PATCH /api/v1/pipelines/:id — update pipeline
+pipelineRouter.patch("/:id", async (req, res, next) => {
+  try {
+    const pipeline = await prisma.pipeline.findUnique({
+      where: { id: req.params.id },
+      include: { company: true },
+    });
+    if (!pipeline || pipeline.company.tenantId !== req.auth!.tenantId) {
+      throw new AppError(404, "Pipeline not found");
+    }
+
+    const updated = await prisma.pipeline.update({
+      where: { id: pipeline.id },
+      data: req.body,
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "pipeline.update",
+        resource: "pipeline",
+        resourceId: pipeline.id,
+      },
+    });
+
+    res.json(updated);
+  } catch (err) { next(err); }
+});
+
+// DELETE /api/v1/pipelines/:id — delete pipeline
+pipelineRouter.delete("/:id", async (req, res, next) => {
+  try {
+    const pipeline = await prisma.pipeline.findUnique({
+      where: { id: req.params.id },
+      include: { company: true },
+    });
+    if (!pipeline || pipeline.company.tenantId !== req.auth!.tenantId) {
+      throw new AppError(404, "Pipeline not found");
+    }
+
+    await prisma.pipeline.delete({ where: { id: pipeline.id } });
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "pipeline.delete",
+        resource: "pipeline",
+        resourceId: pipeline.id,
+      },
+    });
+
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});

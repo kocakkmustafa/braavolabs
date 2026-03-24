@@ -28,6 +28,7 @@ export default function RootLayout({
               <NavLink href="/drafts">Drafts</NavLink>
               <NavLink href="/analytics">Analytics</NavLink>
               <NavLink href="/risks">Risks</NavLink>
+              <NavLink href="/errors">Errors</NavLink>
               <NavLink href="/settings">Settings</NavLink>
             </nav>
           </aside>

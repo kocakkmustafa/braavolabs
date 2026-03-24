@@ -142,4 +142,40 @@ export const api = {
     apiFetch<any>("/growth/blueprint/publish", { method: "POST", body: JSON.stringify({ companyId, ...data }), token }),
   cloneBlueprint: (token: string, slug: string, name?: string) =>
     apiFetch<any>(`/growth/blueprint/${slug}/clone`, { method: "POST", body: JSON.stringify({ name }), token }),
+
+  // Company — delete (archive)
+  archiveCompany: (token: string, id: string) =>
+    apiFetch<{ success: boolean }>(`/companies/${id}`, { method: "DELETE", token }),
+
+  // Company — activity timeline
+  companyActivity: (token: string, companyId: string, limit = 50, offset = 0) =>
+    apiFetch<{ logs: any[]; total: number }>(`/companies/${companyId}/activity?limit=${limit}&offset=${offset}`, { token }),
+
+  // Company — nested contacts & deals
+  companyContacts: (token: string, companyId: string) =>
+    apiFetch<any[]>(`/companies/${companyId}/contacts`, { token }),
+  companyDeals: (token: string, companyId: string) =>
+    apiFetch<any[]>(`/companies/${companyId}/deals`, { token }),
+
+  // Agents CRUD
+  listAgents: (token: string, companyId: string) =>
+    apiFetch<any[]>(`/companies/${companyId}/agents`, { token }),
+  createAgent: (token: string, companyId: string, data: { name: string; role: string; tools?: string[] }) =>
+    apiFetch<any>(`/companies/${companyId}/agents`, { method: "POST", body: JSON.stringify(data), token }),
+  updateAgent: (token: string, companyId: string, agentId: string, data: Record<string, unknown>) =>
+    apiFetch<any>(`/companies/${companyId}/agents/${agentId}`, { method: "PATCH", body: JSON.stringify(data), token }),
+  deleteAgent: (token: string, companyId: string, agentId: string) =>
+    apiFetch<{ success: boolean }>(`/companies/${companyId}/agents/${agentId}`, { method: "DELETE", token }),
+
+  // Pipeline CRUD
+  getPipeline: (token: string, id: string) =>
+    apiFetch<any>(`/pipelines/${id}`, { token }),
+  updatePipeline: (token: string, id: string, data: Record<string, unknown>) =>
+    apiFetch<any>(`/pipelines/${id}`, { method: "PATCH", body: JSON.stringify(data), token }),
+  deletePipeline: (token: string, id: string) =>
+    apiFetch<{ success: boolean }>(`/pipelines/${id}`, { method: "DELETE", token }),
+
+  // Draft approve/send
+  approveDraft: (token: string, id: string, send = false) =>
+    apiFetch<any>(`/drafts/${id}/approve`, { method: "POST", body: JSON.stringify({ send }), token }),
 };

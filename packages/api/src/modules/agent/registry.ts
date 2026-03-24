@@ -694,6 +694,299 @@ registerTool({
   },
 });
 
+registerTool({
+  name: "crm_search_contacts",
+  description: "Search contacts by name, email, or tags.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      companyId: { type: "string", description: "Company ID" },
+      query: { type: "string", description: "Search term (name, email, tag)" },
+      status: { type: "string", enum: ["LEAD", "MQL", "SQL", "CUSTOMER", "CHURNED"] },
+      limit: { type: "number", description: "Max results", default: 20 },
+    },
+    required: ["companyId", "query"],
+  },
+  meta: { requiresApproval: false, riskLevel: "low" },
+  handler: async (input) => {
+    const { companyId, query, status, limit } = input as any;
+    const contacts = await prisma.contact.findMany({
+      where: {
+        companyId,
+        ...(status && { status }),
+        OR: [
+          { name: { contains: query, mode: "insensitive" } },
+          { email: { contains: query, mode: "insensitive" } },
+          { tags: { has: query } },
+        ],
+      },
+      include: { deals: true },
+      take: limit ?? 20,
+      orderBy: { createdAt: "desc" },
+    });
+    return { query, count: contacts.length, contacts: contacts.map((c: any) => ({ id: c.id, name: c.name, email: c.email, status: c.status, dealCount: c.deals?.length ?? 0 })) };
+  },
+});
+
+registerTool({
+  name: "crm_update_contact",
+  description: "Update an existing contact's properties.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      contactId: { type: "string", description: "Contact ID" },
+      name: { type: "string" },
+      status: { type: "string", enum: ["LEAD", "MQL", "SQL", "CUSTOMER", "CHURNED"] },
+      tags: { type: "array", items: { type: "string" } },
+      properties: { type: "object", description: "Additional properties" },
+    },
+    required: ["contactId"],
+  },
+  meta: { requiresApproval: false, riskLevel: "low" },
+  handler: async (input) => {
+    const { contactId, ...updates } = input as any;
+    const contact = await prisma.contact.update({
+      where: { id: contactId },
+      data: updates,
+    });
+    return { contactId: contact.id, name: contact.name, status: contact.status };
+  },
+});
+
+// ─── SOCIAL MEDIA TOOLS ─────────────────────────────────
+
+registerTool({
+  name: "social_create_post",
+  description: "Create and optionally schedule a social media post. Saves as draft for review.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      companyId: { type: "string", description: "Company ID" },
+      platform: { type: "string", enum: ["tiktok", "linkedin", "twitter", "instagram"] },
+      content: { type: "string", description: "Post content text" },
+      hashtags: { type: "array", items: { type: "string" } },
+      scheduledAt: { type: "string", description: "ISO 8601 datetime for scheduling" },
+      mediaUrl: { type: "string", description: "Optional media attachment URL" },
+    },
+    required: ["companyId", "platform", "content"],
+  },
+  meta: { requiresApproval: false, riskLevel: "medium", rateLimit: 10 },
+  handler: async (input) => {
+    const { companyId, platform, content, hashtags, scheduledAt, mediaUrl } = input as any;
+    const draft = await prisma.draft.create({
+      data: {
+        companyId,
+        type: "SOCIAL_POST",
+        title: `${platform} post`,
+        content: { body: content, hashtags: hashtags ?? [], mediaUrl },
+        channel: platform,
+        status: "PENDING",
+        ...(scheduledAt && { scheduledAt: new Date(scheduledAt) }),
+      },
+    });
+    return { draftId: draft.id, platform, status: "PENDING", scheduledAt: scheduledAt ?? null };
+  },
+});
+
+registerTool({
+  name: "social_get_analytics",
+  description: "Get analytics/metrics for social media content performance.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      companyId: { type: "string", description: "Company ID" },
+      platform: { type: "string", enum: ["tiktok", "linkedin", "twitter", "instagram", "all"] },
+      periodDays: { type: "number", description: "Days to look back", default: 30 },
+    },
+    required: ["companyId"],
+  },
+  meta: { requiresApproval: false, riskLevel: "low" },
+  handler: async (input) => {
+    const { companyId, platform, periodDays } = input as any;
+    const since = new Date();
+    since.setDate(since.getDate() - (periodDays ?? 30));
+
+    const where: any = { companyId, type: "SOCIAL_POST", createdAt: { gte: since } };
+    if (platform && platform !== "all") where.channel = platform;
+
+    const [total, published, pending] = await Promise.all([
+      prisma.draft.count({ where }),
+      prisma.draft.count({ where: { ...where, status: "PUBLISHED" } }),
+      prisma.draft.count({ where: { ...where, status: "PENDING" } }),
+    ]);
+
+    return {
+      companyId,
+      platform: platform ?? "all",
+      period: `last ${periodDays ?? 30} days`,
+      posts: { total, published, pending },
+      note: "Platform-specific engagement metrics require API integration.",
+    };
+  },
+});
+
+// ─── CONTENT GENERATION TOOLS ───────────────────────────
+
+registerTool({
+  name: "content_generate",
+  description: "Generate content (blog, ad copy, video script) for a given topic and format.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      companyId: { type: "string", description: "Company ID" },
+      type: { type: "string", enum: ["BLOG_POST", "AD_COPY", "VIDEO_SCRIPT", "EMAIL"] },
+      topic: { type: "string", description: "Topic or brief" },
+      tone: { type: "string", enum: ["professional", "casual", "humorous", "inspirational"] },
+      language: { type: "string", default: "en" },
+      maxLength: { type: "number", description: "Approximate max word count" },
+    },
+    required: ["companyId", "type", "topic"],
+  },
+  meta: { requiresApproval: false, riskLevel: "low" },
+  handler: async (input) => {
+    const { companyId, type, topic, tone, language, maxLength } = input as any;
+    // Agent will generate the actual content. This tool signals intent and saves a placeholder draft.
+    const draft = await prisma.draft.create({
+      data: {
+        companyId,
+        type,
+        title: topic,
+        content: { topic, tone: tone ?? "professional", language: language ?? "en", maxLength, body: "" },
+        status: "PENDING",
+      },
+    });
+    return { draftId: draft.id, type, topic, status: "draft_created", note: "Agent should fill the body content in its response." };
+  },
+});
+
+registerTool({
+  name: "content_generate_image_prompt",
+  description: "Generate an image generation prompt for DALL-E, Midjourney, or similar tools.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      companyId: { type: "string", description: "Company ID" },
+      description: { type: "string", description: "What the image should depict" },
+      style: { type: "string", enum: ["photorealistic", "illustration", "3d", "minimal", "abstract"] },
+      aspectRatio: { type: "string", enum: ["1:1", "16:9", "9:16", "4:3"] },
+    },
+    required: ["companyId", "description"],
+  },
+  meta: { requiresApproval: false, riskLevel: "low" },
+  handler: async (input) => {
+    const { description, style, aspectRatio } = input as any;
+    return {
+      prompt: `${style ?? "photorealistic"} style, ${description}, aspect ratio ${aspectRatio ?? "1:1"}, high quality, professional`,
+      style: style ?? "photorealistic",
+      aspectRatio: aspectRatio ?? "1:1",
+      note: "Use this prompt with an image generation API.",
+    };
+  },
+});
+
+registerTool({
+  name: "proposal_generate",
+  description: "Generate a business proposal draft for a deal or partnership.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      companyId: { type: "string", description: "Company ID" },
+      dealId: { type: "string", description: "Associated deal ID" },
+      recipientName: { type: "string", description: "Recipient name/company" },
+      serviceDescription: { type: "string", description: "What service is being proposed" },
+      pricingTier: { type: "string", description: "Pricing information" },
+    },
+    required: ["companyId", "recipientName", "serviceDescription"],
+  },
+  meta: { requiresApproval: false, riskLevel: "medium" },
+  handler: async (input) => {
+    const { companyId, dealId, recipientName, serviceDescription, pricingTier } = input as any;
+    const draft = await prisma.draft.create({
+      data: {
+        companyId,
+        type: "EMAIL",
+        title: `Proposal for ${recipientName}`,
+        content: { recipientName, serviceDescription, pricingTier, dealId, body: "" },
+        channel: "email",
+        status: "PENDING",
+      },
+    });
+    return { draftId: draft.id, recipientName, status: "draft_created" };
+  },
+});
+
+// ─── SEARCH TOOLS ───────────────────────────────────────
+
+registerTool({
+  name: "web_search",
+  description: "Search the web for information relevant to a task. Returns summarized results.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      query: { type: "string", description: "Search query" },
+      maxResults: { type: "number", description: "Max results to return", default: 5 },
+    },
+    required: ["query"],
+  },
+  meta: { requiresApproval: false, riskLevel: "low", rateLimit: 10 },
+  handler: async (input) => {
+    const { query, maxResults } = input as any;
+    // In production, integrate with a search API (Serper, Brave, etc.)
+    return {
+      query,
+      results: [],
+      note: "Web search requires API integration (Serper/Brave). Agent should use its knowledge for now.",
+    };
+  },
+});
+
+registerTool({
+  name: "knowledge_base_search",
+  description: "Search the company's knowledge base and memory for relevant information.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      companyId: { type: "string", description: "Company ID" },
+      query: { type: "string", description: "Search query" },
+      types: { type: "array", items: { type: "string", enum: ["EPISODIC", "SEMANTIC", "PROCEDURAL"] } },
+      limit: { type: "number", default: 10 },
+    },
+    required: ["companyId", "query"],
+  },
+  meta: { requiresApproval: false, riskLevel: "low" },
+  handler: async (input) => {
+    const { companyId, query, types, limit } = input as any;
+    const where: any = {
+      companyId,
+      status: { in: ["CANDIDATE", "APPROVED"] },
+      content: { contains: query, mode: "insensitive" },
+    };
+    if (types?.length) where.type = { in: types };
+
+    const memories = await prisma.memoryItem.findMany({
+      where,
+      orderBy: [{ status: "desc" }, { confidence: "desc" }],
+      take: limit ?? 10,
+    });
+
+    // Also search drafts
+    const drafts = await prisma.draft.findMany({
+      where: {
+        companyId,
+        title: { contains: query, mode: "insensitive" },
+      },
+      take: 5,
+      orderBy: { createdAt: "desc" },
+    });
+
+    return {
+      query,
+      memories: memories.map((m: any) => ({ id: m.id, type: m.type, content: m.content, confidence: m.confidence })),
+      drafts: drafts.map((d: any) => ({ id: d.id, type: d.type, title: d.title })),
+    };
+  },
+});
+
 // ─── EMAIL TOOLS ────────────────────────────────────────
 
 registerTool({

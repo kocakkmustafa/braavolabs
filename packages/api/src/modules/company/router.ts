@@ -235,3 +235,211 @@ companyRouter.get("/build/:sessionId", async (req, res, next) => {
     });
   } catch (err) { next(err); }
 });
+
+// DELETE /api/v1/companies/:id — archive (soft-delete) a company
+companyRouter.delete("/:id", async (req, res, next) => {
+  try {
+    const result = await prisma.company.updateMany({
+      where: { id: req.params.id, tenantId: req.auth!.tenantId },
+      data: { status: "ARCHIVED" },
+    });
+    if (result.count === 0) throw new AppError(404, "Company not found");
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "company.archive",
+        resource: "company",
+        resourceId: req.params.id,
+      },
+    });
+
+    logger.info({ companyId: req.params.id }, "Company archived");
+    res.json({ success: true, status: "ARCHIVED" });
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/companies/:id/agents — list agents for a company
+companyRouter.get("/:id/agents", async (req, res, next) => {
+  try {
+    const company = await prisma.company.findFirst({
+      where: { id: req.params.id, tenantId: req.auth!.tenantId },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+
+    const agents = await prisma.agent.findMany({
+      where: { companyId: company.id },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json(agents);
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/companies/:id/agents — create agent for a company
+const agentCreateSchema = z.object({
+  name: z.string().min(1),
+  role: z.string().min(1),
+  systemPrompt: z.string().optional(),
+  tools: z.array(z.string()).optional(),
+  config: z.record(z.unknown()).optional(),
+});
+
+companyRouter.post("/:id/agents", async (req, res, next) => {
+  try {
+    const company = await prisma.company.findFirst({
+      where: { id: req.params.id, tenantId: req.auth!.tenantId },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+
+    const data = agentCreateSchema.parse(req.body);
+    const agent = await prisma.agent.create({
+      data: { ...data, companyId: company.id },
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "agent.create",
+        resource: "agent",
+        resourceId: agent.id,
+        details: { companyId: company.id, name: data.name, role: data.role },
+      },
+    });
+
+    res.status(201).json(agent);
+  } catch (err) { next(err); }
+});
+
+// PATCH /api/v1/companies/:companyId/agents/:agentId — update agent
+companyRouter.patch("/:companyId/agents/:agentId", async (req, res, next) => {
+  try {
+    const company = await prisma.company.findFirst({
+      where: { id: req.params.companyId, tenantId: req.auth!.tenantId },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+
+    const agent = await prisma.agent.findFirst({
+      where: { id: req.params.agentId, companyId: company.id },
+    });
+    if (!agent) throw new AppError(404, "Agent not found");
+
+    const updated = await prisma.agent.update({
+      where: { id: agent.id },
+      data: req.body,
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "agent.update",
+        resource: "agent",
+        resourceId: agent.id,
+      },
+    });
+
+    res.json(updated);
+  } catch (err) { next(err); }
+});
+
+// DELETE /api/v1/companies/:companyId/agents/:agentId — delete agent
+companyRouter.delete("/:companyId/agents/:agentId", async (req, res, next) => {
+  try {
+    const company = await prisma.company.findFirst({
+      where: { id: req.params.companyId, tenantId: req.auth!.tenantId },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+
+    const deleted = await prisma.agent.deleteMany({
+      where: { id: req.params.agentId, companyId: company.id },
+    });
+    if (deleted.count === 0) throw new AppError(404, "Agent not found");
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "agent.delete",
+        resource: "agent",
+        resourceId: req.params.agentId,
+      },
+    });
+
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/companies/:id/activity — company-specific activity timeline
+companyRouter.get("/:id/activity", async (req, res, next) => {
+  try {
+    const company = await prisma.company.findFirst({
+      where: { id: req.params.id, tenantId: req.auth!.tenantId },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const offset = Number(req.query.offset) || 0;
+
+    const logs = await prisma.activityLog.findMany({
+      where: {
+        tenantId: req.auth!.tenantId,
+        OR: [
+          { resourceId: company.id },
+          { details: { path: ["companyId"], equals: company.id } },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      skip: offset,
+    });
+
+    const total = await prisma.activityLog.count({
+      where: {
+        tenantId: req.auth!.tenantId,
+        OR: [
+          { resourceId: company.id },
+          { details: { path: ["companyId"], equals: company.id } },
+        ],
+      },
+    });
+
+    res.json({ logs, total, limit, offset });
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/companies/:id/contacts — company contacts (nested route)
+companyRouter.get("/:id/contacts", async (req, res, next) => {
+  try {
+    const company = await prisma.company.findFirst({
+      where: { id: req.params.id, tenantId: req.auth!.tenantId },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+
+    const contacts = await prisma.contact.findMany({
+      where: { companyId: company.id },
+      include: { deals: true },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+    res.json(contacts);
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/companies/:id/deals — company deals (nested route)
+companyRouter.get("/:id/deals", async (req, res, next) => {
+  try {
+    const company = await prisma.company.findFirst({
+      where: { id: req.params.id, tenantId: req.auth!.tenantId },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+
+    const deals = await prisma.deal.findMany({
+      where: { companyId: company.id },
+      include: { contact: true },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json(deals);
+  } catch (err) { next(err); }
+});
