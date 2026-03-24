@@ -12,7 +12,9 @@
   "dependencies": {
     "@ai-company-os/core": "workspace:*",
     "@ai-company-os/db": "workspace:*",
-    "@prisma/client": "^6.3.0"
+    "@prisma/client": "^6.3.0",
+    "@anthropic-ai/sdk": "^0.39.0",
+    "pino": "^9.6.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
