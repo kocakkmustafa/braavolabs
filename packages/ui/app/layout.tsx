@@ -22,6 +22,7 @@ export default function RootLayout({
             </div>
             <nav className="flex-1 p-4 space-y-1">
               <NavLink href="/">Dashboard</NavLink>
+              <NavLink href="/onboarding">Get Started</NavLink>
               <NavLink href="/companies">Companies</NavLink>
               <NavLink href="/approvals">Approvals</NavLink>
               <NavLink href="/drafts">Drafts</NavLink>

@@ -94,4 +94,14 @@ export const api = {
     apiFetch<{ url: string }>("/billing/checkout", { method: "POST", body: JSON.stringify({ plan }), token }),
   billingPortal: (token: string) =>
     apiFetch<{ url: string }>("/billing/portal", { method: "POST", token }),
+
+  // Onboarding
+  onboardingStatus: (token: string) =>
+    apiFetch<{
+      completed: boolean;
+      progress: number;
+      steps: Record<string, boolean>;
+    }>("/onboarding/status", { token }),
+  createHeroCompany: (token: string, data: { companyName?: string; niche?: string; targetAudience?: string }) =>
+    apiFetch<any>("/onboarding/hero-company", { method: "POST", body: JSON.stringify(data), token }),
 };

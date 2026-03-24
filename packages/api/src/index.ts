@@ -22,6 +22,7 @@ import { outreachRouter } from "./modules/outreach/router";
 import { webhookRouter } from "./modules/webhook/router";
 import { billingRouter, stripeWebhookRouter } from "./modules/billing/router";
 import { governanceRouter } from "./modules/governance/router";
+import { onboardingRouter } from "./modules/onboarding/router";
 import { initPipelineRunner } from "./modules/pipeline/runner";
 
 // Import tool registry to trigger tool registration on startup
@@ -54,6 +55,7 @@ api.use("/crm", crmRouter);
 api.use("/outreach", outreachRouter);
 api.use("/billing", billingRouter);
 api.use("/governance", governanceRouter);
+api.use("/onboarding", onboardingRouter);
 
 app.use("/api/v1", api);
 

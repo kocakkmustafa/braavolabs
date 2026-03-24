@@ -1,7 +1,8 @@
 /**
  * TikTok API Client — Faz 8
  *
- * Content publishing for TikTok (hero company channel).
+ * Content publishing and metrics for TikTok.
+ * Uses TikTok Content Posting API v2.
  */
 
 export interface TikTokConfig {
@@ -10,19 +11,106 @@ export interface TikTokConfig {
   accessToken: string;
 }
 
+const TIKTOK_API_BASE = "https://open.tiktokapis.com/v2";
+
+/**
+ * Initiate a video upload to TikTok.
+ * Returns a publish_id to track the upload status.
+ */
 export async function publishVideo(
-  _config: TikTokConfig,
-  _videoUrl: string,
-  _caption: string,
-): Promise<{ postId: string }> {
-  // TODO: Faz 8
-  throw new Error("Not implemented — Faz 8");
+  config: TikTokConfig,
+  videoUrl: string,
+  caption: string,
+): Promise<{ postId: string; publishId: string }> {
+  const res = await fetch(`${TIKTOK_API_BASE}/post/publish/video/init/`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      post_info: {
+        title: caption.slice(0, 150),
+        privacy_level: "PUBLIC_TO_EVERYONE",
+        disable_duet: false,
+        disable_comment: false,
+        disable_stitch: false,
+      },
+      source_info: {
+        source: "PULL_FROM_URL",
+        video_url: videoUrl,
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(`TikTok publish failed: ${err?.error?.message ?? res.status}`);
+  }
+
+  const data = await res.json();
+  return {
+    postId: data.data?.publish_id ?? "",
+    publishId: data.data?.publish_id ?? "",
+  };
 }
 
+/**
+ * Check the status of a video publish.
+ */
+export async function getPublishStatus(
+  config: TikTokConfig,
+  publishId: string,
+): Promise<{ status: string; postId?: string }> {
+  const res = await fetch(`${TIKTOK_API_BASE}/post/publish/status/fetch/`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ publish_id: publishId }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`TikTok status check failed: ${res.status}`);
+  }
+
+  const data = await res.json();
+  return {
+    status: data.data?.status ?? "UNKNOWN",
+    postId: data.data?.publicaly_available_post_id?.[0],
+  };
+}
+
+/**
+ * Get basic metrics for a video (views, likes, comments, shares).
+ */
 export async function getVideoMetrics(
-  _config: TikTokConfig,
-  _postId: string,
+  config: TikTokConfig,
+  postId: string,
 ): Promise<Record<string, number>> {
-  // TODO: Faz 8
-  throw new Error("Not implemented — Faz 8");
+  const res = await fetch(`${TIKTOK_API_BASE}/video/query/`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      filters: { video_ids: [postId] },
+      fields: ["view_count", "like_count", "comment_count", "share_count"],
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`TikTok metrics fetch failed: ${res.status}`);
+  }
+
+  const data = await res.json();
+  const video = data.data?.videos?.[0];
+  return {
+    views: video?.view_count ?? 0,
+    likes: video?.like_count ?? 0,
+    comments: video?.comment_count ?? 0,
+    shares: video?.share_count ?? 0,
+  };
 }
