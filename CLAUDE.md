@@ -85,6 +85,11 @@ tenants, users, companies, agents, pipelines, runs, run_steps, tool_calls, appro
 - `/api/v1/drafts` — taslak yönetimi
 - `/api/v1/dashboard/*` — health, usage, finance
 - `/api/v1/billing/usage` — kullanım metering
+- `/api/v1/auth/register` — kullanıcı kayıt
+- `/api/v1/auth/login` — kullanıcı giriş
+- `/api/v1/run-steps/:id/rerun` — step tekrar çalıştır
+- `/api/v1/growth/pql` — PQL skoru
+- `/api/v1/growth/blueprint/*` — blueprint paylaşımı (publish, list, clone)
 - `/hooks/:company_slug/:event` — webhook handler
 
 ## Kritik Kurallar (BUNLARA UYULMALI)
@@ -121,3 +126,5 @@ tenants, users, companies, agents, pipelines, runs, run_steps, tool_calls, appro
 - [x] Faz 8: Free Plan Onboarding (Hero Company)
 - [x] Faz 9: Referral + Growth Engine
 - [x] Faz 10: Self-Hosted + CI/CD
+- [x] Faz 11: Auth + Context Builder + Tool Executor + Outreach Runner + UI Pages
+- [x] Faz 12: PQL Scoring + Blueprint Sharing + Model Graders + Kanban Board
