@@ -26,6 +26,16 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
 
 // Typed API helpers
 export const api = {
+  // Auth
+  login: (email: string, password: string) =>
+    apiFetch<{ token: string; user: any; tenant: any }>("/auth/login", {
+      method: "POST", body: JSON.stringify({ email, password }),
+    }),
+  register: (data: { email: string; password: string; name: string; tenantName: string; ref?: string }) =>
+    apiFetch<{ token: string; user: any; tenant: any }>("/auth/register", {
+      method: "POST", body: JSON.stringify(data),
+    }),
+
   // Dashboard
   health: (token: string) => apiFetch<{
     status: string; activeCompanies: number; activeRuns: number; pendingApprovals: number;

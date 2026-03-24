@@ -16,6 +16,8 @@ const envSchema = z.object({
   STRIPE_PRO_PRICE_ID: z.string().optional(),
   STRIPE_ENTERPRISE_PRICE_ID: z.string().optional(),
   APP_URL: z.string().default("http://localhost:3000"),
+  SENDGRID_API_KEY: z.string().optional(),
+  SENDGRID_FROM_EMAIL: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);

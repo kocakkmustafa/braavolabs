@@ -24,7 +24,9 @@ import { billingRouter, stripeWebhookRouter } from "./modules/billing/router";
 import { governanceRouter } from "./modules/governance/router";
 import { onboardingRouter } from "./modules/onboarding/router";
 import { growthRouter } from "./modules/growth/router";
+import { authRouter } from "./modules/auth/auth.router";
 import { initPipelineRunner } from "./modules/pipeline/runner";
+import { initOutreachWorker } from "./modules/outreach/sequence-runner";
 
 // Import tool registry to trigger tool registration on startup
 import "./modules/agent/registry";
@@ -45,6 +47,7 @@ app.get("/health", (_req, res) => {
 
 // API routes
 const api = express.Router();
+api.use("/auth", authRouter);
 api.use("/companies", companyRouter);
 api.use("/pipelines", pipelineRouter);
 api.use("/runs", runRouter);
@@ -73,6 +76,9 @@ app.listen(env.API_PORT, env.API_HOST, () => {
 
   // Initialize pipeline runner (BullMQ worker)
   initPipelineRunner();
+
+  // Initialize outreach sequence worker
+  initOutreachWorker();
 });
 
 // Graceful shutdown

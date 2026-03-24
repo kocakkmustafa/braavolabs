@@ -20,12 +20,12 @@ export default function CompaniesPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Companies</h1>
-        <button
-          onClick={() => setShowBuilder(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+        <a
+          href="/companies/new"
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 inline-block"
         >
           + New Company
-        </button>
+        </a>
       </div>
 
       {showBuilder && (
@@ -62,7 +62,7 @@ function CompanyCard({ company }: { company: any }) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+    <a href={`/companies/${company.id}`} className="block bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between mb-2">
         <h3 className="font-semibold text-lg">{company.name}</h3>
         <span className={`text-xs px-2 py-1 rounded-full ${statusColors[company.status] ?? ""}`}>
@@ -77,7 +77,7 @@ function CompanyCard({ company }: { company: any }) {
           </span>
         ))}
       </div>
-    </div>
+    </a>
   );
 }
 

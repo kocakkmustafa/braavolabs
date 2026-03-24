@@ -1,11 +1,18 @@
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 
+export interface ToolMeta {
+  requiresApproval: boolean;
+  riskLevel: "low" | "medium" | "high";
+  rateLimit?: number; // max calls per minute
+}
+
 export interface ToolDefinition {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
   handler: (input: unknown) => Promise<unknown>;
+  meta?: ToolMeta;
 }
 
 const toolRegistry = new Map<string, ToolDefinition>();
@@ -17,6 +24,10 @@ export function registerTool(tool: ToolDefinition) {
 
 export function getTool(name: string): ToolDefinition | undefined {
   return toolRegistry.get(name);
+}
+
+export function getToolMeta(name: string): ToolMeta | undefined {
+  return toolRegistry.get(name)?.meta;
 }
 
 export function getToolNames(): string[] {
@@ -488,6 +499,154 @@ registerTool({
       promoted: promoted.count,
       deprecated: deprecated.count,
     };
+  },
+});
+
+// ─── CRM TOOLS ──────────────────────────────────────────
+
+registerTool({
+  name: "crm_create_contact",
+  description: "Create a new contact in the CRM (HubSpot + internal DB).",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      companyId: { type: "string", description: "Company ID" },
+      name: { type: "string", description: "Contact full name" },
+      email: { type: "string", description: "Contact email" },
+      source: { type: "string", description: "Lead source (landing_form, linkedin, email)" },
+      properties: { type: "object", description: "Additional properties" },
+    },
+    required: ["companyId", "name", "email"],
+  },
+  meta: { requiresApproval: false, riskLevel: "low", rateLimit: 30 },
+  handler: async (input) => {
+    const { companyId, name, email, source, properties } = input as any;
+    const contact = await prisma.contact.create({
+      data: { companyId, name, email, source: source ?? "agent", status: "LEAD", properties: properties ?? {} },
+    });
+    return { contactId: contact.id, name, email, status: "LEAD" };
+  },
+});
+
+registerTool({
+  name: "crm_create_deal",
+  description: "Create a new deal in the sales pipeline.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      companyId: { type: "string", description: "Company ID" },
+      contactId: { type: "string", description: "Contact ID" },
+      title: { type: "string", description: "Deal title" },
+      valueUsd: { type: "number", description: "Deal value in USD" },
+      stage: { type: "string", enum: ["LEAD", "QUALIFIED", "PROPOSAL_SENT", "NEGOTIATION", "CLOSED_WON", "CLOSED_LOST"] },
+    },
+    required: ["companyId", "contactId", "title"],
+  },
+  meta: { requiresApproval: false, riskLevel: "medium" },
+  handler: async (input) => {
+    const { companyId, contactId, title, valueUsd, stage } = input as any;
+    const deal = await prisma.deal.create({
+      data: { companyId, contactId, title, valueUsd: valueUsd ?? 0, stage: stage ?? "LEAD", properties: {} },
+    });
+    return { dealId: deal.id, title, stage: deal.stage };
+  },
+});
+
+registerTool({
+  name: "crm_update_deal_stage",
+  description: "Update a deal's pipeline stage.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      dealId: { type: "string", description: "Deal ID" },
+      stage: { type: "string", enum: ["LEAD", "QUALIFIED", "PROPOSAL_SENT", "NEGOTIATION", "CLOSED_WON", "CLOSED_LOST"] },
+      reason: { type: "string", description: "Why this stage change" },
+    },
+    required: ["dealId", "stage", "reason"],
+  },
+  meta: { requiresApproval: false, riskLevel: "low" },
+  handler: async (input) => {
+    const { dealId, stage, reason } = input as any;
+    const deal = await prisma.deal.update({ where: { id: dealId }, data: { stage } });
+    logger.info({ dealId, stage, reason }, "Deal stage updated");
+    return { dealId, stage, reason };
+  },
+});
+
+// ─── EMAIL TOOLS ────────────────────────────────────────
+
+registerTool({
+  name: "email_send",
+  description: "Send an email to a contact. Creates a draft by default for review.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      companyId: { type: "string", description: "Company ID" },
+      to: { type: "string", description: "Recipient email" },
+      subject: { type: "string", description: "Email subject" },
+      body: { type: "string", description: "Email body (HTML)" },
+      mode: { type: "string", enum: ["draft", "send"], description: "Send immediately or save as draft" },
+    },
+    required: ["companyId", "to", "subject", "body"],
+  },
+  meta: { requiresApproval: false, riskLevel: "medium", rateLimit: 10 },
+  handler: async (input) => {
+    const { companyId, to, subject, body, mode } = input as any;
+    // Always create a draft first
+    const draft = await prisma.draft.create({
+      data: {
+        companyId,
+        type: "EMAIL",
+        title: subject,
+        content: { to, subject, body },
+        channel: "email",
+        status: mode === "send" ? "APPROVED" : "PENDING",
+      },
+    });
+    return { draftId: draft.id, status: draft.status, to, subject };
+  },
+});
+
+registerTool({
+  name: "email_send_sequence",
+  description: "Enroll a contact in an outreach sequence.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      sequenceId: { type: "string", description: "Outreach sequence ID" },
+      contactId: { type: "string", description: "Contact ID" },
+    },
+    required: ["sequenceId", "contactId"],
+  },
+  meta: { requiresApproval: false, riskLevel: "medium", rateLimit: 5 },
+  handler: async (input) => {
+    const { sequenceId, contactId } = input as any;
+    const enrollment = await prisma.outreachEnrollment.create({
+      data: { sequenceId, contactId, currentStep: 0, status: "ACTIVE" },
+    });
+    return { enrollmentId: enrollment.id, status: "ACTIVE" };
+  },
+});
+
+// ─── SPEND TOOLS (require approval) ────────────────────
+
+registerTool({
+  name: "ad_spend",
+  description: "Allocate budget for paid advertising. Requires human approval.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      companyId: { type: "string", description: "Company ID" },
+      platform: { type: "string", enum: ["google_ads", "meta_ads", "linkedin_ads", "tiktok_ads"] },
+      budgetUsd: { type: "number", description: "Budget in USD" },
+      campaign: { type: "string", description: "Campaign description" },
+    },
+    required: ["companyId", "platform", "budgetUsd", "campaign"],
+  },
+  meta: { requiresApproval: true, riskLevel: "high" },
+  handler: async (input) => {
+    // This will be caught by the approval gate in tool-executor
+    return { status: "approved_and_executed", ...(input as object) };
   },
 });
 

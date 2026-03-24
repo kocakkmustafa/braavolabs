@@ -130,3 +130,66 @@ runRouter.post("/steps/:id/rollback", async (req, res, next) => {
     res.json({ success: true, status: "ROLLED_BACK" });
   } catch (err) { next(err); }
 });
+
+// POST /api/v1/run-steps/:id/rerun — re-execute a failed/rolled-back step
+runRouter.post("/steps/:id/rerun", async (req, res, next) => {
+  try {
+    const step = await prisma.runStep.findUnique({
+      where: { id: req.params.id },
+      include: { run: { include: { pipeline: { include: { company: true } } } } },
+    });
+    if (!step || step.run.pipeline.company.tenantId !== req.auth!.tenantId) {
+      throw new AppError(404, "Run step not found");
+    }
+    if (step.status !== "FAILED" && step.status !== "ROLLED_BACK") {
+      throw new AppError(400, "Only FAILED or ROLLED_BACK steps can be rerun");
+    }
+
+    // Reset step status to RUNNING
+    await prisma.runStep.update({
+      where: { id: step.id },
+      data: {
+        status: "RUNNING",
+        error: null,
+        startedAt: new Date(),
+        completedAt: null,
+      },
+    });
+
+    // Import and execute the step
+    const { executeStep } = await import("../pipeline/executor");
+    const stepDef = {
+      name: step.name,
+      agentRole: step.name, // Will be resolved from pipeline steps
+      order: step.stepIndex,
+    };
+
+    // Get the pipeline step definition for agentRole
+    const pipeline = step.run.pipeline;
+    const pipelineSteps = pipeline.steps as Array<{ name: string; agentRole: string; order: number }>;
+    const matchingStep = pipelineSteps.find((s) => s.name === step.name || s.order === step.stepIndex);
+    if (matchingStep) {
+      stepDef.agentRole = matchingStep.agentRole;
+    }
+
+    const result = await executeStep(
+      step.runId,
+      stepDef,
+      step.stepIndex,
+      step.input,
+    );
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "run_step.rerun",
+        resource: "run_step",
+        resourceId: step.id,
+        details: { runId: step.runId, result: result.status },
+      },
+    });
+
+    res.json(result);
+  } catch (err) { next(err); }
+});
