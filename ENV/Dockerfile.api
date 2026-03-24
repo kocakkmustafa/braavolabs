@@ -19,6 +19,8 @@ COPY --from=deps /app/packages/*/node_modules ./packages/*/node_modules
 COPY . .
 RUN pnpm --filter @ai-company-os/db exec prisma generate
 RUN pnpm --filter @ai-company-os/core build
+RUN pnpm --filter @ai-company-os/memory build
+RUN pnpm --filter @ai-company-os/integrations build
 RUN pnpm --filter @ai-company-os/api build
 
 # Production
@@ -26,10 +28,15 @@ FROM base AS runner
 ENV NODE_ENV=production
 COPY --from=build /app/packages/api/dist ./packages/api/dist
 COPY --from=build /app/packages/core/dist ./packages/core/dist
+COPY --from=build /app/packages/memory/dist ./packages/memory/dist
+COPY --from=build /app/packages/integrations/dist ./packages/integrations/dist
 COPY --from=build /app/packages/db/prisma ./packages/db/prisma
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/packages/*/node_modules ./packages/*/node_modules
 COPY --from=build /app/package.json ./
+COPY --from=build /app/packages/*/package.json ./packages/*/
 
 EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD wget -q --spider http://localhost:8080/health || exit 1
 CMD ["node", "packages/api/dist/index.js"]

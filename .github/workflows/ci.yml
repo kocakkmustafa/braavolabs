@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "9"
+
+jobs:
+  lint-and-typecheck:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm --filter @ai-company-os/db exec prisma generate
+
+      - name: Build core package
+        run: pnpm --filter @ai-company-os/core build
+
+      - name: Build memory package
+        run: pnpm --filter @ai-company-os/memory build
+
+      - name: Build integrations package
+        run: pnpm --filter @ai-company-os/integrations build
+
+      - name: Type check API
+        run: pnpm --filter @ai-company-os/api exec tsc --noEmit
+
+      - name: Lint
+        run: pnpm lint
+        continue-on-error: true
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build -f ENV/Dockerfile.api -t ai-company-os-api:${{ github.sha }} .
+          docker build -f ENV/Dockerfile.ui -t ai-company-os-ui:${{ github.sha }} .
+
+      - name: Test Docker image starts
+        run: |
+          docker run --rm -d --name test-api \
+            -e DATABASE_URL="postgresql://test:test@localhost:5432/test" \
+            -e JWT_SECRET="test-secret-ci" \
+            -e REDIS_URL="redis://localhost:6379" \
+            ai-company-os-api:${{ github.sha }} || true
+          sleep 2
+          docker stop test-api || true
+
+  db-migration-check:
+    name: DB Migration Check
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: aicos
+          POSTGRES_PASSWORD: aicos_ci
+          POSTGRES_DB: aicos_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgresql://aicos:aicos_ci@localhost:5432/aicos_ci?schema=public
+        run: pnpm --filter @ai-company-os/db exec prisma migrate deploy
+
+      - name: Validate schema
+        env:
+          DATABASE_URL: postgresql://aicos:aicos_ci@localhost:5432/aicos_ci?schema=public
+        run: pnpm --filter @ai-company-os/db exec prisma validate

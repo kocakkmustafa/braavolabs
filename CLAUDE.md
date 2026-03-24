@@ -120,4 +120,4 @@ tenants, users, companies, agents, pipelines, runs, run_steps, tool_calls, appro
 - [x] Faz 7: OpenTelemetry + Observability
 - [x] Faz 8: Free Plan Onboarding (Hero Company)
 - [x] Faz 9: Referral + Growth Engine
-- [ ] Faz 10: Self-Hosted + CI/CD
+- [x] Faz 10: Self-Hosted + CI/CD
