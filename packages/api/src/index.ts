@@ -1,3 +1,7 @@
+// OpenTelemetry must be initialized before other imports
+import { initTelemetry, shutdownTelemetry } from "./lib/telemetry";
+initTelemetry();
+
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -65,6 +69,13 @@ app.listen(env.API_PORT, env.API_HOST, () => {
 
   // Initialize pipeline runner (BullMQ worker)
   initPipelineRunner();
+});
+
+// Graceful shutdown
+process.on("SIGTERM", async () => {
+  logger.info("SIGTERM received — shutting down");
+  await shutdownTelemetry();
+  process.exit(0);
 });
 
 export default app;

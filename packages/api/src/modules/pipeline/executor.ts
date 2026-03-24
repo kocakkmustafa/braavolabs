@@ -2,7 +2,7 @@ import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { runAgentLoop, type AgentLoopResult } from "../agent/claude";
 import { AppError } from "../../middleware/error";
-import { DEFAULT_GOVERNANCE_CONFIG } from "@ai-company-os/core";
+import { withSpan, toolCallCounter, stepDurationHistogram } from "../../lib/telemetry";
 
 interface StepDef {
   name: string;
@@ -91,6 +91,8 @@ export async function executeStep(
 
     // Log all tool calls
     const toolCallIds = await logToolCalls(runStep.id, result);
+    toolCallCounter.add(toolCallIds.length, { step: stepDef.name });
+    stepDurationHistogram.record(Date.now() - runStep.startedAt!.getTime(), { step: stepDef.name });
 
     // Update run step
     await prisma.runStep.update({

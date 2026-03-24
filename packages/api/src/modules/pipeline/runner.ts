@@ -4,6 +4,15 @@ import { logger } from "../../lib/logger";
 import { runQueue, createWorker } from "../../lib/queue";
 import { executeStep, checkGovernance } from "./executor";
 import { incrementMeter, checkQuota } from "../billing/metering";
+import {
+  withSpan,
+  runCounter,
+  runCompletedCounter,
+  runFailedCounter,
+  runDurationHistogram,
+  runCostHistogram,
+  governanceStopCounter,
+} from "../../lib/telemetry";
 
 interface RunJobData {
   runId: string;
@@ -21,8 +30,10 @@ interface RunJobData {
  */
 async function processRun(job: Job<RunJobData>): Promise<void> {
   const { runId } = job.data;
+  const runStartTime = Date.now();
 
   logger.info({ runId, jobId: job.id }, "Pipeline run started");
+  runCounter.add(1, { runId });
 
   // Load run with pipeline and company
   const run = await prisma.run.findUnique({
@@ -115,6 +126,7 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
     // Check governance rules
     const governance = await checkGovernance(runId, totalCost);
     if (!governance.allowed) {
+      governanceStopCounter.add(1, { reason: governance.reason ?? "unknown" });
       logger.warn({ runId, reason: governance.reason }, "Governance stop triggered");
 
       await prisma.run.update({
@@ -213,8 +225,18 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
     },
   });
 
+  // Record metrics
+  const runDuration = Date.now() - runStartTime;
+  runDurationHistogram.record(runDuration, { status: failed ? "FAILED" : "COMPLETED" });
+  runCostHistogram.record(totalCost, { runId });
+  if (failed) {
+    runFailedCounter.add(1, { runId });
+  } else {
+    runCompletedCounter.add(1, { runId });
+  }
+
   logger.info(
-    { runId, status: failed ? "FAILED" : "COMPLETED", totalCost },
+    { runId, status: failed ? "FAILED" : "COMPLETED", totalCost, durationMs: runDuration },
     "Pipeline run finished",
   );
 }
