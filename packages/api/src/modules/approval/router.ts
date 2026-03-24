@@ -14,7 +14,7 @@ approvalRouter.get("/", async (req, res, next) => {
     const approvals = await prisma.approval.findMany({
       where: {
         run: { pipeline: { company: { tenantId: req.auth!.tenantId } } },
-        status: status as string,
+        status: status as any,
       },
       include: {
         run: { include: { pipeline: { include: { company: true } } } },

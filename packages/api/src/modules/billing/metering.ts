@@ -7,8 +7,8 @@
 
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
-import { PLAN_LIMITS } from "@ai-company-os/core/constants/plans";
-import type { Plan } from "@ai-company-os/core/types/billing";
+import { PLAN_LIMITS } from "@ai-company-os/core";
+import type { Plan } from "@ai-company-os/core";
 
 /**
  * Increment a usage meter for the current billing period.

@@ -133,7 +133,7 @@ outreachRouter.get("/enrollments", async (req, res, next) => {
     const enrollments = await prisma.outreachEnrollment.findMany({
       where: {
         sequenceId: sequenceId as string,
-        ...(status && { status: status as string }),
+        ...(status && { status: status as any }),
         sequence: { company: { tenantId: req.auth!.tenantId } },
       },
       include: { contact: true },

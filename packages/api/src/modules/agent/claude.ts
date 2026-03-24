@@ -53,7 +53,7 @@ export function buildAnthropicTools(toolNames: string[]): Tool[] {
         name: tool.name,
         description: tool.description,
         input_schema: tool.inputSchema as Tool["input_schema"],
-      };
+      } as Tool;
     })
     .filter((t): t is Tool => t !== null);
 }

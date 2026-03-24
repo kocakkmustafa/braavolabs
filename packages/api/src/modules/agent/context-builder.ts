@@ -141,7 +141,7 @@ async function fetchRecentMemories(companyId: string) {
 
 async function fetchRecentActivity(companyId: string) {
   return prisma.activityLog.findMany({
-    where: { companyId },
+    where: { resourceId: companyId },
     orderBy: { createdAt: "desc" },
     take: 10,
     select: {

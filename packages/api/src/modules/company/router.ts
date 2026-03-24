@@ -63,7 +63,7 @@ companyRouter.post("/", async (req, res, next) => {
   try {
     const data = createSchema.parse(req.body);
     const company = await prisma.company.create({
-      data: { ...data, tenantId: req.auth!.tenantId },
+      data: { ...data, config: data.config as any, tenantId: req.auth!.tenantId },
     });
 
     await prisma.activityLog.create({
@@ -294,7 +294,13 @@ companyRouter.post("/:id/agents", async (req, res, next) => {
 
     const data = agentCreateSchema.parse(req.body);
     const agent = await prisma.agent.create({
-      data: { ...data, companyId: company.id },
+      data: {
+        companyId: company.id,
+        name: data.name,
+        role: data.role,
+        systemPrompt: data.systemPrompt ?? "",
+        tools: (data.tools ?? []) as any,
+      },
     });
 
     await prisma.activityLog.create({

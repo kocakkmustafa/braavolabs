@@ -16,7 +16,7 @@ let _stripe: Stripe | null = null;
 
 function getStripe(config: StripeConfig): Stripe {
   if (!_stripe) {
-    _stripe = new Stripe(config.secretKey, { apiVersion: "2024-12-18.acacia" });
+    _stripe = new Stripe(config.secretKey, { apiVersion: "2025-02-24.acacia" });
   }
   return _stripe;
 }

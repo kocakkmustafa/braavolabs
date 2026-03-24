@@ -29,7 +29,7 @@ draftRouter.get("/", async (req, res, next) => {
     const drafts = await prisma.draft.findMany({
       where: {
         companyId: company.id,
-        ...(status && { status: status as string }),
+        ...(status && { status: status as any }),
       },
       orderBy: { createdAt: "desc" },
     });
@@ -49,6 +49,8 @@ draftRouter.post("/", async (req, res, next) => {
     const draft = await prisma.draft.create({
       data: {
         ...data,
+        content: data.content as any,
+        metadata: data.metadata as any,
         scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : undefined,
       },
     });
@@ -130,7 +132,7 @@ draftRouter.post("/:id/approve", async (req, res, next) => {
           await sendEmail({
             to: content.to,
             subject: content.subject,
-            html: content.body,
+            body: content.body,
           });
         }
       } catch (emailErr) {

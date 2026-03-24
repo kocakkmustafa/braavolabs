@@ -643,9 +643,9 @@ registerTool({
   handler: async (input) => {
     const { companyId, name, email, source, properties } = input as any;
     const contact = await prisma.contact.create({
-      data: { companyId, name, email, source: source ?? "agent", status: "LEAD", properties: properties ?? {} },
+      data: { companyId, name, email, properties: { source: source ?? "agent", ...(properties ?? {}) } as any },
     });
-    return { contactId: contact.id, name, email, status: "LEAD" };
+    return { contactId: contact.id, name, email };
   },
 });
 
@@ -667,7 +667,7 @@ registerTool({
   handler: async (input) => {
     const { companyId, contactId, title, valueUsd, stage } = input as any;
     const deal = await prisma.deal.create({
-      data: { companyId, contactId, title, valueUsd: valueUsd ?? 0, stage: stage ?? "LEAD", properties: {} },
+      data: { companyId, contactId, title, amountUsd: valueUsd ?? 0, stage: stage ?? "lead", properties: {} },
     });
     return { dealId: deal.id, title, stage: deal.stage };
   },
@@ -713,7 +713,6 @@ registerTool({
     const contacts = await prisma.contact.findMany({
       where: {
         companyId,
-        ...(status && { status }),
         OR: [
           { name: { contains: query, mode: "insensitive" } },
           { email: { contains: query, mode: "insensitive" } },
@@ -724,7 +723,7 @@ registerTool({
       take: limit ?? 20,
       orderBy: { createdAt: "desc" },
     });
-    return { query, count: contacts.length, contacts: contacts.map((c: any) => ({ id: c.id, name: c.name, email: c.email, status: c.status, dealCount: c.deals?.length ?? 0 })) };
+    return { query, count: contacts.length, contacts: contacts.map((c: any) => ({ id: c.id, name: c.name, email: c.email, dealCount: c.deals?.length ?? 0 })) };
   },
 });
 
@@ -747,9 +746,9 @@ registerTool({
     const { contactId, ...updates } = input as any;
     const contact = await prisma.contact.update({
       where: { id: contactId },
-      data: updates,
+      data: updates as any,
     });
-    return { contactId: contact.id, name: contact.name, status: contact.status };
+    return { contactId: contact.id, name: contact.name };
   },
 });
 

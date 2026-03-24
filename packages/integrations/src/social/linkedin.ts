@@ -60,7 +60,7 @@ export async function publishPost(
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
+    const err: any = await res.json().catch(() => ({}));
     throw new Error(`LinkedIn publish failed: ${err?.message ?? res.status}`);
   }
 
@@ -89,7 +89,7 @@ export async function getPostMetrics(
     throw new Error(`LinkedIn metrics fetch failed: ${res.status}`);
   }
 
-  const data = await res.json();
+  const data: any = await res.json();
   return {
     likes: data.likesSummary?.totalLikes ?? 0,
     comments: data.commentsSummary?.totalFirstLevelComments ?? 0,

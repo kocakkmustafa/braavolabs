@@ -45,10 +45,10 @@ export async function executeTool(
   if (meta?.requiresApproval) {
     const approval = await prisma.approval.create({
       data: {
-        runId: context.runId,
-        companyId: context.companyId,
+        runId: context.runId!,
         type: "SPEND",
-        request: { toolName, input } as any,
+        description: `Approval required for tool: ${toolName}`,
+        metadata: { toolName, input } as any,
         status: "PENDING",
       },
     });
@@ -56,11 +56,10 @@ export async function executeTool(
     await prisma.activityLog.create({
       data: {
         tenantId: context.tenantId,
-        companyId: context.companyId,
         actor: "system",
         action: "approval.requested",
         resource: "tool_call",
-        details: { toolName, approvalId: approval.id },
+        details: { toolName, approvalId: approval.id } as any,
       },
     });
 
@@ -123,7 +122,7 @@ export async function executeTool(
           runStepId: context.runStepId,
           toolName,
           input: input as any,
-          output: null,
+          output: {} as any,
           status: "FAILED",
           durationMs,
           error,

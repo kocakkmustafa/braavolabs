@@ -68,8 +68,8 @@ memoryRouter.get("/", async (req, res, next) => {
     const memories = await prisma.memoryItem.findMany({
       where: {
         companyId: company.id,
-        ...(type && { type: type as string }),
-        ...(status && { status: status as string }),
+        ...(type && { type: type as any }),
+        ...(status && { status: status as any }),
       },
       orderBy: { createdAt: "desc" },
       take: 50,

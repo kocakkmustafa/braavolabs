@@ -10,8 +10,8 @@ import { AppError } from "../../middleware/error";
 import type { AuthPayload } from "../../middleware/auth";
 
 function signToken(payload: AuthPayload): string {
-  return jwt.sign(payload, env.JWT_SECRET, {
-    expiresIn: env.JWT_EXPIRES_IN,
+  return jwt.sign(payload as object, env.JWT_SECRET, {
+    expiresIn: env.JWT_EXPIRES_IN as any,
   });
 }
 

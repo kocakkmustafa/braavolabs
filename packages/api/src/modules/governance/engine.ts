@@ -8,7 +8,7 @@
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { DEFAULT_GOVERNANCE_CONFIG } from "@ai-company-os/core";
-import type { GovernanceConfig, RiskStopType } from "@ai-company-os/core/types/governance";
+import type { GovernanceConfig, RiskStopType } from "@ai-company-os/core";
 
 export interface GovernanceCheckResult {
   allowed: boolean;
@@ -152,7 +152,7 @@ async function checkSpamProtection(ctx: CheckContext): Promise<GovernanceCheckRe
   // Check tool calls for outreach-related tools in this run
   const outreachCalls = await prisma.toolCall.findMany({
     where: {
-      step: { runId: ctx.run.id },
+      runStep: { runId: ctx.run.id },
       toolName: { in: ["send_email", "send_message", "outreach"] },
     },
     select: { input: true },
@@ -189,7 +189,7 @@ async function checkBrandViolation(ctx: CheckContext): Promise<GovernanceCheckRe
   // Check recent tool call outputs for brand violations
   const recentOutputs = await prisma.toolCall.findMany({
     where: {
-      step: { runId: ctx.run.id },
+      runStep: { runId: ctx.run.id },
       toolName: { in: ["generate_post", "create_draft"] },
     },
     select: { output: true },

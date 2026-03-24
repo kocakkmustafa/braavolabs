@@ -76,7 +76,7 @@ async function processSequenceStep(job: Job<SequenceJobData>): Promise<void> {
     // Sequence completed
     await prisma.outreachEnrollment.update({
       where: { id: enrollmentId },
-      data: { status: "COMPLETED", completedAt: new Date() },
+      data: { status: "COMPLETED" },
     });
     logger.info({ enrollmentId }, "Outreach sequence completed");
     return;
@@ -90,7 +90,7 @@ async function processSequenceStep(job: Job<SequenceJobData>): Promise<void> {
   if (contact.email) {
     const unansweredCount = await prisma.activityLog.count({
       where: {
-        companyId: company.id,
+        tenantId: company.tenantId,
         action: "outreach.email_sent",
         details: { path: ["recipientEmail"], equals: contact.email },
       },
@@ -98,7 +98,7 @@ async function processSequenceStep(job: Job<SequenceJobData>): Promise<void> {
     // Check if there's been a reply
     const replyCount = await prisma.activityLog.count({
       where: {
-        companyId: company.id,
+        tenantId: company.tenantId,
         action: "outreach.reply_received",
         details: { path: ["contactEmail"], equals: contact.email },
       },
@@ -113,7 +113,6 @@ async function processSequenceStep(job: Job<SequenceJobData>): Promise<void> {
       await prisma.activityLog.create({
         data: {
           tenantId: company.tenantId,
-          companyId: company.id,
           actor: "system",
           action: "outreach.spam_stop",
           resource: "enrollment",
@@ -143,7 +142,6 @@ async function processSequenceStep(job: Job<SequenceJobData>): Promise<void> {
     await prisma.activityLog.create({
       data: {
         tenantId: company.tenantId,
-        companyId: company.id,
         actor: "system",
         action: "outreach.email_sent",
         resource: "enrollment",
@@ -170,7 +168,7 @@ async function processSequenceStep(job: Job<SequenceJobData>): Promise<void> {
     } else {
       await prisma.outreachEnrollment.update({
         where: { id: enrollmentId },
-        data: { status: "COMPLETED", completedAt: new Date() },
+        data: { status: "COMPLETED" },
       });
     }
 

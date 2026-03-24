@@ -44,11 +44,11 @@ export async function publishVideo(
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(`TikTok publish failed: ${err?.error?.message ?? res.status}`);
+    const err = await res.json().catch(() => ({} as any));
+    throw new Error(`TikTok publish failed: ${(err as any)?.error?.message ?? res.status}`);
   }
 
-  const data = await res.json();
+  const data: any = await res.json();
   return {
     postId: data.data?.publish_id ?? "",
     publishId: data.data?.publish_id ?? "",
@@ -75,10 +75,10 @@ export async function getPublishStatus(
     throw new Error(`TikTok status check failed: ${res.status}`);
   }
 
-  const data = await res.json();
+  const statusData: any = await res.json();
   return {
-    status: data.data?.status ?? "UNKNOWN",
-    postId: data.data?.publicaly_available_post_id?.[0],
+    status: statusData.data?.status ?? "UNKNOWN",
+    postId: statusData.data?.publicaly_available_post_id?.[0],
   };
 }
 
@@ -105,8 +105,8 @@ export async function getVideoMetrics(
     throw new Error(`TikTok metrics fetch failed: ${res.status}`);
   }
 
-  const data = await res.json();
-  const video = data.data?.videos?.[0];
+  const metricsData: any = await res.json();
+  const video = metricsData.data?.videos?.[0];
   return {
     views: video?.view_count ?? 0,
     likes: video?.like_count ?? 0,

@@ -50,7 +50,7 @@ pipelineRouter.post("/", async (req, res, next) => {
     });
     if (!company) throw new AppError(404, "Company not found");
 
-    const pipeline = await prisma.pipeline.create({ data });
+    const pipeline = await prisma.pipeline.create({ data: { ...data, steps: data.steps as any } });
 
     await prisma.activityLog.create({
       data: {

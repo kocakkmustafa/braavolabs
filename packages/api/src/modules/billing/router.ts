@@ -17,8 +17,8 @@ import {
   createCustomerPortalSession,
   getSubscription,
   constructWebhookEvent,
-} from "@ai-company-os/integrations/stripe/billing";
-import type { StripeConfig } from "@ai-company-os/integrations/stripe/billing";
+} from "@ai-company-os/integrations";
+import type { StripeConfig } from "@ai-company-os/integrations";
 
 function getStripeConfig(): StripeConfig {
   if (!env.STRIPE_SECRET_KEY || !env.STRIPE_WEBHOOK_SECRET) {
@@ -64,7 +64,7 @@ authedRouter.get("/usage", async (req, res, next) => {
       prisma.toolCall.count({
         where: {
           createdAt: { gte: periodStart },
-          step: { run: { pipeline: { company: { tenantId } } } },
+          runStep: { run: { pipeline: { company: { tenantId } } } },
         },
       }),
     ]);

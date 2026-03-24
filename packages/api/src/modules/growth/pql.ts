@@ -218,7 +218,7 @@ export async function trackPQLEvent(
       actor: "system",
       action,
       resource: "pql_event",
-      details: details ?? {},
+      details: (details ?? {}) as any,
     },
   });
 }

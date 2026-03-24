@@ -2,7 +2,8 @@ import { Queue, Worker, type Job } from "bullmq";
 import { redis } from "./redis";
 import { logger } from "./logger";
 
-const connection = redis;
+// Cast to any to avoid ioredis version mismatch between bullmq's peer dep and direct dep
+const connection = redis as any;
 
 // Pipeline run queue
 export const runQueue = new Queue("pipeline-runs", { connection });
@@ -20,7 +21,7 @@ export function createWorker<T>(
   queueName: string,
   processor: (job: Job<T>) => Promise<void>,
 ) {
-  const worker = new Worker<T>(queueName, processor, { connection });
+  const worker = new Worker<T>(queueName, processor, { connection: connection as any });
 
   worker.on("completed", (job) => {
     logger.info({ jobId: job.id, queue: queueName }, "Job completed");
