@@ -3,6 +3,7 @@ import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { runQueue, createWorker } from "../../lib/queue";
 import { executeStep, checkGovernance } from "./executor";
+import { incrementMeter, checkQuota } from "../billing/metering";
 
 interface RunJobData {
   runId: string;
@@ -39,6 +40,35 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
     logger.error({ runId }, "Run not found");
     return;
   }
+
+  // Check usage quota before starting
+  const tenantId = run.pipeline.company.tenantId;
+  const quota = await checkQuota(tenantId, "runs");
+  if (!quota.allowed) {
+    logger.warn({ runId, tenantId, remaining: quota.remaining }, "Run quota exceeded");
+    await prisma.run.update({
+      where: { id: runId },
+      data: {
+        status: "FAILED",
+        error: `Monthly run limit reached (${quota.limit}). Upgrade your plan for more runs.`,
+        completedAt: new Date(),
+      },
+    });
+    await prisma.activityLog.create({
+      data: {
+        tenantId,
+        actor: "system",
+        action: "billing.quota_exceeded",
+        resource: "run",
+        resourceId: runId,
+        details: { metric: "runs", limit: quota.limit },
+      },
+    });
+    return;
+  }
+
+  // Increment run meter
+  await incrementMeter(tenantId, "runs", 1);
 
   // Update status to RUNNING
   await prisma.run.update({
@@ -138,10 +168,15 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
     // Pass output to next step
     previousOutput = result.output;
 
+    // Track tool call usage
+    if (result.toolCallIds.length > 0) {
+      await incrementMeter(tenantId, "tool_calls", result.toolCallIds.length);
+    }
+
     // Log step completion
     await prisma.activityLog.create({
       data: {
-        tenantId: run.pipeline.company.tenantId,
+        tenantId,
         actor: "system",
         action: "run_step.complete",
         resource: "run_step",

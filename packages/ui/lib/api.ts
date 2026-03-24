@@ -73,4 +73,25 @@ export const api = {
     apiFetch<{ logs: any[]; total: number }>(`/dashboard/activity?limit=${limit}&offset=${offset}`, { token }),
   riskEvents: (token: string, limit = 50) =>
     apiFetch<any[]>(`/dashboard/risk-events?limit=${limit}`, { token }),
+
+  // Billing
+  billingUsage: (token: string) =>
+    apiFetch<{
+      plan: string;
+      period: { start: string; end: string };
+      meters: { metric: string; value: number }[];
+      live: { runs: number; toolCalls: number };
+    }>("/billing/usage", { token }),
+  billingSubscription: (token: string) =>
+    apiFetch<{
+      plan: string;
+      stripeCustomerId: string | null;
+      subscription: {
+        id: string; status: string; currentPeriodEnd: string; cancelAtPeriodEnd: boolean;
+      } | null;
+    }>("/billing/subscription", { token }),
+  billingCheckout: (token: string, plan: "PRO" | "ENTERPRISE") =>
+    apiFetch<{ url: string }>("/billing/checkout", { method: "POST", body: JSON.stringify({ plan }), token }),
+  billingPortal: (token: string) =>
+    apiFetch<{ url: string }>("/billing/portal", { method: "POST", token }),
 };

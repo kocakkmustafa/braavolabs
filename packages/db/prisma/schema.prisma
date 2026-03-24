@@ -10,12 +10,14 @@ datasource db {
 // ─── TENANT & AUTH ──────────────────────────────────────
 
 model Tenant {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  plan      Plan     @default(FREE)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                   String   @id @default(cuid())
+  name                 String
+  slug                 String   @unique
+  plan                 Plan     @default(FREE)
+  stripeCustomerId     String?  @unique @map("stripe_customer_id")
+  stripeSubscriptionId String?  @map("stripe_subscription_id")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
   users              User[]
   companies          Company[]

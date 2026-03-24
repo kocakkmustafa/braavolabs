@@ -16,6 +16,7 @@ import { dashboardRouter } from "./modules/dashboard/router";
 import { crmRouter } from "./modules/crm/router";
 import { outreachRouter } from "./modules/outreach/router";
 import { webhookRouter } from "./modules/webhook/router";
+import { billingRouter, stripeWebhookRouter } from "./modules/billing/router";
 import { initPipelineRunner } from "./modules/pipeline/runner";
 
 // Import tool registry to trigger tool registration on startup
@@ -46,11 +47,13 @@ api.use("/drafts", draftRouter);
 api.use("/dashboard", dashboardRouter);
 api.use("/crm", crmRouter);
 api.use("/outreach", outreachRouter);
+api.use("/billing", billingRouter);
 
 app.use("/api/v1", api);
 
 // Webhook routes (outside versioned API)
 app.use("/hooks", webhookRouter);
+app.use("/hooks", stripeWebhookRouter);
 
 // Error handler (must be last)
 app.use(errorHandler);

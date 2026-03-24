@@ -11,6 +11,11 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default("7d"),
   ANTHROPIC_API_KEY: z.string().optional(),
   CLAUDE_MODEL: z.string().default("claude-sonnet-4-20250514"),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRO_PRICE_ID: z.string().optional(),
+  STRIPE_ENTERPRISE_PRICE_ID: z.string().optional(),
+  APP_URL: z.string().default("http://localhost:3000"),
 });
 
 export const env = envSchema.parse(process.env);
