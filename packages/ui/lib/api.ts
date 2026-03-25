@@ -37,6 +37,14 @@ export const api = {
     }),
   googleAuthUrl: () =>
     apiFetch<{ url: string }>("/auth/google"),
+  forgotPassword: (email: string) =>
+    apiFetch<{ message: string }>("/auth/forgot-password", {
+      method: "POST", body: JSON.stringify({ email }),
+    }),
+  resetPassword: (token: string, password: string) =>
+    apiFetch<{ message: string }>("/auth/reset-password", {
+      method: "POST", body: JSON.stringify({ token, password }),
+    }),
 
   // Dashboard
   health: (token: string) => apiFetch<{

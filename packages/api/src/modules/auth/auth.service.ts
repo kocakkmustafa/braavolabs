@@ -1,9 +1,11 @@
 /**
- * Auth Service — register, login, JWT generation.
+ * Auth Service — register, login, JWT generation, password reset.
  */
 
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
+import { sendEmail } from "../../integrations/email";
 import { OAuth2Client } from "google-auth-library";
 import { prisma } from "../../lib/db";
 import { env } from "../../config/env";
@@ -347,4 +349,64 @@ export async function googleCallback(
     user: { id: user!.id, email: user!.email, name: user!.name, role: user!.role },
     tenant: { id: user!.tenant.id, name: user!.tenant.name, slug: user!.tenant.slug, plan: user!.tenant.plan },
   };
+}
+
+/**
+ * Request password reset — generates token, stores hash, sends email.
+ * Always returns success to prevent email enumeration.
+ */
+export async function requestPasswordReset(email: string): Promise<void> {
+  const user = await prisma.user.findUnique({ where: { email } });
+  // Always return success to prevent email enumeration
+  if (!user || !user.passwordHash) return;
+
+  const token = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { resetTokenHash: tokenHash, resetTokenExpiresAt: expiresAt },
+  });
+
+  const resetUrl = `${process.env.APP_URL ?? "http://localhost:3001"}/reset-password?token=${token}`;
+
+  await sendEmail({
+    to: email,
+    subject: "Reset your AI Company OS password",
+    body: `
+      <div style="font-family: Inter, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #10131a; color: #e1e2eb; border-radius: 16px;">
+        <div style="margin-bottom: 24px;">
+          <span style="background: linear-gradient(135deg, #00d1ff, #6d11ad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; font-size: 18px;">AI Company OS</span>
+        </div>
+        <h2 style="color: #e1e2eb; margin-bottom: 12px;">Reset your password</h2>
+        <p style="color: #859399; margin-bottom: 24px;">Click the button below to reset your password. This link expires in 1 hour.</p>
+        <a href="${resetUrl}" style="display: inline-block; background: linear-gradient(135deg, #00d1ff, #6d11ad); color: white; padding: 12px 28px; border-radius: 12px; text-decoration: none; font-weight: 600; font-size: 14px;">Reset Password</a>
+        <p style="color: #3c494e; font-size: 12px; margin-top: 24px;">If you didn't request this, you can safely ignore this email.</p>
+      </div>
+    `,
+  });
+}
+
+/**
+ * Reset password with token.
+ */
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+  const user = await prisma.user.findFirst({
+    where: {
+      resetTokenHash: tokenHash,
+      resetTokenExpiresAt: { gt: new Date() },
+    },
+  });
+
+  if (!user) throw new AppError(400, "Invalid or expired reset token");
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash, resetTokenHash: null, resetTokenExpiresAt: null },
+  });
 }

@@ -1,20 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../lib/store";
 
 export default function ApprovalsPage() {
   const token = useAppStore((s) => s.token);
+  const router = useRouter();
   const [approvals, setApprovals] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token) {
+      router.push("/login");
+      return;
+    }
     api.listApprovals(token).then(setApprovals).catch(() => {});
-  }, [token]);
+  }, [token, router]);
 
-  if (!token) return <p className="text-slate-500 p-8">Please login first.</p>;
+  if (!token) return null;
 
   async function decide(id: string, decision: "APPROVED" | "REJECTED") {
     setLoading(true);
@@ -28,51 +33,115 @@ export default function ApprovalsPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8 animate-fade-in">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-100">Pending Approvals</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Review and approve spend actions from your AI agents</p>
+    <div style={{ maxWidth: 896, margin: "0 auto", padding: "32px 24px" }} className="animate-fade-in">
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: "#e1e2eb", margin: 0 }}>Pending Approvals</h1>
+        <p style={{ fontSize: 14, color: "#859399", marginTop: 4 }}>Review and approve spend actions from your AI agents</p>
       </div>
 
       {approvals.length === 0 ? (
-        <div className="card-glass text-center py-16">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4">
-            <svg className="w-6 h-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+        <div
+          style={{
+            background: "rgba(29,32,38,0.8)",
+            backdropFilter: "blur(24px)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            borderRadius: 16,
+            padding: "64px 24px",
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 16,
+              background: "rgba(52,211,153,0.1)",
+              border: "1px solid rgba(52,211,153,0.2)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 16px",
+            }}
+          >
+            <svg width={24} height={24} fill="none" viewBox="0 0 24 24" stroke="#34d399" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            </svg>
           </div>
-          <p className="font-semibold text-slate-300">All clear!</p>
-          <p className="text-sm text-slate-500 mt-1">No pending approvals. Approvals are required only for spend actions.</p>
+          <p style={{ fontWeight: 600, color: "#bbc9cf", margin: 0 }}>All clear!</p>
+          <p style={{ fontSize: 13, color: "#859399", marginTop: 4 }}>No pending approvals. Approvals are required only for spend actions.</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {approvals.map((a) => (
-            <div key={a.id} className="card-glass p-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-semibold text-slate-200">
+            <div
+              key={a.id}
+              style={{
+                background: "rgba(29,32,38,0.8)",
+                backdropFilter: "blur(24px)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                borderRadius: 16,
+                padding: "24px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ fontWeight: 600, color: "#e1e2eb", margin: 0, fontSize: 15 }}>
                     {a.run?.pipeline?.company?.name ?? "Unknown Company"}
                   </h3>
-                  <p className="text-sm text-slate-500 mt-1">{a.description}</p>
+                  <p style={{ fontSize: 13, color: "#859399", marginTop: 6, marginBottom: 0 }}>{a.description}</p>
                   {a.amountUsd && (
-                    <p className="text-2xl font-bold text-brand-400 mt-2">
+                    <p
+                      style={{
+                        fontSize: 26,
+                        fontWeight: 700,
+                        marginTop: 8,
+                        marginBottom: 0,
+                        background: "linear-gradient(135deg, #00d1ff, #6d11ad)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                      }}
+                    >
                       ${Number(a.amountUsd).toFixed(2)}
                     </p>
                   )}
-                  <p className="text-xs text-slate-600 mt-2">
+                  <p style={{ fontSize: 11, color: "#3c494e", marginTop: 8, marginBottom: 0 }}>
                     Run: {a.runId?.slice(0, 8)} &bull; {new Date(a.createdAt).toLocaleString()}
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
                   <button
                     onClick={() => decide(a.id, "APPROVED")}
                     disabled={loading}
-                    className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-colors"
+                    style={{
+                      padding: "8px 18px",
+                      borderRadius: 10,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#fff",
+                      background: "#34d399",
+                      border: "none",
+                      cursor: loading ? "not-allowed" : "pointer",
+                      opacity: loading ? 0.5 : 1,
+                      transition: "opacity 0.2s",
+                    }}
                   >
                     Approve
                   </button>
                   <button
                     onClick={() => decide(a.id, "REJECTED")}
                     disabled={loading}
-                    className="px-4 py-2 rounded-lg text-sm font-semibold bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 disabled:opacity-50 transition-colors"
+                    style={{
+                      padding: "8px 18px",
+                      borderRadius: 10,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#f87171",
+                      background: "rgba(239,68,68,0.1)",
+                      border: "1px solid rgba(239,68,68,0.2)",
+                      cursor: loading ? "not-allowed" : "pointer",
+                      opacity: loading ? 0.5 : 1,
+                      transition: "opacity 0.2s",
+                    }}
                   >
                     Reject
                   </button>

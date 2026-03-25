@@ -31,6 +31,11 @@ companyRouter.get("/", async (req, res, next) => {
     const companies = await prisma.company.findMany({
       where: { tenantId: req.auth!.tenantId },
       orderBy: { createdAt: "desc" },
+      include: {
+        _count: {
+          select: { agents: true, pipelines: true },
+        },
+      },
     });
 
     await prisma.activityLog.create({

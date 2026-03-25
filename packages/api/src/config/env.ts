@@ -1,3 +1,11 @@
+import { config } from "dotenv";
+import { resolve } from "path";
+// Try loading .env from cwd first, then project root (../../)
+const r1 = config({ path: resolve(process.cwd(), ".env") });
+if (r1.error) {
+  config({ path: resolve(process.cwd(), "../../.env") });
+}
+
 import { z } from "zod";
 
 const envSchema = z.object({

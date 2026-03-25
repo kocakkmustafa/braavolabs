@@ -16,10 +16,7 @@ interface BillingSubscription {
   plan: string;
   stripeCustomerId: string | null;
   subscription: {
-    id: string;
-    status: string;
-    currentPeriodEnd: string;
-    cancelAtPeriodEnd: boolean;
+    id: string; status: string; currentPeriodEnd: string; cancelAtPeriodEnd: boolean;
   } | null;
 }
 
@@ -29,23 +26,37 @@ const PLAN_LIMITS: Record<string, { runs: number; companies: number }> = {
   ENTERPRISE: { runs: -1, companies: -1 },
 };
 
+const NAV_ITEMS = [
+  { id: "profile",       label: "Profile",         icon: "person" },
+  { id: "notifications", label: "Notifications",   icon: "notifications" },
+  { id: "billing",       label: "Plan & Usage",    icon: "credit_card" },
+  { id: "integrations",  label: "Integrations",    icon: "hub" },
+  { id: "governance",    label: "Governance",      icon: "security" },
+  { id: "api",           label: "API & Auth",      icon: "terminal" },
+  { id: "referral",      label: "Referral",        icon: "redeem" },
+];
+
 export default function SettingsPage() {
   const router = useRouter();
   const token = useAppStore((s) => s.token);
   const tenantId = useAppStore((s) => s.tenantId);
   const clearAuth = useAppStore((s) => s.clearAuth);
+
+  const [active, setActive] = useState("profile");
   const [billingUsage, setBillingUsage] = useState<BillingUsage | null>(null);
   const [subscription, setSubscription] = useState<BillingSubscription | null>(null);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
-  const [referral, setReferral] = useState<{ code: string; stats: any; referrals: any[] } | null>(null);
+  const [referral, setReferral] = useState<{ code: string; stats: any } | null>(null);
   const [redeemCode, setRedeemCode] = useState("");
   const [redeemResult, setRedeemResult] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [notifs, setNotifs] = useState({
+    runCompleted: true, spendApproval: true, pipelineErrors: true,
+    weeklyDigest: false, marketing: false,
+  });
 
   useEffect(() => {
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+    if (!token) { router.push("/login"); return; }
     api.billingUsage(token).then(setBillingUsage).catch(() => {});
     api.billingSubscription(token).then(setSubscription).catch(() => {});
     api.getReferral(token).then(setReferral).catch(() => {});
@@ -53,245 +64,474 @@ export default function SettingsPage() {
 
   if (!token) return null;
 
-  function handleLogout() {
-    clearAuth();
-    router.push("/login");
-  }
-
   async function handleUpgrade(plan: "PRO" | "ENTERPRISE") {
     setUpgradeLoading(true);
-    try {
-      const { url } = await api.billingCheckout(token!, plan);
-      window.location.href = url;
-    } catch (err) {
-      alert((err as Error).message);
-    }
+    try { const { url } = await api.billingCheckout(token!, plan); window.location.href = url; }
+    catch (err) { alert((err as Error).message); }
     setUpgradeLoading(false);
   }
 
   async function handleManageBilling() {
-    try {
-      const { url } = await api.billingPortal(token!);
-      window.location.href = url;
-    } catch (err) {
-      alert((err as Error).message);
-    }
+    try { const { url } = await api.billingPortal(token!); window.location.href = url; }
+    catch (err) { alert((err as Error).message); }
   }
+
+  function handleSave() { setSaved(true); setTimeout(() => setSaved(false), 2000); }
 
   const currentPlan = billingUsage?.plan ?? "FREE";
   const limits = PLAN_LIMITS[currentPlan] ?? PLAN_LIMITS.FREE;
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8 animate-fade-in">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-100">Settings</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Manage your account, billing, and integrations</p>
-      </div>
-
-      <div className="space-y-6">
-        {/* Auth Info */}
-        <div className="card-glass p-6">
-          <h2 className="text-base font-semibold text-slate-200 mb-4">Authentication</h2>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center py-2 border-b border-white/[0.06]">
-              <span className="text-slate-500 text-sm">Tenant ID</span>
-              <span className="font-mono text-sm bg-white/[0.06] text-slate-400 px-2 py-1 rounded-lg border border-white/[0.08]">
-                {tenantId ? `${tenantId.slice(0, 4)}...${tenantId.slice(-4)}` : "—"}
-              </span>
-            </div>
-            <div className="flex justify-between items-center py-2">
-              <span className="text-slate-500 text-sm">Token</span>
-              <span className="font-mono text-sm bg-white/[0.06] text-slate-400 px-2 py-1 rounded-lg border border-white/[0.08]">
-                {token.slice(0, 20)}...
-              </span>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="mt-2 px-4 py-2 rounded-xl text-sm font-semibold bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-
-        {/* Billing & Usage */}
-        <div className="card-glass p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold text-slate-200">Plan & Usage</h2>
-            {subscription?.stripeCustomerId && (
+    <div className="min-h-screen" style={{ background: "#10131a" }}>
+      {/* Top bar */}
+      <header
+        className="sticky top-0 z-40 flex items-center justify-between px-8 h-16 font-headline"
+        style={{
+          background: "rgba(12,12,29,0.85)",
+          backdropFilter: "blur(16px)",
+          borderBottom: "1px solid rgba(71,70,89,0.15)",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+        }}
+      >
+        <div className="flex items-center gap-6">
+          <span
+            className="text-sm font-bold tracking-[0.1em] uppercase"
+            style={{ color: "#00d1ff" }}
+          >
+            Settings
+          </span>
+          <nav className="hidden md:flex gap-6">
+            {NAV_ITEMS.map((item) => (
               <button
-                onClick={handleManageBilling}
-                className="text-sm text-brand-400 hover:text-brand-300 transition-colors"
+                key={item.id}
+                onClick={() => setActive(item.id)}
+                className="text-[11px] font-bold uppercase tracking-widest transition-all pb-[2px]"
+                style={{
+                  color: active === item.id ? "#00d1ff" : "rgba(230,227,251,0.5)",
+                  borderBottom: active === item.id ? "2px solid #00d1ff" : "2px solid transparent",
+                }}
               >
-                Manage Billing
+                {item.label}
               </button>
-            )}
-          </div>
+            ))}
+          </nav>
+        </div>
+        <button
+          onClick={() => { clearAuth(); router.push("/login"); }}
+          className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
+          style={{ background: "rgba(255,180,171,0.08)", color: "#ffb4ab" }}
+        >
+          <span className="material-symbols-outlined text-sm">logout</span>
+          Sign Out
+        </button>
+      </header>
 
-          {/* Current plan badge */}
-          <div className="flex items-center gap-3 mb-4">
-            <span className={`text-sm font-bold px-3 py-1 rounded-full border ${
-              currentPlan === "ENTERPRISE" ? "bg-purple-500/10 text-purple-400 border-purple-500/20" :
-              currentPlan === "PRO" ? "bg-brand-500/10 text-brand-400 border-brand-500/20" :
-              "bg-slate-500/10 text-slate-400 border-slate-500/20"
-            }`}>
-              {currentPlan}
-            </span>
-            {subscription?.subscription && (
-              <span className="text-xs text-slate-500">
-                {subscription.subscription.cancelAtPeriodEnd
-                  ? `Cancels ${new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()}`
-                  : `Renews ${new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()}`
-                }
-              </span>
-            )}
-          </div>
+      {/* Content */}
+      <div className="max-w-4xl mx-auto px-8 py-10 animate-fade-in">
 
-          {/* Usage meters */}
-          {billingUsage && (
-            <div className="space-y-3 mb-6">
-              <UsageBar
-                label="Runs This Month"
-                current={billingUsage.live.runs}
-                limit={limits.runs}
-              />
-              <div className="flex justify-between text-sm py-1">
-                <span className="text-slate-500">Tool Calls This Month</span>
-                <span className="font-semibold text-slate-300">{billingUsage.live.toolCalls}</span>
+        {/* Profile */}
+        {active === "profile" && (
+          <Section title="Profile" subtitle="Manage your personal information and preferences">
+            <div
+              className="flex items-center gap-5 mb-8 pb-8"
+              style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+            >
+              <div className="relative">
+                <div
+                  className="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-bold font-headline"
+                  style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", color: "white" }}
+                >
+                  {tenantId ? tenantId.slice(0, 2).toUpperCase() : "AI"}
+                </div>
+                <button
+                  className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center"
+                  style={{ background: "#272a31", border: "2px solid #10131a" }}
+                >
+                  <span className="material-symbols-outlined text-sm" style={{ color: "#bbc9cf" }}>photo_camera</span>
+                </button>
               </div>
-              {billingUsage.meters.map((m) => (
-                <div key={m.metric} className="flex justify-between text-sm py-1">
-                  <span className="text-slate-500 capitalize">{m.metric.replace(/_/g, " ")}</span>
-                  <span className="font-semibold text-slate-300">{m.value}</span>
+              <div>
+                <p className="font-headline font-bold text-lg" style={{ color: "#e1e2eb" }}>My Workspace</p>
+                <p className="text-sm" style={{ color: "#859399" }}>Member since 2025</p>
+                <span
+                  className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold mt-1.5"
+                  style={{
+                    background: currentPlan === "PRO" ? "rgba(109,17,173,0.2)" : "rgba(255,255,255,0.06)",
+                    color: currentPlan === "PRO" ? "#e0b6ff" : "#859399",
+                  }}
+                >
+                  {currentPlan}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <Field label="First Name" placeholder="Jane" />
+              <Field label="Last Name" placeholder="Smith" />
+            </div>
+            <Field label="Email" placeholder="you@example.com" badge="Verified" />
+            <div className="mt-4"><Field label="Phone" placeholder="+1 (555) 000-0000" /></div>
+            <div className="mt-4">
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>Bio</label>
+              <textarea
+                rows={3}
+                className="w-full px-4 py-2.5 rounded-lg text-sm outline-none resize-none transition-all"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
+                placeholder="Tell us about yourself..."
+                onFocus={(e) => { e.currentTarget.style.border = "1px solid rgba(0,209,255,0.4)"; }}
+                onBlur={(e) => { e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)"; }}
+              />
+            </div>
+            <SaveBar onSave={handleSave} saved={saved} />
+          </Section>
+        )}
+
+        {/* Notifications */}
+        {active === "notifications" && (
+          <Section title="Notifications" subtitle="Control when and how you get notified">
+            <div className="space-y-0">
+              {([
+                { key: "spendApproval" as const, label: "Spend approval required", desc: "Critical: agent wants to spend money — requires immediate action", critical: true },
+                { key: "runCompleted" as const, label: "Agent run completed", desc: "Notified when a pipeline run finishes successfully" },
+                { key: "pipelineErrors" as const, label: "Pipeline errors", desc: "Alerts for failed runs and loop detection triggers" },
+                { key: "weeklyDigest" as const, label: "Weekly digest", desc: "Summary of activity across all your companies" },
+                { key: "marketing" as const, label: "Marketing emails", desc: "Product updates and feature announcements" },
+              ]).map((item) => (
+                <div
+                  key={item.key}
+                  className="flex items-center justify-between py-4"
+                  style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+                >
+                  <div className="flex items-start gap-3">
+                    {item.critical && (
+                      <span
+                        className="text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 flex-shrink-0"
+                        style={{ background: "rgba(255,180,171,0.12)", color: "#ffb4ab" }}
+                      >
+                        CRITICAL
+                      </span>
+                    )}
+                    <div>
+                      <p className="text-sm font-medium" style={{ color: "#e1e2eb" }}>{item.label}</p>
+                      <p className="text-xs mt-0.5" style={{ color: "#859399" }}>{item.desc}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setNotifs((n) => ({ ...n, [item.key]: !n[item.key] }))}
+                    className="flex-shrink-0 w-11 h-6 rounded-full transition-all relative ml-4"
+                    style={{ background: notifs[item.key] ? "#00d1ff" : "rgba(255,255,255,0.08)" }}
+                  >
+                    <div
+                      className="absolute top-0.5 h-5 w-5 rounded-full transition-all"
+                      style={{
+                        background: "white",
+                        left: notifs[item.key] ? "calc(100% - 22px)" : "2px",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                      }}
+                    />
+                  </button>
                 </div>
               ))}
             </div>
-          )}
+            <SaveBar onSave={handleSave} saved={saved} />
+          </Section>
+        )}
 
-          {/* Plan comparison */}
-          <div className="grid grid-cols-3 gap-4">
-            <PlanCard
-              name="Free"
-              price="$0"
-              features={["1 company", "10 runs/month", "TikTok + LinkedIn", "Real outputs"]}
-              current={currentPlan === "FREE"}
-              onSelect={undefined}
-            />
-            <PlanCard
-              name="Pro"
-              price="$49/mo"
-              features={["5 companies", "100 runs/month", "All channels", "CRM sync", "Priority support"]}
-              current={currentPlan === "PRO"}
-              onSelect={currentPlan === "FREE" ? () => handleUpgrade("PRO") : undefined}
-              loading={upgradeLoading}
-            />
-            <PlanCard
-              name="Enterprise"
-              price="Custom"
-              features={["Unlimited companies", "Unlimited runs", "Custom integrations", "SSO", "SLA guarantee"]}
-              current={currentPlan === "ENTERPRISE"}
-              onSelect={currentPlan !== "ENTERPRISE" ? () => handleUpgrade("ENTERPRISE") : undefined}
-              loading={upgradeLoading}
-            />
-          </div>
-        </div>
+        {/* Billing */}
+        {active === "billing" && (
+          <Section title="Plan & Usage" subtitle="Manage your subscription and monitor usage metrics">
+            <div
+              className="flex items-center justify-between mb-6 pb-6"
+              style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+            >
+              <div className="flex items-center gap-3">
+                <span
+                  className="px-3 py-1 rounded-full text-sm font-bold"
+                  style={{
+                    background: currentPlan === "PRO" ? "rgba(109,17,173,0.2)" : "rgba(255,255,255,0.06)",
+                    color: currentPlan === "PRO" ? "#e0b6ff" : "#bbc9cf",
+                    border: currentPlan === "PRO" ? "1px solid rgba(109,17,173,0.35)" : "none",
+                  }}
+                >
+                  {currentPlan} Plan
+                </span>
+                {subscription?.subscription && (
+                  <span className="text-xs" style={{ color: "#859399" }}>
+                    {subscription.subscription.cancelAtPeriodEnd
+                      ? `Cancels ${new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()}`
+                      : `Renews ${new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()}`}
+                  </span>
+                )}
+              </div>
+              {subscription?.stripeCustomerId && (
+                <button
+                  onClick={handleManageBilling}
+                  className="text-sm font-medium transition-all hover:opacity-80"
+                  style={{ color: "#00d1ff" }}
+                >
+                  Manage Billing →
+                </button>
+              )}
+            </div>
 
-        {/* Referral Program */}
-        <div className="card-glass p-6">
-          <h2 className="text-base font-semibold text-slate-200 mb-2">Referral Program</h2>
-          <p className="text-sm text-slate-500 mb-4">
-            Share your referral code and both you and your friend get 5 bonus runs!
-          </p>
+            {billingUsage && (
+              <div className="space-y-4 mb-8">
+                <UsageBar label="Runs This Month" current={billingUsage.live.runs} limit={limits.runs} />
+                <div className="flex justify-between text-sm">
+                  <span style={{ color: "#859399" }}>Tool Calls</span>
+                  <span className="font-semibold" style={{ color: "#bbc9cf" }}>{billingUsage.live.toolCalls}</span>
+                </div>
+              </div>
+            )}
 
-          {referral && (
+            <div className="grid grid-cols-3 gap-4">
+              {[
+                { name: "Free", price: "$0", id: "FREE", color: "#859399", features: ["1 company", "10 runs/month", "TikTok + LinkedIn"] },
+                { name: "Pro", price: "$49/mo", id: "PRO", color: "#00d1ff", popular: true, features: ["5 companies", "Unlimited runs", "All channels", "CRM sync"] },
+                { name: "Enterprise", price: "Custom", id: "ENTERPRISE", color: "#e0b6ff", features: ["Unlimited everything", "SSO", "SLA"] },
+              ].map((plan) => (
+                <div
+                  key={plan.id}
+                  className="rounded-xl p-4 flex flex-col"
+                  style={{
+                    background: currentPlan === plan.id ? "rgba(0,209,255,0.06)" : "rgba(255,255,255,0.02)",
+                    border: currentPlan === plan.id ? "1.5px solid rgba(0,209,255,0.3)" : "1.5px solid rgba(255,255,255,0.06)",
+                  }}
+                >
+                  {(plan as any).popular && currentPlan !== plan.id && (
+                    <span
+                      className="text-[10px] font-bold px-2 py-0.5 rounded-full mb-2 self-start"
+                      style={{ background: "rgba(0,209,255,0.12)", color: "#00d1ff" }}
+                    >
+                      Most Popular
+                    </span>
+                  )}
+                  <p className="font-headline font-semibold text-sm mb-0.5" style={{ color: "#e1e2eb" }}>{plan.name}</p>
+                  <p className="text-lg font-bold font-headline mb-2" style={{ color: plan.color }}>{plan.price}</p>
+                  {currentPlan === plan.id && (
+                    <span className="text-xs px-2 py-0.5 rounded-full mb-2 self-start" style={{ background: "rgba(0,209,255,0.1)", color: "#00d1ff" }}>Current</span>
+                  )}
+                  <ul className="text-xs space-y-1 mb-4 flex-1" style={{ color: "#859399" }}>
+                    {plan.features.map((f) => (
+                      <li key={f} className="flex items-center gap-1.5">
+                        <div className="w-1 h-1 rounded-full" style={{ background: plan.color }} />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  {currentPlan !== plan.id && plan.id !== "FREE" && (
+                    <button
+                      onClick={() => handleUpgrade(plan.id as "PRO" | "ENTERPRISE")}
+                      disabled={upgradeLoading}
+                      className="w-full py-1.5 rounded-lg text-xs font-bold transition-all hover:opacity-90 disabled:opacity-50"
+                      style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", color: "white" }}
+                    >
+                      Upgrade
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
+
+        {/* Integrations */}
+        {active === "integrations" && (
+          <Section title="Integrations" subtitle="Connect external services">
+            <div className="space-y-0">
+              {[
+                { name: "HubSpot CRM", desc: "Sync contacts and deals bidirectionally", env: "HUBSPOT_ACCESS_TOKEN", icon: "🟠" },
+                { name: "Stripe Billing", desc: "Usage-based billing and subscription management", env: "STRIPE_SECRET_KEY", icon: "💜" },
+                { name: "SendGrid Email", desc: "Transactional and outreach email delivery", env: "SENDGRID_API_KEY", icon: "📧" },
+                { name: "TikTok", desc: "Publish and analyze TikTok content", env: "TIKTOK_*", icon: "🎵" },
+                { name: "LinkedIn", desc: "Publish and analyze LinkedIn content", env: "LINKEDIN_*", icon: "💼" },
+                { name: "Anthropic (Claude)", desc: "AI agent reasoning and tool use", env: "ANTHROPIC_API_KEY", icon: "🤖" },
+              ].map((item) => (
+                <div
+                  key={item.name}
+                  className="flex items-center justify-between py-4"
+                  style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">{item.icon}</span>
+                    <div>
+                      <p className="text-sm font-medium" style={{ color: "#e1e2eb" }}>{item.name}</p>
+                      <p className="text-xs" style={{ color: "#859399" }}>{item.desc}</p>
+                    </div>
+                  </div>
+                  <code
+                    className="text-xs px-2 py-1 rounded-lg font-mono"
+                    style={{ background: "rgba(255,255,255,0.04)", color: "#3c494e", border: "1px solid rgba(255,255,255,0.06)" }}
+                  >
+                    {item.env}
+                  </code>
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
+
+        {/* Governance */}
+        {active === "governance" && (
+          <Section title="Governance Config" subtitle="Risk controls and autonomous behavior boundaries">
+            <div className="space-y-0">
+              {[
+                { label: "Spend Approval Required", value: "All spend actions" },
+                { label: "Loop Detection Threshold", value: "5 consecutive failures" },
+                { label: "Cost Anomaly Threshold", value: "20% of run budget" },
+                { label: "Spam Protection", value: "3+ unanswered = blocked" },
+                { label: "Memory Auto-Promote", value: "confidence ≥ 0.7, count ≥ 3" },
+                { label: "Holding Brain Requirement", value: "2+ companies with pattern" },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="flex justify-between items-center py-3.5"
+                  style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+                >
+                  <span className="text-sm" style={{ color: "#bbc9cf" }}>{item.label}</span>
+                  <code
+                    className="font-mono text-xs px-2.5 py-1 rounded-lg"
+                    style={{ background: "rgba(255,255,255,0.04)", color: "#859399", border: "1px solid rgba(255,255,255,0.06)" }}
+                  >
+                    {item.value}
+                  </code>
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
+
+        {/* API & Auth */}
+        {active === "api" && (
+          <Section title="API & Auth" subtitle="Your credentials and access tokens">
             <div className="space-y-4">
-              <div className="bg-brand-500/10 border border-brand-500/20 rounded-xl p-4">
-                <p className="text-xs text-brand-400 mb-1 font-semibold uppercase tracking-wide">Your Referral Code</p>
+              <div className="p-5 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "#859399" }}>Tenant ID</p>
                 <div className="flex items-center gap-3">
-                  <span className="font-mono text-lg font-bold text-slate-100">{referral.code}</span>
+                  <code className="text-sm flex-1 truncate font-mono" style={{ color: "#bbc9cf" }}>
+                    {tenantId ? `${tenantId.slice(0, 4)}...${tenantId.slice(-4)}` : "—"}
+                  </code>
                   <button
-                    onClick={() => navigator.clipboard.writeText(referral.code)}
-                    className="text-xs gradient-brand text-white px-3 py-1 rounded-lg hover:shadow-md hover:shadow-brand-500/20 transition-all"
+                    className="px-3 py-1 rounded-lg text-xs font-semibold"
+                    style={{ background: "rgba(0,209,255,0.1)", color: "#00d1ff", border: "1px solid rgba(0,209,255,0.2)" }}
+                    onClick={() => tenantId && navigator.clipboard.writeText(tenantId)}
                   >
                     Copy
                   </button>
                 </div>
               </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div className="text-center p-3 bg-white/[0.04] border border-white/[0.08] rounded-xl">
-                  <p className="text-2xl font-bold text-slate-100">{referral.stats.totalReferred}</p>
-                  <p className="text-xs text-slate-500">Referred</p>
-                </div>
-                <div className="text-center p-3 bg-white/[0.04] border border-white/[0.08] rounded-xl">
-                  <p className="text-2xl font-bold text-emerald-400">{referral.stats.converted}</p>
-                  <p className="text-xs text-slate-500">Converted</p>
-                </div>
-                <div className="text-center p-3 bg-white/[0.04] border border-white/[0.08] rounded-xl">
-                  <p className="text-2xl font-bold text-brand-400">{referral.stats.rewardsApplied}</p>
-                  <p className="text-xs text-slate-500">Rewards</p>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium text-slate-300 mb-2">Redeem a Code</p>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={redeemCode}
-                    onChange={(e) => setRedeemCode(e.target.value)}
-                    placeholder="AICOS-XXXXXXXX"
-                    className="flex-1 bg-white/[0.04] border border-white/[0.08] text-slate-300 rounded-xl px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-500/50 outline-none"
-                  />
-                  <button
-                    onClick={async () => {
-                      if (!redeemCode.trim()) return;
-                      try {
-                        const res = await api.redeemReferral(token!, redeemCode.trim());
-                        setRedeemResult(res.reward);
-                        setRedeemCode("");
-                      } catch (err) {
-                        setRedeemResult((err as Error).message);
-                      }
-                    }}
-                    className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-emerald-500 transition-colors"
-                  >
-                    Redeem
-                  </button>
-                </div>
-                {redeemResult && (
-                  <p className="text-sm mt-2 text-emerald-400">{redeemResult}</p>
-                )}
+              <div className="p-5 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "#859399" }}>Session Token</p>
+                <code className="text-sm font-mono" style={{ color: "#bbc9cf" }}>
+                  {token ? `${token.slice(0, 24)}...` : "—"}
+                </code>
               </div>
             </div>
-          )}
-        </div>
+          </Section>
+        )}
 
-        {/* Integrations */}
-        <div className="card-glass p-6">
-          <h2 className="text-base font-semibold text-slate-200 mb-4">Integrations</h2>
-          <div className="space-y-1">
-            <IntegrationRow name="HubSpot CRM" description="Sync contacts and deals bidirectionally" envVar="HUBSPOT_ACCESS_TOKEN" />
-            <IntegrationRow name="Stripe Billing" description="Usage-based billing and subscription management" envVar="STRIPE_SECRET_KEY" />
-            <IntegrationRow name="SendGrid Email" description="Transactional and outreach email delivery" envVar="SENDGRID_API_KEY" />
-            <IntegrationRow name="TikTok" description="Publish and analyze TikTok content" envVar="TIKTOK_*" />
-            <IntegrationRow name="LinkedIn" description="Publish and analyze LinkedIn content" envVar="LINKEDIN_*" />
-            <IntegrationRow name="Anthropic (Claude)" description="AI agent reasoning and tool use" envVar="ANTHROPIC_API_KEY" />
-          </div>
-        </div>
+        {/* Referral */}
+        {active === "referral" && (
+          <Section title="Referral Program" subtitle="Share your code — both you and your friend get 5 bonus runs">
+            {referral ? (
+              <div className="space-y-5">
+                <div className="p-5 rounded-xl" style={{ background: "rgba(0,209,255,0.06)", border: "1px solid rgba(0,209,255,0.2)" }}>
+                  <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "#00d1ff" }}>Your Code</p>
+                  <div className="flex items-center gap-3">
+                    <code className="text-xl font-bold font-mono" style={{ color: "#e1e2eb" }}>{referral.code}</code>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(referral.code)}
+                      className="px-3 py-1 rounded-lg text-xs font-bold"
+                      style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", color: "white" }}
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: "Referred", value: referral.stats.totalReferred, color: "#e1e2eb" },
+                    { label: "Converted", value: referral.stats.converted, color: "#34d399" },
+                    { label: "Rewards", value: referral.stats.rewardsApplied, color: "#00d1ff" },
+                  ].map((s) => (
+                    <div key={s.label} className="text-center p-4 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                      <p className="text-2xl font-bold font-headline" style={{ color: s.color }}>{s.value}</p>
+                      <p className="text-xs mt-0.5" style={{ color: "#859399" }}>{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <p className="text-sm font-medium mb-2" style={{ color: "#bbc9cf" }}>Redeem a Code</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={redeemCode}
+                      onChange={(e) => setRedeemCode(e.target.value)}
+                      placeholder="AICOS-XXXXXXXX"
+                      className="flex-1 px-4 py-2.5 rounded-xl text-sm font-mono outline-none"
+                      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
+                      onFocus={(e) => { e.currentTarget.style.border = "1px solid rgba(0,209,255,0.4)"; }}
+                      onBlur={(e) => { e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)"; }}
+                    />
+                    <button
+                      onClick={async () => {
+                        if (!redeemCode.trim()) return;
+                        try {
+                          const res = await api.redeemReferral(token!, redeemCode.trim());
+                          setRedeemResult(res.reward); setRedeemCode("");
+                        } catch (err) { setRedeemResult((err as Error).message); }
+                      }}
+                      className="px-5 py-2.5 rounded-xl text-sm font-semibold"
+                      style={{ background: "rgba(52,211,153,0.12)", color: "#34d399", border: "1px solid rgba(52,211,153,0.25)" }}
+                    >
+                      Redeem
+                    </button>
+                  </div>
+                  {redeemResult && <p className="text-sm mt-2" style={{ color: "#34d399" }}>{redeemResult}</p>}
+                </div>
+              </div>
+            ) : (
+              <p style={{ color: "#859399" }}>Loading...</p>
+            )}
+          </Section>
+        )}
+      </div>
+    </div>
+  );
+}
 
-        {/* Governance */}
-        <div className="card-glass p-6">
-          <h2 className="text-base font-semibold text-slate-200 mb-4">Governance Config</h2>
-          <div className="space-y-1">
-            <GovernanceItem label="Spend Approval Required" value="Yes (all spend actions)" />
-            <GovernanceItem label="Loop Detection Threshold" value="5 consecutive failures" />
-            <GovernanceItem label="Cost Anomaly Threshold" value="20% of run budget" />
-            <GovernanceItem label="Spam Protection" value="3+ unanswered outreach = blocked" />
-            <GovernanceItem label="Memory Auto-Promote" value="confidence >= 0.7, useCount >= 3, age >= 7d" />
-            <GovernanceItem label="Holding Brain Requirement" value="2+ companies with same pattern" />
-          </div>
-        </div>
+/* ── Helpers ─────────────────────────────────────────────────── */
+
+function Section({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="font-headline font-bold text-xl mb-1" style={{ color: "#e1e2eb" }}>{title}</h1>
+        <p className="text-sm" style={{ color: "#859399" }}>{subtitle}</p>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Field({ label, type = "text", placeholder, badge }: { label: string; type?: string; placeholder: string; badge?: string }) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>{label}</label>
+      <div className="relative">
+        <input
+          type={type}
+          placeholder={placeholder}
+          className="w-full px-4 py-2.5 rounded-lg text-sm outline-none transition-all"
+          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
+          onFocus={(e) => { e.currentTarget.style.border = "1px solid rgba(0,209,255,0.4)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(0,209,255,0.06)"; }}
+          onBlur={(e) => { e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)"; e.currentTarget.style.boxShadow = "none"; }}
+        />
+        {badge && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(52,211,153,0.1)", color: "#34d399" }}>
+            {badge}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -301,20 +541,19 @@ function UsageBar({ label, current, limit }: { label: string; current: number; l
   const unlimited = limit < 0;
   const pct = unlimited ? 0 : Math.min(100, (current / limit) * 100);
   const danger = !unlimited && pct >= 80;
-
   return (
     <div>
-      <div className="flex justify-between text-sm mb-1">
-        <span className="text-slate-500">{label}</span>
-        <span className={`font-semibold ${danger ? "text-red-400" : "text-slate-300"}`}>
+      <div className="flex justify-between text-sm mb-1.5">
+        <span style={{ color: "#859399" }}>{label}</span>
+        <span className="font-semibold" style={{ color: danger ? "#ffb4ab" : "#bbc9cf" }}>
           {current}{unlimited ? "" : ` / ${limit}`}
         </span>
       </div>
       {!unlimited && (
-        <div className="w-full bg-white/[0.06] rounded-full h-2">
+        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
           <div
-            className={`h-2 rounded-full transition-all ${danger ? "bg-red-500" : "gradient-brand"}`}
-            style={{ width: `${pct}%` }}
+            className="h-full rounded-full transition-all"
+            style={{ width: `${pct}%`, background: danger ? "#ff5449" : "linear-gradient(90deg, #00d1ff, #6d11ad)" }}
           />
         </div>
       )}
@@ -322,50 +561,26 @@ function UsageBar({ label, current, limit }: { label: string; current: number; l
   );
 }
 
-function PlanCard({ name, price, features, current, onSelect, loading }: {
-  name: string; price: string; features: string[]; current: boolean;
-  onSelect?: () => void; loading?: boolean;
-}) {
+function SaveBar({ onSave, saved }: { onSave: () => void; saved: boolean }) {
   return (
-    <div className={`rounded-2xl p-4 border transition-all ${current ? "border-brand-500/40 bg-brand-500/10" : "border-white/[0.08] bg-white/[0.03]"}`}>
-      <h3 className="font-semibold text-slate-200">{name}</h3>
-      <p className="text-lg font-bold text-slate-100 mt-1">{price}</p>
-      {current && <span className="text-xs gradient-brand text-white px-2 py-0.5 rounded-lg mt-2 inline-block">Current</span>}
-      <ul className="text-xs text-slate-500 space-y-1 mt-3">
-        {features.map((f) => <li key={f} className="flex items-center gap-1"><span className="text-slate-600">·</span> {f}</li>)}
-      </ul>
-      {onSelect && !current && (
-        <button
-          onClick={onSelect}
-          disabled={loading}
-          className="mt-3 w-full gradient-brand text-white px-3 py-1.5 rounded-xl text-sm font-semibold hover:shadow-md hover:shadow-brand-500/20 disabled:opacity-50 transition-all"
-        >
-          {loading ? "Redirecting..." : "Upgrade"}
-        </button>
-      )}
-    </div>
-  );
-}
-
-function IntegrationRow({ name, description, envVar }: {
-  name: string; description: string; envVar: string;
-}) {
-  return (
-    <div className="flex items-center justify-between py-3 border-b border-white/[0.06] last:border-0">
-      <div>
-        <p className="font-medium text-sm text-slate-300">{name}</p>
-        <p className="text-xs text-slate-500">{description}</p>
-      </div>
-      <span className="text-xs text-slate-600 font-mono">{envVar}</span>
-    </div>
-  );
-}
-
-function GovernanceItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between items-center py-2.5 border-b border-white/[0.06] last:border-0">
-      <span className="text-slate-400 text-sm">{label}</span>
-      <span className="font-mono text-xs bg-white/[0.06] text-slate-400 px-2 py-1 rounded-lg border border-white/[0.08]">{value}</span>
+    <div className="flex items-center justify-end gap-3 mt-8 pt-5" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+      <button
+        className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80"
+        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#859399" }}
+      >
+        Discard
+      </button>
+      <button
+        onClick={onSave}
+        className="px-6 py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90"
+        style={{
+          background: saved ? "rgba(52,211,153,0.15)" : "linear-gradient(135deg, #00d1ff, #6d11ad)",
+          border: saved ? "1px solid rgba(52,211,153,0.3)" : "none",
+          color: saved ? "#34d399" : "white",
+        }}
+      >
+        {saved ? "✓ Saved" : "Save Changes"}
+      </button>
     </div>
   );
 }

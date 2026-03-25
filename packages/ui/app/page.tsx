@@ -1,425 +1,366 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAppStore } from "../lib/store";
-import { useRouter } from "next/navigation";
+import { api } from "../lib/api";
+
+const EXAMPLES = [
+  "A content agency that creates and schedules TikTok & LinkedIn posts for 10 clients",
+  "An outbound sales team that qualifies leads and books demos automatically",
+  "A customer success operation that monitors churn and sends personalized check-ins",
+  "A finance back-office that reconciles invoices and generates weekly P&L reports",
+];
 
 export default function LandingPage() {
   const token = useAppStore((s) => s.token);
-  const router = useRouter();
-  const [typed, setTyped] = useState("");
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const heroRef = useRef<HTMLDivElement>(null);
+  const [input, setInput] = useState("");
+  const [exampleIdx, setExampleIdx] = useState(0);
+  const [displayText, setDisplayText] = useState("");
+  const [charIdx, setCharIdx] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [dashOpen, setDashOpen] = useState(false);
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [health, setHealth] = useState<any>(null);
+  const [logs, setLogs] = useState<any[]>([]);
 
-  const placeholder = "Describe your company's mission...";
-
-  // Typewriter effect for placeholder
+  // Typewriter
   useEffect(() => {
-    let i = 0;
-    let forward = true;
-    const interval = setInterval(() => {
-      if (forward) {
-        i++;
-        if (i >= placeholder.length) { forward = false; setTimeout(() => {}, 1200); }
+    if (input) return;
+    const current = EXAMPLES[exampleIdx];
+    const speed = isDeleting ? 18 : 38;
+    const timer = setTimeout(() => {
+      if (!isDeleting) {
+        setDisplayText(current.slice(0, charIdx + 1));
+        setCharIdx((c) => c + 1);
+        if (charIdx + 1 === current.length) setTimeout(() => setIsDeleting(true), 1800);
       } else {
-        i--;
-        if (i <= 0) forward = true;
+        setDisplayText(current.slice(0, charIdx - 1));
+        setCharIdx((c) => c - 1);
+        if (charIdx - 1 === 0) { setIsDeleting(false); setExampleIdx((i) => (i + 1) % EXAMPLES.length); }
       }
-      setTyped(placeholder.slice(0, i));
-    }, 60);
-    return () => clearInterval(interval);
-  }, []);
+    }, speed);
+    return () => clearTimeout(timer);
+  }, [charIdx, isDeleting, exampleIdx, input]);
 
-  // Mouse parallax
+  // Load dashboard data when panel opens
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      setMousePos({ x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight });
-    };
-    window.addEventListener("mousemove", handler);
-    return () => window.removeEventListener("mousemove", handler);
-  }, []);
+    if (!dashOpen || !token) return;
+    api.listCompanies(token).then(setCompanies).catch(() => {});
+    api.health(token).then(setHealth).catch(() => {});
+    api.activityLog(token, 8, 0).then((d) => setLogs(d.logs ?? [])).catch(() => {});
+  }, [dashOpen, token]);
+
+  const handleBuild = () => {
+    const desc = input.trim();
+    const target = token ? "/companies/new" : "/login";
+    window.location.href = desc ? `${target}?desc=${encodeURIComponent(desc)}` : target;
+  };
+
+  const handleDashClick = () => {
+    if (token) setDashOpen(true);
+    else window.location.href = "/login";
+  };
 
   return (
-    <div className="min-h-screen bg-[#0d0f18] text-white overflow-x-hidden">
-      {/* ── Ambient background ────────────────────────────────── */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        {/* Top-left cyan orb */}
-        <div
-          className="absolute w-[600px] h-[600px] rounded-full opacity-[0.07] blur-[120px]"
-          style={{
-            background: "radial-gradient(circle, #00d4ff, transparent)",
-            top: "-100px",
-            left: "-100px",
-            transform: `translate(${mousePos.x * 20}px, ${mousePos.y * 20}px)`,
-            transition: "transform 0.8s ease-out",
-          }}
-        />
-        {/* Center purple orb */}
-        <div
-          className="absolute w-[800px] h-[800px] rounded-full opacity-[0.06] blur-[140px]"
-          style={{
-            background: "radial-gradient(circle, #7c3aed, transparent)",
-            top: "20%",
-            left: "30%",
-            transform: `translate(${mousePos.x * -15}px, ${mousePos.y * -15}px)`,
-            transition: "transform 1s ease-out",
-          }}
-        />
-        {/* Bottom-right cyan */}
-        <div
-          className="absolute w-[500px] h-[500px] rounded-full opacity-[0.05] blur-[100px]"
-          style={{
-            background: "radial-gradient(circle, #06b6d4, transparent)",
-            bottom: "0",
-            right: "0",
-          }}
-        />
-        {/* Dot grid */}
-        <div
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)",
-            backgroundSize: "32px 32px",
-          }}
-        />
+    <div style={{ minHeight: "100vh", background: "#10131a", color: "#e1e2eb", overflow: "hidden", position: "relative" }}>
+
+      {/* Ambient orbs */}
+      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
+        <div style={{ position: "absolute", width: 600, height: 600, borderRadius: "50%", filter: "blur(120px)", opacity: 0.07, background: "radial-gradient(circle, #00d1ff, transparent)", top: -100, left: 0 }} />
+        <div style={{ position: "absolute", width: 700, height: 700, borderRadius: "50%", filter: "blur(160px)", opacity: 0.05, background: "radial-gradient(circle, #6d11ad, transparent)", top: "30%", right: dashOpen ? "55%" : -200, transition: "right 0.5s ease" }} />
+        <div style={{ position: "absolute", inset: 0, opacity: 0.018, backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
       </div>
 
-      {/* ── Navigation ────────────────────────────────────────── */}
-      <nav className="relative z-50 flex items-center justify-between px-8 py-4 border-b border-white/[0.06] backdrop-blur-md bg-[#0d0f18]/80">
-        {/* Logo */}
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg, #6366f1, #00d4ff)" }}>
-            <span className="text-white font-bold text-sm">AI</span>
+      {/* Top Nav */}
+      <nav style={{ position: "relative", zIndex: 10, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 40px", maxWidth: 1100, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 30, height: 30, borderRadius: 8, background: "linear-gradient(135deg, #00d1ff, #6d11ad)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <span style={{ color: "white", fontWeight: 700, fontSize: 11 }}>AI</span>
           </div>
-          <span className="font-bold text-base tracking-tight text-white">AI Company OS</span>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 14, color: "#e1e2eb" }}>AI Company OS</span>
         </div>
 
-        {/* Nav links */}
-        <div className="hidden md:flex items-center gap-1">
-          {["Builder", "Dashboard", "Registry", "Analytics"].map((item, i) => (
-            <a
-              key={item}
-              href={item === "Dashboard" ? (token ? "/dashboard" : "/login") : item === "Builder" ? "/companies/new" : "#"}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                i === 0
-                  ? "text-white bg-white/[0.08] border border-white/[0.12]"
-                  : "text-slate-400 hover:text-white hover:bg-white/[0.05]"
-              }`}
-            >
-              {item}
-            </a>
-          ))}
+        <div style={{ display: "flex", alignItems: "center", gap: 24, fontSize: 14, color: "#859399" }}>
+          <a href="/features" style={{ color: "#859399", textDecoration: "none" }} onMouseEnter={(e) => { e.currentTarget.style.color = "#e1e2eb"; }} onMouseLeave={(e) => { e.currentTarget.style.color = "#859399"; }}>Features</a>
+          <a href="/pricing" style={{ color: "#859399", textDecoration: "none" }} onMouseEnter={(e) => { e.currentTarget.style.color = "#e1e2eb"; }} onMouseLeave={(e) => { e.currentTarget.style.color = "#859399"; }}>Pricing</a>
+          <a href="/docs" style={{ color: "#859399", textDecoration: "none" }} onMouseEnter={(e) => { e.currentTarget.style.color = "#e1e2eb"; }} onMouseLeave={(e) => { e.currentTarget.style.color = "#859399"; }}>Docs</a>
         </div>
 
-        {/* Right actions */}
-        <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-2 bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-1.5">
-            <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
-            <span className="text-xs text-slate-500">Search systems...</span>
-          </div>
-          {token ? (
-            <a href="/dashboard" className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold text-white" style={{ background: "linear-gradient(135deg, #6366f1, #00d4ff)" }}>
-              Dashboard →
-            </a>
-          ) : (
-            <>
-              <a href="/login" className="text-sm text-slate-400 hover:text-white transition-colors px-3 py-1.5">Sign in</a>
-              <a href="/login" className="px-4 py-1.5 rounded-lg text-sm font-semibold text-white" style={{ background: "linear-gradient(135deg, #6366f1, #00d4ff)" }}>
-                Get Started
-              </a>
-            </>
-          )}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {!token && <a href="/login" style={{ fontSize: 14, color: "#859399", textDecoration: "none" }}>Sign in</a>}
+          <button
+            onClick={handleDashClick}
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "8px 16px", borderRadius: 12, fontSize: 13, fontWeight: 600,
+              background: "linear-gradient(135deg, #00d1ff, #6d11ad)",
+              color: "white", border: "none", cursor: "pointer",
+              boxShadow: "0 0 16px rgba(0,209,255,0.2)",
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>dashboard</span>
+            Dashboard
+          </button>
         </div>
       </nav>
 
-      {/* ── Hero Section ──────────────────────────────────────── */}
-      <section ref={heroRef} className="relative z-10 px-8 pt-12 pb-8 max-w-[1200px] mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-          {/* Left column */}
-          <div>
-            {/* Status badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-              <span className="text-xs font-semibold text-cyan-400 tracking-widest uppercase">Platform Active</span>
+      {/* Main layout: hero left, dashboard panel right */}
+      <div style={{ position: "relative", zIndex: 10, display: "flex", minHeight: "calc(100vh - 80px)" }}>
+
+        {/* LEFT: Hero */}
+        <div style={{
+          flex: 1,
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          padding: "40px 40px 60px",
+          transition: "all 0.45s cubic-bezier(0.4,0,0.2,1)",
+          maxWidth: dashOpen ? "45%" : "100%",
+          minWidth: 0,
+        }}>
+          <div style={{ width: "100%", maxWidth: 620, textAlign: "center" }}>
+
+            {/* Badge */}
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "4px 12px", borderRadius: 999, border: "1px solid rgba(0,209,255,0.25)", background: "rgba(0,209,255,0.06)", marginBottom: 28 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00d1ff", animation: "pulse 2s infinite" }} />
+              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", color: "#00d1ff" }}>AUTONOMOUS AI COMPANY PLATFORM</span>
             </div>
 
             {/* Headline */}
-            <h1 className="text-5xl font-black leading-tight mb-4">
-              <span className="text-white">Autonomous</span>
-              <br />
-              <span style={{ background: "linear-gradient(135deg, #00d4ff, #7c3aed)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                AI Companies
-              </span>
+            <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: "clamp(2rem, 4vw, 3.5rem)", lineHeight: 1.1, letterSpacing: "-0.02em", marginBottom: 16 }}>
+              <span style={{ color: "#e1e2eb" }}>Build your AI company</span><br />
+              <span style={{ background: "linear-gradient(135deg, #00d1ff 0%, #a4e6ff 40%, #e0b6ff 80%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>in plain English</span>
             </h1>
 
-            <p className="text-slate-400 text-base leading-relaxed mb-8 max-w-md">
-              Build, deploy, and scale autonomous AI-powered companies from a single platform.
-              Describe your vision — we handle agents, pipelines, and execution.
+            <p style={{ color: "#859399", fontSize: "1rem", lineHeight: 1.75, marginBottom: 36, maxWidth: 500, margin: "0 auto 36px" }}>
+              Describe what you want to automate. AI builds agents, pipelines, and workflows — running 24/7 with full audit logs.
             </p>
 
-            {/* Input area */}
-            <div className="relative mb-4">
-              <div className="absolute inset-0 rounded-xl blur-sm opacity-30" style={{ background: "linear-gradient(135deg, #6366f1, #00d4ff)" }} />
-              <div className="relative bg-[#141620] border border-white/[0.10] rounded-xl p-4">
-                <textarea
-                  rows={4}
-                  className="w-full bg-transparent text-slate-300 text-sm resize-none outline-none placeholder-slate-600"
-                  placeholder={typed + "▋"}
-                />
+            {/* Builder Input */}
+            <div style={{ width: "100%", borderRadius: 16, overflow: "hidden", background: "rgba(29,32,38,0.9)", border: "1px solid rgba(0,209,255,0.15)", boxShadow: "0 0 40px rgba(0,209,255,0.06)", marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 20px 8px" }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#00d1ff" }}>smart_toy</span>
+                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", color: "#00d1ff" }}>AI COMPANY BUILDER</span>
+              </div>
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleBuild(); }}
+                rows={4}
+                style={{ width: "100%", resize: "none", outline: "none", border: "none", background: "transparent", color: "#e1e2eb", padding: "0 20px 12px", fontSize: 14, lineHeight: 1.7, fontFamily: "inherit", boxSizing: "border-box" }}
+                placeholder={displayText + (input ? "" : "▋")}
+              />
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                <span style={{ fontSize: 11, color: "#3c494e" }}>⌘ + Enter to build</span>
+                <button
+                  onClick={handleBuild}
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", borderRadius: 10, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg, #00d1ff, #6d11ad)", color: "white", border: "none", cursor: "pointer", boxShadow: "0 0 20px rgba(0,209,255,0.25)" }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>rocket_launch</span>
+                  Build My Company
+                </button>
               </div>
             </div>
 
-            {/* Action buttons */}
-            <div className="flex items-center gap-3 flex-wrap">
-              <button className="flex items-center gap-2 text-xs text-slate-500 hover:text-slate-300 transition-colors">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" /></svg>
-                LINK KNOWLEDGE BASE
-              </button>
-              <button className="flex items-center gap-2 text-xs text-slate-500 hover:text-slate-300 transition-colors">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" /></svg>
-                SAFETY FILTERS
-              </button>
-              <a
-                href={token ? "/companies/new" : "/login"}
-                className="ml-auto px-6 py-2.5 rounded-xl text-sm font-bold text-[#0d0f18] transition-all hover:scale-105 hover:shadow-lg"
-                style={{ background: "linear-gradient(135deg, #00d4ff, #7c3aed)", boxShadow: "0 0 24px rgba(0, 212, 255, 0.3)" }}
-              >
-                BUILD COMPANY
-              </a>
+            {/* Chips */}
+            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8, marginBottom: 36 }}>
+              {["Content Agency", "Sales Automation", "Customer Success", "Finance Ops"].map((chip) => (
+                <button
+                  key={chip}
+                  onClick={() => setInput(`An AI-powered ${chip.toLowerCase()} company that automates all key workflows`)}
+                  style={{ padding: "4px 12px", borderRadius: 999, fontSize: 12, fontWeight: 500, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", color: "#859399", cursor: "pointer" }}
+                >
+                  {chip}
+                </button>
+              ))}
             </div>
-          </div>
 
-          {/* Right column — HUD Panel */}
-          <div className="flex flex-col gap-4">
-            {/* Main HUD card */}
-            <div className="relative rounded-2xl overflow-hidden border border-white/[0.08]" style={{ background: "linear-gradient(135deg, #141926 0%, #0d1420 100%)" }}>
-              {/* Glow center */}
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-48 h-48 rounded-full opacity-20 blur-3xl" style={{ background: "radial-gradient(circle, #00d4ff, transparent)" }} />
-              </div>
-
-              <div className="relative p-8 flex flex-col items-center justify-center min-h-[220px]">
-                {/* AI brain icon */}
-                <div className="w-24 h-24 rounded-2xl flex items-center justify-center mb-4 border border-white/[0.08]" style={{ background: "rgba(0,212,255,0.08)" }}>
-                  <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="url(#grad1)" strokeWidth={1.2}>
-                    <defs>
-                      <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#00d4ff" />
-                        <stop offset="100%" stopColor="#7c3aed" />
-                      </linearGradient>
-                    </defs>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" />
-                  </svg>
+            {/* Stats */}
+            <div style={{ display: "flex", justifyContent: "center", gap: 28, flexWrap: "wrap" }}>
+              {[{ v: "1,200+", l: "companies built" }, { v: "10 min", l: "to first deploy" }, { v: "100%", l: "actions audited" }].map((s) => (
+                <div key={s.l} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 14, color: "#e1e2eb" }}>{s.v}</span>
+                  <span style={{ fontSize: 12, color: "#3c494e" }}>{s.l}</span>
                 </div>
-
-                {/* Stats row */}
-                <div className="grid grid-cols-2 gap-6 w-full mt-2">
-                  <div>
-                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Active Agents</p>
-                    <AnimatedNumber value={42} suffix="k/s" className="text-2xl font-black text-white" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Success Rate</p>
-                    <AnimatedNumber value={99.9} suffix="%" className="text-2xl font-black" style={{ color: "#00d4ff" }} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Config HUD footer */}
-              <div className="border-t border-white/[0.06] px-6 py-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <svg className="w-3.5 h-3.5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
-                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Configuration HUD</span>
-                  </div>
-                  <span className="text-[10px] font-mono text-cyan-400 border border-cyan-400/30 px-2 py-0.5 rounded">v2.4.0_STABLE</span>
-                </div>
-                <HudBar label="Pipeline Depth" value={70} color="#00d4ff" note="Level 07" />
-                <HudBar label="Token Efficiency" value={82} color="#7c3aed" note="0.82 High" />
-                <div className="mt-3 font-mono text-[10px] text-slate-600">
-                  <span className="text-slate-500">[SYS]</span> Awaiting company initialization...
-                  <span className="inline-block w-1.5 h-3 bg-cyan-400 ml-1 animate-pulse" />
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
-      </section>
 
-      {/* ── Agent Cards ───────────────────────────────────────── */}
-      <section className="relative z-10 px-8 py-8 max-w-[1200px] mx-auto">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[
-            {
-              icon: "📈",
-              name: "Market Sentinel",
-              desc: "Autonomous PR & acquisition engine. Scans market signals and executes growth strategies.",
-              color: "#6366f1",
-            },
-            {
-              icon: "⚡",
-              name: "Nexus Dev",
-              desc: "Neural branding and viral content generation. Deploys to TikTok, LinkedIn, and beyond.",
-              color: "#00d4ff",
-            },
-            {
-              icon: "✨",
-              name: "Ghost Writer",
-              desc: "AI copywriting agent. Produces high-converting ad copy, emails, and blog posts at scale.",
-              color: "#7c3aed",
-            },
-          ].map((agent) => (
-            <div
-              key={agent.name}
-              className="group relative rounded-2xl p-5 border border-white/[0.07] cursor-pointer transition-all duration-300 hover:border-white/[0.15] hover:scale-[1.02]"
-              style={{ background: "linear-gradient(135deg, #141926 0%, #0d1118 100%)" }}
-            >
-              <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl" style={{ background: `radial-gradient(circle at center, ${agent.color}18, transparent)` }} />
-              <div className="relative">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 text-xl" style={{ background: `${agent.color}18`, border: `1px solid ${agent.color}30` }}>
-                  {agent.icon}
+        {/* RIGHT: Dashboard slide-in panel */}
+        <div style={{
+          width: dashOpen ? "55%" : 0,
+          minWidth: 0,
+          overflow: "hidden",
+          transition: "width 0.45s cubic-bezier(0.4,0,0.2,1)",
+          flexShrink: 0,
+          position: "relative",
+        }}>
+          <div style={{
+            width: "55vw",
+            height: "100%",
+            background: "rgba(12,12,29,0.98)",
+            borderLeft: "1px solid rgba(0,209,255,0.12)",
+            display: "flex", flexDirection: "column",
+            overflow: "hidden",
+          }}>
+            {/* Panel header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 24px", borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span className="material-symbols-outlined" style={{ color: "#00d1ff", fontSize: 20 }}>dashboard</span>
+                <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 15, color: "#e1e2eb" }}>Command Center</span>
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <a
+                  href="/dashboard"
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, background: "linear-gradient(135deg,#00d1ff,#6d11ad)", color: "white", textDecoration: "none" }}
+                >
+                  Full View <span className="material-symbols-outlined" style={{ fontSize: 14 }}>open_in_new</span>
+                </a>
+                <button
+                  onClick={() => setDashOpen(false)}
+                  style={{ padding: "6px 10px", borderRadius: 8, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#859399", cursor: "pointer" }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Panel content */}
+            <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
+              {!token ? (
+                <div style={{ textAlign: "center", paddingTop: 60 }}>
+                  <p style={{ color: "#859399", marginBottom: 16 }}>Sign in to see your dashboard</p>
+                  <a href="/login" style={{ padding: "10px 24px", borderRadius: 10, background: "linear-gradient(135deg,#00d1ff,#6d11ad)", color: "white", textDecoration: "none", fontWeight: 600, fontSize: 14 }}>Sign In</a>
                 </div>
-                <h3 className="font-bold text-white mb-1">{agent.name}</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">{agent.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+              ) : (
+                <>
+                  {/* Stats row */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
+                    {[
+                      { label: "Companies", value: health?.activeCompanies ?? companies.length, icon: "business", color: "#a4e6ff" },
+                      { label: "Running", value: health?.activeRuns ?? 0, icon: "play_circle", color: "#34d399" },
+                      { label: "Approvals", value: health?.pendingApprovals ?? 0, icon: "task_alt", color: "#fbbf24" },
+                    ].map((m) => (
+                      <div key={m.label} style={{ background: "rgba(29,32,38,0.8)", borderRadius: 12, padding: "14px", border: "1px solid rgba(255,255,255,0.06)" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 16, color: m.color }}>{m.icon}</span>
+                          <span style={{ fontSize: 11, color: "#859399" }}>{m.label}</span>
+                        </div>
+                        <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 22, color: "#e1e2eb" }}>{m.value}</span>
+                      </div>
+                    ))}
+                  </div>
 
-      {/* ── Features Grid ─────────────────────────────────────── */}
-      <section className="relative z-10 px-8 py-16 max-w-[1200px] mx-auto">
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-violet-500/30 bg-violet-500/10 mb-4">
-            <span className="text-xs font-semibold text-violet-400 tracking-widest uppercase">Core Systems</span>
+                  {/* Companies list */}
+                  <div style={{ background: "rgba(29,32,38,0.8)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", marginBottom: 12, overflow: "hidden" }}>
+                    <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#e1e2eb" }}>Your Companies</span>
+                      <a href="/companies" style={{ fontSize: 11, color: "#00d1ff", textDecoration: "none" }}>View all →</a>
+                    </div>
+                    {companies.length === 0 ? (
+                      <div style={{ padding: "24px 16px", textAlign: "center" }}>
+                        <p style={{ fontSize: 13, color: "#859399", marginBottom: 10 }}>No companies yet</p>
+                        <a href="/companies/new" style={{ fontSize: 12, padding: "6px 14px", borderRadius: 8, background: "linear-gradient(135deg,#00d1ff,#6d11ad)", color: "white", textDecoration: "none", fontWeight: 600 }}>Create First Company</a>
+                      </div>
+                    ) : (
+                      companies.slice(0, 4).map((c: any) => (
+                        <a
+                          key={c.id}
+                          href={`/companies/${c.id}`}
+                          style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", textDecoration: "none", borderBottom: "1px solid rgba(255,255,255,0.03)" }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                        >
+                          <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg,#00d1ff,#6d11ad)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 13, fontWeight: 700, color: "white" }}>
+                            {c.name?.charAt(0)}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 13, fontWeight: 600, color: "#e1e2eb", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</p>
+                            <p style={{ fontSize: 11, color: "#859399", margin: 0 }}>{c.status}</p>
+                          </div>
+                          <span className="material-symbols-outlined" style={{ fontSize: 16, color: "#3c494e" }}>chevron_right</span>
+                        </a>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Activity feed */}
+                  <div style={{ background: "rgba(29,32,38,0.8)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                    <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#e1e2eb" }}>Recent Activity</span>
+                    </div>
+                    {logs.length === 0 ? (
+                      <div style={{ padding: "20px 16px", textAlign: "center" }}>
+                        <p style={{ fontSize: 12, color: "#3c494e" }}>No recent activity</p>
+                      </div>
+                    ) : (
+                      logs.map((log: any) => (
+                        <div key={log.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 16px", borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+                          <div style={{ width: 26, height: 26, borderRadius: 6, background: "rgba(0,209,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: "#00d1ff" }}>{(log.actor ?? "S").charAt(0).toUpperCase()}</span>
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 12, color: "#bbc9cf", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{log.action.replace(/\./g, " / ")}</p>
+                          </div>
+                          <span style={{ fontSize: 11, color: "#3c494e", flexShrink: 0 }}>{timeAgo(log.createdAt)}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-          <h2 className="text-4xl font-black text-white mb-3">
-            Everything your AI company<br />
-            <span style={{ background: "linear-gradient(135deg, #00d4ff, #7c3aed)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>needs to operate</span>
-          </h2>
-          <p className="text-slate-400 max-w-lg mx-auto">29 built-in tools, autonomous agent loops, and full governance — all in one platform.</p>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[
-            { icon: "🤖", title: "Autonomous Agents", desc: "Claude-powered agents with tool use, retry logic, and budget controls. Every decision logged.", color: "#6366f1" },
-            { icon: "🧠", title: "Memory Engine", desc: "Episodic + semantic + graph memory. Agents learn from every run and improve over time.", color: "#00d4ff" },
-            { icon: "⚙️", title: "Pipeline Runner", desc: "Multi-step workflows with cron scheduling and BullMQ-powered queue management.", color: "#7c3aed" },
-            { icon: "🛡️", title: "Governance Engine", desc: "Cost anomaly detection, loop prevention, spam protection, and brand safety filters.", color: "#ec4899" },
-            { icon: "📊", title: "Analytics & CRM", desc: "HubSpot integration, deal tracking, and real-time usage metrics across all companies.", color: "#f59e0b" },
-            { icon: "💳", title: "Usage Billing", desc: "Stripe-powered metering. Free tier included. Scale from $0 to enterprise on demand.", color: "#10b981" },
-          ].map((f) => (
-            <div
-              key={f.title}
-              className="group p-5 rounded-2xl border border-white/[0.06] hover:border-white/[0.12] transition-all duration-300"
-              style={{ background: "rgba(255,255,255,0.02)" }}
-            >
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 text-xl" style={{ background: `${f.color}15`, border: `1px solid ${f.color}25` }}>
-                {f.icon}
-              </div>
-              <h3 className="font-bold text-white text-sm mb-1.5">{f.title}</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">{f.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Stats Banner ──────────────────────────────────────── */}
-      <section className="relative z-10 px-8 py-12 max-w-[1200px] mx-auto">
-        <div className="relative rounded-2xl border border-white/[0.08] overflow-hidden p-10" style={{ background: "linear-gradient(135deg, #141926, #0d1118)" }}>
-          <div className="absolute inset-0 opacity-10" style={{ background: "radial-gradient(ellipse at center, #00d4ff, transparent 70%)" }} />
-          <div className="relative grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+      {/* How it works (compact, only shown when dashboard closed) */}
+      {!dashOpen && (
+        <section style={{ position: "relative", zIndex: 10, padding: "0 40px 60px", maxWidth: 900, margin: "0 auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
             {[
-              { value: "29", label: "Built-in Tools" },
-              { value: "9", label: "Primitives" },
-              { value: "10m", label: "To First Company" },
-              { value: "100%", label: "Audited Actions" },
-            ].map((s) => (
-              <div key={s.label}>
-                <p className="text-4xl font-black mb-1" style={{ background: "linear-gradient(135deg, #00d4ff, #7c3aed)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{s.value}</p>
-                <p className="text-xs text-slate-500 uppercase tracking-widest">{s.label}</p>
+              { n: "1", icon: "edit_note", title: "Describe", desc: "Tell Claude what your company does in plain language. Up to 3 clarification rounds." },
+              { n: "2", icon: "auto_awesome", title: "AI builds it", desc: "Agents, pipelines, memory, and governance rules — all configured automatically." },
+              { n: "3", icon: "trending_up", title: "Runs 24/7", desc: "Every action logged. You approve spend. Full control, zero manual ops." },
+            ].map((step) => (
+              <div key={step.n} style={{ position: "relative", padding: 18, borderRadius: 14, background: "rgba(29,32,38,0.6)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                <span style={{ position: "absolute", top: 12, right: 14, fontFamily: "monospace", fontSize: 11, fontWeight: 700, color: "#3c494e" }}>{step.n}</span>
+                <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#00d1ff" }}>{step.icon}</span>
+                </div>
+                <p style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 600, fontSize: 13, color: "#e1e2eb", marginBottom: 4 }}>{step.title}</p>
+                <p style={{ fontSize: 12, lineHeight: 1.6, color: "#859399" }}>{step.desc}</p>
               </div>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      {/* ── CTA Section ───────────────────────────────────────── */}
-      <section className="relative z-10 px-8 py-20 max-w-[800px] mx-auto text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 mb-6">
-          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-          <span className="text-xs font-semibold text-cyan-400 tracking-widest uppercase">Free to start</span>
-        </div>
-        <h2 className="text-5xl font-black text-white mb-4">
-          Launch your AI company<br />
-          <span style={{ background: "linear-gradient(135deg, #00d4ff, #7c3aed)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>in 10 minutes</span>
-        </h2>
-        <p className="text-slate-400 mb-10 max-w-md mx-auto">No credit card required. Start with the Free plan — 1 company, 10 runs/month, real AI outputs.</p>
-        <div className="flex items-center justify-center gap-4">
-          <a
-            href="/login"
-            className="px-8 py-3.5 rounded-xl font-bold text-[#0d0f18] text-sm transition-all hover:scale-105 hover:shadow-2xl"
-            style={{ background: "linear-gradient(135deg, #00d4ff, #7c3aed)", boxShadow: "0 0 40px rgba(0, 212, 255, 0.25)" }}
-          >
-            Start Building Free
-          </a>
-          <a href="#features" className="px-8 py-3.5 rounded-xl font-semibold text-slate-300 text-sm border border-white/[0.10] hover:bg-white/[0.05] transition-colors">
-            Learn More
-          </a>
-        </div>
-      </section>
-
-      {/* ── Footer ────────────────────────────────────────────── */}
-      <footer className="relative z-10 border-t border-white/[0.06] px-8 py-8">
-        <div className="max-w-[1200px] mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: "linear-gradient(135deg, #6366f1, #00d4ff)" }}>
-              <span className="text-white font-bold text-[10px]">AI</span>
+      {/* Footer */}
+      <footer style={{ position: "relative", zIndex: 10, padding: "16px 40px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+        <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 18, height: 18, borderRadius: 4, background: "linear-gradient(135deg,#00d1ff,#6d11ad)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ color: "white", fontWeight: 700, fontSize: 8 }}>AI</span>
             </div>
-            <span className="text-sm text-slate-500">AI Company OS</span>
+            <span style={{ fontSize: 11, color: "#3c494e" }}>AI Company OS</span>
           </div>
-          <p className="text-xs text-slate-600">Built with Claude by <a href="https://github.com/kocakkmustafa" className="text-slate-500 hover:text-white transition-colors">@kocakkmustafa</a></p>
+          <div style={{ display: "flex", gap: 20, fontSize: 11, color: "#3c494e" }}>
+            {[["Features", "/features"], ["Pricing", "/pricing"], ["Privacy", "/privacy"], ["Terms", "/terms"]].map(([l, h]) => (
+              <a key={l} href={h} style={{ color: "#3c494e", textDecoration: "none" }} onMouseEnter={(e) => { e.currentTarget.style.color = "#e1e2eb"; }} onMouseLeave={(e) => { e.currentTarget.style.color = "#3c494e"; }}>{l}</a>
+            ))}
+          </div>
         </div>
       </footer>
     </div>
   );
 }
 
-/* ─── Helper Components ───────────────────────────────────── */
-
-function AnimatedNumber({ value, suffix, className, style }: { value: number; suffix: string; className?: string; style?: React.CSSProperties }) {
-  const [display, setDisplay] = useState(0);
-  useEffect(() => {
-    let start = 0;
-    const end = value;
-    const step = end / 40;
-    const timer = setInterval(() => {
-      start += step;
-      if (start >= end) { setDisplay(end); clearInterval(timer); return; }
-      setDisplay(parseFloat(start.toFixed(1)));
-    }, 30);
-    return () => clearInterval(timer);
-  }, [value]);
-  return <span className={className} style={style}>{display}{suffix}</span>;
-}
-
-function HudBar({ label, value, color, note }: { label: string; value: number; color: string; note: string }) {
-  const [width, setWidth] = useState(0);
-  useEffect(() => {
-    setTimeout(() => setWidth(value), 300);
-  }, [value]);
-  return (
-    <div className="mb-2">
-      <div className="flex justify-between items-center mb-1">
-        <span className="text-[10px] text-slate-500 uppercase tracking-wider">{label}</span>
-        <span className="text-[10px] font-mono" style={{ color }}>{note}</span>
-      </div>
-      <div className="h-1 bg-white/[0.05] rounded-full overflow-hidden">
-        <div
-          className="h-full rounded-full transition-all duration-1000 ease-out"
-          style={{ width: `${width}%`, background: `linear-gradient(90deg, ${color}, ${color}88)` }}
-        />
-      </div>
-    </div>
-  );
+function timeAgo(dateStr: string): string {
+  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
 }

@@ -38,6 +38,25 @@ interface RunDetail {
   pipeline: { name: string; company: { name: string } };
 }
 
+const STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
+  RUNNING:          { bg: "rgba(0,209,255,0.1)",   color: "#a4e6ff", border: "1px solid rgba(0,209,255,0.2)" },
+  COMPLETED:        { bg: "rgba(52,211,153,0.1)",  color: "#34d399", border: "1px solid rgba(52,211,153,0.2)" },
+  FAILED:           { bg: "rgba(239,68,68,0.1)",   color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" },
+  CANCELLED:        { bg: "rgba(133,147,153,0.1)", color: "#859399", border: "1px solid rgba(133,147,153,0.2)" },
+  PAUSED:           { bg: "rgba(251,191,36,0.1)",  color: "#fbbf24", border: "1px solid rgba(251,191,36,0.2)" },
+  WAITING_APPROVAL: { bg: "rgba(251,146,60,0.1)",  color: "#fb923c", border: "1px solid rgba(251,146,60,0.2)" },
+  ROLLED_BACK:      { bg: "rgba(109,17,173,0.1)",  color: "#e0b6ff", border: "1px solid rgba(109,17,173,0.2)" },
+};
+const DEFAULT_STATUS = { bg: "rgba(133,147,153,0.1)", color: "#859399", border: "1px solid rgba(133,147,153,0.2)" };
+
+const STEP_DOT_COLORS: Record<string, string> = {
+  COMPLETED:  "#34d399",
+  RUNNING:    "#a4e6ff",
+  FAILED:     "#f87171",
+  ROLLED_BACK:"#e0b6ff",
+  PAUSED:     "#fbbf24",
+};
+
 export default function RunDetailPage() {
   const params = useParams();
   const token = useAppStore((s) => s.token);
@@ -79,61 +98,65 @@ export default function RunDetailPage() {
     }
   }
 
-  if (!token) return <p className="text-slate-500 p-8">Please log in first.</p>;
+  if (!token) return <p style={{ color: "#859399", padding: 32 }}>Please log in first.</p>;
   if (error) return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
-      <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl">{error}</div>
+    <div style={{ maxWidth: 896, margin: "0 auto", padding: "32px 24px" }}>
+      <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", padding: 16, borderRadius: 12 }}>{error}</div>
     </div>
   );
   if (!run) return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
-      <div className="animate-shimmer h-8 w-48 rounded-lg mb-4" />
-      <div className="animate-shimmer h-32 rounded-2xl" />
+    <div style={{ maxWidth: 896, margin: "0 auto", padding: "32px 24px" }}>
+      <div className="animate-shimmer" style={{ height: 32, width: 192, borderRadius: 8, background: "rgba(255,255,255,0.06)", marginBottom: 16 }} />
+      <div className="animate-shimmer" style={{ height: 128, borderRadius: 16, background: "rgba(255,255,255,0.04)" }} />
     </div>
   );
 
-  const statusColors: Record<string, string> = {
-    RUNNING: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-    COMPLETED: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-    FAILED: "bg-red-500/10 text-red-400 border-red-500/20",
-    CANCELLED: "bg-slate-500/10 text-slate-400 border-slate-500/20",
-    PAUSED: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-    WAITING_APPROVAL: "bg-orange-500/10 text-orange-400 border-orange-500/20",
-    ROLLED_BACK: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-  };
-
-  const stepDotColors: Record<string, string> = {
-    COMPLETED: "bg-emerald-500",
-    RUNNING: "bg-blue-500 animate-pulse",
-    FAILED: "bg-red-500",
-    ROLLED_BACK: "bg-purple-500",
-    PAUSED: "bg-amber-500",
-  };
+  const runSt = STATUS_STYLES[run.status] ?? DEFAULT_STATUS;
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8 animate-fade-in">
+    <div style={{ maxWidth: 896, margin: "0 auto", padding: "32px 24px" }} className="animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Run Detail</h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: "#e1e2eb", margin: 0 }}>Run Detail</h1>
+          <p style={{ color: "#859399", fontSize: 14, marginTop: 4, marginBottom: 0 }}>
             {run.pipeline.company.name} / {run.pipeline.name}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div style={{ display: "flex", gap: 8 }}>
           {run.status === "RUNNING" && (
             <>
               <button
                 onClick={() => handleAction("pause")}
                 disabled={!!actionLoading}
-                className="px-4 py-2 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-xl text-sm font-semibold hover:bg-amber-500/20 disabled:opacity-50 transition-colors"
+                style={{
+                  padding: "8px 18px",
+                  background: "rgba(251,191,36,0.1)",
+                  color: "#fbbf24",
+                  border: "1px solid rgba(251,191,36,0.2)",
+                  borderRadius: 12,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: actionLoading ? "not-allowed" : "pointer",
+                  opacity: actionLoading ? 0.5 : 1,
+                }}
               >
                 Pause
               </button>
               <button
                 onClick={() => handleAction("stop")}
                 disabled={!!actionLoading}
-                className="px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl text-sm font-semibold hover:bg-red-500/20 disabled:opacity-50 transition-colors"
+                style={{
+                  padding: "8px 18px",
+                  background: "rgba(239,68,68,0.1)",
+                  color: "#f87171",
+                  border: "1px solid rgba(239,68,68,0.2)",
+                  borderRadius: 12,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: actionLoading ? "not-allowed" : "pointer",
+                  opacity: actionLoading ? 0.5 : 1,
+                }}
               >
                 Hard Stop
               </button>
@@ -143,7 +166,17 @@ export default function RunDetailPage() {
             <button
               onClick={() => handleAction("resume")}
               disabled={!!actionLoading}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-500 disabled:opacity-50 transition-colors"
+              style={{
+                padding: "8px 18px",
+                background: "#34d399",
+                color: "#fff",
+                border: "none",
+                borderRadius: 12,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: actionLoading ? "not-allowed" : "pointer",
+                opacity: actionLoading ? 0.5 : 1,
+              }}
             >
               Resume
             </button>
@@ -152,24 +185,35 @@ export default function RunDetailPage() {
       </div>
 
       {/* Run Summary */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
-        <div className="card-glass p-4">
-          <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Status</p>
-          <span className={`inline-block px-2 py-1 rounded-lg text-xs font-semibold border ${statusColors[run.status] ?? "bg-slate-500/10 text-slate-400 border-slate-500/20"}`}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 32 }}>
+        <div style={{ background: "rgba(29,32,38,0.8)", backdropFilter: "blur(24px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 16 }}>
+          <p style={{ fontSize: 10, color: "#859399", letterSpacing: "0.08em", marginBottom: 8, marginTop: 0 }}>STATUS</p>
+          <span
+            style={{
+              display: "inline-block",
+              padding: "4px 10px",
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: 600,
+              background: runSt.bg,
+              color: runSt.color,
+              border: runSt.border,
+            }}
+          >
             {run.status}
           </span>
         </div>
-        <div className="card-glass p-4">
-          <p className="text-xs text-slate-500 uppercase tracking-wide">Steps</p>
-          <p className="text-xl font-bold text-slate-100 mt-1">{run.steps.length}</p>
+        <div style={{ background: "rgba(29,32,38,0.8)", backdropFilter: "blur(24px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 16 }}>
+          <p style={{ fontSize: 10, color: "#859399", letterSpacing: "0.08em", marginBottom: 4, marginTop: 0 }}>STEPS</p>
+          <p style={{ fontSize: 22, fontWeight: 700, color: "#e1e2eb", margin: 0 }}>{run.steps.length}</p>
         </div>
-        <div className="card-glass p-4">
-          <p className="text-xs text-slate-500 uppercase tracking-wide">Cost</p>
-          <p className="text-xl font-bold text-slate-100 mt-1">${(run.costUsd ?? 0).toFixed(4)}</p>
+        <div style={{ background: "rgba(29,32,38,0.8)", backdropFilter: "blur(24px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 16 }}>
+          <p style={{ fontSize: 10, color: "#859399", letterSpacing: "0.08em", marginBottom: 4, marginTop: 0 }}>COST</p>
+          <p style={{ fontSize: 22, fontWeight: 700, color: "#e1e2eb", margin: 0 }}>${(run.costUsd ?? 0).toFixed(4)}</p>
         </div>
-        <div className="card-glass p-4">
-          <p className="text-xs text-slate-500 uppercase tracking-wide">Duration</p>
-          <p className="text-xl font-bold text-slate-100 mt-1">
+        <div style={{ background: "rgba(29,32,38,0.8)", backdropFilter: "blur(24px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 16 }}>
+          <p style={{ fontSize: 10, color: "#859399", letterSpacing: "0.08em", marginBottom: 4, marginTop: 0 }}>DURATION</p>
+          <p style={{ fontSize: 22, fontWeight: 700, color: "#e1e2eb", margin: 0 }}>
             {run.completedAt
               ? `${((new Date(run.completedAt).getTime() - new Date(run.createdAt).getTime()) / 1000).toFixed(1)}s`
               : "..."}
@@ -178,124 +222,258 @@ export default function RunDetailPage() {
       </div>
 
       {/* Step Timeline */}
-      <h2 className="text-base font-semibold text-slate-200 mb-4">Step Timeline</h2>
-      <div className="space-y-3">
-        {run.steps.map((step, idx) => (
-          <div key={step.id} className="card-glass overflow-hidden">
-            {/* Step Header */}
-            <button
-              onClick={() => setExpandedStep(expandedStep === step.id ? null : step.id)}
-              className="w-full flex items-center gap-4 p-4 text-left hover:bg-white/[0.03] transition-colors"
+      <h2 style={{ fontSize: 15, fontWeight: 600, color: "#e1e2eb", marginBottom: 16 }}>Step Timeline</h2>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {run.steps.map((step, idx) => {
+          const st = STATUS_STYLES[step.status] ?? DEFAULT_STATUS;
+          const dotColor = STEP_DOT_COLORS[step.status] ?? "#3c494e";
+          return (
+            <div
+              key={step.id}
+              style={{
+                background: "rgba(29,32,38,0.8)",
+                backdropFilter: "blur(24px)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                borderRadius: 16,
+                overflow: "hidden",
+              }}
             >
-              {/* Timeline dot */}
-              <div className="flex flex-col items-center">
-                <div className={`w-3.5 h-3.5 rounded-full ${stepDotColors[step.status] ?? "bg-slate-600"}`} />
-                {idx < run.steps.length - 1 && <div className="w-0.5 h-6 bg-white/[0.06] mt-1" />}
-              </div>
-
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-slate-200">{step.name}</span>
-                  <span className={`px-2 py-0.5 rounded-lg text-xs font-semibold border ${statusColors[step.status] ?? "bg-slate-500/10 text-slate-400 border-slate-500/20"}`}>
-                    {step.status}
-                  </span>
+              {/* Step Header */}
+              <button
+                onClick={() => setExpandedStep(expandedStep === step.id ? null : step.id)}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 16,
+                  padding: 16,
+                  textAlign: "left",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  transition: "background 0.2s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                  <div
+                    style={{
+                      width: 14,
+                      height: 14,
+                      borderRadius: "50%",
+                      background: dotColor,
+                      boxShadow: step.status === "RUNNING" ? `0 0 8px ${dotColor}` : "none",
+                    }}
+                  />
+                  {idx < run.steps.length - 1 && (
+                    <div style={{ width: 1, height: 24, background: "rgba(255,255,255,0.06)", marginTop: 4 }} />
+                  )}
                 </div>
-                {step.reasoning && (
-                  <p className="text-xs text-slate-500 mt-1 line-clamp-1">{step.reasoning}</p>
-                )}
-              </div>
 
-              <div className="text-right text-xs text-slate-500">
-                <div>${(step.costUsd ?? 0).toFixed(4)}</div>
-                <div>{step.toolCalls.length} tool calls</div>
-              </div>
-            </button>
-
-            {/* Expanded Detail */}
-            {expandedStep === step.id && (
-              <div className="border-t border-white/[0.06] px-4 pb-4 pt-3">
-                {/* Reasoning */}
-                {step.reasoning && (
-                  <div className="mb-4">
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Reasoning</h4>
-                    <p className="text-sm text-slate-300 bg-brand-500/5 border border-brand-500/10 p-3 rounded-xl whitespace-pre-wrap">{step.reasoning}</p>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontWeight: 500, color: "#e1e2eb", fontSize: 14 }}>{step.name}</span>
+                    <span
+                      style={{
+                        padding: "2px 8px",
+                        borderRadius: 8,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        background: st.bg,
+                        color: st.color,
+                        border: st.border,
+                      }}
+                    >
+                      {step.status}
+                    </span>
                   </div>
-                )}
+                  {step.reasoning && (
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: "#859399",
+                        marginTop: 4,
+                        marginBottom: 0,
+                        overflow: "hidden",
+                        display: "-webkit-box",
+                        WebkitLineClamp: 1,
+                        WebkitBoxOrient: "vertical",
+                      }}
+                    >
+                      {step.reasoning}
+                    </p>
+                  )}
+                </div>
 
-                {/* Error */}
-                {step.error && (
-                  <div className="mb-4">
-                    <h4 className="text-xs font-semibold text-red-400 uppercase tracking-wide mb-2">Error</h4>
-                    <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 p-3 rounded-xl">{step.error}</p>
-                  </div>
-                )}
+                <div style={{ textAlign: "right", fontSize: 12, color: "#859399" }}>
+                  <div>${(step.costUsd ?? 0).toFixed(4)}</div>
+                  <div>{step.toolCalls.length} tool calls</div>
+                </div>
+              </button>
 
-                {/* Tool Calls */}
-                {step.toolCalls.length > 0 && (
-                  <div className="mb-4">
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Tool Calls</h4>
-                    <div className="space-y-2">
-                      {step.toolCalls.map((tc) => (
-                        <div key={tc.id} className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 text-xs">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-mono font-medium text-slate-300">{tc.toolName}</span>
-                            <div className="flex items-center gap-2">
-                              <span className={tc.status === "COMPLETED" ? "text-emerald-400" : "text-red-400"}>
-                                {tc.status}
-                              </span>
-                              <span className="text-slate-600">{tc.durationMs}ms</span>
-                            </div>
-                          </div>
-                          {tc.input && (
-                            <details className="mt-1">
-                              <summary className="cursor-pointer text-slate-500 hover:text-slate-400">Input</summary>
-                              <pre className="mt-1 bg-black/20 text-slate-400 p-2 rounded-lg text-xs overflow-auto max-h-32">
-                                {JSON.stringify(tc.input, null, 2)}
-                              </pre>
-                            </details>
-                          )}
-                          {tc.output && (
-                            <details className="mt-1">
-                              <summary className="cursor-pointer text-slate-500 hover:text-slate-400">Output</summary>
-                              <pre className="mt-1 bg-black/20 text-slate-400 p-2 rounded-lg text-xs overflow-auto max-h-32">
-                                {JSON.stringify(tc.output, null, 2)}
-                              </pre>
-                            </details>
-                          )}
-                          {tc.error && (
-                            <p className="text-red-400 mt-1">{tc.error}</p>
-                          )}
-                        </div>
-                      ))}
+              {/* Expanded Detail */}
+              {expandedStep === step.id && (
+                <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "16px 16px 16px" }}>
+                  {/* Reasoning */}
+                  {step.reasoning && (
+                    <div style={{ marginBottom: 16 }}>
+                      <h4 style={{ fontSize: 10, fontWeight: 600, color: "#859399", letterSpacing: "0.08em", marginBottom: 8, marginTop: 0 }}>REASONING</h4>
+                      <p
+                        style={{
+                          fontSize: 13,
+                          color: "#bbc9cf",
+                          background: "rgba(0,209,255,0.04)",
+                          border: "1px solid rgba(0,209,255,0.08)",
+                          padding: 12,
+                          borderRadius: 12,
+                          whiteSpace: "pre-wrap",
+                          margin: 0,
+                        }}
+                      >
+                        {step.reasoning}
+                      </p>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Step Actions */}
-                <div className="flex gap-2">
-                  {(step.status === "COMPLETED" || step.status === "FAILED") && (
-                    <button
-                      onClick={() => handleStepAction(step.id, "rollback")}
-                      disabled={!!actionLoading}
-                      className="px-3 py-1.5 border border-white/[0.08] text-slate-400 rounded-xl text-sm font-semibold hover:bg-white/[0.06] disabled:opacity-50 transition-colors"
-                    >
-                      Rollback
-                    </button>
+                  {/* Error */}
+                  {step.error && (
+                    <div style={{ marginBottom: 16 }}>
+                      <h4 style={{ fontSize: 10, fontWeight: 600, color: "#f87171", letterSpacing: "0.08em", marginBottom: 8, marginTop: 0 }}>ERROR</h4>
+                      <p
+                        style={{
+                          fontSize: 13,
+                          color: "#f87171",
+                          background: "rgba(239,68,68,0.1)",
+                          border: "1px solid rgba(239,68,68,0.2)",
+                          padding: 12,
+                          borderRadius: 12,
+                          margin: 0,
+                        }}
+                      >
+                        {step.error}
+                      </p>
+                    </div>
                   )}
-                  {(step.status === "FAILED" || step.status === "ROLLED_BACK") && (
-                    <button
-                      onClick={() => handleStepAction(step.id, "rerun")}
-                      disabled={!!actionLoading}
-                      className="px-3 py-1.5 gradient-brand text-white rounded-xl text-sm font-semibold hover:shadow-md hover:shadow-brand-500/20 disabled:opacity-50 transition-all"
-                    >
-                      Rerun Step
-                    </button>
+
+                  {/* Tool Calls */}
+                  {step.toolCalls.length > 0 && (
+                    <div style={{ marginBottom: 16 }}>
+                      <h4 style={{ fontSize: 10, fontWeight: 600, color: "#859399", letterSpacing: "0.08em", marginBottom: 8, marginTop: 0 }}>TOOL CALLS</h4>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {step.toolCalls.map((tc) => (
+                          <div
+                            key={tc.id}
+                            style={{
+                              background: "rgba(255,255,255,0.03)",
+                              border: "1px solid rgba(255,255,255,0.06)",
+                              borderRadius: 12,
+                              padding: 12,
+                              fontSize: 12,
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                              <span style={{ fontFamily: "monospace", fontWeight: 500, color: "#bbc9cf" }}>{tc.toolName}</span>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <span style={{ color: tc.status === "COMPLETED" ? "#34d399" : "#f87171" }}>
+                                  {tc.status}
+                                </span>
+                                <span style={{ color: "#3c494e" }}>{tc.durationMs}ms</span>
+                              </div>
+                            </div>
+                            {tc.input && (
+                              <details style={{ marginTop: 4 }}>
+                                <summary style={{ cursor: "pointer", color: "#859399" }}>Input</summary>
+                                <pre
+                                  style={{
+                                    marginTop: 4,
+                                    background: "rgba(0,0,0,0.2)",
+                                    color: "#bbc9cf",
+                                    padding: 8,
+                                    borderRadius: 8,
+                                    fontSize: 11,
+                                    overflow: "auto",
+                                    maxHeight: 128,
+                                  }}
+                                >
+                                  {JSON.stringify(tc.input, null, 2)}
+                                </pre>
+                              </details>
+                            )}
+                            {tc.output && (
+                              <details style={{ marginTop: 4 }}>
+                                <summary style={{ cursor: "pointer", color: "#859399" }}>Output</summary>
+                                <pre
+                                  style={{
+                                    marginTop: 4,
+                                    background: "rgba(0,0,0,0.2)",
+                                    color: "#bbc9cf",
+                                    padding: 8,
+                                    borderRadius: 8,
+                                    fontSize: 11,
+                                    overflow: "auto",
+                                    maxHeight: 128,
+                                  }}
+                                >
+                                  {JSON.stringify(tc.output, null, 2)}
+                                </pre>
+                              </details>
+                            )}
+                            {tc.error && (
+                              <p style={{ color: "#f87171", marginTop: 4, marginBottom: 0 }}>{tc.error}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
+
+                  {/* Step Actions */}
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {(step.status === "COMPLETED" || step.status === "FAILED") && (
+                      <button
+                        onClick={() => handleStepAction(step.id, "rollback")}
+                        disabled={!!actionLoading}
+                        style={{
+                          padding: "6px 14px",
+                          border: "1px solid rgba(255,255,255,0.08)",
+                          color: "#859399",
+                          background: "transparent",
+                          borderRadius: 12,
+                          fontSize: 13,
+                          fontWeight: 600,
+                          cursor: actionLoading ? "not-allowed" : "pointer",
+                          opacity: actionLoading ? 0.5 : 1,
+                        }}
+                      >
+                        Rollback
+                      </button>
+                    )}
+                    {(step.status === "FAILED" || step.status === "ROLLED_BACK") && (
+                      <button
+                        onClick={() => handleStepAction(step.id, "rerun")}
+                        disabled={!!actionLoading}
+                        style={{
+                          padding: "6px 14px",
+                          background: "linear-gradient(135deg, #00d1ff, #6d11ad)",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 12,
+                          fontSize: 13,
+                          fontWeight: 600,
+                          cursor: actionLoading ? "not-allowed" : "pointer",
+                          opacity: actionLoading ? 0.5 : 1,
+                        }}
+                      >
+                        Rerun Step
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        ))}
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAppStore } from "../../../lib/store";
 
-export default function AuthCallbackPage() {
+function CallbackInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const setAuth = useAppStore((s) => s.setAuth);
@@ -12,7 +12,6 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const token = searchParams.get("token");
     if (token) {
-      // Decode JWT to get tenantId
       try {
         const payload = JSON.parse(atob(token.split(".")[1]));
         setAuth(token, payload.tenantId);
@@ -26,8 +25,20 @@ export default function AuthCallbackPage() {
   }, [searchParams, setAuth, router]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-900">
-      <div className="text-white text-lg">Signing in...</div>
+    <div className="flex items-center justify-center min-h-screen" style={{ background: "#10131a" }}>
+      <div className="text-sm" style={{ color: "#bbc9cf" }}>Signing in...</div>
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen" style={{ background: "#10131a" }}>
+        <div className="text-sm" style={{ color: "#bbc9cf" }}>Loading...</div>
+      </div>
+    }>
+      <CallbackInner />
+    </Suspense>
   );
 }

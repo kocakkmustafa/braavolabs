@@ -5,7 +5,7 @@
 
 import { Router } from "express";
 import { z } from "zod";
-import { register, login, getGoogleAuthUrl, googleCallback } from "./auth.service";
+import { register, login, getGoogleAuthUrl, googleCallback, requestPasswordReset, resetPassword } from "./auth.service";
 import { validate } from "../../middleware/validate";
 
 export const authRouter = Router();
@@ -36,6 +36,28 @@ authRouter.post("/login", validate(loginSchema), async (req, res, next) => {
   try {
     const result = await login(req.body);
     res.json(result);
+  } catch (err) { next(err); }
+});
+
+const forgotSchema = z.object({ email: z.string().email() });
+const resetSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(6),
+});
+
+// POST /api/v1/auth/forgot-password
+authRouter.post("/forgot-password", validate(forgotSchema), async (req, res, next) => {
+  try {
+    await requestPasswordReset(req.body.email);
+    res.json({ message: "If that email exists, a reset link has been sent." });
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/auth/reset-password
+authRouter.post("/reset-password", validate(resetSchema), async (req, res, next) => {
+  try {
+    await resetPassword(req.body.token, req.body.password);
+    res.json({ message: "Password reset successful." });
   } catch (err) { next(err); }
 });
 
