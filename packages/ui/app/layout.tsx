@@ -32,7 +32,7 @@ function Sidebar() {
   const sections = [
     {
       items: [
-        { href: "/", label: "Dashboard", icon: GridIcon },
+        { href: "/dashboard", label: "Dashboard", icon: GridIcon },
         { href: "/companies", label: "Companies", icon: BuildingIcon },
       ],
     },

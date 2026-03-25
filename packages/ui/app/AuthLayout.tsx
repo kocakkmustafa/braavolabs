@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAppStore } from "../lib/store";
 
-const PUBLIC_PATHS = ["/login", "/auth"];
+const PUBLIC_PATHS = ["/login", "/auth", "/landing"];
+const LANDING_PATH = "/";
 
 export default function AuthLayout({ children, sidebar }: { children: React.ReactNode; sidebar: React.ReactNode }) {
   const token = useAppStore((s) => s.token);
@@ -31,7 +32,7 @@ export default function AuthLayout({ children, sidebar }: { children: React.Reac
     );
   }
 
-  const isPublicPage = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  const isPublicPage = PUBLIC_PATHS.some((p) => pathname.startsWith(p)) || pathname === LANDING_PATH;
   const showSidebar = !!token && !isPublicPage;
 
   return (
