@@ -79,27 +79,44 @@ export default function RunDetailPage() {
     }
   }
 
-  if (!token) return <p className="text-gray-500">Please log in first.</p>;
-  if (error) return <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded">{error}</div>;
-  if (!run) return <p className="text-gray-500">Loading run...</p>;
+  if (!token) return <p className="text-slate-500 p-8">Please log in first.</p>;
+  if (error) return (
+    <div className="max-w-4xl mx-auto px-6 py-8">
+      <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl">{error}</div>
+    </div>
+  );
+  if (!run) return (
+    <div className="max-w-4xl mx-auto px-6 py-8">
+      <div className="animate-shimmer h-8 w-48 rounded-lg mb-4" />
+      <div className="animate-shimmer h-32 rounded-2xl" />
+    </div>
+  );
 
   const statusColors: Record<string, string> = {
-    RUNNING: "bg-blue-100 text-blue-700",
-    COMPLETED: "bg-green-100 text-green-700",
-    FAILED: "bg-red-100 text-red-700",
-    CANCELLED: "bg-gray-100 text-gray-700",
-    PAUSED: "bg-yellow-100 text-yellow-700",
-    WAITING_APPROVAL: "bg-orange-100 text-orange-700",
-    ROLLED_BACK: "bg-purple-100 text-purple-700",
+    RUNNING: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+    COMPLETED: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+    FAILED: "bg-red-500/10 text-red-400 border-red-500/20",
+    CANCELLED: "bg-slate-500/10 text-slate-400 border-slate-500/20",
+    PAUSED: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+    WAITING_APPROVAL: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+    ROLLED_BACK: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+  };
+
+  const stepDotColors: Record<string, string> = {
+    COMPLETED: "bg-emerald-500",
+    RUNNING: "bg-blue-500 animate-pulse",
+    FAILED: "bg-red-500",
+    ROLLED_BACK: "bg-purple-500",
+    PAUSED: "bg-amber-500",
   };
 
   return (
-    <div>
+    <div className="max-w-4xl mx-auto px-6 py-8 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Run Detail</h1>
-          <p className="text-gray-500 text-sm mt-1">
+          <h1 className="text-2xl font-bold text-slate-100">Run Detail</h1>
+          <p className="text-slate-500 text-sm mt-1">
             {run.pipeline.company.name} / {run.pipeline.name}
           </p>
         </div>
@@ -109,14 +126,14 @@ export default function RunDetailPage() {
               <button
                 onClick={() => handleAction("pause")}
                 disabled={!!actionLoading}
-                className="px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm hover:bg-yellow-600 disabled:opacity-50"
+                className="px-4 py-2 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-xl text-sm font-semibold hover:bg-amber-500/20 disabled:opacity-50 transition-colors"
               >
                 Pause
               </button>
               <button
                 onClick={() => handleAction("stop")}
                 disabled={!!actionLoading}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-50"
+                className="px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl text-sm font-semibold hover:bg-red-500/20 disabled:opacity-50 transition-colors"
               >
                 Hard Stop
               </button>
@@ -126,7 +143,7 @@ export default function RunDetailPage() {
             <button
               onClick={() => handleAction("resume")}
               disabled={!!actionLoading}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50"
+              className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-500 disabled:opacity-50 transition-colors"
             >
               Resume
             </button>
@@ -136,23 +153,23 @@ export default function RunDetailPage() {
 
       {/* Run Summary */}
       <div className="grid grid-cols-4 gap-4 mb-8">
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-xs text-gray-500">Status</p>
-          <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium mt-1 ${statusColors[run.status] ?? "bg-gray-100"}`}>
+        <div className="card-glass p-4">
+          <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Status</p>
+          <span className={`inline-block px-2 py-1 rounded-lg text-xs font-semibold border ${statusColors[run.status] ?? "bg-slate-500/10 text-slate-400 border-slate-500/20"}`}>
             {run.status}
           </span>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-xs text-gray-500">Steps</p>
-          <p className="text-xl font-bold mt-1">{run.steps.length}</p>
+        <div className="card-glass p-4">
+          <p className="text-xs text-slate-500 uppercase tracking-wide">Steps</p>
+          <p className="text-xl font-bold text-slate-100 mt-1">{run.steps.length}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-xs text-gray-500">Cost</p>
-          <p className="text-xl font-bold mt-1">${(run.costUsd ?? 0).toFixed(4)}</p>
+        <div className="card-glass p-4">
+          <p className="text-xs text-slate-500 uppercase tracking-wide">Cost</p>
+          <p className="text-xl font-bold text-slate-100 mt-1">${(run.costUsd ?? 0).toFixed(4)}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-xs text-gray-500">Duration</p>
-          <p className="text-xl font-bold mt-1">
+        <div className="card-glass p-4">
+          <p className="text-xs text-slate-500 uppercase tracking-wide">Duration</p>
+          <p className="text-xl font-bold text-slate-100 mt-1">
             {run.completedAt
               ? `${((new Date(run.completedAt).getTime() - new Date(run.createdAt).getTime()) / 1000).toFixed(1)}s`
               : "..."}
@@ -161,42 +178,34 @@ export default function RunDetailPage() {
       </div>
 
       {/* Step Timeline */}
-      <h2 className="text-lg font-semibold mb-4">Step Timeline</h2>
-      <div className="space-y-4">
+      <h2 className="text-base font-semibold text-slate-200 mb-4">Step Timeline</h2>
+      <div className="space-y-3">
         {run.steps.map((step, idx) => (
-          <div key={step.id} className="bg-white rounded-lg shadow">
+          <div key={step.id} className="card-glass overflow-hidden">
             {/* Step Header */}
             <button
               onClick={() => setExpandedStep(expandedStep === step.id ? null : step.id)}
-              className="w-full flex items-center gap-4 p-4 text-left hover:bg-gray-50 rounded-lg"
+              className="w-full flex items-center gap-4 p-4 text-left hover:bg-white/[0.03] transition-colors"
             >
               {/* Timeline dot */}
               <div className="flex flex-col items-center">
-                <div
-                  className={`w-4 h-4 rounded-full ${
-                    step.status === "COMPLETED" ? "bg-green-500" :
-                    step.status === "RUNNING" ? "bg-blue-500 animate-pulse" :
-                    step.status === "FAILED" ? "bg-red-500" :
-                    step.status === "ROLLED_BACK" ? "bg-purple-500" :
-                    "bg-gray-300"
-                  }`}
-                />
-                {idx < run.steps.length - 1 && <div className="w-0.5 h-8 bg-gray-200 mt-1" />}
+                <div className={`w-3.5 h-3.5 rounded-full ${stepDotColors[step.status] ?? "bg-slate-600"}`} />
+                {idx < run.steps.length - 1 && <div className="w-0.5 h-6 bg-white/[0.06] mt-1" />}
               </div>
 
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">{step.name}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[step.status] ?? "bg-gray-100"}`}>
+                  <span className="font-medium text-slate-200">{step.name}</span>
+                  <span className={`px-2 py-0.5 rounded-lg text-xs font-semibold border ${statusColors[step.status] ?? "bg-slate-500/10 text-slate-400 border-slate-500/20"}`}>
                     {step.status}
                   </span>
                 </div>
                 {step.reasoning && (
-                  <p className="text-sm text-gray-500 mt-1 line-clamp-1">{step.reasoning}</p>
+                  <p className="text-xs text-slate-500 mt-1 line-clamp-1">{step.reasoning}</p>
                 )}
               </div>
 
-              <div className="text-right text-sm text-gray-500">
+              <div className="text-right text-xs text-slate-500">
                 <div>${(step.costUsd ?? 0).toFixed(4)}</div>
                 <div>{step.toolCalls.length} tool calls</div>
               </div>
@@ -204,57 +213,57 @@ export default function RunDetailPage() {
 
             {/* Expanded Detail */}
             {expandedStep === step.id && (
-              <div className="border-t px-4 pb-4 pt-3">
+              <div className="border-t border-white/[0.06] px-4 pb-4 pt-3">
                 {/* Reasoning */}
                 {step.reasoning && (
                   <div className="mb-4">
-                    <h4 className="text-sm font-medium text-gray-700 mb-1">Reasoning</h4>
-                    <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg whitespace-pre-wrap">{step.reasoning}</p>
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Reasoning</h4>
+                    <p className="text-sm text-slate-300 bg-brand-500/5 border border-brand-500/10 p-3 rounded-xl whitespace-pre-wrap">{step.reasoning}</p>
                   </div>
                 )}
 
                 {/* Error */}
                 {step.error && (
                   <div className="mb-4">
-                    <h4 className="text-sm font-medium text-red-600 mb-1">Error</h4>
-                    <p className="text-sm text-red-700 bg-red-50 p-3 rounded-lg">{step.error}</p>
+                    <h4 className="text-xs font-semibold text-red-400 uppercase tracking-wide mb-2">Error</h4>
+                    <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 p-3 rounded-xl">{step.error}</p>
                   </div>
                 )}
 
                 {/* Tool Calls */}
                 {step.toolCalls.length > 0 && (
                   <div className="mb-4">
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Tool Calls</h4>
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Tool Calls</h4>
                     <div className="space-y-2">
                       {step.toolCalls.map((tc) => (
-                        <div key={tc.id} className="bg-gray-50 rounded-lg p-3 text-xs">
+                        <div key={tc.id} className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 text-xs">
                           <div className="flex items-center justify-between mb-1">
-                            <span className="font-mono font-medium">{tc.toolName}</span>
+                            <span className="font-mono font-medium text-slate-300">{tc.toolName}</span>
                             <div className="flex items-center gap-2">
-                              <span className={tc.status === "COMPLETED" ? "text-green-600" : "text-red-600"}>
+                              <span className={tc.status === "COMPLETED" ? "text-emerald-400" : "text-red-400"}>
                                 {tc.status}
                               </span>
-                              <span className="text-gray-400">{tc.durationMs}ms</span>
+                              <span className="text-slate-600">{tc.durationMs}ms</span>
                             </div>
                           </div>
                           {tc.input && (
                             <details className="mt-1">
-                              <summary className="cursor-pointer text-gray-500">Input</summary>
-                              <pre className="mt-1 bg-white p-2 rounded text-xs overflow-auto max-h-32">
+                              <summary className="cursor-pointer text-slate-500 hover:text-slate-400">Input</summary>
+                              <pre className="mt-1 bg-black/20 text-slate-400 p-2 rounded-lg text-xs overflow-auto max-h-32">
                                 {JSON.stringify(tc.input, null, 2)}
                               </pre>
                             </details>
                           )}
                           {tc.output && (
                             <details className="mt-1">
-                              <summary className="cursor-pointer text-gray-500">Output</summary>
-                              <pre className="mt-1 bg-white p-2 rounded text-xs overflow-auto max-h-32">
+                              <summary className="cursor-pointer text-slate-500 hover:text-slate-400">Output</summary>
+                              <pre className="mt-1 bg-black/20 text-slate-400 p-2 rounded-lg text-xs overflow-auto max-h-32">
                                 {JSON.stringify(tc.output, null, 2)}
                               </pre>
                             </details>
                           )}
                           {tc.error && (
-                            <p className="text-red-600 mt-1">{tc.error}</p>
+                            <p className="text-red-400 mt-1">{tc.error}</p>
                           )}
                         </div>
                       ))}
@@ -268,7 +277,7 @@ export default function RunDetailPage() {
                     <button
                       onClick={() => handleStepAction(step.id, "rollback")}
                       disabled={!!actionLoading}
-                      className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
+                      className="px-3 py-1.5 border border-white/[0.08] text-slate-400 rounded-xl text-sm font-semibold hover:bg-white/[0.06] disabled:opacity-50 transition-colors"
                     >
                       Rollback
                     </button>
@@ -277,7 +286,7 @@ export default function RunDetailPage() {
                     <button
                       onClick={() => handleStepAction(step.id, "rerun")}
                       disabled={!!actionLoading}
-                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
+                      className="px-3 py-1.5 gradient-brand text-white rounded-xl text-sm font-semibold hover:shadow-md hover:shadow-brand-500/20 disabled:opacity-50 transition-all"
                     >
                       Rerun Step
                     </button>

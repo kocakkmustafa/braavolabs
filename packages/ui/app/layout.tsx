@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import AuthLayout from "./AuthLayout";
 
 export const metadata: Metadata = {
   title: "AI Company OS",
@@ -18,11 +19,10 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
-      <body className="bg-slate-50 text-slate-900 antialiased">
-        <div className="flex h-screen">
-          <Sidebar />
-          <main className="flex-1 overflow-auto">{children}</main>
-        </div>
+      <body className="bg-[#0d0f14] text-slate-100 antialiased">
+        <AuthLayout sidebar={<Sidebar />}>
+          {children}
+        </AuthLayout>
       </body>
     </html>
   );
@@ -54,7 +54,7 @@ function Sidebar() {
   ];
 
   return (
-    <aside className="w-[260px] gradient-dark text-white flex flex-col border-r border-white/5">
+    <aside className="hidden lg:flex w-[260px] gradient-dark text-white flex-col border-r border-white/5">
       {/* Logo */}
       <div className="px-5 py-5 flex items-center gap-3">
         <div className="w-8 h-8 rounded-lg gradient-brand flex items-center justify-center">

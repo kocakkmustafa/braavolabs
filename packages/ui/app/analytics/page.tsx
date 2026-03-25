@@ -5,13 +5,13 @@ import { api } from "../../lib/api";
 import { useAppStore } from "../../lib/store";
 
 const STATUS_COLORS: Record<string, string> = {
-  COMPLETED: "bg-green-100 text-green-800",
-  RUNNING: "bg-blue-100 text-blue-800",
-  FAILED: "bg-red-100 text-red-800",
-  CANCELLED: "bg-gray-100 text-gray-800",
-  PAUSED: "bg-yellow-100 text-yellow-800",
-  WAITING_APPROVAL: "bg-orange-100 text-orange-800",
-  QUEUED: "bg-purple-100 text-purple-800",
+  COMPLETED: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  RUNNING: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  FAILED: "bg-red-500/10 text-red-400 border-red-500/20",
+  CANCELLED: "bg-slate-500/10 text-slate-400 border-slate-500/20",
+  PAUSED: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+  WAITING_APPROVAL: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+  QUEUED: "bg-purple-500/10 text-purple-400 border-purple-500/20",
 };
 
 interface UsageData {
@@ -67,13 +67,16 @@ export default function AnalyticsPage() {
     }
   }
 
-  if (!token) return <p className="text-gray-500">Please login first.</p>;
+  if (!token) return <p className="text-slate-500 p-8">Please login first.</p>;
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">Analytics</h1>
+    <div className="max-w-7xl mx-auto px-6 py-8 animate-fade-in">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-slate-100">Analytics</h1>
+        <p className="text-sm text-slate-500 mt-0.5">Pipeline run performance and cost breakdown</p>
+      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -85,60 +88,60 @@ export default function AnalyticsPage() {
 
       {/* Run Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">Run Breakdown (This Month)</h2>
+        <div className="card-glass p-6">
+          <h2 className="text-base font-semibold text-slate-200 mb-4">Run Breakdown (This Month)</h2>
           {usage ? (
             <div className="space-y-3">
-              <BarRow label="Completed" count={usage.completedRuns} total={usage.totalRuns} color="bg-green-500" />
+              <BarRow label="Completed" count={usage.completedRuns} total={usage.totalRuns} color="bg-emerald-500" />
               <BarRow label="Failed" count={usage.failedRuns} total={usage.totalRuns} color="bg-red-500" />
-              <BarRow label="Other" count={usage.totalRuns - usage.completedRuns - usage.failedRuns} total={usage.totalRuns} color="bg-gray-400" />
+              <BarRow label="Other" count={usage.totalRuns - usage.completedRuns - usage.failedRuns} total={usage.totalRuns} color="bg-slate-500" />
             </div>
           ) : (
-            <p className="text-gray-500 text-sm">Loading...</p>
+            <p className="text-slate-500 text-sm">Loading...</p>
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">Cost Summary (This Month)</h2>
+        <div className="card-glass p-6">
+          <h2 className="text-base font-semibold text-slate-200 mb-4">Cost Summary (This Month)</h2>
           {finance ? (
             <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Total Spent</span>
-                <span className="font-semibold text-lg">${finance.totalCostUsd.toFixed(2)}</span>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-slate-500 text-sm">Total Spent</span>
+                <span className="font-semibold text-lg text-slate-100">${finance.totalCostUsd.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Billable Runs</span>
-                <span className="font-semibold">{finance.runCount}</span>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-slate-500 text-sm">Billable Runs</span>
+                <span className="font-semibold text-slate-200">{finance.runCount}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Average per Run</span>
-                <span className="font-semibold">${finance.avgCostPerRun.toFixed(4)}</span>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-slate-500 text-sm">Average per Run</span>
+                <span className="font-semibold text-slate-200">${finance.avgCostPerRun.toFixed(4)}</span>
               </div>
             </div>
           ) : (
-            <p className="text-gray-500 text-sm">Loading...</p>
+            <p className="text-slate-500 text-sm">Loading...</p>
           )}
         </div>
       </div>
 
       {/* Run History */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b">
-          <h2 className="text-lg font-semibold">Run History</h2>
+      <div className="card-glass overflow-hidden">
+        <div className="px-6 py-4 border-b border-white/[0.06]">
+          <h2 className="text-base font-semibold text-slate-200">Run History</h2>
         </div>
         {runs.length === 0 ? (
-          <div className="p-6 text-center text-gray-500">No runs found.</div>
+          <div className="p-6 text-center text-slate-500">No runs found.</div>
         ) : (
           <div>
             <table className="w-full text-sm">
-              <thead className="bg-gray-50">
+              <thead className="border-b border-white/[0.06]">
                 <tr>
-                  <th className="text-left px-6 py-3 text-gray-500 font-medium">Company</th>
-                  <th className="text-left px-6 py-3 text-gray-500 font-medium">Pipeline</th>
-                  <th className="text-left px-6 py-3 text-gray-500 font-medium">Status</th>
-                  <th className="text-left px-6 py-3 text-gray-500 font-medium">Steps</th>
-                  <th className="text-left px-6 py-3 text-gray-500 font-medium">Cost</th>
-                  <th className="text-left px-6 py-3 text-gray-500 font-medium">Started</th>
+                  <th className="text-left px-6 py-3 text-slate-500 font-medium text-xs uppercase tracking-wide">Company</th>
+                  <th className="text-left px-6 py-3 text-slate-500 font-medium text-xs uppercase tracking-wide">Pipeline</th>
+                  <th className="text-left px-6 py-3 text-slate-500 font-medium text-xs uppercase tracking-wide">Status</th>
+                  <th className="text-left px-6 py-3 text-slate-500 font-medium text-xs uppercase tracking-wide">Steps</th>
+                  <th className="text-left px-6 py-3 text-slate-500 font-medium text-xs uppercase tracking-wide">Cost</th>
+                  <th className="text-left px-6 py-3 text-slate-500 font-medium text-xs uppercase tracking-wide">Started</th>
                 </tr>
               </thead>
               <tbody>
@@ -156,22 +159,22 @@ export default function AnalyticsPage() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between px-6 py-3 border-t">
-                <span className="text-sm text-gray-500">
+              <div className="flex items-center justify-between px-6 py-3 border-t border-white/[0.06]">
+                <span className="text-sm text-slate-500">
                   Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total}
                 </span>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setPage((p) => Math.max(0, p - 1))}
                     disabled={page === 0}
-                    className="px-3 py-1 border rounded text-sm disabled:opacity-50"
+                    className="px-3 py-1 border border-white/[0.08] rounded-lg text-sm text-slate-400 disabled:opacity-50 hover:bg-white/[0.04] transition-colors"
                   >
                     Prev
                   </button>
                   <button
                     onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
                     disabled={page >= totalPages - 1}
-                    className="px-3 py-1 border rounded text-sm disabled:opacity-50"
+                    className="px-3 py-1 border border-white/[0.08] rounded-lg text-sm text-slate-400 disabled:opacity-50 hover:bg-white/[0.04] transition-colors"
                   >
                     Next
                   </button>
@@ -187,9 +190,9 @@ export default function AnalyticsPage() {
 
 function SummaryCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-white rounded-lg shadow p-4">
-      <p className="text-xs text-gray-500 uppercase tracking-wide">{label}</p>
-      <p className="text-2xl font-bold mt-1">{value}</p>
+    <div className="card-glass p-5">
+      <p className="text-xs text-slate-500 uppercase tracking-wide">{label}</p>
+      <p className="text-2xl font-bold text-slate-100 mt-1">{value}</p>
     </div>
   );
 }
@@ -199,11 +202,11 @@ function BarRow({ label, count, total, color }: { label: string; count: number; 
   return (
     <div>
       <div className="flex justify-between text-sm mb-1">
-        <span className="text-gray-600">{label}</span>
-        <span className="font-medium">{count}</span>
+        <span className="text-slate-400">{label}</span>
+        <span className="font-medium text-slate-300">{count}</span>
       </div>
-      <div className="w-full bg-gray-100 rounded-full h-2">
-        <div className={`${color} h-2 rounded-full`} style={{ width: `${pct}%` }} />
+      <div className="w-full bg-white/[0.06] rounded-full h-2">
+        <div className={`${color} h-2 rounded-full transition-all`} style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
@@ -215,45 +218,45 @@ function RunRow({ run, expanded, detail, onToggle }: {
   return (
     <>
       <tr
-        className="border-t hover:bg-gray-50 cursor-pointer"
+        className="border-t border-white/[0.04] hover:bg-white/[0.02] cursor-pointer transition-colors"
         onClick={onToggle}
       >
-        <td className="px-6 py-3">{run.pipeline?.company?.name ?? "—"}</td>
-        <td className="px-6 py-3">{run.pipeline?.name ?? "—"}</td>
+        <td className="px-6 py-3 text-slate-300">{run.pipeline?.company?.name ?? "—"}</td>
+        <td className="px-6 py-3 text-slate-300">{run.pipeline?.name ?? "—"}</td>
         <td className="px-6 py-3">
-          <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[run.status] ?? ""}`}>
+          <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_COLORS[run.status] ?? ""}`}>
             {run.status}
           </span>
         </td>
-        <td className="px-6 py-3">{run._count?.steps ?? 0}</td>
-        <td className="px-6 py-3">{run.costUsd ? `$${Number(run.costUsd).toFixed(4)}` : "—"}</td>
-        <td className="px-6 py-3 text-gray-500">{new Date(run.createdAt).toLocaleString()}</td>
+        <td className="px-6 py-3 text-slate-400">{run._count?.steps ?? 0}</td>
+        <td className="px-6 py-3 text-slate-400">{run.costUsd ? `$${Number(run.costUsd).toFixed(4)}` : "—"}</td>
+        <td className="px-6 py-3 text-slate-500">{new Date(run.createdAt).toLocaleString()}</td>
       </tr>
       {expanded && detail && (
         <tr>
-          <td colSpan={6} className="px-6 py-4 bg-gray-50">
+          <td colSpan={6} className="px-6 py-4 bg-white/[0.02]">
             <div className="space-y-2">
-              <p className="text-sm font-medium">Run Steps</p>
+              <p className="text-sm font-medium text-slate-300">Run Steps</p>
               {detail.steps?.length > 0 ? (
                 detail.steps.map((step: any, i: number) => (
-                  <div key={step.id} className="bg-white rounded p-3 border text-sm">
+                  <div key={step.id} className="bg-white/[0.04] rounded-lg p-3 border border-white/[0.06] text-sm">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">#{i + 1}</span>
-                      <span className="font-medium">{step.stepName}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[step.status] ?? ""}`}>
+                      <span className="font-mono text-xs bg-white/[0.06] text-slate-400 px-1.5 py-0.5 rounded">#{i + 1}</span>
+                      <span className="font-medium text-slate-300">{step.stepName}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_COLORS[step.status] ?? ""}`}>
                         {step.status}
                       </span>
                     </div>
                     {step.reasoning && (
-                      <p className="text-gray-600 text-xs mt-1">Reasoning: {step.reasoning}</p>
+                      <p className="text-slate-500 text-xs mt-1">Reasoning: {step.reasoning}</p>
                     )}
                     {step.toolCalls?.length > 0 && (
-                      <p className="text-gray-400 text-xs mt-1">{step.toolCalls.length} tool call(s)</p>
+                      <p className="text-slate-600 text-xs mt-1">{step.toolCalls.length} tool call(s)</p>
                     )}
                   </div>
                 ))
               ) : (
-                <p className="text-gray-500 text-xs">No steps recorded.</p>
+                <p className="text-slate-500 text-xs">No steps recorded.</p>
               )}
             </div>
           </td>
