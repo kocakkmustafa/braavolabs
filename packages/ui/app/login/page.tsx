@@ -287,8 +287,15 @@ export default function LoginPage() {
               try {
                 const { url } = await api.googleAuthUrl();
                 window.location.href = url;
-              } catch {
-                setError("Google login is not configured");
+              } catch (err) {
+                const msg = err instanceof Error ? err.message : "";
+                if (msg.includes("503") || msg.includes("not configured")) {
+                  setError("Google OAuth is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your .env file, or use email/password login.");
+                } else if (msg.includes("fetch") || msg.includes("Failed") || msg.includes("ECONNREFUSED")) {
+                  setError("Cannot connect to API server. Make sure the backend is running on port 8080.");
+                } else {
+                  setError(msg || "Google login failed. Please try email/password.");
+                }
               }
             }}
             className="w-full flex items-center justify-center gap-3 py-3 rounded-xl text-sm font-semibold transition-all hover:opacity-80"

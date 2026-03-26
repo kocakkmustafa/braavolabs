@@ -33,6 +33,7 @@ const NAV_ITEMS = [
   { id: "integrations",  label: "Integrations",    icon: "hub" },
   { id: "governance",    label: "Governance",      icon: "security" },
   { id: "api",           label: "API & Auth",      icon: "terminal" },
+  { id: "webhooks",      label: "Webhooks",        icon: "webhook" },
   { id: "referral",      label: "Referral",        icon: "redeem" },
 ];
 
@@ -49,6 +50,7 @@ export default function SettingsPage() {
   const [referral, setReferral] = useState<{ code: string; stats: any } | null>(null);
   const [redeemCode, setRedeemCode] = useState("");
   const [redeemResult, setRedeemResult] = useState<string | null>(null);
+  const [billingError, setBillingError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [notifs, setNotifs] = useState({
     runCompleted: true, spendApproval: true, pipelineErrors: true,
@@ -66,14 +68,16 @@ export default function SettingsPage() {
 
   async function handleUpgrade(plan: "PRO" | "ENTERPRISE") {
     setUpgradeLoading(true);
+    setBillingError(null);
     try { const { url } = await api.billingCheckout(token!, plan); window.location.href = url; }
-    catch (err) { alert((err as Error).message); }
+    catch (err) { console.error("Billing checkout failed:", err); setBillingError((err as Error).message); }
     setUpgradeLoading(false);
   }
 
   async function handleManageBilling() {
+    setBillingError(null);
     try { const { url } = await api.billingPortal(token!); window.location.href = url; }
-    catch (err) { alert((err as Error).message); }
+    catch (err) { console.error("Billing portal failed:", err); setBillingError((err as Error).message); }
   }
 
   function handleSave() { setSaved(true); setTimeout(() => setSaved(false), 2000); }
@@ -240,6 +244,11 @@ export default function SettingsPage() {
         {/* Billing */}
         {active === "billing" && (
           <Section title="Plan & Usage" subtitle="Manage your subscription and monitor usage metrics">
+            {billingError && (
+              <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 12, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", fontSize: 14 }}>
+                {billingError}
+              </div>
+            )}
             <div
               className="flex items-center justify-between mb-6 pb-6"
               style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
@@ -424,6 +433,106 @@ export default function SettingsPage() {
                 <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "#859399" }}>Session Token</p>
                 <code className="text-sm font-mono" style={{ color: "#bbc9cf" }}>
                   {token ? `${token.slice(0, 24)}...` : "—"}
+                </code>
+              </div>
+            </div>
+          </Section>
+        )}
+
+        {/* Webhooks */}
+        {active === "webhooks" && (
+          <Section title="Webhooks & API Keys" subtitle="Manage webhook endpoints and API access for your companies">
+            <div className="space-y-5">
+              {/* Webhook endpoint info */}
+              <div className="p-5 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#00d1ff" }}>webhook</span>
+                  <p className="text-sm font-semibold" style={{ color: "#e1e2eb" }}>Incoming Webhooks</p>
+                </div>
+                <p className="text-xs mb-3" style={{ color: "#859399" }}>
+                  External services can trigger pipeline runs by sending POST requests to your webhook endpoints.
+                </p>
+                <div className="rounded-lg p-3" style={{ background: "rgba(0,0,0,0.2)" }}>
+                  <p className="text-[10px] font-semibold tracking-wider mb-1" style={{ color: "#859399" }}>ENDPOINT FORMAT</p>
+                  <code className="text-xs font-mono" style={{ color: "#a4e6ff" }}>
+                    POST /hooks/:company_slug/:event
+                  </code>
+                </div>
+                <p className="text-xs mt-2" style={{ color: "#3c494e" }}>
+                  Replace <code style={{ color: "#a4e6ff" }}>:company_slug</code> with your company slug and <code style={{ color: "#a4e6ff" }}>:event</code> with the event name.
+                </p>
+              </div>
+
+              {/* API Key display */}
+              <div className="p-5 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#fbbf24" }}>key</span>
+                  <p className="text-sm font-semibold" style={{ color: "#e1e2eb" }}>API Access</p>
+                </div>
+                <div className="flex items-center gap-3 mb-2">
+                  <code className="text-sm flex-1 truncate font-mono" style={{ color: "#bbc9cf" }}>
+                    Bearer {token ? `${token.slice(0, 20)}...` : "—"}
+                  </code>
+                  <button
+                    className="px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1"
+                    style={{ background: "rgba(0,209,255,0.1)", color: "#00d1ff", border: "1px solid rgba(0,209,255,0.2)" }}
+                    onClick={() => token && navigator.clipboard.writeText(token)}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 13 }}>content_copy</span>
+                    Copy
+                  </button>
+                </div>
+                <p className="text-xs" style={{ color: "#3c494e" }}>Use this token as Bearer auth in API requests. Tokens expire after session ends.</p>
+              </div>
+
+              {/* Example events */}
+              <div>
+                <p className="text-xs font-semibold mb-3" style={{ color: "#bbc9cf" }}>Common Events</p>
+                <div className="space-y-0">
+                  {[
+                    { event: "new_lead", desc: "Trigger acquisition pipeline on new lead", icon: "person_add" },
+                    { event: "content_ready", desc: "Content approved for publishing", icon: "check_circle" },
+                    { event: "payment_received", desc: "Process payment and update CRM", icon: "payments" },
+                    { event: "support_ticket", desc: "Route to customer success agent", icon: "support_agent" },
+                  ].map((ev) => (
+                    <div
+                      key={ev.event}
+                      className="flex items-center justify-between py-3"
+                      style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="material-symbols-outlined" style={{ fontSize: 16, color: "#859399" }}>{ev.icon}</span>
+                        <div>
+                          <code className="text-xs font-mono" style={{ color: "#e1e2eb" }}>{ev.event}</code>
+                          <p className="text-xs" style={{ color: "#3c494e" }}>{ev.desc}</p>
+                        </div>
+                      </div>
+                      <button
+                        className="px-2 py-1 rounded text-[10px] font-semibold"
+                        style={{ background: "rgba(255,255,255,0.04)", color: "#859399", border: "1px solid rgba(255,255,255,0.06)" }}
+                        onClick={() => navigator.clipboard.writeText(`/hooks/YOUR_COMPANY/${ev.event}`)}
+                      >
+                        Copy URL
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Webhook test */}
+              <div className="p-4 rounded-xl" style={{ background: "rgba(0,209,255,0.04)", border: "1px solid rgba(0,209,255,0.12)" }}>
+                <p className="text-xs font-semibold mb-2" style={{ color: "#00d1ff" }}>Test Your Webhook</p>
+                <code className="text-xs font-mono block" style={{ color: "#bbc9cf" }}>
+                  curl -X POST {typeof window !== "undefined" ? window.location.origin : ""}/api/v1/hooks/YOUR_COMPANY/test \
+                </code>
+                <code className="text-xs font-mono block ml-4" style={{ color: "#bbc9cf" }}>
+                  -H &quot;Authorization: Bearer YOUR_TOKEN&quot; \
+                </code>
+                <code className="text-xs font-mono block ml-4" style={{ color: "#bbc9cf" }}>
+                  -H &quot;Content-Type: application/json&quot; \
+                </code>
+                <code className="text-xs font-mono block ml-4" style={{ color: "#bbc9cf" }}>
+                  -d {`'{"data": "test"}'`}
                 </code>
               </div>
             </div>

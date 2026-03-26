@@ -10,6 +10,7 @@ export default function ApprovalsPage() {
   const router = useRouter();
   const [approvals, setApprovals] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -23,11 +24,13 @@ export default function ApprovalsPage() {
 
   async function decide(id: string, decision: "APPROVED" | "REJECTED") {
     setLoading(true);
+    setError(null);
     try {
       await api.decideApproval(token!, id, decision);
       setApprovals((prev) => prev.filter((a) => a.id !== id));
     } catch (err) {
-      alert((err as Error).message);
+      console.error("Approval decision failed:", err);
+      setError((err as Error).message);
     }
     setLoading(false);
   }
@@ -38,6 +41,12 @@ export default function ApprovalsPage() {
         <h1 style={{ fontSize: 24, fontWeight: 700, color: "#e1e2eb", margin: 0 }}>Pending Approvals</h1>
         <p style={{ fontSize: 14, color: "#859399", marginTop: 4 }}>Review and approve spend actions from your AI agents</p>
       </div>
+
+      {error && (
+        <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 12, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", fontSize: 14 }}>
+          {error}
+        </div>
+      )}
 
       {approvals.length === 0 ? (
         <div

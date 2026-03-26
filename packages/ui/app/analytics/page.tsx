@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../lib/store";
 
@@ -68,9 +69,31 @@ export default function AnalyticsPage() {
     }
   }
 
+  function exportCSV(data: any[]) {
+    if (data.length === 0) return;
+    const header = "Company,Pipeline,Status,Steps,Cost,Started\n";
+    const rows = data.map((r) =>
+      [
+        r.pipeline?.company?.name ?? "",
+        r.pipeline?.name ?? "",
+        r.status,
+        r._count?.steps ?? 0,
+        r.costUsd ? Number(r.costUsd).toFixed(4) : "0",
+        new Date(r.createdAt).toISOString(),
+      ].join(",")
+    ).join("\n");
+    const blob = new Blob([header + rows], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `analytics-runs-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   if (!token) return (
     <div className="flex items-center justify-center min-h-screen" style={{ background: "#10131a" }}>
-      <p className="text-sm" style={{ color: "#859399" }}>Please <a href="/login" style={{ color: "#00d1ff" }}>login</a> first.</p>
+      <p className="text-sm" style={{ color: "#859399" }}>Please <Link href="/login" style={{ color: "#00d1ff" }}>login</Link> first.</p>
     </div>
   );
 
@@ -78,9 +101,19 @@ export default function AnalyticsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8 animate-fade-in">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold font-headline" style={{ color: "#e1e2eb" }}>Analytics</h1>
-        <p className="text-sm mt-0.5" style={{ color: "#859399" }}>Pipeline run performance and cost breakdown</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold font-headline" style={{ color: "#e1e2eb" }}>Analytics</h1>
+          <p className="text-sm mt-0.5" style={{ color: "#859399" }}>Pipeline run performance and cost breakdown</p>
+        </div>
+        <button
+          onClick={() => exportCSV(runs)}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium self-start sm:self-auto"
+          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>download</span>
+          Export CSV
+        </button>
       </div>
 
       {/* Summary Cards */}
@@ -99,13 +132,26 @@ export default function AnalyticsPage() {
         >
           <h2 className="text-base font-semibold font-headline mb-4" style={{ color: "#e1e2eb" }}>Run Breakdown (This Month)</h2>
           {usage ? (
-            <div className="space-y-3">
-              <BarRow label="Completed" count={usage.completedRuns} total={usage.totalRuns} color="#10b981" />
-              <BarRow label="Failed" count={usage.failedRuns} total={usage.totalRuns} color="#ef4444" />
-              <BarRow label="Other" count={usage.totalRuns - usage.completedRuns - usage.failedRuns} total={usage.totalRuns} color="#859399" />
+            <div className="flex items-center gap-6">
+              {/* SVG Donut Chart */}
+              <DonutChart
+                segments={[
+                  { value: usage.completedRuns, color: "#10b981", label: "Completed" },
+                  { value: usage.failedRuns, color: "#ef4444", label: "Failed" },
+                  { value: Math.max(0, usage.totalRuns - usage.completedRuns - usage.failedRuns), color: "#859399", label: "Other" },
+                ]}
+                total={usage.totalRuns}
+              />
+              <div className="space-y-3 flex-1">
+                <BarRow label="Completed" count={usage.completedRuns} total={usage.totalRuns} color="#10b981" />
+                <BarRow label="Failed" count={usage.failedRuns} total={usage.totalRuns} color="#ef4444" />
+                <BarRow label="Other" count={usage.totalRuns - usage.completedRuns - usage.failedRuns} total={usage.totalRuns} color="#859399" />
+              </div>
             </div>
           ) : (
-            <p className="text-sm" style={{ color: "#859399" }}>Loading...</p>
+            <div className="flex items-center justify-center h-32">
+              <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }} />
+            </div>
           )}
         </div>
 
@@ -235,6 +281,52 @@ function BarRow({ label, count, total, color }: { label: string; count: number; 
       </div>
       <div className="w-full rounded-full h-2" style={{ background: "rgba(255,255,255,0.06)" }}>
         <div className="h-2 rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+      </div>
+    </div>
+  );
+}
+
+function DonutChart({ segments, total }: { segments: { value: number; color: string; label: string }[]; total: number }) {
+  const size = 100;
+  const strokeWidth = 12;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  let offset = 0;
+  const arcs = segments
+    .filter((s) => s.value > 0)
+    .map((seg) => {
+      const pct = total > 0 ? seg.value / total : 0;
+      const dashLen = pct * circumference;
+      const dashOffset = -offset;
+      offset += dashLen;
+      return { ...seg, dashLen, dashOffset, pct };
+    });
+
+  return (
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        {/* Background circle */}
+        <circle
+          cx={size / 2} cy={size / 2} r={radius}
+          fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={strokeWidth}
+        />
+        {/* Segments */}
+        {arcs.map((arc) => (
+          <circle
+            key={arc.label}
+            cx={size / 2} cy={size / 2} r={radius}
+            fill="none" stroke={arc.color} strokeWidth={strokeWidth}
+            strokeDasharray={`${arc.dashLen} ${circumference - arc.dashLen}`}
+            strokeDashoffset={arc.dashOffset}
+            strokeLinecap="round"
+            style={{ transform: "rotate(-90deg)", transformOrigin: "50% 50%", transition: "stroke-dasharray 0.5s ease" }}
+          />
+        ))}
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <span className="font-headline font-bold text-lg" style={{ color: "#e1e2eb", lineHeight: 1 }}>{total}</span>
+        <span style={{ fontSize: 9, color: "#3c494e" }}>runs</span>
       </div>
     </div>
   );

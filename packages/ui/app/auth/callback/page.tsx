@@ -15,7 +15,7 @@ function CallbackInner() {
       try {
         const payload = JSON.parse(atob(token.split(".")[1]));
         setAuth(token, payload.tenantId);
-        router.push("/");
+        router.push("/dashboard");
       } catch {
         router.push("/login");
       }

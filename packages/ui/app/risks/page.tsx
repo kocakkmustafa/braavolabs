@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../lib/store";
 
@@ -28,7 +29,7 @@ export default function RisksPage() {
 
   if (!token) return (
     <div className="flex items-center justify-center min-h-screen" style={{ background: "#10131a" }}>
-      <p className="text-sm" style={{ color: "#859399" }}>Please <a href="/login" style={{ color: "#00d1ff" }}>login</a> first.</p>
+      <p className="text-sm" style={{ color: "#859399" }}>Please <Link href="/login" style={{ color: "#00d1ff" }}>login</Link> first.</p>
     </div>
   );
 

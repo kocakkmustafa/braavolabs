@@ -80,7 +80,7 @@ authRouter.get("/google/callback", async (req, res, next) => {
     const { code, ref } = googleCallbackSchema.parse(req.query);
     const result = await googleCallback(code, ref);
     // Redirect to frontend with token
-    const redirectUrl = new URL("/auth/callback", process.env.APP_URL ?? "http://localhost:3000");
+    const redirectUrl = new URL("/auth/callback", process.env.APP_URL ?? "http://localhost:3001");
     redirectUrl.searchParams.set("token", result.token);
     res.redirect(redirectUrl.toString());
   } catch (err) { next(err); }

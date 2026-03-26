@@ -233,4 +233,33 @@
   }
 
   .text-muted { color: var(--color-on-surface-variant); }
+
+  /* Shimmer loading animation */
+  .animate-shimmer {
+    background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Line clamp utility */
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Mobile-friendly touch targets */
+  @media (max-width: 640px) {
+    .glass-panel {
+      border-radius: 0.75rem;
+    }
+    button, a {
+      min-height: 36px;
+    }
+  }
 }

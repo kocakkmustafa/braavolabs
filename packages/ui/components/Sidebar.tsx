@@ -15,6 +15,8 @@ const NAV_ITEMS = [
   { href: "/drafts", label: "Drafts", icon: "edit_note", authOnly: true },
   { href: "/analytics", label: "Analytics", icon: "query_stats", authOnly: true },
   { href: "/risks", label: "Risk Shield", icon: "security", authOnly: true },
+  { href: "/billing", label: "Billing", icon: "credit_card", authOnly: true },
+  { href: "/marketplace", label: "Marketplace", icon: "storefront", authOnly: true },
   { href: "/settings", label: "Settings", icon: "settings", authOnly: true },
 ];
 

@@ -188,4 +188,16 @@ export const api = {
   // Draft approve/send
   approveDraft: (token: string, id: string, send = false) =>
     apiFetch<any>(`/drafts/${id}/approve`, { method: "POST", body: JSON.stringify({ send }), token }),
+
+  // Pipelines — list all for tenant
+  listPipelines: (token: string, companyId?: string) =>
+    apiFetch<any[]>(`/pipelines${companyId ? `?companyId=${companyId}` : ""}`, { token }),
+
+  // Memory search
+  searchMemory: (token: string, query: string, companyId?: string) =>
+    apiFetch<any[]>("/memory/search", { method: "POST", body: JSON.stringify({ query, companyId }), token }),
+
+  // Webhooks — list company webhooks (derived from activity log)
+  companyWebhooks: (token: string, companyId: string) =>
+    apiFetch<any[]>(`/companies/${companyId}/webhooks`, { token }),
 };

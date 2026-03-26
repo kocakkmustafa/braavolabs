@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../lib/store";
 
@@ -15,7 +16,7 @@ export default function CompaniesPage() {
 
   if (!token) return (
     <div className="flex items-center justify-center min-h-screen" style={{ background: "#10131a" }}>
-      <p className="text-sm" style={{ color: "#859399" }}>Please <a href="/login" style={{ color: "#00d1ff" }}>login</a> first.</p>
+      <p className="text-sm" style={{ color: "#859399" }}>Please <Link href="/login" style={{ color: "#00d1ff" }}>login</Link> first.</p>
     </div>
   );
 
@@ -48,14 +49,14 @@ export default function CompaniesPage() {
             {companies.length} {companies.length !== 1 ? "companies" : "company"} created
           </p>
         </div>
-        <a
+        <Link
           href="/companies/new"
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110"
           style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}
         >
           <span className="material-symbols-outlined text-base">add</span>
           New Company
-        </a>
+        </Link>
       </div>
 
       {companies.length === 0 ? (
@@ -70,30 +71,29 @@ export default function CompaniesPage() {
           <p className="text-sm mt-1 mb-6" style={{ color: "#859399" }}>
             Describe your business idea and AI will set everything up
           </p>
-          <a
+          <Link
             href="/companies/new"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110"
             style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
           >
             Create Your First Company
-          </a>
+          </Link>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {companies.map((c) => {
             const s = statusStyles[c.status] ?? statusStyles.DRAFT;
             return (
-              <a
+              <Link
                 key={c.id}
                 href={`/companies/${c.id}`}
-                className="group rounded-2xl overflow-hidden transition-all hover:scale-[1.01]"
+                className="group rounded-2xl overflow-hidden transition-all hover:scale-[1.01] hover:border-[rgba(0,209,255,0.2)] hover:shadow-[0_0_20px_rgba(0,209,255,0.08)]"
                 style={{
+                  display: "block",
                   background: "rgba(29,32,38,0.7)",
                   backdropFilter: "blur(20px)",
                   border: "1px solid rgba(255,255,255,0.06)",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(0,209,255,0.2)"; e.currentTarget.style.boxShadow = "0 0 20px rgba(0,209,255,0.08)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.boxShadow = "none"; }}
               >
                 {/* Top accent bar */}
                 <div
@@ -150,7 +150,7 @@ export default function CompaniesPage() {
                     <span className="ml-auto">{new Date(c.createdAt).toLocaleDateString()}</span>
                   </div>
                 </div>
-              </a>
+              </Link>
             );
           })}
         </div>

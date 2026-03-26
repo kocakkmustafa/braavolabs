@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../lib/store";
 
@@ -77,7 +78,7 @@ export default function ErrorsPage() {
         {runs.length > 0 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {runs.map((run) => (
-              <a
+              <Link
                 key={run.id}
                 href={`/companies/${run.pipeline?.company?.id}/runs/${run.id}`}
                 style={{
@@ -90,8 +91,6 @@ export default function ErrorsPage() {
                   textDecoration: "none",
                   transition: "border-color 0.2s",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(0,209,255,0.2)")}
-                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)")}
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -124,7 +123,7 @@ export default function ErrorsPage() {
                     </p>
                   </div>
                 </div>
-              </a>
+              </Link>
             ))}
           </div>
         ) : (

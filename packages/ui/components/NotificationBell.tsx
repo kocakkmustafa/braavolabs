@@ -5,9 +5,13 @@ import { api } from "../lib/api";
 
 export default function NotificationBell() {
   const token = useAppStore((s) => s.token);
+  const theme = useAppStore((s) => s.theme);
+  const toggleTheme = useAppStore((s) => s.toggleTheme);
   const [count, setCount] = useState(0);
   const [open, setOpen] = useState(false);
   const [approvals, setApprovals] = useState<any[]>([]);
+
+  const isDark = theme === "dark";
 
   useEffect(() => {
     if (!token) return;
@@ -26,15 +30,36 @@ export default function NotificationBell() {
 
   if (!token) return null;
 
+  const btnStyle = {
+    width: 36, height: 36, borderRadius: 10,
+    background: isDark ? "rgba(29,32,38,0.9)" : "rgba(255,255,255,0.9)",
+    border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.1)",
+    cursor: "pointer" as const, display: "flex", alignItems: "center", justifyContent: "center",
+    color: isDark ? "#859399" : "#4a5568",
+  };
+
   return (
-    <div style={{ position: "fixed", top: 16, right: 20, zIndex: 100 }}>
+    <div style={{ position: "fixed", top: 16, right: 20, zIndex: 100, display: "flex", gap: 8 }}>
+      {/* Theme toggle */}
+      <button
+        onClick={toggleTheme}
+        title={isDark ? "Light mode" : "Dark mode"}
+        style={btnStyle}
+      >
+        <span className="material-symbols-outlined" style={{ fontSize: 17 }}>
+          {isDark ? "light_mode" : "dark_mode"}
+        </span>
+      </button>
+
+      {/* Bell */}
+      <div style={{ position: "relative" }}>
       <button
         onClick={() => setOpen((v) => !v)}
-        style={{ position: "relative", width: 36, height: 36, borderRadius: 10, background: "rgba(29,32,38,0.9)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#859399" }}
+        style={{ ...btnStyle, position: "relative" }}
       >
         <span className="material-symbols-outlined" style={{ fontSize: 18 }}>notifications</span>
         {count > 0 && (
-          <span style={{ position: "absolute", top: -4, right: -4, width: 16, height: 16, borderRadius: "50%", background: "#ef4444", fontSize: 9, fontWeight: 700, color: "white", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #10131a" }}>
+          <span style={{ position: "absolute", top: -4, right: -4, width: 16, height: 16, borderRadius: "50%", background: "#ef4444", fontSize: 9, fontWeight: 700, color: "white", display: "flex", alignItems: "center", justifyContent: "center", border: `2px solid ${isDark ? "#10131a" : "#f0f5ff"}` }}>
             {count > 9 ? "9+" : count}
           </span>
         )}
@@ -83,6 +108,7 @@ export default function NotificationBell() {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }

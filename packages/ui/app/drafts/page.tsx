@@ -51,16 +51,20 @@ export default function DraftsPage() {
       .finally(() => setLoading(false));
   }, [token, selectedCompany]);
 
+  const [error, setError] = useState<string | null>(null);
+
   if (!token) return null;
 
   async function updateStatus(id: string, status: string) {
+    setError(null);
     try {
       await api.updateDraft(token!, id, { status });
       setDrafts((prev) =>
         prev.map((d) => (d.id === id ? { ...d, status } : d))
       );
     } catch (err) {
-      alert((err as Error).message);
+      console.error("Draft status update failed:", err);
+      setError((err as Error).message);
     }
   }
 
@@ -90,6 +94,12 @@ export default function DraftsPage() {
           ))}
         </select>
       </div>
+
+      {error && (
+        <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 12, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", fontSize: 14 }}>
+          {error}
+        </div>
+      )}
 
       {loading ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { api, apiFetch } from "../../../lib/api";
 import { useAppStore } from "../../../lib/store";
 
@@ -110,7 +111,7 @@ export default function CompanyDetailPage() {
             <p style={{ fontSize: 14, color: "#859399", marginTop: 2, marginBottom: 0 }}>{company.description ?? ""}</p>
           </div>
         </div>
-        <a href="/companies" style={{ fontSize: 13, color: "#859399", textDecoration: "none" }}>&larr; Back</a>
+        <Link href="/companies" style={{ fontSize: 13, color: "#859399", textDecoration: "none" }}>&larr; Back</Link>
       </div>
 
       {/* Primitives */}
@@ -327,7 +328,7 @@ export default function CompanyDetailPage() {
           {runs.map((r: any) => {
             const rs = runStatusStyles[r.status] ?? defaultRunStatus;
             return (
-              <a
+              <Link
                 key={r.id}
                 href={`/companies/${company.id}/runs/${r.id}`}
                 style={{
@@ -342,8 +343,6 @@ export default function CompanyDetailPage() {
                   textDecoration: "none",
                   transition: "border-color 0.2s",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(0,209,255,0.15)")}
-                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)")}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <span style={{ fontSize: 11, fontFamily: "monospace", color: "#3c494e" }}>{r.id.slice(0, 10)}</span>
@@ -368,7 +367,7 @@ export default function CompanyDetailPage() {
                   <span style={{ fontSize: 12, color: "#3c494e" }}>{new Date(r.createdAt).toLocaleString()}</span>
                   <svg width={16} height={16} fill="none" viewBox="0 0 24 24" stroke="#3c494e" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
                 </div>
-              </a>
+              </Link>
             );
           })}
           {runs.length === 0 && (

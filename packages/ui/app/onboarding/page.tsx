@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../lib/store";
 
@@ -113,20 +114,20 @@ export default function OnboardingPage() {
             </div>
           )}
           <div className="flex gap-3 justify-center">
-            <a
+            <Link
               href="/companies"
               className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110"
               style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
             >
               View Companies
-            </a>
-            <a
+            </Link>
+            <Link
               href="/dashboard"
               className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-80"
               style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}
             >
               Dashboard
-            </a>
+            </Link>
           </div>
         </div>
       </div>

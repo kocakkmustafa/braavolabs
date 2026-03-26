@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { api, apiFetch } from "../../../../../lib/api";
 import { useAppStore } from "../../../../../lib/store";
@@ -57,6 +57,8 @@ const STEP_DOT_COLORS: Record<string, string> = {
   PAUSED:     "#fbbf24",
 };
 
+const LIVE_STATUSES = ["RUNNING", "PAUSED", "WAITING_APPROVAL"];
+
 export default function RunDetailPage() {
   const params = useParams();
   const token = useAppStore((s) => s.token);
@@ -64,11 +66,41 @@ export default function RunDetailPage() {
   const [expandedStep, setExpandedStep] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const timelineEndRef = useRef<HTMLDivElement>(null);
 
+  // Initial fetch
   useEffect(() => {
     if (!token || !params.runId) return;
     api.getRun(token, params.runId as string).then(setRun).catch((e) => setError(e.message));
   }, [token, params.runId]);
+
+  // Auto-polling for live runs (every 2s)
+  useEffect(() => {
+    if (!token || !run || !autoRefresh) return;
+    if (!LIVE_STATUSES.includes(run.status)) return;
+
+    pollRef.current = setInterval(() => {
+      api.getRun(token, run.id)
+        .then((updated) => {
+          setRun(updated);
+          if (!LIVE_STATUSES.includes(updated.status)) {
+            if (pollRef.current) clearInterval(pollRef.current);
+          }
+        })
+        .catch(() => {});
+    }, 2000);
+
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [token, run?.id, run?.status, autoRefresh]);
+
+  // Auto-scroll timeline on new steps
+  useEffect(() => {
+    if (run && LIVE_STATUSES.includes(run.status)) {
+      timelineEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [run?.steps?.length]);
 
   async function handleAction(action: string) {
     if (!token || !run) return;
@@ -100,63 +132,65 @@ export default function RunDetailPage() {
 
   if (!token) return <p style={{ color: "#859399", padding: 32 }}>Please log in first.</p>;
   if (error) return (
-    <div style={{ maxWidth: 896, margin: "0 auto", padding: "32px 24px" }}>
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
       <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", padding: 16, borderRadius: 12 }}>{error}</div>
     </div>
   );
   if (!run) return (
-    <div style={{ maxWidth: 896, margin: "0 auto", padding: "32px 24px" }}>
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
       <div className="animate-shimmer" style={{ height: 32, width: 192, borderRadius: 8, background: "rgba(255,255,255,0.06)", marginBottom: 16 }} />
       <div className="animate-shimmer" style={{ height: 128, borderRadius: 16, background: "rgba(255,255,255,0.04)" }} />
     </div>
   );
 
   const runSt = STATUS_STYLES[run.status] ?? DEFAULT_STATUS;
+  const isLive = LIVE_STATUSES.includes(run.status);
+  const completedSteps = run.steps.filter((s) => s.status === "COMPLETED").length;
+  const progressPct = run.steps.length > 0 ? Math.round((completedSteps / run.steps.length) * 100) : 0;
 
   return (
-    <div style={{ maxWidth: 896, margin: "0 auto", padding: "32px 24px" }} className="animate-fade-in">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: "#e1e2eb", margin: 0 }}>Run Detail</h1>
-          <p style={{ color: "#859399", fontSize: 14, marginTop: 4, marginBottom: 0 }}>
+          <h1 className="text-xl sm:text-2xl font-bold" style={{ color: "#e1e2eb" }}>Run Detail</h1>
+          <p className="text-sm mt-1" style={{ color: "#859399" }}>
             {run.pipeline.company.name} / {run.pipeline.name}
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex items-center gap-3">
+          {/* Live indicator */}
+          {isLive && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.15)" }}>
+              <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#00d1ff", boxShadow: "0 0 6px #00d1ff" }} />
+              <span className="text-xs font-semibold" style={{ color: "#00d1ff" }}>LIVE</span>
+              <button
+                onClick={() => setAutoRefresh(!autoRefresh)}
+                className="ml-1"
+                title={autoRefresh ? "Pause auto-refresh" : "Resume auto-refresh"}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 14, color: autoRefresh ? "#00d1ff" : "#3c494e" }}>
+                  {autoRefresh ? "pause" : "play_arrow"}
+                </span>
+              </button>
+            </div>
+          )}
+
           {run.status === "RUNNING" && (
             <>
               <button
                 onClick={() => handleAction("pause")}
                 disabled={!!actionLoading}
-                style={{
-                  padding: "8px 18px",
-                  background: "rgba(251,191,36,0.1)",
-                  color: "#fbbf24",
-                  border: "1px solid rgba(251,191,36,0.2)",
-                  borderRadius: 12,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: actionLoading ? "not-allowed" : "pointer",
-                  opacity: actionLoading ? 0.5 : 1,
-                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold disabled:opacity-50"
+                style={{ background: "rgba(251,191,36,0.1)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.2)" }}
               >
                 Pause
               </button>
               <button
                 onClick={() => handleAction("stop")}
                 disabled={!!actionLoading}
-                style={{
-                  padding: "8px 18px",
-                  background: "rgba(239,68,68,0.1)",
-                  color: "#f87171",
-                  border: "1px solid rgba(239,68,68,0.2)",
-                  borderRadius: 12,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: actionLoading ? "not-allowed" : "pointer",
-                  opacity: actionLoading ? 0.5 : 1,
-                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold disabled:opacity-50"
+                style={{ background: "rgba(239,68,68,0.1)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}
               >
                 Hard Stop
               </button>
@@ -166,17 +200,8 @@ export default function RunDetailPage() {
             <button
               onClick={() => handleAction("resume")}
               disabled={!!actionLoading}
-              style={{
-                padding: "8px 18px",
-                background: "#34d399",
-                color: "#fff",
-                border: "none",
-                borderRadius: 12,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: actionLoading ? "not-allowed" : "pointer",
-                opacity: actionLoading ? 0.5 : 1,
-              }}
+              className="px-4 py-2 rounded-xl text-xs font-semibold disabled:opacity-50 text-white"
+              style={{ background: "#34d399" }}
             >
               Resume
             </button>
@@ -184,244 +209,158 @@ export default function RunDetailPage() {
         </div>
       </div>
 
+      {/* Progress bar for live runs */}
+      {isLive && (
+        <div className="mb-6">
+          <div className="flex justify-between mb-1">
+            <span className="text-xs" style={{ color: "#859399" }}>Step {completedSteps}/{run.steps.length}</span>
+            <span className="text-xs font-bold" style={{ color: "#00d1ff" }}>{progressPct}%</span>
+          </div>
+          <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+            <div
+              className="h-full rounded-full transition-all"
+              style={{ width: `${progressPct}%`, background: "linear-gradient(90deg, #00d1ff, #6d11ad)", transition: "width 0.5s ease" }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Run Summary */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 32 }}>
-        <div style={{ background: "rgba(29,32,38,0.8)", backdropFilter: "blur(24px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 16 }}>
-          <p style={{ fontSize: 10, color: "#859399", letterSpacing: "0.08em", marginBottom: 8, marginTop: 0 }}>STATUS</p>
-          <span
-            style={{
-              display: "inline-block",
-              padding: "4px 10px",
-              borderRadius: 8,
-              fontSize: 12,
-              fontWeight: 600,
-              background: runSt.bg,
-              color: runSt.color,
-              border: runSt.border,
-            }}
-          >
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+        <div className="glass-panel rounded-xl p-4">
+          <p className="text-[10px] font-semibold tracking-wider mb-2" style={{ color: "#859399" }}>STATUS</p>
+          <span className="inline-block px-2.5 py-1 rounded-lg text-xs font-semibold" style={{ background: runSt.bg, color: runSt.color, border: runSt.border }}>
             {run.status}
           </span>
         </div>
-        <div style={{ background: "rgba(29,32,38,0.8)", backdropFilter: "blur(24px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 16 }}>
-          <p style={{ fontSize: 10, color: "#859399", letterSpacing: "0.08em", marginBottom: 4, marginTop: 0 }}>STEPS</p>
-          <p style={{ fontSize: 22, fontWeight: 700, color: "#e1e2eb", margin: 0 }}>{run.steps.length}</p>
+        <div className="glass-panel rounded-xl p-4">
+          <p className="text-[10px] font-semibold tracking-wider mb-1" style={{ color: "#859399" }}>STEPS</p>
+          <p className="text-xl font-bold font-headline" style={{ color: "#e1e2eb" }}>{run.steps.length}</p>
         </div>
-        <div style={{ background: "rgba(29,32,38,0.8)", backdropFilter: "blur(24px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 16 }}>
-          <p style={{ fontSize: 10, color: "#859399", letterSpacing: "0.08em", marginBottom: 4, marginTop: 0 }}>COST</p>
-          <p style={{ fontSize: 22, fontWeight: 700, color: "#e1e2eb", margin: 0 }}>${(run.costUsd ?? 0).toFixed(4)}</p>
+        <div className="glass-panel rounded-xl p-4">
+          <p className="text-[10px] font-semibold tracking-wider mb-1" style={{ color: "#859399" }}>COST</p>
+          <p className="text-xl font-bold font-headline" style={{ color: "#e1e2eb" }}>${(run.costUsd ?? 0).toFixed(4)}</p>
         </div>
-        <div style={{ background: "rgba(29,32,38,0.8)", backdropFilter: "blur(24px)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 16 }}>
-          <p style={{ fontSize: 10, color: "#859399", letterSpacing: "0.08em", marginBottom: 4, marginTop: 0 }}>DURATION</p>
-          <p style={{ fontSize: 22, fontWeight: 700, color: "#e1e2eb", margin: 0 }}>
+        <div className="glass-panel rounded-xl p-4">
+          <p className="text-[10px] font-semibold tracking-wider mb-1" style={{ color: "#859399" }}>DURATION</p>
+          <p className="text-xl font-bold font-headline" style={{ color: "#e1e2eb" }}>
             {run.completedAt
               ? `${((new Date(run.completedAt).getTime() - new Date(run.createdAt).getTime()) / 1000).toFixed(1)}s`
-              : "..."}
+              : isLive
+                ? `${((Date.now() - new Date(run.createdAt).getTime()) / 1000).toFixed(0)}s`
+                : "—"}
           </p>
         </div>
       </div>
 
       {/* Step Timeline */}
-      <h2 style={{ fontSize: 15, fontWeight: 600, color: "#e1e2eb", marginBottom: 16 }}>Step Timeline</h2>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <h2 className="text-sm font-semibold mb-4" style={{ color: "#e1e2eb" }}>Step Timeline</h2>
+      <div className="flex flex-col gap-3">
         {run.steps.map((step, idx) => {
           const st = STATUS_STYLES[step.status] ?? DEFAULT_STATUS;
           const dotColor = STEP_DOT_COLORS[step.status] ?? "#3c494e";
+          const isRunning = step.status === "RUNNING";
           return (
             <div
               key={step.id}
-              style={{
-                background: "rgba(29,32,38,0.8)",
-                backdropFilter: "blur(24px)",
-                border: "1px solid rgba(255,255,255,0.06)",
-                borderRadius: 16,
-                overflow: "hidden",
-              }}
+              className="glass-panel rounded-xl overflow-hidden"
+              style={{ borderLeft: `3px solid ${dotColor}` }}
             >
               {/* Step Header */}
               <button
                 onClick={() => setExpandedStep(expandedStep === step.id ? null : step.id)}
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 16,
-                  padding: 16,
-                  textAlign: "left",
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  transition: "background 0.2s",
-                }}
+                className="w-full flex items-center gap-3 sm:gap-4 p-4 text-left border-none cursor-pointer transition-colors"
+                style={{ background: "transparent" }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <div className="flex flex-col items-center flex-shrink-0">
                   <div
+                    className={isRunning ? "animate-pulse" : ""}
                     style={{
-                      width: 14,
-                      height: 14,
-                      borderRadius: "50%",
+                      width: 12, height: 12, borderRadius: "50%",
                       background: dotColor,
-                      boxShadow: step.status === "RUNNING" ? `0 0 8px ${dotColor}` : "none",
+                      boxShadow: isRunning ? `0 0 8px ${dotColor}` : "none",
                     }}
                   />
                   {idx < run.steps.length - 1 && (
-                    <div style={{ width: 1, height: 24, background: "rgba(255,255,255,0.06)", marginTop: 4 }} />
+                    <div style={{ width: 1, height: 20, background: "rgba(255,255,255,0.06)", marginTop: 4 }} />
                   )}
                 </div>
 
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontWeight: 500, color: "#e1e2eb", fontSize: 14 }}>{step.name}</span>
-                    <span
-                      style={{
-                        padding: "2px 8px",
-                        borderRadius: 8,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        background: st.bg,
-                        color: st.color,
-                        border: st.border,
-                      }}
-                    >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-sm" style={{ color: "#e1e2eb" }}>{step.name}</span>
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold" style={{ background: st.bg, color: st.color, border: st.border }}>
                       {step.status}
                     </span>
                   </div>
                   {step.reasoning && (
-                    <p
-                      style={{
-                        fontSize: 12,
-                        color: "#859399",
-                        marginTop: 4,
-                        marginBottom: 0,
-                        overflow: "hidden",
-                        display: "-webkit-box",
-                        WebkitLineClamp: 1,
-                        WebkitBoxOrient: "vertical",
-                      }}
-                    >
-                      {step.reasoning}
-                    </p>
+                    <p className="text-xs mt-1 truncate" style={{ color: "#859399" }}>{step.reasoning}</p>
                   )}
                 </div>
 
-                <div style={{ textAlign: "right", fontSize: 12, color: "#859399" }}>
+                <div className="text-right text-xs flex-shrink-0 hidden sm:block" style={{ color: "#859399" }}>
                   <div>${(step.costUsd ?? 0).toFixed(4)}</div>
                   <div>{step.toolCalls.length} tool calls</div>
                 </div>
+
+                <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: 16, color: "#3c494e", transform: expandedStep === step.id ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+                  expand_more
+                </span>
               </button>
 
               {/* Expanded Detail */}
               {expandedStep === step.id && (
-                <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "16px 16px 16px" }}>
-                  {/* Reasoning */}
+                <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: 16 }}>
                   {step.reasoning && (
-                    <div style={{ marginBottom: 16 }}>
-                      <h4 style={{ fontSize: 10, fontWeight: 600, color: "#859399", letterSpacing: "0.08em", marginBottom: 8, marginTop: 0 }}>REASONING</h4>
-                      <p
-                        style={{
-                          fontSize: 13,
-                          color: "#bbc9cf",
-                          background: "rgba(0,209,255,0.04)",
-                          border: "1px solid rgba(0,209,255,0.08)",
-                          padding: 12,
-                          borderRadius: 12,
-                          whiteSpace: "pre-wrap",
-                          margin: 0,
-                        }}
-                      >
+                    <div className="mb-4">
+                      <h4 className="text-[10px] font-semibold tracking-wider mb-2" style={{ color: "#859399" }}>REASONING</h4>
+                      <p className="text-xs rounded-xl p-3 whitespace-pre-wrap" style={{ color: "#bbc9cf", background: "rgba(0,209,255,0.04)", border: "1px solid rgba(0,209,255,0.08)" }}>
                         {step.reasoning}
                       </p>
                     </div>
                   )}
 
-                  {/* Error */}
                   {step.error && (
-                    <div style={{ marginBottom: 16 }}>
-                      <h4 style={{ fontSize: 10, fontWeight: 600, color: "#f87171", letterSpacing: "0.08em", marginBottom: 8, marginTop: 0 }}>ERROR</h4>
-                      <p
-                        style={{
-                          fontSize: 13,
-                          color: "#f87171",
-                          background: "rgba(239,68,68,0.1)",
-                          border: "1px solid rgba(239,68,68,0.2)",
-                          padding: 12,
-                          borderRadius: 12,
-                          margin: 0,
-                        }}
-                      >
+                    <div className="mb-4">
+                      <h4 className="text-[10px] font-semibold tracking-wider mb-2" style={{ color: "#f87171" }}>ERROR</h4>
+                      <p className="text-xs rounded-xl p-3" style={{ color: "#f87171", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}>
                         {step.error}
                       </p>
                     </div>
                   )}
 
-                  {/* Tool Calls */}
                   {step.toolCalls.length > 0 && (
-                    <div style={{ marginBottom: 16 }}>
-                      <h4 style={{ fontSize: 10, fontWeight: 600, color: "#859399", letterSpacing: "0.08em", marginBottom: 8, marginTop: 0 }}>TOOL CALLS</h4>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div className="mb-4">
+                      <h4 className="text-[10px] font-semibold tracking-wider mb-2" style={{ color: "#859399" }}>TOOL CALLS</h4>
+                      <div className="flex flex-col gap-2">
                         {step.toolCalls.map((tc) => (
-                          <div
-                            key={tc.id}
-                            style={{
-                              background: "rgba(255,255,255,0.03)",
-                              border: "1px solid rgba(255,255,255,0.06)",
-                              borderRadius: 12,
-                              padding: 12,
-                              fontSize: 12,
-                            }}
-                          >
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                              <span style={{ fontFamily: "monospace", fontWeight: 500, color: "#bbc9cf" }}>{tc.toolName}</span>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <span style={{ color: tc.status === "COMPLETED" ? "#34d399" : "#f87171" }}>
-                                  {tc.status}
-                                </span>
+                          <div key={tc.id} className="rounded-xl p-3 text-xs" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                            <div className="flex items-center justify-between mb-1">
+                              <code style={{ fontWeight: 500, color: "#bbc9cf" }}>{tc.toolName}</code>
+                              <div className="flex items-center gap-2">
+                                <span style={{ color: tc.status === "COMPLETED" ? "#34d399" : "#f87171" }}>{tc.status}</span>
                                 <span style={{ color: "#3c494e" }}>{tc.durationMs}ms</span>
                               </div>
                             </div>
                             {tc.input && (
-                              <details style={{ marginTop: 4 }}>
-                                <summary style={{ cursor: "pointer", color: "#859399" }}>Input</summary>
-                                <pre
-                                  style={{
-                                    marginTop: 4,
-                                    background: "rgba(0,0,0,0.2)",
-                                    color: "#bbc9cf",
-                                    padding: 8,
-                                    borderRadius: 8,
-                                    fontSize: 11,
-                                    overflow: "auto",
-                                    maxHeight: 128,
-                                  }}
-                                >
+                              <details className="mt-1">
+                                <summary className="cursor-pointer text-xs" style={{ color: "#859399" }}>Input</summary>
+                                <pre className="mt-1 p-2 rounded-lg text-[11px] overflow-auto max-h-32" style={{ background: "rgba(0,0,0,0.2)", color: "#bbc9cf" }}>
                                   {JSON.stringify(tc.input, null, 2)}
                                 </pre>
                               </details>
                             )}
                             {tc.output && (
-                              <details style={{ marginTop: 4 }}>
-                                <summary style={{ cursor: "pointer", color: "#859399" }}>Output</summary>
-                                <pre
-                                  style={{
-                                    marginTop: 4,
-                                    background: "rgba(0,0,0,0.2)",
-                                    color: "#bbc9cf",
-                                    padding: 8,
-                                    borderRadius: 8,
-                                    fontSize: 11,
-                                    overflow: "auto",
-                                    maxHeight: 128,
-                                  }}
-                                >
+                              <details className="mt-1">
+                                <summary className="cursor-pointer text-xs" style={{ color: "#859399" }}>Output</summary>
+                                <pre className="mt-1 p-2 rounded-lg text-[11px] overflow-auto max-h-32" style={{ background: "rgba(0,0,0,0.2)", color: "#bbc9cf" }}>
                                   {JSON.stringify(tc.output, null, 2)}
                                 </pre>
                               </details>
                             )}
-                            {tc.error && (
-                              <p style={{ color: "#f87171", marginTop: 4, marginBottom: 0 }}>{tc.error}</p>
-                            )}
+                            {tc.error && <p className="mt-1" style={{ color: "#f87171" }}>{tc.error}</p>}
                           </div>
                         ))}
                       </div>
@@ -429,22 +368,13 @@ export default function RunDetailPage() {
                   )}
 
                   {/* Step Actions */}
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div className="flex gap-2">
                     {(step.status === "COMPLETED" || step.status === "FAILED") && (
                       <button
                         onClick={() => handleStepAction(step.id, "rollback")}
                         disabled={!!actionLoading}
-                        style={{
-                          padding: "6px 14px",
-                          border: "1px solid rgba(255,255,255,0.08)",
-                          color: "#859399",
-                          background: "transparent",
-                          borderRadius: 12,
-                          fontSize: 13,
-                          fontWeight: 600,
-                          cursor: actionLoading ? "not-allowed" : "pointer",
-                          opacity: actionLoading ? 0.5 : 1,
-                        }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50"
+                        style={{ border: "1px solid rgba(255,255,255,0.08)", color: "#859399", background: "transparent" }}
                       >
                         Rollback
                       </button>
@@ -453,17 +383,8 @@ export default function RunDetailPage() {
                       <button
                         onClick={() => handleStepAction(step.id, "rerun")}
                         disabled={!!actionLoading}
-                        style={{
-                          padding: "6px 14px",
-                          background: "linear-gradient(135deg, #00d1ff, #6d11ad)",
-                          color: "#fff",
-                          border: "none",
-                          borderRadius: 12,
-                          fontSize: 13,
-                          fontWeight: 600,
-                          cursor: actionLoading ? "not-allowed" : "pointer",
-                          opacity: actionLoading ? 0.5 : 1,
-                        }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50 text-white"
+                        style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}
                       >
                         Rerun Step
                       </button>
@@ -474,6 +395,7 @@ export default function RunDetailPage() {
             </div>
           );
         })}
+        <div ref={timelineEndRef} />
       </div>
     </div>
   );
