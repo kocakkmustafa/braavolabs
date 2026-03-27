@@ -5,6 +5,7 @@ interface AppState {
   token: string | null;
   tenantId: string | null;
   theme: "dark" | "light";
+  _hydrated: boolean;
   setAuth: (token: string, tenantId: string) => void;
   clearAuth: () => void;
   setTheme: (theme: "dark" | "light") => void;
@@ -17,6 +18,7 @@ export const useAppStore = create<AppState>()(
       token: null,
       tenantId: null,
       theme: "dark",
+      _hydrated: false,
       setAuth: (token, tenantId) => set({ token, tenantId }),
       clearAuth: () => set({ token: null, tenantId: null }),
       setTheme: (theme) => set({ theme }),
@@ -24,6 +26,9 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "aicos-auth",
+      onRehydrateStorage: () => (state) => {
+        if (state) state._hydrated = true;
+      },
     },
   ),
 );

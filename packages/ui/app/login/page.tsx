@@ -8,6 +8,7 @@ import { useAppStore } from "../../lib/store";
 export default function LoginPage() {
   const router = useRouter();
   const token = useAppStore((s) => s.token);
+  const hydrated = useAppStore((s) => s._hydrated);
   const setAuth = useAppStore((s) => s.setAuth);
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
@@ -24,8 +25,8 @@ export default function LoginPage() {
   const [forgotError, setForgotError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (token) router.push("/dashboard");
-  }, [token, router]);
+    if (hydrated && token) router.push("/dashboard");
+  }, [hydrated, token, router]);
 
   useEffect(() => {
     if (!password) { setPwStrength(0); return; }

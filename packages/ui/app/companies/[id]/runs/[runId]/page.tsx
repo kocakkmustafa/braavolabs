@@ -239,15 +239,15 @@ export default function RunDetailPage() {
         </div>
         <div className="glass-panel rounded-xl p-4">
           <p className="text-[10px] font-semibold tracking-wider mb-1" style={{ color: "#859399" }}>COST</p>
-          <p className="text-xl font-bold font-headline" style={{ color: "#e1e2eb" }}>${(run.costUsd ?? 0).toFixed(4)}</p>
+          <p className="text-xl font-bold font-headline" style={{ color: "#e1e2eb" }}>${Number(run.costUsd ?? 0).toFixed(4)}</p>
         </div>
         <div className="glass-panel rounded-xl p-4">
           <p className="text-[10px] font-semibold tracking-wider mb-1" style={{ color: "#859399" }}>DURATION</p>
           <p className="text-xl font-bold font-headline" style={{ color: "#e1e2eb" }}>
             {run.completedAt
-              ? `${((new Date(run.completedAt).getTime() - new Date(run.createdAt).getTime()) / 1000).toFixed(1)}s`
+              ? `${(Math.max(0, new Date(run.completedAt).getTime() - new Date(run.createdAt).getTime()) / 1000).toFixed(1)}s`
               : isLive
-                ? `${((Date.now() - new Date(run.createdAt).getTime()) / 1000).toFixed(0)}s`
+                ? `${(Math.max(0, Date.now() - new Date(run.createdAt).getTime()) / 1000).toFixed(0)}s`
                 : "—"}
           </p>
         </div>
@@ -301,7 +301,7 @@ export default function RunDetailPage() {
                 </div>
 
                 <div className="text-right text-xs flex-shrink-0 hidden sm:block" style={{ color: "#859399" }}>
-                  <div>${(step.costUsd ?? 0).toFixed(4)}</div>
+                  <div>${Number(step.costUsd ?? 0).toFixed(4)}</div>
                   <div>{step.toolCalls.length} tool calls</div>
                 </div>
 

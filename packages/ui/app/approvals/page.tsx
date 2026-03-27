@@ -1,26 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { api } from "../../lib/api";
-import { useAppStore } from "../../lib/store";
+import { useAuthGuard } from "../../lib/useAuthGuard";
 
 export default function ApprovalsPage() {
-  const token = useAppStore((s) => s.token);
-  const router = useRouter();
+  const { token, hydrated } = useAuthGuard();
   const [approvals, setApprovals] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+    if (!hydrated || !token) return;
     api.listApprovals(token).then(setApprovals).catch(() => {});
-  }, [token, router]);
+  }, [token, hydrated]);
 
-  if (!token) return null;
+  if (!hydrated || !token) return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }} />
+    </div>
+  );
 
   async function decide(id: string, decision: "APPROVED" | "REJECTED") {
     setLoading(true);

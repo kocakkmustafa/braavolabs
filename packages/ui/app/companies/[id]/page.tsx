@@ -15,6 +15,7 @@ export default function CompanyDetailPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [runs, setRuns] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token || !params.id) return;
@@ -187,62 +188,110 @@ export default function CompanyDetailPage() {
       {/* Agents */}
       {tab === "agents" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 }}>
-          {company.agents?.map((a: any) => (
-            <div
-              key={a.id}
-              style={{
-                background: "rgba(29,32,38,0.8)",
-                backdropFilter: "blur(24px)",
-                border: "1px solid rgba(255,255,255,0.06)",
-                borderRadius: 16,
-                padding: 20,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 12,
-                    background: "rgba(0,209,255,0.08)",
-                    border: "1px solid rgba(0,209,255,0.15)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#00d1ff",
-                    fontWeight: 700,
-                    fontSize: 13,
-                  }}
-                >
-                  {a.name?.charAt(0)?.toUpperCase()}
+          {company.agents?.map((a: any) => {
+            const isExpanded = expandedAgent === a.id;
+            return (
+              <div
+                key={a.id}
+                onClick={() => setExpandedAgent(isExpanded ? null : a.id)}
+                style={{
+                  background: isExpanded ? "rgba(29,32,38,0.95)" : "rgba(29,32,38,0.8)",
+                  backdropFilter: "blur(24px)",
+                  border: isExpanded ? "1px solid rgba(0,209,255,0.2)" : "1px solid rgba(255,255,255,0.06)",
+                  borderRadius: 16,
+                  padding: 20,
+                  cursor: "pointer",
+                  transition: "border-color 0.2s, background 0.2s",
+                }}
+                onMouseEnter={(e) => { if (!isExpanded) e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; }}
+                onMouseLeave={(e) => { if (!isExpanded) e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 12,
+                      background: "rgba(0,209,255,0.08)",
+                      border: "1px solid rgba(0,209,255,0.15)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#00d1ff",
+                      fontWeight: 700,
+                      fontSize: 13,
+                    }}
+                  >
+                    {a.name?.charAt(0)?.toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{ fontWeight: 600, fontSize: 13, color: "#e1e2eb", margin: 0 }}>{a.name}</h3>
+                    <p style={{ fontSize: 12, color: "#859399", margin: 0 }}>{a.role}</p>
+                  </div>
+                  <span
+                    className="material-symbols-outlined"
+                    style={{
+                      fontSize: 16,
+                      color: "#3c494e",
+                      transform: isExpanded ? "rotate(180deg)" : "none",
+                      transition: "transform 0.2s",
+                    }}
+                  >
+                    expand_more
+                  </span>
                 </div>
-                <div>
-                  <h3 style={{ fontWeight: 600, fontSize: 13, color: "#e1e2eb", margin: 0 }}>{a.name}</h3>
-                  <p style={{ fontSize: 12, color: "#859399", margin: 0 }}>{a.role}</p>
-                </div>
+
+                {a.tools?.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {(a.tools as string[]).map((t) => (
+                      <span
+                        key={t}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 500,
+                          background: "rgba(255,255,255,0.06)",
+                          color: "#859399",
+                          padding: "2px 8px",
+                          borderRadius: 6,
+                          border: "1px solid rgba(255,255,255,0.08)",
+                        }}
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Expanded detail */}
+                {isExpanded && (
+                  <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                    {a.systemPrompt && (
+                      <div style={{ marginBottom: 12 }}>
+                        <p style={{ fontSize: 10, fontWeight: 600, color: "#859399", marginBottom: 4, letterSpacing: "0.05em" }}>SYSTEM PROMPT</p>
+                        <p style={{ fontSize: 12, color: "#bbc9cf", lineHeight: 1.6, background: "rgba(0,209,255,0.04)", padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(0,209,255,0.08)", whiteSpace: "pre-wrap" }}>
+                          {a.systemPrompt.length > 300 ? a.systemPrompt.slice(0, 300) + "..." : a.systemPrompt}
+                        </p>
+                      </div>
+                    )}
+                    <div style={{ display: "flex", gap: 16 }}>
+                      <div>
+                        <p style={{ fontSize: 10, fontWeight: 600, color: "#859399", marginBottom: 2 }}>MODEL</p>
+                        <p style={{ fontSize: 12, color: "#e1e2eb" }}>{a.model ?? "claude-sonnet"}</p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 10, fontWeight: 600, color: "#859399", marginBottom: 2 }}>TOOLS</p>
+                        <p style={{ fontSize: 12, color: "#e1e2eb" }}>{a.tools?.length ?? 0}</p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 10, fontWeight: 600, color: "#859399", marginBottom: 2 }}>STATUS</p>
+                        <p style={{ fontSize: 12, color: "#34d399" }}>Active</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-              {a.tools?.length > 0 && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {(a.tools as string[]).map((t) => (
-                    <span
-                      key={t}
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 500,
-                        background: "rgba(255,255,255,0.06)",
-                        color: "#859399",
-                        padding: "2px 8px",
-                        borderRadius: 6,
-                        border: "1px solid rgba(255,255,255,0.08)",
-                      }}
-                    >
-                      {t}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
           {(!company.agents || company.agents.length === 0) && (
             <p style={{ color: "#859399", fontSize: 14, gridColumn: "span 2", textAlign: "center", padding: "48px 0" }}>No agents configured.</p>
           )}

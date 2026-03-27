@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useAppStore } from "../lib/store";
 
 const ROUTE_LABELS: Record<string, string> = {
   "": "Home",
@@ -20,16 +22,51 @@ const ROUTE_LABELS: Record<string, string> = {
   runs: "Runs",
 };
 
+// Simple cache for company name lookups
+const nameCache: Record<string, string> = {};
+
 export default function Breadcrumb() {
   const pathname = usePathname();
+  const token = useAppStore((s) => s.token);
+  const [resolvedNames, setResolvedNames] = useState<Record<string, string>>({});
 
   // Don't show on root or simple routes
   const segments = pathname.split("/").filter(Boolean);
   if (segments.length < 2) return null;
 
+  // Check if any segment looks like an ID (long hash) and try to resolve it
+  useEffect(() => {
+    if (!token) return;
+
+    segments.forEach((seg, i) => {
+      // Skip known route labels
+      if (ROUTE_LABELS[seg]) return;
+      // If it looks like an ID (>12 chars, has letters and numbers)
+      if (seg.length > 12 && /[a-z]/.test(seg) && /[0-9]/.test(seg)) {
+        // Check if the previous segment is "companies"
+        if (i > 0 && segments[i - 1] === "companies") {
+          if (nameCache[seg]) {
+            setResolvedNames((prev) => ({ ...prev, [seg]: nameCache[seg] }));
+          } else {
+            import("../lib/api").then(({ api }) => {
+              api.getCompany(token, seg).then((c: any) => {
+                const name = c?.name ?? seg;
+                nameCache[seg] = name;
+                setResolvedNames((prev) => ({ ...prev, [seg]: name }));
+              }).catch(() => {});
+            });
+          }
+        }
+      }
+    });
+  }, [pathname, token]);
+
   const crumbs = segments.map((seg, i) => {
     const href = "/" + segments.slice(0, i + 1).join("/");
-    const label = ROUTE_LABELS[seg] ?? (seg.length > 12 ? `${seg.slice(0, 8)}...` : seg);
+    // Priority: resolved name > route label > truncated segment
+    const label = resolvedNames[seg]
+      ?? ROUTE_LABELS[seg]
+      ?? (seg.length > 12 ? `${seg.slice(0, 8)}...` : seg);
     const isLast = i === segments.length - 1;
     return { href, label, isLast };
   });

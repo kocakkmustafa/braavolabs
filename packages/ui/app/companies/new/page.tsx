@@ -28,7 +28,12 @@ function CompanyBuilderWizardInner() {
   const token = useAppStore((s) => s.token);
   const searchParams = useSearchParams();
   const [step, setStep] = useState<WizardStep>("describe");
-  const [description, setDescription] = useState(searchParams.get("desc") ?? "");
+  const [description, setDescription] = useState(() => {
+    const fromUrl = searchParams.get("desc");
+    if (fromUrl) return fromUrl;
+    try { const fromStorage = sessionStorage.getItem("aicos-build-desc"); if (fromStorage) { sessionStorage.removeItem("aicos-build-desc"); return fromStorage; } } catch {}
+    return "";
+  });
   const [session, setSession] = useState<BuildSession | null>(null);
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -165,7 +170,7 @@ function CompanyBuilderWizardInner() {
         <div className="px-4 py-3 rounded-xl mb-4 text-sm" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
           {error}
           {(error.toLowerCase().includes("limit") || error.toLowerCase().includes("plan")) && (
-            <a href="/billing" className="ml-2 underline" style={{ color: "#a4e6ff" }}>Upgrade plan</a>
+            <a href="/pricing" className="ml-2 underline" style={{ color: "#a4e6ff" }}>Upgrade plan</a>
           )}
         </div>
       )}
@@ -179,14 +184,30 @@ function CompanyBuilderWizardInner() {
           </p>
           <textarea
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={(e) => { setDescription(e.target.value); setError(null); }}
             rows={5}
             className="w-full rounded-xl px-4 py-3 text-sm resize-none transition-all"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb", outline: "none" }}
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              border: description.length > 0 && description.length < 10
+                ? "1px solid rgba(239,68,68,0.5)"
+                : "1px solid rgba(255,255,255,0.08)",
+              color: "#e1e2eb",
+              outline: "none",
+            }}
             placeholder="E.g.: I want to build a content agency for Instagram and TikTok. My target market is small businesses..."
-            onFocus={(e) => { e.currentTarget.style.border = "1px solid rgba(0,209,255,0.4)"; }}
-            onBlur={(e) => { e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)"; }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(0,209,255,0.4)"; }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = description.length > 0 && description.length < 10
+                ? "rgba(239,68,68,0.5)"
+                : "rgba(255,255,255,0.08)";
+            }}
           />
+          {description.length > 0 && description.length < 10 && (
+            <p className="mt-1.5 text-xs" style={{ color: "#f87171" }}>
+              Please describe your company idea in at least 10 characters ({10 - description.length} more needed).
+            </p>
+          )}
           <button
             onClick={handleDescribe}
             disabled={loading || description.length < 10}

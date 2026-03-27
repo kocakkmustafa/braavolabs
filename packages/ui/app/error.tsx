@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function GlobalError({
   error,
@@ -9,9 +9,16 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const [retryCount, setRetryCount] = useState(0);
+
   useEffect(() => {
     console.error("Global error:", error);
   }, [error]);
+
+  const handleReset = () => {
+    setRetryCount((c) => c + 1);
+    reset();
+  };
 
   return (
     <div
@@ -42,14 +49,20 @@ export default function GlobalError({
         )}
 
         <div className="flex items-center justify-center gap-3">
-          <button
-            onClick={reset}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110"
-            style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>refresh</span>
-            Try Again
-          </button>
+          {retryCount < 2 ? (
+            <button
+              onClick={handleReset}
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110"
+              style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>refresh</span>
+              Try Again
+            </button>
+          ) : (
+            <p className="text-xs mb-2" style={{ color: "#859399" }}>
+              This error persists. Please go home and try again.
+            </p>
+          )}
           <a
             href="/"
             className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80"

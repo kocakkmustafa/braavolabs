@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "../../lib/api";
-import { useAppStore } from "../../lib/store";
+import { useAuthGuard } from "../../lib/useAuthGuard";
 
 const CATEGORY_ICONS: Record<string, string> = {
   content: "edit_note",
@@ -16,8 +15,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 export default function MarketplacePage() {
-  const router = useRouter();
-  const token = useAppStore((s) => s.token);
+  const { token, hydrated } = useAuthGuard();
   const [blueprints, setBlueprints] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [cloning, setCloning] = useState<string | null>(null);
@@ -25,9 +23,9 @@ export default function MarketplacePage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    if (!token) { router.push("/login"); return; }
+    if (!hydrated || !token) return;
     api.listBlueprints(token).then(setBlueprints).catch(() => []).finally(() => setLoading(false));
-  }, [token, router]);
+  }, [token, hydrated]);
 
   async function handleClone(slug: string) {
     if (!token) return;
@@ -42,7 +40,11 @@ export default function MarketplacePage() {
     setCloning(null);
   }
 
-  if (!token) return null;
+  if (!hydrated || !token) return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }} />
+    </div>
+  );
 
   const filtered = blueprints.filter((b) =>
     !search || b.title?.toLowerCase().includes(search.toLowerCase()) || b.description?.toLowerCase().includes(search.toLowerCase())

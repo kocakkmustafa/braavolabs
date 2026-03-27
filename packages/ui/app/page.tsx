@@ -285,11 +285,16 @@ export default function LandingPage() {
     return () => clearTimeout(timer);
   }, [charIdx, isDeleting, exampleIdx, input]);
 
-  // Load dashboard data when panel opens
+  // Load dashboard data when token is available (for mini widget + full panel)
   useEffect(() => {
-    if (!dashOpen || !token) return;
+    if (!token) return;
     api.listCompanies(token).then(setCompanies).catch(() => {});
     api.health(token).then(setHealth).catch(() => {});
+  }, [token]);
+
+  // Load activity log when panel opens (heavier data)
+  useEffect(() => {
+    if (!dashOpen || !token) return;
     api.activityLog(token, 8, 0).then((d) => setLogs(d.logs ?? [])).catch(() => {});
   }, [dashOpen, token]);
 
@@ -297,6 +302,9 @@ export default function LandingPage() {
 
   const handleBuild = () => {
     const desc = input.trim();
+    if (desc) {
+      try { sessionStorage.setItem("aicos-build-desc", desc); } catch {}
+    }
     const target = token ? "/companies/new" : "/login";
     router.push(desc ? `${target}?desc=${encodeURIComponent(desc)}` : target);
   };
@@ -375,10 +383,11 @@ export default function LandingPage() {
 
         {/* LEFT: Hero (75%) — shrinks when dash opens */}
         <div style={{
-          flex: dashOpen ? "0 0 0%" : "0 0 75%",
-          width: dashOpen ? "0%" : "75%",
+          flexGrow: 0,
+          flexShrink: 0,
+          flexBasis: dashOpen ? "0%" : "75%",
           overflow: "hidden",
-          transition: "flex 0.5s cubic-bezier(0.4,0,0.2,1), width 0.5s cubic-bezier(0.4,0,0.2,1)",
+          transition: "flex-basis 0.5s cubic-bezier(0.4,0,0.2,1)",
           position: "relative",
         }}>
           {/* Agent animation background */}
@@ -464,15 +473,15 @@ export default function LandingPage() {
 
         {/* RIGHT: Dashboard preview panel (25%) — always visible */}
         <div style={{
-          flex: dashOpen ? "0 0 100%" : "0 0 25%",
-          width: dashOpen ? "100%" : "25%",
-          transition: "flex 0.5s cubic-bezier(0.4,0,0.2,1), width 0.5s cubic-bezier(0.4,0,0.2,1)",
+          flexGrow: 0,
+          flexShrink: 0,
+          flexBasis: dashOpen ? "100%" : "25%",
+          transition: "flex-basis 0.5s cubic-bezier(0.4,0,0.2,1)",
           background: isDark ? "rgba(12,12,29,0.97)" : "rgba(230,238,255,0.97)",
           borderLeft: `1px solid ${isDark ? "rgba(0,209,255,0.1)" : "rgba(0,209,255,0.2)"}`,
           display: "flex", flexDirection: "column",
           overflow: "hidden",
           position: "relative",
-          flexShrink: 0,
         }}>
           {/* Panel header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: `1px solid ${borderColor}`, flexShrink: 0 }}>

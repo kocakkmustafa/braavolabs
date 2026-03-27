@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../lib/store";
+import { useAuthGuard } from "../../lib/useAuthGuard";
 
 interface BillingUsage {
   plan: string;
@@ -39,7 +40,7 @@ const NAV_ITEMS = [
 
 export default function SettingsPage() {
   const router = useRouter();
-  const token = useAppStore((s) => s.token);
+  const { token, hydrated } = useAuthGuard();
   const tenantId = useAppStore((s) => s.tenantId);
   const clearAuth = useAppStore((s) => s.clearAuth);
 
@@ -58,13 +59,17 @@ export default function SettingsPage() {
   });
 
   useEffect(() => {
-    if (!token) { router.push("/login"); return; }
+    if (!hydrated || !token) return;
     api.billingUsage(token).then(setBillingUsage).catch(() => {});
     api.billingSubscription(token).then(setSubscription).catch(() => {});
     api.getReferral(token).then(setReferral).catch(() => {});
-  }, [token, router]);
+  }, [token, hydrated]);
 
-  if (!token) return null;
+  if (!hydrated || !token) return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }} />
+    </div>
+  );
 
   async function handleUpgrade(plan: "PRO" | "ENTERPRISE") {
     setUpgradeLoading(true);

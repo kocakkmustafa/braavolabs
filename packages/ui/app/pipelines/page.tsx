@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "../../lib/api";
-import { useAppStore } from "../../lib/store";
+import { useAuthGuard } from "../../lib/useAuthGuard";
 
 const STATUS_COLORS: Record<string, { bg: string; color: string; border: string }> = {
   active:   { bg: "rgba(52,211,153,0.1)",  color: "#34d399", border: "1px solid rgba(52,211,153,0.2)" },
@@ -20,8 +19,7 @@ const TRIGGER_ICONS: Record<string, string> = {
 };
 
 export default function PipelinesPage() {
-  const router = useRouter();
-  const token = useAppStore((s) => s.token);
+  const { token, hydrated } = useAuthGuard();
   const [pipelines, setPipelines] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +28,7 @@ export default function PipelinesPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    if (!token) { router.push("/login"); return; }
+    if (!hydrated || !token) return;
     Promise.all([
       api.listCompanies(token).catch(() => []),
       api.listPipelines(token).catch(() => []),
@@ -39,7 +37,7 @@ export default function PipelinesPage() {
       setPipelines(pipes);
       setLoading(false);
     });
-  }, [token, router]);
+  }, [token, hydrated]);
 
   async function handleTrigger(pipelineId: string) {
     if (!token) return;
@@ -54,7 +52,11 @@ export default function PipelinesPage() {
     setTriggerLoading(null);
   }
 
-  if (!token) return null;
+  if (!hydrated || !token) return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }} />
+    </div>
+  );
 
   const filtered = pipelines.filter((p) => {
     if (filterCompany !== "all" && p.companyId !== filterCompany) return false;
