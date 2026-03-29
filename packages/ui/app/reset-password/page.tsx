@@ -30,7 +30,7 @@ function ResetPasswordInner() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4" style={{ background: "#10131a" }}>
+    <div className="flex min-h-screen items-center justify-center px-4" style={{ background: "#0a0d14" }}>
       <div className="w-full max-w-[400px]">
         <div className="flex items-center gap-2 mb-8 justify-center">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}>
@@ -97,7 +97,7 @@ function ResetPasswordInner() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center" style={{ background: "#10131a" }} />}>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center" style={{ background: "#0a0d14" }} />}>
       <ResetPasswordInner />
     </Suspense>
   );

@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAppStore } from "../lib/store";
+import { sounds } from "../lib/sounds";
+import { useReveal } from "../lib/useReveal";
 
 const EXAMPLES = [
   "A content agency that creates and schedules TikTok & LinkedIn posts for 10 clients",
@@ -42,16 +44,17 @@ const MESSAGES = [
   "Risk: none",
   "Content approved",
   "CRM sync done",
+  "Video generated",
+  "Image created → DALL-E",
+  "Pipeline completed",
 ];
 
-function AgentCanvas({ theme }: { theme: "dark" | "light" }) {
+function AgentCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
   const particlesRef = useRef<any[]>([]);
   const messagesRef = useRef<any[]>([]);
   const tickRef = useRef(0);
-
-  const isDark = theme === "dark";
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -70,7 +73,6 @@ function AgentCanvas({ theme }: { theme: "dark" | "light" }) {
     const W = () => canvas.offsetWidth;
     const H = () => canvas.offsetHeight;
 
-    // Spawn a particle along a connection
     const spawnParticle = () => {
       const conn = CONNECTIONS[Math.floor(Math.random() * CONNECTIONS.length)];
       const from = AGENTS.find((a) => a.id === conn[0])!;
@@ -78,9 +80,9 @@ function AgentCanvas({ theme }: { theme: "dark" | "light" }) {
       particlesRef.current.push({
         fromX: from.x, fromY: from.y,
         toX: to.x, toY: to.y,
-        t: 0, speed: 0.004 + Math.random() * 0.004,
-        color: Math.random() > 0.5 ? "#00d1ff" : "#6d11ad",
-        size: 2.5 + Math.random() * 1.5,
+        t: 0, speed: 0.003 + Math.random() * 0.004,
+        color: Math.random() > 0.4 ? "#00d1ff" : "#a855f7",
+        size: 2 + Math.random() * 2,
       });
     };
 
@@ -88,57 +90,74 @@ function AgentCanvas({ theme }: { theme: "dark" | "light" }) {
       const agent = AGENTS[Math.floor(Math.random() * AGENTS.length)];
       const msg = MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
       messagesRef.current.push({
-        x: agent.x, y: agent.y,
-        text: msg,
-        alpha: 0,
-        life: 0,
-        maxLife: 140,
+        x: agent.x, y: agent.y, text: msg,
+        alpha: 0, life: 0, maxLife: 160,
       });
     };
 
     const draw = () => {
       tickRef.current++;
-      ctx.clearRect(0, 0, W(), H());
-
       const w = W(), h = H();
+      ctx.clearRect(0, 0, w, h);
 
-      // Background grid
-      ctx.strokeStyle = isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.04)";
-      ctx.lineWidth = 1;
-      for (let x = 0; x < w; x += 40) {
+      // Grid with breathing opacity
+      const gridAlpha = 0.02 + 0.01 * Math.sin(tickRef.current * 0.008);
+      ctx.strokeStyle = `rgba(255,255,255,${gridAlpha})`;
+      ctx.lineWidth = 0.5;
+      for (let x = 0; x < w; x += 50) {
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
       }
-      for (let y = 0; y < h; y += 40) {
+      for (let y = 0; y < h; y += 50) {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
       }
 
-      // Connection lines
+      // Connection lines with gradient
       CONNECTIONS.forEach(([fromId, toId]) => {
         const from = AGENTS.find((a) => a.id === fromId)!;
         const to = AGENTS.find((a) => a.id === toId)!;
+        const grad = ctx.createLinearGradient(from.x * w, from.y * h, to.x * w, to.y * h);
+        grad.addColorStop(0, "rgba(0,209,255,0.06)");
+        grad.addColorStop(1, "rgba(168,85,247,0.04)");
         ctx.beginPath();
         ctx.moveTo(from.x * w, from.y * h);
         ctx.lineTo(to.x * w, to.y * h);
-        ctx.strokeStyle = isDark ? "rgba(0,209,255,0.07)" : "rgba(0,209,255,0.12)";
+        ctx.strokeStyle = grad;
         ctx.lineWidth = 1;
         ctx.stroke();
       });
 
-      // Particles
+      // Particles with trail
       particlesRef.current = particlesRef.current.filter((p) => p.t <= 1);
       particlesRef.current.forEach((p) => {
         p.t += p.speed;
         const px = (p.fromX + (p.toX - p.fromX) * p.t) * w;
         const py = (p.fromY + (p.toY - p.fromY) * p.t) * h;
         const alpha = p.t < 0.1 ? p.t * 10 : p.t > 0.9 ? (1 - p.t) * 10 : 1;
+
+        // Trail
+        const prevT = Math.max(0, p.t - 0.08);
+        const prevX = (p.fromX + (p.toX - p.fromX) * prevT) * w;
+        const prevY = (p.fromY + (p.toY - p.fromY) * prevT) * h;
+        const trailGrad = ctx.createLinearGradient(prevX, prevY, px, py);
+        trailGrad.addColorStop(0, `${p.color}00`);
+        trailGrad.addColorStop(1, p.color + Math.round(alpha * 140).toString(16).padStart(2, "0"));
+        ctx.beginPath();
+        ctx.moveTo(prevX, prevY);
+        ctx.lineTo(px, py);
+        ctx.strokeStyle = trailGrad;
+        ctx.lineWidth = p.size * 0.8;
+        ctx.stroke();
+
+        // Core
         ctx.beginPath();
         ctx.arc(px, py, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = p.color + Math.round(alpha * 180).toString(16).padStart(2, "0");
+        ctx.fillStyle = p.color + Math.round(alpha * 220).toString(16).padStart(2, "0");
         ctx.fill();
-        // glow
+
+        // Glow
         ctx.beginPath();
-        ctx.arc(px, py, p.size * 2.5, 0, Math.PI * 2);
-        ctx.fillStyle = p.color + Math.round(alpha * 30).toString(16).padStart(2, "0");
+        ctx.arc(px, py, p.size * 3, 0, Math.PI * 2);
+        ctx.fillStyle = p.color + Math.round(alpha * 20).toString(16).padStart(2, "0");
         ctx.fill();
       });
 
@@ -146,69 +165,67 @@ function AgentCanvas({ theme }: { theme: "dark" | "light" }) {
       AGENTS.forEach((agent) => {
         const ax = agent.x * w;
         const ay = agent.y * h;
-        const pulse = 0.85 + 0.15 * Math.sin(tickRef.current * 0.04 + agent.id);
+        const pulse = 0.85 + 0.15 * Math.sin(tickRef.current * 0.03 + agent.id * 0.7);
+        const breathe = 1 + 0.03 * Math.sin(tickRef.current * 0.02 + agent.id * 1.3);
 
-        // Outer ring
+        // Outer glow ring
         ctx.beginPath();
-        ctx.arc(ax, ay, 22 * pulse, 0, Math.PI * 2);
-        ctx.strokeStyle = isDark ? "rgba(0,209,255,0.15)" : "rgba(0,209,255,0.25)";
-        ctx.lineWidth = 1;
-        ctx.stroke();
+        ctx.arc(ax, ay, 26 * pulse, 0, Math.PI * 2);
+        const ringGrad = ctx.createRadialGradient(ax, ay, 12, ax, ay, 26 * pulse);
+        ringGrad.addColorStop(0, "rgba(0,209,255,0)");
+        ringGrad.addColorStop(1, `rgba(0,209,255,${0.08 * pulse})`);
+        ctx.fillStyle = ringGrad;
+        ctx.fill();
 
         // Node bg
         ctx.beginPath();
-        ctx.arc(ax, ay, 16, 0, Math.PI * 2);
-        ctx.fillStyle = isDark ? "rgba(29,32,38,0.95)" : "rgba(240,245,255,0.95)";
+        ctx.arc(ax, ay, 17 * breathe, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(10,13,20,0.95)";
         ctx.fill();
-        ctx.strokeStyle = isDark ? "rgba(0,209,255,0.3)" : "rgba(0,209,255,0.5)";
+        ctx.strokeStyle = `rgba(0,209,255,${0.2 + 0.1 * pulse})`;
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
         // Icon
-        ctx.font = "12px serif";
+        ctx.font = "13px serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(agent.icon, ax, ay);
 
         // Label
-        ctx.font = "9px 'Space Grotesk', sans-serif";
-        ctx.fillStyle = isDark ? "rgba(133,147,153,0.8)" : "rgba(60,73,78,0.9)";
+        ctx.font = "500 9px 'Space Grotesk', sans-serif";
+        ctx.fillStyle = `rgba(164,230,255,${0.6 + 0.2 * pulse})`;
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
-        ctx.fillText(agent.label, ax, ay + 20);
+        ctx.fillText(agent.label, ax, ay + 22);
       });
 
       // Floating messages
-      if (tickRef.current % 90 === 0) spawnMessage();
+      if (tickRef.current % 80 === 0) spawnMessage();
       messagesRef.current = messagesRef.current.filter((m) => m.life < m.maxLife);
       messagesRef.current.forEach((m) => {
         m.life++;
-        m.alpha = m.life < 20 ? m.life / 20 : m.life > 100 ? (m.maxLife - m.life) / 40 : 1;
-        const mx = m.x * w + 24;
-        const my = m.y * h - 28 - (m.life * 0.15);
+        m.alpha = m.life < 20 ? m.life / 20 : m.life > 120 ? (m.maxLife - m.life) / 40 : 1;
+        const mx = m.x * w + 26;
+        const my = m.y * h - 30 - (m.life * 0.18);
 
-        ctx.fillStyle = isDark
-          ? `rgba(12,14,22,${m.alpha * 0.92})`
-          : `rgba(240,246,255,${m.alpha * 0.95})`;
-        const tw = ctx.measureText(m.text).width + 16;
-        roundRect(ctx, mx, my - 10, tw, 20, 5);
+        const tw = ctx.measureText(m.text).width + 20;
+        roundRect(ctx, mx, my - 11, tw, 22, 6);
+        ctx.fillStyle = `rgba(10,13,20,${m.alpha * 0.94})`;
         ctx.fill();
-        ctx.strokeStyle = `rgba(0,209,255,${m.alpha * 0.3})`;
+        ctx.strokeStyle = `rgba(0,209,255,${m.alpha * 0.2})`;
         ctx.lineWidth = 0.5;
         ctx.stroke();
 
-        ctx.font = "10px 'Space Grotesk', sans-serif";
-        ctx.fillStyle = isDark
-          ? `rgba(0,209,255,${m.alpha})`
-          : `rgba(0,100,180,${m.alpha})`;
+        ctx.font = "500 10px 'Space Grotesk', sans-serif";
+        ctx.fillStyle = `rgba(164,230,255,${m.alpha * 0.9})`;
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
-        ctx.fillText(m.text, mx + 8, my);
+        ctx.fillText(m.text, mx + 10, my);
       });
 
       // Spawn particles
-      if (tickRef.current % 18 === 0) spawnParticle();
-
+      if (tickRef.current % 14 === 0) spawnParticle();
       animRef.current = requestAnimationFrame(draw);
     };
 
@@ -217,7 +234,7 @@ function AgentCanvas({ theme }: { theme: "dark" | "light" }) {
       cancelAnimationFrame(animRef.current);
       window.removeEventListener("resize", resize);
     };
-  }, [isDark]);
+  }, []);
 
   return (
     <canvas
@@ -250,15 +267,16 @@ export default function LandingPage() {
   const [displayText, setDisplayText] = useState("");
   const [charIdx, setCharIdx] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
-  const theme = useAppStore((s) => s.theme);
+  const [heroVisible, setHeroVisible] = useState(false);
+  const router = useRouter();
 
-  const isDark = theme === "dark";
-  const bg = isDark ? "#10131a" : "#f0f5ff";
-  const surface = isDark ? "rgba(29,32,38,0.9)" : "rgba(255,255,255,0.9)";
-  const textPrimary = isDark ? "#e1e2eb" : "#0c1520";
-  const textMuted = isDark ? "#859399" : "#4a5568";
-  const textFaint = isDark ? "#3c494e" : "#9aa5b4";
-  const borderColor = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)";
+  useReveal();
+
+  // Hero entrance animation
+  useEffect(() => {
+    const t = setTimeout(() => setHeroVisible(true), 100);
+    return () => clearTimeout(t);
+  }, []);
 
   // Typewriter
   useEffect(() => {
@@ -279,57 +297,70 @@ export default function LandingPage() {
     return () => clearTimeout(timer);
   }, [charIdx, isDeleting, exampleIdx, input]);
 
-  const router = useRouter();
-
-  const handleBuild = () => {
+  const handleBuild = useCallback(() => {
+    sounds.build();
     const desc = input.trim();
     if (desc) {
       try { sessionStorage.setItem("aicos-build-desc", desc); } catch {}
     }
     const target = token ? "/companies/new" : "/login";
     router.push(desc ? `${target}?desc=${encodeURIComponent(desc)}` : target);
-  };
+  }, [input, token, router]);
 
   return (
-    <div style={{ minHeight: "100vh", background: bg, color: textPrimary, overflow: "hidden", position: "relative", transition: "background 0.3s" }}>
+    <div style={{ minHeight: "100vh", background: "#0a0d14", color: "#e1e2eb", overflow: "hidden", position: "relative" }}>
 
-      {/* Ambient orbs — dark only */}
-      {isDark && (
-        <div style={{ position: "fixed", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
-          <div style={{ position: "absolute", width: 600, height: 600, borderRadius: "50%", filter: "blur(120px)", opacity: 0.06, background: "radial-gradient(circle, #00d1ff, transparent)", top: -100, left: 0 }} />
-          <div style={{ position: "absolute", width: 700, height: 700, borderRadius: "50%", filter: "blur(160px)", opacity: 0.04, background: "radial-gradient(circle, #6d11ad, transparent)", top: "30%", right: -200 }} />
-        </div>
-      )}
+      {/* Ambient gradient orbs */}
+      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
+        <div className="animate-float-slow" style={{ position: "absolute", width: 800, height: 800, borderRadius: "50%", filter: "blur(160px)", opacity: 0.05, background: "radial-gradient(circle, #00d1ff, transparent)", top: -200, left: -100 }} />
+        <div className="animate-float" style={{ position: "absolute", width: 600, height: 600, borderRadius: "50%", filter: "blur(140px)", opacity: 0.04, background: "radial-gradient(circle, #a855f7, transparent)", top: "40%", right: -200 }} />
+        <div style={{ position: "absolute", width: 400, height: 400, borderRadius: "50%", filter: "blur(120px)", opacity: 0.03, background: "radial-gradient(circle, #00d1ff, transparent)", bottom: -100, left: "40%" }} />
+      </div>
 
       {/* Top Nav */}
-      <nav style={{ position: "relative", zIndex: 20, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 32px", borderBottom: `1px solid ${borderColor}` }}>
+      <nav style={{
+        position: "relative", zIndex: 20,
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "16px 32px",
+        borderBottom: "1px solid rgba(255,255,255,0.04)",
+        backdropFilter: "blur(12px)",
+        background: "rgba(10,13,20,0.5)",
+      }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 30, height: 30, borderRadius: 8, background: "linear-gradient(135deg, #00d1ff, #6d11ad)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #00d1ff, #6d11ad)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}>
             <span style={{ color: "white", fontWeight: 700, fontSize: 11 }}>AI</span>
           </div>
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 14, color: textPrimary }}>AI Company OS</span>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 15, color: "#e1e2eb", letterSpacing: "-0.02em" }}>AI Company OS</span>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 24, fontSize: 14, color: textMuted }}>
-          <Link href="/features" style={{ color: textMuted, textDecoration: "none" }}>Features</Link>
-          <Link href="/pricing" style={{ color: textMuted, textDecoration: "none" }}>Pricing</Link>
-          <Link href="/docs" style={{ color: textMuted, textDecoration: "none" }}>Docs</Link>
+        <div style={{ display: "flex", alignItems: "center", gap: 28, fontSize: 13, fontWeight: 500 }}>
+          {[["Features", "/features"], ["Pricing", "/pricing"], ["Docs", "/docs"]].map(([label, href]) => (
+            <Link
+              key={label}
+              href={href}
+              style={{ color: "#859399", textDecoration: "none", transition: "color 0.2s" }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "#a4e6ff"; sounds.hover(); }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "#859399"; }}
+            >
+              {label}
+            </Link>
+          ))}
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {!token && (
-            <Link href="/login" style={{ fontSize: 13, color: textMuted, textDecoration: "none", padding: "6px 12px" }}>Sign in</Link>
+            <Link href="/login" style={{ fontSize: 13, color: "#859399", textDecoration: "none", padding: "6px 14px", transition: "color 0.2s" }}
+              onMouseEnter={(e) => e.currentTarget.style.color = "#e1e2eb"}
+              onMouseLeave={(e) => e.currentTarget.style.color = "#859399"}
+            >
+              Sign in
+            </Link>
           )}
-
           <Link
             href="/dashboard"
-            style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "8px 16px", borderRadius: 12, fontSize: 13, fontWeight: 600,
-              background: "linear-gradient(135deg, #00d1ff, #6d11ad)",
-              color: "white", textDecoration: "none",
-              boxShadow: "0 0 16px rgba(0,209,255,0.2)",
-            }}
+            className="btn-primary"
+            style={{ padding: "8px 18px", fontSize: 13, textDecoration: "none" }}
+            onClick={() => sounds.click()}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 15 }}>dashboard</span>
             Dashboard
@@ -338,62 +369,107 @@ export default function LandingPage() {
       </nav>
 
       {/* ── SPLIT LAYOUT ── */}
-      <div style={{ position: "relative", zIndex: 10, display: "flex", height: "calc(100vh - 65px)" }}>
+      <div style={{ position: "relative", zIndex: 10, display: "flex", height: "calc(100vh - 61px)" }}>
 
         {/* LEFT: Hero (75%) */}
-        <div style={{
-          flex: "0 0 75%",
-          overflow: "hidden",
-          position: "relative",
-        }}>
-          {/* Agent animation background */}
-          <AgentCanvas theme={theme} />
+        <div style={{ flex: "0 0 75%", overflow: "hidden", position: "relative" }}>
+          <AgentCanvas />
 
-          {/* Hero content — centered with slight upward offset */}
+          {/* Hero content */}
           <div style={{
             position: "relative", zIndex: 2,
             height: "100%", display: "flex", flexDirection: "column",
             alignItems: "center", justifyContent: "center",
-            padding: "0 40px",
-            paddingBottom: "6vh",
+            padding: "0 40px", paddingBottom: "6vh",
+            opacity: heroVisible ? 1 : 0,
+            transform: heroVisible ? "translateY(0)" : "translateY(20px)",
+            transition: "opacity 0.8s cubic-bezier(0.16,1,0.3,1), transform 0.8s cubic-bezier(0.16,1,0.3,1)",
           }}>
-            <div style={{ width: "100%", maxWidth: 580, textAlign: "center" }}>
+            <div style={{ width: "100%", maxWidth: 600, textAlign: "center" }}>
 
               {/* Badge */}
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "4px 14px", borderRadius: 999, border: "1px solid rgba(0,209,255,0.3)", background: "rgba(0,209,255,0.07)", marginBottom: 24 }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00d1ff", boxShadow: "0 0 6px #00d1ff", animation: "pulse 2s infinite" }} />
-                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", color: "#00d1ff" }}>9 AI AGENTS. ONE COMPANY.</span>
+              <div style={{
+                display: "inline-flex", alignItems: "center", gap: 8,
+                padding: "5px 16px", borderRadius: 999,
+                border: "1px solid rgba(0,209,255,0.2)",
+                background: "rgba(0,209,255,0.05)",
+                marginBottom: 28,
+                opacity: heroVisible ? 1 : 0,
+                transform: heroVisible ? "translateY(0)" : "translateY(10px)",
+                transition: "all 0.8s cubic-bezier(0.16,1,0.3,1) 0.15s",
+              }}>
+                <span className="status-dot" style={{ background: "#00d1ff" }} />
+                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.14em", color: "#a4e6ff" }}>9 AI AGENTS. ONE COMPANY.</span>
               </div>
 
               {/* Headline */}
-              <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 900, fontSize: "clamp(2.2rem, 4.5vw, 3.8rem)", lineHeight: 1.05, letterSpacing: "-0.03em", marginBottom: 18 }}>
-                <span style={{ color: textPrimary }}>Your company,</span><br />
-                <span style={{ background: "linear-gradient(135deg, #00d1ff 0%, #a4e6ff 40%, #e0b6ff 80%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>running itself.</span>
+              <h1 style={{
+                fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800,
+                fontSize: "clamp(2.4rem, 4.5vw, 4rem)", lineHeight: 1.05,
+                letterSpacing: "-0.04em", marginBottom: 20,
+                opacity: heroVisible ? 1 : 0,
+                transform: heroVisible ? "translateY(0)" : "translateY(16px)",
+                transition: "all 0.8s cubic-bezier(0.16,1,0.3,1) 0.2s",
+              }}>
+                <span style={{ color: "#e1e2eb" }}>Your company,</span><br />
+                <span className="gradient-text">running itself.</span>
               </h1>
 
-              <p style={{ color: textMuted, fontSize: "0.95rem", lineHeight: 1.8, marginBottom: 32, maxWidth: 460, margin: "0 auto 32px" }}>
+              <p style={{
+                color: "#859399", fontSize: "1rem", lineHeight: 1.8,
+                maxWidth: 480, margin: "0 auto 36px",
+                opacity: heroVisible ? 1 : 0,
+                transform: heroVisible ? "translateY(0)" : "translateY(12px)",
+                transition: "all 0.8s cubic-bezier(0.16,1,0.3,1) 0.3s",
+              }}>
                 Describe what you want to automate. AI builds agents, pipelines, and workflows — running 24/7 with full audit logs.
               </p>
 
               {/* Builder Input */}
-              <div style={{ width: "100%", borderRadius: 16, overflow: "hidden", background: surface, border: `1px solid rgba(0,209,255,0.18)`, boxShadow: isDark ? "0 0 48px rgba(0,209,255,0.07)" : "0 4px 32px rgba(0,0,0,0.08)", marginBottom: 14 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 18px 6px" }}>
+              <div
+                className="animate-pulse-glow"
+                style={{
+                  width: "100%", borderRadius: 18, overflow: "hidden",
+                  background: "rgba(15,18,25,0.85)",
+                  border: "1px solid rgba(0,209,255,0.15)",
+                  backdropFilter: "blur(20px)",
+                  marginBottom: 16,
+                  opacity: heroVisible ? 1 : 0,
+                  transform: heroVisible ? "translateY(0)" : "translateY(10px)",
+                  transition: "opacity 0.8s cubic-bezier(0.16,1,0.3,1) 0.35s, transform 0.8s cubic-bezier(0.16,1,0.3,1) 0.35s",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 20px 6px" }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 17, color: "#00d1ff" }}>smart_toy</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", color: "#00d1ff" }}>AI COMPANY BUILDER</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", color: "#00d1ff" }}>AI COMPANY BUILDER</span>
                 </div>
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleBuild(); }}
                   rows={3}
-                  style={{ width: "100%", resize: "none", outline: "none", border: "none", background: "transparent", color: textPrimary, padding: "4px 18px 10px", fontSize: 14, lineHeight: 1.7, fontFamily: "inherit", boxSizing: "border-box" }}
+                  style={{
+                    width: "100%", resize: "none", outline: "none", border: "none",
+                    background: "transparent", color: "#e1e2eb",
+                    padding: "6px 20px 10px", fontSize: 14, lineHeight: 1.7,
+                    fontFamily: "inherit", boxSizing: "border-box",
+                  }}
                   placeholder={displayText + (input ? "" : "▋")}
                 />
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 14px", borderTop: `1px solid ${borderColor}` }}>
-                  <span style={{ fontSize: 11, color: textFaint }}>⌘ + Enter to build</span>
+                <div style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "10px 16px", borderTop: "1px solid rgba(255,255,255,0.04)",
+                }}>
+                  <span style={{ fontSize: 11, color: "#3c494e", display: "flex", alignItems: "center", gap: 4 }}>
+                    <kbd style={{ padding: "2px 6px", borderRadius: 4, background: "rgba(255,255,255,0.06)", fontSize: 10, fontFamily: "inherit" }}>⌘</kbd>
+                    <span>+</span>
+                    <kbd style={{ padding: "2px 6px", borderRadius: 4, background: "rgba(255,255,255,0.06)", fontSize: 10, fontFamily: "inherit" }}>Enter</kbd>
+                    <span style={{ marginLeft: 4 }}>to build</span>
+                  </span>
                   <button
                     onClick={handleBuild}
-                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 18px", borderRadius: 10, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg, #00d1ff, #6d11ad)", color: "white", border: "none", cursor: "pointer", boxShadow: "0 0 20px rgba(0,209,255,0.25)" }}
+                    className="btn-primary"
+                    style={{ padding: "9px 22px", fontSize: 13 }}
                   >
                     <span className="material-symbols-outlined" style={{ fontSize: 15 }}>rocket_launch</span>
                     Build My Company
@@ -402,12 +478,24 @@ export default function LandingPage() {
               </div>
 
               {/* Chips */}
-              <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8, marginBottom: 28 }}>
+              <div style={{
+                display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8, marginBottom: 32,
+                opacity: heroVisible ? 1 : 0,
+                transition: "opacity 0.8s 0.5s",
+              }}>
                 {["Content Agency", "Sales Automation", "Customer Success", "Finance Ops"].map((chip) => (
                   <button
                     key={chip}
-                    onClick={() => setInput(`An AI-powered ${chip.toLowerCase()} company that automates all key workflows`)}
-                    style={{ padding: "4px 12px", borderRadius: 999, fontSize: 12, fontWeight: 500, background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)", border: `1px solid ${borderColor}`, color: textMuted, cursor: "pointer" }}
+                    onClick={() => { setInput(`An AI-powered ${chip.toLowerCase()} company that automates all key workflows`); sounds.click(); }}
+                    style={{
+                      padding: "5px 14px", borderRadius: 999, fontSize: 12, fontWeight: 500,
+                      background: "rgba(255,255,255,0.03)",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                      color: "#859399", cursor: "pointer",
+                      transition: "all 0.25s",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(0,209,255,0.25)"; e.currentTarget.style.color = "#a4e6ff"; e.currentTarget.style.background = "rgba(0,209,255,0.06)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "#859399"; e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}
                   >
                     {chip}
                   </button>
@@ -415,11 +503,11 @@ export default function LandingPage() {
               </div>
 
               {/* Stats */}
-              <div style={{ display: "flex", justifyContent: "center", gap: 28, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", justifyContent: "center", gap: 32, opacity: heroVisible ? 1 : 0, transition: "opacity 0.8s 0.6s" }}>
                 {[{ v: "1,200+", l: "companies built" }, { v: "10 min", l: "to first deploy" }, { v: "100%", l: "actions audited" }].map((s) => (
-                  <div key={s.l} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                    <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 13, color: textPrimary }}>{s.v}</span>
-                    <span style={{ fontSize: 11, color: textFaint }}>{s.l}</span>
+                  <div key={s.l} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 14, color: "#e1e2eb" }}>{s.v}</span>
+                    <span style={{ fontSize: 11, color: "#3c494e" }}>{s.l}</span>
                   </div>
                 ))}
               </div>
@@ -430,40 +518,41 @@ export default function LandingPage() {
         {/* RIGHT: Dashboard side panel (25%) */}
         <div style={{
           flex: "0 0 25%",
-          background: isDark ? "rgba(12,12,29,0.97)" : "rgba(230,238,255,0.97)",
-          borderLeft: `1px solid ${isDark ? "rgba(0,209,255,0.1)" : "rgba(0,209,255,0.2)"}`,
+          background: "rgba(8,10,18,0.95)",
+          borderLeft: "1px solid rgba(0,209,255,0.08)",
           display: "flex", flexDirection: "column",
           overflow: "hidden",
+          backdropFilter: "blur(20px)",
         }}>
           {/* Panel header */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "16px 20px", borderBottom: `1px solid ${borderColor}`, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.04)", flexShrink: 0 }}>
             <span className="material-symbols-outlined" style={{ color: "#00d1ff", fontSize: 18 }}>dashboard</span>
-            <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 14, color: textPrimary }}>Dashboard</span>
+            <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 14, color: "#e1e2eb" }}>Dashboard</span>
           </div>
 
-          {/* Panel body — static overview cards */}
-          <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+          {/* Panel body */}
+          <div className="stagger-children" style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
 
-            {/* Live status indicators */}
+            {/* Metrics */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               {[
                 { label: "Agents", value: "9", icon: "smart_toy", color: "#00d1ff" },
                 { label: "Uptime", value: "99.9%", icon: "check_circle", color: "#34d399" },
               ].map((m) => (
-                <div key={m.label} style={{ background: isDark ? "rgba(29,32,38,0.7)" : "rgba(255,255,255,0.7)", borderRadius: 10, padding: 12, border: `1px solid ${borderColor}` }}>
+                <div key={m.label} className="metric-card" style={{ padding: 12 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
                     <span className="material-symbols-outlined" style={{ fontSize: 13, color: m.color }}>{m.icon}</span>
-                    <span style={{ fontSize: 10, color: textMuted }}>{m.label}</span>
+                    <span style={{ fontSize: 10, color: "#859399" }}>{m.label}</span>
                   </div>
-                  <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 18, color: textPrimary }}>{m.value}</span>
+                  <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 20, color: "#e1e2eb" }}>{m.value}</span>
                 </div>
               ))}
             </div>
 
-            {/* Quick features list */}
-            <div style={{ background: isDark ? "rgba(29,32,38,0.6)" : "rgba(255,255,255,0.7)", borderRadius: 10, border: `1px solid ${borderColor}`, overflow: "hidden" }}>
-              <div style={{ padding: "10px 14px", borderBottom: `1px solid ${borderColor}` }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: textPrimary }}>Control Center</span>
+            {/* Control Center */}
+            <div className="glass-card" style={{ overflow: "hidden" }}>
+              <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: "#e1e2eb", letterSpacing: "0.02em" }}>Control Center</span>
               </div>
               {[
                 { icon: "business", label: "AI Companies", desc: "Create & manage", color: "#a4e6ff" },
@@ -472,54 +561,54 @@ export default function LandingPage() {
                 { icon: "query_stats", label: "Analytics", desc: "Performance data", color: "#c084fc" },
                 { icon: "security", label: "Risk Shield", desc: "Governance", color: "#f87171" },
               ].map((item) => (
-                <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: `1px solid ${borderColor}` }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 7, background: `${item.color}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <div
+                  key={item.label}
+                  className="interactive-row"
+                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", cursor: "default" }}
+                >
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: `${item.color}10`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <span className="material-symbols-outlined" style={{ fontSize: 14, color: item.color }}>{item.icon}</span>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 11, fontWeight: 600, color: textPrimary, margin: 0 }}>{item.label}</p>
-                    <p style={{ fontSize: 9, color: textFaint, margin: 0 }}>{item.desc}</p>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: "#e1e2eb", margin: 0 }}>{item.label}</p>
+                    <p style={{ fontSize: 9, color: "#3c494e", margin: 0 }}>{item.desc}</p>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Live activity pulse */}
-            <div style={{ background: isDark ? "rgba(29,32,38,0.6)" : "rgba(255,255,255,0.7)", borderRadius: 10, border: `1px solid ${borderColor}`, padding: 14 }}>
+            {/* Live activity */}
+            <div className="glass-card" style={{ padding: 14 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#34d399", boxShadow: "0 0 6px #34d399", animation: "pulse 2s infinite" }} />
-                <span style={{ fontSize: 10, fontWeight: 600, color: "#34d399" }}>LIVE</span>
+                <span className="status-dot" style={{ background: "#34d399" }} />
+                <span style={{ fontSize: 10, fontWeight: 600, color: "#34d399", letterSpacing: "0.1em" }}>LIVE</span>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
                 {[
                   "Content published → TikTok",
                   "Lead scored → 0.92",
                   "Pipeline completed",
                 ].map((msg, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ width: 4, height: 4, borderRadius: "50%", background: textFaint, flexShrink: 0 }} />
-                    <span style={{ fontSize: 10, color: textMuted }}>{msg}</span>
+                    <span style={{ width: 3, height: 3, borderRadius: "50%", background: "#3c494e", flexShrink: 0 }} />
+                    <span style={{ fontSize: 10, color: "#859399" }}>{msg}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Spacer */}
             <div style={{ flex: 1 }} />
 
-            {/* CTA — enter dashboard */}
+            {/* CTA */}
             <Link
               href={token ? "/dashboard" : "/login"}
+              className="btn-primary"
               style={{
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                padding: "14px 16px", borderRadius: 14,
-                background: "linear-gradient(135deg, #00d1ff, #6d11ad)",
-                color: "white", textDecoration: "none", fontWeight: 700, fontSize: 13,
-                boxShadow: "0 0 24px rgba(0,209,255,0.2)",
-                transition: "transform 0.15s, box-shadow 0.15s",
+                justifyContent: "center", padding: "14px 16px",
+                borderRadius: 14, fontSize: 13, textDecoration: "none",
+                width: "100%", boxSizing: "border-box",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 4px 32px rgba(0,209,255,0.35)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 0 24px rgba(0,209,255,0.2)"; }}
+              onClick={() => sounds.click()}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 18 }}>login</span>
               {token ? "Enter Command Center" : "Sign In to Start"}
@@ -529,76 +618,65 @@ export default function LandingPage() {
       </div>
 
       {/* Social proof / Trust section */}
-      {(
-        <section style={{ position: "relative", zIndex: 10, padding: "0 32px 24px" }}>
-          {/* How it works */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, maxWidth: 800, margin: "0 auto 24px" }}>
-            {[
-              { n: "1", icon: "edit_note", title: "Describe", desc: "Tell Claude what your company does. Up to 3 clarification rounds." },
-              { n: "2", icon: "auto_awesome", title: "AI Builds", desc: "Agents, pipelines, memory — all configured automatically." },
-              { n: "3", icon: "trending_up", title: "Runs 24/7", desc: "Full audit log. You approve spend. Zero manual ops." },
-            ].map((step) => (
-              <div key={step.n} style={{ position: "relative", padding: 16, borderRadius: 12, background: surface, border: `1px solid ${borderColor}` }}>
-                <span style={{ position: "absolute", top: 10, right: 12, fontFamily: "monospace", fontSize: 10, fontWeight: 700, color: textFaint }}>{step.n}</span>
-                <div style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 16, color: "#00d1ff" }}>{step.icon}</span>
-                </div>
-                <p style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 600, fontSize: 12, color: textPrimary, marginBottom: 3 }}>{step.title}</p>
-                <p style={{ fontSize: 11, lineHeight: 1.5, color: textMuted }}>{step.desc}</p>
+      <section style={{ position: "relative", zIndex: 10, padding: "0 32px 28px" }}>
+        {/* How it works */}
+        <div className="stagger-children" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, maxWidth: 840, margin: "0 auto 28px" }}>
+          {[
+            { n: "1", icon: "edit_note", title: "Describe", desc: "Tell Claude what your company does. Up to 3 clarification rounds." },
+            { n: "2", icon: "auto_awesome", title: "AI Builds", desc: "Agents, pipelines, memory — all configured automatically." },
+            { n: "3", icon: "trending_up", title: "Runs 24/7", desc: "Full audit log. You approve spend. Zero manual ops." },
+          ].map((step) => (
+            <div key={step.n} className="reveal glass-card" style={{ padding: 18 }}>
+              <span style={{ position: "absolute", top: 10, right: 14, fontFamily: "'Space Grotesk',sans-serif", fontSize: 11, fontWeight: 700, color: "#3c494e" }}>{step.n}</span>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(0,209,255,0.06)", border: "1px solid rgba(0,209,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 17, color: "#00d1ff" }}>{step.icon}</span>
               </div>
-            ))}
-          </div>
+              <p style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 13, color: "#e1e2eb", marginBottom: 4 }}>{step.title}</p>
+              <p style={{ fontSize: 12, lineHeight: 1.6, color: "#859399" }}>{step.desc}</p>
+            </div>
+          ))}
+        </div>
 
-          {/* Trust badges */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 32, flexWrap: "wrap" }}>
-            {[
-              { icon: "shield", text: "SOC 2 Ready" },
-              { icon: "lock", text: "End-to-end Encrypted" },
-              { icon: "verified", text: "Full Audit Trail" },
-              { icon: "speed", text: "99.9% Uptime SLA" },
-            ].map((badge) => (
-              <div key={badge.text} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 14, color: textFaint }}>{badge.icon}</span>
-                <span style={{ fontSize: 10, color: textFaint }}>{badge.text}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+        {/* Trust badges */}
+        <div className="reveal" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 36, flexWrap: "wrap" }}>
+          {[
+            { icon: "shield", text: "SOC 2 Ready" },
+            { icon: "lock", text: "End-to-end Encrypted" },
+            { icon: "verified", text: "Full Audit Trail" },
+            { icon: "speed", text: "99.9% Uptime SLA" },
+          ].map((badge) => (
+            <div key={badge.text} style={{ display: "flex", alignItems: "center", gap: 6, transition: "color 0.3s" }}
+              onMouseEnter={(e) => e.currentTarget.style.color = "#a4e6ff"}
+              onMouseLeave={(e) => e.currentTarget.style.color = "#3c494e"}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 14, color: "inherit" }}>{badge.icon}</span>
+              <span style={{ fontSize: 11, color: "inherit" }}>{badge.text}</span>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* Footer */}
-      <footer style={{ position: "relative", zIndex: 10, padding: "12px 32px", borderTop: `1px solid ${borderColor}` }}>
+      <footer style={{ position: "relative", zIndex: 10, padding: "14px 32px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ width: 16, height: 16, borderRadius: 3, background: "linear-gradient(135deg,#00d1ff,#6d11ad)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <span style={{ color: "white", fontWeight: 700, fontSize: 7 }}>AI</span>
             </div>
-            <span style={{ fontSize: 11, color: textFaint }}>AI Company OS</span>
+            <span style={{ fontSize: 11, color: "#3c494e" }}>AI Company OS</span>
           </div>
-          <div style={{ display: "flex", gap: 18, fontSize: 11, color: textFaint }}>
+          <div style={{ display: "flex", gap: 20, fontSize: 11 }}>
             {[["Features", "/features"], ["Pricing", "/pricing"], ["Privacy", "/privacy"], ["Terms", "/terms"]].map(([l, h]) => (
-              <Link key={l} href={h} style={{ color: textFaint, textDecoration: "none" }}>{l}</Link>
+              <Link key={l} href={h} style={{ color: "#3c494e", textDecoration: "none", transition: "color 0.2s" }}
+                onMouseEnter={(e) => e.currentTarget.style.color = "#859399"}
+                onMouseLeave={(e) => e.currentTarget.style.color = "#3c494e"}
+              >
+                {l}
+              </Link>
             ))}
           </div>
         </div>
       </footer>
-
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.6; transform: scale(0.85); }
-        }
-      `}</style>
     </div>
   );
-}
-
-function timeAgo(dateStr: string): string {
-  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
 }

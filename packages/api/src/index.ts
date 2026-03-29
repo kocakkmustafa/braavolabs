@@ -30,6 +30,7 @@ import { onboardingRouter } from "./modules/onboarding/router";
 import { growthRouter } from "./modules/growth/router";
 import { authRouter } from "./modules/auth/auth.router";
 import { exportRouter } from "./modules/export/router";
+import { integrationRouter } from "./modules/integration/router";
 import { initPipelineRunner, initScheduledPipelines, stopScheduledPipelines } from "./modules/pipeline/runner";
 import { initOutreachWorker } from "./modules/outreach/sequence-runner";
 import { initConsolidationCron, stopConsolidationCron } from "./modules/memory/consolidation-cron";
@@ -117,6 +118,7 @@ api.use("/governance", governanceRouter);
 api.use("/onboarding", onboardingRouter);
 api.use("/growth", growthRouter);
 api.use("/export", exportRouter);
+api.use("/integrations", integrationRouter);
 
 app.use("/api/v1", api);
 

@@ -89,13 +89,13 @@ export default function PipelinesPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-3 gap-3 mb-6 stagger-children">
         {[
           { label: "Total Pipelines", value: stats.total, icon: "account_tree", color: "#a4e6ff" },
           { label: "Active", value: stats.active, icon: "play_circle", color: "#34d399" },
           { label: "Scheduled", value: stats.scheduled, icon: "schedule", color: "#fbbf24" },
         ].map((s) => (
-          <div key={s.label} className="glass-panel rounded-xl p-4">
+          <div key={s.label} className="metric-card rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <span className="material-symbols-outlined" style={{ fontSize: 16, color: s.color }}>{s.icon}</span>
               <span className="text-xs" style={{ color: "#859399" }}>{s.label}</span>
@@ -134,11 +134,11 @@ export default function PipelinesPage() {
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="glass-panel rounded-xl h-20 animate-shimmer" />
+            <div key={i} className="glass-card rounded-xl h-20 animate-shimmer" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="glass-panel rounded-2xl text-center py-16">
+        <div className="glass-card rounded-2xl text-center py-16">
           <span className="material-symbols-outlined text-4xl mb-4 block" style={{ color: "#00d1ff" }}>account_tree</span>
           <p className="font-semibold" style={{ color: "#e1e2eb" }}>
             {pipelines.length === 0 ? "No workflows yet" : "No matching workflows"}
@@ -167,7 +167,7 @@ export default function PipelinesPage() {
             return (
               <div
                 key={pipeline.id}
-                className="glass-panel rounded-xl p-4 sm:p-5 transition-all"
+                className="glass-card rounded-xl p-4 sm:p-5 transition-all"
                 style={{ borderLeft: `3px solid ${st.color}` }}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">

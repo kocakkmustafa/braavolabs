@@ -1,7 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { spawn } from "node:child_process";
 import { env } from "../../config/env";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
@@ -10,7 +9,6 @@ import { PRIMITIVES, PLAN_LIMITS } from "@ai-company-os/core";
 
 const isLocalMode = env.LLM_PROVIDER === "local";
 const client = isLocalMode ? null : new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-const execFileAsync = promisify(execFile);
 
 /**
  * Call Claude via CLI or API based on LLM_PROVIDER.
@@ -30,18 +28,42 @@ async function callClaude(
       })
       .join("\n\n");
 
-    const { stdout } = await execFileAsync("claude", [
-      "-p", prompt,
-      "--output-format", "json",
-      "--system-prompt", systemPrompt,
-    ], {
-      timeout: 120_000,
-      maxBuffer: 10 * 1024 * 1024,
-      env: { ...process.env },
+    // Use spawn with stdin to avoid OS argument length limits
+    const fullPrompt = `<system>\n${systemPrompt}\n</system>\n\n${prompt}`;
+    const result = await new Promise<string>((resolve, reject) => {
+      const child = spawn("claude", ["-p", "-", "--output-format", "json"], {
+        env: { ...process.env },
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      let stdout = "";
+      let stderr = "";
+      const timer = setTimeout(() => {
+        child.kill("SIGTERM");
+        reject(new Error("Claude CLI timed out after 300 seconds"));
+      }, 300_000);
+      child.stdout.on("data", (d: Buffer) => { stdout += d.toString(); });
+      child.stderr.on("data", (d: Buffer) => { stderr += d.toString(); });
+      child.on("close", (code) => {
+        clearTimeout(timer);
+        if (code !== 0) {
+          reject(new Error(`Claude CLI error (exit ${code}): ${(stderr || "").slice(0, 500)}`));
+          return;
+        }
+        try {
+          const response = JSON.parse(stdout);
+          resolve(response.result ?? "");
+        } catch {
+          reject(new Error(`Claude CLI JSON parse error: ${stdout.slice(0, 500)}`));
+        }
+      });
+      child.on("error", (err) => {
+        clearTimeout(timer);
+        reject(new Error(`Claude CLI spawn error: ${err.message}`));
+      });
+      child.stdin.write(fullPrompt);
+      child.stdin.end();
     });
-
-    const response = JSON.parse(stdout);
-    return response.result ?? "";
+    return result;
   }
 
   // API mode
@@ -92,6 +114,10 @@ export interface CompanySpec {
     }>;
   }>;
   config: Record<string, unknown>;
+  requiredIntegrations?: Array<{
+    provider: string;
+    reason: string;
+  }>;
 }
 
 const SYSTEM_PROMPT = `You are the AI Company Builder for AI Company OS.
@@ -336,12 +362,26 @@ export async function confirmBuild(sessionId: string): Promise<BuilderSession> {
     },
   });
 
+  // Check for missing integrations
+  let missingIntegrations: Array<{ provider: string; reason: string; setupGuide: string }> = [];
+  if (spec.requiredIntegrations && spec.requiredIntegrations.length > 0) {
+    const { getMissingIntegrations } = require("../integration/checker");
+    const requiredProviders = spec.requiredIntegrations.map((r: any) => r.provider);
+    const missing = await getMissingIntegrations(company.id, requiredProviders);
+    missingIntegrations = missing.map((m: any) => ({
+      provider: m.provider,
+      reason: spec.requiredIntegrations!.find((r: any) => r.provider === m.provider)?.reason ?? "",
+      setupGuide: m.info?.setupGuide ?? "",
+    }));
+  }
+
   session.status = "created";
   session.companyId = company.id;
+  (session as any).missingIntegrations = missingIntegrations;
   sessions.set(sessionId, session);
 
   logger.info(
-    { sessionId, companyId: company.id, name: spec.name },
+    { sessionId, companyId: company.id, name: spec.name, missingIntegrations: missingIntegrations.length },
     "Company built successfully",
   );
 
@@ -388,19 +428,38 @@ function parseBuilderResponse(text: string): BuilderOutput {
 
 function buildSpec(raw: any): CompanySpec {
   const name = raw?.name ?? "My AI Company";
+  const agents = (raw?.agents ?? []).map((a: any) => ({
+    name: a.name ?? "Agent",
+    role: a.role ?? slugify(a.name ?? "agent"),
+    systemPrompt:
+      a.systemPrompt ??
+      `You are the ${a.name ?? "Agent"} for ${name}. ${a.role ? `Your role is ${a.role}.` : ""}`,
+    tools: a.tools ?? [],
+  }));
+
+  // Detect required integrations from agent tools
+  const { TOOL_PROVIDER_MAP, PROVIDER_INFO } = require("../integration/checker");
+  const allTools = agents.flatMap((a: any) => a.tools);
+  const providerSet = new Map<string, string>();
+  for (const tool of allTools) {
+    const provider = TOOL_PROVIDER_MAP[tool];
+    if (provider && !providerSet.has(provider)) {
+      const info = PROVIDER_INFO[provider];
+      providerSet.set(provider, `Required for ${tool} — ${info?.description ?? provider}`);
+    }
+  }
+
+  const requiredIntegrations = Array.from(providerSet.entries()).map(([provider, reason]) => ({
+    provider,
+    reason,
+  }));
+
   return {
     name,
     slug: slugify(name),
     description: raw?.description ?? "",
     primitives: raw?.primitives ?? ["CONTENT", "ANALYTICS"],
-    agents: (raw?.agents ?? []).map((a: any) => ({
-      name: a.name ?? "Agent",
-      role: a.role ?? slugify(a.name ?? "agent"),
-      systemPrompt:
-        a.systemPrompt ??
-        `You are the ${a.name ?? "Agent"} for ${name}. ${a.role ? `Your role is ${a.role}.` : ""}`,
-      tools: a.tools ?? [],
-    })),
+    agents,
     pipelines: (raw?.pipelines ?? []).map((p: any) => ({
       name: p.name ?? "Default Pipeline",
       trigger: p.trigger ?? "MANUAL",
@@ -412,5 +471,6 @@ function buildSpec(raw: any): CompanySpec {
       })),
     })),
     config: raw?.config ?? {},
+    requiredIntegrations: requiredIntegrations.length > 0 ? requiredIntegrations : undefined,
   };
 }

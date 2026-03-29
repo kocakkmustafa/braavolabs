@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAppStore } from "../lib/store";
+import { sounds } from "../lib/sounds";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home", icon: "home", publicOnly: true },
@@ -35,9 +36,7 @@ export default function Sidebar() {
   useEffect(() => {
     if (!token) return;
     import("../lib/api").then(({ api }) => {
-      api.onboardingStatus(token)
-        .then((s) => setProgress(s.progress))
-        .catch(() => {});
+      api.onboardingStatus(token).then((s) => setProgress(s.progress)).catch(() => {});
     });
   }, [token]);
 
@@ -46,7 +45,6 @@ export default function Sidebar() {
     return pathname.startsWith(href);
   };
 
-  // Filter nav items based on auth
   const visibleItems = token
     ? NAV_ITEMS.filter((i) => !i.publicOnly)
     : [...NAV_ITEMS.filter((i) => !i.authOnly), ...PUBLIC_ITEMS];
@@ -58,40 +56,35 @@ export default function Sidebar() {
       onMouseEnter={() => setExpanded(true)}
       onMouseLeave={() => setExpanded(false)}
       style={{
-        position: "fixed",
-        left: 0,
-        top: 0,
-        height: "100vh",
-        width: W,
-        background: "#0c0c1d",
-        borderRight: "1px solid rgba(71,70,89,0.15)",
-        zIndex: 60,
-        display: "flex",
-        flexDirection: "column",
-        transition: "width 0.22s cubic-bezier(0.4,0,0.2,1)",
+        position: "fixed", left: 0, top: 0, height: "100vh", width: W,
+        background: "linear-gradient(180deg, #080a12 0%, #0a0d16 100%)",
+        borderRight: "1px solid rgba(255,255,255,0.04)",
+        zIndex: 60, display: "flex", flexDirection: "column",
+        transition: "width 0.28s cubic-bezier(0.4,0,0.2,1)",
         overflow: "hidden",
-        boxShadow: expanded ? "4px 0 24px rgba(0,0,0,0.4)" : "none",
+        boxShadow: expanded ? "4px 0 32px rgba(0,0,0,0.5)" : "none",
       }}
     >
       {/* Logo */}
       <div style={{ padding: "20px 0", display: "flex", alignItems: "center", justifyContent: "center", height: 64, flexShrink: 0 }}>
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", paddingLeft: expanded ? 16 : 0, transition: "padding 0.22s", width: "100%", justifyContent: expanded ? "flex-start" : "center" }}>
+        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", paddingLeft: expanded ? 16 : 0, transition: "padding 0.28s", width: "100%", justifyContent: expanded ? "flex-start" : "center" }}>
           <div style={{
             width: 30, height: 30, borderRadius: 8, flexShrink: 0,
             background: "linear-gradient(135deg, #00d1ff, #6d11ad)",
             display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "0 0 16px rgba(0,209,255,0.2)",
+            transition: "box-shadow 0.3s",
           }}>
             <span style={{ color: "white", fontWeight: 700, fontSize: 11 }}>AI</span>
           </div>
           {expanded && (
             <span style={{
               fontFamily: "'Space Grotesk', sans-serif",
-              fontWeight: 700, fontSize: 13,
-              background: "linear-gradient(to right, #ca98ff, #00fbfb)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
+              fontWeight: 700, fontSize: 13, letterSpacing: "-0.02em",
+              background: "linear-gradient(135deg, #a4e6ff, #e0b6ff)",
+              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+              whiteSpace: "nowrap", overflow: "hidden",
+              animation: "fade-in 0.3s ease-out",
             }}>
               AI COMPANY OS
             </span>
@@ -108,68 +101,70 @@ export default function Sidebar() {
               key={item.href}
               href={item.href}
               title={!expanded ? item.label : undefined}
+              onClick={() => sounds.click()}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "10px",
-                borderRadius: 10,
-                marginBottom: 2,
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "10px", borderRadius: 10, marginBottom: 2,
                 textDecoration: "none",
                 justifyContent: expanded ? "flex-start" : "center",
-                background: active ? "rgba(0,209,255,0.1)" : "transparent",
-                color: active ? "#00d1ff" : "rgba(230,227,251,0.55)",
-                transition: "background 0.15s, color 0.15s",
+                background: active ? "rgba(0,209,255,0.08)" : "transparent",
+                color: active ? "#00d1ff" : "rgba(230,227,251,0.45)",
+                transition: "all 0.2s cubic-bezier(0.4,0,0.2,1)",
                 borderLeft: active ? "2px solid #00d1ff" : "2px solid transparent",
                 whiteSpace: "nowrap",
+                position: "relative",
               }}
               onMouseEnter={(e) => {
                 if (!active) {
-                  e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                  e.currentTarget.style.background = "rgba(255,255,255,0.04)";
                   e.currentTarget.style.color = "#e1e2eb";
                 }
               }}
               onMouseLeave={(e) => {
                 if (!active) {
                   e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.color = "rgba(230,227,251,0.55)";
+                  e.currentTarget.style.color = "rgba(230,227,251,0.45)";
                 }
               }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 20, flexShrink: 0 }}>{item.icon}</span>
-              {expanded && <span style={{ fontSize: 13, fontWeight: 500, overflow: "hidden" }}>{item.label}</span>}
+              {expanded && <span style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", opacity: expanded ? 1 : 0, transition: "opacity 0.2s 0.1s" }}>{item.label}</span>}
             </Link>
           );
         })}
       </nav>
 
-      {/* Onboarding progress bar */}
+      {/* Onboarding progress */}
       {token && progress !== null && progress < 100 && (
         <div style={{ padding: "8px 10px", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: expanded ? "space-between" : "center", marginBottom: 4 }}>
-            {expanded && <span style={{ fontSize: 10, color: "#3c494e" }}>SETUP PROGRESS</span>}
-            {expanded && <span style={{ fontSize: 10, color: "#00d1ff" }}>{progress}%</span>}
+            {expanded && <span style={{ fontSize: 10, color: "#3c494e", letterSpacing: "0.08em" }}>SETUP</span>}
+            {expanded && <span style={{ fontSize: 10, color: "#00d1ff", fontWeight: 600 }}>{progress}%</span>}
           </div>
-          <div style={{ height: 3, borderRadius: 999, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${progress}%`, background: "linear-gradient(90deg, #00d1ff, #6d11ad)", transition: "width 0.5s ease", borderRadius: 999 }} />
+          <div style={{ height: 3, borderRadius: 999, background: "rgba(255,255,255,0.04)", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${progress}%`, background: "linear-gradient(90deg, #00d1ff, #6d11ad)", transition: "width 0.8s cubic-bezier(0.16,1,0.3,1)", borderRadius: 999 }} />
           </div>
         </div>
       )}
 
       {/* Bottom actions */}
-      <div style={{ padding: "8px 6px", borderTop: "1px solid rgba(71,70,89,0.15)", flexShrink: 0 }}>
+      <div style={{ padding: "8px 6px", borderTop: "1px solid rgba(255,255,255,0.04)", flexShrink: 0 }}>
         {token ? (
           <>
             <Link
               href="/companies/new"
+              onClick={() => sounds.build()}
               style={{
                 display: "flex", alignItems: "center", justifyContent: expanded ? "flex-start" : "center",
                 gap: 8, padding: "10px", borderRadius: 10, marginBottom: 4,
-                background: "linear-gradient(135deg, rgba(0,209,255,0.15), rgba(109,17,173,0.15))",
-                border: "1px solid rgba(0,209,255,0.2)",
+                background: "linear-gradient(135deg, rgba(0,209,255,0.1), rgba(109,17,173,0.1))",
+                border: "1px solid rgba(0,209,255,0.15)",
                 color: "#00d1ff", textDecoration: "none", fontSize: 13, fontWeight: 600,
                 whiteSpace: "nowrap",
+                transition: "all 0.25s",
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(0,209,255,0.3)"; e.currentTarget.style.boxShadow = "0 0 20px rgba(0,209,255,0.1)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(0,209,255,0.15)"; e.currentTarget.style.boxShadow = "none"; }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 18, flexShrink: 0 }}>add</span>
               {expanded && "New Company"}
@@ -179,9 +174,11 @@ export default function Sidebar() {
               style={{
                 display: "flex", alignItems: "center", justifyContent: expanded ? "flex-start" : "center",
                 gap: 8, padding: "8px 10px", borderRadius: 10,
-                color: "rgba(230,227,251,0.4)", textDecoration: "none", fontSize: 12,
-                whiteSpace: "nowrap",
+                color: "rgba(230,227,251,0.3)", textDecoration: "none", fontSize: 12,
+                whiteSpace: "nowrap", transition: "color 0.2s",
               }}
+              onMouseEnter={(e) => e.currentTarget.style.color = "rgba(230,227,251,0.6)"}
+              onMouseLeave={(e) => e.currentTarget.style.color = "rgba(230,227,251,0.3)"}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 16, flexShrink: 0 }}>rocket_launch</span>
               {expanded && "Quick Start"}
@@ -190,12 +187,12 @@ export default function Sidebar() {
         ) : (
           <Link
             href="/login"
+            onClick={() => sounds.click()}
+            className="btn-primary"
             style={{
-              display: "flex", alignItems: "center", justifyContent: expanded ? "flex-start" : "center",
-              gap: 8, padding: "10px", borderRadius: 10,
-              background: "linear-gradient(135deg, #00d1ff, #6d11ad)",
-              color: "white", textDecoration: "none", fontSize: 13, fontWeight: 600,
-              whiteSpace: "nowrap",
+              justifyContent: expanded ? "flex-start" : "center",
+              width: "100%", padding: "10px", borderRadius: 10,
+              textDecoration: "none", fontSize: 13, whiteSpace: "nowrap",
             }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 18, flexShrink: 0 }}>login</span>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
+import { sounds } from "../../lib/sounds";
 
 export default function ApprovalsPage() {
   const { token, hydrated } = useAuthGuard();
@@ -27,129 +28,72 @@ export default function ApprovalsPage() {
     try {
       await api.decideApproval(token!, id, decision);
       setApprovals((prev) => prev.filter((a) => a.id !== id));
+      decision === "APPROVED" ? sounds.success() : sounds.click();
     } catch (err) {
       console.error("Approval decision failed:", err);
       setError((err as Error).message);
+      sounds.error();
     }
     setLoading(false);
   }
 
   return (
-    <div style={{ maxWidth: 896, margin: "0 auto", padding: "32px 24px" }} className="animate-fade-in">
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: "#e1e2eb", margin: 0 }}>Pending Approvals</h1>
-        <p style={{ fontSize: 14, color: "#859399", marginTop: 4 }}>Review and approve spend actions from your AI agents</p>
+    <div className="max-w-4xl mx-auto px-6 py-8 animate-fade-in">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold font-headline gradient-text">Pending Approvals</h1>
+        <p className="text-sm mt-1" style={{ color: "#859399" }}>Review and approve spend actions from your AI agents</p>
       </div>
 
       {error && (
-        <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 12, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", fontSize: 14 }}>
+        <div className="mb-4 px-4 py-3 rounded-xl text-sm" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
           {error}
         </div>
       )}
 
       {approvals.length === 0 ? (
-        <div
-          style={{
-            background: "rgba(29,32,38,0.8)",
-            backdropFilter: "blur(24px)",
-            border: "1px solid rgba(255,255,255,0.06)",
-            borderRadius: 16,
-            padding: "64px 24px",
-            textAlign: "center",
-          }}
-        >
+        <div className="glass-card rounded-2xl py-16 px-6 text-center">
           <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 16,
-              background: "rgba(52,211,153,0.1)",
-              border: "1px solid rgba(52,211,153,0.2)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto 16px",
-            }}
+            className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
+            style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)" }}
           >
-            <svg width={24} height={24} fill="none" viewBox="0 0 24 24" stroke="#34d399" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-            </svg>
+            <span className="material-symbols-outlined" style={{ fontSize: 24, color: "#34d399" }}>check_circle</span>
           </div>
-          <p style={{ fontWeight: 600, color: "#bbc9cf", margin: 0 }}>All clear!</p>
-          <p style={{ fontSize: 13, color: "#859399", marginTop: 4 }}>No pending approvals. Approvals are required only for spend actions.</p>
+          <p className="font-semibold" style={{ color: "#bbc9cf" }}>All clear!</p>
+          <p className="text-sm mt-1" style={{ color: "#859399" }}>No pending approvals. Approvals are required only for spend actions.</p>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="space-y-4 stagger-children">
           {approvals.map((a) => (
-            <div
-              key={a.id}
-              style={{
-                background: "rgba(29,32,38,0.8)",
-                backdropFilter: "blur(24px)",
-                border: "1px solid rgba(255,255,255,0.06)",
-                borderRadius: 16,
-                padding: "24px",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
-                <div style={{ flex: 1 }}>
-                  <h3 style={{ fontWeight: 600, color: "#e1e2eb", margin: 0, fontSize: 15 }}>
+            <div key={a.id} className="glass-card rounded-2xl p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h3 className="font-semibold text-[15px]" style={{ color: "#e1e2eb" }}>
                     {a.run?.pipeline?.company?.name ?? "Unknown Company"}
                   </h3>
-                  <p style={{ fontSize: 13, color: "#859399", marginTop: 6, marginBottom: 0 }}>{a.description}</p>
+                  <p className="text-sm mt-1.5" style={{ color: "#859399" }}>{a.description}</p>
                   {a.amountUsd && (
-                    <p
-                      style={{
-                        fontSize: 26,
-                        fontWeight: 700,
-                        marginTop: 8,
-                        marginBottom: 0,
-                        background: "linear-gradient(135deg, #00d1ff, #6d11ad)",
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                      }}
-                    >
+                    <p className="text-[26px] font-bold mt-2 gradient-text">
                       ${Number(a.amountUsd).toFixed(2)}
                     </p>
                   )}
-                  <p style={{ fontSize: 11, color: "#3c494e", marginTop: 8, marginBottom: 0 }}>
+                  <p className="text-[11px] mt-2" style={{ color: "#3c494e" }}>
                     Run: {a.runId?.slice(0, 8)} &bull; {new Date(a.createdAt).toLocaleString()}
                   </p>
                 </div>
-                <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                <div className="flex gap-2 flex-shrink-0">
                   <button
                     onClick={() => decide(a.id, "APPROVED")}
                     disabled={loading}
-                    style={{
-                      padding: "8px 18px",
-                      borderRadius: 10,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "#fff",
-                      background: "#34d399",
-                      border: "none",
-                      cursor: loading ? "not-allowed" : "pointer",
-                      opacity: loading ? 0.5 : 1,
-                      transition: "opacity 0.2s",
-                    }}
+                    className="px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50"
+                    style={{ background: "#34d399" }}
                   >
                     Approve
                   </button>
                   <button
                     onClick={() => decide(a.id, "REJECTED")}
                     disabled={loading}
-                    style={{
-                      padding: "8px 18px",
-                      borderRadius: 10,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "#f87171",
-                      background: "rgba(239,68,68,0.1)",
-                      border: "1px solid rgba(239,68,68,0.2)",
-                      cursor: loading ? "not-allowed" : "pointer",
-                      opacity: loading ? 0.5 : 1,
-                      transition: "opacity 0.2s",
-                    }}
+                    className="px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:brightness-110 disabled:opacity-50"
+                    style={{ color: "#f87171", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}
                   >
                     Reject
                   </button>

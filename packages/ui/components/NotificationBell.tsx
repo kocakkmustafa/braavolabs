@@ -59,7 +59,7 @@ export default function NotificationBell() {
       >
         <span className="material-symbols-outlined" style={{ fontSize: 18 }}>notifications</span>
         {count > 0 && (
-          <span style={{ position: "absolute", top: -4, right: -4, width: 16, height: 16, borderRadius: "50%", background: "#ef4444", fontSize: 9, fontWeight: 700, color: "white", display: "flex", alignItems: "center", justifyContent: "center", border: `2px solid ${isDark ? "#10131a" : "#f0f5ff"}` }}>
+          <span style={{ position: "absolute", top: -4, right: -4, width: 16, height: 16, borderRadius: "50%", background: "#ef4444", fontSize: 9, fontWeight: 700, color: "white", display: "flex", alignItems: "center", justifyContent: "center", border: `2px solid ${isDark ? "#0a0d14" : "#f0f5ff"}` }}>
             {count > 9 ? "9+" : count}
           </span>
         )}

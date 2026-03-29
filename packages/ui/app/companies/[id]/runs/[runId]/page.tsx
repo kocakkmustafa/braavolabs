@@ -227,21 +227,21 @@ export default function RunDetailPage() {
 
       {/* Run Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-        <div className="glass-panel rounded-xl p-4">
+        <div className="glass-card rounded-xl p-4">
           <p className="text-[10px] font-semibold tracking-wider mb-2" style={{ color: "#859399" }}>STATUS</p>
           <span className="inline-block px-2.5 py-1 rounded-lg text-xs font-semibold" style={{ background: runSt.bg, color: runSt.color, border: runSt.border }}>
             {run.status}
           </span>
         </div>
-        <div className="glass-panel rounded-xl p-4">
+        <div className="glass-card rounded-xl p-4">
           <p className="text-[10px] font-semibold tracking-wider mb-1" style={{ color: "#859399" }}>STEPS</p>
           <p className="text-xl font-bold font-headline" style={{ color: "#e1e2eb" }}>{run.steps.length}</p>
         </div>
-        <div className="glass-panel rounded-xl p-4">
+        <div className="glass-card rounded-xl p-4">
           <p className="text-[10px] font-semibold tracking-wider mb-1" style={{ color: "#859399" }}>COST</p>
           <p className="text-xl font-bold font-headline" style={{ color: "#e1e2eb" }}>${Number(run.costUsd ?? 0).toFixed(4)}</p>
         </div>
-        <div className="glass-panel rounded-xl p-4">
+        <div className="glass-card rounded-xl p-4">
           <p className="text-[10px] font-semibold tracking-wider mb-1" style={{ color: "#859399" }}>DURATION</p>
           <p className="text-xl font-bold font-headline" style={{ color: "#e1e2eb" }}>
             {run.completedAt
@@ -263,7 +263,7 @@ export default function RunDetailPage() {
           return (
             <div
               key={step.id}
-              className="glass-panel rounded-xl overflow-hidden"
+              className="glass-card rounded-xl overflow-hidden"
               style={{ borderLeft: `3px solid ${dotColor}` }}
             >
               {/* Step Header */}

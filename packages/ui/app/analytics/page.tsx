@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../lib/store";
+import { sounds } from "../../lib/sounds";
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
   COMPLETED:        { bg: "rgba(52,211,153,0.1)",  color: "#34d399", border: "rgba(52,211,153,0.2)" },
@@ -55,6 +56,7 @@ export default function AnalyticsPage() {
   }, [token, page]);
 
   async function viewRun(id: string) {
+    sounds.click();
     if (expandedRun === id) {
       setExpandedRun(null);
       setRunDetail(null);
@@ -71,6 +73,7 @@ export default function AnalyticsPage() {
 
   function exportCSV(data: any[]) {
     if (data.length === 0) return;
+    sounds.success();
     const header = "Company,Pipeline,Status,Steps,Cost,Started\n";
     const rows = data.map((r) =>
       [
@@ -92,7 +95,7 @@ export default function AnalyticsPage() {
   }
 
   if (!token) return (
-    <div className="flex items-center justify-center min-h-screen" style={{ background: "#10131a" }}>
+    <div className="flex items-center justify-center min-h-screen" style={{ background: "#0a0d14" }}>
       <p className="text-sm" style={{ color: "#859399" }}>Please <Link href="/login" style={{ color: "#00d1ff" }}>login</Link> first.</p>
     </div>
   );
@@ -100,16 +103,15 @@ export default function AnalyticsPage() {
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8 animate-fade-in">
+    <div className="max-w-7xl mx-auto px-6 py-8 animate-fade-in mesh-bg">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold font-headline" style={{ color: "#e1e2eb" }}>Analytics</h1>
+          <h1 className="text-xl sm:text-2xl font-bold font-headline gradient-text">Analytics</h1>
           <p className="text-sm mt-0.5" style={{ color: "#859399" }}>Pipeline run performance and cost breakdown</p>
         </div>
         <button
           onClick={() => exportCSV(runs)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium self-start sm:self-auto"
-          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}
+          className="btn-ghost inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium self-start sm:self-auto"
         >
           <span className="material-symbols-outlined" style={{ fontSize: 16 }}>download</span>
           Export CSV
@@ -117,23 +119,31 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-        <SummaryCard label="TOTAL RUNS" value={usage?.totalRuns ?? "—"} />
-        <SummaryCard label="SUCCESS RATE" value={usage ? `${(usage.successRate * 100).toFixed(1)}%` : "—"} />
-        <SummaryCard label="TOTAL COST" value={finance ? `$${finance.totalCostUsd.toFixed(2)}` : "—"} />
-        <SummaryCard label="AVG/RUN" value={finance ? `$${finance.avgCostPerRun.toFixed(4)}` : "—"} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8 stagger-children">
+        <div className="metric-card rounded-2xl p-5 min-w-0">
+          <p className="text-xs font-semibold tracking-widest truncate" style={{ color: "#859399" }}>TOTAL RUNS</p>
+          <p className="text-xl font-bold font-headline mt-1" style={{ color: "#e1e2eb" }}>{usage?.totalRuns ?? "—"}</p>
+        </div>
+        <div className="metric-card rounded-2xl p-5 min-w-0">
+          <p className="text-xs font-semibold tracking-widest truncate" style={{ color: "#859399" }}>SUCCESS RATE</p>
+          <p className="text-xl font-bold font-headline mt-1" style={{ color: "#34d399" }}>{usage ? `${(usage.successRate * 100).toFixed(1)}%` : "—"}</p>
+        </div>
+        <div className="metric-card rounded-2xl p-5 min-w-0">
+          <p className="text-xs font-semibold tracking-widest truncate" style={{ color: "#859399" }}>TOTAL COST</p>
+          <p className="text-xl font-bold font-headline mt-1" style={{ color: "#e1e2eb" }}>{finance ? `$${finance.totalCostUsd.toFixed(2)}` : "—"}</p>
+        </div>
+        <div className="metric-card rounded-2xl p-5 min-w-0">
+          <p className="text-xs font-semibold tracking-widest truncate" style={{ color: "#859399" }}>AVG/RUN</p>
+          <p className="text-xl font-bold font-headline mt-1" style={{ color: "#e1e2eb" }}>{finance ? `$${finance.avgCostPerRun.toFixed(4)}` : "—"}</p>
+        </div>
       </div>
 
       {/* Run Breakdown */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div
-          className="rounded-2xl p-6"
-          style={{ background: "rgba(29,32,38,0.7)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.06)" }}
-        >
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 stagger-children">
+        <div className="glass-card rounded-2xl p-6">
           <h2 className="text-base font-semibold font-headline mb-4" style={{ color: "#e1e2eb" }}>Run Breakdown (This Month)</h2>
           {usage ? (
             <div className="flex items-center gap-6">
-              {/* SVG Donut Chart */}
               <DonutChart
                 segments={[
                   { value: usage.completedRuns, color: "#10b981", label: "Completed" },
@@ -155,16 +165,13 @@ export default function AnalyticsPage() {
           )}
         </div>
 
-        <div
-          className="rounded-2xl p-6"
-          style={{ background: "rgba(29,32,38,0.7)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.06)" }}
-        >
+        <div className="glass-card rounded-2xl p-6">
           <h2 className="text-base font-semibold font-headline mb-4" style={{ color: "#e1e2eb" }}>Cost Summary (This Month)</h2>
           {finance ? (
             <div className="space-y-3">
               <div className="flex justify-between items-center py-1">
                 <span className="text-sm" style={{ color: "#859399" }}>Total Spent</span>
-                <span className="font-semibold text-lg" style={{ color: "#e1e2eb" }}>${finance.totalCostUsd.toFixed(2)}</span>
+                <span className="font-semibold text-lg gradient-text">${finance.totalCostUsd.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center py-1" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
                 <span className="text-sm" style={{ color: "#859399" }}>Billable Runs</span>
@@ -182,10 +189,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Run History */}
-      <div
-        className="rounded-2xl overflow-hidden"
-        style={{ background: "rgba(29,32,38,0.7)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.06)" }}
-      >
+      <div className="glass-card rounded-2xl overflow-hidden">
         <div className="px-6 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           <h2 className="text-base font-semibold font-headline" style={{ color: "#e1e2eb" }}>Run History</h2>
         </div>
@@ -230,22 +234,16 @@ export default function AnalyticsPage() {
                 </span>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    onClick={() => { sounds.click(); setPage((p) => Math.max(0, p - 1)); }}
                     disabled={page === 0}
-                    className="px-3 py-1 rounded-lg text-sm transition-colors disabled:opacity-50"
-                    style={{ border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf", background: "transparent" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                    className="btn-ghost px-3 py-1 rounded-lg text-sm disabled:opacity-50"
                   >
                     Prev
                   </button>
                   <button
-                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                    onClick={() => { sounds.click(); setPage((p) => Math.min(totalPages - 1, p + 1)); }}
                     disabled={page >= totalPages - 1}
-                    className="px-3 py-1 rounded-lg text-sm transition-colors disabled:opacity-50"
-                    style={{ border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf", background: "transparent" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                    className="btn-ghost px-3 py-1 rounded-lg text-sm disabled:opacity-50"
                   >
                     Next
                   </button>
@@ -255,18 +253,6 @@ export default function AnalyticsPage() {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-function SummaryCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div
-      className="rounded-2xl p-5 min-w-0"
-      style={{ background: "rgba(29,32,38,0.7)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.06)" }}
-    >
-      <p className="text-xs font-semibold tracking-widest truncate" style={{ color: "#859399" }}>{label}</p>
-      <p className="text-xl font-bold mt-1" style={{ color: "#e1e2eb" }}>{value}</p>
     </div>
   );
 }
@@ -306,12 +292,10 @@ function DonutChart({ segments, total }: { segments: { value: number; color: str
   return (
     <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        {/* Background circle */}
         <circle
           cx={size / 2} cy={size / 2} r={radius}
           fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={strokeWidth}
         />
-        {/* Segments */}
         {arcs.map((arc) => (
           <circle
             key={arc.label}
@@ -339,11 +323,9 @@ function RunRow({ run, expanded, detail, onToggle }: {
   return (
     <>
       <tr
-        className="cursor-pointer transition-colors"
+        className="interactive-row cursor-pointer"
         style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
         onClick={onToggle}
-        onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
       >
         <td className="px-6 py-3" style={{ color: "#bbc9cf" }}>{run.pipeline?.company?.name ?? "—"}</td>
         <td className="px-6 py-3" style={{ color: "#bbc9cf" }}>{run.pipeline?.name ?? "—"}</td>

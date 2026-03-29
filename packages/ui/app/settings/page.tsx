@@ -58,12 +58,37 @@ export default function SettingsPage() {
     weeklyDigest: false, marketing: false,
   });
 
+  // Integration state
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
+  const [providers, setProviders] = useState<any[]>([]);
+  const [integrations, setIntegrations] = useState<any[]>([]);
+  const [intLoading, setIntLoading] = useState(false);
+  const [editProvider, setEditProvider] = useState<string | null>(null);
+  const [editFields, setEditFields] = useState<Record<string, string>>({});
+  const [testResult, setTestResult] = useState<{ provider: string; success: boolean; error?: string } | null>(null);
+
   useEffect(() => {
     if (!hydrated || !token) return;
     api.billingUsage(token).then(setBillingUsage).catch(() => {});
     api.billingSubscription(token).then(setSubscription).catch(() => {});
     api.getReferral(token).then(setReferral).catch(() => {});
+    api.listProviders(token).then(setProviders).catch(() => {});
+    api.listCompanies(token).then((c: any[]) => {
+      setCompanies(c);
+      if (c.length > 0 && !selectedCompanyId) setSelectedCompanyId(c[0].id);
+    }).catch(() => {});
   }, [token, hydrated]);
+
+  // Load integrations when company changes
+  useEffect(() => {
+    if (!token || !selectedCompanyId) return;
+    setIntLoading(true);
+    api.listIntegrations(token, selectedCompanyId)
+      .then(setIntegrations)
+      .catch(() => {})
+      .finally(() => setIntLoading(false));
+  }, [token, selectedCompanyId]);
 
   if (!hydrated || !token) return (
     <div className="flex items-center justify-center min-h-[60vh]">
@@ -91,7 +116,7 @@ export default function SettingsPage() {
   const limits = PLAN_LIMITS[currentPlan] ?? PLAN_LIMITS.FREE;
 
   return (
-    <div className="min-h-screen" style={{ background: "#10131a" }}>
+    <div className="min-h-screen" style={{ background: "#0a0d14" }}>
       {/* Top bar */}
       <header
         className="sticky top-0 z-40 flex items-center justify-between px-8 h-16 font-headline"
@@ -154,7 +179,7 @@ export default function SettingsPage() {
                 </div>
                 <button
                   className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center"
-                  style={{ background: "#272a31", border: "2px solid #10131a" }}
+                  style={{ background: "#272a31", border: "2px solid #0a0d14" }}
                 >
                   <span className="material-symbols-outlined text-sm" style={{ color: "#bbc9cf" }}>photo_camera</span>
                 </button>
@@ -351,37 +376,185 @@ export default function SettingsPage() {
 
         {/* Integrations */}
         {active === "integrations" && (
-          <Section title="Integrations" subtitle="Connect external services">
-            <div className="space-y-0">
-              {[
-                { name: "HubSpot CRM", desc: "Sync contacts and deals bidirectionally", env: "HUBSPOT_ACCESS_TOKEN", icon: "🟠" },
-                { name: "Stripe Billing", desc: "Usage-based billing and subscription management", env: "STRIPE_SECRET_KEY", icon: "💜" },
-                { name: "SendGrid Email", desc: "Transactional and outreach email delivery", env: "SENDGRID_API_KEY", icon: "📧" },
-                { name: "TikTok", desc: "Publish and analyze TikTok content", env: "TIKTOK_*", icon: "🎵" },
-                { name: "LinkedIn", desc: "Publish and analyze LinkedIn content", env: "LINKEDIN_*", icon: "💼" },
-                { name: "Anthropic (Claude)", desc: "AI agent reasoning and tool use", env: "ANTHROPIC_API_KEY", icon: "🤖" },
-              ].map((item) => (
-                <div
-                  key={item.name}
-                  className="flex items-center justify-between py-4"
-                  style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">{item.icon}</span>
-                    <div>
-                      <p className="text-sm font-medium" style={{ color: "#e1e2eb" }}>{item.name}</p>
-                      <p className="text-xs" style={{ color: "#859399" }}>{item.desc}</p>
-                    </div>
-                  </div>
-                  <code
-                    className="text-xs px-2 py-1 rounded-lg font-mono"
-                    style={{ background: "rgba(255,255,255,0.04)", color: "#3c494e", border: "1px solid rgba(255,255,255,0.06)" }}
-                  >
-                    {item.env}
-                  </code>
-                </div>
-              ))}
+          <Section title="Integrations" subtitle="Connect external services to your AI companies">
+            {/* Company selector */}
+            <div className="mb-6">
+              <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: "#859399" }}>
+                Company
+              </label>
+              <select
+                value={selectedCompanyId}
+                onChange={(e) => setSelectedCompanyId(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl text-sm"
+                style={{ background: "rgba(255,255,255,0.04)", color: "#e1e2eb", border: "1px solid rgba(255,255,255,0.08)" }}
+              >
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id} style={{ background: "#0d1117" }}>{c.name}</option>
+                ))}
+                {companies.length === 0 && <option value="">No companies found</option>}
+              </select>
             </div>
+
+            {intLoading ? (
+              <div className="text-center py-8">
+                <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-2" style={{ borderColor: "#00d1ff", borderTopColor: "transparent" }} />
+                <p className="text-xs" style={{ color: "#859399" }}>Loading integrations...</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {providers.map((prov) => {
+                  const existing = integrations.find((i: any) => i.provider === prov.provider);
+                  const isEditing = editProvider === prov.provider;
+                  const statusColor = existing?.status === "ACTIVE" ? "#22c55e" : existing?.status === "ERROR" ? "#ef4444" : existing?.status === "PENDING" ? "#f59e0b" : "#3c494e";
+                  const statusLabel = existing?.status ?? "Not Connected";
+
+                  return (
+                    <div
+                      key={prov.provider}
+                      className="rounded-xl overflow-hidden"
+                      style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
+                    >
+                      {/* Provider header */}
+                      <div
+                        className="flex items-center justify-between px-5 py-4 cursor-pointer"
+                        onClick={() => {
+                          if (isEditing) {
+                            setEditProvider(null);
+                          } else {
+                            setEditProvider(prov.provider);
+                            setEditFields({});
+                            setTestResult(null);
+                          }
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-xl">{prov.icon}</span>
+                          <div>
+                            <p className="text-sm font-medium" style={{ color: "#e1e2eb" }}>{prov.name}</p>
+                            <p className="text-xs" style={{ color: "#859399" }}>{prov.description}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span
+                            className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full"
+                            style={{ background: `${statusColor}20`, color: statusColor }}
+                          >
+                            {statusLabel}
+                          </span>
+                          <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#859399", transform: isEditing ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+                            expand_more
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Expanded edit form */}
+                      {isEditing && (
+                        <div className="px-5 pb-5 pt-1" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                          {/* Setup guide */}
+                          <div className="mb-4 p-3 rounded-lg" style={{ background: "rgba(0,209,255,0.05)", border: "1px solid rgba(0,209,255,0.1)" }}>
+                            <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#00d1ff" }}>Setup Guide</p>
+                            <pre className="text-xs whitespace-pre-wrap" style={{ color: "#a4e6ff" }}>
+                              {prov.setupGuide}
+                            </pre>
+                            {prov.docsUrl && (
+                              <a href={prov.docsUrl} target="_blank" rel="noopener noreferrer" className="text-xs mt-2 inline-block" style={{ color: "#00d1ff" }}>
+                                View Documentation →
+                              </a>
+                            )}
+                          </div>
+
+                          {/* Credential fields */}
+                          <div className="space-y-3">
+                            {prov.fields.map((field: any) => (
+                              <div key={field.key}>
+                                <label className="text-xs font-medium mb-1 block" style={{ color: "#bbc9cf" }}>
+                                  {field.label}
+                                  {existing?.fieldsSet?.includes(field.key) && (
+                                    <span className="ml-2 text-[10px]" style={{ color: "#22c55e" }}>(saved)</span>
+                                  )}
+                                </label>
+                                <input
+                                  type={field.type}
+                                  placeholder={field.placeholder}
+                                  value={editFields[field.key] ?? ""}
+                                  onChange={(e) => setEditFields((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                                  className="w-full px-3 py-2 rounded-lg text-sm font-mono"
+                                  style={{ background: "rgba(0,0,0,0.3)", color: "#e1e2eb", border: "1px solid rgba(255,255,255,0.08)" }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Test result */}
+                          {testResult && testResult.provider === prov.provider && (
+                            <div
+                              className="mt-3 p-3 rounded-lg text-xs"
+                              style={{
+                                background: testResult.success ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+                                border: `1px solid ${testResult.success ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}`,
+                                color: testResult.success ? "#22c55e" : "#ef4444",
+                              }}
+                            >
+                              {testResult.success ? "Connection successful!" : `Error: ${testResult.error}`}
+                            </div>
+                          )}
+
+                          {/* Action buttons */}
+                          <div className="flex gap-2 mt-4">
+                            <button
+                              onClick={async () => {
+                                if (!token || !selectedCompanyId) return;
+                                const filledFields = Object.fromEntries(
+                                  Object.entries(editFields).filter(([_, v]) => v.trim() !== "")
+                                );
+                                if (Object.keys(filledFields).length === 0) return;
+                                await api.saveIntegration(token, selectedCompanyId, prov.provider, filledFields);
+                                // Reload
+                                const updated = await api.listIntegrations(token, selectedCompanyId);
+                                setIntegrations(updated);
+                                setEditFields({});
+                              }}
+                              className="px-4 py-2 rounded-lg text-xs font-semibold"
+                              style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", color: "white" }}
+                            >
+                              Save Credentials
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (!token || !selectedCompanyId) return;
+                                const result = await api.testIntegration(token, selectedCompanyId, prov.provider);
+                                setTestResult({ provider: prov.provider, success: result.success, error: result.error });
+                                // Reload integrations
+                                const updated = await api.listIntegrations(token, selectedCompanyId);
+                                setIntegrations(updated);
+                              }}
+                              className="px-4 py-2 rounded-lg text-xs font-semibold"
+                              style={{ background: "rgba(255,255,255,0.06)", color: "#bbc9cf", border: "1px solid rgba(255,255,255,0.08)" }}
+                            >
+                              Test Connection
+                            </button>
+                            {existing && (
+                              <button
+                                onClick={async () => {
+                                  if (!token || !selectedCompanyId) return;
+                                  await api.deleteIntegration(token, selectedCompanyId, prov.provider);
+                                  const updated = await api.listIntegrations(token, selectedCompanyId);
+                                  setIntegrations(updated);
+                                }}
+                                className="px-4 py-2 rounded-lg text-xs font-semibold ml-auto"
+                                style={{ color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.05)" }}
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </Section>
         )}
 

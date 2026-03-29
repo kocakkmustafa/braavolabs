@@ -95,11 +95,11 @@ export default function MarketplacePage() {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="glass-panel rounded-xl h-56 animate-shimmer" />
+            <div key={i} className="glass-card rounded-xl h-56 animate-shimmer" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="glass-panel rounded-2xl text-center py-16">
+        <div className="glass-card rounded-2xl text-center py-16">
           <span className="material-symbols-outlined text-4xl mb-4 block" style={{ color: "#00d1ff" }}>storefront</span>
           <p className="font-semibold" style={{ color: "#e1e2eb" }}>
             {blueprints.length === 0 ? "No blueprints published yet" : "No matching blueprints"}
@@ -113,7 +113,7 @@ export default function MarketplacePage() {
           {filtered.map((bp) => {
             const category = bp.primitives?.[0] ?? "operations";
             return (
-              <div key={bp.slug} className="glass-panel rounded-2xl p-5 flex flex-col">
+              <div key={bp.slug} className="glass-card rounded-2xl p-5 flex flex-col">
                 {/* Card header */}
                 <div className="flex items-start justify-between mb-3">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.15)" }}>
@@ -191,7 +191,7 @@ export default function MarketplacePage() {
       )}
 
       {/* Publish CTA */}
-      <div className="mt-8 glass-panel rounded-2xl p-6 text-center" style={{ border: "1px solid rgba(0,209,255,0.15)" }}>
+      <div className="mt-8 glass-card rounded-2xl p-6 text-center" style={{ border: "1px solid rgba(0,209,255,0.15)" }}>
         <span className="material-symbols-outlined text-3xl mb-3 block" style={{ color: "#00d1ff" }}>share</span>
         <p className="font-semibold mb-1" style={{ color: "#e1e2eb" }}>Share Your Blueprint</p>
         <p className="text-sm mb-4" style={{ color: "#859399" }}>

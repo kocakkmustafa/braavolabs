@@ -25,7 +25,7 @@ function CallbackInner() {
   }, [searchParams, setAuth, router]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen" style={{ background: "#10131a" }}>
+    <div className="flex items-center justify-center min-h-screen" style={{ background: "#0a0d14" }}>
       <div className="text-sm" style={{ color: "#bbc9cf" }}>Signing in...</div>
     </div>
   );
@@ -34,7 +34,7 @@ function CallbackInner() {
 export default function AuthCallbackPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen" style={{ background: "#10131a" }}>
+      <div className="flex items-center justify-center min-h-screen" style={{ background: "#0a0d14" }}>
         <div className="text-sm" style={{ color: "#bbc9cf" }}>Loading...</div>
       </div>
     }>

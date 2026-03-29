@@ -61,20 +61,20 @@ export default function BillingPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
       <div className="mb-8">
-        <h1 className="text-xl sm:text-2xl font-bold font-headline" style={{ color: "#e1e2eb" }}>Billing & Usage</h1>
+        <h1 className="text-xl sm:text-2xl font-bold font-headline gradient-text">Billing & Usage</h1>
         <p className="text-sm mt-0.5" style={{ color: "#859399" }}>Manage your plan, monitor usage, and upgrade when ready.</p>
       </div>
 
       {loading ? (
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="glass-panel rounded-xl h-24 animate-shimmer" />
+            <div key={i} className="glass-card rounded-xl h-24 animate-shimmer" />
           ))}
         </div>
       ) : (
         <>
           {/* Current plan banner */}
-          <div className="glass-panel rounded-2xl p-6 mb-6" style={{ borderLeft: "3px solid #00d1ff" }}>
+          <div className="glass-card rounded-2xl p-6 mb-6" style={{ borderLeft: "3px solid #00d1ff" }}>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div
@@ -112,7 +112,7 @@ export default function BillingPage() {
           </div>
 
           {/* Usage meters */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 stagger-children">
             {[
               { label: "Runs This Month", current: usage?.live?.runs ?? 0, limit: limits.runs, icon: "play_circle", color: "#00d1ff" },
               { label: "Tool Calls", current: usage?.live?.toolCalls ?? 0, limit: -1, icon: "build", color: "#a4e6ff" },
@@ -123,7 +123,7 @@ export default function BillingPage() {
               const pct = unlimited ? 0 : Math.min(100, (m.current / m.limit) * 100);
               const danger = !unlimited && pct >= 80;
               return (
-                <div key={m.label} className="glass-panel rounded-xl p-4">
+                <div key={m.label} className="metric-card rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="material-symbols-outlined" style={{ fontSize: 16, color: m.color }}>{m.icon}</span>
                     <span className="text-xs" style={{ color: "#859399" }}>{m.label}</span>
@@ -166,7 +166,7 @@ export default function BillingPage() {
             ].map((p) => (
               <div
                 key={p.id}
-                className="glass-panel rounded-2xl p-6 flex flex-col relative overflow-hidden"
+                className="glass-card rounded-2xl p-6 flex flex-col relative overflow-hidden"
                 style={{ border: plan === p.id ? "1.5px solid rgba(0,209,255,0.4)" : "1.5px solid rgba(255,255,255,0.06)" }}
               >
                 {(p as any).popular && plan !== p.id && (
@@ -213,7 +213,7 @@ export default function BillingPage() {
           {usage?.meters && usage.meters.length > 0 && (
             <>
               <h2 className="font-headline font-bold text-base mb-4" style={{ color: "#e1e2eb" }}>Usage History</h2>
-              <div className="glass-panel rounded-xl overflow-hidden">
+              <div className="glass-card rounded-xl overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>

@@ -210,4 +210,18 @@ export const api = {
     apiFetch<any>(`/export/${companyId}/skills`, { token }),
   exportHooks: (token: string, companyId: string) =>
     apiFetch<any>(`/export/${companyId}/hooks`, { token }),
+
+  // Integrations
+  listProviders: (token: string) =>
+    apiFetch<any[]>("/integrations/providers", { token }),
+  listIntegrations: (token: string, companyId: string) =>
+    apiFetch<any[]>(`/integrations/${companyId}`, { token }),
+  saveIntegration: (token: string, companyId: string, provider: string, credentials: Record<string, string>, label?: string) =>
+    apiFetch<any>(`/integrations/${companyId}`, { method: "POST", body: JSON.stringify({ provider, credentials, label }), token }),
+  testIntegration: (token: string, companyId: string, provider: string) =>
+    apiFetch<any>(`/integrations/${companyId}/test`, { method: "POST", body: JSON.stringify({ provider }), token }),
+  deleteIntegration: (token: string, companyId: string, provider: string) =>
+    apiFetch<any>(`/integrations/${companyId}/${provider}`, { method: "DELETE", token }),
+  missingIntegrations: (token: string, companyId: string) =>
+    apiFetch<any>(`/integrations/${companyId}/missing`, { token }),
 };

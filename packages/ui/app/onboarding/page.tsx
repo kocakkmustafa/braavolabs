@@ -80,9 +80,9 @@ export default function OnboardingPage() {
   // Already completed
   if (result || status?.steps?.heroCompanyCreated) {
     return (
-      <div className="flex items-center justify-center min-h-screen px-6" style={{ background: "#10131a" }}>
+      <div className="flex items-center justify-center min-h-screen px-6" style={{ background: "#0a0d14" }}>
         <div
-          className="w-full max-w-[520px] glass-panel rounded-2xl p-8 text-center"
+          className="w-full max-w-[520px] glass-card rounded-2xl p-8 text-center"
           style={{ border: "1px solid rgba(52,211,153,0.2)" }}
         >
           <div
@@ -135,7 +135,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen flex neural-mesh" style={{ background: "#10131a" }}>
+    <div className="min-h-screen flex neural-mesh" style={{ background: "#0a0d14" }}>
       {/* Ambient bg */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full opacity-[0.05] blur-3xl" style={{ background: "radial-gradient(circle, #00d1ff, transparent)" }} />
@@ -166,7 +166,7 @@ export default function OnboardingPage() {
                     style={{
                       background: i < step ? "#00d1ff" : i === step ? "rgba(0,209,255,0.15)" : "rgba(255,255,255,0.04)",
                       border: i === step ? "1.5px solid #00d1ff" : i < step ? "none" : "1.5px solid rgba(255,255,255,0.08)",
-                      color: i <= step ? (i < step ? "#10131a" : "#00d1ff") : "#3c494e",
+                      color: i <= step ? (i < step ? "#0a0d14" : "#00d1ff") : "#3c494e",
                     }}
                   >
                     {i < step ? "✓" : i + 1}
@@ -187,7 +187,7 @@ export default function OnboardingPage() {
         </div>
 
         {/* Step card */}
-        <div className="w-full max-w-[700px] glass-panel rounded-2xl p-8 relative overflow-hidden">
+        <div className="w-full max-w-[700px] glass-card rounded-2xl p-8 relative overflow-hidden">
 
           {/* Step 0: Company description */}
           {step === 0 && (
@@ -418,7 +418,7 @@ export default function OnboardingPage() {
         {/* Onboarding progress bar (if exists) */}
         {status && (
           <div
-            className="w-full max-w-[700px] mt-5 glass-panel rounded-xl p-4 flex items-center gap-4"
+            className="w-full max-w-[700px] mt-5 glass-card rounded-xl p-4 flex items-center gap-4"
           >
             <div className="flex-1">
               <div className="flex justify-between mb-1">

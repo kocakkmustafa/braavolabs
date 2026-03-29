@@ -71,6 +71,7 @@ model Company {
   outreachSequences  OutreachSequence[]
   evalResults        EvalResult[]
   drafts             Draft[]
+  integrations       Integration[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -448,6 +449,27 @@ model Referral {
   @@map("referrals")
 }
 
+// ─── INTEGRATIONS ──────────────────────────────────────
+
+model Integration {
+  id           String              @id @default(cuid())
+  companyId    String              @map("company_id")
+  provider     IntegrationProvider
+  status       IntegrationStatus   @default(PENDING)
+  credentials  String              @db.Text  // AES-256-GCM encrypted JSON
+  label        String?             // user-friendly label
+  metadata     Json                @default("{}")
+  lastTestedAt DateTime?           @map("last_tested_at")
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, provider])
+  @@index([companyId])
+  @@map("integrations")
+}
+
 // ─── ENUMS ──────────────────────────────────────────────
 
 enum Plan {
@@ -570,5 +592,29 @@ enum DraftStatus {
 enum ReferralStatus {
   PENDING
   CONVERTED
+  EXPIRED
+}
+
+enum IntegrationProvider {
+  TIKTOK
+  INSTAGRAM
+  LINKEDIN
+  YOUTUBE
+  TWITTER
+  OPENAI
+  RUNWAY
+  ELEVENLABS
+  MIDJOURNEY
+  FLUX
+  PIKA
+  HUBSPOT
+  STRIPE
+  SENDGRID
+}
+
+enum IntegrationStatus {
+  PENDING
+  ACTIVE
+  ERROR
   EXPIRED
 }

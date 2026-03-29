@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
+import { sounds } from "../../lib/sounds";
 
 const STATUS_STYLES: Record<string, { background: string; color: string; border: string }> = {
   DRAFT:     { background: "rgba(133,147,153,0.1)", color: "#859399", border: "1px solid rgba(133,147,153,0.2)" },
@@ -61,141 +62,87 @@ export default function DraftsPage() {
       setDrafts((prev) =>
         prev.map((d) => (d.id === id ? { ...d, status } : d))
       );
+      status === "APPROVED" || status === "PUBLISHED" ? sounds.success() : sounds.click();
     } catch (err) {
       console.error("Draft status update failed:", err);
       setError((err as Error).message);
+      sounds.error();
     }
   }
 
   return (
-    <div style={{ maxWidth: 896, margin: "0 auto", padding: "32px 24px" }} className="animate-fade-in">
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 }}>
+    <div className="max-w-4xl mx-auto px-6 py-8 animate-fade-in">
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: "#e1e2eb", margin: 0 }}>Drafts</h1>
-          <p style={{ fontSize: 14, color: "#859399", marginTop: 4 }}>Content created by your AI agents</p>
+          <h1 className="text-2xl font-bold font-headline gradient-text">Drafts</h1>
+          <p className="text-sm mt-1" style={{ color: "#859399" }}>Content created by your AI agents</p>
         </div>
         <select
           value={selectedCompany}
-          onChange={(e) => setSelectedCompany(e.target.value)}
-          style={{
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            color: "#bbc9cf",
-            borderRadius: 12,
-            padding: "8px 12px",
-            fontSize: 13,
-            outline: "none",
-            cursor: "pointer",
-          }}
+          onChange={(e) => { sounds.click(); setSelectedCompany(e.target.value); }}
+          className="rounded-xl px-3 py-2 text-sm outline-none"
+          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}
         >
           {companies.map((c) => (
-            <option key={c.id} value={c.id} style={{ background: "#1a1d27" }}>{c.name}</option>
+            <option key={c.id} value={c.id} style={{ background: "#0a0d14" }}>{c.name}</option>
           ))}
         </select>
       </div>
 
       {error && (
-        <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 12, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", fontSize: 14 }}>
+        <div className="mb-4 px-4 py-3 rounded-xl text-sm" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
           {error}
         </div>
       )}
 
       {loading ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="animate-shimmer"
-              style={{ height: 96, borderRadius: 16, background: "rgba(255,255,255,0.04)" }}
-            />
+            <div key={i} className="animate-shimmer rounded-2xl" style={{ height: 96, background: "rgba(255,255,255,0.04)" }} />
           ))}
         </div>
       ) : drafts.length === 0 ? (
-        <div
-          style={{
-            background: "rgba(29,32,38,0.8)",
-            backdropFilter: "blur(24px)",
-            border: "1px solid rgba(255,255,255,0.06)",
-            borderRadius: 16,
-            padding: "64px 24px",
-            textAlign: "center",
-          }}
-        >
+        <div className="glass-card rounded-2xl py-16 px-6 text-center">
           <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 16,
-              background: "rgba(109,17,173,0.12)",
-              border: "1px solid rgba(109,17,173,0.25)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto 16px",
-            }}
+            className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
+            style={{ background: "rgba(109,17,173,0.12)", border: "1px solid rgba(109,17,173,0.25)" }}
           >
-            <svg width={24} height={24} fill="none" viewBox="0 0 24 24" stroke="#e0b6ff" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-            </svg>
+            <span className="material-symbols-outlined" style={{ fontSize: 24, color: "#e0b6ff" }}>edit_note</span>
           </div>
-          <p style={{ fontWeight: 600, color: "#bbc9cf", margin: 0 }}>No drafts yet</p>
-          <p style={{ fontSize: 13, color: "#859399", marginTop: 4 }}>Drafts will appear here when agents create content.</p>
+          <p className="font-semibold" style={{ color: "#bbc9cf" }}>No drafts yet</p>
+          <p className="text-sm mt-1" style={{ color: "#859399" }}>Drafts will appear here when agents create content.</p>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="space-y-4 stagger-children">
           {drafts.map((d) => (
-            <div
-              key={d.id}
-              style={{
-                background: "rgba(29,32,38,0.8)",
-                backdropFilter: "blur(24px)",
-                border: "1px solid rgba(255,255,255,0.06)",
-                borderRadius: 16,
-                padding: "20px 24px",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                    <h3 style={{ fontWeight: 600, color: "#e1e2eb", margin: 0, fontSize: 14 }}>{d.title}</h3>
+            <div key={d.id} className="glass-card rounded-2xl p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <h3 className="font-semibold text-sm" style={{ color: "#e1e2eb" }}>{d.title}</h3>
                     <span
-                      style={{
-                        fontSize: 11,
-                        padding: "2px 8px",
-                        borderRadius: 999,
-                        fontWeight: 600,
-                        ...(STATUS_STYLES[d.status] ?? DEFAULT_STATUS),
-                      }}
+                      className="text-[11px] px-2 py-0.5 rounded-full font-semibold"
+                      style={STATUS_STYLES[d.status] ?? DEFAULT_STATUS}
                     >
                       {d.status}
                     </span>
                     <span
-                      style={{
-                        fontSize: 11,
-                        padding: "2px 8px",
-                        borderRadius: 6,
-                        fontWeight: 500,
-                        background: "rgba(109,17,173,0.1)",
-                        color: "#e0b6ff",
-                        border: "1px solid rgba(109,17,173,0.2)",
-                      }}
+                      className="text-[11px] px-2 py-0.5 rounded-md font-medium"
+                      style={{ background: "rgba(109,17,173,0.1)", color: "#e0b6ff", border: "1px solid rgba(109,17,173,0.2)" }}
                     >
                       {TYPE_LABELS[d.type] ?? d.type}
                     </span>
                   </div>
                   {d.channel && (
-                    <p style={{ fontSize: 13, color: "#859399", margin: "0 0 6px" }}>Channel: {d.channel}</p>
+                    <p className="text-sm mb-1.5" style={{ color: "#859399" }}>Channel: {d.channel}</p>
                   )}
                   {d.content && (
                     <div
+                      className="mt-2 text-sm rounded-xl p-3"
                       style={{
-                        marginTop: 8,
-                        fontSize: 13,
                         color: "#bbc9cf",
                         background: "rgba(255,255,255,0.03)",
                         border: "1px solid rgba(255,255,255,0.06)",
-                        borderRadius: 10,
-                        padding: "10px 12px",
                         maxHeight: 128,
                         overflow: "auto",
                         whiteSpace: "pre-wrap",
@@ -204,27 +151,17 @@ export default function DraftsPage() {
                       {typeof d.content === "string" ? d.content : JSON.stringify(d.content, null, 2)}
                     </div>
                   )}
-                  <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 8, fontSize: 11, color: "#3c494e" }}>
+                  <div className="flex items-center gap-4 mt-2 text-[11px]" style={{ color: "#3c494e" }}>
                     <span>Created: {new Date(d.createdAt).toLocaleString()}</span>
-                    {d.scheduledAt && (
-                      <span>Scheduled: {new Date(d.scheduledAt).toLocaleString()}</span>
-                    )}
+                    {d.scheduledAt && <span>Scheduled: {new Date(d.scheduledAt).toLocaleString()}</span>}
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                <div className="flex gap-2 flex-shrink-0">
                   {d.status === "DRAFT" && (
                     <button
                       onClick={() => updateStatus(d.id, "APPROVED")}
-                      style={{
-                        padding: "6px 14px",
-                        borderRadius: 8,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: "#fff",
-                        background: "#34d399",
-                        border: "none",
-                        cursor: "pointer",
-                      }}
+                      className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:brightness-110"
+                      style={{ background: "#34d399" }}
                     >
                       Approve
                     </button>
@@ -232,16 +169,8 @@ export default function DraftsPage() {
                   {(d.status === "DRAFT" || d.status === "REVIEW") && (
                     <button
                       onClick={() => updateStatus(d.id, "REJECTED")}
-                      style={{
-                        padding: "6px 14px",
-                        borderRadius: 8,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: "#f87171",
-                        background: "rgba(239,68,68,0.1)",
-                        border: "1px solid rgba(239,68,68,0.2)",
-                        cursor: "pointer",
-                      }}
+                      className="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all hover:brightness-110"
+                      style={{ color: "#f87171", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}
                     >
                       Reject
                     </button>
@@ -249,16 +178,8 @@ export default function DraftsPage() {
                   {d.status === "APPROVED" && (
                     <button
                       onClick={() => updateStatus(d.id, "PUBLISHED")}
-                      style={{
-                        padding: "6px 14px",
-                        borderRadius: 8,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: "#a4e6ff",
-                        background: "rgba(0,209,255,0.1)",
-                        border: "1px solid rgba(0,209,255,0.2)",
-                        cursor: "pointer",
-                      }}
+                      className="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all hover:brightness-110"
+                      style={{ color: "#a4e6ff", background: "rgba(0,209,255,0.1)", border: "1px solid rgba(0,209,255,0.2)" }}
                     >
                       Publish
                     </button>

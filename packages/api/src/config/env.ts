@@ -31,6 +31,7 @@ const envShape = z.object({
   SENDGRID_API_KEY: z.string().optional(),
   SENDGRID_FROM_EMAIL: z.string().optional(),
   BYPASS_BILLING: z.coerce.boolean().default(false),
+  ENCRYPTION_KEY: z.string().min(32).default("change-me-32-char-encryption-key!"),
 });
 
 export type Env = z.infer<typeof envShape>;

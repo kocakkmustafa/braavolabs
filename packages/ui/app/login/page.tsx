@@ -86,11 +86,11 @@ export default function LoginPage() {
   const strengthLabels = ["Weak", "Fair", "Good", "Strong"];
 
   return (
-    <div className="flex min-h-screen" style={{ background: "#10131a" }}>
+    <div className="flex min-h-screen" style={{ background: "#0a0d14" }}>
       {/* ── Left brand panel ─────────────────────────────── */}
       <div
         className="hidden lg:flex flex-col justify-between w-[42%] p-12 relative overflow-hidden neural-mesh"
-        style={{ background: "linear-gradient(160deg, #10131a 0%, #1a0e2e 60%, #0b1a2e 100%)" }}
+        style={{ background: "linear-gradient(160deg, #0a0d14 0%, #1a0e2e 60%, #0b1a2e 100%)" }}
       >
         {/* Ambient orbs */}
         <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full opacity-[0.12] blur-3xl" style={{ background: "radial-gradient(circle, #00d1ff, transparent)" }} />

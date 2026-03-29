@@ -28,7 +28,7 @@ export default function RisksPage() {
   }, [token]);
 
   if (!token) return (
-    <div className="flex items-center justify-center min-h-screen" style={{ background: "#10131a" }}>
+    <div className="flex items-center justify-center min-h-screen" style={{ background: "#0a0d14" }}>
       <p className="text-sm" style={{ color: "#859399" }}>Please <Link href="/login" style={{ color: "#00d1ff" }}>login</Link> first.</p>
     </div>
   );
@@ -36,19 +36,19 @@ export default function RisksPage() {
   return (
     <div className="max-w-7xl mx-auto px-6 py-8 animate-fade-in">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold font-headline" style={{ color: "#e1e2eb" }}>Risk Monitor</h1>
+        <h1 className="text-2xl font-bold font-headline gradient-text">Risk Monitor</h1>
         <p className="text-sm mt-0.5" style={{ color: "#859399" }}>Governance alerts and system activity</p>
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 stagger-children">
         {[
           { label: "TOTAL RISK EVENTS", value: events.length, color: "#f87171" },
           { label: "LOOP STOPS", value: events.filter((e) => e.action === "governance.loop_stop").length, color: "#fb923c" },
           { label: "COST ANOMALIES", value: events.filter((e) => e.action === "governance.cost_anomaly_stop").length, color: "#fbbf24" },
           { label: "FAILED RUNS", value: events.filter((e) => e.action === "run.failed").length, color: "#859399" },
         ].map((card) => (
-          <div key={card.label} className="glass-panel rounded-2xl p-5">
+          <div key={card.label} className="metric-card rounded-2xl p-5">
             <p className="text-xs font-semibold tracking-widest mb-1" style={{ color: "#859399" }}>{card.label}</p>
             <p className="text-2xl font-bold font-headline" style={{ color: card.color }}>{card.value}</p>
           </div>
@@ -74,7 +74,7 @@ export default function RisksPage() {
 
       {tab === "risks" ? (
         events.length === 0 ? (
-          <div className="glass-panel rounded-2xl text-center py-16">
+          <div className="glass-card rounded-2xl text-center py-16">
             <div
               className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
               style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)" }}
@@ -85,7 +85,7 @@ export default function RisksPage() {
             <p className="text-sm mt-1" style={{ color: "#859399" }}>No risk events detected.</p>
           </div>
         ) : (
-          <div className="glass-panel rounded-2xl overflow-hidden">
+          <div className="glass-card rounded-2xl overflow-hidden">
             {events.map((e, i) => {
               const info = RISK_LABELS[e.action] ?? { label: e.action, bg: "rgba(133,147,153,0.1)", color: "#859399", border: "rgba(133,147,153,0.2)" };
               return (
@@ -122,11 +122,11 @@ export default function RisksPage() {
         )
       ) : (
         activityLogs.length === 0 ? (
-          <div className="glass-panel rounded-2xl text-center py-16">
+          <div className="glass-card rounded-2xl text-center py-16">
             <p style={{ color: "#859399" }}>No activity recorded yet.</p>
           </div>
         ) : (
-          <div className="glass-panel rounded-2xl overflow-hidden overflow-x-auto">
+          <div className="glass-card rounded-2xl overflow-hidden overflow-x-auto">
             <table className="w-full text-sm">
               <thead style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                 <tr>
@@ -139,10 +139,8 @@ export default function RisksPage() {
                 {activityLogs.map((log, i) => (
                   <tr
                     key={log.id ?? i}
-                    className="transition-colors"
+                    className="interactive-row"
                     style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
                     <td className="px-6 py-3">
                       <span

@@ -177,7 +177,7 @@ function CompanyBuilderWizardInner() {
 
       {/* Step 1: Describe */}
       {step === "describe" && (
-        <div className="glass-panel rounded-2xl p-5 sm:p-6">
+        <div className="glass-card rounded-2xl p-5 sm:p-6">
           <h2 className="text-base sm:text-lg font-semibold font-headline mb-3" style={{ color: "#e1e2eb" }}>Describe Your Company</h2>
           <p className="text-sm mb-4" style={{ color: "#859399" }}>
             Tell us what kind of AI company you want to build. Be as detailed as possible.
@@ -229,7 +229,7 @@ function CompanyBuilderWizardInner() {
 
       {/* Step 2: Clarification Chat */}
       {step === "clarify" && session && (
-        <div className="glass-panel rounded-2xl overflow-hidden flex flex-col" style={{ maxHeight: "65vh" }}>
+        <div className="glass-card rounded-2xl overflow-hidden flex flex-col" style={{ maxHeight: "65vh" }}>
           {/* Chat header */}
           <div className="px-5 py-3 flex items-center justify-between flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
             <div className="flex items-center gap-2">
@@ -317,7 +317,7 @@ function CompanyBuilderWizardInner() {
 
       {/* Step 3: Preview */}
       {step === "preview" && session?.companySpec && (
-        <div className="glass-panel rounded-2xl p-5 sm:p-6">
+        <div className="glass-card rounded-2xl p-5 sm:p-6">
           <h2 className="text-base sm:text-lg font-semibold font-headline mb-4" style={{ color: "#e1e2eb" }}>Company Preview</h2>
 
           <div className="space-y-4">
@@ -391,7 +391,7 @@ function CompanyBuilderWizardInner() {
 
       {/* Step 4: Creating */}
       {step === "creating" && (
-        <div className="glass-panel rounded-2xl p-12 text-center">
+        <div className="glass-card rounded-2xl p-12 text-center">
           <div className="w-16 h-16 rounded-full border-2 animate-spin mx-auto mb-6" style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }} />
           <p className="text-lg font-semibold font-headline" style={{ color: "#e1e2eb" }}>Building your AI company...</p>
           <p className="text-sm mt-2" style={{ color: "#859399" }}>Setting up agents, pipelines, and tools.</p>
@@ -400,7 +400,7 @@ function CompanyBuilderWizardInner() {
 
       {/* Step 5: Done */}
       {step === "done" && session && (
-        <div className="glass-panel rounded-2xl p-8 text-center">
+        <div className="glass-card rounded-2xl p-8 text-center">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5" style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)" }}>
             <span className="material-symbols-outlined text-3xl" style={{ color: "#34d399" }}>check_circle</span>
           </div>
@@ -421,7 +421,7 @@ function CompanyBuilderWizardInner() {
 
 export default function CompanyBuilderWizard() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen" style={{ background: "#10131a" }}><span style={{ color: "#859399" }}>Loading...</span></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen" style={{ background: "#0a0d14" }}><span style={{ color: "#859399" }}>Loading...</span></div>}>
       <CompanyBuilderWizardInner />
     </Suspense>
   );

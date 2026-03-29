@@ -24,13 +24,13 @@ export default function AuthLayout({
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
   if (!hydrated) {
-    return <div className="min-h-screen" style={{ background: "#10131a" }}><main>{children}</main></div>;
+    return <div className="min-h-screen" style={{ background: "#0a0d14" }}><main>{children}</main></div>;
   }
 
   const isFullWidth = FULL_WIDTH_PATHS.includes(pathname);
 
   return (
-    <div className="min-h-screen" style={{ background: "#10131a" }}>
+    <div className="min-h-screen" style={{ background: "#0a0d14" }}>
       {/* Desktop sidebar — hidden on landing page */}
       {!isFullWidth && (
         <div className="hidden lg:block">
@@ -63,7 +63,7 @@ export default function AuthLayout({
       {/* Main content */}
       <main
         className={`min-h-screen ${!isFullWidth ? "lg:ml-14" : ""}`}
-        style={{ background: "#10131a" }}
+        style={{ background: "#0a0d14" }}
       >
         {/* Mobile hamburger — hidden on landing page */}
         {!isFullWidth && (

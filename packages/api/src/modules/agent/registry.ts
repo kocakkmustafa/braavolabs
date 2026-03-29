@@ -159,6 +159,11 @@ registerTool({
   handler: async (input) => {
     const { draftId, publishAt } = input as { draftId: string; publishAt: string };
 
+    const existing = await prisma.draft.findUnique({ where: { id: draftId } });
+    if (!existing) {
+      return { error: `Draft not found: ${draftId}`, status: "FAILED" };
+    }
+
     const draft = await prisma.draft.update({
       where: { id: draftId },
       data: {
@@ -396,10 +401,24 @@ registerTool({
       source?: string;
     };
 
+    // Resolve companyId — agent may pass name/slug instead of actual ID
+    let resolvedCompanyId = companyId;
+    const companyById = await prisma.company.findUnique({ where: { id: companyId } });
+    if (!companyById) {
+      const companyByName = await prisma.company.findFirst({
+        where: { OR: [{ name: companyId }, { slug: companyId }] },
+      });
+      if (companyByName) {
+        resolvedCompanyId = companyByName.id;
+      } else {
+        return { error: `Company not found: ${companyId}`, status: "FAILED" };
+      }
+    }
+
     // CRITICAL: Memory starts as CANDIDATE — never directly APPROVED
     const memory = await prisma.memoryItem.create({
       data: {
-        companyId,
+        companyId: resolvedCompanyId,
         type: type as any,
         status: "CANDIDATE",
         content,
@@ -1072,6 +1091,181 @@ registerTool({
   handler: async (input) => {
     // This will be caught by the approval gate in tool-executor
     return { status: "approved_and_executed", ...(input as object) };
+  },
+});
+
+// ─── AI Generation Tools (require external integrations) ───
+
+registerTool({
+  name: "generate_image",
+  description: "Generate an image using AI (DALL-E / Midjourney / Flux). Requires OPENAI integration. Returns image URL or indicates missing integration.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      prompt: { type: "string", description: "Image generation prompt" },
+      style: { type: "string", description: "Style hint: realistic, cartoon, abstract, etc." },
+      size: { type: "string", enum: ["1024x1024", "1792x1024", "1024x1792"], description: "Image dimensions" },
+      companyId: { type: "string", description: "Company ID for integration lookup" },
+    },
+    required: ["prompt", "companyId"],
+  },
+  meta: { requiresApproval: false, riskLevel: "medium" },
+  handler: async (input) => {
+    const { prompt, style, size, companyId } = input as {
+      prompt: string; style?: string; size?: string; companyId: string;
+    };
+    const { getActiveIntegration } = await import("../integration/checker");
+    const creds = await getActiveIntegration(companyId, "OPENAI");
+    if (!creds) {
+      return {
+        status: "MISSING_INTEGRATION",
+        provider: "OPENAI",
+        message: "OpenAI integration not configured. Please add your OpenAI API key in Settings > Integrations.",
+        draft: { prompt, style, size, note: "Image will be generated once OpenAI is connected" },
+      };
+    }
+    // Real OpenAI DALL-E call
+    try {
+      const response = await fetch("https://api.openai.com/v1/images/generations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${creds.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "dall-e-3",
+          prompt: style ? `${prompt}. Style: ${style}` : prompt,
+          size: size || "1024x1024",
+          n: 1,
+        }),
+      });
+      const data = await response.json() as any;
+      if (data.error) {
+        return { status: "FAILED", error: data.error.message };
+      }
+      return {
+        status: "COMPLETED",
+        imageUrl: data.data?.[0]?.url,
+        revisedPrompt: data.data?.[0]?.revised_prompt,
+      };
+    } catch (err) {
+      return { status: "FAILED", error: err instanceof Error ? err.message : String(err) };
+    }
+  },
+});
+
+registerTool({
+  name: "generate_video",
+  description: "Generate a video using AI (Runway / Pika). Requires RUNWAY integration. Returns video URL or indicates missing integration.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      prompt: { type: "string", description: "Video generation prompt" },
+      duration: { type: "number", description: "Duration in seconds (4-16)" },
+      imageUrl: { type: "string", description: "Optional: source image URL for image-to-video" },
+      companyId: { type: "string", description: "Company ID for integration lookup" },
+    },
+    required: ["prompt", "companyId"],
+  },
+  meta: { requiresApproval: false, riskLevel: "medium" },
+  handler: async (input) => {
+    const { prompt, duration, imageUrl, companyId } = input as {
+      prompt: string; duration?: number; imageUrl?: string; companyId: string;
+    };
+    const { getActiveIntegration } = await import("../integration/checker");
+    const creds = await getActiveIntegration(companyId, "RUNWAY");
+    if (!creds) {
+      return {
+        status: "MISSING_INTEGRATION",
+        provider: "RUNWAY",
+        message: "Runway ML integration not configured. Please add your Runway API key in Settings > Integrations.",
+        draft: { prompt, duration, imageUrl, note: "Video will be generated once Runway is connected" },
+      };
+    }
+    // Real Runway API call would go here
+    try {
+      const response = await fetch("https://api.dev.runwayml.com/v1/image_to_video", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${creds.apiKey}`,
+          "X-Runway-Version": "2024-11-06",
+        },
+        body: JSON.stringify({
+          model: "gen3a_turbo",
+          promptText: prompt,
+          duration: duration || 5,
+          ...(imageUrl ? { promptImage: imageUrl } : {}),
+        }),
+      });
+      const data = await response.json() as any;
+      if (data.error) {
+        return { status: "FAILED", error: data.error };
+      }
+      return {
+        status: "COMPLETED",
+        taskId: data.id,
+        message: "Video generation started. Poll for completion.",
+      };
+    } catch (err) {
+      return { status: "FAILED", error: err instanceof Error ? err.message : String(err) };
+    }
+  },
+});
+
+registerTool({
+  name: "text_to_speech",
+  description: "Generate voice audio from text using ElevenLabs. Requires ELEVENLABS integration.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      text: { type: "string", description: "Text to convert to speech" },
+      voiceId: { type: "string", description: "ElevenLabs voice ID (optional, uses default)" },
+      companyId: { type: "string", description: "Company ID for integration lookup" },
+    },
+    required: ["text", "companyId"],
+  },
+  meta: { requiresApproval: false, riskLevel: "low" },
+  handler: async (input) => {
+    const { text, voiceId, companyId } = input as {
+      text: string; voiceId?: string; companyId: string;
+    };
+    const { getActiveIntegration } = await import("../integration/checker");
+    const creds = await getActiveIntegration(companyId, "ELEVENLABS");
+    if (!creds) {
+      return {
+        status: "MISSING_INTEGRATION",
+        provider: "ELEVENLABS",
+        message: "ElevenLabs integration not configured. Please add your ElevenLabs API key in Settings > Integrations.",
+        draft: { text, voiceId, note: "Audio will be generated once ElevenLabs is connected" },
+      };
+    }
+    try {
+      const voice = voiceId || "21m00Tcm4TlvDq8ikWAM"; // Default: Rachel
+      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "xi-api-key": creds.apiKey,
+        },
+        body: JSON.stringify({
+          text,
+          model_id: "eleven_monolingual_v1",
+        }),
+      });
+      if (!response.ok) {
+        const err = await response.text();
+        return { status: "FAILED", error: err };
+      }
+      return {
+        status: "COMPLETED",
+        message: "Audio generated successfully",
+        contentType: response.headers.get("content-type"),
+        size: response.headers.get("content-length"),
+      };
+    } catch (err) {
+      return { status: "FAILED", error: err instanceof Error ? err.message : String(err) };
+    }
   },
 });
 

@@ -15,7 +15,7 @@ export default function CompaniesPage() {
   }, [token]);
 
   if (!token) return (
-    <div className="flex items-center justify-center min-h-screen" style={{ background: "#10131a" }}>
+    <div className="flex items-center justify-center min-h-screen" style={{ background: "#0a0d14" }}>
       <p className="text-sm" style={{ color: "#859399" }}>Please <Link href="/login" style={{ color: "#00d1ff" }}>login</Link> first.</p>
     </div>
   );
@@ -60,7 +60,7 @@ export default function CompaniesPage() {
       </div>
 
       {companies.length === 0 ? (
-        <div className="glass-panel rounded-2xl text-center py-20">
+        <div className="glass-card rounded-2xl text-center py-20">
           <div
             className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5"
             style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.2)" }}
@@ -80,7 +80,7 @@ export default function CompaniesPage() {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 stagger-children">
           {companies.map((c) => {
             const s = statusStyles[c.status] ?? statusStyles.DRAFT;
             return (

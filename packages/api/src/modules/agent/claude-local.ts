@@ -93,12 +93,14 @@ async function callClaudeCLI(
   prompt: string,
   systemPrompt?: string,
 ): Promise<{ result: string; costUsd: number; inputTokens: number; outputTokens: number }> {
-  // Use stdin piping to avoid OS argument length limits with long prompts
+  // Use stdin piping to avoid OS argument length limits with long prompts AND system prompts
   const args = ["-p", "-", "--output-format", "json"];
 
-  if (systemPrompt) {
-    args.push("--system-prompt", systemPrompt);
-  }
+  // Embed system prompt into the user prompt via stdin to avoid argument length limits
+  // (system prompts with tool schemas can exceed OS arg limits)
+  const fullPrompt = systemPrompt
+    ? `<system>\n${systemPrompt}\n</system>\n\n${prompt}`
+    : prompt;
 
   return new Promise((resolve, reject) => {
     const child = spawn("claude", args, {
@@ -110,8 +112,8 @@ async function callClaudeCLI(
     let stderr = "";
     const timeout = setTimeout(() => {
       child.kill("SIGTERM");
-      reject(new Error("Claude CLI timed out after 120 seconds"));
-    }, 120_000);
+      reject(new Error("Claude CLI timed out after 300 seconds"));
+    }, 300_000);
 
     child.stdout.on("data", (data: Buffer) => { stdout += data.toString(); });
     child.stderr.on("data", (data: Buffer) => { stderr += data.toString(); });
@@ -146,8 +148,8 @@ async function callClaudeCLI(
       reject(new Error(`Claude CLI spawn error: ${err.message}`));
     });
 
-    // Write prompt to stdin and close
-    child.stdin.write(prompt);
+    // Write full prompt (with embedded system prompt) to stdin and close
+    child.stdin.write(fullPrompt);
     child.stdin.end();
   });
 }

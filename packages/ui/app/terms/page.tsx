@@ -2,7 +2,7 @@
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen" style={{ background: "#10131a" }}>
+    <div className="min-h-screen" style={{ background: "#0a0d14" }}>
       <nav className="flex items-center justify-between px-6 md:px-10 py-5 max-w-[1100px] mx-auto"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
         <a href="/" className="flex items-center gap-2.5">
