@@ -7,13 +7,10 @@
  * and the system uses the standard Anthropic SDK (claude.ts).
  */
 
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { spawn } from "node:child_process";
 import { logger } from "../../lib/logger";
 import { getTool } from "./registry";
 import type { AgentTurnResult, AgentLoopResult } from "./claude";
-
-const execFileAsync = promisify(execFile);
 
 interface ToolSchema {
   name: string;
@@ -96,32 +93,63 @@ async function callClaudeCLI(
   prompt: string,
   systemPrompt?: string,
 ): Promise<{ result: string; costUsd: number; inputTokens: number; outputTokens: number }> {
-  const args = ["-p", prompt, "--output-format", "json"];
+  // Use stdin piping to avoid OS argument length limits with long prompts
+  const args = ["-p", "-", "--output-format", "json"];
 
   if (systemPrompt) {
     args.push("--system-prompt", systemPrompt);
   }
 
-  try {
-    const { stdout } = await execFileAsync("claude", args, {
-      timeout: 120_000,
-      maxBuffer: 10 * 1024 * 1024,
+  return new Promise((resolve, reject) => {
+    const child = spawn("claude", args, {
       env: { ...process.env },
+      stdio: ["pipe", "pipe", "pipe"],
     });
 
-    const response = JSON.parse(stdout);
+    let stdout = "";
+    let stderr = "";
+    const timeout = setTimeout(() => {
+      child.kill("SIGTERM");
+      reject(new Error("Claude CLI timed out after 120 seconds"));
+    }, 120_000);
 
-    return {
-      result: response.result ?? "",
-      costUsd: response.total_cost_usd ?? 0,
-      inputTokens: response.usage?.input_tokens ?? 0,
-      outputTokens: response.usage?.output_tokens ?? 0,
-    };
-  } catch (err) {
-    const error = err instanceof Error ? err.message : String(err);
-    logger.error({ error }, "Claude CLI call failed");
-    throw new Error(`Claude CLI error: ${error}`);
-  }
+    child.stdout.on("data", (data: Buffer) => { stdout += data.toString(); });
+    child.stderr.on("data", (data: Buffer) => { stderr += data.toString(); });
+
+    child.on("close", (code) => {
+      clearTimeout(timeout);
+
+      if (code !== 0) {
+        const errMsg = stderr.trim() || `Process exited with code ${code}`;
+        logger.error({ code, stderr: errMsg.slice(0, 500) }, "Claude CLI call failed");
+        reject(new Error(`Claude CLI error (exit ${code}): ${errMsg.slice(0, 1000)}`));
+        return;
+      }
+
+      try {
+        const response = JSON.parse(stdout);
+        resolve({
+          result: response.result ?? "",
+          costUsd: response.total_cost_usd ?? 0,
+          inputTokens: response.usage?.input_tokens ?? 0,
+          outputTokens: response.usage?.output_tokens ?? 0,
+        });
+      } catch (parseErr) {
+        logger.error({ stdout: stdout.slice(0, 500) }, "Failed to parse Claude CLI JSON output");
+        reject(new Error(`Claude CLI JSON parse error: ${stdout.slice(0, 500)}`));
+      }
+    });
+
+    child.on("error", (err) => {
+      clearTimeout(timeout);
+      logger.error({ error: err.message }, "Claude CLI spawn failed");
+      reject(new Error(`Claude CLI spawn error: ${err.message}`));
+    });
+
+    // Write prompt to stdin and close
+    child.stdin.write(prompt);
+    child.stdin.end();
+  });
 }
 
 /**

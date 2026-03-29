@@ -46,12 +46,18 @@ export async function executeStep(
 
   if (!run) throw new AppError(404, "Run not found");
 
-  // Find the agent for this step
+  // Find the agent for this step — match by role, name, or case-insensitive partial match
+  const agentRole = stepDef.agentRole;
   const agent = run.pipeline.company.agents.find(
-    (a) => a.role === stepDef.agentRole,
+    (a) =>
+      a.role === agentRole ||
+      a.name === agentRole ||
+      a.name.toLowerCase() === agentRole.toLowerCase() ||
+      a.role.toLowerCase().startsWith(agentRole.toLowerCase()) ||
+      agentRole.toLowerCase().includes(a.name.toLowerCase()),
   );
   if (!agent) {
-    throw new AppError(400, `No agent with role "${stepDef.agentRole}" in company`);
+    throw new AppError(400, `No agent with role "${agentRole}" in company. Available: ${run.pipeline.company.agents.map(a => `${a.name} (${a.role.slice(0, 40)})`).join(", ")}`);
   }
 
   // Create run step record
