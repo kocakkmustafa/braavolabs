@@ -1,4 +1,5 @@
 import type { Job } from "bullmq";
+import * as cron from "node-cron";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { runQueue, createWorker } from "../../lib/queue";
@@ -265,4 +266,49 @@ export async function enqueueRun(runId: string): Promise<string> {
 export function initPipelineRunner(): void {
   createWorker<RunJobData>("pipeline-runs", processRun);
   logger.info("Pipeline runner worker initialized");
+}
+
+const scheduledJobs = new Map<string, cron.ScheduledTask>();
+
+export async function initScheduledPipelines(): Promise<void> {
+  const pipelines = await prisma.pipeline.findMany({
+    where: { enabled: true, trigger: "SCHEDULED", schedule: { not: null } },
+    include: { company: true },
+  });
+
+  for (const pipeline of pipelines) {
+    if (!pipeline.schedule || !cron.validate(pipeline.schedule)) {
+      logger.warn({ pipelineId: pipeline.id, schedule: pipeline.schedule }, "Invalid cron schedule");
+      continue;
+    }
+
+    const job = cron.schedule(pipeline.schedule, async () => {
+      logger.info({ pipelineId: pipeline.id, name: pipeline.name }, "Scheduled pipeline triggered");
+      try {
+        const run = await prisma.run.create({
+          data: {
+            pipelineId: pipeline.id,
+            trigger: "scheduled",
+            status: "PENDING",
+            input: {},
+          },
+        });
+        await enqueueRun(run.id);
+      } catch (err) {
+        logger.error({ pipelineId: pipeline.id, err }, "Failed to trigger scheduled pipeline");
+      }
+    });
+
+    scheduledJobs.set(pipeline.id, job);
+    logger.info({ pipelineId: pipeline.id, schedule: pipeline.schedule, name: pipeline.name }, "Scheduled pipeline cron registered");
+  }
+
+  logger.info({ count: scheduledJobs.size }, "Scheduled pipelines initialized");
+}
+
+export function stopScheduledPipelines(): void {
+  for (const [id, job] of scheduledJobs) {
+    job.stop();
+  }
+  scheduledJobs.clear();
 }

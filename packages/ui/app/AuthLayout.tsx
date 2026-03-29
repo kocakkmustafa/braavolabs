@@ -57,8 +57,8 @@ export default function AuthLayout({
 
       {/* Global overlays */}
       <CommandPalette />
-      <NotificationBell />
-      <OnboardingChecklist />
+      {!isFullWidth && <NotificationBell />}
+      {!isFullWidth && <OnboardingChecklist />}
 
       {/* Main content */}
       <main

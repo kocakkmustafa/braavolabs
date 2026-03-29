@@ -9,7 +9,11 @@ import compression from "compression";
 import pinoHttp from "pino-http";
 import { env } from "./config/env";
 import { logger } from "./lib/logger";
+import { prisma } from "./lib/db";
+import { redis } from "./lib/redis";
 import { errorHandler } from "./middleware/error";
+import { securityHeaders } from "./middleware/security";
+import { requestId } from "./middleware/requestId";
 import { companyRouter } from "./modules/company/router";
 import { pipelineRouter } from "./modules/pipeline/router";
 import { runRouter } from "./modules/run/router";
@@ -25,7 +29,8 @@ import { governanceRouter } from "./modules/governance/router";
 import { onboardingRouter } from "./modules/onboarding/router";
 import { growthRouter } from "./modules/growth/router";
 import { authRouter } from "./modules/auth/auth.router";
-import { initPipelineRunner } from "./modules/pipeline/runner";
+import { exportRouter } from "./modules/export/router";
+import { initPipelineRunner, initScheduledPipelines, stopScheduledPipelines } from "./modules/pipeline/runner";
 import { initOutreachWorker } from "./modules/outreach/sequence-runner";
 import { initConsolidationCron, stopConsolidationCron } from "./modules/memory/consolidation-cron";
 
@@ -35,15 +40,64 @@ import "./modules/agent/registry";
 const app = express();
 
 // Global middleware
-app.use(helmet());
-app.use(cors());
+app.use(requestId);
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: ["'self'", env.APP_URL],
+      },
+    },
+    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+  }),
+);
+app.use(securityHeaders);
+app.use(
+  cors({
+    origin: env.NODE_ENV === "production"
+      ? [env.APP_URL]
+      : [env.APP_URL, "http://localhost:3000", "http://localhost:3001"],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
 app.use(compression());
 app.use(express.json({ limit: "10mb" }));
 app.use(pinoHttp({ logger }));
 
 // Health check
-app.get("/health", (_req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+app.get("/health", async (_req, res) => {
+  const checks: Record<string, string> = {};
+
+  // Check database
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    checks.database = "ok";
+  } catch {
+    checks.database = "error";
+  }
+
+  // Check Redis
+  try {
+    await redis.ping();
+    checks.redis = "ok";
+  } catch {
+    checks.redis = "error";
+  }
+
+  const healthy = Object.values(checks).every((v) => v === "ok");
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? "ok" : "degraded",
+    checks,
+    timestamp: new Date().toISOString(),
+    version: "0.1.0",
+  });
 });
 
 // API routes
@@ -62,6 +116,7 @@ api.use("/billing", billingRouter);
 api.use("/governance", governanceRouter);
 api.use("/onboarding", onboardingRouter);
 api.use("/growth", growthRouter);
+api.use("/export", exportRouter);
 
 app.use("/api/v1", api);
 
@@ -78,6 +133,9 @@ app.listen(env.API_PORT, env.API_HOST, () => {
   // Initialize pipeline runner (BullMQ worker)
   initPipelineRunner();
 
+  // Initialize scheduled pipeline crons
+  initScheduledPipelines();
+
   // Initialize outreach sequence worker
   initOutreachWorker();
 
@@ -87,10 +145,23 @@ app.listen(env.API_PORT, env.API_HOST, () => {
 
 // Graceful shutdown
 process.on("SIGTERM", async () => {
-  logger.info("SIGTERM received — shutting down");
+  logger.info("SIGTERM received — shutting down gracefully");
+  stopScheduledPipelines();
   stopConsolidationCron();
+
+  // Close Redis
+  try { await redis.quit(); } catch {}
+
+  // Disconnect Prisma
+  try { await prisma.$disconnect(); } catch {}
+
   await shutdownTelemetry();
   process.exit(0);
+});
+
+process.on("SIGINT", async () => {
+  logger.info("SIGINT received — shutting down");
+  process.emit("SIGTERM" as any);
 });
 
 export default app;

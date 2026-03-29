@@ -59,6 +59,11 @@ The app runs at:
 | **Command Palette** | `Cmd+K` quick navigation with keyboard shortcuts |
 | **Dark/Light Theme** | Persistent theme toggle across all pages |
 | **Mobile Responsive** | Full responsive design with collapsible sidebar |
+| **Export to Claude Code** | Export companies as CLAUDE.md, skills, hooks, and settings bundles |
+| **SSE Run Streaming** | Real-time Server-Sent Events for live pipeline run status |
+| **Scheduled Pipelines** | Cron-based automatic pipeline execution via node-cron |
+| **Security Hardening** | Rate limiting, account lockout, HMAC webhooks, CSP, HSTS |
+| **Graceful Shutdown** | SIGTERM/SIGINT handlers with Redis/Prisma cleanup |
 
 ---
 
@@ -246,6 +251,11 @@ docker compose -f ENV/compose.yaml up -d --build
 | POST | `/billing/webhook` | Stripe webhook handler |
 | GET | `/growth/blueprints` | List blueprints |
 | POST | `/growth/blueprint/:slug/clone` | Clone blueprint |
+| GET | `/export/:companyId/claude-md` | Export CLAUDE.md |
+| GET | `/export/:companyId/skills` | Export agent skills |
+| GET | `/export/:companyId/hooks` | Export pipeline hooks |
+| GET | `/export/:companyId/bundle` | Full export bundle |
+| GET | `/runs/:id/stream` | SSE run status stream |
 
 ---
 

@@ -200,4 +200,14 @@ export const api = {
   // Webhooks — list company webhooks (derived from activity log)
   companyWebhooks: (token: string, companyId: string) =>
     apiFetch<any[]>(`/companies/${companyId}/webhooks`, { token }),
+
+  // Export
+  exportBundle: (token: string, companyId: string, format = "claude-code") =>
+    apiFetch<any>(`/export/${companyId}/bundle?format=${format}`, { token }),
+  exportClaudeMd: (token: string, companyId: string) =>
+    apiFetch<string>(`/export/${companyId}/claude-md`, { token, headers: { Accept: "text/markdown" } }),
+  exportSkills: (token: string, companyId: string) =>
+    apiFetch<any>(`/export/${companyId}/skills`, { token }),
+  exportHooks: (token: string, companyId: string) =>
+    apiFetch<any>(`/export/${companyId}/hooks`, { token }),
 };

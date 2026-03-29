@@ -117,9 +117,21 @@ registerTool({
       hashtags?: string[];
     };
 
+    // Resolve company: try by ID first, then by slug
+    let resolvedCompanyId = companyId;
+    const companyById = await prisma.company.findUnique({ where: { id: companyId } }).catch(() => null);
+    if (!companyById) {
+      const companyBySlug = await prisma.company.findFirst({ where: { slug: companyId } });
+      if (companyBySlug) {
+        resolvedCompanyId = companyBySlug.id;
+      } else {
+        return { error: `Company not found: ${companyId}`, status: "FAILED" };
+      }
+    }
+
     const draft = await prisma.draft.create({
       data: {
-        companyId,
+        companyId: resolvedCompanyId,
         type: type as any,
         title,
         content: { body, hashtags: hashtags ?? [] },

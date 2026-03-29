@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAppStore } from "../lib/store";
-import { api } from "../lib/api";
 
 const EXAMPLES = [
   "A content agency that creates and schedules TikTok & LinkedIn posts for 10 clients",
@@ -251,12 +250,7 @@ export default function LandingPage() {
   const [displayText, setDisplayText] = useState("");
   const [charIdx, setCharIdx] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [dashOpen, setDashOpen] = useState(false);
-  const [companies, setCompanies] = useState<any[]>([]);
-  const [health, setHealth] = useState<any>(null);
-  const [logs, setLogs] = useState<any[]>([]);
   const theme = useAppStore((s) => s.theme);
-  const toggleTheme = useAppStore((s) => s.toggleTheme);
 
   const isDark = theme === "dark";
   const bg = isDark ? "#10131a" : "#f0f5ff";
@@ -285,19 +279,6 @@ export default function LandingPage() {
     return () => clearTimeout(timer);
   }, [charIdx, isDeleting, exampleIdx, input]);
 
-  // Load dashboard data when token is available (for mini widget + full panel)
-  useEffect(() => {
-    if (!token) return;
-    api.listCompanies(token).then(setCompanies).catch(() => {});
-    api.health(token).then(setHealth).catch(() => {});
-  }, [token]);
-
-  // Load activity log when panel opens (heavier data)
-  useEffect(() => {
-    if (!dashOpen || !token) return;
-    api.activityLog(token, 8, 0).then((d) => setLogs(d.logs ?? [])).catch(() => {});
-  }, [dashOpen, token]);
-
   const router = useRouter();
 
   const handleBuild = () => {
@@ -309,11 +290,6 @@ export default function LandingPage() {
     router.push(desc ? `${target}?desc=${encodeURIComponent(desc)}` : target);
   };
 
-  const handleDashClick = () => {
-    if (token) setDashOpen(true);
-    else router.push("/login");
-  };
-
   return (
     <div style={{ minHeight: "100vh", background: bg, color: textPrimary, overflow: "hidden", position: "relative", transition: "background 0.3s" }}>
 
@@ -321,7 +297,7 @@ export default function LandingPage() {
       {isDark && (
         <div style={{ position: "fixed", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
           <div style={{ position: "absolute", width: 600, height: 600, borderRadius: "50%", filter: "blur(120px)", opacity: 0.06, background: "radial-gradient(circle, #00d1ff, transparent)", top: -100, left: 0 }} />
-          <div style={{ position: "absolute", width: 700, height: 700, borderRadius: "50%", filter: "blur(160px)", opacity: 0.04, background: "radial-gradient(circle, #6d11ad, transparent)", top: "30%", right: dashOpen ? "25%" : -200, transition: "right 0.5s ease" }} />
+          <div style={{ position: "absolute", width: 700, height: 700, borderRadius: "50%", filter: "blur(160px)", opacity: 0.04, background: "radial-gradient(circle, #6d11ad, transparent)", top: "30%", right: -200 }} />
         </div>
       )}
 
@@ -345,49 +321,29 @@ export default function LandingPage() {
             <Link href="/login" style={{ fontSize: 13, color: textMuted, textDecoration: "none", padding: "6px 12px" }}>Sign in</Link>
           )}
 
-          {/* Theme toggle */}
-          <button
-            onClick={toggleTheme}
-            title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-            style={{
-              width: 34, height: 34, borderRadius: 10,
-              background: isDark ? "rgba(29,32,38,0.9)" : "rgba(255,255,255,0.9)",
-              border: `1px solid ${borderColor}`,
-              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-              color: textMuted, flexShrink: 0,
-            }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 17 }}>
-              {isDark ? "light_mode" : "dark_mode"}
-            </span>
-          </button>
-
-          <button
-            onClick={handleDashClick}
+          <Link
+            href="/dashboard"
             style={{
               display: "flex", alignItems: "center", gap: 6,
               padding: "8px 16px", borderRadius: 12, fontSize: 13, fontWeight: 600,
               background: "linear-gradient(135deg, #00d1ff, #6d11ad)",
-              color: "white", border: "none", cursor: "pointer",
+              color: "white", textDecoration: "none",
               boxShadow: "0 0 16px rgba(0,209,255,0.2)",
             }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 15 }}>dashboard</span>
             Dashboard
-          </button>
+          </Link>
         </div>
       </nav>
 
       {/* ── SPLIT LAYOUT ── */}
       <div style={{ position: "relative", zIndex: 10, display: "flex", height: "calc(100vh - 65px)" }}>
 
-        {/* LEFT: Hero (75%) — shrinks when dash opens */}
+        {/* LEFT: Hero (75%) */}
         <div style={{
-          flexGrow: 0,
-          flexShrink: 0,
-          flexBasis: dashOpen ? "0%" : "75%",
+          flex: "0 0 75%",
           overflow: "hidden",
-          transition: "flex-basis 0.5s cubic-bezier(0.4,0,0.2,1)",
           position: "relative",
         }}>
           {/* Agent animation background */}
@@ -471,142 +427,109 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* RIGHT: Dashboard preview panel (25%) — always visible */}
+        {/* RIGHT: Dashboard side panel (25%) */}
         <div style={{
-          flexGrow: 0,
-          flexShrink: 0,
-          flexBasis: dashOpen ? "100%" : "25%",
-          transition: "flex-basis 0.5s cubic-bezier(0.4,0,0.2,1)",
+          flex: "0 0 25%",
           background: isDark ? "rgba(12,12,29,0.97)" : "rgba(230,238,255,0.97)",
           borderLeft: `1px solid ${isDark ? "rgba(0,209,255,0.1)" : "rgba(0,209,255,0.2)"}`,
           display: "flex", flexDirection: "column",
           overflow: "hidden",
-          position: "relative",
         }}>
           {/* Panel header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: `1px solid ${borderColor}`, flexShrink: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span className="material-symbols-outlined" style={{ color: "#00d1ff", fontSize: 18 }}>dashboard</span>
-              <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 14, color: textPrimary }}>
-                {dashOpen ? "Command Center" : "Dashboard"}
-              </span>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              {!dashOpen ? (
-                <button
-                  onClick={handleDashClick}
-                  style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: "linear-gradient(135deg,#00d1ff,#6d11ad)", color: "white", border: "none", cursor: "pointer" }}
-                >
-                  Open <span className="material-symbols-outlined" style={{ fontSize: 13 }}>open_in_full</span>
-                </button>
-              ) : (
-                <>
-                  <Link
-                    href="/dashboard"
-                    style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: "linear-gradient(135deg,#00d1ff,#6d11ad)", color: "white", textDecoration: "none" }}
-                  >
-                    Full View <span className="material-symbols-outlined" style={{ fontSize: 12 }}>open_in_new</span>
-                  </Link>
-                  <button
-                    onClick={() => setDashOpen(false)}
-                    style={{ padding: "5px 8px", borderRadius: 8, background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.06)", border: `1px solid ${borderColor}`, color: textMuted, cursor: "pointer" }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
-                  </button>
-                </>
-              )}
-            </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "16px 20px", borderBottom: `1px solid ${borderColor}`, flexShrink: 0 }}>
+            <span className="material-symbols-outlined" style={{ color: "#00d1ff", fontSize: 18 }}>dashboard</span>
+            <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 14, color: textPrimary }}>Dashboard</span>
           </div>
 
-          {/* Panel body */}
-          <div style={{ flex: 1, overflowY: "auto", padding: dashOpen ? 20 : 14 }}>
-            {!token ? (
-              <div style={{ textAlign: "center", paddingTop: dashOpen ? 80 : 40 }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 36, color: textFaint, display: "block", marginBottom: 10 }}>lock</span>
-                <p style={{ color: textMuted, marginBottom: 14, fontSize: 13 }}>Sign in to see your dashboard</p>
-                <Link href="/login" style={{ padding: "8px 20px", borderRadius: 10, background: "linear-gradient(135deg,#00d1ff,#6d11ad)", color: "white", textDecoration: "none", fontWeight: 600, fontSize: 13 }}>Sign In</Link>
+          {/* Panel body — static overview cards */}
+          <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+
+            {/* Live status indicators */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              {[
+                { label: "Agents", value: "9", icon: "smart_toy", color: "#00d1ff" },
+                { label: "Uptime", value: "99.9%", icon: "check_circle", color: "#34d399" },
+              ].map((m) => (
+                <div key={m.label} style={{ background: isDark ? "rgba(29,32,38,0.7)" : "rgba(255,255,255,0.7)", borderRadius: 10, padding: 12, border: `1px solid ${borderColor}` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 13, color: m.color }}>{m.icon}</span>
+                    <span style={{ fontSize: 10, color: textMuted }}>{m.label}</span>
+                  </div>
+                  <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 18, color: textPrimary }}>{m.value}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Quick features list */}
+            <div style={{ background: isDark ? "rgba(29,32,38,0.6)" : "rgba(255,255,255,0.7)", borderRadius: 10, border: `1px solid ${borderColor}`, overflow: "hidden" }}>
+              <div style={{ padding: "10px 14px", borderBottom: `1px solid ${borderColor}` }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: textPrimary }}>Control Center</span>
               </div>
-            ) : (
-              <>
-                {/* Stats */}
-                <div style={{ display: "grid", gridTemplateColumns: dashOpen ? "repeat(3,1fr)" : "1fr 1fr", gap: 8, marginBottom: 12 }}>
-                  {[
-                    { label: "Companies", value: health?.activeCompanies ?? companies.length, icon: "business", color: "#a4e6ff" },
-                    { label: "Running", value: health?.activeRuns ?? 0, icon: "play_circle", color: "#34d399" },
-                    ...(dashOpen ? [{ label: "Approvals", value: health?.pendingApprovals ?? 0, icon: "task_alt", color: "#fbbf24" }] : []),
-                  ].map((m) => (
-                    <div key={m.label} style={{ background: isDark ? "rgba(29,32,38,0.8)" : "rgba(255,255,255,0.8)", borderRadius: 10, padding: "12px", border: `1px solid ${borderColor}` }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 14, color: m.color }}>{m.icon}</span>
-                        <span style={{ fontSize: 10, color: textMuted }}>{m.label}</span>
-                      </div>
-                      <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: dashOpen ? 24 : 18, color: textPrimary }}>{m.value}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Companies */}
-                <div style={{ background: isDark ? "rgba(29,32,38,0.8)" : "rgba(255,255,255,0.8)", borderRadius: 10, border: `1px solid ${borderColor}`, marginBottom: 10, overflow: "hidden" }}>
-                  <div style={{ padding: "10px 14px", borderBottom: `1px solid ${borderColor}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: textPrimary }}>Companies</span>
-                    <Link href="/companies" style={{ fontSize: 10, color: "#00d1ff", textDecoration: "none" }}>All →</Link>
+              {[
+                { icon: "business", label: "AI Companies", desc: "Create & manage", color: "#a4e6ff" },
+                { icon: "account_tree", label: "Pipelines", desc: "Workflows & runs", color: "#34d399" },
+                { icon: "task_alt", label: "Approvals", desc: "Spend reviews", color: "#fbbf24" },
+                { icon: "query_stats", label: "Analytics", desc: "Performance data", color: "#c084fc" },
+                { icon: "security", label: "Risk Shield", desc: "Governance", color: "#f87171" },
+              ].map((item) => (
+                <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: `1px solid ${borderColor}` }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 7, background: `${item.color}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 14, color: item.color }}>{item.icon}</span>
                   </div>
-                  {companies.length === 0 ? (
-                    <div style={{ padding: "16px", textAlign: "center" }}>
-                      <p style={{ fontSize: 12, color: textMuted, marginBottom: 8 }}>No companies yet</p>
-                      <Link href="/companies/new" style={{ fontSize: 11, padding: "5px 12px", borderRadius: 6, background: "linear-gradient(135deg,#00d1ff,#6d11ad)", color: "white", textDecoration: "none", fontWeight: 600 }}>Create First</Link>
-                    </div>
-                  ) : (
-                    companies.slice(0, dashOpen ? 4 : 3).map((c: any) => (
-                      <Link
-                        key={c.id}
-                        href={`/companies/${c.id}`}
-                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", textDecoration: "none", borderBottom: `1px solid ${borderColor}` }}
-                      >
-                        <div style={{ width: 26, height: 26, borderRadius: 6, background: "linear-gradient(135deg,#00d1ff,#6d11ad)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11, fontWeight: 700, color: "white" }}>
-                          {c.name?.charAt(0)}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: 12, fontWeight: 600, color: textPrimary, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</p>
-                          <p style={{ fontSize: 10, color: textMuted, margin: 0 }}>{c.status}</p>
-                        </div>
-                        <span className="material-symbols-outlined" style={{ fontSize: 14, color: textFaint }}>chevron_right</span>
-                      </Link>
-                    ))
-                  )}
-                </div>
-
-                {/* Activity feed */}
-                <div style={{ background: isDark ? "rgba(29,32,38,0.8)" : "rgba(255,255,255,0.8)", borderRadius: 10, border: `1px solid ${borderColor}`, overflow: "hidden" }}>
-                  <div style={{ padding: "10px 14px", borderBottom: `1px solid ${borderColor}` }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: textPrimary }}>Recent Activity</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: textPrimary, margin: 0 }}>{item.label}</p>
+                    <p style={{ fontSize: 9, color: textFaint, margin: 0 }}>{item.desc}</p>
                   </div>
-                  {logs.length === 0 ? (
-                    <div style={{ padding: "14px", textAlign: "center" }}>
-                      <p style={{ fontSize: 11, color: textFaint }}>No recent activity</p>
-                    </div>
-                  ) : (
-                    logs.map((log: any) => (
-                      <div key={log.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 14px", borderBottom: `1px solid ${borderColor}` }}>
-                        <div style={{ width: 22, height: 22, borderRadius: 5, background: "rgba(0,209,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          <span style={{ fontSize: 9, fontWeight: 700, color: "#00d1ff" }}>{(log.actor ?? "S").charAt(0).toUpperCase()}</span>
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: 11, color: isDark ? "#bbc9cf" : "#374151", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{log.action.replace(/\./g, " / ")}</p>
-                        </div>
-                        <span style={{ fontSize: 10, color: textFaint, flexShrink: 0 }}>{timeAgo(log.createdAt)}</span>
-                      </div>
-                    ))
-                  )}
                 </div>
-              </>
-            )}
+              ))}
+            </div>
+
+            {/* Live activity pulse */}
+            <div style={{ background: isDark ? "rgba(29,32,38,0.6)" : "rgba(255,255,255,0.7)", borderRadius: 10, border: `1px solid ${borderColor}`, padding: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#34d399", boxShadow: "0 0 6px #34d399", animation: "pulse 2s infinite" }} />
+                <span style={{ fontSize: 10, fontWeight: 600, color: "#34d399" }}>LIVE</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {[
+                  "Content published → TikTok",
+                  "Lead scored → 0.92",
+                  "Pipeline completed",
+                ].map((msg, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ width: 4, height: 4, borderRadius: "50%", background: textFaint, flexShrink: 0 }} />
+                    <span style={{ fontSize: 10, color: textMuted }}>{msg}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Spacer */}
+            <div style={{ flex: 1 }} />
+
+            {/* CTA — enter dashboard */}
+            <Link
+              href={token ? "/dashboard" : "/login"}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                padding: "14px 16px", borderRadius: 14,
+                background: "linear-gradient(135deg, #00d1ff, #6d11ad)",
+                color: "white", textDecoration: "none", fontWeight: 700, fontSize: 13,
+                boxShadow: "0 0 24px rgba(0,209,255,0.2)",
+                transition: "transform 0.15s, box-shadow 0.15s",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 4px 32px rgba(0,209,255,0.35)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 0 24px rgba(0,209,255,0.2)"; }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>login</span>
+              {token ? "Enter Command Center" : "Sign In to Start"}
+            </Link>
           </div>
         </div>
       </div>
 
-      {/* Social proof / Trust section — only when dashboard closed */}
-      {!dashOpen && (
+      {/* Social proof / Trust section */}
+      {(
         <section style={{ position: "relative", zIndex: 10, padding: "0 32px 24px" }}>
           {/* How it works */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, maxWidth: 800, margin: "0 auto 24px" }}>

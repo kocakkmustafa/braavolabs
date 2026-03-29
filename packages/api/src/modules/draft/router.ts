@@ -69,9 +69,18 @@ draftRouter.post("/", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+const updateDraftSchema = z.object({
+  title: z.string().optional(),
+  content: z.any().optional(),
+  status: z.enum(["PENDING", "APPROVED", "PUBLISHED", "REJECTED", "ARCHIVED"]).optional(),
+  channel: z.string().optional(),
+}).strict();
+
 // PATCH /api/v1/drafts/:id
 draftRouter.patch("/:id", async (req, res, next) => {
   try {
+    const data = updateDraftSchema.parse(req.body);
+
     const draft = await prisma.draft.findUnique({
       where: { id: req.params.id },
       include: { company: true },
@@ -82,7 +91,7 @@ draftRouter.patch("/:id", async (req, res, next) => {
 
     const updated = await prisma.draft.update({
       where: { id: draft.id },
-      data: req.body,
+      data,
     });
 
     await prisma.activityLog.create({

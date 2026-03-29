@@ -43,7 +43,7 @@ async function runConsolidation() {
         where: {
           companyId: company.id,
           status: "APPROVED",
-          lastUsedAt: { lt: staleDate },
+          lastUsedAt: { not: null, lt: staleDate },
         },
         data: { status: "DEPRECATED" },
       });

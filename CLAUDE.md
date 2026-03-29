@@ -129,3 +129,8 @@ tenants, users, companies, agents, pipelines, runs, run_steps, tool_calls, appro
 - [x] Faz 11: Auth + Context Builder + Tool Executor + Outreach Runner + UI Pages
 - [x] Faz 12: PQL Scoring + Blueprint Sharing + Model Graders + Kanban Board
 - [x] Faz 13: Google OAuth + Local CLI Mode + UI Redesign
+- [x] Faz 14: Bug fixes (create_draft, consolidation-cron, draft validation, scheduled cron)
+- [x] Faz 15: SSE real-time run streaming
+- [x] Faz 16: Export system (CLAUDE.md, skills, hooks, bundle) + Export UI
+- [x] Faz 17: Security hardening (rate limiting, account lockout, HMAC webhooks, CSP, HSTS, security headers)
+- [x] Faz 18: Production readiness (health check, graceful shutdown, BYPASS_BILLING guard)

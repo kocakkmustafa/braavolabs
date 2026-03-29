@@ -8,7 +8,7 @@ if (r1.error) {
 
 import { z } from "zod";
 
-const envSchema = z.object({
+const envShape = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   API_PORT: z.coerce.number().default(8080),
   API_HOST: z.string().default("0.0.0.0"),
@@ -30,7 +30,16 @@ const envSchema = z.object({
   GOOGLE_REDIRECT_URI: z.string().optional(),
   SENDGRID_API_KEY: z.string().optional(),
   SENDGRID_FROM_EMAIL: z.string().optional(),
+  BYPASS_BILLING: z.coerce.boolean().default(false),
 });
 
-export const env = envSchema.parse(process.env);
-export type Env = z.infer<typeof envSchema>;
+export type Env = z.infer<typeof envShape>;
+
+const parsed = envShape.parse(process.env);
+
+// Safety: BYPASS_BILLING must never be true in production
+if (parsed.NODE_ENV === "production" && parsed.BYPASS_BILLING) {
+  throw new Error("BYPASS_BILLING cannot be true in production");
+}
+
+export const env: Env = parsed;

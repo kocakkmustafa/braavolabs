@@ -100,6 +100,74 @@ runRouter.post("/:id/resume", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /api/v1/runs/:id/stream — SSE stream for real-time run status
+runRouter.get("/:id/stream", authMiddleware, async (req, res, next) => {
+  try {
+    const runId = req.params.id as string;
+    const run = await prisma.run.findFirst({
+      where: { id: runId, pipeline: { company: { tenantId: req.auth!.tenantId } } },
+    });
+    if (!run) return res.status(404).json({ error: "Run not found" });
+
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    });
+
+    const sendStatus = async () => {
+      const current = await prisma.run.findUnique({
+        where: { id: runId },
+        include: { steps: { orderBy: { createdAt: "asc" } } },
+      });
+      if (!current) return false;
+
+      res.write(`data: ${JSON.stringify({
+        status: current.status,
+        costUsd: current.costUsd,
+        steps: current.steps.map((s: any) => ({
+          name: s.name,
+          status: s.status,
+          reasoning: s.reasoning,
+          costUsd: s.costUsd,
+        })),
+      })}\n\n`);
+
+      return current.status === "RUNNING" || current.status === "PENDING" || current.status === "PAUSED";
+    };
+
+    // Send initial status
+    const shouldContinue = await sendStatus();
+    if (!shouldContinue) {
+      res.write("event: done\ndata: {}\n\n");
+      res.end();
+      return;
+    }
+
+    // Poll every 3 seconds
+    const interval = setInterval(async () => {
+      try {
+        const cont = await sendStatus();
+        if (!cont) {
+          res.write("event: done\ndata: {}\n\n");
+          clearInterval(interval);
+          res.end();
+        }
+      } catch {
+        clearInterval(interval);
+        res.end();
+      }
+    }, 3000);
+
+    req.on("close", () => {
+      clearInterval(interval);
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /api/v1/run-steps/:id/rollback
 runRouter.post("/steps/:id/rollback", async (req, res, next) => {
   try {

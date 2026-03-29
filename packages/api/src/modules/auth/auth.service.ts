@@ -8,6 +8,7 @@ import jwt from "jsonwebtoken";
 import { sendEmail } from "../../integrations/email";
 import { OAuth2Client } from "google-auth-library";
 import { prisma } from "../../lib/db";
+import { redis } from "../../lib/redis";
 import { env } from "../../config/env";
 import { AppError } from "../../middleware/error";
 import type { AuthPayload } from "../../middleware/auth";
@@ -155,8 +156,24 @@ export async function login(data: {
   email: string;
   password: string;
 }): Promise<{ token: string; user: any; tenant: any }> {
+  const { email } = data;
+
+  // Account lockout check
+  const lockKey = `login:lock:${email}`;
+  const failKey = `login:fail:${email}`;
+
+  try {
+    const locked = await redis.get(lockKey);
+    if (locked) {
+      throw new AppError(429, "Account temporarily locked. Try again in 30 minutes.");
+    }
+  } catch (err: any) {
+    if (err instanceof AppError) throw err;
+    // Redis down — continue without lockout
+  }
+
   const user = await prisma.user.findUnique({
-    where: { email: data.email },
+    where: { email },
     include: { tenant: true },
   });
 
@@ -166,6 +183,15 @@ export async function login(data: {
 
   const valid = await bcrypt.compare(data.password, user.passwordHash);
   if (!valid) {
+    try {
+      const fails = await redis.incr(failKey);
+      if (fails === 1) await redis.expire(failKey, 900); // 15 min window
+      if (fails >= 5) {
+        await redis.set(lockKey, "1", "EX", 1800); // 30 min lockout
+        await redis.del(failKey);
+      }
+    } catch { /* Redis failure — skip lockout */ }
+
     throw new AppError(401, "Invalid email or password");
   }
 
@@ -184,6 +210,11 @@ export async function login(data: {
     tenantId: user.tenantId,
     role: user.role,
   });
+
+  try {
+    await redis.del(failKey);
+    await redis.del(lockKey);
+  } catch { /* Redis failure — skip */ }
 
   return {
     token,

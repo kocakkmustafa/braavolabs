@@ -1,4 +1,5 @@
 import { Router } from "express";
+import crypto from "crypto";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { enqueueRun } from "../pipeline/runner";
@@ -16,6 +17,21 @@ webhookRouter.post("/:companySlug/:event", async (req, res, next) => {
     if (!company) {
       res.status(404).json({ error: "Company not found" });
       return;
+    }
+
+    // Verify webhook signature if X-Webhook-Signature header is present
+    const signature = req.headers["x-webhook-signature"] as string | undefined;
+    if (signature) {
+      const secret = (company.config as Record<string, any>)?.webhookSecret || process.env.WEBHOOK_SECRET || "";
+      if (secret) {
+        const expectedSig = crypto
+          .createHmac("sha256", secret)
+          .update(JSON.stringify(req.body))
+          .digest("hex");
+        if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
+          return res.status(401).json({ error: "Invalid webhook signature" });
+        }
+      }
     }
 
     logger.info({ companySlug, event, body: req.body }, "Webhook received");

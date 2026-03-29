@@ -7,8 +7,21 @@ import { Router } from "express";
 import { z } from "zod";
 import { register, login, getGoogleAuthUrl, googleCallback, requestPasswordReset, resetPassword } from "./auth.service";
 import { validate } from "../../middleware/validate";
+import { rateLimit } from "../../middleware/rateLimit";
 
 export const authRouter = Router();
+
+// Rate limit auth endpoints to prevent brute force
+const authRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  maxRequests: 10,
+  keyPrefix: "rl:auth",
+});
+const registerRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  maxRequests: 5,
+  keyPrefix: "rl:register",
+});
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -24,7 +37,7 @@ const loginSchema = z.object({
 });
 
 // POST /api/v1/auth/register
-authRouter.post("/register", validate(registerSchema), async (req, res, next) => {
+authRouter.post("/register", registerRateLimit, validate(registerSchema), async (req, res, next) => {
   try {
     const result = await register(req.body);
     res.status(201).json(result);
@@ -32,7 +45,7 @@ authRouter.post("/register", validate(registerSchema), async (req, res, next) =>
 });
 
 // POST /api/v1/auth/login
-authRouter.post("/login", validate(loginSchema), async (req, res, next) => {
+authRouter.post("/login", authRateLimit, validate(loginSchema), async (req, res, next) => {
   try {
     const result = await login(req.body);
     res.json(result);
@@ -46,7 +59,7 @@ const resetSchema = z.object({
 });
 
 // POST /api/v1/auth/forgot-password
-authRouter.post("/forgot-password", validate(forgotSchema), async (req, res, next) => {
+authRouter.post("/forgot-password", authRateLimit, validate(forgotSchema), async (req, res, next) => {
   try {
     await requestPasswordReset(req.body.email);
     res.json({ message: "If that email exists, a reset link has been sent." });

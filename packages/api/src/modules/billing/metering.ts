@@ -9,6 +9,7 @@ import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { PLAN_LIMITS } from "@ai-company-os/core";
 import type { Plan } from "@ai-company-os/core";
+import { env } from "../../config/env";
 
 /**
  * Increment a usage meter for the current billing period.
@@ -69,6 +70,11 @@ export async function checkQuota(
   tenantId: string,
   metric: string,
 ): Promise<{ allowed: boolean; remaining: number; limit: number }> {
+  // Bypass billing for testing/development
+  if (env.BYPASS_BILLING) {
+    return { allowed: true, remaining: -1, limit: -1 };
+  }
+
   const now = new Date();
   const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
