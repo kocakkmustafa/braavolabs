@@ -3,7 +3,7 @@ import * as cron from "node-cron";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { runQueue, createWorker } from "../../lib/queue";
-import { executeStep, checkGovernance } from "./executor";
+import { executeStep, checkGovernance, type StepDef } from "./executor";
 import { incrementMeter, checkQuota } from "../billing/metering";
 import {
   withSpan,
@@ -100,31 +100,42 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
     },
   });
 
-  const steps = (run.pipeline.steps as any[]).sort(
-    (a: any, b: any) => a.order - b.order,
-  );
+  // Sort steps and group by order for parallel execution
+  const allSteps = (run.pipeline.steps as StepDef[]).sort((a, b) => a.order - b.order);
+
+  // Group steps by order index — same order = run in parallel
+  const stepGroups = new Map<number, StepDef[]>();
+  for (const step of allSteps) {
+    const group = stepGroups.get(step.order) ?? [];
+    group.push(step);
+    stepGroups.set(step.order, group);
+  }
+
+  const sortedOrders = Array.from(stepGroups.keys()).sort((a, b) => a - b);
 
   let totalCost = 0;
   let previousOutput: unknown = run.input;
   let failed = false;
 
-  for (let i = 0; i < steps.length; i++) {
-    const stepDef = steps[i];
+  // Shared memory map — agents can write outputs for subsequent agents to read
+  const sharedMemory = new Map<string, unknown>();
+
+  let globalStepIndex = 0;
+
+  for (const orderIndex of sortedOrders) {
+    const stepsAtOrder = stepGroups.get(orderIndex)!;
 
     // Check if run was cancelled/paused externally
     const currentRun = await prisma.run.findUnique({
       where: { id: runId },
       select: { status: true },
     });
-    if (
-      currentRun?.status === "CANCELLED" ||
-      currentRun?.status === "PAUSED"
-    ) {
+    if (currentRun?.status === "CANCELLED" || currentRun?.status === "PAUSED") {
       logger.info({ runId, status: currentRun.status }, "Run stopped externally");
       return;
     }
 
-    // Check governance rules
+    // Check governance rules before each order group
     const governance = await checkGovernance(runId, totalCost);
     if (!governance.allowed) {
       governanceStopCounter.add(1, { reason: governance.reason ?? "unknown" });
@@ -154,54 +165,127 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
       return;
     }
 
-    // Execute step
-    logger.info(
-      { runId, step: stepDef.name, index: i },
-      `Executing step ${i + 1}/${steps.length}`,
-    );
+    const isParallel = stepsAtOrder.length > 1;
 
-    const result = await executeStep(runId, stepDef, i, previousOutput);
-    totalCost += result.costUsd;
-
-    // Update run cost
-    await prisma.run.update({
-      where: { id: runId },
-      data: { costUsd: totalCost },
-    });
-
-    if (result.status === "FAILED") {
-      failed = true;
-      logger.error(
-        { runId, step: stepDef.name, reason: result.reasoning },
-        "Step failed",
+    if (isParallel) {
+      // ── Parallel execution ──────────────────────────────────────────────────
+      logger.info(
+        { runId, order: orderIndex, count: stepsAtOrder.length },
+        `Executing ${stepsAtOrder.length} parallel steps at order ${orderIndex}`,
       );
-      break;
-    }
 
-    // Pass output to next step
-    previousOutput = result.output;
+      const parallelResults = await Promise.allSettled(
+        stepsAtOrder.map((stepDef, idx) =>
+          executeStep(runId, stepDef, globalStepIndex + idx, previousOutput, sharedMemory)
+        ),
+      );
 
-    // Track tool call usage
-    if (result.toolCallIds.length > 0) {
-      await incrementMeter(tenantId, "tool_calls", result.toolCallIds.length);
-    }
+      globalStepIndex += stepsAtOrder.length;
 
-    // Log step completion
-    await prisma.activityLog.create({
-      data: {
-        tenantId,
-        actor: "system",
-        action: "run_step.complete",
-        resource: "run_step",
-        resourceId: result.stepId,
-        details: {
-          runId,
-          step: stepDef.name,
-          costUsd: result.costUsd,
-          toolCalls: result.toolCallIds.length,
+      // Collect parallel outputs — merge into an array for next sequential step
+      const parallelOutputs: unknown[] = [];
+      let stepFailed = false;
+
+      for (let j = 0; j < parallelResults.length; j++) {
+        const pr = parallelResults[j];
+        const stepDef = stepsAtOrder[j];
+
+        if (pr.status === "rejected") {
+          logger.error({ runId, step: stepDef.name, err: pr.reason }, "Parallel step threw unexpectedly");
+          stepFailed = true;
+          continue;
+        }
+
+        const result = pr.value;
+        totalCost += result.costUsd;
+
+        if (result.status === "FAILED") {
+          stepFailed = true;
+          logger.error({ runId, step: stepDef.name, reason: result.reasoning }, "Parallel step failed");
+        } else {
+          parallelOutputs.push(result.output);
+
+          // Write to shared memory if key specified
+          if (result.memoryKey) {
+            sharedMemory.set(result.memoryKey, result.output);
+          }
+        }
+
+        // Track tool calls
+        if (result.toolCallIds.length > 0) {
+          await incrementMeter(tenantId, "tool_calls", result.toolCallIds.length);
+        }
+
+        await prisma.activityLog.create({
+          data: {
+            tenantId,
+            actor: "system",
+            action: "run_step.complete",
+            resource: "run_step",
+            resourceId: result.stepId,
+            details: { runId, step: stepDef.name, costUsd: result.costUsd, parallel: true },
+          },
+        });
+      }
+
+      await prisma.run.update({ where: { id: runId }, data: { costUsd: totalCost } });
+
+      if (stepFailed) {
+        failed = true;
+        break;
+      }
+
+      // Pass merged parallel outputs to next step
+      previousOutput = parallelOutputs.length === 1 ? parallelOutputs[0] : parallelOutputs;
+
+    } else {
+      // ── Sequential execution (single step at this order) ────────────────────
+      const stepDef = stepsAtOrder[0];
+
+      logger.info(
+        { runId, step: stepDef.name, order: orderIndex },
+        `Executing step ${globalStepIndex + 1}/${allSteps.length}`,
+      );
+
+      const result = await executeStep(runId, stepDef, globalStepIndex, previousOutput, sharedMemory);
+      globalStepIndex += 1;
+      totalCost += result.costUsd;
+
+      await prisma.run.update({ where: { id: runId }, data: { costUsd: totalCost } });
+
+      if (result.status === "FAILED") {
+        failed = true;
+        logger.error({ runId, step: stepDef.name, reason: result.reasoning }, "Step failed");
+        break;
+      }
+
+      // Write to shared memory if key specified
+      if (result.memoryKey) {
+        sharedMemory.set(result.memoryKey, result.output);
+      }
+
+      previousOutput = result.output;
+
+      if (result.toolCallIds.length > 0) {
+        await incrementMeter(tenantId, "tool_calls", result.toolCallIds.length);
+      }
+
+      await prisma.activityLog.create({
+        data: {
+          tenantId,
+          actor: "system",
+          action: "run_step.complete",
+          resource: "run_step",
+          resourceId: result.stepId,
+          details: {
+            runId,
+            step: stepDef.name,
+            costUsd: result.costUsd,
+            toolCalls: result.toolCallIds.length,
+          },
         },
-      },
-    });
+      });
+    }
   }
 
   // Finalize run

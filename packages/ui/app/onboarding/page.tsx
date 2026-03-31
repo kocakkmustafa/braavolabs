@@ -24,8 +24,44 @@ const PRIMITIVES = [
   { id: "governance", label: "Governance", icon: "security", desc: "Risk & compliance" },
 ];
 
-const STEP_LABELS = ["Company", "Primitives", "Channels", "Launch"];
+const INDUSTRIES = [
+  { id: "saas", label: "SaaS / Software", icon: "cloud", desc: "Subscription & product-led growth" },
+  { id: "agency", label: "Agency", icon: "business_center", desc: "Client services & delivery" },
+  { id: "ecommerce", label: "E-Commerce", icon: "shopping_bag", desc: "Online store & DTC" },
+  { id: "consulting", label: "Consulting", icon: "handshake", desc: "Professional services" },
+  { id: "creator", label: "Creator / Personal Brand", icon: "person_celebrate", desc: "Content & audience building" },
+  { id: "b2b_sales", label: "B2B Sales", icon: "sales", desc: "Lead gen & outreach" },
+  { id: "real_estate", label: "Real Estate", icon: "home_work", desc: "Listings & client management" },
+  { id: "marketing", label: "Marketing Agency", icon: "campaign", desc: "Digital marketing & ads" },
+  { id: "automation", label: "AI / Automation", icon: "smart_toy", desc: "Workflow automation services" },
+  { id: "support", label: "Customer Support", icon: "support_agent", desc: "Helpdesk & ticketing" },
+];
+
+const USE_CASES = [
+  "Scale content production",
+  "Automate lead generation",
+  "Manage customer relationships",
+  "Build revenue systems",
+  "Reduce operational overhead",
+  "Grow social media presence",
+  "Improve customer support speed",
+  "Automate financial reporting",
+];
+
+const STEP_LABELS = ["Industry", "Company", "Primitives", "Channels", "Launch"];
 const SUGGESTIONS = ["SaaS Startup", "Agency", "E-commerce", "Consulting", "Creator Business"];
+
+interface CatalogBlueprint {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  category: string;
+  primitives: string[];
+  agentCount: number;
+  pipelineCount: number;
+  estimatedRunCost: string;
+}
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -37,6 +73,11 @@ export default function OnboardingPage() {
   const [companyName, setCompanyName] = useState("My AI Social Agency");
   const [niche, setNiche] = useState("");
   const [targetAudience, setTargetAudience] = useState("");
+  const [selectedIndustry, setSelectedIndustry] = useState<string | null>(null);
+  const [selectedUseCases, setSelectedUseCases] = useState<string[]>([]);
+  const [suggestedBlueprints, setSuggestedBlueprints] = useState<CatalogBlueprint[]>([]);
+  const [loadingBlueprints, setLoadingBlueprints] = useState(false);
+  const [selectedBlueprintSlug, setSelectedBlueprintSlug] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +91,18 @@ export default function OnboardingPage() {
     if (!token) router.push("/login");
   }, [token, router]);
 
+  // When industry is selected, fetch suggested blueprints
+  useEffect(() => {
+    if (!selectedIndustry || !token) return;
+    setLoadingBlueprints(true);
+    setSuggestedBlueprints([]);
+    setSelectedBlueprintSlug(null);
+    api.listCatalogBlueprints(token, selectedIndustry)
+      .then((list) => setSuggestedBlueprints(list.slice(0, 3)))
+      .catch(() => setSuggestedBlueprints([]))
+      .finally(() => setLoadingBlueprints(false));
+  }, [selectedIndustry, token]);
+
   if (!token) return null;
 
   function togglePrimitive(id: string) {
@@ -58,16 +111,33 @@ export default function OnboardingPage() {
     );
   }
 
+  function toggleUseCase(uc: string) {
+    setSelectedUseCases((prev) =>
+      prev.includes(uc) ? prev.filter((u) => u !== uc) : [...prev, uc]
+    );
+  }
+
+  function applyBlueprintPrimitives(bp: CatalogBlueprint) {
+    setSelectedBlueprintSlug(bp.slug);
+    setSelectedPrimitives(bp.primitives.map((p) => p.toLowerCase()));
+  }
+
   async function handleLaunch() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.createHeroCompany(token!, {
-        companyName: companyName.trim() || undefined,
-        niche: niche.trim() || undefined,
-        targetAudience: targetAudience.trim() || undefined,
-      });
-      setResult(res);
+      // If a blueprint was selected, clone it instead of creating hero company
+      if (selectedBlueprintSlug) {
+        const res = await api.cloneCatalogBlueprint(token!, selectedBlueprintSlug, companyName);
+        setResult({ company: res.company, agents: [], fromBlueprint: true });
+      } else {
+        const res = await api.createHeroCompany(token!, {
+          companyName: companyName.trim() || undefined,
+          niche: niche.trim() || undefined,
+          targetAudience: targetAudience.trim() || undefined,
+        });
+        setResult(res);
+      }
       api.onboardingStatus(token!).then(setStatus).catch(() => {});
     } catch (err) {
       setError((err as Error).message);
@@ -94,12 +164,14 @@ export default function OnboardingPage() {
             </span>
           </div>
           <h2 className="font-headline font-bold text-2xl mb-2" style={{ color: "#e1e2eb" }}>
-            {result?.company?.name ?? "Hero Company"} is live!
+            {result?.company?.name ?? "Your Company"} is live!
           </h2>
           <p className="text-sm mb-6" style={{ color: "#859399" }}>
-            {result?.company?.description ?? "Your autonomous AI company is ready to run."}
+            {result?.fromBlueprint
+              ? "Blueprint cloned and configured. Your autonomous AI company is ready."
+              : (result?.company?.description ?? "Your autonomous AI company is ready to run.")}
           </p>
-          {result && (
+          {result && !result.fromBlueprint && (
             <div className="flex justify-center gap-8 mb-6">
               <div>
                 <p className="text-2xl font-bold font-headline" style={{ color: "#34d399" }}>
@@ -189,8 +261,138 @@ export default function OnboardingPage() {
         {/* Step card */}
         <div className="w-full max-w-[700px] glass-card rounded-2xl p-8 relative overflow-hidden">
 
-          {/* Step 0: Company description */}
+          {/* Step 0: Industry & Use Case Selection */}
           {step === 0 && (
+            <div>
+              <h2 className="font-headline font-bold text-2xl mb-2" style={{ color: "#e1e2eb" }}>
+                What's your industry?
+              </h2>
+              <p className="text-sm mb-6" style={{ color: "#859399" }}>
+                We'll suggest the best blueprint for your business so you can launch faster.
+              </p>
+
+              {/* Industry grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
+                {INDUSTRIES.map((ind) => {
+                  const selected = selectedIndustry === ind.id;
+                  return (
+                    <button
+                      key={ind.id}
+                      onClick={() => setSelectedIndustry(ind.id)}
+                      className="p-3 rounded-xl text-left transition-all hover:scale-[1.02]"
+                      style={{
+                        background: selected ? "rgba(0,209,255,0.08)" : "rgba(255,255,255,0.03)",
+                        border: selected ? "1.5px solid rgba(0,209,255,0.4)" : "1.5px solid rgba(255,255,255,0.06)",
+                      }}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="material-symbols-outlined text-base" style={{ color: selected ? "#00d1ff" : "#859399" }}>
+                          {ind.icon}
+                        </span>
+                        <span className="text-xs font-semibold" style={{ color: selected ? "#e1e2eb" : "#bbc9cf" }}>{ind.label}</span>
+                      </div>
+                      <p className="text-[10px]" style={{ color: "#3c494e" }}>{ind.desc}</p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Use case selection */}
+              <div className="mb-6">
+                <p className="text-xs font-semibold mb-2" style={{ color: "#bbc9cf" }}>What do you want to automate? <span style={{ color: "#3c494e", fontWeight: 400 }}>(pick all that apply)</span></p>
+                <div className="flex flex-wrap gap-2">
+                  {USE_CASES.map((uc) => {
+                    const selected = selectedUseCases.includes(uc);
+                    return (
+                      <button
+                        key={uc}
+                        onClick={() => toggleUseCase(uc)}
+                        className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                        style={{
+                          background: selected ? "rgba(109,17,173,0.15)" : "rgba(255,255,255,0.03)",
+                          border: selected ? "1px solid rgba(109,17,173,0.5)" : "1px solid rgba(255,255,255,0.08)",
+                          color: selected ? "#c084fc" : "#859399",
+                        }}
+                      >
+                        {uc}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Suggested blueprints */}
+              {selectedIndustry && (
+                <div className="mb-6">
+                  <p className="text-xs font-semibold mb-2" style={{ color: "#bbc9cf" }}>
+                    Recommended blueprints
+                    <span className="ml-1 font-normal" style={{ color: "#3c494e" }}>— click to use as starting point</span>
+                  </p>
+                  {loadingBlueprints ? (
+                    <div className="flex gap-2">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="flex-1 h-20 rounded-xl animate-shimmer" style={{ background: "rgba(255,255,255,0.04)" }} />
+                      ))}
+                    </div>
+                  ) : suggestedBlueprints.length > 0 ? (
+                    <div className="flex flex-col gap-2">
+                      {suggestedBlueprints.map((bp) => {
+                        const isSelected = selectedBlueprintSlug === bp.slug;
+                        return (
+                          <button
+                            key={bp.slug}
+                            onClick={() => {
+                              applyBlueprintPrimitives(bp);
+                              setCompanyName(bp.title);
+                            }}
+                            className="w-full p-3 rounded-xl text-left transition-all hover:brightness-110"
+                            style={{
+                              background: isSelected ? "rgba(0,209,255,0.08)" : "rgba(255,255,255,0.03)",
+                              border: isSelected ? "1.5px solid rgba(0,209,255,0.4)" : "1.5px solid rgba(255,255,255,0.06)",
+                            }}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                  <span className="text-xs font-semibold" style={{ color: isSelected ? "#00d1ff" : "#e1e2eb" }}>{bp.title}</span>
+                                  {isSelected && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded font-bold" style={{ background: "rgba(0,209,255,0.15)", color: "#00d1ff" }}>SELECTED</span>
+                                  )}
+                                </div>
+                                <p className="text-[10px] line-clamp-1" style={{ color: "#859399" }}>{bp.description}</p>
+                              </div>
+                              <div className="flex items-center gap-2 ml-3 shrink-0">
+                                <span className="text-[10px]" style={{ color: "#3c494e" }}>{bp.agentCount}a · {bp.pipelineCount}p</span>
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-xs" style={{ color: "#3c494e" }}>No templates found for this industry.</p>
+                  )}
+                </div>
+              )}
+
+              <div className="flex justify-between items-center">
+                <p className="text-xs" style={{ color: "#3c494e" }}>
+                  {!selectedIndustry && "Select an industry to continue"}
+                </p>
+                <button
+                  onClick={() => setStep(1)}
+                  disabled={!selectedIndustry}
+                  className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-40"
+                  style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}
+                >
+                  Continue →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 1: Company description */}
+          {step === 1 && (
             <div>
               <h2 className="font-headline font-bold text-2xl mb-2" style={{ color: "#e1e2eb" }}>
                 Tell us about your company
@@ -226,42 +428,55 @@ export default function OnboardingPage() {
               </div>
 
               {/* Suggestions */}
-              <div className="mb-6">
-                <p className="text-xs mb-2" style={{ color: "#859399" }}>Need inspiration?</p>
-                <div className="flex flex-wrap gap-2">
-                  {SUGGESTIONS.map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setDescription(`I run a ${s.toLowerCase()} business. I need AI agents to handle acquisition, content creation, and operations.`)}
-                      className="px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:opacity-80"
-                      style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.25)", color: "#00d1ff" }}
-                    >
-                      {s}
-                    </button>
-                  ))}
+              {!selectedBlueprintSlug && (
+                <div className="mb-6">
+                  <p className="text-xs mb-2" style={{ color: "#859399" }}>Need inspiration?</p>
+                  <div className="flex flex-wrap gap-2">
+                    {SUGGESTIONS.map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setDescription(`I run a ${s.toLowerCase()} business. I need AI agents to handle acquisition, content creation, and operations.`)}
+                        className="px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:opacity-80"
+                        style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.25)", color: "#00d1ff" }}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div className="flex justify-end">
-                <button
-                  onClick={() => setStep(1)}
-                  className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
-                  style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}
-                >
+              {selectedBlueprintSlug && (
+                <div className="mb-6 px-4 py-3 rounded-xl" style={{ background: "rgba(0,209,255,0.06)", border: "1px solid rgba(0,209,255,0.15)" }}>
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-sm" style={{ color: "#00d1ff" }}>auto_awesome</span>
+                    <span className="text-xs" style={{ color: "#a4e6ff" }}>Blueprint selected — primitives and agents pre-configured from template</span>
+                    <button onClick={() => setSelectedBlueprintSlug(null)} className="ml-auto text-xs" style={{ color: "#3c494e" }}>× Remove</button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-between">
+                <button onClick={() => setStep(0)} className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>
+                  ← Back
+                </button>
+                <button onClick={() => setStep(2)} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}>
                   Continue →
                 </button>
               </div>
             </div>
           )}
 
-          {/* Step 1: Primitives */}
-          {step === 1 && (
+          {/* Step 2: Primitives */}
+          {step === 2 && (
             <div>
               <h2 className="font-headline font-bold text-2xl mb-2" style={{ color: "#e1e2eb" }}>
                 Select your AI Primitives
               </h2>
               <p className="text-sm mb-6" style={{ color: "#859399" }}>
-                Choose which capabilities to include. You can change these later.
+                {selectedBlueprintSlug
+                  ? "Pre-configured from your selected blueprint. You can customize further."
+                  : "Choose which capabilities to include. You can change these later."}
               </p>
 
               <div className="grid grid-cols-3 gap-3 mb-6">
@@ -293,18 +508,18 @@ export default function OnboardingPage() {
               </div>
 
               <div className="flex justify-between">
-                <button onClick={() => setStep(0)} className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>
+                <button onClick={() => setStep(1)} className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>
                   ← Back
                 </button>
-                <button onClick={() => setStep(2)} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}>
+                <button onClick={() => setStep(3)} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}>
                   Continue →
                 </button>
               </div>
             </div>
           )}
 
-          {/* Step 2: Channels */}
-          {step === 2 && (
+          {/* Step 3: Channels */}
+          {step === 3 && (
             <div>
               <h2 className="font-headline font-bold text-2xl mb-2" style={{ color: "#e1e2eb" }}>
                 Configure your channels
@@ -363,18 +578,18 @@ export default function OnboardingPage() {
               </div>
 
               <div className="flex justify-between">
-                <button onClick={() => setStep(1)} className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>
+                <button onClick={() => setStep(2)} className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>
                   ← Back
                 </button>
-                <button onClick={() => setStep(3)} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}>
+                <button onClick={() => setStep(4)} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}>
                   Continue →
                 </button>
               </div>
             </div>
           )}
 
-          {/* Step 3: Launch */}
-          {step === 3 && (
+          {/* Step 4: Launch */}
+          {step === 4 && (
             <div>
               <h2 className="font-headline font-bold text-2xl mb-2" style={{ color: "#e1e2eb" }}>
                 Ready to launch
@@ -386,6 +601,10 @@ export default function OnboardingPage() {
               {/* Summary */}
               <div className="rounded-xl p-5 mb-5 space-y-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
                 <SummaryRow label="Company Name" value={companyName || "My AI Social Agency"} />
+                <SummaryRow label="Industry" value={INDUSTRIES.find((i) => i.id === selectedIndustry)?.label ?? "-"} />
+                {selectedBlueprintSlug && (
+                  <SummaryRow label="Blueprint" value={suggestedBlueprints.find((b) => b.slug === selectedBlueprintSlug)?.title ?? selectedBlueprintSlug} highlight />
+                )}
                 <SummaryRow label="Primitives" value={`${selectedPrimitives.length} selected`} highlight />
                 <SummaryRow label="Channels" value="TikTok, LinkedIn" />
                 {niche && <SummaryRow label="Niche" value={niche} />}
@@ -399,7 +618,7 @@ export default function OnboardingPage() {
               )}
 
               <div className="flex justify-between">
-                <button onClick={() => setStep(2)} className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>
+                <button onClick={() => setStep(3)} className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>
                   ← Back
                 </button>
                 <button

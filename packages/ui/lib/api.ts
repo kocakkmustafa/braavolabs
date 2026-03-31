@@ -153,6 +153,36 @@ export const api = {
   cloneBlueprint: (token: string, slug: string, name?: string) =>
     apiFetch<any>(`/growth/blueprint/${slug}/clone`, { method: "POST", body: JSON.stringify({ name }), token }),
 
+  // Catalog Blueprints (pre-built templates)
+  listCatalogBlueprints: (token: string, industry?: string) =>
+    apiFetch<any[]>(`/growth/blueprints/catalog${industry ? `?industry=${industry}` : ""}`, { token }),
+  getCatalogBlueprint: (token: string, slug: string) =>
+    apiFetch<any>(`/growth/blueprints/catalog/${slug}`, { token }),
+  cloneCatalogBlueprint: (token: string, slug: string, name?: string) =>
+    apiFetch<{ companyId: string; company: { id: string; name: string; slug: string } }>(
+      `/growth/blueprints/catalog/${slug}/clone`,
+      { method: "POST", body: JSON.stringify({ name }), token }
+    ),
+
+  // Dashboard — agent performance
+  agentPerformance: (token: string) =>
+    apiFetch<{
+      agents: Array<{
+        agentId: string; agentName: string; role: string; companyName: string;
+        totalRuns: number; completedRuns: number; failedRuns: number; successRate: number;
+        totalCostUsd: number; avgCostPerRun: number; avgDurationMs: number; totalToolCalls: number;
+      }>;
+      toolDistribution: Array<{ toolName: string; count: number }>;
+      period: { start: string; end: string };
+    }>("/dashboard/agent-performance", { token }),
+
+  // Pipeline — from natural language
+  createPipelineFromNL: (token: string, companyId: string, description: string, name?: string) =>
+    apiFetch<{ pipeline: any; generatedFrom: string; aiModel: string }>(
+      "/pipelines/from-natural-language",
+      { method: "POST", body: JSON.stringify({ companyId, description, name }), token }
+    ),
+
   // Company — delete (archive)
   archiveCompany: (token: string, id: string) =>
     apiFetch<{ success: boolean }>(`/companies/${id}`, { method: "DELETE", token }),

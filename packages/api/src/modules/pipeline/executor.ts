@@ -4,11 +4,17 @@ import { runAgentLoop, type AgentLoopResult } from "../agent/claude";
 import { AppError } from "../../middleware/error";
 import { withSpan, toolCallCounter, stepDurationHistogram } from "../../lib/telemetry";
 
-interface StepDef {
+export interface StepDef {
   name: string;
   agentRole: string;
   order: number;
   config?: Record<string, unknown>;
+  /** If true, this step runs in parallel with other steps at the same order index */
+  parallel?: boolean;
+  /** Memory keys this step should read from shared run context */
+  readMemoryKeys?: string[];
+  /** Memory key to store this step's output under (for subsequent steps) */
+  writeMemoryKey?: string;
 }
 
 export interface StepExecutionResult {
@@ -18,17 +24,20 @@ export interface StepExecutionResult {
   output: unknown;
   costUsd: number;
   toolCallIds: string[];
+  memoryKey?: string;
 }
 
 /**
  * Execute a single pipeline step using the assigned agent.
  * Handles tool call logging, reasoning enforcement, and cost tracking.
+ * Supports shared memory context between agents via sharedMemory map.
  */
 export async function executeStep(
   runId: string,
   stepDef: StepDef,
   stepIndex: number,
   input: unknown,
+  sharedMemory: Map<string, unknown> = new Map(),
 ): Promise<StepExecutionResult> {
   // Find the run and its pipeline/company
   const run = await prisma.run.findUnique({
@@ -75,8 +84,18 @@ export async function executeStep(
   });
 
   try {
+    // Inject shared memory context from previous steps
+    const memoryContext: Record<string, unknown> = {};
+    if (stepDef.readMemoryKeys && stepDef.readMemoryKeys.length > 0) {
+      for (const key of stepDef.readMemoryKeys) {
+        if (sharedMemory.has(key)) {
+          memoryContext[key] = sharedMemory.get(key);
+        }
+      }
+    }
+
     // Build the step-specific prompt
-    const stepPrompt = buildStepPrompt(stepDef, input, run.pipeline.company.name);
+    const stepPrompt = buildStepPrompt(stepDef, input, run.pipeline.company.name, memoryContext);
 
     // Execute agent loop
     const result = await runAgentLoop({
@@ -112,6 +131,11 @@ export async function executeStep(
       },
     });
 
+    // Write output to shared memory if a key is specified
+    if (stepDef.writeMemoryKey) {
+      sharedMemory.set(stepDef.writeMemoryKey, result.finalContent);
+    }
+
     return {
       stepId: runStep.id,
       status: "COMPLETED",
@@ -119,6 +143,7 @@ export async function executeStep(
       output: result.finalContent,
       costUsd: result.totalCostUsd,
       toolCallIds,
+      memoryKey: stepDef.writeMemoryKey,
     };
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
@@ -146,11 +171,13 @@ export async function executeStep(
 
 /**
  * Build a context-rich prompt for a pipeline step.
+ * Includes shared memory context from previous agents.
  */
 function buildStepPrompt(
   stepDef: StepDef,
   input: unknown,
   companyName: string,
+  memoryContext: Record<string, unknown> = {},
 ): string {
   const parts = [
     `You are executing step "${stepDef.name}" for company "${companyName}".`,
@@ -164,6 +191,15 @@ function buildStepPrompt(
 
   if (input && typeof input === "object" && Object.keys(input as object).length > 0) {
     parts.push("", "Input from previous step:", JSON.stringify(input, null, 2));
+  }
+
+  // Inject shared memory from other agents in this run
+  if (Object.keys(memoryContext).length > 0) {
+    parts.push("", "=== Shared context from other agents in this pipeline run ===");
+    for (const [key, value] of Object.entries(memoryContext)) {
+      parts.push(`\n[${key}]:`, typeof value === "string" ? value : JSON.stringify(value, null, 2));
+    }
+    parts.push("=== End of shared context ===");
   }
 
   if (stepDef.config) {

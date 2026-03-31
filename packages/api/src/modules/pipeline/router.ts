@@ -4,6 +4,7 @@ import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { z } from "zod";
 import { enqueueRun } from "./runner";
+import Anthropic from "@anthropic-ai/sdk";
 
 export const pipelineRouter = Router();
 pipelineRouter.use(authMiddleware);
@@ -20,6 +21,124 @@ const createSchema = z.object({
     order: z.number(),
     config: z.record(z.unknown()).optional(),
   })),
+});
+
+// POST /api/v1/pipelines/from-natural-language — doğal dil açıklamasından pipeline oluştur
+const nlPipelineSchema = z.object({
+  companyId: z.string(),
+  description: z.string().min(10, "Description must be at least 10 characters"),
+  name: z.string().min(1).optional(),
+});
+
+pipelineRouter.post("/from-natural-language", async (req, res, next) => {
+  try {
+    const { companyId, description, name } = nlPipelineSchema.parse(req.body);
+
+    // Verify company ownership
+    const company = await prisma.company.findFirst({
+      where: { id: companyId, tenantId: req.auth!.tenantId },
+      include: { agents: { select: { name: true, role: true } } },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+
+    // Build agent context for the prompt
+    const agentList = company.agents.length > 0
+      ? company.agents.map((a) => `- ${a.name} (role: ${a.role})`).join("\n")
+      : "- No agents defined yet (use generic role names like 'researcher', 'writer', 'analyst')";
+
+    const systemPrompt = `You are a pipeline architect for an AI company automation platform. Given a natural language description of a workflow, generate a structured pipeline configuration in JSON.
+
+The company has these agents available:
+${agentList}
+
+Output ONLY valid JSON matching this schema (no explanation, no markdown):
+{
+  "name": "string — pipeline name",
+  "trigger": "MANUAL" | "SCHEDULED",
+  "schedule": "string (cron syntax, only if trigger is SCHEDULED, otherwise null)",
+  "steps": [
+    {
+      "name": "string — step name",
+      "agentRole": "string — must match one of the agent names or roles listed above",
+      "order": number,
+      "config": {}
+    }
+  ]
+}
+
+Rules:
+- Steps must be in logical execution order
+- agentRole must match an existing agent name or role from the list above
+- For scheduled pipelines, use valid cron syntax
+- Keep step names concise and action-oriented
+- Maximum 8 steps per pipeline
+- If a step needs to run after another, use sequential order numbers
+- For parallel steps, assign the same order number`;
+
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: [{ role: "user", content: `Create a pipeline for: ${description}` }],
+    });
+
+    const rawContent = message.content[0];
+    if (rawContent.type !== "text") throw new AppError(500, "Unexpected AI response format");
+
+    // Parse the JSON response
+    let pipelineConfig: {
+      name: string;
+      trigger: "MANUAL" | "SCHEDULED";
+      schedule?: string;
+      steps: Array<{ name: string; agentRole: string; order: number; config?: Record<string, unknown> }>;
+    };
+
+    try {
+      // Strip markdown code blocks if present
+      const cleaned = rawContent.text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      pipelineConfig = JSON.parse(cleaned);
+    } catch {
+      throw new AppError(422, "Failed to parse AI-generated pipeline config. Please try a more detailed description.");
+    }
+
+    // Validate parsed config
+    if (!pipelineConfig.steps || pipelineConfig.steps.length === 0) {
+      throw new AppError(422, "No steps were generated. Please provide a more detailed description.");
+    }
+
+    // Use provided name if given
+    if (name) pipelineConfig.name = name;
+
+    // Create the pipeline
+    const pipeline = await prisma.pipeline.create({
+      data: {
+        companyId,
+        name: pipelineConfig.name,
+        trigger: pipelineConfig.trigger ?? "MANUAL",
+        schedule: pipelineConfig.schedule ?? null,
+        steps: pipelineConfig.steps as any,
+      },
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "pipeline.created_from_nl",
+        resource: "pipeline",
+        resourceId: pipeline.id,
+        details: { description, generatedName: pipelineConfig.name, stepCount: pipelineConfig.steps.length },
+      },
+    });
+
+    res.status(201).json({
+      pipeline,
+      generatedFrom: description,
+      aiModel: "claude-sonnet-4-6",
+    });
+  } catch (err) { next(err); }
 });
 
 // GET /api/v1/pipelines?companyId=xxx

@@ -298,6 +298,113 @@ growthRouter.post("/blueprint/:slug/clone", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /api/v1/growth/blueprints/catalog — list all 15 pre-built blueprint templates
+growthRouter.get("/blueprints/catalog", async (req, res, next) => {
+  try {
+    const { industry } = req.query;
+    const { BLUEPRINT_CATALOG, getBlueprintsByIndustry } = await import("./blueprint-catalog");
+
+    const blueprints = industry
+      ? getBlueprintsByIndustry(industry as string)
+      : BLUEPRINT_CATALOG;
+
+    // Strip out full spec for list view — only return metadata
+    const list = blueprints.map(({ spec: _spec, ...meta }) => ({
+      ...meta,
+      agentCount: meta.spec?.agents?.length ?? meta.agentCount,
+      pipelineCount: meta.spec?.pipelines?.length ?? meta.pipelineCount,
+    }));
+
+    res.json(list);
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/growth/blueprints/catalog/:slug — get full catalog blueprint spec
+growthRouter.get("/blueprints/catalog/:slug", async (req, res, next) => {
+  try {
+    const { getCatalogBlueprint } = await import("./blueprint-catalog");
+    const blueprint = getCatalogBlueprint(req.params.slug);
+    if (!blueprint) throw new AppError(404, "Catalog blueprint not found");
+    res.json(blueprint);
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/growth/blueprints/catalog/:slug/clone — clone a catalog template into a real company
+const cloneCatalogSchema = z.object({
+  name: z.string().min(1).optional(),
+});
+
+growthRouter.post("/blueprints/catalog/:slug/clone", async (req, res, next) => {
+  try {
+    const tenantId = req.auth!.tenantId;
+    const { name } = cloneCatalogSchema.parse(req.body);
+    const { getCatalogBlueprint } = await import("./blueprint-catalog");
+    const { slugify } = await import("@ai-company-os/core");
+
+    const catalog = getCatalogBlueprint(req.params.slug);
+    if (!catalog) throw new AppError(404, "Catalog blueprint not found");
+
+    const companyName = name ?? catalog.title;
+
+    // Create company from catalog spec
+    const company = await prisma.company.create({
+      data: {
+        tenantId,
+        name: companyName,
+        slug: `${slugify(companyName)}-${Date.now().toString(36)}`,
+        description: catalog.description,
+        primitives: catalog.primitives as any,
+        status: "ACTIVE",
+        config: catalog.spec.config ?? {},
+      },
+    });
+
+    // Create agents
+    for (const agentDef of catalog.spec.agents) {
+      await prisma.agent.create({
+        data: {
+          companyId: company.id,
+          name: agentDef.name,
+          role: agentDef.role,
+          systemPrompt: agentDef.systemPrompt,
+          tools: agentDef.tools,
+        },
+      });
+    }
+
+    // Create pipelines
+    for (const pipelineDef of catalog.spec.pipelines) {
+      await prisma.pipeline.create({
+        data: {
+          companyId: company.id,
+          name: pipelineDef.name,
+          trigger: pipelineDef.trigger as any,
+          schedule: pipelineDef.schedule,
+          steps: pipelineDef.steps as any,
+        },
+      });
+    }
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId,
+        actor: req.auth!.userId,
+        action: "blueprint.catalog_cloned",
+        resource: "company",
+        resourceId: company.id,
+        details: { catalogSlug: catalog.slug, catalogTitle: catalog.title },
+      },
+    });
+
+    logger.info({ tenantId, catalogSlug: catalog.slug, companyId: company.id }, "Catalog blueprint cloned");
+
+    res.status(201).json({
+      companyId: company.id,
+      company: { id: company.id, name: company.name, slug: company.slug },
+    });
+  } catch (err) { next(err); }
+});
+
 // GET /api/v1/growth/stats — growth dashboard stats
 growthRouter.get("/stats", async (req, res, next) => {
   try {
