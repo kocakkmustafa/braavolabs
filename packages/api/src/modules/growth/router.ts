@@ -311,8 +311,8 @@ growthRouter.get("/blueprints/catalog", async (req, res, next) => {
     // Strip out full spec for list view — only return metadata
     const list = blueprints.map(({ spec: _spec, ...meta }) => ({
       ...meta,
-      agentCount: meta.spec?.agents?.length ?? meta.agentCount,
-      pipelineCount: meta.spec?.pipelines?.length ?? meta.pipelineCount,
+      agentCount: _spec?.agents?.length ?? meta.agentCount,
+      pipelineCount: _spec?.pipelines?.length ?? meta.pipelineCount,
     }));
 
     res.json(list);
@@ -355,7 +355,7 @@ growthRouter.post("/blueprints/catalog/:slug/clone", async (req, res, next) => {
         description: catalog.description,
         primitives: catalog.primitives as any,
         status: "ACTIVE",
-        config: catalog.spec.config ?? {},
+        config: (catalog.spec.config ?? {}) as any,
       },
     });
 

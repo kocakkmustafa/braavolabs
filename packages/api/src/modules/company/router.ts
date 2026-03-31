@@ -354,7 +354,7 @@ companyRouter.patch("/:companyId/agents/:agentId", async (req, res, next) => {
     const updateData = agentUpdateSchema.parse(req.body);
     const updated = await prisma.agent.update({
       where: { id: agent.id },
-      data: { ...updateData, tools: updateData.tools as any, config: updateData.config as any },
+      data: { ...updateData, tools: updateData.tools as any },
     });
 
     await prisma.activityLog.create({

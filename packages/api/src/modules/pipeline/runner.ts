@@ -101,7 +101,7 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
   });
 
   // Sort steps and group by order for parallel execution
-  const allSteps = (run.pipeline.steps as StepDef[]).sort((a, b) => a.order - b.order);
+  const allSteps = (run.pipeline.steps as unknown as StepDef[]).sort((a, b) => a.order - b.order);
 
   // Group steps by order index — same order = run in parallel
   const stepGroups = new Map<number, StepDef[]>();
@@ -306,7 +306,7 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
       action: failed ? "run.failed" : "run.completed",
       resource: "run",
       resourceId: runId,
-      details: { totalCost, stepCount: steps.length },
+      details: { totalCost, stepCount: allSteps.length },
     },
   });
 
