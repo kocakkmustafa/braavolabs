@@ -19,18 +19,24 @@ webhookRouter.post("/:companySlug/:event", async (req, res, next) => {
       return;
     }
 
-    // Verify webhook signature if X-Webhook-Signature header is present
+    // Verify webhook signature — required when a secret is configured
     const signature = req.headers["x-webhook-signature"] as string | undefined;
-    if (signature) {
-      const secret = (company.config as Record<string, any>)?.webhookSecret || process.env.WEBHOOK_SECRET || "";
-      if (secret) {
-        const expectedSig = crypto
-          .createHmac("sha256", secret)
-          .update(JSON.stringify(req.body))
-          .digest("hex");
-        if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
-          return res.status(401).json({ error: "Invalid webhook signature" });
-        }
+    const secret = (company.config as Record<string, any>)?.webhookSecret || process.env.WEBHOOK_SECRET || "";
+    if (secret) {
+      if (!signature) {
+        res.status(401).json({ error: "Missing X-Webhook-Signature header" });
+        return;
+      }
+      const expectedSig = crypto
+        .createHmac("sha256", secret)
+        .update(JSON.stringify(req.body))
+        .digest("hex");
+      const sigBuf = Buffer.from(signature);
+      const expectedBuf = Buffer.from(expectedSig);
+      // timingSafeEqual requires equal-length buffers; mismatched length = invalid
+      if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+        res.status(401).json({ error: "Invalid webhook signature" });
+        return;
       }
     }
 

@@ -15,7 +15,7 @@ const envShape = z.object({
   LOG_LEVEL: z.string().default("debug"),
   DATABASE_URL: z.string(),
   REDIS_URL: z.string().default("redis://localhost:6379"),
-  JWT_SECRET: z.string().min(8),
+  JWT_SECRET: z.string().min(32),
   JWT_EXPIRES_IN: z.string().default("7d"),
   LLM_PROVIDER: z.enum(["local", "api"]).default("api"),
   ANTHROPIC_API_KEY: z.string().optional(),
@@ -31,7 +31,7 @@ const envShape = z.object({
   SENDGRID_API_KEY: z.string().optional(),
   SENDGRID_FROM_EMAIL: z.string().optional(),
   BYPASS_BILLING: z.coerce.boolean().default(false),
-  ENCRYPTION_KEY: z.string().min(32).default("change-me-32-char-encryption-key!"),
+  ENCRYPTION_KEY: z.string().min(32),
 });
 
 export type Env = z.infer<typeof envShape>;

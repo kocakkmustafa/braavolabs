@@ -25,6 +25,12 @@ const createSchema = z.object({
   config: z.record(z.unknown()).optional(),
 });
 
+const updateSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  description: z.string().optional(),
+  config: z.record(z.unknown()).optional(),
+});
+
 // GET /api/v1/companies — list companies for tenant
 companyRouter.get("/", async (req, res, next) => {
   try {
@@ -90,9 +96,10 @@ companyRouter.post("/", async (req, res, next) => {
 // PATCH /api/v1/companies/:id
 companyRouter.patch("/:id", async (req, res, next) => {
   try {
+    const data = updateSchema.parse(req.body);
     const company = await prisma.company.updateMany({
       where: { id: req.params.id, tenantId: req.auth!.tenantId },
-      data: req.body,
+      data: { ...data, config: data.config as any },
     });
     if (company.count === 0) throw new AppError(404, "Company not found");
 
@@ -290,6 +297,14 @@ const agentCreateSchema = z.object({
   config: z.record(z.unknown()).optional(),
 });
 
+const agentUpdateSchema = z.object({
+  name: z.string().min(1).optional(),
+  role: z.string().min(1).optional(),
+  systemPrompt: z.string().optional(),
+  tools: z.array(z.string()).optional(),
+  config: z.record(z.unknown()).optional(),
+});
+
 companyRouter.post("/:id/agents", async (req, res, next) => {
   try {
     const company = await prisma.company.findFirst({
@@ -336,9 +351,10 @@ companyRouter.patch("/:companyId/agents/:agentId", async (req, res, next) => {
     });
     if (!agent) throw new AppError(404, "Agent not found");
 
+    const updateData = agentUpdateSchema.parse(req.body);
     const updated = await prisma.agent.update({
       where: { id: agent.id },
-      data: req.body,
+      data: { ...updateData, tools: updateData.tools as any, config: updateData.config as any },
     });
 
     await prisma.activityLog.create({
@@ -452,5 +468,26 @@ companyRouter.get("/:id/deals", async (req, res, next) => {
       orderBy: { createdAt: "desc" },
     });
     res.json(deals);
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/companies/:id/webhooks — recent webhook events from activity log
+companyRouter.get("/:id/webhooks", async (req, res, next) => {
+  try {
+    const company = await prisma.company.findFirst({
+      where: { id: req.params.id, tenantId: req.auth!.tenantId },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+
+    const logs = await prisma.activityLog.findMany({
+      where: {
+        tenantId: req.auth!.tenantId,
+        resourceId: company.id,
+        action: { startsWith: "webhook." },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+    res.json(logs);
   } catch (err) { next(err); }
 });

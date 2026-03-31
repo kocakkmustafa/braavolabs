@@ -67,7 +67,7 @@ authRouter.post("/forgot-password", authRateLimit, validate(forgotSchema), async
 });
 
 // POST /api/v1/auth/reset-password
-authRouter.post("/reset-password", validate(resetSchema), async (req, res, next) => {
+authRouter.post("/reset-password", authRateLimit, validate(resetSchema), async (req, res, next) => {
   try {
     await resetPassword(req.body.token, req.body.password);
     res.json({ message: "Password reset successful." });

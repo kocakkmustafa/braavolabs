@@ -3,9 +3,11 @@ import { prisma } from "../../lib/db";
 import { encrypt, decrypt } from "../../lib/encryption";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
+import { authMiddleware } from "../../middleware/auth";
 import { PROVIDER_INFO, getRequiredProviders, getMissingIntegrations, TOOL_PROVIDER_MAP } from "./checker";
 
 export const integrationRouter = Router();
+integrationRouter.use(authMiddleware);
 
 /**
  * GET /integrations/providers — list all available providers with setup info
@@ -31,6 +33,11 @@ integrationRouter.get("/tool-map", (_req, res) => {
 integrationRouter.get("/:companyId", async (req, res, next) => {
   try {
     const { companyId } = req.params;
+    const company = await prisma.company.findFirst({
+      where: { id: companyId, tenantId: req.auth!.tenantId },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+
     const integrations = await prisma.integration.findMany({
       where: { companyId },
       orderBy: { createdAt: "desc" },
@@ -63,6 +70,11 @@ integrationRouter.get("/:companyId", async (req, res, next) => {
 integrationRouter.post("/:companyId", async (req, res, next) => {
   try {
     const { companyId } = req.params;
+    const ownerCheck = await prisma.company.findFirst({
+      where: { id: companyId, tenantId: req.auth!.tenantId },
+    });
+    if (!ownerCheck) throw new AppError(404, "Company not found");
+
     const { provider, credentials, label } = req.body;
 
     if (!provider || !credentials) {
@@ -99,8 +111,8 @@ integrationRouter.post("/:companyId", async (req, res, next) => {
     // Log activity
     await prisma.activityLog.create({
       data: {
-        tenantId: (await prisma.company.findUnique({ where: { id: companyId } }))?.tenantId ?? "",
-        actor: "user",
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
         action: "integration.save",
         resource: "integration",
         resourceId: integration.id,
@@ -128,6 +140,11 @@ integrationRouter.post("/:companyId", async (req, res, next) => {
 integrationRouter.post("/:companyId/test", async (req, res, next) => {
   try {
     const { companyId } = req.params;
+    const ownerCheck = await prisma.company.findFirst({
+      where: { id: companyId, tenantId: req.auth!.tenantId },
+    });
+    if (!ownerCheck) throw new AppError(404, "Company not found");
+
     const { provider } = req.body;
 
     if (!provider) throw new AppError(400, "provider is required");
@@ -186,6 +203,10 @@ integrationRouter.post("/:companyId/test", async (req, res, next) => {
 integrationRouter.delete("/:companyId/:provider", async (req, res, next) => {
   try {
     const { companyId, provider } = req.params;
+    const ownerCheck = await prisma.company.findFirst({
+      where: { id: companyId, tenantId: req.auth!.tenantId },
+    });
+    if (!ownerCheck) throw new AppError(404, "Company not found");
 
     await prisma.integration.deleteMany({
       where: { companyId, provider: provider as any },
@@ -204,6 +225,10 @@ integrationRouter.delete("/:companyId/:provider", async (req, res, next) => {
 integrationRouter.get("/:companyId/missing", async (req, res, next) => {
   try {
     const { companyId } = req.params;
+    const ownerCheck = await prisma.company.findFirst({
+      where: { id: companyId, tenantId: req.auth!.tenantId },
+    });
+    if (!ownerCheck) throw new AppError(404, "Company not found");
 
     // Get all agents' tools for this company
     const agents = await prisma.agent.findMany({

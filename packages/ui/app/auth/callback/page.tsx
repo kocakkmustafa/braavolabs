@@ -15,6 +15,9 @@ function CallbackInner() {
       try {
         const payload = JSON.parse(atob(token.split(".")[1]));
         setAuth(token, payload.tenantId);
+        // Remove token from URL before navigating to prevent it from
+        // appearing in browser history, server logs, or Referer headers.
+        window.history.replaceState({}, "", "/auth/callback");
         router.push("/dashboard");
       } catch {
         router.push("/login");

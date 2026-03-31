@@ -141,6 +141,20 @@ Rules:
   } catch (err) { next(err); }
 });
 
+const updatePipelineSchema = z.object({
+  name: z.string().min(1).optional(),
+  description: z.string().optional(),
+  trigger: z.enum(["MANUAL", "SCHEDULED", "WEBHOOK", "EVENT"]).optional(),
+  schedule: z.string().optional(),
+  enabled: z.boolean().optional(),
+  steps: z.array(z.object({
+    name: z.string(),
+    agentRole: z.string(),
+    order: z.number(),
+    config: z.record(z.unknown()).optional(),
+  })).optional(),
+});
+
 // GET /api/v1/pipelines?companyId=xxx
 pipelineRouter.get("/", async (req, res, next) => {
   try {
@@ -248,9 +262,10 @@ pipelineRouter.patch("/:id", async (req, res, next) => {
       throw new AppError(404, "Pipeline not found");
     }
 
+    const patchData = updatePipelineSchema.parse(req.body);
     const updated = await prisma.pipeline.update({
       where: { id: pipeline.id },
-      data: req.body,
+      data: { ...patchData, steps: patchData.steps as any },
     });
 
     await prisma.activityLog.create({
