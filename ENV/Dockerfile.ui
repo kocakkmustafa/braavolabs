@@ -27,6 +27,10 @@ COPY --from=build /app/packages/ui/.next/standalone ./
 COPY --from=build /app/packages/ui/.next/static ./packages/ui/.next/static
 COPY --from=build /app/packages/ui/public ./packages/ui/public
 
+# Run as non-root user
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
+USER nextjs
+
 EXPOSE 3000
 ENV PORT=3000
 CMD ["node", "packages/ui/server.js"]

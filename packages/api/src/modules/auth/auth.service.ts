@@ -169,7 +169,8 @@ export async function login(data: {
     }
   } catch (err: any) {
     if (err instanceof AppError) throw err;
-    // Redis down — continue without lockout
+    // Redis down — fail closed for login security
+    throw new AppError(503, "Authentication service temporarily unavailable");
   }
 
   const user = await prisma.user.findUnique({
@@ -190,7 +191,7 @@ export async function login(data: {
         await redis.set(lockKey, "1", "EX", 1800); // 30 min lockout
         await redis.del(failKey);
       }
-    } catch { /* Redis failure — skip lockout */ }
+    } catch { /* Redis failure — lockout tracking skipped but login still fails due to invalid password */ }
 
     throw new AppError(401, "Invalid email or password");
   }
@@ -226,12 +227,13 @@ export async function login(data: {
 /**
  * Get Google OAuth authorization URL.
  */
-export function getGoogleAuthUrl(): string {
+export function getGoogleAuthUrl(state?: string): string {
   const client = getGoogleClient();
   return client.generateAuthUrl({
     access_type: "offline",
     scope: ["openid", "email", "profile"],
     prompt: "consent",
+    ...(state && { state }),
   });
 }
 

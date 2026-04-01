@@ -1,9 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages";
+import crypto from "crypto";
 import { spawn } from "node:child_process";
 import { env } from "../../config/env";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
+import { AppError } from "../../middleware/error";
 import { slugify } from "@ai-company-os/core";
 import { PRIMITIVES, PLAN_LIMITS } from "@ai-company-os/core";
 
@@ -186,8 +188,18 @@ If you need more information, output:
 }
 \`\`\``;
 
-// In-memory session store (will move to Redis in production)
-const sessions = new Map<string, BuilderSession>();
+// In-memory session store with TTL cleanup (1 hour expiry)
+const sessions = new Map<string, BuilderSession & { expiresAt: number }>();
+const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
+const MAX_SESSIONS_PER_TENANT = 5;
+
+// Periodic cleanup every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, session] of sessions) {
+    if (now > session.expiresAt) sessions.delete(id);
+  }
+}, 5 * 60 * 1000);
 
 /**
  * Start a new company building session from freeform text.
@@ -196,7 +208,7 @@ export async function startBuildSession(
   tenantId: string,
   description: string,
 ): Promise<BuilderSession> {
-  const sessionId = `build_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const sessionId = `build_${crypto.randomUUID()}`;
 
   // Check plan limits
   const tenant = await prisma.tenant.findUnique({
@@ -229,13 +241,23 @@ export async function startBuildSession(
 
   const parsed = parseBuilderResponse(assistantText);
 
-  const session: BuilderSession = {
+  // Enforce per-tenant session limit
+  let tenantSessionCount = 0;
+  for (const s of sessions.values()) {
+    if (s.tenantId === tenantId) tenantSessionCount++;
+  }
+  if (tenantSessionCount >= MAX_SESSIONS_PER_TENANT) {
+    throw new AppError(429, "Too many active build sessions. Please wait for existing sessions to expire.");
+  }
+
+  const session: BuilderSession & { expiresAt: number } = {
     sessionId,
     tenantId,
     status: parsed.ready ? "ready" : "clarifying",
     turn: 1,
     messages,
     companySpec: parsed.ready ? buildSpec(parsed.company) : undefined,
+    expiresAt: Date.now() + SESSION_TTL_MS,
   };
 
   sessions.set(sessionId, session);
@@ -253,11 +275,16 @@ export async function startBuildSession(
  */
 export async function continueBuildSession(
   sessionId: string,
+  tenantId: string,
   userResponse: string,
 ): Promise<BuilderSession> {
   const session = sessions.get(sessionId);
-  if (!session) throw new Error("Session not found");
-  if (session.status !== "clarifying") throw new Error("Session is not in clarification state");
+  if (!session || Date.now() > session.expiresAt) {
+    if (session) sessions.delete(sessionId);
+    throw new AppError(404, "Session not found or expired");
+  }
+  if (session.tenantId !== tenantId) throw new AppError(403, "Not authorized to access this session");
+  if (session.status !== "clarifying") throw new AppError(400, "Session is not in clarification state");
 
   session.messages.push({ role: "user", content: userResponse });
   session.turn++;
@@ -296,11 +323,15 @@ export async function continueBuildSession(
 /**
  * Confirm and create the company from a ready session.
  */
-export async function confirmBuild(sessionId: string): Promise<BuilderSession> {
+export async function confirmBuild(sessionId: string, tenantId: string): Promise<BuilderSession> {
   const session = sessions.get(sessionId);
-  if (!session) throw new Error("Session not found");
+  if (!session || Date.now() > session.expiresAt) {
+    if (session) sessions.delete(sessionId);
+    throw new AppError(404, "Session not found or expired");
+  }
+  if (session.tenantId !== tenantId) throw new AppError(403, "Not authorized to access this session");
   if (session.status !== "ready" || !session.companySpec) {
-    throw new Error("Session is not ready for confirmation");
+    throw new AppError(400, "Session is not ready for confirmation");
   }
 
   const spec = session.companySpec;
@@ -391,8 +422,14 @@ export async function confirmBuild(sessionId: string): Promise<BuilderSession> {
 /**
  * Get a session by ID.
  */
-export function getSession(sessionId: string): BuilderSession | undefined {
-  return sessions.get(sessionId);
+export function getSession(sessionId: string, tenantId: string): BuilderSession | undefined {
+  const session = sessions.get(sessionId);
+  if (!session || Date.now() > session.expiresAt) {
+    if (session) sessions.delete(sessionId);
+    return undefined;
+  }
+  if (session.tenantId !== tenantId) return undefined;
+  return session;
 }
 
 // ─── Helpers ────────────────────────────────────────────
