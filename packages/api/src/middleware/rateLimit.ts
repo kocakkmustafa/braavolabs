@@ -34,7 +34,11 @@ export function rateLimit(options: RateLimitOptions) {
 
       next();
     } catch {
-      // If Redis is down, allow the request
+      // If Redis is down, fail closed on auth endpoints, allow others
+      if (keyPrefix === "rl:auth" || keyPrefix === "rl:login" || keyPrefix === "rl:register") {
+        res.status(503).json({ error: "Service temporarily unavailable" });
+        return;
+      }
       next();
     }
   };

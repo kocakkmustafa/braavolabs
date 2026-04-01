@@ -42,7 +42,7 @@ export default function LoginPage() {
     if (!email.trim()) return "Email is required.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Please enter a valid email address.";
     if (!password) return "Password is required.";
-    if (password.length < 6) return "Password must be at least 6 characters.";
+    if (password.length < 8) return "Password must be at least 8 characters.";
     if (mode === "register") {
       if (!name.trim()) return "Full name is required.";
       if (!tenantName.trim()) return "Organization name is required.";
@@ -227,7 +227,7 @@ export default function LoginPage() {
 
             <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" required />
             <div>
-              <Field label="Password" type="password" value={password} onChange={setPassword} placeholder="Min. 6 characters" required minLength={6} />
+              <Field label="Password" type="password" value={password} onChange={setPassword} placeholder="Min. 8 characters" required minLength={8} />
               {mode === "login" && (
                 <div className="flex justify-end mt-1.5">
                   <button type="button" onClick={() => setShowForgot(true)} className="text-xs transition-colors hover:opacity-80" style={{ color: "#a4e6ff", background: "none", border: "none", cursor: "pointer", padding: 0 }}>

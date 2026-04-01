@@ -123,6 +123,15 @@ memoryRouter.post("/", async (req, res, next) => {
 // GET /api/v1/memory/:id/related — get related memories via graph
 memoryRouter.get("/:id/related", async (req, res, next) => {
   try {
+    // Verify the memory item belongs to this tenant
+    const memory = await prisma.memoryItem.findUnique({
+      where: { id: req.params.id },
+      include: { company: { select: { tenantId: true } } },
+    });
+    if (!memory || memory.company.tenantId !== req.auth!.tenantId) {
+      throw new AppError(404, "Memory item not found");
+    }
+
     const { relation } = req.query;
     const related = await getRelatedMemories(
       req.params.id,
@@ -143,6 +152,19 @@ const edgeSchema = z.object({
 memoryRouter.post("/edges", async (req, res, next) => {
   try {
     const data = edgeSchema.parse(req.body);
+
+    // Verify both memory items belong to this tenant
+    const [fromMem, toMem] = await Promise.all([
+      prisma.memoryItem.findUnique({ where: { id: data.fromId }, include: { company: { select: { tenantId: true } } } }),
+      prisma.memoryItem.findUnique({ where: { id: data.toId }, include: { company: { select: { tenantId: true } } } }),
+    ]);
+    if (!fromMem || fromMem.company.tenantId !== req.auth!.tenantId) {
+      throw new AppError(404, "Source memory item not found");
+    }
+    if (!toMem || toMem.company.tenantId !== req.auth!.tenantId) {
+      throw new AppError(404, "Target memory item not found");
+    }
+
     const edgeId = await addEdge(data);
     res.status(201).json({ edgeId });
   } catch (err) { next(err); }

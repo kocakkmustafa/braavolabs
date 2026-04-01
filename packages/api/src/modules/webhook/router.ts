@@ -19,28 +19,41 @@ webhookRouter.post("/:companySlug/:event", async (req, res, next) => {
       return;
     }
 
-    // Verify webhook signature — required when a secret is configured
+    // Verify webhook signature — REQUIRED (reject if no secret configured)
     const signature = req.headers["x-webhook-signature"] as string | undefined;
+    const timestamp = req.headers["x-webhook-timestamp"] as string | undefined;
     const secret = (company.config as Record<string, any>)?.webhookSecret || process.env.WEBHOOK_SECRET || "";
-    if (secret) {
-      if (!signature) {
-        res.status(401).json({ error: "Missing X-Webhook-Signature header" });
-        return;
-      }
-      const expectedSig = crypto
-        .createHmac("sha256", secret)
-        .update(JSON.stringify(req.body))
-        .digest("hex");
-      const sigBuf = Buffer.from(signature);
-      const expectedBuf = Buffer.from(expectedSig);
-      // timingSafeEqual requires equal-length buffers; mismatched length = invalid
-      if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
-        res.status(401).json({ error: "Invalid webhook signature" });
+    if (!secret) {
+      res.status(403).json({ error: "Webhook secret not configured for this company" });
+      return;
+    }
+    if (!signature) {
+      res.status(401).json({ error: "Missing X-Webhook-Signature header" });
+      return;
+    }
+
+    // Replay protection: reject requests older than 5 minutes
+    if (timestamp) {
+      const ts = parseInt(timestamp, 10);
+      if (isNaN(ts) || Math.abs(Date.now() - ts) > 5 * 60 * 1000) {
+        res.status(401).json({ error: "Webhook timestamp too old or invalid" });
         return;
       }
     }
 
-    logger.info({ companySlug, event, body: req.body }, "Webhook received");
+    const payload = timestamp ? `${timestamp}.${JSON.stringify(req.body)}` : JSON.stringify(req.body);
+    const expectedSig = crypto
+      .createHmac("sha256", secret)
+      .update(payload)
+      .digest("hex");
+    const sigBuf = Buffer.from(signature);
+    const expectedBuf = Buffer.from(expectedSig);
+    if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+      res.status(401).json({ error: "Invalid webhook signature" });
+      return;
+    }
+
+    logger.info({ companySlug, event, payloadSize: JSON.stringify(req.body).length }, "Webhook received");
 
     await prisma.activityLog.create({
       data: {
@@ -49,7 +62,7 @@ webhookRouter.post("/:companySlug/:event", async (req, res, next) => {
         action: `webhook.${event}`,
         resource: "company",
         resourceId: company.id,
-        details: { event, payload: req.body },
+        details: { event, payloadSize: JSON.stringify(req.body).length, payloadKeys: Object.keys(req.body ?? {}) },
       },
     });
 

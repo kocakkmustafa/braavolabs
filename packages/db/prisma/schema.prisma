@@ -343,6 +343,7 @@ model OutreachEnrollment {
   contact  Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@unique([sequenceId, contactId])
+  @@index([contactId])
   @@index([status])
   @@map("outreach_enrollments")
 }

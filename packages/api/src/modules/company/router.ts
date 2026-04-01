@@ -206,7 +206,7 @@ companyRouter.post("/build/:sessionId/answer", async (req, res, next) => {
       .object({ answer: z.string().min(1) })
       .parse(req.body);
 
-    const session = await continueBuildSession(req.params.sessionId, answer);
+    const session = await continueBuildSession(req.params.sessionId, req.auth!.tenantId, answer);
 
     res.json({
       sessionId: session.sessionId,
@@ -221,7 +221,7 @@ companyRouter.post("/build/:sessionId/answer", async (req, res, next) => {
 // POST /api/v1/companies/build/:sessionId/confirm — confirm and create the company
 companyRouter.post("/build/:sessionId/confirm", async (req, res, next) => {
   try {
-    const session = await confirmBuild(req.params.sessionId);
+    const session = await confirmBuild(req.params.sessionId, req.auth!.tenantId);
 
     res.status(201).json({
       sessionId: session.sessionId,
@@ -235,7 +235,7 @@ companyRouter.post("/build/:sessionId/confirm", async (req, res, next) => {
 // GET /api/v1/companies/build/:sessionId — get session status
 companyRouter.get("/build/:sessionId", async (req, res, next) => {
   try {
-    const session = getSession(req.params.sessionId);
+    const session = getSession(req.params.sessionId, req.auth!.tenantId);
     if (!session) throw new AppError(404, "Build session not found");
 
     res.json({
