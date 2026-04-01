@@ -10,6 +10,7 @@
 
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
+import { AppError } from "../../middleware/error";
 import { slugify } from "@ai-company-os/core";
 
 export interface Blueprint {
@@ -39,7 +40,7 @@ export async function publishBlueprint(
     include: { agents: true, pipelines: true },
   });
 
-  if (!company) throw new Error("Company not found");
+  if (!company) throw new AppError(404, "Company not found");
 
   // Build the blueprint spec from the company
   const spec = {
@@ -141,9 +142,9 @@ export async function cloneBlueprint(
   overrides: { name?: string } = {},
 ): Promise<{ companyId: string }> {
   const blueprint = await getBlueprint(slug);
-  if (!blueprint) throw new Error("Blueprint not found");
+  if (!blueprint) throw new AppError(404, "Blueprint not found");
   if (!blueprint.isPublic && blueprint.creatorTenantId !== tenantId) {
-    throw new Error("This blueprint is private");
+    throw new AppError(403, "This blueprint is private");
   }
 
   const spec = blueprint.spec as any;

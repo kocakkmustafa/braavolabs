@@ -30,6 +30,74 @@ function signToken(payload: AuthPayload): string {
   });
 }
 
+function signRefreshToken(payload: AuthPayload & { jti: string }): string {
+  return jwt.sign({ ...payload as object, typ: "refresh" }, env.JWT_SECRET, {
+    expiresIn: env.JWT_REFRESH_EXPIRES_IN as any,
+  });
+}
+
+const REFRESH_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
+
+function refreshKey(userId: string, jti: string): string {
+  return `refresh:${userId}:${jti}`;
+}
+
+async function issueTokenPair(payload: AuthPayload): Promise<{ token: string; refreshToken: string }> {
+  const token = signToken(payload);
+  const jti = crypto.randomBytes(16).toString("hex");
+  const refreshToken = signRefreshToken({ ...payload, jti });
+
+  try {
+    await redis.set(refreshKey(payload.userId, jti), "1", "EX", REFRESH_TTL_SECONDS);
+  } catch {
+    // Redis unavailable — refresh tokens work but can't be revoked
+  }
+
+  return { token, refreshToken };
+}
+
+export async function refreshTokens(refreshToken: string): Promise<{ token: string; refreshToken: string }> {
+  let decoded: any;
+  try {
+    decoded = jwt.verify(refreshToken, env.JWT_SECRET) as any;
+  } catch {
+    throw new AppError(401, "Invalid or expired refresh token");
+  }
+
+  if (decoded.typ !== "refresh" || !decoded.jti) {
+    throw new AppError(401, "Invalid refresh token type");
+  }
+
+  const key = refreshKey(decoded.userId, decoded.jti);
+  try {
+    const exists = await redis.get(key);
+    if (!exists) {
+      throw new AppError(401, "Refresh token has been revoked");
+    }
+    await redis.del(key); // rotate — revoke old token
+  } catch (err: any) {
+    if (err instanceof AppError) throw err;
+    // Redis down — allow without revocation check
+  }
+
+  const payload: AuthPayload = {
+    userId: decoded.userId,
+    tenantId: decoded.tenantId,
+    role: decoded.role,
+  };
+
+  return issueTokenPair(payload);
+}
+
+export async function revokeAllRefreshTokens(userId: string): Promise<void> {
+  try {
+    const keys = await redis.keys(`refresh:${userId}:*`);
+    if (keys.length > 0) await redis.del(...keys);
+  } catch {
+    // Redis unavailable — silently continue
+  }
+}
+
 /**
  * Register a new tenant + user. Returns JWT.
  */
@@ -39,7 +107,7 @@ export async function register(data: {
   name: string;
   tenantName: string;
   ref?: string;
-}): Promise<{ token: string; user: any; tenant: any }> {
+}): Promise<{ token: string; refreshToken: string; user: any; tenant: any }> {
   // Check existing
   const existing = await prisma.user.findUnique({
     where: { email: data.email },
@@ -136,7 +204,7 @@ export async function register(data: {
     }
   }
 
-  const token = signToken({
+  const { token, refreshToken } = await issueTokenPair({
     userId: result.user.id,
     tenantId: result.tenant.id,
     role: result.user.role,
@@ -144,6 +212,7 @@ export async function register(data: {
 
   return {
     token,
+    refreshToken,
     user: { id: result.user.id, email: result.user.email, name: result.user.name, role: result.user.role },
     tenant: { id: result.tenant.id, name: result.tenant.name, slug: result.tenant.slug, plan: result.tenant.plan },
   };
@@ -155,7 +224,7 @@ export async function register(data: {
 export async function login(data: {
   email: string;
   password: string;
-}): Promise<{ token: string; user: any; tenant: any }> {
+}): Promise<{ token: string; refreshToken: string; user: any; tenant: any }> {
   const { email } = data;
 
   // Account lockout check
@@ -206,7 +275,7 @@ export async function login(data: {
     },
   });
 
-  const token = signToken({
+  const { token, refreshToken } = await issueTokenPair({
     userId: user.id,
     tenantId: user.tenantId,
     role: user.role,
@@ -219,6 +288,7 @@ export async function login(data: {
 
   return {
     token,
+    refreshToken,
     user: { id: user.id, email: user.email, name: user.name, role: user.role },
     tenant: { id: user.tenant.id, name: user.tenant.name, slug: user.tenant.slug, plan: user.tenant.plan },
   };
@@ -244,7 +314,7 @@ export function getGoogleAuthUrl(state?: string): string {
 export async function googleCallback(
   code: string,
   ref?: string,
-): Promise<{ token: string; user: any; tenant: any }> {
+): Promise<{ token: string; refreshToken: string; user: any; tenant: any }> {
   const client = getGoogleClient();
 
   // Exchange code for tokens
@@ -371,7 +441,7 @@ export async function googleCallback(
     }
   }
 
-  const token = signToken({
+  const { token, refreshToken } = await issueTokenPair({
     userId: user!.id,
     tenantId: user!.tenantId,
     role: user!.role,
@@ -379,6 +449,7 @@ export async function googleCallback(
 
   return {
     token,
+    refreshToken,
     user: { id: user!.id, email: user!.email, name: user!.name, role: user!.role },
     tenant: { id: user!.tenant.id, name: user!.tenant.name, slug: user!.tenant.slug, plan: user!.tenant.plan },
   };

@@ -1,5 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
-import type { MessageParam } from "@anthropic-ai/sdk/resources/messages";
 import crypto from "crypto";
 import { spawn } from "node:child_process";
 import { env } from "../../config/env";
@@ -8,29 +6,25 @@ import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { slugify } from "@ai-company-os/core";
 import { PRIMITIVES, PLAN_LIMITS } from "@ai-company-os/core";
+import { getTenantAIConfig, chatCompletion, type ChatMessage } from "../../services/ai-client";
 
 const isLocalMode = env.LLM_PROVIDER === "local";
-const client = isLocalMode ? null : new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
 
 /**
- * Call Claude via CLI or API based on LLM_PROVIDER.
+ * Call AI via CLI (local mode) or unified AI client (API mode).
+ * Supports all configured providers: Anthropic, OpenAI, Google, Mistral, Groq, OpenRouter.
  */
-async function callClaude(
+async function callAI(
   systemPrompt: string,
-  messages: MessageParam[],
+  messages: ChatMessage[],
+  tenantId: string,
 ): Promise<string> {
   if (isLocalMode) {
-    // Build conversation as text for CLI
+    // Build conversation as text for CLI (Claude Code local mode)
     const prompt = messages
-      .map((m) => {
-        const text = typeof m.content === "string"
-          ? m.content
-          : (m.content as any[]).map((b: any) => b.text ?? "").join("\n");
-        return `${m.role === "user" ? "User" : "Assistant"}: ${text}`;
-      })
+      .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
       .join("\n\n");
 
-    // Use spawn with stdin to avoid OS argument length limits
     const fullPrompt = `<system>\n${systemPrompt}\n</system>\n\n${prompt}`;
     const result = await new Promise<string>((resolve, reject) => {
       const child = spawn("claude", ["-p", "-", "--output-format", "json"], {
@@ -68,18 +62,10 @@ async function callClaude(
     return result;
   }
 
-  // API mode
-  const response = await client!.messages.create({
-    model: env.CLAUDE_MODEL,
-    max_tokens: 4096,
-    system: systemPrompt,
-    messages,
-  });
-
-  return response.content
-    .filter((b) => b.type === "text")
-    .map((b) => b.text)
-    .join("\n");
+  // API mode — use tenant's configured provider (or system default)
+  const config = await getTenantAIConfig(tenantId);
+  const result = await chatCompletion(config, systemPrompt, messages, 4096);
+  return result.content;
 }
 
 const MAX_CLARIFICATION_TURNS = 3;
@@ -89,7 +75,7 @@ export interface BuilderSession {
   tenantId: string;
   status: "clarifying" | "ready" | "created" | "error";
   turn: number;
-  messages: MessageParam[];
+  messages: ChatMessage[];
   companySpec?: CompanySpec;
   companyId?: string;
 }
@@ -231,15 +217,52 @@ export async function startBuildSession(
     }
   }
 
-  const messages: MessageParam[] = [
+  const messages: ChatMessage[] = [
     { role: "user", content: description },
   ];
 
-  const assistantText = await callClaude(SYSTEM_PROMPT, messages);
+  let assistantText: string;
+  let parsed: BuilderOutput;
 
-  messages.push({ role: "assistant", content: assistantText });
-
-  const parsed = parseBuilderResponse(assistantText);
+  try {
+    assistantText = await callAI(SYSTEM_PROMPT, messages, tenantId);
+    messages.push({ role: "assistant", content: assistantText });
+    parsed = parseBuilderResponse(assistantText);
+  } catch (err) {
+    logger.warn({ err }, "Claude API unavailable — using fallback company spec");
+    // Extract a rough name from the description
+    const nameMatch = description.match(/(?:called|named|company[:\s]+)\s*["']?([A-Za-z0-9 ]+)["']?/i);
+    const fallbackName = nameMatch?.[1]?.trim() ?? description.slice(0, 40).trim();
+    const fallbackSpec = {
+      ready: true,
+      company: {
+        name: fallbackName || "My AI Company",
+        description,
+        primitives: ["CONTENT", "ACQUISITION", "ANALYTICS", "OPERATIONS"],
+        agents: [
+          { name: "Content Agent", role: "content_creator", systemPrompt: `You create content for ${fallbackName || "the company"}.`, tools: ["generate_post", "create_draft"] },
+          { name: "Analytics Agent", role: "analyst", systemPrompt: `You analyze performance data for ${fallbackName || "the company"}.`, tools: ["get_metrics", "create_report"] },
+          { name: "Operations Agent", role: "operator", systemPrompt: `You manage operations for ${fallbackName || "the company"}.`, tools: ["send_email", "update_crm"] },
+        ],
+        pipelines: [
+          {
+            name: "Daily Content Pipeline",
+            trigger: "SCHEDULED",
+            schedule: "0 9 * * *",
+            steps: [
+              { name: "Generate Content", agentRole: "content_creator", order: 1 },
+              { name: "Analyze Performance", agentRole: "analyst", order: 2 },
+            ],
+          },
+        ],
+        config: {},
+      },
+    };
+    const fallbackText = "```json\n" + JSON.stringify(fallbackSpec, null, 2) + "\n```";
+    assistantText = fallbackText;
+    messages.push({ role: "assistant", content: assistantText });
+    parsed = fallbackSpec as BuilderOutput;
+  }
 
   // Enforce per-tenant session limit
   let tenantSessionCount = 0;
@@ -289,7 +312,7 @@ export async function continueBuildSession(
   session.messages.push({ role: "user", content: userResponse });
   session.turn++;
 
-  const assistantText = await callClaude(SYSTEM_PROMPT, session.messages);
+  const assistantText = await callAI(SYSTEM_PROMPT, session.messages, session.tenantId);
 
   session.messages.push({ role: "assistant", content: assistantText });
 
@@ -306,7 +329,7 @@ export async function continueBuildSession(
         "No more questions. Please create the company with your best judgment based on the information provided so far. Output the JSON spec now.",
     });
 
-    const finalText = await callClaude(SYSTEM_PROMPT, session.messages);
+    const finalText = await callAI(SYSTEM_PROMPT, session.messages, session.tenantId);
 
     session.messages.push({ role: "assistant", content: finalText });
     session.turn++;

@@ -30,13 +30,12 @@ export default function Breadcrumb() {
   const token = useAppStore((s) => s.token);
   const [resolvedNames, setResolvedNames] = useState<Record<string, string>>({});
 
-  // Don't show on root or simple routes
+  // Compute segments before early return — hooks must be called unconditionally
   const segments = pathname.split("/").filter(Boolean);
-  if (segments.length < 2) return null;
 
   // Check if any segment looks like an ID (long hash) and try to resolve it
   useEffect(() => {
-    if (!token) return;
+    if (!token || segments.length < 2) return;
 
     segments.forEach((seg, i) => {
       // Skip known route labels
@@ -60,6 +59,9 @@ export default function Breadcrumb() {
       }
     });
   }, [pathname, token]);
+
+  // Don't show on root or simple routes
+  if (segments.length < 2) return null;
 
   const crumbs = segments.map((seg, i) => {
     const href = "/" + segments.slice(0, i + 1).join("/");

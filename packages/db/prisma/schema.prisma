@@ -23,8 +23,25 @@ model Tenant {
   companies          Company[]
   usageMeters        UsageMeter[]
   activityLog        ActivityLog[]
+  aiConfig           UserAIConfig?
 
   @@map("tenants")
+}
+
+// ─── AI PROVIDER CONFIG ─────────────────────────────────
+
+model UserAIConfig {
+  id              String     @id @default(cuid())
+  tenantId        String     @unique @map("tenant_id")
+  provider        AIProvider @default(ANTHROPIC)
+  model           String     @default("claude-sonnet-4-20250514")
+  encryptedApiKey String?    @map("encrypted_api_key") @db.Text
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("user_ai_configs")
 }
 
 model User {
@@ -635,4 +652,13 @@ enum IntegrationStatus {
   ACTIVE
   ERROR
   EXPIRED
+}
+
+enum AIProvider {
+  ANTHROPIC
+  OPENAI
+  GOOGLE
+  MISTRAL
+  GROQ
+  OPENROUTER
 }

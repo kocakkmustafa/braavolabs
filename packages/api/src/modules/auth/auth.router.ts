@@ -6,7 +6,8 @@
 import { Router } from "express";
 import crypto from "crypto";
 import { z } from "zod";
-import { register, login, getGoogleAuthUrl, googleCallback, requestPasswordReset, resetPassword } from "./auth.service";
+import { register, login, getGoogleAuthUrl, googleCallback, requestPasswordReset, resetPassword, refreshTokens, revokeAllRefreshTokens } from "./auth.service";
+import { authMiddleware } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
 import { rateLimit } from "../../middleware/rateLimit";
 import { redis } from "../../lib/redis";
@@ -76,6 +77,23 @@ authRouter.post("/reset-password", authRateLimit, validate(resetSchema), async (
   } catch (err) { next(err); }
 });
 
+// POST /api/v1/auth/refresh — exchange refresh token for new access + refresh tokens
+authRouter.post("/refresh", async (req, res, next) => {
+  try {
+    const { refreshToken } = z.object({ refreshToken: z.string().min(1) }).parse(req.body);
+    const result = await refreshTokens(refreshToken);
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/auth/logout — revoke all refresh tokens for the current user
+authRouter.post("/logout", authMiddleware, async (req, res, next) => {
+  try {
+    await revokeAllRefreshTokens(req.auth!.userId);
+    res.json({ message: "Logged out successfully." });
+  } catch (err) { next(err); }
+});
+
 // GET /api/v1/auth/google — redirect to Google consent screen with CSRF state
 authRouter.get("/google", async (_req, res, next) => {
   try {
@@ -110,6 +128,7 @@ authRouter.get("/google/callback", async (req, res, next) => {
     // Redirect to frontend with token
     const redirectUrl = new URL("/auth/callback", process.env.APP_URL ?? "http://localhost:3001");
     redirectUrl.searchParams.set("token", result.token);
+    redirectUrl.searchParams.set("refreshToken", result.refreshToken);
     res.redirect(redirectUrl.toString());
   } catch (err) { next(err); }
 });

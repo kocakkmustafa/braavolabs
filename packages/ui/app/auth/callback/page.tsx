@@ -11,11 +11,12 @@ function CallbackInner() {
 
   useEffect(() => {
     const token = searchParams.get("token");
+    const refreshToken = searchParams.get("refreshToken");
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split(".")[1]));
-        setAuth(token, payload.tenantId);
-        // Remove token from URL before navigating to prevent it from
+        setAuth(token, payload.tenantId, refreshToken ?? undefined);
+        // Remove tokens from URL before navigating to prevent them from
         // appearing in browser history, server logs, or Referer headers.
         window.history.replaceState({}, "", "/auth/callback");
         router.push("/dashboard");

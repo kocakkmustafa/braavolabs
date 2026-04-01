@@ -58,21 +58,21 @@ export default function LoginPage() {
     setLoading(true);
     try {
       if (mode === "login") {
-        const res = await apiFetch<{ token: string; user: any; tenant: any }>(
+        const res = await apiFetch<{ token: string; refreshToken: string; user: any; tenant: any }>(
           "/auth/login",
           { method: "POST", body: JSON.stringify({ email, password }) },
         );
-        setAuth(res.token, res.tenant.id);
+        setAuth(res.token, res.tenant.id, res.refreshToken);
         router.push("/dashboard");
       } else {
-        const res = await apiFetch<{ token: string; user: any; tenant: any }>(
+        const res = await apiFetch<{ token: string; refreshToken: string; user: any; tenant: any }>(
           "/auth/register",
           {
             method: "POST",
             body: JSON.stringify({ email, password, name, tenantName, ...(ref && { ref }) }),
           },
         );
-        setAuth(res.token, res.tenant.id);
+        setAuth(res.token, res.tenant.id, res.refreshToken);
         router.push("/onboarding");
       }
     } catch (err) {

@@ -31,12 +31,22 @@ const NAV_ITEMS = [
   { id: "profile",       label: "Profile",         icon: "person" },
   { id: "notifications", label: "Notifications",   icon: "notifications" },
   { id: "billing",       label: "Plan & Usage",    icon: "credit_card" },
+  { id: "ai_provider",   label: "AI Provider",     icon: "smart_toy" },
   { id: "integrations",  label: "Integrations",    icon: "hub" },
   { id: "governance",    label: "Governance",      icon: "security" },
   { id: "api",           label: "API & Auth",      icon: "terminal" },
   { id: "webhooks",      label: "Webhooks",        icon: "webhook" },
   { id: "referral",      label: "Referral",        icon: "redeem" },
 ];
+
+const PROVIDER_LABELS: Record<string, { label: string; color: string; models: string[] }> = {
+  ANTHROPIC:  { label: "Anthropic Claude", color: "#d97706", models: ["claude-opus-4-6", "claude-sonnet-4-20250514", "claude-haiku-4-5-20251001"] },
+  OPENAI:     { label: "OpenAI",           color: "#10a37f", models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "o1-mini"] },
+  GOOGLE:     { label: "Google Gemini",    color: "#4285f4", models: ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"] },
+  MISTRAL:    { label: "Mistral AI",       color: "#ff6b35", models: ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest"] },
+  GROQ:       { label: "Groq",             color: "#f97316", models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"] },
+  OPENROUTER: { label: "OpenRouter",       color: "#8b5cf6", models: ["openai/gpt-4o", "anthropic/claude-opus-4", "meta-llama/llama-3.3-70b-instruct"] },
+};
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -58,6 +68,18 @@ export default function SettingsPage() {
     weeklyDigest: false, marketing: false,
   });
 
+  // AI Provider state
+  const [aiConfig, setAiConfig] = useState<{
+    provider: string; model: string; hasApiKey: boolean; maskedApiKey?: string | null;
+  } | null>(null);
+  const [aiProvider, setAiProvider] = useState("ANTHROPIC");
+  const [aiModel, setAiModel] = useState("claude-sonnet-4-20250514");
+  const [aiApiKey, setAiApiKey] = useState("");
+  const [aiSaving, setAiSaving] = useState(false);
+  const [aiTesting, setAiTesting] = useState(false);
+  const [aiTestResult, setAiTestResult] = useState<{ success: boolean; response?: string; error?: string } | null>(null);
+  const [aiSaveMsg, setAiSaveMsg] = useState<string | null>(null);
+
   // Integration state
   const [companies, setCompanies] = useState<any[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
@@ -78,6 +100,15 @@ export default function SettingsPage() {
       setCompanies(c);
       if (c.length > 0 && !selectedCompanyId) setSelectedCompanyId(c[0].id);
     }).catch(() => {});
+    // Load AI config
+    fetch("/api/v1/settings/ai-config", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((cfg) => {
+        setAiConfig(cfg);
+        setAiProvider(cfg.provider ?? "ANTHROPIC");
+        setAiModel(cfg.model ?? "claude-sonnet-4-20250514");
+      })
+      .catch(() => {});
   }, [token, hydrated]);
 
   // Load integrations when company changes
@@ -111,6 +142,49 @@ export default function SettingsPage() {
   }
 
   function handleSave() { setSaved(true); setTimeout(() => setSaved(false), 2000); }
+
+  async function handleSaveAiConfig() {
+    if (!token) return;
+    setAiSaving(true);
+    setAiSaveMsg(null);
+    try {
+      const body: Record<string, string> = { provider: aiProvider, model: aiModel };
+      if (aiApiKey.trim()) body.apiKey = aiApiKey.trim();
+      const res = await fetch("/api/v1/settings/ai-config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message ?? "Failed to save");
+      setAiConfig((prev) => ({ ...prev, provider: aiProvider, model: aiModel, hasApiKey: !!aiApiKey || !!prev?.hasApiKey }));
+      setAiApiKey("");
+      setAiSaveMsg("AI provider saved successfully");
+      setTimeout(() => setAiSaveMsg(null), 3000);
+    } catch (err: any) {
+      setAiSaveMsg(`Error: ${err.message}`);
+    } finally {
+      setAiSaving(false);
+    }
+  }
+
+  async function handleTestAiConfig() {
+    if (!token) return;
+    setAiTesting(true);
+    setAiTestResult(null);
+    try {
+      const res = await fetch("/api/v1/settings/ai-config/test", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setAiTestResult(data);
+    } catch (err: any) {
+      setAiTestResult({ success: false, error: err.message });
+    } finally {
+      setAiTesting(false);
+    }
+  }
 
   const currentPlan = billingUsage?.plan ?? "FREE";
   const limits = PLAN_LIMITS[currentPlan] ?? PLAN_LIMITS.FREE;
@@ -584,6 +658,166 @@ export default function SettingsPage() {
                   </code>
                 </div>
               ))}
+            </div>
+          </Section>
+        )}
+
+        {/* AI Provider */}
+        {active === "ai_provider" && (
+          <Section title="AI Provider" subtitle="Configure which AI model powers your companies and agents">
+            <div className="space-y-5">
+
+              {/* Provider selector */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "#859399" }}>Provider</p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {Object.entries(PROVIDER_LABELS).map(([id, info]) => (
+                    <button
+                      key={id}
+                      onClick={() => {
+                        setAiProvider(id);
+                        setAiModel(info.models[0]);
+                      }}
+                      className="flex items-center gap-3 p-4 rounded-xl text-left transition-all"
+                      style={{
+                        background: aiProvider === id ? "rgba(0,209,255,0.08)" : "rgba(255,255,255,0.03)",
+                        border: aiProvider === id ? "1px solid rgba(0,209,255,0.4)" : "1px solid rgba(255,255,255,0.06)",
+                      }}
+                    >
+                      <div
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ background: info.color }}
+                      />
+                      <span className="text-xs font-semibold truncate" style={{ color: aiProvider === id ? "#e1e2eb" : "#859399" }}>
+                        {info.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Model selector */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "#859399" }}>Model</p>
+                <select
+                  value={aiModel}
+                  onChange={(e) => setAiModel(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl text-sm font-mono"
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    color: "#e1e2eb",
+                    outline: "none",
+                  }}
+                >
+                  {(PROVIDER_LABELS[aiProvider]?.models ?? []).map((m) => (
+                    <option key={m} value={m} style={{ background: "#10131a" }}>{m}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* API Key */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "#859399" }}>
+                  API Key
+                  {aiConfig?.hasApiKey && (
+                    <span className="ml-2 text-[10px] font-normal normal-case" style={{ color: "#4ade80" }}>
+                      ✓ Key configured ({aiConfig.maskedApiKey})
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs mb-2" style={{ color: "#3c494e" }}>
+                  {aiProvider === "ANTHROPIC" && "Get your key from console.anthropic.com"}
+                  {aiProvider === "OPENAI" && "Get your key from platform.openai.com"}
+                  {aiProvider === "GOOGLE" && "Get your key from aistudio.google.com"}
+                  {aiProvider === "MISTRAL" && "Get your key from console.mistral.ai"}
+                  {aiProvider === "GROQ" && "Get your key from console.groq.com"}
+                  {aiProvider === "OPENROUTER" && "Get your key from openrouter.ai/keys"}
+                </p>
+                <input
+                  type="password"
+                  placeholder={aiConfig?.hasApiKey ? "Leave blank to keep existing key" : "sk-..."}
+                  value={aiApiKey}
+                  onChange={(e) => setAiApiKey(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl text-sm font-mono"
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    color: "#e1e2eb",
+                    outline: "none",
+                  }}
+                />
+              </div>
+
+              {/* Save message */}
+              {aiSaveMsg && (
+                <div
+                  className="px-4 py-3 rounded-xl text-xs font-semibold"
+                  style={{
+                    background: aiSaveMsg.startsWith("Error") ? "rgba(255,107,107,0.1)" : "rgba(74,222,128,0.1)",
+                    color: aiSaveMsg.startsWith("Error") ? "#ff6b6b" : "#4ade80",
+                    border: `1px solid ${aiSaveMsg.startsWith("Error") ? "rgba(255,107,107,0.2)" : "rgba(74,222,128,0.2)"}`,
+                  }}
+                >
+                  {aiSaveMsg}
+                </div>
+              )}
+
+              {/* Test result */}
+              {aiTestResult && (
+                <div
+                  className="px-4 py-3 rounded-xl text-xs"
+                  style={{
+                    background: aiTestResult.success ? "rgba(74,222,128,0.08)" : "rgba(255,107,107,0.08)",
+                    border: `1px solid ${aiTestResult.success ? "rgba(74,222,128,0.2)" : "rgba(255,107,107,0.2)"}`,
+                    color: aiTestResult.success ? "#4ade80" : "#ff6b6b",
+                  }}
+                >
+                  {aiTestResult.success
+                    ? `✓ Connection successful — model responded: "${aiTestResult.response}"`
+                    : `✗ Connection failed: ${aiTestResult.error}`}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSaveAiConfig}
+                  disabled={aiSaving}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                  style={{
+                    background: aiSaving ? "rgba(0,209,255,0.2)" : "linear-gradient(135deg, #00d1ff, #6d11ad)",
+                    color: "white",
+                    opacity: aiSaving ? 0.7 : 1,
+                  }}
+                >
+                  {aiSaving ? "Saving..." : "Save Provider"}
+                </button>
+                <button
+                  onClick={handleTestAiConfig}
+                  disabled={aiTesting || !aiConfig?.hasApiKey}
+                  className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    color: aiConfig?.hasApiKey ? "#e1e2eb" : "#3c494e",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    opacity: aiTesting ? 0.7 : 1,
+                  }}
+                >
+                  {aiTesting ? "Testing..." : "Test Connection"}
+                </button>
+              </div>
+
+              {/* Info box */}
+              <div
+                className="p-4 rounded-xl text-xs"
+                style={{ background: "rgba(109,17,173,0.08)", border: "1px solid rgba(109,17,173,0.2)", color: "#c4a8e0" }}
+              >
+                <p className="font-semibold mb-1">How it works</p>
+                <p style={{ color: "#859399" }}>
+                  Your API key is encrypted with AES-256-GCM before storage. When running pipelines and building companies, agents will use your configured provider. If no key is set, the system falls back to the platform default (Anthropic Claude).
+                </p>
+              </div>
             </div>
           </Section>
         )}

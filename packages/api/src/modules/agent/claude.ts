@@ -10,9 +10,11 @@ import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
 import { getTool } from "./registry";
 import { runLocalAgentLoop } from "./claude-local";
+import { getTenantAIConfig, chatCompletion, type AIClientConfig } from "../../services/ai-client";
 
 const isLocalMode = env.LLM_PROVIDER === "local";
-const client = isLocalMode ? null : new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+// Legacy system-level Anthropic client (used when no tenant config or for Anthropic provider)
+const systemClient = isLocalMode ? null : (env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }) : null);
 
 // Approximate pricing per 1M tokens (Claude Sonnet 4)
 const INPUT_COST_PER_M = 3.0;
@@ -91,7 +93,7 @@ async function withRetry<T>(
 }
 
 /**
- * Execute a single Claude API call with tool use.
+ * Execute a single Anthropic API call with tool use.
  * Returns the response and any tool call results.
  */
 async function executeTurn(
@@ -100,9 +102,11 @@ async function executeTurn(
   tools: Tool[],
   model: string,
   maxTokens: number,
+  anthropicClient?: Anthropic,
 ): Promise<AgentTurnResult> {
+  const client = anthropicClient ?? systemClient;
   if (!client) {
-    throw new Error("Anthropic API client not initialized. Set LLM_PROVIDER=api and ANTHROPIC_API_KEY.");
+    throw new Error("Anthropic API client not initialized. Configure an API key in Settings → AI Provider.");
   }
 
   const response = await withRetry(() =>
@@ -195,6 +199,8 @@ export async function runAgentLoop(config: {
   maxTurns?: number;
   budgetUsd?: number;
   context?: MessageParam[];
+  /** Tenant ID — used to load the tenant's configured AI provider */
+  tenantId?: string;
 }): Promise<AgentLoopResult> {
   // Route to local CLI if configured
   if (isLocalMode) {
@@ -208,6 +214,93 @@ export async function runAgentLoop(config: {
     });
   }
 
+  // For non-Anthropic providers, fall back to simple completion (no tool-use loop)
+  if (config.tenantId) {
+    try {
+      const aiConfig = await getTenantAIConfig(config.tenantId);
+      if (aiConfig.provider !== "ANTHROPIC") {
+        return runNonAnthropicAgentLoop(config, aiConfig);
+      }
+      // For Anthropic, use the tenant's key
+      const tenantClient = new Anthropic({ apiKey: aiConfig.apiKey });
+      return runAnthropicLoop(config, tenantClient);
+    } catch (err) {
+      logger.warn({ err }, "Failed to load tenant AI config — using system default");
+    }
+  }
+
+  return runAnthropicLoop(config, systemClient ?? undefined);
+}
+
+/**
+ * Non-Anthropic providers don't support Anthropic's tool-use format.
+ * We run a simplified loop: send the message, get a response, done.
+ * Tool calls are serialized into the prompt so the model can reason about them.
+ */
+async function runNonAnthropicAgentLoop(
+  config: {
+    systemPrompt: string;
+    userMessage: string;
+    toolNames: string[];
+    maxTurns?: number;
+    budgetUsd?: number;
+  },
+  aiConfig: AIClientConfig,
+): Promise<AgentLoopResult> {
+  const toolDescriptions = config.toolNames.map((name) => {
+    const tool = getTool(name);
+    return tool ? `- ${tool.name}: ${tool.description}` : null;
+  }).filter(Boolean).join("\n");
+
+  const systemWithTools = toolDescriptions
+    ? `${config.systemPrompt}\n\nAvailable tools:\n${toolDescriptions}`
+    : config.systemPrompt;
+
+  const result = await chatCompletion(
+    aiConfig,
+    systemWithTools,
+    [{ role: "user", content: config.userMessage }],
+    4096,
+  );
+
+  const inputCostPerM = 2.0; // conservative estimate for non-Anthropic
+  const outputCostPerM = 8.0;
+  const costUsd =
+    (result.inputTokens / 1_000_000) * inputCostPerM +
+    (result.outputTokens / 1_000_000) * outputCostPerM;
+
+  const turn: AgentTurnResult = {
+    content: result.content,
+    toolCalls: [],
+    inputTokens: result.inputTokens,
+    outputTokens: result.outputTokens,
+    costUsd,
+    stopReason: "end_turn",
+  };
+
+  return {
+    finalContent: result.content,
+    turns: [turn],
+    totalInputTokens: result.inputTokens,
+    totalOutputTokens: result.outputTokens,
+    totalCostUsd: costUsd,
+    totalToolCalls: 0,
+  };
+}
+
+async function runAnthropicLoop(
+  config: {
+    systemPrompt: string;
+    userMessage: string;
+    toolNames: string[];
+    model?: string;
+    maxTokens?: number;
+    maxTurns?: number;
+    budgetUsd?: number;
+    context?: MessageParam[];
+  },
+  anthropicClient?: Anthropic,
+): Promise<AgentLoopResult> {
   const {
     systemPrompt,
     userMessage,
@@ -227,7 +320,7 @@ export async function runAgentLoop(config: {
   let totalCost = 0;
 
   for (let turn = 0; turn < maxTurns; turn++) {
-    const result = await executeTurn(systemPrompt, messages, tools, model, maxTokens);
+    const result = await executeTurn(systemPrompt, messages, tools, model, maxTokens, anthropicClient);
     turns.push(result);
     totalCost += result.costUsd;
 

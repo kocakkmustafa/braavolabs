@@ -168,9 +168,26 @@ companyRouter.post("/:id/resume", async (req, res, next) => {
 // POST /api/v1/companies/build — start building from freeform text
 companyRouter.post("/build", async (req, res, next) => {
   try {
-    const { description } = z
-      .object({ description: z.string().min(10) })
+    const body = z
+      .object({
+        description: z.string().min(10),
+        agentCount: z.number().int().min(1).max(20).optional(),
+        workflowDescription: z.string().optional(),
+        customPipelineSteps: z.array(z.string()).optional(),
+      })
       .parse(req.body);
+
+    // Enrich description with extra parameters if provided
+    let description = body.description;
+    if (body.agentCount) {
+      description += `\n\nRequested agent count: ${body.agentCount} agents.`;
+    }
+    if (body.workflowDescription) {
+      description += `\n\nWorkflow description: ${body.workflowDescription}`;
+    }
+    if (body.customPipelineSteps?.length) {
+      description += `\n\nCustom pipeline steps: ${body.customPipelineSteps.join(", ")}`;
+    }
 
     const session = await startBuildSession(req.auth!.tenantId, description);
 

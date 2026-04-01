@@ -1,8 +1,25 @@
 import type { NextConfig } from "next";
+import path from "path";
+
+// Monorepo root (two levels up from packages/ui)
+const MONOREPO_ROOT = path.resolve(__dirname, "../..");
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@ai-company-os/core"],
   productionBrowserSourceMaps: false,
+  // Setting turbopack.root to the monorepo root matches what Next.js
+  // auto-detects, suppressing the secondary-lockfile scan that otherwise
+  // picks up git worktrees and tries to compile them.
+  turbopack: {
+    root: MONOREPO_ROOT,
+  },
+  webpack(config) {
+    config.watchOptions = {
+      ...config.watchOptions,
+      ignored: [/node_modules/, /\.git/, /\.claude[\\/]worktrees/],
+    };
+    return config;
+  },
   async headers() {
     return [
       {
