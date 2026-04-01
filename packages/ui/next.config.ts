@@ -33,7 +33,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: https:",
-              "connect-src 'self' http://localhost:* https://*.googleapis.com",
+              `connect-src 'self' ${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:*"} https://*.googleapis.com`,
               "frame-ancestors 'none'",
             ].join("; "),
           },

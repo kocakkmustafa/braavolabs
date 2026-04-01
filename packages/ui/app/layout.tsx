@@ -27,7 +27,7 @@ export const metadata: Metadata = {
       { url: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%2300d1ff'/><stop offset='100%' stop-color='%236d11ad'/></linearGradient></defs><rect width='32' height='32' rx='8' fill='url(%23g)'/><text x='16' y='22' font-size='14' font-weight='bold' text-anchor='middle' fill='white' font-family='sans-serif'>AI</text></svg>", type: "image/svg+xml" },
     ],
   },
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3001"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "http://localhost:3001"),
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

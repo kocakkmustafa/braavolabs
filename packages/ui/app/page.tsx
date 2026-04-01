@@ -321,7 +321,7 @@ export default function LandingPage() {
       <nav style={{
         position: "relative", zIndex: 20,
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "16px 32px",
+        padding: "16px clamp(16px, 4vw, 32px)",
         borderBottom: "1px solid rgba(255,255,255,0.04)",
         backdropFilter: "blur(12px)",
         background: "rgba(10,13,20,0.5)",
@@ -333,7 +333,7 @@ export default function LandingPage() {
           <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 15, color: "#e1e2eb", letterSpacing: "-0.02em" }}>AI Company OS</span>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 28, fontSize: 13, fontWeight: 500 }}>
+        <div className="hidden md:flex" style={{ alignItems: "center", gap: 28, fontSize: 13, fontWeight: 500 }}>
           {[["Features", "/features"], ["Pricing", "/pricing"], ["Docs", "/docs"]].map(([label, href]) => (
             <Link
               key={label}
@@ -369,10 +369,10 @@ export default function LandingPage() {
       </nav>
 
       {/* ── SPLIT LAYOUT ── */}
-      <div style={{ position: "relative", zIndex: 10, display: "flex", height: "calc(100vh - 61px)" }}>
+      <div className="flex flex-col lg:flex-row" style={{ position: "relative", zIndex: 10, minHeight: "calc(100vh - 61px)" }}>
 
-        {/* LEFT: Hero (75%) */}
-        <div style={{ flex: "0 0 75%", overflow: "hidden", position: "relative" }}>
+        {/* LEFT: Hero (75% on desktop, 100% on mobile) */}
+        <div className="w-full lg:w-3/4" style={{ overflow: "hidden", position: "relative", minHeight: "calc(100vh - 61px)" }}>
           <AgentCanvas />
 
           {/* Hero content */}
@@ -380,7 +380,7 @@ export default function LandingPage() {
             position: "relative", zIndex: 2,
             height: "100%", display: "flex", flexDirection: "column",
             alignItems: "center", justifyContent: "center",
-            padding: "0 40px", paddingBottom: "6vh",
+            padding: "0 16px", paddingBottom: "6vh",
             opacity: heroVisible ? 1 : 0,
             transform: heroVisible ? "translateY(0)" : "translateY(20px)",
             transition: "opacity 0.8s cubic-bezier(0.16,1,0.3,1), transform 0.8s cubic-bezier(0.16,1,0.3,1)",
@@ -503,7 +503,7 @@ export default function LandingPage() {
               </div>
 
               {/* Stats */}
-              <div style={{ display: "flex", justifyContent: "center", gap: 32, opacity: heroVisible ? 1 : 0, transition: "opacity 0.8s 0.6s" }}>
+              <div className="flex flex-wrap justify-center" style={{ gap: "16px 32px", opacity: heroVisible ? 1 : 0, transition: "opacity 0.8s 0.6s" }}>
                 {[{ v: "1,200+", l: "companies built" }, { v: "10 min", l: "to first deploy" }, { v: "100%", l: "actions audited" }].map((s) => (
                   <div key={s.l} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 14, color: "#e1e2eb" }}>{s.v}</span>
@@ -515,12 +515,12 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* RIGHT: Dashboard side panel (25%) */}
-        <div style={{
+        {/* RIGHT: Dashboard side panel (25% on desktop, hidden on mobile) */}
+        <div className="hidden lg:flex" style={{
           flex: "0 0 25%",
           background: "rgba(8,10,18,0.95)",
           borderLeft: "1px solid rgba(0,209,255,0.08)",
-          display: "flex", flexDirection: "column",
+          flexDirection: "column",
           overflow: "hidden",
           backdropFilter: "blur(20px)",
         }}>
@@ -618,9 +618,9 @@ export default function LandingPage() {
       </div>
 
       {/* Social proof / Trust section */}
-      <section style={{ position: "relative", zIndex: 10, padding: "0 32px 28px" }}>
+      <section style={{ position: "relative", zIndex: 10, padding: "0 clamp(16px,4vw,32px) 28px" }}>
         {/* How it works */}
-        <div className="stagger-children" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, maxWidth: 840, margin: "0 auto 28px" }}>
+        <div className="stagger-children grid grid-cols-1 md:grid-cols-3" style={{ gap: 14, maxWidth: 840, margin: "0 auto 28px" }}>
           {[
             { n: "1", icon: "edit_note", title: "Describe", desc: "Tell Claude what your company does. Up to 3 clarification rounds." },
             { n: "2", icon: "auto_awesome", title: "AI Builds", desc: "Agents, pipelines, memory — all configured automatically." },
@@ -657,15 +657,16 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer style={{ position: "relative", zIndex: 10, padding: "14px 32px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+      <footer style={{ position: "relative", zIndex: 10, padding: "14px clamp(16px,4vw,32px)", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ width: 16, height: 16, borderRadius: 3, background: "linear-gradient(135deg,#00d1ff,#6d11ad)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <span style={{ color: "white", fontWeight: 700, fontSize: 7 }}>AI</span>
             </div>
             <span style={{ fontSize: 11, color: "#3c494e" }}>AI Company OS</span>
+            <span className="hidden sm:inline" style={{ fontSize: 10, color: "#3c494e", marginLeft: 8 }}>&copy; 2026 All rights reserved.</span>
           </div>
-          <div style={{ display: "flex", gap: 20, fontSize: 11 }}>
+          <div className="hidden sm:flex" style={{ gap: 20, fontSize: 11 }}>
             {[["Features", "/features"], ["Pricing", "/pricing"], ["Privacy", "/privacy"], ["Terms", "/terms"]].map(([l, h]) => (
               <Link key={l} href={h} style={{ color: "#3c494e", textDecoration: "none", transition: "color 0.2s" }}
                 onMouseEnter={(e) => e.currentTarget.style.color = "#859399"}

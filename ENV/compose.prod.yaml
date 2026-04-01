@@ -30,14 +30,15 @@ services:
       - "${API_PORT:-8080}:8080"
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://aicos:${POSTGRES_PASSWORD}@postgres:5432/aicos_dev?schema=public
+      DATABASE_URL: postgresql://aicos:${POSTGRES_PASSWORD}@postgres:5432/aicos_prod?schema=public
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       JWT_SECRET: ${JWT_SECRET}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
-      APP_URL: ${APP_URL:-http://localhost:3000}
+      APP_URL: ${APP_URL:?Set APP_URL in .env (e.g. https://app.aicompanyos.com)}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in .env (min 32 chars)}
     depends_on:
       postgres:
         condition: service_healthy
@@ -59,7 +60,8 @@ services:
       context: ..
       dockerfile: ENV/Dockerfile.ui
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080/api/v1}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?Set NEXT_PUBLIC_API_URL in .env (e.g. https://api.aicompanyos.com/api/v1)}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL in .env (e.g. https://app.aicompanyos.com)}
     container_name: aicos-ui
     restart: unless-stopped
     ports:

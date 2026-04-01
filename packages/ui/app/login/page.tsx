@@ -158,7 +158,7 @@ export default function LoginPage() {
 
         {/* Bottom */}
         <div className="relative z-10">
-          <p className="text-xs" style={{ color: "#3c494e" }}>© 2025 AI Company OS. Built with Claude.</p>
+          <p className="text-xs" style={{ color: "#3c494e" }}>© 2026 AI Company OS. Built with Claude.</p>
         </div>
       </div>
 
