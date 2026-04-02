@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "../../lib/api";
-import { useAppStore } from "../../lib/store";
+import { useAuthGuard } from "../../lib/useAuthGuard";
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
   DRAFT: { bg: "rgba(133,147,153,0.12)", color: "#859399", border: "rgba(133,147,153,0.2)" },
@@ -28,7 +28,7 @@ interface AbTest {
 }
 
 export default function AbTestsPage() {
-  const token = useAppStore((s) => s.token);
+  const { token, hydrated } = useAuthGuard();
   const [tests, setTests] = useState<AbTest[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
@@ -104,9 +104,9 @@ export default function AbTestsPage() {
     }
   }
 
-  if (!token) return (
+  if (!hydrated || !token) return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <p className="text-sm" style={{ color: "#859399" }}>Please <Link href="/login" style={{ color: "#00d1ff" }}>login</Link> first.</p>
+      <div className="loading-dots"><span /><span /><span /></div>
     </div>
   );
 

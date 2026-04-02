@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "../../lib/api";
-import { useAppStore } from "../../lib/store";
+import { useAuthGuard } from "../../lib/useAuthGuard";
 
 const RISK_LABELS: Record<string, { label: string; bg: string; color: string; border: string }> = {
   "governance.hard_stop": { label: "Hard Stop", bg: "rgba(239,68,68,0.1)", color: "#f87171", border: "rgba(239,68,68,0.2)" },
@@ -16,7 +16,7 @@ const RISK_LABELS: Record<string, { label: string; bg: string; color: string; bo
 };
 
 export default function RisksPage() {
-  const token = useAppStore((s) => s.token);
+  const { token, hydrated } = useAuthGuard();
   const [events, setEvents] = useState<any[]>([]);
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
   const [tab, setTab] = useState<"risks" | "activity">("risks");
@@ -27,9 +27,9 @@ export default function RisksPage() {
     api.activityLog(token, 100).then((res) => setActivityLogs(res.logs)).catch(() => {});
   }, [token]);
 
-  if (!token) return (
+  if (!hydrated || !token) return (
     <div className="flex items-center justify-center min-h-screen" style={{ background: "#0a0d14" }}>
-      <p className="text-sm" style={{ color: "#859399" }}>Please <Link href="/login" style={{ color: "#00d1ff" }}>login</Link> first.</p>
+      <div className="loading-dots"><span /><span /><span /></div>
     </div>
   );
 

@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { api } from "../../lib/api";
-import { useAppStore } from "../../lib/store";
+import { useState } from "react";
+import { useAuthGuard } from "../../lib/useAuthGuard";
 
 const CATEGORIES = [
   { id: "", label: "All", icon: "apps" },
@@ -209,7 +208,7 @@ const INTEGRATION_CATALOG = [
 ];
 
 export default function IntegrationsPage() {
-  const token = useAppStore((s) => s.token);
+  const { token, hydrated } = useAuthGuard();
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -223,6 +222,12 @@ export default function IntegrationsPage() {
   const availableCount = INTEGRATION_CATALOG.filter((c) => c.status === "available").length;
   const betaCount = INTEGRATION_CATALOG.filter((c) => c.status === "beta").length;
   const totalCount = INTEGRATION_CATALOG.length;
+
+  if (!hydrated || !token) return (
+    <div className="flex items-center justify-center min-h-screen" style={{ background: "#0a0d14" }}>
+      <div className="loading-dots"><span /><span /><span /></div>
+    </div>
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">

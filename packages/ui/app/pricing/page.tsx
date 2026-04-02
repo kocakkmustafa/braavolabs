@@ -25,7 +25,7 @@ const PLANS = [
     desc: "For founders running multiple AI companies.",
     features: [
       "5 AI companies",
-      "Unlimited runs",
+      "100 runs / month",
       "All channels",
       "HubSpot CRM sync",
       "Advanced analytics",

@@ -155,6 +155,14 @@ app.listen(env.API_PORT, env.API_HOST, () => {
 // Graceful shutdown
 process.on("SIGTERM", async () => {
   logger.info("SIGTERM received — shutting down gracefully");
+
+  // Force exit after 30s if graceful shutdown hangs
+  const forceTimeout = setTimeout(() => {
+    logger.error("Forced shutdown after 30 seconds");
+    process.exit(1);
+  }, 30_000);
+  forceTimeout.unref();
+
   stopScheduledPipelines();
   stopConsolidationCron();
 
