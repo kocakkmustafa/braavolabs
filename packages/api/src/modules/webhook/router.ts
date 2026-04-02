@@ -3,6 +3,9 @@ import crypto from "crypto";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { enqueueRun } from "../pipeline/runner";
+import { getWebhookTemplates, getWebhookTemplateById, getWebhookTemplateCategories } from "./templates";
+import { authMiddleware } from "../../middleware/auth";
+import { AppError } from "../../middleware/error";
 
 export const webhookRouter = Router();
 
@@ -102,6 +105,145 @@ webhookRouter.post("/:companySlug/:event", async (req, res, next) => {
       company: companySlug,
       event,
       triggeredRuns: runs,
+    });
+  } catch (err) { next(err); }
+});
+
+// ─── Webhook Template Marketplace Routes ────────────────────
+// These are authenticated API routes, exported as a separate router
+// and mounted at /api/v1/webhooks in the main app.
+
+export const webhookTemplateRouter = Router();
+webhookTemplateRouter.use(authMiddleware);
+
+// GET /api/v1/webhooks/templates — List all templates (with optional ?category= filter)
+webhookTemplateRouter.get("/templates", async (req, res, _next) => {
+  const category = req.query.category as string | undefined;
+  const templates = getWebhookTemplates(category);
+  const categories = getWebhookTemplateCategories();
+
+  res.json({
+    templates: templates.map((t) => ({
+      id: t.id,
+      name: t.name,
+      description: t.description,
+      category: t.category,
+      icon: t.icon,
+      provider: t.provider,
+      eventType: t.eventType,
+      popularity: t.popularity,
+    })),
+    categories,
+    total: templates.length,
+  });
+});
+
+// GET /api/v1/webhooks/templates/:id — Get template detail with sample payload
+webhookTemplateRouter.get("/templates/:id", async (req, res, next) => {
+  try {
+    const template = getWebhookTemplateById(req.params.id);
+    if (!template) throw new AppError(404, "Webhook template not found");
+
+    res.json(template);
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/webhooks/templates/:id/install — Install a template for a company
+webhookTemplateRouter.post("/templates/:id/install", async (req, res, next) => {
+  try {
+    const template = getWebhookTemplateById(req.params.id);
+    if (!template) throw new AppError(404, "Webhook template not found");
+
+    const { companyId, pipelineId } = req.body;
+    if (!companyId || !pipelineId) {
+      throw new AppError(400, "companyId and pipelineId are required");
+    }
+
+    // Verify company belongs to tenant
+    const company = await prisma.company.findFirst({
+      where: { id: companyId, tenantId: req.auth!.tenantId },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+
+    // Verify pipeline belongs to company
+    const pipeline = await prisma.pipeline.findFirst({
+      where: { id: pipelineId, companyId: company.id },
+    });
+    if (!pipeline) throw new AppError(404, "Pipeline not found for this company");
+
+    // Generate a webhook secret for this installation
+    const webhookSecret = crypto.randomBytes(32).toString("hex");
+
+    // Update pipeline to be webhook-triggered with template config
+    await prisma.pipeline.update({
+      where: { id: pipeline.id },
+      data: {
+        trigger: "WEBHOOK",
+        enabled: true,
+        config: {
+          ...(pipeline.config as Record<string, any> ?? {}),
+          webhookTemplate: {
+            templateId: template.id,
+            provider: template.provider,
+            eventType: template.eventType,
+            fieldMapping: template.fieldMapping,
+            installedAt: new Date().toISOString(),
+          },
+        },
+      },
+    });
+
+    // Store webhook secret in company config (merge with existing)
+    const existingConfig = (company.config as Record<string, any>) ?? {};
+    await prisma.company.update({
+      where: { id: company.id },
+      data: {
+        config: {
+          ...existingConfig,
+          webhookSecret,
+        },
+      },
+    });
+
+    // Build the webhook URL
+    const baseUrl = process.env.APP_URL || "http://localhost:4000";
+    const webhookUrl = `${baseUrl}/hooks/${company.slug}/${template.eventType}`;
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "webhook.template.install",
+        resource: "pipeline",
+        resourceId: pipeline.id,
+        details: {
+          templateId: template.id,
+          templateName: template.name,
+          provider: template.provider,
+          companyId: company.id,
+          pipelineId: pipeline.id,
+        },
+      },
+    });
+
+    logger.info(
+      { templateId: template.id, companyId: company.id, pipelineId: pipeline.id },
+      "Webhook template installed",
+    );
+
+    res.status(201).json({
+      success: true,
+      webhookUrl,
+      webhookSecret,
+      template: {
+        id: template.id,
+        name: template.name,
+        provider: template.provider,
+        eventType: template.eventType,
+      },
+      setupInstructions: template.setupInstructions,
+      fieldMapping: template.fieldMapping,
+      pipelineId: pipeline.id,
     });
   } catch (err) { next(err); }
 });

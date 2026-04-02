@@ -7,3 +7,7 @@ export * from "./outreach";
 export * from "./billing";
 export * from "./governance";
 export * from "./draft";
+export * from "./agent-version";
+export * from "./ab-test";
+export * from "./collaboration";
+export * from "./integration-catalog";

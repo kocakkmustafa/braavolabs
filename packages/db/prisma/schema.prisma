@@ -23,6 +23,7 @@ model Tenant {
   companies          Company[]
   usageMeters        UsageMeter[]
   activityLog        ActivityLog[]
+  abTests            AbTest[]
 
   @@map("tenants")
 }
@@ -72,6 +73,7 @@ model Company {
   evalResults        EvalResult[]
   drafts             Draft[]
   integrations       Integration[]
+  abTests            AbTest[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -90,11 +92,30 @@ model Agent {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   runSteps  RunStep[]
+  abTests   AbTest[]
+  versions  AgentVersion[]
 
   @@index([companyId])
   @@map("agents")
+}
+
+model AgentVersion {
+  id            String   @id @default(cuid())
+  agentId       String   @map("agent_id")
+  version       Int      // Auto-incrementing version number per agent
+  label         String?  // Optional label like "v2 - more concise"
+  snapshot      Json     // Full agent config snapshot at this point
+  changeSummary String?  @map("change_summary") @db.Text
+  createdBy     String?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, version])
+  @@index([agentId])
+  @@map("agent_versions")
 }
 
 // ─── PIPELINES & RUNS ───────────────────────────────────
@@ -635,4 +656,68 @@ enum IntegrationStatus {
   ACTIVE
   ERROR
   EXPIRED
+}
+
+// ─── A/B TESTING ───────────────────────────────────────
+
+model AbTest {
+  id              String       @id @default(cuid())
+  tenantId        String       @map("tenant_id")
+  companyId       String       @map("company_id")
+  agentId         String       @map("agent_id")
+  name            String
+  description     String?
+  status          AbTestStatus @default(DRAFT)
+  winnerVariantId String?      @map("winner_variant_id")
+  startedAt       DateTime?    @map("started_at")
+  endedAt         DateTime?    @map("ended_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company  Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  agent    Agent           @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  variants AbTestVariant[]
+
+  @@index([tenantId])
+  @@index([companyId])
+  @@index([agentId])
+  @@map("ab_tests")
+}
+
+model AbTestVariant {
+  id        String   @id @default(cuid())
+  testId    String   @map("test_id")
+  name      String
+  config    Json     // Agent config override (systemPrompt, model, temperature, etc.)
+  weight    Int      @default(50) // Traffic allocation percentage
+  createdAt DateTime @default(now()) @map("created_at")
+
+  test    AbTest         @relation(fields: [testId], references: [id], onDelete: Cascade)
+  metrics AbTestMetric[]
+
+  @@index([testId])
+  @@map("ab_test_variants")
+}
+
+model AbTestMetric {
+  id        String   @id @default(cuid())
+  variantId String   @map("variant_id")
+  runId     String?  @map("run_id")
+  metric    String
+  value     Float
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  variant AbTestVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@index([variantId])
+  @@map("ab_test_metrics")
+}
+
+enum AbTestStatus {
+  DRAFT
+  RUNNING
+  PAUSED
+  COMPLETED
 }

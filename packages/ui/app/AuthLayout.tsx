@@ -7,6 +7,7 @@ import CommandPalette from "../components/CommandPalette";
 import NotificationBell from "../components/NotificationBell";
 import OnboardingChecklist from "../components/OnboardingChecklist";
 import Breadcrumb from "../components/Breadcrumb";
+import PresenceBar from "../components/PresenceBar";
 
 // Landing page renders its own nav — skip sidebar offset
 const FULL_WIDTH_PATHS = ["/"];
@@ -57,6 +58,7 @@ export default function AuthLayout({
 
       {/* Global overlays */}
       <CommandPalette />
+      {!isFullWidth && <PresenceBar />}
       {!isFullWidth && <NotificationBell />}
       {!isFullWidth && <OnboardingChecklist />}
 
