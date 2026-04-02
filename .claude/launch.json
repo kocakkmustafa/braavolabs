@@ -3,9 +3,9 @@
   "configurations": [
     {
       "name": "ui",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["run", "dev"],
-      "autoPort": true,
+      "runtimeExecutable": "/opt/homebrew/bin/node",
+      "runtimeArgs": ["/opt/homebrew/lib/node_modules/pnpm/bin/pnpm.cjs", "run", "dev"],
+      "port": 3000,
       "cwd": "packages/ui"
     }
   ]

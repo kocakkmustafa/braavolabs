@@ -139,8 +139,9 @@ function AgentCanvas() {
         const prevX = (p.fromX + (p.toX - p.fromX) * prevT) * w;
         const prevY = (p.fromY + (p.toY - p.fromY) * prevT) * h;
         const trailGrad = ctx.createLinearGradient(prevX, prevY, px, py);
+        const alphaHex = Math.max(0, Math.min(255, Math.round(alpha * 140))).toString(16).padStart(2, "0");
         trailGrad.addColorStop(0, `${p.color}00`);
-        trailGrad.addColorStop(1, p.color + Math.round(alpha * 140).toString(16).padStart(2, "0"));
+        trailGrad.addColorStop(1, `${p.color}${alphaHex}`);
         ctx.beginPath();
         ctx.moveTo(prevX, prevY);
         ctx.lineTo(px, py);
@@ -149,9 +150,10 @@ function AgentCanvas() {
         ctx.stroke();
 
         // Core
+        const coreHex = Math.max(0, Math.min(255, Math.round(alpha * 220))).toString(16).padStart(2, "0");
         ctx.beginPath();
         ctx.arc(px, py, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = p.color + Math.round(alpha * 220).toString(16).padStart(2, "0");
+        ctx.fillStyle = `${p.color}${coreHex}`;
         ctx.fill();
 
         // Glow
