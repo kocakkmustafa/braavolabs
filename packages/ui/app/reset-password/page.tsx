@@ -14,7 +14,7 @@ function ResetPasswordInner() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
     if (password !== confirm) { setError("Passwords do not match."); return; }
     if (!token) { setError("Invalid reset link."); return; }
     setError(null);
@@ -62,7 +62,7 @@ function ResetPasswordInner() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="New password (min. 6 chars)"
+                  placeholder="New password (min. 8 chars)"
                   className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
                   style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
                 />
