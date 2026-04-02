@@ -43,8 +43,8 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     if (!token) return;
-    api.usage(token).then(setUsage).catch(() => {});
-    api.finance(token).then(setFinance).catch(() => {});
+    api.usage(token).then(setUsage).catch(() => setUsage({ totalRuns: 0, completedRuns: 0, failedRuns: 0, successRate: 0 }));
+    api.finance(token).then(setFinance).catch(() => setFinance({ totalCostUsd: 0, runCount: 0, avgCostPerRun: 0 }));
   }, [token]);
 
   useEffect(() => {

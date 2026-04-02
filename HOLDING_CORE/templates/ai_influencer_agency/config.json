@@ -1,0 +1,321 @@
+{
+  "name": "AI Influencer Agency",
+  "description": "AI-generated virtual influencer personas — consistent visual identity, multi-platform content production, brand deal management, self-improving engagement loop.",
+  "primitives": [
+    "CONTENT",
+    "ACQUISITION",
+    "SALES",
+    "DELIVERY",
+    "ANALYTICS",
+    "OPERATIONS",
+    "FINANCE",
+    "MEMORY",
+    "GOVERNANCE"
+  ],
+  "config": {
+    "channels": ["instagram", "tiktok", "twitter", "youtube"],
+    "contentTypes": [
+      "static_post",
+      "carousel",
+      "reel",
+      "story",
+      "tiktok_video",
+      "tweet",
+      "thread",
+      "youtube_short"
+    ],
+    "postingFrequency": "2x_daily_per_persona",
+    "maxPersonas": 10,
+    "imageGeneration": {
+      "provider": "comfyui_api",
+      "fallback": "replicate_api",
+      "consistencyMethod": "lora_trained_character",
+      "resolution": "1024x1024"
+    },
+    "videoGeneration": {
+      "provider": "kling_ai",
+      "fallback": "runway_ml",
+      "voiceProvider": "elevenlabs",
+      "maxDurationSec": 60
+    },
+    "engagementLoop": {
+      "metricsCollectionInterval": "6h",
+      "strategyUpdateInterval": "24h",
+      "abTestEnabled": true
+    }
+  },
+  "agents": [
+    {
+      "name": "Persona Architect",
+      "role": "persona_architect",
+      "description": "Designs and maintains AI influencer identities — visual style, personality, voice, niche, target audience.",
+      "tools": [
+        "generate_persona_profile",
+        "generate_character_images",
+        "create_voice_clone",
+        "update_persona_style_guide",
+        "recall_memory"
+      ]
+    },
+    {
+      "name": "Visual Producer",
+      "role": "visual_producer",
+      "description": "Generates consistent character images, backgrounds, outfits, and video content using trained LoRA models.",
+      "tools": [
+        "generate_character_image",
+        "generate_scene_image",
+        "generate_video_clip",
+        "upscale_image",
+        "face_swap_consistency_check",
+        "store_asset"
+      ]
+    },
+    {
+      "name": "Content Strategist",
+      "role": "content_strategist",
+      "description": "Plans content calendar, selects trends, decides topics/hooks based on analytics feedback loop.",
+      "tools": [
+        "analyze_trends",
+        "analyze_competitor_content",
+        "generate_content_calendar",
+        "select_optimal_posting_time",
+        "recall_memory",
+        "ab_test_strategy"
+      ]
+    },
+    {
+      "name": "Copywriter",
+      "role": "copywriter",
+      "description": "Writes captions, scripts, bios, hashtags, and engagement replies in the persona's unique voice.",
+      "tools": [
+        "write_caption",
+        "write_video_script",
+        "write_thread",
+        "write_reply",
+        "generate_hashtags",
+        "create_draft",
+        "edit_draft"
+      ]
+    },
+    {
+      "name": "Publisher",
+      "role": "publisher",
+      "description": "Publishes content to all platforms, manages scheduling, handles cross-posting and format adaptation.",
+      "tools": [
+        "publish_instagram_post",
+        "publish_instagram_reel",
+        "publish_tiktok_video",
+        "publish_tweet",
+        "publish_youtube_short",
+        "schedule_content",
+        "cross_post_adapt"
+      ]
+    },
+    {
+      "name": "Engagement Manager",
+      "role": "engagement_manager",
+      "description": "Monitors comments/DMs, generates authentic replies, manages community growth in persona's voice.",
+      "tools": [
+        "read_comments",
+        "write_reply",
+        "read_dms",
+        "send_dm",
+        "follow_relevant_accounts",
+        "engage_with_niche_content"
+      ]
+    },
+    {
+      "name": "Analytics Analyst",
+      "role": "analytics_analyst",
+      "description": "Collects metrics, identifies patterns, feeds performance data back to strategist and memory.",
+      "tools": [
+        "collect_instagram_metrics",
+        "collect_tiktok_metrics",
+        "collect_twitter_metrics",
+        "collect_youtube_metrics",
+        "generate_performance_report",
+        "identify_top_performing_content",
+        "calculate_engagement_rate",
+        "store_memory"
+      ]
+    },
+    {
+      "name": "Brand Deal Manager",
+      "role": "brand_deal_manager",
+      "description": "Finds brand partnership opportunities, manages outreach, negotiates deals, tracks revenue.",
+      "tools": [
+        "search_brand_opportunities",
+        "send_pitch_email",
+        "create_media_kit",
+        "track_deal_pipeline",
+        "generate_invoice",
+        "recall_memory"
+      ]
+    }
+  ],
+  "pipelines": [
+    {
+      "name": "Daily Content Production",
+      "trigger": "SCHEDULED",
+      "schedule": "0 6 * * *",
+      "description": "Daily pipeline: trend analysis → content creation → visual generation → publish",
+      "steps": [
+        {
+          "name": "analyze_trends_and_plan",
+          "agentRole": "content_strategist",
+          "order": 1,
+          "config": { "lookback_hours": 24, "platforms": ["instagram", "tiktok", "twitter"] }
+        },
+        {
+          "name": "write_content",
+          "agentRole": "copywriter",
+          "order": 2,
+          "config": { "posts_per_persona": 2, "include_stories": true }
+        },
+        {
+          "name": "generate_visuals",
+          "agentRole": "visual_producer",
+          "order": 3,
+          "config": { "ensure_consistency": true, "generate_variants": 3 }
+        },
+        {
+          "name": "publish_content",
+          "agentRole": "publisher",
+          "order": 4,
+          "config": { "stagger_minutes": 120, "cross_post": true }
+        }
+      ]
+    },
+    {
+      "name": "Engagement Loop",
+      "trigger": "SCHEDULED",
+      "schedule": "0 */4 * * *",
+      "description": "Every 4 hours: reply to comments, engage with niche, grow community",
+      "steps": [
+        {
+          "name": "scan_and_reply",
+          "agentRole": "engagement_manager",
+          "order": 1,
+          "config": { "max_replies_per_run": 20, "prioritize_high_follower": true }
+        }
+      ]
+    },
+    {
+      "name": "Performance Analysis & Strategy Update",
+      "trigger": "SCHEDULED",
+      "schedule": "0 22 * * *",
+      "description": "Nightly: collect metrics, analyze performance, update content strategy for next day",
+      "steps": [
+        {
+          "name": "collect_all_metrics",
+          "agentRole": "analytics_analyst",
+          "order": 1,
+          "config": { "period": "24h" }
+        },
+        {
+          "name": "update_strategy",
+          "agentRole": "content_strategist",
+          "order": 2,
+          "config": { "use_performance_data": true, "adjust_calendar": true }
+        },
+        {
+          "name": "store_learnings",
+          "agentRole": "analytics_analyst",
+          "order": 3,
+          "config": { "memory_type": "candidate", "min_confidence": 0.7 }
+        }
+      ]
+    },
+    {
+      "name": "Weekly Brand Outreach",
+      "trigger": "SCHEDULED",
+      "schedule": "0 10 * * 1",
+      "description": "Monday: find brand opportunities, send pitches, update media kit",
+      "steps": [
+        {
+          "name": "update_media_kit",
+          "agentRole": "brand_deal_manager",
+          "order": 1,
+          "config": { "include_latest_metrics": true }
+        },
+        {
+          "name": "find_and_pitch_brands",
+          "agentRole": "brand_deal_manager",
+          "order": 2,
+          "config": { "max_pitches": 10, "min_follower_threshold": 5000 }
+        }
+      ]
+    },
+    {
+      "name": "New Persona Onboarding",
+      "trigger": "MANUAL",
+      "description": "Create a new AI influencer persona from scratch",
+      "steps": [
+        {
+          "name": "design_persona",
+          "agentRole": "persona_architect",
+          "order": 1,
+          "config": { "generate_style_guide": true }
+        },
+        {
+          "name": "generate_initial_assets",
+          "agentRole": "visual_producer",
+          "order": 2,
+          "config": { "initial_images": 50, "train_lora": true }
+        },
+        {
+          "name": "create_launch_content",
+          "agentRole": "copywriter",
+          "order": 3,
+          "config": { "intro_posts": 10, "bio_variations": 5 }
+        },
+        {
+          "name": "setup_accounts_and_publish",
+          "agentRole": "publisher",
+          "order": 4,
+          "config": { "platforms": ["instagram", "tiktok", "twitter"] }
+        }
+      ]
+    },
+    {
+      "name": "Monthly Revenue Report",
+      "trigger": "SCHEDULED",
+      "schedule": "0 9 1 * *",
+      "description": "First of month: revenue summary, growth metrics, strategy recommendations",
+      "steps": [
+        {
+          "name": "compile_revenue_report",
+          "agentRole": "brand_deal_manager",
+          "order": 1
+        },
+        {
+          "name": "compile_growth_report",
+          "agentRole": "analytics_analyst",
+          "order": 2
+        }
+      ]
+    }
+  ],
+  "governance": {
+    "approval_required": [
+      "brand_deal_accept",
+      "spend_over_50_usd",
+      "new_persona_launch",
+      "account_credential_change"
+    ],
+    "risk_stops": [
+      "spam_stop",
+      "brand_violation_stop",
+      "cost_anomaly_stop",
+      "loop_stop",
+      "platform_rate_limit_stop"
+    ],
+    "content_rules": [
+      "no_political_content",
+      "no_nsfw_content",
+      "disclose_ai_generated_when_required",
+      "respect_platform_tos",
+      "no_impersonation_of_real_people"
+    ]
+  }
+}

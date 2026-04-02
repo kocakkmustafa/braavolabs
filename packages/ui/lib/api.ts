@@ -254,4 +254,81 @@ export const api = {
     apiFetch<any>(`/integrations/${companyId}/${provider}`, { method: "DELETE", token }),
   missingIntegrations: (token: string, companyId: string) =>
     apiFetch<any>(`/integrations/${companyId}/missing`, { token }),
+
+  // Integration Catalog (120+ connectors)
+  integrationCatalog: (token: string, category?: string, search?: string) => {
+    const params = new URLSearchParams();
+    if (category) params.set("category", category);
+    if (search) params.set("search", search);
+    const qs = params.toString();
+    return apiFetch<any[]>(`/integrations/catalog${qs ? `?${qs}` : ""}`, { token });
+  },
+  integrationCatalogDetail: (token: string, id: string) =>
+    apiFetch<any>(`/integrations/catalog/${id}`, { token }),
+
+  // A/B Testing
+  listAbTests: (token: string, status?: string) =>
+    apiFetch<any[]>(`/ab-tests${status ? `?status=${status}` : ""}`, { token }),
+  createAbTest: (token: string, data: { companyId: string; agentId: string; name: string; description?: string; variants: any[] }) =>
+    apiFetch<any>("/ab-tests", { method: "POST", body: JSON.stringify(data), token }),
+  getAbTest: (token: string, id: string) =>
+    apiFetch<any>(`/ab-tests/${id}`, { token }),
+  startAbTest: (token: string, id: string) =>
+    apiFetch<any>(`/ab-tests/${id}/start`, { method: "PATCH", token }),
+  pauseAbTest: (token: string, id: string) =>
+    apiFetch<any>(`/ab-tests/${id}/pause`, { method: "PATCH", token }),
+  completeAbTest: (token: string, id: string, winnerVariantId?: string) =>
+    apiFetch<any>(`/ab-tests/${id}/complete`, { method: "PATCH", body: JSON.stringify({ winnerVariantId }), token }),
+  deleteAbTest: (token: string, id: string) =>
+    apiFetch<any>(`/ab-tests/${id}`, { method: "DELETE", token }),
+  recordAbMetric: (token: string, testId: string, data: { variantId: string; metric: string; value: number; runId?: string }) =>
+    apiFetch<any>(`/ab-tests/${testId}/metrics`, { method: "POST", body: JSON.stringify(data), token }),
+  abTestResults: (token: string, id: string) =>
+    apiFetch<any>(`/ab-tests/${id}/results`, { token }),
+
+  // Agent Version Control
+  listAgentVersions: (token: string, agentId: string) =>
+    apiFetch<any[]>(`/agents/${agentId}/versions`, { token }),
+  createAgentVersion: (token: string, agentId: string, data?: { label?: string; changeSummary?: string }) =>
+    apiFetch<any>(`/agents/${agentId}/versions`, { method: "POST", body: JSON.stringify(data ?? {}), token }),
+  getAgentVersion: (token: string, agentId: string, version: number) =>
+    apiFetch<any>(`/agents/${agentId}/versions/${version}`, { token }),
+  diffAgentVersions: (token: string, agentId: string, v1: number, v2: number) =>
+    apiFetch<any>(`/agents/${agentId}/versions/${v1}/diff/${v2}`, { token }),
+  rollbackAgent: (token: string, agentId: string, targetVersion: number) =>
+    apiFetch<any>(`/agents/${agentId}/rollback`, { method: "POST", body: JSON.stringify({ targetVersion }), token }),
+
+  // Natural Language Agent Editing
+  nlEditPreview: (token: string, agentId: string, instruction: string) =>
+    apiFetch<any>(`/agents/${agentId}/nl-edit`, { method: "POST", body: JSON.stringify({ instruction }), token }),
+  nlEditApply: (token: string, agentId: string, updatedConfig: Record<string, any>) =>
+    apiFetch<any>(`/agents/${agentId}/nl-edit/apply`, { method: "POST", body: JSON.stringify({ updatedConfig }), token }),
+
+  // Webhook Templates
+  listWebhookTemplates: (token: string, category?: string) =>
+    apiFetch<any[]>(`/webhooks/templates${category ? `?category=${category}` : ""}`, { token }),
+  getWebhookTemplate: (token: string, id: string) =>
+    apiFetch<any>(`/webhooks/templates/${id}`, { token }),
+  installWebhookTemplate: (token: string, templateId: string, data: { companyId: string; pipelineId: string }) =>
+    apiFetch<any>(`/webhooks/templates/${templateId}/install`, { method: "POST", body: JSON.stringify(data), token }),
+
+  // Collaboration / Presence
+  collaborationPresence: (token: string) =>
+    apiFetch<any[]>("/collaboration/presence", { token }),
+  collaborationHeartbeat: (token: string, data: { page?: string; action?: string; userName?: string }) =>
+    apiFetch<any>("/collaboration/presence/heartbeat", {
+      method: "POST", body: JSON.stringify(data), token,
+    }),
+  collaborationRoom: (token: string, roomId: string) =>
+    apiFetch<any>(`/collaboration/rooms/${encodeURIComponent(roomId)}`, { token }),
+  collaborationJoinRoom: (token: string, roomId: string, userName?: string) =>
+    apiFetch<any>(`/collaboration/rooms/${encodeURIComponent(roomId)}/join`, {
+      method: "POST", body: JSON.stringify({ userName }), token,
+    }),
+  collaborationLeaveRoom: (token: string, roomId: string) =>
+    apiFetch<any>(`/collaboration/rooms/${encodeURIComponent(roomId)}/leave`, {
+      method: "POST", body: JSON.stringify({}), token,
+    }),
+  collaborationActivity: (token: string, limit = 50) =>
+    apiFetch<any[]>(`/collaboration/activity?limit=${limit}`, { token }),
 };

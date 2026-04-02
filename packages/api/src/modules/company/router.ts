@@ -4,12 +4,14 @@ import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { z } from "zod";
+import { applyNaturalLanguageEdit, AgentConfig } from "../agent/nl-editor";
 import {
   startBuildSession,
   continueBuildSession,
   confirmBuild,
   getSession,
 } from "./builder";
+import { createVersion } from "../agent/version-control";
 
 export const companyRouter = Router();
 companyRouter.use(authMiddleware);
@@ -369,6 +371,13 @@ companyRouter.patch("/:companyId/agents/:agentId", async (req, res, next) => {
     if (!agent) throw new AppError(404, "Agent not found");
 
     const updateData = agentUpdateSchema.parse(req.body);
+
+    // Snapshot current state before applying the update
+    await createVersion(agent.id, {
+      changeSummary: `Auto-snapshot before update`,
+      createdBy: req.auth!.userId,
+    });
+
     const updated = await prisma.agent.update({
       where: { id: agent.id },
       data: { ...updateData, tools: updateData.tools as any },
@@ -412,6 +421,152 @@ companyRouter.delete("/:companyId/agents/:agentId", async (req, res, next) => {
     });
 
     res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// ─── Natural Language Agent Editing ─────────────────────────
+
+const nlEditSchema = z.object({
+  instruction: z.string().min(1).max(2000),
+});
+
+const nlEditApplySchema = z.object({
+  updatedConfig: z.object({
+    name: z.string().min(1),
+    role: z.string().min(1),
+    systemPrompt: z.string(),
+    model: z.string(),
+    temperature: z.number().min(0).max(2),
+    maxTokens: z.number().int().min(100).max(200000),
+    tools: z.array(z.string()),
+  }),
+});
+
+// POST /api/v1/companies/:companyId/agents/:agentId/nl-edit — Preview NL edit
+companyRouter.post("/:companyId/agents/:agentId/nl-edit", async (req, res, next) => {
+  try {
+    const company = await prisma.company.findFirst({
+      where: { id: req.params.companyId, tenantId: req.auth!.tenantId },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+
+    const agent = await prisma.agent.findFirst({
+      where: { id: req.params.agentId, companyId: company.id },
+    });
+    if (!agent) throw new AppError(404, "Agent not found");
+
+    const { instruction } = nlEditSchema.parse(req.body);
+
+    // Build current config from agent DB fields
+    const agentTools = (Array.isArray(agent.tools) ? agent.tools : []) as string[];
+    const currentConfig: AgentConfig = {
+      name: agent.name,
+      role: agent.role,
+      systemPrompt: agent.systemPrompt,
+      model: agent.model,
+      temperature: 0.7, // default — not stored in DB
+      maxTokens: agent.maxTokens,
+      tools: agentTools,
+    };
+
+    const preview = applyNaturalLanguageEdit({ instruction, currentConfig });
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "agent.nl-edit.preview",
+        resource: "agent",
+        resourceId: agent.id,
+        details: {
+          instruction,
+          changesCount: preview.changes.length,
+          fields: preview.changes.map((c) => c.field),
+        },
+      },
+    });
+
+    res.json({
+      agentId: agent.id,
+      preview,
+    });
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/companies/:companyId/agents/:agentId/nl-edit/apply — Apply previewed edit
+companyRouter.post("/:companyId/agents/:agentId/nl-edit/apply", async (req, res, next) => {
+  try {
+    const company = await prisma.company.findFirst({
+      where: { id: req.params.companyId, tenantId: req.auth!.tenantId },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+
+    const agent = await prisma.agent.findFirst({
+      where: { id: req.params.agentId, companyId: company.id },
+    });
+    if (!agent) throw new AppError(404, "Agent not found");
+
+    const { updatedConfig } = nlEditApplySchema.parse(req.body);
+
+    // Create a version snapshot before applying changes
+    const latestVersion = await prisma.agentVersion.findFirst({
+      where: { agentId: agent.id },
+      orderBy: { version: "desc" },
+    });
+    const nextVersion = (latestVersion?.version ?? 0) + 1;
+
+    await prisma.agentVersion.create({
+      data: {
+        agentId: agent.id,
+        version: nextVersion,
+        label: `NL edit v${nextVersion}`,
+        snapshot: {
+          name: agent.name,
+          role: agent.role,
+          systemPrompt: agent.systemPrompt,
+          model: agent.model,
+          maxTokens: agent.maxTokens,
+          tools: agent.tools,
+        },
+        changeSummary: `Applied NL edit: name=${updatedConfig.name}, role=${updatedConfig.role}, model=${updatedConfig.model}`,
+        createdBy: req.auth!.userId,
+      },
+    });
+
+    // Apply the update (temperature is not stored in DB — only DB-persisted fields)
+    const updated = await prisma.agent.update({
+      where: { id: agent.id },
+      data: {
+        name: updatedConfig.name,
+        role: updatedConfig.role,
+        systemPrompt: updatedConfig.systemPrompt,
+        model: updatedConfig.model,
+        maxTokens: updatedConfig.maxTokens,
+        tools: updatedConfig.tools as any,
+      },
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "agent.nl-edit.apply",
+        resource: "agent",
+        resourceId: agent.id,
+        details: {
+          version: nextVersion,
+          updatedFields: Object.keys(updatedConfig),
+        },
+      },
+    });
+
+    logger.info({ agentId: agent.id, version: nextVersion }, "NL edit applied to agent");
+
+    res.json({
+      success: true,
+      agent: updated,
+      version: nextVersion,
+    });
   } catch (err) { next(err); }
 });
 

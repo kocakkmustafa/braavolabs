@@ -5,9 +5,40 @@ import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { authMiddleware } from "../../middleware/auth";
 import { PROVIDER_INFO, getRequiredProviders, getMissingIntegrations, TOOL_PROVIDER_MAP } from "./checker";
+import { getIntegrationCatalog, getIntegrationById } from "./catalog";
 
 export const integrationRouter = Router();
 integrationRouter.use(authMiddleware);
+
+/**
+ * GET /integrations/catalog — browse the pre-built integration catalog
+ * Query params: ?category=crm&search=email&status=available
+ */
+integrationRouter.get("/catalog", (req, res) => {
+  const { category, search, status } = req.query;
+  const results = getIntegrationCatalog({
+    category: category as any,
+    search: search as string | undefined,
+    status: status as any,
+  });
+  res.json({
+    total: results.length,
+    connectors: results,
+  });
+});
+
+/**
+ * GET /integrations/catalog/:id — get a single connector from the catalog
+ */
+integrationRouter.get("/catalog/:id", (req, res, next) => {
+  try {
+    const connector = getIntegrationById(req.params.id);
+    if (!connector) throw new AppError(404, `Connector '${req.params.id}' not found in catalog`);
+    res.json(connector);
+  } catch (err) {
+    next(err);
+  }
+});
 
 /**
  * GET /integrations/providers — list all available providers with setup info

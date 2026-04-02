@@ -84,7 +84,7 @@ export default function MarketplacePage() {
           </div>
           <div>
             <h1 className="text-xl sm:text-2xl font-bold font-headline" style={{ color: "#e1e2eb" }}>Blueprint Marketplace</h1>
-            <p className="text-sm" style={{ color: "#859399" }}>15 ready-to-use AI company templates + community blueprints</p>
+            <p className="text-sm" style={{ color: "#859399" }}>{catalogBlueprints.length > 0 ? `${catalogBlueprints.length} ready-to-use AI company templates` : "Ready-to-use AI company templates"} + community blueprints</p>
           </div>
         </div>
       </div>
