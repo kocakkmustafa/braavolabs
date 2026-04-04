@@ -16,6 +16,7 @@ export default function BillingPage() {
   const [subscription, setSubscription] = useState<any>(null);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!hydrated || !token) return;
@@ -40,21 +41,23 @@ export default function BillingPage() {
 
   async function handleUpgrade(target: "PRO" | "ENTERPRISE") {
     setUpgradeLoading(true);
+    setErrorMsg(null);
     try {
       const { url } = await api.billingCheckout(token!, target);
       window.location.href = url;
     } catch (err) {
-      alert((err as Error).message);
+      setErrorMsg((err as Error).message);
     }
     setUpgradeLoading(false);
   }
 
   async function handlePortal() {
+    setErrorMsg(null);
     try {
       const { url } = await api.billingPortal(token!);
       window.location.href = url;
     } catch (err) {
-      alert((err as Error).message);
+      setErrorMsg((err as Error).message);
     }
   }
 
@@ -65,6 +68,13 @@ export default function BillingPage() {
         <p className="text-sm mt-0.5" style={{ color: "#859399" }}>Manage your plan, monitor usage, and upgrade when ready.</p>
       </div>
 
+      {errorMsg && (
+        <div className="px-4 py-3 rounded-xl mb-4 text-sm" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
+          {errorMsg}
+          <button onClick={() => setErrorMsg(null)} className="ml-3 underline text-xs" style={{ color: "#f87171" }}>Dismiss</button>
+        </div>
+      )}
+
       {loading ? (
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
@@ -74,7 +84,7 @@ export default function BillingPage() {
       ) : (
         <>
           {/* Current plan banner */}
-          <div className="glass-card rounded-2xl p-6 mb-6" style={{ borderLeft: "3px solid #00d1ff" }}>
+          <div className="glass-card rounded-2xl p-6 mb-4" style={{ borderLeft: "3px solid #00d1ff" }}>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div

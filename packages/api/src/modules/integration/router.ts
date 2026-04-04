@@ -1,11 +1,23 @@
 import { Router } from "express";
+import { z } from "zod";
 import { prisma } from "../../lib/db";
 import { encrypt, decrypt } from "../../lib/encryption";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { authMiddleware } from "../../middleware/auth";
+import { validate } from "../../middleware/validate";
 import { PROVIDER_INFO, getRequiredProviders, getMissingIntegrations, TOOL_PROVIDER_MAP } from "./checker";
 import { getIntegrationCatalog, getIntegrationById } from "./catalog";
+
+const saveIntegrationSchema = z.object({
+  provider: z.string().min(1),
+  credentials: z.record(z.string()),
+  label: z.string().optional(),
+});
+
+const testIntegrationSchema = z.object({
+  provider: z.string().min(1),
+});
 
 export const integrationRouter = Router();
 integrationRouter.use(authMiddleware);
@@ -98,7 +110,7 @@ integrationRouter.get("/:companyId", async (req, res, next) => {
 /**
  * POST /integrations/:companyId — create or update an integration
  */
-integrationRouter.post("/:companyId", async (req, res, next) => {
+integrationRouter.post("/:companyId", validate(saveIntegrationSchema), async (req, res, next) => {
   try {
     const { companyId } = req.params;
     const ownerCheck = await prisma.company.findFirst({
@@ -107,10 +119,6 @@ integrationRouter.post("/:companyId", async (req, res, next) => {
     if (!ownerCheck) throw new AppError(404, "Company not found");
 
     const { provider, credentials, label } = req.body;
-
-    if (!provider || !credentials) {
-      throw new AppError(400, "provider and credentials are required");
-    }
 
     if (!PROVIDER_INFO[provider]) {
       throw new AppError(400, `Unknown provider: ${provider}`);
@@ -168,7 +176,7 @@ integrationRouter.post("/:companyId", async (req, res, next) => {
 /**
  * POST /integrations/:companyId/test — test a connection
  */
-integrationRouter.post("/:companyId/test", async (req, res, next) => {
+integrationRouter.post("/:companyId/test", validate(testIntegrationSchema), async (req, res, next) => {
   try {
     const { companyId } = req.params;
     const ownerCheck = await prisma.company.findFirst({
@@ -177,8 +185,6 @@ integrationRouter.post("/:companyId/test", async (req, res, next) => {
     if (!ownerCheck) throw new AppError(404, "Company not found");
 
     const { provider } = req.body;
-
-    if (!provider) throw new AppError(400, "provider is required");
 
     const integration = await prisma.integration.findFirst({
       where: { companyId, provider },

@@ -121,37 +121,37 @@ export default function MarketplacePage() {
         ))}
       </div>
 
-      {/* Search */}
-      <div className="relative mb-4">
-        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2" style={{ fontSize: 18, color: "#3c494e" }}>search</span>
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search blueprints..."
-          className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none"
-          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
-        />
-      </div>
-
-      {/* Category filter */}
-      {activeTab === "catalog" && (
-        <div className="flex flex-wrap gap-1.5 mb-6">
-          {CATALOG_CATEGORIES.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
-              style={{
-                background: selectedCategory === cat.id ? "rgba(0,209,255,0.1)" : "rgba(255,255,255,0.04)",
-                border: `1px solid ${selectedCategory === cat.id ? "rgba(0,209,255,0.3)" : "rgba(255,255,255,0.08)"}`,
-                color: selectedCategory === cat.id ? "#00d1ff" : "#859399",
-              }}
-            >
-              {cat.label}
-            </button>
-          ))}
+      {/* Search + Category filter */}
+      <div className="flex flex-wrap gap-3 mb-6">
+        <div className="relative flex-1 min-w-[200px]">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2" style={{ fontSize: 18, color: "#3c494e" }}>search</span>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search blueprints..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
+          />
         </div>
-      )}
+        {activeTab === "catalog" && (
+          <div className="flex flex-wrap gap-1">
+            {CATALOG_CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.id)}
+                className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
+                style={{
+                  background: selectedCategory === cat.id ? "rgba(0,209,255,0.1)" : "rgba(255,255,255,0.04)",
+                  border: `1px solid ${selectedCategory === cat.id ? "rgba(0,209,255,0.3)" : "rgba(255,255,255,0.08)"}`,
+                  color: selectedCategory === cat.id ? "#00d1ff" : "#859399",
+                }}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Catalog tab */}
       {activeTab === "catalog" && (

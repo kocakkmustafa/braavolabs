@@ -299,10 +299,10 @@ export const api = {
     apiFetch<any>(`/agents/${agentId}/rollback`, { method: "POST", body: JSON.stringify({ targetVersion }), token }),
 
   // Natural Language Agent Editing
-  nlEditPreview: (token: string, agentId: string, instruction: string) =>
-    apiFetch<any>(`/agents/${agentId}/nl-edit`, { method: "POST", body: JSON.stringify({ instruction }), token }),
-  nlEditApply: (token: string, agentId: string, updatedConfig: Record<string, any>) =>
-    apiFetch<any>(`/agents/${agentId}/nl-edit/apply`, { method: "POST", body: JSON.stringify({ updatedConfig }), token }),
+  nlEditPreview: (token: string, companyId: string, agentId: string, instruction: string) =>
+    apiFetch<any>(`/companies/${companyId}/agents/${agentId}/nl-edit`, { method: "POST", body: JSON.stringify({ instruction }), token }),
+  nlEditApply: (token: string, companyId: string, agentId: string, updatedConfig: Record<string, any>) =>
+    apiFetch<any>(`/companies/${companyId}/agents/${agentId}/nl-edit/apply`, { method: "POST", body: JSON.stringify({ updatedConfig }), token }),
 
   // Webhook Templates
   listWebhookTemplates: (token: string, category?: string) =>

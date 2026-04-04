@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "../../lib/api";
-import { useAppStore } from "../../lib/store";
+import { useAuthGuard } from "../../lib/useAuthGuard";
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
   DRAFT: { bg: "rgba(133,147,153,0.12)", color: "#859399", border: "rgba(133,147,153,0.2)" },
@@ -28,7 +28,7 @@ interface AbTest {
 }
 
 export default function AbTestsPage() {
-  const token = useAppStore((s) => s.token);
+  const { token, hydrated } = useAuthGuard();
   const [tests, setTests] = useState<AbTest[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
@@ -47,6 +47,8 @@ export default function AbTestsPage() {
     { name: "Variant B", config: { systemPrompt: "", temperature: 0.7 }, weight: 50 },
   ]);
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -66,14 +68,12 @@ export default function AbTestsPage() {
     api.listAgents(token, newCompanyId).then(setAgents).catch(() => setAgents([]));
   }, [token, newCompanyId]);
 
-  const [createError, setCreateError] = useState<string | null>(null);
-
   async function handleCreate() {
     setCreateError(null);
+    if (!token) return;
     if (!newName.trim()) { setCreateError("Test name is required."); return; }
     if (!newCompanyId) { setCreateError("Please select a company."); return; }
     if (!newAgentId) { setCreateError("Please select an agent."); return; }
-    if (!token) return;
     setCreating(true);
     try {
       await api.createAbTest(token, {
@@ -83,6 +83,7 @@ export default function AbTestsPage() {
         description: newDesc || undefined,
         variants,
       });
+      setCreateError("");
       setShowCreate(false);
       setNewName(""); setNewDesc(""); setNewCompanyId(""); setNewAgentId("");
       setVariants([
@@ -92,7 +93,7 @@ export default function AbTestsPage() {
       // Refresh
       api.listAbTests(token, statusFilter || undefined).then(setTests).catch(() => {});
     } catch (err) {
-      alert((err as Error).message);
+      setCreateError((err as Error).message);
     }
     setCreating(false);
   }
@@ -104,15 +105,16 @@ export default function AbTestsPage() {
       else if (action === "pause") await api.pauseAbTest(token, id);
       else if (action === "complete") await api.completeAbTest(token, id);
       else if (action === "delete") await api.deleteAbTest(token, id);
+      setActionError(null);
       api.listAbTests(token, statusFilter || undefined).then(setTests).catch(() => {});
     } catch (err) {
-      alert((err as Error).message);
+      setActionError((err as Error).message);
     }
   }
 
-  if (!token) return (
+  if (!hydrated || !token) return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <p className="text-sm" style={{ color: "#859399" }}>Please <Link href="/login" style={{ color: "#00d1ff" }}>login</Link> first.</p>
+      <div className="loading-dots"><span /><span /><span /></div>
     </div>
   );
 
@@ -135,6 +137,13 @@ export default function AbTestsPage() {
           New A/B Test
         </button>
       </div>
+
+      {actionError && (
+        <div className="px-4 py-3 rounded-xl mb-4 text-sm" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
+          {actionError}
+          <button onClick={() => setActionError(null)} className="ml-3 underline text-xs" style={{ color: "#f87171" }}>Dismiss</button>
+        </div>
+      )}
 
       {/* Status filter */}
       <div className="flex gap-1.5 mb-6">

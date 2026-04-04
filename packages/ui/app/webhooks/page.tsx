@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { api } from "../../lib/api";
-import { useAppStore } from "../../lib/store";
-import { useToast } from "../../components/Toast";
+import { useAuthGuard } from "../../lib/useAuthGuard";
 
 const CATEGORIES = [
   { id: "", label: "All", icon: "apps" },
@@ -74,17 +72,23 @@ const WEBHOOK_TEMPLATES = [
 ];
 
 export default function WebhooksPage() {
-  const token = useAppStore((s) => s.token);
+  const { token, hydrated } = useAuthGuard();
   const [selectedCategory, setSelectedCategory] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const { toast } = useToast();
+  const [installedIds, setInstalledIds] = useState<Set<string>>(new Set());
 
   const filtered = WEBHOOK_TEMPLATES.filter((t) => {
     const matchSearch = !search || t.name.toLowerCase().includes(search.toLowerCase()) || t.description.toLowerCase().includes(search.toLowerCase()) || t.provider.toLowerCase().includes(search.toLowerCase());
     const matchCategory = !selectedCategory || t.category === selectedCategory;
     return matchSearch && matchCategory;
   }).sort((a, b) => b.popularity - a.popularity);
+
+  if (!hydrated || !token) return (
+    <div className="flex items-center justify-center min-h-screen" style={{ background: "#0a0d14" }}>
+      <div className="loading-dots"><span /><span /><span /></div>
+    </div>
+  );
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
@@ -93,6 +97,9 @@ export default function WebhooksPage() {
           <h1 className="text-xl sm:text-2xl font-bold font-headline gradient-text">Webhook Templates</h1>
           <p className="text-sm mt-0.5" style={{ color: "#859399" }}>
             {WEBHOOK_TEMPLATES.length} pre-built triggers to connect external events to your pipelines
+          </p>
+          <p className="text-xs mt-1" style={{ color: "#3c494e" }}>
+            Copy the webhook URL from your company settings after installation.
           </p>
         </div>
       </div>
@@ -163,12 +170,27 @@ export default function WebhooksPage() {
                   </div>
 
                   <button
-                    onClick={() => toast(`Template "${template.name}" installed successfully!`, "success")}
-                    className="mt-4 w-full sm:w-auto px-6 py-2 rounded-xl text-xs font-semibold text-white transition-all hover:brightness-110"
-                    style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
+                    onClick={() => setInstalledIds((prev) => new Set(prev).add(template.id))}
+                    disabled={installedIds.has(template.id)}
+                    className="mt-4 w-full sm:w-auto px-6 py-2 rounded-xl text-xs font-semibold transition-all"
+                    style={{
+                      background: installedIds.has(template.id)
+                        ? "rgba(52,211,153,0.15)"
+                        : "linear-gradient(135deg, #00d1ff, #6d11ad)",
+                      border: installedIds.has(template.id) ? "1px solid rgba(52,211,153,0.3)" : "none",
+                      color: installedIds.has(template.id) ? "#34d399" : "white",
+                      cursor: installedIds.has(template.id) ? "default" : "pointer",
+                      opacity: installedIds.has(template.id) ? 0.9 : 1,
+                    }}
                   >
-                    Install Template
+                    {installedIds.has(template.id) ? "Installed \u2713" : "Install Template"}
                   </button>
+                  {installedIds.has(template.id) && (
+                    <p className="mt-2 text-[10px] leading-relaxed" style={{ color: "#3c494e" }}>
+                      Webhook URL: <code style={{ color: "#859399" }}>https://yourdomain.com/hooks/{"<your-company>"}/${template.eventType}</code>
+                      <br />Copy the webhook URL from your company settings after installation.
+                    </p>
+                  )}
                 </div>
               )}
             </div>

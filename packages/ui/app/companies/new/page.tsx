@@ -4,7 +4,7 @@ import { Suspense, useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { api } from "../../../lib/api";
-import { useAppStore } from "../../../lib/store";
+import { useAuthGuard } from "../../../lib/useAuthGuard";
 
 type WizardStep = "describe" | "clarify" | "preview" | "creating" | "done";
 
@@ -25,7 +25,7 @@ interface ChatMessage {
 
 function CompanyBuilderWizardInner() {
   const router = useRouter();
-  const token = useAppStore((s) => s.token);
+  const { token, hydrated } = useAuthGuard();
   const searchParams = useSearchParams();
   const [step, setStep] = useState<WizardStep>("describe");
   const [description, setDescription] = useState(() => {
@@ -46,11 +46,10 @@ function CompanyBuilderWizardInner() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatHistory]);
 
-  if (!token) {
+  if (!hydrated || !token) {
     return (
-      <div className="text-center py-20">
-        <p style={{ color: "#859399" }}>Please log in first.</p>
-        <a href="/login" className="mt-2 inline-block transition-colors hover:underline" style={{ color: "#a4e6ff" }}>Go to Login</a>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }} />
       </div>
     );
   }
@@ -71,7 +70,11 @@ function CompanyBuilderWizardInner() {
   }
 
   async function handleDescribe() {
-    if (!description.trim() || !token) return;
+    if (!token) return;
+    if (!description.trim()) {
+      setError("Please describe your company idea before continuing.");
+      return;
+    }
     setError(null);
     setLoading(true);
 
@@ -187,6 +190,7 @@ function CompanyBuilderWizardInner() {
             value={description}
             onChange={(e) => { setDescription(e.target.value); setError(null); }}
             rows={5}
+            required
             className="w-full rounded-xl px-4 py-3 text-sm resize-none transition-all"
             style={{
               background: "rgba(255,255,255,0.04)",

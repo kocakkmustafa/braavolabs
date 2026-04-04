@@ -28,7 +28,7 @@ const registerRateLimit = rateLimit({
 
 const registerSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(8).regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/, "Password must contain uppercase, lowercase, and a number"),
   name: z.string().min(1),
   tenantName: z.string().min(1),
   ref: z.string().optional(),
@@ -58,7 +58,7 @@ authRouter.post("/login", authRateLimit, validate(loginSchema), async (req, res,
 const forgotSchema = z.object({ email: z.string().email() });
 const resetSchema = z.object({
   token: z.string().min(1),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(8).regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/, "Password must contain uppercase, lowercase, and a number"),
 });
 
 // POST /api/v1/auth/forgot-password

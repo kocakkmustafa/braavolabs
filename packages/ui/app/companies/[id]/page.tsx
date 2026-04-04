@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api, apiFetch } from "../../../lib/api";
-import { useAppStore } from "../../../lib/store";
+import { useAuthGuard } from "../../../lib/useAuthGuard";
 
 type Tab = "overview" | "pipelines" | "agents" | "runs" | "contacts" | "memory";
 
 export default function CompanyDetailPage() {
   const params = useParams();
-  const token = useAppStore((s) => s.token);
+  const { token, hydrated } = useAuthGuard();
   const [company, setCompany] = useState<any>(null);
   const [tab, setTab] = useState<Tab>("overview");
   const [runs, setRuns] = useState<any[]>([]);
@@ -29,7 +29,11 @@ export default function CompanyDetailPage() {
       .catch(() => {});
   }, [token, company, tab]);
 
-  if (!token) return <p style={{ color: "#859399", padding: 32 }}>Please log in first.</p>;
+  if (!hydrated || !token) return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }} />
+    </div>
+  );
   if (error) return (
     <div style={{ maxWidth: 896, margin: "0 auto", padding: "32px 24px" }}>
       <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", padding: 16, borderRadius: 12, fontSize: 14 }}>{error}</div>

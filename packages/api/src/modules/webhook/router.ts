@@ -1,5 +1,6 @@
 import { Router } from "express";
 import crypto from "crypto";
+import { z } from "zod";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { enqueueRun } from "../pipeline/runner";
@@ -7,12 +8,17 @@ import { getWebhookTemplates, getWebhookTemplateById, getWebhookTemplateCategori
 import { authMiddleware } from "../../middleware/auth";
 import { AppError } from "../../middleware/error";
 
+const webhookParamsSchema = z.object({
+  companySlug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/),
+  event: z.string().min(1).max(100).regex(/^[a-z0-9_.]+$/),
+});
+
 export const webhookRouter = Router();
 
 // POST /hooks/:companySlug/:event — handle external webhooks
 webhookRouter.post("/:companySlug/:event", async (req, res, next) => {
   try {
-    const { companySlug, event } = req.params;
+    const { companySlug, event } = webhookParamsSchema.parse(req.params);
 
     const company = await prisma.company.findFirst({
       where: { slug: companySlug, status: "ACTIVE" },

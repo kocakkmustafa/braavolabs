@@ -1102,8 +1102,13 @@ function SaveBar({ onSave, saved }: { onSave: () => void; saved: boolean }) {
           color: saved ? "#34d399" : "white",
         }}
       >
-        {saved ? "✓ Saved" : "Save Changes"}
+        {saved ? "\u2713 Saved" : "Save Changes"}
       </button>
+      {saved && (
+        <span className="text-xs font-medium animate-fade-in" style={{ color: "#34d399" }}>
+          Changes saved successfully!
+        </span>
+      )}
     </div>
   );
 }
