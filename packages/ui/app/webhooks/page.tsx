@@ -76,6 +76,7 @@ export default function WebhooksPage() {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [installedIds, setInstalledIds] = useState<Set<string>>(new Set());
 
   const filtered = WEBHOOK_TEMPLATES.filter((t) => {
     const matchSearch = !search || t.name.toLowerCase().includes(search.toLowerCase()) || t.description.toLowerCase().includes(search.toLowerCase()) || t.provider.toLowerCase().includes(search.toLowerCase());
@@ -165,8 +166,21 @@ export default function WebhooksPage() {
                     </div>
                   </div>
 
-                  <button className="mt-4 w-full sm:w-auto px-6 py-2 rounded-xl text-xs font-semibold text-white transition-all hover:brightness-110" style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}>
-                    Install Template
+                  <button
+                    onClick={() => setInstalledIds((prev) => new Set(prev).add(template.id))}
+                    disabled={installedIds.has(template.id)}
+                    className="mt-4 w-full sm:w-auto px-6 py-2 rounded-xl text-xs font-semibold transition-all"
+                    style={{
+                      background: installedIds.has(template.id)
+                        ? "rgba(52,211,153,0.15)"
+                        : "linear-gradient(135deg, #00d1ff, #6d11ad)",
+                      border: installedIds.has(template.id) ? "1px solid rgba(52,211,153,0.3)" : "none",
+                      color: installedIds.has(template.id) ? "#34d399" : "white",
+                      cursor: installedIds.has(template.id) ? "default" : "pointer",
+                      opacity: installedIds.has(template.id) ? 0.9 : 1,
+                    }}
+                  >
+                    {installedIds.has(template.id) ? "Installed \u2713" : "Install Template"}
                   </button>
                 </div>
               )}

@@ -74,7 +74,7 @@ export default function BillingPage() {
       ) : (
         <>
           {/* Current plan banner */}
-          <div className="glass-card rounded-2xl p-6 mb-6" style={{ borderLeft: "3px solid #00d1ff" }}>
+          <div className="glass-card rounded-2xl p-6 mb-4" style={{ borderLeft: "3px solid #00d1ff" }}>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div
@@ -112,7 +112,7 @@ export default function BillingPage() {
           </div>
 
           {/* Usage meters */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 stagger-children">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 stagger-children">
             {[
               { label: "Runs This Month", current: usage?.live?.runs ?? 0, limit: limits.runs, icon: "play_circle", color: "#00d1ff" },
               { label: "Tool Calls", current: usage?.live?.toolCalls ?? 0, limit: -1, icon: "build", color: "#a4e6ff" },

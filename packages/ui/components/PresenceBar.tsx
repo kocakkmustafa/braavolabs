@@ -119,7 +119,7 @@ export default function PresenceBar() {
   const containerStyle: React.CSSProperties = {
     position: "fixed",
     top: 16,
-    right: 156, // offset to leave room for NotificationBell (theme toggle + bell)
+    right: 112, // offset to leave room for NotificationBell
     zIndex: 99,
     display: "flex",
     alignItems: "center",

@@ -70,7 +70,11 @@ function CompanyBuilderWizardInner() {
   }
 
   async function handleDescribe() {
-    if (!description.trim() || !token) return;
+    if (!token) return;
+    if (!description.trim()) {
+      setError("Please describe your company idea before continuing.");
+      return;
+    }
     setError(null);
     setLoading(true);
 
@@ -186,6 +190,7 @@ function CompanyBuilderWizardInner() {
             value={description}
             onChange={(e) => { setDescription(e.target.value); setError(null); }}
             rows={5}
+            required
             className="w-full rounded-xl px-4 py-3 text-sm resize-none transition-all"
             style={{
               background: "rgba(255,255,255,0.04)",

@@ -47,6 +47,7 @@ export default function AbTestsPage() {
     { name: "Variant B", config: { systemPrompt: "", temperature: 0.7 }, weight: 50 },
   ]);
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
 
   useEffect(() => {
     if (!token) return;
@@ -67,7 +68,12 @@ export default function AbTestsPage() {
   }, [token, newCompanyId]);
 
   async function handleCreate() {
-    if (!token || !newName || !newCompanyId || !newAgentId) return;
+    if (!token) return;
+    if (!newName || !newCompanyId || !newAgentId) {
+      setCreateError("Please fill in all required fields.");
+      return;
+    }
+    setCreateError("");
     setCreating(true);
     try {
       await api.createAbTest(token, {
@@ -77,6 +83,7 @@ export default function AbTestsPage() {
         description: newDesc || undefined,
         variants,
       });
+      setCreateError("");
       setShowCreate(false);
       setNewName(""); setNewDesc(""); setNewCompanyId(""); setNewAgentId("");
       setVariants([
@@ -398,8 +405,12 @@ export default function AbTestsPage() {
               </div>
             </div>
 
+            {createError && (
+              <p className="mt-4 text-xs" style={{ color: "#f87171" }}>{createError}</p>
+            )}
+
             <div className="flex gap-2 mt-5">
-              <button onClick={() => setShowCreate(false)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ background: "rgba(255,255,255,0.04)", color: "#859399", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <button onClick={() => { setCreateError(""); setShowCreate(false); }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ background: "rgba(255,255,255,0.04)", color: "#859399", border: "1px solid rgba(255,255,255,0.06)" }}>
                 Cancel
               </button>
               <button

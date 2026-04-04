@@ -81,6 +81,7 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [descError, setDescError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -259,7 +260,7 @@ export default function OnboardingPage() {
         </div>
 
         {/* Step card */}
-        <div className="w-full max-w-[700px] glass-card rounded-2xl p-8 relative overflow-hidden">
+        <div className="w-full max-w-[700px] glass-card rounded-2xl p-8 relative overflow-hidden max-h-[calc(100vh-200px)] overflow-y-auto">
 
           {/* Step 0: Industry & Use Case Selection */}
           {step === 0 && (
@@ -375,7 +376,7 @@ export default function OnboardingPage() {
                 </div>
               )}
 
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center sticky bottom-0 pt-4 pb-1 -mb-4 z-10" style={{ background: "linear-gradient(to top, rgba(15,18,25,1) 60%, rgba(15,18,25,0))" }}>
                 <p className="text-xs" style={{ color: "#3c494e" }}>
                   {!selectedIndustry && "Select an industry to continue"}
                 </p>
@@ -416,7 +417,7 @@ export default function OnboardingPage() {
                   <textarea
                     rows={5}
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
+                    onChange={(e) => { setDescription(e.target.value); setDescError(null); }}
                     className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-none transition-all"
                     style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb", lineHeight: 1.7 }}
                     placeholder="e.g. I run a social media management agency for e-commerce brands. I need content creation, client reporting, and lead generation..."
@@ -425,6 +426,9 @@ export default function OnboardingPage() {
                   />
                   <span className="absolute bottom-2 right-3 text-xs" style={{ color: "#3c494e" }}>{description.length} / 500</span>
                 </div>
+                {descError && (
+                  <p className="mt-1.5 text-xs" style={{ color: "#f87171" }}>{descError}</p>
+                )}
               </div>
 
               {/* Suggestions */}
@@ -460,7 +464,7 @@ export default function OnboardingPage() {
                 <button onClick={() => setStep(0)} className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>
                   ← Back
                 </button>
-                <button onClick={() => setStep(2)} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}>
+                <button onClick={() => { if (!description.trim()) { setDescError("Please describe your business before continuing."); return; } setDescError(null); setStep(2); }} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}>
                   Continue →
                 </button>
               </div>
@@ -559,7 +563,7 @@ export default function OnboardingPage() {
                 {/* Active channels */}
                 <div>
                   <label className="block text-xs font-semibold mb-2" style={{ color: "#bbc9cf" }}>Active Channels (Free plan)</label>
-                  <div className="flex gap-3">
+                  <div className="flex flex-wrap gap-3">
                     {[
                       { name: "TikTok", icon: "🎵", included: true },
                       { name: "LinkedIn", icon: "💼", included: true },

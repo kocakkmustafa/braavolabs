@@ -122,8 +122,8 @@ export default function MarketplacePage() {
       </div>
 
       {/* Search + Category filter */}
-      <div className="flex gap-3 mb-6">
-        <div className="relative flex-1">
+      <div className="flex flex-wrap gap-3 mb-6">
+        <div className="relative flex-1 min-w-[200px]">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2" style={{ fontSize: 18, color: "#3c494e" }}>search</span>
           <input
             value={search}
@@ -134,7 +134,7 @@ export default function MarketplacePage() {
           />
         </div>
         {activeTab === "catalog" && (
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
             {CATALOG_CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
