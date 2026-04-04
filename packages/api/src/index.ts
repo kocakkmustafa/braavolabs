@@ -167,10 +167,10 @@ process.on("SIGTERM", async () => {
   stopConsolidationCron();
 
   // Close Redis
-  try { await redis.quit(); } catch {}
+  try { await redis.quit(); } catch (e) { logger.warn({ err: e }, "Redis close failed during shutdown"); }
 
   // Disconnect Prisma
-  try { await prisma.$disconnect(); } catch {}
+  try { await prisma.$disconnect(); } catch (e) { logger.warn({ err: e }, "Prisma disconnect failed during shutdown"); }
 
   await shutdownTelemetry();
   process.exit(0);

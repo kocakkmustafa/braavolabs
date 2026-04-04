@@ -34,7 +34,7 @@ pnpm dev
 ```
 
 The app runs at:
-- **Frontend**: http://localhost:3001
+- **Frontend**: http://localhost:3000
 - **API**: http://localhost:8080
 
 ---
@@ -57,7 +57,12 @@ The app runs at:
 | **Referral System** | Share codes, earn bonus runs for both parties |
 | **Google OAuth** | One-click sign in with Google |
 | **Command Palette** | `Cmd+K` quick navigation with keyboard shortcuts |
-| **Dark/Light Theme** | Persistent theme toggle across all pages |
+| **Integration Library** | 120+ connectors across 20 categories (CRM, social, email, payment, etc.) |
+| **A/B Testing** | Compare agent configurations with variant metrics and winner selection |
+| **Agent Version Control** | Snapshot, diff, and rollback agent configurations |
+| **Natural Language Agent Editing** | Edit agents with plain English commands (16+ rule patterns) |
+| **Webhook Marketplace** | 32 pre-built webhook templates (Shopify, Stripe, GitHub, etc.) |
+| **Real-time Collaboration** | See who's online and what they're working on via SSE presence |
 | **Mobile Responsive** | Full responsive design with collapsible sidebar |
 | **Export to Claude Code** | Export companies as CLAUDE.md, skills, hooks, and settings bundles |
 | **SSE Run Streaming** | Real-time Server-Sent Events for live pipeline run status |
@@ -72,7 +77,7 @@ The app runs at:
 | Layer | Technology |
 |-------|-----------|
 | **Monorepo** | pnpm workspaces + Turborepo |
-| **Frontend** | Next.js 15 (App Router) + Tailwind CSS |
+| **Frontend** | Next.js 15 (App Router) + Tailwind CSS + Material Icons |
 | **Backend** | Express + TypeScript |
 | **Database** | PostgreSQL 16 + Prisma ORM |
 | **Cache/Queue** | Redis 7 + BullMQ |
@@ -89,8 +94,8 @@ The app runs at:
 
 ```
 ├── packages/
-│   ├── ui/          # Next.js 15 dashboard (25 routes)
-│   ├── api/         # Express API server (15 modules)
+│   ├── ui/          # Next.js 15 dashboard (30+ routes)
+│   ├── api/         # Express API server (19 modules)
 │   ├── db/          # Prisma schema + migrations (20 tables)
 │   ├── core/        # Shared types and utilities
 │   ├── memory/      # Memory engine (episodic + semantic + graph)
@@ -111,8 +116,9 @@ The app runs at:
 |----------|-------------|----------|
 | `DATABASE_URL` | PostgreSQL connection string | Yes |
 | `REDIS_URL` | Redis connection string | Yes |
-| `JWT_SECRET` | Secret for JWT signing (min 8 chars) | Yes |
-| `APP_URL` | Frontend URL (default: `http://localhost:3001`) | Yes |
+| `JWT_SECRET` | Secret for JWT signing (min 32 chars, use `openssl rand -hex 32`) | Yes |
+| `ENCRYPTION_KEY` | Encryption key for credentials (min 32 chars, use `openssl rand -hex 32`) | Yes |
+| `APP_URL` | Frontend URL (default: `http://localhost:3000`) | Yes |
 
 ### Optional — AI
 

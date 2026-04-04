@@ -48,6 +48,7 @@ export default function AbTestsPage() {
   ]);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -93,7 +94,7 @@ export default function AbTestsPage() {
       // Refresh
       api.listAbTests(token, statusFilter || undefined).then(setTests).catch(() => {});
     } catch (err) {
-      alert((err as Error).message);
+      setCreateError((err as Error).message);
     }
     setCreating(false);
   }
@@ -105,9 +106,10 @@ export default function AbTestsPage() {
       else if (action === "pause") await api.pauseAbTest(token, id);
       else if (action === "complete") await api.completeAbTest(token, id);
       else if (action === "delete") await api.deleteAbTest(token, id);
+      setActionError(null);
       api.listAbTests(token, statusFilter || undefined).then(setTests).catch(() => {});
     } catch (err) {
-      alert((err as Error).message);
+      setActionError((err as Error).message);
     }
   }
 
@@ -136,6 +138,13 @@ export default function AbTestsPage() {
           New A/B Test
         </button>
       </div>
+
+      {actionError && (
+        <div className="px-4 py-3 rounded-xl mb-4 text-sm" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
+          {actionError}
+          <button onClick={() => setActionError(null)} className="ml-3 underline text-xs" style={{ color: "#f87171" }}>Dismiss</button>
+        </div>
+      )}
 
       {/* Status filter */}
       <div className="flex gap-1.5 mb-6">

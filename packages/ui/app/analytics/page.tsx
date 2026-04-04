@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "../../lib/api";
-import { useAppStore } from "../../lib/store";
+import { useAuthGuard } from "../../lib/useAuthGuard";
 import { sounds } from "../../lib/sounds";
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
@@ -31,7 +31,7 @@ interface FinanceData {
 }
 
 export default function AnalyticsPage() {
-  const token = useAppStore((s) => s.token);
+  const { token, hydrated } = useAuthGuard();
   const [runs, setRuns] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [usage, setUsage] = useState<UsageData | null>(null);
@@ -94,9 +94,9 @@ export default function AnalyticsPage() {
     URL.revokeObjectURL(url);
   }
 
-  if (!token) return (
-    <div className="flex items-center justify-center min-h-screen" style={{ background: "#0a0d14" }}>
-      <p className="text-sm" style={{ color: "#859399" }}>Please <Link href="/login" style={{ color: "#00d1ff" }}>login</Link> first.</p>
+  if (!hydrated || !token) return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }} />
     </div>
   );
 

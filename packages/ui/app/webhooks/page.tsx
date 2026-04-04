@@ -98,6 +98,9 @@ export default function WebhooksPage() {
           <p className="text-sm mt-0.5" style={{ color: "#859399" }}>
             {WEBHOOK_TEMPLATES.length} pre-built triggers to connect external events to your pipelines
           </p>
+          <p className="text-xs mt-1" style={{ color: "#3c494e" }}>
+            Copy the webhook URL from your company settings after installation.
+          </p>
         </div>
       </div>
 
@@ -182,6 +185,12 @@ export default function WebhooksPage() {
                   >
                     {installedIds.has(template.id) ? "Installed \u2713" : "Install Template"}
                   </button>
+                  {installedIds.has(template.id) && (
+                    <p className="mt-2 text-[10px] leading-relaxed" style={{ color: "#3c494e" }}>
+                      Webhook URL: <code style={{ color: "#859399" }}>https://yourdomain.com/hooks/{"<your-company>"}/${template.eventType}</code>
+                      <br />Copy the webhook URL from your company settings after installation.
+                    </p>
+                  )}
                 </div>
               )}
             </div>

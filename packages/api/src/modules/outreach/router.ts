@@ -84,12 +84,13 @@ outreachRouter.post("/sequences/:id/enroll", async (req, res, next) => {
       throw new AppError(404, "Sequence not found");
     }
 
-    // Spam protection: check unanswered outreach count
+    // Spam protection: check unanswered outreach count (scoped to current tenant)
     const existingEnrollments = await prisma.outreachEnrollment.count({
       where: {
         contactId,
         status: "ACTIVE",
         repliedAt: null,
+        sequence: { company: { tenantId: req.auth!.tenantId } },
       },
     });
 

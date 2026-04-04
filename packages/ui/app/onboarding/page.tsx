@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "../../lib/api";
-import { useAppStore } from "../../lib/store";
+import { useAuthGuard } from "../../lib/useAuthGuard";
 
 interface OnboardingStatus {
   completed: boolean;
@@ -65,7 +65,7 @@ interface CatalogBlueprint {
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const token = useAppStore((s) => s.token);
+  const { token, hydrated } = useAuthGuard();
   const [status, setStatus] = useState<OnboardingStatus | null>(null);
   const [step, setStep] = useState(0);
   const [description, setDescription] = useState("");
@@ -88,10 +88,6 @@ export default function OnboardingPage() {
     api.onboardingStatus(token).then(setStatus).catch(() => {});
   }, [token]);
 
-  useEffect(() => {
-    if (!token) router.push("/login");
-  }, [token, router]);
-
   // When industry is selected, fetch suggested blueprints
   useEffect(() => {
     if (!selectedIndustry || !token) return;
@@ -104,7 +100,11 @@ export default function OnboardingPage() {
       .finally(() => setLoadingBlueprints(false));
   }, [selectedIndustry, token]);
 
-  if (!token) return null;
+  if (!hydrated || !token) return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }} />
+    </div>
+  );
 
   function togglePrimitive(id: string) {
     setSelectedPrimitives((prev) =>
