@@ -40,6 +40,7 @@ function CompanyBuilderWizardInner() {
   const [loading, setLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const [touched, setTouched] = useState(false);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -208,9 +209,14 @@ function CompanyBuilderWizardInner() {
               Please describe your company idea in at least 10 characters ({10 - description.length} more needed).
             </p>
           )}
+          {touched && description.length === 0 && (
+            <p className="mt-1.5 text-xs" style={{ color: "#f87171" }}>
+              Please enter a description for your AI company to continue.
+            </p>
+          )}
           <button
-            onClick={handleDescribe}
-            disabled={loading || description.length < 10}
+            onClick={(e) => { setTouched(true); if (description.length >= 10) handleDescribe(); }}
+            disabled={loading}
             className="mt-4 w-full text-white py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
           >

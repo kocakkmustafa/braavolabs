@@ -111,7 +111,8 @@ The app runs at:
 |----------|-------------|----------|
 | `DATABASE_URL` | PostgreSQL connection string | Yes |
 | `REDIS_URL` | Redis connection string | Yes |
-| `JWT_SECRET` | Secret for JWT signing (min 8 chars) | Yes |
+| `JWT_SECRET` | Secret for JWT signing (min 32 chars, generate with `openssl rand -hex 32`) | Yes |
+| `ENCRYPTION_KEY` | AES-256-GCM encryption key (min 32 chars, generate with `openssl rand -hex 32`) | Yes |
 | `APP_URL` | Frontend URL (default: `http://localhost:3001`) | Yes |
 
 ### Optional — AI
@@ -256,6 +257,37 @@ docker compose -f ENV/compose.yaml up -d --build
 | GET | `/export/:companyId/hooks` | Export pipeline hooks |
 | GET | `/export/:companyId/bundle` | Full export bundle |
 | GET | `/runs/:id/stream` | SSE run status stream |
+
+---
+
+## Security
+
+AI Company OS includes comprehensive security hardening for production:
+
+- **Authentication**: JWT access + refresh tokens with bcrypt (cost 12) password hashing
+- **Rate Limiting**: Redis-backed rate limits on auth, register, refresh, and API endpoints
+- **Account Lockout**: Automatic lockout after repeated failed login attempts
+- **CSRF Protection**: OAuth state tokens with one-time use and TTL
+- **Headers**: Helmet.js + HSTS + CSP + X-Frame-Options + Permissions-Policy
+- **Input Validation**: Zod schemas on all API inputs
+- **Webhook Security**: HMAC-SHA256 signature verification
+- **Credential Encryption**: AES-256-GCM for stored integration credentials
+- **Tenant Isolation**: Every DB query is scoped by tenant ID
+- **BYPASS_BILLING Guard**: Throws on startup if enabled in production
+- **Graceful Shutdown**: SIGTERM/SIGINT handlers cleanly close Redis, Prisma, and workers
+
+### Production Checklist
+
+Before deploying to production, ensure:
+
+1. `JWT_SECRET` and `ENCRYPTION_KEY` are unique, random 64+ character secrets
+2. `NODE_ENV=production` is set
+3. `BYPASS_BILLING=false` (enforced — server refuses to start otherwise)
+4. PostgreSQL and Redis have strong passwords
+5. HTTPS is enabled (HSTS is pre-configured)
+6. `APP_URL` and `NEXT_PUBLIC_API_URL` point to your production domains
+7. Stripe webhook secret is configured for payment processing
+8. Google OAuth redirect URI matches your production domain
 
 ---
 

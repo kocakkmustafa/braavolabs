@@ -13,6 +13,20 @@ export default function NotificationBell() {
 
   const isDark = theme === "dark";
 
+  // Sync theme to document class so CSS variables switch
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isDark) {
+      root.classList.add("dark");
+      root.classList.remove("light");
+      root.style.colorScheme = "dark";
+    } else {
+      root.classList.remove("dark");
+      root.classList.add("light");
+      root.style.colorScheme = "light";
+    }
+  }, [isDark]);
+
   useEffect(() => {
     if (!token) return;
     const fetchData = () => {

@@ -77,16 +77,20 @@ export default function DraftsPage() {
           <h1 className="text-2xl font-bold font-headline gradient-text">Drafts</h1>
           <p className="text-sm mt-1" style={{ color: "#859399" }}>Content created by your AI agents</p>
         </div>
-        <select
-          value={selectedCompany}
-          onChange={(e) => { sounds.click(); setSelectedCompany(e.target.value); }}
-          className="rounded-xl px-3 py-2 text-sm outline-none"
-          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}
-        >
-          {companies.map((c) => (
-            <option key={c.id} value={c.id} style={{ background: "#0a0d14" }}>{c.name}</option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium" style={{ color: "#859399" }}>Company:</label>
+          <select
+            value={selectedCompany}
+            onChange={(e) => { sounds.click(); setSelectedCompany(e.target.value); }}
+            className="rounded-xl px-3 py-2 text-sm outline-none"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}
+          >
+            {companies.length === 0 && <option value="" style={{ background: "#0a0d14" }}>No companies</option>}
+            {companies.map((c) => (
+              <option key={c.id} value={c.id} style={{ background: "#0a0d14" }}>{c.name}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {error && (

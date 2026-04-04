@@ -58,16 +58,22 @@ export default function AbTestsPage() {
 
   useEffect(() => {
     if (!token) return;
-    api.listCompanies(token).then(setCompanies).catch(() => []);
+    api.listCompanies(token).then(setCompanies).catch(() => setCompanies([]));
   }, [token]);
 
   useEffect(() => {
     if (!token || !newCompanyId) { setAgents([]); return; }
-    api.listAgents(token, newCompanyId).then(setAgents).catch(() => []);
+    api.listAgents(token, newCompanyId).then(setAgents).catch(() => setAgents([]));
   }, [token, newCompanyId]);
 
+  const [createError, setCreateError] = useState<string | null>(null);
+
   async function handleCreate() {
-    if (!token || !newName || !newCompanyId || !newAgentId) return;
+    setCreateError(null);
+    if (!newName.trim()) { setCreateError("Test name is required."); return; }
+    if (!newCompanyId) { setCreateError("Please select a company."); return; }
+    if (!newAgentId) { setCreateError("Please select an agent."); return; }
+    if (!token) return;
     setCreating(true);
     try {
       await api.createAbTest(token, {
@@ -398,13 +404,19 @@ export default function AbTestsPage() {
               </div>
             </div>
 
+            {createError && (
+              <div className="mt-4 px-3 py-2 rounded-xl text-xs" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
+                {createError}
+              </div>
+            )}
+
             <div className="flex gap-2 mt-5">
-              <button onClick={() => setShowCreate(false)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ background: "rgba(255,255,255,0.04)", color: "#859399", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <button onClick={() => { setShowCreate(false); setCreateError(null); }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ background: "rgba(255,255,255,0.04)", color: "#859399", border: "1px solid rgba(255,255,255,0.06)" }}>
                 Cancel
               </button>
               <button
                 onClick={handleCreate}
-                disabled={creating || !newName || !newCompanyId || !newAgentId}
+                disabled={creating}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50"
                 style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
               >

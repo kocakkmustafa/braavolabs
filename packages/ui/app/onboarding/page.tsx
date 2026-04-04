@@ -81,6 +81,7 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [descTouched, setDescTouched] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -259,7 +260,7 @@ export default function OnboardingPage() {
         </div>
 
         {/* Step card */}
-        <div className="w-full max-w-[700px] glass-card rounded-2xl p-8 relative overflow-hidden">
+        <div className="w-full max-w-[700px] glass-card rounded-2xl p-8 relative overflow-y-auto" style={{ maxHeight: "calc(100vh - 200px)" }}>
 
           {/* Step 0: Industry & Use Case Selection */}
           {step === 0 && (
@@ -375,7 +376,7 @@ export default function OnboardingPage() {
                 </div>
               )}
 
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center sticky bottom-0 pt-4 -mb-2" style={{ background: "linear-gradient(to top, rgba(15,18,25,1) 60%, transparent)" }}>
                 <p className="text-xs" style={{ color: "#3c494e" }}>
                   {!selectedIndustry && "Select an industry to continue"}
                 </p>
@@ -456,11 +457,15 @@ export default function OnboardingPage() {
                 </div>
               )}
 
+              {descTouched && !description.trim() && !selectedBlueprintSlug && (
+                <p className="text-xs mb-3" style={{ color: "#f87171" }}>Please describe your business or select a blueprint above to continue.</p>
+              )}
+
               <div className="flex justify-between">
                 <button onClick={() => setStep(0)} className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>
                   ← Back
                 </button>
-                <button onClick={() => setStep(2)} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}>
+                <button onClick={() => { setDescTouched(true); if (description.trim() || selectedBlueprintSlug) setStep(2); }} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}>
                   Continue →
                 </button>
               </div>
@@ -559,14 +564,14 @@ export default function OnboardingPage() {
                 {/* Active channels */}
                 <div>
                   <label className="block text-xs font-semibold mb-2" style={{ color: "#bbc9cf" }}>Active Channels (Free plan)</label>
-                  <div className="flex gap-3">
+                  <div className="flex flex-wrap gap-3">
                     {[
                       { name: "TikTok", icon: "🎵", included: true },
                       { name: "LinkedIn", icon: "💼", included: true },
                       { name: "Twitter/X", icon: "𝕏", included: false },
                       { name: "Instagram", icon: "📸", included: false },
                     ].map((ch) => (
-                      <div key={ch.name} className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: ch.included ? "rgba(0,209,255,0.08)" : "rgba(255,255,255,0.03)", border: `1.5px solid ${ch.included ? "rgba(0,209,255,0.3)" : "rgba(255,255,255,0.05)"}`, opacity: ch.included ? 1 : 0.5 }}>
+                      <div key={ch.name} className="flex items-center gap-2 px-3 py-2 rounded-xl flex-shrink-0" style={{ background: ch.included ? "rgba(0,209,255,0.08)" : "rgba(255,255,255,0.03)", border: `1.5px solid ${ch.included ? "rgba(0,209,255,0.3)" : "rgba(255,255,255,0.05)"}`, opacity: ch.included ? 1 : 0.5 }}>
                         <span className="text-sm">{ch.icon}</span>
                         <span className="text-xs" style={{ color: ch.included ? "#bbc9cf" : "#3c494e" }}>{ch.name}</span>
                         {ch.included && <span className="text-[10px] font-semibold" style={{ color: "#00d1ff" }}>✓</span>}

@@ -44,4 +44,9 @@ if (parsed.NODE_ENV === "production" && parsed.BYPASS_BILLING) {
   throw new Error("BYPASS_BILLING cannot be true in production");
 }
 
+// Safety: JWT_SECRET should be cryptographically strong in production
+if (parsed.NODE_ENV === "production" && parsed.JWT_SECRET.length < 64) {
+  console.warn("WARNING: JWT_SECRET is shorter than 64 characters. Use a strong random secret in production.");
+}
+
 export const env: Env = parsed;

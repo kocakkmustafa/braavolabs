@@ -5,7 +5,7 @@ import {
   CollaborationRoom,
   CollaborationEvent,
   PRESENCE_COLORS,
-} from "@company-os/core/types/collaboration";
+} from "@ai-company-os/core";
 
 export const collaborationRouter = Router();
 collaborationRouter.use(authMiddleware);

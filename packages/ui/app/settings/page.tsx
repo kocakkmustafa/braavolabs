@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../lib/store";
 import { useAuthGuard } from "../../lib/useAuthGuard";
+import { useToast } from "../../components/Toast";
 
 interface BillingUsage {
   plan: string;
@@ -53,6 +54,7 @@ export default function SettingsPage() {
   const { token, hydrated } = useAuthGuard();
   const tenantId = useAppStore((s) => s.tenantId);
   const clearAuth = useAppStore((s) => s.clearAuth);
+  const { toast } = useToast();
 
   const [active, setActive] = useState("profile");
   const [billingUsage, setBillingUsage] = useState<BillingUsage | null>(null);
@@ -141,7 +143,7 @@ export default function SettingsPage() {
     catch (err) { console.error("Billing portal failed:", err); setBillingError((err as Error).message); }
   }
 
-  function handleSave() { setSaved(true); setTimeout(() => setSaved(false), 2000); }
+  function handleSave() { setSaved(true); toast("Settings saved successfully", "success"); setTimeout(() => setSaved(false), 2000); }
 
   async function handleSaveAiConfig() {
     if (!token) return;
@@ -193,7 +195,7 @@ export default function SettingsPage() {
     <div className="min-h-screen" style={{ background: "#0a0d14" }}>
       {/* Top bar */}
       <header
-        className="sticky top-0 z-40 flex items-center justify-between px-8 h-16 font-headline"
+        className="sticky top-0 z-40 flex items-center justify-between pl-8 pr-28 h-16 font-headline"
         style={{
           background: "rgba(12,12,29,0.85)",
           backdropFilter: "blur(16px)",

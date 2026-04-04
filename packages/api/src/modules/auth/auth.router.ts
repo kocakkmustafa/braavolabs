@@ -77,8 +77,15 @@ authRouter.post("/reset-password", authRateLimit, validate(resetSchema), async (
   } catch (err) { next(err); }
 });
 
+// Rate limit refresh endpoint to prevent token abuse
+const refreshRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  maxRequests: 30,
+  keyPrefix: "rl:refresh",
+});
+
 // POST /api/v1/auth/refresh — exchange refresh token for new access + refresh tokens
-authRouter.post("/refresh", async (req, res, next) => {
+authRouter.post("/refresh", refreshRateLimit, async (req, res, next) => {
   try {
     const { refreshToken } = z.object({ refreshToken: z.string().min(1) }).parse(req.body);
     const result = await refreshTokens(refreshToken);

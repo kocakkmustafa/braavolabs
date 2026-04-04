@@ -70,6 +70,7 @@ app.use(
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    maxAge: 86400, // Cache preflight for 24 hours
   }),
 );
 app.use(compression());

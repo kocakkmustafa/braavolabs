@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../lib/store";
+import { useToast } from "../../components/Toast";
 
 const CATEGORIES = [
   { id: "", label: "All", icon: "apps" },
@@ -77,6 +78,7 @@ export default function WebhooksPage() {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const { toast } = useToast();
 
   const filtered = WEBHOOK_TEMPLATES.filter((t) => {
     const matchSearch = !search || t.name.toLowerCase().includes(search.toLowerCase()) || t.description.toLowerCase().includes(search.toLowerCase()) || t.provider.toLowerCase().includes(search.toLowerCase());
@@ -160,7 +162,11 @@ export default function WebhooksPage() {
                     </div>
                   </div>
 
-                  <button className="mt-4 w-full sm:w-auto px-6 py-2 rounded-xl text-xs font-semibold text-white transition-all hover:brightness-110" style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}>
+                  <button
+                    onClick={() => toast(`Template "${template.name}" installed successfully!`, "success")}
+                    className="mt-4 w-full sm:w-auto px-6 py-2 rounded-xl text-xs font-semibold text-white transition-all hover:brightness-110"
+                    style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
+                  >
                     Install Template
                   </button>
                 </div>

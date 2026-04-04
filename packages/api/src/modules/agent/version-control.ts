@@ -1,6 +1,6 @@
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
-import type { AgentDiff } from "@company-os/core";
+import type { AgentDiff } from "@ai-company-os/core";
 
 /**
  * Take a snapshot of the current agent config and store it as a new version.

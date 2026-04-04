@@ -47,8 +47,11 @@ export default function OnboardingChecklist() {
         position: "fixed",
         bottom: 20,
         right: 20,
-        zIndex: 80,
+        zIndex: 55,
         width: expanded ? 340 : "auto",
+        maxHeight: expanded ? "calc(100vh - 100px)" : "auto",
+        overflowY: expanded ? "auto" as const : "visible" as const,
+        pointerEvents: "auto" as const,
       }}
     >
       {/* Collapsed: floating badge */}

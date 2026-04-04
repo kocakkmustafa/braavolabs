@@ -112,7 +112,7 @@ export default function BillingPage() {
           </div>
 
           {/* Usage meters */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 stagger-children">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 stagger-children">
             {[
               { label: "Runs This Month", current: usage?.live?.runs ?? 0, limit: limits.runs, icon: "play_circle", color: "#00d1ff" },
               { label: "Tool Calls", current: usage?.live?.toolCalls ?? 0, limit: -1, icon: "build", color: "#a4e6ff" },
@@ -149,7 +149,7 @@ export default function BillingPage() {
 
           {/* Plans comparison */}
           <h2 className="font-headline font-bold text-base mb-4" style={{ color: "#e1e2eb" }}>Compare Plans</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             {[
               {
                 name: "Free", price: "$0", priceNote: "forever", id: "FREE", color: "#859399",
