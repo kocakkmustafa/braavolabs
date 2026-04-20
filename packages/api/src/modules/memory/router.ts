@@ -2,6 +2,7 @@ import { Router } from "express";
 import { authMiddleware } from "../../middleware/auth";
 import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
+import { rateLimit } from "../../middleware/rateLimit";
 import { z } from "zod";
 import {
   searchMemory,
@@ -17,6 +18,10 @@ import {
 export const memoryRouter = Router();
 memoryRouter.use(authMiddleware);
 
+// Expensive endpoints (generate embeddings + pgvector search) — per-tenant throttle
+const memorySearchLimiter = rateLimit({ windowMs: 60_000, maxRequests: 30, keyPrefix: "rl:memory:search" });
+const memoryConsolidateLimiter = rateLimit({ windowMs: 60_000, maxRequests: 5, keyPrefix: "rl:memory:consolidate" });
+
 const searchSchema = z.object({
   companyId: z.string(),
   query: z.string().min(1),
@@ -28,7 +33,7 @@ const searchSchema = z.object({
 });
 
 // POST /api/v1/memory/search — semantic memory search (pgvector)
-memoryRouter.post("/search", async (req, res, next) => {
+memoryRouter.post("/search", memorySearchLimiter, async (req, res, next) => {
   try {
     const params = searchSchema.parse(req.body);
 
@@ -171,7 +176,7 @@ memoryRouter.post("/edges", async (req, res, next) => {
 });
 
 // POST /api/v1/memory/consolidate — trigger consolidation
-memoryRouter.post("/consolidate", async (req, res, next) => {
+memoryRouter.post("/consolidate", memoryConsolidateLimiter, async (req, res, next) => {
   try {
     const result = await runConsolidation(req.auth!.tenantId);
 

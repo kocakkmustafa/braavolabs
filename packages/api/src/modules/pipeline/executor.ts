@@ -97,7 +97,8 @@ export async function executeStep(
     // Build the step-specific prompt
     const stepPrompt = buildStepPrompt(stepDef, input, run.pipeline.company.name, memoryContext);
 
-    // Execute agent loop
+    // Execute agent loop — govContext threads through to every tool call so that
+    // approvals, tenant isolation, rate limits, and audit logs are enforced.
     const result = await runAgentLoop({
       systemPrompt: agent.systemPrompt,
       userMessage: stepPrompt,
@@ -106,6 +107,13 @@ export async function executeStep(
       maxTokens: agent.maxTokens,
       maxTurns: 10,
       budgetUsd: Number(run.budgetUsd ?? 1),
+      tenantId: run.pipeline.company.tenantId,
+      govContext: {
+        tenantId: run.pipeline.company.tenantId,
+        companyId: run.pipeline.company.id,
+        runId: run.id,
+        runStepId: runStep.id,
+      },
     });
 
     // Extract reasoning from agent response (MANDATORY)

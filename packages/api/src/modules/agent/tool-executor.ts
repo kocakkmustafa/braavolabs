@@ -1,6 +1,6 @@
 /**
  * Tool Executor — executes tool calls with approval gates,
- * rate limiting, and audit logging.
+ * rate limiting, tenant isolation, and audit logging.
  */
 
 import { prisma } from "../../lib/db";
@@ -13,6 +13,37 @@ export interface ToolExecResult {
   durationMs: number;
   error?: string;
   approvalId?: string;
+}
+
+/**
+ * If the tool input references a companyId (by ID, name or slug), validate
+ * it belongs to the tenant. Returns the canonical company row or null if
+ * no companyId was supplied. Throws if a companyId was supplied but does
+ * NOT belong to this tenant (cross-tenant leak attempt).
+ */
+async function enforceTenantScopedCompany(
+  input: unknown,
+  tenantId: string,
+): Promise<{ id: string; tenantId: string } | null> {
+  if (!input || typeof input !== "object") return null;
+  const raw = (input as any).companyId;
+  if (!raw || typeof raw !== "string") return null;
+
+  // Accept ID, name, or slug — but ALL must scope to this tenant.
+  const candidate = await prisma.company.findFirst({
+    where: {
+      tenantId,
+      OR: [{ id: raw }, { name: raw }, { slug: raw }],
+    },
+    select: { id: true, tenantId: true },
+  });
+
+  if (!candidate) {
+    throw new Error(
+      `Tenant isolation violation: companyId "${raw}" does not belong to tenant "${tenantId}"`,
+    );
+  }
+  return candidate;
 }
 
 /**
@@ -41,14 +72,45 @@ export async function executeTool(
     };
   }
 
+  // --- Tenant isolation: if input carries a companyId, it MUST belong to
+  //     this tenant. Rewrite input with canonical company id so downstream
+  //     handlers can't be fooled by name/slug collisions across tenants.
+  let scopedInput = input;
+  try {
+    const scoped = await enforceTenantScopedCompany(input, context.tenantId);
+    if (scoped && input && typeof input === "object") {
+      scopedInput = { ...(input as Record<string, unknown>), companyId: scoped.id };
+    }
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    logger.warn({ toolName, tenantId: context.tenantId, error }, "Tool tenant isolation blocked");
+    return {
+      output: null,
+      status: "FAILED",
+      durationMs: Date.now() - start,
+      error: "Access denied: company is not in your workspace",
+    };
+  }
+
   // --- Approval gate ---
+  // CLAUDE.md rule #3: Any spend-requiring action must pass through the
+  // approvals table. Handler NEVER runs until a human approves.
   if (meta?.requiresApproval) {
+    if (!context.runId) {
+      logger.error({ toolName }, "Approval required but no runId in context — blocking");
+      return {
+        output: null,
+        status: "FAILED",
+        durationMs: Date.now() - start,
+        error: `Tool "${toolName}" requires approval but executor has no run context`,
+      };
+    }
     const approval = await prisma.approval.create({
       data: {
-        runId: context.runId!,
+        runId: context.runId,
         type: "SPEND",
         description: `Approval required for tool: ${toolName}`,
-        metadata: { toolName, input } as any,
+        metadata: { toolName, input: scopedInput } as any,
         status: "PENDING",
       },
     });
@@ -92,9 +154,9 @@ export async function executeTool(
     }
   }
 
-  // --- Execute ---
+  // --- Execute with tenant-scoped input ---
   try {
-    const output = await tool.handler(input);
+    const output = await tool.handler(scopedInput);
     const durationMs = Date.now() - start;
 
     // Log tool call
@@ -103,7 +165,7 @@ export async function executeTool(
         data: {
           runStepId: context.runStepId,
           toolName,
-          input: input as any,
+          input: scopedInput as any,
           output: output as any,
           status: "COMPLETED",
           durationMs,
@@ -121,7 +183,7 @@ export async function executeTool(
         data: {
           runStepId: context.runStepId,
           toolName,
-          input: input as any,
+          input: scopedInput as any,
           output: {} as any,
           status: "FAILED",
           durationMs,

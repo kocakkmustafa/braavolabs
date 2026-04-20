@@ -2,9 +2,15 @@ import { Router } from "express";
 import { authMiddleware } from "../../middleware/auth";
 import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
+import { rateLimit } from "../../middleware/rateLimit";
 import { z } from "zod";
 import { enqueueRun } from "./runner";
 import Anthropic from "@anthropic-ai/sdk";
+import { env } from "../../config/env";
+
+// Expensive endpoints — per-tenant throttle to prevent Claude API cost abuse.
+const naturalLanguageBuilderLimiter = rateLimit({ windowMs: 60_000, maxRequests: 10, keyPrefix: "rl:pipeline:nl" });
+const runTriggerLimiter = rateLimit({ windowMs: 60_000, maxRequests: 30, keyPrefix: "rl:pipeline:run" });
 
 export const pipelineRouter = Router();
 pipelineRouter.use(authMiddleware);
@@ -30,7 +36,7 @@ const nlPipelineSchema = z.object({
   name: z.string().min(1).optional(),
 });
 
-pipelineRouter.post("/from-natural-language", async (req, res, next) => {
+pipelineRouter.post("/from-natural-language", naturalLanguageBuilderLimiter, async (req, res, next) => {
   try {
     const { companyId, description, name } = nlPipelineSchema.parse(req.body);
 
@@ -75,10 +81,10 @@ Rules:
 - If a step needs to run after another, use sequential order numbers
 - For parallel steps, assign the same order number`;
 
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
 
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: env.CLAUDE_MODEL,
       max_tokens: 1024,
       system: systemPrompt,
       messages: [{ role: "user", content: `Create a pipeline for: ${description}` }],
@@ -136,7 +142,7 @@ Rules:
     res.status(201).json({
       pipeline,
       generatedFrom: description,
-      aiModel: "claude-sonnet-4-6",
+      aiModel: env.CLAUDE_MODEL,
     });
   } catch (err) { next(err); }
 });
@@ -200,7 +206,7 @@ pipelineRouter.post("/", async (req, res, next) => {
 });
 
 // POST /api/v1/pipelines/:id/run — trigger a pipeline run
-pipelineRouter.post("/:id/run", async (req, res, next) => {
+pipelineRouter.post("/:id/run", runTriggerLimiter, async (req, res, next) => {
   try {
     const pipeline = await prisma.pipeline.findUnique({
       where: { id: req.params.id },

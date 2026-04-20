@@ -50,13 +50,15 @@ export const PROVIDER_DEFAULT_MODELS: Record<AIProviderType, string> = {
   OPENROUTER: "openai/gpt-4o",
 };
 
+// Valid Anthropic model IDs as of 2026-04. Invalid IDs like
+// "claude-opus-4-6" and "claude-sonnet-4-6" removed (they return 400 from API).
 export const PROVIDER_MODELS: Record<AIProviderType, string[]> = {
-  ANTHROPIC:  ["claude-opus-4-6", "claude-sonnet-4-20250514", "claude-haiku-4-5-20251001"],
+  ANTHROPIC:  ["claude-opus-4-20250514", "claude-sonnet-4-5-20250929", "claude-sonnet-4-20250514", "claude-haiku-4-5-20251001"],
   OPENAI:     ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "o1-mini"],
   GOOGLE:     ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"],
   MISTRAL:    ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest", "open-mistral-7b"],
   GROQ:       ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
-  OPENROUTER: ["openai/gpt-4o", "anthropic/claude-opus-4", "meta-llama/llama-3.3-70b-instruct", "google/gemini-pro-1.5"],
+  OPENROUTER: ["openai/gpt-4o", "anthropic/claude-sonnet-4-5", "meta-llama/llama-3.3-70b-instruct", "google/gemini-pro-1.5"],
 };
 
 export const PROVIDER_BASE_URLS: Record<Exclude<AIProviderType, "ANTHROPIC" | "GOOGLE">, string> = {

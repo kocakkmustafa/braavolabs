@@ -30,30 +30,41 @@ export default function DashboardPage() {
   }, [token]);
 
   // ── Public demo dashboard (not logged in) ──
+  //
+  // NOTE: The cards below show what your OWN dashboard will look like after
+  // you sign in. The numbers are illustrative examples (marked "Example
+  // preview"), not aggregate platform metrics. Using fake platform-wide
+  // numbers would mislead a first-time visitor — we avoid that.
   if (!token) {
     return (
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in mesh-bg">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8" style={{ position: "relative", zIndex: 1 }}>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold font-headline gradient-text">Command Center</h1>
-            <p className="text-sm mt-1" style={{ color: "#859399" }}>See what AI Company OS can do — sign in to manage your own companies</p>
+            <h1 className="text-xl sm:text-2xl font-bold font-headline gradient-text">Command Center Preview</h1>
+            <p className="text-sm mt-1" style={{ color: "#859399" }}>Here's what your dashboard will look like with your own AI companies. Sign in to build your first one.</p>
           </div>
           <Link href="/login" className="btn-primary self-start sm:self-auto" style={{ textDecoration: "none" }}>Sign In to Get Started</Link>
         </div>
 
+        <div className="mb-4 px-3 py-2 inline-flex items-center gap-2 rounded-lg" style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.18)", position: "relative", zIndex: 1 }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 14, color: "#fbbf24" }}>preview</span>
+          <span className="text-[11px] font-medium" style={{ color: "#fbbf24" }}>Example preview — not live platform metrics</span>
+        </div>
+
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-8 stagger-children" style={{ position: "relative", zIndex: 1 }}>
           {[
-            { label: "Active Companies", value: "1,247", icon: "business", color: "#a4e6ff" },
-            { label: "Running Pipelines", value: "89", icon: "play_circle", color: "#34d399" },
-            { label: "Pending Approvals", value: "12", icon: "task_alt", color: "#fbbf24" },
-            { label: "Total Runs", value: "24.3K", icon: "bolt", color: "#fbbf24" },
-            { label: "Total Cost", value: "$1,842", icon: "payments", color: "#c084fc" },
+            { label: "Active Companies", value: "3", sub: "example", icon: "business", color: "#a4e6ff" },
+            { label: "Running Pipelines", value: "2", sub: "example", icon: "play_circle", color: "#34d399" },
+            { label: "Pending Approvals", value: "1", sub: "example", icon: "task_alt", color: "#fbbf24" },
+            { label: "Runs This Month", value: "47", sub: "example", icon: "bolt", color: "#fbbf24" },
+            { label: "Cost This Month", value: "$8.20", sub: "example", icon: "payments", color: "#c084fc" },
           ].map((m) => (
             <div key={m.label} className="metric-card">
               <div className="flex items-center justify-between mb-3">
                 <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center" style={{ background: `${m.color}08` }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 18, color: m.color }}>{m.icon}</span>
                 </div>
+                <span className="text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wide" style={{ background: "rgba(251,191,36,0.08)", color: "#fbbf24" }}>{m.sub}</span>
               </div>
               <p className="text-lg sm:text-2xl font-bold font-headline" style={{ color: "#e1e2eb" }}>{m.value}</p>
               <p className="text-[10px] sm:text-xs mt-0.5" style={{ color: "#859399" }}>{m.label}</p>
@@ -64,8 +75,9 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" style={{ position: "relative", zIndex: 1 }}>
           <div className="lg:col-span-2">
             <div className="glass-card">
-              <div className="px-5 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+              <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                 <h2 className="font-semibold font-headline" style={{ color: "#e1e2eb" }}>Example Companies</h2>
+                <span className="text-[10px] px-2 py-0.5 rounded uppercase tracking-wide" style={{ background: "rgba(251,191,36,0.08)", color: "#fbbf24" }}>Sample data</span>
               </div>
               <div className="p-4 space-y-1 stagger-children">
                 {[

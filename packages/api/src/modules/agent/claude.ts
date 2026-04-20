@@ -9,8 +9,24 @@ import type {
 import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
 import { getTool } from "./registry";
+import { executeTool, type ToolExecResult } from "./tool-executor";
 import { runLocalAgentLoop } from "./claude-local";
 import { getTenantAIConfig, chatCompletion, type AIClientConfig } from "../../services/ai-client";
+
+/**
+ * Governance context threaded from pipeline executor → agent loop → tool execution.
+ * When present, every tool call runs through executeTool() with approval gate,
+ * tenant isolation, rate limiting, and audit logging.
+ *
+ * When absent (bare invocations, e.g. onboarding clarification), tools run
+ * directly against the registry — safer subset of tools should be used there.
+ */
+export interface AgentGovContext {
+  tenantId: string;
+  companyId: string;
+  runId: string;
+  runStepId: string;
+}
 
 const isLocalMode = env.LLM_PROVIDER === "local";
 // Legacy system-level Anthropic client (used when no tenant config or for Anthropic provider)
@@ -95,6 +111,11 @@ async function withRetry<T>(
 /**
  * Execute a single Anthropic API call with tool use.
  * Returns the response and any tool call results.
+ *
+ * When govContext is provided, tool calls run through executeTool() which
+ * enforces: approval gates, tenant isolation, rate limits, audit logging.
+ * Otherwise tools run directly (used only for non-run contexts — e.g.
+ * clarification loops that don't hit governed tools).
  */
 async function executeTurn(
   systemPrompt: string,
@@ -103,6 +124,7 @@ async function executeTurn(
   model: string,
   maxTokens: number,
   anthropicClient?: Anthropic,
+  govContext?: AgentGovContext,
 ): Promise<AgentTurnResult> {
   const client = anthropicClient ?? systemClient;
   if (!client) {
@@ -136,6 +158,25 @@ async function executeTurn(
 
   const toolCallResults = await Promise.all(
     toolUseBlocks.map(async (block) => {
+      // Governed path: approvals, tenant isolation, rate limits, audit log.
+      if (govContext) {
+        const result: ToolExecResult = await executeTool(block.name, block.input, govContext);
+        const errorMsg =
+          result.status === "PENDING_APPROVAL"
+            ? `Action paused — waiting for spend approval (approval id ${result.approvalId})`
+            : result.error;
+        return {
+          id: block.id,
+          name: block.name,
+          input: block.input,
+          output: result.output,
+          durationMs: result.durationMs,
+          ...(errorMsg ? { error: errorMsg } : {}),
+        };
+      }
+
+      // Ungoverned path — only used when no run context (e.g. onboarding,
+      // natural-language builder). Approval-required tools block here for safety.
       const start = Date.now();
       const registeredTool = getTool(block.name);
 
@@ -147,6 +188,17 @@ async function executeTurn(
           output: null,
           durationMs: Date.now() - start,
           error: `Tool "${block.name}" not found in registry`,
+        };
+      }
+
+      if (registeredTool.meta?.requiresApproval) {
+        return {
+          id: block.id,
+          name: block.name,
+          input: block.input,
+          output: null,
+          durationMs: Date.now() - start,
+          error: `Tool "${block.name}" requires spend approval and cannot run outside a governed pipeline run`,
         };
       }
 
@@ -201,6 +253,12 @@ export async function runAgentLoop(config: {
   context?: MessageParam[];
   /** Tenant ID — used to load the tenant's configured AI provider */
   tenantId?: string;
+  /**
+   * Full governance context. When provided, every tool call goes through
+   * executeTool() — approval gate, tenant isolation, rate limiting, audit.
+   * REQUIRED for any loop invoked from a pipeline run.
+   */
+  govContext?: AgentGovContext;
 }): Promise<AgentLoopResult> {
   // Route to local CLI if configured
   if (isLocalMode) {
@@ -298,6 +356,7 @@ async function runAnthropicLoop(
     maxTurns?: number;
     budgetUsd?: number;
     context?: MessageParam[];
+    govContext?: AgentGovContext;
   },
   anthropicClient?: Anthropic,
 ): Promise<AgentLoopResult> {
@@ -309,6 +368,7 @@ async function runAnthropicLoop(
     maxTokens = 4096,
     maxTurns = 10,
     budgetUsd = 1.0,
+    govContext,
   } = config;
 
   const tools = buildAnthropicTools(toolNames);
@@ -320,7 +380,7 @@ async function runAnthropicLoop(
   let totalCost = 0;
 
   for (let turn = 0; turn < maxTurns; turn++) {
-    const result = await executeTurn(systemPrompt, messages, tools, model, maxTokens, anthropicClient);
+    const result = await executeTurn(systemPrompt, messages, tools, model, maxTokens, anthropicClient, govContext);
     turns.push(result);
     totalCost += result.costUsd;
 

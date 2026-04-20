@@ -513,7 +513,9 @@ model Integration {
 
 enum Plan {
   FREE
+  CREATOR
   PRO
+  BUSINESS
   ENTERPRISE
 }
 

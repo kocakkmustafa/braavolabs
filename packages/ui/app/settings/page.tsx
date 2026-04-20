@@ -41,7 +41,7 @@ const NAV_ITEMS = [
 ];
 
 const PROVIDER_LABELS: Record<string, { label: string; color: string; models: string[] }> = {
-  ANTHROPIC:  { label: "Anthropic Claude", color: "#d97706", models: ["claude-opus-4-6", "claude-sonnet-4-20250514", "claude-haiku-4-5-20251001"] },
+  ANTHROPIC:  { label: "Anthropic Claude", color: "#d97706", models: ["claude-opus-4-20250514", "claude-sonnet-4-5-20250929", "claude-sonnet-4-20250514", "claude-haiku-4-5-20251001"] },
   OPENAI:     { label: "OpenAI",           color: "#10a37f", models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "o1-mini"] },
   GOOGLE:     { label: "Google Gemini",    color: "#4285f4", models: ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"] },
   MISTRAL:    { label: "Mistral AI",       color: "#ff6b35", models: ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest"] },

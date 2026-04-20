@@ -11,6 +11,7 @@ import { prisma } from "../../lib/db";
 import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
+import { redis } from "../../lib/redis";
 import {
   createCustomer,
   createCheckoutSession,
@@ -19,6 +20,29 @@ import {
   constructWebhookEvent,
 } from "@ai-company-os/integrations";
 import type { StripeConfig } from "@ai-company-os/integrations";
+
+/**
+ * Idempotency key TTL — Stripe retries for up to 3 days, keep 7 for safety.
+ */
+const WEBHOOK_EVENT_TTL_SECONDS = 7 * 24 * 60 * 60;
+
+/**
+ * Returns true if this event.id has not been seen before (and marks it seen).
+ * Prevents duplicate processing when Stripe retries a webhook.
+ */
+async function claimWebhookEvent(eventId: string): Promise<boolean> {
+  // SETNX returns "OK" on first write, null if already set.
+  const result = await redis.set(`stripe:webhook:${eventId}`, "1", "EX", WEBHOOK_EVENT_TTL_SECONDS, "NX");
+  return result === "OK";
+}
+
+/**
+ * Release a webhook event claim so Stripe can retry it.
+ * Used when handler fails, before returning 5xx.
+ */
+async function releaseWebhookEvent(eventId: string): Promise<void> {
+  await redis.del(`stripe:webhook:${eventId}`).catch(() => {});
+}
 
 function getStripeConfig(): StripeConfig {
   if (!env.STRIPE_SECRET_KEY || !env.STRIPE_WEBHOOK_SECRET) {
@@ -233,6 +257,14 @@ stripeWebhookRouter.post(
 
     logger.info({ type: event.type, id: event.id }, "Stripe webhook received");
 
+    // ─── Idempotency guard — prevents duplicate processing on retry ───
+    const firstSeen = await claimWebhookEvent(event.id);
+    if (!firstSeen) {
+      logger.info({ id: event.id, type: event.type }, "Stripe webhook duplicate — skipped");
+      res.json({ received: true, duplicate: true });
+      return;
+    }
+
     try {
       switch (event.type) {
         case "checkout.session.completed": {
@@ -258,7 +290,7 @@ stripeWebhookRouter.post(
                 action: "billing.subscription_created",
                 resource: "tenant",
                 resourceId: tenant.id,
-                details: { subscriptionId },
+                details: { subscriptionId, stripeEventId: event.id },
               },
             });
           }
@@ -269,17 +301,22 @@ stripeWebhookRouter.post(
           const subscription = event.data.object as any;
           const customerId = subscription.customer as string;
           const status = subscription.status as string;
+          const priceId = subscription.items?.data?.[0]?.price?.id;
 
           const tenant = await prisma.tenant.findFirst({
             where: { stripeCustomerId: customerId },
           });
 
           if (tenant) {
-            // Map Stripe subscription status to plan
-            const plan = status === "active" || status === "trialing"
-              ? (subscription.items?.data?.[0]?.price?.id === env.STRIPE_ENTERPRISE_PRICE_ID
-                ? "ENTERPRISE" : "PRO")
-              : "FREE";
+            // Map Stripe subscription status + price ID to plan
+            let plan: "FREE" | "CREATOR" | "PRO" | "BUSINESS" | "ENTERPRISE" = "FREE";
+            if (status === "active" || status === "trialing") {
+              if (priceId === env.STRIPE_ENTERPRISE_PRICE_ID) plan = "ENTERPRISE";
+              else if (priceId === env.STRIPE_BUSINESS_PRICE_ID || priceId === env.STRIPE_BUSINESS_YEARLY_PRICE_ID) plan = "BUSINESS";
+              else if (priceId === env.STRIPE_PRO_PRICE_ID || priceId === env.STRIPE_PRO_YEARLY_PRICE_ID) plan = "PRO";
+              else if (priceId === env.STRIPE_CREATOR_PRICE_ID || priceId === env.STRIPE_CREATOR_YEARLY_PRICE_ID) plan = "CREATOR";
+              else plan = "PRO"; // sensible default for unknown active subscription
+            }
 
             await prisma.tenant.update({
               where: { id: tenant.id },
@@ -296,7 +333,7 @@ stripeWebhookRouter.post(
                 action: "billing.plan_changed",
                 resource: "tenant",
                 resourceId: tenant.id,
-                details: { plan, status },
+                details: { plan, status, priceId, stripeEventId: event.id },
               },
             });
           }
@@ -327,14 +364,138 @@ stripeWebhookRouter.post(
                 action: "billing.subscription_cancelled",
                 resource: "tenant",
                 resourceId: tenant.id,
+                details: { stripeEventId: event.id },
               },
             });
           }
           break;
         }
+
+        case "invoice.payment_failed": {
+          const invoice = event.data.object as any;
+          const customerId = invoice.customer as string;
+          const tenant = await prisma.tenant.findFirst({
+            where: { stripeCustomerId: customerId },
+          });
+          if (tenant) {
+            await prisma.activityLog.create({
+              data: {
+                tenantId: tenant.id,
+                actor: "stripe",
+                action: "billing.payment_failed",
+                resource: "tenant",
+                resourceId: tenant.id,
+                details: {
+                  invoiceId: invoice.id,
+                  amountDue: invoice.amount_due,
+                  attemptCount: invoice.attempt_count,
+                  stripeEventId: event.id,
+                },
+              },
+            });
+            logger.warn({ tenantId: tenant.id, invoiceId: invoice.id }, "Stripe payment failed");
+          }
+          break;
+        }
+
+        case "invoice.payment_action_required": {
+          const invoice = event.data.object as any;
+          const customerId = invoice.customer as string;
+          const tenant = await prisma.tenant.findFirst({
+            where: { stripeCustomerId: customerId },
+          });
+          if (tenant) {
+            await prisma.activityLog.create({
+              data: {
+                tenantId: tenant.id,
+                actor: "stripe",
+                action: "billing.payment_action_required",
+                resource: "tenant",
+                resourceId: tenant.id,
+                details: {
+                  invoiceId: invoice.id,
+                  hostedInvoiceUrl: invoice.hosted_invoice_url,
+                  stripeEventId: event.id,
+                },
+              },
+            });
+          }
+          break;
+        }
+
+        case "customer.subscription.trial_will_end": {
+          const subscription = event.data.object as any;
+          const customerId = subscription.customer as string;
+          const tenant = await prisma.tenant.findFirst({
+            where: { stripeCustomerId: customerId },
+          });
+          if (tenant) {
+            await prisma.activityLog.create({
+              data: {
+                tenantId: tenant.id,
+                actor: "stripe",
+                action: "billing.trial_will_end",
+                resource: "tenant",
+                resourceId: tenant.id,
+                details: {
+                  subscriptionId: subscription.id,
+                  trialEnd: subscription.trial_end,
+                  stripeEventId: event.id,
+                },
+              },
+            });
+          }
+          break;
+        }
+
+        case "charge.refunded": {
+          const charge = event.data.object as any;
+          const customerId = charge.customer as string;
+          if (customerId) {
+            const tenant = await prisma.tenant.findFirst({
+              where: { stripeCustomerId: customerId },
+            });
+            if (tenant) {
+              // Full refund → downgrade to FREE immediately (safer default)
+              const fullyRefunded = charge.amount_refunded >= charge.amount;
+              if (fullyRefunded) {
+                await prisma.tenant.update({
+                  where: { id: tenant.id },
+                  data: { plan: "FREE" },
+                });
+              }
+              await prisma.activityLog.create({
+                data: {
+                  tenantId: tenant.id,
+                  actor: "stripe",
+                  action: "billing.refunded",
+                  resource: "tenant",
+                  resourceId: tenant.id,
+                  details: {
+                    chargeId: charge.id,
+                    amountRefunded: charge.amount_refunded,
+                    fullyRefunded,
+                    downgradedToFree: fullyRefunded,
+                    stripeEventId: event.id,
+                  },
+                },
+              });
+            }
+          }
+          break;
+        }
+
+        default:
+          // Known but unhandled event types — log and move on
+          logger.debug({ type: event.type, id: event.id }, "Stripe webhook event unhandled");
       }
     } catch (err) {
-      logger.error({ err, eventType: event.type }, "Error processing Stripe webhook");
+      logger.error({ err, eventType: event.type, eventId: event.id }, "Error processing Stripe webhook");
+      // Release the idempotency claim so Stripe can retry this event.
+      await releaseWebhookEvent(event.id);
+      // Return 5xx so Stripe retries (don't swallow the error).
+      res.status(500).json({ error: "Webhook processing failed" });
+      return;
     }
 
     res.json({ received: true });

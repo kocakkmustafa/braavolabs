@@ -3,6 +3,8 @@ import { authMiddleware } from "../../middleware/auth";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
+import { rateLimit } from "../../middleware/rateLimit";
+import { PLAN_LIMITS } from "@ai-company-os/core";
 import { z } from "zod";
 import { applyNaturalLanguageEdit, AgentConfig } from "../agent/nl-editor";
 import {
@@ -15,6 +17,10 @@ import { createVersion } from "../agent/version-control";
 
 export const companyRouter = Router();
 companyRouter.use(authMiddleware);
+
+// Expensive: freeform builder triggers Claude clarification loop (expensive tokens).
+const buildStartLimiter = rateLimit({ windowMs: 60_000, maxRequests: 5, keyPrefix: "rl:company:build" });
+const buildAnswerLimiter = rateLimit({ windowMs: 60_000, maxRequests: 20, keyPrefix: "rl:company:build:answer" });
 
 const createSchema = z.object({
   name: z.string().min(1).max(100),
@@ -75,13 +81,29 @@ companyRouter.get("/:id", async (req, res, next) => {
 companyRouter.post("/", async (req, res, next) => {
   try {
     const data = createSchema.parse(req.body);
+    const tenantId = req.auth!.tenantId;
+
+    // Enforce plan company limit (Free=1, Creator=5, Pro=20, Business=100, Enterprise=∞)
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { plan: true, _count: { select: { companies: true } } },
+    });
+    if (!tenant) throw new AppError(401, "Tenant not found");
+    const limit = PLAN_LIMITS[tenant.plan].maxCompanies;
+    if (limit !== -1 && tenant._count.companies >= limit) {
+      throw new AppError(
+        402,
+        `Company limit reached for ${tenant.plan} plan (${limit}). Upgrade to add more.`,
+      );
+    }
+
     const company = await prisma.company.create({
-      data: { ...data, config: data.config as any, tenantId: req.auth!.tenantId },
+      data: { ...data, config: data.config as any, tenantId },
     });
 
     await prisma.activityLog.create({
       data: {
-        tenantId: req.auth!.tenantId,
+        tenantId,
         actor: req.auth!.userId,
         action: "company.create",
         resource: "company",
@@ -168,7 +190,7 @@ companyRouter.post("/:id/resume", async (req, res, next) => {
 // ─── COMPANY BUILDER (Freeform text → AI company) ──────
 
 // POST /api/v1/companies/build — start building from freeform text
-companyRouter.post("/build", async (req, res, next) => {
+companyRouter.post("/build", buildStartLimiter, async (req, res, next) => {
   try {
     const body = z
       .object({
@@ -219,7 +241,7 @@ companyRouter.post("/build", async (req, res, next) => {
 });
 
 // POST /api/v1/companies/build/:sessionId/answer — answer clarification questions
-companyRouter.post("/build/:sessionId/answer", async (req, res, next) => {
+companyRouter.post("/build/:sessionId/answer", buildAnswerLimiter, async (req, res, next) => {
   try {
     const { answer } = z
       .object({ answer: z.string().min(1) })

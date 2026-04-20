@@ -401,7 +401,7 @@ export default function LandingPage() {
                 transition: "all 0.8s cubic-bezier(0.16,1,0.3,1) 0.15s",
               }}>
                 <span className="status-dot" style={{ background: "#00d1ff" }} />
-                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.14em", color: "#a4e6ff" }}>9 AI AGENTS. ONE COMPANY.</span>
+                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.14em", color: "#a4e6ff" }}>BUILT FOR CREATORS & SOLO FOUNDERS</span>
               </div>
 
               {/* Headline */}
@@ -413,18 +413,18 @@ export default function LandingPage() {
                 transform: heroVisible ? "translateY(0)" : "translateY(16px)",
                 transition: "all 0.8s cubic-bezier(0.16,1,0.3,1) 0.2s",
               }}>
-                <span style={{ color: "#e1e2eb" }}>Your company,</span><br />
-                <span className="gradient-text">running itself.</span>
+                <span style={{ color: "#e1e2eb" }}>Your AI company.</span><br />
+                <span className="gradient-text">Built in 10 minutes.</span>
               </h1>
 
               <p style={{
                 color: "#859399", fontSize: "1rem", lineHeight: 1.8,
-                maxWidth: 480, margin: "0 auto 36px",
+                maxWidth: 520, margin: "0 auto 36px",
                 opacity: heroVisible ? 1 : 0,
                 transform: heroVisible ? "translateY(0)" : "translateY(12px)",
                 transition: "all 0.8s cubic-bezier(0.16,1,0.3,1) 0.3s",
               }}>
-                Describe what you want to automate. AI builds agents, pipelines, and workflows — running 24/7 with full audit logs.
+                Describe your business in plain English. AI Company OS builds a fully-staffed autonomous team — content, sales, ops — that runs while you sleep. Every decision is logged.
               </p>
 
               {/* Builder Input */}
@@ -474,7 +474,7 @@ export default function LandingPage() {
                     style={{ padding: "9px 22px", fontSize: 13 }}
                   >
                     <span className="material-symbols-outlined" style={{ fontSize: 15 }}>rocket_launch</span>
-                    Build My Company
+                    Hire my AI team — free
                   </button>
                 </div>
               </div>
@@ -485,10 +485,10 @@ export default function LandingPage() {
                 opacity: heroVisible ? 1 : 0,
                 transition: "opacity 0.8s 0.5s",
               }}>
-                {["Content Agency", "Sales Automation", "Customer Success", "Finance Ops"].map((chip) => (
+                {["TikTok Content Studio", "Newsletter Growth", "Lead Follow-up", "Client Reporting"].map((chip) => (
                   <button
                     key={chip}
-                    onClick={() => { setInput(`An AI-powered ${chip.toLowerCase()} company that automates all key workflows`); sounds.click(); }}
+                    onClick={() => { setInput(`A ${chip.toLowerCase()} company that runs autonomously — I describe the goal, AI agents do the work, I review the output.`); sounds.click(); }}
                     style={{
                       padding: "5px 14px", borderRadius: 999, fontSize: 12, fontWeight: 500,
                       background: "rgba(255,255,255,0.03)",
@@ -642,7 +642,7 @@ export default function LandingPage() {
         {/* Trust badges */}
         <div className="reveal" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 36, flexWrap: "wrap" }}>
           {[
-            { icon: "shield", text: "SOC 2 Ready" },
+            { icon: "shield", text: "SOC 2 in progress" },
             { icon: "lock", text: "End-to-end Encrypted" },
             { icon: "verified", text: "Full Audit Trail" },
             { icon: "speed", text: "99.9% Uptime SLA" },
