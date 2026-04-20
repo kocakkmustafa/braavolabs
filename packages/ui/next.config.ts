@@ -7,13 +7,8 @@ const MONOREPO_ROOT = path.resolve(__dirname, "../..");
 const nextConfig: NextConfig = {
   transpilePackages: ["@ai-company-os/core"],
   productionBrowserSourceMaps: false,
-  // Pre-existing TS type errors in some internal pages (ab-tests, collaboration,
-  // integration/webhook) are tracked as tech debt but do not affect runtime.
-  // We ship the build and fix incrementally — keeps launch unblocked.
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   eslint: {
+    // ESLint is run separately in CI — don't block prod build on lint warnings.
     ignoreDuringBuilds: true,
   },
   // Setting turbopack.root to the monorepo root matches what Next.js

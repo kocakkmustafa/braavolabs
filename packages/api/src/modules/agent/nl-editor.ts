@@ -128,7 +128,6 @@ const LANGUAGE_MAP: Record<string, string> = {
   indonesian: "Indonesian",
   malay: "Malay",
   filipino: "Filipino",
-  turkish: "Turkish",
   "türkçe": "Turkish",
 };
 

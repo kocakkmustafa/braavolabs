@@ -75,7 +75,7 @@ integrationRouter.get("/tool-map", (_req, res) => {
  */
 integrationRouter.get("/:companyId", async (req, res, next) => {
   try {
-    const { companyId } = req.params;
+    const companyId = req.params.companyId as string;
     const company = await prisma.company.findFirst({
       where: { id: companyId, tenantId: req.auth!.tenantId },
     });
@@ -112,7 +112,7 @@ integrationRouter.get("/:companyId", async (req, res, next) => {
  */
 integrationRouter.post("/:companyId", validate(saveIntegrationSchema), async (req, res, next) => {
   try {
-    const { companyId } = req.params;
+    const companyId = req.params.companyId as string;
     const ownerCheck = await prisma.company.findFirst({
       where: { id: companyId, tenantId: req.auth!.tenantId },
     });
@@ -178,7 +178,7 @@ integrationRouter.post("/:companyId", validate(saveIntegrationSchema), async (re
  */
 integrationRouter.post("/:companyId/test", validate(testIntegrationSchema), async (req, res, next) => {
   try {
-    const { companyId } = req.params;
+    const companyId = req.params.companyId as string;
     const ownerCheck = await prisma.company.findFirst({
       where: { id: companyId, tenantId: req.auth!.tenantId },
     });
@@ -261,7 +261,7 @@ integrationRouter.delete("/:companyId/:provider", async (req, res, next) => {
  */
 integrationRouter.get("/:companyId/missing", async (req, res, next) => {
   try {
-    const { companyId } = req.params;
+    const companyId = req.params.companyId as string;
     const ownerCheck = await prisma.company.findFirst({
       where: { id: companyId, tenantId: req.auth!.tenantId },
     });

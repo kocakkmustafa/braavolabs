@@ -47,7 +47,7 @@ export default function AbTestsPage() {
     { name: "Variant B", config: { systemPrompt: "", temperature: 0.7 }, weight: 50 },
   ]);
   const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState("");
+  const [createError, setCreateError] = useState<string | null>("");
   const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {

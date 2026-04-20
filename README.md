@@ -1,12 +1,15 @@
 # AI Company OS
 
-**Build and run autonomous AI companies from plain text.**
+**Your AI company. Built in 10 minutes. Runs on autopilot.**
 
-AI Company OS is a full-stack platform where you describe your business idea and AI builds agents, pipelines, and workflows — running 24/7 with full audit logs and human approval gates.
+Describe your business in plain English. AI Company OS builds a fully-staffed autonomous team — content, sales, ops — that runs while you sleep. Every decision is logged, every spend requires approval, every run is audited end-to-end.
+
+Built for **creators and solo founders** who want to scale without hiring. Claude-native, self-hostable, exportable as a Claude Code skill bundle.
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Node](https://img.shields.io/badge/node-%3E%3D20-green)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)
+![Phase](https://img.shields.io/badge/phase-18%20%2B%20V1--launch-brightgreen)
 
 ---
 
@@ -53,7 +56,7 @@ The app runs at:
 | **Governance Engine** | Cost anomaly, loop detection, spam protection, brand safety |
 | **Spend Approval** | Human-in-the-loop for financial actions |
 | **Blueprint Marketplace** | Clone proven AI company templates in one click |
-| **Billing & Usage** | Stripe-powered subscriptions with usage metering |
+| **Billing & Usage** | Stripe-powered 4-tier plans (Free / Creator / Pro / Business / Enterprise) with yearly 20% discount |
 | **Referral System** | Share codes, earn bonus runs for both parties |
 | **Google OAuth** | One-click sign in with Google |
 | **Command Palette** | `Cmd+K` quick navigation with keyboard shortcuts |
@@ -67,7 +70,7 @@ The app runs at:
 | **Export to Claude Code** | Export companies as CLAUDE.md, skills, hooks, and settings bundles |
 | **SSE Run Streaming** | Real-time Server-Sent Events for live pipeline run status |
 | **Scheduled Pipelines** | Cron-based automatic pipeline execution via node-cron |
-| **Security Hardening** | Rate limiting, account lockout, HMAC webhooks, CSP, HSTS |
+| **Security Hardening** | OWASP Top 10 covered — parameterized SQL, tenant isolation, blueprint sanitization, Stripe webhook idempotency, rate limits on expensive endpoints, HMAC webhooks, CSP, HSTS |
 | **Graceful Shutdown** | SIGTERM/SIGINT handlers with Redis/Prisma cleanup |
 
 ---
@@ -136,14 +139,19 @@ The app runs at:
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
 | `GOOGLE_REDIRECT_URI` | OAuth callback URL |
 
-### Optional — Billing
+### Optional — Billing (4-tier plan structure)
 
 | Variable | Description |
 |----------|-------------|
 | `STRIPE_SECRET_KEY` | Stripe secret key |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
-| `STRIPE_PRO_PRICE_ID` | Stripe price ID for Pro plan |
-| `STRIPE_ENTERPRISE_PRICE_ID` | Stripe price ID for Enterprise plan |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret (HMAC-SHA256 verified) |
+| `STRIPE_CREATOR_PRICE_ID` | Creator $19/mo price |
+| `STRIPE_CREATOR_YEARLY_PRICE_ID` | Creator $182/yr (20% off) price |
+| `STRIPE_PRO_PRICE_ID` | Pro $39/mo price |
+| `STRIPE_PRO_YEARLY_PRICE_ID` | Pro $374/yr (20% off) price |
+| `STRIPE_BUSINESS_PRICE_ID` | Business $99/mo price |
+| `STRIPE_BUSINESS_YEARLY_PRICE_ID` | Business $950/yr (20% off) price |
+| `STRIPE_ENTERPRISE_PRICE_ID` | Enterprise custom price |
 
 ### Optional — Integrations
 
@@ -173,22 +181,48 @@ pnpm docker:down      # Stop Docker services
 
 ---
 
-## Setting Up Stripe for Real Payments
+## Pricing Tiers
 
-1. Create a [Stripe account](https://dashboard.stripe.com/register)
-2. Get your API keys from the Stripe Dashboard
-3. Create two products with recurring prices:
-   - **Pro Plan**: $49/month
-   - **Enterprise Plan**: Custom pricing
-4. Set up a webhook endpoint pointing to `https://yourdomain.com/api/v1/billing/webhook`
-5. Configure webhook events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_succeeded`
-6. Add the keys to your `.env`:
-   ```env
-   STRIPE_SECRET_KEY=sk_live_...
-   STRIPE_WEBHOOK_SECRET=whsec_...
-   STRIPE_PRO_PRICE_ID=price_...
-   STRIPE_ENTERPRISE_PRICE_ID=price_...
-   ```
+| Plan | Price | Companies | Runs/mo | Key Features |
+|------|-------|-----------|---------|--------------|
+| **Free** | $0 forever | 1 | 10 | Hero TikTok+LinkedIn template, full audit log, community support |
+| **Creator** | $19/mo | 5 (parallel) | 100 | All channels, custom pipelines, memory engine, email support |
+| **Pro** ⭐ | $39/mo | 20 | 500 | HubSpot CRM, outreach automation, advanced analytics, priority support |
+| **Business** | $99/mo | 100 | 2,000 | 3 team seats, governance, audit export, white-label prep, dedicated support |
+| **Enterprise** | Custom | Unlimited | Unlimited | SSO + SAML, SLA, private deployment, dedicated CSM |
+
+- **Yearly billing saves 20%** (Creator $182/yr, Pro $374/yr, Business $950/yr)
+- **No free trial** on paid plans — the Free plan already gives real AI output
+- All plans hit hard quota limits enforced server-side (HTTP 402 on overrun)
+
+## Setting Up Stripe
+
+### Option A: Stripe Türkiye (recommended for Turkish businesses)
+
+1. Go to [stripe.com/tr](https://stripe.com/tr) and register with your Turkish company
+2. Provide tax number (vergi numarası) and trade registry (ticaret sicil no)
+3. Link your company's TRY IBAN
+4. Wait 1–3 business days for approval
+5. Create products in Stripe Dashboard:
+   - **Creator**: $19/mo monthly + $182/yr yearly
+   - **Pro**: $39/mo monthly + $374/yr yearly
+   - **Business**: $99/mo monthly + $950/yr yearly
+   - **Enterprise**: custom price (connect to sales)
+6. Configure webhook endpoint → `https://api.creatably.com/hooks/stripe`
+7. Add events: `checkout.session.completed`, `customer.subscription.*`, `invoice.payment_*`, `charge.refunded`
+8. Copy the 6 price IDs + webhook secret + secret key into your `.env`
+
+### Option B: Stripe Atlas ($500, 2–3 weeks)
+
+For non-Turkish operators: creates a US Delaware LLC + Mercury bank + Stripe account. See [stripe.com/atlas](https://stripe.com/atlas). Same product setup as above after the LLC is provisioned.
+
+### Option C: Paddle as Merchant of Record (5% commission)
+
+If you want Paddle to handle VAT/tax globally, switch the billing adapter to Paddle. Requires 1-2 days of code work to replace Stripe webhook handling. See [paddle.com](https://paddle.com).
+
+### Idempotency + retry safety
+
+The webhook handler at `/hooks/stripe` uses Redis SETNX on `event.id` for 7-day deduplication — safe against Stripe retries. On handler errors the claim is released so Stripe can retry. Handles: `checkout.session.completed`, `customer.subscription.{updated,deleted,trial_will_end}`, `invoice.payment_{failed,action_required}`, `charge.refunded` (auto-downgrade to Free on full refund).
 
 ---
 
@@ -285,14 +319,51 @@ AI Company OS includes comprehensive security hardening for production:
 
 Before deploying to production, ensure:
 
-1. `JWT_SECRET` and `ENCRYPTION_KEY` are unique, random 64+ character secrets
+1. `JWT_SECRET` and `ENCRYPTION_KEY` are unique, random 64+ character secrets (`openssl rand -hex 32`)
 2. `NODE_ENV=production` is set
 3. `BYPASS_BILLING=false` (enforced — server refuses to start otherwise)
 4. PostgreSQL and Redis have strong passwords
 5. HTTPS is enabled (HSTS is pre-configured)
 6. `APP_URL` and `NEXT_PUBLIC_API_URL` point to your production domains
-7. Stripe webhook secret is configured for payment processing
+7. All 6 Stripe price IDs are configured (Creator/Pro/Business × monthly+yearly)
 8. Google OAuth redirect URI matches your production domain
+9. Prisma migrations applied: `pnpm exec prisma migrate deploy`
+10. Anthropic API key is live + has sufficient credit
+
+## Launch Checklist (manual steps for Mustafa)
+
+Things the codebase cannot do for you:
+
+- [ ] **Domain**: purchase `creatably.com` (Cloudflare Registrar ~$10/yr)
+- [ ] **VPS**: provision Hetzner CPX31 (€13/mo) or DigitalOcean 8GB droplet
+- [ ] **DNS**: point A record → server IP via Cloudflare (auto-SSL + DDoS)
+- [ ] **Stripe**: apply to Stripe Türkiye with your Turkish company (1–3 day approval)
+- [ ] **Anthropic**: create API key at console.anthropic.com, top up $100–200
+- [ ] **SendGrid**: create account + API key + domain auth (SPF/DKIM)
+- [ ] **Google OAuth**: Google Cloud Console → OAuth Consent + Credentials
+- [ ] **Strong secrets**: `openssl rand -hex 32` → JWT_SECRET + ENCRYPTION_KEY
+- [ ] **Deploy**: `docker compose -f ENV/compose.prod.yaml up -d --build`
+- [ ] **Post-launch**: social accounts, Product Hunt, Hacker News
+
+### Soft launch path (ship in 2 days even if Stripe is pending)
+
+1. Deploy with `BYPASS_BILLING=true` — all users can sign up and use Free plan
+2. Real AI output works (1 company, 10 runs/month, TikTok+LinkedIn)
+3. When Stripe Türkiye approves: create products, paste price IDs, flip `BYPASS_BILLING=false`, paid tiers go live
+
+## V1 Launch Hardening (completed 2026-04-20)
+
+- [x] SQL injection fix in memory semantic search (Prisma parameterized queries)
+- [x] Stripe webhook idempotency via Redis SETNX + 4 new event handlers
+- [x] Spend approval gate: pipeline runs thread governance context through agent tools
+- [x] Cross-tenant memory isolation: all tool inputs with `companyId` validated against caller's tenant
+- [x] Blueprint sanitization: tool-name whitelist + systemPrompt cap + 15 agent cap
+- [x] Rate limiting on Claude-API-expensive endpoints (pipelines/run, memory/search, companies/build)
+- [x] Company count quota enforcement (plan limits enforced server-side)
+- [x] 4-tier plan structure with 20% yearly discount
+- [x] Landing copy reframed from Zapier category to "autonomous AI company"
+- [x] Logged-out dashboard shows honest example preview, not fake platform metrics
+- [x] Invalid Claude model IDs removed, `env.CLAUDE_MODEL` used everywhere
 
 ---
 

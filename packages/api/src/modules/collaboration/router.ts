@@ -212,7 +212,7 @@ collaborationRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = req.auth!.tenantId;
-      const { roomId } = req.params;
+      const roomId = req.params.roomId as string;
 
       const members = roomMembers.get(roomId);
       const users = getTenantPresence(tenantId);
@@ -244,7 +244,7 @@ collaborationRouter.get(
 collaborationRouter.get(
   "/rooms/:roomId/events",
   (req: Request, res: Response) => {
-    const { roomId } = req.params;
+    const roomId = req.params.roomId as string;
 
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
@@ -297,7 +297,7 @@ collaborationRouter.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { userId, tenantId } = req.auth!;
-      const { roomId } = req.params;
+      const roomId = req.params.roomId as string;
       const { userName } = req.body as { userName?: string };
 
       // Parse and validate room ID
@@ -354,7 +354,7 @@ collaborationRouter.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { userId, tenantId } = req.auth!;
-      const { roomId } = req.params;
+      const roomId = req.params.roomId as string;
 
       const members = roomMembers.get(roomId);
       if (members) {

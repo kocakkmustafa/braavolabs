@@ -247,7 +247,7 @@ companyRouter.post("/build/:sessionId/answer", buildAnswerLimiter, async (req, r
       .object({ answer: z.string().min(1) })
       .parse(req.body);
 
-    const session = await continueBuildSession(req.params.sessionId, req.auth!.tenantId, answer);
+    const session = await continueBuildSession(req.params.sessionId as string, req.auth!.tenantId, answer);
 
     res.json({
       sessionId: session.sessionId,

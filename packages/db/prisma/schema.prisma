@@ -145,6 +145,7 @@ model Pipeline {
   trigger     PipelineTrigger @default(MANUAL)
   schedule    String?  // cron expression for SCHEDULED trigger
   steps       Json     @default("[]")  // pipeline step definitions
+  config      Json     @default("{}")  // trigger-specific config (webhookTemplate, etc.)
   enabled     Boolean  @default(true)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")

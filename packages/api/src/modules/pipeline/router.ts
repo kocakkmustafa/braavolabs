@@ -208,11 +208,12 @@ pipelineRouter.post("/", async (req, res, next) => {
 // POST /api/v1/pipelines/:id/run — trigger a pipeline run
 pipelineRouter.post("/:id/run", runTriggerLimiter, async (req, res, next) => {
   try {
+    const pipelineId = req.params.id as string;
     const pipeline = await prisma.pipeline.findUnique({
-      where: { id: req.params.id },
+      where: { id: pipelineId },
       include: { company: true },
     });
-    if (!pipeline || pipeline.company.tenantId !== req.auth!.tenantId) {
+    if (!pipeline || !pipeline.company || pipeline.company.tenantId !== req.auth!.tenantId) {
       throw new AppError(404, "Pipeline not found");
     }
 
