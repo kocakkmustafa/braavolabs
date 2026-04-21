@@ -7,6 +7,12 @@ const MONOREPO_ROOT = path.resolve(__dirname, "../..");
 const nextConfig: NextConfig = {
   transpilePackages: ["@ai-company-os/core"],
   productionBrowserSourceMaps: false,
+  // Standalone output — builds a minimal server bundle in `.next/standalone/`
+  // used by Dockerfile.ui. Critical for small production images (~150MB vs 1GB+).
+  output: "standalone",
+  // outputFileTracingRoot ensures monorepo workspace packages get copied
+  // into the standalone bundle (otherwise runtime module resolution fails).
+  outputFileTracingRoot: MONOREPO_ROOT,
   eslint: {
     // ESLint is run separately in CI — don't block prod build on lint warnings.
     ignoreDuringBuilds: true,

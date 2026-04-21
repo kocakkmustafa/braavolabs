@@ -44,6 +44,14 @@ import "./modules/agent/registry";
 
 const app = express();
 
+// Trust first proxy (Nginx / Cloudflare) so that req.ip returns the real
+// client IP rather than the proxy's IP. Critical for rate limiting
+// (otherwise all traffic shares one bucket) and audit log accuracy.
+// Set to the number of trusted reverse proxies in front of this app.
+// In dev: no proxy, trust nothing. In prod: 1 (Nginx). If using Cloudflare
+// in front of Nginx, bump to 2.
+app.set("trust proxy", env.NODE_ENV === "production" ? 1 : false);
+
 // Global middleware
 app.use(requestId);
 app.use(
@@ -74,8 +82,28 @@ app.use(
   }),
 );
 app.use(compression());
-app.use(express.json({ limit: "10mb" }));
-app.use(pinoHttp({ logger }));
+// JSON body limit tightened to 1mb — typical API payloads are <100KB.
+// Larger-than-necessary limit is a DoS vector (memory exhaustion via oversized POSTs).
+// Webhook handlers that need raw body use their own `raw({ type: "application/json" })`
+// BEFORE this global json parser (Stripe webhook mounted before authed routes).
+app.use(express.json({ limit: "1mb" }));
+app.use(pinoHttp({
+  logger,
+  // Redact sensitive fields from request/response logs (defense-in-depth).
+  redact: {
+    paths: [
+      "req.headers.authorization",
+      "req.headers.cookie",
+      "req.headers['x-api-key']",
+      "req.body.password",
+      "req.body.passwordHash",
+      "req.body.encryptedApiKey",
+      "req.body.credentials",
+      "req.body.apiKey",
+    ],
+    censor: "[REDACTED]",
+  },
+}));
 
 // Health check
 app.get("/health", async (_req, res) => {

@@ -13,9 +13,33 @@ export class AppError extends Error {
   }
 }
 
+/**
+ * Well-known Express / body-parser error codes we want to map to
+ * meaningful HTTP statuses instead of leaking as 500.
+ */
+function mapKnownError(err: any): { status: number; message: string } | null {
+  // body-parser oversized body
+  if (err?.type === "entity.too.large" || err?.statusCode === 413) {
+    return { status: 413, message: "Request body too large (max 1MB)" };
+  }
+  // body-parser invalid JSON
+  if (err?.type === "entity.parse.failed" || err instanceof SyntaxError) {
+    return { status: 400, message: "Invalid JSON in request body" };
+  }
+  // body-parser unsupported charset
+  if (err?.type === "charset.unsupported") {
+    return { status: 415, message: "Unsupported charset" };
+  }
+  // CORS-generated errors
+  if (err?.message?.includes("CORS")) {
+    return { status: 403, message: "CORS policy denied this request" };
+  }
+  return null;
+}
+
 export function errorHandler(
   err: Error,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction,
 ) {
@@ -35,6 +59,26 @@ export function errorHandler(
     return;
   }
 
-  logger.error({ err }, "Unhandled error");
-  res.status(500).json({ error: "Internal server error" });
+  // Known framework errors mapped to proper HTTP status.
+  const mapped = mapKnownError(err as any);
+  if (mapped) {
+    res.status(mapped.status).json({ error: mapped.message });
+    return;
+  }
+
+  // Unknown / truly unexpected — log with request context, return 500
+  // without leaking stack details to the client.
+  logger.error(
+    {
+      err,
+      path: req.path,
+      method: req.method,
+      requestId: (req as any).requestId,
+    },
+    "Unhandled error",
+  );
+  res.status(500).json({
+    error: "Internal server error",
+    requestId: (req as any).requestId,
+  });
 }

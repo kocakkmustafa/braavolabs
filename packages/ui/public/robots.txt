@@ -1,0 +1,11 @@
+# robots.txt for creatably.com
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /api/
+Disallow: /login
+Disallow: /settings
+Disallow: /billing
+Disallow: /companies/
+
+Sitemap: https://creatably.com/sitemap.xml
