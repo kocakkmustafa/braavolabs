@@ -73,7 +73,7 @@ services:
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in .env (min 32 chars)}
       # App URL
-      APP_URL: ${APP_URL:?Set APP_URL in .env (e.g. https://creatably.com)}
+      APP_URL: ${APP_URL:?Set APP_URL in .env (e.g. https://braavoo.com)}
       # LLM
       LLM_PROVIDER: ${LLM_PROVIDER:-api}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -95,7 +95,7 @@ services:
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
       # Email
       SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
-      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-noreply@creatably.com}
+      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-noreply@braavoo.com}
       # Integrations
       HUBSPOT_ACCESS_TOKEN: ${HUBSPOT_ACCESS_TOKEN:-}
       HUBSPOT_PORTAL_ID: ${HUBSPOT_PORTAL_ID:-}
@@ -135,8 +135,8 @@ services:
       context: ..
       dockerfile: ENV/Dockerfile.ui
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?Set NEXT_PUBLIC_API_URL in .env (e.g. https://creatably.com/api/v1)}
-        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL in .env (e.g. https://creatably.com)}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?Set NEXT_PUBLIC_API_URL in .env (e.g. https://braavoo.com/api/v1)}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL in .env (e.g. https://braavoo.com)}
     container_name: aicos-ui
     restart: unless-stopped
     ports:
@@ -179,9 +179,20 @@ services:
         limits:
           memory: 256M
 
-  # Automated daily Postgres backup — runs at 3 AM UTC
+  # Automated daily Postgres backup + off-site S3 sync (DB-NEW-004 launch
+  # blocker fix). Runs once every 24h, keeps 14 days locally, mirrors to
+  # the configured S3 bucket on every successful dump.
+  #
+  # Off-site sync activates only when ALL of these are set:
+  #   BACKUP_S3_BUCKET           — destination bucket name (no s3:// prefix)
+  #   BACKUP_S3_PREFIX           — folder inside the bucket, e.g. "aicos-prod/"
+  #   AWS_ACCESS_KEY_ID
+  #   AWS_SECRET_ACCESS_KEY
+  #   AWS_DEFAULT_REGION         — or BACKUP_S3_REGION
+  # Without them the service falls back to local-only retention so dev /
+  # staging deploys keep working.
   postgres-backup:
-    image: postgres:16-alpine
+    image: amazon/aws-cli:2.18.0
     container_name: aicos-backup
     restart: unless-stopped
     depends_on:
@@ -192,19 +203,45 @@ services:
       PGHOST: postgres
       PGUSER: aicos
       PGDATABASE: aicos_prod
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      BACKUP_S3_PREFIX: ${BACKUP_S3_PREFIX:-aicos-prod/}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION: ${BACKUP_S3_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}
     volumes:
       - ./backups:/backups
+    # The aws-cli image is alpine-based but does not ship pg_dump. We
+    # install postgresql-client on first start, then run the loop. The
+    # extra ~15s on cold start is well under the 24h sleep window.
     entrypoint: |
       sh -c '
-        echo "[$$(date -Is)] backup service started"
+        set -e
+        echo "[$$(date -Is)] backup service starting"
+        if ! command -v pg_dump >/dev/null 2>&1; then
+          echo "[$$(date -Is)] installing postgresql-client + gzip"
+          yum install -y postgresql15 gzip >/dev/null 2>&1 || apk add --no-cache postgresql-client gzip >/dev/null 2>&1 || true
+        fi
         while true; do
           TIMESTAMP=$$(date +%Y%m%d-%H%M%S)
           FILE=/backups/aicos_prod_$$TIMESTAMP.sql.gz
           echo "[$$(date -Is)] taking backup $$FILE"
-          pg_dump --no-owner --no-acl | gzip > "$$FILE" && echo "[$$(date -Is)] done"
-          # Retain last 14 days
+          if pg_dump --no-owner --no-acl | gzip > "$$FILE"; then
+            echo "[$$(date -Is)] dump done"
+            # Off-site mirror — only when all credentials are set.
+            if [ -n "$$BACKUP_S3_BUCKET" ] && [ -n "$$AWS_ACCESS_KEY_ID" ]; then
+              S3_URI="s3://$$BACKUP_S3_BUCKET/$$BACKUP_S3_PREFIX$$(basename $$FILE)"
+              echo "[$$(date -Is)] uploading to $$S3_URI"
+              aws s3 cp "$$FILE" "$$S3_URI" --only-show-errors && \
+                echo "[$$(date -Is)] off-site sync done" || \
+                echo "[$$(date -Is)] WARN: off-site sync failed, local copy retained"
+            else
+              echo "[$$(date -Is)] WARN: BACKUP_S3_BUCKET / AWS_ACCESS_KEY_ID unset — local-only retention"
+            fi
+          else
+            echo "[$$(date -Is)] ERROR: pg_dump failed"
+          fi
+          # Retain last 14 days locally
           find /backups -name "aicos_prod_*.sql.gz" -mtime +14 -delete 2>/dev/null || true
-          # Sleep until next 3am UTC
           sleep 86400
         done
       '
@@ -215,7 +252,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 256M
 
 volumes:
   postgres_data:

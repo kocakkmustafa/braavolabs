@@ -424,7 +424,7 @@ export default function LandingPage() {
                 transform: heroVisible ? "translateY(0)" : "translateY(12px)",
                 transition: "all 0.8s cubic-bezier(0.16,1,0.3,1) 0.3s",
               }}>
-                Describe your business in plain English. AI Company OS builds a fully-staffed autonomous team — content, sales, ops — that runs while you sleep. Every decision is logged.
+                Describe your business in plain English. AI Company OS builds a fully-staffed autonomous company — content, sales, ops — that runs while you sleep. Every decision is logged, every spend is approved by you.
               </p>
 
               {/* Builder Input */}
@@ -642,10 +642,10 @@ export default function LandingPage() {
         {/* Trust badges */}
         <div className="reveal" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 36, flexWrap: "wrap" }}>
           {[
-            { icon: "shield", text: "SOC 2 in progress" },
-            { icon: "lock", text: "End-to-end Encrypted" },
-            { icon: "verified", text: "Full Audit Trail" },
-            { icon: "speed", text: "99.9% Uptime SLA" },
+            { icon: "shield", text: "SOC 2 audit in progress — Q3 2026" },
+            { icon: "lock", text: "AES-256 encrypted credentials" },
+            { icon: "verified", text: "Full audit trail · every tool call" },
+            { icon: "speed", text: "99.9% uptime SLA" },
           ].map((badge) => (
             <div key={badge.text} style={{ display: "flex", alignItems: "center", gap: 6, transition: "color 0.3s" }}
               onMouseEnter={(e) => e.currentTarget.style.color = "#a4e6ff"}

@@ -4,7 +4,7 @@ import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { runQueue, createWorker } from "../../lib/queue";
 import { executeStep, checkGovernance, type StepDef } from "./executor";
-import { incrementMeter, checkQuota } from "../billing/metering";
+import { incrementMeter, checkQuota, claimQuota } from "../billing/metering";
 import {
   withSpan,
   runCounter,
@@ -18,6 +18,22 @@ import {
 interface RunJobData {
   runId: string;
 }
+
+/**
+ * Hard wall-clock limit for a single pipeline run. Prevents a wedged Claude
+ * call (slow API, infinite tool loop) from holding a BullMQ worker slot
+ * forever. 15 minutes is well above the p99 of healthy runs but short enough
+ * that one stuck job doesn't drain a free-plan tenant's monthly quota.
+ */
+const MAX_RUN_DURATION_MS = 15 * 60 * 1000;
+
+/**
+ * Reject pipelines whose step count exceeds this. A pipeline with more than
+ * 50 steps is almost always a configuration mistake or a malicious payload
+ * (the natural-language builder caps at 8) and would burn budget without
+ * delivering value.
+ */
+const MAX_STEPS_PER_RUN = 50;
 
 /**
  * Pipeline Runner — BullMQ worker that processes pipeline runs.
@@ -53,34 +69,14 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
     return;
   }
 
-  // Check usage quota before starting
   const tenantId = run.pipeline.company.tenantId;
-  const quota = await checkQuota(tenantId, "runs");
-  if (!quota.allowed) {
-    logger.warn({ runId, tenantId, remaining: quota.remaining }, "Run quota exceeded");
-    await prisma.run.update({
-      where: { id: runId },
-      data: {
-        status: "FAILED",
-        error: `Monthly run limit reached (${quota.limit}). Upgrade your plan for more runs.`,
-        completedAt: new Date(),
-      },
-    });
-    await prisma.activityLog.create({
-      data: {
-        tenantId,
-        actor: "system",
-        action: "billing.quota_exceeded",
-        resource: "run",
-        resourceId: runId,
-        details: { metric: "runs", limit: quota.limit },
-      },
-    });
-    return;
-  }
 
-  // Increment run meter
-  await incrementMeter(tenantId, "runs", 1);
+  // NOTE: Run quota is now claimed atomically at the enqueue site (POST
+  // /pipelines/:id/run, webhook trigger, scheduled cron) via claimQuota().
+  // The runner used to check + increment here, but doing both at enqueue
+  // and again at execution time double-counted the run AND introduced a
+  // false-negative (the runner's read would see the already-incremented
+  // value and fail the run). See ISS-010.
 
   // Update status to RUNNING
   await prisma.run.update({
@@ -103,6 +99,38 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
   // Sort steps and group by order for parallel execution
   const allSteps = (run.pipeline.steps as unknown as StepDef[]).sort((a, b) => a.order - b.order);
 
+  // ── Step count guard (ISS-009) ─────────────────────────────────────────────
+  // Reject pathologically large pipelines before doing any work. The natural
+  // language builder caps generated pipelines at 8 steps; a hand-built one
+  // can reasonably go higher but 50 is the upper bound of "this is still a
+  // workflow, not an abuse pattern."
+  if (allSteps.length > MAX_STEPS_PER_RUN) {
+    logger.warn(
+      { runId, stepCount: allSteps.length, max: MAX_STEPS_PER_RUN },
+      "Run rejected — step count exceeds maximum",
+    );
+    await prisma.run.update({
+      where: { id: runId },
+      data: {
+        status: "FAILED",
+        error: `Pipeline has ${allSteps.length} steps; maximum is ${MAX_STEPS_PER_RUN}.`,
+        completedAt: new Date(),
+      },
+    });
+    await prisma.activityLog.create({
+      data: {
+        tenantId,
+        actor: "system",
+        action: "run.rejected_step_count",
+        resource: "run",
+        resourceId: runId,
+        details: { stepCount: allSteps.length, max: MAX_STEPS_PER_RUN },
+      },
+    });
+    runFailedCounter.add(1, { runId });
+    return;
+  }
+
   // Group steps by order index — same order = run in parallel
   const stepGroups = new Map<number, StepDef[]>();
   for (const step of allSteps) {
@@ -124,6 +152,40 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
 
   for (const orderIndex of sortedOrders) {
     const stepsAtOrder = stepGroups.get(orderIndex)!;
+
+    // ── Wall-clock timeout check (ISS-009) ───────────────────────────────
+    // Soft cap: bail before launching the next step group if we're already
+    // past the budget. Prevents a slow Claude call inside an in-flight step
+    // from being followed by another in-flight step that pushes the run far
+    // beyond the limit.
+    const elapsed = Date.now() - runStartTime;
+    if (elapsed > MAX_RUN_DURATION_MS) {
+      logger.warn(
+        { runId, elapsedMs: elapsed, limitMs: MAX_RUN_DURATION_MS },
+        "Run timed out — wall-clock limit exceeded",
+      );
+      await prisma.run.update({
+        where: { id: runId },
+        data: {
+          status: "FAILED",
+          error: `Run timed out after ${Math.round(elapsed / 1000)}s (limit: ${Math.round(MAX_RUN_DURATION_MS / 1000)}s).`,
+          costUsd: totalCost,
+          completedAt: new Date(),
+        },
+      });
+      await prisma.activityLog.create({
+        data: {
+          tenantId,
+          actor: "system",
+          action: "run.timeout",
+          resource: "run",
+          resourceId: runId,
+          details: { elapsedMs: elapsed, limitMs: MAX_RUN_DURATION_MS, costUsd: totalCost },
+        },
+      });
+      runFailedCounter.add(1, { runId });
+      return;
+    }
 
     // Check if run was cancelled/paused externally
     const currentRun = await prisma.run.findUnique({
@@ -369,6 +431,18 @@ export async function initScheduledPipelines(): Promise<void> {
     const job = cron.schedule(pipeline.schedule, async () => {
       logger.info({ pipelineId: pipeline.id, name: pipeline.name }, "Scheduled pipeline triggered");
       try {
+        // Atomic quota claim before enqueue (ISS-010). Skip the tick if the
+        // tenant is over limit — scheduled runs shouldn't quietly burn the
+        // entire monthly quota in a single hour because the cron fires before
+        // the user notices the quota is exhausted.
+        const claim = await claimQuota(pipeline.company.tenantId, "runs");
+        if (!claim.claimed) {
+          logger.warn(
+            { pipelineId: pipeline.id, tenantId: pipeline.company.tenantId, value: claim.value, limit: claim.limit },
+            "Scheduled run skipped — quota exhausted",
+          );
+          return;
+        }
         const run = await prisma.run.create({
           data: {
             pipelineId: pipeline.id,

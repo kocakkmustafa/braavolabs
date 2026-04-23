@@ -72,7 +72,7 @@ Hedef: V1 launch-ready guvenlik olgunlugu 5.5/10 → 7.5/10.
 - [ ] **ISS-070** Paid launch NO-GO onay — 2026-06-01 tarihine kadar harcama YOK (Mustafa karar)
 
 ### Mustafa Manuel (paralel)
-- [ ] **ISS-098** Domain creatably.com DNS + SSL (1 saat)
+- [ ] **ISS-098** Domain braavoo.com DNS + SSL (1 saat)
 - [ ] **ISS-099** ToS + Privacy legal review (Termly $75 veya avukat $500-1500)
 - [ ] **ISS-100** Stripe live activation + Tax setup
 
@@ -249,7 +249,7 @@ Hedef: 30 gun 500 paying / 90 gun 3K signup + 200 paying + $6-8K MRR.
 ### Ops Maturity
 - [ ] SOC 2 Vanta/Drata onboarding (Kenji V1.5) (ISS-108)
 - [ ] Discord server + Ambassador program (ISS-107)
-- [ ] Help desk Crisp + status.creatably.com + Better Uptime (ISS-106)
+- [ ] Help desk Crisp + status.braavoo.com + Better Uptime (ISS-106)
 - [ ] Prisma middleware auto tenant filter (ISS-083) V1.1
 - [ ] Holding brain cross-company schema (ISS-081) V1.1
 - [ ] BullMQ events SSE migration (ISS-126)

@@ -20,7 +20,10 @@ const envShape = z.object({
   JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
   LLM_PROVIDER: z.enum(["local", "api"]).default("api"),
   ANTHROPIC_API_KEY: z.string().optional(),
-  CLAUDE_MODEL: z.string().default("claude-sonnet-4-20250514"),
+  // Default to Sonnet 4.5 (best price/perf for typical agent workloads). Override
+  // via env for callers that need Opus 4 or Haiku 4.5. Validate against the
+  // PROVIDER_MODELS list in services/ai-client.ts before changing the default.
+  CLAUDE_MODEL: z.string().default("claude-sonnet-4-5-20250929"),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_CREATOR_PRICE_ID: z.string().optional(),
@@ -38,6 +41,15 @@ const envShape = z.object({
   SENDGRID_FROM_EMAIL: z.string().optional(),
   BYPASS_BILLING: z.coerce.boolean().default(false),
   ENCRYPTION_KEY: z.string().min(32),
+  // Sentry — leave unset in dev, set in prod. The SDK no-ops when missing.
+  SENTRY_DSN: z.string().url().optional(),
+  SENTRY_RELEASE: z.string().optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional(),
+  // Off-site backup destination (S3-compatible URL) for postgres-backup
+  // service. Empty = no off-site sync (acceptable for dev/staging).
+  BACKUP_S3_BUCKET: z.string().optional(),
+  BACKUP_S3_PREFIX: z.string().optional(),
+  BACKUP_S3_REGION: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envShape>;
@@ -52,6 +64,25 @@ if (parsed.NODE_ENV === "production" && parsed.BYPASS_BILLING) {
 // Safety: JWT_SECRET should be cryptographically strong in production
 if (parsed.NODE_ENV === "production" && parsed.JWT_SECRET.length < 64) {
   console.warn("WARNING: JWT_SECRET is shorter than 64 characters. Use a strong random secret in production.");
+}
+
+// Safety: ENCRYPTION_KEY must not be a placeholder in production (ISS-008).
+// A leaked DB dump + a placeholder key = trivial decryption of every customer's
+// HubSpot / Stripe / Claude API key. Real keys are generated with
+// `openssl rand -hex 32`. The encryption module also enforces this at
+// derive-time, but we fail fast at boot to avoid a deceptively-healthy
+// process that explodes the moment the first credential is decrypted.
+if (parsed.NODE_ENV === "production") {
+  const lower = parsed.ENCRYPTION_KEY.toLowerCase();
+  const placeholders = ["change-me", "your-32-character", "please_generate", "replace_me"];
+  for (const placeholder of placeholders) {
+    if (lower.includes(placeholder)) {
+      throw new Error(
+        `ENCRYPTION_KEY appears to be a placeholder ("${placeholder}" detected). ` +
+          "Generate a real key with: openssl rand -hex 32",
+      );
+    }
+  }
 }
 
 export const env: Env = parsed;
