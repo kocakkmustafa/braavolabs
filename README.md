@@ -1,15 +1,16 @@
-# AI Company OS
+# Braavoo — AI Company OS
 
 **Your AI company. Built in 10 minutes. Runs on autopilot.**
 
-Describe your business in plain English. AI Company OS builds a fully-staffed autonomous team — content, sales, ops — that runs while you sleep. Every decision is logged, every spend requires approval, every run is audited end-to-end.
+Describe your business in plain English. Braavoo builds a fully-staffed autonomous company — content, sales, ops — that runs while you sleep. Every decision is logged, every spend is approved by you, every run is audited end-to-end.
 
 Built for **creators and solo founders** who want to scale without hiring. Claude-native, self-hostable, exportable as a Claude Code skill bundle.
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Node](https://img.shields.io/badge/node-%3E%3D20-green)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)
-![Phase](https://img.shields.io/badge/phase-18%20%2B%20V1--launch-brightgreen)
+![Phase](https://img.shields.io/badge/phase-launch--ready%20(code)-brightgreen)
+![Tests](https://img.shields.io/badge/tests-27%20passing-brightgreen)
 
 ---
 
@@ -129,7 +130,7 @@ The app runs at:
 |----------|-------------|
 | `LLM_PROVIDER` | `api` (Anthropic API) or `local` (Claude Code CLI) |
 | `ANTHROPIC_API_KEY` | Anthropic API key (required if `LLM_PROVIDER=api`) |
-| `CLAUDE_MODEL` | Model to use (default: `claude-sonnet-4-20250514`) |
+| `CLAUDE_MODEL` | Model to use (default: `claude-sonnet-4-5-20250929`) |
 
 ### Optional — Auth
 
@@ -161,6 +162,18 @@ The app runs at:
 | `SENDGRID_API_KEY` | SendGrid email API key |
 | `TIKTOK_CLIENT_KEY` | TikTok API client key |
 | `LINKEDIN_CLIENT_ID` | LinkedIn API client ID |
+
+### Production-Required — Observability + Backup
+
+| Variable | Description | When |
+|----------|-------------|------|
+| `SENTRY_DSN` | Sentry project DSN — every uncaught exception lands here. SDK no-ops when unset. | Production REQUIRED |
+| `SENTRY_RELEASE` | Tag releases for per-deploy error rates | Optional |
+| `SENTRY_TRACES_SAMPLE_RATE` | Trace sample rate `0..1` (default `0.05`) | Optional |
+| `BACKUP_S3_BUCKET` | Off-site backup destination — bucket name only, no `s3://` prefix | Production REQUIRED |
+| `BACKUP_S3_PREFIX` | Folder inside bucket (default `aicos-prod/`) | Optional |
+| `BACKUP_S3_REGION` | AWS region for the bucket (default `us-east-1`) | Optional |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | Credentials for off-site sync | Production REQUIRED |
 
 ---
 
@@ -208,7 +221,7 @@ pnpm docker:down      # Stop Docker services
    - **Pro**: $39/mo monthly + $374/yr yearly
    - **Business**: $99/mo monthly + $950/yr yearly
    - **Enterprise**: custom price (connect to sales)
-6. Configure webhook endpoint → `https://api.creatably.com/hooks/stripe`
+6. Configure webhook endpoint → `https://api.braavoo.com/hooks/stripe`
 7. Add events: `checkout.session.completed`, `customer.subscription.*`, `invoice.payment_*`, `charge.refunded`
 8. Copy the 6 price IDs + webhook secret + secret key into your `.env`
 
@@ -332,24 +345,90 @@ Before deploying to production, ensure:
 
 ## Launch Checklist (manual steps for Mustafa)
 
-Things the codebase cannot do for you:
+Code is launch-ready. The remaining work is everything that needs a credit card,
+a legal signature, or a product decision — none of which the codebase can do
+for you. Ordered roughly by what unblocks what:
 
-- [ ] **Domain**: purchase `creatably.com` (Cloudflare Registrar ~$10/yr)
-- [ ] **VPS**: provision Hetzner CPX31 (€13/mo) or DigitalOcean 8GB droplet
-- [ ] **DNS**: point A record → server IP via Cloudflare (auto-SSL + DDoS)
-- [ ] **Stripe**: apply to Stripe Türkiye with your Turkish company (1–3 day approval)
+### Infrastructure (1–2 hours, $30/mo)
+
+- [ ] **Domain**: register `braavoo.com` at Cloudflare Registrar (~$10/yr) or transfer if owned elsewhere
+- [ ] **DNS**: in Cloudflare, add `A` for `braavoo.com` → VPS IP, `CNAME` for `app.braavoo.com` → Vercel, `CNAME` for `api.braavoo.com` → VPS, enable proxy (orange cloud) for SSL + DDoS
+- [ ] **Wildcard**: `*.braavoo.com` → VPS for future subdomains (docs, status)
+- [ ] **VPS**: provision Hetzner CPX31 (€13/mo) or DigitalOcean 8GB droplet, install Docker
+- [ ] **S3 backup bucket**: AWS S3 or compatible (Backblaze B2, Cloudflare R2). Create bucket + IAM user with `PutObject` permission scoped to that bucket. Keep `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY`.
+
+### Accounts + secrets (2–4 hours, $0–500 setup)
+
 - [ ] **Anthropic**: create API key at console.anthropic.com, top up $100–200
-- [ ] **SendGrid**: create account + API key + domain auth (SPF/DKIM)
-- [ ] **Google OAuth**: Google Cloud Console → OAuth Consent + Credentials
-- [ ] **Strong secrets**: `openssl rand -hex 32` → JWT_SECRET + ENCRYPTION_KEY
-- [ ] **Deploy**: `docker compose -f ENV/compose.prod.yaml up -d --build`
-- [ ] **Post-launch**: social accounts, Product Hunt, Hacker News
+- [ ] **Stripe**: apply to Stripe Türkiye with Turkish company (1–3 day approval). On approval, create the 6 products listed in the *Setting Up Stripe* section above and paste price IDs into env. (Or Stripe Atlas — see same section.)
+- [ ] **Sentry**: create a free project at sentry.io, copy DSN into `SENTRY_DSN`
+- [ ] **SendGrid**: create account + API key + domain auth (SPF/DKIM for `braavoo.com`)
+- [ ] **Google OAuth**: Cloud Console → OAuth Consent (External) + Credentials → set redirect URI to `https://api.braavoo.com/api/v1/auth/google/callback`
+- [ ] **Strong secrets**: `openssl rand -hex 32` × 2 → `JWT_SECRET` + `ENCRYPTION_KEY` (production startup REFUSES to boot if `ENCRYPTION_KEY` contains a placeholder string)
 
-### Soft launch path (ship in 2 days even if Stripe is pending)
+### Legal (1–2 weeks, $75–1500)
 
-1. Deploy with `BYPASS_BILLING=true` — all users can sign up and use Free plan
-2. Real AI output works (1 company, 10 runs/month, TikTok+LinkedIn)
-3. When Stripe Türkiye approves: create products, paste price IDs, flip `BYPASS_BILLING=false`, paid tiers go live
+- [ ] **ToS + Privacy**: either pay $75/yr to [Termly](https://termly.io) for templated documents that auto-update, OR retain an attorney for a custom set ($500–1500). Required by Stripe + GDPR + Apple/Google policies. Site has stub `/privacy` + `/terms` pages already wired.
+- [ ] **DPA**: data processing addendum for any business-tier customer that requests one (Termly bundles this).
+
+### Deploy (30 min after secrets in hand)
+
+```bash
+ssh root@<vps-ip>
+git clone https://github.com/kocakkmustafa/The-Creator.git
+cd The-Creator
+cp .env.example .env
+$EDITOR .env   # paste every secret from above
+docker compose -f ENV/compose.prod.yaml --profile backup up -d --build
+docker compose -f ENV/compose.prod.yaml exec api pnpm exec prisma migrate deploy
+```
+
+The `--profile backup` flag enables the postgres-backup service that mirrors
+nightly dumps to your S3 bucket (DB-NEW-004 / off-site sync). Without that
+flag the backup container does not run — local-only retention only.
+
+### Soft launch path (ship even if Stripe is pending)
+
+1. Deploy with `BYPASS_BILLING=true` — all users can sign up and use the Free plan immediately
+2. Real AI output works (1 company, 10 runs/month, TikTok + LinkedIn)
+3. When Stripe Türkiye approves: create the 6 products, paste price IDs, flip `BYPASS_BILLING=false` → paid tiers go live without a redeploy
+
+### Post-launch growth (ongoing)
+
+- [ ] **Bundled AI credits decision** (ISS-045): give Free plan first 10 runs against the platform's Anthropic key, then require user to BYO key. Code is ready; toggle is a product/pricing call.
+- [ ] **Launch verdict gate** (ISS-070): set go/no-go thresholds before paid spend (suggested: activation > 20%, free→paid conversion > 8%, 50+ active users for LAL seed). Free signups can run from day one.
+- [ ] **Social accounts + Product Hunt + Hacker News**
+
+---
+
+## What This Repo Already Ships (Launch-Ready Code)
+
+The following landed in the V1 launch-prep sweep (April 2026). Production
+deploys will inherit all of this without further code work:
+
+### Hardening landed in this sweep
+
+- [x] **Stripe webhook signature verification** — raw body preserved; mount order verified end-to-end
+- [x] **Stripe webhook idempotency** — Redis SETNX with 7-day TTL; duplicates short-circuit, errors release the claim for retry
+- [x] **Spend approval gate** — every tool with `requiresApproval: true` writes an `Approval` row before the handler is reached; bare path explicitly rejects spend tools
+- [x] **Cross-tenant isolation** — `enforceTenantScopedCompany` rewrites every tool's `companyId` to a canonical tenant-owned ID before the handler runs; throws on cross-tenant attempts
+- [x] **Quota TOCTOU close** — `claimQuota()` is a single atomic SQL statement (`INSERT ... ON CONFLICT DO UPDATE WHERE value < limit`); two concurrent claims at value=9, limit=10 cannot both succeed
+- [x] **Pipeline wall-clock timeout** — 15-minute hard cap per run + 50-step pathological-payload guard
+- [x] **Encryption KDF** — scrypt-derived AES-256-GCM key with versioned `v2:` prefix; legacy raw-slice ciphertext still readable; production refuses to boot with placeholder `ENCRYPTION_KEY`
+- [x] **Tool input validation** — Zod schemas on all credential-handling + DB-write tools (`create_draft`, `store_memory`, `recall_memory`, `crm_create_contact`, `crm_create_deal`); `registerZodTool` helper available for the rest
+- [x] **Blueprint clone supply-chain hardening** — sanitization caps + tool-name whitelist + `scanForInjection` (8 jailbreak patterns + outbound-URL detection); untrusted publishers land as `DRAFT` (cannot trigger pipelines until manual activation)
+- [x] **Cost-abuse caps** — `description.max(2000)` on natural-language pipeline builder + per-tenant rate limits on all expensive endpoints
+- [x] **pgvector HNSW index** — `memory_embeddings.embedding USING hnsw (vector_cosine_ops)` migration, applied with `CONCURRENTLY` so live traffic isn't blocked
+- [x] **Sentry SDK** — `@sentry/node` initialized before all other imports; capture middleware runs before app's error handler; PII / credentials redacted from request snapshots
+- [x] **Off-site backup** — postgres-backup service mirrors every nightly dump to `${BACKUP_S3_BUCKET}` via `aws s3 cp`; activates only when credentials are set (dev/staging keep working without)
+- [x] **CI** — `Lint & Type Check` + `Test` (Vitest) + `Build` + `DB Migration Check` jobs all green on every PR; broken `pnpm/action-setup` config fixed
+
+### Test coverage today
+
+`packages/core` — 27 passing (utils + plan constants). `packages/api`, `ui`,
+`integrations`, `memory` are wired for Vitest via the same setup but have no
+tests yet. `pnpm -r --if-present test` runs whatever is defined; CI does not
+fail when a package has no test script.
 
 ## V1 Launch Hardening (completed 2026-04-20)
 
