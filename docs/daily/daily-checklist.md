@@ -7,7 +7,7 @@ Post-launch (V1 public launch sonrasi) Mustafa'nin her gun yapacagi rutin.
 ## SABAH (9:00-10:00) — 30 dakika
 
 ### Metric Dashboard Turu
-- [ ] **Uptime** — status.creatably.com yeşil mi, Better Uptime bildirim?
+- [ ] **Uptime** — status.braavoo.com yeşil mi, Better Uptime bildirim?
 - [ ] **Stripe Dashboard** — dun net MRR, yeni subscription, failed payments, refund var mi?
 - [ ] **OpenTelemetry / Grafana** — error rate, run success rate, Claude API spend last 24h
 - [ ] **Signup metric** — dun yeni kayit X (hedef baseline)
@@ -105,8 +105,8 @@ Post-launch (V1 public launch sonrasi) Mustafa'nin her gun yapacagi rutin.
 
 ## ACIL DURUM PROTOKOLU
 
-### Site down (creatably.com 5xx)
-1. status.creatably.com guncel mi? (Better Uptime)
+### Site down (braavoo.com 5xx)
+1. status.braavoo.com guncel mi? (Better Uptime)
 2. Docker Compose health check fail? `docker compose ps` + `docker logs api`
 3. Prisma connection pool exhausted? Grafana/OTEL connection_limit metric
 4. Redis down? BullMQ queue paused mi?

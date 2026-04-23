@@ -9,7 +9,7 @@
 ## 1. Project Identity
 
 **Product name**: AI Company OS
-**Domain**: creatably.com
+**Domain**: braavoo.com
 **Tagline**: *"Your AI company. Built in 10 minutes. Runs on autopilot."*
 **Sub-tagline**: *"Describe your business in plain English. AI Company OS builds a fully-staffed autonomous team — content, sales, ops — that runs while you sleep. Every decision is logged."*
 **Positioning**: "Autonomous AI company-in-a-box" (NOT Zapier, NOT automation builder — it's a full business operating system where 9 AI agents run an entire company autonomously)
@@ -229,7 +229,7 @@ Always inline SVG or the font — no bitmap icons.
 - Design implications: Command palette (Cmd+K) works everywhere, dense table views, show raw IDs/tokens on hover, keyboard-first navigation
 
 ### P2: Marcus — US Faceless Content Creator (highest volume)
-- 32, LA, YouTube + TikTok, 50K+ followers, Zapier-fluent
+- 32, LA, YouTube + TikTok, 50K+ followers, automation-fluent
 - Wants: Launch fast, see results, no jargon
 - Quirks: Uses iPad often, mobile-aware, visual learner
 - Design implications: Hero flows are image/video heavy, "show me" beats "explain", celebratory success states

@@ -33,7 +33,7 @@ Farklilasma: 9 Primitives + freeform clarification + Holding Brain + export-to-C
 
 **Hedef**: Waitlist 500-1000 + private beta 50 aktif + organik momentum.
 
-- Waitlist Tally form (creatably.com/waitlist)
+- Waitlist Tally form (braavoo.com/waitlist)
 - Build-in-public X thread baslat (Mustafa) — haftalik 2 thread
 - Ilk 5 pillar blog post draft (content-agent)
 - Reddit organik seeding 14 gun (r/ClaudeAI, r/AI_Agents, r/LocalLLaMA, r/SaaS) — karma build + authentic post
@@ -153,7 +153,7 @@ Ilk ay sonuclarina gore:
 - **Platform**: Meta Reels + TikTok (9:16 re-cut)
 - **Format**: 30s vertical
 - **Objective**: Conversion (signup → first run)
-- **Audience**: Creator/solopreneur (AI tools interest, Zapier user retargeting)
+- **Audience**: Creator/solopreneur (AI tools interest, Lindy/Relevance/Gumloop user retargeting — NOT Zapier per ISS-058)
 - **Hook (0-3s)**: "This company runs itself."
   - Ekran animasyon: "Post scheduled → TikTok", "Lead qualified", "Content approved"
 - **Value (3-22s)**: Hero prompt textarea demo → 9 agent node animation (fast cut) → floating metrics "Memory updated", "Draft created", "Spend approval pending"
@@ -167,7 +167,7 @@ Ilk ay sonuclarina gore:
 - **Audience**: #automation #aitools #sidehustle #faceless, age 22-40
 - **Hook (0-3s)**: Creator POV, morning coffee. Text overlay: "Bugun: 3 TikTok, 2 LinkedIn, 1 lead follow-up."
 - **Value (3-14s)**: Cut to laptop dashboard "3 runs completed". Voiceover: "Cunku AI Company OS benim icin yapti."
-- **CTA (14-18s)**: "Free plan. No card. creatably.com"
+- **CTA (14-18s)**: "Free plan. No card. braavoo.com"
 - **Caption**: "POV: my AI company posts while I sleep 🤖💤 #aiautomation #claudeai #faceless"
 - **Production**: UGC creator $500-1000 + spark ads posting right
 
@@ -183,7 +183,7 @@ Ilk ay sonuclarina gore:
   - Spend approval required for any money action
   - Per-step reasoning mandatory (every decision logged)
   - Free 10 runs/mo, full docs, genuine early-stage launch
-- **CTA**: `creatably.com/?utm_source=reddit&utm_medium=paid&utm_campaign=alex-export-skill`
+- **CTA**: `braavoo.com/?utm_source=reddit&utm_medium=paid&utm_campaign=alex-export-skill`
 
 ---
 
@@ -212,7 +212,7 @@ Ilk ay sonuclarina gore:
 **Pillar 5: "9 Primitive Deep Dives"** (9 post — one per primitive)
 - acquisition, sales, delivery, content, operations, finance, analytics, memory, governance
 
-**Cluster**: 20+ cluster post destekleyen — Clarification loop tutorials, Memory lifecycle explained, HubSpot + AI SDR tutorial, Spend approval guide, Blueprint marketplace, TikTok/LinkedIn hero playbook, "Why we don't compete with Zapier" thought leadership, Pricing philosophy, Risk stops tutorial, 5 more.
+**Cluster**: 20+ cluster post destekleyen — Clarification loop tutorials, Memory lifecycle explained, HubSpot + AI SDR tutorial, Spend approval guide, Blueprint marketplace, TikTok/LinkedIn hero playbook, "Autonomous AI company vs. agent builder" category thought leadership, Pricing philosophy, Risk stops tutorial, 5 more.
 
 ### YouTube — haftalik 1 long + 3 Shorts
 
@@ -246,7 +246,7 @@ Ilk ay sonuclarina gore:
 - "Watch my AI team pitch a client"
 - "The approval button that saved me $2K"
 - "1 TikTok post ≠ 1 run. Here's what a run actually is"
-- "Why Zapier can't do this (autonomous vs automation)"
+- "Autonomous vs. agent builder vs. orchestrator — what's the difference?" (category clarity, no competitor name-calling)
 - Founder diary × 4
 
 ### Newsletter — haftalik Cuma "The Autonomous Company"

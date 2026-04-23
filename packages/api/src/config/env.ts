@@ -20,7 +20,10 @@ const envShape = z.object({
   JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
   LLM_PROVIDER: z.enum(["local", "api"]).default("api"),
   ANTHROPIC_API_KEY: z.string().optional(),
-  CLAUDE_MODEL: z.string().default("claude-sonnet-4-20250514"),
+  // Default to Sonnet 4.5 (best price/perf for typical agent workloads). Override
+  // via env for callers that need Opus 4 or Haiku 4.5. Validate against the
+  // PROVIDER_MODELS list in services/ai-client.ts before changing the default.
+  CLAUDE_MODEL: z.string().default("claude-sonnet-4-5-20250929"),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_CREATOR_PRICE_ID: z.string().optional(),

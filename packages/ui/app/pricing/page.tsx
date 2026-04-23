@@ -247,7 +247,7 @@ export default function PricingPage() {
               Enterprise — unlimited companies, SSO, private deployment, dedicated SLA.
             </p>
           </div>
-          <a href="mailto:founder@creatably.com" className="px-5 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap"
+          <a href="mailto:founder@braavoo.com" className="px-5 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap"
             style={{ background: "rgba(255,255,255,0.06)", color: "#e1e2eb", border: "1px solid rgba(255,255,255,0.08)", textDecoration: "none" }}>
             Talk to the Founder
           </a>
