@@ -11,13 +11,13 @@
   },
   "dependencies": {
     "@ai-company-os/core": "workspace:*",
+    "@tailwindcss/postcss": "^4.2.4",
+    "lucide-react": "^0.469.0",
     "next": "^15.5.15",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "zustand": "^5.0.0",
-    "tailwindcss": "^4.0.0",
-    "@tailwindcss/postcss": "^4.0.0",
-    "lucide-react": "^0.469.0"
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "tailwindcss": "^4.2.4",
+    "zustand": "^5.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
