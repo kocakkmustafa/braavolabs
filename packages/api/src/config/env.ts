@@ -41,6 +41,15 @@ const envShape = z.object({
   SENDGRID_FROM_EMAIL: z.string().optional(),
   BYPASS_BILLING: z.coerce.boolean().default(false),
   ENCRYPTION_KEY: z.string().min(32),
+  // Sentry — leave unset in dev, set in prod. The SDK no-ops when missing.
+  SENTRY_DSN: z.string().url().optional(),
+  SENTRY_RELEASE: z.string().optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional(),
+  // Off-site backup destination (S3-compatible URL) for postgres-backup
+  // service. Empty = no off-site sync (acceptable for dev/staging).
+  BACKUP_S3_BUCKET: z.string().optional(),
+  BACKUP_S3_PREFIX: z.string().optional(),
+  BACKUP_S3_REGION: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envShape>;

@@ -1,4 +1,9 @@
-// OpenTelemetry must be initialized before other imports
+// Sentry + OpenTelemetry must be initialized before other imports — both
+// patch the http/express modules at load time. Sentry first so unhandled
+// errors during telemetry init are captured too.
+import { initSentry, sentryRequestHandler, sentryErrorHandler } from "./lib/sentry";
+initSentry();
+
 import { initTelemetry, shutdownTelemetry } from "./lib/telemetry";
 initTelemetry();
 
@@ -54,6 +59,9 @@ app.set("trust proxy", env.NODE_ENV === "production" ? 1 : false);
 
 // Global middleware
 app.use(requestId);
+// Sentry request scope — sets requestId/path tags so captured exceptions
+// downstream can be filtered. No-op when SENTRY_DSN unset.
+app.use(sentryRequestHandler);
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -170,6 +178,10 @@ app.use("/api/v1", api);
 app.use("/hooks", webhookRouter);
 
 // Error handler (must be last)
+// Sentry error handler runs BEFORE the app's error handler so it captures
+// the exception with full request context. The app's handler still owns
+// the response shape sent to the client.
+app.use(sentryErrorHandler);
 app.use(errorHandler);
 
 app.listen(env.API_PORT, env.API_HOST, () => {
