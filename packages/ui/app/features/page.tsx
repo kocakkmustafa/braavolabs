@@ -68,7 +68,7 @@ export default function FeaturesPage() {
             style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}>
             <span className="text-white font-bold text-xs">AI</span>
           </div>
-          <span className="font-headline font-bold text-sm" style={{ color: "#e1e2eb" }}>AI Company OS</span>
+          <span className="font-headline font-bold text-sm" style={{ color: "#e1e2eb" }}>Braavoo</span>
         </a>
         <div className="flex items-center gap-4 text-sm" style={{ color: "#859399" }}>
           <a href="/pricing" className="hover:text-white transition-colors">Pricing</a>

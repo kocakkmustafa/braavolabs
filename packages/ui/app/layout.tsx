@@ -5,22 +5,22 @@ import { ToastProvider } from "../components/Toast";
 
 export const metadata: Metadata = {
   title: {
-    default: "AI Company OS",
-    template: "%s | AI Company OS",
+    default: "Braavoo — Your AI company, built in 10 minutes",
+    template: "%s | Braavoo",
   },
-  description: "Build and run autonomous AI companies from plain text. 9 AI agents, full audit logs, running 24/7.",
-  keywords: ["AI", "autonomous company", "AI agents", "automation", "pipeline", "Claude"],
-  authors: [{ name: "AI Company OS" }],
+  description: "Describe your business in plain English. Braavoo builds a fully-staffed autonomous company — content, sales, ops — that runs while you sleep. Every decision logged.",
+  keywords: ["Braavoo", "AI", "autonomous company", "AI agents", "automation", "pipeline", "Claude"],
+  authors: [{ name: "Braavoo" }],
   openGraph: {
-    title: "AI Company OS",
-    description: "Build and run autonomous AI companies from plain text. 9 AI agents, full audit logs, running 24/7.",
+    title: "Braavoo — Your AI company, built in 10 minutes",
+    description: "Describe your business in plain English. Braavoo builds a fully-staffed autonomous company — content, sales, ops — that runs while you sleep.",
     type: "website",
-    siteName: "AI Company OS",
+    siteName: "Braavoo",
   },
   twitter: {
     card: "summary_large_image",
-    title: "AI Company OS",
-    description: "Build and run autonomous AI companies from plain text.",
+    title: "Braavoo — Your AI company, built in 10 minutes",
+    description: "Describe your business in plain English. Braavoo builds an autonomous company that runs while you sleep.",
   },
   icons: {
     icon: [

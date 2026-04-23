@@ -16,7 +16,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/", changeFrequency: "weekly", priority: 1.0 },
     { path: "/pricing", changeFrequency: "weekly", priority: 0.9 },
     { path: "/features", changeFrequency: "weekly", priority: 0.8 },
-    { path: "/marketplace", changeFrequency: "daily", priority: 0.8 },
+    // /marketplace deliberately omitted — it requires login (useAuthGuard) and
+    // returns a redirect. When the public-discoverable catalog ships
+    // (separate PR), restore with priority 0.8 + changeFrequency: "daily".
     { path: "/docs", changeFrequency: "weekly", priority: 0.7 },
     { path: "/risks", changeFrequency: "monthly", priority: 0.5 },
     { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },
