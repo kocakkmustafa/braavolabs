@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 
@@ -15,11 +16,57 @@ export interface ToolDefinition {
   meta?: ToolMeta;
 }
 
+/**
+ * Tool definition with a Zod schema for runtime input validation (ISS-007).
+ *
+ * Claude's tool input_schema is only a *prompt-level* hint — the API does
+ * not enforce it, so a hallucinated `companyId: 12345` (number) or an empty
+ * `email: ""` will land in the handler unchecked. Zod parses every call,
+ * fails closed with a structured error, and gives the handler a strongly
+ * typed input.
+ */
+export interface ZodToolDefinition<T> {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+  zodSchema: z.ZodType<T>;
+  handler: (input: T) => Promise<unknown>;
+  meta?: ToolMeta;
+}
+
 const toolRegistry = new Map<string, ToolDefinition>();
 
 export function registerTool(tool: ToolDefinition) {
   toolRegistry.set(tool.name, tool);
   logger.debug({ tool: tool.name }, "Tool registered");
+}
+
+/**
+ * Register a tool whose input is validated by a Zod schema before the
+ * handler runs. Validation failures return a FAILED status with a
+ * structured error message — never throws into the agent loop.
+ */
+export function registerZodTool<T>(tool: ZodToolDefinition<T>) {
+  registerTool({
+    name: tool.name,
+    description: tool.description,
+    inputSchema: tool.inputSchema,
+    handler: async (rawInput) => {
+      const parsed = tool.zodSchema.safeParse(rawInput);
+      if (!parsed.success) {
+        const issues = parsed.error.issues
+          .map((i) => `${i.path.join(".") || "<root>"}: ${i.message}`)
+          .join("; ");
+        logger.warn({ tool: tool.name, issues }, "Tool input validation failed");
+        return {
+          error: `Invalid input for ${tool.name}: ${issues}`,
+          status: "FAILED",
+        };
+      }
+      return tool.handler(parsed.data);
+    },
+    meta: tool.meta,
+  });
 }
 
 export function getTool(name: string): ToolDefinition | undefined {
@@ -84,7 +131,16 @@ registerTool({
   },
 });
 
-registerTool({
+const CreateDraftInput = z.object({
+  companyId: z.string().min(1).max(200),
+  type: z.enum(["SOCIAL_POST", "EMAIL", "BLOG_POST", "AD_COPY", "VIDEO_SCRIPT"]),
+  title: z.string().min(1).max(500),
+  body: z.string().min(1).max(50_000),
+  channel: z.string().max(100).optional(),
+  hashtags: z.array(z.string().max(140)).max(50).optional(),
+});
+
+registerZodTool({
   name: "create_draft",
   description:
     "Save a content draft to the database for review before publishing. Returns the draft ID.",
@@ -107,16 +163,8 @@ registerTool({
     },
     required: ["companyId", "type", "title", "body"],
   },
-  handler: async (input) => {
-    const { companyId, type, title, body, channel, hashtags } = input as {
-      companyId: string;
-      type: string;
-      title: string;
-      body: string;
-      channel?: string;
-      hashtags?: string[];
-    };
-
+  zodSchema: CreateDraftInput,
+  handler: async ({ companyId, type, title, body, channel, hashtags }) => {
     // Resolve company: try by ID first, then by slug
     let resolvedCompanyId = companyId;
     const companyById = await prisma.company.findUnique({ where: { id: companyId } }).catch(() => null);
@@ -377,7 +425,15 @@ registerTool({
 
 // ─── MEMORY TOOLS ────────────────────────────────────────
 
-registerTool({
+const StoreMemoryInput = z.object({
+  companyId: z.string().min(1).max(200),
+  type: z.enum(["EPISODIC", "SEMANTIC", "PROCEDURAL"]),
+  content: z.string().min(1).max(10_000),
+  confidence: z.number().min(0).max(1).optional(),
+  source: z.string().max(200).optional(),
+});
+
+registerZodTool({
   name: "store_memory",
   description:
     "Store a new memory item (episodic, semantic, or procedural). Memories start as CANDIDATE status.",
@@ -392,14 +448,8 @@ registerTool({
     },
     required: ["companyId", "type", "content"],
   },
-  handler: async (input) => {
-    const { companyId, type, content, confidence, source } = input as {
-      companyId: string;
-      type: string;
-      content: string;
-      confidence?: number;
-      source?: string;
-    };
+  zodSchema: StoreMemoryInput,
+  handler: async ({ companyId, type, content, confidence, source }) => {
 
     // Resolve companyId — agent may pass name/slug instead of actual ID
     let resolvedCompanyId = companyId;
@@ -432,7 +482,14 @@ registerTool({
   },
 });
 
-registerTool({
+const RecallMemoryInput = z.object({
+  companyId: z.string().min(1).max(200),
+  query: z.string().min(1).max(2_000),
+  type: z.enum(["EPISODIC", "SEMANTIC", "PROCEDURAL"]).optional(),
+  limit: z.number().int().min(1).max(50).optional(),
+});
+
+registerZodTool({
   name: "recall_memory",
   description:
     "Search and recall relevant memories for a given query. Returns matching memory items.",
@@ -446,13 +503,8 @@ registerTool({
     },
     required: ["companyId", "query"],
   },
-  handler: async (input) => {
-    const { companyId, query, type, limit } = input as {
-      companyId: string;
-      query: string;
-      type?: string;
-      limit?: number;
-    };
+  zodSchema: RecallMemoryInput,
+  handler: async ({ companyId, query, type, limit }) => {
 
     // Text-based search until pgvector semantic search is implemented (Faz 2)
     const memories = await prisma.memoryItem.findMany({
@@ -656,7 +708,15 @@ registerTool({
 
 // ─── CRM TOOLS ──────────────────────────────────────────
 
-registerTool({
+const CrmCreateContactInput = z.object({
+  companyId: z.string().min(1).max(200),
+  name: z.string().min(1).max(200),
+  email: z.string().email().max(320),
+  source: z.string().max(100).optional(),
+  properties: z.record(z.unknown()).optional(),
+});
+
+registerZodTool({
   name: "crm_create_contact",
   description: "Create a new contact in the CRM (HubSpot + internal DB).",
   inputSchema: {
@@ -671,8 +731,8 @@ registerTool({
     required: ["companyId", "name", "email"],
   },
   meta: { requiresApproval: false, riskLevel: "low", rateLimit: 30 },
-  handler: async (input) => {
-    const { companyId, name, email, source, properties } = input as any;
+  zodSchema: CrmCreateContactInput,
+  handler: async ({ companyId, name, email, source, properties }) => {
     const contact = await prisma.contact.create({
       data: { companyId, name, email, properties: { source: source ?? "agent", ...(properties ?? {}) } as any },
     });
@@ -680,7 +740,17 @@ registerTool({
   },
 });
 
-registerTool({
+const CrmCreateDealInput = z.object({
+  companyId: z.string().min(1).max(200),
+  contactId: z.string().min(1).max(200),
+  title: z.string().min(1).max(500),
+  valueUsd: z.number().min(0).max(10_000_000).optional(),
+  stage: z
+    .enum(["LEAD", "QUALIFIED", "PROPOSAL_SENT", "NEGOTIATION", "CLOSED_WON", "CLOSED_LOST"])
+    .optional(),
+});
+
+registerZodTool({
   name: "crm_create_deal",
   description: "Create a new deal in the sales pipeline.",
   inputSchema: {
@@ -695,10 +765,17 @@ registerTool({
     required: ["companyId", "contactId", "title"],
   },
   meta: { requiresApproval: false, riskLevel: "medium" },
-  handler: async (input) => {
-    const { companyId, contactId, title, valueUsd, stage } = input as any;
+  zodSchema: CrmCreateDealInput,
+  handler: async ({ companyId, contactId, title, valueUsd, stage }) => {
     const deal = await prisma.deal.create({
-      data: { companyId, contactId, title, amountUsd: valueUsd ?? 0, stage: stage ?? "lead", properties: {} },
+      data: {
+        companyId,
+        contactId,
+        title,
+        amountUsd: valueUsd ?? 0,
+        stage: stage ?? "LEAD",
+        properties: {},
+      },
     });
     return { dealId: deal.id, title, stage: deal.stage };
   },

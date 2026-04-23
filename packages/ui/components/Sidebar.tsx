@@ -10,7 +10,6 @@ const NAV_ITEMS = [
   { href: "/", label: "Home", icon: "home", publicOnly: true },
   { href: "/dashboard", label: "Command Center", icon: "dashboard", authOnly: true },
   { href: "/companies", label: "AI Companies", icon: "business", authOnly: true },
-  { href: "/companies/new", label: "New Company", icon: "add_circle", authOnly: true },
   { href: "/pipelines", label: "AI Workflows", icon: "account_tree", authOnly: true },
   { href: "/approvals", label: "Approvals", icon: "task_alt", authOnly: true },
   { href: "/drafts", label: "Drafts", icon: "edit_note", authOnly: true },
@@ -155,7 +154,7 @@ export default function Sidebar() {
         {token ? (
           <>
             <Link
-              href="/companies/new"
+              href="/onboarding"
               onClick={() => sounds.build()}
               style={{
                 display: "flex", alignItems: "center", justifyContent: expanded ? "flex-start" : "center",
