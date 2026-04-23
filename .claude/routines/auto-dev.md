@@ -415,3 +415,29 @@ gh pr create \
 - `pnpm` komutu yok
 - GitHub rate limit
 - 45 dk hard cap
+
+---
+
+## PRE-LAUNCH STATE (2026-04-23)
+
+Braavoo launch oncesi faz (V1-LOCKDOWN). Su durumlar beklenen - routine critical finding olarak flag ETMEMELI:
+
+- Domain (braavoo.com): DNS henuz Vercel e pointe edilmedi, site 404 veriyor. app.braavoo.com connection error. Domain satin alindi ama deployment launch-time yapilacak (1+ ay).
+- Sentry / error reporter: OPS-NEW-003 launch blocker kategorisinde - wire-up launch-time.
+- Landing page content: public-facing copy, marketing assets launch-time finalize edilecek.
+- Stripe webhook endpoints: Sandbox OK, live mode activation launch-time. ISS-005 follow-up launch pre-flight inda.
+- HubSpot integration: Implementasyon var, production API key launch-time.
+
+Routine odak (V1-LOCKDOWN acceleration):
+- Test coverage (su an 0 - her test buyuk kazanim, hedef haftada +20 test)
+- TypeScript type safety (any to unknown/explicit, her run 5-10 dosya)
+- Dependency hygiene (patch/minor bump, guvenlik advisory takibi)
+- Issue reconciliation (master-issues.json drift i gidermek - su an 20.83 percent drift var)
+- Lint autofixes
+- Domain/DNS/deployment alerting YOK (launch oncesi expected)
+- Landing page content critique YOK (launch-time work)
+
+V1-LOCKDOWN P1 issue count: 18 (ISS-001/002/005/021 kodda fix edilmis gibi gorunuyor ama JSON hala open - routine bunu reconcile edebilir).
+
+Master-digest ve Telegram alerts icin: su an sadece code quality blocker kategorisi aktif. Infrastructure blocker launch yaklasinca aktiflesecek.
+
