@@ -206,7 +206,7 @@ ${JSON.stringify(config, null, 2)}
 - No single-example generalization
 
 ---
-*Exported from AI Company OS — ${new Date().toISOString()}*
+*Exported from Braavoo — ${new Date().toISOString()}*
 `;
 }
 
@@ -256,7 +256,7 @@ ${tools.map((t: string) => `- \`${t}\``).join("\n")}
 5. Follow the company's brand voice and guidelines
 
 ## Integration
-This skill connects to the AI Company OS API at \`$AICOS_API_URL\`.
+This skill connects to the Braavoo API at \`$AICOS_API_URL\`.
 Use the following headers:
 \`\`\`
 Authorization: Bearer $AICOS_TOKEN
@@ -330,7 +330,7 @@ function generateHooks(company: any): Array<{
         content: `#!/bin/bash
 # Hook: ${pipeline.name}
 # Schedule: ${pipeline.schedule}
-# Auto-trigger pipeline via AI Company OS API
+# Auto-trigger pipeline via Braavoo API
 
 AICOS_API_URL="\${AICOS_API_URL:-http://localhost:8080/api/v1}"
 PIPELINE_ID="${pipeline.id}"

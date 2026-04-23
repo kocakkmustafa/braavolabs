@@ -121,7 +121,7 @@ async function callOpenAICompatible(
   // OpenRouter requires additional headers
   if (config.provider === "OPENROUTER") {
     headers["HTTP-Referer"] = "https://ai-company-os.app";
-    headers["X-Title"] = "AI Company OS";
+    headers["X-Title"] = "Braavoo";
   }
 
   const response = await fetch(`${baseUrl}/chat/completions`, {

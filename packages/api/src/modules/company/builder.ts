@@ -108,7 +108,7 @@ export interface CompanySpec {
   }>;
 }
 
-const SYSTEM_PROMPT = `You are the AI Company Builder for AI Company OS.
+const SYSTEM_PROMPT = `You are the AI Company Builder for Braavoo.
 
 Your job is to help users create AI-powered companies from freeform text descriptions.
 

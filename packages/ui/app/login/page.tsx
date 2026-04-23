@@ -109,7 +109,7 @@ export default function LoginPage() {
             className="font-headline font-bold text-base"
             style={{ color: "#e1e2eb" }}
           >
-            AI Company OS
+            Braavoo
           </span>
         </div>
 
@@ -158,7 +158,7 @@ export default function LoginPage() {
 
         {/* Bottom */}
         <div className="relative z-10">
-          <p className="text-xs" style={{ color: "#3c494e" }}>© 2026 AI Company OS. Built with Claude.</p>
+          <p className="text-xs" style={{ color: "#3c494e" }}>© 2026 Braavoo. Built with Claude.</p>
         </div>
       </div>
 
@@ -177,7 +177,7 @@ export default function LoginPage() {
               <span className="font-bold text-xs text-white">AI</span>
             </div>
             <span className="font-headline font-bold" style={{ color: "#e1e2eb" }}>
-              AI Company OS
+              Braavoo
             </span>
           </div>
 
@@ -185,7 +185,7 @@ export default function LoginPage() {
             {mode === "login" ? "Welcome back" : "Create account"}
           </h2>
           <p className="text-sm mb-7" style={{ color: "#bbc9cf" }}>
-            {mode === "login" ? "Sign in to your AI Company OS account" : "Start building autonomous AI companies"}
+            {mode === "login" ? "Sign in to your Braavoo account" : "Start building autonomous AI companies"}
           </p>
 
           {/* Tab toggle */}
