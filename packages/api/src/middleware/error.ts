@@ -13,25 +13,32 @@ export class AppError extends Error {
   }
 }
 
+type StructuralError = {
+  type?: string;
+  statusCode?: number;
+  message?: string;
+};
+
 /**
  * Well-known Express / body-parser error codes we want to map to
  * meaningful HTTP statuses instead of leaking as 500.
  */
-function mapKnownError(err: any): { status: number; message: string } | null {
+function mapKnownError(err: unknown): { status: number; message: string } | null {
+  const e = (err ?? {}) as StructuralError;
   // body-parser oversized body
-  if (err?.type === "entity.too.large" || err?.statusCode === 413) {
+  if (e.type === "entity.too.large" || e.statusCode === 413) {
     return { status: 413, message: "Request body too large (max 1MB)" };
   }
   // body-parser invalid JSON
-  if (err?.type === "entity.parse.failed" || err instanceof SyntaxError) {
+  if (e.type === "entity.parse.failed" || err instanceof SyntaxError) {
     return { status: 400, message: "Invalid JSON in request body" };
   }
   // body-parser unsupported charset
-  if (err?.type === "charset.unsupported") {
+  if (e.type === "charset.unsupported") {
     return { status: 415, message: "Unsupported charset" };
   }
   // CORS-generated errors
-  if (err?.message?.includes("CORS")) {
+  if (e.message?.includes("CORS")) {
     return { status: 403, message: "CORS policy denied this request" };
   }
   return null;
@@ -60,7 +67,7 @@ export function errorHandler(
   }
 
   // Known framework errors mapped to proper HTTP status.
-  const mapped = mapKnownError(err as any);
+  const mapped = mapKnownError(err);
   if (mapped) {
     res.status(mapped.status).json({ error: mapped.message });
     return;
