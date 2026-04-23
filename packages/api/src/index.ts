@@ -82,11 +82,6 @@ app.use(
   }),
 );
 app.use(compression());
-// JSON body limit tightened to 1mb — typical API payloads are <100KB.
-// Larger-than-necessary limit is a DoS vector (memory exhaustion via oversized POSTs).
-// Webhook handlers that need raw body use their own `raw({ type: "application/json" })`
-// BEFORE this global json parser (Stripe webhook mounted before authed routes).
-app.use(express.json({ limit: "1mb" }));
 app.use(pinoHttp({
   logger,
   // Redact sensitive fields from request/response logs (defense-in-depth).
@@ -104,6 +99,16 @@ app.use(pinoHttp({
     censor: "[REDACTED]",
   },
 }));
+
+// Stripe webhook MUST be mounted BEFORE the global JSON parser. Stripe signs the
+// raw request bytes; once express.json() consumes the stream, route-level
+// express.raw() can no longer recover it and signature verification fails.
+// pinoHttp is mounted above so HTTP access logs still cover the webhook.
+app.use("/hooks", stripeWebhookRouter);
+
+// JSON body limit tightened to 1mb — typical API payloads are <100KB.
+// Larger-than-necessary limit is a DoS vector (memory exhaustion via oversized POSTs).
+app.use(express.json({ limit: "1mb" }));
 
 // Health check
 app.get("/health", async (_req, res) => {
@@ -160,9 +165,9 @@ api.use("/webhooks", webhookTemplateRouter);
 
 app.use("/api/v1", api);
 
-// Webhook routes (outside versioned API)
+// Generic external webhook router — uses parsed JSON body for HMAC verification.
+// (Stripe webhook is mounted above, BEFORE express.json, because it needs raw body.)
 app.use("/hooks", webhookRouter);
-app.use("/hooks", stripeWebhookRouter);
 
 // Error handler (must be last)
 app.use(errorHandler);
