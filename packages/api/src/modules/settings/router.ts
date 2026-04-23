@@ -142,7 +142,8 @@ settingsRouter.post("/ai-config/test", async (req, res, next) => {
       model: config.model,
       response: result.content.slice(0, 50),
     });
-  } catch (err: any) {
-    res.json({ success: false, error: err?.message ?? "Unknown error" });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    res.json({ success: false, error: message });
   }
 });

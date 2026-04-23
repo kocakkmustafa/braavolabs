@@ -163,8 +163,9 @@ export default function SettingsPage() {
       setAiApiKey("");
       setAiSaveMsg("AI provider saved successfully");
       setTimeout(() => setAiSaveMsg(null), 3000);
-    } catch (err: any) {
-      setAiSaveMsg(`Error: ${err.message}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      setAiSaveMsg(`Error: ${message}`);
     } finally {
       setAiSaving(false);
     }
@@ -181,8 +182,9 @@ export default function SettingsPage() {
       });
       const data = await res.json();
       setAiTestResult(data);
-    } catch (err: any) {
-      setAiTestResult({ success: false, error: err.message });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      setAiTestResult({ success: false, error: message });
     } finally {
       setAiTesting(false);
     }

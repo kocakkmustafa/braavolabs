@@ -56,10 +56,15 @@ async function issueTokenPair(payload: AuthPayload): Promise<{ token: string; re
   return { token, refreshToken };
 }
 
+type RefreshTokenPayload = AuthPayload & {
+  typ?: string;
+  jti?: string;
+};
+
 export async function refreshTokens(refreshToken: string): Promise<{ token: string; refreshToken: string }> {
-  let decoded: any;
+  let decoded: RefreshTokenPayload;
   try {
-    decoded = jwt.verify(refreshToken, env.JWT_SECRET) as any;
+    decoded = jwt.verify(refreshToken, env.JWT_SECRET) as RefreshTokenPayload;
   } catch {
     throw new AppError(401, "Invalid or expired refresh token");
   }
@@ -75,7 +80,7 @@ export async function refreshTokens(refreshToken: string): Promise<{ token: stri
       throw new AppError(401, "Refresh token has been revoked");
     }
     await redis.del(key); // rotate — revoke old token
-  } catch (err: any) {
+  } catch (err) {
     if (err instanceof AppError) throw err;
     // Redis down — allow without revocation check
   }
@@ -236,7 +241,7 @@ export async function login(data: {
     if (locked) {
       throw new AppError(429, "Account temporarily locked. Try again in 30 minutes.");
     }
-  } catch (err: any) {
+  } catch (err) {
     if (err instanceof AppError) throw err;
     // Redis down — fail closed for login security
     throw new AppError(503, "Authentication service temporarily unavailable");
