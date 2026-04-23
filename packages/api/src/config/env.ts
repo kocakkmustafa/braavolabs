@@ -57,4 +57,23 @@ if (parsed.NODE_ENV === "production" && parsed.JWT_SECRET.length < 64) {
   console.warn("WARNING: JWT_SECRET is shorter than 64 characters. Use a strong random secret in production.");
 }
 
+// Safety: ENCRYPTION_KEY must not be a placeholder in production (ISS-008).
+// A leaked DB dump + a placeholder key = trivial decryption of every customer's
+// HubSpot / Stripe / Claude API key. Real keys are generated with
+// `openssl rand -hex 32`. The encryption module also enforces this at
+// derive-time, but we fail fast at boot to avoid a deceptively-healthy
+// process that explodes the moment the first credential is decrypted.
+if (parsed.NODE_ENV === "production") {
+  const lower = parsed.ENCRYPTION_KEY.toLowerCase();
+  const placeholders = ["change-me", "your-32-character", "please_generate", "replace_me"];
+  for (const placeholder of placeholders) {
+    if (lower.includes(placeholder)) {
+      throw new Error(
+        `ENCRYPTION_KEY appears to be a placeholder ("${placeholder}" detected). ` +
+          "Generate a real key with: openssl rand -hex 32",
+      );
+    }
+  }
+}
+
 export const env: Env = parsed;

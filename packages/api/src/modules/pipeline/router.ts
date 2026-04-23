@@ -5,6 +5,7 @@ import { AppError } from "../../middleware/error";
 import { rateLimit } from "../../middleware/rateLimit";
 import { z } from "zod";
 import { enqueueRun } from "./runner";
+import { claimQuota } from "../billing/metering";
 import Anthropic from "@anthropic-ai/sdk";
 import { env } from "../../config/env";
 
@@ -32,8 +33,14 @@ const createSchema = z.object({
 // POST /api/v1/pipelines/from-natural-language — doğal dil açıklamasından pipeline oluştur
 const nlPipelineSchema = z.object({
   companyId: z.string(),
-  description: z.string().min(10, "Description must be at least 10 characters"),
-  name: z.string().min(1).optional(),
+  // Cap at 2000 chars (ISS-004): the description is fed to Claude and a
+  // 9.5KB jailbreak payload can rack up serious cost in milliseconds. The
+  // builder needs maybe 100-500 chars to produce a sensible pipeline.
+  description: z
+    .string()
+    .min(10, "Description must be at least 10 characters")
+    .max(2000, "Description is too long — keep it under 2000 characters"),
+  name: z.string().min(1).max(120).optional(),
 });
 
 pipelineRouter.post("/from-natural-language", naturalLanguageBuilderLimiter, async (req, res, next) => {
@@ -217,6 +224,18 @@ pipelineRouter.post("/:id/run", runTriggerLimiter, async (req, res, next) => {
       throw new AppError(404, "Pipeline not found");
     }
 
+    // ── Atomic quota claim (ISS-010) ────────────────────────────────────
+    // Single SQL statement claims one run from the meter or refuses if over
+    // limit. Closes the read-then-write TOCTOU window that previously let
+    // two concurrent POSTs at value=9, limit=10 both succeed.
+    const claim = await claimQuota(req.auth!.tenantId, "runs");
+    if (!claim.claimed) {
+      throw new AppError(
+        429,
+        `Monthly run limit reached (${claim.value}/${claim.limit}). Upgrade your plan for more runs.`,
+      );
+    }
+
     const run = await prisma.run.create({
       data: {
         pipelineId: pipeline.id,
@@ -233,7 +252,7 @@ pipelineRouter.post("/:id/run", runTriggerLimiter, async (req, res, next) => {
         action: "run.start",
         resource: "run",
         resourceId: run.id,
-        details: { pipelineId: pipeline.id },
+        details: { pipelineId: pipeline.id, quotaClaimedValue: claim.value, quotaLimit: claim.limit },
       },
     });
 

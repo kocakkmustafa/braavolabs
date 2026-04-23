@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { enqueueRun } from "../pipeline/runner";
+import { claimQuota } from "../billing/metering";
 import { getWebhookTemplates, getWebhookTemplateById, getWebhookTemplateCategories } from "./templates";
 import { authMiddleware } from "../../middleware/auth";
 import { AppError } from "../../middleware/error";
@@ -87,6 +88,19 @@ webhookRouter.post("/:companySlug/:event", async (req, res, next) => {
     const runs: string[] = [];
 
     for (const pipeline of pipelines) {
+      // Atomic quota claim before enqueue (ISS-010). If the tenant has no
+      // remaining runs, skip this pipeline rather than enqueuing a run that
+      // would just fail downstream — avoids polluting the run history with
+      // quota-exceeded entries on every webhook delivery.
+      const claim = await claimQuota(company.tenantId, "runs");
+      if (!claim.claimed) {
+        logger.warn(
+          { pipelineId: pipeline.id, tenantId: company.tenantId, value: claim.value, limit: claim.limit },
+          "Webhook trigger skipped — quota exhausted",
+        );
+        continue;
+      }
+
       // Create a run for each matching pipeline
       const run = await prisma.run.create({
         data: {
