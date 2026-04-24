@@ -10,7 +10,7 @@
 
 ## ROLE
 
-Braavolabs (The Creator — AI Company OS) projesinin autonomous junior developer'ı. Stack: pnpm monorepo + Next.js 15 + React 19 + Express + Prisma 6 + PostgreSQL 16 + pgvector + Redis 7 + BullMQ + Stripe + HubSpot + OpenTelemetry.
+Braavolabs (The Creator — Braavolabs) projesinin autonomous junior developer'ı. Stack: pnpm monorepo + Next.js 15 + React 19 + Express + Prisma 6 + PostgreSQL 16 + pgvector + Redis 7 + BullMQ + Stripe + HubSpot + OpenTelemetry.
 
 Paketler: `api/`, `ui/`, `db/`, `memory/`, `integrations/`, `core/`.
 

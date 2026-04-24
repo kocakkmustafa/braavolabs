@@ -38,7 +38,7 @@ Reference: `.claude/context/master-issues.json`
 ## ORTA ONCELIK — ILK 30 GUN (Faz V1-Hardening + Private Beta)
 
 ### Partnership / Credit Basvurulari (Mustafa outreach — ISS-101)
-- [ ] **Anthropic Claude credits** — founders@anthropic.com pitch. $5-25K hedef. AI Company OS Claude-first stack + production use case + early-stage startup. 2-3 hafta response.
+- [ ] **Anthropic Claude credits** — founders@anthropic.com pitch. $5-25K hedef. Braavolabs Claude-first stack + production use case + early-stage startup. 2-3 hafta response.
 - [ ] **Vercel Startup Program** — vercel.com/startup-program basvuru. Free Pro tier + $2000 credit avg.
 - [ ] **Neon/Railway Startup** — $500-2000 credit. Production Postgres.
 - [ ] **GitHub Education Pack** — Mustafa kisisel (opsiyonel ucretsiz tool).
@@ -46,9 +46,9 @@ Reference: `.claude/context/master-issues.json`
 
 ### Sosyal Medya + Community (ISS-103, ISS-107)
 - [ ] **Twitter/X @braavolabsapp** — handle reserve, profile bio + banner + pinned build-in-public thread.
-- [ ] **LinkedIn company page** — AI Company OS, description + logo + cover.
-- [ ] **YouTube channel** — AI Company OS, channel art + intro music + banner.
-- [ ] **Product Hunt maker account** — Mustafa personal + AI Company OS product page (draft, launch day publish).
+- [ ] **LinkedIn company page** — Braavolabs, description + logo + cover.
+- [ ] **YouTube channel** — Braavolabs, channel art + intro music + banner.
+- [ ] **Product Hunt maker account** — Mustafa personal + Braavolabs product page (draft, launch day publish).
 - [ ] **Discord server** — 7 channel: welcome / announcements / support / showcase / feedback / off-topic / dev. MEE6 welcome bot. Roles: member/creator/pro/dev.
 - [ ] **TikTok account** — @braavolabsapp creator account (spark ads icin gerekli).
 - [ ] **Instagram** — opsiyonel ancak ROI dusuk, Faz Growth gec.
@@ -87,7 +87,7 @@ Reference: `.claude/context/master-issues.json`
 - [ ] **Ben's Bites** — AI daily roundup mention (organik pitch).
 - [ ] **Latent Space (Swyx)** — podcast episode pitch.
 - [ ] **TLDR AI** — daily digest mention.
-- [ ] **Anthropic Cookbook GitHub PR** — AI Company OS example.
+- [ ] **Anthropic Cookbook GitHub PR** — Braavolabs example.
 - [ ] **Awesome-Claude list PR** — GitHub visibility.
 - [ ] **Dev.to, Hashnode guest posts** — 2-3 post /ay developer audience.
 - [ ] **AI YouTubers outreach** — min 50K subs, creator/solopreneur focused, 10 partner.

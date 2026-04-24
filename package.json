@@ -2,7 +2,7 @@
   "name": "ai-company-os",
   "version": "0.1.0",
   "private": true,
-  "description": "AI Company OS — Autonomous AI company creation platform",
+  "description": "Braavolabs — Autonomous AI company creation platform",
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",

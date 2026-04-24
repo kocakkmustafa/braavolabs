@@ -110,7 +110,7 @@ Ilk ay sonuclarina gore:
 
 ---
 
-## KANAL MANTIGI (AI Company OS ozel)
+## KANAL MANTIGI (Braavolabs ozel)
 
 **Reddit %24 — TEK EN YUKSEK ROI**:
 - Alex %18 pay × r/ClaudeAI 150K + r/AI_Agents 60K + r/LocalLLaMA 400K
@@ -166,7 +166,7 @@ Ilk ay sonuclarina gore:
 - **Format**: 15-20s POV creator content
 - **Audience**: #automation #aitools #sidehustle #faceless, age 22-40
 - **Hook (0-3s)**: Creator POV, morning coffee. Text overlay: "Bugun: 3 TikTok, 2 LinkedIn, 1 lead follow-up."
-- **Value (3-14s)**: Cut to laptop dashboard "3 runs completed". Voiceover: "Cunku AI Company OS benim icin yapti."
+- **Value (3-14s)**: Cut to laptop dashboard "3 runs completed". Voiceover: "Cunku Braavolabs benim icin yapti."
 - **CTA (14-18s)**: "Free plan. No card. braavolabs.com"
 - **Caption**: "POV: my AI company posts while I sleep 🤖💤 #aiautomation #claudeai #faceless"
 - **Production**: UGC creator $500-1000 + spark ads posting right
@@ -197,9 +197,9 @@ Ilk ay sonuclarina gore:
 - AI Agent vs AI Automation vs AI Company: The Definitive Guide (2400w)
 
 **Pillar 2: "Comparison Hub"** (3 post — BOFU)
-- AI Company OS vs Lindy: Which Autonomous Agent Platform Wins in 2026 (2500w)
-- Relevance AI vs AI Company OS: Agent Teams Compared (2300w)
-- Gumloop vs AI Company OS: Flowchart vs Freeform (2100w)
+- Braavolabs vs Lindy: Which Autonomous Agent Platform Wins in 2026 (2500w)
+- Relevance AI vs Braavolabs: Agent Teams Compared (2300w)
+- Gumloop vs Braavolabs: Flowchart vs Freeform (2100w)
 
 **Pillar 3: "Building Your First AI Company"** (2 post)
 - How I Built a Faceless YouTube Studio That Runs Itself (Case Study) (2600w)
@@ -207,7 +207,7 @@ Ilk ay sonuclarina gore:
 
 **Pillar 4: "Developer-Led"** (2 post)
 - Export Your AI Company to Claude Code: A Developer's Guide (2200w)
-- Self-Hosting AI Company OS with Docker Compose (2400w)
+- Self-Hosting Braavolabs with Docker Compose (2400w)
 
 **Pillar 5: "9 Primitive Deep Dives"** (9 post — one per primitive)
 - acquisition, sales, delivery, content, operations, finance, analytics, memory, governance
@@ -448,7 +448,7 @@ Plan: 14-day Pro trial (ISS-059) + vs-competitor pages (ISS-067) + early bird (f
 - **Free tier gercek cikti** — 10 run TikTok+LinkedIn
 
 ### Eksik (build sprint)
-- **Pipeline embed badge** ("Built with AI Company OS") — pipeline output'a eklenebilir ISS-058 paralel
+- **Pipeline embed badge** ("Built with Braavolabs") — pipeline output'a eklenebilir ISS-058 paralel
 - **Template marketplace public** — ISS-062 paralel
 - **Referral** (1 ay free per referral) — altyapi var (`auth.router.ts` ref) ama campaign yok (ISS-107)
 - **Team invite viral loop** — Business tier team seats 3 kisi launched sonrasi

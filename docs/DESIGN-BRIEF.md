@@ -1,17 +1,17 @@
-# AI Company OS — Complete Design Brief for claude.ai/design
+# Braavolabs — Complete Design Brief for claude.ai/design
 
 > **Bu doküman**: claude.ai/design'e (veya başka bir tasarım sistemine) tek parça verebileceğin, arka uçtaki tüm veriyi içeren eksiksiz tasarım brief'i. Minimalist + professional + dark-first + data-dense-but-breathable. Her ekran, her component, her state, her edge-case burada.
 
-> **Paste this entire file** into Claude Design and ask: *"Design the complete UI system for AI Company OS using this spec. Deliver pixel-perfect React components with Tailwind v4 and shadcn/ui."*
+> **Paste this entire file** into Claude Design and ask: *"Design the complete UI system for Braavolabs using this spec. Deliver pixel-perfect React components with Tailwind v4 and shadcn/ui."*
 
 ---
 
 ## 1. Project Identity
 
-**Product name**: AI Company OS
+**Product name**: Braavolabs
 **Domain**: braavolabs.com
 **Tagline**: *"Your AI company. Built in 10 minutes. Runs on autopilot."*
-**Sub-tagline**: *"Describe your business in plain English. AI Company OS builds a fully-staffed autonomous team — content, sales, ops — that runs while you sleep. Every decision is logged."*
+**Sub-tagline**: *"Describe your business in plain English. Braavolabs builds a fully-staffed autonomous team — content, sales, ops — that runs while you sleep. Every decision is logged."*
 **Positioning**: "Autonomous AI company-in-a-box" (NOT Zapier, NOT automation builder — it's a full business operating system where 9 AI agents run an entire company autonomously)
 **Primary audience**: Creators, solopreneurs, agency owners, AI-curious founders in US / EU / Turkey / India
 
@@ -692,14 +692,14 @@ AbTestMetric {
 
 **Structure (single-column, scroll-reveal)**
 
-1. **Nav** (sticky, 64px tall): Logo (AI gradient square 32px + "AI Company OS") | "Features" | "Pricing" | "Docs" | CTA "Get Started" (gradient button)
+1. **Nav** (sticky, 64px tall): Logo (AI gradient square 32px + "Braavolabs") | "Features" | "Pricing" | "Docs" | CTA "Get Started" (gradient button)
 
 2. **Hero** (above fold, ~800px tall, centered content):
    - Badge: `● BUILT FOR CREATORS & SOLO FOUNDERS` (cyan pill, uppercase, tracking-wide, animated pulse dot)
    - H1: 2-line display
      - Line 1: "Your AI company." (white)
      - Line 2: "Built in 10 minutes." (brand gradient text — cyan→purple)
-   - Sub (max-width 520px): "Describe your business in plain English. AI Company OS builds a fully-staffed autonomous team — content, sales, ops — that runs while you sleep. Every decision is logged."
+   - Sub (max-width 520px): "Describe your business in plain English. Braavolabs builds a fully-staffed autonomous team — content, sales, ops — that runs while you sleep. Every decision is logged."
    - Hero builder input (max-width 640px, rounded-2xl card with subtle glow):
      - Header: `smart_toy` icon + "AI COMPANY BUILDER" label (uppercase tracking, cyan)
      - Textarea: 3 rows, animated typewriter placeholder cycles through example prompts

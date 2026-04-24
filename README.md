@@ -1,4 +1,4 @@
-# Braavolabs — AI Company OS
+# Braavolabs — Braavolabs
 
 **Your AI company. Built in 10 minutes. Runs on autopilot.**
 
@@ -314,7 +314,7 @@ docker compose -f ENV/compose.yaml up -d --build
 
 ## Security
 
-AI Company OS includes comprehensive security hardening for production:
+Braavolabs includes comprehensive security hardening for production:
 
 - **Authentication**: JWT access + refresh tokens with bcrypt (cost 12) password hashing
 - **Rate Limiting**: Redis-backed rate limits on auth, register, refresh, and API endpoints
@@ -452,4 +452,4 @@ MIT
 
 ---
 
-Built with Claude by [AI Company OS](https://github.com/kocakkmustafa/The-Creator)
+Built with Claude by [Braavolabs](https://github.com/kocakkmustafa/The-Creator)

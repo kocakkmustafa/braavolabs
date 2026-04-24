@@ -1,4 +1,4 @@
-# REPO GOD ENVANTERİ — AI Company OS
+# REPO GOD ENVANTERİ — Braavolabs
 
 **Son keşif**: 2026-04-20 (önceden keşfedilmiş, elle doldurulmuş)
 **Repo God konumu**: `/Users/mustafakaankocak/AI Holding Claude/The Repo God/`
@@ -19,7 +19,7 @@ Her ajan kendi görevi için hangi Repo God varlığına bakacağını buradan g
 | `claude-code-safety-net/` | `The Repo God/claude-code-safety-net/` | Yıkıcı git + rm pattern bloklama hook'u |
 | `everything-claude-code/skills/*security*` | `The Repo God/everything-claude-code/skills/` | Genel güvenlik skill'leri |
 | `supabase-agent-skills/` | Yok (stack Supabase değil) | — |
-| `pg-aiguide/` | `The Repo God/pg-aiguide/` | **PostgreSQL RLS/policy patterns** (AI Company OS Postgres kullanıyor) |
+| `pg-aiguide/` | `The Repo God/pg-aiguide/` | **PostgreSQL RLS/policy patterns** (Braavolabs Postgres kullanıyor) |
 
 **Ajana özel**: Bizde Supabase RLS yok — `pg-aiguide/` ve Prisma middleware tenant_id pattern'leri uygula.
 
@@ -50,7 +50,7 @@ Her ajan kendi görevi için hangi Repo God varlığına bakacağını buradan g
 | `cartographer/` | `The Repo God/cartographer/` | Codebase haritalama |
 | `understand-anything/` | `The Repo God/understand-anything/` | Knowledge graph |
 
-**Ajana özel**: AI Company OS = Next.js + Node.js + Prisma + Postgres + BullMQ → `open-saas/` birebir örtüşüyor. İlk referans!
+**Ajana özel**: Braavolabs = Next.js + Node.js + Prisma + Postgres + BullMQ → `open-saas/` birebir örtüşüyor. İlk referans!
 
 ---
 
@@ -155,7 +155,7 @@ Stack'imiz (Next.js + Node + Prisma + Postgres + Claude API + Stripe + BullMQ) i
 
 ## 🪝 HOOK'LAR (KOPYALANMAYAN, REFERENCE)
 
-AI Company OS için halihazırda pre-edit + post-agent hook'ları var. Ek olarak Repo God'dan alınabilecekler:
+Braavolabs için halihazırda pre-edit + post-agent hook'ları var. Ek olarak Repo God'dan alınabilecekler:
 
 | Hook | Repo God Yolu | Kullanım |
 |------|--------------|---------|
@@ -167,7 +167,7 @@ AI Company OS için halihazırda pre-edit + post-agent hook'ları var. Ek olarak
 
 ## ⌨️ SLASH KOMUTLAR (Repo God'da olan, alınabilir)
 
-AI Company OS için 6 kendi komut var. Repo God'da ek fayda sağlayabilecekler:
+Braavolabs için 6 kendi komut var. Repo God'da ek fayda sağlayabilecekler:
 
 | Komut | Repo God Yolu | Ne zaman |
 |------|--------------|---------|
@@ -182,7 +182,7 @@ AI Company OS için 6 kendi komut var. Repo God'da ek fayda sağlayabilecekler:
 
 ## 🧠 HAFİZA & CONTEXT
 
-AI Company OS'un kendi Memory Engine'i var (Faz 2). Ama Repo God'daki hafıza sistemleri öğrenme amaçlı faydalı:
+Braavolabs'un kendi Memory Engine'i var (Faz 2). Ama Repo God'daki hafıza sistemleri öğrenme amaçlı faydalı:
 
 | Sistem | Yol | Neden ilgili |
 |--------|-----|---|
@@ -192,7 +192,7 @@ AI Company OS'un kendi Memory Engine'i var (Faz 2). Ama Repo God'daki hafıza si
 
 ---
 
-## 🚫 ALAKASIZ (AI Company OS için kullanılmaz)
+## 🚫 ALAKASIZ (Braavolabs için kullanılmaz)
 
 | Repo | Neden |
 |------|-------|
@@ -209,7 +209,7 @@ AI Company OS'un kendi Memory Engine'i var (Faz 2). Ama Repo God'daki hafıza si
 
 **İlke 1: Reference tercih, kopya son çare**
 - Mustafa merkezi (Repo God) güncelledikçe otomatik fayda
-- Yerel kopya ancak AI Company OS'a özel uyarlama gerektiğinde
+- Yerel kopya ancak Braavolabs'a özel uyarlama gerektiğinde
 
 **İlke 2: Stack'e uygun olanı seç**
 - Next.js + Node.js + Prisma + Postgres + BullMQ → `open-saas/`, `pg-aiguide/`, `claude-skills/engineering/` önceliklidir

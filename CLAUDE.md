@@ -1,7 +1,7 @@
-# CLAUDE.md — AI Company OS Proje Bağlam Dosyası
+# CLAUDE.md — Braavolabs Proje Bağlam Dosyası
 
 ## Proje Nedir?
-AI Company OS — kullanıcıların serbest metinle AI şirketi kurup çalıştırabildiği, izlenebilir, düzenlenebilir, kendini geliştiren otonom şirket oluşturma platformu. "10 dakikada AI şirketini kur" vaadi ile çalışır.
+Braavolabs — kullanıcıların serbest metinle AI şirketi kurup çalıştırabildiği, izlenebilir, düzenlenebilir, kendini geliştiren otonom şirket oluşturma platformu. "10 dakikada AI şirketini kur" vaadi ile çalışır.
 
 ## Ürün Kararları (SABİT — değiştirme)
 - Freeform company creation: kullanıcı serbest metinle şirket kurar
