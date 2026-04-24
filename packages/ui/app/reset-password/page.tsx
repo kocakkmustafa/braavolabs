@@ -48,7 +48,7 @@ function ResetPasswordInner() {
             </div>
           ) : (
             <>
-              <h2 className="font-bold text-lg mb-1" style={{ color: "#e1e2eb" }}>Set new password</h2>
+              <h1 className="font-bold text-lg mb-1" style={{ color: "#e1e2eb" }}>Set new password</h1>
               <p className="text-sm mb-5" style={{ color: "#859399" }}>Choose a strong password for your account.</p>
 
               {error && (

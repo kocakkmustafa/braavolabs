@@ -115,7 +115,7 @@ export default function LoginPage() {
 
         {/* Middle content */}
         <div className="relative z-10">
-          <h2
+          <h1
             className="font-headline font-extrabold mb-4"
             style={{ fontSize: "2rem", lineHeight: 1.2, color: "#e1e2eb" }}
           >
@@ -130,7 +130,7 @@ export default function LoginPage() {
               business,
             </span>
             <br />always on.
-          </h2>
+          </h1>
           <p className="text-sm mb-8" style={{ color: "#bbc9cf", lineHeight: 1.7, maxWidth: "320px" }}>
             Build AI-powered companies that run sales, content, and operations 24/7 — with full audit logs and human approval gates.
           </p>
