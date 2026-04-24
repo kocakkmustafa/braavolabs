@@ -1,8 +1,8 @@
-# Braavoo — AI Company OS
+# Braavolabs — AI Company OS
 
 **Your AI company. Built in 10 minutes. Runs on autopilot.**
 
-Describe your business in plain English. Braavoo builds a fully-staffed autonomous company — content, sales, ops — that runs while you sleep. Every decision is logged, every spend is approved by you, every run is audited end-to-end.
+Describe your business in plain English. Braavolabs builds a fully-staffed autonomous company — content, sales, ops — that runs while you sleep. Every decision is logged, every spend is approved by you, every run is audited end-to-end.
 
 Built for **creators and solo founders** who want to scale without hiring. Claude-native, self-hostable, exportable as a Claude Code skill bundle.
 
@@ -221,7 +221,7 @@ pnpm docker:down      # Stop Docker services
    - **Pro**: $39/mo monthly + $374/yr yearly
    - **Business**: $99/mo monthly + $950/yr yearly
    - **Enterprise**: custom price (connect to sales)
-6. Configure webhook endpoint → `https://api.braavoo.com/hooks/stripe`
+6. Configure webhook endpoint → `https://api.braavolabs.com/hooks/stripe`
 7. Add events: `checkout.session.completed`, `customer.subscription.*`, `invoice.payment_*`, `charge.refunded`
 8. Copy the 6 price IDs + webhook secret + secret key into your `.env`
 
@@ -351,9 +351,9 @@ for you. Ordered roughly by what unblocks what:
 
 ### Infrastructure (1–2 hours, $30/mo)
 
-- [ ] **Domain**: register `braavoo.com` at Cloudflare Registrar (~$10/yr) or transfer if owned elsewhere
-- [ ] **DNS**: in Cloudflare, add `A` for `braavoo.com` → VPS IP, `CNAME` for `app.braavoo.com` → Vercel, `CNAME` for `api.braavoo.com` → VPS, enable proxy (orange cloud) for SSL + DDoS
-- [ ] **Wildcard**: `*.braavoo.com` → VPS for future subdomains (docs, status)
+- [ ] **Domain**: register `braavolabs.com` at Cloudflare Registrar (~$10/yr) or transfer if owned elsewhere
+- [ ] **DNS**: in Cloudflare, add `A` for `braavolabs.com` → VPS IP, `CNAME` for `app.braavolabs.com` → Vercel, `CNAME` for `api.braavolabs.com` → VPS, enable proxy (orange cloud) for SSL + DDoS
+- [ ] **Wildcard**: `*.braavolabs.com` → VPS for future subdomains (docs, status)
 - [ ] **VPS**: provision Hetzner CPX31 (€13/mo) or DigitalOcean 8GB droplet, install Docker
 - [ ] **S3 backup bucket**: AWS S3 or compatible (Backblaze B2, Cloudflare R2). Create bucket + IAM user with `PutObject` permission scoped to that bucket. Keep `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY`.
 
@@ -362,8 +362,8 @@ for you. Ordered roughly by what unblocks what:
 - [ ] **Anthropic**: create API key at console.anthropic.com, top up $100–200
 - [ ] **Stripe**: apply to Stripe Türkiye with Turkish company (1–3 day approval). On approval, create the 6 products listed in the *Setting Up Stripe* section above and paste price IDs into env. (Or Stripe Atlas — see same section.)
 - [ ] **Sentry**: create a free project at sentry.io, copy DSN into `SENTRY_DSN`
-- [ ] **SendGrid**: create account + API key + domain auth (SPF/DKIM for `braavoo.com`)
-- [ ] **Google OAuth**: Cloud Console → OAuth Consent (External) + Credentials → set redirect URI to `https://api.braavoo.com/api/v1/auth/google/callback`
+- [ ] **SendGrid**: create account + API key + domain auth (SPF/DKIM for `braavolabs.com`)
+- [ ] **Google OAuth**: Cloud Console → OAuth Consent (External) + Credentials → set redirect URI to `https://api.braavolabs.com/api/v1/auth/google/callback`
 - [ ] **Strong secrets**: `openssl rand -hex 32` × 2 → `JWT_SECRET` + `ENCRYPTION_KEY` (production startup REFUSES to boot if `ENCRYPTION_KEY` contains a placeholder string)
 
 ### Legal (1–2 weeks, $75–1500)

@@ -1,7 +1,7 @@
 import type { Plan, PlanLimits, PlanPricing } from "../types/billing";
 
 /**
- * Braavoo plan tiers (2026-04 revision).
+ * Braavolabs plan tiers (2026-04 revision).
  *
  * Philosophy:
  * - Free: Real taste — 1 company, hero use-case (TikTok+LinkedIn simplified)

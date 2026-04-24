@@ -14,7 +14,7 @@ interface ChecklistItem {
 }
 
 const CHECKLIST: ChecklistItem[] = [
-  { key: "registered", label: "Create an account", description: "Sign up for Braavoo", href: "/login", icon: "person_add" },
+  { key: "registered", label: "Create an account", description: "Sign up for Braavolabs", href: "/login", icon: "person_add" },
   { key: "heroCompanyCreated", label: "Create your first company", description: "Build an AI company from a description", href: "/onboarding", icon: "business" },
   { key: "firstRunCompleted", label: "Run your first pipeline", description: "Execute an automated workflow", href: "/pipelines", icon: "play_circle" },
   { key: "firstDraftApproved", label: "Review a draft", description: "Approve or edit AI-generated content", href: "/drafts", icon: "edit_note" },

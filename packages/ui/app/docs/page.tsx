@@ -5,7 +5,7 @@ export default function DocsPage() {
     {
       title: "Getting Started",
       items: [
-        { label: "What is Braavoo?", desc: "An autonomous company creation platform powered by Claude. Describe your business in plain text — AI builds and runs everything." },
+        { label: "What is Braavolabs?", desc: "An autonomous company creation platform powered by Claude. Describe your business in plain text — AI builds and runs everything." },
         { label: "Creating your first company", desc: "From the sidebar, click the gradient + button (\"New Company\") or open the Onboarding wizard. Type a description of your business idea. AI will ask up to 3 clarification questions, then generate agents and pipelines." },
         { label: "Understanding primitives", desc: "Every company is built from 9 building blocks: Acquisition, Sales, Delivery, Content, Operations, Finance, Analytics, Memory, Governance." },
       ],
@@ -43,7 +43,7 @@ export default function DocsPage() {
             style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}>
             <span className="text-white font-bold text-xs">AI</span>
           </div>
-          <span className="font-headline font-bold text-sm" style={{ color: "#e1e2eb" }}>Braavoo</span>
+          <span className="font-headline font-bold text-sm" style={{ color: "#e1e2eb" }}>Braavolabs</span>
         </a>
         <div className="flex items-center gap-4 text-sm" style={{ color: "#859399" }}>
           <a href="/features" className="hover:text-white transition-colors">Features</a>

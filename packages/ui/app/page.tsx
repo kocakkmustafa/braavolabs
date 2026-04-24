@@ -332,7 +332,7 @@ export default function LandingPage() {
           <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #00d1ff, #6d11ad)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}>
             <span style={{ color: "white", fontWeight: 700, fontSize: 11 }}>AI</span>
           </div>
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 15, color: "#e1e2eb", letterSpacing: "-0.02em" }}>Braavoo</span>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 15, color: "#e1e2eb", letterSpacing: "-0.02em" }}>Braavolabs</span>
         </div>
 
         <div className="hidden md:flex" style={{ alignItems: "center", gap: 28, fontSize: 13, fontWeight: 500 }}>
@@ -424,7 +424,7 @@ export default function LandingPage() {
                 transform: heroVisible ? "translateY(0)" : "translateY(12px)",
                 transition: "all 0.8s cubic-bezier(0.16,1,0.3,1) 0.3s",
               }}>
-                Describe your business in plain English. Braavoo builds a fully-staffed autonomous company — content, sales, ops — that runs while you sleep. Every decision is logged, every spend is approved by you.
+                Describe your business in plain English. Braavolabs builds a fully-staffed autonomous company — content, sales, ops — that runs while you sleep. Every decision is logged, every spend is approved by you.
               </p>
 
               {/* Builder Input */}
@@ -665,7 +665,7 @@ export default function LandingPage() {
             <div style={{ width: 16, height: 16, borderRadius: 3, background: "linear-gradient(135deg,#00d1ff,#6d11ad)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <span style={{ color: "white", fontWeight: 700, fontSize: 7 }}>AI</span>
             </div>
-            <span style={{ fontSize: 11, color: "#3c494e" }}>Braavoo</span>
+            <span style={{ fontSize: 11, color: "#3c494e" }}>Braavolabs</span>
             <span className="hidden sm:inline" style={{ fontSize: 10, color: "#3c494e", marginLeft: 8 }}>&copy; 2026 All rights reserved.</span>
           </div>
           <div className="hidden sm:flex" style={{ gap: 20, fontSize: 11 }}>

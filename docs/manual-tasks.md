@@ -15,7 +15,7 @@ Reference: `.claude/context/master-issues.json`
 - [ ] **Cookie policy** — GDPR + ePrivacy Directive. `cookieyes` self-hosted banner (ISS-069 tracking ile birlikte).
 
 ### Altyapi (Bloker)
-- [ ] **Domain braavoo.com DNS setup** — Cloudflare veya Vercel DNS. *.braavoo.com wildcard (docs, status subdomain icin). SSL wildcard cert. (ISS-098)
+- [ ] **Domain braavolabs.com DNS setup** — Cloudflare veya Vercel DNS. *.braavolabs.com wildcard (docs, status subdomain icin). SSL wildcard cert. (ISS-098)
 - [ ] **Vercel Pro hesap** ($20/ay) — team deploy + analytics; production deployment icin zorunlu.
 - [ ] **Production Postgres** — Neon $19/ay veya Railway Starter. pgvector extension. DATABASE_URL?connection_limit=20 (ISS-085).
 - [ ] **Production Redis** — Upstash $10/ay veya Railway. BullMQ + rate-limit + session store.
@@ -45,12 +45,12 @@ Reference: `.claude/context/master-issues.json`
 - [ ] **Stripe Atlas** — US LLC $500 bir kerelik ($150/yil Delaware franchise tax). Eger Turkiye LLC tercih edilmezse.
 
 ### Sosyal Medya + Community (ISS-103, ISS-107)
-- [ ] **Twitter/X @braavooapp** — handle reserve, profile bio + banner + pinned build-in-public thread.
+- [ ] **Twitter/X @braavolabsapp** — handle reserve, profile bio + banner + pinned build-in-public thread.
 - [ ] **LinkedIn company page** — AI Company OS, description + logo + cover.
 - [ ] **YouTube channel** — AI Company OS, channel art + intro music + banner.
 - [ ] **Product Hunt maker account** — Mustafa personal + AI Company OS product page (draft, launch day publish).
 - [ ] **Discord server** — 7 channel: welcome / announcements / support / showcase / feedback / off-topic / dev. MEE6 welcome bot. Roles: member/creator/pro/dev.
-- [ ] **TikTok account** — @braavooapp creator account (spark ads icin gerekli).
+- [ ] **TikTok account** — @braavolabsapp creator account (spark ads icin gerekli).
 - [ ] **Instagram** — opsiyonel ancak ROI dusuk, Faz Growth gec.
 - [ ] **Reddit account** — Mustafa personal 14 gun karma build r/ClaudeAI, r/AI_Agents, r/LocalLLaMA (ISS-093). Authentic post, self-promo yasak.
 
@@ -63,9 +63,9 @@ Reference: `.claude/context/master-issues.json`
 
 ### Help Desk + Status (ISS-106)
 - [ ] **Help desk Crisp** — free tier. UI widget bottom-right (opt-in post-login).
-- [ ] **Status page status.braavoo.com** — Statushero $29/ay veya self-host Uptime Kuma (free). Incident communication.
+- [ ] **Status page status.braavolabs.com** — Statushero $29/ay veya self-host Uptime Kuma (free). Incident communication.
 - [ ] **Better Uptime $15/ay** — API + UI + webhook endpoint ping every 1min.
-- [ ] **Knowledge base knowledge.braavoo.com** — Notion public veya Gitbook. FAQ, getting started, troubleshooting.
+- [ ] **Knowledge base knowledge.braavolabs.com** — Notion public veya Gitbook. FAQ, getting started, troubleshooting.
 
 ### Testimonial + Case Study (ISS-104)
 - [ ] **Ilk 5 beta user personal outreach** — private beta 50 aktifinden 5 se. Zoom 30dk case study interview.

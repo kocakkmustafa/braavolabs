@@ -44,7 +44,7 @@ const INJECTION_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
   { pattern: /\b(?:mailto:|exfiltrat|exfil)\b/i, reason: "exfil-mention" },
   // Outbound URL or email to a non-platform domain — deliberately broad.
   // The reviewer can decide if it's legitimate (e.g. an integration URL).
-  { pattern: /(?:https?:\/\/|@)(?!(?:braavoo\.com|anthropic\.com|github\.com|stripe\.com|hubspot\.com|notion\.so)\b)[a-z0-9.-]+\.(?:com|net|org|io|ai|co|dev|app|xyz|me)\b/i, reason: "external-destination" },
+  { pattern: /(?:https?:\/\/|@)(?!(?:braavolabs\.com|anthropic\.com|github\.com|stripe\.com|hubspot\.com|notion\.so)\b)[a-z0-9.-]+\.(?:com|net|org|io|ai|co|dev|app|xyz|me)\b/i, reason: "external-destination" },
 ];
 
 export interface InjectionScanResult {

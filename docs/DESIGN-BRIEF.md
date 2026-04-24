@@ -9,7 +9,7 @@
 ## 1. Project Identity
 
 **Product name**: AI Company OS
-**Domain**: braavoo.com
+**Domain**: braavolabs.com
 **Tagline**: *"Your AI company. Built in 10 minutes. Runs on autopilot."*
 **Sub-tagline**: *"Describe your business in plain English. AI Company OS builds a fully-staffed autonomous team — content, sales, ops — that runs while you sleep. Every decision is logged."*
 **Positioning**: "Autonomous AI company-in-a-box" (NOT Zapier, NOT automation builder — it's a full business operating system where 9 AI agents run an entire company autonomously)

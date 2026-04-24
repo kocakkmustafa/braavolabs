@@ -185,7 +185,7 @@ app.use(sentryErrorHandler);
 app.use(errorHandler);
 
 app.listen(env.API_PORT, env.API_HOST, () => {
-  logger.info(`Braavoo API running on ${env.API_HOST}:${env.API_PORT}`);
+  logger.info(`Braavolabs API running on ${env.API_HOST}:${env.API_PORT}`);
 
   // Initialize pipeline runner (BullMQ worker)
   initPipelineRunner();

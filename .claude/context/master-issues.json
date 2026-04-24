@@ -1622,10 +1622,10 @@
       "source_agent": "mustafa-manual",
       "category": "legal",
       "severity": "critical",
-      "title": "Domain braavoo.com satin alim + DNS setup",
+      "title": "Domain braavolabs.com satin alim + DNS setup",
       "file": "(manuel)",
-      "description": "Mustafa: braavoo.com domain satin al (creatably.com kararından vazgeçildi 2026-04-23). Cloudflare DNS + SSL. *.braavoo.com wildcard (docs/status subdomain için).",
-      "fix_summary": "Mustafa: braavoo.com sahip kontrol veya satin al (önce WHOIS doğrula). Cloudflare DNS + SSL. *.braavoo.com wildcard.",
+      "description": "Mustafa: braavolabs.com domain satin al (creatably.com kararından vazgeçildi 2026-04-23). Cloudflare DNS + SSL. *.braavolabs.com wildcard (docs/status subdomain için).",
+      "fix_summary": "Mustafa: braavolabs.com sahip kontrol veya satin al (önce WHOIS doğrula). Cloudflare DNS + SSL. *.braavolabs.com wildcard.",
       "assigned_to": "mustafa",
       "status": "pending",
       "priority": 1,
@@ -2127,7 +2127,7 @@
       "still_open_v1_blockers": {
         "ISS_045": "Bundled AI credits — Mustafa product decision",
         "ISS_070": "Launch verdict NO-GO — meta status, gates on activation/conversion metrics",
-        "ISS_098": "Domain braavoo.com purchase — Mustafa, deferred to launch time",
+        "ISS_098": "Domain braavolabs.com purchase — Mustafa, deferred to launch time",
         "ISS_099": "ToS + Privacy legal review — Termly $75/yr or attorney $500-1500",
         "ISS_100": "Stripe live activation + Tax — Mustafa Stripe Atlas / TR LLC setup"
       },

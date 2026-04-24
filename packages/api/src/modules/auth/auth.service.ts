@@ -482,11 +482,11 @@ export async function requestPasswordReset(email: string): Promise<void> {
 
   await sendEmail({
     to: email,
-    subject: "Reset your Braavoo password",
+    subject: "Reset your Braavolabs password",
     body: `
       <div style="font-family: Inter, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #10131a; color: #e1e2eb; border-radius: 16px;">
         <div style="margin-bottom: 24px;">
-          <span style="background: linear-gradient(135deg, #00d1ff, #6d11ad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; font-size: 18px;">Braavoo</span>
+          <span style="background: linear-gradient(135deg, #00d1ff, #6d11ad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; font-size: 18px;">Braavolabs</span>
         </div>
         <h2 style="color: #e1e2eb; margin-bottom: 12px;">Reset your password</h2>
         <p style="color: #859399; margin-bottom: 24px;">Click the button below to reset your password. This link expires in 1 hour.</p>
