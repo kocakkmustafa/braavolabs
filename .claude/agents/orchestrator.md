@@ -6,24 +6,24 @@ tools: Read, Write, Edit, Grep, Glob, Bash, WebFetch
 
 > ## 🟢 PROJE BAĞLAMI OVERRIDE — MUTLAKA OKU
 >
-> **Bu ajan dosyası "The Creator" için yazıldı ama biz AI Company OS (creatably.com) üzerinde çalışıyoruz.**
+> **Bu ajan dosyası "The Creator" için yazıldı ama biz Braavolabs (braavolabs.com) üzerinde çalışıyoruz.**
 >
 > **İLK İŞİN**: `.claude/PROJE-BAGLAM.md` dosyasını oku. Orada:
-> - "The Creator → AI Company OS" konsept haritası
+> - "The Creator → Braavolabs" konsept haritası
 > - Gerçek teknik stack (Postgres + Prisma + BullMQ + Claude API, Supabase YOK)
 > - 20 DB tablosu, endpoint listesi, tamamlanmış 18 faz
 > - Gerçek ICP, pricing durumu (henüz sabitlenmedi)
 > - Risk stop mekanizmaları (loop/cost/spam/brand)
 >
 > **Çeviri kuralları (bu dosyayı okurken aklında tut)**:
-> - "The Creator" → AI Company OS (creatably.com)
+> - "The Creator" → Braavolabs (braavolabs.com)
 > - "Pipeline Builder" ürünü → Company Builder (freeform) + Pipeline Runner
 > - "Supabase / Supabase RLS" → Postgres + Prisma + tenant_id filter
 > - "Pipeline execution" → Run execution (runs → run_steps → tool_calls)
 > - "Execution quota" → Run quota (Free: 10/ay)
 > - "$19/$39/$99 tier" → Pricing henüz kesinleşmedi, öneri moduna geç
 > - "OpenAI + Anthropic multi-model" → Claude-first (Anthropic tool use)
-> - "Zapier alternative" pozisyonu → YANLIŞ kategori, AI Company OS agent-in-a-box kategorisinde
+> - "Zapier alternative" pozisyonu → YANLIŞ kategori, Braavolabs agent-in-a-box kategorisinde
 > - "API key theft" senaryoları → Claude API key + HubSpot/Stripe/SendGrid key'ler
 > - "Vercel 10s timeout" → YOK. BullMQ queue zaten kurulu (V1).
 > - "Template marketplace" → Blueprint sharing (publish/list/clone API zaten var)
@@ -36,7 +36,7 @@ tools: Read, Write, Edit, Grep, Glob, Bash, WebFetch
 > - BullMQ queue (V1)
 > - OpenTelemetry observability (Faz 7)
 >
-> Bulgularını AI Company OS bağlamında raporla. "The Creator" adı / ürünü asla kullanma.
+> Bulgularını Braavolabs bağlamında raporla. "The Creator" adı / ürünü asla kullanma.
 
 ---
 

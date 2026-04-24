@@ -4,32 +4,32 @@
 
 ---
 
-## 🟢 Proje: AI Company OS (creatably.com)
+## 🟢 Proje: Braavolabs (braavolabs.com)
 
 | Alan | Gerçek Değer |
 |------|---|
-| **Proje adı** | AI Company OS |
-| **Domain** | creatably.com |
-| **Kod adı** | creatably |
+| **Proje adı** | Braavolabs |
+| **Domain** | braavolabs.com |
+| **Kod adı** | braavolabs |
 | **Vaat** | "10 dakikada AI şirketini kur" |
 | **Tip** | Freeform AI company creation & execution platform |
 | **Ana ürün** | Serbest metinle AI şirketi kurup çalıştırma (clarification loop + 9 Primitive) |
 | **Hero company** | Social Media Management + Autonomous Content Studio |
 | **Free plan** | 1 şirket, TikTok + LinkedIn, 10 run/ay, gerçek çıktı |
 | **Olgunluk** | Faz 18 tamamlandı (production-ready, güvenlik hardened, SSE streaming, export) |
-| **Repo root** | `/Users/mustafakaankocak/AI Holding Claude/Projects/Web Sites/creatably.com` |
-| **Authoritative CLAUDE.md** | `creatably.com/CLAUDE.md` (proje kökünde) |
+| **Repo root** | `/Users/mustafakaankocak/AI Holding Claude/Projects/Web Sites/braavolabs.com` |
+| **Authoritative CLAUDE.md** | `braavolabs.com/CLAUDE.md` (proje kökünde) |
 
 ---
 
-## 🔄 KONSEPT HARİTASI — The Creator → AI Company OS
+## 🔄 KONSEPT HARİTASI — The Creator → Braavolabs
 
-Ajan prompt'larında aşağıdaki The Creator terimleriyle karşılaştığında **otomatik olarak** AI Company OS karşılığına çevir.
+Ajan prompt'larında aşağıdaki The Creator terimleriyle karşılaştığında **otomatik olarak** Braavolabs karşılığına çevir.
 
-| "The Creator" Prompt'ta | AI Company OS'taki Karşılığı |
+| "The Creator" Prompt'ta | Braavolabs'taki Karşılığı |
 |---|---|
-| "The Creator" | "AI Company OS" / creatably.com |
-| "thecreator.app" | "creatably.com" |
+| "The Creator" | "Braavolabs" / braavolabs.com |
+| "thecreator.app" | "braavolabs.com" |
 | Pipeline Builder (drag-drop node editor) | **Company Builder** (freeform clarification loop) + **Pipeline Runner** (yapılandırılmış pipeline template'lerini çalıştırır) |
 | AI Agent Builder | Company içindeki **9 Primitive** (acquisition, sales, delivery, content, operations, finance, analytics, memory, governance) — her biri bir "agent" |
 | Pipeline | `pipelines` tablosu (template), `runs` tablosu (her çalışma), `run_steps` (adım adım) |
@@ -38,8 +38,8 @@ Ajan prompt'larında aşağıdaki The Creator terimleriyle karşılaştığında
 | Execution quota | **Run quota** (Free: 10/ay) |
 | Template marketplace | **Blueprint sharing** (publish/list/clone API zaten var) |
 | API key (OpenAI/Anthropic) | Kullanıcı tarafından girilen **Claude API key** + opsiyonel **HubSpot/Stripe/SendGrid key'ler** |
-| Zapier/Make/n8n alternative | **YANLIŞ rakip sınıfı** — AI Company OS bir "automation builder" değil. Gerçek rakipler: Relevance AI (agent side), Lindy (task-agent), Gumloop (AI-native), ama daha çok **"AI SDR / AI agency in a box"** kategorisi. Ayrıca tam bir direkt rakip yok — ürün daha yeni |
-| $19 Solo / $39 Pro / $99 Business | **AI Company OS'un gerçek pricing tier'ları HENÜZ kesinleşmedi** — bu projede pricing revizyon aktif konu. Ajanlar pricing hakkında konuşurken "öneri" moduna geç, fait accompli varsayma |
+| Zapier/Make/n8n alternative | **YANLIŞ rakip sınıfı** — Braavolabs bir "automation builder" değil. Gerçek rakipler: Relevance AI (agent side), Lindy (task-agent), Gumloop (AI-native), ama daha çok **"AI SDR / AI agency in a box"** kategorisi. Ayrıca tam bir direkt rakip yok — ürün daha yeni |
+| $19 Solo / $39 Pro / $99 Business | **Braavolabs'un gerçek pricing tier'ları HENÜZ kesinleşmedi** — bu projede pricing revizyon aktif konu. Ajanlar pricing hakkında konuşurken "öneri" moduna geç, fait accompli varsayma |
 | Solopreneur/creator ICP | Benzer ama daha geniş: **AI-curious founder, agency owner, solopreneur** — "şirket çalıştırır gibi otomatik iş akışı isteyen" |
 | Supabase | **Yok**. Stack: **Postgres 16 + pgvector + Prisma**. Self-hosted Docker Compose + opsiyonel cloud |
 | Supabase RLS | Postgres'te **tenant_id filter + Prisma middleware** (uygulama katmanı tenant isolation) |
@@ -68,7 +68,7 @@ Ajan, bulgularını değerlendirirken bu 10 kuralı referans alır. Bunlar CLAUD
 
 ---
 
-## 🛑 RISK STOPS (AI Company OS'a özgü)
+## 🛑 RISK STOPS (Braavolabs'a özgü)
 
 Her ajan audit yaparken bu stop mekanizmalarının doğru çalıştığını kontrol etmeli:
 
@@ -80,7 +80,7 @@ Her ajan audit yaparken bu stop mekanizmalarının doğru çalıştığını kon
 
 ---
 
-## 🏗 GERÇEK TEKNİK STACK (AI Company OS)
+## 🏗 GERÇEK TEKNİK STACK (Braavolabs)
 
 ```
 Monorepo: pnpm workspaces + turbo
@@ -192,8 +192,8 @@ Orchestrator 4 final çıktı üretir (launch değil **V1 production hardening**
 
 ## ⚠️ AJAN İÇİN UYARILAR
 
-1. **Pricing önerilerini fait accompli yapma** — AI Company OS pricing henüz sabitlenmedi. Öneri yap, varsayım yapma.
-2. **"Zapier alternative" pozisyonlamasını sorgula** — AI Company OS o kategoride DEĞİL. Marketing önerilerinde kategori netleştir.
+1. **Pricing önerilerini fait accompli yapma** — Braavolabs pricing henüz sabitlenmedi. Öneri yap, varsayım yapma.
+2. **"Zapier alternative" pozisyonlamasını sorgula** — Braavolabs o kategoride DEĞİL. Marketing önerilerinde kategori netleştir.
 3. **"Pipeline" terimini iki anlamda kullan**: (a) template (`pipelines` tablosu), (b) genel workflow kavramı. Bağlamı netleştir.
 4. **Zaten çözülmüş şeyi tekrar önerme** — Faz listesinden kontrol et. Örn: BullMQ queue zaten var, Stripe webhook HMAC zaten var (Faz 17).
 5. **Export/skills/hooks/CLAUDE.md üretimi proje içinde bir özellik** — kullanıcı kendi AI şirketini export edebilir (Faz 16). Karıştırma.

@@ -1,5 +1,5 @@
 {
-  "name": "AI Company OS",
+  "name": "Braavolabs",
   "dockerComposeFile": "compose.yaml",
   "service": "api",
   "workspaceFolder": "/app",

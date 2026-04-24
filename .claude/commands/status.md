@@ -2,9 +2,9 @@
 description: Projenin mevcut durumunu, kaç cycle çalışmış, kaç issue açık, faz durumu ve metric karşılaştırmayı göster
 ---
 
-> **PROJE BAĞLAMI**: Bu komut AI Company OS (creatably.com) üzerinde çalışır. Komutun içindeki "The Creator", "Pipeline Builder", "thecreator.app" gibi referanslar **AI Company OS karşılıklarına** çevrilir. Tam harita: `.claude/PROJE-BAGLAM.md`.
+> **PROJE BAĞLAMI**: Bu komut Braavolabs (braavolabs.com) üzerinde çalışır. Komutun içindeki "The Creator", "Pipeline Builder", "thecreator.app" gibi referanslar **Braavolabs karşılıklarına** çevrilir. Tam harita: `.claude/PROJE-BAGLAM.md`.
 >
-> **4 çıktı hedefi** (AI Company OS için):
+> **4 çıktı hedefi** (Braavolabs için):
 > - `docs/roadmap/launch-roadmap.md` — V1 launch / ilk 1000 user plan (Faz 18 SONRASI, go-live odak)
 > - `docs/daily/daily-checklist.md` — günlük operasyon
 > - `docs/marketing/marketing-plan.md` — go-to-market (agent-in-a-box kategorisi, Zapier değil)

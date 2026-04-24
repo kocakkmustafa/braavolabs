@@ -6,7 +6,7 @@ Hedef: V1 public launch 2026-06-01 civari
 
 ## STRATEJIK OZET
 
-AI Company OS urun olarak **teknik saglam** (18 Faz). Ama 9 ajanin audit'inden 5 kritik mimari guvenlik blokeri cikti. Bu 5'i **otomatik cozulemez** (tenant isolation, approval flow, blueprint sanitization, Stripe idempotency, SQL migration — hepsi design decision gerektiriyor).
+Braavolabs urun olarak **teknik saglam** (18 Faz). Ama 9 ajanin audit'inden 5 kritik mimari guvenlik blokeri cikti. Bu 5'i **otomatik cozulemez** (tenant isolation, approval flow, blueprint sanitization, Stripe idempotency, SQL migration — hepsi design decision gerektiriyor).
 
 **Paid reklam harcamasi 2026-06-01 oncesi istatistiksel olarak para kaybi** — tracking altyapisi sifir, activation %10-11, Free→Paid %4.5 (saglikli floor %6+), middle tier yok. Ads-agent NO-GO verdict'i.
 
@@ -187,11 +187,11 @@ Hedef: Launch day 1000 signup, 200 activation, 20 paying. 30 gun 500 paying.
 
 ### Launch Gun Operasyon
 - [ ] **Pazartesi 9 AM PST** — Product Hunt launch (3-5 hunter outreach onceden — ISS-094)
-  - Title: 'AI Company OS — Build autonomous AI companies in 10 minutes'
+  - Title: 'Braavolabs — Build autonomous AI companies in 10 minutes'
   - Tagline: 'Your AI employee, hired in 10 minutes'
   - Creative Meta video (ISS-072 Creative 1)
 - [ ] **Sali 9 AM ET** — HN Show HN
-  - 'Show HN: AI Company OS — Build autonomous AI companies that run themselves'
+  - 'Show HN: Braavolabs — Build autonomous AI companies that run themselves'
   - Full audit log + Claude-native + self-host fokus
 - [ ] **Cars 10 AM ET** — Twitter mega-thread (Mustafa)
   - 12-15 tweet thread — origin story, demo, hero company, export to Claude Code
