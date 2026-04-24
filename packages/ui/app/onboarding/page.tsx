@@ -227,7 +227,7 @@ export default function OnboardingPage() {
             >
               <span className="font-bold text-xs text-white">AI</span>
             </div>
-            <span className="font-headline font-bold" style={{ color: "#e1e2eb" }}>Braavoo</span>
+            <span className="font-headline font-bold" style={{ color: "#e1e2eb" }}>Braavolabs</span>
           </div>
 
           {/* Progress steps */}

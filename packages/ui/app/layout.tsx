@@ -5,22 +5,22 @@ import { ToastProvider } from "../components/Toast";
 
 export const metadata: Metadata = {
   title: {
-    default: "Braavoo — Your AI company, built in 10 minutes",
-    template: "%s | Braavoo",
+    default: "Braavolabs — Your AI company, built in 10 minutes",
+    template: "%s | Braavolabs",
   },
-  description: "Describe your business in plain English. Braavoo builds a fully-staffed autonomous company — content, sales, ops — that runs while you sleep. Every decision logged.",
-  keywords: ["Braavoo", "AI", "autonomous company", "AI agents", "automation", "pipeline", "Claude"],
-  authors: [{ name: "Braavoo" }],
+  description: "Describe your business in plain English. Braavolabs builds a fully-staffed autonomous company — content, sales, ops — that runs while you sleep. Every decision logged.",
+  keywords: ["Braavolabs", "AI", "autonomous company", "AI agents", "automation", "pipeline", "Claude"],
+  authors: [{ name: "Braavolabs" }],
   openGraph: {
-    title: "Braavoo — Your AI company, built in 10 minutes",
-    description: "Describe your business in plain English. Braavoo builds a fully-staffed autonomous company — content, sales, ops — that runs while you sleep.",
+    title: "Braavolabs — Your AI company, built in 10 minutes",
+    description: "Describe your business in plain English. Braavolabs builds a fully-staffed autonomous company — content, sales, ops — that runs while you sleep.",
     type: "website",
-    siteName: "Braavoo",
+    siteName: "Braavolabs",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Braavoo — Your AI company, built in 10 minutes",
-    description: "Describe your business in plain English. Braavoo builds an autonomous company that runs while you sleep.",
+    title: "Braavolabs — Your AI company, built in 10 minutes",
+    description: "Describe your business in plain English. Braavolabs builds an autonomous company that runs while you sleep.",
   },
   icons: {
     icon: [

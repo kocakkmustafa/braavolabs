@@ -73,7 +73,7 @@ services:
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in .env (min 32 chars)}
       # App URL
-      APP_URL: ${APP_URL:?Set APP_URL in .env (e.g. https://braavoo.com)}
+      APP_URL: ${APP_URL:?Set APP_URL in .env (e.g. https://braavolabs.com)}
       # LLM
       LLM_PROVIDER: ${LLM_PROVIDER:-api}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -95,7 +95,7 @@ services:
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
       # Email
       SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
-      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-noreply@braavoo.com}
+      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-noreply@braavolabs.com}
       # Integrations
       HUBSPOT_ACCESS_TOKEN: ${HUBSPOT_ACCESS_TOKEN:-}
       HUBSPOT_PORTAL_ID: ${HUBSPOT_PORTAL_ID:-}
@@ -135,8 +135,8 @@ services:
       context: ..
       dockerfile: ENV/Dockerfile.ui
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?Set NEXT_PUBLIC_API_URL in .env (e.g. https://braavoo.com/api/v1)}
-        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL in .env (e.g. https://braavoo.com)}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?Set NEXT_PUBLIC_API_URL in .env (e.g. https://braavolabs.com/api/v1)}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL in .env (e.g. https://braavolabs.com)}
     container_name: aicos-ui
     restart: unless-stopped
     ports:

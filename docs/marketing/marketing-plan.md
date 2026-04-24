@@ -33,7 +33,7 @@ Farklilasma: 9 Primitives + freeform clarification + Holding Brain + export-to-C
 
 **Hedef**: Waitlist 500-1000 + private beta 50 aktif + organik momentum.
 
-- Waitlist Tally form (braavoo.com/waitlist)
+- Waitlist Tally form (braavolabs.com/waitlist)
 - Build-in-public X thread baslat (Mustafa) — haftalik 2 thread
 - Ilk 5 pillar blog post draft (content-agent)
 - Reddit organik seeding 14 gun (r/ClaudeAI, r/AI_Agents, r/LocalLLaMA, r/SaaS) — karma build + authentic post
@@ -167,7 +167,7 @@ Ilk ay sonuclarina gore:
 - **Audience**: #automation #aitools #sidehustle #faceless, age 22-40
 - **Hook (0-3s)**: Creator POV, morning coffee. Text overlay: "Bugun: 3 TikTok, 2 LinkedIn, 1 lead follow-up."
 - **Value (3-14s)**: Cut to laptop dashboard "3 runs completed". Voiceover: "Cunku AI Company OS benim icin yapti."
-- **CTA (14-18s)**: "Free plan. No card. braavoo.com"
+- **CTA (14-18s)**: "Free plan. No card. braavolabs.com"
 - **Caption**: "POV: my AI company posts while I sleep 🤖💤 #aiautomation #claudeai #faceless"
 - **Production**: UGC creator $500-1000 + spark ads posting right
 
@@ -183,7 +183,7 @@ Ilk ay sonuclarina gore:
   - Spend approval required for any money action
   - Per-step reasoning mandatory (every decision logged)
   - Free 10 runs/mo, full docs, genuine early-stage launch
-- **CTA**: `braavoo.com/?utm_source=reddit&utm_medium=paid&utm_campaign=alex-export-skill`
+- **CTA**: `braavolabs.com/?utm_source=reddit&utm_medium=paid&utm_campaign=alex-export-skill`
 
 ---
 

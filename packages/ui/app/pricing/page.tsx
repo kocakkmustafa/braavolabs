@@ -120,7 +120,7 @@ export default function PricingPage() {
             style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}>
             <span className="text-white font-bold text-xs">AI</span>
           </div>
-          <span className="font-headline font-bold text-sm" style={{ color: "#e1e2eb" }}>Braavoo</span>
+          <span className="font-headline font-bold text-sm" style={{ color: "#e1e2eb" }}>Braavolabs</span>
         </a>
         <div className="flex items-center gap-4 text-sm" style={{ color: "#859399" }}>
           <a href="/features" className="hover:text-white transition-colors">Features</a>
@@ -247,7 +247,7 @@ export default function PricingPage() {
               Enterprise — unlimited companies, SSO, private deployment, dedicated SLA.
             </p>
           </div>
-          <a href="mailto:founder@braavoo.com" className="px-5 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap"
+          <a href="mailto:founder@braavolabs.com" className="px-5 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap"
             style={{ background: "rgba(255,255,255,0.06)", color: "#e1e2eb", border: "1px solid rgba(255,255,255,0.08)", textDecoration: "none" }}>
             Talk to the Founder
           </a>

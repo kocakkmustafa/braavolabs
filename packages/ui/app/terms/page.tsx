@@ -10,7 +10,7 @@ export default function TermsPage() {
             style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}>
             <span className="text-white font-bold text-xs">AI</span>
           </div>
-          <span className="font-headline font-bold text-sm" style={{ color: "#e1e2eb" }}>Braavoo</span>
+          <span className="font-headline font-bold text-sm" style={{ color: "#e1e2eb" }}>Braavolabs</span>
         </a>
         <a href="/" className="text-sm hover:text-white transition-colors" style={{ color: "#859399" }}>← Back</a>
       </nav>
@@ -23,8 +23,8 @@ export default function TermsPage() {
 
         <div className="space-y-8 text-sm leading-relaxed" style={{ color: "#859399" }}>
           {[
-            { title: "1. Acceptance", body: "By creating an account or using Braavoo, you agree to these Terms of Service. If you are using the platform on behalf of an organization, you represent that you have authority to bind that organization to these terms." },
-            { title: "2. Service Description", body: "Braavoo provides an AI-powered platform for creating and operating autonomous business workflows. The platform uses Claude (Anthropic) to generate agents and pipelines based on your descriptions." },
+            { title: "1. Acceptance", body: "By creating an account or using Braavolabs, you agree to these Terms of Service. If you are using the platform on behalf of an organization, you represent that you have authority to bind that organization to these terms." },
+            { title: "2. Service Description", body: "Braavolabs provides an AI-powered platform for creating and operating autonomous business workflows. The platform uses Claude (Anthropic) to generate agents and pipelines based on your descriptions." },
             { title: "3. Acceptable Use", body: "You may not use the platform to generate spam, conduct illegal activities, violate third-party rights, or circumvent the platform's governance and risk controls. Automated outreach is subject to anti-spam limits built into the platform." },
             { title: "4. Free Plan", body: "The free plan includes 1 company, 10 runs per month, and access to TikTok and LinkedIn channels. Free plan features may change with 30 days' notice." },
             { title: "5. Paid Plans", body: "Paid subscriptions are billed monthly via Stripe. You may cancel at any time; cancellation takes effect at the end of the current billing period. No refunds are issued for partial months." },

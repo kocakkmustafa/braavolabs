@@ -36,7 +36,7 @@ function ResetPasswordInner() {
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}>
             <span className="text-white font-bold text-xs">AI</span>
           </div>
-          <span className="font-bold text-sm" style={{ color: "#e1e2eb" }}>Braavoo</span>
+          <span className="font-bold text-sm" style={{ color: "#e1e2eb" }}>Braavolabs</span>
         </div>
 
         <div className="rounded-2xl p-6" style={{ background: "rgba(29,32,38,0.8)", border: "1px solid rgba(255,255,255,0.08)" }}>
