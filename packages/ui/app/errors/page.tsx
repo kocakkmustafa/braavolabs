@@ -37,7 +37,9 @@ export default function ErrorsPage() {
 
   useEffect(() => {
     if (!token) {
-      router.push("/login");
+      // replace — auth-guard pattern; back-button shouldn't loop
+      // /errors → /login → /errors → /login.
+      router.replace("/login");
       return;
     }
     Promise.all([

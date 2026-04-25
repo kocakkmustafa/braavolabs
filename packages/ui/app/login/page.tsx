@@ -37,7 +37,14 @@ export default function LoginPage() {
   const [forgotError, setForgotError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (hydrated && token) router.push("/dashboard");
+    // router.replace, NOT push — if a logged-in user lands on /login
+    // (e.g. browser back-button after sign-in, or external link), we
+    // bounce them to /dashboard. push() would leave /login in history,
+    // so the next back-button press triggers this useEffect AGAIN and
+    // pushes /dashboard once more, creating an infinite forward-back
+    // loop. replace() removes /login from history so back-button goes
+    // to whatever the user was on BEFORE the login flow.
+    if (hydrated && token) router.replace("/dashboard");
   }, [hydrated, token, router]);
 
   useEffect(() => {
@@ -75,7 +82,8 @@ export default function LoginPage() {
           { method: "POST", body: JSON.stringify({ email, password }) },
         );
         setAuth(res.token, res.tenant.id, res.refreshToken);
-        router.push("/dashboard");
+        // replace — /login shouldn't be in history once we're authed.
+        router.replace("/dashboard");
       } else {
         const res = await apiFetch<{ token: string; refreshToken: string; user: any; tenant: any }>(
           "/auth/register",
@@ -85,7 +93,9 @@ export default function LoginPage() {
           },
         );
         setAuth(res.token, res.tenant.id, res.refreshToken);
-        router.push("/onboarding");
+        // replace — back-button from /onboarding shouldn't re-trigger
+        // a duplicate-account submit on /login.
+        router.replace("/onboarding");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

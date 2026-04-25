@@ -19,12 +19,15 @@ function CallbackInner() {
         // Remove tokens from URL before navigating to prevent them from
         // appearing in browser history, server logs, or Referer headers.
         window.history.replaceState({}, "", "/auth/callback");
-        router.push("/dashboard");
+        // replace, not push — back-button after OAuth shouldn't take
+        // the user back to /auth/callback (a stale URL with consumed
+        // tokens). Skip the callback page in history entirely.
+        router.replace("/dashboard");
       } catch {
-        router.push("/login");
+        router.replace("/login");
       }
     } else {
-      router.push("/login");
+      router.replace("/login");
     }
   }, [searchParams, setAuth, router]);
 

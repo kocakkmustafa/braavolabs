@@ -229,7 +229,7 @@ export default function SettingsPage() {
           </nav>
         </div>
         <button
-          onClick={() => { clearAuth(); router.push("/login"); }}
+          onClick={() => { clearAuth(); router.replace("/login"); }}
           className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
           style={{ background: "rgba(255,180,171,0.08)", color: "#ffb4ab" }}
         >

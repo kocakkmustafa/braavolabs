@@ -22,7 +22,10 @@ function ResetPasswordInner() {
     try {
       await api.resetPassword(token, password);
       setStatus("done");
-      setTimeout(() => router.push("/login"), 2500);
+      // replace — once the password is reset, the consumed reset
+      // token in the URL is invalid; back-button shouldn't return to
+      // a stale page that re-fires the reset.
+      setTimeout(() => router.replace("/login"), 2500);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setStatus("error");

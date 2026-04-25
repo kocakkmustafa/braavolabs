@@ -15,8 +15,14 @@ export function useAuthGuard() {
   const router = useRouter();
 
   useEffect(() => {
+    // replace, not push — see login/page.tsx for the full reasoning.
+    // Symmetrical fix: anonymous user on /dashboard gets bounced to
+    // /login. push() leaves /dashboard in history → back-button takes
+    // them BACK to /dashboard → useEffect runs again → push /login →
+    // infinite forward-back loop, makes the back button feel broken.
+    // replace() collapses the redirect so back-button skips both pages.
     if (hydrated && !token) {
-      router.push("/login");
+      router.replace("/login");
     }
   }, [hydrated, token, router]);
 
