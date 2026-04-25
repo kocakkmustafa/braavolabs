@@ -15,7 +15,16 @@ RUN pnpm install --frozen-lockfile
 # Build
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/*/node_modules ./packages/*/node_modules
+# Per-package node_modules — Docker COPY does not glob-expand the
+# destination, so `./packages/*/node_modules` was being treated as a
+# literal path and the prisma binary never landed in
+# `packages/db/node_modules/.bin`. Each workspace gets its own COPY
+# (mirrors the pattern Dockerfile.ui already uses).
+COPY --from=deps /app/packages/db/node_modules ./packages/db/node_modules
+COPY --from=deps /app/packages/core/node_modules ./packages/core/node_modules
+COPY --from=deps /app/packages/api/node_modules ./packages/api/node_modules
+COPY --from=deps /app/packages/memory/node_modules ./packages/memory/node_modules
+COPY --from=deps /app/packages/integrations/node_modules ./packages/integrations/node_modules
 COPY . .
 RUN pnpm --filter @ai-company-os/db exec prisma generate
 RUN pnpm --filter @ai-company-os/core build
@@ -32,9 +41,20 @@ COPY --from=build /app/packages/memory/dist ./packages/memory/dist
 COPY --from=build /app/packages/integrations/dist ./packages/integrations/dist
 COPY --from=build /app/packages/db/prisma ./packages/db/prisma
 COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/packages/*/node_modules ./packages/*/node_modules
+# Same per-package COPY as in the build stage — glob destination is
+# not legal Docker syntax and was silently producing a directory
+# literally named `*` in the runner image.
+COPY --from=build /app/packages/db/node_modules ./packages/db/node_modules
+COPY --from=build /app/packages/core/node_modules ./packages/core/node_modules
+COPY --from=build /app/packages/api/node_modules ./packages/api/node_modules
+COPY --from=build /app/packages/memory/node_modules ./packages/memory/node_modules
+COPY --from=build /app/packages/integrations/node_modules ./packages/integrations/node_modules
 COPY --from=build /app/package.json ./
-COPY --from=build /app/packages/*/package.json ./packages/*/
+COPY --from=build /app/packages/db/package.json ./packages/db/
+COPY --from=build /app/packages/core/package.json ./packages/core/
+COPY --from=build /app/packages/api/package.json ./packages/api/
+COPY --from=build /app/packages/memory/package.json ./packages/memory/
+COPY --from=build /app/packages/integrations/package.json ./packages/integrations/
 
 # Run as non-root user
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 aicos

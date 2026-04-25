@@ -138,13 +138,17 @@ webhookRouter.post(
           continue;
         }
 
-        // Create a run for each matching pipeline
+        // Create a run for each matching pipeline. Cast on the JSON
+        // column matches the rest of the codebase — Prisma's
+        // InputJsonValue is more restrictive than Record<string,unknown>
+        // and a structural cast keeps the field strongly-typed at the
+        // boundary without leaking `any` upward.
         const run = await prisma.run.create({
           data: {
             pipelineId: pipeline.id,
             status: "PENDING",
             trigger: `webhook:${event}`,
-            input: { event, payload: parsedBody },
+            input: { event, payload: parsedBody } as any,
           },
         });
 
