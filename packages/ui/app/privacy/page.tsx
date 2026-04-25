@@ -27,10 +27,10 @@ export default function PrivacyPage() {
             { title: "How We Use Your Data", body: "Your data is used solely to operate the Braavolabs platform: to run your agents, store your pipeline history, and generate analytics. We do not sell, share, or use your data to train AI models. Each tenant's data is strictly isolated." },
             { title: "Data Storage", body: "All data is stored in encrypted PostgreSQL databases. Audit logs and activity records are retained for 12 months by default. You may request deletion of your account and all associated data at any time." },
             { title: "Third-Party Services", body: "We use Stripe for billing, SendGrid for transactional email, Google OAuth for authentication (optional), and HubSpot for CRM integration (opt-in). Each of these services has its own privacy policy." },
-            { title: "Your Rights", body: "You have the right to access, export, and delete your data at any time. To exercise these rights, contact us at privacy@aicompanyos.com. We will respond within 30 days." },
+            { title: "Your Rights", body: "You have the right to access, export, and delete your data at any time. To exercise these rights, contact us at privacy@braavolabs.com. We will respond within 30 days." },
             { title: "Security", body: "We use industry-standard encryption in transit (TLS 1.3) and at rest (AES-256). Access to production systems is restricted to authorized personnel. We conduct regular security reviews." },
             { title: "Changes", body: "We may update this policy from time to time. We will notify you of significant changes via email. Continued use of the platform after changes constitutes acceptance of the updated policy." },
-            { title: "Contact", body: "Questions about this policy? Email us at privacy@aicompanyos.com." },
+            { title: "Contact", body: "Questions about this policy? Email us at privacy@braavolabs.com." },
           ].map((section) => (
             <div key={section.title}>
               <h2 className="font-headline font-semibold text-sm mb-2" style={{ color: "#e1e2eb" }}>{section.title}</h2>

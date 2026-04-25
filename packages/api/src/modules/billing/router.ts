@@ -169,7 +169,7 @@ authedRouter.post("/checkout", async (req, res, next) => {
         config,
         tenant.id,
         tenant.name,
-        tenant.users[0]?.email ?? `${tenant.slug}@aicompanyos.com`,
+        tenant.users[0]?.email ?? `${tenant.slug}@braavolabs.com`,
       );
       await prisma.tenant.update({
         where: { id: tenant.id },

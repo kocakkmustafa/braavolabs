@@ -32,7 +32,7 @@ export default function TermsPage() {
             { title: "7. AI Outputs", body: "AI-generated content (agent outputs, drafts, outreach messages) must be reviewed before sending. You are responsible for all content sent through integrations connected to your account." },
             { title: "8. Limitation of Liability", body: "The platform is provided 'as is'. We are not liable for indirect, incidental, or consequential damages arising from your use of the platform or AI-generated content." },
             { title: "9. Termination", body: "We may suspend or terminate accounts that violate these terms. You may delete your account at any time from the Settings page." },
-            { title: "10. Contact", body: "Questions about these terms? Email us at legal@aicompanyos.com." },
+            { title: "10. Contact", body: "Questions about these terms? Email us at legal@braavolabs.com." },
           ].map((section) => (
             <div key={section.title}>
               <h2 className="font-headline font-semibold text-sm mb-2" style={{ color: "#e1e2eb" }}>{section.title}</h2>
