@@ -506,7 +506,7 @@ export default function LandingPage() {
 
               {/* Stats */}
               <div className="flex flex-wrap justify-center" style={{ gap: "16px 32px", opacity: heroVisible ? 1 : 0, transition: "opacity 0.8s 0.6s" }}>
-                {[{ v: "1,200+", l: "companies built" }, { v: "10 min", l: "to first deploy" }, { v: "100%", l: "actions audited" }].map((s) => (
+                {[{ v: "9", l: "AI agents per company" }, { v: "10 min", l: "to first deploy" }, { v: "100%", l: "actions audited" }].map((s) => (
                   <div key={s.l} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 14, color: "#e1e2eb" }}>{s.v}</span>
                     <span style={{ fontSize: 11, color: "#3c494e" }}>{s.l}</span>

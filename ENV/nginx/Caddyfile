@@ -1,0 +1,91 @@
+# Braavolabs production Caddy config (alternative to nginx).
+# Caddy auto-fetches Let's Encrypt certs on first start — no certbot needed.
+#
+# Run:  caddy run --config /etc/caddy/Caddyfile
+# Reload: caddy reload --config /etc/caddy/Caddyfile
+
+{
+    # Email used for Let's Encrypt registration + expiry notifications.
+    email founder@braavolabs.com
+}
+
+# Apex + www — marketing site
+braavolabs.com, www.braavolabs.com {
+    encode zstd gzip
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Frame-Options SAMEORIGIN
+        X-Content-Type-Options nosniff
+        Referrer-Policy strict-origin-when-cross-origin
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    }
+
+    # Long-cache static Next.js assets
+    @nextStatic path /_next/static/*
+    handle @nextStatic {
+        header Cache-Control "public, max-age=31536000, immutable"
+        reverse_proxy 127.0.0.1:3000
+    }
+
+    reverse_proxy 127.0.0.1:3000
+}
+
+# api.braavolabs.com — Express API
+api.braavolabs.com {
+    encode zstd gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options nosniff
+    }
+
+    # SSE run streaming — disable buffering, long timeout
+    @sse path /api/v1/runs/*
+    handle @sse {
+        reverse_proxy 127.0.0.1:8080 {
+            transport http {
+                read_buffer 4KB
+                write_buffer 4KB
+            }
+            flush_interval -1
+        }
+    }
+
+    # Stripe webhook — pass raw body as-is
+    @stripe path /hooks/stripe
+    handle @stripe {
+        reverse_proxy 127.0.0.1:8080 {
+            request_buffers 0
+        }
+    }
+
+    # Health endpoint — bypass log
+    @health path /health
+    handle @health {
+        log_skip
+        reverse_proxy 127.0.0.1:8080
+    }
+
+    reverse_proxy 127.0.0.1:8080
+}
+
+# app.braavolabs.com — authenticated dashboard
+app.braavolabs.com {
+    encode zstd gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Frame-Options SAMEORIGIN
+        X-Content-Type-Options nosniff
+    }
+
+    @nextStatic path /_next/static/*
+    handle @nextStatic {
+        header Cache-Control "public, max-age=31536000, immutable"
+        reverse_proxy 127.0.0.1:3000
+    }
+
+    reverse_proxy 127.0.0.1:3000
+}

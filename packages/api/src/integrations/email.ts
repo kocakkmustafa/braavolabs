@@ -18,7 +18,7 @@ interface SendEmailParams {
  */
 export async function sendEmail(params: SendEmailParams): Promise<{ messageId: string }> {
   const apiKey = process.env.SENDGRID_API_KEY;
-  const fromEmail = params.from ?? process.env.SENDGRID_FROM_EMAIL ?? "noreply@aicompanyos.com";
+  const fromEmail = params.from ?? process.env.SENDGRID_FROM_EMAIL ?? "noreply@braavolabs.com";
 
   if (!apiKey) {
     // Development mode — log instead of sending
