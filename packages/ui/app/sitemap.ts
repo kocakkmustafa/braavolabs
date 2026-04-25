@@ -20,7 +20,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // returns a redirect. When the public-discoverable catalog ships
     // (separate PR), restore with priority 0.8 + changeFrequency: "daily".
     { path: "/docs", changeFrequency: "weekly", priority: 0.7 },
-    { path: "/risks", changeFrequency: "monthly", priority: 0.5 },
+    // /risks removed — auth-guarded (useAuthGuard redirects to /login),
+    // would index as a redirect chain. Add back if a public risk-status
+    // page ships separately.
     { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },
     { path: "/terms", changeFrequency: "yearly", priority: 0.3 },
   ];

@@ -102,6 +102,15 @@ services:
       # Email
       SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
       SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-noreply@braavolabs.com}
+      # Sentry — wired in lib/sentry.ts. SDK is no-op when SENTRY_DSN unset.
+      # In production, leaving this blank means uncaught exceptions die in
+      # the log stream instead of paging on-call.
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_RELEASE: ${SENTRY_RELEASE:-v1.0.0}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.05}
+      # Trust proxy hops — 1 (nginx only) or 2 (Cloudflare + nginx).
+      # Set in .env so the same image works in different deployment topologies.
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
       # Integrations
       HUBSPOT_ACCESS_TOKEN: ${HUBSPOT_ACCESS_TOKEN:-}
       HUBSPOT_PORTAL_ID: ${HUBSPOT_PORTAL_ID:-}
