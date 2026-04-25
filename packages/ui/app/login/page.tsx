@@ -1,21 +1,28 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { apiFetch, api } from "../../lib/api";
 import { useAppStore } from "../../lib/store";
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const token = useAppStore((s) => s.token);
   const hydrated = useAppStore((s) => s._hydrated);
   const setAuth = useAppStore((s) => s.setAuth);
   // ?tab=register lets /register (and any external link/email) deep-link
-  // straight into the sign-up tab without an extra click.
-  const [mode, setMode] = useState<"login" | "register">(
-    searchParams.get("tab") === "register" ? "register" : "login",
-  );
+  // into the sign-up tab. We read window.location.search directly rather
+  // than useSearchParams() — Next 15 requires the latter to be wrapped
+  // in a Suspense boundary at build time, which would force a larger
+  // refactor for a one-line query check. window.location is safe inside
+  // 'use client' since it's only evaluated in the browser.
+  const [mode, setMode] = useState<"login" | "register">("login");
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("tab") === "register") setMode("register");
+    }
+  }, []);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
