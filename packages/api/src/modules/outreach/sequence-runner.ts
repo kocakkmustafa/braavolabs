@@ -14,9 +14,16 @@ import { sendEmail } from "../../integrations/email";
 
 const QUEUE_NAME = "outreach-sequence";
 
+// Parse REDIS_URL once and forward username/password to ioredis. The
+// previous version dropped credentials, which works against an unprotected
+// dev redis but throws "NOAUTH Authentication required" loops the moment
+// the production redis enables `requirepass`.
+const _redisUrl = new URL(env.REDIS_URL);
 const connection = {
-  host: new URL(env.REDIS_URL).hostname || "localhost",
-  port: parseInt(new URL(env.REDIS_URL).port || "6379"),
+  host: _redisUrl.hostname || "localhost",
+  port: parseInt(_redisUrl.port || "6379"),
+  ...(_redisUrl.username ? { username: decodeURIComponent(_redisUrl.username) } : {}),
+  ...(_redisUrl.password ? { password: decodeURIComponent(_redisUrl.password) } : {}),
 };
 
 export const outreachQueue = new Queue(QUEUE_NAME, { connection });

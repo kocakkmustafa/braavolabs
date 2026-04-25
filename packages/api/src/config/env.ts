@@ -40,7 +40,11 @@ const envShape = z.object({
   GOOGLE_REDIRECT_URI: z.string().url().optional(),
   SENDGRID_API_KEY: z.string().optional(),
   SENDGRID_FROM_EMAIL: z.string().optional(),
-  BYPASS_BILLING: z.coerce.boolean().default(false),
+  // BYPASS_BILLING: z.coerce.boolean() coerces ANY non-empty string to true
+  // (Boolean("false") === true in JavaScript). Use an explicit string→bool
+  // transform so only the literal "true" enables bypass — every other value
+  // (including "false", "0", empty, missing) keeps billing enforcement on.
+  BYPASS_BILLING: z.string().optional().default("false").transform((v) => v === "true"),
   ENCRYPTION_KEY: z.string().min(32),
   // Sentry — leave unset in dev, set in prod. The SDK no-ops when missing.
   SENTRY_DSN: z.string().url().optional(),
