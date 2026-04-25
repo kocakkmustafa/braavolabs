@@ -33,6 +33,7 @@ const envShape = z.object({
   STRIPE_BUSINESS_PRICE_ID: z.string().optional(),
   STRIPE_BUSINESS_YEARLY_PRICE_ID: z.string().optional(),
   STRIPE_ENTERPRISE_PRICE_ID: z.string().optional(),
+  STRIPE_ENTERPRISE_YEARLY_PRICE_ID: z.string().optional(),
   APP_URL: z.string().default("http://localhost:3001"),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
@@ -59,6 +60,19 @@ const parsed = envShape.parse(process.env);
 // Safety: BYPASS_BILLING must never be true in production
 if (parsed.NODE_ENV === "production" && parsed.BYPASS_BILLING) {
   throw new Error("BYPASS_BILLING cannot be true in production");
+}
+
+// Safety: APP_URL must be an explicit https:// URL in production. The Zod
+// default ("http://localhost:3001") is dev-only — leaking it into prod would
+// leak OAuth tokens / redirects to localhost from the user's browser.
+if (parsed.NODE_ENV === "production") {
+  const isDefault = parsed.APP_URL === "http://localhost:3001";
+  const isHttps = parsed.APP_URL.startsWith("https://");
+  if (isDefault || !isHttps) {
+    throw new Error(
+      `APP_URL must be set to an explicit https:// URL in production. Got: "${parsed.APP_URL}"`,
+    );
+  }
 }
 
 // Safety: JWT_SECRET should be cryptographically strong in production

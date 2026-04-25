@@ -189,6 +189,33 @@ async function executeLocalTurn(
         };
       }
 
+      // Local-CLI mode runs without a governance context — same defense
+      // as the ungoverned path in claude.ts. Tools that touch tenant-
+      // scoped data (anything with companyId or requiresApproval set)
+      // must be invoked from a governed pipeline run, never from the
+      // bare local agent loop.
+      if (registeredTool.meta?.requiresApproval) {
+        return {
+          id: `local_${Date.now()}_${index}`,
+          name: call.name,
+          input: call.input,
+          output: null,
+          durationMs: Date.now() - toolStart,
+          error: `Tool "${call.name}" requires spend approval and cannot run outside a governed pipeline run`,
+        };
+      }
+      const callInputObj = (call.input ?? {}) as Record<string, unknown>;
+      if ("companyId" in callInputObj) {
+        return {
+          id: `local_${Date.now()}_${index}`,
+          name: call.name,
+          input: call.input,
+          output: null,
+          durationMs: Date.now() - toolStart,
+          error: `Tool "${call.name}" requires a tenant-scoped pipeline run (companyId in input)`,
+        };
+      }
+
       try {
         const output = await registeredTool.handler(call.input);
         return {

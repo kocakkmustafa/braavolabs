@@ -202,6 +202,24 @@ async function executeTurn(
         };
       }
 
+      // Defense in depth: tools that take a companyId touch tenant-scoped
+      // DB rows. The ungoverned path skips enforceTenantScopedCompany()
+      // (it has no tenantId to compare against), so any tool with a
+      // companyId field MUST run via a governed pipeline. Refusing here
+      // means a future caller that omits govContext can never silently
+      // escalate cross-tenant — they get an obvious error instead.
+      const inputObj = (block.input ?? {}) as Record<string, unknown>;
+      if ("companyId" in inputObj) {
+        return {
+          id: block.id,
+          name: block.name,
+          input: block.input,
+          output: null,
+          durationMs: Date.now() - start,
+          error: `Tool "${block.name}" requires a tenant-scoped pipeline run (companyId in input)`,
+        };
+      }
+
       try {
         const output = await registeredTool.handler(block.input);
         return {

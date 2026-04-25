@@ -30,6 +30,14 @@ const decideSchema = z.object({
 });
 
 // POST /api/v1/approvals/:id/decide
+//
+// Race-safe: two admins clicking Approve simultaneously must NOT both
+// succeed. We do a tenant-scoped lookup first (404 vs cross-tenant probe)
+// then guard the state transition with `updateMany({ where: { status:
+// PENDING } })` — Postgres gives that statement a row-level lock, so the
+// loser sees `count === 0` and we 409 cleanly. Run-status update + activity
+// log are batched in a single $transaction so a partial commit can never
+// leave an APPROVED approval pointing at a still-CANCELLED run.
 approvalRouter.post("/:id/decide", async (req, res, next) => {
   try {
     const { decision } = decideSchema.parse(req.body);
@@ -42,41 +50,50 @@ approvalRouter.post("/:id/decide", async (req, res, next) => {
       throw new AppError(404, "Approval not found");
     }
     if (approval.status !== "PENDING") {
-      throw new AppError(400, "Approval already decided");
+      throw new AppError(409, "Approval already decided");
     }
 
-    await prisma.approval.update({
-      where: { id: approval.id },
-      data: {
-        status: decision,
-        decidedBy: req.auth!.userId,
-        decidedAt: new Date(),
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      // Atomic state transition — only the row that's still PENDING wins.
+      const claim = await tx.approval.updateMany({
+        where: { id: approval.id, status: "PENDING" },
+        data: {
+          status: decision,
+          decidedBy: req.auth!.userId,
+          decidedAt: new Date(),
+        },
+      });
+
+      if (claim.count !== 1) {
+        // Lost the race — another admin decided this approval first.
+        return { won: false as const };
+      }
+
+      // We won — drive the run to its post-approval state.
+      await tx.run.update({
+        where: { id: approval.runId },
+        data: decision === "APPROVED"
+          ? { status: "RUNNING" }
+          : { status: "CANCELLED", completedAt: new Date() },
+      });
+
+      await tx.activityLog.create({
+        data: {
+          tenantId: req.auth!.tenantId,
+          actor: req.auth!.userId,
+          action: `approval.${decision.toLowerCase()}`,
+          resource: "approval",
+          resourceId: approval.id,
+          details: { runId: approval.runId, amountUsd: approval.amountUsd },
+        },
+      });
+
+      return { won: true as const };
     });
 
-    // If approved, resume the run
-    if (decision === "APPROVED") {
-      await prisma.run.update({
-        where: { id: approval.runId },
-        data: { status: "RUNNING" },
-      });
-    } else {
-      await prisma.run.update({
-        where: { id: approval.runId },
-        data: { status: "CANCELLED", completedAt: new Date() },
-      });
+    if (!result.won) {
+      throw new AppError(409, "Approval was just decided by another admin");
     }
-
-    await prisma.activityLog.create({
-      data: {
-        tenantId: req.auth!.tenantId,
-        actor: req.auth!.userId,
-        action: `approval.${decision.toLowerCase()}`,
-        resource: "approval",
-        resourceId: approval.id,
-        details: { runId: approval.runId, amountUsd: approval.amountUsd },
-      },
-    });
 
     res.json({ success: true, decision });
   } catch (err) { next(err); }

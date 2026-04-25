@@ -121,6 +121,32 @@ companyRouter.post("/", async (req, res, next) => {
 companyRouter.patch("/:id", async (req, res, next) => {
   try {
     const data = updateSchema.parse(req.body);
+
+    // Channel enforcement — `config.channels` must be a subset of the
+    // tenant's plan-allowed channels. Onboarding hard-codes the right
+    // list, but a Free user PATCHing this endpoint directly could
+    // otherwise add `instagram` / `youtube` and use paid features.
+    if (data.config && typeof data.config === "object" && "channels" in data.config) {
+      const proposedChannels = data.config.channels;
+      if (Array.isArray(proposedChannels)) {
+        const tenant = await prisma.tenant.findUnique({
+          where: { id: req.auth!.tenantId },
+          select: { plan: true },
+        });
+        const plan = (tenant?.plan ?? "FREE") as keyof typeof PLAN_LIMITS;
+        const allowed = new Set(PLAN_LIMITS[plan].channels);
+        const denied = proposedChannels.filter(
+          (c) => typeof c !== "string" || !allowed.has(c),
+        );
+        if (denied.length > 0) {
+          throw new AppError(
+            403,
+            `Plan "${plan}" does not allow channels: ${denied.join(", ")}. Allowed: ${[...allowed].join(", ")}.`,
+          );
+        }
+      }
+    }
+
     const company = await prisma.company.updateMany({
       where: { id: req.params.id, tenantId: req.auth!.tenantId },
       data: { ...data, config: data.config as any },

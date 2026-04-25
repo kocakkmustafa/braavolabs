@@ -104,6 +104,55 @@ export async function revokeAllRefreshTokens(userId: string): Promise<void> {
 }
 
 /**
+ * Disposable / throwaway email domains. Registering with one of these is
+ * almost always abuse — bot signups racking up free-plan run quota. The
+ * list is intentionally short (covers the common providers); we'd rather
+ * miss a few than block a legitimate signup. A real email-verification
+ * flow is the long-term fix; this is a launch-day gate while that's
+ * being built.
+ */
+const DISPOSABLE_EMAIL_DOMAINS = new Set([
+  "10minutemail.com",
+  "10minutemail.net",
+  "20minutemail.com",
+  "guerrillamail.com",
+  "guerrillamail.net",
+  "guerrillamail.org",
+  "mailinator.com",
+  "mailinator.net",
+  "trashmail.com",
+  "trashmail.net",
+  "tempmail.com",
+  "temp-mail.org",
+  "throwawaymail.com",
+  "yopmail.com",
+  "yopmail.net",
+  "yopmail.fr",
+  "fakeinbox.com",
+  "sharklasers.com",
+  "getnada.com",
+  "maildrop.cc",
+  "dispostable.com",
+  "tempinbox.com",
+  "mintemail.com",
+  "inboxbear.com",
+  "33mail.com",
+  "spamgourmet.com",
+  "tutanota.com",
+  "mohmal.com",
+  "incognitomail.com",
+  "emailondeck.com",
+  "burnermail.io",
+]);
+
+function isDisposableEmail(email: string): boolean {
+  const at = email.lastIndexOf("@");
+  if (at < 0) return false;
+  const domain = email.slice(at + 1).toLowerCase().trim();
+  return DISPOSABLE_EMAIL_DOMAINS.has(domain);
+}
+
+/**
  * Register a new tenant + user. Returns JWT.
  */
 export async function register(data: {
@@ -113,6 +162,15 @@ export async function register(data: {
   tenantName: string;
   ref?: string;
 }): Promise<{ token: string; refreshToken: string; user: any; tenant: any }> {
+  // Block disposable / throwaway emails — abuse mitigation for the
+  // missing email-verification flow.
+  if (isDisposableEmail(data.email)) {
+    throw new AppError(
+      400,
+      "Disposable email addresses are not accepted. Please sign up with a permanent email.",
+    );
+  }
+
   // Check existing
   const existing = await prisma.user.findUnique({
     where: { email: data.email },
@@ -170,8 +228,10 @@ export async function register(data: {
       });
       if (referral && referral.status === "PENDING") {
         const now = new Date();
-        const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        // UTC anchored — must match metering.ts so referral credit lands
+        // in the same monthly bucket the referred tenant's runs do.
+        const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+        const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
 
         await prisma.referral.update({
           where: { id: referral.id },

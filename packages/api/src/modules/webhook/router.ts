@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, raw } from "express";
 import crypto from "crypto";
 import { z } from "zod";
 import { prisma } from "../../lib/db";
@@ -16,118 +16,156 @@ const webhookParamsSchema = z.object({
 
 export const webhookRouter = Router();
 
-// POST /hooks/:companySlug/:event — handle external webhooks
-webhookRouter.post("/:companySlug/:event", async (req, res, next) => {
-  try {
-    const { companySlug, event } = webhookParamsSchema.parse(req.params);
+// POST /hooks/:companySlug/:event — handle external webhooks.
+//
+// Signature verification is over the **raw request bytes**, not over a
+// re-serialized JSON. JSON.stringify(req.body) is not byte-stable across
+// producers (key order, escape forms, whitespace) and would let an
+// attacker who replays a captured signed payload mutate the body without
+// invalidating the signature. The Stripe webhook handler uses the same
+// pattern — we mirror it here.
+webhookRouter.post(
+  "/:companySlug/:event",
+  // type:'*/*' captures every Content-Type — different providers send
+  // application/json, text/plain, or x-www-form-urlencoded; the HMAC
+  // is over raw bytes regardless. 1mb cap matches the global JSON
+  // parser to avoid memory-exhaustion DoS.
+  raw({ type: "*/*", limit: "1mb" }),
+  async (req, res, next) => {
+    try {
+      const { companySlug, event } = webhookParamsSchema.parse(req.params);
 
-    const company = await prisma.company.findFirst({
-      where: { slug: companySlug, status: "ACTIVE" },
-    });
-    if (!company) {
-      res.status(404).json({ error: "Company not found" });
-      return;
-    }
-
-    // Verify webhook signature — REQUIRED (reject if no secret configured)
-    const signature = req.headers["x-webhook-signature"] as string | undefined;
-    const timestamp = req.headers["x-webhook-timestamp"] as string | undefined;
-    const secret = (company.config as Record<string, any>)?.webhookSecret || process.env.WEBHOOK_SECRET || "";
-    if (!secret) {
-      res.status(403).json({ error: "Webhook secret not configured for this company" });
-      return;
-    }
-    if (!signature) {
-      res.status(401).json({ error: "Missing X-Webhook-Signature header" });
-      return;
-    }
-
-    // Replay protection: reject requests older than 5 minutes
-    if (timestamp) {
-      const ts = parseInt(timestamp, 10);
-      if (isNaN(ts) || Math.abs(Date.now() - ts) > 5 * 60 * 1000) {
-        res.status(401).json({ error: "Webhook timestamp too old or invalid" });
+      const company = await prisma.company.findFirst({
+        where: { slug: companySlug, status: "ACTIVE" },
+      });
+      if (!company) {
+        res.status(404).json({ error: "Company not found" });
         return;
       }
-    }
 
-    const payload = timestamp ? `${timestamp}.${JSON.stringify(req.body)}` : JSON.stringify(req.body);
-    const expectedSig = crypto
-      .createHmac("sha256", secret)
-      .update(payload)
-      .digest("hex");
-    const sigBuf = Buffer.from(signature);
-    const expectedBuf = Buffer.from(expectedSig);
-    if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
-      res.status(401).json({ error: "Invalid webhook signature" });
-      return;
-    }
-
-    logger.info({ companySlug, event, payloadSize: JSON.stringify(req.body).length }, "Webhook received");
-
-    await prisma.activityLog.create({
-      data: {
-        tenantId: company.tenantId,
-        actor: "webhook",
-        action: `webhook.${event}`,
-        resource: "company",
-        resourceId: company.id,
-        details: { event, payloadSize: JSON.stringify(req.body).length, payloadKeys: Object.keys(req.body ?? {}) },
-      },
-    });
-
-    // Find pipelines with WEBHOOK trigger for this company
-    const pipelines = await prisma.pipeline.findMany({
-      where: {
-        companyId: company.id,
-        trigger: "WEBHOOK",
-        enabled: true,
-      },
-    });
-
-    const runs: string[] = [];
-
-    for (const pipeline of pipelines) {
-      // Atomic quota claim before enqueue (ISS-010). If the tenant has no
-      // remaining runs, skip this pipeline rather than enqueuing a run that
-      // would just fail downstream — avoids polluting the run history with
-      // quota-exceeded entries on every webhook delivery.
-      const claim = await claimQuota(company.tenantId, "runs");
-      if (!claim.claimed) {
-        logger.warn(
-          { pipelineId: pipeline.id, tenantId: company.tenantId, value: claim.value, limit: claim.limit },
-          "Webhook trigger skipped — quota exhausted",
-        );
-        continue;
+      // Verify webhook signature — REQUIRED. Per-company secret only —
+      // the previous `process.env.WEBHOOK_SECRET` fallback was a process-
+      // wide global, so any tenant that learned the value could sign
+      // payloads for any other tenant's `/hooks/:slug/:event`.
+      const signature = req.headers["x-webhook-signature"] as string | undefined;
+      const timestamp = req.headers["x-webhook-timestamp"] as string | undefined;
+      const secret = (company.config as Record<string, any>)?.webhookSecret;
+      if (!secret || typeof secret !== "string") {
+        res.status(403).json({ error: "Webhook secret not configured for this company" });
+        return;
+      }
+      if (!signature) {
+        res.status(401).json({ error: "Missing X-Webhook-Signature header" });
+        return;
       }
 
-      // Create a run for each matching pipeline
-      const run = await prisma.run.create({
+      // Replay protection: reject requests older than 5 minutes.
+      if (timestamp) {
+        const ts = parseInt(timestamp, 10);
+        if (isNaN(ts) || Math.abs(Date.now() - ts) > 5 * 60 * 1000) {
+          res.status(401).json({ error: "Webhook timestamp too old or invalid" });
+          return;
+        }
+      }
+
+      // Express's `raw()` parser leaves a Buffer on req.body. If the body
+      // hasn't been parsed (e.g. no Content-Type header), normalize to an
+      // empty buffer so the signed payload is well-defined.
+      const rawBuffer: Buffer = Buffer.isBuffer(req.body)
+        ? req.body
+        : Buffer.from("");
+      const signedPayload = timestamp
+        ? Buffer.concat([Buffer.from(`${timestamp}.`), rawBuffer])
+        : rawBuffer;
+      const expectedSig = crypto
+        .createHmac("sha256", secret)
+        .update(signedPayload)
+        .digest("hex");
+      const sigBuf = Buffer.from(signature);
+      const expectedBuf = Buffer.from(expectedSig);
+      if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+        res.status(401).json({ error: "Invalid webhook signature" });
+        return;
+      }
+
+      // Signature verified — now safe to parse the JSON.
+      let parsedBody: Record<string, unknown> = {};
+      if (rawBuffer.length > 0) {
+        try {
+          parsedBody = JSON.parse(rawBuffer.toString("utf8"));
+        } catch {
+          res.status(400).json({ error: "Webhook body is not valid JSON" });
+          return;
+        }
+      }
+
+      const payloadSize = rawBuffer.length;
+      logger.info({ companySlug, event, payloadSize }, "Webhook received");
+
+      await prisma.activityLog.create({
         data: {
-          pipelineId: pipeline.id,
-          status: "PENDING",
-          trigger: `webhook:${event}`,
-          input: { event, payload: req.body },
+          tenantId: company.tenantId,
+          actor: "webhook",
+          action: `webhook.${event}`,
+          resource: "company",
+          resourceId: company.id,
+          details: { event, payloadSize, payloadKeys: Object.keys(parsedBody) },
         },
       });
 
-      await enqueueRun(run.id);
-      runs.push(run.id);
+      // Find pipelines with WEBHOOK trigger for this company
+      const pipelines = await prisma.pipeline.findMany({
+        where: {
+          companyId: company.id,
+          trigger: "WEBHOOK",
+          enabled: true,
+        },
+      });
 
-      logger.info(
-        { pipelineId: pipeline.id, runId: run.id, event },
-        "Webhook triggered pipeline run",
-      );
-    }
+      const runs: string[] = [];
 
-    res.json({
-      received: true,
-      company: companySlug,
-      event,
-      triggeredRuns: runs,
-    });
-  } catch (err) { next(err); }
-});
+      for (const pipeline of pipelines) {
+        // Atomic quota claim before enqueue (ISS-010). If the tenant has no
+        // remaining runs, skip this pipeline rather than enqueuing a run that
+        // would just fail downstream — avoids polluting the run history with
+        // quota-exceeded entries on every webhook delivery.
+        const claim = await claimQuota(company.tenantId, "runs");
+        if (!claim.claimed) {
+          logger.warn(
+            { pipelineId: pipeline.id, tenantId: company.tenantId, value: claim.value, limit: claim.limit },
+            "Webhook trigger skipped — quota exhausted",
+          );
+          continue;
+        }
+
+        // Create a run for each matching pipeline
+        const run = await prisma.run.create({
+          data: {
+            pipelineId: pipeline.id,
+            status: "PENDING",
+            trigger: `webhook:${event}`,
+            input: { event, payload: parsedBody },
+          },
+        });
+
+        await enqueueRun(run.id);
+        runs.push(run.id);
+
+        logger.info(
+          { pipelineId: pipeline.id, runId: run.id, event },
+          "Webhook triggered pipeline run",
+        );
+      }
+
+      res.json({
+        received: true,
+        company: companySlug,
+        event,
+        triggeredRuns: runs,
+      });
+    } catch (err) { next(err); }
+  },
+);
 
 // ─── Webhook Template Marketplace Routes ────────────────────
 // These are authenticated API routes, exported as a separate router

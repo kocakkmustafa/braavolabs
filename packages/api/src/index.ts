@@ -1,7 +1,7 @@
 // Sentry + OpenTelemetry must be initialized before other imports — both
 // patch the http/express modules at load time. Sentry first so unhandled
 // errors during telemetry init are captured too.
-import { initSentry, sentryRequestHandler, sentryErrorHandler } from "./lib/sentry";
+import { initSentry, sentryRequestHandler, sentryErrorHandler, captureException } from "./lib/sentry";
 initSentry();
 
 import { initTelemetry, shutdownTelemetry } from "./lib/telemetry";
@@ -43,6 +43,7 @@ import { abTestRouter } from "./modules/ab-test/router";
 import { initPipelineRunner, initScheduledPipelines, stopScheduledPipelines } from "./modules/pipeline/runner";
 import { initOutreachWorker } from "./modules/outreach/sequence-runner";
 import { initConsolidationCron, stopConsolidationCron } from "./modules/memory/consolidation-cron";
+import { initApprovalExpiryCron, stopApprovalExpiryCron } from "./modules/approval/expiry-cron";
 
 // Import tool registry to trigger tool registration on startup
 import "./modules/agent/registry";
@@ -93,26 +94,47 @@ app.use(compression());
 app.use(pinoHttp({
   logger,
   // Redact sensitive fields from request/response logs (defense-in-depth).
+  // Covers credentials (auth headers, passwords, API keys, tokens) AND
+  // PII (email, name, phone) — pino-http logs full request bodies on
+  // errors and 4xx responses, so an unsanitized log stream would leak
+  // both auth material and personal data into Loki/Cloudwatch (a GDPR/
+  // KVKK problem on its own, even before the auth-leak risk).
   redact: {
     paths: [
       "req.headers.authorization",
       "req.headers.cookie",
       "req.headers['x-api-key']",
+      "res.headers['set-cookie']",
       "req.body.password",
       "req.body.passwordHash",
       "req.body.encryptedApiKey",
       "req.body.credentials",
       "req.body.apiKey",
+      "req.body.refreshToken",
+      "req.body.token",
+      "req.body.email",
+      "req.body.name",
+      "req.body.phone",
+      "req.body.user.email",
+      "req.body.user.name",
+      "req.body.user.phone",
+      "req.body.contact.email",
+      "req.body.contact.name",
+      "req.body.contact.phone",
     ],
     censor: "[REDACTED]",
   },
 }));
 
-// Stripe webhook MUST be mounted BEFORE the global JSON parser. Stripe signs the
-// raw request bytes; once express.json() consumes the stream, route-level
-// express.raw() can no longer recover it and signature verification fails.
-// pinoHttp is mounted above so HTTP access logs still cover the webhook.
+// Webhook routers MUST be mounted BEFORE the global JSON parser. They sign
+// the raw request bytes; once express.json() consumes the stream, route-
+// level express.raw() can no longer recover it and signature verification
+// fails. pinoHttp is mounted above so HTTP access logs still cover them.
 app.use("/hooks", stripeWebhookRouter);
+// Generic external webhook router — uses raw body + per-company HMAC for
+// signature verification (key/whitespace mutations on a parsed body would
+// otherwise allow an attacker to mutate a captured signed payload).
+app.use("/hooks", webhookRouter);
 
 // JSON body limit tightened to 1mb — typical API payloads are <100KB.
 // Larger-than-necessary limit is a DoS vector (memory exhaustion via oversized POSTs).
@@ -173,10 +195,6 @@ api.use("/webhooks", webhookTemplateRouter);
 
 app.use("/api/v1", api);
 
-// Generic external webhook router — uses parsed JSON body for HMAC verification.
-// (Stripe webhook is mounted above, BEFORE express.json, because it needs raw body.)
-app.use("/hooks", webhookRouter);
-
 // Error handler (must be last)
 // Sentry error handler runs BEFORE the app's error handler so it captures
 // the exception with full request context. The app's handler still owns
@@ -198,6 +216,29 @@ app.listen(env.API_PORT, env.API_HOST, () => {
 
   // Initialize memory consolidation cron (daily)
   initConsolidationCron();
+
+  // Initialize approval expiry cron (hourly, 24h TTL — auto-rejects
+  // forgotten pending approvals so their runs don't permanently hold
+  // a slot in the tenant's monthly quota)
+  initApprovalExpiryCron();
+});
+
+// Process-wide error handlers — Sentry's express middleware only catches
+// errors that flow through the request pipeline; BullMQ workers, cron
+// callbacks, and bare `setInterval` tasks throw outside that path. These
+// handlers ensure those errors land in Sentry too. uncaughtException is
+// a "process is in a bad state" signal — log it and exit so the container
+// orchestrator restarts us into a clean process.
+process.on("unhandledRejection", (reason: unknown) => {
+  logger.error({ err: reason }, "Unhandled promise rejection");
+  try { captureException(reason, { source: "unhandledRejection" }); } catch { /* swallow */ }
+});
+
+process.on("uncaughtException", (err: Error) => {
+  logger.fatal({ err }, "Uncaught exception — exiting");
+  try { captureException(err, { source: "uncaughtException" }); } catch { /* swallow */ }
+  // Give Sentry/Pino a brief window to flush before the kernel kills us.
+  setTimeout(() => process.exit(1), 1000).unref();
 });
 
 // Graceful shutdown
@@ -213,6 +254,7 @@ process.on("SIGTERM", async () => {
 
   stopScheduledPipelines();
   stopConsolidationCron();
+  stopApprovalExpiryCron();
 
   // Close Redis
   try { await redis.quit(); } catch (e) { logger.warn({ err: e }, "Redis close failed during shutdown"); }

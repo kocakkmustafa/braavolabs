@@ -20,8 +20,12 @@ export async function incrementMeter(
   amount = 1,
 ): Promise<{ value: number; limit: number; exceeded: boolean }> {
   const now = new Date();
-  const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  // UTC anchored — local-tz constructors silently drift the period boundary
+  // for servers in non-UTC zones (e.g. Europe/Istanbul +03:00). At month
+  // rollover this caused the upsert key to land in the *previous* month's
+  // row for runs in the first 3 hours of the new month UTC.
+  const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
 
   // Upsert the meter
   const meter = await prisma.usageMeter.upsert({
@@ -100,8 +104,12 @@ export async function claimQuota(
   }
 
   const now = new Date();
-  const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  // UTC anchored — local-tz constructors silently drift the period boundary
+  // for servers in non-UTC zones (e.g. Europe/Istanbul +03:00). At month
+  // rollover this caused the upsert key to land in the *previous* month's
+  // row for runs in the first 3 hours of the new month UTC.
+  const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
 
   // Single atomic upsert: insert with value=1 if no row exists, else
   // increment IFF still below the limit. The conditional WHERE on the
@@ -152,7 +160,8 @@ export async function checkQuota(
   }
 
   const now = new Date();
-  const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  // UTC anchored — must match the writer in incrementMeter/claimQuota.
+  const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 
   const meter = await prisma.usageMeter.findUnique({
     where: {

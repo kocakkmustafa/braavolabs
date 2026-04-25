@@ -115,6 +115,11 @@ runRouter.get("/:id/stream", authMiddleware, async (req, res, next) => {
       Connection: "keep-alive",
       "X-Accel-Buffering": "no",
     });
+    // Flush headers immediately so the browser opens the EventSource
+    // connection rather than waiting for the first chunk to arrive.
+    if (typeof (res as any).flushHeaders === "function") {
+      (res as any).flushHeaders();
+    }
 
     const sendStatus = async () => {
       const current = await prisma.run.findUnique({
@@ -152,16 +157,31 @@ runRouter.get("/:id/stream", authMiddleware, async (req, res, next) => {
         if (!cont) {
           res.write("event: done\ndata: {}\n\n");
           clearInterval(interval);
+          clearInterval(heartbeat);
           res.end();
         }
       } catch {
         clearInterval(interval);
+        clearInterval(heartbeat);
         res.end();
       }
     }, 3000);
 
+    // SSE heartbeat — nginx + many CDNs idle-timeout connections that go
+    // silent for 60s. A comment line every 25s keeps the socket alive
+    // without delivering content (lines starting with ":" are comments
+    // per the EventSource spec, ignored by the client).
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(`: keepalive ${Date.now()}\n\n`);
+      } catch {
+        clearInterval(heartbeat);
+      }
+    }, 25_000);
+
     req.on("close", () => {
       clearInterval(interval);
+      clearInterval(heartbeat);
     });
   } catch (err) {
     next(err);

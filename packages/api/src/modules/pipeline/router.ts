@@ -8,6 +8,7 @@ import { enqueueRun } from "./runner";
 import { claimQuota } from "../billing/metering";
 import Anthropic from "@anthropic-ai/sdk";
 import { env } from "../../config/env";
+import { logger } from "../../lib/logger";
 
 // Expensive endpoints — per-tenant throttle to prevent Claude API cost abuse.
 const naturalLanguageBuilderLimiter = rateLimit({ windowMs: 60_000, maxRequests: 10, keyPrefix: "rl:pipeline:nl" });
@@ -88,7 +89,22 @@ Rules:
 - If a step needs to run after another, use sequential order numbers
 - For parallel steps, assign the same order number`;
 
-    const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+    if (!env.ANTHROPIC_API_KEY) {
+      throw new AppError(503, "Pipeline natural-language builder unavailable: ANTHROPIC_API_KEY not configured.");
+    }
+
+    // Wrap the Anthropic call with explicit timeout + retry. The bare SDK
+    // call has no per-request deadline by default, so a slow Anthropic API
+    // could pin this Express handler indefinitely; the rateLimiter at
+    // /from-natural-language gives 10 req/min which means up to ~10
+    // wedged handlers can hold up the worker pool. 60s timeout + 3 retries
+    // (built into the SDK) gives a hard upper bound of ~3 minutes per
+    // request before we surface a 504 to the caller.
+    const anthropic = new Anthropic({
+      apiKey: env.ANTHROPIC_API_KEY,
+      timeout: 60_000,
+      maxRetries: 3,
+    });
 
     const message = await anthropic.messages.create({
       model: env.CLAUDE_MODEL,
@@ -96,6 +112,19 @@ Rules:
       system: systemPrompt,
       messages: [{ role: "user", content: `Create a pipeline for: ${description}` }],
     });
+
+    // Cost telemetry — without this, every NL pipeline build is an
+    // un-tracked Claude charge that won't show up in usage analytics.
+    logger.info(
+      {
+        tenantId: req.auth!.tenantId,
+        companyId,
+        inputTokens: message.usage.input_tokens,
+        outputTokens: message.usage.output_tokens,
+        model: env.CLAUDE_MODEL,
+      },
+      "Pipeline NL builder Claude call completed",
+    );
 
     const rawContent = message.content[0];
     if (rawContent.type !== "text") throw new AppError(500, "Unexpected AI response format");

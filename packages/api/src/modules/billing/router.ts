@@ -66,7 +66,10 @@ authedRouter.get("/usage", async (req, res, next) => {
   try {
     const tenantId = req.auth!.tenantId;
     const now = new Date();
-    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    // UTC anchored to match incrementMeter/claimQuota in metering.ts —
+    // local-tz drift would mis-count meters in the first hours of a new
+    // month for non-UTC servers.
+    const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 
     const meters = await prisma.usageMeter.findMany({
       where: { tenantId, periodStart: { gte: periodStart } },
@@ -145,16 +148,27 @@ authedRouter.get("/subscription", async (req, res, next) => {
 
 // POST /api/v1/billing/checkout — create Stripe checkout session
 const checkoutSchema = z.object({
-  plan: z.enum(["PRO", "ENTERPRISE"]),
+  plan: z.enum(["CREATOR", "PRO", "BUSINESS", "ENTERPRISE"]),
+  billingCycle: z.enum(["monthly", "yearly"]).default("monthly"),
 });
 
 authedRouter.post("/checkout", async (req, res, next) => {
   try {
     const config = getStripeConfig();
-    const { plan } = checkoutSchema.parse(req.body);
+    const { plan, billingCycle } = checkoutSchema.parse(req.body);
 
-    const priceId = plan === "PRO" ? env.STRIPE_PRO_PRICE_ID : env.STRIPE_ENTERPRISE_PRICE_ID;
-    if (!priceId) throw new AppError(400, `No price configured for plan: ${plan}`);
+    // Pick the price ID for the requested plan + cycle. yearly is
+    // optional — if the corresponding env slot is empty, fall back to
+    // monthly so a partial Stripe setup still produces a usable
+    // checkout (rather than a 400 the moment a user clicks Yearly).
+    const priceMap: Record<string, { monthly?: string; yearly?: string }> = {
+      CREATOR: { monthly: env.STRIPE_CREATOR_PRICE_ID, yearly: env.STRIPE_CREATOR_YEARLY_PRICE_ID },
+      PRO: { monthly: env.STRIPE_PRO_PRICE_ID, yearly: env.STRIPE_PRO_YEARLY_PRICE_ID },
+      BUSINESS: { monthly: env.STRIPE_BUSINESS_PRICE_ID, yearly: env.STRIPE_BUSINESS_YEARLY_PRICE_ID },
+      ENTERPRISE: { monthly: env.STRIPE_ENTERPRISE_PRICE_ID, yearly: env.STRIPE_ENTERPRISE_YEARLY_PRICE_ID },
+    };
+    const priceId = priceMap[plan][billingCycle] ?? priceMap[plan].monthly;
+    if (!priceId) throw new AppError(400, `No price configured for plan: ${plan} (${billingCycle})`);
 
     const tenant = await prisma.tenant.findUnique({
       where: { id: req.auth!.tenantId },
@@ -192,7 +206,7 @@ authedRouter.post("/checkout", async (req, res, next) => {
         action: "billing.checkout_started",
         resource: "tenant",
         resourceId: tenant.id,
-        details: { plan },
+        details: { plan, billingCycle },
       },
     });
 
@@ -308,10 +322,14 @@ stripeWebhookRouter.post(
           });
 
           if (tenant) {
-            // Map Stripe subscription status + price ID to plan
+            // Map Stripe subscription status + price ID to plan. Both
+            // monthly and yearly price IDs map to the same plan tier —
+            // missing a yearly slot here means the customer who picks
+            // yearly is silently downgraded to PRO (and then billed for
+            // the wrong tier next renewal).
             let plan: "FREE" | "CREATOR" | "PRO" | "BUSINESS" | "ENTERPRISE" = "FREE";
             if (status === "active" || status === "trialing") {
-              if (priceId === env.STRIPE_ENTERPRISE_PRICE_ID) plan = "ENTERPRISE";
+              if (priceId === env.STRIPE_ENTERPRISE_PRICE_ID || priceId === env.STRIPE_ENTERPRISE_YEARLY_PRICE_ID) plan = "ENTERPRISE";
               else if (priceId === env.STRIPE_BUSINESS_PRICE_ID || priceId === env.STRIPE_BUSINESS_YEARLY_PRICE_ID) plan = "BUSINESS";
               else if (priceId === env.STRIPE_PRO_PRICE_ID || priceId === env.STRIPE_PRO_YEARLY_PRICE_ID) plan = "PRO";
               else if (priceId === env.STRIPE_CREATOR_PRICE_ID || priceId === env.STRIPE_CREATOR_YEARLY_PRICE_ID) plan = "CREATOR";
@@ -349,6 +367,20 @@ stripeWebhookRouter.post(
           });
 
           if (tenant) {
+            // Stripe's subscription.deleted fires either:
+            //   (a) at period end when cancel_at_period_end=true was set
+            //       earlier — at this point the user has used what they
+            //       paid for and downgrade is correct;
+            //   (b) immediately if an admin/support cancels the sub mid
+            //       period (rare path) — also correct to downgrade since
+            //       refunds are issued separately.
+            // The risk we want to *flag* (not silently swallow) is path
+            // (b) when current_period_end is still in the future: that
+            // tenant has paid for time they're now losing access to.
+            const periodEndUnix = Number(subscription.current_period_end ?? 0);
+            const periodEndsAt = periodEndUnix > 0 ? new Date(periodEndUnix * 1000) : null;
+            const earlyCancel = !!periodEndsAt && periodEndsAt.getTime() > Date.now();
+
             await prisma.tenant.update({
               where: { id: tenant.id },
               data: {
@@ -357,6 +389,18 @@ stripeWebhookRouter.post(
               },
             });
 
+            if (earlyCancel) {
+              logger.warn(
+                {
+                  tenantId: tenant.id,
+                  subscriptionId: subscription.id,
+                  periodEndsAt: periodEndsAt!.toISOString(),
+                  stripeEventId: event.id,
+                },
+                "Subscription cancelled before paid period ended — manual refund review may be needed",
+              );
+            }
+
             await prisma.activityLog.create({
               data: {
                 tenantId: tenant.id,
@@ -364,7 +408,11 @@ stripeWebhookRouter.post(
                 action: "billing.subscription_cancelled",
                 resource: "tenant",
                 resourceId: tenant.id,
-                details: { stripeEventId: event.id },
+                details: {
+                  stripeEventId: event.id,
+                  earlyCancel,
+                  periodEndsAt: periodEndsAt?.toISOString() ?? null,
+                },
               },
             });
           }

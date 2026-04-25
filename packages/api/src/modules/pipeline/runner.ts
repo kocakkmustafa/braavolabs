@@ -390,15 +390,23 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
 
 /**
  * Enqueue a pipeline run for processing.
+ *
+ * attempts=2 — single retry with 30s backoff covers transient Anthropic
+ * 529 / 503 / network blips. The agent loop already retries the LLM
+ * request internally; this outer retry only re-fires if the worker
+ * itself crashed mid-run (rare but expensive for the user when it
+ * happens). Set removeOnFail.count high enough that operators have
+ * something to inspect when investigating real failures.
  */
 export async function enqueueRun(runId: string): Promise<string> {
   const job = await runQueue.add(
     "execute-run",
     { runId },
     {
-      attempts: 1, // No automatic retry — failed runs need investigation
+      attempts: 2,
+      backoff: { type: "exponential", delay: 30_000 },
       removeOnComplete: { count: 100 },
-      removeOnFail: { count: 100 },
+      removeOnFail: { count: 200 },
     },
   );
   logger.info({ runId, jobId: job.id }, "Run enqueued");
@@ -408,6 +416,12 @@ export async function enqueueRun(runId: string): Promise<string> {
 /**
  * Initialize the pipeline runner worker.
  * Call this on server startup.
+ *
+ * lockDuration / stalledInterval / maxStalledCount come from the
+ * createWorker DEFAULT_WORKER_OPTS in lib/queue.ts — pipeline runs hit
+ * Claude with potentially long tool-use loops, and the BullMQ default
+ * 30s lock would expire mid-run and trigger re-pickup mid-execution
+ * (double-billing the tenant + duplicate side effects).
  */
 export function initPipelineRunner(): void {
   createWorker<RunJobData>("pipeline-runs", processRun);

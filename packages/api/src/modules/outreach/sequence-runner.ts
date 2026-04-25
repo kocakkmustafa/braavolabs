@@ -199,11 +199,24 @@ function interpolateTemplate(
 
 /**
  * Initialize the outreach sequence worker.
+ *
+ * concurrency=1 — outreach sends emails through SendGrid/SES, both of which
+ * throttle bursts and damage sender reputation under sustained parallel
+ * sends to the same recipient domain. A single-worker queue serializes
+ * sends and lets the per-template/per-day caps elsewhere in the runner
+ * do their job. Bump only if a real per-domain rate limiter is added.
+ *
+ * lockDuration=600s — outreach steps include LLM personalisation calls
+ * that can take >30s; the BullMQ default lock would expire mid-call and
+ * the job would be re-picked up while the original was still running.
  */
 export function initOutreachWorker(): void {
   const worker = new Worker(QUEUE_NAME, processSequenceStep, {
     connection,
-    concurrency: 5,
+    concurrency: 1,
+    lockDuration: 600_000,
+    stalledInterval: 60_000,
+    maxStalledCount: 1,
   });
 
   worker.on("completed", (job) => {

@@ -11,6 +11,7 @@ import { authMiddleware } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
 import { rateLimit } from "../../middleware/rateLimit";
 import { redis } from "../../lib/redis";
+import { env } from "../../config/env";
 
 export const authRouter = Router();
 
@@ -132,8 +133,11 @@ authRouter.get("/google/callback", async (req, res, next) => {
     await redis.del(stateKey); // One-time use
 
     const result = await googleCallback(code, ref);
-    // Redirect to frontend with token
-    const redirectUrl = new URL("/auth/callback", process.env.APP_URL ?? "http://localhost:3001");
+    // Redirect to frontend with token. APP_URL is validated at boot
+    // (https:// in prod, no localhost fallback) — using env.APP_URL here
+    // closes the open-redirect surface a missing/typo'd env var would
+    // otherwise create.
+    const redirectUrl = new URL("/auth/callback", env.APP_URL);
     redirectUrl.searchParams.set("token", result.token);
     redirectUrl.searchParams.set("refreshToken", result.refreshToken);
     res.redirect(redirectUrl.toString());
