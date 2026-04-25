@@ -43,7 +43,11 @@ const envShape = z.object({
   APP_URL: z.string().default("http://localhost:3001"),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
-  GOOGLE_REDIRECT_URI: z.string().url().optional(),
+  // Empty-string-tolerant URL validators. docker-compose's
+  // `${VAR:-}` substitution sets an empty string when the value is
+  // missing in .env, which `z.string().url()` rejects ("Invalid url").
+  // Preprocessing maps "" → undefined so the optional() chain accepts it.
+  GOOGLE_REDIRECT_URI: z.preprocess((v) => (v === "" ? undefined : v), z.string().url().optional()),
   SENDGRID_API_KEY: z.string().optional(),
   SENDGRID_FROM_EMAIL: z.string().optional(),
   // BYPASS_BILLING: z.coerce.boolean() coerces ANY non-empty string to true
@@ -53,9 +57,13 @@ const envShape = z.object({
   BYPASS_BILLING: z.string().optional().default("false").transform((v) => v === "true"),
   ENCRYPTION_KEY: z.string().min(32),
   // Sentry — leave unset in dev, set in prod. The SDK no-ops when missing.
-  SENTRY_DSN: z.string().url().optional(),
+  // Empty string tolerated (docker-compose default substitution).
+  SENTRY_DSN: z.preprocess((v) => (v === "" ? undefined : v), z.string().url().optional()),
   SENTRY_RELEASE: z.string().optional(),
-  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.coerce.number().min(0).max(1).optional(),
+  ),
   // Off-site backup destination (S3-compatible URL) for postgres-backup
   // service. Empty = no off-site sync (acceptable for dev/staging).
   BACKUP_S3_BUCKET: z.string().optional(),
