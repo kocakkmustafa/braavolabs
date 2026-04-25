@@ -34,7 +34,8 @@
     "overrides": {
       "defu": ">=6.1.5",
       "effect": ">=3.20.0",
-      "protobufjs": ">=7.5.5"
+      "protobufjs": ">=7.5.5",
+      "postcss": ">=8.5.10"
     },
     "auditConfig": {
       "ignoreCves": ["CVE-2024-45296"]
