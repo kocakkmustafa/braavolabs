@@ -1,16 +1,21 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { apiFetch, api } from "../../lib/api";
 import { useAppStore } from "../../lib/store";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const token = useAppStore((s) => s.token);
   const hydrated = useAppStore((s) => s._hydrated);
   const setAuth = useAppStore((s) => s.setAuth);
-  const [mode, setMode] = useState<"login" | "register">("login");
+  // ?tab=register lets /register (and any external link/email) deep-link
+  // straight into the sign-up tab without an extra click.
+  const [mode, setMode] = useState<"login" | "register">(
+    searchParams.get("tab") === "register" ? "register" : "login",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");

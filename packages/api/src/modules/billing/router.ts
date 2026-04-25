@@ -250,13 +250,20 @@ stripeWebhookRouter.post(
     try {
       config = getStripeConfig();
     } catch {
-      res.status(503).json({ error: "Stripe not configured" });
+      // Don't betray "Stripe disabled" to drive-by probes — they then
+      // know to time their attacks for the Stripe-enable window or
+      // file fake-refund support tickets. From the attacker's view it
+      // should look like a normal "bad request, go away".
+      logger.warn({ hasSig: !!req.headers["stripe-signature"] }, "Stripe webhook hit while not configured");
+      res.status(400).json({ error: "Invalid request" });
       return;
     }
 
     const sig = req.headers["stripe-signature"];
     if (!sig || typeof sig !== "string") {
-      res.status(400).json({ error: "Missing stripe-signature header" });
+      // Same uniform 400 — don't distinguish "missing header" from
+      // "wrong header value", which the next branch already handles.
+      res.status(400).json({ error: "Invalid request" });
       return;
     }
 

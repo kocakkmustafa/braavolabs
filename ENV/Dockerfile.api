@@ -32,6 +32,14 @@ RUN pnpm --filter @ai-company-os/memory build
 RUN pnpm --filter @ai-company-os/integrations build
 RUN pnpm --filter @ai-company-os/api build
 
+# Strip source maps from the runtime build. tsconfig.base.json keeps
+# `sourceMap: true` for dev (DevTools/test-runner-friendly), but maps in
+# the prod image leak the original TypeScript layout — including
+# encryption.ts and sentry.ts logic — if the image is ever pulled from
+# a leaked registry or a misconfigured CI artifact. ~30 .map files,
+# ~200 KB total, no runtime cost to dropping them.
+RUN find /app/packages/*/dist -name "*.map" -delete
+
 # Production
 FROM base AS runner
 ENV NODE_ENV=production

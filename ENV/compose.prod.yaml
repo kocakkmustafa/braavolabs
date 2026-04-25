@@ -118,7 +118,11 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
+      # 127.0.0.1 not localhost — Alpine BusyBox wget resolves localhost
+      # to ::1 (IPv6) first, hits Connection refused (API binds 0.0.0.0
+      # IPv4 only), and never falls back to 127.0.0.1. Result: container
+      # marked "unhealthy" forever even though /health returns 200.
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/health"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -154,7 +158,8 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      # 127.0.0.1 — same Alpine BusyBox IPv6-first issue as the api block.
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000"]
       interval: 10s
       timeout: 5s
       retries: 3

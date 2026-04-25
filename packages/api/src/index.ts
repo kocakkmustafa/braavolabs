@@ -50,13 +50,21 @@ import "./modules/agent/registry";
 
 const app = express();
 
-// Trust first proxy (Nginx / Cloudflare) so that req.ip returns the real
-// client IP rather than the proxy's IP. Critical for rate limiting
-// (otherwise all traffic shares one bucket) and audit log accuracy.
-// Set to the number of trusted reverse proxies in front of this app.
-// In dev: no proxy, trust nothing. In prod: 1 (Nginx). If using Cloudflare
-// in front of Nginx, bump to 2.
-app.set("trust proxy", env.NODE_ENV === "production" ? 1 : false);
+// Trust N reverse proxies so that req.ip resolves to the true client IP
+// rather than the proxy's IP — critical for rate limiting (otherwise
+// all traffic shares one bucket) and audit log accuracy.
+//
+//   dev (no proxy):                TRUST_PROXY_HOPS=0
+//   prod with nginx only:          TRUST_PROXY_HOPS=1
+//   prod with Cloudflare + nginx:  TRUST_PROXY_HOPS=2
+//
+// MISCONFIGURATION RISK: setting hops higher than reality lets a client
+// inject arbitrary X-Forwarded-For headers and spoof their IP. Setting
+// it lower than reality collapses the rate-limit bucket onto the proxy
+// IP. Both fail open in different directions; the env knob makes the
+// cutover atomic with the DNS swap to Cloudflare.
+const trustProxyHops = env.NODE_ENV === "production" ? env.TRUST_PROXY_HOPS : 0;
+app.set("trust proxy", trustProxyHops);
 
 // Global middleware
 app.use(requestId);
@@ -140,8 +148,12 @@ app.use("/hooks", webhookRouter);
 // Larger-than-necessary limit is a DoS vector (memory exhaustion via oversized POSTs).
 app.use(express.json({ limit: "1mb" }));
 
-// Health check
-app.get("/health", async (_req, res) => {
+// Health check — exposed at BOTH /health (Docker healthcheck, k8s liveness)
+// and /api/v1/health (UptimeRobot, BetterStack, anything that probes the
+// canonical API path). Same handler, two routes — cheap to ship, expensive
+// to forget when an external monitor expects /api/v1/health and silently
+// false-pages.
+async function healthHandler(_req: express.Request, res: express.Response) {
   const checks: Record<string, string> = {};
 
   // Check database
@@ -167,10 +179,14 @@ app.get("/health", async (_req, res) => {
     timestamp: new Date().toISOString(),
     version: "0.1.0",
   });
-});
+}
+
+app.get("/health", healthHandler);
 
 // API routes
 const api = express.Router();
+// /api/v1/health alias (same handler as /health) for external probes.
+api.get("/health", healthHandler);
 api.use("/auth", authRouter);
 api.use("/companies", companyRouter);
 api.use("/pipelines", pipelineRouter);

@@ -312,6 +312,35 @@ export const api = {
   installWebhookTemplate: (token: string, templateId: string, data: { companyId: string; pipelineId: string }) =>
     apiFetch<any>(`/webhooks/templates/${templateId}/install`, { method: "POST", body: JSON.stringify(data), token }),
 
+  // Settings — AI provider (BYOK)
+  // The platform deliberately ships without a system Anthropic key.
+  // Each tenant configures their own via Settings → AI Provider; the
+  // key is stored encrypted (AES-256-GCM + scrypt). Onboarding can gate
+  // the first run on hasApiKey === true.
+  getAIConfig: (token: string) =>
+    apiFetch<{
+      provider: string | null;
+      model: string | null;
+      hasApiKey: boolean;
+      supportedProviders: Array<{ provider: string; defaultModel: string; models: string[] }>;
+    }>("/settings/ai-config", { token }),
+  saveAIConfig: (
+    token: string,
+    data: { provider: string; model: string; apiKey: string },
+  ) =>
+    apiFetch<{ success: boolean }>("/settings/ai-config", {
+      method: "PUT",
+      body: JSON.stringify(data),
+      token,
+    }),
+  deleteAIConfig: (token: string) =>
+    apiFetch<{ success: boolean }>("/settings/ai-config", { method: "DELETE", token }),
+  testAIConfig: (token: string) =>
+    apiFetch<{ ok: boolean; latencyMs?: number; error?: string }>("/settings/ai-config/test", {
+      method: "POST",
+      token,
+    }),
+
   // Collaboration / Presence
   collaborationPresence: (token: string) =>
     apiFetch<any[]>("/collaboration/presence", { token }),

@@ -34,6 +34,12 @@ const envShape = z.object({
   STRIPE_BUSINESS_YEARLY_PRICE_ID: z.string().optional(),
   STRIPE_ENTERPRISE_PRICE_ID: z.string().optional(),
   STRIPE_ENTERPRISE_YEARLY_PRICE_ID: z.string().optional(),
+  // Number of trusted reverse-proxy hops between the client and Express.
+  //   0 → no proxy (dev)
+  //   1 → nginx only (prod default)
+  //   2 → Cloudflare + nginx (set on the same deploy as the DNS cutover)
+  // See packages/api/src/index.ts for the full risk discussion.
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(1),
   APP_URL: z.string().default("http://localhost:3001"),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),

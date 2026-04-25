@@ -83,10 +83,17 @@ export default function OnboardingPage() {
   const [error, setError] = useState<string | null>(null);
   const [descTouched, setDescTouched] = useState(false);
   const [descError, setDescError] = useState<string | null>(null);
+  // BYOK gate — onboarding is the first place a tenant runs an agent,
+  // and without an Anthropic key (or other provider) every Hero pipeline
+  // run will 503. Surface this BEFORE they get to "Launch" so the
+  // "10 minutes to first deploy" promise doesn't break on a hidden
+  // prerequisite.
+  const [aiKeyConfigured, setAiKeyConfigured] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!token) return;
     api.onboardingStatus(token).then(setStatus).catch(() => {});
+    api.getAIConfig(token).then((cfg) => setAiKeyConfigured(cfg.hasApiKey)).catch(() => setAiKeyConfigured(false));
   }, [token]);
 
   // When industry is selected, fetch suggested blueprints
@@ -187,13 +194,39 @@ export default function OnboardingPage() {
               </div>
             </div>
           )}
+          {aiKeyConfigured === false && (
+            <div
+              className="mb-6 px-4 py-3 rounded-xl text-left"
+              style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.25)" }}
+            >
+              <div className="flex items-start gap-2">
+                <span className="material-symbols-outlined text-base mt-0.5" style={{ color: "#fbbf24" }}>key</span>
+                <div className="flex-1">
+                  <p className="font-semibold text-sm mb-1" style={{ color: "#fde68a" }}>
+                    One last step — connect your Claude API key
+                  </p>
+                  <p className="text-xs leading-relaxed mb-2" style={{ color: "#f59e0b" }}>
+                    Your AI company runs on your own Anthropic key (BYOK). Without it, the first pipeline run will fail.
+                  </p>
+                  <Link
+                    href="/settings#ai-provider"
+                    className="inline-flex items-center gap-1 text-xs font-semibold"
+                    style={{ color: "#fbbf24", textDecoration: "underline" }}
+                  >
+                    Add API key in Settings
+                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>arrow_forward</span>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="flex gap-3 justify-center">
             <Link
-              href="/companies"
+              href={aiKeyConfigured === false ? "/settings#ai-provider" : "/companies"}
               className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110"
               style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
             >
-              View Companies
+              {aiKeyConfigured === false ? "Add API Key" : "View Companies"}
             </Link>
             <Link
               href="/dashboard"

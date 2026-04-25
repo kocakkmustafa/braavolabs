@@ -15,15 +15,20 @@ import { env } from "../../config/env";
 
 export const authRouter = Router();
 
-// Rate limit auth endpoints to prevent brute force
+// Rate limit auth endpoints. Tuned for shared NAT / corporate WiFi where
+// many users share one egress IP — at 10 req / 15 min the previous limit
+// blocked legitimate users after one teammate fat-fingered a password.
+// Account-level lockout (5 fails / 15 min on the email key, see
+// auth.service.login) remains the primary brute-force defense; this IP
+// limit is now a much looser DDoS shield.
 const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  maxRequests: 10,
+  maxRequests: 30,
   keyPrefix: "rl:auth",
 });
 const registerRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  maxRequests: 5,
+  maxRequests: 10,
   keyPrefix: "rl:register",
 });
 
