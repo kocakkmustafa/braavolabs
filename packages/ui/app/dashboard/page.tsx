@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "../../lib/api";
-import { useAppStore } from "../../lib/store";
+import { useAuthGuard } from "../../lib/useAuthGuard";
 import { sounds } from "../../lib/sounds";
 import { timeAgo } from "../../lib/timeAgo";
 
@@ -12,7 +12,11 @@ interface UsageData { totalRuns: number; completedRuns: number; failedRuns: numb
 interface FinanceData { totalCostUsd: number; runCount: number; avgCostPerRun: number; }
 
 export default function DashboardPage() {
-  const token = useAppStore((s) => s.token);
+  // Dashboard is authenticated-only — anonymous visitors get redirected to
+  // /login. The previous "preview" view shipped illustrative sample
+  // companies which read like real platform data and confused first-time
+  // visitors. Marketing copy lives at /, /pricing, /features instead.
+  const { token, hydrated } = useAuthGuard();
   const [health, setHealth] = useState<HealthData | null>(null);
   const [usage, setUsage] = useState<UsageData | null>(null);
   const [finance, setFinance] = useState<FinanceData | null>(null);
@@ -20,7 +24,7 @@ export default function DashboardPage() {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (!token) { setLoaded(true); return; }
+    if (!token) return;
     Promise.all([
       api.health(token).then(setHealth).catch(() => {}),
       api.usage(token).then(setUsage).catch(() => {}),
@@ -29,127 +33,13 @@ export default function DashboardPage() {
     ]).finally(() => setLoaded(true));
   }, [token]);
 
-  // ── Public demo dashboard (not logged in) ──
-  //
-  // NOTE: The cards below show what your OWN dashboard will look like after
-  // you sign in. The numbers are illustrative examples (marked "Example
-  // preview"), not aggregate platform metrics. Using fake platform-wide
-  // numbers would mislead a first-time visitor — we avoid that.
-  if (!token) {
+  // While Zustand hydrates / before redirect kicks in, render a small
+  // spinner — keeps the screen blank instead of flashing the
+  // authenticated UI to a not-yet-authed visitor.
+  if (!hydrated || !token) {
     return (
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in mesh-bg">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8" style={{ position: "relative", zIndex: 1 }}>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold font-headline gradient-text">Command Center Preview</h1>
-            <p className="text-sm mt-1" style={{ color: "#859399" }}>Here's what your dashboard will look like with your own AI companies. Sign in to build your first one.</p>
-          </div>
-          <Link href="/login" className="btn-primary self-start sm:self-auto" style={{ textDecoration: "none" }}>Sign In to Get Started</Link>
-        </div>
-
-        <div className="mb-4 px-3 py-2 inline-flex items-center gap-2 rounded-lg" style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.18)", position: "relative", zIndex: 1 }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 14, color: "#fbbf24" }}>preview</span>
-          <span className="text-[11px] font-medium" style={{ color: "#fbbf24" }}>Example preview — not live platform metrics</span>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-8 stagger-children" style={{ position: "relative", zIndex: 1 }}>
-          {[
-            { label: "Active Companies", value: "3", sub: "example", icon: "business", color: "#a4e6ff" },
-            { label: "Running Pipelines", value: "2", sub: "example", icon: "play_circle", color: "#34d399" },
-            { label: "Pending Approvals", value: "1", sub: "example", icon: "task_alt", color: "#fbbf24" },
-            { label: "Runs This Month", value: "47", sub: "example", icon: "bolt", color: "#fbbf24" },
-            { label: "Cost This Month", value: "$8.20", sub: "example", icon: "payments", color: "#c084fc" },
-          ].map((m) => (
-            <div key={m.label} className="metric-card">
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center" style={{ background: `${m.color}08` }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: m.color }}>{m.icon}</span>
-                </div>
-                <span className="text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wide" style={{ background: "rgba(251,191,36,0.08)", color: "#fbbf24" }}>{m.sub}</span>
-              </div>
-              <p className="text-lg sm:text-2xl font-bold font-headline" style={{ color: "#e1e2eb" }}>{m.value}</p>
-              <p className="text-[10px] sm:text-xs mt-0.5" style={{ color: "#859399" }}>{m.label}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" style={{ position: "relative", zIndex: 1 }}>
-          <div className="lg:col-span-2">
-            <div className="glass-card">
-              <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                <h2 className="font-semibold font-headline" style={{ color: "#e1e2eb" }}>Example Companies</h2>
-                <span className="text-[10px] px-2 py-0.5 rounded uppercase tracking-wide" style={{ background: "rgba(251,191,36,0.08)", color: "#fbbf24" }}>Sample data</span>
-              </div>
-              <div className="p-4 space-y-1 stagger-children">
-                {[
-                  { name: "TikTok Growth Agency", status: "ACTIVE", desc: "AI-powered content creation and posting", primitives: ["content", "acquisition", "analytics"] },
-                  { name: "SaaS Outbound Sales", status: "ACTIVE", desc: "Automated lead qualification and demo booking", primitives: ["sales", "acquisition", "operations"] },
-                  { name: "E-commerce Support Bot", status: "ACTIVE", desc: "24/7 customer support with escalation rules", primitives: ["delivery", "operations", "memory"] },
-                ].map((c) => (
-                  <div key={c.name} className="interactive-row flex items-center gap-4 px-4 py-3.5">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0 gradient-brand" style={{ boxShadow: "0 4px 12px rgba(0,209,255,0.15)" }}>
-                      {c.name.charAt(0)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-sm truncate" style={{ color: "#e1e2eb" }}>{c.name}</p>
-                        <span className="flex items-center gap-1.5 text-[11px] font-medium" style={{ color: "#34d399" }}>
-                          <span className="status-dot" style={{ background: "#10b981", width: 5, height: 5 }} />
-                          {c.status}
-                        </span>
-                      </div>
-                      <p className="text-xs truncate mt-0.5" style={{ color: "#859399" }}>{c.desc}</p>
-                    </div>
-                    <div className="hidden sm:flex gap-1 shrink-0">
-                      {c.primitives.map((p) => (
-                        <span key={p} className="text-[10px] px-2 py-0.5 rounded-md font-medium" style={{ background: "rgba(0,209,255,0.06)", color: "#a4e6ff", border: "1px solid rgba(0,209,255,0.12)" }}>
-                          {p}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="lg:col-span-1">
-            <div className="glass-card">
-              <div className="px-5 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                <h2 className="font-semibold font-headline" style={{ color: "#e1e2eb" }}>Live Activity</h2>
-              </div>
-              <div className="p-4 space-y-3 stagger-children">
-                {[
-                  { action: "Content published → TikTok", time: "2m ago", color: "#34d399" },
-                  { action: "Lead scored → 0.87", time: "5m ago", color: "#a4e6ff" },
-                  { action: "Invoice reconciled", time: "12m ago", color: "#fbbf24" },
-                  { action: "Demo booked → Acme Corp", time: "18m ago", color: "#c084fc" },
-                  { action: "Pipeline completed", time: "24m ago", color: "#34d399" },
-                ].map((log, i) => (
-                  <div key={i} className="flex items-start gap-3 px-2 py-2 interactive-row">
-                    <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${log.color}0a` }}>
-                      <span className="text-[9px] font-bold" style={{ color: log.color }}>AI</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium" style={{ color: "#bbc9cf" }}>{log.action}</p>
-                      <p className="text-[11px]" style={{ color: "#3c494e" }}>{log.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* CTA */}
-        <div className="mt-8 glass-card p-6 sm:p-8 text-center animate-pulse-glow" style={{ position: "relative", zIndex: 1 }}>
-          <span className="material-symbols-outlined text-3xl mb-3 block" style={{ color: "#00d1ff" }}>rocket_launch</span>
-          <h3 className="font-headline font-bold text-lg mb-2 gradient-text">Ready to build your AI company?</h3>
-          <p className="text-sm mb-5" style={{ color: "#859399" }}>Create your first autonomous company in 10 minutes. Free plan includes 1 company and 10 runs/month.</p>
-          <div className="flex items-center justify-center gap-3">
-            <Link href="/login" className="btn-primary" style={{ textDecoration: "none" }} onClick={() => sounds.click()}>Get Started Free</Link>
-            <Link href="/pricing" className="btn-ghost" style={{ textDecoration: "none" }}>View Pricing</Link>
-          </div>
-        </div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }} />
       </div>
     );
   }
