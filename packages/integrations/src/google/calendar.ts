@@ -13,6 +13,38 @@ export interface GoogleCalendarConfig {
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const CALENDAR_API_BASE = "https://www.googleapis.com/calendar/v3";
 
+interface GoogleTokenResponse {
+  access_token: string;
+}
+
+interface GoogleApiErrorBody {
+  error?: { message?: string };
+}
+
+interface CalendarEventResource {
+  id: string;
+  summary?: string;
+  htmlLink: string;
+  start?: { dateTime?: string; date?: string };
+}
+
+interface CalendarEventListResponse {
+  items?: CalendarEventResource[];
+}
+
+interface CalendarPrimaryResponse {
+  summary?: string;
+}
+
+interface CalendarEventBody {
+  summary: string;
+  description?: string;
+  location?: string;
+  start: { dateTime: string; timeZone: string };
+  end: { dateTime: string; timeZone: string };
+  attendees?: Array<{ email: string }>;
+}
+
 async function getAccessToken(config: GoogleCalendarConfig): Promise<string> {
   const res = await fetch(GOOGLE_TOKEN_URL, {
     method: "POST",
@@ -29,7 +61,7 @@ async function getAccessToken(config: GoogleCalendarConfig): Promise<string> {
     throw new Error(`Google token refresh failed: ${res.status}`);
   }
 
-  const data: any = await res.json();
+  const data = (await res.json()) as GoogleTokenResponse;
   return data.access_token;
 }
 
@@ -54,7 +86,7 @@ export async function createCalendarEvent(
   const token = await getAccessToken(config);
   const tz = event.timeZone ?? "UTC";
 
-  const body: any = {
+  const body: CalendarEventBody = {
     summary: event.summary,
     description: event.description,
     location: event.location,
@@ -79,11 +111,11 @@ export async function createCalendarEvent(
   );
 
   if (!res.ok) {
-    const err: any = await res.json().catch(() => ({}));
+    const err = (await res.json().catch(() => ({}))) as GoogleApiErrorBody;
     throw new Error(`Google Calendar create event failed: ${err?.error?.message ?? res.status}`);
   }
 
-  const data: any = await res.json();
+  const data = (await res.json()) as CalendarEventResource;
   return { eventId: data.id, htmlLink: data.htmlLink };
 }
 
@@ -112,8 +144,8 @@ export async function listCalendarEvents(
     throw new Error(`Google Calendar list events failed: ${res.status}`);
   }
 
-  const data: any = await res.json();
-  return (data.items ?? []).map((e: any) => ({
+  const data = (await res.json()) as CalendarEventListResponse;
+  return (data.items ?? []).map((e) => ({
     id: e.id,
     summary: e.summary ?? "(no title)",
     start: e.start?.dateTime ?? e.start?.date ?? "",
@@ -136,6 +168,6 @@ export async function testGoogleCalendarConnection(
     throw new Error(`Google Calendar connection test failed: ${res.status}`);
   }
 
-  const data: any = await res.json();
+  const data = (await res.json()) as CalendarPrimaryResponse;
   return { ok: true, calendarSummary: data.summary ?? "primary" };
 }
