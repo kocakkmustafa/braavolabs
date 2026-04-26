@@ -5,7 +5,7 @@
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
-import { sendEmail } from "../../integrations/email";
+import { sendWelcomeEmail, sendPasswordResetEmail } from "../../integrations/email-templates";
 import { OAuth2Client } from "google-auth-library";
 import { prisma } from "../../lib/db";
 import { redis } from "../../lib/redis";
@@ -275,6 +275,15 @@ export async function register(data: {
     role: result.user.role,
   });
 
+  // Welcome email — fire-and-forget. Already swallows errors internally,
+  // but keeping an extra try/catch here so any unexpected throw from the
+  // import chain (missing SendGrid key, DNS hiccup) never affects signup.
+  void sendWelcomeEmail({
+    to: result.user.email,
+    name: result.user.name ?? result.user.email.split("@")[0],
+    tenantName: result.tenant.name,
+  }).catch(() => { /* non-critical */ });
+
   return {
     token,
     refreshToken,
@@ -540,21 +549,7 @@ export async function requestPasswordReset(email: string): Promise<void> {
 
   const resetUrl = `${process.env.APP_URL ?? "http://localhost:3001"}/reset-password?token=${token}`;
 
-  await sendEmail({
-    to: email,
-    subject: "Reset your Braavolabs password",
-    body: `
-      <div style="font-family: Inter, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #10131a; color: #e1e2eb; border-radius: 16px;">
-        <div style="margin-bottom: 24px;">
-          <span style="background: linear-gradient(135deg, #00d1ff, #6d11ad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; font-size: 18px;">Braavolabs</span>
-        </div>
-        <h2 style="color: #e1e2eb; margin-bottom: 12px;">Reset your password</h2>
-        <p style="color: #859399; margin-bottom: 24px;">Click the button below to reset your password. This link expires in 1 hour.</p>
-        <a href="${resetUrl}" style="display: inline-block; background: linear-gradient(135deg, #00d1ff, #6d11ad); color: white; padding: 12px 28px; border-radius: 12px; text-decoration: none; font-weight: 600; font-size: 14px;">Reset Password</a>
-        <p style="color: #3c494e; font-size: 12px; margin-top: 24px;">If you didn't request this, you can safely ignore this email.</p>
-      </div>
-    `,
-  });
+  await sendPasswordResetEmail({ to: email, resetUrl });
 }
 
 /**

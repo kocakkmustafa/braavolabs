@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import AuthLayout from "./AuthLayout";
 import { ToastProvider } from "../components/Toast";
+import CookieConsent from "../components/CookieConsent";
 
 export const metadata: Metadata = {
   title: {
@@ -47,6 +48,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AuthLayout>
             {children}
           </AuthLayout>
+          {/* KVKK/GDPR cookie consent — self-renders only when not yet decided */}
+          <CookieConsent />
         </ToastProvider>
       </body>
     </html>
