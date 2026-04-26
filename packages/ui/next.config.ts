@@ -55,7 +55,10 @@ const nextConfig: NextConfig = {
           { key: "X-DNS-Prefetch-Control", value: "off" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
           { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains; preload" },
-          { key: "X-XSS-Protection", value: "1; mode=block" },
+          // X-XSS-Protection intentionally absent — non-standard header,
+          // disabled in modern browsers, and "1; mode=block" itself
+          // introduced XSS vectors via partial reflection. CSP above
+          // is the canonical XSS defense. OWASP guidance: omit or "0".
         ],
       },
     ];

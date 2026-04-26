@@ -8,8 +8,11 @@ export function securityHeaders(req: Request, res: Response, next: NextFunction)
   res.setHeader("X-Content-Type-Options", "nosniff");
   // Clickjacking protection
   res.setHeader("X-Frame-Options", "DENY");
-  // XSS protection (legacy browsers)
-  res.setHeader("X-XSS-Protection", "1; mode=block");
+  // X-XSS-Protection deliberately omitted — non-standard, disabled in
+  // every modern browser (Chrome ≥78, Edge ≥17), and "1; mode=block"
+  // historically introduced its own XSS vectors via partial reflection.
+  // CSP set in next.config.ts is the canonical defense.
+  // OWASP recommends sending no value or "0".
   // Referrer policy
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   // Permissions policy
