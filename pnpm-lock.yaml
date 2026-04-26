@@ -89,8 +89,8 @@ importers:
         specifier: ^2.4.3
         version: 2.4.3
       bullmq:
-        specifier: ^5.76.1
-        version: 5.76.1
+        specifier: ^5.76.2
+        version: 5.76.2
       compression:
         specifier: ^1.7.4
         version: 1.8.1
@@ -1560,8 +1560,9 @@ packages:
   buffer-equal-constant-time@1.0.1:
     resolution: {integrity: sha512-zRpUiDwd/xk6ADqPMATG8vc9VPrkck7T07OIx0gnjmJAnHnTVXNQG3vfvWNuiZIkwu9KrKdA1iJKfsfTVxE6NA==}
 
-  bullmq@5.76.1:
-    resolution: {integrity: sha512-9Xc5Pj4Ho0clodowuuUSydMOR4gCn+YxYYVQXbGJycO8r4jyxsff1rZl3CKj3k50c/B42gDDNTLJH6uwb3dYmg==}
+  bullmq@5.76.2:
+    resolution: {integrity: sha512-kkNU6TPAjqV3Ep0kIaYhT79Z2IMoA7vadqjmr/zvmPicg0K/cOAecqZTihD726LbI043yPU0MBv/nMQmd5rNIg==}
+    engines: {node: '>=12.22.0'}
 
   bytes@3.1.2:
     resolution: {integrity: sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg==}
@@ -2673,10 +2674,6 @@ packages:
   utils-merge@1.0.1:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
     engines: {node: '>= 0.4.0'}
-
-  uuid@14.0.0:
-    resolution: {integrity: sha512-Qo+uWgilfSmAhXCMav1uYFynlQO7fMFiMVZsQqZRMIXp0O7rR7qjkj+cPvBHLgBqi960QCoo/PH2/6ZtVqKvrg==}
-    hasBin: true
 
   vary@1.1.2:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
@@ -4111,7 +4108,7 @@ snapshots:
 
   buffer-equal-constant-time@1.0.1: {}
 
-  bullmq@5.76.1:
+  bullmq@5.76.2:
     dependencies:
       cron-parser: 4.9.0
       ioredis: 5.10.1
@@ -4119,7 +4116,6 @@ snapshots:
       node-abort-controller: 3.1.1
       semver: 7.7.4
       tslib: 2.8.1
-      uuid: 14.0.0
     transitivePeerDependencies:
       - supports-color
 
@@ -5293,8 +5289,6 @@ snapshots:
       requires-port: 1.0.0
 
   utils-merge@1.0.1: {}
-
-  uuid@14.0.0: {}
 
   vary@1.1.2: {}
 
