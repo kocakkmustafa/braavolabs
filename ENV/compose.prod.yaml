@@ -224,7 +224,14 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      # PGPASSWORD is what pg_dump actually reads — POSTGRES_PASSWORD
+      # is consumed by the postgres image at init time, not by the
+      # client tool. Without PGPASSWORD pg_dump fails interactively
+      # with "no password supplied" and the dump file ends up empty
+      # (130-byte gzip header only). Both names point to the same
+      # value to keep the .env single source of truth.
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
       PGHOST: postgres
       PGUSER: aicos
       PGDATABASE: aicos_prod
