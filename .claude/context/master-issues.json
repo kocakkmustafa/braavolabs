@@ -1813,10 +1813,13 @@
       "description": "Demo ve real metrik makas — ISS-048 coincide. isDemo boolean tracking (authenticated user flag).",
       "fix_summary": "ISS-048 cozumuyle birlikte.",
       "assigned_to": "dev-agent",
-      "status": "pending",
+      "status": "closed",
       "priority": 2,
       "effort_hours": 0,
-      "blocker_for": null
+      "blocker_for": null,
+      "closed_at": "2026-04-25",
+      "closed_in_commit": "3dec3d6",
+      "verification_note": "Anonymous-preview path with sample companies removed entirely from dashboard/page.tsx; the isDemo flag the issue calls for is no longer needed because there is no logged-out demo surface to flag. Ripples ISS-048 closure (already closed 2026-04-23) all the way through."
     },
     {
       "id": "ISS-111",
@@ -1888,10 +1891,13 @@
       "description": "Tek TODO. Cozulmus veya iptal edilmis mi kontrol.",
       "fix_summary": "n8n integration simulate vs real implement. Hero company n8n baglanti kullanmiyor olabilir.",
       "assigned_to": "dev-agent",
-      "status": "pending",
+      "status": "closed",
       "priority": 4,
       "effort_hours": 2,
-      "blocker_for": null
+      "blocker_for": null,
+      "closed_at": "2026-04-26",
+      "closed_in_commit": "(no-op; verified by reading current file)",
+      "verification_note": "packages/integrations/src/n8n/webhook.ts no longer contains any TODO/FIXME/XXX marker. The file is a real implementation: feature-flag gate (N8N_WEBHOOK_URL), private-host blocklist (RFC1918, link-local, ipv6 ULA), HMAC signature, retry/backoff. The TODO referenced at :17 was resolved by an earlier commit; master-issues.json drift only."
     },
     {
       "id": "ISS-116",
