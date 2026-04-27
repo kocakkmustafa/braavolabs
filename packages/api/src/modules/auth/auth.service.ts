@@ -596,9 +596,13 @@ export async function requestPasswordReset(email: string): Promise<void> {
     // delay covers the SendGrid round-trip the real path would incur.
     const decoyToken = crypto.randomBytes(32).toString("hex");
     crypto.createHash("sha256").update(decoyToken).digest("hex");
-    // Sleep 250ms ± 100ms jitter — straddles the average SendGrid
-    // success latency observed in production logs.
-    const jitter = 200 + Math.floor(Math.random() * 100);
+    // Sleep 700ms ± 300ms jitter — straddles the SendGrid round-trip
+    // observed in prod (560–1125ms). Initial 250ms target was too low;
+    // production smoke test showed missing-user path landing ~560ms vs
+    // ~1125ms for the existent path, leaving a 565ms timing oracle.
+    // The wider band overlaps the existent path's distribution so an
+    // attacker can't reliably distinguish.
+    const jitter = 400 + Math.floor(Math.random() * 600);
     await new Promise((resolve) => setTimeout(resolve, jitter));
     return;
   }
