@@ -20,6 +20,37 @@ function githubHeaders(config: GitHubConfig): Record<string, string> {
   };
 }
 
+interface GitHubErrorBody {
+  message?: string;
+}
+
+interface GitHubIssueResponse {
+  number: number;
+  html_url: string;
+}
+
+interface GitHubPullResponse {
+  number: number;
+  html_url: string;
+}
+
+interface GitHubIssueListItem {
+  number: number;
+  title: string;
+  state: string;
+  html_url: string;
+  pull_request?: unknown;
+}
+
+interface GitHubCommentResponse {
+  id: number;
+}
+
+interface GitHubUserResponse {
+  login: string;
+  name?: string | null;
+}
+
 /**
  * Create a GitHub issue.
  */
@@ -39,11 +70,11 @@ export async function createGitHubIssue(
   });
 
   if (!res.ok) {
-    const err: any = await res.json().catch(() => ({}));
+    const err = (await res.json().catch(() => ({}))) as GitHubErrorBody;
     throw new Error(`GitHub create issue failed: ${err?.message ?? res.status}`);
   }
 
-  const data: any = await res.json();
+  const data = (await res.json()) as GitHubIssueResponse;
   return { issueNumber: data.number, url: data.html_url };
 }
 
@@ -67,11 +98,11 @@ export async function createGitHubPR(
   });
 
   if (!res.ok) {
-    const err: any = await res.json().catch(() => ({}));
+    const err = (await res.json().catch(() => ({}))) as GitHubErrorBody;
     throw new Error(`GitHub create PR failed: ${err?.message ?? res.status}`);
   }
 
-  const data: any = await res.json();
+  const data = (await res.json()) as GitHubPullResponse;
   return { prNumber: data.number, url: data.html_url };
 }
 
@@ -94,10 +125,10 @@ export async function listGitHubIssues(
     throw new Error(`GitHub list issues failed: ${res.status}`);
   }
 
-  const data: any = await res.json();
+  const data = (await res.json()) as GitHubIssueListItem[] | null;
   return (data ?? [])
-    .filter((i: any) => !i.pull_request)
-    .map((i: any) => ({
+    .filter((i) => !i.pull_request)
+    .map((i) => ({
       number: i.number,
       title: i.title,
       state: i.state,
@@ -125,11 +156,11 @@ export async function addGitHubComment(
   );
 
   if (!res.ok) {
-    const err: any = await res.json().catch(() => ({}));
+    const err = (await res.json().catch(() => ({}))) as GitHubErrorBody;
     throw new Error(`GitHub add comment failed: ${err?.message ?? res.status}`);
   }
 
-  const data: any = await res.json();
+  const data = (await res.json()) as GitHubCommentResponse;
   return { commentId: data.id };
 }
 
@@ -147,6 +178,6 @@ export async function testGitHubConnection(
     throw new Error(`GitHub connection test failed: ${res.status}`);
   }
 
-  const data: any = await res.json();
+  const data = (await res.json()) as GitHubUserResponse;
   return { ok: true, login: data.login, name: data.name ?? data.login };
 }
