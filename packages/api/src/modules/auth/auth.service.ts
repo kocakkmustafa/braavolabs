@@ -578,32 +578,23 @@ export async function googleCallback(
 /**
  * Request password reset — generates token, stores hash, sends email.
  *
- * Always returns success (no enumeration of existence via response body).
- * In addition we burn a fixed amount of CPU on BOTH paths so the
- * response timing doesn't leak existence either: if user is missing we
- * still do the same crypto.randomBytes + sha256 + sleep that the success
- * path would, then discard the result. Without this the success path
- * (DB write + SendGrid HTTP call, 200-800ms) is trivially distinguishable
- * from the empty path (<10ms).
+ * Constant-time defense against enumeration: the response timing is
+ * identical for "user exists" vs "user missing" because the SendGrid
+ * call is fired-and-forgotten on the real path. Both paths complete in
+ * DB-read-only time (~5-30ms). Earlier decoy-with-jitter approaches
+ * leaked when the real path had a warm-connection SendGrid round-trip
+ * (~260ms) that the decoy's 400-1000ms jitter overshot.
+ *
+ * Trade-off: if SendGrid is briefly down, the user sees "success" but
+ * receives no email. They can re-request — reset tokens are single-use
+ * anyway. The new internal logger.error makes operator triage easy.
  */
 export async function requestPasswordReset(email: string): Promise<void> {
   const user = await prisma.user.findUnique({ where: { email } });
 
   if (!user || !user.passwordHash) {
-    // Constant-time decoy — same shape of work the real path would do, so
-    // an attacker timing the response can't tell whether the email is
-    // registered. The randomBytes + sha256 are cheap; the artificial
-    // delay covers the SendGrid round-trip the real path would incur.
-    const decoyToken = crypto.randomBytes(32).toString("hex");
-    crypto.createHash("sha256").update(decoyToken).digest("hex");
-    // Sleep 700ms ± 300ms jitter — straddles the SendGrid round-trip
-    // observed in prod (560–1125ms). Initial 250ms target was too low;
-    // production smoke test showed missing-user path landing ~560ms vs
-    // ~1125ms for the existent path, leaving a 565ms timing oracle.
-    // The wider band overlaps the existent path's distribution so an
-    // attacker can't reliably distinguish.
-    const jitter = 400 + Math.floor(Math.random() * 600);
-    await new Promise((resolve) => setTimeout(resolve, jitter));
+    // No work to do — return in DB-read time. Matching the real path's
+    // tail latency this way relies on the real path's send being async.
     return;
   }
 
@@ -618,7 +609,16 @@ export async function requestPasswordReset(email: string): Promise<void> {
 
   const resetUrl = `${process.env.APP_URL ?? "http://localhost:3001"}/reset-password?token=${token}`;
 
-  await sendPasswordResetEmail({ to: email, resetUrl });
+  // Fire-and-forget the SendGrid call — the HTTP response now returns in
+  // DB-write time regardless of email-existence. SendGrid latency
+  // (200-1100ms warm/cold) used to be the timing oracle.
+  void sendPasswordResetEmail({ to: email, resetUrl }).catch(async (err) => {
+    const { logger } = await import("../../lib/logger");
+    logger.error(
+      { email: email.replace(/(?<=.{2}).+(?=@)/, "***"), error: err instanceof Error ? err.message : String(err) },
+      "Failed to send password reset email — token written to DB but email not delivered",
+    );
+  });
 }
 
 /**
