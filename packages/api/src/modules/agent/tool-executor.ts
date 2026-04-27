@@ -47,6 +47,79 @@ async function enforceTenantScopedCompany(
 }
 
 /**
+ * CRIT-3 defense: tool inputs that reference second-class IDs (contactId,
+ * dealId, sequenceId, draftId) bypassed enforceTenantScopedCompany — the
+ * latter only validates `companyId`. An attacker controlling agent input
+ * via prompt-injection (memory poisoning, malicious blueprint clone) could
+ * call e.g. crm_update_deal_stage with another tenant's dealId, and the
+ * Prisma update would go through.
+ *
+ * This function checks every well-known ID field present in the input and
+ * verifies it traces back to a company owned by this tenant. Throws on
+ * any mismatch. Unknown ID-shaped fields are ignored — we only block IDs
+ * we know map to tenant-isolated tables.
+ */
+async function enforceTenantScopedSecondaryIds(
+  input: unknown,
+  tenantId: string,
+): Promise<void> {
+  if (!input || typeof input !== "object") return;
+  const obj = input as Record<string, unknown>;
+
+  // contactId → contact → company.tenantId
+  if (typeof obj.contactId === "string" && obj.contactId.length > 0) {
+    const ok = await prisma.contact.findFirst({
+      where: { id: obj.contactId, company: { tenantId } },
+      select: { id: true },
+    });
+    if (!ok) {
+      throw new Error(
+        `Tenant isolation violation: contactId "${obj.contactId}" does not belong to tenant "${tenantId}"`,
+      );
+    }
+  }
+
+  // dealId → deal → company.tenantId
+  if (typeof obj.dealId === "string" && obj.dealId.length > 0) {
+    const ok = await prisma.deal.findFirst({
+      where: { id: obj.dealId, company: { tenantId } },
+      select: { id: true },
+    });
+    if (!ok) {
+      throw new Error(
+        `Tenant isolation violation: dealId "${obj.dealId}" does not belong to tenant "${tenantId}"`,
+      );
+    }
+  }
+
+  // sequenceId → outreachSequence → company.tenantId
+  if (typeof obj.sequenceId === "string" && obj.sequenceId.length > 0) {
+    const ok = await prisma.outreachSequence.findFirst({
+      where: { id: obj.sequenceId, company: { tenantId } },
+      select: { id: true },
+    });
+    if (!ok) {
+      throw new Error(
+        `Tenant isolation violation: sequenceId "${obj.sequenceId}" does not belong to tenant "${tenantId}"`,
+      );
+    }
+  }
+
+  // draftId → draft → company.tenantId
+  if (typeof obj.draftId === "string" && obj.draftId.length > 0) {
+    const ok = await prisma.draft.findFirst({
+      where: { id: obj.draftId, company: { tenantId } },
+      select: { id: true },
+    });
+    if (!ok) {
+      throw new Error(
+        `Tenant isolation violation: draftId "${obj.draftId}" does not belong to tenant "${tenantId}"`,
+      );
+    }
+  }
+}
+
+/**
  * Execute a tool call with governance checks.
  */
 export async function executeTool(
@@ -75,12 +148,18 @@ export async function executeTool(
   // --- Tenant isolation: if input carries a companyId, it MUST belong to
   //     this tenant. Rewrite input with canonical company id so downstream
   //     handlers can't be fooled by name/slug collisions across tenants.
+  //     Also validate any second-class IDs (contactId, dealId, sequenceId,
+  //     draftId) — see CRIT-3 in the security audit.
   let scopedInput = input;
   try {
     const scoped = await enforceTenantScopedCompany(input, context.tenantId);
     if (scoped && input && typeof input === "object") {
       scopedInput = { ...(input as Record<string, unknown>), companyId: scoped.id };
     }
+    // Cross-ID tenant scoping. Any tool input field that names a row in a
+    // tenant-isolated table must trace back to this tenant. Otherwise an
+    // agent prompt-injection can mutate a victim tenant's CRM/draft/seq.
+    await enforceTenantScopedSecondaryIds(scopedInput, context.tenantId);
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     logger.warn({ toolName, tenantId: context.tenantId, error }, "Tool tenant isolation blocked");
@@ -88,7 +167,7 @@ export async function executeTool(
       output: null,
       status: "FAILED",
       durationMs: Date.now() - start,
-      error: "Access denied: company is not in your workspace",
+      error: "Access denied: referenced record is not in your workspace",
     };
   }
 

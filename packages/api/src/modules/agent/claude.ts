@@ -32,9 +32,40 @@ const isLocalMode = env.LLM_PROVIDER === "local";
 // Legacy system-level Anthropic client (used when no tenant config or for Anthropic provider)
 const systemClient = isLocalMode ? null : (env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }) : null);
 
-// Approximate pricing per 1M tokens (Claude Sonnet 4)
-const INPUT_COST_PER_M = 3.0;
-const OUTPUT_COST_PER_M = 15.0;
+// HIGH-7 fix: per-model pricing. The previous flat $3/$15 (Sonnet) was
+// applied to every response, including Opus runs at $15/$75 — making
+// the reported `costUsd` 5× lower than reality and letting
+// cost_anomaly_stop (CLAUDE.md rule #8: budget * 0.2 trigger) miss the
+// actual overrun until 5× the budget had already burned. We fail
+// EXPENSIVE on unknown models — better to over-report cost and stop
+// early than the opposite.
+const MODEL_PRICES: Record<string, { input: number; output: number }> = {
+  // Claude 4 family
+  "claude-opus-4-20250514": { input: 15.0, output: 75.0 },
+  "claude-sonnet-4-5-20250929": { input: 3.0, output: 15.0 },
+  "claude-sonnet-4": { input: 3.0, output: 15.0 },
+  "claude-haiku-4-5-20251001": { input: 0.8, output: 4.0 },
+  // Claude 3 family (legacy)
+  "claude-3-5-sonnet-20241022": { input: 3.0, output: 15.0 },
+  "claude-3-5-haiku-20241022": { input: 0.8, output: 4.0 },
+  "claude-3-opus-20240229": { input: 15.0, output: 75.0 },
+};
+
+// Fallback when the model returned by the API isn't in our table —
+// price as if it's Opus so cost_anomaly_stop can still gate cleanly.
+const FALLBACK_PRICE = { input: 15.0, output: 75.0 };
+
+function priceFor(model: string): { input: number; output: number } {
+  if (MODEL_PRICES[model]) return MODEL_PRICES[model]!;
+  // Heuristic for date-suffixed variants we forgot to enumerate.
+  for (const key of Object.keys(MODEL_PRICES)) {
+    if (model.startsWith(key.replace(/-\d{8}$/, ""))) {
+      return MODEL_PRICES[key]!;
+    }
+  }
+  logger.warn({ model }, "Unknown Claude model — pricing as Opus (fail-expensive)");
+  return FALLBACK_PRICE;
+}
 
 export interface AgentTurnResult {
   content: string;
@@ -143,9 +174,14 @@ async function executeTurn(
 
   const inputTokens = response.usage.input_tokens;
   const outputTokens = response.usage.output_tokens;
+  // Use the model the API actually responded with (Anthropic returns it
+  // in `response.model`) rather than the requested model — that handles
+  // server-side downgrades and tier overrides correctly.
+  const actualModel = response.model ?? model;
+  const price = priceFor(actualModel);
   const costUsd =
-    (inputTokens / 1_000_000) * INPUT_COST_PER_M +
-    (outputTokens / 1_000_000) * OUTPUT_COST_PER_M;
+    (inputTokens / 1_000_000) * price.input +
+    (outputTokens / 1_000_000) * price.output;
 
   // Extract text content
   const textBlocks = response.content.filter((b) => b.type === "text");

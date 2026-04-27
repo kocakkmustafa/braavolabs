@@ -1,15 +1,18 @@
-# Braavolabs — Braavolabs
+# Braavolabs
 
 **Your AI company. Built in 10 minutes. Runs on autopilot.**
 
 Describe your business in plain English. Braavolabs builds a fully-staffed autonomous company — content, sales, ops — that runs while you sleep. Every decision is logged, every spend is approved by you, every run is audited end-to-end.
 
-Built for **creators and solo founders** who want to scale without hiring. Claude-native, self-hostable, exportable as a Claude Code skill bundle.
+Built for **founders and agencies** who want to scale without hiring. Claude-native, self-hostable, exportable as a Claude Code skill bundle.
+
+🌍 **Live in production:** https://braavolabs.com
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Node](https://img.shields.io/badge/node-%3E%3D20-green)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)
-![Phase](https://img.shields.io/badge/phase-launch--ready%20(code)-brightgreen)
+![Phase](https://img.shields.io/badge/phase-production--live-brightgreen)
+![Security](https://img.shields.io/badge/security-audited%202026--04--27-brightgreen)
 ![Tests](https://img.shields.io/badge/tests-27%20passing-brightgreen)
 
 ---
@@ -343,61 +346,57 @@ Before deploying to production, ensure:
 9. Prisma migrations applied: `pnpm exec prisma migrate deploy`
 10. Anthropic API key is live + has sufficient credit
 
-## Launch Checklist (manual steps for Mustafa)
+## Production Status (as of 2026-04-27)
 
-Code is launch-ready. The remaining work is everything that needs a credit card,
-a legal signature, or a product decision — none of which the codebase can do
-for you. Ordered roughly by what unblocks what:
+**Live at https://braavolabs.com** — deployed on AWS Lightsail Frankfurt
+($12/mo) behind Cloudflare CDN + WAF + Universal SSL. Stack runs in
+Docker Compose with five services (api, ui, postgres+pgvector, redis,
+postgres-backup → S3 eu-central-1).
 
-### Infrastructure (1–2 hours, $30/mo)
+| Component | Status |
+|-----------|--------|
+| API health | 🟢 `https://braavolabs.com/api/v1/health` |
+| UI | 🟢 200 ~250ms |
+| TLS / HSTS preload | 🟢 max-age=31536000, includeSubDomains, preload |
+| Cloudflare WAF | 🟢 PHP exploit + WordPress probe traffic blocked |
+| nginx CF allowlist | 🟢 direct IP scan returns 444 |
+| Daily encrypted backup → S3 | 🟢 30-day retention, restore drill verified |
+| Sentry | 🟢 wired (DSN configured) |
+| UptimeRobot | 🟢 5-min HTTPS check |
+| SendGrid + domain auth | 🟢 SPF/DKIM/DMARC pass |
+| Google OAuth | 🟢 |
+| KVKK/GDPR cookie consent | 🟢 |
+| Stripe billing | ⏳ deferred — Free plan + BYOK live; paid tiers ship next |
 
-- [ ] **Domain**: register `braavolabs.com` at Cloudflare Registrar (~$10/yr) or transfer if owned elsewhere
-- [ ] **DNS**: in Cloudflare, add `A` for `braavolabs.com` → VPS IP, `CNAME` for `app.braavolabs.com` → Vercel, `CNAME` for `api.braavolabs.com` → VPS, enable proxy (orange cloud) for SSL + DDoS
-- [ ] **Wildcard**: `*.braavolabs.com` → VPS for future subdomains (docs, status)
-- [ ] **VPS**: provision Hetzner CPX31 (€13/mo) or DigitalOcean 8GB droplet, install Docker
-- [ ] **S3 backup bucket**: AWS S3 or compatible (Backblaze B2, Cloudflare R2). Create bucket + IAM user with `PutObject` permission scoped to that bucket. Keep `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY`.
+### Security audit — 2026-04-27
 
-### Accounts + secrets (2–4 hours, $0–500 setup)
+A full red-team sweep was run on the production codebase (5 specialist
+agents + manual spot checks). All **5 CRITICAL** and **9 HIGH**
+findings were fixed in the same sweep:
 
-- [ ] **Anthropic**: create API key at console.anthropic.com, top up $100–200
-- [ ] **Stripe**: apply to Stripe Türkiye with Turkish company (1–3 day approval). On approval, create the 6 products listed in the *Setting Up Stripe* section above and paste price IDs into env. (Or Stripe Atlas — see same section.)
-- [ ] **Sentry**: create a free project at sentry.io, copy DSN into `SENTRY_DSN`
-- [ ] **SendGrid**: create account + API key + domain auth (SPF/DKIM for `braavolabs.com`)
-- [ ] **Google OAuth**: Cloud Console → OAuth Consent (External) + Credentials → set redirect URI to `https://api.braavolabs.com/api/v1/auth/google/callback`
-- [ ] **Strong secrets**: `openssl rand -hex 32` × 2 → `JWT_SECRET` + `ENCRYPTION_KEY` (production startup REFUSES to boot if `ENCRYPTION_KEY` contains a placeholder string)
+- CRIT-1: Open email relay closed — daily outbound cap (FREE 20, paid up to 5000) + recipient-must-be-in-CRM allowlist + unsubscribe respect
+- CRIT-2: Cross-tenant outreach `contactId` validated against the sequence's tenant
+- CRIT-3: Tool handler tenant isolation extended to `contactId` / `dealId` / `sequenceId` / `draftId` (was companyId-only)
+- CRIT-4: Login + forgot-password timing oracle eliminated — bcrypt always runs against a dummy hash on missing-user, forgot-password matches the real path's latency
+- CRIT-5: Account-lockout DoS fixed — lockout key now composite `email+ip` so an attacker can only lock out themselves
+- HIGH-2: Memory `CANDIDATE` lifecycle gate — only `APPROVED` memories enter the agent's passive prompt context
+- HIGH-3: Blueprint publish strips `webhookSecret` and other security-sensitive keys from `company.config`
+- HIGH-4 / HIGH-5: JWT verify pinned to HS256 in refresh path; Redis-down on refresh now fails closed (matching login)
+- HIGH-6 / HIGH-7: Stripe unknown-priceId now stays on FREE (was silently upgrading to PRO); per-model Anthropic pricing table (Opus runs no longer underreported 5×)
+- MED-1 / MED-3 / MED-4 / MED-7: company.config PATCH allowlist; API CSP `frame-ancestors 'none'`; rate-limit per-endpoint key prefixes; Stripe webhook 503 (retryable) instead of 400
+- LOW: X-XSS-Protection set to `0`; X-Powered-By stripped; Pino redacts query-string secrets
 
-### Legal (1–2 weeks, $75–1500)
+Run `pnpm audit` — 0 known CVEs. Git history secret scan — 0 leaks.
 
-- [ ] **ToS + Privacy**: either pay $75/yr to [Termly](https://termly.io) for templated documents that auto-update, OR retain an attorney for a custom set ($500–1500). Required by Stripe + GDPR + Apple/Google policies. Site has stub `/privacy` + `/terms` pages already wired.
-- [ ] **DPA**: data processing addendum for any business-tier customer that requests one (Termly bundles this).
+## Manual Tasks Remaining
 
-### Deploy (30 min after secrets in hand)
+These are credit-card / signature / product-decision items the codebase
+can't do for you. Ordered by what unblocks what:
 
-```bash
-ssh root@<vps-ip>
-git clone https://github.com/kocakkmustafa/The-Creator.git
-cd The-Creator
-cp .env.example .env
-$EDITOR .env   # paste every secret from above
-docker compose -f ENV/compose.prod.yaml --profile backup up -d --build
-docker compose -f ENV/compose.prod.yaml exec api pnpm exec prisma migrate deploy
-```
-
-The `--profile backup` flag enables the postgres-backup service that mirrors
-nightly dumps to your S3 bucket (DB-NEW-004 / off-site sync). Without that
-flag the backup container does not run — local-only retention only.
-
-### Soft launch path (ship even if Stripe is pending)
-
-1. Deploy with `BYPASS_BILLING=true` — all users can sign up and use the Free plan immediately
-2. Real AI output works (1 company, 10 runs/month, TikTok + LinkedIn)
-3. When Stripe Türkiye approves: create the 6 products, paste price IDs, flip `BYPASS_BILLING=false` → paid tiers go live without a redeploy
-
-### Post-launch growth (ongoing)
-
-- [ ] **Bundled AI credits decision** (ISS-045): give Free plan first 10 runs against the platform's Anthropic key, then require user to BYO key. Code is ready; toggle is a product/pricing call.
-- [ ] **Launch verdict gate** (ISS-070): set go/no-go thresholds before paid spend (suggested: activation > 20%, free→paid conversion > 8%, 50+ active users for LAL seed). Free signups can run from day one.
-- [ ] **Social accounts + Product Hunt + Hacker News**
+- [ ] **Stripe** — apply to Stripe Türkiye with the company, create the 6 products in the *Setting Up Stripe* section above, paste price IDs into `.env`, flip `BYPASS_BILLING=false` → paid tiers go live without redeploy. **Currently: Free plan is functional, BYOK Anthropic.**
+- [ ] **Bundled AI credits** (ISS-045): give Free plan first 10 runs against the platform's Anthropic key, then require BYOK. Pure pricing decision; code already supports both modes.
+- [ ] **Launch verdict gate**: set go/no-go thresholds before paid ad spend (suggested: activation > 20%, free→paid conversion > 8%, 50+ active users for LAL seed).
+- [ ] **Social accounts + Product Hunt + Hacker News + press kit**
 
 ---
 

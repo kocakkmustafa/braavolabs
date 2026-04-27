@@ -123,12 +123,21 @@ export async function buildAgentContext(config: ContextConfig): Promise<BuiltCon
 }
 
 async function fetchRecentMemories(companyId: string) {
+  // HIGH-2 fix: only inject APPROVED memories into the passive prompt
+  // context. CANDIDATE memories are unvetted output from prior agent
+  // turns — including them lets a single prompt-injection in step 1
+  // bridge into the user message of step 2 (memory poisoning). The
+  // CLAUDE.md memory lifecycle (rule #5: candidate → approved →
+  // deprecated) explicitly says "tek örnekle genelleme YAPMA" — only
+  // approved memories represent a generalization the holding has
+  // accepted. CANDIDATE remains accessible via explicit recall_memory
+  // tool calls, where the agent has to ask for them by name.
   return prisma.memoryItem.findMany({
     where: {
       companyId,
-      status: { in: ["CANDIDATE", "APPROVED"] },
+      status: "APPROVED",
     },
-    orderBy: [{ status: "desc" }, { lastUsedAt: "desc" }, { createdAt: "desc" }],
+    orderBy: [{ lastUsedAt: "desc" }, { createdAt: "desc" }],
     take: 10,
     select: {
       type: true,

@@ -84,6 +84,27 @@ outreachRouter.post("/sequences/:id/enroll", async (req, res, next) => {
       throw new AppError(404, "Sequence not found");
     }
 
+    // CRIT-2 fix: contactId tenant scoping. The previous code took
+    // contactId from the body and never validated it; an attacker could
+    // enroll someone else's contact in their own sequence and trigger
+    // outreach to that contact, billed against the victim's relationship
+    // history. Verify the contact belongs to a company in the SAME tenant
+    // as the sequence.
+    const contact = await prisma.contact.findFirst({
+      where: {
+        id: contactId,
+        company: { tenantId: req.auth!.tenantId },
+      },
+      select: { id: true, companyId: true },
+    });
+    if (!contact) {
+      throw new AppError(404, "Contact not found");
+    }
+    // Optional further hardening: require the contact and sequence share
+    // the same company (not just the same tenant). For now we accept
+    // cross-company-within-tenant since some agencies want this.
+    // if (contact.companyId !== sequence.companyId) ...
+
     // Spam protection: check unanswered outreach count (scoped to current tenant)
     const existingEnrollments = await prisma.outreachEnrollment.count({
       where: {

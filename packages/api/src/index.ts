@@ -81,6 +81,12 @@ app.use(
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         imgSrc: ["'self'", "data:", "https:"],
         connectSrc: ["'self'", env.APP_URL],
+        // MED-3 fix: explicit frame-ancestors. X-Frame-Options DENY is
+        // already set by securityHeaders middleware, but modern browsers
+        // honor frame-ancestors over X-Frame-Options when both are
+        // present. "none" forbids any embedding — defense against
+        // clickjacking on the API origin.
+        frameAncestors: ["'none'"],
       },
     },
     hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
@@ -129,6 +135,13 @@ app.use(pinoHttp({
       "req.body.contact.email",
       "req.body.contact.name",
       "req.body.contact.phone",
+      // LOW-5 fix: query strings can carry secrets (one-time tokens,
+      // OAuth state, reset tokens if a future GET endpoint uses them).
+      // Redact wholesale rather than allowlist — easier to keep tight.
+      "req.query.token",
+      "req.query.code",
+      "req.query.state",
+      "req.query.refreshToken",
     ],
     censor: "[REDACTED]",
   },

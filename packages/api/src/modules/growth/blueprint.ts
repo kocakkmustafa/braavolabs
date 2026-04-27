@@ -213,10 +213,40 @@ export async function publishBlueprint(
 
   if (!company) throw new AppError(404, "Company not found");
 
+  // HIGH-3 fix: strip security-sensitive keys from company.config before
+  // publishing as a blueprint. The previous code embedded the entire
+  // config — including `webhookSecret` — into the activity_log row that
+  // backs the blueprint table. Anyone with read access to public
+  // blueprints (every authed tenant) could harvest secrets and forge
+  // webhook deliveries against the publishing tenant's /hooks/:slug/:event.
+  //
+  // Allowlist approach: only the keys actually needed to bootstrap a
+  // cloned company travel through the blueprint. Internal flags
+  // (`webhookSecret`, `_clonedFromBlueprint`, `_quarantined`, anything
+  // starting with "_") are dropped.
+  const PUBLISHABLE_CONFIG_KEYS = new Set([
+    "niche",
+    "targetAudience",
+    "channels",
+    "companyType",
+    "brand_voice",
+    "icp",
+    "kpi",
+    "budget",
+    "work_mode",
+    "use_cases",
+  ]);
+  const sanitizedConfig: Record<string, unknown> = {};
+  if (company.config && typeof company.config === "object") {
+    for (const [k, v] of Object.entries(company.config as Record<string, unknown>)) {
+      if (PUBLISHABLE_CONFIG_KEYS.has(k)) sanitizedConfig[k] = v;
+    }
+  }
+
   // Build the blueprint spec from the company
   const spec = {
     primitives: company.primitives,
-    config: company.config,
+    config: sanitizedConfig,
     agents: company.agents.map((a) => ({
       name: a.name,
       role: a.role,
@@ -235,7 +265,11 @@ export async function publishBlueprint(
   const slug = `${slugify(title)}-${Date.now().toString(36)}`;
 
   // Store blueprint as a special activity log + company config
-  // Using activityLog as storage since we don't have a dedicated blueprints table
+  // Using activityLog as storage since we don't have a dedicated blueprints table.
+  // Prisma's InputJsonValue is structurally narrower than the spec object
+  // we built (Record<string, unknown> in `sanitizedConfig` doesn't satisfy
+  // the index-signature constraint), so we cast at the boundary — same
+  // pattern used elsewhere in this file for the JSON column.
   const blueprint = await prisma.activityLog.create({
     data: {
       tenantId,
@@ -253,7 +287,7 @@ export async function publishBlueprint(
         creatorTenantId: tenantId,
         cloneCount: 0,
         isPublic: opts.isPublic ?? true,
-      },
+      } as any,
     },
   });
 

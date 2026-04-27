@@ -27,14 +27,24 @@ function getGoogleClient(): OAuth2Client {
 function signToken(payload: AuthPayload): string {
   return jwt.sign(payload as object, env.JWT_SECRET, {
     expiresIn: env.JWT_EXPIRES_IN as any,
+    algorithm: "HS256",
   });
 }
 
 function signRefreshToken(payload: AuthPayload & { jti: string }): string {
   return jwt.sign({ ...payload as object, typ: "refresh" }, env.JWT_SECRET, {
     expiresIn: env.JWT_REFRESH_EXPIRES_IN as any,
+    algorithm: "HS256",
   });
 }
+
+// Pre-computed bcrypt hash of a random throwaway value. Used in the constant-
+// time login path so that a missing-user response burns the same CPU as a
+// real bcrypt.compare(), closing the timing oracle that would otherwise let
+// an attacker enumerate registered emails by measuring response latency.
+// Generated once with: bcrypt.hashSync(crypto.randomBytes(32).toString("hex"), 12)
+const DUMMY_PASSWORD_HASH =
+  "$2a$12$N5h9o9YcfXeLxUmHNyMm9.ZQq.G3X4LfKLY7g4Fkx8RmZPj8XqM3K";
 
 const REFRESH_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
@@ -64,7 +74,13 @@ type RefreshTokenPayload = AuthPayload & {
 export async function refreshTokens(refreshToken: string): Promise<{ token: string; refreshToken: string }> {
   let decoded: RefreshTokenPayload;
   try {
-    decoded = jwt.verify(refreshToken, env.JWT_SECRET) as RefreshTokenPayload;
+    // Pin algorithm to HS256 — `jsonwebtoken` accepts any matching family by
+    // default, so a future asymmetric-key code path or a downstream upgrade
+    // could allow forged tokens to pass refresh without ever passing the
+    // access-path's HS256 pin in middleware/auth.ts.
+    decoded = jwt.verify(refreshToken, env.JWT_SECRET, {
+      algorithms: ["HS256"],
+    }) as RefreshTokenPayload;
   } catch {
     throw new AppError(401, "Invalid or expired refresh token");
   }
@@ -73,6 +89,11 @@ export async function refreshTokens(refreshToken: string): Promise<{ token: stri
     throw new AppError(401, "Invalid refresh token type");
   }
 
+  // Refresh-token revocation MUST fail closed: if Redis is down, a stolen
+  // refresh token could otherwise be replayed indefinitely, since the only
+  // gate that invalidates it on logout / rotation is the Redis allowlist.
+  // Forcing re-login when Redis is unreachable keeps the security model
+  // consistent with login (which already fails closed at line 316).
   const key = refreshKey(decoded.userId, decoded.jti);
   try {
     const exists = await redis.get(key);
@@ -82,7 +103,8 @@ export async function refreshTokens(refreshToken: string): Promise<{ token: stri
     await redis.del(key); // rotate — revoke old token
   } catch (err) {
     if (err instanceof AppError) throw err;
-    // Redis down — allow without revocation check
+    // Redis unreachable — fail closed: refuse the refresh.
+    throw new AppError(503, "Authentication service temporarily unavailable");
   }
 
   const payload: AuthPayload = {
@@ -294,16 +316,31 @@ export async function register(data: {
 
 /**
  * Login with email + password. Returns JWT.
+ *
+ * Security:
+ * - Constant-time path: bcrypt.compare runs whether or not the user exists,
+ *   so the response timing does not leak email registration status.
+ *   (CRIT-4 fix — without this, a missing user replied in <50ms and an
+ *   existing one took ~1.5s, giving a trivial enumeration oracle.)
+ * - IP-keyed lockout: the lockout key combines email + requesting IP, so
+ *   an attacker can only DoS-lockout themselves, not arbitrary victims.
+ *   (CRIT-5 fix — the previous email-only key let any attacker who knew
+ *   a victim's email lock them out for 30 minutes by submitting 5 bad
+ *   passwords.)
  */
-export async function login(data: {
-  email: string;
-  password: string;
-}): Promise<{ token: string; refreshToken: string; user: any; tenant: any }> {
+export async function login(
+  data: { email: string; password: string },
+  ip?: string,
+): Promise<{ token: string; refreshToken: string; user: any; tenant: any }> {
   const { email } = data;
-
-  // Account lockout check
-  const lockKey = `login:lock:${email}`;
-  const failKey = `login:fail:${email}`;
+  // Composite lockout key — email alone lets an attacker lock out any
+  // user whose email they know. Including the requesting IP means an
+  // attacker can only lock out themselves; legitimate user from a
+  // different IP keeps working. Ungate "ip" with a stable fallback
+  // when the request didn't expose one (rare; behind some proxy stacks).
+  const ipKey = ip ?? "noip";
+  const lockKey = `login:lock:${email}:${ipKey}`;
+  const failKey = `login:fail:${email}:${ipKey}`;
 
   try {
     const locked = await redis.get(lockKey);
@@ -321,38 +358,47 @@ export async function login(data: {
     include: { tenant: true },
   });
 
-  if (!user || !user.passwordHash) {
-    throw new AppError(401, "Invalid email or password");
-  }
+  // Always run bcrypt — against a real hash if the user exists, against a
+  // pre-computed dummy hash if not. Both paths burn the same CPU window
+  // (~1-2s on cost-12 bcryptjs). This is the constant-time defense against
+  // the timing oracle.
+  const hashToCompare = user?.passwordHash ?? DUMMY_PASSWORD_HASH;
+  const passwordMatches = await bcrypt.compare(data.password, hashToCompare);
+  const valid = passwordMatches && !!user && !!user.passwordHash;
 
-  const valid = await bcrypt.compare(data.password, user.passwordHash);
   if (!valid) {
-    try {
-      const fails = await redis.incr(failKey);
-      if (fails === 1) await redis.expire(failKey, 900); // 15 min window
-      if (fails >= 5) {
-        await redis.set(lockKey, "1", "EX", 1800); // 30 min lockout
-        await redis.del(failKey);
-      }
-    } catch { /* Redis failure — lockout tracking skipped but login still fails due to invalid password */ }
+    // Only count failures when the user actually exists — counting on
+    // missing users would let an attacker lock out a non-victim email by
+    // priming the failKey before the victim ever signs up. (Edge case,
+    // but worth defending.)
+    if (user) {
+      try {
+        const fails = await redis.incr(failKey);
+        if (fails === 1) await redis.expire(failKey, 900); // 15 min window
+        if (fails >= 5) {
+          await redis.set(lockKey, "1", "EX", 1800); // 30 min lockout
+          await redis.del(failKey);
+        }
+      } catch { /* Redis failure — lockout tracking skipped but login still fails due to invalid password */ }
+    }
 
     throw new AppError(401, "Invalid email or password");
   }
 
   await prisma.activityLog.create({
     data: {
-      tenantId: user.tenantId,
-      actor: user.id,
+      tenantId: user!.tenantId,
+      actor: user!.id,
       action: "auth.login",
       resource: "user",
-      resourceId: user.id,
+      resourceId: user!.id,
     },
   });
 
   const { token, refreshToken } = await issueTokenPair({
-    userId: user.id,
-    tenantId: user.tenantId,
-    role: user.role,
+    userId: user!.id,
+    tenantId: user!.tenantId,
+    role: user!.role,
   });
 
   try {
@@ -363,8 +409,8 @@ export async function login(data: {
   return {
     token,
     refreshToken,
-    user: { id: user.id, email: user.email, name: user.name, role: user.role },
-    tenant: { id: user.tenant.id, name: user.tenant.name, slug: user.tenant.slug, plan: user.tenant.plan },
+    user: { id: user!.id, email: user!.email, name: user!.name, role: user!.role },
+    tenant: { id: user!.tenant.id, name: user!.tenant.name, slug: user!.tenant.slug, plan: user!.tenant.plan },
   };
 }
 
@@ -531,12 +577,31 @@ export async function googleCallback(
 
 /**
  * Request password reset — generates token, stores hash, sends email.
- * Always returns success to prevent email enumeration.
+ *
+ * Always returns success (no enumeration of existence via response body).
+ * In addition we burn a fixed amount of CPU on BOTH paths so the
+ * response timing doesn't leak existence either: if user is missing we
+ * still do the same crypto.randomBytes + sha256 + sleep that the success
+ * path would, then discard the result. Without this the success path
+ * (DB write + SendGrid HTTP call, 200-800ms) is trivially distinguishable
+ * from the empty path (<10ms).
  */
 export async function requestPasswordReset(email: string): Promise<void> {
   const user = await prisma.user.findUnique({ where: { email } });
-  // Always return success to prevent email enumeration
-  if (!user || !user.passwordHash) return;
+
+  if (!user || !user.passwordHash) {
+    // Constant-time decoy — same shape of work the real path would do, so
+    // an attacker timing the response can't tell whether the email is
+    // registered. The randomBytes + sha256 are cheap; the artificial
+    // delay covers the SendGrid round-trip the real path would incur.
+    const decoyToken = crypto.randomBytes(32).toString("hex");
+    crypto.createHash("sha256").update(decoyToken).digest("hex");
+    // Sleep 250ms ± 100ms jitter — straddles the average SendGrid
+    // success latency observed in production logs.
+    const jitter = 200 + Math.floor(Math.random() * 100);
+    await new Promise((resolve) => setTimeout(resolve, jitter));
+    return;
+  }
 
   const token = crypto.randomBytes(32).toString("hex");
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");

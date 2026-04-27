@@ -30,6 +30,9 @@ const nextConfig: NextConfig = {
     };
     return config;
   },
+  // Strip the X-Powered-By: Next.js header — frameworks that leak their
+  // identity narrow attacker exploit search.
+  poweredByHeader: false,
   async headers() {
     return [
       {
@@ -55,7 +58,11 @@ const nextConfig: NextConfig = {
           { key: "X-DNS-Prefetch-Control", value: "off" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
           { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains; preload" },
-          { key: "X-XSS-Protection", value: "1; mode=block" },
+          // LOW-3 fix: X-XSS-Protection is ignored by modern browsers and
+          // historically had reflection-XSS bugs of its own. Setting it
+          // to 0 explicitly disables the legacy filter rather than
+          // leaving it ambiguous.
+          { key: "X-XSS-Protection", value: "0" },
         ],
       },
     ];

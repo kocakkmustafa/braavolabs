@@ -678,5 +678,55 @@ html.light ::selection {
   @media (max-width: 640px) {
     .glass-panel { border-radius: 0.75rem; }
     button, a { min-height: 36px; }
+    /* iOS zooms <16px inputs on focus — keep mobile inputs at 16px to
+     * suppress that. Desktop inherits the smaller text-sm scale. */
+    input, textarea, select { font-size: 16px; }
+  }
+
+  /* ── Visible focus indicators (WCAG 2.1 AA — 2.4.7 Focus Visible)
+   *    Tailwind preflight resets browser-default outlines, and many
+   *    inline-style components further override them. Without this
+   *    rule, keyboard users have no idea where focus is — a hard
+   *    blocker for screen-reader / motor-impaired / power users.
+   *    `:focus-visible` only fires on keyboard focus (not mouse
+   *    click) so we don't add visual noise for pointer users. */
+  *:focus-visible {
+    outline: 2px solid #00d1ff;
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  button:focus-visible,
+  a:focus-visible,
+  [role="button"]:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid #00d1ff;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(0, 209, 255, 0.25);
+  }
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid #00d1ff;
+    outline-offset: 0;
+  }
+
+  /* Skip-link — first focusable element on every page; visible only
+   * on keyboard focus. Lets screen-reader users bypass the sidebar
+   * and jump straight to <main> (WCAG 2.4.1 Bypass Blocks). */
+  .skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 8px;
+    z-index: 10000;
+    padding: 8px 16px;
+    background: #00d1ff;
+    color: #0a0d14;
+    text-decoration: none;
+    font-weight: 600;
+    border-radius: 6px;
+  }
+  .skip-link:focus,
+  .skip-link:focus-visible {
+    left: 8px;
   }
 }

@@ -250,12 +250,14 @@ stripeWebhookRouter.post(
     try {
       config = getStripeConfig();
     } catch {
-      // Don't betray "Stripe disabled" to drive-by probes — they then
-      // know to time their attacks for the Stripe-enable window or
-      // file fake-refund support tickets. From the attacker's view it
-      // should look like a normal "bad request, go away".
+      // MED-7 fix: when Stripe is mid-rotation or env is briefly missing,
+      // we want Stripe to RETRY the event (3 days of retries on 5xx),
+      // not permanently mark it failed (some events never retry on 4xx).
+      // 503 instead of 400 keeps event delivery resilient against
+      // momentary config blips. Drive-by probes still get a uniform
+      // "service unavailable" — no information leak about Stripe state.
       logger.warn({ hasSig: !!req.headers["stripe-signature"] }, "Stripe webhook hit while not configured");
-      res.status(400).json({ error: "Invalid request" });
+      res.status(503).json({ error: "Service temporarily unavailable" });
       return;
     }
 
@@ -340,7 +342,17 @@ stripeWebhookRouter.post(
               else if (priceId === env.STRIPE_BUSINESS_PRICE_ID || priceId === env.STRIPE_BUSINESS_YEARLY_PRICE_ID) plan = "BUSINESS";
               else if (priceId === env.STRIPE_PRO_PRICE_ID || priceId === env.STRIPE_PRO_YEARLY_PRICE_ID) plan = "PRO";
               else if (priceId === env.STRIPE_CREATOR_PRICE_ID || priceId === env.STRIPE_CREATOR_YEARLY_PRICE_ID) plan = "CREATOR";
-              else plan = "PRO"; // sensible default for unknown active subscription
+              else {
+                // HIGH-6 fix: unknown priceId must NOT silently upgrade to PRO.
+                // Either an env-config typo or a Stripe Connect / test-mode
+                // edge case can deliver a price ID that doesn't match any
+                // configured tier; treat as untrusted and stay on FREE.
+                logger.warn(
+                  { tenantId: tenant.id, priceId, status, subscriptionId: subscription.id },
+                  "Stripe webhook: unknown price ID — keeping tenant on FREE plan",
+                );
+                plan = "FREE";
+              }
             }
 
             await prisma.tenant.update({

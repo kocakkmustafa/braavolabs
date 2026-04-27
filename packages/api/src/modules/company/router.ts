@@ -122,12 +122,56 @@ companyRouter.patch("/:id", async (req, res, next) => {
   try {
     const data = updateSchema.parse(req.body);
 
+    // MED-1 fix: config write allowlist. The previous schema accepted
+    // `z.record(z.unknown())`, letting a tenant PATCH `webhookSecret`
+    // (and pick a known value before publishing as a blueprint — see
+    // HIGH-3) or any internal flag like `_quarantined`. Now we accept
+    // only the keys a user is supposed to manage. Other keys are
+    // silently dropped — better than 400ing on legacy clients.
+    const USER_WRITABLE_CONFIG_KEYS = new Set([
+      "niche",
+      "targetAudience",
+      "channels",
+      "companyType",
+      "brand_voice",
+      "icp",
+      "kpi",
+      "budget",
+      "work_mode",
+      "use_cases",
+    ]);
+
+    let sanitizedData: typeof data = data;
+    if (data.config && typeof data.config === "object") {
+      const filteredConfig: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(data.config as Record<string, unknown>)) {
+        if (USER_WRITABLE_CONFIG_KEYS.has(k)) filteredConfig[k] = v;
+      }
+      sanitizedData = { ...data, config: filteredConfig };
+    }
+
+    // Merge over existing config so a partial PATCH doesn't blow away
+    // unrelated allowlisted keys. Read existing first.
+    if (sanitizedData.config && typeof sanitizedData.config === "object") {
+      const existing = await prisma.company.findFirst({
+        where: { id: req.params.id, tenantId: req.auth!.tenantId },
+        select: { config: true },
+      });
+      if (existing?.config && typeof existing.config === "object") {
+        const merged: Record<string, unknown> = { ...(existing.config as Record<string, unknown>) };
+        for (const [k, v] of Object.entries(sanitizedData.config as Record<string, unknown>)) {
+          merged[k] = v;
+        }
+        sanitizedData = { ...sanitizedData, config: merged };
+      }
+    }
+
     // Channel enforcement — `config.channels` must be a subset of the
     // tenant's plan-allowed channels. Onboarding hard-codes the right
     // list, but a Free user PATCHing this endpoint directly could
     // otherwise add `instagram` / `youtube` and use paid features.
-    if (data.config && typeof data.config === "object" && "channels" in data.config) {
-      const proposedChannels = data.config.channels;
+    if (sanitizedData.config && typeof sanitizedData.config === "object" && "channels" in sanitizedData.config) {
+      const proposedChannels = sanitizedData.config.channels;
       if (Array.isArray(proposedChannels)) {
         const tenant = await prisma.tenant.findUnique({
           where: { id: req.auth!.tenantId },
@@ -149,7 +193,7 @@ companyRouter.patch("/:id", async (req, res, next) => {
 
     const company = await prisma.company.updateMany({
       where: { id: req.params.id, tenantId: req.auth!.tenantId },
-      data: { ...data, config: data.config as any },
+      data: { ...sanitizedData, config: sanitizedData.config as any },
     });
     if (company.count === 0) throw new AppError(404, "Company not found");
 
