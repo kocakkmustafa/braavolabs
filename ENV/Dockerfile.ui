@@ -2,22 +2,31 @@ FROM node:20-alpine AS base
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 WORKDIR /app
 
-# Install dependencies
+# Install dependencies — UI now consumes @ai-company-os/core (PLAN_LIMITS,
+# PLAN_PRICING, PLAN_LABEL, PLAN_ORDER) so the core workspace package must
+# be present at install time. Earlier this dockerfile only copied UI's own
+# package.json, which broke pnpm's workspace:* resolution for `core`.
 FROM base AS deps
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/ui/package.json ./packages/ui/
+COPY packages/core/package.json ./packages/core/
 RUN pnpm install --frozen-lockfile
 
 # Build
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages/ui/node_modules ./packages/ui/node_modules
+COPY --from=deps /app/packages/core/node_modules ./packages/core/node_modules
+# Copy UI source AND core (UI's compile-time dependency).
 COPY packages/ui ./packages/ui
+COPY packages/core ./packages/core
 COPY package.json pnpm-workspace.yaml ./
 
 ARG NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
+# Build core first so its dist is available for UI's webpack resolution.
+RUN pnpm --filter @ai-company-os/core build
 RUN pnpm --filter @ai-company-os/ui build
 
 # Production
