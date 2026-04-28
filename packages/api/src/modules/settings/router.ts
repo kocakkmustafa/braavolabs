@@ -12,6 +12,8 @@ import {
   saveTenantAIConfig,
   PROVIDER_MODELS,
   PROVIDER_DEFAULT_MODELS,
+  PROVIDER_INFO,
+  PROVIDER_BASE_URLS,
   type AIProviderType,
 } from "../../services/ai-client";
 import { decrypt } from "../../lib/encryption";
@@ -35,8 +37,11 @@ settingsRouter.get("/ai-config", async (req, res, next) => {
         provider: "ANTHROPIC",
         model: PROVIDER_DEFAULT_MODELS["ANTHROPIC"],
         hasApiKey: false,
+        baseUrl: null,
         availableProviders: Object.keys(PROVIDER_DEFAULT_MODELS),
         availableModels: PROVIDER_MODELS,
+        providerInfo: PROVIDER_INFO,
+        defaultBaseUrls: PROVIDER_BASE_URLS,
       });
     }
 
@@ -51,39 +56,64 @@ settingsRouter.get("/ai-config", async (req, res, next) => {
             catch { return "????"; }
           })()
         : null,
+      baseUrl: aiConfig.baseUrl ?? null,
       availableProviders: Object.keys(PROVIDER_DEFAULT_MODELS),
       availableModels: PROVIDER_MODELS,
+      providerInfo: PROVIDER_INFO,
+      defaultBaseUrls: PROVIDER_BASE_URLS,
     });
   } catch (err) { next(err); }
 });
 
+const LOCAL_PROVIDER_LITERALS = ["OLLAMA", "LMSTUDIO", "CUSTOM"] as const;
 const aiConfigSchema = z.object({
-  provider: z.enum(["ANTHROPIC", "OPENAI", "GOOGLE", "MISTRAL", "GROQ", "OPENROUTER"]),
+  provider: z.enum([
+    "ANTHROPIC", "OPENAI", "GOOGLE", "MISTRAL", "GROQ", "OPENROUTER",
+    "OLLAMA", "LMSTUDIO", "CUSTOM",
+  ]),
   model: z.string().min(1),
   apiKey: z.string().min(8).optional(),
+  // Custom base URL — required for CUSTOM, optional for OLLAMA/LMSTUDIO
+  // (defaults to localhost:11434/1234), optional for cloud providers
+  // (rare but useful for Azure/LiteLLM-shim users).
+  baseUrl: z.string().url().optional().or(z.literal("")),
 });
 
 // PUT /api/v1/settings/ai-config
-// Save AI provider selection and (optionally) API key.
+// Save AI provider selection and (optionally) API key + base URL.
 settingsRouter.put("/ai-config", async (req, res, next) => {
   try {
-    const { provider, model, apiKey } = aiConfigSchema.parse(req.body);
+    const { provider, model, apiKey, baseUrl } = aiConfigSchema.parse(req.body);
+    const isLocal = (LOCAL_PROVIDER_LITERALS as readonly string[]).includes(provider);
 
-    // If no new API key provided, keep existing one
-    if (!apiKey) {
+    // CUSTOM requires a baseUrl on first save (no fallback default).
+    if (provider === "CUSTOM" && !baseUrl) {
+      throw new AppError(400, "Custom provider requires a base URL.");
+    }
+
+    // Local providers don't need an API key. Cloud providers do — but
+    // only on first save (subsequent updates can reuse the existing
+    // encrypted key by omitting apiKey).
+    if (!apiKey && !isLocal) {
       const existing = await prisma.userAIConfig.findUnique({
         where: { tenantId: req.auth!.tenantId },
       });
       if (!existing?.encryptedApiKey) {
-        throw new AppError(400, "API key is required when configuring a provider for the first time");
+        throw new AppError(400, "API key is required when configuring a cloud provider for the first time");
       }
-      // Just update provider/model, keep existing encrypted key
+      // Just update provider/model/baseUrl, keep existing encrypted key
       await prisma.userAIConfig.update({
         where: { tenantId: req.auth!.tenantId },
-        data: { provider, model },
+        data: { provider, model, baseUrl: baseUrl || null },
       });
     } else {
-      await saveTenantAIConfig(req.auth!.tenantId, provider as AIProviderType, model, apiKey);
+      await saveTenantAIConfig(
+        req.auth!.tenantId,
+        provider as AIProviderType,
+        model,
+        apiKey || "",  // empty for local
+        baseUrl || undefined,
+      );
     }
 
     await prisma.activityLog.create({
@@ -92,7 +122,7 @@ settingsRouter.put("/ai-config", async (req, res, next) => {
         actor: req.auth!.userId,
         action: "settings.ai_config_update",
         resource: "ai_config",
-        details: { provider, model },
+        details: { provider, model, hasBaseUrl: !!baseUrl },
       },
     });
 

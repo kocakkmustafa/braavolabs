@@ -124,6 +124,8 @@ export default function PricingPage() {
         </a>
         <div className="flex items-center gap-4 text-sm" style={{ color: "#859399" }}>
           <a href="/features" className="hover:text-white transition-colors">Features</a>
+          <a href="/marketplace" className="hover:text-white transition-colors">Templates</a>
+          <a href="/docs" className="hover:text-white transition-colors">Docs</a>
           <a href="/login" className="px-4 py-2 rounded-xl font-semibold text-white text-xs transition-all hover:brightness-110"
             style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}>
             Get Started

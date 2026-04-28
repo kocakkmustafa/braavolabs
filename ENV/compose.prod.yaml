@@ -163,6 +163,16 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
+      # Next.js standalone reads HOSTNAME and binds the listener to it
+      # exclusively. The default in the runtime container was the docker
+      # container hostname (e.g. cb4e7148b37c), which only its own eth0
+      # IP could reach — the inbox-bound nginx upstream still worked
+      # because docker DNS resolved aicos-ui to that IP, but the
+      # container's own healthcheck via 127.0.0.1 / 0.0.0.0 kept failing
+      # ("Connection refused"). Forcing HOSTNAME=0.0.0.0 makes Next.js
+      # listen on all interfaces, healthcheck passes, and the runtime
+      # reachability via aicos-ui:3000 stays the same.
+      HOSTNAME: 0.0.0.0
     depends_on:
       api:
         condition: service_healthy

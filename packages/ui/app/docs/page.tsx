@@ -42,6 +42,7 @@ export default function DocsPage() {
         </a>
         <div className="flex items-center gap-4 text-sm" style={{ color: "#859399" }}>
           <a href="/features" className="hover:text-white transition-colors">Features</a>
+          <a href="/marketplace" className="hover:text-white transition-colors">Templates</a>
           <a href="/pricing" className="hover:text-white transition-colors">Pricing</a>
           <a href="/login" className="px-4 py-2 rounded-xl font-semibold text-white text-xs" style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}>
             Get Started
@@ -90,6 +91,7 @@ export default function DocsPage() {
             <li><a href="#webhooks" className="hover:underline">Webhooks</a></li>
             <li><a href="#sse" className="hover:underline">SSE Streaming</a></li>
             <li><a href="#sdk" className="hover:underline">SDK &amp; CLI</a></li>
+            <li><a href="#local-llm" className="hover:underline">Local LLM (Gemma)</a></li>
             <li><a href="#security" className="hover:underline">Security</a></li>
             <li><a href="#changelog" className="hover:underline">Changelog</a></li>
           </ul>
@@ -386,6 +388,106 @@ es.addEventListener("run.failed",     () => es.close());`}</Code>
           </ul>
         </Section>
 
+        {/* === Local LLM === */}
+        <Section id="local-llm" title="Local LLM — run Gemma on your laptop, free and private">
+          <p>
+            Braavolabs is one of the few autonomous-company platforms that runs end-to-end on
+            a model living on <em>your</em> machine. Point us at <code>Ollama</code> or{" "}
+            <code>LM Studio</code> and every prompt, every memory, every generated draft stays
+            on your hardware. No data leaves your laptop, no per-token bill, no rate limit.
+          </p>
+          <p>
+            <strong>Why this matters:</strong> KVKK / GDPR-sensitive workloads (legal, healthcare,
+            HR, regulated finance), founders who want a $0 token bill while iterating, agencies
+            who need to demo without exposing client data, and anyone who simply wants their
+            company to keep working when the office Wi-Fi drops.
+          </p>
+
+          <h3 className="font-semibold mt-6 mb-2" style={{ color: "#e1e2eb" }}>
+            Setup — Ollama (recommended, 3 minutes)
+          </h3>
+          <Code language="bash">{`# 1. Install Ollama (macOS / Linux / Windows)
+#    https://ollama.com/download
+
+# 2. Pull Gemma 3 — 4B fits in 8GB RAM, 12B wants 16GB, 27B wants 32GB
+ollama pull gemma3:4b
+
+# 3. Start the server (leave it running in a terminal tab)
+ollama serve
+# → listens on http://localhost:11434
+
+# 4. Verify Gemma is reachable
+curl http://localhost:11434/v1/models
+# → { "data": [{ "id": "gemma3:4b", ... }] }`}</Code>
+
+          <h3 className="font-semibold mt-6 mb-2" style={{ color: "#e1e2eb" }}>
+            Setup — LM Studio (GUI alternative)
+          </h3>
+          <Code language="bash">{`# 1. Install LM Studio: https://lmstudio.ai
+# 2. Search the model browser for "google/gemma-3-4b-it" → Download
+# 3. Open the "Local Server" tab → click "Start Server"
+#    → exposes an OpenAI-compatible API on http://localhost:1234
+
+# That's it — no terminal commands required.`}</Code>
+
+          <h3 className="font-semibold mt-6 mb-2" style={{ color: "#e1e2eb" }}>
+            Wire it up in Braavolabs
+          </h3>
+          <ol className="list-decimal pl-5 space-y-1 text-sm" style={{ color: "#bbc9cf" }}>
+            <li>Go to <a href="/settings" style={{ color: "#a4e6ff" }}>Settings → AI Provider</a></li>
+            <li>Pick <strong>Ollama (local Gemma · FREE)</strong> or <strong>LM Studio (local · FREE)</strong></li>
+            <li>Choose a model from the dropdown — <code>gemma3:4b</code> is the safe default</li>
+            <li>The Base URL is pre-filled (<code>http://localhost:11434/v1</code> for Ollama)</li>
+            <li>Leave the API key blank — local providers don&apos;t need one</li>
+            <li>Click <strong>Save</strong>, then <strong>Test Connection</strong> → expect <code>OK</code></li>
+          </ol>
+
+          <h3 className="font-semibold mt-6 mb-2" style={{ color: "#e1e2eb" }}>
+            Choosing a model (quick reference)
+          </h3>
+          <Table headers={["Model", "RAM needed", "Speed", "Best for"]}>
+            <Row>gemma3:4b<EOR />8 GB<EOR />Fast (30-60 tok/s on M-series)<EOR />Daily content, outreach, summarisation</Row>
+            <Row>gemma3:12b<EOR />16 GB<EOR />Medium<EOR />Reasoning, longer drafts, planner</Row>
+            <Row>gemma3:27b<EOR />32 GB<EOR />Slow<EOR />Heavy strategy / multi-step pipelines</Row>
+            <Row>llama3.3:70b (Q4_K_M)<EOR />48+ GB<EOR />Slow<EOR />Comparable to GPT-4o on reasoning</Row>
+            <Row>qwen2.5-coder:14b<EOR />16 GB<EOR />Medium<EOR />Code generation / SDK scaffolding</Row>
+          </Table>
+
+          <h3 className="font-semibold mt-6 mb-2" style={{ color: "#e1e2eb" }}>
+            What stays local, what doesn&apos;t
+          </h3>
+          <ul className="list-disc pl-5 space-y-1 text-sm" style={{ color: "#bbc9cf" }}>
+            <li><strong>Local on your machine:</strong> every prompt, every model response, every generated draft, every reasoning trace.</li>
+            <li><strong>Still on Braavolabs servers (encrypted):</strong> account metadata (email, plan), audit logs, tool-call records, run timing, billing usage counters. <em>Never</em> the prompt content.</li>
+            <li><strong>External integrations only fire if you wire them:</strong> HubSpot, Stripe, SendGrid, social posters etc. — Braavolabs proxies those on your behalf when a tool is invoked.</li>
+          </ul>
+
+          <h3 className="font-semibold mt-6 mb-2" style={{ color: "#e1e2eb" }}>
+            Custom OpenAI-compatible endpoints
+          </h3>
+          <p>
+            Pick the <strong>Custom</strong> provider for any OpenAI-shaped{" "}
+            <code>/v1/chat/completions</code> server — vLLM, LiteLLM proxies, Together,
+            RunPod, Fireworks, Anyscale, Cloudflare Workers AI, self-hosted text-generation-webui,
+            etc. Provide a Base URL and (if the endpoint requires it) an API key.
+          </p>
+          <Code language="bash">{`# Example: route all Braavolabs traffic through a self-hosted LiteLLM proxy
+#   Settings → AI Provider → Custom
+#   Base URL: https://litellm.your-domain.com/v1
+#   Model:    azure/gpt-4o   (or whatever LiteLLM exposes)
+#   API Key:  <your LiteLLM master key>`}</Code>
+
+          <h3 className="font-semibold mt-6 mb-2" style={{ color: "#e1e2eb" }}>
+            Troubleshooting
+          </h3>
+          <ul className="list-disc pl-5 space-y-1 text-sm" style={{ color: "#bbc9cf" }}>
+            <li><strong>&ldquo;Connection refused&rdquo;</strong> — Ollama or LM Studio isn&apos;t running. Open a terminal and run <code>ollama serve</code>, or click &ldquo;Start Server&rdquo; in LM Studio.</li>
+            <li><strong>&ldquo;model not found&rdquo;</strong> — pull it first: <code>ollama pull gemma3:4b</code>. The model name in Settings must match what <code>ollama list</code> shows exactly.</li>
+            <li><strong>Slow first response</strong> — the model is being loaded into RAM. Subsequent requests are 10× faster.</li>
+            <li><strong>Test from server (production deploy)</strong> — production Braavolabs runs on Lightsail and cannot reach <code>localhost:11434</code> on your laptop. Local LLM is a <em>self-hosted</em> feature: clone the repo and run <code>pnpm dev</code> alongside Ollama for the fully-private setup.</li>
+          </ul>
+        </Section>
+
         {/* === Security === */}
         <Section id="security" title="Security">
           <ul className="list-disc pl-5 space-y-1 text-sm" style={{ color: "#bbc9cf" }}>
@@ -405,6 +507,7 @@ es.addEventListener("run.failed",     () => es.close());`}</Code>
         {/* === Changelog === */}
         <Section id="changelog" title="Changelog">
           <Table headers={["Date", "Change"]}>
+            <Row>2026-04-29<EOR />Local LLM support — Ollama / LM Studio / Custom. Gemma 3 4B as the default privacy-first model. New <code>baseUrl</code> field on UserAIConfig + tenant-scoped overrides.</Row>
             <Row>2026-04-28<EOR />Run.error now propagates from failed step (was null). 5-tier plan sync. Onboarding state persisted.</Row>
             <Row>2026-04-27<EOR />Login + forgot-password timing oracle hardening. Refresh token jti rotation. CSP frame-ancestors.</Row>
             <Row>2026-04-26<EOR />Production launch. KVKK/GDPR cookie banner. Branded welcome + reset emails. S3 backup + restore drill.</Row>

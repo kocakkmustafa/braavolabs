@@ -50,13 +50,33 @@ const NAV_ITEMS = [
   { id: "referral",      label: "Referral",        icon: "redeem" },
 ];
 
-const PROVIDER_LABELS: Record<string, { label: string; color: string; models: string[] }> = {
-  ANTHROPIC:  { label: "Anthropic Claude", color: "#d97706", models: ["claude-opus-4-20250514", "claude-sonnet-4-5-20250929", "claude-sonnet-4-20250514", "claude-haiku-4-5-20251001"] },
-  OPENAI:     { label: "OpenAI",           color: "#10a37f", models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "o1-mini"] },
-  GOOGLE:     { label: "Google Gemini",    color: "#4285f4", models: ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"] },
-  MISTRAL:    { label: "Mistral AI",       color: "#ff6b35", models: ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest"] },
-  GROQ:       { label: "Groq",             color: "#f97316", models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"] },
-  OPENROUTER: { label: "OpenRouter",       color: "#8b5cf6", models: ["openai/gpt-4o", "anthropic/claude-opus-4", "meta-llama/llama-3.3-70b-instruct"] },
+const PROVIDER_LABELS: Record<string, { label: string; color: string; models: string[]; local?: boolean; defaultBaseUrl?: string; setupHint?: string }> = {
+  ANTHROPIC:  { label: "Anthropic Claude",   color: "#d97706", models: ["claude-opus-4-20250514", "claude-sonnet-4-5-20250929", "claude-sonnet-4-20250514", "claude-haiku-4-5-20251001"] },
+  OPENAI:     { label: "OpenAI",             color: "#10a37f", models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "o1-mini"] },
+  GOOGLE:     { label: "Google Gemini",      color: "#4285f4", models: ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"] },
+  MISTRAL:    { label: "Mistral AI",         color: "#ff6b35", models: ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest"] },
+  GROQ:       { label: "Groq",               color: "#f97316", models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"] },
+  OPENROUTER: { label: "OpenRouter",         color: "#8b5cf6", models: ["openai/gpt-4o", "anthropic/claude-opus-4", "meta-llama/llama-3.3-70b-instruct"] },
+  // Local-first providers — free, private, runs on user's hardware.
+  // setupHint is rendered in the settings UI for clarity.
+  OLLAMA:     {
+    label: "Ollama (local Gemma · FREE)", color: "#34d399", local: true,
+    defaultBaseUrl: "http://localhost:11434/v1",
+    models: ["gemma3:4b", "gemma3:12b", "gemma3:27b", "llama3.2:3b", "llama3.3:70b", "qwen2.5:14b", "qwen2.5-coder:14b", "deepseek-r1:8b"],
+    setupHint: "Install ollama.com → run `ollama pull gemma3:4b` → keep terminal open with `ollama serve`",
+  },
+  LMSTUDIO:   {
+    label: "LM Studio (local · FREE)", color: "#10b981", local: true,
+    defaultBaseUrl: "http://localhost:1234/v1",
+    models: ["google/gemma-3-4b-it", "google/gemma-3-12b-it", "meta-llama/llama-3.2-3b-instruct", "qwen/qwen2.5-14b-instruct"],
+    setupHint: "Install lmstudio.ai → load Gemma 3 4B → start Local Server",
+  },
+  CUSTOM:     {
+    label: "Custom OpenAI-compatible", color: "#a855f7", local: true,
+    defaultBaseUrl: "",
+    models: [],
+    setupHint: "Any OpenAI-compatible /v1/chat/completions endpoint (LiteLLM, vLLM, Together, RunPod, etc).",
+  },
 };
 
 export default function SettingsPage() {
@@ -82,11 +102,12 @@ export default function SettingsPage() {
 
   // AI Provider state
   const [aiConfig, setAiConfig] = useState<{
-    provider: string; model: string; hasApiKey: boolean; maskedApiKey?: string | null;
+    provider: string; model: string; hasApiKey: boolean; maskedApiKey?: string | null; baseUrl?: string | null;
   } | null>(null);
   const [aiProvider, setAiProvider] = useState("ANTHROPIC");
   const [aiModel, setAiModel] = useState("claude-sonnet-4-20250514");
   const [aiApiKey, setAiApiKey] = useState("");
+  const [aiBaseUrl, setAiBaseUrl] = useState("");
   const [aiSaving, setAiSaving] = useState(false);
   const [aiTesting, setAiTesting] = useState(false);
   const [aiTestResult, setAiTestResult] = useState<{ success: boolean; response?: string; error?: string } | null>(null);
@@ -119,6 +140,7 @@ export default function SettingsPage() {
         setAiConfig(cfg);
         setAiProvider(cfg.provider ?? "ANTHROPIC");
         setAiModel(cfg.model ?? "claude-sonnet-4-20250514");
+        setAiBaseUrl(cfg.baseUrl ?? "");
       })
       .catch(() => {});
   }, [token, hydrated]);
@@ -162,6 +184,10 @@ export default function SettingsPage() {
     try {
       const body: Record<string, string> = { provider: aiProvider, model: aiModel };
       if (aiApiKey.trim()) body.apiKey = aiApiKey.trim();
+      // baseUrl: pass through for OLLAMA / LMSTUDIO / CUSTOM (or any
+      // provider proxy override). Empty string = backend will use the
+      // built-in default for that provider.
+      if (aiBaseUrl.trim()) body.baseUrl = aiBaseUrl.trim();
       const res = await fetch("/api/v1/settings/ai-config", {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -169,7 +195,13 @@ export default function SettingsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message ?? "Failed to save");
-      setAiConfig((prev) => ({ ...prev, provider: aiProvider, model: aiModel, hasApiKey: !!aiApiKey || !!prev?.hasApiKey }));
+      setAiConfig((prev) => ({
+        ...prev,
+        provider: aiProvider,
+        model: aiModel,
+        hasApiKey: !!aiApiKey || !!prev?.hasApiKey,
+        baseUrl: aiBaseUrl.trim() || null,
+      }));
       setAiApiKey("");
       setAiSaveMsg("AI provider saved successfully");
       setTimeout(() => setAiSaveMsg(null), 3000);
@@ -739,58 +771,132 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Model selector */}
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "#859399" }}>Model</p>
-                <select
-                  value={aiModel}
-                  onChange={(e) => setAiModel(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl text-sm font-mono"
+              {/* Local-provider setup hint */}
+              {PROVIDER_LABELS[aiProvider]?.local && PROVIDER_LABELS[aiProvider]?.setupHint && (
+                <div
+                  className="rounded-xl px-3 py-2.5 text-xs"
                   style={{
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    color: "#e1e2eb",
-                    outline: "none",
+                    background: "rgba(52,211,153,0.08)",
+                    border: "1px solid rgba(52,211,153,0.2)",
+                    color: "#86efac",
                   }}
                 >
-                  {(PROVIDER_LABELS[aiProvider]?.models ?? []).map((m) => (
-                    <option key={m} value={m} style={{ background: "#10131a" }}>{m}</option>
-                  ))}
-                </select>
-              </div>
+                  <p className="font-semibold mb-1" style={{ color: "#34d399" }}>Local provider — runs on your hardware, $0 inference cost</p>
+                  <p style={{ color: "#86efac" }}>{PROVIDER_LABELS[aiProvider]?.setupHint}</p>
+                </div>
+              )}
 
-              {/* API Key */}
+              {/* Model selector */}
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "#859399" }}>
-                  API Key
-                  {aiConfig?.hasApiKey && (
-                    <span className="ml-2 text-[10px] font-normal normal-case" style={{ color: "#4ade80" }}>
-                      ✓ Key configured ({aiConfig.maskedApiKey})
+                <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "#859399" }}>
+                  Model
+                  {PROVIDER_LABELS[aiProvider]?.local && aiProvider !== "CUSTOM" && (
+                    <span className="ml-2 text-[10px] font-normal normal-case" style={{ color: "#3c494e" }}>
+                      (suggestions — type any tag your local server has loaded)
                     </span>
                   )}
                 </p>
-                <p className="text-xs mb-2" style={{ color: "#3c494e" }}>
-                  {aiProvider === "ANTHROPIC" && "Get your key from console.anthropic.com"}
-                  {aiProvider === "OPENAI" && "Get your key from platform.openai.com"}
-                  {aiProvider === "GOOGLE" && "Get your key from aistudio.google.com"}
-                  {aiProvider === "MISTRAL" && "Get your key from console.mistral.ai"}
-                  {aiProvider === "GROQ" && "Get your key from console.groq.com"}
-                  {aiProvider === "OPENROUTER" && "Get your key from openrouter.ai/keys"}
-                </p>
-                <input
-                  type="password"
-                  placeholder={aiConfig?.hasApiKey ? "Leave blank to keep existing key" : "sk-..."}
-                  value={aiApiKey}
-                  onChange={(e) => setAiApiKey(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl text-sm font-mono"
-                  style={{
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    color: "#e1e2eb",
-                    outline: "none",
-                  }}
-                />
+                {PROVIDER_LABELS[aiProvider]?.local ? (
+                  <input
+                    type="text"
+                    list={`${aiProvider}-models`}
+                    value={aiModel}
+                    onChange={(e) => setAiModel(e.target.value)}
+                    placeholder={aiProvider === "OLLAMA" ? "gemma3:4b" : aiProvider === "LMSTUDIO" ? "google/gemma-3-4b-it" : "model-name"}
+                    className="w-full px-3 py-2.5 rounded-xl text-sm font-mono"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb", outline: "none" }}
+                  />
+                ) : (
+                  <select
+                    value={aiModel}
+                    onChange={(e) => setAiModel(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl text-sm font-mono"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb", outline: "none" }}
+                  >
+                    {(PROVIDER_LABELS[aiProvider]?.models ?? []).map((m) => (
+                      <option key={m} value={m} style={{ background: "#10131a" }}>{m}</option>
+                    ))}
+                  </select>
+                )}
+                <datalist id={`${aiProvider}-models`}>
+                  {(PROVIDER_LABELS[aiProvider]?.models ?? []).map((m) => (
+                    <option key={m} value={m} />
+                  ))}
+                </datalist>
               </div>
+
+              {/* Base URL — local providers + cloud-with-proxy */}
+              {(PROVIDER_LABELS[aiProvider]?.local || aiBaseUrl) && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "#859399" }}>
+                    Base URL
+                    {!PROVIDER_LABELS[aiProvider]?.local && (
+                      <span className="ml-2 text-[10px] font-normal normal-case" style={{ color: "#3c494e" }}>(optional proxy override)</span>
+                    )}
+                    {aiProvider === "CUSTOM" && (
+                      <span className="ml-2 text-[10px] font-normal normal-case" style={{ color: "#fb7185" }}>required</span>
+                    )}
+                  </p>
+                  <input
+                    type="text"
+                    placeholder={PROVIDER_LABELS[aiProvider]?.defaultBaseUrl || "https://your-endpoint/v1"}
+                    value={aiBaseUrl}
+                    onChange={(e) => setAiBaseUrl(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl text-sm font-mono"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb", outline: "none" }}
+                  />
+                  {PROVIDER_LABELS[aiProvider]?.defaultBaseUrl && !aiBaseUrl && (
+                    <p className="text-[10px] mt-1" style={{ color: "#3c494e" }}>
+                      Default: <code>{PROVIDER_LABELS[aiProvider].defaultBaseUrl}</code>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* API Key — hidden for local providers (Ollama, LM Studio default to no auth) */}
+              {!PROVIDER_LABELS[aiProvider]?.local && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "#859399" }}>
+                    API Key
+                    {aiConfig?.hasApiKey && (
+                      <span className="ml-2 text-[10px] font-normal normal-case" style={{ color: "#4ade80" }}>
+                        ✓ Key configured ({aiConfig.maskedApiKey})
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs mb-2" style={{ color: "#3c494e" }}>
+                    {aiProvider === "ANTHROPIC" && "Get your key from console.anthropic.com"}
+                    {aiProvider === "OPENAI" && "Get your key from platform.openai.com"}
+                    {aiProvider === "GOOGLE" && "Get your key from aistudio.google.com"}
+                    {aiProvider === "MISTRAL" && "Get your key from console.mistral.ai"}
+                    {aiProvider === "GROQ" && "Get your key from console.groq.com"}
+                    {aiProvider === "OPENROUTER" && "Get your key from openrouter.ai/keys"}
+                  </p>
+                  <input
+                    type="password"
+                    placeholder={aiConfig?.hasApiKey ? "Leave blank to keep existing key" : "sk-..."}
+                    value={aiApiKey}
+                    onChange={(e) => setAiApiKey(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl text-sm font-mono"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb", outline: "none" }}
+                  />
+                </div>
+              )}
+              {PROVIDER_LABELS[aiProvider]?.local && aiProvider === "CUSTOM" && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "#859399" }}>
+                    API Key <span className="text-[10px] font-normal normal-case" style={{ color: "#3c494e" }}>(optional)</span>
+                  </p>
+                  <input
+                    type="password"
+                    placeholder="Optional auth token for your endpoint"
+                    value={aiApiKey}
+                    onChange={(e) => setAiApiKey(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl text-sm font-mono"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb", outline: "none" }}
+                  />
+                </div>
+              )}
 
               {/* Save message */}
               {aiSaveMsg && (
@@ -836,19 +942,31 @@ export default function SettingsPage() {
                 >
                   {aiSaving ? "Saving..." : "Save Provider"}
                 </button>
-                <button
-                  onClick={handleTestAiConfig}
-                  disabled={aiTesting || !aiConfig?.hasApiKey}
-                  className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
-                  style={{
-                    background: "rgba(255,255,255,0.04)",
-                    color: aiConfig?.hasApiKey ? "#e1e2eb" : "#3c494e",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    opacity: aiTesting ? 0.7 : 1,
-                  }}
-                >
-                  {aiTesting ? "Testing..." : "Test Connection"}
-                </button>
+                {(() => {
+                  // Local providers (Ollama, LM Studio, Custom) don't require an API key —
+                  // they connect to a localhost endpoint instead. Keep Test enabled when:
+                  //   - cloud provider with stored encrypted key, OR
+                  //   - local provider (server falls back to default base URL or saved one)
+                  const cfgProvider = aiConfig?.provider ?? aiProvider;
+                  const isLocal = !!PROVIDER_LABELS[cfgProvider]?.local;
+                  const canTest = isLocal || !!aiConfig?.hasApiKey;
+                  return (
+                    <button
+                      onClick={handleTestAiConfig}
+                      disabled={aiTesting || !canTest}
+                      title={canTest ? "" : "Save provider with API key first"}
+                      className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                      style={{
+                        background: "rgba(255,255,255,0.04)",
+                        color: canTest ? "#e1e2eb" : "#3c494e",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        opacity: aiTesting ? 0.7 : 1,
+                      }}
+                    >
+                      {aiTesting ? "Testing..." : "Test Connection"}
+                    </button>
+                  );
+                })()}
               </div>
 
               {/* Info box */}
@@ -859,6 +977,10 @@ export default function SettingsPage() {
                 <p className="font-semibold mb-1">How it works</p>
                 <p style={{ color: "#859399" }}>
                   Your API key is encrypted with AES-256-GCM before storage. When running pipelines and building companies, agents will use your configured provider. If no key is set, the system falls back to the platform default (Anthropic Claude).
+                </p>
+                <p className="mt-2" style={{ color: "#859399" }}>
+                  <strong style={{ color: "#34d399" }}>Local-first option:</strong> point Braavolabs at <code>Ollama</code> or <code>LM Studio</code> running on your own machine — Gemma 3 4B is a good free starting point. Your prompts never leave your laptop, your usage is unlimited, and the model runs offline.
+                  {" "}<a href="/docs#local-llm" style={{ color: "#34d399", textDecoration: "underline" }}>Setup guide →</a>
                 </p>
               </div>
             </div>

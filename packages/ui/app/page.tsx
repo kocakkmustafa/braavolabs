@@ -336,7 +336,7 @@ export default function LandingPage() {
         </div>
 
         <div className="hidden md:flex" style={{ alignItems: "center", gap: 28, fontSize: 13, fontWeight: 500 }}>
-          {[["Features", "/features"], ["Pricing", "/pricing"], ["Docs", "/docs"]].map(([label, href]) => (
+          {[["Features", "/features"], ["Templates", "/marketplace"], ["Pricing", "/pricing"], ["Docs", "/docs"]].map(([label, href]) => (
             <Link
               key={label}
               href={href}
@@ -645,7 +645,7 @@ export default function LandingPage() {
             { icon: "shield", text: "SOC 2 audit in progress — Q3 2026" },
             { icon: "lock", text: "AES-256 encrypted credentials" },
             { icon: "verified", text: "Full audit trail · every tool call" },
-            { icon: "speed", text: "99.9% uptime SLA" },
+            { icon: "computer", text: "Run 100% local with Ollama + Gemma" },
           ].map((badge) => (
             <div key={badge.text} style={{ display: "flex", alignItems: "center", gap: 6, transition: "color 0.3s" }}
               onMouseEnter={(e) => e.currentTarget.style.color = "#a4e6ff"}
@@ -669,7 +669,7 @@ export default function LandingPage() {
             <span className="hidden sm:inline" style={{ fontSize: 10, color: "#3c494e", marginLeft: 8 }}>&copy; 2026 All rights reserved.</span>
           </div>
           <div className="hidden sm:flex" style={{ gap: 20, fontSize: 11 }}>
-            {[["Features", "/features"], ["Pricing", "/pricing"], ["Privacy", "/privacy"], ["Terms", "/terms"]].map(([l, h]) => (
+            {[["Features", "/features"], ["Templates", "/marketplace"], ["Pricing", "/pricing"], ["Docs", "/docs"], ["Privacy", "/privacy"], ["Terms", "/terms"]].map(([l, h]) => (
               <Link key={l} href={h} style={{ color: "#3c494e", textDecoration: "none", transition: "color 0.2s" }}
                 onMouseEnter={(e) => e.currentTarget.style.color = "#859399"}
                 onMouseLeave={(e) => e.currentTarget.style.color = "#3c494e"}

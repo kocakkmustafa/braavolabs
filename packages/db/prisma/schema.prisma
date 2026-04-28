@@ -37,6 +37,12 @@ model UserAIConfig {
   provider        AIProvider @default(ANTHROPIC)
   model           String     @default("claude-sonnet-4-20250514")
   encryptedApiKey String?    @map("encrypted_api_key") @db.Text
+  // Custom base URL — used by OLLAMA / LMSTUDIO / CUSTOM providers and
+  // optionally by OPENAI for proxies (Azure, OpenRouter-via-OpenAI-shim,
+  // LiteLLM, Together, etc). Default per-provider is hardcoded in
+  // ai-client.ts; this column is the user override. Empty/NULL means
+  // fall back to the provider's default base URL.
+  baseUrl         String?    @map("base_url") @db.Text
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
 
@@ -685,6 +691,13 @@ enum AIProvider {
   MISTRAL
   GROQ
   OPENROUTER
+  // OLLAMA + LMSTUDIO + CUSTOM are OpenAI-compatible local/self-hosted
+  // endpoints. The user supplies a baseUrl pointing at their own server
+  // (Ollama default: http://localhost:11434/v1). Free, private, runs on
+  // the user's hardware — Gemma 2/3, Llama 3, Qwen, DeepSeek, etc.
+  OLLAMA
+  LMSTUDIO
+  CUSTOM
 }
 
 // ─── A/B TESTING ───────────────────────────────────────

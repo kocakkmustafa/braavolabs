@@ -2,12 +2,20 @@
  * Unified AI Client — routes to the correct provider based on tenant config.
  *
  * Supported providers:
- *   ANTHROPIC   — @anthropic-ai/sdk (already installed)
+ *   ANTHROPIC   — @anthropic-ai/sdk
  *   OPENAI      — fetch → api.openai.com (Chat Completions)
  *   GOOGLE      — fetch → generativelanguage.googleapis.com (Gemini)
  *   MISTRAL     — fetch → api.mistral.ai (OpenAI-compatible)
  *   GROQ        — fetch → api.groq.com (OpenAI-compatible)
  *   OPENROUTER  — fetch → openrouter.ai (OpenAI-compatible)
+ *   OLLAMA      — fetch → user-supplied URL (default localhost:11434/v1) — local Gemma/Llama
+ *   LMSTUDIO    — fetch → user-supplied URL (default localhost:1234/v1)  — LM Studio server
+ *   CUSTOM      — fetch → user-supplied URL — any OpenAI-compatible endpoint (LiteLLM, Together, vLLM, etc)
+ *
+ * The last three are "local-first" — they don't require an API key and
+ * the user controls the endpoint. Cost = $0 (own hardware) and full
+ * data privacy. The `apiKey` field is optional for these (some local
+ * setups still want a token for auth).
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -17,13 +25,27 @@ import { encrypt, decrypt } from "../lib/encryption";
 
 // ─── Types ────────────────────────────────────────────────
 
-export type AIProviderType = "ANTHROPIC" | "OPENAI" | "GOOGLE" | "MISTRAL" | "GROQ" | "OPENROUTER";
+export type AIProviderType =
+  | "ANTHROPIC"
+  | "OPENAI"
+  | "GOOGLE"
+  | "MISTRAL"
+  | "GROQ"
+  | "OPENROUTER"
+  | "OLLAMA"
+  | "LMSTUDIO"
+  | "CUSTOM";
+
+/** Providers that only require a base URL (no API key). */
+export const LOCAL_PROVIDERS: ReadonlySet<AIProviderType> = new Set(["OLLAMA", "LMSTUDIO", "CUSTOM"]);
 
 export interface AIClientConfig {
   provider: AIProviderType;
   model: string;
-  /** Plaintext API key (decrypt before passing in) */
+  /** Plaintext API key (decrypt before passing in). Optional for local providers. */
   apiKey: string;
+  /** Override base URL (used by OLLAMA / LMSTUDIO / CUSTOM, optional for OPENAI proxies). */
+  baseUrl?: string;
 }
 
 export interface ChatMessage {
@@ -48,10 +70,19 @@ export const PROVIDER_DEFAULT_MODELS: Record<AIProviderType, string> = {
   MISTRAL:    "mistral-large-latest",
   GROQ:       "llama-3.3-70b-versatile",
   OPENROUTER: "openai/gpt-4o",
+  // Local-first defaults — Gemma 3 4B is the sweet spot for 16GB MacBooks
+  // (runs at ~30 tok/s, ~3GB RAM footprint, beats Llama 3.2 3B on agents).
+  OLLAMA:     "gemma3:4b",
+  LMSTUDIO:   "google/gemma-3-4b-it",
+  CUSTOM:     "gpt-4o",
 };
 
 // Valid Anthropic model IDs as of 2026-04. Invalid IDs like
 // "claude-opus-4-6" and "claude-sonnet-4-6" removed (they return 400 from API).
+//
+// Local provider model lists are *suggestions* — the actual catalogue is
+// whatever the user has pulled into their Ollama/LM Studio instance. The
+// UI lets them type any tag.
 export const PROVIDER_MODELS: Record<AIProviderType, string[]> = {
   ANTHROPIC:  ["claude-opus-4-20250514", "claude-sonnet-4-5-20250929", "claude-sonnet-4-20250514", "claude-haiku-4-5-20251001"],
   OPENAI:     ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "o1-mini"],
@@ -59,13 +90,39 @@ export const PROVIDER_MODELS: Record<AIProviderType, string[]> = {
   MISTRAL:    ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest", "open-mistral-7b"],
   GROQ:       ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
   OPENROUTER: ["openai/gpt-4o", "anthropic/claude-sonnet-4-5", "meta-llama/llama-3.3-70b-instruct", "google/gemini-pro-1.5"],
+  OLLAMA:     ["gemma3:4b", "gemma3:12b", "gemma3:27b", "llama3.2:3b", "llama3.3:70b", "qwen2.5:14b", "qwen2.5-coder:14b", "deepseek-r1:8b", "phi3:14b"],
+  LMSTUDIO:   ["google/gemma-3-4b-it", "google/gemma-3-12b-it", "meta-llama/llama-3.2-3b-instruct", "qwen/qwen2.5-14b-instruct"],
+  CUSTOM:     [],
 };
 
+/** Default base URLs. ANTHROPIC + GOOGLE use SDK / dedicated REST and have
+ * no chat-completions URL here. Local providers default to localhost. */
 export const PROVIDER_BASE_URLS: Record<Exclude<AIProviderType, "ANTHROPIC" | "GOOGLE">, string> = {
   OPENAI:     "https://api.openai.com/v1",
   MISTRAL:    "https://api.mistral.ai/v1",
   GROQ:       "https://api.groq.com/openai/v1",
   OPENROUTER: "https://openrouter.ai/api/v1",
+  OLLAMA:     "http://localhost:11434/v1",
+  LMSTUDIO:   "http://localhost:1234/v1",
+  CUSTOM:     "",  // user must supply
+};
+
+/** Human-friendly provider summary used by /docs and the Settings UI. */
+export const PROVIDER_INFO: Record<AIProviderType, {
+  label: string;
+  cost: "free" | "byok-cloud" | "byok-local";
+  privacy: "cloud" | "local";
+  setupHint: string;
+}> = {
+  ANTHROPIC:  { label: "Anthropic Claude", cost: "byok-cloud", privacy: "cloud", setupHint: "Get key at console.anthropic.com" },
+  OPENAI:     { label: "OpenAI",            cost: "byok-cloud", privacy: "cloud", setupHint: "Get key at platform.openai.com" },
+  GOOGLE:     { label: "Google Gemini",     cost: "byok-cloud", privacy: "cloud", setupHint: "Get key at aistudio.google.com" },
+  MISTRAL:    { label: "Mistral",           cost: "byok-cloud", privacy: "cloud", setupHint: "Get key at console.mistral.ai" },
+  GROQ:       { label: "Groq (fast Llama)", cost: "byok-cloud", privacy: "cloud", setupHint: "Get key at console.groq.com — fastest cloud inference" },
+  OPENROUTER: { label: "OpenRouter (any model)", cost: "byok-cloud", privacy: "cloud", setupHint: "openrouter.ai — single key, 100+ models" },
+  OLLAMA:     { label: "Ollama (local Gemma)",   cost: "free",       privacy: "local", setupHint: "Install ollama.com → run `ollama pull gemma3:4b` → set base URL to http://localhost:11434/v1" },
+  LMSTUDIO:   { label: "LM Studio (local)",      cost: "free",       privacy: "local", setupHint: "Install lmstudio.ai → load Gemma 3 4B → start server → use http://localhost:1234/v1" },
+  CUSTOM:     { label: "Custom OpenAI-compatible", cost: "byok-local", privacy: "local", setupHint: "Any OpenAI-compatible endpoint (LiteLLM, vLLM, Together, etc)" },
 };
 
 // ─── Anthropic implementation ─────────────────────────────
@@ -106,7 +163,17 @@ async function callOpenAICompatible(
   messages: ChatMessage[],
   maxTokens: number,
 ): Promise<ChatCompletionResult> {
-  const baseUrl = PROVIDER_BASE_URLS[config.provider as keyof typeof PROVIDER_BASE_URLS];
+  // Resolve base URL: tenant-supplied override (Settings → AI Provider →
+  // Custom base URL) wins over the per-provider hardcoded default. This
+  // is what makes OLLAMA / LMSTUDIO / CUSTOM work — those providers don't
+  // talk to a SaaS endpoint, they hit whatever URL the user pointed at.
+  const defaultUrl = PROVIDER_BASE_URLS[config.provider as keyof typeof PROVIDER_BASE_URLS];
+  const baseUrl = (config.baseUrl?.trim() || defaultUrl || "").replace(/\/+$/, "");
+  if (!baseUrl) {
+    throw new Error(
+      `${config.provider} requires a base URL. Set it in Settings → AI Provider.`,
+    );
+  }
 
   const requestMessages = [
     { role: "system", content: systemPrompt },
@@ -115,8 +182,15 @@ async function callOpenAICompatible(
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "Authorization": `Bearer ${config.apiKey}`,
   };
+
+  // Local providers (Ollama, LM Studio) often run without auth — only
+  // attach Authorization if the user supplied a key. Cloud providers
+  // (OpenAI / Mistral / Groq / OpenRouter / Custom-cloud) require it
+  // and the API call will fail with 401 if missing — that's fine.
+  if (config.apiKey) {
+    headers["Authorization"] = `Bearer ${config.apiKey}`;
+  }
 
   // OpenRouter requires additional headers
   if (config.provider === "OPENROUTER") {
@@ -124,15 +198,45 @@ async function callOpenAICompatible(
     headers["X-Title"] = "Braavolabs";
   }
 
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      model: config.model,
-      messages: requestMessages,
-      max_tokens: maxTokens,
-    }),
-  });
+  // Local providers can be slow on the first request (model load into
+  // RAM) — give them a generous timeout. Cloud providers should respond
+  // in <60s; if they don't something else is wrong.
+  const timeoutMs = LOCAL_PROVIDERS.has(config.provider) ? 240_000 : 60_000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: config.model,
+        messages: requestMessages,
+        max_tokens: maxTokens,
+      }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timer);
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error(
+        `${config.provider} timeout after ${timeoutMs / 1000}s. ` +
+          (LOCAL_PROVIDERS.has(config.provider)
+            ? "Local model may need to load — increase timeout or pre-warm with a small request."
+            : "Provider unreachable."),
+      );
+    }
+    if (LOCAL_PROVIDERS.has(config.provider)) {
+      const e = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `${config.provider} unreachable at ${baseUrl}: ${e}. ` +
+          "Verify the local server is running (e.g. `ollama serve`) and reachable from this machine.",
+      );
+    }
+    throw err;
+  }
+  clearTimeout(timer);
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => "unknown error");
@@ -145,8 +249,11 @@ async function callOpenAICompatible(
 
   return {
     content,
-    inputTokens: usage.prompt_tokens ?? 0,
-    outputTokens: usage.completion_tokens ?? 0,
+    // Ollama returns prompt_eval_count / eval_count in /api/chat but the
+    // /v1/chat/completions OpenAI-shim populates prompt_tokens /
+    // completion_tokens. Some local servers omit usage entirely → 0.
+    inputTokens: usage.prompt_tokens ?? usage.prompt_eval_count ?? 0,
+    outputTokens: usage.completion_tokens ?? usage.eval_count ?? 0,
     model: config.model,
     provider: config.provider,
   };
@@ -228,6 +335,12 @@ export async function chatCompletion(
     case "MISTRAL":
     case "GROQ":
     case "OPENROUTER":
+    // Local-first / self-hosted — same OpenAI Chat Completions wire format,
+    // user-supplied baseUrl resolves to localhost or any LiteLLM-style
+    // proxy. apiKey is optional (Ollama default = no auth).
+    case "OLLAMA":
+    case "LMSTUDIO":
+    case "CUSTOM":
       return callOpenAICompatible(config, systemPrompt, messages.filter((m) => m.role !== "system"), maxTokens);
 
     default:
@@ -249,16 +362,34 @@ export async function getTenantAIConfig(tenantId: string): Promise<AIClientConfi
     where: { tenantId },
   });
 
-  if (aiConfig?.encryptedApiKey) {
-    try {
-      const apiKey = decrypt(aiConfig.encryptedApiKey);
+  if (aiConfig) {
+    const provider = aiConfig.provider as AIProviderType;
+    const isLocal = LOCAL_PROVIDERS.has(provider);
+    // Local providers don't need an API key (Ollama default = no auth).
+    // Cloud providers do; fall through to the system default if missing.
+    if (isLocal || aiConfig.encryptedApiKey) {
+      let apiKey = "";
+      if (aiConfig.encryptedApiKey) {
+        try {
+          apiKey = decrypt(aiConfig.encryptedApiKey);
+        } catch (err) {
+          logger.warn({ tenantId, err }, "Failed to decrypt tenant AI key — proceeding without it (local provider) or falling back to system default");
+          if (!isLocal) {
+            // Cloud provider with corrupted key → fall through.
+            // (Behavior unchanged from pre-2026-04-28.)
+            // … fall through past this if block.
+          }
+        }
+      }
       return {
-        provider: aiConfig.provider as AIProviderType,
+        provider,
         model: aiConfig.model,
         apiKey,
+        // Tenant-supplied custom base URL (Settings UI). Empty → adapter
+        // falls back to PROVIDER_BASE_URLS default (e.g. localhost:11434
+        // for Ollama). Trim to avoid trailing-slash double-slash issues.
+        baseUrl: aiConfig.baseUrl?.trim() || undefined,
       };
-    } catch (err) {
-      logger.warn({ tenantId, err }, "Failed to decrypt tenant AI key — falling back to system default");
     }
   }
 
@@ -274,18 +405,22 @@ export async function getTenantAIConfig(tenantId: string): Promise<AIClientConfi
   };
 }
 
-/** Encrypt and save tenant AI config. */
+/** Encrypt and save tenant AI config. baseUrl is optional and only set
+ * when present (used by OLLAMA / LMSTUDIO / CUSTOM, plus rare cases like
+ * Azure-OpenAI proxies). apiKey is optional for local providers. */
 export async function saveTenantAIConfig(
   tenantId: string,
   provider: AIProviderType,
   model: string,
   apiKey: string,
+  baseUrl?: string,
 ): Promise<void> {
-  const encryptedApiKey = encrypt(apiKey);
+  const encryptedApiKey = apiKey ? encrypt(apiKey) : null;
+  const trimmedBaseUrl = baseUrl?.trim() || null;
 
   await prisma.userAIConfig.upsert({
     where: { tenantId },
-    update: { provider, model, encryptedApiKey },
-    create: { tenantId, provider, model, encryptedApiKey },
+    update: { provider, model, encryptedApiKey, baseUrl: trimmedBaseUrl },
+    create: { tenantId, provider, model, encryptedApiKey, baseUrl: trimmedBaseUrl },
   });
 }
