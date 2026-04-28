@@ -127,6 +127,16 @@ ${PRIMITIVES.map((p) => `- **${p.id}**: ${p.description}`).join("\n")}
 - What pipelines to set up (name, trigger, steps)
 - Target channels/platforms if applicable
 
+## Naming Rule (STRICT)
+The company "name" field MUST be 2–4 words. Never echo the description verbatim.
+Pick a punchy noun phrase that captures the topic.
+- BAD:  "A simple TikTok content factory for indie game devs"
+- GOOD: "Indie Game TikTok Studio"
+- BAD:  "Build me a B2B SaaS sales agent that books demos"
+- GOOD: "B2B Demo Booker"
+If the user provided an explicit name (e.g. "called X" or "named X"), use that as-is.
+Title-case the result. No trailing period.
+
 ## Clarification Rules
 - Ask AT MOST ${MAX_CLARIFICATION_TURNS} rounds of questions
 - Group related questions together
@@ -188,6 +198,75 @@ setInterval(() => {
 }, 5 * 60 * 1000);
 
 /**
+ * Pull a usable 2-4 word company name out of a freeform description without
+ * calling the LLM. Used only when the LLM call fails — the LLM does a much
+ * better job when it succeeds. Tested cases:
+ *   "A TikTok content factory for indie game devs"
+ *     → "TikTok Content Factory"     (topic-noun + descriptor)
+ *   "Build me a B2B SaaS sales agent called CloseBot"
+ *     → "CloseBot"                   (named regex)
+ *   "social media management for skincare brands"
+ *     → "Social Media Management"    (title-case first 3 words)
+ *   "agency"
+ *     → "Agency"                     (single word fallback)
+ */
+export function extractFallbackCompanyName(description: string): string {
+  const trimmed = description.trim();
+  if (!trimmed) return "My AI Company";
+
+  // 1) "called X" / "named X" / "company: X" — capture up to 4 words.
+  const namedRe = /(?:\b(?:called|named|company[:\s]+)\b)\s*["']?([A-Za-z0-9][A-Za-z0-9 .&-]{1,40}?)["']?(?:\s|[,.!?]|$)/i;
+  const namedMatch = trimmed.match(namedRe);
+  if (namedMatch?.[1]) {
+    const cand = namedMatch[1].trim().replace(/\s+/g, " ");
+    if (cand.split(" ").length <= 4) return titleCase(cand);
+  }
+
+  // 2) Topic-noun extraction. Drop stop-words and articles, keep the first
+  // 2-3 substantive tokens (length ≥ 3 chars, alphanumeric).
+  const STOP = new Set([
+    "a", "an", "the", "and", "or", "but", "for", "to", "of", "in", "on",
+    "with", "without", "is", "are", "be", "build", "create", "make", "set",
+    "up", "get", "let", "run", "want", "need", "would", "should", "i", "we",
+    "my", "our", "your", "you", "me", "us", "this", "that", "these", "those",
+    "simple", "small", "quick", "easy", "good", "great", "nice", "best",
+    "kind", "sort", "type", "thing", "stuff", "company",
+  ]);
+  const tokens = trimmed
+    .replace(/[^\w\s'-]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 2 && !STOP.has(w.toLowerCase()))
+    .slice(0, 4);
+
+  if (tokens.length >= 2) {
+    // Prefer 3 tokens when they fit comfortably, else 2.
+    const pick = tokens.slice(0, tokens.length >= 3 ? 3 : 2);
+    return titleCase(pick.join(" "));
+  }
+
+  if (tokens.length === 1) return titleCase(tokens[0]);
+
+  // 3) Last resort — first up-to-3 raw words, title-cased.
+  const raw = trimmed.split(/\s+/).slice(0, 3).join(" ");
+  return raw ? titleCase(raw) : "My AI Company";
+}
+
+function titleCase(s: string): string {
+  return s
+    .split(/(\s+)/)
+    .map((part) =>
+      /^\s+$/.test(part)
+        ? part
+        : part.length <= 2 && part.toUpperCase() === part
+          ? part // keep ALLCAPS short tokens (TR, AI, B2B)
+          : part.charAt(0).toUpperCase() + part.slice(1).toLowerCase(),
+    )
+    .join("")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+/**
  * Start a new company building session from freeform text.
  */
 export async function startBuildSession(
@@ -230,9 +309,15 @@ export async function startBuildSession(
     parsed = parseBuilderResponse(assistantText);
   } catch (err) {
     logger.warn({ err }, "Claude API unavailable — using fallback company spec");
-    // Extract a rough name from the description
-    const nameMatch = description.match(/(?:called|named|company[:\s]+)\s*["']?([A-Za-z0-9 ]+)["']?/i);
-    const fallbackName = nameMatch?.[1]?.trim() ?? description.slice(0, 40).trim();
+    // Extract a useful 2-4 word company name from the description without
+    // an LLM. Three strategies, in order of preference:
+    //   1. Explicit "called/named X" or "<X> company" regex
+    //   2. First topic-noun + descriptor combo (e.g. "TikTok content factory"
+    //      from "A TikTok content factory for indie game devs")
+    //   3. Title-cased first 3 meaningful words (skip stop-words)
+    // Previously this just sliced the first 40 chars producing things like
+    // "A simple TikTok content factory for indi" with a mid-word cut.
+    const fallbackName = extractFallbackCompanyName(description);
     const fallbackSpec = {
       ready: true,
       company: {

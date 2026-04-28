@@ -11,10 +11,18 @@ import Link from "next/link";
  * the values defined below — analytics integrations downstream can read
  * this to gate their loaders.
  *
- * Bağımlılık YOK — react-cookie-consent gibi paketlerin tek yaptığı bu
- * 30 satır + persistence; in-tree tutmak bundle size'ı koruyor.
+ * Locale-aware: shows Turkish copy when the visitor's browser locale starts
+ * with "tr" OR Cloudflare's CF-IPCountry cookie reports TR; otherwise
+ * English (matching the page's <html lang="en">). The banner element gets
+ * a matching `lang` attribute so screen readers pronounce it correctly.
+ * Earlier the banner was always Turkish on a lang="en" page — a real
+ * WCAG 3.1.2 (Language of Parts) failure plus cognitive-load tax for
+ * non-Turkish visitors.
+ *
+ * No dependency — react-cookie-consent only adds 30 lines on top of this.
  */
 type Consent = "accepted" | "essential-only";
+type Locale = "en" | "tr";
 const STORAGE_KEY = "cookie_consent";
 
 export function getCookieConsent(): Consent | null {
@@ -27,12 +35,82 @@ export function getCookieConsent(): Consent | null {
   }
 }
 
+function detectLocale(): Locale {
+  if (typeof window === "undefined") return "en";
+  // 1) Cloudflare geo cookie wins — covers Turkish visitors with English
+  // browsers (common: tech-fluent founders running EN UI but in Türkiye).
+  try {
+    const cookies = document.cookie.split(";").map((c) => c.trim());
+    const cf = cookies.find(
+      (c) => c.toLowerCase().startsWith("cf_country=") || c.toLowerCase().startsWith("cf-ipcountry="),
+    );
+    if (cf && cf.toUpperCase().includes("=TR")) return "tr";
+  } catch {
+    /* ignore */
+  }
+  // 2) navigator.language fallback
+  try {
+    const lang = (navigator.language || (navigator as any).userLanguage || "en").toLowerCase();
+    return lang.startsWith("tr") ? "tr" : "en";
+  } catch {
+    return "en";
+  }
+}
+
+const COPY: Record<Locale, {
+  title: string;
+  body: (privacyLabel: string) => React.ReactNode;
+  privacyLabel: string;
+  acceptAll: string;
+  essentialOnly: string;
+  ariaLabel: string;
+}> = {
+  en: {
+    title: "Cookies & privacy",
+    body: (privacyLabel) => (
+      <>
+        Braavolabs uses essential cookies for session and security. Optional
+        anonymous analytics help us improve the product — no personal data is
+        collected, IP addresses are redacted.{" "}
+        <Link href="/privacy" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
+          {privacyLabel}
+        </Link>
+        .
+      </>
+    ),
+    privacyLabel: "Privacy Policy",
+    acceptAll: "Accept all",
+    essentialOnly: "Essential only",
+    ariaLabel: "Cookie consent",
+  },
+  tr: {
+    title: "Çerezler hakkında",
+    body: (privacyLabel) => (
+      <>
+        Braavolabs, oturum yönetimi ve servis güvenliği için zorunlu çerezler
+        kullanır. İstersen anonim kullanım analitiğine de izin verebilirsin —
+        kişisel veri toplamayız, IP'ler bile redact'lenir.{" "}
+        <Link href="/privacy" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
+          {privacyLabel}
+        </Link>
+        .
+      </>
+    ),
+    privacyLabel: "Gizlilik Politikası",
+    acceptAll: "Hepsini kabul et",
+    essentialOnly: "Sadece zorunlu olanlar",
+    ariaLabel: "Çerez tercihleri",
+  },
+};
+
 export default function CookieConsent() {
   // null = not decided yet → show banner; string = decided → hide.
   const [consent, setConsent] = useState<Consent | null | "loading">("loading");
+  const [locale, setLocale] = useState<Locale>("en");
 
   useEffect(() => {
     setConsent(getCookieConsent());
+    setLocale(detectLocale());
   }, []);
 
   // SSR + first hydrate → render nothing to avoid layout flash. Real
@@ -48,11 +126,15 @@ export default function CookieConsent() {
     setConsent(choice);
   }
 
+  const copy = COPY[locale];
+
   return (
     <div
       role="dialog"
-      aria-label="Cookie consent"
+      aria-modal="false"
+      aria-labelledby="cookie-consent-title"
       aria-live="polite"
+      lang={locale}
       style={{
         position: "fixed",
         bottom: 16,
@@ -74,21 +156,13 @@ export default function CookieConsent() {
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div>
-          <p style={{ margin: 0, color: "#e1e2eb", fontWeight: 600, marginBottom: 4 }}>
-            Çerezler hakkında
+          <p
+            id="cookie-consent-title"
+            style={{ margin: 0, color: "#e1e2eb", fontWeight: 600, marginBottom: 4 }}
+          >
+            {copy.title}
           </p>
-          <p style={{ margin: 0 }}>
-            Braavolabs, oturum yönetimi ve servis güvenliği için zorunlu çerezler
-            kullanır. İstersen anonim kullanım analitiğine de izin verebilirsin —
-            kişisel veri toplamayız, IP'ler bile redact'lenir.{" "}
-            <Link
-              href="/privacy"
-              style={{ color: "#a4e6ff", textDecoration: "underline" }}
-            >
-              Gizlilik Politikası
-            </Link>
-            .
-          </p>
+          <p style={{ margin: 0 }}>{copy.body(copy.privacyLabel)}</p>
         </div>
         <div
           style={{
@@ -101,34 +175,38 @@ export default function CookieConsent() {
           <button
             type="button"
             onClick={() => decide("essential-only")}
+            aria-label={copy.essentialOnly}
             style={{
-              padding: "8px 14px",
+              padding: "10px 16px",
+              minHeight: 44,
               borderRadius: 10,
               border: "1px solid rgba(255,255,255,0.1)",
               background: "rgba(255,255,255,0.04)",
               color: "#bbc9cf",
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
             }}
           >
-            Sadece zorunlu olanlar
+            {copy.essentialOnly}
           </button>
           <button
             type="button"
             onClick={() => decide("accepted")}
+            aria-label={copy.acceptAll}
             style={{
-              padding: "8px 14px",
+              padding: "10px 16px",
+              minHeight: 44,
               borderRadius: 10,
               border: "none",
               background: "linear-gradient(135deg, #00d1ff, #6d11ad)",
               color: "white",
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 700,
               cursor: "pointer",
             }}
           >
-            Hepsini kabul et
+            {copy.acceptAll}
           </button>
         </div>
       </div>

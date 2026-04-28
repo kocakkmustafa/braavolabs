@@ -677,10 +677,25 @@ html.light ::selection {
   /* ── Mobile ─────────────────────────────────────────────── */
   @media (max-width: 640px) {
     .glass-panel { border-radius: 0.75rem; }
-    button, a { min-height: 36px; }
+    /* WCAG 2.5.5 Target Size (AAA, but recommended) — 44px is the
+     * iOS HIG minimum for tappable elements. Was 36px which made
+     * dense lists / button rows mistap-prone, especially the "Run"
+     * + "Detail" pair on /pipelines and the cookie banner buttons.
+     * The :where() selector keeps specificity low so individual
+     * components can opt out (icon-only icon buttons inside dense
+     * tables stay at their own min-height). */
+    :where(button, a, [role="button"], [type="submit"], [type="button"]) {
+      min-height: 44px;
+    }
     /* iOS zooms <16px inputs on focus — keep mobile inputs at 16px to
      * suppress that. Desktop inherits the smaller text-sm scale. */
-    input, textarea, select { font-size: 16px; }
+    input, textarea, select {
+      font-size: 16px;
+      min-height: 44px;
+    }
+    /* Prevent horizontal overflow on small screens — many of our
+     * inline-flex toolbars overflow on iPhone SE. */
+    body { overflow-x: hidden; }
   }
 
   /* ── Visible focus indicators (WCAG 2.1 AA — 2.4.7 Focus Visible)

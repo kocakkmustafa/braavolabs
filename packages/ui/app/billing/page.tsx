@@ -3,12 +3,23 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
+import { PLAN_LIMITS as SHARED_PLAN_LIMITS, PLAN_LABEL } from "@ai-company-os/core";
 
-const PLAN_LIMITS: Record<string, { runs: number; companies: number; channels: string }> = {
-  FREE: { runs: 10, companies: 1, channels: "TikTok + LinkedIn" },
-  PRO: { runs: 100, companies: 5, channels: "All channels" },
-  ENTERPRISE: { runs: -1, companies: -1, channels: "All + custom" },
-};
+// Display-friendly summary per plan — pulled from the shared 5-tier source of
+// truth in @ai-company-os/core so /pricing, /settings, /billing all stay in sync.
+// Previously this file hardcoded only 3 tiers (FREE/PRO/ENTERPRISE) at $49 while
+// /pricing advertised 5 tiers ($19/$39/$99) — that mismatch caused a bait-and-
+// switch perception. One source now feeds all consumers.
+const PLAN_LIMITS: Record<string, { runs: number; companies: number; channels: string }> =
+  Object.fromEntries(
+    (Object.keys(SHARED_PLAN_LIMITS) as Array<keyof typeof SHARED_PLAN_LIMITS>).map((plan) => {
+      const l = SHARED_PLAN_LIMITS[plan];
+      const channelSummary = l.channels.length >= 7 ? "All + custom"
+        : l.channels.length >= 5 ? "All channels"
+        : `${l.channels.length} channels`;
+      return [plan, { runs: l.maxRunsPerMonth, companies: l.maxCompanies, channels: channelSummary }];
+    })
+  );
 
 export default function BillingPage() {
   const { token, hydrated } = useAuthGuard();

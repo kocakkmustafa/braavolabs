@@ -22,11 +22,21 @@ interface BillingSubscription {
   } | null;
 }
 
-const PLAN_LIMITS: Record<string, { runs: number; companies: number }> = {
-  FREE: { runs: 10, companies: 1 },
-  PRO: { runs: 100, companies: 5 },
-  ENTERPRISE: { runs: -1, companies: -1 },
-};
+// Pull plan limits from the shared 5-tier source of truth in @ai-company-os/core.
+// Earlier this file hardcoded a stale 3-tier list (FREE / PRO $49 / ENTERPRISE)
+// that disagreed with /pricing's 5-tier offer ($19 / $39 / $99). One import,
+// one source, no drift.
+import { PLAN_LIMITS as SHARED_PLAN_LIMITS, PLAN_PRICING, PLAN_LABEL, PLAN_ORDER } from "@ai-company-os/core";
+
+const PLAN_LIMITS: Record<string, { runs: number; companies: number }> = Object.fromEntries(
+  (Object.keys(SHARED_PLAN_LIMITS) as Array<keyof typeof SHARED_PLAN_LIMITS>).map((plan) => [
+    plan,
+    {
+      runs: SHARED_PLAN_LIMITS[plan].maxRunsPerMonth,
+      companies: SHARED_PLAN_LIMITS[plan].maxCompanies,
+    },
+  ])
+);
 
 const NAV_ITEMS = [
   { id: "profile",       label: "Profile",         icon: "person" },
@@ -129,7 +139,7 @@ export default function SettingsPage() {
     </div>
   );
 
-  async function handleUpgrade(plan: "PRO" | "ENTERPRISE") {
+  async function handleUpgrade(plan: "CREATOR" | "PRO" | "BUSINESS" | "ENTERPRISE") {
     setUpgradeLoading(true);
     setBillingError(null);
     try { const { url } = await api.billingCheckout(token!, plan); window.location.href = url; }
@@ -401,12 +411,31 @@ export default function SettingsPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-3 gap-4">
-              {[
-                { name: "Free", price: "$0", id: "FREE", color: "#859399", features: ["1 company", "10 runs/month", "TikTok + LinkedIn"] },
-                { name: "Pro", price: "$49/mo", id: "PRO", color: "#00d1ff", popular: true, features: ["5 companies", "Unlimited runs", "All channels", "CRM sync"] },
-                { name: "Enterprise", price: "Custom", id: "ENTERPRISE", color: "#e0b6ff", features: ["Unlimited everything", "SSO", "SLA"] },
-              ].map((plan) => (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {/* All 5 plans pulled from shared core constants — keeps /pricing
+                  and /settings in lock-step. Previously a 3-tier hardcoded list
+                  with a wrong $49 price (real PRO is $39) caused users who
+                  picked "Creator" or "Business" on /pricing to find no path to
+                  buy that tier from settings. */}
+              {PLAN_ORDER.map((id) => {
+                const limits = SHARED_PLAN_LIMITS[id];
+                const pricing = PLAN_PRICING[id];
+                const isFree = id === "FREE";
+                const isEnt = id === "ENTERPRISE";
+                const price = isFree ? "$0" : isEnt ? "Custom" : `$${pricing.monthlyUsd}/mo`;
+                const features: string[] = [
+                  limits.maxCompanies === -1 ? "Unlimited companies" : `${limits.maxCompanies} compan${limits.maxCompanies === 1 ? "y" : "ies"}`,
+                  limits.maxRunsPerMonth === -1 ? "Unlimited runs" : `${limits.maxRunsPerMonth} runs/mo`,
+                  limits.channels.length >= 7 ? "All + custom channels" : limits.channels.length >= 5 ? "All channels" : `${limits.channels.slice(0, 2).map((c) => c[0].toUpperCase() + c.slice(1)).join(" + ")}${limits.channels.length > 2 ? ` +${limits.channels.length - 2}` : ""}`,
+                  ...limits.features.includes("crm_sync") ? ["CRM sync"] : [],
+                  ...limits.features.includes("sso") ? ["SSO"] : [],
+                  ...limits.features.includes("sla") ? ["SLA"] : [],
+                  ...limits.features.includes("white_label") ? ["White-label"] : [],
+                ].slice(0, 4);
+                const color = id === "FREE" ? "#859399" : id === "CREATOR" ? "#a4e6ff" : id === "PRO" ? "#00d1ff" : id === "BUSINESS" ? "#c084fc" : "#e0b6ff";
+                const popular = id === "PRO";
+                return { name: PLAN_LABEL[id], price, id, color, popular, features };
+              }).map((plan) => (
                 <div
                   key={plan.id}
                   className="rounded-xl p-4 flex flex-col"
@@ -437,14 +466,24 @@ export default function SettingsPage() {
                     ))}
                   </ul>
                   {currentPlan !== plan.id && plan.id !== "FREE" && (
-                    <button
-                      onClick={() => handleUpgrade(plan.id as "PRO" | "ENTERPRISE")}
-                      disabled={upgradeLoading}
-                      className="w-full py-1.5 rounded-lg text-xs font-bold transition-all hover:opacity-90 disabled:opacity-50"
-                      style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", color: "white" }}
-                    >
-                      Upgrade
-                    </button>
+                    plan.id === "ENTERPRISE" ? (
+                      <a
+                        href="mailto:founder@braavolabs.com?subject=Enterprise%20plan%20inquiry"
+                        className="block w-full py-1.5 rounded-lg text-xs font-bold text-center transition-all hover:opacity-90"
+                        style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", color: "white" }}
+                      >
+                        Contact sales
+                      </a>
+                    ) : (
+                      <button
+                        onClick={() => handleUpgrade(plan.id as "CREATOR" | "PRO" | "BUSINESS")}
+                        disabled={upgradeLoading}
+                        className="w-full py-1.5 rounded-lg text-xs font-bold transition-all hover:opacity-90 disabled:opacity-50"
+                        style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", color: "white" }}
+                      >
+                        Upgrade
+                      </button>
+                    )
                   )}
                 </div>
               ))}

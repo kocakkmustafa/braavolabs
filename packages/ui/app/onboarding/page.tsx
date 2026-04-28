@@ -63,6 +63,54 @@ interface CatalogBlueprint {
   estimatedRunCost: string;
 }
 
+// Onboarding wizard state is persisted to localStorage so a refresh, browser
+// crash, or "I'll come back later" doesn't reset the user to step 0. Single
+// key holds the whole wizard snapshot; we restore on mount and write on
+// every change. Once the company is launched we delete the key.
+const ONBOARDING_DRAFT_KEY = "aicos-onboarding-draft";
+
+type OnboardingDraft = {
+  step: number;
+  description: string;
+  selectedPrimitives: string[];
+  companyName: string;
+  niche: string;
+  targetAudience: string;
+  selectedIndustry: string | null;
+  selectedUseCases: string[];
+  selectedBlueprintSlug: string | null;
+};
+
+function loadOnboardingDraft(): Partial<OnboardingDraft> | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(ONBOARDING_DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveOnboardingDraft(d: OnboardingDraft) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify(d));
+  } catch {
+    /* private mode / quota exceeded — silently ignore */
+  }
+}
+
+function clearOnboardingDraft() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(ONBOARDING_DRAFT_KEY);
+  } catch {
+    /* same — ignore */
+  }
+}
+
 export default function OnboardingPage() {
   const router = useRouter();
   const { token, hydrated } = useAuthGuard();
@@ -89,6 +137,55 @@ export default function OnboardingPage() {
   // "10 minutes to first deploy" promise doesn't break on a hidden
   // prerequisite.
   const [aiKeyConfigured, setAiKeyConfigured] = useState<boolean | null>(null);
+  // True once we've finished checking localStorage on mount; we use this to
+  // gate the autosave effect below so the first run doesn't immediately
+  // overwrite a saved draft with the empty initial state.
+  const [draftHydrated, setDraftHydrated] = useState(false);
+
+  // Restore wizard state from localStorage on mount + pull hero textarea
+  // description from sessionStorage if user typed on landing page first.
+  useEffect(() => {
+    const draft = loadOnboardingDraft();
+    if (draft) {
+      if (typeof draft.step === "number") setStep(draft.step);
+      if (typeof draft.description === "string") setDescription(draft.description);
+      if (Array.isArray(draft.selectedPrimitives)) setSelectedPrimitives(draft.selectedPrimitives);
+      if (typeof draft.companyName === "string") setCompanyName(draft.companyName);
+      if (typeof draft.niche === "string") setNiche(draft.niche);
+      if (typeof draft.targetAudience === "string") setTargetAudience(draft.targetAudience);
+      if (typeof draft.selectedIndustry === "string" || draft.selectedIndustry === null) setSelectedIndustry(draft.selectedIndustry ?? null);
+      if (Array.isArray(draft.selectedUseCases)) setSelectedUseCases(draft.selectedUseCases);
+      if (typeof draft.selectedBlueprintSlug === "string" || draft.selectedBlueprintSlug === null) setSelectedBlueprintSlug(draft.selectedBlueprintSlug ?? null);
+    } else {
+      // First-time visitor — pull the description they typed on the landing
+      // page hero textarea (if any). One-shot read: we then clear it so a
+      // returning user doesn't see a stale prompt resurface.
+      try {
+        const fromHero = sessionStorage.getItem("aicos-build-desc");
+        if (fromHero) {
+          setDescription(fromHero);
+          sessionStorage.removeItem("aicos-build-desc");
+        }
+      } catch { /* ignore */ }
+    }
+    setDraftHydrated(true);
+  }, []);
+
+  // Persist on every change (after hydration completes — see draftHydrated).
+  useEffect(() => {
+    if (!draftHydrated) return;
+    saveOnboardingDraft({
+      step,
+      description,
+      selectedPrimitives,
+      companyName,
+      niche,
+      targetAudience,
+      selectedIndustry,
+      selectedUseCases,
+      selectedBlueprintSlug,
+    });
+  }, [draftHydrated, step, description, selectedPrimitives, companyName, niche, targetAudience, selectedIndustry, selectedUseCases, selectedBlueprintSlug]);
 
   useEffect(() => {
     if (!token) return;
@@ -147,6 +244,9 @@ export default function OnboardingPage() {
         });
         setResult(res);
       }
+      // Wizard complete — clear the saved draft so a future visit doesn't
+      // restore a stale snapshot.
+      clearOnboardingDraft();
       api.onboardingStatus(token!).then(setStatus).catch(() => {});
     } catch (err) {
       setError((err as Error).message);

@@ -110,8 +110,17 @@ export const api = {
         id: string; status: string; currentPeriodEnd: string; cancelAtPeriodEnd: boolean;
       } | null;
     }>("/billing/subscription", { token }),
-  billingCheckout: (token: string, plan: "PRO" | "ENTERPRISE") =>
-    apiFetch<{ url: string }>("/billing/checkout", { method: "POST", body: JSON.stringify({ plan }), token }),
+  // Backend accepts the full 5-tier set; client signature now matches.
+  billingCheckout: (
+    token: string,
+    plan: "CREATOR" | "PRO" | "BUSINESS" | "ENTERPRISE",
+    billingPeriod: "monthly" | "yearly" = "monthly",
+  ) =>
+    apiFetch<{ url: string }>("/billing/checkout", {
+      method: "POST",
+      body: JSON.stringify({ plan, billingPeriod }),
+      token,
+    }),
   billingPortal: (token: string) =>
     apiFetch<{ url: string }>("/billing/portal", { method: "POST", token }),
 

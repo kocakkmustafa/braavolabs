@@ -31,6 +31,9 @@ interface RunStep {
 interface RunDetail {
   id: string;
   status: string;
+  /** Run-level error reason. Populated by the runner when any step fails
+   * (since the 2026-04-28 fix); previously always null on FAILED runs. */
+  error: string | null;
   costUsd: number;
   createdAt: string;
   completedAt: string | null;
@@ -252,6 +255,64 @@ export default function RunDetailPage() {
           </p>
         </div>
       </div>
+
+      {/* Run-level error banner — surfaces the failure reason at a glance so
+          users don't have to expand every step to find what broke. Backed by
+          run.error, which is now populated from the first failed step in
+          runner.ts (was previously null on FAILED runs). */}
+      {run.status === "FAILED" && run.error && (
+        <div
+          className="rounded-xl p-4 mb-6"
+          style={{
+            background: "rgba(239,68,68,0.08)",
+            border: "1px solid rgba(239,68,68,0.25)",
+          }}
+          role="alert"
+        >
+          <div className="flex items-start gap-3">
+            <span className="material-symbols-outlined flex-shrink-0 mt-0.5" style={{ fontSize: 20, color: "#f87171" }}>
+              error
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold tracking-wider mb-1" style={{ color: "#f87171" }}>
+                RUN FAILED
+              </p>
+              <p className="text-sm whitespace-pre-wrap break-words" style={{ color: "#fecaca" }}>
+                {run.error}
+              </p>
+              {/* Lightweight remediation hints — pattern-matched on common
+                  failure modes so the user knows the next click. */}
+              {run.error.toLowerCase().includes("api") && run.error.toLowerCase().includes("key") && (
+                <a
+                  href="/settings#ai_provider"
+                  className="inline-block mt-3 text-xs font-semibold underline"
+                  style={{ color: "#fca5a5" }}
+                >
+                  → Settings → AI Provider
+                </a>
+              )}
+              {run.error.toLowerCase().includes("quota") && (
+                <a
+                  href="/billing"
+                  className="inline-block mt-3 text-xs font-semibold underline"
+                  style={{ color: "#fca5a5" }}
+                >
+                  → Billing &amp; Plan
+                </a>
+              )}
+              {run.error.toLowerCase().includes("approval") && (
+                <a
+                  href="/approvals"
+                  className="inline-block mt-3 text-xs font-semibold underline"
+                  style={{ color: "#fca5a5" }}
+                >
+                  → Approvals
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Step Timeline */}
       <h2 className="text-sm font-semibold mb-4" style={{ color: "#e1e2eb" }}>Step Timeline</h2>

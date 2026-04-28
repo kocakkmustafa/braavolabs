@@ -197,10 +197,39 @@ async function checkBrandViolation(ctx: CheckContext): Promise<GovernanceCheckRe
     take: 5,
   });
 
+  // Brand-safety patterns. Multilingual coverage so Turkish-content
+  // pipelines (significant share of beta tenants) don't bypass the gate.
+  // Categories:
+  //   1. Defamation / negative competitor framing
+  //   2. Get-rich-quick / financial scam language
+  //   3. Risk-free / guaranteed-return claims (regulatory: SPK, FTC)
+  //   4. Adult / illegal solicitation
+  //   5. Hate speech / discrimination markers
+  // Patterns deliberately conservative — false positives are auto-resumable
+  // by the user via approval flow; false negatives ship spam to the world.
   const BLOCKED_PATTERNS = [
-    /\b(competitor|lawsuit|scandal)\b/i,
-    /\b(guaranteed returns|get rich)\b/i,
-    /\b(free money|no risk)\b/i,
+    // ── English ─────────────────────────────────────────────────────────
+    /\b(competitor|lawsuit|scandal|fraud|scammer)\b/i,
+    /\b(guaranteed returns?|get rich (quick|fast)|risk[\s-]?free profit)\b/i,
+    /\b(free money|no risk|easy money|passive income guarantee)\b/i,
+    /\b(buy now or miss out|act fast.*expires)\b/i,
+    /\b(cure[s]? cancer|FDA approved.*(?!by)|clinically proven)\b/i,
+    /\b(exclusive.*?one[\s-]?time only)\b/i,
+    /\b(make \$?\d+k? in \d+ (days?|weeks?))\b/i,
+
+    // ── Turkish ─────────────────────────────────────────────────────────
+    /\b(rakip|dolandırıcı|skandal|dava|hile)\b/i,
+    /\b(garanti(li)? (kazanç|kar)|risksiz (kazanç|kar))\b/i,
+    /\b(kolay para|bedava para|sıfır risk)\b/i,
+    /\b(hemen al(ma(yın)?|sın)?|kaç(ı|ır)\w* fırsat|son şans|stoklar tükeniyor)\b/i,
+    /\b(\d+ (gün|hafta|ay) içinde \d+\s*(tl|usd|\$|₺))\b/i,
+    /\b(bedava bitcoin|bedava kripto)\b/i,
+
+    // ── Hate / discriminatory markers (multilingual) ────────────────────
+    /\b(retard(ed)?|spaz|n[i1]gger|f[a4]g(g[o0]t)?|kike|chink|wetback)\b/i,
+
+    // ── Adult / explicit ────────────────────────────────────────────────
+    /\b(porn|xxx|escort service|onlyfans link)\b/i,
   ];
 
   for (const call of recentOutputs) {

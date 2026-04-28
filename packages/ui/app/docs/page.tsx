@@ -1,104 +1,554 @@
-"use client";
+import type { Metadata } from "next";
 
+export const metadata: Metadata = {
+  title: "API Documentation",
+  description:
+    "Public REST API reference for Braavolabs — auth, companies, pipelines, runs, agents, memory, billing, webhooks. JWT authentication with bearer tokens. 127 endpoints across 21 modules.",
+  alternates: { canonical: "https://braavolabs.com/docs" },
+  openGraph: {
+    title: "Braavolabs API Documentation",
+    description: "127 REST endpoints, JWT auth, webhooks, SSE streaming. Build on the autonomous company platform.",
+    type: "article",
+  },
+};
+
+/**
+ * Public API documentation page.
+ *
+ * This is the source of truth developers (Persona 4 from the launch UX audit)
+ * will hit before deciding whether to integrate. We list every public-surface
+ * endpoint with method + path + auth requirement + body shape so a procurement
+ * conversation can start without a sales call.
+ *
+ * Server-rendered (no "use client") to keep the rendered HTML crawlable —
+ * AI agents querying the docs page (ChatGPT, Claude, Perplexity) get the
+ * full content, not just a JS shell.
+ */
 export default function DocsPage() {
-  const sections = [
-    {
-      title: "Getting Started",
-      items: [
-        { label: "What is Braavolabs?", desc: "An autonomous company creation platform powered by Claude. Describe your business in plain text — AI builds and runs everything." },
-        { label: "Creating your first company", desc: "From the sidebar, click the gradient + button (\"New Company\") or open the Onboarding wizard. Type a description of your business idea. AI will ask up to 3 clarification questions, then generate agents and pipelines." },
-        { label: "Understanding primitives", desc: "Every company is built from 9 building blocks: Acquisition, Sales, Delivery, Content, Operations, Finance, Analytics, Memory, Governance." },
-      ],
-    },
-    {
-      title: "Agents & Pipelines",
-      items: [
-        { label: "How agents work", desc: "Agents are Claude-powered workers with specific roles, tools, and budgets. Each agent logs every decision with a reasoning field." },
-        { label: "Running a pipeline", desc: "Pipelines are multi-step workflows that trigger agents in sequence. They can run on a schedule (cron) or be triggered manually." },
-        { label: "Approval gates", desc: "Only spend-requiring actions need your approval. Everything else runs autonomously. Check the Approvals page for pending items." },
-      ],
-    },
-    {
-      title: "Memory & Learning",
-      items: [
-        { label: "Memory lifecycle", desc: "Memories start as 'candidate', require validation before becoming 'approved', and can be 'deprecated' when outdated." },
-        { label: "Holding brain", desc: "Patterns that appear across 2+ companies can be promoted to the holding brain — shared intelligence across all your companies." },
-      ],
-    },
-    {
-      title: "Governance & Risk",
-      items: [
-        { label: "Risk stops", desc: "Built-in circuit breakers: cost anomaly (>20% budget), loop detection (5+ failed retries), spam stop (3+ unanswered contacts), brand violations." },
-        { label: "Audit log", desc: "Every action, tool call, and decision is permanently logged with actor, timestamp, reasoning, and cost." },
-      ],
-    },
-  ];
-
   return (
-    <div className="min-h-screen" style={{ background: "#0a0d14" }}>
-      <nav className="flex items-center justify-between px-6 md:px-10 py-5 max-w-[1100px] mx-auto"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+    <div className="min-h-screen" style={{ background: "#0a0d14", color: "#e1e2eb" }}>
+      <nav
+        className="flex items-center justify-between px-6 md:px-10 py-5 max-w-[1100px] mx-auto"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+      >
         <a href="/" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}>
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
+          >
             <span className="text-white font-bold text-xs">AI</span>
           </div>
-          <span className="font-headline font-bold text-sm" style={{ color: "#e1e2eb" }}>Braavolabs</span>
+          <span className="font-headline font-bold text-sm">Braavolabs</span>
         </a>
         <div className="flex items-center gap-4 text-sm" style={{ color: "#859399" }}>
           <a href="/features" className="hover:text-white transition-colors">Features</a>
           <a href="/pricing" className="hover:text-white transition-colors">Pricing</a>
-          <a href="/login" className="px-4 py-2 rounded-xl font-semibold text-white text-xs"
-            style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}>
+          <a href="/login" className="px-4 py-2 rounded-xl font-semibold text-white text-xs" style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}>
             Get Started
           </a>
         </div>
       </nav>
 
-      <div className="max-w-[780px] mx-auto px-6 py-16">
-        <div className="mb-12">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-5"
-            style={{ border: "1px solid rgba(0,209,255,0.25)", background: "rgba(0,209,255,0.06)" }}>
-            <span className="text-xs font-semibold tracking-widest" style={{ color: "#00d1ff" }}>DOCUMENTATION</span>
+      <main className="max-w-[920px] mx-auto px-6 py-12">
+        <header className="mb-10">
+          <div
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-5"
+            style={{ border: "1px solid rgba(0,209,255,0.25)", background: "rgba(0,209,255,0.06)" }}
+          >
+            <span className="text-xs font-semibold tracking-widest" style={{ color: "#00d1ff" }}>
+              API REFERENCE — v0.1.0
+            </span>
           </div>
-          <h1 className="font-headline font-extrabold mb-3"
-            style={{ fontSize: "clamp(1.8rem, 4vw, 2.5rem)", color: "#e1e2eb", lineHeight: 1.1 }}>
-            Platform Documentation
+          <h1 className="font-headline font-extrabold mb-3" style={{ fontSize: "clamp(1.8rem, 4vw, 2.5rem)", lineHeight: 1.1 }}>
+            Braavolabs REST API
           </h1>
-          <p style={{ color: "#859399" }}>Everything you need to build and run autonomous AI companies.</p>
-        </div>
+          <p style={{ color: "#bbc9cf", maxWidth: 620, lineHeight: 1.6 }}>
+            127 endpoints across 21 modules — auth, companies, pipelines, runs, agents,
+            memory, billing, webhooks. JWT bearer auth on every request. Server-Sent
+            Events for live run streaming. HMAC-signed webhooks. Generated docs at the
+            bottom show every route the production server exposes today.
+          </p>
+        </header>
 
-        <div className="space-y-10">
-          {sections.map((section) => (
-            <div key={section.title}>
-              <h2 className="font-headline font-bold text-base mb-4"
-                style={{ color: "#00d1ff", borderBottom: "1px solid rgba(0,209,255,0.1)", paddingBottom: "0.5rem" }}>
-                {section.title}
-              </h2>
-              <div className="space-y-3">
-                {section.items.map((item) => (
-                  <div key={item.label} className="p-4 rounded-xl"
-                    style={{ background: "rgba(29,32,38,0.6)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                    <p className="font-semibold text-sm mb-1" style={{ color: "#e1e2eb" }}>{item.label}</p>
-                    <p className="text-xs leading-relaxed" style={{ color: "#859399" }}>{item.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        {/* TOC */}
+        <nav aria-label="Table of contents" className="mb-12 p-5 rounded-xl" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+          <p className="font-semibold text-sm mb-3">On this page</p>
+          <ul className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm" style={{ color: "#a4e6ff" }}>
+            <li><a href="#auth" className="hover:underline">Authentication</a></li>
+            <li><a href="#base-url" className="hover:underline">Base URL & Errors</a></li>
+            <li><a href="#rate-limits" className="hover:underline">Rate Limits</a></li>
+            <li><a href="#auth-routes" className="hover:underline">Auth endpoints</a></li>
+            <li><a href="#companies-routes" className="hover:underline">Companies</a></li>
+            <li><a href="#pipelines-routes" className="hover:underline">Pipelines</a></li>
+            <li><a href="#runs-routes" className="hover:underline">Runs &amp; Steps</a></li>
+            <li><a href="#agents-routes" className="hover:underline">Agents</a></li>
+            <li><a href="#memory-routes" className="hover:underline">Memory</a></li>
+            <li><a href="#approvals-routes" className="hover:underline">Approvals</a></li>
+            <li><a href="#billing-routes" className="hover:underline">Billing</a></li>
+            <li><a href="#growth-routes" className="hover:underline">Growth &amp; Referral</a></li>
+            <li><a href="#integrations-routes" className="hover:underline">Integrations</a></li>
+            <li><a href="#webhooks" className="hover:underline">Webhooks</a></li>
+            <li><a href="#sse" className="hover:underline">SSE Streaming</a></li>
+            <li><a href="#sdk" className="hover:underline">SDK &amp; CLI</a></li>
+            <li><a href="#security" className="hover:underline">Security</a></li>
+            <li><a href="#changelog" className="hover:underline">Changelog</a></li>
+          </ul>
+        </nav>
 
-        <div className="mt-12 p-6 rounded-2xl text-center"
-          style={{ background: "rgba(0,209,255,0.05)", border: "1px solid rgba(0,209,255,0.15)" }}>
-          <p className="font-semibold mb-2" style={{ color: "#e1e2eb" }}>Ready to build?</p>
-          <p className="text-sm mb-4" style={{ color: "#859399" }}>Create your first AI company in 10 minutes.</p>
-          <a href="/login"
+        {/* === Authentication === */}
+        <Section id="auth" title="Authentication">
+          <p>
+            All requests except <code>POST /auth/login</code>, <code>POST /auth/register</code>,
+            and <code>POST /auth/forgot-password</code> require a JWT access token in the{" "}
+            <code>Authorization: Bearer &lt;token&gt;</code> header. Tokens expire in 1 hour;
+            use the refresh token to mint a new pair.
+          </p>
+          <Code language="bash">{`# Login → access + refresh token
+curl -X POST https://braavolabs.com/api/v1/auth/login \\
+  -H 'Content-Type: application/json' \\
+  -d '{"email":"you@example.com","password":"..."}'
+
+# Response
+{
+  "token":        "eyJhbGciOiJIUzI1NiIs...",  // 1h
+  "refreshToken": "eyJhbGciOiJIUzI1NiIs...",  // 7d, single-use
+  "user":   { "id": "...", "email": "...", "role": "OWNER" },
+  "tenant": { "id": "...", "name": "...", "plan": "FREE" }
+}
+
+# Authenticated request
+curl https://braavolabs.com/api/v1/companies \\
+  -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIs...'
+
+# Refresh expired access token
+curl -X POST https://braavolabs.com/api/v1/auth/refresh \\
+  -H 'Content-Type: application/json' \\
+  -d '{"refreshToken":"..."}'`}</Code>
+          <p className="text-sm" style={{ color: "#859399" }}>
+            Refresh tokens rotate on every use — the old token is revoked the moment a new pair is issued.
+            JWTs are signed with HS256 (server-side secret) and pinned to the algorithm at verification time.
+            Google OAuth is also available via <code>/auth/google/url</code>.
+          </p>
+        </Section>
+
+        {/* === Base URL & Errors === */}
+        <Section id="base-url" title="Base URL, Versioning & Errors">
+          <p>Production API base: <code>https://braavolabs.com/api/v1</code></p>
+          <p>
+            All endpoints return JSON. Errors follow this shape:
+          </p>
+          <Code language="json">{`{
+  "error": "Validation failed",
+  "message": "email: Invalid email",
+  "statusCode": 400,
+  "issues": [{ "validation": "email", "code": "invalid_string", "path": ["email"] }]
+}`}</Code>
+          <Table headers={["HTTP", "When", "Body"]}>
+            <Row>200 / 201<EOR />Success<EOR />resource (or empty for 204)</Row>
+            <Row>400<EOR />Zod validation failure<EOR /><code>{`{ error, message, issues[] }`}</code></Row>
+            <Row>401<EOR />Missing / invalid / expired JWT<EOR /><code>{`{ error: "Unauthorized" }`}</code></Row>
+            <Row>403<EOR />Authenticated but not allowed (cross-tenant, role)<EOR /><code>{`{ error: "Forbidden" }`}</code></Row>
+            <Row>404<EOR />Resource missing or hidden by tenant scope<EOR /><code>{`{ error: "Not found" }`}</code></Row>
+            <Row>429<EOR />Per-IP or per-user rate limit hit<EOR /><code>x-ratelimit-*</code> headers + <code>Retry-After</code></Row>
+            <Row>5xx<EOR />Internal — Sentry-tracked<EOR /><code>{`{ error, requestId }`}</code></Row>
+          </Table>
+        </Section>
+
+        {/* === Rate Limits === */}
+        <Section id="rate-limits" title="Rate Limits">
+          <p>
+            Buckets are per-IP for unauthenticated routes and per-user for authenticated ones.
+            Every response carries <code>x-ratelimit-limit</code> and <code>x-ratelimit-remaining</code> headers.
+          </p>
+          <Table headers={["Bucket", "Limit", "Window"]}>
+            <Row>auth (login / register / forgot)<EOR />5<EOR />15 min</Row>
+            <Row>build-start (NL company builder)<EOR />10<EOR />1 min</Row>
+            <Row>build-answer (clarification turn)<EOR />30<EOR />1 min</Row>
+            <Row>run-trigger (manual pipeline run)<EOR />30<EOR />1 min</Row>
+            <Row>natural-language-builder (pipeline-from-NL)<EOR />10<EOR />1 min</Row>
+            <Row>standard authenticated<EOR />100<EOR />1 min</Row>
+          </Table>
+          <p className="text-sm" style={{ color: "#859399" }}>
+            5 consecutive failed logins lock the account for 30 minutes (Redis-backed). Quota
+            limits per plan (free = 10 runs/month) are enforced separately at billing layer.
+          </p>
+        </Section>
+
+        {/* === Auth Routes === */}
+        <Section id="auth-routes" title="Auth endpoints">
+          <RouteList prefix="/api/v1/auth" routes={[
+            ["POST", "/register", "Public", "Create tenant + user. Body: { email, password, name, tenantName, ref? }. Returns token pair + user + tenant. Disposable email domains blocked."],
+            ["POST", "/login", "Public", "Body: { email, password }. Account lockout after 5 failures."],
+            ["POST", "/refresh", "Public", "Body: { refreshToken }. Returns new token pair, revokes old."],
+            ["POST", "/logout", "Auth", "Revokes the active refresh token."],
+            ["POST", "/forgot-password", "Public", "Body: { email }. Always returns 200 (no enumeration). Mail sent async."],
+            ["POST", "/reset-password", "Public", "Body: { token, newPassword }. Token single-use, 1h TTL."],
+            ["GET", "/google/url", "Public", "Returns Google OAuth authorization URL. State param required to bind callback."],
+            ["GET", "/google/callback", "Public", "OAuth code exchange. Find or create user. Returns token pair."],
+          ]} />
+        </Section>
+
+        {/* === Companies === */}
+        <Section id="companies-routes" title="Companies (21 endpoints)">
+          <p>An AI company is a primitive collection (Acquisition / Sales / Delivery / Content / Operations / Finance / Analytics / Memory / Governance) plus the agents that staff each.</p>
+          <RouteList prefix="/api/v1/companies" routes={[
+            ["GET", "/", "Auth", "List tenant companies."],
+            ["POST", "/", "Auth", "Create directly with full spec. Most users prefer /build for natural language."],
+            ["GET", "/:id", "Auth", "Tenant-scoped fetch."],
+            ["PATCH", "/:id", "Auth", "Update channels, status, brand voice. Strict allowlist on config."],
+            ["DELETE", "/:id", "Auth (OWNER)", "Cascade delete: pipelines + runs + agents + drafts."],
+            ["POST", "/:id/pause", "Auth", "Halt all pipelines for this company."],
+            ["POST", "/:id/resume", "Auth", "Re-enable scheduled runs."],
+            ["POST", "/build", "Auth (rate-limited 10/min)", "Body: { description }. Starts a builder session — Claude generates spec + clarification questions."],
+            ["POST", "/build/:sessionId/answer", "Auth", "Body: { answer }. Up to 3 clarification turns."],
+            ["POST", "/build/:sessionId/confirm", "Auth", "Finalizes session → real company + default pipeline."],
+            ["GET", "/build/:sessionId", "Auth", "Get current builder state."],
+            ["GET", "/:id/agents", "Auth", "List agents (one per primitive)."],
+            ["POST", "/:id/agents", "Auth", "Add a custom agent."],
+            ["PATCH", "/:companyId/agents/:agentId", "Auth", "Update prompt / role / tools / budget."],
+            ["DELETE", "/:companyId/agents/:agentId", "Auth", "Remove agent (soft-delete)."],
+            ["POST", "/:companyId/agents/:agentId/nl-edit", "Auth", "Body: { instruction }. Claude proposes a diff for the agent's system prompt."],
+            ["POST", "/:companyId/agents/:agentId/nl-edit/apply", "Auth", "Apply the proposed diff."],
+            ["GET", "/:id/activity", "Auth", "Activity log (last 100 by default)."],
+            ["GET", "/:id/contacts", "Auth", "CRM contacts created by outreach pipelines."],
+            ["GET", "/:id/deals", "Auth", "CRM deals, with stage."],
+            ["GET", "/:id/webhooks", "Auth", "Inbound webhook URLs for this company."],
+          ]} />
+        </Section>
+
+        {/* === Pipelines === */}
+        <Section id="pipelines-routes" title="Pipelines (7 endpoints)">
+          <p>A pipeline is an ordered list of steps (each runs an agent or tool). Steps with the same <code>order</code> run in parallel.</p>
+          <RouteList prefix="/api/v1/pipelines" routes={[
+            ["GET", "/", "Auth", "Filter by ?companyId. Empty array if no match."],
+            ["POST", "/", "Auth", "Create with { companyId, name, steps[], schedule? }."],
+            ["GET", "/:id", "Auth", "Pipeline detail with steps + last run."],
+            ["PATCH", "/:id", "Auth", "Update steps / schedule / enabled."],
+            ["DELETE", "/:id", "Auth", "Soft-delete + halt scheduled triggers."],
+            ["POST", "/:id/run", "Auth (rate-limited 30/min)", "Body: { input?, budget? }. Returns 201 with { id, status: 'PENDING', jobId }. Run executes async."],
+            ["POST", "/from-natural-language", "Auth (rate-limited 10/min)", "Body: { prompt }. Claude generates a pipeline draft. Caps generated steps at 8."],
+          ]} />
+        </Section>
+
+        {/* === Runs === */}
+        <Section id="runs-routes" title="Runs &amp; Steps (7 endpoints)">
+          <RouteList prefix="/api/v1/runs" routes={[
+            ["GET", "/:id", "Auth", "Run detail: { status, error, costUsd, startedAt, completedAt }. error is set on FAILED runs."],
+            ["POST", "/:id/stop", "Auth", "Halt running pipeline. Status → STOPPED."],
+            ["POST", "/:id/pause", "Auth", "Suspend; resume later."],
+            ["POST", "/:id/resume", "Auth", "Continue from where pause left off."],
+            ["GET", "/:id/stream", "Auth", "Server-Sent Events: live step state, tool calls, costs. Closes when run terminal."],
+            ["POST", "/steps/:id/rollback", "Auth", "Undo step side-effects (delete created drafts/contacts)."],
+            ["POST", "/steps/:id/rerun", "Auth", "Re-execute a single step with fresh context."],
+          ]} />
+          <Code language="bash">{`# Trigger + tail SSE stream
+curl -X POST https://braavolabs.com/api/v1/pipelines/$PIPELINE_ID/run \\
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{}'
+# → { id: "run_abc", jobId: "4", status: "PENDING" }
+
+curl -N https://braavolabs.com/api/v1/runs/run_abc/stream \\
+  -H "Authorization: Bearer $TOKEN"
+# event: step.started   data: { stepIdx: 0, name: "Generate Content" }
+# event: tool.called    data: { tool: "claude.completion", costUsd: 0.012 }
+# event: step.completed data: { stepIdx: 0, costUsd: 0.012 }
+# event: run.completed  data: { status: "COMPLETED", totalCostUsd: 0.012 }`}</Code>
+        </Section>
+
+        {/* === Memory === */}
+        <Section id="memory-routes" title="Memory (6 endpoints)">
+          <p>Memories live in the <code>candidate → approved → deprecated</code> lifecycle. Cross-company promotion requires the same pattern in 2+ companies.</p>
+          <RouteList prefix="/api/v1/memory" routes={[
+            ["POST", "/search", "Auth", "Body: { query, limit?, status? }. Hybrid semantic + keyword via pgvector."],
+            ["POST", "/", "Auth", "Write a memory item (status defaults to candidate)."],
+            ["GET", "/", "Auth", "List with filters (companyId, status, type)."],
+            ["PATCH", "/:id", "Auth", "Update status (candidate→approved with validation)."],
+            ["DELETE", "/:id", "Auth", "Soft-delete + mark deprecated."],
+            ["POST", "/edges", "Auth", "Create graph edge between two memory items."],
+          ]} />
+        </Section>
+
+        {/* === Approvals === */}
+        <Section id="approvals-routes" title="Approvals (2 endpoints)">
+          <p>Only spend-requiring tool calls trigger approvals. Claim race-safe via single SQL update.</p>
+          <RouteList prefix="/api/v1/approvals" routes={[
+            ["GET", "/", "Auth", "Filter by ?status=PENDING|APPROVED|REJECTED. Includes context (run, step, agent, cost estimate)."],
+            ["POST", "/:id/decide", "Auth", "Body: { decision: 'APPROVED' | 'REJECTED', note? }. Resumes run on approve."],
+          ]} />
+        </Section>
+
+        {/* === Agents === */}
+        <Section id="agents-routes" title="Agents (5 endpoints — also nested under /companies/:id/agents)">
+          <RouteList prefix="/api/v1/agents" routes={[
+            ["GET", "/", "Auth", "List all agents across tenant companies."],
+            ["GET", "/:id", "Auth", "Agent detail + version history."],
+            ["GET", "/:id/versions", "Auth", "All historical prompt versions (rollback target list)."],
+            ["POST", "/:id/rollback", "Auth", "Body: { versionId }. Restore an earlier prompt version."],
+            ["GET", "/:id/runs", "Auth", "Recent runs that involved this agent."],
+          ]} />
+        </Section>
+
+        {/* === Billing === */}
+        <Section id="billing-routes" title="Billing (5 endpoints)">
+          <RouteList prefix="/api/v1/billing" routes={[
+            ["GET", "/usage", "Auth", "Current period usage: runs, tool calls, drafts. With plan limits."],
+            ["GET", "/subscription", "Auth", "Stripe subscription state, period end, cancel-at-period-end."],
+            ["POST", "/checkout", "Auth", "Body: { plan: CREATOR | PRO | BUSINESS | ENTERPRISE, billingPeriod: monthly | yearly }. Returns Stripe Checkout URL."],
+            ["POST", "/portal", "Auth", "Returns Stripe customer portal URL (cancel / change card)."],
+            ["POST", "/webhook", "Stripe-only", "Stripe webhook receiver. HMAC-verified. Handles all subscription lifecycle events."],
+          ]} />
+        </Section>
+
+        {/* === Growth === */}
+        <Section id="growth-routes" title="Growth &amp; Referral (12 endpoints)">
+          <RouteList prefix="/api/v1/growth" routes={[
+            ["GET", "/pql", "Auth", "Product-Qualified-Lead score for the tenant."],
+            ["POST", "/referral", "Auth", "Generate a single-use referral code. Bonus runs on conversion."],
+            ["GET", "/referral", "Auth", "List own codes + state."],
+            ["POST", "/referral/redeem", "Auth", "Body: { code }. Apply at signup time."],
+            ["POST", "/blueprint/publish", "Auth", "Publish your company spec as a public blueprint. Goes through prompt-injection scan."],
+            ["GET", "/blueprint/:slug", "Public", "Public blueprint metadata."],
+            ["GET", "/blueprints", "Public", "List public blueprints (paginated, filterable by primitive)."],
+            ["POST", "/blueprint/:slug/clone", "Auth", "Clone someone else's blueprint into a new company."],
+            ["GET", "/blueprint/mine", "Auth", "Your own blueprints (any status)."],
+            ["DELETE", "/blueprint/:slug", "Auth", "Unpublish."],
+            ["GET", "/leaderboard", "Public", "Top blueprints by clone count."],
+            ["GET", "/stats", "Auth", "Tenant referral + blueprint stats (clones, redemptions, bonus runs)."],
+          ]} />
+        </Section>
+
+        {/* === Integrations === */}
+        <Section id="integrations-routes" title="Integrations (9 endpoints)">
+          <RouteList prefix="/api/v1/integrations" routes={[
+            ["GET", "/catalog", "Public", "200+ integration catalog: HubSpot, Slack, Notion, Linear, Discord, etc. With capability tags + status."],
+            ["GET", "/", "Auth", "Connected integrations for the active company."],
+            ["POST", "/", "Auth", "Connect: { type, credentials, companyId }. Credentials encrypted with AES-GCM."],
+            ["PATCH", "/:id", "Auth", "Update credentials / scopes."],
+            ["DELETE", "/:id", "Auth", "Disconnect (revoke OAuth token if applicable)."],
+            ["POST", "/:id/test", "Auth", "Real connection test against the provider's API. Returns latency + last-fetched timestamp."],
+            ["GET", "/oauth/:provider/url", "Auth", "Start OAuth flow."],
+            ["GET", "/oauth/:provider/callback", "Auth", "Complete OAuth — store encrypted tokens."],
+            ["POST", "/:id/refresh", "Auth", "Manually refresh OAuth access token."],
+          ]} />
+        </Section>
+
+        {/* === Webhooks === */}
+        <Section id="webhooks" title="Webhooks (Inbound)">
+          <p>External services trigger pipelines via signed webhooks. Per-company secret. HMAC-SHA256 in <code>X-Braavolabs-Signature</code>.</p>
+          <Code language="bash">{`# Example: trigger a pipeline from a 3rd-party CRM event
+curl -X POST https://braavolabs.com/hooks/<company_slug>/<event_name> \\
+  -H "Content-Type: application/json" \\
+  -H "X-Braavolabs-Signature: sha256=<hmac-hex>" \\
+  -H "X-Braavolabs-Timestamp: 1740000000" \\
+  -d '{"data": "..."}'
+
+# Signature spec
+hmac = HMAC_SHA256(
+  key   = company.webhookSecret,        // GET /companies/:id/webhooks
+  msg   = "<timestamp>." + raw_body
+)`}</Code>
+          <p className="text-sm" style={{ color: "#859399" }}>
+            Replay window: 5 minutes from <code>X-Braavolabs-Timestamp</code>. Outside the window = 401.
+            Idempotency: events with the same <code>X-Braavolabs-Idempotency-Key</code> within
+            10 minutes are deduped at the queue layer.
+          </p>
+        </Section>
+
+        {/* === SSE === */}
+        <Section id="sse" title="Server-Sent Events (Live Run Streaming)">
+          <p>
+            <code>GET /runs/:id/stream</code> opens an SSE connection. The server emits one
+            event per state change until the run reaches a terminal state (COMPLETED / FAILED /
+            STOPPED). Auto-reconnect via <code>Last-Event-ID</code> header is supported.
+          </p>
+          <Code language="javascript">{`// Browser EventSource
+const es = new EventSource(
+  \`/api/v1/runs/\${runId}/stream?token=\${jwt}\`  // EventSource doesn't support headers
+);
+es.addEventListener("step.started",   (e) => console.log("started",   JSON.parse(e.data)));
+es.addEventListener("tool.called",    (e) => console.log("tool",      JSON.parse(e.data)));
+es.addEventListener("step.completed", (e) => console.log("completed", JSON.parse(e.data)));
+es.addEventListener("step.failed",    (e) => console.log("failed",    JSON.parse(e.data)));
+es.addEventListener("run.completed",  () => es.close());
+es.addEventListener("run.failed",     () => es.close());`}</Code>
+        </Section>
+
+        {/* === SDK === */}
+        <Section id="sdk" title="SDK &amp; CLI">
+          <p>
+            No published SDK yet — the API is small enough that <code>fetch</code> covers most needs.
+            Roadmap:
+          </p>
+          <ul className="list-disc pl-5 space-y-1 text-sm" style={{ color: "#bbc9cf" }}>
+            <li><code>@braavolabs/node</code> — TypeScript SDK with typed responses (Q3 2026)</li>
+            <li><code>braavolabs-cli</code> — CLI for local dev / CI integration (Q3 2026)</li>
+            <li>Postman collection — live now, request via <a href="mailto:founder@braavolabs.com" style={{ color: "#a4e6ff" }}>founder@braavolabs.com</a></li>
+            <li>OpenAPI schema — auto-generated, available at <code>/api/v1/openapi.json</code> (in development)</li>
+          </ul>
+        </Section>
+
+        {/* === Security === */}
+        <Section id="security" title="Security">
+          <ul className="list-disc pl-5 space-y-1 text-sm" style={{ color: "#bbc9cf" }}>
+            <li>AES-256-GCM at-rest encryption for OAuth tokens, API keys, webhook secrets (scrypt-derived per-tenant key)</li>
+            <li>TLS 1.3 in transit (Cloudflare edge → origin)</li>
+            <li>JWT alg pinned to HS256 at verify time</li>
+            <li>Bcrypt cost-12 for password hashes</li>
+            <li>Account lockout after 5 failed logins (Redis-backed, IP-aware)</li>
+            <li>Login + forgot-password are timing-attack-resistant (constant-time bcrypt + async SendGrid)</li>
+            <li>Disposable email block list at signup</li>
+            <li>Multi-tenant boundary: every Prisma query scoped by tenantId middleware</li>
+            <li>Webhook signatures: HMAC-SHA256 with <code>timingSafeEqual</code>, 5-min replay window</li>
+            <li>Reports security issues: <a href="mailto:security@braavolabs.com" style={{ color: "#a4e6ff" }}>security@braavolabs.com</a> — PGP key on request</li>
+          </ul>
+        </Section>
+
+        {/* === Changelog === */}
+        <Section id="changelog" title="Changelog">
+          <Table headers={["Date", "Change"]}>
+            <Row>2026-04-28<EOR />Run.error now propagates from failed step (was null). 5-tier plan sync. Onboarding state persisted.</Row>
+            <Row>2026-04-27<EOR />Login + forgot-password timing oracle hardening. Refresh token jti rotation. CSP frame-ancestors.</Row>
+            <Row>2026-04-26<EOR />Production launch. KVKK/GDPR cookie banner. Branded welcome + reset emails. S3 backup + restore drill.</Row>
+          </Table>
+        </Section>
+
+        <div
+          className="mt-14 p-6 rounded-2xl text-center"
+          style={{ background: "rgba(0,209,255,0.05)", border: "1px solid rgba(0,209,255,0.15)" }}
+        >
+          <p className="font-semibold mb-2">Questions about the API?</p>
+          <p className="text-sm mb-4" style={{ color: "#859399" }}>
+            Reply guarantee under 24h.
+          </p>
+          <a
+            href="mailto:founder@braavolabs.com?subject=API%20documentation%20question"
             className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white"
-            style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}>
-            Start Free
+            style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
+          >
+            Email the founder
           </a>
         </div>
-      </div>
+      </main>
     </div>
   );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Helpers — kept inline so this file is self-contained.
+// ────────────────────────────────────────────────────────────────────────────
+
+function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+  return (
+    <section id={id} className="mb-12 scroll-mt-20">
+      <h2
+        className="font-headline font-bold text-lg mb-4"
+        style={{ color: "#00d1ff", borderBottom: "1px solid rgba(0,209,255,0.1)", paddingBottom: "0.5rem" }}
+      >
+        {title}
+      </h2>
+      <div className="space-y-4 text-sm" style={{ color: "#bbc9cf", lineHeight: 1.65 }}>
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function Code({ children, language }: { children: string; language: string }) {
+  return (
+    <pre
+      className="p-4 rounded-lg overflow-x-auto text-xs"
+      style={{ background: "#0d1117", border: "1px solid rgba(255,255,255,0.06)", color: "#bbc9cf", fontFamily: "ui-monospace, SFMono-Regular, monospace" }}
+      data-lang={language}
+    >
+      <code>{children}</code>
+    </pre>
+  );
+}
+
+type RouteRow = [method: string, path: string, auth: string, desc: string];
+function RouteList({ prefix, routes }: { prefix: string; routes: RouteRow[] }) {
+  return (
+    <div className="rounded-xl overflow-hidden" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+      <table className="w-full text-xs">
+        <thead style={{ background: "rgba(255,255,255,0.03)" }}>
+          <tr>
+            <th className="text-left px-3 py-2 font-semibold" style={{ color: "#859399" }}>Method</th>
+            <th className="text-left px-3 py-2 font-semibold" style={{ color: "#859399" }}>Path</th>
+            <th className="text-left px-3 py-2 font-semibold" style={{ color: "#859399" }}>Auth</th>
+            <th className="text-left px-3 py-2 font-semibold" style={{ color: "#859399" }}>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          {routes.map(([m, p, a, d]) => (
+            <tr key={`${m}-${p}`} style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+              <td className="px-3 py-2 align-top whitespace-nowrap">
+                <span
+                  className="px-2 py-0.5 rounded text-[10px] font-bold"
+                  style={{
+                    color: m === "GET" ? "#34d399" : m === "POST" ? "#00d1ff" : m === "PATCH" ? "#facc15" : m === "DELETE" ? "#fb7185" : "#bbc9cf",
+                    background: m === "GET" ? "rgba(52,211,153,0.1)" : m === "POST" ? "rgba(0,209,255,0.1)" : m === "PATCH" ? "rgba(250,204,21,0.1)" : m === "DELETE" ? "rgba(251,113,133,0.1)" : "rgba(255,255,255,0.06)",
+                  }}
+                >
+                  {m}
+                </span>
+              </td>
+              <td className="px-3 py-2 align-top whitespace-nowrap font-mono" style={{ color: "#e1e2eb" }}>
+                {prefix}
+                <span style={{ color: "#a4e6ff" }}>{p}</span>
+              </td>
+              <td className="px-3 py-2 align-top whitespace-nowrap" style={{ color: "#859399" }}>{a}</td>
+              <td className="px-3 py-2 align-top" style={{ color: "#bbc9cf" }}>{d}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function Table({ headers, children }: { headers: string[]; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl overflow-hidden" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+      <table className="w-full text-xs">
+        <thead style={{ background: "rgba(255,255,255,0.03)" }}>
+          <tr>
+            {headers.map((h) => (
+              <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "#859399" }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>{children}</tbody>
+      </table>
+    </div>
+  );
+}
+
+// Row + EOR (end-of-row column splitter) — keep table cells declarative.
+function Row({ children }: { children: React.ReactNode }) {
+  // Convert children into <td> cells split by <EOR /> markers.
+  const arr = Array.isArray(children) ? children : [children];
+  const cells: React.ReactNode[][] = [[]];
+  for (const child of arr) {
+    if (
+      typeof child === "object" &&
+      child !== null &&
+      // @ts-ignore — element check
+      child.type === EOR
+    ) {
+      cells.push([]);
+    } else {
+      cells[cells.length - 1].push(child);
+    }
+  }
+  return (
+    <tr style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+      {cells.map((c, i) => (
+        <td key={i} className="px-3 py-2 align-top" style={{ color: "#bbc9cf" }}>
+          {c}
+        </td>
+      ))}
+    </tr>
+  );
+}
+function EOR() {
+  return null;
 }

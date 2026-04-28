@@ -144,6 +144,9 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
   let totalCost = 0;
   let previousOutput: unknown = run.input;
   let failed = false;
+  // First failed step's reason — surfaces on run.error so the API and UI
+  // show *why* a run failed without forcing callers to fetch run_steps.
+  let failureReason: string | null = null;
 
   // Shared memory map — agents can write outputs for subsequent agents to read
   const sharedMemory = new Map<string, unknown>();
@@ -255,6 +258,14 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
         if (pr.status === "rejected") {
           logger.error({ runId, step: stepDef.name, err: pr.reason }, "Parallel step threw unexpectedly");
           stepFailed = true;
+          // Capture first parallel failure as the run-level reason. Multiple
+          // parallel failures are logged individually but only the first
+          // surfaces on run.error to keep the field readable.
+          if (!failureReason) {
+            failureReason = pr.reason instanceof Error
+              ? `Parallel step "${stepDef.name}" threw: ${pr.reason.message}`
+              : `Parallel step "${stepDef.name}" threw unexpectedly.`;
+          }
           continue;
         }
 
@@ -263,6 +274,9 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
 
         if (result.status === "FAILED") {
           stepFailed = true;
+          if (!failureReason) {
+            failureReason = result.reasoning ?? `Parallel step "${stepDef.name}" failed.`;
+          }
           logger.error({ runId, step: stepDef.name, reason: result.reasoning }, "Parallel step failed");
         } else {
           parallelOutputs.push(result.output);
@@ -317,6 +331,12 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
 
       if (result.status === "FAILED") {
         failed = true;
+        // Capture the failed step's reason so the run-level error field reflects
+        // why the run died — without this users see {status:"FAILED", error:null}
+        // and have no way to tell whether it was BYOK missing, governance stop,
+        // or an upstream Anthropic 429. Run.error is the single field most UI
+        // surfaces show by default.
+        failureReason = result.reasoning ?? `Step "${stepDef.name}" failed.`;
         logger.error({ runId, step: stepDef.name, reason: result.reasoning }, "Step failed");
         break;
       }
@@ -357,6 +377,11 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
       status: failed ? "FAILED" : "COMPLETED",
       output: { lastStepOutput: previousOutput } as any,
       costUsd: totalCost,
+      // Surface the first failed step's reasoning at run-level. Without this,
+      // callers see {status:"FAILED", error:null} and must fetch run_steps to
+      // learn the cause. Truncate at 500 chars — reset emails / governance
+      // stop messages tend to fit; full step output stays in run_steps.error.
+      error: failed ? (failureReason ?? "Run failed for an unspecified reason.").slice(0, 500) : null,
       completedAt: new Date(),
     },
   });
