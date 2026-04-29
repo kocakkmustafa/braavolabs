@@ -14,6 +14,7 @@ import {
   getSession,
 } from "./builder";
 import { createVersion } from "../agent/version-control";
+import { composeAgent } from "../agent/composer";
 
 export const companyRouter = Router();
 companyRouter.use(authMiddleware);
@@ -21,6 +22,8 @@ companyRouter.use(authMiddleware);
 // Expensive: freeform builder triggers Claude clarification loop (expensive tokens).
 const buildStartLimiter = rateLimit({ windowMs: 60_000, maxRequests: 5, keyPrefix: "rl:company:build" });
 const buildAnswerLimiter = rateLimit({ windowMs: 60_000, maxRequests: 20, keyPrefix: "rl:company:build:answer" });
+// Composer: one LLM round-trip per call, cheaper than build but still costs tokens.
+const agentComposeLimiter = rateLimit({ windowMs: 60_000, maxRequests: 10, keyPrefix: "rl:agent:compose" });
 
 const createSchema = z.object({
   name: z.string().min(1).max(100),
@@ -446,6 +449,67 @@ companyRouter.post("/:id/agents", async (req, res, next) => {
     });
 
     res.status(201).json(agent);
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/companies/:id/agents/compose — AI Agent Composer
+//
+// Takes a plain-English description, calls the tenant's configured LLM
+// (BYOK Anthropic / OpenAI / Gemini / Groq / Ollama / etc.), and writes
+// a complete agent (name, role, systemPrompt, tools) to the database.
+//
+// Tool whitelist is enforced — any tool name the LLM hallucinates is
+// dropped during validation, returned in `droppedTools` so the user knows.
+const agentComposeSchema = z.object({
+  description: z.string().min(10).max(4000),
+});
+
+companyRouter.post("/:id/agents/compose", agentComposeLimiter, async (req, res, next) => {
+  try {
+    const company = await prisma.company.findFirst({
+      where: { id: req.params.id, tenantId: req.auth!.tenantId },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+
+    const { description } = agentComposeSchema.parse(req.body);
+    const result = await composeAgent(req.auth!.tenantId, description);
+
+    const agent = await prisma.agent.create({
+      data: {
+        companyId: company.id,
+        name: result.agent.name,
+        role: result.agent.role,
+        systemPrompt: result.agent.systemPrompt,
+        tools: result.agent.tools as any,
+      },
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "agent.compose",
+        resource: "agent",
+        resourceId: agent.id,
+        details: {
+          companyId: company.id,
+          provider: result.provider,
+          model: result.model,
+          inputTokens: result.inputTokens,
+          outputTokens: result.outputTokens,
+          droppedTools: result.droppedTools,
+          descriptionLength: description.length,
+        },
+      },
+    });
+
+    res.status(201).json({
+      agent,
+      droppedTools: result.droppedTools,
+      provider: result.provider,
+      model: result.model,
+      tokens: { input: result.inputTokens, output: result.outputTokens },
+    });
   } catch (err) { next(err); }
 });
 

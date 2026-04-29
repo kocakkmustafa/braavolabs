@@ -215,6 +215,16 @@ export const api = {
     apiFetch<any>(`/companies/${companyId}/agents/${agentId}`, { method: "PATCH", body: JSON.stringify(data), token }),
   deleteAgent: (token: string, companyId: string, agentId: string) =>
     apiFetch<{ success: boolean }>(`/companies/${companyId}/agents/${agentId}`, { method: "DELETE", token }),
+  composeAgent: (token: string, companyId: string, description: string) =>
+    apiFetch<{
+      agent: { id: string; name: string; role: string; systemPrompt: string; tools: string[] };
+      droppedTools: string[];
+      provider: string;
+      model: string;
+      tokens: { input: number; output: number };
+    }>(`/companies/${companyId}/agents/compose`, {
+      method: "POST", body: JSON.stringify({ description }), token,
+    }),
 
   // Pipeline CRUD
   getPipeline: (token: string, id: string) =>
