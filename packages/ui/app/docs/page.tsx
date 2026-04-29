@@ -91,7 +91,7 @@ export default function DocsPage() {
             <li><a href="#webhooks" className="hover:underline">Webhooks</a></li>
             <li><a href="#sse" className="hover:underline">SSE Streaming</a></li>
             <li><a href="#sdk" className="hover:underline">SDK &amp; CLI</a></li>
-            <li><a href="#local-llm" className="hover:underline">Local LLM (Gemma)</a></li>
+            <li><a href="#local-llm" className="hover:underline">Self-hosted LLM (Gemma)</a></li>
             <li><a href="#security" className="hover:underline">Security</a></li>
             <li><a href="#changelog" className="hover:underline">Changelog</a></li>
           </ul>
@@ -389,18 +389,24 @@ es.addEventListener("run.failed",     () => es.close());`}</Code>
         </Section>
 
         {/* === Local LLM === */}
-        <Section id="local-llm" title="Local LLM — run Gemma on your laptop, free and private">
+        <Section id="local-llm" title="Self-hosted LLM — run Gemma on your own hardware (STARTER+ feature)">
           <p>
             Braavolabs is one of the few autonomous-company platforms that runs end-to-end on
             a model living on <em>your</em> machine. Point us at <code>Ollama</code> or{" "}
             <code>LM Studio</code> and every prompt, every memory, every generated draft stays
-            on your hardware. No data leaves your laptop, no per-token bill, no rate limit.
+            on your hardware. No prompt data leaves your laptop and there is no per-token LLM
+            cost — you only pay your Braavolabs subscription.
           </p>
           <p>
             <strong>Why this matters:</strong> KVKK / GDPR-sensitive workloads (legal, healthcare,
-            HR, regulated finance), founders who want a $0 token bill while iterating, agencies
-            who need to demo without exposing client data, and anyone who simply wants their
-            company to keep working when the office Wi-Fi drops.
+            HR, regulated finance), agencies that need to demo without exposing client data, teams
+            iterating heavily who don&apos;t want a per-token cloud bill on top of their plan, and
+            anyone who wants their company to keep working when the office Wi-Fi drops.
+          </p>
+          <p>
+            <strong>Plan requirement:</strong> self-hosted providers are unlocked on{" "}
+            <a href="/pricing" style={{ color: "#a4e6ff" }}>STARTER ($19/mo) and above</a>. The
+            FREE plan supports cloud BYOK only (Anthropic / OpenAI / Google etc.).
           </p>
 
           <h3 className="font-semibold mt-6 mb-2" style={{ color: "#e1e2eb" }}>
@@ -507,7 +513,7 @@ curl http://localhost:11434/v1/models
         {/* === Changelog === */}
         <Section id="changelog" title="Changelog">
           <Table headers={["Date", "Change"]}>
-            <Row>2026-04-29<EOR />Local LLM support — Ollama / LM Studio / Custom. Gemma 3 4B as the default privacy-first model. New <code>baseUrl</code> field on UserAIConfig + tenant-scoped overrides.</Row>
+            <Row>2026-04-29<EOR />Self-hosted LLM support (STARTER+) — Ollama / LM Studio / Custom OpenAI-compatible. Gemma 3 4B as the privacy-first default. New <code>baseUrl</code> field on UserAIConfig + tenant-scoped overrides.</Row>
             <Row>2026-04-28<EOR />Run.error now propagates from failed step (was null). 5-tier plan sync. Onboarding state persisted.</Row>
             <Row>2026-04-27<EOR />Login + forgot-password timing oracle hardening. Refresh token jti rotation. CSP frame-ancestors.</Row>
             <Row>2026-04-26<EOR />Production launch. KVKK/GDPR cookie banner. Branded welcome + reset emails. S3 backup + restore drill.</Row>

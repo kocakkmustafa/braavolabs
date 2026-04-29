@@ -33,6 +33,10 @@ export default function MarketplacePage() {
   const [cloneResult, setCloneResult] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
+  // Self-hosted filter — only show blueprints flagged localFriendly. Helps
+  // STARTER+ users on Ollama narrow to templates they can run end-to-end
+  // on Gemma 3 4B without burning cloud tokens.
+  const [localOnly, setLocalOnly] = useState(false);
 
   useEffect(() => {
     if (!hydrated || !token) return;
@@ -67,7 +71,8 @@ export default function MarketplacePage() {
   const filteredCatalog = catalogBlueprints.filter((b) => {
     const matchSearch = !search || b.title?.toLowerCase().includes(search.toLowerCase()) || b.description?.toLowerCase().includes(search.toLowerCase());
     const matchCategory = !selectedCategory || b.category === selectedCategory;
-    return matchSearch && matchCategory;
+    const matchLocal = !localOnly || !!b.localFriendly;
+    return matchSearch && matchCategory && matchLocal;
   });
 
   const filteredCommunity = blueprints.filter((b) =>
@@ -134,7 +139,7 @@ export default function MarketplacePage() {
           />
         </div>
         {activeTab === "catalog" && (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1 items-center">
             {CATALOG_CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
@@ -149,6 +154,18 @@ export default function MarketplacePage() {
                 {cat.label}
               </button>
             ))}
+            <button
+              onClick={() => setLocalOnly((v) => !v)}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ml-1"
+              title="Show only blueprints that run cleanly on self-hosted Gemma 3 4B"
+              style={{
+                background: localOnly ? "rgba(52,211,153,0.12)" : "rgba(255,255,255,0.04)",
+                border: `1px solid ${localOnly ? "rgba(52,211,153,0.4)" : "rgba(255,255,255,0.08)"}`,
+                color: localOnly ? "#34d399" : "#859399",
+              }}
+            >
+              ⚡ Self-hosted ready
+            </button>
           </div>
         )}
       </div>
@@ -180,13 +197,31 @@ export default function MarketplacePage() {
                           {CATEGORY_ICONS[category] ?? "auto_awesome"}
                         </span>
                       </div>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: "rgba(109,17,173,0.15)", color: "#c084fc", border: "1px solid rgba(109,17,173,0.3)" }}>
-                        TEMPLATE
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {bp.localFriendly && (
+                          <span
+                            className="text-[9px] px-2 py-0.5 rounded-full font-semibold"
+                            style={{ background: "rgba(52,211,153,0.12)", color: "#34d399", border: "1px solid rgba(52,211,153,0.3)" }}
+                            title="Runs on self-hosted Gemma 3 4B"
+                          >
+                            ⚡ LOCAL
+                          </span>
+                        )}
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: "rgba(109,17,173,0.15)", color: "#c084fc", border: "1px solid rgba(109,17,173,0.3)" }}>
+                          TEMPLATE
+                        </span>
+                      </div>
                     </div>
 
                     <h3 className="font-semibold text-sm mb-1" style={{ color: "#e1e2eb" }}>{bp.title}</h3>
-                    <p className="text-xs mb-3 flex-1 line-clamp-3" style={{ color: "#859399", lineHeight: 1.6 }}>{bp.description}</p>
+                    <p className="text-xs mb-2 flex-1 line-clamp-3" style={{ color: "#859399", lineHeight: 1.6 }}>{bp.description}</p>
+
+                    {bp.source?.label && (
+                      <p className="text-[10px] mb-3 flex items-center gap-1" style={{ color: "#5a6770" }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 11 }}>folder_open</span>
+                        {bp.source.label}
+                      </p>
+                    )}
 
                     {bp.primitives && (
                       <div className="flex flex-wrap gap-1.5 mb-3">

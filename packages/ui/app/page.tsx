@@ -645,7 +645,7 @@ export default function LandingPage() {
             { icon: "shield", text: "SOC 2 audit in progress — Q3 2026" },
             { icon: "lock", text: "AES-256 encrypted credentials" },
             { icon: "verified", text: "Full audit trail · every tool call" },
-            { icon: "computer", text: "Run 100% local with Ollama + Gemma" },
+            { icon: "computer", text: "Self-hosted Gemma support · STARTER+" },
           ].map((badge) => (
             <div key={badge.text} style={{ display: "flex", alignItems: "center", gap: 6, transition: "color 0.3s" }}
               onMouseEnter={(e) => e.currentTarget.style.color = "#a4e6ff"}

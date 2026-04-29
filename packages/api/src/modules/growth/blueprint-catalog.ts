@@ -16,6 +16,24 @@ export interface CatalogBlueprint {
   agentCount: number;
   pipelineCount: number;
   estimatedRunCost: string;
+  /**
+   * `localFriendly: true` means the blueprint runs cleanly on a small
+   * self-hosted model (Gemma 3 4B / Llama 3.2 3B). Templates that
+   * require sophisticated reasoning, long-context, or coding ability
+   * stay `localFriendly: false` (or undefined) — recommend Gemma 3 12B+
+   * or a cloud provider for those.
+   */
+  localFriendly?: boolean;
+  /**
+   * Origin attribution — when a template is derived from one of the
+   * curated repos in The Repo God, we surface that here so the
+   * marketplace card can show the lineage and link back to the
+   * upstream library.
+   */
+  source?: {
+    label: string;     // e.g. "The Repo God · claude-mem"
+    href?: string;     // optional public URL
+  };
   spec: {
     agents: Array<{
       name: string;
@@ -2791,6 +2809,616 @@ export const BLUEPRINT_CATALOG: CatalogBlueprint[] = [
       ],
     },
   },
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // REPO GOD COLLECTION — distilled from the curated agent/skill libraries in
+  // ~/Documents/YULAlabs-AI/The Repo God/. Each template borrows the
+  // proven workflow patterns from a specific upstream repo and wires them
+  // into our 9-primitive system. Most are local-friendly (run cleanly on
+  // self-hosted Gemma 3 4B) so STARTER+ users with Ollama get full value.
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ─── 43. Persistent Memory Brain (claude-mem) ───────────────────────────────
+  {
+    id: "cat-memory-brain",
+    slug: "persistent-memory-brain",
+    title: "Persistent Memory Brain",
+    description: "Şirketinizin uzun-süreli hafıza katmanı — episodic kayıtlar, semantic embeddings, candidate→approved→deprecated lifecycle. Cross-session bağlam korunur, tek örnekten genelleme yapmaz, 2+ tekrar gerektirir.",
+    category: "operations",
+    industryTags: ["Ops", "Knowledge Management", "Internal Tools"],
+    primitives: ["MEMORY", "GOVERNANCE", "ANALYTICS"],
+    agentCount: 3,
+    pipelineCount: 2,
+    estimatedRunCost: "$0.04",
+    localFriendly: true,
+    source: { label: "The Repo God · claude-mem", href: "https://github.com/" },
+    spec: {
+      config: { companyType: "memory_engine", memoryLifecycle: ["candidate", "approved", "deprecated"] },
+      agents: [
+        {
+          name: "Memory Curator",
+          role: "MEMORY",
+          systemPrompt: "You are the long-term memory curator. Every successful workflow, every learned pattern, every customer insight passes through you. Tag each memory with: type (fact|pattern|preference|incident), confidence (0-1), source-step-id, expires-at. Status starts as 'candidate'. Never auto-promote on the first observation — require ≥2 distinct sources/episodes before suggesting promotion to 'approved'. Always explain why you tagged something the way you did.",
+          tools: ["search_memory", "create_draft"],
+        },
+        {
+          name: "Pattern Detector",
+          role: "ANALYTICS",
+          systemPrompt: "You scan memory candidates daily. When the same insight appears in 2+ different runs/companies, surface it for promotion. Look for: repeated successful messaging, recurring objections, channel-time-of-day patterns, persona signals. Output is a ranked list of promotion candidates with evidence trails.",
+          tools: ["search_memory", "search_contacts"],
+        },
+        {
+          name: "Memory Janitor",
+          role: "GOVERNANCE",
+          systemPrompt: "You enforce the memory lifecycle. Mark stale 'approved' memories that haven't been hit in 60 days as 'deprecated'. Quarantine memories that fail evals. Block promotion of any memory containing PII. Report a weekly memory health digest: candidates created, approved, deprecated, contradiction count.",
+          tools: ["search_memory", "create_draft"],
+        },
+      ],
+      pipelines: [
+        {
+          name: "Daily Memory Curation",
+          trigger: "SCHEDULED",
+          schedule: "0 2 * * *",
+          steps: [
+            { name: "Tag new candidates from yesterday's runs", agentRole: "MEMORY", order: 0 },
+            { name: "Detect 2+ repeat patterns across companies", agentRole: "ANALYTICS", order: 1 },
+            { name: "Deprecate stale memories + PII guard", agentRole: "GOVERNANCE", order: 2 },
+          ],
+        },
+        {
+          name: "Weekly Memory Health Report",
+          trigger: "SCHEDULED",
+          schedule: "0 9 * * 1",
+          steps: [
+            { name: "Compile lifecycle stats + contradictions", agentRole: "GOVERNANCE", order: 0 },
+          ],
+        },
+      ],
+    },
+  },
+
+  // ─── 44. Codebase Cartographer (cartographer + serena + understand-anything)
+  {
+    id: "cat-codebase-cartographer",
+    slug: "codebase-cartographer",
+    title: "Codebase Cartographer",
+    description: "Herhangi bir GitHub reposunu analiz edip mimari haritası, dependency graph'ı, kritik dosya listesi ve onboarding dokümanı çıkartan AI tim. Yeni mühendis 1 saatte projeyi anlasın diye tasarlandı.",
+    category: "operations",
+    industryTags: ["Engineering", "DevTools", "Onboarding"],
+    primitives: ["DELIVERY", "ANALYTICS", "CONTENT", "MEMORY"],
+    agentCount: 4,
+    pipelineCount: 2,
+    estimatedRunCost: "$0.18",
+    localFriendly: false,  // Long-context / code reading benefits from Gemma 12B+
+    source: { label: "The Repo God · cartographer + serena", href: "https://github.com/" },
+    spec: {
+      config: { companyType: "code_analysis", maxFileSize: 200_000 },
+      agents: [
+        {
+          name: "Repo Scanner",
+          role: "ANALYTICS",
+          systemPrompt: "You map the structure of a code repository. Walk the tree, classify each top-level dir (source, tests, infra, docs, generated), detect the language, framework, build system, and entry points. Output a JSON skeleton: { tree, languages, frameworks, entrypoints, configFiles }.",
+          tools: ["search_memory", "create_draft"],
+        },
+        {
+          name: "Dependency Graph Builder",
+          role: "ANALYTICS",
+          systemPrompt: "Given the file tree from Repo Scanner, parse imports/requires/uses across modules. Output an adjacency list and identify hub modules (high fan-in). Flag circular dependencies. Reasoning required for every hub call.",
+          tools: ["search_memory"],
+        },
+        {
+          name: "Architecture Narrator",
+          role: "CONTENT",
+          systemPrompt: "Translate the dependency graph + file structure into a 1-page architecture narrative for new engineers. Use plain English, not buzzwords. Include: 'how a request flows through the system', 'where state lives', 'what's safe to change', 'what's load-bearing'. End with 5 'first PR ideas' an onboarding engineer could pick up.",
+          tools: ["create_draft", "generate_post"],
+        },
+        {
+          name: "Knowledge Indexer",
+          role: "MEMORY",
+          systemPrompt: "Store the cartography output as searchable memory keyed by repo URL + commit SHA. When the same repo is analyzed again, diff against the prior map and report what changed structurally. Status: candidate → approved after 2+ scans.",
+          tools: ["search_memory", "create_draft"],
+        },
+      ],
+      pipelines: [
+        {
+          name: "Repo Onboarding Map",
+          trigger: "MANUAL",
+          steps: [
+            { name: "Scan tree + classify dirs", agentRole: "ANALYTICS", order: 0 },
+            { name: "Build dependency graph", agentRole: "ANALYTICS", order: 1 },
+            { name: "Write architecture narrative", agentRole: "CONTENT", order: 2 },
+            { name: "Index for future diff", agentRole: "MEMORY", order: 3 },
+          ],
+        },
+        {
+          name: "Architecture Drift Watch",
+          trigger: "SCHEDULED",
+          schedule: "0 6 * * 1",
+          steps: [
+            { name: "Re-scan repo, diff vs last map", agentRole: "MEMORY", order: 0 },
+          ],
+        },
+      ],
+    },
+  },
+
+  // ─── 45. Spec-Driven Project Manager (ccpm + get-shit-done) ────────────────
+  {
+    id: "cat-spec-driven-pm",
+    slug: "spec-driven-project-manager",
+    title: "Spec-Driven Project Manager",
+    description: "PRD → Epic → GitHub Issue → Paralel ajan yürütme. Kullanıcının yarım sayfa ürün isteğini alır, eksik detayları sorar, sonra issue'lara böler ve paralel ajanlara dağıtır. Her issue için kabul kriteri, test planı ve PR template'i üretir.",
+    category: "operations",
+    industryTags: ["Engineering", "Product Management", "Agile"],
+    primitives: ["DELIVERY", "OPERATIONS", "GOVERNANCE", "CONTENT"],
+    agentCount: 3,
+    pipelineCount: 2,
+    estimatedRunCost: "$0.22",
+    localFriendly: false,
+    source: { label: "The Repo God · ccpm + get-shit-done", href: "https://github.com/" },
+    spec: {
+      config: { companyType: "engineering_pm", clarificationRounds: 3 },
+      agents: [
+        {
+          name: "Spec Clarifier",
+          role: "OPERATIONS",
+          systemPrompt: "You receive raw product requests and convert them into a structured PRD. If the request is ambiguous, ask up to 3 clarifying questions in batches (not one at a time). Final PRD must include: problem statement, target users, success metrics, scope (in/out), constraints, open risks. Cite which user statements informed each section.",
+          tools: ["create_draft", "search_memory"],
+        },
+        {
+          name: "Epic Decomposer",
+          role: "DELIVERY",
+          systemPrompt: "Break a PRD into atomic GitHub issues. Each issue: title (imperative <8 words), body with context + acceptance criteria + test plan + dependencies, labels, estimate (XS/S/M/L). Identify which issues can run in parallel vs sequentially. Output dependency graph as DAG.",
+          tools: ["create_draft", "generate_post"],
+        },
+        {
+          name: "Quality Gate",
+          role: "GOVERNANCE",
+          systemPrompt: "Review every issue before it leaves your hands. Reject issues that have: vague AC, no test plan, missing rollback story, or PII in examples. Track issue completion against the original PRD scope and flag scope creep within 24h.",
+          tools: ["search_memory", "create_draft"],
+        },
+      ],
+      pipelines: [
+        {
+          name: "PRD-to-Issue Sprint",
+          trigger: "MANUAL",
+          steps: [
+            { name: "Clarify spec (≤3 question rounds)", agentRole: "OPERATIONS", order: 0 },
+            { name: "Decompose into issue DAG", agentRole: "DELIVERY", order: 1 },
+            { name: "Quality-gate every issue", agentRole: "GOVERNANCE", order: 2 },
+          ],
+        },
+        {
+          name: "Daily Scope Drift Check",
+          trigger: "SCHEDULED",
+          schedule: "0 17 * * 1-5",
+          steps: [
+            { name: "Compare merged PRs vs PRD scope", agentRole: "GOVERNANCE", order: 0 },
+          ],
+        },
+      ],
+    },
+  },
+
+  // ─── 46. Real-Time Research Agent (last30days-skill) ───────────────────────
+  {
+    id: "cat-realtime-research",
+    slug: "realtime-research-agent",
+    title: "Real-Time Research Agent",
+    description: "Reddit, X, YouTube, Hacker News ve genel web'i tarayıp son 30 günün konu trendlerini, niş tartışmaları ve görüş kümelerini sentezler. Pazar araştırması, içerik fikri, rakip izleme için ideal. Citation-first çalışır.",
+    category: "marketing",
+    industryTags: ["Research", "Content", "Marketing", "Competitive Intel"],
+    primitives: ["ACQUISITION", "CONTENT", "ANALYTICS", "MEMORY"],
+    agentCount: 3,
+    pipelineCount: 2,
+    estimatedRunCost: "$0.11",
+    localFriendly: true,
+    source: { label: "The Repo God · last30days-skill", href: "https://github.com/" },
+    spec: {
+      config: { companyType: "research", sources: ["reddit", "x", "youtube", "hn", "web"], freshness: "30d" },
+      agents: [
+        {
+          name: "Trend Hunter",
+          role: "ACQUISITION",
+          systemPrompt: "You scan Reddit, X, YouTube, HN, and the open web for last-30-day chatter on a given topic. For each finding, capture: source URL, post date, engagement signal, sentiment, and a 1-sentence quote. Reject anything older than 30 days. Reject paywall-only sources without an accessible summary.",
+          tools: ["search_memory", "create_draft"],
+        },
+        {
+          name: "Theme Synthesizer",
+          role: "ANALYTICS",
+          systemPrompt: "Given a corpus of trend-hunter hits, cluster them into 3-7 themes. For each theme: name, frequency, sample-quotes (≤3), driving question. Order themes by intensity-of-discussion. Always cite source URLs in the cluster.",
+          tools: ["search_memory", "create_draft"],
+        },
+        {
+          name: "Insight Reporter",
+          role: "CONTENT",
+          systemPrompt: "Turn the synthesizer output into a 1-page market-research brief: headline, 3-5 themes with quotes and citations, 'what this means for [user's brand]', and 5 content angles to pursue. Brief must be reusable as a blog post or a sales-team memo.",
+          tools: ["create_draft", "generate_post"],
+        },
+      ],
+      pipelines: [
+        {
+          name: "Weekly Trend Brief",
+          trigger: "SCHEDULED",
+          schedule: "0 8 * * 1",
+          steps: [
+            { name: "Hunt last-30d signals", agentRole: "ACQUISITION", order: 0 },
+            { name: "Cluster into themes", agentRole: "ANALYTICS", order: 1 },
+            { name: "Write brief + content angles", agentRole: "CONTENT", order: 2 },
+          ],
+        },
+        {
+          name: "Ad-hoc Topic Scan",
+          trigger: "MANUAL",
+          steps: [
+            { name: "Scan + synthesize a single query", agentRole: "ACQUISITION", order: 0 },
+          ],
+        },
+      ],
+    },
+  },
+
+  // ─── 47. Reddit Video Producer (reddit-video-maker) ────────────────────────
+  {
+    id: "cat-reddit-video-producer",
+    slug: "reddit-video-producer",
+    title: "Reddit Video Producer",
+    description: "Yüksek-engagement Reddit gönderilerini bulur, TTS ile seslendirip TikTok/Reels/Shorts formatına dönüştüren video atölyesi. Trending altyazı, otomatik thumbnail, çoklu kanal yayını dahil.",
+    category: "content",
+    industryTags: ["Content", "Video", "Social Media", "Creator"],
+    primitives: ["ACQUISITION", "CONTENT", "OPERATIONS", "ANALYTICS"],
+    agentCount: 3,
+    pipelineCount: 2,
+    estimatedRunCost: "$0.14",
+    localFriendly: true,
+    source: { label: "The Repo God · reddit-video-maker", href: "https://github.com/" },
+    spec: {
+      config: { companyType: "video_studio", platforms: ["tiktok", "reels", "shorts"], voiceModel: "elevenlabs" },
+      agents: [
+        {
+          name: "Story Scout",
+          role: "ACQUISITION",
+          systemPrompt: "Scan Reddit for posts with high upvote velocity and emotional payoff (AITA, ProRevenge, MaliciousCompliance, etc). Filter for: minimum 1k upvotes, ≤3 days old, English, no NSFW unless explicitly requested. Score each by: hook strength (1-10), retention potential (1-10), shareability (1-10). Surface top 5 per run.",
+          tools: ["search_memory", "create_draft"],
+        },
+        {
+          name: "Script Smith",
+          role: "CONTENT",
+          systemPrompt: "Convert a Reddit post into a 60-second video script. Structure: 0-3s hook (the most shocking sentence), 3-50s payoff with light pacing edits, 50-60s CTA. Drop filler words. Add SCENE markers and PAUSE markers. Output: { hook, body, cta, runtimeSec, sceneCount }.",
+          tools: ["create_draft", "generate_post"],
+        },
+        {
+          name: "Channel Distributor",
+          role: "OPERATIONS",
+          systemPrompt: "Route the rendered video to the user's connected channels (TikTok, Reels, Shorts). Generate platform-specific captions (TikTok: hashtag-heavy, Reels: aesthetic, Shorts: keyword-rich). Schedule for the user's tested-best posting windows. Track per-channel performance and feed back to Story Scout's scoring weights.",
+          tools: ["generate_post", "create_draft", "search_memory"],
+        },
+      ],
+      pipelines: [
+        {
+          name: "Daily Video Drop",
+          trigger: "SCHEDULED",
+          schedule: "0 7 * * *",
+          steps: [
+            { name: "Score top Reddit candidates", agentRole: "ACQUISITION", order: 0 },
+            { name: "Write 60s script for the winner", agentRole: "CONTENT", order: 1 },
+            { name: "Render + distribute to all channels", agentRole: "OPERATIONS", order: 2 },
+          ],
+        },
+        {
+          name: "Weekly Performance Review",
+          trigger: "SCHEDULED",
+          schedule: "0 10 * * 1",
+          steps: [
+            { name: "Recompute scoring weights from last week", agentRole: "ACQUISITION", order: 0 },
+          ],
+        },
+      ],
+    },
+  },
+
+  // ─── 48. Mobile QA Agency (flutter-test-skill + appium-mcp) ─────────────────
+  {
+    id: "cat-mobile-qa-agency",
+    slug: "mobile-qa-agency",
+    title: "Mobile QA Agency",
+    description: "iOS ve Android uygulamaları için doğal dil ile E2E test üreten, çalıştıran ve regresyon takibi yapan QA tim. Appium tabanlı, AI-powered test seçimi, screenshot+video kayıt ile bug raporları.",
+    category: "operations",
+    industryTags: ["Engineering", "QA", "Mobile"],
+    primitives: ["DELIVERY", "ANALYTICS", "GOVERNANCE", "MEMORY"],
+    agentCount: 3,
+    pipelineCount: 2,
+    estimatedRunCost: "$0.16",
+    localFriendly: false,
+    source: { label: "The Repo God · flutter-test-skill + appium-mcp", href: "https://github.com/" },
+    spec: {
+      config: { companyType: "mobile_qa", platforms: ["ios", "android"], device: "real-device-cloud" },
+      agents: [
+        {
+          name: "Test Planner",
+          role: "DELIVERY",
+          systemPrompt: "Given a feature spec or recent commit diff, generate the smallest set of E2E tests that exercises the new behavior + critical regressions. Output Gherkin-style scenarios. Tag every test with: feature, severity, expected runtime. Skip tests that haven't failed in 90 days unless coverage demands them.",
+          tools: ["create_draft", "search_memory"],
+        },
+        {
+          name: "Test Runner",
+          role: "DELIVERY",
+          systemPrompt: "Drive Appium against iOS and Android. Capture screenshots on every step, video on failure, and full UI tree on assertion failure. Retry flaky tests up to 2× before marking failed. Output: per-test verdict (pass/fail/flaky), runtime, artifacts.",
+          tools: ["create_draft"],
+        },
+        {
+          name: "Bug Triager",
+          role: "GOVERNANCE",
+          systemPrompt: "Take failed test runs, group them by root-cause signature, and produce ready-to-file bug reports: title, repro steps, screenshots/video, expected vs actual, severity (S0-S3), and a recommended owner. Block release if any S0/S1 bug exists. Cross-reference against memory to mark known-flaky vs new bugs.",
+          tools: ["create_draft", "search_memory"],
+        },
+      ],
+      pipelines: [
+        {
+          name: "PR Smoke Test",
+          trigger: "MANUAL",
+          steps: [
+            { name: "Plan smallest covering test set", agentRole: "DELIVERY", order: 0 },
+            { name: "Run on iOS + Android", agentRole: "DELIVERY", order: 1 },
+            { name: "Triage failures into bug reports", agentRole: "GOVERNANCE", order: 2 },
+          ],
+        },
+        {
+          name: "Nightly Regression",
+          trigger: "SCHEDULED",
+          schedule: "0 1 * * *",
+          steps: [
+            { name: "Run full critical-path suite", agentRole: "DELIVERY", order: 0 },
+            { name: "Triage + escalate", agentRole: "GOVERNANCE", order: 1 },
+          ],
+        },
+      ],
+    },
+  },
+
+  // ─── 49. Knowledge Vault Manager (claudian + arscontexta) ──────────────────
+  {
+    id: "cat-knowledge-vault",
+    slug: "knowledge-vault-manager",
+    title: "Knowledge Vault Manager",
+    description: "Notlarınızı, araştırmalarınızı ve referanslarınızı three-space (self/notes/ops) yaklaşımıyla organize eder. Zettelkasten + Cornell + PARA sentezi. Otomatik etiketleme, kaynak özeti, çapraz referans önerisi.",
+    category: "operations",
+    industryTags: ["Knowledge Management", "Research", "Personal Productivity"],
+    primitives: ["MEMORY", "CONTENT", "OPERATIONS"],
+    agentCount: 3,
+    pipelineCount: 2,
+    estimatedRunCost: "$0.07",
+    localFriendly: true,
+    source: { label: "The Repo God · arscontexta + claudian", href: "https://github.com/" },
+    spec: {
+      config: { companyType: "knowledge_vault", taxonomy: ["self", "notes", "ops"] },
+      agents: [
+        {
+          name: "Note Intaker",
+          role: "MEMORY",
+          systemPrompt: "Receive raw notes, web clippings, voice memos. For each, extract: claim(s), source, date, related concepts. Tag automatically with self|notes|ops, link to existing concepts in the vault. Never lose the original — only annotate.",
+          tools: ["search_memory", "create_draft"],
+        },
+        {
+          name: "Atomic Note Writer",
+          role: "CONTENT",
+          systemPrompt: "Refactor long notes into atomic Zettelkasten cards: one idea per card, dense title, link-rich body, source citation. Use the 6 Rs pipeline (read, reflect, rewrite, reorganize, retrieve, repurpose). Suggest 2-5 outbound links per card.",
+          tools: ["create_draft", "search_memory"],
+        },
+        {
+          name: "Vault Gardener",
+          role: "OPERATIONS",
+          systemPrompt: "Run weekly vault hygiene: flag duplicate concepts, suggest merges, find orphan notes (no inbound links), mark stale claims (>180 days, no review). Output a maintenance checklist for the user. Never delete anything — only suggest.",
+          tools: ["search_memory", "create_draft"],
+        },
+      ],
+      pipelines: [
+        {
+          name: "Daily Capture Sweep",
+          trigger: "SCHEDULED",
+          schedule: "0 21 * * *",
+          steps: [
+            { name: "Process today's raw inputs", agentRole: "MEMORY", order: 0 },
+            { name: "Create atomic notes", agentRole: "CONTENT", order: 1 },
+          ],
+        },
+        {
+          name: "Weekly Vault Review",
+          trigger: "SCHEDULED",
+          schedule: "0 10 * * 6",
+          steps: [
+            { name: "Hygiene checklist", agentRole: "OPERATIONS", order: 0 },
+          ],
+        },
+      ],
+    },
+  },
+
+  // ─── 50. Compliance Auditor (trailofbits-skills) ───────────────────────────
+  {
+    id: "cat-compliance-auditor",
+    slug: "compliance-auditor",
+    title: "Compliance Auditor",
+    description: "KVKK, GDPR, SOC 2 ve ISO 27001 framework'lerine karşı dokümantasyon, kod ve süreç denetimi yapan ajan tim. Bulgu kategorileri, risk skorları, kapatma planı ile rapor üretir. KOBİ-friendly.",
+    category: "operations",
+    industryTags: ["Compliance", "Legal", "Security", "Enterprise"],
+    primitives: ["GOVERNANCE", "ANALYTICS", "DELIVERY", "MEMORY"],
+    agentCount: 3,
+    pipelineCount: 2,
+    estimatedRunCost: "$0.20",
+    localFriendly: false,
+    source: { label: "The Repo God · trailofbits-skills", href: "https://github.com/" },
+    spec: {
+      config: { companyType: "compliance_audit", frameworks: ["KVKK", "GDPR", "SOC2", "ISO27001"] },
+      agents: [
+        {
+          name: "Policy Mapper",
+          role: "GOVERNANCE",
+          systemPrompt: "Given a target framework (KVKK / GDPR / SOC2 / ISO27001), produce a control checklist mapped to the user's business. For each control: required-evidence, current-status (met/partial/missing/n-a), risk-if-missing, owner. Cite the framework section.",
+          tools: ["search_memory", "create_draft"],
+        },
+        {
+          name: "Evidence Hunter",
+          role: "ANALYTICS",
+          systemPrompt: "For each 'partial' or 'missing' control, search the user's docs/runbooks/code for evidence that might already exist. If found, attach reference. If not, write a clear 'evidence-needed' brief: what to produce, who can produce it, est-time. Never invent evidence.",
+          tools: ["search_memory", "create_draft"],
+        },
+        {
+          name: "Remediation Planner",
+          role: "DELIVERY",
+          systemPrompt: "Build a remediation roadmap: ordered list of gaps with effort estimates, owner suggestions, and a target close-date based on risk score. Output a board-ready 1-page summary + a per-team action list. Re-run weekly to update progress.",
+          tools: ["create_draft", "generate_post"],
+        },
+      ],
+      pipelines: [
+        {
+          name: "Initial Audit",
+          trigger: "MANUAL",
+          steps: [
+            { name: "Map framework to business controls", agentRole: "GOVERNANCE", order: 0 },
+            { name: "Hunt for existing evidence", agentRole: "ANALYTICS", order: 1 },
+            { name: "Build remediation roadmap", agentRole: "DELIVERY", order: 2 },
+          ],
+        },
+        {
+          name: "Weekly Audit Progress",
+          trigger: "SCHEDULED",
+          schedule: "0 9 * * 1",
+          steps: [
+            { name: "Recheck control status, update roadmap", agentRole: "DELIVERY", order: 0 },
+          ],
+        },
+      ],
+    },
+  },
+
+  // ─── 51. SaaS Integration Hub (awesome-claude-skills · 500+ apps) ──────────
+  {
+    id: "cat-saas-integration-hub",
+    slug: "saas-integration-hub",
+    title: "SaaS Integration Hub",
+    description: "500+ SaaS uygulaması arasında akış kuran orkestratör — Gmail→HubSpot→Slack→Stripe→Notion zincirleri. Composio benzeri bağlayıcı katmanı, hata kurtarma ve maliyet izleme dahil.",
+    category: "operations",
+    industryTags: ["Automation", "Operations", "Integrations"],
+    primitives: ["OPERATIONS", "ANALYTICS", "GOVERNANCE"],
+    agentCount: 3,
+    pipelineCount: 2,
+    estimatedRunCost: "$0.09",
+    localFriendly: true,
+    source: { label: "The Repo God · awesome-claude-skills", href: "https://github.com/" },
+    spec: {
+      config: { companyType: "integration_hub", maxConcurrentFlows: 20 },
+      agents: [
+        {
+          name: "Flow Architect",
+          role: "OPERATIONS",
+          systemPrompt: "Translate a user's plain-English automation request ('when a deal closes, post in #wins, create a Notion page, send a thank-you email') into a flow DAG with clear step input/output contracts. Validate every connector exists in the user's connected accounts before promising the flow.",
+          tools: ["create_draft", "search_memory"],
+        },
+        {
+          name: "Flow Operator",
+          role: "OPERATIONS",
+          systemPrompt: "Execute flows step-by-step. For each step: log input, log output, log latency. On failure: classify (auth/rate-limit/schema/network), retry with backoff up to 3×, then escalate. Never silently drop a step.",
+          tools: ["search_memory", "create_draft"],
+        },
+        {
+          name: "Cost & Reliability Watcher",
+          role: "ANALYTICS",
+          systemPrompt: "Track per-flow execution count, success rate, avg-latency, and external-API cost. Surface top-5 most-expensive flows and top-5 most-flaky flows weekly. Suggest consolidations and rate-limit upgrades.",
+          tools: ["search_memory", "create_draft"],
+        },
+      ],
+      pipelines: [
+        {
+          name: "On-demand Flow Build",
+          trigger: "MANUAL",
+          steps: [
+            { name: "Draft flow DAG from request", agentRole: "OPERATIONS", order: 0 },
+            { name: "Execute (or schedule) the flow", agentRole: "OPERATIONS", order: 1 },
+          ],
+        },
+        {
+          name: "Weekly Reliability Report",
+          trigger: "SCHEDULED",
+          schedule: "0 9 * * 1",
+          steps: [
+            { name: "Compute reliability + cost stats", agentRole: "ANALYTICS", order: 0 },
+          ],
+        },
+      ],
+    },
+  },
+
+  // ─── 52. Multi-Agent Engineering Team (everything-claude-code + agency-agents)
+  {
+    id: "cat-engineering-team",
+    slug: "multi-agent-engineering-team",
+    title: "Multi-Agent Engineering Team",
+    description: "Senior arşıtek + 3 dev + QA + DevOps + tech writer'dan oluşan otonom mühendislik tim. Issue alır, dal açar, kod yazar, review eder, test koşar, dokümante eder, PR açar. Her aksiyon audit log'a kayıtlı.",
+    category: "operations",
+    industryTags: ["Engineering", "Software", "DevTools"],
+    primitives: ["DELIVERY", "OPERATIONS", "GOVERNANCE", "CONTENT", "ANALYTICS"],
+    agentCount: 5,
+    pipelineCount: 2,
+    estimatedRunCost: "$0.45",
+    localFriendly: false,
+    source: { label: "The Repo God · everything-claude-code + agency-agents", href: "https://github.com/" },
+    spec: {
+      config: { companyType: "eng_team", reviewersRequired: 2 },
+      agents: [
+        {
+          name: "Tech Lead",
+          role: "DELIVERY",
+          systemPrompt: "You own architecture decisions and PR-level review. Break issues into small, reviewable chunks. Reject scope creep. Demand a test plan before any line of code is written. Sign off on PRs only when: tests pass, no architecture violations, doc updated.",
+          tools: ["create_draft", "search_memory"],
+        },
+        {
+          name: "Implementer",
+          role: "DELIVERY",
+          systemPrompt: "Take a single, fully-specified issue and write the smallest passing implementation. Write the test first. Cite the issue ID in the commit message. Never touch files outside the issue's scope.",
+          tools: ["create_draft", "search_memory"],
+        },
+        {
+          name: "Reviewer",
+          role: "GOVERNANCE",
+          systemPrompt: "Block-or-approve every PR. Block on: missing tests, unsafe SQL, secrets in code, schema breakage, missing changelog. Approve when all checks green AND the diff stays inside the issue scope.",
+          tools: ["search_memory", "create_draft"],
+        },
+        {
+          name: "DevOps Sentry",
+          role: "OPERATIONS",
+          systemPrompt: "Watch CI runs, deploy logs, error budgets. On red: gather context (failed step, recent commits, related logs), open an incident draft, and tag the on-call. Roll back any deploy whose error rate exceeds 2× baseline within 10 minutes.",
+          tools: ["create_draft", "search_memory"],
+        },
+        {
+          name: "Tech Writer",
+          role: "CONTENT",
+          systemPrompt: "After every merged PR, update the relevant docs (README, /docs, changelog). Reject PRs whose user-facing change isn't documented. Write changelog entries in active voice, ≤140 chars.",
+          tools: ["create_draft", "generate_post"],
+        },
+      ],
+      pipelines: [
+        {
+          name: "Issue → Merged PR",
+          trigger: "MANUAL",
+          steps: [
+            { name: "Lead breaks issue + writes test plan", agentRole: "DELIVERY", order: 0 },
+            { name: "Implementer ships smallest passing diff", agentRole: "DELIVERY", order: 1 },
+            { name: "Reviewer block/approve", agentRole: "GOVERNANCE", order: 2 },
+            { name: "Tech writer updates docs", agentRole: "CONTENT", order: 3 },
+          ],
+        },
+        {
+          name: "Daily DevOps Sweep",
+          trigger: "SCHEDULED",
+          schedule: "0 8 * * *",
+          steps: [
+            { name: "Scan CI + deploy + error budgets", agentRole: "OPERATIONS", order: 0 },
+          ],
+        },
+      ],
+    },
+  },
 ];
 
 /**
@@ -2812,7 +3440,11 @@ export const INDUSTRY_BLUEPRINT_MAP: Record<string, string[]> = {
   education: ["online-course-creator", "corporate-training-platform", "language-learning-assistant"],
   health: ["fitness-coaching-platform", "mental-health-support-platform"],
   hr: ["ai-recruiting-pipeline", "employee-onboarding-automation"],
-  technology: ["devrel-agency", "bug-triage-qa-automation", "technical-documentation-generator", "saas-growth-engine"],
+  technology: ["devrel-agency", "bug-triage-qa-automation", "technical-documentation-generator", "saas-growth-engine", "codebase-cartographer", "spec-driven-project-manager", "mobile-qa-agency", "multi-agent-engineering-team", "saas-integration-hub"],
+  research: ["realtime-research-agent", "knowledge-vault-manager", "persistent-memory-brain"],
+  creator_video: ["reddit-video-producer", "youtube-channel-manager", "social-media-management"],
+  compliance: ["compliance-auditor", "contract-review-automation", "compliance-monitoring-center"],
+  knowledge: ["knowledge-vault-manager", "persistent-memory-brain", "technical-documentation-generator"],
   media: ["podcast-production-agency", "youtube-channel-manager", "newsletter-publisher"],
   nonprofit: ["nonprofit-fundraising-engine", "content-marketing-agency", "email-marketing-agency"],
   events: ["event-planning-automation", "social-media-management"],

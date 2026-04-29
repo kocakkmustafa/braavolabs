@@ -57,16 +57,19 @@ const PROVIDER_LABELS: Record<string, { label: string; color: string; models: st
   MISTRAL:    { label: "Mistral AI",         color: "#ff6b35", models: ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest"] },
   GROQ:       { label: "Groq",               color: "#f97316", models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"] },
   OPENROUTER: { label: "OpenRouter",         color: "#8b5cf6", models: ["openai/gpt-4o", "anthropic/claude-opus-4", "meta-llama/llama-3.3-70b-instruct"] },
-  // Local-first providers — free, private, runs on user's hardware.
+  // Self-hosted / local-first providers — runs on the user's own hardware
+  // (laptop, on-prem server, private cloud). Tenant supplies a baseUrl
+  // pointing at their own /v1/chat/completions endpoint. Plan-gated to
+  // STARTER and above (FREE plan keeps it simple with cloud-only BYOK).
   // setupHint is rendered in the settings UI for clarity.
   OLLAMA:     {
-    label: "Ollama (local Gemma · FREE)", color: "#34d399", local: true,
+    label: "Ollama (self-hosted · Gemma 3)", color: "#34d399", local: true,
     defaultBaseUrl: "http://localhost:11434/v1",
     models: ["gemma3:4b", "gemma3:12b", "gemma3:27b", "llama3.2:3b", "llama3.3:70b", "qwen2.5:14b", "qwen2.5-coder:14b", "deepseek-r1:8b"],
     setupHint: "Install ollama.com → run `ollama pull gemma3:4b` → keep terminal open with `ollama serve`",
   },
   LMSTUDIO:   {
-    label: "LM Studio (local · FREE)", color: "#10b981", local: true,
+    label: "LM Studio (self-hosted)", color: "#10b981", local: true,
     defaultBaseUrl: "http://localhost:1234/v1",
     models: ["google/gemma-3-4b-it", "google/gemma-3-12b-it", "meta-llama/llama-3.2-3b-instruct", "qwen/qwen2.5-14b-instruct"],
     setupHint: "Install lmstudio.ai → load Gemma 3 4B → start Local Server",
@@ -78,6 +81,11 @@ const PROVIDER_LABELS: Record<string, { label: string; color: string; models: st
     setupHint: "Any OpenAI-compatible /v1/chat/completions endpoint (LiteLLM, vLLM, Together, RunPod, etc).",
   },
 };
+
+// Plans that may configure self-hosted/local providers. FREE keeps it
+// simple — cloud BYOK only. Pulled into the AI Provider section so the
+// disabled <option>s explain why and the upgrade CTA points to /pricing.
+const LOCAL_LLM_PLANS: ReadonlySet<string> = new Set(["STARTER", "PRO", "TEAM", "ENTERPRISE"]);
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -742,37 +750,77 @@ export default function SettingsPage() {
           <Section title="AI Provider" subtitle="Configure which AI model powers your companies and agents">
             <div className="space-y-5">
 
-              {/* Provider selector */}
+              {/* Provider selector — local providers gated to STARTER+ */}
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "#859399" }}>Provider</p>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {Object.entries(PROVIDER_LABELS).map(([id, info]) => (
-                    <button
-                      key={id}
-                      onClick={() => {
-                        setAiProvider(id);
-                        setAiModel(info.models[0]);
-                      }}
-                      className="flex items-center gap-3 p-4 rounded-xl text-left transition-all"
-                      style={{
-                        background: aiProvider === id ? "rgba(0,209,255,0.08)" : "rgba(255,255,255,0.03)",
-                        border: aiProvider === id ? "1px solid rgba(0,209,255,0.4)" : "1px solid rgba(255,255,255,0.06)",
-                      }}
-                    >
-                      <div
-                        className="w-2 h-2 rounded-full flex-shrink-0"
-                        style={{ background: info.color }}
-                      />
-                      <span className="text-xs font-semibold truncate" style={{ color: aiProvider === id ? "#e1e2eb" : "#859399" }}>
-                        {info.label}
-                      </span>
-                    </button>
-                  ))}
+                  {Object.entries(PROVIDER_LABELS).map(([id, info]) => {
+                    const planAllowsLocal = LOCAL_LLM_PLANS.has(currentPlan);
+                    const locked = !!info.local && !planAllowsLocal;
+                    return (
+                      <button
+                        key={id}
+                        onClick={() => {
+                          if (locked) return; // upgrade prompt is shown below
+                          setAiProvider(id);
+                          setAiModel(info.models[0] ?? "");
+                        }}
+                        className="flex items-center gap-3 p-4 rounded-xl text-left transition-all"
+                        style={{
+                          background: aiProvider === id ? "rgba(0,209,255,0.08)" : "rgba(255,255,255,0.03)",
+                          border: aiProvider === id ? "1px solid rgba(0,209,255,0.4)" : "1px solid rgba(255,255,255,0.06)",
+                          opacity: locked ? 0.5 : 1,
+                          cursor: locked ? "not-allowed" : "pointer",
+                        }}
+                        title={locked ? "Self-hosted providers are a STARTER+ feature — upgrade to unlock" : ""}
+                      >
+                        <div
+                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ background: info.color }}
+                        />
+                        <span className="text-xs font-semibold truncate" style={{ color: aiProvider === id ? "#e1e2eb" : "#859399" }}>
+                          {info.label}
+                          {locked && <span className="ml-1" style={{ color: "#a855f7" }}>· PRO</span>}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Local-provider setup hint */}
-              {PROVIDER_LABELS[aiProvider]?.local && PROVIDER_LABELS[aiProvider]?.setupHint && (
+              {/* Plan-gate banner — FREE users see upgrade CTA when a local provider is selected */}
+              {PROVIDER_LABELS[aiProvider]?.local && !LOCAL_LLM_PLANS.has(currentPlan) && (
+                <div
+                  className="rounded-xl px-4 py-3 text-xs flex items-start gap-3"
+                  style={{
+                    background: "rgba(168,85,247,0.08)",
+                    border: "1px solid rgba(168,85,247,0.25)",
+                    color: "#d8b4fe",
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#a855f7", flexShrink: 0, marginTop: 1 }}>
+                    workspace_premium
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-semibold mb-1" style={{ color: "#c084fc" }}>
+                      Self-hosted Gemma is a STARTER+ feature
+                    </p>
+                    <p>
+                      Upgrade to STARTER ($19/mo) or higher to point Braavolabs at your own Ollama / LM Studio / vLLM endpoint. Your prompts stay on your hardware, no per-token LLM cost, GDPR/KVKK-compliant by design.
+                    </p>
+                    <a
+                      href="/pricing"
+                      className="inline-block mt-2 px-3 py-1.5 rounded-lg text-xs font-bold"
+                      style={{ background: "linear-gradient(135deg, #a855f7, #6d11ad)", color: "white" }}
+                    >
+                      View plans →
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {/* Local-provider setup hint (only shown when plan permits) */}
+              {PROVIDER_LABELS[aiProvider]?.local && LOCAL_LLM_PLANS.has(currentPlan) && PROVIDER_LABELS[aiProvider]?.setupHint && (
                 <div
                   className="rounded-xl px-3 py-2.5 text-xs"
                   style={{
@@ -781,7 +829,7 @@ export default function SettingsPage() {
                     color: "#86efac",
                   }}
                 >
-                  <p className="font-semibold mb-1" style={{ color: "#34d399" }}>Local provider — runs on your hardware, $0 inference cost</p>
+                  <p className="font-semibold mb-1" style={{ color: "#34d399" }}>Self-hosted provider — runs on your hardware, no per-token LLM cost</p>
                   <p style={{ color: "#86efac" }}>{PROVIDER_LABELS[aiProvider]?.setupHint}</p>
                 </div>
               )}
@@ -979,7 +1027,7 @@ export default function SettingsPage() {
                   Your API key is encrypted with AES-256-GCM before storage. When running pipelines and building companies, agents will use your configured provider. If no key is set, the system falls back to the platform default (Anthropic Claude).
                 </p>
                 <p className="mt-2" style={{ color: "#859399" }}>
-                  <strong style={{ color: "#34d399" }}>Local-first option:</strong> point Braavolabs at <code>Ollama</code> or <code>LM Studio</code> running on your own machine — Gemma 3 4B is a good free starting point. Your prompts never leave your laptop, your usage is unlimited, and the model runs offline.
+                  <strong style={{ color: "#34d399" }}>Self-hosted option (STARTER+):</strong> point Braavolabs at <code>Ollama</code> or <code>LM Studio</code> running on your own machine — Gemma 3 4B is a good starting point. Prompts stay on your hardware, no per-token LLM costs, works offline. Subscribe to STARTER or higher to unlock.
                   {" "}<a href="/docs#local-llm" style={{ color: "#34d399", textDecoration: "underline" }}>Setup guide →</a>
                 </p>
               </div>
