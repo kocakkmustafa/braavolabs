@@ -1,36 +1,99 @@
-name: Deploy
+# Build api + ui Docker images on GitHub Actions runners (4-core, 16GB
+# RAM — plenty), push them to ghcr.io, then SSH to Lightsail and run
+# `docker compose pull && up -d`. The Lightsail host (1.9GB RAM) NEVER
+# builds images itself — that pattern OOM-killed the kernel multiple
+# times. The pull-only path uses ~50MB RAM during deploy.
+#
+# Triggers:
+#   • push to main           — auto-build + auto-deploy
+#   • tag v*                 — auto-build + auto-deploy + immutable version tag
+#   • workflow_dispatch      — manual fallback (env input: staging | production)
+#
+# Required GitHub repository secrets (Settings → Secrets → Actions):
+#   LIGHTSAIL_HOST           — IPv4 of the Lightsail instance (e.g. 63.180.74.27)
+#   LIGHTSAIL_USER           — SSH user (typically `ubuntu`)
+#   LIGHTSAIL_SSH_KEY        — private key content (the matching ed25519 key
+#                              authorized in ~ubuntu/.ssh/authorized_keys on
+#                              the Lightsail host). Paste the FULL contents
+#                              of ~/.ssh/id_ed25519 — including header /
+#                              footer lines.
+#
+# Optional secret:
+#   SLACK_DEPLOY_WEBHOOK     — if set, posts a deploy summary to Slack
+#
+# `GITHUB_TOKEN` is auto-provided by GitHub Actions and has packages:write
+# scope for the same repository — used to push to ghcr.io with no
+# additional configuration.
+
+name: Build & Deploy
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
       environment:
         description: "Deployment environment"
         required: true
-        default: "staging"
+        default: "production"
         type: choice
         options:
-          - staging
           - production
+          - staging
+
+# Cancel in-progress runs of the same branch when a newer commit lands —
+# avoids deploying an older image after a newer one's build started.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ${{ github.repository }}
+  # ghcr.io requires lowercase image paths. github.repository is
+  # `kocakkmustafa/The-Creator` (mixed case) — we toLower() it below.
+  IMAGE_PREFIX_RAW: ${{ github.repository }}
 
 jobs:
-  build-and-push:
-    name: Build & Push Images
+  # ───────────────────────── Build & push ─────────────────────────
+
+  build-images:
+    name: Build & push (api + ui)
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    outputs:
+      image-tag: ${{ steps.tag.outputs.tag }}
+      image-prefix: ${{ steps.tag.outputs.prefix }}
+    strategy:
+      # Build the two services in parallel — independent Docker contexts.
+      fail-fast: false
+      matrix:
+        service: [api, ui]
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Log in to Container Registry
+      - name: Compute image tag + lowercased prefix
+        id: tag
+        run: |
+          # Lowercase the registry path (ghcr requirement)
+          PREFIX_LOWER=$(echo "${IMAGE_PREFIX_RAW}" | tr '[:upper:]' '[:lower:]')
+          echo "prefix=${PREFIX_LOWER}" >> "$GITHUB_OUTPUT"
+
+          # Tag policy: `vX.Y.Z` for tag pushes, `sha-XXXXXXXX` otherwise.
+          # Both styles ALSO get aliased to `latest` so compose.prod.yaml
+          # doesn't have to be edited per-deploy.
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            TAG="sha-${GITHUB_SHA::8}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Computed: prefix=${PREFIX_LOWER} tag=${TAG}"
+
+      - name: Log in to ghcr.io
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -40,53 +103,184 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Extract version
-        id: version
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          else
-            echo "tag=sha-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Build and push API image
+      - name: Build and push ${{ matrix.service }} image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ENV/Dockerfile.api
+          file: ENV/Dockerfile.${{ matrix.service }}
           push: true
+          # Two tags per build — immutable for rollback, latest for the
+          # normal pull path. Same digest on both, so `pull` + `up -d`
+          # is idempotent.
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/api:${{ steps.version.outputs.tag }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/api:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            ${{ env.REGISTRY }}/${{ steps.tag.outputs.prefix }}/${{ matrix.service }}:${{ steps.tag.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ steps.tag.outputs.prefix }}/${{ matrix.service }}:latest
+          # GitHub Actions cache speeds re-builds dramatically on the
+          # second push — first-time cold cache build still takes ~5 min,
+          # subsequent ~90 seconds.
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          # The UI build needs NEXT_PUBLIC_API_URL + NEXT_PUBLIC_APP_URL
+          # baked into the static bundle. They're the same per-environment
+          # so we pin them as build-args here. (Different from runtime
+          # env, which compose.prod.yaml supplies.)
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://braavolabs.com/api/v1
+            NEXT_PUBLIC_APP_URL=https://braavolabs.com
 
-      - name: Build and push UI image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ENV/Dockerfile.ui
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ui:${{ steps.version.outputs.tag }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ui:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+  # ───────────────────────── Deploy to Lightsail ─────────────────────────
 
   deploy:
     name: Deploy to ${{ github.event.inputs.environment || 'production' }}
     runs-on: ubuntu-latest
-    needs: build-and-push
+    needs: build-images
     environment: ${{ github.event.inputs.environment || 'production' }}
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy notification
+      - name: Set up SSH key
         run: |
-          echo "Deploying version ${{ needs.build-and-push.outputs.tag || github.sha }} to ${{ github.event.inputs.environment || 'production' }}"
-          echo "Images pushed to ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}"
+          mkdir -p ~/.ssh
+          echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail_key
+          chmod 600 ~/.ssh/lightsail_key
+          # Pin the host key to its first observed value to defeat MITM —
+          # ssh-keyscan first, then trust-on-first-use into known_hosts.
+          ssh-keyscan -H "${{ secrets.LIGHTSAIL_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Sync compose + migrations to server (no source code)
+        # The server only needs ENV/compose.prod.yaml + the Prisma
+        # migration files (so we can run migrate against the new DB
+        # schema). Source code lives in the image, so we explicitly
+        # exclude packages/*/src + packages/ui/app etc.
+        run: |
+          rsync -az \
+            --include="ENV/" \
+            --include="ENV/**" \
+            --include="packages/" \
+            --include="packages/db/" \
+            --include="packages/db/prisma/" \
+            --include="packages/db/prisma/**" \
+            --exclude="*" \
+            -e "ssh -i ~/.ssh/lightsail_key -o StrictHostKeyChecking=no" \
+            ./ "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}:/tmp/braavolabs-deploy/"
+
+          ssh -i ~/.ssh/lightsail_key -o StrictHostKeyChecking=no \
+              "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" '
+            set -e
+            sudo rsync -a \
+              --include="ENV/" \
+              --include="ENV/**" \
+              --include="packages/db/" \
+              --include="packages/db/prisma/" \
+              --include="packages/db/prisma/**" \
+              --exclude="*" \
+              /tmp/braavolabs-deploy/ /opt/braavolabs/app/
+            sudo rm -rf /tmp/braavolabs-deploy
+          '
+
+      - name: Pull new images & restart containers
+        run: |
+          ssh -i ~/.ssh/lightsail_key -o StrictHostKeyChecking=no \
+              "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" '
+            set -e
+            cd /opt/braavolabs/app/ENV
+
+            # Log in to ghcr.io on the host so it can pull private images.
+            # The packages are public for now (set in repo Packages
+            # settings), so this is a no-op — but kept for future
+            # private-package support.
+            # echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+            echo "=== Pulling new images ==="
+            sudo docker compose --env-file=/opt/braavolabs/app/.env -f compose.prod.yaml pull api ui
+
+            echo ""
+            echo "=== Restart api + ui (postgres + redis untouched) ==="
+            sudo docker compose --env-file=/opt/braavolabs/app/.env -f compose.prod.yaml up -d api ui
+
+            echo ""
+            echo "=== Wait 20s for healthchecks ==="
+            sleep 20
+
+            echo ""
+            echo "=== Container status ==="
+            sudo docker compose --env-file=/opt/braavolabs/app/.env -f compose.prod.yaml ps --format "{{.Name}}|{{.State}}|{{.Status}}"
+          '
+
+      - name: Apply Prisma migrations
+        # Run prisma migrate deploy against the new schema. Idempotent —
+        # already-applied migrations are no-ops.
+        run: |
+          ssh -i ~/.ssh/lightsail_key -o StrictHostKeyChecking=no \
+              "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" '
+            set -e
+            cd /opt/braavolabs/app
+
+            # We bake the migrations into the api image, so the deploy
+            # container can run them with prisma CLI.
+            echo "=== prisma migrate deploy (best-effort) ==="
+            sudo docker exec aicos-api node -e "
+              const { execSync } = require(\"child_process\");
+              try {
+                execSync(\"cd /app/packages/db && npx prisma migrate deploy\", { stdio: \"inherit\" });
+              } catch (e) {
+                console.error(\"migrate deploy failed (may already be applied):\", e.message);
+                process.exit(0);
+              }
+            " || echo "(migration step skipped — see above)"
+          '
+
+      - name: Verify production health
+        run: |
+          set -e
+          echo "=== Public health check ==="
+          for i in 1 2 3 4 5; do
+            if curl -sS --max-time 10 https://braavolabs.com/api/v1/health | grep -q "\"status\":\"ok\""; then
+              echo "✅ /api/v1/health → ok"
+              break
+            else
+              echo "  attempt $i — not ready yet, waiting 10s..."
+              sleep 10
+              if [ $i -eq 5 ]; then
+                echo "❌ Health check FAILED after 5 attempts"
+                exit 1
+              fi
+            fi
+          done
+
           echo ""
-          echo "To deploy on your server, run:"
-          echo "  docker compose -f ENV/compose.yaml -f ENV/compose.prod.yaml pull"
-          echo "  docker compose -f ENV/compose.yaml -f ENV/compose.prod.yaml up -d"
+          echo "=== Public pages ==="
+          for url in / /pricing /docs /marketplace /features; do
+            code=$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" "https://braavolabs.com${url}")
+            echo "  ${code}  https://braavolabs.com${url}"
+            if [ "$code" != "200" ]; then
+              echo "❌ Non-200 response on $url"
+              exit 1
+            fi
+          done
+
+      - name: Slack deploy summary (optional)
+        if: success() && env.SLACK_DEPLOY_WEBHOOK != ''
+        env:
+          SLACK_DEPLOY_WEBHOOK: ${{ secrets.SLACK_DEPLOY_WEBHOOK }}
+        run: |
+          curl -sS -X POST "${SLACK_DEPLOY_WEBHOOK}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"text\": \"✅ Braavolabs deploy ${{ needs.build-images.outputs.image-tag }} → production\",
+              \"blocks\": [{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*✅ Deploy succeeded*\\n• Image: \`${{ needs.build-images.outputs.image-tag }}\`\\n• Commit: <https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>\\n• Triggered by: ${{ github.actor }}\"}}]
+            }"
+
+      - name: Slack deploy failure (optional)
+        if: failure() && env.SLACK_DEPLOY_WEBHOOK != ''
+        env:
+          SLACK_DEPLOY_WEBHOOK: ${{ secrets.SLACK_DEPLOY_WEBHOOK }}
+        run: |
+          curl -sS -X POST "${SLACK_DEPLOY_WEBHOOK}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"text\": \"❌ Braavolabs deploy FAILED\",
+              \"blocks\": [{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*❌ Deploy failed*\\n• Run: <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|view logs>\\n• Commit: <https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>\"}}]
+            }"

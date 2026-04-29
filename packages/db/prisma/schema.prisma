@@ -516,6 +516,49 @@ model Integration {
   @@map("integrations")
 }
 
+// Durable idempotency log for inbound Stripe webhook events.
+//
+// We previously had only a Redis SETNX guard with a 7-day TTL — fast
+// (<1ms) but lossy: a Redis restart or eviction lets duplicate events
+// reach the handler, which creates duplicate activity_log rows and
+// (rarely) duplicate Hubspot/SendGrid side effects. This table is the
+// durable backstop. The webhook handler does:
+//
+//   1. Try INSERT (unique constraint on stripeEventId).
+//      → first-seen if it succeeds.
+//      → duplicate if it raises P2002.
+//   2. Process the event.
+//   3. Update the row with `processedAt` + result summary.
+//
+// `processedAt` lets ops verify what's already been handled at a glance:
+//   SELECT type, processedAt FROM stripe_events
+//   WHERE created_at > NOW() - INTERVAL '24 hours' ORDER BY created_at DESC;
+//
+// Retention policy: keep 90 days, then drop. A simple SQL job can prune.
+model StripeWebhookEvent {
+  id              String    @id @default(cuid())
+  stripeEventId   String    @unique @map("stripe_event_id")
+  type            String                  // e.g. "checkout.session.completed"
+  livemode        Boolean   @default(false)
+  // Raw event payload. Kept verbose so we can audit edge cases later
+  // (Stripe Connect, regional VAT events) without re-fetching from the
+  // Stripe API. JSONB so it's queryable.
+  rawPayload      Json      @map("raw_payload")
+  // When we finished processing this event. NULL means we accepted it
+  // but the handler didn't complete (most likely because we crashed
+  // mid-handler — useful signal for ops).
+  processedAt     DateTime? @map("processed_at")
+  // Short summary of what the handler did, e.g.
+  //   { tenantId, plan, action: "subscription.upgraded" }
+  // Helpful for replay / debugging without re-reading the raw payload.
+  resultSummary   Json?     @map("result_summary")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([type])
+  @@index([createdAt])
+  @@map("stripe_webhook_events")
+}
+
 // ─── ENUMS ──────────────────────────────────────────────
 
 enum Plan {

@@ -28,20 +28,102 @@ const WEBHOOK_EVENT_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 /**
  * Returns true if this event.id has not been seen before (and marks it seen).
- * Prevents duplicate processing when Stripe retries a webhook.
+ *
+ * Two-tier guard:
+ *   1. Postgres `stripe_webhook_events` row with UNIQUE(stripe_event_id) —
+ *      durable, survives Redis restart / eviction. The INSERT either
+ *      succeeds (first-seen) or fails with P2002 (duplicate). This is
+ *      the ground truth.
+ *   2. Redis SETNX — fast-path cache. If we've seen the event in the
+ *      last 7 days we can short-circuit before touching Postgres. The
+ *      cache being missing/wrong only costs us one extra Postgres
+ *      INSERT attempt — no correctness risk.
+ *
+ * The DB write is the source of truth. Redis is just optimization.
+ *
+ * Side effect: when this function returns true, a row exists in
+ * `stripe_webhook_events` with processed_at = NULL. The caller is
+ * expected to update it (markWebhookEventProcessed) once handler
+ * logic finishes — that gives ops a clear "received vs processed"
+ * audit trail.
  */
-async function claimWebhookEvent(eventId: string): Promise<boolean> {
-  // SETNX returns "OK" on first write, null if already set.
-  const result = await redis.set(`stripe:webhook:${eventId}`, "1", "EX", WEBHOOK_EVENT_TTL_SECONDS, "NX");
-  return result === "OK";
+async function claimWebhookEvent(
+  eventId: string,
+  type: string,
+  livemode: boolean,
+  rawPayload: unknown,
+): Promise<boolean> {
+  // Fast path — Redis SETNX. If the cache already has this key, we've
+  // seen it recently; skip the Postgres round-trip.
+  try {
+    const cacheHit = await redis.set(`stripe:webhook:${eventId}`, "1", "EX", WEBHOOK_EVENT_TTL_SECONDS, "NX");
+    if (cacheHit !== "OK") {
+      return false;
+    }
+  } catch (err) {
+    // Redis failure → don't block the request, fall through to DB.
+    logger.warn({ err, eventId }, "Stripe webhook idempotency: Redis unavailable, using DB-only path");
+  }
+
+  // Durable path — INSERT into stripe_webhook_events. Postgres unique
+  // constraint catches duplicates that Redis would have missed (e.g.
+  // after a Redis restart or maxmemory eviction).
+  try {
+    await prisma.stripeWebhookEvent.create({
+      data: {
+        stripeEventId: eventId,
+        type,
+        livemode,
+        rawPayload: rawPayload as object,
+      },
+    });
+    return true;
+  } catch (err) {
+    // Prisma P2002 = unique constraint violation = already-seen.
+    const isDuplicate = err instanceof Error && /P2002|Unique constraint/.test(err.message);
+    if (isDuplicate) {
+      logger.info({ eventId }, "Stripe webhook duplicate caught at DB layer (Redis cache miss)");
+      return false;
+    }
+    // Some other DB error — re-raise so the webhook handler returns 5xx
+    // and Stripe retries. Better to retry than to silently drop.
+    throw err;
+  }
 }
 
 /**
  * Release a webhook event claim so Stripe can retry it.
- * Used when handler fails, before returning 5xx.
+ * Used when handler fails, before returning 5xx — clears BOTH the
+ * Redis cache and the DB row.
  */
 async function releaseWebhookEvent(eventId: string): Promise<void> {
-  await redis.del(`stripe:webhook:${eventId}`).catch(() => {});
+  await Promise.all([
+    redis.del(`stripe:webhook:${eventId}`).catch(() => {}),
+    prisma.stripeWebhookEvent
+      .delete({ where: { stripeEventId: eventId } })
+      .catch(() => {}),
+  ]);
+}
+
+/**
+ * Mark a webhook event as fully processed. Called after the handler
+ * switch finishes successfully. Persists a small summary so ops can
+ * see "what did we do with this event?" without re-reading the raw
+ * payload.
+ */
+async function markWebhookEventProcessed(
+  eventId: string,
+  resultSummary: object,
+): Promise<void> {
+  try {
+    await prisma.stripeWebhookEvent.update({
+      where: { stripeEventId: eventId },
+      data: { processedAt: new Date(), resultSummary },
+    });
+  } catch (err) {
+    // Non-fatal — the handler already succeeded, this is just bookkeeping.
+    logger.warn({ err, eventId }, "Stripe webhook: failed to mark processed");
+  }
 }
 
 function getStripeConfig(): StripeConfig {
@@ -280,8 +362,16 @@ stripeWebhookRouter.post(
 
     logger.info({ type: event.type, id: event.id }, "Stripe webhook received");
 
-    // ─── Idempotency guard — prevents duplicate processing on retry ───
-    const firstSeen = await claimWebhookEvent(event.id);
+    // ─── Idempotency guard — Redis fast-path + Postgres durable backstop ───
+    // Stripe retries failed webhooks for up to 3 days; without this guard
+    // we'd create duplicate activity_log rows (and rarely duplicate
+    // side effects like Hubspot syncs) every time they retry.
+    const firstSeen = await claimWebhookEvent(
+      event.id,
+      event.type,
+      event.livemode ?? false,
+      event,
+    );
     if (!firstSeen) {
       logger.info({ id: event.id, type: event.type }, "Stripe webhook duplicate — skipped");
       res.json({ received: true, duplicate: true });
@@ -564,6 +654,15 @@ stripeWebhookRouter.post(
       res.status(500).json({ error: "Webhook processing failed" });
       return;
     }
+
+    // Stamp the durable idempotency row as processed. Non-fatal if it
+    // fails — the handler already succeeded and the unique constraint
+    // still prevents duplicates. This just gives ops a clear "we
+    // received AND finished handling this event" signal.
+    await markWebhookEventProcessed(event.id, {
+      type: event.type,
+      handledAt: new Date().toISOString(),
+    });
 
     res.json({ received: true });
   },

@@ -57,9 +57,19 @@ services:
           memory: 512M
 
   api:
-    build:
-      context: ..
-      dockerfile: ENV/Dockerfile.api
+    # Image is built and pushed by .github/workflows/deploy.yml on every
+    # commit to main. The Lightsail host (1.9GB RAM) NEVER builds — that
+    # pattern OOM-killed the kernel. Pull-only deploys use ~50MB RAM.
+    #
+    # IMAGE_TAG defaults to `latest` (CI-aliased). To pin a specific
+    # commit, set IMAGE_TAG=sha-XXXXXXXX in .env (per-environment).
+    image: ghcr.io/kocakkmustafa/the-creator/api:${IMAGE_TAG:-latest}
+    # build: kept commented out as a fallback — uncomment + remove the
+    # `image:` line above if you ever need to build on the host (which
+    # you really shouldn't on a 1.9GB instance):
+    # build:
+    #   context: ..
+    #   dockerfile: ENV/Dockerfile.api
     container_name: aicos-api
     restart: unless-stopped
     ports:
@@ -153,12 +163,19 @@ services:
           memory: 512M
 
   ui:
-    build:
-      context: ..
-      dockerfile: ENV/Dockerfile.ui
-      args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?Set NEXT_PUBLIC_API_URL in .env (e.g. https://braavolabs.com/api/v1)}
-        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL in .env (e.g. https://braavolabs.com)}
+    # Same CI-builds-and-pushes story as the api service above.
+    # NEXT_PUBLIC_* are baked into the image at build time by GitHub
+    # Actions (build-args in deploy.yml), so the host doesn't need to
+    # know them at runtime — that's why this block is shorter than the
+    # old `build:` form.
+    image: ghcr.io/kocakkmustafa/the-creator/ui:${IMAGE_TAG:-latest}
+    # build: kept commented out — see the api service for context.
+    # build:
+    #   context: ..
+    #   dockerfile: ENV/Dockerfile.ui
+    #   args:
+    #     NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?Set NEXT_PUBLIC_API_URL in .env}
+    #     NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL in .env}
     container_name: aicos-ui
     restart: unless-stopped
     ports:
