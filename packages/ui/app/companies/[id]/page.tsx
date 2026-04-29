@@ -518,6 +518,120 @@ export default function CompanyDetailPage() {
           <p style={{ fontSize: 12, color: "#859399", marginTop: 4 }}>Learned patterns and insights will appear here as the company operates.</p>
         </div>
       )}
+
+      {/* AI Agent Composer Modal */}
+      {composerOpen && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget && !composerLoading) setComposerOpen(false); }}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 24,
+          }}
+        >
+          <div
+            style={{
+              background: "rgba(29,32,38,0.98)", border: "1px solid rgba(0,209,255,0.2)",
+              borderRadius: 16, padding: 24, maxWidth: 600, width: "100%", maxHeight: "90vh", overflow: "auto",
+              boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 600, color: "#e1e2eb", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                <span className="material-symbols-outlined" style={{ color: "#00d1ff", fontSize: 20 }}>auto_awesome</span>
+                Compose Agent with AI
+              </h2>
+              <button
+                onClick={() => { if (!composerLoading) setComposerOpen(false); }}
+                disabled={composerLoading}
+                style={{ background: "transparent", border: "none", color: "#859399", cursor: composerLoading ? "not-allowed" : "pointer", padding: 4, display: "flex" }}
+                aria-label="Close"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 20 }}>close</span>
+              </button>
+            </div>
+
+            <p style={{ fontSize: 13, color: "#bbc9cf", marginBottom: 12, lineHeight: 1.5 }}>
+              Describe what this agent should do. Your configured AI provider (Settings → AI Provider) will write the full specification — name, role, system prompt, and tool selection — using your BYOK key.
+            </p>
+
+            <textarea
+              value={composerInput}
+              onChange={(e) => setComposerInput(e.target.value)}
+              placeholder="e.g. A daily LinkedIn content agent for B2B SaaS founders. Picks 1 trending topic from web search, drafts 3 post variants in professional tone, schedules the best one for 9am. Always logs reasoning."
+              rows={6}
+              disabled={composerLoading}
+              style={{
+                width: "100%", boxSizing: "border-box",
+                background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 8, padding: 12, color: "#e1e2eb", fontSize: 13, fontFamily: "inherit", resize: "vertical",
+                outline: "none",
+              }}
+            />
+            <p style={{ fontSize: 11, color: "#5a6770", marginTop: 4, marginBottom: 0 }}>
+              {composerInput.length} / 4000 chars (min 10)
+            </p>
+
+            {composerError && (
+              <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", padding: 12, borderRadius: 8, fontSize: 12, marginTop: 12, whiteSpace: "pre-wrap" }}>
+                {composerError}
+              </div>
+            )}
+
+            {composerResult && (
+              <div style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)", color: "#34d399", padding: 12, borderRadius: 8, fontSize: 12, marginTop: 12 }}>
+                <strong>{composerResult.name}</strong> added to your company.{" "}
+                <span style={{ color: "#bbc9cf", fontSize: 11 }}>
+                  ({composerResult.provider} · {composerResult.model})
+                </span>
+                {composerResult.droppedTools.length > 0 && (
+                  <p style={{ marginTop: 6, marginBottom: 0, color: "#fbbf24", fontSize: 11 }}>
+                    Note: dropped {composerResult.droppedTools.length} tool{composerResult.droppedTools.length === 1 ? "" : "s"} the model invented: {composerResult.droppedTools.join(", ")}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
+              <button
+                onClick={() => { if (!composerLoading) setComposerOpen(false); }}
+                disabled={composerLoading}
+                style={{
+                  background: "transparent", border: "1px solid rgba(255,255,255,0.15)",
+                  color: "#bbc9cf", padding: "8px 16px", borderRadius: 8, fontSize: 13,
+                  cursor: composerLoading ? "not-allowed" : "pointer",
+                }}
+              >
+                Close
+              </button>
+              <button
+                onClick={handleCompose}
+                disabled={composerLoading || composerInput.trim().length < 10}
+                style={{
+                  background: composerLoading || composerInput.trim().length < 10
+                    ? "rgba(255,255,255,0.1)"
+                    : "linear-gradient(135deg, #00d1ff, #6d11ad)",
+                  color: "#fff", border: "none", padding: "8px 20px", borderRadius: 8,
+                  fontSize: 13, fontWeight: 600,
+                  cursor: composerLoading || composerInput.trim().length < 10 ? "not-allowed" : "pointer",
+                  display: "flex", alignItems: "center", gap: 6,
+                }}
+              >
+                {composerLoading ? (
+                  <>
+                    <span style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block" }} className="animate-spin" />
+                    Composing...
+                  </>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>auto_awesome</span>
+                    Compose
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -699,119 +813,6 @@ function DealsKanban({ companyId, token }: { companyId: string; token: string })
         ))}
       </div>
 
-      {/* AI Agent Composer Modal */}
-      {composerOpen && (
-        <div
-          onClick={(e) => { if (e.target === e.currentTarget && !composerLoading) setComposerOpen(false); }}
-          style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)",
-            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 24,
-          }}
-        >
-          <div
-            style={{
-              background: "rgba(29,32,38,0.98)", border: "1px solid rgba(0,209,255,0.2)",
-              borderRadius: 16, padding: 24, maxWidth: 600, width: "100%", maxHeight: "90vh", overflow: "auto",
-              boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 600, color: "#e1e2eb", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-                <span className="material-symbols-outlined" style={{ color: "#00d1ff", fontSize: 20 }}>auto_awesome</span>
-                Compose Agent with AI
-              </h2>
-              <button
-                onClick={() => { if (!composerLoading) setComposerOpen(false); }}
-                disabled={composerLoading}
-                style={{ background: "transparent", border: "none", color: "#859399", cursor: composerLoading ? "not-allowed" : "pointer", padding: 4, display: "flex" }}
-                aria-label="Close"
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: 20 }}>close</span>
-              </button>
-            </div>
-
-            <p style={{ fontSize: 13, color: "#bbc9cf", marginBottom: 12, lineHeight: 1.5 }}>
-              Describe what this agent should do. Your configured AI provider (Settings → AI Provider) will write the full specification — name, role, system prompt, and tool selection — using your BYOK key.
-            </p>
-
-            <textarea
-              value={composerInput}
-              onChange={(e) => setComposerInput(e.target.value)}
-              placeholder="e.g. A daily LinkedIn content agent for B2B SaaS founders. Picks 1 trending topic from web search, drafts 3 post variants in professional tone, schedules the best one for 9am. Always logs reasoning."
-              rows={6}
-              disabled={composerLoading}
-              style={{
-                width: "100%", boxSizing: "border-box",
-                background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: 8, padding: 12, color: "#e1e2eb", fontSize: 13, fontFamily: "inherit", resize: "vertical",
-                outline: "none",
-              }}
-            />
-            <p style={{ fontSize: 11, color: "#5a6770", marginTop: 4, marginBottom: 0 }}>
-              {composerInput.length} / 4000 chars (min 10)
-            </p>
-
-            {composerError && (
-              <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", padding: 12, borderRadius: 8, fontSize: 12, marginTop: 12, whiteSpace: "pre-wrap" }}>
-                {composerError}
-              </div>
-            )}
-
-            {composerResult && (
-              <div style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)", color: "#34d399", padding: 12, borderRadius: 8, fontSize: 12, marginTop: 12 }}>
-                <strong>{composerResult.name}</strong> added to your company.{" "}
-                <span style={{ color: "#bbc9cf", fontSize: 11 }}>
-                  ({composerResult.provider} · {composerResult.model})
-                </span>
-                {composerResult.droppedTools.length > 0 && (
-                  <p style={{ marginTop: 6, marginBottom: 0, color: "#fbbf24", fontSize: 11 }}>
-                    Note: dropped {composerResult.droppedTools.length} tool{composerResult.droppedTools.length === 1 ? "" : "s"} the model invented: {composerResult.droppedTools.join(", ")}
-                  </p>
-                )}
-              </div>
-            )}
-
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
-              <button
-                onClick={() => { if (!composerLoading) setComposerOpen(false); }}
-                disabled={composerLoading}
-                style={{
-                  background: "transparent", border: "1px solid rgba(255,255,255,0.15)",
-                  color: "#bbc9cf", padding: "8px 16px", borderRadius: 8, fontSize: 13,
-                  cursor: composerLoading ? "not-allowed" : "pointer",
-                }}
-              >
-                Close
-              </button>
-              <button
-                onClick={handleCompose}
-                disabled={composerLoading || composerInput.trim().length < 10}
-                style={{
-                  background: composerLoading || composerInput.trim().length < 10
-                    ? "rgba(255,255,255,0.1)"
-                    : "linear-gradient(135deg, #00d1ff, #6d11ad)",
-                  color: "#fff", border: "none", padding: "8px 20px", borderRadius: 8,
-                  fontSize: 13, fontWeight: 600,
-                  cursor: composerLoading || composerInput.trim().length < 10 ? "not-allowed" : "pointer",
-                  display: "flex", alignItems: "center", gap: 6,
-                }}
-              >
-                {composerLoading ? (
-                  <>
-                    <span style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block" }} className="animate-spin" />
-                    Composing...
-                  </>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>auto_awesome</span>
-                    Compose
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
