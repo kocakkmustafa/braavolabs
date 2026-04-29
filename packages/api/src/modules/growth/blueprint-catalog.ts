@@ -25,13 +25,12 @@ export interface CatalogBlueprint {
    */
   localFriendly?: boolean;
   /**
-   * Origin attribution — when a template is derived from one of the
-   * curated repos in The Repo God, we surface that here so the
-   * marketplace card can show the lineage and link back to the
-   * upstream library.
+   * Origin attribution — optional source label for templates derived
+   * from external libraries or research patterns. Surfaced on
+   * marketplace cards for transparency when relevant.
    */
   source?: {
-    label: string;     // e.g. "The Repo God · claude-mem"
+    label: string;     // e.g. "Memory engine pattern"
     href?: string;     // optional public URL
   };
   spec: {
@@ -2811,11 +2810,9 @@ export const BLUEPRINT_CATALOG: CatalogBlueprint[] = [
   },
 
   // ════════════════════════════════════════════════════════════════════════════
-  // REPO GOD COLLECTION — distilled from the curated agent/skill libraries in
-  // ~/Documents/YULAlabs-AI/The Repo God/. Each template borrows the
-  // proven workflow patterns from a specific upstream repo and wires them
-  // into our 9-primitive system. Most are local-friendly (run cleanly on
-  // self-hosted Gemma 3 4B) so Creator+ users with Ollama get full value.
+  // ADVANCED PATTERNS — autonomous-agent workflow templates wired into our
+  // 9-primitive system. Most are local-friendly (run cleanly on self-hosted
+  // Gemma 3 4B) so Creator+ users with Ollama get full value.
   // ════════════════════════════════════════════════════════════════════════════
 
   // ─── 43. Persistent Memory Brain (claude-mem) ───────────────────────────────
@@ -2831,7 +2828,6 @@ export const BLUEPRINT_CATALOG: CatalogBlueprint[] = [
     pipelineCount: 2,
     estimatedRunCost: "$0.04",
     localFriendly: true,
-    source: { label: "The Repo God · claude-mem", href: "https://github.com/" },
     spec: {
       config: { companyType: "memory_engine", memoryLifecycle: ["candidate", "approved", "deprecated"] },
       agents: [
@@ -2890,7 +2886,6 @@ export const BLUEPRINT_CATALOG: CatalogBlueprint[] = [
     pipelineCount: 2,
     estimatedRunCost: "$0.18",
     localFriendly: false,  // Long-context / code reading benefits from Gemma 12B+
-    source: { label: "The Repo God · cartographer + serena", href: "https://github.com/" },
     spec: {
       config: { companyType: "code_analysis", maxFileSize: 200_000 },
       agents: [
@@ -2955,7 +2950,6 @@ export const BLUEPRINT_CATALOG: CatalogBlueprint[] = [
     pipelineCount: 2,
     estimatedRunCost: "$0.22",
     localFriendly: false,
-    source: { label: "The Repo God · ccpm + get-shit-done", href: "https://github.com/" },
     spec: {
       config: { companyType: "engineering_pm", clarificationRounds: 3 },
       agents: [
@@ -3013,7 +3007,6 @@ export const BLUEPRINT_CATALOG: CatalogBlueprint[] = [
     pipelineCount: 2,
     estimatedRunCost: "$0.11",
     localFriendly: true,
-    source: { label: "The Repo God · last30days-skill", href: "https://github.com/" },
     spec: {
       config: { companyType: "research", sources: ["reddit", "x", "youtube", "hn", "web"], freshness: "30d" },
       agents: [
@@ -3071,7 +3064,6 @@ export const BLUEPRINT_CATALOG: CatalogBlueprint[] = [
     pipelineCount: 2,
     estimatedRunCost: "$0.14",
     localFriendly: true,
-    source: { label: "The Repo God · reddit-video-maker", href: "https://github.com/" },
     spec: {
       config: { companyType: "video_studio", platforms: ["tiktok", "reels", "shorts"], voiceModel: "elevenlabs" },
       agents: [
@@ -3130,7 +3122,6 @@ export const BLUEPRINT_CATALOG: CatalogBlueprint[] = [
     pipelineCount: 2,
     estimatedRunCost: "$0.16",
     localFriendly: false,
-    source: { label: "The Repo God · flutter-test-skill + appium-mcp", href: "https://github.com/" },
     spec: {
       config: { companyType: "mobile_qa", platforms: ["ios", "android"], device: "real-device-cloud" },
       agents: [
@@ -3189,7 +3180,6 @@ export const BLUEPRINT_CATALOG: CatalogBlueprint[] = [
     pipelineCount: 2,
     estimatedRunCost: "$0.07",
     localFriendly: true,
-    source: { label: "The Repo God · arscontexta + claudian", href: "https://github.com/" },
     spec: {
       config: { companyType: "knowledge_vault", taxonomy: ["self", "notes", "ops"] },
       agents: [
@@ -3247,7 +3237,6 @@ export const BLUEPRINT_CATALOG: CatalogBlueprint[] = [
     pipelineCount: 2,
     estimatedRunCost: "$0.20",
     localFriendly: false,
-    source: { label: "The Repo God · trailofbits-skills", href: "https://github.com/" },
     spec: {
       config: { companyType: "compliance_audit", frameworks: ["KVKK", "GDPR", "SOC2", "ISO27001"] },
       agents: [
@@ -3305,7 +3294,6 @@ export const BLUEPRINT_CATALOG: CatalogBlueprint[] = [
     pipelineCount: 2,
     estimatedRunCost: "$0.09",
     localFriendly: true,
-    source: { label: "The Repo God · awesome-claude-skills", href: "https://github.com/" },
     spec: {
       config: { companyType: "integration_hub", maxConcurrentFlows: 20 },
       agents: [
@@ -3362,7 +3350,6 @@ export const BLUEPRINT_CATALOG: CatalogBlueprint[] = [
     pipelineCount: 2,
     estimatedRunCost: "$0.45",
     localFriendly: false,
-    source: { label: "The Repo God · everything-claude-code + agency-agents", href: "https://github.com/" },
     spec: {
       config: { companyType: "eng_team", reviewersRequired: 2 },
       agents: [
