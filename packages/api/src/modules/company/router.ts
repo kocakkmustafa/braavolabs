@@ -477,7 +477,26 @@ companyRouter.post("/:id/agents/compose", agentComposeLimiter, async (req, res, 
     if (!company) throw new AppError(404, "Company not found");
 
     const { description } = agentComposeSchema.parse(req.body);
-    const result = await composeAgent(req.auth!.tenantId, description);
+    let result;
+    try {
+      result = await composeAgent(req.auth!.tenantId, description);
+    } catch (err) {
+      // Surface common composer failures as 400 with actionable copy
+      // instead of a generic 500. Two big buckets:
+      //  - missing/invalid AI key → user must visit Settings
+      //  - LLM returned non-JSON / bad shape → suggest a different provider
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/no ai provider|api key|not initialized|configure/i.test(msg)) {
+        throw new AppError(
+          400,
+          "Configure an AI provider in Settings → AI Provider before composing agents. Anthropic, OpenAI, Gemini, Groq, or self-hosted Ollama all work.",
+        );
+      }
+      if (/json|valid agent spec|did not return/i.test(msg)) {
+        throw new AppError(400, msg);
+      }
+      throw err;
+    }
 
     const agent = await prisma.agent.create({
       data: {
