@@ -1030,7 +1030,7 @@ export default function SettingsPage() {
               >
                 <p className="font-semibold mb-1">How it works</p>
                 <p style={{ color: "#859399" }}>
-                  Your API key is encrypted with AES-256-GCM before storage. When running pipelines and building companies, agents will use your configured provider. If no key is set, the system falls back to the platform default (Anthropic Claude).
+                  Your API key is encrypted with AES-256-GCM before storage. When running pipelines and building companies, agents will use your configured provider. <strong style={{ color: "#fbbf24" }}>An API key is required</strong> — without one, the company builder will fall back to a placeholder spec and pipeline runs will fail with &ldquo;Anthropic API client not initialized&rdquo;. Get your key from <a href="https://console.anthropic.com" target="_blank" rel="noopener" style={{ color: "#a4e6ff", textDecoration: "underline" }}>console.anthropic.com</a> (or pick another provider above).
                 </p>
                 <p className="mt-2" style={{ color: "#859399" }}>
                   <strong style={{ color: "#34d399" }}>Self-hosted option (Creator+):</strong> point Braavolabs at <code>Ollama</code> or <code>LM Studio</code> running on your own machine — Gemma 3 4B is a good starting point. Prompts stay on your hardware, no per-token LLM costs, works offline. Subscribe to Creator or higher to unlock.
