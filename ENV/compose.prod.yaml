@@ -31,11 +31,14 @@ services:
     image: redis:7-alpine
     container_name: aicos-redis
     restart: unless-stopped
+    # BullMQ + Redis-backed lockout state both require `noeviction` —
+    # if Redis evicts keys to free memory, queue jobs and lockout
+    # counters silently disappear. allkeys-lru is wrong here.
     command: >
       redis-server
       --requirepass ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
       --maxmemory 256mb
-      --maxmemory-policy allkeys-lru
+      --maxmemory-policy noeviction
       --save 60 1000
       --appendonly yes
     volumes:

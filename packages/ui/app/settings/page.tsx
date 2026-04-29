@@ -60,7 +60,7 @@ const PROVIDER_LABELS: Record<string, { label: string; color: string; models: st
   // Self-hosted / local-first providers — runs on the user's own hardware
   // (laptop, on-prem server, private cloud). Tenant supplies a baseUrl
   // pointing at their own /v1/chat/completions endpoint. Plan-gated to
-  // STARTER and above (FREE plan keeps it simple with cloud-only BYOK).
+  // CREATOR and above (FREE plan keeps it simple with cloud-only BYOK).
   // setupHint is rendered in the settings UI for clarity.
   OLLAMA:     {
     label: "Ollama (self-hosted · Gemma 3)", color: "#34d399", local: true,
@@ -83,9 +83,15 @@ const PROVIDER_LABELS: Record<string, { label: string; color: string; models: st
 };
 
 // Plans that may configure self-hosted/local providers. FREE keeps it
-// simple — cloud BYOK only. Pulled into the AI Provider section so the
-// disabled <option>s explain why and the upgrade CTA points to /pricing.
-const LOCAL_LLM_PLANS: ReadonlySet<string> = new Set(["STARTER", "PRO", "TEAM", "ENTERPRISE"]);
+// simple — cloud BYOK only. CREATOR+ unlocks self-hosted endpoints.
+// Pulled into the AI Provider section so the disabled <option>s explain
+// why and the upgrade CTA points to /pricing.
+//
+// IMPORTANT: these MUST match the Plan enum in
+// packages/db/prisma/schema.prisma + LOCAL_LLM_PLANS in
+// packages/api/src/modules/settings/router.ts (any drift between the
+// three breaks the gate logic).
+const LOCAL_LLM_PLANS: ReadonlySet<string> = new Set(["CREATOR", "PRO", "BUSINESS", "ENTERPRISE"]);
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -750,7 +756,7 @@ export default function SettingsPage() {
           <Section title="AI Provider" subtitle="Configure which AI model powers your companies and agents">
             <div className="space-y-5">
 
-              {/* Provider selector — local providers gated to STARTER+ */}
+              {/* Provider selector — local providers gated to Creator+ */}
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "#859399" }}>Provider</p>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -772,7 +778,7 @@ export default function SettingsPage() {
                           opacity: locked ? 0.5 : 1,
                           cursor: locked ? "not-allowed" : "pointer",
                         }}
-                        title={locked ? "Self-hosted providers are a STARTER+ feature — upgrade to unlock" : ""}
+                        title={locked ? "Self-hosted providers are a Creator+ feature — upgrade to unlock" : ""}
                       >
                         <div
                           className="w-2 h-2 rounded-full flex-shrink-0"
@@ -803,10 +809,10 @@ export default function SettingsPage() {
                   </span>
                   <div className="flex-1">
                     <p className="font-semibold mb-1" style={{ color: "#c084fc" }}>
-                      Self-hosted Gemma is a STARTER+ feature
+                      Self-hosted Gemma is a Creator-plan feature
                     </p>
                     <p>
-                      Upgrade to STARTER ($19/mo) or higher to point Braavolabs at your own Ollama / LM Studio / vLLM endpoint. Your prompts stay on your hardware, no per-token LLM cost, GDPR/KVKK-compliant by design.
+                      Upgrade to Creator ($19/mo) or higher to point Braavolabs at your own Ollama / LM Studio / vLLM endpoint. Your prompts stay on your hardware, no per-token LLM cost, GDPR/KVKK-compliant by design.
                     </p>
                     <a
                       href="/pricing"
@@ -1027,7 +1033,7 @@ export default function SettingsPage() {
                   Your API key is encrypted with AES-256-GCM before storage. When running pipelines and building companies, agents will use your configured provider. If no key is set, the system falls back to the platform default (Anthropic Claude).
                 </p>
                 <p className="mt-2" style={{ color: "#859399" }}>
-                  <strong style={{ color: "#34d399" }}>Self-hosted option (STARTER+):</strong> point Braavolabs at <code>Ollama</code> or <code>LM Studio</code> running on your own machine — Gemma 3 4B is a good starting point. Prompts stay on your hardware, no per-token LLM costs, works offline. Subscribe to STARTER or higher to unlock.
+                  <strong style={{ color: "#34d399" }}>Self-hosted option (Creator+):</strong> point Braavolabs at <code>Ollama</code> or <code>LM Studio</code> running on your own machine — Gemma 3 4B is a good starting point. Prompts stay on your hardware, no per-token LLM costs, works offline. Subscribe to Creator or higher to unlock.
                   {" "}<a href="/docs#local-llm" style={{ color: "#34d399", textDecoration: "underline" }}>Setup guide →</a>
                 </p>
               </div>

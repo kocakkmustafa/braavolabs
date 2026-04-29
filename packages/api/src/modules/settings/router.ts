@@ -80,10 +80,15 @@ const aiConfigSchema = z.object({
 });
 
 // Plans that may configure self-hosted LLM providers (Ollama, LM Studio,
-// Custom). FREE plan keeps it simple — cloud BYOK only. STARTER+ unlocks
+// Custom). FREE plan keeps it simple — cloud BYOK only. CREATOR+ unlocks
 // self-hosted endpoints. The frontend mirrors this list in LOCAL_LLM_PLANS.
+//
+// IMPORTANT: these names MUST match the Plan enum in
+// packages/db/prisma/schema.prisma exactly. The previous version
+// referenced STARTER/TEAM which don't exist — that bug would have
+// rejected every paying customer's first self-hosted save with a 402.
 const LOCAL_LLM_PLANS: ReadonlySet<string> = new Set([
-  "STARTER", "PRO", "TEAM", "ENTERPRISE",
+  "CREATOR", "PRO", "BUSINESS", "ENTERPRISE",
 ]);
 
 // PUT /api/v1/settings/ai-config
@@ -93,7 +98,7 @@ settingsRouter.put("/ai-config", async (req, res, next) => {
     const { provider, model, apiKey, baseUrl } = aiConfigSchema.parse(req.body);
     const isLocal = (LOCAL_PROVIDER_LITERALS as readonly string[]).includes(provider);
 
-    // Plan gate — self-hosted providers are STARTER+ only. FREE-plan
+    // Plan gate — self-hosted providers are CREATOR+ only. FREE-plan
     // tenants who attempt OLLAMA/LMSTUDIO/CUSTOM get a 402 with a
     // pointer to /pricing. Mirrors the UI guard.
     if (isLocal) {
@@ -104,7 +109,7 @@ settingsRouter.put("/ai-config", async (req, res, next) => {
       if (!tenant || !LOCAL_LLM_PLANS.has(tenant.plan)) {
         throw new AppError(
           402,
-          "Self-hosted LLM providers (Ollama / LM Studio / Custom) require a STARTER plan or higher. Visit /pricing to upgrade."
+          "Self-hosted LLM providers (Ollama / LM Studio / Custom) require a Creator plan or higher. Visit /pricing to upgrade."
         );
       }
     }

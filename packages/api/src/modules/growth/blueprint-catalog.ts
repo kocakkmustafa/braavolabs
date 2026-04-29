@@ -2815,7 +2815,7 @@ export const BLUEPRINT_CATALOG: CatalogBlueprint[] = [
   // ~/Documents/YULAlabs-AI/The Repo God/. Each template borrows the
   // proven workflow patterns from a specific upstream repo and wires them
   // into our 9-primitive system. Most are local-friendly (run cleanly on
-  // self-hosted Gemma 3 4B) so STARTER+ users with Ollama get full value.
+  // self-hosted Gemma 3 4B) so Creator+ users with Ollama get full value.
   // ════════════════════════════════════════════════════════════════════════════
 
   // ─── 43. Persistent Memory Brain (claude-mem) ───────────────────────────────

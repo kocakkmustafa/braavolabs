@@ -322,7 +322,7 @@ export default function OnboardingPage() {
                       className="flex flex-col gap-1 p-2.5 rounded-lg text-left transition-all hover:brightness-125"
                       style={{ background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.25)" }}
                     >
-                      <span className="text-[11px] font-bold" style={{ color: "#34d399" }}>⚡ Self-hosted Gemma (STARTER+)</span>
+                      <span className="text-[11px] font-bold" style={{ color: "#34d399" }}>⚡ Self-hosted Gemma (Creator+)</span>
                       <span className="text-[10px]" style={{ color: "#859399" }}>Ollama / LM Studio · no per-token cost · KVKK</span>
                     </Link>
                   </div>

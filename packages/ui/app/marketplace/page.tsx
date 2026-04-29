@@ -34,7 +34,7 @@ export default function MarketplacePage() {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   // Self-hosted filter — only show blueprints flagged localFriendly. Helps
-  // STARTER+ users on Ollama narrow to templates they can run end-to-end
+  // Creator+ users on Ollama narrow to templates they can run end-to-end
   // on Gemma 3 4B without burning cloud tokens.
   const [localOnly, setLocalOnly] = useState(false);
 

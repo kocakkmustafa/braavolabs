@@ -92,6 +92,7 @@ export default function DocsPage() {
             <li><a href="#sse" className="hover:underline">SSE Streaming</a></li>
             <li><a href="#sdk" className="hover:underline">SDK &amp; CLI</a></li>
             <li><a href="#local-llm" className="hover:underline">Self-hosted LLM (Gemma)</a></li>
+            <li><a href="#skills-library" className="hover:underline">Skills Library</a></li>
             <li><a href="#security" className="hover:underline">Security</a></li>
             <li><a href="#changelog" className="hover:underline">Changelog</a></li>
           </ul>
@@ -389,7 +390,7 @@ es.addEventListener("run.failed",     () => es.close());`}</Code>
         </Section>
 
         {/* === Local LLM === */}
-        <Section id="local-llm" title="Self-hosted LLM — run Gemma on your own hardware (STARTER+ feature)">
+        <Section id="local-llm" title="Self-hosted LLM — run Gemma on your own hardware (Creator+ feature)">
           <p>
             Braavolabs is one of the few autonomous-company platforms that runs end-to-end on
             a model living on <em>your</em> machine. Point us at <code>Ollama</code> or{" "}
@@ -405,7 +406,7 @@ es.addEventListener("run.failed",     () => es.close());`}</Code>
           </p>
           <p>
             <strong>Plan requirement:</strong> self-hosted providers are unlocked on{" "}
-            <a href="/pricing" style={{ color: "#a4e6ff" }}>STARTER ($19/mo) and above</a>. The
+            <a href="/pricing" style={{ color: "#a4e6ff" }}>Creator ($19/mo) and above</a>. The
             FREE plan supports cloud BYOK only (Anthropic / OpenAI / Google etc.).
           </p>
 
@@ -494,6 +495,76 @@ curl http://localhost:11434/v1/models
           </ul>
         </Section>
 
+        {/* === Skills Library === */}
+        <Section id="skills-library" title="Skills Library — 1,700+ curated agents from The Repo God">
+          <p>
+            Beyond our 50+ Blueprint Marketplace templates, Braavolabs maintains{" "}
+            <strong>The Repo God</strong> — a curated library of <strong>1,700+ agents,
+            skills, hooks, and workflow patterns</strong> distilled from 56 upstream
+            repositories (Anthropic Skills, agency-agents, claude-mem, serena, ccpm,
+            flutter-skills, supabase-skills, trailofbits-skills, last30days-skill,
+            cartographer, and many more).
+          </p>
+          <p>
+            <strong>Current status:</strong> 10 of these patterns ship as production-ready
+            Blueprint templates today (#43-52 in <a href="/marketplace" style={{ color: "#a4e6ff" }}>Marketplace</a>) — the rest are
+            available as a read-only browseable catalog you can request access to. We
+            don&apos;t auto-execute third-party skill code in production: each addition
+            goes through a permission manifest + sandbox review. This page is a roadmap of
+            what&apos;s coming.
+          </p>
+
+          <h3 className="font-semibold mt-6 mb-2" style={{ color: "#e1e2eb" }}>
+            Already shipped as Blueprints (10)
+          </h3>
+          <Table headers={["Blueprint", "Source repo", "Local-friendly"]}>
+            <Row>Persistent Memory Brain<EOR />claude-mem<EOR />✓ Gemma 3 4B</Row>
+            <Row>Codebase Cartographer<EOR />cartographer + serena + understand-anything<EOR />Gemma 12B+</Row>
+            <Row>Spec-Driven Project Manager<EOR />ccpm + get-shit-done<EOR />Cloud</Row>
+            <Row>Real-Time Research Agent<EOR />last30days-skill<EOR />✓ Gemma 3 4B</Row>
+            <Row>Reddit Video Producer<EOR />reddit-video-maker<EOR />✓ Gemma 3 4B</Row>
+            <Row>Mobile QA Agency<EOR />flutter-test-skill + appium-mcp<EOR />Cloud</Row>
+            <Row>Knowledge Vault Manager<EOR />arscontexta + claudian<EOR />✓ Gemma 3 4B</Row>
+            <Row>Compliance Auditor (KVKK/GDPR/SOC2)<EOR />trailofbits-skills<EOR />Cloud</Row>
+            <Row>SaaS Integration Hub<EOR />awesome-claude-skills<EOR />✓ Gemma 3 4B</Row>
+            <Row>Multi-Agent Engineering Team<EOR />everything-claude-code + agency-agents<EOR />Cloud</Row>
+          </Table>
+
+          <h3 className="font-semibold mt-6 mb-2" style={{ color: "#e1e2eb" }}>
+            What&apos;s in the larger library (preview)
+          </h3>
+          <ul className="list-disc pl-5 space-y-1 text-sm" style={{ color: "#bbc9cf" }}>
+            <li><strong>Engineering &amp; DevTools</strong> — 176 agents (agency-agents), 28 agents + 125 skills + 60 commands (everything-claude-code), 32 agents + 32 skills (oh-my-claudecode), 11 agents + 41 commands (claude-forge), 127+ subagents (awesome-subagents), 112 agents + 147 skills (wshobson-agents)</li>
+            <li><strong>Project Management</strong> — PRD→Epic→GitHub Issue→Parallel exec (ccpm), 20+ commands + 10 agents (get-shit-done), persistent planning patterns (planning-with-files), graph-based task memory (beads · Dolt DB)</li>
+            <li><strong>Memory &amp; Context</strong> — 5 skills + cross-session continuity (claude-mem), context rot prevention (continuous-claude-v3), three-space second-brain pipeline (arscontexta)</li>
+            <li><strong>Mobile &amp; Cross-Platform</strong> — 22 Flutter skills (flutter-skills), 28 skills + 26 rules (flutter-ai-rules), 253 MCP tools (flutter-test-skill), 10 React Native skills + 6 agents + 38 rules (reactnative-agent-skills)</li>
+            <li><strong>Backend &amp; Database</strong> — 8 Postgres categories (supabase-agent-skills), schema design + RLS (pg-aiguide), 5 service skills (supabase-skills)</li>
+            <li><strong>Security &amp; Compliance</strong> — 30 skills covering smart contract audit, malware analysis, reverse engineering (trailofbits-skills), 14 git + 5 rm destructive-command blockers (claude-code-safety-net)</li>
+            <li><strong>Marketing &amp; Growth</strong> — 34 skills covering CRO, SEO, pricing, analytics (marketingskills), 78+ Composio integrations across 500+ apps (awesome-claude-skills)</li>
+            <li><strong>Research &amp; Analysis</strong> — Reddit/X/YouTube/HN/web scan + synthesis (last30days-skill), 52 LSP semantic code analysis (serena), parallel-subagent codebase mapping (cartographer)</li>
+            <li><strong>Observability</strong> — Real-time session dashboard (claude-hud), Vue+WebSocket timeline (multi-agent-observability), OpenTelemetry+Prometheus+Grafana (claude-code-otel)</li>
+            <li><strong>Productivity Integrations</strong> — Asana, Atlassian, ClickUp, Linear, Monday, MS365, Notion, Slack, Gmail, Calendar (Anthropic plugin set)</li>
+          </ul>
+
+          <h3 className="font-semibold mt-6 mb-2" style={{ color: "#e1e2eb" }}>
+            How to request more skills
+          </h3>
+          <ol className="list-decimal pl-5 space-y-1 text-sm" style={{ color: "#bbc9cf" }}>
+            <li>Email <a href="mailto:founder@braavolabs.com?subject=Skills%20Library%20request" style={{ color: "#a4e6ff" }}>founder@braavolabs.com</a> with your use case.</li>
+            <li>We&apos;ll point you at the upstream repo + give you the Blueprint template if one exists.</li>
+            <li>If you&apos;re on Business+ and need a custom skill ported into Braavolabs, we&apos;ll do the permission-manifest + sandbox review (typical SLA: 5 business days).</li>
+          </ol>
+
+          <p className="mt-6 text-xs" style={{ color: "#5a6770" }}>
+            Why we don&apos;t auto-import all 1,700: each upstream agent has different
+            execution semantics (Claude Code skill, Anthropic Agent SDK, n8n workflow,
+            raw shell hook). Auto-running unverified third-party code in a multi-tenant
+            production environment is a security non-starter. The 10 we&apos;ve shipped
+            went through hand-port + prompt-engineering + governance review. The rest
+            stay browseable until they earn the same treatment.
+          </p>
+        </Section>
+
         {/* === Security === */}
         <Section id="security" title="Security">
           <ul className="list-disc pl-5 space-y-1 text-sm" style={{ color: "#bbc9cf" }}>
@@ -513,7 +584,7 @@ curl http://localhost:11434/v1/models
         {/* === Changelog === */}
         <Section id="changelog" title="Changelog">
           <Table headers={["Date", "Change"]}>
-            <Row>2026-04-29<EOR />Self-hosted LLM support (STARTER+) — Ollama / LM Studio / Custom OpenAI-compatible. Gemma 3 4B as the privacy-first default. New <code>baseUrl</code> field on UserAIConfig + tenant-scoped overrides.</Row>
+            <Row>2026-04-29<EOR />Self-hosted LLM support (Creator+) — Ollama / LM Studio / Custom OpenAI-compatible. Gemma 3 4B as the privacy-first default. New <code>baseUrl</code> field on UserAIConfig + tenant-scoped overrides. Plan-enum gate aligned with schema (CREATOR/PRO/BUSINESS/ENTERPRISE).</Row>
             <Row>2026-04-28<EOR />Run.error now propagates from failed step (was null). 5-tier plan sync. Onboarding state persisted.</Row>
             <Row>2026-04-27<EOR />Login + forgot-password timing oracle hardening. Refresh token jti rotation. CSP frame-ancestors.</Row>
             <Row>2026-04-26<EOR />Production launch. KVKK/GDPR cookie banner. Branded welcome + reset emails. S3 backup + restore drill.</Row>
