@@ -42,3 +42,12 @@ coverage/
 # Turbo
 .turbo/
 scheduled_tasks.lock
+
+# Claude Code worktrees (per-agent isolated copies — never commit)
+.claude/worktrees/
+
+# Cowork / automation runtime state — regenerated on every cron tick,
+# committing would create meaningless diffs.
+HOLDING_CORE/competitor-state.json
+HOLDING_CORE/*-state.json
+HOLDING_CORE/*.runtime.json
