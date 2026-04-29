@@ -303,19 +303,29 @@ export default function OnboardingPage() {
                 <span className="material-symbols-outlined text-base mt-0.5" style={{ color: "#fbbf24" }}>key</span>
                 <div className="flex-1">
                   <p className="font-semibold text-sm mb-1" style={{ color: "#fde68a" }}>
-                    One last step — connect your Claude API key
+                    One last step — pick how your agents access an LLM
                   </p>
-                  <p className="text-xs leading-relaxed mb-2" style={{ color: "#f59e0b" }}>
-                    Your AI company runs on your own Anthropic key (BYOK). Without it, the first pipeline run will fail.
+                  <p className="text-xs leading-relaxed mb-3" style={{ color: "#f59e0b" }}>
+                    You have two options. Both keep your data tenant-isolated and audit-logged.
                   </p>
-                  <Link
-                    href="/settings#ai-provider"
-                    className="inline-flex items-center gap-1 text-xs font-semibold"
-                    style={{ color: "#fbbf24", textDecoration: "underline" }}
-                  >
-                    Add API key in Settings
-                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>arrow_forward</span>
-                  </Link>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+                    <Link
+                      href="/settings#ai-provider"
+                      className="flex flex-col gap-1 p-2.5 rounded-lg text-left transition-all hover:brightness-125"
+                      style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.25)" }}
+                    >
+                      <span className="text-[11px] font-bold" style={{ color: "#00d1ff" }}>☁ Cloud BYOK (any plan)</span>
+                      <span className="text-[10px]" style={{ color: "#859399" }}>Anthropic, OpenAI, Gemini, Mistral, Groq, OpenRouter</span>
+                    </Link>
+                    <Link
+                      href="/settings#ai-provider"
+                      className="flex flex-col gap-1 p-2.5 rounded-lg text-left transition-all hover:brightness-125"
+                      style={{ background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.25)" }}
+                    >
+                      <span className="text-[11px] font-bold" style={{ color: "#34d399" }}>⚡ Self-hosted Gemma (STARTER+)</span>
+                      <span className="text-[10px]" style={{ color: "#859399" }}>Ollama / LM Studio · no per-token cost · KVKK</span>
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
