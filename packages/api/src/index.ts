@@ -34,6 +34,7 @@ import { governanceRouter } from "./modules/governance/router";
 import { onboardingRouter } from "./modules/onboarding/router";
 import { growthRouter } from "./modules/growth/router";
 import { authRouter } from "./modules/auth/auth.router";
+import { userRouter } from "./modules/user/user.router";
 import { exportRouter } from "./modules/export/router";
 import { integrationRouter } from "./modules/integration/router";
 import { settingsRouter } from "./modules/settings/router";
@@ -201,6 +202,7 @@ const api = express.Router();
 // /api/v1/health alias (same handler as /health) for external probes.
 api.get("/health", healthHandler);
 api.use("/auth", authRouter);
+api.use("/users", userRouter);
 api.use("/companies", companyRouter);
 api.use("/pipelines", pipelineRouter);
 api.use("/runs", runRouter);
