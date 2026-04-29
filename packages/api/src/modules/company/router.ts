@@ -466,8 +466,13 @@ const agentComposeSchema = z.object({
 
 companyRouter.post("/:id/agents/compose", agentComposeLimiter, async (req, res, next) => {
   try {
+    // Cast to string — when this endpoint chains through agentComposeLimiter
+    // (rate-limit middleware), the inferred type of req.params.id widens to
+    // `string | string[]` which Prisma rejects. Other endpoints in this file
+    // skip the cast because they don't compose through this middleware.
+    const companyId = req.params.id as string;
     const company = await prisma.company.findFirst({
-      where: { id: req.params.id, tenantId: req.auth!.tenantId },
+      where: { id: companyId, tenantId: req.auth!.tenantId },
     });
     if (!company) throw new AppError(404, "Company not found");
 
