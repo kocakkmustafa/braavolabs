@@ -42,11 +42,14 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline'",
+              // Cloudflare auto-injects beacon.min.js for analytics on
+              // proxied sites — add the static CDN host so the script
+              // loads instead of being silently blocked.
+              "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: https:",
-              `connect-src 'self' ${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:*"} https://fonts.googleapis.com https://fonts.gstatic.com`,
+              `connect-src 'self' ${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:*"} https://fonts.googleapis.com https://fonts.gstatic.com https://cloudflareinsights.com`,
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",
