@@ -643,3 +643,199 @@ export async function resetPassword(token: string, newPassword: string): Promise
     data: { passwordHash, resetTokenHash: null, resetTokenExpiresAt: null },
   });
 }
+
+// ─── GITHUB OAUTH ────────────────────────────────────────
+//
+// Mirrors the Google flow but GitHub speaks plain OAuth2 (no OIDC
+// id_token). We exchange the code for an access_token via REST, then
+// hit api.github.com/user + /user/emails because GitHub allows users
+// to keep their primary email private — the /user endpoint returns
+// `email: null` in that case and we fall back to /user/emails to find
+// the primary verified address.
+
+const GITHUB_AUTH_URL = "https://github.com/login/oauth/authorize";
+const GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token";
+const GITHUB_USER_URL = "https://api.github.com/user";
+const GITHUB_EMAILS_URL = "https://api.github.com/user/emails";
+
+function requireGitHubConfig() {
+  if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET || !env.GITHUB_REDIRECT_URI) {
+    throw new AppError(503, "GitHub OAuth not configured");
+  }
+}
+
+export function getGitHubAuthUrl(state?: string): string {
+  requireGitHubConfig();
+  const params = new URLSearchParams({
+    client_id: env.GITHUB_CLIENT_ID!,
+    redirect_uri: env.GITHUB_REDIRECT_URI!,
+    scope: "read:user user:email",
+    allow_signup: "true",
+  });
+  if (state) params.set("state", state);
+  return `${GITHUB_AUTH_URL}?${params.toString()}`;
+}
+
+interface GitHubUser {
+  id: number;
+  login: string;
+  name: string | null;
+  email: string | null;
+  avatar_url: string | null;
+}
+
+interface GitHubEmail {
+  email: string;
+  primary: boolean;
+  verified: boolean;
+}
+
+export async function githubCallback(
+  code: string,
+  ref?: string,
+): Promise<{ token: string; refreshToken: string; user: any; tenant: any }> {
+  requireGitHubConfig();
+
+  // 1) Exchange the authorization code for an access token. GitHub's
+  // /login/oauth/access_token returns form-encoded by default — Accept:
+  // application/json is required for a parseable response.
+  const tokenResp = await fetch(GITHUB_TOKEN_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "User-Agent": "Braavolabs-OAuth",
+    },
+    body: JSON.stringify({
+      client_id: env.GITHUB_CLIENT_ID,
+      client_secret: env.GITHUB_CLIENT_SECRET,
+      code,
+      redirect_uri: env.GITHUB_REDIRECT_URI,
+    }),
+  });
+  if (!tokenResp.ok) {
+    throw new AppError(400, `GitHub token exchange failed: ${tokenResp.status}`);
+  }
+  const tokenJson = (await tokenResp.json()) as { access_token?: string; error?: string; error_description?: string };
+  if (!tokenJson.access_token) {
+    throw new AppError(400, `GitHub token exchange returned no token: ${tokenJson.error_description ?? tokenJson.error ?? "unknown"}`);
+  }
+  const accessToken = tokenJson.access_token;
+
+  // 2) Fetch the user profile.
+  const userResp = await fetch(GITHUB_USER_URL, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/vnd.github+json",
+      "User-Agent": "Braavolabs-OAuth",
+    },
+  });
+  if (!userResp.ok) {
+    throw new AppError(400, `GitHub /user failed: ${userResp.status}`);
+  }
+  const ghUser = (await userResp.json()) as GitHubUser;
+
+  // 3) Resolve email — primary verified takes priority over /user.email
+  // (which is often null because GitHub privacy defaults hide it).
+  let email: string | null = ghUser.email;
+  if (!email) {
+    const emailsResp = await fetch(GITHUB_EMAILS_URL, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/vnd.github+json",
+        "User-Agent": "Braavolabs-OAuth",
+      },
+    });
+    if (emailsResp.ok) {
+      const emails = (await emailsResp.json()) as GitHubEmail[];
+      const primary = emails.find((e) => e.primary && e.verified) ?? emails.find((e) => e.verified);
+      email = primary?.email ?? null;
+    }
+  }
+  if (!email) {
+    throw new AppError(400, "GitHub account has no verified email — required to create your Braavolabs account");
+  }
+
+  const githubId = String(ghUser.id);
+  const name = ghUser.name ?? ghUser.login;
+  const picture = ghUser.avatar_url;
+
+  // 4) Find or create user. Same OR-on-githubId-or-email pattern as
+  // Google flow so an existing email-password user can link by signing
+  // in with GitHub once.
+  let user = await prisma.user.findFirst({
+    where: { OR: [{ githubId }, { email }] },
+    include: { tenant: true },
+  });
+
+  if (user) {
+    if (!user.githubId) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { githubId, avatarUrl: picture ?? user.avatarUrl },
+      });
+    }
+    await prisma.activityLog.create({
+      data: {
+        tenantId: user.tenantId,
+        actor: user.id,
+        action: "auth.github_login",
+        resource: "user",
+        resourceId: user.id,
+      },
+    });
+  } else {
+    const slug =
+      (name ?? email.split("@")[0])
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "") +
+      "-" +
+      Date.now().toString(36);
+
+    const result = await prisma.$transaction(async (tx) => {
+      const tenant = await tx.tenant.create({
+        data: { name: name ?? email!.split("@")[0], slug, plan: "FREE" },
+      });
+      const newUser = await tx.user.create({
+        data: {
+          tenantId: tenant.id,
+          email: email!,
+          name: name ?? null,
+          avatarUrl: picture ?? null,
+          githubId,
+          role: "OWNER",
+        },
+      });
+      await tx.activityLog.create({
+        data: {
+          tenantId: tenant.id,
+          actor: newUser.id,
+          action: "auth.github_register",
+          resource: "user",
+          resourceId: newUser.id,
+        },
+      });
+      return { tenant, user: newUser };
+    });
+    user = { ...result.user, tenant: result.tenant } as any;
+
+    // Referral handling (`ref` query param) — left out of the GitHub
+    // flow on purpose. Google + email-password already cover the
+    // referral path; folding GitHub into it correctly needs a shared
+    // helper. Tracked as a follow-up.
+  }
+
+  // 5) Issue tokens — same path as the rest of the auth surface.
+  const payload: AuthPayload = {
+    userId: user!.id,
+    tenantId: user!.tenantId,
+    role: user!.role,
+  };
+  const token = signToken(payload);
+  const jti = crypto.randomBytes(16).toString("hex");
+  const refreshToken = signRefreshToken({ ...payload, jti });
+  await redis.set(`refresh:${jti}`, user!.id, "EX", REFRESH_TTL_SECONDS);
+
+  return { token, refreshToken, user, tenant: (user as any).tenant };
+}

@@ -6,7 +6,7 @@
 import { Router } from "express";
 import crypto from "crypto";
 import { z } from "zod";
-import { register, login, getGoogleAuthUrl, googleCallback, requestPasswordReset, resetPassword, refreshTokens, revokeAllRefreshTokens } from "./auth.service";
+import { register, login, getGoogleAuthUrl, googleCallback, getGitHubAuthUrl, githubCallback, requestPasswordReset, resetPassword, refreshTokens, revokeAllRefreshTokens } from "./auth.service";
 import { authMiddleware } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
 import { rateLimit } from "../../middleware/rateLimit";
@@ -161,6 +161,42 @@ authRouter.get("/google/callback", async (req, res, next) => {
     // (https:// in prod, no localhost fallback) — using env.APP_URL here
     // closes the open-redirect surface a missing/typo'd env var would
     // otherwise create.
+    const redirectUrl = new URL("/auth/callback", env.APP_URL);
+    redirectUrl.searchParams.set("token", result.token);
+    redirectUrl.searchParams.set("refreshToken", result.refreshToken);
+    res.redirect(redirectUrl.toString());
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/auth/github — redirect to GitHub consent with CSRF state
+authRouter.get("/github", async (_req, res, next) => {
+  try {
+    const state = crypto.randomBytes(32).toString("hex");
+    await redis.set(`oauth:state:${state}`, "1", "EX", 600);
+    const url = getGitHubAuthUrl(state);
+    res.json({ url, state });
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/auth/github/callback — handle GitHub OAuth callback
+const githubCallbackSchema = z.object({
+  code: z.string().min(1),
+  state: z.string().min(1),
+  ref: z.string().optional(),
+});
+
+authRouter.get("/github/callback", async (req, res, next) => {
+  try {
+    const { code, state, ref } = githubCallbackSchema.parse(req.query);
+    const stateKey = `oauth:state:${state}`;
+    const stateValid = await redis.get(stateKey);
+    if (!stateValid) {
+      res.status(400).json({ error: "Invalid or expired OAuth state" });
+      return;
+    }
+    await redis.del(stateKey);
+
+    const result = await githubCallback(code, ref);
     const redirectUrl = new URL("/auth/callback", env.APP_URL);
     redirectUrl.searchParams.set("token", result.token);
     redirectUrl.searchParams.set("refreshToken", result.refreshToken);

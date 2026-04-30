@@ -48,6 +48,9 @@ const envShape = z.object({
   // missing in .env, which `z.string().url()` rejects ("Invalid url").
   // Preprocessing maps "" → undefined so the optional() chain accepts it.
   GOOGLE_REDIRECT_URI: z.preprocess((v) => (v === "" ? undefined : v), z.string().url().optional()),
+  GITHUB_CLIENT_ID: z.string().optional(),
+  GITHUB_CLIENT_SECRET: z.string().optional(),
+  GITHUB_REDIRECT_URI: z.preprocess((v) => (v === "" ? undefined : v), z.string().url().optional()),
   SENDGRID_API_KEY: z.string().optional(),
   SENDGRID_FROM_EMAIL: z.string().optional(),
   // BYPASS_BILLING: z.coerce.boolean() coerces ANY non-empty string to true

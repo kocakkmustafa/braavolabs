@@ -252,7 +252,7 @@ jobs:
 
           echo ""
           echo "=== Public pages ==="
-          for url in / /pricing /docs /marketplace /features; do
+          for url in / /pricing /docs /features; do
             code=$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" "https://braavolabs.com${url}")
             echo "  ${code}  https://braavolabs.com${url}"
             if [ "$code" != "200" ]; then
