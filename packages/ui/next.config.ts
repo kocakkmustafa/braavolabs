@@ -44,12 +44,15 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               // Cloudflare auto-injects beacon.min.js for analytics on
               // proxied sites — add the static CDN host so the script
-              // loads instead of being silently blocked.
-              "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
+              // loads instead of being silently blocked. Plausible is
+              // gated on NEXT_PUBLIC_PLAUSIBLE_DOMAIN at render time but
+              // CSP needs the host pre-allowed so we don't have to flip
+              // CSP at the same time the env var lands.
+              "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://plausible.io",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: https:",
-              `connect-src 'self' ${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:*"} https://fonts.googleapis.com https://fonts.gstatic.com https://cloudflareinsights.com`,
+              `connect-src 'self' ${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:*"} https://fonts.googleapis.com https://fonts.gstatic.com https://cloudflareinsights.com https://plausible.io`,
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

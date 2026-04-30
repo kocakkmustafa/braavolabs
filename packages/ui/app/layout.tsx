@@ -131,6 +131,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           // a known-safe payload (we control the literal above).
           dangerouslySetInnerHTML={{ __html: JSON.stringify(SCHEMA_LD) }}
         />
+        {/* Plausible Analytics — privacy-first, no cookies, KVKK-compliant.
+            Loaded only when NEXT_PUBLIC_PLAUSIBLE_DOMAIN is set, so the
+            tag is dormant until the user activates a Plausible account
+            and ships a build with the env var. The CookieConsent banner
+            doesn't gate this because Plausible doesn't use cookies and
+            doesn't fingerprint — explicit Plausible position. */}
+        {process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN && (
+          <script
+            defer
+            data-domain={process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN}
+            src="https://plausible.io/js/script.outbound-links.js"
+          />
+        )}
       </head>
       <body className="bg-background text-on-surface antialiased">
         {/* Skip-link — keyboard users can bypass nav and jump to <main>. */}
