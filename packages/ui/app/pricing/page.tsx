@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
+import LanguageSwitcher from "../../components/LanguageSwitcher";
 
 type BillingCycle = "monthly" | "yearly";
 
@@ -112,6 +114,7 @@ function formatMonthly(n: number) {
 }
 
 export default function PricingPage() {
+  const t = useTranslations();
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
 
   return (
@@ -127,11 +130,12 @@ export default function PricingPage() {
           <span className="font-headline font-bold text-sm" style={{ color: "#e1e2eb" }}>Braavolabs</span>
         </a>
         <div className="flex items-center gap-4 text-sm" style={{ color: "#859399" }}>
-          <a href="/features" className="hover:text-white transition-colors">Features</a>
-          <a href="/docs" className="hover:text-white transition-colors">Docs</a>
+          <a href="/features" className="hover:text-white transition-colors">{t("nav.features")}</a>
+          <a href="/docs" className="hover:text-white transition-colors">{t("nav.docs")}</a>
+          <LanguageSwitcher />
           <a href="/login" className="px-4 py-2 rounded-xl font-semibold text-white text-xs transition-all hover:brightness-110"
             style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}>
-            Get Started
+            {t("nav.getStarted")}
           </a>
         </div>
       </nav>

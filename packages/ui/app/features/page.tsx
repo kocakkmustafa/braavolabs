@@ -1,6 +1,10 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import LanguageSwitcher from "../../components/LanguageSwitcher";
+
 export default function FeaturesPage() {
+  const t = useTranslations();
   const features = [
     {
       icon: "smart_toy",
@@ -71,11 +75,12 @@ export default function FeaturesPage() {
           <span className="font-headline font-bold text-sm" style={{ color: "#e1e2eb" }}>Braavolabs</span>
         </a>
         <div className="flex items-center gap-4 text-sm" style={{ color: "#859399" }}>
-          <a href="/pricing" className="hover:text-white transition-colors">Pricing</a>
-          <a href="/docs" className="hover:text-white transition-colors">Docs</a>
+          <a href="/pricing" className="hover:text-white transition-colors">{t("nav.pricing")}</a>
+          <a href="/docs" className="hover:text-white transition-colors">{t("nav.docs")}</a>
+          <LanguageSwitcher />
           <a href="/login" className="px-4 py-2 rounded-xl font-semibold text-white text-xs transition-all hover:brightness-110"
             style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}>
-            Get Started
+            {t("nav.getStarted")}
           </a>
         </div>
       </nav>
