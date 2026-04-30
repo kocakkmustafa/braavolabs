@@ -19,18 +19,27 @@ export const metadata: Metadata = {
     description: "Describe your business in plain English. Braavolabs builds a fully-staffed autonomous company — content, sales, ops — that runs while you sleep.",
     type: "website",
     siteName: "Braavolabs",
+    url: "https://braavolabs.com",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Braavolabs — Your AI company, built in 10 minutes",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Braavolabs — Your AI company, built in 10 minutes",
     description: "Describe your business in plain English. Braavolabs builds an autonomous company that runs while you sleep.",
+    images: ["/og-image.png"],
   },
-  icons: {
-    icon: [
-      { url: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%2300d1ff'/><stop offset='100%' stop-color='%236d11ad'/></linearGradient></defs><rect width='32' height='32' rx='8' fill='url(%23g)'/><text x='16' y='22' font-size='14' font-weight='bold' text-anchor='middle' fill='white' font-family='sans-serif'>AI</text></svg>", type: "image/svg+xml" },
-    ],
-  },
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "http://localhost:3001"),
+  // Next.js 15 picks up app/icon.png and app/apple-icon.png automatically
+  // — both shipped from the user-supplied emblem (256×256 source). The
+  // explicit `icons.icon` block is intentionally omitted so we don't
+  // double-register and confuse browsers.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://braavolabs.com"),
 };
 
 // Site-wide JSON-LD structured data — picked up by Google rich results,
@@ -49,7 +58,7 @@ const SCHEMA_LD = {
       "@id": "https://braavolabs.com/#organization",
       name: "Braavolabs",
       url: "https://braavolabs.com",
-      logo: "https://braavolabs.com/og-image.png",
+      logo: "https://braavolabs.com/braavolabs-logo.png",
       sameAs: [
         // Filled in once social accounts are public — keep array shape
         // here so AI assistants pick up the schema even when empty.
