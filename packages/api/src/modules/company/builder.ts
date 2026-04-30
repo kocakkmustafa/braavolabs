@@ -308,45 +308,25 @@ export async function startBuildSession(
     messages.push({ role: "assistant", content: assistantText });
     parsed = parseBuilderResponse(assistantText);
   } catch (err) {
-    logger.warn({ err }, "Claude API unavailable — using fallback company spec");
-    // Extract a useful 2-4 word company name from the description without
-    // an LLM. Three strategies, in order of preference:
-    //   1. Explicit "called/named X" or "<X> company" regex
-    //   2. First topic-noun + descriptor combo (e.g. "TikTok content factory"
-    //      from "A TikTok content factory for indie game devs")
-    //   3. Title-cased first 3 meaningful words (skip stop-words)
-    // Previously this just sliced the first 40 chars producing things like
-    // "A simple TikTok content factory for indi" with a mid-word cut.
-    const fallbackName = extractFallbackCompanyName(description);
-    const fallbackSpec = {
-      ready: true,
-      company: {
-        name: fallbackName || "My AI Company",
-        description,
-        primitives: ["CONTENT", "ACQUISITION", "ANALYTICS", "OPERATIONS"],
-        agents: [
-          { name: "Content Agent", role: "content_creator", systemPrompt: `You create content for ${fallbackName || "the company"}.`, tools: ["generate_post", "create_draft"] },
-          { name: "Analytics Agent", role: "analyst", systemPrompt: `You analyze performance data for ${fallbackName || "the company"}.`, tools: ["get_metrics", "create_report"] },
-          { name: "Operations Agent", role: "operator", systemPrompt: `You manage operations for ${fallbackName || "the company"}.`, tools: ["send_email", "update_crm"] },
-        ],
-        pipelines: [
-          {
-            name: "Daily Content Pipeline",
-            trigger: "SCHEDULED",
-            schedule: "0 9 * * *",
-            steps: [
-              { name: "Generate Content", agentRole: "content_creator", order: 1 },
-              { name: "Analyze Performance", agentRole: "analyst", order: 2 },
-            ],
-          },
-        ],
-        config: {},
-      },
-    };
-    const fallbackText = "```json\n" + JSON.stringify(fallbackSpec, null, 2) + "\n```";
-    assistantText = fallbackText;
-    messages.push({ role: "assistant", content: assistantText });
-    parsed = fallbackSpec as BuilderOutput;
+    // No more "fallback dummy spec" — building a company without an LLM
+    // produced generic placeholder agents that confused users (3 lookalike
+    // companies named "For", "My AI Company" populated production DB during
+    // testing). Better to fail loudly and tell the user what to fix.
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.warn({ err, tenantId }, "Builder LLM call failed — surfacing actionable error");
+    if (/no ai provider|api key|not initialized|configure|please add an api key/i.test(msg)) {
+      throw new AppError(
+        400,
+        "AI provider key required to build a company. Configure one in Settings → AI Provider — Anthropic, OpenAI, Gemini, Groq, Mistral, OpenRouter, or self-hosted Ollama / LM Studio all work.",
+      );
+    }
+    if (/timeout|unreachable|fetch/i.test(msg)) {
+      throw new AppError(
+        503,
+        `AI provider unreachable: ${msg}. If you're using a self-hosted endpoint (Ollama / LM Studio) verify it's running. For cloud providers, retry in a moment.`,
+      );
+    }
+    throw new AppError(502, `Builder LLM call failed: ${msg}`);
   }
 
   // Enforce per-tenant session limit

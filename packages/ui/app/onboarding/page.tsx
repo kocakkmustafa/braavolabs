@@ -193,17 +193,11 @@ export default function OnboardingPage() {
     api.getAIConfig(token).then((cfg) => setAiKeyConfigured(cfg.hasApiKey)).catch(() => setAiKeyConfigured(false));
   }, [token]);
 
-  // When industry is selected, fetch suggested blueprints
-  useEffect(() => {
-    if (!selectedIndustry || !token) return;
-    setLoadingBlueprints(true);
-    setSuggestedBlueprints([]);
-    setSelectedBlueprintSlug(null);
-    api.listCatalogBlueprints(token, selectedIndustry)
-      .then((list) => setSuggestedBlueprints(list.slice(0, 3)))
-      .catch(() => setSuggestedBlueprints([]))
-      .finally(() => setLoadingBlueprints(false));
-  }, [selectedIndustry, token]);
+  // Blueprint catalog removed (decision 2026-04-30): users define their
+  // own company end-to-end — the AI builder writes the agents and
+  // pipeline from a free-text description, no pre-canned templates.
+  // Industry is still captured because it primes the builder's LLM
+  // context downstream.
 
   if (!hydrated || !token) return (
     <div className="flex items-center justify-center min-h-[60vh]">
@@ -232,20 +226,12 @@ export default function OnboardingPage() {
     setLoading(true);
     setError(null);
     try {
-      // If a blueprint was selected, clone it instead of creating hero company
-      if (selectedBlueprintSlug) {
-        const res = await api.cloneCatalogBlueprint(token!, selectedBlueprintSlug, companyName);
-        setResult({ company: res.company, agents: [], fromBlueprint: true });
-      } else {
-        const res = await api.createHeroCompany(token!, {
-          companyName: companyName.trim() || undefined,
-          niche: niche.trim() || undefined,
-          targetAudience: targetAudience.trim() || undefined,
-        });
-        setResult(res);
-      }
-      // Wizard complete — clear the saved draft so a future visit doesn't
-      // restore a stale snapshot.
+      const res = await api.createHeroCompany(token!, {
+        companyName: companyName.trim() || undefined,
+        niche: niche.trim() || undefined,
+        targetAudience: targetAudience.trim() || undefined,
+      });
+      setResult(res);
       clearOnboardingDraft();
       api.onboardingStatus(token!).then(setStatus).catch(() => {});
     } catch (err) {

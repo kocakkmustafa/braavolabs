@@ -71,7 +71,6 @@ export default function FeaturesPage() {
           <span className="font-headline font-bold text-sm" style={{ color: "#e1e2eb" }}>Braavolabs</span>
         </a>
         <div className="flex items-center gap-4 text-sm" style={{ color: "#859399" }}>
-          <a href="/marketplace" className="hover:text-white transition-colors">Templates</a>
           <a href="/pricing" className="hover:text-white transition-colors">Pricing</a>
           <a href="/docs" className="hover:text-white transition-colors">Docs</a>
           <a href="/login" className="px-4 py-2 rounded-xl font-semibold text-white text-xs transition-all hover:brightness-110"

@@ -32,6 +32,9 @@ export type AIProviderType =
   | "MISTRAL"
   | "GROQ"
   | "OPENROUTER"
+  | "DEEPSEEK"
+  | "KIMI"
+  | "QWEN"
   | "OLLAMA"
   | "LMSTUDIO"
   | "CUSTOM";
@@ -70,6 +73,9 @@ export const PROVIDER_DEFAULT_MODELS: Record<AIProviderType, string> = {
   MISTRAL:    "mistral-large-latest",
   GROQ:       "llama-3.3-70b-versatile",
   OPENROUTER: "openai/gpt-4o",
+  DEEPSEEK:   "deepseek-chat",
+  KIMI:       "moonshot-v1-128k",
+  QWEN:       "qwen-max",
   // Local-first defaults — Gemma 3 4B is the sweet spot for 16GB MacBooks
   // (runs at ~30 tok/s, ~3GB RAM footprint, beats Llama 3.2 3B on agents).
   OLLAMA:     "gemma3:4b",
@@ -90,6 +96,9 @@ export const PROVIDER_MODELS: Record<AIProviderType, string[]> = {
   MISTRAL:    ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest", "open-mistral-7b"],
   GROQ:       ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
   OPENROUTER: ["openai/gpt-4o", "anthropic/claude-sonnet-4-5", "meta-llama/llama-3.3-70b-instruct", "google/gemini-pro-1.5"],
+  DEEPSEEK:   ["deepseek-chat", "deepseek-reasoner", "deepseek-coder"],
+  KIMI:       ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k", "moonshot-v1-auto"],
+  QWEN:       ["qwen-max", "qwen-plus", "qwen-turbo", "qwen-long", "qwen2.5-72b-instruct", "qwen2.5-32b-instruct"],
   OLLAMA:     ["gemma3:4b", "gemma3:12b", "gemma3:27b", "llama3.2:3b", "llama3.3:70b", "qwen2.5:14b", "qwen2.5-coder:14b", "deepseek-r1:8b", "phi3:14b"],
   LMSTUDIO:   ["google/gemma-3-4b-it", "google/gemma-3-12b-it", "meta-llama/llama-3.2-3b-instruct", "qwen/qwen2.5-14b-instruct"],
   CUSTOM:     [],
@@ -102,6 +111,9 @@ export const PROVIDER_BASE_URLS: Record<Exclude<AIProviderType, "ANTHROPIC" | "G
   MISTRAL:    "https://api.mistral.ai/v1",
   GROQ:       "https://api.groq.com/openai/v1",
   OPENROUTER: "https://openrouter.ai/api/v1",
+  DEEPSEEK:   "https://api.deepseek.com/v1",
+  KIMI:       "https://api.moonshot.ai/v1",       // International endpoint; mainland: api.moonshot.cn/v1
+  QWEN:       "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",  // Alibaba DashScope OpenAI-compatible
   OLLAMA:     "http://localhost:11434/v1",
   LMSTUDIO:   "http://localhost:1234/v1",
   CUSTOM:     "",  // user must supply
@@ -115,11 +127,14 @@ export const PROVIDER_INFO: Record<AIProviderType, {
   setupHint: string;
 }> = {
   ANTHROPIC:  { label: "Anthropic Claude", cost: "byok-cloud", privacy: "cloud", setupHint: "Get key at console.anthropic.com" },
-  OPENAI:     { label: "OpenAI",            cost: "byok-cloud", privacy: "cloud", setupHint: "Get key at platform.openai.com" },
+  OPENAI:     { label: "OpenAI (GPT-4o, o1)", cost: "byok-cloud", privacy: "cloud", setupHint: "Get key at platform.openai.com" },
   GOOGLE:     { label: "Google Gemini",     cost: "byok-cloud", privacy: "cloud", setupHint: "Get key at aistudio.google.com" },
   MISTRAL:    { label: "Mistral",           cost: "byok-cloud", privacy: "cloud", setupHint: "Get key at console.mistral.ai" },
   GROQ:       { label: "Groq (fast Llama)", cost: "byok-cloud", privacy: "cloud", setupHint: "Get key at console.groq.com — fastest cloud inference" },
   OPENROUTER: { label: "OpenRouter (any model)", cost: "byok-cloud", privacy: "cloud", setupHint: "openrouter.ai — single key, 100+ models" },
+  DEEPSEEK:   { label: "DeepSeek (Chat / R1 reasoner)", cost: "byok-cloud", privacy: "cloud", setupHint: "Get key at platform.deepseek.com — strong reasoning at low $/M tokens" },
+  KIMI:       { label: "Kimi by Moonshot",  cost: "byok-cloud", privacy: "cloud", setupHint: "Get key at platform.moonshot.ai — 128k context, OpenAI-compatible" },
+  QWEN:       { label: "Qwen by Alibaba",   cost: "byok-cloud", privacy: "cloud", setupHint: "Get key at modelstudio.console.alibabacloud.com (DashScope) — strong on multilingual + Chinese" },
   OLLAMA:     { label: "Ollama (local Gemma)",   cost: "free",       privacy: "local", setupHint: "Install ollama.com → run `ollama pull gemma3:4b` → set base URL to http://localhost:11434/v1" },
   LMSTUDIO:   { label: "LM Studio (local)",      cost: "free",       privacy: "local", setupHint: "Install lmstudio.ai → load Gemma 3 4B → start server → use http://localhost:1234/v1" },
   CUSTOM:     { label: "Custom OpenAI-compatible", cost: "byok-local", privacy: "local", setupHint: "Any OpenAI-compatible endpoint (LiteLLM, vLLM, Together, etc)" },
@@ -335,6 +350,9 @@ export async function chatCompletion(
     case "MISTRAL":
     case "GROQ":
     case "OPENROUTER":
+    case "DEEPSEEK":
+    case "KIMI":
+    case "QWEN":
     // Local-first / self-hosted — same OpenAI Chat Completions wire format,
     // user-supplied baseUrl resolves to localhost or any LiteLLM-style
     // proxy. apiKey is optional (Ollama default = no auth).

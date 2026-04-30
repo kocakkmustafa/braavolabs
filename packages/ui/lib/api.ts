@@ -152,26 +152,10 @@ export const api = {
   pqlScore: (token: string) =>
     apiFetch<any>("/growth/pql", { token }),
 
-  // Blueprints
-  listBlueprints: (token: string) =>
-    apiFetch<any[]>("/growth/blueprints", { token }),
-  getBlueprint: (token: string, slug: string) =>
-    apiFetch<any>(`/growth/blueprint/${slug}`, { token }),
-  publishBlueprint: (token: string, companyId: string, data: { title?: string; description?: string; isPublic?: boolean }) =>
-    apiFetch<any>("/growth/blueprint/publish", { method: "POST", body: JSON.stringify({ companyId, ...data }), token }),
-  cloneBlueprint: (token: string, slug: string, name?: string) =>
-    apiFetch<any>(`/growth/blueprint/${slug}/clone`, { method: "POST", body: JSON.stringify({ name }), token }),
-
-  // Catalog Blueprints (pre-built templates)
-  listCatalogBlueprints: (token: string, industry?: string) =>
-    apiFetch<any[]>(`/growth/blueprints/catalog${industry ? `?industry=${industry}` : ""}`, { token }),
-  getCatalogBlueprint: (token: string, slug: string) =>
-    apiFetch<any>(`/growth/blueprints/catalog/${slug}`, { token }),
-  cloneCatalogBlueprint: (token: string, slug: string, name?: string) =>
-    apiFetch<{ companyId: string; company: { id: string; name: string; slug: string } }>(
-      `/growth/blueprints/catalog/${slug}/clone`,
-      { method: "POST", body: JSON.stringify({ name }), token }
-    ),
+  // Blueprints removed (decision 2026-04-30): users now describe their
+  // company end-to-end in plain English; the AI builder writes the
+  // agents and pipeline from scratch. Pre-canned templates and
+  // marketplace clone are intentionally gone.
 
   // Dashboard — agent performance
   agentPerformance: (token: string) =>

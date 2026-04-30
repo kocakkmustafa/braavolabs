@@ -336,7 +336,7 @@ export default function LandingPage() {
         </div>
 
         <div className="hidden md:flex" style={{ alignItems: "center", gap: 28, fontSize: 13, fontWeight: 500 }}>
-          {[["Features", "/features"], ["Templates", "/marketplace"], ["Pricing", "/pricing"], ["Docs", "/docs"]].map(([label, href]) => (
+          {[["Features", "/features"], ["Pricing", "/pricing"], ["Docs", "/docs"]].map(([label, href]) => (
             <Link
               key={label}
               href={href}
@@ -669,7 +669,7 @@ export default function LandingPage() {
             <span className="hidden sm:inline" style={{ fontSize: 10, color: "#3c494e", marginLeft: 8 }}>&copy; 2026 All rights reserved.</span>
           </div>
           <div className="hidden sm:flex" style={{ gap: 20, fontSize: 11 }}>
-            {[["Features", "/features"], ["Templates", "/marketplace"], ["Pricing", "/pricing"], ["Docs", "/docs"], ["Privacy", "/privacy"], ["Terms", "/terms"]].map(([l, h]) => (
+            {[["Features", "/features"], ["Pricing", "/pricing"], ["Docs", "/docs"], ["Privacy", "/privacy"], ["Terms", "/terms"]].map(([l, h]) => (
               <Link key={l} href={h} style={{ color: "#3c494e", textDecoration: "none", transition: "color 0.2s" }}
                 onMouseEnter={(e) => e.currentTarget.style.color = "#859399"}
                 onMouseLeave={(e) => e.currentTarget.style.color = "#3c494e"}

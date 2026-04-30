@@ -734,6 +734,11 @@ enum AIProvider {
   MISTRAL
   GROQ
   OPENROUTER
+  // Newer cloud providers — OpenAI-compatible chat-completions wire
+  // format with their own base URL + key. Added 2026-04-30.
+  DEEPSEEK
+  KIMI
+  QWEN
   // OLLAMA + LMSTUDIO + CUSTOM are OpenAI-compatible local/self-hosted
   // endpoints. The user supplies a baseUrl pointing at their own server
   // (Ollama default: http://localhost:11434/v1). Free, private, runs on

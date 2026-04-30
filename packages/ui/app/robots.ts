@@ -31,7 +31,6 @@ export default function robots(): MetadataRoute.Robots {
           "/analytics",
           "/errors",
           "/risks",
-          "/marketplace",
           "/companies",
         ],
       },
