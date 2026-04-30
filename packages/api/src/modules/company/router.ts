@@ -417,6 +417,12 @@ const agentUpdateSchema = z.object({
   systemPrompt: z.string().optional(),
   tools: z.array(z.string()).optional(),
   config: z.record(z.unknown()).optional(),
+  // Per-agent model override — when set, this agent uses this specific
+  // model id instead of the tenant-wide default from Settings → AI
+  // Provider. Lets a user run e.g. Memory Curator on cheap Gemma 3 4B
+  // and Sales Outreach on premium Claude Sonnet inside the same company.
+  model: z.string().min(1).max(100).optional(),
+  maxTokens: z.number().int().min(100).max(200_000).optional(),
 });
 
 companyRouter.post("/:id/agents", async (req, res, next) => {

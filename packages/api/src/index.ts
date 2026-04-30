@@ -94,11 +94,20 @@ app.use(
   }),
 );
 app.use(securityHeaders);
+// CORS allowlist — APP_URL plus any extra origins listed in
+// ALLOWED_ORIGINS (comma-separated). Lets the user add `app.braavolabs.com`
+// or `staging.braavolabs.com` without a code change when the custom-
+// domain split lands. Dev mode keeps localhost:3000/:3001 unconditionally.
+const extraOrigins = (process.env.ALLOWED_ORIGINS ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+const corsOrigins = env.NODE_ENV === "production"
+  ? [env.APP_URL, ...extraOrigins]
+  : [env.APP_URL, "http://localhost:3000", "http://localhost:3001", ...extraOrigins];
 app.use(
   cors({
-    origin: env.NODE_ENV === "production"
-      ? [env.APP_URL]
-      : [env.APP_URL, "http://localhost:3000", "http://localhost:3001"],
+    origin: corsOrigins,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],

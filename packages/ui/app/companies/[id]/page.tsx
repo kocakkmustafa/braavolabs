@@ -5,12 +5,14 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api, apiFetch } from "../../../lib/api";
 import { useAuthGuard } from "../../../lib/useAuthGuard";
+import { useToast } from "../../../components/Toast";
 
 type Tab = "overview" | "pipelines" | "agents" | "runs" | "contacts" | "memory";
 
 export default function CompanyDetailPage() {
   const params = useParams();
   const { token, hydrated } = useAuthGuard();
+  const { toast } = useToast();
   const [company, setCompany] = useState<any>(null);
   const [tab, setTab] = useState<Tab>("overview");
   const [runs, setRuns] = useState<any[]>([]);
@@ -21,6 +23,14 @@ export default function CompanyDetailPage() {
   const [composerLoading, setComposerLoading] = useState(false);
   const [composerError, setComposerError] = useState<string | null>(null);
   const [composerResult, setComposerResult] = useState<{ name: string; droppedTools: string[]; provider: string; model: string } | null>(null);
+  // Per-agent model override (B): inline edit state. editingAgentId is
+  // the agent currently being edited (null = none); modelDraft is the
+  // input value; modelSaving toggles the spinner + disables the save
+  // button while the PATCH is in flight.
+  const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
+  const [modelDraft, setModelDraft] = useState("");
+  const [modelSaving, setModelSaving] = useState(false);
+  const [modelError, setModelError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token || !params.id) return;
@@ -33,6 +43,26 @@ export default function CompanyDetailPage() {
       .then((data) => setRuns(Array.isArray(data) ? data : (data as any).runs ?? []))
       .catch(() => {});
   }, [token, company, tab]);
+
+  const handleSaveModel = async (agentId: string) => {
+    if (!token || !company) return;
+    setModelSaving(true);
+    setModelError(null);
+    try {
+      await api.updateAgent(token, company.id, agentId, { model: modelDraft.trim() });
+      const updated = await api.getCompany(token, company.id);
+      setCompany(updated);
+      setEditingAgentId(null);
+      setModelDraft("");
+      toast(`Model updated to ${modelDraft.trim()}`, "success");
+    } catch (e: any) {
+      const msg = e?.message ?? "Failed to update model";
+      setModelError(msg);
+      toast(msg, "error");
+    } finally {
+      setModelSaving(false);
+    }
+  };
 
   const handleCompose = async () => {
     if (!token || !company) return;
@@ -50,8 +80,11 @@ export default function CompanyDetailPage() {
       const updated = await api.getCompany(token, company.id);
       setCompany(updated);
       setComposerInput("");
+      toast(`${res.agent.name} added to your company`, "success");
     } catch (e: any) {
-      setComposerError(e?.message ?? "Composer failed. Check Settings → AI Provider for a valid key.");
+      const msg = e?.message ?? "Composer failed. Check Settings → AI Provider for a valid key.";
+      setComposerError(msg);
+      toast(msg, "error", 6000);
     } finally {
       setComposerLoading(false);
     }
@@ -331,10 +364,90 @@ export default function CompanyDetailPage() {
                         </p>
                       </div>
                     )}
-                    <div style={{ display: "flex", gap: 16 }}>
-                      <div>
+                    <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                      <div onClick={(e) => e.stopPropagation()} style={{ minWidth: 220 }}>
                         <p style={{ fontSize: 10, fontWeight: 600, color: "#859399", marginBottom: 2 }}>MODEL</p>
-                        <p style={{ fontSize: 12, color: "#e1e2eb" }}>{a.model ?? "claude-sonnet"}</p>
+                        {editingAgentId === a.id ? (
+                          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                            <input
+                              list={`model-options-${a.id}`}
+                              value={modelDraft}
+                              onChange={(e) => setModelDraft(e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
+                              disabled={modelSaving}
+                              autoFocus
+                              placeholder="claude-sonnet-4-5-20250929"
+                              style={{
+                                flex: 1, fontSize: 12, padding: "4px 8px",
+                                background: "rgba(0,0,0,0.3)", border: "1px solid rgba(0,209,255,0.3)",
+                                borderRadius: 6, color: "#e1e2eb", outline: "none",
+                              }}
+                            />
+                            <datalist id={`model-options-${a.id}`}>
+                              <option value="claude-opus-4-20250514" />
+                              <option value="claude-sonnet-4-5-20250929" />
+                              <option value="claude-haiku-4-5-20251001" />
+                              <option value="gpt-4o" />
+                              <option value="gpt-4o-mini" />
+                              <option value="o1-mini" />
+                              <option value="gemini-1.5-pro" />
+                              <option value="gemini-1.5-flash" />
+                              <option value="llama-3.3-70b-versatile" />
+                              <option value="mistral-large-latest" />
+                              <option value="deepseek-chat" />
+                              <option value="deepseek-reasoner" />
+                              <option value="moonshot-v1-128k" />
+                              <option value="qwen-max" />
+                              <option value="gemma3:4b" />
+                              <option value="gemma3:12b" />
+                            </datalist>
+                            <button
+                              onClick={() => handleSaveModel(a.id)}
+                              disabled={modelSaving || modelDraft.trim().length === 0}
+                              style={{
+                                fontSize: 11, padding: "4px 10px", borderRadius: 6,
+                                background: modelSaving ? "rgba(255,255,255,0.1)" : "linear-gradient(135deg, #00d1ff, #6d11ad)",
+                                color: "#fff", border: "none",
+                                cursor: modelSaving ? "wait" : "pointer", fontWeight: 600,
+                              }}
+                            >
+                              {modelSaving ? "..." : "Save"}
+                            </button>
+                            <button
+                              onClick={() => { setEditingAgentId(null); setModelDraft(""); setModelError(null); }}
+                              disabled={modelSaving}
+                              style={{
+                                fontSize: 11, padding: "4px 8px", borderRadius: 6,
+                                background: "transparent", color: "#859399",
+                                border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer",
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                            <p style={{ fontSize: 12, color: "#e1e2eb", margin: 0 }}>{a.model ?? "default"}</p>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingAgentId(a.id);
+                                setModelDraft(a.model ?? "");
+                                setModelError(null);
+                              }}
+                              style={{
+                                fontSize: 10, padding: "2px 6px", borderRadius: 4,
+                                background: "transparent", color: "#00d1ff",
+                                border: "1px solid rgba(0,209,255,0.2)", cursor: "pointer",
+                              }}
+                            >
+                              edit
+                            </button>
+                          </div>
+                        )}
+                        {modelError && editingAgentId === a.id && (
+                          <p style={{ fontSize: 10, color: "#f87171", marginTop: 2 }}>{modelError}</p>
+                        )}
                       </div>
                       <div>
                         <p style={{ fontSize: 10, fontWeight: 600, color: "#859399", marginBottom: 2 }}>TOOLS</p>
