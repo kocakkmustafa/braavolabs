@@ -1,0 +1,35 @@
+{
+  "nav": {
+    "features": "Fonctionnalités",
+    "pricing": "Tarifs",
+    "docs": "Docs",
+    "signIn": "Se connecter",
+    "getStarted": "Commencer",
+    "dashboard": "Tableau de bord"
+  },
+  "hero": {
+    "tagline": "Votre entreprise IA,",
+    "taglineHighlight": "construite en 10 minutes.",
+    "subtitle": "Décrivez votre activité en français simple. Braavolabs construit une entreprise autonome entièrement équipée — contenu, ventes, opérations — qui tourne pendant que vous dormez. Chaque décision est journalisée, chaque dépense est approuvée par vous.",
+    "cta": "Construire votre entreprise",
+    "ctaSecondary": "Voir comment ça marche"
+  },
+  "stats": {
+    "deploy": "jusqu'au premier déploiement",
+    "audited": "actions auditées"
+  },
+  "footer": {
+    "rights": "© 2026 Braavolabs. Conçu avec Claude.",
+    "privacy": "Confidentialité",
+    "terms": "Conditions"
+  },
+  "language": {
+    "label": "Langue",
+    "en": "English",
+    "tr": "Türkçe",
+    "es": "Español",
+    "de": "Deutsch",
+    "fr": "Français",
+    "ar": "العربية"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "nav": {
+    "features": "Funktionen",
+    "pricing": "Preise",
+    "docs": "Dokumentation",
+    "signIn": "Anmelden",
+    "getStarted": "Loslegen",
+    "dashboard": "Dashboard"
+  },
+  "hero": {
+    "tagline": "Dein KI-Unternehmen,",
+    "taglineHighlight": "in 10 Minuten gebaut.",
+    "subtitle": "Beschreibe dein Geschäft in natürlicher Sprache. Braavolabs baut ein vollständig besetztes autonomes Unternehmen — Content, Vertrieb, Betrieb — das läuft, während du schläfst. Jede Entscheidung wird protokolliert, jede Ausgabe wird von dir freigegeben.",
+    "cta": "Unternehmen aufbauen",
+    "ctaSecondary": "Wie es funktioniert"
+  },
+  "stats": {
+    "deploy": "bis zum ersten Deploy",
+    "audited": "auditierte Aktionen"
+  },
+  "footer": {
+    "rights": "© 2026 Braavolabs. Mit Claude gebaut.",
+    "privacy": "Datenschutz",
+    "terms": "AGB"
+  },
+  "language": {
+    "label": "Sprache",
+    "en": "English",
+    "tr": "Türkçe",
+    "es": "Español",
+    "de": "Deutsch",
+    "fr": "Français",
+    "ar": "العربية"
+  }
+}

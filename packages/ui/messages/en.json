@@ -1,0 +1,35 @@
+{
+  "nav": {
+    "features": "Features",
+    "pricing": "Pricing",
+    "docs": "Docs",
+    "signIn": "Sign In",
+    "getStarted": "Get Started",
+    "dashboard": "Dashboard"
+  },
+  "hero": {
+    "tagline": "Your AI company,",
+    "taglineHighlight": "built in 10 minutes.",
+    "subtitle": "Describe your business in plain English. Braavolabs builds a fully-staffed autonomous company — content, sales, ops — that runs while you sleep. Every decision is logged, every spend is approved by you.",
+    "cta": "Build your company",
+    "ctaSecondary": "See how it works"
+  },
+  "stats": {
+    "deploy": "to first deploy",
+    "audited": "actions audited"
+  },
+  "footer": {
+    "rights": "© 2026 Braavolabs. Built with Claude.",
+    "privacy": "Privacy",
+    "terms": "Terms"
+  },
+  "language": {
+    "label": "Language",
+    "en": "English",
+    "tr": "Türkçe",
+    "es": "Español",
+    "de": "Deutsch",
+    "fr": "Français",
+    "ar": "العربية"
+  }
+}

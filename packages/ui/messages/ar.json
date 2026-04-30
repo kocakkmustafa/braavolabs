@@ -1,0 +1,35 @@
+{
+  "nav": {
+    "features": "الميزات",
+    "pricing": "الأسعار",
+    "docs": "الوثائق",
+    "signIn": "تسجيل الدخول",
+    "getStarted": "ابدأ",
+    "dashboard": "لوحة التحكم"
+  },
+  "hero": {
+    "tagline": "شركتك المدعومة بالذكاء الاصطناعي،",
+    "taglineHighlight": "جاهزة في 10 دقائق.",
+    "subtitle": "صف عملك بلغة بسيطة. تبني Braavolabs شركة مستقلة بالكامل — محتوى ومبيعات وعمليات — تعمل بينما تنام. كل قرار يتم تسجيله، وكل إنفاق يحتاج إلى موافقتك.",
+    "cta": "أنشئ شركتك",
+    "ctaSecondary": "شاهد كيف تعمل"
+  },
+  "stats": {
+    "deploy": "حتى أول نشر",
+    "audited": "إجراءات مدققة"
+  },
+  "footer": {
+    "rights": "© 2026 Braavolabs. مصنوع باستخدام Claude.",
+    "privacy": "الخصوصية",
+    "terms": "الشروط"
+  },
+  "language": {
+    "label": "اللغة",
+    "en": "English",
+    "tr": "Türkçe",
+    "es": "Español",
+    "de": "Deutsch",
+    "fr": "Français",
+    "ar": "العربية"
+  }
+}

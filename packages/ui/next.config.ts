@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
 import path from "path";
+import createNextIntlPlugin from "next-intl/plugin";
+
+// next-intl runs in "without i18n routing" mode — config lives in
+// ./i18n/request.ts and is wrapped around the export below.
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 // Monorepo root (two levels up from packages/ui)
 const MONOREPO_ROOT = path.resolve(__dirname, "../..");
@@ -75,4 +80,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

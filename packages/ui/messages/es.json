@@ -1,0 +1,35 @@
+{
+  "nav": {
+    "features": "Características",
+    "pricing": "Precios",
+    "docs": "Docs",
+    "signIn": "Iniciar sesión",
+    "getStarted": "Comenzar",
+    "dashboard": "Panel"
+  },
+  "hero": {
+    "tagline": "Tu empresa de IA,",
+    "taglineHighlight": "lista en 10 minutos.",
+    "subtitle": "Describe tu negocio en lenguaje natural. Braavolabs construye una empresa autónoma completa — contenido, ventas, operaciones — que funciona mientras duermes. Cada decisión queda registrada, cada gasto requiere tu aprobación.",
+    "cta": "Construye tu empresa",
+    "ctaSecondary": "Ver cómo funciona"
+  },
+  "stats": {
+    "deploy": "hasta el primer despliegue",
+    "audited": "acciones auditadas"
+  },
+  "footer": {
+    "rights": "© 2026 Braavolabs. Hecho con Claude.",
+    "privacy": "Privacidad",
+    "terms": "Términos"
+  },
+  "language": {
+    "label": "Idioma",
+    "en": "English",
+    "tr": "Türkçe",
+    "es": "Español",
+    "de": "Deutsch",
+    "fr": "Français",
+    "ar": "العربية"
+  }
+}

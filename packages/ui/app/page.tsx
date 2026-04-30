@@ -3,9 +3,11 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAppStore } from "../lib/store";
 import { sounds } from "../lib/sounds";
 import { useReveal } from "../lib/useReveal";
+import LanguageSwitcher from "../components/LanguageSwitcher";
 
 const EXAMPLES = [
   "A content agency that creates and schedules TikTok & LinkedIn posts for 10 clients",
@@ -263,6 +265,7 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {
+  const t = useTranslations();
   const token = useAppStore((s) => s.token);
   const [input, setInput] = useState("");
   const [exampleIdx, setExampleIdx] = useState(0);
@@ -349,7 +352,7 @@ export default function LandingPage() {
         </div>
 
         <div className="hidden md:flex" style={{ alignItems: "center", gap: 28, fontSize: 13, fontWeight: 500 }}>
-          {[["Features", "/features"], ["Pricing", "/pricing"], ["Docs", "/docs"]].map(([label, href]) => (
+          {[["nav.features", "/features"], ["nav.pricing", "/pricing"], ["nav.docs", "/docs"]].map(([label, href]) => (
             <Link
               key={label}
               href={href}
@@ -357,18 +360,19 @@ export default function LandingPage() {
               onMouseEnter={(e) => { e.currentTarget.style.color = "#a4e6ff"; sounds.hover(); }}
               onMouseLeave={(e) => { e.currentTarget.style.color = "#859399"; }}
             >
-              {label}
+              {t(label)}
             </Link>
           ))}
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <LanguageSwitcher />
           {!token && (
             <Link href="/login" style={{ fontSize: 13, color: "#859399", textDecoration: "none", padding: "6px 14px", transition: "color 0.2s" }}
               onMouseEnter={(e) => e.currentTarget.style.color = "#e1e2eb"}
               onMouseLeave={(e) => e.currentTarget.style.color = "#859399"}
             >
-              Sign in
+              {t("nav.signIn")}
             </Link>
           )}
           <Link
@@ -378,7 +382,7 @@ export default function LandingPage() {
             onClick={() => sounds.click()}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 15 }}>dashboard</span>
-            Dashboard
+            {t("nav.dashboard")}
           </Link>
         </div>
       </nav>
@@ -437,7 +441,7 @@ export default function LandingPage() {
                 transform: heroVisible ? "translateY(0)" : "translateY(12px)",
                 transition: "all 0.8s cubic-bezier(0.16,1,0.3,1) 0.3s",
               }}>
-                Describe your business in plain English. Braavolabs builds a fully-staffed autonomous company — content, sales, ops — that runs while you sleep. Every decision is logged, every spend is approved by you.
+                {t("hero.subtitle")}
               </p>
 
               {/* Builder Input */}
@@ -519,7 +523,7 @@ export default function LandingPage() {
 
               {/* Stats */}
               <div className="flex flex-wrap justify-center" style={{ gap: "16px 32px", opacity: heroVisible ? 1 : 0, transition: "opacity 0.8s 0.6s" }}>
-                {[{ v: "10 min", l: "to first deploy" }, { v: "100%", l: "actions audited" }].map((s) => (
+                {[{ v: "10 min", l: t("stats.deploy") }, { v: "100%", l: t("stats.audited") }].map((s) => (
                   <div key={s.l} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 14, color: "#e1e2eb" }}>{s.v}</span>
                     <span style={{ fontSize: 11, color: "#3c494e" }}>{s.l}</span>

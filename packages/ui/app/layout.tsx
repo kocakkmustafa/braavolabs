@@ -3,6 +3,8 @@ import "./globals.css";
 import AuthLayout from "./AuthLayout";
 import { ToastProvider } from "../components/Toast";
 import CookieConsent from "../components/CookieConsent";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 
 export const metadata: Metadata = {
   title: {
@@ -111,9 +113,15 @@ const SCHEMA_LD = {
   ],
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // next-intl resolves locale from cookie / Accept-Language (see i18n/request.ts).
+  // Arabic (and any future RTL locale) flips dir="rtl" so the whole tree
+  // mirrors automatically.
+  const locale = await getLocale();
+  const messages = await getMessages();
+  const isRtl = locale === "ar";
   return (
-    <html lang="en" className="dark" suppressHydrationWarning data-scroll-behavior="smooth">
+    <html lang={locale} dir={isRtl ? "rtl" : "ltr"} className="dark" suppressHydrationWarning data-scroll-behavior="smooth">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -148,13 +156,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-background text-on-surface antialiased">
         {/* Skip-link — keyboard users can bypass nav and jump to <main>. */}
         <a href="#main-content" className="skip-link">Skip to main content</a>
-        <ToastProvider>
-          <AuthLayout>
-            {children}
-          </AuthLayout>
-          {/* KVKK/GDPR cookie consent — self-renders only when not yet decided */}
-          <CookieConsent />
-        </ToastProvider>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <ToastProvider>
+            <AuthLayout>
+              {children}
+            </AuthLayout>
+            {/* KVKK/GDPR cookie consent — self-renders only when not yet decided */}
+            <CookieConsent />
+          </ToastProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

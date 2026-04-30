@@ -1,0 +1,35 @@
+{
+  "nav": {
+    "features": "Özellikler",
+    "pricing": "Fiyatlandırma",
+    "docs": "Dokümantasyon",
+    "signIn": "Giriş Yap",
+    "getStarted": "Başla",
+    "dashboard": "Panel"
+  },
+  "hero": {
+    "tagline": "Yapay zeka şirketin,",
+    "taglineHighlight": "10 dakikada hazır.",
+    "subtitle": "İşini sade bir dille tarif et. Braavolabs senin için içerik, satış ve operasyon ekiplerini bir arada otonom şekilde çalışan bir şirket olarak kurar. Her karar loglanır, her harcama senin onayından geçer.",
+    "cta": "Şirketini kur",
+    "ctaSecondary": "Nasıl çalıştığını gör"
+  },
+  "stats": {
+    "deploy": "ilk yayına çıkış",
+    "audited": "denetlenen aksiyon"
+  },
+  "footer": {
+    "rights": "© 2026 Braavolabs. Claude ile geliştirildi.",
+    "privacy": "Gizlilik",
+    "terms": "Şartlar"
+  },
+  "language": {
+    "label": "Dil",
+    "en": "English",
+    "tr": "Türkçe",
+    "es": "Español",
+    "de": "Deutsch",
+    "fr": "Français",
+    "ar": "العربية"
+  }
+}
