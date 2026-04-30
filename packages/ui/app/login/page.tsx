@@ -119,14 +119,19 @@ export default function LoginPage() {
         <div className="absolute bottom-0 right-0 w-80 h-80 rounded-full opacity-[0.10] blur-3xl" style={{ background: "radial-gradient(circle, #6d11ad, transparent)" }} />
         <div className="absolute inset-0 opacity-[0.025]" style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
 
-        {/* Logo */}
+        {/* Logo — public/braavolabs-logo.png with gradient fallback */}
         <div className="relative z-10 flex items-center gap-3">
           <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
-          >
-            <span className="font-bold text-sm text-white">AI</span>
-          </div>
+            className="w-9 h-9 rounded-xl flex-shrink-0"
+            style={{
+              backgroundColor: "#0a0d14",
+              backgroundImage: "url(/braavolabs-logo.png), linear-gradient(135deg, #00d1ff, #6d11ad)",
+              backgroundSize: "cover, cover",
+              backgroundPosition: "center, center",
+            }}
+            aria-label="Braavolabs"
+            role="img"
+          />
           <span
             className="font-headline font-bold text-base"
             style={{ color: "#e1e2eb" }}
@@ -193,11 +198,16 @@ export default function LoginPage() {
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-3 mb-8">
             <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
-            >
-              <span className="font-bold text-xs text-white">AI</span>
-            </div>
+              className="w-8 h-8 rounded-lg"
+              style={{
+                backgroundColor: "#0a0d14",
+                backgroundImage: "url(/braavolabs-logo.png), linear-gradient(135deg, #00d1ff, #6d11ad)",
+                backgroundSize: "cover, cover",
+                backgroundPosition: "center, center",
+              }}
+              aria-label="Braavolabs"
+              role="img"
+            />
             <span className="font-headline font-bold" style={{ color: "#e1e2eb" }}>
               Braavolabs
             </span>

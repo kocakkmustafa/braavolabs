@@ -329,9 +329,22 @@ export default function LandingPage() {
         background: "rgba(10,13,20,0.5)",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #00d1ff, #6d11ad)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}>
-            <span style={{ color: "white", fontWeight: 700, fontSize: 11 }}>AI</span>
-          </div>
+          {/* Brand emblem — public/braavolabs-logo.png. CSS background
+              fallback shows the gradient AI tile if the file is missing,
+              so this works whether or not the asset has been dropped in. */}
+          <div
+            style={{
+              width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+              boxShadow: "0 0 20px rgba(0,209,255,0.2)",
+              backgroundColor: "#0a0d14",
+              backgroundImage: "url(/braavolabs-logo.png), linear-gradient(135deg, #00d1ff, #6d11ad)",
+              backgroundSize: "cover, cover",
+              backgroundPosition: "center, center",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+            aria-label="Braavolabs"
+            role="img"
+          />
           <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 15, color: "#e1e2eb", letterSpacing: "-0.02em" }}>Braavolabs</span>
         </div>
 
@@ -506,7 +519,7 @@ export default function LandingPage() {
 
               {/* Stats */}
               <div className="flex flex-wrap justify-center" style={{ gap: "16px 32px", opacity: heroVisible ? 1 : 0, transition: "opacity 0.8s 0.6s" }}>
-                {[{ v: "9", l: "AI agents per company" }, { v: "10 min", l: "to first deploy" }, { v: "100%", l: "actions audited" }].map((s) => (
+                {[{ v: "10 min", l: "to first deploy" }, { v: "100%", l: "actions audited" }].map((s) => (
                   <div key={s.l} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 14, color: "#e1e2eb" }}>{s.v}</span>
                     <span style={{ fontSize: 11, color: "#3c494e" }}>{s.l}</span>
