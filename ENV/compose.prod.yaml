@@ -97,6 +97,15 @@ services:
       LLM_PROVIDER: ${LLM_PROVIDER:-api}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-20250514}
+      # Trial LLM (Groq) — first N pipeline runs for new tenants are routed
+      # through this holding-owned key, no BYOK required. Empty = trial off.
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_TRIAL_MODEL: ${GROQ_TRIAL_MODEL:-llama-3.3-70b-versatile}
+      # Pipeline export DRM — independent of JWT_SECRET so license tokens
+      # can rotate without invalidating user sessions.
+      LICENSE_JWT_SECRET: ${LICENSE_JWT_SECRET:-}
+      LICENSE_TTL_DAYS: ${LICENSE_TTL_DAYS:-7}
+      LICENSE_MACHINE_CHANGES_PER_MONTH: ${LICENSE_MACHINE_CHANGES_PER_MONTH:-1}
       # Billing (can be empty during soft-launch with BYPASS_BILLING=true)
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
@@ -196,6 +205,13 @@ services:
       # listen on all interfaces, healthcheck passes, and the runtime
       # reachability via aicos-ui:3000 stays the same.
       HOSTNAME: 0.0.0.0
+      # Search-engine verification tokens. layout.tsx reads these at
+      # request time (server component), so runtime env injection here
+      # is enough — no rebuild required to swap a Google Search Console
+      # token. Empty = tag omitted.
+      GOOGLE_SITE_VERIFICATION: ${GOOGLE_SITE_VERIFICATION:-}
+      BING_SITE_VERIFICATION: ${BING_SITE_VERIFICATION:-}
+      YANDEX_VERIFICATION: ${YANDEX_VERIFICATION:-}
     depends_on:
       api:
         condition: service_healthy

@@ -6,6 +6,7 @@ import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { sounds } from "../../lib/sounds";
 import { timeAgo } from "../../lib/timeAgo";
+import TrialBanner from "../../components/TrialBanner";
 
 interface HealthData { activeCompanies: number; activeRuns: number; pendingApprovals: number; }
 interface UsageData { totalRuns: number; completedRuns: number; failedRuns: number; successRate: number; }
@@ -47,6 +48,10 @@ export default function DashboardPage() {
   // ── Authenticated dashboard ──
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in mesh-bg">
+      {/* Trial banner — hidden for paid plans / no-Groq deployments. Self-fetches
+          /users/me so we don't have to thread trial state through every parent. */}
+      <TrialBanner token={token} />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8" style={{ position: "relative", zIndex: 1 }}>
         <div>

@@ -48,6 +48,28 @@ export const api = {
       method: "POST", body: JSON.stringify({ token, password }),
     }),
 
+  // Self-service profile + trial state. Trial block is what powers the
+  // dashboard banner ("X free runs left — subscribe to keep going") so
+  // the FE doesn't need to know about Groq or trial counters at all.
+  users: {
+    me: (token: string) => apiFetch<{
+      id: string;
+      email: string;
+      name: string | null;
+      avatarUrl: string | null;
+      role: string;
+      createdAt: string;
+      tenant: { id: string; name: string; slug: string; plan: string };
+      trial: {
+        enabled: boolean;
+        used: number;
+        limit: number;
+        remaining: number;
+        exhausted: boolean;
+      };
+    }>("/users/me", { token }),
+  },
+
   // Dashboard
   health: (token: string) => apiFetch<{
     status: string; activeCompanies: number; activeRuns: number; pendingApprovals: number;

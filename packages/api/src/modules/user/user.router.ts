@@ -28,11 +28,16 @@ import { authMiddleware } from "../../middleware/auth";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
+import { getTrialStatus } from "../../services/trial-llm";
 
 export const userRouter = Router();
 userRouter.use(authMiddleware);
 
-// GET /api/v1/users/me — current user profile
+// GET /api/v1/users/me — current user profile + trial LLM status.
+// Trial block is what powers the "X free runs left — subscribe to keep
+// going" banner in the dashboard. We compute it here (not on the client)
+// because the counter lives on the tenant row and the client doesn't have
+// direct DB access.
 userRouter.get("/me", async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({
@@ -50,7 +55,10 @@ userRouter.get("/me", async (req, res, next) => {
       },
     });
     if (!user) throw new AppError(404, "User not found");
-    res.json(user);
+
+    const trial = await getTrialStatus(user.tenant.id);
+
+    res.json({ ...user, trial });
   } catch (err) { next(err); }
 });
 

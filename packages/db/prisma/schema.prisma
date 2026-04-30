@@ -16,6 +16,13 @@ model Tenant {
   plan                 Plan     @default(FREE)
   stripeCustomerId     String?  @unique @map("stripe_customer_id")
   stripeSubscriptionId String?  @map("stripe_subscription_id")
+  // Trial LLM counter — incremented every time a pipeline run is routed
+  // through the holding-owned Groq key. Once trialRunsUsed >= trialRunsLimit,
+  // the executor blocks the run with a "trial exhausted, BYOK or upgrade"
+  // error. Limit is per-tenant (not per-user) so multi-seat workspaces
+  // don't accidentally multiply free runs.
+  trialRunsUsed        Int      @default(0) @map("trial_runs_used")
+  trialRunsLimit       Int      @default(3) @map("trial_runs_limit")
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
 
@@ -25,6 +32,7 @@ model Tenant {
   activityLog        ActivityLog[]
   aiConfig           UserAIConfig?
   abTests            AbTest[]
+  pipelineLicenses   PipelineLicense[]
 
   @@map("tenants")
 }
@@ -71,6 +79,46 @@ model User {
 
   @@index([tenantId])
   @@map("users")
+}
+
+// ─── PIPELINE EXPORT DRM ────────────────────────────────
+//
+// One license row per tenant — tracks which physical machine is currently
+// bound to the tenant's downloaded pipeline files. The encrypted pipeline
+// file ships with a JWT token (signed with LICENSE_JWT_SECRET, TTL =
+// LICENSE_TTL_DAYS, default 7 days). The local runtime decrypts the
+// pipeline only when the JWT matches the current machine's fingerprint.
+//
+// Why per-tenant (not per-user / per-pipeline)?
+//   • Most users own all pipelines they download — per-user adds friction.
+//   • Per-pipeline would balloon the table; we'd bind the same machine N
+//     times for one user with N pipelines. Per-tenant is the natural unit.
+//   • If we ever need per-pipeline scoping (e.g. enterprise hand-off), we
+//     can add a `pipelineId String?` column without rewriting the model.
+model PipelineLicense {
+  id                              String   @id @default(cuid())
+  tenantId                        String   @unique @map("tenant_id")
+  // SHA-256 of machine attributes (CPU id + OS + hostname + MAC). Empty
+  // until the first machine binds. SHA-256 is one-way so we never store
+  // the underlying machine identifiers — only their fingerprint.
+  deviceFingerprint               String?  @map("device_fingerprint")
+  // When the current binding was set. Drives "license rebound on Apr 7"
+  // copy in the dashboard.
+  lastBoundAt                     DateTime? @map("last_bound_at")
+  // Counter for monthly quota — incremented every time the bound machine
+  // changes. Resets on the 1st of each calendar month (UTC) by the
+  // change-machine handler when it sees a stale period.
+  monthlyMachineChangesUsed       Int      @default(0) @map("monthly_machine_changes_used")
+  // Period the counter belongs to ("YYYY-MM"). When the current month
+  // doesn't match, the change handler zeroes the counter before checking
+  // the quota — that way we don't need a cron job to reset.
+  monthlyChangePeriod             String   @default("") @map("monthly_change_period")
+  createdAt                       DateTime @default(now()) @map("created_at")
+  updatedAt                       DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("pipeline_licenses")
 }
 
 // ─── COMPANY & AGENTS ───────────────────────────────────

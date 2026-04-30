@@ -40,6 +40,20 @@ export const metadata: Metadata = {
   // explicit `icons.icon` block is intentionally omitted so we don't
   // double-register and confuse browsers.
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://braavolabs.com"),
+  // Search-engine ownership verification. We support multiple providers
+  // because each rolls out features at different speeds — Google for
+  // classic SERP/sitelinks, Bing for Copilot grounding, Yandex for CIS
+  // traffic. Tag values come from env vars so DNS-TXT alternative
+  // remains an option (the meta tag is a fallback path; we ship both).
+  // Setting the env var to an empty string omits the tag, so missing
+  // values are safe.
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION || undefined,
+    yandex: process.env.YANDEX_VERIFICATION || undefined,
+    other: process.env.BING_SITE_VERIFICATION
+      ? { "msvalidate.01": process.env.BING_SITE_VERIFICATION }
+      : undefined,
+  },
 };
 
 // Site-wide JSON-LD structured data — picked up by Google rich results,

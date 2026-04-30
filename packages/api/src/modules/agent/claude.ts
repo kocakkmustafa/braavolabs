@@ -12,6 +12,7 @@ import { getTool } from "./registry";
 import { executeTool, type ToolExecResult } from "./tool-executor";
 import { runLocalAgentLoop } from "./claude-local";
 import { getTenantAIConfig, chatCompletion, type AIClientConfig } from "../../services/ai-client";
+import { tryConsumeTrialRun, commitTrialRun } from "../../services/trial-llm";
 
 /**
  * Governance context threaded from pipeline executor → agent loop → tool execution.
@@ -326,7 +327,13 @@ export async function runAgentLoop(config: {
     });
   }
 
-  // For non-Anthropic providers, fall back to simple completion (no tool-use loop)
+  // Resolution order for tenant AI config:
+  //   1. BYOK (UserAIConfig with a usable provider)
+  //   2. Trial Groq (FREE-plan tenants with remaining trial credit)
+  //   3. System Anthropic key (legacy / self-hosted operator)
+  //   4. Hard error — caller must surface "Configure an API key" to the user
+  // The trial path commits the counter only after the run succeeds, so
+  // failures inside the loop don't burn a free run.
   if (config.tenantId) {
     try {
       const aiConfig = await getTenantAIConfig(config.tenantId);
@@ -337,6 +344,18 @@ export async function runAgentLoop(config: {
       const tenantClient = new Anthropic({ apiKey: aiConfig.apiKey });
       return runAnthropicLoop(config, tenantClient);
     } catch (err) {
+      // No BYOK config? Try trial Groq before falling through to system.
+      const trial = await tryConsumeTrialRun(config.tenantId);
+      if (trial) {
+        logger.info(
+          { tenantId: config.tenantId, remainingBefore: trial.remainingBefore },
+          "Routing pipeline run through trial Groq",
+        );
+        const result = await runNonAnthropicAgentLoop(config, trial.config);
+        // Commit only after success — failures don't burn the slot.
+        await commitTrialRun(config.tenantId);
+        return result;
+      }
       logger.warn({ err }, "Failed to load tenant AI config — using system default");
     }
   }

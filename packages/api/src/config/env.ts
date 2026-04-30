@@ -72,6 +72,18 @@ const envShape = z.object({
   BACKUP_S3_BUCKET: z.string().optional(),
   BACKUP_S3_PREFIX: z.string().optional(),
   BACKUP_S3_REGION: z.string().optional(),
+  // Trial LLM (Groq) — when set, new tenants on FREE plan get N pipeline
+  // runs routed through the holding-owned key before they must BYOK.
+  // Empty = trial system off (older tenants or self-hosted deployments
+  // where the operator doesn't want to pay for LLM trials).
+  GROQ_API_KEY: z.string().optional(),
+  GROQ_TRIAL_MODEL: z.string().default("llama-3.3-70b-versatile"),
+  // Pipeline export DRM. LICENSE_JWT_SECRET signs offline license tokens;
+  // empty here means the /license/* endpoints return 503. TTL controls how
+  // many days the token is valid before requiring an online re-verify.
+  LICENSE_JWT_SECRET: z.string().optional(),
+  LICENSE_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(7),
+  LICENSE_MACHINE_CHANGES_PER_MONTH: z.coerce.number().int().min(0).max(100).default(1),
 });
 
 export type Env = z.infer<typeof envShape>;
