@@ -48,6 +48,39 @@ export const api = {
       method: "POST", body: JSON.stringify({ token, password }),
     }),
 
+  // Pre-baked starter companies (catalog + 1-click clone). The list
+  // endpoint is public — the picker on /companies/new can fetch it
+  // without a token, which lets the marketing site preview templates
+  // without requiring sign-up.
+  starters: {
+    list: () => apiFetch<{
+      templates: Array<{
+        id: string;
+        name: string;
+        tagline: string;
+        emoji: string;
+        description: string;
+        outcome: string;
+        trialCost: number;
+        primitives: string[];
+        agentCount: number;
+        pipelineCount: number;
+        pipelineSteps: number;
+      }>;
+    }>("/starters"),
+    clone: (token: string, id: string, name?: string) =>
+      apiFetch<{
+        company: { id: string; slug: string; name: string };
+        agentCount: number;
+        pipelineCount: number;
+        message: string;
+      }>(`/starters/${id}/clone`, {
+        method: "POST",
+        token,
+        body: JSON.stringify(name ? { name } : {}),
+      }),
+  },
+
   // Self-service profile + trial state. Trial block is what powers the
   // dashboard banner ("X free runs left — subscribe to keep going") so
   // the FE doesn't need to know about Groq or trial counters at all.

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { api } from "../../../lib/api";
 import { useAuthGuard } from "../../../lib/useAuthGuard";
+import StarterPicker from "../../../components/StarterPicker";
 
 type WizardStep = "describe" | "clarify" | "preview" | "creating" | "done";
 
@@ -179,10 +180,24 @@ function CompanyBuilderWizardInner() {
         </div>
       )}
 
-      {/* Step 1: Describe */}
+      {/* Step 1: Describe (with quick-start starter cards on top) */}
       {step === "describe" && (
-        <div className="glass-card rounded-2xl p-5 sm:p-6">
-          <h2 className="text-base sm:text-lg font-semibold font-headline mb-3" style={{ color: "#e1e2eb" }}>Describe Your Company</h2>
+        <>
+          {/* Pre-baked templates — clone in one click. Bypasses the AI
+              builder so it costs zero trial Groq runs; the user spends
+              their first run on actually executing the cloned pipeline. */}
+          <StarterPicker
+            token={token}
+            onCloned={(company, message) => {
+              // After clone we drop straight into the company page so the
+              // user can see what was created and run the demo pipeline.
+              try { sessionStorage.setItem("aicos-toast", message); } catch {}
+              router.push(`/companies/${company.id}`);
+            }}
+          />
+
+          <div className="glass-card rounded-2xl p-5 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold font-headline mb-3" style={{ color: "#e1e2eb" }}>Describe Your Company</h2>
           <p className="text-sm mb-4" style={{ color: "#859399" }}>
             Tell us what kind of AI company you want to build. Be as detailed as possible.
           </p>
@@ -234,7 +249,8 @@ function CompanyBuilderWizardInner() {
           {loading && (
             <p className="mt-2 text-center text-xs" style={{ color: "#3c494e" }}>This may take 15-30 seconds</p>
           )}
-        </div>
+          </div>
+        </>
       )}
 
       {/* Step 2: Clarification Chat */}
