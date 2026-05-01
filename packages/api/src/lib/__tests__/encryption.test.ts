@@ -60,7 +60,15 @@ describe("decrypt — v1 legacy compatibility (raw-slice key)", () => {
   // Build a v1 ciphertext using the same algorithm (AES-256-GCM) but with
   // the legacy KDF: raw UTF-8 slice of the first 32 chars of ENCRYPTION_KEY.
   // No "v2:" prefix → encryption.ts dispatches to decryptV1Legacy.
-  function makeV1Ciphertext(plaintext: string, rawKey: string): string {
+  //
+  // Reads ENCRYPTION_KEY from process.env at CALL TIME (not module-load
+  // time) so the test stays correct regardless of how the runner seeds
+  // the env. Earlier this was hard-coded to REAL_KEY, which silently
+  // broke when CI set a different ENCRYPTION_KEY (legacy key derived
+  // here ≠ legacy key used by decryptV1Legacy → auth-tag mismatch).
+  function makeV1Ciphertext(plaintext: string): string {
+    const rawKey = process.env.ENCRYPTION_KEY;
+    if (!rawKey) throw new Error("ENCRYPTION_KEY missing in test env");
     const iv = randomBytes(16);
     const legacyKey = Buffer.from(rawKey.slice(0, 32), "utf8");
     const cipher = createCipheriv("aes-256-gcm", legacyKey, iv);
@@ -72,7 +80,7 @@ describe("decrypt — v1 legacy compatibility (raw-slice key)", () => {
 
   it("decrypts v1 ciphertext using the legacy raw-slice key", () => {
     const original = "legacy-secret";
-    const v1 = makeV1Ciphertext(original, REAL_KEY);
+    const v1 = makeV1Ciphertext(original);
     expect(v1.startsWith("v2:")).toBe(false);
     expect(encryptModule.decrypt(v1)).toBe(original);
   });
