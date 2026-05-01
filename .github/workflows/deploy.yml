@@ -51,7 +51,8 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   # ghcr.io requires lowercase image paths. github.repository is
-  # `kocakkmustafa/The-Creator` (mixed case) — we toLower() it below.
+  # `kocakkmustafa/braavolabs` already lowercase post-rename, but we
+  # toLower() defensively below in case of future case drift.
   IMAGE_PREFIX_RAW: ${{ github.repository }}
 
 jobs:

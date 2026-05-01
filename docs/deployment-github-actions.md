@@ -12,7 +12,7 @@ is ~50MB.
 
 ## 1. One-time setup — add GitHub repository secrets
 
-Go to https://github.com/kocakkmustafa/The-Creator/settings/secrets/actions
+Go to https://github.com/kocakkmustafa/braavolabs/settings/secrets/actions
 and add:
 
 | Secret name           | Value                                                    |
@@ -42,7 +42,7 @@ cat ~/.ssh/id_ed25519
 ## 2. One-time setup — make ghcr packages public OR keep private
 
 After the first push to `main`, two new packages will appear under
-https://github.com/kocakkmustafa/The-Creator/pkgs/container/the-creator/api
+https://github.com/kocakkmustafa/braavolabs/pkgs/container/braavolabs/api
 and `.../ui`.
 
 By default they're **private** (only the repo's `GITHUB_TOKEN` can pull).
@@ -116,7 +116,7 @@ git push origin main
 
 GitHub Actions automatically:
 1. Builds api + ui images in parallel (~5 min cold, ~90 sec cached)
-2. Pushes to `ghcr.io/kocakkmustafa/the-creator/{api,ui}:latest` + `:sha-XXXXXXXX`
+2. Pushes to `ghcr.io/kocakkmustafa/braavolabs/{api,ui}:latest` + `:sha-XXXXXXXX`
 3. SSHes to Lightsail
 4. Syncs `ENV/compose.prod.yaml` and `packages/db/prisma/migrations/` (only)
 5. Runs `docker compose pull api ui && up -d api ui`
@@ -154,7 +154,7 @@ build.
 
 If you need to redeploy without making a commit:
 
-1. Go to https://github.com/kocakkmustafa/The-Creator/actions
+1. Go to https://github.com/kocakkmustafa/braavolabs/actions
 2. Click "Build & Deploy" workflow
 3. Click "Run workflow" → choose `production` → Run
 

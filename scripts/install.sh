@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ──────────────────────────────────────────────────────────
-# AI Company OS — Self-Hosted Install Script
+# Braavolabs — Self-Hosted Install Script
 # ──────────────────────────────────────────────────────────
 #
 # Usage:
@@ -15,10 +15,10 @@ set -euo pipefail
 #   - Git
 # ──────────────────────────────────────────────────────────
 
-INSTALL_DIR="${AICOS_INSTALL_DIR:-$HOME/ai-company-os}"
+INSTALL_DIR="${BRAAVOLABS_INSTALL_DIR:-$HOME/braavolabs}"
 
 echo "╔═══════════════════════════════════════════════╗"
-echo "║        AI Company OS — Self-Hosted Setup      ║"
+echo "║        Braavolabs — Self-Hosted Setup         ║"
 echo "╚═══════════════════════════════════════════════╝"
 echo ""
 
@@ -61,7 +61,7 @@ if [ ! -f ".env" ]; then
   JWT_SECRET=$(openssl rand -hex 32 2>/dev/null || head -c 64 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 64)
 
   cat > .env <<ENVEOF
-# AI Company OS — Production Environment
+# Braavolabs — Production Environment
 # Generated on $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 # Database
@@ -127,7 +127,7 @@ for i in {1..30}; do
   if curl -sf http://localhost:8080/health >/dev/null 2>&1; then
     echo ""
     echo "╔═══════════════════════════════════════════════╗"
-    echo "║          AI Company OS is running!            ║"
+    echo "║          Braavolabs is running!            ║"
     echo "╠═══════════════════════════════════════════════╣"
     echo "║  Dashboard:  http://localhost:3000            ║"
     echo "║  API:        http://localhost:8080/api/v1     ║"

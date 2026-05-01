@@ -1,7 +1,7 @@
 # Braavolabs — Autonomous Developer Routine
 
 **Routine name:** `braavolabs-auto-dev`
-**Repo:** `kocakkmustafa/The-Creator`
+**Repo:** `kocakkmustafa/braavolabs`
 **Branch:** `main`
 **Schedule:** `0 5 * * *` (günlük 05:00 Europe/Istanbul)
 **Duration budget:** 45 dakika

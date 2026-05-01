@@ -212,7 +212,7 @@ Yukarıdaki standart format.
 Cron ile 08:00'da otomatik çalıştır:
 ```bash
 # Mustafa'nın Mac'inde / Linux server'da:
-0 8 * * * cd /path/to/the-creator && claude code --headless --command "/daily-briefing" > /tmp/briefing-$(date +\%Y\%m\%d).md
+0 8 * * * cd /path/to/braavolabs && claude code --headless --command "/daily-briefing" > /tmp/briefing-$(date +\%Y\%m\%d).md
 ```
 
 Sonra Mustafa kahvesini alıp açsın, günün başlamış.
