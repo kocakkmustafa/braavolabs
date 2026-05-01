@@ -66,7 +66,22 @@ jobs:
           pnpm --filter @ai-company-os/core build
           pnpm --filter @ai-company-os/memory build
           pnpm --filter @ai-company-os/integrations build
+      # Seed the env vars that env.ts validates at module-load time.
+      # Vitest imports the API source which transitively loads env.ts;
+      # without these the parse step throws at import and entire test
+      # files fail before a single `it()` block runs. Values are
+      # placeholders — none of these tests touch the network or DB; the
+      # parser just needs the right shape so process.env passes Zod.
+      # If a test in the future ACTUALLY needs a working DB / Redis,
+      # spin up a service container above this step (postgres + redis)
+      # rather than swapping these constants for live URLs.
       - name: Run tests (only packages that define a test script)
+        env:
+          DATABASE_URL: "postgresql://test:test@localhost:5432/test?schema=public"
+          REDIS_URL: "redis://localhost:6379"
+          JWT_SECRET: "ci-test-jwt-secret-must-be-at-least-32-characters-long-xx"
+          ENCRYPTION_KEY: "ci-test-encryption-key-32-chars-minimum-aabbccddeeff00"
+          NODE_ENV: "test"
         run: pnpm -r --if-present test
 
   build:
