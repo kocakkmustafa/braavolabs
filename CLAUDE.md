@@ -54,7 +54,7 @@ pnpm docker:down                   # Docker Compose down
 
 ## Proje Yapısı
 ```
-AI_COMPANY_OS/
+braavolabs/
 ├── CLAUDE.md
 ├── package.json                 # pnpm workspace root
 ├── pnpm-workspace.yaml

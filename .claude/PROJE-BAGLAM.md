@@ -17,7 +17,7 @@
 | **Hero company** | Social Media Management + Autonomous Content Studio |
 | **Free plan** | 1 şirket, TikTok + LinkedIn, 10 run/ay, gerçek çıktı |
 | **Olgunluk** | Faz 18 tamamlandı (production-ready, güvenlik hardened, SSE streaming, export) |
-| **Repo root** | `/Users/mustafakaankocak/AI Holding Claude/Projects/Web Sites/braavolabs.com` |
+| **Repo root** | `/Users/mustafakaankocak/Documents/YULAlabs-AI/Projects/Web Sites/braavoo.com` |
 | **Authoritative CLAUDE.md** | `braavolabs.com/CLAUDE.md` (proje kökünde) |
 
 ---
