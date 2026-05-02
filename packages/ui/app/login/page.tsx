@@ -63,6 +63,14 @@ export default function LoginPage() {
     if (!password) return "Password is required.";
     if (password.length < 8) return "Password must be at least 8 characters.";
     if (mode === "register") {
+      // Mirror server's zod regex (auth.router.ts) so the form fails
+      // closed before round-tripping a 400 — otherwise the user only saw
+      // the now-fixed apiFetch detail message after submit. Special chars
+      // are NOT required server-side; don't add that here either or the
+      // strength meter and validator will disagree.
+      if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+        return "Password must contain uppercase, lowercase, and a number.";
+      }
       if (!name.trim()) return "Full name is required.";
       if (!tenantName.trim()) return "Organization name is required.";
     }
@@ -259,7 +267,15 @@ export default function LoginPage() {
 
             <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" required />
             <div>
-              <Field label="Password" type="password" value={password} onChange={setPassword} placeholder="Min. 8 characters" required minLength={8} />
+              <Field
+                label="Password"
+                type="password"
+                value={password}
+                onChange={setPassword}
+                placeholder={mode === "register" ? "8+ chars, upper, lower, number" : "Min. 8 characters"}
+                required
+                minLength={8}
+              />
               {mode === "login" && (
                 <div className="flex justify-end mt-1.5">
                   <button type="button" onClick={() => setShowForgot(true)} className="text-xs transition-colors hover:opacity-80" style={{ color: "#a4e6ff", background: "none", border: "none", cursor: "pointer", padding: 0 }}>

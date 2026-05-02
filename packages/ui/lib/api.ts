@@ -18,7 +18,16 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? `API error: ${res.status}`);
+    // Server's zod errors put the actionable text in `message` ("password:
+    // Password must contain uppercase, lowercase, and a number"), not in
+    // the top-level `error` ("Validation failed"). Surface the most
+    // specific field available so the form shows the real reason.
+    const detail =
+      body.message ||
+      body.issues?.[0]?.message ||
+      body.error ||
+      `API error: ${res.status}`;
+    throw new Error(detail);
   }
 
   return res.json();
