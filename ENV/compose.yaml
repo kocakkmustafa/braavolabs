@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: pgvector/pgvector:pg16
@@ -18,8 +16,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    security_opt:
-      - no-new-privileges:true
+    # security_opt lives in compose.prod.yaml only — Compose v2 merges
+    # list fields additively, so duplicating `no-new-privileges:true`
+    # here triggered "items at 0 and 1 are equal" validation failures
+    # on `-f compose.yaml -f compose.prod.yaml`. Dev runs unhardened
+    # (acceptable: local Docker isn't an attack surface).
 
   redis:
     image: redis:7-alpine
@@ -34,8 +35,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    security_opt:
-      - no-new-privileges:true
+    # security_opt — see postgres comment above.
 
 volumes:
   postgres_data:
