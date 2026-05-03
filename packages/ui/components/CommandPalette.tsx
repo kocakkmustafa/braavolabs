@@ -36,7 +36,6 @@ export default function CommandPalette() {
     { id: "analytics", label: "Analytics", icon: "query_stats", href: "/analytics", auth: true, category: "navigate" },
     { id: "risks", label: "Risk Shield", icon: "security", href: "/risks", auth: true, category: "navigate" },
     { id: "billing", label: "Billing & Usage", icon: "credit_card", href: "/billing", auth: true, shortcut: "B", category: "navigate" },
-    { id: "marketplace", label: "Blueprint Marketplace", icon: "storefront", href: "/marketplace", auth: true, shortcut: "M", category: "navigate" },
     { id: "settings", label: "Settings", icon: "settings", href: "/settings", auth: true, shortcut: "S", category: "navigate" },
     // Public
     { id: "features", label: "Features", icon: "auto_awesome", href: "/features", auth: false, category: "navigate" },

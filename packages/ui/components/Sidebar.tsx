@@ -19,7 +19,6 @@ const NAV_ITEMS = [
   { href: "/ab-tests", label: "A/B Tests", icon: "science", authOnly: true },
   { href: "/webhooks", label: "Webhooks", icon: "webhook", authOnly: true },
   { href: "/billing", label: "Billing", icon: "credit_card", authOnly: true },
-  { href: "/marketplace", label: "Marketplace", icon: "storefront", authOnly: true },
   { href: "/settings", label: "Settings", icon: "settings", authOnly: true },
 ];
 

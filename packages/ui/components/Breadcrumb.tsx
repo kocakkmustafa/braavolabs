@@ -17,7 +17,6 @@ const ROUTE_LABELS: Record<string, string> = {
   risks: "Risk Shield",
   settings: "Settings",
   billing: "Billing",
-  marketplace: "Marketplace",
   onboarding: "Onboarding",
   runs: "Runs",
 };
