@@ -17,11 +17,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/pricing", changeFrequency: "weekly", priority: 0.9 },
     { path: "/features", changeFrequency: "weekly", priority: 0.8 },
     { path: "/docs", changeFrequency: "weekly", priority: 0.7 },
+    { path: "/about", changeFrequency: "monthly", priority: 0.6 },
+    { path: "/contact", changeFrequency: "monthly", priority: 0.6 },
+    { path: "/blog", changeFrequency: "weekly", priority: 0.5 },
+    { path: "/changelog", changeFrequency: "weekly", priority: 0.4 },
+    { path: "/status", changeFrequency: "daily", priority: 0.4 },
     // /risks removed — auth-guarded (useAuthGuard redirects to /login),
     // would index as a redirect chain. Add back if a public risk-status
     // page ships separately.
     { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },
     { path: "/terms", changeFrequency: "yearly", priority: 0.3 },
+    { path: "/cookies", changeFrequency: "yearly", priority: 0.3 },
+    { path: "/kvkk", changeFrequency: "yearly", priority: 0.3 },
+    { path: "/gdpr", changeFrequency: "yearly", priority: 0.3 },
   ];
 
   return staticRoutes.map(({ path, changeFrequency, priority }) => ({

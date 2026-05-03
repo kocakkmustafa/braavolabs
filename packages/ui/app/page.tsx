@@ -685,8 +685,8 @@ export default function LandingPage() {
             <span style={{ fontSize: 11, color: "#3c494e" }}>Braavolabs</span>
             <span className="hidden sm:inline" style={{ fontSize: 10, color: "#3c494e", marginLeft: 8 }}>&copy; 2026 All rights reserved.</span>
           </div>
-          <div className="hidden sm:flex" style={{ gap: 20, fontSize: 11 }}>
-            {[["Features", "/features"], ["Pricing", "/pricing"], ["Docs", "/docs"], ["Privacy", "/privacy"], ["Terms", "/terms"]].map(([l, h]) => (
+          <div className="hidden sm:flex" style={{ gap: 20, fontSize: 11, flexWrap: "wrap", justifyContent: "flex-end", maxWidth: "70%" }}>
+            {[["Features", "/features"], ["Pricing", "/pricing"], ["Docs", "/docs"], ["About", "/about"], ["Blog", "/blog"], ["Contact", "/contact"], ["Status", "/status"], ["Privacy", "/privacy"], ["Terms", "/terms"]].map(([l, h]) => (
               <Link key={l} href={h} style={{ color: "#3c494e", textDecoration: "none", transition: "color 0.2s" }}
                 onMouseEnter={(e) => e.currentTarget.style.color = "#859399"}
                 onMouseLeave={(e) => e.currentTarget.style.color = "#3c494e"}

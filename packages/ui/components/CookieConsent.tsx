@@ -75,6 +75,10 @@ const COPY: Record<Locale, {
         <Link href="/privacy" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
           {privacyLabel}
         </Link>
+        {" · "}
+        <Link href="/cookies" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
+          Cookie Policy
+        </Link>
         .
       </>
     ),
@@ -92,6 +96,14 @@ const COPY: Record<Locale, {
         kişisel veri toplamayız, IP'ler bile redact'lenir.{" "}
         <Link href="/privacy" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
           {privacyLabel}
+        </Link>
+        {" · "}
+        <Link href="/cookies" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
+          Çerez Politikası
+        </Link>
+        {" · "}
+        <Link href="/kvkk" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
+          KVKK
         </Link>
         .
       </>
