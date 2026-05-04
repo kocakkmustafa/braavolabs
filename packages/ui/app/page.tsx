@@ -352,7 +352,7 @@ export default function LandingPage() {
         </div>
 
         <div className="hidden md:flex" style={{ alignItems: "center", gap: 28, fontSize: 13, fontWeight: 500 }}>
-          {[["nav.features", "/features"], ["nav.pricing", "/pricing"], ["nav.docs", "/docs"]].map(([label, href]) => (
+          {[["nav.features", "/features"], ["nav.pricing", "/pricing"]].map(([label, href]) => (
             <Link
               key={label}
               href={href}
@@ -686,7 +686,7 @@ export default function LandingPage() {
             <span className="hidden sm:inline" style={{ fontSize: 10, color: "#3c494e", marginLeft: 8 }}>&copy; 2026 All rights reserved.</span>
           </div>
           <div className="hidden sm:flex" style={{ gap: 20, fontSize: 11, flexWrap: "wrap", justifyContent: "flex-end", maxWidth: "70%" }}>
-            {[["Features", "/features"], ["Pricing", "/pricing"], ["Docs", "/docs"], ["About", "/about"], ["Blog", "/blog"], ["Contact", "/contact"], ["Status", "/status"], ["Privacy", "/privacy"], ["Terms", "/terms"]].map(([l, h]) => (
+            {[["Features", "/features"], ["Pricing", "/pricing"], ["About", "/about"], ["Blog", "/blog"], ["Contact", "/contact"], ["Status", "/status"], ["Privacy", "/privacy"], ["Terms", "/terms"]].map(([l, h]) => (
               <Link key={l} href={h} style={{ color: "#3c494e", textDecoration: "none", transition: "color 0.2s" }}
                 onMouseEnter={(e) => e.currentTarget.style.color = "#859399"}
                 onMouseLeave={(e) => e.currentTarget.style.color = "#3c494e"}

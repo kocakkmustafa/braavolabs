@@ -40,7 +40,6 @@ export default function CommandPalette() {
     // Public
     { id: "features", label: "Features", icon: "auto_awesome", href: "/features", auth: false, category: "navigate" },
     { id: "pricing", label: "Pricing", icon: "sell", href: "/pricing", auth: false, category: "navigate" },
-    { id: "docs", label: "Documentation", icon: "menu_book", href: "/docs", auth: false, category: "navigate" },
     // Actions
     { id: "sign-out", label: "Sign Out", icon: "logout", auth: true, category: "action", action: () => { clearAuth(); router.push("/login"); } },
     { id: "home", label: "Go to Home", icon: "home", href: "/", auth: false, category: "quick" },

@@ -10,7 +10,7 @@ import Breadcrumb from "../components/Breadcrumb";
 import PresenceBar from "../components/PresenceBar";
 
 // Landing page renders its own nav — skip sidebar offset
-const FULL_WIDTH_PATHS = ["/", "/login", "/register", "/reset-password", "/docs", "/features", "/pricing", "/terms", "/privacy", "/auth/callback"];
+const FULL_WIDTH_PATHS = ["/", "/login", "/register", "/reset-password", "/features", "/pricing", "/terms", "/privacy", "/auth/callback"];
 
 export default function AuthLayout({
   children,

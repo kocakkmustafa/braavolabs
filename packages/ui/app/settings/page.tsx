@@ -1034,7 +1034,6 @@ export default function SettingsPage() {
                 </p>
                 <p className="mt-2" style={{ color: "#859399" }}>
                   <strong style={{ color: "#34d399" }}>Self-hosted option (Creator+):</strong> point Braavolabs at <code>Ollama</code> or <code>LM Studio</code> running on your own machine — Gemma 3 4B is a good starting point. Prompts stay on your hardware, no per-token LLM costs, works offline. Subscribe to Creator or higher to unlock.
-                  {" "}<a href="/docs#local-llm" style={{ color: "#34d399", textDecoration: "underline" }}>Setup guide →</a>
                 </p>
               </div>
             </div>

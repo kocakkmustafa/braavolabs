@@ -25,7 +25,6 @@ const NAV_ITEMS = [
 const PUBLIC_ITEMS = [
   { href: "/features", label: "Features", icon: "auto_awesome" },
   { href: "/pricing", label: "Pricing", icon: "sell" },
-  { href: "/docs", label: "Docs", icon: "menu_book" },
 ];
 
 export default function Sidebar() {
