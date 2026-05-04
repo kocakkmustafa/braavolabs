@@ -102,7 +102,7 @@
     },
     "faq": [
       { "q": "Brauche ich für den kostenlosen Plan eine Kreditkarte?", "a": "Nein. Free ist für immer komplett kostenlos — keine Karte nötig. Du bekommst 1 Unternehmen und 10 Läufe pro Monat mit echter KI-Ausgabe." },
-      { "q": "Was zählt als „Lauf"?", "a": "Jede Pipeline-Ausführung ist ein Lauf. Beispiel: 1 TikTok-Post-Generierung = 1 Lauf. 1 E-Mail-Outreach-Sequenz = 1 Lauf." },
+      { "q": "Was zählt als „Lauf“?", "a": "Jede Pipeline-Ausführung ist ein Lauf. Beispiel: 1 TikTok-Post-Generierung = 1 Lauf. 1 E-Mail-Outreach-Sequenz = 1 Lauf." },
       { "q": "Warum gibt es keine kostenlose Testversion auf bezahlten Plänen?", "a": "Weil der Free-Plan dir bereits echten Wert bietet. Probiere das Produkt kostenlos, wähle dann eine Stufe, wenn du mehr Unternehmen brauchst." },
       { "q": "Was passiert, wenn ich mein Lauf-Kontingent überschreite?", "a": "Deine Pipelines pausieren bis zum nächsten Monat oder bis zum Upgrade. Keine Überraschungs-Rechnungen." },
       { "q": "Kann ich jederzeit kündigen?", "a": "Ja. Kündige jederzeit über deine Billing-Seite — keine Strafe, kein Lock-in. Behalte den Zugang bis zum Periodenende." },
