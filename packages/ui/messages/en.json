@@ -18,6 +18,50 @@
     "deploy": "to first deploy",
     "audited": "actions audited"
   },
+  "features": {
+    "badge": "PLATFORM CAPABILITIES",
+    "title": "Everything your AI company needs",
+    "subtitle": "From agent orchestration to memory, billing, and governance — the full stack in one platform.",
+    "ctaPrimary": "Start Building Free",
+    "items": {
+      "agents": {
+        "title": "Autonomous Agents",
+        "desc": "Claude-powered agents with tool use, retry logic, reasoning logs, and budget controls. Every decision is recorded with a 'why' field."
+      },
+      "memory": {
+        "title": "Memory Engine",
+        "desc": "Episodic + semantic + graph memory. Agents learn from every run. Memories go through candidate → approved → deprecated lifecycle."
+      },
+      "pipeline": {
+        "title": "Pipeline Runner",
+        "desc": "Multi-step workflows with cron scheduling, BullMQ-powered queues, and step-level rollback capability."
+      },
+      "governance": {
+        "title": "Governance Engine",
+        "desc": "Cost anomaly detection, loop prevention, spam protection, brand safety filters. Hard stops on budget overruns."
+      },
+      "analytics": {
+        "title": "Analytics & CRM",
+        "desc": "HubSpot integration, deal tracking, full run history, cost breakdown, and success rate metrics."
+      },
+      "billing": {
+        "title": "Usage Billing",
+        "desc": "Stripe-powered metering. Free tier included. Scale from $0 to enterprise on demand with usage-based pricing."
+      },
+      "audit": {
+        "title": "Full Audit Log",
+        "desc": "Every action, every tool call, every decision — permanently logged with actor, timestamp, and cost."
+      },
+      "primitives": {
+        "title": "9 Primitives",
+        "desc": "Acquisition, Sales, Delivery, Content, Operations, Finance, Analytics, Memory, Governance — mix and match to build any company type."
+      },
+      "approval": {
+        "title": "Spend Approval Gates",
+        "desc": "Only money-spending actions require human approval. Everything else runs autonomously, keeping you in control without slowing ops."
+      }
+    }
+  },
   "footer": {
     "rights": "© 2026 Braavolabs. Built with Claude.",
     "privacy": "Privacy",

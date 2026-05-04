@@ -18,6 +18,50 @@
     "deploy": "jusqu'au premier déploiement",
     "audited": "actions auditées"
   },
+  "features": {
+    "badge": "CAPACITÉS DE LA PLATEFORME",
+    "title": "Tout ce dont votre entreprise IA a besoin",
+    "subtitle": "De l'orchestration des agents à la mémoire, la facturation et la gouvernance — toute la stack sur une seule plateforme.",
+    "ctaPrimary": "Commencez gratuitement",
+    "items": {
+      "agents": {
+        "title": "Agents Autonomes",
+        "desc": "Agents propulsés par Claude avec utilisation d'outils, logique de réessai, logs de raisonnement et contrôles de budget. Chaque décision est enregistrée avec un champ « pourquoi »."
+      },
+      "memory": {
+        "title": "Moteur de Mémoire",
+        "desc": "Mémoire épisodique + sémantique + graphe. Les agents apprennent à chaque exécution. Les souvenirs passent par le cycle candidat → approuvé → obsolète."
+      },
+      "pipeline": {
+        "title": "Exécuteur de Pipeline",
+        "desc": "Workflows multi-étapes avec planification cron, files d'attente BullMQ et rollback au niveau du step."
+      },
+      "governance": {
+        "title": "Moteur de Gouvernance",
+        "desc": "Détection d'anomalies de coût, prévention des boucles, protection anti-spam, filtres de sécurité de marque. Arrêts durs en cas de dépassement de budget."
+      },
+      "analytics": {
+        "title": "Analyse et CRM",
+        "desc": "Intégration HubSpot, suivi des deals, historique complet des exécutions, répartition des coûts et métriques de taux de réussite."
+      },
+      "billing": {
+        "title": "Facturation à l'Usage",
+        "desc": "Comptage propulsé par Stripe. Niveau gratuit inclus. Évoluez de $0 à entreprise à la demande avec une tarification basée sur l'usage."
+      },
+      "audit": {
+        "title": "Journal d'Audit Complet",
+        "desc": "Chaque action, chaque appel d'outil, chaque décision — enregistré en permanence avec acteur, horodatage et coût."
+      },
+      "primitives": {
+        "title": "9 Primitives",
+        "desc": "Acquisition, Ventes, Livraison, Contenu, Opérations, Finance, Analyse, Mémoire, Gouvernance — combinez pour construire tout type d'entreprise."
+      },
+      "approval": {
+        "title": "Approbation des Dépenses",
+        "desc": "Seules les actions qui dépensent de l'argent nécessitent une approbation humaine. Tout le reste s'exécute de manière autonome — vous gardez le contrôle sans ralentir les opérations."
+      }
+    }
+  },
   "footer": {
     "rights": "© 2026 Braavolabs. Conçu avec Claude.",
     "privacy": "Confidentialité",

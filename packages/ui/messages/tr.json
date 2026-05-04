@@ -18,6 +18,50 @@
     "deploy": "ilk yayına çıkış",
     "audited": "denetlenen aksiyon"
   },
+  "features": {
+    "badge": "PLATFORM YETKİNLİKLERİ",
+    "title": "AI şirketinin ihtiyaç duyduğu her şey",
+    "subtitle": "Ajan orkestrasyonundan hafızaya, faturalandırmadan yönetişime — tüm yığın tek platformda.",
+    "ctaPrimary": "Ücretsiz Başla",
+    "items": {
+      "agents": {
+        "title": "Otonom Ajanlar",
+        "desc": "Tool kullanımı, yeniden deneme mantığı, akıl yürütme kayıtları ve bütçe kontrollerine sahip Claude tabanlı ajanlar. Her karar 'neden' alanıyla birlikte kayıt altına alınır."
+      },
+      "memory": {
+        "title": "Hafıza Motoru",
+        "desc": "Epizodik + semantik + grafik hafıza. Ajanlar her çalıştırmadan öğrenir. Hafızalar aday → onaylı → kullanım dışı yaşam döngüsünden geçer."
+      },
+      "pipeline": {
+        "title": "Pipeline Çalıştırıcı",
+        "desc": "Cron zamanlama, BullMQ tabanlı kuyruklar ve adım bazında geri alma yeteneğine sahip çok adımlı iş akışları."
+      },
+      "governance": {
+        "title": "Yönetişim Motoru",
+        "desc": "Maliyet anomali tespiti, döngü engelleme, spam koruması, marka güvenliği filtreleri. Bütçe aşımlarında zorunlu durdurma."
+      },
+      "analytics": {
+        "title": "Analitik ve CRM",
+        "desc": "HubSpot entegrasyonu, anlaşma takibi, tam çalıştırma geçmişi, maliyet dökümü ve başarı oranı metrikleri."
+      },
+      "billing": {
+        "title": "Kullanım Bazlı Faturalandırma",
+        "desc": "Stripe tabanlı sayaçlama. Ücretsiz katman dahildir. Kullanım bazlı fiyatlandırma ile $0'dan kurumsal seviyeye kadar talep üzerine ölçeklenir."
+      },
+      "audit": {
+        "title": "Eksiksiz Denetim Kaydı",
+        "desc": "Her aksiyon, her araç çağrısı, her karar — aktör, zaman damgası ve maliyetle birlikte kalıcı olarak kaydedilir."
+      },
+      "primitives": {
+        "title": "9 Primitive",
+        "desc": "Edinim, Satış, Teslimat, İçerik, Operasyon, Finans, Analitik, Hafıza, Yönetişim — herhangi bir şirket tipini oluşturmak için karıştır ve eşleştir."
+      },
+      "approval": {
+        "title": "Harcama Onay Kapıları",
+        "desc": "Yalnızca para harcayan aksiyonlar insan onayı ister. Geri kalanı otonom çalışır; sizi kontrolde tutar ama operasyonu yavaşlatmaz."
+      }
+    }
+  },
   "footer": {
     "rights": "© 2026 Braavolabs. Claude ile geliştirildi.",
     "privacy": "Gizlilik",

@@ -18,6 +18,50 @@
     "deploy": "bis zum ersten Deploy",
     "audited": "auditierte Aktionen"
   },
+  "features": {
+    "badge": "PLATTFORM-FUNKTIONEN",
+    "title": "Alles, was dein KI-Unternehmen braucht",
+    "subtitle": "Von Agent-Orchestrierung über Speicher und Abrechnung bis zur Governance — der komplette Stack in einer Plattform.",
+    "ctaPrimary": "Kostenlos starten",
+    "items": {
+      "agents": {
+        "title": "Autonome Agenten",
+        "desc": "Claude-basierte Agenten mit Tool-Nutzung, Retry-Logik, Reasoning-Logs und Budget-Kontrollen. Jede Entscheidung wird mit einem 'Warum'-Feld protokolliert."
+      },
+      "memory": {
+        "title": "Memory Engine",
+        "desc": "Episodischer + semantischer + Graph-Speicher. Agenten lernen aus jedem Lauf. Erinnerungen durchlaufen den Lebenszyklus Kandidat → Genehmigt → Veraltet."
+      },
+      "pipeline": {
+        "title": "Pipeline Runner",
+        "desc": "Mehrstufige Workflows mit Cron-Scheduling, BullMQ-basierten Queues und Rollback auf Step-Ebene."
+      },
+      "governance": {
+        "title": "Governance Engine",
+        "desc": "Kostenanomalie-Erkennung, Loop-Schutz, Spam-Schutz, Markensicherheitsfilter. Harte Stopps bei Budgetüberschreitungen."
+      },
+      "analytics": {
+        "title": "Analytics & CRM",
+        "desc": "HubSpot-Integration, Deal-Tracking, vollständige Run-Historie, Kostenaufschlüsselung und Erfolgsquoten."
+      },
+      "billing": {
+        "title": "Nutzungsabrechnung",
+        "desc": "Stripe-basiertes Metering. Free Tier inklusive. Skaliere von $0 bis Enterprise on-demand mit nutzungsbasierter Abrechnung."
+      },
+      "audit": {
+        "title": "Vollständiges Audit-Log",
+        "desc": "Jede Aktion, jeder Tool-Aufruf, jede Entscheidung — dauerhaft mit Akteur, Zeitstempel und Kosten protokolliert."
+      },
+      "primitives": {
+        "title": "9 Primitives",
+        "desc": "Acquisition, Sales, Delivery, Content, Operations, Finance, Analytics, Memory, Governance — kombinierbar für jeden Unternehmenstyp."
+      },
+      "approval": {
+        "title": "Ausgaben-Freigabe",
+        "desc": "Nur Aktionen, die Geld kosten, benötigen menschliche Freigabe. Alles andere läuft autonom — du behältst die Kontrolle, ohne den Betrieb zu bremsen."
+      }
+    }
+  },
   "footer": {
     "rights": "© 2026 Braavolabs. Mit Claude gebaut.",
     "privacy": "Datenschutz",

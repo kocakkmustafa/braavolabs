@@ -18,6 +18,50 @@
     "deploy": "hasta el primer despliegue",
     "audited": "acciones auditadas"
   },
+  "features": {
+    "badge": "CAPACIDADES DE LA PLATAFORMA",
+    "title": "Todo lo que tu empresa de IA necesita",
+    "subtitle": "Desde la orquestación de agentes hasta memoria, facturación y gobernanza — el stack completo en una sola plataforma.",
+    "ctaPrimary": "Empieza gratis",
+    "items": {
+      "agents": {
+        "title": "Agentes Autónomos",
+        "desc": "Agentes basados en Claude con uso de herramientas, lógica de reintento, registros de razonamiento y controles de presupuesto. Cada decisión se registra con un campo 'por qué'."
+      },
+      "memory": {
+        "title": "Motor de Memoria",
+        "desc": "Memoria episódica + semántica + de grafos. Los agentes aprenden de cada ejecución. Las memorias pasan por el ciclo candidato → aprobado → obsoleto."
+      },
+      "pipeline": {
+        "title": "Ejecutor de Pipelines",
+        "desc": "Flujos multi-paso con programación cron, colas basadas en BullMQ y rollback a nivel de paso."
+      },
+      "governance": {
+        "title": "Motor de Gobernanza",
+        "desc": "Detección de anomalías de coste, prevención de bucles, protección anti-spam, filtros de seguridad de marca. Paradas duras al superar el presupuesto."
+      },
+      "analytics": {
+        "title": "Analítica y CRM",
+        "desc": "Integración con HubSpot, seguimiento de deals, historial completo de ejecuciones, desglose de costes y métricas de tasa de éxito."
+      },
+      "billing": {
+        "title": "Facturación por Uso",
+        "desc": "Medición basada en Stripe. Capa gratuita incluida. Escala de $0 a empresa bajo demanda con precios basados en uso."
+      },
+      "audit": {
+        "title": "Registro de Auditoría Completo",
+        "desc": "Cada acción, cada llamada a herramienta, cada decisión — registrada permanentemente con actor, marca de tiempo y coste."
+      },
+      "primitives": {
+        "title": "9 Primitivas",
+        "desc": "Adquisición, Ventas, Entrega, Contenido, Operaciones, Finanzas, Analítica, Memoria, Gobernanza — combina para construir cualquier tipo de empresa."
+      },
+      "approval": {
+        "title": "Aprobación de Gastos",
+        "desc": "Solo las acciones que gastan dinero requieren aprobación humana. Todo lo demás se ejecuta de forma autónoma — mantienes el control sin frenar las operaciones."
+      }
+    }
+  },
   "footer": {
     "rights": "© 2026 Braavolabs. Hecho con Claude.",
     "privacy": "Privacidad",
