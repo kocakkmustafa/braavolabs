@@ -62,6 +62,53 @@
       }
     }
   },
+  "pricing": {
+    "badge": "GRATIS PARA EMPEZAR · SIN TARJETA",
+    "title": "Precios simples y transparentes",
+    "subtitle": "Empieza gratis con una empresa de IA. Mejora cuando quieras ejecutar más. Todos los planes de pago son un 20 % más baratos en facturación anual.",
+    "cycle": { "monthly": "Mensual", "yearly": "Anual", "save": "−20 %" },
+    "period": { "forever": "para siempre", "monthBilledYearly": "/ mes · facturado anualmente", "month": "/ mes" },
+    "mostPopular": "Más Popular",
+    "plans": {
+      "free": {
+        "name": "Free",
+        "desc": "Salida real de IA desde el primer día. Construye 1 empresa, mírala funcionar.",
+        "features": ["1 empresa de IA", "10 ejecuciones / mes", "Canales TikTok + LinkedIn", "Plantilla hero simplificada", "Registro de auditoría completo", "Cloud BYOK (Anthropic / OpenAI / Gemini)", "Soporte de comunidad"],
+        "cta": "Empezar gratis"
+      },
+      "creator": {
+        "name": "Creator",
+        "desc": "Para emprendedores en solitario que gestionan varias empresas de IA.",
+        "features": ["5 empresas en paralelo", "100 ejecuciones / mes", "Todos los canales (TikTok, LinkedIn, IG, X, Email)", "Pipelines personalizados", "Motor de memoria", "Self-hosted Gemma (Ollama / LM Studio)", "Soporte por email"],
+        "cta": "Elegir Creator"
+      },
+      "pro": {
+        "name": "Pro",
+        "desc": "Para agencias y fundadores que escalan múltiples marcas.",
+        "features": ["20 empresas", "500 ejecuciones / mes", "Sincronización con HubSpot CRM", "Automatización de outreach", "Analítica avanzada", "Self-hosted Gemma + Endpoints OpenAI personalizados", "Soporte prioritario"],
+        "cta": "Elegir Pro"
+      },
+      "business": {
+        "name": "Business",
+        "desc": "Autonomía a escala de equipo con gobernanza incorporada.",
+        "features": ["100 empresas", "2.000 ejecuciones / mes", "3 asientos de equipo", "Gobernanza + exportación de auditoría", "Preparación white-label", "Self-hosted LLM + opción air-gapped", "Soporte dedicado"],
+        "cta": "Elegir Business"
+      }
+    },
+    "enterprise": {
+      "title": "¿Necesitas más?",
+      "desc": "Enterprise — empresas ilimitadas, SSO, despliegue privado, SLA dedicado.",
+      "cta": "Habla con el fundador"
+    },
+    "faq": [
+      { "q": "¿Necesito tarjeta de crédito para el plan gratuito?", "a": "No. Free es completamente gratis para siempre — no se requiere tarjeta. Obtienes 1 empresa y 10 ejecuciones al mes, con salida real de IA." },
+      { "q": "¿Qué cuenta como una 'ejecución'?", "a": "Cada ejecución de pipeline es una ejecución. Ejemplo: 1 generación de post TikTok = 1 ejecución. 1 secuencia de outreach por email = 1 ejecución." },
+      { "q": "¿Por qué no hay prueba gratuita en planes de pago?", "a": "Porque el plan Free ya te da valor real. Prueba el producto gratis, luego elige un nivel cuando estés listo para más empresas." },
+      { "q": "¿Qué pasa si supero mi cuota de ejecuciones?", "a": "Tus pipelines se pausan hasta el próximo mes o hasta que mejores el plan. Sin cargos sorpresa." },
+      { "q": "¿Puedo cancelar en cualquier momento?", "a": "Sí. Cancela desde tu página de facturación en cualquier momento — sin penalización, sin lock-in. Mantén el acceso hasta que termine tu periodo." },
+      { "q": "¿Mis datos son privados?", "a": "Sí. Cada tenant está totalmente aislado. Nunca compartimos ni entrenamos con los datos de tu empresa." }
+    ]
+  },
   "footer": {
     "rights": "© 2026 Braavolabs. Hecho con Claude.",
     "privacy": "Privacidad",

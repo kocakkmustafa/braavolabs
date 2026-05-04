@@ -62,6 +62,53 @@
       }
     }
   },
+  "pricing": {
+    "badge": "FREE TO START · NO CARD REQUIRED",
+    "title": "Simple, transparent pricing",
+    "subtitle": "Start free with one AI company. Upgrade when you want to run more. Every paid plan is 20% cheaper on annual billing.",
+    "cycle": { "monthly": "Monthly", "yearly": "Yearly", "save": "−20%" },
+    "period": { "forever": "forever", "monthBilledYearly": "/ mo · billed yearly", "month": "/ month" },
+    "mostPopular": "Most Popular",
+    "plans": {
+      "free": {
+        "name": "Free",
+        "desc": "Real AI output from day one. Build 1 company, see it work.",
+        "features": ["1 AI company", "10 runs / month", "TikTok + LinkedIn channels", "Simplified hero template", "Full audit log", "Cloud BYOK (Anthropic / OpenAI / Gemini)", "Community support"],
+        "cta": "Start Free"
+      },
+      "creator": {
+        "name": "Creator",
+        "desc": "For solopreneurs running a handful of AI companies.",
+        "features": ["5 companies running in parallel", "100 runs / month", "All channels (TikTok, LinkedIn, IG, X, Email)", "Custom pipelines", "Memory engine", "Self-hosted Gemma (Ollama / LM Studio)", "Email support"],
+        "cta": "Choose Creator"
+      },
+      "pro": {
+        "name": "Pro",
+        "desc": "For agencies and founders scaling across many brands.",
+        "features": ["20 companies", "500 runs / month", "HubSpot CRM sync", "Outreach automation", "Advanced analytics", "Self-hosted Gemma + Custom OpenAI endpoints", "Priority support"],
+        "cta": "Choose Pro"
+      },
+      "business": {
+        "name": "Business",
+        "desc": "Team-scale autonomy with governance built in.",
+        "features": ["100 companies", "2,000 runs / month", "3 team seats", "Governance + audit export", "White-label prep", "Self-hosted LLM + air-gapped option", "Dedicated support"],
+        "cta": "Choose Business"
+      }
+    },
+    "enterprise": {
+      "title": "Need more?",
+      "desc": "Enterprise — unlimited companies, SSO, private deployment, dedicated SLA.",
+      "cta": "Talk to the Founder"
+    },
+    "faq": [
+      { "q": "Do I need a credit card for the free plan?", "a": "No. Free is completely free forever — no card required. You get 1 company and 10 runs per month, with real AI output." },
+      { "q": "What counts as a 'run'?", "a": "Each pipeline execution is one run. Example: 1 TikTok post generation = 1 run. 1 email outreach sequence = 1 run." },
+      { "q": "Why is there no free trial on paid plans?", "a": "Because the Free plan already gives you real value. Try the product for free, then pick a tier when you're ready for more companies." },
+      { "q": "What if I exceed my run quota?", "a": "Your pipelines pause until next month or until you upgrade. No surprise charges." },
+      { "q": "Can I cancel anytime?", "a": "Yes. Cancel from your billing page at any time — no penalty, no lock-in. Keep access until your period ends." },
+      { "q": "Is my data private?", "a": "Yes. Each tenant is fully isolated. We never share or train on your company data." }
+    ]
+  },
   "footer": {
     "rights": "© 2026 Braavolabs. Built with Claude.",
     "privacy": "Privacy",

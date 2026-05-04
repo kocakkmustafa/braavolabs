@@ -62,6 +62,53 @@
       }
     }
   },
+  "pricing": {
+    "badge": "KOSTENLOS STARTEN · KEINE KARTE NÖTIG",
+    "title": "Einfache, transparente Preise",
+    "subtitle": "Starte kostenlos mit einem KI-Unternehmen. Upgrade, wenn du mehr betreiben willst. Jeder bezahlte Plan ist bei jährlicher Abrechnung 20 % günstiger.",
+    "cycle": { "monthly": "Monatlich", "yearly": "Jährlich", "save": "−20 %" },
+    "period": { "forever": "für immer", "monthBilledYearly": "/ Mon. · jährlich abgerechnet", "month": "/ Monat" },
+    "mostPopular": "Am beliebtesten",
+    "plans": {
+      "free": {
+        "name": "Free",
+        "desc": "Echte KI-Ausgabe vom ersten Tag an. Baue 1 Unternehmen und sieh es arbeiten.",
+        "features": ["1 KI-Unternehmen", "10 Läufe / Monat", "TikTok + LinkedIn Kanäle", "Vereinfachte Hero-Vorlage", "Vollständiges Audit-Log", "Cloud BYOK (Anthropic / OpenAI / Gemini)", "Community-Support"],
+        "cta": "Kostenlos starten"
+      },
+      "creator": {
+        "name": "Creator",
+        "desc": "Für Solopreneure, die eine Handvoll KI-Unternehmen betreiben.",
+        "features": ["5 Unternehmen parallel", "100 Läufe / Monat", "Alle Kanäle (TikTok, LinkedIn, IG, X, E-Mail)", "Eigene Pipelines", "Memory Engine", "Self-hosted Gemma (Ollama / LM Studio)", "E-Mail-Support"],
+        "cta": "Creator wählen"
+      },
+      "pro": {
+        "name": "Pro",
+        "desc": "Für Agenturen und Founder, die über viele Marken skalieren.",
+        "features": ["20 Unternehmen", "500 Läufe / Monat", "HubSpot CRM-Sync", "Outreach-Automatisierung", "Erweiterte Analytics", "Self-hosted Gemma + Eigene OpenAI-Endpunkte", "Priority-Support"],
+        "cta": "Pro wählen"
+      },
+      "business": {
+        "name": "Business",
+        "desc": "Team-Autonomie mit eingebauter Governance.",
+        "features": ["100 Unternehmen", "2.000 Läufe / Monat", "3 Team-Sitze", "Governance + Audit-Export", "White-Label-Vorbereitung", "Self-hosted LLM + Air-gapped-Option", "Dedizierter Support"],
+        "cta": "Business wählen"
+      }
+    },
+    "enterprise": {
+      "title": "Mehr nötig?",
+      "desc": "Enterprise — unbegrenzte Unternehmen, SSO, private Bereitstellung, dediziertes SLA.",
+      "cta": "Mit dem Founder sprechen"
+    },
+    "faq": [
+      { "q": "Brauche ich für den kostenlosen Plan eine Kreditkarte?", "a": "Nein. Free ist für immer komplett kostenlos — keine Karte nötig. Du bekommst 1 Unternehmen und 10 Läufe pro Monat mit echter KI-Ausgabe." },
+      { "q": "Was zählt als „Lauf"?", "a": "Jede Pipeline-Ausführung ist ein Lauf. Beispiel: 1 TikTok-Post-Generierung = 1 Lauf. 1 E-Mail-Outreach-Sequenz = 1 Lauf." },
+      { "q": "Warum gibt es keine kostenlose Testversion auf bezahlten Plänen?", "a": "Weil der Free-Plan dir bereits echten Wert bietet. Probiere das Produkt kostenlos, wähle dann eine Stufe, wenn du mehr Unternehmen brauchst." },
+      { "q": "Was passiert, wenn ich mein Lauf-Kontingent überschreite?", "a": "Deine Pipelines pausieren bis zum nächsten Monat oder bis zum Upgrade. Keine Überraschungs-Rechnungen." },
+      { "q": "Kann ich jederzeit kündigen?", "a": "Ja. Kündige jederzeit über deine Billing-Seite — keine Strafe, kein Lock-in. Behalte den Zugang bis zum Periodenende." },
+      { "q": "Sind meine Daten privat?", "a": "Ja. Jeder Tenant ist vollständig isoliert. Wir teilen niemals deine Unternehmensdaten und trainieren keine Modelle damit." }
+    ]
+  },
   "footer": {
     "rights": "© 2026 Braavolabs. Mit Claude gebaut.",
     "privacy": "Datenschutz",
