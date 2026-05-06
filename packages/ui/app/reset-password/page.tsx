@@ -1,9 +1,11 @@
 "use client";
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 
 function ResetPasswordInner() {
+  const t = useTranslations();
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
@@ -14,9 +16,9 @@ function ResetPasswordInner() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
-    if (password !== confirm) { setError("Passwords do not match."); return; }
-    if (!token) { setError("Invalid reset link."); return; }
+    if (password.length < 8) { setError(t("auth.validation.passwordMin")); return; }
+    if (password !== confirm) { setError(t("auth.validation.passwordsMismatch")); return; }
+    if (!token) { setError(t("auth.validation.invalidResetLink")); return; }
     setError(null);
     setStatus("loading");
     try {
@@ -27,7 +29,7 @@ function ResetPasswordInner() {
       // a stale page that re-fires the reset.
       setTimeout(() => router.replace("/login"), 2500);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : t("auth.errors.generic"));
       setStatus("error");
     }
   }
@@ -46,13 +48,13 @@ function ResetPasswordInner() {
           {status === "done" ? (
             <div className="text-center py-4">
               <span className="material-symbols-outlined text-4xl mb-3 block" style={{ color: "#34d399" }}>check_circle</span>
-              <p className="font-semibold mb-1" style={{ color: "#e1e2eb" }}>Password updated!</p>
-              <p className="text-sm" style={{ color: "#859399" }}>Redirecting to login...</p>
+              <p className="font-semibold mb-1" style={{ color: "#e1e2eb" }}>{t("auth.reset.successTitle")}</p>
+              <p className="text-sm" style={{ color: "#859399" }}>{t("auth.reset.successDesc")}</p>
             </div>
           ) : (
             <>
-              <h1 className="font-bold text-lg mb-1" style={{ color: "#e1e2eb" }}>Set new password</h1>
-              <p className="text-sm mb-5" style={{ color: "#859399" }}>Choose a strong password for your account.</p>
+              <h1 className="font-bold text-lg mb-1" style={{ color: "#e1e2eb" }}>{t("auth.reset.title")}</h1>
+              <p className="text-sm mb-5" style={{ color: "#859399" }}>{t("auth.reset.subtitle")}</p>
 
               {error && (
                 <div className="px-3 py-2 rounded-xl mb-4 text-sm" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
@@ -65,7 +67,7 @@ function ResetPasswordInner() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="New password (min. 8 chars)"
+                  placeholder={t("auth.reset.newPasswordPlaceholder")}
                   className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
                   style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
                 />
@@ -73,7 +75,7 @@ function ResetPasswordInner() {
                   type="password"
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
-                  placeholder="Confirm new password"
+                  placeholder={t("auth.reset.confirmPasswordPlaceholder")}
                   className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
                   style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
                 />
@@ -83,12 +85,12 @@ function ResetPasswordInner() {
                   className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50"
                   style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
                 >
-                  {status === "loading" ? "Updating..." : "Update Password"}
+                  {status === "loading" ? t("auth.reset.loading") : t("auth.reset.submit")}
                 </button>
               </form>
 
               <div className="text-center mt-4">
-                <a href="/login" className="text-xs" style={{ color: "#859399" }}>← Back to login</a>
+                <a href="/login" className="text-xs" style={{ color: "#859399" }}>{t("auth.reset.back")}</a>
               </div>
             </>
           )}

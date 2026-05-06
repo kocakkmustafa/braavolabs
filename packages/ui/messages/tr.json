@@ -62,6 +62,73 @@
       }
     }
   },
+  "auth": {
+    "login": { "welcome": "Tekrar hoş geldin", "subtitle": "Braavolabs hesabına giriş yap", "tabSignIn": "Giriş Yap", "tabRegister": "Kayıt Ol" },
+    "register": { "welcome": "Hesap oluştur", "subtitle": "Otonom AI şirketleri kurmaya başla" },
+    "fields": {
+      "fullName": "Ad Soyad", "fullNamePlaceholder": "Ayşe Yılmaz",
+      "organization": "Organizasyon", "organizationPlaceholder": "Şirketin veya takımın",
+      "email": "E-posta", "emailPlaceholder": "sen@ornek.com",
+      "password": "Şifre",
+      "passwordLoginPlaceholder": "En az 8 karakter",
+      "passwordRegisterPlaceholder": "8+ karakter, büyük, küçük, rakam",
+      "referralCode": "Davet Kodu", "referralCodePlaceholder": "Opsiyonel",
+      "optional": "(opsiyonel)"
+    },
+    "validation": {
+      "emailRequired": "E-posta zorunlu.",
+      "emailInvalid": "Geçerli bir e-posta adresi gir.",
+      "passwordRequired": "Şifre zorunlu.",
+      "passwordMin": "Şifre en az 8 karakter olmalı.",
+      "passwordRegex": "Şifre büyük harf, küçük harf ve rakam içermeli.",
+      "nameRequired": "Ad soyad zorunlu.",
+      "orgRequired": "Organizasyon adı zorunlu.",
+      "passwordsMismatch": "Şifreler eşleşmiyor.",
+      "invalidResetLink": "Geçersiz sıfırlama bağlantısı."
+    },
+    "strength": { "label": "Şifre gücü:", "weak": "Zayıf", "fair": "Orta", "good": "İyi", "strong": "Güçlü" },
+    "submit": { "loading": "Yükleniyor...", "signIn": "Giriş Yap", "createAccount": "Hesap Oluştur" },
+    "oauth": {
+      "divider": "veya şununla devam et",
+      "googleNotConfigured": "Bu sunucuda Google OAuth yapılandırılmamış. E-posta/şifre veya GitHub kullan.",
+      "githubNotConfigured": "Bu sunucuda GitHub OAuth yapılandırılmamış. E-posta/şifre veya Google kullan.",
+      "cannotConnect": "API sunucusuna bağlanılamıyor. Backend çalışıyor mu kontrol et.",
+      "googleFailed": "Google girişi başarısız. E-posta/şifre ile dene.",
+      "githubFailed": "GitHub girişi başarısız. E-posta/şifre ile dene."
+    },
+    "forgot": {
+      "link": "Şifremi unuttum?",
+      "modalTitle": "Şifreyi Sıfırla",
+      "modalDesc": "E-posta adresini gir, sana sıfırlama bağlantısı gönderelim.",
+      "submit": "Sıfırlama Bağlantısı Gönder",
+      "loading": "Gönderiliyor...",
+      "successTitle": "E-postanı kontrol et",
+      "successDesc": "Bu adres kayıtlıysa sıfırlama bağlantısı gönderdik. Spam klasörüne de bak.",
+      "backToLogin": "Girişe dön"
+    },
+    "reset": {
+      "title": "Yeni şifre belirle",
+      "subtitle": "Hesabın için güçlü bir şifre seç.",
+      "newPasswordPlaceholder": "Yeni şifre (en az 8 karakter)",
+      "confirmPasswordPlaceholder": "Yeni şifreyi onayla",
+      "submit": "Şifreyi Güncelle",
+      "loading": "Güncelleniyor...",
+      "successTitle": "Şifre güncellendi!",
+      "successDesc": "Girişe yönlendiriliyor...",
+      "back": "← Girişe dön"
+    },
+    "brandPanel": {
+      "headlineLine1": "Otonom",
+      "headlineHighlight": "işin,",
+      "headlineLine2": "her zaman açık.",
+      "subtitle": "Satış, içerik ve operasyonları 7/24 yürüten yapay zeka destekli şirketler kur — eksiksiz denetim kayıtları ve insan onay kapılarıyla.",
+      "feature1": "AI ajanlar 7/24 çalışır — satış, içerik, ops",
+      "feature2": "Her kararın eksiksiz denetim kaydı",
+      "feature3": "İlk şirketin 10 dakikada hazır",
+      "footer": "© 2026 Braavolabs. Claude ile geliştirildi."
+    },
+    "errors": { "generic": "Bir şeyler ters gitti" }
+  },
   "pricing": {
     "badge": "ÜCRETSİZ BAŞLA · KART GEREKMEZ",
     "title": "Sade ve şeffaf fiyatlandırma",

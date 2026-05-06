@@ -62,6 +62,73 @@
       }
     }
   },
+  "auth": {
+    "login": { "welcome": "Willkommen zurück", "subtitle": "Melde dich bei deinem Braavolabs-Konto an", "tabSignIn": "Anmelden", "tabRegister": "Registrieren" },
+    "register": { "welcome": "Konto erstellen", "subtitle": "Starte mit autonomen KI-Unternehmen" },
+    "fields": {
+      "fullName": "Vollständiger Name", "fullNamePlaceholder": "Anna Schmidt",
+      "organization": "Organisation", "organizationPlaceholder": "Dein Unternehmen oder Team",
+      "email": "E-Mail", "emailPlaceholder": "du@beispiel.com",
+      "password": "Passwort",
+      "passwordLoginPlaceholder": "Mind. 8 Zeichen",
+      "passwordRegisterPlaceholder": "8+ Zeichen, Groß-, Kleinbuchstaben, Zahl",
+      "referralCode": "Einladungscode", "referralCodePlaceholder": "Optional",
+      "optional": "(optional)"
+    },
+    "validation": {
+      "emailRequired": "E-Mail ist erforderlich.",
+      "emailInvalid": "Bitte eine gültige E-Mail-Adresse eingeben.",
+      "passwordRequired": "Passwort ist erforderlich.",
+      "passwordMin": "Passwort muss mindestens 8 Zeichen haben.",
+      "passwordRegex": "Passwort muss Groß-, Kleinbuchstaben und eine Zahl enthalten.",
+      "nameRequired": "Vollständiger Name ist erforderlich.",
+      "orgRequired": "Organisationsname ist erforderlich.",
+      "passwordsMismatch": "Passwörter stimmen nicht überein.",
+      "invalidResetLink": "Ungültiger Reset-Link."
+    },
+    "strength": { "label": "Passwortstärke:", "weak": "Schwach", "fair": "Mittel", "good": "Gut", "strong": "Stark" },
+    "submit": { "loading": "Wird geladen...", "signIn": "Anmelden", "createAccount": "Konto erstellen" },
+    "oauth": {
+      "divider": "oder weiter mit",
+      "googleNotConfigured": "Google OAuth ist auf diesem Server nicht konfiguriert. Nutze E-Mail/Passwort oder GitHub.",
+      "githubNotConfigured": "GitHub OAuth ist auf diesem Server nicht konfiguriert. Nutze E-Mail/Passwort oder Google.",
+      "cannotConnect": "Verbindung zum API-Server nicht möglich. Stelle sicher, dass das Backend läuft.",
+      "googleFailed": "Google-Login fehlgeschlagen. Bitte mit E-Mail/Passwort versuchen.",
+      "githubFailed": "GitHub-Login fehlgeschlagen. Bitte mit E-Mail/Passwort versuchen."
+    },
+    "forgot": {
+      "link": "Passwort vergessen?",
+      "modalTitle": "Passwort zurücksetzen",
+      "modalDesc": "Gib deine E-Mail ein und wir schicken dir einen Reset-Link.",
+      "submit": "Reset-Link senden",
+      "loading": "Wird gesendet...",
+      "successTitle": "Prüfe deine E-Mails",
+      "successDesc": "Wenn diese Adresse registriert ist, haben wir einen Reset-Link gesendet. Schau auch im Spam-Ordner nach.",
+      "backToLogin": "Zurück zum Login"
+    },
+    "reset": {
+      "title": "Neues Passwort setzen",
+      "subtitle": "Wähle ein starkes Passwort für dein Konto.",
+      "newPasswordPlaceholder": "Neues Passwort (mind. 8 Zeichen)",
+      "confirmPasswordPlaceholder": "Neues Passwort bestätigen",
+      "submit": "Passwort aktualisieren",
+      "loading": "Wird aktualisiert...",
+      "successTitle": "Passwort aktualisiert!",
+      "successDesc": "Weiterleitung zum Login...",
+      "back": "← Zurück zum Login"
+    },
+    "brandPanel": {
+      "headlineLine1": "Dein autonomes",
+      "headlineHighlight": "Unternehmen,",
+      "headlineLine2": "immer aktiv.",
+      "subtitle": "Baue KI-gestützte Unternehmen, die Vertrieb, Content und Operations 24/7 betreiben — mit vollständigen Audit-Logs und menschlichen Freigaben.",
+      "feature1": "KI-Agenten arbeiten 24/7 — Vertrieb, Content, Ops",
+      "feature2": "Vollständiges Audit-Log jeder Entscheidung",
+      "feature3": "10 Minuten bis zum ersten Unternehmen",
+      "footer": "© 2026 Braavolabs. Mit Claude gebaut."
+    },
+    "errors": { "generic": "Etwas ist schiefgelaufen" }
+  },
   "pricing": {
     "badge": "KOSTENLOS STARTEN · KEINE KARTE NÖTIG",
     "title": "Einfache, transparente Preise",

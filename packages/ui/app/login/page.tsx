@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { apiFetch, api } from "../../lib/api";
 import { useAppStore } from "../../lib/store";
 
 export default function LoginPage() {
+  const t = useTranslations();
   const router = useRouter();
   const token = useAppStore((s) => s.token);
   const hydrated = useAppStore((s) => s._hydrated);
@@ -37,13 +39,7 @@ export default function LoginPage() {
   const [forgotError, setForgotError] = useState<string | null>(null);
 
   useEffect(() => {
-    // router.replace, NOT push — if a logged-in user lands on /login
-    // (e.g. browser back-button after sign-in, or external link), we
-    // bounce them to /dashboard. push() would leave /login in history,
-    // so the next back-button press triggers this useEffect AGAIN and
-    // pushes /dashboard once more, creating an infinite forward-back
-    // loop. replace() removes /login from history so back-button goes
-    // to whatever the user was on BEFORE the login flow.
+    // router.replace, NOT push — see comment block above for why.
     if (hydrated && token) router.replace("/dashboard");
   }, [hydrated, token, router]);
 
@@ -58,21 +54,16 @@ export default function LoginPage() {
   }, [password]);
 
   function validate(): string | null {
-    if (!email.trim()) return "Email is required.";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Please enter a valid email address.";
-    if (!password) return "Password is required.";
-    if (password.length < 8) return "Password must be at least 8 characters.";
+    if (!email.trim()) return t("auth.validation.emailRequired");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return t("auth.validation.emailInvalid");
+    if (!password) return t("auth.validation.passwordRequired");
+    if (password.length < 8) return t("auth.validation.passwordMin");
     if (mode === "register") {
-      // Mirror server's zod regex (auth.router.ts) so the form fails
-      // closed before round-tripping a 400 — otherwise the user only saw
-      // the now-fixed apiFetch detail message after submit. Special chars
-      // are NOT required server-side; don't add that here either or the
-      // strength meter and validator will disagree.
       if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
-        return "Password must contain uppercase, lowercase, and a number.";
+        return t("auth.validation.passwordRegex");
       }
-      if (!name.trim()) return "Full name is required.";
-      if (!tenantName.trim()) return "Organization name is required.";
+      if (!name.trim()) return t("auth.validation.nameRequired");
+      if (!tenantName.trim()) return t("auth.validation.orgRequired");
     }
     return null;
   }
@@ -90,7 +81,6 @@ export default function LoginPage() {
           { method: "POST", body: JSON.stringify({ email, password }) },
         );
         setAuth(res.token, res.tenant.id, res.refreshToken);
-        // replace — /login shouldn't be in history once we're authed.
         router.replace("/dashboard");
       } else {
         const res = await apiFetch<{ token: string; refreshToken: string; user: any; tenant: any }>(
@@ -101,19 +91,17 @@ export default function LoginPage() {
           },
         );
         setAuth(res.token, res.tenant.id, res.refreshToken);
-        // replace — back-button from /onboarding shouldn't re-trigger
-        // a duplicate-account submit on /login.
         router.replace("/onboarding");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : t("auth.errors.generic"));
     } finally {
       setLoading(false);
     }
   }
 
   const strengthColors = ["bg-red-500", "bg-orange-500", "bg-yellow-500", "bg-emerald-500"];
-  const strengthLabels = ["Weak", "Fair", "Good", "Strong"];
+  const strengthKeys = ["weak", "fair", "good", "strong"] as const;
 
   return (
     <div className="flex min-h-screen" style={{ background: "#0a0d14" }}>
@@ -122,12 +110,10 @@ export default function LoginPage() {
         className="hidden lg:flex flex-col justify-between w-[42%] p-12 relative overflow-hidden neural-mesh"
         style={{ background: "linear-gradient(160deg, #0a0d14 0%, #1a0e2e 60%, #0b1a2e 100%)" }}
       >
-        {/* Ambient orbs */}
         <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full opacity-[0.12] blur-3xl" style={{ background: "radial-gradient(circle, #00d1ff, transparent)" }} />
         <div className="absolute bottom-0 right-0 w-80 h-80 rounded-full opacity-[0.10] blur-3xl" style={{ background: "radial-gradient(circle, #6d11ad, transparent)" }} />
         <div className="absolute inset-0 opacity-[0.025]" style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
 
-        {/* Logo — public/braavolabs-logo.png with gradient fallback */}
         <div className="relative z-10 flex items-center gap-3">
           <div
             className="w-9 h-9 rounded-xl flex-shrink-0"
@@ -140,21 +126,15 @@ export default function LoginPage() {
             aria-label="Braavolabs"
             role="img"
           />
-          <span
-            className="font-headline font-bold text-base"
-            style={{ color: "#e1e2eb" }}
-          >
-            Braavolabs
-          </span>
+          <span className="font-headline font-bold text-base" style={{ color: "#e1e2eb" }}>Braavolabs</span>
         </div>
 
-        {/* Middle content */}
         <div className="relative z-10">
           <h1
             className="font-headline font-extrabold mb-4"
             style={{ fontSize: "2rem", lineHeight: 1.2, color: "#e1e2eb" }}
           >
-            Your autonomous<br />
+            {t("auth.brandPanel.headlineLine1")}<br />
             <span
               style={{
                 background: "linear-gradient(135deg, #00d1ff, #a4e6ff)",
@@ -162,19 +142,19 @@ export default function LoginPage() {
                 WebkitTextFillColor: "transparent",
               }}
             >
-              business,
+              {t("auth.brandPanel.headlineHighlight")}
             </span>
-            <br />always on.
+            <br />{t("auth.brandPanel.headlineLine2")}
           </h1>
           <p className="text-sm mb-8" style={{ color: "#bbc9cf", lineHeight: 1.7, maxWidth: "320px" }}>
-            Build AI-powered companies that run sales, content, and operations 24/7 — with full audit logs and human approval gates.
+            {t("auth.brandPanel.subtitle")}
           </p>
 
           <div className="space-y-4">
             {[
-              { icon: "bolt", text: "AI agents run 24/7 — sales, content, ops" },
-              { icon: "history", text: "Full audit log of every decision" },
-              { icon: "rocket_launch", text: "10 minutes to your first company" },
+              { icon: "bolt", text: t("auth.brandPanel.feature1") },
+              { icon: "history", text: t("auth.brandPanel.feature2") },
+              { icon: "rocket_launch", text: t("auth.brandPanel.feature3") },
             ].map((item) => (
               <div key={item.text} className="flex items-center gap-3">
                 <div
@@ -191,9 +171,8 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Bottom */}
         <div className="relative z-10">
-          <p className="text-xs" style={{ color: "#3c494e" }}>© 2026 Braavolabs. Built with Claude.</p>
+          <p className="text-xs" style={{ color: "#3c494e" }}>{t("auth.brandPanel.footer")}</p>
         </div>
       </div>
 
@@ -203,7 +182,6 @@ export default function LoginPage() {
         style={{ background: "#191c22", minHeight: "100vh" }}
       >
         <div className="w-full max-w-[420px] py-8">
-          {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-3 mb-8">
             <div
               className="w-8 h-8 rounded-lg"
@@ -216,16 +194,14 @@ export default function LoginPage() {
               aria-label="Braavolabs"
               role="img"
             />
-            <span className="font-headline font-bold" style={{ color: "#e1e2eb" }}>
-              Braavolabs
-            </span>
+            <span className="font-headline font-bold" style={{ color: "#e1e2eb" }}>Braavolabs</span>
           </div>
 
           <h2 className="font-headline font-bold text-2xl mb-2" style={{ color: "#e1e2eb" }}>
-            {mode === "login" ? "Welcome back" : "Create account"}
+            {mode === "login" ? t("auth.login.welcome") : t("auth.register.welcome")}
           </h2>
           <p className="text-sm mb-7" style={{ color: "#bbc9cf" }}>
-            {mode === "login" ? "Sign in to your Braavolabs account" : "Start building autonomous AI companies"}
+            {mode === "login" ? t("auth.login.subtitle") : t("auth.register.subtitle")}
           </p>
 
           {/* Tab toggle */}
@@ -243,7 +219,7 @@ export default function LoginPage() {
                   color: mode === m ? "#e1e2eb" : "#859399",
                 }}
               >
-                {m === "login" ? "Sign In" : "Register"}
+                {m === "login" ? t("auth.login.tabSignIn") : t("auth.login.tabRegister")}
               </button>
             ))}
           </div>
@@ -260,26 +236,26 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {mode === "register" && (
               <>
-                <Field label="Full Name" type="text" value={name} onChange={setName} placeholder="Jane Smith" required />
-                <Field label="Organization" type="text" value={tenantName} onChange={setTenantName} placeholder="Your company or team" required />
+                <Field label={t("auth.fields.fullName")} type="text" value={name} onChange={setName} placeholder={t("auth.fields.fullNamePlaceholder")} required />
+                <Field label={t("auth.fields.organization")} type="text" value={tenantName} onChange={setTenantName} placeholder={t("auth.fields.organizationPlaceholder")} required />
               </>
             )}
 
-            <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" required />
+            <Field label={t("auth.fields.email")} type="email" value={email} onChange={setEmail} placeholder={t("auth.fields.emailPlaceholder")} required />
             <div>
               <Field
-                label="Password"
+                label={t("auth.fields.password")}
                 type="password"
                 value={password}
                 onChange={setPassword}
-                placeholder={mode === "register" ? "8+ chars, upper, lower, number" : "Min. 8 characters"}
+                placeholder={mode === "register" ? t("auth.fields.passwordRegisterPlaceholder") : t("auth.fields.passwordLoginPlaceholder")}
                 required
                 minLength={8}
               />
               {mode === "login" && (
                 <div className="flex justify-end mt-1.5">
                   <button type="button" onClick={() => setShowForgot(true)} className="text-xs transition-colors hover:opacity-80" style={{ color: "#a4e6ff", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-                    Forgot password?
+                    {t("auth.forgot.link")}
                   </button>
                 </div>
               )}
@@ -296,7 +272,7 @@ export default function LoginPage() {
                   </div>
                   {pwStrength > 0 && (
                     <p className="text-xs" style={{ color: "#859399" }}>
-                      Password strength: <span style={{ color: "#bbc9cf" }}>{strengthLabels[pwStrength - 1]}</span>
+                      {t("auth.strength.label")} <span style={{ color: "#bbc9cf" }}>{t(`auth.strength.${strengthKeys[pwStrength - 1]}`)}</span>
                     </p>
                   )}
                 </div>
@@ -304,7 +280,7 @@ export default function LoginPage() {
             </div>
 
             {mode === "register" && (
-              <Field label="Referral Code" type="text" value={ref} onChange={setRef} placeholder="Optional" optional />
+              <Field label={t("auth.fields.referralCode")} type="text" value={ref} onChange={setRef} placeholder={t("auth.fields.referralCodePlaceholder")} optional optionalLabel={t("auth.fields.optional")} />
             )}
 
             <button
@@ -317,7 +293,7 @@ export default function LoginPage() {
                 boxShadow: "0 0 24px rgba(0,209,255,0.2)",
               }}
             >
-              {loading ? "Loading..." : mode === "login" ? "Sign In" : "Create Account"}
+              {loading ? t("auth.submit.loading") : mode === "login" ? t("auth.submit.signIn") : t("auth.submit.createAccount")}
             </button>
           </form>
 
@@ -325,12 +301,12 @@ export default function LoginPage() {
           <div className="flex items-center my-5">
             <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
             <span className="px-4 text-[11px] uppercase tracking-wide" style={{ color: "#3c494e" }}>
-              or continue with
+              {t("auth.oauth.divider")}
             </span>
             <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
           </div>
 
-          {/* Social OAuth — Google + GitHub */}
+          {/* Social OAuth */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
               type="button"
@@ -341,11 +317,11 @@ export default function LoginPage() {
                 } catch (err) {
                   const msg = err instanceof Error ? err.message : "";
                   if (msg.includes("503") || msg.includes("not configured")) {
-                    setError("Google OAuth is not configured on this server. Use email/password or GitHub instead.");
+                    setError(t("auth.oauth.googleNotConfigured"));
                   } else if (msg.includes("fetch") || msg.includes("Failed") || msg.includes("ECONNREFUSED")) {
-                    setError("Cannot connect to API server. Make sure the backend is running.");
+                    setError(t("auth.oauth.cannotConnect"));
                   } else {
-                    setError(msg || "Google login failed. Please try email/password.");
+                    setError(msg || t("auth.oauth.googleFailed"));
                   }
                 }
               }}
@@ -369,11 +345,11 @@ export default function LoginPage() {
                 } catch (err) {
                   const msg = err instanceof Error ? err.message : "";
                   if (msg.includes("503") || msg.includes("not configured")) {
-                    setError("GitHub OAuth is not configured on this server. Use email/password or Google instead.");
+                    setError(t("auth.oauth.githubNotConfigured"));
                   } else if (msg.includes("fetch") || msg.includes("Failed") || msg.includes("ECONNREFUSED")) {
-                    setError("Cannot connect to API server. Make sure the backend is running.");
+                    setError(t("auth.oauth.cannotConnect"));
                   } else {
-                    setError(msg || "GitHub login failed. Please try email/password.");
+                    setError(msg || t("auth.oauth.githubFailed"));
                   }
                 }
               }}
@@ -394,7 +370,7 @@ export default function LoginPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
           <div className="w-full max-w-[400px] rounded-2xl p-6" style={{ background: "#191c22", border: "1px solid rgba(255,255,255,0.08)" }}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-base" style={{ color: "#e1e2eb" }}>Reset Password</h3>
+              <h3 className="font-bold text-base" style={{ color: "#e1e2eb" }}>{t("auth.forgot.modalTitle")}</h3>
               <button
                 onClick={() => { setShowForgot(false); setForgotStatus("idle"); setForgotError(null); setForgotEmail(""); }}
                 style={{ color: "#859399", background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center" }}
@@ -406,19 +382,19 @@ export default function LoginPage() {
             {forgotStatus === "sent" ? (
               <div className="text-center py-4">
                 <span className="material-symbols-outlined text-4xl mb-3 block" style={{ color: "#34d399" }}>mark_email_read</span>
-                <p className="font-semibold mb-1" style={{ color: "#e1e2eb" }}>Check your email</p>
-                <p className="text-sm" style={{ color: "#859399" }}>If that address is registered, we sent a reset link. Check your spam folder too.</p>
+                <p className="font-semibold mb-1" style={{ color: "#e1e2eb" }}>{t("auth.forgot.successTitle")}</p>
+                <p className="text-sm" style={{ color: "#859399" }}>{t("auth.forgot.successDesc")}</p>
                 <button
                   onClick={() => { setShowForgot(false); setForgotStatus("idle"); setForgotEmail(""); }}
                   className="mt-4 text-sm"
                   style={{ color: "#a4e6ff", background: "none", border: "none", cursor: "pointer", padding: 0 }}
                 >
-                  Back to login
+                  {t("auth.forgot.backToLogin")}
                 </button>
               </div>
             ) : (
               <>
-                <p className="text-sm mb-4" style={{ color: "#859399" }}>Enter your email and we&apos;ll send you a reset link.</p>
+                <p className="text-sm mb-4" style={{ color: "#859399" }}>{t("auth.forgot.modalDesc")}</p>
                 {forgotError && (
                   <div className="px-3 py-2 rounded-xl mb-3 text-sm" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
                     {forgotError}
@@ -429,7 +405,7 @@ export default function LoginPage() {
                   value={forgotEmail}
                   onChange={(e) => setForgotEmail(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-                  placeholder="you@example.com"
+                  placeholder={t("auth.fields.emailPlaceholder")}
                   className="w-full px-4 py-2.5 rounded-xl text-sm outline-none mb-3"
                   style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
                 />
@@ -443,14 +419,14 @@ export default function LoginPage() {
                       setForgotStatus("sent");
                     } catch (err) {
                       setForgotStatus("error");
-                      setForgotError(err instanceof Error ? err.message : "Something went wrong");
+                      setForgotError(err instanceof Error ? err.message : t("auth.errors.generic"));
                     }
                   }}
                   disabled={forgotStatus === "loading" || !forgotEmail.trim()}
                   className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50"
                   style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", border: "none", cursor: "pointer" }}
                 >
-                  {forgotStatus === "loading" ? "Sending..." : "Send Reset Link"}
+                  {forgotStatus === "loading" ? t("auth.forgot.loading") : t("auth.forgot.submit")}
                 </button>
               </>
             )}
@@ -462,16 +438,16 @@ export default function LoginPage() {
 }
 
 function Field({
-  label, type, value, onChange, placeholder, required, optional, minLength,
+  label, type, value, onChange, placeholder, required, optional, optionalLabel, minLength,
 }: {
   label: string; type: string; value: string; onChange: (v: string) => void;
-  placeholder: string; required?: boolean; optional?: boolean; minLength?: number;
+  placeholder: string; required?: boolean; optional?: boolean; optionalLabel?: string; minLength?: number;
 }) {
   return (
     <div>
       <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>
         {label}
-        {optional && <span className="font-normal ml-1" style={{ color: "#3c494e" }}>(optional)</span>}
+        {optional && <span className="font-normal ml-1" style={{ color: "#3c494e" }}>{optionalLabel ?? "(optional)"}</span>}
       </label>
       <input
         type={type}

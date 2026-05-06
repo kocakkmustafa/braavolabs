@@ -62,6 +62,73 @@
       }
     }
   },
+  "auth": {
+    "login": { "welcome": "مرحباً بعودتك", "subtitle": "سجّل الدخول إلى حساب Braavolabs", "tabSignIn": "تسجيل الدخول", "tabRegister": "إنشاء حساب" },
+    "register": { "welcome": "إنشاء حساب", "subtitle": "ابدأ ببناء شركات ذكاء اصطناعي مستقلة" },
+    "fields": {
+      "fullName": "الاسم الكامل", "fullNamePlaceholder": "محمد أحمد",
+      "organization": "المؤسسة", "organizationPlaceholder": "شركتك أو فريقك",
+      "email": "البريد الإلكتروني", "emailPlaceholder": "you@example.com",
+      "password": "كلمة المرور",
+      "passwordLoginPlaceholder": "8 أحرف على الأقل",
+      "passwordRegisterPlaceholder": "8+ أحرف، كبيرة، صغيرة، رقم",
+      "referralCode": "كود الإحالة", "referralCodePlaceholder": "اختياري",
+      "optional": "(اختياري)"
+    },
+    "validation": {
+      "emailRequired": "البريد الإلكتروني مطلوب.",
+      "emailInvalid": "الرجاء إدخال بريد إلكتروني صالح.",
+      "passwordRequired": "كلمة المرور مطلوبة.",
+      "passwordMin": "كلمة المرور يجب أن تكون 8 أحرف على الأقل.",
+      "passwordRegex": "كلمة المرور يجب أن تحتوي على أحرف كبيرة وصغيرة ورقم.",
+      "nameRequired": "الاسم الكامل مطلوب.",
+      "orgRequired": "اسم المؤسسة مطلوب.",
+      "passwordsMismatch": "كلمتا المرور غير متطابقتين.",
+      "invalidResetLink": "رابط إعادة تعيين غير صالح."
+    },
+    "strength": { "label": "قوة كلمة المرور:", "weak": "ضعيفة", "fair": "متوسطة", "good": "جيدة", "strong": "قوية" },
+    "submit": { "loading": "جاري التحميل...", "signIn": "تسجيل الدخول", "createAccount": "إنشاء حساب" },
+    "oauth": {
+      "divider": "أو تابع بـ",
+      "googleNotConfigured": "Google OAuth غير مكوّن على هذا الخادم. استخدم البريد/كلمة المرور أو GitHub.",
+      "githubNotConfigured": "GitHub OAuth غير مكوّن على هذا الخادم. استخدم البريد/كلمة المرور أو Google.",
+      "cannotConnect": "لا يمكن الاتصال بخادم API. تأكد من تشغيل الـ backend.",
+      "googleFailed": "فشل تسجيل الدخول بـ Google. حاول بالبريد/كلمة المرور.",
+      "githubFailed": "فشل تسجيل الدخول بـ GitHub. حاول بالبريد/كلمة المرور."
+    },
+    "forgot": {
+      "link": "نسيت كلمة المرور؟",
+      "modalTitle": "إعادة تعيين كلمة المرور",
+      "modalDesc": "أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة التعيين.",
+      "submit": "إرسال رابط إعادة التعيين",
+      "loading": "جاري الإرسال...",
+      "successTitle": "تحقق من بريدك",
+      "successDesc": "إذا كان هذا العنوان مسجلاً، أرسلنا رابط إعادة التعيين. تحقق من مجلد الرسائل غير المرغوب فيها أيضاً.",
+      "backToLogin": "العودة إلى تسجيل الدخول"
+    },
+    "reset": {
+      "title": "تعيين كلمة مرور جديدة",
+      "subtitle": "اختر كلمة مرور قوية لحسابك.",
+      "newPasswordPlaceholder": "كلمة مرور جديدة (8 أحرف على الأقل)",
+      "confirmPasswordPlaceholder": "تأكيد كلمة المرور الجديدة",
+      "submit": "تحديث كلمة المرور",
+      "loading": "جاري التحديث...",
+      "successTitle": "تم تحديث كلمة المرور!",
+      "successDesc": "جاري التوجيه إلى تسجيل الدخول...",
+      "back": "← العودة إلى تسجيل الدخول"
+    },
+    "brandPanel": {
+      "headlineLine1": "أعمالك",
+      "headlineHighlight": "المستقلة،",
+      "headlineLine2": "نشطة دائماً.",
+      "subtitle": "ابنِ شركات مدعومة بالذكاء الاصطناعي تدير المبيعات والمحتوى والعمليات على مدار الساعة — مع سجلات تدقيق كاملة وموافقات بشرية.",
+      "feature1": "وكلاء AI يعملون 24/7 — مبيعات، محتوى، عمليات",
+      "feature2": "سجل تدقيق كامل لكل قرار",
+      "feature3": "10 دقائق حتى شركتك الأولى",
+      "footer": "© 2026 Braavolabs. مصنوع باستخدام Claude."
+    },
+    "errors": { "generic": "حدث خطأ ما" }
+  },
   "pricing": {
     "badge": "ابدأ مجاناً · لا حاجة لبطاقة",
     "title": "تسعير بسيط وشفاف",

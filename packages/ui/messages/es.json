@@ -62,6 +62,73 @@
       }
     }
   },
+  "auth": {
+    "login": { "welcome": "Bienvenido de nuevo", "subtitle": "Inicia sesión en tu cuenta de Braavolabs", "tabSignIn": "Iniciar sesión", "tabRegister": "Registrarse" },
+    "register": { "welcome": "Crear cuenta", "subtitle": "Empieza a construir empresas de IA autónomas" },
+    "fields": {
+      "fullName": "Nombre completo", "fullNamePlaceholder": "Ana García",
+      "organization": "Organización", "organizationPlaceholder": "Tu empresa o equipo",
+      "email": "Correo electrónico", "emailPlaceholder": "tu@ejemplo.com",
+      "password": "Contraseña",
+      "passwordLoginPlaceholder": "Mín. 8 caracteres",
+      "passwordRegisterPlaceholder": "8+ caracteres, mayús, minús, número",
+      "referralCode": "Código de invitación", "referralCodePlaceholder": "Opcional",
+      "optional": "(opcional)"
+    },
+    "validation": {
+      "emailRequired": "El correo es obligatorio.",
+      "emailInvalid": "Ingresa una dirección de correo válida.",
+      "passwordRequired": "La contraseña es obligatoria.",
+      "passwordMin": "La contraseña debe tener al menos 8 caracteres.",
+      "passwordRegex": "La contraseña debe contener mayúsculas, minúsculas y un número.",
+      "nameRequired": "El nombre completo es obligatorio.",
+      "orgRequired": "El nombre de organización es obligatorio.",
+      "passwordsMismatch": "Las contraseñas no coinciden.",
+      "invalidResetLink": "Enlace de restablecimiento inválido."
+    },
+    "strength": { "label": "Fortaleza de contraseña:", "weak": "Débil", "fair": "Aceptable", "good": "Buena", "strong": "Fuerte" },
+    "submit": { "loading": "Cargando...", "signIn": "Iniciar sesión", "createAccount": "Crear cuenta" },
+    "oauth": {
+      "divider": "o continúa con",
+      "googleNotConfigured": "Google OAuth no está configurado en este servidor. Usa correo/contraseña o GitHub.",
+      "githubNotConfigured": "GitHub OAuth no está configurado en este servidor. Usa correo/contraseña o Google.",
+      "cannotConnect": "No se puede conectar al servidor API. Verifica que el backend esté ejecutándose.",
+      "googleFailed": "Login con Google falló. Intenta con correo/contraseña.",
+      "githubFailed": "Login con GitHub falló. Intenta con correo/contraseña."
+    },
+    "forgot": {
+      "link": "¿Olvidaste la contraseña?",
+      "modalTitle": "Restablecer contraseña",
+      "modalDesc": "Ingresa tu correo y te enviaremos un enlace de restablecimiento.",
+      "submit": "Enviar enlace de restablecimiento",
+      "loading": "Enviando...",
+      "successTitle": "Revisa tu correo",
+      "successDesc": "Si esa dirección está registrada, hemos enviado un enlace. Revisa también la carpeta de spam.",
+      "backToLogin": "Volver al login"
+    },
+    "reset": {
+      "title": "Establecer nueva contraseña",
+      "subtitle": "Elige una contraseña fuerte para tu cuenta.",
+      "newPasswordPlaceholder": "Nueva contraseña (mín. 8 caracteres)",
+      "confirmPasswordPlaceholder": "Confirmar nueva contraseña",
+      "submit": "Actualizar contraseña",
+      "loading": "Actualizando...",
+      "successTitle": "¡Contraseña actualizada!",
+      "successDesc": "Redirigiendo al login...",
+      "back": "← Volver al login"
+    },
+    "brandPanel": {
+      "headlineLine1": "Tu negocio",
+      "headlineHighlight": "autónomo,",
+      "headlineLine2": "siempre activo.",
+      "subtitle": "Construye empresas con IA que ejecutan ventas, contenido y operaciones 24/7 — con registros de auditoría completos y aprobación humana.",
+      "feature1": "Agentes IA trabajan 24/7 — ventas, contenido, ops",
+      "feature2": "Registro de auditoría completo de cada decisión",
+      "feature3": "10 minutos hasta tu primera empresa",
+      "footer": "© 2026 Braavolabs. Hecho con Claude."
+    },
+    "errors": { "generic": "Algo salió mal" }
+  },
   "pricing": {
     "badge": "GRATIS PARA EMPEZAR · SIN TARJETA",
     "title": "Precios simples y transparentes",

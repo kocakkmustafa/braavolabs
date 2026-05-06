@@ -62,6 +62,73 @@
       }
     }
   },
+  "auth": {
+    "login": { "welcome": "Bon retour", "subtitle": "Connectez-vous à votre compte Braavolabs", "tabSignIn": "Se connecter", "tabRegister": "S'inscrire" },
+    "register": { "welcome": "Créer un compte", "subtitle": "Commencez à créer des entreprises IA autonomes" },
+    "fields": {
+      "fullName": "Nom complet", "fullNamePlaceholder": "Marie Dupont",
+      "organization": "Organisation", "organizationPlaceholder": "Votre entreprise ou équipe",
+      "email": "Email", "emailPlaceholder": "vous@exemple.com",
+      "password": "Mot de passe",
+      "passwordLoginPlaceholder": "Min. 8 caractères",
+      "passwordRegisterPlaceholder": "8+ caractères, majus, minus, chiffre",
+      "referralCode": "Code de parrainage", "referralCodePlaceholder": "Optionnel",
+      "optional": "(optionnel)"
+    },
+    "validation": {
+      "emailRequired": "L'email est obligatoire.",
+      "emailInvalid": "Entrez une adresse email valide.",
+      "passwordRequired": "Le mot de passe est obligatoire.",
+      "passwordMin": "Le mot de passe doit comporter au moins 8 caractères.",
+      "passwordRegex": "Le mot de passe doit contenir des majuscules, minuscules et un chiffre.",
+      "nameRequired": "Le nom complet est obligatoire.",
+      "orgRequired": "Le nom de l'organisation est obligatoire.",
+      "passwordsMismatch": "Les mots de passe ne correspondent pas.",
+      "invalidResetLink": "Lien de réinitialisation invalide."
+    },
+    "strength": { "label": "Force du mot de passe :", "weak": "Faible", "fair": "Moyen", "good": "Bon", "strong": "Fort" },
+    "submit": { "loading": "Chargement...", "signIn": "Se connecter", "createAccount": "Créer un compte" },
+    "oauth": {
+      "divider": "ou continuez avec",
+      "googleNotConfigured": "Google OAuth n'est pas configuré sur ce serveur. Utilisez email/mot de passe ou GitHub.",
+      "githubNotConfigured": "GitHub OAuth n'est pas configuré sur ce serveur. Utilisez email/mot de passe ou Google.",
+      "cannotConnect": "Impossible de se connecter au serveur API. Vérifiez que le backend est démarré.",
+      "googleFailed": "Connexion Google échouée. Essayez avec email/mot de passe.",
+      "githubFailed": "Connexion GitHub échouée. Essayez avec email/mot de passe."
+    },
+    "forgot": {
+      "link": "Mot de passe oublié ?",
+      "modalTitle": "Réinitialiser le mot de passe",
+      "modalDesc": "Entrez votre email et nous vous enverrons un lien de réinitialisation.",
+      "submit": "Envoyer le lien",
+      "loading": "Envoi en cours...",
+      "successTitle": "Vérifiez votre email",
+      "successDesc": "Si cette adresse est enregistrée, nous avons envoyé un lien. Vérifiez aussi le dossier spam.",
+      "backToLogin": "Retour à la connexion"
+    },
+    "reset": {
+      "title": "Définir un nouveau mot de passe",
+      "subtitle": "Choisissez un mot de passe fort pour votre compte.",
+      "newPasswordPlaceholder": "Nouveau mot de passe (min. 8 caractères)",
+      "confirmPasswordPlaceholder": "Confirmer le nouveau mot de passe",
+      "submit": "Mettre à jour le mot de passe",
+      "loading": "Mise à jour...",
+      "successTitle": "Mot de passe mis à jour !",
+      "successDesc": "Redirection vers la connexion...",
+      "back": "← Retour à la connexion"
+    },
+    "brandPanel": {
+      "headlineLine1": "Votre entreprise",
+      "headlineHighlight": "autonome,",
+      "headlineLine2": "toujours active.",
+      "subtitle": "Construisez des entreprises propulsées par l'IA qui gèrent ventes, contenu et opérations 24/7 — avec des journaux d'audit complets et des validations humaines.",
+      "feature1": "Agents IA actifs 24/7 — ventes, contenu, ops",
+      "feature2": "Journal d'audit complet de chaque décision",
+      "feature3": "10 minutes jusqu'à votre première entreprise",
+      "footer": "© 2026 Braavolabs. Conçu avec Claude."
+    },
+    "errors": { "generic": "Une erreur est survenue" }
+  },
   "pricing": {
     "badge": "GRATUIT POUR DÉMARRER · SANS CARTE",
     "title": "Tarifs simples et transparents",

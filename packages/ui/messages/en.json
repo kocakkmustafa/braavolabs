@@ -62,6 +62,73 @@
       }
     }
   },
+  "auth": {
+    "login": { "welcome": "Welcome back", "subtitle": "Sign in to your Braavolabs account", "tabSignIn": "Sign In", "tabRegister": "Register" },
+    "register": { "welcome": "Create account", "subtitle": "Start building autonomous AI companies" },
+    "fields": {
+      "fullName": "Full Name", "fullNamePlaceholder": "Jane Smith",
+      "organization": "Organization", "organizationPlaceholder": "Your company or team",
+      "email": "Email", "emailPlaceholder": "you@example.com",
+      "password": "Password",
+      "passwordLoginPlaceholder": "Min. 8 characters",
+      "passwordRegisterPlaceholder": "8+ chars, upper, lower, number",
+      "referralCode": "Referral Code", "referralCodePlaceholder": "Optional",
+      "optional": "(optional)"
+    },
+    "validation": {
+      "emailRequired": "Email is required.",
+      "emailInvalid": "Please enter a valid email address.",
+      "passwordRequired": "Password is required.",
+      "passwordMin": "Password must be at least 8 characters.",
+      "passwordRegex": "Password must contain uppercase, lowercase, and a number.",
+      "nameRequired": "Full name is required.",
+      "orgRequired": "Organization name is required.",
+      "passwordsMismatch": "Passwords do not match.",
+      "invalidResetLink": "Invalid reset link."
+    },
+    "strength": { "label": "Password strength:", "weak": "Weak", "fair": "Fair", "good": "Good", "strong": "Strong" },
+    "submit": { "loading": "Loading...", "signIn": "Sign In", "createAccount": "Create Account" },
+    "oauth": {
+      "divider": "or continue with",
+      "googleNotConfigured": "Google OAuth is not configured on this server. Use email/password or GitHub instead.",
+      "githubNotConfigured": "GitHub OAuth is not configured on this server. Use email/password or Google instead.",
+      "cannotConnect": "Cannot connect to API server. Make sure the backend is running.",
+      "googleFailed": "Google login failed. Please try email/password.",
+      "githubFailed": "GitHub login failed. Please try email/password."
+    },
+    "forgot": {
+      "link": "Forgot password?",
+      "modalTitle": "Reset Password",
+      "modalDesc": "Enter your email and we'll send you a reset link.",
+      "submit": "Send Reset Link",
+      "loading": "Sending...",
+      "successTitle": "Check your email",
+      "successDesc": "If that address is registered, we sent a reset link. Check your spam folder too.",
+      "backToLogin": "Back to login"
+    },
+    "reset": {
+      "title": "Set new password",
+      "subtitle": "Choose a strong password for your account.",
+      "newPasswordPlaceholder": "New password (min. 8 chars)",
+      "confirmPasswordPlaceholder": "Confirm new password",
+      "submit": "Update Password",
+      "loading": "Updating...",
+      "successTitle": "Password updated!",
+      "successDesc": "Redirecting to login...",
+      "back": "← Back to login"
+    },
+    "brandPanel": {
+      "headlineLine1": "Your autonomous",
+      "headlineHighlight": "business,",
+      "headlineLine2": "always on.",
+      "subtitle": "Build AI-powered companies that run sales, content, and operations 24/7 — with full audit logs and human approval gates.",
+      "feature1": "AI agents run 24/7 — sales, content, ops",
+      "feature2": "Full audit log of every decision",
+      "feature3": "10 minutes to your first company",
+      "footer": "© 2026 Braavolabs. Built with Claude."
+    },
+    "errors": { "generic": "Something went wrong" }
+  },
   "pricing": {
     "badge": "FREE TO START · NO CARD REQUIRED",
     "title": "Simple, transparent pricing",
