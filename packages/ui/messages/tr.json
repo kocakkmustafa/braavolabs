@@ -62,6 +62,74 @@
       }
     }
   },
+  "app": {
+    "approvals": {
+      "title": "Bekleyen Onaylar",
+      "subtitle": "AI ajanlarından gelen harcama aksiyonlarını incele ve onayla",
+      "emptyTitle": "Her şey temiz!",
+      "emptyBody": "Bekleyen onay yok. Onay sadece harcama aksiyonları için gerekir.",
+      "unknownCompany": "Bilinmeyen Şirket",
+      "runLabel": "Çalıştırma:",
+      "approve": "Onayla",
+      "reject": "Reddet"
+    },
+    "companies": {
+      "title": "Şirketler",
+      "countSingular": "şirket oluşturuldu",
+      "countPlural": "şirket oluşturuldu",
+      "newCompany": "Yeni Şirket",
+      "emptyTitle": "Henüz şirket yok",
+      "emptyBody": "İş fikrini anlat, AI gerisini halletsin",
+      "createFirst": "İlk Şirketini Oluştur",
+      "noDescription": "Açıklama yok",
+      "agentsLabel": "ajan",
+      "pipelinesLabel": "pipeline"
+    },
+    "risks": {
+      "title": "Risk Monitörü",
+      "subtitle": "Yönetişim uyarıları ve sistem aktivitesi",
+      "statsTotalRisk": "TOPLAM RİSK OLAYI",
+      "statsLoopStops": "DÖNGÜ DURDURMALARI",
+      "statsCostAnomalies": "MALİYET ANOMALİLERİ",
+      "statsFailedRuns": "BAŞARISIZ ÇALIŞTIRMALAR",
+      "tabRisks": "Risk Olayları",
+      "tabActivity": "Aktivite Kaydı",
+      "labelHardStop": "Sert Durdurma",
+      "labelLoopDetected": "Döngü Tespit Edildi",
+      "labelCostAnomaly": "Maliyet Anomalisi",
+      "labelSpamProtection": "Spam Koruması",
+      "labelBrandViolation": "Marka İhlali",
+      "labelRunFailed": "Çalıştırma Başarısız",
+      "labelRunStopped": "Çalıştırma Durduruldu",
+      "emptyRisksTitle": "Tüm sistemler normal",
+      "emptyRisksBody": "Risk olayı tespit edilmedi.",
+      "emptyActivity": "Henüz aktivite kaydı yok.",
+      "thAction": "AKSİYON",
+      "thResource": "KAYNAK",
+      "thActor": "AKTÖR",
+      "thTime": "ZAMAN",
+      "actorSystem": "sistem"
+    },
+    "drafts": {
+      "title": "Taslaklar",
+      "subtitle": "AI ajanlarının ürettiği içerik",
+      "filterLabel": "Şirkete göre filtrele",
+      "noCompanies": "Şirket yok",
+      "emptyTitle": "Henüz taslak yok",
+      "emptyBody": "Ajanlar içerik ürettiğinde taslaklar burada görünecek.",
+      "channelLabel": "Kanal:",
+      "createdLabel": "Oluşturuldu:",
+      "scheduledLabel": "Zamanlandı:",
+      "approve": "Onayla",
+      "reject": "Reddet",
+      "publish": "Yayınla",
+      "typeSocial": "Sosyal Medya Gönderisi",
+      "typeEmail": "E-posta",
+      "typeBlog": "Blog Yazısı",
+      "typeAd": "Reklam Metni",
+      "typeVideo": "Video Senaryosu"
+    }
+  },
   "static": {
     "common": { "back": "← Geri", "lastUpdated": "Son güncelleme:" },
     "blog": {

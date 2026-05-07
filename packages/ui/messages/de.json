@@ -62,6 +62,74 @@
       }
     }
   },
+  "app": {
+    "approvals": {
+      "title": "Ausstehende Freigaben",
+      "subtitle": "Prüfe und genehmige Ausgabenaktionen deiner KI-Agenten",
+      "emptyTitle": "Alles klar!",
+      "emptyBody": "Keine ausstehenden Freigaben. Freigaben sind nur für Ausgabenaktionen erforderlich.",
+      "unknownCompany": "Unbekanntes Unternehmen",
+      "runLabel": "Run:",
+      "approve": "Genehmigen",
+      "reject": "Ablehnen"
+    },
+    "companies": {
+      "title": "Unternehmen",
+      "countSingular": "Unternehmen erstellt",
+      "countPlural": "Unternehmen erstellt",
+      "newCompany": "Neues Unternehmen",
+      "emptyTitle": "Noch keine Unternehmen",
+      "emptyBody": "Beschreibe deine Geschäftsidee und die KI richtet alles ein",
+      "createFirst": "Dein erstes Unternehmen erstellen",
+      "noDescription": "Keine Beschreibung",
+      "agentsLabel": "Agenten",
+      "pipelinesLabel": "Pipelines"
+    },
+    "risks": {
+      "title": "Risiko-Monitor",
+      "subtitle": "Governance-Warnungen und Systemaktivität",
+      "statsTotalRisk": "GESAMTE RISIKOEREIGNISSE",
+      "statsLoopStops": "LOOP-STOPS",
+      "statsCostAnomalies": "KOSTENANOMALIEN",
+      "statsFailedRuns": "FEHLGESCHLAGENE RUNS",
+      "tabRisks": "Risikoereignisse",
+      "tabActivity": "Aktivitätsprotokoll",
+      "labelHardStop": "Hard Stop",
+      "labelLoopDetected": "Loop erkannt",
+      "labelCostAnomaly": "Kostenanomalie",
+      "labelSpamProtection": "Spam-Schutz",
+      "labelBrandViolation": "Markenverletzung",
+      "labelRunFailed": "Run fehlgeschlagen",
+      "labelRunStopped": "Run gestoppt",
+      "emptyRisksTitle": "Alle Systeme normal",
+      "emptyRisksBody": "Keine Risikoereignisse erkannt.",
+      "emptyActivity": "Noch keine Aktivität erfasst.",
+      "thAction": "AKTION",
+      "thResource": "RESSOURCE",
+      "thActor": "AKTEUR",
+      "thTime": "ZEIT",
+      "actorSystem": "System"
+    },
+    "drafts": {
+      "title": "Entwürfe",
+      "subtitle": "Inhalte deiner KI-Agenten",
+      "filterLabel": "Nach Unternehmen filtern",
+      "noCompanies": "Keine Unternehmen",
+      "emptyTitle": "Noch keine Entwürfe",
+      "emptyBody": "Entwürfe erscheinen hier, sobald Agenten Inhalte erstellen.",
+      "channelLabel": "Kanal:",
+      "createdLabel": "Erstellt:",
+      "scheduledLabel": "Geplant:",
+      "approve": "Genehmigen",
+      "reject": "Ablehnen",
+      "publish": "Veröffentlichen",
+      "typeSocial": "Social-Media-Post",
+      "typeEmail": "E-Mail",
+      "typeBlog": "Blog-Beitrag",
+      "typeAd": "Werbetext",
+      "typeVideo": "Video-Skript"
+    }
+  },
   "static": {
     "common": { "back": "← Zurück", "lastUpdated": "Zuletzt aktualisiert:" },
     "blog": {

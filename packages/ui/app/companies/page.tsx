@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 
 export default function CompaniesPage() {
+  const t = useTranslations();
   const { token, hydrated } = useAuthGuard();
   const [companies, setCompanies] = useState<any[]>([]);
 
@@ -44,9 +46,9 @@ export default function CompaniesPage() {
     <div className="max-w-7xl mx-auto px-6 py-8 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold font-headline" style={{ color: "#e1e2eb" }}>Companies</h1>
+          <h1 className="text-2xl font-bold font-headline" style={{ color: "#e1e2eb" }}>{t("app.companies.title")}</h1>
           <p className="text-sm mt-0.5" style={{ color: "#859399" }}>
-            {companies.length} {companies.length !== 1 ? "companies" : "company"} created
+            {companies.length} {companies.length !== 1 ? t("app.companies.countPlural") : t("app.companies.countSingular")}
           </p>
         </div>
         <Link
@@ -55,7 +57,7 @@ export default function CompaniesPage() {
           style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}
         >
           <span className="material-symbols-outlined text-base">add</span>
-          New Company
+          {t("app.companies.newCompany")}
         </Link>
       </div>
 
@@ -67,16 +69,16 @@ export default function CompaniesPage() {
           >
             <span className="material-symbols-outlined text-3xl" style={{ color: "#a4e6ff" }}>business</span>
           </div>
-          <p className="font-semibold" style={{ color: "#e1e2eb" }}>No companies yet</p>
+          <p className="font-semibold" style={{ color: "#e1e2eb" }}>{t("app.companies.emptyTitle")}</p>
           <p className="text-sm mt-1 mb-6" style={{ color: "#859399" }}>
-            Describe your business idea and AI will set everything up
+            {t("app.companies.emptyBody")}
           </p>
           <Link
             href="/companies/new"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110"
             style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
           >
-            Create Your First Company
+            {t("app.companies.createFirst")}
           </Link>
         </div>
       ) : (
@@ -121,7 +123,7 @@ export default function CompaniesPage() {
                   </div>
 
                   <p className="text-xs line-clamp-2 mb-4 leading-relaxed" style={{ color: "#859399" }}>
-                    {c.description ?? "No description"}
+                    {c.description ?? t("app.companies.noDescription")}
                   </p>
 
                   {/* Primitives */}
@@ -145,8 +147,8 @@ export default function CompaniesPage() {
                     className="flex items-center gap-4 mt-4 pt-4 text-xs"
                     style={{ borderTop: "1px solid rgba(255,255,255,0.06)", color: "#3c494e" }}
                   >
-                    <span>{c._count?.agents ?? c.agents?.length ?? 0} agents</span>
-                    <span>{c._count?.pipelines ?? c.pipelines?.length ?? 0} pipelines</span>
+                    <span>{c._count?.agents ?? c.agents?.length ?? 0} {t("app.companies.agentsLabel")}</span>
+                    <span>{c._count?.pipelines ?? c.pipelines?.length ?? 0} {t("app.companies.pipelinesLabel")}</span>
                     <span className="ml-auto">{new Date(c.createdAt).toLocaleDateString()}</span>
                   </div>
                 </div>

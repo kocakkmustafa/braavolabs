@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { sounds } from "../../lib/sounds";
 
 export default function ApprovalsPage() {
+  const t = useTranslations();
   const { token, hydrated } = useAuthGuard();
   const [approvals, setApprovals] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -40,8 +42,8 @@ export default function ApprovalsPage() {
   return (
     <div className="max-w-4xl mx-auto px-6 py-8 animate-fade-in">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold font-headline gradient-text">Pending Approvals</h1>
-        <p className="text-sm mt-1" style={{ color: "#859399" }}>Review and approve spend actions from your AI agents</p>
+        <h1 className="text-2xl font-bold font-headline gradient-text">{t("app.approvals.title")}</h1>
+        <p className="text-sm mt-1" style={{ color: "#859399" }}>{t("app.approvals.subtitle")}</p>
       </div>
 
       {error && (
@@ -58,8 +60,8 @@ export default function ApprovalsPage() {
           >
             <span className="material-symbols-outlined" style={{ fontSize: 24, color: "#34d399" }}>check_circle</span>
           </div>
-          <p className="font-semibold" style={{ color: "#bbc9cf" }}>All clear!</p>
-          <p className="text-sm mt-1" style={{ color: "#859399" }}>No pending approvals. Approvals are required only for spend actions.</p>
+          <p className="font-semibold" style={{ color: "#bbc9cf" }}>{t("app.approvals.emptyTitle")}</p>
+          <p className="text-sm mt-1" style={{ color: "#859399" }}>{t("app.approvals.emptyBody")}</p>
         </div>
       ) : (
         <div className="space-y-4 stagger-children">
@@ -68,7 +70,7 @@ export default function ApprovalsPage() {
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <h3 className="font-semibold text-[15px]" style={{ color: "#e1e2eb" }}>
-                    {a.run?.pipeline?.company?.name ?? "Unknown Company"}
+                    {a.run?.pipeline?.company?.name ?? t("app.approvals.unknownCompany")}
                   </h3>
                   <p className="text-sm mt-1.5" style={{ color: "#859399" }}>{a.description}</p>
                   {a.amountUsd && (
@@ -77,7 +79,7 @@ export default function ApprovalsPage() {
                     </p>
                   )}
                   <p className="text-[11px] mt-2" style={{ color: "#3c494e" }}>
-                    Run: {a.runId?.slice(0, 8)} &bull; {new Date(a.createdAt).toLocaleString()}
+                    {t("app.approvals.runLabel")} {a.runId?.slice(0, 8)} &bull; {new Date(a.createdAt).toLocaleString()}
                   </p>
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
@@ -87,7 +89,7 @@ export default function ApprovalsPage() {
                     className="px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50"
                     style={{ background: "#34d399" }}
                   >
-                    Approve
+                    {t("app.approvals.approve")}
                   </button>
                   <button
                     onClick={() => decide(a.id, "REJECTED")}
@@ -95,7 +97,7 @@ export default function ApprovalsPage() {
                     className="px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:brightness-110 disabled:opacity-50"
                     style={{ color: "#f87171", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}
                   >
-                    Reject
+                    {t("app.approvals.reject")}
                   </button>
                 </div>
               </div>

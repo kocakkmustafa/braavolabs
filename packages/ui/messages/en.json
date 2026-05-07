@@ -62,6 +62,74 @@
       }
     }
   },
+  "app": {
+    "approvals": {
+      "title": "Pending Approvals",
+      "subtitle": "Review and approve spend actions from your AI agents",
+      "emptyTitle": "All clear!",
+      "emptyBody": "No pending approvals. Approvals are required only for spend actions.",
+      "unknownCompany": "Unknown Company",
+      "runLabel": "Run:",
+      "approve": "Approve",
+      "reject": "Reject"
+    },
+    "companies": {
+      "title": "Companies",
+      "countSingular": "company created",
+      "countPlural": "companies created",
+      "newCompany": "New Company",
+      "emptyTitle": "No companies yet",
+      "emptyBody": "Describe your business idea and AI will set everything up",
+      "createFirst": "Create Your First Company",
+      "noDescription": "No description",
+      "agentsLabel": "agents",
+      "pipelinesLabel": "pipelines"
+    },
+    "risks": {
+      "title": "Risk Monitor",
+      "subtitle": "Governance alerts and system activity",
+      "statsTotalRisk": "TOTAL RISK EVENTS",
+      "statsLoopStops": "LOOP STOPS",
+      "statsCostAnomalies": "COST ANOMALIES",
+      "statsFailedRuns": "FAILED RUNS",
+      "tabRisks": "Risk Events",
+      "tabActivity": "Activity Log",
+      "labelHardStop": "Hard Stop",
+      "labelLoopDetected": "Loop Detected",
+      "labelCostAnomaly": "Cost Anomaly",
+      "labelSpamProtection": "Spam Protection",
+      "labelBrandViolation": "Brand Violation",
+      "labelRunFailed": "Run Failed",
+      "labelRunStopped": "Run Stopped",
+      "emptyRisksTitle": "All systems normal",
+      "emptyRisksBody": "No risk events detected.",
+      "emptyActivity": "No activity recorded yet.",
+      "thAction": "ACTION",
+      "thResource": "RESOURCE",
+      "thActor": "ACTOR",
+      "thTime": "TIME",
+      "actorSystem": "system"
+    },
+    "drafts": {
+      "title": "Drafts",
+      "subtitle": "Content created by your AI agents",
+      "filterLabel": "Filter by company",
+      "noCompanies": "No companies",
+      "emptyTitle": "No drafts yet",
+      "emptyBody": "Drafts will appear here when agents create content.",
+      "channelLabel": "Channel:",
+      "createdLabel": "Created:",
+      "scheduledLabel": "Scheduled:",
+      "approve": "Approve",
+      "reject": "Reject",
+      "publish": "Publish",
+      "typeSocial": "Social Post",
+      "typeEmail": "Email",
+      "typeBlog": "Blog Post",
+      "typeAd": "Ad Copy",
+      "typeVideo": "Video Script"
+    }
+  },
   "static": {
     "common": { "back": "← Back", "lastUpdated": "Last updated:" },
     "blog": {

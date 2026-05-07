@@ -62,6 +62,74 @@
       }
     }
   },
+  "app": {
+    "approvals": {
+      "title": "Approbations en attente",
+      "subtitle": "Examinez et approuvez les actions de dépense de vos agents IA",
+      "emptyTitle": "Tout est en ordre !",
+      "emptyBody": "Aucune approbation en attente. Les approbations sont requises uniquement pour les actions de dépense.",
+      "unknownCompany": "Entreprise Inconnue",
+      "runLabel": "Exécution :",
+      "approve": "Approuver",
+      "reject": "Rejeter"
+    },
+    "companies": {
+      "title": "Entreprises",
+      "countSingular": "entreprise créée",
+      "countPlural": "entreprises créées",
+      "newCompany": "Nouvelle Entreprise",
+      "emptyTitle": "Aucune entreprise pour le moment",
+      "emptyBody": "Décrivez votre idée d'entreprise et l'IA configure tout",
+      "createFirst": "Créer Votre Première Entreprise",
+      "noDescription": "Aucune description",
+      "agentsLabel": "agents",
+      "pipelinesLabel": "pipelines"
+    },
+    "risks": {
+      "title": "Moniteur de Risques",
+      "subtitle": "Alertes de gouvernance et activité système",
+      "statsTotalRisk": "ÉVÉNEMENTS DE RISQUE TOTAUX",
+      "statsLoopStops": "ARRÊTS DE BOUCLE",
+      "statsCostAnomalies": "ANOMALIES DE COÛT",
+      "statsFailedRuns": "EXÉCUTIONS ÉCHOUÉES",
+      "tabRisks": "Événements de Risque",
+      "tabActivity": "Journal d'Activité",
+      "labelHardStop": "Arrêt Forcé",
+      "labelLoopDetected": "Boucle Détectée",
+      "labelCostAnomaly": "Anomalie de Coût",
+      "labelSpamProtection": "Protection Anti-Spam",
+      "labelBrandViolation": "Violation de Marque",
+      "labelRunFailed": "Exécution Échouée",
+      "labelRunStopped": "Exécution Arrêtée",
+      "emptyRisksTitle": "Tous les systèmes sont normaux",
+      "emptyRisksBody": "Aucun événement de risque détecté.",
+      "emptyActivity": "Aucune activité enregistrée pour le moment.",
+      "thAction": "ACTION",
+      "thResource": "RESSOURCE",
+      "thActor": "ACTEUR",
+      "thTime": "HEURE",
+      "actorSystem": "système"
+    },
+    "drafts": {
+      "title": "Brouillons",
+      "subtitle": "Contenu créé par vos agents IA",
+      "filterLabel": "Filtrer par entreprise",
+      "noCompanies": "Aucune entreprise",
+      "emptyTitle": "Aucun brouillon pour le moment",
+      "emptyBody": "Les brouillons apparaîtront ici quand les agents créeront du contenu.",
+      "channelLabel": "Canal :",
+      "createdLabel": "Créé :",
+      "scheduledLabel": "Planifié :",
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "publish": "Publier",
+      "typeSocial": "Publication Sociale",
+      "typeEmail": "E-mail",
+      "typeBlog": "Article de Blog",
+      "typeAd": "Texte Publicitaire",
+      "typeVideo": "Script Vidéo"
+    }
+  },
   "static": {
     "common": { "back": "← Retour", "lastUpdated": "Dernière mise à jour :" },
     "blog": {

@@ -62,6 +62,74 @@
       }
     }
   },
+  "app": {
+    "approvals": {
+      "title": "Aprobaciones Pendientes",
+      "subtitle": "Revisa y aprueba acciones de gasto de tus agentes IA",
+      "emptyTitle": "¡Todo en orden!",
+      "emptyBody": "Sin aprobaciones pendientes. Las aprobaciones solo se requieren para acciones de gasto.",
+      "unknownCompany": "Empresa Desconocida",
+      "runLabel": "Ejecución:",
+      "approve": "Aprobar",
+      "reject": "Rechazar"
+    },
+    "companies": {
+      "title": "Empresas",
+      "countSingular": "empresa creada",
+      "countPlural": "empresas creadas",
+      "newCompany": "Nueva Empresa",
+      "emptyTitle": "Aún no hay empresas",
+      "emptyBody": "Describe tu idea de negocio y la IA lo configurará todo",
+      "createFirst": "Crea tu Primera Empresa",
+      "noDescription": "Sin descripción",
+      "agentsLabel": "agentes",
+      "pipelinesLabel": "pipelines"
+    },
+    "risks": {
+      "title": "Monitor de Riesgos",
+      "subtitle": "Alertas de gobernanza y actividad del sistema",
+      "statsTotalRisk": "EVENTOS DE RIESGO TOTALES",
+      "statsLoopStops": "PARADAS DE BUCLE",
+      "statsCostAnomalies": "ANOMALÍAS DE COSTE",
+      "statsFailedRuns": "EJECUCIONES FALLIDAS",
+      "tabRisks": "Eventos de Riesgo",
+      "tabActivity": "Registro de Actividad",
+      "labelHardStop": "Parada Forzada",
+      "labelLoopDetected": "Bucle Detectado",
+      "labelCostAnomaly": "Anomalía de Coste",
+      "labelSpamProtection": "Protección Antispam",
+      "labelBrandViolation": "Violación de Marca",
+      "labelRunFailed": "Ejecución Fallida",
+      "labelRunStopped": "Ejecución Detenida",
+      "emptyRisksTitle": "Todos los sistemas normales",
+      "emptyRisksBody": "No se detectaron eventos de riesgo.",
+      "emptyActivity": "Sin actividad registrada todavía.",
+      "thAction": "ACCIÓN",
+      "thResource": "RECURSO",
+      "thActor": "ACTOR",
+      "thTime": "HORA",
+      "actorSystem": "sistema"
+    },
+    "drafts": {
+      "title": "Borradores",
+      "subtitle": "Contenido creado por tus agentes IA",
+      "filterLabel": "Filtrar por empresa",
+      "noCompanies": "Sin empresas",
+      "emptyTitle": "Aún no hay borradores",
+      "emptyBody": "Los borradores aparecerán aquí cuando los agentes creen contenido.",
+      "channelLabel": "Canal:",
+      "createdLabel": "Creado:",
+      "scheduledLabel": "Programado:",
+      "approve": "Aprobar",
+      "reject": "Rechazar",
+      "publish": "Publicar",
+      "typeSocial": "Publicación Social",
+      "typeEmail": "Correo Electrónico",
+      "typeBlog": "Entrada de Blog",
+      "typeAd": "Texto Publicitario",
+      "typeVideo": "Guion de Vídeo"
+    }
+  },
   "static": {
     "common": { "back": "← Volver", "lastUpdated": "Última actualización:" },
     "blog": {

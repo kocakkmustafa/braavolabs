@@ -62,6 +62,74 @@
       }
     }
   },
+  "app": {
+    "approvals": {
+      "title": "الموافقات المعلّقة",
+      "subtitle": "راجِع ووافِق على إجراءات الإنفاق من وكلاء الذكاء الاصطناعي",
+      "emptyTitle": "كل شيء على ما يرام!",
+      "emptyBody": "لا توجد موافقات معلقة. الموافقات مطلوبة فقط لإجراءات الإنفاق.",
+      "unknownCompany": "شركة غير معروفة",
+      "runLabel": "التشغيل:",
+      "approve": "موافقة",
+      "reject": "رفض"
+    },
+    "companies": {
+      "title": "الشركات",
+      "countSingular": "شركة تم إنشاؤها",
+      "countPlural": "شركات تم إنشاؤها",
+      "newCompany": "شركة جديدة",
+      "emptyTitle": "لا توجد شركات بعد",
+      "emptyBody": "صِف فكرة عملك وسيتولى الذكاء الاصطناعي الإعداد",
+      "createFirst": "أنشئ شركتك الأولى",
+      "noDescription": "لا يوجد وصف",
+      "agentsLabel": "وكلاء",
+      "pipelinesLabel": "خطوط أنابيب"
+    },
+    "risks": {
+      "title": "مراقب المخاطر",
+      "subtitle": "تنبيهات الحوكمة ونشاط النظام",
+      "statsTotalRisk": "إجمالي أحداث المخاطر",
+      "statsLoopStops": "إيقافات الحلقة",
+      "statsCostAnomalies": "شذوذ التكاليف",
+      "statsFailedRuns": "تشغيلات فاشلة",
+      "tabRisks": "أحداث المخاطر",
+      "tabActivity": "سجل النشاط",
+      "labelHardStop": "إيقاف صارم",
+      "labelLoopDetected": "تم رصد حلقة",
+      "labelCostAnomaly": "شذوذ في التكلفة",
+      "labelSpamProtection": "حماية من السبام",
+      "labelBrandViolation": "انتهاك للعلامة",
+      "labelRunFailed": "فشل التشغيل",
+      "labelRunStopped": "توقف التشغيل",
+      "emptyRisksTitle": "جميع الأنظمة طبيعية",
+      "emptyRisksBody": "لم يُرصد أي حدث مخاطر.",
+      "emptyActivity": "لا يوجد نشاط مسجّل بعد.",
+      "thAction": "الإجراء",
+      "thResource": "المورد",
+      "thActor": "الفاعل",
+      "thTime": "الوقت",
+      "actorSystem": "النظام"
+    },
+    "drafts": {
+      "title": "المسودات",
+      "subtitle": "المحتوى الذي ينشئه وكلاؤك",
+      "filterLabel": "تصفية حسب الشركة",
+      "noCompanies": "لا توجد شركات",
+      "emptyTitle": "لا توجد مسودات بعد",
+      "emptyBody": "ستظهر المسودات هنا عندما ينشئ الوكلاء محتوى.",
+      "channelLabel": "القناة:",
+      "createdLabel": "أُنشئ:",
+      "scheduledLabel": "مجدول:",
+      "approve": "موافقة",
+      "reject": "رفض",
+      "publish": "نشر",
+      "typeSocial": "منشور اجتماعي",
+      "typeEmail": "بريد إلكتروني",
+      "typeBlog": "مقال مدوّنة",
+      "typeAd": "نص إعلاني",
+      "typeVideo": "نص فيديو"
+    }
+  },
   "static": {
     "common": { "back": "← رجوع", "lastUpdated": "آخر تحديث:" },
     "blog": {
