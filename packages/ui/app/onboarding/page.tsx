@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 
@@ -12,44 +13,33 @@ interface OnboardingStatus {
   steps: Record<string, boolean>;
 }
 
+// Stable ids + icons; labels and descriptions resolve at render via
+// useTranslations so a Turkish user sees "İçerik" while DB enum stays
+// "content".
 const PRIMITIVES = [
-  { id: "acquisition", label: "Acquisition", icon: "podcasts", desc: "Lead gen & growth" },
-  { id: "sales", label: "Sales", icon: "work", desc: "Pipeline & deals" },
-  { id: "delivery", label: "Delivery", icon: "deployed_code", desc: "Fulfillment ops" },
-  { id: "content", label: "Content", icon: "edit_note", desc: "AI-generated content" },
-  { id: "operations", label: "Operations", icon: "account_tree", desc: "Internal workflows" },
-  { id: "finance", label: "Finance", icon: "payments", desc: "Revenue & billing" },
-  { id: "analytics", label: "Analytics", icon: "query_stats", desc: "Insights & reports" },
-  { id: "memory", label: "Memory", icon: "memory", desc: "Agent learning" },
-  { id: "governance", label: "Governance", icon: "security", desc: "Risk & compliance" },
+  { id: "acquisition", icon: "podcasts" },
+  { id: "sales", icon: "work" },
+  { id: "delivery", icon: "deployed_code" },
+  { id: "content", icon: "edit_note" },
+  { id: "operations", icon: "account_tree" },
+  { id: "finance", icon: "payments" },
+  { id: "analytics", icon: "query_stats" },
+  { id: "memory", icon: "memory" },
+  { id: "governance", icon: "security" },
 ];
 
 const INDUSTRIES = [
-  { id: "saas", label: "SaaS / Software", icon: "cloud", desc: "Subscription & product-led growth" },
-  { id: "agency", label: "Agency", icon: "business_center", desc: "Client services & delivery" },
-  { id: "ecommerce", label: "E-Commerce", icon: "shopping_bag", desc: "Online store & DTC" },
-  { id: "consulting", label: "Consulting", icon: "handshake", desc: "Professional services" },
-  { id: "creator", label: "Creator / Personal Brand", icon: "person_celebrate", desc: "Content & audience building" },
-  { id: "b2b_sales", label: "B2B Sales", icon: "sales", desc: "Lead gen & outreach" },
-  { id: "real_estate", label: "Real Estate", icon: "home_work", desc: "Listings & client management" },
-  { id: "marketing", label: "Marketing Agency", icon: "campaign", desc: "Digital marketing & ads" },
-  { id: "automation", label: "AI / Automation", icon: "smart_toy", desc: "Workflow automation services" },
-  { id: "support", label: "Customer Support", icon: "support_agent", desc: "Helpdesk & ticketing" },
+  { id: "saas", icon: "cloud" },
+  { id: "agency", icon: "business_center" },
+  { id: "ecommerce", icon: "shopping_bag" },
+  { id: "consulting", icon: "handshake" },
+  { id: "creator", icon: "person_celebrate" },
+  { id: "b2b_sales", icon: "sales" },
+  { id: "real_estate", icon: "home_work" },
+  { id: "marketing", icon: "campaign" },
+  { id: "automation", icon: "smart_toy" },
+  { id: "support", icon: "support_agent" },
 ];
-
-const USE_CASES = [
-  "Scale content production",
-  "Automate lead generation",
-  "Manage customer relationships",
-  "Build revenue systems",
-  "Reduce operational overhead",
-  "Grow social media presence",
-  "Improve customer support speed",
-  "Automate financial reporting",
-];
-
-const STEP_LABELS = ["Industry", "Company", "Primitives", "Channels", "Launch"];
-const SUGGESTIONS = ["SaaS Startup", "Agency", "E-commerce", "Consulting", "Creator Business"];
 
 interface CatalogBlueprint {
   id: string;
@@ -112,13 +102,21 @@ function clearOnboardingDraft() {
 }
 
 export default function OnboardingPage() {
+  const t = useTranslations();
+  // i18n arrays read once via t.raw — useCases, stepLabels, suggestions all
+  // ship as ordered lists so per-locale ordering can adjust without code
+  // changes. Stable indices (0..N-1) tie elements together.
+  const STEP_LABELS = t.raw("onboarding.stepLabels") as string[];
+  const USE_CASES = t.raw("onboarding.useCases") as string[];
+  const SUGGESTIONS = t.raw("onboarding.suggestions") as string[];
+
   const router = useRouter();
   const { token, hydrated } = useAuthGuard();
   const [status, setStatus] = useState<OnboardingStatus | null>(null);
   const [step, setStep] = useState(0);
   const [description, setDescription] = useState("");
   const [selectedPrimitives, setSelectedPrimitives] = useState<string[]>(["content", "acquisition"]);
-  const [companyName, setCompanyName] = useState("My AI Social Agency");
+  const [companyName, setCompanyName] = useState(t("onboarding.companyNamePlaceholder"));
   const [niche, setNiche] = useState("");
   const [targetAudience, setTargetAudience] = useState("");
   const [selectedIndustry, setSelectedIndustry] = useState<string | null>(null);
@@ -259,12 +257,12 @@ export default function OnboardingPage() {
             </span>
           </div>
           <h2 className="font-headline font-bold text-2xl mb-2" style={{ color: "#e1e2eb" }}>
-            {result?.company?.name ?? "Your Company"} is live!
+            {result?.company?.name ?? t("onboarding.successCompanyFallback")}{t("onboarding.successLiveSuffix")}
           </h2>
           <p className="text-sm mb-6" style={{ color: "#859399" }}>
             {result?.fromBlueprint
-              ? "Blueprint cloned and configured. Your autonomous AI company is ready."
-              : (result?.company?.description ?? "Your autonomous AI company is ready to run.")}
+              ? t("onboarding.successFromBlueprint")
+              : (result?.company?.description ?? t("onboarding.successDefault"))}
           </p>
           {result && !result.fromBlueprint && (
             <div className="flex justify-center gap-8 mb-6">
@@ -272,11 +270,11 @@ export default function OnboardingPage() {
                 <p className="text-2xl font-bold font-headline" style={{ color: "#34d399" }}>
                   {result.agents?.length ?? 0}
                 </p>
-                <p className="text-xs" style={{ color: "#859399" }}>Agents</p>
+                <p className="text-xs" style={{ color: "#859399" }}>{t("onboarding.agents")}</p>
               </div>
               <div>
                 <p className="text-2xl font-bold font-headline" style={{ color: "#00d1ff" }}>1</p>
-                <p className="text-xs" style={{ color: "#859399" }}>Pipeline</p>
+                <p className="text-xs" style={{ color: "#859399" }}>{t("onboarding.pipeline")}</p>
               </div>
             </div>
           )}
@@ -289,10 +287,10 @@ export default function OnboardingPage() {
                 <span className="material-symbols-outlined text-base mt-0.5" style={{ color: "#fbbf24" }}>key</span>
                 <div className="flex-1">
                   <p className="font-semibold text-sm mb-1" style={{ color: "#fde68a" }}>
-                    One last step — pick how your agents access an LLM
+                    {t("onboarding.byokTitle")}
                   </p>
                   <p className="text-xs leading-relaxed mb-3" style={{ color: "#f59e0b" }}>
-                    You have two options. Both keep your data tenant-isolated and audit-logged.
+                    {t("onboarding.byokSubtitle")}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
                     <Link
@@ -300,16 +298,16 @@ export default function OnboardingPage() {
                       className="flex flex-col gap-1 p-2.5 rounded-lg text-left transition-all hover:brightness-125"
                       style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.25)" }}
                     >
-                      <span className="text-[11px] font-bold" style={{ color: "#00d1ff" }}>☁ Cloud BYOK (any plan)</span>
-                      <span className="text-[10px]" style={{ color: "#859399" }}>Anthropic, OpenAI, Gemini, Mistral, Groq, OpenRouter</span>
+                      <span className="text-[11px] font-bold" style={{ color: "#00d1ff" }}>{t("onboarding.byokCloudTitle")}</span>
+                      <span className="text-[10px]" style={{ color: "#859399" }}>{t("onboarding.byokCloudDesc")}</span>
                     </Link>
                     <Link
                       href="/settings#ai-provider"
                       className="flex flex-col gap-1 p-2.5 rounded-lg text-left transition-all hover:brightness-125"
                       style={{ background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.25)" }}
                     >
-                      <span className="text-[11px] font-bold" style={{ color: "#34d399" }}>⚡ Self-hosted Gemma (Creator+)</span>
-                      <span className="text-[10px]" style={{ color: "#859399" }}>Ollama / LM Studio · no per-token cost · KVKK</span>
+                      <span className="text-[11px] font-bold" style={{ color: "#34d399" }}>{t("onboarding.byokSelfTitle")}</span>
+                      <span className="text-[10px]" style={{ color: "#859399" }}>{t("onboarding.byokSelfDesc")}</span>
                     </Link>
                   </div>
                 </div>
@@ -322,14 +320,14 @@ export default function OnboardingPage() {
               className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110"
               style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
             >
-              {aiKeyConfigured === false ? "Add API Key" : "View Companies"}
+              {aiKeyConfigured === false ? t("onboarding.addApiKey") : t("onboarding.viewCompanies")}
             </Link>
             <Link
               href="/dashboard"
               className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-80"
               style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}
             >
-              Dashboard
+              {t("onboarding.dashboard")}
             </Link>
           </div>
         </div>
@@ -362,7 +360,7 @@ export default function OnboardingPage() {
           {/* Progress steps */}
           <div className="flex items-center gap-2">
             {STEP_LABELS.map((label, i) => (
-              <div key={label} className="flex items-center gap-2">
+              <div key={i} className="flex items-center gap-2">
                 <div className="flex items-center gap-2">
                   <div
                     className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all"
@@ -396,10 +394,10 @@ export default function OnboardingPage() {
           {step === 0 && (
             <div>
               <h2 className="font-headline font-bold text-2xl mb-2" style={{ color: "#e1e2eb" }}>
-                What's your industry?
+                {t("onboarding.step0Title")}
               </h2>
               <p className="text-sm mb-6" style={{ color: "#859399" }}>
-                We'll suggest the best blueprint for your business so you can launch faster.
+                {t("onboarding.step0Subtitle")}
               </p>
 
               {/* Industry grid */}
@@ -420,9 +418,9 @@ export default function OnboardingPage() {
                         <span className="material-symbols-outlined text-base" style={{ color: selected ? "#00d1ff" : "#859399" }}>
                           {ind.icon}
                         </span>
-                        <span className="text-xs font-semibold" style={{ color: selected ? "#e1e2eb" : "#bbc9cf" }}>{ind.label}</span>
+                        <span className="text-xs font-semibold" style={{ color: selected ? "#e1e2eb" : "#bbc9cf" }}>{t(`onboarding.industries.${ind.id}.label`)}</span>
                       </div>
-                      <p className="text-[10px]" style={{ color: "#3c494e" }}>{ind.desc}</p>
+                      <p className="text-[10px]" style={{ color: "#3c494e" }}>{t(`onboarding.industries.${ind.id}.desc`)}</p>
                     </button>
                   );
                 })}
@@ -430,7 +428,7 @@ export default function OnboardingPage() {
 
               {/* Use case selection */}
               <div className="mb-6">
-                <p className="text-xs font-semibold mb-2" style={{ color: "#bbc9cf" }}>What do you want to automate? <span style={{ color: "#3c494e", fontWeight: 400 }}>(pick all that apply)</span></p>
+                <p className="text-xs font-semibold mb-2" style={{ color: "#bbc9cf" }}>{t("onboarding.automateQuestion")} <span style={{ color: "#3c494e", fontWeight: 400 }}>{t("onboarding.automateHint")}</span></p>
                 <div className="flex flex-wrap gap-2">
                   {USE_CASES.map((uc) => {
                     const selected = selectedUseCases.includes(uc);
@@ -456,8 +454,8 @@ export default function OnboardingPage() {
               {selectedIndustry && (
                 <div className="mb-6">
                   <p className="text-xs font-semibold mb-2" style={{ color: "#bbc9cf" }}>
-                    Recommended blueprints
-                    <span className="ml-1 font-normal" style={{ color: "#3c494e" }}>— click to use as starting point</span>
+                    {t("onboarding.recommendedBlueprints")}
+                    <span className="ml-1 font-normal" style={{ color: "#3c494e" }}>{t("onboarding.blueprintsHint")}</span>
                   </p>
                   {loadingBlueprints ? (
                     <div className="flex gap-2">
@@ -487,7 +485,7 @@ export default function OnboardingPage() {
                                 <div className="flex items-center gap-2 mb-0.5">
                                   <span className="text-xs font-semibold" style={{ color: isSelected ? "#00d1ff" : "#e1e2eb" }}>{bp.title}</span>
                                   {isSelected && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded font-bold" style={{ background: "rgba(0,209,255,0.15)", color: "#00d1ff" }}>SELECTED</span>
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded font-bold" style={{ background: "rgba(0,209,255,0.15)", color: "#00d1ff" }}>{t("onboarding.blueprintSelectedBadge")}</span>
                                   )}
                                 </div>
                                 <p className="text-[10px] line-clamp-1" style={{ color: "#859399" }}>{bp.description}</p>
@@ -501,14 +499,14 @@ export default function OnboardingPage() {
                       })}
                     </div>
                   ) : (
-                    <p className="text-xs" style={{ color: "#3c494e" }}>No templates found for this industry.</p>
+                    <p className="text-xs" style={{ color: "#3c494e" }}>{t("onboarding.noBlueprints")}</p>
                   )}
                 </div>
               )}
 
               <div className="flex justify-between items-center sticky bottom-0 pt-4 pb-1 -mb-4 z-10" style={{ background: "linear-gradient(to top, rgba(15,18,25,1) 60%, rgba(15,18,25,0))" }}>
                 <p className="text-xs" style={{ color: "#3c494e" }}>
-                  {!selectedIndustry && "Select an industry to continue"}
+                  {!selectedIndustry && t("onboarding.selectIndustryHint")}
                 </p>
                 <button
                   onClick={() => setStep(1)}
@@ -516,7 +514,7 @@ export default function OnboardingPage() {
                   className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-40"
                   style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}
                 >
-                  Continue →
+                  {t("onboarding.continueButton")}
                 </button>
               </div>
             </div>
@@ -526,23 +524,23 @@ export default function OnboardingPage() {
           {step === 1 && (
             <div>
               <h2 className="font-headline font-bold text-2xl mb-2" style={{ color: "#e1e2eb" }}>
-                Tell us about your company
+                {t("onboarding.step1Title")}
               </h2>
               <p className="text-sm mb-6" style={{ color: "#859399" }}>
-                Write in plain language — Claude will understand and build your agent stack automatically.
+                {t("onboarding.step1Subtitle")}
               </p>
 
               <div className="mb-4">
-                <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>Company Name</label>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>{t("onboarding.fieldCompanyName")}</label>
                 <input
                   type="text"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all mb-4"
                   style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
-                  placeholder="My AI Social Agency"
+                  placeholder={t("onboarding.companyNamePlaceholder")}
                 />
-                <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>Describe your business</label>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>{t("onboarding.fieldDescribeBusiness")}</label>
                 <div className="relative">
                   <textarea
                     rows={5}
@@ -550,7 +548,7 @@ export default function OnboardingPage() {
                     onChange={(e) => { setDescription(e.target.value); setDescError(null); }}
                     className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-none transition-all"
                     style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb", lineHeight: 1.7 }}
-                    placeholder="e.g. I run a social media management agency for e-commerce brands. I need content creation, client reporting, and lead generation..."
+                    placeholder={t("onboarding.descriptionPlaceholder")}
                     onFocus={(e) => { e.currentTarget.style.border = "1px solid rgba(0,209,255,0.4)"; }}
                     onBlur={(e) => { e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)"; }}
                   />
@@ -564,12 +562,12 @@ export default function OnboardingPage() {
               {/* Suggestions */}
               {!selectedBlueprintSlug && (
                 <div className="mb-6">
-                  <p className="text-xs mb-2" style={{ color: "#859399" }}>Need inspiration?</p>
+                  <p className="text-xs mb-2" style={{ color: "#859399" }}>{t("onboarding.needInspiration")}</p>
                   <div className="flex flex-wrap gap-2">
                     {SUGGESTIONS.map((s) => (
                       <button
                         key={s}
-                        onClick={() => setDescription(`I run a ${s.toLowerCase()} business. I need AI agents to handle acquisition, content creation, and operations.`)}
+                        onClick={() => setDescription(t("onboarding.suggestionTemplate", { kind: s.toLowerCase() }))}
                         className="px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:opacity-80"
                         style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.25)", color: "#00d1ff" }}
                       >
@@ -584,22 +582,22 @@ export default function OnboardingPage() {
                 <div className="mb-6 px-4 py-3 rounded-xl" style={{ background: "rgba(0,209,255,0.06)", border: "1px solid rgba(0,209,255,0.15)" }}>
                   <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-sm" style={{ color: "#00d1ff" }}>auto_awesome</span>
-                    <span className="text-xs" style={{ color: "#a4e6ff" }}>Blueprint selected — primitives and agents pre-configured from template</span>
-                    <button onClick={() => setSelectedBlueprintSlug(null)} className="ml-auto text-xs" style={{ color: "#3c494e" }}>× Remove</button>
+                    <span className="text-xs" style={{ color: "#a4e6ff" }}>{t("onboarding.blueprintSelected")}</span>
+                    <button onClick={() => setSelectedBlueprintSlug(null)} className="ml-auto text-xs" style={{ color: "#3c494e" }}>{t("onboarding.removeBlueprint")}</button>
                   </div>
                 </div>
               )}
 
               {descTouched && !description.trim() && !selectedBlueprintSlug && (
-                <p className="text-xs mb-3" style={{ color: "#f87171" }}>Please describe your business or select a blueprint above to continue.</p>
+                <p className="text-xs mb-3" style={{ color: "#f87171" }}>{t("onboarding.describeOrSelectError")}</p>
               )}
 
               <div className="flex justify-between">
                 <button onClick={() => setStep(0)} className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>
-                  ← Back
+                  {t("onboarding.backButton")}
                 </button>
-                <button onClick={() => { setDescTouched(true); if (!description.trim() && !selectedBlueprintSlug) { setDescError("Please describe your business before continuing."); return; } setDescError(null); setStep(2); }} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}>
-                  Continue →
+                <button onClick={() => { setDescTouched(true); if (!description.trim() && !selectedBlueprintSlug) { setDescError(t("onboarding.describeError")); return; } setDescError(null); setStep(2); }} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}>
+                  {t("onboarding.continueButton")}
                 </button>
               </div>
             </div>
@@ -609,12 +607,12 @@ export default function OnboardingPage() {
           {step === 2 && (
             <div>
               <h2 className="font-headline font-bold text-2xl mb-2" style={{ color: "#e1e2eb" }}>
-                Select your AI Primitives
+                {t("onboarding.step2Title")}
               </h2>
               <p className="text-sm mb-6" style={{ color: "#859399" }}>
                 {selectedBlueprintSlug
-                  ? "Pre-configured from your selected blueprint. You can customize further."
-                  : "Choose which capabilities to include. You can change these later."}
+                  ? t("onboarding.step2SubtitleBlueprint")
+                  : t("onboarding.step2SubtitleDefault")}
               </p>
 
               <div className="grid grid-cols-3 gap-3 mb-6">
@@ -638,8 +636,8 @@ export default function OnboardingPage() {
                           {p.icon}
                         </span>
                       </div>
-                      <p className="text-sm font-semibold" style={{ color: selected ? "#e1e2eb" : "#bbc9cf" }}>{p.label}</p>
-                      <p className="text-xs mt-0.5" style={{ color: "#859399" }}>{p.desc}</p>
+                      <p className="text-sm font-semibold" style={{ color: selected ? "#e1e2eb" : "#bbc9cf" }}>{t(`onboarding.primitives.${p.id}.label`)}</p>
+                      <p className="text-xs mt-0.5" style={{ color: "#859399" }}>{t(`onboarding.primitives.${p.id}.desc`)}</p>
                     </button>
                   );
                 })}
@@ -647,10 +645,10 @@ export default function OnboardingPage() {
 
               <div className="flex justify-between">
                 <button onClick={() => setStep(1)} className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>
-                  ← Back
+                  {t("onboarding.backButton")}
                 </button>
                 <button onClick={() => setStep(3)} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}>
-                  Continue →
+                  {t("onboarding.continueButton")}
                 </button>
               </div>
             </div>
@@ -660,35 +658,35 @@ export default function OnboardingPage() {
           {step === 3 && (
             <div>
               <h2 className="font-headline font-bold text-2xl mb-2" style={{ color: "#e1e2eb" }}>
-                Configure your channels
+                {t("onboarding.step3Title")}
               </h2>
               <p className="text-sm mb-6" style={{ color: "#859399" }}>
-                Define your target audience and niche to personalize your agent outputs.
+                {t("onboarding.step3Subtitle")}
               </p>
 
               <div className="space-y-4 mb-6">
                 <div>
-                  <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>Niche <span style={{ color: "#3c494e", fontWeight: 400 }}>(optional)</span></label>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>{t("onboarding.fieldNiche")} <span style={{ color: "#3c494e", fontWeight: 400 }}>{t("onboarding.optional")}</span></label>
                   <input
                     type="text"
                     value={niche}
                     onChange={(e) => setNiche(e.target.value)}
                     className="w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all"
                     style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
-                    placeholder="e.g. B2B SaaS, fitness, e-commerce..."
+                    placeholder={t("onboarding.nichePlaceholder")}
                     onFocus={(e) => { e.currentTarget.style.border = "1px solid rgba(0,209,255,0.4)"; }}
                     onBlur={(e) => { e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)"; }}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>Target Audience <span style={{ color: "#3c494e", fontWeight: 400 }}>(optional)</span></label>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>{t("onboarding.fieldTargetAudience")} <span style={{ color: "#3c494e", fontWeight: 400 }}>{t("onboarding.optional")}</span></label>
                   <input
                     type="text"
                     value={targetAudience}
                     onChange={(e) => setTargetAudience(e.target.value)}
                     className="w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all"
                     style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
-                    placeholder="e.g. startup founders, marketers, developers..."
+                    placeholder={t("onboarding.audiencePlaceholder")}
                     onFocus={(e) => { e.currentTarget.style.border = "1px solid rgba(0,209,255,0.4)"; }}
                     onBlur={(e) => { e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)"; }}
                   />
@@ -696,7 +694,7 @@ export default function OnboardingPage() {
 
                 {/* Active channels */}
                 <div>
-                  <label className="block text-xs font-semibold mb-2" style={{ color: "#bbc9cf" }}>Active Channels (Free plan)</label>
+                  <label className="block text-xs font-semibold mb-2" style={{ color: "#bbc9cf" }}>{t("onboarding.activeChannelsTitle")}</label>
                   <div className="flex flex-wrap gap-3">
                     {[
                       { name: "TikTok", icon: "🎵", included: true },
@@ -711,16 +709,16 @@ export default function OnboardingPage() {
                       </div>
                     ))}
                   </div>
-                  <p className="text-xs mt-2" style={{ color: "#3c494e" }}>Upgrade to Pro for all channels</p>
+                  <p className="text-xs mt-2" style={{ color: "#3c494e" }}>{t("onboarding.upgradeToProForChannels")}</p>
                 </div>
               </div>
 
               <div className="flex justify-between">
                 <button onClick={() => setStep(2)} className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>
-                  ← Back
+                  {t("onboarding.backButton")}
                 </button>
                 <button onClick={() => setStep(4)} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}>
-                  Continue →
+                  {t("onboarding.continueButton")}
                 </button>
               </div>
             </div>
@@ -730,23 +728,23 @@ export default function OnboardingPage() {
           {step === 4 && (
             <div>
               <h2 className="font-headline font-bold text-2xl mb-2" style={{ color: "#e1e2eb" }}>
-                Ready to launch
+                {t("onboarding.step4Title")}
               </h2>
               <p className="text-sm mb-6" style={{ color: "#859399" }}>
-                Review your configuration and create your first autonomous AI company.
+                {t("onboarding.step4Subtitle")}
               </p>
 
               {/* Summary */}
               <div className="rounded-xl p-5 mb-5 space-y-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                <SummaryRow label="Company Name" value={companyName || "My AI Social Agency"} />
-                <SummaryRow label="Industry" value={INDUSTRIES.find((i) => i.id === selectedIndustry)?.label ?? "-"} />
+                <SummaryRow label={t("onboarding.summaryCompanyName")} value={companyName || t("onboarding.companyNamePlaceholder")} />
+                <SummaryRow label={t("onboarding.summaryIndustry")} value={selectedIndustry ? t(`onboarding.industries.${selectedIndustry}.label`) : "—"} />
                 {selectedBlueprintSlug && (
-                  <SummaryRow label="Blueprint" value={suggestedBlueprints.find((b) => b.slug === selectedBlueprintSlug)?.title ?? selectedBlueprintSlug} highlight />
+                  <SummaryRow label={t("onboarding.summaryBlueprint")} value={suggestedBlueprints.find((b) => b.slug === selectedBlueprintSlug)?.title ?? selectedBlueprintSlug} highlight />
                 )}
-                <SummaryRow label="Primitives" value={`${selectedPrimitives.length} selected`} highlight />
-                <SummaryRow label="Channels" value="TikTok, LinkedIn" />
-                {niche && <SummaryRow label="Niche" value={niche} />}
-                {targetAudience && <SummaryRow label="Audience" value={targetAudience} />}
+                <SummaryRow label={t("onboarding.summaryPrimitives")} value={t("onboarding.summaryPrimitivesValueTemplate", { count: selectedPrimitives.length })} highlight />
+                <SummaryRow label={t("onboarding.summaryChannels")} value="TikTok, LinkedIn" />
+                {niche && <SummaryRow label={t("onboarding.summaryNiche")} value={niche} />}
+                {targetAudience && <SummaryRow label={t("onboarding.summaryAudience")} value={targetAudience} />}
               </div>
 
               {error && (
@@ -757,7 +755,7 @@ export default function OnboardingPage() {
 
               <div className="flex justify-between">
                 <button onClick={() => setStep(3)} className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>
-                  ← Back
+                  {t("onboarding.backButton")}
                 </button>
                 <button
                   onClick={handleLaunch}
@@ -765,7 +763,7 @@ export default function OnboardingPage() {
                   className="px-8 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
                   style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", boxShadow: "0 0 24px rgba(0,209,255,0.3)" }}
                 >
-                  {loading ? "Creating company..." : "Launch Company ✨"}
+                  {loading ? t("onboarding.creatingButton") : t("onboarding.launchButton")}
                 </button>
               </div>
             </div>
@@ -779,7 +777,7 @@ export default function OnboardingPage() {
           >
             <div className="flex-1">
               <div className="flex justify-between mb-1">
-                <span className="text-xs" style={{ color: "#859399" }}>Onboarding Progress</span>
+                <span className="text-xs" style={{ color: "#859399" }}>{t("onboarding.onboardingProgress")}</span>
                 <span className="text-xs font-bold" style={{ color: "#00d1ff" }}>{progressPct}%</span>
               </div>
               <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
