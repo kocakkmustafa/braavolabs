@@ -1,35 +1,38 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 
+// Stable category ids — labels resolve via useTranslations at render.
 const CATEGORIES = [
-  { id: "", label: "All", icon: "apps" },
-  { id: "crm", label: "CRM", icon: "contacts" },
-  { id: "social_media", label: "Social Media", icon: "share" },
-  { id: "email_marketing", label: "Email", icon: "mail" },
-  { id: "messaging", label: "Messaging", icon: "chat" },
-  { id: "productivity", label: "Productivity", icon: "edit_note" },
-  { id: "ecommerce", label: "E-Commerce", icon: "shopping_cart" },
-  { id: "dev_tools", label: "Dev Tools", icon: "code" },
-  { id: "analytics", label: "Analytics", icon: "query_stats" },
-  { id: "advertising", label: "Ads", icon: "campaign" },
-  { id: "payment", label: "Payment", icon: "payments" },
-  { id: "storage", label: "Storage", icon: "cloud_upload" },
-  { id: "ai_ml", label: "AI / ML", icon: "smart_toy" },
-  { id: "customer_support", label: "Support", icon: "support_agent" },
-  { id: "hr", label: "HR", icon: "groups" },
-  { id: "design", label: "Design", icon: "palette" },
-  { id: "video", label: "Video", icon: "videocam" },
-  { id: "forms", label: "Forms", icon: "checklist" },
-  { id: "scheduling", label: "Scheduling", icon: "calendar_month" },
-  { id: "automation", label: "Automation", icon: "auto_fix_high" },
+  { id: "", labelKey: "catAll", icon: "apps" },
+  { id: "crm", labelKey: "catCrm", icon: "contacts" },
+  { id: "social_media", labelKey: "catSocial", icon: "share" },
+  { id: "email_marketing", labelKey: "catEmail", icon: "mail" },
+  { id: "messaging", labelKey: "catMessaging", icon: "chat" },
+  { id: "productivity", labelKey: "catProductivity", icon: "edit_note" },
+  { id: "ecommerce", labelKey: "catEcommerce", icon: "shopping_cart" },
+  { id: "dev_tools", labelKey: "catDev", icon: "code" },
+  { id: "analytics", labelKey: "catAnalytics", icon: "query_stats" },
+  { id: "advertising", labelKey: "catAds", icon: "campaign" },
+  { id: "payment", labelKey: "catPayment", icon: "payments" },
+  { id: "storage", labelKey: "catStorage", icon: "cloud_upload" },
+  { id: "ai_ml", labelKey: "catAi", icon: "smart_toy" },
+  { id: "customer_support", labelKey: "catSupport", icon: "support_agent" },
+  { id: "hr", labelKey: "catHr", icon: "groups" },
+  { id: "design", labelKey: "catDesign", icon: "palette" },
+  { id: "video", labelKey: "catVideo", icon: "videocam" },
+  { id: "forms", labelKey: "catForms", icon: "checklist" },
+  { id: "scheduling", labelKey: "catScheduling", icon: "calendar_month" },
+  { id: "automation", labelKey: "catAutomation", icon: "auto_fix_high" },
 ];
 
-const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }> = {
-  available: { bg: "rgba(52,211,153,0.12)", color: "#34d399", label: "Available" },
-  beta: { bg: "rgba(0,209,255,0.12)", color: "#00d1ff", label: "Beta" },
-  coming_soon: { bg: "rgba(133,147,153,0.12)", color: "#859399", label: "Coming Soon" },
+// Color palette stays static; status label resolves at render via key.
+const STATUS_STYLES: Record<string, { bg: string; color: string; labelKey: string }> = {
+  available: { bg: "rgba(52,211,153,0.12)", color: "#34d399", labelKey: "statusAvailable" },
+  beta: { bg: "rgba(0,209,255,0.12)", color: "#00d1ff", labelKey: "statusBeta" },
+  coming_soon: { bg: "rgba(133,147,153,0.12)", color: "#859399", labelKey: "statusComingSoon" },
 };
 
 // Hardcoded catalog for frontend-only rendering (no API needed)
@@ -208,6 +211,7 @@ const INTEGRATION_CATALOG = [
 ];
 
 export default function IntegrationsPage() {
+  const t = useTranslations();
   const { token, hydrated } = useAuthGuard();
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -234,9 +238,9 @@ export default function IntegrationsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold font-headline gradient-text">Integration Library</h1>
+          <h1 className="text-xl sm:text-2xl font-bold font-headline gradient-text">{t("app.integrations.title")}</h1>
           <p className="text-sm mt-0.5" style={{ color: "#859399" }}>
-            {totalCount} connectors — {availableCount} available, {betaCount} beta, {totalCount - availableCount - betaCount} coming soon
+            {t("app.integrations.subtitleTemplate", { total: totalCount, available: availableCount, beta: betaCount, comingSoon: totalCount - availableCount - betaCount })}
           </p>
         </div>
       </div>
@@ -247,7 +251,7 @@ export default function IntegrationsPage() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search integrations..."
+          placeholder={t("app.integrations.searchPlaceholder")}
           className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none"
           style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
         />
@@ -269,7 +273,7 @@ export default function IntegrationsPage() {
               }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 14 }}>{cat.icon}</span>
-              {cat.label}
+              {t(`app.integrations.${cat.labelKey}`)}
               <span style={{ opacity: 0.6 }}>({count})</span>
             </button>
           );
@@ -277,7 +281,7 @@ export default function IntegrationsPage() {
       </div>
 
       {/* Results count */}
-      <p className="text-xs mb-4" style={{ color: "#3c494e" }}>{filtered.length} integration{filtered.length !== 1 ? "s" : ""} found</p>
+      <p className="text-xs mb-4" style={{ color: "#3c494e" }}>{t("app.integrations.resultCountTemplate", { count: filtered.length })}</p>
 
       {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -307,7 +311,7 @@ export default function IntegrationsPage() {
                   className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
                   style={{ background: statusStyle.bg, color: statusStyle.color }}
                 >
-                  {statusStyle.label}
+                  {t(`app.integrations.${statusStyle.labelKey}`)}
                 </span>
               </div>
 
@@ -315,7 +319,7 @@ export default function IntegrationsPage() {
 
               {isExpanded && (
                 <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                  <p className="text-[10px] font-semibold tracking-wider mb-2" style={{ color: "#3c494e" }}>FEATURES</p>
+                  <p className="text-[10px] font-semibold tracking-wider mb-2" style={{ color: "#3c494e" }}>{t("app.integrations.features")}</p>
                   <div className="flex flex-wrap gap-1 mb-3">
                     {connector.features.map((f) => (
                       <span key={f} className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.04)", color: "#bbc9cf" }}>
@@ -324,21 +328,21 @@ export default function IntegrationsPage() {
                     ))}
                   </div>
                   <p className="text-[10px] mb-1" style={{ color: "#3c494e" }}>
-                    Auth: <span style={{ color: "#859399" }}>{connector.authType.replace("_", " ").toUpperCase()}</span>
+                    {t("app.integrations.authPrefix")} <span style={{ color: "#859399" }}>{connector.authType.replace("_", " ").toUpperCase()}</span>
                   </p>
                   {connector.status === "available" ? (
                     <button
                       className="w-full mt-2 py-2 rounded-xl text-xs font-semibold transition-all hover:brightness-110"
                       style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", color: "#fff" }}
                     >
-                      Configure
+                      {t("app.integrations.configure")}
                     </button>
                   ) : connector.status === "beta" ? (
                     <button
                       className="w-full mt-2 py-2 rounded-xl text-xs font-semibold"
                       style={{ background: "rgba(0,209,255,0.1)", color: "#00d1ff", border: "1px solid rgba(0,209,255,0.2)" }}
                     >
-                      Join Beta
+                      {t("app.integrations.joinBeta")}
                     </button>
                   ) : (
                     <button
@@ -346,7 +350,7 @@ export default function IntegrationsPage() {
                       style={{ background: "rgba(255,255,255,0.04)", color: "#859399", border: "1px solid rgba(255,255,255,0.06)" }}
                       disabled
                     >
-                      Coming Soon
+                      {t("app.integrations.comingSoonBtn")}
                     </button>
                   )}
                 </div>
@@ -359,7 +363,7 @@ export default function IntegrationsPage() {
       {filtered.length === 0 && (
         <div className="text-center py-16">
           <span className="material-symbols-outlined text-4xl mb-3 block" style={{ color: "#3c494e" }}>search_off</span>
-          <p className="text-sm" style={{ color: "#859399" }}>No integrations match your search.</p>
+          <p className="text-sm" style={{ color: "#859399" }}>{t("app.integrations.noResults")}</p>
         </div>
       )}
     </div>

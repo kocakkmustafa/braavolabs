@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { sounds } from "../../lib/sounds";
@@ -13,6 +14,7 @@ interface UsageData { totalRuns: number; completedRuns: number; failedRuns: numb
 interface FinanceData { totalCostUsd: number; runCount: number; avgCostPerRun: number; }
 
 export default function DashboardPage() {
+  const t = useTranslations();
   // Dashboard is authenticated-only — anonymous visitors get redirected to
   // /login. The previous "preview" view shipped illustrative sample
   // companies which read like real platform data and confused first-time
@@ -55,8 +57,8 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8" style={{ position: "relative", zIndex: 1 }}>
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold font-headline gradient-text">Command Center</h1>
-          <p className="text-sm mt-1" style={{ color: "#859399" }}>Monitor your AI companies in real-time</p>
+          <h1 className="text-xl sm:text-2xl font-bold font-headline gradient-text">{t("app.dashboard.title")}</h1>
+          <p className="text-sm mt-1" style={{ color: "#859399" }}>{t("app.dashboard.subtitle")}</p>
         </div>
         <Link
           href="/companies/new"
@@ -65,17 +67,17 @@ export default function DashboardPage() {
           onClick={() => sounds.build()}
         >
           <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
-          New Company
+          {t("app.dashboard.newCompany")}
         </Link>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-8 stagger-children" style={{ position: "relative", zIndex: 1 }}>
-        <MetricCard label="Active Companies" value={health?.activeCompanies ?? 0} icon="business" iconColor="#a4e6ff" loaded={loaded} />
-        <MetricCard label="Running Pipelines" value={health?.activeRuns ?? 0} icon="play_circle" iconColor="#34d399" pulse={!!health?.activeRuns} loaded={loaded} />
-        <MetricCard label="Pending Approvals" value={health?.pendingApprovals ?? 0} icon="task_alt" iconColor="#fbbf24" subtitle={(health?.pendingApprovals ?? 0) > 0 ? "Action needed" : undefined} loaded={loaded} />
-        <MetricCard label="Total Runs" value={usage?.totalRuns ?? 0} icon="bolt" iconColor="#fbbf24" subtitle={usage ? `${(usage.successRate * 100).toFixed(0)}% success` : undefined} loaded={loaded} />
-        <MetricCard label="Total Cost" value={`$${(finance?.totalCostUsd ?? 0).toFixed(2)}`} icon="payments" iconColor="#c084fc" subtitle={finance?.runCount ? `$${finance.avgCostPerRun.toFixed(4)}/run` : undefined} loaded={loaded} />
+        <MetricCard label={t("app.dashboard.metricActiveCompanies")} value={health?.activeCompanies ?? 0} icon="business" iconColor="#a4e6ff" loaded={loaded} />
+        <MetricCard label={t("app.dashboard.metricRunningPipelines")} value={health?.activeRuns ?? 0} icon="play_circle" iconColor="#34d399" pulse={!!health?.activeRuns} loaded={loaded} />
+        <MetricCard label={t("app.dashboard.metricPendingApprovals")} value={health?.pendingApprovals ?? 0} icon="task_alt" iconColor="#fbbf24" subtitle={(health?.pendingApprovals ?? 0) > 0 ? t("app.dashboard.actionNeeded") : undefined} loaded={loaded} />
+        <MetricCard label={t("app.dashboard.metricTotalRuns")} value={usage?.totalRuns ?? 0} icon="bolt" iconColor="#fbbf24" subtitle={usage ? t("app.dashboard.successSuffix", { percent: (usage.successRate * 100).toFixed(0) }) : undefined} loaded={loaded} />
+        <MetricCard label={t("app.dashboard.metricTotalCost")} value={`$${(finance?.totalCostUsd ?? 0).toFixed(2)}`} icon="payments" iconColor="#c084fc" subtitle={finance?.runCount ? t("app.dashboard.perRunSuffix", { cost: finance.avgCostPerRun.toFixed(4) }) : undefined} loaded={loaded} />
       </div>
 
       {/* Main Content */}
@@ -84,12 +86,12 @@ export default function DashboardPage() {
         <div className="lg:col-span-2">
           <div className="glass-card">
             <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-              <h2 className="font-semibold font-headline" style={{ color: "#e1e2eb" }}>Your Companies</h2>
+              <h2 className="font-semibold font-headline" style={{ color: "#e1e2eb" }}>{t("app.dashboard.yourCompanies")}</h2>
               <Link href="/companies" className="text-xs font-medium transition-colors" style={{ color: "#a4e6ff", textDecoration: "none" }}
                 onMouseEnter={(e) => e.currentTarget.style.color = "#00d1ff"}
                 onMouseLeave={(e) => e.currentTarget.style.color = "#a4e6ff"}
               >
-                View all
+                {t("app.dashboard.viewAll")}
               </Link>
             </div>
             <div className="p-4">
@@ -100,7 +102,7 @@ export default function DashboardPage() {
                   ))}
                 </div>
               ) : companies.length === 0 ? (
-                <EmptyState title="No companies yet" description="Create your first AI company to start automating" actionHref="/companies/new" actionLabel="Create Company" />
+                <EmptyState title={t("app.dashboard.emptyTitle")} description={t("app.dashboard.emptyDescription")} actionHref="/companies/new" actionLabel={t("app.dashboard.emptyAction")} />
               ) : (
                 <div className="space-y-1 stagger-children">
                   {companies.slice(0, 5).map((c) => (
@@ -136,11 +138,11 @@ export default function DashboardPage() {
               <span className="text-sm font-bold" style={{ color: "#fbbf24" }}>{health?.pendingApprovals}</span>
             </div>
             <div>
-              <p className="font-semibold text-sm" style={{ color: "#fde68a" }}>Pending Approvals</p>
-              <p className="text-xs" style={{ color: "#f59e0b" }}>Actions waiting for your review</p>
+              <p className="font-semibold text-sm" style={{ color: "#fde68a" }}>{t("app.dashboard.pendingApprovalsBanner")}</p>
+              <p className="text-xs" style={{ color: "#f59e0b" }}>{t("app.dashboard.pendingActionsLabel")}</p>
             </div>
           </div>
-          <span className="text-xs font-medium" style={{ color: "#fbbf24" }}>Review &rarr;</span>
+          <span className="text-xs font-medium" style={{ color: "#fbbf24" }}>{t("app.dashboard.review")} &rarr;</span>
         </Link>
       )}
     </div>
@@ -203,7 +205,7 @@ function CompanyRow({ company }: { company: any }) {
             {company.status}
           </span>
         </div>
-        <p className="text-xs truncate mt-0.5" style={{ color: "#859399" }}>{company.description ?? "No description"}</p>
+        <p className="text-xs truncate mt-0.5" style={{ color: "#859399" }}>{company.description ?? "—"}</p>
       </div>
       <div className="hidden sm:flex gap-1 shrink-0">
         {company.primitives?.slice(0, 3).map((p: string) => (
@@ -221,6 +223,7 @@ function CompanyRow({ company }: { company: any }) {
 }
 
 function ActivityFeed({ token, loaded }: { token: string; loaded: boolean }) {
+  const t = useTranslations();
   const [logs, setLogs] = useState<any[]>([]);
 
   useEffect(() => {
@@ -241,7 +244,7 @@ function ActivityFeed({ token, loaded }: { token: string; loaded: boolean }) {
   return (
     <div className="glass-card">
       <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-        <h2 className="font-semibold font-headline" style={{ color: "#e1e2eb" }}>Activity</h2>
+        <h2 className="font-semibold font-headline" style={{ color: "#e1e2eb" }}>{t("app.dashboard.activity")}</h2>
         <span className="status-dot" style={{ background: "#34d399", width: 5, height: 5 }} />
       </div>
       <div className="p-4">
@@ -250,7 +253,7 @@ function ActivityFeed({ token, loaded }: { token: string; loaded: boolean }) {
             {[1,2,3,4,5].map(i => <div key={i} className="h-10 rounded-lg animate-shimmer" />)}
           </div>
         ) : logs.length === 0 ? (
-          <p className="text-sm text-center py-8" style={{ color: "#3c494e" }}>No recent activity</p>
+          <p className="text-sm text-center py-8" style={{ color: "#3c494e" }}>{t("app.dashboard.noActivity")}</p>
         ) : (
           <div className="space-y-1 stagger-children">
             {logs.map((log: any) => {
