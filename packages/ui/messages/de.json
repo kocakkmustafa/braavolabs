@@ -62,6 +62,37 @@
       }
     }
   },
+  "static": {
+    "common": { "back": "← Zurück", "lastUpdated": "Zuletzt aktualisiert:" },
+    "blog": {
+      "title": "Blog kommt bald",
+      "body": "Wir schreiben darüber, wie wir bauen, was funktioniert und was nicht. Die ersten Beiträge kommen bald — bis dahin folge dem Build in Public auf Social Media.",
+      "backToHome": "Zur Startseite"
+    },
+    "changelog": {
+      "title": "Changelog",
+      "subtitle": "Was wir veröffentlicht haben, wann wir es veröffentlicht haben.",
+      "releaseTitle": "v0.1.0 — Öffentliche Preview",
+      "releaseDate": "Mai 2026",
+      "items": [
+        "Kostenlose Testphase mit Groq (10 Runs/Monat, kein API-Key nötig).",
+        "Pipeline-Export-DRM mit Offline-JWT-Lizenzen.",
+        "Google- + GitHub-OAuth-Anmeldung.",
+        "Gehärteter Deploy: HMAC-Webhooks, Account-Lockout, CSP, HSTS.",
+        "Echtzeit-Run-Streaming über SSE.",
+        "Cookie- / KVKK- / GDPR-Seiten für rechtliche Compliance live."
+      ],
+      "githubIntro": "Detaillierte Release-Notes auf GitHub:"
+    },
+    "status": {
+      "title": "Alle Systeme funktionieren",
+      "subtitle": "Manuell verifizierter Status. Eine Echtzeit-Statusseite (separate Subdomain) ist auf der Roadmap.",
+      "services": { "website": "Öffentliche Website", "auth": "Authentifizierung", "api": "API", "runs": "Pipeline-Runs", "database": "Datenbank", "email": "E-Mail-Zustellung" },
+      "operational": "Funktioniert",
+      "alertTitle": "Ausfall bemerkt?",
+      "alertBody": "Schreibe an support@braavolabs.com, was du versucht hast und welchen Fehler du gesehen hast — wir untersuchen es und aktualisieren diese Seite."
+    }
+  },
   "auth": {
     "login": { "welcome": "Willkommen zurück", "subtitle": "Melde dich bei deinem Braavolabs-Konto an", "tabSignIn": "Anmelden", "tabRegister": "Registrieren" },
     "register": { "welcome": "Konto erstellen", "subtitle": "Starte mit autonomen KI-Unternehmen" },

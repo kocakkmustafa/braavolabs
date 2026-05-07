@@ -62,6 +62,37 @@
       }
     }
   },
+  "static": {
+    "common": { "back": "← Retour", "lastUpdated": "Dernière mise à jour :" },
+    "blog": {
+      "title": "Blog bientôt disponible",
+      "body": "Nous écrivons sur la façon dont nous construisons, ce qui fonctionne et ce qui ne fonctionne pas. Les premiers articles arrivent bientôt — en attendant, suivez le développement en public sur les réseaux sociaux.",
+      "backToHome": "Retour à l'accueil"
+    },
+    "changelog": {
+      "title": "Journal des modifications",
+      "subtitle": "Ce que nous avons livré, quand nous l'avons livré.",
+      "releaseTitle": "v0.1.0 — Aperçu public",
+      "releaseDate": "Mai 2026",
+      "items": [
+        "Essai gratuit propulsé par Groq (10 exécutions/mois, sans clé API).",
+        "DRM d'export de pipeline avec licences JWT hors ligne.",
+        "Connexion Google + GitHub OAuth.",
+        "Déploiement durci : webhooks HMAC, verrouillage de compte, CSP, HSTS.",
+        "Streaming d'exécution en temps réel via SSE.",
+        "Pages Cookie / KVKK / GDPR en production pour la conformité légale."
+      ],
+      "githubIntro": "Notes de version détaillées sur GitHub :"
+    },
+    "status": {
+      "title": "Tous les systèmes opérationnels",
+      "subtitle": "Statut vérifié manuellement. Une page de statut publique en temps réel (sous-domaine séparé) est sur la roadmap.",
+      "services": { "website": "Site public", "auth": "Authentification", "api": "API", "runs": "Exécutions de pipeline", "database": "Base de données", "email": "Envoi d'e-mails" },
+      "operational": "Opérationnel",
+      "alertTitle": "Vous avez repéré une panne ?",
+      "alertBody": "Envoyez un e-mail à support@braavolabs.com avec ce que vous avez essayé et l'erreur que vous avez vue — nous enquêterons et mettrons à jour cette page."
+    }
+  },
   "auth": {
     "login": { "welcome": "Bon retour", "subtitle": "Connectez-vous à votre compte Braavolabs", "tabSignIn": "Se connecter", "tabRegister": "S'inscrire" },
     "register": { "welcome": "Créer un compte", "subtitle": "Commencez à créer des entreprises IA autonomes" },

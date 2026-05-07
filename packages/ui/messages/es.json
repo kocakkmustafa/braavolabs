@@ -62,6 +62,37 @@
       }
     }
   },
+  "static": {
+    "common": { "back": "← Volver", "lastUpdated": "Última actualización:" },
+    "blog": {
+      "title": "Blog próximamente",
+      "body": "Estamos escribiendo sobre cómo construimos, qué funciona y qué no. Los primeros artículos llegan pronto — hasta entonces, sigue el desarrollo en abierto en redes sociales.",
+      "backToHome": "Volver al inicio"
+    },
+    "changelog": {
+      "title": "Registro de cambios",
+      "subtitle": "Qué lanzamos, cuándo lo lanzamos.",
+      "releaseTitle": "v0.1.0 — Vista previa pública",
+      "releaseDate": "Mayo 2026",
+      "items": [
+        "Prueba gratuita con Groq (10 ejecuciones/mes, sin necesidad de API key).",
+        "DRM de exportación de pipelines con licencias JWT offline.",
+        "Inicio de sesión con Google + GitHub OAuth.",
+        "Deploy reforzado: webhooks HMAC, bloqueo de cuenta, CSP, HSTS.",
+        "Streaming de ejecuciones en tiempo real vía SSE.",
+        "Páginas Cookie / KVKK / GDPR en producción para cumplimiento legal."
+      ],
+      "githubIntro": "Notas de versión detalladas en GitHub:"
+    },
+    "status": {
+      "title": "Todos los sistemas operativos",
+      "subtitle": "Estado verificado manualmente. Una página de estado pública en tiempo real (subdominio separado) está en la hoja de ruta.",
+      "services": { "website": "Sitio web público", "auth": "Autenticación", "api": "API", "runs": "Ejecuciones de pipeline", "database": "Base de datos", "email": "Envío de correos" },
+      "operational": "Operativo",
+      "alertTitle": "¿Detectaste una caída?",
+      "alertBody": "Envía un correo a support@braavolabs.com con lo que intentaste y el error que viste — lo investigaremos y actualizaremos esta página."
+    }
+  },
   "auth": {
     "login": { "welcome": "Bienvenido de nuevo", "subtitle": "Inicia sesión en tu cuenta de Braavolabs", "tabSignIn": "Iniciar sesión", "tabRegister": "Registrarse" },
     "register": { "welcome": "Crear cuenta", "subtitle": "Empieza a construir empresas de IA autónomas" },

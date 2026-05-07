@@ -62,6 +62,37 @@
       }
     }
   },
+  "static": {
+    "common": { "back": "← Back", "lastUpdated": "Last updated:" },
+    "blog": {
+      "title": "Blog coming soon",
+      "body": "We're writing about how we build, what works, and what doesn't. First posts land soon — until then, follow the build in public on social.",
+      "backToHome": "Back to home"
+    },
+    "changelog": {
+      "title": "Changelog",
+      "subtitle": "What we shipped, when we shipped it.",
+      "releaseTitle": "v0.1.0 — Public preview",
+      "releaseDate": "May 2026",
+      "items": [
+        "Free-tier trial powered by Groq (10 runs/month, no API key needed).",
+        "Pipeline export DRM with offline JWT licenses.",
+        "Google + GitHub OAuth sign-in.",
+        "Hardened deploy: HMAC webhooks, account lockout, CSP, HSTS.",
+        "Real-time run streaming over SSE.",
+        "Cookie / KVKK / GDPR pages live for legal compliance."
+      ],
+      "githubIntro": "Detailed release notes live on GitHub:"
+    },
+    "status": {
+      "title": "All systems operational",
+      "subtitle": "Manually verified status. A real-time public status page (separate subdomain) is on the roadmap.",
+      "services": { "website": "Public website", "auth": "Authentication", "api": "API", "runs": "Pipeline runs", "database": "Database", "email": "Email delivery" },
+      "operational": "Operational",
+      "alertTitle": "Spotted an outage?",
+      "alertBody": "Email support@braavolabs.com with what you tried and the error you saw — we'll investigate and update this page."
+    }
+  },
   "auth": {
     "login": { "welcome": "Welcome back", "subtitle": "Sign in to your Braavolabs account", "tabSignIn": "Sign In", "tabRegister": "Register" },
     "register": { "welcome": "Create account", "subtitle": "Start building autonomous AI companies" },

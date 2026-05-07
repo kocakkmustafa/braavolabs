@@ -1,6 +1,13 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 export default function ChangelogPage() {
+  const t = useTranslations();
+  // t.raw returns the unprocessed JSON value — required for arrays so we
+  // can map over the items list without resorting to indexed key lookups.
+  const items = t.raw("static.changelog.items") as string[];
+
   return (
     <div className="min-h-screen" style={{ background: "#0a0d14" }}>
       <nav
@@ -16,13 +23,13 @@ export default function ChangelogPage() {
           </div>
           <span className="font-headline font-bold text-sm" style={{ color: "#e1e2eb" }}>Braavolabs</span>
         </a>
-        <a href="/" className="text-sm hover:text-white transition-colors" style={{ color: "#859399" }}>← Back</a>
+        <a href="/" className="text-sm hover:text-white transition-colors" style={{ color: "#859399" }}>{t("static.common.back")}</a>
       </nav>
 
       <div className="max-w-[720px] mx-auto px-6 py-16">
         <div className="mb-10">
-          <h1 className="font-headline font-extrabold mb-2" style={{ fontSize: "2rem", color: "#e1e2eb" }}>Changelog</h1>
-          <p className="text-sm" style={{ color: "#3c494e" }}>What we shipped, when we shipped it.</p>
+          <h1 className="font-headline font-extrabold mb-2" style={{ fontSize: "2rem", color: "#e1e2eb" }}>{t("static.changelog.title")}</h1>
+          <p className="text-sm" style={{ color: "#3c494e" }}>{t("static.changelog.subtitle")}</p>
         </div>
 
         <div className="space-y-6 text-sm" style={{ color: "#859399" }}>
@@ -31,21 +38,18 @@ export default function ChangelogPage() {
             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
           >
             <header className="flex items-baseline justify-between mb-3">
-              <h2 className="font-headline font-semibold" style={{ color: "#e1e2eb" }}>v0.1.0 — Public preview</h2>
-              <time className="text-xs" style={{ color: "#3c494e" }}>May 2026</time>
+              <h2 className="font-headline font-semibold" style={{ color: "#e1e2eb" }}>{t("static.changelog.releaseTitle")}</h2>
+              <time className="text-xs" style={{ color: "#3c494e" }}>{t("static.changelog.releaseDate")}</time>
             </header>
             <ul className="space-y-1.5 list-disc pl-5">
-              <li>Free-tier trial powered by Groq (10 runs/month, no API key needed).</li>
-              <li>Pipeline export DRM with offline JWT licenses.</li>
-              <li>Google + GitHub OAuth sign-in.</li>
-              <li>Hardened deploy: HMAC webhooks, account lockout, CSP, HSTS.</li>
-              <li>Real-time run streaming over SSE.</li>
-              <li>Cookie / KVKK / GDPR pages live for legal compliance.</li>
+              {items.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
             </ul>
           </article>
 
           <p className="text-center pt-4" style={{ color: "#3c494e" }}>
-            Detailed release notes live on GitHub:{" "}
+            {t("static.changelog.githubIntro")}{" "}
             <a
               href="https://github.com/kocakkmustafa/braavolabs/releases"
               target="_blank"

@@ -1,6 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 export default function BlogPage() {
+  const t = useTranslations();
   return (
     <div className="min-h-screen" style={{ background: "#0a0d14" }}>
       <nav
@@ -16,21 +19,21 @@ export default function BlogPage() {
           </div>
           <span className="font-headline font-bold text-sm" style={{ color: "#e1e2eb" }}>Braavolabs</span>
         </a>
-        <a href="/" className="text-sm hover:text-white transition-colors" style={{ color: "#859399" }}>← Back</a>
+        <a href="/" className="text-sm hover:text-white transition-colors" style={{ color: "#859399" }}>{t("static.common.back")}</a>
       </nav>
 
       <div className="max-w-[720px] mx-auto px-6 py-24 text-center">
         <span className="material-symbols-outlined text-5xl mb-6 inline-block" style={{ color: "#00d1ff" }}>edit_note</span>
-        <h1 className="font-headline font-extrabold mb-3" style={{ fontSize: "2rem", color: "#e1e2eb" }}>Blog coming soon</h1>
+        <h1 className="font-headline font-extrabold mb-3" style={{ fontSize: "2rem", color: "#e1e2eb" }}>{t("static.blog.title")}</h1>
         <p className="text-sm mb-8 mx-auto" style={{ color: "#859399", maxWidth: "420px" }}>
-          We&apos;re writing about how we build, what works, and what doesn&apos;t. First posts land soon — until then, follow the build in public on social.
+          {t("static.blog.body")}
         </p>
         <a
           href="/"
           className="inline-block px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110"
           style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}
         >
-          Back to home
+          {t("static.blog.backToHome")}
         </a>
       </div>
     </div>

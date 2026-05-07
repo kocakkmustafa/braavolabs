@@ -62,6 +62,37 @@
       }
     }
   },
+  "static": {
+    "common": { "back": "← Geri", "lastUpdated": "Son güncelleme:" },
+    "blog": {
+      "title": "Blog yakında",
+      "body": "Nasıl inşa ettiğimiz, neyin işe yaradığı ve neyin yaramadığı hakkında yazıyoruz. İlk yazılar yakında — o zamana kadar sosyal medyada açık geliştirme sürecini takip edebilirsin.",
+      "backToHome": "Ana sayfaya dön"
+    },
+    "changelog": {
+      "title": "Sürüm Notları",
+      "subtitle": "Ne yayınladık, ne zaman yayınladık.",
+      "releaseTitle": "v0.1.0 — Açık önizleme",
+      "releaseDate": "Mayıs 2026",
+      "items": [
+        "Groq ile çalışan ücretsiz deneme (ayda 10 çalıştırma, API anahtarına gerek yok).",
+        "Çevrimdışı JWT lisanslarıyla pipeline dışa aktarma DRM.",
+        "Google + GitHub OAuth ile giriş.",
+        "Sertleştirilmiş deploy: HMAC webhook, hesap kilidi, CSP, HSTS.",
+        "SSE ile gerçek zamanlı çalıştırma akışı.",
+        "Yasal uyum için Cookie / KVKK / GDPR sayfaları yayında."
+      ],
+      "githubIntro": "Ayrıntılı sürüm notları GitHub'da:"
+    },
+    "status": {
+      "title": "Tüm sistemler çalışıyor",
+      "subtitle": "Manuel olarak doğrulanmış durum. Gerçek zamanlı genel durum sayfası (ayrı bir alt alan adında) yol haritamızda.",
+      "services": { "website": "Web sitesi", "auth": "Kimlik doğrulama", "api": "API", "runs": "Pipeline çalıştırmaları", "database": "Veritabanı", "email": "E-posta gönderimi" },
+      "operational": "Çalışıyor",
+      "alertTitle": "Bir kesinti mi gördün?",
+      "alertBody": "support@braavolabs.com adresine ne denediğini ve gördüğün hatayı yaz — araştırıp bu sayfayı güncelleyeceğiz."
+    }
+  },
   "auth": {
     "login": { "welcome": "Tekrar hoş geldin", "subtitle": "Braavolabs hesabına giriş yap", "tabSignIn": "Giriş Yap", "tabRegister": "Kayıt Ol" },
     "register": { "welcome": "Hesap oluştur", "subtitle": "Otonom AI şirketleri kurmaya başla" },

@@ -1,14 +1,11 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 export default function StatusPage() {
-  const services = [
-    "Public website",
-    "Authentication",
-    "API",
-    "Pipeline runs",
-    "Database",
-    "Email delivery",
-  ];
+  const t = useTranslations();
+  // Stable English keys here; per-locale labels resolved at render.
+  const serviceKeys = ["website", "auth", "api", "runs", "database", "email"] as const;
 
   return (
     <div className="min-h-screen" style={{ background: "#0a0d14" }}>
@@ -25,7 +22,7 @@ export default function StatusPage() {
           </div>
           <span className="font-headline font-bold text-sm" style={{ color: "#e1e2eb" }}>Braavolabs</span>
         </a>
-        <a href="/" className="text-sm hover:text-white transition-colors" style={{ color: "#859399" }}>← Back</a>
+        <a href="/" className="text-sm hover:text-white transition-colors" style={{ color: "#859399" }}>{t("static.common.back")}</a>
       </nav>
 
       <div className="max-w-[720px] mx-auto px-6 py-16">
@@ -34,23 +31,23 @@ export default function StatusPage() {
             className="w-3 h-3 rounded-full"
             style={{ background: "#34d399", boxShadow: "0 0 12px #34d39988" }}
           />
-          <h1 className="font-headline font-extrabold" style={{ fontSize: "2rem", color: "#e1e2eb" }}>All systems operational</h1>
+          <h1 className="font-headline font-extrabold" style={{ fontSize: "2rem", color: "#e1e2eb" }}>{t("static.status.title")}</h1>
         </div>
         <p className="text-sm mb-10" style={{ color: "#3c494e" }}>
-          Manually verified status. A real-time public status page (separate subdomain) is on the roadmap.
+          {t("static.status.subtitle")}
         </p>
 
         <div className="space-y-2 mb-10">
-          {services.map((name) => (
+          {serviceKeys.map((key) => (
             <div
-              key={name}
+              key={key}
               className="flex items-center justify-between px-4 py-3 rounded-xl"
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
             >
-              <span className="text-sm" style={{ color: "#bbc9cf" }}>{name}</span>
+              <span className="text-sm" style={{ color: "#bbc9cf" }}>{t(`static.status.services.${key}`)}</span>
               <span className="flex items-center gap-2 text-xs" style={{ color: "#34d399" }}>
                 <span className="w-2 h-2 rounded-full" style={{ background: "#34d399" }} />
-                Operational
+                {t("static.status.operational")}
               </span>
             </div>
           ))}
@@ -60,9 +57,8 @@ export default function StatusPage() {
           className="p-5 rounded-xl text-sm"
           style={{ background: "rgba(0,209,255,0.04)", border: "1px solid rgba(0,209,255,0.15)", color: "#bbc9cf" }}
         >
-          <strong style={{ color: "#e1e2eb" }}>Spotted an outage?</strong> Email{" "}
-          <a href="mailto:support@braavolabs.com" style={{ color: "#a4e6ff" }}>support@braavolabs.com</a>{" "}
-          with what you tried and the error you saw — we&apos;ll investigate and update this page.
+          <strong style={{ color: "#e1e2eb" }}>{t("static.status.alertTitle")}</strong>{" "}
+          {t("static.status.alertBody")}
         </div>
       </div>
     </div>
