@@ -84,6 +84,50 @@
       ],
       "githubIntro": "Notes de version détaillées sur GitHub :"
     },
+    "legal": {
+      "privacy": {
+        "title": "Politique de Confidentialité",
+        "date": "Mars 2026",
+        "sections": [
+          { "title": "Données que nous collectons", "body": "Nous recueillons les informations que vous fournissez lors de la création d'un compte (nom, email, nom de l'organisation) et les données générées par votre utilisation de la plateforme (descriptions d'entreprises, configurations d'agents, journaux de pipelines, métriques d'usage). Nous ne recueillons pas directement les détails de paiement — les paiements sont traités par Stripe." },
+          { "title": "Comment nous utilisons vos données", "body": "Vos données servent uniquement à exploiter la plateforme Braavolabs : exécuter vos agents, stocker votre historique de pipelines et générer des analyses. Nous ne vendons pas, ne partageons pas et n'utilisons pas vos données pour entraîner des modèles IA. Les données de chaque tenant sont strictement isolées." },
+          { "title": "Stockage des données", "body": "Toutes les données sont stockées dans des bases PostgreSQL chiffrées. Les journaux d'audit et d'activité sont conservés 12 mois par défaut. Vous pouvez demander la suppression de votre compte et de toutes les données associées à tout moment." },
+          { "title": "Services tiers", "body": "Nous utilisons Stripe pour la facturation, SendGrid pour les e-mails transactionnels, Google OAuth pour l'authentification (optionnel) et HubSpot pour l'intégration CRM (opt-in). Chacun a sa propre politique de confidentialité." },
+          { "title": "Vos droits", "body": "Vous avez le droit d'accéder, d'exporter et de supprimer vos données à tout moment. Pour exercer ces droits, contactez-nous à privacy@braavolabs.com. Nous répondrons sous 30 jours." },
+          { "title": "Sécurité", "body": "Nous utilisons un chiffrement standard de l'industrie en transit (TLS 1.3) et au repos (AES-256). L'accès aux systèmes de production est restreint au personnel autorisé. Nous menons des revues de sécurité régulières." },
+          { "title": "Modifications", "body": "Nous pouvons mettre à jour cette politique de temps en temps. Nous notifierons les changements importants par email. L'utilisation continue de la plateforme après les changements vaut acceptation de la politique mise à jour." },
+          { "title": "Contact", "body": "Des questions sur cette politique ? Écrivez-nous à privacy@braavolabs.com." }
+        ]
+      },
+      "terms": {
+        "title": "Conditions d'Utilisation",
+        "date": "Mars 2026",
+        "sections": [
+          { "title": "1. Acceptation", "body": "En créant un compte ou en utilisant Braavolabs, vous acceptez ces Conditions d'Utilisation. Si vous utilisez la plateforme au nom d'une organisation, vous déclarez avoir l'autorité pour engager cette organisation par ces conditions." },
+          { "title": "2. Description du Service", "body": "Braavolabs fournit une plateforme propulsée par l'IA pour créer et exploiter des flux de travail métier autonomes. La plateforme utilise Claude (Anthropic) pour générer agents et pipelines à partir de vos descriptions." },
+          { "title": "3. Usage Acceptable", "body": "Vous ne pouvez pas utiliser la plateforme pour générer du spam, mener des activités illégales, violer les droits de tiers ou contourner les contrôles de gouvernance et de risque de la plateforme. L'outreach automatisé est soumis aux limites anti-spam intégrées." },
+          { "title": "4. Forfait Gratuit", "body": "Le forfait gratuit inclut 1 entreprise, 10 exécutions par mois et l'accès aux canaux TikTok et LinkedIn. Les fonctionnalités du forfait gratuit peuvent changer avec un préavis de 30 jours." },
+          { "title": "5. Forfaits Payants", "body": "Les abonnements payants sont facturés mensuellement via Stripe. Vous pouvez annuler à tout moment ; l'annulation prend effet à la fin de la période de facturation en cours. Aucun remboursement n'est émis pour les mois partiels." },
+          { "title": "6. Propriété des Données", "body": "Vous possédez toutes les données que vous saisissez sur la plateforme, y compris les descriptions d'entreprises, les configurations d'agents et les outputs. Vous nous accordez une licence limitée pour traiter ces données uniquement pour fournir le service." },
+          { "title": "7. Outputs IA", "body": "Le contenu généré par l'IA (outputs d'agents, brouillons, messages d'outreach) doit être examiné avant envoi. Vous êtes responsable de tout contenu envoyé via des intégrations connectées à votre compte." },
+          { "title": "8. Limitation de Responsabilité", "body": "La plateforme est fournie 'en l'état'. Nous ne sommes pas responsables des dommages indirects, accessoires ou consécutifs découlant de votre utilisation de la plateforme ou du contenu généré par IA." },
+          { "title": "9. Résiliation", "body": "Nous pouvons suspendre ou résilier les comptes qui violent ces conditions. Vous pouvez supprimer votre compte à tout moment depuis la page Paramètres." },
+          { "title": "10. Contact", "body": "Des questions sur ces conditions ? Écrivez-nous à legal@braavolabs.com." }
+        ]
+      },
+      "cookies": {
+        "title": "Politique des Cookies",
+        "date": "Mai 2026",
+        "sections": [
+          { "title": "Que sont les cookies", "body": "Les cookies sont de petits fichiers texte placés sur votre appareil lorsque vous visitez un site web. Nous utilisons les cookies et techniques similaires de stockage local pour vous garder connecté, mémoriser votre préférence linguistique et améliorer votre expérience." },
+          { "title": "Cookies que nous utilisons", "body": "Strictement nécessaires : un token de session JWT pour l'authentification. Préférence : NEXT_LOCALE pour mémoriser votre langue. Nous n'utilisons pas de cookies de ciblage publicitaire. L'analytique est opt-in (Plausible, sans cookie par défaut)." },
+          { "title": "Cookies tiers", "body": "Stripe Checkout pose des cookies durant les flux de paiement pour la prévention de fraude. Les pixels de tracking HubSpot ne s'exécutent que si vous donnez votre opt-in. Google ou GitHub OAuth posent leurs propres cookies lors de la connexion — ils sont régis par leurs politiques respectives." },
+          { "title": "Comment gérer les cookies", "body": "La plupart des navigateurs vous permettent de refuser ou supprimer les cookies via leurs paramètres. Désactiver les cookies strictement nécessaires vous empêchera de vous connecter. Là où requis, notre bannière de cookies vous permet d'accepter ou refuser les cookies non essentiels." },
+          { "title": "Base légale", "body": "Nous nous appuyons sur l'intérêt légitime pour les cookies strictement nécessaires (KVKK Art. 5/2-f et GDPR Art. 6(1)(f)) et sur votre consentement pour les cookies non essentiels (KVKK Art. 5/1 et GDPR Art. 6(1)(a))." },
+          { "title": "Contact", "body": "Des questions sur les cookies ? Écrivez à privacy@braavolabs.com." }
+        ]
+      }
+    },
     "about": {
       "title": "À propos de Braavolabs",
       "subtitle": "Construire des entreprises IA autonomes — sans la lourdeur d'une agence.",

@@ -84,6 +84,50 @@
       ],
       "githubIntro": "Ayrıntılı sürüm notları GitHub'da:"
     },
+    "legal": {
+      "privacy": {
+        "title": "Gizlilik Politikası",
+        "date": "Mart 2026",
+        "sections": [
+          { "title": "Topladığımız Veriler", "body": "Hesap oluştururken sağladığın bilgileri (ad, e-posta, organizasyon adı) ve platformu kullanırken üretilen verileri (şirket açıklamaları, ajan yapılandırmaları, pipeline çalıştırma kayıtları, kullanım metrikleri) topluyoruz. Ödeme bilgilerini doğrudan toplamayız — ödemeler Stripe tarafından işlenir." },
+          { "title": "Verini Nasıl Kullanıyoruz", "body": "Verin yalnızca Braavolabs platformunu işletmek için kullanılır: ajanlarını çalıştırmak, pipeline geçmişini saklamak ve analitik üretmek. Verini satmıyor, paylaşmıyor veya AI modellerini eğitmek için kullanmıyoruz. Her tenant'ın verisi sıkı şekilde izole edilir." },
+          { "title": "Veri Saklama", "body": "Tüm veriler şifrelenmiş PostgreSQL veritabanlarında saklanır. Denetim kayıtları ve aktivite kayıtları varsayılan olarak 12 ay tutulur. Hesabının ve ilişkili tüm verilerinin silinmesini istediğin an talep edebilirsin." },
+          { "title": "Üçüncü Taraf Hizmetler", "body": "Faturalama için Stripe, transactional e-posta için SendGrid, kimlik doğrulama için Google OAuth (opsiyonel) ve CRM entegrasyonu için HubSpot (opt-in) kullanıyoruz. Her birinin kendi gizlilik politikası vardır." },
+          { "title": "Hakların", "body": "Verine erişme, dışa aktarma ve silme hakkın istediğin zaman vardır. Bu hakları kullanmak için privacy@braavolabs.com adresinden bize yaz. 30 gün içinde yanıtlarız." },
+          { "title": "Güvenlik", "body": "Veri taşımada (TLS 1.3) ve depolamada (AES-256) endüstri standardı şifreleme kullanırız. Üretim sistemlerine erişim yetkili personelle sınırlıdır. Düzenli güvenlik incelemeleri yapıyoruz." },
+          { "title": "Değişiklikler", "body": "Bu politikayı zaman zaman güncelleyebiliriz. Önemli değişiklikleri e-posta ile bildiririz. Değişikliklerden sonra platformu kullanmaya devam etmen güncel politikayı kabul ettiğin anlamına gelir." },
+          { "title": "İletişim", "body": "Bu politikayla ilgili sorular için: privacy@braavolabs.com." }
+        ]
+      },
+      "terms": {
+        "title": "Kullanım Şartları",
+        "date": "Mart 2026",
+        "sections": [
+          { "title": "1. Kabul", "body": "Hesap oluşturarak veya Braavolabs'ı kullanarak bu Kullanım Şartları'nı kabul etmiş olursun. Platformu bir organizasyon adına kullanıyorsan, o organizasyonu bu şartlara bağlama yetkin olduğunu beyan edersin." },
+          { "title": "2. Hizmet Açıklaması", "body": "Braavolabs, otonom iş akışları oluşturmak ve çalıştırmak için AI destekli bir platform sunar. Platform, anlattıkların temelinde ajanlar ve pipeline'lar üretmek için Claude'u (Anthropic) kullanır." },
+          { "title": "3. Kabul Edilebilir Kullanım", "body": "Platformu spam üretmek, yasa dışı faaliyetler yürütmek, üçüncü taraf haklarını ihlal etmek veya yönetişim ve risk kontrollerini atlamak için kullanamazsın. Otomatik dış erişim, platforma yerleşik anti-spam limitlere tabidir." },
+          { "title": "4. Ücretsiz Plan", "body": "Ücretsiz plan 1 şirket, ayda 10 çalıştırma ve TikTok + LinkedIn kanallarına erişim içerir. Ücretsiz plan özellikleri 30 gün önceden bildirimle değişebilir." },
+          { "title": "5. Ücretli Planlar", "body": "Ücretli abonelikler Stripe üzerinden aylık faturalanır. İstediğin an iptal edebilirsin; iptal mevcut faturalama döneminin sonunda etkili olur. Kısmi aylar için iade yapılmaz." },
+          { "title": "6. Veri Sahipliği", "body": "Platforma girdiğin tüm verilere sen sahipsin — şirket açıklamaları, ajan yapılandırmaları, çıktılar dahil. Bize sadece hizmeti sunmak için bu veriyi işleme konusunda sınırlı bir lisans verirsin." },
+          { "title": "7. AI Çıktıları", "body": "AI tarafından üretilen içerik (ajan çıktıları, taslaklar, outreach mesajları) gönderilmeden önce gözden geçirilmelidir. Hesabına bağlı entegrasyonlar üzerinden gönderilen tüm içerikten sen sorumlusun." },
+          { "title": "8. Sorumluluk Sınırlaması", "body": "Platform 'olduğu gibi' sunulur. Platformu veya AI tarafından üretilen içeriği kullanmandan kaynaklanan dolaylı, tesadüfi veya sonuç olarak ortaya çıkan zararlardan sorumlu değiliz." },
+          { "title": "9. Fesih", "body": "Bu şartları ihlal eden hesapları askıya alabilir veya feshedebiliriz. Sen de hesabını istediğin an Ayarlar sayfasından silebilirsin." },
+          { "title": "10. İletişim", "body": "Bu şartlarla ilgili sorular için: legal@braavolabs.com." }
+        ]
+      },
+      "cookies": {
+        "title": "Çerez Politikası",
+        "date": "Mayıs 2026",
+        "sections": [
+          { "title": "Çerez Nedir", "body": "Çerezler, bir web sitesini ziyaret ettiğinde cihazına yerleştirilen küçük metin dosyalarıdır. Oturumunu sürdürmek, dil tercihini hatırlamak ve deneyimini iyileştirmek için çerez ve benzer yerel depolama tekniklerini kullanırız." },
+          { "title": "Kullandığımız Çerezler", "body": "Kesinlikle gerekli: kimlik doğrulama için JWT oturum token'ı. Tercih: dil tercihini hatırlamak için NEXT_LOCALE. Reklam hedefleme çerezleri çalıştırmıyoruz. Analitik opt-in (Plausible, varsayılan olarak çerezsiz)." },
+          { "title": "Üçüncü Taraf Çerezleri", "body": "Stripe Checkout, ödeme akışları sırasında dolandırıcılığı önlemek için çerezler ayarlar. HubSpot izleme pikselleri yalnızca opt-in olduğunda çalışır. Google veya GitHub OAuth, giriş sırasında kendi çerezlerini ayarlar — bunlar kendi politikalarına tabidir." },
+          { "title": "Çerezleri Yönetme", "body": "Çoğu tarayıcı, ayarları üzerinden çerezleri reddetmene veya silmene izin verir. Kesinlikle gerekli çerezleri devre dışı bırakmak giriş yapmanı engeller. Gerekli olduğu yerde çerez bannerımız zorunlu olmayan çerezleri kabul etmene veya reddetmene olanak tanır." },
+          { "title": "Hukuki Dayanak", "body": "Kesinlikle gerekli çerezler için meşru menfaate (KVKK madde 5/2-f ve GDPR madde 6(1)(f)) ve zorunlu olmayan çerezler için açık rızana (KVKK madde 5/1 ve GDPR madde 6(1)(a)) dayanırız." },
+          { "title": "İletişim", "body": "Çerezlerle ilgili sorular için: privacy@braavolabs.com." }
+        ]
+      }
+    },
     "about": {
       "title": "Braavolabs Hakkında",
       "subtitle": "Ajans yükü olmadan otonom AI şirketleri kuruyoruz.",
