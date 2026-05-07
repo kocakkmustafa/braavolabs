@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { timeAgo } from "../../lib/timeAgo";
@@ -20,6 +21,7 @@ const TRIGGER_ICONS: Record<string, string> = {
 };
 
 export default function PipelinesPage() {
+  const t = useTranslations();
   const { token, hydrated } = useAuthGuard();
   const [pipelines, setPipelines] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
@@ -76,8 +78,8 @@ export default function PipelinesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold font-headline" style={{ color: "#e1e2eb" }}>AI Workflows</h1>
-          <p className="text-sm mt-0.5" style={{ color: "#859399" }}>Manage pipelines across all your companies</p>
+          <h1 className="text-xl sm:text-2xl font-bold font-headline" style={{ color: "#e1e2eb" }}>{t("app.pipelines.title")}</h1>
+          <p className="text-sm mt-0.5" style={{ color: "#859399" }}>{t("app.pipelines.subtitle")}</p>
         </div>
         <Link
           href="/companies/new"
@@ -85,16 +87,16 @@ export default function PipelinesPage() {
           style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}
         >
           <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
-          New Company
+          {t("app.pipelines.newCompany")}
         </Link>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 mb-6 stagger-children">
         {[
-          { label: "Total Pipelines", value: stats.total, icon: "account_tree", color: "#a4e6ff" },
-          { label: "Active", value: stats.active, icon: "play_circle", color: "#34d399" },
-          { label: "Scheduled", value: stats.scheduled, icon: "schedule", color: "#fbbf24" },
+          { label: t("app.pipelines.statTotal"), value: stats.total, icon: "account_tree", color: "#a4e6ff" },
+          { label: t("app.pipelines.statActive"), value: stats.active, icon: "play_circle", color: "#34d399" },
+          { label: t("app.pipelines.statScheduled"), value: stats.scheduled, icon: "schedule", color: "#fbbf24" },
         ].map((s) => (
           <div key={s.label} className="metric-card rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
@@ -113,7 +115,7 @@ export default function PipelinesPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search pipelines..."
+            placeholder={t("app.pipelines.searchPlaceholder")}
             className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none"
             style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
           />
@@ -124,7 +126,7 @@ export default function PipelinesPage() {
           className="px-4 py-2.5 rounded-xl text-sm outline-none"
           style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
         >
-          <option value="all">All Companies</option>
+          <option value="all">{t("app.pipelines.allCompanies")}</option>
           {companies.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
@@ -142,10 +144,10 @@ export default function PipelinesPage() {
         <div className="glass-card rounded-2xl text-center py-16">
           <span className="material-symbols-outlined text-4xl mb-4 block" style={{ color: "#00d1ff" }}>account_tree</span>
           <p className="font-semibold" style={{ color: "#e1e2eb" }}>
-            {pipelines.length === 0 ? "No workflows yet" : "No matching workflows"}
+            {pipelines.length === 0 ? t("app.pipelines.emptyTitle") : t("app.pipelines.emptyMatchTitle")}
           </p>
           <p className="text-sm mt-1" style={{ color: "#859399" }}>
-            {pipelines.length === 0 ? "Create a company to generate AI workflows automatically." : "Try adjusting your filters."}
+            {pipelines.length === 0 ? t("app.pipelines.emptyBody") : t("app.pipelines.emptyMatchBody")}
           </p>
           {pipelines.length === 0 && (
             <Link
@@ -153,7 +155,7 @@ export default function PipelinesPage() {
               className="inline-flex items-center gap-2 mt-5 px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
               style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}
             >
-              Create Company
+              {t("app.pipelines.createCompany")}
             </Link>
           )}
         </div>
@@ -215,7 +217,7 @@ export default function PipelinesPage() {
                     {/* Steps count */}
                     <div className="flex items-center gap-1.5">
                       <span className="material-symbols-outlined" style={{ fontSize: 14, color: "#3c494e" }}>layers</span>
-                      <span className="text-xs" style={{ color: "#3c494e" }}>{pipeline.steps?.length ?? 0} steps</span>
+                      <span className="text-xs" style={{ color: "#3c494e" }}>{pipeline.steps?.length ?? 0} {t("app.pipelines.stepsLabel")}</span>
                     </div>
 
                     {/* Last run */}
@@ -247,7 +249,7 @@ export default function PipelinesPage() {
                       ) : (
                         <span className="material-symbols-outlined" style={{ fontSize: 14 }}>play_arrow</span>
                       )}
-                      Run
+                      {t("app.pipelines.runButton")}
                     </button>
                     <Link
                       href={`/companies/${pipeline.companyId}`}
@@ -255,7 +257,7 @@ export default function PipelinesPage() {
                       style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf", textDecoration: "none" }}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: 14 }}>open_in_new</span>
-                      Detail
+                      {t("app.pipelines.detailButton")}
                     </Link>
                   </div>
                 </div>

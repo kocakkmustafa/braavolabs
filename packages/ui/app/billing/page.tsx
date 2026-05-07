@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { PLAN_LIMITS as SHARED_PLAN_LIMITS, PLAN_LABEL } from "@ai-company-os/core";
@@ -22,6 +23,7 @@ const PLAN_LIMITS: Record<string, { runs: number; companies: number; channels: s
   );
 
 export default function BillingPage() {
+  const t = useTranslations();
   const { token, hydrated } = useAuthGuard();
   const [usage, setUsage] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
@@ -75,14 +77,14 @@ export default function BillingPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
       <div className="mb-8">
-        <h1 className="text-xl sm:text-2xl font-bold font-headline gradient-text">Billing & Usage</h1>
-        <p className="text-sm mt-0.5" style={{ color: "#859399" }}>Manage your plan, monitor usage, and upgrade when ready.</p>
+        <h1 className="text-xl sm:text-2xl font-bold font-headline gradient-text">{t("app.billing.title")}</h1>
+        <p className="text-sm mt-0.5" style={{ color: "#859399" }}>{t("app.billing.subtitle")}</p>
       </div>
 
       {errorMsg && (
         <div className="px-4 py-3 rounded-xl mb-4 text-sm" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
           {errorMsg}
-          <button onClick={() => setErrorMsg(null)} className="ml-3 underline text-xs" style={{ color: "#f87171" }}>Dismiss</button>
+          <button onClick={() => setErrorMsg(null)} className="ml-3 underline text-xs" style={{ color: "#f87171" }}>{t("app.billing.dismiss")}</button>
         </div>
       )}
 
@@ -108,12 +110,12 @@ export default function BillingPage() {
                 </div>
                 <div>
                   <div className="flex items-center gap-3">
-                    <h2 className="font-headline font-bold text-lg" style={{ color: "#e1e2eb" }}>{plan} Plan</h2>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ background: "rgba(52,211,153,0.1)", color: "#34d399" }}>ACTIVE</span>
+                    <h2 className="font-headline font-bold text-lg" style={{ color: "#e1e2eb" }}>{plan} {t("app.billing.planSuffix")}</h2>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ background: "rgba(52,211,153,0.1)", color: "#34d399" }}>{t("app.billing.active")}</span>
                   </div>
                   {subscription?.subscription && (
                     <p className="text-xs mt-1" style={{ color: "#859399" }}>
-                      {subscription.subscription.cancelAtPeriodEnd ? "Cancels" : "Renews"}{" "}
+                      {subscription.subscription.cancelAtPeriodEnd ? t("app.billing.cancels") : t("app.billing.renews")}{" "}
                       {new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()}
                     </p>
                   )}
@@ -126,7 +128,7 @@ export default function BillingPage() {
                   style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: 16 }}>credit_card</span>
-                  Manage Billing
+                  {t("app.billing.manageBilling")}
                 </button>
               )}
             </div>
@@ -135,10 +137,10 @@ export default function BillingPage() {
           {/* Usage meters */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 stagger-children">
             {[
-              { label: "Runs This Month", current: usage?.live?.runs ?? 0, limit: limits.runs, icon: "play_circle", color: "#00d1ff" },
-              { label: "Tool Calls", current: usage?.live?.toolCalls ?? 0, limit: -1, icon: "build", color: "#a4e6ff" },
-              { label: "Companies", current: 0, limit: limits.companies, icon: "business", color: "#34d399" },
-              { label: "Channels", current: 0, limit: -1, icon: "hub", color: "#fbbf24", text: limits.channels },
+              { label: t("app.billing.meterRuns"), current: usage?.live?.runs ?? 0, limit: limits.runs, icon: "play_circle", color: "#00d1ff" },
+              { label: t("app.billing.meterToolCalls"), current: usage?.live?.toolCalls ?? 0, limit: -1, icon: "build", color: "#a4e6ff" },
+              { label: t("app.billing.meterCompanies"), current: 0, limit: limits.companies, icon: "business", color: "#34d399" },
+              { label: t("app.billing.meterChannels"), current: 0, limit: -1, icon: "hub", color: "#fbbf24", text: limits.channels },
             ].map((m) => {
               const unlimited = m.limit < 0;
               const pct = unlimited ? 0 : Math.min(100, (m.current / m.limit) * 100);
@@ -169,19 +171,19 @@ export default function BillingPage() {
           </div>
 
           {/* Plans comparison */}
-          <h2 className="font-headline font-bold text-base mb-4" style={{ color: "#e1e2eb" }}>Compare Plans</h2>
+          <h2 className="font-headline font-bold text-base mb-4" style={{ color: "#e1e2eb" }}>{t("app.billing.comparePlans")}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             {[
               {
-                name: "Free", price: "$0", priceNote: "forever", id: "FREE", color: "#859399",
+                name: t("app.billing.planFreeName"), price: "$0", priceNote: t("app.billing.planFreeNote"), id: "FREE", color: "#859399",
                 features: ["1 company", "10 runs/month", "TikTok + LinkedIn", "Community support", "Basic analytics"],
               },
               {
-                name: "Pro", price: "$49", priceNote: "/month", id: "PRO", color: "#00d1ff", popular: true,
+                name: t("app.billing.planProName"), price: "$49", priceNote: t("app.billing.planProNote"), id: "PRO", color: "#00d1ff", popular: true,
                 features: ["5 companies", "100 runs/month", "All channels", "CRM sync (HubSpot)", "Priority support", "Blueprint sharing", "Advanced analytics"],
               },
               {
-                name: "Enterprise", price: "Custom", priceNote: "contact us", id: "ENTERPRISE", color: "#e0b6ff",
+                name: t("app.billing.planEnterpriseName"), price: t("app.billing.planEnterprisePrice"), priceNote: t("app.billing.planEnterpriseNote"), id: "ENTERPRISE", color: "#e0b6ff",
                 features: ["Unlimited everything", "SSO / SAML", "Dedicated SLA", "Custom integrations", "White-label option", "On-premise deployment"],
               },
             ].map((p) => (
@@ -195,7 +197,7 @@ export default function BillingPage() {
                     className="absolute top-0 right-0 px-3 py-1 text-[10px] font-bold rounded-bl-xl"
                     style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)", color: "white" }}
                   >
-                    POPULAR
+                    {t("app.billing.popular")}
                   </div>
                 )}
                 <p className="font-headline font-bold text-base mb-1" style={{ color: "#e1e2eb" }}>{p.name}</p>
@@ -205,7 +207,7 @@ export default function BillingPage() {
                 </div>
                 {plan === p.id && (
                   <span className="inline-block mb-3 px-2.5 py-0.5 rounded-full text-[10px] font-bold self-start" style={{ background: "rgba(52,211,153,0.1)", color: "#34d399", border: "1px solid rgba(52,211,153,0.2)" }}>
-                    Current Plan
+                    {t("app.billing.currentPlan")}
                   </span>
                 )}
                 <ul className="space-y-2 mb-6 flex-1">
@@ -223,7 +225,7 @@ export default function BillingPage() {
                     className="w-full py-2.5 rounded-xl text-sm font-bold transition-all hover:brightness-110 disabled:opacity-50"
                     style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)", color: "white" }}
                   >
-                    {upgradeLoading ? "Processing..." : `Upgrade to ${p.name}`}
+                    {upgradeLoading ? t("app.billing.processing") : t("app.billing.upgradeTo", { name: p.name })}
                   </button>
                 )}
               </div>
@@ -233,14 +235,14 @@ export default function BillingPage() {
           {/* Usage history */}
           {usage?.meters && usage.meters.length > 0 && (
             <>
-              <h2 className="font-headline font-bold text-base mb-4" style={{ color: "#e1e2eb" }}>Usage History</h2>
+              <h2 className="font-headline font-bold text-base mb-4" style={{ color: "#e1e2eb" }}>{t("app.billing.usageHistory")}</h2>
               <div className="glass-card rounded-xl overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                        <th className="text-left px-4 py-3 text-xs font-semibold" style={{ color: "#859399" }}>Metric</th>
-                        <th className="text-right px-4 py-3 text-xs font-semibold" style={{ color: "#859399" }}>Value</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold" style={{ color: "#859399" }}>{t("app.billing.thMetric")}</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold" style={{ color: "#859399" }}>{t("app.billing.thValue")}</th>
                       </tr>
                     </thead>
                     <tbody>

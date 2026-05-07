@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../lib/store";
 
@@ -29,6 +30,7 @@ const RISK_BADGE_STYLES: Record<string, { background: string; color: string; bor
 const DEFAULT_BADGE = { background: "rgba(133,147,153,0.12)", color: "#859399", border: "1px solid rgba(133,147,153,0.2)" };
 
 export default function ErrorsPage() {
+  const t = useTranslations();
   const token = useAppStore((s) => s.token);
   const router = useRouter();
   const [runs, setRuns] = useState<FailedRun[]>([]);
@@ -68,14 +70,14 @@ export default function ErrorsPage() {
   return (
     <div style={{ maxWidth: 896, margin: "0 auto", padding: "32px 24px" }} className="animate-fade-in">
       <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: "#e1e2eb", margin: 0 }}>Errors &amp; Risk Events</h1>
-        <p style={{ fontSize: 14, color: "#859399", marginTop: 4 }}>Failed runs and governance risk events from your AI agents</p>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: "#e1e2eb", margin: 0 }}>{t("app.errors.title")}</h1>
+        <p style={{ fontSize: 14, color: "#859399", marginTop: 4 }}>{t("app.errors.subtitle")}</p>
       </div>
 
       {/* Failed Runs */}
       <div style={{ marginBottom: 40 }}>
         <h2 style={{ fontSize: 16, fontWeight: 600, color: "#bbc9cf", marginBottom: 16 }}>
-          Failed &amp; Cancelled Runs ({runs.length})
+          {t("app.errors.failedSectionTemplate", { count: runs.length })}
         </h2>
         {runs.length > 0 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -97,7 +99,7 @@ export default function ErrorsPage() {
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <span style={{ fontWeight: 600, color: "#e1e2eb", fontSize: 14 }}>
-                      {run.pipeline?.name ?? "Unknown"}
+                      {run.pipeline?.name ?? t("app.errors.unknown")}
                     </span>
                     <span style={{ color: "#859399", fontSize: 13 }}>
                       {run.pipeline?.company?.name ?? ""}
@@ -121,7 +123,7 @@ export default function ErrorsPage() {
                       {new Date(run.createdAt).toLocaleString()}
                     </p>
                     <p style={{ fontSize: 11, color: "#3c494e", margin: "2px 0 0" }}>
-                      {run._count?.steps ?? 0} steps
+                      {run._count?.steps ?? 0} {t("app.errors.stepsLabel")}
                     </p>
                   </div>
                 </div>
@@ -142,8 +144,8 @@ export default function ErrorsPage() {
             <div style={{ width: 48, height: 48, borderRadius: 16, background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
               <svg width={24} height={24} fill="none" viewBox="0 0 24 24" stroke="#34d399" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
             </div>
-            <p style={{ fontWeight: 600, color: "#bbc9cf", margin: 0 }}>No failed runs</p>
-            <p style={{ fontSize: 13, color: "#859399", marginTop: 4 }}>Everything is running smoothly!</p>
+            <p style={{ fontWeight: 600, color: "#bbc9cf", margin: 0 }}>{t("app.errors.noFailedTitle")}</p>
+            <p style={{ fontSize: 13, color: "#859399", marginTop: 4 }}>{t("app.errors.noFailedBody")}</p>
           </div>
         )}
       </div>
@@ -151,7 +153,7 @@ export default function ErrorsPage() {
       {/* Risk Events */}
       <div>
         <h2 style={{ fontSize: 16, fontWeight: 600, color: "#bbc9cf", marginBottom: 16 }}>
-          Risk Events ({riskEvents.length})
+          {t("app.errors.riskSectionTemplate", { count: riskEvents.length })}
         </h2>
         {riskEvents.length > 0 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -223,8 +225,8 @@ export default function ErrorsPage() {
               textAlign: "center",
             }}
           >
-            <p style={{ fontWeight: 600, color: "#bbc9cf", margin: 0 }}>No risk events detected</p>
-            <p style={{ fontSize: 13, color: "#859399", marginTop: 4 }}>Your agents are operating within all governance policies.</p>
+            <p style={{ fontWeight: 600, color: "#bbc9cf", margin: 0 }}>{t("app.errors.noRiskTitle")}</p>
+            <p style={{ fontSize: 13, color: "#859399", marginTop: 4 }}>{t("app.errors.noRiskBody")}</p>
           </div>
         )}
       </div>

@@ -2,18 +2,20 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 
+// Stable category ids — labels resolve at render via useTranslations.
 const CATEGORIES = [
-  { id: "", label: "All", icon: "apps" },
-  { id: "ecommerce", label: "E-Commerce", icon: "shopping_cart" },
-  { id: "payment", label: "Payment", icon: "payments" },
-  { id: "crm", label: "CRM", icon: "contacts" },
-  { id: "dev", label: "Dev Tools", icon: "code" },
-  { id: "social", label: "Social", icon: "share" },
-  { id: "support", label: "Support", icon: "support_agent" },
-  { id: "marketing", label: "Marketing", icon: "campaign" },
-  { id: "custom", label: "Custom", icon: "tune" },
+  { id: "", labelKey: "catAll", icon: "apps" },
+  { id: "ecommerce", labelKey: "catEcommerce", icon: "shopping_cart" },
+  { id: "payment", labelKey: "catPayment", icon: "payments" },
+  { id: "crm", labelKey: "catCrm", icon: "contacts" },
+  { id: "dev", labelKey: "catDev", icon: "code" },
+  { id: "social", labelKey: "catSocial", icon: "share" },
+  { id: "support", labelKey: "catSupport", icon: "support_agent" },
+  { id: "marketing", labelKey: "catMarketing", icon: "campaign" },
+  { id: "custom", labelKey: "catCustom", icon: "tune" },
 ];
 
 // Hardcoded webhook templates for frontend-only rendering
@@ -72,6 +74,7 @@ const WEBHOOK_TEMPLATES = [
 ];
 
 export default function WebhooksPage() {
+  const t = useTranslations();
   const { token, hydrated } = useAuthGuard();
   const [selectedCategory, setSelectedCategory] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -94,12 +97,12 @@ export default function WebhooksPage() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold font-headline gradient-text">Webhook Templates</h1>
+          <h1 className="text-xl sm:text-2xl font-bold font-headline gradient-text">{t("app.webhooks.title")}</h1>
           <p className="text-sm mt-0.5" style={{ color: "#859399" }}>
-            {WEBHOOK_TEMPLATES.length} pre-built triggers to connect external events to your pipelines
+            {t("app.webhooks.subtitleTemplate", { count: WEBHOOK_TEMPLATES.length })}
           </p>
           <p className="text-xs mt-1" style={{ color: "#3c494e" }}>
-            Copy the webhook URL from your company settings after installation.
+            {t("app.webhooks.footer")}
           </p>
         </div>
       </div>
@@ -107,7 +110,7 @@ export default function WebhooksPage() {
       {/* Search */}
       <div className="relative mb-5">
         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2" style={{ fontSize: 18, color: "#3c494e" }}>search</span>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search webhook templates..." className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }} />
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("app.webhooks.searchPlaceholder")} className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }} />
       </div>
 
       {/* Category pills */}
@@ -117,7 +120,7 @@ export default function WebhooksPage() {
           return (
             <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all" style={{ background: selectedCategory === cat.id ? "rgba(0,209,255,0.12)" : "rgba(255,255,255,0.04)", color: selectedCategory === cat.id ? "#00d1ff" : "#859399", border: selectedCategory === cat.id ? "1px solid rgba(0,209,255,0.2)" : "1px solid rgba(255,255,255,0.06)" }}>
               <span className="material-symbols-outlined" style={{ fontSize: 14 }}>{cat.icon}</span>
-              {cat.label} ({count})
+              {t(`app.webhooks.${cat.labelKey}`)} ({count})
             </button>
           );
         })}
@@ -152,17 +155,17 @@ export default function WebhooksPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
                     {/* Setup Instructions */}
                     <div>
-                      <p className="text-[10px] font-semibold tracking-wider mb-2" style={{ color: "#3c494e" }}>SETUP</p>
+                      <p className="text-[10px] font-semibold tracking-wider mb-2" style={{ color: "#3c494e" }}>{t("app.webhooks.setup")}</p>
                       <p className="text-xs" style={{ color: "#859399", lineHeight: 1.6 }}>{template.setupInstructions}</p>
                       <div className="mt-3 flex items-center gap-2">
-                        <span className="text-[10px]" style={{ color: "#3c494e" }}>Provider:</span>
+                        <span className="text-[10px]" style={{ color: "#3c494e" }}>{t("app.webhooks.providerLabel")}</span>
                         <span className="text-xs font-medium" style={{ color: "#bbc9cf" }}>{template.provider}</span>
                       </div>
                     </div>
 
                     {/* Sample Payload */}
                     <div>
-                      <p className="text-[10px] font-semibold tracking-wider mb-2" style={{ color: "#3c494e" }}>SAMPLE PAYLOAD</p>
+                      <p className="text-[10px] font-semibold tracking-wider mb-2" style={{ color: "#3c494e" }}>{t("app.webhooks.samplePayload")}</p>
                       <pre className="text-[10px] p-3 rounded-xl overflow-x-auto" style={{ background: "rgba(0,0,0,0.3)", color: "#859399", lineHeight: 1.6, maxHeight: 160 }}>
                         {JSON.stringify(template.samplePayload, null, 2)}
                       </pre>
@@ -183,12 +186,12 @@ export default function WebhooksPage() {
                       opacity: installedIds.has(template.id) ? 0.9 : 1,
                     }}
                   >
-                    {installedIds.has(template.id) ? "Installed \u2713" : "Install Template"}
+                    {installedIds.has(template.id) ? t("app.webhooks.installed") : t("app.webhooks.install")}
                   </button>
                   {installedIds.has(template.id) && (
                     <p className="mt-2 text-[10px] leading-relaxed" style={{ color: "#3c494e" }}>
-                      Webhook URL: <code style={{ color: "#859399" }}>https://yourdomain.com/hooks/{"<your-company>"}/${template.eventType}</code>
-                      <br />Copy the webhook URL from your company settings after installation.
+                      {t("app.webhooks.webhookUrlPrefix")} <code style={{ color: "#859399" }}>https://yourdomain.com/hooks/{"<your-company>"}/${template.eventType}</code>
+                      <br />{t("app.webhooks.footer")}
                     </p>
                   )}
                 </div>
@@ -201,7 +204,7 @@ export default function WebhooksPage() {
       {filtered.length === 0 && (
         <div className="text-center py-16">
           <span className="material-symbols-outlined text-4xl mb-3 block" style={{ color: "#3c494e" }}>webhook</span>
-          <p className="text-sm" style={{ color: "#859399" }}>No webhook templates match your search.</p>
+          <p className="text-sm" style={{ color: "#859399" }}>{t("app.webhooks.noResults")}</p>
         </div>
       )}
     </div>
