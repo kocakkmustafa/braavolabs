@@ -84,6 +84,10 @@
       ],
       "githubIntro": "Detailed release notes live on GitHub:"
     },
+    "singleLocale": {
+      "kvkkBanner": "This page is published in Turkish only — Türkiye's data-protection law (KVKK) requires the aydınlatma metni to be in Turkish for legal effect.",
+      "gdprBanner": "This page is published in English only — it matches the supervisory-authority working language for cross-EEA controllers."
+    },
     "legal": {
       "privacy": {
         "title": "Privacy Policy",

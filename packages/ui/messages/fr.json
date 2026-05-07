@@ -84,6 +84,10 @@
       ],
       "githubIntro": "Notes de version détaillées sur GitHub :"
     },
+    "singleLocale": {
+      "kvkkBanner": "Cette page est publiée uniquement en turc — la loi turque sur la protection des données (KVKK) exige que l'aydınlatma metni soit en turc pour produire ses effets juridiques.",
+      "gdprBanner": "Cette page est publiée uniquement en anglais — elle correspond à la langue de travail des autorités de contrôle pour les responsables transfrontaliers de l'EEE."
+    },
     "legal": {
       "privacy": {
         "title": "Politique de Confidentialité",

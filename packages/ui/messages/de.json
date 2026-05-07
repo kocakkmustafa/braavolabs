@@ -84,6 +84,10 @@
       ],
       "githubIntro": "Detaillierte Release-Notes auf GitHub:"
     },
+    "singleLocale": {
+      "kvkkBanner": "Diese Seite wird nur auf Türkisch veröffentlicht — das türkische Datenschutzgesetz (KVKK) verlangt, dass die aydınlatma metni auf Türkisch verfasst ist, um Rechtswirkung zu entfalten.",
+      "gdprBanner": "Diese Seite wird nur auf Englisch veröffentlicht — sie entspricht der Arbeitssprache der Aufsichtsbehörden für grenzüberschreitende EWR-Verantwortliche."
+    },
     "legal": {
       "privacy": {
         "title": "Datenschutzerklärung",

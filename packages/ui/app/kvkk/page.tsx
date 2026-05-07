@@ -1,6 +1,16 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+
 export default function KvkkPage() {
+  // Page body stays Turkish (legal requirement under 6698 sayılı Kanun);
+  // only the chrome (back link) and a conditional explainer banner
+  // localise. Visitors who arrived in TR see the body without scaffolding,
+  // visitors in any other locale see a one-line note in their language.
+  const t = useTranslations();
+  const locale = useLocale();
+  const showBanner = locale !== "tr";
+
   return (
     <div className="min-h-screen" style={{ background: "#0a0d14" }}>
       <nav
@@ -16,10 +26,18 @@ export default function KvkkPage() {
           </div>
           <span className="font-headline font-bold text-sm" style={{ color: "#e1e2eb" }}>Braavolabs</span>
         </a>
-        <a href="/" className="text-sm hover:text-white transition-colors" style={{ color: "#859399" }}>← Geri</a>
+        <a href="/" className="text-sm hover:text-white transition-colors" style={{ color: "#859399" }}>{t("static.common.back")}</a>
       </nav>
 
       <div className="max-w-[720px] mx-auto px-6 py-16">
+        {showBanner && (
+          <div
+            className="mb-8 p-4 rounded-xl text-xs"
+            style={{ background: "rgba(0,209,255,0.04)", border: "1px solid rgba(0,209,255,0.15)", color: "#bbc9cf" }}
+          >
+            {t("static.singleLocale.kvkkBanner")}
+          </div>
+        )}
         <div className="mb-10">
           <h1 className="font-headline font-extrabold mb-2" style={{ fontSize: "2rem", color: "#e1e2eb" }}>KVKK Aydınlatma Metni</h1>
           <p className="text-sm" style={{ color: "#3c494e" }}>Son güncelleme: Mayıs 2026</p>

@@ -84,6 +84,10 @@
       ],
       "githubIntro": "Ayrıntılı sürüm notları GitHub'da:"
     },
+    "singleLocale": {
+      "kvkkBanner": "Bu sayfa yalnızca Türkçe yayımlanır — 6698 sayılı KVKK aydınlatma metninin yasal geçerlilik için Türkçe olması zorunludur.",
+      "gdprBanner": "Bu sayfa yalnızca İngilizce yayımlanır — sınır ötesi AEA denetim otoritesi çalışma dilidir."
+    },
     "legal": {
       "privacy": {
         "title": "Gizlilik Politikası",
