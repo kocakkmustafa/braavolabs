@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../lib/store";
 import { useAuthGuard } from "../../lib/useAuthGuard";
@@ -38,16 +39,19 @@ const PLAN_LIMITS: Record<string, { runs: number; companies: number }> = Object.
   ])
 );
 
+// Stable id + i18n labelKey + icon. Labels resolve at render via
+// useTranslations so a Turkish user sees "Profil" while routing keys
+// stay debuggable.
 const NAV_ITEMS = [
-  { id: "profile",       label: "Profile",         icon: "person" },
-  { id: "notifications", label: "Notifications",   icon: "notifications" },
-  { id: "billing",       label: "Plan & Usage",    icon: "credit_card" },
-  { id: "ai_provider",   label: "AI Provider",     icon: "smart_toy" },
-  { id: "integrations",  label: "Integrations",    icon: "hub" },
-  { id: "governance",    label: "Governance",      icon: "security" },
-  { id: "api",           label: "API & Auth",      icon: "terminal" },
-  { id: "webhooks",      label: "Webhooks",        icon: "webhook" },
-  { id: "referral",      label: "Referral",        icon: "redeem" },
+  { id: "profile",       labelKey: "navProfile",       icon: "person" },
+  { id: "notifications", labelKey: "navNotifications", icon: "notifications" },
+  { id: "billing",       labelKey: "navBilling",       icon: "credit_card" },
+  { id: "ai_provider",   labelKey: "navAi",            icon: "smart_toy" },
+  { id: "integrations",  labelKey: "navIntegrations",  icon: "hub" },
+  { id: "governance",    labelKey: "navGovernance",    icon: "security" },
+  { id: "api",           labelKey: "navApi",           icon: "terminal" },
+  { id: "webhooks",      labelKey: "navWebhooks",      icon: "webhook" },
+  { id: "referral",      labelKey: "navReferral",      icon: "redeem" },
 ];
 
 const PROVIDER_LABELS: Record<string, { label: string; color: string; models: string[]; local?: boolean; defaultBaseUrl?: string; setupHint?: string }> = {
@@ -94,6 +98,7 @@ const PROVIDER_LABELS: Record<string, { label: string; color: string; models: st
 const LOCAL_LLM_PLANS: ReadonlySet<string> = new Set(["CREATOR", "PRO", "BUSINESS", "ENTERPRISE"]);
 
 export default function SettingsPage() {
+  const t = useTranslations();
   const router = useRouter();
   const { token, hydrated } = useAuthGuard();
   const tenantId = useAppStore((s) => s.tenantId);
@@ -189,7 +194,7 @@ export default function SettingsPage() {
     catch (err) { console.error("Billing portal failed:", err); setBillingError((err as Error).message); }
   }
 
-  function handleSave() { setSaved(true); toast("Settings saved successfully", "success"); setTimeout(() => setSaved(false), 2000); }
+  function handleSave() { setSaved(true); toast(t("settings.savedToast"), "success"); setTimeout(() => setSaved(false), 2000); }
 
   async function handleSaveAiConfig() {
     if (!token) return;
@@ -208,7 +213,7 @@ export default function SettingsPage() {
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? "Failed to save");
+      if (!res.ok) throw new Error(data.message ?? t("settings.aiSaveFailed"));
       setAiConfig((prev) => ({
         ...prev,
         provider: aiProvider,
@@ -217,10 +222,10 @@ export default function SettingsPage() {
         baseUrl: aiBaseUrl.trim() || null,
       }));
       setAiApiKey("");
-      setAiSaveMsg("AI provider saved successfully");
+      setAiSaveMsg(t("settings.aiSavedToast"));
       setTimeout(() => setAiSaveMsg(null), 3000);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
+      const message = err instanceof Error ? err.message : t("settings.aiUnknownError");
       setAiSaveMsg(`Error: ${message}`);
     } finally {
       setAiSaving(false);
@@ -239,7 +244,7 @@ export default function SettingsPage() {
       const data = await res.json();
       setAiTestResult(data);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
+      const message = err instanceof Error ? err.message : t("settings.aiUnknownError");
       setAiTestResult({ success: false, error: message });
     } finally {
       setAiTesting(false);
@@ -279,7 +284,7 @@ export default function SettingsPage() {
                   borderBottom: active === item.id ? "2px solid #00d1ff" : "2px solid transparent",
                 }}
               >
-                {item.label}
+                {t(`settings.${item.labelKey}`)}
               </button>
             ))}
           </nav>
@@ -290,7 +295,7 @@ export default function SettingsPage() {
           style={{ background: "rgba(255,180,171,0.08)", color: "#ffb4ab" }}
         >
           <span className="material-symbols-outlined text-sm">logout</span>
-          Sign Out
+          {t("settings.signOut")}
         </button>
       </header>
 
@@ -299,7 +304,7 @@ export default function SettingsPage() {
 
         {/* Profile */}
         {active === "profile" && (
-          <Section title="Profile" subtitle="Manage your personal information and preferences">
+          <Section title={t("settings.profileTitle")} subtitle={t("settings.profileSubtitle")}>
             <div
               className="flex items-center gap-5 mb-8 pb-8"
               style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
@@ -334,18 +339,18 @@ export default function SettingsPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-4 mb-4">
-              <Field label="First Name" placeholder="Jane" />
-              <Field label="Last Name" placeholder="Smith" />
+              <Field label={t("settings.fieldFirstName")} placeholder="Jane" />
+              <Field label={t("settings.fieldLastName")} placeholder="Smith" />
             </div>
-            <Field label="Email" placeholder="you@example.com" badge="Verified" />
-            <div className="mt-4"><Field label="Phone" placeholder="+1 (555) 000-0000" /></div>
+            <Field label={t("settings.fieldEmail")} placeholder="you@example.com" badge={t("settings.verifiedBadge")} />
+            <div className="mt-4"><Field label={t("settings.fieldPhone")} placeholder="+1 (555) 000-0000" /></div>
             <div className="mt-4">
               <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>Bio</label>
               <textarea
                 rows={3}
                 className="w-full px-4 py-2.5 rounded-lg text-sm outline-none resize-none transition-all"
                 style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
-                placeholder="Tell us about yourself..."
+                placeholder={t("settings.bioPlaceholder")}
                 onFocus={(e) => { e.currentTarget.style.border = "1px solid rgba(0,209,255,0.4)"; }}
                 onBlur={(e) => { e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)"; }}
               />
@@ -356,7 +361,7 @@ export default function SettingsPage() {
 
         {/* Notifications */}
         {active === "notifications" && (
-          <Section title="Notifications" subtitle="Control when and how you get notified">
+          <Section title={t("settings.notificationsTitle")} subtitle={t("settings.notificationsSubtitle")}>
             <div className="space-y-0">
               {([
                 { key: "spendApproval" as const, label: "Spend approval required", desc: "Critical: agent wants to spend money — requires immediate action", critical: true },
@@ -376,7 +381,7 @@ export default function SettingsPage() {
                         className="text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 flex-shrink-0"
                         style={{ background: "rgba(255,180,171,0.12)", color: "#ffb4ab" }}
                       >
-                        CRITICAL
+                        {t("settings.criticalBadge")}
                       </span>
                     )}
                     <div>
@@ -407,7 +412,7 @@ export default function SettingsPage() {
 
         {/* Billing */}
         {active === "billing" && (
-          <Section title="Plan & Usage" subtitle="Manage your subscription and monitor usage metrics">
+          <Section title={t("settings.billingTitle")} subtitle={t("settings.billingSubtitle")}>
             {billingError && (
               <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 12, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", fontSize: 14 }}>
                 {billingError}
@@ -442,14 +447,14 @@ export default function SettingsPage() {
                   className="text-sm font-medium transition-all hover:opacity-80"
                   style={{ color: "#00d1ff" }}
                 >
-                  Manage Billing →
+                  {t("settings.manageBilling")}
                 </button>
               )}
             </div>
 
             {billingUsage && (
               <div className="space-y-4 mb-8">
-                <UsageBar label="Runs This Month" current={billingUsage.live.runs} limit={limits.runs} />
+                <UsageBar label={t("settings.runsThisMonth")} current={billingUsage.live.runs} limit={limits.runs} />
                 <div className="flex justify-between text-sm">
                   <span style={{ color: "#859399" }}>Tool Calls</span>
                   <span className="font-semibold" style={{ color: "#bbc9cf" }}>{billingUsage.live.toolCalls}</span>
@@ -495,7 +500,7 @@ export default function SettingsPage() {
                       className="text-[10px] font-bold px-2 py-0.5 rounded-full mb-2 self-start"
                       style={{ background: "rgba(0,209,255,0.12)", color: "#00d1ff" }}
                     >
-                      Most Popular
+                      {t("settings.mostPopular")}
                     </span>
                   )}
                   <p className="font-headline font-semibold text-sm mb-0.5" style={{ color: "#e1e2eb" }}>{plan.name}</p>
@@ -539,7 +544,7 @@ export default function SettingsPage() {
 
         {/* Integrations */}
         {active === "integrations" && (
-          <Section title="Integrations" subtitle="Connect external services to your AI companies">
+          <Section title={t("settings.integrationsTitle")} subtitle={t("settings.integrationsSubtitle")}>
             {/* Company selector */}
             <div className="mb-6">
               <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: "#859399" }}>
@@ -554,7 +559,7 @@ export default function SettingsPage() {
                 {companies.map((c) => (
                   <option key={c.id} value={c.id} style={{ background: "#0d1117" }}>{c.name}</option>
                 ))}
-                {companies.length === 0 && <option value="">No companies found</option>}
+                {companies.length === 0 && <option value="">{t("settings.noCompaniesFound")}</option>}
               </select>
             </div>
 
@@ -569,7 +574,7 @@ export default function SettingsPage() {
                   const existing = integrations.find((i: any) => i.provider === prov.provider);
                   const isEditing = editProvider === prov.provider;
                   const statusColor = existing?.status === "ACTIVE" ? "#22c55e" : existing?.status === "ERROR" ? "#ef4444" : existing?.status === "PENDING" ? "#f59e0b" : "#3c494e";
-                  const statusLabel = existing?.status ?? "Not Connected";
+                  const statusLabel = existing?.status ?? t("settings.notConnected");
 
                   return (
                     <div
@@ -621,7 +626,7 @@ export default function SettingsPage() {
                             </pre>
                             {prov.docsUrl && (
                               <a href={prov.docsUrl} target="_blank" rel="noopener noreferrer" className="text-xs mt-2 inline-block" style={{ color: "#00d1ff" }}>
-                                View Documentation →
+                                {t("settings.viewDocumentation")}
                               </a>
                             )}
                           </div>
@@ -658,7 +663,7 @@ export default function SettingsPage() {
                                 color: testResult.success ? "#22c55e" : "#ef4444",
                               }}
                             >
-                              {testResult.success ? "Connection successful!" : `Error: ${testResult.error}`}
+                              {testResult.success ? t("settings.connectionSuccessful") : `Error: ${testResult.error}`}
                             </div>
                           )}
 
@@ -680,7 +685,7 @@ export default function SettingsPage() {
                               className="px-4 py-2 rounded-lg text-xs font-semibold"
                               style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", color: "white" }}
                             >
-                              Save Credentials
+                              {t("settings.saveCredentials")}
                             </button>
                             <button
                               onClick={async () => {
@@ -723,7 +728,7 @@ export default function SettingsPage() {
 
         {/* Governance */}
         {active === "governance" && (
-          <Section title="Governance Config" subtitle="Risk controls and autonomous behavior boundaries">
+          <Section title={t("settings.governanceTitle")} subtitle={t("settings.governanceSubtitle")}>
             <div className="space-y-0">
               {[
                 { label: "Spend Approval Required", value: "All spend actions" },
@@ -753,7 +758,7 @@ export default function SettingsPage() {
 
         {/* AI Provider */}
         {active === "ai_provider" && (
-          <Section title="AI Provider" subtitle="Configure which AI model powers your companies and agents">
+          <Section title={t("settings.aiTitle")} subtitle={t("settings.aiSubtitle")}>
             <div className="space-y-5">
 
               {/* Provider selector — local providers gated to Creator+ */}
@@ -883,7 +888,7 @@ export default function SettingsPage() {
               {(PROVIDER_LABELS[aiProvider]?.local || aiBaseUrl) && (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "#859399" }}>
-                    Base URL
+                    {t("settings.aiBaseUrl")}
                     {!PROVIDER_LABELS[aiProvider]?.local && (
                       <span className="ml-2 text-[10px] font-normal normal-case" style={{ color: "#3c494e" }}>(optional proxy override)</span>
                     )}
@@ -914,7 +919,7 @@ export default function SettingsPage() {
                     API Key
                     {aiConfig?.hasApiKey && (
                       <span className="ml-2 text-[10px] font-normal normal-case" style={{ color: "#4ade80" }}>
-                        ✓ Key configured ({aiConfig.maskedApiKey})
+                        {t("settings.aiKeyConfiguredPrefix")} ({aiConfig.maskedApiKey})
                       </span>
                     )}
                   </p>
@@ -928,7 +933,7 @@ export default function SettingsPage() {
                   </p>
                   <input
                     type="password"
-                    placeholder={aiConfig?.hasApiKey ? "Leave blank to keep existing key" : "sk-..."}
+                    placeholder={aiConfig?.hasApiKey ? t("settings.aiLeavePlaceholder") : "sk-..."}
                     value={aiApiKey}
                     onChange={(e) => setAiApiKey(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-xl text-sm font-mono"
@@ -994,7 +999,7 @@ export default function SettingsPage() {
                     opacity: aiSaving ? 0.7 : 1,
                   }}
                 >
-                  {aiSaving ? "Saving..." : "Save Provider"}
+                  {aiSaving ? t("settings.aiSaving") : t("settings.aiSaveButton")}
                 </button>
                 {(() => {
                   // Local providers (Ollama, LM Studio, Custom) don't require an API key —
@@ -1017,7 +1022,7 @@ export default function SettingsPage() {
                         opacity: aiTesting ? 0.7 : 1,
                       }}
                     >
-                      {aiTesting ? "Testing..." : "Test Connection"}
+                      {aiTesting ? t("settings.aiTesting") : t("settings.testConnection")}
                     </button>
                   );
                 })()}
