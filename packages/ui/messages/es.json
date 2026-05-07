@@ -84,6 +84,29 @@
       ],
       "githubIntro": "Notas de versión detalladas en GitHub:"
     },
+    "about": {
+      "title": "Acerca de Braavolabs",
+      "subtitle": "Construyendo empresas de IA autónomas — sin la sobrecarga de una agencia.",
+      "section1Title": "Por qué existimos",
+      "section1Body": "La mayoría de fundadores necesitan una agencia, un SDR, un equipo de contenido, un manager de operaciones — pero no pueden permitirse cinco contrataciones. Braavolabs reemplaza ese equipo con agentes de IA que ejecutan pipelines que tú describes en lenguaje natural. Aprobación de gasto, registros de auditoría y paradas de riesgo están integrados para que mantengas el control.",
+      "section2Title": "Qué estamos construyendo",
+      "section2Body": "Una plataforma donde describes una empresa en lenguaje natural — ventas, contenido, operaciones — y nuestro builder de IA escribe los agentes, pipelines e integraciones desde cero. Cada acción queda registrada, cada dólar de gasto pasa por aprobación, y todo funciona 24/7.",
+      "section3Title": "Quién está detrás",
+      "section3Body": "Braavolabs es un proyecto independiente fundado en 2026. Construimos en público — cada commit, cada decisión, cada actualización de roadmap es visible. Escríbenos cuando quieras: hello@braavolabs.com.",
+      "section4Title": "Qué sigue",
+      "section4Body": "Nuestra hoja de ruta se modela por lo que los usuarios realmente encuentran — no por un plan de 12 meses escrito en el vacío. ¿Quieres influir en lo que construimos? Prueba el plan gratuito, danos feedback en hello@braavolabs.com, o sigue las actualizaciones de build-in-public en redes sociales."
+    },
+    "contact": {
+      "title": "Contacto",
+      "subtitle": "Elige el canal que encaje — lo leemos todo.",
+      "channelGeneral": "Preguntas generales",
+      "channelSupport": "Soporte al cliente",
+      "channelSales": "Ventas / partnerships",
+      "channelPrivacy": "Privacidad & GDPR",
+      "channelKvkk": "KVKK (Turquía)",
+      "channelSecurity": "Divulgaciones de seguridad",
+      "responseTime": "Tiempo de respuesta: normalmente dentro de 24 horas en días laborables. Las solicitudes de derechos KVKK y GDPR se responden dentro de sus plazos legales (30 días y 1 mes respectivamente)."
+    },
     "status": {
       "title": "Todos los sistemas operativos",
       "subtitle": "Estado verificado manualmente. Una página de estado pública en tiempo real (subdominio separado) está en la hoja de ruta.",

@@ -84,6 +84,29 @@
       ],
       "githubIntro": "Notes de version détaillées sur GitHub :"
     },
+    "about": {
+      "title": "À propos de Braavolabs",
+      "subtitle": "Construire des entreprises IA autonomes — sans la lourdeur d'une agence.",
+      "section1Title": "Pourquoi nous existons",
+      "section1Body": "La plupart des fondateurs ont besoin d'une agence, d'un SDR, d'une équipe de contenu, d'un manager d'opérations — mais ne peuvent pas se permettre cinq embauches. Braavolabs remplace cette équipe par des agents IA qui exécutent les pipelines que vous décrivez en langage naturel. Validation des dépenses, journaux d'audit et arrêts de risque sont intégrés pour que vous gardiez le contrôle.",
+      "section2Title": "Ce que nous construisons",
+      "section2Body": "Une plateforme où vous décrivez une entreprise en langage naturel — ventes, contenu, opérations — et notre builder IA écrit les agents, pipelines et intégrations à partir de zéro. Chaque action est journalisée, chaque dollar de dépense passe par validation, et le tout fonctionne 24/7.",
+      "section3Title": "Qui est derrière",
+      "section3Body": "Braavolabs est un projet indépendant fondé en 2026. Nous construisons en public — chaque commit, chaque décision, chaque mise à jour de roadmap est visible. Écrivez-nous à tout moment : hello@braavolabs.com.",
+      "section4Title": "Ce qui suit",
+      "section4Body": "Notre roadmap est façonnée par ce que les utilisateurs rencontrent réellement — pas par un plan de 12 mois écrit dans le vide. Vous voulez influencer ce que nous construisons ? Essayez le forfait gratuit, donnez-nous votre feedback à hello@braavolabs.com, ou suivez les mises à jour build-in-public sur les réseaux sociaux."
+    },
+    "contact": {
+      "title": "Contact",
+      "subtitle": "Choisissez le canal qui convient — nous lisons tout.",
+      "channelGeneral": "Questions générales",
+      "channelSupport": "Support client",
+      "channelSales": "Ventes / partenariats",
+      "channelPrivacy": "Confidentialité & GDPR",
+      "channelKvkk": "KVKK (Turquie)",
+      "channelSecurity": "Divulgations de sécurité",
+      "responseTime": "Temps de réponse : généralement dans les 24 heures les jours ouvrés. Les demandes de droits KVKK et GDPR sont traitées dans leurs délais légaux (30 jours et 1 mois respectivement)."
+    },
     "status": {
       "title": "Tous les systèmes opérationnels",
       "subtitle": "Statut vérifié manuellement. Une page de statut publique en temps réel (sous-domaine séparé) est sur la roadmap.",

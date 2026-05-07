@@ -84,6 +84,29 @@
       ],
       "githubIntro": "Detailed release notes live on GitHub:"
     },
+    "about": {
+      "title": "About Braavolabs",
+      "subtitle": "Building autonomous AI companies — without the agency overhead.",
+      "section1Title": "Why we exist",
+      "section1Body": "Most founders need an agency, an SDR, a content team, an ops manager — but can't afford five hires. Braavolabs replaces that team with AI agents that run pipelines you describe in plain English. Spend approval, audit logs, and risk stops are built in so you stay in control.",
+      "section2Title": "What we're building",
+      "section2Body": "A platform where you describe a company in natural language — sales, content, ops — and our AI builder writes the agents, pipelines, and integrations from scratch. Every action is logged, every dollar of spend goes through approval, and the whole thing runs 24/7.",
+      "section3Title": "Who's behind it",
+      "section3Body": "Braavolabs is an independent project founded in 2026. We build in public — every commit, every decision, every roadmap update is visible. Reach out anytime: hello@braavolabs.com.",
+      "section4Title": "What's next",
+      "section4Body": "Our roadmap is shaped by what users actually run into — not by a 12-month plan written in a vacuum. Want to influence what we build? Try the free tier, give us feedback at hello@braavolabs.com, or follow build-in-public updates on social."
+    },
+    "contact": {
+      "title": "Contact",
+      "subtitle": "Pick the channel that fits — we read everything.",
+      "channelGeneral": "General questions",
+      "channelSupport": "Customer support",
+      "channelSales": "Sales / partnerships",
+      "channelPrivacy": "Privacy & GDPR",
+      "channelKvkk": "KVKK (Türkiye)",
+      "channelSecurity": "Security disclosures",
+      "responseTime": "Response time: typically within 24 hours on weekdays. KVKK and GDPR rights requests are answered within their statutory windows (30 days and 1 month respectively)."
+    },
     "status": {
       "title": "All systems operational",
       "subtitle": "Manually verified status. A real-time public status page (separate subdomain) is on the roadmap.",

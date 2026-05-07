@@ -84,6 +84,29 @@
       ],
       "githubIntro": "Detaillierte Release-Notes auf GitHub:"
     },
+    "about": {
+      "title": "Über Braavolabs",
+      "subtitle": "Autonome KI-Unternehmen bauen — ohne Agentur-Overhead.",
+      "section1Title": "Warum es uns gibt",
+      "section1Body": "Die meisten Gründer brauchen eine Agentur, einen SDR, ein Content-Team und einen Ops-Manager — können sich aber keine fünf Einstellungen leisten. Braavolabs ersetzt dieses Team mit KI-Agenten, die Pipelines ausführen, die du in einfachen Worten beschreibst. Ausgaben-Freigabe, Audit-Logs und Risiko-Stopps sind eingebaut, damit du die Kontrolle behältst.",
+      "section2Title": "Was wir bauen",
+      "section2Body": "Eine Plattform, auf der du ein Unternehmen in natürlicher Sprache beschreibst — Vertrieb, Content, Operations — und unser KI-Builder Agenten, Pipelines und Integrationen von Grund auf schreibt. Jede Aktion wird protokolliert, jeder Dollar Ausgaben durchläuft eine Freigabe, und das Ganze läuft 24/7.",
+      "section3Title": "Wer dahintersteht",
+      "section3Body": "Braavolabs ist ein unabhängiges Projekt, gegründet 2026. Wir bauen in der Öffentlichkeit — jeder Commit, jede Entscheidung, jedes Roadmap-Update ist sichtbar. Schreib uns jederzeit: hello@braavolabs.com.",
+      "section4Title": "Was als Nächstes kommt",
+      "section4Body": "Unsere Roadmap wird davon geprägt, worauf Nutzer tatsächlich stoßen — nicht von einem 12-Monats-Plan, der im luftleeren Raum geschrieben wird. Möchtest du beeinflussen, was wir bauen? Probiere die kostenlose Stufe, gib uns Feedback an hello@braavolabs.com oder folge den Build-in-Public-Updates auf Social Media."
+    },
+    "contact": {
+      "title": "Kontakt",
+      "subtitle": "Wähl den passenden Kanal — wir lesen alles.",
+      "channelGeneral": "Allgemeine Fragen",
+      "channelSupport": "Kundensupport",
+      "channelSales": "Vertrieb / Partnerschaften",
+      "channelPrivacy": "Datenschutz & GDPR",
+      "channelKvkk": "KVKK (Türkei)",
+      "channelSecurity": "Sicherheitsmeldungen",
+      "responseTime": "Antwortzeit: an Werktagen meist innerhalb von 24 Stunden. KVKK- und GDPR-Anfragen werden innerhalb ihrer gesetzlichen Fristen beantwortet (30 Tage bzw. 1 Monat)."
+    },
     "status": {
       "title": "Alle Systeme funktionieren",
       "subtitle": "Manuell verifizierter Status. Eine Echtzeit-Statusseite (separate Subdomain) ist auf der Roadmap.",

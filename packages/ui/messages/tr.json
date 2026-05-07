@@ -84,6 +84,29 @@
       ],
       "githubIntro": "Ayrıntılı sürüm notları GitHub'da:"
     },
+    "about": {
+      "title": "Braavolabs Hakkında",
+      "subtitle": "Ajans yükü olmadan otonom AI şirketleri kuruyoruz.",
+      "section1Title": "Neden varız",
+      "section1Body": "Çoğu kurucunun ajansa, SDR'a, içerik ekibine, ops yöneticisine ihtiyacı var — ama beş işe alım karşılayacak bütçesi yok. Braavolabs bu ekibi senin sade İngilizceyle anlattığın pipeline'ları çalıştıran AI ajanlarıyla değiştirir. Harcama onayı, denetim kayıtları ve risk durdurmaları yerleşik — kontrol sende kalır.",
+      "section2Title": "Ne inşa ediyoruz",
+      "section2Body": "Bir şirketi sade İngilizceyle (satış, içerik, ops) anlattığında AI builder'ımız ajanları, pipeline'ları ve entegrasyonları sıfırdan yazar. Her aksiyon kayıt altında, harcanan her dolar onaydan geçer, sistem 7/24 çalışır.",
+      "section3Title": "Arkasında kim var",
+      "section3Body": "Braavolabs 2026'da kurulan bağımsız bir projedir. Açıkta inşa ediyoruz — her commit, her karar, her yol haritası güncellemesi görünür. Bize her zaman yazabilirsin: hello@braavolabs.com.",
+      "section4Title": "Sırada ne var",
+      "section4Body": "Yol haritamızı boş bir odada yazılan 12 aylık bir plan değil, kullanıcıların gerçekten karşılaştığı sorunlar şekillendirir. Ne inşa edeceğimize yön vermek mi istiyorsun? Ücretsiz katmanı dene, hello@braavolabs.com'a geri bildirim yaz veya açık geliştirme güncellemelerini sosyal medyada takip et."
+    },
+    "contact": {
+      "title": "İletişim",
+      "subtitle": "İhtiyacına uygun kanalı seç — hepsini okuyoruz.",
+      "channelGeneral": "Genel sorular",
+      "channelSupport": "Müşteri desteği",
+      "channelSales": "Satış / ortaklıklar",
+      "channelPrivacy": "Gizlilik & GDPR",
+      "channelKvkk": "KVKK (Türkiye)",
+      "channelSecurity": "Güvenlik bildirimleri",
+      "responseTime": "Yanıt süresi: hafta içi genellikle 24 saat içinde. KVKK ve GDPR hakları talepleri yasal süreleri içinde (sırasıyla 30 gün ve 1 ay) yanıtlanır."
+    },
     "status": {
       "title": "Tüm sistemler çalışıyor",
       "subtitle": "Manuel olarak doğrulanmış durum. Gerçek zamanlı genel durum sayfası (ayrı bir alt alan adında) yol haritamızda.",
