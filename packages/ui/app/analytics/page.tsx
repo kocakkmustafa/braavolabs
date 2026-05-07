@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { sounds } from "../../lib/sounds";
@@ -31,6 +32,7 @@ interface FinanceData {
 }
 
 export default function AnalyticsPage() {
+  const t = useTranslations();
   const { token, hydrated } = useAuthGuard();
   const [runs, setRuns] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -106,34 +108,34 @@ export default function AnalyticsPage() {
     <div className="max-w-7xl mx-auto px-6 py-8 animate-fade-in mesh-bg">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold font-headline gradient-text">Analytics</h1>
-          <p className="text-sm mt-0.5" style={{ color: "#859399" }}>Pipeline run performance and cost breakdown</p>
+          <h1 className="text-xl sm:text-2xl font-bold font-headline gradient-text">{t("app.analytics.title")}</h1>
+          <p className="text-sm mt-0.5" style={{ color: "#859399" }}>{t("app.analytics.subtitle")}</p>
         </div>
         <button
           onClick={() => exportCSV(runs)}
           className="btn-ghost inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium self-start sm:self-auto"
         >
           <span className="material-symbols-outlined" style={{ fontSize: 16 }}>download</span>
-          Export CSV
+          {t("app.analytics.exportCsv")}
         </button>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8 stagger-children">
         <div className="metric-card rounded-2xl p-5 min-w-0">
-          <p className="text-xs font-semibold tracking-widest truncate" style={{ color: "#859399" }}>TOTAL RUNS</p>
+          <p className="text-xs font-semibold tracking-widest truncate" style={{ color: "#859399" }}>{t("app.analytics.statTotalRuns")}</p>
           <p className="text-xl font-bold font-headline mt-1" style={{ color: "#e1e2eb" }}>{usage?.totalRuns ?? "—"}</p>
         </div>
         <div className="metric-card rounded-2xl p-5 min-w-0">
-          <p className="text-xs font-semibold tracking-widest truncate" style={{ color: "#859399" }}>SUCCESS RATE</p>
+          <p className="text-xs font-semibold tracking-widest truncate" style={{ color: "#859399" }}>{t("app.analytics.statSuccessRate")}</p>
           <p className="text-xl font-bold font-headline mt-1" style={{ color: "#34d399" }}>{usage ? `${(usage.successRate * 100).toFixed(1)}%` : "—"}</p>
         </div>
         <div className="metric-card rounded-2xl p-5 min-w-0">
-          <p className="text-xs font-semibold tracking-widest truncate" style={{ color: "#859399" }}>TOTAL COST</p>
+          <p className="text-xs font-semibold tracking-widest truncate" style={{ color: "#859399" }}>{t("app.analytics.statTotalCost")}</p>
           <p className="text-xl font-bold font-headline mt-1" style={{ color: "#e1e2eb" }}>{finance ? `$${finance.totalCostUsd.toFixed(2)}` : "—"}</p>
         </div>
         <div className="metric-card rounded-2xl p-5 min-w-0">
-          <p className="text-xs font-semibold tracking-widest truncate" style={{ color: "#859399" }}>AVG/RUN</p>
+          <p className="text-xs font-semibold tracking-widest truncate" style={{ color: "#859399" }}>{t("app.analytics.statAvgRun")}</p>
           <p className="text-xl font-bold font-headline mt-1" style={{ color: "#e1e2eb" }}>{finance ? `$${finance.avgCostPerRun.toFixed(4)}` : "—"}</p>
         </div>
       </div>
@@ -141,21 +143,22 @@ export default function AnalyticsPage() {
       {/* Run Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 stagger-children">
         <div className="glass-card rounded-2xl p-6">
-          <h2 className="text-base font-semibold font-headline mb-4" style={{ color: "#e1e2eb" }}>Run Breakdown (This Month)</h2>
+          <h2 className="text-base font-semibold font-headline mb-4" style={{ color: "#e1e2eb" }}>{t("app.analytics.runBreakdown")}</h2>
           {usage ? (
             <div className="flex items-center gap-6">
               <DonutChart
                 segments={[
-                  { value: usage.completedRuns, color: "#10b981", label: "Completed" },
-                  { value: usage.failedRuns, color: "#ef4444", label: "Failed" },
-                  { value: Math.max(0, usage.totalRuns - usage.completedRuns - usage.failedRuns), color: "#859399", label: "Other" },
+                  { value: usage.completedRuns, color: "#10b981", label: t("app.analytics.barCompleted") },
+                  { value: usage.failedRuns, color: "#ef4444", label: t("app.analytics.barFailed") },
+                  { value: Math.max(0, usage.totalRuns - usage.completedRuns - usage.failedRuns), color: "#859399", label: t("app.analytics.barOther") },
                 ]}
                 total={usage.totalRuns}
+                runsLabel={t("app.analytics.donutLabel")}
               />
               <div className="space-y-3 flex-1">
-                <BarRow label="Completed" count={usage.completedRuns} total={usage.totalRuns} color="#10b981" />
-                <BarRow label="Failed" count={usage.failedRuns} total={usage.totalRuns} color="#ef4444" />
-                <BarRow label="Other" count={usage.totalRuns - usage.completedRuns - usage.failedRuns} total={usage.totalRuns} color="#859399" />
+                <BarRow label={t("app.analytics.barCompleted")} count={usage.completedRuns} total={usage.totalRuns} color="#10b981" />
+                <BarRow label={t("app.analytics.barFailed")} count={usage.failedRuns} total={usage.totalRuns} color="#ef4444" />
+                <BarRow label={t("app.analytics.barOther")} count={usage.totalRuns - usage.completedRuns - usage.failedRuns} total={usage.totalRuns} color="#859399" />
               </div>
             </div>
           ) : (
@@ -166,24 +169,24 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="glass-card rounded-2xl p-6">
-          <h2 className="text-base font-semibold font-headline mb-4" style={{ color: "#e1e2eb" }}>Cost Summary (This Month)</h2>
+          <h2 className="text-base font-semibold font-headline mb-4" style={{ color: "#e1e2eb" }}>{t("app.analytics.costSummary")}</h2>
           {finance ? (
             <div className="space-y-3">
               <div className="flex justify-between items-center py-1">
-                <span className="text-sm" style={{ color: "#859399" }}>Total Spent</span>
+                <span className="text-sm" style={{ color: "#859399" }}>{t("app.analytics.totalSpent")}</span>
                 <span className="font-semibold text-lg gradient-text">${finance.totalCostUsd.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center py-1" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                <span className="text-sm" style={{ color: "#859399" }}>Billable Runs</span>
+                <span className="text-sm" style={{ color: "#859399" }}>{t("app.analytics.billableRuns")}</span>
                 <span className="font-semibold" style={{ color: "#bbc9cf" }}>{finance.runCount}</span>
               </div>
               <div className="flex justify-between items-center py-1" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                <span className="text-sm" style={{ color: "#859399" }}>Average per Run</span>
+                <span className="text-sm" style={{ color: "#859399" }}>{t("app.analytics.averagePerRun")}</span>
                 <span className="font-semibold" style={{ color: "#bbc9cf" }}>${finance.avgCostPerRun.toFixed(4)}</span>
               </div>
             </div>
           ) : (
-            <p className="text-sm" style={{ color: "#859399" }}>Loading...</p>
+            <p className="text-sm" style={{ color: "#859399" }}>{t("app.analytics.loading")}</p>
           )}
         </div>
       </div>
@@ -191,22 +194,22 @@ export default function AnalyticsPage() {
       {/* Run History */}
       <div className="glass-card rounded-2xl overflow-hidden">
         <div className="px-6 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          <h2 className="text-base font-semibold font-headline" style={{ color: "#e1e2eb" }}>Run History</h2>
+          <h2 className="text-base font-semibold font-headline" style={{ color: "#e1e2eb" }}>{t("app.analytics.runHistory")}</h2>
         </div>
         {runs.length === 0 ? (
-          <div className="p-6 text-center text-sm" style={{ color: "#859399" }}>No runs found.</div>
+          <div className="p-6 text-center text-sm" style={{ color: "#859399" }}>{t("app.analytics.noRuns")}</div>
         ) : (
           <div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                   <tr>
-                    <th className="text-left px-6 py-3 text-xs font-semibold tracking-widest" style={{ color: "#859399" }}>COMPANY</th>
-                    <th className="text-left px-6 py-3 text-xs font-semibold tracking-widest" style={{ color: "#859399" }}>PIPELINE</th>
-                    <th className="text-left px-6 py-3 text-xs font-semibold tracking-widest" style={{ color: "#859399" }}>STATUS</th>
-                    <th className="text-left px-6 py-3 text-xs font-semibold tracking-widest" style={{ color: "#859399" }}>STEPS</th>
-                    <th className="text-left px-6 py-3 text-xs font-semibold tracking-widest" style={{ color: "#859399" }}>COST</th>
-                    <th className="text-left px-6 py-3 text-xs font-semibold tracking-widest" style={{ color: "#859399" }}>STARTED</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold tracking-widest" style={{ color: "#859399" }}>{t("app.analytics.thCompany")}</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold tracking-widest" style={{ color: "#859399" }}>{t("app.analytics.thPipeline")}</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold tracking-widest" style={{ color: "#859399" }}>{t("app.analytics.thStatus")}</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold tracking-widest" style={{ color: "#859399" }}>{t("app.analytics.thSteps")}</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold tracking-widest" style={{ color: "#859399" }}>{t("app.analytics.thCost")}</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold tracking-widest" style={{ color: "#859399" }}>{t("app.analytics.thStarted")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -230,7 +233,7 @@ export default function AnalyticsPage() {
                 style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
               >
                 <span className="text-sm" style={{ color: "#859399" }}>
-                  Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total}
+                  {t("app.analytics.showingRange", { from: page * PAGE_SIZE + 1, to: Math.min((page + 1) * PAGE_SIZE, total), total })}
                 </span>
                 <div className="flex gap-2">
                   <button
@@ -238,14 +241,14 @@ export default function AnalyticsPage() {
                     disabled={page === 0}
                     className="btn-ghost px-3 py-1 rounded-lg text-sm disabled:opacity-50"
                   >
-                    Prev
+                    {t("app.analytics.prev")}
                   </button>
                   <button
                     onClick={() => { sounds.click(); setPage((p) => Math.min(totalPages - 1, p + 1)); }}
                     disabled={page >= totalPages - 1}
                     className="btn-ghost px-3 py-1 rounded-lg text-sm disabled:opacity-50"
                   >
-                    Next
+                    {t("app.analytics.next")}
                   </button>
                 </div>
               </div>
@@ -272,7 +275,7 @@ function BarRow({ label, count, total, color }: { label: string; count: number; 
   );
 }
 
-function DonutChart({ segments, total }: { segments: { value: number; color: string; label: string }[]; total: number }) {
+function DonutChart({ segments, total, runsLabel }: { segments: { value: number; color: string; label: string }[]; total: number; runsLabel?: string }) {
   const size = 100;
   const strokeWidth = 12;
   const radius = (size - strokeWidth) / 2;
@@ -310,7 +313,7 @@ function DonutChart({ segments, total }: { segments: { value: number; color: str
       </svg>
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
         <span className="font-headline font-bold text-lg" style={{ color: "#e1e2eb", lineHeight: 1 }}>{total}</span>
-        <span style={{ fontSize: 9, color: "#3c494e" }}>runs</span>
+        <span style={{ fontSize: 9, color: "#3c494e" }}>{runsLabel ?? "runs"}</span>
       </div>
     </div>
   );
@@ -319,6 +322,7 @@ function DonutChart({ segments, total }: { segments: { value: number; color: str
 function RunRow({ run, expanded, detail, onToggle }: {
   run: any; expanded: boolean; detail: any; onToggle: () => void;
 }) {
+  const t = useTranslations();
   const s = STATUS_STYLES[run.status] ?? defaultStatus;
   return (
     <>
@@ -345,7 +349,7 @@ function RunRow({ run, expanded, detail, onToggle }: {
         <tr>
           <td colSpan={6} className="px-6 py-4" style={{ background: "rgba(255,255,255,0.02)" }}>
             <div className="space-y-2">
-              <p className="text-sm font-medium" style={{ color: "#bbc9cf" }}>Run Steps</p>
+              <p className="text-sm font-medium" style={{ color: "#bbc9cf" }}>{t("app.analytics.runSteps")}</p>
               {detail.steps?.length > 0 ? (
                 detail.steps.map((step: any, i: number) => (
                   <div
@@ -374,15 +378,15 @@ function RunRow({ run, expanded, detail, onToggle }: {
                       })()}
                     </div>
                     {step.reasoning && (
-                      <p className="text-xs mt-1" style={{ color: "#3c494e" }}>Reasoning: {step.reasoning}</p>
+                      <p className="text-xs mt-1" style={{ color: "#3c494e" }}>{t("app.analytics.reasoningPrefix")} {step.reasoning}</p>
                     )}
                     {step.toolCalls?.length > 0 && (
-                      <p className="text-xs mt-1" style={{ color: "#3c494e" }}>{step.toolCalls.length} tool call(s)</p>
+                      <p className="text-xs mt-1" style={{ color: "#3c494e" }}>{t("app.analytics.toolCallsTemplate", { count: step.toolCalls.length })}</p>
                     )}
                   </div>
                 ))
               ) : (
-                <p className="text-xs" style={{ color: "#859399" }}>No steps recorded.</p>
+                <p className="text-xs" style={{ color: "#859399" }}>{t("app.analytics.noSteps")}</p>
               )}
             </div>
           </td>

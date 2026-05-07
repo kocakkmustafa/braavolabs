@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 
@@ -28,6 +29,7 @@ interface AbTest {
 }
 
 export default function AbTestsPage() {
+  const t = useTranslations();
   const { token, hydrated } = useAuthGuard();
   const [tests, setTests] = useState<AbTest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,9 +73,9 @@ export default function AbTestsPage() {
   async function handleCreate() {
     setCreateError(null);
     if (!token) return;
-    if (!newName.trim()) { setCreateError("Test name is required."); return; }
-    if (!newCompanyId) { setCreateError("Please select a company."); return; }
-    if (!newAgentId) { setCreateError("Please select an agent."); return; }
+    if (!newName.trim()) { setCreateError(t("app.abTests.errNameRequired")); return; }
+    if (!newCompanyId) { setCreateError(t("app.abTests.errSelectCompany")); return; }
+    if (!newAgentId) { setCreateError(t("app.abTests.errSelectAgent")); return; }
     setCreating(true);
     try {
       await api.createAbTest(token, {
@@ -123,9 +125,9 @@ export default function AbTestsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold font-headline gradient-text">A/B Testing</h1>
+          <h1 className="text-xl sm:text-2xl font-bold font-headline gradient-text">{t("app.abTests.title")}</h1>
           <p className="text-sm mt-0.5" style={{ color: "#859399" }}>
-            Test agent variants and find the best performing configuration
+            {t("app.abTests.subtitle")}
           </p>
         </div>
         <button
@@ -134,25 +136,25 @@ export default function AbTestsPage() {
           style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
         >
           <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
-          New A/B Test
+          {t("app.abTests.newTest")}
         </button>
       </div>
 
       {actionError && (
         <div className="px-4 py-3 rounded-xl mb-4 text-sm" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
           {actionError}
-          <button onClick={() => setActionError(null)} className="ml-3 underline text-xs" style={{ color: "#f87171" }}>Dismiss</button>
+          <button onClick={() => setActionError(null)} className="ml-3 underline text-xs" style={{ color: "#f87171" }}>{t("app.abTests.dismiss")}</button>
         </div>
       )}
 
       {/* Status filter */}
       <div className="flex gap-1.5 mb-6">
         {[
-          { id: "", label: "All" },
-          { id: "DRAFT", label: "Draft" },
-          { id: "RUNNING", label: "Running" },
-          { id: "PAUSED", label: "Paused" },
-          { id: "COMPLETED", label: "Completed" },
+          { id: "", label: t("app.abTests.filterAll") },
+          { id: "DRAFT", label: t("app.abTests.filterDraft") },
+          { id: "RUNNING", label: t("app.abTests.filterRunning") },
+          { id: "PAUSED", label: t("app.abTests.filterPaused") },
+          { id: "COMPLETED", label: t("app.abTests.filterCompleted") },
         ].map((f) => (
           <button
             key={f.id}
@@ -177,15 +179,15 @@ export default function AbTestsPage() {
       ) : tests.length === 0 ? (
         <div className="text-center py-16 glass-card rounded-2xl">
           <span className="material-symbols-outlined text-4xl mb-3 block" style={{ color: "#3c494e" }}>science</span>
-          <p className="font-semibold mb-1" style={{ color: "#e1e2eb" }}>No A/B tests yet</p>
-          <p className="text-sm mb-4" style={{ color: "#859399" }}>Create your first experiment to optimize agent performance.</p>
+          <p className="font-semibold mb-1" style={{ color: "#e1e2eb" }}>{t("app.abTests.emptyTitle")}</p>
+          <p className="text-sm mb-4" style={{ color: "#859399" }}>{t("app.abTests.emptyBody")}</p>
           <button
             onClick={() => setShowCreate(true)}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white hover:brightness-110"
             style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
-            Create A/B Test
+            {t("app.abTests.emptyCta")}
           </button>
         </div>
       ) : (
@@ -213,7 +215,7 @@ export default function AbTestsPage() {
                         <p className="text-sm font-semibold" style={{ color: "#e1e2eb" }}>{test.name}</p>
                         <p className="text-xs" style={{ color: "#3c494e" }}>
                           {test.companyName && `${test.companyName} · `}{test.agentName && `${test.agentName} · `}
-                          {test.variantCount} variants{test.totalRuns ? ` · ${test.totalRuns} runs` : ""}
+                          {t("app.abTests.variantsCountTemplate", { count: test.variantCount })}{test.totalRuns ? ` · ${t("app.abTests.runsCountTemplate", { count: test.totalRuns })}` : ""}
                         </p>
                       </div>
                     </div>
@@ -253,17 +255,17 @@ export default function AbTestsPage() {
                             <span className="text-xs font-semibold" style={{ color: "#e1e2eb" }}>
                               {v.name}
                               {v.id === test.winnerVariantId && (
-                                <span className="ml-1.5 text-[10px]" style={{ color: "#34d399" }}>WINNER</span>
+                                <span className="ml-1.5 text-[10px]" style={{ color: "#34d399" }}>{t("app.abTests.winner")}</span>
                               )}
                             </span>
-                            <span className="text-[10px]" style={{ color: "#3c494e" }}>{v.weight}% traffic</span>
+                            <span className="text-[10px]" style={{ color: "#3c494e" }}>{t("app.abTests.trafficSuffix", { percent: v.weight })}</span>
                           </div>
                           {v.metrics && v.metrics.length > 0 && (
                             <div className="space-y-1">
                               {v.metrics.map((m: any) => (
                                 <div key={m.metric} className="flex justify-between text-[10px]">
                                   <span style={{ color: "#859399" }}>{m.metric}</span>
-                                  <span style={{ color: "#bbc9cf" }}>{m.avgValue?.toFixed(2)} ({m.count} samples)</span>
+                                  <span style={{ color: "#bbc9cf" }}>{m.avgValue?.toFixed(2)} {t("app.abTests.samplesSuffix", { count: m.count })}</span>
                                 </div>
                               ))}
                             </div>
@@ -277,26 +279,26 @@ export default function AbTestsPage() {
                       {test.status === "DRAFT" && (
                         <>
                           <button onClick={() => handleAction(test.id, "start")} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "rgba(0,209,255,0.12)", color: "#00d1ff", border: "1px solid rgba(0,209,255,0.2)" }}>
-                            Start Test
+                            {t("app.abTests.startTest")}
                           </button>
                           <button onClick={() => handleAction(test.id, "delete")} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "rgba(239,68,68,0.08)", color: "#f87171", border: "1px solid rgba(239,68,68,0.15)" }}>
-                            Delete
+                            {t("app.abTests.delete")}
                           </button>
                         </>
                       )}
                       {test.status === "RUNNING" && (
                         <>
                           <button onClick={() => handleAction(test.id, "pause")} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "rgba(251,191,36,0.12)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.2)" }}>
-                            Pause
+                            {t("app.abTests.pause")}
                           </button>
                           <button onClick={() => handleAction(test.id, "complete")} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "rgba(52,211,153,0.12)", color: "#34d399", border: "1px solid rgba(52,211,153,0.2)" }}>
-                            Complete
+                            {t("app.abTests.complete")}
                           </button>
                         </>
                       )}
                       {test.status === "PAUSED" && (
                         <button onClick={() => handleAction(test.id, "start")} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "rgba(0,209,255,0.12)", color: "#00d1ff", border: "1px solid rgba(0,209,255,0.2)" }}>
-                          Resume
+                          {t("app.abTests.resume")}
                         </button>
                       )}
                     </div>
@@ -313,7 +315,7 @@ export default function AbTestsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
           <div className="w-full max-w-[560px] rounded-2xl p-6 max-h-[85vh] overflow-y-auto" style={{ background: "#191c22", border: "1px solid rgba(255,255,255,0.08)" }}>
             <div className="flex items-center justify-between mb-5">
-              <h3 className="font-bold text-base" style={{ color: "#e1e2eb" }}>Create A/B Test</h3>
+              <h3 className="font-bold text-base" style={{ color: "#e1e2eb" }}>{t("app.abTests.modalTitle")}</h3>
               <button onClick={() => setShowCreate(false)} style={{ color: "#859399", background: "none", border: "none", cursor: "pointer" }}>
                 <span className="material-symbols-outlined">close</span>
               </button>
@@ -321,27 +323,27 @@ export default function AbTestsPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>Test Name</label>
-                <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Tone comparison for outreach agent" className="w-full px-4 py-2.5 rounded-xl text-sm outline-none" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }} />
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>{t("app.abTests.fieldName")}</label>
+                <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t("app.abTests.fieldNamePlaceholder")} className="w-full px-4 py-2.5 rounded-xl text-sm outline-none" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }} />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>Description (optional)</label>
-                <input value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="What are you testing?" className="w-full px-4 py-2.5 rounded-xl text-sm outline-none" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }} />
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>{t("app.abTests.fieldDescription")}</label>
+                <input value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder={t("app.abTests.fieldDescriptionPlaceholder")} className="w-full px-4 py-2.5 rounded-xl text-sm outline-none" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }} />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>Company</label>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>{t("app.abTests.fieldCompany")}</label>
                   <select value={newCompanyId} onChange={(e) => setNewCompanyId(e.target.value)} className="w-full px-4 py-2.5 rounded-xl text-sm outline-none" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}>
-                    <option value="">Select company</option>
+                    <option value="">{t("app.abTests.selectCompany")}</option>
                     {companies.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>Agent</label>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>{t("app.abTests.fieldAgent")}</label>
                   <select value={newAgentId} onChange={(e) => setNewAgentId(e.target.value)} className="w-full px-4 py-2.5 rounded-xl text-sm outline-none" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }} disabled={!newCompanyId}>
-                    <option value="">Select agent</option>
+                    <option value="">{t("app.abTests.selectAgent")}</option>
                     {agents.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
                 </div>
@@ -350,13 +352,13 @@ export default function AbTestsPage() {
               {/* Variants */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-semibold" style={{ color: "#bbc9cf" }}>Variants</label>
+                  <label className="text-xs font-semibold" style={{ color: "#bbc9cf" }}>{t("app.abTests.variants")}</label>
                   <button
                     onClick={() => setVariants([...variants, { name: `Variant ${String.fromCharCode(65 + variants.length)}`, config: { systemPrompt: "", temperature: 0.7 }, weight: Math.floor(100 / (variants.length + 1)) }])}
                     className="text-xs px-2 py-1 rounded-lg"
                     style={{ color: "#00d1ff", background: "rgba(0,209,255,0.08)" }}
                   >
-                    + Add Variant
+                    {t("app.abTests.addVariant")}
                   </button>
                 </div>
 
@@ -389,13 +391,13 @@ export default function AbTestsPage() {
                       <textarea
                         value={v.config.systemPrompt}
                         onChange={(e) => { const nv = [...variants]; nv[i].config.systemPrompt = e.target.value; setVariants(nv); }}
-                        placeholder="System prompt override..."
+                        placeholder={t("app.abTests.systemPromptPlaceholder")}
                         rows={2}
                         className="w-full px-3 py-2 rounded-lg text-xs outline-none resize-none"
                         style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", color: "#e1e2eb" }}
                       />
                       <div className="flex items-center gap-2 mt-2">
-                        <span className="text-[10px]" style={{ color: "#3c494e" }}>Temperature:</span>
+                        <span className="text-[10px]" style={{ color: "#3c494e" }}>{t("app.abTests.temperature")}</span>
                         <input
                           type="range"
                           min="0"
@@ -421,7 +423,7 @@ export default function AbTestsPage() {
 
             <div className="flex gap-2 mt-5">
               <button onClick={() => { setShowCreate(false); setCreateError(null); }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ background: "rgba(255,255,255,0.04)", color: "#859399", border: "1px solid rgba(255,255,255,0.06)" }}>
-                Cancel
+                {t("app.abTests.cancel")}
               </button>
               <button
                 onClick={handleCreate}
@@ -429,7 +431,7 @@ export default function AbTestsPage() {
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50"
                 style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
               >
-                {creating ? "Creating..." : "Create Test"}
+                {creating ? t("app.abTests.creating") : t("app.abTests.createTest")}
               </button>
             </div>
           </div>
