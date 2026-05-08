@@ -48,7 +48,11 @@ const registerRateLimit = rateLimit({
   keyPrefix: "rl:register",
 });
 
-const registerSchema = z.object({
+// Exported so __tests__/auth.test.ts can validate them in isolation.
+// Anything that lands in the production form/router contract belongs in
+// a schema test — drift between client + server validation is the most
+// common cause of "Validation failed" noise reaching the user.
+export const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8).regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/, "Password must contain uppercase, lowercase, and a number"),
   name: z.string().min(1),
@@ -56,10 +60,11 @@ const registerSchema = z.object({
   ref: z.string().optional(),
 });
 
-const loginSchema = z.object({
+export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
 });
+
 
 // POST /api/v1/auth/register
 authRouter.post("/register", registerRateLimit, validate(registerSchema), async (req, res, next) => {
@@ -80,8 +85,8 @@ authRouter.post("/login", loginRateLimit, validate(loginSchema), async (req, res
   } catch (err) { next(err); }
 });
 
-const forgotSchema = z.object({ email: z.string().email() });
-const resetSchema = z.object({
+export const forgotSchema = z.object({ email: z.string().email() });
+export const resetSchema = z.object({
   token: z.string().min(1),
   password: z.string().min(8).regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/, "Password must contain uppercase, lowercase, and a number"),
 });
