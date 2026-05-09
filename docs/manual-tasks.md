@@ -256,4 +256,133 @@ Hafta 8+ (Growth):
 - Pricing + beta source + legal entity kararlari 24-48 saat icinde olmali (Faz V1-Lockdown bloker).
 - Opsiyonel task'lar launch sonrasi 30-60 gun penceresinde. Focus ilk olarak critical path.
 
+---
+
+## 2026-05-10 SYNC EKLEMELER (mobil-web kopruleme)
+
+Bu blok, iki repoyu (web `braavolabs.com` + mobil `Braavo`) tek
+mimari altinda birlestirme + kullanicinin "uygulama uzerinden odeme,
+site iceri girisinde plan" istegini hayata gecirme adimlarini icerir.
+
+### Mobil yayinlama (App Store + Play Store)
+- [ ] **Apple Developer hesap** ($99/yil) — App Store Connect erisimi.
+      `bundleId = com.braavolabs.mobile` rezerve et.
+- [ ] **Google Play Console hesap** ($25 tek seferlik) — Play Console
+      erisimi. `packageName = com.braavolabs.mobile` rezerve et.
+- [ ] **EAS init** — `Apps/Braavo` icinde `eas login && eas init`. Sonra
+      `app.json`'daki `REPLACE_AFTER_RUNNING_eas_init` placeholder'lari
+      gercek `expo.eas.projectId` + `extra.expo.username` ile degistir.
+- [ ] **eas.json submit blok'lari** — `Apps/Braavo/eas.json` dosyasinda
+      `REPLACE_WITH_APPLE_ID`, `REPLACE_WITH_TEAM_ID`,
+      `REPLACE_WITH_ASC_APP_ID`, `REPLACE_WITH_GOOGLE_SERVICE_ACCOUNT_JSON_PATH`
+      degerlerini doldur.
+
+### IAP (in-app purchase) credentials — backend `/api/v1/billing/iap/verify`
+- [ ] **App Store Connect Server API key** (StoreKit 2 yolu):
+      Users and Access > Integrations > App Store Connect API > Generate.
+      Indir: `.p8` dosyasi (PEM formatli ES256 private key).
+      Env'e yaz:
+      ```
+      APPLE_ISSUER_ID=<UUID>
+      APPLE_KEY_ID=<10 char>
+      APPLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n…\n-----END PRIVATE KEY-----"
+      APPLE_BUNDLE_ID=com.braavolabs.mobile
+      ```
+      Eski yol (legacy verifyReceipt) icin alternatif:
+      ```
+      APPLE_SHARED_SECRET=<App-Specific Shared Secret>
+      ```
+- [ ] **Google Play Developer API service account**:
+      Play Console > Setup > API access > Service account create.
+      Roller: "View financial data" + "Manage orders & subscriptions".
+      Service account JSON'i base64'le, env'e yaz:
+      ```
+      GOOGLE_PLAY_PACKAGE_NAME=com.braavolabs.mobile
+      GOOGLE_PLAY_SERVICE_ACCOUNT_JSON=<base64-encoded JSON>
+      ```
+- [ ] **(Optional) RevenueCat hesap** — tek SDK ile her iki magazaya
+      koprulemek icin. Webhook secret env'e gir: `REVENUECAT_WEBHOOK_SECRET=<…>`.
+      RevenueCat tek hat kullaniliyorsa Apple/Google credentials yine de
+      gerekli (RevenueCat onlari kendi panelinde tutuyor).
+- [ ] **Apple App Store Server Notifications V2** abone ol —
+      App Store Connect > App > App Information > Server URL =
+      `https://api.braavolabs.com/api/v1/billing/iap/apple/notify`
+      (route'u `packages/api/src/modules/billing/iap/router.ts`'a ekle —
+      su an stub).
+- [ ] **Google RTDN (Real-Time Developer Notifications)** abone ol —
+      Play Console > Monetization setup > Cloud Pub/Sub topic. Pub/Sub
+      messages'i `https://api.braavolabs.com/api/v1/billing/iap/google/notify`
+      route'una bag.
+- [ ] **App Store / Play Console subscription products**:
+      `com.braavolabs.creator.monthly`, `creator.yearly`,
+      `business.monthly`, `business.yearly`, `pro.monthly`, `pro.yearly`,
+      `enterprise.monthly`, `enterprise.yearly`.
+      Tier mapping `packages/api/src/modules/billing/iap/router.ts:46`
+      icindeki `PRODUCT_TIER_MAP` ile bire bir eslesmeli.
+
+### Apple App Review zorunlu kalemler (mobile reject onleme)
+- [ ] **Account deletion** — `Apps/Braavo/app/settings/delete-account.tsx`
+      ekrani live olmali. Apple Guideline 5.1.1(v): kullanici uygulama
+      icinden hesabini silebilmeli. Backend tarafi hazir
+      (`DELETE /api/v1/users/me` web repo'da `packages/api/src/modules/user/user.router.ts`).
+- [ ] **Restore Purchases** butonu — Plans ekraninda
+      `Purchases.restorePurchases()` cagrisi (RevenueCat) veya
+      StoreKit `Transaction.currentEntitlements` query.
+
+### LLM saglayici / Gemma / air-gap
+- **Gemma4 yerine Gemma 3 kullan** — Gemma 4 henuz yayimlanmadi.
+  Mevcut konfig: `OLLAMA` saglayicisi default model `gemma3:4b`,
+  `LMSTUDIO` default `google/gemma-3-4b-it`. UI Settings ekraninda
+  16GB MacBook icin tavsiye seklinde gosteriliyor.
+- [ ] **Yayimlanan LLM listesi tasi** — pazarlama sayfasinda Gemini /
+      ChatGPT / Groq / DeepSeek / Kimi / Qwen + lokal Ollama / LM Studio
+      olarak yazilsin (12 provider'in tamami zaten desteklenir).
+- **OFFLINE_MODE env** — `OFFLINE_MODE=true` set edildiginde
+  `services/ai-client.ts` cloud saglayicilari blokluyor; sadece
+  Ollama / LM Studio / Custom-localhost calisiyor. Air-gap kurulumu
+  icin self-hosted runbook'a bu adim eklenecek (TODO).
+
+### External automation importer (n8n / Claude / OpenClaw / Nemo / MCP)
+- Endpoint live: `POST /api/v1/automation-imports/preview` ve
+  `POST /api/v1/automation-imports`. Adapter'lar
+  `packages/api/src/modules/automation-importer/adapters/`.
+- [ ] **UI ekrani** — `packages/ui/app/integrations/import/page.tsx`
+      ekle. Drag-drop / paste alani + preview + commit. Su an sadece
+      backend adapter'lari hazir.
+- [ ] **Tool registry mapping** — generic adapter'in cikardigi step
+      tipleri (`http`, `script`, `branch`, `transform`, `llm`, `tool`,
+      `mcp.invoke`, `claude-routine-step`) her birinin executor tarafinda
+      tanidigindan emin ol. Su an `mcp.invoke` ve `claude-routine-step`
+      placeholder.
+
+### Cookie consent withdrawal (KVKK Art. 11 / GDPR Art. 7(3))
+- Live: `/cookies` sayfasinda "Reset cookie preferences" butonu var.
+  Kullanici onayini istedigi zaman geri alabiliyor.
+- [ ] **Footer link** — site genel footer'a "Cookie Settings" linki
+      ekle (zaman varsa). Su an `/cookies` URL'sine direkt erisim
+      yeterli.
+
+### Auth & approval flow bugfixes (bu sync'te uygulandi)
+- email + password / name / tenantName trim + max length cap
+  uygulandi (`packages/api/src/modules/auth/auth.router.ts` + `auth.service.ts`).
+- `resetPassword` artik `revokeAllRefreshTokens` cagiriyor — calinmis
+  refresh token'lar sifirlama anindan itibaren gecersiz olur.
+- `WAITING_APPROVAL` state machine: tool-executor approval row yarattiginda
+  run.status'u `WAITING_APPROVAL`'a aliyor; runner ana dongu bunu PAUSED gibi
+  algiliyor; approve sonrasi `enqueueRun` yeniden BullMQ'ya post atiyor.
+- `POST /runs/:id/resume` artik `enqueueRun` cagiriyor — pause/resume gercek
+  calisiyor.
+
+### GitHub repo durumu
+- [ ] **Mobil repo (private)** — su an mobil projenin git'i bile init
+      degil. `gh repo create kocakkmustafa/braavolabs-mobile --private --source=Apps/Braavo`
+      veya UI'dan olustur. Bu sync'te `git init` ve ilk commit yaptik
+      (Apps/Braavo/.git).
+- [ ] **Branch protection** — her iki repoda `main` brani'na require
+      pull request + 1 review + status checks (CI green) zorunlu yap.
+      `gh api repos/kocakkmustafa/braavolabs/branches/main/protection`
+      ile kurulabilir veya UI'dan Settings > Branches.
+- [ ] **CODEOWNERS, SECURITY.md, PR template** — bu sync'te eklendi
+      (web), mobil repoya da kopyalanacak.
+
 Reference: `.claude/context/master-issues.json`, `docs/roadmap/launch-roadmap.md`, `docs/marketing/marketing-plan.md`.

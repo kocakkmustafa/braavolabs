@@ -1,0 +1,17 @@
+# Default reviewer — every PR pings the founder. Add team members below
+# the catch-all line as the team grows; later rules override earlier ones
+# in CODEOWNERS, so the more-specific rules go on the bottom.
+
+*                                       @kocakkmustafa
+
+# Anything touching auth, billing, or governance MUST get a second look
+# even if the founder is also a primary author. These paths drive money
+# + access, so a self-review is too easy a foot-gun.
+/packages/api/src/modules/auth/         @kocakkmustafa
+/packages/api/src/modules/billing/      @kocakkmustafa
+/packages/api/src/modules/governance/   @kocakkmustafa
+/packages/api/src/modules/approval/     @kocakkmustafa
+/packages/db/prisma/schema.prisma       @kocakkmustafa
+/packages/db/prisma/migrations/         @kocakkmustafa
+/.github/                               @kocakkmustafa
+/HOLDING_CORE/policies/                 @kocakkmustafa
