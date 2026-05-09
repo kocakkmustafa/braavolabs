@@ -184,6 +184,13 @@ export async function register(data: {
   tenantName: string;
   ref?: string;
 }): Promise<{ token: string; refreshToken: string; user: any; tenant: any }> {
+  // Canonicalise email at the boundary. A user who pastes " Foo@Bar.com" must
+  // resolve to the same row as "foo@bar.com" — otherwise findUnique fails on
+  // login and the account is silently inaccessible.
+  data.email = data.email.trim().toLowerCase();
+  data.name = data.name.trim();
+  data.tenantName = data.tenantName.trim();
+
   // Block disposable / throwaway emails — abuse mitigation for the
   // missing email-verification flow.
   if (isDisposableEmail(data.email)) {
@@ -332,7 +339,10 @@ export async function login(
   data: { email: string; password: string },
   ip?: string,
 ): Promise<{ token: string; refreshToken: string; user: any; tenant: any }> {
-  const { email } = data;
+  // Canonicalise email — must match the same normalisation that register()
+  // applies, otherwise " Foo@Bar.com" at register vs "foo@bar.com" at login
+  // creates a silent lockout where the legitimate user cannot find their row.
+  const email = data.email.trim().toLowerCase();
   // Composite lockout key — email alone lets an attacker lock out any
   // user whose email they know. Including the requesting IP means an
   // attacker can only lock out themselves; legitimate user from a
@@ -590,6 +600,10 @@ export async function googleCallback(
  * anyway. The new internal logger.error makes operator triage easy.
  */
 export async function requestPasswordReset(email: string): Promise<void> {
+  // Match the canonicalisation applied at register/login — otherwise a user
+  // who registered with whitespace or different casing never receives a
+  // reset link even when entering their email exactly as they remember it.
+  email = email.trim().toLowerCase();
   const user = await prisma.user.findUnique({ where: { email } });
 
   if (!user || !user.passwordHash) {
@@ -642,6 +656,35 @@ export async function resetPassword(token: string, newPassword: string): Promise
     where: { id: user.id },
     data: { passwordHash, resetTokenHash: null, resetTokenExpiresAt: null },
   });
+
+  // Revoke every refresh token issued before this reset. Without this,
+  // an attacker who stole a refresh token before the user reset their
+  // password keeps full access until each token's natural expiry — which
+  // defeats the whole point of resetting. fail-soft: if Redis is down,
+  // the password change still succeeds (the user can self-recover) and
+  // the operator alarm on Redis covers the residual exposure window.
+  try {
+    await revokeAllRefreshTokens(user.id);
+  } catch {
+    // Redis unreachable — refresh tokens cannot be revoked. The new
+    // password still applies on next access-token renewal.
+  }
+
+  // Audit the reset so support can confirm the user (not an attacker)
+  // initiated it during dispute investigations.
+  try {
+    await prisma.activityLog.create({
+      data: {
+        tenantId: user.tenantId,
+        actor: user.id,
+        action: "auth.password_reset",
+        resource: "user",
+        resourceId: user.id,
+      },
+    });
+  } catch {
+    // Activity log failure must not block password reset.
+  }
 }
 
 // ─── GITHUB OAUTH ────────────────────────────────────────

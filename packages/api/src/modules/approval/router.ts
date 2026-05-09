@@ -2,6 +2,7 @@ import { Router } from "express";
 import { authMiddleware } from "../../middleware/auth";
 import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
+import { enqueueRun } from "../pipeline/runner";
 import { z } from "zod";
 
 export const approvalRouter = Router();
@@ -93,6 +94,26 @@ approvalRouter.post("/:id/decide", async (req, res, next) => {
 
     if (!result.won) {
       throw new AppError(409, "Approval was just decided by another admin");
+    }
+
+    // On APPROVED, the run is now back to RUNNING but no BullMQ worker is
+    // listening — re-enqueue so the runner picks the resume cursor. The
+    // current runner replays from step group 0; per-step idempotency keys
+    // keep most external side effects safe. (REJECTED leaves the run as
+    // CANCELLED — no enqueue needed.)
+    if (decision === "APPROVED") {
+      try {
+        await enqueueRun(approval.runId);
+      } catch (err) {
+        // Enqueue failures are recoverable — the run sits in RUNNING but
+        // operators can manually re-enqueue via /runs/:id/resume. Surface
+        // the error to logs so PagerDuty can pick it up.
+        const { logger } = await import("../../lib/logger");
+        logger.error(
+          { runId: approval.runId, err: err instanceof Error ? err.message : String(err) },
+          "Failed to re-enqueue run after approval — manual resume required",
+        );
+      }
     }
 
     res.json({ success: true, decision });

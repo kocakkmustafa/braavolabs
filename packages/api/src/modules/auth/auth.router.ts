@@ -52,17 +52,20 @@ const registerRateLimit = rateLimit({
 // Anything that lands in the production form/router contract belongs in
 // a schema test — drift between client + server validation is the most
 // common cause of "Validation failed" noise reaching the user.
+// Length caps prevent payload-amplification DoS via bcrypt — a 1 MB password
+// monopolises a Node thread for seconds. RFC 5321 caps email at 254 chars;
+// 128 is well above any real password yet far below the DoS threshold.
 export const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8).regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/, "Password must contain uppercase, lowercase, and a number"),
-  name: z.string().min(1),
-  tenantName: z.string().min(1),
-  ref: z.string().optional(),
+  email: z.string().email().max(254),
+  password: z.string().min(8).max(128).regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/, "Password must contain uppercase, lowercase, and a number"),
+  name: z.string().min(1).max(200),
+  tenantName: z.string().min(1).max(100),
+  ref: z.string().max(64).optional(),
 });
 
 export const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
+  email: z.string().email().max(254),
+  password: z.string().min(1).max(128),
 });
 
 
@@ -85,10 +88,10 @@ authRouter.post("/login", loginRateLimit, validate(loginSchema), async (req, res
   } catch (err) { next(err); }
 });
 
-export const forgotSchema = z.object({ email: z.string().email() });
+export const forgotSchema = z.object({ email: z.string().email().max(254) });
 export const resetSchema = z.object({
-  token: z.string().min(1),
-  password: z.string().min(8).regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/, "Password must contain uppercase, lowercase, and a number"),
+  token: z.string().min(1).max(256),
+  password: z.string().min(8).max(128).regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/, "Password must contain uppercase, lowercase, and a number"),
 });
 
 // POST /api/v1/auth/forgot-password

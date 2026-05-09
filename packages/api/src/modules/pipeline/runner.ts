@@ -195,7 +195,14 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
       where: { id: runId },
       select: { status: true },
     });
-    if (currentRun?.status === "CANCELLED" || currentRun?.status === "PAUSED") {
+    if (
+      currentRun?.status === "CANCELLED" ||
+      currentRun?.status === "PAUSED" ||
+      currentRun?.status === "WAITING_APPROVAL"
+    ) {
+      // WAITING_APPROVAL is set by tool-executor.ts when it spawns an
+      // Approval row — exiting here lets the BullMQ job complete cleanly
+      // and waits for /approvals/:id/decide to call enqueueRun() again.
       logger.info({ runId, status: currentRun.status }, "Run stopped externally");
       return;
     }

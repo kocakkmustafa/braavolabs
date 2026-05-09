@@ -2,6 +2,7 @@ import { Router } from "express";
 import { authMiddleware } from "../../middleware/auth";
 import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
+import { enqueueRun } from "../pipeline/runner";
 
 export const runRouter = Router();
 runRouter.use(authMiddleware);
@@ -81,6 +82,15 @@ runRouter.post("/:id/pause", async (req, res, next) => {
 });
 
 // POST /api/v1/runs/:id/resume
+//
+// Resume must do two things: flip status back to RUNNING AND re-enqueue
+// the BullMQ job. Without the re-enqueue the run sits in RUNNING forever
+// because the worker that exited on PAUSED never picks it back up. Note
+// that the runner currently restarts from step group 0 on a new job
+// pickup — fully step-cursor-aware resumption is on the roadmap. The
+// trade-off (replay a few steps vs. permanent stuck-RUNNING) is
+// preferable, and the runner's per-step idempotency keys avoid duplicate
+// side effects on most replayable steps.
 runRouter.post("/:id/resume", async (req, res, next) => {
   try {
     const run = await prisma.run.findUnique({
@@ -90,10 +100,25 @@ runRouter.post("/:id/resume", async (req, res, next) => {
     if (!run || run.pipeline.company.tenantId !== req.auth!.tenantId) {
       throw new AppError(404, "Run not found");
     }
+    if (run.status !== "PAUSED" && run.status !== "WAITING_APPROVAL") {
+      throw new AppError(400, "Run is not paused or waiting on approval");
+    }
 
     await prisma.run.update({
       where: { id: run.id },
       data: { status: "RUNNING" },
+    });
+
+    await enqueueRun(run.id);
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "run.resume",
+        resource: "run",
+        resourceId: run.id,
+      },
     });
 
     res.json({ success: true, status: "RUNNING" });

@@ -35,6 +35,26 @@ export function getCookieConsent(): Consent | null {
   }
 }
 
+/**
+ * Clear the stored consent and re-trigger the banner. Required for KVKK
+ * Article 11 / GDPR Article 7(3): withdrawal must be as easy as giving
+ * consent. Callers (footer link, /cookies page button, settings panel)
+ * should reload the page afterwards or rely on the storage event the
+ * banner re-mount listens for.
+ */
+export function clearCookieConsent(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+    // Synthesize a storage event so other tabs / mounted banners see the
+    // change without a full reload. localStorage doesn't emit a "storage"
+    // event in the same tab, hence the manual dispatch.
+    window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
+  } catch {
+    /* private mode / disabled storage — caller should fall back to reload */
+  }
+}
+
 function detectLocale(): Locale {
   if (typeof window === "undefined") return "en";
   // 1) Cloudflare geo cookie wins — covers Turkish visitors with English
@@ -123,6 +143,16 @@ export default function CookieConsent() {
   useEffect(() => {
     setConsent(getCookieConsent());
     setLocale(detectLocale());
+    // Re-evaluate when clearCookieConsent() dispatches the synthetic
+    // storage event — lets the "Cookie Settings" link re-show the banner
+    // without a full page reload.
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === null || e.key === STORAGE_KEY) {
+        setConsent(getCookieConsent());
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
   // SSR + first hydrate → render nothing to avoid layout flash. Real
