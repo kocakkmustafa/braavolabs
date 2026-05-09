@@ -429,4 +429,47 @@ export const api = {
     }),
   collaborationActivity: (token: string, limit = 50) =>
     apiFetch<any[]>(`/collaboration/activity?limit=${limit}`, { token }),
+
+  // External automation importer — converts an n8n workflow / Claude
+  // routine / OpenClaw bundle / MCP server / generic graph into a
+  // Braavolabs Pipeline. Preview returns the would-be result without
+  // persisting; commit writes the row.
+  importAutomationPreview: (
+    token: string,
+    body: {
+      source: "n8n" | "claude-automation" | "claude-code-routine" | "openclaw" | "nemoclaw" | "mcp" | "generic";
+      payload: string;
+      name?: string;
+      companyId?: string;
+    },
+  ) =>
+    apiFetch<{
+      success: boolean;
+      preview: { name: string; description?: string; steps: Array<{ id: string; type: string; config: unknown }> };
+      droppedNodes: Array<{ id: string; type: string; reason: string }>;
+      warnings: string[];
+    }>("/automation-imports/preview", {
+      method: "POST",
+      body: JSON.stringify(body),
+      token,
+    }),
+  importAutomationCommit: (
+    token: string,
+    body: {
+      source: "n8n" | "claude-automation" | "claude-code-routine" | "openclaw" | "nemoclaw" | "mcp" | "generic";
+      payload: string;
+      name?: string;
+      companyId?: string;
+    },
+  ) =>
+    apiFetch<{
+      success: boolean;
+      pipelineId: string;
+      droppedNodes: Array<{ id: string; type: string; reason: string }>;
+      warnings: string[];
+    }>("/automation-imports", {
+      method: "POST",
+      body: JSON.stringify(body),
+      token,
+    }),
 };

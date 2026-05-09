@@ -30,8 +30,8 @@ import { prisma } from "../../../lib/db";
 import { AppError } from "../../../middleware/error";
 import { env } from "../../../config/env";
 import { logger } from "../../../lib/logger";
-import { verifyAppleReceipt } from "./apple";
-import { verifyGoogleReceipt } from "./google";
+import { verifyAppleReceipt, parseAppleNotification } from "./apple";
+import { verifyGoogleReceipt, parseGoogleRtdnEnvelope } from "./google";
 
 export const iapRouter = Router();
 
@@ -193,5 +193,171 @@ iapRouter.get("/entitlement", authMiddleware, async (req, res, next) => {
     });
   } catch (err) {
     next(err);
+  }
+});
+
+// ─── STORE WEBHOOKS ──────────────────────────────────────
+//
+// Apple App Store Server Notifications V2 + Google Real-Time Developer
+// Notifications keep our row current without polling. They share a
+// common shape from our perspective: a state change for an existing
+// originalTransactionId, propagated to the matching MobileSubscription
+// row + tenant.plan downgrade when entitlement expires. Both endpoints
+// are unauthenticated by design — Apple/Google sign their payloads;
+// our /verify trust comes from the signature, not from a bearer token.
+
+// POST /api/v1/billing/iap/apple/notify
+//
+// Apple posts a JSON body with `signedPayload` (a JWS). The payload
+// signature itself is Apple-signed; integrity comes from HTTPS plus
+// the JWS. We re-fetch the canonical subscription state via the
+// Server API so a malicious replay (which we'd never accept anyway
+// because we only trust the JWS structure for the transactionId) can't
+// move our row past what Apple actually says is active.
+iapRouter.post("/apple/notify", async (req, res) => {
+  const signedPayload = (req.body as { signedPayload?: string })?.signedPayload;
+  if (!signedPayload || typeof signedPayload !== "string") {
+    res.status(400).json({ error: "missing signedPayload" });
+    return;
+  }
+  try {
+    const note = await parseAppleNotification(signedPayload);
+    const updated = await prisma.mobileSubscription.update({
+      where: { originalTransactionId: note.originalTransactionId },
+      data: {
+        status: note.status,
+        expiresAt: note.expiresAt,
+        autoRenew: note.autoRenew,
+        lastVerifiedAt: new Date(),
+      },
+    }).catch((err) => {
+      // Unknown originalTransactionId — usually a TEST notification
+      // before any real purchase has hit our /verify path. Log and
+      // ack so Apple doesn't retry.
+      logger.warn(
+        { err: err instanceof Error ? err.message : err, type: note.notificationType },
+        "Apple notification for unknown subscription",
+      );
+      return null;
+    });
+
+    if (updated) {
+      // Downgrade the tenant when entitlement is actually gone. Active
+      // states leave the existing tenant.plan untouched (the upgrade
+      // was already applied at /verify time).
+      if (note.status === "expired" || note.status === "revoked") {
+        const stillActive = await prisma.mobileSubscription.findFirst({
+          where: {
+            tenantId: updated.tenantId,
+            status: { in: ["active", "in_grace_period"] },
+            expiresAt: { gt: new Date() },
+          },
+        });
+        if (!stillActive) {
+          await prisma.tenant.update({
+            where: { id: updated.tenantId },
+            data: { plan: "FREE" },
+          });
+        }
+      }
+      await prisma.activityLog.create({
+        data: {
+          tenantId: updated.tenantId,
+          actor: "apple-asn",
+          action: "billing.iap.notification",
+          resource: "mobile_subscription",
+          resourceId: updated.id,
+          details: { type: note.notificationType, subtype: note.subtype, status: note.status } as any,
+        },
+      });
+    }
+
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "Failed to process Apple notification");
+    // 200 even on parse error — Apple retries 5xx aggressively and we
+    // don't want a malformed test notification to flood our queue.
+    // Real errors are visible in logs.
+    res.status(200).json({ ok: false });
+  }
+});
+
+// POST /api/v1/billing/iap/google/notify
+//
+// Google forwards RTDN messages via a Pub/Sub push subscription. The
+// envelope wraps a base64-encoded JSON body describing the change.
+// We re-fetch authoritative state via verifyGoogleReceipt — the
+// notification only carries `purchaseToken + notificationType`, the
+// truth is behind the API.
+iapRouter.post("/google/notify", async (req, res) => {
+  try {
+    const parsed = parseGoogleRtdnEnvelope(req.body);
+    if (!parsed) {
+      res.status(200).json({ ok: false, reason: "envelope-not-recognised" });
+      return;
+    }
+
+    // Re-verify against the API so we're not trusting the
+    // notification body (which doesn't carry expiresAt etc).
+    let verified;
+    try {
+      verified = await verifyGoogleReceipt(parsed.purchaseToken, parsed.subscriptionId);
+    } catch (err) {
+      logger.warn(
+        { err: err instanceof Error ? err.message : err, type: parsed.notificationType },
+        "Google RTDN re-verify failed",
+      );
+      res.status(200).json({ ok: false, reason: "verify-failed" });
+      return;
+    }
+
+    const updated = await prisma.mobileSubscription.update({
+      where: { originalTransactionId: verified.originalTransactionId },
+      data: {
+        status: verified.status,
+        expiresAt: verified.expiresAt,
+        autoRenew: verified.autoRenew,
+        lastVerifiedAt: new Date(),
+      },
+    }).catch((err) => {
+      logger.warn(
+        { err: err instanceof Error ? err.message : err, type: parsed.notificationType },
+        "Google RTDN for unknown subscription",
+      );
+      return null;
+    });
+
+    if (updated) {
+      if (verified.status === "expired" || verified.status === "revoked") {
+        const stillActive = await prisma.mobileSubscription.findFirst({
+          where: {
+            tenantId: updated.tenantId,
+            status: { in: ["active", "in_grace_period"] },
+            expiresAt: { gt: new Date() },
+          },
+        });
+        if (!stillActive) {
+          await prisma.tenant.update({
+            where: { id: updated.tenantId },
+            data: { plan: "FREE" },
+          });
+        }
+      }
+      await prisma.activityLog.create({
+        data: {
+          tenantId: updated.tenantId,
+          actor: "google-rtdn",
+          action: "billing.iap.notification",
+          resource: "mobile_subscription",
+          resourceId: updated.id,
+          details: { type: parsed.notificationType, status: verified.status } as any,
+        },
+      });
+    }
+
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "Failed to process Google RTDN");
+    res.status(200).json({ ok: false });
   }
 });
