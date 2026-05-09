@@ -84,6 +84,30 @@ const envShape = z.object({
   LICENSE_JWT_SECRET: z.string().optional(),
   LICENSE_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(7),
   LICENSE_MACHINE_CHANGES_PER_MONTH: z.coerce.number().int().min(0).max(100).default(1),
+  // ── Mobile In-App Purchase verification ──
+  // Apple App Store Server API (StoreKit 2 path):
+  APPLE_ISSUER_ID: z.string().optional(),
+  APPLE_KEY_ID: z.string().optional(),
+  // PEM-formatted ES256 private key downloaded from App Store Connect.
+  // Compose `${APPLE_PRIVATE_KEY}` env reads the multi-line PEM verbatim;
+  // ensure secrets manager preserves newlines (\n).
+  APPLE_PRIVATE_KEY: z.string().optional(),
+  APPLE_BUNDLE_ID: z.string().optional(),
+  // Legacy verifyReceipt fallback (pre-StoreKit 2 builds):
+  APPLE_SHARED_SECRET: z.string().optional(),
+  // Google Play Developer API:
+  GOOGLE_PLAY_PACKAGE_NAME: z.string().optional(),
+  // Base64-encoded service account JSON. Decode + parse on first use.
+  GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: z.string().optional(),
+  // RevenueCat (optional unified path covering both stores):
+  REVENUECAT_WEBHOOK_SECRET: z.string().optional(),
+  // ── Air-gap / offline mode ──
+  // When true, the LLM router refuses every non-local provider, the
+  // export DRM enforces machine binding (already on), and outbound
+  // SaaS integrations (HubSpot, SendGrid, Stripe webhooks, etc.) skip
+  // network calls. Designed for self-hosted air-gapped deployments —
+  // operator pairs this with Ollama or LM Studio as the LLM provider.
+  OFFLINE_MODE: z.string().optional().default("false").transform((v) => v === "true"),
 });
 
 export type Env = z.infer<typeof envShape>;

@@ -33,6 +33,7 @@ model Tenant {
   aiConfig           UserAIConfig?
   abTests            AbTest[]
   pipelineLicenses   PipelineLicense[]
+  mobileSubscriptions MobileSubscription[]
 
   @@map("tenants")
 }
@@ -74,11 +75,109 @@ model User {
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
-  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  approvals Approval[]
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  approvals        Approval[]
+  devices          Device[]
+  notificationPref NotificationPref?
 
   @@index([tenantId])
   @@map("users")
+}
+
+// ─── PUSH NOTIFICATIONS ─────────────────────────────────
+//
+// Mobile companion app (Apps/Braavo) registers its Expo Push token here
+// on login. The notify service fans out approval / risk / draft events
+// to every device a user owns. Cascades on user delete so GDPR erasure
+// cleanly takes the tokens with it.
+
+model Device {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  pushToken  String   @unique @map("push_token")
+  platform   String // "ios" | "android" | "web"
+  deviceName String?  @map("device_name")
+  osVersion  String?  @map("os_version")
+  lastSeenAt DateTime @default(now()) @map("last_seen_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("devices")
+}
+
+// ─── MOBILE IN-APP PURCHASE ENTITLEMENT ──────────────────
+//
+// One row per Apple/Google subscription receipt. Mobile app posts the
+// receipt to /billing/iap/verify after a successful StoreKit /
+// PlayBilling purchase; the API verifies with Apple App Store Server
+// API or Google Play Developer API and writes a row here. The row's
+// `expiresAt` is the source of truth for entitlement on web — at login
+// the API reads the latest non-expired row, the legacy Stripe path, OR
+// the trial counter to decide the active plan. Apple's renewal webhooks
+// (App Store Server Notifications V2) and Google's RTDN feed the same
+// table so renewals/cancellations stay current.
+//
+// `provider` distinguishes which API verified the receipt (mostly for
+// debugging — Apple receipts can't be replayed against Google and vice
+// versa). `originalTransactionId` is the durable identifier across
+// renewal cycles for both ecosystems; we treat it as the natural key so
+// a single subscription chain has a single row regardless of how many
+// times Apple's `latest_receipt` mutates underneath it.
+model MobileSubscription {
+  id                    String   @id @default(cuid())
+  tenantId              String   @map("tenant_id")
+  provider              String // "apple" | "google" | "revenuecat"
+  productId             String   @map("product_id")
+  // Apple: original_transaction_id; Google: subscriptionId.
+  // RevenueCat: app_user_id+entitlement composite to keep a single row.
+  originalTransactionId String   @unique @map("original_transaction_id")
+  // Latest verified receipt blob. Apple receipts are base64; Google
+  // purchase tokens are short opaque strings. Stored encrypted at rest
+  // — the verification path decrypts only on inbound webhook /
+  // /verify calls. Treated as PII per Apple/Google ToS.
+  latestReceipt         String?  @map("latest_receipt") @db.Text
+  status                String // "active" | "in_grace_period" | "expired" | "revoked" | "paused"
+  // Plan tier this subscription grants ("CREATOR" / "BUSINESS" / etc.).
+  // Mirrors the Plan enum string — kept as String to allow new tiers
+  // without a schema migration.
+  planTier              String   @map("plan_tier")
+  startedAt             DateTime @map("started_at")
+  expiresAt             DateTime @map("expires_at")
+  autoRenew             Boolean  @default(true) @map("auto_renew")
+  // Last time we re-verified with Apple/Google. Renewal webhooks /
+  // periodic re-verify cron updates this.
+  lastVerifiedAt        DateTime @default(now()) @map("last_verified_at")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([expiresAt])
+  @@map("mobile_subscriptions")
+}
+
+// Per-user push notification preferences. Stored on its own row (not
+// per-device) because users want a single "alert me for approvals"
+// switch, not separate switches per phone they own. Defaults match the
+// mobile app's CHANNELS list — approvals + risks ON, runs + drafts OFF
+// (signal vs. noise).
+model NotificationPref {
+  id        String   @id @default(cuid())
+  userId    String   @unique @map("user_id")
+  approvals Boolean  @default(true)
+  risks     Boolean  @default(true)
+  runs      Boolean  @default(false)
+  drafts    Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_prefs")
 }
 
 // ─── PIPELINE EXPORT DRM ────────────────────────────────

@@ -334,6 +334,16 @@ export async function chatCompletion(
 ): Promise<ChatCompletionResult> {
   logger.debug({ provider: config.provider, model: config.model }, "AI chat completion");
 
+  // Air-gapped / offline mode: only LOCAL_PROVIDERS (Ollama, LM Studio,
+  // Custom-with-localhost) are allowed. Cloud providers leak data and
+  // need DNS that an air-gapped deployment doesn't have. Operators set
+  // OFFLINE_MODE=true in env when running on segregated networks.
+  if (envOfflineMode() && !LOCAL_PROVIDERS.has(config.provider)) {
+    throw new Error(
+      `OFFLINE_MODE blocks cloud LLM provider "${config.provider}". Switch the tenant to OLLAMA / LMSTUDIO / CUSTOM with a local base URL.`,
+    );
+  }
+
   switch (config.provider) {
     case "ANTHROPIC": {
       // Convert ChatMessage[] to Anthropic MessageParam[]
@@ -370,6 +380,11 @@ export async function chatCompletion(
 
 import { prisma } from "../lib/db";
 import { env } from "../config/env";
+
+/** Lazy accessor so tests can mock env without re-importing. */
+function envOfflineMode(): boolean {
+  return env.OFFLINE_MODE === true;
+}
 
 /**
  * Load the AI config for a tenant, falling back to system defaults.
