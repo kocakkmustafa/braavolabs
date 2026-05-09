@@ -30,11 +30,14 @@ import { crmRouter } from "./modules/crm/router";
 import { outreachRouter } from "./modules/outreach/router";
 import { webhookRouter, webhookTemplateRouter } from "./modules/webhook/router";
 import { billingRouter, stripeWebhookRouter } from "./modules/billing/router";
+import { iapRouter } from "./modules/billing/iap/router";
+import { automationImporterRouter } from "./modules/automation-importer/router";
 import { governanceRouter } from "./modules/governance/router";
 import { onboardingRouter } from "./modules/onboarding/router";
 import { growthRouter } from "./modules/growth/router";
 import { authRouter } from "./modules/auth/auth.router";
 import { userRouter } from "./modules/user/user.router";
+import { deviceRouter } from "./modules/device/router";
 import { exportRouter } from "./modules/export/router";
 import { licenseRouter } from "./modules/license/license.router";
 import { starterRouter } from "./modules/starter/starter.router";
@@ -214,6 +217,7 @@ const api = express.Router();
 api.get("/health", healthHandler);
 api.use("/auth", authRouter);
 api.use("/users", userRouter);
+api.use("/devices", deviceRouter);
 api.use("/companies", companyRouter);
 api.use("/pipelines", pipelineRouter);
 api.use("/runs", runRouter);
@@ -224,6 +228,10 @@ api.use("/dashboard", dashboardRouter);
 api.use("/crm", crmRouter);
 api.use("/outreach", outreachRouter);
 api.use("/billing", billingRouter);
+// Mobile IAP entitlement bridge — mounted under /billing/iap so the path
+// stays clearly under "billing" but lives in its own module to avoid
+// piling Apple/Google verification logic into the Stripe-centric router.
+api.use("/billing/iap", iapRouter);
 api.use("/governance", governanceRouter);
 api.use("/onboarding", onboardingRouter);
 api.use("/growth", growthRouter);
@@ -236,6 +244,7 @@ api.use("/agents", agentVersionRouter);
 api.use("/ab-tests", abTestRouter);
 api.use("/collaboration", collaborationRouter);
 api.use("/webhooks", webhookTemplateRouter);
+api.use("/automation-imports", automationImporterRouter);
 
 app.use("/api/v1", api);
 

@@ -3,6 +3,7 @@ import { authMiddleware } from "../../middleware/auth";
 import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { z } from "zod";
+import { notifyTenantUsers } from "../../services/push";
 
 export const draftRouter = Router();
 draftRouter.use(authMiddleware);
@@ -156,6 +157,15 @@ draftRouter.post("/", async (req, res, next) => {
         resourceId: draft.id,
       },
     });
+
+    // Push to mobile companion app — `drafts` pref defaults to OFF
+    // (signal-vs-noise) so most users won't see this. Power users can
+    // toggle it on under Settings → Notifications in the mobile app.
+    notifyTenantUsers(req.auth!.tenantId, "draft", {
+      title: "New draft ready",
+      body: data.title ?? "An AI draft is awaiting your review",
+      data: { kind: "draft", id: draft.id, companyId: data.companyId },
+    }).catch(() => {});
 
     res.status(201).json(draft);
   } catch (err) { next(err); }

@@ -6,6 +6,7 @@
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { getTool, getToolMeta, type ToolMeta } from "./registry";
+import { notifyTenantUsers } from "../../services/push";
 
 export interface ToolExecResult {
   output: unknown;
@@ -184,14 +185,37 @@ export async function executeTool(
         error: `Tool "${toolName}" requires approval but executor has no run context`,
       };
     }
+    // Surface the cost field on Approval.amountUsd so the human approver
+    // sees the figure they're greenlighting in the standard list view —
+    // burying it in metadata.input.budgetUsd meant operators routinely
+    // approved without seeing the dollar amount. Each approval-requiring
+    // tool declares its cost field via meta.costField (defaults to
+    // "budgetUsd" for the historical ad_spend contract).
+    const costField = (meta as any)?.costField ?? "budgetUsd";
+    const rawAmount = (scopedInput as any)?.[costField];
+    const amountUsd =
+      typeof rawAmount === "number" && Number.isFinite(rawAmount) && rawAmount >= 0
+        ? rawAmount
+        : null;
+
     const approval = await prisma.approval.create({
       data: {
         runId: context.runId,
         type: "SPEND",
         description: `Approval required for tool: ${toolName}`,
-        metadata: { toolName, input: scopedInput } as any,
+        amountUsd: amountUsd as any,
+        metadata: { toolName, input: scopedInput, costField } as any,
         status: "PENDING",
       },
+    });
+
+    // Drive the run into WAITING_APPROVAL so the next step-group iteration
+    // in the runner sees a non-RUNNING status and exits cleanly. Without
+    // this the BullMQ job kept iterating and the run completed normally
+    // while the approval row sat orphaned at PENDING — see ISS-022.
+    await prisma.run.update({
+      where: { id: context.runId },
+      data: { status: "WAITING_APPROVAL" },
     });
 
     await prisma.activityLog.create({
@@ -200,9 +224,18 @@ export async function executeTool(
         actor: "system",
         action: "approval.requested",
         resource: "tool_call",
-        details: { toolName, approvalId: approval.id } as any,
+        details: { toolName, approvalId: approval.id, amountUsd } as any,
       },
     });
+
+    // Fire push notifications to every device in the tenant whose user
+    // has the `approvals` pref enabled (default ON). Fire-and-forget —
+    // we never want a push hiccup to block the executor.
+    notifyTenantUsers(context.tenantId, "approval", {
+      title: "Approval needed",
+      body: `Tool ${toolName} is waiting for your decision`,
+      data: { kind: "approval", id: approval.id, toolName },
+    }).catch(() => {});
 
     logger.info({ toolName, approvalId: approval.id }, "Tool requires approval — paused");
     return {

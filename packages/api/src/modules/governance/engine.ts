@@ -9,6 +9,7 @@ import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { DEFAULT_GOVERNANCE_CONFIG } from "@ai-company-os/core";
 import type { GovernanceConfig, RiskStopType } from "@ai-company-os/core";
+import { notifyTenantUsers } from "../../services/push";
 
 export interface GovernanceCheckResult {
   allowed: boolean;
@@ -69,6 +70,15 @@ export async function runGovernanceChecks(
         { runId, stopType, reason: result.reason },
         "Governance check failed",
       );
+
+      // Push to mobile companion app — `risks` pref defaults to ON
+      // because cost anomalies / runaway loops are exactly what users
+      // want to know about while away from their desk.
+      notifyTenantUsers(tenantId, "risk", {
+        title: `Risk halted a run · ${stopType}`,
+        body: result.reason ?? "A safety stop fired",
+        data: { kind: "risk", id: runId, stopType },
+      }).catch(() => {});
 
       return result;
     }
