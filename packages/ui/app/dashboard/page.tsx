@@ -202,7 +202,7 @@ export default function DashboardPage() {
           />
           <MetricCard
             icon="check_circle"
-            label="Run health" /* i18n: hardcoded */
+            label={t("app.dashboard.runHealth")}
             value={usage ? `${(usage.successRate * 100).toFixed(1)}` : "—"}
             suffix={usage ? "%" : undefined}
             accent="linear-gradient(135deg, #34d399, #15a36b)"
@@ -368,12 +368,13 @@ function RecentRunsPanel(props: {
   counts: Record<"all" | "running" | "completed" | "pending" | "failed", number>;
 }) {
   const { runs, loaded, filter, setFilter, counts } = props;
+  const t = useTranslations();
 
   return (
     <section className="bv-glass bv-panel">
       <header className="bv-panel-head">
         <div>
-          <h2 className="bv-title">Recent runs{/* i18n: hardcoded */}</h2>
+          <h2 className="bv-title">{t("app.dashboard.recentRuns")}</h2>
           <div className="bv-caption">Polling every 15s</div>
         </div>
         <div className="bv-panel-head-actions">
@@ -542,8 +543,7 @@ function ApprovalsPanel({
         </ul>
       ) : list.length === 0 ? (
         <div style={{ padding: "20px 8px", textAlign: "center", color: "var(--color-outline)", fontSize: 12 }}>
-          {/* i18n: hardcoded */}
-          Inbox zero — no approvals waiting.
+          {t("app.dashboard.inboxZero")}
         </div>
       ) : (
         <ul className="bv-approval-list">
@@ -589,6 +589,7 @@ function ApprovalsPanel({
 
 function RiskPanel({ risks, loaded }: { risks: RiskEvent[]; loaded: boolean }) {
   const list = risks.slice(0, 5);
+  const t = useTranslations();
 
   return (
     <section className="bv-glass bv-panel">
@@ -596,8 +597,7 @@ function RiskPanel({ risks, loaded }: { risks: RiskEvent[]; loaded: boolean }) {
         <div>
           <h2 className="bv-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span className="material-symbols-outlined" style={{ fontSize: 18 }} aria-hidden>gpp_maybe</span>
-            {/* i18n: hardcoded */}
-            Risk events
+            {t("app.dashboard.riskEvents")}
           </h2>
           <div className="bv-caption">
             {risks.length === 0 ? "No active risks" : `${risks.length} active`}
@@ -622,8 +622,7 @@ function RiskPanel({ risks, loaded }: { risks: RiskEvent[]; loaded: boolean }) {
         </ul>
       ) : list.length === 0 ? (
         <div style={{ padding: "20px 8px", textAlign: "center", color: "var(--color-outline)", fontSize: 12 }}>
-          {/* i18n: hardcoded */}
-          Audit trail clean — no risks raised.
+          {t("app.dashboard.noRisksRaised")}
         </div>
       ) : (
         <ul className="bv-risk-list">
@@ -644,8 +643,7 @@ function RiskPanel({ risks, loaded }: { risks: RiskEvent[]; loaded: boolean }) {
       )}
 
       <Link href="/risks" className="bv-btn bv-btn-ghost bv-btn-sm" style={{ width: "100%", marginTop: 4 }}>
-        {/* i18n: hardcoded */}
-        <span>Open risk inbox</span>
+        <span>{t("app.dashboard.openRiskInbox")}</span>
         <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
       </Link>
     </section>

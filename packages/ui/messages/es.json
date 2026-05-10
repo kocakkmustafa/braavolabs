@@ -405,7 +405,13 @@
       "pendingApprovalsBanner": "Aprobaciones Pendientes",
       "pendingActionsLabel": "Acciones esperando tu revisión",
       "review": "Revisar",
-      "noDescription": "Sin descripción"
+      "noDescription": "Sin descripción",
+      "recentRuns": "Ejecuciones recientes",
+      "riskEvents": "Eventos de riesgo",
+      "runHealth": "Salud de ejecución",
+      "openRiskInbox": "Abrir bandeja de riesgos",
+      "inboxZero": "Bandeja vacía — sin aprobaciones pendientes",
+      "noRisksRaised": "Registro limpio — sin riesgos"
     },
     "integrations": {
       "title": "Biblioteca de Integraciones",

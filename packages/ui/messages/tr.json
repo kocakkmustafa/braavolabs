@@ -405,7 +405,13 @@
       "pendingApprovalsBanner": "Bekleyen Onaylar",
       "pendingActionsLabel": "İncelemeni bekleyen aksiyonlar",
       "review": "İncele",
-      "noDescription": "Açıklama yok"
+      "noDescription": "Açıklama yok",
+      "recentRuns": "Son çalışmalar",
+      "riskEvents": "Risk olayları",
+      "runHealth": "Çalışma sağlığı",
+      "openRiskInbox": "Risk gelen kutusunu aç",
+      "inboxZero": "Onay bekleyen yok",
+      "noRisksRaised": "Denetim izi temiz — risk yok"
     },
     "integrations": {
       "title": "Entegrasyon Kütüphanesi",

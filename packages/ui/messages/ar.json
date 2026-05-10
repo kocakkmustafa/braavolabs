@@ -405,7 +405,13 @@
       "pendingApprovalsBanner": "الموافقات المعلّقة",
       "pendingActionsLabel": "إجراءات تنتظر مراجعتك",
       "review": "مراجعة",
-      "noDescription": "لا يوجد وصف"
+      "noDescription": "لا يوجد وصف",
+      "recentRuns": "التشغيلات الأخيرة",
+      "riskEvents": "أحداث المخاطر",
+      "runHealth": "حالة التشغيل",
+      "openRiskInbox": "فتح صندوق المخاطر",
+      "inboxZero": "لا توجد موافقات معلقة",
+      "noRisksRaised": "سجل التدقيق نظيف — لا توجد مخاطر"
     },
     "integrations": {
       "title": "مكتبة التكاملات",

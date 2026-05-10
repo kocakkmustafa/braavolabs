@@ -405,7 +405,13 @@
       "pendingApprovalsBanner": "Pending Approvals",
       "pendingActionsLabel": "Actions waiting for your review",
       "review": "Review",
-      "noDescription": "No description"
+      "noDescription": "No description",
+      "recentRuns": "Recent runs",
+      "riskEvents": "Risk events",
+      "runHealth": "Run health",
+      "openRiskInbox": "Open risk inbox",
+      "inboxZero": "Inbox zero — no approvals waiting",
+      "noRisksRaised": "Audit trail clean — no risks raised"
     },
     "integrations": {
       "title": "Integration Library",

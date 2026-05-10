@@ -405,7 +405,13 @@
       "pendingApprovalsBanner": "Ausstehende Freigaben",
       "pendingActionsLabel": "Aktionen warten auf deine Prüfung",
       "review": "Prüfen",
-      "noDescription": "Keine Beschreibung"
+      "noDescription": "Keine Beschreibung",
+      "recentRuns": "Letzte Läufe",
+      "riskEvents": "Risikomeldungen",
+      "runHealth": "Lauf-Gesundheit",
+      "openRiskInbox": "Risiko-Posteingang öffnen",
+      "inboxZero": "Posteingang leer — keine offenen Freigaben",
+      "noRisksRaised": "Audit-Spur sauber — keine Risiken"
     },
     "integrations": {
       "title": "Integrations-Bibliothek",

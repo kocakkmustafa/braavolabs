@@ -405,7 +405,13 @@
       "pendingApprovalsBanner": "Approbations en Attente",
       "pendingActionsLabel": "Actions en attente de votre examen",
       "review": "Examiner",
-      "noDescription": "Aucune description"
+      "noDescription": "Aucune description",
+      "recentRuns": "Exécutions récentes",
+      "riskEvents": "Événements à risque",
+      "runHealth": "Santé d'exécution",
+      "openRiskInbox": "Ouvrir la boîte des risques",
+      "inboxZero": "Boîte vide — aucune approbation en attente",
+      "noRisksRaised": "Journal d'audit propre — aucun risque"
     },
     "integrations": {
       "title": "Bibliothèque d'Intégrations",
