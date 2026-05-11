@@ -59,10 +59,28 @@ if [ ! -f ".env" ]; then
   POSTGRES_PASSWORD=$(openssl rand -hex 16 2>/dev/null || head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 32)
   REDIS_PASSWORD=$(openssl rand -hex 16 2>/dev/null || head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 32)
   JWT_SECRET=$(openssl rand -hex 32 2>/dev/null || head -c 64 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 64)
+  # ENCRYPTION_KEY protects every customer's BYOK LLM key at rest.
+  # Without it, the API refuses to boot in production (env.ts/encryption.ts
+  # both fail-fast on a missing / placeholder key). Generating one
+  # per install is mandatory — without it the operator either copies
+  # the .env.example placeholder (publicly known) or hits a boot loop.
+  ENCRYPTION_KEY=$(openssl rand -hex 32 2>/dev/null || head -c 64 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 64)
+  # LICENSE_JWT_SECRET signs the offline-license tokens that gate paid
+  # pipeline exports. Independent secret so it can be rotated without
+  # invalidating user sessions.
+  LICENSE_JWT_SECRET=$(openssl rand -hex 32 2>/dev/null || head -c 64 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 64)
 
   cat > .env <<ENVEOF
-# Braavolabs — Production Environment
+# Braavolabs — Self-Hosted Environment
 # Generated on $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+#
+# NOTE: NODE_ENV defaults to "development" inside this self-hosted preset
+# so the local-friendly APP_URL (http://localhost:3000) doesn't trip the
+# production guard in packages/api/src/config/env.ts. Switch to
+# NODE_ENV=production AND set APP_URL to your real https:// domain
+# before exposing this stack to the public internet.
+
+NODE_ENV=development
 
 # Database
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
@@ -72,8 +90,15 @@ DATABASE_URL=postgresql://aicos:$POSTGRES_PASSWORD@postgres:5432/aicos_dev?schem
 REDIS_PASSWORD=$REDIS_PASSWORD
 REDIS_URL=redis://:$REDIS_PASSWORD@redis:6379
 
-# Auth
+# Auth (JWT signing key — required ≥32 chars, generated above)
 JWT_SECRET=$JWT_SECRET
+
+# At-rest encryption for BYOK LLM keys, integration credentials, IAP
+# receipts. Required ≥32 chars; the API refuses to boot without it.
+ENCRYPTION_KEY=$ENCRYPTION_KEY
+
+# Pipeline export / offline license signing key (independent rotation)
+LICENSE_JWT_SECRET=$LICENSE_JWT_SECRET
 
 # API
 API_PORT=8080

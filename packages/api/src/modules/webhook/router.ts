@@ -8,6 +8,7 @@ import { claimQuota } from "../billing/metering";
 import { getWebhookTemplates, getWebhookTemplateById, getWebhookTemplateCategories } from "./templates";
 import { authMiddleware } from "../../middleware/auth";
 import { AppError } from "../../middleware/error";
+import { env } from "../../config/env";
 
 const webhookParamsSchema = z.object({
   companySlug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/),
@@ -59,13 +60,19 @@ webhookRouter.post(
         return;
       }
 
-      // Replay protection: reject requests older than 5 minutes.
-      if (timestamp) {
-        const ts = parseInt(timestamp, 10);
-        if (isNaN(ts) || Math.abs(Date.now() - ts) > 5 * 60 * 1000) {
-          res.status(401).json({ error: "Webhook timestamp too old or invalid" });
-          return;
-        }
+      // Replay protection: require the timestamp header so a captured
+      // signed payload can't be replayed forever. The header was
+      // previously optional, which meant any sniffed request with a
+      // valid signature could be re-sent indefinitely. Make it
+      // mandatory and bind it into the signed bytes below.
+      if (!timestamp) {
+        res.status(401).json({ error: "Missing X-Webhook-Timestamp header" });
+        return;
+      }
+      const ts = parseInt(timestamp, 10);
+      if (isNaN(ts) || Math.abs(Date.now() - ts) > 5 * 60 * 1000) {
+        res.status(401).json({ error: "Webhook timestamp too old or invalid" });
+        return;
       }
 
       // Express's `raw()` parser leaves a Buffer on req.body. If the body
@@ -74,9 +81,9 @@ webhookRouter.post(
       const rawBuffer: Buffer = Buffer.isBuffer(req.body)
         ? req.body
         : Buffer.from("");
-      const signedPayload = timestamp
-        ? Buffer.concat([Buffer.from(`${timestamp}.`), rawBuffer])
-        : rawBuffer;
+      // Timestamp is now required (above), so always bind it into the
+      // signed payload — never sign the raw body alone.
+      const signedPayload = Buffer.concat([Buffer.from(`${timestamp}.`), rawBuffer]);
       const expectedSig = crypto
         .createHmac("sha256", secret)
         .update(signedPayload)
@@ -267,9 +274,12 @@ webhookTemplateRouter.post("/templates/:id/install", async (req, res, next) => {
       },
     });
 
-    // Build the webhook URL
-    const baseUrl = process.env.APP_URL || "http://localhost:4000";
-    const webhookUrl = `${baseUrl}/hooks/${company.slug}/${template.eventType}`;
+    // Build the webhook URL. Use the validated env.APP_URL (env.ts refuses
+    // localhost / non-https values in production) rather than reading
+    // process.env directly with a localhost:4000 fallback — that fallback
+    // could otherwise leak into the customer's setup instructions on a
+    // misconfigured deployment.
+    const webhookUrl = `${env.APP_URL}/hooks/${company.slug}/${template.eventType}`;
 
     await prisma.activityLog.create({
       data: {

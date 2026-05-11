@@ -7,6 +7,7 @@ initSentry();
 import { initTelemetry, shutdownTelemetry } from "./lib/telemetry";
 initTelemetry();
 
+import crypto from "node:crypto";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -181,7 +182,7 @@ app.use(express.json({ limit: "1mb" }));
 // canonical API path). Same handler, two routes — cheap to ship, expensive
 // to forget when an external monitor expects /api/v1/health and silently
 // false-pages.
-async function healthHandler(_req: express.Request, res: express.Response) {
+async function healthHandler(req: express.Request, res: express.Response) {
   const checks: Record<string, string> = {};
 
   // Check database
@@ -201,9 +202,24 @@ async function healthHandler(_req: express.Request, res: express.Response) {
   }
 
   const healthy = Object.values(checks).every((v) => v === "ok");
+
+  // Don't leak per-dependency state to unauthenticated callers. The
+  // monitoring system (UptimeRobot, BetterStack, k8s liveness) only
+  // needs the rollup; an attacker probing /health to figure out which
+  // backing service is broken should see the same thing as the
+  // monitoring system does. An operator with a probe header drilled in
+  // via env (HEALTH_PROBE_KEY) sees the full breakdown.
+  const probeKey = process.env.HEALTH_PROBE_KEY;
+  const presentedKey = req.headers["x-health-probe-key"];
+  const trusted =
+    !!probeKey &&
+    typeof presentedKey === "string" &&
+    presentedKey.length === probeKey.length &&
+    crypto.timingSafeEqual(Buffer.from(presentedKey), Buffer.from(probeKey));
+
   res.status(healthy ? 200 : 503).json({
     status: healthy ? "ok" : "degraded",
-    checks,
+    ...(trusted ? { checks } : {}),
     timestamp: new Date().toISOString(),
     version: "0.1.0",
   });

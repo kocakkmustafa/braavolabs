@@ -137,6 +137,33 @@ if (parsed.NODE_ENV === "production" && parsed.JWT_SECRET.length < 64) {
   console.warn("WARNING: JWT_SECRET is shorter than 64 characters. Use a strong random secret in production.");
 }
 
+// Safety: refuse well-known placeholders for *every* signing secret so a
+// half-configured deployment can't go live with a publicly-known key
+// inherited from .env.example. The placeholders here match the exact
+// strings shipped in .env.example; rolling either secret means swapping
+// the literal too. JWT_SECRET protects every session; LICENSE_JWT_SECRET
+// protects the offline DRM tokens that gate paid exports.
+if (parsed.NODE_ENV === "production") {
+  const secretPlaceholders = ["change-me", "your-32-character", "please_generate", "replace_me"];
+  for (const placeholder of secretPlaceholders) {
+    if (parsed.JWT_SECRET.toLowerCase().includes(placeholder)) {
+      throw new Error(
+        `JWT_SECRET appears to be a placeholder ("${placeholder}" detected). ` +
+          "Generate a real secret with: openssl rand -hex 32",
+      );
+    }
+    if (
+      parsed.LICENSE_JWT_SECRET &&
+      parsed.LICENSE_JWT_SECRET.toLowerCase().includes(placeholder)
+    ) {
+      throw new Error(
+        `LICENSE_JWT_SECRET appears to be a placeholder ("${placeholder}" detected). ` +
+          "Generate a real secret with: openssl rand -hex 32",
+      );
+    }
+  }
+}
+
 // Safety: ENCRYPTION_KEY must not be a placeholder in production (ISS-008).
 // A leaked DB dump + a placeholder key = trivial decryption of every customer's
 // HubSpot / Stripe / Claude API key. Real keys are generated with
