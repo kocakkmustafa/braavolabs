@@ -26,6 +26,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../../middleware/auth";
+import { rateLimit } from "../../../middleware/rateLimit";
 import { prisma } from "../../../lib/db";
 import { AppError } from "../../../middleware/error";
 import { env } from "../../../config/env";
@@ -34,6 +35,29 @@ import { verifyAppleReceipt, parseAppleNotification } from "./apple";
 import { verifyGoogleReceipt, parseGoogleRtdnEnvelope } from "./google";
 
 export const iapRouter = Router();
+
+// Each /verify call hits Apple/Google + writes to the DB; without a cap,
+// a compromised or curious token can drain the store-API quota for the
+// whole deployment (which then breaks legitimate verifications). 30/min
+// per tenant covers normal post-purchase retries + dev testing.
+const iapVerifyRateLimit = rateLimit({
+  windowMs: 60_000,
+  maxRequests: 30,
+  keyPrefix: "rl:iap:verify",
+});
+const iapEntitlementRateLimit = rateLimit({
+  windowMs: 60_000,
+  maxRequests: 120,
+  keyPrefix: "rl:iap:entitlement",
+});
+// Store webhooks are unauthenticated by design (Apple/Google sign the
+// payload) — IP-keyed limit prevents flooding the parse + verify path
+// with garbage. Real fan-out from Apple is well under 60/min/tenant.
+const iapWebhookRateLimit = rateLimit({
+  windowMs: 60_000,
+  maxRequests: 120,
+  keyPrefix: "rl:iap:webhook",
+});
 
 const verifySchema = z.object({
   // Provider the receipt comes from.
@@ -73,7 +97,7 @@ const PRODUCT_TIER_MAP: Record<string, "CREATOR" | "BUSINESS" | "PRO" | "ENTERPR
 };
 
 // POST /api/v1/billing/iap/verify — verify a mobile receipt
-iapRouter.post("/verify", authMiddleware, async (req, res, next) => {
+iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, next) => {
   try {
     const body = verifySchema.parse(req.body);
     const tenantId = req.auth!.tenantId;
@@ -101,6 +125,29 @@ iapRouter.post("/verify", authMiddleware, async (req, res, next) => {
         throw new AppError(503, "RevenueCat path not configured");
       }
       throw new AppError(501, "RevenueCat verification not yet implemented");
+    }
+
+    // Cross-tenant hijack defense: originalTransactionId is globally unique
+    // in the schema, but a plain upsert would let any user POST another
+    // tenant's verified receipt and silently upgrade their own row to the
+    // paid tier. Refuse when the existing row belongs to a different tenant
+    // so the original purchaser keeps the entitlement and the second caller
+    // sees a 409. (Apple/Google entitle a single original-transaction to a
+    // single account; the legitimate re-verify path always comes from the
+    // same authenticated tenant.)
+    const existingForTransaction = await prisma.mobileSubscription.findUnique({
+      where: { originalTransactionId: verified.originalTransactionId },
+    });
+    if (existingForTransaction && existingForTransaction.tenantId !== tenantId) {
+      logger.warn(
+        {
+          originalTransactionId: verified.originalTransactionId,
+          ownerTenantId: existingForTransaction.tenantId,
+          callerTenantId: tenantId,
+        },
+        "IAP verify rejected — receipt belongs to a different tenant",
+      );
+      throw new AppError(409, "This subscription is already linked to a different account.");
     }
 
     // Persist/upsert. originalTransactionId is the natural key — every
@@ -173,7 +220,7 @@ iapRouter.post("/verify", authMiddleware, async (req, res, next) => {
 // Mobile reads this on launch to render the right plan badge / decide
 // whether to surface the upgrade CTA. Web reads the same row in
 // /users/me to drive plan-gating across the app.
-iapRouter.get("/entitlement", authMiddleware, async (req, res, next) => {
+iapRouter.get("/entitlement", authMiddleware, iapEntitlementRateLimit, async (req, res, next) => {
   try {
     const subscription = await prisma.mobileSubscription.findFirst({
       where: {
@@ -214,7 +261,7 @@ iapRouter.get("/entitlement", authMiddleware, async (req, res, next) => {
 // Server API so a malicious replay (which we'd never accept anyway
 // because we only trust the JWS structure for the transactionId) can't
 // move our row past what Apple actually says is active.
-iapRouter.post("/apple/notify", async (req, res) => {
+iapRouter.post("/apple/notify", iapWebhookRateLimit, async (req, res) => {
   const signedPayload = (req.body as { signedPayload?: string })?.signedPayload;
   if (!signedPayload || typeof signedPayload !== "string") {
     res.status(400).json({ error: "missing signedPayload" });
@@ -289,7 +336,7 @@ iapRouter.post("/apple/notify", async (req, res) => {
 // We re-fetch authoritative state via verifyGoogleReceipt — the
 // notification only carries `purchaseToken + notificationType`, the
 // truth is behind the API.
-iapRouter.post("/google/notify", async (req, res) => {
+iapRouter.post("/google/notify", iapWebhookRateLimit, async (req, res) => {
   try {
     const parsed = parseGoogleRtdnEnvelope(req.body);
     if (!parsed) {

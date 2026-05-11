@@ -117,11 +117,32 @@ export async function refreshTokens(refreshToken: string): Promise<{ token: stri
 }
 
 export async function revokeAllRefreshTokens(userId: string): Promise<void> {
+  // SCAN — never KEYS. `redis.keys()` walks the entire keyspace in one
+  // blocking call; on a busy production Redis with hundreds of thousands
+  // of session keys that's a multi-second pause that stalls BullMQ, the
+  // rate limiter, and every other Redis-backed primitive (auth lockout,
+  // idempotency cache, OAuth state). SCAN with COUNT 100 is cursored
+  // and yields to other clients every batch.
   try {
-    const keys = await redis.keys(`refresh:${userId}:*`);
-    if (keys.length > 0) await redis.del(...keys);
+    const pattern = `refresh:${userId}:*`;
+    let cursor = "0";
+    const collected: string[] = [];
+    do {
+      const [next, batch] = await redis.scan(cursor, "MATCH", pattern, "COUNT", 100);
+      cursor = next;
+      collected.push(...batch);
+    } while (cursor !== "0");
+
+    if (collected.length === 0) return;
+    // Pipeline the deletes so we don't issue one round-trip per key on
+    // a user who has accumulated a long-lived set of refresh tokens.
+    const pipeline = redis.pipeline();
+    for (const key of collected) pipeline.del(key);
+    await pipeline.exec();
   } catch {
-    // Redis unavailable — silently continue
+    // Redis unavailable — silently continue. The token rotation path
+    // already fails closed when Redis is down, so the residual risk
+    // window from an un-revoked token is bounded by its TTL.
   }
 }
 
@@ -869,16 +890,22 @@ export async function githubCallback(
     // helper. Tracked as a follow-up.
   }
 
-  // 5) Issue tokens — same path as the rest of the auth surface.
-  const payload: AuthPayload = {
+  // 5) Issue tokens — share the same issueTokenPair path as register/login so
+  // the Redis allowlist key format stays in lockstep with refreshTokens().
+  // Earlier this called redis.set(`refresh:${jti}`, ...) directly, which
+  // diverged from refreshKey(userId, jti) and made GitHub-issued refresh
+  // tokens permanently un-refreshable (their key lived under refresh:${jti}
+  // but the verifier looked at refresh:${userId}:${jti}).
+  const { token, refreshToken } = await issueTokenPair({
     userId: user!.id,
     tenantId: user!.tenantId,
     role: user!.role,
-  };
-  const token = signToken(payload);
-  const jti = crypto.randomBytes(16).toString("hex");
-  const refreshToken = signRefreshToken({ ...payload, jti });
-  await redis.set(`refresh:${jti}`, user!.id, "EX", REFRESH_TTL_SECONDS);
+  });
 
-  return { token, refreshToken, user, tenant: (user as any).tenant };
+  return {
+    token,
+    refreshToken,
+    user: { id: user!.id, email: user!.email, name: user!.name, role: user!.role },
+    tenant: { id: user!.tenant.id, name: user!.tenant.name, slug: user!.tenant.slug, plan: user!.tenant.plan },
+  };
 }

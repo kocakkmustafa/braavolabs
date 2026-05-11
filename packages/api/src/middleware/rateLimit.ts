@@ -34,8 +34,17 @@ export function rateLimit(options: RateLimitOptions) {
 
       next();
     } catch {
-      // If Redis is down, fail closed on auth endpoints, allow others
-      if (keyPrefix === "rl:auth" || keyPrefix === "rl:login" || keyPrefix === "rl:register") {
+      // If Redis is down, fail CLOSED on every auth-adjacent path so a Redis
+      // outage cannot become an open door for credential stuffing. Earlier
+      // the check used exact `===` against `"rl:auth"` but the real keys
+      // are `rl:auth:login`, `rl:auth:forgot`, `rl:auth:reset`, `rl:register`,
+      // `rl:refresh` — none of those matched, so the bucket fell through to
+      // `next()` (fail-open). The startsWith form catches the entire family.
+      if (
+        keyPrefix.startsWith("rl:auth") ||
+        keyPrefix === "rl:register" ||
+        keyPrefix === "rl:refresh"
+      ) {
         res.status(503).json({ error: "Service temporarily unavailable" });
         return;
       }

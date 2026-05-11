@@ -22,6 +22,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages";
 import { logger } from "../lib/logger";
 import { encrypt, decrypt } from "../lib/encryption";
+import { assertSafeExternalUrl, SsrfError } from "../lib/ssrf";
+import { env } from "../config/env";
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -188,6 +190,34 @@ async function callOpenAICompatible(
     throw new Error(
       `${config.provider} requires a base URL. Set it in Settings → AI Provider.`,
     );
+  }
+
+  // SSRF guard for tenant-controlled URLs. Local-first providers
+  // (OLLAMA / LMSTUDIO / CUSTOM) and their default loopback URLs are
+  // the whole point of those routes, so we permit loopback + private
+  // ranges for them. Cloud providers' hardcoded SaaS URLs go through
+  // the same check defensively (in case the user overrides them) but
+  // with the strict policy — no loopback, no private network. Cloud
+  // metadata IPs are refused for every provider, no exception.
+  const isLocalProvider = LOCAL_PROVIDERS.has(config.provider);
+  // Self-hosted deployments may legitimately point CUSTOM at an internal
+  // VPC LLM (e.g. on-prem vLLM behind a private subnet). The OFFLINE_MODE
+  // env knob signals an air-gapped deployment, and `allowPrivateNetworks`
+  // tracks that. Anyone running the SaaS production deployment has
+  // OFFLINE_MODE=false, so private ranges stay blocked there.
+  try {
+    await assertSafeExternalUrl(baseUrl, {
+      allowLoopback: isLocalProvider,
+      allowPrivateNetworks: isLocalProvider || env.OFFLINE_MODE,
+    });
+  } catch (err) {
+    if (err instanceof SsrfError) {
+      throw new Error(
+        `Refusing to call ${config.provider} at ${baseUrl}: ${err.message}. ` +
+          "Cloud-metadata, loopback, and private-network endpoints are blocked.",
+      );
+    }
+    throw err;
   }
 
   const requestMessages = [
