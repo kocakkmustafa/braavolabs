@@ -43,8 +43,10 @@ coverage/
 .turbo/
 scheduled_tasks.lock
 
-# Claude Code worktrees (per-agent isolated copies — never commit)
-.claude/worktrees/
+# Claude Code internal tooling — agent definitions, slash commands, hooks,
+# launch configs, per-agent worktrees. None of this is required to build
+# or run the product; keep it local-only.
+.claude/
 
 # Cowork / automation runtime state — regenerated on every cron tick,
 # committing would create meaningless diffs.

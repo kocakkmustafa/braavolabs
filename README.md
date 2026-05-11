@@ -14,7 +14,7 @@ Describe your business in plain English. Braavolabs assembles a fully-staffed au
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6)
 ![Next.js](https://img.shields.io/badge/Next.js-15-000)
 ![Postgres](https://img.shields.io/badge/Postgres-16-336791)
-![Tests](https://img.shields.io/badge/tests-48%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-67%20passing-brightgreen)
 
 </div>
 
@@ -136,7 +136,7 @@ See [`docs/deployment-github-actions.md`](docs/deployment-github-actions.md) for
 
 ## Status
 
-Phase 18+ (post-launch). 48 unit tests, typecheck clean, OWASP Top 10 coverage in place (parameterized SQL, tenant isolation, HMAC-signed Stripe webhooks, rate limits, CSP, HSTS, AES-256-GCM at-rest credential encryption).
+Phase 18+ (post-launch). **67 unit tests passing**, typecheck clean, OWASP Top 10 coverage in place: parameterized SQL, tenant isolation, HMAC-signed Stripe webhooks, fail-closed rate limits (even when Redis is down), CSP, HSTS, AES-256-GCM at-rest credential encryption, **SSRF guard on tenant-controlled outbound URLs** (blocks AWS / GCP / Azure metadata endpoints, loopback, RFC1918 ranges from BYOK provider and integration code paths).
 
 Active areas of work tracked in [`docs/roadmap/launch-roadmap.md`](docs/roadmap/launch-roadmap.md).
 

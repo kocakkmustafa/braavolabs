@@ -409,7 +409,6 @@ export async function chatCompletion(
 // ─── Tenant config helpers ────────────────────────────────
 
 import { prisma } from "../lib/db";
-import { env } from "../config/env";
 
 /** Lazy accessor so tests can mock env without re-importing. */
 function envOfflineMode(): boolean {
