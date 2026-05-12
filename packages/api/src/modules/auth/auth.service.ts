@@ -71,7 +71,9 @@ type RefreshTokenPayload = AuthPayload & {
   jti?: string;
 };
 
-export async function refreshTokens(refreshToken: string): Promise<{ token: string; refreshToken: string }> {
+export async function refreshTokens(
+  refreshToken: string,
+): Promise<{ token: string; refreshToken: string; user: { id: string; email: string; name: string | null; role: string }; tenant: { id: string; name: string; slug: string; plan: string } }> {
   let decoded: RefreshTokenPayload;
   try {
     // Pin algorithm to HS256 — `jsonwebtoken` accepts any matching family by
@@ -107,13 +109,32 @@ export async function refreshTokens(refreshToken: string): Promise<{ token: stri
     throw new AppError(503, "Authentication service temporarily unavailable");
   }
 
+  // Re-read the user + tenant from the database so a tenant or role
+  // change (invited / kicked / role downgrade) since the refresh token
+  // was issued is reflected in the new access token. Without this the
+  // client could hold a JWT carrying a stale tenantId/role for the
+  // full TTL and silently operate against the wrong workspace.
+  const user = await prisma.user.findUnique({
+    where: { id: decoded.userId },
+    include: { tenant: true },
+  });
+  if (!user) {
+    throw new AppError(401, "User no longer exists");
+  }
+
   const payload: AuthPayload = {
-    userId: decoded.userId,
-    tenantId: decoded.tenantId,
-    role: decoded.role,
+    userId: user.id,
+    tenantId: user.tenantId,
+    role: user.role,
   };
 
-  return issueTokenPair(payload);
+  const tokens = await issueTokenPair(payload);
+  return {
+    token: tokens.token,
+    refreshToken: tokens.refreshToken,
+    user: { id: user.id, email: user.email, name: user.name, role: user.role },
+    tenant: { id: user.tenant.id, name: user.tenant.name, slug: user.tenant.slug, plan: user.tenant.plan },
+  };
 }
 
 export async function revokeAllRefreshTokens(userId: string): Promise<void> {

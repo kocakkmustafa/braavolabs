@@ -86,7 +86,7 @@ export default function Sidebar() {
               whiteSpace: "nowrap", overflow: "hidden",
               animation: "fade-in 0.3s ease-out",
             }}>
-              AI COMPANY OS
+              BRAAVOLABS
             </span>
           )}
         </Link>
