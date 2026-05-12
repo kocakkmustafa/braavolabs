@@ -616,6 +616,80 @@ model EvalResult {
   @@map("eval_results")
 }
 
+// ─── PUBLIC BENCHMARK (Feature 10) ────────────────────
+//
+// Braavolabs Bench — fixed task suites graded across every supported
+// LLM provider, results published at /bench. Devin shipped SWE-bench
+// + made it the public proof that "our agent is best at code"; this
+// is the same play for general-purpose agent quality.
+//
+// Suites are seeded statically (see modules/bench/suites/*.ts). Each
+// run scores one suite × one provider × one model; results are
+// public-read so anyone — including non-customers — can see the
+// leaderboard.
+
+enum BenchProvider {
+  ANTHROPIC
+  OPENAI
+  GOOGLE
+  MISTRAL
+  GROQ
+  OPENROUTER
+  DEEPSEEK
+  KIMI
+  QWEN
+  OLLAMA
+  LMSTUDIO
+}
+
+model BenchSuite {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  description String  @db.Text
+  // Static task definitions. Shape per suite is fixed and lives in
+  // code under modules/bench/suites/*.ts; this column is the
+  // serialised payload used by the runner.
+  tasks       Json
+  // Maximum score per task (so percentage normalisation works
+  // consistently across suites with different weighting).
+  maxScorePerTask Int  @default(10) @map("max_score_per_task")
+  // When false, the suite is dropped from the public leaderboard but
+  // kept in the DB for archival comparisons.
+  isPublic    Boolean @default(true) @map("is_public")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  runs BenchRun[]
+
+  @@map("bench_suites")
+}
+
+model BenchRun {
+  id              String        @id @default(cuid())
+  suiteId         String        @map("suite_id")
+  provider        BenchProvider
+  model           String
+  // Raw per-task scores (array, indexed by task position).
+  scoresByTask    Json          @map("scores_by_task")
+  // Aggregated overall: 0..1 normalised score.
+  scoreNormalised Float         @map("score_normalised")
+  // Cost-of-run, in USD, summed across every task.
+  costUsd         Decimal       @map("cost_usd") @db.Decimal(10, 4)
+  // Wall-clock time in milliseconds for the whole suite run.
+  durationMs      Int           @map("duration_ms")
+  // Optional human-readable note from whoever kicked off the run
+  // (e.g. "v1.2 prompt template", "post-system-prompt-tightening").
+  notes           String?       @db.Text
+  ranAt           DateTime      @default(now()) @map("ran_at")
+
+  suite BenchSuite @relation(fields: [suiteId], references: [id], onDelete: Cascade)
+
+  @@index([suiteId, scoreNormalised(sort: Desc)])
+  @@index([provider, model, ranAt(sort: Desc)])
+  @@map("bench_runs")
+}
+
 // ─── COMPANY TEMPLATE MARKETPLACE (Feature 9) ─────────
 //
 // A CompanyTemplate is a freeze-dried Company: its Pipelines +

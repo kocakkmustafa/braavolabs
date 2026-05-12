@@ -42,6 +42,8 @@ import { voiceRouter, voiceWebhookRouter } from "./modules/voice/voice.router";
 import { researchRouter } from "./modules/research/research.router";
 import { marketplaceRouter } from "./modules/marketplace/marketplace.router";
 import { templatesRouter } from "./modules/templates/templates.router";
+import { benchRouter } from "./modules/bench/bench.router";
+import { seedBenchSuites } from "./modules/bench/bench.service";
 import { userRouter } from "./modules/user/user.router";
 import { deviceRouter } from "./modules/device/router";
 import { exportRouter } from "./modules/export/router";
@@ -278,6 +280,8 @@ api.use("/research", researchRouter);
 api.use("/marketplace", marketplaceRouter);
 // Company-template marketplace.
 api.use("/marketplace/templates", templatesRouter);
+// Public Braavolabs Bench leaderboard.
+api.use("/bench", benchRouter);
 api.use("/users", userRouter);
 api.use("/devices", deviceRouter);
 api.use("/companies", companyRouter);
@@ -336,6 +340,12 @@ app.listen(env.API_PORT, env.API_HOST, () => {
   // forgotten pending approvals so their runs don't permanently hold
   // a slot in the tenant's monthly quota)
   initApprovalExpiryCron();
+
+  // Seed Braavolabs Bench suites on every boot — idempotent upsert
+  // so the suites table tracks code changes without a manual step.
+  seedBenchSuites().catch((err) => {
+    logger.error({ err }, "Failed to seed bench suites");
+  });
 });
 
 // Process-wide error handlers — Sentry's express middleware only catches
