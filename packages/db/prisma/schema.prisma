@@ -616,6 +616,107 @@ model EvalResult {
   @@map("eval_results")
 }
 
+// ─── CONNECTOR MARKETPLACE (Feature 8) ────────────────
+//
+// Generic connector model that lets third-party developers (and the
+// Braavolabs team) publish tool bundles to a public catalog. Each
+// connector points at an MCP (Model Context Protocol) server URL —
+// the runtime fetches the tool schema, exposes the tools to agents,
+// and proxies invocations through. Network-effect moat: Zapier has
+// 30k+ actions; this is how Braavolabs catches up without writing
+// every adapter in-house.
+//
+// Three pillars:
+//   1. Connector — catalog entry. Public after admin approval.
+//   2. TenantConnector — per-tenant install with encrypted creds.
+//   3. Tool registration is dynamic: on first use, the runtime
+//      pulls the tool list from the connector's MCP server and
+//      registers `mcp_{connectorSlug}_{toolName}` into the
+//      registry.
+
+enum ConnectorAuthMethod {
+  NONE
+  API_KEY
+  OAUTH2
+  BASIC
+  CUSTOM
+}
+
+enum ConnectorVisibility {
+  PUBLIC      // listed in marketplace, anyone can install
+  UNLISTED    // direct-install-only via slug, not catalog-listed
+  PRIVATE     // only the publishing tenant can see + install
+}
+
+model Connector {
+  id              String              @id @default(cuid())
+  slug            String              @unique
+  name            String
+  version         String              @default("1.0.0")
+  vendor          String              // human-readable publisher name
+  description     String              @db.Text
+  iconUrl         String?             @map("icon_url")
+  documentationUrl String?            @map("documentation_url")
+  // The MCP server endpoint that hosts this connector's tools. The
+  // runtime fetches `{mcpServerUrl}/manifest` for the tool list and
+  // POSTs JSON-RPC requests to `{mcpServerUrl}/invoke`.
+  mcpServerUrl    String              @map("mcp_server_url") @db.Text
+  authMethod      ConnectorAuthMethod @default(NONE) @map("auth_method")
+  // Schema for the credentials this connector accepts. Shape:
+  //   { fields: [{ name, type, required, label, hint }] }
+  // Rendered by the marketplace install dialog.
+  authSchema      Json                @default("{}") @map("auth_schema")
+  // Snapshot of tools at publish time. Used as a hint in the catalog
+  // listing; the runtime re-fetches the live manifest on use.
+  toolsManifest   Json                @default("[]") @map("tools_manifest")
+  visibility      ConnectorVisibility @default(PRIVATE)
+  // Moderation flag. Public catalog only surfaces approved entries.
+  isApproved      Boolean             @default(false) @map("is_approved")
+  // Tenants who can publish — initially the developing tenant,
+  // later (post-approval) marketplace.
+  publisherTenantId String?           @map("publisher_tenant_id")
+  // Bookkeeping for the catalog ranking + leaderboard.
+  installCount    Int                 @default(0) @map("install_count")
+  // Optional cryptographic signature over the manifest. Lets the
+  // marketplace verify a connector hasn't been tampered with
+  // between publish-time and install-time.
+  manifestSignature String?           @map("manifest_signature") @db.Text
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  installs TenantConnector[]
+
+  @@index([visibility, isApproved])
+  @@map("connectors")
+}
+
+model TenantConnector {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  connectorId  String   @map("connector_id")
+  // AES-256-GCM-encrypted JSON: the credentials filled in via the
+  // install dialog. AAD bound to tenantId + connectorId so cross-
+  // tenant ciphertext lift fails authentication.
+  encryptedCredentials String  @map("encrypted_credentials") @db.Text
+  // Cached manifest at install time. Refreshed when the runtime
+  // detects a version mismatch.
+  cachedToolsManifest  Json    @default("[]") @map("cached_tools_manifest")
+  cachedAt             DateTime? @map("cached_at")
+  isEnabled    Boolean  @default(true) @map("is_enabled")
+  // Per-tenant install-time spend cap. Defence against a malicious
+  // connector that loops on its own paid tools.
+  spendCapUsd  Decimal? @map("spend_cap_usd") @db.Decimal(10, 2)
+  spendUsd     Decimal  @default(0) @map("spend_usd") @db.Decimal(10, 2)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  connector Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, connectorId])
+  @@index([tenantId])
+  @@map("tenant_connectors")
+}
+
 // ─── WEB RESEARCH (Feature 7) ──────────────────────────
 //
 // Autonomous deep-research primitive. Manus / Devin / Wide-Research

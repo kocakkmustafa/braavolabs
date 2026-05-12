@@ -40,6 +40,7 @@ import { authRouter } from "./modules/auth/auth.router";
 import { ssoConfigRouter, ssoAuthRouter } from "./modules/sso/sso.router";
 import { voiceRouter, voiceWebhookRouter } from "./modules/voice/voice.router";
 import { researchRouter } from "./modules/research/research.router";
+import { marketplaceRouter } from "./modules/marketplace/marketplace.router";
 import { userRouter } from "./modules/user/user.router";
 import { deviceRouter } from "./modules/device/router";
 import { exportRouter } from "./modules/export/router";
@@ -272,6 +273,8 @@ api.use("/sso", ssoConfigRouter);
 api.use("/voice", voiceRouter);
 // Autonomous web research sessions.
 api.use("/research", researchRouter);
+// Connector marketplace (public catalog + tenant install surface).
+api.use("/marketplace", marketplaceRouter);
 api.use("/users", userRouter);
 api.use("/devices", deviceRouter);
 api.use("/companies", companyRouter);
