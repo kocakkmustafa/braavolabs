@@ -212,7 +212,40 @@
       "aiUnknownError": "Bilinmeyen hata",
       "aiSaveFailed": "Kaydedilemedi",
       "noCompaniesFound": "Şirket bulunamadı",
-      "saveButton": "Kaydet"
+      "saveButton": "Kaydet",
+      "identity": {
+        "title": "Kurumsal SSO (OIDC)",
+        "subtitle": "Çalışma alanınızı Microsoft Entra, Okta, Google Workspace, Auth0, JumpCloud veya herhangi bir uyumlu kimlik sağlayıcısına bağlayın.",
+        "back": "Ayarlara dön",
+        "loading": "SSO yapılandırması yükleniyor…",
+        "status_active": "Aktif",
+        "status_inactive": "Yapılandırıldı · devre dışı",
+        "last_discovered": "Keşif {when} tarihinde yenilendi",
+        "issuer": "Issuer URL'si",
+        "issuer_hint": "OpenID Sağlayıcı Issuer (tokenlardaki `iss` claim ile eşleşmeli).",
+        "client_id": "Client ID",
+        "client_secret": "Client secret",
+        "client_secret_rotate": "Client secret'i yenile",
+        "client_secret_hint_new": "Bekleyen veride AES-256-GCM şifreli, tenant'a bağlı AAD ile saklanır.",
+        "client_secret_hint_rotate": "Mevcut sırrı korumak için boş bırakın. Yeni bir değer yapıştırarak yenileyebilirsiniz.",
+        "redirect_uri": "Redirect URI",
+        "redirect_uri_hint": "Bu URL'yi IdP'ye kaydedin: {url}",
+        "redirect_uri_hint_generic": "Bu URL'yi IdP'de izinli yönlendirme hedefi olarak kaydedin.",
+        "scopes": "Kapsamlar",
+        "scopes_hint": "Boşlukla ayrılmış. Çoğu IdP en azından `openid email profile` ister.",
+        "domains": "E-posta etki alanı izin listesi",
+        "domains_hint": "Virgülle ayrılmış. Boş = etki alanı kontrolü yok. Çoklu-tenant IdP'lerde önerilir.",
+        "discovery_url_optional": "Keşif URL'si (opsiyonel)",
+        "discovery_url_hint": "Varsayılan `{issuer}/.well-known/openid-configuration` aramasını geçersiz kılın.",
+        "active_toggle": "Bu çalışma alanı için SSO girişini aktif et",
+        "save": "Yapılandırmayı kaydet",
+        "saved": "Yapılandırma kaydedildi.",
+        "disconnect": "SSO bağlantısını kes",
+        "confirm_disconnect": "SSO bağlantısı kaldırılsın mı? Mevcut SSO kullanıcıları e-posta/şifre girişine düşer.",
+        "test_sign_in": "Girişi test et →",
+        "plan_gate_body": "Kurumsal SSO, Business ve Enterprise planlarına dahildir. Kimlik sağlayıcınıza bağlanmak için yükseltin.",
+        "plan_gate_cta": "Planları gör →"
+      }
     },
     "onboarding": {
       "primitives": {
@@ -844,7 +877,10 @@
       "githubNotConfigured": "Bu sunucuda GitHub OAuth yapılandırılmamış. E-posta/şifre veya Google kullan.",
       "cannotConnect": "API sunucusuna bağlanılamıyor. Backend çalışıyor mu kontrol et.",
       "googleFailed": "Google girişi başarısız. E-posta/şifre ile dene.",
-      "githubFailed": "GitHub girişi başarısız. E-posta/şifre ile dene."
+      "githubFailed": "GitHub girişi başarısız. E-posta/şifre ile dene.",
+      "ssoToggle": "Kurumsal SSO kullan →",
+      "ssoSlugPlaceholder": "çalışma alanı slug'ı",
+      "ssoSubmit": "Devam"
     },
     "forgot": {
       "link": "Şifremi unuttum?",

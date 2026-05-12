@@ -212,7 +212,40 @@
       "aiUnknownError": "Erreur inconnue",
       "aiSaveFailed": "Échec de l'enregistrement",
       "noCompaniesFound": "Aucune entreprise trouvée",
-      "saveButton": "Enregistrer"
+      "saveButton": "Enregistrer",
+      "identity": {
+        "title": "SSO d'entreprise (OIDC)",
+        "subtitle": "Connectez votre espace de travail à Microsoft Entra, Okta, Google Workspace, Auth0, JumpCloud ou tout fournisseur d'identité conforme.",
+        "back": "Retour aux paramètres",
+        "loading": "Chargement de la configuration SSO…",
+        "status_active": "Actif",
+        "status_inactive": "Configuré · désactivé",
+        "last_discovered": "Découverte actualisée le {when}",
+        "issuer": "URL de l'émetteur",
+        "issuer_hint": "Émetteur OpenID Provider (doit correspondre à la revendication `iss` des jetons émis).",
+        "client_id": "Client ID",
+        "client_secret": "Client secret",
+        "client_secret_rotate": "Renouveler le client secret",
+        "client_secret_hint_new": "Stocké chiffré AES-256-GCM au repos avec AAD lié au locataire.",
+        "client_secret_hint_rotate": "Laisser vide pour conserver le secret existant. Collez une nouvelle valeur pour le renouveler.",
+        "redirect_uri": "Redirect URI",
+        "redirect_uri_hint": "Enregistrez cette URL dans l'IdP : {url}",
+        "redirect_uri_hint_generic": "Enregistrez cette URL dans l'IdP comme cible de redirection autorisée.",
+        "scopes": "Portées",
+        "scopes_hint": "Séparées par des espaces. La plupart des IdP nécessitent au moins `openid email profile`.",
+        "domains": "Liste autorisée de domaines e-mail",
+        "domains_hint": "Séparés par des virgules. Vide = pas de vérification. Recommandé pour les IdP multi-locataires.",
+        "discovery_url_optional": "URL de découverte (facultatif)",
+        "discovery_url_hint": "Remplacez la recherche par défaut `{issuer}/.well-known/openid-configuration`.",
+        "active_toggle": "Activer la connexion SSO pour cet espace de travail",
+        "save": "Enregistrer la configuration",
+        "saved": "Configuration enregistrée.",
+        "disconnect": "Déconnecter le SSO",
+        "confirm_disconnect": "Supprimer la connexion SSO ? Les utilisateurs SSO existants reviendront à la connexion par e-mail/mot de passe.",
+        "test_sign_in": "Tester la connexion →",
+        "plan_gate_body": "Le SSO d'entreprise est inclus dans les plans Business et Enterprise. Mettez à niveau pour connecter votre espace à votre fournisseur d'identité.",
+        "plan_gate_cta": "Voir les plans →"
+      }
     },
     "onboarding": {
       "primitives": {
@@ -844,7 +877,10 @@
       "githubNotConfigured": "GitHub OAuth n'est pas configuré sur ce serveur. Utilisez email/mot de passe ou Google.",
       "cannotConnect": "Impossible de se connecter au serveur API. Vérifiez que le backend est démarré.",
       "googleFailed": "Connexion Google échouée. Essayez avec email/mot de passe.",
-      "githubFailed": "Connexion GitHub échouée. Essayez avec email/mot de passe."
+      "githubFailed": "Connexion GitHub échouée. Essayez avec email/mot de passe.",
+      "ssoToggle": "Utiliser le SSO d'entreprise →",
+      "ssoSlugPlaceholder": "slug du workspace",
+      "ssoSubmit": "Continuer"
     },
     "forgot": {
       "link": "Mot de passe oublié ?",

@@ -212,7 +212,40 @@
       "aiUnknownError": "Unknown error",
       "aiSaveFailed": "Failed to save",
       "noCompaniesFound": "No companies found",
-      "saveButton": "Save"
+      "saveButton": "Save",
+      "identity": {
+        "title": "Enterprise SSO (OIDC)",
+        "subtitle": "Connect your workspace to Microsoft Entra, Okta, Google Workspace, Auth0, JumpCloud, or any spec-compliant identity provider.",
+        "back": "Back to settings",
+        "loading": "Loading SSO configuration…",
+        "status_active": "Active",
+        "status_inactive": "Configured · disabled",
+        "last_discovered": "Discovery refreshed {when}",
+        "issuer": "Issuer URL",
+        "issuer_hint": "OpenID Provider Issuer (must match the `iss` claim of issued tokens).",
+        "client_id": "Client ID",
+        "client_secret": "Client secret",
+        "client_secret_rotate": "Rotate client secret",
+        "client_secret_hint_new": "Stored AES-256-GCM encrypted at rest with tenant-bound AAD.",
+        "client_secret_hint_rotate": "Leave blank to keep the existing secret. Paste a new value to rotate.",
+        "redirect_uri": "Redirect URI",
+        "redirect_uri_hint": "Register this URL in the IdP: {url}",
+        "redirect_uri_hint_generic": "Register this URL in the IdP as an allowed redirect target.",
+        "scopes": "Scopes",
+        "scopes_hint": "Space-separated. Most IdPs need at least `openid email profile`.",
+        "domains": "Email domain allowlist",
+        "domains_hint": "Comma-separated. Empty = no domain check. Recommended for multi-tenant IdPs.",
+        "discovery_url_optional": "Discovery URL (optional)",
+        "discovery_url_hint": "Override the default `{issuer}/.well-known/openid-configuration` lookup.",
+        "active_toggle": "Enable SSO sign-in for this workspace",
+        "save": "Save configuration",
+        "saved": "Configuration saved.",
+        "disconnect": "Disconnect SSO",
+        "confirm_disconnect": "Remove SSO connection? Existing SSO users will fall back to email/password sign-in.",
+        "test_sign_in": "Test sign-in →",
+        "plan_gate_body": "Enterprise SSO is included with Business and Enterprise plans. Upgrade to connect your workspace to your identity provider.",
+        "plan_gate_cta": "View plans →"
+      }
     },
     "onboarding": {
       "primitives": {
@@ -844,7 +877,10 @@
       "githubNotConfigured": "GitHub OAuth is not configured on this server. Use email/password or Google instead.",
       "cannotConnect": "Cannot connect to API server. Make sure the backend is running.",
       "googleFailed": "Google login failed. Please try email/password.",
-      "githubFailed": "GitHub login failed. Please try email/password."
+      "githubFailed": "GitHub login failed. Please try email/password.",
+      "ssoToggle": "Use Enterprise SSO →",
+      "ssoSlugPlaceholder": "workspace slug",
+      "ssoSubmit": "Continue"
     },
     "forgot": {
       "link": "Forgot password?",

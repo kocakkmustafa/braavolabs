@@ -498,6 +498,42 @@ export const api = {
       body: JSON.stringify({ code }),
     }),
 
+  // Enterprise SSO (OIDC) — owner/admin config CRUD. Plan-gated to
+  // BUSINESS+ at the API; reads pass through so downgraded tenants
+  // can still see their existing config (404 if never set).
+  getOidcConfig: (token: string) =>
+    apiFetch<{
+      issuer: string;
+      clientId: string;
+      redirectUri: string;
+      scopes: string;
+      domains: string;
+      discoveryUrl: string | null;
+      isActive: boolean;
+      discoveredAt: string | null;
+      hasSecret: boolean;
+    } | null>("/sso/oidc", { token }),
+  saveOidcConfig: (
+    token: string,
+    body: {
+      issuer: string;
+      clientId: string;
+      clientSecret?: string;
+      redirectUri: string;
+      scopes?: string;
+      domains?: string;
+      discoveryUrl?: string;
+      isActive?: boolean;
+    },
+  ) =>
+    apiFetch<{ success: boolean }>("/sso/oidc", {
+      method: "PUT",
+      body: JSON.stringify(body),
+      token,
+    }),
+  deleteOidcConfig: (token: string) =>
+    apiFetch<{ success: boolean }>("/sso/oidc", { method: "DELETE", token }),
+
   // Month-end spend projection + budget bar (Feature 1).
   spendForecast: (token: string) =>
     apiFetch<{

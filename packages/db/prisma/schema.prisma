@@ -40,6 +40,7 @@ model Tenant {
   abTests            AbTest[]
   pipelineLicenses   PipelineLicense[]
   mobileSubscriptions MobileSubscription[]
+  oidcConnection     OidcConnection?
 
   @@map("tenants")
 }
@@ -76,6 +77,10 @@ model User {
   passwordHash        String?   @map("password_hash")
   googleId            String?   @unique @map("google_id")
   githubId            String?   @unique @map("github_id")
+  // OIDC `sub` claim from the tenant's configured IdP. Scoped per
+  // tenant (the same `sub` from a different tenant's Entra namespace
+  // doesn't collide thanks to the composite unique below).
+  oidcSubject         String?   @map("oidc_subject")
   resetTokenHash      String?   @map("reset_token_hash")
   resetTokenExpiresAt DateTime? @map("reset_token_expires_at")
   createdAt           DateTime  @default(now()) @map("created_at")
@@ -87,6 +92,10 @@ model User {
   notificationPref NotificationPref?
 
   @@index([tenantId])
+  // Composite uniqueness: an oidcSubject is only meaningful within
+  // its tenant's IdP, so the same subject coming from two different
+  // tenants' Entra/Okta instances doesn't conflict.
+  @@unique([tenantId, oidcSubject], map: "users_tenant_oidc_subject_unique")
   @@map("users")
 }
 
@@ -585,6 +594,52 @@ model EvalResult {
   @@index([companyId])
   @@index([suite])
   @@map("eval_results")
+}
+
+// ─── ENTERPRISE SSO (OIDC) ─────────────────────────────
+//
+// Per-tenant generic OIDC connection. Works against Microsoft Entra
+// (Azure AD), Okta, Google Workspace, Auth0, JumpCloud, any spec-
+// compliant IdP. Plan-gated to BUSINESS+ at the router; the model
+// itself just stores the config.
+//
+// `clientSecret` is AES-256-GCM encrypted at rest using the standard
+// `encrypt()` helper with AAD = `tenantId|oidc_connection|client_secret`
+// so a DB dump can't be lifted from one tenant to another.
+//
+// `domains` (string[]) lets the IdP's HD claim (Google) or `iss`-bound
+// hosted-domain assertion (Entra) be cross-checked before granting
+// access: an attacker holding a valid Microsoft token for some other
+// org can't sign in as us if their domain isn't in our allowlist.
+
+model OidcConnection {
+  id                  String   @id @default(cuid())
+  tenantId            String   @unique @map("tenant_id")
+  issuer              String   // e.g. https://login.microsoftonline.com/{tenant}/v2.0
+  clientId            String   @map("client_id")
+  encryptedSecret     String   @map("encrypted_secret") @db.Text
+  redirectUri         String   @map("redirect_uri")
+  scopes              String   @default("openid email profile")
+  // Comma-separated email-domain allowlist. Empty = no domain check.
+  domains             String   @default("")
+  // Discovery URL — when set, we fetch /.well-known/openid-configuration
+  // here instead of constructing the auth+token URLs from `issuer`.
+  discoveryUrl        String?  @map("discovery_url")
+  // Cached endpoints. Populated on first auth attempt, refreshed
+  // every 24h via the cron at module-init.
+  authorizationEndpoint String? @map("authorization_endpoint")
+  tokenEndpoint         String? @map("token_endpoint")
+  jwksUri               String? @map("jwks_uri")
+  discoveredAt          DateTime? @map("discovered_at")
+  // When false, the connection is configured but not active — useful
+  // for staging a swap (e.g. tenant migrating from Okta to Entra).
+  isActive            Boolean  @default(true) @map("is_active")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("oidc_connections")
 }
 
 // ─── AUDIT LOG ──────────────────────────────────────────

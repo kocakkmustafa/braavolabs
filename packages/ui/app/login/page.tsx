@@ -362,6 +362,57 @@ export default function LoginPage() {
               GitHub
             </button>
           </div>
+
+          {/* Enterprise SSO — workspace slug-based entry point. The
+              admin links their team to this URL once their tenant
+              has BUSINESS+ + an OIDC connection configured. We don't
+              know the slug at the marketing-side login page, so
+              prompt for it. */}
+          <details style={{ marginTop: 16 }}>
+            <summary className="text-xs cursor-pointer" style={{ color: "#859399" }}>
+              {t("auth.oauth.ssoToggle")}
+            </summary>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const slug = (new FormData(e.currentTarget).get("slug") as string ?? "").trim();
+                if (!slug) return;
+                window.location.href = `/api/v1/auth/sso/${encodeURIComponent(slug)}`;
+              }}
+              style={{ display: "flex", gap: 6, marginTop: 8 }}
+            >
+              <input
+                name="slug"
+                placeholder={t("auth.oauth.ssoSlugPlaceholder")}
+                aria-label={t("auth.oauth.ssoSlugPlaceholder")}
+                style={{
+                  flex: 1,
+                  padding: "8px 10px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 10,
+                  color: "#e1e2eb",
+                  fontSize: 13,
+                  minHeight: 38,
+                }}
+              />
+              <button
+                type="submit"
+                className="text-sm font-semibold"
+                style={{
+                  padding: "8px 14px",
+                  background: "transparent",
+                  border: "1px solid rgba(255,255,255,0.10)",
+                  color: "#a4e6ff",
+                  borderRadius: 10,
+                  cursor: "pointer",
+                  minHeight: 38,
+                }}
+              >
+                {t("auth.oauth.ssoSubmit")}
+              </button>
+            </form>
+          </details>
         </div>
       </div>
 

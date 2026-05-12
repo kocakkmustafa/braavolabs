@@ -59,7 +59,7 @@ function refreshKey(userId: string, jti: string): string {
   return `refresh:${userId}:${jti}`;
 }
 
-async function issueTokenPair(payload: AuthPayload): Promise<{ token: string; refreshToken: string }> {
+export async function issueTokenPair(payload: AuthPayload): Promise<{ token: string; refreshToken: string }> {
   const token = signToken(payload);
   const jti = crypto.randomBytes(16).toString("hex");
   const refreshToken = signRefreshToken({ ...payload, jti });

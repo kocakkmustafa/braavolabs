@@ -212,7 +212,40 @@
       "aiUnknownError": "خطأ غير معروف",
       "aiSaveFailed": "فشل الحفظ",
       "noCompaniesFound": "لم يتم العثور على شركات",
-      "saveButton": "حفظ"
+      "saveButton": "حفظ",
+      "identity": {
+        "title": "تسجيل دخول موحد للمؤسسات (OIDC)",
+        "subtitle": "اربط مساحة العمل الخاصة بك بـ Microsoft Entra أو Okta أو Google Workspace أو Auth0 أو JumpCloud أو أي مزود هوية متوافق.",
+        "back": "العودة إلى الإعدادات",
+        "loading": "جارٍ تحميل تكوين SSO…",
+        "status_active": "نشط",
+        "status_inactive": "تم التكوين · معطل",
+        "last_discovered": "تم تحديث الاكتشاف في {when}",
+        "issuer": "عنوان URL للمصدر",
+        "issuer_hint": "مصدر OpenID Provider (يجب أن يتطابق مع مطالبة `iss` للرموز الصادرة).",
+        "client_id": "Client ID",
+        "client_secret": "Client secret",
+        "client_secret_rotate": "تدوير client secret",
+        "client_secret_hint_new": "مخزّن مشفّراً AES-256-GCM مع AAD مرتبط بالمستأجر.",
+        "client_secret_hint_rotate": "اتركه فارغاً للحفاظ على السر الحالي. الصق قيمة جديدة للتدوير.",
+        "redirect_uri": "Redirect URI",
+        "redirect_uri_hint": "سجّل هذا الرابط في IdP: {url}",
+        "redirect_uri_hint_generic": "سجّل هذا الرابط في IdP كهدف إعادة توجيه مسموح به.",
+        "scopes": "النطاقات",
+        "scopes_hint": "مفصولة بمسافات. تتطلب معظم IdPs على الأقل `openid email profile`.",
+        "domains": "قائمة نطاقات البريد الإلكتروني المسموح بها",
+        "domains_hint": "مفصولة بفواصل. فارغ = لا فحص. مستحسن لـ IdPs متعددة المستأجرين.",
+        "discovery_url_optional": "Discovery URL (اختياري)",
+        "discovery_url_hint": "تجاوز بحث `{issuer}/.well-known/openid-configuration` الافتراضي.",
+        "active_toggle": "تفعيل تسجيل الدخول SSO لمساحة العمل هذه",
+        "save": "حفظ التكوين",
+        "saved": "تم حفظ التكوين.",
+        "disconnect": "قطع اتصال SSO",
+        "confirm_disconnect": "إزالة اتصال SSO؟ سيتراجع مستخدمو SSO الحاليون إلى تسجيل الدخول بالبريد الإلكتروني/كلمة المرور.",
+        "test_sign_in": "اختبار تسجيل الدخول ←",
+        "plan_gate_body": "SSO المؤسسة مضمن في خطط Business وEnterprise. قم بالترقية لربط مساحة العمل بمزود الهوية الخاص بك.",
+        "plan_gate_cta": "عرض الخطط ←"
+      }
     },
     "onboarding": {
       "primitives": {
@@ -844,7 +877,10 @@
       "githubNotConfigured": "GitHub OAuth غير مكوّن على هذا الخادم. استخدم البريد/كلمة المرور أو Google.",
       "cannotConnect": "لا يمكن الاتصال بخادم API. تأكد من تشغيل الـ backend.",
       "googleFailed": "فشل تسجيل الدخول بـ Google. حاول بالبريد/كلمة المرور.",
-      "githubFailed": "فشل تسجيل الدخول بـ GitHub. حاول بالبريد/كلمة المرور."
+      "githubFailed": "فشل تسجيل الدخول بـ GitHub. حاول بالبريد/كلمة المرور.",
+      "ssoToggle": "استخدم SSO المؤسسة ←",
+      "ssoSlugPlaceholder": "slug مساحة العمل",
+      "ssoSubmit": "متابعة"
     },
     "forgot": {
       "link": "نسيت كلمة المرور؟",

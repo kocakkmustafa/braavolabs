@@ -37,6 +37,7 @@ import { governanceRouter } from "./modules/governance/router";
 import { onboardingRouter } from "./modules/onboarding/router";
 import { growthRouter } from "./modules/growth/router";
 import { authRouter } from "./modules/auth/auth.router";
+import { ssoConfigRouter, ssoAuthRouter } from "./modules/sso/sso.router";
 import { userRouter } from "./modules/user/user.router";
 import { deviceRouter } from "./modules/device/router";
 import { exportRouter } from "./modules/export/router";
@@ -256,6 +257,12 @@ const api = express.Router();
 // /api/v1/health alias (same handler as /health) for external probes.
 api.get("/health", healthHandler);
 api.use("/auth", authRouter);
+// SSO auth flow shares the same /auth/* prefix so the redirect-based
+// sign-in surfaces (Google / GitHub / SSO) live in one mental model.
+api.use("/auth/sso", ssoAuthRouter);
+// SSO config CRUD is a tenant-admin surface — mounted under /sso/* so
+// it's clearly separate from auth flows.
+api.use("/sso", ssoConfigRouter);
 api.use("/users", userRouter);
 api.use("/devices", deviceRouter);
 api.use("/companies", companyRouter);
