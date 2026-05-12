@@ -38,6 +38,7 @@ import { onboardingRouter } from "./modules/onboarding/router";
 import { growthRouter } from "./modules/growth/router";
 import { authRouter } from "./modules/auth/auth.router";
 import { ssoConfigRouter, ssoAuthRouter } from "./modules/sso/sso.router";
+import { voiceRouter, voiceWebhookRouter } from "./modules/voice/voice.router";
 import { userRouter } from "./modules/user/user.router";
 import { deviceRouter } from "./modules/device/router";
 import { exportRouter } from "./modules/export/router";
@@ -193,6 +194,9 @@ app.use(pinoHttp({
 // level express.raw() can no longer recover it and signature verification
 // fails. pinoHttp is mounted above so HTTP access logs still cover them.
 app.use("/hooks", stripeWebhookRouter);
+// Voice provider webhooks (Vapi / Twilio / Retell / custom) — also
+// raw-body + provider-specific HMAC; mounted before json parser.
+app.use("/hooks/voice", voiceWebhookRouter);
 // Generic external webhook router — uses raw body + per-company HMAC for
 // signature verification (key/whitespace mutations on a parsed body would
 // otherwise allow an attacker to mutate a captured signed payload).
@@ -263,6 +267,8 @@ api.use("/auth/sso", ssoAuthRouter);
 // SSO config CRUD is a tenant-admin surface — mounted under /sso/* so
 // it's clearly separate from auth flows.
 api.use("/sso", ssoConfigRouter);
+// Voice agent CRUD + outbound dial endpoints.
+api.use("/voice", voiceRouter);
 api.use("/users", userRouter);
 api.use("/devices", deviceRouter);
 api.use("/companies", companyRouter);

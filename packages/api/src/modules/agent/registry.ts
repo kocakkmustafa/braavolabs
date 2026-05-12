@@ -1346,4 +1346,58 @@ registerTool({
   },
 });
 
+// ─── Voice agent tool — placeOutboundCall(voiceAgentId, prompt) ──
+//
+// Delegated to from a non-voice agent (e.g. the sales agent saying
+// "call this number, qualify them, book a meeting"). Pre-flighted
+// through the spend-approval gate because phone calls cost real
+// money. The handler resolves the voiceAgentId to a tenant via the
+// agent's company, then dispatches through the provider adapter.
+
+registerTool({
+  name: "make_outbound_call",
+  description:
+    "Place an outbound phone call via a configured voice agent. The voice agent will speak with the callee using `prompt` as its instructions.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      voiceAgentId: {
+        type: "string",
+        description: "ID of the VoiceAgent that should make the call (must be in the same company).",
+      },
+      calleeNumber: {
+        type: "string",
+        description: "E.164 phone number to dial, e.g. +14155550101.",
+      },
+      prompt: {
+        type: "string",
+        description: "Conversational task for the voice agent (e.g. 'Qualify this lead, ask about budget, book a 30-min meeting').",
+      },
+    },
+    required: ["voiceAgentId", "calleeNumber", "prompt"],
+  },
+  meta: { requiresApproval: true, riskLevel: "medium" },
+  handler: async (input) => {
+    const { voiceAgentId, calleeNumber, prompt } = input as {
+      voiceAgentId: string;
+      calleeNumber: string;
+      prompt: string;
+    };
+    const { placeOutboundCall } = await import("../voice/voice.service");
+    // tenantId is supplied by the governed-tool runner via the
+    // agent context; falling back to looking it up here keeps the
+    // ungoverned path (NL builder, onboarding) usable for dry-run
+    // tests but the governed path is the production code path.
+    const { getActiveTenantContext } = await import("../voice/voice.context-helper");
+    const tenantId = (input as any).__tenantId ?? (await getActiveTenantContext(voiceAgentId));
+    const result = await placeOutboundCall({
+      voiceAgentId,
+      tenantId,
+      calleeNumber,
+      prompt,
+    });
+    return result;
+  },
+});
+
 logger.info({ toolCount: toolRegistry.size }, "Tool registry initialized");

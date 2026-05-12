@@ -260,6 +260,7 @@ model Company {
   drafts             Draft[]
   integrations       Integration[]
   abTests            AbTest[]
+  voiceAgents        VoiceAgent[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -278,10 +279,11 @@ model Agent {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  runSteps  RunStep[]
-  abTests   AbTest[]
-  versions  AgentVersion[]
+  company    Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  runSteps   RunStep[]
+  abTests    AbTest[]
+  versions   AgentVersion[]
+  voiceAgent VoiceAgent?
 
   @@index([companyId])
   @@map("agents")
@@ -612,6 +614,105 @@ model EvalResult {
   @@index([companyId])
   @@index([suite])
   @@map("eval_results")
+}
+
+// ─── VOICE AGENTS (Feature 6) ──────────────────────────
+//
+// Adds a "Voice" primitive on top of the existing 9 primitives. A
+// VoiceAgent is a phone-reachable persona — one provisioned number
+// per agent — that handles inbound calls (AI receptionist use
+// case) and can place outbound calls when delegated to from
+// another agent via the `make_outbound_call` tool.
+//
+// Provider is abstracted: VAPI / TWILIO_DEEPGRAM / RETELL / CUSTOM.
+// Each provider has its own credentials in tenant integrations and
+// its own webhook callback shape (handled in
+// modules/voice/providers/<provider>.ts).
+
+enum VoiceProvider {
+  VAPI
+  TWILIO_DEEPGRAM
+  RETELL
+  CUSTOM
+}
+
+enum VoiceCallDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum VoiceCallStatus {
+  RINGING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  NO_ANSWER
+  BUSY
+}
+
+model VoiceAgent {
+  id              String        @id @default(cuid())
+  companyId       String        @map("company_id")
+  agentId         String?       @unique @map("agent_id") // 1:1 mapping to the LLM agent that drives the conversation
+  name            String
+  phoneNumber     String?       @unique @map("phone_number") // E.164
+  provider        VoiceProvider @default(VAPI)
+  // Provider-specific config (system voice id, knowledge base id,
+  // greeting prompt, hangup keywords). Schema is provider-shaped;
+  // see modules/voice/providers/* for type guards.
+  voiceConfig     Json          @default("{}") @map("voice_config")
+  // Inbound-handling on/off. When false, the number returns a "this
+  // line is not in service" prompt rather than reaching the agent.
+  inboundEnabled  Boolean       @default(true) @map("inbound_enabled")
+  // Outbound rate limit per hour. Defence against an LLM that
+  // delegates a sales agent into a dialing loop. NULL = no cap.
+  outboundPerHour Int?          @map("outbound_per_hour")
+  isActive        Boolean       @default(true) @map("is_active")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  company Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  agent   Agent?      @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  calls   VoiceCall[]
+
+  @@index([companyId])
+  @@map("voice_agents")
+}
+
+model VoiceCall {
+  id              String             @id @default(cuid())
+  voiceAgentId    String             @map("voice_agent_id")
+  // Cross-tenant defence: every voice call must be reachable from
+  // a tenant via its company so the runner can scope by tenantId.
+  tenantId        String             @map("tenant_id")
+  direction       VoiceCallDirection
+  callerNumber    String             @map("caller_number")
+  calleeNumber    String             @map("callee_number")
+  status          VoiceCallStatus    @default(RINGING)
+  durationSeconds Int?               @map("duration_seconds")
+  // Full transcript with timestamps + speaker labels. Bound size
+  // (long calls are summarised by a post-call cron). NULL while a
+  // call is in progress.
+  transcript      Json?
+  recordingUrl    String?            @map("recording_url")
+  costUsd         Decimal?           @map("cost_usd") @db.Decimal(10, 4)
+  // For outbound calls placed via the `make_outbound_call` tool,
+  // this points at the run_step that initiated them — preserves
+  // the audit trail "agent X delegated → voice call Y".
+  initiatedByRunStepId String?       @map("initiated_by_run_step_id")
+  // Provider's external id (Vapi call id, Twilio call SID, etc.).
+  // Reused for de-dup when the same event fires through retries.
+  providerCallId  String?            @unique @map("provider_call_id")
+  startedAt       DateTime?          @map("started_at")
+  endedAt         DateTime?          @map("ended_at")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  voiceAgent VoiceAgent @relation(fields: [voiceAgentId], references: [id], onDelete: Cascade)
+
+  @@index([voiceAgentId, createdAt(sort: Desc)])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@map("voice_calls")
 }
 
 // ─── ENTERPRISE SSO (OIDC) ─────────────────────────────
@@ -957,6 +1058,9 @@ enum IntegrationProvider {
   CALENDLY
   GITHUB
   TRELLO
+  VAPI
+  RETELL
+  VOICE_CUSTOM
 }
 
 enum IntegrationStatus {
