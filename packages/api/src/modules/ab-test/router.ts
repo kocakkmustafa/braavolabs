@@ -339,6 +339,101 @@ abTestRouter.patch("/:id/complete", async (req, res, next) => {
   }
 });
 
+// ─── POST /ab-tests/:id/promote-winner — apply winning variant config to the agent
+//
+// This is the "studio" payoff: once a test completes, instead of asking
+// the user to copy-paste prompt/model/temperature from the winning
+// variant into the agent's config by hand, one click writes the
+// variant's `config` JSON onto the agent and emits an AgentVersion
+// snapshot so the change is reversible. The test must be COMPLETED
+// with a winnerVariantId set; otherwise we surface a 400.
+
+abTestRouter.post("/:id/promote-winner", async (req, res, next) => {
+  try {
+    const test = await findTestForTenant(req.params.id, req.auth!.tenantId);
+
+    if (test.status !== "COMPLETED") {
+      throw new AppError(400, "Only completed tests can promote a winner");
+    }
+    if (!test.winnerVariantId) {
+      throw new AppError(400, "No winner variant has been selected on this test");
+    }
+
+    const winner = test.variants.find((v) => v.id === test.winnerVariantId);
+    if (!winner) {
+      throw new AppError(500, "Winner variant referenced by test no longer exists");
+    }
+
+    // Snapshot the current agent config first so the promotion is
+    // reversible from the Agent → Versions surface. Auto-increment
+    // the version number per the AgentVersion unique constraint
+    // (agentId + version).
+    const agent = await prisma.agent.findUnique({ where: { id: test.agentId } });
+    if (!agent) throw new AppError(404, "Agent for test no longer exists");
+
+    const lastVersion = await prisma.agentVersion.findFirst({
+      where: { agentId: test.agentId },
+      orderBy: { version: "desc" },
+      select: { version: true },
+    });
+    const nextVersion = (lastVersion?.version ?? 0) + 1;
+
+    await prisma.agentVersion.create({
+      data: {
+        agentId: test.agentId,
+        version: nextVersion,
+        label: `Pre-promotion snapshot from A/B test "${test.name}"`,
+        snapshot: {
+          systemPrompt: agent.systemPrompt,
+          model: agent.model,
+          tools: agent.tools,
+        } as any,
+        changeSummary: `Auto-snapshot before promoting variant ${winner.name}`,
+        createdBy: req.auth!.userId,
+      },
+    });
+
+    // Apply the winning config. `config` is a JSON blob that mirrors
+    // the agent's mutable fields; we only update the fields we know
+    // about so a future variant payload that adds a new key doesn't
+    // accidentally clobber the agent.
+    const cfg = winner.config as Record<string, unknown>;
+    const updates: { systemPrompt?: string; model?: string } = {};
+    if (typeof cfg.systemPrompt === "string") updates.systemPrompt = cfg.systemPrompt;
+    if (typeof cfg.model === "string") updates.model = cfg.model;
+
+    const updatedAgent = await prisma.agent.update({
+      where: { id: test.agentId },
+      data: updates,
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "ab_test.promote_winner",
+        resource: "agent",
+        resourceId: test.agentId,
+        details: {
+          testId: test.id,
+          variantId: winner.id,
+          variantName: winner.name,
+          snapshotVersion: nextVersion,
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      agent: { id: updatedAgent.id, name: updatedAgent.name },
+      snapshotVersion: nextVersion,
+      promotedFrom: { variantId: winner.id, variantName: winner.name },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ─── DELETE /ab-tests/:id — delete test (DRAFT only) ──
 
 abTestRouter.delete("/:id", async (req, res, next) => {

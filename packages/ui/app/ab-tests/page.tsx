@@ -202,35 +202,40 @@ export default function AbTestsPage() {
                 className="glass-card rounded-2xl overflow-hidden"
                 style={{ border: isExpanded ? "1px solid rgba(0,209,255,0.12)" : undefined }}
               >
-                <div
-                  className="p-5 cursor-pointer"
-                  onClick={() => setExpandedId(isExpanded ? null : test.id)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(0,209,255,0.08)" }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#00d1ff" }}>science</span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold" style={{ color: "#e1e2eb" }}>{test.name}</p>
-                        <p className="text-xs" style={{ color: "#3c494e" }}>
-                          {test.companyName && `${test.companyName} · `}{test.agentName && `${test.agentName} · `}
-                          {t("app.abTests.variantsCountTemplate", { count: test.variantCount })}{test.totalRuns ? ` · ${t("app.abTests.runsCountTemplate", { count: test.totalRuns })}` : ""}
-                        </p>
-                      </div>
+                <div className="p-5 flex items-center justify-between gap-3">
+                  <Link
+                    href={`/ab-tests/${test.id}`}
+                    className="flex items-center gap-3 flex-1 min-w-0"
+                    style={{ textDecoration: "none", color: "inherit" }}
+                  >
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(0,209,255,0.08)" }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#00d1ff" }}>science</span>
                     </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate" style={{ color: "#e1e2eb" }}>{test.name}</p>
+                      <p className="text-xs truncate" style={{ color: "#3c494e" }}>
+                        {test.companyName && `${test.companyName} · `}{test.agentName && `${test.agentName} · `}
+                        {t("app.abTests.variantsCountTemplate", { count: test.variantCount })}{test.totalRuns ? ` · ${t("app.abTests.runsCountTemplate", { count: test.totalRuns })}` : ""}
+                      </p>
+                    </div>
+                  </Link>
 
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="text-[10px] font-semibold px-2.5 py-1 rounded-full"
-                        style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}` }}
-                      >
-                        {test.status}
-                      </span>
-                      <span className="material-symbols-outlined text-sm" style={{ color: "#3c494e", transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
-                        expand_more
-                      </span>
-                    </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span
+                      className="text-[10px] font-semibold px-2.5 py-1 rounded-full"
+                      style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}` }}
+                    >
+                      {test.status}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={isExpanded ? t("app.abTests.collapse") : t("app.abTests.expand")}
+                      onClick={() => setExpandedId(isExpanded ? null : test.id)}
+                      className="material-symbols-outlined text-sm"
+                      style={{ color: "#3c494e", transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s", background: "transparent", border: "none", cursor: "pointer", padding: 4 }}
+                    >
+                      expand_more
+                    </button>
                   </div>
                 </div>
 

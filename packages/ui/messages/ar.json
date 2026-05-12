@@ -458,7 +458,22 @@
       "creating": "قيد الإنشاء...",
       "errNameRequired": "اسم الاختبار مطلوب.",
       "errSelectCompany": "الرجاء اختيار شركة.",
-      "errSelectAgent": "الرجاء اختيار وكيل."
+      "errSelectAgent": "الرجاء اختيار وكيل.",
+      "loading": "جارٍ تحميل الاختبار…",
+      "notFound": "الاختبار غير موجود.",
+      "backToList": "العودة إلى جميع الاختبارات",
+      "actStart": "بدء الاختبار",
+      "actPause": "إيقاف مؤقت",
+      "actComplete": "إكمال بالفائز المحدد",
+      "actPromote": "ترقية الفائز إلى الوكيل",
+      "traffic": "حركة",
+      "metricsHeader": "المقاييس · {count} سجلاً",
+      "selectAsWinner": "تحديد كفائز",
+      "selectedAsWinner": "تم تحديده كفائز ✓",
+      "improvementSummary": "ملخص التحسن",
+      "better": "أفضل",
+      "expand": "إظهار التفاصيل",
+      "collapse": "إخفاء التفاصيل"
     },
     "dashboard": {
       "title": "مركز القيادة",

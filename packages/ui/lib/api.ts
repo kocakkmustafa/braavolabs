@@ -354,6 +354,16 @@ export const api = {
     apiFetch<any>(`/ab-tests/${testId}/metrics`, { method: "POST", body: JSON.stringify(data), token }),
   abTestResults: (token: string, id: string) =>
     apiFetch<any>(`/ab-tests/${id}/results`, { token }),
+  // Apply the winning variant's config to the parent agent. Snapshots
+  // the existing agent into AgentVersion first so the promotion is
+  // reversible from the agent detail page.
+  promoteAbTestWinner: (token: string, id: string) =>
+    apiFetch<{
+      success: boolean;
+      agent: { id: string; name: string };
+      snapshotVersion: number;
+      promotedFrom: { variantId: string; variantName: string };
+    }>(`/ab-tests/${id}/promote-winner`, { method: "POST", token }),
 
   // Agent Version Control
   listAgentVersions: (token: string, agentId: string) =>
