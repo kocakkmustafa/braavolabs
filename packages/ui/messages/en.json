@@ -115,12 +115,20 @@
       "subtitleTemplate": "{count} pre-built triggers to connect external events to your pipelines",
       "footer": "Copy the webhook URL from your company settings after installation.",
       "searchPlaceholder": "Search webhook templates...",
-      "catAll": "All", "catEcommerce": "E-Commerce", "catPayment": "Payment", "catCrm": "CRM",
-      "catDev": "Dev Tools", "catSocial": "Social", "catSupport": "Support",
-      "catMarketing": "Marketing", "catCustom": "Custom",
-      "setup": "SETUP", "samplePayload": "SAMPLE PAYLOAD",
+      "catAll": "All",
+      "catEcommerce": "E-Commerce",
+      "catPayment": "Payment",
+      "catCrm": "CRM",
+      "catDev": "Dev Tools",
+      "catSocial": "Social",
+      "catSupport": "Support",
+      "catMarketing": "Marketing",
+      "catCustom": "Custom",
+      "setup": "SETUP",
+      "samplePayload": "SAMPLE PAYLOAD",
       "providerLabel": "Provider:",
-      "install": "Install Template", "installed": "Installed ✓",
+      "install": "Install Template",
+      "installed": "Installed ✓",
       "webhookUrlPrefix": "Webhook URL:",
       "noResults": "No webhook templates match your search."
     },
@@ -208,27 +216,84 @@
     },
     "onboarding": {
       "primitives": {
-        "acquisition": { "label": "Acquisition", "desc": "Lead gen & growth" },
-        "sales": { "label": "Sales", "desc": "Pipeline & deals" },
-        "delivery": { "label": "Delivery", "desc": "Fulfillment ops" },
-        "content": { "label": "Content", "desc": "AI-generated content" },
-        "operations": { "label": "Operations", "desc": "Internal workflows" },
-        "finance": { "label": "Finance", "desc": "Revenue & billing" },
-        "analytics": { "label": "Analytics", "desc": "Insights & reports" },
-        "memory": { "label": "Memory", "desc": "Agent learning" },
-        "governance": { "label": "Governance", "desc": "Risk & compliance" }
+        "acquisition": {
+          "label": "Acquisition",
+          "desc": "Lead gen & growth"
+        },
+        "sales": {
+          "label": "Sales",
+          "desc": "Pipeline & deals"
+        },
+        "delivery": {
+          "label": "Delivery",
+          "desc": "Fulfillment ops"
+        },
+        "content": {
+          "label": "Content",
+          "desc": "AI-generated content"
+        },
+        "operations": {
+          "label": "Operations",
+          "desc": "Internal workflows"
+        },
+        "finance": {
+          "label": "Finance",
+          "desc": "Revenue & billing"
+        },
+        "analytics": {
+          "label": "Analytics",
+          "desc": "Insights & reports"
+        },
+        "memory": {
+          "label": "Memory",
+          "desc": "Agent learning"
+        },
+        "governance": {
+          "label": "Governance",
+          "desc": "Risk & compliance"
+        }
       },
       "industries": {
-        "saas": { "label": "SaaS / Software", "desc": "Subscription & product-led growth" },
-        "agency": { "label": "Agency", "desc": "Client services & delivery" },
-        "ecommerce": { "label": "E-Commerce", "desc": "Online store & DTC" },
-        "consulting": { "label": "Consulting", "desc": "Professional services" },
-        "creator": { "label": "Creator / Personal Brand", "desc": "Content & audience building" },
-        "b2b_sales": { "label": "B2B Sales", "desc": "Lead gen & outreach" },
-        "real_estate": { "label": "Real Estate", "desc": "Listings & client management" },
-        "marketing": { "label": "Marketing Agency", "desc": "Digital marketing & ads" },
-        "automation": { "label": "AI / Automation", "desc": "Workflow automation services" },
-        "support": { "label": "Customer Support", "desc": "Helpdesk & ticketing" }
+        "saas": {
+          "label": "SaaS / Software",
+          "desc": "Subscription & product-led growth"
+        },
+        "agency": {
+          "label": "Agency",
+          "desc": "Client services & delivery"
+        },
+        "ecommerce": {
+          "label": "E-Commerce",
+          "desc": "Online store & DTC"
+        },
+        "consulting": {
+          "label": "Consulting",
+          "desc": "Professional services"
+        },
+        "creator": {
+          "label": "Creator / Personal Brand",
+          "desc": "Content & audience building"
+        },
+        "b2b_sales": {
+          "label": "B2B Sales",
+          "desc": "Lead gen & outreach"
+        },
+        "real_estate": {
+          "label": "Real Estate",
+          "desc": "Listings & client management"
+        },
+        "marketing": {
+          "label": "Marketing Agency",
+          "desc": "Digital marketing & ads"
+        },
+        "automation": {
+          "label": "AI / Automation",
+          "desc": "Workflow automation services"
+        },
+        "support": {
+          "label": "Customer Support",
+          "desc": "Helpdesk & ticketing"
+        }
       },
       "useCases": [
         "Scale content production",
@@ -240,8 +305,20 @@
         "Improve customer support speed",
         "Automate financial reporting"
       ],
-      "stepLabels": ["Industry", "Company", "Primitives", "Channels", "Launch"],
-      "suggestions": ["SaaS Startup", "Agency", "E-commerce", "Consulting", "Creator Business"],
+      "stepLabels": [
+        "Industry",
+        "Company",
+        "Primitives",
+        "Channels",
+        "Launch"
+      ],
+      "suggestions": [
+        "SaaS Startup",
+        "Agency",
+        "E-commerce",
+        "Consulting",
+        "Creator Business"
+      ],
       "suggestionTemplate": "I run a {kind} business. I need AI agents to handle acquisition, content creation, and operations.",
       "successCompanyFallback": "Your Company",
       "successLiveSuffix": " is live!",
@@ -411,19 +488,52 @@
       "runHealth": "Run health",
       "openRiskInbox": "Open risk inbox",
       "inboxZero": "Inbox zero — no approvals waiting",
-      "noRisksRaised": "Audit trail clean — no risks raised"
+      "noRisksRaised": "Audit trail clean — no risks raised",
+      "forecast": {
+        "title": "Spend forecast",
+        "loading": "Loading forecast…",
+        "edit_budget": "Edit budget",
+        "set_budget": "Set budget",
+        "spent_so_far": "Spent across {days} days this month",
+        "projected_to_eom": "Projected end-of-month: {amount} ({daily}/day avg)",
+        "of_budget": "of budget projected",
+        "over_budget_warning": "Over budget. Spend-approval auto-grants are blocked until you raise the cap or new month begins.",
+        "monthly_budget_usd": "Monthly budget (USD)",
+        "save": "Save",
+        "clear": "Clear",
+        "cancel": "Cancel",
+        "invalid": "Enter a positive number",
+        "top_cost_tools": "Top cost drivers",
+        "budget_bar_label": "{pct}% of monthly budget projected"
+      }
     },
     "integrations": {
       "title": "Integration Library",
       "subtitleTemplate": "{total} connectors — {available} available, {beta} beta, {comingSoon} coming soon",
       "searchPlaceholder": "Search integrations...",
-      "catAll": "All", "catCrm": "CRM", "catSocial": "Social Media", "catEmail": "Email",
-      "catMessaging": "Messaging", "catProductivity": "Productivity", "catEcommerce": "E-Commerce",
-      "catDev": "Dev Tools", "catAnalytics": "Analytics", "catAds": "Ads", "catPayment": "Payment",
-      "catStorage": "Storage", "catAi": "AI / ML", "catSupport": "Support", "catHr": "HR",
-      "catDesign": "Design", "catVideo": "Video", "catForms": "Forms", "catScheduling": "Scheduling",
+      "catAll": "All",
+      "catCrm": "CRM",
+      "catSocial": "Social Media",
+      "catEmail": "Email",
+      "catMessaging": "Messaging",
+      "catProductivity": "Productivity",
+      "catEcommerce": "E-Commerce",
+      "catDev": "Dev Tools",
+      "catAnalytics": "Analytics",
+      "catAds": "Ads",
+      "catPayment": "Payment",
+      "catStorage": "Storage",
+      "catAi": "AI / ML",
+      "catSupport": "Support",
+      "catHr": "HR",
+      "catDesign": "Design",
+      "catVideo": "Video",
+      "catForms": "Forms",
+      "catScheduling": "Scheduling",
       "catAutomation": "Automation",
-      "statusAvailable": "Available", "statusBeta": "Beta", "statusComingSoon": "Coming Soon",
+      "statusAvailable": "Available",
+      "statusBeta": "Beta",
+      "statusComingSoon": "Coming Soon",
       "resultCountTemplate": "{count} integrations found",
       "features": "FEATURES",
       "authPrefix": "Auth:",
@@ -482,7 +592,10 @@
     }
   },
   "static": {
-    "common": { "back": "← Back", "lastUpdated": "Last updated:" },
+    "common": {
+      "back": "← Back",
+      "lastUpdated": "Last updated:"
+    },
     "blog": {
       "title": "Blog coming soon",
       "body": "We're writing about how we build, what works, and what doesn't. First posts land soon — until then, follow the build in public on social.",
@@ -512,42 +625,114 @@
         "title": "Privacy Policy",
         "date": "March 2026",
         "sections": [
-          { "title": "Data We Collect", "body": "We collect the information you provide when creating an account (name, email, organization name) and data generated by your use of the platform (company descriptions, agent configurations, pipeline run logs, and usage metrics). We do not collect payment details directly — payments are processed by Stripe." },
-          { "title": "How We Use Your Data", "body": "Your data is used solely to operate the Braavolabs platform: to run your agents, store your pipeline history, and generate analytics. We do not sell, share, or use your data to train AI models. Each tenant's data is strictly isolated." },
-          { "title": "Data Storage", "body": "All data is stored in encrypted PostgreSQL databases. Audit logs and activity records are retained for 12 months by default. You may request deletion of your account and all associated data at any time." },
-          { "title": "Third-Party Services", "body": "We use Stripe for billing, SendGrid for transactional email, Google OAuth for authentication (optional), and HubSpot for CRM integration (opt-in). Each of these services has its own privacy policy." },
-          { "title": "Your Rights", "body": "You have the right to access, export, and delete your data at any time. To exercise these rights, contact us at privacy@braavolabs.com. We will respond within 30 days." },
-          { "title": "Security", "body": "We use industry-standard encryption in transit (TLS 1.3) and at rest (AES-256). Access to production systems is restricted to authorized personnel. We conduct regular security reviews." },
-          { "title": "Changes", "body": "We may update this policy from time to time. We will notify you of significant changes via email. Continued use of the platform after changes constitutes acceptance of the updated policy." },
-          { "title": "Contact", "body": "Questions about this policy? Email us at privacy@braavolabs.com." }
+          {
+            "title": "Data We Collect",
+            "body": "We collect the information you provide when creating an account (name, email, organization name) and data generated by your use of the platform (company descriptions, agent configurations, pipeline run logs, and usage metrics). We do not collect payment details directly — payments are processed by Stripe."
+          },
+          {
+            "title": "How We Use Your Data",
+            "body": "Your data is used solely to operate the Braavolabs platform: to run your agents, store your pipeline history, and generate analytics. We do not sell, share, or use your data to train AI models. Each tenant's data is strictly isolated."
+          },
+          {
+            "title": "Data Storage",
+            "body": "All data is stored in encrypted PostgreSQL databases. Audit logs and activity records are retained for 12 months by default. You may request deletion of your account and all associated data at any time."
+          },
+          {
+            "title": "Third-Party Services",
+            "body": "We use Stripe for billing, SendGrid for transactional email, Google OAuth for authentication (optional), and HubSpot for CRM integration (opt-in). Each of these services has its own privacy policy."
+          },
+          {
+            "title": "Your Rights",
+            "body": "You have the right to access, export, and delete your data at any time. To exercise these rights, contact us at privacy@braavolabs.com. We will respond within 30 days."
+          },
+          {
+            "title": "Security",
+            "body": "We use industry-standard encryption in transit (TLS 1.3) and at rest (AES-256). Access to production systems is restricted to authorized personnel. We conduct regular security reviews."
+          },
+          {
+            "title": "Changes",
+            "body": "We may update this policy from time to time. We will notify you of significant changes via email. Continued use of the platform after changes constitutes acceptance of the updated policy."
+          },
+          {
+            "title": "Contact",
+            "body": "Questions about this policy? Email us at privacy@braavolabs.com."
+          }
         ]
       },
       "terms": {
         "title": "Terms of Service",
         "date": "March 2026",
         "sections": [
-          { "title": "1. Acceptance", "body": "By creating an account or using Braavolabs, you agree to these Terms of Service. If you are using the platform on behalf of an organization, you represent that you have authority to bind that organization to these terms." },
-          { "title": "2. Service Description", "body": "Braavolabs provides an AI-powered platform for creating and operating autonomous business workflows. The platform uses Claude (Anthropic) to generate agents and pipelines based on your descriptions." },
-          { "title": "3. Acceptable Use", "body": "You may not use the platform to generate spam, conduct illegal activities, violate third-party rights, or circumvent the platform's governance and risk controls. Automated outreach is subject to anti-spam limits built into the platform." },
-          { "title": "4. Free Plan", "body": "The free plan includes 1 company, 10 runs per month, and access to TikTok and LinkedIn channels. Free plan features may change with 30 days' notice." },
-          { "title": "5. Paid Plans", "body": "Paid subscriptions are billed monthly via Stripe. You may cancel at any time; cancellation takes effect at the end of the current billing period. No refunds are issued for partial months." },
-          { "title": "6. Data Ownership", "body": "You own all data you input into the platform, including company descriptions, agent configurations, and outputs. You grant us a limited license to process this data solely to provide the service." },
-          { "title": "7. AI Outputs", "body": "AI-generated content (agent outputs, drafts, outreach messages) must be reviewed before sending. You are responsible for all content sent through integrations connected to your account." },
-          { "title": "8. Limitation of Liability", "body": "The platform is provided 'as is'. We are not liable for indirect, incidental, or consequential damages arising from your use of the platform or AI-generated content." },
-          { "title": "9. Termination", "body": "We may suspend or terminate accounts that violate these terms. You may delete your account at any time from the Settings page." },
-          { "title": "10. Contact", "body": "Questions about these terms? Email us at legal@braavolabs.com." }
+          {
+            "title": "1. Acceptance",
+            "body": "By creating an account or using Braavolabs, you agree to these Terms of Service. If you are using the platform on behalf of an organization, you represent that you have authority to bind that organization to these terms."
+          },
+          {
+            "title": "2. Service Description",
+            "body": "Braavolabs provides an AI-powered platform for creating and operating autonomous business workflows. The platform uses Claude (Anthropic) to generate agents and pipelines based on your descriptions."
+          },
+          {
+            "title": "3. Acceptable Use",
+            "body": "You may not use the platform to generate spam, conduct illegal activities, violate third-party rights, or circumvent the platform's governance and risk controls. Automated outreach is subject to anti-spam limits built into the platform."
+          },
+          {
+            "title": "4. Free Plan",
+            "body": "The free plan includes 1 company, 10 runs per month, and access to TikTok and LinkedIn channels. Free plan features may change with 30 days' notice."
+          },
+          {
+            "title": "5. Paid Plans",
+            "body": "Paid subscriptions are billed monthly via Stripe. You may cancel at any time; cancellation takes effect at the end of the current billing period. No refunds are issued for partial months."
+          },
+          {
+            "title": "6. Data Ownership",
+            "body": "You own all data you input into the platform, including company descriptions, agent configurations, and outputs. You grant us a limited license to process this data solely to provide the service."
+          },
+          {
+            "title": "7. AI Outputs",
+            "body": "AI-generated content (agent outputs, drafts, outreach messages) must be reviewed before sending. You are responsible for all content sent through integrations connected to your account."
+          },
+          {
+            "title": "8. Limitation of Liability",
+            "body": "The platform is provided 'as is'. We are not liable for indirect, incidental, or consequential damages arising from your use of the platform or AI-generated content."
+          },
+          {
+            "title": "9. Termination",
+            "body": "We may suspend or terminate accounts that violate these terms. You may delete your account at any time from the Settings page."
+          },
+          {
+            "title": "10. Contact",
+            "body": "Questions about these terms? Email us at legal@braavolabs.com."
+          }
         ]
       },
       "cookies": {
         "title": "Cookie Policy",
         "date": "May 2026",
         "sections": [
-          { "title": "What Cookies Are", "body": "Cookies are small text files placed on your device when you visit a website. We use cookies and similar local storage techniques to keep you signed in, remember your language preference, and improve your experience." },
-          { "title": "Cookies We Use", "body": "Strictly necessary: a JWT session token for authentication. Preference: NEXT_LOCALE to remember your language. We do not run ad-targeting cookies. Analytics is opt-in (Plausible, cookie-less by default)." },
-          { "title": "Third-Party Cookies", "body": "Stripe Checkout sets cookies during payment flows for fraud prevention. HubSpot tracking pixels run only if you opt in. Google or GitHub OAuth set their own cookies during sign-in — those are governed by their respective policies." },
-          { "title": "How to Manage Cookies", "body": "Most browsers allow you to refuse or delete cookies through their settings. Disabling strictly necessary cookies will prevent you from signing in. Where required, our cookie banner lets you accept or reject non-essential cookies." },
-          { "title": "Legal Basis", "body": "We rely on legitimate interest for strictly necessary cookies (KVKK Art. 5/2-f and GDPR Art. 6(1)(f)) and on your consent for non-essential cookies (KVKK Art. 5/1 and GDPR Art. 6(1)(a))." },
-          { "title": "Contact", "body": "Questions about cookies? Email privacy@braavolabs.com." }
+          {
+            "title": "What Cookies Are",
+            "body": "Cookies are small text files placed on your device when you visit a website. We use cookies and similar local storage techniques to keep you signed in, remember your language preference, and improve your experience."
+          },
+          {
+            "title": "Cookies We Use",
+            "body": "Strictly necessary: a JWT session token for authentication. Preference: NEXT_LOCALE to remember your language. We do not run ad-targeting cookies. Analytics is opt-in (Plausible, cookie-less by default)."
+          },
+          {
+            "title": "Third-Party Cookies",
+            "body": "Stripe Checkout sets cookies during payment flows for fraud prevention. HubSpot tracking pixels run only if you opt in. Google or GitHub OAuth set their own cookies during sign-in — those are governed by their respective policies."
+          },
+          {
+            "title": "How to Manage Cookies",
+            "body": "Most browsers allow you to refuse or delete cookies through their settings. Disabling strictly necessary cookies will prevent you from signing in. Where required, our cookie banner lets you accept or reject non-essential cookies."
+          },
+          {
+            "title": "Legal Basis",
+            "body": "We rely on legitimate interest for strictly necessary cookies (KVKK Art. 5/2-f and GDPR Art. 6(1)(f)) and on your consent for non-essential cookies (KVKK Art. 5/1 and GDPR Art. 6(1)(a))."
+          },
+          {
+            "title": "Contact",
+            "body": "Questions about cookies? Email privacy@braavolabs.com."
+          }
         ]
       }
     },
@@ -577,23 +762,42 @@
     "status": {
       "title": "All systems operational",
       "subtitle": "Manually verified status. A real-time public status page (separate subdomain) is on the roadmap.",
-      "services": { "website": "Public website", "auth": "Authentication", "api": "API", "runs": "Pipeline runs", "database": "Database", "email": "Email delivery" },
+      "services": {
+        "website": "Public website",
+        "auth": "Authentication",
+        "api": "API",
+        "runs": "Pipeline runs",
+        "database": "Database",
+        "email": "Email delivery"
+      },
       "operational": "Operational",
       "alertTitle": "Spotted an outage?",
       "alertBody": "Email support@braavolabs.com with what you tried and the error you saw — we'll investigate and update this page."
     }
   },
   "auth": {
-    "login": { "welcome": "Welcome back", "subtitle": "Sign in to your Braavolabs account", "tabSignIn": "Sign In", "tabRegister": "Register" },
-    "register": { "welcome": "Create account", "subtitle": "Start building autonomous AI companies" },
+    "login": {
+      "welcome": "Welcome back",
+      "subtitle": "Sign in to your Braavolabs account",
+      "tabSignIn": "Sign In",
+      "tabRegister": "Register"
+    },
+    "register": {
+      "welcome": "Create account",
+      "subtitle": "Start building autonomous AI companies"
+    },
     "fields": {
-      "fullName": "Full Name", "fullNamePlaceholder": "Jane Smith",
-      "organization": "Organization", "organizationPlaceholder": "Your company or team",
-      "email": "Email", "emailPlaceholder": "you@example.com",
+      "fullName": "Full Name",
+      "fullNamePlaceholder": "Jane Smith",
+      "organization": "Organization",
+      "organizationPlaceholder": "Your company or team",
+      "email": "Email",
+      "emailPlaceholder": "you@example.com",
       "password": "Password",
       "passwordLoginPlaceholder": "Min. 8 characters",
       "passwordRegisterPlaceholder": "8+ chars, upper, lower, number",
-      "referralCode": "Referral Code", "referralCodePlaceholder": "Optional",
+      "referralCode": "Referral Code",
+      "referralCodePlaceholder": "Optional",
       "optional": "(optional)"
     },
     "validation": {
@@ -607,8 +811,18 @@
       "passwordsMismatch": "Passwords do not match.",
       "invalidResetLink": "Invalid reset link."
     },
-    "strength": { "label": "Password strength:", "weak": "Weak", "fair": "Fair", "good": "Good", "strong": "Strong" },
-    "submit": { "loading": "Loading...", "signIn": "Sign In", "createAccount": "Create Account" },
+    "strength": {
+      "label": "Password strength:",
+      "weak": "Weak",
+      "fair": "Fair",
+      "good": "Good",
+      "strong": "Strong"
+    },
+    "submit": {
+      "loading": "Loading...",
+      "signIn": "Sign In",
+      "createAccount": "Create Account"
+    },
     "oauth": {
       "divider": "or continue with",
       "googleNotConfigured": "Google OAuth is not configured on this server. Use email/password or GitHub instead.",
@@ -648,38 +862,80 @@
       "feature3": "10 minutes to your first company",
       "footer": "© 2026 Braavolabs. Built with Claude."
     },
-    "errors": { "generic": "Something went wrong" }
+    "errors": {
+      "generic": "Something went wrong"
+    }
   },
   "pricing": {
     "badge": "FREE TO START · NO CARD REQUIRED",
     "title": "Simple, transparent pricing",
     "subtitle": "Start free with one AI company. Upgrade when you want to run more. Every paid plan is 20% cheaper on annual billing.",
-    "cycle": { "monthly": "Monthly", "yearly": "Yearly", "save": "−20%" },
-    "period": { "forever": "forever", "monthBilledYearly": "/ mo · billed yearly", "month": "/ month" },
+    "cycle": {
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "save": "−20%"
+    },
+    "period": {
+      "forever": "forever",
+      "monthBilledYearly": "/ mo · billed yearly",
+      "month": "/ month"
+    },
     "mostPopular": "Most Popular",
     "plans": {
       "free": {
         "name": "Free",
         "desc": "Real AI output from day one. Build 1 company, see it work.",
-        "features": ["1 AI company", "10 runs / month", "TikTok + LinkedIn channels", "Simplified hero template", "Full audit log", "Cloud BYOK (Anthropic / OpenAI / Gemini)", "Community support"],
+        "features": [
+          "1 AI company",
+          "10 runs / month",
+          "TikTok + LinkedIn channels",
+          "Simplified hero template",
+          "Full audit log",
+          "Cloud BYOK (Anthropic / OpenAI / Gemini)",
+          "Community support"
+        ],
         "cta": "Start Free"
       },
       "creator": {
         "name": "Creator",
         "desc": "For solopreneurs running a handful of AI companies.",
-        "features": ["5 companies running in parallel", "100 runs / month", "All channels (TikTok, LinkedIn, IG, X, Email)", "Custom pipelines", "Memory engine", "Self-hosted Gemma (Ollama / LM Studio)", "Email support"],
+        "features": [
+          "5 companies running in parallel",
+          "100 runs / month",
+          "All channels (TikTok, LinkedIn, IG, X, Email)",
+          "Custom pipelines",
+          "Memory engine",
+          "Self-hosted Gemma (Ollama / LM Studio)",
+          "Email support"
+        ],
         "cta": "Choose Creator"
       },
       "pro": {
         "name": "Pro",
         "desc": "For agencies and founders scaling across many brands.",
-        "features": ["20 companies", "500 runs / month", "HubSpot CRM sync", "Outreach automation", "Advanced analytics", "Self-hosted Gemma + Custom OpenAI endpoints", "Priority support"],
+        "features": [
+          "20 companies",
+          "500 runs / month",
+          "HubSpot CRM sync",
+          "Outreach automation",
+          "Advanced analytics",
+          "Self-hosted Gemma + Custom OpenAI endpoints",
+          "Priority support"
+        ],
         "cta": "Choose Pro"
       },
       "business": {
         "name": "Business",
         "desc": "Team-scale autonomy with governance built in.",
-        "features": ["100 companies", "2,000 runs / month", "3 team seats", "Governance + audit export", "White-label prep", "Self-hosted LLM + air-gapped option", "Dedicated support"],
+        "features": [
+          "100 companies",
+          "2,000 runs / month",
+          "3 team seats",
+          "Governance + audit export",
+          "White-label prep",
+          "Self-hosted LLM + air-gapped option",
+          "Dedicated support"
+        ],
         "cta": "Choose Business"
       }
     },
@@ -689,12 +945,30 @@
       "cta": "Talk to the Founder"
     },
     "faq": [
-      { "q": "Do I need a credit card for the free plan?", "a": "No. Free is completely free forever — no card required. You get 1 company and 10 runs per month, with real AI output." },
-      { "q": "What counts as a 'run'?", "a": "Each pipeline execution is one run. Example: 1 TikTok post generation = 1 run. 1 email outreach sequence = 1 run." },
-      { "q": "Why is there no free trial on paid plans?", "a": "Because the Free plan already gives you real value. Try the product for free, then pick a tier when you're ready for more companies." },
-      { "q": "What if I exceed my run quota?", "a": "Your pipelines pause until next month or until you upgrade. No surprise charges." },
-      { "q": "Can I cancel anytime?", "a": "Yes. Cancel from your billing page at any time — no penalty, no lock-in. Keep access until your period ends." },
-      { "q": "Is my data private?", "a": "Yes. Each tenant is fully isolated. We never share or train on your company data." }
+      {
+        "q": "Do I need a credit card for the free plan?",
+        "a": "No. Free is completely free forever — no card required. You get 1 company and 10 runs per month, with real AI output."
+      },
+      {
+        "q": "What counts as a 'run'?",
+        "a": "Each pipeline execution is one run. Example: 1 TikTok post generation = 1 run. 1 email outreach sequence = 1 run."
+      },
+      {
+        "q": "Why is there no free trial on paid plans?",
+        "a": "Because the Free plan already gives you real value. Try the product for free, then pick a tier when you're ready for more companies."
+      },
+      {
+        "q": "What if I exceed my run quota?",
+        "a": "Your pipelines pause until next month or until you upgrade. No surprise charges."
+      },
+      {
+        "q": "Can I cancel anytime?",
+        "a": "Yes. Cancel from your billing page at any time — no penalty, no lock-in. Keep access until your period ends."
+      },
+      {
+        "q": "Is my data private?",
+        "a": "Yes. Each tenant is fully isolated. We never share or train on your company data."
+      }
     ]
   },
   "footer": {

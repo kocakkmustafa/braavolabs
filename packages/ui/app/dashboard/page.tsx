@@ -28,6 +28,7 @@ import { useAuthGuard } from "../../lib/useAuthGuard";
 import { sounds } from "../../lib/sounds";
 import { timeAgo } from "../../lib/timeAgo";
 import TrialBanner from "../../components/TrialBanner";
+import SpendForecastCard from "../../components/SpendForecastCard";
 
 interface HealthData { activeCompanies: number; activeRuns: number; pendingApprovals: number; }
 interface UsageData { totalRuns: number; completedRuns: number; failedRuns: number; successRate: number; }
@@ -252,6 +253,7 @@ export default function DashboardPage() {
             />
           </div>
           <div className="bv-twocol-side">
+            <SpendForecastCard />
             <ApprovalsPanel approvals={approvals} loaded={loaded} t={t} />
             <RiskPanel risks={risks} loaded={loaded} />
           </div>

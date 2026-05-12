@@ -115,12 +115,20 @@
       "subtitleTemplate": "Pipeline'larına dış olayları bağlayan {count} hazır tetikleyici",
       "footer": "Kurulumdan sonra webhook URL'sini şirket ayarlarından kopyala.",
       "searchPlaceholder": "Webhook şablonu ara...",
-      "catAll": "Tümü", "catEcommerce": "E-Ticaret", "catPayment": "Ödeme", "catCrm": "CRM",
-      "catDev": "Geliştirici", "catSocial": "Sosyal", "catSupport": "Destek",
-      "catMarketing": "Pazarlama", "catCustom": "Özel",
-      "setup": "KURULUM", "samplePayload": "ÖRNEK PAYLOAD",
+      "catAll": "Tümü",
+      "catEcommerce": "E-Ticaret",
+      "catPayment": "Ödeme",
+      "catCrm": "CRM",
+      "catDev": "Geliştirici",
+      "catSocial": "Sosyal",
+      "catSupport": "Destek",
+      "catMarketing": "Pazarlama",
+      "catCustom": "Özel",
+      "setup": "KURULUM",
+      "samplePayload": "ÖRNEK PAYLOAD",
       "providerLabel": "Sağlayıcı:",
-      "install": "Şablonu Kur", "installed": "Kuruldu ✓",
+      "install": "Şablonu Kur",
+      "installed": "Kuruldu ✓",
       "webhookUrlPrefix": "Webhook URL:",
       "noResults": "Aramanla eşleşen webhook şablonu yok."
     },
@@ -208,27 +216,84 @@
     },
     "onboarding": {
       "primitives": {
-        "acquisition": { "label": "Müşteri Edinme", "desc": "Lead üretimi & büyüme" },
-        "sales": { "label": "Satış", "desc": "Pipeline & anlaşmalar" },
-        "delivery": { "label": "Teslimat", "desc": "Fulfillment operasyonları" },
-        "content": { "label": "İçerik", "desc": "AI üretimi içerik" },
-        "operations": { "label": "Operasyonlar", "desc": "İç iş akışları" },
-        "finance": { "label": "Finans", "desc": "Gelir & faturalama" },
-        "analytics": { "label": "Analitik", "desc": "İçgörüler & raporlar" },
-        "memory": { "label": "Hafıza", "desc": "Ajan öğrenmesi" },
-        "governance": { "label": "Yönetişim", "desc": "Risk & uyumluluk" }
+        "acquisition": {
+          "label": "Müşteri Edinme",
+          "desc": "Lead üretimi & büyüme"
+        },
+        "sales": {
+          "label": "Satış",
+          "desc": "Pipeline & anlaşmalar"
+        },
+        "delivery": {
+          "label": "Teslimat",
+          "desc": "Fulfillment operasyonları"
+        },
+        "content": {
+          "label": "İçerik",
+          "desc": "AI üretimi içerik"
+        },
+        "operations": {
+          "label": "Operasyonlar",
+          "desc": "İç iş akışları"
+        },
+        "finance": {
+          "label": "Finans",
+          "desc": "Gelir & faturalama"
+        },
+        "analytics": {
+          "label": "Analitik",
+          "desc": "İçgörüler & raporlar"
+        },
+        "memory": {
+          "label": "Hafıza",
+          "desc": "Ajan öğrenmesi"
+        },
+        "governance": {
+          "label": "Yönetişim",
+          "desc": "Risk & uyumluluk"
+        }
       },
       "industries": {
-        "saas": { "label": "SaaS / Yazılım", "desc": "Abonelik & ürün odaklı büyüme" },
-        "agency": { "label": "Ajans", "desc": "Müşteri hizmetleri & teslimat" },
-        "ecommerce": { "label": "E-Ticaret", "desc": "Online mağaza & DTC" },
-        "consulting": { "label": "Danışmanlık", "desc": "Profesyonel hizmetler" },
-        "creator": { "label": "İçerik Üreticisi / Kişisel Marka", "desc": "İçerik & kitle oluşturma" },
-        "b2b_sales": { "label": "B2B Satış", "desc": "Lead üretimi & outreach" },
-        "real_estate": { "label": "Emlak", "desc": "İlanlar & müşteri yönetimi" },
-        "marketing": { "label": "Pazarlama Ajansı", "desc": "Dijital pazarlama & reklam" },
-        "automation": { "label": "AI / Otomasyon", "desc": "İş akışı otomasyon hizmetleri" },
-        "support": { "label": "Müşteri Desteği", "desc": "Helpdesk & ticketing" }
+        "saas": {
+          "label": "SaaS / Yazılım",
+          "desc": "Abonelik & ürün odaklı büyüme"
+        },
+        "agency": {
+          "label": "Ajans",
+          "desc": "Müşteri hizmetleri & teslimat"
+        },
+        "ecommerce": {
+          "label": "E-Ticaret",
+          "desc": "Online mağaza & DTC"
+        },
+        "consulting": {
+          "label": "Danışmanlık",
+          "desc": "Profesyonel hizmetler"
+        },
+        "creator": {
+          "label": "İçerik Üreticisi / Kişisel Marka",
+          "desc": "İçerik & kitle oluşturma"
+        },
+        "b2b_sales": {
+          "label": "B2B Satış",
+          "desc": "Lead üretimi & outreach"
+        },
+        "real_estate": {
+          "label": "Emlak",
+          "desc": "İlanlar & müşteri yönetimi"
+        },
+        "marketing": {
+          "label": "Pazarlama Ajansı",
+          "desc": "Dijital pazarlama & reklam"
+        },
+        "automation": {
+          "label": "AI / Otomasyon",
+          "desc": "İş akışı otomasyon hizmetleri"
+        },
+        "support": {
+          "label": "Müşteri Desteği",
+          "desc": "Helpdesk & ticketing"
+        }
       },
       "useCases": [
         "İçerik üretimini ölçeklendir",
@@ -240,8 +305,20 @@
         "Müşteri destek hızını artır",
         "Finansal raporlamayı otomatikleştir"
       ],
-      "stepLabels": ["Sektör", "Şirket", "Primitive'ler", "Kanallar", "Başlat"],
-      "suggestions": ["SaaS Startup'ı", "Ajans", "E-ticaret", "Danışmanlık", "İçerik Üretici"],
+      "stepLabels": [
+        "Sektör",
+        "Şirket",
+        "Primitive'ler",
+        "Kanallar",
+        "Başlat"
+      ],
+      "suggestions": [
+        "SaaS Startup'ı",
+        "Ajans",
+        "E-ticaret",
+        "Danışmanlık",
+        "İçerik Üretici"
+      ],
       "suggestionTemplate": "{kind} işi yürütüyorum. Müşteri edinme, içerik üretimi ve operasyonları yönetecek AI ajanlarına ihtiyacım var.",
       "successCompanyFallback": "Şirketin",
       "successLiveSuffix": " yayında!",
@@ -411,19 +488,52 @@
       "runHealth": "Çalışma sağlığı",
       "openRiskInbox": "Risk gelen kutusunu aç",
       "inboxZero": "Onay bekleyen yok",
-      "noRisksRaised": "Denetim izi temiz — risk yok"
+      "noRisksRaised": "Denetim izi temiz — risk yok",
+      "forecast": {
+        "title": "Harcama tahmini",
+        "loading": "Tahmin yükleniyor…",
+        "edit_budget": "Bütçeyi düzenle",
+        "set_budget": "Bütçe belirle",
+        "spent_so_far": "Bu ay {days} günde harcanan",
+        "projected_to_eom": "Ay sonu projeksiyonu: {amount} (ortalama {daily}/gün)",
+        "of_budget": "bütçenin tahmin edilen kısmı",
+        "over_budget_warning": "Bütçe aşıldı. Harcama onayı otomatik verileri, üst limiti yükseltene veya yeni ay başlayana kadar engelli.",
+        "monthly_budget_usd": "Aylık bütçe (USD)",
+        "save": "Kaydet",
+        "clear": "Temizle",
+        "cancel": "İptal",
+        "invalid": "Pozitif bir sayı girin",
+        "top_cost_tools": "En çok maliyet yaratan araçlar",
+        "budget_bar_label": "Aylık bütçenin %{pct}'i öngörülüyor"
+      }
     },
     "integrations": {
       "title": "Entegrasyon Kütüphanesi",
       "subtitleTemplate": "{total} bağlayıcı — {available} hazır, {beta} beta, {comingSoon} yakında",
       "searchPlaceholder": "Entegrasyon ara...",
-      "catAll": "Tümü", "catCrm": "CRM", "catSocial": "Sosyal Medya", "catEmail": "E-posta",
-      "catMessaging": "Mesajlaşma", "catProductivity": "Üretkenlik", "catEcommerce": "E-Ticaret",
-      "catDev": "Geliştirici", "catAnalytics": "Analitik", "catAds": "Reklam", "catPayment": "Ödeme",
-      "catStorage": "Depolama", "catAi": "AI / ML", "catSupport": "Destek", "catHr": "İK",
-      "catDesign": "Tasarım", "catVideo": "Video", "catForms": "Form", "catScheduling": "Planlama",
+      "catAll": "Tümü",
+      "catCrm": "CRM",
+      "catSocial": "Sosyal Medya",
+      "catEmail": "E-posta",
+      "catMessaging": "Mesajlaşma",
+      "catProductivity": "Üretkenlik",
+      "catEcommerce": "E-Ticaret",
+      "catDev": "Geliştirici",
+      "catAnalytics": "Analitik",
+      "catAds": "Reklam",
+      "catPayment": "Ödeme",
+      "catStorage": "Depolama",
+      "catAi": "AI / ML",
+      "catSupport": "Destek",
+      "catHr": "İK",
+      "catDesign": "Tasarım",
+      "catVideo": "Video",
+      "catForms": "Form",
+      "catScheduling": "Planlama",
       "catAutomation": "Otomasyon",
-      "statusAvailable": "Hazır", "statusBeta": "Beta", "statusComingSoon": "Yakında",
+      "statusAvailable": "Hazır",
+      "statusBeta": "Beta",
+      "statusComingSoon": "Yakında",
       "resultCountTemplate": "{count} entegrasyon bulundu",
       "features": "ÖZELLİKLER",
       "authPrefix": "Kimlik:",
@@ -482,7 +592,10 @@
     }
   },
   "static": {
-    "common": { "back": "← Geri", "lastUpdated": "Son güncelleme:" },
+    "common": {
+      "back": "← Geri",
+      "lastUpdated": "Son güncelleme:"
+    },
     "blog": {
       "title": "Blog yakında",
       "body": "Nasıl inşa ettiğimiz, neyin işe yaradığı ve neyin yaramadığı hakkında yazıyoruz. İlk yazılar yakında — o zamana kadar sosyal medyada açık geliştirme sürecini takip edebilirsin.",
@@ -512,42 +625,114 @@
         "title": "Gizlilik Politikası",
         "date": "Mart 2026",
         "sections": [
-          { "title": "Topladığımız Veriler", "body": "Hesap oluştururken sağladığın bilgileri (ad, e-posta, organizasyon adı) ve platformu kullanırken üretilen verileri (şirket açıklamaları, ajan yapılandırmaları, pipeline çalıştırma kayıtları, kullanım metrikleri) topluyoruz. Ödeme bilgilerini doğrudan toplamayız — ödemeler Stripe tarafından işlenir." },
-          { "title": "Verini Nasıl Kullanıyoruz", "body": "Verin yalnızca Braavolabs platformunu işletmek için kullanılır: ajanlarını çalıştırmak, pipeline geçmişini saklamak ve analitik üretmek. Verini satmıyor, paylaşmıyor veya AI modellerini eğitmek için kullanmıyoruz. Her tenant'ın verisi sıkı şekilde izole edilir." },
-          { "title": "Veri Saklama", "body": "Tüm veriler şifrelenmiş PostgreSQL veritabanlarında saklanır. Denetim kayıtları ve aktivite kayıtları varsayılan olarak 12 ay tutulur. Hesabının ve ilişkili tüm verilerinin silinmesini istediğin an talep edebilirsin." },
-          { "title": "Üçüncü Taraf Hizmetler", "body": "Faturalama için Stripe, transactional e-posta için SendGrid, kimlik doğrulama için Google OAuth (opsiyonel) ve CRM entegrasyonu için HubSpot (opt-in) kullanıyoruz. Her birinin kendi gizlilik politikası vardır." },
-          { "title": "Hakların", "body": "Verine erişme, dışa aktarma ve silme hakkın istediğin zaman vardır. Bu hakları kullanmak için privacy@braavolabs.com adresinden bize yaz. 30 gün içinde yanıtlarız." },
-          { "title": "Güvenlik", "body": "Veri taşımada (TLS 1.3) ve depolamada (AES-256) endüstri standardı şifreleme kullanırız. Üretim sistemlerine erişim yetkili personelle sınırlıdır. Düzenli güvenlik incelemeleri yapıyoruz." },
-          { "title": "Değişiklikler", "body": "Bu politikayı zaman zaman güncelleyebiliriz. Önemli değişiklikleri e-posta ile bildiririz. Değişikliklerden sonra platformu kullanmaya devam etmen güncel politikayı kabul ettiğin anlamına gelir." },
-          { "title": "İletişim", "body": "Bu politikayla ilgili sorular için: privacy@braavolabs.com." }
+          {
+            "title": "Topladığımız Veriler",
+            "body": "Hesap oluştururken sağladığın bilgileri (ad, e-posta, organizasyon adı) ve platformu kullanırken üretilen verileri (şirket açıklamaları, ajan yapılandırmaları, pipeline çalıştırma kayıtları, kullanım metrikleri) topluyoruz. Ödeme bilgilerini doğrudan toplamayız — ödemeler Stripe tarafından işlenir."
+          },
+          {
+            "title": "Verini Nasıl Kullanıyoruz",
+            "body": "Verin yalnızca Braavolabs platformunu işletmek için kullanılır: ajanlarını çalıştırmak, pipeline geçmişini saklamak ve analitik üretmek. Verini satmıyor, paylaşmıyor veya AI modellerini eğitmek için kullanmıyoruz. Her tenant'ın verisi sıkı şekilde izole edilir."
+          },
+          {
+            "title": "Veri Saklama",
+            "body": "Tüm veriler şifrelenmiş PostgreSQL veritabanlarında saklanır. Denetim kayıtları ve aktivite kayıtları varsayılan olarak 12 ay tutulur. Hesabının ve ilişkili tüm verilerinin silinmesini istediğin an talep edebilirsin."
+          },
+          {
+            "title": "Üçüncü Taraf Hizmetler",
+            "body": "Faturalama için Stripe, transactional e-posta için SendGrid, kimlik doğrulama için Google OAuth (opsiyonel) ve CRM entegrasyonu için HubSpot (opt-in) kullanıyoruz. Her birinin kendi gizlilik politikası vardır."
+          },
+          {
+            "title": "Hakların",
+            "body": "Verine erişme, dışa aktarma ve silme hakkın istediğin zaman vardır. Bu hakları kullanmak için privacy@braavolabs.com adresinden bize yaz. 30 gün içinde yanıtlarız."
+          },
+          {
+            "title": "Güvenlik",
+            "body": "Veri taşımada (TLS 1.3) ve depolamada (AES-256) endüstri standardı şifreleme kullanırız. Üretim sistemlerine erişim yetkili personelle sınırlıdır. Düzenli güvenlik incelemeleri yapıyoruz."
+          },
+          {
+            "title": "Değişiklikler",
+            "body": "Bu politikayı zaman zaman güncelleyebiliriz. Önemli değişiklikleri e-posta ile bildiririz. Değişikliklerden sonra platformu kullanmaya devam etmen güncel politikayı kabul ettiğin anlamına gelir."
+          },
+          {
+            "title": "İletişim",
+            "body": "Bu politikayla ilgili sorular için: privacy@braavolabs.com."
+          }
         ]
       },
       "terms": {
         "title": "Kullanım Şartları",
         "date": "Mart 2026",
         "sections": [
-          { "title": "1. Kabul", "body": "Hesap oluşturarak veya Braavolabs'ı kullanarak bu Kullanım Şartları'nı kabul etmiş olursun. Platformu bir organizasyon adına kullanıyorsan, o organizasyonu bu şartlara bağlama yetkin olduğunu beyan edersin." },
-          { "title": "2. Hizmet Açıklaması", "body": "Braavolabs, otonom iş akışları oluşturmak ve çalıştırmak için AI destekli bir platform sunar. Platform, anlattıkların temelinde ajanlar ve pipeline'lar üretmek için Claude'u (Anthropic) kullanır." },
-          { "title": "3. Kabul Edilebilir Kullanım", "body": "Platformu spam üretmek, yasa dışı faaliyetler yürütmek, üçüncü taraf haklarını ihlal etmek veya yönetişim ve risk kontrollerini atlamak için kullanamazsın. Otomatik dış erişim, platforma yerleşik anti-spam limitlere tabidir." },
-          { "title": "4. Ücretsiz Plan", "body": "Ücretsiz plan 1 şirket, ayda 10 çalıştırma ve TikTok + LinkedIn kanallarına erişim içerir. Ücretsiz plan özellikleri 30 gün önceden bildirimle değişebilir." },
-          { "title": "5. Ücretli Planlar", "body": "Ücretli abonelikler Stripe üzerinden aylık faturalanır. İstediğin an iptal edebilirsin; iptal mevcut faturalama döneminin sonunda etkili olur. Kısmi aylar için iade yapılmaz." },
-          { "title": "6. Veri Sahipliği", "body": "Platforma girdiğin tüm verilere sen sahipsin — şirket açıklamaları, ajan yapılandırmaları, çıktılar dahil. Bize sadece hizmeti sunmak için bu veriyi işleme konusunda sınırlı bir lisans verirsin." },
-          { "title": "7. AI Çıktıları", "body": "AI tarafından üretilen içerik (ajan çıktıları, taslaklar, outreach mesajları) gönderilmeden önce gözden geçirilmelidir. Hesabına bağlı entegrasyonlar üzerinden gönderilen tüm içerikten sen sorumlusun." },
-          { "title": "8. Sorumluluk Sınırlaması", "body": "Platform 'olduğu gibi' sunulur. Platformu veya AI tarafından üretilen içeriği kullanmandan kaynaklanan dolaylı, tesadüfi veya sonuç olarak ortaya çıkan zararlardan sorumlu değiliz." },
-          { "title": "9. Fesih", "body": "Bu şartları ihlal eden hesapları askıya alabilir veya feshedebiliriz. Sen de hesabını istediğin an Ayarlar sayfasından silebilirsin." },
-          { "title": "10. İletişim", "body": "Bu şartlarla ilgili sorular için: legal@braavolabs.com." }
+          {
+            "title": "1. Kabul",
+            "body": "Hesap oluşturarak veya Braavolabs'ı kullanarak bu Kullanım Şartları'nı kabul etmiş olursun. Platformu bir organizasyon adına kullanıyorsan, o organizasyonu bu şartlara bağlama yetkin olduğunu beyan edersin."
+          },
+          {
+            "title": "2. Hizmet Açıklaması",
+            "body": "Braavolabs, otonom iş akışları oluşturmak ve çalıştırmak için AI destekli bir platform sunar. Platform, anlattıkların temelinde ajanlar ve pipeline'lar üretmek için Claude'u (Anthropic) kullanır."
+          },
+          {
+            "title": "3. Kabul Edilebilir Kullanım",
+            "body": "Platformu spam üretmek, yasa dışı faaliyetler yürütmek, üçüncü taraf haklarını ihlal etmek veya yönetişim ve risk kontrollerini atlamak için kullanamazsın. Otomatik dış erişim, platforma yerleşik anti-spam limitlere tabidir."
+          },
+          {
+            "title": "4. Ücretsiz Plan",
+            "body": "Ücretsiz plan 1 şirket, ayda 10 çalıştırma ve TikTok + LinkedIn kanallarına erişim içerir. Ücretsiz plan özellikleri 30 gün önceden bildirimle değişebilir."
+          },
+          {
+            "title": "5. Ücretli Planlar",
+            "body": "Ücretli abonelikler Stripe üzerinden aylık faturalanır. İstediğin an iptal edebilirsin; iptal mevcut faturalama döneminin sonunda etkili olur. Kısmi aylar için iade yapılmaz."
+          },
+          {
+            "title": "6. Veri Sahipliği",
+            "body": "Platforma girdiğin tüm verilere sen sahipsin — şirket açıklamaları, ajan yapılandırmaları, çıktılar dahil. Bize sadece hizmeti sunmak için bu veriyi işleme konusunda sınırlı bir lisans verirsin."
+          },
+          {
+            "title": "7. AI Çıktıları",
+            "body": "AI tarafından üretilen içerik (ajan çıktıları, taslaklar, outreach mesajları) gönderilmeden önce gözden geçirilmelidir. Hesabına bağlı entegrasyonlar üzerinden gönderilen tüm içerikten sen sorumlusun."
+          },
+          {
+            "title": "8. Sorumluluk Sınırlaması",
+            "body": "Platform 'olduğu gibi' sunulur. Platformu veya AI tarafından üretilen içeriği kullanmandan kaynaklanan dolaylı, tesadüfi veya sonuç olarak ortaya çıkan zararlardan sorumlu değiliz."
+          },
+          {
+            "title": "9. Fesih",
+            "body": "Bu şartları ihlal eden hesapları askıya alabilir veya feshedebiliriz. Sen de hesabını istediğin an Ayarlar sayfasından silebilirsin."
+          },
+          {
+            "title": "10. İletişim",
+            "body": "Bu şartlarla ilgili sorular için: legal@braavolabs.com."
+          }
         ]
       },
       "cookies": {
         "title": "Çerez Politikası",
         "date": "Mayıs 2026",
         "sections": [
-          { "title": "Çerez Nedir", "body": "Çerezler, bir web sitesini ziyaret ettiğinde cihazına yerleştirilen küçük metin dosyalarıdır. Oturumunu sürdürmek, dil tercihini hatırlamak ve deneyimini iyileştirmek için çerez ve benzer yerel depolama tekniklerini kullanırız." },
-          { "title": "Kullandığımız Çerezler", "body": "Kesinlikle gerekli: kimlik doğrulama için JWT oturum token'ı. Tercih: dil tercihini hatırlamak için NEXT_LOCALE. Reklam hedefleme çerezleri çalıştırmıyoruz. Analitik opt-in (Plausible, varsayılan olarak çerezsiz)." },
-          { "title": "Üçüncü Taraf Çerezleri", "body": "Stripe Checkout, ödeme akışları sırasında dolandırıcılığı önlemek için çerezler ayarlar. HubSpot izleme pikselleri yalnızca opt-in olduğunda çalışır. Google veya GitHub OAuth, giriş sırasında kendi çerezlerini ayarlar — bunlar kendi politikalarına tabidir." },
-          { "title": "Çerezleri Yönetme", "body": "Çoğu tarayıcı, ayarları üzerinden çerezleri reddetmene veya silmene izin verir. Kesinlikle gerekli çerezleri devre dışı bırakmak giriş yapmanı engeller. Gerekli olduğu yerde çerez bannerımız zorunlu olmayan çerezleri kabul etmene veya reddetmene olanak tanır." },
-          { "title": "Hukuki Dayanak", "body": "Kesinlikle gerekli çerezler için meşru menfaate (KVKK madde 5/2-f ve GDPR madde 6(1)(f)) ve zorunlu olmayan çerezler için açık rızana (KVKK madde 5/1 ve GDPR madde 6(1)(a)) dayanırız." },
-          { "title": "İletişim", "body": "Çerezlerle ilgili sorular için: privacy@braavolabs.com." }
+          {
+            "title": "Çerez Nedir",
+            "body": "Çerezler, bir web sitesini ziyaret ettiğinde cihazına yerleştirilen küçük metin dosyalarıdır. Oturumunu sürdürmek, dil tercihini hatırlamak ve deneyimini iyileştirmek için çerez ve benzer yerel depolama tekniklerini kullanırız."
+          },
+          {
+            "title": "Kullandığımız Çerezler",
+            "body": "Kesinlikle gerekli: kimlik doğrulama için JWT oturum token'ı. Tercih: dil tercihini hatırlamak için NEXT_LOCALE. Reklam hedefleme çerezleri çalıştırmıyoruz. Analitik opt-in (Plausible, varsayılan olarak çerezsiz)."
+          },
+          {
+            "title": "Üçüncü Taraf Çerezleri",
+            "body": "Stripe Checkout, ödeme akışları sırasında dolandırıcılığı önlemek için çerezler ayarlar. HubSpot izleme pikselleri yalnızca opt-in olduğunda çalışır. Google veya GitHub OAuth, giriş sırasında kendi çerezlerini ayarlar — bunlar kendi politikalarına tabidir."
+          },
+          {
+            "title": "Çerezleri Yönetme",
+            "body": "Çoğu tarayıcı, ayarları üzerinden çerezleri reddetmene veya silmene izin verir. Kesinlikle gerekli çerezleri devre dışı bırakmak giriş yapmanı engeller. Gerekli olduğu yerde çerez bannerımız zorunlu olmayan çerezleri kabul etmene veya reddetmene olanak tanır."
+          },
+          {
+            "title": "Hukuki Dayanak",
+            "body": "Kesinlikle gerekli çerezler için meşru menfaate (KVKK madde 5/2-f ve GDPR madde 6(1)(f)) ve zorunlu olmayan çerezler için açık rızana (KVKK madde 5/1 ve GDPR madde 6(1)(a)) dayanırız."
+          },
+          {
+            "title": "İletişim",
+            "body": "Çerezlerle ilgili sorular için: privacy@braavolabs.com."
+          }
         ]
       }
     },
@@ -577,23 +762,42 @@
     "status": {
       "title": "Tüm sistemler çalışıyor",
       "subtitle": "Manuel olarak doğrulanmış durum. Gerçek zamanlı genel durum sayfası (ayrı bir alt alan adında) yol haritamızda.",
-      "services": { "website": "Web sitesi", "auth": "Kimlik doğrulama", "api": "API", "runs": "Pipeline çalıştırmaları", "database": "Veritabanı", "email": "E-posta gönderimi" },
+      "services": {
+        "website": "Web sitesi",
+        "auth": "Kimlik doğrulama",
+        "api": "API",
+        "runs": "Pipeline çalıştırmaları",
+        "database": "Veritabanı",
+        "email": "E-posta gönderimi"
+      },
       "operational": "Çalışıyor",
       "alertTitle": "Bir kesinti mi gördün?",
       "alertBody": "support@braavolabs.com adresine ne denediğini ve gördüğün hatayı yaz — araştırıp bu sayfayı güncelleyeceğiz."
     }
   },
   "auth": {
-    "login": { "welcome": "Tekrar hoş geldin", "subtitle": "Braavolabs hesabına giriş yap", "tabSignIn": "Giriş Yap", "tabRegister": "Kayıt Ol" },
-    "register": { "welcome": "Hesap oluştur", "subtitle": "Otonom AI şirketleri kurmaya başla" },
+    "login": {
+      "welcome": "Tekrar hoş geldin",
+      "subtitle": "Braavolabs hesabına giriş yap",
+      "tabSignIn": "Giriş Yap",
+      "tabRegister": "Kayıt Ol"
+    },
+    "register": {
+      "welcome": "Hesap oluştur",
+      "subtitle": "Otonom AI şirketleri kurmaya başla"
+    },
     "fields": {
-      "fullName": "Ad Soyad", "fullNamePlaceholder": "Ayşe Yılmaz",
-      "organization": "Organizasyon", "organizationPlaceholder": "Şirketin veya takımın",
-      "email": "E-posta", "emailPlaceholder": "sen@ornek.com",
+      "fullName": "Ad Soyad",
+      "fullNamePlaceholder": "Ayşe Yılmaz",
+      "organization": "Organizasyon",
+      "organizationPlaceholder": "Şirketin veya takımın",
+      "email": "E-posta",
+      "emailPlaceholder": "sen@ornek.com",
       "password": "Şifre",
       "passwordLoginPlaceholder": "En az 8 karakter",
       "passwordRegisterPlaceholder": "8+ karakter, büyük, küçük, rakam",
-      "referralCode": "Davet Kodu", "referralCodePlaceholder": "Opsiyonel",
+      "referralCode": "Davet Kodu",
+      "referralCodePlaceholder": "Opsiyonel",
       "optional": "(opsiyonel)"
     },
     "validation": {
@@ -607,8 +811,18 @@
       "passwordsMismatch": "Şifreler eşleşmiyor.",
       "invalidResetLink": "Geçersiz sıfırlama bağlantısı."
     },
-    "strength": { "label": "Şifre gücü:", "weak": "Zayıf", "fair": "Orta", "good": "İyi", "strong": "Güçlü" },
-    "submit": { "loading": "Yükleniyor...", "signIn": "Giriş Yap", "createAccount": "Hesap Oluştur" },
+    "strength": {
+      "label": "Şifre gücü:",
+      "weak": "Zayıf",
+      "fair": "Orta",
+      "good": "İyi",
+      "strong": "Güçlü"
+    },
+    "submit": {
+      "loading": "Yükleniyor...",
+      "signIn": "Giriş Yap",
+      "createAccount": "Hesap Oluştur"
+    },
     "oauth": {
       "divider": "veya şununla devam et",
       "googleNotConfigured": "Bu sunucuda Google OAuth yapılandırılmamış. E-posta/şifre veya GitHub kullan.",
@@ -648,38 +862,80 @@
       "feature3": "İlk şirketin 10 dakikada hazır",
       "footer": "© 2026 Braavolabs. Claude ile geliştirildi."
     },
-    "errors": { "generic": "Bir şeyler ters gitti" }
+    "errors": {
+      "generic": "Bir şeyler ters gitti"
+    }
   },
   "pricing": {
     "badge": "ÜCRETSİZ BAŞLA · KART GEREKMEZ",
     "title": "Sade ve şeffaf fiyatlandırma",
     "subtitle": "Tek bir AI şirketiyle ücretsiz başla. Daha fazlasını çalıştırmak istediğinde yükselt. Tüm ücretli planlar yıllık ödemede %20 daha ucuz.",
-    "cycle": { "monthly": "Aylık", "yearly": "Yıllık", "save": "−%20" },
-    "period": { "forever": "sonsuza kadar", "monthBilledYearly": "/ ay · yıllık faturalı", "month": "/ ay" },
+    "cycle": {
+      "monthly": "Aylık",
+      "yearly": "Yıllık",
+      "save": "−%20"
+    },
+    "period": {
+      "forever": "sonsuza kadar",
+      "monthBilledYearly": "/ ay · yıllık faturalı",
+      "month": "/ ay"
+    },
     "mostPopular": "En Popüler",
     "plans": {
       "free": {
         "name": "Ücretsiz",
         "desc": "İlk günden itibaren gerçek AI çıktısı. 1 şirket kur, çalıştığını gör.",
-        "features": ["1 AI şirketi", "Ayda 10 çalıştırma", "TikTok + LinkedIn kanalları", "Sadeleştirilmiş hero şablon", "Eksiksiz denetim kaydı", "Cloud BYOK (Anthropic / OpenAI / Gemini)", "Topluluk desteği"],
+        "features": [
+          "1 AI şirketi",
+          "Ayda 10 çalıştırma",
+          "TikTok + LinkedIn kanalları",
+          "Sadeleştirilmiş hero şablon",
+          "Eksiksiz denetim kaydı",
+          "Cloud BYOK (Anthropic / OpenAI / Gemini)",
+          "Topluluk desteği"
+        ],
         "cta": "Ücretsiz Başla"
       },
       "creator": {
         "name": "Creator",
         "desc": "Birkaç AI şirketi yöneten solopreneur'ler için.",
-        "features": ["Paralel 5 şirket", "Ayda 100 çalıştırma", "Tüm kanallar (TikTok, LinkedIn, IG, X, E-posta)", "Özel pipeline'lar", "Hafıza motoru", "Self-hosted Gemma (Ollama / LM Studio)", "E-posta desteği"],
+        "features": [
+          "Paralel 5 şirket",
+          "Ayda 100 çalıştırma",
+          "Tüm kanallar (TikTok, LinkedIn, IG, X, E-posta)",
+          "Özel pipeline'lar",
+          "Hafıza motoru",
+          "Self-hosted Gemma (Ollama / LM Studio)",
+          "E-posta desteği"
+        ],
         "cta": "Creator'ı Seç"
       },
       "pro": {
         "name": "Pro",
         "desc": "Çok sayıda markaya ölçeklenen ajanslar ve founder'lar için.",
-        "features": ["20 şirket", "Ayda 500 çalıştırma", "HubSpot CRM senkronizasyonu", "Outreach otomasyonu", "Gelişmiş analitik", "Self-hosted Gemma + Özel OpenAI endpoint'leri", "Öncelikli destek"],
+        "features": [
+          "20 şirket",
+          "Ayda 500 çalıştırma",
+          "HubSpot CRM senkronizasyonu",
+          "Outreach otomasyonu",
+          "Gelişmiş analitik",
+          "Self-hosted Gemma + Özel OpenAI endpoint'leri",
+          "Öncelikli destek"
+        ],
         "cta": "Pro'yu Seç"
       },
       "business": {
         "name": "Business",
         "desc": "Yönetişim dahil, takım ölçeğinde otonomi.",
-        "features": ["100 şirket", "Ayda 2.000 çalıştırma", "3 takım koltuğu", "Yönetişim + denetim dışa aktarımı", "White-label hazırlığı", "Self-hosted LLM + air-gapped seçeneği", "Özel destek"],
+        "features": [
+          "100 şirket",
+          "Ayda 2.000 çalıştırma",
+          "3 takım koltuğu",
+          "Yönetişim + denetim dışa aktarımı",
+          "White-label hazırlığı",
+          "Self-hosted LLM + air-gapped seçeneği",
+          "Özel destek"
+        ],
         "cta": "Business'ı Seç"
       }
     },
@@ -689,12 +945,30 @@
       "cta": "Kurucu ile Görüş"
     },
     "faq": [
-      { "q": "Ücretsiz plan için kredi kartı gerekli mi?", "a": "Hayır. Ücretsiz plan sonsuza kadar tamamen ücretsiz — kart gerekmez. 1 şirket ve ayda 10 çalıştırma alırsın, gerçek AI çıktısıyla." },
-      { "q": "'Çalıştırma' ne anlama geliyor?", "a": "Her pipeline çalıştırması bir adettir. Örnek: 1 TikTok gönderisi üretimi = 1 çalıştırma. 1 e-posta outreach sekansı = 1 çalıştırma." },
-      { "q": "Ücretli planlarda neden ücretsiz deneme yok?", "a": "Çünkü ücretsiz plan zaten gerçek değer veriyor. Ürünü ücretsiz dene, daha fazla şirkete ihtiyaç duyduğunda bir paket seç." },
-      { "q": "Çalıştırma kotamı aşarsam ne olur?", "a": "Pipeline'ların gelecek aya kadar veya yükseltme yapana kadar duraklatılır. Sürpriz fatura yok." },
-      { "q": "İstediğim zaman iptal edebilir miyim?", "a": "Evet. Faturalandırma sayfandan istediğin zaman iptal edebilirsin — ceza yok, kilit yok. Dönem sonuna kadar erişimini koru." },
-      { "q": "Verilerim güvende mi?", "a": "Evet. Her tenant tamamen izoledir. Şirket verilerini asla paylaşmaz veya üzerine eğitim yapmayız." }
+      {
+        "q": "Ücretsiz plan için kredi kartı gerekli mi?",
+        "a": "Hayır. Ücretsiz plan sonsuza kadar tamamen ücretsiz — kart gerekmez. 1 şirket ve ayda 10 çalıştırma alırsın, gerçek AI çıktısıyla."
+      },
+      {
+        "q": "'Çalıştırma' ne anlama geliyor?",
+        "a": "Her pipeline çalıştırması bir adettir. Örnek: 1 TikTok gönderisi üretimi = 1 çalıştırma. 1 e-posta outreach sekansı = 1 çalıştırma."
+      },
+      {
+        "q": "Ücretli planlarda neden ücretsiz deneme yok?",
+        "a": "Çünkü ücretsiz plan zaten gerçek değer veriyor. Ürünü ücretsiz dene, daha fazla şirkete ihtiyaç duyduğunda bir paket seç."
+      },
+      {
+        "q": "Çalıştırma kotamı aşarsam ne olur?",
+        "a": "Pipeline'ların gelecek aya kadar veya yükseltme yapana kadar duraklatılır. Sürpriz fatura yok."
+      },
+      {
+        "q": "İstediğim zaman iptal edebilir miyim?",
+        "a": "Evet. Faturalandırma sayfandan istediğin zaman iptal edebilirsin — ceza yok, kilit yok. Dönem sonuna kadar erişimini koru."
+      },
+      {
+        "q": "Verilerim güvende mi?",
+        "a": "Evet. Her tenant tamamen izoledir. Şirket verilerini asla paylaşmaz veya üzerine eğitim yapmayız."
+      }
     ]
   },
   "footer": {

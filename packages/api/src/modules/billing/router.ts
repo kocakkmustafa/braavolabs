@@ -12,6 +12,7 @@ import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { redis } from "../../lib/redis";
+import { computeSpendForecast } from "./forecast";
 import {
   createCustomer,
   createCheckoutSession,
@@ -195,6 +196,49 @@ authedRouter.get("/usage", async (req, res, next) => {
       })),
       live: { runs: runCount, toolCalls: toolCallCount },
     });
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/billing/forecast — month-end spend projection + budget bar
+//
+// Returns currentSpend / dailyAverage / projectedMonthEnd / budget +
+// a 14-day sparkline + top-3 cost-driving tools. The dashboard
+// renders a budget bar coloured per `status` ("under" / "nearing"
+// / "over" / "no_budget"). When status is "over_budget" the runner
+// also blocks new spend-approval auto-grants via isOverBudget().
+authedRouter.get("/forecast", async (req, res, next) => {
+  try {
+    const forecast = await computeSpendForecast(req.auth!.tenantId);
+    res.json(forecast);
+  } catch (err) { next(err); }
+});
+
+// PATCH /api/v1/billing/budget — set or clear the monthly cap
+//
+// Body: { monthlyBudgetUsd: number | null }. Passing null clears the
+// cap (back to informational-only mode). 1¢ minimum to disambiguate
+// from "null clears" — a $0 budget would block every action.
+const budgetSchema = z.object({
+  monthlyBudgetUsd: z.union([z.number().min(0.01).max(1_000_000), z.null()]),
+});
+authedRouter.patch("/budget", async (req, res, next) => {
+  try {
+    const { monthlyBudgetUsd } = budgetSchema.parse(req.body);
+    await prisma.tenant.update({
+      where: { id: req.auth!.tenantId },
+      data: { monthlyBudgetUsd },
+    });
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "billing.budget_update",
+        resource: "tenant",
+        resourceId: req.auth!.tenantId,
+        details: { monthlyBudgetUsd },
+      },
+    });
+    res.json({ success: true, monthlyBudgetUsd });
   } catch (err) { next(err); }
 });
 

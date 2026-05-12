@@ -23,6 +23,12 @@ model Tenant {
   // don't accidentally multiply free runs.
   trialRunsUsed        Int      @default(0) @map("trial_runs_used")
   trialRunsLimit       Int      @default(3) @map("trial_runs_limit")
+  // Monthly hard cap on LLM + integration spend. When set and the
+  // current period's projected spend (extrapolated from the last 7
+  // days) exceeds this number, the dashboard surfaces a red banner
+  // and the runner blocks new spend-approval-required actions. NULL
+  // means "no cap" (default).
+  monthlyBudgetUsd     Decimal? @map("monthly_budget_usd") @db.Decimal(10, 2)
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
 

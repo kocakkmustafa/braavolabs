@@ -487,4 +487,32 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ code }),
     }),
+
+  // Month-end spend projection + budget bar (Feature 1).
+  spendForecast: (token: string) =>
+    apiFetch<{
+      periodStart: string;
+      periodEnd: string;
+      currentSpendUsd: number;
+      dailyAverageUsd: number;
+      projectedMonthEndUsd: number;
+      daysElapsed: number;
+      daysRemaining: number;
+      budgetUsd: number | null;
+      status: "no_budget" | "under_budget" | "nearing_budget" | "over_budget";
+      sparkline: Array<{ date: string; costUsd: number }>;
+      topToolsByCost: Array<{ toolName: string; costUsd: number; callCount: number }>;
+    }>("/billing/forecast", { token }),
+
+  // Set or clear the monthly LLM/integration budget cap. Pass null to
+  // clear (back to informational-only mode).
+  setMonthlyBudget: (token: string, monthlyBudgetUsd: number | null) =>
+    apiFetch<{ success: boolean; monthlyBudgetUsd: number | null }>(
+      "/billing/budget",
+      {
+        method: "PATCH",
+        body: JSON.stringify({ monthlyBudgetUsd }),
+        token,
+      },
+    ),
 };

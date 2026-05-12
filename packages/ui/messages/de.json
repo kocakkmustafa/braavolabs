@@ -115,12 +115,20 @@
       "subtitleTemplate": "{count} vorgefertigte Trigger, um externe Ereignisse mit deinen Pipelines zu verbinden",
       "footer": "Kopiere die Webhook-URL nach der Installation aus den Unternehmenseinstellungen.",
       "searchPlaceholder": "Webhook-Vorlagen suchen...",
-      "catAll": "Alle", "catEcommerce": "E-Commerce", "catPayment": "Zahlung", "catCrm": "CRM",
-      "catDev": "Dev-Tools", "catSocial": "Social", "catSupport": "Support",
-      "catMarketing": "Marketing", "catCustom": "Custom",
-      "setup": "SETUP", "samplePayload": "BEISPIEL-PAYLOAD",
+      "catAll": "Alle",
+      "catEcommerce": "E-Commerce",
+      "catPayment": "Zahlung",
+      "catCrm": "CRM",
+      "catDev": "Dev-Tools",
+      "catSocial": "Social",
+      "catSupport": "Support",
+      "catMarketing": "Marketing",
+      "catCustom": "Custom",
+      "setup": "SETUP",
+      "samplePayload": "BEISPIEL-PAYLOAD",
       "providerLabel": "Anbieter:",
-      "install": "Vorlage installieren", "installed": "Installiert ✓",
+      "install": "Vorlage installieren",
+      "installed": "Installiert ✓",
       "webhookUrlPrefix": "Webhook-URL:",
       "noResults": "Keine Webhook-Vorlagen entsprechen deiner Suche."
     },
@@ -208,27 +216,84 @@
     },
     "onboarding": {
       "primitives": {
-        "acquisition": { "label": "Akquise", "desc": "Lead-Gen & Wachstum" },
-        "sales": { "label": "Vertrieb", "desc": "Pipeline & Deals" },
-        "delivery": { "label": "Lieferung", "desc": "Fulfillment-Operationen" },
-        "content": { "label": "Content", "desc": "KI-generierter Content" },
-        "operations": { "label": "Operations", "desc": "Interne Workflows" },
-        "finance": { "label": "Finanzen", "desc": "Umsatz & Abrechnung" },
-        "analytics": { "label": "Analytics", "desc": "Einblicke & Berichte" },
-        "memory": { "label": "Gedächtnis", "desc": "Agent-Learning" },
-        "governance": { "label": "Governance", "desc": "Risiko & Compliance" }
+        "acquisition": {
+          "label": "Akquise",
+          "desc": "Lead-Gen & Wachstum"
+        },
+        "sales": {
+          "label": "Vertrieb",
+          "desc": "Pipeline & Deals"
+        },
+        "delivery": {
+          "label": "Lieferung",
+          "desc": "Fulfillment-Operationen"
+        },
+        "content": {
+          "label": "Content",
+          "desc": "KI-generierter Content"
+        },
+        "operations": {
+          "label": "Operations",
+          "desc": "Interne Workflows"
+        },
+        "finance": {
+          "label": "Finanzen",
+          "desc": "Umsatz & Abrechnung"
+        },
+        "analytics": {
+          "label": "Analytics",
+          "desc": "Einblicke & Berichte"
+        },
+        "memory": {
+          "label": "Gedächtnis",
+          "desc": "Agent-Learning"
+        },
+        "governance": {
+          "label": "Governance",
+          "desc": "Risiko & Compliance"
+        }
       },
       "industries": {
-        "saas": { "label": "SaaS / Software", "desc": "Abo & Product-Led-Growth" },
-        "agency": { "label": "Agentur", "desc": "Kundenservice & Lieferung" },
-        "ecommerce": { "label": "E-Commerce", "desc": "Online-Shop & DTC" },
-        "consulting": { "label": "Beratung", "desc": "Professionelle Dienstleistungen" },
-        "creator": { "label": "Creator / Personal Brand", "desc": "Content & Audience-Building" },
-        "b2b_sales": { "label": "B2B-Vertrieb", "desc": "Lead-Gen & Outreach" },
-        "real_estate": { "label": "Immobilien", "desc": "Listings & Kundenmanagement" },
-        "marketing": { "label": "Marketing-Agentur", "desc": "Digital Marketing & Ads" },
-        "automation": { "label": "KI / Automatisierung", "desc": "Workflow-Automatisierung" },
-        "support": { "label": "Kundensupport", "desc": "Helpdesk & Ticketing" }
+        "saas": {
+          "label": "SaaS / Software",
+          "desc": "Abo & Product-Led-Growth"
+        },
+        "agency": {
+          "label": "Agentur",
+          "desc": "Kundenservice & Lieferung"
+        },
+        "ecommerce": {
+          "label": "E-Commerce",
+          "desc": "Online-Shop & DTC"
+        },
+        "consulting": {
+          "label": "Beratung",
+          "desc": "Professionelle Dienstleistungen"
+        },
+        "creator": {
+          "label": "Creator / Personal Brand",
+          "desc": "Content & Audience-Building"
+        },
+        "b2b_sales": {
+          "label": "B2B-Vertrieb",
+          "desc": "Lead-Gen & Outreach"
+        },
+        "real_estate": {
+          "label": "Immobilien",
+          "desc": "Listings & Kundenmanagement"
+        },
+        "marketing": {
+          "label": "Marketing-Agentur",
+          "desc": "Digital Marketing & Ads"
+        },
+        "automation": {
+          "label": "KI / Automatisierung",
+          "desc": "Workflow-Automatisierung"
+        },
+        "support": {
+          "label": "Kundensupport",
+          "desc": "Helpdesk & Ticketing"
+        }
       },
       "useCases": [
         "Content-Produktion skalieren",
@@ -240,8 +305,20 @@
         "Kundensupport-Geschwindigkeit verbessern",
         "Finanzberichterstattung automatisieren"
       ],
-      "stepLabels": ["Branche", "Unternehmen", "Primitives", "Kanäle", "Start"],
-      "suggestions": ["SaaS-Startup", "Agentur", "E-Commerce", "Beratung", "Creator-Business"],
+      "stepLabels": [
+        "Branche",
+        "Unternehmen",
+        "Primitives",
+        "Kanäle",
+        "Start"
+      ],
+      "suggestions": [
+        "SaaS-Startup",
+        "Agentur",
+        "E-Commerce",
+        "Beratung",
+        "Creator-Business"
+      ],
       "suggestionTemplate": "Ich betreibe ein {kind}-Geschäft. Ich brauche KI-Agenten für Akquise, Content-Erstellung und Operations.",
       "successCompanyFallback": "Dein Unternehmen",
       "successLiveSuffix": " ist live!",
@@ -411,19 +488,52 @@
       "runHealth": "Lauf-Gesundheit",
       "openRiskInbox": "Risiko-Posteingang öffnen",
       "inboxZero": "Posteingang leer — keine offenen Freigaben",
-      "noRisksRaised": "Audit-Spur sauber — keine Risiken"
+      "noRisksRaised": "Audit-Spur sauber — keine Risiken",
+      "forecast": {
+        "title": "Ausgabenprognose",
+        "loading": "Prognose wird geladen…",
+        "edit_budget": "Budget bearbeiten",
+        "set_budget": "Budget festlegen",
+        "spent_so_far": "In {days} Tagen diesen Monat ausgegeben",
+        "projected_to_eom": "Prognose Monatsende: {amount} (Ø {daily}/Tag)",
+        "of_budget": "des prognostizierten Budgets",
+        "over_budget_warning": "Über Budget. Automatische Ausgabengenehmigungen sind gesperrt, bis Sie das Limit erhöhen oder ein neuer Monat beginnt.",
+        "monthly_budget_usd": "Monatliches Budget (USD)",
+        "save": "Speichern",
+        "clear": "Löschen",
+        "cancel": "Abbrechen",
+        "invalid": "Positive Zahl eingeben",
+        "top_cost_tools": "Größte Kostentreiber",
+        "budget_bar_label": "{pct}% des Monatsbudgets prognostiziert"
+      }
     },
     "integrations": {
       "title": "Integrations-Bibliothek",
       "subtitleTemplate": "{total} Konnektoren — {available} verfügbar, {beta} Beta, {comingSoon} demnächst",
       "searchPlaceholder": "Integrationen suchen...",
-      "catAll": "Alle", "catCrm": "CRM", "catSocial": "Social Media", "catEmail": "E-Mail",
-      "catMessaging": "Messaging", "catProductivity": "Produktivität", "catEcommerce": "E-Commerce",
-      "catDev": "Dev-Tools", "catAnalytics": "Analytics", "catAds": "Werbung", "catPayment": "Zahlung",
-      "catStorage": "Speicher", "catAi": "KI / ML", "catSupport": "Support", "catHr": "HR",
-      "catDesign": "Design", "catVideo": "Video", "catForms": "Formulare", "catScheduling": "Terminplanung",
+      "catAll": "Alle",
+      "catCrm": "CRM",
+      "catSocial": "Social Media",
+      "catEmail": "E-Mail",
+      "catMessaging": "Messaging",
+      "catProductivity": "Produktivität",
+      "catEcommerce": "E-Commerce",
+      "catDev": "Dev-Tools",
+      "catAnalytics": "Analytics",
+      "catAds": "Werbung",
+      "catPayment": "Zahlung",
+      "catStorage": "Speicher",
+      "catAi": "KI / ML",
+      "catSupport": "Support",
+      "catHr": "HR",
+      "catDesign": "Design",
+      "catVideo": "Video",
+      "catForms": "Formulare",
+      "catScheduling": "Terminplanung",
       "catAutomation": "Automatisierung",
-      "statusAvailable": "Verfügbar", "statusBeta": "Beta", "statusComingSoon": "Demnächst",
+      "statusAvailable": "Verfügbar",
+      "statusBeta": "Beta",
+      "statusComingSoon": "Demnächst",
       "resultCountTemplate": "{count} Integrationen gefunden",
       "features": "FUNKTIONEN",
       "authPrefix": "Auth:",
@@ -482,7 +592,10 @@
     }
   },
   "static": {
-    "common": { "back": "← Zurück", "lastUpdated": "Zuletzt aktualisiert:" },
+    "common": {
+      "back": "← Zurück",
+      "lastUpdated": "Zuletzt aktualisiert:"
+    },
     "blog": {
       "title": "Blog kommt bald",
       "body": "Wir schreiben darüber, wie wir bauen, was funktioniert und was nicht. Die ersten Beiträge kommen bald — bis dahin folge dem Build in Public auf Social Media.",
@@ -512,42 +625,114 @@
         "title": "Datenschutzerklärung",
         "date": "März 2026",
         "sections": [
-          { "title": "Daten, die wir erheben", "body": "Wir erfassen die Informationen, die du bei der Kontoerstellung angibst (Name, E-Mail, Organisationsname) sowie Daten, die durch deine Nutzung der Plattform entstehen (Unternehmensbeschreibungen, Agenten-Konfigurationen, Pipeline-Run-Logs, Nutzungsmetriken). Zahlungsdetails erfassen wir nicht direkt — Zahlungen werden von Stripe abgewickelt." },
-          { "title": "Wie wir deine Daten nutzen", "body": "Deine Daten werden ausschließlich zum Betrieb der Braavolabs-Plattform genutzt: zum Ausführen deiner Agenten, zum Speichern deiner Pipeline-Historie und zur Analyse-Erzeugung. Wir verkaufen, teilen oder nutzen deine Daten nicht zum Training von KI-Modellen. Die Daten jedes Tenants sind strikt isoliert." },
-          { "title": "Datenspeicherung", "body": "Alle Daten werden in verschlüsselten PostgreSQL-Datenbanken gespeichert. Audit-Logs und Aktivitätsaufzeichnungen werden standardmäßig 12 Monate aufbewahrt. Du kannst jederzeit die Löschung deines Kontos und aller zugehörigen Daten verlangen." },
-          { "title": "Drittanbieter-Dienste", "body": "Wir nutzen Stripe für die Abrechnung, SendGrid für transaktionale E-Mails, Google OAuth für die Authentifizierung (optional) und HubSpot für CRM-Integration (opt-in). Jeder dieser Dienste hat seine eigene Datenschutzerklärung." },
-          { "title": "Deine Rechte", "body": "Du hast jederzeit das Recht, auf deine Daten zuzugreifen, sie zu exportieren und zu löschen. Um diese Rechte auszuüben, schreibe uns an privacy@braavolabs.com. Wir antworten innerhalb von 30 Tagen." },
-          { "title": "Sicherheit", "body": "Wir verwenden branchenübliche Verschlüsselung bei der Übertragung (TLS 1.3) und im Ruhezustand (AES-256). Der Zugriff auf Produktionssysteme ist auf autorisiertes Personal beschränkt. Wir führen regelmäßige Sicherheitsprüfungen durch." },
-          { "title": "Änderungen", "body": "Wir können diese Richtlinie von Zeit zu Zeit aktualisieren. Wesentliche Änderungen kündigen wir per E-Mail an. Die fortgesetzte Nutzung der Plattform nach Änderungen gilt als Zustimmung zur aktualisierten Richtlinie." },
-          { "title": "Kontakt", "body": "Fragen zu dieser Richtlinie? Schreib uns an privacy@braavolabs.com." }
+          {
+            "title": "Daten, die wir erheben",
+            "body": "Wir erfassen die Informationen, die du bei der Kontoerstellung angibst (Name, E-Mail, Organisationsname) sowie Daten, die durch deine Nutzung der Plattform entstehen (Unternehmensbeschreibungen, Agenten-Konfigurationen, Pipeline-Run-Logs, Nutzungsmetriken). Zahlungsdetails erfassen wir nicht direkt — Zahlungen werden von Stripe abgewickelt."
+          },
+          {
+            "title": "Wie wir deine Daten nutzen",
+            "body": "Deine Daten werden ausschließlich zum Betrieb der Braavolabs-Plattform genutzt: zum Ausführen deiner Agenten, zum Speichern deiner Pipeline-Historie und zur Analyse-Erzeugung. Wir verkaufen, teilen oder nutzen deine Daten nicht zum Training von KI-Modellen. Die Daten jedes Tenants sind strikt isoliert."
+          },
+          {
+            "title": "Datenspeicherung",
+            "body": "Alle Daten werden in verschlüsselten PostgreSQL-Datenbanken gespeichert. Audit-Logs und Aktivitätsaufzeichnungen werden standardmäßig 12 Monate aufbewahrt. Du kannst jederzeit die Löschung deines Kontos und aller zugehörigen Daten verlangen."
+          },
+          {
+            "title": "Drittanbieter-Dienste",
+            "body": "Wir nutzen Stripe für die Abrechnung, SendGrid für transaktionale E-Mails, Google OAuth für die Authentifizierung (optional) und HubSpot für CRM-Integration (opt-in). Jeder dieser Dienste hat seine eigene Datenschutzerklärung."
+          },
+          {
+            "title": "Deine Rechte",
+            "body": "Du hast jederzeit das Recht, auf deine Daten zuzugreifen, sie zu exportieren und zu löschen. Um diese Rechte auszuüben, schreibe uns an privacy@braavolabs.com. Wir antworten innerhalb von 30 Tagen."
+          },
+          {
+            "title": "Sicherheit",
+            "body": "Wir verwenden branchenübliche Verschlüsselung bei der Übertragung (TLS 1.3) und im Ruhezustand (AES-256). Der Zugriff auf Produktionssysteme ist auf autorisiertes Personal beschränkt. Wir führen regelmäßige Sicherheitsprüfungen durch."
+          },
+          {
+            "title": "Änderungen",
+            "body": "Wir können diese Richtlinie von Zeit zu Zeit aktualisieren. Wesentliche Änderungen kündigen wir per E-Mail an. Die fortgesetzte Nutzung der Plattform nach Änderungen gilt als Zustimmung zur aktualisierten Richtlinie."
+          },
+          {
+            "title": "Kontakt",
+            "body": "Fragen zu dieser Richtlinie? Schreib uns an privacy@braavolabs.com."
+          }
         ]
       },
       "terms": {
         "title": "Nutzungsbedingungen",
         "date": "März 2026",
         "sections": [
-          { "title": "1. Akzeptanz", "body": "Indem du ein Konto erstellst oder Braavolabs nutzt, stimmst du diesen Nutzungsbedingungen zu. Wenn du die Plattform im Namen einer Organisation nutzt, versicherst du, dass du befugt bist, diese Organisation an diese Bedingungen zu binden." },
-          { "title": "2. Servicebeschreibung", "body": "Braavolabs bietet eine KI-gestützte Plattform zum Erstellen und Betreiben autonomer Geschäftsabläufe. Die Plattform nutzt Claude (Anthropic), um Agenten und Pipelines basierend auf deinen Beschreibungen zu generieren." },
-          { "title": "3. Zulässige Nutzung", "body": "Du darfst die Plattform nicht für Spam, illegale Aktivitäten, Verletzung von Drittrechten oder zur Umgehung der Governance- und Risikokontrollen der Plattform nutzen. Automatisierte Outreach-Aktionen unterliegen den eingebauten Anti-Spam-Limits." },
-          { "title": "4. Kostenloser Plan", "body": "Der kostenlose Plan umfasst 1 Unternehmen, 10 Runs pro Monat und Zugang zu TikTok- und LinkedIn-Kanälen. Funktionen des kostenlosen Plans können mit 30 Tagen Vorlaufzeit geändert werden." },
-          { "title": "5. Bezahlte Pläne", "body": "Bezahlte Abonnements werden monatlich über Stripe abgerechnet. Du kannst jederzeit kündigen; die Kündigung wird zum Ende des aktuellen Abrechnungszeitraums wirksam. Es gibt keine Rückerstattungen für Teilmonate." },
-          { "title": "6. Dateneigentum", "body": "Du besitzt alle Daten, die du in die Plattform eingibst, einschließlich Unternehmensbeschreibungen, Agenten-Konfigurationen und Outputs. Du gewährst uns eine begrenzte Lizenz, diese Daten ausschließlich zur Bereitstellung des Dienstes zu verarbeiten." },
-          { "title": "7. KI-Outputs", "body": "KI-generierte Inhalte (Agent-Outputs, Drafts, Outreach-Nachrichten) müssen vor dem Versand überprüft werden. Du bist verantwortlich für alle Inhalte, die über mit deinem Konto verbundene Integrationen versendet werden." },
-          { "title": "8. Haftungsbeschränkung", "body": "Die Plattform wird 'wie besehen' bereitgestellt. Wir haften nicht für indirekte, zufällige oder Folgeschäden, die aus deiner Nutzung der Plattform oder KI-generierter Inhalte entstehen." },
-          { "title": "9. Beendigung", "body": "Wir können Konten, die gegen diese Bedingungen verstoßen, sperren oder schließen. Du kannst dein Konto jederzeit auf der Einstellungen-Seite löschen." },
-          { "title": "10. Kontakt", "body": "Fragen zu diesen Bedingungen? Schreib uns an legal@braavolabs.com." }
+          {
+            "title": "1. Akzeptanz",
+            "body": "Indem du ein Konto erstellst oder Braavolabs nutzt, stimmst du diesen Nutzungsbedingungen zu. Wenn du die Plattform im Namen einer Organisation nutzt, versicherst du, dass du befugt bist, diese Organisation an diese Bedingungen zu binden."
+          },
+          {
+            "title": "2. Servicebeschreibung",
+            "body": "Braavolabs bietet eine KI-gestützte Plattform zum Erstellen und Betreiben autonomer Geschäftsabläufe. Die Plattform nutzt Claude (Anthropic), um Agenten und Pipelines basierend auf deinen Beschreibungen zu generieren."
+          },
+          {
+            "title": "3. Zulässige Nutzung",
+            "body": "Du darfst die Plattform nicht für Spam, illegale Aktivitäten, Verletzung von Drittrechten oder zur Umgehung der Governance- und Risikokontrollen der Plattform nutzen. Automatisierte Outreach-Aktionen unterliegen den eingebauten Anti-Spam-Limits."
+          },
+          {
+            "title": "4. Kostenloser Plan",
+            "body": "Der kostenlose Plan umfasst 1 Unternehmen, 10 Runs pro Monat und Zugang zu TikTok- und LinkedIn-Kanälen. Funktionen des kostenlosen Plans können mit 30 Tagen Vorlaufzeit geändert werden."
+          },
+          {
+            "title": "5. Bezahlte Pläne",
+            "body": "Bezahlte Abonnements werden monatlich über Stripe abgerechnet. Du kannst jederzeit kündigen; die Kündigung wird zum Ende des aktuellen Abrechnungszeitraums wirksam. Es gibt keine Rückerstattungen für Teilmonate."
+          },
+          {
+            "title": "6. Dateneigentum",
+            "body": "Du besitzt alle Daten, die du in die Plattform eingibst, einschließlich Unternehmensbeschreibungen, Agenten-Konfigurationen und Outputs. Du gewährst uns eine begrenzte Lizenz, diese Daten ausschließlich zur Bereitstellung des Dienstes zu verarbeiten."
+          },
+          {
+            "title": "7. KI-Outputs",
+            "body": "KI-generierte Inhalte (Agent-Outputs, Drafts, Outreach-Nachrichten) müssen vor dem Versand überprüft werden. Du bist verantwortlich für alle Inhalte, die über mit deinem Konto verbundene Integrationen versendet werden."
+          },
+          {
+            "title": "8. Haftungsbeschränkung",
+            "body": "Die Plattform wird 'wie besehen' bereitgestellt. Wir haften nicht für indirekte, zufällige oder Folgeschäden, die aus deiner Nutzung der Plattform oder KI-generierter Inhalte entstehen."
+          },
+          {
+            "title": "9. Beendigung",
+            "body": "Wir können Konten, die gegen diese Bedingungen verstoßen, sperren oder schließen. Du kannst dein Konto jederzeit auf der Einstellungen-Seite löschen."
+          },
+          {
+            "title": "10. Kontakt",
+            "body": "Fragen zu diesen Bedingungen? Schreib uns an legal@braavolabs.com."
+          }
         ]
       },
       "cookies": {
         "title": "Cookie-Richtlinie",
         "date": "Mai 2026",
         "sections": [
-          { "title": "Was Cookies sind", "body": "Cookies sind kleine Textdateien, die beim Besuch einer Website auf deinem Gerät platziert werden. Wir nutzen Cookies und ähnliche Local-Storage-Techniken, um dich angemeldet zu halten, deine Spracheinstellung zu speichern und dein Erlebnis zu verbessern." },
-          { "title": "Cookies, die wir nutzen", "body": "Strikt notwendig: ein JWT-Session-Token zur Authentifizierung. Präferenz: NEXT_LOCALE zur Speicherung deiner Sprache. Wir setzen keine Werbe-Tracking-Cookies. Analytics ist opt-in (Plausible, standardmäßig cookie-frei)." },
-          { "title": "Drittanbieter-Cookies", "body": "Stripe Checkout setzt Cookies während Zahlungsabläufen zur Betrugsprävention. HubSpot-Tracking-Pixel laufen nur, wenn du opt-in zustimmst. Google- oder GitHub-OAuth setzen während der Anmeldung eigene Cookies — diese unterliegen ihren jeweiligen Richtlinien." },
-          { "title": "Cookies verwalten", "body": "Die meisten Browser erlauben dir, Cookies über die Einstellungen abzulehnen oder zu löschen. Strikt notwendige Cookies zu deaktivieren verhindert die Anmeldung. Wo erforderlich, lässt unser Cookie-Banner dich nicht-essenzielle Cookies akzeptieren oder ablehnen." },
-          { "title": "Rechtsgrundlage", "body": "Wir stützen uns auf berechtigtes Interesse für strikt notwendige Cookies (KVKK Art. 5/2-f und GDPR Art. 6(1)(f)) und auf deine Einwilligung für nicht-essenzielle Cookies (KVKK Art. 5/1 und GDPR Art. 6(1)(a))." },
-          { "title": "Kontakt", "body": "Fragen zu Cookies? Schreib an privacy@braavolabs.com." }
+          {
+            "title": "Was Cookies sind",
+            "body": "Cookies sind kleine Textdateien, die beim Besuch einer Website auf deinem Gerät platziert werden. Wir nutzen Cookies und ähnliche Local-Storage-Techniken, um dich angemeldet zu halten, deine Spracheinstellung zu speichern und dein Erlebnis zu verbessern."
+          },
+          {
+            "title": "Cookies, die wir nutzen",
+            "body": "Strikt notwendig: ein JWT-Session-Token zur Authentifizierung. Präferenz: NEXT_LOCALE zur Speicherung deiner Sprache. Wir setzen keine Werbe-Tracking-Cookies. Analytics ist opt-in (Plausible, standardmäßig cookie-frei)."
+          },
+          {
+            "title": "Drittanbieter-Cookies",
+            "body": "Stripe Checkout setzt Cookies während Zahlungsabläufen zur Betrugsprävention. HubSpot-Tracking-Pixel laufen nur, wenn du opt-in zustimmst. Google- oder GitHub-OAuth setzen während der Anmeldung eigene Cookies — diese unterliegen ihren jeweiligen Richtlinien."
+          },
+          {
+            "title": "Cookies verwalten",
+            "body": "Die meisten Browser erlauben dir, Cookies über die Einstellungen abzulehnen oder zu löschen. Strikt notwendige Cookies zu deaktivieren verhindert die Anmeldung. Wo erforderlich, lässt unser Cookie-Banner dich nicht-essenzielle Cookies akzeptieren oder ablehnen."
+          },
+          {
+            "title": "Rechtsgrundlage",
+            "body": "Wir stützen uns auf berechtigtes Interesse für strikt notwendige Cookies (KVKK Art. 5/2-f und GDPR Art. 6(1)(f)) und auf deine Einwilligung für nicht-essenzielle Cookies (KVKK Art. 5/1 und GDPR Art. 6(1)(a))."
+          },
+          {
+            "title": "Kontakt",
+            "body": "Fragen zu Cookies? Schreib an privacy@braavolabs.com."
+          }
         ]
       }
     },
@@ -577,23 +762,42 @@
     "status": {
       "title": "Alle Systeme funktionieren",
       "subtitle": "Manuell verifizierter Status. Eine Echtzeit-Statusseite (separate Subdomain) ist auf der Roadmap.",
-      "services": { "website": "Öffentliche Website", "auth": "Authentifizierung", "api": "API", "runs": "Pipeline-Runs", "database": "Datenbank", "email": "E-Mail-Zustellung" },
+      "services": {
+        "website": "Öffentliche Website",
+        "auth": "Authentifizierung",
+        "api": "API",
+        "runs": "Pipeline-Runs",
+        "database": "Datenbank",
+        "email": "E-Mail-Zustellung"
+      },
       "operational": "Funktioniert",
       "alertTitle": "Ausfall bemerkt?",
       "alertBody": "Schreibe an support@braavolabs.com, was du versucht hast und welchen Fehler du gesehen hast — wir untersuchen es und aktualisieren diese Seite."
     }
   },
   "auth": {
-    "login": { "welcome": "Willkommen zurück", "subtitle": "Melde dich bei deinem Braavolabs-Konto an", "tabSignIn": "Anmelden", "tabRegister": "Registrieren" },
-    "register": { "welcome": "Konto erstellen", "subtitle": "Starte mit autonomen KI-Unternehmen" },
+    "login": {
+      "welcome": "Willkommen zurück",
+      "subtitle": "Melde dich bei deinem Braavolabs-Konto an",
+      "tabSignIn": "Anmelden",
+      "tabRegister": "Registrieren"
+    },
+    "register": {
+      "welcome": "Konto erstellen",
+      "subtitle": "Starte mit autonomen KI-Unternehmen"
+    },
     "fields": {
-      "fullName": "Vollständiger Name", "fullNamePlaceholder": "Anna Schmidt",
-      "organization": "Organisation", "organizationPlaceholder": "Dein Unternehmen oder Team",
-      "email": "E-Mail", "emailPlaceholder": "du@beispiel.com",
+      "fullName": "Vollständiger Name",
+      "fullNamePlaceholder": "Anna Schmidt",
+      "organization": "Organisation",
+      "organizationPlaceholder": "Dein Unternehmen oder Team",
+      "email": "E-Mail",
+      "emailPlaceholder": "du@beispiel.com",
       "password": "Passwort",
       "passwordLoginPlaceholder": "Mind. 8 Zeichen",
       "passwordRegisterPlaceholder": "8+ Zeichen, Groß-, Kleinbuchstaben, Zahl",
-      "referralCode": "Einladungscode", "referralCodePlaceholder": "Optional",
+      "referralCode": "Einladungscode",
+      "referralCodePlaceholder": "Optional",
       "optional": "(optional)"
     },
     "validation": {
@@ -607,8 +811,18 @@
       "passwordsMismatch": "Passwörter stimmen nicht überein.",
       "invalidResetLink": "Ungültiger Reset-Link."
     },
-    "strength": { "label": "Passwortstärke:", "weak": "Schwach", "fair": "Mittel", "good": "Gut", "strong": "Stark" },
-    "submit": { "loading": "Wird geladen...", "signIn": "Anmelden", "createAccount": "Konto erstellen" },
+    "strength": {
+      "label": "Passwortstärke:",
+      "weak": "Schwach",
+      "fair": "Mittel",
+      "good": "Gut",
+      "strong": "Stark"
+    },
+    "submit": {
+      "loading": "Wird geladen...",
+      "signIn": "Anmelden",
+      "createAccount": "Konto erstellen"
+    },
     "oauth": {
       "divider": "oder weiter mit",
       "googleNotConfigured": "Google OAuth ist auf diesem Server nicht konfiguriert. Nutze E-Mail/Passwort oder GitHub.",
@@ -648,38 +862,80 @@
       "feature3": "10 Minuten bis zum ersten Unternehmen",
       "footer": "© 2026 Braavolabs. Mit Claude gebaut."
     },
-    "errors": { "generic": "Etwas ist schiefgelaufen" }
+    "errors": {
+      "generic": "Etwas ist schiefgelaufen"
+    }
   },
   "pricing": {
     "badge": "KOSTENLOS STARTEN · KEINE KARTE NÖTIG",
     "title": "Einfache, transparente Preise",
     "subtitle": "Starte kostenlos mit einem KI-Unternehmen. Upgrade, wenn du mehr betreiben willst. Jeder bezahlte Plan ist bei jährlicher Abrechnung 20 % günstiger.",
-    "cycle": { "monthly": "Monatlich", "yearly": "Jährlich", "save": "−20 %" },
-    "period": { "forever": "für immer", "monthBilledYearly": "/ Mon. · jährlich abgerechnet", "month": "/ Monat" },
+    "cycle": {
+      "monthly": "Monatlich",
+      "yearly": "Jährlich",
+      "save": "−20 %"
+    },
+    "period": {
+      "forever": "für immer",
+      "monthBilledYearly": "/ Mon. · jährlich abgerechnet",
+      "month": "/ Monat"
+    },
     "mostPopular": "Am beliebtesten",
     "plans": {
       "free": {
         "name": "Free",
         "desc": "Echte KI-Ausgabe vom ersten Tag an. Baue 1 Unternehmen und sieh es arbeiten.",
-        "features": ["1 KI-Unternehmen", "10 Läufe / Monat", "TikTok + LinkedIn Kanäle", "Vereinfachte Hero-Vorlage", "Vollständiges Audit-Log", "Cloud BYOK (Anthropic / OpenAI / Gemini)", "Community-Support"],
+        "features": [
+          "1 KI-Unternehmen",
+          "10 Läufe / Monat",
+          "TikTok + LinkedIn Kanäle",
+          "Vereinfachte Hero-Vorlage",
+          "Vollständiges Audit-Log",
+          "Cloud BYOK (Anthropic / OpenAI / Gemini)",
+          "Community-Support"
+        ],
         "cta": "Kostenlos starten"
       },
       "creator": {
         "name": "Creator",
         "desc": "Für Solopreneure, die eine Handvoll KI-Unternehmen betreiben.",
-        "features": ["5 Unternehmen parallel", "100 Läufe / Monat", "Alle Kanäle (TikTok, LinkedIn, IG, X, E-Mail)", "Eigene Pipelines", "Memory Engine", "Self-hosted Gemma (Ollama / LM Studio)", "E-Mail-Support"],
+        "features": [
+          "5 Unternehmen parallel",
+          "100 Läufe / Monat",
+          "Alle Kanäle (TikTok, LinkedIn, IG, X, E-Mail)",
+          "Eigene Pipelines",
+          "Memory Engine",
+          "Self-hosted Gemma (Ollama / LM Studio)",
+          "E-Mail-Support"
+        ],
         "cta": "Creator wählen"
       },
       "pro": {
         "name": "Pro",
         "desc": "Für Agenturen und Founder, die über viele Marken skalieren.",
-        "features": ["20 Unternehmen", "500 Läufe / Monat", "HubSpot CRM-Sync", "Outreach-Automatisierung", "Erweiterte Analytics", "Self-hosted Gemma + Eigene OpenAI-Endpunkte", "Priority-Support"],
+        "features": [
+          "20 Unternehmen",
+          "500 Läufe / Monat",
+          "HubSpot CRM-Sync",
+          "Outreach-Automatisierung",
+          "Erweiterte Analytics",
+          "Self-hosted Gemma + Eigene OpenAI-Endpunkte",
+          "Priority-Support"
+        ],
         "cta": "Pro wählen"
       },
       "business": {
         "name": "Business",
         "desc": "Team-Autonomie mit eingebauter Governance.",
-        "features": ["100 Unternehmen", "2.000 Läufe / Monat", "3 Team-Sitze", "Governance + Audit-Export", "White-Label-Vorbereitung", "Self-hosted LLM + Air-gapped-Option", "Dedizierter Support"],
+        "features": [
+          "100 Unternehmen",
+          "2.000 Läufe / Monat",
+          "3 Team-Sitze",
+          "Governance + Audit-Export",
+          "White-Label-Vorbereitung",
+          "Self-hosted LLM + Air-gapped-Option",
+          "Dedizierter Support"
+        ],
         "cta": "Business wählen"
       }
     },
@@ -689,12 +945,30 @@
       "cta": "Mit dem Founder sprechen"
     },
     "faq": [
-      { "q": "Brauche ich für den kostenlosen Plan eine Kreditkarte?", "a": "Nein. Free ist für immer komplett kostenlos — keine Karte nötig. Du bekommst 1 Unternehmen und 10 Läufe pro Monat mit echter KI-Ausgabe." },
-      { "q": "Was zählt als „Lauf“?", "a": "Jede Pipeline-Ausführung ist ein Lauf. Beispiel: 1 TikTok-Post-Generierung = 1 Lauf. 1 E-Mail-Outreach-Sequenz = 1 Lauf." },
-      { "q": "Warum gibt es keine kostenlose Testversion auf bezahlten Plänen?", "a": "Weil der Free-Plan dir bereits echten Wert bietet. Probiere das Produkt kostenlos, wähle dann eine Stufe, wenn du mehr Unternehmen brauchst." },
-      { "q": "Was passiert, wenn ich mein Lauf-Kontingent überschreite?", "a": "Deine Pipelines pausieren bis zum nächsten Monat oder bis zum Upgrade. Keine Überraschungs-Rechnungen." },
-      { "q": "Kann ich jederzeit kündigen?", "a": "Ja. Kündige jederzeit über deine Billing-Seite — keine Strafe, kein Lock-in. Behalte den Zugang bis zum Periodenende." },
-      { "q": "Sind meine Daten privat?", "a": "Ja. Jeder Tenant ist vollständig isoliert. Wir teilen niemals deine Unternehmensdaten und trainieren keine Modelle damit." }
+      {
+        "q": "Brauche ich für den kostenlosen Plan eine Kreditkarte?",
+        "a": "Nein. Free ist für immer komplett kostenlos — keine Karte nötig. Du bekommst 1 Unternehmen und 10 Läufe pro Monat mit echter KI-Ausgabe."
+      },
+      {
+        "q": "Was zählt als „Lauf“?",
+        "a": "Jede Pipeline-Ausführung ist ein Lauf. Beispiel: 1 TikTok-Post-Generierung = 1 Lauf. 1 E-Mail-Outreach-Sequenz = 1 Lauf."
+      },
+      {
+        "q": "Warum gibt es keine kostenlose Testversion auf bezahlten Plänen?",
+        "a": "Weil der Free-Plan dir bereits echten Wert bietet. Probiere das Produkt kostenlos, wähle dann eine Stufe, wenn du mehr Unternehmen brauchst."
+      },
+      {
+        "q": "Was passiert, wenn ich mein Lauf-Kontingent überschreite?",
+        "a": "Deine Pipelines pausieren bis zum nächsten Monat oder bis zum Upgrade. Keine Überraschungs-Rechnungen."
+      },
+      {
+        "q": "Kann ich jederzeit kündigen?",
+        "a": "Ja. Kündige jederzeit über deine Billing-Seite — keine Strafe, kein Lock-in. Behalte den Zugang bis zum Periodenende."
+      },
+      {
+        "q": "Sind meine Daten privat?",
+        "a": "Ja. Jeder Tenant ist vollständig isoliert. Wir teilen niemals deine Unternehmensdaten und trainieren keine Modelle damit."
+      }
     ]
   },
   "footer": {
