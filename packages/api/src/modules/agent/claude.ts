@@ -193,8 +193,40 @@ async function executeTurn(
     (b): b is ToolUseBlock => b.type === "tool_use",
   );
 
-  const toolCallResults = await Promise.all(
-    toolUseBlocks.map(async (block) => {
+  // Concurrency cap on parallel tool execution. Claude can emit 20+
+  // tool_use blocks in a single turn, each of which may hit an
+  // integration (HubSpot, Stripe, SendGrid, …) with its own per-second
+  // rate limit. Running them all in parallel with Promise.all triggers
+  // those limits, gets us throttled, and then the whole run fails.
+  // 5 parallel tool calls keeps each integration comfortably under
+  // its bucket while still leaving room for fast-completing tools.
+  const TOOL_PARALLELISM = 5;
+  async function mapWithConcurrency<TItem, TResult>(
+    items: TItem[],
+    limit: number,
+    fn: (item: TItem, index: number) => Promise<TResult>,
+  ): Promise<TResult[]> {
+    const out: TResult[] = new Array(items.length);
+    let cursor = 0;
+    const workers: Promise<void>[] = [];
+    const workerCount = Math.min(limit, items.length);
+    for (let w = 0; w < workerCount; w++) {
+      workers.push((async () => {
+        while (true) {
+          const i = cursor++;
+          if (i >= items.length) return;
+          out[i] = await fn(items[i], i);
+        }
+      })());
+    }
+    await Promise.all(workers);
+    return out;
+  }
+
+  const toolCallResults = await mapWithConcurrency(
+    toolUseBlocks,
+    TOOL_PARALLELISM,
+    async (block) => {
       // Governed path: approvals, tenant isolation, rate limits, audit log.
       if (govContext) {
         const result: ToolExecResult = await executeTool(block.name, block.input, govContext);
@@ -278,7 +310,7 @@ async function executeTurn(
           error,
         };
       }
-    }),
+    },
   );
 
   return {

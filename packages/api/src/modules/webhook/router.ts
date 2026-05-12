@@ -9,6 +9,7 @@ import { getWebhookTemplates, getWebhookTemplateById, getWebhookTemplateCategori
 import { authMiddleware } from "../../middleware/auth";
 import { AppError } from "../../middleware/error";
 import { env } from "../../config/env";
+import { redis } from "../../lib/redis";
 
 const webhookParamsSchema = z.object({
   companySlug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/),
@@ -35,6 +36,28 @@ webhookRouter.post(
   async (req, res, next) => {
     try {
       const { companySlug, event } = webhookParamsSchema.parse(req.params);
+
+      // Per-slug rate limit BEFORE the DB lookup. The earlier handler
+      // looked up the company row on every request — at ~1ms a piece
+      // an attacker hammering a known popular slug from 100 IPs
+      // (under nginx's 5r/s/IP edge cap that's 500 lookups/sec) still
+      // saturates the planner. A Redis-backed slug bucket (300 req/min
+      // is comfortably above any legitimate provider's burst rate)
+      // makes those attacks cheap to absorb without involving Postgres.
+      // Fail-open is acceptable here: real signature verification is
+      // the actual security gate; the rate-limit is just DoS hygiene.
+      try {
+        const rlKey = `rl:webhook:slug:${companySlug}`;
+        const rlCount = await redis.incr(rlKey);
+        if (rlCount === 1) await redis.expire(rlKey, 60);
+        if (rlCount > 300) {
+          res.status(429).json({ error: "Webhook rate limit exceeded for this slug" });
+          return;
+        }
+      } catch {
+        /* Redis down — proceed (the signature check + HMAC compare is
+           the security gate, not this DoS shield). */
+      }
 
       const company = await prisma.company.findFirst({
         where: { slug: companySlug, status: "ACTIVE" },

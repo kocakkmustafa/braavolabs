@@ -596,9 +596,21 @@ model ActivityLog {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  @@index([tenantId])
+  // The dashboard + per-resource activity timelines always filter by
+  // tenantId and sort by createdAt DESC. At 10k DAU × ~50 actions/day
+  // this table grows ~180M rows/year, at which point a single-column
+  // (tenantId) index returns millions of rows that Postgres then has
+  // to sort. The composite (tenantId, createdAt DESC) lets the planner
+  // walk the btree in reverse and stop at LIMIT, turning a 5s query
+  // into sub-100ms.
+  // resourceId is the join key used by every per-company / per-run
+  // timeline query (after the SEC-019 fix dropped the JSONB path-
+  // equality fallback) — indexing it keeps the planner from sequential-
+  // scanning activity_log under those queries.
+  @@index([tenantId, createdAt(sort: Desc)])
   @@index([action])
   @@index([createdAt])
+  @@index([resourceId])
   @@map("activity_log")
 }
 
