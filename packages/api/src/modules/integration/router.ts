@@ -6,6 +6,7 @@ import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { authMiddleware } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
+import { assertSafeExternalUrl } from "../../lib/ssrf";
 import { PROVIDER_INFO, getRequiredProviders, getMissingIntegrations, TOOL_PROVIDER_MAP } from "./checker";
 import { getIntegrationCatalog, getIntegrationById } from "./catalog";
 
@@ -122,6 +123,30 @@ integrationRouter.post("/:companyId", validate(saveIntegrationSchema), async (re
 
     if (!PROVIDER_INFO[provider]) {
       throw new AppError(400, `Unknown provider: ${provider}`);
+    }
+
+    // SSRF guard on any tenant-supplied URLs inside the credentials
+    // payload. Integrations like WordPress (`siteUrl`), Shopify
+    // (`shopDomain`), and Custom HTTP webhooks let the user point us
+    // at any URL — without validation that means anyone with a paid
+    // tenant could aim those at AWS / GCP / Azure instance-metadata
+    // IPs, our own Postgres / Redis, or internal Lightsail services.
+    // Reject loopback, private, and cloud-metadata ranges at save
+    // time so the encrypted blob in the DB is already safe to use.
+    const urlFieldNames = ["siteUrl", "shopDomain", "baseUrl", "url", "endpoint", "webhookUrl"];
+    for (const key of urlFieldNames) {
+      const value = (credentials as Record<string, unknown>)[key];
+      if (typeof value !== "string" || value.length === 0) continue;
+      // Shopify accepts a bare domain like "shop.myshopify.com" — wrap
+      // such values in https:// before validating so the SSRF guard
+      // can parse them as URLs.
+      const candidate = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+      try {
+        await assertSafeExternalUrl(candidate);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Invalid URL";
+        throw new AppError(400, `Integration credentials field "${key}" rejected: ${message}`);
+      }
     }
 
     // Encrypt credentials

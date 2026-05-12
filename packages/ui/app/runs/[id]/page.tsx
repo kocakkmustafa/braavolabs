@@ -9,12 +9,13 @@
  * audited-by-default value prop.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { api } from "../../../lib/api";
 import { useAuthGuard } from "../../../lib/useAuthGuard";
 import { timeAgo } from "../../../lib/timeAgo";
+import { RunStepHeatmap } from "../../../components/RunStepHeatmap";
 
 interface RunDetail {
   id: string;
@@ -28,8 +29,10 @@ interface RunDetail {
     id: string;
     stepIndex: number;
     agentRole?: string;
+    name?: string;
     status: string;
     reasoning?: string;
+    costUsd?: number | string | null;
     startedAt?: string;
     completedAt?: string;
     durationMs?: number;
@@ -45,6 +48,20 @@ export default function RunDetailPage() {
   const [run, setRun] = useState<RunDetail | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const stepRefs = useRef<Map<string, HTMLLIElement>>(new Map());
+
+  const scrollToStep = (stepId: string) => {
+    const node = stepRefs.current.get(stepId);
+    if (!node) return;
+    node.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Add a brief highlight pulse to draw the eye.
+    node.style.outline = "2px solid rgba(0,209,255,0.55)";
+    node.style.outlineOffset = "2px";
+    window.setTimeout(() => {
+      node.style.outline = "";
+      node.style.outlineOffset = "";
+    }, 1400);
+  };
 
   useEffect(() => {
     if (!token || !runId) return;
@@ -125,6 +142,20 @@ export default function RunDetailPage() {
               </div>
             )}
 
+            {/* Live cost-per-task heatmap — extends the per-step spend
+                summary into an at-a-glance visualisation. Skipped while
+                the run has fewer than 2 steps because a single bar adds
+                no information. */}
+            {run.steps && run.steps.length >= 2 && (
+              <div style={{ marginBottom: 16 }}>
+                <RunStepHeatmap
+                  steps={run.steps}
+                  totalCostUsd={run.costUsd}
+                  onSelectStep={scrollToStep}
+                />
+              </div>
+            )}
+
             <section className="bv-glass bv-panel">
               <header className="bv-panel-head">
                 <div>
@@ -142,7 +173,20 @@ export default function RunDetailPage() {
               ) : (
                 <ol className="bv-stagger" style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
                   {run.steps.map((s, idx) => (
-                    <li key={s.id} style={{ padding: 14, border: "1px solid var(--bv-glass-border)", borderRadius: 12, background: "rgba(255,255,255,0.02)" }}>
+                    <li
+                      key={s.id}
+                      ref={(el) => {
+                        if (el) stepRefs.current.set(s.id, el);
+                        else stepRefs.current.delete(s.id);
+                      }}
+                      style={{
+                        padding: 14,
+                        border: "1px solid var(--bv-glass-border)",
+                        borderRadius: 12,
+                        background: "rgba(255,255,255,0.02)",
+                        transition: "outline 0.3s ease-out, outline-offset 0.3s ease-out",
+                      }}
+                    >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
                         <div style={{ minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>

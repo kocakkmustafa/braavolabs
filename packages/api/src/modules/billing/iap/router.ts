@@ -33,6 +33,7 @@ import { env } from "../../../config/env";
 import { logger } from "../../../lib/logger";
 import { verifyAppleReceipt, parseAppleNotification } from "./apple";
 import { verifyGoogleReceipt, parseGoogleRtdnEnvelope } from "./google";
+import crypto from "node:crypto";
 
 export const iapRouter = Router();
 
@@ -268,13 +269,41 @@ iapRouter.post("/apple/notify", iapWebhookRateLimit, async (req, res) => {
     return;
   }
   try {
+    // We use the JWS payload ONLY to extract the originalTransactionId
+    // and productId. The actual subscription state (status / expiresAt /
+    // autoRenew) MUST come from a server-to-server call to Apple's
+    // App Store Server API — without that re-fetch, a crafted JWS
+    // (Apple's signature is not yet verified against the x5c chain
+    // here, see SEC-001 in the audit) could downgrade or expire any
+    // tenant whose originalTransactionId an attacker can guess or
+    // observe. Re-fetching turns the JWS into a hint and the Apple
+    // Server API into the source of truth.
     const note = await parseAppleNotification(signedPayload);
+    let verified;
+    try {
+      verified = await verifyAppleReceipt(note.originalTransactionId, note.productId);
+    } catch (err) {
+      // Verification failure can be a legit "Apple hasn't fully
+      // propagated the transaction yet" race (404 on production +
+      // sandbox), or a malicious / malformed payload. Either way,
+      // return 200 so Apple stops retrying immediately while the
+      // server log captures the diagnostic.
+      logger.warn(
+        { err: err instanceof Error ? err.message : err, type: note.notificationType, originalTransactionId: note.originalTransactionId },
+        "Apple ASN re-verify failed; not mutating subscription",
+      );
+      res.status(200).json({ ok: false, reason: "verify-failed" });
+      return;
+    }
+
     const updated = await prisma.mobileSubscription.update({
-      where: { originalTransactionId: note.originalTransactionId },
+      where: { originalTransactionId: verified.originalTransactionId },
       data: {
-        status: note.status,
-        expiresAt: note.expiresAt,
-        autoRenew: note.autoRenew,
+        // Server-supplied state — guaranteed to match Apple's view of
+        // the world rather than whatever the JWS claimed.
+        status: verified.status,
+        expiresAt: verified.expiresAt,
+        autoRenew: verified.autoRenew,
         lastVerifiedAt: new Date(),
       },
     }).catch((err) => {
@@ -292,7 +321,7 @@ iapRouter.post("/apple/notify", iapWebhookRateLimit, async (req, res) => {
       // Downgrade the tenant when entitlement is actually gone. Active
       // states leave the existing tenant.plan untouched (the upgrade
       // was already applied at /verify time).
-      if (note.status === "expired" || note.status === "revoked") {
+      if (verified.status === "expired" || verified.status === "revoked") {
         const stillActive = await prisma.mobileSubscription.findFirst({
           where: {
             tenantId: updated.tenantId,
@@ -314,7 +343,7 @@ iapRouter.post("/apple/notify", iapWebhookRateLimit, async (req, res) => {
           action: "billing.iap.notification",
           resource: "mobile_subscription",
           resourceId: updated.id,
-          details: { type: note.notificationType, subtype: note.subtype, status: note.status } as any,
+          details: { type: note.notificationType, subtype: note.subtype, status: verified.status } as any,
         },
       });
     }

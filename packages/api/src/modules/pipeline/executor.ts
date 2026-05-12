@@ -241,32 +241,65 @@ function extractReasoning(result: AgentLoopResult): string {
 }
 
 /**
- * Log all tool calls from an agent loop to the database.
+ * Log all tool calls from an agent loop to the database in a single
+ * `createMany` round-trip.
+ *
+ * Earlier this looped `await prisma.toolCall.create()` per tool call —
+ * a 10-turn run with 5 tools/turn meant 50 sequential network round-
+ * trips before the run could complete. Under the 20-connection Prisma
+ * pool that's enough to wedge the whole API behind a single big run.
+ *
+ * `createMany` issues one INSERT regardless of size and `skipDuplicates`
+ * is unnecessary because runStepId+toolName aren't unique.
+ *
+ * The returned id list is best-effort — `createMany` doesn't return
+ * generated ids on Postgres without `createManyAndReturn`. Since the
+ * existing callers only count tool calls and forward the ids to
+ * telemetry tags, we re-fetch by runStepId to recover the ids without
+ * extra round-trips per row.
  */
 async function logToolCalls(
   runStepId: string,
   result: AgentLoopResult,
 ): Promise<string[]> {
-  const ids: string[] = [];
+  const rows: Array<{
+    runStepId: string;
+    toolName: string;
+    input: unknown;
+    output: unknown;
+    status: "FAILED" | "COMPLETED";
+    durationMs: number | null;
+    error: string | null;
+  }> = [];
 
   for (const turn of result.turns) {
     for (const tc of turn.toolCalls) {
-      const record = await prisma.toolCall.create({
-        data: {
-          runStepId,
-          toolName: tc.name,
-          input: tc.input as any,
-          output: tc.output as any,
-          status: tc.error ? "FAILED" : "COMPLETED",
-          durationMs: tc.durationMs,
-          error: tc.error,
-        },
+      rows.push({
+        runStepId,
+        toolName: tc.name,
+        input: tc.input,
+        output: tc.output,
+        status: tc.error ? "FAILED" : "COMPLETED",
+        durationMs: tc.durationMs ?? null,
+        error: tc.error ?? null,
       });
-      ids.push(record.id);
     }
   }
 
-  return ids;
+  if (rows.length === 0) return [];
+
+  await prisma.toolCall.createMany({ data: rows as any });
+
+  // Recover the ids in one round-trip so telemetry tags and any
+  // downstream consumer that needs the row identifiers can still
+  // function. Ordering by createdAt keeps the result aligned with the
+  // input array under normal conditions.
+  const created = await prisma.toolCall.findMany({
+    where: { runStepId },
+    select: { id: true },
+    orderBy: { createdAt: "asc" },
+  });
+  return created.map((c) => c.id);
 }
 
 /**

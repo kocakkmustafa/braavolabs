@@ -6,7 +6,7 @@
 import { Router } from "express";
 import crypto from "crypto";
 import { z } from "zod";
-import { register, login, getGoogleAuthUrl, googleCallback, getGitHubAuthUrl, githubCallback, requestPasswordReset, resetPassword, refreshTokens, revokeAllRefreshTokens } from "./auth.service";
+import { register, login, getGoogleAuthUrl, googleCallback, getGitHubAuthUrl, githubCallback, requestPasswordReset, resetPassword, refreshTokens, revokeAllRefreshTokens, stashOAuthExchange, redeemOAuthExchange } from "./auth.service";
 import { authMiddleware } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
 import { rateLimit } from "../../middleware/rateLimit";
@@ -27,24 +27,31 @@ export const authRouter = Router();
 // password-reset link during their own brute-force window, since both
 // flows decremented the same counter. Now each endpoint has its own
 // quota.
+// Tighter per-IP limits than the earlier 30/15-min budgets — the
+// account-lockout (5 fails / 15-min / email+ip key, see auth.service.login)
+// already absorbs slow brute force against valid emails; this IP-level
+// gate is the DDoS / enumeration shield on /login, /register, /forgot,
+// /reset. 10/15-min/IP is comfortably above a human user's worst day
+// (a single fat-fingered password retried 3-4 times) and two orders of
+// magnitude below what a serious attacker would need.
 const loginRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  maxRequests: 30,
+  maxRequests: 10,
   keyPrefix: "rl:auth:login",
 });
 const forgotRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
-  maxRequests: 30,
+  maxRequests: 10,
   keyPrefix: "rl:auth:forgot",
 });
 const resetRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
-  maxRequests: 30,
+  maxRequests: 10,
   keyPrefix: "rl:auth:reset",
 });
 const registerRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  maxRequests: 10,
+  maxRequests: 5,
   keyPrefix: "rl:register",
 });
 
@@ -165,13 +172,14 @@ authRouter.get("/google/callback", async (req, res, next) => {
     await redis.del(stateKey); // One-time use
 
     const result = await googleCallback(code, ref);
-    // Redirect to frontend with token. APP_URL is validated at boot
-    // (https:// in prod, no localhost fallback) — using env.APP_URL here
-    // closes the open-redirect surface a missing/typo'd env var would
-    // otherwise create.
+    // Stash the token bundle behind a single-use exchange code so the
+    // bearer + refresh tokens never appear in the redirect URL (which
+    // would leak them to browser history, server access logs, and
+    // Referer headers). The SPA calls POST /auth/oauth/exchange with
+    // the code to retrieve the bundle once, in-page.
+    const exchangeCode = await stashOAuthExchange(result);
     const redirectUrl = new URL("/auth/callback", env.APP_URL);
-    redirectUrl.searchParams.set("token", result.token);
-    redirectUrl.searchParams.set("refreshToken", result.refreshToken);
+    redirectUrl.searchParams.set("code", exchangeCode);
     res.redirect(redirectUrl.toString());
   } catch (err) { next(err); }
 });
@@ -205,9 +213,21 @@ authRouter.get("/github/callback", async (req, res, next) => {
     await redis.del(stateKey);
 
     const result = await githubCallback(code, ref);
+    const exchangeCode = await stashOAuthExchange(result);
     const redirectUrl = new URL("/auth/callback", env.APP_URL);
-    redirectUrl.searchParams.set("token", result.token);
-    redirectUrl.searchParams.set("refreshToken", result.refreshToken);
+    redirectUrl.searchParams.set("code", exchangeCode);
     res.redirect(redirectUrl.toString());
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/auth/oauth/exchange — redeem the one-time code emitted by
+// the OAuth callback for the underlying token bundle. Same rate-limit
+// budget as /auth/refresh because both endpoints mint long-lived
+// refresh tokens.
+authRouter.post("/oauth/exchange", refreshRateLimit, async (req, res, next) => {
+  try {
+    const { code } = z.object({ code: z.string().min(1).max(128) }).parse(req.body);
+    const bundle = await redeemOAuthExchange(code);
+    res.json(bundle);
   } catch (err) { next(err); }
 });

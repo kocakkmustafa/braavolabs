@@ -19,16 +19,23 @@ beforeAll(async () => {
   encryptModule = await import("../encryption");
 });
 
-describe("encrypt / decrypt round-trip (v2 — scrypt KDF)", () => {
+describe("encrypt / decrypt round-trip (v3 — scrypt KDF + 12-byte IV + AAD)", () => {
   it("recovers the original UTF-8 plaintext", () => {
     const original = "hello, encrypted world";
     const ct = encryptModule.encrypt(original);
     expect(encryptModule.decrypt(ct)).toBe(original);
   });
 
-  it("emits ciphertext with the v2: prefix", () => {
+  it("emits ciphertext with the v3: prefix", () => {
     const ct = encryptModule.encrypt("foo");
-    expect(ct.startsWith("v2:")).toBe(true);
+    expect(ct.startsWith("v3:")).toBe(true);
+  });
+
+  it("binds AAD into the auth tag — wrong AAD fails decrypt", () => {
+    const ct = encryptModule.encrypt("aad-secret", "tenant-A|row-1|col");
+    expect(encryptModule.decrypt(ct, "tenant-A|row-1|col")).toBe("aad-secret");
+    expect(() => encryptModule.decrypt(ct, "tenant-B|row-1|col")).toThrow();
+    expect(() => encryptModule.decrypt(ct)).toThrow();
   });
 
   it("produces different ciphertext for the same plaintext (random salt + IV)", () => {
@@ -81,6 +88,7 @@ describe("decrypt — v1 legacy compatibility (raw-slice key)", () => {
   it("decrypts v1 ciphertext using the legacy raw-slice key", () => {
     const original = "legacy-secret";
     const v1 = makeV1Ciphertext(original);
+    expect(v1.startsWith("v3:")).toBe(false);
     expect(v1.startsWith("v2:")).toBe(false);
     expect(encryptModule.decrypt(v1)).toBe(original);
   });
@@ -91,18 +99,19 @@ describe("decrypt — v1 legacy compatibility (raw-slice key)", () => {
   });
 });
 
-describe("decrypt — v2 invariants and tamper-detection", () => {
-  it("throws on truncated v2 ciphertext", () => {
-    const tooShort = "v2:" + Buffer.from("x".repeat(20)).toString("base64");
-    expect(() => encryptModule.decrypt(tooShort)).toThrow(/v2 ciphertext too short/);
+describe("decrypt — v3 invariants and tamper-detection", () => {
+  it("throws on truncated v3 ciphertext", () => {
+    const tooShort = "v3:" + Buffer.from("x".repeat(20)).toString("base64");
+    expect(() => encryptModule.decrypt(tooShort)).toThrow(/v3 ciphertext too short/);
   });
 
-  it("rejects v2 ciphertext with a flipped tag byte (auth fails)", () => {
+  it("rejects v3 ciphertext with a flipped tag byte (auth fails)", () => {
     const ct = encryptModule.encrypt("tamper-me");
     const raw = Buffer.from(ct.slice(3), "base64");
-    // Flip one bit inside the auth tag (bytes 32..47, after salt[0..15] + iv[16..31]).
-    raw[32] ^= 0xff;
-    const tampered = "v2:" + raw.toString("base64");
+    // v3 layout: salt[0..15] + iv[16..27] (12 bytes) + tag[28..43] + ct[44..].
+    // Flip one bit inside the auth tag.
+    raw[28] ^= 0xff;
+    const tampered = "v3:" + raw.toString("base64");
     expect(() => encryptModule.decrypt(tampered)).toThrow();
   });
 });

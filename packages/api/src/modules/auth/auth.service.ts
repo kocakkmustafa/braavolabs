@@ -38,13 +38,20 @@ function signRefreshToken(payload: AuthPayload & { jti: string }): string {
   });
 }
 
-// Pre-computed bcrypt hash of a random throwaway value. Used in the constant-
-// time login path so that a missing-user response burns the same CPU as a
-// real bcrypt.compare(), closing the timing oracle that would otherwise let
-// an attacker enumerate registered emails by measuring response latency.
-// Generated once with: bcrypt.hashSync(crypto.randomBytes(32).toString("hex"), 12)
-const DUMMY_PASSWORD_HASH =
-  "$2a$12$N5h9o9YcfXeLxUmHNyMm9.ZQq.G3X4LfKLY7g4Fkx8RmZPj8XqM3K";
+// Bcrypt hash of a random throwaway value, generated once per process at
+// boot. Used in the constant-time login path so a missing-user response
+// burns the same CPU as a real bcrypt.compare(), closing the timing oracle
+// that would otherwise let an attacker enumerate registered emails by
+// measuring response latency.
+//
+// Generating per-process (rather than compiling a constant into the
+// binary) makes it impossible for an attacker who reads the source to
+// time-correlate "this is the dummy path" responses against any known
+// plaintext — every deployment gets a fresh, unguessable target hash.
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync(
+  crypto.randomBytes(32).toString("hex"),
+  12,
+);
 
 const REFRESH_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
@@ -135,6 +142,74 @@ export async function refreshTokens(
     user: { id: user.id, email: user.email, name: user.name, role: user.role },
     tenant: { id: user.tenant.id, name: user.tenant.name, slug: user.tenant.slug, plan: user.tenant.plan },
   };
+}
+
+/**
+ * Short-lived (60s) one-time code that the OAuth callback emits in the
+ * redirect URL instead of the bearer + refresh tokens themselves. The
+ * SPA exchanges the code for tokens via POST /auth/oauth/exchange,
+ * which means the tokens never appear in browser history, the URL bar,
+ * the Referer header, or any reverse-proxy access log.
+ *
+ * Keyed by a fresh `crypto.randomBytes(32).toString("hex")` so the code
+ * is unguessable; redis.set NX guarantees one-time use; 60s TTL is
+ * enough for the browser to follow one redirect and POST it back, and
+ * short enough that an exfiltrated code is useless almost immediately.
+ */
+const OAUTH_EXCHANGE_TTL_SECONDS = 60;
+
+type OAuthTokenBundle = {
+  token: string;
+  refreshToken: string;
+  user: { id: string; email: string; name: string | null; role: string };
+  tenant: { id: string; name: string; slug: string; plan: string };
+};
+
+function oauthExchangeKey(code: string): string {
+  return `oauth:exchange:${code}`;
+}
+
+export async function stashOAuthExchange(bundle: OAuthTokenBundle): Promise<string> {
+  const code = crypto.randomBytes(32).toString("hex");
+  // SETNX so a (vanishingly unlikely) code collision can't overwrite an
+  // in-flight bundle and accidentally hand the wrong tenant's tokens to
+  // a different browser tab.
+  const ok = await redis.set(
+    oauthExchangeKey(code),
+    JSON.stringify(bundle),
+    "EX",
+    OAUTH_EXCHANGE_TTL_SECONDS,
+    "NX",
+  );
+  if (!ok) {
+    throw new AppError(500, "Failed to stash OAuth exchange — please retry sign-in");
+  }
+  return code;
+}
+
+export async function redeemOAuthExchange(code: string): Promise<OAuthTokenBundle> {
+  const key = oauthExchangeKey(code);
+  // GETDEL semantics — atomic read-and-clear so the code is single-use
+  // even under concurrent redemption attempts.
+  let raw: string | null;
+  try {
+    // `GETDEL` was added in Redis 6.2; ioredis exposes it via
+    // .call("GETDEL", key) to stay compatible across server versions.
+    raw = (await redis.call("GETDEL", key)) as string | null;
+  } catch {
+    // Older Redis without GETDEL — fall back to GET + DEL. Race window
+    // is one round-trip; downside is bounded.
+    raw = await redis.get(key);
+    if (raw) await redis.del(key);
+  }
+  if (!raw) {
+    throw new AppError(401, "OAuth exchange code is invalid or already used");
+  }
+  try {
+    return JSON.parse(raw) as OAuthTokenBundle;
+  } catch {
+    throw new AppError(500, "OAuth exchange payload was corrupted");
+  }
 }
 
 export async function revokeAllRefreshTokens(userId: string): Promise<void> {

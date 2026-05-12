@@ -131,33 +131,57 @@ app.use(pinoHttp({
   // KVKK problem on its own, even before the auth-leak risk).
   redact: {
     paths: [
+      // Headers — both names + array-indexed access for the proxy paths
+      // pino-http sometimes uses.
       "req.headers.authorization",
       "req.headers.cookie",
       "req.headers['x-api-key']",
+      "req.headers['x-health-probe-key']",
+      "req.headers['stripe-signature']",
+      "req.headers['x-webhook-signature']",
       "res.headers['set-cookie']",
+      // Direct secret-carrying body fields.
       "req.body.password",
       "req.body.passwordHash",
-      "req.body.encryptedApiKey",
-      "req.body.credentials",
-      "req.body.apiKey",
-      "req.body.refreshToken",
       "req.body.token",
+      "req.body.refreshToken",
+      "req.body.accessToken",
+      "req.body.apiKey",
+      "req.body.encryptedApiKey",
+      "req.body.receipt",
+      // Wildcard-style globs catch *any* nested field whose key encodes
+      // a secret — pino's redact accepts the `*` glob inside paths. The
+      // earlier hand-rolled allowlist (req.body.user.email, contact.email
+      // …) drifted out of sync every time a new endpoint added a sub-
+      // object; the wildcards stay correct as the surface grows.
+      "req.body.*.password",
+      "req.body.*.passwordHash",
+      "req.body.*.token",
+      "req.body.*.refreshToken",
+      "req.body.*.apiKey",
+      "req.body.*.encryptedApiKey",
+      "req.body.*.receipt",
+      "req.body.*.email",
+      "req.body.*.name",
+      "req.body.*.phone",
+      // Credentials JSON blobs from integration save / settings save.
+      "req.body.credentials",
+      "req.body.credentials.*",
+      "req.body.config",
+      "req.body.config.*",
+      // PII at the top level.
       "req.body.email",
       "req.body.name",
       "req.body.phone",
-      "req.body.user.email",
-      "req.body.user.name",
-      "req.body.user.phone",
-      "req.body.contact.email",
-      "req.body.contact.name",
-      "req.body.contact.phone",
-      // LOW-5 fix: query strings can carry secrets (one-time tokens,
-      // OAuth state, reset tokens if a future GET endpoint uses them).
-      // Redact wholesale rather than allowlist — easier to keep tight.
+      // Query strings can carry secrets (one-time tokens, OAuth state /
+      // exchange codes, reset tokens). Redact wholesale rather than
+      // allowlist — easier to keep tight as routes grow.
       "req.query.token",
       "req.query.code",
       "req.query.state",
       "req.query.refreshToken",
+      "req.query.accessToken",
+      "req.query.apiKey",
     ],
     censor: "[REDACTED]",
   },

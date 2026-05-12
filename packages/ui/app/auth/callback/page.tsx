@@ -3,6 +3,7 @@
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAppStore } from "../../../lib/store";
+import { api } from "../../../lib/api";
 
 function CallbackInner() {
   const router = useRouter();
@@ -10,25 +11,42 @@ function CallbackInner() {
   const setAuth = useAppStore((s) => s.setAuth);
 
   useEffect(() => {
-    const token = searchParams.get("token");
-    const refreshToken = searchParams.get("refreshToken");
-    if (token) {
+    const exchangeCode = searchParams.get("code");
+    // Legacy fallback for any in-flight redirects from older API
+    // releases that still embed the bearer token in the URL. Once the
+    // new server has been live for >24h the fallback can be deleted.
+    const legacyToken = searchParams.get("token");
+    const legacyRefresh = searchParams.get("refreshToken");
+
+    let cancelled = false;
+    async function run() {
       try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        setAuth(token, payload.tenantId, refreshToken ?? undefined);
-        // Remove tokens from URL before navigating to prevent them from
-        // appearing in browser history, server logs, or Referer headers.
-        window.history.replaceState({}, "", "/auth/callback");
+        if (exchangeCode) {
+          // Scrub the URL BEFORE the network call so the code can't be
+          // leaked to Referer headers from any dashboard navigation
+          // that happens while the exchange is in-flight.
+          window.history.replaceState({}, "", "/auth/callback");
+          const bundle = await api.exchangeOAuthCode(exchangeCode);
+          if (cancelled) return;
+          setAuth(bundle.token, bundle.tenant.id, bundle.refreshToken);
+        } else if (legacyToken) {
+          const payload = JSON.parse(atob(legacyToken.split(".")[1]));
+          setAuth(legacyToken, payload.tenantId, legacyRefresh ?? undefined);
+          window.history.replaceState({}, "", "/auth/callback");
+        } else {
+          router.replace("/login");
+          return;
+        }
         // replace, not push — back-button after OAuth shouldn't take
-        // the user back to /auth/callback (a stale URL with consumed
-        // tokens). Skip the callback page in history entirely.
+        // the user back to /auth/callback (a stale URL with a consumed
+        // code). Skip the callback page in history entirely.
         router.replace("/dashboard");
       } catch {
-        router.replace("/login");
+        if (!cancelled) router.replace("/login");
       }
-    } else {
-      router.replace("/login");
     }
+    run();
+    return () => { cancelled = true; };
   }, [searchParams, setAuth, router]);
 
   return (

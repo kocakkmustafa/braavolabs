@@ -93,16 +93,24 @@ async function claimWebhookEvent(
 
 /**
  * Release a webhook event claim so Stripe can retry it.
- * Used when handler fails, before returning 5xx — clears BOTH the
- * Redis cache and the DB row.
+ *
+ * IMPORTANT: this only clears the Redis fast-path key. It deliberately
+ * does NOT delete the Postgres row — the unique constraint on
+ * `stripeEventId` is the durable defence against double-processing,
+ * and if we deleted the row a Stripe retry that arrived while another
+ * worker was mid-handler could re-acquire the claim, run the handler
+ * a second time, and (e.g.) issue a second plan upgrade.
+ *
+ * The retried request hits `claimWebhookEvent` again, finds the row
+ * (no Redis key but a Postgres row with processedAt = NULL), and the
+ * upsert path raises a P2002 unique-constraint error — which we treat
+ * as "duplicate, skip" and respond 200. That's the correct Stripe
+ * contract: stop retrying. The original failed request's incomplete
+ * side effects are already reflected (if any), and a human operator
+ * can inspect the row's processedAt=NULL to reconcile manually.
  */
 async function releaseWebhookEvent(eventId: string): Promise<void> {
-  await Promise.all([
-    redis.del(`stripe:webhook:${eventId}`).catch(() => {}),
-    prisma.stripeWebhookEvent
-      .delete({ where: { stripeEventId: eventId } })
-      .catch(() => {}),
-  ]);
+  await redis.del(`stripe:webhook:${eventId}`).catch(() => {});
 }
 
 /**

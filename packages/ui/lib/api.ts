@@ -472,4 +472,19 @@ export const api = {
       body: JSON.stringify(body),
       token,
     }),
+
+  // Redeem the single-use code emitted by the OAuth callback. Returns
+  // the full token bundle (access + refresh + user + tenant) so the
+  // callback page can populate the auth store without ever seeing
+  // bearer tokens in its URL bar.
+  exchangeOAuthCode: (code: string) =>
+    apiFetch<{
+      token: string;
+      refreshToken: string;
+      user: { id: string; email: string; name: string | null; role: string };
+      tenant: { id: string; name: string; slug: string; plan: string };
+    }>("/auth/oauth/exchange", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    }),
 };

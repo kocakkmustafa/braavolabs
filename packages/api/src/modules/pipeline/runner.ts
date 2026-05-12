@@ -17,6 +17,12 @@ import {
 
 interface RunJobData {
   runId: string;
+  // Snapshot of the run's tenant at enqueue time. Verified against the
+  // DB on dequeue so a runId from tenant A cannot be processed under
+  // tenant B's context. Optional only for backward compatibility with
+  // in-flight jobs queued before this field was introduced — those
+  // skip the assertion and rely on the existing per-row tenant scope.
+  tenantId?: string;
 }
 
 /**
@@ -46,7 +52,7 @@ const MAX_STEPS_PER_RUN = 50;
  * 5. Update run status throughout
  */
 async function processRun(job: Job<RunJobData>): Promise<void> {
-  const { runId } = job.data;
+  const { runId, tenantId: enqueuedTenantId } = job.data;
   const runStartTime = Date.now();
 
   logger.info({ runId, jobId: job.id }, "Pipeline run started");
@@ -70,6 +76,21 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
   }
 
   const tenantId = run.pipeline.company.tenantId;
+
+  // Defence-in-depth: if the enqueuer captured a tenantId (every code
+  // path after the SEC-024 fix does), refuse to run when it disagrees
+  // with the DB's view. A mismatch means either a stale job from
+  // before a tenant transfer or a leaked Redis connection that
+  // injected someone else's runId. Either way, refusing is the right
+  // call — the run will be picked up again on retry only if the new
+  // job carries the correct tenantId.
+  if (enqueuedTenantId && enqueuedTenantId !== tenantId) {
+    logger.error(
+      { runId, enqueuedTenantId, dbTenantId: tenantId, jobId: job.id },
+      "Pipeline runner: tenant mismatch — refusing to execute run",
+    );
+    return;
+  }
 
   // NOTE: Run quota is now claimed atomically at the enqueue site (POST
   // /pipelines/:id/run, webhook trigger, scheduled cron) via claimQuota().
@@ -431,9 +452,23 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
  * something to inspect when investigating real failures.
  */
 export async function enqueueRun(runId: string): Promise<string> {
+  // Capture tenantId at enqueue time so the worker can assert it back
+  // out of the job payload before doing any DB work — defence-in-depth
+  // against a leaked Redis connection or a future code path that
+  // accidentally lifts a runId from one tenant into another tenant's
+  // request context. See processRun() for the verification step.
+  const run = await prisma.run.findUnique({
+    where: { id: runId },
+    select: { pipeline: { select: { company: { select: { tenantId: true } } } } },
+  });
+  const tenantId = run?.pipeline?.company?.tenantId;
+  if (!tenantId) {
+    throw new Error(`enqueueRun: run ${runId} not found or has no tenant`);
+  }
+
   const job = await runQueue.add(
     "execute-run",
-    { runId },
+    { runId, tenantId },
     {
       attempts: 2,
       backoff: { type: "exponential", delay: 30_000 },
