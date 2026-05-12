@@ -616,6 +616,77 @@ model EvalResult {
   @@map("eval_results")
 }
 
+// ─── WEB RESEARCH (Feature 7) ──────────────────────────
+//
+// Autonomous deep-research primitive. Manus / Devin / Wide-Research
+// pattern: agent submits a question, the service runs multiple
+// search → fetch → distill loops, records every source it touched,
+// and produces a structured findings JSON (claims + supporting
+// citations) for downstream agents to consume.
+//
+// Pricing model: per-session cost is the sum of (search API spend +
+// LLM tokens). Logged on Session.costUsd and aggregated into the
+// run's costUsd if invoked from a pipeline.
+
+enum WebResearchStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model WebResearchSession {
+  id              String              @id @default(cuid())
+  tenantId        String              @map("tenant_id")
+  companyId       String              @map("company_id")
+  // The originating agent step (if invoked from a pipeline). NULL
+  // for ad-hoc operator-initiated research from the dashboard.
+  initiatedByRunStepId String?         @map("initiated_by_run_step_id")
+  query           String              @db.Text
+  // Manager prompt + budget knobs, captured at start time so a
+  // policy change mid-research doesn't break ongoing sessions.
+  maxRounds       Int                 @default(3) @map("max_rounds")
+  maxSources      Int                 @default(20) @map("max_sources")
+  maxCostUsd      Decimal             @default(1.00) @map("max_cost_usd") @db.Decimal(10, 4)
+  status          WebResearchStatus   @default(PENDING)
+  // Aggregated structured output. Shape:
+  //   { summary: string, claims: Array<{ claim, citations: [sourceId] }> }
+  findings        Json?
+  costUsd         Decimal?            @map("cost_usd") @db.Decimal(10, 4)
+  error           String?             @db.Text
+  startedAt       DateTime?           @map("started_at")
+  completedAt     DateTime?           @map("completed_at")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  sources WebResearchSource[]
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([companyId, createdAt(sort: Desc)])
+  @@map("web_research_sessions")
+}
+
+model WebResearchSource {
+  id          String   @id @default(cuid())
+  sessionId   String   @map("session_id")
+  url         String   @db.Text
+  title       String?  @db.Text
+  // Readability-extracted main content (capped at ~50KB at the
+  // service layer). Empty when the fetch failed.
+  content     String   @db.Text
+  contentHash String   @map("content_hash") // SHA-256 — de-dups across rounds
+  // Relevance score 0..1 from the agent's last evaluation pass.
+  relevance   Float    @default(0)
+  fetchedAt   DateTime @default(now()) @map("fetched_at")
+
+  session WebResearchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, contentHash])
+  @@index([sessionId])
+  @@map("web_research_sources")
+}
+
 // ─── VOICE AGENTS (Feature 6) ──────────────────────────
 //
 // Adds a "Voice" primitive on top of the existing 9 primitives. A

@@ -39,6 +39,7 @@ import { growthRouter } from "./modules/growth/router";
 import { authRouter } from "./modules/auth/auth.router";
 import { ssoConfigRouter, ssoAuthRouter } from "./modules/sso/sso.router";
 import { voiceRouter, voiceWebhookRouter } from "./modules/voice/voice.router";
+import { researchRouter } from "./modules/research/research.router";
 import { userRouter } from "./modules/user/user.router";
 import { deviceRouter } from "./modules/device/router";
 import { exportRouter } from "./modules/export/router";
@@ -269,6 +270,8 @@ api.use("/auth/sso", ssoAuthRouter);
 api.use("/sso", ssoConfigRouter);
 // Voice agent CRUD + outbound dial endpoints.
 api.use("/voice", voiceRouter);
+// Autonomous web research sessions.
+api.use("/research", researchRouter);
 api.use("/users", userRouter);
 api.use("/devices", deviceRouter);
 api.use("/companies", companyRouter);

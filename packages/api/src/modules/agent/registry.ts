@@ -1400,4 +1400,53 @@ registerTool({
   },
 });
 
+// ─── Web research tool — multi-round autonomous search + distill ──
+//
+// Returns immediately with a sessionId; the loop runs out-of-band
+// and the caller polls /api/v1/research/:id for status. Designed
+// for the content + acquisition primitives — when an agent needs
+// "give me the 5 best pricing pages in this market" it now has a
+// primitive instead of stuffing snippets into the prompt.
+
+registerTool({
+  name: "web_research_deep",
+  description:
+    "Run a multi-round autonomous web research session: search → fetch → distill → synthesise. Returns a session id; poll /research/{id} for results.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      companyId: { type: "string", description: "Company that owns the research" },
+      query: { type: "string", description: "Research question (5-1000 chars)" },
+      maxRounds: { type: "number", description: "Search → distill rounds. 1-6. Default 3." },
+      maxSources: { type: "number", description: "Total pages fetched across all rounds. 5-40. Default 20." },
+      maxCostUsd: { type: "number", description: "Per-session cost cap in USD. 0.10-10.00. Default 1.00." },
+    },
+    required: ["companyId", "query"],
+  },
+  meta: { requiresApproval: false, riskLevel: "low" },
+  handler: async (input) => {
+    const { companyId, query, maxRounds, maxSources, maxCostUsd } = input as {
+      companyId: string;
+      query: string;
+      maxRounds?: number;
+      maxSources?: number;
+      maxCostUsd?: number;
+    };
+    const { startResearch } = await import("../research/research.service");
+    const company = await prisma.company.findUnique({ where: { id: companyId } });
+    if (!company) {
+      return { error: "Company not found" };
+    }
+    const result = await startResearch({
+      tenantId: company.tenantId,
+      companyId,
+      query,
+      maxRounds,
+      maxSources,
+      maxCostUsd,
+    });
+    return { sessionId: result.sessionId, status: "PENDING" };
+  },
+});
+
 logger.info({ toolCount: toolRegistry.size }, "Tool registry initialized");
