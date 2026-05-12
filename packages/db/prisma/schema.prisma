@@ -616,6 +616,101 @@ model EvalResult {
   @@map("eval_results")
 }
 
+// ─── COMPANY TEMPLATE MARKETPLACE (Feature 9) ─────────
+//
+// A CompanyTemplate is a freeze-dried Company: its Pipelines +
+// Agents + memory seeds + integration shape, packed as JSON. Other
+// tenants install a template to bootstrap a new Company with one
+// click instead of building one from scratch. Defensive flywheel
+// the existing 9-primitive frame is already well-positioned for.
+//
+// Pricing supports both free templates (vendor brand-building) and
+// paid templates (revenue share with publisher, Stripe Connect
+// follow-up). Ratings + install count drive catalog ranking.
+
+enum TemplatePricing {
+  FREE
+  PAID
+}
+
+enum TemplateVisibility {
+  PUBLIC
+  UNLISTED
+  PRIVATE
+}
+
+model CompanyTemplate {
+  id                String             @id @default(cuid())
+  slug              String             @unique
+  name              String
+  version           String             @default("1.0.0")
+  vendor            String
+  description       String             @db.Text
+  iconUrl           String?            @map("icon_url")
+  // Up to 5 screenshot URLs for the catalog hero. JSON array of
+  // strings; not a relation table since rotation is rare and the
+  // bound is small.
+  screenshotUrls    Json               @default("[]") @map("screenshot_urls")
+  // Serialised company snapshot. Shape:
+  //   { primitives, agents: [{role, systemPrompt, model, tools}],
+  //     pipelines: [{name, steps, trigger, …}], memorySeeds: [...] }
+  snapshot          Json
+  // What primitives this template touches — used to filter the
+  // catalog (e.g. "show me all content+publishing templates").
+  primitives        Json               @default("[]")
+  pricing           TemplatePricing    @default(FREE)
+  priceUsd          Decimal?           @map("price_usd") @db.Decimal(10, 2)
+  visibility        TemplateVisibility @default(PRIVATE)
+  isApproved        Boolean            @default(false) @map("is_approved")
+  publisherTenantId String?            @map("publisher_tenant_id")
+  // Catalog ranking signals.
+  installCount      Int                @default(0) @map("install_count")
+  ratingAvg         Float              @default(0) @map("rating_avg")
+  ratingCount       Int                @default(0) @map("rating_count")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+
+  ratings  TemplateRating[]
+  installs TemplateInstall[]
+
+  @@index([visibility, isApproved, installCount(sort: Desc)])
+  @@map("company_templates")
+}
+
+model TemplateRating {
+  id         String   @id @default(cuid())
+  templateId String   @map("template_id")
+  tenantId   String   @map("tenant_id")
+  rating     Int      // 1..5
+  review     String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  template CompanyTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, tenantId])
+  @@index([templateId])
+  @@map("template_ratings")
+}
+
+model TemplateInstall {
+  id                  String   @id @default(cuid())
+  templateId          String   @map("template_id")
+  tenantId            String   @map("tenant_id")
+  installedCompanyId  String?  @map("installed_company_id")
+  pricePaidUsd        Decimal? @map("price_paid_usd") @db.Decimal(10, 2)
+  // Stripe payment intent id for PAID templates. Populated when
+  // the purchase completes; NULL for FREE installs.
+  stripePaymentIntentId String? @map("stripe_payment_intent_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  template CompanyTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, tenantId, installedCompanyId])
+  @@index([tenantId])
+  @@index([templateId])
+  @@map("template_installs")
+}
+
 // ─── CONNECTOR MARKETPLACE (Feature 8) ────────────────
 //
 // Generic connector model that lets third-party developers (and the

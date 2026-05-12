@@ -41,6 +41,7 @@ import { ssoConfigRouter, ssoAuthRouter } from "./modules/sso/sso.router";
 import { voiceRouter, voiceWebhookRouter } from "./modules/voice/voice.router";
 import { researchRouter } from "./modules/research/research.router";
 import { marketplaceRouter } from "./modules/marketplace/marketplace.router";
+import { templatesRouter } from "./modules/templates/templates.router";
 import { userRouter } from "./modules/user/user.router";
 import { deviceRouter } from "./modules/device/router";
 import { exportRouter } from "./modules/export/router";
@@ -275,6 +276,8 @@ api.use("/voice", voiceRouter);
 api.use("/research", researchRouter);
 // Connector marketplace (public catalog + tenant install surface).
 api.use("/marketplace", marketplaceRouter);
+// Company-template marketplace.
+api.use("/marketplace/templates", templatesRouter);
 api.use("/users", userRouter);
 api.use("/devices", deviceRouter);
 api.use("/companies", companyRouter);
