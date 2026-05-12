@@ -117,6 +117,22 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
     },
   });
 
+  // Hierarchical pipelines have no flat `steps` array — the manager
+  // agent synthesises steps at runtime via the delegate tool. Hand
+  // off to the hierarchical executor and bail out here. The
+  // sequential path below is unchanged for SEQUENTIAL pipelines so
+  // every existing customer keeps the exact same behaviour.
+  if (run.pipeline.pipelineType === "HIERARCHICAL") {
+    const { processHierarchicalRun } = await import("./hierarchical-runner");
+    await processHierarchicalRun({
+      runId,
+      tenantId,
+      pipeline: run.pipeline,
+      input: run.input,
+    });
+    return;
+  }
+
   // Sort steps and group by order for parallel execution
   const allSteps = (run.pipeline.steps as unknown as StepDef[]).sort((a, b) => a.order - b.order);
 

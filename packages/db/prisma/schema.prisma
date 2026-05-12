@@ -312,6 +312,19 @@ model Pipeline {
   name        String
   description String?
   trigger     PipelineTrigger @default(MANUAL)
+  // Orchestration topology. SEQUENTIAL is the existing behaviour
+  // (steps execute in array order). HIERARCHICAL adds a "manager"
+  // agent at the top: it receives the run input, plans, then
+  // delegates tasks to worker agents via the `delegate(agent_id, task)`
+  // tool call. The runner consults `pipelineType` at dispatch time to
+  // pick between executor paths.
+  pipelineType PipelineType @default(SEQUENTIAL) @map("pipeline_type")
+  // Manager agent for HIERARCHICAL pipelines. Required when
+  // pipelineType=HIERARCHICAL, ignored otherwise.
+  managerAgentId String? @map("manager_agent_id")
+  // Max nested delegations per run (defence against an LLM that
+  // delegates in a loop). Applied at runtime.
+  maxDelegationDepth Int @default(3) @map("max_delegation_depth")
   schedule    String?  // cron expression for SCHEDULED trigger
   steps       Json     @default("[]")  // pipeline step definitions
   config      Json     @default("{}")  // trigger-specific config (webhookTemplate, etc.)
@@ -324,6 +337,11 @@ model Pipeline {
 
   @@index([companyId])
   @@map("pipelines")
+}
+
+enum PipelineType {
+  SEQUENTIAL
+  HIERARCHICAL
 }
 
 model Run {

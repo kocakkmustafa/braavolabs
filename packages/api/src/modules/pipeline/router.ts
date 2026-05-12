@@ -23,12 +23,28 @@ const createSchema = z.object({
   description: z.string().optional(),
   trigger: z.enum(["MANUAL", "SCHEDULED", "WEBHOOK", "EVENT"]).default("MANUAL"),
   schedule: z.string().optional(),
+  // Topology — SEQUENTIAL keeps the existing array-order behaviour
+  // (default for every legacy pipeline); HIERARCHICAL turns the
+  // pipeline into a manager+workers crew. Steps are not used by
+  // HIERARCHICAL but the column is required by the schema; the
+  // service accepts an empty array for that case.
+  pipelineType: z.enum(["SEQUENTIAL", "HIERARCHICAL"]).default("SEQUENTIAL"),
+  managerAgentId: z.string().optional(),
+  maxDelegationDepth: z.number().int().min(1).max(10).default(3),
   steps: z.array(z.object({
     name: z.string(),
     agentRole: z.string(),
     order: z.number(),
     config: z.record(z.unknown()).optional(),
   })),
+}).superRefine((val, ctx) => {
+  if (val.pipelineType === "HIERARCHICAL" && !val.managerAgentId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["managerAgentId"],
+      message: "Hierarchical pipelines require a managerAgentId",
+    });
+  }
 });
 
 // POST /api/v1/pipelines/from-natural-language — doğal dil açıklamasından pipeline oluştur
@@ -224,6 +240,18 @@ pipelineRouter.post("/", async (req, res, next) => {
       where: { id: data.companyId, tenantId: req.auth!.tenantId },
     });
     if (!company) throw new AppError(404, "Company not found");
+
+    // Manager agent must belong to the same company. The .superRefine
+    // already enforced "managerAgentId present when HIERARCHICAL"; this
+    // is the cross-tenant / cross-company defence-in-depth check.
+    if (data.pipelineType === "HIERARCHICAL" && data.managerAgentId) {
+      const manager = await prisma.agent.findFirst({
+        where: { id: data.managerAgentId, companyId: data.companyId },
+      });
+      if (!manager) {
+        throw new AppError(400, "managerAgentId does not belong to this company");
+      }
+    }
 
     const pipeline = await prisma.pipeline.create({ data: { ...data, steps: data.steps as any } });
 
