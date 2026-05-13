@@ -229,23 +229,32 @@ jobs:
             # classic culprit), prisma migrate deploy will refuse every
             # subsequent migration. Mark the failed ones as rolled-back
             # so the rebuilt SQL gets a fresh attempt.
-            echo "=== resolve failed migrations (self-heal) ==="
-            sudo docker exec aicos-api sh -lc '
-              cd /app/packages/db
-              FAILED=$(npx prisma migrate status 2>/dev/null | awk "/following migration have failed/{flag=1;next} flag && /^- /{print \$2; next} flag && !/^- /{flag=0}")
-              for m in $FAILED; do
-                echo "marking rolled-back: $m"
-                npx prisma migrate resolve --rolled-back "$m" || true
-              done
-            ' || echo "(no failed migrations to resolve)"
-
-            echo "=== prisma migrate deploy (best-effort) ==="
+            #
+            # Hard-coded list of migrations that are KNOWN to have been
+            # rejected in production at some point (audit any addition
+            # here against the migrations/ folder + the resolve-rolled-
+            # back semantics: idempotent if not failed; recoverable if
+            # failed). The wrapper is a single `node -e` so we dodge
+            # SSH's nested-quote shell trap.
+            echo "=== resolve known-failed migrations + migrate deploy ==="
             sudo docker exec aicos-api node -e "
               const { execSync } = require(\"child_process\");
+              const cwd = \"/app/packages/db\";
+              const knownFailed = [
+                \"20260512_activity_log_composite_index\",
+              ];
+              for (const m of knownFailed) {
+                try {
+                  execSync(\"npx prisma migrate resolve --rolled-back \" + m, { cwd, stdio: \"inherit\" });
+                } catch (e) {
+                  // resolve fails when the migration isn't in failed state
+                  // — that's the happy path; ignore.
+                }
+              }
               try {
-                execSync(\"cd /app/packages/db && npx prisma migrate deploy\", { stdio: \"inherit\" });
+                execSync(\"npx prisma migrate deploy\", { cwd, stdio: \"inherit\" });
               } catch (e) {
-                console.error(\"migrate deploy failed (may already be applied):\", e.message);
+                console.error(\"migrate deploy failed:\", e.message);
                 process.exit(0);
               }
             " || echo "(migration step skipped — see above)"
