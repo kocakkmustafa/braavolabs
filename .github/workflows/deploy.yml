@@ -227,6 +227,18 @@ jobs:
             # failed state) does not abort the chain.
             echo "=== self-heal failed migrations + migrate deploy ==="
             sudo docker exec aicos-api sh -c "cd /app/packages/db && (npx prisma migrate resolve --rolled-back 20260512_activity_log_composite_index || true) && (npx prisma migrate deploy || true)" || echo "(migration step skipped)"
+
+            # Restart the API container so any boot-time seed code
+            # (seedBenchSuites etc.) runs against the freshly-migrated
+            # schema. The "Pull new images & restart" step before
+            # migrations starts the API with the old schema, so any
+            # seed call that queries a new table no-ops or 500s.
+            # `docker restart` keeps the existing volume mounts and is
+            # safe for the healthcheck loop.
+            echo "=== restart API to run post-migration seeds ==="
+            sudo docker restart aicos-api || echo "(api restart skipped)"
+            sleep 10
+            sudo docker ps --filter "name=aicos-api" --format "{{.Names}}|{{.Status}}"
           '
 
       - name: Verify production health
