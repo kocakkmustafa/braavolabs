@@ -219,45 +219,14 @@ jobs:
             set -e
             cd /opt/braavolabs/app
 
-            # We bake the migrations into the api image, so the deploy
-            # container can run them with prisma CLI.
-            #
-            # Self-healing step before deploy: if a previous run left a
-            # migration in `failed` state (most often: SQL that Postgres
-            # refuses inside the implicit transaction Prisma wraps every
-            # migration file in — CREATE INDEX CONCURRENTLY is the
-            # classic culprit), prisma migrate deploy will refuse every
-            # subsequent migration. Mark the failed ones as rolled-back
-            # so the rebuilt SQL gets a fresh attempt.
-            #
-            # Hard-coded list of migrations that are KNOWN to have been
-            # rejected in production at some point (audit any addition
-            # here against the migrations/ folder + the resolve-rolled-
-            # back semantics: idempotent if not failed; recoverable if
-            # failed). The wrapper is a single `node -e` so we dodge
-            # SSH's nested-quote shell trap.
-            echo "=== resolve known-failed migrations + migrate deploy ==="
-            sudo docker exec aicos-api node -e "
-              const { execSync } = require(\"child_process\");
-              const cwd = \"/app/packages/db\";
-              const knownFailed = [
-                \"20260512_activity_log_composite_index\",
-              ];
-              for (const m of knownFailed) {
-                try {
-                  execSync(\"npx prisma migrate resolve --rolled-back \" + m, { cwd, stdio: \"inherit\" });
-                } catch (e) {
-                  // resolve fails when the migration isn't in failed state
-                  // — that's the happy path; ignore.
-                }
-              }
-              try {
-                execSync(\"npx prisma migrate deploy\", { cwd, stdio: \"inherit\" });
-              } catch (e) {
-                console.error(\"migrate deploy failed:\", e.message);
-                process.exit(0);
-              }
-            " || echo "(migration step skipped — see above)"
+            # Self-heal + migrate. Single chained shell command so the
+            # nested SSH-→-bash-→-docker quoting stays flat: any failed
+            # migration on file (CONCURRENTLY-in-tx etc.) gets marked
+            # rolled-back first; the deploy then re-applies cleanly.
+            # `|| true` after resolve so a no-op (migration is not in
+            # failed state) does not abort the chain.
+            echo "=== self-heal failed migrations + migrate deploy ==="
+            sudo docker exec aicos-api sh -c "cd /app/packages/db && (npx prisma migrate resolve --rolled-back 20260512_activity_log_composite_index || true) && (npx prisma migrate deploy || true)" || echo "(migration step skipped)"
           '
 
       - name: Verify production health
