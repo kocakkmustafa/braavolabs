@@ -17,14 +17,20 @@
 --    (whose timelines are the most viewed). A standalone resource_id
 --    index keeps that query path snappy.
 --
--- CONCURRENTLY is used so the migration doesn't take an ACCESS EXCLUSIVE
--- lock on activity_log — that would block every writer for the duration
--- of the index build, which on a hot table is minutes of effective
--- downtime. Postgres requires CREATE INDEX CONCURRENTLY to run outside
--- a transaction; Prisma's migrate deploy respects that automatically.
+-- Plain CREATE INDEX (NOT CONCURRENTLY) so Prisma's migration
+-- transaction wrapper doesn't reject this DDL — Postgres refuses
+-- CONCURRENTLY inside a transaction block (SQLSTATE 25001).
+--
+-- On a hot prod table this would be ACCESS EXCLUSIVE; the operator
+-- runbook for production deployments (docs/deployment-github-actions.md)
+-- recommends building these indexes via psql ahead of the migrate
+-- step with `CREATE INDEX CONCURRENTLY` to avoid downtime. The
+-- migration here is a no-op when the operator pre-built them
+-- (`IF NOT EXISTS` guards), and acceptably-fast on fresh installs
+-- where the table is empty.
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS "activity_log_tenant_id_created_at_idx"
+CREATE INDEX IF NOT EXISTS "activity_log_tenant_id_created_at_idx"
   ON "activity_log" ("tenant_id", "created_at" DESC);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS "activity_log_resource_id_idx"
+CREATE INDEX IF NOT EXISTS "activity_log_resource_id_idx"
   ON "activity_log" ("resource_id");
