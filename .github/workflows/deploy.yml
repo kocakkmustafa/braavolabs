@@ -221,6 +221,24 @@ jobs:
 
             # We bake the migrations into the api image, so the deploy
             # container can run them with prisma CLI.
+            #
+            # Self-healing step before deploy: if a previous run left a
+            # migration in `failed` state (most often: SQL that Postgres
+            # refuses inside the implicit transaction Prisma wraps every
+            # migration file in — CREATE INDEX CONCURRENTLY is the
+            # classic culprit), prisma migrate deploy will refuse every
+            # subsequent migration. Mark the failed ones as rolled-back
+            # so the rebuilt SQL gets a fresh attempt.
+            echo "=== resolve failed migrations (self-heal) ==="
+            sudo docker exec aicos-api sh -lc '
+              cd /app/packages/db
+              FAILED=$(npx prisma migrate status 2>/dev/null | awk "/following migration have failed/{flag=1;next} flag && /^- /{print \$2; next} flag && !/^- /{flag=0}")
+              for m in $FAILED; do
+                echo "marking rolled-back: $m"
+                npx prisma migrate resolve --rolled-back "$m" || true
+              done
+            ' || echo "(no failed migrations to resolve)"
+
             echo "=== prisma migrate deploy (best-effort) ==="
             sudo docker exec aicos-api node -e "
               const { execSync } = require(\"child_process\");
