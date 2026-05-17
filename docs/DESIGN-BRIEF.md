@@ -435,7 +435,6 @@ Referral {
 }
 
 // Blueprints stored in ActivityLog with action="blueprint.published"
-// catalog of 42+ company templates stored in HOLDING_CORE/templates/
 ```
 
 ### 6.10 Integrations (30 providers supported)

@@ -194,7 +194,7 @@ export default function SettingsPage() {
     catch (err) { console.error("Billing portal failed:", err); setBillingError((err as Error).message); }
   }
 
-  function handleSave() { setSaved(true); toast(t("settings.savedToast"), "success"); setTimeout(() => setSaved(false), 2000); }
+  function handleSave() { setSaved(true); toast(t("app.settings.savedToast"), "success"); setTimeout(() => setSaved(false), 2000); }
 
   async function handleSaveAiConfig() {
     if (!token) return;
@@ -213,7 +213,7 @@ export default function SettingsPage() {
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? t("settings.aiSaveFailed"));
+      if (!res.ok) throw new Error(data.message ?? t("app.settings.aiSaveFailed"));
       setAiConfig((prev) => ({
         ...prev,
         provider: aiProvider,
@@ -222,10 +222,10 @@ export default function SettingsPage() {
         baseUrl: aiBaseUrl.trim() || null,
       }));
       setAiApiKey("");
-      setAiSaveMsg(t("settings.aiSavedToast"));
+      setAiSaveMsg(t("app.settings.aiSavedToast"));
       setTimeout(() => setAiSaveMsg(null), 3000);
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("settings.aiUnknownError");
+      const message = err instanceof Error ? err.message : t("app.settings.aiUnknownError");
       setAiSaveMsg(`Error: ${message}`);
     } finally {
       setAiSaving(false);
@@ -244,7 +244,7 @@ export default function SettingsPage() {
       const data = await res.json();
       setAiTestResult(data);
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("settings.aiUnknownError");
+      const message = err instanceof Error ? err.message : t("app.settings.aiUnknownError");
       setAiTestResult({ success: false, error: message });
     } finally {
       setAiTesting(false);
@@ -284,7 +284,7 @@ export default function SettingsPage() {
                   borderBottom: active === item.id ? "2px solid #00d1ff" : "2px solid transparent",
                 }}
               >
-                {t(`settings.${item.labelKey}`)}
+                {t(`app.settings.${item.labelKey}`)}
               </button>
             ))}
           </nav>
@@ -295,7 +295,7 @@ export default function SettingsPage() {
           style={{ background: "rgba(255,180,171,0.08)", color: "#ffb4ab" }}
         >
           <span className="material-symbols-outlined text-sm">logout</span>
-          {t("settings.signOut")}
+          {t("app.settings.signOut")}
         </button>
       </header>
 
@@ -304,7 +304,7 @@ export default function SettingsPage() {
 
         {/* Profile */}
         {active === "profile" && (
-          <Section title={t("settings.profileTitle")} subtitle={t("settings.profileSubtitle")}>
+          <Section title={t("app.settings.profileTitle")} subtitle={t("app.settings.profileSubtitle")}>
             <div
               className="flex items-center gap-5 mb-8 pb-8"
               style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
@@ -339,18 +339,18 @@ export default function SettingsPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-4 mb-4">
-              <Field label={t("settings.fieldFirstName")} placeholder="Jane" />
-              <Field label={t("settings.fieldLastName")} placeholder="Smith" />
+              <Field label={t("app.settings.fieldFirstName")} placeholder="Jane" />
+              <Field label={t("app.settings.fieldLastName")} placeholder="Smith" />
             </div>
-            <Field label={t("settings.fieldEmail")} placeholder="you@example.com" badge={t("settings.verifiedBadge")} />
-            <div className="mt-4"><Field label={t("settings.fieldPhone")} placeholder="+1 (555) 000-0000" /></div>
+            <Field label={t("app.settings.fieldEmail")} placeholder="you@example.com" badge={t("app.settings.verifiedBadge")} />
+            <div className="mt-4"><Field label={t("app.settings.fieldPhone")} placeholder="+1 (555) 000-0000" /></div>
             <div className="mt-4">
               <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>Bio</label>
               <textarea
                 rows={3}
                 className="w-full px-4 py-2.5 rounded-lg text-sm outline-none resize-none transition-all"
                 style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
-                placeholder={t("settings.bioPlaceholder")}
+                placeholder={t("app.settings.bioPlaceholder")}
                 onFocus={(e) => { e.currentTarget.style.border = "1px solid rgba(0,209,255,0.4)"; }}
                 onBlur={(e) => { e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)"; }}
               />
@@ -361,7 +361,7 @@ export default function SettingsPage() {
 
         {/* Notifications */}
         {active === "notifications" && (
-          <Section title={t("settings.notificationsTitle")} subtitle={t("settings.notificationsSubtitle")}>
+          <Section title={t("app.settings.notificationsTitle")} subtitle={t("app.settings.notificationsSubtitle")}>
             <div className="space-y-0">
               {([
                 { key: "spendApproval" as const, label: "Spend approval required", desc: "Critical: agent wants to spend money — requires immediate action", critical: true },
@@ -381,7 +381,7 @@ export default function SettingsPage() {
                         className="text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 flex-shrink-0"
                         style={{ background: "rgba(255,180,171,0.12)", color: "#ffb4ab" }}
                       >
-                        {t("settings.criticalBadge")}
+                        {t("app.settings.criticalBadge")}
                       </span>
                     )}
                     <div>
@@ -412,7 +412,7 @@ export default function SettingsPage() {
 
         {/* Billing */}
         {active === "billing" && (
-          <Section title={t("settings.billingTitle")} subtitle={t("settings.billingSubtitle")}>
+          <Section title={t("app.settings.billingTitle")} subtitle={t("app.settings.billingSubtitle")}>
             {billingError && (
               <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 12, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", fontSize: 14 }}>
                 {billingError}
@@ -447,14 +447,14 @@ export default function SettingsPage() {
                   className="text-sm font-medium transition-all hover:opacity-80"
                   style={{ color: "#00d1ff" }}
                 >
-                  {t("settings.manageBilling")}
+                  {t("app.settings.manageBilling")}
                 </button>
               )}
             </div>
 
             {billingUsage && (
               <div className="space-y-4 mb-8">
-                <UsageBar label={t("settings.runsThisMonth")} current={billingUsage.live.runs} limit={limits.runs} />
+                <UsageBar label={t("app.settings.runsThisMonth")} current={billingUsage.live.runs} limit={limits.runs} />
                 <div className="flex justify-between text-sm">
                   <span style={{ color: "#859399" }}>Tool Calls</span>
                   <span className="font-semibold" style={{ color: "#bbc9cf" }}>{billingUsage.live.toolCalls}</span>
@@ -500,7 +500,7 @@ export default function SettingsPage() {
                       className="text-[10px] font-bold px-2 py-0.5 rounded-full mb-2 self-start"
                       style={{ background: "rgba(0,209,255,0.12)", color: "#00d1ff" }}
                     >
-                      {t("settings.mostPopular")}
+                      {t("app.settings.mostPopular")}
                     </span>
                   )}
                   <p className="font-headline font-semibold text-sm mb-0.5" style={{ color: "#e1e2eb" }}>{plan.name}</p>
@@ -544,7 +544,7 @@ export default function SettingsPage() {
 
         {/* Integrations */}
         {active === "integrations" && (
-          <Section title={t("settings.integrationsTitle")} subtitle={t("settings.integrationsSubtitle")}>
+          <Section title={t("app.settings.integrationsTitle")} subtitle={t("app.settings.integrationsSubtitle")}>
             {/* Company selector */}
             <div className="mb-6">
               <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: "#859399" }}>
@@ -559,7 +559,7 @@ export default function SettingsPage() {
                 {companies.map((c) => (
                   <option key={c.id} value={c.id} style={{ background: "#0d1117" }}>{c.name}</option>
                 ))}
-                {companies.length === 0 && <option value="">{t("settings.noCompaniesFound")}</option>}
+                {companies.length === 0 && <option value="">{t("app.settings.noCompaniesFound")}</option>}
               </select>
             </div>
 
@@ -574,7 +574,7 @@ export default function SettingsPage() {
                   const existing = integrations.find((i: any) => i.provider === prov.provider);
                   const isEditing = editProvider === prov.provider;
                   const statusColor = existing?.status === "ACTIVE" ? "#22c55e" : existing?.status === "ERROR" ? "#ef4444" : existing?.status === "PENDING" ? "#f59e0b" : "#3c494e";
-                  const statusLabel = existing?.status ?? t("settings.notConnected");
+                  const statusLabel = existing?.status ?? t("app.settings.notConnected");
 
                   return (
                     <div
@@ -626,7 +626,7 @@ export default function SettingsPage() {
                             </pre>
                             {prov.docsUrl && (
                               <a href={prov.docsUrl} target="_blank" rel="noopener noreferrer" className="text-xs mt-2 inline-block" style={{ color: "#00d1ff" }}>
-                                {t("settings.viewDocumentation")}
+                                {t("app.settings.viewDocumentation")}
                               </a>
                             )}
                           </div>
@@ -663,7 +663,7 @@ export default function SettingsPage() {
                                 color: testResult.success ? "#22c55e" : "#ef4444",
                               }}
                             >
-                              {testResult.success ? t("settings.connectionSuccessful") : `Error: ${testResult.error}`}
+                              {testResult.success ? t("app.settings.connectionSuccessful") : `Error: ${testResult.error}`}
                             </div>
                           )}
 
@@ -685,7 +685,7 @@ export default function SettingsPage() {
                               className="px-4 py-2 rounded-lg text-xs font-semibold"
                               style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", color: "white" }}
                             >
-                              {t("settings.saveCredentials")}
+                              {t("app.settings.saveCredentials")}
                             </button>
                             <button
                               onClick={async () => {
@@ -728,7 +728,7 @@ export default function SettingsPage() {
 
         {/* Governance */}
         {active === "governance" && (
-          <Section title={t("settings.governanceTitle")} subtitle={t("settings.governanceSubtitle")}>
+          <Section title={t("app.settings.governanceTitle")} subtitle={t("app.settings.governanceSubtitle")}>
             <div className="space-y-0">
               {[
                 { label: "Spend Approval Required", value: "All spend actions" },
@@ -758,7 +758,7 @@ export default function SettingsPage() {
 
         {/* AI Provider */}
         {active === "ai_provider" && (
-          <Section title={t("settings.aiTitle")} subtitle={t("settings.aiSubtitle")}>
+          <Section title={t("app.settings.aiTitle")} subtitle={t("app.settings.aiSubtitle")}>
             <div className="space-y-5">
 
               {/* Provider selector — local providers gated to Creator+ */}
@@ -888,7 +888,7 @@ export default function SettingsPage() {
               {(PROVIDER_LABELS[aiProvider]?.local || aiBaseUrl) && (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "#859399" }}>
-                    {t("settings.aiBaseUrl")}
+                    {t("app.settings.aiBaseUrl")}
                     {!PROVIDER_LABELS[aiProvider]?.local && (
                       <span className="ml-2 text-[10px] font-normal normal-case" style={{ color: "#3c494e" }}>(optional proxy override)</span>
                     )}
@@ -919,7 +919,7 @@ export default function SettingsPage() {
                     API Key
                     {aiConfig?.hasApiKey && (
                       <span className="ml-2 text-[10px] font-normal normal-case" style={{ color: "#4ade80" }}>
-                        {t("settings.aiKeyConfiguredPrefix")} ({aiConfig.maskedApiKey})
+                        {t("app.settings.aiKeyConfiguredPrefix")} ({aiConfig.maskedApiKey})
                       </span>
                     )}
                   </p>
@@ -933,7 +933,7 @@ export default function SettingsPage() {
                   </p>
                   <input
                     type="password"
-                    placeholder={aiConfig?.hasApiKey ? t("settings.aiLeavePlaceholder") : "sk-..."}
+                    placeholder={aiConfig?.hasApiKey ? t("app.settings.aiLeavePlaceholder") : "sk-..."}
                     value={aiApiKey}
                     onChange={(e) => setAiApiKey(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-xl text-sm font-mono"
@@ -999,7 +999,7 @@ export default function SettingsPage() {
                     opacity: aiSaving ? 0.7 : 1,
                   }}
                 >
-                  {aiSaving ? t("settings.aiSaving") : t("settings.aiSaveButton")}
+                  {aiSaving ? t("app.settings.aiSaving") : t("app.settings.aiSaveButton")}
                 </button>
                 {(() => {
                   // Local providers (Ollama, LM Studio, Custom) don't require an API key —
@@ -1022,7 +1022,7 @@ export default function SettingsPage() {
                         opacity: aiTesting ? 0.7 : 1,
                       }}
                     >
-                      {aiTesting ? t("settings.aiTesting") : t("settings.testConnection")}
+                      {aiTesting ? t("app.settings.aiTesting") : t("app.settings.testConnection")}
                     </button>
                   );
                 })()}

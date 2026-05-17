@@ -93,7 +93,6 @@ braavolabs/
 │   ├── memory/             # Episodic + semantic + graph memory engine
 │   └── integrations/       # External service adapters
 ├── ENV/                    # Dockerfiles + compose.yaml + nginx config
-├── HOLDING_CORE/policies/  # Operational policy docs (security, retention, gates)
 ├── docs/                   # Runbooks, design briefs, marketing, research
 ├── .github/workflows/      # CI + Build & Deploy pipelines
 └── scripts/                # Self-hosted install script

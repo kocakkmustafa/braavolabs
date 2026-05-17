@@ -65,7 +65,6 @@ braavolabs/
 │   ├── memory/                    # Episodic + semantic + graph memory
 │   └── integrations/              # External adapters (HubSpot, Stripe, …)
 ├── ENV/                           # Dockerfiles + compose + nginx
-├── HOLDING_CORE/policies/         # Operational policy docs
 ├── docs/                          # Runbooks + design brief
 ├── .github/workflows/             # CI + deploy pipelines
 └── scripts/install.sh             # Self-hosted installer
@@ -118,7 +117,6 @@ braavolabs/
   `packages/ui/app/<route>/`.
 - Shared types in `packages/core/src/types/`.
 - External adapters in `packages/integrations/src/`.
-- Operational policy in `HOLDING_CORE/policies/`.
 - Environment variables go in both `.env.example` (template) and
   `packages/api/src/config/env.ts` (Zod validator).
 - Docker services in `ENV/compose.yaml` + `ENV/compose.prod.yaml`.
