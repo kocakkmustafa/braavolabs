@@ -124,6 +124,19 @@ services:
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
       GITHUB_REDIRECT_URI: ${GITHUB_REDIRECT_URI:-}
+      # Mobile OAuth — iOS + Android use their own client IDs because
+      # the redirect URI schemes differ from web (braavolabs:// vs https).
+      GOOGLE_IOS_CLIENT_ID: ${GOOGLE_IOS_CLIENT_ID:-}
+      GOOGLE_ANDROID_CLIENT_ID: ${GOOGLE_ANDROID_CLIENT_ID:-}
+      GITHUB_MOBILE_CLIENT_ID: ${GITHUB_MOBILE_CLIENT_ID:-}
+      GITHUB_MOBILE_CLIENT_SECRET: ${GITHUB_MOBILE_CLIENT_SECRET:-}
+      # Apple Sign-In — both iOS native (SIWA bundle id) and the
+      # web Service ID flow. The web Service ID is a separate
+      # identifier from the iOS bundle id so the same Apple `sub`
+      # works across both surfaces.
+      APPLE_SIWA_BUNDLE_ID: ${APPLE_SIWA_BUNDLE_ID:-com.braavolabs.mobile}
+      APPLE_WEB_SERVICE_ID: ${APPLE_WEB_SERVICE_ID:-}
+      APPLE_WEB_REDIRECT_URI: ${APPLE_WEB_REDIRECT_URI:-}
       # Email
       SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
       SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-noreply@braavolabs.com}
