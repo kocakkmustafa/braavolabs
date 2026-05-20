@@ -45,6 +45,7 @@ userRouter.get("/me", async (req, res, next) => {
       select: {
         id: true,
         email: true,
+        emailVerifiedAt: true,
         name: true,
         avatarUrl: true,
         role: true,

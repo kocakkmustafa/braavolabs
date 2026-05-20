@@ -878,6 +878,8 @@
       "cannotConnect": "Impossible de se connecter au serveur API. Vérifiez que le backend est démarré.",
       "googleFailed": "Connexion Google échouée. Essayez avec email/mot de passe.",
       "githubFailed": "Connexion GitHub échouée. Essayez avec email/mot de passe.",
+      "appleNotConfigured": "Apple Sign-In n'est pas configuré sur ce serveur. Utilise email/mot de passe.",
+      "appleFailed": "Connexion Apple échouée. Essayez avec email/mot de passe.",
       "ssoToggle": "Utiliser le SSO d'entreprise →",
       "ssoSlugPlaceholder": "slug du workspace",
       "ssoSubmit": "Continuer"

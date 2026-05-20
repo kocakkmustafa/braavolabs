@@ -3,15 +3,16 @@
  * No auth middleware on these endpoints.
  */
 
-import { Router } from "express";
+import { Router, urlencoded } from "express";
 import crypto from "crypto";
 import { z } from "zod";
-import { register, login, getGoogleAuthUrl, googleCallback, getGitHubAuthUrl, githubCallback, requestPasswordReset, resetPassword, refreshTokens, revokeAllRefreshTokens, stashOAuthExchange, redeemOAuthExchange } from "./auth.service";
+import { register, login, getGoogleAuthUrl, googleCallback, getGitHubAuthUrl, githubCallback, requestPasswordReset, resetPassword, refreshTokens, revokeAllRefreshTokens, stashOAuthExchange, redeemOAuthExchange, appleMobileSignIn, googleMobileSignIn, githubMobileSignIn, verifyEmail, resendVerifyEmail, getAppleWebAuthUrl, appleWebCallback } from "./auth.service";
 import { authMiddleware } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
 import { rateLimit } from "../../middleware/rateLimit";
 import { redis } from "../../lib/redis";
 import { env } from "../../config/env";
+import { AppError } from "../../middleware/error";
 
 export const authRouter = Router();
 
@@ -231,3 +232,175 @@ authRouter.post("/oauth/exchange", refreshRateLimit, async (req, res, next) => {
     res.json(bundle);
   } catch (err) { next(err); }
 });
+
+// ─── Mobile OAuth ───────────────────────────────────────────────────
+//
+// Three POST endpoints used by the iOS/Android app. Same rate-limit
+// bucket as /auth/login because they all issue the same kind of
+// session and would be the attractive surface for a credential-stuffing
+// or token-replay attack.
+
+const appleMobileSchema = z.object({
+  identityToken: z.string().min(20).max(8192),
+  fullName: z.string().max(120).optional().nullable(),
+});
+authRouter.post(
+  "/apple/mobile",
+  loginRateLimit,
+  validate(appleMobileSchema),
+  async (req, res, next) => {
+    try {
+      const { identityToken, fullName } = appleMobileSchema.parse(req.body);
+      const result = await appleMobileSignIn(identityToken, fullName ?? null);
+      res.json(result);
+    } catch (err) { next(err); }
+  },
+);
+
+const googleMobileSchema = z.object({
+  idToken: z.string().min(20).max(8192),
+});
+authRouter.post(
+  "/google/mobile",
+  loginRateLimit,
+  validate(googleMobileSchema),
+  async (req, res, next) => {
+    try {
+      const { idToken } = googleMobileSchema.parse(req.body);
+      const result = await googleMobileSignIn(idToken);
+      res.json(result);
+    } catch (err) { next(err); }
+  },
+);
+
+const githubMobileSchema = z.object({
+  code: z.string().min(1).max(512),
+  redirectUri: z.string().min(1).max(256),
+});
+authRouter.post(
+  "/github/mobile",
+  loginRateLimit,
+  validate(githubMobileSchema),
+  async (req, res, next) => {
+    try {
+      const { code, redirectUri } = githubMobileSchema.parse(req.body);
+      const result = await githubMobileSignIn(code, redirectUri);
+      res.json(result);
+    } catch (err) { next(err); }
+  },
+);
+
+// ─── Email verification ─────────────────────────────────────────────
+//
+// GET  /api/v1/auth/verify-email?token=...  → redeems token, redirects
+//                                              to APP_URL with a flag
+// POST /api/v1/auth/verify-email/resend     → re-sends to logged-in user
+//
+// The GET endpoint is single-click from any email client (no JS), and
+// always redirects so the user lands on a friendly page. Errors are
+// passed as `?status=invalid` or `?status=expired` so the front-end
+// can render a localised message.
+
+authRouter.get("/verify-email", async (req, res, next) => {
+  try {
+    const token = z.string().min(16).max(256).parse(req.query.token);
+    const { email } = await verifyEmail(token);
+    const url = new URL("/auth/verified", env.APP_URL);
+    url.searchParams.set("status", "ok");
+    url.searchParams.set("email", email);
+    res.redirect(url.toString());
+  } catch (err) {
+    const url = new URL("/auth/verified", env.APP_URL);
+    url.searchParams.set(
+      "status",
+      err instanceof AppError && err.statusCode === 400 ? "invalid" : "error",
+    );
+    res.redirect(url.toString());
+  }
+});
+
+authRouter.post(
+  "/verify-email/resend",
+  refreshRateLimit, // Same bucket as refresh — both issue emails / tokens
+  authMiddleware,
+  async (req, res, next) => {
+    try {
+      await resendVerifyEmail(req.auth!.userId);
+      // Always 200 — never reveal whether the account is already
+      // verified, which would leak account state to an attacker.
+      res.json({ message: "If your email is unverified, a fresh link has been sent." });
+    } catch (err) { next(err); }
+  },
+);
+
+// ─── Web Sign In with Apple ─────────────────────────────────────────
+//
+// Two-step flow (like /auth/google + /auth/github above):
+//   1. GET  /auth/apple           — return Apple authorize URL + state
+//   2. POST /auth/apple/callback  — Apple POSTs id_token back (form_post)
+//
+// Apple's `response_mode=form_post` means we need `urlencoded` body
+// parsing on the callback route specifically; the global JSON parser
+// won't read it.
+
+// GET /api/v1/auth/apple — issue OAuth state, return Apple authorize URL
+authRouter.get("/apple", async (_req, res, next) => {
+  try {
+    const state = crypto.randomBytes(32).toString("hex");
+    await redis.set(`oauth:state:${state}`, "1", "EX", 600);
+    const url = getAppleWebAuthUrl(state);
+    res.json({ url, state });
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/auth/apple/callback — Apple POSTs back here with form data.
+// Mounted with a dedicated urlencoded parser because the global stack
+// only parses JSON for /api/* routes.
+authRouter.post(
+  "/apple/callback",
+  urlencoded({ extended: false }),
+  async (req, res, next) => {
+    try {
+      const schema = z.object({
+        id_token: z.string().min(20).max(8192),
+        state: z.string().min(1),
+        // `user` is only present on the FIRST sign-in. JSON-stringified
+        // by Apple: `{"name":{"firstName":"...","lastName":"..."},"email":"..."}`
+        user: z.string().optional(),
+        // `code` is also delivered but we don't use it — we verify the
+        // id_token directly against Apple's JWKS.
+        code: z.string().optional(),
+        // Apple sometimes appends an `error` query param instead of a
+        // success payload (e.g. user cancelled on consent screen).
+        error: z.string().optional(),
+      });
+      const body = schema.parse(req.body);
+
+      if (body.error) {
+        // Redirect to login with an error flag so the SPA shows a banner.
+        const url = new URL("/login", env.APP_URL);
+        url.searchParams.set("oauth_error", body.error);
+        res.redirect(url.toString());
+        return;
+      }
+
+      // CSRF — same one-time state token machinery as Google/GitHub.
+      const stateKey = `oauth:state:${body.state}`;
+      const stateValid = await redis.get(stateKey);
+      if (!stateValid) {
+        res.status(400).json({ error: "Invalid or expired OAuth state" });
+        return;
+      }
+      await redis.del(stateKey);
+
+      const result = await appleWebCallback(body.id_token, body.user ?? null);
+
+      // Stash + redirect (same as Google/GitHub web flow) — the bearer
+      // + refresh tokens never appear in the redirect URL.
+      const exchangeCode = await stashOAuthExchange(result);
+      const redirectUrl = new URL("/auth/callback", env.APP_URL);
+      redirectUrl.searchParams.set("code", exchangeCode);
+      res.redirect(redirectUrl.toString());
+    } catch (err) { next(err); }
+  },
+);

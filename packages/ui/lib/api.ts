@@ -48,6 +48,8 @@ export const api = {
     apiFetch<{ url: string }>("/auth/google"),
   githubAuthUrl: () =>
     apiFetch<{ url: string }>("/auth/github"),
+  appleAuthUrl: () =>
+    apiFetch<{ url: string }>("/auth/apple"),
   forgotPassword: (email: string) =>
     apiFetch<{ message: string }>("/auth/forgot-password", {
       method: "POST", body: JSON.stringify({ email }),

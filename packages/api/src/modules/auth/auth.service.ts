@@ -5,7 +5,8 @@
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
-import { sendWelcomeEmail, sendPasswordResetEmail } from "../../integrations/email-templates";
+import { createRemoteJWKSet, jwtVerify } from "jose";
+import { sendWelcomeEmail, sendPasswordResetEmail, sendVerifyEmail } from "../../integrations/email-templates";
 import { OAuth2Client } from "google-auth-library";
 import { prisma } from "../../lib/db";
 import { redis } from "../../lib/redis";
@@ -429,6 +430,29 @@ export async function register(data: {
     name: result.user.name ?? result.user.email.split("@")[0],
     tenantName: result.tenant.name,
   }).catch(() => { /* non-critical */ });
+
+  // Email verification (soft gate). Token is random hex; we store the
+  // sha256 so the DB never holds plaintext + an exfil-resistant blob.
+  // The user can still log in immediately — the UI nags via a banner
+  // and trial-pool restrictions apply until they click the link.
+  void (async () => {
+    try {
+      const rawToken = crypto.randomBytes(32).toString("hex");
+      const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+      const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7d
+      await prisma.user.update({
+        where: { id: result.user.id },
+        data: {
+          emailVerifyTokenHash: tokenHash,
+          emailVerifyTokenExpiresAt: expires,
+        },
+      });
+      const verifyUrl = `${env.APP_URL}/auth/verify-email?token=${rawToken}`;
+      await sendVerifyEmail({ to: result.user.email, verifyUrl });
+    } catch {
+      /* non-critical — user can re-request via /auth/verify-email/resend */
+    }
+  })();
 
   return {
     token,
@@ -1004,4 +1028,565 @@ export async function githubCallback(
     user: { id: user!.id, email: user!.email, name: user!.name, role: user!.role },
     tenant: { id: user!.tenant.id, name: user!.tenant.name, slug: user!.tenant.slug, plan: user!.tenant.plan },
   };
+}
+
+// ─── Mobile OAuth (native flows) ────────────────────────────────────
+//
+// Three POST endpoints on the API side, each accepting a provider
+// token / code from the mobile client and minting a Braavolabs JWT.
+// Distinct from the web /auth/{google,github}/callback flows because:
+//   - Mobile flows never use redirect URIs (the user stays in the app)
+//   - Mobile delivers a verifiable proof (Apple/Google) or an
+//     exchange-once code (GitHub) directly to the server, bypassing
+//     the Redis OAuth-state machinery used by web (no CSRF window —
+//     the call is App↔API only)
+//   - Mobile has its own client IDs so the GitHub redirect URI can
+//     be braavolabs://oauth/github/callback while web stays on the
+//     https://braavolabs.com one
+
+const APPLE_JWKS = createRemoteJWKSet(
+  new URL("https://appleid.apple.com/auth/keys"),
+);
+const APPLE_ISSUER = "https://appleid.apple.com";
+
+/**
+ * Shared helper for the find-or-create + activity-log + token-issue
+ * tail that all 3 mobile flows share. Keeps the per-provider service
+ * functions focused on provider-specific verification.
+ */
+async function upsertAndIssueTokens(args: {
+  provider: "apple" | "google" | "github";
+  providerUserId: string;
+  email: string;
+  name: string | null;
+  avatarUrl: string | null;
+}): Promise<{ token: string; refreshToken: string; user: any; tenant: any }> {
+  const { provider, providerUserId, email, name, avatarUrl } = args;
+  const idField =
+    provider === "apple"
+      ? "appleId"
+      : provider === "google"
+        ? "googleId"
+        : "githubId";
+
+  let user = await prisma.user.findFirst({
+    where: { OR: [{ [idField]: providerUserId } as any, { email }] },
+    include: { tenant: true },
+  });
+
+  if (user) {
+    // OAuth providers verify email before returning, so we trust them
+    // and auto-mark verified. This also lets existing email-signup
+    // users complete verification by simply signing in with their
+    // matching Apple/Google/GitHub account.
+    const updates: Record<string, unknown> = {};
+    if (!(user as any)[idField]) {
+      updates[idField] = providerUserId;
+      updates.avatarUrl = avatarUrl ?? user.avatarUrl;
+    }
+    if (!user.emailVerifiedAt) {
+      updates.emailVerifiedAt = new Date();
+    }
+    if (Object.keys(updates).length > 0) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: updates as any,
+      });
+    }
+    await prisma.activityLog.create({
+      data: {
+        tenantId: user.tenantId,
+        actor: user.id,
+        action: `auth.${provider}_login`,
+        resource: "user",
+        resourceId: user.id,
+      },
+    });
+  } else {
+    const slug =
+      (name ?? email.split("@")[0])
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "") +
+      "-" +
+      Date.now().toString(36);
+
+    const result = await prisma.$transaction(async (tx) => {
+      const tenant = await tx.tenant.create({
+        data: { name: name ?? email.split("@")[0], slug, plan: "FREE" },
+      });
+      const newUser = await tx.user.create({
+        data: {
+          tenantId: tenant.id,
+          email,
+          name: name ?? null,
+          avatarUrl: avatarUrl ?? null,
+          [idField]: providerUserId,
+          role: "OWNER",
+          // OAuth providers vouch for the email before handing it to
+          // us; skip the verification email cycle for them.
+          emailVerifiedAt: new Date(),
+        } as any,
+      });
+      await tx.activityLog.create({
+        data: {
+          tenantId: tenant.id,
+          actor: newUser.id,
+          action: `auth.${provider}_register`,
+          resource: "user",
+          resourceId: newUser.id,
+        },
+      });
+      return { tenant, user: newUser };
+    });
+    user = { ...result.user, tenant: result.tenant } as any;
+  }
+
+  const { token, refreshToken } = await issueTokenPair({
+    userId: user!.id,
+    tenantId: user!.tenantId,
+    role: user!.role,
+  });
+
+  return {
+    token,
+    refreshToken,
+    user: { id: user!.id, email: user!.email, name: user!.name, role: user!.role },
+    tenant: {
+      id: user!.tenant.id,
+      name: user!.tenant.name,
+      slug: user!.tenant.slug,
+      plan: user!.tenant.plan,
+    },
+  };
+}
+
+/**
+ * Apple Sign-In (mobile). Verifies the identity token JWS against
+ * Apple's JWKS and pins the audience to our iOS bundle identifier so
+ * a token issued for a different app can't grant access here.
+ *
+ * Apple only delivers the user's name + email on the FIRST
+ * authorization. We accept the name from the client on first login
+ * and store it; later flows fall back to the appleSub lookup.
+ */
+export async function appleMobileSignIn(
+  identityToken: string,
+  fullName?: string | null,
+): Promise<{ token: string; refreshToken: string; user: any; tenant: any }> {
+  if (!env.APPLE_SIWA_BUNDLE_ID) {
+    throw new AppError(503, "Apple Sign-In is not configured");
+  }
+
+  let payload;
+  try {
+    const result = await jwtVerify(identityToken, APPLE_JWKS, {
+      issuer: APPLE_ISSUER,
+      audience: env.APPLE_SIWA_BUNDLE_ID,
+    });
+    payload = result.payload;
+  } catch (err) {
+    throw new AppError(
+      401,
+      `Apple identity token verification failed: ${err instanceof Error ? err.message : "unknown"}`,
+    );
+  }
+
+  const appleSub = payload.sub;
+  const emailFromToken = payload.email as string | undefined;
+  if (!appleSub) {
+    throw new AppError(400, "Apple token missing subject");
+  }
+  if (!emailFromToken) {
+    // Repeat sign-in: Apple stops sending email after first auth.
+    const existing = await prisma.user.findFirst({
+      where: { appleId: appleSub },
+      include: { tenant: true },
+    });
+    if (!existing) {
+      throw new AppError(
+        400,
+        "Apple did not return an email — sign out and sign in again with 'Share My Email' selected",
+      );
+    }
+    return upsertAndIssueTokens({
+      provider: "apple",
+      providerUserId: appleSub,
+      email: existing.email,
+      name: existing.name,
+      avatarUrl: existing.avatarUrl,
+    });
+  }
+
+  return upsertAndIssueTokens({
+    provider: "apple",
+    providerUserId: appleSub,
+    email: emailFromToken,
+    name: fullName?.trim() || null,
+    avatarUrl: null,
+  });
+}
+
+/**
+ * Google Sign-In (mobile). The client sends a Google-issued ID token
+ * (JWS) obtained natively via expo-auth-session. iOS + Android client
+ * IDs are listed as additional accepted audiences so a single
+ * endpoint covers both platforms without an extra "platform" field.
+ */
+export async function googleMobileSignIn(
+  idToken: string,
+): Promise<{ token: string; refreshToken: string; user: any; tenant: any }> {
+  const allowedAudiences = [
+    env.GOOGLE_IOS_CLIENT_ID,
+    env.GOOGLE_ANDROID_CLIENT_ID,
+    env.GOOGLE_CLIENT_ID, // Web client allowed for shared test fixtures.
+  ].filter((v): v is string => !!v);
+  if (allowedAudiences.length === 0) {
+    throw new AppError(503, "Google OAuth not configured for mobile");
+  }
+
+  const client = new OAuth2Client();
+  let payload;
+  try {
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: allowedAudiences,
+    });
+    payload = ticket.getPayload();
+  } catch (err) {
+    throw new AppError(
+      401,
+      `Google ID token verification failed: ${err instanceof Error ? err.message : "unknown"}`,
+    );
+  }
+
+  if (!payload?.email || !payload.sub) {
+    throw new AppError(400, "Google token missing required claims");
+  }
+
+  return upsertAndIssueTokens({
+    provider: "google",
+    providerUserId: payload.sub,
+    email: payload.email,
+    name: payload.name ?? null,
+    avatarUrl: payload.picture ?? null,
+  });
+}
+
+/**
+ * GitHub Sign-In (mobile). Exchanges the one-time authorization code
+ * with the mobile-specific client secret (kept server-side only),
+ * then fetches the user profile + verified primary email.
+ */
+export async function githubMobileSignIn(
+  code: string,
+  redirectUri: string,
+): Promise<{ token: string; refreshToken: string; user: any; tenant: any }> {
+  if (!env.GITHUB_MOBILE_CLIENT_ID || !env.GITHUB_MOBILE_CLIENT_SECRET) {
+    throw new AppError(503, "GitHub OAuth not configured for mobile");
+  }
+
+  // Only accept the exact native scheme we ship — defence in depth.
+  if (redirectUri !== "braavolabs://oauth/github/callback") {
+    throw new AppError(400, "Unexpected mobile redirect URI");
+  }
+
+  const tokenResp = await fetch("https://github.com/login/oauth/access_token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "User-Agent": "Braavolabs-OAuth",
+    },
+    body: JSON.stringify({
+      client_id: env.GITHUB_MOBILE_CLIENT_ID,
+      client_secret: env.GITHUB_MOBILE_CLIENT_SECRET,
+      code,
+      redirect_uri: redirectUri,
+    }),
+  });
+  if (!tokenResp.ok) {
+    throw new AppError(400, `GitHub token exchange failed: ${tokenResp.status}`);
+  }
+  const tokenJson = (await tokenResp.json()) as {
+    access_token?: string;
+    error?: string;
+    error_description?: string;
+  };
+  if (!tokenJson.access_token) {
+    throw new AppError(
+      400,
+      `GitHub token exchange returned no token: ${tokenJson.error_description ?? tokenJson.error ?? "unknown"}`,
+    );
+  }
+
+  const accessToken = tokenJson.access_token;
+  const userResp = await fetch("https://api.github.com/user", {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/vnd.github+json",
+      "User-Agent": "Braavolabs-OAuth",
+    },
+  });
+  if (!userResp.ok) {
+    throw new AppError(400, `GitHub /user failed: ${userResp.status}`);
+  }
+  const ghUser = (await userResp.json()) as {
+    id: number;
+    login: string;
+    name: string | null;
+    email: string | null;
+    avatar_url: string | null;
+  };
+
+  let email = ghUser.email;
+  if (!email) {
+    const emailsResp = await fetch("https://api.github.com/user/emails", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/vnd.github+json",
+        "User-Agent": "Braavolabs-OAuth",
+      },
+    });
+    if (emailsResp.ok) {
+      const emails = (await emailsResp.json()) as Array<{
+        email: string;
+        primary: boolean;
+        verified: boolean;
+      }>;
+      const primary =
+        emails.find((e) => e.primary && e.verified) ??
+        emails.find((e) => e.verified);
+      email = primary?.email ?? null;
+    }
+  }
+  if (!email) {
+    throw new AppError(
+      400,
+      "GitHub account has no verified email — required to create your Braavolabs account",
+    );
+  }
+
+  return upsertAndIssueTokens({
+    provider: "github",
+    providerUserId: String(ghUser.id),
+    email,
+    name: ghUser.name ?? ghUser.login,
+    avatarUrl: ghUser.avatar_url,
+  });
+}
+
+// ─── Email verification (soft gate) ─────────────────────────────────
+//
+// register() emits a verification token + sends a link. The user can
+// log in immediately (no hard block), but UIs surface a "please
+// verify" banner until emailVerifiedAt is populated. OAuth flows
+// auto-set emailVerifiedAt at sign-in.
+
+/**
+ * Redeem a verification token. Returns the canonical user email so
+ * the GET endpoint can render a friendly "verified you@example.com"
+ * confirmation page.
+ *
+ * Token is single-use and expires after 7 days. We compare the
+ * sha256 of the supplied raw token against the stored hash so a DB
+ * compromise can't be replayed against the verification flow.
+ */
+export async function verifyEmail(rawToken: string): Promise<{ email: string }> {
+  if (!rawToken || rawToken.length < 16) {
+    throw new AppError(400, "Invalid verification token");
+  }
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+  const user = await prisma.user.findFirst({
+    where: {
+      emailVerifyTokenHash: tokenHash,
+      emailVerifyTokenExpiresAt: { gt: new Date() },
+    },
+  });
+  if (!user) {
+    throw new AppError(400, "Verification link is invalid or expired");
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      emailVerifiedAt: new Date(),
+      emailVerifyTokenHash: null,
+      emailVerifyTokenExpiresAt: null,
+    },
+  });
+
+  await prisma.activityLog.create({
+    data: {
+      tenantId: user.tenantId,
+      actor: user.id,
+      action: "auth.email_verified",
+      resource: "user",
+      resourceId: user.id,
+    },
+  });
+
+  return { email: user.email };
+}
+
+/**
+ * Re-issue a verification email to the authenticated user. Idempotent:
+ * calling twice replaces the old token, so the latest email is the
+ * one that works.
+ *
+ * Always returns success — never reveals whether the user is already
+ * verified, which would let an attacker probe account state via this
+ * endpoint.
+ */
+export async function resendVerifyEmail(userId: string): Promise<void> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) return;
+  if (user.emailVerifiedAt) return; // Already verified — no-op silently.
+
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      emailVerifyTokenHash: tokenHash,
+      emailVerifyTokenExpiresAt: expires,
+    },
+  });
+
+  const verifyUrl = `${env.APP_URL}/auth/verify-email?token=${rawToken}`;
+  await sendVerifyEmail({ to: user.email, verifyUrl }).catch(() => {
+    /* non-critical — user can re-request */
+  });
+}
+
+// ─── Apple Sign-In (Web) ────────────────────────────────────────────
+//
+// Web flow differs from mobile: Apple POSTs the response back to a
+// configured "Return URL" with `response_mode=form_post`. We request
+// `response_type=code id_token` so Apple includes the JWS identity
+// token directly in the callback body — no separate code exchange
+// needed, no client_secret JWT to sign with a .p8 key.
+//
+// The Service ID (a separate identifier from the iOS bundle id) is
+// used both as the OAuth `client_id` in the authorize URL and as the
+// `aud` claim during id_token verification.
+
+const APPLE_WEB_AUTHORIZE_URL = "https://appleid.apple.com/auth/authorize";
+
+/** Build the Apple authorize URL we redirect the user to. */
+export function getAppleWebAuthUrl(state: string): string {
+  if (!env.APPLE_WEB_SERVICE_ID || !env.APPLE_WEB_REDIRECT_URI) {
+    throw new AppError(503, "Apple Sign-In is not configured for web");
+  }
+  const params = new URLSearchParams({
+    client_id: env.APPLE_WEB_SERVICE_ID,
+    redirect_uri: env.APPLE_WEB_REDIRECT_URI,
+    response_type: "code id_token",
+    // form_post is required by Apple when scope is requested — Apple
+    // POSTs the response to our callback with the params in the body.
+    response_mode: "form_post",
+    // `email name` triggers the consent screen + asks Apple to share
+    // the user's name on the FIRST sign-in only (subsequent sign-ins
+    // return just the email/sub claims).
+    scope: "email name",
+    state,
+  });
+  return `${APPLE_WEB_AUTHORIZE_URL}?${params.toString()}`;
+}
+
+/**
+ * Web Apple Sign-In callback handler.
+ *
+ * Apple POSTs back: { code, id_token, state, user? } as form-urlencoded.
+ * We verify the id_token directly against Apple's JWKS — the `code`
+ * is ignored because we never need a refresh token or access to
+ * Apple's server-to-server APIs.
+ *
+ * The `user` field is only present on the FIRST sign-in and contains
+ * a JSON-encoded `{ name: { firstName, lastName }, email }`. After
+ * that, only `sub` + `email` from the id_token are available.
+ */
+export async function appleWebCallback(
+  idToken: string,
+  userJson: string | null,
+): Promise<{ token: string; refreshToken: string; user: any; tenant: any }> {
+  if (!env.APPLE_WEB_SERVICE_ID) {
+    throw new AppError(503, "Apple Sign-In is not configured for web");
+  }
+
+  // Verify id_token against Apple's JWKS. Pin `aud` to the Service ID
+  // for web; the mobile flow's bundle id is rejected here. (We could
+  // accept either, but separating them lets us audit by surface.)
+  let payload;
+  try {
+    const result = await jwtVerify(idToken, APPLE_JWKS, {
+      issuer: APPLE_ISSUER,
+      audience: env.APPLE_WEB_SERVICE_ID,
+    });
+    payload = result.payload;
+  } catch (err) {
+    throw new AppError(
+      401,
+      `Apple identity token verification failed: ${err instanceof Error ? err.message : "unknown"}`,
+    );
+  }
+
+  const appleSub = payload.sub;
+  const emailFromToken = payload.email as string | undefined;
+  if (!appleSub) {
+    throw new AppError(400, "Apple token missing subject");
+  }
+
+  // Pull the user's full name out of the first-time-only `user` blob.
+  let fullName: string | null = null;
+  let emailFromUser: string | undefined;
+  if (userJson) {
+    try {
+      const parsed = JSON.parse(userJson) as {
+        name?: { firstName?: string; lastName?: string };
+        email?: string;
+      };
+      const first = parsed.name?.firstName?.trim() ?? "";
+      const last = parsed.name?.lastName?.trim() ?? "";
+      const combined = [first, last].filter(Boolean).join(" ").trim();
+      fullName = combined || null;
+      emailFromUser = parsed.email;
+    } catch {
+      // Malformed `user` blob — ignore, the id_token still has what
+      // we need to authenticate.
+    }
+  }
+
+  const email = emailFromToken ?? emailFromUser;
+  if (!email) {
+    // Repeat sign-in: Apple stops sending email after first auth.
+    const existing = await prisma.user.findFirst({
+      where: { appleId: appleSub },
+      include: { tenant: true },
+    });
+    if (!existing) {
+      throw new AppError(
+        400,
+        "Apple did not return an email — please retry and choose 'Share My Email'",
+      );
+    }
+    return upsertAndIssueTokens({
+      provider: "apple",
+      providerUserId: appleSub,
+      email: existing.email,
+      name: existing.name,
+      avatarUrl: existing.avatarUrl,
+    });
+  }
+
+  return upsertAndIssueTokens({
+    provider: "apple",
+    providerUserId: appleSub,
+    email,
+    name: fullName,
+    avatarUrl: null,
+  });
 }

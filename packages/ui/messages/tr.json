@@ -878,6 +878,8 @@
       "cannotConnect": "API sunucusuna bağlanılamıyor. Backend çalışıyor mu kontrol et.",
       "googleFailed": "Google girişi başarısız. E-posta/şifre ile dene.",
       "githubFailed": "GitHub girişi başarısız. E-posta/şifre ile dene.",
+      "appleNotConfigured": "Bu sunucuda Apple Sign-In yapılandırılmamış. E-posta/şifre kullan.",
+      "appleFailed": "Apple Sign-In başarısız. E-posta/şifre ile dene.",
       "ssoToggle": "Kurumsal SSO kullan →",
       "ssoSlugPlaceholder": "çalışma alanı slug'ı",
       "ssoSubmit": "Devam"

@@ -51,6 +51,36 @@ const envShape = z.object({
   GITHUB_CLIENT_ID: z.string().optional(),
   GITHUB_CLIENT_SECRET: z.string().optional(),
   GITHUB_REDIRECT_URI: z.preprocess((v) => (v === "" ? undefined : v), z.string().url().optional()),
+
+  // ── Mobile OAuth (separate clients from the web flow) ──
+  // Mobile uses its own OAuth client IDs because the redirect URI
+  // schemes differ:
+  //   - Web GitHub callback   = https://braavolabs.com/auth/callback
+  //   - Mobile GitHub callback = braavolabs://oauth/github/callback
+  // Apple Sign-In has no client_secret — verification is JWS-based
+  // against appleid.apple.com JWKS, using the iOS bundle id as `aud`.
+  GOOGLE_IOS_CLIENT_ID: z.string().optional(),
+  GOOGLE_ANDROID_CLIENT_ID: z.string().optional(),
+  GITHUB_MOBILE_CLIENT_ID: z.string().optional(),
+  GITHUB_MOBILE_CLIENT_SECRET: z.string().optional(),
+  // The iOS bundle identifier registered in App Store Connect. Used
+  // as the `aud` claim for Apple Sign-In verification.
+  APPLE_SIWA_BUNDLE_ID: z.string().optional(),
+
+  // Apple Sign-In Web (Service ID) — separate from the iOS bundle
+  // because Apple treats web SIWA as a distinct OAuth client. Create
+  // a Services ID at developer.apple.com (e.g. `com.braavolabs.signin`)
+  // and link it to the primary App ID so the user's Apple `sub` is
+  // shared across web + mobile sign-ins.
+  APPLE_WEB_SERVICE_ID: z.string().optional(),
+  // Full callback URL that Apple POSTs back to (form_post). Must
+  // match the "Return URLs" list configured on the Service ID exactly.
+  // e.g. https://api.braavolabs.com/api/v1/auth/apple/callback
+  APPLE_WEB_REDIRECT_URI: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.string().url().optional(),
+  ),
+
   SENDGRID_API_KEY: z.string().optional(),
   SENDGRID_FROM_EMAIL: z.string().optional(),
   // BYPASS_BILLING: z.coerce.boolean() coerces ANY non-empty string to true

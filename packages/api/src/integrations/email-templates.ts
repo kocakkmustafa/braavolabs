@@ -183,6 +183,45 @@ export async function sendPasswordResetEmail(params: {
   });
 }
 
+/**
+ * Email verification — sent after register. Soft gate: the user can
+ * use the app immediately, but a banner nags until they verify.
+ * Link is GET (single click) so it works from any mail client without
+ * JS, and the API endpoint redirects to a confirmation page.
+ */
+export async function sendVerifyEmail(params: {
+  to: string;
+  verifyUrl: string;
+}): Promise<void> {
+  const content = `
+    <h1 style="margin:0 0 16px 0;font-size:24px;font-weight:700;color:#1a1f26;">
+      Verify your email
+    </h1>
+    <p style="margin:0 0 16px 0;font-size:15px;color:#4a5560;">
+      Welcome to Braavolabs! Please confirm this is really your email
+      address — it's how we'll reach you for approvals, risk alerts
+      and account recovery.
+    </p>
+
+    ${button(params.verifyUrl, "Verify email →")}
+
+    <p style="margin:16px 0 0 0;font-size:13px;color:#6b7785;">
+      This link is valid for 7 days. If you didn't sign up, you can
+      safely ignore this email.
+    </p>
+    <p style="margin:16px 0 0 0;font-size:12px;color:#8a939c;word-break:break-all;">
+      Or copy and paste this URL: <br>
+      <code style="font-family:monospace;color:#6b7785;">${params.verifyUrl}</code>
+    </p>
+  `;
+
+  await sendEmail({
+    to: params.to,
+    subject: "Verify your Braavolabs email",
+    body: shell(content, "Click the button to verify — link expires in 7 days."),
+  });
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")

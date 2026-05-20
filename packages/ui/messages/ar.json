@@ -878,6 +878,8 @@
       "cannotConnect": "لا يمكن الاتصال بخادم API. تأكد من تشغيل الـ backend.",
       "googleFailed": "فشل تسجيل الدخول بـ Google. حاول بالبريد/كلمة المرور.",
       "githubFailed": "فشل تسجيل الدخول بـ GitHub. حاول بالبريد/كلمة المرور.",
+      "appleNotConfigured": "Apple Sign-In غير مكوّن على هذا الخادم. استخدم البريد/كلمة المرور.",
+      "appleFailed": "فشل تسجيل الدخول بـ Apple. حاول بالبريد/كلمة المرور.",
       "ssoToggle": "استخدم SSO المؤسسة ←",
       "ssoSlugPlaceholder": "slug مساحة العمل",
       "ssoSubmit": "متابعة"
