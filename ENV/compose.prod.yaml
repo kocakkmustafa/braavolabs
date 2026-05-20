@@ -137,6 +137,18 @@ services:
       APPLE_SIWA_BUNDLE_ID: ${APPLE_SIWA_BUNDLE_ID:-com.braavolabs.mobile}
       APPLE_WEB_SERVICE_ID: ${APPLE_WEB_SERVICE_ID:-}
       APPLE_WEB_REDIRECT_URI: ${APPLE_WEB_REDIRECT_URI:-}
+      # Mobile in-app purchase (IAP) verification credentials. Apple
+      # uses the App Store Server API (JWT signed with the AuthKey),
+      # Google uses the Android Publisher API (service-account JSON
+      # base64-encoded so the multi-line PEM survives env transport).
+      APPLE_ISSUER_ID: ${APPLE_ISSUER_ID:-}
+      APPLE_KEY_ID: ${APPLE_KEY_ID:-}
+      APPLE_PRIVATE_KEY: ${APPLE_PRIVATE_KEY:-}
+      APPLE_BUNDLE_ID: ${APPLE_BUNDLE_ID:-com.braavolabs.mobile}
+      APPLE_SHARED_SECRET: ${APPLE_SHARED_SECRET:-}
+      GOOGLE_PLAY_PACKAGE_NAME: ${GOOGLE_PLAY_PACKAGE_NAME:-com.braavolabs.mobile}
+      GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:-}
+      REVENUECAT_WEBHOOK_SECRET: ${REVENUECAT_WEBHOOK_SECRET:-}
       # Email
       SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
       SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-noreply@braavolabs.com}
