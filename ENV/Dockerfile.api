@@ -64,6 +64,13 @@ COPY --from=build /app/packages/api/package.json ./packages/api/
 COPY --from=build /app/packages/memory/package.json ./packages/memory/
 COPY --from=build /app/packages/integrations/package.json ./packages/integrations/
 
+# Normalize file permissions before dropping privileges. Cross-platform
+# buildx builds on macOS hosts have produced files with mode 600 (only
+# root-readable), which then EACCES the non-root runtime user. `a+rX`
+# adds read-everywhere for files and traverse-everywhere for dirs —
+# no exec bit gained on regular files.
+RUN chmod -R a+rX /app
+
 # Run as non-root user
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 aicos
 USER aicos

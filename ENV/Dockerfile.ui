@@ -36,6 +36,11 @@ COPY --from=build /app/packages/ui/.next/standalone ./
 COPY --from=build /app/packages/ui/.next/static ./packages/ui/.next/static
 COPY --from=build /app/packages/ui/public ./packages/ui/public
 
+# Normalize file permissions (cross-platform buildx on macOS sometimes
+# produces 600-mode artifacts; the runtime user gets EACCES). a+rX
+# only adds read for files and traverse for directories.
+RUN chmod -R a+rX /app
+
 # Run as non-root user
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 USER nextjs
