@@ -29,6 +29,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/cookies", changeFrequency: "yearly", priority: 0.3 },
     { path: "/kvkk", changeFrequency: "yearly", priority: 0.3 },
     { path: "/gdpr", changeFrequency: "yearly", priority: 0.3 },
+    // Required by Google Play Data Safety + Apple Guideline 5.1.1(v):
+    // publicly accessible account deletion landing. Mirrors the in-app
+    // /settings/delete-account flow for users who already uninstalled.
+    { path: "/legal/account-deletion", changeFrequency: "yearly", priority: 0.3 },
   ];
 
   return staticRoutes.map(({ path, changeFrequency, priority }) => ({
