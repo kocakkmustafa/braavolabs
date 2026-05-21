@@ -119,9 +119,12 @@ const envShape = z.object({
   APPLE_ISSUER_ID: z.string().optional(),
   APPLE_KEY_ID: z.string().optional(),
   // PEM-formatted ES256 private key downloaded from App Store Connect.
-  // Compose `${APPLE_PRIVATE_KEY}` env reads the multi-line PEM verbatim;
-  // ensure secrets manager preserves newlines (\n).
-  APPLE_PRIVATE_KEY: z.string().optional(),
+  // Docker `.env` files cannot store actual newlines, so we accept the PEM
+  // as a single-line value with `\n` (literal backslash-n) as the line
+  // separator and unescape here. If the value is already multi-line
+  // (e.g. via a secrets-mount that preserves newlines), the replace is a
+  // no-op.
+  APPLE_PRIVATE_KEY: z.string().optional().transform((v) => (v ? v.replace(/\\n/g, "\n") : v)),
   APPLE_BUNDLE_ID: z.string().optional(),
   // Legacy verifyReceipt fallback (pre-StoreKit 2 builds):
   APPLE_SHARED_SECRET: z.string().optional(),
