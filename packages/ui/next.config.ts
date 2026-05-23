@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import path from "path";
 import createNextIntlPlugin from "next-intl/plugin";
+import { withSentryConfig } from "@sentry/nextjs";
 
 // next-intl runs in "without i18n routing" mode — config lives in
 // ./i18n/request.ts and is wrapped around the export below.
@@ -80,4 +81,24 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withNextIntl(nextConfig);
+// Wrap with Sentry last so it receives the fully-composed config from
+// next-intl. withSentryConfig is a no-op for the runtime when SENTRY_*
+// build env vars are missing — keeps dev/self-hosted builds working
+// without forcing a Sentry account on the operator.
+//
+// Source maps are uploaded only when SENTRY_AUTH_TOKEN is set in CI;
+// silent: true suppresses the "no token, skipping upload" warning so
+// local builds stay clean.
+export default withSentryConfig(withNextIntl(nextConfig), {
+  org: process.env.SENTRY_ORG ?? "yulalabs",
+  project: process.env.SENTRY_PROJECT ?? "braavolabs-ui",
+  silent: !process.env.CI,
+  // Upload broader chunks (helps source-map resolution for code-split
+  // route bundles) but do NOT serve maps publicly — Sentry receives
+  // them, browsers do not.
+  widenClientFileUpload: true,
+  sourcemaps: { deleteSourcemapsAfterUpload: true },
+  // Disable the Vercel-specific telemetry chatter that complains in
+  // our standalone Docker output.
+  disableLogger: true,
+});

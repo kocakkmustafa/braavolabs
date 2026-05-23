@@ -25,6 +25,19 @@ COPY package.json pnpm-workspace.yaml tsconfig.base.json ./
 ARG NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
+# Sentry browser DSN must be baked at build time because Next.js
+# inlines NEXT_PUBLIC_* values into the client bundle. Default empty
+# = SDK no-ops (safe for dev / self-hosted operators without Sentry).
+ARG NEXT_PUBLIC_SENTRY_DSN=
+ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
+ARG NEXT_PUBLIC_SENTRY_RELEASE=
+ENV NEXT_PUBLIC_SENTRY_RELEASE=$NEXT_PUBLIC_SENTRY_RELEASE
+# Optional: source map upload token. When present, withSentryConfig
+# pushes the build's symbol map to Sentry so stack traces resolve to
+# original TS. CI sets this; local builds leave it empty.
+ARG SENTRY_AUTH_TOKEN=
+ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
+
 # Build core first so its dist is available for UI's webpack resolution.
 RUN pnpm --filter @ai-company-os/core build
 RUN pnpm --filter @ai-company-os/ui build

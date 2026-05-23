@@ -237,6 +237,15 @@ services:
       GOOGLE_SITE_VERIFICATION: ${GOOGLE_SITE_VERIFICATION:-}
       BING_SITE_VERIFICATION: ${BING_SITE_VERIFICATION:-}
       YANDEX_VERIFICATION: ${YANDEX_VERIFICATION:-}
+      # Sentry — server-side init reads SENTRY_DSN at runtime (no
+      # rebuild needed to swap projects); client-side init reads
+      # NEXT_PUBLIC_SENTRY_DSN which is baked into the bundle at
+      # build-time via the Dockerfile ARG. Setting it here too keeps
+      # runtime + build values consistent during local docker compose.
+      SENTRY_DSN: ${UI_SENTRY_DSN:-${SENTRY_DSN:-}}
+      NEXT_PUBLIC_SENTRY_DSN: ${UI_SENTRY_DSN:-${NEXT_PUBLIC_SENTRY_DSN:-}}
+      SENTRY_RELEASE: ${SENTRY_RELEASE:-v1.0.0}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.05}
     depends_on:
       api:
         condition: service_healthy

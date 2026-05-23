@@ -128,6 +128,9 @@ jobs:
           build-args: |
             NEXT_PUBLIC_API_URL=https://braavolabs.com/api/v1
             NEXT_PUBLIC_APP_URL=https://braavolabs.com
+            NEXT_PUBLIC_SENTRY_DSN=${{ secrets.UI_SENTRY_DSN }}
+            NEXT_PUBLIC_SENTRY_RELEASE=${{ github.sha }}
+            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
 
   # ───────────────────────── Deploy to Lightsail ─────────────────────────
 
