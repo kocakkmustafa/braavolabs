@@ -2,7 +2,7 @@
   "nav": {
     "features": "Fonctionnalités",
     "pricing": "Tarifs",
-    "docs": "Docs",
+    "docs": "Documentation",
     "signIn": "Se connecter",
     "getStarted": "Commencer",
     "dashboard": "Tableau de bord"
@@ -53,7 +53,7 @@
         "desc": "Chaque action, chaque appel d'outil, chaque décision — enregistré en permanence avec acteur, horodatage et coût."
       },
       "primitives": {
-        "title": "9 Primitives",
+        "title": "9 primitives",
         "desc": "Acquisition, Ventes, Livraison, Contenu, Opérations, Finance, Analyse, Mémoire, Gouvernance — combinez pour construire tout type d'entreprise."
       },
       "approval": {
@@ -120,7 +120,7 @@
       "catPayment": "Paiement",
       "catCrm": "CRM",
       "catDev": "Outils Dev",
-      "catSocial": "Social",
+      "catSocial": "Réseaux sociaux",
       "catSupport": "Support",
       "catMarketing": "Marketing",
       "catCustom": "Personnalisé",
@@ -255,7 +255,7 @@
         },
         "sales": {
           "label": "Ventes",
-          "desc": "Pipeline & deals"
+          "desc": "Pipeline et opportunités"
         },
         "delivery": {
           "label": "Livraison",
@@ -325,7 +325,7 @@
         },
         "support": {
           "label": "Support Client",
-          "desc": "Helpdesk & ticketing"
+          "desc": "Service d'assistance et tickets"
         }
       },
       "useCases": [
@@ -367,7 +367,7 @@
       "byokSelfDesc": "Ollama / LM Studio · sans coût par token · KVKK",
       "addApiKey": "Ajouter une Clé API",
       "viewCompanies": "Voir les Entreprises",
-      "dashboard": "Dashboard",
+      "dashboard": "Tableau de bord",
       "step0Title": "Quel est votre secteur ?",
       "step0Subtitle": "Nous suggérerons le meilleur blueprint pour votre entreprise afin que vous puissiez lancer plus vite.",
       "automateQuestion": "Que voulez-vous automatiser ?",
@@ -405,7 +405,7 @@
       "step4Subtitle": "Revoyez votre configuration et créez votre première entreprise IA autonome.",
       "summaryCompanyName": "Nom de l'Entreprise",
       "summaryIndustry": "Secteur",
-      "summaryBlueprint": "Blueprint",
+      "summaryBlueprint": "Plan",
       "summaryPrimitives": "Primitives",
       "summaryPrimitivesValueTemplate": "{count} sélectionnés",
       "summaryChannels": "Canaux",
@@ -594,7 +594,7 @@
       "title": "Facturation & Utilisation",
       "subtitle": "Gérez votre plan, surveillez l'utilisation et passez à un plan supérieur quand vous le souhaitez.",
       "dismiss": "Fermer",
-      "planSuffix": "Plan",
+      "planSuffix": "Forfait",
       "active": "ACTIF",
       "renews": "Renouvellement",
       "cancels": "Annulation",
@@ -839,7 +839,7 @@
       "fullNamePlaceholder": "Marie Dupont",
       "organization": "Organisation",
       "organizationPlaceholder": "Votre entreprise ou équipe",
-      "email": "Email",
+      "email": "E-mail",
       "emailPlaceholder": "vous@exemple.com",
       "password": "Mot de passe",
       "passwordLoginPlaceholder": "Min. 8 caractères",

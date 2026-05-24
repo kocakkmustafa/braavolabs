@@ -5,7 +5,7 @@
     "docs": "Dokumentation",
     "signIn": "Anmelden",
     "getStarted": "Loslegen",
-    "dashboard": "Dashboard"
+    "dashboard": "Übersicht"
   },
   "hero": {
     "tagline": "Dein KI-Unternehmen,",
@@ -29,15 +29,15 @@
         "desc": "Claude-basierte Agenten mit Tool-Nutzung, Retry-Logik, Reasoning-Logs und Budget-Kontrollen. Jede Entscheidung wird mit einem 'Warum'-Feld protokolliert."
       },
       "memory": {
-        "title": "Memory Engine",
+        "title": "Memory-Engine",
         "desc": "Episodischer + semantischer + Graph-Speicher. Agenten lernen aus jedem Lauf. Erinnerungen durchlaufen den Lebenszyklus Kandidat → Genehmigt → Veraltet."
       },
       "pipeline": {
-        "title": "Pipeline Runner",
+        "title": "Pipeline-Runner",
         "desc": "Mehrstufige Workflows mit Cron-Scheduling, BullMQ-basierten Queues und Rollback auf Step-Ebene."
       },
       "governance": {
-        "title": "Governance Engine",
+        "title": "Governance-Engine",
         "desc": "Kostenanomalie-Erkennung, Loop-Schutz, Spam-Schutz, Markensicherheitsfilter. Harte Stopps bei Budgetüberschreitungen."
       },
       "analytics": {
@@ -53,7 +53,7 @@
         "desc": "Jede Aktion, jeder Tool-Aufruf, jede Entscheidung — dauerhaft mit Akteur, Zeitstempel und Kosten protokolliert."
       },
       "primitives": {
-        "title": "9 Primitives",
+        "title": "9 Bausteine",
         "desc": "Acquisition, Sales, Delivery, Content, Operations, Finance, Analytics, Memory, Governance — kombinierbar für jeden Unternehmenstyp."
       },
       "approval": {
@@ -69,7 +69,7 @@
       "emptyTitle": "Alles klar!",
       "emptyBody": "Keine ausstehenden Freigaben. Freigaben sind nur für Ausgabenaktionen erforderlich.",
       "unknownCompany": "Unbekanntes Unternehmen",
-      "runLabel": "Run:",
+      "runLabel": "Lauf:",
       "approve": "Genehmigen",
       "reject": "Ablehnen"
     },
@@ -94,7 +94,7 @@
       "statsFailedRuns": "FEHLGESCHLAGENE RUNS",
       "tabRisks": "Risikoereignisse",
       "tabActivity": "Aktivitätsprotokoll",
-      "labelHardStop": "Hard Stop",
+      "labelHardStop": "Notbremse",
       "labelLoopDetected": "Loop erkannt",
       "labelCostAnomaly": "Kostenanomalie",
       "labelSpamProtection": "Spam-Schutz",
@@ -120,11 +120,11 @@
       "catPayment": "Zahlung",
       "catCrm": "CRM",
       "catDev": "Dev-Tools",
-      "catSocial": "Social",
+      "catSocial": "Soziale Medien",
       "catSupport": "Support",
       "catMarketing": "Marketing",
-      "catCustom": "Custom",
-      "setup": "SETUP",
+      "catCustom": "Benutzerdefiniert",
+      "setup": "EINRICHTUNG",
       "samplePayload": "BEISPIEL-PAYLOAD",
       "providerLabel": "Anbieter:",
       "install": "Vorlage installieren",
@@ -214,7 +214,7 @@
       "noCompaniesFound": "Keine Unternehmen gefunden",
       "saveButton": "Speichern",
       "identity": {
-        "title": "Enterprise SSO (OIDC)",
+        "title": "Unternehmens-SSO (OIDC)",
         "subtitle": "Verbinden Sie Ihren Workspace mit Microsoft Entra, Okta, Google Workspace, Auth0, JumpCloud oder einem konformen Identity Provider.",
         "back": "Zurück zu den Einstellungen",
         "loading": "SSO-Konfiguration wird geladen…",
@@ -231,7 +231,7 @@
         "redirect_uri": "Redirect URI",
         "redirect_uri_hint": "Registrieren Sie diese URL im IdP: {url}",
         "redirect_uri_hint_generic": "Registrieren Sie diese URL im IdP als erlaubtes Redirect-Ziel.",
-        "scopes": "Scopes",
+        "scopes": "Geltungsbereiche",
         "scopes_hint": "Leerzeichengetrennt. Die meisten IdPs benötigen mindestens `openid email profile`.",
         "domains": "E-Mail-Domain-Allowlist",
         "domains_hint": "Kommagetrennt. Leer = keine Domainprüfung. Bei Multi-Tenant-IdPs empfohlen.",
@@ -262,11 +262,11 @@
           "desc": "Fulfillment-Operationen"
         },
         "content": {
-          "label": "Content",
+          "label": "Inhalte",
           "desc": "KI-generierter Content"
         },
         "operations": {
-          "label": "Operations",
+          "label": "Betrieb",
           "desc": "Interne Workflows"
         },
         "finance": {
@@ -304,7 +304,7 @@
           "desc": "Professionelle Dienstleistungen"
         },
         "creator": {
-          "label": "Creator / Personal Brand",
+          "label": "Creator / Persönliche Marke",
           "desc": "Content & Audience-Building"
         },
         "b2b_sales": {
@@ -367,7 +367,7 @@
       "byokSelfDesc": "Ollama / LM Studio · keine Token-Kosten · KVKK",
       "addApiKey": "API-Key hinzufügen",
       "viewCompanies": "Unternehmen ansehen",
-      "dashboard": "Dashboard",
+      "dashboard": "Übersicht",
       "step0Title": "Was ist deine Branche?",
       "step0Subtitle": "Wir empfehlen dir das beste Blueprint, damit du schneller starten kannst.",
       "automateQuestion": "Was möchtest du automatisieren?",
@@ -405,8 +405,8 @@
       "step4Subtitle": "Überprüfe deine Konfiguration und erstelle dein erstes autonomes KI-Unternehmen.",
       "summaryCompanyName": "Unternehmensname",
       "summaryIndustry": "Branche",
-      "summaryBlueprint": "Blueprint",
-      "summaryPrimitives": "Primitives",
+      "summaryBlueprint": "Bauplan",
+      "summaryPrimitives": "Bausteine",
       "summaryPrimitivesValueTemplate": "{count} ausgewählt",
       "summaryChannels": "Kanäle",
       "summaryNiche": "Nische",
@@ -417,7 +417,7 @@
       "onboardingProgress": "Onboarding-Fortschritt"
     },
     "analytics": {
-      "title": "Analytics",
+      "title": "Auswertungen",
       "subtitle": "Pipeline-Run-Performance und Kostenaufschlüsselung",
       "exportCsv": "CSV exportieren",
       "statTotalRuns": "RUNS GESAMT",
@@ -561,13 +561,13 @@
       "searchPlaceholder": "Integrationen suchen...",
       "catAll": "Alle",
       "catCrm": "CRM",
-      "catSocial": "Social Media",
+      "catSocial": "Soziale Medien",
       "catEmail": "E-Mail",
       "catMessaging": "Messaging",
       "catProductivity": "Produktivität",
       "catEcommerce": "E-Commerce",
       "catDev": "Dev-Tools",
-      "catAnalytics": "Analytics",
+      "catAnalytics": "Auswertungen",
       "catAds": "Werbung",
       "catPayment": "Zahlung",
       "catStorage": "Speicher",
@@ -650,7 +650,7 @@
       "backToHome": "Zur Startseite"
     },
     "changelog": {
-      "title": "Changelog",
+      "title": "Versionshinweise",
       "subtitle": "Was wir veröffentlicht haben, wann wir es veröffentlicht haben.",
       "releaseTitle": "v0.1.0 — Öffentliche Preview",
       "releaseDate": "Mai 2026",

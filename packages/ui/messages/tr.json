@@ -129,7 +129,7 @@
       "providerLabel": "Sağlayıcı:",
       "install": "Şablonu Kur",
       "installed": "Kuruldu ✓",
-      "webhookUrlPrefix": "Webhook URL:",
+      "webhookUrlPrefix": "Webhook URL'si:",
       "noResults": "Aramanla eşleşen webhook şablonu yok."
     },
     "errors": {
@@ -325,7 +325,7 @@
         },
         "support": {
           "label": "Müşteri Desteği",
-          "desc": "Helpdesk & ticketing"
+          "desc": "Yardım masası ve destek talepleri"
         }
       },
       "useCases": [
@@ -358,16 +358,16 @@
       "successFromBlueprint": "Blueprint klonlandı ve yapılandırıldı. Otonom AI şirketin hazır.",
       "successDefault": "Otonom AI şirketin çalışmaya hazır.",
       "agents": "Ajan",
-      "pipeline": "Pipeline",
+      "pipeline": "İş Akışı",
       "byokTitle": "Son bir adım — ajanların LLM'e nasıl erişeceğini seç",
       "byokSubtitle": "İki seçeneğin var. İkisi de verini tenant-isolated tutuyor ve denetim kaydı altında.",
       "byokCloudTitle": "☁ Bulut BYOK (her planda)",
       "byokCloudDesc": "Anthropic, OpenAI, Gemini, Mistral, Groq, OpenRouter",
-      "byokSelfTitle": "⚡ Self-hosted Gemma (Creator+)",
+      "byokSelfTitle": "⚡ Self-hosted Gemma (Creator+ planı)",
       "byokSelfDesc": "Ollama / LM Studio · token başına maliyet yok · KVKK",
       "addApiKey": "API Anahtarı Ekle",
       "viewCompanies": "Şirketleri Gör",
-      "dashboard": "Dashboard",
+      "dashboard": "Pano",
       "step0Title": "Sektörün ne?",
       "step0Subtitle": "Daha hızlı başlayasın diye işin için en iyi blueprint'i önerelim.",
       "automateQuestion": "Neyi otomatikleştirmek istiyorsun?",
@@ -405,7 +405,7 @@
       "step4Subtitle": "Yapılandırmanı gözden geçir ve ilk otonom AI şirketini oluştur.",
       "summaryCompanyName": "Şirket Adı",
       "summaryIndustry": "Sektör",
-      "summaryBlueprint": "Blueprint",
+      "summaryBlueprint": "Şablon",
       "summaryPrimitives": "Primitive'ler",
       "summaryPrimitivesValueTemplate": "{count} seçili",
       "summaryChannels": "Kanallar",
@@ -437,7 +437,7 @@
       "runHistory": "Çalıştırma Geçmişi",
       "noRuns": "Çalıştırma bulunamadı.",
       "thCompany": "ŞİRKET",
-      "thPipeline": "PIPELINE",
+      "thPipeline": "İŞ AKIŞI",
       "thStatus": "DURUM",
       "thSteps": "ADIM",
       "thCost": "MALİYET",
@@ -571,7 +571,7 @@
       "catAds": "Reklam",
       "catPayment": "Ödeme",
       "catStorage": "Depolama",
-      "catAi": "AI / ML",
+      "catAi": "Yapay Zeka / ML",
       "catSupport": "Destek",
       "catHr": "İK",
       "catDesign": "Tasarım",
@@ -594,7 +594,7 @@
       "title": "Faturalama ve Kullanım",
       "subtitle": "Planını yönet, kullanımını takip et, hazır olduğunda yükselt.",
       "dismiss": "Kapat",
-      "planSuffix": "Plan",
+      "planSuffix": "Planı",
       "active": "AKTİF",
       "renews": "Yenileniyor",
       "cancels": "İptal Olacak",

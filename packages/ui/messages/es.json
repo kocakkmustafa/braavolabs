@@ -2,7 +2,7 @@
   "nav": {
     "features": "Características",
     "pricing": "Precios",
-    "docs": "Docs",
+    "docs": "Documentación",
     "signIn": "Iniciar sesión",
     "getStarted": "Comenzar",
     "dashboard": "Panel"
@@ -83,7 +83,7 @@
       "createFirst": "Crea tu Primera Empresa",
       "noDescription": "Sin descripción",
       "agentsLabel": "agentes",
-      "pipelinesLabel": "pipelines"
+      "pipelinesLabel": "flujos"
     },
     "risks": {
       "title": "Monitor de Riesgos",
@@ -120,7 +120,7 @@
       "catPayment": "Pagos",
       "catCrm": "CRM",
       "catDev": "Herramientas Dev",
-      "catSocial": "Social",
+      "catSocial": "Redes sociales",
       "catSupport": "Soporte",
       "catMarketing": "Marketing",
       "catCustom": "Personalizado",
@@ -206,7 +206,7 @@
       "aiSaveButton": "Guardar Proveedor",
       "aiTesting": "Probando...",
       "aiBaseUrl": "URL Base",
-      "aiApiKey": "API Key",
+      "aiApiKey": "Clave API",
       "aiKeyConfiguredPrefix": "✓ Key configurada",
       "aiLeavePlaceholder": "Déjalo en blanco para mantener la key existente",
       "aiUnknownError": "Error desconocido",
@@ -325,7 +325,7 @@
         },
         "support": {
           "label": "Soporte al Cliente",
-          "desc": "Helpdesk & ticketing"
+          "desc": "Mesa de ayuda y tickets"
         }
       },
       "useCases": [
@@ -358,7 +358,7 @@
       "successFromBlueprint": "Blueprint clonado y configurado. Tu empresa autónoma de IA está lista.",
       "successDefault": "Tu empresa autónoma de IA está lista para ejecutarse.",
       "agents": "Agentes",
-      "pipeline": "Pipeline",
+      "pipeline": "Flujo",
       "byokTitle": "Un último paso — elige cómo tus agentes acceden a un LLM",
       "byokSubtitle": "Tienes dos opciones. Ambas mantienen tus datos aislados por tenant y auditados.",
       "byokCloudTitle": "☁ Cloud BYOK (cualquier plan)",
@@ -367,7 +367,7 @@
       "byokSelfDesc": "Ollama / LM Studio · sin coste por token · KVKK",
       "addApiKey": "Añadir API Key",
       "viewCompanies": "Ver Empresas",
-      "dashboard": "Dashboard",
+      "dashboard": "Panel",
       "step0Title": "¿Cuál es tu sector?",
       "step0Subtitle": "Sugeriremos el mejor blueprint para tu negocio para que lances más rápido.",
       "automateQuestion": "¿Qué quieres automatizar?",
@@ -405,7 +405,7 @@
       "step4Subtitle": "Revisa tu configuración y crea tu primera empresa autónoma de IA.",
       "summaryCompanyName": "Nombre de la Empresa",
       "summaryIndustry": "Sector",
-      "summaryBlueprint": "Blueprint",
+      "summaryBlueprint": "Plan",
       "summaryPrimitives": "Primitivos",
       "summaryPrimitivesValueTemplate": "{count} seleccionados",
       "summaryChannels": "Canales",
@@ -437,7 +437,7 @@
       "runHistory": "Historial de Ejecuciones",
       "noRuns": "No se encontraron ejecuciones.",
       "thCompany": "EMPRESA",
-      "thPipeline": "PIPELINE",
+      "thPipeline": "FLUJO",
       "thStatus": "ESTADO",
       "thSteps": "PASOS",
       "thCost": "COSTE",
@@ -561,8 +561,8 @@
       "searchPlaceholder": "Buscar integraciones...",
       "catAll": "Todos",
       "catCrm": "CRM",
-      "catSocial": "Social Media",
-      "catEmail": "Email",
+      "catSocial": "Redes sociales",
+      "catEmail": "Correo electrónico",
       "catMessaging": "Mensajería",
       "catProductivity": "Productividad",
       "catEcommerce": "E-Commerce",
