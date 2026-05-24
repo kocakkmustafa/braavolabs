@@ -617,7 +617,10 @@
       "planProNote": "/ay",
       "planEnterpriseName": "Kurumsal",
       "planEnterprisePrice": "Özel",
-      "planEnterpriseNote": "bize ulaş"
+      "planEnterpriseNote": "bize ulaş",
+      "planCreatorName": "Creator",
+      "planBusinessName": "Business",
+      "planMonthlyNote": "/ay"
     },
     "drafts": {
       "title": "Taslaklar",

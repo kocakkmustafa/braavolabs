@@ -617,7 +617,10 @@
       "planProNote": "/شهر",
       "planEnterpriseName": "Enterprise",
       "planEnterprisePrice": "مخصصة",
-      "planEnterpriseNote": "تواصل معنا"
+      "planEnterpriseNote": "تواصل معنا",
+      "planCreatorName": "Creator",
+      "planBusinessName": "Business",
+      "planMonthlyNote": "/شهر"
     },
     "drafts": {
       "title": "المسودات",

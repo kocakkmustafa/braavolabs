@@ -617,7 +617,10 @@
       "planProNote": "/mes",
       "planEnterpriseName": "Enterprise",
       "planEnterprisePrice": "Personalizado",
-      "planEnterpriseNote": "contáctanos"
+      "planEnterpriseNote": "contáctanos",
+      "planCreatorName": "Creator",
+      "planBusinessName": "Business",
+      "planMonthlyNote": "/mes"
     },
     "drafts": {
       "title": "Borradores",

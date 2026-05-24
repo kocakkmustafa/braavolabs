@@ -617,7 +617,10 @@
       "planProNote": "/Monat",
       "planEnterpriseName": "Enterprise",
       "planEnterprisePrice": "Individuell",
-      "planEnterpriseNote": "kontaktiere uns"
+      "planEnterpriseNote": "kontaktiere uns",
+      "planCreatorName": "Creator",
+      "planBusinessName": "Business",
+      "planMonthlyNote": "/Monat"
     },
     "drafts": {
       "title": "Entwürfe",

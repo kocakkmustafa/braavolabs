@@ -617,7 +617,10 @@
       "planProNote": "/mois",
       "planEnterpriseName": "Enterprise",
       "planEnterprisePrice": "Personnalisé",
-      "planEnterpriseNote": "contactez-nous"
+      "planEnterpriseNote": "contactez-nous",
+      "planCreatorName": "Creator",
+      "planBusinessName": "Business",
+      "planMonthlyNote": "/mois"
     },
     "drafts": {
       "title": "Brouillons",

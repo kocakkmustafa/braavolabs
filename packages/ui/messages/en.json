@@ -617,7 +617,10 @@
       "planProNote": "/month",
       "planEnterpriseName": "Enterprise",
       "planEnterprisePrice": "Custom",
-      "planEnterpriseNote": "contact us"
+      "planEnterpriseNote": "contact us",
+      "planCreatorName": "Creator",
+      "planBusinessName": "Business",
+      "planMonthlyNote": "/month"
     },
     "drafts": {
       "title": "Drafts",

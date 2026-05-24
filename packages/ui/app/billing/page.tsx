@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
-import { PLAN_LIMITS as SHARED_PLAN_LIMITS, PLAN_LABEL } from "@ai-company-os/core";
+import { PLAN_LIMITS as SHARED_PLAN_LIMITS, PLAN_LABEL, PLAN_PRICING } from "@ai-company-os/core";
 
 // Display-friendly summary per plan — pulled from the shared 5-tier source of
 // truth in @ai-company-os/core so /pricing, /settings, /billing all stay in sync.
@@ -170,17 +170,29 @@ export default function BillingPage() {
             })}
           </div>
 
-          {/* Plans comparison */}
+          {/* Plans comparison — pricing pulled from PLAN_PRICING (single
+              source of truth in @ai-company-os/core) so /pricing, /billing,
+              the mobile paywall, and the StoreKit/Play Billing catalog all
+              stay in lockstep. Previously hardcoded $49 for Pro while the
+              marketing page advertised $39 — bait-and-switch fixed. */}
           <h2 className="font-headline font-bold text-base mb-4" style={{ color: "#e1e2eb" }}>{t("app.billing.comparePlans")}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
             {[
               {
-                name: t("app.billing.planFreeName"), price: "$0", priceNote: t("app.billing.planFreeNote"), id: "FREE", color: "#859399",
+                name: t("app.billing.planFreeName"), price: `$${PLAN_PRICING.FREE.monthlyUsd}`, priceNote: t("app.billing.planFreeNote"), id: "FREE", color: "#859399",
                 features: ["1 company", "10 runs/month", "TikTok + LinkedIn", "Community support", "Basic analytics"],
               },
               {
-                name: t("app.billing.planProName"), price: "$49", priceNote: t("app.billing.planProNote"), id: "PRO", color: "#00d1ff", popular: true,
-                features: ["5 companies", "100 runs/month", "All channels", "CRM sync (HubSpot)", "Priority support", "Blueprint sharing", "Advanced analytics"],
+                name: t("app.billing.planCreatorName"), price: `$${PLAN_PRICING.CREATOR.monthlyUsd}`, priceNote: t("app.billing.planMonthlyNote"), id: "CREATOR", color: "#a4e6ff",
+                features: ["5 companies", "100 runs/month", "5 channels", "Email support", "Basic analytics"],
+              },
+              {
+                name: t("app.billing.planProName"), price: `$${PLAN_PRICING.PRO.monthlyUsd}`, priceNote: t("app.billing.planMonthlyNote"), id: "PRO", color: "#00d1ff", popular: true,
+                features: ["15 companies", "500 runs/month", "All channels", "CRM sync (HubSpot)", "Priority support", "Blueprint sharing", "Advanced analytics"],
+              },
+              {
+                name: t("app.billing.planBusinessName"), price: `$${PLAN_PRICING.BUSINESS.monthlyUsd}`, priceNote: t("app.billing.planMonthlyNote"), id: "BUSINESS", color: "#d4b6f5",
+                features: ["50 companies", "2,000 runs/month", "All channels + custom", "Webhooks", "Dedicated support", "Approval workflows", "Audit log export"],
               },
               {
                 name: t("app.billing.planEnterpriseName"), price: t("app.billing.planEnterprisePrice"), priceNote: t("app.billing.planEnterpriseNote"), id: "ENTERPRISE", color: "#e0b6ff",
