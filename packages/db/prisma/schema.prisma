@@ -41,6 +41,7 @@ model Tenant {
   pipelineLicenses   PipelineLicense[]
   mobileSubscriptions MobileSubscription[]
   oidcConnection     OidcConnection?
+  externalConnections ExternalConnection[]
 
   @@map("tenants")
 }
@@ -1283,6 +1284,81 @@ model StripeWebhookEvent {
   @@index([type])
   @@index([createdAt])
   @@map("stripe_webhook_events")
+}
+
+// ─── EXTERNAL AUTOMATION MONITORING (Phase 3 — connect-and-watch) ──
+//
+// The connect-don't-rebuild pillar: a user points Braavolabs at their
+// existing n8n / Make / Zapier instance, and a background poller pulls
+// that platform's execution history into ExternalRun rows so the
+// dashboard shows native + imported runs in one pane of glass. No
+// incumbent offers a unified cross-platform run monitor.
+//
+// Credentials are AES-256-GCM encrypted at rest (AAD = tenantId|id) — the
+// poller decrypts just-in-time, never logs the key. `cursor` carries the
+// last-seen external execution id/timestamp for incremental polling.
+model ExternalConnection {
+  id                   String                   @id @default(cuid())
+  tenantId             String                   @map("tenant_id")
+  // Optional: scope mirrored runs to one company; null = tenant-wide.
+  companyId            String?                  @map("company_id")
+  platform             ExternalPlatform
+  label                String
+  baseUrl              String                   @map("base_url") @db.Text
+  encryptedCredentials String                   @map("encrypted_credentials") @db.Text
+  pollIntervalSec      Int                      @default(60) @map("poll_interval_sec")
+  enabled              Boolean                  @default(true)
+  status               ExternalConnectionStatus @default(PENDING)
+  lastPolledAt         DateTime?                @map("last_polled_at")
+  lastError            String?                  @map("last_error") @db.Text
+  // Incremental poll cursor (last external execution id / ISO timestamp).
+  cursor               String?                  @db.Text
+  createdAt            DateTime                 @default(now()) @map("created_at")
+  updatedAt            DateTime                 @updatedAt @map("updated_at")
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  externalRuns ExternalRun[]
+
+  @@index([tenantId])
+  @@index([enabled, status])
+  @@map("external_connections")
+}
+
+// One row per external execution observed on the connected platform. The
+// (connectionId, externalId) pair is the natural key for idempotent upsert
+// across poll cycles. `status` is normalised to our RunStatus vocabulary by
+// the per-platform adapter; `raw` keeps a bounded snapshot for the detail view.
+model ExternalRun {
+  id           String    @id @default(cuid())
+  connectionId String    @map("connection_id")
+  externalId   String    @map("external_id")
+  workflowName String?   @map("workflow_name")
+  status       String
+  startedAt    DateTime? @map("started_at")
+  finishedAt   DateTime? @map("finished_at")
+  raw          Json?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  connection ExternalConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, externalId])
+  @@index([connectionId, startedAt(sort: Desc)])
+  @@map("external_runs")
+}
+
+enum ExternalPlatform {
+  N8N
+  MAKE
+  ZAPIER
+  GENERIC
+}
+
+enum ExternalConnectionStatus {
+  PENDING
+  ACTIVE
+  ERROR
+  DISABLED
 }
 
 // ─── ENUMS ──────────────────────────────────────────────
