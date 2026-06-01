@@ -14,6 +14,7 @@ import Link from "next/link";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { timeAgo } from "../../lib/timeAgo";
+import { useTranslations } from "next-intl";
 
 type RunStatus =
   | "RUNNING" | "COMPLETED" | "PAUSED" | "FAILED" | "CANCELLED" | "PENDING" | "WAITING_APPROVAL";
@@ -35,6 +36,7 @@ const PAGE_SIZE = 25;
 
 export default function RunsPage() {
   const { token, hydrated } = useAuthGuard();
+  const t = useTranslations();
   const [runs, setRuns] = useState<RunRow[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
@@ -76,38 +78,41 @@ export default function RunsPage() {
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <div className="bv-page-head bv-rise" style={{ marginBottom: 24 }}>
           <div>
-            <div className="bv-micro" style={{ marginBottom: 6 }}>Activity</div>
-            <h1 className="bv-display" style={{ margin: 0 }}>Runs</h1>
+            <div className="bv-micro" style={{ marginBottom: 6 }}>{t("app.runsList.activity")}</div>
+            <h1 className="bv-display" style={{ margin: 0 }}>{t("app.runsList.title")}</h1>
             <div className="bv-caption" style={{ marginTop: 8 }}>
-              {total > 0 ? `${total} total` : "No runs yet"}
+              {total > 0 ? t("app.runsList.totalCount", { n: total }) : t("app.runsList.noneYet")}
             </div>
           </div>
         </div>
 
         <section className="bv-glass bv-panel">
           <div className="bv-fpills">
-            {([
-              ["all", "All"],
-              ["running", "Running"],
-              ["completed", "Completed"],
-              ["pending", "Pending"],
-              ["failed", "Failed"],
-            ] as const).map(([id, label]) => (
-              <button key={id} type="button" className={`bv-fpill ${filter === id ? "active" : ""}`} onClick={() => setFilter(id)}>
-                <span>{label}</span>
-                <span className="bv-fpill-count">{counts[id]}</span>
-              </button>
-            ))}
+            {(() => {
+              const FILTER_LABEL: Record<typeof filter, string> = {
+                all: t("app.runsList.filterAll"),
+                running: t("app.runAudit.statusRunning"),
+                completed: t("app.runAudit.statusCompleted"),
+                pending: t("app.runAudit.statusPending"),
+                failed: t("app.runAudit.statusFailed"),
+              };
+              return (["all", "running", "completed", "pending", "failed"] as const).map((id) => (
+                <button key={id} type="button" className={`bv-fpill ${filter === id ? "active" : ""}`} onClick={() => setFilter(id)}>
+                  <span>{FILTER_LABEL[id]}</span>
+                  <span className="bv-fpill-count">{counts[id]}</span>
+                </button>
+              ));
+            })()}
           </div>
 
           <div className="bv-runs-table" role="table">
             <div className="bv-runs-row bv-runs-head" role="row">
-              <span>Pipeline</span>
-              <span>Company</span>
-              <span>Status</span>
-              <span>Started</span>
-              <span>Steps</span>
-              <span style={{ textAlign: "right" }}>Spend</span>
+              <span>{t("app.runsList.colPipeline")}</span>
+              <span>{t("app.runsList.colCompany")}</span>
+              <span>{t("app.runsList.colStatus")}</span>
+              <span>{t("app.runsList.colStarted")}</span>
+              <span>{t("app.runsList.colSteps")}</span>
+              <span style={{ textAlign: "right" }}>{t("app.runsList.colSpend")}</span>
             </div>
             {!loaded ? (
               <div style={{ padding: "16px 4px" }}>
@@ -117,7 +122,7 @@ export default function RunsPage() {
               </div>
             ) : filtered.length === 0 ? (
               <div style={{ padding: "32px 8px", textAlign: "center", color: "var(--color-outline)" }}>
-                No runs in this filter.
+                {t("app.runsList.noneInFilter")}
               </div>
             ) : (
               <div className="bv-stagger">
@@ -134,7 +139,7 @@ export default function RunsPage() {
                     </span>
                     <span className="bv-runs-company">{r.companyName ?? r.pipeline?.companyName ?? "—"}</span>
                     <span><StatusLabel status={(r.status ?? "running").toLowerCase()} /></span>
-                    <span className="bv-runs-started">{r.startedAt ?? r.createdAt ? timeAgo(r.startedAt ?? r.createdAt!) : "queued"}</span>
+                    <span className="bv-runs-started">{r.startedAt ?? r.createdAt ? timeAgo(r.startedAt ?? r.createdAt!) : t("app.runsList.queued")}</span>
                     <span className="bv-mono" style={{ color: "var(--color-on-surface-variant)" }}>
                       {typeof r.stepsCompleted === "number" && typeof r.stepsTotal === "number" ? `${r.stepsCompleted} / ${r.stepsTotal}` : "—"}
                     </span>
@@ -150,15 +155,15 @@ export default function RunsPage() {
           {total > PAGE_SIZE && (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 8 }}>
               <span className="bv-caption">
-                Showing {offset + 1}–{Math.min(offset + PAGE_SIZE, total)} of {total}
+                {t("app.runsList.pagination", { from: offset + 1, to: Math.min(offset + PAGE_SIZE, total), total })}
               </span>
               <div style={{ display: "flex", gap: 8 }}>
                 <button type="button" className="bv-btn bv-btn-ghost bv-btn-sm" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
                   <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_back</span>
-                  <span>Previous</span>
+                  <span>{t("app.runsList.previous")}</span>
                 </button>
                 <button type="button" className="bv-btn bv-btn-ghost bv-btn-sm" disabled={offset + PAGE_SIZE >= total} onClick={() => setOffset(offset + PAGE_SIZE)}>
-                  <span>Next</span>
+                  <span>{t("app.runsList.next")}</span>
                   <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
                 </button>
               </div>
@@ -171,14 +176,15 @@ export default function RunsPage() {
 }
 
 function StatusLabel({ status }: { status: string }) {
+  const t = useTranslations();
   const label =
-    status === "running" ? "Running" :
-    status === "completed" ? "Completed" :
-    status === "paused" ? "Paused" :
-    status === "failed" ? "Failed" :
-    status === "cancelled" ? "Cancelled" :
-    status === "waiting_approval" ? "Awaiting approval" :
-    "Pending";
+    status === "running" ? t("app.runAudit.statusRunning") :
+    status === "completed" ? t("app.runAudit.statusCompleted") :
+    status === "paused" ? t("app.runAudit.statusPaused") :
+    status === "failed" ? t("app.runAudit.statusFailed") :
+    status === "cancelled" ? t("app.runAudit.statusCancelled") :
+    status === "waiting_approval" ? t("app.runAudit.statusWaiting") :
+    t("app.runAudit.statusPending");
   const cls = status === "waiting_approval" || status === "pending" ? "bv-pending" : status;
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>

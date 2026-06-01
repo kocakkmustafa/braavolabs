@@ -783,6 +783,24 @@
       "baseUrlLabel": "Base URL",
       "apiKeyLabel": "API key",
       "connecting": "Connecting…"
+    },
+    "runsList": {
+      "activity": "Activity",
+      "title": "Runs",
+      "totalCount": "{n} total",
+      "noneYet": "No runs yet",
+      "filterAll": "All",
+      "colPipeline": "Pipeline",
+      "colCompany": "Company",
+      "colStatus": "Status",
+      "colStarted": "Started",
+      "colSteps": "Steps",
+      "colSpend": "Spend",
+      "noneInFilter": "No runs in this filter.",
+      "queued": "queued",
+      "pagination": "Showing {from}–{to} of {total}",
+      "previous": "Previous",
+      "next": "Next"
     }
   },
   "static": {

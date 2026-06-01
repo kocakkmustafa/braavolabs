@@ -783,6 +783,24 @@
       "baseUrlLabel": "Temel URL",
       "apiKeyLabel": "API anahtarı",
       "connecting": "Bağlanıyor…"
+    },
+    "runsList": {
+      "activity": "Etkinlik",
+      "title": "Çalıştırmalar",
+      "totalCount": "{n} toplam",
+      "noneYet": "Henüz çalıştırma yok",
+      "filterAll": "Tümü",
+      "colPipeline": "Pipeline",
+      "colCompany": "Şirket",
+      "colStatus": "Durum",
+      "colStarted": "Başlangıç",
+      "colSteps": "Adımlar",
+      "colSpend": "Harcama",
+      "noneInFilter": "Bu filtrede çalıştırma yok.",
+      "queued": "kuyrukta",
+      "pagination": "{total} içinden {from}–{to} gösteriliyor",
+      "previous": "Önceki",
+      "next": "Sonraki"
     }
   },
   "static": {

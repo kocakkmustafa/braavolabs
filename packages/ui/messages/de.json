@@ -783,6 +783,24 @@
       "baseUrlLabel": "Basis-URL",
       "apiKeyLabel": "API-Schlüssel",
       "connecting": "Wird verbunden…"
+    },
+    "runsList": {
+      "activity": "Aktivität",
+      "title": "Läufe",
+      "totalCount": "{n} insgesamt",
+      "noneYet": "Noch keine Läufe",
+      "filterAll": "Alle",
+      "colPipeline": "Pipeline",
+      "colCompany": "Unternehmen",
+      "colStatus": "Status",
+      "colStarted": "Gestartet",
+      "colSteps": "Schritte",
+      "colSpend": "Ausgaben",
+      "noneInFilter": "Keine Läufe in diesem Filter.",
+      "queued": "in Warteschlange",
+      "pagination": "{from}–{to} von {total} werden angezeigt",
+      "previous": "Zurück",
+      "next": "Weiter"
     }
   },
   "static": {

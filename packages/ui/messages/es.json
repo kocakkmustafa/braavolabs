@@ -783,6 +783,24 @@
       "baseUrlLabel": "URL base",
       "apiKeyLabel": "Clave API",
       "connecting": "Conectando…"
+    },
+    "runsList": {
+      "activity": "Actividad",
+      "title": "Ejecuciones",
+      "totalCount": "{n} en total",
+      "noneYet": "Aún no hay ejecuciones",
+      "filterAll": "Todas",
+      "colPipeline": "Pipeline",
+      "colCompany": "Empresa",
+      "colStatus": "Estado",
+      "colStarted": "Iniciado",
+      "colSteps": "Pasos",
+      "colSpend": "Gasto",
+      "noneInFilter": "No hay ejecuciones en este filtro.",
+      "queued": "en cola",
+      "pagination": "Mostrando {from}–{to} de {total}",
+      "previous": "Anterior",
+      "next": "Siguiente"
     }
   },
   "static": {

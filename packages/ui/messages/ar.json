@@ -783,6 +783,24 @@
       "baseUrlLabel": "عنوان URL الأساسي",
       "apiKeyLabel": "مفتاح API",
       "connecting": "جارٍ الاتصال…"
+    },
+    "runsList": {
+      "activity": "النشاط",
+      "title": "عمليات التشغيل",
+      "totalCount": "{n} إجمالاً",
+      "noneYet": "لا توجد عمليات تشغيل بعد",
+      "filterAll": "الكل",
+      "colPipeline": "المسار",
+      "colCompany": "الشركة",
+      "colStatus": "الحالة",
+      "colStarted": "البدء",
+      "colSteps": "الخطوات",
+      "colSpend": "الإنفاق",
+      "noneInFilter": "لا توجد عمليات تشغيل في هذا المرشّح.",
+      "queued": "في قائمة الانتظار",
+      "pagination": "عرض {from}–{to} من {total}",
+      "previous": "السابق",
+      "next": "التالي"
     }
   },
   "static": {
