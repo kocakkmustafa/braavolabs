@@ -761,7 +761,9 @@
       "runsShown": "{n} mostradas",
       "noRuns": "Aún no hay ejecuciones. Pulsa «Ejecutar ahora» para iniciar la primera.",
       "parallelHint": "Los pasos que comparten etapa se ejecutan en paralelo. Usa ∥ para fusionar un paso con la etapa de arriba.",
-      "parallelToggleTitle": "Alternar paralelo con el paso de arriba"
+      "parallelToggleTitle": "Alternar paralelo con el paso de arriba",
+      "viewList": "Lista",
+      "viewGraph": "Gráfico"
     },
     "connections": {
       "connectFailed": "No se pudo conectar",

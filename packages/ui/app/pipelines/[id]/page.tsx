@@ -21,6 +21,7 @@ import { api } from "../../../lib/api";
 import { useAuthGuard } from "../../../lib/useAuthGuard";
 import { timeAgo } from "../../../lib/timeAgo";
 import { useTranslations } from "next-intl";
+import { PipelineGraph } from "../../../components/PipelineGraph";
 
 interface PipelineStep {
   name: string;
@@ -81,6 +82,7 @@ export default function PipelineDetailPage() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsErr, setSettingsErr] = useState<string | null>(null);
   const [editingSteps, setEditingSteps] = useState(false);
+  const [stepView, setStepView] = useState<"list" | "graph">("list");
   // `parallel` = this step runs in the SAME stage as the previous one (engine
   // groups steps by `order`; same order ⇒ concurrent). The first step's flag
   // is ignored. order is recomputed from these flags on save.
@@ -376,11 +378,33 @@ export default function PipelineDetailPage() {
                       : t("app.pipelineDetail.stageStepCount", { stages: stages.length, steps: pipeline.steps?.length ?? 0 })}
                   </div>
                 </div>
-                {!isHierarchical && !editingSteps && (
-                  <button onClick={startEditSteps} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.2)", color: "#a4e6ff" }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
-                    {t("app.pipelineDetail.editSteps")}
-                  </button>
+                {!editingSteps && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {/* List / Graph view toggle */}
+                    <div style={{ display: "inline-flex", borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)" }}>
+                      {(["list", "graph"] as const).map((v) => (
+                        <button
+                          key={v}
+                          onClick={() => setStepView(v)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold"
+                          style={{
+                            background: stepView === v ? "rgba(0,209,255,0.12)" : "transparent",
+                            color: stepView === v ? "#a4e6ff" : "#859399",
+                            border: "none", cursor: "pointer",
+                          }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>{v === "list" ? "format_list_bulleted" : "account_tree"}</span>
+                          {v === "list" ? t("app.pipelineDetail.viewList") : t("app.pipelineDetail.viewGraph")}
+                        </button>
+                      ))}
+                    </div>
+                    {!isHierarchical && (
+                      <button onClick={startEditSteps} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.2)", color: "#a4e6ff" }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
+                        {t("app.pipelineDetail.editSteps")}
+                      </button>
+                    )}
+                  </div>
                 )}
               </header>
 
@@ -432,6 +456,8 @@ export default function PipelineDetailPage() {
                     <button onClick={saveSteps} disabled={savingSteps || stepDraft.length === 0} className="px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}>{savingSteps ? t("app.pipelineDetail.saving") : t("app.pipelineDetail.saveSteps")}</button>
                   </div>
                 </div>
+              ) : stepView === "graph" ? (
+                <PipelineGraph stages={stages} isHierarchical={isHierarchical} maxDelegationDepth={pipeline.maxDelegationDepth} />
               ) : isHierarchical ? (
                 <div style={{ padding: 16, fontSize: 13, color: "var(--color-on-surface-variant)", lineHeight: 1.6 }}>
                   {t.rich("app.pipelineDetail.hierarchicalNote", {

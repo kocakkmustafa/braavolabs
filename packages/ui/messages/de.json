@@ -761,7 +761,9 @@
       "runsShown": "{n} angezeigt",
       "noRuns": "Noch keine Läufe. Klicke auf „Jetzt ausführen“, um den ersten zu starten.",
       "parallelHint": "Schritte derselben Stufe laufen parallel. Mit ∥ einen Schritt in die Stufe darüber zusammenführen.",
-      "parallelToggleTitle": "Parallel zum Schritt darüber umschalten"
+      "parallelToggleTitle": "Parallel zum Schritt darüber umschalten",
+      "viewList": "Liste",
+      "viewGraph": "Graph"
     },
     "connections": {
       "connectFailed": "Verbindung fehlgeschlagen",
