@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { api, apiFetch } from "../../../../../lib/api";
+import { streamRun } from "../../../../../lib/runStream";
 import { useAppStore } from "../../../../../lib/store";
 
 interface RunStep {
@@ -70,7 +71,6 @@ export default function RunDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const pollRef = useRef<NodeJS.Timeout | null>(null);
   const timelineEndRef = useRef<HTMLDivElement>(null);
 
   // Initial fetch
@@ -79,23 +79,28 @@ export default function RunDetailPage() {
     api.getRun(token, params.runId as string).then(setRun).catch((e) => setError(e.message));
   }, [token, params.runId]);
 
-  // Auto-polling for live runs (every 2s)
+  // Live updates via SSE — replaces the old 2s polling. Each run event
+  // triggers a debounced authoritative refetch; the stream ends itself on
+  // the terminal `done` event. The autoRefresh toggle pauses live updates.
   useEffect(() => {
     if (!token || !run || !autoRefresh) return;
     if (!LIVE_STATUSES.includes(run.status)) return;
 
-    pollRef.current = setInterval(() => {
-      api.getRun(token, run.id)
-        .then((updated) => {
-          setRun(updated);
-          if (!LIVE_STATUSES.includes(updated.status)) {
-            if (pollRef.current) clearInterval(pollRef.current);
-          }
-        })
-        .catch(() => {});
-    }, 2000);
+    const runId = run.id;
+    let debounce: ReturnType<typeof setTimeout> | null = null;
+    const refetch = () => { api.getRun(token, runId).then(setRun).catch(() => {}); };
+    const stop = streamRun(token, runId, {
+      onEvent: () => {
+        if (debounce) clearTimeout(debounce);
+        debounce = setTimeout(refetch, 350);
+      },
+      onDone: refetch,
+    });
 
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+    return () => {
+      if (debounce) clearTimeout(debounce);
+      stop();
+    };
   }, [token, run?.id, run?.status, autoRefresh]);
 
   // Auto-scroll timeline on new steps
