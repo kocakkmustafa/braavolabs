@@ -9,7 +9,7 @@ import { sounds } from "../lib/sounds";
 const NAV_ITEMS = [
   { href: "/", label: "Home", icon: "home", publicOnly: true },
   { href: "/dashboard", label: "Command Center", icon: "dashboard", authOnly: true },
-  { href: "/companies", label: "AI Companies", icon: "business", authOnly: true },
+  { href: "/companies", label: "Workspaces", icon: "business", authOnly: true },
   { href: "/pipelines", label: "AI Workflows", icon: "account_tree", authOnly: true },
   { href: "/approvals", label: "Approvals", icon: "task_alt", authOnly: true },
   { href: "/drafts", label: "Drafts", icon: "edit_note", authOnly: true },
