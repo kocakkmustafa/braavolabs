@@ -14,11 +14,17 @@ import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { decrypt } from "../../lib/encryption";
 import { n8nAdapter } from "./adapters/n8n";
+import { makeAdapter } from "./adapters/make";
+import { genericAdapter } from "./adapters/generic";
 import type { ExternalAdapter, NormalizedExecution } from "./adapters/types";
 
 const ADAPTERS: Record<string, ExternalAdapter> = {
   N8N: n8nAdapter,
-  // MAKE / ZAPIER / GENERIC implement the same contract — added next.
+  MAKE: makeAdapter,
+  // Zapier has no public task-history read API, so it polls a user-exposed
+  // generic JSON endpoint (a Zapier Storage/webhook collector) — same as GENERIC.
+  ZAPIER: genericAdapter,
+  GENERIC: genericAdapter,
 };
 
 /** AAD bound to the row so a DB-dump ciphertext can't be lifted cross-row. */
