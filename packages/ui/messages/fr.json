@@ -760,6 +760,29 @@
       "recentRuns": "Exécutions récentes",
       "runsShown": "{n} affichées",
       "noRuns": "Aucune exécution pour l'instant. Cliquez sur « Exécuter maintenant » pour lancer la première."
+    },
+    "connections": {
+      "connectFailed": "Échec de la connexion",
+      "title": "Connexions",
+      "subtitle": "Surveillez vos automatisations n8n, Make et Zapier au même endroit.",
+      "connect": "Connecter",
+      "emptyTitle": "Aucune connexion pour l'instant",
+      "emptyBody": "Connectez une instance n8n, Make ou Zapier pour suivre ses exécutions ici.",
+      "polledAgo": "Interrogé {time}",
+      "notPolled": "Pas encore interrogé",
+      "pollNow": "Interroger maintenant",
+      "runsToggle": "Exécutions",
+      "disconnect": "Déconnecter",
+      "loadingRuns": "Chargement des exécutions…",
+      "noRuns": "Aucune exécution reflétée pour l'instant. Cliquez sur « Interroger maintenant » pour récupérer les dernières exécutions.",
+      "formTitle": "Connecter une automatisation",
+      "formSubtitle": "Nous interrogeons son historique d'exécution ; votre clé API est chiffrée et n'est plus jamais affichée.",
+      "platformLabel": "Plateforme",
+      "labelLabel": "Libellé",
+      "labelPlaceholder": "Mon n8n de production",
+      "baseUrlLabel": "URL de base",
+      "apiKeyLabel": "Clé API",
+      "connecting": "Connexion…"
     }
   },
   "static": {

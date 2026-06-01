@@ -760,6 +760,29 @@
       "recentRuns": "Son çalıştırmalar",
       "runsShown": "{n} gösteriliyor",
       "noRuns": "Henüz çalıştırma yok. İlkini başlatmak için \"Şimdi çalıştır\"a basın."
+    },
+    "connections": {
+      "connectFailed": "Bağlanılamadı",
+      "title": "Bağlantılar",
+      "subtitle": "n8n, Make ve Zapier otomasyonlarınızı tek yerden izleyin.",
+      "connect": "Bağla",
+      "emptyTitle": "Henüz bağlantı yok",
+      "emptyBody": "Çalıştırmalarını burada izlemek için bir n8n, Make veya Zapier örneği bağlayın.",
+      "polledAgo": "{time} yoklandı",
+      "notPolled": "Henüz yoklanmadı",
+      "pollNow": "Şimdi yokla",
+      "runsToggle": "Çalıştırmalar",
+      "disconnect": "Bağlantıyı kes",
+      "loadingRuns": "Çalıştırmalar yükleniyor…",
+      "noRuns": "Henüz çalıştırma aktarılmadı. En son yürütmeleri getirmek için \"Şimdi yokla\"ya basın.",
+      "formTitle": "Bir otomasyon bağla",
+      "formSubtitle": "Yürütme geçmişini yokluyoruz; API anahtarınız şifrelenir ve bir daha gösterilmez.",
+      "platformLabel": "Platform",
+      "labelLabel": "Etiket",
+      "labelPlaceholder": "Üretim n8n'im",
+      "baseUrlLabel": "Temel URL",
+      "apiKeyLabel": "API anahtarı",
+      "connecting": "Bağlanıyor…"
     }
   },
   "static": {

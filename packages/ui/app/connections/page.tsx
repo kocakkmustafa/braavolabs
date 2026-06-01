@@ -8,14 +8,15 @@
  * this page shows live cross-platform run status no incumbent unifies. The
  * API key is encrypted server-side and never returned.
  *
- * Strings are hardcoded English to match the bv-* detail-page convention
- * (/pipelines/[id], /runs/[id]); the Phase 5 i18n sweep localizes these views.
+ * Localized via next-intl (app.connections) across all 6 locales. Platform
+ * brand names (n8n / Make / Zapier) and raw status enums stay untranslated.
  */
 
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { timeAgo } from "../../lib/timeAgo";
+import { useTranslations } from "next-intl";
 
 const PLATFORMS = [
   { value: "N8N", label: "n8n" },
@@ -49,6 +50,7 @@ function hostOf(url: string): string {
 
 export default function ConnectionsPage() {
   const { token, hydrated } = useAuthGuard();
+  const t = useTranslations();
   const [conns, setConns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -103,7 +105,7 @@ export default function ConnectionsPage() {
       setFApiKey("");
       load();
     } catch (e) {
-      setFormErr(e instanceof Error ? e.message : "Failed to connect");
+      setFormErr(e instanceof Error ? e.message : t("app.connections.connectFailed"));
     } finally {
       setCreating(false);
     }
@@ -144,8 +146,8 @@ export default function ConnectionsPage() {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold font-headline" style={{ color: "#e1e2eb" }}>Connections</h1>
-          <p className="text-sm mt-0.5" style={{ color: "#859399" }}>Monitor your n8n, Make &amp; Zapier automations in one place.</p>
+          <h1 className="text-xl sm:text-2xl font-bold font-headline" style={{ color: "#e1e2eb" }}>{t("app.connections.title")}</h1>
+          <p className="text-sm mt-0.5" style={{ color: "#859399" }}>{t("app.connections.subtitle")}</p>
         </div>
         <button
           onClick={() => { setFormErr(null); setShowForm(true); }}
@@ -153,7 +155,7 @@ export default function ConnectionsPage() {
           style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}
         >
           <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add_link</span>
-          Connect
+          {t("app.connections.connect")}
         </button>
       </div>
 
@@ -162,8 +164,8 @@ export default function ConnectionsPage() {
       ) : conns.length === 0 ? (
         <div className="glass-card rounded-2xl text-center py-16">
           <span className="material-symbols-outlined text-4xl mb-4 block" style={{ color: "#00d1ff" }}>hub</span>
-          <p className="font-semibold" style={{ color: "#e1e2eb" }}>No connections yet</p>
-          <p className="text-sm mt-1" style={{ color: "#859399" }}>Connect an n8n, Make, or Zapier instance to watch its runs here.</p>
+          <p className="font-semibold" style={{ color: "#e1e2eb" }}>{t("app.connections.emptyTitle")}</p>
+          <p className="text-sm mt-1" style={{ color: "#859399" }}>{t("app.connections.emptyBody")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -188,16 +190,16 @@ export default function ConnectionsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3 flex-wrap">
-                    <span className="text-xs" style={{ color: "#859399" }}>{c.lastPolledAt ? `Polled ${timeAgo(c.lastPolledAt)}` : "Not polled yet"}</span>
+                    <span className="text-xs" style={{ color: "#859399" }}>{c.lastPolledAt ? t("app.connections.polledAgo", { time: timeAgo(c.lastPolledAt) }) : t("app.connections.notPolled")}</span>
                     <button onClick={() => pollNow(c.id)} disabled={busy === c.id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50" style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.2)", color: "#a4e6ff" }}>
                       {busy === c.id ? <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <span className="material-symbols-outlined" style={{ fontSize: 14 }}>sync</span>}
-                      Poll now
+                      {t("app.connections.pollNow")}
                     </button>
                     <button onClick={() => toggle(c.id)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>
                       <span className="material-symbols-outlined" style={{ fontSize: 14, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>expand_more</span>
-                      Runs
+                      {t("app.connections.runsToggle")}
                     </button>
-                    <button onClick={() => remove(c.id)} disabled={busy === c.id} className="flex items-center px-2 py-1.5 rounded-lg text-xs disabled:opacity-50" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }} title="Disconnect">
+                    <button onClick={() => remove(c.id)} disabled={busy === c.id} className="flex items-center px-2 py-1.5 rounded-lg text-xs disabled:opacity-50" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }} title={t("app.connections.disconnect")}>
                       <span className="material-symbols-outlined" style={{ fontSize: 14 }}>delete</span>
                     </button>
                   </div>
@@ -205,9 +207,9 @@ export default function ConnectionsPage() {
                 {isOpen && (
                   <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: 14 }}>
                     {!runs[c.id] ? (
-                      <p className="text-xs" style={{ color: "#859399" }}>Loading runs…</p>
+                      <p className="text-xs" style={{ color: "#859399" }}>{t("app.connections.loadingRuns")}</p>
                     ) : runs[c.id].length === 0 ? (
-                      <p className="text-xs" style={{ color: "#859399" }}>No runs mirrored yet. Hit “Poll now” to fetch the latest executions.</p>
+                      <p className="text-xs" style={{ color: "#859399" }}>{t("app.connections.noRuns")}</p>
                     ) : (
                       <ul className="space-y-1.5">
                         {runs[c.id].map((r) => (
@@ -231,28 +233,28 @@ export default function ConnectionsPage() {
       {showForm && (
         <div onClick={() => !creating && setShowForm(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 50 }}>
           <div onClick={(e) => e.stopPropagation()} className="rounded-2xl p-6 w-full max-w-md" style={{ background: "#0f1219", border: "1px solid rgba(255,255,255,0.1)" }}>
-            <h2 className="text-lg font-bold font-headline mb-1" style={{ color: "#e1e2eb" }}>Connect an automation</h2>
-            <p className="text-xs mb-4" style={{ color: "#859399" }}>We poll its execution history; your API key is encrypted and never shown again.</p>
+            <h2 className="text-lg font-bold font-headline mb-1" style={{ color: "#e1e2eb" }}>{t("app.connections.formTitle")}</h2>
+            <p className="text-xs mb-4" style={{ color: "#859399" }}>{t("app.connections.formSubtitle")}</p>
 
-            <label className="block text-xs mb-1" style={{ color: "#859399" }}>Platform</label>
+            <label className="block text-xs mb-1" style={{ color: "#859399" }}>{t("app.connections.platformLabel")}</label>
             <select value={fPlatform} onChange={(e) => setFPlatform(e.target.value)} className="w-full mb-3 px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
               {PLATFORMS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
 
-            <label className="block text-xs mb-1" style={{ color: "#859399" }}>Label</label>
-            <input value={fLabel} onChange={(e) => setFLabel(e.target.value)} placeholder="My production n8n" className="w-full mb-3 px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+            <label className="block text-xs mb-1" style={{ color: "#859399" }}>{t("app.connections.labelLabel")}</label>
+            <input value={fLabel} onChange={(e) => setFLabel(e.target.value)} placeholder={t("app.connections.labelPlaceholder")} className="w-full mb-3 px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
 
-            <label className="block text-xs mb-1" style={{ color: "#859399" }}>Base URL</label>
+            <label className="block text-xs mb-1" style={{ color: "#859399" }}>{t("app.connections.baseUrlLabel")}</label>
             <input value={fBaseUrl} onChange={(e) => setFBaseUrl(e.target.value)} placeholder="https://n8n.example.com" className="w-full mb-3 px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
 
-            <label className="block text-xs mb-1" style={{ color: "#859399" }}>API key</label>
+            <label className="block text-xs mb-1" style={{ color: "#859399" }}>{t("app.connections.apiKeyLabel")}</label>
             <input value={fApiKey} onChange={(e) => setFApiKey(e.target.value)} type="password" placeholder="••••••••" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
 
             {formErr && <p className="text-xs mt-2" style={{ color: "#f87171" }}>{formErr}</p>}
 
             <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setShowForm(false)} disabled={creating} className="px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>Cancel</button>
-              <button onClick={create} disabled={creating || !fLabel.trim() || !fBaseUrl.trim() || !fApiKey.trim()} className="px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}>{creating ? "Connecting…" : "Connect"}</button>
+              <button onClick={() => setShowForm(false)} disabled={creating} className="px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>{t("app.pipelines.nlCancel")}</button>
+              <button onClick={create} disabled={creating || !fLabel.trim() || !fBaseUrl.trim() || !fApiKey.trim()} className="px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}>{creating ? t("app.connections.connecting") : t("app.connections.connect")}</button>
             </div>
           </div>
         </div>

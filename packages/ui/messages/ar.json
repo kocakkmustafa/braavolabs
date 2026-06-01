@@ -760,6 +760,29 @@
       "recentRuns": "عمليات التشغيل الأخيرة",
       "runsShown": "{n} معروضة",
       "noRuns": "لا توجد عمليات تشغيل بعد. اضغط «شغّل الآن» لبدء الأولى."
+    },
+    "connections": {
+      "connectFailed": "تعذّر الاتصال",
+      "title": "الاتصالات",
+      "subtitle": "راقب أتمتة n8n وMake وZapier في مكان واحد.",
+      "connect": "اتصال",
+      "emptyTitle": "لا توجد اتصالات بعد",
+      "emptyBody": "اربط نسخة n8n أو Make أو Zapier لمتابعة عمليات تشغيلها هنا.",
+      "polledAgo": "آخر استطلاع {time}",
+      "notPolled": "لم يُستطلَع بعد",
+      "pollNow": "استطلِع الآن",
+      "runsToggle": "عمليات التشغيل",
+      "disconnect": "قطع الاتصال",
+      "loadingRuns": "جارٍ تحميل عمليات التشغيل…",
+      "noRuns": "لم تُنسخ أي عمليات تشغيل بعد. اضغط «استطلِع الآن» لجلب أحدث عمليات التنفيذ.",
+      "formTitle": "ربط أتمتة",
+      "formSubtitle": "نستطلع سجل التنفيذ؛ مفتاح API الخاص بك مُشفّر ولن يُعرض مرة أخرى.",
+      "platformLabel": "المنصة",
+      "labelLabel": "التسمية",
+      "labelPlaceholder": "n8n الإنتاجي الخاص بي",
+      "baseUrlLabel": "عنوان URL الأساسي",
+      "apiKeyLabel": "مفتاح API",
+      "connecting": "جارٍ الاتصال…"
     }
   },
   "static": {

@@ -760,6 +760,29 @@
       "recentRuns": "Letzte Läufe",
       "runsShown": "{n} angezeigt",
       "noRuns": "Noch keine Läufe. Klicke auf „Jetzt ausführen“, um den ersten zu starten."
+    },
+    "connections": {
+      "connectFailed": "Verbindung fehlgeschlagen",
+      "title": "Verbindungen",
+      "subtitle": "Überwache deine n8n-, Make- und Zapier-Automatisierungen an einem Ort.",
+      "connect": "Verbinden",
+      "emptyTitle": "Noch keine Verbindungen",
+      "emptyBody": "Verbinde eine n8n-, Make- oder Zapier-Instanz, um ihre Läufe hier zu sehen.",
+      "polledAgo": "Abgefragt {time}",
+      "notPolled": "Noch nicht abgefragt",
+      "pollNow": "Jetzt abfragen",
+      "runsToggle": "Läufe",
+      "disconnect": "Trennen",
+      "loadingRuns": "Läufe werden geladen…",
+      "noRuns": "Noch keine Läufe gespiegelt. Klicke auf „Jetzt abfragen“, um die neuesten Ausführungen abzurufen.",
+      "formTitle": "Automatisierung verbinden",
+      "formSubtitle": "Wir fragen den Ausführungsverlauf ab; dein API-Schlüssel wird verschlüsselt und nie wieder angezeigt.",
+      "platformLabel": "Plattform",
+      "labelLabel": "Bezeichnung",
+      "labelPlaceholder": "Mein Produktions-n8n",
+      "baseUrlLabel": "Basis-URL",
+      "apiKeyLabel": "API-Schlüssel",
+      "connecting": "Wird verbunden…"
     }
   },
   "static": {

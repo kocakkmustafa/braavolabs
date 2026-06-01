@@ -760,6 +760,29 @@
       "recentRuns": "Recent runs",
       "runsShown": "{n} shown",
       "noRuns": "No runs yet. Hit “Run now” to start the first one."
+    },
+    "connections": {
+      "connectFailed": "Failed to connect",
+      "title": "Connections",
+      "subtitle": "Monitor your n8n, Make & Zapier automations in one place.",
+      "connect": "Connect",
+      "emptyTitle": "No connections yet",
+      "emptyBody": "Connect an n8n, Make, or Zapier instance to watch its runs here.",
+      "polledAgo": "Polled {time}",
+      "notPolled": "Not polled yet",
+      "pollNow": "Poll now",
+      "runsToggle": "Runs",
+      "disconnect": "Disconnect",
+      "loadingRuns": "Loading runs…",
+      "noRuns": "No runs mirrored yet. Hit “Poll now” to fetch the latest executions.",
+      "formTitle": "Connect an automation",
+      "formSubtitle": "We poll its execution history; your API key is encrypted and never shown again.",
+      "platformLabel": "Platform",
+      "labelLabel": "Label",
+      "labelPlaceholder": "My production n8n",
+      "baseUrlLabel": "Base URL",
+      "apiKeyLabel": "API key",
+      "connecting": "Connecting…"
     }
   },
   "static": {
