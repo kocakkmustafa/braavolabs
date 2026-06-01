@@ -8,10 +8,10 @@
     "dashboard": "Panel"
   },
   "hero": {
-    "tagline": "Yapay zeka şirketin,",
-    "taglineHighlight": "10 dakikada hazır.",
-    "subtitle": "İşini sade bir dille tarif et. Braavolabs senin için içerik, satış ve operasyon ekiplerini bir arada otonom şekilde çalışan bir şirket olarak kurar. Her karar loglanır, her harcama senin onayından geçer.",
-    "cta": "Şirketini kur",
+    "tagline": "AI ajanların ve otomasyonların,",
+    "taglineHighlight": "10 dakikada çalışır halde.",
+    "subtitle": "AI ajan iş akışlarını düz Türkçeyle kur, çalıştır ve yönlendir — ya da hâlihazırda çalıştırdığın n8n, Make ve Zapier otomasyonlarını bağla — ve hepsini tek bir çalışma alanından kontrol et. BYOK, isteğe bağlı cihaz-üstü. Her karar loglanır, her harcamayı sen onaylarsın.",
+    "cta": "Çalışma alanını kur",
     "ctaSecondary": "Nasıl çalıştığını gör"
   },
   "stats": {
@@ -20,7 +20,7 @@
   },
   "features": {
     "badge": "PLATFORM YETKİNLİKLERİ",
-    "title": "AI şirketinin ihtiyaç duyduğu her şey",
+    "title": "AI çalışma alanının ihtiyaç duyduğu her şey",
     "subtitle": "Ajan orkestrasyonundan hafızaya, faturalandırmadan yönetişime — tüm yığın tek platformda.",
     "ctaPrimary": "Ücretsiz Başla",
     "items": {
@@ -54,7 +54,7 @@
       },
       "primitives": {
         "title": "9 Primitive",
-        "desc": "Edinim, Satış, Teslimat, İçerik, Operasyon, Finans, Analitik, Hafıza, Yönetişim — herhangi bir şirket tipini oluşturmak için karıştır ve eşleştir."
+        "desc": "Edinme, Satış, Teslimat, İçerik, Operasyon, Finans, Analitik, Hafıza, Yönetişim — herhangi bir AI şirketi veya otomasyon kurmak için harmanla."
       },
       "approval": {
         "title": "Harcama Onay Kapıları",
@@ -1106,11 +1106,11 @@
     },
     "about": {
       "title": "Braavolabs Hakkında",
-      "subtitle": "Ajans yükü olmadan otonom AI şirketleri kuruyoruz.",
+      "subtitle": "Otonom AI ajanları ve otomasyonları kurmak — ajans masrafı olmadan.",
       "section1Title": "Neden varız",
       "section1Body": "Çoğu kurucunun ajansa, SDR'a, içerik ekibine, ops yöneticisine ihtiyacı var — ama beş işe alım karşılayacak bütçesi yok. Braavolabs bu ekibi senin sade İngilizceyle anlattığın pipeline'ları çalıştıran AI ajanlarıyla değiştirir. Harcama onayı, denetim kayıtları ve risk durdurmaları yerleşik — kontrol sende kalır.",
       "section2Title": "Ne inşa ediyoruz",
-      "section2Body": "Bir şirketi sade İngilizceyle (satış, içerik, ops) anlattığında AI builder'ımız ajanları, pipeline'ları ve entegrasyonları sıfırdan yazar. Her aksiyon kayıt altında, harcanan her dolar onaydan geçer, sistem 7/24 çalışır.",
+      "section2Body": "İstediğini düz dille anlattığın bir platform — ajanlar, pipeline'lar, entegrasyonlar — AI kurucumuz bunu sıfırdan yazar ya da hâlihazırda çalıştırdığın otomasyonları bağlar. Her eylem loglanır, her dolarlık harcama onaydan geçer ve tamamı 7/24 çalışır.",
       "section3Title": "Arkasında kim var",
       "section3Body": "Braavolabs 2026'da kurulan bağımsız bir projedir. Açıkta inşa ediyoruz — her commit, her karar, her yol haritası güncellemesi görünür. Bize her zaman yazabilirsin: hello@braavolabs.com.",
       "section4Title": "Sırada ne var",
@@ -1152,7 +1152,7 @@
     },
     "register": {
       "welcome": "Hesap oluştur",
-      "subtitle": "Otonom AI şirketleri kurmaya başla"
+      "subtitle": "AI ajanları ve otomasyonları kurmaya başla"
     },
     "fields": {
       "fullName": "Ad Soyad",
@@ -1229,10 +1229,10 @@
       "headlineLine1": "Otonom",
       "headlineHighlight": "işin,",
       "headlineLine2": "her zaman açık.",
-      "subtitle": "Satış, içerik ve operasyonları 7/24 yürüten yapay zeka destekli şirketler kur — eksiksiz denetim kayıtları ve insan onay kapılarıyla.",
+      "subtitle": "Satış, içerik ve operasyonları 7/24 yürüten AI ajan iş akışları kur — ya da mevcut otomasyonlarını bağla — tam denetim kayıtları ve insan onay kapılarıyla.",
       "feature1": "AI ajanlar 7/24 çalışır — satış, içerik, ops",
       "feature2": "Her kararın eksiksiz denetim kaydı",
-      "feature3": "İlk şirketin 10 dakikada hazır",
+      "feature3": "İlk çalışma alanına 10 dakika",
       "footer": "© 2026 Braavolabs. Claude ile geliştirildi."
     },
     "errors": {
@@ -1242,7 +1242,7 @@
   "pricing": {
     "badge": "ÜCRETSİZ BAŞLA · KART GEREKMEZ",
     "title": "Sade ve şeffaf fiyatlandırma",
-    "subtitle": "Tek bir AI şirketiyle ücretsiz başla. Daha fazlasını çalıştırmak istediğinde yükselt. Tüm ücretli planlar yıllık ödemede %20 daha ucuz.",
+    "subtitle": "Tek bir AI çalışma alanıyla ücretsiz başla. Daha fazlasını çalıştırmak istediğinde yükselt. Her ücretli plan yıllık faturalandırmada %20 daha ucuz.",
     "cycle": {
       "monthly": "Aylık",
       "yearly": "Yıllık",
@@ -1257,9 +1257,9 @@
     "plans": {
       "free": {
         "name": "Ücretsiz",
-        "desc": "İlk günden itibaren gerçek AI çıktısı. 1 şirket kur, çalıştığını gör.",
+        "desc": "İlk günden gerçek AI çıktısı. 1 çalışma alanı kur, işe yaradığını gör.",
         "features": [
-          "1 AI şirketi",
+          "1 çalışma alanı",
           "Ayda 10 çalıştırma",
           "TikTok + LinkedIn kanalları",
           "Sadeleştirilmiş hero şablon",
@@ -1271,9 +1271,9 @@
       },
       "creator": {
         "name": "Creator",
-        "desc": "Birkaç AI şirketi yöneten solopreneur'ler için.",
+        "desc": "Birkaç AI çalışma alanı çalıştıran solo girişimciler için.",
         "features": [
-          "Paralel 5 şirket",
+          "Paralel çalışan 5 çalışma alanı",
           "Ayda 100 çalıştırma",
           "Tüm kanallar (TikTok, LinkedIn, IG, X, E-posta)",
           "Özel pipeline'lar",
@@ -1287,7 +1287,7 @@
         "name": "Pro",
         "desc": "Çok sayıda markaya ölçeklenen ajanslar ve founder'lar için.",
         "features": [
-          "20 şirket",
+          "20 çalışma alanı",
           "Ayda 500 çalıştırma",
           "HubSpot CRM senkronizasyonu",
           "Outreach otomasyonu",
@@ -1301,7 +1301,7 @@
         "name": "Business",
         "desc": "Yönetişim dahil, takım ölçeğinde otonomi.",
         "features": [
-          "100 şirket",
+          "100 çalışma alanı",
           "Ayda 2.000 çalıştırma",
           "3 takım koltuğu",
           "Yönetişim + denetim dışa aktarımı",
@@ -1314,13 +1314,13 @@
     },
     "enterprise": {
       "title": "Daha fazlasını mı istiyorsun?",
-      "desc": "Enterprise — sınırsız şirket, SSO, özel kurulum, özel SLA.",
+      "desc": "Enterprise — sınırsız çalışma alanı, SSO, özel dağıtım, özel SLA.",
       "cta": "Kurucu ile Görüş"
     },
     "faq": [
       {
         "q": "Ücretsiz plan için kredi kartı gerekli mi?",
-        "a": "Hayır. Ücretsiz plan sonsuza kadar tamamen ücretsiz — kart gerekmez. 1 şirket ve ayda 10 çalıştırma alırsın, gerçek AI çıktısıyla."
+        "a": "Hayır. Ücretsiz plan sonsuza dek tamamen ücretsiz — kart gerekmez. Gerçek AI çıktısıyla 1 çalışma alanı ve ayda 10 çalıştırma alırsın."
       },
       {
         "q": "'Çalıştırma' ne anlama geliyor?",
@@ -1328,7 +1328,7 @@
       },
       {
         "q": "Ücretli planlarda neden ücretsiz deneme yok?",
-        "a": "Çünkü ücretsiz plan zaten gerçek değer veriyor. Ürünü ücretsiz dene, daha fazla şirkete ihtiyaç duyduğunda bir paket seç."
+        "a": "Çünkü Ücretsiz plan zaten gerçek değer veriyor. Ürünü ücretsiz dene, daha fazla çalışma alanına hazır olduğunda bir kademe seç."
       },
       {
         "q": "Çalıştırma kotamı aşarsam ne olur?",
@@ -1340,7 +1340,7 @@
       },
       {
         "q": "Verilerim güvende mi?",
-        "a": "Evet. Her tenant tamamen izoledir. Şirket verilerini asla paylaşmaz veya üzerine eğitim yapmayız."
+        "a": "Evet. Her kiracı tamamen izole. Çalışma alanı verilerinizi asla paylaşmaz veya üzerinde eğitim yapmayız."
       }
     ]
   },

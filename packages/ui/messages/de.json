@@ -8,10 +8,10 @@
     "dashboard": "Übersicht"
   },
   "hero": {
-    "tagline": "Dein KI-Unternehmen,",
-    "taglineHighlight": "in 10 Minuten gebaut.",
-    "subtitle": "Beschreibe dein Geschäft in natürlicher Sprache. Braavolabs baut ein vollständig besetztes autonomes Unternehmen — Content, Vertrieb, Betrieb — das läuft, während du schläfst. Jede Entscheidung wird protokolliert, jede Ausgabe wird von dir freigegeben.",
-    "cta": "Unternehmen aufbauen",
+    "tagline": "Deine KI-Agenten & Automatisierungen,",
+    "taglineHighlight": "in 10 Minuten startklar.",
+    "subtitle": "Erstelle, starte und steuere KI-Agenten-Workflows in einfacher Sprache — oder verbinde die n8n-, Make- und Zapier-Automatisierungen, die du bereits nutzt — und steuere alles aus einem Arbeitsbereich. BYOK, on-device optional. Jede Entscheidung wird protokolliert, jede Ausgabe von dir freigegeben.",
+    "cta": "Arbeitsbereich erstellen",
     "ctaSecondary": "Wie es funktioniert"
   },
   "stats": {
@@ -20,7 +20,7 @@
   },
   "features": {
     "badge": "PLATTFORM-FUNKTIONEN",
-    "title": "Alles, was dein KI-Unternehmen braucht",
+    "title": "Alles, was dein KI-Arbeitsbereich braucht",
     "subtitle": "Von Agent-Orchestrierung über Speicher und Abrechnung bis zur Governance — der komplette Stack in einer Plattform.",
     "ctaPrimary": "Kostenlos starten",
     "items": {
@@ -54,7 +54,7 @@
       },
       "primitives": {
         "title": "9 Bausteine",
-        "desc": "Acquisition, Sales, Delivery, Content, Operations, Finance, Analytics, Memory, Governance — kombinierbar für jeden Unternehmenstyp."
+        "desc": "Akquise, Vertrieb, Delivery, Content, Betrieb, Finanzen, Analytics, Speicher, Governance — kombiniere sie, um jede KI-Firma oder Automatisierung zu bauen."
       },
       "approval": {
         "title": "Ausgaben-Freigabe",
@@ -1106,11 +1106,11 @@
     },
     "about": {
       "title": "Über Braavolabs",
-      "subtitle": "Autonome KI-Unternehmen bauen — ohne Agentur-Overhead.",
+      "subtitle": "Autonome KI-Agenten & Automatisierungen bauen — ohne Agentur-Overhead.",
       "section1Title": "Warum es uns gibt",
       "section1Body": "Die meisten Gründer brauchen eine Agentur, einen SDR, ein Content-Team und einen Ops-Manager — können sich aber keine fünf Einstellungen leisten. Braavolabs ersetzt dieses Team mit KI-Agenten, die Pipelines ausführen, die du in einfachen Worten beschreibst. Ausgaben-Freigabe, Audit-Logs und Risiko-Stopps sind eingebaut, damit du die Kontrolle behältst.",
       "section2Title": "Was wir bauen",
-      "section2Body": "Eine Plattform, auf der du ein Unternehmen in natürlicher Sprache beschreibst — Vertrieb, Content, Operations — und unser KI-Builder Agenten, Pipelines und Integrationen von Grund auf schreibt. Jede Aktion wird protokolliert, jeder Dollar Ausgaben durchläuft eine Freigabe, und das Ganze läuft 24/7.",
+      "section2Body": "Eine Plattform, auf der du in einfacher Sprache beschreibst, was du willst — Agenten, Pipelines, Integrationen — und unser KI-Builder schreibt es von Grund auf neu oder verbindet die Automatisierungen, die du bereits nutzt. Jede Aktion wird protokolliert, jeder Dollar Ausgabe durchläuft eine Freigabe, und das Ganze läuft rund um die Uhr.",
       "section3Title": "Wer dahintersteht",
       "section3Body": "Braavolabs ist ein unabhängiges Projekt, gegründet 2026. Wir bauen in der Öffentlichkeit — jeder Commit, jede Entscheidung, jedes Roadmap-Update ist sichtbar. Schreib uns jederzeit: hello@braavolabs.com.",
       "section4Title": "Was als Nächstes kommt",
@@ -1152,7 +1152,7 @@
     },
     "register": {
       "welcome": "Konto erstellen",
-      "subtitle": "Starte mit autonomen KI-Unternehmen"
+      "subtitle": "Beginne, KI-Agenten & Automatisierungen zu bauen"
     },
     "fields": {
       "fullName": "Vollständiger Name",
@@ -1229,10 +1229,10 @@
       "headlineLine1": "Dein autonomes",
       "headlineHighlight": "Unternehmen,",
       "headlineLine2": "immer aktiv.",
-      "subtitle": "Baue KI-gestützte Unternehmen, die Vertrieb, Content und Operations 24/7 betreiben — mit vollständigen Audit-Logs und menschlichen Freigaben.",
+      "subtitle": "Baue KI-Agenten-Workflows — oder verbinde deine bestehenden Automatisierungen — die Vertrieb, Content und Betrieb rund um die Uhr ausführen, mit vollständigen Audit-Logs und menschlichen Freigaben.",
       "feature1": "KI-Agenten arbeiten 24/7 — Vertrieb, Content, Ops",
       "feature2": "Vollständiges Audit-Log jeder Entscheidung",
-      "feature3": "10 Minuten bis zum ersten Unternehmen",
+      "feature3": "10 Minuten bis zu deinem ersten Arbeitsbereich",
       "footer": "© 2026 Braavolabs. Mit Claude gebaut."
     },
     "errors": {
@@ -1242,7 +1242,7 @@
   "pricing": {
     "badge": "KOSTENLOS STARTEN · KEINE KARTE NÖTIG",
     "title": "Einfache, transparente Preise",
-    "subtitle": "Starte kostenlos mit einem KI-Unternehmen. Upgrade, wenn du mehr betreiben willst. Jeder bezahlte Plan ist bei jährlicher Abrechnung 20 % günstiger.",
+    "subtitle": "Starte kostenlos mit einem KI-Arbeitsbereich. Upgrade, wenn du mehr ausführen willst. Jeder bezahlte Tarif ist bei jährlicher Abrechnung 20% günstiger.",
     "cycle": {
       "monthly": "Monatlich",
       "yearly": "Jährlich",
@@ -1257,9 +1257,9 @@
     "plans": {
       "free": {
         "name": "Free",
-        "desc": "Echte KI-Ausgabe vom ersten Tag an. Baue 1 Unternehmen und sieh es arbeiten.",
+        "desc": "Echte KI-Ergebnisse ab Tag eins. Baue 1 Arbeitsbereich und sieh ihn arbeiten.",
         "features": [
-          "1 KI-Unternehmen",
+          "1 Arbeitsbereich",
           "10 Läufe / Monat",
           "TikTok + LinkedIn Kanäle",
           "Vereinfachte Hero-Vorlage",
@@ -1271,9 +1271,9 @@
       },
       "creator": {
         "name": "Creator",
-        "desc": "Für Solopreneure, die eine Handvoll KI-Unternehmen betreiben.",
+        "desc": "Für Solo-Gründer, die einige KI-Arbeitsbereiche betreiben.",
         "features": [
-          "5 Unternehmen parallel",
+          "5 Arbeitsbereiche parallel",
           "100 Läufe / Monat",
           "Alle Kanäle (TikTok, LinkedIn, IG, X, E-Mail)",
           "Eigene Pipelines",
@@ -1287,7 +1287,7 @@
         "name": "Pro",
         "desc": "Für Agenturen und Founder, die über viele Marken skalieren.",
         "features": [
-          "20 Unternehmen",
+          "20 Arbeitsbereiche",
           "500 Läufe / Monat",
           "HubSpot CRM-Sync",
           "Outreach-Automatisierung",
@@ -1301,7 +1301,7 @@
         "name": "Business",
         "desc": "Team-Autonomie mit eingebauter Governance.",
         "features": [
-          "100 Unternehmen",
+          "100 Arbeitsbereiche",
           "2.000 Läufe / Monat",
           "3 Team-Sitze",
           "Governance + Audit-Export",
@@ -1314,13 +1314,13 @@
     },
     "enterprise": {
       "title": "Mehr nötig?",
-      "desc": "Enterprise — unbegrenzte Unternehmen, SSO, private Bereitstellung, dediziertes SLA.",
+      "desc": "Enterprise — unbegrenzte Arbeitsbereiche, SSO, private Bereitstellung, dediziertes SLA.",
       "cta": "Mit dem Founder sprechen"
     },
     "faq": [
       {
         "q": "Brauche ich für den kostenlosen Plan eine Kreditkarte?",
-        "a": "Nein. Free ist für immer komplett kostenlos — keine Karte nötig. Du bekommst 1 Unternehmen und 10 Läufe pro Monat mit echter KI-Ausgabe."
+        "a": "Nein. Der Free-Tarif ist für immer komplett kostenlos — keine Karte nötig. Du bekommst 1 Arbeitsbereich und 10 Läufe pro Monat, mit echten KI-Ergebnissen."
       },
       {
         "q": "Was zählt als „Lauf“?",
@@ -1328,7 +1328,7 @@
       },
       {
         "q": "Warum gibt es keine kostenlose Testversion auf bezahlten Plänen?",
-        "a": "Weil der Free-Plan dir bereits echten Wert bietet. Probiere das Produkt kostenlos, wähle dann eine Stufe, wenn du mehr Unternehmen brauchst."
+        "a": "Weil der Free-Tarif schon echten Mehrwert bietet. Teste das Produkt kostenlos und wähle einen Tarif, wenn du mehr Arbeitsbereiche brauchst."
       },
       {
         "q": "Was passiert, wenn ich mein Lauf-Kontingent überschreite?",
@@ -1340,7 +1340,7 @@
       },
       {
         "q": "Sind meine Daten privat?",
-        "a": "Ja. Jeder Tenant ist vollständig isoliert. Wir teilen niemals deine Unternehmensdaten und trainieren keine Modelle damit."
+        "a": "Ja. Jeder Mandant ist vollständig isoliert. Wir teilen deine Arbeitsbereich-Daten nie und trainieren nicht damit."
       }
     ]
   },

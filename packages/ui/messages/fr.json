@@ -8,10 +8,10 @@
     "dashboard": "Tableau de bord"
   },
   "hero": {
-    "tagline": "Votre entreprise IA,",
-    "taglineHighlight": "construite en 10 minutes.",
-    "subtitle": "Décrivez votre activité en français simple. Braavolabs construit une entreprise autonome entièrement équipée — contenu, ventes, opérations — qui tourne pendant que vous dormez. Chaque décision est journalisée, chaque dépense est approuvée par vous.",
-    "cta": "Construire votre entreprise",
+    "tagline": "Vos agents & automatisations IA,",
+    "taglineHighlight": "opérationnels en 10 minutes.",
+    "subtitle": "Créez, exécutez et pilotez des workflows d'agents IA en langage naturel — ou connectez les automatisations n8n, Make et Zapier que vous utilisez déjà — et pilotez le tout depuis un seul espace de travail. BYOK, sur l'appareil en option. Chaque décision est journalisée, chaque dépense approuvée par vous.",
+    "cta": "Créez votre espace de travail",
     "ctaSecondary": "Voir comment ça marche"
   },
   "stats": {
@@ -20,7 +20,7 @@
   },
   "features": {
     "badge": "CAPACITÉS DE LA PLATEFORME",
-    "title": "Tout ce dont votre entreprise IA a besoin",
+    "title": "Tout ce dont votre espace de travail IA a besoin",
     "subtitle": "De l'orchestration des agents à la mémoire, la facturation et la gouvernance — toute la stack sur une seule plateforme.",
     "ctaPrimary": "Commencez gratuitement",
     "items": {
@@ -54,7 +54,7 @@
       },
       "primitives": {
         "title": "9 primitives",
-        "desc": "Acquisition, Ventes, Livraison, Contenu, Opérations, Finance, Analyse, Mémoire, Gouvernance — combinez pour construire tout type d'entreprise."
+        "desc": "Acquisition, Ventes, Livraison, Contenu, Opérations, Finance, Analytique, Mémoire, Gouvernance — combinez-les pour créer n'importe quelle entreprise IA ou automatisation."
       },
       "approval": {
         "title": "Approbation des Dépenses",
@@ -1106,11 +1106,11 @@
     },
     "about": {
       "title": "À propos de Braavolabs",
-      "subtitle": "Construire des entreprises IA autonomes — sans la lourdeur d'une agence.",
+      "subtitle": "Construire des agents & automatisations IA autonomes — sans les frais d'agence.",
       "section1Title": "Pourquoi nous existons",
       "section1Body": "La plupart des fondateurs ont besoin d'une agence, d'un SDR, d'une équipe de contenu, d'un manager d'opérations — mais ne peuvent pas se permettre cinq embauches. Braavolabs remplace cette équipe par des agents IA qui exécutent les pipelines que vous décrivez en langage naturel. Validation des dépenses, journaux d'audit et arrêts de risque sont intégrés pour que vous gardiez le contrôle.",
       "section2Title": "Ce que nous construisons",
-      "section2Body": "Une plateforme où vous décrivez une entreprise en langage naturel — ventes, contenu, opérations — et notre builder IA écrit les agents, pipelines et intégrations à partir de zéro. Chaque action est journalisée, chaque dollar de dépense passe par validation, et le tout fonctionne 24/7.",
+      "section2Body": "Une plateforme où vous décrivez ce que vous voulez en langage naturel — agents, pipelines, intégrations — et notre builder IA l'écrit de zéro, ou connecte les automatisations que vous utilisez déjà. Chaque action est journalisée, chaque dollar dépensé passe par une approbation, et le tout fonctionne 24/7.",
       "section3Title": "Qui est derrière",
       "section3Body": "Braavolabs est un projet indépendant fondé en 2026. Nous construisons en public — chaque commit, chaque décision, chaque mise à jour de roadmap est visible. Écrivez-nous à tout moment : hello@braavolabs.com.",
       "section4Title": "Ce qui suit",
@@ -1152,7 +1152,7 @@
     },
     "register": {
       "welcome": "Créer un compte",
-      "subtitle": "Commencez à créer des entreprises IA autonomes"
+      "subtitle": "Commencez à créer des agents & automatisations IA"
     },
     "fields": {
       "fullName": "Nom complet",
@@ -1229,10 +1229,10 @@
       "headlineLine1": "Votre entreprise",
       "headlineHighlight": "autonome,",
       "headlineLine2": "toujours active.",
-      "subtitle": "Construisez des entreprises propulsées par l'IA qui gèrent ventes, contenu et opérations 24/7 — avec des journaux d'audit complets et des validations humaines.",
+      "subtitle": "Créez des workflows d'agents IA — ou connectez vos automatisations existantes — qui gèrent ventes, contenu et opérations 24/7, avec des journaux d'audit complets et des approbations humaines.",
       "feature1": "Agents IA actifs 24/7 — ventes, contenu, ops",
       "feature2": "Journal d'audit complet de chaque décision",
-      "feature3": "10 minutes jusqu'à votre première entreprise",
+      "feature3": "10 minutes jusqu'à votre premier espace de travail",
       "footer": "© 2026 Braavolabs. Conçu avec Claude."
     },
     "errors": {
@@ -1242,7 +1242,7 @@
   "pricing": {
     "badge": "GRATUIT POUR DÉMARRER · SANS CARTE",
     "title": "Tarifs simples et transparents",
-    "subtitle": "Commencez gratuitement avec une entreprise IA. Passez à la vitesse supérieure quand vous voulez en exécuter plus. Tous les plans payants sont 20 % moins chers en facturation annuelle.",
+    "subtitle": "Commencez gratuitement avec un espace de travail IA. Passez à un forfait supérieur quand vous voulez en exécuter plus. Chaque forfait payant est 20% moins cher en facturation annuelle.",
     "cycle": {
       "monthly": "Mensuel",
       "yearly": "Annuel",
@@ -1257,9 +1257,9 @@
     "plans": {
       "free": {
         "name": "Free",
-        "desc": "Vraie sortie IA dès le premier jour. Construisez 1 entreprise, voyez-la fonctionner.",
+        "desc": "De vrais résultats IA dès le premier jour. Créez 1 espace de travail et voyez-le fonctionner.",
         "features": [
-          "1 entreprise IA",
+          "1 espace de travail",
           "10 exécutions / mois",
           "Canaux TikTok + LinkedIn",
           "Modèle hero simplifié",
@@ -1271,9 +1271,9 @@
       },
       "creator": {
         "name": "Creator",
-        "desc": "Pour les solopreneurs gérant une poignée d'entreprises IA.",
+        "desc": "Pour les indépendants qui gèrent plusieurs espaces de travail IA.",
         "features": [
-          "5 entreprises en parallèle",
+          "5 espaces de travail en parallèle",
           "100 exécutions / mois",
           "Tous les canaux (TikTok, LinkedIn, IG, X, Email)",
           "Pipelines personnalisés",
@@ -1287,7 +1287,7 @@
         "name": "Pro",
         "desc": "Pour les agences et fondateurs qui se développent sur plusieurs marques.",
         "features": [
-          "20 entreprises",
+          "20 espaces de travail",
           "500 exécutions / mois",
           "Synchronisation HubSpot CRM",
           "Automatisation outreach",
@@ -1301,7 +1301,7 @@
         "name": "Business",
         "desc": "Autonomie à l'échelle de l'équipe avec gouvernance intégrée.",
         "features": [
-          "100 entreprises",
+          "100 espaces de travail",
           "2 000 exécutions / mois",
           "3 sièges d'équipe",
           "Gouvernance + export d'audit",
@@ -1314,13 +1314,13 @@
     },
     "enterprise": {
       "title": "Besoin de plus ?",
-      "desc": "Enterprise — entreprises illimitées, SSO, déploiement privé, SLA dédié.",
+      "desc": "Enterprise — espaces de travail illimités, SSO, déploiement privé, SLA dédié.",
       "cta": "Parler au fondateur"
     },
     "faq": [
       {
         "q": "Ai-je besoin d'une carte de crédit pour le plan gratuit ?",
-        "a": "Non. Free est complètement gratuit pour toujours — aucune carte requise. Vous obtenez 1 entreprise et 10 exécutions par mois, avec une vraie sortie IA."
+        "a": "Non. Le forfait Gratuit est entièrement gratuit pour toujours — sans carte. Vous obtenez 1 espace de travail et 10 exécutions par mois, avec de vrais résultats IA."
       },
       {
         "q": "Qu'est-ce qui compte comme une « exécution » ?",
@@ -1328,7 +1328,7 @@
       },
       {
         "q": "Pourquoi n'y a-t-il pas d'essai gratuit sur les plans payants ?",
-        "a": "Parce que le plan Free vous apporte déjà une vraie valeur. Essayez le produit gratuitement, puis choisissez un niveau quand vous êtes prêt pour plus d'entreprises."
+        "a": "Parce que le forfait Gratuit offre déjà une vraie valeur. Essayez le produit gratuitement, puis choisissez un niveau quand vous voulez plus d'espaces de travail."
       },
       {
         "q": "Que se passe-t-il si je dépasse mon quota d'exécutions ?",
@@ -1340,7 +1340,7 @@
       },
       {
         "q": "Mes données sont-elles privées ?",
-        "a": "Oui. Chaque tenant est entièrement isolé. Nous ne partageons jamais et ne nous entraînons jamais sur les données de votre entreprise."
+        "a": "Oui. Chaque locataire est totalement isolé. Nous ne partageons ni n'entraînons jamais sur les données de votre espace de travail."
       }
     ]
   },

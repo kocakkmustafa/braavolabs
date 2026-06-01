@@ -8,10 +8,10 @@
     "dashboard": "Dashboard"
   },
   "hero": {
-    "tagline": "Your AI company,",
-    "taglineHighlight": "built in 10 minutes.",
-    "subtitle": "Describe your business in plain English. Braavolabs builds a fully-staffed autonomous company — content, sales, ops — that runs while you sleep. Every decision is logged, every spend is approved by you.",
-    "cta": "Build your company",
+    "tagline": "Your AI agents & automations,",
+    "taglineHighlight": "running in 10 minutes.",
+    "subtitle": "Build, run, and steer AI agent workflows in plain English — or connect the n8n, Make & Zapier automations you already run — and control them all from one workspace. BYOK, on-device optional. Every decision is logged, every spend is approved by you.",
+    "cta": "Build your workspace",
     "ctaSecondary": "See how it works"
   },
   "stats": {
@@ -20,7 +20,7 @@
   },
   "features": {
     "badge": "PLATFORM CAPABILITIES",
-    "title": "Everything your AI company needs",
+    "title": "Everything your AI workspace needs",
     "subtitle": "From agent orchestration to memory, billing, and governance — the full stack in one platform.",
     "ctaPrimary": "Start Building Free",
     "items": {
@@ -54,7 +54,7 @@
       },
       "primitives": {
         "title": "9 Primitives",
-        "desc": "Acquisition, Sales, Delivery, Content, Operations, Finance, Analytics, Memory, Governance — mix and match to build any company type."
+        "desc": "Acquisition, Sales, Delivery, Content, Operations, Finance, Analytics, Memory, Governance — mix and match to build any AI company or automation."
       },
       "approval": {
         "title": "Spend Approval Gates",
@@ -1106,11 +1106,11 @@
     },
     "about": {
       "title": "About Braavolabs",
-      "subtitle": "Building autonomous AI companies — without the agency overhead.",
+      "subtitle": "Building autonomous AI agents & automations — without the agency overhead.",
       "section1Title": "Why we exist",
       "section1Body": "Most founders need an agency, an SDR, a content team, an ops manager — but can't afford five hires. Braavolabs replaces that team with AI agents that run pipelines you describe in plain English. Spend approval, audit logs, and risk stops are built in so you stay in control.",
       "section2Title": "What we're building",
-      "section2Body": "A platform where you describe a company in natural language — sales, content, ops — and our AI builder writes the agents, pipelines, and integrations from scratch. Every action is logged, every dollar of spend goes through approval, and the whole thing runs 24/7.",
+      "section2Body": "A platform where you describe what you want in plain language — agents, pipelines, integrations — and our AI builder writes it from scratch, or connects the automations you already run. Every action is logged, every dollar of spend goes through approval, and the whole thing runs 24/7.",
       "section3Title": "Who's behind it",
       "section3Body": "Braavolabs is an independent project founded in 2026. We build in public — every commit, every decision, every roadmap update is visible. Reach out anytime: hello@braavolabs.com.",
       "section4Title": "What's next",
@@ -1152,7 +1152,7 @@
     },
     "register": {
       "welcome": "Create account",
-      "subtitle": "Start building autonomous AI companies"
+      "subtitle": "Start building AI agents & automations"
     },
     "fields": {
       "fullName": "Full Name",
@@ -1229,10 +1229,10 @@
       "headlineLine1": "Your autonomous",
       "headlineHighlight": "business,",
       "headlineLine2": "always on.",
-      "subtitle": "Build AI-powered companies that run sales, content, and operations 24/7 — with full audit logs and human approval gates.",
+      "subtitle": "Build AI agent workflows — or connect your existing automations — that run sales, content, and operations 24/7, with full audit logs and human approval gates.",
       "feature1": "AI agents run 24/7 — sales, content, ops",
       "feature2": "Full audit log of every decision",
-      "feature3": "10 minutes to your first company",
+      "feature3": "10 minutes to your first workspace",
       "footer": "© 2026 Braavolabs. Built with Claude."
     },
     "errors": {
@@ -1242,7 +1242,7 @@
   "pricing": {
     "badge": "FREE TO START · NO CARD REQUIRED",
     "title": "Simple, transparent pricing",
-    "subtitle": "Start free with one AI company. Upgrade when you want to run more. Every paid plan is 20% cheaper on annual billing.",
+    "subtitle": "Start free with one AI workspace. Upgrade when you want to run more. Every paid plan is 20% cheaper on annual billing.",
     "cycle": {
       "monthly": "Monthly",
       "yearly": "Yearly",
@@ -1257,9 +1257,9 @@
     "plans": {
       "free": {
         "name": "Free",
-        "desc": "Real AI output from day one. Build 1 company, see it work.",
+        "desc": "Real AI output from day one. Build 1 workspace, see it work.",
         "features": [
-          "1 AI company",
+          "1 workspace",
           "10 runs / month",
           "TikTok + LinkedIn channels",
           "Simplified hero template",
@@ -1271,9 +1271,9 @@
       },
       "creator": {
         "name": "Creator",
-        "desc": "For solopreneurs running a handful of AI companies.",
+        "desc": "For solopreneurs running a handful of AI workspaces.",
         "features": [
-          "5 companies running in parallel",
+          "5 workspaces running in parallel",
           "100 runs / month",
           "All channels (TikTok, LinkedIn, IG, X, Email)",
           "Custom pipelines",
@@ -1287,7 +1287,7 @@
         "name": "Pro",
         "desc": "For agencies and founders scaling across many brands.",
         "features": [
-          "20 companies",
+          "20 workspaces",
           "500 runs / month",
           "HubSpot CRM sync",
           "Outreach automation",
@@ -1301,7 +1301,7 @@
         "name": "Business",
         "desc": "Team-scale autonomy with governance built in.",
         "features": [
-          "100 companies",
+          "100 workspaces",
           "2,000 runs / month",
           "3 team seats",
           "Governance + audit export",
@@ -1314,13 +1314,13 @@
     },
     "enterprise": {
       "title": "Need more?",
-      "desc": "Enterprise — unlimited companies, SSO, private deployment, dedicated SLA.",
+      "desc": "Enterprise — unlimited workspaces, SSO, private deployment, dedicated SLA.",
       "cta": "Talk to the Founder"
     },
     "faq": [
       {
         "q": "Do I need a credit card for the free plan?",
-        "a": "No. Free is completely free forever — no card required. You get 1 company and 10 runs per month, with real AI output."
+        "a": "No. Free is completely free forever — no card required. You get 1 workspace and 10 runs per month, with real AI output."
       },
       {
         "q": "What counts as a 'run'?",
@@ -1328,7 +1328,7 @@
       },
       {
         "q": "Why is there no free trial on paid plans?",
-        "a": "Because the Free plan already gives you real value. Try the product for free, then pick a tier when you're ready for more companies."
+        "a": "Because the Free plan already gives you real value. Try the product for free, then pick a tier when you're ready for more workspaces."
       },
       {
         "q": "What if I exceed my run quota?",
@@ -1340,7 +1340,7 @@
       },
       {
         "q": "Is my data private?",
-        "a": "Yes. Each tenant is fully isolated. We never share or train on your company data."
+        "a": "Yes. Each tenant is fully isolated. We never share or train on your workspace data."
       }
     ]
   },
