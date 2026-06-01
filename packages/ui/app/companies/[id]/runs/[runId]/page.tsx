@@ -40,6 +40,7 @@ interface RunDetail {
   completedAt: string | null;
   steps: RunStep[];
   pipeline: { name: string; company: { name: string } };
+  approvals?: Array<{ id: string; type?: string; status: string; description?: string }>;
 }
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
@@ -75,6 +76,9 @@ export default function RunDetailPage() {
   const [steerText, setSteerText] = useState("");
   const [steerBusy, setSteerBusy] = useState(false);
   const [steerMsg, setSteerMsg] = useState<string | null>(null);
+  const [answer, setAnswer] = useState("");
+  const [answerBusy, setAnswerBusy] = useState(false);
+  const [answerMsg, setAnswerMsg] = useState<string | null>(null);
 
   // Initial fetch
   useEffect(() => {
@@ -156,6 +160,23 @@ export default function RunDetailPage() {
     }
   }
 
+  async function handleAnswer(approvalId: string) {
+    if (!token || !run || !answer.trim()) return;
+    setAnswerBusy(true);
+    setAnswerMsg(null);
+    try {
+      await api.decideApproval(token, approvalId, "APPROVED", answer.trim());
+      setAnswer("");
+      setAnswerMsg("Answer sent — the run is resuming.");
+      const updated = await api.getRun(token, run.id);
+      setRun(updated);
+    } catch (e) {
+      setAnswerMsg(e instanceof Error ? e.message : "Failed to send answer");
+    } finally {
+      setAnswerBusy(false);
+    }
+  }
+
   if (!token) return <p style={{ color: "#859399", padding: 32 }}>Please log in first.</p>;
   if (error) return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
@@ -171,6 +192,7 @@ export default function RunDetailPage() {
 
   const runSt = STATUS_STYLES[run.status] ?? DEFAULT_STATUS;
   const isLive = LIVE_STATUSES.includes(run.status);
+  const pendingInput = (run.approvals ?? []).filter((a) => a.type === "INPUT" && a.status === "PENDING");
   const completedSteps = run.steps.filter((s) => s.status === "COMPLETED").length;
   const progressPct = run.steps.length > 0 ? Math.round((completedSteps / run.steps.length) * 100) : 0;
 
@@ -333,6 +355,37 @@ export default function RunDetailPage() {
                 </a>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Agent → human: the run is paused on an ask_user question. Answer it
+          and the run resumes with the answer delivered to the agent. */}
+      {pendingInput.length > 0 && (
+        <div className="glass-card rounded-xl p-4 mb-6" style={{ border: "1px solid rgba(251,146,60,0.35)", background: "rgba(251,146,60,0.06)" }}>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="material-symbols-outlined" style={{ fontSize: 16, color: "#fb923c" }}>contact_support</span>
+            <h3 className="text-sm font-semibold" style={{ color: "#fb923c" }}>The agent needs your input</h3>
+          </div>
+          <p className="text-sm mb-3" style={{ color: "#e1e2eb", whiteSpace: "pre-wrap" }}>{pendingInput[0].description}</p>
+          <textarea
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
+            placeholder="Type your answer for the agent…"
+            rows={3}
+            className="w-full rounded-lg p-3 text-sm outline-none mb-2"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb", resize: "vertical" }}
+          />
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs" style={{ color: answerMsg && answerMsg.startsWith("Answer sent") ? "#34d399" : "#f87171" }}>{answerMsg ?? ""}</span>
+            <button
+              onClick={() => handleAnswer(pendingInput[0].id)}
+              disabled={answerBusy || !answer.trim()}
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-50"
+              style={{ background: "#fb923c" }}
+            >
+              {answerBusy ? "Sending…" : "Send answer"}
+            </button>
           </div>
         </div>
       )}
