@@ -20,6 +20,7 @@ import { useParams, useRouter } from "next/navigation";
 import { api } from "../../../lib/api";
 import { useAuthGuard } from "../../../lib/useAuthGuard";
 import { timeAgo } from "../../../lib/timeAgo";
+import { useTranslations } from "next-intl";
 
 interface PipelineStep {
   name: string;
@@ -63,6 +64,7 @@ const TRIGGER_ICON: Record<string, string> = {
 
 export default function PipelineDetailPage() {
   const { token, hydrated } = useAuthGuard();
+  const t = useTranslations();
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const pipelineId = params?.id;
@@ -90,7 +92,7 @@ export default function PipelineDetailPage() {
     api
       .getPipeline(token, pipelineId)
       .then(setPipeline)
-      .catch((e) => setErr(e instanceof Error ? e.message : "Failed to load pipeline"))
+      .catch((e) => setErr(e instanceof Error ? e.message : t("app.pipelineDetail.loadFailed")))
       .finally(() => setLoaded(true));
   }, [token, pipelineId]);
 
@@ -102,7 +104,7 @@ export default function PipelineDetailPage() {
       const run = await api.triggerRun(token, pipelineId);
       if (run?.id) router.push(`/runs/${run.id}`);
     } catch (e) {
-      setRunErr(e instanceof Error ? e.message : "Failed to start run");
+      setRunErr(e instanceof Error ? e.message : t("app.pipelineDetail.runFailed"));
       setRunning(false);
     }
   }
@@ -128,7 +130,7 @@ export default function PipelineDetailPage() {
       setPipeline(fresh);
       setEditing(false);
     } catch (e) {
-      setSettingsErr(e instanceof Error ? e.message : "Failed to save");
+      setSettingsErr(e instanceof Error ? e.message : t("app.pipelineDetail.saveFailed"));
     } finally {
       setSavingSettings(false);
     }
@@ -151,7 +153,7 @@ export default function PipelineDetailPage() {
     setStepDraft((d) => d.map((s, idx) => (idx === i ? { ...s, [field]: val } : s)));
   }
   function addStep() {
-    setStepDraft((d) => [...d, { name: "New step", agentRole: agents[0]?.role ?? "" }]);
+    setStepDraft((d) => [...d, { name: t("app.pipelineDetail.newStep"), agentRole: agents[0]?.role ?? "" }]);
   }
   function removeStep(i: number) {
     setStepDraft((d) => d.filter((_, idx) => idx !== i));
@@ -176,7 +178,7 @@ export default function PipelineDetailPage() {
       setPipeline(fresh);
       setEditingSteps(false);
     } catch (e) {
-      setStepsErr(e instanceof Error ? e.message : "Failed to save steps");
+      setStepsErr(e instanceof Error ? e.message : t("app.pipelineDetail.saveStepsFailed"));
     } finally {
       setSavingSteps(false);
     }
@@ -210,13 +212,17 @@ export default function PipelineDetailPage() {
 
   const isHierarchical = pipeline?.pipelineType === "HIERARCHICAL";
   const trigger = (pipeline?.trigger ?? "MANUAL").toUpperCase();
+  const TRIGGER_KEY: Record<string, string> = {
+    MANUAL: "triggerManual", SCHEDULED: "triggerScheduled", WEBHOOK: "triggerWebhook", EVENT: "triggerEvent",
+  };
+  const triggerWord = t(`app.pipelineDetail.${TRIGGER_KEY[trigger] ?? "triggerManual"}`);
 
   return (
     <div className="bv-dash bv-dash-shell">
       <div className="max-w-[1100px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <div style={{ marginBottom: 16 }}>
           <Link href="/pipelines" style={{ color: "var(--color-primary, #a4e6ff)", fontSize: 13, textDecoration: "none" }}>
-            ← Pipelines
+            ← {t("app.pipelineDetail.backLink")}
           </Link>
         </div>
 
@@ -228,14 +234,14 @@ export default function PipelineDetailPage() {
           </div>
         ) : !pipeline ? (
           <div className="bv-glass bv-panel">
-            <p>Pipeline not found.</p>
+            <p>{t("app.pipelineDetail.notFound")}</p>
           </div>
         ) : (
           <>
             {/* Header */}
             <div className="bv-page-head bv-rise" style={{ marginBottom: 24 }}>
               <div style={{ minWidth: 0 }}>
-                <div className="bv-micro" style={{ marginBottom: 6 }}>Pipeline</div>
+                <div className="bv-micro" style={{ marginBottom: 6 }}>{t("app.pipelineDetail.pipelineLabel")}</div>
                 <h1 className="bv-display" style={{ margin: 0, fontSize: 26 }}>
                   <span className="bv-grad-text">{pipeline.name}</span>
                 </h1>
@@ -243,7 +249,7 @@ export default function PipelineDetailPage() {
                   <span className="bv-mono">{pipeline.id}</span>
                   <span className="bv-divider-dot" aria-hidden />
                   <span style={{ color: pipeline.enabled === false ? "#fbbf24" : "#34d399" }}>
-                    {pipeline.enabled === false ? "Disabled" : "Enabled"}
+                    {pipeline.enabled === false ? t("app.pipelineDetail.disabled") : t("app.pipelineDetail.enabled")}
                   </span>
                   {pipeline.company?.name && (
                     <>
@@ -260,10 +266,10 @@ export default function PipelineDetailPage() {
                   <span className="bv-divider-dot" aria-hidden />
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                     <span className="material-symbols-outlined" style={{ fontSize: 14 }}>{TRIGGER_ICON[trigger] ?? "touch_app"}</span>
-                    {trigger === "SCHEDULED" && pipeline.schedule ? pipeline.schedule : trigger.toLowerCase()}
+                    {trigger === "SCHEDULED" && pipeline.schedule ? pipeline.schedule : triggerWord}
                   </span>
                   <span className="bv-divider-dot" aria-hidden />
-                  <span className="bv-pill bv-pill-muted">{isHierarchical ? "Hierarchical" : "Sequential"}</span>
+                  <span className="bv-pill bv-pill-muted">{isHierarchical ? t("app.pipelineDetail.typeHierarchical") : t("app.pipelineDetail.typeSequential")}</span>
                 </div>
                 {pipeline.description && (
                   <p className="bv-caption" style={{ marginTop: 10, maxWidth: 720 }}>{pipeline.description}</p>
@@ -277,7 +283,7 @@ export default function PipelineDetailPage() {
                   style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#bbc9cf" }}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: 16 }}>edit</span>
-                  Edit
+                  {t("app.pipelineDetail.edit")}
                 </button>
                 <button
                   onClick={handleRun}
@@ -290,15 +296,15 @@ export default function PipelineDetailPage() {
                   ) : (
                     <span className="material-symbols-outlined" style={{ fontSize: 16 }}>play_arrow</span>
                   )}
-                  Run now
+                  {t("app.pipelineDetail.runNow")}
                 </button>
               </div>
             </div>
 
             {editing && (
               <div className="bv-glass bv-panel" style={{ marginBottom: 16 }}>
-                <h2 className="bv-title" style={{ marginBottom: 12 }}>Pipeline settings</h2>
-                <label className="bv-caption" style={{ display: "block", marginBottom: 4 }}>Name</label>
+                <h2 className="bv-title" style={{ marginBottom: 12 }}>{t("app.pipelineDetail.settingsTitle")}</h2>
+                <label className="bv-caption" style={{ display: "block", marginBottom: 4 }}>{t("app.pipelineDetail.nameLabel")}</label>
                 <input
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
@@ -306,11 +312,11 @@ export default function PipelineDetailPage() {
                 />
                 <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: 13, color: "var(--color-on-surface-variant)" }}>
                   <input type="checkbox" checked={editEnabled} onChange={(e) => setEditEnabled(e.target.checked)} />
-                  Enabled (scheduled / webhook triggers fire)
+                  {t("app.pipelineDetail.enabledToggle")}
                 </label>
                 {trigger === "SCHEDULED" && (
                   <>
-                    <label className="bv-caption" style={{ display: "block", marginBottom: 4 }}>Schedule (cron)</label>
+                    <label className="bv-caption" style={{ display: "block", marginBottom: 4 }}>{t("app.pipelineDetail.scheduleLabel")}</label>
                     <input
                       value={editSchedule}
                       onChange={(e) => setEditSchedule(e.target.value)}
@@ -322,8 +328,8 @@ export default function PipelineDetailPage() {
                 )}
                 {settingsErr && <p style={{ color: "#f87171", fontSize: 12, marginBottom: 8 }}>{settingsErr}</p>}
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                  <button onClick={() => setEditing(false)} disabled={savingSettings} className="px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>Cancel</button>
-                  <button onClick={handleSaveSettings} disabled={savingSettings || !editName.trim()} className="px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}>{savingSettings ? "Saving…" : "Save"}</button>
+                  <button onClick={() => setEditing(false)} disabled={savingSettings} className="px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>{t("app.pipelines.nlCancel")}</button>
+                  <button onClick={handleSaveSettings} disabled={savingSettings || !editName.trim()} className="px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}>{savingSettings ? t("app.pipelineDetail.saving") : t("app.pipelineDetail.save")}</button>
                 </div>
               </div>
             )}
@@ -338,17 +344,17 @@ export default function PipelineDetailPage() {
             <section className="bv-glass bv-panel">
               <header className="bv-panel-head">
                 <div>
-                  <h2 className="bv-title">Steps</h2>
+                  <h2 className="bv-title">{t("app.pipelineDetail.stepsTitle")}</h2>
                   <div className="bv-caption">
                     {isHierarchical
-                      ? "Manager-delegated — workers are chosen at runtime"
-                      : `${stages.length} stage${stages.length === 1 ? "" : "s"} · ${pipeline.steps?.length ?? 0} step${(pipeline.steps?.length ?? 0) === 1 ? "" : "s"}`}
+                      ? t("app.pipelineDetail.managerDelegated")
+                      : t("app.pipelineDetail.stageStepCount", { stages: stages.length, steps: pipeline.steps?.length ?? 0 })}
                   </div>
                 </div>
                 {!isHierarchical && !editingSteps && (
                   <button onClick={startEditSteps} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.2)", color: "#a4e6ff" }}>
                     <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
-                    Edit steps
+                    {t("app.pipelineDetail.editSteps")}
                   </button>
                 )}
               </header>
@@ -359,39 +365,40 @@ export default function PipelineDetailPage() {
                     {stepDraft.map((s, i) => (
                       <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: 10, border: "1px solid var(--bv-glass-border)", borderRadius: 10, background: "rgba(255,255,255,0.02)" }}>
                         <span className="bv-pill bv-pill-muted">{i + 1}</span>
-                        <input value={s.name} onChange={(e) => setStepField(i, "name", e.target.value)} placeholder="Step name" style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "6px 10px", color: "#e1e2eb", fontSize: 13, outline: "none" }} />
+                        <input value={s.name} onChange={(e) => setStepField(i, "name", e.target.value)} placeholder={t("app.pipelineDetail.stepNamePlaceholder")} style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "6px 10px", color: "#e1e2eb", fontSize: 13, outline: "none" }} />
                         <select value={s.agentRole} onChange={(e) => setStepField(i, "agentRole", e.target.value)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "6px 10px", color: "#e1e2eb", fontSize: 13, outline: "none" }}>
                           {s.agentRole && !agents.some((a) => a.role === s.agentRole || a.name === s.agentRole) && (
                             <option value={s.agentRole}>{s.agentRole}</option>
                           )}
-                          {agents.length === 0 && !s.agentRole && <option value="">— no agents —</option>}
+                          {agents.length === 0 && !s.agentRole && <option value="">{t("app.pipelineDetail.noAgentsOption")}</option>}
                           {agents.map((a) => <option key={a.id} value={a.role}>{a.name}</option>)}
                         </select>
-                        <button onClick={() => moveStep(i, -1)} disabled={i === 0} title="Move up" style={{ background: "transparent", border: "none", color: "#859399", cursor: "pointer", padding: 2, opacity: i === 0 ? 0.3 : 1 }}><span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_upward</span></button>
-                        <button onClick={() => moveStep(i, 1)} disabled={i === stepDraft.length - 1} title="Move down" style={{ background: "transparent", border: "none", color: "#859399", cursor: "pointer", padding: 2, opacity: i === stepDraft.length - 1 ? 0.3 : 1 }}><span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_downward</span></button>
-                        <button onClick={() => removeStep(i)} title="Remove" style={{ background: "transparent", border: "none", color: "#f87171", cursor: "pointer", padding: 2 }}><span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span></button>
+                        <button onClick={() => moveStep(i, -1)} disabled={i === 0} title={t("app.pipelineDetail.moveUp")} style={{ background: "transparent", border: "none", color: "#859399", cursor: "pointer", padding: 2, opacity: i === 0 ? 0.3 : 1 }}><span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_upward</span></button>
+                        <button onClick={() => moveStep(i, 1)} disabled={i === stepDraft.length - 1} title={t("app.pipelineDetail.moveDown")} style={{ background: "transparent", border: "none", color: "#859399", cursor: "pointer", padding: 2, opacity: i === stepDraft.length - 1 ? 0.3 : 1 }}><span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_downward</span></button>
+                        <button onClick={() => removeStep(i)} title={t("app.pipelineDetail.remove")} style={{ background: "transparent", border: "none", color: "#f87171", cursor: "pointer", padding: 2 }}><span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span></button>
                       </div>
                     ))}
                   </div>
                   <button onClick={addStep} className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>add</span> Add step
+                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>add</span> {t("app.pipelineDetail.addStep")}
                   </button>
-                  {agents.length === 0 && <p style={{ color: "#fbbf24", fontSize: 12, marginTop: 8 }}>No agents in this company yet — add agents on the company page so steps can target them.</p>}
+                  {agents.length === 0 && <p style={{ color: "#fbbf24", fontSize: 12, marginTop: 8 }}>{t("app.pipelineDetail.noAgentsWarning")}</p>}
                   {stepsErr && <p style={{ color: "#f87171", fontSize: 12, marginTop: 8 }}>{stepsErr}</p>}
                   <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
-                    <button onClick={() => setEditingSteps(false)} disabled={savingSteps} className="px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>Cancel</button>
-                    <button onClick={saveSteps} disabled={savingSteps || stepDraft.length === 0} className="px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}>{savingSteps ? "Saving…" : "Save steps"}</button>
+                    <button onClick={() => setEditingSteps(false)} disabled={savingSteps} className="px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>{t("app.pipelines.nlCancel")}</button>
+                    <button onClick={saveSteps} disabled={savingSteps || stepDraft.length === 0} className="px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}>{savingSteps ? t("app.pipelineDetail.saving") : t("app.pipelineDetail.saveSteps")}</button>
                   </div>
                 </div>
               ) : isHierarchical ? (
                 <div style={{ padding: 16, fontSize: 13, color: "var(--color-on-surface-variant)", lineHeight: 1.6 }}>
-                  This pipeline uses a <strong>manager agent</strong> that plans and delegates tasks to worker
-                  agents at runtime (max delegation depth {pipeline.maxDelegationDepth ?? 3}). There is no fixed
-                  step list to display.
+                  {t.rich("app.pipelineDetail.hierarchicalNote", {
+                    depth: pipeline.maxDelegationDepth ?? 3,
+                    b: (chunks) => <strong>{chunks}</strong>,
+                  })}
                 </div>
               ) : stages.length === 0 ? (
                 <div style={{ padding: 16, textAlign: "center", color: "var(--color-outline)", fontSize: 13 }}>
-                  No steps defined yet.
+                  {t("app.pipelineDetail.noSteps")}
                 </div>
               ) : (
                 <ol className="bv-stagger" style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -408,11 +415,11 @@ export default function PipelineDetailPage() {
                         }}
                       >
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: parallel ? 10 : 0 }}>
-                          <span className="bv-pill bv-pill-muted">stage {idx + 1}</span>
+                          <span className="bv-pill bv-pill-muted">{t("app.pipelineDetail.stagePill", { n: idx + 1 })}</span>
                           {parallel && (
                             <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: "#a4e6ff" }}>
                               <span className="material-symbols-outlined" style={{ fontSize: 14 }}>call_split</span>
-                              {stage.steps.length} parallel
+                              {t("app.pipelineDetail.parallelCount", { n: stage.steps.length })}
                             </span>
                           )}
                         </div>
@@ -443,14 +450,14 @@ export default function PipelineDetailPage() {
             <section className="bv-glass bv-panel" style={{ marginTop: 16 }}>
               <header className="bv-panel-head">
                 <div>
-                  <h2 className="bv-title">Recent runs</h2>
-                  <div className="bv-caption">{pipeline.runs?.length ?? 0} shown</div>
+                  <h2 className="bv-title">{t("app.pipelineDetail.recentRuns")}</h2>
+                  <div className="bv-caption">{t("app.pipelineDetail.runsShown", { n: pipeline.runs?.length ?? 0 })}</div>
                 </div>
               </header>
 
               {(!pipeline.runs || pipeline.runs.length === 0) ? (
                 <div style={{ padding: 16, textAlign: "center", color: "var(--color-outline)", fontSize: 13 }}>
-                  No runs yet. Hit “Run now” to start the first one.
+                  {t("app.pipelineDetail.noRuns")}
                 </div>
               ) : (
                 <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6 }}>
@@ -486,14 +493,15 @@ export default function PipelineDetailPage() {
 }
 
 function PipelineRunStatus({ status }: { status: string }) {
+  const t = useTranslations();
   const label =
-    status === "running" ? "Running" :
-    status === "completed" ? "Completed" :
-    status === "paused" ? "Paused" :
-    status === "failed" ? "Failed" :
-    status === "cancelled" ? "Cancelled" :
-    status === "waiting_approval" ? "Awaiting approval" :
-    "Pending";
+    status === "running" ? t("app.runAudit.statusRunning") :
+    status === "completed" ? t("app.runAudit.statusCompleted") :
+    status === "paused" ? t("app.runAudit.statusPaused") :
+    status === "failed" ? t("app.runAudit.statusFailed") :
+    status === "cancelled" ? t("app.runAudit.statusCancelled") :
+    status === "waiting_approval" ? t("app.runAudit.statusWaiting") :
+    t("app.runAudit.statusPending");
   const cls = status === "waiting_approval" || status === "pending" ? "bv-pending" : status;
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
