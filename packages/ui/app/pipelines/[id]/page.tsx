@@ -78,6 +78,11 @@ export default function PipelineDetailPage() {
   const [editSchedule, setEditSchedule] = useState("");
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsErr, setSettingsErr] = useState<string | null>(null);
+  const [editingSteps, setEditingSteps] = useState(false);
+  const [stepDraft, setStepDraft] = useState<Array<{ name: string; agentRole: string }>>([]);
+  const [agents, setAgents] = useState<Array<{ id: string; name: string; role: string }>>([]);
+  const [savingSteps, setSavingSteps] = useState(false);
+  const [stepsErr, setStepsErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token || !pipelineId) return;
@@ -126,6 +131,54 @@ export default function PipelineDetailPage() {
       setSettingsErr(e instanceof Error ? e.message : "Failed to save");
     } finally {
       setSavingSettings(false);
+    }
+  }
+
+  async function startEditSteps() {
+    if (!pipeline || !token) return;
+    const sorted = [...(pipeline.steps ?? [])]
+      .sort((a, b) => a.order - b.order)
+      .map((s) => ({ name: s.name, agentRole: s.agentRole }));
+    setStepDraft(sorted);
+    setStepsErr(null);
+    setEditingSteps(true);
+    const companyId = pipeline.company?.id;
+    if (companyId) {
+      try { setAgents(await api.listAgents(token, companyId)); } catch { setAgents([]); }
+    }
+  }
+  function setStepField(i: number, field: "name" | "agentRole", val: string) {
+    setStepDraft((d) => d.map((s, idx) => (idx === i ? { ...s, [field]: val } : s)));
+  }
+  function addStep() {
+    setStepDraft((d) => [...d, { name: "New step", agentRole: agents[0]?.role ?? "" }]);
+  }
+  function removeStep(i: number) {
+    setStepDraft((d) => d.filter((_, idx) => idx !== i));
+  }
+  function moveStep(i: number, dir: number) {
+    setStepDraft((d) => {
+      const j = i + dir;
+      if (j < 0 || j >= d.length) return d;
+      const copy = [...d];
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+      return copy;
+    });
+  }
+  async function saveSteps() {
+    if (!token || !pipelineId) return;
+    setSavingSteps(true);
+    setStepsErr(null);
+    try {
+      const steps = stepDraft.map((s, i) => ({ name: s.name.trim() || `Step ${i + 1}`, agentRole: s.agentRole.trim(), order: i }));
+      await api.updatePipeline(token, pipelineId, { steps });
+      const fresh = await api.getPipeline(token, pipelineId);
+      setPipeline(fresh);
+      setEditingSteps(false);
+    } catch (e) {
+      setStepsErr(e instanceof Error ? e.message : "Failed to save steps");
+    } finally {
+      setSavingSteps(false);
     }
   }
 
@@ -292,9 +345,45 @@ export default function PipelineDetailPage() {
                       : `${stages.length} stage${stages.length === 1 ? "" : "s"} · ${pipeline.steps?.length ?? 0} step${(pipeline.steps?.length ?? 0) === 1 ? "" : "s"}`}
                   </div>
                 </div>
+                {!isHierarchical && !editingSteps && (
+                  <button onClick={startEditSteps} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.2)", color: "#a4e6ff" }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
+                    Edit steps
+                  </button>
+                )}
               </header>
 
-              {isHierarchical ? (
+              {editingSteps ? (
+                <div style={{ padding: 14 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {stepDraft.map((s, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: 10, border: "1px solid var(--bv-glass-border)", borderRadius: 10, background: "rgba(255,255,255,0.02)" }}>
+                        <span className="bv-pill bv-pill-muted">{i + 1}</span>
+                        <input value={s.name} onChange={(e) => setStepField(i, "name", e.target.value)} placeholder="Step name" style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "6px 10px", color: "#e1e2eb", fontSize: 13, outline: "none" }} />
+                        <select value={s.agentRole} onChange={(e) => setStepField(i, "agentRole", e.target.value)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "6px 10px", color: "#e1e2eb", fontSize: 13, outline: "none" }}>
+                          {s.agentRole && !agents.some((a) => a.role === s.agentRole || a.name === s.agentRole) && (
+                            <option value={s.agentRole}>{s.agentRole}</option>
+                          )}
+                          {agents.length === 0 && !s.agentRole && <option value="">— no agents —</option>}
+                          {agents.map((a) => <option key={a.id} value={a.role}>{a.name}</option>)}
+                        </select>
+                        <button onClick={() => moveStep(i, -1)} disabled={i === 0} title="Move up" style={{ background: "transparent", border: "none", color: "#859399", cursor: "pointer", padding: 2, opacity: i === 0 ? 0.3 : 1 }}><span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_upward</span></button>
+                        <button onClick={() => moveStep(i, 1)} disabled={i === stepDraft.length - 1} title="Move down" style={{ background: "transparent", border: "none", color: "#859399", cursor: "pointer", padding: 2, opacity: i === stepDraft.length - 1 ? 0.3 : 1 }}><span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_downward</span></button>
+                        <button onClick={() => removeStep(i)} title="Remove" style={{ background: "transparent", border: "none", color: "#f87171", cursor: "pointer", padding: 2 }}><span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span></button>
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={addStep} className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>add</span> Add step
+                  </button>
+                  {agents.length === 0 && <p style={{ color: "#fbbf24", fontSize: 12, marginTop: 8 }}>No agents in this company yet — add agents on the company page so steps can target them.</p>}
+                  {stepsErr && <p style={{ color: "#f87171", fontSize: 12, marginTop: 8 }}>{stepsErr}</p>}
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+                    <button onClick={() => setEditingSteps(false)} disabled={savingSteps} className="px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>Cancel</button>
+                    <button onClick={saveSteps} disabled={savingSteps || stepDraft.length === 0} className="px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}>{savingSteps ? "Saving…" : "Save steps"}</button>
+                  </div>
+                </div>
+              ) : isHierarchical ? (
                 <div style={{ padding: 16, fontSize: 13, color: "var(--color-on-surface-variant)", lineHeight: 1.6 }}>
                   This pipeline uses a <strong>manager agent</strong> that plans and delegates tasks to worker
                   agents at runtime (max delegation depth {pipeline.maxDelegationDepth ?? 3}). There is no fixed
