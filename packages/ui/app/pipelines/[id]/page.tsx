@@ -72,6 +72,12 @@ export default function PipelineDetailPage() {
   const [err, setErr] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [runErr, setRunErr] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editEnabled, setEditEnabled] = useState(true);
+  const [editSchedule, setEditSchedule] = useState("");
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsErr, setSettingsErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token || !pipelineId) return;
@@ -93,6 +99,33 @@ export default function PipelineDetailPage() {
     } catch (e) {
       setRunErr(e instanceof Error ? e.message : "Failed to start run");
       setRunning(false);
+    }
+  }
+
+  function startEditSettings() {
+    if (!pipeline) return;
+    setEditName(pipeline.name ?? "");
+    setEditEnabled(pipeline.enabled !== false);
+    setEditSchedule(pipeline.schedule ?? "");
+    setSettingsErr(null);
+    setEditing(true);
+  }
+
+  async function handleSaveSettings() {
+    if (!token || !pipelineId || !editName.trim()) return;
+    setSavingSettings(true);
+    setSettingsErr(null);
+    try {
+      const patch: Record<string, unknown> = { name: editName.trim(), enabled: editEnabled };
+      if ((pipeline?.trigger ?? "").toUpperCase() === "SCHEDULED") patch.schedule = editSchedule.trim();
+      await api.updatePipeline(token, pipelineId, patch);
+      const fresh = await api.getPipeline(token, pipelineId);
+      setPipeline(fresh);
+      setEditing(false);
+    } catch (e) {
+      setSettingsErr(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSavingSettings(false);
     }
   }
 
@@ -186,6 +219,14 @@ export default function PipelineDetailPage() {
 
               <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "flex-start" }}>
                 <button
+                  onClick={startEditSettings}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#bbc9cf" }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>edit</span>
+                  Edit
+                </button>
+                <button
                   onClick={handleRun}
                   disabled={running}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
@@ -200,6 +241,39 @@ export default function PipelineDetailPage() {
                 </button>
               </div>
             </div>
+
+            {editing && (
+              <div className="bv-glass bv-panel" style={{ marginBottom: 16 }}>
+                <h2 className="bv-title" style={{ marginBottom: 12 }}>Pipeline settings</h2>
+                <label className="bv-caption" style={{ display: "block", marginBottom: 4 }}>Name</label>
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  style={{ width: "100%", marginBottom: 12, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "8px 12px", color: "#e1e2eb", fontSize: 14, outline: "none" }}
+                />
+                <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: 13, color: "var(--color-on-surface-variant)" }}>
+                  <input type="checkbox" checked={editEnabled} onChange={(e) => setEditEnabled(e.target.checked)} />
+                  Enabled (scheduled / webhook triggers fire)
+                </label>
+                {trigger === "SCHEDULED" && (
+                  <>
+                    <label className="bv-caption" style={{ display: "block", marginBottom: 4 }}>Schedule (cron)</label>
+                    <input
+                      value={editSchedule}
+                      onChange={(e) => setEditSchedule(e.target.value)}
+                      placeholder="0 9 * * *"
+                      className="bv-mono"
+                      style={{ width: "100%", marginBottom: 12, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "8px 12px", color: "#e1e2eb", fontSize: 13, outline: "none" }}
+                    />
+                  </>
+                )}
+                {settingsErr && <p style={{ color: "#f87171", fontSize: 12, marginBottom: 8 }}>{settingsErr}</p>}
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                  <button onClick={() => setEditing(false)} disabled={savingSettings} className="px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>Cancel</button>
+                  <button onClick={handleSaveSettings} disabled={savingSettings || !editName.trim()} className="px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}>{savingSettings ? "Saving…" : "Save"}</button>
+                </div>
+              </div>
+            )}
 
             {runErr && (
               <div className="bv-glass bv-panel" style={{ marginBottom: 16, borderColor: "rgba(248,113,113,0.25)" }}>

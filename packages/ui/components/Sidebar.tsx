@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { href: "/analytics", label: "Analytics", icon: "query_stats", authOnly: true },
   { href: "/risks", label: "Risk Shield", icon: "security", authOnly: true },
   { href: "/integrations", label: "Integrations", icon: "hub", authOnly: true },
+  { href: "/connections", label: "Connections", icon: "lan", authOnly: true },
   { href: "/ab-tests", label: "A/B Tests", icon: "science", authOnly: true },
   { href: "/webhooks", label: "Webhooks", icon: "webhook", authOnly: true },
   { href: "/billing", label: "Billing", icon: "credit_card", authOnly: true },
