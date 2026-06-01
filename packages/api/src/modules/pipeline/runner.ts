@@ -4,6 +4,7 @@ import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { runQueue, createWorker } from "../../lib/queue";
 import { executeStep, checkGovernance, type StepDef } from "./executor";
+import { publishRunEvent } from "../../lib/runEvents";
 import { incrementMeter, checkQuota, claimQuota } from "../billing/metering";
 import {
   withSpan,
@@ -103,6 +104,12 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
   await prisma.run.update({
     where: { id: runId },
     data: { status: "RUNNING", startedAt: new Date() },
+  });
+
+  await publishRunEvent(runId, {
+    type: "RUN_STARTED",
+    pipelineId: run.pipelineId,
+    pipelineName: run.pipeline.name,
   });
 
   // Log activity
@@ -223,6 +230,7 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
           details: { elapsedMs: elapsed, limitMs: MAX_RUN_DURATION_MS, costUsd: totalCost },
         },
       });
+      await publishRunEvent(runId, { type: "RUN_FAILED", error: `Run timed out after ${Math.round(elapsed / 1000)}s.`, costUsd: totalCost });
       runFailedCounter.add(1, { runId });
       return;
     }
@@ -241,6 +249,7 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
       // Approval row — exiting here lets the BullMQ job complete cleanly
       // and waits for /approvals/:id/decide to call enqueueRun() again.
       logger.info({ runId, status: currentRun.status }, "Run stopped externally");
+      await publishRunEvent(runId, { type: "RUN_STATUS", status: currentRun.status, reason: "stopped externally" });
       return;
     }
 
@@ -271,6 +280,7 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
         },
       });
 
+      await publishRunEvent(runId, { type: "RUN_FAILED", error: governance.reason ?? "Governance stop", costUsd: totalCost });
       return;
     }
 
@@ -443,6 +453,11 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
 
   // Record metrics
   const runDuration = Date.now() - runStartTime;
+  if (failed) {
+    await publishRunEvent(runId, { type: "RUN_FAILED", error: (failureReason ?? "Run failed for an unspecified reason.").slice(0, 500), costUsd: totalCost });
+  } else {
+    await publishRunEvent(runId, { type: "RUN_COMPLETED", costUsd: totalCost, durationMs: runDuration });
+  }
   runDurationHistogram.record(runDuration, { status: failed ? "FAILED" : "COMPLETED" });
   runCostHistogram.record(totalCost, { runId });
   if (failed) {

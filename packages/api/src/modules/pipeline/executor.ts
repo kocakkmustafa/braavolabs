@@ -1,5 +1,6 @@
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
+import { publishRunEvent } from "../../lib/runEvents";
 import { runAgentLoop, type AgentLoopResult } from "../agent/claude";
 import { AppError } from "../../middleware/error";
 import { withSpan, toolCallCounter, stepDurationHistogram } from "../../lib/telemetry";
@@ -83,6 +84,15 @@ export async function executeStep(
     },
   });
 
+  await publishRunEvent(runId, {
+    type: "STEP_STARTED",
+    stepId: runStep.id,
+    stepIndex,
+    name: stepDef.name,
+    agentId: agent.id,
+    agentRole: agent.role,
+  });
+
   try {
     // Inject shared memory context from previous steps
     const memoryContext: Record<string, unknown> = {};
@@ -139,6 +149,13 @@ export async function executeStep(
       },
     });
 
+    await publishRunEvent(runId, {
+      type: "STEP_COMPLETED",
+      stepId: runStep.id,
+      reasoning: reasoning || undefined,
+      costUsd: result.totalCostUsd,
+    });
+
     // Write output to shared memory if a key is specified
     if (stepDef.writeMemoryKey) {
       sharedMemory.set(stepDef.writeMemoryKey, result.finalContent);
@@ -165,6 +182,8 @@ export async function executeStep(
         completedAt: new Date(),
       },
     });
+
+    await publishRunEvent(runId, { type: "STEP_FAILED", stepId: runStep.id, error: errorMsg });
 
     return {
       stepId: runStep.id,
