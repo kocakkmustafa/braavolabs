@@ -28,8 +28,8 @@ export default function CommandPalette() {
   const COMMANDS: Command[] = [
     // Navigation
     { id: "dashboard", label: "Command Center", icon: "dashboard", href: "/dashboard", auth: true, shortcut: "D", category: "navigate" },
-    { id: "companies", label: "AI Companies", icon: "business", href: "/companies", auth: true, shortcut: "C", category: "navigate" },
-    { id: "new-company", label: "New Company", icon: "add_circle", href: "/onboarding", auth: true, shortcut: "N", category: "navigate" },
+    { id: "companies", label: "Workspaces", icon: "business", href: "/companies", auth: true, shortcut: "C", category: "navigate" },
+    { id: "new-company", label: "New Workspace", icon: "add_circle", href: "/onboarding", auth: true, shortcut: "N", category: "navigate" },
     { id: "pipelines", label: "AI Workflows", icon: "account_tree", href: "/pipelines", auth: true, shortcut: "W", category: "navigate" },
     { id: "approvals", label: "Approvals", icon: "task_alt", href: "/approvals", auth: true, shortcut: "A", category: "navigate" },
     { id: "drafts", label: "Drafts", icon: "edit_note", href: "/drafts", auth: true, category: "navigate" },
@@ -126,7 +126,7 @@ export default function CommandPalette() {
     navigate: "Pages",
     action: "Actions",
     quick: "Quick Access",
-    company: "Your Companies",
+    company: "Your Workspaces",
   };
 
   let flatIndex = 0;

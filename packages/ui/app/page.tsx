@@ -574,7 +574,7 @@ export default function LandingPage() {
                 <span style={{ fontSize: 11, fontWeight: 600, color: "#e1e2eb", letterSpacing: "0.02em" }}>Control Center</span>
               </div>
               {[
-                { icon: "business", label: "AI Companies", desc: "Create & manage", color: "#a4e6ff" },
+                { icon: "business", label: "Workspaces", desc: "Create & manage", color: "#a4e6ff" },
                 { icon: "account_tree", label: "Pipelines", desc: "Workflows & runs", color: "#34d399" },
                 { icon: "task_alt", label: "Approvals", desc: "Spend reviews", color: "#fbbf24" },
                 { icon: "query_stats", label: "Analytics", desc: "Performance data", color: "#c084fc" },

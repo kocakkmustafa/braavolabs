@@ -8,8 +8,8 @@ import { useAppStore } from "../lib/store";
 const ROUTE_LABELS: Record<string, string> = {
   "": "Home",
   dashboard: "Dashboard",
-  companies: "Companies",
-  new: "New Company",
+  companies: "Workspaces",
+  new: "New Workspace",
   pipelines: "Pipelines",
   approvals: "Approvals",
   drafts: "Drafts",
