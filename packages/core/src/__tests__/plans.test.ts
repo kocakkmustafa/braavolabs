@@ -41,6 +41,27 @@ describe("PLAN_LIMITS", () => {
     expect(PLAN_LIMITS.ENTERPRISE.maxCompanies).toBe(-1);
     expect(PLAN_LIMITS.ENTERPRISE.maxRunsPerMonth).toBe(-1);
     expect(PLAN_LIMITS.ENTERPRISE.maxAgentsPerCompany).toBe(-1);
+    expect(PLAN_LIMITS.ENTERPRISE.maxConnectedAutomations).toBe(-1);
+    expect(PLAN_LIMITS.ENTERPRISE.maxSeats).toBe(-1);
+  });
+
+  it("v2 automation dims: connected-automations scale on metered tiers, unlimited above", () => {
+    expect(PLAN_LIMITS.FREE.maxConnectedAutomations).toBe(1);
+    expect(PLAN_LIMITS.CREATOR.maxConnectedAutomations).toBe(3);
+    expect(PLAN_LIMITS.PRO.maxConnectedAutomations).toBe(10);
+    expect(PLAN_LIMITS.FREE.maxConnectedAutomations).toBeLessThan(PLAN_LIMITS.CREATOR.maxConnectedAutomations);
+    expect(PLAN_LIMITS.CREATOR.maxConnectedAutomations).toBeLessThan(PLAN_LIMITS.PRO.maxConnectedAutomations);
+    expect(PLAN_LIMITS.BUSINESS.maxConnectedAutomations).toBe(-1); // unlimited
+  });
+
+  it("v2: seats grow with tier; on-device offline gated above Free", () => {
+    expect(PLAN_LIMITS.FREE.maxSeats).toBe(1);
+    expect(PLAN_LIMITS.PRO.maxSeats).toBeGreaterThan(PLAN_LIMITS.CREATOR.maxSeats);
+    expect(PLAN_LIMITS.BUSINESS.maxSeats).toBeGreaterThan(PLAN_LIMITS.PRO.maxSeats);
+    expect(PLAN_LIMITS.FREE.onDeviceOffline).toBe(false);
+    for (const p of ["CREATOR", "PRO", "BUSINESS", "ENTERPRISE"] as const) {
+      expect(PLAN_LIMITS[p].onDeviceOffline).toBe(true);
+    }
   });
 
   it("keeps FREE plan within the documented free-tier shape", () => {

@@ -18,6 +18,9 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     maxCompanies: 1,
     maxRunsPerMonth: 10,
     maxAgentsPerCompany: 3,
+    maxConnectedAutomations: 1,
+    maxSeats: 1,
+    onDeviceOffline: false,
     channels: ["tiktok", "linkedin"],
     features: ["basic_content", "basic_analytics", "hero_template"],
   },
@@ -25,6 +28,9 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     maxCompanies: 5,
     maxRunsPerMonth: 100,
     maxAgentsPerCompany: 5,
+    maxConnectedAutomations: 3,
+    maxSeats: 1,
+    onDeviceOffline: true,
     channels: ["tiktok", "linkedin", "twitter", "instagram", "email"],
     features: [
       "basic_content",
@@ -38,6 +44,9 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     maxCompanies: 20,
     maxRunsPerMonth: 500,
     maxAgentsPerCompany: 9,
+    maxConnectedAutomations: 10,
+    maxSeats: 3,
+    onDeviceOffline: true,
     channels: ["tiktok", "linkedin", "twitter", "instagram", "email", "youtube"],
     features: [
       "basic_content",
@@ -54,6 +63,9 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     maxCompanies: 100,
     maxRunsPerMonth: 2000,
     maxAgentsPerCompany: 15,
+    maxConnectedAutomations: -1,
+    maxSeats: 10,
+    onDeviceOffline: true,
     channels: ["tiktok", "linkedin", "twitter", "instagram", "email", "youtube", "custom"],
     features: [
       "basic_content",
@@ -73,6 +85,9 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     maxCompanies: -1, // unlimited
     maxRunsPerMonth: -1,
     maxAgentsPerCompany: -1,
+    maxConnectedAutomations: -1,
+    maxSeats: -1,
+    onDeviceOffline: true,
     channels: ["tiktok", "linkedin", "twitter", "instagram", "email", "youtube", "custom"],
     features: [
       "basic_content",
