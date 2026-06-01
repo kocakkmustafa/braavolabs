@@ -13,6 +13,7 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { api } from "../../../lib/api";
+import { streamRun } from "../../../lib/runStream";
 import { useAuthGuard } from "../../../lib/useAuthGuard";
 import { timeAgo } from "../../../lib/timeAgo";
 import { RunStepHeatmap } from "../../../components/RunStepHeatmap";
@@ -65,11 +66,38 @@ export default function RunDetailPage() {
 
   useEffect(() => {
     if (!token || !runId) return;
+    let cancelled = false;
+    let debounce: ReturnType<typeof setTimeout> | null = null;
+    let stop: (() => void) | null = null;
+
+    const load = () =>
+      api.getRun(token, runId)
+        .then((r) => { if (!cancelled) setRun(r); return r; })
+        .catch((e) => { if (!cancelled) setErr(e instanceof Error ? e.message : "Failed to load run"); return null; });
+
     setLoaded(false);
-    api.getRun(token, runId)
-      .then(setRun)
-      .catch((e) => setErr(e instanceof Error ? e.message : "Failed to load run"))
-      .finally(() => setLoaded(true));
+    void load().then((r) => {
+      if (cancelled) return;
+      setLoaded(true);
+      const terminal = r && ["COMPLETED", "FAILED", "CANCELLED"].includes(String(r.status).toUpperCase());
+      if (!r || terminal) return;
+      // Live updates: every run event triggers a debounced authoritative
+      // refetch (the stream signals "something changed"; getRun renders the
+      // fresh truth). Replaces blind polling — only fetches on real change.
+      stop = streamRun(token, runId, {
+        onEvent: () => {
+          if (debounce) clearTimeout(debounce);
+          debounce = setTimeout(() => { void load(); }, 350);
+        },
+        onDone: () => { void load(); },
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      if (debounce) clearTimeout(debounce);
+      if (stop) stop();
+    };
   }, [token, runId]);
 
   if (!hydrated || !token) {
