@@ -7,6 +7,7 @@ import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { getTool, getToolMeta, type ToolMeta } from "./registry";
 import { notifyTenantUsers } from "../../services/push";
+import { publishRunEvent } from "../../lib/runEvents";
 
 export interface ToolExecResult {
   output: unknown;
@@ -169,6 +170,74 @@ export async function executeTool(
       status: "FAILED",
       durationMs: Date.now() - start,
       error: "Access denied: referenced record is not in your workspace",
+    };
+  }
+
+  // --- Human-in-the-loop interrupt gate (ask_user) ---
+  // The agent is asking the operator a question. Mirror the spend gate:
+  // create an INPUT approval, drive the run to WAITING_APPROVAL, push, and
+  // return PENDING_APPROVAL so the runner exits cleanly. The operator's
+  // answer (POST /approvals/:id/decide with a note) becomes a
+  // SteeringMessage(INPUT) the agent loop injects on resume.
+  if (meta?.interrupt === "INPUT") {
+    if (!context.runId) {
+      return {
+        output: null,
+        status: "FAILED",
+        durationMs: Date.now() - start,
+        error: `Tool "${toolName}" requires a run context`,
+      };
+    }
+    const question =
+      typeof (scopedInput as any)?.question === "string"
+        ? (scopedInput as any).question
+        : "The agent requested input.";
+
+    const approval = await prisma.approval.create({
+      data: {
+        runId: context.runId,
+        type: "INPUT",
+        description: question.slice(0, 2000),
+        metadata: { toolName, question } as any,
+        status: "PENDING",
+      },
+    });
+
+    await prisma.run.update({
+      where: { id: context.runId },
+      data: { status: "WAITING_APPROVAL" },
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: context.tenantId,
+        actor: "system",
+        action: "input.requested",
+        resource: "run",
+        resourceId: context.runId,
+        details: { approvalId: approval.id, question: question.slice(0, 500) } as any,
+      },
+    });
+
+    await publishRunEvent(context.runId, {
+      type: "INPUT_REQUESTED",
+      interruptId: approval.id,
+      stepId: context.runStepId,
+      question: question.slice(0, 500),
+    });
+
+    notifyTenantUsers(context.tenantId, "approval", {
+      title: "Agent needs your input",
+      body: question.slice(0, 120),
+      data: { kind: "approval", id: approval.id },
+    }).catch(() => {});
+
+    logger.info({ toolName, approvalId: approval.id }, "Agent asked for human input — paused");
+    return {
+      output: null,
+      status: "PENDING_APPROVAL",
+      durationMs: Date.now() - start,
+      approvalId: approval.id,
     };
   }
 

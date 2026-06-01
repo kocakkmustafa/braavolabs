@@ -493,7 +493,7 @@ async function runAnthropicLoop(
     if (!govContext) return;
     try {
       const pending = await prisma.steeringMessage.findMany({
-        where: { runId: govContext.runId, kind: "STEER", consumedAt: null },
+        where: { runId: govContext.runId, kind: { in: ["STEER", "INPUT"] }, consumedAt: null },
         orderBy: { createdAt: "asc" },
       });
       if (pending.length === 0) return;
@@ -502,7 +502,11 @@ async function runAnthropicLoop(
         data: { consumedAt: new Date() },
       });
       const text = pending
-        .map((m) => `[Operator steering${m.targetAgentId ? ` for agent ${m.targetAgentId}` : ""}]: ${m.content}`)
+        .map((m) =>
+          m.kind === "INPUT"
+            ? `[Human-in-the-loop answer]: ${m.content}`
+            : `[Operator steering${m.targetAgentId ? ` for agent ${m.targetAgentId}` : ""}]: ${m.content}`,
+        )
         .join("\n\n");
       // Merge into the trailing user message when present to keep the
       // user/assistant alternation valid; otherwise push a fresh user turn.
