@@ -129,6 +129,48 @@ runRouter.post("/:id/resume", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /api/v1/runs/:id/steer — queue an operator steering message for a live
+// run. The agent loop drains it at the top of its next turn and injects it as
+// guidance (Phase 1 HITL — "steer a running agent"). Does not pause the run.
+runRouter.post("/:id/steer", async (req, res, next) => {
+  try {
+    const content = typeof req.body?.content === "string" ? req.body.content.trim() : "";
+    const targetAgentId = typeof req.body?.targetAgentId === "string" ? req.body.targetAgentId : null;
+    if (!content) throw new AppError(400, "content is required");
+
+    const run = await prisma.run.findFirst({
+      where: { id: req.params.id, pipeline: { company: { tenantId: req.auth!.tenantId } } },
+    });
+    if (!run) throw new AppError(404, "Run not found");
+    if (!["PENDING", "RUNNING", "PAUSED", "WAITING_APPROVAL"].includes(run.status)) {
+      throw new AppError(400, "Run is not steerable (already finished)");
+    }
+
+    const msg = await prisma.steeringMessage.create({
+      data: {
+        runId: run.id,
+        kind: "STEER",
+        content: content.slice(0, 4000),
+        targetAgentId,
+        createdBy: req.auth!.userId,
+      },
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "run.steer",
+        resource: "run",
+        resourceId: run.id,
+        details: { steeringMessageId: msg.id, targetAgentId },
+      },
+    });
+
+    res.status(201).json({ success: true, id: msg.id });
+  } catch (err) { next(err); }
+});
+
 // GET /api/v1/runs/:id/stream — real-time SSE stream (Redis pub/sub).
 //
 // Replaces the former 3s Postgres polling. Subscribes to the per-run event

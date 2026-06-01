@@ -13,6 +13,8 @@ import { executeTool, type ToolExecResult } from "./tool-executor";
 import { runLocalAgentLoop } from "./claude-local";
 import { getTenantAIConfig, chatCompletion, type AIClientConfig } from "../../services/ai-client";
 import { tryConsumeTrialRun, commitTrialRun } from "../../services/trial-llm";
+import { prisma } from "../../lib/db";
+import { publishRunEvent } from "../../lib/runEvents";
 
 /**
  * Governance context threaded from pipeline executor → agent loop → tool execution.
@@ -484,7 +486,48 @@ async function runAnthropicLoop(
   const turns: AgentTurnResult[] = [];
   let totalCost = 0;
 
+  // Mid-run steering (Phase 1 HITL — the v2 moat). Before each turn, drain any
+  // operator STEER messages queued against this run and inject them as guidance
+  // so a human can redirect a running agent live. No-op outside a governed run.
+  async function drainSteering(): Promise<void> {
+    if (!govContext) return;
+    try {
+      const pending = await prisma.steeringMessage.findMany({
+        where: { runId: govContext.runId, kind: "STEER", consumedAt: null },
+        orderBy: { createdAt: "asc" },
+      });
+      if (pending.length === 0) return;
+      await prisma.steeringMessage.updateMany({
+        where: { id: { in: pending.map((m) => m.id) } },
+        data: { consumedAt: new Date() },
+      });
+      const text = pending
+        .map((m) => `[Operator steering${m.targetAgentId ? ` for agent ${m.targetAgentId}` : ""}]: ${m.content}`)
+        .join("\n\n");
+      // Merge into the trailing user message when present to keep the
+      // user/assistant alternation valid; otherwise push a fresh user turn.
+      const last = messages[messages.length - 1];
+      if (last && last.role === "user" && Array.isArray(last.content)) {
+        last.content.push({ type: "text", text });
+      } else if (last && last.role === "user" && typeof last.content === "string") {
+        last.content = `${last.content}\n\n${text}`;
+      } else {
+        messages.push({ role: "user", content: text });
+      }
+      for (const m of pending) {
+        await publishRunEvent(govContext.runId, {
+          type: "STEERING_APPLIED",
+          targetAgentId: m.targetAgentId ?? undefined,
+          instruction: m.content.slice(0, 200),
+        });
+      }
+    } catch (err) {
+      logger.warn({ runId: govContext.runId, err: (err as Error).message }, "steering drain failed (non-fatal)");
+    }
+  }
+
   for (let turn = 0; turn < maxTurns; turn++) {
+    await drainSteering();
     const result = await executeTurn(systemPrompt, messages, tools, model, maxTokens, anthropicClient, govContext);
     turns.push(result);
     totalCost += result.costUsd;
