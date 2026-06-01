@@ -924,6 +924,34 @@
       "doneBody": "{name} est prête.",
       "goToCompanies": "Aller aux entreprises",
       "loading": "Chargement..."
+    },
+    "authVerified": {
+      "okTitle": "E-mail vérifié ✓",
+      "okBody": "Merci{suffix}. Votre boîte de réception est maintenant liée à votre compte Braavolabs — nous l'utiliserons pour les approbations, les alertes de risque et la récupération de compte.",
+      "okCta": "Aller au tableau de bord →",
+      "invalidTitle": "Lien plus valide",
+      "invalidBody": "Les liens de vérification expirent après 7 jours. Connectez-vous et nous vous en enverrons un nouveau depuis <s>Paramètres → Compte</s>.",
+      "invalidCta": "Se connecter →",
+      "errorTitle": "Une erreur s'est produite",
+      "errorBody": "Nous n'avons pas pu vérifier votre e-mail pour le moment. Veuillez réessayer dans une minute ou contacter <a>founder@braavolabs.com</a>.",
+      "errorCta": "Retour à la connexion",
+      "verifying": "Vérification…",
+      "verifyingBody": "Un instant.",
+      "signingIn": "Connexion...",
+      "loading": "Chargement..."
+    },
+    "exportBundle": {
+      "title": "Exporter l'entreprise",
+      "subtitle": "Exportez votre entreprise IA sous forme de skills, hooks et fichiers de configuration Claude Code.",
+      "fmtClaudeCode": "Claude Code",
+      "fmtGeneric": "JSON générique",
+      "generating": "Génération du bundle d'export...",
+      "copy": "Copier",
+      "copied": "Copié !",
+      "download": "Télécharger",
+      "skillsTitle": "Skills ({n})",
+      "hooksTitle": "Hooks ({n})",
+      "downloadAll": "Télécharger le bundle complet (JSON)"
     }
   },
   "static": {

@@ -16,8 +16,10 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 function VerifiedInner() {
+  const t = useTranslations();
   const params = useSearchParams();
   const status = params.get("status") ?? "ok";
   const email = params.get("email");
@@ -25,17 +27,9 @@ function VerifiedInner() {
   if (status === "ok") {
     return (
       <Card
-        title="Email verified ✓"
-        body={
-          <>
-            <p>
-              Thanks{email ? `, ${email}` : ""}. Your inbox is now linked to your
-              Braavolabs account — we&apos;ll use it for approvals, risk alerts
-              and account recovery.
-            </p>
-          </>
-        }
-        cta={{ href: "/dashboard", label: "Go to dashboard →" }}
+        title={t("app.authVerified.okTitle")}
+        body={<p>{t("app.authVerified.okBody", { suffix: email ? `, ${email}` : "" })}</p>}
+        cta={{ href: "/dashboard", label: t("app.authVerified.okCta") }}
       />
     );
   }
@@ -43,39 +37,26 @@ function VerifiedInner() {
   if (status === "invalid") {
     return (
       <Card
-        title="Link no longer valid"
-        body={
-          <p>
-            Verification links expire after 7 days. Sign in and we&apos;ll send
-            you a fresh one from <span style={{ opacity: 0.7 }}>Settings → Account</span>.
-          </p>
-        }
-        cta={{ href: "/login", label: "Sign in →" }}
+        title={t("app.authVerified.invalidTitle")}
+        body={<p>{t.rich("app.authVerified.invalidBody", { s: (c) => <span style={{ opacity: 0.7 }}>{c}</span> })}</p>}
+        cta={{ href: "/login", label: t("app.authVerified.invalidCta") }}
       />
     );
   }
 
   return (
     <Card
-      title="Something went wrong"
-      body={
-        <p>
-          We couldn&apos;t verify your email right now. Please try again in a
-          minute or contact{" "}
-          <a href="mailto:founder@braavolabs.com" style={{ color: "#00d1ff" }}>
-            founder@braavolabs.com
-          </a>
-          .
-        </p>
-      }
-      cta={{ href: "/login", label: "Back to sign in" }}
+      title={t("app.authVerified.errorTitle")}
+      body={<p>{t.rich("app.authVerified.errorBody", { a: (c) => <a href="mailto:founder@braavolabs.com" style={{ color: "#00d1ff" }}>{c}</a> })}</p>}
+      cta={{ href: "/login", label: t("app.authVerified.errorCta") }}
     />
   );
 }
 
 export default function VerifiedPage() {
+  const t = useTranslations();
   return (
-    <Suspense fallback={<Card title="Verifying…" body={<p>Just a moment.</p>} />}>
+    <Suspense fallback={<Card title={t("app.authVerified.verifying")} body={<p>{t("app.authVerified.verifyingBody")}</p>} />}>
       <VerifiedInner />
     </Suspense>
   );

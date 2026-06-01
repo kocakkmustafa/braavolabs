@@ -924,6 +924,34 @@
       "doneBody": "{name} ist startklar.",
       "goToCompanies": "Zu den Unternehmen",
       "loading": "Wird geladen..."
+    },
+    "authVerified": {
+      "okTitle": "E-Mail verifiziert ✓",
+      "okBody": "Danke{suffix}. Dein Postfach ist jetzt mit deinem Braavolabs-Konto verknüpft — wir nutzen es für Freigaben, Risikowarnungen und Kontowiederherstellung.",
+      "okCta": "Zum Dashboard →",
+      "invalidTitle": "Link nicht mehr gültig",
+      "invalidBody": "Verifizierungslinks laufen nach 7 Tagen ab. Melde dich an und wir senden dir einen neuen aus <s>Einstellungen → Konto</s>.",
+      "invalidCta": "Anmelden →",
+      "errorTitle": "Etwas ist schiefgelaufen",
+      "errorBody": "Wir konnten deine E-Mail gerade nicht verifizieren. Bitte versuche es in einer Minute erneut oder kontaktiere <a>founder@braavolabs.com</a>.",
+      "errorCta": "Zurück zur Anmeldung",
+      "verifying": "Wird verifiziert…",
+      "verifyingBody": "Einen Moment.",
+      "signingIn": "Anmeldung läuft...",
+      "loading": "Wird geladen..."
+    },
+    "exportBundle": {
+      "title": "Unternehmen exportieren",
+      "subtitle": "Exportiere dein KI-Unternehmen als Claude-Code-Skills, -Hooks und -Konfigurationsdateien.",
+      "fmtClaudeCode": "Claude Code",
+      "fmtGeneric": "Generisches JSON",
+      "generating": "Export-Bundle wird erstellt...",
+      "copy": "Kopieren",
+      "copied": "Kopiert!",
+      "download": "Herunterladen",
+      "skillsTitle": "Skills ({n})",
+      "hooksTitle": "Hooks ({n})",
+      "downloadAll": "Vollständiges Bundle herunterladen (JSON)"
     }
   },
   "static": {

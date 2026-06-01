@@ -924,6 +924,34 @@
       "doneBody": "{name} kullanıma hazır.",
       "goToCompanies": "Şirketlere Git",
       "loading": "Yükleniyor..."
+    },
+    "authVerified": {
+      "okTitle": "E-posta doğrulandı ✓",
+      "okBody": "Teşekkürler{suffix}. Gelen kutunuz artık Braavolabs hesabınıza bağlı — onaylar, risk uyarıları ve hesap kurtarma için kullanacağız.",
+      "okCta": "Panoya git →",
+      "invalidTitle": "Bağlantı artık geçerli değil",
+      "invalidBody": "Doğrulama bağlantıları 7 gün sonra sona erer. Giriş yapın, size <s>Ayarlar → Hesap</s>'tan yenisini gönderelim.",
+      "invalidCta": "Giriş yap →",
+      "errorTitle": "Bir şeyler ters gitti",
+      "errorBody": "E-postanızı şu anda doğrulayamadık. Lütfen bir dakika sonra tekrar deneyin veya <a>founder@braavolabs.com</a> ile iletişime geçin.",
+      "errorCta": "Girişe dön",
+      "verifying": "Doğrulanıyor…",
+      "verifyingBody": "Bir saniye.",
+      "signingIn": "Giriş yapılıyor...",
+      "loading": "Yükleniyor..."
+    },
+    "exportBundle": {
+      "title": "Şirketi Dışa Aktar",
+      "subtitle": "AI şirketinizi Claude Code skill'leri, hook'ları ve yapılandırma dosyaları olarak dışa aktarın.",
+      "fmtClaudeCode": "Claude Code",
+      "fmtGeneric": "Genel JSON",
+      "generating": "Dışa aktarma paketi oluşturuluyor...",
+      "copy": "Kopyala",
+      "copied": "Kopyalandı!",
+      "download": "İndir",
+      "skillsTitle": "Skill'ler ({n})",
+      "hooksTitle": "Hook'lar ({n})",
+      "downloadAll": "Tüm Paketi İndir (JSON)"
     }
   },
   "static": {

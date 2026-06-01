@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { api } from "@/lib/api";
 import { useAuthGuard } from "@/lib/useAuthGuard";
 
 export default function ExportPage() {
   const { id } = useParams<{ id: string }>();
   const { token } = useAuthGuard();
+  const t = useTranslations();
   const [bundle, setBundle] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [format, setFormat] = useState("claude-code");
@@ -58,10 +60,10 @@ export default function ExportPage() {
           color: "#e1e2eb",
           marginBottom: 8,
         }}>
-          Export Company
+          {t("app.exportBundle.title")}
         </h1>
         <p style={{ color: "#859399", fontSize: 14 }}>
-          Export your AI company as Claude Code skills, hooks, and configuration files.
+          {t("app.exportBundle.subtitle")}
         </p>
       </div>
 
@@ -82,7 +84,7 @@ export default function ExportPage() {
               cursor: "pointer",
             }}
           >
-            {f === "claude-code" ? "Claude Code" : f === "n8n" ? "n8n" : "Generic JSON"}
+            {f === "claude-code" ? t("app.exportBundle.fmtClaudeCode") : f === "n8n" ? "n8n" : t("app.exportBundle.fmtGeneric")}
           </button>
         ))}
       </div>
@@ -90,7 +92,7 @@ export default function ExportPage() {
       {loading && (
         <div style={{ color: "#859399", padding: 40, textAlign: "center" }}>
           <span className="material-symbols-outlined" style={{ fontSize: 32, animation: "spin 1s linear infinite" }}>progress_activity</span>
-          <p>Generating export bundle...</p>
+          <p>{t("app.exportBundle.generating")}</p>
         </div>
       )}
 
@@ -124,7 +126,7 @@ export default function ExportPage() {
                     border: "none", cursor: "pointer",
                   }}
                 >
-                  {copied === "claude-md" ? "Copied!" : "Copy"}
+                  {copied === "claude-md" ? t("app.exportBundle.copied") : t("app.exportBundle.copy")}
                 </button>
                 <button
                   onClick={() => downloadFile(bundle.claudeMd, "CLAUDE.md")}
@@ -134,7 +136,7 @@ export default function ExportPage() {
                     border: "none", cursor: "pointer",
                   }}
                 >
-                  Download
+                  {t("app.exportBundle.download")}
                 </button>
               </div>
             </div>
@@ -157,7 +159,7 @@ export default function ExportPage() {
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#c084fc" }}>psychology</span>
               <span style={{ fontWeight: 600, fontSize: 14, color: "#e1e2eb" }}>
-                Skills ({bundle.skills.length})
+                {t("app.exportBundle.skillsTitle", { n: bundle.skills.length })}
               </span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -181,7 +183,7 @@ export default function ExportPage() {
                         border: "none", cursor: "pointer",
                       }}
                     >
-                      {copied === `skill-${i}` ? "Copied!" : "Copy"}
+                      {copied === `skill-${i}` ? t("app.exportBundle.copied") : t("app.exportBundle.copy")}
                     </button>
                     <button
                       onClick={() => downloadFile(skill.content, skill.fileName)}
@@ -191,7 +193,7 @@ export default function ExportPage() {
                         border: "none", cursor: "pointer",
                       }}
                     >
-                      Download
+                      {t("app.exportBundle.download")}
                     </button>
                   </div>
                 </div>
@@ -209,7 +211,7 @@ export default function ExportPage() {
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#fbbf24" }}>webhook</span>
               <span style={{ fontWeight: 600, fontSize: 14, color: "#e1e2eb" }}>
-                Hooks ({bundle.hooks.length})
+                {t("app.exportBundle.hooksTitle", { n: bundle.hooks.length })}
               </span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -238,7 +240,7 @@ export default function ExportPage() {
                       border: "none", cursor: "pointer",
                     }}
                   >
-                    Download
+                    {t("app.exportBundle.download")}
                   </button>
                 </div>
               ))}
@@ -257,7 +259,7 @@ export default function ExportPage() {
             }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 18 }}>download</span>
-            Download Full Bundle (JSON)
+            {t("app.exportBundle.downloadAll")}
           </button>
         </div>
       )}
