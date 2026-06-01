@@ -571,4 +571,22 @@ export const api = {
         token,
       },
     ),
+
+  // External automation connections — connect & monitor an existing
+  // n8n / Make / Zapier instance; the backend poller mirrors its executions.
+  listExternalConnections: (token: string) =>
+    apiFetch<any[]>("/external-connections", { token }),
+  createExternalConnection: (
+    token: string,
+    body: { platform: string; label: string; baseUrl: string; apiKey: string; companyId?: string; pollIntervalSec?: number },
+  ) =>
+    apiFetch<any>("/external-connections", { method: "POST", body: JSON.stringify(body), token }),
+  patchExternalConnection: (token: string, id: string, patch: { enabled?: boolean; pollIntervalSec?: number; label?: string }) =>
+    apiFetch<any>(`/external-connections/${id}`, { method: "PATCH", body: JSON.stringify(patch), token }),
+  deleteExternalConnection: (token: string, id: string) =>
+    apiFetch<{ success: boolean }>(`/external-connections/${id}`, { method: "DELETE", token }),
+  pollExternalConnection: (token: string, id: string) =>
+    apiFetch<any>(`/external-connections/${id}/poll`, { method: "POST", token }),
+  externalRuns: (token: string, id: string) =>
+    apiFetch<any[]>(`/external-connections/${id}/runs`, { token }),
 };
