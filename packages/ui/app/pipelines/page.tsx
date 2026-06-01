@@ -184,7 +184,7 @@ export default function PipelinesPage() {
                     </div>
                     <div className="min-w-0">
                       <Link
-                        href={`/companies/${pipeline.companyId}`}
+                        href={`/pipelines/${pipeline.id}`}
                         className="font-semibold text-sm hover:underline block truncate"
                         style={{ color: "#e1e2eb", textDecoration: "none" }}
                       >
@@ -252,7 +252,7 @@ export default function PipelinesPage() {
                       {t("app.pipelines.runButton")}
                     </button>
                     <Link
-                      href={`/companies/${pipeline.companyId}`}
+                      href={`/pipelines/${pipeline.id}`}
                       className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium"
                       style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf", textDecoration: "none" }}
                     >
