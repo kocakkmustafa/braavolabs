@@ -8,22 +8,22 @@
 
 | # | Pillar | Status | Where |
 |---|--------|--------|-------|
-| 1 | Visual/editable builder + per-agent control + live logs | ✅ core | `/pipelines/[id]` (read-only topology **+ full step editor**: add/reorder/remove + agent picker, editable settings), live `/runs/[id]` + company run view via real-time SSE, RunStepHeatmap. (Drag-drop canvas = deferred nicety.) |
+| 1 | Visual/editable builder + per-agent control + live logs | ✅ | `/pipelines/[id]`: **List + Graph views** (dep-free DAG topology `PipelineGraph`) + **parallel-aware step editor** (add/reorder/remove/∥-group, agent picker), editable settings; live `/runs/[id]` + company run view via real-time SSE, RunStepHeatmap. (Interactive React-Flow drag/connect = follow-on.) |
 | 2 | **HITL: mid-run steer + agent↔human Q&A** (the moat) | ✅ end-to-end | `SteeringMessage` model; agent-loop drains STEER+INPUT each turn (`claude.ts`); `ask_user` tool → INPUT approval + WAITING_APPROVAL + push; `POST /runs/:id/steer`; answer via `decideApproval(note)`; web steer box + answer card; mobile steer + answer. |
 | 3 | BYOK + model/provider choice | ✅ (pre-existing) | 12-provider router `services/ai-client.ts`; settings UI. |
-| 4 | Connect & monitor external automations | ✅ end-to-end | `ExternalConnection`/`ExternalRun` schema + n8n poller (`modules/external`) + CRUD API + `/connections` web UI. (Make/Zapier adapters = follow-on; n8n live.) |
+| 4 | Connect & monitor external automations | ✅ end-to-end | `ExternalConnection`/`ExternalRun` schema + poller + CRUD API + `/connections` web UI. **Adapters: n8n + Make (API v2) + generic REST; Zapier→generic** (no public task-history API). 12 adapter unit tests. |
 | 5 | Mobile pocket control | ✅ core | `Apps/Braavo` run-detail screen (live polling, steer, ask_user answer), trigger→detail + push deep-link. |
-| 6 | Fully-offline on-device Gemma | ⚠️ partial | Desktop offline via Ollama/LM Studio (pre-existing) + machine-bound encrypted bundle (export/license). **Mobile on-device Gemma is NATIVE work — not built** (needs react-native-ai/LiteRT-LM + a device/EAS build; can't verify in this loop). |
+| 6 | Fully-offline on-device Gemma | ✅ scaffold | Desktop offline via Ollama/LM Studio (pre-existing) + machine-bound encrypted bundle. **Mobile**: offline-mode toggle + persisted pref + `lib/onDeviceLLM` backend-register seam (no fake native binding) + Gemma 3n model list + 6-locale i18n + `docs/PHASE4-ONDEVICE.md` runbook. Native model binding ships with a standalone EAS build. |
 | 7 | CLI | ✅ | dep-free `packages/cli` (`braavo login/runs/run/steer/connections`). |
 
-**Also:** real-time SSE (replaced 3s polling), AG-UI event contract (`@ai-company-os/core`), NL→pipeline creation surfaced in UI, sidebar Connections link.
+**Also:** real-time SSE (replaced 3s polling), AG-UI event contract, NL→pipeline creation, sidebar Connections link, **full i18n sweep (every client page, 10 namespaces × 6 locales)**, **2 new starter templates** (Proposal Writer, Content Repurposer → 6 total).
 
 ## Commits (feat/v2)
-- **web (19):** master plan → `/pipelines/[id]` → AG-UI contract → SSE backend → `/runs/[id]` live → company run live → HITL schema → STEER drain+endpoint → ask_user → steer UI → answer UI → mobile api (skip) → NL-create modal → external schema → external poller → external CRUD+wiring → `/connections` UI → sidebar+pipeline settings → step editor → CLI.
-- **mobile (3):** RunDetail api client → run-detail screen → nav (trigger + push deep-link).
+- **web (36):** master-plan → `/pipelines/[id]` → AG-UI contract → SSE → live run views → HITL (steer+ask_user) → NL-create → external (schema/poller/CRUD/UI) → CLI → BUILD-STATUS → **i18n sweep ×6 pages** → Phase-5 plan → **Make+generic adapters** → **parallel step editor** → **DAG view** → **+2 starter templates**.
+- **mobile (4):** RunDetail client → run-detail screen → nav → **Phase-4 offline scaffold**.
 
 ## Verification
-- `core` 27/27 + `api` 81/81 vitest = **108 pass** after all engine changes (no regressions).
+- `core` 27/27 + `api` 93/93 vitest = **120 pass** (no regressions; +12 adapter tests, starter catalog 6 validated).
 - All packages `tsc --noEmit` clean (core/api/ui/cli). Mobile tsc clean modulo a pre-existing duplicate-`@types` (`TS2688 "node 2"`) env artifact — filter with `grep -vE TS2688`.
 - **`next build` GREEN** — all 38 UI routes compile + prerender for production after the full i18n sweep (validates t()/t.rich/dynamic-key usage across every localized page).
 - **Not yet done:** runtime smoke (live SSE/ask_user/poller), mobile device/EAS build.
@@ -37,11 +37,13 @@ GitHub Actions is billing-suspended → **manual SSH** to `ubuntu@63.180.74.27` 
 5. Rebuild + restart `aicos-api` + `aicos-ui` (Lightsail manual build; RAM-tight → sequential).
 6. **Runtime smoke:** trigger a run + watch SSE; `ask_user` pause→answer→resume; post a steering message; add an n8n connection + Poll now.
 
-## Remaining (post-this-arc)
-- ~~**i18n sweep**~~ ✅ **DONE** — every client page with visible copy localized across all 6 locales (8 new namespaces: runDetail, runAudit, pipelineDetail, connections, runsList, importAutomation, companyDetail, companyNew, authVerified, exportBundle). Production build green.
-- **Phase 4:** mobile on-device Gemma (native — needs device/EAS build to verify; only tsc-checkable in the loop).
-- **Phase 5:** pricing/positioning reframe (company→workspace; keep `PLAN_PRICING` single source), drag-drop DAG canvas, parallel-aware step editor, Make/Zapier poll adapters.
-- **iOS App Store** public submission still parked at PREPARE_FOR_SUBMISSION (separate from TestFlight beta, which is APPROVED/IN_BETA_TESTING).
+## Remaining
+Autonomous high-value work is **complete**. What's left is gated on a decision or a device:
+- **Phase 5 reframe** — PLAN is written (`docs/v2/PHASE5-REFRAME-PLAN.md`); awaiting the founder's T1/P1 + positioning picks. Implement only after approval (PLAN_PRICING is sensitive).
+- **Deploy** — held by founder ("keep building"). Plan below; needs explicit go + runtime smoke.
+- **Phase 4 native binding** — mobile Gemma model load needs a standalone EAS build (scaffold + runbook shipped).
+- **Interactive React-Flow editor** — drag/connect on the DAG canvas; a dep decision on top of the shipped read-only graph + step editor.
+- **iOS App Store** public submission still parked at PREPARE_FOR_SUBMISSION (TestFlight beta is APPROVED/IN_BETA_TESTING).
 
 ## Recommendation
-The v2 differentiators (mid-run steering moat, mobile pocket control, connect-and-watch, CLI) are built and type/unit-verified. The highest-leverage next step is a **founder review + a staged web deploy with runtime smoke testing** — the moat's `ask_user` pause/resume in particular benefits from a live test (the resume currently re-runs the step from scratch and re-injects the answer; validate the agent doesn't re-ask). i18n + native offline can follow.
+v2 is built and type/unit-verified end-to-end (120 tests + prod build green, 36 web + 4 mobile commits on feat/v2, never deployed). Highest-leverage next step: **a staged web deploy with runtime smoke testing** — validate `ask_user` pause/resume (resume re-runs the step + re-injects the answer; confirm the agent doesn't re-ask), SSE streaming, and the external poller against a live n8n/Make/generic endpoint. Phase 5 (T1/P1) + native offline can follow.
