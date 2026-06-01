@@ -691,6 +691,30 @@
       "loginFirst": "Please log in first.",
       "actionFailed": "Action failed",
       "stepActionFailed": "Step action failed"
+    },
+    "runAudit": {
+      "runsLink": "Runs",
+      "loadFailed": "Failed to load run",
+      "notFound": "Run not found.",
+      "auditTrail": "Run audit trail",
+      "pipelineFallback": "Pipeline",
+      "startedAt": "Started {time}",
+      "runError": "Run error",
+      "stepsTitle": "Steps",
+      "stepCount": "{n, plural, one {# step} other {# steps}}",
+      "noSteps": "No steps recorded yet.",
+      "stepPill": "step {n}",
+      "agentFallback": "Agent",
+      "approvalsTitle": "Approvals on this run",
+      "approvalCount": "{n, plural, one {# record} other {# records}}",
+      "approvalFallback": "Approval",
+      "statusRunning": "Running",
+      "statusCompleted": "Completed",
+      "statusPaused": "Paused",
+      "statusFailed": "Failed",
+      "statusCancelled": "Cancelled",
+      "statusWaiting": "Awaiting approval",
+      "statusPending": "Pending"
     }
   },
   "static": {

@@ -691,6 +691,30 @@
       "loginFirst": "Veuillez d'abord vous connecter.",
       "actionFailed": "Échec de l'action",
       "stepActionFailed": "Échec de l'action de l'étape"
+    },
+    "runAudit": {
+      "runsLink": "Exécutions",
+      "loadFailed": "Échec du chargement de l'exécution",
+      "notFound": "Exécution introuvable.",
+      "auditTrail": "Journal d'audit de l'exécution",
+      "pipelineFallback": "Pipeline",
+      "startedAt": "Démarré {time}",
+      "runError": "Erreur d'exécution",
+      "stepsTitle": "Étapes",
+      "stepCount": "{n, plural, one {# étape} other {# étapes}}",
+      "noSteps": "Aucune étape enregistrée pour l'instant.",
+      "stepPill": "étape {n}",
+      "agentFallback": "Agent",
+      "approvalsTitle": "Approbations de cette exécution",
+      "approvalCount": "{n, plural, one {# enregistrement} other {# enregistrements}}",
+      "approvalFallback": "Approbation",
+      "statusRunning": "En cours",
+      "statusCompleted": "Terminé",
+      "statusPaused": "En pause",
+      "statusFailed": "Échoué",
+      "statusCancelled": "Annulé",
+      "statusWaiting": "En attente d'approbation",
+      "statusPending": "En attente"
     }
   },
   "static": {

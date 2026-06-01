@@ -691,6 +691,30 @@
       "loginFirst": "يرجى تسجيل الدخول أولاً.",
       "actionFailed": "فشل الإجراء",
       "stepActionFailed": "فشل إجراء الخطوة"
+    },
+    "runAudit": {
+      "runsLink": "عمليات التشغيل",
+      "loadFailed": "تعذّر تحميل التشغيل",
+      "notFound": "التشغيل غير موجود.",
+      "auditTrail": "سجل تدقيق التشغيل",
+      "pipelineFallback": "المسار",
+      "startedAt": "بدأ {time}",
+      "runError": "خطأ في التشغيل",
+      "stepsTitle": "الخطوات",
+      "stepCount": "{n, plural, other {# خطوة}}",
+      "noSteps": "لم تُسجَّل أي خطوات بعد.",
+      "stepPill": "خطوة {n}",
+      "agentFallback": "وكيل",
+      "approvalsTitle": "الموافقات على هذا التشغيل",
+      "approvalCount": "{n, plural, other {# سجل}}",
+      "approvalFallback": "موافقة",
+      "statusRunning": "قيد التشغيل",
+      "statusCompleted": "مكتمل",
+      "statusPaused": "متوقّف مؤقتًا",
+      "statusFailed": "فشل",
+      "statusCancelled": "أُلغي",
+      "statusWaiting": "بانتظار الموافقة",
+      "statusPending": "قيد الانتظار"
     }
   },
   "static": {

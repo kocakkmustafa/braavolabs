@@ -17,6 +17,7 @@ import { streamRun } from "../../../lib/runStream";
 import { useAuthGuard } from "../../../lib/useAuthGuard";
 import { timeAgo } from "../../../lib/timeAgo";
 import { RunStepHeatmap } from "../../../components/RunStepHeatmap";
+import { useTranslations } from "next-intl";
 
 interface RunDetail {
   id: string;
@@ -44,6 +45,7 @@ interface RunDetail {
 
 export default function RunDetailPage() {
   const { token, hydrated } = useAuthGuard();
+  const t = useTranslations();
   const params = useParams<{ id: string }>();
   const runId = params?.id;
   const [run, setRun] = useState<RunDetail | null>(null);
@@ -73,7 +75,7 @@ export default function RunDetailPage() {
     const load = () =>
       api.getRun(token, runId)
         .then((r) => { if (!cancelled) setRun(r); return r; })
-        .catch((e) => { if (!cancelled) setErr(e instanceof Error ? e.message : "Failed to load run"); return null; });
+        .catch((e) => { if (!cancelled) setErr(e instanceof Error ? e.message : t("app.runAudit.loadFailed")); return null; });
 
     setLoaded(false);
     void load().then((r) => {
@@ -113,7 +115,7 @@ export default function RunDetailPage() {
       <div className="max-w-[1100px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <div style={{ marginBottom: 16 }}>
           <Link href="/runs" style={{ color: "var(--color-primary, #a4e6ff)", fontSize: 13, textDecoration: "none" }}>
-            ← Runs
+            ← {t("app.runAudit.runsLink")}
           </Link>
         </div>
 
@@ -125,15 +127,15 @@ export default function RunDetailPage() {
           </div>
         ) : !run ? (
           <div className="bv-glass bv-panel">
-            <p>Run not found.</p>
+            <p>{t("app.runAudit.notFound")}</p>
           </div>
         ) : (
           <>
             <div className="bv-page-head bv-rise" style={{ marginBottom: 24 }}>
               <div>
-                <div className="bv-micro" style={{ marginBottom: 6 }}>Run audit trail</div>
+                <div className="bv-micro" style={{ marginBottom: 6 }}>{t("app.runAudit.auditTrail")}</div>
                 <h1 className="bv-display" style={{ margin: 0, fontSize: 26 }}>
-                  <span className="bv-grad-text">{run.pipeline?.name ?? "Pipeline"}</span>
+                  <span className="bv-grad-text">{run.pipeline?.name ?? t("app.runAudit.pipelineFallback")}</span>
                 </h1>
                 <div className="bv-caption" style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                   <span className="bv-mono">{run.id}</span>
@@ -148,7 +150,7 @@ export default function RunDetailPage() {
                   {run.startedAt && (
                     <>
                       <span className="bv-divider-dot" aria-hidden />
-                      <span>Started {timeAgo(run.startedAt)}</span>
+                      <span>{t("app.runAudit.startedAt", { time: timeAgo(run.startedAt) })}</span>
                     </>
                   )}
                   {typeof run.costUsd === "number" && (
@@ -163,7 +165,7 @@ export default function RunDetailPage() {
 
             {run.error && (
               <div className="bv-glass bv-panel" style={{ marginBottom: 16, borderColor: "rgba(248,113,113,0.25)" }}>
-                <h2 className="bv-title" style={{ color: "#f87171" }}>Run error</h2>
+                <h2 className="bv-title" style={{ color: "#f87171" }}>{t("app.runAudit.runError")}</h2>
                 <pre className="bv-mono" style={{ margin: 0, whiteSpace: "pre-wrap", color: "var(--color-on-surface-variant)" }}>
                   {run.error}
                 </pre>
@@ -187,16 +189,16 @@ export default function RunDetailPage() {
             <section className="bv-glass bv-panel">
               <header className="bv-panel-head">
                 <div>
-                  <h2 className="bv-title">Steps</h2>
+                  <h2 className="bv-title">{t("app.runAudit.stepsTitle")}</h2>
                   <div className="bv-caption">
-                    {run.steps?.length ?? 0} step{(run.steps?.length ?? 0) === 1 ? "" : "s"}
+                    {t("app.runAudit.stepCount", { n: run.steps?.length ?? 0 })}
                   </div>
                 </div>
               </header>
 
               {(!run.steps || run.steps.length === 0) ? (
                 <div style={{ padding: 16, textAlign: "center", color: "var(--color-outline)", fontSize: 13 }}>
-                  No steps recorded yet.
+                  {t("app.runAudit.noSteps")}
                 </div>
               ) : (
                 <ol className="bv-stagger" style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -218,9 +220,9 @@ export default function RunDetailPage() {
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
                         <div style={{ minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                            <span className="bv-pill bv-pill-muted">step {idx + 1}</span>
+                            <span className="bv-pill bv-pill-muted">{t("app.runAudit.stepPill", { n: idx + 1 })}</span>
                             <span style={{ fontWeight: 600, color: "var(--color-on-surface)" }}>
-                              {s.agentRole ?? "Agent"}
+                              {s.agentRole ?? t("app.runAudit.agentFallback")}
                             </span>
                             <StatusLabel status={(s.status ?? "running").toLowerCase()} />
                           </div>
@@ -264,8 +266,8 @@ export default function RunDetailPage() {
               <section className="bv-glass bv-panel" style={{ marginTop: 16 }}>
                 <header className="bv-panel-head">
                   <div>
-                    <h2 className="bv-title">Approvals on this run</h2>
-                    <div className="bv-caption">{run.approvals.length} record{run.approvals.length === 1 ? "" : "s"}</div>
+                    <h2 className="bv-title">{t("app.runAudit.approvalsTitle")}</h2>
+                    <div className="bv-caption">{t("app.runAudit.approvalCount", { n: run.approvals.length })}</div>
                   </div>
                 </header>
                 <ul className="bv-approval-list">
@@ -275,7 +277,7 @@ export default function RunDetailPage() {
                         <span className="material-symbols-outlined">approval</span>
                       </span>
                       <div style={{ minWidth: 0 }}>
-                        <div className="bv-approval-title">{a.description ?? a.type ?? "Approval"}</div>
+                        <div className="bv-approval-title">{a.description ?? a.type ?? t("app.runAudit.approvalFallback")}</div>
                         <div className="bv-approval-meta">{a.status}</div>
                       </div>
                     </li>
@@ -291,14 +293,15 @@ export default function RunDetailPage() {
 }
 
 function StatusLabel({ status }: { status: string }) {
+  const t = useTranslations();
   const label =
-    status === "running" ? "Running" :
-    status === "completed" ? "Completed" :
-    status === "paused" ? "Paused" :
-    status === "failed" ? "Failed" :
-    status === "cancelled" ? "Cancelled" :
-    status === "waiting_approval" ? "Awaiting approval" :
-    "Pending";
+    status === "running" ? t("app.runAudit.statusRunning") :
+    status === "completed" ? t("app.runAudit.statusCompleted") :
+    status === "paused" ? t("app.runAudit.statusPaused") :
+    status === "failed" ? t("app.runAudit.statusFailed") :
+    status === "cancelled" ? t("app.runAudit.statusCancelled") :
+    status === "waiting_approval" ? t("app.runAudit.statusWaiting") :
+    t("app.runAudit.statusPending");
   const cls = status === "waiting_approval" || status === "pending" ? "bv-pending" : status;
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>

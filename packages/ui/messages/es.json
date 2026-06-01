@@ -691,6 +691,30 @@
       "loginFirst": "Inicia sesión primero.",
       "actionFailed": "La acción falló",
       "stepActionFailed": "La acción del paso falló"
+    },
+    "runAudit": {
+      "runsLink": "Ejecuciones",
+      "loadFailed": "No se pudo cargar la ejecución",
+      "notFound": "Ejecución no encontrada.",
+      "auditTrail": "Registro de auditoría de la ejecución",
+      "pipelineFallback": "Pipeline",
+      "startedAt": "Iniciado {time}",
+      "runError": "Error de ejecución",
+      "stepsTitle": "Pasos",
+      "stepCount": "{n, plural, one {# paso} other {# pasos}}",
+      "noSteps": "Aún no hay pasos registrados.",
+      "stepPill": "paso {n}",
+      "agentFallback": "Agente",
+      "approvalsTitle": "Aprobaciones de esta ejecución",
+      "approvalCount": "{n, plural, one {# registro} other {# registros}}",
+      "approvalFallback": "Aprobación",
+      "statusRunning": "En curso",
+      "statusCompleted": "Completado",
+      "statusPaused": "En pausa",
+      "statusFailed": "Fallido",
+      "statusCancelled": "Cancelado",
+      "statusWaiting": "Esperando aprobación",
+      "statusPending": "Pendiente"
     }
   },
   "static": {

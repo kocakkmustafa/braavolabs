@@ -691,6 +691,30 @@
       "loginFirst": "Lütfen önce giriş yapın.",
       "actionFailed": "İşlem başarısız",
       "stepActionFailed": "Adım işlemi başarısız"
+    },
+    "runAudit": {
+      "runsLink": "Çalıştırmalar",
+      "loadFailed": "Çalıştırma yüklenemedi",
+      "notFound": "Çalıştırma bulunamadı.",
+      "auditTrail": "Çalıştırma denetim kaydı",
+      "pipelineFallback": "Pipeline",
+      "startedAt": "{time} başladı",
+      "runError": "Çalıştırma hatası",
+      "stepsTitle": "Adımlar",
+      "stepCount": "{n, plural, other {# adım}}",
+      "noSteps": "Henüz adım kaydedilmedi.",
+      "stepPill": "adım {n}",
+      "agentFallback": "Ajan",
+      "approvalsTitle": "Bu çalıştırmadaki onaylar",
+      "approvalCount": "{n, plural, other {# kayıt}}",
+      "approvalFallback": "Onay",
+      "statusRunning": "Çalışıyor",
+      "statusCompleted": "Tamamlandı",
+      "statusPaused": "Duraklatıldı",
+      "statusFailed": "Başarısız",
+      "statusCancelled": "İptal edildi",
+      "statusWaiting": "Onay bekliyor",
+      "statusPending": "Beklemede"
     }
   },
   "static": {

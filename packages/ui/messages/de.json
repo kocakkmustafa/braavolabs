@@ -691,6 +691,30 @@
       "loginFirst": "Bitte zuerst anmelden.",
       "actionFailed": "Aktion fehlgeschlagen",
       "stepActionFailed": "Schrittaktion fehlgeschlagen"
+    },
+    "runAudit": {
+      "runsLink": "Läufe",
+      "loadFailed": "Lauf konnte nicht geladen werden",
+      "notFound": "Lauf nicht gefunden.",
+      "auditTrail": "Lauf-Prüfprotokoll",
+      "pipelineFallback": "Pipeline",
+      "startedAt": "Gestartet {time}",
+      "runError": "Lauf-Fehler",
+      "stepsTitle": "Schritte",
+      "stepCount": "{n, plural, one {# Schritt} other {# Schritte}}",
+      "noSteps": "Noch keine Schritte aufgezeichnet.",
+      "stepPill": "Schritt {n}",
+      "agentFallback": "Agent",
+      "approvalsTitle": "Freigaben für diesen Lauf",
+      "approvalCount": "{n, plural, one {# Eintrag} other {# Einträge}}",
+      "approvalFallback": "Freigabe",
+      "statusRunning": "Läuft",
+      "statusCompleted": "Abgeschlossen",
+      "statusPaused": "Pausiert",
+      "statusFailed": "Fehlgeschlagen",
+      "statusCancelled": "Abgebrochen",
+      "statusWaiting": "Wartet auf Freigabe",
+      "statusPending": "Ausstehend"
     }
   },
   "static": {
