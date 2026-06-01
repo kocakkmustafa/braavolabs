@@ -140,8 +140,10 @@ export const api = {
   // Approvals
   listApprovals: (token: string, status = "PENDING") =>
     apiFetch<any[]>(`/approvals?status=${status}`, { token }),
-  decideApproval: (token: string, id: string, decision: "APPROVED" | "REJECTED") =>
-    apiFetch<any>(`/approvals/${id}/decide`, { method: "POST", body: JSON.stringify({ decision }), token }),
+  // `note` is optional: for an INPUT approval (agent ask_user) an APPROVED note
+  // is the answer delivered back to the agent; for SPEND it's an audit note.
+  decideApproval: (token: string, id: string, decision: "APPROVED" | "REJECTED", note?: string) =>
+    apiFetch<any>(`/approvals/${id}/decide`, { method: "POST", body: JSON.stringify({ decision, note }), token }),
 
   // Drafts
   listDrafts: (token: string, companyId: string) =>
@@ -153,6 +155,12 @@ export const api = {
   getRun: (token: string, id: string) => apiFetch<any>(`/runs/${id}`, { token }),
   triggerRun: (token: string, pipelineId: string, input = {}) =>
     apiFetch<any>(`/pipelines/${pipelineId}/run`, { method: "POST", body: JSON.stringify({ input }), token }),
+  // Mid-run steering — inject operator guidance into a live run; the agent
+  // loop drains it on its next turn.
+  steerRun: (token: string, runId: string, content: string, targetAgentId?: string) =>
+    apiFetch<{ success: boolean; id: string }>(`/runs/${runId}/steer`, {
+      method: "POST", body: JSON.stringify({ content, targetAgentId }), token,
+    }),
 
   // Dashboard extended
   listRuns: (token: string, limit = 50, offset = 0) =>

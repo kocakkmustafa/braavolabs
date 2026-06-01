@@ -72,6 +72,9 @@ export default function RunDetailPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const timelineEndRef = useRef<HTMLDivElement>(null);
+  const [steerText, setSteerText] = useState("");
+  const [steerBusy, setSteerBusy] = useState(false);
+  const [steerMsg, setSteerMsg] = useState<string | null>(null);
 
   // Initial fetch
   useEffect(() => {
@@ -135,6 +138,21 @@ export default function RunDetailPage() {
       setError(e instanceof Error ? e.message : "Step action failed");
     } finally {
       setActionLoading(null);
+    }
+  }
+
+  async function handleSteer() {
+    if (!token || !run || !steerText.trim()) return;
+    setSteerBusy(true);
+    setSteerMsg(null);
+    try {
+      await api.steerRun(token, run.id, steerText.trim());
+      setSteerText("");
+      setSteerMsg("Steering sent — the agent will pick it up on its next turn.");
+    } catch (e) {
+      setSteerMsg(e instanceof Error ? e.message : "Failed to send steering");
+    } finally {
+      setSteerBusy(false);
     }
   }
 
@@ -315,6 +333,39 @@ export default function RunDetailPage() {
                 </a>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mid-run steering — the v2 moat. Redirect a live agent without
+          stopping it; the message is injected on the agent's next turn. */}
+      {isLive && (
+        <div className="glass-card rounded-xl p-4 mb-6" style={{ border: "1px solid rgba(0,209,255,0.15)" }}>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="material-symbols-outlined" style={{ fontSize: 16, color: "#00d1ff" }}>alt_route</span>
+            <h3 className="text-sm font-semibold" style={{ color: "#e1e2eb" }}>Steer this run</h3>
+          </div>
+          <p className="text-xs mb-3" style={{ color: "#859399" }}>
+            Send a message to redirect the agent mid-run — injected as operator guidance on its next turn.
+          </p>
+          <textarea
+            value={steerText}
+            onChange={(e) => setSteerText(e.target.value)}
+            placeholder="e.g. Focus on enterprise leads only — skip the SMB segment."
+            rows={2}
+            className="w-full rounded-lg p-3 text-sm outline-none mb-2"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb", resize: "vertical" }}
+          />
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs" style={{ color: steerMsg && steerMsg.startsWith("Steering sent") ? "#34d399" : "#f87171" }}>{steerMsg ?? ""}</span>
+            <button
+              onClick={handleSteer}
+              disabled={steerBusy || !steerText.trim()}
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-50"
+              style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}
+            >
+              {steerBusy ? "Sending…" : "Send steering"}
+            </button>
           </div>
         </div>
       )}
