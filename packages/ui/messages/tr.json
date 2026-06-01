@@ -759,7 +759,9 @@
       "parallelCount": "{n} paralel",
       "recentRuns": "Son çalıştırmalar",
       "runsShown": "{n} gösteriliyor",
-      "noRuns": "Henüz çalıştırma yok. İlkini başlatmak için \"Şimdi çalıştır\"a basın."
+      "noRuns": "Henüz çalıştırma yok. İlkini başlatmak için \"Şimdi çalıştır\"a basın.",
+      "parallelHint": "Aynı aşamayı paylaşan adımlar paralel çalışır. Bir adımı üstteki aşamayla birleştirmek için ∥ kullanın.",
+      "parallelToggleTitle": "Üstteki adımla paralelliği aç/kapat"
     },
     "connections": {
       "connectFailed": "Bağlanılamadı",

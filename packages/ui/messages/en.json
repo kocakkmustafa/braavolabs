@@ -759,7 +759,9 @@
       "parallelCount": "{n} parallel",
       "recentRuns": "Recent runs",
       "runsShown": "{n} shown",
-      "noRuns": "No runs yet. Hit “Run now” to start the first one."
+      "noRuns": "No runs yet. Hit “Run now” to start the first one.",
+      "parallelHint": "Steps sharing a stage run in parallel. Use ∥ to merge a step into the stage above.",
+      "parallelToggleTitle": "Toggle parallel with the step above"
     },
     "connections": {
       "connectFailed": "Failed to connect",

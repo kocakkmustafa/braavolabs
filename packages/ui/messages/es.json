@@ -759,7 +759,9 @@
       "parallelCount": "{n} en paralelo",
       "recentRuns": "Ejecuciones recientes",
       "runsShown": "{n} mostradas",
-      "noRuns": "Aún no hay ejecuciones. Pulsa «Ejecutar ahora» para iniciar la primera."
+      "noRuns": "Aún no hay ejecuciones. Pulsa «Ejecutar ahora» para iniciar la primera.",
+      "parallelHint": "Los pasos que comparten etapa se ejecutan en paralelo. Usa ∥ para fusionar un paso con la etapa de arriba.",
+      "parallelToggleTitle": "Alternar paralelo con el paso de arriba"
     },
     "connections": {
       "connectFailed": "No se pudo conectar",

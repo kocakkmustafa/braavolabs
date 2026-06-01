@@ -81,7 +81,10 @@ export default function PipelineDetailPage() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsErr, setSettingsErr] = useState<string | null>(null);
   const [editingSteps, setEditingSteps] = useState(false);
-  const [stepDraft, setStepDraft] = useState<Array<{ name: string; agentRole: string }>>([]);
+  // `parallel` = this step runs in the SAME stage as the previous one (engine
+  // groups steps by `order`; same order ⇒ concurrent). The first step's flag
+  // is ignored. order is recomputed from these flags on save.
+  const [stepDraft, setStepDraft] = useState<Array<{ name: string; agentRole: string; parallel: boolean }>>([]);
   const [agents, setAgents] = useState<Array<{ id: string; name: string; role: string }>>([]);
   const [savingSteps, setSavingSteps] = useState(false);
   const [stepsErr, setStepsErr] = useState<string | null>(null);
@@ -138,10 +141,14 @@ export default function PipelineDetailPage() {
 
   async function startEditSteps() {
     if (!pipeline || !token) return;
-    const sorted = [...(pipeline.steps ?? [])]
-      .sort((a, b) => a.order - b.order)
-      .map((s) => ({ name: s.name, agentRole: s.agentRole }));
-    setStepDraft(sorted);
+    const sorted = [...(pipeline.steps ?? [])].sort((a, b) => a.order - b.order);
+    const draft = sorted.map((s, i) => ({
+      name: s.name,
+      agentRole: s.agentRole,
+      // A step is "parallel" when it shares the previous step's order (stage).
+      parallel: i > 0 && s.order === sorted[i - 1].order,
+    }));
+    setStepDraft(draft);
     setStepsErr(null);
     setEditingSteps(true);
     const companyId = pipeline.company?.id;
@@ -153,10 +160,21 @@ export default function PipelineDetailPage() {
     setStepDraft((d) => d.map((s, idx) => (idx === i ? { ...s, [field]: val } : s)));
   }
   function addStep() {
-    setStepDraft((d) => [...d, { name: t("app.pipelineDetail.newStep"), agentRole: agents[0]?.role ?? "" }]);
+    setStepDraft((d) => [...d, { name: t("app.pipelineDetail.newStep"), agentRole: agents[0]?.role ?? "", parallel: false }]);
   }
   function removeStep(i: number) {
     setStepDraft((d) => d.filter((_, idx) => idx !== i));
+  }
+  /** Toggle whether step i shares the previous step's stage (runs in parallel). */
+  function toggleParallel(i: number) {
+    if (i === 0) return;
+    setStepDraft((d) => d.map((s, idx) => (idx === i ? { ...s, parallel: !s.parallel } : s)));
+  }
+  /** Derive the 0-based stage index for each draft row from the parallel flags. */
+  function stageIndexFor(draft: Array<{ parallel: boolean }>, i: number): number {
+    let stage = 0;
+    for (let k = 1; k <= i; k++) if (!draft[k].parallel) stage++;
+    return stage;
   }
   function moveStep(i: number, dir: number) {
     setStepDraft((d) => {
@@ -172,7 +190,14 @@ export default function PipelineDetailPage() {
     setSavingSteps(true);
     setStepsErr(null);
     try {
-      const steps = stepDraft.map((s, i) => ({ name: s.name.trim() || `Step ${i + 1}`, agentRole: s.agentRole.trim(), order: i }));
+      // order is the STAGE index: a step keeps the previous order when flagged
+      // parallel, else advances to a new stage. This is what lets the editor
+      // express the engine's same-order ⇒ concurrent semantics.
+      const steps = stepDraft.map((s, i) => ({
+        name: s.name.trim() || `Step ${i + 1}`,
+        agentRole: s.agentRole.trim(),
+        order: stageIndexFor(stepDraft, i),
+      }));
       await api.updatePipeline(token, pipelineId, { steps });
       const fresh = await api.getPipeline(token, pipelineId);
       setPipeline(fresh);
@@ -363,8 +388,22 @@ export default function PipelineDetailPage() {
                 <div style={{ padding: 14 }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {stepDraft.map((s, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: 10, border: "1px solid var(--bv-glass-border)", borderRadius: 10, background: "rgba(255,255,255,0.02)" }}>
-                        <span className="bv-pill bv-pill-muted">{i + 1}</span>
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: 10, border: "1px solid var(--bv-glass-border)", borderRadius: 10, background: "rgba(255,255,255,0.02)", marginLeft: i > 0 && s.parallel ? 20 : 0 }}>
+                        <span className="bv-pill bv-pill-muted">{t("app.pipelineDetail.stagePill", { n: stageIndexFor(stepDraft, i) + 1 })}</span>
+                        <button
+                          onClick={() => toggleParallel(i)}
+                          disabled={i === 0}
+                          title={t("app.pipelineDetail.parallelToggleTitle")}
+                          style={{
+                            background: s.parallel ? "rgba(0,209,255,0.12)" : "transparent",
+                            border: s.parallel ? "1px solid rgba(0,209,255,0.3)" : "1px solid rgba(255,255,255,0.08)",
+                            borderRadius: 8, color: s.parallel ? "#a4e6ff" : "#859399",
+                            cursor: i === 0 ? "default" : "pointer", padding: "4px 6px",
+                            opacity: i === 0 ? 0.25 : 1, flexShrink: 0,
+                          }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>call_split</span>
+                        </button>
                         <input value={s.name} onChange={(e) => setStepField(i, "name", e.target.value)} placeholder={t("app.pipelineDetail.stepNamePlaceholder")} style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "6px 10px", color: "#e1e2eb", fontSize: 13, outline: "none" }} />
                         <select value={s.agentRole} onChange={(e) => setStepField(i, "agentRole", e.target.value)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "6px 10px", color: "#e1e2eb", fontSize: 13, outline: "none" }}>
                           {s.agentRole && !agents.some((a) => a.role === s.agentRole || a.name === s.agentRole) && (
@@ -379,6 +418,10 @@ export default function PipelineDetailPage() {
                       </div>
                     ))}
                   </div>
+                  <p style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#859399", marginTop: 10 }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 14, color: "#a4e6ff" }}>call_split</span>
+                    {t("app.pipelineDetail.parallelHint")}
+                  </p>
                   <button onClick={addStep} className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>
                     <span className="material-symbols-outlined" style={{ fontSize: 14 }}>add</span> {t("app.pipelineDetail.addStep")}
                   </button>
