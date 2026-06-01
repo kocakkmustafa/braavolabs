@@ -6,6 +6,7 @@ import Link from "next/link";
 import { api, apiFetch } from "../../../lib/api";
 import { useAuthGuard } from "../../../lib/useAuthGuard";
 import { useToast } from "../../../components/Toast";
+import { useTranslations } from "next-intl";
 
 type Tab = "overview" | "pipelines" | "agents" | "runs" | "contacts" | "memory";
 
@@ -13,6 +14,7 @@ export default function CompanyDetailPage() {
   const params = useParams();
   const { token, hydrated } = useAuthGuard();
   const { toast } = useToast();
+  const t = useTranslations();
   const [company, setCompany] = useState<any>(null);
   const [tab, setTab] = useState<Tab>("overview");
   const [runs, setRuns] = useState<any[]>([]);
@@ -53,10 +55,11 @@ export default function CompanyDetailPage() {
       const updated = await api.getCompany(token, company.id);
       setCompany(updated);
       setEditingAgentId(null);
+      const newModel = modelDraft.trim();
       setModelDraft("");
-      toast(`Model updated to ${modelDraft.trim()}`, "success");
+      toast(t("app.companyDetail.modelUpdated", { model: newModel }), "success");
     } catch (e: any) {
-      const msg = e?.message ?? "Failed to update model";
+      const msg = e?.message ?? t("app.companyDetail.updateModelFailed");
       setModelError(msg);
       toast(msg, "error");
     } finally {
@@ -80,9 +83,9 @@ export default function CompanyDetailPage() {
       const updated = await api.getCompany(token, company.id);
       setCompany(updated);
       setComposerInput("");
-      toast(`${res.agent.name} added to your company`, "success");
+      toast(t("app.companyDetail.agentAdded", { name: res.agent.name }), "success");
     } catch (e: any) {
-      const msg = e?.message ?? "Composer failed. Check Settings → AI Provider for a valid key.";
+      const msg = e?.message ?? t("app.companyDetail.composerFailed");
       setComposerError(msg);
       toast(msg, "error", 6000);
     } finally {
@@ -114,12 +117,12 @@ export default function CompanyDetailPage() {
   const s = statusStyles[company.status] ?? { dotColor: "#859399", bg: "rgba(133,147,153,0.1)", color: "#859399", border: "1px solid rgba(133,147,153,0.2)" };
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
-    { key: "overview", label: "Overview" },
-    { key: "agents", label: "Agents", count: company.agents?.length },
-    { key: "pipelines", label: "Pipelines", count: company.pipelines?.length },
-    { key: "runs", label: "Runs" },
-    { key: "contacts", label: "CRM" },
-    { key: "memory", label: "Memory" },
+    { key: "overview", label: t("app.companyDetail.tabOverview") },
+    { key: "agents", label: t("app.companyDetail.tabAgents"), count: company.agents?.length },
+    { key: "pipelines", label: t("app.companyDetail.tabPipelines"), count: company.pipelines?.length },
+    { key: "runs", label: t("app.companyDetail.tabRuns") },
+    { key: "contacts", label: t("app.companyDetail.tabCrm") },
+    { key: "memory", label: t("app.companyDetail.tabMemory") },
   ];
 
   const runStatusStyles: Record<string, { bg: string; color: string; border: string }> = {
@@ -177,7 +180,7 @@ export default function CompanyDetailPage() {
             <p style={{ fontSize: 14, color: "#859399", marginTop: 2, marginBottom: 0 }}>{company.description ?? ""}</p>
           </div>
         </div>
-        <Link href="/companies" style={{ fontSize: 13, color: "#859399", textDecoration: "none" }}>&larr; Back</Link>
+        <Link href="/companies" style={{ fontSize: 13, color: "#859399", textDecoration: "none" }}>&larr; {t("app.companyDetail.back")}</Link>
       </div>
 
       {/* Primitives */}
@@ -244,9 +247,9 @@ export default function CompanyDetailPage() {
       {/* Overview */}
       {tab === "overview" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
-          <StatBox label="Agents" value={company.agents?.length ?? 0} icon="agent" />
-          <StatBox label="Pipelines" value={company.pipelines?.length ?? 0} icon="pipeline" />
-          <StatBox label="Created" value={new Date(company.createdAt).toLocaleDateString()} icon="date" />
+          <StatBox label={t("app.companyDetail.statAgents")} value={company.agents?.length ?? 0} icon="agent" />
+          <StatBox label={t("app.companyDetail.statPipelines")} value={company.pipelines?.length ?? 0} icon="pipeline" />
+          <StatBox label={t("app.companyDetail.statCreated")} value={new Date(company.createdAt).toLocaleDateString()} icon="date" />
         </div>
       )}
 
@@ -255,7 +258,7 @@ export default function CompanyDetailPage() {
         <>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <h2 style={{ fontSize: 14, fontWeight: 600, color: "#e1e2eb", margin: 0, letterSpacing: "0.01em" }}>
-              {company.agents?.length ?? 0} agent{company.agents?.length === 1 ? "" : "s"} configured
+              {t("app.companyDetail.agentsConfigured", { n: company.agents?.length ?? 0 })}
             </h2>
             <button
               onClick={() => { setComposerOpen(true); setComposerError(null); setComposerResult(null); }}
@@ -275,7 +278,7 @@ export default function CompanyDetailPage() {
               }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>auto_awesome</span>
-              Compose with AI
+              {t("app.companyDetail.composeWithAi")}
             </button>
           </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 }}>
@@ -366,7 +369,7 @@ export default function CompanyDetailPage() {
                     )}
                     <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
                       <div onClick={(e) => e.stopPropagation()} style={{ minWidth: 220 }}>
-                        <p style={{ fontSize: 10, fontWeight: 600, color: "#859399", marginBottom: 2 }}>MODEL</p>
+                        <p style={{ fontSize: 10, fontWeight: 600, color: "#859399", marginBottom: 2 }}>{t("app.companyDetail.colModel")}</p>
                         {editingAgentId === a.id ? (
                           <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
                             <input
@@ -411,7 +414,7 @@ export default function CompanyDetailPage() {
                                 cursor: modelSaving ? "wait" : "pointer", fontWeight: 600,
                               }}
                             >
-                              {modelSaving ? "..." : "Save"}
+                              {modelSaving ? "..." : t("app.companyDetail.save")}
                             </button>
                             <button
                               onClick={() => { setEditingAgentId(null); setModelDraft(""); setModelError(null); }}
@@ -441,7 +444,7 @@ export default function CompanyDetailPage() {
                                 border: "1px solid rgba(0,209,255,0.2)", cursor: "pointer",
                               }}
                             >
-                              edit
+                              {t("app.companyDetail.editLabel")}
                             </button>
                           </div>
                         )}
@@ -450,12 +453,12 @@ export default function CompanyDetailPage() {
                         )}
                       </div>
                       <div>
-                        <p style={{ fontSize: 10, fontWeight: 600, color: "#859399", marginBottom: 2 }}>TOOLS</p>
+                        <p style={{ fontSize: 10, fontWeight: 600, color: "#859399", marginBottom: 2 }}>{t("app.companyDetail.colTools")}</p>
                         <p style={{ fontSize: 12, color: "#e1e2eb" }}>{a.tools?.length ?? 0}</p>
                       </div>
                       <div>
-                        <p style={{ fontSize: 10, fontWeight: 600, color: "#859399", marginBottom: 2 }}>STATUS</p>
-                        <p style={{ fontSize: 12, color: "#34d399" }}>Active</p>
+                        <p style={{ fontSize: 10, fontWeight: 600, color: "#859399", marginBottom: 2 }}>{t("app.companyDetail.colStatus")}</p>
+                        <p style={{ fontSize: 12, color: "#34d399" }}>{t("app.companyDetail.statusActive")}</p>
                       </div>
                     </div>
                   </div>
@@ -464,7 +467,7 @@ export default function CompanyDetailPage() {
             );
           })}
           {(!company.agents || company.agents.length === 0) && (
-            <p style={{ color: "#859399", fontSize: 14, gridColumn: "span 2", textAlign: "center", padding: "48px 0" }}>No agents yet — click <strong>Compose with AI</strong> above to generate one from a plain-English description.</p>
+            <p style={{ color: "#859399", fontSize: 14, gridColumn: "span 2", textAlign: "center", padding: "48px 0" }}>{t.rich("app.companyDetail.noAgents", { b: (c) => <strong>{c}</strong> })}</p>
           )}
         </div>
         </>
@@ -509,7 +512,7 @@ export default function CompanyDetailPage() {
                     <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 2 }}>
                       <span style={{ fontSize: 12, color: "#859399" }}>{p.trigger}</span>
                       {p.schedule && <span style={{ fontSize: 10, color: "#3c494e", fontFamily: "monospace" }}>{p.schedule}</span>}
-                      <span style={{ fontSize: 12, color: "#3c494e" }}>{stepCount} step{stepCount !== 1 ? "s" : ""}</span>
+                      <span style={{ fontSize: 12, color: "#3c494e" }}>{t("app.companyDetail.stepCount", { n: stepCount })}</span>
                     </div>
                   </div>
                 </div>
@@ -532,13 +535,13 @@ export default function CompanyDetailPage() {
                     cursor: "pointer",
                   }}
                 >
-                  Run
+                  {t("app.companyDetail.run")}
                 </button>
               </div>
             );
           })}
           {(!company.pipelines || company.pipelines.length === 0) && (
-            <p style={{ color: "#859399", fontSize: 14, textAlign: "center", padding: "48px 0" }}>No pipelines configured.</p>
+            <p style={{ color: "#859399", fontSize: 14, textAlign: "center", padding: "48px 0" }}>{t("app.companyDetail.noPipelines")}</p>
           )}
         </div>
       )}
@@ -568,7 +571,7 @@ export default function CompanyDetailPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <span style={{ fontSize: 11, fontFamily: "monospace", color: "#3c494e" }}>{r.id.slice(0, 10)}</span>
                   <span style={{ fontSize: 12, fontWeight: 500, color: "#bbc9cf" }}>
-                    {company.pipelines?.find((p: any) => p.id === r.pipelineId)?.name ?? "Unknown Pipeline"}
+                    {company.pipelines?.find((p: any) => p.id === r.pipelineId)?.name ?? t("app.companyDetail.unknownPipeline")}
                   </span>
                   <span
                     style={{
@@ -592,7 +595,7 @@ export default function CompanyDetailPage() {
             );
           })}
           {runs.length === 0 && (
-            <p style={{ color: "#859399", fontSize: 14, textAlign: "center", padding: "48px 0" }}>No runs yet. Trigger a pipeline to get started.</p>
+            <p style={{ color: "#859399", fontSize: 14, textAlign: "center", padding: "48px 0" }}>{t("app.companyDetail.noRuns")}</p>
           )}
         </div>
       )}
@@ -627,8 +630,8 @@ export default function CompanyDetailPage() {
           >
             <svg width={24} height={24} fill="none" viewBox="0 0 24 24" stroke="#e0b6ff" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" /></svg>
           </div>
-          <p style={{ fontWeight: 600, color: "#bbc9cf", fontSize: 13, margin: 0 }}>Company Memory</p>
-          <p style={{ fontSize: 12, color: "#859399", marginTop: 4 }}>Learned patterns and insights will appear here as the company operates.</p>
+          <p style={{ fontWeight: 600, color: "#bbc9cf", fontSize: 13, margin: 0 }}>{t("app.companyDetail.memoryTitle")}</p>
+          <p style={{ fontSize: 12, color: "#859399", marginTop: 4 }}>{t("app.companyDetail.memoryBody")}</p>
         </div>
       )}
 
@@ -651,26 +654,26 @@ export default function CompanyDetailPage() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h2 style={{ fontSize: 16, fontWeight: 600, color: "#e1e2eb", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
                 <span className="material-symbols-outlined" style={{ color: "#00d1ff", fontSize: 20 }}>auto_awesome</span>
-                Compose Agent with AI
+                {t("app.companyDetail.composerTitle")}
               </h2>
               <button
                 onClick={() => { if (!composerLoading) setComposerOpen(false); }}
                 disabled={composerLoading}
                 style={{ background: "transparent", border: "none", color: "#859399", cursor: composerLoading ? "not-allowed" : "pointer", padding: 4, display: "flex" }}
-                aria-label="Close"
+                aria-label={t("app.companyDetail.close")}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 20 }}>close</span>
               </button>
             </div>
 
             <p style={{ fontSize: 13, color: "#bbc9cf", marginBottom: 12, lineHeight: 1.5 }}>
-              Describe what this agent should do. Your configured AI provider (Settings → AI Provider) will write the full specification — name, role, system prompt, and tool selection — using your BYOK key.
+              {t("app.companyDetail.composerDesc")}
             </p>
 
             <textarea
               value={composerInput}
               onChange={(e) => setComposerInput(e.target.value)}
-              placeholder="e.g. A daily LinkedIn content agent for B2B SaaS founders. Picks 1 trending topic from web search, drafts 3 post variants in professional tone, schedules the best one for 9am. Always logs reasoning."
+              placeholder={t("app.companyDetail.composerPlaceholder")}
               rows={6}
               disabled={composerLoading}
               style={{
@@ -681,7 +684,7 @@ export default function CompanyDetailPage() {
               }}
             />
             <p style={{ fontSize: 11, color: "#5a6770", marginTop: 4, marginBottom: 0 }}>
-              {composerInput.length} / 4000 chars (min 10)
+              {t("app.companyDetail.charCount", { n: composerInput.length })}
             </p>
 
             {composerError && (
@@ -692,13 +695,13 @@ export default function CompanyDetailPage() {
 
             {composerResult && (
               <div style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)", color: "#34d399", padding: 12, borderRadius: 8, fontSize: 12, marginTop: 12 }}>
-                <strong>{composerResult.name}</strong> added to your company.{" "}
+                {t.rich("app.companyDetail.agentAddedResult", { name: composerResult.name, b: (c) => <strong>{c}</strong> })}{" "}
                 <span style={{ color: "#bbc9cf", fontSize: 11 }}>
                   ({composerResult.provider} · {composerResult.model})
                 </span>
                 {composerResult.droppedTools.length > 0 && (
                   <p style={{ marginTop: 6, marginBottom: 0, color: "#fbbf24", fontSize: 11 }}>
-                    Note: dropped {composerResult.droppedTools.length} tool{composerResult.droppedTools.length === 1 ? "" : "s"} the model invented: {composerResult.droppedTools.join(", ")}
+                    {t("app.companyDetail.droppedNote", { n: composerResult.droppedTools.length, tools: composerResult.droppedTools.join(", ") })}
                   </p>
                 )}
               </div>
@@ -714,7 +717,7 @@ export default function CompanyDetailPage() {
                   cursor: composerLoading ? "not-allowed" : "pointer",
                 }}
               >
-                Close
+                {t("app.companyDetail.close")}
               </button>
               <button
                 onClick={handleCompose}
@@ -732,12 +735,12 @@ export default function CompanyDetailPage() {
                 {composerLoading ? (
                   <>
                     <span style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block" }} className="animate-spin" />
-                    Composing...
+                    {t("app.companyDetail.composing")}
                   </>
                 ) : (
                   <>
                     <span className="material-symbols-outlined" style={{ fontSize: 14 }}>auto_awesome</span>
-                    Compose
+                    {t("app.companyDetail.compose")}
                   </>
                 )}
               </button>
@@ -794,16 +797,18 @@ function StatBox({ label, value, icon }: { label: string; value: string | number
   );
 }
 
+// label is localized via app.companyDetail.dealStage<LKey> at render time.
 const DEAL_STAGES = [
-  { key: "LEAD",           label: "Lead",        bg: "rgba(255,255,255,0.02)",  border: "1px solid rgba(255,255,255,0.06)" },
-  { key: "QUALIFIED",      label: "Qualified",   bg: "rgba(0,209,255,0.03)",    border: "1px solid rgba(0,209,255,0.12)" },
-  { key: "PROPOSAL_SENT",  label: "Proposal",    bg: "rgba(251,191,36,0.03)",   border: "1px solid rgba(251,191,36,0.12)" },
-  { key: "NEGOTIATION",    label: "Negotiation", bg: "rgba(251,146,60,0.03)",   border: "1px solid rgba(251,146,60,0.12)" },
-  { key: "CLOSED_WON",     label: "Won",         bg: "rgba(52,211,153,0.03)",   border: "1px solid rgba(52,211,153,0.12)" },
-  { key: "CLOSED_LOST",    label: "Lost",        bg: "rgba(239,68,68,0.03)",    border: "1px solid rgba(239,68,68,0.12)" },
+  { key: "LEAD",           lkey: "Lead",        bg: "rgba(255,255,255,0.02)",  border: "1px solid rgba(255,255,255,0.06)" },
+  { key: "QUALIFIED",      lkey: "Qualified",   bg: "rgba(0,209,255,0.03)",    border: "1px solid rgba(0,209,255,0.12)" },
+  { key: "PROPOSAL_SENT",  lkey: "Proposal",    bg: "rgba(251,191,36,0.03)",   border: "1px solid rgba(251,191,36,0.12)" },
+  { key: "NEGOTIATION",    lkey: "Negotiation", bg: "rgba(251,146,60,0.03)",   border: "1px solid rgba(251,146,60,0.12)" },
+  { key: "CLOSED_WON",     lkey: "Won",         bg: "rgba(52,211,153,0.03)",   border: "1px solid rgba(52,211,153,0.12)" },
+  { key: "CLOSED_LOST",    lkey: "Lost",        bg: "rgba(239,68,68,0.03)",    border: "1px solid rgba(239,68,68,0.12)" },
 ];
 
 function DealsKanban({ companyId, token }: { companyId: string; token: string }) {
+  const t = useTranslations();
   const [deals, setDeals] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -830,7 +835,7 @@ function DealsKanban({ companyId, token }: { companyId: string; token: string })
     <div>
       {/* Contacts */}
       <div style={{ marginBottom: 24 }}>
-        <h3 style={{ fontSize: 13, fontWeight: 600, color: "#bbc9cf", marginBottom: 12 }}>Contacts ({contacts.length})</h3>
+        <h3 style={{ fontSize: 13, fontWeight: 600, color: "#bbc9cf", marginBottom: 12 }}>{t("app.companyDetail.contactsTitle", { n: contacts.length })}</h3>
         {contacts.length > 0 ? (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {contacts.slice(0, 10).map((c: any) => (
@@ -871,12 +876,12 @@ function DealsKanban({ companyId, token }: { companyId: string; token: string })
             ))}
           </div>
         ) : (
-          <p style={{ fontSize: 13, color: "#3c494e" }}>No contacts yet.</p>
+          <p style={{ fontSize: 13, color: "#3c494e" }}>{t("app.companyDetail.noContacts")}</p>
         )}
       </div>
 
       {/* Kanban */}
-      <h3 style={{ fontSize: 13, fontWeight: 600, color: "#bbc9cf", marginBottom: 12 }}>Deal Pipeline</h3>
+      <h3 style={{ fontSize: 13, fontWeight: 600, color: "#bbc9cf", marginBottom: 12 }}>{t("app.companyDetail.dealPipeline")}</h3>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12, overflowX: "auto" }}>
         {dealsByStage.map((stage) => (
           <div
@@ -890,7 +895,7 @@ function DealsKanban({ companyId, token }: { companyId: string; token: string })
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <h4 style={{ fontSize: 11, fontWeight: 600, color: "#859399", margin: 0 }}>{stage.label}</h4>
+              <h4 style={{ fontSize: 11, fontWeight: 600, color: "#859399", margin: 0 }}>{t(`app.companyDetail.dealStage${stage.lkey}`)}</h4>
               <span
                 style={{
                   fontSize: 10,
