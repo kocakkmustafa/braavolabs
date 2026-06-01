@@ -3,29 +3,32 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useAppStore } from "../lib/store";
 import { sounds } from "../lib/sounds";
 
+// labelKey → nav.* i18n key (localized at render). Labels were hardcoded EN;
+// now resolved per-locale.
 const NAV_ITEMS = [
-  { href: "/", label: "Home", icon: "home", publicOnly: true },
-  { href: "/dashboard", label: "Command Center", icon: "dashboard", authOnly: true },
-  { href: "/companies", label: "Workspaces", icon: "business", authOnly: true },
-  { href: "/pipelines", label: "AI Workflows", icon: "account_tree", authOnly: true },
-  { href: "/approvals", label: "Approvals", icon: "task_alt", authOnly: true },
-  { href: "/drafts", label: "Drafts", icon: "edit_note", authOnly: true },
-  { href: "/analytics", label: "Analytics", icon: "query_stats", authOnly: true },
-  { href: "/risks", label: "Risk Shield", icon: "security", authOnly: true },
-  { href: "/integrations", label: "Integrations", icon: "hub", authOnly: true },
-  { href: "/connections", label: "Connections", icon: "lan", authOnly: true },
-  { href: "/ab-tests", label: "A/B Tests", icon: "science", authOnly: true },
-  { href: "/webhooks", label: "Webhooks", icon: "webhook", authOnly: true },
-  { href: "/billing", label: "Billing", icon: "credit_card", authOnly: true },
-  { href: "/settings", label: "Settings", icon: "settings", authOnly: true },
+  { href: "/", labelKey: "nav.home", icon: "home", publicOnly: true },
+  { href: "/dashboard", labelKey: "nav.commandCenter", icon: "dashboard", authOnly: true },
+  { href: "/companies", labelKey: "nav.workspaces", icon: "business", authOnly: true },
+  { href: "/pipelines", labelKey: "nav.workflows", icon: "account_tree", authOnly: true },
+  { href: "/approvals", labelKey: "nav.approvals", icon: "task_alt", authOnly: true },
+  { href: "/drafts", labelKey: "nav.drafts", icon: "edit_note", authOnly: true },
+  { href: "/analytics", labelKey: "nav.analytics", icon: "query_stats", authOnly: true },
+  { href: "/risks", labelKey: "nav.risks", icon: "security", authOnly: true },
+  { href: "/integrations", labelKey: "nav.integrations", icon: "hub", authOnly: true },
+  { href: "/connections", labelKey: "nav.connections", icon: "lan", authOnly: true },
+  { href: "/ab-tests", labelKey: "nav.abTests", icon: "science", authOnly: true },
+  { href: "/webhooks", labelKey: "nav.webhooks", icon: "webhook", authOnly: true },
+  { href: "/billing", labelKey: "nav.billing", icon: "credit_card", authOnly: true },
+  { href: "/settings", labelKey: "nav.settings", icon: "settings", authOnly: true },
 ];
 
 const PUBLIC_ITEMS = [
-  { href: "/features", label: "Features", icon: "auto_awesome" },
-  { href: "/pricing", label: "Pricing", icon: "sell" },
+  { href: "/features", labelKey: "nav.features", icon: "auto_awesome" },
+  { href: "/pricing", labelKey: "nav.pricing", icon: "sell" },
 ];
 
 export default function Sidebar() {
@@ -33,6 +36,7 @@ export default function Sidebar() {
   const [progress, setProgress] = useState<number | null>(null);
   const pathname = usePathname();
   const token = useAppStore((s) => s.token);
+  const t = useTranslations();
 
   useEffect(() => {
     if (!token) return;
@@ -101,7 +105,7 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              title={!expanded ? item.label : undefined}
+              title={!expanded ? t(item.labelKey) : undefined}
               onClick={() => sounds.click()}
               style={{
                 display: "flex", alignItems: "center", gap: 10,
@@ -129,7 +133,7 @@ export default function Sidebar() {
               }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 20, flexShrink: 0 }}>{item.icon}</span>
-              {expanded && <span style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", opacity: expanded ? 1 : 0, transition: "opacity 0.2s 0.1s" }}>{item.label}</span>}
+              {expanded && <span style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", opacity: expanded ? 1 : 0, transition: "opacity 0.2s 0.1s" }}>{t(item.labelKey)}</span>}
             </Link>
           );
         })}
@@ -168,7 +172,7 @@ export default function Sidebar() {
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(0,209,255,0.15)"; e.currentTarget.style.boxShadow = "none"; }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 18, flexShrink: 0 }}>add</span>
-              {expanded && "New Company"}
+              {expanded && t("nav.newWorkspace")}
             </Link>
             <Link
               href="/onboarding"
@@ -182,7 +186,7 @@ export default function Sidebar() {
               onMouseLeave={(e) => e.currentTarget.style.color = "rgba(230,227,251,0.3)"}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 16, flexShrink: 0 }}>rocket_launch</span>
-              {expanded && "Quick Start"}
+              {expanded && t("nav.quickStart")}
             </Link>
           </>
         ) : (
@@ -197,7 +201,7 @@ export default function Sidebar() {
             }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 18, flexShrink: 0 }}>login</span>
-            {expanded && "Sign In"}
+            {expanded && t("nav.signIn")}
           </Link>
         )}
       </div>
