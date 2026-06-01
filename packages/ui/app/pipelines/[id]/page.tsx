@@ -21,7 +21,17 @@ import { api } from "../../../lib/api";
 import { useAuthGuard } from "../../../lib/useAuthGuard";
 import { timeAgo } from "../../../lib/timeAgo";
 import { useTranslations } from "next-intl";
-import { PipelineGraph } from "../../../components/PipelineGraph";
+import dynamic from "next/dynamic";
+
+// React Flow measures the DOM, so load the canvas client-only — never during
+// SSR/prerender. Light shimmer while the chunk loads.
+const PipelineCanvas = dynamic(
+  () => import("../../../components/PipelineCanvas").then((m) => m.PipelineCanvas),
+  {
+    ssr: false,
+    loading: () => <div className="animate-shimmer" style={{ height: 420, borderRadius: 12, background: "rgba(255,255,255,0.04)" }} />,
+  },
+);
 
 interface PipelineStep {
   name: string;
@@ -457,7 +467,9 @@ export default function PipelineDetailPage() {
                   </div>
                 </div>
               ) : stepView === "graph" ? (
-                <PipelineGraph stages={stages} isHierarchical={isHierarchical} maxDelegationDepth={pipeline.maxDelegationDepth} />
+                <div style={{ padding: 14 }}>
+                  <PipelineCanvas stages={stages} isHierarchical={isHierarchical} maxDelegationDepth={pipeline.maxDelegationDepth} />
+                </div>
               ) : isHierarchical ? (
                 <div style={{ padding: 16, fontSize: 13, color: "var(--color-on-surface-variant)", lineHeight: 1.6 }}>
                   {t.rich("app.pipelineDetail.hierarchicalNote", {
