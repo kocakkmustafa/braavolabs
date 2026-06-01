@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { timeAgo } from "../../lib/timeAgo";
@@ -29,6 +30,12 @@ export default function PipelinesPage() {
   const [filterCompany, setFilterCompany] = useState<string>("all");
   const [triggerLoading, setTriggerLoading] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const router = useRouter();
+  const [showCreate, setShowCreate] = useState(false);
+  const [createCompanyId, setCreateCompanyId] = useState("");
+  const [createDesc, setCreateDesc] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createErr, setCreateErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (!hydrated || !token) return;
@@ -53,6 +60,28 @@ export default function PipelinesPage() {
       // silently handle
     }
     setTriggerLoading(null);
+  }
+
+  function openCreate() {
+    setCreateErr(null);
+    setCreateDesc("");
+    setCreateCompanyId(companies[0]?.id ?? "");
+    setShowCreate(true);
+  }
+
+  async function handleCreatePipeline() {
+    if (!token || !createCompanyId || createDesc.trim().length < 10) return;
+    setCreating(true);
+    setCreateErr(null);
+    try {
+      const res = await api.createPipelineFromNL(token, createCompanyId, createDesc.trim());
+      setShowCreate(false);
+      if (res?.pipeline?.id) router.push(`/pipelines/${res.pipeline.id}`);
+    } catch (e) {
+      setCreateErr(e instanceof Error ? e.message : "Failed to create pipeline");
+    } finally {
+      setCreating(false);
+    }
   }
 
   if (!hydrated || !token) return (
@@ -81,14 +110,24 @@ export default function PipelinesPage() {
           <h1 className="text-xl sm:text-2xl font-bold font-headline" style={{ color: "#e1e2eb" }}>{t("app.pipelines.title")}</h1>
           <p className="text-sm mt-0.5" style={{ color: "#859399" }}>{t("app.pipelines.subtitle")}</p>
         </div>
-        <Link
-          href="/companies/new"
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white self-start sm:self-auto"
-          style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
-          {t("app.pipelines.newCompany")}
-        </Link>
+        <div className="flex gap-2 self-start sm:self-auto">
+          <button
+            onClick={openCreate}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold"
+            style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.2)", color: "#a4e6ff" }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>auto_awesome</span>
+            {t("app.pipelines.nlButton")}
+          </button>
+          <Link
+            href="/companies/new"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
+            style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
+            {t("app.pipelines.newCompany")}
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}
@@ -264,6 +303,66 @@ export default function PipelinesPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {showCreate && (
+        <div
+          onClick={() => !creating && setShowCreate(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 50 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="rounded-2xl p-6 w-full max-w-md"
+            style={{ background: "#0f1219", border: "1px solid rgba(255,255,255,0.1)" }}
+          >
+            <h2 className="text-lg font-bold font-headline mb-3" style={{ color: "#e1e2eb" }}>{t("app.pipelines.nlTitle")}</h2>
+            {companies.length === 0 ? (
+              <p className="text-sm" style={{ color: "#fbbf24" }}>{t("app.pipelines.nlNeedCompany")}</p>
+            ) : (
+              <>
+                <label className="block text-xs mb-1" style={{ color: "#859399" }}>{t("app.pipelines.nlCompanyLabel")}</label>
+                <select
+                  value={createCompanyId}
+                  onChange={(e) => setCreateCompanyId(e.target.value)}
+                  className="w-full mb-3 px-3 py-2 rounded-lg text-sm outline-none"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
+                >
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <label className="block text-xs mb-1" style={{ color: "#859399" }}>{t("app.pipelines.nlDescLabel")}</label>
+                <textarea
+                  value={createDesc}
+                  onChange={(e) => setCreateDesc(e.target.value)}
+                  placeholder={t("app.pipelines.nlDescPlaceholder")}
+                  rows={4}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb", resize: "vertical" }}
+                />
+              </>
+            )}
+            {createErr && <p className="text-xs mt-2" style={{ color: "#f87171" }}>{createErr}</p>}
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setShowCreate(false)}
+                disabled={creating}
+                className="px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}
+              >
+                {t("app.pipelines.nlCancel")}
+              </button>
+              <button
+                onClick={handleCreatePipeline}
+                disabled={creating || companies.length === 0 || createDesc.trim().length < 10}
+                className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}
+              >
+                {creating ? t("app.pipelines.nlCreating") : t("app.pipelines.nlCreate")}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

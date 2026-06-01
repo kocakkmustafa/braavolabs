@@ -160,7 +160,16 @@
       "createCompany": "Şirket Oluştur",
       "stepsLabel": "adım",
       "runButton": "Çalıştır",
-      "detailButton": "Detay"
+      "detailButton": "Detay",
+      "nlButton": "Yeni pipeline",
+      "nlTitle": "Açıklamadan pipeline oluştur",
+      "nlCompanyLabel": "Şirket",
+      "nlDescLabel": "İş akışını tarif et",
+      "nlDescPlaceholder": "ör. Her sabah yeni potansiyel müşteriler bul ve outreach e-postaları taslakla.",
+      "nlCreate": "Oluştur",
+      "nlCreating": "Oluşturuluyor…",
+      "nlNeedCompany": "Pipeline eklemek için önce bir şirket oluştur.",
+      "nlCancel": "İptal"
     },
     "settings": {
       "navProfile": "Profil",

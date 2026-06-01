@@ -160,7 +160,16 @@
       "createCompany": "Crear Empresa",
       "stepsLabel": "pasos",
       "runButton": "Ejecutar",
-      "detailButton": "Detalle"
+      "detailButton": "Detalle",
+      "nlButton": "Nuevo pipeline",
+      "nlTitle": "Crear un pipeline desde una descripción",
+      "nlCompanyLabel": "Empresa",
+      "nlDescLabel": "Describe el flujo de trabajo",
+      "nlDescPlaceholder": "p. ej. Cada mañana, encuentra nuevos leads y redacta correos de contacto.",
+      "nlCreate": "Crear",
+      "nlCreating": "Creando…",
+      "nlNeedCompany": "Crea una empresa primero para añadir un pipeline.",
+      "nlCancel": "Cancelar"
     },
     "settings": {
       "navProfile": "Perfil",

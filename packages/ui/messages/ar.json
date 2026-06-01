@@ -160,7 +160,16 @@
       "createCompany": "إنشاء شركة",
       "stepsLabel": "خطوات",
       "runButton": "تشغيل",
-      "detailButton": "تفاصيل"
+      "detailButton": "تفاصيل",
+      "nlButton": "مسار جديد",
+      "nlTitle": "إنشاء مسار من وصف",
+      "nlCompanyLabel": "الشركة",
+      "nlDescLabel": "صف سير العمل",
+      "nlDescPlaceholder": "مثال: كل صباح، ابحث عن عملاء محتملين جدد وصُغ رسائل تواصل.",
+      "nlCreate": "إنشاء",
+      "nlCreating": "جارٍ الإنشاء…",
+      "nlNeedCompany": "أنشئ شركة أولاً لإضافة مسار.",
+      "nlCancel": "إلغاء"
     },
     "settings": {
       "navProfile": "الملف الشخصي",
