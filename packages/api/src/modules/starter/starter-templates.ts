@@ -110,8 +110,9 @@ export const StarterTemplateSchema = z.object({
 export type StarterTemplate = z.infer<typeof StarterTemplateSchema>;
 
 // ─── The catalog ─────────────────────────────────────────────────
-// Keep the list small. The picker UI is laid out for 4 cards — adding
-// a 5th is fine but reflow the grid before merging.
+// Keep the list small + high-signal. The picker grid is responsive
+// (grid-cols-1 / sm:2 / lg:4), so the current 6 cards reflow cleanly
+// (4 + 2 at lg). Mind the Groq-friendly constraints above for any add.
 
 export const STARTER_TEMPLATES: StarterTemplate[] = [
   // ─── 1. Content Studio ───────────────────────────────────────
@@ -281,6 +282,90 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
         steps: [
           { name: "Analyze voice", agentRole: "brand_analyst", order: 0, writeMemoryKey: "voice" },
           { name: "Codify doc", agentRole: "style_codifier", order: 1, readMemoryKeys: ["voice"] },
+        ],
+      },
+    ],
+  },
+
+  // ─── 5. Proposal Writer ──────────────────────────────────────
+  // Sales/delivery. Turns a plain client+work description into a
+  // structured proposal draft. Exercises proposal_generate. Works with
+  // zero external data — pure description-in, draft-out.
+  {
+    id: "proposal-writer",
+    name: "Proposal Writer",
+    tagline: "Turn a project brief into a client proposal",
+    emoji: "📄",
+    description:
+      "Describe the client and the work; a scoper sharpens the offer and a writer drafts a structured proposal — summary, scope, deliverables, timeline, and value-framed pricing — ready to review and send.",
+    outcome: "1 client proposal draft",
+    trialCost: 1,
+    primitives: ["SALES", "DELIVERY", "MEMORY"],
+    agents: [
+      {
+        name: "Scoper",
+        role: "scoper",
+        systemPrompt:
+          "Sharpen a client engagement. Inputs: client + work description. Output: {client_context, problem, success_metrics, scope_boundaries}. Use generate_icp to frame the buyer and recall_memory for any prior context. Be concrete — name deliverables, not vague \"solutions\".",
+        tools: ["generate_icp", "recall_memory", "web_search"],
+      },
+      {
+        name: "Proposal Writer",
+        role: "proposal_writer",
+        systemPrompt:
+          "Write a structured client proposal from the scope. Sections: Summary, Scope, Deliverables, Timeline (phased), Investment (value-framed, ranges OK). Professional, confident, no jargon padding. Use proposal_generate, then create_draft to save.",
+        tools: ["proposal_generate", "create_draft", "store_memory"],
+      },
+    ],
+    pipelines: [
+      {
+        name: "Proposal Draft",
+        description: "Scope the engagement → write proposal → save as draft.",
+        steps: [
+          { name: "Scope engagement", agentRole: "scoper", order: 0, writeMemoryKey: "scope" },
+          { name: "Write proposal", agentRole: "proposal_writer", order: 1, readMemoryKeys: ["scope"] },
+        ],
+      },
+    ],
+  },
+
+  // ─── 6. Content Repurposer ───────────────────────────────────
+  // One source idea/post → a multi-format pack (X thread, LinkedIn,
+  // newsletter). Distinct from Content Studio (which finds trends and
+  // writes ONE post). Reads brand_voice from memory if present.
+  {
+    id: "content-repurposer",
+    name: "Content Repurposer",
+    tagline: "One idea → a multi-platform content pack",
+    emoji: "♻️",
+    description:
+      "Give it one idea, post, or transcript; a strategist picks the strongest angles and a writer spins them into a pack — an X thread, a LinkedIn post, and a short newsletter blurb — all in your brand voice.",
+    outcome: "3-format content pack draft",
+    trialCost: 1,
+    primitives: ["CONTENT", "MEMORY", "ANALYTICS"],
+    agents: [
+      {
+        name: "Repurpose Strategist",
+        role: "repurpose_strategist",
+        systemPrompt:
+          "Given one source idea or post, pick the 3 strongest angles to repurpose. Consider what travels on each format (X = punchy/threaded, LinkedIn = story + lesson, newsletter = useful + skimmable). Output {angle, format, hook} ×3. Use recall_memory for brand_voice if present.",
+        tools: ["content_generate", "recall_memory", "analyze_trends"],
+      },
+      {
+        name: "Multi-format Writer",
+        role: "multiformat_writer",
+        systemPrompt:
+          "Write the 3 pieces from the angles: an X thread (5–7 tweets), a LinkedIn post (≤1500 chars, story → lesson → CTA), and a newsletter blurb (≤120 words). Match the brand voice if provided. Use generate_post + content_generate, then create_draft to save the pack.",
+        tools: ["generate_post", "content_generate", "create_draft"],
+      },
+    ],
+    pipelines: [
+      {
+        name: "Repurpose Pack",
+        description: "Pick angles → write 3 formats → save as draft.",
+        steps: [
+          { name: "Pick angles", agentRole: "repurpose_strategist", order: 0, writeMemoryKey: "angles" },
+          { name: "Write pack", agentRole: "multiformat_writer", order: 1, readMemoryKeys: ["angles"] },
         ],
       },
     ],
