@@ -368,6 +368,9 @@ model Run {
   error       String?   @db.Text
   costUsd     Decimal?  @map("cost_usd") @db.Decimal(10, 6)
   budgetUsd   Decimal?  @map("budget_usd") @db.Decimal(10, 6)
+  // Step-group cursor for mid-run resume (Phase 1 HITL). Null = restart from
+  // group 0 (legacy behaviour). Set by the runner as it advances.
+  resumeCursor Int?     @map("resume_cursor")
   startedAt   DateTime? @map("started_at")
   completedAt DateTime? @map("completed_at")
   createdAt   DateTime  @default(now()) @map("created_at")
@@ -376,6 +379,7 @@ model Run {
   pipeline  Pipeline   @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
   steps     RunStep[]
   approvals Approval[]
+  steeringMessages SteeringMessage[]
 
   @@index([pipelineId])
   @@index([status])
@@ -445,6 +449,35 @@ model Approval {
   @@index([runId])
   @@index([status])
   @@map("approvals")
+}
+
+// ─── MID-RUN STEERING / HITL (Phase 1 — the v2 moat) ────
+//
+// Operator → agent messages queued against a running run, drained by the
+// agent loop at the top of each turn. INPUT answers an agent's ask_user
+// question (unblocks a WAITING_APPROVAL run); STEER injects guidance to
+// redirect a (optionally specific) agent without stopping the run. Mirrors
+// the SteeringMessage type in @ai-company-os/core.
+model SteeringMessage {
+  id            String       @id @default(cuid())
+  runId         String       @map("run_id")
+  // Route to a specific agent; null = applies to whichever agent is active.
+  targetAgentId String?      @map("target_agent_id")
+  kind          SteeringKind
+  content       String       @db.Text
+  createdBy     String?      @map("created_by") // operator userId (audit)
+  consumedAt    DateTime?    @map("consumed_at") // set once the loop drains it
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  run Run @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, consumedAt])
+  @@map("steering_messages")
+}
+
+enum SteeringKind {
+  INPUT
+  STEER
 }
 
 // ─── MEMORY ─────────────────────────────────────────────
@@ -1321,6 +1354,10 @@ enum ToolCallStatus {
 
 enum ApprovalType {
   SPEND
+  // Agent requested human input mid-run (ask_user). Approval.description holds
+  // the question; the operator's answer arrives as a SteeringMessage(INPUT)
+  // which resolves this approval and resumes the run.
+  INPUT
 }
 
 enum ApprovalStatus {
