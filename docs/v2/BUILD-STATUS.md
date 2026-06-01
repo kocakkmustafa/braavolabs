@@ -25,7 +25,8 @@
 ## Verification
 - `core` 27/27 + `api` 81/81 vitest = **108 pass** after all engine changes (no regressions).
 - All packages `tsc --noEmit` clean (core/api/ui/cli). Mobile tsc clean modulo a pre-existing duplicate-`@types` (`TS2688 "node 2"`) env artifact — filter with `grep -vE TS2688`.
-- **Not yet done:** `next build` (UI prod bundle), runtime smoke, mobile device/EAS build.
+- **`next build` GREEN** — all 38 UI routes compile + prerender for production after the full i18n sweep (validates t()/t.rich/dynamic-key usage across every localized page).
+- **Not yet done:** runtime smoke (live SSE/ask_user/poller), mobile device/EAS build.
 
 ## Deploy plan (needs approval — production mutation)
 GitHub Actions is billing-suspended → **manual SSH** to `ubuntu@63.180.74.27` (see `Apps/Braavo/MANUAL-DEPLOY.md` flow). Steps:
@@ -37,8 +38,8 @@ GitHub Actions is billing-suspended → **manual SSH** to `ubuntu@63.180.74.27` 
 6. **Runtime smoke:** trigger a run + watch SSE; `ask_user` pause→answer→resume; post a steering message; add an n8n connection + Poll now.
 
 ## Remaining (post-this-arc)
-- **i18n sweep** (in progress): localize hardcoded-EN pages (`companies/[id]/runs/[runId]`, `runs/[id]`, `pipelines/[id]`, `connections`) to 6 locales.
-- **Phase 4:** mobile on-device Gemma (native).
+- ~~**i18n sweep**~~ ✅ **DONE** — every client page with visible copy localized across all 6 locales (8 new namespaces: runDetail, runAudit, pipelineDetail, connections, runsList, importAutomation, companyDetail, companyNew, authVerified, exportBundle). Production build green.
+- **Phase 4:** mobile on-device Gemma (native — needs device/EAS build to verify; only tsc-checkable in the loop).
 - **Phase 5:** pricing/positioning reframe (company→workspace; keep `PLAN_PRICING` single source), drag-drop DAG canvas, parallel-aware step editor, Make/Zapier poll adapters.
 - **iOS App Store** public submission still parked at PREPARE_FOR_SUBMISSION (separate from TestFlight beta, which is APPROVED/IN_BETA_TESTING).
 
