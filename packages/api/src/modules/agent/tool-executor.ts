@@ -226,10 +226,13 @@ export async function executeTool(
       question: question.slice(0, 500),
     });
 
+    // Route the tap to the run detail (where the answer form lives), not the
+    // approvals tab — but keep the "approval" category so it respects the
+    // default-ON approvals notification preference.
     notifyTenantUsers(context.tenantId, "approval", {
       title: "Agent needs your input",
       body: question.slice(0, 120),
-      data: { kind: "approval", id: approval.id },
+      data: { kind: "run", id: context.runId },
     }).catch(() => {});
 
     logger.info({ toolName, approvalId: approval.id }, "Agent asked for human input — paused");
