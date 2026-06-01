@@ -8,6 +8,7 @@
  */
 import { Router } from "express";
 import { z } from "zod";
+import { PLAN_LIMITS } from "@ai-company-os/core";
 import { authMiddleware } from "../../middleware/auth";
 import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
@@ -51,6 +52,24 @@ externalRouter.post("/", async (req, res, next) => {
       assertPublicUrl(body.baseUrl);
     } catch (e) {
       throw new AppError(400, (e as Error).message);
+    }
+
+    // Enforce the plan's connected-automation limit (Free=1, Creator=3, Pro=10,
+    // Business/Enterprise=∞) — mirrors the company-limit gate in company/router.
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: req.auth!.tenantId },
+      select: { plan: true },
+    });
+    if (!tenant) throw new AppError(401, "Tenant not found");
+    const limit = PLAN_LIMITS[tenant.plan].maxConnectedAutomations;
+    if (limit !== -1) {
+      const count = await prisma.externalConnection.count({ where: { tenantId: req.auth!.tenantId } });
+      if (count >= limit) {
+        throw new AppError(
+          402,
+          `Connected-automation limit reached for ${tenant.plan} plan (${limit}). Upgrade to connect more.`,
+        );
+      }
     }
 
     // Create first to get the row id, then encrypt the key bound to it.

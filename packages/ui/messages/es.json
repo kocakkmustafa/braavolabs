@@ -629,7 +629,8 @@
       "planEnterpriseNote": "contáctanos",
       "planCreatorName": "Creator",
       "planBusinessName": "Business",
-      "planMonthlyNote": "/mes"
+      "planMonthlyNote": "/mes",
+      "meterConnections": "Automatizaciones conectadas"
     },
     "drafts": {
       "title": "Borradores",

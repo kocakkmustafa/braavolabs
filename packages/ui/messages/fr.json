@@ -629,7 +629,8 @@
       "planEnterpriseNote": "contactez-nous",
       "planCreatorName": "Creator",
       "planBusinessName": "Business",
-      "planMonthlyNote": "/mois"
+      "planMonthlyNote": "/mois",
+      "meterConnections": "Automatisations connectées"
     },
     "drafts": {
       "title": "Brouillons",

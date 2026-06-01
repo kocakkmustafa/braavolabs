@@ -629,7 +629,8 @@
       "planEnterpriseNote": "تواصل معنا",
       "planCreatorName": "Creator",
       "planBusinessName": "Business",
-      "planMonthlyNote": "/شهر"
+      "planMonthlyNote": "/شهر",
+      "meterConnections": "الأتمتة المتصلة"
     },
     "drafts": {
       "title": "المسودات",

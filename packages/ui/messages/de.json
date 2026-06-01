@@ -629,7 +629,8 @@
       "planEnterpriseNote": "kontaktiere uns",
       "planCreatorName": "Creator",
       "planBusinessName": "Business",
-      "planMonthlyNote": "/Monat"
+      "planMonthlyNote": "/Monat",
+      "meterConnections": "Verbundene Automatisierungen"
     },
     "drafts": {
       "title": "Entwürfe",

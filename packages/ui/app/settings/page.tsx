@@ -475,14 +475,14 @@ export default function SettingsPage() {
                 const isEnt = id === "ENTERPRISE";
                 const price = isFree ? "$0" : isEnt ? "Custom" : `$${pricing.monthlyUsd}/mo`;
                 const features: string[] = [
-                  limits.maxCompanies === -1 ? "Unlimited companies" : `${limits.maxCompanies} compan${limits.maxCompanies === 1 ? "y" : "ies"}`,
+                  limits.maxCompanies === -1 ? "Unlimited workspaces" : `${limits.maxCompanies} workspace${limits.maxCompanies === 1 ? "" : "s"}`,
                   limits.maxRunsPerMonth === -1 ? "Unlimited runs" : `${limits.maxRunsPerMonth} runs/mo`,
-                  limits.channels.length >= 7 ? "All + custom channels" : limits.channels.length >= 5 ? "All channels" : `${limits.channels.slice(0, 2).map((c) => c[0].toUpperCase() + c.slice(1)).join(" + ")}${limits.channels.length > 2 ? ` +${limits.channels.length - 2}` : ""}`,
+                  limits.maxConnectedAutomations === -1 ? "Unlimited connected automations" : `${limits.maxConnectedAutomations} connected automation${limits.maxConnectedAutomations === 1 ? "" : "s"}`,
+                  ...(limits.onDeviceOffline ? ["On-device / offline mode"] : []),
                   ...limits.features.includes("crm_sync") ? ["CRM sync"] : [],
                   ...limits.features.includes("sso") ? ["SSO"] : [],
                   ...limits.features.includes("sla") ? ["SLA"] : [],
-                  ...limits.features.includes("white_label") ? ["White-label"] : [],
-                ].slice(0, 4);
+                ].slice(0, 5);
                 const color = id === "FREE" ? "#859399" : id === "CREATOR" ? "#a4e6ff" : id === "PRO" ? "#00d1ff" : id === "BUSINESS" ? "#c084fc" : "#e0b6ff";
                 const popular = id === "PRO";
                 return { name: PLAN_LABEL[id], price, id, color, popular, features };

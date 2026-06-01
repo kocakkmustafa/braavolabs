@@ -11,14 +11,14 @@ import { PLAN_LIMITS as SHARED_PLAN_LIMITS, PLAN_LABEL, PLAN_PRICING } from "@ai
 // Previously this file hardcoded only 3 tiers (FREE/PRO/ENTERPRISE) at $49 while
 // /pricing advertised 5 tiers ($19/$39/$99) — that mismatch caused a bait-and-
 // switch perception. One source now feeds all consumers.
-const PLAN_LIMITS: Record<string, { runs: number; companies: number; channels: string }> =
+const PLAN_LIMITS: Record<string, { runs: number; companies: number; channels: string; connectedAutomations: number }> =
   Object.fromEntries(
     (Object.keys(SHARED_PLAN_LIMITS) as Array<keyof typeof SHARED_PLAN_LIMITS>).map((plan) => {
       const l = SHARED_PLAN_LIMITS[plan];
       const channelSummary = l.channels.length >= 7 ? "All + custom"
         : l.channels.length >= 5 ? "All channels"
         : `${l.channels.length} channels`;
-      return [plan, { runs: l.maxRunsPerMonth, companies: l.maxCompanies, channels: channelSummary }];
+      return [plan, { runs: l.maxRunsPerMonth, companies: l.maxCompanies, channels: channelSummary, connectedAutomations: l.maxConnectedAutomations }];
     })
   );
 
@@ -140,6 +140,7 @@ export default function BillingPage() {
               { label: t("app.billing.meterRuns"), current: usage?.live?.runs ?? 0, limit: limits.runs, icon: "play_circle", color: "#00d1ff" },
               { label: t("app.billing.meterToolCalls"), current: usage?.live?.toolCalls ?? 0, limit: -1, icon: "build", color: "#a4e6ff" },
               { label: t("app.billing.meterCompanies"), current: 0, limit: limits.companies, icon: "business", color: "#34d399" },
+              { label: t("app.billing.meterConnections"), current: 0, limit: limits.connectedAutomations, icon: "lan", color: "#e0b6ff" },
               { label: t("app.billing.meterChannels"), current: 0, limit: -1, icon: "hub", color: "#fbbf24", text: limits.channels },
             ].map((m) => {
               const unlimited = m.limit < 0;

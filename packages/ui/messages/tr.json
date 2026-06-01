@@ -629,7 +629,8 @@
       "planEnterpriseNote": "bize ulaş",
       "planCreatorName": "Creator",
       "planBusinessName": "Business",
-      "planMonthlyNote": "/ay"
+      "planMonthlyNote": "/ay",
+      "meterConnections": "Bağlı otomasyonlar"
     },
     "drafts": {
       "title": "Taslaklar",
