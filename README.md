@@ -4,9 +4,9 @@
 
 # Braavolabs
 
-**Your AI company, built in 10 minutes.**
+**Your AI agents & automations workspace.**
 
-Describe your business in plain English. Braavolabs assembles a fully-staffed autonomous company — content, sales, ops — that runs while you sleep. Every decision is logged, every spend is approved, every run is audited end-to-end.
+Build, run, and steer AI agent workflows in plain English — or connect the n8n / Make / Zapier automations you already run — and control them all from one workspace. BYOK, on-device optional. Every decision is logged, every spend is approved, every run is audited end-to-end. (The flagship onboarding template still spins up a fully-staffed **AI company** in ~10 minutes.)
 
 🌍 **Production:** [braavolabs.com](https://braavolabs.com)
 
@@ -14,7 +14,8 @@ Describe your business in plain English. Braavolabs assembles a fully-staffed au
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6)
 ![Next.js](https://img.shields.io/badge/Next.js-15-000)
 ![Postgres](https://img.shields.io/badge/Postgres-16-336791)
-![Tests](https://img.shields.io/badge/tests-67%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-133%20passing-brightgreen)
+![i18n](https://img.shields.io/badge/i18n-6%20locales-00d1ff)
 
 </div>
 
@@ -29,6 +30,23 @@ Every pipeline run produces:
 - Spend-approval gates for any action that touches money
 - Risk stops (cost anomaly, loop detection, brand-violation, spam)
 - Optional encrypted, machine-bound exports for offline / air-gapped use
+
+---
+
+## New in v2
+
+The platform generalised from "an AI company" into an **agent & automation workspace** — the v1 capabilities stay; these are added on `feat/v2`:
+
+- **Mid-run steering (HITL moat)** — inject guidance into a live agent on its next turn (`POST /runs/:id/steer`), or have an agent **ask the operator a question** (`ask_user`) and resume on the answer. Resume is idempotent: already-completed steps are skipped, not re-run.
+- **Connect & monitor external automations** — link an existing **n8n / Make / Zapier / generic-REST** instance; a poller mirrors its executions into one dashboard alongside native runs (`/connections`).
+- **Visual builder** — `/pipelines/[id]` has a List + interactive **React-Flow DAG canvas** and a **parallel-aware step editor** (group steps into concurrent stages).
+- **Real-time** — run views stream over SSE (Redis pub/sub) instead of polling.
+- **Full i18n** — every UI surface localized across **6 locales** (en/tr/es/de/fr/ar).
+- **CLI** — dep-free `braavo` (`login / runs / run / steer / connections`).
+- **Mobile** — pocket control (run detail, steer, answer `ask_user`, push deep-links) + an offline / on-device (Gemma) mode toggle.
+- **Plans** — tiers re-scoped to automation dimensions (workspaces, connected automations, seats, on-device); prices unchanged.
+
+See [`docs/v2/BUILD-STATUS.md`](docs/v2/BUILD-STATUS.md) and [`docs/v2/REVIEW.md`](docs/v2/REVIEW.md).
 
 ---
 

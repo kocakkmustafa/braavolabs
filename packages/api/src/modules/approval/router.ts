@@ -28,6 +28,10 @@ approvalRouter.get("/", async (req, res, next) => {
 
 const decideSchema = z.object({
   decision: z.enum(["APPROVED", "REJECTED"]),
+  // Optional operator note. For INPUT approvals (agent ask_user), an APPROVED
+  // note is the answer — stored as a SteeringMessage the agent loop injects
+  // on resume. For SPEND it's just an audit note ("approve-with-note").
+  note: z.string().max(4000).optional(),
 });
 
 // POST /api/v1/approvals/:id/decide
@@ -41,7 +45,7 @@ const decideSchema = z.object({
 // leave an APPROVED approval pointing at a still-CANCELLED run.
 approvalRouter.post("/:id/decide", async (req, res, next) => {
   try {
-    const { decision } = decideSchema.parse(req.body);
+    const { decision, note } = decideSchema.parse(req.body);
 
     const approval = await prisma.approval.findUnique({
       where: { id: req.params.id },
@@ -88,6 +92,30 @@ approvalRouter.post("/:id/decide", async (req, res, next) => {
           details: { runId: approval.runId, amountUsd: approval.amountUsd },
         },
       });
+
+      // Operator note: persist on the approval (audit) and, for an APPROVED
+      // INPUT (ask_user answer), queue it as a SteeringMessage so the agent
+      // loop injects the answer when the run resumes.
+      if (note && note.trim()) {
+        const prevMeta =
+          approval.metadata && typeof approval.metadata === "object" && !Array.isArray(approval.metadata)
+            ? (approval.metadata as Record<string, unknown>)
+            : {};
+        await tx.approval.update({
+          where: { id: approval.id },
+          data: { metadata: { ...prevMeta, note: note.trim() } as any },
+        });
+        if (approval.type === "INPUT" && decision === "APPROVED") {
+          await tx.steeringMessage.create({
+            data: {
+              runId: approval.runId,
+              kind: "INPUT",
+              content: note.trim().slice(0, 4000),
+              createdBy: req.auth!.userId,
+            },
+          });
+        }
+      }
 
       return { won: true as const };
     });

@@ -2,11 +2,13 @@
 
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAppStore } from "../../../lib/store";
 import { api } from "../../../lib/api";
 
 function CallbackInner() {
   const router = useRouter();
+  const t = useTranslations();
   const searchParams = useSearchParams();
   const setAuth = useAppStore((s) => s.setAuth);
 
@@ -51,16 +53,17 @@ function CallbackInner() {
 
   return (
     <div className="flex items-center justify-center min-h-screen" style={{ background: "#0a0d14" }}>
-      <div className="text-sm" style={{ color: "#bbc9cf" }}>Signing in...</div>
+      <div className="text-sm" style={{ color: "#bbc9cf" }}>{t("app.authVerified.signingIn")}</div>
     </div>
   );
 }
 
 export default function AuthCallbackPage() {
+  const t = useTranslations();
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-screen" style={{ background: "#0a0d14" }}>
-        <div className="text-sm" style={{ color: "#bbc9cf" }}>Loading...</div>
+        <div className="text-sm" style={{ color: "#bbc9cf" }}>{t("app.authVerified.loading")}</div>
       </div>
     }>
       <CallbackInner />

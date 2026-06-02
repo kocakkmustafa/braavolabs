@@ -33,6 +33,8 @@ import { webhookRouter, webhookTemplateRouter } from "./modules/webhook/router";
 import { billingRouter, stripeWebhookRouter } from "./modules/billing/router";
 import { iapRouter } from "./modules/billing/iap/router";
 import { automationImporterRouter } from "./modules/automation-importer/router";
+import { externalRouter } from "./modules/external/router";
+import { initExternalPoller, stopExternalPoller } from "./modules/external/poller";
 import { governanceRouter } from "./modules/governance/router";
 import { onboardingRouter } from "./modules/onboarding/router";
 import { growthRouter } from "./modules/growth/router";
@@ -311,6 +313,7 @@ api.use("/ab-tests", abTestRouter);
 api.use("/collaboration", collaborationRouter);
 api.use("/webhooks", webhookTemplateRouter);
 api.use("/automation-imports", automationImporterRouter);
+api.use("/external-connections", externalRouter);
 
 app.use("/api/v1", api);
 
@@ -340,6 +343,10 @@ app.listen(env.API_PORT, env.API_HOST, () => {
   // forgotten pending approvals so their runs don't permanently hold
   // a slot in the tenant's monthly quota)
   initApprovalExpiryCron();
+
+  // Initialize the external-automation poller (30s tick) — mirrors connected
+  // n8n/Make/Zapier executions into ExternalRun for the unified dashboard.
+  initExternalPoller();
 
   // Seed Braavolabs Bench suites on every boot — idempotent upsert
   // so the suites table tracks code changes without a manual step.
@@ -380,6 +387,7 @@ process.on("SIGTERM", async () => {
   stopScheduledPipelines();
   stopConsolidationCron();
   stopApprovalExpiryCron();
+  stopExternalPoller();
 
   // Close Redis
   try { await redis.quit(); } catch (e) { logger.warn({ err: e }, "Redis close failed during shutdown"); }

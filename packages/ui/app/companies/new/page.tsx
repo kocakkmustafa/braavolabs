@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { api } from "../../../lib/api";
 import { useAuthGuard } from "../../../lib/useAuthGuard";
 import StarterPicker from "../../../components/StarterPicker";
+import { useTranslations } from "next-intl";
 
 type WizardStep = "describe" | "clarify" | "preview" | "creating" | "done";
 
@@ -27,6 +28,7 @@ interface ChatMessage {
 function CompanyBuilderWizardInner() {
   const router = useRouter();
   const { token, hydrated } = useAuthGuard();
+  const t = useTranslations();
   const searchParams = useSearchParams();
   const [step, setStep] = useState<WizardStep>("describe");
   const [description, setDescription] = useState(() => {
@@ -73,7 +75,7 @@ function CompanyBuilderWizardInner() {
   async function handleDescribe() {
     if (!token) return;
     if (!description.trim()) {
-      setError("Please describe your company idea before continuing.");
+      setError(t("app.companyNew.errDescribe"));
       return;
     }
     setError(null);
@@ -86,7 +88,7 @@ function CompanyBuilderWizardInner() {
       const res = await api.buildCompany(token, description);
       setSession(res);
       if (res.status === "ready") {
-        setChatHistory((prev) => [...prev, { role: "ai", content: "Your company spec is ready! Review it below.", timestamp: new Date() }]);
+        setChatHistory((prev) => [...prev, { role: "ai", content: t("app.companyNew.specReady"), timestamp: new Date() }]);
         setStep("preview");
       } else {
         const aiMsg = parseAIMessage(res.message);
@@ -94,7 +96,7 @@ function CompanyBuilderWizardInner() {
         setStep("clarify");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start build");
+      setError(err instanceof Error ? err.message : t("app.companyNew.failStart"));
     } finally {
       setLoading(false);
     }
@@ -113,14 +115,14 @@ function CompanyBuilderWizardInner() {
       const res = await api.buildAnswer(token, session.sessionId, userMsg);
       setSession(res);
       if (res.status === "ready") {
-        setChatHistory((prev) => [...prev, { role: "ai", content: "I have everything I need. Here's your company preview!", timestamp: new Date() }]);
+        setChatHistory((prev) => [...prev, { role: "ai", content: t("app.companyNew.haveEverything"), timestamp: new Date() }]);
         setStep("preview");
       } else {
         const aiMsg = parseAIMessage(res.message);
         setChatHistory((prev) => [...prev, { role: "ai", content: aiMsg, timestamp: new Date() }]);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to continue");
+      setError(err instanceof Error ? err.message : t("app.companyNew.failContinue"));
     } finally {
       setLoading(false);
     }
@@ -135,7 +137,7 @@ function CompanyBuilderWizardInner() {
       setSession(res);
       setStep("done");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create company");
+      setError(err instanceof Error ? err.message : t("app.companyNew.failCreate"));
       setStep("preview");
     } finally {
       setLoading(false);
@@ -148,8 +150,8 @@ function CompanyBuilderWizardInner() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
       <div className="mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold font-headline" style={{ color: "#e1e2eb" }}>Create AI Company</h1>
-        <p className="text-sm mt-1" style={{ color: "#859399" }}>Describe your company idea and let AI build it for you.</p>
+        <h1 className="text-xl sm:text-2xl font-bold font-headline" style={{ color: "#e1e2eb" }}>{t("app.companyNew.title")}</h1>
+        <p className="text-sm mt-1" style={{ color: "#859399" }}>{t("app.companyNew.subtitle")}</p>
       </div>
 
       {/* Progress Steps */}
@@ -197,9 +199,9 @@ function CompanyBuilderWizardInner() {
           />
 
           <div className="glass-card rounded-2xl p-5 sm:p-6">
-            <h2 className="text-base sm:text-lg font-semibold font-headline mb-3" style={{ color: "#e1e2eb" }}>Describe Your Company</h2>
+            <h2 className="text-base sm:text-lg font-semibold font-headline mb-3" style={{ color: "#e1e2eb" }}>{t("app.companyNew.describeTitle")}</h2>
           <p className="text-sm mb-4" style={{ color: "#859399" }}>
-            Tell us what kind of AI company you want to build. Be as detailed as possible.
+            {t("app.companyNew.describeBody")}
           </p>
           <textarea
             value={description}
@@ -215,7 +217,7 @@ function CompanyBuilderWizardInner() {
               color: "#e1e2eb",
               outline: "none",
             }}
-            placeholder="E.g.: I want to build a content agency for Instagram and TikTok. My target market is small businesses..."
+            placeholder={t("app.companyNew.descPlaceholder")}
             onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(0,209,255,0.4)"; }}
             onBlur={(e) => {
               e.currentTarget.style.borderColor = description.length > 0 && description.length < 10
@@ -225,12 +227,12 @@ function CompanyBuilderWizardInner() {
           />
           {description.length > 0 && description.length < 10 && (
             <p className="mt-1.5 text-xs" style={{ color: "#f87171" }}>
-              Please describe your company idea in at least 10 characters ({10 - description.length} more needed).
+              {t("app.companyNew.minChars", { n: 10 - description.length })}
             </p>
           )}
           {touched && description.length === 0 && (
             <p className="mt-1.5 text-xs" style={{ color: "#f87171" }}>
-              Please enter a description for your AI company to continue.
+              {t("app.companyNew.enterDesc")}
             </p>
           )}
           <button
@@ -242,12 +244,12 @@ function CompanyBuilderWizardInner() {
             {loading ? (
               <>
                 <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                AI is analyzing your idea...
+                {t("app.companyNew.analyzing")}
               </>
-            ) : "Continue"}
+            ) : t("app.companyNew.continueBtn")}
           </button>
           {loading && (
-            <p className="mt-2 text-center text-xs" style={{ color: "#3c494e" }}>This may take 15-30 seconds</p>
+            <p className="mt-2 text-center text-xs" style={{ color: "#3c494e" }}>{t("app.companyNew.mayTake")}</p>
           )}
           </div>
         </>
@@ -260,10 +262,10 @@ function CompanyBuilderWizardInner() {
           <div className="px-5 py-3 flex items-center justify-between flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#00d1ff" }}>smart_toy</span>
-              <span className="text-sm font-semibold" style={{ color: "#e1e2eb" }}>AI Company Builder</span>
+              <span className="text-sm font-semibold" style={{ color: "#e1e2eb" }}>{t("app.companyNew.builderTitle")}</span>
             </div>
             <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(0,209,255,0.08)", color: "#a4e6ff" }}>
-              Round {session.turn}/3
+              {t("app.companyNew.round", { turn: session.turn })}
             </span>
           </div>
 
@@ -324,7 +326,7 @@ function CompanyBuilderWizardInner() {
                 rows={2}
                 className="flex-1 rounded-xl px-4 py-2.5 text-sm resize-none outline-none"
                 style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
-                placeholder="Type your answer... (Enter to send, Shift+Enter for new line)"
+                placeholder={t("app.companyNew.answerPlaceholder")}
                 onFocus={(e) => { e.currentTarget.style.border = "1px solid rgba(0,209,255,0.4)"; }}
                 onBlur={(e) => { e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)"; }}
               />
@@ -344,19 +346,19 @@ function CompanyBuilderWizardInner() {
       {/* Step 3: Preview */}
       {step === "preview" && session?.companySpec && (
         <div className="glass-card rounded-2xl p-5 sm:p-6">
-          <h2 className="text-base sm:text-lg font-semibold font-headline mb-4" style={{ color: "#e1e2eb" }}>Company Preview</h2>
+          <h2 className="text-base sm:text-lg font-semibold font-headline mb-4" style={{ color: "#e1e2eb" }}>{t("app.companyNew.previewTitle")}</h2>
 
           <div className="space-y-4">
             <div>
-              <label className="text-xs font-semibold tracking-wider" style={{ color: "#859399" }}>NAME</label>
+              <label className="text-xs font-semibold tracking-wider" style={{ color: "#859399" }}>{t("app.companyNew.colName")}</label>
               <p className="text-lg font-semibold mt-1" style={{ color: "#e1e2eb" }}>{session.companySpec.name}</p>
             </div>
             <div>
-              <label className="text-xs font-semibold tracking-wider" style={{ color: "#859399" }}>DESCRIPTION</label>
+              <label className="text-xs font-semibold tracking-wider" style={{ color: "#859399" }}>{t("app.companyNew.colDescription")}</label>
               <p className="text-sm mt-1" style={{ color: "#bbc9cf" }}>{session.companySpec.description}</p>
             </div>
             <div>
-              <label className="text-xs font-semibold tracking-wider" style={{ color: "#859399" }}>PRIMITIVES</label>
+              <label className="text-xs font-semibold tracking-wider" style={{ color: "#859399" }}>{t("app.companyNew.colPrimitives")}</label>
               <div className="flex flex-wrap gap-2 mt-2">
                 {session.companySpec.primitives?.map((p: string) => (
                   <span key={p} className="px-2.5 py-1 text-xs rounded-lg font-semibold" style={{ background: "rgba(0,209,255,0.1)", color: "#a4e6ff", border: "1px solid rgba(0,209,255,0.2)" }}>
@@ -366,25 +368,25 @@ function CompanyBuilderWizardInner() {
               </div>
             </div>
             <div>
-              <label className="text-xs font-semibold tracking-wider" style={{ color: "#859399" }}>AGENTS ({session.companySpec.agents?.length ?? 0})</label>
+              <label className="text-xs font-semibold tracking-wider" style={{ color: "#859399" }}>{t("app.companyNew.colAgents", { n: session.companySpec.agents?.length ?? 0 })}</label>
               <div className="mt-2 space-y-2">
                 {session.companySpec.agents?.map((a: any, i: number) => (
                   <div key={i} className="rounded-xl p-3 text-sm" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
                     <span className="font-medium" style={{ color: "#e1e2eb" }}>{a.name}</span>
                     <span className="ml-2" style={{ color: "#859399" }}>({a.role})</span>
-                    {a.tools?.length > 0 && <div className="text-xs mt-1" style={{ color: "#3c494e" }}>Tools: {a.tools.join(", ")}</div>}
+                    {a.tools?.length > 0 && <div className="text-xs mt-1" style={{ color: "#3c494e" }}>{t("app.companyNew.toolsLabel", { tools: a.tools.join(", ") })}</div>}
                   </div>
                 ))}
               </div>
             </div>
             <div>
-              <label className="text-xs font-semibold tracking-wider" style={{ color: "#859399" }}>PIPELINES ({session.companySpec.pipelines?.length ?? 0})</label>
+              <label className="text-xs font-semibold tracking-wider" style={{ color: "#859399" }}>{t("app.companyNew.colPipelines", { n: session.companySpec.pipelines?.length ?? 0 })}</label>
               <div className="mt-2 space-y-2">
                 {session.companySpec.pipelines?.map((p: any, i: number) => (
                   <div key={i} className="rounded-xl p-3 text-sm" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
                     <span className="font-medium" style={{ color: "#e1e2eb" }}>{p.name}</span>
                     <span className="ml-2" style={{ color: "#859399" }}>({p.trigger})</span>
-                    <div className="text-xs mt-1" style={{ color: "#3c494e" }}>{p.steps?.length ?? 0} steps</div>
+                    <div className="text-xs mt-1" style={{ color: "#3c494e" }}>{t("app.companyNew.stepsLabel", { n: p.steps?.length ?? 0 })}</div>
                   </div>
                 ))}
               </div>
@@ -394,14 +396,14 @@ function CompanyBuilderWizardInner() {
           <div className="flex gap-3 mt-6">
             <button
               onClick={() => {
-                if (window.confirm("Are you sure? All progress will be lost.")) {
+                if (window.confirm(t("app.companyNew.confirmReset"))) {
                   setSession(null); setDescription(""); setAnswer(""); setError(null); setChatHistory([]); setStep("describe");
                 }
               }}
               className="flex-1 py-2.5 rounded-xl font-semibold transition-colors hover:opacity-80"
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}
             >
-              Start Over
+              {t("app.companyNew.startOver")}
             </button>
             <button
               onClick={handleConfirm}
@@ -409,7 +411,7 @@ function CompanyBuilderWizardInner() {
               className="flex-1 text-white py-2.5 rounded-xl font-semibold transition-all hover:brightness-110 disabled:opacity-50"
               style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
             >
-              {loading ? "Creating..." : "Create Company"}
+              {loading ? t("app.companyNew.creating") : t("app.companyNew.createCompany")}
             </button>
           </div>
         </div>
@@ -419,8 +421,8 @@ function CompanyBuilderWizardInner() {
       {step === "creating" && (
         <div className="glass-card rounded-2xl p-12 text-center">
           <div className="w-16 h-16 rounded-full border-2 animate-spin mx-auto mb-6" style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }} />
-          <p className="text-lg font-semibold font-headline" style={{ color: "#e1e2eb" }}>Building your AI company...</p>
-          <p className="text-sm mt-2" style={{ color: "#859399" }}>Setting up agents, pipelines, and tools.</p>
+          <p className="text-lg font-semibold font-headline" style={{ color: "#e1e2eb" }}>{t("app.companyNew.buildingTitle")}</p>
+          <p className="text-sm mt-2" style={{ color: "#859399" }}>{t("app.companyNew.buildingBody")}</p>
         </div>
       )}
 
@@ -430,14 +432,14 @@ function CompanyBuilderWizardInner() {
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5" style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)" }}>
             <span className="material-symbols-outlined text-3xl" style={{ color: "#34d399" }}>check_circle</span>
           </div>
-          <h2 className="text-2xl font-bold font-headline mb-2" style={{ color: "#e1e2eb" }}>Company Created!</h2>
-          <p className="mb-6" style={{ color: "#859399" }}>{session.companySpec?.name} is ready to go.</p>
+          <h2 className="text-2xl font-bold font-headline mb-2" style={{ color: "#e1e2eb" }}>{t("app.companyNew.doneTitle")}</h2>
+          <p className="mb-6" style={{ color: "#859399" }}>{t("app.companyNew.doneBody", { name: session.companySpec?.name ?? "" })}</p>
           <button
             onClick={() => router.push("/companies")}
             className="text-white px-6 py-2.5 rounded-xl font-semibold transition-all hover:brightness-110"
             style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
           >
-            Go to Companies
+            {t("app.companyNew.goToCompanies")}
           </button>
         </div>
       )}
@@ -446,8 +448,9 @@ function CompanyBuilderWizardInner() {
 }
 
 export default function CompanyBuilderWizard() {
+  const t = useTranslations();
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen" style={{ background: "#0a0d14" }}><span style={{ color: "#859399" }}>Loading...</span></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen" style={{ background: "#0a0d14" }}><span style={{ color: "#859399" }}>{t("app.companyNew.loading")}</span></div>}>
       <CompanyBuilderWizardInner />
     </Suspense>
   );

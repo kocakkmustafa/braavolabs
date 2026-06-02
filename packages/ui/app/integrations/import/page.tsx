@@ -15,6 +15,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { api } from "../../../lib/api";
 import { useAuthGuard } from "../../../lib/useAuthGuard";
 
@@ -27,53 +28,49 @@ type Source =
   | "mcp"
   | "generic";
 
-const SOURCES: { id: Source; label: string; hint: string; sample: string }[] = [
+// label + hint are localized via app.importAutomation.src<KeyBase>{Label,Hint};
+// `sample` (placeholder JSON/markdown) stays in code — it's literal example data.
+const SOURCES: { id: Source; keyBase: string; sample: string }[] = [
   {
     id: "n8n",
-    label: "n8n workflow",
-    hint: "Export your workflow as JSON (n8n → Workflows → … → Export). Paste the file contents here.",
+    keyBase: "N8n",
     sample: '{"name":"My workflow","nodes":[{"type":"n8n-nodes-base.httpRequest","name":"HTTP","parameters":{"url":"https://api.example.com"}}],"connections":{}}',
   },
   {
     id: "claude-automation",
-    label: "Claude Automation routine",
-    hint: "Markdown body (with optional YAML frontmatter) describing your routine. h2 sections become steps.",
+    keyBase: "ClaudeAutomation",
     sample: "## Plan\n\nResearch the topic.\n\n## Implementation\n\nWrite the article.",
   },
   {
     id: "claude-code-routine",
-    label: "Claude Code auto-dev routine",
-    hint: "Same markdown shape as Claude Automation — used for .claude/routines/*.md playbooks.",
+    keyBase: "ClaudeCodeRoutine",
     sample: "---\nrole: auto-dev\n---\n\n## Plan\n\n…",
   },
   {
     id: "openclaw",
-    label: "OpenClaw skill bundle",
-    hint: "manifest.json from an OpenClaw export. Tools and prompts both convert.",
+    keyBase: "Openclaw",
     sample: '{"name":"My skill","description":"…","tools":[{"name":"search","description":"…"}],"prompts":{"system":"You are…"}}',
   },
   {
     id: "nemoclaw",
-    label: "NemoClaw skill bundle",
-    hint: "Same manifest shape as OpenClaw.",
+    keyBase: "Nemoclaw",
     sample: '{"name":"My skill","tools":[],"prompts":{"system":"You are…"}}',
   },
   {
     id: "mcp",
-    label: "MCP server.json",
-    hint: "Server descriptor with tools[] and resources[]. Tools map to mcp.invoke steps.",
+    keyBase: "Mcp",
     sample: '{"name":"My MCP","tools":[{"name":"search","description":"Web search","inputSchema":{}}]}',
   },
   {
     id: "generic",
-    label: "Generic graph (nodes + edges JSON)",
-    hint: "Last-resort schema: { name, nodes:[{id,type,config}], edges:[{from,to}] }.",
+    keyBase: "Generic",
     sample: '{"name":"My pipeline","nodes":[{"id":"a","type":"http","config":{"url":"…"}}],"edges":[]}',
   },
 ];
 
 export default function ImportAutomationPage() {
   const { token, hydrated } = useAuthGuard();
+  const t = useTranslations();
   const [source, setSource] = useState<Source>("n8n");
   const [name, setName] = useState("");
   const [payload, setPayload] = useState("");
@@ -112,7 +109,7 @@ export default function ImportAutomationPage() {
         warnings: resp.warnings,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Preview failed");
+      setError(err instanceof Error ? err.message : t("app.importAutomation.previewFailed"));
       setPreview(null);
     } finally {
       setLoadingPreview(false);
@@ -131,7 +128,7 @@ export default function ImportAutomationPage() {
       });
       setCommittedId(resp.pipelineId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Import failed");
+      setError(err instanceof Error ? err.message : t("app.importAutomation.importFailed"));
     } finally {
       setCommitting(false);
     }
@@ -142,25 +139,22 @@ export default function ImportAutomationPage() {
       <div className="max-w-[960px] mx-auto px-6 py-12">
         <div className="mb-2">
           <Link href="/integrations" style={{ color: "#a4e6ff", fontSize: 13 }}>
-            ← Back to Integrations
+            ← {t("app.importAutomation.back")}
           </Link>
         </div>
         <h1
           className="font-headline font-extrabold"
           style={{ fontSize: "2rem", color: "#e1e2eb", marginBottom: 8 }}
         >
-          Import an automation
+          {t("app.importAutomation.title")}
         </h1>
         <p style={{ fontSize: 14, marginBottom: 32, lineHeight: 1.6 }}>
-          Bring a workflow from another tool into Braavolabs as a runnable pipeline.
-          Paste the source payload, preview the conversion, and commit. Original
-          payload is preserved on the pipeline so you can re-import after a
-          converter improvement.
+          {t("app.importAutomation.intro")}
         </p>
 
         {/* Source picker */}
         <label style={{ fontSize: 13, color: "#e1e2eb", fontWeight: 600, display: "block", marginBottom: 8 }}>
-          Source format
+          {t("app.importAutomation.sourceFormat")}
         </label>
         <select
           value={source}
@@ -182,21 +176,21 @@ export default function ImportAutomationPage() {
         >
           {SOURCES.map((s) => (
             <option key={s.id} value={s.id} style={{ background: "#0a0d14", color: "#e1e2eb" }}>
-              {s.label}
+              {t(`app.importAutomation.src${s.keyBase}Label`)}
             </option>
           ))}
         </select>
-        <p style={{ fontSize: 12, color: "#859399", marginBottom: 20 }}>{currentSource.hint}</p>
+        <p style={{ fontSize: 12, color: "#859399", marginBottom: 20 }}>{t(`app.importAutomation.src${currentSource.keyBase}Hint`)}</p>
 
         {/* Name */}
         <label style={{ fontSize: 13, color: "#e1e2eb", fontWeight: 600, display: "block", marginBottom: 8 }}>
-          Pipeline name <span style={{ color: "#3c494e", fontWeight: 400 }}>(optional)</span>
+          {t("app.importAutomation.pipelineName")} <span style={{ color: "#3c494e", fontWeight: 400 }}>{t("app.importAutomation.optional")}</span>
         </label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Imported workflow"
+          placeholder={t("app.importAutomation.namePlaceholder")}
           style={{
             width: "100%",
             padding: "10px 12px",
@@ -211,7 +205,7 @@ export default function ImportAutomationPage() {
 
         {/* Payload textarea */}
         <label style={{ fontSize: 13, color: "#e1e2eb", fontWeight: 600, display: "block", marginBottom: 8 }}>
-          Source payload
+          {t("app.importAutomation.sourcePayload")}
         </label>
         <textarea
           value={payload}
@@ -249,7 +243,7 @@ export default function ImportAutomationPage() {
               opacity: payload.trim() ? 1 : 0.5,
             }}
           >
-            {loadingPreview ? "Previewing…" : "Preview"}
+            {loadingPreview ? t("app.importAutomation.previewing") : t("app.importAutomation.preview")}
           </button>
           <button
             onClick={onCommit}
@@ -267,7 +261,7 @@ export default function ImportAutomationPage() {
               cursor: preview ? "pointer" : "not-allowed",
             }}
           >
-            {committing ? "Importing…" : "Import as pipeline"}
+            {committing ? t("app.importAutomation.importing") : t("app.importAutomation.importBtn")}
           </button>
         </div>
 
@@ -300,9 +294,9 @@ export default function ImportAutomationPage() {
               lineHeight: 1.6,
             }}
           >
-            Pipeline created.{" "}
+            {t("app.importAutomation.created")}{" "}
             <Link href={`/pipelines/${committedId}`} style={{ color: "#a4e6ff", textDecoration: "underline" }}>
-              Open it →
+              {t("app.importAutomation.openIt")}
             </Link>
           </div>
         )}
@@ -324,7 +318,7 @@ export default function ImportAutomationPage() {
             )}
 
             <h3 style={{ fontSize: 12, color: "#e1e2eb", fontWeight: 600, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
-              Steps ({preview.steps.length})
+              {t("app.importAutomation.stepsCount", { n: preview.steps.length })}
             </h3>
             <div style={{ marginBottom: 16 }}>
               {preview.steps.map((step) => (
@@ -347,7 +341,7 @@ export default function ImportAutomationPage() {
             {preview.dropped.length > 0 && (
               <>
                 <h3 style={{ fontSize: 12, color: "#fbbf24", fontWeight: 600, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                  Dropped ({preview.dropped.length})
+                  {t("app.importAutomation.droppedCount", { n: preview.dropped.length })}
                 </h3>
                 <div style={{ marginBottom: 16 }}>
                   {preview.dropped.map((d) => (

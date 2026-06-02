@@ -1,12 +1,15 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAppStore } from "../lib/store";
 import { api } from "../lib/api";
 
 interface Command {
   id: string;
-  label: string;
+  /** Static commands carry an i18n key; dynamic (per-workspace) ones carry a literal label. */
+  labelKey?: string;
+  label?: string;
   icon: string;
   href?: string;
   action?: () => void;
@@ -17,8 +20,10 @@ interface Command {
 
 export default function CommandPalette() {
   const router = useRouter();
+  const t = useTranslations();
   const token = useAppStore((s) => s.token);
   const clearAuth = useAppStore((s) => s.clearAuth);
+  const labelOf = (cmd: Command) => (cmd.labelKey ? t(cmd.labelKey) : cmd.label ?? "");
   const [companies, setCompanies] = useState<any[]>([]);
   const companiesFetched = useRef(false);
   const [open, setOpen] = useState(false);
@@ -27,22 +32,22 @@ export default function CommandPalette() {
 
   const COMMANDS: Command[] = [
     // Navigation
-    { id: "dashboard", label: "Command Center", icon: "dashboard", href: "/dashboard", auth: true, shortcut: "D", category: "navigate" },
-    { id: "companies", label: "AI Companies", icon: "business", href: "/companies", auth: true, shortcut: "C", category: "navigate" },
-    { id: "new-company", label: "New Company", icon: "add_circle", href: "/onboarding", auth: true, shortcut: "N", category: "navigate" },
-    { id: "pipelines", label: "AI Workflows", icon: "account_tree", href: "/pipelines", auth: true, shortcut: "W", category: "navigate" },
-    { id: "approvals", label: "Approvals", icon: "task_alt", href: "/approvals", auth: true, shortcut: "A", category: "navigate" },
-    { id: "drafts", label: "Drafts", icon: "edit_note", href: "/drafts", auth: true, category: "navigate" },
-    { id: "analytics", label: "Analytics", icon: "query_stats", href: "/analytics", auth: true, category: "navigate" },
-    { id: "risks", label: "Risk Shield", icon: "security", href: "/risks", auth: true, category: "navigate" },
-    { id: "billing", label: "Billing & Usage", icon: "credit_card", href: "/billing", auth: true, shortcut: "B", category: "navigate" },
-    { id: "settings", label: "Settings", icon: "settings", href: "/settings", auth: true, shortcut: "S", category: "navigate" },
+    { id: "dashboard", labelKey: "nav.commandCenter", icon: "dashboard", href: "/dashboard", auth: true, shortcut: "D", category: "navigate" },
+    { id: "companies", labelKey: "nav.workspaces", icon: "business", href: "/companies", auth: true, shortcut: "C", category: "navigate" },
+    { id: "new-company", labelKey: "nav.newWorkspace", icon: "add_circle", href: "/onboarding", auth: true, shortcut: "N", category: "navigate" },
+    { id: "pipelines", labelKey: "nav.workflows", icon: "account_tree", href: "/pipelines", auth: true, shortcut: "W", category: "navigate" },
+    { id: "approvals", labelKey: "nav.approvals", icon: "task_alt", href: "/approvals", auth: true, shortcut: "A", category: "navigate" },
+    { id: "drafts", labelKey: "nav.drafts", icon: "edit_note", href: "/drafts", auth: true, category: "navigate" },
+    { id: "analytics", labelKey: "nav.analytics", icon: "query_stats", href: "/analytics", auth: true, category: "navigate" },
+    { id: "risks", labelKey: "nav.risks", icon: "security", href: "/risks", auth: true, category: "navigate" },
+    { id: "billing", labelKey: "nav.billing", icon: "credit_card", href: "/billing", auth: true, shortcut: "B", category: "navigate" },
+    { id: "settings", labelKey: "nav.settings", icon: "settings", href: "/settings", auth: true, shortcut: "S", category: "navigate" },
     // Public
-    { id: "features", label: "Features", icon: "auto_awesome", href: "/features", auth: false, category: "navigate" },
-    { id: "pricing", label: "Pricing", icon: "sell", href: "/pricing", auth: false, category: "navigate" },
+    { id: "features", labelKey: "nav.features", icon: "auto_awesome", href: "/features", auth: false, category: "navigate" },
+    { id: "pricing", labelKey: "nav.pricing", icon: "sell", href: "/pricing", auth: false, category: "navigate" },
     // Actions
-    { id: "sign-out", label: "Sign Out", icon: "logout", auth: true, category: "action", action: () => { clearAuth(); router.push("/login"); } },
-    { id: "home", label: "Go to Home", icon: "home", href: "/", auth: false, category: "quick" },
+    { id: "sign-out", labelKey: "app.cmdk.signOut", icon: "logout", auth: true, category: "action", action: () => { clearAuth(); router.push("/login"); } },
+    { id: "home", labelKey: "app.cmdk.goHome", icon: "home", href: "/", auth: false, category: "quick" },
   ];
 
   // ⌘K / Ctrl+K
@@ -101,8 +106,8 @@ export default function CommandPalette() {
 
   const filtered = allCommands.filter((c) => {
     if (c.auth && !token) return false;
-    if (!query) return c.category !== "company"; // only show companies when searching
-    return c.label.toLowerCase().includes(query.toLowerCase()) || c.id.includes(query.toLowerCase());
+    if (!query) return c.category !== "company"; // only show workspaces when searching
+    return labelOf(c).toLowerCase().includes(query.toLowerCase()) || c.id.includes(query.toLowerCase());
   });
 
   useEffect(() => { setSelected(0); }, [query]);
@@ -123,10 +128,10 @@ export default function CommandPalette() {
   });
 
   const categoryLabels: Record<string, string> = {
-    navigate: "Pages",
-    action: "Actions",
-    quick: "Quick Access",
-    company: "Your Companies",
+    navigate: t("app.cmdk.catPages"),
+    action: t("app.cmdk.catActions"),
+    quick: t("app.cmdk.catQuick"),
+    company: t("app.cmdk.catWorkspaces"),
   };
 
   let flatIndex = 0;
@@ -152,7 +157,7 @@ export default function CommandPalette() {
               if (e.key === "ArrowUp") { e.preventDefault(); setSelected((s) => Math.max(s - 1, 0)); }
               if (e.key === "Enter" && filtered[selected]) handleSelect(filtered[selected]);
             }}
-            placeholder="Search pages and actions..."
+            placeholder={t("app.cmdk.searchPlaceholder")}
             style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 15, color: "#e1e2eb" }}
           />
           <kbd style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: "rgba(255,255,255,0.06)", color: "#859399", border: "1px solid rgba(255,255,255,0.08)" }}>ESC</kbd>
@@ -161,7 +166,7 @@ export default function CommandPalette() {
         {/* Results */}
         <div style={{ maxHeight: 400, overflowY: "auto", padding: "6px 0" }}>
           {filtered.length === 0 ? (
-            <div style={{ padding: "24px 18px", textAlign: "center", color: "#3c494e", fontSize: 13 }}>No results found</div>
+            <div style={{ padding: "24px 18px", textAlign: "center", color: "#3c494e", fontSize: 13 }}>{t("app.cmdk.noResults")}</div>
           ) : (
             Object.entries(grouped).map(([category, cmds]) => (
               <div key={category}>
@@ -185,7 +190,7 @@ export default function CommandPalette() {
                       onMouseEnter={() => setSelected(idx)}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: 18, color: idx === selected ? "#00d1ff" : "#859399" }}>{cmd.icon}</span>
-                      <span style={{ fontSize: 14, fontWeight: 500, flex: 1 }}>{cmd.label}</span>
+                      <span style={{ fontSize: 14, fontWeight: 500, flex: 1 }}>{labelOf(cmd)}</span>
                       {cmd.shortcut && (
                         <kbd style={{ fontSize: 10, padding: "1px 5px", borderRadius: 4, background: "rgba(255,255,255,0.06)", color: "#3c494e", border: "1px solid rgba(255,255,255,0.08)" }}>
                           {cmd.shortcut}
@@ -201,7 +206,7 @@ export default function CommandPalette() {
 
         {/* Footer hints */}
         <div style={{ padding: "8px 18px", borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", gap: 16 }}>
-          {[["↑↓", "navigate"], ["↵", "open"], ["esc", "close"], ["D", "dashboard"], ["N", "new company"]].map(([k, l]) => (
+          {[["↑↓", t("app.cmdk.hintNavigate")], ["↵", t("app.cmdk.hintOpen")], ["esc", t("app.cmdk.hintClose")], ["D", t("app.cmdk.hintDashboard")], ["N", t("app.cmdk.hintNewWorkspace")]].map(([k, l]) => (
             <div key={k} style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <kbd style={{ fontSize: 10, padding: "2px 5px", borderRadius: 4, background: "rgba(255,255,255,0.06)", color: "#859399", border: "1px solid rgba(255,255,255,0.08)" }}>{k}</kbd>
               <span style={{ fontSize: 11, color: "#3c494e" }}>{l}</span>

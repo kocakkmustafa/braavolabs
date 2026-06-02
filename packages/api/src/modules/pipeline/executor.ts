@@ -1,5 +1,6 @@
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
+import { publishRunEvent } from "../../lib/runEvents";
 import { runAgentLoop, type AgentLoopResult } from "../agent/claude";
 import { AppError } from "../../middleware/error";
 import { withSpan, toolCallCounter, stepDurationHistogram } from "../../lib/telemetry";
@@ -25,6 +26,27 @@ export interface StepExecutionResult {
   costUsd: number;
   toolCallIds: string[];
   memoryKey?: string;
+}
+
+/**
+ * Resume idempotency contract (pure — unit-tested).
+ *
+ * When a run that paused on `ask_user` is re-enqueued, the runner restarts from
+ * step 0. Given the run's already-COMPLETED steps, this returns which step
+ * indexes to SKIP (restore from their persisted output instead of re-running —
+ * so completed sends/spends/agent-calls don't repeat) and the cost to SEED so
+ * already-incurred spend isn't double-counted.
+ */
+export function planResume(
+  priorCompleted: Array<{ stepIndex: number; costUsd?: number | null }>,
+): { skip: Set<number>; seededCost: number } {
+  const skip = new Set<number>();
+  let seededCost = 0;
+  for (const ps of priorCompleted) {
+    skip.add(ps.stepIndex);
+    seededCost += Number(ps.costUsd ?? 0);
+  }
+  return { skip, seededCost };
 }
 
 /**
@@ -83,6 +105,15 @@ export async function executeStep(
     },
   });
 
+  await publishRunEvent(runId, {
+    type: "STEP_STARTED",
+    stepId: runStep.id,
+    stepIndex,
+    name: stepDef.name,
+    agentId: agent.id,
+    agentRole: agent.role,
+  });
+
   try {
     // Inject shared memory context from previous steps
     const memoryContext: Record<string, unknown> = {};
@@ -139,6 +170,13 @@ export async function executeStep(
       },
     });
 
+    await publishRunEvent(runId, {
+      type: "STEP_COMPLETED",
+      stepId: runStep.id,
+      reasoning: reasoning || undefined,
+      costUsd: result.totalCostUsd,
+    });
+
     // Write output to shared memory if a key is specified
     if (stepDef.writeMemoryKey) {
       sharedMemory.set(stepDef.writeMemoryKey, result.finalContent);
@@ -165,6 +203,8 @@ export async function executeStep(
         completedAt: new Date(),
       },
     });
+
+    await publishRunEvent(runId, { type: "STEP_FAILED", stepId: runStep.id, error: errorMsg });
 
     return {
       stepId: runStep.id,

@@ -6,6 +6,12 @@ export interface ToolMeta {
   requiresApproval: boolean;
   riskLevel: "low" | "medium" | "high";
   rateLimit?: number; // max calls per minute
+  /**
+   * Mid-run human-in-the-loop interrupt. "INPUT" = ask_user: the executor
+   * pauses the run (creates an INPUT approval, drives it to WAITING_APPROVAL,
+   * pushes) exactly like the spend gate; the operator's answer resumes it.
+   */
+  interrupt?: "INPUT";
 }
 
 export interface ToolDefinition {
@@ -1446,6 +1452,32 @@ registerTool({
       maxCostUsd,
     });
     return { sessionId: result.sessionId, status: "PENDING" };
+  },
+});
+
+// ─── HUMAN-IN-THE-LOOP (the v2 moat) ────────────────────
+//
+// ask_user lets an agent pause mid-run to ask the operator a question.
+// Intercepted by tool-executor (meta.interrupt === "INPUT"): it creates an
+// INPUT Approval, drives the run to WAITING_APPROVAL, and pushes a
+// notification. The operator's answer (POST /approvals/:id/decide with a
+// note) is stored as a SteeringMessage(INPUT) which the agent loop injects
+// on resume. The handler below never runs on the governed path — the
+// executor short-circuits first; it's only a safe no-op for ungoverned use.
+registerTool({
+  name: "ask_user",
+  description:
+    "Pause and ask the human operator a question when you are genuinely blocked — a decision only they can make, missing information, or a clarification you cannot resolve yourself. The run pauses until they answer; their reply is delivered back to you. Use sparingly.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      question: { type: "string", description: "The question to ask the human operator." },
+    },
+    required: ["question"],
+  },
+  meta: { requiresApproval: false, riskLevel: "low", interrupt: "INPUT" },
+  handler: async (input) => {
+    return { status: "PENDING_INPUT", ...(input as object) };
   },
 });
 

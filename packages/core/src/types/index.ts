@@ -1,5 +1,6 @@
 export * from "./company";
 export * from "./pipeline";
+export * from "./events";
 export * from "./agent";
 export * from "./memory";
 export * from "./approval";

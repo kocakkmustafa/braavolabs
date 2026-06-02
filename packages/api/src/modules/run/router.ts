@@ -2,7 +2,11 @@ import { Router } from "express";
 import { authMiddleware } from "../../middleware/auth";
 import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
+import { logger } from "../../lib/logger";
+import { redis } from "../../lib/redis";
+import { runEventChannel, getBufferedRunEvents } from "../../lib/runEvents";
 import { enqueueRun } from "../pipeline/runner";
+import type { RunEvent } from "@ai-company-os/core";
 
 export const runRouter = Router();
 runRouter.use(authMiddleware);
@@ -125,91 +129,136 @@ runRouter.post("/:id/resume", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /api/v1/runs/:id/stream — SSE stream for real-time run status
-runRouter.get("/:id/stream", authMiddleware, async (req, res, next) => {
+// POST /api/v1/runs/:id/steer — queue an operator steering message for a live
+// run. The agent loop drains it at the top of its next turn and injects it as
+// guidance (Phase 1 HITL — "steer a running agent"). Does not pause the run.
+runRouter.post("/:id/steer", async (req, res, next) => {
   try {
-    const runId = req.params.id as string;
+    const content = typeof req.body?.content === "string" ? req.body.content.trim() : "";
+    const targetAgentId = typeof req.body?.targetAgentId === "string" ? req.body.targetAgentId : null;
+    if (!content) throw new AppError(400, "content is required");
+
     const run = await prisma.run.findFirst({
-      where: { id: runId, pipeline: { company: { tenantId: req.auth!.tenantId } } },
+      where: { id: req.params.id, pipeline: { company: { tenantId: req.auth!.tenantId } } },
     });
-    if (!run) return res.status(404).json({ error: "Run not found" });
-
-    res.writeHead(200, {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-      "X-Accel-Buffering": "no",
-    });
-    // Flush headers immediately so the browser opens the EventSource
-    // connection rather than waiting for the first chunk to arrive.
-    if (typeof (res as any).flushHeaders === "function") {
-      (res as any).flushHeaders();
+    if (!run) throw new AppError(404, "Run not found");
+    if (!["PENDING", "RUNNING", "PAUSED", "WAITING_APPROVAL"].includes(run.status)) {
+      throw new AppError(400, "Run is not steerable (already finished)");
     }
 
-    const sendStatus = async () => {
-      const current = await prisma.run.findUnique({
-        where: { id: runId },
-        include: { steps: { orderBy: { createdAt: "asc" } } },
-      });
-      if (!current) return false;
+    const msg = await prisma.steeringMessage.create({
+      data: {
+        runId: run.id,
+        kind: "STEER",
+        content: content.slice(0, 4000),
+        targetAgentId,
+        createdBy: req.auth!.userId,
+      },
+    });
 
-      res.write(`data: ${JSON.stringify({
-        status: current.status,
-        costUsd: current.costUsd,
-        steps: current.steps.map((s: any) => ({
-          name: s.name,
-          status: s.status,
-          reasoning: s.reasoning,
-          costUsd: s.costUsd,
-        })),
-      })}\n\n`);
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "run.steer",
+        resource: "run",
+        resourceId: run.id,
+        details: { steeringMessageId: msg.id, targetAgentId },
+      },
+    });
 
-      return current.status === "RUNNING" || current.status === "PENDING" || current.status === "PAUSED";
-    };
+    res.status(201).json({ success: true, id: msg.id });
+  } catch (err) { next(err); }
+});
 
-    // Send initial status
-    const shouldContinue = await sendStatus();
-    if (!shouldContinue) {
+// GET /api/v1/runs/:id/stream — real-time SSE stream (Redis pub/sub).
+//
+// Replaces the former 3s Postgres polling. Subscribes to the per-run event
+// channel and replays the buffered backlog after Last-Event-ID so a
+// reconnecting client misses nothing. Events follow the shared RunEvent
+// contract from @ai-company-os/core (same shape mobile + CLI consume).
+//
+// Auth: router-level authMiddleware sets req.auth. Browsers can't set the
+// Authorization header on EventSource, so the UI consumes this via a
+// fetch + ReadableStream reader (which can send Bearer) rather than
+// `new EventSource()`.
+runRouter.get("/:id/stream", async (req, res) => {
+  const run = await prisma.run
+    .findFirst({ where: { id: req.params.id, pipeline: { company: { tenantId: req.auth!.tenantId } } } })
+    .catch(() => null);
+  if (!run) return res.status(404).json({ error: "Run not found" });
+  const runId = run.id;
+
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache, no-transform",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+  if (typeof (res as any).flushHeaders === "function") (res as any).flushHeaders();
+
+  const lastEventId = Number(req.headers["last-event-id"] ?? req.query.lastEventId ?? 0) || 0;
+  let closed = false;
+  let maxSeqWritten = lastEventId;
+  const sub = redis.duplicate();
+
+  function cleanup() {
+    if (closed) return;
+    closed = true;
+    clearInterval(heartbeat);
+    sub.removeAllListeners("message");
+    sub.unsubscribe(runEventChannel(runId)).catch(() => {});
+    sub.quit().catch(() => {});
+    try { res.end(); } catch { /* already ended */ }
+  }
+
+  const write = (ev: RunEvent) => {
+    if (closed || ev.seq <= maxSeqWritten) return;
+    maxSeqWritten = ev.seq;
+    res.write(`id: ${ev.seq}\ndata: ${JSON.stringify(ev)}\n\n`);
+    if (ev.type === "RUN_COMPLETED" || ev.type === "RUN_FAILED") {
       res.write("event: done\ndata: {}\n\n");
-      res.end();
-      return;
+      cleanup();
     }
+  };
 
-    // Poll every 3 seconds
-    const interval = setInterval(async () => {
-      try {
-        const cont = await sendStatus();
-        if (!cont) {
-          res.write("event: done\ndata: {}\n\n");
-          clearInterval(interval);
-          clearInterval(heartbeat);
-          res.end();
-        }
-      } catch {
-        clearInterval(interval);
-        clearInterval(heartbeat);
-        res.end();
-      }
-    }, 3000);
+  // Subscribe FIRST and buffer live messages until the backlog is flushed —
+  // avoids both gaps (events published mid-fetch) and duplicates.
+  const pending: RunEvent[] = [];
+  let backlogFlushed = false;
+  sub.on("message", (_ch: string, msg: string) => {
+    try {
+      const ev = JSON.parse(msg) as RunEvent;
+      if (backlogFlushed) write(ev);
+      else pending.push(ev);
+    } catch {
+      /* ignore malformed */
+    }
+  });
 
-    // SSE heartbeat — nginx + many CDNs idle-timeout connections that go
-    // silent for 60s. A comment line every 25s keeps the socket alive
-    // without delivering content (lines starting with ":" are comments
-    // per the EventSource spec, ignored by the client).
-    const heartbeat = setInterval(() => {
-      try {
-        res.write(`: keepalive ${Date.now()}\n\n`);
-      } catch {
-        clearInterval(heartbeat);
-      }
-    }, 25_000);
+  // nginx/CDNs idle-timeout silent connections; a comment line every 25s
+  // keeps the socket alive (": " prefix = ignored per the EventSource spec).
+  const heartbeat = setInterval(() => {
+    if (closed) return;
+    try { res.write(`: keepalive ${Date.now()}\n\n`); } catch { cleanup(); }
+  }, 25_000);
 
-    req.on("close", () => {
-      clearInterval(interval);
-      clearInterval(heartbeat);
-    });
+  req.on("close", cleanup);
+
+  try {
+    await sub.subscribe(runEventChannel(runId));
+    for (const ev of await getBufferedRunEvents(runId, lastEventId)) write(ev);
+    backlogFlushed = true;
+    for (const ev of pending.splice(0)) write(ev);
+
+    // Already-terminal run with nothing more coming → close after replay.
+    if (!closed && (run.status === "COMPLETED" || run.status === "FAILED" || run.status === "CANCELLED")) {
+      res.write("event: done\ndata: {}\n\n");
+      cleanup();
+    }
   } catch (err) {
-    next(err);
+    logger.warn({ runId, err: (err as Error).message }, "run stream subscribe failed");
+    cleanup();
   }
 });
 
