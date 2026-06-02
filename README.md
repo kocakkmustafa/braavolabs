@@ -23,7 +23,7 @@ Build, run, and steer AI agent workflows in plain English — or connect the n8n
 
 ## What it does
 
-Users sign up, describe their idea (or pick a starter — Content Studio, Outreach Strategist, Market Research, Brand Voice Builder), and Braavolabs composes a multi-agent AI team with a runnable pipeline. The platform is **BYOK** — users plug in their own Claude / OpenAI / Gemini / Groq / Ollama / 8 more provider keys, or take 3 free trial runs on the holding-owned Groq pool.
+Users sign up, describe their idea (or pick a starter — Content Studio, Outreach Strategist, Market Research, Brand Voice Builder), and Braavolabs composes a multi-agent AI team with a runnable pipeline. The platform is **BYOK** — users plug in their own Claude / OpenAI / Gemini / Groq / Ollama / 8 more provider keys, or take 3 free trial runs on a platform-provided Groq pool.
 
 Every pipeline run produces:
 - A reasoned, step-by-step audit trail (every tool call, every decision, every cost cent)
@@ -35,7 +35,7 @@ Every pipeline run produces:
 
 ## New in v2
 
-The platform generalised from "an AI company" into an **agent & automation workspace** — the v1 capabilities stay; these are added on `feat/v2`:
+The platform generalised from "an AI company" into an **agent & automation workspace** — the v1 capabilities stay; v2 adds:
 
 - **Mid-run steering (HITL moat)** — inject guidance into a live agent on its next turn (`POST /runs/:id/steer`), or have an agent **ask the operator a question** (`ask_user`) and resume on the answer. Resume is idempotent: already-completed steps are skipped, not re-run.
 - **Connect & monitor external automations** — link an existing **n8n / Make / Zapier / generic-REST** instance; a poller mirrors its executions into one dashboard alongside native runs (`/connections`).
@@ -45,8 +45,6 @@ The platform generalised from "an AI company" into an **agent & automation works
 - **CLI** — dep-free `braavo` (`login / runs / run / steer / connections`).
 - **Mobile** — pocket control (run detail, steer, answer `ask_user`, push deep-links) + an offline / on-device (Gemma) mode toggle.
 - **Plans** — tiers re-scoped to automation dimensions (workspaces, connected automations, seats, on-device); prices unchanged.
-
-See [`docs/v2/BUILD-STATUS.md`](docs/v2/BUILD-STATUS.md) and [`docs/v2/REVIEW.md`](docs/v2/REVIEW.md).
 
 ---
 
@@ -152,7 +150,7 @@ See [`docs/deployment-github-actions.md`](docs/deployment-github-actions.md) for
 
 ## Status
 
-Production. **67 unit tests passing**, typecheck clean across every workspace package, OWASP Top 10 coverage in place: parameterized SQL via Prisma, per-tenant isolation on every query, HMAC-signed Stripe webhooks with replay-bound timestamps, fail-closed rate limits (auth + IAP + register + refresh, even when Redis is unreachable), strict CSP + HSTS + frame-ancestors, AES-256-GCM at-rest credential encryption (scrypt-derived per-row key, placeholder-detection at boot), cross-tenant IAP hijack defence, SSRF guard on tenant-controlled outbound URLs (blocks AWS / GCP / Azure metadata endpoints, loopback, RFC1918 ranges from every BYOK provider and integration code path), and refresh tokens that re-read user + tenant from the database on every rotation so role / workspace changes propagate within one round-trip.
+Production. **133 tests passing**, typecheck clean across every workspace package, OWASP Top 10 coverage in place: parameterized SQL via Prisma, per-tenant isolation on every query, HMAC-signed Stripe webhooks with replay-bound timestamps, fail-closed rate limits (auth + IAP + register + refresh, even when Redis is unreachable), strict CSP + HSTS + frame-ancestors, AES-256-GCM at-rest credential encryption (scrypt-derived per-row key, placeholder-detection at boot), cross-tenant IAP hijack defence, SSRF guard on tenant-controlled outbound URLs (blocks AWS / GCP / Azure metadata endpoints, loopback, RFC1918 ranges from every BYOK provider and integration code path), and refresh tokens that re-read user + tenant from the database on every rotation so role / workspace changes propagate within one round-trip.
 
 ---
 

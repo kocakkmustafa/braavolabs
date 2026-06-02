@@ -48,8 +48,5 @@ scheduled_tasks.lock
 # or run the product; keep it local-only.
 .claude/
 
-# Cowork / automation runtime state — regenerated on every cron tick,
-# committing would create meaningless diffs.
-HOLDING_CORE/competitor-state.json
-HOLDING_CORE/*-state.json
-HOLDING_CORE/*.runtime.json
+# Local automation runtime state — generated, never committed.
+HOLDING_CORE/
