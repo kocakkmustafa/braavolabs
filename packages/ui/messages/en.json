@@ -973,6 +973,25 @@
       "skillsTitle": "Skills ({n})",
       "hooksTitle": "Hooks ({n})",
       "downloadAll": "Download Full Bundle (JSON)"
+    },
+    "cmdk": {
+      "searchPlaceholder": "Search pages and actions...",
+      "noResults": "No results found",
+      "signOut": "Sign Out",
+      "goHome": "Go to Home",
+      "catPages": "Pages",
+      "catActions": "Actions",
+      "catQuick": "Quick Access",
+      "catWorkspaces": "Your Workspaces",
+      "hintNavigate": "navigate",
+      "hintOpen": "open",
+      "hintClose": "close",
+      "hintDashboard": "dashboard",
+      "hintNewWorkspace": "new workspace"
+    },
+    "breadcrumb": {
+      "onboarding": "Onboarding",
+      "runs": "Runs"
     }
   },
   "static": {

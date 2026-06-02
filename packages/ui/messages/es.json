@@ -973,6 +973,25 @@
       "skillsTitle": "Skills ({n})",
       "hooksTitle": "Hooks ({n})",
       "downloadAll": "Descargar paquete completo (JSON)"
+    },
+    "cmdk": {
+      "searchPlaceholder": "Buscar páginas y acciones...",
+      "noResults": "Sin resultados",
+      "signOut": "Cerrar sesión",
+      "goHome": "Ir al inicio",
+      "catPages": "Páginas",
+      "catActions": "Acciones",
+      "catQuick": "Acceso rápido",
+      "catWorkspaces": "Tus espacios de trabajo",
+      "hintNavigate": "navegar",
+      "hintOpen": "abrir",
+      "hintClose": "cerrar",
+      "hintDashboard": "panel",
+      "hintNewWorkspace": "nuevo espacio"
+    },
+    "breadcrumb": {
+      "onboarding": "Onboarding",
+      "runs": "Ejecuciones"
     }
   },
   "static": {

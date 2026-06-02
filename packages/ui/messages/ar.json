@@ -973,6 +973,25 @@
       "skillsTitle": "المهارات ({n})",
       "hooksTitle": "الخطافات ({n})",
       "downloadAll": "تنزيل الحزمة الكاملة (JSON)"
+    },
+    "cmdk": {
+      "searchPlaceholder": "ابحث في الصفحات والإجراءات...",
+      "noResults": "لا توجد نتائج",
+      "signOut": "تسجيل الخروج",
+      "goHome": "الذهاب إلى الرئيسية",
+      "catPages": "الصفحات",
+      "catActions": "الإجراءات",
+      "catQuick": "وصول سريع",
+      "catWorkspaces": "مساحات عملك",
+      "hintNavigate": "تنقّل",
+      "hintOpen": "فتح",
+      "hintClose": "إغلاق",
+      "hintDashboard": "لوحة التحكم",
+      "hintNewWorkspace": "مساحة عمل جديدة"
+    },
+    "breadcrumb": {
+      "onboarding": "الإعداد",
+      "runs": "عمليات التشغيل"
     }
   },
   "static": {

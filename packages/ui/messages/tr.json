@@ -973,6 +973,25 @@
       "skillsTitle": "Skill'ler ({n})",
       "hooksTitle": "Hook'lar ({n})",
       "downloadAll": "Tüm Paketi İndir (JSON)"
+    },
+    "cmdk": {
+      "searchPlaceholder": "Sayfa ve işlem ara...",
+      "noResults": "Sonuç bulunamadı",
+      "signOut": "Çıkış Yap",
+      "goHome": "Ana Sayfaya Git",
+      "catPages": "Sayfalar",
+      "catActions": "İşlemler",
+      "catQuick": "Hızlı Erişim",
+      "catWorkspaces": "Çalışma Alanlarınız",
+      "hintNavigate": "gezin",
+      "hintOpen": "aç",
+      "hintClose": "kapat",
+      "hintDashboard": "pano",
+      "hintNewWorkspace": "yeni çalışma alanı"
+    },
+    "breadcrumb": {
+      "onboarding": "Başlangıç",
+      "runs": "Çalıştırmalar"
     }
   },
   "static": {

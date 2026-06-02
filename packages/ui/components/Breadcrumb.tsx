@@ -3,22 +3,25 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useAppStore } from "../lib/store";
 
-const ROUTE_LABELS: Record<string, string> = {
-  "": "Home",
-  dashboard: "Dashboard",
-  companies: "Workspaces",
-  new: "New Workspace",
-  pipelines: "Pipelines",
-  approvals: "Approvals",
-  drafts: "Drafts",
-  analytics: "Analytics",
-  risks: "Risk Shield",
-  settings: "Settings",
-  billing: "Billing",
-  onboarding: "Onboarding",
-  runs: "Runs",
+// slug → i18n key (resolved per-locale at render). Reuses nav.* where labels
+// match; breadcrumb-only labels live under app.breadcrumb.
+const ROUTE_LABEL_KEYS: Record<string, string> = {
+  "": "nav.home",
+  dashboard: "nav.dashboard",
+  companies: "nav.workspaces",
+  new: "nav.newWorkspace",
+  pipelines: "nav.workflows",
+  approvals: "nav.approvals",
+  drafts: "nav.drafts",
+  analytics: "nav.analytics",
+  risks: "nav.risks",
+  settings: "nav.settings",
+  billing: "nav.billing",
+  onboarding: "app.breadcrumb.onboarding",
+  runs: "app.breadcrumb.runs",
 };
 
 // Simple cache for company name lookups
@@ -26,6 +29,7 @@ const nameCache: Record<string, string> = {};
 
 export default function Breadcrumb() {
   const pathname = usePathname();
+  const t = useTranslations();
   const token = useAppStore((s) => s.token);
   const [resolvedNames, setResolvedNames] = useState<Record<string, string>>({});
 
@@ -38,7 +42,7 @@ export default function Breadcrumb() {
 
     segments.forEach((seg, i) => {
       // Skip known route labels
-      if (ROUTE_LABELS[seg]) return;
+      if (ROUTE_LABEL_KEYS[seg]) return;
       // If it looks like an ID (>12 chars, has letters and numbers)
       if (seg.length > 12 && /[a-z]/.test(seg) && /[0-9]/.test(seg)) {
         // Check if the previous segment is "companies"
@@ -66,7 +70,7 @@ export default function Breadcrumb() {
     const href = "/" + segments.slice(0, i + 1).join("/");
     // Priority: resolved name > route label > truncated segment
     const label = resolvedNames[seg]
-      ?? ROUTE_LABELS[seg]
+      ?? (ROUTE_LABEL_KEYS[seg] ? t(ROUTE_LABEL_KEYS[seg]) : undefined)
       ?? (seg.length > 12 ? `${seg.slice(0, 8)}...` : seg);
     const isLast = i === segments.length - 1;
     return { href, label, isLast };
