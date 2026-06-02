@@ -37,6 +37,18 @@ function pick(o: any, keys: string[]): any {
   return undefined;
 }
 
+/**
+ * Defensively extract the execution array from an arbitrary response body.
+ * Returns the body itself if it's already an array, else the first listed key
+ * whose value IS an array, else []. Guards against a key being present but
+ * non-array (e.g. `{executions: 5}`) which would otherwise crash `.slice`.
+ */
+export function pickArray(body: any, keys: string[]): any[] {
+  if (Array.isArray(body)) return body;
+  for (const k of keys) if (Array.isArray(body?.[k])) return body[k];
+  return [];
+}
+
 /** Coerce epoch (s or ms) or date-ish string to an ISO string, else undefined. */
 export function toIso(v: unknown): string | undefined {
   if (v == null) return undefined;
@@ -88,9 +100,7 @@ export const genericAdapter: ExternalAdapter = {
       });
       if (!res.ok) throw new Error(`Endpoint returned ${res.status}`);
       const body: any = await res.json();
-      const list: any[] = Array.isArray(body)
-        ? body
-        : body?.executions ?? body?.runs ?? body?.data ?? body?.results ?? [];
+      const list = pickArray(body, ["executions", "runs", "data", "results"]);
 
       const executions: NormalizedExecution[] = list
         .slice(0, 100)

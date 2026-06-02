@@ -6,7 +6,7 @@ import {
   type NormalizedExecution,
   type NormalizedStatus,
 } from "./types";
-import { mapGenericStatus, toIso } from "./generic";
+import { mapGenericStatus, toIso, pickArray } from "./generic";
 
 /**
  * Make (Integromat) adapter — Make API v2.
@@ -49,7 +49,7 @@ export const makeAdapter: ExternalAdapter = {
       });
       if (!res.ok) throw new Error(`Make API returned ${res.status}`);
       const body: any = await res.json();
-      const list: any[] = Array.isArray(body) ? body : body?.scenarioLogs ?? body?.data ?? [];
+      const list = pickArray(body, ["scenarioLogs", "data"]);
 
       const executions: NormalizedExecution[] = list
         .slice(0, 100)
