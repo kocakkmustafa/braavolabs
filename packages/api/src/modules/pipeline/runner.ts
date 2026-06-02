@@ -3,7 +3,7 @@ import * as cron from "node-cron";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { runQueue, createWorker } from "../../lib/queue";
-import { executeStep, checkGovernance, type StepDef } from "./executor";
+import { executeStep, checkGovernance, planResume, type StepDef, type StepExecutionResult } from "./executor";
 import { publishRunEvent } from "../../lib/runEvents";
 import { incrementMeter, checkQuota, claimQuota } from "../billing/metering";
 import {
@@ -195,6 +195,37 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
   // Shared memory map — agents can write outputs for subsequent agents to read
   const sharedMemory = new Map<string, unknown>();
 
+  // ── Resume idempotency ───────────────────────────────────────────────
+  // A run that paused on ask_user (WAITING_APPROVAL) is re-enqueued from the
+  // top. Without this, every already-COMPLETED step would re-execute on
+  // resume — re-spending, re-sending, re-charging. So: load prior COMPLETED
+  // steps, seed cost from them, and below SKIP + restore them (feeding their
+  // persisted output into previousOutput / sharedMemory) instead of re-running.
+  // Only the not-yet-completed step (the one that paused) actually re-runs.
+  const priorCompleted = await prisma.runStep.findMany({
+    where: { runId, status: "COMPLETED" },
+    select: { id: true, stepIndex: true, output: true, costUsd: true },
+  });
+  const priorByIndex = new Map<number, { id: string; output: unknown; costUsd: number }>();
+  for (const ps of priorCompleted) {
+    priorByIndex.set(ps.stepIndex, { id: ps.id, output: ps.output, costUsd: Number(ps.costUsd ?? 0) });
+  }
+  if (priorByIndex.size > 0) {
+    totalCost = planResume(priorCompleted.map((ps) => ({ stepIndex: ps.stepIndex, costUsd: Number(ps.costUsd ?? 0) }))).seededCost;
+    logger.info({ runId, restoredSteps: priorByIndex.size, seededCost: totalCost }, "Resume: restoring completed steps (idempotent skip — no re-execution)");
+  }
+  // Synthetic COMPLETED result for a restored step (no re-run; its cost is
+  // already in the seed above, so costUsd: 0 to avoid double-counting).
+  const restoredResult = (stepDef: StepDef, prior: { id: string; output: unknown }): StepExecutionResult => ({
+    stepId: prior.id,
+    status: "COMPLETED",
+    reasoning: "(resumed — step already completed before the pause)",
+    output: prior.output,
+    costUsd: 0,
+    toolCallIds: [],
+    memoryKey: stepDef.writeMemoryKey,
+  });
+
   let globalStepIndex = 0;
 
   for (const orderIndex of sortedOrders) {
@@ -294,9 +325,13 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
       );
 
       const parallelResults = await Promise.allSettled(
-        stepsAtOrder.map((stepDef, idx) =>
-          executeStep(runId, stepDef, globalStepIndex + idx, previousOutput, sharedMemory)
-        ),
+        stepsAtOrder.map((stepDef, idx) => {
+          const prior = priorByIndex.get(globalStepIndex + idx);
+          // Resume: a step already COMPLETED before the pause is restored, not re-run.
+          return prior
+            ? Promise.resolve(restoredResult(stepDef, prior))
+            : executeStep(runId, stepDef, globalStepIndex + idx, previousOutput, sharedMemory);
+        }),
       );
 
       globalStepIndex += stepsAtOrder.length;
@@ -377,7 +412,11 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
         `Executing step ${globalStepIndex + 1}/${allSteps.length}`,
       );
 
-      const result = await executeStep(runId, stepDef, globalStepIndex, previousOutput, sharedMemory);
+      // Resume: skip + restore an already-COMPLETED step instead of re-running it.
+      const priorSeq = priorByIndex.get(globalStepIndex);
+      const result = priorSeq
+        ? restoredResult(stepDef, priorSeq)
+        : await executeStep(runId, stepDef, globalStepIndex, previousOutput, sharedMemory);
       globalStepIndex += 1;
       totalCost += result.costUsd;
 

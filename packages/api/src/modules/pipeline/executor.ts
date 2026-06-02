@@ -29,6 +29,27 @@ export interface StepExecutionResult {
 }
 
 /**
+ * Resume idempotency contract (pure — unit-tested).
+ *
+ * When a run that paused on `ask_user` is re-enqueued, the runner restarts from
+ * step 0. Given the run's already-COMPLETED steps, this returns which step
+ * indexes to SKIP (restore from their persisted output instead of re-running —
+ * so completed sends/spends/agent-calls don't repeat) and the cost to SEED so
+ * already-incurred spend isn't double-counted.
+ */
+export function planResume(
+  priorCompleted: Array<{ stepIndex: number; costUsd?: number | null }>,
+): { skip: Set<number>; seededCost: number } {
+  const skip = new Set<number>();
+  let seededCost = 0;
+  for (const ps of priorCompleted) {
+    skip.add(ps.stepIndex);
+    seededCost += Number(ps.costUsd ?? 0);
+  }
+  return { skip, seededCost };
+}
+
+/**
  * Execute a single pipeline step using the assigned agent.
  * Handles tool call logging, reasoning enforcement, and cost tracking.
  * Supports shared memory context between agents via sharedMemory map.
