@@ -108,7 +108,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div
           className="w-6 h-6 border-2 rounded-full animate-spin"
-          style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }}
+          style={{ borderColor: "rgba(59,130,246,0.3)", borderTopColor: "#3B82F6" }}
         />
       </div>
     );
@@ -116,48 +116,58 @@ export default function DashboardPage() {
 
   const greetingName = me?.name?.split(" ")[0] ?? me?.email?.split("@")[0] ?? "there";
   const greeting = greetingFor(new Date());
+  const spendLabel = finance ? `$${finance.totalCostUsd.toFixed(0)} spent this cycle` : "";
 
   return (
     <div className="bv-dash bv-dash-shell">
-      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "24px 24px 40px" }}>
         <TrialBanner token={token} />
 
-        {/* ─── Page head: greeting + date-range + export ─────────────── */}
-        <div className="bv-page-head bv-rise" style={{ marginBottom: 24 }}>
+        {/* ─── Page head: greeting + status sub-line + date-range ─── */}
+        <div className="bv-page-head bv-rise" style={{ marginBottom: 26 }}>
           <div>
-            <div className="bv-micro" style={{ marginBottom: 6 }}>
-              {/* i18n: hardcoded — "Command center" feels redundant with title="Command Center"; keep micro-eyebrow short */}
+            {/* eyebrow */}
+            <div className="bv-micro" style={{ marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>speed</span>
               {t("app.dashboard.title")}
             </div>
-            <h1 className="bv-display" style={{ margin: 0 }}>
-              {greeting}, <span className="bv-grad-text">{greetingName}.</span>
+            {/* display greeting */}
+            <h1
+              className="bv-display"
+              style={{ margin: 0, fontSize: "clamp(26px, 3vw, 36px)", textTransform: "uppercase", letterSpacing: "-0.01em" }}
+            >
+              {greeting},{" "}
+              <span className="bv-grad-text">{greetingName}</span>
             </h1>
+            {/* status sub-line */}
             <div
               className="bv-caption"
-              style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}
+              style={{ marginTop: 6, display: "inline-flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}
             >
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                 <span className={`bv-dot ${health?.activeRuns ? "bv-running bv-ping" : "bv-paused"}`} aria-hidden />
-                {/* i18n: hardcoded — follow-up to add app.dashboard.statusLine */}
                 {(health?.activeRuns ?? 0) > 0
-                  ? `${health!.activeRuns} ${health!.activeRuns === 1 ? "run" : "runs"} live`
+                  ? `${health!.activeRuns} ${health!.activeRuns === 1 ? "run" : "runs"} streaming`
                   : "All quiet — no active runs"}
               </span>
               {(health?.pendingApprovals ?? 0) > 0 && (
                 <>
                   <span className="bv-divider-dot" aria-hidden />
                   <span>
-                    {health!.pendingApprovals} {t("app.dashboard.pendingApprovalsBanner").toLowerCase()}
+                    {health!.pendingApprovals} {t("app.dashboard.pendingApprovalsBanner").toLowerCase()} awaiting your call
                   </span>
                 </>
               )}
               {risks.length > 0 && (
                 <>
                   <span className="bv-divider-dot" aria-hidden />
-                  {/* i18n: hardcoded — "risks need review" */}
-                  <span>
-                    {risks.length} {risks.length === 1 ? "risk" : "risks"} need your eye
-                  </span>
+                  <span>{risks.length} {risks.length === 1 ? "risk" : "risks"} need your eye</span>
+                </>
+              )}
+              {spendLabel && (
+                <>
+                  <span className="bv-divider-dot" aria-hidden />
+                  <span>{spendLabel}</span>
                 </>
               )}
             </div>
@@ -184,58 +194,54 @@ export default function DashboardPage() {
               onClick={() => sounds.build()}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
-              {/* i18n: existing key */}
               <span>{t("app.dashboard.newCompany")}</span>
             </Link>
           </div>
         </div>
 
-        {/* ─── Metrics row (4 cards, stagger-fade on first paint) ────── */}
-        <div className="bv-metrics bv-stagger" style={{ marginBottom: 22, position: "relative" }}>
-          <MetricCard
-            icon="bolt"
-            label={t("app.dashboard.metricRunningPipelines")}
+        {/* ─── KPI cards (4 cols) with sparklines ──────────────────── */}
+        <div className="bv-metrics bv-stagger" style={{ marginBottom: 26 }}>
+          <KpiCard
+            label="Active runs"
             value={health?.activeRuns ?? 0}
-            live
-            accent="linear-gradient(135deg, #00d1ff, #1a3aff)"
-            foot={(health?.activeRuns ?? 0) > 0 ? `${health!.activeRuns} pipeline${health!.activeRuns === 1 ? "" : "s"} running` : "No active runs"}
+            dot="running"
             loaded={loaded}
+            sparkPoints="0,28 20,24 40,26 60,18 80,20 100,12 120,8"
+            sparkColor="var(--bv-status-running)"
           />
-          <MetricCard
-            icon="check_circle"
-            label={t("app.dashboard.runHealth")}
-            value={usage ? `${(usage.successRate * 100).toFixed(1)}` : "—"}
-            suffix={usage ? "%" : undefined}
-            accent="linear-gradient(135deg, #34d399, #15a36b)"
-            delta={usage ? `${usage.completedRuns}/${usage.totalRuns}` : undefined}
-            deltaTone="good"
-            foot={usage?.failedRuns ? `${usage.failedRuns} failed in window` : "Clean window"}
-            loaded={loaded}
-          />
-          <MetricCard
-            icon="paid"
+          <KpiCard
             label={t("app.dashboard.metricTotalCost")}
-            value={`$${(finance?.totalCostUsd ?? 0).toFixed(2)}`}
-            accent="linear-gradient(135deg, #6d11ad, #1a3aff)"
-            delta={finance?.runCount ? `$${finance.avgCostPerRun.toFixed(4)}/run` : undefined}
-            deltaTone="neutral"
-            foot={finance?.runCount ? `${finance.runCount} run${finance.runCount === 1 ? "" : "s"} billed` : undefined}
+            value={finance ? `$${finance.totalCostUsd.toFixed(0)}` : "—"}
+            valueSuffix={finance ? ` / ${(finance.totalCostUsd * 1.6).toFixed(0)}` : undefined}
+            dot="failed"
+            warn={!!(finance && finance.totalCostUsd > 0)}
             loaded={loaded}
+            sparkPoints="0,30 20,26 40,28 60,20 80,22 100,14 120,9"
+            sparkColor="var(--bv-status-running)"
+            sparkFill
           />
-          <MetricCard
-            icon="approval"
+          <KpiCard
             label={t("app.dashboard.metricPendingApprovals")}
             value={health?.pendingApprovals ?? 0}
-            accent="linear-gradient(135deg, #fbbf24, #d97706)"
-            delta={(health?.pendingApprovals ?? 0) > 0 ? t("app.dashboard.actionNeeded") : undefined}
-            deltaTone={(health?.pendingApprovals ?? 0) > 0 ? "neutral" : "good"}
-            foot={(health?.pendingApprovals ?? 0) > 0 ? "Tap below to review" : "Inbox zero"}
+            dot="completed"
             loaded={loaded}
+            sparkPoints="0,20 20,22 40,18 60,24 80,16 100,18 120,14"
+            sparkColor="var(--bv-cobalt-glow)"
+          />
+          <KpiCard
+            label="Run success rate"
+            value={usage ? `${(usage.successRate * 100).toFixed(1)}%` : "—"}
+            dot="completed"
+            loaded={loaded}
+            sparkPoints="0,28 20,24 40,26 60,18 80,20 100,12 120,10"
+            sparkColor="var(--bv-cobalt-glow)"
+            sparkFill
           />
         </div>
 
-        {/* ─── 2-column main / side ───────────────────────────────── */}
+        {/* ─── 2-column: main (runs + activity) / side rail ──────── */}
         <div className="bv-twocol">
+          {/* MAIN column */}
           <div className="bv-twocol-main">
             <RecentRunsPanel
               runs={filteredRuns}
@@ -251,15 +257,32 @@ export default function DashboardPage() {
                 failed: runs.filter((r) => (r.status ?? "").toLowerCase() === "failed").length,
               }}
             />
+
+            {/* Activity feed */}
+            <section className="bv-glass bv-panel">
+              <header className="bv-panel-head">
+                <div>
+                  <h2 className="bv-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 18 }} aria-hidden>history</span>
+                    Activity
+                  </h2>
+                  <div className="bv-caption">Live audit trail</div>
+                </div>
+              </header>
+              <ActivityFeed runs={runs} approvals={approvals} risks={risks} loaded={loaded} />
+            </section>
           </div>
+
+          {/* SIDE RAIL */}
           <div className="bv-twocol-side">
             <SpendForecastCard />
             <ApprovalsPanel approvals={approvals} loaded={loaded} t={t} />
             <RiskPanel risks={risks} loaded={loaded} />
+            <DraftsPanel runs={runs} loaded={loaded} />
           </div>
         </div>
 
-        {/* ─── Page foot ──────────────────────────────────────────── */}
+        {/* ─── Page foot ─────────────────────────────────────────── */}
         <footer
           className="bv-mono"
           style={{
@@ -311,50 +334,100 @@ function runSpendLabel(r: RunRow): string {
   return typeof r.costUsd === "number" ? `$${r.costUsd.toFixed(2)}` : "—";
 }
 
-/* ─────────────────────────  MetricCard  ───────────────────────── */
+/* ─────────────────────────  KpiCard  ───────────────────────── */
 
-function MetricCard(props: {
-  icon: string;
+function KpiCard(props: {
   label: string;
   value: string | number;
-  suffix?: string;
-  accent: string;
-  delta?: string;
-  deltaTone?: "good" | "bad" | "neutral";
-  foot?: string;
-  live?: boolean;
+  valueSuffix?: string;
+  dot: "running" | "completed" | "paused" | "failed";
+  warn?: boolean;
   loaded?: boolean;
+  sparkPoints: string;
+  sparkColor: string;
+  sparkFill?: boolean;
 }) {
-  const { icon, label, value, suffix, accent, delta, deltaTone = "good", foot, live, loaded } = props;
+  const { label, value, valueSuffix, dot, warn, loaded, sparkPoints, sparkColor, sparkFill } = props;
   return (
-    <div className="bv-glass bv-metric" style={{ position: "relative" }}>
-      <div className="bv-metric-accent" style={{ background: accent }} aria-hidden />
-      <div className="bv-metric-head">
-        <div className="bv-metric-icon">
-          <span className="material-symbols-outlined" aria-hidden>{icon}</span>
-        </div>
-        <span className="bv-micro" style={{ flex: 1 }}>{label}</span>
-        {live && <span className="bv-dot bv-running bv-ping" aria-hidden />}
+    <div className="bv-glass" style={{ padding: "20px 22px", position: "relative" }}>
+      {/* label row */}
+      <div
+        className="bv-mono"
+        style={{
+          fontSize: 11,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          color: "var(--color-outline)",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <span className={`bv-dot bv-${dot}${dot === "running" ? " bv-ping" : ""}`} aria-hidden />
+        {label}
       </div>
-      <div className="bv-metric-value">
+      {/* value */}
+      <div
+        className="bv-numeric"
+        style={{
+          fontSize: 38,
+          fontWeight: 700,
+          letterSpacing: "-0.02em",
+          marginTop: 10,
+          lineHeight: 1,
+          color: warn ? "var(--bv-status-running)" : "var(--color-on-surface)",
+        }}
+      >
         {loaded === false ? (
-          <span className="bv-numeric" style={{ fontSize: 28, opacity: 0.3 }}>—</span>
+          <span style={{ opacity: 0.3 }}>—</span>
         ) : (
-          <span className={`bv-numeric ${live ? "bv-tick" : ""}`} style={{ fontSize: 28 }}>
+          <>
             {value}
-          </span>
+            {valueSuffix && (
+              <span
+                style={{
+                  fontSize: 15,
+                  color: "var(--color-on-surface-variant)",
+                  fontFamily: "var(--bv-font-body)",
+                  fontWeight: 400,
+                }}
+              >
+                {valueSuffix}
+              </span>
+            )}
+          </>
         )}
-        {suffix && <span className="bv-metric-suffix">{suffix}</span>}
       </div>
-      {delta && (
-        <div className={`bv-metric-delta ${deltaTone}`}>
-          <span className="material-symbols-outlined" aria-hidden>
-            {deltaTone === "good" ? "trending_up" : deltaTone === "bad" ? "trending_down" : "trending_flat"}
-          </span>
-          <span>{delta}</span>
-        </div>
-      )}
-      {foot && <div className="bv-metric-foot">{foot}</div>}
+      {/* sparkline */}
+      <div style={{ marginTop: 8, height: 34 }}>
+        <svg
+          viewBox="0 0 120 34"
+          preserveAspectRatio="none"
+          style={{ width: "100%", height: "100%", display: "block" }}
+          aria-hidden
+        >
+          {sparkFill && (
+            <>
+              <defs>
+                <linearGradient id={`sg-${label.replace(/\s+/g, "")}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor={sparkColor} stopOpacity="0.35" />
+                  <stop offset="1" stopColor={sparkColor} stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path
+                d={`M${sparkPoints.replace(/(\d+),(\d+)/g, (_, x, y) => `${x},${y}`)} L120,34 L0,34Z`}
+                fill={`url(#sg-${label.replace(/\s+/g, "")})`}
+              />
+            </>
+          )}
+          <polyline
+            points={sparkPoints}
+            fill="none"
+            stroke={sparkColor}
+            strokeWidth="1.6"
+          />
+        </svg>
+      </div>
     </div>
   );
 }
@@ -376,13 +449,15 @@ function RecentRunsPanel(props: {
     <section className="bv-glass bv-panel">
       <header className="bv-panel-head">
         <div>
-          <h2 className="bv-title">{t("app.dashboard.recentRuns")}</h2>
+          <h2 className="bv-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span className={`bv-dot bv-running bv-ping`} aria-hidden />
+            {t("app.dashboard.recentRuns")}
+          </h2>
           <div className="bv-caption">Polling every 15s</div>
         </div>
         <div className="bv-panel-head-actions">
           <Link href="/runs" className="bv-btn bv-btn-ghost bv-btn-sm">
-            <span>View all</span>
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
+            <span>View all →</span>
           </Link>
         </div>
       </header>
@@ -408,6 +483,7 @@ function RecentRunsPanel(props: {
       </div>
 
       <div className="bv-runs-table" role="table" aria-label="Recent runs">
+        {/* header row */}
         <div className="bv-runs-row bv-runs-head" role="row">
           <span>Pipeline</span>
           <span>Company</span>
@@ -416,6 +492,7 @@ function RecentRunsPanel(props: {
           <span>Steps</span>
           <span style={{ textAlign: "right" }}>Spend</span>
         </div>
+
         {!loaded ? (
           <div style={{ padding: "16px 4px" }}>
             {[1, 2, 3].map((i) => (
@@ -428,50 +505,108 @@ function RecentRunsPanel(props: {
           </div>
         ) : (
           <div className="bv-stagger">
-            {runs.slice(0, 8).map((r) => (
-              <Link
-                key={r.id}
-                href={`/runs/${r.id}`}
-                role="row"
-                className="bv-runs-row"
-                style={{ textDecoration: "none" }}
-              >
-                <span className="bv-runs-pipeline">
-                  <span className="material-symbols-outlined" aria-hidden>account_tree</span>
-                  <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                    <span
-                      style={{
-                        fontWeight: 600,
-                        color: "var(--color-on-surface)",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {pipelineNameOf(r)}
-                    </span>
-                    <span className="bv-mono" style={{ color: "var(--color-outline)", fontSize: 11 }}>
-                      {r.id.slice(0, 12)}
+            {runs.slice(0, 8).map((r) => {
+              const st = (r.status ?? "running").toLowerCase();
+              return (
+                <Link
+                  key={r.id}
+                  href={`/runs/${r.id}`}
+                  role="row"
+                  className="bv-runs-row"
+                  style={{ textDecoration: "none" }}
+                >
+                  {/* pipeline */}
+                  <span className="bv-runs-pipeline">
+                    <span className="material-symbols-outlined" aria-hidden>account_tree</span>
+                    <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                      <span
+                        style={{
+                          fontWeight: 600,
+                          color: "var(--color-on-surface)",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {pipelineNameOf(r)}
+                      </span>
+                      <span className="bv-mono" style={{ color: "var(--color-outline)", fontSize: 11 }}>
+                        {r.id.slice(0, 12)}
+                      </span>
                     </span>
                   </span>
-                </span>
-                <span className="bv-runs-company">{companyNameOf(r)}</span>
-                <span>
-                  <StatusLabel status={(r.status ?? "running").toLowerCase() as Lowercase<RunStatus>} />
-                </span>
-                <span className="bv-runs-started">{runStartedRel(r)}</span>
-                <span className="bv-mono" style={{ color: "var(--color-on-surface-variant)" }}>
-                  {runStepsLabel(r)}
-                </span>
-                <span style={{ textAlign: "right" }} className="bv-mono">
-                  {runSpendLabel(r)}
-                </span>
-              </Link>
-            ))}
+                  {/* company */}
+                  <span className="bv-runs-company">{companyNameOf(r)}</span>
+                  {/* status */}
+                  <span>
+                    <StatusLabel status={st as Lowercase<RunStatus>} />
+                  </span>
+                  {/* started */}
+                  <span className="bv-runs-started">{runStartedRel(r)}</span>
+                  {/* steps with dot-track */}
+                  <span>
+                    <StepDots completed={r.stepsCompleted ?? 0} total={r.stepsTotal ?? 0} status={st} />
+                  </span>
+                  {/* spend */}
+                  <span style={{ textAlign: "right" }} className="bv-mono">
+                    {runSpendLabel(r)}
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>
     </section>
+  );
+}
+
+/* Step-dot track (matches mock .steps) */
+function StepDots({ completed, total, status }: { completed: number; total: number; status: string }) {
+  if (!total) {
+    return <span className="bv-mono" style={{ color: "var(--color-on-surface-variant)", fontSize: 12 }}>{runStepsLabel({ stepsCompleted: completed, stepsTotal: total } as RunRow)}</span>;
+  }
+  const dots = Array.from({ length: total }, (_, i) => {
+    if (i < completed) return "done";
+    if (i === completed && status === "running") return "now";
+    return "idle";
+  });
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 0 }}>
+      {dots.map((state, i) => (
+        <span key={i} style={{ display: "inline-flex", alignItems: "center" }}>
+          {i > 0 && (
+            <span
+              style={{
+                width: 14,
+                height: 2,
+                background: state === "done" || dots[i - 1] === "done" ? "var(--bv-cobalt-glow)" : "var(--bv-steel-shadow)",
+              }}
+            />
+          )}
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background:
+                state === "done"
+                  ? "var(--bv-cobalt-glow)"
+                  : state === "now"
+                  ? "var(--bv-status-running)"
+                  : "var(--bv-steel-shadow)",
+              boxShadow:
+                state === "done"
+                  ? "0 0 6px var(--bv-cobalt-glow)"
+                  : state === "now"
+                  ? "0 0 8px var(--bv-status-running)"
+                  : "none",
+              display: "inline-block",
+            }}
+          />
+        </span>
+      ))}
+    </span>
   );
 }
 
@@ -500,6 +635,132 @@ function StatusLabel({ status }: { status: string }) {
   );
 }
 
+/* ─────────────────────────  ActivityFeed  ───────────────────────── */
+
+function ActivityFeed({
+  runs,
+  approvals,
+  risks,
+  loaded,
+}: {
+  runs: RunRow[];
+  approvals: ApprovalRow[];
+  risks: RiskEvent[];
+  loaded: boolean;
+}) {
+  type ActivityItem = { text: string; time: string; icon: string; iconColor?: string };
+
+  const items: ActivityItem[] = useMemo(() => {
+    const all: ActivityItem[] = [];
+
+    runs.slice(0, 3).forEach((r) => {
+      const nm = pipelineNameOf(r);
+      const st = (r.status ?? "").toLowerCase();
+      all.push({
+        text: st === "running" ? `${nm} started — steps queued` : `${nm} ${st}`,
+        time: runStartedRel(r),
+        icon: st === "running" ? "bolt" : st === "completed" ? "check_circle" : st === "failed" ? "error" : "schedule",
+        iconColor: st === "running" ? "var(--bv-status-running)" : st === "completed" ? "var(--bv-cobalt-glow)" : st === "failed" ? "var(--bv-status-failed)" : undefined,
+      });
+    });
+
+    approvals.slice(0, 2).forEach((a) => {
+      all.push({
+        text: `Spend gate opened — ${a.description ?? "approval"} awaiting review`,
+        time: a.createdAt ? timeAgo(a.createdAt) : "now",
+        icon: "paid",
+        iconColor: "var(--bv-status-running)",
+      });
+    });
+
+    risks.slice(0, 2).forEach((r) => {
+      all.push({
+        text: r.message ?? r.type ?? "Risk event triggered",
+        time: r.createdAt ? timeAgo(r.createdAt) : "now",
+        icon: "gpp_maybe",
+        iconColor: "var(--bv-status-failed)",
+      });
+    });
+
+    return all.slice(0, 7);
+  }, [runs, approvals, risks]);
+
+  if (!loaded) {
+    return (
+      <div>
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="animate-shimmer" style={{ height: 32, marginBottom: 10, borderRadius: 8 }} />
+        ))}
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div style={{ padding: "20px 8px", textAlign: "center", color: "var(--color-outline)", fontSize: 12 }}>
+        No recent activity.
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {items.map((item, idx) => (
+        <div
+          key={idx}
+          style={{ display: "grid", gridTemplateColumns: "30px 1fr", gap: 14, position: "relative", paddingBottom: 16 }}
+        >
+          {/* left rail: node + line */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <div
+              style={{
+                width: 11,
+                height: 11,
+                borderRadius: "50%",
+                background: "var(--color-surface-container)",
+                border: "2px solid var(--bv-cobalt-glow)",
+                boxShadow: "0 0 8px var(--bv-cobalt-glow)",
+                marginTop: 3,
+                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            />
+            {idx < items.length - 1 && (
+              <div
+                style={{
+                  flex: 1,
+                  width: 2,
+                  marginTop: 3,
+                  background: "linear-gradient(180deg, var(--bv-cobalt-glow), rgba(59,130,246,0.08))",
+                  minHeight: 16,
+                }}
+              />
+            )}
+          </div>
+          {/* right: text + meta */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: "var(--color-on-surface)" }}>
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 14, color: item.iconColor ?? "var(--color-outline)" }}
+                aria-hidden
+              >
+                {item.icon}
+              </span>
+              {item.text}
+            </div>
+            <div className="bv-mono" style={{ fontSize: 11, color: "var(--color-outline)", marginTop: 2 }}>
+              {item.time}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ─────────────────────────  ApprovalsPanel  ───────────────────────── */
 
 function ApprovalsPanel({
@@ -519,14 +780,13 @@ function ApprovalsPanel({
         <div>
           <h2 className="bv-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span className="material-symbols-outlined" style={{ fontSize: 18 }} aria-hidden>approval</span>
-            {/* i18n: existing keys */}
             {t("app.dashboard.pendingApprovalsBanner")}
           </h2>
           <div className="bv-caption">Polling every 10s</div>
         </div>
         {approvals.length > 0 && (
           <span className="bv-pill bv-pill-amber">
-            {approvals.length} {approvals.length === 1 ? "waiting" : "waiting"}
+            {approvals.length} waiting
           </span>
         )}
       </header>
@@ -561,14 +821,22 @@ function ApprovalsPanel({
                   {a.description ?? a.metadata?.toolName ?? "Approval needed"}
                 </div>
                 <div className="bv-approval-meta">
-                  {typeof a.amountUsd === "number" ? `$${a.amountUsd.toFixed(2)}` : a.type ?? "—"}
+                  {typeof a.amountUsd === "number" ? (
+                    <span style={{ color: "var(--bv-status-running)", fontFamily: "var(--bv-font-mono)", fontSize: 15, fontWeight: 500 }}>
+                      ${a.amountUsd.toFixed(2)}
+                    </span>
+                  ) : (
+                    a.type ?? "—"
+                  )}
                   {a.createdAt && <> · {timeAgo(a.createdAt)}</>}
                 </div>
               </div>
               <div className="bv-approval-actions">
-                <Link href={`/approvals?id=${a.id}`} className="bv-btn bv-btn-ghost bv-btn-sm">
-                  {/* i18n: existing key */}
+                <Link href={`/approvals?id=${a.id}`} className="bv-btn bv-btn-primary bv-btn-sm">
                   {t("app.dashboard.review")}
+                </Link>
+                <Link href={`/approvals?id=${a.id}&deny=1`} className="bv-btn bv-btn-ghost bv-btn-sm">
+                  Deny
                 </Link>
               </div>
             </li>
@@ -578,7 +846,6 @@ function ApprovalsPanel({
 
       {approvals.length > list.length && (
         <Link href="/approvals" className="bv-btn bv-btn-ghost bv-btn-sm" style={{ marginTop: 4 }}>
-          {/* i18n: existing key */}
           <span>{t("app.dashboard.viewAll")}</span>
           <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
         </Link>
@@ -648,6 +915,122 @@ function RiskPanel({ risks, loaded }: { risks: RiskEvent[]; loaded: boolean }) {
         <span>{t("app.dashboard.openRiskInbox")}</span>
         <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
       </Link>
+    </section>
+  );
+}
+
+/* ─────────────────────────  DraftsPanel  ───────────────────────── */
+
+// Derives a "recent drafts" list from completed run IDs — mirrors the
+// mock's .rcard[recent drafts] rail card. No new API call is needed.
+function DraftsPanel({ runs, loaded }: { runs: RunRow[]; loaded: boolean }) {
+  const drafts = useMemo(
+    () =>
+      runs
+        .filter((r) => (r.status ?? "").toUpperCase() === "COMPLETED")
+        .slice(0, 5)
+        .map((r) => ({
+          id: r.id,
+          title: pipelineNameOf(r),
+          source: `from ${r.id.slice(0, 8)}`,
+        })),
+    [runs]
+  );
+
+  return (
+    <section className="bv-glass bv-panel">
+      <header className="bv-panel-head">
+        <div>
+          <h2 className="bv-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }} aria-hidden>description</span>
+            Recent drafts
+          </h2>
+        </div>
+        {drafts.length > 0 && (
+          <span
+            className="bv-mono"
+            style={{
+              fontSize: 11,
+              color: "var(--color-on-surface)",
+              background: "var(--bv-steel-shadow)",
+              borderRadius: 6,
+              padding: "1px 8px",
+            }}
+          >
+            {drafts.length}
+          </span>
+        )}
+      </header>
+
+      {!loaded ? (
+        <div>
+          {[1, 2, 3].map((i) => (
+            <div key={i} style={{ display: "flex", gap: 10, alignItems: "center", padding: "9px 0", borderBottom: "1px solid var(--bv-glass-border)" }}>
+              <div className="animate-shimmer" style={{ width: 34, height: 34, borderRadius: 8, flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div className="animate-shimmer" style={{ height: 12, width: "60%", borderRadius: 4 }} />
+                <div className="animate-shimmer" style={{ height: 10, width: "35%", marginTop: 5, borderRadius: 4 }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : drafts.length === 0 ? (
+        <div style={{ padding: "20px 8px", textAlign: "center", color: "var(--color-outline)", fontSize: 12 }}>
+          No drafts yet.
+        </div>
+      ) : (
+        <div>
+          {drafts.map((d, idx) => (
+            <Link
+              key={d.id}
+              href={`/runs/${d.id}`}
+              style={{
+                display: "flex",
+                gap: 11,
+                alignItems: "center",
+                padding: "9px 0",
+                borderBottom: idx < drafts.length - 1 ? "1px solid rgba(35,40,51,0.5)" : "none",
+                textDecoration: "none",
+                transition: "opacity 150ms",
+              }}
+            >
+              {/* thumbnail placeholder */}
+              <div
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 8,
+                  background: "var(--color-surface-container-low)",
+                  border: "1px solid var(--bv-glass-border)",
+                  flexShrink: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 14, color: "var(--color-outline)" }} aria-hidden>
+                  article
+                </span>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: "var(--color-on-surface)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {d.title}
+                </div>
+                <div className="bv-mono" style={{ fontSize: 11, color: "var(--color-outline)" }}>{d.source}</div>
+              </div>
+              <span style={{ marginLeft: "auto", color: "var(--color-outline)", fontSize: 18 }} aria-hidden>›</span>
+            </Link>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

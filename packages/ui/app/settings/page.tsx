@@ -175,8 +175,8 @@ export default function SettingsPage() {
   }, [token, selectedCompanyId]);
 
   if (!hydrated || !token) return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }} />
+    <div className="flex items-center justify-center min-h-[60vh] bg-background">
+      <div className="w-6 h-6 border-2 rounded-full animate-spin border-outline border-t-primary" />
     </div>
   );
 
@@ -255,990 +255,922 @@ export default function SettingsPage() {
   const limits = PLAN_LIMITS[currentPlan] ?? PLAN_LIMITS.FREE;
 
   return (
-    <div className="min-h-screen" style={{ background: "#0a0d14" }}>
+    <div className="bv-dash-shell min-h-screen">
       {/* Top bar */}
-      <header
-        className="sticky top-0 z-40 flex items-center justify-between pl-8 pr-28 h-16 font-headline"
-        style={{
-          background: "rgba(12,12,29,0.85)",
-          backdropFilter: "blur(16px)",
-          borderBottom: "1px solid rgba(71,70,89,0.15)",
-          boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
-        }}
-      >
-        <div className="flex items-center gap-6">
-          <span
-            className="text-sm font-bold tracking-[0.1em] uppercase"
-            style={{ color: "#00d1ff" }}
-          >
-            Settings
-          </span>
-          <nav className="hidden md:flex gap-6">
-            {NAV_ITEMS.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setActive(item.id)}
-                className="text-[11px] font-bold uppercase tracking-widest transition-all pb-[2px]"
-                style={{
-                  color: active === item.id ? "#00d1ff" : "rgba(230,227,251,0.5)",
-                  borderBottom: active === item.id ? "2px solid #00d1ff" : "2px solid transparent",
-                }}
-              >
-                {t(`app.settings.${item.labelKey}`)}
-              </button>
-            ))}
-          </nav>
+      <header className="sticky top-0 z-40 flex items-center justify-between px-6 h-14 glass-panel border-b border-outline-variant/20">
+        <div className="flex items-center gap-4">
+          {/* breadcrumb */}
+          <div className="flex items-center gap-2 text-xs font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>settings</span>
+            <span>Settings</span>
+          </div>
         </div>
         <button
           onClick={() => { clearAuth(); router.replace("/login"); }}
-          className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
-          style={{ background: "rgba(255,180,171,0.08)", color: "#ffb4ab" }}
+          className="bv-btn bv-btn-sm bv-btn-danger flex items-center gap-1.5"
         >
-          <span className="material-symbols-outlined text-sm">logout</span>
+          <span className="material-symbols-outlined" style={{ fontSize: 15 }}>logout</span>
           {t("app.settings.signOut")}
         </button>
       </header>
 
-      {/* Content */}
-      <div className="max-w-4xl mx-auto px-8 py-10 animate-fade-in">
+      {/* Page layout: sticky subnav + content */}
+      <div className="max-w-[920px] mx-auto px-6 py-8">
 
-        {/* Profile */}
-        {active === "profile" && (
-          <Section title={t("app.settings.profileTitle")} subtitle={t("app.settings.profileSubtitle")}>
-            <div
-              className="flex items-center gap-5 mb-8 pb-8"
-              style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
-            >
-              <div className="relative">
-                <div
-                  className="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-bold font-headline"
-                  style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", color: "white" }}
-                >
-                  {tenantId ? tenantId.slice(0, 2).toUpperCase() : "AI"}
-                </div>
-                <button
-                  className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center"
-                  style={{ background: "#272a31", border: "2px solid #0a0d14" }}
-                >
-                  <span className="material-symbols-outlined text-sm" style={{ color: "#bbc9cf" }}>photo_camera</span>
-                </button>
-              </div>
-              <div>
-                <p className="font-headline font-bold text-lg" style={{ color: "#e1e2eb" }}>My Workspace</p>
-                <p className="text-sm" style={{ color: "#859399" }}>Member since 2025</p>
-                <span
-                  className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold mt-1.5"
-                  style={{
-                    background: currentPlan === "PRO" ? "rgba(109,17,173,0.2)" : "rgba(255,255,255,0.06)",
-                    color: currentPlan === "PRO" ? "#e0b6ff" : "#859399",
-                  }}
-                >
-                  {currentPlan}
-                </span>
-              </div>
-            </div>
+        {/* Page head */}
+        <div className="bv-page-head mb-7">
+          <div>
+            <p className="bv-micro text-outline mb-1">Configuration</p>
+            <h1 className="bv-headline text-on-surface">Settings</h1>
+            <p className="bv-caption mt-1">Profile, workspace, locale and notifications.</p>
+          </div>
+        </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <Field label={t("app.settings.fieldFirstName")} placeholder="Jane" />
-              <Field label={t("app.settings.fieldLastName")} placeholder="Smith" />
-            </div>
-            <Field label={t("app.settings.fieldEmail")} placeholder="you@example.com" badge={t("app.settings.verifiedBadge")} />
-            <div className="mt-4"><Field label={t("app.settings.fieldPhone")} placeholder="+1 (555) 000-0000" /></div>
-            <div className="mt-4">
-              <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>Bio</label>
-              <textarea
-                rows={3}
-                className="w-full px-4 py-2.5 rounded-lg text-sm outline-none resize-none transition-all"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
-                placeholder={t("app.settings.bioPlaceholder")}
-                onFocus={(e) => { e.currentTarget.style.border = "1px solid rgba(0,209,255,0.4)"; }}
-                onBlur={(e) => { e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)"; }}
-              />
-            </div>
-            <SaveBar onSave={handleSave} saved={saved} />
-          </Section>
-        )}
+        {/* Two-column settings wrap */}
+        <div className="grid gap-7" style={{ gridTemplateColumns: "200px 1fr", alignItems: "start" }}>
 
-        {/* Notifications */}
-        {active === "notifications" && (
-          <Section title={t("app.settings.notificationsTitle")} subtitle={t("app.settings.notificationsSubtitle")}>
-            <div className="space-y-0">
-              {([
-                { key: "spendApproval" as const, label: "Spend approval required", desc: "Critical: agent wants to spend money — requires immediate action", critical: true },
-                { key: "runCompleted" as const, label: "Agent run completed", desc: "Notified when a pipeline run finishes successfully" },
-                { key: "pipelineErrors" as const, label: "Pipeline errors", desc: "Alerts for failed runs and loop detection triggers" },
-                { key: "weeklyDigest" as const, label: "Weekly digest", desc: "Summary of activity across all your companies" },
-                { key: "marketing" as const, label: "Marketing emails", desc: "Product updates and feature announcements" },
-              ]).map((item) => (
-                <div
-                  key={item.key}
-                  className="flex items-center justify-between py-4"
-                  style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
-                >
-                  <div className="flex items-start gap-3">
-                    {item.critical && (
-                      <span
-                        className="text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 flex-shrink-0"
-                        style={{ background: "rgba(255,180,171,0.12)", color: "#ffb4ab" }}
-                      >
-                        {t("app.settings.criticalBadge")}
-                      </span>
-                    )}
-                    <div>
-                      <p className="text-sm font-medium" style={{ color: "#e1e2eb" }}>{item.label}</p>
-                      <p className="text-xs mt-0.5" style={{ color: "#859399" }}>{item.desc}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setNotifs((n) => ({ ...n, [item.key]: !n[item.key] }))}
-                    className="flex-shrink-0 w-11 h-6 rounded-full transition-all relative ml-4"
-                    style={{ background: notifs[item.key] ? "#00d1ff" : "rgba(255,255,255,0.08)" }}
-                  >
-                    <div
-                      className="absolute top-0.5 h-5 w-5 rounded-full transition-all"
-                      style={{
-                        background: "white",
-                        left: notifs[item.key] ? "calc(100% - 22px)" : "2px",
-                        boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
-                      }}
-                    />
-                  </button>
-                </div>
-              ))}
-            </div>
-            <SaveBar onSave={handleSave} saved={saved} />
-          </Section>
-        )}
-
-        {/* Billing */}
-        {active === "billing" && (
-          <Section title={t("app.settings.billingTitle")} subtitle={t("app.settings.billingSubtitle")}>
-            {billingError && (
-              <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 12, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", fontSize: 14 }}>
-                {billingError}
-              </div>
-            )}
-            <div
-              className="flex items-center justify-between mb-6 pb-6"
-              style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
-            >
-              <div className="flex items-center gap-3">
-                <span
-                  className="px-3 py-1 rounded-full text-sm font-bold"
-                  style={{
-                    background: currentPlan === "PRO" ? "rgba(109,17,173,0.2)" : "rgba(255,255,255,0.06)",
-                    color: currentPlan === "PRO" ? "#e0b6ff" : "#bbc9cf",
-                    border: currentPlan === "PRO" ? "1px solid rgba(109,17,173,0.35)" : "none",
-                  }}
-                >
-                  {currentPlan} Plan
-                </span>
-                {subscription?.subscription && (
-                  <span className="text-xs" style={{ color: "#859399" }}>
-                    {subscription.subscription.cancelAtPeriodEnd
-                      ? `Cancels ${new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()}`
-                      : `Renews ${new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()}`}
-                  </span>
-                )}
-              </div>
-              {subscription?.stripeCustomerId && (
-                <button
-                  onClick={handleManageBilling}
-                  className="text-sm font-medium transition-all hover:opacity-80"
-                  style={{ color: "#00d1ff" }}
-                >
-                  {t("app.settings.manageBilling")}
-                </button>
-              )}
-            </div>
-
-            {billingUsage && (
-              <div className="space-y-4 mb-8">
-                <UsageBar label={t("app.settings.runsThisMonth")} current={billingUsage.live.runs} limit={limits.runs} />
-                <div className="flex justify-between text-sm">
-                  <span style={{ color: "#859399" }}>Tool Calls</span>
-                  <span className="font-semibold" style={{ color: "#bbc9cf" }}>{billingUsage.live.toolCalls}</span>
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {/* All 5 plans pulled from shared core constants — keeps /pricing
-                  and /settings in lock-step. Previously a 3-tier hardcoded list
-                  with a wrong $49 price (real PRO is $39) caused users who
-                  picked "Creator" or "Business" on /pricing to find no path to
-                  buy that tier from settings. */}
-              {PLAN_ORDER.map((id) => {
-                const limits = SHARED_PLAN_LIMITS[id];
-                const pricing = PLAN_PRICING[id];
-                const isFree = id === "FREE";
-                const isEnt = id === "ENTERPRISE";
-                const price = isFree ? "$0" : isEnt ? "Custom" : `$${pricing.monthlyUsd}/mo`;
-                const features: string[] = [
-                  limits.maxCompanies === -1 ? "Unlimited workspaces" : `${limits.maxCompanies} workspace${limits.maxCompanies === 1 ? "" : "s"}`,
-                  limits.maxRunsPerMonth === -1 ? "Unlimited runs" : `${limits.maxRunsPerMonth} runs/mo`,
-                  limits.maxConnectedAutomations === -1 ? "Unlimited connected automations" : `${limits.maxConnectedAutomations} connected automation${limits.maxConnectedAutomations === 1 ? "" : "s"}`,
-                  ...(limits.onDeviceOffline ? ["On-device / offline mode"] : []),
-                  ...limits.features.includes("crm_sync") ? ["CRM sync"] : [],
-                  ...limits.features.includes("sso") ? ["SSO"] : [],
-                  ...limits.features.includes("sla") ? ["SLA"] : [],
-                ].slice(0, 5);
-                const color = id === "FREE" ? "#859399" : id === "CREATOR" ? "#a4e6ff" : id === "PRO" ? "#00d1ff" : id === "BUSINESS" ? "#c084fc" : "#e0b6ff";
-                const popular = id === "PRO";
-                return { name: PLAN_LABEL[id], price, id, color, popular, features };
-              }).map((plan) => (
-                <div
-                  key={plan.id}
-                  className="rounded-xl p-4 flex flex-col"
-                  style={{
-                    background: currentPlan === plan.id ? "rgba(0,209,255,0.06)" : "rgba(255,255,255,0.02)",
-                    border: currentPlan === plan.id ? "1.5px solid rgba(0,209,255,0.3)" : "1.5px solid rgba(255,255,255,0.06)",
-                  }}
-                >
-                  {(plan as any).popular && currentPlan !== plan.id && (
-                    <span
-                      className="text-[10px] font-bold px-2 py-0.5 rounded-full mb-2 self-start"
-                      style={{ background: "rgba(0,209,255,0.12)", color: "#00d1ff" }}
-                    >
-                      {t("app.settings.mostPopular")}
-                    </span>
-                  )}
-                  <p className="font-headline font-semibold text-sm mb-0.5" style={{ color: "#e1e2eb" }}>{plan.name}</p>
-                  <p className="text-lg font-bold font-headline mb-2" style={{ color: plan.color }}>{plan.price}</p>
-                  {currentPlan === plan.id && (
-                    <span className="text-xs px-2 py-0.5 rounded-full mb-2 self-start" style={{ background: "rgba(0,209,255,0.1)", color: "#00d1ff" }}>Current</span>
-                  )}
-                  <ul className="text-xs space-y-1 mb-4 flex-1" style={{ color: "#859399" }}>
-                    {plan.features.map((f) => (
-                      <li key={f} className="flex items-center gap-1.5">
-                        <div className="w-1 h-1 rounded-full" style={{ background: plan.color }} />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                  {currentPlan !== plan.id && plan.id !== "FREE" && (
-                    plan.id === "ENTERPRISE" ? (
-                      <a
-                        href="mailto:founder@braavolabs.com?subject=Enterprise%20plan%20inquiry"
-                        className="block w-full py-1.5 rounded-lg text-xs font-bold text-center transition-all hover:opacity-90"
-                        style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", color: "white" }}
-                      >
-                        Contact sales
-                      </a>
-                    ) : (
-                      <button
-                        onClick={() => handleUpgrade(plan.id as "CREATOR" | "PRO" | "BUSINESS")}
-                        disabled={upgradeLoading}
-                        className="w-full py-1.5 rounded-lg text-xs font-bold transition-all hover:opacity-90 disabled:opacity-50"
-                        style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", color: "white" }}
-                      >
-                        Upgrade
-                      </button>
-                    )
-                  )}
-                </div>
-              ))}
-            </div>
-          </Section>
-        )}
-
-        {/* Integrations */}
-        {active === "integrations" && (
-          <Section title={t("app.settings.integrationsTitle")} subtitle={t("app.settings.integrationsSubtitle")}>
-            {/* Company selector */}
-            <div className="mb-6">
-              <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: "#859399" }}>
-                Company
-              </label>
-              <select
-                value={selectedCompanyId}
-                onChange={(e) => setSelectedCompanyId(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl text-sm"
-                style={{ background: "rgba(255,255,255,0.04)", color: "#e1e2eb", border: "1px solid rgba(255,255,255,0.08)" }}
+          {/* Sticky subnav */}
+          <nav className="flex flex-col gap-0.5" style={{ position: "sticky", top: "80px" }}>
+            {NAV_ITEMS.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActive(item.id)}
+                className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all text-left"
+                style={{
+                  color: active === item.id ? "var(--color-on-surface)" : "var(--color-on-surface-variant)",
+                  background: active === item.id ? "rgba(59,130,246,0.08)" : "transparent",
+                  borderLeft: `2px solid ${active === item.id ? "var(--color-primary)" : "transparent"}`,
+                }}
               >
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id} style={{ background: "#0d1117" }}>{c.name}</option>
-                ))}
-                {companies.length === 0 && <option value="">{t("app.settings.noCompaniesFound")}</option>}
-              </select>
-            </div>
+                <span className="material-symbols-outlined" style={{ fontSize: 16, opacity: active === item.id ? 1 : 0.6 }}>{item.icon}</span>
+                {t(`app.settings.${item.labelKey}`)}
+              </button>
+            ))}
+            {/* Danger zone */}
+            <button
+              onClick={() => setActive("danger")}
+              className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all text-left mt-2"
+              style={{
+                color: active === "danger" ? "var(--color-error)" : "var(--color-on-surface-variant)",
+                background: active === "danger" ? "rgba(255,77,77,0.08)" : "transparent",
+                borderLeft: `2px solid ${active === "danger" ? "var(--color-error)" : "transparent"}`,
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-error)", opacity: active === "danger" ? 1 : 0.6 }}>warning</span>
+              Danger zone
+            </button>
+          </nav>
 
-            {intLoading ? (
-              <div className="text-center py-8">
-                <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-2" style={{ borderColor: "#00d1ff", borderTopColor: "transparent" }} />
-                <p className="text-xs" style={{ color: "#859399" }}>Loading integrations...</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {providers.map((prov) => {
-                  const existing = integrations.find((i: any) => i.provider === prov.provider);
-                  const isEditing = editProvider === prov.provider;
-                  const statusColor = existing?.status === "ACTIVE" ? "#22c55e" : existing?.status === "ERROR" ? "#ef4444" : existing?.status === "PENDING" ? "#f59e0b" : "#3c494e";
-                  const statusLabel = existing?.status ?? t("app.settings.notConnected");
+          {/* Section panels */}
+          <div className="animate-fade-in">
 
-                  return (
+            {/* ── Profile ── */}
+            {active === "profile" && (
+              <ForgeSection title={t("app.settings.profileTitle")} subtitle={t("app.settings.profileSubtitle")} icon="person">
+                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-outline-variant/20">
+                  <div className="relative">
+                    <div className="bv-avatar bv-avatar-lg">
+                      {tenantId ? tenantId.slice(0, 2).toUpperCase() : "AI"}
+                    </div>
+                    <button className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center bg-surface-container border-2 border-background">
+                      <span className="material-symbols-outlined text-on-surface-variant" style={{ fontSize: 13 }}>photo_camera</span>
+                    </button>
+                  </div>
+                  <div>
+                    <p className="bv-title font-headline font-bold">My Workspace</p>
+                    <p className="bv-caption mt-0.5">Member since 2025</p>
+                    <span className="bv-pill bv-pill-cyan mt-1.5 inline-flex">
+                      {currentPlan}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3.5 mb-3.5">
+                  <ForgeField label={t("app.settings.fieldFirstName")} placeholder="Jane" />
+                  <ForgeField label={t("app.settings.fieldLastName")} placeholder="Smith" />
+                </div>
+                <ForgeField label={t("app.settings.fieldEmail")} placeholder="you@example.com" badge={t("app.settings.verifiedBadge")} />
+                <div className="mt-3.5">
+                  <ForgeField label={t("app.settings.fieldPhone")} placeholder="+1 (555) 000-0000" />
+                </div>
+                <div className="mt-3.5">
+                  <label className="block bv-caption font-semibold mb-1.5 text-on-surface-variant uppercase tracking-wider" style={{ fontSize: 11 }}>Bio</label>
+                  <textarea
+                    rows={3}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm outline-none resize-none bg-surface-container border border-outline-variant/30 text-on-surface placeholder:text-outline focus:border-primary/50 transition-colors"
+                    placeholder={t("app.settings.bioPlaceholder")}
+                  />
+                </div>
+                <ForgeSaveBar onSave={handleSave} saved={saved} />
+              </ForgeSection>
+            )}
+
+            {/* ── Notifications ── */}
+            {active === "notifications" && (
+              <ForgeSection title={t("app.settings.notificationsTitle")} subtitle={t("app.settings.notificationsSubtitle")} icon="notifications">
+                <div>
+                  {([
+                    { key: "spendApproval" as const, label: "Approval requests", desc: "Push when a run needs a spend approval", critical: true },
+                    { key: "pipelineErrors" as const, label: "Risk-stop triggered", desc: "Push when a hard-stop halts a run", critical: true },
+                    { key: "runCompleted" as const, label: "Run completed", desc: "Notify when a run finishes" },
+                    { key: "weeklyDigest" as const, label: "Weekly digest", desc: "Email summary of agent performance" },
+                    { key: "marketing" as const, label: "Marketing emails", desc: "Product updates and feature announcements" },
+                  ]).map((item) => (
                     <div
-                      key={prov.provider}
-                      className="rounded-xl overflow-hidden"
-                      style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
+                      key={item.key}
+                      className="flex items-center justify-between py-3.5 border-b border-outline-variant/15 last:border-0"
                     >
-                      {/* Provider header */}
-                      <div
-                        className="flex items-center justify-between px-5 py-4 cursor-pointer"
-                        onClick={() => {
-                          if (isEditing) {
-                            setEditProvider(null);
-                          } else {
-                            setEditProvider(prov.provider);
-                            setEditFields({});
-                            setTestResult(null);
-                          }
-                        }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="text-xl">{prov.icon}</span>
-                          <div>
-                            <p className="text-sm font-medium" style={{ color: "#e1e2eb" }}>{prov.name}</p>
-                            <p className="text-xs" style={{ color: "#859399" }}>{prov.description}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span
-                            className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full"
-                            style={{ background: `${statusColor}20`, color: statusColor }}
-                          >
-                            {statusLabel}
-                          </span>
-                          <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#859399", transform: isEditing ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
-                            expand_more
-                          </span>
+                      <div className="flex items-start gap-2.5">
+                        {item.critical && (
+                          <span className="bv-pill bv-pill-amber mt-0.5 flex-shrink-0">Critical</span>
+                        )}
+                        <div>
+                          <p className="text-sm font-medium text-on-surface">{item.label}</p>
+                          <p className="bv-caption mt-0.5">{item.desc}</p>
                         </div>
                       </div>
-
-                      {/* Expanded edit form */}
-                      {isEditing && (
-                        <div className="px-5 pb-5 pt-1" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                          {/* Setup guide */}
-                          <div className="mb-4 p-3 rounded-lg" style={{ background: "rgba(0,209,255,0.05)", border: "1px solid rgba(0,209,255,0.1)" }}>
-                            <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#00d1ff" }}>Setup Guide</p>
-                            <pre className="text-xs whitespace-pre-wrap" style={{ color: "#a4e6ff" }}>
-                              {prov.setupGuide}
-                            </pre>
-                            {prov.docsUrl && (
-                              <a href={prov.docsUrl} target="_blank" rel="noopener noreferrer" className="text-xs mt-2 inline-block" style={{ color: "#00d1ff" }}>
-                                {t("app.settings.viewDocumentation")}
-                              </a>
-                            )}
-                          </div>
-
-                          {/* Credential fields */}
-                          <div className="space-y-3">
-                            {prov.fields.map((field: any) => (
-                              <div key={field.key}>
-                                <label className="text-xs font-medium mb-1 block" style={{ color: "#bbc9cf" }}>
-                                  {field.label}
-                                  {existing?.fieldsSet?.includes(field.key) && (
-                                    <span className="ml-2 text-[10px]" style={{ color: "#22c55e" }}>(saved)</span>
-                                  )}
-                                </label>
-                                <input
-                                  type={field.type}
-                                  placeholder={field.placeholder}
-                                  value={editFields[field.key] ?? ""}
-                                  onChange={(e) => setEditFields((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                                  className="w-full px-3 py-2 rounded-lg text-sm font-mono"
-                                  style={{ background: "rgba(0,0,0,0.3)", color: "#e1e2eb", border: "1px solid rgba(255,255,255,0.08)" }}
-                                />
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Test result */}
-                          {testResult && testResult.provider === prov.provider && (
-                            <div
-                              className="mt-3 p-3 rounded-lg text-xs"
-                              style={{
-                                background: testResult.success ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
-                                border: `1px solid ${testResult.success ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}`,
-                                color: testResult.success ? "#22c55e" : "#ef4444",
-                              }}
-                            >
-                              {testResult.success ? t("app.settings.connectionSuccessful") : `Error: ${testResult.error}`}
-                            </div>
-                          )}
-
-                          {/* Action buttons */}
-                          <div className="flex gap-2 mt-4">
-                            <button
-                              onClick={async () => {
-                                if (!token || !selectedCompanyId) return;
-                                const filledFields = Object.fromEntries(
-                                  Object.entries(editFields).filter(([_, v]) => v.trim() !== "")
-                                );
-                                if (Object.keys(filledFields).length === 0) return;
-                                await api.saveIntegration(token, selectedCompanyId, prov.provider, filledFields);
-                                // Reload
-                                const updated = await api.listIntegrations(token, selectedCompanyId);
-                                setIntegrations(updated);
-                                setEditFields({});
-                              }}
-                              className="px-4 py-2 rounded-lg text-xs font-semibold"
-                              style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", color: "white" }}
-                            >
-                              {t("app.settings.saveCredentials")}
-                            </button>
-                            <button
-                              onClick={async () => {
-                                if (!token || !selectedCompanyId) return;
-                                const result = await api.testIntegration(token, selectedCompanyId, prov.provider);
-                                setTestResult({ provider: prov.provider, success: result.success, error: result.error });
-                                // Reload integrations
-                                const updated = await api.listIntegrations(token, selectedCompanyId);
-                                setIntegrations(updated);
-                              }}
-                              className="px-4 py-2 rounded-lg text-xs font-semibold"
-                              style={{ background: "rgba(255,255,255,0.06)", color: "#bbc9cf", border: "1px solid rgba(255,255,255,0.08)" }}
-                            >
-                              Test Connection
-                            </button>
-                            {existing && (
-                              <button
-                                onClick={async () => {
-                                  if (!token || !selectedCompanyId) return;
-                                  await api.deleteIntegration(token, selectedCompanyId, prov.provider);
-                                  const updated = await api.listIntegrations(token, selectedCompanyId);
-                                  setIntegrations(updated);
-                                }}
-                                className="px-4 py-2 rounded-lg text-xs font-semibold ml-auto"
-                                style={{ color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.05)" }}
-                              >
-                                Remove
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </Section>
-        )}
-
-        {/* Governance */}
-        {active === "governance" && (
-          <Section title={t("app.settings.governanceTitle")} subtitle={t("app.settings.governanceSubtitle")}>
-            <div className="space-y-0">
-              {[
-                { label: "Spend Approval Required", value: "All spend actions" },
-                { label: "Loop Detection Threshold", value: "5 consecutive failures" },
-                { label: "Cost Anomaly Threshold", value: "20% of run budget" },
-                { label: "Spam Protection", value: "3+ unanswered = blocked" },
-                { label: "Memory Auto-Promote", value: "confidence ≥ 0.7, count ≥ 3" },
-                { label: "Holding Brain Requirement", value: "2+ companies with pattern" },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="flex justify-between items-center py-3.5"
-                  style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
-                >
-                  <span className="text-sm" style={{ color: "#bbc9cf" }}>{item.label}</span>
-                  <code
-                    className="font-mono text-xs px-2.5 py-1 rounded-lg"
-                    style={{ background: "rgba(255,255,255,0.04)", color: "#859399", border: "1px solid rgba(255,255,255,0.06)" }}
-                  >
-                    {item.value}
-                  </code>
-                </div>
-              ))}
-            </div>
-          </Section>
-        )}
-
-        {/* AI Provider */}
-        {active === "ai_provider" && (
-          <Section title={t("app.settings.aiTitle")} subtitle={t("app.settings.aiSubtitle")}>
-            <div className="space-y-5">
-
-              {/* Provider selector — local providers gated to Creator+ */}
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "#859399" }}>Provider</p>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {Object.entries(PROVIDER_LABELS).map(([id, info]) => {
-                    const planAllowsLocal = LOCAL_LLM_PLANS.has(currentPlan);
-                    const locked = !!info.local && !planAllowsLocal;
-                    return (
+                      {/* Toggle */}
                       <button
-                        key={id}
-                        onClick={() => {
-                          if (locked) return; // upgrade prompt is shown below
-                          setAiProvider(id);
-                          setAiModel(info.models[0] ?? "");
-                        }}
-                        className="flex items-center gap-3 p-4 rounded-xl text-left transition-all"
+                        onClick={() => setNotifs((n) => ({ ...n, [item.key]: !n[item.key] }))}
+                        className="relative flex-shrink-0 w-11 h-6 rounded-full transition-all ml-4"
                         style={{
-                          background: aiProvider === id ? "rgba(0,209,255,0.08)" : "rgba(255,255,255,0.03)",
-                          border: aiProvider === id ? "1px solid rgba(0,209,255,0.4)" : "1px solid rgba(255,255,255,0.06)",
-                          opacity: locked ? 0.5 : 1,
-                          cursor: locked ? "not-allowed" : "pointer",
+                          background: notifs[item.key]
+                            ? "var(--bv-cobalt-glow)"
+                            : "var(--color-surface-container-high)",
+                          border: `1px solid ${notifs[item.key] ? "rgba(59,130,246,0.5)" : "var(--color-outline-variant)"}`,
+                          boxShadow: notifs[item.key] ? "0 0 10px rgba(59,130,246,0.25)" : "none",
                         }}
-                        title={locked ? "Self-hosted providers are a Creator+ feature — upgrade to unlock" : ""}
+                        aria-pressed={notifs[item.key]}
                       >
                         <div
-                          className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ background: info.color }}
+                          className="absolute top-0.5 h-5 w-5 rounded-full transition-all bg-white shadow"
+                          style={{ left: notifs[item.key] ? "calc(100% - 22px)" : "2px" }}
                         />
-                        <span className="text-xs font-semibold truncate" style={{ color: aiProvider === id ? "#e1e2eb" : "#859399" }}>
-                          {info.label}
-                          {locked && <span className="ml-1" style={{ color: "#a855f7" }}>· PRO</span>}
-                        </span>
                       </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Plan-gate banner — FREE users see upgrade CTA when a local provider is selected */}
-              {PROVIDER_LABELS[aiProvider]?.local && !LOCAL_LLM_PLANS.has(currentPlan) && (
-                <div
-                  className="rounded-xl px-4 py-3 text-xs flex items-start gap-3"
-                  style={{
-                    background: "rgba(168,85,247,0.08)",
-                    border: "1px solid rgba(168,85,247,0.25)",
-                    color: "#d8b4fe",
-                  }}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#a855f7", flexShrink: 0, marginTop: 1 }}>
-                    workspace_premium
-                  </span>
-                  <div className="flex-1">
-                    <p className="font-semibold mb-1" style={{ color: "#c084fc" }}>
-                      Self-hosted Gemma is a Creator-plan feature
-                    </p>
-                    <p>
-                      Upgrade to Creator ($19/mo) or higher to point Braavolabs at your own Ollama / LM Studio / vLLM endpoint. Your prompts stay on your hardware, no per-token LLM cost, GDPR/KVKK-compliant by design.
-                    </p>
-                    <a
-                      href="/pricing"
-                      className="inline-block mt-2 px-3 py-1.5 rounded-lg text-xs font-bold"
-                      style={{ background: "linear-gradient(135deg, #a855f7, #6d11ad)", color: "white" }}
-                    >
-                      View plans →
-                    </a>
-                  </div>
-                </div>
-              )}
-
-              {/* Local-provider setup hint (only shown when plan permits) */}
-              {PROVIDER_LABELS[aiProvider]?.local && LOCAL_LLM_PLANS.has(currentPlan) && PROVIDER_LABELS[aiProvider]?.setupHint && (
-                <div
-                  className="rounded-xl px-3 py-2.5 text-xs"
-                  style={{
-                    background: "rgba(52,211,153,0.08)",
-                    border: "1px solid rgba(52,211,153,0.2)",
-                    color: "#86efac",
-                  }}
-                >
-                  <p className="font-semibold mb-1" style={{ color: "#34d399" }}>Self-hosted provider — runs on your hardware, no per-token LLM cost</p>
-                  <p style={{ color: "#86efac" }}>{PROVIDER_LABELS[aiProvider]?.setupHint}</p>
-                </div>
-              )}
-
-              {/* Model selector */}
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "#859399" }}>
-                  Model
-                  {PROVIDER_LABELS[aiProvider]?.local && aiProvider !== "CUSTOM" && (
-                    <span className="ml-2 text-[10px] font-normal normal-case" style={{ color: "#3c494e" }}>
-                      (suggestions — type any tag your local server has loaded)
-                    </span>
-                  )}
-                </p>
-                {PROVIDER_LABELS[aiProvider]?.local ? (
-                  <input
-                    type="text"
-                    list={`${aiProvider}-models`}
-                    value={aiModel}
-                    onChange={(e) => setAiModel(e.target.value)}
-                    placeholder={aiProvider === "OLLAMA" ? "gemma3:4b" : aiProvider === "LMSTUDIO" ? "google/gemma-3-4b-it" : "model-name"}
-                    className="w-full px-3 py-2.5 rounded-xl text-sm font-mono"
-                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb", outline: "none" }}
-                  />
-                ) : (
-                  <select
-                    value={aiModel}
-                    onChange={(e) => setAiModel(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl text-sm font-mono"
-                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb", outline: "none" }}
-                  >
-                    {(PROVIDER_LABELS[aiProvider]?.models ?? []).map((m) => (
-                      <option key={m} value={m} style={{ background: "#10131a" }}>{m}</option>
-                    ))}
-                  </select>
-                )}
-                <datalist id={`${aiProvider}-models`}>
-                  {(PROVIDER_LABELS[aiProvider]?.models ?? []).map((m) => (
-                    <option key={m} value={m} />
+                    </div>
                   ))}
-                </datalist>
-              </div>
-
-              {/* Base URL — local providers + cloud-with-proxy */}
-              {(PROVIDER_LABELS[aiProvider]?.local || aiBaseUrl) && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "#859399" }}>
-                    {t("app.settings.aiBaseUrl")}
-                    {!PROVIDER_LABELS[aiProvider]?.local && (
-                      <span className="ml-2 text-[10px] font-normal normal-case" style={{ color: "#3c494e" }}>(optional proxy override)</span>
-                    )}
-                    {aiProvider === "CUSTOM" && (
-                      <span className="ml-2 text-[10px] font-normal normal-case" style={{ color: "#fb7185" }}>required</span>
-                    )}
-                  </p>
-                  <input
-                    type="text"
-                    placeholder={PROVIDER_LABELS[aiProvider]?.defaultBaseUrl || "https://your-endpoint/v1"}
-                    value={aiBaseUrl}
-                    onChange={(e) => setAiBaseUrl(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl text-sm font-mono"
-                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb", outline: "none" }}
-                  />
-                  {PROVIDER_LABELS[aiProvider]?.defaultBaseUrl && !aiBaseUrl && (
-                    <p className="text-[10px] mt-1" style={{ color: "#3c494e" }}>
-                      Default: <code>{PROVIDER_LABELS[aiProvider].defaultBaseUrl}</code>
-                    </p>
-                  )}
                 </div>
-              )}
+                <ForgeSaveBar onSave={handleSave} saved={saved} />
+              </ForgeSection>
+            )}
 
-              {/* API Key — hidden for local providers (Ollama, LM Studio default to no auth) */}
-              {!PROVIDER_LABELS[aiProvider]?.local && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "#859399" }}>
-                    API Key
-                    {aiConfig?.hasApiKey && (
-                      <span className="ml-2 text-[10px] font-normal normal-case" style={{ color: "#4ade80" }}>
-                        {t("app.settings.aiKeyConfiguredPrefix")} ({aiConfig.maskedApiKey})
+            {/* ── Billing ── */}
+            {active === "billing" && (
+              <ForgeSection title={t("app.settings.billingTitle")} subtitle={t("app.settings.billingSubtitle")} icon="credit_card">
+                {billingError && (
+                  <div className="mb-4 px-4 py-3 rounded-xl bg-error-container/20 border border-error/25 text-error text-sm">
+                    {billingError}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between mb-5 pb-5 border-b border-outline-variant/15">
+                  <div className="flex items-center gap-3">
+                    <span className="bv-pill bv-pill-cyan">{currentPlan} Plan</span>
+                    {subscription?.subscription && (
+                      <span className="bv-caption">
+                        {subscription.subscription.cancelAtPeriodEnd
+                          ? `Cancels ${new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()}`
+                          : `Renews ${new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()}`}
                       </span>
                     )}
-                  </p>
-                  <p className="text-xs mb-2" style={{ color: "#3c494e" }}>
-                    {aiProvider === "ANTHROPIC" && "Get your key from console.anthropic.com"}
-                    {aiProvider === "OPENAI" && "Get your key from platform.openai.com"}
-                    {aiProvider === "GOOGLE" && "Get your key from aistudio.google.com"}
-                    {aiProvider === "MISTRAL" && "Get your key from console.mistral.ai"}
-                    {aiProvider === "GROQ" && "Get your key from console.groq.com"}
-                    {aiProvider === "OPENROUTER" && "Get your key from openrouter.ai/keys"}
-                  </p>
-                  <input
-                    type="password"
-                    placeholder={aiConfig?.hasApiKey ? t("app.settings.aiLeavePlaceholder") : "sk-..."}
-                    value={aiApiKey}
-                    onChange={(e) => setAiApiKey(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl text-sm font-mono"
-                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb", outline: "none" }}
-                  />
-                </div>
-              )}
-              {PROVIDER_LABELS[aiProvider]?.local && aiProvider === "CUSTOM" && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "#859399" }}>
-                    API Key <span className="text-[10px] font-normal normal-case" style={{ color: "#3c494e" }}>(optional)</span>
-                  </p>
-                  <input
-                    type="password"
-                    placeholder="Optional auth token for your endpoint"
-                    value={aiApiKey}
-                    onChange={(e) => setAiApiKey(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl text-sm font-mono"
-                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb", outline: "none" }}
-                  />
-                </div>
-              )}
-
-              {/* Save message */}
-              {aiSaveMsg && (
-                <div
-                  className="px-4 py-3 rounded-xl text-xs font-semibold"
-                  style={{
-                    background: aiSaveMsg.startsWith("Error") ? "rgba(255,107,107,0.1)" : "rgba(74,222,128,0.1)",
-                    color: aiSaveMsg.startsWith("Error") ? "#ff6b6b" : "#4ade80",
-                    border: `1px solid ${aiSaveMsg.startsWith("Error") ? "rgba(255,107,107,0.2)" : "rgba(74,222,128,0.2)"}`,
-                  }}
-                >
-                  {aiSaveMsg}
-                </div>
-              )}
-
-              {/* Test result */}
-              {aiTestResult && (
-                <div
-                  className="px-4 py-3 rounded-xl text-xs"
-                  style={{
-                    background: aiTestResult.success ? "rgba(74,222,128,0.08)" : "rgba(255,107,107,0.08)",
-                    border: `1px solid ${aiTestResult.success ? "rgba(74,222,128,0.2)" : "rgba(255,107,107,0.2)"}`,
-                    color: aiTestResult.success ? "#4ade80" : "#ff6b6b",
-                  }}
-                >
-                  {aiTestResult.success
-                    ? `✓ Connection successful — model responded: "${aiTestResult.response}"`
-                    : `✗ Connection failed: ${aiTestResult.error}`}
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex gap-3">
-                <button
-                  onClick={handleSaveAiConfig}
-                  disabled={aiSaving}
-                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
-                  style={{
-                    background: aiSaving ? "rgba(0,209,255,0.2)" : "linear-gradient(135deg, #00d1ff, #6d11ad)",
-                    color: "white",
-                    opacity: aiSaving ? 0.7 : 1,
-                  }}
-                >
-                  {aiSaving ? t("app.settings.aiSaving") : t("app.settings.aiSaveButton")}
-                </button>
-                {(() => {
-                  // Local providers (Ollama, LM Studio, Custom) don't require an API key —
-                  // they connect to a localhost endpoint instead. Keep Test enabled when:
-                  //   - cloud provider with stored encrypted key, OR
-                  //   - local provider (server falls back to default base URL or saved one)
-                  const cfgProvider = aiConfig?.provider ?? aiProvider;
-                  const isLocal = !!PROVIDER_LABELS[cfgProvider]?.local;
-                  const canTest = isLocal || !!aiConfig?.hasApiKey;
-                  return (
+                  </div>
+                  {subscription?.stripeCustomerId && (
                     <button
-                      onClick={handleTestAiConfig}
-                      disabled={aiTesting || !canTest}
-                      title={canTest ? "" : "Save provider with API key first"}
-                      className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                      onClick={handleManageBilling}
+                      className="text-xs font-semibold text-primary hover:opacity-80 transition-opacity"
+                    >
+                      {t("app.settings.manageBilling")}
+                    </button>
+                  )}
+                </div>
+
+                {billingUsage && (
+                  <div className="space-y-3.5 mb-7">
+                    <ForgeUsageBar label={t("app.settings.runsThisMonth")} current={billingUsage.live.runs} limit={limits.runs} />
+                    <div className="flex justify-between text-sm">
+                      <span className="text-on-surface-variant">Tool Calls</span>
+                      <span className="font-semibold text-on-surface">{billingUsage.live.toolCalls}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
+                  {PLAN_ORDER.map((id) => {
+                    const planLimits = SHARED_PLAN_LIMITS[id];
+                    const pricing = PLAN_PRICING[id];
+                    const isFree = id === "FREE";
+                    const isEnt = id === "ENTERPRISE";
+                    const price = isFree ? "$0" : isEnt ? "Custom" : `$${pricing.monthlyUsd}/mo`;
+                    const features: string[] = [
+                      planLimits.maxCompanies === -1 ? "Unlimited workspaces" : `${planLimits.maxCompanies} workspace${planLimits.maxCompanies === 1 ? "" : "s"}`,
+                      planLimits.maxRunsPerMonth === -1 ? "Unlimited runs" : `${planLimits.maxRunsPerMonth} runs/mo`,
+                      planLimits.maxConnectedAutomations === -1 ? "Unlimited connected automations" : `${planLimits.maxConnectedAutomations} connected automation${planLimits.maxConnectedAutomations === 1 ? "" : "s"}`,
+                      ...(planLimits.onDeviceOffline ? ["On-device / offline mode"] : []),
+                      ...planLimits.features.includes("crm_sync") ? ["CRM sync"] : [],
+                      ...planLimits.features.includes("sso") ? ["SSO"] : [],
+                      ...planLimits.features.includes("sla") ? ["SLA"] : [],
+                    ].slice(0, 5);
+                    const popular = id === "PRO";
+                    return { name: PLAN_LABEL[id], price, id, popular, features };
+                  }).map((plan) => (
+                    <div
+                      key={plan.id}
+                      className="bv-glass rounded-xl p-3.5 flex flex-col"
                       style={{
-                        background: "rgba(255,255,255,0.04)",
-                        color: canTest ? "#e1e2eb" : "#3c494e",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                        opacity: aiTesting ? 0.7 : 1,
+                        background: currentPlan === plan.id
+                          ? "rgba(59,130,246,0.06)"
+                          : "var(--bv-glass-bg)",
+                        borderColor: currentPlan === plan.id
+                          ? "rgba(59,130,246,0.3)"
+                          : "var(--bv-glass-border)",
                       }}
                     >
-                      {aiTesting ? t("app.settings.aiTesting") : t("app.settings.testConnection")}
-                    </button>
-                  );
-                })()}
-              </div>
+                      {plan.popular && currentPlan !== plan.id && (
+                        <span className="bv-pill bv-pill-cyan mb-2 self-start">
+                          {t("app.settings.mostPopular")}
+                        </span>
+                      )}
+                      <p className="font-headline font-semibold text-sm text-on-surface mb-0.5">{plan.name}</p>
+                      <p className="bv-numeric text-lg text-primary mb-2">{plan.price}</p>
+                      {currentPlan === plan.id && (
+                        <span className="bv-pill bv-pill-cyan mb-2 self-start">Current</span>
+                      )}
+                      <ul className="text-xs space-y-1 mb-3.5 flex-1 text-on-surface-variant">
+                        {plan.features.map((f) => (
+                          <li key={f} className="flex items-center gap-1.5">
+                            <div className="w-1 h-1 rounded-full bg-primary flex-shrink-0" />
+                            {f}
+                          </li>
+                        ))}
+                      </ul>
+                      {currentPlan !== plan.id && plan.id !== "FREE" && (
+                        plan.id === "ENTERPRISE" ? (
+                          <a
+                            href="mailto:founder@braavolabs.com?subject=Enterprise%20plan%20inquiry"
+                            className="bv-btn bv-btn-primary bv-btn-sm w-full justify-center"
+                          >
+                            Contact sales
+                          </a>
+                        ) : (
+                          <button
+                            onClick={() => handleUpgrade(plan.id as "CREATOR" | "PRO" | "BUSINESS")}
+                            disabled={upgradeLoading}
+                            className="bv-btn bv-btn-primary bv-btn-sm w-full justify-center disabled:opacity-50"
+                          >
+                            Upgrade
+                          </button>
+                        )
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </ForgeSection>
+            )}
 
-              {/* Info box */}
-              <div
-                className="p-4 rounded-xl text-xs"
-                style={{ background: "rgba(109,17,173,0.08)", border: "1px solid rgba(109,17,173,0.2)", color: "#c4a8e0" }}
-              >
-                <p className="font-semibold mb-1">How it works</p>
-                <p style={{ color: "#859399" }}>
-                  Your API key is encrypted with AES-256-GCM before storage. When running pipelines and building companies, agents will use your configured provider. <strong style={{ color: "#fbbf24" }}>An API key is required</strong> — without one, the company builder will fall back to a placeholder spec and pipeline runs will fail with &ldquo;Anthropic API client not initialized&rdquo;. Get your key from <a href="https://console.anthropic.com" target="_blank" rel="noopener" style={{ color: "#a4e6ff", textDecoration: "underline" }}>console.anthropic.com</a> (or pick another provider above).
-                </p>
-                <p className="mt-2" style={{ color: "#859399" }}>
-                  <strong style={{ color: "#34d399" }}>Self-hosted option (Creator+):</strong> point Braavolabs at <code>Ollama</code> or <code>LM Studio</code> running on your own machine — Gemma 3 4B is a good starting point. Prompts stay on your hardware, no per-token LLM costs, works offline. Subscribe to Creator or higher to unlock.
-                </p>
-              </div>
-            </div>
-          </Section>
-        )}
-
-        {/* API & Auth */}
-        {active === "api" && (
-          <Section title="API & Auth" subtitle="Your credentials and access tokens">
-            <div className="space-y-4">
-              <div className="p-5 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "#859399" }}>Tenant ID</p>
-                <div className="flex items-center gap-3">
-                  <code className="text-sm flex-1 truncate font-mono" style={{ color: "#bbc9cf" }}>
-                    {tenantId ? `${tenantId.slice(0, 4)}...${tenantId.slice(-4)}` : "—"}
-                  </code>
-                  <button
-                    className="px-3 py-1 rounded-lg text-xs font-semibold"
-                    style={{ background: "rgba(0,209,255,0.1)", color: "#00d1ff", border: "1px solid rgba(0,209,255,0.2)" }}
-                    onClick={() => tenantId && navigator.clipboard.writeText(tenantId)}
+            {/* ── Integrations ── */}
+            {active === "integrations" && (
+              <ForgeSection title={t("app.settings.integrationsTitle")} subtitle={t("app.settings.integrationsSubtitle")} icon="hub">
+                <div className="mb-5">
+                  <label className="bv-micro text-outline mb-2 block">Company</label>
+                  <select
+                    value={selectedCompanyId}
+                    onChange={(e) => setSelectedCompanyId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-surface-container border border-outline-variant/30 text-on-surface outline-none focus:border-primary/50 transition-colors"
                   >
-                    Copy
-                  </button>
+                    {companies.map((c) => (
+                      <option key={c.id} value={c.id} style={{ background: "var(--color-surface-container)" }}>{c.name}</option>
+                    ))}
+                    {companies.length === 0 && <option value="">{t("app.settings.noCompaniesFound")}</option>}
+                  </select>
                 </div>
-              </div>
-              <div className="p-5 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "#859399" }}>Session Token</p>
-                <code className="text-sm font-mono" style={{ color: "#bbc9cf" }}>
-                  {token ? `${token.slice(0, 24)}...` : "—"}
-                </code>
-              </div>
-            </div>
-          </Section>
-        )}
 
-        {/* Webhooks */}
-        {active === "webhooks" && (
-          <Section title="Webhooks & API Keys" subtitle="Manage webhook endpoints and API access for your companies">
-            <div className="space-y-5">
-              {/* Webhook endpoint info */}
-              <div className="p-5 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#00d1ff" }}>webhook</span>
-                  <p className="text-sm font-semibold" style={{ color: "#e1e2eb" }}>Incoming Webhooks</p>
-                </div>
-                <p className="text-xs mb-3" style={{ color: "#859399" }}>
-                  External services can trigger pipeline runs by sending POST requests to your webhook endpoints.
-                </p>
-                <div className="rounded-lg p-3" style={{ background: "rgba(0,0,0,0.2)" }}>
-                  <p className="text-[10px] font-semibold tracking-wider mb-1" style={{ color: "#859399" }}>ENDPOINT FORMAT</p>
-                  <code className="text-xs font-mono" style={{ color: "#a4e6ff" }}>
-                    POST /hooks/:company_slug/:event
-                  </code>
-                </div>
-                <p className="text-xs mt-2" style={{ color: "#3c494e" }}>
-                  Replace <code style={{ color: "#a4e6ff" }}>:company_slug</code> with your company slug and <code style={{ color: "#a4e6ff" }}>:event</code> with the event name.
-                </p>
-              </div>
+                {intLoading ? (
+                  <div className="text-center py-10">
+                    <div className="w-5 h-5 border-2 rounded-full animate-spin mx-auto mb-2 border-outline border-t-primary" />
+                    <p className="bv-caption">Loading integrations...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {providers.map((prov) => {
+                      const existing = integrations.find((i: any) => i.provider === prov.provider);
+                      const isEditing = editProvider === prov.provider;
+                      const statusColor = existing?.status === "ACTIVE" ? "var(--bv-status-completed)" : existing?.status === "ERROR" ? "var(--bv-status-failed)" : existing?.status === "PENDING" ? "var(--bv-status-running)" : "var(--color-outline)";
+                      const statusLabel = existing?.status ?? t("app.settings.notConnected");
 
-              {/* API Key display */}
-              <div className="p-5 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#fbbf24" }}>key</span>
-                  <p className="text-sm font-semibold" style={{ color: "#e1e2eb" }}>API Access</p>
-                </div>
-                <div className="flex items-center gap-3 mb-2">
-                  <code className="text-sm flex-1 truncate font-mono" style={{ color: "#bbc9cf" }}>
-                    Bearer {token ? `${token.slice(0, 20)}...` : "—"}
-                  </code>
-                  <button
-                    className="px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1"
-                    style={{ background: "rgba(0,209,255,0.1)", color: "#00d1ff", border: "1px solid rgba(0,209,255,0.2)" }}
-                    onClick={() => token && navigator.clipboard.writeText(token)}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: 13 }}>content_copy</span>
-                    Copy
-                  </button>
-                </div>
-                <p className="text-xs" style={{ color: "#3c494e" }}>Use this token as Bearer auth in API requests. Tokens expire after session ends.</p>
-              </div>
+                      return (
+                        <div key={prov.provider} className="bv-glass rounded-xl overflow-hidden">
+                          <div
+                            className="flex items-center justify-between px-4 py-3.5 cursor-pointer"
+                            onClick={() => {
+                              if (isEditing) {
+                                setEditProvider(null);
+                              } else {
+                                setEditProvider(prov.provider);
+                                setEditFields({});
+                                setTestResult(null);
+                              }
+                            }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="text-xl">{prov.icon}</span>
+                              <div>
+                                <p className="text-sm font-semibold text-on-surface">{prov.name}</p>
+                                <p className="bv-caption">{prov.description}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2.5">
+                              <span
+                                className="bv-pill"
+                                style={{ color: statusColor, background: `${statusColor}18`, borderColor: `${statusColor}40` }}
+                              >
+                                {statusLabel}
+                              </span>
+                              <span
+                                className="material-symbols-outlined text-outline"
+                                style={{ fontSize: 18, transform: isEditing ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}
+                              >
+                                expand_more
+                              </span>
+                            </div>
+                          </div>
 
-              {/* Example events */}
-              <div>
-                <p className="text-xs font-semibold mb-3" style={{ color: "#bbc9cf" }}>Common Events</p>
-                <div className="space-y-0">
-                  {[
-                    { event: "new_lead", desc: "Trigger acquisition pipeline on new lead", icon: "person_add" },
-                    { event: "content_ready", desc: "Content approved for publishing", icon: "check_circle" },
-                    { event: "payment_received", desc: "Process payment and update CRM", icon: "payments" },
-                    { event: "support_ticket", desc: "Route to customer success agent", icon: "support_agent" },
-                  ].map((ev) => (
-                    <div
-                      key={ev.event}
-                      className="flex items-center justify-between py-3"
-                      style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined" style={{ fontSize: 16, color: "#859399" }}>{ev.icon}</span>
-                        <div>
-                          <code className="text-xs font-mono" style={{ color: "#e1e2eb" }}>{ev.event}</code>
-                          <p className="text-xs" style={{ color: "#3c494e" }}>{ev.desc}</p>
+                          {isEditing && (
+                            <div className="px-4 pb-4 pt-1 border-t border-outline-variant/15">
+                              <div className="mb-3.5 p-3 rounded-xl bg-primary/5 border border-primary/15">
+                                <p className="bv-micro text-primary mb-1.5">Setup Guide</p>
+                                <pre className="text-xs whitespace-pre-wrap text-on-surface-variant">{prov.setupGuide}</pre>
+                                {prov.docsUrl && (
+                                  <a href={prov.docsUrl} target="_blank" rel="noopener noreferrer" className="text-xs mt-2 inline-block text-primary">
+                                    {t("app.settings.viewDocumentation")}
+                                  </a>
+                                )}
+                              </div>
+
+                              <div className="space-y-2.5">
+                                {prov.fields.map((field: any) => (
+                                  <div key={field.key}>
+                                    <label className="bv-caption font-semibold mb-1 block text-on-surface-variant">
+                                      {field.label}
+                                      {existing?.fieldsSet?.includes(field.key) && (
+                                        <span className="ml-2 text-[10px] text-primary">(saved)</span>
+                                      )}
+                                    </label>
+                                    <input
+                                      type={field.type}
+                                      placeholder={field.placeholder}
+                                      value={editFields[field.key] ?? ""}
+                                      onChange={(e) => setEditFields((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                                      className="w-full px-3 py-2 rounded-xl text-sm font-mono bg-surface-container border border-outline-variant/30 text-on-surface outline-none focus:border-primary/50 transition-colors"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+
+                              {testResult && testResult.provider === prov.provider && (
+                                <div
+                                  className="mt-3 p-3 rounded-xl text-xs"
+                                  style={{
+                                    background: testResult.success ? "rgba(59,130,246,0.08)" : "rgba(255,77,77,0.08)",
+                                    border: `1px solid ${testResult.success ? "rgba(59,130,246,0.2)" : "rgba(255,77,77,0.2)"}`,
+                                    color: testResult.success ? "var(--color-primary)" : "var(--color-error)",
+                                  }}
+                                >
+                                  {testResult.success ? t("app.settings.connectionSuccessful") : `Error: ${testResult.error}`}
+                                </div>
+                              )}
+
+                              <div className="flex gap-2 mt-3.5">
+                                <button
+                                  onClick={async () => {
+                                    if (!token || !selectedCompanyId) return;
+                                    const filledFields = Object.fromEntries(
+                                      Object.entries(editFields).filter(([_, v]) => v.trim() !== "")
+                                    );
+                                    if (Object.keys(filledFields).length === 0) return;
+                                    await api.saveIntegration(token, selectedCompanyId, prov.provider, filledFields);
+                                    const updated = await api.listIntegrations(token, selectedCompanyId);
+                                    setIntegrations(updated);
+                                    setEditFields({});
+                                  }}
+                                  className="bv-btn bv-btn-primary bv-btn-sm"
+                                >
+                                  {t("app.settings.saveCredentials")}
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (!token || !selectedCompanyId) return;
+                                    const result = await api.testIntegration(token, selectedCompanyId, prov.provider);
+                                    setTestResult({ provider: prov.provider, success: result.success, error: result.error });
+                                    const updated = await api.listIntegrations(token, selectedCompanyId);
+                                    setIntegrations(updated);
+                                  }}
+                                  className="bv-btn bv-btn-ghost bv-btn-sm"
+                                >
+                                  Test Connection
+                                </button>
+                                {existing && (
+                                  <button
+                                    onClick={async () => {
+                                      if (!token || !selectedCompanyId) return;
+                                      await api.deleteIntegration(token, selectedCompanyId, prov.provider);
+                                      const updated = await api.listIntegrations(token, selectedCompanyId);
+                                      setIntegrations(updated);
+                                    }}
+                                    className="bv-btn bv-btn-danger bv-btn-sm ml-auto"
+                                  >
+                                    Remove
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </ForgeSection>
+            )}
+
+            {/* ── Governance ── */}
+            {active === "governance" && (
+              <ForgeSection title={t("app.settings.governanceTitle")} subtitle={t("app.settings.governanceSubtitle")} icon="security">
+                <div>
+                  {[
+                    { label: "Spend Approval Required", value: "All spend actions" },
+                    { label: "Loop Detection Threshold", value: "5 consecutive failures" },
+                    { label: "Cost Anomaly Threshold", value: "20% of run budget" },
+                    { label: "Spam Protection", value: "3+ unanswered = blocked" },
+                    { label: "Memory Auto-Promote", value: "confidence ≥ 0.7, count ≥ 3" },
+                    { label: "Holding Brain Requirement", value: "2+ companies with pattern" },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex justify-between items-center py-3.5 border-b border-outline-variant/15 last:border-0"
+                    >
+                      <span className="text-sm text-on-surface-variant">{item.label}</span>
+                      <code className="bv-mono px-2.5 py-1 rounded-lg bg-surface-container border border-outline-variant/20 text-outline">
+                        {item.value}
+                      </code>
+                    </div>
+                  ))}
+                </div>
+              </ForgeSection>
+            )}
+
+            {/* ── AI Provider ── */}
+            {active === "ai_provider" && (
+              <ForgeSection title={t("app.settings.aiTitle")} subtitle={t("app.settings.aiSubtitle")} icon="smart_toy">
+                <div className="space-y-5">
+
+                  {/* Provider selector */}
+                  <div>
+                    <p className="bv-micro text-outline mb-3">Provider</p>
+                    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                      {Object.entries(PROVIDER_LABELS).map(([id, info]) => {
+                        const planAllowsLocal = LOCAL_LLM_PLANS.has(currentPlan);
+                        const locked = !!info.local && !planAllowsLocal;
+                        return (
+                          <button
+                            key={id}
+                            onClick={() => {
+                              if (locked) return;
+                              setAiProvider(id);
+                              setAiModel(info.models[0] ?? "");
+                            }}
+                            className="flex items-center gap-2.5 p-3.5 rounded-xl text-left transition-all"
+                            style={{
+                              background: aiProvider === id ? "rgba(59,130,246,0.08)" : "var(--color-surface-container)",
+                              border: `1px solid ${aiProvider === id ? "rgba(59,130,246,0.4)" : "var(--color-outline-variant)"}`,
+                              opacity: locked ? 0.5 : 1,
+                              cursor: locked ? "not-allowed" : "pointer",
+                            }}
+                            title={locked ? "Self-hosted providers are a Creator+ feature — upgrade to unlock" : ""}
+                          >
+                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: info.color }} />
+                            <span className="text-xs font-semibold truncate" style={{ color: aiProvider === id ? "var(--color-on-surface)" : "var(--color-on-surface-variant)" }}>
+                              {info.label}
+                              {locked && <span className="ml-1 text-primary"> · PRO</span>}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Plan-gate banner */}
+                  {PROVIDER_LABELS[aiProvider]?.local && !LOCAL_LLM_PLANS.has(currentPlan) && (
+                    <div className="rounded-xl px-4 py-3 text-xs flex items-start gap-3 bg-primary/5 border border-primary/20 text-on-surface-variant">
+                      <span className="material-symbols-outlined text-primary flex-shrink-0 mt-0.5" style={{ fontSize: 18 }}>workspace_premium</span>
+                      <div className="flex-1">
+                        <p className="font-semibold mb-1 text-on-surface">Self-hosted Gemma is a Creator-plan feature</p>
+                        <p>Upgrade to Creator ($19/mo) or higher to point Braavolabs at your own Ollama / LM Studio / vLLM endpoint.</p>
+                        <a href="/pricing" className="bv-btn bv-btn-primary bv-btn-sm mt-2 inline-flex">View plans →</a>
                       </div>
-                      <button
-                        className="px-2 py-1 rounded text-[10px] font-semibold"
-                        style={{ background: "rgba(255,255,255,0.04)", color: "#859399", border: "1px solid rgba(255,255,255,0.06)" }}
-                        onClick={() => navigator.clipboard.writeText(`/hooks/YOUR_COMPANY/${ev.event}`)}
+                    </div>
+                  )}
+
+                  {/* Local setup hint */}
+                  {PROVIDER_LABELS[aiProvider]?.local && LOCAL_LLM_PLANS.has(currentPlan) && PROVIDER_LABELS[aiProvider]?.setupHint && (
+                    <div className="rounded-xl px-3.5 py-2.5 text-xs bg-primary/5 border border-primary/20">
+                      <p className="font-semibold mb-1 text-primary">Self-hosted provider — runs on your hardware</p>
+                      <p className="text-on-surface-variant">{PROVIDER_LABELS[aiProvider]?.setupHint}</p>
+                    </div>
+                  )}
+
+                  {/* Model selector */}
+                  <div>
+                    <p className="bv-micro text-outline mb-2">
+                      Model
+                      {PROVIDER_LABELS[aiProvider]?.local && aiProvider !== "CUSTOM" && (
+                        <span className="ml-2 font-normal normal-case text-[10px] text-outline opacity-60">(type any tag your local server has loaded)</span>
+                      )}
+                    </p>
+                    {PROVIDER_LABELS[aiProvider]?.local ? (
+                      <input
+                        type="text"
+                        list={`${aiProvider}-models`}
+                        value={aiModel}
+                        onChange={(e) => setAiModel(e.target.value)}
+                        placeholder={aiProvider === "OLLAMA" ? "gemma3:4b" : aiProvider === "LMSTUDIO" ? "google/gemma-3-4b-it" : "model-name"}
+                        className="w-full px-3.5 py-2.5 rounded-xl text-sm font-mono bg-surface-container border border-outline-variant/30 text-on-surface outline-none focus:border-primary/50 transition-colors"
+                      />
+                    ) : (
+                      <select
+                        value={aiModel}
+                        onChange={(e) => setAiModel(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl text-sm font-mono bg-surface-container border border-outline-variant/30 text-on-surface outline-none focus:border-primary/50 transition-colors"
                       >
-                        Copy URL
+                        {(PROVIDER_LABELS[aiProvider]?.models ?? []).map((m) => (
+                          <option key={m} value={m} style={{ background: "var(--color-surface-container)" }}>{m}</option>
+                        ))}
+                      </select>
+                    )}
+                    <datalist id={`${aiProvider}-models`}>
+                      {(PROVIDER_LABELS[aiProvider]?.models ?? []).map((m) => (
+                        <option key={m} value={m} />
+                      ))}
+                    </datalist>
+                  </div>
+
+                  {/* Base URL */}
+                  {(PROVIDER_LABELS[aiProvider]?.local || aiBaseUrl) && (
+                    <div>
+                      <p className="bv-micro text-outline mb-1">
+                        {t("app.settings.aiBaseUrl")}
+                        {!PROVIDER_LABELS[aiProvider]?.local && (
+                          <span className="ml-2 font-normal normal-case text-[10px] opacity-60">(optional proxy override)</span>
+                        )}
+                        {aiProvider === "CUSTOM" && (
+                          <span className="ml-2 font-normal normal-case text-[10px] text-error">required</span>
+                        )}
+                      </p>
+                      <input
+                        type="text"
+                        placeholder={PROVIDER_LABELS[aiProvider]?.defaultBaseUrl || "https://your-endpoint/v1"}
+                        value={aiBaseUrl}
+                        onChange={(e) => setAiBaseUrl(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl text-sm font-mono bg-surface-container border border-outline-variant/30 text-on-surface outline-none focus:border-primary/50 transition-colors"
+                      />
+                      {PROVIDER_LABELS[aiProvider]?.defaultBaseUrl && !aiBaseUrl && (
+                        <p className="text-[10px] mt-1 text-outline opacity-60">
+                          Default: <code>{PROVIDER_LABELS[aiProvider].defaultBaseUrl}</code>
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* API Key */}
+                  {!PROVIDER_LABELS[aiProvider]?.local && (
+                    <div>
+                      <p className="bv-micro text-outline mb-1">
+                        API Key
+                        {aiConfig?.hasApiKey && (
+                          <span className="ml-2 font-normal normal-case text-[10px] text-primary">
+                            {t("app.settings.aiKeyConfiguredPrefix")} ({aiConfig.maskedApiKey})
+                          </span>
+                        )}
+                      </p>
+                      <p className="bv-caption mb-2 text-outline opacity-70">
+                        {aiProvider === "ANTHROPIC" && "Get your key from console.anthropic.com"}
+                        {aiProvider === "OPENAI" && "Get your key from platform.openai.com"}
+                        {aiProvider === "GOOGLE" && "Get your key from aistudio.google.com"}
+                        {aiProvider === "MISTRAL" && "Get your key from console.mistral.ai"}
+                        {aiProvider === "GROQ" && "Get your key from console.groq.com"}
+                        {aiProvider === "OPENROUTER" && "Get your key from openrouter.ai/keys"}
+                      </p>
+                      <input
+                        type="password"
+                        placeholder={aiConfig?.hasApiKey ? t("app.settings.aiLeavePlaceholder") : "sk-..."}
+                        value={aiApiKey}
+                        onChange={(e) => setAiApiKey(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl text-sm font-mono bg-surface-container border border-outline-variant/30 text-on-surface outline-none focus:border-primary/50 transition-colors"
+                      />
+                    </div>
+                  )}
+                  {PROVIDER_LABELS[aiProvider]?.local && aiProvider === "CUSTOM" && (
+                    <div>
+                      <p className="bv-micro text-outline mb-1">
+                        API Key <span className="font-normal normal-case opacity-60">(optional)</span>
+                      </p>
+                      <input
+                        type="password"
+                        placeholder="Optional auth token for your endpoint"
+                        value={aiApiKey}
+                        onChange={(e) => setAiApiKey(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl text-sm font-mono bg-surface-container border border-outline-variant/30 text-on-surface outline-none focus:border-primary/50 transition-colors"
+                      />
+                    </div>
+                  )}
+
+                  {/* Save message */}
+                  {aiSaveMsg && (
+                    <div
+                      className="px-4 py-3 rounded-xl text-xs font-semibold"
+                      style={{
+                        background: aiSaveMsg.startsWith("Error") ? "rgba(255,77,77,0.08)" : "rgba(59,130,246,0.08)",
+                        color: aiSaveMsg.startsWith("Error") ? "var(--color-error)" : "var(--color-primary)",
+                        border: `1px solid ${aiSaveMsg.startsWith("Error") ? "rgba(255,77,77,0.2)" : "rgba(59,130,246,0.2)"}`,
+                      }}
+                    >
+                      {aiSaveMsg}
+                    </div>
+                  )}
+
+                  {/* Test result */}
+                  {aiTestResult && (
+                    <div
+                      className="px-4 py-3 rounded-xl text-xs"
+                      style={{
+                        background: aiTestResult.success ? "rgba(59,130,246,0.06)" : "rgba(255,77,77,0.06)",
+                        border: `1px solid ${aiTestResult.success ? "rgba(59,130,246,0.2)" : "rgba(255,77,77,0.2)"}`,
+                        color: aiTestResult.success ? "var(--color-primary)" : "var(--color-error)",
+                      }}
+                    >
+                      {aiTestResult.success
+                        ? `✓ Connection successful — model responded: "${aiTestResult.response}"`
+                        : `✗ Connection failed: ${aiTestResult.error}`}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleSaveAiConfig}
+                      disabled={aiSaving}
+                      className="bv-btn bv-btn-primary flex-1 disabled:opacity-50"
+                    >
+                      {aiSaving ? t("app.settings.aiSaving") : t("app.settings.aiSaveButton")}
+                    </button>
+                    {(() => {
+                      const cfgProvider = aiConfig?.provider ?? aiProvider;
+                      const isLocal = !!PROVIDER_LABELS[cfgProvider]?.local;
+                      const canTest = isLocal || !!aiConfig?.hasApiKey;
+                      return (
+                        <button
+                          onClick={handleTestAiConfig}
+                          disabled={aiTesting || !canTest}
+                          title={canTest ? "" : "Save provider with API key first"}
+                          className="bv-btn bv-btn-ghost disabled:opacity-40"
+                        >
+                          {aiTesting ? t("app.settings.aiTesting") : t("app.settings.testConnection")}
+                        </button>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Info box */}
+                  <div className="p-4 rounded-xl bg-surface-container border border-outline-variant/20 text-xs text-on-surface-variant">
+                    <p className="font-semibold mb-1 text-on-surface">How it works</p>
+                    <p>
+                      Your API key is encrypted with AES-256-GCM before storage. When running pipelines and building companies, agents will use your configured provider.{" "}
+                      <strong className="text-primary">An API key is required</strong> — without one, the company builder will fall back to a placeholder spec and pipeline runs will fail with &ldquo;Anthropic API client not initialized&rdquo;. Get your key from{" "}
+                      <a href="https://console.anthropic.com" target="_blank" rel="noopener" className="text-primary underline">console.anthropic.com</a> (or pick another provider above).
+                    </p>
+                    <p className="mt-2">
+                      <strong className="text-primary">Self-hosted option (Creator+):</strong> point Braavolabs at <code>Ollama</code> or <code>LM Studio</code> running on your own machine — Gemma 3 4B is a good starting point. Prompts stay on your hardware, no per-token LLM costs, works offline.
+                    </p>
+                  </div>
+                </div>
+              </ForgeSection>
+            )}
+
+            {/* ── API & Auth ── */}
+            {active === "api" && (
+              <ForgeSection title="API & Auth" subtitle="Your credentials and access tokens" icon="terminal">
+                <div className="space-y-3.5">
+                  <div className="p-4 rounded-xl bg-surface-container border border-outline-variant/20">
+                    <p className="bv-micro text-outline mb-1.5">Tenant ID</p>
+                    <div className="flex items-center gap-3">
+                      <code className="text-sm flex-1 truncate bv-mono text-on-surface-variant">
+                        {tenantId ? `${tenantId.slice(0, 4)}...${tenantId.slice(-4)}` : "—"}
+                      </code>
+                      <button
+                        className="bv-btn bv-btn-ghost bv-btn-sm"
+                        onClick={() => tenantId && navigator.clipboard.writeText(tenantId)}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>content_copy</span>
+                        Copy
                       </button>
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Webhook test */}
-              <div className="p-4 rounded-xl" style={{ background: "rgba(0,209,255,0.04)", border: "1px solid rgba(0,209,255,0.12)" }}>
-                <p className="text-xs font-semibold mb-2" style={{ color: "#00d1ff" }}>Test Your Webhook</p>
-                <code className="text-xs font-mono block" style={{ color: "#bbc9cf" }}>
-                  curl -X POST {typeof window !== "undefined" ? window.location.origin : ""}/api/v1/hooks/YOUR_COMPANY/test \
-                </code>
-                <code className="text-xs font-mono block ml-4" style={{ color: "#bbc9cf" }}>
-                  -H &quot;Authorization: Bearer YOUR_TOKEN&quot; \
-                </code>
-                <code className="text-xs font-mono block ml-4" style={{ color: "#bbc9cf" }}>
-                  -H &quot;Content-Type: application/json&quot; \
-                </code>
-                <code className="text-xs font-mono block ml-4" style={{ color: "#bbc9cf" }}>
-                  -d {`'{"data": "test"}'`}
-                </code>
-              </div>
-            </div>
-          </Section>
-        )}
-
-        {/* Referral */}
-        {active === "referral" && (
-          <Section title="Referral Program" subtitle="Share your code — both you and your friend get 5 bonus runs">
-            {referral ? (
-              <div className="space-y-5">
-                <div className="p-5 rounded-xl" style={{ background: "rgba(0,209,255,0.06)", border: "1px solid rgba(0,209,255,0.2)" }}>
-                  <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "#00d1ff" }}>Your Code</p>
-                  <div className="flex items-center gap-3">
-                    <code className="text-xl font-bold font-mono" style={{ color: "#e1e2eb" }}>{referral.code}</code>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(referral.code)}
-                      className="px-3 py-1 rounded-lg text-xs font-bold"
-                      style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", color: "white" }}
-                    >
-                      Copy
-                    </button>
+                  </div>
+                  <div className="p-4 rounded-xl bg-surface-container border border-outline-variant/20">
+                    <p className="bv-micro text-outline mb-1.5">Session Token</p>
+                    <code className="text-sm bv-mono text-on-surface-variant">
+                      {token ? `${token.slice(0, 24)}...` : "—"}
+                    </code>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { label: "Referred", value: referral.stats.totalReferred, color: "#e1e2eb" },
-                    { label: "Converted", value: referral.stats.converted, color: "#34d399" },
-                    { label: "Rewards", value: referral.stats.rewardsApplied, color: "#00d1ff" },
-                  ].map((s) => (
-                    <div key={s.label} className="text-center p-4 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                      <p className="text-2xl font-bold font-headline" style={{ color: s.color }}>{s.value}</p>
-                      <p className="text-xs mt-0.5" style={{ color: "#859399" }}>{s.label}</p>
-                    </div>
-                  ))}
-                </div>
-                <div>
-                  <p className="text-sm font-medium mb-2" style={{ color: "#bbc9cf" }}>Redeem a Code</p>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={redeemCode}
-                      onChange={(e) => setRedeemCode(e.target.value)}
-                      placeholder="AICOS-XXXXXXXX"
-                      className="flex-1 px-4 py-2.5 rounded-xl text-sm font-mono outline-none"
-                      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
-                      onFocus={(e) => { e.currentTarget.style.border = "1px solid rgba(0,209,255,0.4)"; }}
-                      onBlur={(e) => { e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)"; }}
-                    />
-                    <button
-                      onClick={async () => {
-                        if (!redeemCode.trim()) return;
-                        try {
-                          const res = await api.redeemReferral(token!, redeemCode.trim());
-                          setRedeemResult(res.reward); setRedeemCode("");
-                        } catch (err) { setRedeemResult((err as Error).message); }
-                      }}
-                      className="px-5 py-2.5 rounded-xl text-sm font-semibold"
-                      style={{ background: "rgba(52,211,153,0.12)", color: "#34d399", border: "1px solid rgba(52,211,153,0.25)" }}
-                    >
-                      Redeem
-                    </button>
-                  </div>
-                  {redeemResult && <p className="text-sm mt-2" style={{ color: "#34d399" }}>{redeemResult}</p>}
-                </div>
-              </div>
-            ) : (
-              <p style={{ color: "#859399" }}>Loading...</p>
+              </ForgeSection>
             )}
-          </Section>
-        )}
+
+            {/* ── Webhooks ── */}
+            {active === "webhooks" && (
+              <ForgeSection title="Webhooks & API Keys" subtitle="Manage webhook endpoints and API access for your companies" icon="webhook">
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl bg-surface-container border border-outline-variant/20">
+                    <div className="flex items-center gap-2 mb-2.5">
+                      <span className="material-symbols-outlined text-primary" style={{ fontSize: 18 }}>webhook</span>
+                      <p className="text-sm font-semibold text-on-surface">Incoming Webhooks</p>
+                    </div>
+                    <p className="bv-caption mb-3">
+                      External services can trigger pipeline runs by sending POST requests to your webhook endpoints.
+                    </p>
+                    <div className="rounded-xl p-3 bg-background/60 border border-outline-variant/15">
+                      <p className="bv-micro text-outline mb-1.5">Endpoint Format</p>
+                      <code className="bv-mono text-primary">POST /hooks/:company_slug/:event</code>
+                    </div>
+                    <p className="bv-caption mt-2 text-outline opacity-70">
+                      Replace <code className="text-primary">:company_slug</code> with your company slug and <code className="text-primary">:event</code> with the event name.
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-surface-container border border-outline-variant/20">
+                    <div className="flex items-center gap-2 mb-2.5">
+                      <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#f59e0b" }}>key</span>
+                      <p className="text-sm font-semibold text-on-surface">API Access</p>
+                    </div>
+                    <div className="flex items-center gap-3 mb-2">
+                      <code className="text-sm flex-1 truncate bv-mono text-on-surface-variant">
+                        Bearer {token ? `${token.slice(0, 20)}...` : "—"}
+                      </code>
+                      <button
+                        className="bv-btn bv-btn-ghost bv-btn-sm"
+                        onClick={() => token && navigator.clipboard.writeText(token)}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 13 }}>content_copy</span>
+                        Copy
+                      </button>
+                    </div>
+                    <p className="bv-caption text-outline opacity-70">Use this token as Bearer auth in API requests. Tokens expire after session ends.</p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold mb-3 text-on-surface-variant">Common Events</p>
+                    <div>
+                      {[
+                        { event: "new_lead", desc: "Trigger acquisition pipeline on new lead", icon: "person_add" },
+                        { event: "content_ready", desc: "Content approved for publishing", icon: "check_circle" },
+                        { event: "payment_received", desc: "Process payment and update CRM", icon: "payments" },
+                        { event: "support_ticket", desc: "Route to customer success agent", icon: "support_agent" },
+                      ].map((ev) => (
+                        <div
+                          key={ev.event}
+                          className="flex items-center justify-between py-3 border-b border-outline-variant/15 last:border-0"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="material-symbols-outlined text-outline" style={{ fontSize: 16 }}>{ev.icon}</span>
+                            <div>
+                              <code className="bv-mono text-on-surface">{ev.event}</code>
+                              <p className="bv-caption opacity-70">{ev.desc}</p>
+                            </div>
+                          </div>
+                          <button
+                            className="bv-btn bv-btn-ghost bv-btn-sm"
+                            onClick={() => navigator.clipboard.writeText(`/hooks/YOUR_COMPANY/${ev.event}`)}
+                          >
+                            Copy URL
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-primary/4 border border-primary/15">
+                    <p className="text-xs font-semibold mb-2 text-primary">Test Your Webhook</p>
+                    <code className="bv-mono block text-on-surface-variant">
+                      curl -X POST {typeof window !== "undefined" ? window.location.origin : ""}/api/v1/hooks/YOUR_COMPANY/test \
+                    </code>
+                    <code className="bv-mono block ml-4 text-on-surface-variant">
+                      -H &quot;Authorization: Bearer YOUR_TOKEN&quot; \
+                    </code>
+                    <code className="bv-mono block ml-4 text-on-surface-variant">
+                      -H &quot;Content-Type: application/json&quot; \
+                    </code>
+                    <code className="bv-mono block ml-4 text-on-surface-variant">
+                      -d {`'{"data": "test"}'`}
+                    </code>
+                  </div>
+                </div>
+              </ForgeSection>
+            )}
+
+            {/* ── Referral ── */}
+            {active === "referral" && (
+              <ForgeSection title="Referral Program" subtitle="Share your code — both you and your friend get 5 bonus runs" icon="redeem">
+                {referral ? (
+                  <div className="space-y-5">
+                    <div className="p-4 rounded-xl bg-primary/6 border border-primary/25">
+                      <p className="bv-micro text-primary mb-2">Your Code</p>
+                      <div className="flex items-center gap-3">
+                        <code className="bv-numeric text-xl text-on-surface">{referral.code}</code>
+                        <button
+                          onClick={() => navigator.clipboard.writeText(referral.code)}
+                          className="bv-btn bv-btn-primary bv-btn-sm"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      {[
+                        { label: "Referred", value: referral.stats.totalReferred },
+                        { label: "Converted", value: referral.stats.converted },
+                        { label: "Rewards", value: referral.stats.rewardsApplied },
+                      ].map((s) => (
+                        <div key={s.label} className="text-center p-4 rounded-xl bv-glass">
+                          <p className="bv-numeric text-2xl text-primary">{s.value}</p>
+                          <p className="bv-caption mt-0.5">{s.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium mb-2 text-on-surface-variant">Redeem a Code</p>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={redeemCode}
+                          onChange={(e) => setRedeemCode(e.target.value)}
+                          placeholder="AICOS-XXXXXXXX"
+                          className="flex-1 px-3.5 py-2.5 rounded-xl text-sm font-mono bg-surface-container border border-outline-variant/30 text-on-surface outline-none focus:border-primary/50 transition-colors"
+                        />
+                        <button
+                          onClick={async () => {
+                            if (!redeemCode.trim()) return;
+                            try {
+                              const res = await api.redeemReferral(token!, redeemCode.trim());
+                              setRedeemResult(res.reward); setRedeemCode("");
+                            } catch (err) { setRedeemResult((err as Error).message); }
+                          }}
+                          className="bv-btn bv-btn-primary"
+                        >
+                          Redeem
+                        </button>
+                      </div>
+                      {redeemResult && <p className="text-sm mt-2 text-primary">{redeemResult}</p>}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-on-surface-variant bv-caption">Loading...</p>
+                )}
+              </ForgeSection>
+            )}
+
+            {/* ── Danger zone ── */}
+            {active === "danger" && (
+              <div className="bv-glass rounded-2xl p-6" style={{ borderColor: "rgba(255,77,77,0.3)", background: "rgba(255,77,77,0.03)" }}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="material-symbols-outlined text-error" style={{ fontSize: 20 }}>warning</span>
+                  <h2 className="bv-title font-headline font-bold uppercase text-error" style={{ fontSize: 16, letterSpacing: "0.04em" }}>Danger zone</h2>
+                </div>
+                <p className="bv-caption mb-5">Irreversible actions. Tread carefully.</p>
+
+                <div>
+                  <div className="flex items-center justify-between py-3.5 border-b border-error/10">
+                    <div>
+                      <p className="text-sm font-medium text-on-surface">Sign out everywhere</p>
+                      <p className="bv-caption mt-0.5">End all active sessions</p>
+                    </div>
+                    <button
+                      onClick={() => { clearAuth(); router.replace("/login"); }}
+                      className="bv-btn bv-btn-ghost bv-btn-sm"
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between py-3.5">
+                    <div>
+                      <p className="text-sm font-medium text-on-surface">Delete workspace</p>
+                      <p className="bv-caption mt-0.5">Permanently remove all runs and data</p>
+                    </div>
+                    <button className="bv-btn bv-btn-danger bv-btn-sm">Delete</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+          </div>{/* /section panels */}
+        </div>{/* /two-col grid */}
       </div>
     </div>
   );
@@ -1246,33 +1178,33 @@ export default function SettingsPage() {
 
 /* ── Helpers ─────────────────────────────────────────────────── */
 
-function Section({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+function ForgeSection({ title, subtitle, icon, children }: { title: string; subtitle: string; icon?: string; children: React.ReactNode }) {
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="font-headline font-bold text-xl mb-1" style={{ color: "#e1e2eb" }}>{title}</h1>
-        <p className="text-sm" style={{ color: "#859399" }}>{subtitle}</p>
+    <div className="bv-glass rounded-2xl p-6 bv-rise">
+      <div className="mb-5 pb-4 border-b border-outline-variant/15">
+        <div className="flex items-center gap-2 mb-0.5">
+          {icon && <span className="material-symbols-outlined text-primary" style={{ fontSize: 18 }}>{icon}</span>}
+          <h2 className="bv-title font-headline font-bold uppercase" style={{ fontSize: 15, letterSpacing: "0.04em" }}>{title}</h2>
+        </div>
+        <p className="bv-caption">{subtitle}</p>
       </div>
       {children}
     </div>
   );
 }
 
-function Field({ label, type = "text", placeholder, badge }: { label: string; type?: string; placeholder: string; badge?: string }) {
+function ForgeField({ label, type = "text", placeholder, badge }: { label: string; type?: string; placeholder: string; badge?: string }) {
   return (
     <div>
-      <label className="block text-xs font-semibold mb-1.5" style={{ color: "#bbc9cf" }}>{label}</label>
+      <label className="bv-micro text-outline mb-1.5 block">{label}</label>
       <div className="relative">
         <input
           type={type}
           placeholder={placeholder}
-          className="w-full px-4 py-2.5 rounded-lg text-sm outline-none transition-all"
-          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
-          onFocus={(e) => { e.currentTarget.style.border = "1px solid rgba(0,209,255,0.4)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(0,209,255,0.06)"; }}
-          onBlur={(e) => { e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)"; e.currentTarget.style.boxShadow = "none"; }}
+          className="w-full px-3.5 py-2.5 rounded-xl text-sm outline-none bg-surface-container border border-outline-variant/30 text-on-surface placeholder:text-outline focus:border-primary/50 transition-colors"
         />
         {badge && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(52,211,153,0.1)", color: "#34d399" }}>
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 bv-pill bv-pill-cyan">
             {badge}
           </span>
         )}
@@ -1281,23 +1213,26 @@ function Field({ label, type = "text", placeholder, badge }: { label: string; ty
   );
 }
 
-function UsageBar({ label, current, limit }: { label: string; current: number; limit: number }) {
+function ForgeUsageBar({ label, current, limit }: { label: string; current: number; limit: number }) {
   const unlimited = limit < 0;
   const pct = unlimited ? 0 : Math.min(100, (current / limit) * 100);
   const danger = !unlimited && pct >= 80;
   return (
     <div>
       <div className="flex justify-between text-sm mb-1.5">
-        <span style={{ color: "#859399" }}>{label}</span>
-        <span className="font-semibold" style={{ color: danger ? "#ffb4ab" : "#bbc9cf" }}>
+        <span className="text-on-surface-variant">{label}</span>
+        <span className="font-semibold" style={{ color: danger ? "var(--color-error)" : "var(--color-on-surface)" }}>
           {current}{unlimited ? "" : ` / ${limit}`}
         </span>
       </div>
       {!unlimited && (
-        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+        <div className="h-1.5 rounded-full overflow-hidden bg-surface-container-high">
           <div
             className="h-full rounded-full transition-all"
-            style={{ width: `${pct}%`, background: danger ? "#ff5449" : "linear-gradient(90deg, #00d1ff, #6d11ad)" }}
+            style={{
+              width: `${pct}%`,
+              background: danger ? "var(--color-error)" : "var(--bv-gradient-brand)",
+            }}
           />
         </div>
       )}
@@ -1305,28 +1240,19 @@ function UsageBar({ label, current, limit }: { label: string; current: number; l
   );
 }
 
-function SaveBar({ onSave, saved }: { onSave: () => void; saved: boolean }) {
+function ForgeSaveBar({ onSave, saved }: { onSave: () => void; saved: boolean }) {
   return (
-    <div className="flex items-center justify-end gap-3 mt-8 pt-5" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-      <button
-        className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80"
-        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#859399" }}
-      >
-        Discard
-      </button>
+    <div className="flex items-center justify-end gap-3 mt-7 pt-5 border-t border-outline-variant/15">
+      <button className="bv-btn bv-btn-ghost">Discard</button>
       <button
         onClick={onSave}
-        className="px-6 py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90"
-        style={{
-          background: saved ? "rgba(52,211,153,0.15)" : "linear-gradient(135deg, #00d1ff, #6d11ad)",
-          border: saved ? "1px solid rgba(52,211,153,0.3)" : "none",
-          color: saved ? "#34d399" : "white",
-        }}
+        className="bv-btn bv-btn-primary"
+        style={saved ? { background: "rgba(59,130,246,0.15)", boxShadow: "none", color: "var(--color-primary)" } : {}}
       >
-        {saved ? "\u2713 Saved" : "Save Changes"}
+        {saved ? "✓ Saved" : "Save Changes"}
       </button>
       {saved && (
-        <span className="text-xs font-medium animate-fade-in" style={{ color: "#34d399" }}>
+        <span className="text-xs font-medium animate-fade-in text-primary">
           Changes saved successfully!
         </span>
       )}

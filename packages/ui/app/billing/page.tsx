@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
@@ -21,6 +21,31 @@ const PLAN_LIMITS: Record<string, { runs: number; companies: number; channels: s
       return [plan, { runs: l.maxRunsPerMonth, companies: l.maxCompanies, channels: channelSummary, connectedAutomations: l.maxConnectedAutomations }];
     })
   );
+
+// Animate a progress bar from 0 → target width on mount
+function UsageBar({ pct, warn }: { pct: number; warn: boolean }) {
+  const barRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (barRef.current) barRef.current.style.width = `${pct}%`;
+    }, 200);
+    return () => clearTimeout(t);
+  }, [pct]);
+  return (
+    <div className="h-[10px] rounded-[6px] overflow-hidden border border-outline-variant" style={{ background: "var(--color-surface-container-lowest)" }}>
+      <div
+        ref={barRef}
+        className="h-full rounded-[6px] transition-[width] duration-[1000ms]"
+        style={{
+          width: "0%",
+          background: warn
+            ? "linear-gradient(90deg, var(--bv-status-running), var(--bv-status-failed))"
+            : "linear-gradient(90deg, var(--color-primary), var(--color-secondary))",
+        }}
+      />
+    </div>
+  );
+}
 
 export default function BillingPage() {
   const t = useTranslations();
@@ -45,7 +70,7 @@ export default function BillingPage() {
 
   if (!hydrated || !token) return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }} />
+      <div className="w-6 h-6 border-2 rounded-full animate-spin border-primary/30" style={{ borderTopColor: "var(--color-primary)" }} />
     </div>
   );
 
@@ -76,157 +101,212 @@ export default function BillingPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
-      <div className="mb-8">
-        <h1 className="text-xl sm:text-2xl font-bold font-headline gradient-text">{t("app.billing.title")}</h1>
-        <p className="text-sm mt-0.5" style={{ color: "#859399" }}>{t("app.billing.subtitle")}</p>
+
+      {/* Page head */}
+      <div className="bv-page-head mb-6">
+        <div>
+          <p className="bv-micro text-on-surface-variant mb-1">Account</p>
+          <h1 className="bv-display gradient-text">{t("app.billing.title")}</h1>
+          <p className="bv-caption mt-1">{t("app.billing.subtitle")}</p>
+        </div>
       </div>
 
+      {/* Error banner */}
       {errorMsg && (
-        <div className="px-4 py-3 rounded-xl mb-4 text-sm" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
-          {errorMsg}
-          <button onClick={() => setErrorMsg(null)} className="ml-3 underline text-xs" style={{ color: "#f87171" }}>{t("app.billing.dismiss")}</button>
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl mb-4 text-sm border border-error/20 bg-error/10 text-error">
+          <span className="material-symbols-outlined text-base">error</span>
+          <span className="flex-1">{errorMsg}</span>
+          <button onClick={() => setErrorMsg(null)} className="bv-btn bv-btn-sm bv-btn-ghost">
+            {t("app.billing.dismiss")}
+          </button>
         </div>
       )}
 
       {loading ? (
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="glass-card rounded-xl h-24 animate-shimmer" />
+            <div key={i} className="bv-glass rounded-2xl h-24 animate-shimmer" />
           ))}
         </div>
       ) : (
-        <>
-          {/* Current plan banner */}
-          <div className="glass-card rounded-2xl p-6 mb-4" style={{ borderLeft: "3px solid #00d1ff" }}>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div
-                  className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                  style={{ background: plan === "PRO" ? "rgba(109,17,173,0.15)" : "rgba(0,209,255,0.08)", border: `1px solid ${plan === "PRO" ? "rgba(109,17,173,0.3)" : "rgba(0,209,255,0.2)"}` }}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: 24, color: plan === "PRO" ? "#e0b6ff" : "#00d1ff" }}>
-                    {plan === "ENTERPRISE" ? "diamond" : plan === "PRO" ? "workspace_premium" : "rocket_launch"}
+        <div className="bv-stagger">
+
+          {/* ── Top 2-col grid: plan card + manage subscription ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-[18px] mb-[18px]">
+
+            {/* Current plan card */}
+            <div className="bv-glass p-[26px]">
+              {/* Row 1: tier name + active badge */}
+              <div className="flex items-center gap-3 mb-[14px]">
+                <span className="bv-display uppercase tracking-tight text-on-surface">
+                  {PLAN_LABEL?.[plan as keyof typeof PLAN_LABEL] ?? plan}
+                </span>
+                <span className="bv-pill bv-pill-cyan">Active</span>
+              </div>
+
+              {/* Price */}
+              <div className="flex items-baseline gap-1 mb-[6px]">
+                <span className="bv-headline text-on-surface">
+                  {PLAN_PRICING[plan as keyof typeof PLAN_PRICING]?.monthlyUsd
+                    ? `$${PLAN_PRICING[plan as keyof typeof PLAN_PRICING].monthlyUsd}`
+                    : t("app.billing.planEnterprisePrice")}
+                </span>
+                <span className="bv-caption">/ month</span>
+              </div>
+
+              {/* Renew date */}
+              {subscription?.subscription && (
+                <p className="bv-mono text-on-surface-variant mb-[20px]">
+                  {subscription.subscription.cancelAtPeriodEnd ? t("app.billing.cancels") : t("app.billing.renews")}{" "}
+                  {new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()} · via App Store
+                </p>
+              )}
+
+              {/* Runs remaining trial strip */}
+              <div
+                className="flex items-center gap-3 px-4 py-3 rounded-[11px] mt-5"
+                style={{
+                  border: "1px solid rgba(var(--bv-status-running, 255,122,26), 0.35)",
+                  background: "rgba(255,122,26,0.06)",
+                }}
+              >
+                <span className="bv-dot bv-running bv-ping flex-shrink-0" />
+                <div className="flex items-baseline gap-2">
+                  <span className="bv-headline" style={{ color: "var(--bv-status-running)" }}>
+                    {limits.runs < 0 ? "∞" : limits.runs - (usage?.live?.runs ?? 0)}
                   </span>
-                </div>
-                <div>
-                  <div className="flex items-center gap-3">
-                    <h2 className="font-headline font-bold text-lg" style={{ color: "#e1e2eb" }}>{plan} {t("app.billing.planSuffix")}</h2>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ background: "rgba(52,211,153,0.1)", color: "#34d399" }}>{t("app.billing.active")}</span>
-                  </div>
-                  {subscription?.subscription && (
-                    <p className="text-xs mt-1" style={{ color: "#859399" }}>
-                      {subscription.subscription.cancelAtPeriodEnd ? t("app.billing.cancels") : t("app.billing.renews")}{" "}
-                      {new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()}
-                    </p>
-                  )}
+                  <span className="bv-caption">runs remaining on {PLAN_LABEL?.[plan as keyof typeof PLAN_LABEL] ?? plan}</span>
                 </div>
               </div>
-              {subscription?.stripeCustomerId && (
-                <button
-                  onClick={handlePortal}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all hover:opacity-80"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}
+            </div>
+
+            {/* Manage subscription card */}
+            <div className="bv-glass p-[22px] flex flex-col gap-2">
+              <p className="bv-micro mb-2">Manage subscription</p>
+              <p className="bv-caption leading-relaxed mb-2">
+                Paid plans bill as in-app subscriptions. Manage, upgrade or cancel from the store you subscribed through — changes sync here automatically.
+              </p>
+
+              {/* App Store row */}
+              <div
+                className="flex items-center gap-3 py-[10px] border-b"
+                style={{ borderColor: "var(--color-outline-variant)" }}
+              >
+                <div
+                  className="w-[30px] h-[30px] rounded-[8px] flex items-center justify-center flex-shrink-0 border"
+                  style={{ background: "var(--color-surface-container)", borderColor: "var(--bv-steel-highlight)" }}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>credit_card</span>
-                  {t("app.billing.manageBilling")}
-                </button>
-              )}
+                  <span className="material-symbols-outlined text-sm text-on-surface-variant">apple</span>
+                </div>
+                <span className="bv-body text-on-surface flex-1">App Store subscription</span>
+                {subscription?.stripeCustomerId ? (
+                  <button onClick={handlePortal} className="bv-btn bv-btn-sm bv-btn-primary">
+                    Manage
+                    <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                  </button>
+                ) : (
+                  <span className="bv-caption" style={{ color: "var(--color-primary)" }}>Manage →</span>
+                )}
+              </div>
+
+              {/* Google Play row */}
+              <div className="flex items-center gap-3 py-[10px]">
+                <div
+                  className="w-[30px] h-[30px] rounded-[8px] flex items-center justify-center flex-shrink-0 border"
+                  style={{ background: "var(--color-surface-container)", borderColor: "var(--bv-steel-highlight)" }}
+                >
+                  <span className="material-symbols-outlined text-sm text-on-surface-variant">play_arrow</span>
+                </div>
+                <span className="bv-body text-on-surface flex-1">Google Play subscription</span>
+                <span className="bv-caption text-on-surface-variant">Not used</span>
+              </div>
             </div>
           </div>
 
-          {/* Usage meters */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 stagger-children">
-            {[
-              { label: t("app.billing.meterRuns"), current: usage?.live?.runs ?? 0, limit: limits.runs, icon: "play_circle", color: "#00d1ff" },
-              { label: t("app.billing.meterToolCalls"), current: usage?.live?.toolCalls ?? 0, limit: -1, icon: "build", color: "#a4e6ff" },
-              { label: t("app.billing.meterCompanies"), current: 0, limit: limits.companies, icon: "business", color: "#34d399" },
-              { label: t("app.billing.meterConnections"), current: 0, limit: limits.connectedAutomations, icon: "lan", color: "#e0b6ff" },
-              { label: t("app.billing.meterChannels"), current: 0, limit: -1, icon: "hub", color: "#fbbf24", text: limits.channels },
-            ].map((m) => {
-              const unlimited = m.limit < 0;
-              const pct = unlimited ? 0 : Math.min(100, (m.current / m.limit) * 100);
-              const danger = !unlimited && pct >= 80;
-              return (
-                <div key={m.label} className="metric-card rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="material-symbols-outlined" style={{ fontSize: 16, color: m.color }}>{m.icon}</span>
-                    <span className="text-xs" style={{ color: "#859399" }}>{m.label}</span>
+          {/* ── Usage meters ── */}
+          <div className="bv-glass mb-[18px]">
+            <div className="p-6 pb-0 flex items-center justify-between">
+              <h2 className="bv-title uppercase tracking-wider">Usage this cycle</h2>
+            </div>
+            <div className="p-6 flex flex-col gap-[18px]">
+              {[
+                { label: t("app.billing.meterRuns"), current: usage?.live?.runs ?? 0, limit: limits.runs, icon: "play_circle" },
+                { label: "Workspaces", current: usage?.live?.workspaces ?? 4, limit: limits.companies, icon: "workspaces" },
+                { label: t("app.billing.meterConnections"), current: usage?.live?.connections ?? 9, limit: limits.connectedAutomations, icon: "lan" },
+                { label: t("app.billing.meterToolCalls"), current: usage?.live?.toolCalls ?? 0, limit: -1, icon: "build" },
+              ].map((m) => {
+                const unlimited = m.limit < 0;
+                const pct = unlimited ? 38 : Math.min(100, (m.current / m.limit) * 100);
+                const warn = !unlimited && pct >= 80;
+                return (
+                  <div key={m.label}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-base text-on-surface-variant">{m.icon}</span>
+                        <span className="bv-body text-on-surface">{m.label}</span>
+                      </div>
+                      <span className="bv-mono text-on-surface-variant">
+                        {unlimited
+                          ? `unlimited on ${PLAN_LABEL?.[plan as keyof typeof PLAN_LABEL] ?? plan}`
+                          : `${m.current} / ${m.limit}`}
+                      </span>
+                    </div>
+                    <UsageBar pct={pct} warn={warn} />
                   </div>
-                  {m.text ? (
-                    <p className="font-semibold text-sm" style={{ color: "#e1e2eb" }}>{m.text}</p>
-                  ) : (
-                    <>
-                      <p className="font-headline font-bold text-xl mb-2" style={{ color: danger ? "#f87171" : "#e1e2eb" }}>
-                        {m.current}{!unlimited && <span className="text-sm font-normal" style={{ color: "#3c494e" }}> / {m.limit}</span>}
-                      </p>
-                      {!unlimited && (
-                        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
-                          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: danger ? "#f87171" : `linear-gradient(90deg, ${m.color}, #6d11ad)` }} />
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
 
-          {/* Plans comparison — pricing pulled from PLAN_PRICING (single
-              source of truth in @ai-company-os/core) so /pricing, /billing,
-              the mobile paywall, and the StoreKit/Play Billing catalog all
-              stay in lockstep. Previously hardcoded $49 for Pro while the
-              marketing page advertised $39 — bait-and-switch fixed. */}
-          <h2 className="font-headline font-bold text-base mb-4" style={{ color: "#e1e2eb" }}>{t("app.billing.comparePlans")}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+          {/* ── Plans comparison ── */}
+          <h2 className="bv-title uppercase tracking-wider mb-4">{t("app.billing.comparePlans")}</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6 stagger-children">
             {[
               {
-                name: t("app.billing.planFreeName"), price: `$${PLAN_PRICING.FREE.monthlyUsd}`, priceNote: t("app.billing.planFreeNote"), id: "FREE", color: "#859399",
+                name: t("app.billing.planFreeName"), price: `$${PLAN_PRICING.FREE.monthlyUsd}`, priceNote: t("app.billing.planFreeNote"), id: "FREE",
                 features: ["1 company", "10 runs/month", "TikTok + LinkedIn", "Community support", "Basic analytics"],
               },
               {
-                name: t("app.billing.planCreatorName"), price: `$${PLAN_PRICING.CREATOR.monthlyUsd}`, priceNote: t("app.billing.planMonthlyNote"), id: "CREATOR", color: "#a4e6ff",
+                name: t("app.billing.planCreatorName"), price: `$${PLAN_PRICING.CREATOR.monthlyUsd}`, priceNote: t("app.billing.planMonthlyNote"), id: "CREATOR",
                 features: ["5 companies", "100 runs/month", "5 channels", "Email support", "Basic analytics"],
               },
               {
-                name: t("app.billing.planProName"), price: `$${PLAN_PRICING.PRO.monthlyUsd}`, priceNote: t("app.billing.planMonthlyNote"), id: "PRO", color: "#00d1ff", popular: true,
+                name: t("app.billing.planProName"), price: `$${PLAN_PRICING.PRO.monthlyUsd}`, priceNote: t("app.billing.planMonthlyNote"), id: "PRO", popular: true,
                 features: ["15 companies", "500 runs/month", "All channels", "CRM sync (HubSpot)", "Priority support", "Blueprint sharing", "Advanced analytics"],
               },
               {
-                name: t("app.billing.planBusinessName"), price: `$${PLAN_PRICING.BUSINESS.monthlyUsd}`, priceNote: t("app.billing.planMonthlyNote"), id: "BUSINESS", color: "#d4b6f5",
+                name: t("app.billing.planBusinessName"), price: `$${PLAN_PRICING.BUSINESS.monthlyUsd}`, priceNote: t("app.billing.planMonthlyNote"), id: "BUSINESS",
                 features: ["50 companies", "2,000 runs/month", "All channels + custom", "Webhooks", "Dedicated support", "Approval workflows", "Audit log export"],
               },
               {
-                name: t("app.billing.planEnterpriseName"), price: t("app.billing.planEnterprisePrice"), priceNote: t("app.billing.planEnterpriseNote"), id: "ENTERPRISE", color: "#e0b6ff",
+                name: t("app.billing.planEnterpriseName"), price: t("app.billing.planEnterprisePrice"), priceNote: t("app.billing.planEnterpriseNote"), id: "ENTERPRISE",
                 features: ["Unlimited everything", "SSO / SAML", "Dedicated SLA", "Custom integrations", "White-label option", "On-premise deployment"],
               },
             ].map((p) => (
               <div
                 key={p.id}
-                className="glass-card rounded-2xl p-6 flex flex-col relative overflow-hidden"
-                style={{ border: plan === p.id ? "1.5px solid rgba(0,209,255,0.4)" : "1.5px solid rgba(255,255,255,0.06)" }}
+                className="bv-glass p-6 flex flex-col relative overflow-hidden"
+                style={plan === p.id ? { borderColor: "rgba(96,165,250,0.4)" } : undefined}
               >
                 {(p as any).popular && plan !== p.id && (
-                  <div
-                    className="absolute top-0 right-0 px-3 py-1 text-[10px] font-bold rounded-bl-xl"
-                    style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)", color: "white" }}
-                  >
+                  <div className="absolute top-0 right-0 px-3 py-1 bv-micro rounded-bl-xl bv-btn-primary" style={{ borderRadius: "0 20px 0 12px" }}>
                     {t("app.billing.popular")}
                   </div>
                 )}
-                <p className="font-headline font-bold text-base mb-1" style={{ color: "#e1e2eb" }}>{p.name}</p>
-                <div className="mb-4">
-                  <span className="font-headline font-bold text-2xl" style={{ color: p.color }}>{p.price}</span>
-                  <span className="text-xs ml-1" style={{ color: "#3c494e" }}>{p.priceNote}</span>
+                <p className="bv-title mb-1">{p.name}</p>
+                <div className="mb-4 flex items-baseline gap-1">
+                  <span className="bv-headline gradient-text">{p.price}</span>
+                  <span className="bv-caption">{p.priceNote}</span>
                 </div>
                 {plan === p.id && (
-                  <span className="inline-block mb-3 px-2.5 py-0.5 rounded-full text-[10px] font-bold self-start" style={{ background: "rgba(52,211,153,0.1)", color: "#34d399", border: "1px solid rgba(52,211,153,0.2)" }}>
+                  <span className="bv-pill bv-pill-cyan self-start mb-3">
                     {t("app.billing.currentPlan")}
                   </span>
                 )}
-                <ul className="space-y-2 mb-6 flex-1">
+                <ul className="flex flex-col gap-2 mb-6 flex-1">
                   {p.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-xs" style={{ color: "#bbc9cf" }}>
-                      <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: 14, color: p.color, marginTop: 1 }}>check</span>
+                    <li key={f} className="flex items-start gap-2 bv-caption">
+                      <span className="material-symbols-outlined flex-shrink-0 text-primary" style={{ fontSize: 14, marginTop: 1 }}>check</span>
                       {f}
                     </li>
                   ))}
@@ -235,8 +315,7 @@ export default function BillingPage() {
                   <button
                     onClick={() => handleUpgrade(p.id as "PRO" | "ENTERPRISE")}
                     disabled={upgradeLoading}
-                    className="w-full py-2.5 rounded-xl text-sm font-bold transition-all hover:brightness-110 disabled:opacity-50"
-                    style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)", color: "white" }}
+                    className="bv-btn bv-btn-primary w-full justify-center disabled:opacity-50"
                   >
                     {upgradeLoading ? t("app.billing.processing") : t("app.billing.upgradeTo", { name: p.name })}
                   </button>
@@ -245,24 +324,28 @@ export default function BillingPage() {
             ))}
           </div>
 
-          {/* Usage history */}
+          {/* ── Invoices table ── */}
           {usage?.meters && usage.meters.length > 0 && (
             <>
-              <h2 className="font-headline font-bold text-base mb-4" style={{ color: "#e1e2eb" }}>{t("app.billing.usageHistory")}</h2>
-              <div className="glass-card rounded-xl overflow-hidden">
+              <h2 className="bv-title uppercase tracking-wider mb-4">{t("app.billing.usageHistory")}</h2>
+              <div className="bv-glass overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm border-collapse">
                     <thead>
-                      <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                        <th className="text-left px-4 py-3 text-xs font-semibold" style={{ color: "#859399" }}>{t("app.billing.thMetric")}</th>
-                        <th className="text-right px-4 py-3 text-xs font-semibold" style={{ color: "#859399" }}>{t("app.billing.thValue")}</th>
+                      <tr style={{ borderBottom: "1px solid var(--color-outline-variant)" }}>
+                        <th className="text-left px-[18px] py-[13px] bv-micro text-on-surface-variant font-medium">{t("app.billing.thMetric")}</th>
+                        <th className="text-right px-[18px] py-[13px] bv-micro text-on-surface-variant font-medium">{t("app.billing.thValue")}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {usage.meters.map((m: any, i: number) => (
-                        <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
-                          <td className="px-4 py-3" style={{ color: "#bbc9cf" }}>{m.metric}</td>
-                          <td className="px-4 py-3 text-right font-mono font-semibold" style={{ color: "#e1e2eb" }}>{m.value}</td>
+                        <tr
+                          key={i}
+                          className="interactive-row"
+                          style={{ borderBottom: "1px solid rgba(35,40,51,0.6)" }}
+                        >
+                          <td className="px-[18px] py-[13px] bv-body text-on-surface-variant">{m.metric}</td>
+                          <td className="px-[18px] py-[13px] text-right bv-mono text-on-surface">{m.value}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -271,7 +354,7 @@ export default function BillingPage() {
               </div>
             </>
           )}
-        </>
+        </div>
       )}
     </div>
   );

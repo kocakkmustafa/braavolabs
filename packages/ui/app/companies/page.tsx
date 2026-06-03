@@ -6,151 +6,396 @@ import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 
+// Status → FORGE dot class + label
+const STATUS_DOT: Record<string, { cls: string; label: string }> = {
+  ACTIVE:   { cls: "bv-running bv-ping",  label: "Running"  },
+  PAUSED:   { cls: "bv-paused",           label: "Paused"   },
+  DRAFT:    { cls: "bv-cancelled",        label: "Draft"    },
+  ARCHIVED: { cls: "bv-failed",           label: "Archived" },
+};
+
+// Primitive → bv-pill colour variant
+const PRIMITIVE_PILL: Record<string, string> = {
+  CONTENT:    "bv-pill-purple",
+  ACQUISITION:"bv-pill-cyan",
+  SALES:      "bv-pill-cyan",
+  DELIVERY:   "bv-pill-cyan",
+  ANALYTICS:  "bv-pill-purple",
+  OPERATIONS: "bv-pill-muted",
+  FINANCE:    "bv-pill-cyan",
+  MEMORY:     "bv-pill-purple",
+  GOVERNANCE: "bv-pill-red",
+};
+
+// Tiny inline sparkline (runs trend visualisation)
+function Spark({ values }: { values?: number[] }) {
+  const data = values && values.length > 1 ? values : [0, 0];
+  const w = 260, h = 36;
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const rng = max - min || 1;
+  const pts = data
+    .map(
+      (v, i) =>
+        `${i === 0 ? "M" : "L"}${((i / (data.length - 1)) * w).toFixed(1)},${(
+          h - ((v - min) / rng) * (h - 6) - 3
+        ).toFixed(1)}`
+    )
+    .join(" ");
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+      className="bv-spark"
+      aria-hidden="true"
+    >
+      <path
+        d={pts}
+        fill="none"
+        stroke="var(--bv-cobalt-glow)"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="0.7"
+      />
+    </svg>
+  );
+}
+
+type FilterKey = "all" | "ACTIVE" | "PAUSED" | "DRAFT";
+
 export default function CompaniesPage() {
   const t = useTranslations();
   const { token, hydrated } = useAuthGuard();
   const [companies, setCompanies] = useState<any[]>([]);
+  const [filter, setFilter] = useState<FilterKey>("all");
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     if (!token) return;
     api.listCompanies(token).then(setCompanies).catch(() => {});
   }, [token]);
 
-  if (!hydrated || !token) return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }} />
-    </div>
-  );
+  if (!hydrated || !token)
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div
+          className="w-6 h-6 border-2 rounded-full animate-spin"
+          style={{
+            borderColor: "rgba(59,130,246,0.3)",
+            borderTopColor: "var(--bv-cobalt-glow)",
+          }}
+        />
+      </div>
+    );
 
-  const statusStyles: Record<string, { dot: string; color: string }> = {
-    ACTIVE: { dot: "#10b981", color: "#34d399" },
-    PAUSED: { dot: "#f59e0b", color: "#fbbf24" },
-    DRAFT: { dot: "#859399", color: "#bbc9cf" },
-    ARCHIVED: { dot: "#ef4444", color: "#f87171" },
+  // Derived filter counts
+  const counts = {
+    all: companies.length,
+    ACTIVE: companies.filter((c) => c.status === "ACTIVE").length,
+    PAUSED: companies.filter((c) => c.status === "PAUSED").length,
+    DRAFT:  companies.filter((c) => c.status === "DRAFT").length,
   };
 
-  const primitiveColors: Record<string, { bg: string; color: string; border: string }> = {
-    CONTENT:    { bg: "rgba(109,17,173,0.15)", color: "#e0b6ff", border: "rgba(109,17,173,0.3)" },
-    ACQUISITION:{ bg: "rgba(0,209,255,0.1)", color: "#a4e6ff", border: "rgba(0,209,255,0.25)" },
-    SALES:      { bg: "rgba(0,209,255,0.1)", color: "#a4e6ff", border: "rgba(0,209,255,0.25)" },
-    DELIVERY:   { bg: "rgba(0,209,255,0.08)", color: "#a4e6ff", border: "rgba(0,209,255,0.2)" },
-    ANALYTICS:  { bg: "rgba(109,17,173,0.1)", color: "#e0b6ff", border: "rgba(109,17,173,0.25)" },
-    OPERATIONS: { bg: "rgba(133,147,153,0.1)", color: "#bbc9cf", border: "rgba(133,147,153,0.2)" },
-    FINANCE:    { bg: "rgba(0,209,255,0.08)", color: "#a4e6ff", border: "rgba(0,209,255,0.2)" },
-    MEMORY:     { bg: "rgba(109,17,173,0.15)", color: "#e0b6ff", border: "rgba(109,17,173,0.3)" },
-    GOVERNANCE: { bg: "rgba(239,68,68,0.1)", color: "#f87171", border: "rgba(239,68,68,0.2)" },
-  };
-  const defaultPrimitive = { bg: "rgba(133,147,153,0.1)", color: "#bbc9cf", border: "rgba(133,147,153,0.2)" };
+  const visible = companies.filter((c) => {
+    const matchFilter = filter === "all" || c.status === filter;
+    const matchQuery  = !query || c.name?.toLowerCase().includes(query.toLowerCase());
+    return matchFilter && matchQuery;
+  });
+
+  const FILTERS: { key: FilterKey; label: string; dot?: string }[] = [
+    { key: "all",    label: "All" },
+    { key: "ACTIVE", label: "Running",  dot: "bv-running" },
+    { key: "PAUSED", label: "Paused",   dot: "bv-paused"  },
+    { key: "DRAFT",  label: "Draft",    dot: "bv-cancelled"},
+  ];
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+    <div className="max-w-7xl mx-auto px-6 py-8 bv-dash animate-fade-in">
+
+      {/* ── Page head ─────────────────────────────────────── */}
+      <div className="bv-page-head mb-8">
         <div>
-          <h1 className="text-2xl font-bold font-headline" style={{ color: "#e1e2eb" }}>{t("app.companies.title")}</h1>
-          <p className="text-sm mt-0.5" style={{ color: "#859399" }}>
-            {companies.length} {companies.length !== 1 ? t("app.companies.countPlural") : t("app.companies.countSingular")}
+          <p className="bv-micro mb-1" style={{ color: "var(--color-outline)" }}>
+            War room
+          </p>
+          <h1 className="bv-headline" style={{ color: "var(--color-on-surface)" }}>
+            {t("app.companies.title")}
+          </h1>
+          <p className="bv-caption mt-1">
+            {t("app.companies.countPlural", { count: companies.length })}
           </p>
         </div>
-        <Link
-          href="/companies/new"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110"
-          style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", boxShadow: "0 0 20px rgba(0,209,255,0.2)" }}
-        >
-          <span className="material-symbols-outlined text-base">add</span>
-          {t("app.companies.newCompany")}
-        </Link>
+
+        <div className="bv-page-head-actions">
+          <Link href="/companies/new" className="bv-btn bv-btn-primary bv-sheen">
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+              add
+            </span>
+            {t("app.companies.newCompany")}
+          </Link>
+        </div>
       </div>
 
-      {companies.length === 0 ? (
-        <div className="glass-card rounded-2xl text-center py-20">
+      {/* ── Search + filter bar ───────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
+        {/* Search field */}
+        <div className="relative" style={{ flex: "1 1 0", maxWidth: 360 }}>
+          <span
+            className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2"
+            style={{ fontSize: 16, color: "var(--color-outline)", pointerEvents: "none" }}
+          >
+            search
+          </span>
+          <input
+            type="search"
+            placeholder="Search workspaces…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none"
+            style={{
+              background: "var(--color-surface-container-low)",
+              border: "1px solid var(--color-outline-variant)",
+              color: "var(--color-on-surface)",
+              transition: "border-color 0.2s",
+            }}
+            onFocus={(e) =>
+              (e.currentTarget.style.borderColor = "rgba(59,130,246,0.45)")
+            }
+            onBlur={(e) =>
+              (e.currentTarget.style.borderColor =
+                "var(--color-outline-variant)")
+            }
+          />
+        </div>
+
+        {/* Filter chips */}
+        <div className="bv-fpills">
+          {FILTERS.map(({ key, label, dot }) => (
+            <button
+              key={key}
+              onClick={() => setFilter(key)}
+              className={`bv-fpill${filter === key ? " active" : ""}`}
+            >
+              {dot && (
+                <span className={`bv-dot ${dot}`} style={{ width: 7, height: 7 }} />
+              )}
+              {label}
+              <span className="bv-fpill-count">{counts[key]}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Workspace grid ────────────────────────────────── */}
+      {visible.length === 0 ? (
+        <div className="bv-glass rounded-2xl text-center py-20 bv-rise">
           <div
             className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5"
-            style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.2)" }}
+            style={{
+              background: "rgba(59,130,246,0.08)",
+              border: "1px solid rgba(59,130,246,0.18)",
+            }}
           >
-            <span className="material-symbols-outlined text-3xl" style={{ color: "#a4e6ff" }}>business</span>
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 32, color: "var(--color-primary)" }}
+            >
+              business
+            </span>
           </div>
-          <p className="font-semibold" style={{ color: "#e1e2eb" }}>{t("app.companies.emptyTitle")}</p>
-          <p className="text-sm mt-1 mb-6" style={{ color: "#859399" }}>
-            {t("app.companies.emptyBody")}
-          </p>
-          <Link
-            href="/companies/new"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110"
-            style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
+          <div
+            className="bv-pill bv-pill-amber mx-auto mb-4"
+            style={{ width: "fit-content" }}
           >
+            <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
+              star
+            </span>
+            Try the AI Company flagship template
+          </div>
+          <p
+            className="bv-title mb-2"
+            style={{ color: "var(--color-on-surface)" }}
+          >
+            {query || filter !== "all"
+              ? "No workspaces match"
+              : t("app.companies.emptyTitle")}
+          </p>
+          <p
+            className="bv-caption mx-auto mb-6"
+            style={{ maxWidth: "38ch" }}
+          >
+            {query || filter !== "all"
+              ? "Try a different search or filter."
+              : t("app.companies.emptyBody")}
+          </p>
+          <Link href="/companies/new" className="bv-btn bv-btn-primary bv-sheen">
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+              add
+            </span>
             {t("app.companies.createFirst")}
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 stagger-children">
-          {companies.map((c) => {
-            const s = statusStyles[c.status] ?? statusStyles.DRAFT;
+        <div
+          className="bv-stagger"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+            gap: 18,
+          }}
+        >
+          {visible.map((c) => {
+            const st = STATUS_DOT[c.status] ?? STATUS_DOT.DRAFT;
+            const agentCount  = c._count?.agents   ?? c.agents?.length   ?? 0;
+            const runCount    = c._count?.pipelines ?? c.pipelines?.length ?? 0;
+            const isActive    = c.status === "ACTIVE";
+
             return (
               <Link
                 key={c.id}
                 href={`/companies/${c.id}`}
-                className="group rounded-2xl overflow-hidden transition-all hover:scale-[1.01] hover:border-[rgba(0,209,255,0.2)] hover:shadow-[0_0_20px_rgba(0,209,255,0.08)]"
-                style={{
-                  display: "block",
-                  background: "rgba(29,32,38,0.7)",
-                  backdropFilter: "blur(20px)",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                }}
+                className="bv-glass"
+                style={{ display: "flex", flexDirection: "column", padding: 22, textDecoration: "none" }}
               >
-                {/* Top accent bar */}
+                {/* Card top */}
                 <div
-                  className="h-0.5 transition-opacity opacity-40 group-hover:opacity-80"
-                  style={{ background: "linear-gradient(to right, #00d1ff, #6d11ad)" }}
-                />
+                  style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 6 }}
+                >
+                  {/* Avatar */}
+                  <div className="bv-avatar" style={{ width: 40, height: 40, borderRadius: 12, fontSize: 14, flexShrink: 0 }}>
+                    {c.name?.charAt(0) ?? "?"}
+                  </div>
 
-                <div className="p-5">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0"
-                        style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
-                      >
-                        {c.name?.charAt(0)}
-                      </div>
-                      <div>
-                        <h3 className="font-semibold" style={{ color: "#e1e2eb" }}>{c.name}</h3>
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium" style={{ color: s.color }}>
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.dot }} />
-                          {c.status}
-                        </span>
-                      </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p
+                      className="bv-title"
+                      style={{
+                        fontSize: 17,
+                        fontWeight: 600,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {c.name}
+                    </p>
+                    <div
+                      className="bv-mono"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        marginTop: 3,
+                        color: "var(--color-on-surface-variant)",
+                        fontSize: 11,
+                      }}
+                    >
+                      <span className={`bv-dot ${st.cls}`} />
+                      {st.label}
+                      {c.lastRunAt && (
+                        <>
+                          <span className="bv-divider-dot" />
+                          <span style={{ color: "var(--color-outline)" }}>
+                            {new Date(c.lastRunAt).toLocaleDateString()}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
 
-                  <p className="text-xs line-clamp-2 mb-4 leading-relaxed" style={{ color: "#859399" }}>
-                    {c.description ?? t("app.companies.noDescription")}
-                  </p>
+                  {/* "AI Company" flagship flag */}
+                  {c.type === "AI_COMPANY" && (
+                    <span className="bv-pill bv-pill-amber" style={{ marginLeft: "auto", flexShrink: 0 }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 10 }}>star</span>
+                      Flagship
+                    </span>
+                  )}
+                </div>
 
-                  {/* Primitives */}
-                  <div className="flex flex-wrap gap-1.5">
-                    {c.primitives?.map((p: string) => {
-                      const pc = primitiveColors[p] ?? defaultPrimitive;
-                      return (
-                        <span
-                          key={p}
-                          className="text-[10px] font-semibold px-2 py-0.5 rounded-md"
-                          style={{ background: pc.bg, color: pc.color, border: `1px solid ${pc.border}` }}
-                        >
-                          {p}
-                        </span>
-                      );
-                    })}
-                  </div>
-
-                  {/* Footer stats */}
-                  <div
-                    className="flex items-center gap-4 mt-4 pt-4 text-xs"
-                    style={{ borderTop: "1px solid rgba(255,255,255,0.06)", color: "#3c494e" }}
+                {/* Description */}
+                {c.description ? (
+                  <p
+                    className="bv-caption line-clamp-2"
+                    style={{ marginTop: 8, marginBottom: 10 }}
                   >
-                    <span>{c._count?.agents ?? c.agents?.length ?? 0} {t("app.companies.agentsLabel")}</span>
-                    <span>{c._count?.pipelines ?? c.pipelines?.length ?? 0} {t("app.companies.pipelinesLabel")}</span>
-                    <span className="ml-auto">{new Date(c.createdAt).toLocaleDateString()}</span>
+                    {c.description}
+                  </p>
+                ) : (
+                  <p
+                    className="bv-caption line-clamp-2"
+                    style={{ marginTop: 8, marginBottom: 10, color: "var(--color-outline)" }}
+                  >
+                    {t("app.companies.noDescription")}
+                  </p>
+                )}
+
+                {/* Meta row: agent count + run count */}
+                <div
+                  className="bv-mono"
+                  style={{
+                    display: "flex",
+                    gap: 18,
+                    fontSize: 12,
+                    color: "var(--color-on-surface-variant)",
+                    marginBottom: 8,
+                  }}
+                >
+                  <span>
+                    <strong style={{ color: "var(--color-on-surface)", fontWeight: 600 }}>
+                      {agentCount}
+                    </strong>{" "}
+                    {t("app.companies.agentsLabel")}
+                  </span>
+                  <span>
+                    <strong style={{ color: "var(--color-on-surface)", fontWeight: 600 }}>
+                      {runCount}
+                    </strong>{" "}
+                    {t("app.companies.pipelinesLabel")}
+                  </span>
+                  <span style={{ marginLeft: "auto", color: "var(--color-outline)" }}>
+                    {new Date(c.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+
+                {/* Sparkline */}
+                <div style={{ height: 36, margin: "6px 0 14px" }}>
+                  <Spark values={c.sparkValues} />
+                </div>
+
+                {/* Primitives */}
+                {c.primitives && c.primitives.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+                    {c.primitives.map((p: string) => (
+                      <span
+                        key={p}
+                        className={`bv-pill ${PRIMITIVE_PILL[p] ?? "bv-pill-muted"}`}
+                      >
+                        {p}
+                      </span>
+                    ))}
                   </div>
+                )}
+
+                {/* Divider */}
+                <div className="bv-divider" style={{ marginBottom: 14 }} />
+
+                {/* Quick actions */}
+                <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
+                  <button
+                    className="bv-btn bv-btn-ghost bv-btn-sm"
+                    style={{ flex: 1 }}
+                    onClick={(e) => e.preventDefault()}
+                  >
+                    Open
+                  </button>
+                  <button
+                    className="bv-btn bv-btn-ghost bv-btn-sm"
+                    style={{ flex: 1 }}
+                    onClick={(e) => e.preventDefault()}
+                  >
+                    {isActive ? "Pause" : "Resume"}
+                  </button>
                 </div>
               </Link>
             );

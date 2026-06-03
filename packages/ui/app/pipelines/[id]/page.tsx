@@ -29,7 +29,12 @@ const PipelineCanvas = dynamic(
   () => import("../../../components/PipelineCanvas").then((m) => m.PipelineCanvas),
   {
     ssr: false,
-    loading: () => <div className="animate-shimmer" style={{ height: 420, borderRadius: 12, background: "rgba(255,255,255,0.04)" }} />,
+    loading: () => (
+      <div
+        className="animate-shimmer"
+        style={{ height: 420, borderRadius: 12, background: "rgba(255,255,255,0.04)" }}
+      />
+    ),
   },
 );
 
@@ -71,6 +76,15 @@ const TRIGGER_ICON: Record<string, string> = {
   SCHEDULED: "schedule",
   WEBHOOK: "webhook",
   EVENT: "bolt",
+};
+
+const STEP_TYPE_COLORS: Record<string, string> = {
+  trigger: "#FF7A1A",
+  agent:   "#3B82F6",
+  tool:    "#7DD3FC",
+  gate:    "#FF7A1A",
+  branch:  "#9AA3B2",
+  output:  "#60A5FA",
 };
 
 export default function PipelineDetailPage() {
@@ -226,7 +240,7 @@ export default function PipelineDetailPage() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div
           className="w-6 h-6 border-2 rounded-full animate-spin"
-          style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }}
+          style={{ borderColor: "rgba(59,130,246,0.3)", borderTopColor: "#3B82F6" }}
         />
       </div>
     );
@@ -255,319 +269,1033 @@ export default function PipelineDetailPage() {
   const triggerWord = t(`app.pipelineDetail.${TRIGGER_KEY[trigger] ?? "triggerManual"}`);
 
   return (
-    <div className="bv-dash bv-dash-shell">
-      <div className="max-w-[1100px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        <div style={{ marginBottom: 16 }}>
-          <Link href="/pipelines" style={{ color: "var(--color-primary, #a4e6ff)", fontSize: 13, textDecoration: "none" }}>
-            ← {t("app.pipelineDetail.backLink")}
+    /* Full-viewport FORGE builder shell — 4-col grid (rail | palette | canvas | inspector)
+       collapses to 3-col at 1200 px (palette hides) and 1-col at 900 px (inspector hides). */
+    <div
+      className="bv-dash"
+      style={{
+        display: "grid",
+        gridTemplateColumns: "minmax(0,1fr)",
+        minHeight: "100vh",
+        background: "var(--color-background)",
+        backgroundImage:
+          "radial-gradient(ellipse 80% 60% at 10% 20%, rgba(59,130,246,0.07) 0%, transparent 50%), radial-gradient(ellipse 60% 80% at 90% 80%, rgba(37,99,235,0.05) 0%, transparent 50%)",
+      }}
+    >
+      {/* ── Builder wrapper: full-bleed grid ── */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "228px 196px 1fr 264px",
+          height: "100vh",
+          position: "relative",
+        }}
+      >
+        {/* ── Rail / Sidebar ── */}
+        <nav
+          style={{
+            background: "rgba(11,13,18,0.82)",
+            backdropFilter: "blur(20px)",
+            borderRight: "1px solid var(--bv-glass-border)",
+            display: "flex",
+            flexDirection: "column",
+            padding: "20px 14px",
+            gap: 4,
+            overflowY: "auto",
+          }}
+        >
+          {/* Back breadcrumb */}
+          <Link
+            href="/pipelines"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              color: "var(--color-on-surface-variant)",
+              fontSize: 12,
+              textDecoration: "none",
+              marginBottom: 16,
+              padding: "6px 8px",
+              borderRadius: 8,
+              transition: "color 0.2s, background 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLAnchorElement).style.color = "var(--color-primary)";
+              (e.currentTarget as HTMLAnchorElement).style.background = "rgba(59,130,246,0.06)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLAnchorElement).style.color = "var(--color-on-surface-variant)";
+              (e.currentTarget as HTMLAnchorElement).style.background = "transparent";
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>arrow_back</span>
+            {t("app.pipelineDetail.backLink")}
           </Link>
-        </div>
 
-        {!loaded ? (
-          <div className="animate-shimmer" style={{ height: 96, borderRadius: 16 }} />
-        ) : err ? (
-          <div className="bv-glass bv-panel">
-            <p style={{ color: "var(--color-error, #f87171)" }}>{err}</p>
-          </div>
-        ) : !pipeline ? (
-          <div className="bv-glass bv-panel">
-            <p>{t("app.pipelineDetail.notFound")}</p>
-          </div>
-        ) : (
-          <>
-            {/* Header */}
-            <div className="bv-page-head bv-rise" style={{ marginBottom: 24 }}>
-              <div style={{ minWidth: 0 }}>
-                <div className="bv-micro" style={{ marginBottom: 6 }}>{t("app.pipelineDetail.pipelineLabel")}</div>
-                <h1 className="bv-display" style={{ margin: 0, fontSize: 26 }}>
-                  <span className="bv-grad-text">{pipeline.name}</span>
-                </h1>
-                <div className="bv-caption" style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                  <span className="bv-mono">{pipeline.id}</span>
-                  <span className="bv-divider-dot" aria-hidden />
-                  <span style={{ color: pipeline.enabled === false ? "#fbbf24" : "#34d399" }}>
-                    {pipeline.enabled === false ? t("app.pipelineDetail.disabled") : t("app.pipelineDetail.enabled")}
-                  </span>
-                  {pipeline.company?.name && (
-                    <>
-                      <span className="bv-divider-dot" aria-hidden />
-                      {pipeline.company.id ? (
-                        <Link href={`/companies/${pipeline.company.id}`} style={{ color: "var(--color-on-surface-variant)", textDecoration: "none" }}>
-                          {pipeline.company.name}
-                        </Link>
-                      ) : (
-                        <span>{pipeline.company.name}</span>
-                      )}
-                    </>
-                  )}
-                  <span className="bv-divider-dot" aria-hidden />
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>{TRIGGER_ICON[trigger] ?? "touch_app"}</span>
-                    {trigger === "SCHEDULED" && pipeline.schedule ? pipeline.schedule : triggerWord}
-                  </span>
-                  <span className="bv-divider-dot" aria-hidden />
-                  <span className="bv-pill bv-pill-muted">{isHierarchical ? t("app.pipelineDetail.typeHierarchical") : t("app.pipelineDetail.typeSequential")}</span>
-                </div>
-                {pipeline.description && (
-                  <p className="bv-caption" style={{ marginTop: 10, maxWidth: 720 }}>{pipeline.description}</p>
-                )}
-              </div>
+          {/* Nav items */}
+          {[
+            { href: "/dashboard", icon: "dashboard", label: "Dashboard" },
+            { href: "/pipelines", icon: "account_tree", label: "Pipelines", active: true },
+            { href: "/runs", icon: "play_circle", label: "Runs" },
+            { href: "/agents", icon: "smart_toy", label: "Agents" },
+            { href: "/companies", icon: "business", label: "Companies" },
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "9px 12px",
+                borderRadius: 10,
+                fontSize: 13,
+                fontWeight: item.active ? 600 : 400,
+                textDecoration: "none",
+                color: item.active ? "#60A5FA" : "var(--color-on-surface-variant)",
+                background: item.active ? "rgba(59,130,246,0.10)" : "transparent",
+                border: item.active ? "1px solid rgba(59,130,246,0.18)" : "1px solid transparent",
+                transition: "all 0.18s",
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{item.icon}</span>
+              {item.label}
+            </Link>
+          ))}
+        </nav>
 
-              <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "flex-start" }}>
+        {/* ── Palette — step types to drag in ── */}
+        <aside
+          style={{
+            background: "rgba(11,13,18,0.70)",
+            backdropFilter: "blur(14px)",
+            borderRight: "1px solid var(--bv-glass-border)",
+            padding: "18px 14px",
+            overflowY: "auto",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <p
+            className="bv-micro"
+            style={{ marginBottom: 14 }}
+          >
+            Step types · drag in
+          </p>
+
+          {[
+            { type: "trigger", icon: "bolt",         label: "Trigger",       color: "#FF7A1A" },
+            { type: "agent",   icon: "smart_toy",    label: "Agent",         color: "#3B82F6" },
+            { type: "tool",    icon: "construction", label: "Tool call",     color: "#7DD3FC" },
+            { type: "gate",    icon: "approval",     label: "Approval gate", color: "#FF7A1A" },
+            { type: "branch",  icon: "call_split",   label: "Branch",        color: "#9AA3B2" },
+            { type: "output",  icon: "output",       label: "Output",        color: "#60A5FA" },
+          ].map((item) => (
+            <div
+              key={item.type}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 11,
+                padding: "10px 12px",
+                border: "1px solid var(--bv-glass-border)",
+                borderRadius: 11,
+                background: "rgba(15,18,25,0.50)",
+                marginBottom: 8,
+                cursor: "grab",
+                fontSize: 13,
+                color: "var(--color-on-surface)",
+                transition: "border-color 0.2s, transform 0.2s",
+                userSelect: "none",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(59,130,246,0.35)";
+                (e.currentTarget as HTMLDivElement).style.transform = "translateX(2px)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLDivElement).style.borderColor = "var(--bv-glass-border)";
+                (e.currentTarget as HTMLDivElement).style.transform = "translateX(0)";
+              }}
+            >
+              <span
+                style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: 7,
+                  display: "grid",
+                  placeItems: "center",
+                  flexShrink: 0,
+                  background: `linear-gradient(135deg,${item.color},rgba(0,0,0,0.2))`,
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 14, color: "#fff" }}>{item.icon}</span>
+              </span>
+              {item.label}
+            </div>
+          ))}
+        </aside>
+
+        {/* ── Canvas column ── */}
+        <div
+          style={{
+            position: "relative",
+            overflow: "hidden",
+            background: "radial-gradient(circle at 20% 20%, rgba(59,130,246,0.05), transparent 40%), var(--color-background)",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {/* dot-grid overlay */}
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: 0,
+              backgroundImage: "radial-gradient(rgba(58,65,80,0.4) 1px, transparent 1px)",
+              backgroundSize: "26px 26px",
+              pointerEvents: "none",
+              zIndex: 0,
+            }}
+          />
+
+          {/* ── Toolbar ── */}
+          <div
+            style={{
+              position: "absolute",
+              top: 16,
+              left: 16,
+              right: 16,
+              zIndex: 20,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              flexWrap: "wrap",
+            }}
+          >
+            {/* Canvas / List segmented toggle */}
+            <div
+              style={{
+                display: "inline-flex",
+                background: "rgba(15,18,25,0.80)",
+                backdropFilter: "blur(14px)",
+                border: "1px solid var(--bv-glass-border)",
+                borderRadius: 10,
+                padding: 4,
+              }}
+            >
+              {(["graph", "list"] as const).map((v) => (
                 <button
-                  onClick={startEditSettings}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#bbc9cf" }}
+                  key={v}
+                  onClick={() => setStepView(v)}
+                  style={{
+                    border: "none",
+                    background: stepView === v ? "rgba(59,130,246,0.18)" : "transparent",
+                    color: stepView === v ? "#fff" : "var(--color-outline)",
+                    fontSize: 13,
+                    padding: "7px 14px",
+                    borderRadius: 7,
+                    cursor: "pointer",
+                    transition: "background 0.2s, color 0.2s",
+                    fontFamily: "inherit",
+                    fontWeight: stepView === v ? 600 : 400,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                  }}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>edit</span>
-                  {t("app.pipelineDetail.edit")}
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+                    {v === "graph" ? "account_tree" : "format_list_bulleted"}
+                  </span>
+                  {v === "graph" ? t("app.pipelineDetail.viewGraph") : t("app.pipelineDetail.viewList")}
                 </button>
-                <button
-                  onClick={handleRun}
-                  disabled={running}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
-                  style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}
-                >
-                  {running ? (
-                    <span className="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>play_arrow</span>
-                  )}
-                  {t("app.pipelineDetail.runNow")}
-                </button>
-              </div>
+              ))}
             </div>
 
-            {editing && (
-              <div className="bv-glass bv-panel" style={{ marginBottom: 16 }}>
-                <h2 className="bv-title" style={{ marginBottom: 12 }}>{t("app.pipelineDetail.settingsTitle")}</h2>
-                <label className="bv-caption" style={{ display: "block", marginBottom: 4 }}>{t("app.pipelineDetail.nameLabel")}</label>
-                <input
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  style={{ width: "100%", marginBottom: 12, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "8px 12px", color: "#e1e2eb", fontSize: 14, outline: "none" }}
-                />
-                <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: 13, color: "var(--color-on-surface-variant)" }}>
-                  <input type="checkbox" checked={editEnabled} onChange={(e) => setEditEnabled(e.target.checked)} />
-                  {t("app.pipelineDetail.enabledToggle")}
-                </label>
-                {trigger === "SCHEDULED" && (
-                  <>
-                    <label className="bv-caption" style={{ display: "block", marginBottom: 4 }}>{t("app.pipelineDetail.scheduleLabel")}</label>
-                    <input
-                      value={editSchedule}
-                      onChange={(e) => setEditSchedule(e.target.value)}
-                      placeholder="0 9 * * *"
-                      className="bv-mono"
-                      style={{ width: "100%", marginBottom: 12, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "8px 12px", color: "#e1e2eb", fontSize: 13, outline: "none" }}
-                    />
-                  </>
+            {/* Pipeline name */}
+            {!loaded ? (
+              <div className="animate-shimmer" style={{ width: 160, height: 20, borderRadius: 6 }} />
+            ) : pipeline ? (
+              <span
+                style={{
+                  fontFamily: "var(--bv-font-display)",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.02em",
+                  marginLeft: 6,
+                  color: "var(--color-on-surface)",
+                }}
+              >
+                {pipeline.name}
+              </span>
+            ) : null}
+
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+              {/* Schedule / cron note */}
+              {pipeline?.trigger?.toUpperCase() === "SCHEDULED" && pipeline.schedule && (
+                <span
+                  className="bv-mono"
+                  style={{
+                    fontSize: 11,
+                    color: "var(--color-on-surface-variant)",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid var(--bv-glass-border)",
+                    borderRadius: 7,
+                    padding: "4px 8px",
+                    marginRight: 4,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 13 }}>schedule</span>
+                  {pipeline.schedule}
+                </span>
+              )}
+
+              {/* Edit settings */}
+              <button
+                onClick={startEditSettings}
+                className="bv-btn bv-btn-ghost bv-btn-sm"
+                disabled={!pipeline}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
+                {t("app.pipelineDetail.edit")}
+              </button>
+
+              {/* Run now */}
+              <button
+                onClick={handleRun}
+                disabled={running || !pipeline}
+                className="bv-btn bv-btn-primary bv-btn-sm"
+              >
+                {running ? (
+                  <span
+                    className="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"
+                    style={{ width: 14, height: 14, borderWidth: 2 }}
+                  />
+                ) : (
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>play_arrow</span>
                 )}
-                {settingsErr && <p style={{ color: "#f87171", fontSize: 12, marginBottom: 8 }}>{settingsErr}</p>}
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                  <button onClick={() => setEditing(false)} disabled={savingSettings} className="px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>{t("app.pipelines.nlCancel")}</button>
-                  <button onClick={handleSaveSettings} disabled={savingSettings || !editName.trim()} className="px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}>{savingSettings ? t("app.pipelineDetail.saving") : t("app.pipelineDetail.save")}</button>
-                </div>
-              </div>
-            )}
+                {t("app.pipelineDetail.runNow")}
+              </button>
+            </div>
+          </div>
 
-            {runErr && (
-              <div className="bv-glass bv-panel" style={{ marginBottom: 16, borderColor: "rgba(248,113,113,0.25)" }}>
-                <p style={{ margin: 0, color: "#f87171", fontSize: 13 }}>{runErr}</p>
+          {/* ── Main canvas / list area ── */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              overflowY: "auto",
+              paddingTop: 68,
+              paddingBottom: 72,
+              paddingLeft: 16,
+              paddingRight: 16,
+              zIndex: 1,
+            }}
+          >
+            {!loaded ? (
+              <div className="animate-shimmer" style={{ height: 320, borderRadius: 16, marginTop: 20 }} />
+            ) : err ? (
+              <div
+                className="bv-glass bv-panel"
+                style={{ marginTop: 20, borderColor: "rgba(255,77,77,0.2)" }}
+              >
+                <p style={{ color: "var(--color-error)", margin: 0, fontSize: 13 }}>{err}</p>
               </div>
-            )}
-
-            {/* Steps / topology */}
-            <section className="bv-glass bv-panel">
-              <header className="bv-panel-head">
-                <div>
+            ) : !pipeline ? (
+              <div className="bv-glass bv-panel" style={{ marginTop: 20 }}>
+                <p style={{ color: "var(--color-on-surface-variant)", margin: 0 }}>
+                  {t("app.pipelineDetail.notFound")}
+                </p>
+              </div>
+            ) : stepView === "graph" ? (
+              <PipelineCanvas
+                stages={stages}
+                isHierarchical={isHierarchical}
+                maxDelegationDepth={pipeline.maxDelegationDepth}
+              />
+            ) : editingSteps ? (
+              /* ── Step editor (list view, inline) ── */
+              <div
+                className="bv-glass bv-panel bv-rise"
+                style={{ marginTop: 20 }}
+              >
+                <header className="bv-panel-head">
                   <h2 className="bv-title">{t("app.pipelineDetail.stepsTitle")}</h2>
-                  <div className="bv-caption">
-                    {isHierarchical
-                      ? t("app.pipelineDetail.managerDelegated")
-                      : t("app.pipelineDetail.stageStepCount", { stages: stages.length, steps: pipeline.steps?.length ?? 0 })}
-                  </div>
-                </div>
-                {!editingSteps && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    {/* List / Graph view toggle */}
-                    <div style={{ display: "inline-flex", borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)" }}>
-                      {(["list", "graph"] as const).map((v) => (
-                        <button
-                          key={v}
-                          onClick={() => setStepView(v)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold"
-                          style={{
-                            background: stepView === v ? "rgba(0,209,255,0.12)" : "transparent",
-                            color: stepView === v ? "#a4e6ff" : "#859399",
-                            border: "none", cursor: "pointer",
-                          }}
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>{v === "list" ? "format_list_bulleted" : "account_tree"}</span>
-                          {v === "list" ? t("app.pipelineDetail.viewList") : t("app.pipelineDetail.viewGraph")}
-                        </button>
-                      ))}
-                    </div>
-                    {!isHierarchical && (
-                      <button onClick={startEditSteps} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.2)", color: "#a4e6ff" }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
-                        {t("app.pipelineDetail.editSteps")}
-                      </button>
-                    )}
-                  </div>
-                )}
-              </header>
+                </header>
 
-              {editingSteps ? (
-                <div style={{ padding: 14 }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {stepDraft.map((s, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: 10, border: "1px solid var(--bv-glass-border)", borderRadius: 10, background: "rgba(255,255,255,0.02)", marginLeft: i > 0 && s.parallel ? 20 : 0 }}>
-                        <span className="bv-pill bv-pill-muted">{t("app.pipelineDetail.stagePill", { n: stageIndexFor(stepDraft, i) + 1 })}</span>
-                        <button
-                          onClick={() => toggleParallel(i)}
-                          disabled={i === 0}
-                          title={t("app.pipelineDetail.parallelToggleTitle")}
-                          style={{
-                            background: s.parallel ? "rgba(0,209,255,0.12)" : "transparent",
-                            border: s.parallel ? "1px solid rgba(0,209,255,0.3)" : "1px solid rgba(255,255,255,0.08)",
-                            borderRadius: 8, color: s.parallel ? "#a4e6ff" : "#859399",
-                            cursor: i === 0 ? "default" : "pointer", padding: "4px 6px",
-                            opacity: i === 0 ? 0.25 : 1, flexShrink: 0,
-                          }}
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>call_split</span>
-                        </button>
-                        <input value={s.name} onChange={(e) => setStepField(i, "name", e.target.value)} placeholder={t("app.pipelineDetail.stepNamePlaceholder")} style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "6px 10px", color: "#e1e2eb", fontSize: 13, outline: "none" }} />
-                        <select value={s.agentRole} onChange={(e) => setStepField(i, "agentRole", e.target.value)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "6px 10px", color: "#e1e2eb", fontSize: 13, outline: "none" }}>
-                          {s.agentRole && !agents.some((a) => a.role === s.agentRole || a.name === s.agentRole) && (
-                            <option value={s.agentRole}>{s.agentRole}</option>
-                          )}
-                          {agents.length === 0 && !s.agentRole && <option value="">{t("app.pipelineDetail.noAgentsOption")}</option>}
-                          {agents.map((a) => <option key={a.id} value={a.role}>{a.name}</option>)}
-                        </select>
-                        <button onClick={() => moveStep(i, -1)} disabled={i === 0} title={t("app.pipelineDetail.moveUp")} style={{ background: "transparent", border: "none", color: "#859399", cursor: "pointer", padding: 2, opacity: i === 0 ? 0.3 : 1 }}><span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_upward</span></button>
-                        <button onClick={() => moveStep(i, 1)} disabled={i === stepDraft.length - 1} title={t("app.pipelineDetail.moveDown")} style={{ background: "transparent", border: "none", color: "#859399", cursor: "pointer", padding: 2, opacity: i === stepDraft.length - 1 ? 0.3 : 1 }}><span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_downward</span></button>
-                        <button onClick={() => removeStep(i)} title={t("app.pipelineDetail.remove")} style={{ background: "transparent", border: "none", color: "#f87171", cursor: "pointer", padding: 2 }}><span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span></button>
-                      </div>
-                    ))}
-                  </div>
-                  <p style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#859399", marginTop: 10 }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 14, color: "#a4e6ff" }}>call_split</span>
-                    {t("app.pipelineDetail.parallelHint")}
-                  </p>
-                  <button onClick={addStep} className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>add</span> {t("app.pipelineDetail.addStep")}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {stepDraft.map((s, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: 10,
+                        border: "1px solid var(--bv-glass-border)",
+                        borderRadius: 10,
+                        background: "rgba(255,255,255,0.02)",
+                        marginLeft: i > 0 && s.parallel ? 20 : 0,
+                      }}
+                    >
+                      <span className="bv-pill bv-pill-muted">
+                        {t("app.pipelineDetail.stagePill", { n: stageIndexFor(stepDraft, i) + 1 })}
+                      </span>
+                      <button
+                        onClick={() => toggleParallel(i)}
+                        disabled={i === 0}
+                        title={t("app.pipelineDetail.parallelToggleTitle")}
+                        style={{
+                          background: s.parallel ? "rgba(59,130,246,0.12)" : "transparent",
+                          border: s.parallel ? "1px solid rgba(59,130,246,0.3)" : "1px solid rgba(255,255,255,0.08)",
+                          borderRadius: 8,
+                          color: s.parallel ? "#60A5FA" : "var(--color-outline)",
+                          cursor: i === 0 ? "default" : "pointer",
+                          padding: "4px 6px",
+                          opacity: i === 0 ? 0.25 : 1,
+                          flexShrink: 0,
+                        }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>call_split</span>
+                      </button>
+                      <input
+                        value={s.name}
+                        onChange={(e) => setStepField(i, "name", e.target.value)}
+                        placeholder={t("app.pipelineDetail.stepNamePlaceholder")}
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                          background: "rgba(255,255,255,0.04)",
+                          border: "1px solid rgba(255,255,255,0.08)",
+                          borderRadius: 8,
+                          padding: "6px 10px",
+                          color: "var(--color-on-surface)",
+                          fontSize: 13,
+                          outline: "none",
+                        }}
+                      />
+                      <select
+                        value={s.agentRole}
+                        onChange={(e) => setStepField(i, "agentRole", e.target.value)}
+                        style={{
+                          background: "rgba(255,255,255,0.04)",
+                          border: "1px solid rgba(255,255,255,0.08)",
+                          borderRadius: 8,
+                          padding: "6px 10px",
+                          color: "var(--color-on-surface)",
+                          fontSize: 13,
+                          outline: "none",
+                        }}
+                      >
+                        {s.agentRole && !agents.some((a) => a.role === s.agentRole || a.name === s.agentRole) && (
+                          <option value={s.agentRole}>{s.agentRole}</option>
+                        )}
+                        {agents.length === 0 && !s.agentRole && (
+                          <option value="">{t("app.pipelineDetail.noAgentsOption")}</option>
+                        )}
+                        {agents.map((a) => (
+                          <option key={a.id} value={a.role}>{a.name}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => moveStep(i, -1)}
+                        disabled={i === 0}
+                        title={t("app.pipelineDetail.moveUp")}
+                        style={{ background: "transparent", border: "none", color: "var(--color-outline)", cursor: "pointer", padding: 2, opacity: i === 0 ? 0.3 : 1 }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_upward</span>
+                      </button>
+                      <button
+                        onClick={() => moveStep(i, 1)}
+                        disabled={i === stepDraft.length - 1}
+                        title={t("app.pipelineDetail.moveDown")}
+                        style={{ background: "transparent", border: "none", color: "var(--color-outline)", cursor: "pointer", padding: 2, opacity: i === stepDraft.length - 1 ? 0.3 : 1 }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_downward</span>
+                      </button>
+                      <button
+                        onClick={() => removeStep(i)}
+                        title={t("app.pipelineDetail.remove")}
+                        style={{ background: "transparent", border: "none", color: "var(--color-error)", cursor: "pointer", padding: 2 }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <p style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--color-outline)", margin: "4px 0" }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14, color: "#60A5FA" }}>call_split</span>
+                  {t("app.pipelineDetail.parallelHint")}
+                </p>
+                <button
+                  onClick={addStep}
+                  className="bv-btn bv-btn-ghost bv-btn-sm"
+                  style={{ alignSelf: "flex-start" }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>add</span>
+                  {t("app.pipelineDetail.addStep")}
+                </button>
+                {agents.length === 0 && (
+                  <p style={{ color: "#FF7A1A", fontSize: 12, margin: 0 }}>{t("app.pipelineDetail.noAgentsWarning")}</p>
+                )}
+                {stepsErr && (
+                  <p style={{ color: "var(--color-error)", fontSize: 12, margin: 0 }}>{stepsErr}</p>
+                )}
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, paddingTop: 4 }}>
+                  <button
+                    onClick={() => setEditingSteps(false)}
+                    disabled={savingSteps}
+                    className="bv-btn bv-btn-ghost"
+                  >
+                    {t("app.pipelines.nlCancel")}
                   </button>
-                  {agents.length === 0 && <p style={{ color: "#fbbf24", fontSize: 12, marginTop: 8 }}>{t("app.pipelineDetail.noAgentsWarning")}</p>}
-                  {stepsErr && <p style={{ color: "#f87171", fontSize: 12, marginTop: 8 }}>{stepsErr}</p>}
-                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
-                    <button onClick={() => setEditingSteps(false)} disabled={savingSteps} className="px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>{t("app.pipelines.nlCancel")}</button>
-                    <button onClick={saveSteps} disabled={savingSteps || stepDraft.length === 0} className="px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}>{savingSteps ? t("app.pipelineDetail.saving") : t("app.pipelineDetail.saveSteps")}</button>
+                  <button
+                    onClick={saveSteps}
+                    disabled={savingSteps || stepDraft.length === 0}
+                    className="bv-btn bv-btn-primary"
+                  >
+                    {savingSteps ? t("app.pipelineDetail.saving") : t("app.pipelineDetail.saveSteps")}
+                  </button>
+                </div>
+              </div>
+            ) : isHierarchical ? (
+              /* ── Hierarchical note ── */
+              <div
+                className="bv-glass bv-panel bv-rise"
+                style={{ marginTop: 20 }}
+              >
+                <header className="bv-panel-head">
+                  <div>
+                    <h2 className="bv-title">{t("app.pipelineDetail.stepsTitle")}</h2>
+                    <div className="bv-caption">{t("app.pipelineDetail.managerDelegated")}</div>
                   </div>
-                </div>
-              ) : stepView === "graph" ? (
-                <div style={{ padding: 14 }}>
-                  <PipelineCanvas stages={stages} isHierarchical={isHierarchical} maxDelegationDepth={pipeline.maxDelegationDepth} />
-                </div>
-              ) : isHierarchical ? (
-                <div style={{ padding: 16, fontSize: 13, color: "var(--color-on-surface-variant)", lineHeight: 1.6 }}>
+                  <span className="bv-pill bv-pill-purple">{t("app.pipelineDetail.typeHierarchical")}</span>
+                </header>
+                <div style={{ fontSize: 13, color: "var(--color-on-surface-variant)", lineHeight: 1.6 }}>
                   {t.rich("app.pipelineDetail.hierarchicalNote", {
                     depth: pipeline.maxDelegationDepth ?? 3,
                     b: (chunks) => <strong>{chunks}</strong>,
                   })}
                 </div>
-              ) : stages.length === 0 ? (
-                <div style={{ padding: 16, textAlign: "center", color: "var(--color-outline)", fontSize: 13 }}>
-                  {t("app.pipelineDetail.noSteps")}
+              </div>
+            ) : (
+              /* ── Sequential stage list ── */
+              <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 12 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 4,
+                  }}
+                >
+                  <div>
+                    <span className="bv-micro">
+                      {t("app.pipelineDetail.stageStepCount", {
+                        stages: stages.length,
+                        steps: pipeline.steps?.length ?? 0,
+                      })}
+                    </span>
+                  </div>
+                  {!isHierarchical && (
+                    <button
+                      onClick={startEditSteps}
+                      className="bv-btn bv-btn-ghost bv-btn-sm"
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
+                      {t("app.pipelineDetail.editSteps")}
+                    </button>
+                  )}
                 </div>
-              ) : (
-                <ol className="bv-stagger" style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-                  {stages.map((stage, idx) => {
-                    const parallel = stage.steps.length > 1;
-                    return (
-                      <li
-                        key={stage.order}
-                        style={{
-                          padding: 14,
-                          border: "1px solid var(--bv-glass-border)",
-                          borderRadius: 12,
-                          background: "rgba(255,255,255,0.02)",
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: parallel ? 10 : 0 }}>
-                          <span className="bv-pill bv-pill-muted">{t("app.pipelineDetail.stagePill", { n: idx + 1 })}</span>
-                          {parallel && (
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: "#a4e6ff" }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>call_split</span>
-                              {t("app.pipelineDetail.parallelCount", { n: stage.steps.length })}
-                            </span>
-                          )}
-                        </div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                          {stage.steps.map((s, j) => (
-                            <div key={`${stage.order}-${j}`} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                              <span
-                                className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                                style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.15)" }}
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: 15, color: "#00d1ff" }}>smart_toy</span>
-                              </span>
-                              <div style={{ minWidth: 0 }}>
-                                <div style={{ fontWeight: 600, color: "var(--color-on-surface)", fontSize: 14 }}>{s.name}</div>
-                                <div className="bv-mono" style={{ fontSize: 11, color: "var(--color-outline)" }}>{s.agentRole}</div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ol>
-              )}
-            </section>
 
-            {/* Recent runs */}
-            <section className="bv-glass bv-panel" style={{ marginTop: 16 }}>
-              <header className="bv-panel-head">
-                <div>
-                  <h2 className="bv-title">{t("app.pipelineDetail.recentRuns")}</h2>
-                  <div className="bv-caption">{t("app.pipelineDetail.runsShown", { n: pipeline.runs?.length ?? 0 })}</div>
-                </div>
-              </header>
-
-              {(!pipeline.runs || pipeline.runs.length === 0) ? (
-                <div style={{ padding: 16, textAlign: "center", color: "var(--color-outline)", fontSize: 13 }}>
-                  {t("app.pipelineDetail.noRuns")}
-                </div>
-              ) : (
-                <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-                  {pipeline.runs.map((r) => {
-                    const cost = typeof r.costUsd === "number" ? r.costUsd : r.costUsd != null ? Number(r.costUsd) : null;
-                    return (
-                      <li key={r.id}>
-                        <Link
-                          href={`/runs/${r.id}`}
-                          style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid var(--bv-glass-border)", textDecoration: "none" }}
+                {stages.length === 0 ? (
+                  <div
+                    className="bv-glass bv-panel"
+                    style={{ textAlign: "center", color: "var(--color-outline)", fontSize: 13 }}
+                  >
+                    {t("app.pipelineDetail.noSteps")}
+                  </div>
+                ) : (
+                  <ol className="bv-stagger" style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+                    {stages.map((stage, idx) => {
+                      const parallel = stage.steps.length > 1;
+                      return (
+                        <li
+                          key={stage.order}
+                          style={{
+                            padding: 14,
+                            border: "1px solid var(--bv-glass-border)",
+                            borderRadius: 14,
+                            background: "rgba(15,18,25,0.55)",
+                            backdropFilter: "blur(12px)",
+                            position: "relative",
+                          }}
                         >
-                          <PipelineRunStatus status={(r.status ?? "pending").toLowerCase()} />
-                          <span className="bv-mono" style={{ fontSize: 12, color: "var(--color-on-surface-variant)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {r.id}
-                          </span>
-                          <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
-                            {cost != null && <span className="bv-mono" style={{ fontSize: 12, color: "var(--color-outline)" }}>${cost.toFixed(2)}</span>}
-                            <span className="bv-caption" style={{ fontSize: 12 }}>{timeAgo(r.createdAt ?? r.startedAt ?? "")}</span>
-                            <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-outline)" }}>chevron_right</span>
-                          </span>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
+                          {/* Accent line — arc blue */}
+                          <div
+                            aria-hidden
+                            style={{
+                              position: "absolute",
+                              top: 0,
+                              left: 14,
+                              right: 14,
+                              height: 1,
+                              background: "linear-gradient(90deg, transparent, rgba(59,130,246,0.4), transparent)",
+                              opacity: 0.6,
+                            }}
+                          />
+
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: parallel ? 10 : 6 }}>
+                            <span className="bv-pill bv-pill-muted">
+                              {t("app.pipelineDetail.stagePill", { n: idx + 1 })}
+                            </span>
+                            {parallel && (
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 4,
+                                  fontSize: 11,
+                                  color: "#60A5FA",
+                                  background: "rgba(59,130,246,0.08)",
+                                  border: "1px solid rgba(59,130,246,0.18)",
+                                  borderRadius: 999,
+                                  padding: "2px 8px",
+                                }}
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: 13 }}>call_split</span>
+                                {t("app.pipelineDetail.parallelCount", { n: stage.steps.length })}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Parallel lane dashed border */}
+                          {parallel && (
+                            <div
+                              style={{
+                                border: "1px dashed rgba(96,165,250,0.25)",
+                                borderRadius: 10,
+                                padding: "8px 10px",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 6,
+                              }}
+                            >
+                              {stage.steps.map((s, j) => (
+                                <StepRow key={`${stage.order}-${j}`} step={s} />
+                              ))}
+                            </div>
+                          )}
+
+                          {!parallel && stage.steps.map((s, j) => (
+                            <StepRow key={`${stage.order}-${j}`} step={s} />
+                          ))}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Zoom controls (bottom-left) ── */}
+          <div
+            style={{
+              position: "absolute",
+              bottom: 16,
+              left: 16,
+              zIndex: 20,
+              display: "flex",
+              gap: 6,
+            }}
+          >
+            {[
+              { icon: "remove", label: "zoom out" },
+              { icon: "fit_screen", label: "fit" },
+              { icon: "add", label: "zoom in" },
+            ].map((btn) => (
+              <button
+                key={btn.label}
+                aria-label={btn.label}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 9,
+                  background: "rgba(15,18,25,0.80)",
+                  backdropFilter: "blur(10px)",
+                  border: "1px solid var(--bv-glass-border)",
+                  color: "var(--color-on-surface)",
+                  cursor: "pointer",
+                  fontSize: 17,
+                  transition: "border-color 0.2s, color 0.2s",
+                  display: "grid",
+                  placeItems: "center",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(59,130,246,0.4)";
+                  (e.currentTarget as HTMLButtonElement).style.color = "#60A5FA";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--bv-glass-border)";
+                  (e.currentTarget as HTMLButtonElement).style.color = "var(--color-on-surface)";
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{btn.icon}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* ── Minimap (bottom-right) ── */}
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              bottom: 16,
+              right: 16,
+              zIndex: 20,
+              width: 160,
+              height: 104,
+              background: "rgba(11,13,18,0.80)",
+              border: "1px solid var(--bv-glass-border)",
+              borderRadius: 10,
+              overflow: "hidden",
+            }}
+          >
+            {/* Minimap node previews */}
+            {stages.map((stage, idx) => (
+              <div
+                key={stage.order}
+                style={{
+                  position: "absolute",
+                  left: `${8 + idx * 22}px`,
+                  top: `${12 + (stage.steps.length > 1 ? 8 : 20)}px`,
+                  width: 18,
+                  height: 10,
+                  borderRadius: 2,
+                  background: "#3B82F6",
+                  opacity: 0.7,
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* ── Inspector panel (right) ── */}
+        <aside
+          style={{
+            background: "rgba(11,13,18,0.70)",
+            backdropFilter: "blur(14px)",
+            borderLeft: "1px solid var(--bv-glass-border)",
+            padding: "20px 18px",
+            overflowY: "auto",
+            display: "flex",
+            flexDirection: "column",
+            gap: 18,
+          }}
+        >
+          <p className="bv-micro">Inspector</p>
+
+          {/* Pipeline metadata card */}
+          {!loaded ? (
+            <div className="animate-shimmer" style={{ height: 120, borderRadius: 12 }} />
+          ) : pipeline ? (
+            <>
+              {/* Header metadata */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span className="bv-micro">{t("app.pipelineDetail.pipelineLabel")}</span>
+                  <h1
+                    className="bv-grad-text"
+                    style={{
+                      fontFamily: "var(--bv-font-display)",
+                      fontSize: 18,
+                      fontWeight: 700,
+                      margin: 0,
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
+                    {pipeline.name}
+                  </h1>
+                </div>
+
+                {pipeline.description && (
+                  <p className="bv-caption" style={{ margin: 0, lineHeight: 1.5 }}>
+                    {pipeline.description}
+                  </p>
+                )}
+
+                {/* ID */}
+                <span
+                  className="bv-mono"
+                  style={{
+                    fontSize: 10,
+                    color: "var(--color-outline)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    display: "block",
+                  }}
+                >
+                  {pipeline.id}
+                </span>
+
+                {/* Status + type pills */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  <span className={`bv-pill ${pipeline.enabled === false ? "bv-pill-amber" : "bv-pill-cyan"}`}>
+                    {pipeline.enabled === false ? t("app.pipelineDetail.disabled") : t("app.pipelineDetail.enabled")}
+                  </span>
+                  <span className="bv-pill bv-pill-muted">
+                    {isHierarchical ? t("app.pipelineDetail.typeHierarchical") : t("app.pipelineDetail.typeSequential")}
+                  </span>
+                </div>
+
+                {/* Trigger */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 7,
+                    fontSize: 12,
+                    color: "var(--color-on-surface-variant)",
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
+                    {TRIGGER_ICON[trigger] ?? "touch_app"}
+                  </span>
+                  <span>{trigger === "SCHEDULED" && pipeline.schedule ? pipeline.schedule : triggerWord}</span>
+                </div>
+
+                {/* Company */}
+                {pipeline.company?.name && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--color-on-surface-variant)" }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 15 }}>business</span>
+                    {pipeline.company.id ? (
+                      <Link
+                        href={`/companies/${pipeline.company.id}`}
+                        style={{ color: "var(--color-on-surface-variant)", textDecoration: "none" }}
+                      >
+                        {pipeline.company.name}
+                      </Link>
+                    ) : (
+                      <span>{pipeline.company.name}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="bv-divider" />
+
+              {/* Settings edit form (inline in inspector) */}
+              {editing ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <h2 className="bv-title">{t("app.pipelineDetail.settingsTitle")}</h2>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <label className="bv-caption">{t("app.pipelineDetail.nameLabel")}</label>
+                    <input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      style={{
+                        width: "100%",
+                        background: "rgba(255,255,255,0.04)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        borderRadius: 10,
+                        padding: "8px 10px",
+                        color: "var(--color-on-surface)",
+                        fontSize: 13,
+                        outline: "none",
+                      }}
+                    />
+                  </div>
+
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--color-on-surface-variant)" }}>
+                    <input
+                      type="checkbox"
+                      checked={editEnabled}
+                      onChange={(e) => setEditEnabled(e.target.checked)}
+                    />
+                    {t("app.pipelineDetail.enabledToggle")}
+                  </label>
+
+                  {trigger === "SCHEDULED" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      <label className="bv-caption">{t("app.pipelineDetail.scheduleLabel")}</label>
+                      <input
+                        value={editSchedule}
+                        onChange={(e) => setEditSchedule(e.target.value)}
+                        placeholder="0 9 * * *"
+                        className="bv-mono"
+                        style={{
+                          width: "100%",
+                          background: "rgba(255,255,255,0.04)",
+                          border: "1px solid rgba(255,255,255,0.08)",
+                          borderRadius: 10,
+                          padding: "8px 10px",
+                          color: "var(--color-on-surface)",
+                          fontSize: 12,
+                          outline: "none",
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {settingsErr && (
+                    <p style={{ color: "var(--color-error)", fontSize: 12, margin: 0 }}>{settingsErr}</p>
+                  )}
+
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      onClick={() => setEditing(false)}
+                      disabled={savingSettings}
+                      className="bv-btn bv-btn-ghost bv-btn-sm"
+                      style={{ flex: 1 }}
+                    >
+                      {t("app.pipelines.nlCancel")}
+                    </button>
+                    <button
+                      onClick={handleSaveSettings}
+                      disabled={savingSettings || !editName.trim()}
+                      className="bv-btn bv-btn-primary bv-btn-sm"
+                      style={{ flex: 1 }}
+                    >
+                      {savingSettings ? t("app.pipelineDetail.saving") : t("app.pipelineDetail.save")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <p className="bv-micro">Step inspector</p>
+                  <p style={{ fontSize: 13, color: "var(--color-outline)", margin: 0 }}>
+                    Select a step in the canvas to configure it.
+                  </p>
+                </div>
               )}
-            </section>
-          </>
-        )}
+
+              {/* Run error banner */}
+              {runErr && (
+                <div
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    background: "rgba(255,77,77,0.08)",
+                    border: "1px solid rgba(255,77,77,0.2)",
+                  }}
+                >
+                  <p style={{ margin: 0, color: "var(--color-error)", fontSize: 12 }}>{runErr}</p>
+                </div>
+              )}
+
+              <div className="bv-divider" />
+
+              {/* Recent runs */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <p className="bv-micro">{t("app.pipelineDetail.recentRuns")}</p>
+                  <span className="bv-caption">{t("app.pipelineDetail.runsShown", { n: pipeline.runs?.length ?? 0 })}</span>
+                </div>
+
+                {(!pipeline.runs || pipeline.runs.length === 0) ? (
+                  <p style={{ fontSize: 12, color: "var(--color-outline)", margin: 0, textAlign: "center", padding: "12px 0" }}>
+                    {t("app.pipelineDetail.noRuns")}
+                  </p>
+                ) : (
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                    {pipeline.runs.map((r) => {
+                      const cost = typeof r.costUsd === "number" ? r.costUsd : r.costUsd != null ? Number(r.costUsd) : null;
+                      return (
+                        <li key={r.id}>
+                          <Link
+                            href={`/runs/${r.id}`}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
+                              padding: "8px 10px",
+                              borderRadius: 10,
+                              background: "rgba(255,255,255,0.02)",
+                              border: "1px solid var(--bv-glass-border)",
+                              textDecoration: "none",
+                              transition: "background 0.18s, border-color 0.18s",
+                            }}
+                            onMouseEnter={(e) => {
+                              (e.currentTarget as HTMLAnchorElement).style.background = "rgba(59,130,246,0.04)";
+                              (e.currentTarget as HTMLAnchorElement).style.borderColor = "rgba(59,130,246,0.15)";
+                            }}
+                            onMouseLeave={(e) => {
+                              (e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,255,255,0.02)";
+                              (e.currentTarget as HTMLAnchorElement).style.borderColor = "var(--bv-glass-border)";
+                            }}
+                          >
+                            <PipelineRunStatus status={(r.status ?? "pending").toLowerCase()} />
+                            <span
+                              className="bv-mono"
+                              style={{
+                                fontSize: 10,
+                                color: "var(--color-on-surface-variant)",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                flex: 1,
+                                minWidth: 0,
+                              }}
+                            >
+                              {r.id}
+                            </span>
+                            <span style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                              {cost != null && (
+                                <span className="bv-mono" style={{ fontSize: 10, color: "var(--color-outline)" }}>
+                                  ${cost.toFixed(2)}
+                                </span>
+                              )}
+                              <span className="bv-caption" style={{ fontSize: 10 }}>
+                                {timeAgo(r.createdAt ?? r.startedAt ?? "")}
+                              </span>
+                              <span className="material-symbols-outlined" style={{ fontSize: 14, color: "var(--color-outline)" }}>
+                                chevron_right
+                              </span>
+                            </span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </>
+          ) : null}
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+/** Single step row used in the sequential stage list. */
+function StepRow({ step }: { step: PipelineStep }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, paddingTop: 4 }}>
+      <span
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: 8,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          background: "rgba(59,130,246,0.10)",
+          border: "1px solid rgba(59,130,246,0.18)",
+        }}
+      >
+        <span className="material-symbols-outlined" style={{ fontSize: 15, color: "#60A5FA" }}>smart_toy</span>
+      </span>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontWeight: 600, color: "var(--color-on-surface)", fontSize: 13 }}>{step.name}</div>
+        <div className="bv-mono" style={{ fontSize: 10, color: "var(--color-outline)" }}>{step.agentRole}</div>
       </div>
     </div>
   );
@@ -576,18 +1304,21 @@ export default function PipelineDetailPage() {
 function PipelineRunStatus({ status }: { status: string }) {
   const t = useTranslations();
   const label =
-    status === "running" ? t("app.runAudit.statusRunning") :
-    status === "completed" ? t("app.runAudit.statusCompleted") :
-    status === "paused" ? t("app.runAudit.statusPaused") :
-    status === "failed" ? t("app.runAudit.statusFailed") :
-    status === "cancelled" ? t("app.runAudit.statusCancelled") :
-    status === "waiting_approval" ? t("app.runAudit.statusWaiting") :
+    status === "running"           ? t("app.runAudit.statusRunning") :
+    status === "completed"         ? t("app.runAudit.statusCompleted") :
+    status === "paused"            ? t("app.runAudit.statusPaused") :
+    status === "failed"            ? t("app.runAudit.statusFailed") :
+    status === "cancelled"         ? t("app.runAudit.statusCancelled") :
+    status === "waiting_approval"  ? t("app.runAudit.statusWaiting") :
     t("app.runAudit.statusPending");
   const cls = status === "waiting_approval" || status === "pending" ? "bv-pending" : status;
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-      <span className={`bv-dot bv-${cls} ${status === "running" ? "bv-ping" : ""}`} aria-hidden />
-      <span style={{ fontSize: 12, color: "var(--color-on-surface-variant)" }}>{label}</span>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+      <span
+        className={`bv-dot bv-${cls} ${status === "running" ? "bv-ping" : ""}`}
+        aria-hidden
+      />
+      <span style={{ fontSize: 11, color: "var(--color-on-surface-variant)" }}>{label}</span>
     </span>
   );
 }

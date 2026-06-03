@@ -42,6 +42,7 @@ export default function RunsPage() {
   const [offset, setOffset] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [filter, setFilter] = useState<"all" | "running" | "completed" | "pending" | "failed">("all");
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     if (!token) return;
@@ -53,9 +54,18 @@ export default function RunsPage() {
   }, [token, offset]);
 
   const filtered = useMemo(() => {
-    if (filter === "all") return runs;
-    return runs.filter((r) => (r.status ?? "").toLowerCase() === filter);
-  }, [runs, filter]);
+    let result = filter === "all" ? runs : runs.filter((r) => (r.status ?? "").toLowerCase() === filter);
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      result = result.filter(
+        (r) =>
+          (r.pipelineName ?? r.pipeline?.name ?? r.id).toLowerCase().includes(q) ||
+          r.id.toLowerCase().includes(q) ||
+          (r.companyName ?? r.pipeline?.companyName ?? "").toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [runs, filter, query]);
 
   const counts = useMemo(() => ({
     all: runs.length,
@@ -67,8 +77,11 @@ export default function RunsPage() {
 
   if (!hydrated || !token) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }} />
+      <div className="bv-dash bv-dash-shell flex items-center justify-center min-h-screen">
+        <div
+          className="w-6 h-6 border-2 rounded-full animate-spin"
+          style={{ borderColor: "rgba(59,130,246,0.2)", borderTopColor: "var(--bv-cobalt-glow)" }}
+        />
       </div>
     );
   }
@@ -76,6 +89,8 @@ export default function RunsPage() {
   return (
     <div className="bv-dash bv-dash-shell">
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
+
+        {/* ── Page head ── */}
         <div className="bv-page-head bv-rise" style={{ marginBottom: 24 }}>
           <div>
             <div className="bv-micro" style={{ marginBottom: 6 }}>{t("app.runsList.activity")}</div>
@@ -86,7 +101,62 @@ export default function RunsPage() {
           </div>
         </div>
 
-        <section className="bv-glass bv-panel">
+        {/* ── Filters + search bar ── */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+            marginBottom: 16,
+          }}
+        >
+          {/* Search input */}
+          <div style={{ flex: 1, minWidth: 200, maxWidth: 340, position: "relative" }}>
+            <span
+              className="material-symbols-outlined"
+              aria-hidden
+              style={{
+                position: "absolute",
+                left: 12,
+                top: "50%",
+                transform: "translateY(-50%)",
+                fontSize: 16,
+                color: "var(--color-outline)",
+                pointerEvents: "none",
+              }}
+            >
+              search
+            </span>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search runs…"
+              style={{
+                width: "100%",
+                background: "var(--color-surface-container-low)",
+                border: "1px solid var(--color-outline-variant)",
+                borderRadius: 11,
+                padding: "10px 14px 10px 38px",
+                color: "var(--color-on-surface)",
+                fontSize: 14,
+                outline: "none",
+                fontFamily: "var(--bv-font-mono)",
+                transition: "border-color 200ms, box-shadow 200ms",
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = "var(--bv-cobalt-glow)";
+                e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59,130,246,0.18)";
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = "var(--color-outline-variant)";
+                e.currentTarget.style.boxShadow = "none";
+              }}
+            />
+          </div>
+
+          {/* Filter chips */}
           <div className="bv-fpills">
             {(() => {
               const FILTER_LABEL: Record<typeof filter, string> = {
@@ -96,54 +166,168 @@ export default function RunsPage() {
                 pending: t("app.runAudit.statusPending"),
                 failed: t("app.runAudit.statusFailed"),
               };
+              const FILTER_DOT: Record<typeof filter, string | null> = {
+                all: null,
+                running: "bv-running",
+                completed: "bv-completed",
+                pending: "bv-pending",
+                failed: "bv-failed",
+              };
               return (["all", "running", "completed", "pending", "failed"] as const).map((id) => (
-                <button key={id} type="button" className={`bv-fpill ${filter === id ? "active" : ""}`} onClick={() => setFilter(id)}>
+                <button
+                  key={id}
+                  type="button"
+                  className={`bv-fpill${filter === id ? " active" : ""}`}
+                  onClick={() => setFilter(id)}
+                >
+                  {FILTER_DOT[id] && (
+                    <span
+                      className={`bv-dot ${FILTER_DOT[id]}${id === "running" ? " bv-ping" : ""}`}
+                      aria-hidden
+                    />
+                  )}
                   <span>{FILTER_LABEL[id]}</span>
                   <span className="bv-fpill-count">{counts[id]}</span>
                 </button>
               ));
             })()}
           </div>
+        </div>
 
+        {/* ── Runs table card ── */}
+        <section className="bv-glass bv-panel" style={{ padding: 0, overflow: "hidden" }}>
+          {/* Table */}
           <div className="bv-runs-table" role="table">
-            <div className="bv-runs-row bv-runs-head" role="row">
-              <span>{t("app.runsList.colPipeline")}</span>
+            {/* Header */}
+            <div className="bv-runs-row bv-runs-head" role="row" style={{ padding: "12px 20px" }}>
+              <span>
+                <span className="material-symbols-outlined" aria-hidden style={{ fontSize: 12, marginRight: 6 }}>
+                  play_circle
+                </span>
+                {t("app.runsList.colPipeline")}
+              </span>
               <span>{t("app.runsList.colCompany")}</span>
               <span>{t("app.runsList.colStatus")}</span>
               <span>{t("app.runsList.colStarted")}</span>
               <span>{t("app.runsList.colSteps")}</span>
               <span style={{ textAlign: "right" }}>{t("app.runsList.colSpend")}</span>
             </div>
+
+            {/* Body */}
             {!loaded ? (
-              <div style={{ padding: "16px 4px" }}>
+              <div style={{ padding: "12px 20px" }}>
                 {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="animate-shimmer" style={{ height: 36, marginBottom: 6, borderRadius: 8 }} />
+                  <div
+                    key={i}
+                    className="animate-shimmer"
+                    style={{ height: 44, marginBottom: 6, borderRadius: 10 }}
+                  />
                 ))}
               </div>
             ) : filtered.length === 0 ? (
-              <div style={{ padding: "32px 8px", textAlign: "center", color: "var(--color-outline)" }}>
-                {t("app.runsList.noneInFilter")}
+              <div
+                style={{
+                  padding: "40px 20px",
+                  textAlign: "center",
+                  color: "var(--color-outline)",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: 32, color: "var(--color-outline-variant)" }}
+                >
+                  history_toggle_off
+                </span>
+                <span className="bv-caption">{t("app.runsList.noneInFilter")}</span>
               </div>
             ) : (
-              <div className="bv-stagger">
+              <div className="bv-stagger" style={{ padding: "0 8px 8px" }}>
                 {filtered.map((r) => (
-                  <Link key={r.id} href={`/runs/${r.id}`} role="row" className="bv-runs-row" style={{ textDecoration: "none" }}>
+                  <Link
+                    key={r.id}
+                    href={`/runs/${r.id}`}
+                    role="row"
+                    className="bv-runs-row"
+                    style={{ textDecoration: "none", padding: "13px 12px", borderRadius: 10 }}
+                  >
+                    {/* Pipeline name + id */}
                     <span className="bv-runs-pipeline">
-                      <span className="material-symbols-outlined" aria-hidden>account_tree</span>
-                      <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                        <span style={{ fontWeight: 600, color: "var(--color-on-surface)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <span
+                        className="material-symbols-outlined"
+                        aria-hidden
+                        style={{ fontSize: 16, flexShrink: 0 }}
+                      >
+                        account_tree
+                      </span>
+                      <span
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          minWidth: 0,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontWeight: 600,
+                            color: "var(--color-on-surface)",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
                           {r.pipelineName ?? r.pipeline?.name ?? r.id}
                         </span>
-                        <span className="bv-mono" style={{ color: "var(--color-outline)", fontSize: 11 }}>{r.id.slice(0, 12)}</span>
+                        <span
+                          className="bv-mono"
+                          style={{ color: "var(--color-outline)", fontSize: 11 }}
+                        >
+                          {r.id.slice(0, 12)}
+                        </span>
                       </span>
                     </span>
-                    <span className="bv-runs-company">{r.companyName ?? r.pipeline?.companyName ?? "—"}</span>
-                    <span><StatusLabel status={(r.status ?? "running").toLowerCase()} /></span>
-                    <span className="bv-runs-started">{r.startedAt ?? r.createdAt ? timeAgo(r.startedAt ?? r.createdAt!) : t("app.runsList.queued")}</span>
-                    <span className="bv-mono" style={{ color: "var(--color-on-surface-variant)" }}>
-                      {typeof r.stepsCompleted === "number" && typeof r.stepsTotal === "number" ? `${r.stepsCompleted} / ${r.stepsTotal}` : "—"}
+
+                    {/* Company */}
+                    <span className="bv-runs-company">
+                      {r.companyName ?? r.pipeline?.companyName ?? "—"}
                     </span>
-                    <span style={{ textAlign: "right" }} className="bv-mono">
+
+                    {/* Status */}
+                    <span>
+                      <StatusLabel status={(r.status ?? "running").toLowerCase()} />
+                    </span>
+
+                    {/* Started */}
+                    <span className="bv-runs-started">
+                      {r.startedAt ?? r.createdAt
+                        ? timeAgo(r.startedAt ?? r.createdAt!)
+                        : t("app.runsList.queued")}
+                    </span>
+
+                    {/* Steps */}
+                    <span
+                      className="bv-mono"
+                      style={{ color: "var(--color-on-surface-variant)" }}
+                    >
+                      {typeof r.stepsCompleted === "number" && typeof r.stepsTotal === "number"
+                        ? `${r.stepsCompleted} / ${r.stepsTotal}`
+                        : "—"}
+                    </span>
+
+                    {/* Cost */}
+                    <span
+                      className="bv-mono"
+                      style={{
+                        textAlign: "right",
+                        color:
+                          typeof r.costUsd === "number" && r.costUsd > 0
+                            ? "var(--color-on-surface)"
+                            : "var(--color-outline)",
+                      }}
+                    >
                       {typeof r.costUsd === "number" ? `$${r.costUsd.toFixed(2)}` : "—"}
                     </span>
                   </Link>
@@ -152,19 +336,46 @@ export default function RunsPage() {
             )}
           </div>
 
+          {/* Pagination */}
           {total > PAGE_SIZE && (
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 8 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "12px 20px 16px",
+                borderTop: "1px solid var(--bv-glass-border)",
+              }}
+            >
               <span className="bv-caption">
-                {t("app.runsList.pagination", { from: offset + 1, to: Math.min(offset + PAGE_SIZE, total), total })}
+                {t("app.runsList.pagination", {
+                  from: offset + 1,
+                  to: Math.min(offset + PAGE_SIZE, total),
+                  total,
+                })}
               </span>
               <div style={{ display: "flex", gap: 8 }}>
-                <button type="button" className="bv-btn bv-btn-ghost bv-btn-sm" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_back</span>
+                <button
+                  type="button"
+                  className="bv-btn bv-btn-ghost bv-btn-sm"
+                  disabled={offset === 0}
+                  onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
+                    arrow_back
+                  </span>
                   <span>{t("app.runsList.previous")}</span>
                 </button>
-                <button type="button" className="bv-btn bv-btn-ghost bv-btn-sm" disabled={offset + PAGE_SIZE >= total} onClick={() => setOffset(offset + PAGE_SIZE)}>
+                <button
+                  type="button"
+                  className="bv-btn bv-btn-ghost bv-btn-sm"
+                  disabled={offset + PAGE_SIZE >= total}
+                  onClick={() => setOffset(offset + PAGE_SIZE)}
+                >
                   <span>{t("app.runsList.next")}</span>
-                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
+                    arrow_forward
+                  </span>
                 </button>
               </div>
             </div>
@@ -178,17 +389,21 @@ export default function RunsPage() {
 function StatusLabel({ status }: { status: string }) {
   const t = useTranslations();
   const label =
-    status === "running" ? t("app.runAudit.statusRunning") :
-    status === "completed" ? t("app.runAudit.statusCompleted") :
-    status === "paused" ? t("app.runAudit.statusPaused") :
-    status === "failed" ? t("app.runAudit.statusFailed") :
-    status === "cancelled" ? t("app.runAudit.statusCancelled") :
+    status === "running"          ? t("app.runAudit.statusRunning") :
+    status === "completed"        ? t("app.runAudit.statusCompleted") :
+    status === "paused"           ? t("app.runAudit.statusPaused") :
+    status === "failed"           ? t("app.runAudit.statusFailed") :
+    status === "cancelled"        ? t("app.runAudit.statusCancelled") :
     status === "waiting_approval" ? t("app.runAudit.statusWaiting") :
     t("app.runAudit.statusPending");
-  const cls = status === "waiting_approval" || status === "pending" ? "bv-pending" : status;
+  const cls =
+    status === "waiting_approval" || status === "pending" ? "bv-pending" : status;
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-      <span className={`bv-dot bv-${cls} ${status === "running" ? "bv-ping" : ""}`} aria-hidden />
+      <span
+        className={`bv-dot bv-${cls}${status === "running" ? " bv-ping" : ""}`}
+        aria-hidden
+      />
       <span style={{ fontSize: 12, color: "var(--color-on-surface-variant)" }}>{label}</span>
     </span>
   );
