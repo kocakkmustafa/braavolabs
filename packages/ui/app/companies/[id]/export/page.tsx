@@ -51,218 +51,307 @@ export default function ExportPage() {
   if (!token) return null;
 
   return (
-    <div style={{ padding: "32px", maxWidth: 960, margin: "0 auto" }}>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{
-          fontFamily: "'Space Grotesk', sans-serif",
-          fontWeight: 700,
-          fontSize: 24,
-          color: "#e1e2eb",
-          marginBottom: 8,
-        }}>
-          {t("app.exportBundle.title")}
-        </h1>
-        <p style={{ color: "#859399", fontSize: 14 }}>
-          {t("app.exportBundle.subtitle")}
-        </p>
-      </div>
+    <div className="bv-mesh min-h-screen">
+      <div className="max-w-[1020px] mx-auto px-6 py-8 bv-rise">
 
-      {/* Format selector */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
-        {["claude-code", "n8n", "generic"].map((f) => (
-          <button
-            key={f}
-            onClick={() => setFormat(f)}
-            style={{
-              padding: "8px 16px",
-              borderRadius: 8,
-              fontSize: 13,
-              fontWeight: 600,
-              border: format === f ? "1px solid #00d1ff" : "1px solid rgba(255,255,255,0.1)",
-              background: format === f ? "rgba(0,209,255,0.1)" : "rgba(29,32,38,0.7)",
-              color: format === f ? "#00d1ff" : "#859399",
-              cursor: "pointer",
-            }}
-          >
-            {f === "claude-code" ? t("app.exportBundle.fmtClaudeCode") : f === "n8n" ? "n8n" : t("app.exportBundle.fmtGeneric")}
-          </button>
-        ))}
-      </div>
-
-      {loading && (
-        <div style={{ color: "#859399", padding: 40, textAlign: "center" }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 32, animation: "spin 1s linear infinite" }}>progress_activity</span>
-          <p>{t("app.exportBundle.generating")}</p>
+        {/* Page head */}
+        <div className="bv-page-head mb-7">
+          <div>
+            <p className="bv-micro mb-1 text-on-surface-variant">
+              {t("app.exportBundle.title")}
+            </p>
+            <h1 className="bv-headline text-on-surface">
+              Export workspace
+            </h1>
+            <p className="bv-body text-on-surface-variant mt-1">
+              {t("app.exportBundle.subtitle")}
+            </p>
+          </div>
         </div>
-      )}
 
-      {bundle && !loading && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* CLAUDE.md Section */}
-          <div style={{
-            background: "rgba(29,32,38,0.7)",
-            borderRadius: 12,
-            border: "1px solid rgba(255,255,255,0.06)",
-            overflow: "hidden",
-          }}>
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "12px 16px",
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#00d1ff" }}>description</span>
-                <span style={{ fontWeight: 600, fontSize: 14, color: "#e1e2eb" }}>CLAUDE.md</span>
-              </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <button
-                  onClick={() => copyToClipboard(bundle.claudeMd, "claude-md")}
-                  style={{
-                    padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                    background: copied === "claude-md" ? "#34d399" : "rgba(0,209,255,0.1)",
-                    color: copied === "claude-md" ? "#fff" : "#00d1ff",
-                    border: "none", cursor: "pointer",
-                  }}
+        {/* Format selector */}
+        <div className="flex gap-2 mb-6 bv-segmented w-fit">
+          {["claude-code", "n8n", "generic"].map((f) => (
+            <button
+              key={f}
+              onClick={() => setFormat(f)}
+              className={format === f ? "active" : ""}
+            >
+              {f === "claude-code"
+                ? t("app.exportBundle.fmtClaudeCode")
+                : f === "n8n"
+                ? "n8n"
+                : t("app.exportBundle.fmtGeneric")}
+            </button>
+          ))}
+        </div>
+
+        {/* Two-column layout: main + sticky side */}
+        <div className="bv-twocol">
+          {/* ── Left: bundle contents ── */}
+          <div className="bv-twocol-main">
+
+            {/* Loading state */}
+            {loading && (
+              <div className="bv-glass bv-panel items-center justify-center py-12">
+                <span
+                  className="material-symbols-outlined text-primary mb-3"
+                  style={{ fontSize: 36, animation: "spin-slow 1s linear infinite" }}
                 >
-                  {copied === "claude-md" ? t("app.exportBundle.copied") : t("app.exportBundle.copy")}
-                </button>
-                <button
-                  onClick={() => downloadFile(bundle.claudeMd, "CLAUDE.md")}
-                  style={{
-                    padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                    background: "rgba(0,209,255,0.1)", color: "#00d1ff",
-                    border: "none", cursor: "pointer",
-                  }}
-                >
-                  {t("app.exportBundle.download")}
-                </button>
+                  progress_activity
+                </span>
+                <p className="bv-caption">{t("app.exportBundle.generating")}</p>
               </div>
-            </div>
-            <pre style={{
-              padding: 16, margin: 0, fontSize: 12, lineHeight: 1.6,
-              color: "#859399", maxHeight: 300, overflow: "auto",
-              fontFamily: "monospace", whiteSpace: "pre-wrap",
-            }}>
-              {bundle.claudeMd}
-            </pre>
-          </div>
+            )}
 
-          {/* Skills Section */}
-          <div style={{
-            background: "rgba(29,32,38,0.7)",
-            borderRadius: 12,
-            border: "1px solid rgba(255,255,255,0.06)",
-            padding: 16,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#c084fc" }}>psychology</span>
-              <span style={{ fontWeight: 600, fontSize: 14, color: "#e1e2eb" }}>
-                {t("app.exportBundle.skillsTitle", { n: bundle.skills.length })}
-              </span>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {bundle.skills.map((skill: any, i: number) => (
-                <div key={i} style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "10px 14px", borderRadius: 8,
-                  background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.04)",
-                }}>
-                  <div>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "#e1e2eb" }}>{skill.name}</span>
-                    <span style={{ fontSize: 11, color: "#3c494e", marginLeft: 8 }}>{skill.fileName}</span>
-                  </div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <button
-                      onClick={() => copyToClipboard(skill.content, `skill-${i}`)}
-                      style={{
-                        padding: "3px 8px", borderRadius: 4, fontSize: 10,
-                        background: copied === `skill-${i}` ? "#34d399" : "rgba(255,255,255,0.05)",
-                        color: copied === `skill-${i}` ? "#fff" : "#859399",
-                        border: "none", cursor: "pointer",
-                      }}
-                    >
-                      {copied === `skill-${i}` ? t("app.exportBundle.copied") : t("app.exportBundle.copy")}
-                    </button>
-                    <button
-                      onClick={() => downloadFile(skill.content, skill.fileName)}
-                      style={{
-                        padding: "3px 8px", borderRadius: 4, fontSize: 10,
-                        background: "rgba(255,255,255,0.05)", color: "#859399",
-                        border: "none", cursor: "pointer",
-                      }}
-                    >
-                      {t("app.exportBundle.download")}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+            {bundle && !loading && (
+              <div className="bv-stagger flex flex-col gap-4">
 
-          {/* Hooks Section */}
-          <div style={{
-            background: "rgba(29,32,38,0.7)",
-            borderRadius: 12,
-            border: "1px solid rgba(255,255,255,0.06)",
-            padding: 16,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#fbbf24" }}>webhook</span>
-              <span style={{ fontWeight: 600, fontSize: 14, color: "#e1e2eb" }}>
-                {t("app.exportBundle.hooksTitle", { n: bundle.hooks.length })}
-              </span>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {bundle.hooks.map((hook: any, i: number) => (
-                <div key={i} style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "10px 14px", borderRadius: 8,
-                  background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.04)",
-                }}>
-                  <div>
-                    <span style={{
-                      fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4,
-                      background: hook.event === "cron" ? "rgba(0,209,255,0.1)" : "rgba(251,191,36,0.1)",
-                      color: hook.event === "cron" ? "#00d1ff" : "#fbbf24",
-                      marginRight: 8,
-                    }}>
-                      {hook.event.toUpperCase()}
-                    </span>
-                    <span style={{ fontSize: 13, color: "#e1e2eb" }}>{hook.description}</span>
+                {/* CLAUDE.md */}
+                <div className="bv-glass overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-primary" style={{ fontSize: 18 }}>
+                        description
+                      </span>
+                      <span className="bv-title text-sm font-semibold">CLAUDE.md</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => copyToClipboard(bundle.claudeMd, "claude-md")}
+                        className={`bv-btn bv-btn-sm ${copied === "claude-md" ? "bv-btn-primary" : "bv-btn-ghost"}`}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
+                          {copied === "claude-md" ? "check" : "content_copy"}
+                        </span>
+                        {copied === "claude-md"
+                          ? t("app.exportBundle.copied")
+                          : t("app.exportBundle.copy")}
+                      </button>
+                      <button
+                        onClick={() => downloadFile(bundle.claudeMd, "CLAUDE.md")}
+                        className="bv-btn bv-btn-sm bv-btn-ghost"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 13 }}>download</span>
+                        {t("app.exportBundle.download")}
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => downloadFile(hook.content, hook.fileName)}
-                    style={{
-                      padding: "3px 8px", borderRadius: 4, fontSize: 10,
-                      background: "rgba(255,255,255,0.05)", color: "#859399",
-                      border: "none", cursor: "pointer",
-                    }}
+                  <pre
+                    className="bv-mono text-on-surface-variant p-4 m-0 max-h-72 overflow-auto"
+                    style={{ whiteSpace: "pre-wrap", fontSize: 12, lineHeight: 1.6 }}
                   >
-                    {t("app.exportBundle.download")}
-                  </button>
+                    {bundle.claudeMd}
+                  </pre>
                 </div>
-              ))}
-            </div>
+
+                {/* Skills */}
+                <div className="bv-glass bv-panel">
+                  <div className="bv-panel-head">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--color-secondary)" }}>
+                        psychology
+                      </span>
+                      <span className="bv-title text-sm font-semibold">
+                        {t("app.exportBundle.skillsTitle", { n: bundle.skills.length })}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {bundle.skills.map((skill: any, i: number) => (
+                      <div
+                        key={i}
+                        className="interactive-row flex items-center justify-between px-3 py-2.5 rounded-xl"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <span className="bv-body font-semibold text-on-surface">{skill.name}</span>
+                          <span className="bv-mono ml-2" style={{ color: "var(--bv-text-faint)" }}>
+                            {skill.fileName}
+                          </span>
+                        </div>
+                        <div className="flex gap-2 flex-shrink-0 ml-3">
+                          <button
+                            onClick={() => copyToClipboard(skill.content, `skill-${i}`)}
+                            className={`bv-btn bv-btn-sm ${copied === `skill-${i}` ? "bv-btn-primary" : "bv-btn-ghost"}`}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
+                              {copied === `skill-${i}` ? "check" : "content_copy"}
+                            </span>
+                            {copied === `skill-${i}`
+                              ? t("app.exportBundle.copied")
+                              : t("app.exportBundle.copy")}
+                          </button>
+                          <button
+                            onClick={() => downloadFile(skill.content, skill.fileName)}
+                            className="bv-btn bv-btn-sm bv-btn-ghost"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: 12 }}>download</span>
+                            {t("app.exportBundle.download")}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Hooks */}
+                <div className="bv-glass bv-panel">
+                  <div className="bv-panel-head">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--bv-status-running)" }}>
+                        webhook
+                      </span>
+                      <span className="bv-title text-sm font-semibold">
+                        {t("app.exportBundle.hooksTitle", { n: bundle.hooks.length })}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {bundle.hooks.map((hook: any, i: number) => (
+                      <div
+                        key={i}
+                        className="interactive-row flex items-center justify-between px-3 py-2.5 rounded-xl"
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <span
+                            className={`bv-pill ${hook.event === "cron" ? "bv-pill-cyan" : "bv-pill-amber"}`}
+                          >
+                            {hook.event.toUpperCase()}
+                          </span>
+                          <span className="bv-body text-on-surface truncate">{hook.description}</span>
+                        </div>
+                        <button
+                          onClick={() => downloadFile(hook.content, hook.fileName)}
+                          className="bv-btn bv-btn-sm bv-btn-ghost flex-shrink-0 ml-3"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: 12 }}>download</span>
+                          {t("app.exportBundle.download")}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+            )}
           </div>
 
-          {/* Download All button */}
-          <button
-            onClick={() => downloadFile(JSON.stringify(bundle, null, 2), `${bundle.company?.slug || "company"}-export.json`)}
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              padding: "14px 24px", borderRadius: 12, fontWeight: 700, fontSize: 14,
-              background: "linear-gradient(135deg, #00d1ff, #6d11ad)",
-              color: "white", border: "none", cursor: "pointer",
-              boxShadow: "0 0 20px rgba(0,209,255,0.2)",
-            }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>download</span>
-            {t("app.exportBundle.downloadAll")}
-          </button>
+          {/* ── Right: sticky bundle summary ── */}
+          <div className="bv-twocol-side">
+            <div className="bv-glass bv-panel sticky top-20">
+              <div className="bv-panel-head">
+                <p className="bv-micro">Bundle summary</p>
+              </div>
+
+              {/* Encryption badge */}
+              <div
+                className="flex items-center gap-3 px-3 py-3 rounded-xl border"
+                style={{
+                  background: "rgba(59,130,246,0.06)",
+                  borderColor: "rgba(59,130,246,0.25)",
+                }}
+              >
+                <div
+                  className="flex items-center justify-center rounded-xl flex-shrink-0"
+                  style={{
+                    width: 34,
+                    height: 34,
+                    background: "rgba(59,130,246,0.12)",
+                    border: "1px solid rgba(59,130,246,0.30)",
+                  }}
+                >
+                  <span className="material-symbols-outlined text-primary" style={{ fontSize: 18 }}>
+                    lock
+                  </span>
+                </div>
+                <div>
+                  <p className="bv-body font-semibold text-on-surface">AES-256 encrypted bundle</p>
+                  <p className="bv-caption">A one-time passphrase is generated on export</p>
+                </div>
+              </div>
+
+              <div className="bv-divider" />
+
+              {/* Summary rows */}
+              {bundle && (
+                <div className="flex flex-col gap-0">
+                  {[
+                    { label: "Workspace", value: bundle.company?.name || bundle.company?.slug || "—" },
+                    { label: "Skills", value: `${bundle.skills?.length ?? 0}` },
+                    { label: "Hooks", value: `${bundle.hooks?.length ?? 0}` },
+                    { label: "Encryption", value: "AES-256" },
+                  ].map(({ label, value }, idx, arr) => (
+                    <div
+                      key={label}
+                      className="flex items-center justify-between py-2.5"
+                      style={
+                        idx < arr.length - 1
+                          ? { borderBottom: "1px solid var(--bv-glass-border)" }
+                          : {}
+                      }
+                    >
+                      <span className="bv-caption">{label}</span>
+                      <span className="bv-mono text-on-surface font-semibold" style={{ fontSize: 12 }}>
+                        {value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!bundle && !loading && (
+                <div className="flex flex-col gap-2.5">
+                  {["Workspace", "Components", "Estimated size", "Encryption"].map((label) => (
+                    <div key={label} className="flex items-center justify-between py-2" style={{ borderBottom: "1px solid var(--bv-glass-border)" }}>
+                      <span className="bv-caption">{label}</span>
+                      <span className="animate-shimmer rounded w-16 h-3 block" />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Download all */}
+              {bundle && !loading && (
+                <button
+                  onClick={() =>
+                    downloadFile(
+                      JSON.stringify(bundle, null, 2),
+                      `${bundle.company?.slug || "company"}-export.json`
+                    )
+                  }
+                  className="bv-btn bv-btn-primary w-full justify-center mt-1"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                    download
+                  </span>
+                  {t("app.exportBundle.downloadAll")}
+                </button>
+              )}
+
+              {loading && (
+                <div className="flex flex-col items-center py-4 gap-3">
+                  <div
+                    className="rounded-full border-2 border-outline-variant"
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderTopColor: "var(--color-primary)",
+                      animation: "spin 0.8s linear infinite",
+                    }}
+                  />
+                  <p className="bv-caption">{t("app.exportBundle.generating")}</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      )}
+      </div>
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

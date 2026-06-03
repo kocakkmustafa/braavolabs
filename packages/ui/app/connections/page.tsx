@@ -25,19 +25,42 @@ const PLATFORMS = [
   { value: "GENERIC", label: "Generic (REST)" },
 ];
 
-const STATUS_COLOR: Record<string, string> = {
-  ACTIVE: "#34d399",
-  PENDING: "#fbbf24",
-  ERROR: "#f87171",
-  DISABLED: "#859399",
+// FORGE palette — map to bv-* / Tailwind FORGE tokens, never hardcode old hexes.
+const PLATFORM_GLYPH: Record<string, string> = {
+  N8N: "n8n",
+  MAKE: "Mk",
+  ZAPIER: "Zp",
+  GENERIC: "{ }",
+};
+
+// Platform accent: arc-blue gradient for all (no old brand colours)
+const PLATFORM_GRADIENT: Record<string, string> = {
+  N8N: "linear-gradient(135deg,#3B82F6,#1E3A8A)",
+  MAKE: "linear-gradient(135deg,#2563EB,#1E3A8A)",
+  ZAPIER: "linear-gradient(135deg,#60A5FA,#3B82F6)",
+  GENERIC: "linear-gradient(135deg,#3B82F6,#2563EB)",
+};
+
+// Status → bv-dot class + bv-pill class
+const STATUS_DOT: Record<string, string> = {
+  ACTIVE: "bv-completed",
+  PENDING: "bv-pending",
+  ERROR: "bv-failed",
+  DISABLED: "bv-cancelled",
+};
+const STATUS_PILL: Record<string, string> = {
+  ACTIVE: "bv-pill-cyan",
+  PENDING: "bv-pill-amber",
+  ERROR: "bv-pill-red",
+  DISABLED: "bv-pill-muted",
 };
 
 const RUN_DOT: Record<string, string> = {
-  COMPLETED: "#34d399",
-  RUNNING: "#a4e6ff",
-  FAILED: "#f87171",
-  CANCELLED: "#c084fc",
-  PENDING: "#fbbf24",
+  COMPLETED: "bv-completed",
+  RUNNING: "bv-running bv-ping",
+  FAILED: "bv-failed",
+  CANCELLED: "bv-cancelled",
+  PENDING: "bv-pending",
 };
 
 function hostOf(url: string): string {
@@ -135,126 +158,397 @@ export default function ConnectionsPage() {
   if (!hydrated || !token) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }} />
+        <div className="w-6 h-6 rounded-full animate-spin" style={{ border: "2px solid rgba(59,130,246,0.2)", borderTopColor: "#3B82F6" }} />
       </div>
     );
   }
 
-  const inputStyle = { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" };
-
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold font-headline" style={{ color: "#e1e2eb" }}>{t("app.connections.title")}</h1>
-          <p className="text-sm mt-0.5" style={{ color: "#859399" }}>{t("app.connections.subtitle")}</p>
-        </div>
-        <button
-          onClick={() => { setFormErr(null); setShowForm(true); }}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white self-start sm:self-auto"
-          style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add_link</span>
-          {t("app.connections.connect")}
-        </button>
-      </div>
+    <div className="bv-dash bv-dash-shell min-h-screen">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 animate-fade-in">
 
-      {loading ? (
-        <div className="space-y-3">{[1, 2].map((i) => <div key={i} className="glass-card rounded-xl h-20 animate-shimmer" />)}</div>
-      ) : conns.length === 0 ? (
-        <div className="glass-card rounded-2xl text-center py-16">
-          <span className="material-symbols-outlined text-4xl mb-4 block" style={{ color: "#00d1ff" }}>hub</span>
-          <p className="font-semibold" style={{ color: "#e1e2eb" }}>{t("app.connections.emptyTitle")}</p>
-          <p className="text-sm mt-1" style={{ color: "#859399" }}>{t("app.connections.emptyBody")}</p>
+        {/* ── Page head ── */}
+        <div className="bv-page-head mb-8">
+          <div>
+            <p className="bv-micro text-on-surface-variant mb-1">Automation Hub</p>
+            <h1 className="bv-headline text-on-surface">{t("app.connections.title")}</h1>
+            <p className="bv-body text-on-surface-variant mt-1">{t("app.connections.subtitle")}</p>
+          </div>
+          <div className="bv-page-head-actions">
+            <button
+              onClick={() => { setFormErr(null); setShowForm(true); }}
+              className="bv-btn bv-btn-primary"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add_link</span>
+              {t("app.connections.connect")}
+            </button>
+          </div>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {conns.map((c) => {
-            const sc = STATUS_COLOR[c.status] ?? "#859399";
-            const isOpen = expanded === c.id;
-            return (
-              <div key={c.id} className="glass-card rounded-xl overflow-hidden" style={{ borderLeft: `3px solid ${sc}` }}>
-                <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.15)" }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 20, color: "#00d1ff" }}>hub</span>
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm" style={{ color: "#e1e2eb" }}>{c.label}</span>
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold" style={{ color: sc, background: `${sc}1a`, border: `1px solid ${sc}33` }}>{c.status}</span>
-                        <span className="text-[10px] uppercase tracking-wider" style={{ color: "#3c494e" }}>{c.platform}</span>
+
+        {/* ── Connection cards grid ── */}
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+            {[1, 2].map((i) => (
+              <div key={i} className="bv-glass animate-shimmer" style={{ height: 140 }} />
+            ))}
+          </div>
+        ) : conns.length === 0 ? (
+          <div className="bv-glass bv-rise text-center py-16 mb-8">
+            <span className="material-symbols-outlined text-4xl mb-4 block text-primary">hub</span>
+            <p className="bv-title mb-1">{t("app.connections.emptyTitle")}</p>
+            <p className="bv-caption">{t("app.connections.emptyBody")}</p>
+            {/* Add connection card */}
+            <button
+              onClick={() => { setFormErr(null); setShowForm(true); }}
+              className="bv-btn bv-btn-ghost mt-6"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add_circle</span>
+              Connect a new automation
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 bv-stagger">
+            {conns.map((c) => {
+              const dotCls = STATUS_DOT[c.status] ?? "bv-cancelled";
+              const pillCls = STATUS_PILL[c.status] ?? "bv-pill-muted";
+              const platGlyph = PLATFORM_GLYPH[c.platform] ?? "{ }";
+              const platGrad = PLATFORM_GRADIENT[c.platform] ?? PLATFORM_GRADIENT.GENERIC;
+              const isOpen = expanded === c.id;
+              return (
+                <div key={c.id} className="bv-glass overflow-hidden">
+                  {/* Card top */}
+                  <div className="p-5">
+                    <div className="flex items-start gap-3 mb-4">
+                      {/* Platform glyph badge */}
+                      <div
+                        className="w-10 h-10 rounded-[10px] flex items-center justify-center flex-shrink-0 font-mono font-semibold text-white text-[13px]"
+                        style={{ background: platGrad, letterSpacing: "0.02em" }}
+                      >
+                        {platGlyph}
                       </div>
-                      <p className="text-xs truncate" style={{ color: "#859399" }}>{hostOf(c.baseUrl)}</p>
-                      {c.lastError && <p className="text-xs truncate" style={{ color: "#f87171" }}>{c.lastError}</p>}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="bv-title truncate">{c.label}</span>
+                          <span className={`bv-pill ${pillCls}`}>{c.status}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="bv-micro">{c.platform}</span>
+                          <span className="bv-divider-dot" />
+                          <span className="bv-caption truncate">{hostOf(c.baseUrl)}</span>
+                        </div>
+                        {c.lastError && (
+                          <p className="bv-caption truncate mt-1" style={{ color: "var(--bv-status-failed)" }}>{c.lastError}</p>
+                        )}
+                      </div>
+                      {/* Live status dot */}
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className={`bv-dot ${dotCls}${c.status === "ACTIVE" ? " bv-ping" : ""}`} />
+                      </div>
+                    </div>
+
+                    {/* Meta row */}
+                    <div className="flex items-center justify-between">
+                      <span className="bv-caption">
+                        {c.lastPolledAt
+                          ? t("app.connections.polledAgo", { time: timeAgo(c.lastPolledAt) })
+                          : t("app.connections.notPolled")}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="text-xs" style={{ color: "#859399" }}>{c.lastPolledAt ? t("app.connections.polledAgo", { time: timeAgo(c.lastPolledAt) }) : t("app.connections.notPolled")}</span>
-                    <button onClick={() => pollNow(c.id)} disabled={busy === c.id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50" style={{ background: "rgba(0,209,255,0.08)", border: "1px solid rgba(0,209,255,0.2)", color: "#a4e6ff" }}>
-                      {busy === c.id ? <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <span className="material-symbols-outlined" style={{ fontSize: 14 }}>sync</span>}
+
+                  {/* Card actions footer */}
+                  <div className="bv-divider" />
+                  <div className="flex items-center gap-2 px-5 py-3">
+                    <button
+                      onClick={() => pollNow(c.id)}
+                      disabled={busy === c.id}
+                      className="bv-btn bv-btn-ghost bv-btn-sm flex-1 disabled:opacity-50"
+                    >
+                      {busy === c.id ? (
+                        <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>sync</span>
+                      )}
                       {t("app.connections.pollNow")}
                     </button>
-                    <button onClick={() => toggle(c.id)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 14, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>expand_more</span>
+                    <button
+                      onClick={() => toggle(c.id)}
+                      className="bv-btn bv-btn-ghost bv-btn-sm flex-1"
+                    >
+                      <span
+                        className="material-symbols-outlined"
+                        style={{ fontSize: 14, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}
+                      >
+                        expand_more
+                      </span>
                       {t("app.connections.runsToggle")}
                     </button>
-                    <button onClick={() => remove(c.id)} disabled={busy === c.id} className="flex items-center px-2 py-1.5 rounded-lg text-xs disabled:opacity-50" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }} title={t("app.connections.disconnect")}>
+                    <button
+                      onClick={() => remove(c.id)}
+                      disabled={busy === c.id}
+                      className="bv-btn bv-btn-danger bv-btn-sm bv-btn-icon disabled:opacity-50"
+                      title={t("app.connections.disconnect")}
+                    >
                       <span className="material-symbols-outlined" style={{ fontSize: 14 }}>delete</span>
                     </button>
                   </div>
+
+                  {/* Expanded runs */}
+                  {isOpen && (
+                    <div>
+                      <div className="bv-divider" />
+                      <div className="px-5 py-4">
+                        {!runs[c.id] ? (
+                          <p className="bv-caption">{t("app.connections.loadingRuns")}</p>
+                        ) : runs[c.id].length === 0 ? (
+                          <p className="bv-caption">{t("app.connections.noRuns")}</p>
+                        ) : (
+                          <ul className="flex flex-col gap-1.5">
+                            {runs[c.id].map((r) => (
+                              <li
+                                key={r.id}
+                                className="flex items-center gap-3 px-3 py-2 rounded-[10px]"
+                                style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}
+                              >
+                                <span className={`bv-dot ${RUN_DOT[r.status] ?? "bv-cancelled"}`} />
+                                <span className="bv-body font-medium truncate text-on-surface flex-1">{r.workflowName ?? r.externalId}</span>
+                                <span className="bv-pill bv-pill-muted">{r.status}</span>
+                                <span className="bv-mono text-outline">{r.startedAt ? timeAgo(r.startedAt) : ""}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                {isOpen && (
-                  <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: 14 }}>
-                    {!runs[c.id] ? (
-                      <p className="text-xs" style={{ color: "#859399" }}>{t("app.connections.loadingRuns")}</p>
-                    ) : runs[c.id].length === 0 ? (
-                      <p className="text-xs" style={{ color: "#859399" }}>{t("app.connections.noRuns")}</p>
-                    ) : (
-                      <ul className="space-y-1.5">
-                        {runs[c.id].map((r) => (
-                          <li key={r.id} className="flex items-center gap-3 px-3 py-2 rounded-lg" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: RUN_DOT[r.status] ?? "#859399" }} />
-                            <span className="text-xs font-medium truncate" style={{ color: "#e1e2eb", flex: 1 }}>{r.workflowName ?? r.externalId}</span>
-                            <span className="text-[11px]" style={{ color: "#859399" }}>{r.status}</span>
-                            <span className="text-[11px]" style={{ color: "#3c494e" }}>{r.startedAt ? timeAgo(r.startedAt) : ""}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
+              );
+            })}
+
+            {/* Add card */}
+            <button
+              onClick={() => { setFormErr(null); setShowForm(true); }}
+              className="bv-glass flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px] text-on-surface-variant hover:text-on-surface transition-colors"
+              style={{ borderStyle: "dashed" }}
+            >
+              <span
+                className="w-11 h-11 rounded-xl flex items-center justify-center text-primary"
+                style={{ background: "rgba(59,130,246,0.10)", border: "1px solid rgba(59,130,246,0.25)", fontSize: 22 }}
+              >
+                +
+              </span>
+              <span className="bv-body">Connect a new automation</span>
+            </button>
+          </div>
+        )}
+
+        {/* ── Unified executions feed ── */}
+        {!loading && conns.length > 0 && (
+          <section>
+            <div className="flex items-center gap-3 mb-5">
+              <h2 className="bv-title font-headline uppercase tracking-widest text-on-surface">Unified executions</h2>
+              <span className="bv-caption">native + external · one timeline</span>
+            </div>
+
+            <div className="bv-glass bv-panel">
+              {/* Feed header row */}
+              <div className="bv-runs-row bv-runs-head" style={{ gridTemplateColumns: "24px 1fr auto" }}>
+                <span />
+                <span>event</span>
+                <span>type</span>
               </div>
-            );
-          })}
-        </div>
-      )}
 
+              {/* Feed rows — populated from expanded conn runs or a merged list when available */}
+              {Object.entries(runs).flatMap(([connId, connRuns]) =>
+                connRuns.map((r) => {
+                  const conn = conns.find((c) => c.id === connId);
+                  const dotCls = RUN_DOT[r.status] ?? "bv-cancelled";
+                  return (
+                    <div
+                      key={r.id}
+                      className="grid gap-3 items-center py-3 border-b border-outline-variant last:border-b-0"
+                      style={{ gridTemplateColumns: "24px 1fr auto" }}
+                    >
+                      {/* Timeline node */}
+                      <div className="flex flex-col items-center self-stretch">
+                        <span className={`bv-dot ${dotCls} mt-1`} />
+                        <div className="flex-1 w-px mt-1" style={{ background: "linear-gradient(180deg,rgba(91,100,115,0.3),transparent)" }} />
+                      </div>
+
+                      {/* Text */}
+                      <div>
+                        <p className="bv-body text-on-surface">{r.workflowName ?? r.externalId}</p>
+                        <p className="bv-mono text-outline mt-0.5">
+                          {conn?.platform ?? "external"} · {r.startedAt ? timeAgo(r.startedAt) : ""}
+                        </p>
+                      </div>
+
+                      {/* Tag */}
+                      <span className="bv-pill bv-pill-amber">external</span>
+                    </div>
+                  );
+                })
+              )}
+              {Object.keys(runs).length === 0 && (
+                <p className="bv-caption py-4 text-center">Expand a connection to mirror its executions here.</p>
+              )}
+            </div>
+          </section>
+        )}
+      </div>
+
+      {/* ── Connect modal ── */}
       {showForm && (
-        <div onClick={() => !creating && setShowForm(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 50 }}>
-          <div onClick={(e) => e.stopPropagation()} className="rounded-2xl p-6 w-full max-w-md" style={{ background: "#0f1219", border: "1px solid rgba(255,255,255,0.1)" }}>
-            <h2 className="text-lg font-bold font-headline mb-1" style={{ color: "#e1e2eb" }}>{t("app.connections.formTitle")}</h2>
-            <p className="text-xs mb-4" style={{ color: "#859399" }}>{t("app.connections.formSubtitle")}</p>
+        <div
+          onClick={() => !creating && setShowForm(false)}
+          style={{
+            position: "fixed", inset: 0,
+            background: "rgba(3,4,7,0.72)",
+            backdropFilter: "blur(6px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 24, zIndex: 90
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bv-glass bv-rise w-full max-w-[480px] overflow-hidden"
+            style={{ borderRadius: 20 }}
+          >
+            {/* Modal header */}
+            <div
+              className="flex items-center gap-3 px-6 py-5"
+              style={{ borderBottom: "1px solid rgba(58,65,80,0.25)" }}
+            >
+              <span className="material-symbols-outlined text-primary" style={{ fontSize: 20 }}>hub</span>
+              <h3 className="bv-title uppercase tracking-widest flex-1">{t("app.connections.formTitle")}</h3>
+              <button
+                onClick={() => setShowForm(false)}
+                className="bv-btn bv-btn-ghost bv-btn-icon"
+                aria-label="Close"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
+              </button>
+            </div>
 
-            <label className="block text-xs mb-1" style={{ color: "#859399" }}>{t("app.connections.platformLabel")}</label>
-            <select value={fPlatform} onChange={(e) => setFPlatform(e.target.value)} className="w-full mb-3 px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
-              {PLATFORMS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-            </select>
+            {/* Step indicator */}
+            <div className="flex gap-2 px-6 pt-5">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="flex-1 h-[3px] rounded-full"
+                  style={{
+                    background: i === 0
+                      ? "linear-gradient(90deg,#3B82F6,#2563EB)"
+                      : "rgba(58,65,80,0.35)"
+                  }}
+                />
+              ))}
+            </div>
 
-            <label className="block text-xs mb-1" style={{ color: "#859399" }}>{t("app.connections.labelLabel")}</label>
-            <input value={fLabel} onChange={(e) => setFLabel(e.target.value)} placeholder={t("app.connections.labelPlaceholder")} className="w-full mb-3 px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+            {/* Modal body */}
+            <div className="px-6 py-5 flex flex-col gap-4">
+              <p className="bv-caption">{t("app.connections.formSubtitle")}</p>
 
-            <label className="block text-xs mb-1" style={{ color: "#859399" }}>{t("app.connections.baseUrlLabel")}</label>
-            <input value={fBaseUrl} onChange={(e) => setFBaseUrl(e.target.value)} placeholder="https://n8n.example.com" className="w-full mb-3 px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+              {/* Platform picker grid */}
+              <div className="grid grid-cols-2 gap-2">
+                {PLATFORMS.map((p) => (
+                  <button
+                    key={p.value}
+                    onClick={() => setFPlatform(p.value)}
+                    className="flex items-center gap-2.5 px-3 py-3 rounded-[11px] text-sm text-on-surface transition-all"
+                    style={{
+                      background: fPlatform === p.value ? "rgba(59,130,246,0.10)" : "rgba(20,23,31,0.5)",
+                      border: `1px solid ${fPlatform === p.value ? "rgba(59,130,246,0.40)" : "rgba(58,65,80,0.35)"}`,
+                    }}
+                  >
+                    <span
+                      className="w-[30px] h-[30px] rounded-lg flex items-center justify-center font-mono font-semibold text-white text-[11px] flex-shrink-0"
+                      style={{ background: PLATFORM_GRADIENT[p.value] }}
+                    >
+                      {PLATFORM_GLYPH[p.value]}
+                    </span>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
 
-            <label className="block text-xs mb-1" style={{ color: "#859399" }}>{t("app.connections.apiKeyLabel")}</label>
-            <input value={fApiKey} onChange={(e) => setFApiKey(e.target.value)} type="password" placeholder="••••••••" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+              {/* Label */}
+              <div className="flex flex-col gap-1">
+                <label className="bv-micro">{t("app.connections.labelLabel")}</label>
+                <input
+                  value={fLabel}
+                  onChange={(e) => setFLabel(e.target.value)}
+                  placeholder={t("app.connections.labelPlaceholder")}
+                  className="w-full px-3 py-2 rounded-xl text-sm text-on-surface outline-none"
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                  }}
+                />
+              </div>
 
-            {formErr && <p className="text-xs mt-2" style={{ color: "#f87171" }}>{formErr}</p>}
+              {/* Base URL */}
+              <div className="flex flex-col gap-1">
+                <label className="bv-micro">{t("app.connections.baseUrlLabel")}</label>
+                <input
+                  value={fBaseUrl}
+                  onChange={(e) => setFBaseUrl(e.target.value)}
+                  placeholder="https://n8n.example.com"
+                  className="w-full px-3 py-2 rounded-xl text-sm text-on-surface outline-none"
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                  }}
+                />
+              </div>
 
-            <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setShowForm(false)} disabled={creating} className="px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}>{t("app.pipelines.nlCancel")}</button>
-              <button onClick={create} disabled={creating || !fLabel.trim() || !fBaseUrl.trim() || !fApiKey.trim()} className="px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}>{creating ? t("app.connections.connecting") : t("app.connections.connect")}</button>
+              {/* API Key */}
+              <div className="flex flex-col gap-1">
+                <label className="bv-micro">{t("app.connections.apiKeyLabel")}</label>
+                <input
+                  value={fApiKey}
+                  onChange={(e) => setFApiKey(e.target.value)}
+                  type="password"
+                  placeholder="••••••••"
+                  className="w-full px-3 py-2 rounded-xl text-sm text-on-surface outline-none"
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                  }}
+                />
+              </div>
+
+              {formErr && (
+                <p className="bv-caption" style={{ color: "var(--bv-status-failed)" }}>{formErr}</p>
+              )}
+            </div>
+
+            {/* Modal footer */}
+            <div
+              className="flex justify-end gap-2 px-6 py-4"
+              style={{ borderTop: "1px solid rgba(58,65,80,0.25)" }}
+            >
+              <button
+                onClick={() => setShowForm(false)}
+                disabled={creating}
+                className="bv-btn bv-btn-ghost bv-btn-sm disabled:opacity-50"
+              >
+                {t("app.pipelines.nlCancel")}
+              </button>
+              <button
+                onClick={create}
+                disabled={creating || !fLabel.trim() || !fBaseUrl.trim() || !fApiKey.trim()}
+                className="bv-btn bv-btn-primary bv-btn-sm disabled:opacity-50"
+              >
+                {creating ? (
+                  <>
+                    <span className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    {t("app.connections.connecting")}
+                  </>
+                ) : (
+                  t("app.connections.connect")
+                )}
+              </button>
             </div>
           </div>
         </div>

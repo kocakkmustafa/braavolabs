@@ -39,8 +39,6 @@ export default function ErrorsPage() {
 
   useEffect(() => {
     if (!token) {
-      // replace — auth-guard pattern; back-button shouldn't loop
-      // /errors → /login → /errors → /login.
       router.replace("/login");
       return;
     }
@@ -59,70 +57,88 @@ export default function ErrorsPage() {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: 896, margin: "0 auto", padding: "32px 24px" }}>
-        <div style={{ height: 32, width: 200, borderRadius: 8, background: "rgba(255,255,255,0.06)", marginBottom: 24 }} className="animate-shimmer" />
-        <div style={{ height: 80, borderRadius: 16, background: "rgba(255,255,255,0.04)", marginBottom: 12 }} className="animate-shimmer" />
-        <div style={{ height: 80, borderRadius: 16, background: "rgba(255,255,255,0.04)" }} className="animate-shimmer" />
+      <div className="max-w-4xl mx-auto px-6 py-8 space-y-4">
+        <div className="h-8 w-48 rounded-lg animate-shimmer" />
+        <div className="h-20 rounded-2xl animate-shimmer" />
+        <div className="h-20 rounded-2xl animate-shimmer" />
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 896, margin: "0 auto", padding: "32px 24px" }} className="animate-fade-in">
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: "#e1e2eb", margin: 0 }}>{t("app.errors.title")}</h1>
-        <p style={{ fontSize: 14, color: "#859399", marginTop: 4 }}>{t("app.errors.subtitle")}</p>
+    <div className="max-w-4xl mx-auto px-6 py-8 animate-fade-in">
+
+      {/* ── Page head ─────────────────────────────────────────── */}
+      <div className="mb-8">
+        <p className="text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-1">
+          Governance
+        </p>
+        <div className="flex items-center gap-3">
+          <span className="material-symbols-outlined text-error" style={{ fontSize: 28 }}>
+            error
+          </span>
+          <h1 className="text-2xl font-bold text-on-surface" style={{ fontFamily: "var(--font-headline)", letterSpacing: "-0.01em" }}>
+            {t("app.errors.title")}
+          </h1>
+        </div>
+        <p className="text-sm text-on-surface-variant mt-1">{t("app.errors.subtitle")}</p>
       </div>
 
-      {/* Failed Runs */}
-      <div style={{ marginBottom: 40 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 600, color: "#bbc9cf", marginBottom: 16 }}>
-          {t("app.errors.failedSectionTemplate", { count: runs.length })}
-        </h2>
+      {/* ── Failed Runs section ───────────────────────────────── */}
+      <section className="mb-10">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="material-symbols-outlined text-on-surface-variant" style={{ fontSize: 18 }}>
+            cancel
+          </span>
+          <h2 className="text-sm font-semibold text-on-surface-variant uppercase tracking-wider">
+            {t("app.errors.failedSectionTemplate", { count: runs.length })}
+          </h2>
+        </div>
+
         {runs.length > 0 ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div className="flex flex-col gap-3 stagger-children">
             {runs.map((run) => (
               <Link
                 key={run.id}
                 href={`/companies/${run.pipeline?.company?.id}/runs/${run.id}`}
-                style={{
-                  display: "block",
-                  background: "rgba(29,32,38,0.8)",
-                  backdropFilter: "blur(24px)",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: 16,
-                  padding: "16px 20px",
-                  textDecoration: "none",
-                  transition: "border-color 0.2s",
-                }}
+                className="glass-card card-glass-hover block p-4 no-underline group"
               >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ fontWeight: 600, color: "#e1e2eb", fontSize: 14 }}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* status dot */}
+                    <span
+                      className="flex-shrink-0 w-2 h-2 rounded-full"
+                      style={{
+                        background: run.status === "FAILED" ? "#f87171" : "#9AA3B2",
+                        boxShadow: run.status === "FAILED" ? "0 0 6px rgba(239,68,68,0.5)" : "none",
+                      }}
+                    />
+                    <span className="font-semibold text-on-surface text-sm truncate">
                       {run.pipeline?.name ?? t("app.errors.unknown")}
                     </span>
-                    <span style={{ color: "#859399", fontSize: 13 }}>
-                      {run.pipeline?.company?.name ?? ""}
-                    </span>
+                    {run.pipeline?.company?.name && (
+                      <span className="text-on-surface-variant text-xs hidden sm:inline">
+                        {run.pipeline.company.name}
+                      </span>
+                    )}
+                    {/* status pill */}
                     <span
-                      style={{
-                        padding: "2px 10px",
-                        borderRadius: 999,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        ...(run.status === "FAILED"
+                      className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full"
+                      style={
+                        run.status === "FAILED"
                           ? { background: "rgba(239,68,68,0.1)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }
-                          : { background: "rgba(133,147,153,0.1)", color: "#859399", border: "1px solid rgba(133,147,153,0.2)" }),
-                      }}
+                          : { background: "rgba(133,147,153,0.1)", color: "#859399", border: "1px solid rgba(133,147,153,0.2)" }
+                      }
                     >
                       {run.status}
                     </span>
                   </div>
-                  <div style={{ textAlign: "right" }}>
-                    <p style={{ fontSize: 12, color: "#859399", margin: 0 }}>
+
+                  <div className="text-right flex-shrink-0 ml-4">
+                    <p className="text-xs text-on-surface-variant">
                       {new Date(run.createdAt).toLocaleString()}
                     </p>
-                    <p style={{ fontSize: 11, color: "#3c494e", margin: "2px 0 0" }}>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--color-outline)" }}>
                       {run._count?.steps ?? 0} {t("app.errors.stepsLabel")}
                     </p>
                   </div>
@@ -131,80 +147,68 @@ export default function ErrorsPage() {
             ))}
           </div>
         ) : (
-          <div
-            style={{
-              background: "rgba(29,32,38,0.8)",
-              backdropFilter: "blur(24px)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              borderRadius: 16,
-              padding: "48px 24px",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ width: 48, height: 48, borderRadius: 16, background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-              <svg width={24} height={24} fill="none" viewBox="0 0 24 24" stroke="#34d399" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+          <div className="glass-card p-12 text-center">
+            <div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
+              style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)" }}
+            >
+              <span className="material-symbols-outlined" style={{ color: "#34d399", fontSize: 24 }}>
+                check_circle
+              </span>
             </div>
-            <p style={{ fontWeight: 600, color: "#bbc9cf", margin: 0 }}>{t("app.errors.noFailedTitle")}</p>
-            <p style={{ fontSize: 13, color: "#859399", marginTop: 4 }}>{t("app.errors.noFailedBody")}</p>
+            <p className="font-semibold text-on-surface">{t("app.errors.noFailedTitle")}</p>
+            <p className="text-sm text-on-surface-variant mt-1">{t("app.errors.noFailedBody")}</p>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Risk Events */}
-      <div>
-        <h2 style={{ fontSize: 16, fontWeight: 600, color: "#bbc9cf", marginBottom: 16 }}>
-          {t("app.errors.riskSectionTemplate", { count: riskEvents.length })}
-        </h2>
+      {/* ── Risk Events section ───────────────────────────────── */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <span className="material-symbols-outlined text-on-surface-variant" style={{ fontSize: 18 }}>
+            shield
+          </span>
+          <h2 className="text-sm font-semibold text-on-surface-variant uppercase tracking-wider">
+            {t("app.errors.riskSectionTemplate", { count: riskEvents.length })}
+          </h2>
+        </div>
+
         {riskEvents.length > 0 ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div className="flex flex-col gap-3 stagger-children">
             {riskEvents.map((event: any) => {
               const badge = RISK_BADGE_STYLES[event.action] ?? DEFAULT_BADGE;
               return (
-                <div
-                  key={event.id}
-                  style={{
-                    background: "rgba(29,32,38,0.8)",
-                    backdropFilter: "blur(24px)",
-                    border: "1px solid rgba(255,255,255,0.06)",
-                    borderRadius: 16,
-                    padding: "16px 20px",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div key={event.id} className="glass-card p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {/* risk action pill */}
                       <span
-                        style={{
-                          padding: "2px 10px",
-                          borderRadius: 999,
-                          fontSize: 11,
-                          fontWeight: 600,
-                          ...badge,
-                        }}
+                        className="text-xs font-semibold px-2.5 py-0.5 rounded-full flex-shrink-0"
+                        style={badge}
                       >
                         {event.action}
                       </span>
                       {event.resourceId && (
-                        <span style={{ color: "#3c494e", fontSize: 11 }}>
-                          {event.resourceId.slice(0, 8)}...
+                        <span className="text-xs font-mono" style={{ color: "var(--color-outline)" }}>
+                          {event.resourceId.slice(0, 8)}&hellip;
                         </span>
                       )}
                     </div>
-                    <span style={{ fontSize: 12, color: "#859399" }}>
+                    <span className="text-xs text-on-surface-variant flex-shrink-0 ml-4">
                       {new Date(event.createdAt).toLocaleString()}
                     </span>
                   </div>
+
                   {event.details && (
                     <pre
+                      className="mt-3 text-xs rounded-lg overflow-auto"
                       style={{
-                        marginTop: 10,
-                        fontSize: 11,
-                        color: "#bbc9cf",
-                        background: "rgba(0,0,0,0.25)",
+                        color: "var(--color-on-surface-variant)",
+                        background: "rgba(0,0,0,0.3)",
                         border: "1px solid rgba(255,255,255,0.06)",
-                        borderRadius: 8,
                         padding: "10px 12px",
-                        overflow: "auto",
                         maxHeight: 120,
+                        fontFamily: "var(--font-mono, 'JetBrains Mono', monospace)",
                       }}
                     >
                       {JSON.stringify(event.details, null, 2)}
@@ -215,21 +219,20 @@ export default function ErrorsPage() {
             })}
           </div>
         ) : (
-          <div
-            style={{
-              background: "rgba(29,32,38,0.8)",
-              backdropFilter: "blur(24px)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              borderRadius: 16,
-              padding: "48px 24px",
-              textAlign: "center",
-            }}
-          >
-            <p style={{ fontWeight: 600, color: "#bbc9cf", margin: 0 }}>{t("app.errors.noRiskTitle")}</p>
-            <p style={{ fontSize: 13, color: "#859399", marginTop: 4 }}>{t("app.errors.noRiskBody")}</p>
+          <div className="glass-card p-12 text-center">
+            <div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
+              style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.15)" }}
+            >
+              <span className="material-symbols-outlined" style={{ color: "var(--color-primary)", fontSize: 24 }}>
+                verified_user
+              </span>
+            </div>
+            <p className="font-semibold text-on-surface">{t("app.errors.noRiskTitle")}</p>
+            <p className="text-sm text-on-surface-variant mt-1">{t("app.errors.noRiskBody")}</p>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

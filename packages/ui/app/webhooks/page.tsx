@@ -73,6 +73,126 @@ const WEBHOOK_TEMPLATES = [
   { id: "generic_form_post", name: "Form POST Webhook", category: "custom", icon: "📋", provider: "Any", eventType: "form_post", description: "Accept form-encoded POST data", popularity: 65, setupInstructions: "Set your form action URL to the generated endpoint", samplePayload: { name: "John Doe", email: "john@example.com", message: "Hello!" } },
 ];
 
+// Sample hooks for the "live endpoints" section (mirrors mock data)
+const SAMPLE_HOOKS = [
+  { slug: "acme-leads", ev: "lead.created", st: "ok", last: "12s ago", secret: "whsec_8Kd2…a91f", deliveries: 2104, failed: 0 },
+  { slug: "acme-leads", ev: "form.submitted", st: "ok", last: "3m ago", secret: "whsec_8Kd2…a91f", deliveries: 831, failed: 2 },
+  { slug: "support", ev: "ticket.opened", st: "idle", last: "2d ago", secret: "whsec_p0Lm…77c3", deliveries: 47, failed: 0 },
+];
+
+function HookCard({ hook }: { hook: typeof SAMPLE_HOOKS[number] }) {
+  const [copied, setCopied] = useState(false);
+  const [secretVisible, setSecretVisible] = useState(false);
+  const [pingState, setPingState] = useState<"idle" | "pinging" | "done">("idle");
+
+  const url = `https://braavolabs.com/hooks/${hook.slug}/${hook.ev}`;
+  const isDelivering = hook.st === "ok";
+
+  function handleCopy() {
+    navigator.clipboard.writeText(url).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1400);
+  }
+
+  function handlePing() {
+    setPingState("pinging");
+    setTimeout(() => {
+      setPingState("done");
+      setTimeout(() => setPingState("idle"), 1600);
+    }, 900);
+  }
+
+  return (
+    <div className="bv-glass rounded-2xl px-5 py-4">
+      {/* Top row — event type + delivery status */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <span
+          className="bv-mono text-[10px] tracking-widest uppercase px-2 py-0.5 rounded-md"
+          style={{
+            color: "var(--color-primary)",
+            border: "1px solid rgba(59,130,246,0.35)",
+            background: "rgba(59,130,246,0.06)",
+          }}
+        >
+          {hook.ev}
+        </span>
+        <span className="ml-auto flex items-center gap-1.5 bv-mono text-[11.5px] text-on-surface-variant">
+          <span
+            className={`bv-dot ${isDelivering ? "bv-completed bv-ping" : "bv-paused"}`}
+          />
+          {isDelivering ? "delivering" : "idle"} · last {hook.last}
+        </span>
+      </div>
+
+      {/* URL row */}
+      <div
+        className="flex items-center gap-2.5 mt-3.5 rounded-xl px-3.5 py-2.5"
+        style={{
+          background: "var(--color-surface-container-low)",
+          border: "1px solid var(--color-outline-variant)",
+        }}
+      >
+        <code
+          className="bv-mono text-[13px] text-on-surface flex-1 overflow-hidden text-ellipsis whitespace-nowrap"
+        >
+          https://braavolabs.com/hooks/
+          <span style={{ color: "var(--color-secondary)" }}>{hook.slug}</span>
+          /{hook.ev}
+        </code>
+        <button
+          onClick={handleCopy}
+          className="bv-btn bv-btn-ghost bv-btn-sm flex-none"
+          style={copied ? { color: "var(--color-primary)", borderColor: "rgba(59,130,246,0.45)" } : {}}
+        >
+          {copied ? "Copied ✓" : "Copy"}
+        </button>
+      </div>
+
+      {/* HMAC secret row */}
+      <div className="flex items-center gap-2.5 mt-2.5 bv-mono text-[12.5px] text-on-surface-variant">
+        <span>HMAC secret:</span>
+        <span className="text-on-surface tracking-widest">
+          {secretVisible ? hook.secret : "••••••••••••••"}
+        </span>
+        <button
+          onClick={() => setSecretVisible((v) => !v)}
+          className="bv-btn bv-btn-ghost bv-btn-sm"
+        >
+          {secretVisible ? "Hide" : "Reveal"}
+        </button>
+      </div>
+
+      {/* Footer row — delivery count + ping */}
+      <div className="flex items-center gap-4 mt-4">
+        <span
+          className="bv-mono text-[11.5px]"
+          style={{ color: "var(--color-outline)" }}
+        >
+          {hook.deliveries.toLocaleString()} deliveries · {hook.failed} failed
+        </span>
+        <div className="ml-auto">
+          <button
+            onClick={handlePing}
+            disabled={pingState === "pinging"}
+            className="bv-btn bv-btn-ghost bv-btn-sm"
+            style={
+              pingState === "done"
+                ? { color: "var(--color-primary)", borderColor: "rgba(59,130,246,0.45)" }
+                : {}
+            }
+          >
+            {pingState === "pinging"
+              ? "Pinging…"
+              : pingState === "done"
+              ? "200 OK ✓"
+              : "Send test ping"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function WebhooksPage() {
   const t = useTranslations();
   const { token, hydrated } = useAuthGuard();
@@ -81,27 +201,138 @@ export default function WebhooksPage() {
   const [search, setSearch] = useState("");
   const [installedIds, setInstalledIds] = useState<Set<string>>(new Set());
 
-  const filtered = WEBHOOK_TEMPLATES.filter((t) => {
-    const matchSearch = !search || t.name.toLowerCase().includes(search.toLowerCase()) || t.description.toLowerCase().includes(search.toLowerCase()) || t.provider.toLowerCase().includes(search.toLowerCase());
-    const matchCategory = !selectedCategory || t.category === selectedCategory;
+  const filtered = WEBHOOK_TEMPLATES.filter((tmpl) => {
+    const matchSearch =
+      !search ||
+      tmpl.name.toLowerCase().includes(search.toLowerCase()) ||
+      tmpl.description.toLowerCase().includes(search.toLowerCase()) ||
+      tmpl.provider.toLowerCase().includes(search.toLowerCase());
+    const matchCategory = !selectedCategory || tmpl.category === selectedCategory;
     return matchSearch && matchCategory;
   }).sort((a, b) => b.popularity - a.popularity);
 
-  if (!hydrated || !token) return (
-    <div className="flex items-center justify-center min-h-screen" style={{ background: "#0a0d14" }}>
-      <div className="loading-dots"><span /><span /><span /></div>
-    </div>
-  );
+  if (!hydrated || !token)
+    return (
+      <div
+        className="flex items-center justify-center min-h-screen"
+        style={{ background: "#0a0d14" }}
+      >
+        <div className="loading-dots">
+          <span />
+          <span />
+          <span />
+        </div>
+      </div>
+    );
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+
+      {/* ── Page head ── */}
+      <div className="bv-page-head mb-7">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold font-headline gradient-text">{t("app.webhooks.title")}</h1>
-          <p className="text-sm mt-0.5" style={{ color: "#859399" }}>
+          <p className="bv-micro mb-1" style={{ color: "var(--color-outline)" }}>
+            Integrations
+          </p>
+          <h1 className="bv-headline gradient-text">Webhooks</h1>
+          <p className="bv-caption mt-1" style={{ color: "var(--color-on-surface-variant)" }}>
             {t("app.webhooks.subtitleTemplate", { count: WEBHOOK_TEMPLATES.length })}
           </p>
-          <p className="text-xs mt-1" style={{ color: "#3c494e" }}>
+        </div>
+        <div className="bv-page-head-actions">
+          <button className="bv-btn bv-btn-primary bv-sheen">
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
+            New endpoint
+          </button>
+        </div>
+      </div>
+
+      {/* ── Live endpoints section ── */}
+      <section className="mb-8">
+        <h2
+          className="bv-title mb-4 flex items-center gap-2"
+          style={{ fontFamily: "var(--bv-font-display)", textTransform: "uppercase", letterSpacing: "0.06em", fontSize: 12 }}
+        >
+          <span className="bv-dot bv-completed bv-ping" />
+          Live Endpoints
+        </h2>
+        <div className="flex flex-col gap-3.5 mb-6">
+          {SAMPLE_HOOKS.map((hook, i) => (
+            <HookCard key={`${hook.slug}-${hook.ev}-${i}`} hook={hook} />
+          ))}
+        </div>
+      </section>
+
+      {/* ── Sample signed request snippet ── */}
+      <section className="mb-8">
+        <h2
+          className="bv-title mb-4"
+          style={{ fontFamily: "var(--bv-font-display)", textTransform: "uppercase", letterSpacing: "0.06em", fontSize: 12, color: "var(--color-on-surface-variant)" }}
+        >
+          Sample signed request
+        </h2>
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={{
+            background: "var(--color-surface-container-low)",
+            border: "1px solid var(--color-outline-variant)",
+          }}
+        >
+          {/* Snippet header */}
+          <div
+            className="flex items-center gap-2.5 px-5 py-3.5 bv-mono text-[12px]"
+            style={{
+              borderBottom: "1px solid var(--color-outline-variant)",
+              color: "var(--color-on-surface-variant)",
+            }}
+          >
+            <span className="bv-dot bv-completed" />
+            POST · HMAC-SHA256 signature
+          </div>
+          {/* Code body */}
+          <pre
+            className="m-0 px-5 py-5 bv-mono text-[12.5px] overflow-x-auto"
+            style={{ lineHeight: 1.7, color: "var(--color-on-surface-variant)" }}
+          >
+            <span style={{ color: "var(--color-outline)" }}>{`# every delivery is signed with your endpoint secret\n`}</span>
+            <span style={{ color: "var(--color-primary)" }}>curl</span>
+            {` -X POST https://braavolabs.com/hooks/`}
+            <span style={{ color: "var(--color-secondary)" }}>acme-leads</span>
+            {`/lead.created \\\n  -H `}
+            <span style={{ color: "var(--color-primary-fixed)" }}>{`"Content-Type: application/json"`}</span>
+            {` \\\n  -H `}
+            <span style={{ color: "var(--color-primary-fixed)" }}>{`"X-Braavo-Signature: sha256=9f86d0818…"`}</span>
+            {` \\\n  -d `}
+            <span style={{ color: "var(--color-primary-fixed)" }}>{`'{"email":"lead@acme.com","source":"site"}'`}</span>
+            {`\n\n`}
+            <span style={{ color: "var(--color-outline)" }}>{`# verify in your handler:\n`}</span>
+            <span style={{ color: "var(--color-primary)" }}>const</span>
+            {` sig = hmac(`}
+            <span style={{ color: "var(--color-primary-fixed)" }}>"sha256"</span>
+            {`, ENDPOINT_SECRET, rawBody);\n`}
+            <span style={{ color: "var(--color-primary)" }}>if</span>
+            {` (sig !== header(`}
+            <span style={{ color: "var(--color-primary-fixed)" }}>"X-Braavo-Signature"</span>
+            {`)) reject(`}
+            <span style={{ color: "var(--color-primary-fixed)" }}>401</span>
+            {`);`}
+          </pre>
+        </div>
+      </section>
+
+      {/* ── Divider ── */}
+      <div className="bv-divider mb-7" />
+
+      {/* ── Template library ── */}
+      <div className="bv-page-head mb-5">
+        <div>
+          <h2
+            className="bv-title"
+            style={{ fontFamily: "var(--bv-font-display)", textTransform: "uppercase", letterSpacing: "0.06em", fontSize: 12, color: "var(--color-on-surface-variant)" }}
+          >
+            {t("app.webhooks.title")}
+          </h2>
+          <p className="bv-caption mt-1" style={{ color: "var(--color-outline)" }}>
             {t("app.webhooks.footer")}
           </p>
         </div>
@@ -109,91 +340,213 @@ export default function WebhooksPage() {
 
       {/* Search */}
       <div className="relative mb-5">
-        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2" style={{ fontSize: 18, color: "#3c494e" }}>search</span>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("app.webhooks.searchPlaceholder")} className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }} />
+        <span
+          className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2"
+          style={{ fontSize: 18, color: "var(--color-outline)" }}
+        >
+          search
+        </span>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("app.webhooks.searchPlaceholder")}
+          className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none"
+          style={{
+            background: "var(--color-surface-container-low)",
+            border: "1px solid var(--color-outline-variant)",
+            color: "var(--color-on-surface)",
+          }}
+        />
       </div>
 
-      {/* Category pills */}
-      <div className="flex flex-wrap gap-1.5 mb-6">
+      {/* Category filter pills */}
+      <div className="bv-fpills mb-6">
         {CATEGORIES.map((cat) => {
-          const count = cat.id ? WEBHOOK_TEMPLATES.filter((t) => t.category === cat.id).length : WEBHOOK_TEMPLATES.length;
+          const count = cat.id
+            ? WEBHOOK_TEMPLATES.filter((tmpl) => tmpl.category === cat.id).length
+            : WEBHOOK_TEMPLATES.length;
           return (
-            <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all" style={{ background: selectedCategory === cat.id ? "rgba(0,209,255,0.12)" : "rgba(255,255,255,0.04)", color: selectedCategory === cat.id ? "#00d1ff" : "#859399", border: selectedCategory === cat.id ? "1px solid rgba(0,209,255,0.2)" : "1px solid rgba(255,255,255,0.06)" }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>{cat.icon}</span>
-              {t(`app.webhooks.${cat.labelKey}`)} ({count})
+            <button
+              key={cat.id}
+              onClick={() => setSelectedCategory(cat.id)}
+              className={`bv-fpill${selectedCategory === cat.id ? " active" : ""}`}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
+                {cat.icon}
+              </span>
+              {t(`app.webhooks.${cat.labelKey}`)}
+              <span className="bv-fpill-count">{count}</span>
             </button>
           );
         })}
       </div>
 
-      {/* Templates grid */}
-      <div className="space-y-2">
+      {/* Templates list */}
+      <div className="flex flex-col gap-2">
         {filtered.map((template) => {
           const isExpanded = expandedId === template.id;
           return (
-            <div key={template.id} className="glass-card rounded-2xl overflow-hidden" style={{ border: isExpanded ? "1px solid rgba(0,209,255,0.12)" : undefined }}>
-              <div className="p-4 cursor-pointer flex items-center gap-4" onClick={() => setExpandedId(isExpanded ? null : template.id)}>
+            <div
+              key={template.id}
+              className="bv-glass rounded-2xl overflow-hidden"
+              style={
+                isExpanded
+                  ? { borderColor: "rgba(59,130,246,0.25)" }
+                  : {}
+              }
+            >
+              {/* Collapsed row */}
+              <div
+                className="p-4 cursor-pointer flex items-center gap-4"
+                onClick={() => setExpandedId(isExpanded ? null : template.id)}
+              >
                 <span className="text-xl flex-shrink-0">{template.icon}</span>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold truncate" style={{ color: "#e1e2eb" }}>{template.name}</p>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(255,255,255,0.04)", color: "#3c494e" }}>{template.eventType}</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p
+                      className="text-sm font-semibold truncate"
+                      style={{ color: "var(--color-on-surface)" }}
+                    >
+                      {template.name}
+                    </p>
+                    <span className="bv-pill bv-pill-muted">{template.eventType}</span>
                   </div>
-                  <p className="text-xs truncate" style={{ color: "#859399" }}>{template.description}</p>
+                  <p
+                    className="text-xs truncate mt-0.5"
+                    style={{ color: "var(--color-on-surface-variant)" }}
+                  >
+                    {template.description}
+                  </p>
                 </div>
                 <div className="flex items-center gap-3 flex-shrink-0">
                   <div className="flex items-center gap-1">
-                    <span className="material-symbols-outlined" style={{ fontSize: 12, color: "#fbbf24" }}>star</span>
-                    <span className="text-[10px]" style={{ color: "#3c494e" }}>{template.popularity}%</span>
+                    <span
+                      className="material-symbols-outlined"
+                      style={{ fontSize: 12, color: "#FF7A1A" }}
+                    >
+                      star
+                    </span>
+                    <span
+                      className="bv-mono text-[10px]"
+                      style={{ color: "var(--color-outline)" }}
+                    >
+                      {template.popularity}%
+                    </span>
                   </div>
-                  <span className="material-symbols-outlined text-sm" style={{ color: "#3c494e", transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>expand_more</span>
+                  <span
+                    className="material-symbols-outlined"
+                    style={{
+                      color: "var(--color-outline)",
+                      transform: isExpanded ? "rotate(180deg)" : "none",
+                      transition: "transform 0.2s",
+                      fontSize: 18,
+                    }}
+                  >
+                    expand_more
+                  </span>
                 </div>
               </div>
 
+              {/* Expanded panel */}
               {isExpanded && (
-                <div className="px-4 pb-4" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                <div
+                  className="px-4 pb-5"
+                  style={{ borderTop: "1px solid var(--color-outline-variant)" }}
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     {/* Setup Instructions */}
                     <div>
-                      <p className="text-[10px] font-semibold tracking-wider mb-2" style={{ color: "#3c494e" }}>{t("app.webhooks.setup")}</p>
-                      <p className="text-xs" style={{ color: "#859399", lineHeight: 1.6 }}>{template.setupInstructions}</p>
+                      <p
+                        className="bv-micro mb-2"
+                        style={{ color: "var(--color-outline)" }}
+                      >
+                        {t("app.webhooks.setup")}
+                      </p>
+                      <p
+                        className="bv-body"
+                        style={{ color: "var(--color-on-surface-variant)", lineHeight: 1.6 }}
+                      >
+                        {template.setupInstructions}
+                      </p>
                       <div className="mt-3 flex items-center gap-2">
-                        <span className="text-[10px]" style={{ color: "#3c494e" }}>{t("app.webhooks.providerLabel")}</span>
-                        <span className="text-xs font-medium" style={{ color: "#bbc9cf" }}>{template.provider}</span>
+                        <span
+                          className="bv-micro"
+                          style={{ color: "var(--color-outline)" }}
+                        >
+                          {t("app.webhooks.providerLabel")}
+                        </span>
+                        <span
+                          className="text-xs font-medium"
+                          style={{ color: "var(--color-on-surface-variant)" }}
+                        >
+                          {template.provider}
+                        </span>
                       </div>
                     </div>
 
                     {/* Sample Payload */}
                     <div>
-                      <p className="text-[10px] font-semibold tracking-wider mb-2" style={{ color: "#3c494e" }}>{t("app.webhooks.samplePayload")}</p>
-                      <pre className="text-[10px] p-3 rounded-xl overflow-x-auto" style={{ background: "rgba(0,0,0,0.3)", color: "#859399", lineHeight: 1.6, maxHeight: 160 }}>
+                      <p
+                        className="bv-micro mb-2"
+                        style={{ color: "var(--color-outline)" }}
+                      >
+                        {t("app.webhooks.samplePayload")}
+                      </p>
+                      <pre
+                        className="bv-mono text-[10px] p-3 rounded-xl overflow-x-auto"
+                        style={{
+                          background: "var(--color-surface-container)",
+                          color: "var(--color-on-surface-variant)",
+                          lineHeight: 1.6,
+                          maxHeight: 160,
+                          border: "1px solid var(--color-outline-variant)",
+                        }}
+                      >
                         {JSON.stringify(template.samplePayload, null, 2)}
                       </pre>
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => setInstalledIds((prev) => new Set(prev).add(template.id))}
-                    disabled={installedIds.has(template.id)}
-                    className="mt-4 w-full sm:w-auto px-6 py-2 rounded-xl text-xs font-semibold transition-all"
-                    style={{
-                      background: installedIds.has(template.id)
-                        ? "rgba(52,211,153,0.15)"
-                        : "linear-gradient(135deg, #00d1ff, #6d11ad)",
-                      border: installedIds.has(template.id) ? "1px solid rgba(52,211,153,0.3)" : "none",
-                      color: installedIds.has(template.id) ? "#34d399" : "white",
-                      cursor: installedIds.has(template.id) ? "default" : "pointer",
-                      opacity: installedIds.has(template.id) ? 0.9 : 1,
-                    }}
-                  >
-                    {installedIds.has(template.id) ? t("app.webhooks.installed") : t("app.webhooks.install")}
-                  </button>
-                  {installedIds.has(template.id) && (
-                    <p className="mt-2 text-[10px] leading-relaxed" style={{ color: "#3c494e" }}>
-                      {t("app.webhooks.webhookUrlPrefix")} <code style={{ color: "#859399" }}>https://yourdomain.com/hooks/{"<your-company>"}/${template.eventType}</code>
-                      <br />{t("app.webhooks.footer")}
-                    </p>
-                  )}
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <button
+                      onClick={() =>
+                        setInstalledIds((prev) => new Set(prev).add(template.id))
+                      }
+                      disabled={installedIds.has(template.id)}
+                      className={`bv-btn ${installedIds.has(template.id) ? "bv-btn-ghost" : "bv-btn-primary bv-sheen"}`}
+                      style={
+                        installedIds.has(template.id)
+                          ? { color: "var(--color-primary)", borderColor: "rgba(59,130,246,0.45)", cursor: "default" }
+                          : {}
+                      }
+                    >
+                      {installedIds.has(template.id) ? (
+                        <>
+                          <span className="material-symbols-outlined" style={{ fontSize: 15 }}>check_circle</span>
+                          {t("app.webhooks.installed")}
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-symbols-outlined" style={{ fontSize: 15 }}>webhook</span>
+                          {t("app.webhooks.install")}
+                        </>
+                      )}
+                    </button>
+
+                    {installedIds.has(template.id) && (
+                      <p
+                        className="bv-mono text-[10px] leading-relaxed"
+                        style={{ color: "var(--color-outline)" }}
+                      >
+                        {t("app.webhooks.webhookUrlPrefix")}{" "}
+                        <code style={{ color: "var(--color-on-surface-variant)" }}>
+                          https://yourdomain.com/hooks/{"<your-company>"}/${template.eventType}
+                        </code>
+                        <br />
+                        {t("app.webhooks.footer")}
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -201,10 +554,18 @@ export default function WebhooksPage() {
         })}
       </div>
 
+      {/* Empty state */}
       {filtered.length === 0 && (
         <div className="text-center py-16">
-          <span className="material-symbols-outlined text-4xl mb-3 block" style={{ color: "#3c494e" }}>webhook</span>
-          <p className="text-sm" style={{ color: "#859399" }}>{t("app.webhooks.noResults")}</p>
+          <span
+            className="material-symbols-outlined block mb-3"
+            style={{ fontSize: 40, color: "var(--color-outline)" }}
+          >
+            webhook
+          </span>
+          <p className="bv-body" style={{ color: "var(--color-on-surface-variant)" }}>
+            {t("app.webhooks.noResults")}
+          </p>
         </div>
       )}
     </div>

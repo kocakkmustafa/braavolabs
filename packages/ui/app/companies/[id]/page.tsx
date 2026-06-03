@@ -16,7 +16,7 @@ export default function CompanyDetailPage() {
   const { toast } = useToast();
   const t = useTranslations();
   const [company, setCompany] = useState<any>(null);
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<Tab>("agents");
   const [runs, setRuns] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
@@ -25,10 +25,6 @@ export default function CompanyDetailPage() {
   const [composerLoading, setComposerLoading] = useState(false);
   const [composerError, setComposerError] = useState<string | null>(null);
   const [composerResult, setComposerResult] = useState<{ name: string; droppedTools: string[]; provider: string; model: string } | null>(null);
-  // Per-agent model override (B): inline edit state. editingAgentId is
-  // the agent currently being edited (null = none); modelDraft is the
-  // input value; modelSaving toggles the spinner + disables the save
-  // button while the PATCH is in flight.
   const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
   const [modelDraft, setModelDraft] = useState("");
   const [modelSaving, setModelSaving] = useState(false);
@@ -95,148 +91,144 @@ export default function CompanyDetailPage() {
 
   if (!hydrated || !token) return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }} />
+      <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(59,130,246,0.3)", borderTopColor: "#3B82F6" }} />
     </div>
   );
   if (error) return (
-    <div style={{ maxWidth: 896, margin: "0 auto", padding: "32px 24px" }}>
-      <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", padding: 16, borderRadius: 12, fontSize: 14 }}>{error}</div>
+    <div className="max-w-4xl mx-auto px-6 py-8">
+      <div className="bv-glass p-4 text-sm" style={{ borderColor: "rgba(255,77,77,0.25)", color: "var(--bv-status-failed)" }}>{error}</div>
     </div>
   );
   if (!company) return (
-    <div style={{ maxWidth: 896, margin: "0 auto", padding: "32px 24px" }}>
-      <div className="animate-shimmer" style={{ height: 32, width: 192, borderRadius: 8, background: "rgba(255,255,255,0.06)" }} />
+    <div className="max-w-4xl mx-auto px-6 py-8">
+      <div className="animate-shimmer" style={{ height: 32, width: 192, borderRadius: 8 }} />
     </div>
   );
 
-  const statusStyles: Record<string, { dotColor: string; bg: string; color: string; border: string }> = {
-    ACTIVE:   { dotColor: "#34d399", bg: "rgba(52,211,153,0.1)",  color: "#34d399", border: "1px solid rgba(52,211,153,0.2)" },
-    PAUSED:   { dotColor: "#fbbf24", bg: "rgba(251,191,36,0.1)",  color: "#fbbf24", border: "1px solid rgba(251,191,36,0.2)" },
-    ARCHIVED: { dotColor: "#f87171", bg: "rgba(239,68,68,0.1)",   color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" },
+  // Status mapping → bv-dot classes
+  const statusDotClass: Record<string, string> = {
+    ACTIVE:   "bv-dot bv-running bv-ping",
+    PAUSED:   "bv-dot bv-paused",
+    ARCHIVED: "bv-dot bv-cancelled",
   };
-  const s = statusStyles[company.status] ?? { dotColor: "#859399", bg: "rgba(133,147,153,0.1)", color: "#859399", border: "1px solid rgba(133,147,153,0.2)" };
+  const statusPillClass: Record<string, string> = {
+    ACTIVE:   "bv-pill bv-pill-amber",
+    PAUSED:   "bv-pill bv-pill-muted",
+    ARCHIVED: "bv-pill bv-pill-red",
+  };
+  const dotCls = statusDotClass[company.status] ?? "bv-dot bv-paused";
+  const pillCls = statusPillClass[company.status] ?? "bv-pill bv-pill-muted";
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
-    { key: "overview", label: t("app.companyDetail.tabOverview") },
-    { key: "agents", label: t("app.companyDetail.tabAgents"), count: company.agents?.length },
+    { key: "agents",    label: t("app.companyDetail.tabAgents"),    count: company.agents?.length },
     { key: "pipelines", label: t("app.companyDetail.tabPipelines"), count: company.pipelines?.length },
-    { key: "runs", label: t("app.companyDetail.tabRuns") },
-    { key: "contacts", label: t("app.companyDetail.tabCrm") },
-    { key: "memory", label: t("app.companyDetail.tabMemory") },
+    { key: "runs",      label: t("app.companyDetail.tabRuns") },
+    { key: "contacts",  label: t("app.companyDetail.tabCrm") },
+    { key: "memory",    label: t("app.companyDetail.tabMemory") },
+    { key: "overview",  label: "Export" },
   ];
 
-  const runStatusStyles: Record<string, { bg: string; color: string; border: string }> = {
-    COMPLETED: { bg: "rgba(52,211,153,0.1)",  color: "#34d399", border: "1px solid rgba(52,211,153,0.2)" },
-    FAILED:    { bg: "rgba(239,68,68,0.1)",   color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" },
-    RUNNING:   { bg: "rgba(0,209,255,0.1)",   color: "#a4e6ff", border: "1px solid rgba(0,209,255,0.2)" },
-    PAUSED:    { bg: "rgba(251,191,36,0.1)",  color: "#fbbf24", border: "1px solid rgba(251,191,36,0.2)" },
-    CANCELLED: { bg: "rgba(133,147,153,0.1)", color: "#859399", border: "1px solid rgba(133,147,153,0.2)" },
+  const runStatusDot: Record<string, string> = {
+    COMPLETED: "bv-dot bv-completed",
+    FAILED:    "bv-dot bv-failed",
+    RUNNING:   "bv-dot bv-running bv-ping",
+    PAUSED:    "bv-dot bv-paused",
+    CANCELLED: "bv-dot bv-cancelled",
   };
-  const defaultRunStatus = { bg: "rgba(133,147,153,0.1)", color: "#859399", border: "1px solid rgba(133,147,153,0.2)" };
+  const runStatusPill: Record<string, string> = {
+    COMPLETED: "bv-pill bv-pill-cyan",
+    FAILED:    "bv-pill bv-pill-red",
+    RUNNING:   "bv-pill bv-pill-amber",
+    PAUSED:    "bv-pill bv-pill-muted",
+    CANCELLED: "bv-pill bv-pill-muted",
+  };
 
   return (
-    <div style={{ maxWidth: 1152, margin: "0 auto", padding: "32px 24px" }} className="animate-fade-in">
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
+    <div className="animate-fade-in" style={{ maxWidth: 1152, margin: "0 auto", padding: "32px 24px" }}>
+
+      {/* ── Page head ── */}
+      <div className="bv-page-head" style={{ marginBottom: 28 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 16,
-              background: "linear-gradient(135deg, #00d1ff, #6d11ad)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#fff",
-              fontWeight: 700,
-              fontSize: 22,
-              boxShadow: "0 8px 24px rgba(0,209,255,0.2)",
-            }}
-          >
+          <div className="bv-avatar bv-avatar-lg">
             {company.name?.charAt(0)}
           </div>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <h1 style={{ fontSize: 24, fontWeight: 700, color: "#e1e2eb", margin: 0 }}>{company.name}</h1>
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  padding: "4px 10px",
-                  borderRadius: 999,
-                  background: s.bg,
-                  color: s.color,
-                  border: s.border,
-                }}
-              >
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: s.dotColor }} />
-                {company.status}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <h1 className="bv-headline" style={{ color: "var(--color-on-surface)", margin: 0 }}>{company.name}</h1>
+              <span className={pillCls} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <span className={dotCls} />
+                {company.status?.toLowerCase()}
               </span>
             </div>
-            <p style={{ fontSize: 14, color: "#859399", marginTop: 2, marginBottom: 0 }}>{company.description ?? ""}</p>
+            <p className="bv-caption" style={{ marginTop: 4, marginBottom: 0 }}>
+              {company.description ?? ""}
+              {company.agents?.length > 0 && (
+                <>
+                  <span className="bv-divider-dot" />
+                  {company.agents.length} {t("app.companyDetail.tabAgents").toLowerCase()}
+                </>
+              )}
+            </p>
           </div>
         </div>
-        <Link href="/companies" style={{ fontSize: 13, color: "#859399", textDecoration: "none" }}>&larr; {t("app.companyDetail.back")}</Link>
+
+        <div className="bv-page-head-actions">
+          <Link href="/companies" className="bv-btn bv-btn-ghost bv-btn-sm" style={{ textDecoration: "none" }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>arrow_back</span>
+            {t("app.companyDetail.back")}
+          </Link>
+          <button className="bv-btn bv-btn-ghost bv-btn-sm">
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>pause</span>
+            Pause
+          </button>
+          <button className="bv-btn bv-btn-ghost bv-btn-sm">
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>archive</span>
+            Archive
+          </button>
+        </div>
       </div>
 
-      {/* Primitives */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 24 }}>
-        {company.primitives?.map((p: string) => (
-          <span
-            key={p}
-            style={{
-              padding: "4px 10px",
-              background: "rgba(0,209,255,0.08)",
-              color: "#a4e6ff",
-              fontSize: 12,
-              borderRadius: 8,
-              fontWeight: 600,
-              border: "1px solid rgba(0,209,255,0.15)",
-            }}
-          >
-            {p}
-          </span>
-        ))}
-      </div>
+      {/* ── Primitives pills ── */}
+      {company.primitives?.length > 0 && (
+        <div className="bv-fpills" style={{ marginBottom: 24 }}>
+          {company.primitives.map((p: string) => (
+            <span key={p} className="bv-pill bv-pill-cyan">{p}</span>
+          ))}
+        </div>
+      )}
 
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 4, borderBottom: "1px solid rgba(255,255,255,0.08)", marginBottom: 24 }}>
-        {tabs.map((t) => {
-          const active = tab === t.key;
+      {/* ── Tabs ── */}
+      <div style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--color-outline-variant)", marginBottom: 28 }}>
+        {tabs.map((tabItem) => {
+          const active = tab === tabItem.key;
           return (
             <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
+              key={tabItem.key}
+              onClick={() => setTab(tabItem.key)}
               style={{
-                padding: "10px 16px",
+                padding: "12px 18px",
                 fontSize: 14,
                 fontWeight: 500,
                 border: "none",
-                borderBottom: active ? "2px solid #00d1ff" : "2px solid transparent",
+                borderBottom: active ? "2px solid #3B82F6" : "2px solid transparent",
                 marginBottom: -1,
                 background: "transparent",
-                color: active ? "#00d1ff" : "#859399",
+                color: active ? "#E8EBF0" : "var(--color-on-surface-variant)",
                 cursor: "pointer",
                 transition: "color 0.2s",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                boxShadow: active ? "0 0 10px rgba(59,130,246,0.3)" : "none",
               }}
             >
-              {t.label}
-              {t.count !== undefined && (
+              {tabItem.label}
+              {tabItem.count !== undefined && (
                 <span
-                  style={{
-                    marginLeft: 6,
-                    fontSize: 10,
-                    padding: "2px 6px",
-                    borderRadius: 999,
-                    background: active ? "rgba(0,209,255,0.15)" : "rgba(255,255,255,0.06)",
-                    color: active ? "#a4e6ff" : "#859399",
-                  }}
+                  className={active ? "bv-pill bv-pill-cyan" : "bv-pill bv-pill-muted"}
+                  style={{ fontSize: 10 }}
                 >
-                  {t.count}
+                  {tabItem.count}
                 </span>
               )}
             </button>
@@ -244,236 +236,191 @@ export default function CompanyDetailPage() {
         })}
       </div>
 
-      {/* Overview */}
-      {tab === "overview" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
-          <StatBox label={t("app.companyDetail.statAgents")} value={company.agents?.length ?? 0} icon="agent" />
-          <StatBox label={t("app.companyDetail.statPipelines")} value={company.pipelines?.length ?? 0} icon="pipeline" />
-          <StatBox label={t("app.companyDetail.statCreated")} value={new Date(company.createdAt).toLocaleDateString()} icon="date" />
-        </div>
-      )}
-
-      {/* Agents */}
+      {/* ── Agents tab ── */}
       {tab === "agents" && (
         <>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h2 style={{ fontSize: 14, fontWeight: 600, color: "#e1e2eb", margin: 0, letterSpacing: "0.01em" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <p className="bv-micro" style={{ margin: 0 }}>
               {t("app.companyDetail.agentsConfigured", { n: company.agents?.length ?? 0 })}
-            </h2>
+            </p>
             <button
               onClick={() => { setComposerOpen(true); setComposerError(null); setComposerResult(null); }}
-              style={{
-                background: "linear-gradient(135deg, #00d1ff, #6d11ad)",
-                color: "#fff",
-                border: "none",
-                padding: "8px 16px",
-                borderRadius: 10,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                boxShadow: "0 4px 12px rgba(0,209,255,0.2)",
-              }}
+              className="bv-btn bv-btn-primary bv-btn-sm"
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>auto_awesome</span>
+              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>auto_awesome</span>
               {t("app.companyDetail.composeWithAi")}
             </button>
           </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 }}>
-          {company.agents?.map((a: any) => {
-            const isExpanded = expandedAgent === a.id;
-            return (
-              <div
-                key={a.id}
-                onClick={() => setExpandedAgent(isExpanded ? null : a.id)}
-                style={{
-                  background: isExpanded ? "rgba(29,32,38,0.95)" : "rgba(29,32,38,0.8)",
-                  backdropFilter: "blur(24px)",
-                  border: isExpanded ? "1px solid rgba(0,209,255,0.2)" : "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: 16,
-                  padding: 20,
-                  cursor: "pointer",
-                  transition: "border-color 0.2s, background 0.2s",
-                }}
-                onMouseEnter={(e) => { if (!isExpanded) e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; }}
-                onMouseLeave={(e) => { if (!isExpanded) e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                  <div
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 12,
-                      background: "rgba(0,209,255,0.08)",
-                      border: "1px solid rgba(0,209,255,0.15)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "#00d1ff",
-                      fontWeight: 700,
-                      fontSize: 13,
-                    }}
-                  >
-                    {a.name?.charAt(0)?.toUpperCase()}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ fontWeight: 600, fontSize: 13, color: "#e1e2eb", margin: 0 }}>{a.name}</h3>
-                    <p style={{ fontSize: 12, color: "#859399", margin: 0 }}>{a.role}</p>
-                  </div>
-                  <span
-                    className="material-symbols-outlined"
-                    style={{
-                      fontSize: 16,
-                      color: "#3c494e",
-                      transform: isExpanded ? "rotate(180deg)" : "none",
-                      transition: "transform 0.2s",
-                    }}
-                  >
-                    expand_more
-                  </span>
-                </div>
 
-                {a.tools?.length > 0 && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {(a.tools as string[]).map((t) => (
-                      <span
-                        key={t}
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 500,
-                          background: "rgba(255,255,255,0.06)",
-                          color: "#859399",
-                          padding: "2px 8px",
-                          borderRadius: 6,
-                          border: "1px solid rgba(255,255,255,0.08)",
-                        }}
-                      >
-                        {t}
-                      </span>
-                    ))}
+          <div className="bv-stagger" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(248px, 1fr))", gap: 16 }}>
+            {company.agents?.map((a: any) => {
+              const isExpanded = expandedAgent === a.id;
+              return (
+                <div
+                  key={a.id}
+                  onClick={() => setExpandedAgent(isExpanded ? null : a.id)}
+                  className="bv-glass"
+                  style={{
+                    padding: "18px 20px",
+                    cursor: "pointer",
+                    borderColor: isExpanded ? "rgba(59,130,246,0.3)" : undefined,
+                  }}
+                >
+                  {/* Card top */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 10 }}>
+                    <div
+                      style={{
+                        width: 34, height: 34, borderRadius: 9,
+                        background: "var(--bv-gradient-brand)",
+                        display: "grid", placeItems: "center",
+                        flexShrink: 0,
+                        color: "#fff", fontFamily: "var(--bv-font-mono)",
+                        fontSize: 13, fontWeight: 600,
+                        boxShadow: "0 4px 12px rgba(59,130,246,0.25)",
+                      }}
+                    >
+                      {a.name?.charAt(0)?.toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="bv-mono" style={{ color: "var(--color-on-surface)", fontWeight: 500, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        agent:{a.name?.toLowerCase()}
+                      </div>
+                      <div className="bv-micro" style={{ marginTop: 2, textTransform: "none", letterSpacing: 0 }}>{a.role}</div>
+                    </div>
+                    <span
+                      className="material-symbols-outlined"
+                      style={{
+                        fontSize: 16, color: "var(--color-outline)",
+                        transform: isExpanded ? "rotate(180deg)" : "none",
+                        transition: "transform 0.2s",
+                        flexShrink: 0,
+                      }}
+                    >
+                      expand_more
+                    </span>
                   </div>
-                )}
 
-                {/* Expanded detail */}
-                {isExpanded && (
-                  <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                    {a.systemPrompt && (
-                      <div style={{ marginBottom: 12 }}>
-                        <p style={{ fontSize: 10, fontWeight: 600, color: "#859399", marginBottom: 4, letterSpacing: "0.05em" }}>SYSTEM PROMPT</p>
-                        <p style={{ fontSize: 12, color: "#bbc9cf", lineHeight: 1.6, background: "rgba(0,209,255,0.04)", padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(0,209,255,0.08)", whiteSpace: "pre-wrap" }}>
-                          {a.systemPrompt.length > 300 ? a.systemPrompt.slice(0, 300) + "..." : a.systemPrompt}
-                        </p>
-                      </div>
-                    )}
-                    <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-                      <div onClick={(e) => e.stopPropagation()} style={{ minWidth: 220 }}>
-                        <p style={{ fontSize: 10, fontWeight: 600, color: "#859399", marginBottom: 2 }}>{t("app.companyDetail.colModel")}</p>
-                        {editingAgentId === a.id ? (
-                          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                            <input
-                              list={`model-options-${a.id}`}
-                              value={modelDraft}
-                              onChange={(e) => setModelDraft(e.target.value)}
-                              onClick={(e) => e.stopPropagation()}
-                              disabled={modelSaving}
-                              autoFocus
-                              placeholder="claude-sonnet-4-5-20250929"
-                              style={{
-                                flex: 1, fontSize: 12, padding: "4px 8px",
-                                background: "rgba(0,0,0,0.3)", border: "1px solid rgba(0,209,255,0.3)",
-                                borderRadius: 6, color: "#e1e2eb", outline: "none",
-                              }}
-                            />
-                            <datalist id={`model-options-${a.id}`}>
-                              <option value="claude-opus-4-20250514" />
-                              <option value="claude-sonnet-4-5-20250929" />
-                              <option value="claude-haiku-4-5-20251001" />
-                              <option value="gpt-4o" />
-                              <option value="gpt-4o-mini" />
-                              <option value="o1-mini" />
-                              <option value="gemini-1.5-pro" />
-                              <option value="gemini-1.5-flash" />
-                              <option value="llama-3.3-70b-versatile" />
-                              <option value="mistral-large-latest" />
-                              <option value="deepseek-chat" />
-                              <option value="deepseek-reasoner" />
-                              <option value="moonshot-v1-128k" />
-                              <option value="qwen-max" />
-                              <option value="gemma3:4b" />
-                              <option value="gemma3:12b" />
-                            </datalist>
-                            <button
-                              onClick={() => handleSaveModel(a.id)}
-                              disabled={modelSaving || modelDraft.trim().length === 0}
-                              style={{
-                                fontSize: 11, padding: "4px 10px", borderRadius: 6,
-                                background: modelSaving ? "rgba(255,255,255,0.1)" : "linear-gradient(135deg, #00d1ff, #6d11ad)",
-                                color: "#fff", border: "none",
-                                cursor: modelSaving ? "wait" : "pointer", fontWeight: 600,
-                              }}
-                            >
-                              {modelSaving ? "..." : t("app.companyDetail.save")}
-                            </button>
-                            <button
-                              onClick={() => { setEditingAgentId(null); setModelDraft(""); setModelError(null); }}
-                              disabled={modelSaving}
-                              style={{
-                                fontSize: 11, padding: "4px 8px", borderRadius: 6,
-                                background: "transparent", color: "#859399",
-                                border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer",
-                              }}
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ) : (
-                          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                            <p style={{ fontSize: 12, color: "#e1e2eb", margin: 0 }}>{a.model ?? "default"}</p>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingAgentId(a.id);
-                                setModelDraft(a.model ?? "");
-                                setModelError(null);
-                              }}
-                              style={{
-                                fontSize: 10, padding: "2px 6px", borderRadius: 4,
-                                background: "transparent", color: "#00d1ff",
-                                border: "1px solid rgba(0,209,255,0.2)", cursor: "pointer",
-                              }}
-                            >
-                              {t("app.companyDetail.editLabel")}
-                            </button>
-                          </div>
-                        )}
-                        {modelError && editingAgentId === a.id && (
-                          <p style={{ fontSize: 10, color: "#f87171", marginTop: 2 }}>{modelError}</p>
-                        )}
-                      </div>
-                      <div>
-                        <p style={{ fontSize: 10, fontWeight: 600, color: "#859399", marginBottom: 2 }}>{t("app.companyDetail.colTools")}</p>
-                        <p style={{ fontSize: 12, color: "#e1e2eb" }}>{a.tools?.length ?? 0}</p>
-                      </div>
-                      <div>
-                        <p style={{ fontSize: 10, fontWeight: 600, color: "#859399", marginBottom: 2 }}>{t("app.companyDetail.colStatus")}</p>
-                        <p style={{ fontSize: 12, color: "#34d399" }}>{t("app.companyDetail.statusActive")}</p>
+                  {/* Tool chips */}
+                  {a.tools?.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {(a.tools as string[]).map((toolName) => (
+                        <span key={toolName} className="bv-pill bv-pill-muted">{toolName}</span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Status foot */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
+                    <span className="bv-dot bv-completed" />
+                    <span className="bv-micro" style={{ textTransform: "none", letterSpacing: 0 }}>
+                      {t("app.companyDetail.statusActive")}
+                    </span>
+                  </div>
+
+                  {/* Expanded detail */}
+                  {isExpanded && (
+                    <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--color-outline-variant)" }}>
+                      {a.systemPrompt && (
+                        <div style={{ marginBottom: 12 }}>
+                          <p className="bv-micro" style={{ marginBottom: 6 }}>SYSTEM PROMPT</p>
+                          <p className="bv-body" style={{ color: "var(--color-on-surface-variant)", background: "rgba(59,130,246,0.04)", padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(59,130,246,0.1)", whiteSpace: "pre-wrap", margin: 0 }}>
+                            {a.systemPrompt.length > 300 ? a.systemPrompt.slice(0, 300) + "..." : a.systemPrompt}
+                          </p>
+                        </div>
+                      )}
+                      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                        <div onClick={(e) => e.stopPropagation()} style={{ minWidth: 220 }}>
+                          <p className="bv-micro" style={{ marginBottom: 4 }}>{t("app.companyDetail.colModel")}</p>
+                          {editingAgentId === a.id ? (
+                            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                              <input
+                                list={`model-options-${a.id}`}
+                                value={modelDraft}
+                                onChange={(e) => setModelDraft(e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                disabled={modelSaving}
+                                autoFocus
+                                placeholder="claude-sonnet-4-5-20250929"
+                                className="bv-mono"
+                                style={{
+                                  flex: 1, padding: "4px 8px",
+                                  background: "rgba(0,0,0,0.3)", border: "1px solid rgba(59,130,246,0.3)",
+                                  borderRadius: 6, color: "var(--color-on-surface)", outline: "none",
+                                }}
+                              />
+                              <datalist id={`model-options-${a.id}`}>
+                                <option value="claude-opus-4-20250514" />
+                                <option value="claude-sonnet-4-5-20250929" />
+                                <option value="claude-haiku-4-5-20251001" />
+                                <option value="gpt-4o" />
+                                <option value="gpt-4o-mini" />
+                                <option value="o1-mini" />
+                                <option value="gemini-1.5-pro" />
+                                <option value="gemini-1.5-flash" />
+                                <option value="llama-3.3-70b-versatile" />
+                                <option value="mistral-large-latest" />
+                                <option value="deepseek-chat" />
+                                <option value="deepseek-reasoner" />
+                                <option value="moonshot-v1-128k" />
+                                <option value="qwen-max" />
+                                <option value="gemma3:4b" />
+                                <option value="gemma3:12b" />
+                              </datalist>
+                              <button
+                                onClick={() => handleSaveModel(a.id)}
+                                disabled={modelSaving || modelDraft.trim().length === 0}
+                                className="bv-btn bv-btn-primary bv-btn-sm"
+                              >
+                                {modelSaving ? "..." : t("app.companyDetail.save")}
+                              </button>
+                              <button
+                                onClick={() => { setEditingAgentId(null); setModelDraft(""); setModelError(null); }}
+                                disabled={modelSaving}
+                                className="bv-btn bv-btn-ghost bv-btn-sm"
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                              <span className="bv-mono" style={{ color: "var(--color-on-surface)" }}>{a.model ?? "default"}</span>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setEditingAgentId(a.id); setModelDraft(a.model ?? ""); setModelError(null); }}
+                                className="bv-btn bv-btn-ghost bv-btn-sm"
+                                style={{ padding: "2px 8px", minHeight: "unset" }}
+                              >
+                                {t("app.companyDetail.editLabel")}
+                              </button>
+                            </div>
+                          )}
+                          {modelError && editingAgentId === a.id && (
+                            <p style={{ fontSize: 10, color: "var(--bv-status-failed)", marginTop: 2 }}>{modelError}</p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="bv-micro" style={{ marginBottom: 4 }}>{t("app.companyDetail.colTools")}</p>
+                          <span className="bv-numeric" style={{ color: "var(--color-on-surface)", fontSize: 14 }}>{a.tools?.length ?? 0}</span>
+                        </div>
+                        <div>
+                          <p className="bv-micro" style={{ marginBottom: 4 }}>{t("app.companyDetail.colStatus")}</p>
+                          <span className="bv-pill bv-pill-cyan">{t("app.companyDetail.statusActive")}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          {(!company.agents || company.agents.length === 0) && (
-            <p style={{ color: "#859399", fontSize: 14, gridColumn: "span 2", textAlign: "center", padding: "48px 0" }}>{t.rich("app.companyDetail.noAgents", { b: (c) => <strong>{c}</strong> })}</p>
-          )}
-        </div>
+                  )}
+                </div>
+              );
+            })}
+            {(!company.agents || company.agents.length === 0) && (
+              <p className="bv-caption" style={{ gridColumn: "span 3", textAlign: "center", padding: "48px 0" }}>
+                {t.rich("app.companyDetail.noAgents", { b: (c) => <strong>{c}</strong> })}
+              </p>
+            )}
+          </div>
         </>
       )}
 
-      {/* Pipelines */}
+      {/* ── Pipelines tab ── */}
       {tab === "pipelines" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {company.pipelines?.map((p: any) => {
@@ -481,192 +428,190 @@ export default function CompanyDetailPage() {
             return (
               <div
                 key={p.id}
-                style={{
-                  background: "rgba(29,32,38,0.8)",
-                  backdropFilter: "blur(24px)",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: 16,
-                  padding: 20,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
+                className="bv-glass"
+                style={{ padding: "16px 18px", display: "flex", alignItems: "center", gap: 16, borderRadius: 14 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                  <div
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 12,
-                      background: "rgba(52,211,153,0.1)",
-                      border: "1px solid rgba(52,211,153,0.2)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <svg width={16} height={16} fill="none" viewBox="0 0 24 24" stroke="#34d399" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6Z" /></svg>
-                  </div>
-                  <div>
-                    <h3 style={{ fontWeight: 600, fontSize: 13, color: "#e1e2eb", margin: 0 }}>{p.name}</h3>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 2 }}>
-                      <span style={{ fontSize: 12, color: "#859399" }}>{p.trigger}</span>
-                      {p.schedule && <span style={{ fontSize: 10, color: "#3c494e", fontFamily: "monospace" }}>{p.schedule}</span>}
-                      <span style={{ fontSize: 12, color: "#3c494e" }}>{t("app.companyDetail.stepCount", { n: stepCount })}</span>
-                    </div>
+                <span className="bv-dot bv-completed" style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="bv-title" style={{ margin: 0 }}>{p.name}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3, flexWrap: "wrap" }}>
+                    <span className="bv-caption">{p.trigger}</span>
+                    {p.schedule && <span className="bv-mono" style={{ color: "var(--color-outline)", fontSize: 10 }}>{p.schedule}</span>}
+                    <span className="bv-caption">{t("app.companyDetail.stepCount", { n: stepCount })}</span>
                   </div>
                 </div>
-                <button
-                  onClick={async () => {
-                    if (!token) return;
-                    try {
-                      await api.triggerRun(token, p.id);
-                      setTab("runs");
-                    } catch {}
-                  }}
-                  style={{
-                    padding: "8px 18px",
-                    borderRadius: 10,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: "#fff",
-                    background: "linear-gradient(135deg, #00d1ff, #6d11ad)",
-                    border: "none",
-                    cursor: "pointer",
-                  }}
-                >
-                  {t("app.companyDetail.run")}
-                </button>
+                <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                  <button
+                    onClick={async () => {
+                      if (!token) return;
+                      try { await api.triggerRun(token, p.id); setTab("runs"); } catch {}
+                    }}
+                    className="bv-btn bv-btn-primary bv-btn-sm"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>play_arrow</span>
+                    {t("app.companyDetail.run")}
+                  </button>
+                </div>
               </div>
             );
           })}
           {(!company.pipelines || company.pipelines.length === 0) && (
-            <p style={{ color: "#859399", fontSize: 14, textAlign: "center", padding: "48px 0" }}>{t("app.companyDetail.noPipelines")}</p>
+            <p className="bv-caption" style={{ textAlign: "center", padding: "48px 0" }}>{t("app.companyDetail.noPipelines")}</p>
           )}
         </div>
       )}
 
-      {/* Runs */}
+      {/* ── Runs tab ── */}
       {tab === "runs" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {runs.map((r: any) => {
-            const rs = runStatusStyles[r.status] ?? defaultRunStatus;
+            const dotCl = runStatusDot[r.status] ?? "bv-dot bv-paused";
+            const pillCl = runStatusPill[r.status] ?? "bv-pill bv-pill-muted";
             return (
               <Link
                 key={r.id}
                 href={`/companies/${company.id}/runs/${r.id}`}
+                className="bv-glass"
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  background: "rgba(29,32,38,0.8)",
-                  backdropFilter: "blur(24px)",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: 12,
-                  padding: "14px 20px",
-                  textDecoration: "none",
-                  transition: "border-color 0.2s",
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "14px 18px", textDecoration: "none", borderRadius: 12,
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 11, fontFamily: "monospace", color: "#3c494e" }}>{r.id.slice(0, 10)}</span>
-                  <span style={{ fontSize: 12, fontWeight: 500, color: "#bbc9cf" }}>
+                  <span className={dotCl} />
+                  <span className="bv-mono" style={{ color: "var(--color-outline)", fontSize: 11 }}>{r.id.slice(0, 10)}</span>
+                  <span className="bv-body" style={{ color: "var(--color-on-surface-variant)", fontWeight: 500 }}>
                     {company.pipelines?.find((p: any) => p.id === r.pipelineId)?.name ?? t("app.companyDetail.unknownPipeline")}
                   </span>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      padding: "2px 8px",
-                      borderRadius: 6,
-                      background: rs.bg,
-                      color: rs.color,
-                      border: rs.border,
-                    }}
-                  >
-                    {r.status}
-                  </span>
+                  <span className={pillCl}>{r.status}</span>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                  <span style={{ fontSize: 12, color: "#3c494e" }}>{new Date(r.createdAt).toLocaleString()}</span>
-                  <svg width={16} height={16} fill="none" viewBox="0 0 24 24" stroke="#3c494e" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span className="bv-caption">{new Date(r.createdAt).toLocaleString()}</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-outline)" }}>chevron_right</span>
                 </div>
               </Link>
             );
           })}
           {runs.length === 0 && (
-            <p style={{ color: "#859399", fontSize: 14, textAlign: "center", padding: "48px 0" }}>{t("app.companyDetail.noRuns")}</p>
+            <p className="bv-caption" style={{ textAlign: "center", padding: "48px 0" }}>{t("app.companyDetail.noRuns")}</p>
           )}
         </div>
       )}
 
-      {/* CRM */}
+      {/* ── CRM / Contacts tab ── */}
       {tab === "contacts" && <DealsKanban companyId={company.id} token={token!} />}
 
-      {/* Memory */}
+      {/* ── Memory tab ── */}
       {tab === "memory" && (
-        <div
-          style={{
-            background: "rgba(29,32,38,0.8)",
-            backdropFilter: "blur(24px)",
-            border: "1px solid rgba(255,255,255,0.06)",
-            borderRadius: 16,
-            padding: "64px 24px",
-            textAlign: "center",
-          }}
-        >
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 16,
-              background: "rgba(109,17,173,0.12)",
-              border: "1px solid rgba(109,17,173,0.25)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto 16px",
-            }}
-          >
-            <svg width={24} height={24} fill="none" viewBox="0 0 24 24" stroke="#e0b6ff" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" /></svg>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+          {/* Candidate */}
+          <div className="bv-glass bv-panel" style={{ borderRadius: 16 }}>
+            <div className="bv-panel-head">
+              <h4 className="bv-micro" style={{ display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+                <span className="bv-dot bv-running bv-ping" />
+                Candidate
+              </h4>
+            </div>
+            <MemoryChip text={t("app.companyDetail.memoryTitle")} meta={t("app.companyDetail.memoryBody")} variant="candidate" />
           </div>
-          <p style={{ fontWeight: 600, color: "#bbc9cf", fontSize: 13, margin: 0 }}>{t("app.companyDetail.memoryTitle")}</p>
-          <p style={{ fontSize: 12, color: "#859399", marginTop: 4 }}>{t("app.companyDetail.memoryBody")}</p>
+          {/* Approved */}
+          <div className="bv-glass bv-panel" style={{ borderRadius: 16 }}>
+            <div className="bv-panel-head">
+              <h4 className="bv-micro" style={{ display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+                <span className="bv-dot bv-completed" />
+                Approved
+              </h4>
+            </div>
+            <div className="bv-caption" style={{ textAlign: "center", padding: "24px 0", color: "var(--color-outline)" }}>No approved memory yet</div>
+          </div>
+          {/* Deprecated */}
+          <div className="bv-glass bv-panel" style={{ borderRadius: 16 }}>
+            <div className="bv-panel-head">
+              <h4 className="bv-micro" style={{ display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+                <span className="bv-dot bv-cancelled" />
+                Deprecated
+              </h4>
+            </div>
+            <div className="bv-caption" style={{ textAlign: "center", padding: "24px 0", color: "var(--color-outline)" }}>Nothing deprecated</div>
+          </div>
         </div>
       )}
 
-      {/* AI Agent Composer Modal */}
+      {/* ── Export tab (reusing "overview" key for the 6th tab slot) ── */}
+      {tab === "overview" && (
+        <div style={{ maxWidth: 620 }}>
+          <div className="bv-glass bv-panel" style={{ borderRadius: 16, padding: 28 }}>
+            <div className="bv-panel-head" style={{ marginBottom: 8 }}>
+              <div>
+                <h3 className="bv-headline" style={{ textTransform: "uppercase", margin: 0 }}>Encrypted offline bundle</h3>
+                <p className="bv-body" style={{ color: "var(--color-on-surface-variant)", marginTop: 8, marginBottom: 0 }}>
+                  Export this workspace — agents, pipelines, memory and full audit trail — as an encrypted bundle you can run fully offline.
+                </p>
+              </div>
+            </div>
+
+            <div className="bv-divider" style={{ margin: "16px 0" }} />
+
+            {/* Options */}
+            {[
+              { label: "Agents & pipeline definitions", meta: `${company.agents?.length ?? 9} agents · ${company.pipelines?.length ?? 4} pipelines`, defaultChecked: true },
+              { label: "Approved memory", meta: "candidate memory excluded", defaultChecked: true },
+              { label: "Full run audit trail", meta: "+ 1,204 logged steps", defaultChecked: false },
+            ].map((opt) => (
+              <div key={opt.label} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "1px solid rgba(35,40,51,0.5)" }}>
+                <input
+                  type="checkbox"
+                  defaultChecked={opt.defaultChecked}
+                  style={{ width: 18, height: 18, accentColor: "#3B82F6", flexShrink: 0 }}
+                />
+                <div>
+                  <div className="bv-body" style={{ color: "var(--color-on-surface)" }}>{opt.label}</div>
+                  <div className="bv-mono" style={{ color: "var(--color-outline)", marginTop: 2 }}>{opt.meta}</div>
+                </div>
+              </div>
+            ))}
+
+            <button className="bv-btn bv-btn-primary" style={{ marginTop: 22 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>lock</span>
+              Forge encrypted bundle
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── AI Agent Composer Modal ── */}
       {composerOpen && (
         <div
           onClick={(e) => { if (e.target === e.currentTarget && !composerLoading) setComposerOpen(false); }}
           style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)",
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)",
             display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 24,
           }}
         >
           <div
+            className="bv-glass bv-rise"
             style={{
-              background: "rgba(29,32,38,0.98)", border: "1px solid rgba(0,209,255,0.2)",
-              borderRadius: 16, padding: 24, maxWidth: 600, width: "100%", maxHeight: "90vh", overflow: "auto",
+              maxWidth: 600, width: "100%", maxHeight: "90vh", overflow: "auto",
+              padding: 24, borderRadius: 20, borderColor: "rgba(59,130,246,0.3)",
               boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 600, color: "#e1e2eb", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-                <span className="material-symbols-outlined" style={{ color: "#00d1ff", fontSize: 20 }}>auto_awesome</span>
+              <h2 className="bv-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span className="material-symbols-outlined" style={{ color: "#3B82F6", fontSize: 20 }}>auto_awesome</span>
                 {t("app.companyDetail.composerTitle")}
               </h2>
               <button
                 onClick={() => { if (!composerLoading) setComposerOpen(false); }}
                 disabled={composerLoading}
-                style={{ background: "transparent", border: "none", color: "#859399", cursor: composerLoading ? "not-allowed" : "pointer", padding: 4, display: "flex" }}
+                className="bv-btn bv-btn-ghost bv-btn-icon"
                 aria-label={t("app.companyDetail.close")}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 20 }}>close</span>
               </button>
             </div>
 
-            <p style={{ fontSize: 13, color: "#bbc9cf", marginBottom: 12, lineHeight: 1.5 }}>
+            <p className="bv-body" style={{ color: "var(--color-on-surface-variant)", marginBottom: 12, lineHeight: 1.5 }}>
               {t("app.companyDetail.composerDesc")}
             </p>
 
@@ -678,29 +623,29 @@ export default function CompanyDetailPage() {
               disabled={composerLoading}
               style={{
                 width: "100%", boxSizing: "border-box",
-                background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: 8, padding: 12, color: "#e1e2eb", fontSize: 13, fontFamily: "inherit", resize: "vertical",
-                outline: "none",
+                background: "rgba(0,0,0,0.3)", border: "1px solid var(--color-outline-variant)",
+                borderRadius: 10, padding: 12, color: "var(--color-on-surface)", fontSize: 13,
+                fontFamily: "inherit", resize: "vertical", outline: "none",
               }}
             />
-            <p style={{ fontSize: 11, color: "#5a6770", marginTop: 4, marginBottom: 0 }}>
+            <p className="bv-mono" style={{ color: "var(--color-outline)", marginTop: 4, marginBottom: 0 }}>
               {t("app.companyDetail.charCount", { n: composerInput.length })}
             </p>
 
             {composerError && (
-              <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", padding: 12, borderRadius: 8, fontSize: 12, marginTop: 12, whiteSpace: "pre-wrap" }}>
+              <div className="bv-glass" style={{ borderColor: "rgba(255,77,77,0.25)", color: "var(--bv-status-failed)", padding: 12, borderRadius: 10, fontSize: 12, marginTop: 12, whiteSpace: "pre-wrap" }}>
                 {composerError}
               </div>
             )}
 
             {composerResult && (
-              <div style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)", color: "#34d399", padding: 12, borderRadius: 8, fontSize: 12, marginTop: 12 }}>
+              <div className="bv-glass" style={{ borderColor: "rgba(59,130,246,0.25)", color: "#3B82F6", padding: 12, borderRadius: 10, fontSize: 12, marginTop: 12 }}>
                 {t.rich("app.companyDetail.agentAddedResult", { name: composerResult.name, b: (c) => <strong>{c}</strong> })}{" "}
-                <span style={{ color: "#bbc9cf", fontSize: 11 }}>
+                <span className="bv-caption" style={{ display: "inline" }}>
                   ({composerResult.provider} · {composerResult.model})
                 </span>
                 {composerResult.droppedTools.length > 0 && (
-                  <p style={{ marginTop: 6, marginBottom: 0, color: "#fbbf24", fontSize: 11 }}>
+                  <p style={{ marginTop: 6, marginBottom: 0, color: "var(--bv-status-running)", fontSize: 11 }}>
                     {t("app.companyDetail.droppedNote", { n: composerResult.droppedTools.length, tools: composerResult.droppedTools.join(", ") })}
                   </p>
                 )}
@@ -711,26 +656,15 @@ export default function CompanyDetailPage() {
               <button
                 onClick={() => { if (!composerLoading) setComposerOpen(false); }}
                 disabled={composerLoading}
-                style={{
-                  background: "transparent", border: "1px solid rgba(255,255,255,0.15)",
-                  color: "#bbc9cf", padding: "8px 16px", borderRadius: 8, fontSize: 13,
-                  cursor: composerLoading ? "not-allowed" : "pointer",
-                }}
+                className="bv-btn bv-btn-ghost"
               >
                 {t("app.companyDetail.close")}
               </button>
               <button
                 onClick={handleCompose}
                 disabled={composerLoading || composerInput.trim().length < 10}
-                style={{
-                  background: composerLoading || composerInput.trim().length < 10
-                    ? "rgba(255,255,255,0.1)"
-                    : "linear-gradient(135deg, #00d1ff, #6d11ad)",
-                  color: "#fff", border: "none", padding: "8px 20px", borderRadius: 8,
-                  fontSize: 13, fontWeight: 600,
-                  cursor: composerLoading || composerInput.trim().length < 10 ? "not-allowed" : "pointer",
-                  display: "flex", alignItems: "center", gap: 6,
-                }}
+                className="bv-btn bv-btn-primary"
+                style={{ opacity: composerLoading || composerInput.trim().length < 10 ? 0.5 : 1 }}
               >
                 {composerLoading ? (
                   <>
@@ -752,59 +686,65 @@ export default function CompanyDetailPage() {
   );
 }
 
-/* Sub Components */
+/* ── Sub Components ─────────────────────────────────────── */
 
-function StatBox({ label, value, icon }: { label: string; value: string | number; icon: string }) {
-  const icons: Record<string, React.ReactNode> = {
-    agent: (
-      <svg width={20} height={20} fill="none" viewBox="0 0 24 24" stroke="#00d1ff" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg>
-    ),
-    pipeline: (
-      <svg width={20} height={20} fill="none" viewBox="0 0 24 24" stroke="#34d399" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6Z" /></svg>
-    ),
-    date: (
-      <svg width={20} height={20} fill="none" viewBox="0 0 24 24" stroke="#859399" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" /></svg>
-    ),
-  };
-
+function MemoryChip({ text, meta, variant }: { text: string; meta: string; variant: "candidate" | "approved" | "deprecated" }) {
+  const borderMap = { candidate: "var(--bv-status-running)", approved: "var(--bv-status-completed)", deprecated: "var(--color-outline)" };
   return (
     <div
       style={{
-        background: "rgba(29,32,38,0.8)",
-        backdropFilter: "blur(24px)",
-        border: "1px solid rgba(255,255,255,0.06)",
-        borderRadius: 16,
-        padding: 20,
+        padding: "12px 14px",
+        borderRadius: 11,
+        background: "rgba(20,23,31,0.6)",
+        border: "1px solid var(--color-outline-variant)",
+        borderLeft: `2px solid ${borderMap[variant]}`,
+        fontSize: 13,
+        color: variant === "deprecated" ? "var(--color-outline)" : "var(--color-on-surface)",
+        lineHeight: 1.4,
+        textDecoration: variant === "deprecated" ? "line-through" : "none",
+        textDecorationColor: "var(--color-outline)",
       }}
     >
-      <div
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: 12,
-          background: "rgba(255,255,255,0.06)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          marginBottom: 12,
-        }}
+      {text}
+      <span
+        className="bv-mono"
+        style={{ display: "block", marginTop: 5, textDecoration: "none", color: "var(--color-outline)" }}
       >
-        {icons[icon]}
-      </div>
-      <p style={{ fontSize: 24, fontWeight: 700, color: "#e1e2eb", margin: 0 }}>{value}</p>
-      <p style={{ fontSize: 12, color: "#859399", marginTop: 2, marginBottom: 0 }}>{label}</p>
+        {meta}
+      </span>
     </div>
   );
 }
 
-// label is localized via app.companyDetail.dealStage<LKey> at render time.
+function StatBox({ label, value, icon }: { label: string; value: string | number; icon: string }) {
+  const iconMap: Record<string, string> = {
+    agent:    "group",
+    pipeline: "account_tree",
+    date:     "calendar_today",
+  };
+  return (
+    <div className="bv-glass bv-metric" style={{ borderRadius: 16, position: "relative" }}>
+      <div className="bv-metric-accent" style={{ background: "var(--bv-gradient-brand)" }} />
+      <div className="bv-metric-head">
+        <div className="bv-metric-icon">
+          <span className="material-symbols-outlined">{iconMap[icon] ?? "circle"}</span>
+        </div>
+      </div>
+      <div className="bv-metric-value">
+        <span className="bv-numeric" style={{ fontSize: 28 }}>{value}</span>
+      </div>
+      <p className="bv-metric-foot">{label}</p>
+    </div>
+  );
+}
+
 const DEAL_STAGES = [
-  { key: "LEAD",           lkey: "Lead",        bg: "rgba(255,255,255,0.02)",  border: "1px solid rgba(255,255,255,0.06)" },
-  { key: "QUALIFIED",      lkey: "Qualified",   bg: "rgba(0,209,255,0.03)",    border: "1px solid rgba(0,209,255,0.12)" },
-  { key: "PROPOSAL_SENT",  lkey: "Proposal",    bg: "rgba(251,191,36,0.03)",   border: "1px solid rgba(251,191,36,0.12)" },
-  { key: "NEGOTIATION",    lkey: "Negotiation", bg: "rgba(251,146,60,0.03)",   border: "1px solid rgba(251,146,60,0.12)" },
-  { key: "CLOSED_WON",     lkey: "Won",         bg: "rgba(52,211,153,0.03)",   border: "1px solid rgba(52,211,153,0.12)" },
-  { key: "CLOSED_LOST",    lkey: "Lost",        bg: "rgba(239,68,68,0.03)",    border: "1px solid rgba(239,68,68,0.12)" },
+  { key: "LEAD",           lkey: "Lead",        accentClass: "bv-pill-muted" },
+  { key: "QUALIFIED",      lkey: "Qualified",   accentClass: "bv-pill-cyan" },
+  { key: "PROPOSAL_SENT",  lkey: "Proposal",    accentClass: "bv-pill-amber" },
+  { key: "NEGOTIATION",    lkey: "Negotiation", accentClass: "bv-pill-amber" },
+  { key: "CLOSED_WON",     lkey: "Won",         accentClass: "bv-pill-cyan" },
+  { key: "CLOSED_LOST",    lkey: "Lost",        accentClass: "bv-pill-red" },
 ];
 
 function DealsKanban({ companyId, token }: { companyId: string; token: string }) {
@@ -824,7 +764,7 @@ function DealsKanban({ companyId, token }: { companyId: string; token: string })
     });
   }, [companyId, token]);
 
-  if (loading) return <div className="animate-shimmer" style={{ height: 192, borderRadius: 16, background: "rgba(255,255,255,0.04)" }} />;
+  if (loading) return <div className="animate-shimmer" style={{ height: 192, borderRadius: 16 }} />;
 
   const dealsByStage = DEAL_STAGES.map((stage) => ({
     ...stage,
@@ -835,94 +775,56 @@ function DealsKanban({ companyId, token }: { companyId: string; token: string })
     <div>
       {/* Contacts */}
       <div style={{ marginBottom: 24 }}>
-        <h3 style={{ fontSize: 13, fontWeight: 600, color: "#bbc9cf", marginBottom: 12 }}>{t("app.companyDetail.contactsTitle", { n: contacts.length })}</h3>
+        <h3 className="bv-micro" style={{ marginBottom: 12 }}>
+          {t("app.companyDetail.contactsTitle", { n: contacts.length })}
+        </h3>
         {contacts.length > 0 ? (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {contacts.slice(0, 10).map((c: any) => (
-              <div
-                key={c.id}
-                style={{
-                  background: "rgba(29,32,38,0.8)",
-                  backdropFilter: "blur(24px)",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: 10,
-                  padding: "8px 12px",
-                  fontSize: 13,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
+              <div key={c.id} className="bv-glass" style={{ padding: "8px 12px", borderRadius: 10, display: "flex", alignItems: "center", gap: 8 }}>
                 <div
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: "50%",
-                    background: "rgba(0,209,255,0.08)",
-                    border: "1px solid rgba(0,209,255,0.15)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#00d1ff",
-                    fontWeight: 700,
-                    fontSize: 10,
-                  }}
+                  className="bv-avatar"
+                  style={{ width: 24, height: 24, borderRadius: "50%", fontSize: 10, flexShrink: 0 }}
                 >
                   {c.name?.charAt(0)?.toUpperCase() ?? "?"}
                 </div>
-                <span style={{ fontWeight: 500, fontSize: 12, color: "#bbc9cf" }}>{c.name}</span>
-                <span style={{ fontSize: 10, color: "#859399" }}>{c.email}</span>
+                <span className="bv-body" style={{ color: "var(--color-on-surface-variant)", fontWeight: 500 }}>{c.name}</span>
+                <span className="bv-caption">{c.email}</span>
               </div>
             ))}
           </div>
         ) : (
-          <p style={{ fontSize: 13, color: "#3c494e" }}>{t("app.companyDetail.noContacts")}</p>
+          <p className="bv-caption" style={{ color: "var(--color-outline)" }}>{t("app.companyDetail.noContacts")}</p>
         )}
       </div>
 
       {/* Kanban */}
-      <h3 style={{ fontSize: 13, fontWeight: 600, color: "#bbc9cf", marginBottom: 12 }}>{t("app.companyDetail.dealPipeline")}</h3>
+      <h3 className="bv-micro" style={{ marginBottom: 12 }}>{t("app.companyDetail.dealPipeline")}</h3>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12, overflowX: "auto" }}>
         {dealsByStage.map((stage) => (
           <div
             key={stage.key}
-            style={{
-              borderRadius: 12,
-              border: stage.border,
-              background: stage.bg,
-              padding: 12,
-              minHeight: 180,
-            }}
+            className="bv-glass"
+            style={{ padding: 12, minHeight: 180, borderRadius: 12 }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <h4 style={{ fontSize: 11, fontWeight: 600, color: "#859399", margin: 0 }}>{t(`app.companyDetail.dealStage${stage.lkey}`)}</h4>
-              <span
-                style={{
-                  fontSize: 10,
-                  background: "rgba(255,255,255,0.06)",
-                  color: "#859399",
-                  padding: "2px 6px",
-                  borderRadius: 999,
-                  fontWeight: 500,
-                }}
-              >
-                {stage.deals.length}
-              </span>
+              <h4 className="bv-micro" style={{ margin: 0 }}>{t(`app.companyDetail.dealStage${stage.lkey}`)}</h4>
+              <span className={`bv-pill ${stage.accentClass}`} style={{ fontSize: 10 }}>{stage.deals.length}</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {stage.deals.map((deal: any) => (
                 <div
                   key={deal.id}
                   style={{
-                    background: "rgba(255,255,255,0.04)",
+                    background: "rgba(255,255,255,0.03)",
                     borderRadius: 8,
-                    padding: 12,
-                    border: "1px solid rgba(255,255,255,0.08)",
+                    padding: 10,
+                    border: "1px solid var(--color-outline-variant)",
                   }}
                 >
-                  <p style={{ fontSize: 12, fontWeight: 500, color: "#bbc9cf", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{deal.title}</p>
+                  <p className="bv-body" style={{ color: "var(--color-on-surface-variant)", fontWeight: 500, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{deal.title}</p>
                   {deal.valueUsd > 0 && (
-                    <p style={{ fontSize: 11, color: "#34d399", fontWeight: 600, marginTop: 4, marginBottom: 0 }}>${deal.valueUsd}</p>
+                    <p className="bv-numeric" style={{ color: "#3B82F6", fontSize: 11, marginTop: 4, marginBottom: 0 }}>${deal.valueUsd}</p>
                   )}
                 </div>
               ))}
@@ -930,7 +832,6 @@ function DealsKanban({ companyId, token }: { companyId: string; token: string })
           </div>
         ))}
       </div>
-
     </div>
   );
 }

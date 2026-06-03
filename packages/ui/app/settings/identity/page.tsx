@@ -134,41 +134,69 @@ export default function IdentitySettingsPage() {
     }
   }
 
+  /* ── Loading skeleton ── */
   if (!hydrated || loading) {
     return (
-      <main style={{ padding: 24, maxWidth: 720, margin: "0 auto" }}>
-        <div style={{ color: "var(--color-outline)", fontSize: 13 }}>{t("loading")}</div>
-      </main>
+      <div className="bv-dash min-h-screen bv-dash-shell">
+        <div className="max-w-4xl mx-auto px-6 py-10">
+          {/* breadcrumb skeleton */}
+          <div className="flex items-center gap-2 mb-8">
+            <div className="h-3 w-16 rounded animate-shimmer bg-surface-container-high" />
+            <span className="material-symbols-outlined text-outline" style={{ fontSize: 14 }}>chevron_right</span>
+            <div className="h-3 w-28 rounded animate-shimmer bg-surface-container-high" />
+          </div>
+          {/* card skeletons */}
+          {[120, 96, 160].map((h, i) => (
+            <div
+              key={i}
+              className="bv-glass rounded-2xl mb-4 animate-shimmer"
+              style={{ height: h, background: "rgba(15,18,25,0.4)" }}
+            />
+          ))}
+        </div>
+      </div>
     );
   }
 
+  /* ── Plan gate ── */
   if (planGate) {
     return (
-      <main style={{ padding: 24, maxWidth: 720, margin: "0 auto" }}>
-        <Link href="/settings" style={{ fontSize: 12, color: "var(--color-outline)" }}>
-          ← {t("back")}
-        </Link>
-        <h1 style={{ fontSize: 24, fontWeight: 700, marginTop: 8 }}>{t("title")}</h1>
-        <p style={{ fontSize: 13, color: "var(--color-on-surface-variant)", marginTop: 8, maxWidth: 480 }}>
-          {t("plan_gate_body")}
-        </p>
-        <Link
-          href="/pricing"
-          style={{
-            display: "inline-block",
-            marginTop: 16,
-            padding: "10px 16px",
-            background: "var(--color-primary-container, #00d1ff)",
-            color: "#000",
-            borderRadius: 10,
-            fontSize: 13,
-            fontWeight: 600,
-            textDecoration: "none",
-          }}
-        >
-          {t("plan_gate_cta")}
-        </Link>
-      </main>
+      <div className="bv-dash min-h-screen bv-dash-shell">
+        <div className="max-w-4xl mx-auto px-6 py-10 animate-fade-in">
+          {/* breadcrumb */}
+          <nav className="flex items-center gap-2 mb-8" aria-label="breadcrumb">
+            <Link
+              href="/settings"
+              className="bv-micro text-on-surface-variant hover:text-on-surface transition-colors"
+              style={{ textTransform: "none", fontSize: 12, letterSpacing: 0 }}
+            >
+              Settings
+            </Link>
+            <span className="material-symbols-outlined text-outline" style={{ fontSize: 14 }}>chevron_right</span>
+            <span className="bv-micro text-on-surface" style={{ textTransform: "none", fontSize: 12, letterSpacing: 0 }}>
+              {t("title")}
+            </span>
+          </nav>
+
+          <div className="bv-glass rounded-2xl p-10 text-center max-w-lg mx-auto">
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5"
+              style={{ background: "rgba(59,130,246,0.10)", border: "1px solid rgba(59,130,246,0.20)" }}
+            >
+              <span className="material-symbols-outlined gradient-text" style={{ fontSize: 28 }}>workspace_premium</span>
+            </div>
+            <h1 className="bv-headline mb-3">{t("title")}</h1>
+            <p className="bv-caption mb-6 max-w-sm mx-auto">{t("plan_gate_body")}</p>
+            <Link
+              href="/pricing"
+              className="bv-btn bv-btn-primary inline-flex"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_upward</span>
+              {t("plan_gate_cta")}
+            </Link>
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -177,181 +205,395 @@ export default function IdentitySettingsPage() {
     : "";
 
   return (
-    <main style={{ padding: 24, maxWidth: 720, margin: "0 auto" }}>
-      <Link href="/settings" style={{ fontSize: 12, color: "var(--color-outline)" }}>
-        ← {t("back")}
-      </Link>
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginTop: 8 }}>{t("title")}</h1>
-      <p style={{ fontSize: 13, color: "var(--color-on-surface-variant)", marginTop: 4 }}>
-        {t("subtitle")}
-      </p>
+    <div className="bv-dash min-h-screen bv-dash-shell">
+      <div className="max-w-4xl mx-auto px-6 py-10 animate-fade-in bv-stagger">
 
-      {/* Status pill */}
-      {config && (
-        <div style={{ marginTop: 16, display: "flex", gap: 8, alignItems: "center" }}>
-          <span
-            style={{
-              padding: "4px 10px",
-              borderRadius: 999,
-              fontSize: 11,
-              background: config.isActive ? "rgba(52,211,153,0.12)" : "rgba(133,147,153,0.12)",
-              color: config.isActive ? "#34d399" : "#859399",
-              border: `1px solid ${config.isActive ? "rgba(52,211,153,0.25)" : "rgba(133,147,153,0.25)"}`,
-            }}
+        {/* ── Breadcrumb ── */}
+        <nav className="flex items-center gap-2 mb-8" aria-label="breadcrumb">
+          <Link
+            href="/settings"
+            className="text-on-surface-variant hover:text-on-surface transition-colors"
+            style={{ fontSize: 12 }}
           >
-            {config.isActive ? t("status_active") : t("status_inactive")}
+            Settings
+          </Link>
+          <span className="material-symbols-outlined text-outline" style={{ fontSize: 14 }}>chevron_right</span>
+          <span className="text-on-surface font-medium" style={{ fontSize: 12 }}>
+            {t("title")}
           </span>
-          {config.discoveredAt && (
-            <span style={{ fontSize: 11, color: "var(--color-outline)" }}>
-              {t("last_discovered", { when: new Date(config.discoveredAt).toLocaleString() })}
-            </span>
-          )}
-        </div>
-      )}
+        </nav>
 
-      {/* Form */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          save();
-        }}
-        style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 14 }}
-      >
-        <Field
-          label={t("issuer")}
-          hint={t("issuer_hint")}
-          value={issuer}
-          onChange={setIssuer}
-          placeholder="https://login.microsoftonline.com/{tenant}/v2.0"
-          required
-        />
-        <Field
-          label={t("client_id")}
-          value={clientId}
-          onChange={setClientId}
-          required
-        />
-        <Field
-          label={config ? t("client_secret_rotate") : t("client_secret")}
-          hint={config ? t("client_secret_hint_rotate") : t("client_secret_hint_new")}
-          value={clientSecret}
-          onChange={setClientSecret}
-          type="password"
-          required={!config}
-        />
-        <Field
-          label={t("redirect_uri")}
-          hint={callbackHint ? t("redirect_uri_hint", { url: callbackHint }) : t("redirect_uri_hint_generic")}
-          value={redirectUri}
-          onChange={setRedirectUri}
-          required
-        />
-        <Field
-          label={t("scopes")}
-          hint={t("scopes_hint")}
-          value={scopes}
-          onChange={setScopes}
-        />
-        <Field
-          label={t("domains")}
-          hint={t("domains_hint")}
-          value={domains}
-          onChange={setDomains}
-          placeholder="acme.com, acme-contractors.com"
-        />
-        <Field
-          label={t("discovery_url_optional")}
-          hint={t("discovery_url_hint")}
-          value={discoveryUrl}
-          onChange={setDiscoveryUrl}
-          placeholder="https://issuer.example/.well-known/openid-configuration"
-        />
-        <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12, color: "var(--color-on-surface-variant)" }}>
-          <input
-            type="checkbox"
-            checked={isActive}
-            onChange={(e) => setIsActive(e.target.checked)}
-          />
-          {t("active_toggle")}
-        </label>
-
-        {error && (
-          <div role="alert" style={{ fontSize: 12, color: "#f87171" }}>
-            {error}
+        {/* ── Page head ── */}
+        <div className="bv-page-head mb-8">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.20)" }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--color-primary)" }}>
+                  verified_user
+                </span>
+              </div>
+              <h1 className="bv-headline">{t("title")}</h1>
+            </div>
+            <p className="bv-caption ml-12">{t("subtitle")}</p>
           </div>
-        )}
-        {savedAt && !error && (
-          <div role="status" style={{ fontSize: 12, color: "#34d399" }}>
-            {t("saved")}
-          </div>
-        )}
 
-        <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-          <button
-            type="submit"
-            disabled={saving}
-            style={{
-              padding: "10px 16px",
-              background: "var(--color-primary-container, #00d1ff)",
-              color: "#000",
-              border: "none",
-              borderRadius: 10,
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              minHeight: 40,
-            }}
-          >
-            {saving ? "…" : t("save")}
-          </button>
-          {config && tenantSlug && (
-            <a
-              href={`/api/v1/auth/sso/${tenantSlug}`}
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                padding: "10px 16px",
-                background: "transparent",
-                color: "var(--color-on-surface)",
-                border: "1px solid rgba(255,255,255,0.10)",
-                borderRadius: 10,
-                fontSize: 13,
-                textDecoration: "none",
-                minHeight: 40,
-                display: "inline-flex",
-                alignItems: "center",
-              }}
-            >
-              {t("test_sign_in")}
-            </a>
-          )}
+          {/* Status pill */}
           {config && (
-            <button
-              type="button"
-              onClick={disconnect}
-              disabled={saving}
-              style={{
-                padding: "10px 16px",
-                background: "rgba(248,113,113,0.10)",
-                color: "#f87171",
-                border: "1px solid rgba(248,113,113,0.25)",
-                borderRadius: 10,
-                fontSize: 13,
-                cursor: "pointer",
-                marginLeft: "auto",
-                minHeight: 40,
-              }}
-            >
-              {t("disconnect")}
-            </button>
+            <div className="flex items-center gap-2">
+              <span
+                className={`bv-dot ${config.isActive ? "bv-completed bv-ping" : "bv-paused"}`}
+              />
+              <span className="bv-caption">
+                {config.isActive ? t("status_active") : t("status_inactive")}
+              </span>
+              {config.discoveredAt && (
+                <span className="bv-micro" style={{ textTransform: "none", letterSpacing: 0, fontSize: 11 }}>
+                  · {t("last_discovered", { when: new Date(config.discoveredAt).toLocaleString() })}
+                </span>
+              )}
+            </div>
           )}
         </div>
-      </form>
-    </main>
+
+        {/* ── Two-column layout ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 340px", gap: 18, alignItems: "start" }}
+          className="max-[900px]:!block">
+
+          {/* ── Main form column ── */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+            {/* Issuer + Client ID card */}
+            <div className="bv-glass rounded-2xl p-6">
+              <p className="bv-micro mb-4" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>dns</span>
+                Provider endpoint
+              </p>
+
+              <form
+                id="identity-form"
+                onSubmit={(e) => { e.preventDefault(); save(); }}
+                style={{ display: "flex", flexDirection: "column", gap: 14 }}
+              >
+                <ForgeField
+                  label={t("issuer")}
+                  hint={t("issuer_hint")}
+                  value={issuer}
+                  onChange={setIssuer}
+                  placeholder="https://login.microsoftonline.com/{tenant}/v2.0"
+                  required
+                  icon="language"
+                />
+                <ForgeField
+                  label={t("client_id")}
+                  value={clientId}
+                  onChange={setClientId}
+                  required
+                  icon="fingerprint"
+                />
+                <ForgeField
+                  label={config ? t("client_secret_rotate") : t("client_secret")}
+                  hint={config ? t("client_secret_hint_rotate") : t("client_secret_hint_new")}
+                  value={clientSecret}
+                  onChange={setClientSecret}
+                  type="password"
+                  required={!config}
+                  icon="key"
+                />
+              </form>
+            </div>
+
+            {/* Callback + Scopes card */}
+            <div className="bv-glass rounded-2xl p-6">
+              <p className="bv-micro mb-4" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>route</span>
+                Redirect & scopes
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <ForgeField
+                  label={t("redirect_uri")}
+                  hint={callbackHint ? t("redirect_uri_hint", { url: callbackHint }) : t("redirect_uri_hint_generic")}
+                  value={redirectUri}
+                  onChange={setRedirectUri}
+                  required
+                  icon="reply"
+                  form="identity-form"
+                />
+                <ForgeField
+                  label={t("scopes")}
+                  hint={t("scopes_hint")}
+                  value={scopes}
+                  onChange={setScopes}
+                  icon="category"
+                  form="identity-form"
+                />
+                <ForgeField
+                  label={t("domains")}
+                  hint={t("domains_hint")}
+                  value={domains}
+                  onChange={setDomains}
+                  placeholder="acme.com, acme-contractors.com"
+                  icon="alternate_email"
+                  form="identity-form"
+                />
+                <ForgeField
+                  label={t("discovery_url_optional")}
+                  hint={t("discovery_url_hint")}
+                  value={discoveryUrl}
+                  onChange={setDiscoveryUrl}
+                  placeholder="https://issuer.example/.well-known/openid-configuration"
+                  icon="explore"
+                  form="identity-form"
+                />
+              </div>
+            </div>
+
+            {/* Active toggle */}
+            <div className="bv-glass rounded-2xl p-5">
+              <label className="flex items-center justify-between gap-4 cursor-pointer">
+                <div>
+                  <p className="text-on-surface font-medium" style={{ fontSize: 13 }}>{t("active_toggle")}</p>
+                  <p className="bv-caption mt-0.5">
+                    {isActive ? "SSO sign-in is enabled for your domain." : "SSO sign-in is paused — users fall back to password auth."}
+                  </p>
+                </div>
+                {/* pill toggle */}
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={isActive}
+                  onClick={() => setIsActive((v) => !v)}
+                  className="flex-shrink-0 transition-all"
+                  style={{
+                    width: 44,
+                    height: 24,
+                    borderRadius: 999,
+                    background: isActive
+                      ? "linear-gradient(135deg,#3B82F6,#2563EB)"
+                      : "rgba(255,255,255,0.08)",
+                    border: "none",
+                    cursor: "pointer",
+                    position: "relative",
+                    boxShadow: isActive ? "0 0 12px rgba(59,130,246,0.30)" : "none",
+                  }}
+                >
+                  <div
+                    className="absolute top-[3px] h-[18px] w-[18px] rounded-full transition-all"
+                    style={{
+                      background: "white",
+                      left: isActive ? "calc(100% - 21px)" : "3px",
+                      boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
+                    }}
+                  />
+                </button>
+              </label>
+            </div>
+
+            {/* Error / success banners */}
+            {error && (
+              <div
+                role="alert"
+                className="flex items-start gap-3 rounded-xl px-4 py-3"
+                style={{
+                  background: "rgba(255,77,77,0.08)",
+                  border: "1px solid rgba(255,77,77,0.25)",
+                  color: "#FF8A8A",
+                  fontSize: 13,
+                }}
+              >
+                <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: 18, color: "#FF4D4D", marginTop: 1 }}>error</span>
+                <span>{error}</span>
+              </div>
+            )}
+            {savedAt && !error && (
+              <div
+                role="status"
+                className="flex items-center gap-3 rounded-xl px-4 py-3"
+                style={{
+                  background: "rgba(59,130,246,0.08)",
+                  border: "1px solid rgba(59,130,246,0.20)",
+                  color: "#60A5FA",
+                  fontSize: 13,
+                }}
+              >
+                <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: 18, color: "#3B82F6" }}>check_circle</span>
+                <span>{t("saved")}</span>
+              </div>
+            )}
+
+            {/* Action bar */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <button
+                type="submit"
+                form="identity-form"
+                disabled={saving}
+                className="bv-btn bv-btn-primary"
+                style={{ opacity: saving ? 0.7 : 1 }}
+              >
+                {saving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Saving…
+                  </>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>save</span>
+                    {t("save")}
+                  </>
+                )}
+              </button>
+
+              {config && tenantSlug && (
+                <a
+                  href={`/api/v1/auth/sso/${tenantSlug}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bv-btn bv-btn-ghost"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>open_in_new</span>
+                  {t("test_sign_in")}
+                </a>
+              )}
+
+              {config && (
+                <button
+                  type="button"
+                  onClick={disconnect}
+                  disabled={saving}
+                  className="bv-btn bv-btn-danger ml-auto"
+                  style={{ opacity: saving ? 0.5 : 1 }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>link_off</span>
+                  {t("disconnect")}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* ── Sticky side rail ── */}
+          <div style={{ position: "sticky", top: 84, display: "flex", flexDirection: "column", gap: 16 }}>
+
+            {/* Connection status card */}
+            <div className="bv-glass rounded-2xl p-5">
+              <p className="bv-micro mb-4" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span className={`bv-dot ${config?.isActive ? "bv-completed bv-ping" : "bv-paused"}`} />
+                Live preview
+              </p>
+
+              <div
+                className="rounded-xl p-4"
+                style={{
+                  background: "rgba(5,8,16,0.50)",
+                  border: "1px solid rgba(255,255,255,0.05)",
+                }}
+              >
+                <span className="bv-mono block mb-3" style={{ fontSize: 10, color: "var(--color-outline)" }}>
+                  OIDC configuration · {config ? "configured" : "not set"}
+                </span>
+
+                {[
+                  { label: "Issuer", val: issuer || "—" },
+                  { label: "Client ID", val: clientId ? `${clientId.slice(0, 8)}…` : "—" },
+                  { label: "Redirect URI", val: redirectUri ? "✓ set" : "—" },
+                  { label: "Scopes", val: scopes || "—" },
+                ].map(({ label, val }) => (
+                  <div
+                    key={label}
+                    className="flex justify-between items-center py-2"
+                    style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+                  >
+                    <span className="bv-mono" style={{ fontSize: 10, color: "var(--color-outline)" }}>{label}</span>
+                    <span
+                      className="bv-mono truncate max-w-[140px] text-right"
+                      style={{ fontSize: 10, color: "var(--color-on-surface-variant)" }}
+                      title={val}
+                    >
+                      {val}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2 mt-4">
+                <span
+                  className={`bv-dot ${config?.isActive ? "bv-completed" : "bv-paused"}`}
+                  style={{ width: 6, height: 6 }}
+                />
+                <span className="bv-caption">
+                  {config?.isActive
+                    ? "SSO active — users can sign in via your IdP"
+                    : config
+                    ? "SSO configured but inactive"
+                    : "No SSO provider configured"}
+                </span>
+              </div>
+            </div>
+
+            {/* Callback hint */}
+            {callbackHint && (
+              <div className="bv-glass rounded-2xl p-5">
+                <p className="bv-micro mb-3" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>info</span>
+                  Callback URL
+                </p>
+                <p className="bv-caption mb-3">
+                  Register this redirect URI in your identity provider:
+                </p>
+                <div
+                  className="rounded-lg px-3 py-2.5 flex items-center gap-2"
+                  style={{
+                    background: "rgba(5,8,16,0.50)",
+                    border: "1px solid rgba(255,255,255,0.06)",
+                  }}
+                >
+                  <code
+                    className="bv-mono flex-1 truncate"
+                    style={{ fontSize: 10, color: "var(--color-on-surface-variant)", wordBreak: "break-all" }}
+                  >
+                    {callbackHint}
+                  </code>
+                  <button
+                    type="button"
+                    className="bv-btn bv-btn-ghost bv-btn-icon flex-shrink-0"
+                    onClick={() => navigator.clipboard.writeText(callbackHint)}
+                    title="Copy to clipboard"
+                    style={{ minHeight: 28, padding: "4px 6px" }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>content_copy</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Info box */}
+            <div
+              className="rounded-2xl p-5"
+              style={{
+                background: "rgba(59,130,246,0.05)",
+                border: "1px solid rgba(59,130,246,0.12)",
+              }}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-primary)" }}>
+                  shield
+                </span>
+                <span className="bv-micro" style={{ color: "var(--color-primary)" }}>Enterprise SSO</span>
+              </div>
+              <p className="bv-caption">
+                Enforce sign-in through your corporate IdP (Azure AD, Okta, Auth0, Google Workspace). Users on your allowed domains are redirected to your IdP automatically.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
-function Field(props: {
+/* ── ForgeField — FORGE-styled form field ── */
+function ForgeField(props: {
   label: string;
   hint?: string;
   value: string;
@@ -359,34 +601,63 @@ function Field(props: {
   placeholder?: string;
   type?: string;
   required?: boolean;
+  icon?: string;
+  form?: string;
 }) {
+  const [focused, setFocused] = useState(false);
+
   return (
     <label style={{ display: "block" }}>
-      <div style={{ fontSize: 11, color: "var(--color-outline)", marginBottom: 4, textTransform: "uppercase", letterSpacing: 1 }}>
+      <div
+        className="flex items-center gap-1.5 mb-1.5"
+        style={{ fontSize: 10, color: "var(--color-outline)", textTransform: "uppercase", letterSpacing: "0.06em" }}
+      >
+        {props.icon && (
+          <span className="material-symbols-outlined" style={{ fontSize: 12, color: "var(--color-outline)" }}>
+            {props.icon}
+          </span>
+        )}
         {props.label}
-        {props.required && <span style={{ color: "#f87171", marginLeft: 4 }}>*</span>}
+        {props.required && (
+          <span style={{ color: "var(--color-error)", marginLeft: 2 }}>*</span>
+        )}
       </div>
-      <input
-        type={props.type ?? "text"}
-        value={props.value}
-        onChange={(e) => props.onChange(e.target.value)}
-        placeholder={props.placeholder}
-        required={props.required}
-        autoComplete={props.type === "password" ? "new-password" : "off"}
+      <div
+        className="flex items-center gap-2 rounded-xl transition-all"
         style={{
-          width: "100%",
-          padding: "10px 12px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.10)",
-          borderRadius: 10,
-          color: "var(--color-on-surface)",
-          fontSize: 13,
-          fontFamily: props.type === "password" ? "monospace" : "inherit",
-          minHeight: 40,
+          background: "rgba(5,8,16,0.50)",
+          border: `1px solid ${focused ? "rgba(59,130,246,0.45)" : "rgba(255,255,255,0.07)"}`,
+          boxShadow: focused ? "0 0 0 3px rgba(59,130,246,0.10)" : "none",
+          paddingLeft: 12,
+          paddingRight: 12,
         }}
-      />
+      >
+        <input
+          type={props.type ?? "text"}
+          value={props.value}
+          onChange={(e) => props.onChange(e.target.value)}
+          placeholder={props.placeholder}
+          required={props.required}
+          form={props.form}
+          autoComplete={props.type === "password" ? "new-password" : "off"}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={{
+            flex: 1,
+            background: "transparent",
+            border: "none",
+            outline: "none",
+            color: "var(--color-on-surface)",
+            fontSize: 13,
+            fontFamily: props.type === "password" ? "var(--bv-font-mono)" : "inherit",
+            paddingTop: 10,
+            paddingBottom: 10,
+            minHeight: 40,
+          }}
+        />
+      </div>
       {props.hint && (
-        <div style={{ fontSize: 11, color: "var(--color-outline)", marginTop: 4 }}>{props.hint}</div>
+        <p className="bv-caption mt-1.5" style={{ fontSize: 11 }}>{props.hint}</p>
       )}
     </label>
   );

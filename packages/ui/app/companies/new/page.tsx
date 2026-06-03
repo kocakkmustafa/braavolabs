@@ -52,7 +52,7 @@ function CompanyBuilderWizardInner() {
   if (!hydrated || !token) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }} />
+        <div className="bv-dot bv-running bv-ping w-6 h-6" />
       </div>
     );
   }
@@ -148,123 +148,221 @@ function CompanyBuilderWizardInner() {
   const currentStepIndex = stepKeys.indexOf(step as any);
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
-      <div className="mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold font-headline" style={{ color: "#e1e2eb" }}>{t("app.companyNew.title")}</h1>
-        <p className="text-sm mt-1" style={{ color: "#859399" }}>{t("app.companyNew.subtitle")}</p>
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-10 animate-fade-in">
+
+      {/* Page head — matches mock .page-head / .eyebrow pattern */}
+      <div className="mb-8">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1.5 mb-4">
+          <a href="/companies" className="bv-micro hover:text-on-surface transition-colors" style={{ color: "var(--color-outline)" }}>
+            Workspaces
+          </a>
+          <span className="material-symbols-outlined" style={{ fontSize: 14, color: "var(--color-outline)" }}>chevron_right</span>
+          <span className="bv-micro" style={{ color: "var(--color-on-surface-variant)" }}>New</span>
+        </div>
+
+        {/* Hero title — matches mock h1 + lede */}
+        <h1
+          className="font-headline text-center leading-none tracking-tight mb-3"
+          style={{
+            fontFamily: "var(--bv-font-display)",
+            fontSize: "clamp(28px, 4vw, 44px)",
+            fontWeight: 700,
+            letterSpacing: "-0.02em",
+            textTransform: "uppercase",
+            color: "var(--color-on-surface)",
+          }}
+        >
+          {t("app.companyNew.title").split(" ").slice(0, -1).join(" ")}{" "}
+          <span className="bv-grad-text">{t("app.companyNew.title").split(" ").slice(-1)[0]}</span>
+        </h1>
+        <p
+          className="text-center mx-auto"
+          style={{
+            color: "var(--color-on-surface-variant)",
+            fontSize: 15,
+            maxWidth: "50ch",
+            lineHeight: 1.6,
+          }}
+        >
+          {t("app.companyNew.subtitle")}
+        </p>
       </div>
 
-      {/* Progress Steps */}
-      <div className="flex items-center mb-6 gap-2">
+      {/* Progress steps — FORGE pill stepper */}
+      <div className="flex items-center justify-center mb-8 gap-2">
         {stepKeys.map((s, i) => (
           <div key={s} className="flex items-center">
             <div
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all"
+              className="flex items-center justify-center text-xs font-semibold transition-all"
               style={{
-                background: step === s ? "linear-gradient(135deg, #00d1ff, #6d11ad)" : currentStepIndex > i ? "rgba(52,211,153,0.2)" : "rgba(255,255,255,0.06)",
-                border: step === s ? "none" : currentStepIndex > i ? "1px solid rgba(52,211,153,0.3)" : "1px solid rgba(255,255,255,0.08)",
-                color: step === s ? "white" : currentStepIndex > i ? "#34d399" : "#859399",
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                background: step === s
+                  ? "var(--bv-gradient-brand)"
+                  : currentStepIndex > i
+                    ? "rgba(59,130,246,0.15)"
+                    : "rgba(255,255,255,0.04)",
+                border: step === s
+                  ? "none"
+                  : currentStepIndex > i
+                    ? "1px solid rgba(59,130,246,0.3)"
+                    : "1px solid var(--bv-glass-border)",
+                color: step === s
+                  ? "#fff"
+                  : currentStepIndex > i
+                    ? "#60A5FA"
+                    : "var(--color-outline)",
+                boxShadow: step === s ? "0 0 16px rgba(59,130,246,0.35)" : "none",
               }}
             >
-              {currentStepIndex > i ? "✓" : i + 1}
+              {currentStepIndex > i
+                ? <span className="material-symbols-outlined" style={{ fontSize: 14 }}>check</span>
+                : i + 1}
             </div>
-            {i < 3 && <div className="w-8 sm:w-12 h-0.5 mx-1" style={{ background: currentStepIndex > i ? "rgba(52,211,153,0.4)" : "rgba(255,255,255,0.08)" }} />}
+            {i < 3 && (
+              <div
+                style={{
+                  width: 36,
+                  height: 1,
+                  margin: "0 4px",
+                  background: currentStepIndex > i
+                    ? "rgba(59,130,246,0.4)"
+                    : "var(--bv-glass-border)",
+                }}
+              />
+            )}
           </div>
         ))}
       </div>
 
+      {/* Error banner */}
       {error && (
-        <div className="px-4 py-3 rounded-xl mb-4 text-sm" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
-          {error}
-          {(error.toLowerCase().includes("limit") || error.toLowerCase().includes("plan")) && (
-            <a href="/pricing" className="ml-2 underline" style={{ color: "#a4e6ff" }}>Upgrade plan</a>
-          )}
+        <div
+          className="flex items-start gap-3 px-4 py-3 rounded-xl mb-5 text-sm"
+          style={{
+            background: "rgba(255,77,77,0.08)",
+            border: "1px solid rgba(255,77,77,0.2)",
+            color: "#FF8A8A",
+          }}
+        >
+          <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: 18, color: "#FF4D4D", marginTop: 1 }}>error</span>
+          <span>
+            {error}
+            {(error.toLowerCase().includes("limit") || error.toLowerCase().includes("plan")) && (
+              <a href="/pricing" className="ml-2 underline" style={{ color: "#60A5FA" }}>Upgrade plan</a>
+            )}
+          </span>
         </div>
       )}
 
-      {/* Step 1: Describe (with quick-start starter cards on top) */}
+      {/* ── Step 1: Describe ── */}
       {step === "describe" && (
-        <>
-          {/* Pre-baked templates — clone in one click. Bypasses the AI
-              builder so it costs zero trial Groq runs; the user spends
-              their first run on actually executing the cloned pipeline. */}
+        <div className="bv-stagger">
+          {/* Template gallery — StarterPicker unchanged */}
           <StarterPicker
             token={token}
             onCloned={(company, message) => {
-              // After clone we drop straight into the company page so the
-              // user can see what was created and run the demo pipeline.
               try { sessionStorage.setItem("aicos-toast", message); } catch {}
               router.push(`/companies/${company.id}`);
             }}
           />
 
-          <div className="glass-card rounded-2xl p-5 sm:p-6">
-            <h2 className="text-base sm:text-lg font-semibold font-headline mb-3" style={{ color: "#e1e2eb" }}>{t("app.companyNew.describeTitle")}</h2>
-          <p className="text-sm mb-4" style={{ color: "#859399" }}>
-            {t("app.companyNew.describeBody")}
-          </p>
-          <textarea
-            value={description}
-            onChange={(e) => { setDescription(e.target.value); setError(null); }}
-            rows={5}
-            required
-            className="w-full rounded-xl px-4 py-3 text-sm resize-none transition-all"
-            style={{
-              background: "rgba(255,255,255,0.04)",
-              border: description.length > 0 && description.length < 10
-                ? "1px solid rgba(239,68,68,0.5)"
-                : "1px solid rgba(255,255,255,0.08)",
-              color: "#e1e2eb",
-              outline: "none",
-            }}
-            placeholder={t("app.companyNew.descPlaceholder")}
-            onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(0,209,255,0.4)"; }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = description.length > 0 && description.length < 10
-                ? "rgba(239,68,68,0.5)"
-                : "rgba(255,255,255,0.08)";
-            }}
-          />
-          {description.length > 0 && description.length < 10 && (
-            <p className="mt-1.5 text-xs" style={{ color: "#f87171" }}>
-              {t("app.companyNew.minChars", { n: 10 - description.length })}
-            </p>
-          )}
-          {touched && description.length === 0 && (
-            <p className="mt-1.5 text-xs" style={{ color: "#f87171" }}>
-              {t("app.companyNew.enterDesc")}
-            </p>
-          )}
-          <button
-            onClick={(e) => { setTouched(true); if (description.length >= 10) handleDescribe(); }}
-            disabled={loading}
-            className="mt-4 w-full text-white py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
+          {/* Prompt box — matches mock .promptbox inside .steel-card */}
+          <div
+            className="bv-glass"
+            style={{ padding: 0, overflow: "hidden" }}
           >
-            {loading ? (
-              <>
-                <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                {t("app.companyNew.analyzing")}
-              </>
-            ) : t("app.companyNew.continueBtn")}
-          </button>
-          {loading && (
-            <p className="mt-2 text-center text-xs" style={{ color: "#3c494e" }}>{t("app.companyNew.mayTake")}</p>
-          )}
+            {/* Textarea area */}
+            <textarea
+              value={description}
+              onChange={(e) => { setDescription(e.target.value); setError(null); }}
+              rows={5}
+              required
+              className="w-full resize-none bg-transparent outline-none text-base px-5 pt-5 pb-3"
+              style={{
+                color: "var(--color-on-surface)",
+                fontSize: 16,
+                lineHeight: 1.6,
+                border: "none",
+                fontFamily: "var(--bv-font-body)",
+              }}
+              placeholder={t("app.companyNew.descPlaceholder")}
+            />
+
+            {/* Validation messages */}
+            {description.length > 0 && description.length < 10 && (
+              <p className="px-5 pb-1 text-xs" style={{ color: "#FF8A8A" }}>
+                {t("app.companyNew.minChars", { n: 10 - description.length })}
+              </p>
+            )}
+            {touched && description.length === 0 && (
+              <p className="px-5 pb-1 text-xs" style={{ color: "#FF8A8A" }}>
+                {t("app.companyNew.enterDesc")}
+              </p>
+            )}
+
+            {/* Footer toolbar — matches mock .pf */}
+            <div
+              className="flex items-center px-4 py-3"
+              style={{ borderTop: "1px solid var(--bv-glass-border)" }}
+            >
+              <span className="bv-mono" style={{ color: "var(--color-outline)", fontSize: 11 }}>
+                ⌘↵ to forge
+              </span>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={(e) => { setTouched(true); if (description.length >= 10) handleDescribe(); }}
+                  disabled={loading}
+                  className="bv-btn bv-btn-primary bv-sheen disabled:opacity-50 disabled:cursor-not-allowed"
+                  onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { setTouched(true); if (description.length >= 10) handleDescribe(); } }}
+                >
+                  {loading ? (
+                    <>
+                      <span className="inline-block w-3.5 h-3.5 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "#fff" }} />
+                      {t("app.companyNew.analyzing")}
+                    </>
+                  ) : (
+                    <>
+                      {t("app.companyNew.continueBtn")}
+                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
-        </>
+
+          {loading && (
+            <p className="text-center text-xs mt-2" style={{ color: "var(--bv-text-faint)" }}>
+              {t("app.companyNew.mayTake")}
+            </p>
+          )}
+        </div>
       )}
 
-      {/* Step 2: Clarification Chat */}
+      {/* ── Step 2: Clarification Chat ── */}
       {step === "clarify" && session && (
-        <div className="glass-card rounded-2xl overflow-hidden flex flex-col" style={{ maxHeight: "65vh" }}>
+        <div className="bv-glass" style={{ overflow: "hidden", maxHeight: "65vh", display: "flex", flexDirection: "column" }}>
+
           {/* Chat header */}
-          <div className="px-5 py-3 flex items-center justify-between flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <div
+            className="flex items-center justify-between px-5 py-3 flex-shrink-0"
+            style={{ borderBottom: "1px solid var(--bv-glass-border)" }}
+          >
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#00d1ff" }}>smart_toy</span>
-              <span className="text-sm font-semibold" style={{ color: "#e1e2eb" }}>{t("app.companyNew.builderTitle")}</span>
+              <div
+                className="flex items-center justify-center"
+                style={{ width: 28, height: 28, borderRadius: 8, background: "var(--bv-gradient-brand)" }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16, color: "#fff" }}>smart_toy</span>
+              </div>
+              <span className="font-semibold" style={{ fontSize: 14, color: "var(--color-on-surface)", fontFamily: "var(--bv-font-display)" }}>
+                {t("app.companyNew.builderTitle")}
+              </span>
             </div>
-            <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(0,209,255,0.08)", color: "#a4e6ff" }}>
+            <span className="bv-pill bv-pill-cyan">
               {t("app.companyNew.round", { turn: session.turn })}
             </span>
           </div>
@@ -274,39 +372,52 @@ function CompanyBuilderWizardInner() {
             {chatHistory.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div
-                  className="max-w-[85%] rounded-2xl px-4 py-3 text-sm"
+                  className="max-w-[85%] text-sm"
                   style={{
+                    padding: "12px 16px",
                     background: msg.role === "user"
-                      ? "linear-gradient(135deg, rgba(0,209,255,0.15), rgba(109,17,173,0.15))"
+                      ? "linear-gradient(135deg,rgba(59,130,246,0.18),rgba(37,99,235,0.12))"
                       : "rgba(255,255,255,0.04)",
                     border: msg.role === "user"
-                      ? "1px solid rgba(0,209,255,0.25)"
-                      : "1px solid rgba(255,255,255,0.06)",
-                    borderRadius: msg.role === "user" ? "20px 20px 4px 20px" : "20px 20px 20px 4px",
-                    color: "#e1e2eb",
+                      ? "1px solid rgba(59,130,246,0.28)"
+                      : "1px solid var(--bv-glass-border)",
+                    borderRadius: msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+                    color: "var(--color-on-surface)",
                   }}
                 >
                   {msg.role === "ai" && (
                     <div className="flex items-center gap-1.5 mb-2">
-                      <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg,#00d1ff,#6d11ad)" }}>
-                        <span style={{ color: "white", fontSize: 8, fontWeight: 700 }}>AI</span>
-                      </div>
-                      <span className="text-[10px] font-semibold" style={{ color: "#00d1ff" }}>Claude</span>
+                      <span className="bv-mono" style={{ color: "#60A5FA", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                        braavolabs
+                      </span>
                     </div>
                   )}
-                  <div className="whitespace-pre-wrap leading-relaxed" style={{ color: msg.role === "ai" ? "#bbc9cf" : "#e1e2eb" }}>
+                  <div className="whitespace-pre-wrap leading-relaxed" style={{ color: msg.role === "ai" ? "var(--color-on-surface-variant)" : "var(--color-on-surface)" }}>
                     {msg.content}
                   </div>
                 </div>
               </div>
             ))}
+
+            {/* Typing indicator */}
             {loading && (
               <div className="flex justify-start">
-                <div className="rounded-2xl px-4 py-3" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "20px 20px 20px 4px" }}>
+                <div
+                  style={{
+                    padding: "12px 16px",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid var(--bv-glass-border)",
+                    borderRadius: "18px 18px 18px 4px",
+                  }}
+                >
                   <div className="flex gap-1.5">
-                    <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: "#00d1ff", animationDelay: "0ms" }} />
-                    <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: "#00d1ff", animationDelay: "150ms" }} />
-                    <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: "#00d1ff", animationDelay: "300ms" }} />
+                    {[0, 150, 300].map((delay) => (
+                      <div
+                        key={delay}
+                        className="w-2 h-2 rounded-full animate-bounce"
+                        style={{ background: "#60A5FA", animationDelay: `${delay}ms` }}
+                      />
+                    ))}
                   </div>
                 </div>
               </div>
@@ -315,7 +426,10 @@ function CompanyBuilderWizardInner() {
           </div>
 
           {/* Chat input */}
-          <div className="px-4 py-3 flex-shrink-0" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <div
+            className="px-4 py-3 flex-shrink-0"
+            style={{ borderTop: "1px solid var(--bv-glass-border)" }}
+          >
             <div className="flex gap-2">
               <textarea
                 value={answer}
@@ -325,16 +439,21 @@ function CompanyBuilderWizardInner() {
                 }}
                 rows={2}
                 className="flex-1 rounded-xl px-4 py-2.5 text-sm resize-none outline-none"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid var(--bv-glass-border)",
+                  color: "var(--color-on-surface)",
+                  fontFamily: "var(--bv-font-body)",
+                  transition: "border-color 200ms",
+                }}
                 placeholder={t("app.companyNew.answerPlaceholder")}
-                onFocus={(e) => { e.currentTarget.style.border = "1px solid rgba(0,209,255,0.4)"; }}
-                onBlur={(e) => { e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)"; }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(59,130,246,0.4)"; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = "var(--bv-glass-border)"; }}
               />
               <button
                 onClick={handleAnswer}
                 disabled={loading || answer.length < 1}
-                className="px-4 rounded-xl text-white font-semibold disabled:opacity-50 flex-shrink-0"
-                style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
+                className="bv-btn bv-btn-primary bv-btn-icon disabled:opacity-50"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 18 }}>send</span>
               </button>
@@ -343,56 +462,105 @@ function CompanyBuilderWizardInner() {
         </div>
       )}
 
-      {/* Step 3: Preview */}
+      {/* ── Step 3: Preview ── */}
       {step === "preview" && session?.companySpec && (
-        <div className="glass-card rounded-2xl p-5 sm:p-6">
-          <h2 className="text-base sm:text-lg font-semibold font-headline mb-4" style={{ color: "#e1e2eb" }}>{t("app.companyNew.previewTitle")}</h2>
-
-          <div className="space-y-4">
+        <div className="bv-glass bv-rise" style={{ padding: "24px 28px" }}>
+          <div className="bv-panel-head mb-5">
             <div>
-              <label className="text-xs font-semibold tracking-wider" style={{ color: "#859399" }}>{t("app.companyNew.colName")}</label>
-              <p className="text-lg font-semibold mt-1" style={{ color: "#e1e2eb" }}>{session.companySpec.name}</p>
+              <p className="bv-micro mb-1" style={{ color: "var(--color-outline)" }}>Workspace spec</p>
+              <h2 className="bv-headline" style={{ color: "var(--color-on-surface)" }}>
+                {t("app.companyNew.previewTitle")}
+              </h2>
             </div>
-            <div>
-              <label className="text-xs font-semibold tracking-wider" style={{ color: "#859399" }}>{t("app.companyNew.colDescription")}</label>
-              <p className="text-sm mt-1" style={{ color: "#bbc9cf" }}>{session.companySpec.description}</p>
-            </div>
-            <div>
-              <label className="text-xs font-semibold tracking-wider" style={{ color: "#859399" }}>{t("app.companyNew.colPrimitives")}</label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {session.companySpec.primitives?.map((p: string) => (
-                  <span key={p} className="px-2.5 py-1 text-xs rounded-lg font-semibold" style={{ background: "rgba(0,209,255,0.1)", color: "#a4e6ff", border: "1px solid rgba(0,209,255,0.2)" }}>
-                    {p}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-semibold tracking-wider" style={{ color: "#859399" }}>{t("app.companyNew.colAgents", { n: session.companySpec.agents?.length ?? 0 })}</label>
-              <div className="mt-2 space-y-2">
-                {session.companySpec.agents?.map((a: any, i: number) => (
-                  <div key={i} className="rounded-xl p-3 text-sm" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                    <span className="font-medium" style={{ color: "#e1e2eb" }}>{a.name}</span>
-                    <span className="ml-2" style={{ color: "#859399" }}>({a.role})</span>
-                    {a.tools?.length > 0 && <div className="text-xs mt-1" style={{ color: "#3c494e" }}>{t("app.companyNew.toolsLabel", { tools: a.tools.join(", ") })}</div>}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-semibold tracking-wider" style={{ color: "#859399" }}>{t("app.companyNew.colPipelines", { n: session.companySpec.pipelines?.length ?? 0 })}</label>
-              <div className="mt-2 space-y-2">
-                {session.companySpec.pipelines?.map((p: any, i: number) => (
-                  <div key={i} className="rounded-xl p-3 text-sm" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                    <span className="font-medium" style={{ color: "#e1e2eb" }}>{p.name}</span>
-                    <span className="ml-2" style={{ color: "#859399" }}>({p.trigger})</span>
-                    <div className="text-xs mt-1" style={{ color: "#3c494e" }}>{t("app.companyNew.stepsLabel", { n: p.steps?.length ?? 0 })}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <div className="bv-dot bv-running bv-ping" />
           </div>
 
+          <div className="space-y-5">
+            {/* Name */}
+            <div>
+              <p className="bv-micro mb-1" style={{ color: "var(--color-outline)" }}>{t("app.companyNew.colName")}</p>
+              <p className="bv-title text-lg">{session.companySpec.name}</p>
+            </div>
+
+            {/* Description */}
+            <div>
+              <p className="bv-micro mb-1" style={{ color: "var(--color-outline)" }}>{t("app.companyNew.colDescription")}</p>
+              <p className="bv-body" style={{ color: "var(--color-on-surface-variant)" }}>{session.companySpec.description}</p>
+            </div>
+
+            {/* Primitives */}
+            {session.companySpec.primitives?.length > 0 && (
+              <div>
+                <p className="bv-micro mb-2" style={{ color: "var(--color-outline)" }}>{t("app.companyNew.colPrimitives")}</p>
+                <div className="flex flex-wrap gap-2">
+                  {session.companySpec.primitives.map((p: string) => (
+                    <span key={p} className="bv-pill bv-pill-cyan">{p}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Divider */}
+            <div className="bv-divider" />
+
+            {/* Agents */}
+            <div>
+              <p className="bv-micro mb-2" style={{ color: "var(--color-outline)" }}>
+                {t("app.companyNew.colAgents", { n: session.companySpec.agents?.length ?? 0 })}
+              </p>
+              <div className="bv-agentgrid" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))" }}>
+                {session.companySpec.agents?.map((a: any, i: number) => (
+                  <div key={i} className="bv-agentcard">
+                    <div className="bv-agentcard-head">
+                      <div className="bv-dot bv-completed" />
+                    </div>
+                    <p className="bv-agentcard-name">{a.name}</p>
+                    <p className="bv-agentcard-role">{a.role}</p>
+                    {a.tools?.length > 0 && (
+                      <p className="bv-micro mt-1" style={{ color: "var(--bv-text-faint)", textTransform: "none", letterSpacing: 0, fontSize: 10 }}>
+                        {t("app.companyNew.toolsLabel", { tools: a.tools.join(", ") })}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Pipelines */}
+            {session.companySpec.pipelines?.length > 0 && (
+              <div>
+                <div className="bv-divider mb-4" />
+                <p className="bv-micro mb-2" style={{ color: "var(--color-outline)" }}>
+                  {t("app.companyNew.colPipelines", { n: session.companySpec.pipelines?.length ?? 0 })}
+                </p>
+                <div className="space-y-2">
+                  {session.companySpec.pipelines.map((p: any, i: number) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-3 rounded-xl px-3 py-2.5"
+                      style={{
+                        background: "rgba(255,255,255,0.03)",
+                        border: "1px solid var(--bv-glass-border)",
+                      }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-outline)" }}>
+                        account_tree
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold truncate" style={{ color: "var(--color-on-surface)" }}>{p.name}</p>
+                        <p className="bv-caption truncate">{p.trigger}</p>
+                      </div>
+                      <span className="bv-pill bv-pill-muted">
+                        {t("app.companyNew.stepsLabel", { n: p.steps?.length ?? 0 })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* CTA row */}
           <div className="flex gap-3 mt-6">
             <button
               onClick={() => {
@@ -400,46 +568,156 @@ function CompanyBuilderWizardInner() {
                   setSession(null); setDescription(""); setAnswer(""); setError(null); setChatHistory([]); setStep("describe");
                 }
               }}
-              className="flex-1 py-2.5 rounded-xl font-semibold transition-colors hover:opacity-80"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#bbc9cf" }}
+              className="bv-btn bv-btn-ghost flex-1"
             >
               {t("app.companyNew.startOver")}
             </button>
             <button
               onClick={handleConfirm}
               disabled={loading}
-              className="flex-1 text-white py-2.5 rounded-xl font-semibold transition-all hover:brightness-110 disabled:opacity-50"
-              style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
+              className="bv-btn bv-btn-primary bv-sheen flex-1 disabled:opacity-50"
             >
-              {loading ? t("app.companyNew.creating") : t("app.companyNew.createCompany")}
+              {loading ? (
+                <>
+                  <span className="inline-block w-3.5 h-3.5 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "#fff" }} />
+                  {t("app.companyNew.creating")}
+                </>
+              ) : (
+                <>
+                  {t("app.companyNew.createCompany")}
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>rocket_launch</span>
+                </>
+              )}
             </button>
           </div>
         </div>
       )}
 
-      {/* Step 4: Creating */}
+      {/* ── Step 4: Creating (forge constellation) ── */}
       {step === "creating" && (
-        <div className="glass-card rounded-2xl p-12 text-center">
-          <div className="w-16 h-16 rounded-full border-2 animate-spin mx-auto mb-6" style={{ borderColor: "rgba(0,209,255,0.3)", borderTopColor: "#00d1ff" }} />
-          <p className="text-lg font-semibold font-headline" style={{ color: "#e1e2eb" }}>{t("app.companyNew.buildingTitle")}</p>
-          <p className="text-sm mt-2" style={{ color: "#859399" }}>{t("app.companyNew.buildingBody")}</p>
+        <div className="bv-glass bv-rise" style={{ padding: "48px 32px", textAlign: "center" }}>
+          {/* Title */}
+          <h2
+            className="bv-headline mb-2"
+            style={{ fontFamily: "var(--bv-font-display)", textTransform: "uppercase", letterSpacing: "-0.02em", color: "var(--color-on-surface)" }}
+          >
+            {t("app.companyNew.buildingTitle")}
+          </h2>
+          <p className="bv-body mb-8" style={{ color: "var(--color-on-surface-variant)" }}>
+            {t("app.companyNew.buildingBody")}
+          </p>
+
+          {/* Constellation of agent nodes */}
+          <div className="relative mx-auto mb-6" style={{ width: "100%", maxWidth: 520, height: 280 }}>
+            {/* SVG edges */}
+            <svg
+              viewBox="0 0 520 280"
+              className="absolute inset-0 w-full h-full pointer-events-none"
+              aria-hidden="true"
+            >
+              {[
+                [260, 140, 260, 30],
+                [260, 140, 390, 70],
+                [260, 140, 450, 180],
+                [260, 140, 370, 260],
+                [260, 140, 150, 260],
+                [260, 140, 70, 180],
+                [260, 140, 130, 70],
+              ].map(([x1, y1, x2, y2], i) => (
+                <line
+                  key={i}
+                  x1={x1} y1={y1} x2={x2} y2={y2}
+                  stroke="rgba(59,130,246,0.2)"
+                  strokeWidth={1}
+                />
+              ))}
+            </svg>
+
+            {/* Core node */}
+            <div
+              className="absolute flex flex-col items-center justify-center gap-1"
+              style={{
+                left: 260, top: 140,
+                transform: "translate(-50%,-50%)",
+                width: 56, height: 56,
+                borderRadius: 14,
+                background: "var(--bv-gradient-brand)",
+                boxShadow: "0 0 28px rgba(59,130,246,0.45)",
+                border: "none",
+              }}
+            >
+              <div className="bv-dot bv-running" style={{ width: 6, height: 6 }} />
+              <span className="bv-mono" style={{ fontSize: 9, color: "#fff", letterSpacing: "0.08em" }}>core</span>
+            </div>
+
+            {/* Outer agent nodes */}
+            {[
+              { label: "acq.", x: 260, y: 30 },
+              { label: "sales", x: 390, y: 70 },
+              { label: "ops", x: 450, y: 180 },
+              { label: "anlyt", x: 370, y: 260 },
+              { label: "mem", x: 150, y: 260 },
+              { label: "cont.", x: 70, y: 180 },
+              { label: "gov", x: 130, y: 70 },
+            ].map(({ label, x, y }) => (
+              <div
+                key={label}
+                className="absolute flex flex-col items-center justify-center gap-1 animate-pulse"
+                style={{
+                  left: x, top: y,
+                  transform: "translate(-50%,-50%)",
+                  width: 48, height: 48,
+                  borderRadius: 12,
+                  background: "rgba(15,18,25,0.85)",
+                  border: "1px solid rgba(59,130,246,0.25)",
+                  backdropFilter: "blur(10px)",
+                }}
+              >
+                <div className="bv-dot bv-completed" style={{ width: 6, height: 6 }} />
+                <span className="bv-mono" style={{ fontSize: 8, color: "var(--color-outline)", letterSpacing: "0.06em" }}>{label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Spinner */}
+          <div
+            className="w-12 h-12 rounded-full border-2 animate-spin mx-auto"
+            style={{ borderColor: "rgba(59,130,246,0.2)", borderTopColor: "#60A5FA" }}
+          />
         </div>
       )}
 
-      {/* Step 5: Done */}
+      {/* ── Step 5: Done ── */}
       {step === "done" && session && (
-        <div className="glass-card rounded-2xl p-8 text-center">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5" style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)" }}>
-            <span className="material-symbols-outlined text-3xl" style={{ color: "#34d399" }}>check_circle</span>
+        <div className="bv-glass bv-rise" style={{ padding: "48px 32px", textAlign: "center" }}>
+          {/* Success icon */}
+          <div
+            className="flex items-center justify-center mx-auto mb-5"
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 18,
+              background: "rgba(59,130,246,0.1)",
+              border: "1px solid rgba(59,130,246,0.25)",
+              boxShadow: "0 0 30px rgba(59,130,246,0.2)",
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 32, color: "#60A5FA" }}>check_circle</span>
           </div>
-          <h2 className="text-2xl font-bold font-headline mb-2" style={{ color: "#e1e2eb" }}>{t("app.companyNew.doneTitle")}</h2>
-          <p className="mb-6" style={{ color: "#859399" }}>{t("app.companyNew.doneBody", { name: session.companySpec?.name ?? "" })}</p>
+
+          <h2 className="bv-headline mb-2" style={{ color: "var(--color-on-surface)" }}>
+            {t("app.companyNew.doneTitle")}
+          </h2>
+          <p className="bv-body mb-8" style={{ color: "var(--color-on-surface-variant)" }}>
+            {t("app.companyNew.doneBody", { name: session.companySpec?.name ?? "" })}
+          </p>
+
           <button
             onClick={() => router.push("/companies")}
-            className="text-white px-6 py-2.5 rounded-xl font-semibold transition-all hover:brightness-110"
-            style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
+            className="bv-btn bv-btn-primary bv-sheen"
           >
             {t("app.companyNew.goToCompanies")}
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
           </button>
         </div>
       )}
@@ -450,7 +728,16 @@ function CompanyBuilderWizardInner() {
 export default function CompanyBuilderWizard() {
   const t = useTranslations();
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen" style={{ background: "#0a0d14" }}><span style={{ color: "#859399" }}>{t("app.companyNew.loading")}</span></div>}>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen" style={{ background: "var(--color-background)" }}>
+          <div className="bv-dot bv-running bv-ping" style={{ width: 10, height: 10 }} />
+          <span className="ml-3 bv-body" style={{ color: "var(--color-outline)" }}>
+            {t("app.companyNew.loading")}
+          </span>
+        </div>
+      }
+    >
       <CompanyBuilderWizardInner />
     </Suspense>
   );

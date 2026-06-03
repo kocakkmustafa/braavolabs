@@ -28,11 +28,11 @@ const CATEGORIES = [
   { id: "automation", labelKey: "catAutomation", icon: "auto_fix_high" },
 ];
 
-// Color palette stays static; status label resolves at render via key.
-const STATUS_STYLES: Record<string, { bg: string; color: string; labelKey: string }> = {
-  available: { bg: "rgba(52,211,153,0.12)", color: "#34d399", labelKey: "statusAvailable" },
-  beta: { bg: "rgba(0,209,255,0.12)", color: "#00d1ff", labelKey: "statusBeta" },
-  coming_soon: { bg: "rgba(133,147,153,0.12)", color: "#859399", labelKey: "statusComingSoon" },
+// Status config — label resolves via t() at render
+const STATUS_STYLES: Record<string, { pillClass: string; labelKey: string }> = {
+  available: { pillClass: "bv-pill bv-pill-cyan",   labelKey: "statusAvailable" },
+  beta:      { pillClass: "bv-pill bv-pill-purple",  labelKey: "statusBeta" },
+  coming_soon: { pillClass: "bv-pill bv-pill-muted", labelKey: "statusComingSoon" },
 };
 
 // Hardcoded catalog for frontend-only rendering (no API needed)
@@ -228,62 +228,85 @@ export default function IntegrationsPage() {
   const totalCount = INTEGRATION_CATALOG.length;
 
   if (!hydrated || !token) return (
-    <div className="flex items-center justify-center min-h-screen" style={{ background: "#0a0d14" }}>
+    <div className="flex items-center justify-center min-h-screen bg-background">
       <div className="loading-dots"><span /><span /><span /></div>
     </div>
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div className="bv-dash max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
+
+      {/* Page head */}
+      <div className="bv-page-head mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold font-headline gradient-text">{t("app.integrations.title")}</h1>
-          <p className="text-sm mt-0.5" style={{ color: "#859399" }}>
+          <p className="bv-micro mb-1 text-outline">Connections</p>
+          <h1 className="bv-headline gradient-text mb-1">{t("app.integrations.title")}</h1>
+          <p className="bv-caption">
             {t("app.integrations.subtitleTemplate", { total: totalCount, available: availableCount, beta: betaCount, comingSoon: totalCount - availableCount - betaCount })}
           </p>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative mb-5">
-        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2" style={{ fontSize: 18, color: "#3c494e" }}>search</span>
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={t("app.integrations.searchPlaceholder")}
-          className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none"
-          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#e1e2eb" }}
-        />
+      {/* Import CTA banner */}
+      <div className="bv-glass bv-panel flex-row items-center gap-4 mb-6" style={{ borderStyle: "dashed" }}>
+        <div
+          className="flex-none w-10 h-10 rounded-xl flex items-center justify-center"
+          style={{ background: "rgba(59,130,246,0.10)", border: "1px solid rgba(59,130,246,0.25)" }}
+        >
+          <span className="material-symbols-outlined text-primary" style={{ fontSize: 20 }}>upload</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="bv-title text-on-surface">Import an existing automation</p>
+          <p className="bv-caption mt-0.5">Bring an n8n, Make or Zapier export — we&apos;ll parse it into a pipeline.</p>
+        </div>
+        <button className="bv-btn bv-btn-primary bv-btn-sm flex-none">
+          Import
+          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>arrow_forward</span>
+        </button>
       </div>
 
-      {/* Category pills */}
-      <div className="flex flex-wrap gap-1.5 mb-6">
+      {/* Search + filter bar */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-5">
+        {/* Search input */}
+        <div className="relative flex-1 max-w-sm">
+          <span
+            className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline"
+            style={{ fontSize: 17, pointerEvents: "none" }}
+          >
+            search
+          </span>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("app.integrations.searchPlaceholder")}
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none bg-surface-container-low border border-outline-variant text-on-surface placeholder:text-outline focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
+          />
+        </div>
+      </div>
+
+      {/* Category filter chips */}
+      <div className="bv-fpills mb-6">
         {CATEGORIES.map((cat) => {
           const count = cat.id ? INTEGRATION_CATALOG.filter((c) => c.category === cat.id).length : totalCount;
+          const isActive = selectedCategory === cat.id;
           return (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-              style={{
-                background: selectedCategory === cat.id ? "rgba(0,209,255,0.12)" : "rgba(255,255,255,0.04)",
-                color: selectedCategory === cat.id ? "#00d1ff" : "#859399",
-                border: selectedCategory === cat.id ? "1px solid rgba(0,209,255,0.2)" : "1px solid rgba(255,255,255,0.06)",
-              }}
+              className={`bv-fpill${isActive ? " active" : ""}`}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>{cat.icon}</span>
+              <span className="material-symbols-outlined" style={{ fontSize: 13 }}>{cat.icon}</span>
               {t(`app.integrations.${cat.labelKey}`)}
-              <span style={{ opacity: 0.6 }}>({count})</span>
+              <span className="bv-fpill-count">{count}</span>
             </button>
           );
         })}
       </div>
 
       {/* Results count */}
-      <p className="text-xs mb-4" style={{ color: "#3c494e" }}>{t("app.integrations.resultCountTemplate", { count: filtered.length })}</p>
+      <p className="bv-micro mb-4">{t("app.integrations.resultCountTemplate", { count: filtered.length })}</p>
 
-      {/* Grid */}
+      {/* Integrations grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {filtered.map((connector) => {
           const statusStyle = STATUS_STYLES[connector.status] ?? STATUS_STYLES.coming_soon;
@@ -292,80 +315,97 @@ export default function IntegrationsPage() {
           return (
             <div
               key={connector.id}
-              className="rounded-2xl p-4 cursor-pointer transition-all hover:scale-[1.01]"
-              style={{
-                background: isExpanded ? "rgba(0,209,255,0.04)" : "rgba(255,255,255,0.02)",
-                border: isExpanded ? "1px solid rgba(0,209,255,0.15)" : "1px solid rgba(255,255,255,0.06)",
-              }}
+              className={`bv-glass cursor-pointer transition-all${isExpanded ? " glow-cyan" : ""}`}
+              style={isExpanded ? { borderColor: "rgba(59,130,246,0.25)" } : {}}
               onClick={() => setExpandedId(isExpanded ? null : connector.id)}
             >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-xl">{connector.icon}</span>
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: "#e1e2eb" }}>{connector.name}</p>
-                    <p className="text-xs capitalize" style={{ color: "#3c494e" }}>{connector.category.replace("_", " ")}</p>
+              <div className="p-4">
+                {/* Card top row */}
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2.5">
+                    {/* Integration avatar */}
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-none text-lg"
+                      style={{
+                        background: "rgba(255,255,255,0.05)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                      }}
+                    >
+                      {connector.icon}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="bv-title text-sm truncate">{connector.name}</p>
+                      <p className="bv-micro capitalize" style={{ textTransform: "none", letterSpacing: 0, fontSize: 11 }}>
+                        {connector.category.replace("_", " ")}
+                      </p>
+                    </div>
                   </div>
+                  <span className={statusStyle.pillClass}>
+                    {t(`app.integrations.${statusStyle.labelKey}`)}
+                  </span>
                 </div>
-                <span
-                  className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                  style={{ background: statusStyle.bg, color: statusStyle.color }}
-                >
-                  {t(`app.integrations.${statusStyle.labelKey}`)}
-                </span>
-              </div>
 
-              <p className="text-xs mb-3" style={{ color: "#859399", lineHeight: 1.5 }}>{connector.description}</p>
+                {/* Description */}
+                <p className="bv-caption line-clamp-2 mt-2">{connector.description}</p>
 
-              {isExpanded && (
-                <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                  <p className="text-[10px] font-semibold tracking-wider mb-2" style={{ color: "#3c494e" }}>{t("app.integrations.features")}</p>
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {connector.features.map((f) => (
-                      <span key={f} className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.04)", color: "#bbc9cf" }}>
-                        {f}
+                {/* Expanded detail */}
+                {isExpanded && (
+                  <div className="mt-3 pt-3 border-t border-outline-variant">
+                    <p className="bv-micro mb-2">{t("app.integrations.features")}</p>
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {connector.features.map((f) => (
+                        <span
+                          key={f}
+                          className="bv-mono text-on-surface-variant px-2 py-0.5 rounded-full"
+                          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", fontSize: 10 }}
+                        >
+                          {f}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="bv-micro mb-3">
+                      {t("app.integrations.authPrefix")}{" "}
+                      <span className="text-on-surface-variant normal-case" style={{ letterSpacing: 0 }}>
+                        {connector.authType.replace("_", " ").toUpperCase()}
                       </span>
-                    ))}
+                    </p>
+                    {connector.status === "available" ? (
+                      <button className="bv-btn bv-btn-primary w-full justify-center" style={{ minHeight: 36, fontSize: 12 }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>settings</span>
+                        {t("app.integrations.configure")}
+                      </button>
+                    ) : connector.status === "beta" ? (
+                      <button className="bv-btn bv-btn-ghost w-full justify-center" style={{ minHeight: 36, fontSize: 12, color: "#60A5FA", borderColor: "rgba(59,130,246,0.3)" }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>science</span>
+                        {t("app.integrations.joinBeta")}
+                      </button>
+                    ) : (
+                      <button className="bv-btn bv-btn-ghost w-full justify-center" style={{ minHeight: 36, fontSize: 12 }} disabled>
+                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>schedule</span>
+                        {t("app.integrations.comingSoonBtn")}
+                      </button>
+                    )}
                   </div>
-                  <p className="text-[10px] mb-1" style={{ color: "#3c494e" }}>
-                    {t("app.integrations.authPrefix")} <span style={{ color: "#859399" }}>{connector.authType.replace("_", " ").toUpperCase()}</span>
-                  </p>
-                  {connector.status === "available" ? (
-                    <button
-                      className="w-full mt-2 py-2 rounded-xl text-xs font-semibold transition-all hover:brightness-110"
-                      style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)", color: "#fff" }}
-                    >
-                      {t("app.integrations.configure")}
-                    </button>
-                  ) : connector.status === "beta" ? (
-                    <button
-                      className="w-full mt-2 py-2 rounded-xl text-xs font-semibold"
-                      style={{ background: "rgba(0,209,255,0.1)", color: "#00d1ff", border: "1px solid rgba(0,209,255,0.2)" }}
-                    >
-                      {t("app.integrations.joinBeta")}
-                    </button>
-                  ) : (
-                    <button
-                      className="w-full mt-2 py-2 rounded-xl text-xs font-semibold"
-                      style={{ background: "rgba(255,255,255,0.04)", color: "#859399", border: "1px solid rgba(255,255,255,0.06)" }}
-                      disabled
-                    >
-                      {t("app.integrations.comingSoonBtn")}
-                    </button>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
             </div>
           );
         })}
       </div>
 
+      {/* Empty state */}
       {filtered.length === 0 && (
-        <div className="text-center py-16">
-          <span className="material-symbols-outlined text-4xl mb-3 block" style={{ color: "#3c494e" }}>search_off</span>
-          <p className="text-sm" style={{ color: "#859399" }}>{t("app.integrations.noResults")}</p>
+        <div className="flex flex-col items-center justify-center py-20 gap-3">
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center"
+            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            <span className="material-symbols-outlined text-outline" style={{ fontSize: 28 }}>search_off</span>
+          </div>
+          <p className="bv-body text-on-surface-variant">{t("app.integrations.noResults")}</p>
         </div>
       )}
+
     </div>
   );
 }
