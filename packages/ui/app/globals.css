@@ -747,15 +747,10 @@ html.light ::selection {
 }
 
 /* ─────────────────────────────────────────────────────────────────
- * BRAAVOLABS DESIGN SYSTEM — bv-* utility layer
- *
- * Ports the full mobile-app design language to web. New surfaces
- * (starting with /dashboard) opt in by using bv-* utilities; legacy
- * surfaces keep using the existing .glass-card / .neural-mesh / etc.
- * Both systems coexist — there's no big-bang migration.
- *
- * Source of truth: Apps/Braavo/design/braavo-app/project/styles/braavo.css
- * Brief: docs/design-refresh-prompt.md
+ * THE FORGE — bv-* utility layer
+ * Obsidian + brushed-steel + electric arc-blue / ember / molten design
+ * system. Shared surface / card / button / pill / status / motion
+ * utilities used across the app, in lockstep with the @theme tokens above.
  * ───────────────────────────────────────────────────────────────── */
 
 :root {
