@@ -123,9 +123,6 @@ braavolabs/
 | Custom domain split (api / app subdomains) | [docs/custom-domain-setup.md](docs/custom-domain-setup.md) |
 | Pipeline export DRM (machine-bound encryption) | [docs/pipeline-drm.md](docs/pipeline-drm.md) |
 | Deployment runbook (GitHub Actions → Lightsail) | [docs/deployment-github-actions.md](docs/deployment-github-actions.md) |
-| Stripe pre-live test plan | [docs/stripe-pre-live-tests.md](docs/stripe-pre-live-tests.md) |
-| Tool call verification | [docs/tool-call-verification.md](docs/tool-call-verification.md) |
-| Design brief | [docs/DESIGN-BRIEF.md](docs/DESIGN-BRIEF.md) |
 
 Plus product context for Claude / coding agents in [`CLAUDE.md`](CLAUDE.md).
 
