@@ -41,6 +41,13 @@ const envShape = z.object({
   // See packages/api/src/index.ts for the full risk discussion.
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(1),
   APP_URL: z.string().default("http://localhost:3001"),
+  // Public origin where THIS API is reachable from the internet. Used to
+  // build links that must hit API routes directly (e.g. the one-click
+  // GET /api/v1/auth/verify-email in verification emails — pointing those
+  // at APP_URL 404s because the UI has no such page). Optional: when unset
+  // it is resolved below — production → APP_URL (nginx serves /api/v1 on
+  // the same origin), dev → http://localhost:<API_PORT>.
+  API_PUBLIC_URL: z.preprocess((v) => (v === "" ? undefined : v), z.string().url().optional()),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   // Empty-string-tolerant URL validators. docker-compose's
@@ -215,5 +222,14 @@ if (parsed.NODE_ENV === "production") {
     }
   }
 }
+
+// Resolve API_PUBLIC_URL when unset. In production the API is reachable on
+// the APP_URL origin (nginx proxies /api/v1 → :8080 — live-verified); in
+// dev/test the API serves directly on localhost:<API_PORT>. Trailing slashes
+// are stripped so `${env.API_PUBLIC_URL}/api/v1/...` concatenation is safe.
+parsed.API_PUBLIC_URL = (
+  parsed.API_PUBLIC_URL ??
+  (parsed.NODE_ENV === "production" ? parsed.APP_URL : `http://localhost:${parsed.API_PORT}`)
+).replace(/\/+$/, "");
 
 export const env: Env = parsed;

@@ -3,6 +3,11 @@
  */
 
 import { logger } from "../lib/logger";
+import { env } from "../config/env";
+
+// Warn-once latch for the dev/no-key no-op path, so local logs aren't
+// spammed on every send attempt.
+let warnedEmailDisabled = false;
 
 interface SendEmailParams {
   to: string;
@@ -21,7 +26,25 @@ export async function sendEmail(params: SendEmailParams): Promise<{ messageId: s
   const fromEmail = params.from ?? process.env.SENDGRID_FROM_EMAIL ?? "noreply@braavolabs.com";
 
   if (!apiKey) {
-    // Development mode — log instead of sending
+    // In production a missing key must surface as a FAILURE, not a fake
+    // success — otherwise verification / reset / welcome emails silently
+    // vanish while every caller believes they were delivered.
+    // (OFFLINE_MODE is the one sanctioned exception: air-gapped
+    // self-hosted deployments deliberately skip outbound SaaS calls.)
+    if (env.NODE_ENV === "production" && !env.OFFLINE_MODE) {
+      logger.error(
+        { to: params.to, subject: params.subject },
+        "EMAIL DISABLED — SENDGRID_API_KEY is not set in production; refusing to fake a successful send",
+      );
+      throw new Error("EMAIL DISABLED: SENDGRID_API_KEY is not configured");
+    }
+    // Development / offline mode — log instead of sending (warn once)
+    if (!warnedEmailDisabled) {
+      warnedEmailDisabled = true;
+      logger.warn(
+        "EMAIL DISABLED — SENDGRID_API_KEY not set; emails will be logged instead of sent",
+      );
+    }
     logger.info(
       { to: params.to, subject: params.subject },
       "Email would be sent (SENDGRID_API_KEY not set)",

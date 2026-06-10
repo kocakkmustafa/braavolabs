@@ -190,11 +190,13 @@ export const api = {
   billingCheckout: (
     token: string,
     plan: "CREATOR" | "PRO" | "BUSINESS" | "ENTERPRISE",
-    billingPeriod: "monthly" | "yearly" = "monthly",
+    // Field name must be `billingCycle` — the API's checkout Zod schema
+    // (billing/router.ts) silently defaulted `billingPeriod` to monthly.
+    billingCycle: "monthly" | "yearly" = "monthly",
   ) =>
     apiFetch<{ url: string }>("/billing/checkout", {
       method: "POST",
-      body: JSON.stringify({ plan, billingPeriod }),
+      body: JSON.stringify({ plan, billingCycle }),
       token,
     }),
   billingPortal: (token: string) =>

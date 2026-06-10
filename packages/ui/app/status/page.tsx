@@ -283,7 +283,7 @@ export default function StatusPage() {
             <h5 className="bv-micro mb-3">Product</h5>
             <div className="flex flex-col gap-2">
               {["Features", "Pricing", "Changelog"].map((l) => (
-                <a key={l} href="#" className="bv-caption text-on-surface-variant hover:text-on-surface transition-colors no-underline">{l}</a>
+                <a key={l} href={`/${l.toLowerCase()}`} className="bv-caption text-on-surface-variant hover:text-on-surface transition-colors no-underline">{l}</a>
               ))}
             </div>
           </div>
@@ -291,7 +291,7 @@ export default function StatusPage() {
             <h5 className="bv-micro mb-3">Company</h5>
             <div className="flex flex-col gap-2">
               {["About", "Blog", "Contact"].map((l) => (
-                <a key={l} href="#" className="bv-caption text-on-surface-variant hover:text-on-surface transition-colors no-underline">{l}</a>
+                <a key={l} href={`/${l.toLowerCase()}`} className="bv-caption text-on-surface-variant hover:text-on-surface transition-colors no-underline">{l}</a>
               ))}
             </div>
           </div>
@@ -299,7 +299,7 @@ export default function StatusPage() {
             <h5 className="bv-micro mb-3">Legal</h5>
             <div className="flex flex-col gap-2">
               {["Privacy", "Terms", "KVKK"].map((l) => (
-                <a key={l} href="#" className="bv-caption text-on-surface-variant hover:text-on-surface transition-colors no-underline">{l}</a>
+                <a key={l} href={`/${l.toLowerCase()}`} className="bv-caption text-on-surface-variant hover:text-on-surface transition-colors no-underline">{l}</a>
               ))}
             </div>
           </div>

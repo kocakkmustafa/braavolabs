@@ -447,7 +447,10 @@ export async function register(data: {
           emailVerifyTokenExpiresAt: expires,
         },
       });
-      const verifyUrl = `${env.APP_URL}/auth/verify-email?token=${rawToken}`;
+      // Must point at the API's own public origin — GET /api/v1/auth/verify-email
+      // redeems the token and redirects to the UI's /auth/verified page.
+      // (`${APP_URL}/auth/verify-email` was a 404: the UI has no such route.)
+      const verifyUrl = `${env.API_PUBLIC_URL}/api/v1/auth/verify-email?token=${rawToken}`;
       await sendVerifyEmail({ to: result.user.email, verifyUrl });
     } catch {
       /* non-critical — user can re-request via /auth/verify-email/resend */
@@ -1456,7 +1459,8 @@ export async function resendVerifyEmail(userId: string): Promise<void> {
     },
   });
 
-  const verifyUrl = `${env.APP_URL}/auth/verify-email?token=${rawToken}`;
+  // API origin route, not APP_URL — see the comment in register() above.
+  const verifyUrl = `${env.API_PUBLIC_URL}/api/v1/auth/verify-email?token=${rawToken}`;
   await sendVerifyEmail({ to: user.email, verifyUrl }).catch(() => {
     /* non-critical — user can re-request */
   });

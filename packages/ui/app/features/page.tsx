@@ -544,7 +544,7 @@ export default function FeaturesPage() {
               <span className="material-symbols-outlined text-sm">rocket_launch</span>
               {t("features.ctaPrimary") || "Start free — 3 runs"}
             </a>
-            <a href="/run" className="bv-btn bv-btn-ghost">
+            <a href="/runs" className="bv-btn bv-btn-ghost">
               <span className="material-symbols-outlined text-sm">play_circle</span>
               {t("features.ctaSecondary") || "Watch it steer"}
             </a>

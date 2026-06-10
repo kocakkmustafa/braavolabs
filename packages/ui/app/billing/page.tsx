@@ -158,7 +158,7 @@ export default function BillingPage() {
               {subscription?.subscription && (
                 <p className="bv-mono text-on-surface-variant mb-[20px]">
                   {subscription.subscription.cancelAtPeriodEnd ? t("app.billing.cancels") : t("app.billing.renews")}{" "}
-                  {new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()} · via App Store
+                  {new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()} · via Stripe
                 </p>
               )}
 
@@ -184,8 +184,30 @@ export default function BillingPage() {
             <div className="bv-glass p-[22px] flex flex-col gap-2">
               <p className="bv-micro mb-2">Manage subscription</p>
               <p className="bv-caption leading-relaxed mb-2">
-                Paid plans bill as in-app subscriptions. Manage, upgrade or cancel from the store you subscribed through — changes sync here automatically.
+                Web plans bill through Stripe — manage, upgrade or cancel anytime in the billing portal. Mobile subscriptions are managed in the store you subscribed through; changes sync here automatically.
               </p>
+
+              {/* Stripe (web) row */}
+              <div
+                className="flex items-center gap-3 py-[10px] border-b"
+                style={{ borderColor: "var(--color-outline-variant)" }}
+              >
+                <div
+                  className="w-[30px] h-[30px] rounded-[8px] flex items-center justify-center flex-shrink-0 border"
+                  style={{ background: "var(--color-surface-container)", borderColor: "var(--bv-steel-highlight)" }}
+                >
+                  <span className="material-symbols-outlined text-sm text-on-surface-variant">credit_card</span>
+                </div>
+                <span className="bv-body text-on-surface flex-1">Stripe subscription</span>
+                {subscription?.stripeCustomerId ? (
+                  <button onClick={handlePortal} className="bv-btn bv-btn-sm bv-btn-primary">
+                    Manage
+                    <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                  </button>
+                ) : (
+                  <span className="bv-caption text-on-surface-variant">Not active</span>
+                )}
+              </div>
 
               {/* App Store row */}
               <div
@@ -199,14 +221,7 @@ export default function BillingPage() {
                   <span className="material-symbols-outlined text-sm text-on-surface-variant">apple</span>
                 </div>
                 <span className="bv-body text-on-surface flex-1">App Store subscription</span>
-                {subscription?.stripeCustomerId ? (
-                  <button onClick={handlePortal} className="bv-btn bv-btn-sm bv-btn-primary">
-                    Manage
-                    <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                  </button>
-                ) : (
-                  <span className="bv-caption" style={{ color: "var(--color-primary)" }}>Manage →</span>
-                )}
+                <span className="bv-caption text-on-surface-variant">Managed in store</span>
               </div>
 
               {/* Google Play row */}
@@ -218,7 +233,7 @@ export default function BillingPage() {
                   <span className="material-symbols-outlined text-sm text-on-surface-variant">play_arrow</span>
                 </div>
                 <span className="bv-body text-on-surface flex-1">Google Play subscription</span>
-                <span className="bv-caption text-on-surface-variant">Not used</span>
+                <span className="bv-caption text-on-surface-variant">Managed in store</span>
               </div>
             </div>
           </div>
@@ -231,8 +246,8 @@ export default function BillingPage() {
             <div className="p-6 flex flex-col gap-[18px]">
               {[
                 { label: t("app.billing.meterRuns"), current: usage?.live?.runs ?? 0, limit: limits.runs, icon: "play_circle" },
-                { label: "Workspaces", current: usage?.live?.workspaces ?? 4, limit: limits.companies, icon: "workspaces" },
-                { label: t("app.billing.meterConnections"), current: usage?.live?.connections ?? 9, limit: limits.connectedAutomations, icon: "lan" },
+                { label: "Workspaces", current: usage?.live?.workspaces ?? 0, limit: limits.companies, icon: "workspaces" },
+                { label: t("app.billing.meterConnections"), current: usage?.live?.connections ?? 0, limit: limits.connectedAutomations, icon: "lan" },
                 { label: t("app.billing.meterToolCalls"), current: usage?.live?.toolCalls ?? 0, limit: -1, icon: "build" },
               ].map((m) => {
                 const unlimited = m.limit < 0;
