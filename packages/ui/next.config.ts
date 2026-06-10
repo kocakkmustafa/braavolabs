@@ -39,6 +39,18 @@ const nextConfig: NextConfig = {
   // Strip the X-Powered-By: Next.js header — frameworks that leak their
   // identity narrow attacker exploit search.
   poweredByHeader: false,
+  // Store-listing aliases. App Store Connect's Support URL points at
+  // /destek and Play's privacy-policy field at /legal/privacy — both
+  // reviewers hard-fail on 404s (Apple Guideline 1.5, Play pre-submit
+  // check), so these must resolve even after metadata is corrected to
+  // the canonical paths.
+  async redirects() {
+    return [
+      { source: "/destek", destination: "/support", permanent: true },
+      { source: "/legal/privacy", destination: "/privacy", permanent: true },
+      { source: "/legal/terms", destination: "/terms", permanent: true },
+    ];
+  },
   async headers() {
     return [
       {

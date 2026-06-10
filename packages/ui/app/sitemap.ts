@@ -18,6 +18,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/features", changeFrequency: "weekly", priority: 0.8 },
     { path: "/about", changeFrequency: "monthly", priority: 0.6 },
     { path: "/contact", changeFrequency: "monthly", priority: 0.6 },
+    // Apple Guideline 1.5: the ASC Support URL (/destek → 301 here)
+    // must resolve to a functional support page.
+    { path: "/support", changeFrequency: "monthly", priority: 0.6 },
     { path: "/blog", changeFrequency: "weekly", priority: 0.5 },
     { path: "/changelog", changeFrequency: "weekly", priority: 0.4 },
     { path: "/status", changeFrequency: "daily", priority: 0.4 },
