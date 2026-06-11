@@ -1,100 +1,85 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { API_BASE } from "../../lib/api";
 
-const SERVICES = [
-  { nm: "API",                sub: "api.braavolabs.com",     up: "99.99%", st: "ok"  },
-  { nm: "Run engine (SSE)",   sub: "streaming runs",          up: "99.97%", st: "ok"  },
-  { nm: "Visual builder",     sub: "pipeline canvas",         up: "100.0%", st: "ok"  },
-  { nm: "Connections poller", sub: "n8n · Make · Zapier",     up: "99.82%", st: "deg" },
-  { nm: "Webhooks fan-in",    sub: "/hooks/:slug",            up: "99.95%", st: "ok"  },
-  { nm: "Mobile push",        sub: "deep-links",              up: "99.91%", st: "ok"  },
-] as const;
+// ─── Honest status ───────────────────────────────────────────────────
+//
+// Everything on this page is derived from a LIVE probe of the public
+// API health endpoint (GET /api/v1/health → { status: "ok" | "degraded" },
+// HTTP 200/503). No fabricated uptime percentages, no invented incident
+// history — we don't run an uptime tracker yet, so we don't pretend to.
 
-const INCIDENTS = [
-  {
-    title: "Connections poller — elevated latency",
-    meta: "Make polling delayed up to 90s · monitoring",
-    badge: "deg" as const,
-    bv: "bv-pill-amber",
-    label: "Degraded",
-    date: "Jun 2, 14:20 UTC",
-  },
-  {
-    title: "API — brief 502s during deploy",
-    meta: "Resolved in 4m · rolling deploy fixed",
-    badge: "resolved" as const,
-    bv: "bv-pill-cyan",
-    label: "Resolved",
-    date: "May 29, 03:11 UTC",
-  },
-  {
-    title: "Run engine — SSE reconnect storm",
-    meta: "Resolved in 12m · backpressure added",
-    badge: "resolved" as const,
-    bv: "bv-pill-cyan",
-    label: "Resolved",
-    date: "May 18, 19:40 UTC",
-  },
-] as const;
+const REFRESH_MS = 60_000;
 
-type ServiceStatus = "ok" | "deg" | "down";
+type ProbeState = "checking" | "ok" | "degraded" | "down";
 
-function UptimeBars({ st }: { st: ServiceStatus }) {
-  const bars: { cls: string; h: number }[] = Array.from({ length: 40 }, (_, i) => {
-    const r = (Math.sin(i * 7.3 + (st === "deg" ? 2.1 : 0)) + 1) / 2;
-    let cls = "";
-    if (st === "deg" && i > 32 && r > 0.5) cls = "deg";
-    if (st === "down" && i > 35) cls = "down";
-    const h = cls ? 60 + r * 40 : 78 + r * 22;
-    return { cls, h };
-  });
+interface Probe {
+  state: ProbeState;
+  checkedAt: Date | null;
+}
 
+const STATE_COLOR: Record<ProbeState, string> = {
+  checking: "var(--color-outline)",
+  ok: "var(--bv-status-completed)",
+  degraded: "var(--bv-status-running)",
+  down: "var(--bv-status-failed)",
+};
+
+function useApiHealth(): Probe {
+  const [probe, setProbe] = useState<Probe>({ state: "checking", checkedAt: null });
+
+  const check = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/health`, { cache: "no-store" });
+      // 503 still carries { status: "degraded" } — a reachable-but-
+      // degraded API is a different (and more informative) signal than
+      // an unreachable one.
+      const body = await res.json().catch(() => null);
+      const state: ProbeState =
+        res.ok && body?.status === "ok" ? "ok" : "degraded";
+      setProbe({ state, checkedAt: new Date() });
+    } catch {
+      setProbe({ state: "down", checkedAt: new Date() });
+    }
+  }, []);
+
+  useEffect(() => {
+    void check();
+    const id = setInterval(() => void check(), REFRESH_MS);
+    return () => clearInterval(id);
+  }, [check]);
+
+  return probe;
+}
+
+function StatusDot({ state, size = 9 }: { state: ProbeState; size?: number }) {
   return (
-    <div className="flex gap-px items-end h-7 flex-1">
-      {bars.map((b, i) => (
-        <span
-          key={i}
-          className="flex-1 rounded-[1px]"
-          style={{
-            height: `${b.h}%`,
-            background:
-              b.cls === "down"
-                ? "var(--bv-status-failed)"
-                : b.cls === "deg"
-                ? "var(--bv-status-running)"
-                : "var(--bv-status-completed)",
-            opacity: 0.85,
-          }}
-        />
-      ))}
-    </div>
+    <span
+      className={state === "checking" ? "bv-dot" : "bv-dot bv-ping"}
+      style={{ width: size, height: size, background: STATE_COLOR[state] }}
+    />
   );
 }
 
-function ServiceDot({ st }: { st: ServiceStatus }) {
-  if (st === "ok")
-    return <span className="bv-dot bv-completed bv-ping" style={{ background: "var(--bv-status-completed)" }} />;
-  if (st === "deg")
-    return <span className="bv-dot bv-running bv-ping" />;
-  return <span className="bv-dot bv-failed bv-ping" />;
-}
-
-const ST_LABEL: Record<ServiceStatus, string> = {
-  ok: "Operational",
-  deg: "Degraded",
-  down: "Down",
-};
-
-const ST_COLOR: Record<ServiceStatus, string> = {
-  ok:   "color-mix(in srgb, var(--bv-status-completed) 90%, transparent)",
-  deg:  "color-mix(in srgb, var(--bv-status-running) 90%, transparent)",
-  down: "color-mix(in srgb, var(--bv-status-failed) 90%, transparent)",
-};
-
 export default function StatusPage() {
   const t = useTranslations();
-  const serviceKeys = ["website", "auth", "api", "runs", "database", "email"] as const;
+  const probe = useApiHealth();
+
+  const bannerTitle: Record<ProbeState, string> = {
+    checking: "Checking system status…",
+    ok: t("static.status.title"), // "All systems operational"
+    degraded: "API degraded — some requests may fail",
+    down: "API unreachable",
+  };
+
+  const rowLabel: Record<ProbeState, string> = {
+    checking: "Checking…",
+    ok: t("static.status.operational"),
+    degraded: "Degraded",
+    down: "Unreachable",
+  };
 
   return (
     <div className="bv-mesh min-h-screen" style={{ fontFamily: "var(--bv-font-body)" }}>
@@ -128,20 +113,19 @@ export default function StatusPage() {
           System status
         </p>
 
-        {/* Banner — All systems operational */}
+        {/* Banner — live result of the health probe */}
         <div
           className="bv-glass flex items-center gap-4 px-6 py-5 mb-8"
           style={{ borderRadius: 16 }}
         >
-          {/* big ping dot */}
           <span
-            className="bv-dot bv-completed bv-ping"
+            className={probe.state === "checking" ? "bv-dot" : "bv-dot bv-ping"}
             style={{
               width: 14,
               height: 14,
               flexShrink: 0,
-              background: "var(--bv-status-completed)",
-              boxShadow: "0 0 16px var(--bv-status-completed)",
+              background: STATE_COLOR[probe.state],
+              boxShadow: probe.state === "checking" ? "none" : `0 0 16px ${STATE_COLOR[probe.state]}`,
             }}
           />
           <div className="flex-1 min-w-0">
@@ -149,108 +133,70 @@ export default function StatusPage() {
               className="bv-headline"
               style={{ fontSize: "clamp(18px,3vw,28px)", textTransform: "uppercase", letterSpacing: "-0.01em" }}
             >
-              {t("static.status.title")}
+              {bannerTitle[probe.state]}
             </h1>
           </div>
           <div className="flex items-center gap-2 bv-mono" style={{ color: "var(--color-outline)", flexShrink: 0 }}>
-            <span
-              className="bv-dot bv-completed"
-              style={{ background: "var(--bv-status-completed)", width: 7, height: 7 }}
-            />
-            <span>auto-refresh · 15s</span>
+            <StatusDot state={probe.state} size={7} />
+            <span>auto-refresh · 60s</span>
           </div>
         </div>
 
-        {/* ── Services card ─────────────────────────────── */}
+        {/* ── Live checks ───────────────────────────────── */}
         <div className="bv-glass" style={{ borderRadius: 16, overflow: "hidden" }}>
-          {SERVICES.map((svc, idx) => (
-            <div
-              key={svc.nm}
-              className="flex items-center gap-4 px-5 py-4"
-              style={{
-                borderBottom: idx < SERVICES.length - 1 ? "1px solid var(--bv-glass-border)" : "none",
-              }}
-            >
-              {/* name + sub */}
-              <div style={{ minWidth: 160 }}>
-                <div className="text-sm font-medium text-on-surface">{svc.nm}</div>
-                <div className="bv-mono mt-0.5" style={{ color: "var(--color-outline)" }}>{svc.sub}</div>
-              </div>
-
-              {/* uptime spark bars */}
-              <UptimeBars st={svc.st as ServiceStatus} />
-
-              {/* uptime % */}
-              <span className="bv-mono text-on-surface-variant" style={{ minWidth: 56, textAlign: "right" }}>
-                {svc.up}
-              </span>
-
-              {/* status label */}
-              <div
-                className="flex items-center gap-2 bv-mono"
-                style={{ minWidth: 110, justifyContent: "flex-end", color: ST_COLOR[svc.st as ServiceStatus] }}
-              >
-                <ServiceDot st={svc.st as ServiceStatus} />
-                {ST_LABEL[svc.st as ServiceStatus]}
+          {/* API — probed live against the public health endpoint */}
+          <div
+            className="flex items-center gap-4 px-5 py-4"
+            style={{ borderBottom: "1px solid var(--bv-glass-border)" }}
+          >
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-on-surface">API</div>
+              <div className="bv-mono mt-0.5" style={{ color: "var(--color-outline)" }}>
+                GET /api/v1/health · live probe from your browser
               </div>
             </div>
-          ))}
+            <div
+              className="flex items-center gap-2 bv-mono"
+              style={{ minWidth: 110, justifyContent: "flex-end", color: STATE_COLOR[probe.state] }}
+            >
+              <StatusDot state={probe.state} />
+              {rowLabel[probe.state]}
+            </div>
+          </div>
+
+          {/* Website — self-evident: this page is being served */}
+          <div className="flex items-center gap-4 px-5 py-4">
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-on-surface">
+                {t("static.status.services.website")}
+              </div>
+              <div className="bv-mono mt-0.5" style={{ color: "var(--color-outline)" }}>
+                serving this page right now
+              </div>
+            </div>
+            <div
+              className="flex items-center gap-2 bv-mono"
+              style={{ minWidth: 110, justifyContent: "flex-end", color: "var(--bv-status-completed)" }}
+            >
+              <StatusDot state="ok" />
+              {t("static.status.operational")}
+            </div>
+          </div>
         </div>
 
-        {/* ── Incident history ──────────────────────────── */}
-        <section className="mt-14 mb-20">
-          <h2
-            className="bv-headline mb-6"
-            style={{ textTransform: "uppercase", letterSpacing: "-0.01em" }}
-          >
-            Incident history
-          </h2>
+        {/* checked-at + honesty note */}
+        <div className="bv-mono mt-3 px-1" style={{ color: "var(--color-outline)" }}>
+          {probe.checkedAt
+            ? `Last checked ${probe.checkedAt.toLocaleTimeString()} (your local time)`
+            : "Running first check…"}
+        </div>
+        <p className="bv-caption mt-4 mb-14 px-1" style={{ color: "var(--color-on-surface-variant)" }}>
+          This page reflects a live health check only. We don't publish uptime
+          percentages or an incident timeline yet — historical uptime tracking
+          is on the roadmap, and we'd rather show nothing than made-up numbers.
+        </p>
 
-          <div className="flex flex-col gap-0">
-            {INCIDENTS.map((inc, idx) => (
-              <div key={idx} className="grid gap-4" style={{ gridTemplateColumns: "30px 1fr", paddingBottom: 22 }}>
-                {/* rail */}
-                <div className="flex flex-col items-center">
-                  <span
-                    style={{
-                      width: 11,
-                      height: 11,
-                      borderRadius: "50%",
-                      marginTop: 5,
-                      flexShrink: 0,
-                      border: `2px solid ${inc.badge === "deg" ? "var(--bv-status-running)" : "var(--bv-status-completed)"}`,
-                      boxShadow: `0 0 8px ${inc.badge === "deg" ? "var(--bv-status-running)" : "var(--bv-status-completed)"}`,
-                      background: "var(--color-background)",
-                      display: "block",
-                    }}
-                  />
-                  {idx < INCIDENTS.length - 1 && (
-                    <span
-                      className="flex-1 mt-1"
-                      style={{
-                        width: 2,
-                        background: "linear-gradient(180deg, var(--bv-steel-shadow), transparent)",
-                      }}
-                    />
-                  )}
-                </div>
-
-                {/* content */}
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium text-on-surface">{inc.title}</span>
-                    <span className={`bv-pill ${inc.bv}`}>{inc.label}</span>
-                  </div>
-                  <div className="bv-mono mt-1" style={{ color: "var(--color-outline)" }}>
-                    {inc.meta} · {inc.date}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── Alert box (from original page) ─────────────── */}
+        {/* ── Alert box ─────────────────────────────────── */}
         <div
           className="bv-glass px-5 py-4 mb-16 text-sm"
           style={{

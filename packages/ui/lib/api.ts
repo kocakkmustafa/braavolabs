@@ -1,33 +1,115 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
+import { useAppStore } from "./store";
+
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
 
 interface FetchOptions extends RequestInit {
   token?: string;
 }
 
+// ─── Session refresh on 401 ─────────────────────────────────────────
+//
+// Access tokens expire after 1h while the refresh token lives for days.
+// Without interception every API call after the first hour throws and
+// the app looks broken until the user manually re-logs. On the first
+// 401 of an authenticated call we redeem the stored refresh token once
+// and replay the original request with the new access token.
+//
+// Single-flight: the server ROTATES the refresh token on use (the old
+// one is revoked), so concurrent 401s must share one in-flight refresh —
+// a second redeem of the same token would 401 and log everyone out.
+let refreshInFlight: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  const { refreshToken } = useAppStore.getState();
+  if (!refreshToken) return null;
+  try {
+    const res = await fetch(`${API_BASE}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!res.ok) return null;
+    const data: {
+      token: string;
+      refreshToken: string;
+      tenant: { id: string };
+    } = await res.json();
+    const { setAuth, tenantId } = useAppStore.getState();
+    setAuth(data.token, data.tenant?.id ?? tenantId ?? "", data.refreshToken);
+    return data.token;
+  } catch {
+    return null;
+  }
+}
+
+function refreshOnce(): Promise<string | null> {
+  refreshInFlight ??= refreshAccessToken().finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
+}
+
+// Refresh failed (revoked / expired / Redis-down fail-closed): drop the
+// dead session and send the user to /login instead of leaving them on a
+// page where every request silently 401s.
+function hardLogout(): void {
+  useAppStore.getState().clearAuth();
+  if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+    window.location.href = "/login";
+  }
+}
+
+async function throwApiError(res: Response): Promise<never> {
+  const body = await res.json().catch(() => ({}));
+  // Server's zod errors put the actionable text in `message` ("password:
+  // Password must contain uppercase, lowercase, and a number"), not in
+  // the top-level `error` ("Validation failed"). Surface the most
+  // specific field available so the form shows the real reason.
+  const detail =
+    body.message ||
+    body.issues?.[0]?.message ||
+    body.error ||
+    `API error: ${res.status}`;
+  throw new Error(detail);
+}
+
 export async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
   const { token, headers, ...rest } = options;
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...headers,
-    },
-    ...rest,
-  });
+  // `rest.body` is always a string (callers JSON.stringify), so the
+  // request can be safely replayed after a token refresh.
+  const doFetch = (bearer?: string) =>
+    fetch(`${API_BASE}${path}`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(bearer && { Authorization: `Bearer ${bearer}` }),
+        ...headers,
+      },
+      ...rest,
+    });
+
+  let res = await doFetch(token);
+
+  // 401 on an authenticated call → try one refresh + replay. /auth/*
+  // endpoints are excluded: a 401 there is a real credential failure
+  // (bad password, dead refresh token), not an expired access token.
+  if (res.status === 401 && token && !path.startsWith("/auth/")) {
+    const newToken = await refreshOnce();
+    if (!newToken) {
+      hardLogout();
+      throw new Error("Session expired — please sign in again.");
+    }
+    res = await doFetch(newToken);
+    if (res.status === 401) {
+      // A freshly-minted token was rejected — server-side revocation
+      // (kicked from tenant, role change). Don't loop; sign out.
+      hardLogout();
+      throw new Error("Session expired — please sign in again.");
+    }
+  }
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    // Server's zod errors put the actionable text in `message` ("password:
-    // Password must contain uppercase, lowercase, and a number"), not in
-    // the top-level `error` ("Validation failed"). Surface the most
-    // specific field available so the form shows the real reason.
-    const detail =
-      body.message ||
-      body.issues?.[0]?.message ||
-      body.error ||
-      `API error: ${res.status}`;
-    throw new Error(detail);
+    await throwApiError(res);
   }
 
   return res.json();
@@ -44,12 +126,17 @@ export const api = {
     apiFetch<{ token: string; user: any; tenant: any }>("/auth/register", {
       method: "POST", body: JSON.stringify(data),
     }),
+  // `credentials: "include"` — the authorize response sets an httpOnly
+  // state cookie on the API origin (double-submit CSRF binding, verified
+  // at the OAuth callback). The API is cross-origin but same-site
+  // (api.braavolabs.com ↔ braavolabs.com), so browsers accept the cookie
+  // as long as the fetch carries credentials; CORS already allows it.
   googleAuthUrl: () =>
-    apiFetch<{ url: string }>("/auth/google"),
+    apiFetch<{ url: string }>("/auth/google", { credentials: "include" }),
   githubAuthUrl: () =>
-    apiFetch<{ url: string }>("/auth/github"),
+    apiFetch<{ url: string }>("/auth/github", { credentials: "include" }),
   appleAuthUrl: () =>
-    apiFetch<{ url: string }>("/auth/apple"),
+    apiFetch<{ url: string }>("/auth/apple", { credentials: "include" }),
   forgotPassword: (email: string) =>
     apiFetch<{ message: string }>("/auth/forgot-password", {
       method: "POST", body: JSON.stringify({ email }),

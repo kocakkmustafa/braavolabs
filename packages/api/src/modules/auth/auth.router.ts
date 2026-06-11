@@ -4,6 +4,7 @@
  */
 
 import { Router, urlencoded } from "express";
+import type { Request, Response } from "express";
 import crypto from "crypto";
 import { z } from "zod";
 import { register, login, getGoogleAuthUrl, googleCallback, getGitHubAuthUrl, githubCallback, requestPasswordReset, resetPassword, refreshTokens, revokeAllRefreshTokens, stashOAuthExchange, redeemOAuthExchange, appleMobileSignIn, googleMobileSignIn, githubMobileSignIn, verifyEmail, resendVerifyEmail, getAppleWebAuthUrl, appleWebCallback } from "./auth.service";
@@ -55,6 +56,83 @@ const registerRateLimit = rateLimit({
   maxRequests: 5,
   keyPrefix: "rl:register",
 });
+
+// ─── OAuth state browser binding (double-submit cookie) ─────────────
+//
+// The Redis `oauth:state:*` key proves a state value was ISSUED BY US
+// and is single-use — but it's global: any browser presenting any
+// outstanding state passes. That leaves a login-CSRF / session-fixation
+// hole: an attacker who starts a flow themselves can splice their fresh
+// `state` (+ their own OAuth code) into a victim's browser and silently
+// log the victim into the attacker's account.
+//
+// Fix: at authorize time we ALSO drop the state into an httpOnly cookie
+// on the API origin; the callback requires the cookie to match the
+// `state` query param. The cookie can only exist in the browser that
+// called the authorize endpoint, so the flow is bound to one user agent.
+//
+// SameSite notes:
+//  - Google/GitHub return via top-level GET redirect → `Lax` is sent.
+//  - Apple returns via cross-site form POST (`response_mode=form_post`)
+//    → Lax cookies are NOT attached to cross-site POSTs, so Apple's
+//    cookie must be `None` (+ Secure — Apple web auth requires HTTPS
+//    anyway, so the dev-mode loss is theoretical).
+// The UI fetches the authorize endpoints with `credentials: "include"`;
+// app and API are same-site (*.braavolabs.com), so browsers accept the
+// cookie. Mobile clients use the /auth/*/mobile endpoints and are
+// unaffected.
+const OAUTH_STATE_COOKIE_PREFIX = "bv_oauth_state_";
+// Scope to the auth router so the cookie never rides along on other
+// API requests. Must match the mount path in index.ts (`/api/v1/auth`).
+const OAUTH_STATE_COOKIE_PATH = "/api/v1/auth";
+
+type OAuthProvider = "google" | "github" | "apple";
+
+function setOAuthStateCookie(res: Response, provider: OAuthProvider, state: string): void {
+  res.cookie(`${OAUTH_STATE_COOKIE_PREFIX}${provider}`, state, {
+    httpOnly: true,
+    secure: env.NODE_ENV === "production" || provider === "apple",
+    sameSite: provider === "apple" ? "none" : "lax",
+    maxAge: 10 * 60 * 1000, // matches the Redis state TTL
+    path: OAUTH_STATE_COOKIE_PATH,
+  });
+}
+
+function readCookie(req: Request, name: string): string | null {
+  const header = req.headers.cookie;
+  if (!header) return null;
+  for (const part of header.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq === -1) continue;
+    if (part.slice(0, eq).trim() === name) {
+      try {
+        return decodeURIComponent(part.slice(eq + 1).trim());
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * One-time read + verify of the state cookie. Always clears the cookie
+ * (success or failure) so a state value can never be replayed from the
+ * cookie jar. Returns true only when the cookie exists and matches the
+ * `state` the provider echoed back.
+ */
+function consumeOAuthStateCookie(
+  req: Request,
+  res: Response,
+  provider: OAuthProvider,
+  state: string,
+): boolean {
+  const name = `${OAUTH_STATE_COOKIE_PREFIX}${provider}`;
+  const cookieState = readCookie(req, name);
+  res.clearCookie(name, { path: OAUTH_STATE_COOKIE_PATH });
+  if (!cookieState || cookieState.length !== state.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(cookieState), Buffer.from(state));
+}
 
 // Exported so __tests__/auth.test.ts can validate them in isolation.
 // Anything that lands in the production form/router contract belongs in
@@ -147,6 +225,7 @@ authRouter.get("/google", async (_req, res, next) => {
   try {
     const state = crypto.randomBytes(32).toString("hex");
     await redis.set(`oauth:state:${state}`, "1", "EX", 600); // 10 min TTL
+    setOAuthStateCookie(res, "google", state); // bind flow to this browser
     const url = getGoogleAuthUrl(state);
     res.json({ url, state });
   } catch (err) { next(err); }
@@ -172,6 +251,14 @@ authRouter.get("/google/callback", async (req, res, next) => {
     }
     await redis.del(stateKey); // One-time use
 
+    // Double-submit: the state must come back from the SAME browser
+    // that initiated the flow (see cookie helpers above). Redis alone
+    // only proves we issued the state, not who we issued it to.
+    if (!consumeOAuthStateCookie(req, res, "google", state)) {
+      res.status(400).json({ error: "Invalid or expired OAuth state" });
+      return;
+    }
+
     const result = await googleCallback(code, ref);
     // Stash the token bundle behind a single-use exchange code so the
     // bearer + refresh tokens never appear in the redirect URL (which
@@ -190,6 +277,7 @@ authRouter.get("/github", async (_req, res, next) => {
   try {
     const state = crypto.randomBytes(32).toString("hex");
     await redis.set(`oauth:state:${state}`, "1", "EX", 600);
+    setOAuthStateCookie(res, "github", state); // bind flow to this browser
     const url = getGitHubAuthUrl(state);
     res.json({ url, state });
   } catch (err) { next(err); }
@@ -212,6 +300,12 @@ authRouter.get("/github/callback", async (req, res, next) => {
       return;
     }
     await redis.del(stateKey);
+
+    // Double-submit browser binding — same rationale as Google above.
+    if (!consumeOAuthStateCookie(req, res, "github", state)) {
+      res.status(400).json({ error: "Invalid or expired OAuth state" });
+      return;
+    }
 
     const result = await githubCallback(code, ref);
     const exchangeCode = await stashOAuthExchange(result);
@@ -348,6 +442,9 @@ authRouter.get("/apple", async (_req, res, next) => {
   try {
     const state = crypto.randomBytes(32).toString("hex");
     await redis.set(`oauth:state:${state}`, "1", "EX", 600);
+    // SameSite=None + Secure — Apple's form_post callback is a
+    // cross-site POST, which never carries Lax cookies.
+    setOAuthStateCookie(res, "apple", state);
     const url = getAppleWebAuthUrl(state);
     res.json({ url, state });
   } catch (err) { next(err); }
@@ -392,6 +489,13 @@ authRouter.post(
         return;
       }
       await redis.del(stateKey);
+
+      // Double-submit browser binding (None+Secure cookie — Apple POSTs
+      // cross-site, so Lax would never arrive; see helpers above).
+      if (!consumeOAuthStateCookie(req, res, "apple", body.state)) {
+        res.status(400).json({ error: "Invalid or expired OAuth state" });
+        return;
+      }
 
       const result = await appleWebCallback(body.id_token, body.user ?? null);
 

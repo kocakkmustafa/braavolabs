@@ -48,18 +48,67 @@ const WEBHOOK_EVENT_TTL_SECONDS = 7 * 24 * 60 * 60;
  * logic finishes — that gives ops a clear "received vs processed"
  * audit trail.
  */
+/**
+ * A claimed-but-unfinished row younger than this is assumed to still be
+ * in-flight on another worker, so a concurrent duplicate delivery is
+ * skipped rather than double-processed. Stripe's automatic retries
+ * arrive minutes-to-hours later, comfortably past this window, so a
+ * genuine retry of a failed/crashed handler always gets through.
+ */
+const WEBHOOK_RECLAIM_AFTER_MS = 2 * 60 * 1000;
+
+/**
+ * "Seen before" ≠ "processed". A previous delivery may have claimed the
+ * row and then FAILED (we 500'd — releaseWebhookEvent clears only the
+ * Redis key, never the row) or the process crashed mid-handler (Redis
+ * key survives for 7 days). In both cases the row's processedAt is
+ * NULL. Treating the retry as a duplicate would answer 200 and
+ * permanently drop the event — e.g. a paid plan upgrade that never
+ * lands. So: resolve against the DB ground truth and RECLAIM stale
+ * unprocessed rows for reprocessing.
+ *
+ * Returns true when the caller should run the handler again.
+ */
+async function reclaimIfUnprocessed(eventId: string, type: string): Promise<boolean> {
+  const existing = await prisma.stripeWebhookEvent.findUnique({
+    where: { stripeEventId: eventId },
+    select: { processedAt: true, createdAt: true },
+  });
+  if (!existing) {
+    // Redis knows the id but the durable row is gone/never landed —
+    // nothing proves the handler ran. Process it.
+    return true;
+  }
+  if (existing.processedAt !== null) {
+    return false; // true duplicate — handler finished previously
+  }
+  if (Date.now() - existing.createdAt.getTime() < WEBHOOK_RECLAIM_AFTER_MS) {
+    // Claimed seconds ago — almost certainly a concurrent duplicate
+    // delivery with the original handler still in flight. Skip; if the
+    // original fails, Stripe's retry (minutes later) will reclaim.
+    logger.info({ eventId, type }, "Stripe webhook duplicate — original claim still in flight, skipped");
+    return false;
+  }
+  logger.warn(
+    { eventId, type },
+    "Stripe webhook retry of unprocessed event (processedAt=NULL) — reprocessing",
+  );
+  return true;
+}
+
 async function claimWebhookEvent(
   eventId: string,
   type: string,
   livemode: boolean,
   rawPayload: unknown,
 ): Promise<boolean> {
-  // Fast path — Redis SETNX. If the cache already has this key, we've
-  // seen it recently; skip the Postgres round-trip.
+  // Fast path — Redis SETNX. First writer wins; a cache hit means the
+  // event id was seen recently, but completion is decided by the DB
+  // (see reclaimIfUnprocessed — a crashed handler leaves the key behind).
   try {
     const cacheHit = await redis.set(`stripe:webhook:${eventId}`, "1", "EX", WEBHOOK_EVENT_TTL_SECONDS, "NX");
     if (cacheHit !== "OK") {
-      return false;
+      return reclaimIfUnprocessed(eventId, type);
     }
   } catch (err) {
     // Redis failure → don't block the request, fall through to DB.
@@ -80,11 +129,12 @@ async function claimWebhookEvent(
     });
     return true;
   } catch (err) {
-    // Prisma P2002 = unique constraint violation = already-seen.
+    // Prisma P2002 = unique constraint violation = already-seen — but
+    // possibly never finished. Same reclaim logic as the Redis path.
     const isDuplicate = err instanceof Error && /P2002|Unique constraint/.test(err.message);
     if (isDuplicate) {
       logger.info({ eventId }, "Stripe webhook duplicate caught at DB layer (Redis cache miss)");
-      return false;
+      return reclaimIfUnprocessed(eventId, type);
     }
     // Some other DB error — re-raise so the webhook handler returns 5xx
     // and Stripe retries. Better to retry than to silently drop.
@@ -104,11 +154,10 @@ async function claimWebhookEvent(
  *
  * The retried request hits `claimWebhookEvent` again, finds the row
  * (no Redis key but a Postgres row with processedAt = NULL), and the
- * upsert path raises a P2002 unique-constraint error — which we treat
- * as "duplicate, skip" and respond 200. That's the correct Stripe
- * contract: stop retrying. The original failed request's incomplete
- * side effects are already reflected (if any), and a human operator
- * can inspect the row's processedAt=NULL to reconcile manually.
+ * INSERT raises P2002 — claimWebhookEvent then inspects the row: a
+ * NULL processedAt means the previous handler never finished, so the
+ * retry RE-PROCESSES the event instead of being swallowed as a
+ * duplicate. Only rows already stamped processedAt are skipped.
  */
 async function releaseWebhookEvent(eventId: string): Promise<void> {
   await redis.del(`stripe:webhook:${eventId}`).catch(() => {});
