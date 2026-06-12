@@ -285,7 +285,10 @@
         "test_sign_in": "Anmeldung testen →",
         "plan_gate_body": "Enterprise SSO ist in den Business- und Enterprise-Plänen enthalten. Upgraden Sie, um Ihren Workspace mit Ihrem Identity Provider zu verbinden.",
         "plan_gate_cta": "Pläne ansehen →"
-      }
+      },
+      "fieldName": "Name",
+      "memberSince": "Mitglied seit {year}",
+      "saveFailedToast": "Speichern fehlgeschlagen — erneut versuchen."
     },
     "onboarding": {
       "primitives": {

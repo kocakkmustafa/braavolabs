@@ -285,7 +285,10 @@
         "test_sign_in": "Girişi test et →",
         "plan_gate_body": "Kurumsal SSO, Business ve Enterprise planlarına dahildir. Kimlik sağlayıcınıza bağlanmak için yükseltin.",
         "plan_gate_cta": "Planları gör →"
-      }
+      },
+      "fieldName": "Ad Soyad",
+      "memberSince": "{year}'den beri üye",
+      "saveFailedToast": "Kaydedilemedi — tekrar dene."
     },
     "onboarding": {
       "primitives": {

@@ -285,7 +285,10 @@
         "test_sign_in": "Tester la connexion →",
         "plan_gate_body": "Le SSO d'entreprise est inclus dans les plans Business et Enterprise. Mettez à niveau pour connecter votre espace à votre fournisseur d'identité.",
         "plan_gate_cta": "Voir les plans →"
-      }
+      },
+      "fieldName": "Nom",
+      "memberSince": "Membre depuis {year}",
+      "saveFailedToast": "Échec de l'enregistrement — réessayez."
     },
     "onboarding": {
       "primitives": {

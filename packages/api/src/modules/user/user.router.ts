@@ -2,6 +2,7 @@
  * Self-service user endpoints — GDPR Article 17 + KVKK Madde 11(e/f).
  *
  *   GET    /api/v1/users/me     — current user profile (auth-gated)
+ *   PATCH  /api/v1/users/me     — update own profile (name)
  *   DELETE /api/v1/users/me     — right to erasure
  *
  * Erasure semantics:
@@ -60,6 +61,36 @@ userRouter.get("/me", async (req, res, next) => {
     const trial = await getTrialStatus(user.tenant.id);
 
     res.json({ ...user, trial });
+  } catch (err) { next(err); }
+});
+
+// PATCH /api/v1/users/me — update own profile. Only `name` is editable
+// today (avatar upload doesn't exist yet; email changes would need a
+// re-verification flow). Logged to activity_log like every mutation.
+const updateMeSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+});
+
+userRouter.patch("/me", async (req, res, next) => {
+  try {
+    const body = updateMeSchema.parse(req.body);
+    const user = await prisma.user.update({
+      where: { id: req.auth!.userId },
+      data: { name: body.name },
+      select: { id: true, email: true, name: true, avatarUrl: true, role: true, createdAt: true },
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "user.update",
+        resource: "user",
+        resourceId: user.id,
+      },
+    });
+
+    res.json(user);
   } catch (err) { next(err); }
 });
 

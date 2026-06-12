@@ -285,7 +285,10 @@
         "test_sign_in": "اختبار تسجيل الدخول ←",
         "plan_gate_body": "SSO المؤسسة مضمن في خطط Business وEnterprise. قم بالترقية لربط مساحة العمل بمزود الهوية الخاص بك.",
         "plan_gate_cta": "عرض الخطط ←"
-      }
+      },
+      "fieldName": "الاسم",
+      "memberSince": "عضو منذ {year}",
+      "saveFailedToast": "تعذّر الحفظ — حاول مجددًا."
     },
     "onboarding": {
       "primitives": {

@@ -285,7 +285,10 @@
         "test_sign_in": "Probar inicio de sesión →",
         "plan_gate_body": "El SSO empresarial está incluido en los planes Business y Enterprise. Actualiza para conectar tu espacio de trabajo.",
         "plan_gate_cta": "Ver planes →"
-      }
+      },
+      "fieldName": "Nombre",
+      "memberSince": "Miembro desde {year}",
+      "saveFailedToast": "No se pudo guardar — inténtalo de nuevo."
     },
     "onboarding": {
       "primitives": {

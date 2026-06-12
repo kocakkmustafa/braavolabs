@@ -285,7 +285,10 @@
         "test_sign_in": "Test sign-in →",
         "plan_gate_body": "Enterprise SSO is included with Business and Enterprise plans. Upgrade to connect your workspace to your identity provider.",
         "plan_gate_cta": "View plans →"
-      }
+      },
+      "fieldName": "Name",
+      "memberSince": "Member since {year}",
+      "saveFailedToast": "Couldn't save — try again."
     },
     "onboarding": {
       "primitives": {

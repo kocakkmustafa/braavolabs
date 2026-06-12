@@ -186,6 +186,7 @@ export const api = {
     me: (token: string) => apiFetch<{
       id: string;
       email: string;
+      emailVerifiedAt: string | null;
       name: string | null;
       avatarUrl: string | null;
       role: string;
@@ -199,7 +200,28 @@ export const api = {
         exhausted: boolean;
       };
     }>("/users/me", { token }),
+    updateMe: (token: string, data: { name: string }) =>
+      apiFetch<{ id: string; email: string; name: string | null }>("/users/me", {
+        method: "PATCH",
+        body: JSON.stringify(data),
+        token,
+      }),
   },
+
+  // Notification preferences (user-level; shared with the mobile app)
+  getNotificationPrefs: (token: string) =>
+    apiFetch<{ approvals: boolean; risks: boolean; runs: boolean; drafts: boolean }>(
+      "/devices/notification-prefs",
+      { token }
+    ),
+  updateNotificationPrefs: (
+    token: string,
+    data: Partial<{ approvals: boolean; risks: boolean; runs: boolean; drafts: boolean }>
+  ) =>
+    apiFetch<{ approvals: boolean; risks: boolean; runs: boolean; drafts: boolean }>(
+      "/devices/notification-prefs",
+      { method: "PATCH", body: JSON.stringify(data), token }
+    ),
 
   // Dashboard
   health: (token: string) => apiFetch<{
