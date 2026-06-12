@@ -32,7 +32,7 @@ export function mapMakeStatus(log: any): NormalizedStatus {
 export const makeAdapter: ExternalAdapter = {
   platform: "MAKE",
   async fetchExecutions(cfg: ExternalConnConfig): Promise<FetchResult> {
-    const base = assertPublicUrl(cfg.baseUrl);
+    const base = await assertPublicUrl(cfg.baseUrl);
     let target = base.toString();
     if (!/\/logs\/?(?:$|\?)/.test(target)) {
       target = target.replace(/\/$/, "") + "/logs";

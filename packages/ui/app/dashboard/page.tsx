@@ -116,7 +116,9 @@ export default function DashboardPage() {
 
   const greetingName = me?.name?.split(" ")[0] ?? me?.email?.split("@")[0] ?? "there";
   const greeting = greetingFor(new Date());
-  const spendLabel = finance ? `$${finance.totalCostUsd.toFixed(0)} spent this cycle` : "";
+  const spendLabel = finance
+    ? t("app.dashboard.spentThisCycle", { amount: `$${finance.totalCostUsd.toFixed(0)}` })
+    : "";
 
   return (
     <div className="bv-dash bv-dash-shell">
@@ -147,21 +149,21 @@ export default function DashboardPage() {
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                 <span className={`bv-dot ${health?.activeRuns ? "bv-running bv-ping" : "bv-paused"}`} aria-hidden />
                 {(health?.activeRuns ?? 0) > 0
-                  ? `${health!.activeRuns} ${health!.activeRuns === 1 ? "run" : "runs"} streaming`
-                  : "All quiet — no active runs"}
+                  ? t("app.dashboard.statusStreaming", { count: health!.activeRuns })
+                  : t("app.dashboard.statusQuiet")}
               </span>
               {(health?.pendingApprovals ?? 0) > 0 && (
                 <>
                   <span className="bv-divider-dot" aria-hidden />
                   <span>
-                    {health!.pendingApprovals} {t("app.dashboard.pendingApprovalsBanner").toLowerCase()} awaiting your call
+                    {t("app.dashboard.approvalsAwaiting", { count: health!.pendingApprovals })}
                   </span>
                 </>
               )}
               {risks.length > 0 && (
                 <>
                   <span className="bv-divider-dot" aria-hidden />
-                  <span>{risks.length} {risks.length === 1 ? "risk" : "risks"} need your eye</span>
+                  <span>{t("app.dashboard.risksNeedEye", { count: risks.length })}</span>
                 </>
               )}
               {spendLabel && (
@@ -453,7 +455,7 @@ function RecentRunsPanel(props: {
             <span className={`bv-dot bv-running bv-ping`} aria-hidden />
             {t("app.dashboard.recentRuns")}
           </h2>
-          <div className="bv-caption">Polling every 15s</div>
+          <div className="bv-caption">{t("app.dashboard.autoRefresh", { seconds: 15 })}</div>
         </div>
         <div className="bv-panel-head-actions">
           <Link href="/runs" className="bv-btn bv-btn-ghost bv-btn-sm">
@@ -782,7 +784,7 @@ function ApprovalsPanel({
             <span className="material-symbols-outlined" style={{ fontSize: 18 }} aria-hidden>approval</span>
             {t("app.dashboard.pendingApprovalsBanner")}
           </h2>
-          <div className="bv-caption">Polling every 10s</div>
+          <div className="bv-caption">{t("app.dashboard.autoRefresh", { seconds: 10 })}</div>
         </div>
         {approvals.length > 0 && (
           <span className="bv-pill bv-pill-amber">

@@ -91,15 +91,30 @@
     },
     "companies": {
       "title": "Arbeitsbereiche",
-      "countSingular": "Arbeitsbereich erstellt",
-      "countPlural": "Arbeitsbereiche erstellt",
+      "countSingular": "{count} Arbeitsbereich",
+      "countPlural": "{count} Arbeitsbereiche",
       "newCompany": "Neuer Arbeitsbereich",
       "emptyTitle": "Noch keine Arbeitsbereiche",
       "emptyBody": "Beschreibe deine Geschäftsidee und die KI richtet alles ein",
       "createFirst": "Ersten Arbeitsbereich erstellen",
       "noDescription": "Keine Beschreibung",
       "agentsLabel": "Agenten",
-      "pipelinesLabel": "Pipelines"
+      "pipelinesLabel": "Pipelines",
+      "warRoom": "Kommandoraum",
+      "searchPlaceholder": "Arbeitsbereiche durchsuchen…",
+      "filterAll": "Alle",
+      "statusRunning": "Läuft",
+      "statusPaused": "Pausiert",
+      "statusDraft": "Entwurf",
+      "statusArchived": "Archiviert",
+      "open": "Öffnen",
+      "pause": "Pausieren",
+      "resume": "Fortsetzen",
+      "flagship": "Flaggschiff",
+      "flagshipPill": "Probiere die Flaggschiff-Vorlage „AI Company“",
+      "noMatchTitle": "Keine passenden Arbeitsbereiche",
+      "noMatchBody": "Versuche eine andere Suche oder einen anderen Filter.",
+      "actionFailed": "Aktion fehlgeschlagen — erneut versuchen."
     },
     "risks": {
       "title": "Risiko-Monitor",
@@ -270,7 +285,10 @@
         "test_sign_in": "Anmeldung testen →",
         "plan_gate_body": "Enterprise SSO ist in den Business- und Enterprise-Plänen enthalten. Upgraden Sie, um Ihren Workspace mit Ihrem Identity Provider zu verbinden.",
         "plan_gate_cta": "Pläne ansehen →"
-      }
+      },
+      "fieldName": "Name",
+      "memberSince": "Mitglied seit {year}",
+      "saveFailedToast": "Speichern fehlgeschlagen — erneut versuchen."
     },
     "onboarding": {
       "primitives": {
@@ -578,7 +596,13 @@
         "invalid": "Positive Zahl eingeben",
         "top_cost_tools": "Größte Kostentreiber",
         "budget_bar_label": "{pct}% des Monatsbudgets prognostiziert"
-      }
+      },
+      "statusQuiet": "Alles ruhig — keine aktiven Runs",
+      "statusStreaming": "{count, plural, one {# Run läuft live} other {# Runs laufen live}}",
+      "approvalsAwaiting": "{count, plural, one {# Freigabe wartet auf dich} other {# Freigaben warten auf dich}}",
+      "risksNeedEye": "{count, plural, one {# Risiko braucht deinen Blick} other {# Risiken brauchen deinen Blick}}",
+      "spentThisCycle": "{amount} in diesem Zyklus ausgegeben",
+      "autoRefresh": "Aktualisiert alle {seconds}s"
     },
     "integrations": {
       "title": "Integrations-Bibliothek",
@@ -731,7 +755,8 @@
       "statusFailed": "Fehlgeschlagen",
       "statusCancelled": "Abgebrochen",
       "statusWaiting": "Wartet auf Freigabe",
-      "statusPending": "Ausstehend"
+      "statusPending": "Ausstehend",
+      "fixInEditor": "Im Pipeline-Editor beheben"
     },
     "pipelineDetail": {
       "loadFailed": "Pipeline konnte nicht geladen werden",

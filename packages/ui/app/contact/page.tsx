@@ -21,8 +21,24 @@ export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", topic: "Sales & pricing", message: "" });
 
+  // No transactional-mail backend yet, so the form composes a real email
+  // in the visitor's mail client instead of pretending to send one.
+  const TOPIC_TO_EMAIL: Record<string, string> = {
+    "Sales & pricing": "sales@braavolabs.com",
+    "Technical support": "founders@braavolabs.com",
+    "Partnerships": "hello@braavolabs.com",
+    "Press": "hello@braavolabs.com",
+    "Something else": "hello@braavolabs.com",
+  };
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const to = TOPIC_TO_EMAIL[form.topic] ?? "hello@braavolabs.com";
+    const subject = encodeURIComponent(`[${form.topic}] ${form.name || "Website inquiry"}`);
+    const body = encodeURIComponent(
+      `${form.message}\n\n—\n${form.name}${form.email ? ` · ${form.email}` : ""}`
+    );
+    window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
     setSubmitted(true);
   }
 
@@ -220,8 +236,9 @@ export default function ContactPage() {
                   <span className="material-symbols-outlined" style={{ fontSize: 30 }}>check</span>
                 </div>
                 <h3 className="bv-headline text-on-surface uppercase mb-2">Message forged</h3>
-                <p className="bv-caption max-w-[28ch]">
-                  {t("static.contact.responseTime")}
+                <p className="bv-caption max-w-[34ch]">
+                  Your mail app just opened with the message pre-filled — hit send
+                  there and it lands in our inbox. {t("static.contact.responseTime")}
                 </p>
               </div>
             )}

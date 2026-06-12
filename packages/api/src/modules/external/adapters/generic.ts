@@ -86,7 +86,7 @@ export function normalizeGenericRecord(e: any): NormalizedExecution | null {
 export const genericAdapter: ExternalAdapter = {
   platform: "GENERIC",
   async fetchExecutions(cfg: ExternalConnConfig): Promise<FetchResult> {
-    const base = assertPublicUrl(cfg.baseUrl);
+    const base = await assertPublicUrl(cfg.baseUrl);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 12_000);
     try {

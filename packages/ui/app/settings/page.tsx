@@ -116,8 +116,16 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [notifs, setNotifs] = useState({
     runCompleted: true, spendApproval: true, pipelineErrors: true,
-    weeklyDigest: false, marketing: false,
   });
+  const [notifsLoaded, setNotifsLoaded] = useState(false);
+
+  // Profile state — loaded from /users/me, saved via PATCH /users/me
+  const [profile, setProfile] = useState<{
+    name: string; email: string; emailVerified: boolean;
+    tenantName: string; memberSince: string;
+  } | null>(null);
+  const [profileName, setProfileName] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
 
   // AI Provider state
   const [aiConfig, setAiConfig] = useState<{
@@ -148,6 +156,20 @@ export default function SettingsPage() {
     api.billingSubscription(token).then(setSubscription).catch(() => {});
     api.getReferral(token).then(setReferral).catch(() => {});
     api.listProviders(token).then(setProviders).catch(() => {});
+    api.users.me(token).then((u) => {
+      setProfile({
+        name: u.name ?? "",
+        email: u.email,
+        emailVerified: !!u.emailVerifiedAt,
+        tenantName: u.tenant?.name ?? "Workspace",
+        memberSince: new Date(u.createdAt).getFullYear().toString(),
+      });
+      setProfileName(u.name ?? "");
+    }).catch(() => {});
+    api.getNotificationPrefs(token).then((p) => {
+      setNotifs({ spendApproval: p.approvals, pipelineErrors: p.risks, runCompleted: p.runs });
+      setNotifsLoaded(true);
+    }).catch(() => setNotifsLoaded(true));
     api.listCompanies(token).then((c: any[]) => {
       setCompanies(c);
       if (c.length > 0 && !selectedCompanyId) setSelectedCompanyId(c[0].id);
@@ -194,7 +216,37 @@ export default function SettingsPage() {
     catch (err) { console.error("Billing portal failed:", err); setBillingError((err as Error).message); }
   }
 
-  function handleSave() { setSaved(true); toast(t("app.settings.savedToast"), "success"); setTimeout(() => setSaved(false), 2000); }
+  async function handleSaveProfile() {
+    if (!token || !profileName.trim() || profileSaving) return;
+    setProfileSaving(true);
+    try {
+      const u = await api.users.updateMe(token, { name: profileName.trim() });
+      setProfile((p) => (p ? { ...p, name: u.name ?? "" } : p));
+      setSaved(true);
+      toast(t("app.settings.savedToast"), "success");
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      toast(t("app.settings.saveFailedToast"), "error");
+    } finally {
+      setProfileSaving(false);
+    }
+  }
+
+  async function handleSaveNotifs() {
+    if (!token) return;
+    try {
+      await api.updateNotificationPrefs(token, {
+        approvals: notifs.spendApproval,
+        risks: notifs.pipelineErrors,
+        runs: notifs.runCompleted,
+      });
+      setSaved(true);
+      toast(t("app.settings.savedToast"), "success");
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      toast(t("app.settings.saveFailedToast"), "error");
+    }
+  }
 
   async function handleSaveAiConfig() {
     if (!token) return;
@@ -328,40 +380,36 @@ export default function SettingsPage() {
             {active === "profile" && (
               <ForgeSection title={t("app.settings.profileTitle")} subtitle={t("app.settings.profileSubtitle")} icon="person">
                 <div className="flex items-center gap-4 mb-6 pb-6 border-b border-outline-variant/20">
-                  <div className="relative">
-                    <div className="bv-avatar bv-avatar-lg">
-                      {tenantId ? tenantId.slice(0, 2).toUpperCase() : "AI"}
-                    </div>
-                    <button className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center bg-surface-container border-2 border-background">
-                      <span className="material-symbols-outlined text-on-surface-variant" style={{ fontSize: 13 }}>photo_camera</span>
-                    </button>
+                  <div className="bv-avatar bv-avatar-lg">
+                    {(profile?.name || profile?.email || tenantId || "AI").slice(0, 2).toUpperCase()}
                   </div>
                   <div>
-                    <p className="bv-title font-headline font-bold">My Workspace</p>
-                    <p className="bv-caption mt-0.5">Member since 2025</p>
+                    <p className="bv-title font-headline font-bold">{profile?.tenantName ?? "—"}</p>
+                    {profile?.memberSince && (
+                      <p className="bv-caption mt-0.5">{t("app.settings.memberSince", { year: profile.memberSince })}</p>
+                    )}
                     <span className="bv-pill bv-pill-cyan mt-1.5 inline-flex">
                       {currentPlan}
                     </span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3.5 mb-3.5">
-                  <ForgeField label={t("app.settings.fieldFirstName")} placeholder="Jane" />
-                  <ForgeField label={t("app.settings.fieldLastName")} placeholder="Smith" />
-                </div>
-                <ForgeField label={t("app.settings.fieldEmail")} placeholder="you@example.com" badge={t("app.settings.verifiedBadge")} />
-                <div className="mt-3.5">
-                  <ForgeField label={t("app.settings.fieldPhone")} placeholder="+1 (555) 000-0000" />
-                </div>
-                <div className="mt-3.5">
-                  <label className="block bv-caption font-semibold mb-1.5 text-on-surface-variant uppercase tracking-wider" style={{ fontSize: 11 }}>Bio</label>
-                  <textarea
-                    rows={3}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm outline-none resize-none bg-surface-container border border-outline-variant/30 text-on-surface placeholder:text-outline focus:border-primary/50 transition-colors"
-                    placeholder={t("app.settings.bioPlaceholder")}
+                <div className="mb-3.5">
+                  <ForgeField
+                    label={t("app.settings.fieldName")}
+                    placeholder="Jane Smith"
+                    value={profileName}
+                    onChange={setProfileName}
                   />
                 </div>
-                <ForgeSaveBar onSave={handleSave} saved={saved} />
+                <ForgeField
+                  label={t("app.settings.fieldEmail")}
+                  placeholder="you@example.com"
+                  value={profile?.email ?? ""}
+                  readOnly
+                  badge={profile?.emailVerified ? t("app.settings.verifiedBadge") : undefined}
+                />
+                <ForgeSaveBar onSave={handleSaveProfile} saved={saved} />
               </ForgeSection>
             )}
 
@@ -373,8 +421,6 @@ export default function SettingsPage() {
                     { key: "spendApproval" as const, label: "Approval requests", desc: "Push when a run needs a spend approval", critical: true },
                     { key: "pipelineErrors" as const, label: "Risk-stop triggered", desc: "Push when a hard-stop halts a run", critical: true },
                     { key: "runCompleted" as const, label: "Run completed", desc: "Notify when a run finishes" },
-                    { key: "weeklyDigest" as const, label: "Weekly digest", desc: "Email summary of agent performance" },
-                    { key: "marketing" as const, label: "Marketing emails", desc: "Product updates and feature announcements" },
                   ]).map((item) => (
                     <div
                       key={item.key}
@@ -410,7 +456,10 @@ export default function SettingsPage() {
                     </div>
                   ))}
                 </div>
-                <ForgeSaveBar onSave={handleSave} saved={saved} />
+                {!notifsLoaded && (
+                  <p className="bv-caption mt-2" style={{ color: "var(--color-outline)" }}>…</p>
+                )}
+                <ForgeSaveBar onSave={handleSaveNotifs} saved={saved} />
               </ForgeSection>
             )}
 
@@ -1193,7 +1242,12 @@ function ForgeSection({ title, subtitle, icon, children }: { title: string; subt
   );
 }
 
-function ForgeField({ label, type = "text", placeholder, badge }: { label: string; type?: string; placeholder: string; badge?: string }) {
+function ForgeField({
+  label, type = "text", placeholder, badge, value, onChange, readOnly,
+}: {
+  label: string; type?: string; placeholder: string; badge?: string;
+  value?: string; onChange?: (v: string) => void; readOnly?: boolean;
+}) {
   return (
     <div>
       <label className="bv-micro text-outline mb-1.5 block">{label}</label>
@@ -1201,7 +1255,11 @@ function ForgeField({ label, type = "text", placeholder, badge }: { label: strin
         <input
           type={type}
           placeholder={placeholder}
+          value={value}
+          onChange={onChange ? (e) => onChange(e.target.value) : undefined}
+          readOnly={readOnly}
           className="w-full px-3.5 py-2.5 rounded-xl text-sm outline-none bg-surface-container border border-outline-variant/30 text-on-surface placeholder:text-outline focus:border-primary/50 transition-colors"
+          style={readOnly ? { opacity: 0.75, cursor: "default" } : undefined}
         />
         {badge && (
           <span className="absolute right-3 top-1/2 -translate-y-1/2 bv-pill bv-pill-cyan">

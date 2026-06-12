@@ -91,15 +91,30 @@
     },
     "companies": {
       "title": "مساحات العمل",
-      "countSingular": "تم إنشاء مساحة عمل",
-      "countPlural": "تم إنشاء مساحات عمل",
+      "countSingular": "{count} مساحة عمل",
+      "countPlural": "{count} مساحة عمل",
       "newCompany": "مساحة عمل جديدة",
       "emptyTitle": "لا توجد مساحات عمل بعد",
       "emptyBody": "صِف فكرة عملك وسيتولى الذكاء الاصطناعي الإعداد",
       "createFirst": "أنشئ أول مساحة عمل",
       "noDescription": "لا يوجد وصف",
       "agentsLabel": "وكلاء",
-      "pipelinesLabel": "خطوط أنابيب"
+      "pipelinesLabel": "خطوط أنابيب",
+      "warRoom": "غرفة القيادة",
+      "searchPlaceholder": "ابحث في مساحات العمل…",
+      "filterAll": "الكل",
+      "statusRunning": "قيد التشغيل",
+      "statusPaused": "متوقف مؤقتًا",
+      "statusDraft": "مسودة",
+      "statusArchived": "مؤرشف",
+      "open": "فتح",
+      "pause": "إيقاف مؤقت",
+      "resume": "استئناف",
+      "flagship": "الرائد",
+      "flagshipPill": "جرّب قالب شركة الذكاء الاصطناعي الرائد",
+      "noMatchTitle": "لا توجد مساحات عمل مطابقة",
+      "noMatchBody": "جرّب بحثًا أو عامل تصفية مختلفًا.",
+      "actionFailed": "فشل الإجراء — حاول مجددًا."
     },
     "risks": {
       "title": "مراقب المخاطر",
@@ -270,7 +285,10 @@
         "test_sign_in": "اختبار تسجيل الدخول ←",
         "plan_gate_body": "SSO المؤسسة مضمن في خطط Business وEnterprise. قم بالترقية لربط مساحة العمل بمزود الهوية الخاص بك.",
         "plan_gate_cta": "عرض الخطط ←"
-      }
+      },
+      "fieldName": "الاسم",
+      "memberSince": "عضو منذ {year}",
+      "saveFailedToast": "تعذّر الحفظ — حاول مجددًا."
     },
     "onboarding": {
       "primitives": {
@@ -578,7 +596,13 @@
         "invalid": "أدخل رقماً موجباً",
         "top_cost_tools": "أكثر الأدوات تكلفة",
         "budget_bar_label": "{pct}% من الميزانية الشهرية المتوقعة"
-      }
+      },
+      "statusQuiet": "كل شيء هادئ — لا عمليات تشغيل نشطة",
+      "statusStreaming": "{count} عملية تشغيل مباشرة",
+      "approvalsAwaiting": "{count} موافقة بانتظار قرارك",
+      "risksNeedEye": "{count} مخاطر تحتاج انتباهك",
+      "spentThisCycle": "تم إنفاق {amount} هذه الدورة",
+      "autoRefresh": "يتحدّث كل {seconds} ث"
     },
     "integrations": {
       "title": "مكتبة التكاملات",
@@ -731,7 +755,8 @@
       "statusFailed": "فشل",
       "statusCancelled": "أُلغي",
       "statusWaiting": "بانتظار الموافقة",
-      "statusPending": "قيد الانتظار"
+      "statusPending": "قيد الانتظار",
+      "fixInEditor": "أصلح في محرر خط الأنابيب"
     },
     "pipelineDetail": {
       "loadFailed": "تعذّر تحميل المسار",

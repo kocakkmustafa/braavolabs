@@ -91,15 +91,30 @@
     },
     "companies": {
       "title": "Espaces de travail",
-      "countSingular": "espace de travail créé",
-      "countPlural": "espaces de travail créés",
+      "countSingular": "{count} espace de travail",
+      "countPlural": "{count} espaces de travail",
       "newCompany": "Nouvel espace de travail",
       "emptyTitle": "Aucun espace de travail",
       "emptyBody": "Décrivez votre idée d'entreprise et l'IA configure tout",
       "createFirst": "Créez votre premier espace de travail",
       "noDescription": "Aucune description",
       "agentsLabel": "agents",
-      "pipelinesLabel": "pipelines"
+      "pipelinesLabel": "pipelines",
+      "warRoom": "Salle de commandement",
+      "searchPlaceholder": "Rechercher des espaces de travail…",
+      "filterAll": "Tous",
+      "statusRunning": "En cours",
+      "statusPaused": "En pause",
+      "statusDraft": "Brouillon",
+      "statusArchived": "Archivé",
+      "open": "Ouvrir",
+      "pause": "Mettre en pause",
+      "resume": "Reprendre",
+      "flagship": "Phare",
+      "flagshipPill": "Essayez le modèle phare AI Company",
+      "noMatchTitle": "Aucun espace de travail correspondant",
+      "noMatchBody": "Essayez une autre recherche ou un autre filtre.",
+      "actionFailed": "Échec de l'action — réessayez."
     },
     "risks": {
       "title": "Moniteur de Risques",
@@ -270,7 +285,10 @@
         "test_sign_in": "Tester la connexion →",
         "plan_gate_body": "Le SSO d'entreprise est inclus dans les plans Business et Enterprise. Mettez à niveau pour connecter votre espace à votre fournisseur d'identité.",
         "plan_gate_cta": "Voir les plans →"
-      }
+      },
+      "fieldName": "Nom",
+      "memberSince": "Membre depuis {year}",
+      "saveFailedToast": "Échec de l'enregistrement — réessayez."
     },
     "onboarding": {
       "primitives": {
@@ -578,7 +596,13 @@
         "invalid": "Saisissez un nombre positif",
         "top_cost_tools": "Principales sources de coût",
         "budget_bar_label": "{pct} % du budget mensuel prévu"
-      }
+      },
+      "statusQuiet": "Tout est calme — aucune exécution active",
+      "statusStreaming": "{count, plural, one {# exécution en direct} other {# exécutions en direct}}",
+      "approvalsAwaiting": "{count, plural, one {# approbation attend votre décision} other {# approbations attendent votre décision}}",
+      "risksNeedEye": "{count, plural, one {# risque requiert votre attention} other {# risques requièrent votre attention}}",
+      "spentThisCycle": "{amount} dépensés ce cycle",
+      "autoRefresh": "Actualisation toutes les {seconds}s"
     },
     "integrations": {
       "title": "Bibliothèque d'Intégrations",
@@ -731,7 +755,8 @@
       "statusFailed": "Échoué",
       "statusCancelled": "Annulé",
       "statusWaiting": "En attente d'approbation",
-      "statusPending": "En attente"
+      "statusPending": "En attente",
+      "fixInEditor": "Corriger dans l'éditeur de pipeline"
     },
     "pipelineDetail": {
       "loadFailed": "Échec du chargement du pipeline",

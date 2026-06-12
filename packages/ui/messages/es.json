@@ -91,15 +91,30 @@
     },
     "companies": {
       "title": "Espacios de trabajo",
-      "countSingular": "espacio de trabajo creado",
-      "countPlural": "espacios de trabajo creados",
+      "countSingular": "{count} espacio de trabajo",
+      "countPlural": "{count} espacios de trabajo",
       "newCompany": "Nuevo espacio de trabajo",
       "emptyTitle": "Aún no hay espacios de trabajo",
       "emptyBody": "Describe tu idea de negocio y la IA lo configurará todo",
       "createFirst": "Crea tu primer espacio de trabajo",
       "noDescription": "Sin descripción",
       "agentsLabel": "agentes",
-      "pipelinesLabel": "flujos"
+      "pipelinesLabel": "flujos",
+      "warRoom": "Sala de mando",
+      "searchPlaceholder": "Buscar espacios de trabajo…",
+      "filterAll": "Todos",
+      "statusRunning": "En ejecución",
+      "statusPaused": "Pausado",
+      "statusDraft": "Borrador",
+      "statusArchived": "Archivado",
+      "open": "Abrir",
+      "pause": "Pausar",
+      "resume": "Reanudar",
+      "flagship": "Insignia",
+      "flagshipPill": "Prueba la plantilla insignia AI Company",
+      "noMatchTitle": "Ningún espacio de trabajo coincide",
+      "noMatchBody": "Prueba otra búsqueda u otro filtro.",
+      "actionFailed": "La acción falló — inténtalo de nuevo."
     },
     "risks": {
       "title": "Monitor de Riesgos",
@@ -270,7 +285,10 @@
         "test_sign_in": "Probar inicio de sesión →",
         "plan_gate_body": "El SSO empresarial está incluido en los planes Business y Enterprise. Actualiza para conectar tu espacio de trabajo.",
         "plan_gate_cta": "Ver planes →"
-      }
+      },
+      "fieldName": "Nombre",
+      "memberSince": "Miembro desde {year}",
+      "saveFailedToast": "No se pudo guardar — inténtalo de nuevo."
     },
     "onboarding": {
       "primitives": {
@@ -578,7 +596,13 @@
         "invalid": "Ingresa un número positivo",
         "top_cost_tools": "Principales generadores de costo",
         "budget_bar_label": "{pct}% del presupuesto mensual proyectado"
-      }
+      },
+      "statusQuiet": "Todo en calma — sin ejecuciones activas",
+      "statusStreaming": "{count, plural, one {# ejecución en directo} other {# ejecuciones en directo}}",
+      "approvalsAwaiting": "{count, plural, one {# aprobación espera tu decisión} other {# aprobaciones esperan tu decisión}}",
+      "risksNeedEye": "{count, plural, one {# riesgo requiere tu atención} other {# riesgos requieren tu atención}}",
+      "spentThisCycle": "{amount} gastado este ciclo",
+      "autoRefresh": "Se actualiza cada {seconds}s"
     },
     "integrations": {
       "title": "Biblioteca de Integraciones",
@@ -731,7 +755,8 @@
       "statusFailed": "Fallido",
       "statusCancelled": "Cancelado",
       "statusWaiting": "Esperando aprobación",
-      "statusPending": "Pendiente"
+      "statusPending": "Pendiente",
+      "fixInEditor": "Corregir en el editor de pipelines"
     },
     "pipelineDetail": {
       "loadFailed": "No se pudo cargar el pipeline",

@@ -91,15 +91,30 @@
     },
     "companies": {
       "title": "Çalışma Alanları",
-      "countSingular": "çalışma alanı oluşturuldu",
-      "countPlural": "çalışma alanı oluşturuldu",
+      "countSingular": "{count} çalışma alanı",
+      "countPlural": "{count} çalışma alanı",
       "newCompany": "Yeni Çalışma Alanı",
       "emptyTitle": "Henüz çalışma alanı yok",
       "emptyBody": "İş fikrini anlat, AI gerisini halletsin",
       "createFirst": "İlk Çalışma Alanınızı Oluşturun",
       "noDescription": "Açıklama yok",
       "agentsLabel": "ajan",
-      "pipelinesLabel": "pipeline"
+      "pipelinesLabel": "pipeline",
+      "warRoom": "Komuta odası",
+      "searchPlaceholder": "Çalışma alanı ara…",
+      "filterAll": "Tümü",
+      "statusRunning": "Çalışıyor",
+      "statusPaused": "Duraklatıldı",
+      "statusDraft": "Taslak",
+      "statusArchived": "Arşivlendi",
+      "open": "Aç",
+      "pause": "Duraklat",
+      "resume": "Devam ettir",
+      "flagship": "Amiral şablon",
+      "flagshipPill": "AI Şirketi amiral şablonunu dene",
+      "noMatchTitle": "Eşleşen çalışma alanı yok",
+      "noMatchBody": "Farklı bir arama veya filtre dene.",
+      "actionFailed": "İşlem başarısız — tekrar dene."
     },
     "risks": {
       "title": "Risk Monitörü",
@@ -270,7 +285,10 @@
         "test_sign_in": "Girişi test et →",
         "plan_gate_body": "Kurumsal SSO, Business ve Enterprise planlarına dahildir. Kimlik sağlayıcınıza bağlanmak için yükseltin.",
         "plan_gate_cta": "Planları gör →"
-      }
+      },
+      "fieldName": "Ad Soyad",
+      "memberSince": "{year}'den beri üye",
+      "saveFailedToast": "Kaydedilemedi — tekrar dene."
     },
     "onboarding": {
       "primitives": {
@@ -578,7 +596,13 @@
         "invalid": "Pozitif bir sayı girin",
         "top_cost_tools": "En çok maliyet yaratan araçlar",
         "budget_bar_label": "Aylık bütçenin %{pct}'i öngörülüyor"
-      }
+      },
+      "statusQuiet": "Her şey sakin — aktif çalıştırma yok",
+      "statusStreaming": "{count} çalıştırma canlı akıyor",
+      "approvalsAwaiting": "{count} onay kararını bekliyor",
+      "risksNeedEye": "{count} risk ilgini bekliyor",
+      "spentThisCycle": "bu dönem {amount} harcandı",
+      "autoRefresh": "{seconds} sn'de bir yenilenir"
     },
     "integrations": {
       "title": "Entegrasyon Kütüphanesi",
@@ -731,7 +755,8 @@
       "statusFailed": "Başarısız",
       "statusCancelled": "İptal edildi",
       "statusWaiting": "Onay bekliyor",
-      "statusPending": "Beklemede"
+      "statusPending": "Beklemede",
+      "fixInEditor": "Pipeline düzenleyicide düzelt"
     },
     "pipelineDetail": {
       "loadFailed": "Pipeline yüklenemedi",

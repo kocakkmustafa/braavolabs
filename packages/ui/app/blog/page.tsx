@@ -1,76 +1,22 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { CATEGORY_PILL, POSTS } from "./posts";
 
 const CATEGORIES = ["All", "Product", "Engineering", "Governance", "Field notes"] as const;
 type Category = (typeof CATEGORIES)[number];
 
-const FEATURED = {
-  title: "Why we steer agents mid-run instead of re-running them",
-  category: "Product",
-  desc: "Re-running a failed agent wastes tokens and time. We built mid-run steering and ask_user so you redirect a run in flight — here's the architecture behind it.",
-  date: "Jun 2, 2026",
-  read: "7 min",
-};
-
-const POSTS = [
-  {
-    title: "The five risk-stops, explained",
-    category: "Governance" as const,
-    date: "May 28, 2026",
-    read: "6 min",
-    desc: "Hard, loop, cost, spam and brand — how each stop fires and why they default on.",
-  },
-  {
-    title: "BYOK: routing 12 providers without lock-in",
-    category: "Engineering" as const,
-    date: "May 21, 2026",
-    read: "9 min",
-    desc: "The router that lets each step pick the best model — and swap it without touching your pipeline.",
-  },
-  {
-    title: "Pocket-steering: command from your phone",
-    category: "Product" as const,
-    date: "May 14, 2026",
-    read: "5 min",
-    desc: "Authoring stays on the web; control fits in your pocket. The mobile architecture.",
-  },
-  {
-    title: "Running fully offline with on-device Gemma",
-    category: "Engineering" as const,
-    date: "May 7, 2026",
-    read: "8 min",
-    desc: "When tokens can't leave the building — how local inference plugs into the same pipelines.",
-  },
-  {
-    title: "What we learned shipping ask_user",
-    category: "Field notes" as const,
-    date: "Apr 30, 2026",
-    read: "4 min",
-    desc: "Agents that ask the right question at the right moment beat agents that guess.",
-  },
-  {
-    title: "Designing an audit trail you'd actually read",
-    category: "Governance" as const,
-    date: "Apr 23, 2026",
-    read: "7 min",
-    desc: "Reasoning, tool calls and cost — every step reconstructable, none of it noise.",
-  },
-] satisfies { title: string; category: string; date: string; read: string; desc: string }[];
-
-const CATEGORY_PILL: Record<string, string> = {
-  Product: "bv-pill bv-pill-cyan",
-  Engineering: "bv-pill bv-pill-purple",
-  Governance: "bv-pill bv-pill-amber",
-  "Field notes": "bv-pill bv-pill-muted",
-};
+// Newest post is the featured hero; the rest fill the grid.
+const FEATURED = POSTS[0];
+const GRID_POSTS = POSTS.slice(1);
 
 export default function BlogPage() {
   const t = useTranslations();
   const [filter, setFilter] = useState<Category>("All");
 
-  const visible = POSTS.filter(
+  const visible = GRID_POSTS.filter(
     (p) => filter === "All" || p.category === filter
   );
 
@@ -172,14 +118,11 @@ export default function BlogPage() {
 
       <div className="max-w-5xl mx-auto px-6 md:px-10 pb-24">
         {/* ── Featured post ── */}
-        <div
+        <Link
+          href={`/blog/${FEATURED.slug}`}
           className="bv-glass grid rounded-2xl overflow-hidden mb-12 cursor-pointer"
-          style={{ gridTemplateColumns: "1.2fr 1fr" }}
-          role="link"
-          tabIndex={0}
+          style={{ gridTemplateColumns: "1.2fr 1fr", textDecoration: "none" }}
           aria-label={`Read featured post: ${FEATURED.title}`}
-          onClick={() => {}}
-          onKeyDown={(e) => e.key === "Enter" && undefined}
         >
           {/* cover */}
           <div
@@ -286,7 +229,7 @@ export default function BlogPage() {
               {FEATURED.read} read
             </div>
           </div>
-        </div>
+        </Link>
 
         {/* ── Category filters ── */}
         <div className="bv-fpills mb-6">
@@ -309,14 +252,12 @@ export default function BlogPage() {
           }}
         >
           {visible.map((post) => (
-            <article
-              key={post.title}
+            <Link
+              key={post.slug}
+              href={`/blog/${post.slug}`}
               className="bv-glass flex flex-col overflow-hidden cursor-pointer group"
-              role="link"
-              tabIndex={0}
+              style={{ textDecoration: "none" }}
               aria-label={`Read post: ${post.title}`}
-              onClick={() => {}}
-              onKeyDown={(e) => e.key === "Enter" && undefined}
             >
               {/* cover thumbnail */}
               <div
@@ -409,7 +350,7 @@ export default function BlogPage() {
                   {post.read} read
                 </div>
               </div>
-            </article>
+            </Link>
           ))}
         </div>
       </div>
