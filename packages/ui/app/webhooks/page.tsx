@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 
 // Stable category ids — labels resolve at render via useTranslations.
@@ -73,38 +74,44 @@ const WEBHOOK_TEMPLATES = [
   { id: "generic_form_post", name: "Form POST Webhook", category: "custom", icon: "📋", provider: "Any", eventType: "form_post", description: "Accept form-encoded POST data", popularity: 65, setupInstructions: "Set your form action URL to the generated endpoint", samplePayload: { name: "John Doe", email: "john@example.com", message: "Hello!" } },
 ];
 
-// Sample hooks for the "live endpoints" section (mirrors mock data)
-const SAMPLE_HOOKS = [
-  { slug: "acme-leads", ev: "lead.created", st: "ok", last: "12s ago", secret: "whsec_8Kd2…a91f", deliveries: 2104, failed: 0 },
-  { slug: "acme-leads", ev: "form.submitted", st: "ok", last: "3m ago", secret: "whsec_8Kd2…a91f", deliveries: 831, failed: 2 },
-  { slug: "support", ev: "ticket.opened", st: "idle", last: "2d ago", secret: "whsec_p0Lm…77c3", deliveries: 47, failed: 0 },
-];
+// Per-workspace fan-in endpoint card. Backed by the real
+// /hooks/:company_slug/:event receiver + GET /companies/:id/webhooks
+// (recent webhook events from the activity log).
+interface LiveHook {
+  slug: string;
+  name: string;
+  secret?: string;
+  eventCount: number;
+  lastAt?: string;
+}
 
-function HookCard({ hook }: { hook: typeof SAMPLE_HOOKS[number] }) {
+function timeAgo(iso?: string): string | null {
+  if (!iso) return null;
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return `${Math.round(s)}s ago`;
+  if (s < 3600) return `${Math.round(s / 60)}m ago`;
+  if (s < 86400) return `${Math.round(s / 3600)}h ago`;
+  return `${Math.round(s / 86400)}d ago`;
+}
+
+function HookCard({ hook }: { hook: LiveHook }) {
   const [copied, setCopied] = useState(false);
   const [secretVisible, setSecretVisible] = useState(false);
-  const [pingState, setPingState] = useState<"idle" | "pinging" | "done">("idle");
 
-  const url = `https://braavolabs.com/hooks/${hook.slug}/${hook.ev}`;
-  const isDelivering = hook.st === "ok";
+  const isDelivering = hook.eventCount > 0;
+  const last = timeAgo(hook.lastAt);
 
   function handleCopy() {
-    navigator.clipboard.writeText(url).catch(() => {});
+    navigator.clipboard
+      .writeText(`https://braavolabs.com/hooks/${hook.slug}/`)
+      .catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 1400);
   }
 
-  function handlePing() {
-    setPingState("pinging");
-    setTimeout(() => {
-      setPingState("done");
-      setTimeout(() => setPingState("idle"), 1600);
-    }, 900);
-  }
-
   return (
     <div className="bv-glass rounded-2xl px-5 py-4">
-      {/* Top row — event type + delivery status */}
+      {/* Top row — workspace + delivery status */}
       <div className="flex items-center gap-3 flex-wrap">
         <span
           className="bv-mono text-[10px] tracking-widest uppercase px-2 py-0.5 rounded-md"
@@ -114,13 +121,14 @@ function HookCard({ hook }: { hook: typeof SAMPLE_HOOKS[number] }) {
             background: "rgba(59,130,246,0.06)",
           }}
         >
-          {hook.ev}
+          {hook.name}
         </span>
         <span className="ml-auto flex items-center gap-1.5 bv-mono text-[11.5px] text-on-surface-variant">
           <span
             className={`bv-dot ${isDelivering ? "bv-completed bv-ping" : "bv-paused"}`}
           />
-          {isDelivering ? "delivering" : "idle"} · last {hook.last}
+          {isDelivering ? "receiving" : "idle"}
+          {last ? ` · last ${last}` : " · no deliveries yet"}
         </span>
       </div>
 
@@ -137,7 +145,7 @@ function HookCard({ hook }: { hook: typeof SAMPLE_HOOKS[number] }) {
         >
           https://braavolabs.com/hooks/
           <span style={{ color: "var(--color-secondary)" }}>{hook.slug}</span>
-          /{hook.ev}
+          /<span style={{ color: "var(--color-outline)" }}>{"<event>"}</span>
         </code>
         <button
           onClick={handleCopy}
@@ -149,45 +157,29 @@ function HookCard({ hook }: { hook: typeof SAMPLE_HOOKS[number] }) {
       </div>
 
       {/* HMAC secret row */}
-      <div className="flex items-center gap-2.5 mt-2.5 bv-mono text-[12.5px] text-on-surface-variant">
-        <span>HMAC secret:</span>
-        <span className="text-on-surface tracking-widest">
-          {secretVisible ? hook.secret : "••••••••••••••"}
-        </span>
-        <button
-          onClick={() => setSecretVisible((v) => !v)}
-          className="bv-btn bv-btn-ghost bv-btn-sm"
-        >
-          {secretVisible ? "Hide" : "Reveal"}
-        </button>
-      </div>
+      {hook.secret && (
+        <div className="flex items-center gap-2.5 mt-2.5 bv-mono text-[12.5px] text-on-surface-variant">
+          <span>HMAC secret:</span>
+          <span className="text-on-surface tracking-widest">
+            {secretVisible ? hook.secret : "••••••••••••••"}
+          </span>
+          <button
+            onClick={() => setSecretVisible((v) => !v)}
+            className="bv-btn bv-btn-ghost bv-btn-sm"
+          >
+            {secretVisible ? "Hide" : "Reveal"}
+          </button>
+        </div>
+      )}
 
-      {/* Footer row — delivery count + ping */}
+      {/* Footer row — real recent-event count */}
       <div className="flex items-center gap-4 mt-4">
         <span
           className="bv-mono text-[11.5px]"
           style={{ color: "var(--color-outline)" }}
         >
-          {hook.deliveries.toLocaleString()} deliveries · {hook.failed} failed
+          {hook.eventCount.toLocaleString()} recent event{hook.eventCount === 1 ? "" : "s"}
         </span>
-        <div className="ml-auto">
-          <button
-            onClick={handlePing}
-            disabled={pingState === "pinging"}
-            className="bv-btn bv-btn-ghost bv-btn-sm"
-            style={
-              pingState === "done"
-                ? { color: "var(--color-primary)", borderColor: "rgba(59,130,246,0.45)" }
-                : {}
-            }
-          >
-            {pingState === "pinging"
-              ? "Pinging…"
-              : pingState === "done"
-              ? "200 OK ✓"
-              : "Send test ping"}
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -200,6 +192,40 @@ export default function WebhooksPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [installedIds, setInstalledIds] = useState<Set<string>>(new Set());
+  const [liveHooks, setLiveHooks] = useState<LiveHook[] | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const companies = await api.listCompanies(token);
+        const hooks = await Promise.all(
+          (companies ?? []).map(async (c: any): Promise<LiveHook> => {
+            let logs: any[] = [];
+            try {
+              logs = await api.companyWebhooks(token, c.id);
+            } catch {
+              /* endpoint failure for one workspace shouldn't kill the list */
+            }
+            return {
+              slug: c.slug ?? c.id,
+              name: c.name ?? c.slug ?? "Workspace",
+              secret: c.webhookSecret ?? undefined,
+              eventCount: logs.length,
+              lastAt: logs[0]?.createdAt,
+            };
+          })
+        );
+        if (!cancelled) setLiveHooks(hooks);
+      } catch {
+        if (!cancelled) setLiveHooks([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   const filtered = WEBHOOK_TEMPLATES.filter((tmpl) => {
     const matchSearch =
@@ -239,12 +265,6 @@ export default function WebhooksPage() {
             {t("app.webhooks.subtitleTemplate", { count: WEBHOOK_TEMPLATES.length })}
           </p>
         </div>
-        <div className="bv-page-head-actions">
-          <button className="bv-btn bv-btn-primary bv-sheen">
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
-            New endpoint
-          </button>
-        </div>
       </div>
 
       {/* ── Live endpoints section ── */}
@@ -256,11 +276,28 @@ export default function WebhooksPage() {
           <span className="bv-dot bv-completed bv-ping" />
           Live Endpoints
         </h2>
-        <div className="flex flex-col gap-3.5 mb-6">
-          {SAMPLE_HOOKS.map((hook, i) => (
-            <HookCard key={`${hook.slug}-${hook.ev}-${i}`} hook={hook} />
-          ))}
-        </div>
+        {liveHooks === null ? (
+          <div className="bv-glass rounded-2xl px-5 py-6 mb-6 bv-caption" style={{ color: "var(--color-on-surface-variant)" }}>
+            Loading your endpoints…
+          </div>
+        ) : liveHooks.length === 0 ? (
+          <div className="bv-glass rounded-2xl px-5 py-6 mb-6">
+            <p className="bv-caption" style={{ color: "var(--color-on-surface-variant)", margin: 0 }}>
+              Each workspace gets a signed fan-in endpoint at{" "}
+              <code className="bv-mono">/hooks/&lt;workspace&gt;/&lt;event&gt;</code>. Create your
+              first workspace to start receiving events.
+            </p>
+            <Link href="/companies/new" className="bv-btn bv-btn-primary bv-btn-sm mt-4" style={{ display: "inline-flex", textDecoration: "none" }}>
+              Create a workspace
+            </Link>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3.5 mb-6">
+            {liveHooks.map((hook) => (
+              <HookCard key={hook.slug} hook={hook} />
+            ))}
+          </div>
+        )}
       </section>
 
       {/* ── Sample signed request snippet ── */}
