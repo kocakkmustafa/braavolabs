@@ -76,10 +76,11 @@ describe("mapMakeStatus", () => {
 });
 
 describe("assertPublicUrl (shared SSRF guard)", () => {
-  it("allows public https hosts", () => {
-    expect(assertPublicUrl("https://eu1.make.com/api/v2/scenarios/1/logs").hostname).toBe("eu1.make.com");
+  it("allows public https hosts", async () => {
+    const url = await assertPublicUrl("https://eu1.make.com/api/v2/scenarios/1/logs");
+    expect(url.hostname).toBe("eu1.make.com");
   });
-  it("refuses loopback / private / metadata hosts", () => {
+  it("refuses loopback / private / metadata hosts", async () => {
     for (const u of [
       "http://localhost/x",
       "http://127.0.0.1/x",
@@ -87,7 +88,7 @@ describe("assertPublicUrl (shared SSRF guard)", () => {
       "http://192.168.1.1/x",
       "http://169.254.169.254/latest/meta-data",
     ]) {
-      expect(() => assertPublicUrl(u)).toThrow();
+      await expect(assertPublicUrl(u)).rejects.toThrow();
     }
   });
 });
