@@ -585,16 +585,30 @@ function buildSpec(raw: any): CompanySpec {
     description: raw?.description ?? "",
     primitives: raw?.primitives ?? ["CONTENT", "ANALYTICS"],
     agents,
-    pipelines: (raw?.pipelines ?? []).map((p: any) => ({
-      name: p.name ?? "Default Pipeline",
-      trigger: p.trigger ?? "MANUAL",
-      schedule: p.schedule,
-      steps: (p.steps ?? []).map((s: any, i: number) => ({
-        name: s.name ?? `step_${i + 1}`,
-        agentRole: s.agentRole ?? "agent",
-        order: s.order ?? i + 1,
-      })),
-    })),
+    pipelines: (raw?.pipelines ?? []).map((p: any) => {
+      // The model sometimes invents trigger names ("NEW_LEAD", "ON_SIGNUP")
+      // that aren't in the PipelineTrigger enum — Prisma then 500s the
+      // whole confirm. Clamp to the enum: schedule-bearing pipelines stay
+      // SCHEDULED, everything unrecognized becomes MANUAL.
+      const VALID_TRIGGERS = ["MANUAL", "SCHEDULED", "WEBHOOK", "EVENT"];
+      let trigger = String(p.trigger ?? "MANUAL").toUpperCase().trim();
+      if (!VALID_TRIGGERS.includes(trigger)) {
+        trigger = p.schedule ? "SCHEDULED" : "MANUAL";
+      }
+      if (trigger === "SCHEDULED" && !p.schedule) trigger = "MANUAL";
+      return {
+        name: p.name ?? "Default Pipeline",
+        trigger,
+        schedule: p.schedule,
+        steps: (p.steps ?? []).map((s: any, i: number) => ({
+          name: s.name ?? `step_${i + 1}`,
+          // Fall back to a real agent so the step is runnable, not the
+          // literal "agent" which can never resolve.
+          agentRole: s.agentRole ?? agents[0]?.role ?? "agent",
+          order: s.order ?? i + 1,
+        })),
+      };
+    }),
     config: raw?.config ?? {},
     requiredIntegrations: requiredIntegrations.length > 0 ? requiredIntegrations : undefined,
   };
