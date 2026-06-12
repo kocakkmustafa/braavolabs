@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 
@@ -259,10 +260,10 @@ export default function IntegrationsPage() {
           <p className="bv-title text-on-surface">Import an existing automation</p>
           <p className="bv-caption mt-0.5">Bring an n8n, Make or Zapier export — we&apos;ll parse it into a pipeline.</p>
         </div>
-        <button className="bv-btn bv-btn-primary bv-btn-sm flex-none">
+        <Link href="/integrations/import" className="bv-btn bv-btn-primary bv-btn-sm flex-none" style={{ textDecoration: "none" }}>
           Import
           <span className="material-symbols-outlined" style={{ fontSize: 14 }}>arrow_forward</span>
-        </button>
+        </Link>
       </div>
 
       {/* Search + filter bar */}
@@ -370,15 +371,25 @@ export default function IntegrationsPage() {
                       </span>
                     </p>
                     {connector.status === "available" ? (
-                      <button className="bv-btn bv-btn-primary w-full justify-center" style={{ minHeight: 36, fontSize: 12 }}>
+                      <Link
+                        href="/connections"
+                        onClick={(e) => e.stopPropagation()}
+                        className="bv-btn bv-btn-primary w-full justify-center"
+                        style={{ minHeight: 36, fontSize: 12, textDecoration: "none" }}
+                      >
                         <span className="material-symbols-outlined" style={{ fontSize: 14 }}>settings</span>
                         {t("app.integrations.configure")}
-                      </button>
+                      </Link>
                     ) : connector.status === "beta" ? (
-                      <button className="bv-btn bv-btn-ghost w-full justify-center" style={{ minHeight: 36, fontSize: 12, color: "#60A5FA", borderColor: "rgba(59,130,246,0.3)" }}>
+                      <a
+                        href={`mailto:founders@braavolabs.com?subject=${encodeURIComponent(`Beta access: ${connector.name}`)}`}
+                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                        className="bv-btn bv-btn-ghost w-full justify-center"
+                        style={{ minHeight: 36, fontSize: 12, color: "#60A5FA", borderColor: "rgba(59,130,246,0.3)", textDecoration: "none" }}
+                      >
                         <span className="material-symbols-outlined" style={{ fontSize: 14 }}>science</span>
                         {t("app.integrations.joinBeta")}
-                      </button>
+                      </a>
                     ) : (
                       <button className="bv-btn bv-btn-ghost w-full justify-center" style={{ minHeight: 36, fontSize: 12 }} disabled>
                         <span className="material-symbols-outlined" style={{ fontSize: 14 }}>schedule</span>
