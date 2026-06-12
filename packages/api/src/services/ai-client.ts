@@ -247,41 +247,68 @@ async function callOpenAICompatible(
   // RAM) — give them a generous timeout. Cloud providers should respond
   // in <60s; if they don't something else is wrong.
   const timeoutMs = LOCAL_PROVIDERS.has(config.provider) ? 240_000 : 60_000;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  let response: Response;
-  try {
-    response = await fetch(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model: config.model,
-        messages: requestMessages,
-        max_tokens: maxTokens,
-      }),
-      signal: controller.signal,
-    });
-  } catch (err) {
+  // Rate limits are a fact of life on shared/free tiers (the Groq trial
+  // pool's tokens-per-minute window in particular) — a single 429 must
+  // not fail a whole run step. Retry 429 + transient 5xx with backoff,
+  // honoring Retry-After when the provider sends one. Local providers
+  // don't rate-limit; they keep the single-shot path.
+  const maxAttempts = LOCAL_PROVIDERS.has(config.provider) ? 1 : 3;
+  let response!: Response;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      response = await fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model: config.model,
+          messages: requestMessages,
+          max_tokens: maxTokens,
+        }),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      clearTimeout(timer);
+      if (err instanceof Error && err.name === "AbortError") {
+        throw new Error(
+          `${config.provider} timeout after ${timeoutMs / 1000}s. ` +
+            (LOCAL_PROVIDERS.has(config.provider)
+              ? "Local model may need to load — increase timeout or pre-warm with a small request."
+              : "Provider unreachable."),
+        );
+      }
+      if (LOCAL_PROVIDERS.has(config.provider)) {
+        const e = err instanceof Error ? err.message : String(err);
+        throw new Error(
+          `${config.provider} unreachable at ${baseUrl}: ${e}. ` +
+            "Verify the local server is running (e.g. `ollama serve`) and reachable from this machine.",
+        );
+      }
+      throw err;
+    }
     clearTimeout(timer);
-    if (err instanceof Error && err.name === "AbortError") {
-      throw new Error(
-        `${config.provider} timeout after ${timeoutMs / 1000}s. ` +
-          (LOCAL_PROVIDERS.has(config.provider)
-            ? "Local model may need to load — increase timeout or pre-warm with a small request."
-            : "Provider unreachable."),
-      );
-    }
-    if (LOCAL_PROVIDERS.has(config.provider)) {
-      const e = err instanceof Error ? err.message : String(err);
-      throw new Error(
-        `${config.provider} unreachable at ${baseUrl}: ${e}. ` +
-          "Verify the local server is running (e.g. `ollama serve`) and reachable from this machine.",
-      );
-    }
-    throw err;
+
+    const retryable =
+      response.status === 429 ||
+      response.status === 502 ||
+      response.status === 503 ||
+      response.status === 529;
+    if (response.ok || !retryable || attempt === maxAttempts) break;
+
+    // Prefer the provider's own Retry-After (seconds); else back off
+    // 20s → 40s, which spans a fresh tokens-per-minute window.
+    const retryAfterRaw = Number(response.headers.get("retry-after"));
+    const waitMs =
+      Number.isFinite(retryAfterRaw) && retryAfterRaw > 0
+        ? Math.min(retryAfterRaw * 1000 + 1000, 65_000)
+        : attempt * 20_000;
+    await response.text().catch(() => undefined); // drain before retry
+    await new Promise((r) => setTimeout(r, waitMs));
   }
-  clearTimeout(timer);
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => "unknown error");
