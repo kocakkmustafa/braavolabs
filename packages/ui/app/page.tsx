@@ -3,11 +3,21 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { PLAN_PRICING } from "@ai-company-os/core";
 import { useAppStore } from "../lib/store";
 import { sounds } from "../lib/sounds";
 import { useReveal } from "../lib/useReveal";
 import LanguageSwitcher from "../components/LanguageSwitcher";
+
+// Landing pricing cards — names/desc/features come from the localized
+// pricing.plans.* namespace; prices come from PLAN_PRICING (single source).
+const LANDING_PLANS = [
+  { id: "FREE",     key: "free",     featured: false },
+  { id: "CREATOR",  key: "creator",  featured: false },
+  { id: "PRO",      key: "pro",      featured: true  },
+  { id: "BUSINESS", key: "business", featured: false },
+] as const;
 
 const EXAMPLES = [
   "A content agency that creates and schedules TikTok & LinkedIn posts for 10 clients",
@@ -462,6 +472,7 @@ function HeroPulseStream() {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function LandingPage() {
   const t = useTranslations();
+  const locale = useLocale();
   const token = useAppStore((s) => s.token);
   const [input, setInput] = useState("");
   const [exampleIdx, setExampleIdx] = useState(0);
@@ -533,7 +544,7 @@ export default function LandingPage() {
           {/* Nav links */}
           <div className="hidden md:flex" style={{ gap: 28, marginLeft: 8 }}>
             {(["Features","Pricing","Integrations","Changelog","Blog"] as const).map((label, i) => {
-              const hrefs = ["#moat","#pricing","#providers","#how","#how"];
+              const hrefs = ["#moat","#pricing","#providers","/changelog","/blog"];
               return (
                 <a key={label} href={hrefs[i]} style={{ color: "#9AA3B2", textDecoration: "none", fontSize: 14.5, padding: "6px 0", transition: "color 0.3s" }}
                   onMouseEnter={(e) => e.currentTarget.style.color = "#E8EBF0"}
@@ -640,7 +651,7 @@ export default function LandingPage() {
             style={{ padding: "14px 24px", borderRadius: 999, fontSize: 15, minHeight: 48 }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 17 }}>rocket_launch</span>
-            Start free — 3 runs
+            Start free — no card needed
           </button>
           <a href="#trail" className="bv-btn bv-btn-ghost" style={{ padding: "14px 24px", borderRadius: 999, fontSize: 15, minHeight: 48 }}>
             Watch it steer
@@ -859,62 +870,61 @@ export default function LandingPage() {
             One flat price. No connector tax.
           </h2>
           <p className="reveal" style={{ color: "#9AA3B2", maxWidth: "62ch", fontSize: 17 }}>
-            Start free with three runs. Scale on workspaces, connected automations and seats — never on connector count.
+            Start free with 10 runs a month — your first 3 runs use our hosted Groq pool, no API key needed. Scale on workspaces, connected automations and seats — never on connector count.
           </p>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 18, marginTop: 46 }}>
-            {/* Free */}
-            <div className="bv-glass reveal" style={{ padding: 30, display: "flex", flexDirection: "column" }}>
-              <span style={{ fontFamily: "var(--bv-font-display)", fontSize: 22, fontWeight: 600, textTransform: "uppercase" as const, color: "#E8EBF0" }}>Free</span>
-              <div style={{ fontFamily: "var(--bv-font-display)", fontSize: 42, fontWeight: 600, margin: "16px 0 4px", color: "#E8EBF0" }}>$0<span style={{ fontSize: 15, color: "#9AA3B2", fontFamily: "inherit", fontWeight: 400 }}> forever</span></div>
-              <p style={{ color: "#9AA3B2", fontSize: 14, minHeight: 40 }}>Kick the tires with three full trial runs.</p>
-              <ul style={{ listStyle: "none", margin: "20px 0 24px", display: "flex", flexDirection: "column", gap: 11, padding: 0 }}>
-                {["1 workspace","3 trial runs","BYOK · 12 providers","Mobile pocket-steer"].map((item) => (
-                  <li key={item} style={{ fontSize: 14, color: "#9AA3B2", display: "flex", gap: 10, alignItems: "flex-start" }}>
-                    <span style={{ width: 7, height: 7, borderRadius: 2, background: "#3B82F6", marginTop: 6, flexShrink: 0, boxShadow: "0 0 8px #3B82F6", display: "inline-block" }} />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/login" className="bv-btn bv-btn-ghost" style={{ marginTop: "auto", width: "100%", justifyContent: "center", textDecoration: "none" }}>Start free</Link>
-            </div>
-
-            {/* Operator — recommended */}
-            <div className="bv-glass reveal" style={{ padding: 30, display: "flex", flexDirection: "column", border: "1px solid #3B82F6" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <span style={{ fontFamily: "var(--bv-font-display)", fontSize: 22, fontWeight: 600, textTransform: "uppercase" as const, color: "#E8EBF0" }}>Operator</span>
-                <span style={{ fontFamily: "var(--bv-font-mono)", fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase" as const, color: "#60A5FA" }}>Recommended</span>
-              </div>
-              <div style={{ fontFamily: "var(--bv-font-display)", fontSize: 42, fontWeight: 600, margin: "16px 0 4px", color: "#E8EBF0" }}>$24<span style={{ fontSize: 15, color: "#9AA3B2", fontFamily: "inherit", fontWeight: 400 }}> /mo</span></div>
-              <p style={{ color: "#9AA3B2", fontSize: 14, minHeight: 40 }}>For solo operators running real agent teams.</p>
-              <ul style={{ listStyle: "none", margin: "20px 0 24px", display: "flex", flexDirection: "column", gap: 11, padding: 0 }}>
-                {["5 workspaces","Unlimited runs","Connect n8n · Make · Zapier","5 risk-stops & audit"].map((item) => (
-                  <li key={item} style={{ fontSize: 14, color: "#9AA3B2", display: "flex", gap: 10, alignItems: "flex-start" }}>
-                    <span style={{ width: 7, height: 7, borderRadius: 2, background: "#3B82F6", marginTop: 6, flexShrink: 0, boxShadow: "0 0 8px #3B82F6", display: "inline-block" }} />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <button onClick={handleBuild} className="bv-btn bv-btn-primary" style={{ marginTop: "auto", width: "100%", justifyContent: "center" }}>
-                Start free — 3 runs
-              </button>
-            </div>
-
-            {/* Forge */}
-            <div className="bv-glass reveal" style={{ padding: 30, display: "flex", flexDirection: "column" }}>
-              <span style={{ fontFamily: "var(--bv-font-display)", fontSize: 22, fontWeight: 600, textTransform: "uppercase" as const, color: "#E8EBF0" }}>Forge</span>
-              <div style={{ fontFamily: "var(--bv-font-display)", fontSize: 42, fontWeight: 600, margin: "16px 0 4px", color: "#E8EBF0" }}>$96<span style={{ fontSize: 15, color: "#9AA3B2", fontFamily: "inherit", fontWeight: 400 }}> /mo</span></div>
-              <p style={{ color: "#9AA3B2", fontSize: 14, minHeight: 40 }}>For teams forging at scale, together.</p>
-              <ul style={{ listStyle: "none", margin: "20px 0 24px", display: "flex", flexDirection: "column", gap: 11, padding: 0 }}>
-                {["Unlimited workspaces","Team seats & roles","On-device Gemma","Priority support"].map((item) => (
-                  <li key={item} style={{ fontSize: 14, color: "#9AA3B2", display: "flex", gap: 10, alignItems: "flex-start" }}>
-                    <span style={{ width: 7, height: 7, borderRadius: 2, background: "#3B82F6", marginTop: 6, flexShrink: 0, boxShadow: "0 0 8px #3B82F6", display: "inline-block" }} />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/contact" className="bv-btn bv-btn-ghost" style={{ marginTop: "auto", width: "100%", justifyContent: "center", textDecoration: "none" }}>Talk to us</Link>
-            </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", gap: 18, marginTop: 46 }}>
+            {LANDING_PLANS.map(({ id, key, featured }) => {
+              const price = PLAN_PRICING[id]?.monthlyUsd ?? 0;
+              const features = (t.raw(`pricing.plans.${key}.features`) as string[]).slice(0, 4);
+              return (
+                <div
+                  key={id}
+                  className="bv-glass reveal"
+                  style={{
+                    padding: 30,
+                    display: "flex",
+                    flexDirection: "column",
+                    ...(featured ? { border: "1px solid #3B82F6" } : {}),
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <span style={{ fontFamily: "var(--bv-font-display)", fontSize: 22, fontWeight: 600, textTransform: "uppercase" as const, color: "#E8EBF0" }}>
+                      {t(`pricing.plans.${key}.name`)}
+                    </span>
+                    {featured && (
+                      <span style={{ fontFamily: "var(--bv-font-mono)", fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase" as const, color: "#60A5FA" }}>
+                        {t("pricing.mostPopular")}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontFamily: "var(--bv-font-display)", fontSize: 42, fontWeight: 600, margin: "16px 0 4px", color: "#E8EBF0" }}>
+                    ${price}
+                    <span style={{ fontSize: 15, color: "#9AA3B2", fontFamily: "inherit", fontWeight: 400 }}>
+                      {" "}{price === 0 ? t("pricing.period.forever") : t("pricing.period.month")}
+                    </span>
+                  </div>
+                  <p style={{ color: "#9AA3B2", fontSize: 14, minHeight: 40 }}>{t(`pricing.plans.${key}.desc`)}</p>
+                  <ul style={{ listStyle: "none", margin: "20px 0 24px", display: "flex", flexDirection: "column", gap: 11, padding: 0 }}>
+                    {features.map((item) => (
+                      <li key={item} style={{ fontSize: 14, color: "#9AA3B2", display: "flex", gap: 10, alignItems: "flex-start" }}>
+                        <span style={{ width: 7, height: 7, borderRadius: 2, background: "#3B82F6", marginTop: 6, flexShrink: 0, boxShadow: "0 0 8px #3B82F6", display: "inline-block" }} />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                  {id === "FREE" ? (
+                    <Link href="/login" className="bv-btn bv-btn-primary" style={{ marginTop: "auto", width: "100%", justifyContent: "center", textDecoration: "none" }}>
+                      {t(`pricing.plans.${key}.cta`)}
+                    </Link>
+                  ) : (
+                    <Link href="/pricing" className={`bv-btn ${featured ? "bv-btn-primary" : "bv-btn-ghost"}`} style={{ marginTop: "auto", width: "100%", justifyContent: "center", textDecoration: "none" }}>
+                      {t(`pricing.plans.${key}.cta`)}
+                    </Link>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           <p className="reveal" style={{ fontFamily: "var(--bv-font-mono)", fontSize: 12, color: "#5B6473", marginTop: 20, textAlign: "center" as const }}>
@@ -946,7 +956,7 @@ export default function LandingPage() {
           <div className="reveal" style={{ display: "flex", gap: 14, justifyContent: "center", marginTop: 36, flexWrap: "wrap" }}>
             <button onClick={handleBuild} className="bv-btn bv-btn-primary" style={{ padding: "14px 28px", borderRadius: 999, fontSize: 15, minHeight: 48 }}>
               <span className="material-symbols-outlined" style={{ fontSize: 17 }}>rocket_launch</span>
-              Start free — 3 runs
+              Start free — no card needed
             </button>
             <a href="#trail" className="bv-btn bv-btn-ghost" style={{ padding: "14px 28px", borderRadius: 999, fontSize: 15, minHeight: 48 }}>
               Watch it steer
@@ -973,9 +983,16 @@ export default function LandingPage() {
               <p style={{ color: "#9AA3B2", fontSize: 14, maxWidth: "34ch" }}>Command the AI agents &amp; automations you already run. Forged for control, mobility and privacy.</p>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
                 {["EN","TR","ES","DE","FR","AR"].map((lang) => (
-                  <button key={lang} style={{ fontFamily: "var(--bv-font-mono)", fontSize: 11, textTransform: "uppercase" as const, color: "#9AA3B2", background: "rgba(20,23,31,0.6)", border: "1px solid rgba(35,40,51,0.8)", borderRadius: 8, padding: "5px 10px", cursor: "pointer", transition: "all 0.25s" }}
+                  <button key={lang}
+                    style={{ fontFamily: "var(--bv-font-mono)", fontSize: 11, textTransform: "uppercase" as const, color: locale === lang.toLowerCase() ? "#fff" : "#9AA3B2", background: "rgba(20,23,31,0.6)", border: `1px solid ${locale === lang.toLowerCase() ? "#3B82F6" : "rgba(35,40,51,0.8)"}`, borderRadius: 8, padding: "5px 10px", cursor: "pointer", transition: "all 0.25s" }}
+                    onClick={() => {
+                      const loc = lang.toLowerCase();
+                      if (loc === locale) return;
+                      document.cookie = `NEXT_LOCALE=${loc}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+                      window.location.reload();
+                    }}
                     onMouseEnter={(e) => { e.currentTarget.style.color = "#fff"; e.currentTarget.style.borderColor = "#3B82F6"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = "#9AA3B2"; e.currentTarget.style.borderColor = "rgba(35,40,51,0.8)"; }}
+                    onMouseLeave={(e) => { if (locale !== lang.toLowerCase()) { e.currentTarget.style.color = "#9AA3B2"; e.currentTarget.style.borderColor = "rgba(35,40,51,0.8)"; } }}
                   >{lang}</button>
                 ))}
               </div>
@@ -984,7 +1001,7 @@ export default function LandingPage() {
             {/* Product */}
             <div>
               <h5 style={{ fontFamily: "var(--bv-font-mono)", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase" as const, color: "#5B6473", marginBottom: 16 }}>Product</h5>
-              {[["Features","#moat"],["Pricing","#pricing"],["Integrations","#providers"],["Changelog","#how"]].map(([l, h]) => (
+              {[["Features","#moat"],["Pricing","/pricing"],["Integrations","#providers"],["Changelog","/changelog"],["Blog","/blog"]].map(([l, h]) => (
                 <a key={l} href={h} style={{ display: "block", color: "#9AA3B2", textDecoration: "none", fontSize: 14, padding: "5px 0", transition: "color 0.25s" }}
                   onMouseEnter={(e) => e.currentTarget.style.color = "#E8EBF0"}
                   onMouseLeave={(e) => e.currentTarget.style.color = "#9AA3B2"}
@@ -995,7 +1012,7 @@ export default function LandingPage() {
             {/* Developers */}
             <div>
               <h5 style={{ fontFamily: "var(--bv-font-mono)", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase" as const, color: "#5B6473", marginBottom: 16 }}>Developers</h5>
-              {[["CLI","/cli"],["Webhooks","/webhooks"],["Status","/status"],["API","/api-docs"]].map(([l, h]) => (
+              {[["Webhooks","/webhooks"],["Status","/status"],["Support","/support"],["Changelog","/changelog"]].map(([l, h]) => (
                 <Link key={l} href={h} style={{ display: "block", color: "#9AA3B2", textDecoration: "none", fontSize: 14, padding: "5px 0", transition: "color 0.25s" }}
                   onMouseEnter={(e) => e.currentTarget.style.color = "#E8EBF0"}
                   onMouseLeave={(e) => e.currentTarget.style.color = "#9AA3B2"}
