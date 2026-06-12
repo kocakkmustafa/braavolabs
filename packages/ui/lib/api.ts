@@ -217,6 +217,10 @@ export const api = {
   // Companies
   listCompanies: (token: string) => apiFetch<any[]>("/companies", { token }),
   getCompany: (token: string, id: string) => apiFetch<any>(`/companies/${id}`, { token }),
+  pauseCompany: (token: string, id: string) =>
+    apiFetch<any>(`/companies/${id}/pause`, { method: "POST", token }),
+  resumeCompany: (token: string, id: string) =>
+    apiFetch<any>(`/companies/${id}/resume`, { method: "POST", token }),
   buildCompany: (token: string, description: string) =>
     apiFetch<any>("/companies/build", { method: "POST", body: JSON.stringify({ description }), token }),
   buildAnswer: (token: string, sessionId: string, answer: string) =>

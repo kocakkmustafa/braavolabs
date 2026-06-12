@@ -2,16 +2,17 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 
-// Status → FORGE dot class + label
-const STATUS_DOT: Record<string, { cls: string; label: string }> = {
-  ACTIVE:   { cls: "bv-running bv-ping",  label: "Running"  },
-  PAUSED:   { cls: "bv-paused",           label: "Paused"   },
-  DRAFT:    { cls: "bv-cancelled",        label: "Draft"    },
-  ARCHIVED: { cls: "bv-failed",           label: "Archived" },
+// Status → FORGE dot class + i18n label key (app.companies.*)
+const STATUS_DOT: Record<string, { cls: string; labelKey: string }> = {
+  ACTIVE:   { cls: "bv-running bv-ping",  labelKey: "statusRunning"  },
+  PAUSED:   { cls: "bv-paused",           labelKey: "statusPaused"   },
+  DRAFT:    { cls: "bv-cancelled",        labelKey: "statusDraft"    },
+  ARCHIVED: { cls: "bv-failed",           labelKey: "statusArchived" },
 };
 
 // Primitive → bv-pill colour variant
@@ -66,15 +67,34 @@ type FilterKey = "all" | "ACTIVE" | "PAUSED" | "DRAFT";
 
 export default function CompaniesPage() {
   const t = useTranslations();
+  const router = useRouter();
   const { token, hydrated } = useAuthGuard();
   const [companies, setCompanies] = useState<any[]>([]);
   const [filter, setFilter] = useState<FilterKey>("all");
   const [query, setQuery] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState(false);
 
   useEffect(() => {
     if (!token) return;
     api.listCompanies(token).then(setCompanies).catch(() => {});
   }, [token]);
+
+  const togglePause = async (id: string, isActive: boolean) => {
+    if (!token || busyId) return;
+    setBusyId(id);
+    setActionError(false);
+    try {
+      if (isActive) await api.pauseCompany(token, id);
+      else await api.resumeCompany(token, id);
+      const fresh = await api.listCompanies(token);
+      setCompanies(fresh);
+    } catch {
+      setActionError(true);
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   if (!hydrated || !token)
     return (
@@ -104,10 +124,10 @@ export default function CompaniesPage() {
   });
 
   const FILTERS: { key: FilterKey; label: string; dot?: string }[] = [
-    { key: "all",    label: "All" },
-    { key: "ACTIVE", label: "Running",  dot: "bv-running" },
-    { key: "PAUSED", label: "Paused",   dot: "bv-paused"  },
-    { key: "DRAFT",  label: "Draft",    dot: "bv-cancelled"},
+    { key: "all",    label: t("app.companies.filterAll") },
+    { key: "ACTIVE", label: t("app.companies.statusRunning"),  dot: "bv-running" },
+    { key: "PAUSED", label: t("app.companies.statusPaused"),   dot: "bv-paused"  },
+    { key: "DRAFT",  label: t("app.companies.statusDraft"),    dot: "bv-cancelled"},
   ];
 
   return (
@@ -117,7 +137,7 @@ export default function CompaniesPage() {
       <div className="bv-page-head mb-8">
         <div>
           <p className="bv-micro mb-1" style={{ color: "var(--color-outline)" }}>
-            War room
+            {t("app.companies.warRoom")}
           </p>
           <h1 className="bv-headline" style={{ color: "var(--color-on-surface)" }}>
             {t("app.companies.title")}
@@ -149,7 +169,7 @@ export default function CompaniesPage() {
           </span>
           <input
             type="search"
-            placeholder="Search workspaces…"
+            placeholder={t("app.companies.searchPlaceholder")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="w-full rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none"
@@ -187,6 +207,16 @@ export default function CompaniesPage() {
         </div>
       </div>
 
+      {actionError && (
+        <div
+          className="bv-glass rounded-xl px-4 py-3 mb-4"
+          style={{ border: "1px solid rgba(255,77,77,0.4)", color: "#FF4D4D", fontSize: 13 }}
+          role="alert"
+        >
+          {t("app.companies.actionFailed")}
+        </div>
+      )}
+
       {/* ── Workspace grid ────────────────────────────────── */}
       {visible.length === 0 ? (
         <div className="bv-glass rounded-2xl text-center py-20 bv-rise">
@@ -211,14 +241,14 @@ export default function CompaniesPage() {
             <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
               star
             </span>
-            Try the AI Company flagship template
+            {t("app.companies.flagshipPill")}
           </div>
           <p
             className="bv-title mb-2"
             style={{ color: "var(--color-on-surface)" }}
           >
             {query || filter !== "all"
-              ? "No workspaces match"
+              ? t("app.companies.noMatchTitle")
               : t("app.companies.emptyTitle")}
           </p>
           <p
@@ -226,7 +256,7 @@ export default function CompaniesPage() {
             style={{ maxWidth: "38ch" }}
           >
             {query || filter !== "all"
-              ? "Try a different search or filter."
+              ? t("app.companies.noMatchBody")
               : t("app.companies.emptyBody")}
           </p>
           <Link href="/companies/new" className="bv-btn bv-btn-primary bv-sheen">
@@ -250,6 +280,8 @@ export default function CompaniesPage() {
             const agentCount  = c._count?.agents   ?? c.agents?.length   ?? 0;
             const runCount    = c._count?.pipelines ?? c.pipelines?.length ?? 0;
             const isActive    = c.status === "ACTIVE";
+            const canToggle   = c.status === "ACTIVE" || c.status === "PAUSED";
+            const isBusy      = busyId === c.id;
 
             return (
               <Link
@@ -292,7 +324,7 @@ export default function CompaniesPage() {
                       }}
                     >
                       <span className={`bv-dot ${st.cls}`} />
-                      {st.label}
+                      {t(`app.companies.${st.labelKey}`)}
                       {c.lastRunAt && (
                         <>
                           <span className="bv-divider-dot" />
@@ -385,17 +417,29 @@ export default function CompaniesPage() {
                   <button
                     className="bv-btn bv-btn-ghost bv-btn-sm"
                     style={{ flex: 1 }}
-                    onClick={(e) => e.preventDefault()}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      router.push(`/companies/${c.id}`);
+                    }}
                   >
-                    Open
+                    {t("app.companies.open")}
                   </button>
-                  <button
-                    className="bv-btn bv-btn-ghost bv-btn-sm"
-                    style={{ flex: 1 }}
-                    onClick={(e) => e.preventDefault()}
-                  >
-                    {isActive ? "Pause" : "Resume"}
-                  </button>
+                  {canToggle && (
+                    <button
+                      className="bv-btn bv-btn-ghost bv-btn-sm"
+                      style={{ flex: 1, opacity: isBusy ? 0.6 : 1 }}
+                      disabled={isBusy}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        togglePause(c.id, isActive);
+                      }}
+                    >
+                      {isActive
+                        ? t("app.companies.pause")
+                        : t("app.companies.resume")}
+                    </button>
+                  )}
                 </div>
               </Link>
             );
