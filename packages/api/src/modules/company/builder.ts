@@ -127,6 +127,13 @@ ${PRIMITIVES.map((p) => `- **${p.id}**: ${p.description}`).join("\n")}
 - What pipelines to set up (name, trigger, steps)
 - Target channels/platforms if applicable
 
+## Pipeline Step Rule (STRICT)
+Every step's "agentRole" MUST exactly match the "role" of one of the agents
+you create. NEVER invent human roles ("Founder", "Owner", "Human", "Manager")
+as agentRole — human approval is automatic: spend and outbound steps pause
+for the operator via the approval system, so do not model review/approval
+as separate steps.
+
 ## Naming Rule (STRICT)
 The company "name" field MUST be 2–4 words. Never echo the description verbatim.
 Pick a punchy noun phrase that captures the topic.
@@ -600,13 +607,35 @@ function buildSpec(raw: any): CompanySpec {
         name: p.name ?? "Default Pipeline",
         trigger,
         schedule: p.schedule,
-        steps: (p.steps ?? []).map((s: any, i: number) => ({
-          name: s.name ?? `step_${i + 1}`,
-          // Fall back to a real agent so the step is runnable, not the
-          // literal "agent" which can never resolve.
-          agentRole: s.agentRole ?? agents[0]?.role ?? "agent",
-          order: s.order ?? i + 1,
-        })),
+        steps: (p.steps ?? []).map((s: any, i: number) => {
+          // The model occasionally assigns steps to humans ("Founder",
+          // "Owner") or roles it never created — those can never resolve
+          // at execution time. Clamp to a real agent: exact/loose role or
+          // name match first (mirrors the executor's matcher), else the
+          // first agent. Human approval is handled by the approval
+          // system, not by steps.
+          const requested = typeof s.agentRole === "string" ? s.agentRole.trim() : "";
+          const lower = requested.toLowerCase();
+          const matched =
+            requested.length > 0
+              ? agents.find(
+                  (a: any) =>
+                    a.role === requested ||
+                    a.name === requested ||
+                    a.role?.toLowerCase() === lower ||
+                    a.name?.toLowerCase() === lower ||
+                    a.role?.toLowerCase().startsWith(lower) ||
+                    lower.includes(String(a.name ?? "").toLowerCase()),
+                )
+              : undefined;
+          return {
+            name: s.name ?? `step_${i + 1}`,
+            // Unmatched (or human) roles clamp to the first real agent —
+            // an unrunnable step is worse than an imperfect assignee.
+            agentRole: matched?.role ?? (agents[0]?.role || requested || "agent"),
+            order: s.order ?? i + 1,
+          };
+        }),
       };
     }),
     config: raw?.config ?? {},

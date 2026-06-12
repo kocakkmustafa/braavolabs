@@ -88,6 +88,9 @@ model User {
   // OAuth flows (Apple/Google/GitHub) set this to now() at sign-in
   // because the provider has already verified the address.
   emailVerifiedAt           DateTime? @map("email_verified_at")
+  // Apple 5.1.2(i): explicit, revocable consent before personal data is
+  // sent to third-party AI providers. Null = not yet decided/revoked.
+  aiConsentAt               DateTime? @map("ai_consent_at")
   emailVerifyTokenHash      String?   @map("email_verify_token_hash")
   emailVerifyTokenExpiresAt DateTime? @map("email_verify_token_expires_at")
   // OIDC `sub` claim from the tenant's configured IdP. Scoped per

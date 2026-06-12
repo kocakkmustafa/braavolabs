@@ -47,6 +47,7 @@ userRouter.get("/me", async (req, res, next) => {
         id: true,
         email: true,
         emailVerifiedAt: true,
+        aiConsentAt: true,
         name: true,
         avatarUrl: true,
         role: true,
@@ -91,6 +92,64 @@ userRouter.patch("/me", async (req, res, next) => {
     });
 
     res.json(user);
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/users/me/ai-consent — Apple 5.1.2(i) third-party AI data
+// sharing consent. Explicit and revocable: granted=true stamps consent,
+// granted=false clears it (run-triggering surfaces re-prompt). Always
+// activity-logged so the consent trail is auditable.
+const aiConsentSchema = z.object({ granted: z.boolean() });
+
+userRouter.post("/me/ai-consent", async (req, res, next) => {
+  try {
+    const { granted } = aiConsentSchema.parse(req.body);
+    const user = await prisma.user.update({
+      where: { id: req.auth!.userId },
+      data: { aiConsentAt: granted ? new Date() : null },
+      select: { id: true, aiConsentAt: true },
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: granted ? "user.ai_consent_granted" : "user.ai_consent_revoked",
+        resource: "user",
+        resourceId: user.id,
+      },
+    });
+
+    res.json({ aiConsentAt: user.aiConsentAt });
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/users/me/report-content — Apple 1.2 / Google Play AI-GC:
+// in-app reporting of objectionable AI output. Stored in the activity
+// log (auditable, reviewable by the operator); the acknowledgment is
+// immediate, removal/handling is the operator runbook's job.
+const reportSchema = z.object({
+  target: z.string().trim().min(1).max(200),       // e.g. "run:<id>", "draft:<id>"
+  reason: z.string().trim().min(1).max(120),        // category chosen in-app
+  details: z.string().trim().max(2000).optional(),  // free text
+});
+
+userRouter.post("/me/report-content", async (req, res, next) => {
+  try {
+    const body = reportSchema.parse(req.body);
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "content.report",
+        resource: "moderation",
+        resourceId: body.target.slice(0, 64),
+        details: { target: body.target, reason: body.reason, details: body.details ?? null },
+      },
+    });
+
+    res.status(201).json({ acknowledged: true });
   } catch (err) { next(err); }
 });
 
