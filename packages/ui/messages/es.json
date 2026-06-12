@@ -755,7 +755,8 @@
       "statusFailed": "Fallido",
       "statusCancelled": "Cancelado",
       "statusWaiting": "Esperando aprobación",
-      "statusPending": "Pendiente"
+      "statusPending": "Pendiente",
+      "fixInEditor": "Corregir en el editor de pipelines"
     },
     "pipelineDetail": {
       "loadFailed": "No se pudo cargar el pipeline",

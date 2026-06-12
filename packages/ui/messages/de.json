@@ -755,7 +755,8 @@
       "statusFailed": "Fehlgeschlagen",
       "statusCancelled": "Abgebrochen",
       "statusWaiting": "Wartet auf Freigabe",
-      "statusPending": "Ausstehend"
+      "statusPending": "Ausstehend",
+      "fixInEditor": "Im Pipeline-Editor beheben"
     },
     "pipelineDetail": {
       "loadFailed": "Pipeline konnte nicht geladen werden",

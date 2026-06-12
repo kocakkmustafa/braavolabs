@@ -28,7 +28,7 @@ function mapStatus(e: any): NormalizedStatus {
 export const n8nAdapter: ExternalAdapter = {
   platform: "N8N",
   async fetchExecutions(cfg: ExternalConnConfig): Promise<FetchResult> {
-    const base = assertPublicUrl(cfg.baseUrl);
+    const base = await assertPublicUrl(cfg.baseUrl);
     const u = new URL("api/v1/executions", base.toString().endsWith("/") ? base : new URL(base.toString() + "/"));
     u.searchParams.set("limit", "50");
     u.searchParams.set("includeData", "false");

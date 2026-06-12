@@ -755,7 +755,8 @@
       "statusFailed": "فشل",
       "statusCancelled": "أُلغي",
       "statusWaiting": "بانتظار الموافقة",
-      "statusPending": "قيد الانتظار"
+      "statusPending": "قيد الانتظار",
+      "fixInEditor": "أصلح في محرر خط الأنابيب"
     },
     "pipelineDetail": {
       "loadFailed": "تعذّر تحميل المسار",

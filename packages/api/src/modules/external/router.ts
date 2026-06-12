@@ -49,7 +49,7 @@ externalRouter.post("/", async (req, res, next) => {
   try {
     const body = createSchema.parse(req.body);
     try {
-      assertPublicUrl(body.baseUrl);
+      await assertPublicUrl(body.baseUrl);
     } catch (e) {
       throw new AppError(400, (e as Error).message);
     }

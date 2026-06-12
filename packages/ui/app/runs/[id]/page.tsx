@@ -209,6 +209,18 @@ export default function RunDetailPage() {
                 >
                   {run.error}
                 </pre>
+                {run.pipeline?.id && (
+                  <div style={{ marginTop: 12 }}>
+                    <Link
+                      href={`/pipelines/${run.pipeline.id}`}
+                      className="bv-btn bv-btn-ghost bv-btn-sm"
+                      style={{ textDecoration: "none" }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
+                      {t("app.runAudit.fixInEditor")}
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
 

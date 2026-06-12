@@ -755,7 +755,8 @@
       "statusFailed": "Başarısız",
       "statusCancelled": "İptal edildi",
       "statusWaiting": "Onay bekliyor",
-      "statusPending": "Beklemede"
+      "statusPending": "Beklemede",
+      "fixInEditor": "Pipeline düzenleyicide düzelt"
     },
     "pipelineDetail": {
       "loadFailed": "Pipeline yüklenemedi",

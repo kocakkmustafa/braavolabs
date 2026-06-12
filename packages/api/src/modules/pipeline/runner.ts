@@ -569,7 +569,14 @@ const scheduledJobs = new Map<string, cron.ScheduledTask>();
 
 export async function initScheduledPipelines(): Promise<void> {
   const pipelines = await prisma.pipeline.findMany({
-    where: { enabled: true, trigger: "SCHEDULED", schedule: { not: null } },
+    // Only ACTIVE companies get their crons registered — a paused or
+    // archived workspace shouldn't keep burning scheduled runs.
+    where: {
+      enabled: true,
+      trigger: "SCHEDULED",
+      schedule: { not: null },
+      company: { status: "ACTIVE" },
+    },
     include: { company: true },
   });
 
@@ -582,11 +589,25 @@ export async function initScheduledPipelines(): Promise<void> {
     const job = cron.schedule(pipeline.schedule, async () => {
       logger.info({ pipelineId: pipeline.id, name: pipeline.name }, "Scheduled pipeline triggered");
       try {
+        // Re-check company status at fire time — the registration-time
+        // filter goes stale the moment a user pauses or archives the
+        // workspace, and crons live until the next process restart.
+        const company = await prisma.company.findUnique({
+          where: { id: pipeline.companyId },
+          select: { status: true, tenantId: true },
+        });
+        if (!company || company.status !== "ACTIVE") {
+          logger.info(
+            { pipelineId: pipeline.id, companyStatus: company?.status ?? "missing" },
+            "Scheduled run skipped — company not active",
+          );
+          return;
+        }
         // Atomic quota claim before enqueue (ISS-010). Skip the tick if the
         // tenant is over limit — scheduled runs shouldn't quietly burn the
         // entire monthly quota in a single hour because the cron fires before
         // the user notices the quota is exhausted.
-        const claim = await claimQuota(pipeline.company.tenantId, "runs");
+        const claim = await claimQuota(company.tenantId, "runs");
         if (!claim.claimed) {
           logger.warn(
             { pipelineId: pipeline.id, tenantId: pipeline.company.tenantId, value: claim.value, limit: claim.limit },

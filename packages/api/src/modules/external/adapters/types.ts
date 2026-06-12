@@ -6,6 +6,7 @@
  * RunStatus vocabulary. The poller upserts them into ExternalRun so the
  * dashboard shows native + external runs in one pane of glass.
  */
+import { assertSafeExternalUrl } from "../../../lib/ssrf";
 
 export type NormalizedStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED";
 
@@ -52,13 +53,18 @@ const PRIVATE_HOST_PATTERNS: RegExp[] = [
   /^fe80:/i,
 ];
 
-export function assertPublicUrl(raw: string): URL {
+export async function assertPublicUrl(raw: string): Promise<URL> {
   const url = new URL(raw);
   if (url.protocol !== "https:" && url.protocol !== "http:") {
     throw new Error(`Unsupported protocol: ${url.protocol}`);
   }
+  // Fast-fail on the obvious patterns, then delegate to the DNS-resolving
+  // guard used everywhere else (ai-client, MCP, research, SSO) — it also
+  // catches decimal/hex/octal IP encodings and hostnames that resolve to
+  // private ranges, which the regexes alone can't.
   if (PRIVATE_HOST_PATTERNS.some((re) => re.test(url.hostname))) {
     throw new Error(`Refusing to reach private host: ${url.hostname}`);
   }
+  await assertSafeExternalUrl(url.toString());
   return url;
 }

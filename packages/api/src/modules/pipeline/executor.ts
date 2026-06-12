@@ -79,6 +79,15 @@ export async function executeStep(
 
   // Find the agent for this step — match by role, name, or case-insensitive partial match
   const agentRole = stepDef.agentRole;
+  const stepLabel = stepDef.name ?? `step ${stepIndex + 1}`;
+  if (!agentRole) {
+    // A step without an agent assignment can't execute — and calling
+    // .toLowerCase() on undefined below would crash with a worse error.
+    throw new AppError(
+      400,
+      `Step "${stepLabel}" has no agent assigned. Open the pipeline editor and pick an agent for this step.`,
+    );
+  }
   const agent = run.pipeline.company.agents.find(
     (a) =>
       a.role === agentRole ||
@@ -88,7 +97,15 @@ export async function executeStep(
       agentRole.toLowerCase().includes(a.name.toLowerCase()),
   );
   if (!agent) {
-    throw new AppError(400, `No agent with role "${agentRole}" in company. Available: ${run.pipeline.company.agents.map(a => `${a.name} (${a.role.slice(0, 40)})`).join(", ")}`);
+    const available = run.pipeline.company.agents
+      .map((a) => `${a.name} (${a.role.slice(0, 40)})`)
+      .join(", ");
+    throw new AppError(
+      400,
+      available.length > 0
+        ? `Step "${stepLabel}" needs an agent matching "${agentRole}", but this workspace has: ${available}. Edit the step or rename an agent to match.`
+        : `Step "${stepLabel}" needs an agent matching "${agentRole}", but this workspace has no agents yet. Add agents to the workspace, then re-run.`,
+    );
   }
 
   // Create run step record
