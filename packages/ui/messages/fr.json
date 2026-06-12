@@ -596,7 +596,13 @@
         "invalid": "Saisissez un nombre positif",
         "top_cost_tools": "Principales sources de coût",
         "budget_bar_label": "{pct} % du budget mensuel prévu"
-      }
+      },
+      "statusQuiet": "Tout est calme — aucune exécution active",
+      "statusStreaming": "{count, plural, one {# exécution en direct} other {# exécutions en direct}}",
+      "approvalsAwaiting": "{count, plural, one {# approbation attend votre décision} other {# approbations attendent votre décision}}",
+      "risksNeedEye": "{count, plural, one {# risque requiert votre attention} other {# risques requièrent votre attention}}",
+      "spentThisCycle": "{amount} dépensés ce cycle",
+      "autoRefresh": "Actualisation toutes les {seconds}s"
     },
     "integrations": {
       "title": "Bibliothèque d'Intégrations",

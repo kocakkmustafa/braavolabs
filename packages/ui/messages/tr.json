@@ -596,7 +596,13 @@
         "invalid": "Pozitif bir sayı girin",
         "top_cost_tools": "En çok maliyet yaratan araçlar",
         "budget_bar_label": "Aylık bütçenin %{pct}'i öngörülüyor"
-      }
+      },
+      "statusQuiet": "Her şey sakin — aktif çalıştırma yok",
+      "statusStreaming": "{count} çalıştırma canlı akıyor",
+      "approvalsAwaiting": "{count} onay kararını bekliyor",
+      "risksNeedEye": "{count} risk ilgini bekliyor",
+      "spentThisCycle": "bu dönem {amount} harcandı",
+      "autoRefresh": "{seconds} sn'de bir yenilenir"
     },
     "integrations": {
       "title": "Entegrasyon Kütüphanesi",

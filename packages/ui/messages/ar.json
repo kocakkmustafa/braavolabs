@@ -596,7 +596,13 @@
         "invalid": "أدخل رقماً موجباً",
         "top_cost_tools": "أكثر الأدوات تكلفة",
         "budget_bar_label": "{pct}% من الميزانية الشهرية المتوقعة"
-      }
+      },
+      "statusQuiet": "كل شيء هادئ — لا عمليات تشغيل نشطة",
+      "statusStreaming": "{count} عملية تشغيل مباشرة",
+      "approvalsAwaiting": "{count} موافقة بانتظار قرارك",
+      "risksNeedEye": "{count} مخاطر تحتاج انتباهك",
+      "spentThisCycle": "تم إنفاق {amount} هذه الدورة",
+      "autoRefresh": "يتحدّث كل {seconds} ث"
     },
     "integrations": {
       "title": "مكتبة التكاملات",

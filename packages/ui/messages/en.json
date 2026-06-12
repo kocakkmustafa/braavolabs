@@ -596,7 +596,13 @@
         "invalid": "Enter a positive number",
         "top_cost_tools": "Top cost drivers",
         "budget_bar_label": "{pct}% of monthly budget projected"
-      }
+      },
+      "statusQuiet": "All quiet — no active runs",
+      "statusStreaming": "{count, plural, one {# run streaming} other {# runs streaming}}",
+      "approvalsAwaiting": "{count, plural, one {# approval awaiting your call} other {# approvals awaiting your call}}",
+      "risksNeedEye": "{count, plural, one {# risk needs your eye} other {# risks need your eye}}",
+      "spentThisCycle": "{amount} spent this cycle",
+      "autoRefresh": "Auto-refreshes every {seconds}s"
     },
     "integrations": {
       "title": "Integration Library",

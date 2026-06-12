@@ -596,7 +596,13 @@
         "invalid": "Ingresa un número positivo",
         "top_cost_tools": "Principales generadores de costo",
         "budget_bar_label": "{pct}% del presupuesto mensual proyectado"
-      }
+      },
+      "statusQuiet": "Todo en calma — sin ejecuciones activas",
+      "statusStreaming": "{count, plural, one {# ejecución en directo} other {# ejecuciones en directo}}",
+      "approvalsAwaiting": "{count, plural, one {# aprobación espera tu decisión} other {# aprobaciones esperan tu decisión}}",
+      "risksNeedEye": "{count, plural, one {# riesgo requiere tu atención} other {# riesgos requieren tu atención}}",
+      "spentThisCycle": "{amount} gastado este ciclo",
+      "autoRefresh": "Se actualiza cada {seconds}s"
     },
     "integrations": {
       "title": "Biblioteca de Integraciones",

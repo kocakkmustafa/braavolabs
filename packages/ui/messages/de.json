@@ -596,7 +596,13 @@
         "invalid": "Positive Zahl eingeben",
         "top_cost_tools": "Größte Kostentreiber",
         "budget_bar_label": "{pct}% des Monatsbudgets prognostiziert"
-      }
+      },
+      "statusQuiet": "Alles ruhig — keine aktiven Runs",
+      "statusStreaming": "{count, plural, one {# Run läuft live} other {# Runs laufen live}}",
+      "approvalsAwaiting": "{count, plural, one {# Freigabe wartet auf dich} other {# Freigaben warten auf dich}}",
+      "risksNeedEye": "{count, plural, one {# Risiko braucht deinen Blick} other {# Risiken brauchen deinen Blick}}",
+      "spentThisCycle": "{amount} in diesem Zyklus ausgegeben",
+      "autoRefresh": "Aktualisiert alle {seconds}s"
     },
     "integrations": {
       "title": "Integrations-Bibliothek",
