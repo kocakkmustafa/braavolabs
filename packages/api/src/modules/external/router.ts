@@ -14,7 +14,7 @@ import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { encrypt } from "../../lib/encryption";
 import { assertPublicUrl } from "./adapters/types";
-import { pollConnection, credentialsAad } from "./poller";
+import { pollConnection, credentialsAad, validateConnectionCredentials } from "./poller";
 
 export const externalRouter = Router();
 externalRouter.use(authMiddleware);
@@ -72,6 +72,16 @@ externalRouter.post("/", async (req, res, next) => {
       }
     }
 
+    // Feature F3 — live validation before we commit the connection's health.
+    // One real fetchExecutions with the submitted credential tells the user
+    // immediately whether it works, instead of silently creating a dead row.
+    // Never throws — the connection is still created either way.
+    const validation = await validateConnectionCredentials({
+      platform: body.platform,
+      baseUrl: body.baseUrl,
+      apiKey: body.apiKey,
+    });
+
     // Create first to get the row id, then encrypt the key bound to it.
     const conn = await prisma.externalConnection.create({
       data: {
@@ -85,9 +95,18 @@ externalRouter.post("/", async (req, res, next) => {
       },
     });
     const enc = encrypt(body.apiKey, credentialsAad(req.auth!.tenantId, conn.id));
+    // Reflect the validation result on the existing status/lastError columns
+    // (no migration needed — same fields the poller writes). Validated →
+    // ACTIVE with lastPolledAt; failed → ERROR + lastError so the card shows
+    // the reason. The poller will retry a failed connection on schedule.
     const updated = await prisma.externalConnection.update({
       where: { id: conn.id },
-      data: { encryptedCredentials: enc },
+      data: {
+        encryptedCredentials: enc,
+        status: validation.validated ? "ACTIVE" : "ERROR",
+        lastError: validation.validated ? null : validation.validationError ?? "Validation failed",
+        ...(validation.validated ? { lastPolledAt: new Date() } : {}),
+      },
       select: PUBLIC_SELECT,
     });
 
@@ -98,11 +117,23 @@ externalRouter.post("/", async (req, res, next) => {
         action: "external.connect",
         resource: "external_connection",
         resourceId: conn.id,
-        details: { platform: body.platform, label: body.label },
+        details: {
+          platform: body.platform,
+          label: body.label,
+          validated: validation.validated,
+          recentRuns: validation.recentRuns,
+        },
       },
     });
 
-    res.status(201).json(updated);
+    // Return the connection plus the explicit validation outcome so the UI can
+    // surface "Connected ✓ — N recent runs found" or "Couldn't reach it: …".
+    res.status(201).json({
+      ...updated,
+      validated: validation.validated,
+      validationError: validation.validationError,
+      recentRuns: validation.recentRuns,
+    });
   } catch (err) { next(err); }
 });
 

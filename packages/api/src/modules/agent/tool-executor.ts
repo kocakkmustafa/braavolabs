@@ -5,7 +5,14 @@
 
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
-import { getTool, getToolMeta, type ToolMeta } from "./registry";
+import {
+  getTool,
+  getToolMeta,
+  isMoneyTouching,
+  requiresApprovalForAutonomy,
+  type ToolMeta,
+  type AgentAutonomyLevel,
+} from "./registry";
 import { notifyTenantUsers } from "../../services/push";
 import { publishRunEvent } from "../../lib/runEvents";
 
@@ -132,6 +139,12 @@ export async function executeTool(
     runStepId?: string;
     companyId: string;
     tenantId: string;
+    /**
+     * Graduated autonomy (Feature D6) of the acting agent. Decides whether
+     * NON-money tool calls pause for approval. Defaults to BALANCED — the
+     * historical behaviour — when the caller omits it (bare invocations).
+     */
+    autonomy?: AgentAutonomyLevel;
   },
 ): Promise<ToolExecResult> {
   const start = Date.now();
@@ -244,10 +257,16 @@ export async function executeTool(
     };
   }
 
-  // --- Approval gate ---
-  // CLAUDE.md rule #3: Any spend-requiring action must pass through the
-  // approvals table. Handler NEVER runs until a human approves.
-  if (meta?.requiresApproval) {
+  // --- Approval gate (graduated autonomy, Feature D6) ---
+  // CLAUDE.md rule #3: any money-touching action ALWAYS passes through the
+  // approvals table — inviolable, regardless of autonomy. For non-money tools
+  // the acting agent's autonomy level decides whether to pause:
+  //   SUPERVISED → pause on every side-effecting tool
+  //   BALANCED   → pause on spend + risky tools (historical default)
+  //   AUTONOMOUS → never pause for routine tools (only money + risk-stops gate)
+  // BALANCED is the safe default when no autonomy is threaded (bare calls).
+  const autonomy: AgentAutonomyLevel = context.autonomy ?? "BALANCED";
+  if (requiresApprovalForAutonomy(meta, autonomy)) {
     if (!context.runId) {
       logger.error({ toolName }, "Approval required but no runId in context — blocking");
       return {
@@ -270,13 +289,21 @@ export async function executeTool(
         ? rawAmount
         : null;
 
+    // Honest description: money approvals say "spend"; autonomy-driven pauses on
+    // non-money tools say "action" so the operator isn't misled into reading a
+    // $0 spend. amountUsd stays null for non-money pauses (the UI hides it).
+    const money = isMoneyTouching(meta);
+    const description = money
+      ? `Approval required for tool: ${toolName}`
+      : `Action needs your approval: ${toolName}`;
+
     const approval = await prisma.approval.create({
       data: {
         runId: context.runId,
         type: "SPEND",
-        description: `Approval required for tool: ${toolName}`,
+        description,
         amountUsd: amountUsd as any,
-        metadata: { toolName, input: scopedInput, costField } as any,
+        metadata: { toolName, input: scopedInput, costField, moneyTouching: money, autonomy } as any,
         status: "PENDING",
       },
     });

@@ -87,7 +87,14 @@
       "unknownCompany": "Espace de travail inconnu",
       "runLabel": "Exécution :",
       "approve": "Approuver",
-      "reject": "Rejeter"
+      "reject": "Rejeter",
+      "artifactKind": {
+        "email": "Brouillon d'e-mail",
+        "social_post": "Brouillon de publication",
+        "message": "Brouillon de message",
+        "content": "Contenu généré"
+      },
+      "artifactAiLabel": "Généré par IA"
     },
     "companies": {
       "title": "Espaces de travail",
@@ -828,7 +835,10 @@
       "labelPlaceholder": "Mon n8n de production",
       "baseUrlLabel": "URL de base",
       "apiKeyLabel": "Clé API",
-      "connecting": "Connexion…"
+      "connecting": "Connexion…",
+      "validatedOk": "Connecté ✓ — {n} exécutions récentes trouvées",
+      "validatedFail": "Impossible de l'atteindre : {error}",
+      "validatedFailHint": "La connexion a été enregistrée — nous réessaierons selon le calendrier. Vérifiez l'URL et la clé API."
     },
     "runsList": {
       "activity": "Activité",
@@ -1044,6 +1054,33 @@
       "error": "Impossible de générer une explication. Réessayez bientôt.",
       "disclaimer": "Généré par IA — vérifiez avant d’agir.",
       "poweredBy": "via {model}"
+    },
+    "autonomy": {
+      "label": "Autonomie",
+      "moneyNote": "L'argent nécessite toujours votre approbation — l'autonomie ne change que les pauses hors argent.",
+      "saved": "Autonomie réglée sur {level}",
+      "saveFailed": "Impossible de mettre à jour l'autonomie",
+      "level": {
+        "SUPERVISED": "Supervisé",
+        "BALANCED": "Équilibré",
+        "AUTONOMOUS": "Autonome"
+      },
+      "desc": {
+        "SUPERVISED": "S'arrête pour votre approbation à chaque action ayant un effet de bord.",
+        "BALANCED": "S'arrête sur les dépenses et les actions risquées ; le travail courant s'exécute seul.",
+        "AUTONOMOUS": "Fonctionne librement — seuls l'argent et les cinq arrêts de risque peuvent l'arrêter."
+      }
+    },
+    "revisions": {
+      "title": "Historique des révisions",
+      "subtitle": "Restaurer les étapes du pipeline à une version antérieure",
+      "history": "Historique",
+      "empty": "Aucune modification d'étapes pour l'instant. Modifiez les étapes et elles apparaîtront ici comme points de restauration.",
+      "restore": "Restaurer",
+      "confirmRestore": "Restaurer les étapes à cette version ? Vos étapes actuelles sont d'abord enregistrées comme nouvelle révision.",
+      "latest": "La plus récente",
+      "versionN": "Version {n}",
+      "stepCount": "{n} étapes"
     }
   },
   "static": {

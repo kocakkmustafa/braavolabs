@@ -29,6 +29,9 @@ export default function CompanyDetailPage() {
   const [modelDraft, setModelDraft] = useState("");
   const [modelSaving, setModelSaving] = useState(false);
   const [modelError, setModelError] = useState<string | null>(null);
+  // D6 — per-agent autonomy is saved immediately on selection (no separate
+  // edit/save dance). `savingAutonomyId` tracks the in-flight write.
+  const [savingAutonomyId, setSavingAutonomyId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token || !params.id) return;
@@ -60,6 +63,30 @@ export default function CompanyDetailPage() {
       toast(msg, "error");
     } finally {
       setModelSaving(false);
+    }
+  };
+
+  const handleSetAutonomy = async (
+    agentId: string,
+    autonomy: "SUPERVISED" | "BALANCED" | "AUTONOMOUS",
+  ) => {
+    if (!token || !company) return;
+    setSavingAutonomyId(agentId);
+    // Optimistic: reflect the choice immediately, roll back on failure.
+    const prev = company;
+    setCompany((c: any) =>
+      c
+        ? { ...c, agents: c.agents?.map((a: any) => (a.id === agentId ? { ...a, autonomy } : a)) }
+        : c,
+    );
+    try {
+      await api.updateAgent(token, company.id, agentId, { autonomy });
+      toast(t("app.autonomy.saved", { level: t(`app.autonomy.level.${autonomy}`) }), "success");
+    } catch (e: any) {
+      setCompany(prev); // roll back
+      toast(e?.message ?? t("app.autonomy.saveFailed"), "error");
+    } finally {
+      setSavingAutonomyId(null);
     }
   };
 
@@ -405,6 +432,27 @@ export default function CompanyDetailPage() {
                           <p className="bv-micro" style={{ marginBottom: 4 }}>{t("app.companyDetail.colStatus")}</p>
                           <span className="bv-pill bv-pill-cyan">{t("app.companyDetail.statusActive")}</span>
                         </div>
+                      </div>
+
+                      {/* Autonomy selector (D6) — 3-way segmented control. Saved on
+                          select. Money always needs approval regardless. */}
+                      <div onClick={(e) => e.stopPropagation()} style={{ marginTop: 16 }}>
+                        <p className="bv-micro" style={{ marginBottom: 6 }}>{t("app.autonomy.label")}</p>
+                        <AutonomySegmented
+                          value={(a.autonomy ?? "BALANCED") as "SUPERVISED" | "BALANCED" | "AUTONOMOUS"}
+                          disabled={savingAutonomyId === a.id}
+                          onChange={(level) => handleSetAutonomy(a.id, level)}
+                          t={t}
+                        />
+                        <p
+                          className="bv-caption"
+                          style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 5 }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: 13, color: "#60A5FA" }}>
+                            lock
+                          </span>
+                          {t("app.autonomy.moneyNote")}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -832,6 +880,87 @@ function DealsKanban({ companyId, token }: { companyId: string; token: string })
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/* ── Autonomy segmented control (D6 — Relevance's signature) ────────────────
+ * Three levels of how eagerly an agent pauses for approval on NON-money tools.
+ * Money-touching actions always need approval (rule #3), surfaced in the note
+ * beneath this control. Saved immediately on click. */
+const AUTONOMY_LEVELS = ["SUPERVISED", "BALANCED", "AUTONOMOUS"] as const;
+const AUTONOMY_ICON: Record<(typeof AUTONOMY_LEVELS)[number], string> = {
+  SUPERVISED: "visibility",
+  BALANCED: "balance",
+  AUTONOMOUS: "rocket_launch",
+};
+
+function AutonomySegmented({
+  value,
+  disabled,
+  onChange,
+  t,
+}: {
+  value: (typeof AUTONOMY_LEVELS)[number];
+  disabled: boolean;
+  onChange: (level: (typeof AUTONOMY_LEVELS)[number]) => void;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  return (
+    <div>
+      <div
+        role="radiogroup"
+        aria-label={t("app.autonomy.label")}
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: 4,
+          padding: 4,
+          background: "rgba(0,0,0,0.25)",
+          border: "1px solid var(--bv-glass-border)",
+          borderRadius: 12,
+          maxWidth: 420,
+        }}
+      >
+        {AUTONOMY_LEVELS.map((level) => {
+          const active = value === level;
+          return (
+            <button
+              key={level}
+              role="radio"
+              aria-checked={active}
+              disabled={disabled}
+              onClick={() => !active && onChange(level)}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 3,
+                padding: "8px 6px",
+                borderRadius: 9,
+                border: active ? "1px solid rgba(59,130,246,0.4)" : "1px solid transparent",
+                background: active ? "rgba(59,130,246,0.14)" : "transparent",
+                color: active ? "#60A5FA" : "var(--color-on-surface-variant)",
+                cursor: disabled ? "default" : active ? "default" : "pointer",
+                opacity: disabled ? 0.6 : 1,
+                transition: "all 0.18s",
+                fontFamily: "inherit",
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 17 }}>
+                {AUTONOMY_ICON[level]}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: active ? 600 : 400 }}>
+                {t(`app.autonomy.level.${level}`)}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {/* One-line explainer for the active level */}
+      <p className="bv-caption" style={{ marginTop: 6, lineHeight: 1.45 }}>
+        {t(`app.autonomy.desc.${value}`)}
+      </p>
     </div>
   );
 }

@@ -423,6 +423,9 @@ const agentUpdateSchema = z.object({
   // and Sales Outreach on premium Claude Sonnet inside the same company.
   model: z.string().min(1).max(100).optional(),
   maxTokens: z.number().int().min(100).max(200_000).optional(),
+  // Graduated autonomy (Feature D6) — how eager this agent is to pause for
+  // approval on non-money tools. Money always needs approval regardless.
+  autonomy: z.enum(["SUPERVISED", "BALANCED", "AUTONOMOUS"]).optional(),
 });
 
 companyRouter.post("/:id/agents", async (req, res, next) => {

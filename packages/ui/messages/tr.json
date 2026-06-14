@@ -87,7 +87,14 @@
       "unknownCompany": "Bilinmeyen Çalışma Alanı",
       "runLabel": "Çalıştırma:",
       "approve": "Onayla",
-      "reject": "Reddet"
+      "reject": "Reddet",
+      "artifactKind": {
+        "email": "Taslak e-posta",
+        "social_post": "Taslak gönderi",
+        "message": "Taslak mesaj",
+        "content": "Üretilen içerik"
+      },
+      "artifactAiLabel": "Yapay zekâ üretimi"
     },
     "companies": {
       "title": "Çalışma Alanları",
@@ -828,7 +835,10 @@
       "labelPlaceholder": "Üretim n8n'im",
       "baseUrlLabel": "Temel URL",
       "apiKeyLabel": "API anahtarı",
-      "connecting": "Bağlanıyor…"
+      "connecting": "Bağlanıyor…",
+      "validatedOk": "Bağlandı ✓ — {n} son çalıştırma bulundu",
+      "validatedFail": "Erişilemedi: {error}",
+      "validatedFailHint": "Bağlantı kaydedildi — planlı olarak yeniden denemeye devam edeceğiz. URL ve API anahtarını kontrol edin."
     },
     "runsList": {
       "activity": "Etkinlik",
@@ -1044,6 +1054,33 @@
       "error": "Açıklama oluşturulamadı. Birazdan tekrar dene.",
       "disclaimer": "Yapay zekâ üretti — uygulamadan önce doğrula.",
       "poweredBy": "{model} ile"
+    },
+    "autonomy": {
+      "label": "Özerklik",
+      "moneyNote": "Para her zaman onayını gerektirir — özerklik yalnızca para dışı duraklamaları değiştirir.",
+      "saved": "Özerklik {level} olarak ayarlandı",
+      "saveFailed": "Özerklik güncellenemedi",
+      "level": {
+        "SUPERVISED": "Denetimli",
+        "BALANCED": "Dengeli",
+        "AUTONOMOUS": "Özerk"
+      },
+      "desc": {
+        "SUPERVISED": "Yan etkisi olan her işlemde onayın için duraklar.",
+        "BALANCED": "Harcama ve riskli işlemlerde duraklar; rutin işler kendi başına çalışır.",
+        "AUTONOMOUS": "Serbest çalışır — yalnızca para ve beş risk-durdurucu duraklatabilir."
+      }
+    },
+    "revisions": {
+      "title": "Sürüm geçmişi",
+      "subtitle": "Pipeline adımlarını önceki bir sürüme geri yükleyin",
+      "history": "Geçmiş",
+      "empty": "Henüz adım düzenlemesi yok. Adımları düzenleyin; geri yükleme noktaları olarak burada görünürler.",
+      "restore": "Geri yükle",
+      "confirmRestore": "Adımlar bu sürüme geri yüklensin mi? Mevcut adımların önce yeni bir sürüm olarak kaydedilir.",
+      "latest": "En son",
+      "versionN": "Sürüm {n}",
+      "stepCount": "{n} adım"
     }
   },
   "static": {

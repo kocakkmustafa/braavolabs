@@ -87,7 +87,14 @@
       "unknownCompany": "Unbekannter Arbeitsbereich",
       "runLabel": "Lauf:",
       "approve": "Genehmigen",
-      "reject": "Ablehnen"
+      "reject": "Ablehnen",
+      "artifactKind": {
+        "email": "E-Mail-Entwurf",
+        "social_post": "Beitragsentwurf",
+        "message": "Nachrichtenentwurf",
+        "content": "Generierter Inhalt"
+      },
+      "artifactAiLabel": "KI-generiert"
     },
     "companies": {
       "title": "Arbeitsbereiche",
@@ -828,7 +835,10 @@
       "labelPlaceholder": "Mein Produktions-n8n",
       "baseUrlLabel": "Basis-URL",
       "apiKeyLabel": "API-Schlüssel",
-      "connecting": "Wird verbunden…"
+      "connecting": "Wird verbunden…",
+      "validatedOk": "Verbunden ✓ — {n} aktuelle Ausführungen gefunden",
+      "validatedFail": "Nicht erreichbar: {error}",
+      "validatedFailHint": "Die Verbindung wurde gespeichert — wir versuchen es planmäßig erneut. Prüfe URL und API-Schlüssel."
     },
     "runsList": {
       "activity": "Aktivität",
@@ -1044,6 +1054,33 @@
       "error": "Erklärung konnte nicht erstellt werden. Versuche es gleich erneut.",
       "disclaimer": "KI-generiert — vor dem Handeln prüfen.",
       "poweredBy": "über {model}"
+    },
+    "autonomy": {
+      "label": "Autonomie",
+      "moneyNote": "Geld erfordert immer deine Freigabe — Autonomie ändert nur Pausen ohne Geldbezug.",
+      "saved": "Autonomie auf {level} gesetzt",
+      "saveFailed": "Autonomie konnte nicht aktualisiert werden",
+      "level": {
+        "SUPERVISED": "Beaufsichtigt",
+        "BALANCED": "Ausgewogen",
+        "AUTONOMOUS": "Autonom"
+      },
+      "desc": {
+        "SUPERVISED": "Pausiert bei jeder Aktion mit Nebenwirkung für deine Freigabe.",
+        "BALANCED": "Pausiert bei Ausgaben und riskanten Aktionen; Routine läuft selbstständig.",
+        "AUTONOMOUS": "Läuft frei — nur Geld und die fünf Risiko-Stopps können es pausieren."
+      }
+    },
+    "revisions": {
+      "title": "Versionsverlauf",
+      "subtitle": "Stelle die Schritte der Pipeline auf eine frühere Version zurück",
+      "history": "Verlauf",
+      "empty": "Noch keine Schrittänderungen. Bearbeite die Schritte, dann erscheinen sie hier als Wiederherstellungspunkte.",
+      "restore": "Wiederherstellen",
+      "confirmRestore": "Schritte auf diese Version zurücksetzen? Deine aktuellen Schritte werden zuerst als neue Version gespeichert.",
+      "latest": "Aktuellste",
+      "versionN": "Version {n}",
+      "stepCount": "{n} Schritte"
     }
   },
   "static": {

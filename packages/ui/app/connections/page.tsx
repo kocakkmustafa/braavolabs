@@ -87,6 +87,11 @@ export default function ConnectionsPage() {
   const [fApiKey, setFApiKey] = useState("");
   const [creating, setCreating] = useState(false);
   const [formErr, setFormErr] = useState<string | null>(null);
+  // F3 — result of the live credential validation that runs on connect.
+  // Shown as a success/warning banner after the connection is created.
+  const [validationResult, setValidationResult] = useState<
+    { validated: boolean; recentRuns?: number; error?: string } | null
+  >(null);
 
   function load() {
     if (!token) return;
@@ -115,12 +120,20 @@ export default function ConnectionsPage() {
     if (!token || !fLabel.trim() || !fBaseUrl.trim() || !fApiKey.trim()) return;
     setCreating(true);
     setFormErr(null);
+    setValidationResult(null);
     try {
-      await api.createExternalConnection(token, {
+      const res = await api.createExternalConnection(token, {
         platform: fPlatform,
         label: fLabel.trim(),
         baseUrl: fBaseUrl.trim(),
         apiKey: fApiKey.trim(),
+      });
+      // F3: the connection was created either way. Surface whether the live
+      // validation reached the platform so the user gets instant feedback.
+      setValidationResult({
+        validated: !!res.validated,
+        recentRuns: res.recentRuns,
+        error: res.validationError,
       });
       setShowForm(false);
       setFLabel("");
@@ -184,6 +197,61 @@ export default function ConnectionsPage() {
             </button>
           </div>
         </div>
+
+        {/* ── F3: live-validation result banner ── */}
+        {validationResult && (
+          <div
+            className="mb-6 flex items-start gap-3 px-4 py-3 rounded-xl"
+            style={{
+              background: validationResult.validated
+                ? "rgba(59,130,246,0.07)"
+                : "rgba(255,122,26,0.08)",
+              border: `1px solid ${
+                validationResult.validated ? "rgba(96,165,250,0.25)" : "rgba(255,122,26,0.3)"
+              }`,
+            }}
+          >
+            <span
+              className="material-symbols-outlined"
+              style={{
+                fontSize: 18,
+                color: validationResult.validated ? "#60A5FA" : "#FF7A1A",
+                marginTop: 1,
+              }}
+            >
+              {validationResult.validated ? "check_circle" : "warning"}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p
+                className="bv-body"
+                style={{
+                  color: validationResult.validated ? "#60A5FA" : "#FF7A1A",
+                  fontWeight: 500,
+                  margin: 0,
+                }}
+              >
+                {validationResult.validated
+                  ? t("app.connections.validatedOk", { n: validationResult.recentRuns ?? 0 })
+                  : t("app.connections.validatedFail", {
+                      error: validationResult.error ?? t("app.connections.connectFailed"),
+                    })}
+              </p>
+              {!validationResult.validated && (
+                <p className="bv-caption" style={{ margin: "2px 0 0" }}>
+                  {t("app.connections.validatedFailHint")}
+                </p>
+              )}
+            </div>
+            <button
+              onClick={() => setValidationResult(null)}
+              className="bv-btn bv-btn-ghost bv-btn-icon"
+              aria-label="Dismiss"
+              style={{ flexShrink: 0 }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+            </button>
+          </div>
+        )}
 
         {/* ── Connection cards grid ── */}
         {loading ? (

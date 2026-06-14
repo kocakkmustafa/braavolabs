@@ -31,6 +31,40 @@ const ADAPTERS: Record<string, ExternalAdapter> = {
 export const credentialsAad = (tenantId: string, id: string) =>
   `${tenantId}|external_connection|${id}`;
 
+/**
+ * Feature F3 — live credential validation at connect time.
+ *
+ * Make ONE `fetchExecutions` call against the platform with the plaintext key
+ * so the onboarding flow can tell the user immediately whether the URL +
+ * credential actually work, instead of silently creating a dead connection
+ * they only discover is broken minutes later when the poller errors.
+ *
+ * Returns `{ validated: true, recentRuns }` on success or
+ * `{ validated: false, validationError }` on any failure. NEVER throws — a
+ * validation failure must not block creating the row (the connection is still
+ * saved; the UI just flags its health and the poller will retry on schedule).
+ */
+export async function validateConnectionCredentials(args: {
+  platform: string;
+  baseUrl: string;
+  apiKey: string;
+}): Promise<{ validated: boolean; recentRuns?: number; validationError?: string }> {
+  const adapter = ADAPTERS[args.platform];
+  if (!adapter) {
+    return { validated: false, validationError: `No adapter for platform ${args.platform}` };
+  }
+  try {
+    const { executions } = await adapter.fetchExecutions({
+      baseUrl: args.baseUrl,
+      apiKey: args.apiKey,
+      cursor: null,
+    });
+    return { validated: true, recentRuns: executions.length };
+  } catch (err) {
+    return { validated: false, validationError: (err as Error).message.slice(0, 300) };
+  }
+}
+
 interface PollableConnection {
   id: string;
   tenantId: string;

@@ -175,6 +175,11 @@ export default function ApprovalsPage() {
                 </span>
               </div>
 
+              {/* Draft artifact (D5) — review the actual generated content before
+                  deciding. Only present for content approvals; spend approvals
+                  (amountUsd above) render without it. */}
+              {a.artifact && <ArtifactCard artifact={a.artifact} t={t} />}
+
               {/* Divider */}
               <div className="bv-divider mb-4" />
 
@@ -213,6 +218,92 @@ export default function ApprovalsPage() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── Draft-artifact card (D5) ──────────────────────────────────────────────
+ * Lindy's signature move: when an approval is about generated CONTENT, show the
+ * real draft — subject bold, body in a scrollable mono block — so the operator
+ * reviews the work, not just a one-line summary, before approving/rejecting. */
+interface ApprovalArtifact {
+  kind: "email" | "social_post" | "message" | "content";
+  title?: string;
+  body: string;
+  source: "draft" | "action";
+}
+
+const ARTIFACT_ICON: Record<ApprovalArtifact["kind"], string> = {
+  email: "mail",
+  social_post: "campaign",
+  message: "forum",
+  content: "draft",
+};
+
+function ArtifactCard({
+  artifact,
+  t,
+}: {
+  artifact: ApprovalArtifact;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const kindLabel = t(`app.approvals.artifactKind.${artifact.kind}`);
+  return (
+    <div
+      className="my-4 rounded-xl overflow-hidden"
+      style={{
+        border: "1px solid rgba(96,165,250,0.18)",
+        background: "rgba(59,130,246,0.04)",
+      }}
+    >
+      {/* Header: kind + "AI-generated" honesty label */}
+      <div
+        className="flex items-center gap-2 px-3.5 py-2.5"
+        style={{ borderBottom: "1px solid rgba(96,165,250,0.12)" }}
+      >
+        <span className="material-symbols-outlined" style={{ fontSize: 16, color: "#60A5FA" }}>
+          {ARTIFACT_ICON[artifact.kind]}
+        </span>
+        <span className="bv-micro" style={{ color: "#60A5FA", letterSpacing: 0 }}>
+          {kindLabel}
+        </span>
+        <span
+          className="bv-pill bv-pill-muted ml-auto"
+          style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.06em" }}
+        >
+          {t("app.approvals.artifactAiLabel")}
+        </span>
+      </div>
+
+      {/* Subject / title — bold */}
+      {artifact.title && (
+        <div
+          className="px-3.5 pt-3"
+          style={{
+            fontWeight: 600,
+            fontSize: 14,
+            color: "var(--color-on-surface)",
+          }}
+        >
+          {artifact.title}
+        </div>
+      )}
+
+      {/* Body — scrollable, monospace, preserves line breaks */}
+      <pre
+        className="bv-mono px-3.5 py-3 m-0"
+        style={{
+          fontSize: 12.5,
+          lineHeight: 1.55,
+          color: "var(--color-on-surface-variant)",
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+          maxHeight: 260,
+          overflowY: "auto",
+        }}
+      >
+        {artifact.body}
+      </pre>
     </div>
   );
 }

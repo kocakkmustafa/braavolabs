@@ -87,7 +87,14 @@
       "unknownCompany": "Unknown Workspace",
       "runLabel": "Run:",
       "approve": "Approve",
-      "reject": "Reject"
+      "reject": "Reject",
+      "artifactKind": {
+        "email": "Draft email",
+        "social_post": "Draft post",
+        "message": "Draft message",
+        "content": "Generated content"
+      },
+      "artifactAiLabel": "AI-generated"
     },
     "companies": {
       "title": "Workspaces",
@@ -828,7 +835,10 @@
       "labelPlaceholder": "My production n8n",
       "baseUrlLabel": "Base URL",
       "apiKeyLabel": "API key",
-      "connecting": "Connecting…"
+      "connecting": "Connecting…",
+      "validatedOk": "Connected ✓ — {n} recent runs found",
+      "validatedFail": "Couldn't reach it: {error}",
+      "validatedFailHint": "The connection was saved — we'll keep retrying on schedule. Check the URL and API key."
     },
     "runsList": {
       "activity": "Activity",
@@ -1044,6 +1054,33 @@
       "error": "Couldn’t generate an explanation. Try again shortly.",
       "disclaimer": "AI-generated — verify before acting.",
       "poweredBy": "via {model}"
+    },
+    "autonomy": {
+      "label": "Autonomy",
+      "moneyNote": "Money always needs your approval — autonomy only changes non-money pauses.",
+      "saved": "Autonomy set to {level}",
+      "saveFailed": "Couldn't update autonomy",
+      "level": {
+        "SUPERVISED": "Supervised",
+        "BALANCED": "Balanced",
+        "AUTONOMOUS": "Autonomous"
+      },
+      "desc": {
+        "SUPERVISED": "Pauses for your approval on every action that has a side effect.",
+        "BALANCED": "Pauses on spend and risky actions; routine work runs on its own.",
+        "AUTONOMOUS": "Runs freely — only money and the five risk-stops can pause it."
+      }
+    },
+    "revisions": {
+      "title": "Revision history",
+      "subtitle": "Restore the pipeline's steps to an earlier version",
+      "history": "History",
+      "empty": "No step edits yet. Edit the steps and they'll show up here as restore points.",
+      "restore": "Restore",
+      "confirmRestore": "Restore the steps to this version? Your current steps are saved as a new revision first.",
+      "latest": "Latest",
+      "versionN": "Version {n}",
+      "stepCount": "{n} steps"
     }
   },
   "static": {

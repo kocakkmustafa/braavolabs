@@ -4,9 +4,69 @@ import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { enqueueRun } from "../pipeline/runner";
 import { z } from "zod";
+import {
+  type ApprovalArtifact,
+  extractArtifactFromInput,
+  artifactFromDraft,
+} from "./artifact";
 
 export const approvalRouter = Router();
 approvalRouter.use(authMiddleware);
+
+/**
+ * Feature D5: attach the reviewable draft/content artifact to each approval so
+ * the queue card can show the actual work product (email subject+body, post
+ * text) instead of a one-line description. Spend-only approvals (ad_spend) get
+ * `artifact: null` and render exactly as before.
+ *
+ * Resolution order, cheapest first:
+ *   1. The pending tool input (`metadata.input`) — the content the agent is
+ *      asking to act on, already tenant-scoped via the approval lookup.
+ *   2. The `drafts` table — if the run that owns this approval produced drafts,
+ *      surface the most recent one (tenant-scoped through the run's company).
+ */
+async function attachArtifacts<T extends { id: string; runId: string; metadata: unknown }>(
+  approvals: T[],
+): Promise<Array<T & { artifact: ApprovalArtifact | null }>> {
+  // First pass: try the tool input — no extra query needed.
+  const out = approvals.map((a) => {
+    const meta =
+      a.metadata && typeof a.metadata === "object" && !Array.isArray(a.metadata)
+        ? (a.metadata as Record<string, unknown>)
+        : {};
+    const artifact = extractArtifactFromInput(meta.input);
+    return { approval: a, artifact, runId: a.runId };
+  });
+
+  // Second pass: for approvals with no inline content, look up a draft created
+  // in the same run's company. Batched by company so N approvals = ≤1 query
+  // per distinct company, never one-per-approval.
+  const needsDraft = out.filter((o) => !o.artifact);
+  if (needsDraft.length > 0) {
+    const runIds = [...new Set(needsDraft.map((o) => o.runId))];
+    const runs = await prisma.run.findMany({
+      where: { id: { in: runIds } },
+      select: { id: true, pipeline: { select: { companyId: true } }, createdAt: true },
+    });
+    const runToCompany = new Map(runs.map((r) => [r.id, r.pipeline.companyId]));
+
+    for (const o of needsDraft) {
+      const companyId = runToCompany.get(o.runId);
+      if (!companyId) continue;
+      // Most recent pending/approved draft for this company is the best guess at
+      // "the content this approval is about". Tenant isolation holds because the
+      // company was reached only through this tenant's run.
+      const draft = await prisma.draft.findFirst({
+        where: { companyId, status: { in: ["PENDING", "APPROVED"] } },
+        orderBy: { createdAt: "desc" },
+        select: { type: true, title: true, channel: true, content: true },
+      });
+      if (draft) o.artifact = artifactFromDraft(draft);
+    }
+  }
+
+  return out.map((o) => ({ ...o.approval, artifact: o.artifact }));
+}
 
 // GET /api/v1/approvals — list pending approvals for tenant
 approvalRouter.get("/", async (req, res, next) => {
@@ -22,7 +82,7 @@ approvalRouter.get("/", async (req, res, next) => {
       },
       orderBy: { createdAt: "desc" },
     });
-    res.json(approvals);
+    res.json(await attachArtifacts(approvals));
   } catch (err) { next(err); }
 });
 

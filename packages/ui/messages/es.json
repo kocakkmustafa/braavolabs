@@ -87,7 +87,14 @@
       "unknownCompany": "Espacio de trabajo desconocido",
       "runLabel": "Ejecución:",
       "approve": "Aprobar",
-      "reject": "Rechazar"
+      "reject": "Rechazar",
+      "artifactKind": {
+        "email": "Borrador de correo",
+        "social_post": "Borrador de publicación",
+        "message": "Borrador de mensaje",
+        "content": "Contenido generado"
+      },
+      "artifactAiLabel": "Generado por IA"
     },
     "companies": {
       "title": "Espacios de trabajo",
@@ -828,7 +835,10 @@
       "labelPlaceholder": "Mi n8n de producción",
       "baseUrlLabel": "URL base",
       "apiKeyLabel": "Clave API",
-      "connecting": "Conectando…"
+      "connecting": "Conectando…",
+      "validatedOk": "Conectado ✓ — {n} ejecuciones recientes encontradas",
+      "validatedFail": "No se pudo acceder: {error}",
+      "validatedFailHint": "La conexión se guardó — seguiremos reintentando según lo programado. Revisa la URL y la clave de API."
     },
     "runsList": {
       "activity": "Actividad",
@@ -1044,6 +1054,33 @@
       "error": "No se pudo generar una explicación. Inténtalo de nuevo en breve.",
       "disclaimer": "Generado por IA — verifica antes de actuar.",
       "poweredBy": "vía {model}"
+    },
+    "autonomy": {
+      "label": "Autonomía",
+      "moneyNote": "El dinero siempre necesita tu aprobación; la autonomía solo cambia las pausas que no son de dinero.",
+      "saved": "Autonomía establecida en {level}",
+      "saveFailed": "No se pudo actualizar la autonomía",
+      "level": {
+        "SUPERVISED": "Supervisado",
+        "BALANCED": "Equilibrado",
+        "AUTONOMOUS": "Autónomo"
+      },
+      "desc": {
+        "SUPERVISED": "Se detiene para tu aprobación en cada acción con efecto secundario.",
+        "BALANCED": "Se detiene en gastos y acciones arriesgadas; el trabajo rutinario corre solo.",
+        "AUTONOMOUS": "Funciona libremente: solo el dinero y los cinco frenos de riesgo pueden detenerlo."
+      }
+    },
+    "revisions": {
+      "title": "Historial de revisiones",
+      "subtitle": "Restaura los pasos del pipeline a una versión anterior",
+      "history": "Historial",
+      "empty": "Aún no hay ediciones de pasos. Edita los pasos y aparecerán aquí como puntos de restauración.",
+      "restore": "Restaurar",
+      "confirmRestore": "¿Restaurar los pasos a esta versión? Tus pasos actuales se guardan primero como una nueva revisión.",
+      "latest": "Más reciente",
+      "versionN": "Versión {n}",
+      "stepCount": "{n} pasos"
     }
   },
   "static": {

@@ -161,6 +161,9 @@ export async function executeStep(
         companyId: run.pipeline.company.id,
         runId: run.id,
         runStepId: runStep.id,
+        // Graduated autonomy (D6): the agent's own setting decides whether
+        // non-money tool calls pause for approval. Money tools stay gated.
+        autonomy: agent.autonomy,
       },
     });
 

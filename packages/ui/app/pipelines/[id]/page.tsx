@@ -56,6 +56,15 @@ interface PipelineRun {
   createdAt?: string;
 }
 
+interface PipelineRevision {
+  id: string;
+  actor: string | null;
+  createdAt: string;
+  stepCountBefore?: number;
+  stepCountAfter?: number;
+  steps: PipelineStep[];
+}
+
 interface PipelineDetail {
   id: string;
   name: string;
@@ -121,6 +130,11 @@ export default function PipelineDetailPage() {
     isFree: boolean; unknownModel: boolean; configured: boolean;
   } | null>(null);
   const [estimateFailed, setEstimateFailed] = useState(false);
+  // D4 — revision history (prior step snapshots from activity_log).
+  const [showHistory, setShowHistory] = useState(false);
+  const [revisions, setRevisions] = useState<PipelineRevision[]>([]);
+  const [revisionsLoading, setRevisionsLoading] = useState(false);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token || !pipelineId) return;
@@ -252,6 +266,39 @@ export default function PipelineDetailPage() {
       setStepsErr(e instanceof Error ? e.message : t("app.pipelineDetail.saveStepsFailed"));
     } finally {
       setSavingSteps(false);
+    }
+  }
+
+  // D4 — revision history. Open the panel and lazy-load prior step snapshots.
+  async function openHistory() {
+    setShowHistory(true);
+    if (!token || !pipelineId) return;
+    setRevisionsLoading(true);
+    try {
+      const { revisions } = await api.pipelineRevisions(token, pipelineId);
+      setRevisions(revisions);
+    } catch {
+      setRevisions([]);
+    } finally {
+      setRevisionsLoading(false);
+    }
+  }
+
+  async function restoreRevision(revisionId: string) {
+    if (!token || !pipelineId) return;
+    if (!window.confirm(t("app.revisions.confirmRestore"))) return;
+    setRestoringId(revisionId);
+    try {
+      await api.restorePipelineRevision(token, pipelineId, revisionId);
+      const fresh = await api.getPipeline(token, pipelineId);
+      setPipeline(fresh);
+      // Refresh the list — the restore itself created a new revision.
+      const { revisions: next } = await api.pipelineRevisions(token, pipelineId);
+      setRevisions(next);
+    } catch {
+      /* surfaced via the list staying as-is; keep the panel open */
+    } finally {
+      setRestoringId(null);
     }
   }
 
@@ -581,6 +628,17 @@ export default function PipelineDetailPage() {
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
                 {t("app.pipelineDetail.edit")}
+              </button>
+
+              {/* History (D4) — recent step revisions + restore */}
+              <button
+                onClick={openHistory}
+                className="bv-btn bv-btn-ghost bv-btn-sm"
+                disabled={!pipeline}
+                title={t("app.revisions.title")}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>history</span>
+                {t("app.revisions.history")}
               </button>
 
               {/* Pre-run cost estimate (D3) — honest range, never exact */}
@@ -1292,6 +1350,133 @@ export default function PipelineDetailPage() {
             </>
           ) : null}
         </aside>
+      </div>
+
+      {/* ── Revision history modal (D4) ── */}
+      {showHistory && (
+        <RevisionHistoryModal
+          revisions={revisions}
+          loading={revisionsLoading}
+          restoringId={restoringId}
+          onRestore={restoreRevision}
+          onClose={() => setShowHistory(false)}
+          t={t}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ── Revision history modal (D4) ───────────────────────────────────────────
+ * Lists the last ~10 prior step-snapshots (from activity_log) with a Restore
+ * button each (confirm dialog in the handler). Every save that changed steps is
+ * a restore point; Restore itself is logged + reversible. */
+function RevisionHistoryModal({
+  revisions,
+  loading,
+  restoringId,
+  onRestore,
+  onClose,
+  t,
+}: {
+  revisions: PipelineRevision[];
+  loading: boolean;
+  restoringId: string | null;
+  onRestore: (id: string) => void;
+  onClose: () => void;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(3,4,7,0.72)",
+        backdropFilter: "blur(6px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        zIndex: 90,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bv-glass bv-rise"
+        style={{ width: "100%", maxWidth: 520, maxHeight: "80vh", overflow: "hidden", borderRadius: 18, display: "flex", flexDirection: "column" }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center gap-3"
+          style={{ padding: "18px 22px", borderBottom: "1px solid var(--bv-glass-border)" }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 19, color: "#60A5FA" }}>history</span>
+          <div style={{ flex: 1 }}>
+            <h3 className="bv-title" style={{ margin: 0 }}>{t("app.revisions.title")}</h3>
+            <p className="bv-caption" style={{ margin: 0 }}>{t("app.revisions.subtitle")}</p>
+          </div>
+          <button onClick={onClose} className="bv-btn bv-btn-ghost bv-btn-icon" aria-label="Close">
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ overflowY: "auto", padding: "16px 22px" }}>
+          {loading ? (
+            <div className="animate-shimmer" style={{ height: 120, borderRadius: 12 }} />
+          ) : revisions.length === 0 ? (
+            <p className="bv-caption" style={{ textAlign: "center", padding: "32px 0" }}>
+              {t("app.revisions.empty")}
+            </p>
+          ) : (
+            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+              {revisions.map((rev, i) => (
+                <li
+                  key={rev.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: "1px solid var(--bv-glass-border)",
+                    background: "rgba(255,255,255,0.02)",
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span className="bv-pill bv-pill-muted">
+                        {i === 0 ? t("app.revisions.latest") : t("app.revisions.versionN", { n: i + 1 })}
+                      </span>
+                      <span className="bv-caption">
+                        {t("app.revisions.stepCount", { n: rev.steps.length })}
+                      </span>
+                    </div>
+                    <p className="bv-caption" style={{ margin: "4px 0 0" }}>
+                      {timeAgo(rev.createdAt)}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => onRestore(rev.id)}
+                    disabled={restoringId !== null}
+                    className="bv-btn bv-btn-ghost bv-btn-sm"
+                  >
+                    {restoringId === rev.id ? (
+                      <span
+                        className="inline-block border-2 border-current border-t-transparent rounded-full animate-spin"
+                        style={{ width: 13, height: 13 }}
+                      />
+                    ) : (
+                      <span className="material-symbols-outlined" style={{ fontSize: 14 }}>restore</span>
+                    )}
+                    {t("app.revisions.restore")}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </div>
   );

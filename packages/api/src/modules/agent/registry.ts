@@ -12,6 +12,67 @@ export interface ToolMeta {
    * pushes) exactly like the spend gate; the operator's answer resumes it.
    */
   interrupt?: "INPUT";
+  /**
+   * Graduated autonomy (Feature D6). When true, this tool spends real money
+   * (ad budgets, paid telephony, etc.) and ALWAYS requires an approval row —
+   * CLAUDE.md rule #3 is inviolable, so even an AUTONOMOUS agent is gated here.
+   * Defaults to `requiresApproval` when unset, so legacy spend tools stay
+   * money-gated without per-tool edits.
+   */
+  moneyTouching?: boolean;
+}
+
+export type AgentAutonomyLevel = "SUPERVISED" | "BALANCED" | "AUTONOMOUS";
+
+/**
+ * Does this tool spend real money? Money-touching tools are gated by an
+ * approval at every autonomy level (rule #3). When a tool doesn't set the flag
+ * explicitly we fall back to `requiresApproval`, which historically marked the
+ * spend tools (ad_spend, voice_call) — so the safe default is "treat an
+ * approval-required tool as money-touching".
+ */
+export function isMoneyTouching(meta: ToolMeta | undefined): boolean {
+  if (!meta) return false;
+  return meta.moneyTouching ?? meta.requiresApproval;
+}
+
+/**
+ * Core autonomy decision (pure — unit-tested). Given a tool's meta and the
+ * acting agent's autonomy level, decide whether the executor must create an
+ * approval row before running the handler.
+ *
+ *   - Money-touching tools  → ALWAYS true (rule #3, inviolable).
+ *   - SUPERVISED → pause on any tool that has a side effect: `requiresApproval`
+ *                  OR a non-low risk level. (Pure read/generate tools are low
+ *                  risk and run freely — the agent loop would stall otherwise.)
+ *   - BALANCED   → pause on spend + risky tools. This reproduces the historical
+ *                  behaviour, where only `requiresApproval` tools paused; we
+ *                  also catch high-risk tools that forgot the flag.
+ *   - AUTONOMOUS → never pause for routine tools; only money + the five
+ *                  risk-stops (enforced elsewhere) gate the run.
+ */
+export function requiresApprovalForAutonomy(
+  meta: ToolMeta | undefined,
+  autonomy: AgentAutonomyLevel,
+): boolean {
+  // Rule #3: money is always gated, no matter the autonomy level.
+  if (isMoneyTouching(meta)) return true;
+  if (!meta) return false;
+
+  switch (autonomy) {
+    case "AUTONOMOUS":
+      // Only money (handled above) + risk-stops gate an autonomous agent.
+      return false;
+    case "BALANCED":
+      // Spend + risky tools. requiresApproval covers the declared spend/action
+      // tools; high risk catches anything dangerous that omitted the flag.
+      return meta.requiresApproval || meta.riskLevel === "high";
+    case "SUPERVISED":
+    default:
+      // Pause on every side-effecting action — approval-required OR any
+      // medium/high risk tool. Low-risk read/generate tools still run.
+      return meta.requiresApproval || meta.riskLevel !== "low";
+  }
 }
 
 export interface ToolDefinition {
@@ -1170,7 +1231,7 @@ registerTool({
     },
     required: ["companyId", "platform", "budgetUsd", "campaign"],
   },
-  meta: { requiresApproval: true, riskLevel: "high" },
+  meta: { requiresApproval: true, riskLevel: "high", moneyTouching: true },
   handler: async (input) => {
     // This will be caught by the approval gate in tool-executor
     return { status: "approved_and_executed", ...(input as object) };
@@ -1382,7 +1443,8 @@ registerTool({
     },
     required: ["voiceAgentId", "calleeNumber", "prompt"],
   },
-  meta: { requiresApproval: true, riskLevel: "medium" },
+  // Paid telephony — money-touching, so gated at every autonomy level (rule #3).
+  meta: { requiresApproval: true, riskLevel: "medium", moneyTouching: true },
   handler: async (input) => {
     const { voiceAgentId, calleeNumber, prompt } = input as {
       voiceAgentId: string;

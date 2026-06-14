@@ -29,6 +29,13 @@ export interface AgentGovContext {
   companyId: string;
   runId: string;
   runStepId: string;
+  /**
+   * Graduated autonomy (Feature D6) of the agent executing this step. Threaded
+   * to executeTool() so the approval gate can relax NON-money pauses for more
+   * autonomous agents. Money-touching tools stay gated regardless. Defaults to
+   * BALANCED in the executor when absent (preserves historical behaviour).
+   */
+  autonomy?: "SUPERVISED" | "BALANCED" | "AUTONOMOUS";
 }
 
 const isLocalMode = env.LLM_PROVIDER === "local";

@@ -292,6 +292,16 @@ model Agent {
   tools       Json     @default("[]")  // allowed tool definitions
   model       String   @default("claude-sonnet-4-20250514")
   maxTokens   Int      @default(4096) @map("max_tokens")
+  // Graduated autonomy (Feature D6 — Relevance's signature). Controls how eager
+  // this agent is to pause for human approval on NON-money tool calls:
+  //   SUPERVISED — pause on every side-effecting/spend action.
+  //   BALANCED   — pause on spend + tools flagged risky (high/medium risk).
+  //                Default: preserves the historical behaviour, where only
+  //                requiresApproval tools (spend + risky actions) paused.
+  //   AUTONOMOUS — only the five risk-stops gate it; no routine approval pauses.
+  // Money-touching actions ALWAYS require approval regardless of this setting
+  // (CLAUDE.md rule #3 is inviolable) — autonomy only relaxes non-money pauses.
+  autonomy    AgentAutonomy @default(BALANCED)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -360,6 +370,13 @@ model Pipeline {
 enum PipelineType {
   SEQUENTIAL
   HIERARCHICAL
+}
+
+// Per-agent graduated autonomy (Feature D6). See Agent.autonomy.
+enum AgentAutonomy {
+  SUPERVISED
+  BALANCED
+  AUTONOMOUS
 }
 
 model Run {

@@ -408,10 +408,37 @@ pipelineRouter.patch("/:id", async (req, res, next) => {
     }
 
     const patchData = updatePipelineSchema.parse(req.body);
+
+    // D4 — revision history. When the patch changes `steps`, snapshot the
+    // PREVIOUS steps into activity_log so the edit is reversible. No new table:
+    // activity_log already exists and is tenant-scoped + indexed by resourceId.
+    const stepsChanged =
+      patchData.steps !== undefined &&
+      JSON.stringify(patchData.steps) !== JSON.stringify(pipeline.steps ?? []);
+
     const updated = await prisma.pipeline.update({
       where: { id: pipeline.id },
       data: { ...patchData, steps: patchData.steps as any },
     });
+
+    if (stepsChanged) {
+      await prisma.activityLog.create({
+        data: {
+          tenantId: req.auth!.tenantId,
+          actor: req.auth!.userId,
+          action: "pipeline.revision",
+          resource: "pipeline",
+          resourceId: pipeline.id,
+          details: {
+            // The steps as they were BEFORE this edit — what "Restore" reverts to.
+            previousSteps: pipeline.steps ?? [],
+            stepCountBefore: Array.isArray(pipeline.steps) ? pipeline.steps.length : 0,
+            stepCountAfter: Array.isArray(patchData.steps) ? patchData.steps.length : 0,
+            at: new Date().toISOString(),
+          } as any,
+        },
+      });
+    }
 
     await prisma.activityLog.create({
       data: {
@@ -424,6 +451,140 @@ pipelineRouter.patch("/:id", async (req, res, next) => {
     });
 
     res.json(updated);
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/pipelines/:id/revisions — recent step-snapshots (D4).
+// Reads activity_log "pipeline.revision" rows for this pipeline and returns the
+// last ~10 prior step snapshots, newest first. Each entry is a restore point.
+pipelineRouter.get("/:id/revisions", async (req, res, next) => {
+  try {
+    const pipeline = await prisma.pipeline.findUnique({
+      where: { id: req.params.id },
+      include: { company: true },
+    });
+    if (!pipeline || pipeline.company.tenantId !== req.auth!.tenantId) {
+      throw new AppError(404, "Pipeline not found");
+    }
+
+    const logs = await prisma.activityLog.findMany({
+      where: {
+        tenantId: req.auth!.tenantId,
+        action: "pipeline.revision",
+        resource: "pipeline",
+        resourceId: pipeline.id,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+
+    const revisions = logs.map((log) => {
+      const details =
+        log.details && typeof log.details === "object" && !Array.isArray(log.details)
+          ? (log.details as Record<string, unknown>)
+          : {};
+      const prev = details.previousSteps;
+      return {
+        id: log.id,
+        actor: log.actor,
+        createdAt: log.createdAt,
+        stepCountBefore: typeof details.stepCountBefore === "number" ? details.stepCountBefore : undefined,
+        stepCountAfter: typeof details.stepCountAfter === "number" ? details.stepCountAfter : undefined,
+        // The snapshot the caller would restore to.
+        steps: Array.isArray(prev) ? prev : [],
+      };
+    });
+
+    res.json({ revisions });
+  } catch (err) { next(err); }
+});
+
+const restoreRevisionSchema = z
+  .object({
+    revisionId: z.string().optional(),
+    index: z.number().int().min(0).optional(),
+  })
+  .refine((v) => v.revisionId !== undefined || v.index !== undefined, {
+    message: "Provide a revisionId or an index",
+  });
+
+// POST /api/v1/pipelines/:id/revisions/restore — revert steps to a snapshot (D4).
+// Body: { revisionId } or { index } (0 = most recent revision). Sets
+// pipeline.steps back to that snapshot and logs a NEW revision (snapshotting the
+// current steps first) so the restore is itself reversible.
+pipelineRouter.post("/:id/revisions/restore", async (req, res, next) => {
+  try {
+    const pipeline = await prisma.pipeline.findUnique({
+      where: { id: req.params.id },
+      include: { company: true },
+    });
+    if (!pipeline || pipeline.company.tenantId !== req.auth!.tenantId) {
+      throw new AppError(404, "Pipeline not found");
+    }
+
+    const body = restoreRevisionSchema.parse(req.body);
+
+    const logs = await prisma.activityLog.findMany({
+      where: {
+        tenantId: req.auth!.tenantId,
+        action: "pipeline.revision",
+        resource: "pipeline",
+        resourceId: pipeline.id,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+
+    const target =
+      body.revisionId !== undefined
+        ? logs.find((l) => l.id === body.revisionId)
+        : logs[body.index!];
+    if (!target) throw new AppError(404, "Revision not found");
+
+    const details =
+      target.details && typeof target.details === "object" && !Array.isArray(target.details)
+        ? (target.details as Record<string, unknown>)
+        : {};
+    const snapshot = Array.isArray(details.previousSteps) ? details.previousSteps : null;
+    if (!snapshot) throw new AppError(422, "This revision has no step snapshot to restore");
+
+    // Snapshot the CURRENT steps as a new revision so the restore is reversible,
+    // then apply the chosen snapshot — both in one transaction.
+    const restored = await prisma.$transaction(async (tx) => {
+      await tx.activityLog.create({
+        data: {
+          tenantId: req.auth!.tenantId,
+          actor: req.auth!.userId,
+          action: "pipeline.revision",
+          resource: "pipeline",
+          resourceId: pipeline.id,
+          details: {
+            previousSteps: pipeline.steps ?? [],
+            stepCountBefore: Array.isArray(pipeline.steps) ? pipeline.steps.length : 0,
+            stepCountAfter: snapshot.length,
+            at: new Date().toISOString(),
+            restoredFrom: target.id,
+          } as any,
+        },
+      });
+      const updated = await tx.pipeline.update({
+        where: { id: pipeline.id },
+        data: { steps: snapshot as any },
+      });
+      await tx.activityLog.create({
+        data: {
+          tenantId: req.auth!.tenantId,
+          actor: req.auth!.userId,
+          action: "pipeline.revision.restore",
+          resource: "pipeline",
+          resourceId: pipeline.id,
+          details: { restoredFrom: target.id, stepCount: snapshot.length } as any,
+        },
+      });
+      return updated;
+    });
+
+    res.json(restored);
   } catch (err) { next(err); }
 });
 

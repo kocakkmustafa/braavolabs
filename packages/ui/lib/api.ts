@@ -437,6 +437,25 @@ export const api = {
   deletePipeline: (token: string, id: string) =>
     apiFetch<{ success: boolean }>(`/pipelines/${id}`, { method: "DELETE", token }),
 
+  // Pipeline revision history (D4) — prior step snapshots from activity_log.
+  pipelineRevisions: (token: string, id: string) =>
+    apiFetch<{
+      revisions: Array<{
+        id: string;
+        actor: string | null;
+        createdAt: string;
+        stepCountBefore?: number;
+        stepCountAfter?: number;
+        steps: Array<{ name: string; agentRole: string; order: number }>;
+      }>;
+    }>(`/pipelines/${id}/revisions`, { token }),
+  restorePipelineRevision: (token: string, id: string, revisionId: string) =>
+    apiFetch<any>(`/pipelines/${id}/revisions/restore`, {
+      method: "POST",
+      body: JSON.stringify({ revisionId }),
+      token,
+    }),
+
   // Draft approve/send
   approveDraft: (token: string, id: string, send = false) =>
     apiFetch<any>(`/drafts/${id}/approve`, { method: "POST", body: JSON.stringify({ send }), token }),
@@ -723,7 +742,16 @@ export const api = {
     token: string,
     body: { platform: string; label: string; baseUrl: string; apiKey: string; companyId?: string; pollIntervalSec?: number },
   ) =>
-    apiFetch<any>("/external-connections", { method: "POST", body: JSON.stringify(body), token }),
+    // F3: response carries the live-validation outcome alongside the row so the
+    // UI can confirm the credential actually reached the platform on connect.
+    apiFetch<{
+      id: string;
+      status: string;
+      validated: boolean;
+      validationError?: string;
+      recentRuns?: number;
+      [k: string]: unknown;
+    }>("/external-connections", { method: "POST", body: JSON.stringify(body), token }),
   patchExternalConnection: (token: string, id: string, patch: { enabled?: boolean; pollIntervalSec?: number; label?: string }) =>
     apiFetch<any>(`/external-connections/${id}`, { method: "PATCH", body: JSON.stringify(patch), token }),
   deleteExternalConnection: (token: string, id: string) =>
