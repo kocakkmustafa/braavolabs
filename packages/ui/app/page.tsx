@@ -26,6 +26,16 @@ const EXAMPLES = [
   "A finance back-office that reconciles invoices and generates weekly P&L reports",
 ];
 
+// Hero quick-pick chips. The visible label is localized (landing.hero.chips),
+// but the onClick seeds the AI builder prompt — that text is read by the model,
+// so it stays ENGLISH regardless of locale. Index-aligned with the chips array.
+const CHIP_SEEDS = [
+  "TikTok Content Studio",
+  "Newsletter Growth",
+  "Lead Follow-up",
+  "Client Reporting",
+];
+
 // ── Forge stream fragments (hero pulse) ───────────────────────────────────────
 const FRAGS = [
   "run.start › agent:acquisition › tool_call(search_market)…",
@@ -543,13 +553,13 @@ export default function LandingPage() {
 
           {/* Nav links */}
           <div className="hidden md:flex" style={{ gap: 28, marginLeft: 8 }}>
-            {(["Features","Pricing","Integrations","Changelog","Blog"] as const).map((label, i) => {
+            {(["features","pricing","integrations","changelog","blog"] as const).map((navKey, i) => {
               const hrefs = ["#moat","#pricing","#providers","/changelog","/blog"];
               return (
-                <a key={label} href={hrefs[i]} style={{ color: "#9AA3B2", textDecoration: "none", fontSize: 14.5, padding: "6px 0", transition: "color 0.3s" }}
+                <a key={navKey} href={hrefs[i]} style={{ color: "#9AA3B2", textDecoration: "none", fontSize: 14.5, padding: "6px 0", transition: "color 0.3s" }}
                   onMouseEnter={(e) => e.currentTarget.style.color = "#E8EBF0"}
                   onMouseLeave={(e) => e.currentTarget.style.color = "#9AA3B2"}
-                >{label}</a>
+                >{t(`landing.nav.${navKey}`)}</a>
               );
             })}
           </div>
@@ -615,7 +625,7 @@ export default function LandingPage() {
               background: "linear-gradient(180deg,#fff 0%,#aab3c4 58%,#6b7587 100%)",
               WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent",
               animation: "bv-rise 0.85s cubic-bezier(0.22,1,0.36,1) 0.05s both",
-            }}>Command the agents</b>
+            }}>{t("landing.hero.line1")}</b>
           </span>
           <span style={{ display: "block", overflow: "hidden", paddingBottom: "0.04em", whiteSpace: "nowrap" as const }}>
             <b style={{
@@ -624,8 +634,8 @@ export default function LandingPage() {
               WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent",
               animation: "bv-rise 0.85s cubic-bezier(0.22,1,0.36,1) 0.16s both",
             }}>
-              you already{" "}
-              <em style={{ fontStyle: "normal", background: "linear-gradient(180deg,#7DD3FC,#3B82F6)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>run.</em>
+              {t("landing.hero.line2a")}{" "}
+              <em style={{ fontStyle: "normal", background: "linear-gradient(180deg,#7DD3FC,#3B82F6)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>{t("landing.hero.line2b")}</em>
             </b>
           </span>
         </h1>
@@ -636,7 +646,7 @@ export default function LandingPage() {
           margin: "26px auto 0", position: "relative", zIndex: 2,
           animation: "bv-stagger-fade 0.8s cubic-bezier(0.22,1,0.36,1) 0.5s both",
         }}>
-          Build on the web. Steer &amp; approve from your pocket. Run fully offline. Bring your own keys across 12 providers — one war-room for every agent and automation you operate.
+          {t("landing.hero.sub")}
         </p>
 
         {/* CTA row */}
@@ -651,10 +661,10 @@ export default function LandingPage() {
             style={{ padding: "14px 24px", borderRadius: 999, fontSize: 15, minHeight: 48 }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 17 }}>rocket_launch</span>
-            Start free — no card needed
+            {t("landing.hero.ctaPrimary")}
           </button>
           <a href="#trail" className="bv-btn bv-btn-ghost" style={{ padding: "14px 24px", borderRadius: 999, fontSize: 15, minHeight: 48 }}>
-            Watch it steer
+            {t("landing.hero.ctaSecondary")}
           </a>
         </div>
 
@@ -667,7 +677,7 @@ export default function LandingPage() {
           <div className="bv-glass animate-pulse-glow" style={{ borderRadius: 18, overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 20px 6px" }}>
               <span className="material-symbols-outlined" style={{ fontSize: 17, color: "#60A5FA" }}>smart_toy</span>
-              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", color: "#60A5FA", fontFamily: "var(--bv-font-mono)" }}>AI COMPANY BUILDER</span>
+              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", color: "#60A5FA", fontFamily: "var(--bv-font-mono)" }}>{t("landing.hero.builderLabel")}</span>
             </div>
             <textarea
               value={input}
@@ -687,11 +697,11 @@ export default function LandingPage() {
                 <kbd style={{ padding: "2px 6px", borderRadius: 4, background: "rgba(255,255,255,0.06)", fontSize: 10, fontFamily: "inherit" }}>⌘</kbd>
                 <span>+</span>
                 <kbd style={{ padding: "2px 6px", borderRadius: 4, background: "rgba(255,255,255,0.06)", fontSize: 10, fontFamily: "inherit" }}>Enter</kbd>
-                <span style={{ marginLeft: 4 }}>to build</span>
+                <span style={{ marginLeft: 4 }}>{t("landing.hero.buildKbd")}</span>
               </span>
               <button onClick={handleBuild} className="bv-btn bv-btn-primary bv-btn-sm">
                 <span className="material-symbols-outlined" style={{ fontSize: 14 }}>rocket_launch</span>
-                Hire my AI team — free
+                {t("landing.hero.buildBtn")}
               </button>
             </div>
           </div>
@@ -699,10 +709,10 @@ export default function LandingPage() {
 
         {/* Chips */}
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 16, position: "relative", zIndex: 2, animation: "bv-stagger-fade 0.8s cubic-bezier(0.22,1,0.36,1) 0.65s both" }}>
-          {["TikTok Content Studio","Newsletter Growth","Lead Follow-up","Client Reporting"].map((chip) => (
-            <button key={chip} onClick={() => { setInput(`A ${chip.toLowerCase()} company that runs autonomously — I describe the goal, AI agents do the work, I review the output.`); sounds.click(); }}
+          {(t.raw("landing.hero.chips") as string[]).map((chipLabel, i) => (
+            <button key={i} onClick={() => { setInput(`A ${CHIP_SEEDS[i].toLowerCase()} company that runs autonomously — I describe the goal, AI agents do the work, I review the output.`); sounds.click(); }}
               className="bv-fpill">
-              {chip}
+              {chipLabel}
             </button>
           ))}
         </div>
@@ -724,7 +734,7 @@ export default function LandingPage() {
 
         {/* Scroll cue */}
         <div style={{ position: "absolute", bottom: 26, left: "50%", transform: "translateX(-50%)", fontFamily: "var(--bv-font-mono)", fontSize: 10, letterSpacing: "0.24em", textTransform: "uppercase" as const, color: "#5B6473", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, animation: "bv-stagger-fade 0.8s cubic-bezier(0.22,1,0.36,1) 1s both" }}>
-          <span>Scroll</span>
+          <span>{t("landing.hero.scroll")}</span>
           <span style={{ width: 1, height: 30, background: "linear-gradient(180deg,#3B82F6,transparent)", display: "block", animation: "bv-cue 2s cubic-bezier(0.22,1,0.36,1) infinite" }} />
           <style>{`@keyframes bv-cue{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform:scaleY(1);transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}`}</style>
         </div>
@@ -735,13 +745,13 @@ export default function LandingPage() {
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 32px" }}>
           <div className="reveal" style={{ fontFamily: "var(--bv-font-mono)", fontSize: 12, letterSpacing: "0.28em", textTransform: "uppercase" as const, color: "#60A5FA", display: "inline-flex", alignItems: "center", gap: 10 }}>
             <span style={{ width: 22, height: 1, background: "linear-gradient(90deg,transparent,#3B82F6)", display: "inline-block" }} />
-            The moat
+            {t("landing.moat.eyebrow")}
           </div>
           <h2 className="reveal" style={{ fontFamily: "var(--bv-font-display)", fontWeight: 600, fontSize: "clamp(30px,4.6vw,58px)", lineHeight: 0.98, letterSpacing: "-0.02em", textTransform: "uppercase" as const, margin: "16px 0 10px", color: "#E8EBF0" }}>
-            Control, mobility &amp; privacy —<br />not connector count.
+            {t("landing.moat.title1")}<br />{t("landing.moat.title2")}
           </h2>
           <p className="reveal" style={{ color: "#9AA3B2", maxWidth: "62ch", fontSize: 17 }}>
-            Five things no generic automation dashboard gives you. Each one locks into place like a forged steel plate.
+            {t("landing.moat.sub")}
           </p>
 
           {/* Moat grid */}
@@ -749,9 +759,9 @@ export default function LandingPage() {
 
             {/* Feature card — mid-run steering */}
             <div id="moatScene" className="bv-glass reveal" style={{ padding: 28, gridColumn: "span 8", minHeight: 320, display: "flex", flexDirection: "column" }}>
-              <span className="bv-pill bv-pill-amber" style={{ alignSelf: "flex-start" }}>The sharpest edge</span>
-              <h3 style={{ fontFamily: "var(--bv-font-display)", fontSize: 23, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "-0.01em", margin: "18px 0 8px", color: "#E8EBF0" }}>Mid-run steering &amp; ask_user</h3>
-              <p style={{ color: "#9AA3B2", fontSize: 14.5, maxWidth: "42ch" }}>Agents pause to ask. You answer — the run resumes, mid-flight. No re-runs, no babysitting.</p>
+              <span className="bv-pill bv-pill-amber" style={{ alignSelf: "flex-start" }}>{t("landing.moat.featuredPill")}</span>
+              <h3 style={{ fontFamily: "var(--bv-font-display)", fontSize: 23, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "-0.01em", margin: "18px 0 8px", color: "#E8EBF0" }}>{t("landing.moat.featuredTitle")}</h3>
+              <p style={{ color: "#9AA3B2", fontSize: 14.5, maxWidth: "42ch" }}>{t("landing.moat.featuredBody")}</p>
               <div style={{ marginTop: 18, background: "#0B0D12", border: "1px solid rgba(35,40,51,0.8)", borderRadius: 16, padding: 16, flex: 1, display: "flex", flexDirection: "column" }}>
                 <AskUserScene />
               </div>
@@ -759,15 +769,15 @@ export default function LandingPage() {
 
             {/* Small moat cards */}
             {[
-              { ix: "01", title: "Pocket-steer",            body: "Read, approve and redirect runs from your phone. Authoring stays on the web; control fits in your pocket." },
-              { ix: "02", title: "BYOK · 12 providers",     body: "Bring your own keys and route across 12 providers — or go fully on-device with offline Gemma." },
-              { ix: "03", title: "One dashboard",           body: "Unify n8n, Make and Zapier alongside native pipelines in a single audited war-room." },
-              { ix: "04", title: "Flat, predictable price", body: "No per-connector tax, no surprise metering. One predictable price, every run accounted for." },
+              { ix: "01", key: "pocket"    },
+              { ix: "02", key: "byok"      },
+              { ix: "03", key: "dashboard" },
+              { ix: "04", key: "price"     },
             ].map((card) => (
               <div key={card.ix} className="bv-glass reveal" style={{ padding: 28, gridColumn: "span 4", minHeight: 230, display: "flex", flexDirection: "column" }}>
                 <span style={{ fontFamily: "var(--bv-font-mono)", fontSize: 12, color: "#5B6473", marginBottom: "auto" }}>{card.ix}</span>
-                <h3 style={{ fontFamily: "var(--bv-font-display)", fontSize: 23, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "-0.01em", margin: "18px 0 8px", color: "#E8EBF0" }}>{card.title}</h3>
-                <p style={{ color: "#9AA3B2", fontSize: 14.5, maxWidth: "42ch" }}>{card.body}</p>
+                <h3 style={{ fontFamily: "var(--bv-font-display)", fontSize: 23, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "-0.01em", margin: "18px 0 8px", color: "#E8EBF0" }}>{t(`landing.moat.cards.${card.key}.title`)}</h3>
+                <p style={{ color: "#9AA3B2", fontSize: 14.5, maxWidth: "42ch" }}>{t(`landing.moat.cards.${card.key}.body`)}</p>
               </div>
             ))}
           </div>
@@ -779,22 +789,22 @@ export default function LandingPage() {
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 32px" }}>
           <div className="reveal" style={{ fontFamily: "var(--bv-font-mono)", fontSize: 12, letterSpacing: "0.28em", textTransform: "uppercase" as const, color: "#60A5FA", display: "inline-flex", alignItems: "center", gap: 10 }}>
             <span style={{ width: 22, height: 1, background: "linear-gradient(90deg,transparent,#3B82F6)", display: "inline-block" }} />
-            How it works
+            {t("landing.how.eyebrow")}
           </div>
           <h2 className="reveal" style={{ fontFamily: "var(--bv-font-display)", fontWeight: 600, fontSize: "clamp(30px,4.6vw,58px)", lineHeight: 0.98, letterSpacing: "-0.02em", textTransform: "uppercase" as const, margin: "16px 0 10px", color: "#E8EBF0" }}>
-            From idea to running team<br />in three steps.
+            {t("landing.how.title1")}<br />{t("landing.how.title2")}
           </h2>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 18, marginTop: 46 }}>
             {[
-              { n: "1", title: "Describe",      body: "Tell Braavolabs what you want to automate in plain language. It asks a few sharp clarifying questions." },
-              { n: "2", title: "Compose",       body: "Watch a multi-agent team spark into existence — acquisition, sales, delivery, ops — wired into a pipeline." },
-              { n: "3", title: "Run & approve", body: "Launch with live SSE streaming. Approve every spend, steer mid-run, audit every tool call." },
+              { n: "1", key: "describe" },
+              { n: "2", key: "compose"  },
+              { n: "3", key: "run"      },
             ].map((step) => (
               <div key={step.n} className="bv-glass reveal" style={{ padding: 28 }}>
                 <span style={{ fontFamily: "var(--bv-font-display)", fontSize: 46, fontWeight: 600, lineHeight: 1, background: "linear-gradient(180deg,#60A5FA,#3B82F6)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>{step.n}</span>
-                <h4 style={{ fontFamily: "var(--bv-font-display)", fontSize: 20, fontWeight: 600, textTransform: "uppercase" as const, margin: "14px 0 8px", color: "#E8EBF0" }}>{step.title}</h4>
-                <p style={{ color: "#9AA3B2", fontSize: 14.5 }}>{step.body}</p>
+                <h4 style={{ fontFamily: "var(--bv-font-display)", fontSize: 20, fontWeight: 600, textTransform: "uppercase" as const, margin: "14px 0 8px", color: "#E8EBF0" }}>{t(`landing.how.steps.${step.key}.title`)}</h4>
+                <p style={{ color: "#9AA3B2", fontSize: 14.5 }}>{t(`landing.how.steps.${step.key}.body`)}</p>
               </div>
             ))}
           </div>
@@ -806,10 +816,10 @@ export default function LandingPage() {
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 32px" }}>
           <div className="reveal" style={{ fontFamily: "var(--bv-font-mono)", fontSize: 12, letterSpacing: "0.28em", textTransform: "uppercase" as const, color: "#60A5FA", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
             <span style={{ width: 22, height: 1, background: "linear-gradient(90deg,transparent,#3B82F6)", display: "inline-block" }} />
-            Governance
+            {t("landing.gov.eyebrow")}
           </div>
           <p className="reveal" style={{ fontFamily: "var(--bv-font-display)", fontSize: "clamp(22px,3.2vw,38px)", fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "-0.01em", lineHeight: 1.18, maxWidth: "20ch", margin: "18px auto 0", color: "#E8EBF0" }}>
-            Every tool call <span style={{ color: "#5B6473" }}>logged</span> · every spend <span style={{ color: "#5B6473" }}>approved</span> · every run <span style={{ color: "#5B6473" }}>audited</span>
+            {t("landing.gov.t1")} <span style={{ color: "#5B6473" }}>{t("landing.gov.logged")}</span> · {t("landing.gov.t2")} <span style={{ color: "#5B6473" }}>{t("landing.gov.approved")}</span> · {t("landing.gov.t3")} <span style={{ color: "#5B6473" }}>{t("landing.gov.audited")}</span>
           </p>
           <GovChips />
         </div>
@@ -820,13 +830,13 @@ export default function LandingPage() {
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 32px" }}>
           <div className="reveal" style={{ fontFamily: "var(--bv-font-mono)", fontSize: 12, letterSpacing: "0.28em", textTransform: "uppercase" as const, color: "#60A5FA", display: "inline-flex", alignItems: "center", gap: 10 }}>
             <span style={{ width: 22, height: 1, background: "linear-gradient(90deg,transparent,#3B82F6)", display: "inline-block" }} />
-            Live audit trail
+            {t("landing.trail.eyebrow")}
           </div>
           <h2 className="reveal" style={{ fontFamily: "var(--bv-font-display)", fontWeight: 600, fontSize: "clamp(30px,4.6vw,58px)", lineHeight: 0.98, letterSpacing: "-0.02em", textTransform: "uppercase" as const, margin: "16px 0 10px", color: "#E8EBF0" }}>
-            Watch the run think.
+            {t("landing.trail.title")}
           </h2>
           <p className="reveal" style={{ color: "#9AA3B2", maxWidth: "62ch", fontSize: 17 }}>
-            Every step streams in real time — reasoning, tool calls and cost — connected by arc-light as the run forges forward.
+            {t("landing.trail.sub")}
           </p>
           <AuditTrail />
         </div>
@@ -837,23 +847,23 @@ export default function LandingPage() {
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 32px" }}>
           <div className="reveal" style={{ fontFamily: "var(--bv-font-mono)", fontSize: 12, letterSpacing: "0.28em", textTransform: "uppercase" as const, color: "#60A5FA", display: "inline-flex", alignItems: "center", gap: 10 }}>
             <span style={{ width: 22, height: 1, background: "linear-gradient(90deg,transparent,#3B82F6)", display: "inline-block" }} />
-            Bring your own keys
+            {t("landing.providers.eyebrow")}
           </div>
           <h2 className="reveal" style={{ fontFamily: "var(--bv-font-display)", fontWeight: 600, fontSize: "clamp(30px,4.6vw,58px)", lineHeight: 0.98, letterSpacing: "-0.02em", textTransform: "uppercase" as const, margin: "16px 0 10px", color: "#E8EBF0" }}>
-            Twelve providers. One router.
+            {t("landing.providers.title")}
           </h2>
         </div>
         <div className="reveal"><ProviderMarquee /></div>
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 32px" }}>
           <div className="bv-glass reveal" style={{ marginTop: 42, padding: 36, display: "flex", gap: 28, alignItems: "center", flexWrap: "wrap" }}>
             <div style={{ flex: 1, minWidth: 260 }}>
-              <span className="bv-pill bv-pill-amber" style={{ marginBottom: 8 }}>Flagship template</span>
-              <h3 style={{ fontFamily: "var(--bv-font-display)", fontSize: "clamp(24px,3vw,36px)", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "-0.01em", margin: "8px 0", color: "#E8EBF0" }}>The AI Company</h3>
-              <p style={{ color: "#9AA3B2", maxWidth: "48ch", fontSize: 15 }}>Spin up a full nine-primitive agent company — acquisition, sales, delivery, content, ops, finance, analytics, memory and governance — from a single prompt.</p>
+              <span className="bv-pill bv-pill-amber" style={{ marginBottom: 8 }}>{t("landing.flagship.pill")}</span>
+              <h3 style={{ fontFamily: "var(--bv-font-display)", fontSize: "clamp(24px,3vw,36px)", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "-0.01em", margin: "8px 0", color: "#E8EBF0" }}>{t("landing.flagship.title")}</h3>
+              <p style={{ color: "#9AA3B2", maxWidth: "48ch", fontSize: 15 }}>{t("landing.flagship.body")}</p>
             </div>
             <button onClick={handleBuild} className="bv-btn bv-btn-primary" style={{ padding: "14px 28px", borderRadius: 999, fontSize: 15, minHeight: 48 }}>
               <span className="material-symbols-outlined" style={{ fontSize: 17 }}>construction</span>
-              Forge the AI Company
+              {t("landing.flagship.cta")}
             </button>
           </div>
         </div>
@@ -864,13 +874,13 @@ export default function LandingPage() {
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 32px" }}>
           <div className="reveal" style={{ fontFamily: "var(--bv-font-mono)", fontSize: 12, letterSpacing: "0.28em", textTransform: "uppercase" as const, color: "#60A5FA", display: "inline-flex", alignItems: "center", gap: 10 }}>
             <span style={{ width: 22, height: 1, background: "linear-gradient(90deg,transparent,#3B82F6)", display: "inline-block" }} />
-            Pricing
+            {t("landing.pricing.eyebrow")}
           </div>
           <h2 className="reveal" style={{ fontFamily: "var(--bv-font-display)", fontWeight: 600, fontSize: "clamp(30px,4.6vw,58px)", lineHeight: 0.98, letterSpacing: "-0.02em", textTransform: "uppercase" as const, margin: "16px 0 10px", color: "#E8EBF0" }}>
-            One flat price. No connector tax.
+            {t("landing.pricing.title")}
           </h2>
           <p className="reveal" style={{ color: "#9AA3B2", maxWidth: "62ch", fontSize: 17 }}>
-            Start free with 10 runs a month — your first 3 runs use our hosted Groq pool, no API key needed. Scale on workspaces, connected automations and seats — never on connector count.
+            {t("landing.pricing.sub")}
           </p>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", gap: 18, marginTop: 46 }}>
@@ -928,7 +938,7 @@ export default function LandingPage() {
           </div>
 
           <p className="reveal" style={{ fontFamily: "var(--bv-font-mono)", fontSize: 12, color: "#5B6473", marginTop: 20, textAlign: "center" as const }}>
-            Paid plans bill as in-app subscriptions via the App Store / Google Play.
+            {t("landing.pricing.billNote")}
           </p>
         </div>
       </section>
@@ -948,18 +958,18 @@ export default function LandingPage() {
         }} />
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 32px", position: "relative" }}>
           <h2 className="reveal" style={{ fontFamily: "var(--bv-font-display)", fontSize: "clamp(36px,7vw,92px)", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "-0.02em", lineHeight: 0.95, color: "#E8EBF0" }}>
-            Forge your<br />workspace.
+            {t("landing.cta.title1")}<br />{t("landing.cta.title2")}
           </h2>
           <p className="reveal" style={{ color: "#9AA3B2", fontSize: 18, margin: "20px auto 0", maxWidth: "48ch" }}>
-            The war-room for every agent you run. Build on the web, command from your pocket.
+            {t("landing.cta.sub")}
           </p>
           <div className="reveal" style={{ display: "flex", gap: 14, justifyContent: "center", marginTop: 36, flexWrap: "wrap" }}>
             <button onClick={handleBuild} className="bv-btn bv-btn-primary" style={{ padding: "14px 28px", borderRadius: 999, fontSize: 15, minHeight: 48 }}>
               <span className="material-symbols-outlined" style={{ fontSize: 17 }}>rocket_launch</span>
-              Start free — no card needed
+              {t("landing.hero.ctaPrimary")}
             </button>
             <a href="#trail" className="bv-btn bv-btn-ghost" style={{ padding: "14px 28px", borderRadius: 999, fontSize: 15, minHeight: 48 }}>
-              Watch it steer
+              {t("landing.hero.ctaSecondary")}
             </a>
           </div>
         </div>
@@ -980,7 +990,7 @@ export default function LandingPage() {
                 <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#0B0D12", backgroundImage: "url(/braavolabs-logo.png), linear-gradient(135deg,#3B82F6,#2563EB)", backgroundSize: "cover, cover", backgroundPosition: "center" }} />
                 <span style={{ fontFamily: "var(--bv-font-display)", fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase" as const, fontSize: 16, color: "#E8EBF0" }}>Braavolabs</span>
               </Link>
-              <p style={{ color: "#9AA3B2", fontSize: 14, maxWidth: "34ch" }}>Command the AI agents &amp; automations you already run. Forged for control, mobility and privacy.</p>
+              <p style={{ color: "#9AA3B2", fontSize: 14, maxWidth: "34ch" }}>{t("landing.footer.blurb")}</p>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
                 {["EN","TR","ES","DE","FR","AR"].map((lang) => (
                   <button key={lang}
@@ -1000,31 +1010,31 @@ export default function LandingPage() {
 
             {/* Product */}
             <div>
-              <h5 style={{ fontFamily: "var(--bv-font-mono)", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase" as const, color: "#5B6473", marginBottom: 16 }}>Product</h5>
-              {[["Features","#moat"],["Pricing","/pricing"],["Integrations","#providers"],["Changelog","/changelog"],["Blog","/blog"]].map(([l, h]) => (
-                <a key={l} href={h} style={{ display: "block", color: "#9AA3B2", textDecoration: "none", fontSize: 14, padding: "5px 0", transition: "color 0.25s" }}
+              <h5 style={{ fontFamily: "var(--bv-font-mono)", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase" as const, color: "#5B6473", marginBottom: 16 }}>{t("landing.footer.product")}</h5>
+              {[["features","#moat"],["pricing","/pricing"],["integrations","#providers"],["changelog","/changelog"],["blog","/blog"]].map(([navKey, h]) => (
+                <a key={navKey} href={h} style={{ display: "block", color: "#9AA3B2", textDecoration: "none", fontSize: 14, padding: "5px 0", transition: "color 0.25s" }}
                   onMouseEnter={(e) => e.currentTarget.style.color = "#E8EBF0"}
                   onMouseLeave={(e) => e.currentTarget.style.color = "#9AA3B2"}
-                >{l}</a>
+                >{t(`landing.nav.${navKey}`)}</a>
               ))}
             </div>
 
             {/* Developers */}
             <div>
-              <h5 style={{ fontFamily: "var(--bv-font-mono)", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase" as const, color: "#5B6473", marginBottom: 16 }}>Developers</h5>
-              {[["Webhooks","/webhooks"],["Status","/status"],["Support","/support"],["Changelog","/changelog"]].map(([l, h]) => (
-                <Link key={l} href={h} style={{ display: "block", color: "#9AA3B2", textDecoration: "none", fontSize: 14, padding: "5px 0", transition: "color 0.25s" }}
+              <h5 style={{ fontFamily: "var(--bv-font-mono)", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase" as const, color: "#5B6473", marginBottom: 16 }}>{t("landing.footer.developers")}</h5>
+              {[["webhooks","/webhooks"],["status","/status"],["support","/support"],["changelog","/changelog"]].map(([key, h]) => (
+                <Link key={key} href={h} style={{ display: "block", color: "#9AA3B2", textDecoration: "none", fontSize: 14, padding: "5px 0", transition: "color 0.25s" }}
                   onMouseEnter={(e) => e.currentTarget.style.color = "#E8EBF0"}
                   onMouseLeave={(e) => e.currentTarget.style.color = "#9AA3B2"}
-                >{l}</Link>
+                >{key === "changelog" ? t("landing.nav.changelog") : t(`landing.footer.links.${key}`)}</Link>
               ))}
             </div>
 
             {/* Legal */}
             <div>
-              <h5 style={{ fontFamily: "var(--bv-font-mono)", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase" as const, color: "#5B6473", marginBottom: 16 }}>Legal</h5>
-              {[["Privacy","/privacy"],["Terms","/terms"],["KVKK","/kvkk"],["GDPR","/gdpr"]].map(([l, h]) => (
-                <Link key={l} href={h} style={{ display: "block", color: "#9AA3B2", textDecoration: "none", fontSize: 14, padding: "5px 0", transition: "color 0.25s" }}
+              <h5 style={{ fontFamily: "var(--bv-font-mono)", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase" as const, color: "#5B6473", marginBottom: 16 }}>{t("landing.footer.legal")}</h5>
+              {[[t("landing.footer.privacy"),"/privacy"],[t("landing.footer.terms"),"/terms"],["KVKK","/kvkk"],["GDPR","/gdpr"]].map(([l, h]) => (
+                <Link key={h} href={h} style={{ display: "block", color: "#9AA3B2", textDecoration: "none", fontSize: 14, padding: "5px 0", transition: "color 0.25s" }}
                   onMouseEnter={(e) => e.currentTarget.style.color = "#E8EBF0"}
                   onMouseLeave={(e) => e.currentTarget.style.color = "#9AA3B2"}
                 >{l}</Link>
@@ -1035,13 +1045,13 @@ export default function LandingPage() {
           {/* Bottom bar */}
           <div className="bv-divider" style={{ margin: "40px 0 20px" }} />
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-            <span style={{ fontSize: 11, color: "#5B6473" }}>&copy; 2026 Braavolabs. All rights reserved.</span>
+            <span style={{ fontSize: 11, color: "#5B6473" }}>{t("landing.footer.copyright")}</span>
             <div style={{ display: "flex", gap: 20, fontSize: 11, flexWrap: "wrap" }}>
-              {[["Delete Account","/legal/account-deletion"],["Cookies","/cookies"],["Contact","/contact"]].map(([l, h]) => (
-                <Link key={l} href={h} style={{ color: "#5B6473", textDecoration: "none", transition: "color 0.2s" }}
+              {[["deleteAccount","/legal/account-deletion"],["cookies","/cookies"],["contact","/contact"]].map(([key, h]) => (
+                <Link key={key} href={h} style={{ color: "#5B6473", textDecoration: "none", transition: "color 0.2s" }}
                   onMouseEnter={(e) => e.currentTarget.style.color = "#9AA3B2"}
                   onMouseLeave={(e) => e.currentTarget.style.color = "#5B6473"}
-                >{l}</Link>
+                >{t(`landing.footer.${key}`)}</Link>
               ))}
             </div>
           </div>

@@ -1409,6 +1409,131 @@
     "privacy": "Privacidad",
     "terms": "Términos"
   },
+  "landing": {
+    "nav": {
+      "features": "Funciones",
+      "pricing": "Precios",
+      "integrations": "Integraciones",
+      "changelog": "Novedades",
+      "blog": "Blog"
+    },
+    "hero": {
+      "line1": "Comanda los agentes",
+      "line2a": "que ya",
+      "line2b": "ejecutas.",
+      "sub": "Crea en la web. Dirige y aprueba desde tu bolsillo. Ejecuta totalmente sin conexión. Usa tus propias claves en 12 proveedores: un único centro de mando para cada agente y automatización que operas.",
+      "ctaPrimary": "Empieza gratis — sin tarjeta",
+      "ctaSecondary": "Mira cómo lo diriges",
+      "builderLabel": "Constructor de Empresa IA",
+      "buildKbd": "para crear",
+      "buildBtn": "Contrata mi equipo IA — gratis",
+      "scroll": "Desliza",
+      "chips": [
+        "Estudio de Contenido TikTok",
+        "Crecimiento de Newsletter",
+        "Seguimiento de Leads",
+        "Informes para Clientes"
+      ]
+    },
+    "moat": {
+      "eyebrow": "La ventaja",
+      "title1": "Control, movilidad y privacidad,",
+      "title2": "no número de conectores.",
+      "sub": "Cinco cosas que ningún panel de automatización genérico te da. Cada una encaja en su lugar como una placa de acero forjado.",
+      "featuredPill": "El filo más afilado",
+      "featuredTitle": "Dirección en marcha y ask_user",
+      "featuredBody": "Los agentes se detienen para preguntar. Tú respondes y la ejecución continúa, sobre la marcha. Sin repeticiones, sin estar pendiente.",
+      "cards": {
+        "pocket": {
+          "title": "Dirige desde el bolsillo",
+          "body": "Lee, aprueba y reorienta ejecuciones desde tu teléfono. La creación se queda en la web; el control cabe en tu bolsillo."
+        },
+        "byok": {
+          "title": "BYOK · 12 proveedores",
+          "body": "Usa tus propias claves y enruta entre 12 proveedores, o trabaja totalmente en el dispositivo con Gemma sin conexión."
+        },
+        "dashboard": {
+          "title": "Un solo panel",
+          "body": "Unifica n8n, Make y Zapier junto a pipelines nativos en un único centro de mando auditado."
+        },
+        "price": {
+          "title": "Precio fijo y predecible",
+          "body": "Sin impuesto por conector, sin medición sorpresa. Un precio predecible, cada ejecución contabilizada."
+        }
+      }
+    },
+    "how": {
+      "eyebrow": "Cómo funciona",
+      "title1": "De la idea al equipo en marcha",
+      "title2": "en tres pasos.",
+      "steps": {
+        "describe": {
+          "title": "Describe",
+          "body": "Dile a Braavolabs qué quieres automatizar en lenguaje sencillo. Hace algunas preguntas clave para aclararlo."
+        },
+        "compose": {
+          "title": "Compón",
+          "body": "Mira cómo cobra vida un equipo multiagente: adquisición, ventas, entrega, operaciones, todo conectado en un pipeline."
+        },
+        "run": {
+          "title": "Ejecuta y aprueba",
+          "body": "Lanza con streaming SSE en vivo. Aprueba cada gasto, dirige en marcha, audita cada llamada de herramienta."
+        }
+      }
+    },
+    "gov": {
+      "eyebrow": "Gobernanza",
+      "t1": "Cada llamada de herramienta",
+      "t2": "cada gasto",
+      "t3": "cada ejecución",
+      "logged": "registrada",
+      "approved": "aprobado",
+      "audited": "auditada"
+    },
+    "trail": {
+      "eyebrow": "Registro de auditoría en vivo",
+      "title": "Observa cómo piensa la ejecución.",
+      "sub": "Cada paso se transmite en tiempo real —razonamiento, llamadas de herramientas y coste— conectados por luz de arco mientras la ejecución avanza."
+    },
+    "providers": {
+      "eyebrow": "Usa tus propias claves",
+      "title": "Doce proveedores. Un enrutador."
+    },
+    "flagship": {
+      "pill": "Plantilla insignia",
+      "title": "La Empresa IA",
+      "body": "Pon en marcha una empresa de agentes completa con nueve primitivas —adquisición, ventas, entrega, contenido, operaciones, finanzas, analítica, memoria y gobernanza— desde un solo prompt.",
+      "cta": "Forja la Empresa IA"
+    },
+    "pricing": {
+      "eyebrow": "Precios",
+      "title": "Un precio fijo. Sin impuesto por conector.",
+      "sub": "Empieza gratis con 10 ejecuciones al mes: tus primeras 3 usan nuestro pool de Groq alojado, sin clave API. Escala por espacios de trabajo, automatizaciones conectadas y asientos, nunca por número de conectores.",
+      "billNote": "Los planes de pago se facturan como suscripciones in-app a través de App Store / Google Play."
+    },
+    "cta": {
+      "title1": "Forja tu",
+      "title2": "espacio de trabajo.",
+      "sub": "El centro de mando para cada agente que ejecutas. Crea en la web, comanda desde tu bolsillo."
+    },
+    "footer": {
+      "blurb": "Comanda los agentes y automatizaciones de IA que ya ejecutas. Forjado para el control, la movilidad y la privacidad.",
+      "product": "Producto",
+      "developers": "Desarrolladores",
+      "legal": "Legal",
+      "privacy": "Privacidad",
+      "terms": "Términos",
+      "copyright": "© 2026 Braavolabs. Todos los derechos reservados.",
+      "deleteAccount": "Eliminar cuenta",
+      "cookies": "Cookies",
+      "contact": "Contacto",
+      "links": {
+        "webhooks": "Webhooks",
+        "status": "Estado",
+        "support": "Soporte"
+      }
+    }
+  },
   "language": {
     "label": "Idioma",
     "en": "English",
