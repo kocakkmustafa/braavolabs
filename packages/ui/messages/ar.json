@@ -1017,6 +1017,33 @@
     "breadcrumb": {
       "onboarding": "الإعداد",
       "runs": "عمليات التشغيل"
+    },
+    "cost": {
+      "estimateLabel": "تقدير {low}–{high} لهذا التشغيل",
+      "estimateModelSuffix": " · {model}",
+      "estimateTooltip": "تقدير مبني على الاستخدام النموذجي للرموز — تظهر التكلفة الفعلية مباشرة.",
+      "estimateFree": "مجاني لهذا التشغيل · يعمل على جهازك الخاص",
+      "estimateUnknown": "تقدير التكلفة غير متاح لهذا النموذج",
+      "estimateNotConfigured": "أضف مزوّد ذكاء اصطناعي من الإعدادات لرؤية تقدير التكلفة",
+      "estimateFailed": "تعذّر تحميل التقدير",
+      "estimateBadge": "تقدير",
+      "burnTitle": "الإنفاق المباشر",
+      "burnLiveBadge": "مباشر",
+      "budgetLabel": "الميزانية {amount}",
+      "ofBudget": "{pct}% من الميزانية",
+      "statusUnder": "ضمن الميزانية",
+      "statusNear": "يقترب من الميزانية",
+      "statusOver": "تجاوز الميزانية",
+      "liveNote": "مُقاس من الاستخدام الفعلي"
+    },
+    "runExplain": {
+      "button": "اشرح هذا الفشل",
+      "loading": "جارٍ سؤال الذكاء الاصطناعي…",
+      "title": "شرح الذكاء الاصطناعي",
+      "fixLabel": "الإصلاح المقترح",
+      "error": "تعذّر إنشاء شرح. حاول مرة أخرى بعد قليل.",
+      "disclaimer": "مُولَّد بالذكاء الاصطناعي — تحقّق قبل التنفيذ.",
+      "poweredBy": "عبر {model}"
     }
   },
   "static": {
@@ -1415,7 +1442,9 @@
       "pricing": "الأسعار",
       "integrations": "التكاملات",
       "changelog": "سجل التغييرات",
-      "blog": "المدونة"
+      "blog": "المدونة",
+      "compare": "قارن",
+      "calculator": "حاسبة التكلفة"
     },
     "hero": {
       "line1": "قُد الوكلاء",
@@ -1530,7 +1559,9 @@
       "links": {
         "webhooks": "Webhooks",
         "status": "الحالة",
-        "support": "الدعم"
+        "support": "الدعم",
+        "docs": "المستندات",
+        "security": "الأمان"
       }
     }
   },

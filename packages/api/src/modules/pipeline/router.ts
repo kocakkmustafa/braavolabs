@@ -9,6 +9,8 @@ import { claimQuota } from "../billing/metering";
 import Anthropic from "@anthropic-ai/sdk";
 import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
+import { getTenantAIConfig, type AIProviderType } from "../../services/ai-client";
+import { estimatePipelineCostUsd } from "../../lib/modelPricing";
 
 // Expensive endpoints — per-tenant throttle to prevent Claude API cost abuse.
 const naturalLanguageBuilderLimiter = rateLimit({ windowMs: 60_000, maxRequests: 10, keyPrefix: "rl:pipeline:nl" });
@@ -317,6 +319,66 @@ pipelineRouter.post("/:id/run", runTriggerLimiter, async (req, res, next) => {
     const jobId = await enqueueRun(run.id);
 
     res.status(201).json({ ...run, jobId });
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/pipelines/:id/cost-estimate — approximate USD cost to run this
+// pipeline once, using the tenant's configured AI provider/model.
+//
+// ⚠️ ESTIMATE ONLY. Derived from a baseline per-step token assumption (see
+// lib/modelPricing.ts) and returned as a low–high range. The run's live
+// `costUsd` (metered from real usage) is the source of truth — the UI labels
+// this clearly as an estimate. Nobody else in the market shows a pre-run cost,
+// so honesty here is the whole point.
+pipelineRouter.get("/:id/cost-estimate", async (req, res, next) => {
+  try {
+    const pipeline = await prisma.pipeline.findUnique({
+      where: { id: req.params.id },
+      include: { company: true },
+    });
+    if (!pipeline || pipeline.company.tenantId !== req.auth!.tenantId) {
+      throw new AppError(404, "Pipeline not found");
+    }
+
+    // Step count drives the estimate. HIERARCHICAL pipelines store an empty
+    // steps array (the manager plans at runtime); fall back to a modest
+    // assumption so the manager turn still shows a cost.
+    const steps = Array.isArray(pipeline.steps) ? pipeline.steps : [];
+    const stepCount =
+      pipeline.pipelineType === "HIERARCHICAL"
+        ? Math.max(steps.length, 3)
+        : steps.length;
+
+    // Read the tenant's configured provider/model. getTenantAIConfig throws
+    // if nothing is configured AND no system key exists; treat that as
+    // "can't estimate yet" rather than a hard error so the run button still
+    // works (the estimate is advisory).
+    let provider: AIProviderType = "ANTHROPIC";
+    let model = env.CLAUDE_MODEL;
+    let configured = true;
+    try {
+      const cfg = await getTenantAIConfig(req.auth!.tenantId);
+      provider = cfg.provider;
+      model = cfg.model;
+    } catch {
+      configured = false;
+    }
+
+    const estimate = estimatePipelineCostUsd(stepCount, provider, model);
+
+    res.json({
+      stepCount: estimate.stepCount,
+      provider: estimate.provider,
+      model: estimate.model,
+      lowUsd: estimate.lowUsd,
+      highUsd: estimate.highUsd,
+      perStepUsd: estimate.perStepUsd,
+      // Flags the UI uses to phrase the label honestly.
+      isEstimate: true,
+      isFree: estimate.isFree,
+      unknownModel: estimate.unknownModel,
+      configured,
+    });
   } catch (err) { next(err); }
 });
 

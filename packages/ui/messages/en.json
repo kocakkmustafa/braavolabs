@@ -1017,6 +1017,33 @@
     "breadcrumb": {
       "onboarding": "Onboarding",
       "runs": "Runs"
+    },
+    "cost": {
+      "estimateLabel": "Est. {low}–{high} this run",
+      "estimateModelSuffix": " · {model}",
+      "estimateTooltip": "Estimate based on typical token use — actual cost shown live.",
+      "estimateFree": "Free this run · runs on your own hardware",
+      "estimateUnknown": "Cost estimate unavailable for this model",
+      "estimateNotConfigured": "Add an AI provider in Settings to see a cost estimate",
+      "estimateFailed": "Couldn’t load estimate",
+      "estimateBadge": "estimate",
+      "burnTitle": "Live spend",
+      "burnLiveBadge": "live",
+      "budgetLabel": "budget {amount}",
+      "ofBudget": "{pct}% of budget",
+      "statusUnder": "Under budget",
+      "statusNear": "Nearing budget",
+      "statusOver": "Over budget",
+      "liveNote": "Metered from actual usage"
+    },
+    "runExplain": {
+      "button": "Explain this failure",
+      "loading": "Asking AI…",
+      "title": "AI explanation",
+      "fixLabel": "Suggested fix",
+      "error": "Couldn’t generate an explanation. Try again shortly.",
+      "disclaimer": "AI-generated — verify before acting.",
+      "poweredBy": "via {model}"
     }
   },
   "static": {
@@ -1415,7 +1442,9 @@
       "pricing": "Pricing",
       "integrations": "Integrations",
       "changelog": "Changelog",
-      "blog": "Blog"
+      "blog": "Blog",
+      "compare": "Compare",
+      "calculator": "Cost calculator"
     },
     "hero": {
       "line1": "Command the agents",
@@ -1530,7 +1559,9 @@
       "links": {
         "webhooks": "Webhooks",
         "status": "Status",
-        "support": "Support"
+        "support": "Support",
+        "docs": "Docs",
+        "security": "Security"
       }
     }
   },

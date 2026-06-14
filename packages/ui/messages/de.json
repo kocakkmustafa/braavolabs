@@ -1017,6 +1017,33 @@
     "breadcrumb": {
       "onboarding": "Onboarding",
       "runs": "Läufe"
+    },
+    "cost": {
+      "estimateLabel": "Geschätzt {low}–{high} für diesen Lauf",
+      "estimateModelSuffix": " · {model}",
+      "estimateTooltip": "Schätzung auf Basis typischer Token-Nutzung — die tatsächlichen Kosten werden live angezeigt.",
+      "estimateFree": "Dieser Lauf kostenlos · läuft auf deiner eigenen Hardware",
+      "estimateUnknown": "Kostenschätzung für dieses Modell nicht verfügbar",
+      "estimateNotConfigured": "Füge in den Einstellungen einen KI-Anbieter hinzu, um eine Kostenschätzung zu sehen",
+      "estimateFailed": "Schätzung konnte nicht geladen werden",
+      "estimateBadge": "Schätzung",
+      "burnTitle": "Live-Ausgaben",
+      "burnLiveBadge": "live",
+      "budgetLabel": "Budget {amount}",
+      "ofBudget": "{pct}% des Budgets",
+      "statusUnder": "Unter Budget",
+      "statusNear": "Budget fast erreicht",
+      "statusOver": "Budget überschritten",
+      "liveNote": "Aus tatsächlicher Nutzung gemessen"
+    },
+    "runExplain": {
+      "button": "Diesen Fehler erklären",
+      "loading": "KI wird gefragt…",
+      "title": "KI-Erklärung",
+      "fixLabel": "Lösungsvorschlag",
+      "error": "Erklärung konnte nicht erstellt werden. Versuche es gleich erneut.",
+      "disclaimer": "KI-generiert — vor dem Handeln prüfen.",
+      "poweredBy": "über {model}"
     }
   },
   "static": {
@@ -1415,7 +1442,9 @@
       "pricing": "Preise",
       "integrations": "Integrationen",
       "changelog": "Änderungen",
-      "blog": "Blog"
+      "blog": "Blog",
+      "compare": "Vergleich",
+      "calculator": "Kostenrechner"
     },
     "hero": {
       "line1": "Steuere die Agenten,",
@@ -1530,7 +1559,9 @@
       "links": {
         "webhooks": "Webhooks",
         "status": "Status",
-        "support": "Support"
+        "support": "Support",
+        "docs": "Dokumentation",
+        "security": "Sicherheit"
       }
     }
   },

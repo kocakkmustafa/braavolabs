@@ -114,6 +114,13 @@ export default function PipelineDetailPage() {
   const [agents, setAgents] = useState<Array<{ id: string; name: string; role: string }>>([]);
   const [savingSteps, setSavingSteps] = useState(false);
   const [stepsErr, setStepsErr] = useState<string | null>(null);
+  // Pre-run cost ESTIMATE (D3). Advisory only — labelled as an estimate; live
+  // cost on the run page is the source of truth.
+  const [estimate, setEstimate] = useState<{
+    lowUsd: number; highUsd: number; model: string;
+    isFree: boolean; unknownModel: boolean; configured: boolean;
+  } | null>(null);
+  const [estimateFailed, setEstimateFailed] = useState(false);
 
   useEffect(() => {
     if (!token || !pipelineId) return;
@@ -124,6 +131,19 @@ export default function PipelineDetailPage() {
       .catch((e) => setErr(e instanceof Error ? e.message : t("app.pipelineDetail.loadFailed")))
       .finally(() => setLoaded(true));
   }, [token, pipelineId]);
+
+  // Fetch the cost estimate once the pipeline (and thus its step count) is
+  // known. Best-effort: a failure just hides the line, it never blocks Run.
+  useEffect(() => {
+    if (!token || !pipelineId || !pipeline) return;
+    let cancelled = false;
+    setEstimateFailed(false);
+    api
+      .pipelineCostEstimate(token, pipelineId)
+      .then((e) => { if (!cancelled) setEstimate(e); })
+      .catch(() => { if (!cancelled) setEstimateFailed(true); });
+    return () => { cancelled = true; };
+  }, [token, pipelineId, pipeline?.steps?.length, pipeline?.pipelineType]);
 
   async function handleRun() {
     if (!token || !pipelineId) return;
@@ -562,6 +582,9 @@ export default function PipelineDetailPage() {
                 <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
                 {t("app.pipelineDetail.edit")}
               </button>
+
+              {/* Pre-run cost estimate (D3) — honest range, never exact */}
+              <CostEstimateChip estimate={estimate} failed={estimateFailed} t={t} />
 
               {/* Run now */}
               <button
@@ -1319,6 +1342,101 @@ function PipelineRunStatus({ status }: { status: string }) {
         aria-hidden
       />
       <span style={{ fontSize: 11, color: "var(--color-on-surface-variant)" }}>{label}</span>
+    </span>
+  );
+}
+
+/** Format a USD estimate with precision that suits the magnitude — sub-cent
+ *  numbers need more decimals to read as anything other than "$0.00". */
+function fmtEstimateUsd(n: number): string {
+  if (n <= 0) return "$0";
+  if (n < 0.01) return `$${n.toFixed(4)}`;
+  if (n < 1) return `$${n.toFixed(3)}`;
+  if (n < 100) return `$${n.toFixed(2)}`;
+  return `$${Math.round(n)}`;
+}
+
+/* ── Pre-run cost estimate chip (D3) ──────────────────────────────────────
+ * Differentiator: a per-run cost ESTIMATE before you press Run. Honest by
+ * construction — always a range, always labelled an estimate, with an info
+ * tooltip pointing at the live figure. Local providers read "Free". */
+function CostEstimateChip({
+  estimate,
+  failed,
+  t,
+}: {
+  estimate: {
+    lowUsd: number; highUsd: number; model: string;
+    isFree: boolean; unknownModel: boolean; configured: boolean;
+  } | null;
+  failed: boolean;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  // Nothing to show yet (loading) — stay quiet rather than flashing.
+  if (!estimate && !failed) return null;
+
+  let text: string;
+  let tip = t("app.cost.estimateTooltip");
+  let showBadge = true;
+
+  if (failed) {
+    text = t("app.cost.estimateFailed");
+    showBadge = false;
+  } else if (estimate!.isFree) {
+    text = t("app.cost.estimateFree");
+    showBadge = false;
+  } else if (!estimate!.configured) {
+    text = t("app.cost.estimateNotConfigured");
+    showBadge = false;
+  } else if (estimate!.unknownModel) {
+    text = t("app.cost.estimateUnknown");
+    showBadge = false;
+  } else {
+    text =
+      t("app.cost.estimateLabel", {
+        low: fmtEstimateUsd(estimate!.lowUsd),
+        high: fmtEstimateUsd(estimate!.highUsd),
+      }) + t("app.cost.estimateModelSuffix", { model: estimate!.model });
+  }
+
+  return (
+    <span
+      title={tip}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "5px 10px",
+        borderRadius: 999,
+        border: "1px solid rgba(59,130,246,0.25)",
+        background: "rgba(59,130,246,0.07)",
+        fontSize: 11.5,
+        color: "var(--color-on-surface-variant)",
+        whiteSpace: "nowrap",
+        cursor: "help",
+      }}
+    >
+      <span className="material-symbols-outlined" style={{ fontSize: 14, color: "#60A5FA" }}>
+        payments
+      </span>
+      <span className="bv-mono">{text}</span>
+      {showBadge && (
+        <span
+          className="bv-mono"
+          style={{
+            fontSize: 9,
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            color: "#60A5FA",
+            opacity: 0.8,
+          }}
+        >
+          {t("app.cost.estimateBadge")}
+        </span>
+      )}
+      <span className="material-symbols-outlined" style={{ fontSize: 13, color: "var(--color-outline)" }}>
+        info
+      </span>
     </span>
   );
 }

@@ -268,6 +268,34 @@ export const api = {
   getRun: (token: string, id: string) => apiFetch<any>(`/runs/${id}`, { token }),
   triggerRun: (token: string, pipelineId: string, input = {}) =>
     apiFetch<any>(`/pipelines/${pipelineId}/run`, { method: "POST", body: JSON.stringify({ input }), token }),
+
+  // Pre-run cost ESTIMATE (range, never exact) using the tenant's configured
+  // provider/model. Labelled as an estimate in the UI; live `costUsd` on the
+  // run is the source of truth.
+  pipelineCostEstimate: (token: string, id: string) =>
+    apiFetch<{
+      stepCount: number;
+      provider: string;
+      model: string;
+      lowUsd: number;
+      highUsd: number;
+      perStepUsd: number;
+      isEstimate: boolean;
+      isFree: boolean;
+      unknownModel: boolean;
+      configured: boolean;
+    }>(`/pipelines/${id}/cost-estimate`, { token }),
+
+  // AI-generated plain-language explanation of a FAILED run + a suggested fix.
+  // Uses the tenant's own LLM key. UI labels the result as an AI explanation.
+  explainRun: (token: string, id: string) =>
+    apiFetch<{
+      explanation: string;
+      suggestedFix: string;
+      provider: string;
+      model: string;
+      generatedByAi: boolean;
+    }>(`/runs/${id}/explain`, { method: "POST", token }),
   // Mid-run steering — inject operator guidance into a live run; the agent
   // loop drains it on its next turn.
   steerRun: (token: string, runId: string, content: string, targetAgentId?: string) =>

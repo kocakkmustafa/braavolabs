@@ -1017,6 +1017,33 @@
     "breadcrumb": {
       "onboarding": "Intégration",
       "runs": "Exécutions"
+    },
+    "cost": {
+      "estimateLabel": "Est. {low}–{high} pour cette exécution",
+      "estimateModelSuffix": " · {model}",
+      "estimateTooltip": "Estimation basée sur une utilisation typique de jetons — le coût réel est affiché en direct.",
+      "estimateFree": "Gratuit pour cette exécution · s’exécute sur votre propre matériel",
+      "estimateUnknown": "Estimation de coût indisponible pour ce modèle",
+      "estimateNotConfigured": "Ajoutez un fournisseur d’IA dans les Paramètres pour voir une estimation de coût",
+      "estimateFailed": "Impossible de charger l’estimation",
+      "estimateBadge": "estimation",
+      "burnTitle": "Dépense en direct",
+      "burnLiveBadge": "en direct",
+      "budgetLabel": "budget {amount}",
+      "ofBudget": "{pct} % du budget",
+      "statusUnder": "Sous le budget",
+      "statusNear": "Proche du budget",
+      "statusOver": "Budget dépassé",
+      "liveNote": "Mesuré à partir de l’utilisation réelle"
+    },
+    "runExplain": {
+      "button": "Expliquer cet échec",
+      "loading": "Interrogation de l’IA…",
+      "title": "Explication de l’IA",
+      "fixLabel": "Correctif suggéré",
+      "error": "Impossible de générer une explication. Réessayez bientôt.",
+      "disclaimer": "Généré par IA — vérifiez avant d’agir.",
+      "poweredBy": "via {model}"
     }
   },
   "static": {
@@ -1415,7 +1442,9 @@
       "pricing": "Tarifs",
       "integrations": "Intégrations",
       "changelog": "Nouveautés",
-      "blog": "Blog"
+      "blog": "Blog",
+      "compare": "Comparer",
+      "calculator": "Calculateur de coûts"
     },
     "hero": {
       "line1": "Commandez les agents",
@@ -1530,7 +1559,9 @@
       "links": {
         "webhooks": "Webhooks",
         "status": "Statut",
-        "support": "Assistance"
+        "support": "Assistance",
+        "docs": "Documentation",
+        "security": "Sécurité"
       }
     }
   },

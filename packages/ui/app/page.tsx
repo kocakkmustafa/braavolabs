@@ -1011,7 +1011,7 @@ export default function LandingPage() {
             {/* Product */}
             <div>
               <h5 style={{ fontFamily: "var(--bv-font-mono)", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase" as const, color: "#5B6473", marginBottom: 16 }}>{t("landing.footer.product")}</h5>
-              {[["features","#moat"],["pricing","/pricing"],["integrations","#providers"],["changelog","/changelog"],["blog","/blog"]].map(([navKey, h]) => (
+              {[["features","#moat"],["pricing","/pricing"],["compare","/compare"],["calculator","/cost-calculator"],["integrations","#providers"],["changelog","/changelog"],["blog","/blog"]].map(([navKey, h]) => (
                 <a key={navKey} href={h} style={{ display: "block", color: "#9AA3B2", textDecoration: "none", fontSize: 14, padding: "5px 0", transition: "color 0.25s" }}
                   onMouseEnter={(e) => e.currentTarget.style.color = "#E8EBF0"}
                   onMouseLeave={(e) => e.currentTarget.style.color = "#9AA3B2"}
@@ -1022,7 +1022,7 @@ export default function LandingPage() {
             {/* Developers */}
             <div>
               <h5 style={{ fontFamily: "var(--bv-font-mono)", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase" as const, color: "#5B6473", marginBottom: 16 }}>{t("landing.footer.developers")}</h5>
-              {[["webhooks","/webhooks"],["status","/status"],["support","/support"],["changelog","/changelog"]].map(([key, h]) => (
+              {[["docs","/docs"],["webhooks","/webhooks"],["status","/status"],["support","/support"],["changelog","/changelog"]].map(([key, h]) => (
                 <Link key={key} href={h} style={{ display: "block", color: "#9AA3B2", textDecoration: "none", fontSize: 14, padding: "5px 0", transition: "color 0.25s" }}
                   onMouseEnter={(e) => e.currentTarget.style.color = "#E8EBF0"}
                   onMouseLeave={(e) => e.currentTarget.style.color = "#9AA3B2"}
@@ -1033,7 +1033,7 @@ export default function LandingPage() {
             {/* Legal */}
             <div>
               <h5 style={{ fontFamily: "var(--bv-font-mono)", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase" as const, color: "#5B6473", marginBottom: 16 }}>{t("landing.footer.legal")}</h5>
-              {[[t("landing.footer.privacy"),"/privacy"],[t("landing.footer.terms"),"/terms"],["KVKK","/kvkk"],["GDPR","/gdpr"]].map(([l, h]) => (
+              {[[t("landing.footer.links.security"),"/security"],[t("landing.footer.privacy"),"/privacy"],[t("landing.footer.terms"),"/terms"],["KVKK","/kvkk"],["GDPR","/gdpr"]].map(([l, h]) => (
                 <Link key={h} href={h} style={{ display: "block", color: "#9AA3B2", textDecoration: "none", fontSize: 14, padding: "5px 0", transition: "color 0.25s" }}
                   onMouseEnter={(e) => e.currentTarget.style.color = "#E8EBF0"}
                   onMouseLeave={(e) => e.currentTarget.style.color = "#9AA3B2"}

@@ -1017,6 +1017,33 @@
     "breadcrumb": {
       "onboarding": "Başlangıç",
       "runs": "Çalıştırmalar"
+    },
+    "cost": {
+      "estimateLabel": "Bu çalıştırma için tahmini {low}–{high}",
+      "estimateModelSuffix": " · {model}",
+      "estimateTooltip": "Tipik token kullanımına dayalı tahmin — gerçek maliyet canlı gösterilir.",
+      "estimateFree": "Bu çalıştırma ücretsiz · kendi donanımında çalışır",
+      "estimateUnknown": "Bu model için maliyet tahmini yok",
+      "estimateNotConfigured": "Maliyet tahmini görmek için Ayarlar’dan bir yapay zekâ sağlayıcısı ekle",
+      "estimateFailed": "Tahmin yüklenemedi",
+      "estimateBadge": "tahmin",
+      "burnTitle": "Canlı harcama",
+      "burnLiveBadge": "canlı",
+      "budgetLabel": "bütçe {amount}",
+      "ofBudget": "bütçenin %{pct}’i",
+      "statusUnder": "Bütçe altında",
+      "statusNear": "Bütçeye yaklaşıyor",
+      "statusOver": "Bütçe aşıldı",
+      "liveNote": "Gerçek kullanımdan ölçülür"
+    },
+    "runExplain": {
+      "button": "Bu hatayı açıkla",
+      "loading": "Yapay zekâya soruluyor…",
+      "title": "Yapay zekâ açıklaması",
+      "fixLabel": "Önerilen çözüm",
+      "error": "Açıklama oluşturulamadı. Birazdan tekrar dene.",
+      "disclaimer": "Yapay zekâ üretti — uygulamadan önce doğrula.",
+      "poweredBy": "{model} ile"
     }
   },
   "static": {
@@ -1415,7 +1442,9 @@
       "pricing": "Fiyatlandırma",
       "integrations": "Entegrasyonlar",
       "changelog": "Sürüm Notları",
-      "blog": "Blog"
+      "blog": "Blog",
+      "compare": "Karşılaştır",
+      "calculator": "Maliyet hesaplayıcı"
     },
     "hero": {
       "line1": "Zaten kullandığın",
@@ -1530,7 +1559,9 @@
       "links": {
         "webhooks": "Webhook'lar",
         "status": "Durum",
-        "support": "Destek"
+        "support": "Destek",
+        "docs": "Dokümanlar",
+        "security": "Güvenlik"
       }
     }
   },

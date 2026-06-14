@@ -25,6 +25,316 @@ interface ChatMessage {
   timestamp: Date;
 }
 
+/**
+ * Idea gallery — pre-written business prompts that seed the freeform
+ * builder below and kick off the same AI clarification flow as typing
+ * by hand. These are NOT the StarterPicker (which clones a fully-baked
+ * Groq-tuned company). These cards just pre-fill the description box and
+ * call handleDescribe — the AI composer reads `seed`, runs its 2-3 turn
+ * clarification loop, then composes agents across the nine primitives.
+ *
+ * Labels stay English on purpose: consistent with the existing
+ * StarterPicker cards, and i18n for this round is owned elsewhere.
+ *
+ * `seed` is the plain-English prompt the composer reads — keep each one
+ * concrete and grounded in the nine primitives (acquisition / sales /
+ * delivery / content / ops / finance / analytics / memory / governance).
+ * `agents` / `pipelines` are display-only estimates of what the composer
+ * will likely staff, mirroring the StarterPicker card metadata shape.
+ */
+type IdeaCategory =
+  | "Marketing"
+  | "Sales"
+  | "Content"
+  | "Ops"
+  | "Research"
+  | "Finance"
+  | "Support"
+  | "Founder";
+
+interface IdeaTemplate {
+  id: string;
+  emoji: string;
+  title: string;
+  desc: string;
+  category: IdeaCategory;
+  /** Plain-English prompt pre-filled into the builder. */
+  seed: string;
+  /** Display-only estimate of agents the composer will likely staff. */
+  agents: number;
+  /** Display-only estimate of pipelines the composer will likely build. */
+  pipelines: number;
+}
+
+const IDEA_CATEGORIES: IdeaCategory[] = [
+  "Marketing",
+  "Sales",
+  "Content",
+  "Ops",
+  "Research",
+  "Finance",
+  "Support",
+  "Founder",
+];
+
+const IDEA_TEMPLATES: IdeaTemplate[] = [
+  // ── Content ──────────────────────────────────────────────────
+  {
+    id: "content-studio",
+    emoji: "🎬",
+    title: "Content Studio",
+    desc: "Spot trends, draft, and polish social posts on autopilot.",
+    category: "Content",
+    seed: "I run a small brand and want a content studio that publishes consistently. A trend scout should find 2-3 angles trending in my niche, a writer should draft a TikTok and a LinkedIn post for the strongest angle, and an editor should tighten the hook and CTA. Save each as a draft for me to review before posting, and remember which angles performed so future drafts get sharper.",
+    agents: 3,
+    pipelines: 1,
+  },
+  {
+    id: "content-repurposer",
+    emoji: "♻️",
+    title: "Content Repurposer",
+    desc: "Turn one idea into an X thread, a LinkedIn post, and a newsletter blurb.",
+    category: "Content",
+    seed: "I want to repurpose one source idea, post, or transcript into a multi-platform pack. A strategist should pick the three strongest angles, then a writer should spin them into an X thread, a LinkedIn post, and a short newsletter blurb — all in my brand voice if it's stored in memory. Save the pack as a draft.",
+    agents: 2,
+    pipelines: 1,
+  },
+  {
+    id: "seo-content-engine",
+    emoji: "🔍",
+    title: "SEO Content Engine",
+    desc: "Research keywords and outline search-optimized articles.",
+    category: "Content",
+    seed: "I want an SEO content engine. A researcher should find the search intent and related questions for a target keyword, an outliner should produce an H2/H3 structure with internal-link suggestions, and a writer should draft a search-optimized article around it. Save the brief and draft, and remember which topics I've already covered so we don't repeat ourselves.",
+    agents: 3,
+    pipelines: 1,
+  },
+  {
+    id: "newsletter-studio",
+    emoji: "📰",
+    title: "Newsletter Studio",
+    desc: "Curate a theme and draft a weekly newsletter issue.",
+    category: "Content",
+    seed: "I send a weekly newsletter and want help drafting each issue. A curator should pick a theme and gather 3-5 worth-sharing items for my audience, then a writer should draft the issue with a strong subject line, intro, the curated items with one-line takes, and a closing CTA. Save it as a draft and remember past themes so issues stay varied.",
+    agents: 2,
+    pipelines: 1,
+  },
+  {
+    id: "podcast-repurposer",
+    emoji: "🎙️",
+    title: "Podcast Repurposer",
+    desc: "Turn an episode transcript into show notes and clip-worthy quotes.",
+    category: "Content",
+    seed: "I host a podcast and want to repurpose each episode. Given a transcript, a producer should write structured show notes with timestamps and key takeaways, and a clip-finder should surface 5-8 quotable moments worth turning into short social clips. Save the notes and the quote list as drafts.",
+    agents: 2,
+    pipelines: 1,
+  },
+
+  // ── Marketing ────────────────────────────────────────────────
+  {
+    id: "brand-voice-builder",
+    emoji: "🎨",
+    title: "Brand Voice Builder",
+    desc: "Codify your tone into a one-page reference doc.",
+    category: "Marketing",
+    seed: "I want to codify my brand voice. A brand analyst should extract tone attributes, signature phrases, and phrases to avoid from a description and any sample content I provide, then a style codifier should write a one-page reference with three example posts that demonstrate the voice. Store it in memory under 'brand voice' so my content agents can read it.",
+    agents: 2,
+    pipelines: 1,
+  },
+  {
+    id: "competitor-watch",
+    emoji: "🛰️",
+    title: "Competitor Watch",
+    desc: "Track rival moves and summarize what changed each week.",
+    category: "Marketing",
+    seed: "I want to keep an eye on a handful of competitors. A web researcher should scan for recent moves — launches, pricing changes, messaging shifts — across their sites and the web, then an analyst should summarize what changed this week and why it matters for my positioning. Save a short report and remember prior findings so each scan only flags what's new.",
+    agents: 2,
+    pipelines: 1,
+  },
+  {
+    id: "social-listening",
+    emoji: "👂",
+    title: "Social Listening",
+    desc: "Surface what people are saying about a topic or brand.",
+    category: "Marketing",
+    seed: "I want social listening on a topic and my brand. A researcher should gather recent public mentions and discussions across the web, then an analyst should cluster them into themes, flag the sentiment, and pull a few representative quotes. Save a digest and store recurring themes in memory so trends become visible over time.",
+    agents: 2,
+    pipelines: 1,
+  },
+  {
+    id: "webinar-promoter",
+    emoji: "📣",
+    title: "Webinar Promoter",
+    desc: "Plan a promo sequence for an upcoming event.",
+    category: "Marketing",
+    seed: "I have a webinar coming up and want a promotion plan. A planner should map a multi-touch promo timeline (announce, value teaser, reminder, last-call), then a writer should draft the social posts and emails for each touch in my brand voice. Save everything as drafts for me to schedule manually.",
+    agents: 2,
+    pipelines: 1,
+  },
+  {
+    id: "ad-creative-tester",
+    emoji: "🧪",
+    title: "Ad Creative Tester",
+    desc: "Generate ad angle variations to test, no spend.",
+    category: "Marketing",
+    seed: "I want to test ad creative angles before spending. A strategist should propose 4-5 distinct angles (pain, outcome, social-proof, contrarian, curiosity) for my product, then a copywriter should write a headline and primary text variant for each. Save them as drafts so I can paste the winners into my ad platform myself. No ad spend or platform writes.",
+    agents: 2,
+    pipelines: 1,
+  },
+
+  // ── Sales ────────────────────────────────────────────────────
+  {
+    id: "outreach-strategist",
+    emoji: "✉️",
+    title: "Outreach Strategist",
+    desc: "Sharpen your ICP and draft a cold-email sequence.",
+    category: "Sales",
+    seed: "I want a cold-outreach engine that drafts but never sends. An ICP researcher should sharpen my ideal customer profile from my product and a target hint, then a pitch writer should produce a three-message sequence — intro, follow-up, and breakup — ready to copy into my inbox. Save the sequence as a draft.",
+    agents: 2,
+    pipelines: 1,
+  },
+  {
+    id: "cold-outreach-engine",
+    emoji: "🚀",
+    title: "Cold Outreach Engine",
+    desc: "Personalize first-touch emails for a target list.",
+    category: "Sales",
+    seed: "I have a list of target accounts and want personalized first-touch emails. A researcher should pull a relevant hook for each prospect from public info, then a writer should draft a short, specific opener referencing that hook with one clear CTA. Save drafts for me to review and send manually, and log every draft. No automatic sending.",
+    agents: 2,
+    pipelines: 1,
+  },
+  {
+    id: "lead-qualifier",
+    emoji: "✅",
+    title: "Lead Qualifier",
+    desc: "Score inbound leads against your ICP and route them.",
+    category: "Sales",
+    seed: "I want to qualify inbound leads. Given a lead's details, an analyst should score fit against my ICP (industry, size, role, intent signals) and a router should recommend an action — fast-track, nurture, or disqualify — with a one-line reason. Log every decision and remember scoring patterns so qualification gets more consistent over time.",
+    agents: 2,
+    pipelines: 1,
+  },
+  {
+    id: "proposal-writer",
+    emoji: "📄",
+    title: "Proposal Writer",
+    desc: "Turn a project brief into a client-ready proposal.",
+    category: "Sales",
+    seed: "I want to turn a project brief into a client proposal. A scoper should sharpen the client context, problem, success metrics, and scope boundaries, then a writer should draft a structured proposal — summary, scope, deliverables, phased timeline, and value-framed pricing. Save it as a draft for me to review and send.",
+    agents: 2,
+    pipelines: 1,
+  },
+  {
+    id: "partnership-outreach",
+    emoji: "🤝",
+    title: "Partnership Outreach",
+    desc: "Find fitting partners and draft intro pitches.",
+    category: "Sales",
+    seed: "I want to line up partnership conversations. A researcher should identify the kinds of companies that complement my product and find a few concrete candidates, then a writer should draft a tailored intro pitch for each that leads with the mutual win. Save the pitches as drafts for me to send manually.",
+    agents: 2,
+    pipelines: 1,
+  },
+
+  // ── Research ─────────────────────────────────────────────────
+  {
+    id: "market-research",
+    emoji: "📊",
+    title: "Market Research Agent",
+    desc: "Scan a market and synthesize a one-page report.",
+    category: "Research",
+    seed: "I want a fast market scan. A web researcher should gather signals across 5-10 high-signal sources about my market, then a synthesizer should produce a one-page report covering market size signals, the top three competitors with a one-line distinction each, 12-month trends, and the opportunity. Save the report and store key findings in memory so future scans build on them.",
+    agents: 2,
+    pipelines: 1,
+  },
+
+  // ── Ops ──────────────────────────────────────────────────────
+  {
+    id: "customer-onboarding",
+    emoji: "🧭",
+    title: "Customer Onboarding",
+    desc: "Draft a guided welcome sequence for new customers.",
+    category: "Ops",
+    seed: "I want to onboard new customers smoothly. A planner should map a milestone-based onboarding journey (welcome, setup, first value, check-in), then a writer should draft the message for each milestone in my brand voice. Save the sequence as drafts I can send manually, and remember the journey so every new customer gets the same guided start.",
+    agents: 2,
+    pipelines: 1,
+  },
+  {
+    id: "churn-watch",
+    emoji: "📉",
+    title: "Churn Watch",
+    desc: "Flag at-risk accounts and draft win-back outreach.",
+    category: "Ops",
+    seed: "I want to catch churn early. Given account activity I provide, an analyst should flag at-risk accounts with the warning signs and a reason, then a writer should draft a tailored win-back message for each flagged account. Save drafts for me to review, log every assessment, and remember which signals tend to precede churn.",
+    agents: 2,
+    pipelines: 1,
+  },
+  {
+    id: "product-launch-kit",
+    emoji: "🎁",
+    title: "Product Launch Kit",
+    desc: "Assemble launch messaging and a go-live checklist.",
+    category: "Ops",
+    seed: "I'm launching a product and want a launch kit. A strategist should draft the core positioning and key messages, a writer should produce the announcement assets (landing copy, social posts, launch email), and an ops agent should assemble a go-live checklist. Save everything as drafts and keep the checklist in memory so nothing slips.",
+    agents: 3,
+    pipelines: 1,
+  },
+
+  // ── Finance ──────────────────────────────────────────────────
+  {
+    id: "invoice-chaser",
+    emoji: "🧾",
+    title: "Invoice Chaser",
+    desc: "Draft polite, escalating payment reminders.",
+    category: "Finance",
+    seed: "I want help chasing overdue invoices. Given a list of outstanding invoices I provide, an agent should draft a polite, escalating reminder for each (gentle nudge, firm follow-up, final notice) referencing the amount and due date. Save the reminders as drafts for me to send manually, and log every draft. Never send anything automatically and never move money.",
+    agents: 1,
+    pipelines: 1,
+  },
+  {
+    id: "weekly-finance-digest",
+    emoji: "💹",
+    title: "Weekly Finance Digest",
+    desc: "Summarize the numbers I track into a weekly readout.",
+    category: "Finance",
+    seed: "I want a weekly finance digest. Given the figures I provide (revenue, spend, runway, key metrics), an analyst should compare them to the prior period, call out what moved and why it matters, and flag anything that needs attention. Save a short readout and remember prior weeks so the digest shows trends. Read-only — no transactions.",
+    agents: 1,
+    pipelines: 1,
+  },
+
+  // ── Support ──────────────────────────────────────────────────
+  {
+    id: "support-triage",
+    emoji: "🎫",
+    title: "Support Triage",
+    desc: "Categorize tickets and draft first replies.",
+    category: "Support",
+    seed: "I want to triage incoming support tickets. Given a ticket, an agent should categorize it (bug, billing, how-to, feature request), set a priority, and draft a helpful first reply grounded in my knowledge base. Save the draft for a human to review before sending, log every triage decision, and remember recurring issues so common answers improve.",
+    agents: 2,
+    pipelines: 1,
+  },
+  {
+    id: "review-responder",
+    emoji: "⭐",
+    title: "Review Responder",
+    desc: "Draft on-brand replies to customer reviews.",
+    category: "Support",
+    seed: "I want help responding to customer reviews. Given a review, an agent should gauge the sentiment and draft a thoughtful, on-brand reply — gracious for praise, accountable and solution-oriented for complaints. Save replies as drafts for me to post, and remember recurring praise and complaints so I can spot patterns.",
+    agents: 1,
+    pipelines: 1,
+  },
+
+  // ── Founder ──────────────────────────────────────────────────
+  {
+    id: "recruiting-sourcer",
+    emoji: "🧑‍💼",
+    title: "Recruiting Sourcer",
+    desc: "Draft a role profile and personalized candidate outreach.",
+    category: "Founder",
+    seed: "I'm hiring and want sourcing help. A recruiter agent should turn a role into a sharp candidate profile (must-haves, signals, where they hang out), then a writer should draft a warm, personalized outreach message I can send to promising candidates. Save drafts for me to send manually and log every one. No automatic messaging.",
+    agents: 2,
+    pipelines: 1,
+  },
+];
+
 function CompanyBuilderWizardInner() {
   const router = useRouter();
   const { token, hydrated } = useAuthGuard();
@@ -44,6 +354,20 @@ function CompanyBuilderWizardInner() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [touched, setTouched] = useState(false);
+  const [ideaCategory, setIdeaCategory] = useState<IdeaCategory | "All">("All");
+
+  const visibleIdeas =
+    ideaCategory === "All"
+      ? IDEA_TEMPLATES
+      : IDEA_TEMPLATES.filter((tpl) => tpl.category === ideaCategory);
+
+  function seedFromIdea(idea: IdeaTemplate) {
+    if (loading) return;
+    setTouched(true);
+    // Pass the seed explicitly so the build kicks off this tick rather
+    // than waiting for the description state to flush (see handleDescribe).
+    handleDescribe(idea.seed);
+  }
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -72,20 +396,25 @@ function CompanyBuilderWizardInner() {
     }
   }
 
-  async function handleDescribe() {
+  async function handleDescribe(override?: string) {
     if (!token) return;
-    if (!description.trim()) {
+    // `override` lets a template card seed + submit in one tick — React
+    // state updates are async, so we can't rely on `description` having
+    // settled to the seeded value by the time this runs.
+    const prompt = (override ?? description).trim();
+    if (!prompt) {
       setError(t("app.companyNew.errDescribe"));
       return;
     }
+    if (override) setDescription(override);
     setError(null);
     setLoading(true);
 
     // Add user message to chat
-    setChatHistory((prev) => [...prev, { role: "user", content: description.trim(), timestamp: new Date() }]);
+    setChatHistory((prev) => [...prev, { role: "user", content: prompt, timestamp: new Date() }]);
 
     try {
-      const res = await api.buildCompany(token, description);
+      const res = await api.buildCompany(token, prompt);
       setSession(res);
       if (res.status === "ready") {
         setChatHistory((prev) => [...prev, { role: "ai", content: t("app.companyNew.specReady"), timestamp: new Date() }]);
@@ -268,6 +597,107 @@ function CompanyBuilderWizardInner() {
               router.push(`/companies/${company.id}`);
             }}
           />
+
+          {/* ── Idea gallery — seeds the builder + runs the AI flow ── */}
+          <div className="mb-6">
+            <div className="flex items-end justify-between mb-3 px-1">
+              <div>
+                <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: "#a4e6ff" }}>
+                  Start from an idea
+                </h2>
+                <p className="text-xs mt-0.5" style={{ color: "#859399" }}>
+                  Pick a starting point — we&apos;ll pre-fill the brief below and the AI will tailor it to you.
+                </p>
+              </div>
+            </div>
+
+            {/* Category filter pills — reuse FORGE .bv-fpill */}
+            <div className="flex flex-wrap gap-2 mb-4 px-1" role="tablist" aria-label="Template categories">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={ideaCategory === "All"}
+                className={`bv-fpill${ideaCategory === "All" ? " active" : ""}`}
+                onClick={() => setIdeaCategory("All")}
+              >
+                All
+                <span className="bv-fpill-count">{IDEA_TEMPLATES.length}</span>
+              </button>
+              {IDEA_CATEGORIES.map((cat) => {
+                const count = IDEA_TEMPLATES.filter((tpl) => tpl.category === cat).length;
+                if (count === 0) return null;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    role="tab"
+                    aria-selected={ideaCategory === cat}
+                    className={`bv-fpill${ideaCategory === cat ? " active" : ""}`}
+                    onClick={() => setIdeaCategory(cat)}
+                  >
+                    {cat}
+                    <span className="bv-fpill-count">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Idea cards — same metadata shape as StarterPicker */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {visibleIdeas.map((idea) => (
+                <button
+                  key={idea.id}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => seedFromIdea(idea)}
+                  className="text-left rounded-2xl p-4 transition-all hover:brightness-110 disabled:opacity-60 disabled:cursor-wait"
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                  }}
+                  aria-label={`Start from idea: ${idea.title}`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="text-2xl leading-none">{idea.emoji}</div>
+                    <span className="bv-pill bv-pill-muted">{idea.category}</span>
+                  </div>
+
+                  <div className="mt-3 font-semibold text-sm" style={{ color: "#e1e2eb" }}>
+                    {idea.title}
+                  </div>
+                  <div className="mt-1 text-xs leading-relaxed" style={{ color: "#bbc9cf" }}>
+                    {idea.desc}
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-3 text-[11px]" style={{ color: "#859399" }}>
+                    <span title={`${idea.agents} agents`}>
+                      <span className="material-symbols-outlined align-middle" style={{ fontSize: 12 }}>
+                        person
+                      </span>{" "}
+                      {idea.agents}
+                    </span>
+                    <span title={`${idea.pipelines} pipeline`}>
+                      <span className="material-symbols-outlined align-middle" style={{ fontSize: 12 }}>
+                        account_tree
+                      </span>{" "}
+                      {idea.pipelines}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 text-[11px] flex items-center gap-1" style={{ color: "#60A5FA" }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 13 }}>auto_awesome</span>
+                    Use this idea
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="text-center mt-4">
+              <span className="text-[11px] uppercase tracking-wide" style={{ color: "#3c494e" }}>
+                or describe your own below ↓
+              </span>
+            </div>
+          </div>
 
           {/* Prompt box — matches mock .promptbox inside .steel-card */}
           <div

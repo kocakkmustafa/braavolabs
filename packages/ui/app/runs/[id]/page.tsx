@@ -53,6 +53,24 @@ export default function RunDetailPage() {
   const [loaded, setLoaded] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const stepRefs = useRef<Map<string, HTMLLIElement>>(new Map());
+  // AI failure explanation (D2)
+  const [explain, setExplain] = useState<{ explanation: string; suggestedFix: string; model?: string } | null>(null);
+  const [explainLoading, setExplainLoading] = useState(false);
+  const [explainErr, setExplainErr] = useState<string | null>(null);
+
+  const runExplain = async () => {
+    if (!token || !runId || explainLoading) return;
+    setExplainLoading(true);
+    setExplainErr(null);
+    try {
+      const res = await api.explainRun(token, runId);
+      setExplain({ explanation: res.explanation, suggestedFix: res.suggestedFix, model: res.model });
+    } catch (e) {
+      setExplainErr(e instanceof Error ? e.message : t("app.runExplain.error"));
+    } finally {
+      setExplainLoading(false);
+    }
+  };
 
   const scrollToStep = (stepId: string) => {
     const node = stepRefs.current.get(stepId);
@@ -209,8 +227,27 @@ export default function RunDetailPage() {
                 >
                   {run.error}
                 </pre>
-                {run.pipeline?.id && (
-                  <div style={{ marginTop: 12 }}>
+
+                {/* Action row: AI explain (D2) + fix-in-editor */}
+                <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {run.status?.toUpperCase() === "FAILED" && (
+                    <button
+                      onClick={() => void runExplain()}
+                      disabled={explainLoading}
+                      className="bv-btn bv-btn-ghost bv-btn-sm"
+                    >
+                      {explainLoading ? (
+                        <span
+                          className="inline-block border-2 border-t-transparent rounded-full animate-spin"
+                          style={{ width: 13, height: 13, borderWidth: 2, borderColor: "rgba(96,165,250,0.4)", borderTopColor: "transparent" }}
+                        />
+                      ) : (
+                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>auto_awesome</span>
+                      )}
+                      {explainLoading ? t("app.runExplain.loading") : t("app.runExplain.button")}
+                    </button>
+                  )}
+                  {run.pipeline?.id && (
                     <Link
                       href={`/pipelines/${run.pipeline.id}`}
                       className="bv-btn bv-btn-ghost bv-btn-sm"
@@ -219,6 +256,67 @@ export default function RunDetailPage() {
                       <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
                       {t("app.runAudit.fixInEditor")}
                     </Link>
+                  )}
+                </div>
+
+                {/* AI explanation result — calm panel below the raw error */}
+                {explainErr && (
+                  <div
+                    style={{
+                      marginTop: 12,
+                      fontSize: 12.5,
+                      color: "var(--color-on-surface-variant)",
+                    }}
+                  >
+                    {explainErr}
+                  </div>
+                )}
+                {explain && (
+                  <div
+                    style={{
+                      marginTop: 12,
+                      padding: "14px 16px",
+                      borderRadius: 12,
+                      background: "rgba(59,130,246,0.06)",
+                      border: "1px solid rgba(59,130,246,0.22)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 15, color: "#60A5FA" }}>auto_awesome</span>
+                      <span
+                        className="bv-mono"
+                        style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.08em", color: "#60A5FA" }}
+                      >
+                        {t("app.runExplain.title")}
+                      </span>
+                      {explain.model && (
+                        <span style={{ fontSize: 10.5, color: "var(--color-outline)" }}>
+                          {t("app.runExplain.poweredBy", { model: explain.model })}
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55, color: "var(--color-on-surface)" }}>
+                      {explain.explanation}
+                    </p>
+                    {explain.suggestedFix && (
+                      <div style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "flex-start" }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 15, color: "#60A5FA", marginTop: 1 }}>build</span>
+                        <div>
+                          <div
+                            className="bv-mono"
+                            style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--color-outline)", marginBottom: 2 }}
+                          >
+                            {t("app.runExplain.fixLabel")}
+                          </div>
+                          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "var(--color-on-surface)" }}>
+                            {explain.suggestedFix}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    <div style={{ marginTop: 10, fontSize: 10.5, color: "var(--color-outline)", fontStyle: "italic" }}>
+                      {t("app.runExplain.disclaimer")}
+                    </div>
                   </div>
                 )}
               </div>
@@ -345,18 +443,25 @@ export default function RunDetailPage() {
                     <MetaRow label="Duration" value={timeAgo(run.startedAt)} />
                   )}
 
-                  {/* Cost gauge */}
+                  {/* Burn meter (D3) — live spend, honestly labelled. Budget
+                      bar only renders when a real budget exists on the run. */}
                   {typeof run.costUsd === "number" && (
                     <>
                       <div
                         className="bv-micro"
-                        style={{ marginTop: 20, marginBottom: 12 }}
+                        style={{ marginTop: 20, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}
                       >
-                        Cost vs budget
+                        {t("app.cost.burnTitle")}
+                        {run.status?.toLowerCase() === "running" && (
+                          <span className="bv-pill bv-pill-cyan" style={{ fontSize: 9 }}>
+                            {t("app.cost.burnLiveBadge")}
+                          </span>
+                        )}
                       </div>
-                      <CostGauge
+                      <BurnMeter
                         costUsd={run.costUsd}
-                        budgetUsd={run.budgetUsd ?? 50}
+                        budgetUsd={typeof run.budgetUsd === "number" ? run.budgetUsd : null}
+                        t={t}
                       />
                     </>
                   )}
@@ -680,10 +785,49 @@ function MetaRow({ label, value, mono }: { label: string; value: string; mono?: 
   );
 }
 
-/* ── Cost gauge ── */
-function CostGauge({ costUsd, budgetUsd }: { costUsd: number; budgetUsd: number }) {
-  const pct = Math.min((costUsd / budgetUsd) * 100, 100);
-  const overHalf = pct > 60;
+/* ── Burn meter (D3) ──────────────────────────────────────────────────────
+ * Live spend on the run. When the run carries a real budget, a thin bar
+ * shows costUsd/budgetUsd with FORGE colouring: arc-blue under budget,
+ * ember nearing it, molten over. Honest by construction — no invented
+ * budget; if there's no budget we just show the live figure, no bar. */
+function BurnMeter({
+  costUsd,
+  budgetUsd,
+  t,
+}: {
+  costUsd: number;
+  budgetUsd: number | null;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const usd = (n: number) => (n < 1 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}`);
+
+  // No budget set → live spend only, clearly labelled as metered.
+  if (budgetUsd == null || budgetUsd <= 0) {
+    return (
+      <div style={{ marginBottom: 4 }}>
+        <div className="bv-mono" style={{ fontSize: 18, color: "var(--color-on-surface)" }}>
+          {usd(costUsd)}
+        </div>
+        <div style={{ fontSize: 11, color: "var(--color-outline)", marginTop: 4 }}>
+          {t("app.cost.liveNote")}
+        </div>
+      </div>
+    );
+  }
+
+  const ratio = costUsd / budgetUsd;
+  const pct = Math.min(ratio * 100, 100);
+  // FORGE: arc under budget · ember nearing (≥75%) · molten over (≥100%).
+  const fill =
+    ratio >= 1
+      ? "linear-gradient(90deg, #FF7A1A, #FF4D4D)"
+      : ratio >= 0.75
+      ? "linear-gradient(90deg, #3B82F6, #FF7A1A)"
+      : "linear-gradient(90deg, #3B82F6, #2563EB)";
+  const statusLabel =
+    ratio >= 1 ? t("app.cost.statusOver") : ratio >= 0.75 ? t("app.cost.statusNear") : t("app.cost.statusUnder");
+  const statusColor = ratio >= 1 ? "#FF4D4D" : ratio >= 0.75 ? "#FF7A1A" : "#60A5FA";
+
   return (
     <div style={{ marginBottom: 4 }}>
       <div
@@ -700,9 +844,7 @@ function CostGauge({ costUsd, budgetUsd }: { costUsd: number; budgetUsd: number 
           style={{
             height: "100%",
             width: `${pct}%`,
-            background: overHalf
-              ? "linear-gradient(90deg, #3B82F6, #FF7A1A)"
-              : "linear-gradient(90deg, #3B82F6, #2563EB)",
+            background: fill,
             borderRadius: 6,
             transition: "width 1s cubic-bezier(0.16,1,0.3,1)",
           }}
@@ -718,8 +860,12 @@ function CostGauge({ costUsd, budgetUsd }: { costUsd: number; budgetUsd: number 
           marginTop: 8,
         }}
       >
-        <span>${costUsd.toFixed(2)}</span>
-        <span>budget ${budgetUsd.toFixed(2)}</span>
+        <span style={{ color: statusColor }}>{usd(costUsd)}</span>
+        <span>{t("app.cost.budgetLabel", { amount: usd(budgetUsd) })}</span>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+        <span style={{ fontSize: 10.5, color: statusColor }}>{statusLabel}</span>
+        <span style={{ fontSize: 10.5, color: "var(--color-outline)" }}>{t("app.cost.liveNote")}</span>
       </div>
     </div>
   );

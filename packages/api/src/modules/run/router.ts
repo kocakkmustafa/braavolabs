@@ -2,14 +2,20 @@ import { Router } from "express";
 import { authMiddleware } from "../../middleware/auth";
 import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
+import { rateLimit } from "../../middleware/rateLimit";
 import { logger } from "../../lib/logger";
 import { redis } from "../../lib/redis";
 import { runEventChannel, getBufferedRunEvents } from "../../lib/runEvents";
 import { enqueueRun } from "../pipeline/runner";
+import { chatCompletion, getTenantAIConfig } from "../../services/ai-client";
 import type { RunEvent } from "@ai-company-os/core";
 
 export const runRouter = Router();
 runRouter.use(authMiddleware);
+
+// "Explain this failure" calls the tenant's own LLM — throttle per-tenant so a
+// rage-click on the Explain button can't rack up provider cost.
+const explainLimiter = rateLimit({ windowMs: 60_000, maxRequests: 10, keyPrefix: "rl:run:explain" });
 
 // GET /api/v1/runs/:id — run detail with steps and tool calls
 runRouter.get("/:id", async (req, res, next) => {
@@ -29,6 +35,121 @@ runRouter.get("/:id", async (req, res, next) => {
       throw new AppError(404, "Run not found");
     }
     res.json(run);
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/runs/:id/explain — AI-generated plain-language explanation of a
+// FAILED run. Calls the tenant's own configured LLM (their key, low risk —
+// we're explaining an error, not routing customer data) and returns a short
+// explanation + a one-line suggested fix.
+//
+// The UI labels the result as an "AI explanation" — it's a best-effort
+// interpretation of the error string, not a guarantee.
+runRouter.post("/:id/explain", explainLimiter, async (req, res, next) => {
+  try {
+    const runIdParam = req.params.id as string;
+    // Tenant-scope via relation traversal (same lightweight pattern as the
+    // /steer route). Kept include-free on purpose: a second rich-`include`
+    // findUnique in this file pushes Prisma's generated overload union past
+    // TS's complexity limit and collapses inference. The failed step is
+    // fetched separately below.
+    const run = await prisma.run.findFirst({
+      where: { id: runIdParam, pipeline: { company: { tenantId: req.auth!.tenantId } } },
+    });
+    if (!run) {
+      throw new AppError(404, "Run not found");
+    }
+    if (run.status !== "FAILED") {
+      throw new AppError(400, "Only failed runs can be explained.");
+    }
+
+    // The error usually lives on the run; the failed step (if any) gives the
+    // model extra context (which step, and why the agent was doing it).
+    const failedStep = await prisma.runStep.findFirst({
+      where: { runId: run.id, status: "FAILED" },
+      orderBy: { stepIndex: "asc" },
+    });
+    const errorText = (run.error ?? failedStep?.error ?? "").trim();
+    if (!errorText) {
+      throw new AppError(400, "This run has no recorded error to explain.");
+    }
+
+    // Load the tenant's AI config. If none is configured (and no system key),
+    // return a friendly 400 instead of a 500 — the feature is optional.
+    let aiConfig;
+    try {
+      aiConfig = await getTenantAIConfig(req.auth!.tenantId);
+    } catch {
+      throw new AppError(
+        400,
+        "No AI provider configured. Add one in Settings → AI Provider to use AI explanations.",
+      );
+    }
+
+    const systemPrompt =
+      "You are a senior automation engineer helping a non-technical operator " +
+      "understand why their AI workflow run failed. Be concise, calm, and plain-spoken. " +
+      "Respond ONLY with a compact JSON object, no markdown, exactly this shape:\n" +
+      '{ "explanation": "2-3 short sentences in plain language explaining what went wrong", ' +
+      '"suggestedFix": "one short actionable sentence" }';
+
+    const userMessage =
+      `A workflow run failed.\n` +
+      (failedStep?.name ? `Failed step: ${failedStep.name}\n` : "") +
+      (failedStep?.reasoning ? `Step reasoning: ${failedStep.reasoning.slice(0, 800)}\n` : "") +
+      `Error message:\n${errorText.slice(0, 1500)}\n\n` +
+      `Explain this in plain language and suggest one fix.`;
+
+    let result;
+    try {
+      result = await chatCompletion(
+        aiConfig,
+        systemPrompt,
+        [{ role: "user", content: userMessage }],
+        512,
+      );
+    } catch (err) {
+      logger.warn(
+        { runId: run.id, tenantId: req.auth!.tenantId, err: (err as Error).message },
+        "run explain LLM call failed",
+      );
+      throw new AppError(502, "Couldn't reach your AI provider to generate an explanation. Try again shortly.");
+    }
+
+    // Parse the JSON the model returned; tolerate markdown fences and fall back
+    // to using the raw text as the explanation if it isn't valid JSON.
+    let explanation = "";
+    let suggestedFix = "";
+    try {
+      const cleaned = result.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      const parsed = JSON.parse(cleaned) as { explanation?: string; suggestedFix?: string };
+      explanation = (parsed.explanation ?? "").trim();
+      suggestedFix = (parsed.suggestedFix ?? "").trim();
+    } catch {
+      explanation = result.content.trim().slice(0, 600);
+    }
+    if (!explanation) {
+      explanation = result.content.trim().slice(0, 600) || "The AI could not produce an explanation for this error.";
+    }
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "run.explain",
+        resource: "run",
+        resourceId: run.id,
+        details: { provider: result.provider, model: result.model },
+      },
+    });
+
+    res.json({
+      explanation,
+      suggestedFix,
+      provider: result.provider,
+      model: result.model,
+      generatedByAi: true,
+    });
   } catch (err) { next(err); }
 });
 
