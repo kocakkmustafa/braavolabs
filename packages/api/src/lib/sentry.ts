@@ -12,8 +12,34 @@
 
 import * as Sentry from "@sentry/node";
 import type { ErrorRequestHandler, RequestHandler } from "express";
+import { ZodError } from "zod";
+import { AppError } from "../middleware/error";
 
 let initialized = false;
+
+/**
+ * Client-caused errors (4xx) are not server bugs — a caller sending malformed
+ * JSON, a failed Zod validation, an oversized body, or a CORS rejection should
+ * return a 4xx, not page ops. Capturing them floods Sentry with noise (e.g.
+ * `SyntaxError: ... is not valid JSON` from bad request bodies). Mirror the
+ * classification in middleware/error.ts so only genuine 5xx reach Sentry.
+ */
+function isClientError(err: unknown): boolean {
+  if (err instanceof AppError) return err.statusCode >= 400 && err.statusCode < 500;
+  if (err instanceof ZodError) return true; // → 400 validation error
+  if (err instanceof SyntaxError) return true; // malformed JSON request body → 400
+  const e = (err ?? {}) as { type?: string; statusCode?: number; message?: string };
+  if (typeof e.statusCode === "number" && e.statusCode >= 400 && e.statusCode < 500) return true;
+  if (
+    e.type === "entity.parse.failed" ||
+    e.type === "entity.too.large" ||
+    e.type === "charset.unsupported"
+  ) {
+    return true;
+  }
+  if (typeof e.message === "string" && e.message.includes("CORS")) return true;
+  return false;
+}
 
 export function initSentry(): void {
   const dsn = process.env.SENTRY_DSN;
@@ -69,7 +95,7 @@ export const sentryRequestHandler: RequestHandler = (req, _res, next) => {
 };
 
 export const sentryErrorHandler: ErrorRequestHandler = (err, _req, _res, next) => {
-  if (initialized) {
+  if (initialized && !isClientError(err)) {
     Sentry.captureException(err);
   }
   next(err);
