@@ -23,6 +23,7 @@ import jwt from "jsonwebtoken";
 import { AppError } from "../../../middleware/error";
 import { env } from "../../../config/env";
 import { logger } from "../../../lib/logger";
+import { verifyAppleJws, JwsVerificationError, type VerifyJwsOptions } from "./jws";
 
 export interface VerifiedReceipt {
   originalTransactionId: string;
@@ -261,7 +262,10 @@ export async function verifyAppleReceipt(
  *
  * Returns the canonicalised subscription state for the upsert path.
  */
-export async function parseAppleNotification(signedPayload: string): Promise<{
+export async function parseAppleNotification(
+  signedPayload: string,
+  opts?: VerifyJwsOptions,
+): Promise<{
   notificationType: string;
   subtype?: string;
   originalTransactionId: string;
@@ -270,16 +274,28 @@ export async function parseAppleNotification(signedPayload: string): Promise<{
   status: VerifiedReceipt["status"];
   autoRenew: boolean;
 }> {
-  const payload = decodeJws(signedPayload) as Record<string, unknown> & {
+  // FINDINGS C1 — this payload arrives at the UNAUTHENTICATED notify
+  // endpoint, so we MUST verify Apple's signature (x5c chain → Apple Root
+  // CA - G3) before trusting any field. Verify the outer JWS and each
+  // nested signed blob; reject forged/replayed payloads with a 401.
+  let payload: Record<string, unknown> & {
     notificationType?: string;
     subtype?: string;
     data?: { signedTransactionInfo?: string; signedRenewalInfo?: string };
   };
+  try {
+    payload = await verifyAppleJws(signedPayload, opts);
+  } catch (err) {
+    if (err instanceof JwsVerificationError) {
+      throw new AppError(401, `Apple notification signature invalid: ${err.message}`);
+    }
+    throw err;
+  }
   const tx = payload.data?.signedTransactionInfo
-    ? (decodeJws(payload.data.signedTransactionInfo) as unknown as AppleTransactionPayload)
+    ? ((await verifyAppleJws(payload.data.signedTransactionInfo, opts)) as unknown as AppleTransactionPayload)
     : null;
   const renewal = payload.data?.signedRenewalInfo
-    ? (decodeJws(payload.data.signedRenewalInfo) as unknown as AppleRenewalPayload)
+    ? ((await verifyAppleJws(payload.data.signedRenewalInfo, opts)) as unknown as AppleRenewalPayload)
     : null;
   if (!tx) throw new AppError(400, "Apple notification missing transaction payload");
 

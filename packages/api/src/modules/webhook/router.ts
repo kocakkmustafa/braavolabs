@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { enqueueRun } from "../pipeline/runner";
-import { claimQuota } from "../billing/metering";
+import { claimQuota, releaseQuota } from "../billing/metering";
 import { getWebhookTemplates, getWebhookTemplateById, getWebhookTemplateCategories } from "./templates";
 import { authMiddleware } from "../../middleware/auth";
 import { AppError } from "../../middleware/error";
@@ -59,35 +59,18 @@ webhookRouter.post(
            the security gate, not this DoS shield). */
       }
 
-      const company = await prisma.company.findFirst({
-        where: { slug: companySlug, status: "ACTIVE" },
-      });
-      if (!company) {
-        res.status(404).json({ error: "Company not found" });
-        return;
-      }
-
-      // Verify webhook signature — REQUIRED. Per-company secret only —
-      // the previous `process.env.WEBHOOK_SECRET` fallback was a process-
-      // wide global, so any tenant that learned the value could sign
-      // payloads for any other tenant's `/hooks/:slug/:event`.
+      // Header + replay-window checks first — they're company-independent
+      // and cheap, so reject malformed/expired deliveries before resolving
+      // candidates or computing any HMAC.
       const signature = req.headers["x-webhook-signature"] as string | undefined;
       const timestamp = req.headers["x-webhook-timestamp"] as string | undefined;
-      const secret = (company.config as Record<string, any>)?.webhookSecret;
-      if (!secret || typeof secret !== "string") {
-        res.status(403).json({ error: "Webhook secret not configured for this company" });
-        return;
-      }
       if (!signature) {
         res.status(401).json({ error: "Missing X-Webhook-Signature header" });
         return;
       }
-
       // Replay protection: require the timestamp header so a captured
-      // signed payload can't be replayed forever. The header was
-      // previously optional, which meant any sniffed request with a
-      // valid signature could be re-sent indefinitely. Make it
-      // mandatory and bind it into the signed bytes below.
+      // signed payload can't be replayed forever, and bind it into the
+      // signed bytes below.
       if (!timestamp) {
         res.status(401).json({ error: "Missing X-Webhook-Timestamp header" });
         return;
@@ -98,24 +81,85 @@ webhookRouter.post(
         return;
       }
 
+      // FINDINGS H1 — `Company.slug` is unique only per-tenant
+      // (@@unique([tenantId, slug])), NOT globally. The old
+      // `findFirst({ slug, status })` returned an arbitrary first match
+      // across ALL tenants, so two tenants sharing a slug (onboarding /
+      // automation-importer emit predictable slugs like
+      // "imported-automations") could have a correctly-signed delivery
+      // resolve to the WRONG tenant's row. Resolve every ACTIVE candidate
+      // and disambiguate by which one's per-company secret actually
+      // validates the signature — eliminating cross-tenant misrouting
+      // while staying backward-compatible for the common single-match case.
+      const candidates = await prisma.company.findMany({
+        where: { slug: companySlug, status: "ACTIVE" },
+        take: 25,
+      });
+      if (candidates.length === 0) {
+        res.status(404).json({ error: "Company not found" });
+        return;
+      }
+
       // Express's `raw()` parser leaves a Buffer on req.body. If the body
       // hasn't been parsed (e.g. no Content-Type header), normalize to an
       // empty buffer so the signed payload is well-defined.
       const rawBuffer: Buffer = Buffer.isBuffer(req.body)
         ? req.body
         : Buffer.from("");
-      // Timestamp is now required (above), so always bind it into the
-      // signed payload — never sign the raw body alone.
+      // Timestamp is required (above), so always bind it into the signed
+      // payload — never sign the raw body alone.
       const signedPayload = Buffer.concat([Buffer.from(`${timestamp}.`), rawBuffer]);
-      const expectedSig = crypto
-        .createHmac("sha256", secret)
-        .update(signedPayload)
-        .digest("hex");
       const sigBuf = Buffer.from(signature);
-      const expectedBuf = Buffer.from(expectedSig);
-      if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
-        res.status(401).json({ error: "Invalid webhook signature" });
+
+      // Per-company secret only — the previous `process.env.WEBHOOK_SECRET`
+      // fallback was a process-wide global, so any tenant that learned the
+      // value could sign payloads for any other tenant's hook.
+      let company: (typeof candidates)[number] | undefined;
+      let sawConfiguredSecret = false;
+      for (const candidate of candidates) {
+        const secret = (candidate.config as Record<string, any>)?.webhookSecret;
+        if (!secret || typeof secret !== "string") continue;
+        sawConfiguredSecret = true;
+        const expectedBuf = Buffer.from(
+          crypto.createHmac("sha256", secret).update(signedPayload).digest("hex"),
+        );
+        if (sigBuf.length === expectedBuf.length && crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+          company = candidate;
+          break;
+        }
+      }
+      if (!company) {
+        // No candidate had a usable secret → misconfiguration (403);
+        // otherwise the signature didn't match any candidate → 401.
+        if (!sawConfiguredSecret) {
+          res.status(403).json({ error: "Webhook secret not configured for this company" });
+        } else {
+          res.status(401).json({ error: "Invalid webhook signature" });
+        }
         return;
+      }
+
+      // FINDINGS H5 — replay deduplication WITHIN the 5-minute window.
+      // The timestamp window alone lets a captured, validly-signed request
+      // be re-sent unlimited times for up to 5 minutes, each replay
+      // re-triggering every WEBHOOK pipeline and burning a quota unit.
+      // SETNX a per-(company, signature) marker with a TTL that covers the
+      // window; a second delivery with the same signature is a duplicate.
+      // Fail-open if Redis is down — the HMAC + timestamp window remain the
+      // security gate; this only prevents in-window duplicate side effects.
+      try {
+        const dedupKey = `wh:replay:${company.id}:${crypto
+          .createHash("sha256")
+          .update(signature)
+          .digest("hex")}`;
+        const firstSeen = await redis.set(dedupKey, "1", "EX", 6 * 60, "NX");
+        if (firstSeen === null) {
+          logger.info({ companySlug, event }, "Webhook duplicate (replay within window) — skipped");
+          res.json({ received: true, duplicate: true, company: companySlug, event, triggeredRuns: [] });
+          return;
+        }
+      } catch {
+        /* Redis down — proceed; HMAC + timestamp window are the gate. */
       }
 
       // Signature verified — now safe to parse the JSON.
@@ -173,22 +217,36 @@ webhookRouter.post(
         // InputJsonValue is more restrictive than Record<string,unknown>
         // and a structural cast keeps the field strongly-typed at the
         // boundary without leaking `any` upward.
-        const run = await prisma.run.create({
-          data: {
-            pipelineId: pipeline.id,
-            status: "PENDING",
-            trigger: `webhook:${event}`,
-            input: { event, payload: parsedBody } as any,
-          },
-        });
+        //
+        // FINDINGS M3 — if run.create / enqueueRun throws AFTER the quota
+        // was claimed, refund the claim so a flapping Redis/BullMQ enqueue
+        // can't slowly drain the tenant's monthly run quota with no runs to
+        // show for it. Skip the failed pipeline and keep processing the rest
+        // rather than aborting the whole delivery.
+        try {
+          const run = await prisma.run.create({
+            data: {
+              pipelineId: pipeline.id,
+              status: "PENDING",
+              trigger: `webhook:${event}`,
+              input: { event, payload: parsedBody } as any,
+            },
+          });
 
-        await enqueueRun(run.id);
-        runs.push(run.id);
+          await enqueueRun(run.id);
+          runs.push(run.id);
 
-        logger.info(
-          { pipelineId: pipeline.id, runId: run.id, event },
-          "Webhook triggered pipeline run",
-        );
+          logger.info(
+            { pipelineId: pipeline.id, runId: run.id, event },
+            "Webhook triggered pipeline run",
+          );
+        } catch (enqErr) {
+          await releaseQuota(company.tenantId, "runs");
+          logger.error(
+            { err: enqErr, pipelineId: pipeline.id, tenantId: company.tenantId },
+            "Webhook run enqueue failed — quota refunded, pipeline skipped",
+          );
+        }
       }
 
       res.json({

@@ -139,8 +139,17 @@ const envShape = z.object({
   GOOGLE_PLAY_PACKAGE_NAME: z.string().optional(),
   // Base64-encoded service account JSON. Decode + parse on first use.
   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: z.string().optional(),
+  // Google Play RTDN Pub/Sub push authentication (FINDINGS C1). The push
+  // subscription must be configured with an OIDC service-account token;
+  // the /billing/iap/google/notify endpoint verifies it. Audience is the
+  // value set on the push subscription (typically the notify URL). Email,
+  // if set, is asserted against the verified token's `email` claim.
+  GOOGLE_PUBSUB_AUDIENCE: z.string().optional(),
+  GOOGLE_PUBSUB_SA_EMAIL: z.string().optional(),
   // RevenueCat (optional unified path covering both stores):
   REVENUECAT_WEBHOOK_SECRET: z.string().optional(),
+  // Vapi voice webhook HMAC secret — used to verify inbound Vapi callbacks.
+  VAPI_WEBHOOK_SECRET: z.string().optional(),
   // ── Air-gap / offline mode ──
   // When true, the LLM router refuses every non-local provider, the
   // export DRM enforces machine binding (already on), and outbound
@@ -221,6 +230,24 @@ if (parsed.NODE_ENV === "production") {
       );
     }
   }
+}
+
+// Safety: if Google Play IAP is configured (service account present) in
+// production, the unauthenticated /billing/iap/google/notify endpoint becomes
+// live — and verifyPubSubPushToken only meaningfully authenticates the Pub/Sub
+// sender when GOOGLE_PUBSUB_AUDIENCE or GOOGLE_PUBSUB_SA_EMAIL is set. Without
+// either, the floor is "any Google-signed OIDC token", which is too weak to
+// gate plan mutations. Fail fast so a prod deploy can't silently run open.
+if (
+  parsed.NODE_ENV === "production" &&
+  parsed.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON &&
+  !parsed.GOOGLE_PUBSUB_AUDIENCE &&
+  !parsed.GOOGLE_PUBSUB_SA_EMAIL
+) {
+  throw new Error(
+    "Google Play IAP is configured but GOOGLE_PUBSUB_AUDIENCE and GOOGLE_PUBSUB_SA_EMAIL are both unset. " +
+      "Set at least one so /billing/iap/google/notify can authenticate the Pub/Sub push sender (FINDINGS C1).",
+  );
 }
 
 // Resolve API_PUBLIC_URL when unset. In production the API is reachable on

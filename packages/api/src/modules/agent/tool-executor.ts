@@ -56,73 +56,74 @@ async function enforceTenantScopedCompany(
 }
 
 /**
- * CRIT-3 defense: tool inputs that reference second-class IDs (contactId,
- * dealId, sequenceId, draftId) bypassed enforceTenantScopedCompany — the
- * latter only validates `companyId`. An attacker controlling agent input
- * via prompt-injection (memory poisoning, malicious blueprint clone) could
- * call e.g. crm_update_deal_stage with another tenant's dealId, and the
- * Prisma update would go through.
+ * CRIT-3 / FINDINGS H2 defense: tool inputs that reference tenant-isolated
+ * rows by ID bypassed enforceTenantScopedCompany — the latter only validates
+ * `companyId`. An attacker controlling agent input via prompt-injection
+ * (memory poisoning, malicious blueprint clone) could call e.g.
+ * crm_update_deal_stage with another tenant's dealId and the Prisma update
+ * would go through.
  *
- * This function checks every well-known ID field present in the input and
- * verifies it traces back to a company owned by this tenant. Throws on
- * any mismatch. Unknown ID-shaped fields are ignored — we only block IDs
- * we know map to tenant-isolated tables.
+ * Each entry maps a tool-input field to a predicate that returns true iff
+ * that ID traces back to the acting tenant. To keep this exhaustive (the
+ * previous version silently ignored any field outside a hard-coded list, so
+ * a NEW tool taking e.g. `voiceAgentId` would be unprotected), the executor
+ * also FAILS CLOSED on any unrecognised `*Id` input field — see
+ * `enforceTenantScopedSecondaryIds`.
  */
-async function enforceTenantScopedSecondaryIds(
+const SECONDARY_ID_VALIDATORS: Record<
+  string,
+  (id: string, tenantId: string) => Promise<boolean>
+> = {
+  contactId: async (id, tenantId) =>
+    !!(await prisma.contact.findFirst({ where: { id, company: { tenantId } }, select: { id: true } })),
+  dealId: async (id, tenantId) =>
+    !!(await prisma.deal.findFirst({ where: { id, company: { tenantId } }, select: { id: true } })),
+  sequenceId: async (id, tenantId) =>
+    !!(await prisma.outreachSequence.findFirst({ where: { id, company: { tenantId } }, select: { id: true } })),
+  draftId: async (id, tenantId) =>
+    !!(await prisma.draft.findFirst({ where: { id, company: { tenantId } }, select: { id: true } })),
+  // VoiceAgent → companyId → company.tenantId. make_outbound_call takes a
+  // voiceAgentId; it is money-touching (approval-gated) and placeOutboundCall
+  // re-scopes, but validating here makes the executor the single chokepoint.
+  voiceAgentId: async (id, tenantId) =>
+    !!(await prisma.voiceAgent.findFirst({ where: { id, company: { tenantId } }, select: { id: true } })),
+};
+
+// `*Id`-shaped input fields that are NOT references to tenant-isolated rows
+// and so must NOT trip the fail-closed guard:
+//   - companyId  → validated by enforceTenantScopedCompany (runs first)
+//   - voiceId    → external ElevenLabs voice identifier, not a DB row
+//   - tenantId   → if present in input it is ignored; context.tenantId wins
+const SAFE_INPUT_ID_FIELDS = new Set(["companyId", "voiceId", "tenantId"]);
+
+export async function enforceTenantScopedSecondaryIds(
   input: unknown,
   tenantId: string,
+  toolName: string,
 ): Promise<void> {
   if (!input || typeof input !== "object") return;
   const obj = input as Record<string, unknown>;
 
-  // contactId → contact → company.tenantId
-  if (typeof obj.contactId === "string" && obj.contactId.length > 0) {
-    const ok = await prisma.contact.findFirst({
-      where: { id: obj.contactId, company: { tenantId } },
-      select: { id: true },
-    });
-    if (!ok) {
+  for (const [key, value] of Object.entries(obj)) {
+    // Only consider camelCase `…Id` fields (companyId, voiceAgentId) — not
+    // "id", "uuid", "valid", etc.
+    if (!/[a-z]Id$/.test(key)) continue;
+    if (SAFE_INPUT_ID_FIELDS.has(key)) continue;
+
+    const validator = SECONDARY_ID_VALIDATORS[key];
+    if (!validator) {
+      // FAIL CLOSED: an unrecognised id-shaped field reached a tool input.
+      // Rather than silently letting it flow into a handler's `where` clause
+      // (the old behaviour), refuse it. Adding a new tool with a new id field
+      // now forces a deliberate choice — add a validator or mark it safe.
       throw new Error(
-        `Tenant isolation violation: contactId "${obj.contactId}" does not belong to tenant "${tenantId}"`,
+        `Unrecognised tenant-scoped id field "${key}" on tool "${toolName}" — refusing for tenant safety`,
       );
     }
-  }
-
-  // dealId → deal → company.tenantId
-  if (typeof obj.dealId === "string" && obj.dealId.length > 0) {
-    const ok = await prisma.deal.findFirst({
-      where: { id: obj.dealId, company: { tenantId } },
-      select: { id: true },
-    });
-    if (!ok) {
+    if (typeof value !== "string" || value.length === 0) continue;
+    if (!(await validator(value, tenantId))) {
       throw new Error(
-        `Tenant isolation violation: dealId "${obj.dealId}" does not belong to tenant "${tenantId}"`,
-      );
-    }
-  }
-
-  // sequenceId → outreachSequence → company.tenantId
-  if (typeof obj.sequenceId === "string" && obj.sequenceId.length > 0) {
-    const ok = await prisma.outreachSequence.findFirst({
-      where: { id: obj.sequenceId, company: { tenantId } },
-      select: { id: true },
-    });
-    if (!ok) {
-      throw new Error(
-        `Tenant isolation violation: sequenceId "${obj.sequenceId}" does not belong to tenant "${tenantId}"`,
-      );
-    }
-  }
-
-  // draftId → draft → company.tenantId
-  if (typeof obj.draftId === "string" && obj.draftId.length > 0) {
-    const ok = await prisma.draft.findFirst({
-      where: { id: obj.draftId, company: { tenantId } },
-      select: { id: true },
-    });
-    if (!ok) {
-      throw new Error(
-        `Tenant isolation violation: draftId "${obj.draftId}" does not belong to tenant "${tenantId}"`,
+        `Tenant isolation violation: ${key} "${value}" does not belong to tenant "${tenantId}"`,
       );
     }
   }
@@ -174,7 +175,8 @@ export async function executeTool(
     // Cross-ID tenant scoping. Any tool input field that names a row in a
     // tenant-isolated table must trace back to this tenant. Otherwise an
     // agent prompt-injection can mutate a victim tenant's CRM/draft/seq.
-    await enforceTenantScopedSecondaryIds(scopedInput, context.tenantId);
+    // Fails closed on unrecognised `*Id` fields (FINDINGS H2).
+    await enforceTenantScopedSecondaryIds(scopedInput, context.tenantId, toolName);
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     logger.warn({ toolName, tenantId: context.tenantId, error }, "Tool tenant isolation blocked");

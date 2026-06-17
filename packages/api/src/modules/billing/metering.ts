@@ -144,6 +144,31 @@ export async function claimQuota(
 }
 
 /**
+ * Release one unit of quota previously taken by `claimQuota`. Used when a
+ * claim succeeded but the work it was claimed for then failed to start
+ * (e.g. the webhook fan-out claims a run, then `run.create`/`enqueueRun`
+ * throws) — without this, a flapping enqueue path slowly burns a tenant's
+ * monthly quota with no runs to show for it (FINDINGS M3). Decrement is
+ * clamped at 0 so a double-release can't drive the meter negative. No-op
+ * when billing is bypassed or the period row doesn't exist yet.
+ */
+export async function releaseQuota(tenantId: string, metric: string, amount = 1): Promise<void> {
+  if (env.BYPASS_BILLING) return;
+  const now = new Date();
+  const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  try {
+    await prisma.$executeRaw`
+      UPDATE usage_meters
+      SET value = GREATEST(0, value - ${amount}), updated_at = NOW()
+      WHERE tenant_id = ${tenantId} AND metric = ${metric} AND period_start = ${periodStart}
+    `;
+  } catch (err) {
+    // Non-fatal — the meter will self-correct at the next period rollover.
+    logger.warn({ err, tenantId, metric }, "releaseQuota failed");
+  }
+}
+
+/**
  * Check if tenant has remaining quota for a metric.
  *
  * NOTE: This is the read-only check used for UI badges, billing summaries,

@@ -4,6 +4,8 @@
  * Supports Discord Bot API and Incoming Webhooks.
  */
 
+import { guardedFetch } from "../lib/net";
+
 export interface DiscordConfig {
   botToken: string;
   webhookUrl?: string;
@@ -51,7 +53,10 @@ export async function sendDiscordWebhook(
     throw new Error("Discord webhookUrl is not configured");
   }
 
-  const res = await fetch(config.webhookUrl, {
+  // FINDINGS H6 — webhookUrl is tenant-supplied; validate it isn't an
+  // internal/metadata address (SSRF) and bound the call with a timeout +
+  // retry via guardedFetch.
+  const res = await guardedFetch(config.webhookUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content, embeds, username }),

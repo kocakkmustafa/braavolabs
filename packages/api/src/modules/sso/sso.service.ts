@@ -236,8 +236,23 @@ export async function consumeCallback(params: {
     body: body.toString(),
   });
   if (!tokenRes.ok) {
-    const text = await tokenRes.text().catch(() => "");
-    logger.warn({ tenantId: conn.tenantId, status: tokenRes.status, body: text.slice(0, 300) }, "OIDC token exchange failed");
+    // FINDINGS L1 — do NOT log the raw IdP response body: a non-spec IdP
+    // could return tokens inside an error body, leaking them to logs (pino
+    // redaction won't catch a free-form string). Log status + the
+    // allowlisted OAuth error fields only.
+    let errCode: string | undefined;
+    let errDesc: string | undefined;
+    try {
+      const j = (await tokenRes.json()) as { error?: string; error_description?: string };
+      errCode = typeof j.error === "string" ? j.error.slice(0, 100) : undefined;
+      errDesc = typeof j.error_description === "string" ? j.error_description.slice(0, 200) : undefined;
+    } catch {
+      /* non-JSON error body — log status only */
+    }
+    logger.warn(
+      { tenantId: conn.tenantId, status: tokenRes.status, error: errCode, errorDescription: errDesc },
+      "OIDC token exchange failed",
+    );
     throw new AppError(401, `OIDC token exchange failed: ${tokenRes.status}`);
   }
   const tokenJson = (await tokenRes.json()) as { id_token?: string };

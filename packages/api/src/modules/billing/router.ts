@@ -714,13 +714,28 @@ stripeWebhookRouter.post(
               where: { stripeCustomerId: customerId },
             });
             if (tenant) {
-              // Full refund → downgrade to FREE immediately (safer default)
+              // Full refund → downgrade to FREE. FINDINGS M4: but NOT if the
+              // tenant still holds an active mobile (Apple/Google IAP)
+              // entitlement — both billing systems write tenant.plan, and a
+              // Stripe refund must not strip a still-valid IAP subscription.
+              // Mirror the IAP notify path's stillActive check.
               const fullyRefunded = charge.amount_refunded >= charge.amount;
+              let downgraded = false;
               if (fullyRefunded) {
-                await prisma.tenant.update({
-                  where: { id: tenant.id },
-                  data: { plan: "FREE" },
+                const activeMobile = await prisma.mobileSubscription.findFirst({
+                  where: {
+                    tenantId: tenant.id,
+                    status: { in: ["active", "in_grace_period"] },
+                    expiresAt: { gt: new Date() },
+                  },
                 });
+                if (!activeMobile) {
+                  await prisma.tenant.update({
+                    where: { id: tenant.id },
+                    data: { plan: "FREE" },
+                  });
+                  downgraded = true;
+                }
               }
               await prisma.activityLog.create({
                 data: {
@@ -733,7 +748,7 @@ stripeWebhookRouter.post(
                     chargeId: charge.id,
                     amountRefunded: charge.amount_refunded,
                     fullyRefunded,
-                    downgradedToFree: fullyRefunded,
+                    downgradedToFree: downgraded,
                     stripeEventId: event.id,
                   },
                 },
