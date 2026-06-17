@@ -16,7 +16,7 @@ import {
   PROVIDER_BASE_URLS,
   type AIProviderType,
 } from "../../services/ai-client";
-import { decrypt } from "../../lib/encryption";
+import { decryptForTenant } from "../../lib/encryption";
 
 export const settingsRouter = Router();
 settingsRouter.use(authMiddleware);
@@ -52,7 +52,7 @@ settingsRouter.get("/ai-config", async (req, res, next) => {
       // Mask key — show last 4 chars only
       maskedApiKey: aiConfig.encryptedApiKey
         ? "••••••••" + (() => {
-            try { return decrypt(aiConfig.encryptedApiKey!).slice(-4); }
+            try { return decryptForTenant(aiConfig.encryptedApiKey!, req.auth!.tenantId).slice(-4); }
             catch { return "????"; }
           })()
         : null,

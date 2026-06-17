@@ -16,6 +16,14 @@ export const metadata: Metadata = {
   title: "Support — Braavolabs",
   description:
     "Get help with Braavolabs: contact channels, response times, billing and subscription help, account deletion, and frequently asked questions.",
+  alternates: { canonical: "https://braavolabs.com/support" },
+  openGraph: {
+    title: "Braavolabs Support",
+    description:
+      "Contact channels, response times, billing and subscription help, account deletion, and frequently asked questions.",
+    url: "https://braavolabs.com/support",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }],
+  },
 };
 
 const sections = [

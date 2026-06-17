@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "node:crypto";
+import { createCipheriv, createDecipheriv, hkdfSync, randomBytes, scryptSync } from "node:crypto";
 
 /**
  * Encryption module — AES-256-GCM with a scrypt-derived key.
@@ -30,6 +30,7 @@ const LEGACY_IV_LENGTH = 16;
 const TAG_LENGTH = 16;
 const SALT_LENGTH = 16;
 const KEY_LENGTH = 32;
+const V4_PREFIX = "v4:";
 const V3_PREFIX = "v3:";
 const V2_PREFIX = "v2:";
 
@@ -72,6 +73,81 @@ function deriveKey(salt: Buffer): Buffer {
   return scryptSync(getRawKey(), salt, KEY_LENGTH);
 }
 
+// ─── Per-tenant key derivation (v4) ──────────────────────────────────────────
+//
+// v4 adds a two-step derivation: HKDF produces a per-tenant subkey from the
+// master ENCRYPTION_KEY before scrypt derives the per-row key from that subkey.
+// This means leaking the master key still requires knowing each tenant's ID to
+// decrypt their rows — and offline brute-force of one tenant's subkey does not
+// expose any other tenant's data.
+//
+// Format: "v4:" + base64( salt(16) + iv(12) + tag(16) + ciphertext )
+// tenantId MUST be provided — it's the HKDF salt that individualises the subkey.
+
+function deriveKeyForTenant(salt: Buffer, tenantId: string): Buffer {
+  const masterKey = Buffer.from(getRawKey(), "utf8");
+  const tenantSubkey = Buffer.from(
+    hkdfSync(
+      "sha256",
+      masterKey,
+      Buffer.from(tenantId, "utf8"),
+      "braavolabs-tenant-encryption-v4",
+      KEY_LENGTH,
+    ),
+  );
+  return scryptSync(tenantSubkey, salt, KEY_LENGTH);
+}
+
+/**
+ * Encrypt a plaintext string using per-tenant AES-256-GCM (v4 format).
+ *
+ * Always use this for new encryptions. `tenantId` individualises the key
+ * so that a single-tenant DB dump can't decrypt another tenant's rows.
+ * `aad` (optional) further binds the ciphertext to a specific row/column.
+ */
+export function encryptForTenant(plaintext: string, tenantId: string, aad?: string): string {
+  const salt = randomBytes(SALT_LENGTH);
+  const key = deriveKeyForTenant(salt, tenantId);
+  const iv = randomBytes(IV_LENGTH);
+  const cipher = createCipheriv(ALGORITHM, key, iv);
+  if (aad) cipher.setAAD(Buffer.from(aad, "utf8"));
+  let encrypted = cipher.update(plaintext, "utf8");
+  encrypted = Buffer.concat([encrypted, cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return V4_PREFIX + Buffer.concat([salt, iv, tag, encrypted]).toString("base64");
+}
+
+/**
+ * Decrypt a v4 or legacy (v1/v2/v3) ciphertext.
+ *
+ * v4 requires the same `tenantId` used during encryption.
+ * v1/v2/v3 fall back to the single-key path for backward compatibility
+ * — old rows continue to decrypt without a migration step.
+ */
+export function decryptForTenant(encoded: string, tenantId: string, aad?: string): string {
+  if (encoded.startsWith(V4_PREFIX)) {
+    const data = Buffer.from(encoded.slice(V4_PREFIX.length), "base64");
+    if (data.length < SALT_LENGTH + IV_LENGTH + TAG_LENGTH) {
+      throw new Error("decrypt: v4 ciphertext too short");
+    }
+    const salt = data.subarray(0, SALT_LENGTH);
+    const iv = data.subarray(SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
+    const tag = data.subarray(SALT_LENGTH + IV_LENGTH, SALT_LENGTH + IV_LENGTH + TAG_LENGTH);
+    const ciphertext = data.subarray(SALT_LENGTH + IV_LENGTH + TAG_LENGTH);
+    const key = deriveKeyForTenant(salt, tenantId);
+    const decipher = createDecipheriv(ALGORITHM, key, iv);
+    if (aad) decipher.setAAD(Buffer.from(aad, "utf8"));
+    decipher.setAuthTag(tag);
+    let decrypted = decipher.update(ciphertext);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString("utf8");
+  }
+  // Legacy v1/v2/v3 — backward compat
+  return decrypt(encoded, aad);
+}
+
+// ─── Legacy single-key encrypt/decrypt ───────────────────────────────────────
+
 /**
  * Encrypt a plaintext string using AES-256-GCM with a scrypt-derived key.
  *
@@ -80,6 +156,8 @@ function deriveKey(salt: Buffer): Buffer {
  * dump can't be turned into a cross-row swap attack: ciphertext lifted
  * from row A into row B fails authentication because the AAD now
  * disagrees. Always emits the v3 format.
+ *
+ * @deprecated Prefer `encryptForTenant` for new encryptions.
  */
 export function encrypt(plaintext: string, aad?: string): string {
   const salt = randomBytes(SALT_LENGTH);

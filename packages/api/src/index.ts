@@ -95,7 +95,7 @@ app.use(
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        imgSrc: ["'self'", "data:", "https:"],
+        imgSrc: ["'self'", "data:"],
         connectSrc: ["'self'", env.APP_URL],
         // MED-3 fix: explicit frame-ancestors. X-Frame-Options DENY is
         // already set by securityHeaders middleware, but modern browsers

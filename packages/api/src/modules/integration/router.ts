@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../lib/db";
-import { encrypt, decrypt } from "../../lib/encryption";
+import { encryptForTenant, decryptForTenant } from "../../lib/encryption";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { authMiddleware } from "../../middleware/auth";
@@ -99,7 +99,7 @@ integrationRouter.get("/:companyId", async (req, res, next) => {
       createdAt: i.createdAt,
       updatedAt: i.updatedAt,
       // Show which fields are set (without revealing values)
-      fieldsSet: getFieldsSet(i.credentials),
+      fieldsSet: getFieldsSet(i.credentials, req.auth!.tenantId),
     }));
 
     res.json(safe);
@@ -150,7 +150,7 @@ integrationRouter.post("/:companyId", validate(saveIntegrationSchema), async (re
     }
 
     // Encrypt credentials
-    const encryptedCredentials = encrypt(JSON.stringify(credentials));
+    const encryptedCredentials = encryptForTenant(JSON.stringify(credentials), req.auth!.tenantId);
 
     // Upsert — one provider per company
     const integration = await prisma.integration.upsert({
@@ -222,7 +222,7 @@ integrationRouter.post("/:companyId/test", validate(testIntegrationSchema), asyn
     // Decrypt and validate credentials exist
     let creds: Record<string, string>;
     try {
-      creds = JSON.parse(decrypt(integration.credentials));
+      creds = JSON.parse(decryptForTenant(integration.credentials, req.auth!.tenantId));
     } catch {
       await prisma.integration.update({
         where: { id: integration.id },
@@ -313,9 +313,9 @@ integrationRouter.get("/:companyId/missing", async (req, res, next) => {
 });
 
 // Helper: show which fields are set without revealing values
-function getFieldsSet(encryptedCredentials: string): string[] {
+function getFieldsSet(encryptedCredentials: string, tenantId: string): string[] {
   try {
-    const creds = JSON.parse(decrypt(encryptedCredentials));
+    const creds = JSON.parse(decryptForTenant(encryptedCredentials, tenantId));
     return Object.keys(creds).filter((k) => creds[k] && creds[k].trim() !== "");
   } catch {
     return [];

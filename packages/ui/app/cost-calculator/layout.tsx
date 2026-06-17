@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Cost calculator",
+  title: "Cost Calculator — Braavolabs",
   description:
-    "Compare Braavolabs' flat, predictable pricing (plus your own BYOK model spend) against per-task automation billing. Slide your run volume and steps to see which cost stays still — predictability, not a fabricated competitor quote.",
+    "Compare Braavolabs flat pricing against per-task automation billing. Slide your run volume and steps to see the cost difference — BYOK spend, no fabricated competitor figures.",
+  alternates: { canonical: "https://braavolabs.com/cost-calculator" },
   openGraph: {
-    title: "Cost calculator — Braavolabs",
+    title: "Cost Calculator — Braavolabs",
     description:
-      "Flat plan + your own BYOK keys vs. per-task metering that scales with every step. Interactive, with all competitor figures clearly labelled illustrative.",
+      "Flat plan + your own BYOK keys vs. per-task metering. Interactive calculator with all competitor figures clearly labelled illustrative.",
+    url: "https://braavolabs.com/cost-calculator",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }],
   },
 };
 

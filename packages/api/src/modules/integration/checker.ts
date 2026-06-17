@@ -1,5 +1,5 @@
 import { prisma } from "../../lib/db";
-import { decrypt } from "../../lib/encryption";
+import { decryptForTenant } from "../../lib/encryption";
 
 /**
  * Maps tool names to the integration provider they require.
@@ -479,12 +479,13 @@ export async function getActiveIntegration(
       provider: provider as any,
       status: "ACTIVE",
     },
+    include: { company: { select: { tenantId: true } } },
   });
 
   if (!integration) return null;
 
   try {
-    return JSON.parse(decrypt(integration.credentials));
+    return JSON.parse(decryptForTenant(integration.credentials, integration.company.tenantId));
   } catch {
     return null;
   }

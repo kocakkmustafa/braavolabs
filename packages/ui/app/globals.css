@@ -1054,7 +1054,6 @@ html.light .bv-btn-ghost:hover { border-color: rgba(0, 104, 128, 0.30); backgrou
 .bv-pill-cyan   { color: #60A5FA;   background: rgba(59,130,246, 0.10); border-color: rgba(59,130,246, 0.25); }
 .bv-pill-purple { color: #7DD3FC;   background: rgba(37,99,235, 0.18); border-color: rgba(125,211,252, 0.25); }
 .bv-pill-amber  { color: #FF7A1A;   background: rgba(255,122,26, 0.10); border-color: rgba(255,122,26, 0.25); }
-.bv-pill-green  { color: #3B82F6;   background: rgba(59,130,246, 0.10); border-color: rgba(59,130,246, 0.25); }
 .bv-pill-red    { color: #FF4D4D;   background: rgba(255,77,77, 0.10); border-color: rgba(255,77,77, 0.25); }
 .bv-pill-muted  { color: var(--color-outline); background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08); }
 html.light .bv-pill-muted { background: rgba(15,23,42,0.04); border-color: rgba(15,23,42,0.10); }

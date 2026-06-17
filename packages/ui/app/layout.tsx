@@ -40,6 +40,7 @@ export const metadata: Metadata = {
   // explicit `icons.icon` block is intentionally omitted so we don't
   // double-register and confuse browsers.
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://braavolabs.com"),
+  alternates: { canonical: "https://braavolabs.com" },
   // Search-engine ownership verification. We support multiple providers
   // because each rolls out features at different speeds — Google for
   // classic SERP/sitelinks, Bing for Copilot grounding, Yandex for CIS
@@ -73,10 +74,6 @@ const SCHEMA_LD = {
       name: "Braavolabs",
       url: "https://braavolabs.com",
       logo: "https://braavolabs.com/braavolabs-logo.png",
-      sameAs: [
-        // Filled in once social accounts are public — keep array shape
-        // here so AI assistants pick up the schema even when empty.
-      ],
       foundingDate: "2026",
       contactPoint: [
         {
@@ -118,7 +115,7 @@ const SCHEMA_LD = {
         { "@type": "Offer", name: "Creator", price: "19", priceCurrency: "USD", availability: "https://schema.org/InStock" },
         { "@type": "Offer", name: "Pro", price: "39", priceCurrency: "USD", availability: "https://schema.org/InStock" },
         { "@type": "Offer", name: "Business", price: "99", priceCurrency: "USD", availability: "https://schema.org/InStock" },
-        { "@type": "Offer", name: "Enterprise", priceCurrency: "USD", priceSpecification: { "@type": "PriceSpecification", price: "0", description: "Custom pricing — contact sales" } },
+        { "@type": "Offer", name: "Enterprise", priceCurrency: "USD", description: "Custom pricing — contact sales@braavolabs.com" },
       ],
       featureList: [
         "Freeform company creation",

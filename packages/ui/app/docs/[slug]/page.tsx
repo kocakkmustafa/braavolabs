@@ -39,7 +39,14 @@ export async function generateMetadata({
   return {
     title: `${doc.title} — Braavolabs Docs`,
     description: doc.desc,
-    openGraph: { title: `${doc.title} — Braavolabs Docs`, description: doc.desc, type: "article" },
+    alternates: { canonical: `https://braavolabs.com/docs/${slug}` },
+    openGraph: {
+      title: `${doc.title} — Braavolabs Docs`,
+      description: doc.desc,
+      type: "article",
+      url: `https://braavolabs.com/docs/${slug}`,
+      images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }],
+    },
   };
 }
 

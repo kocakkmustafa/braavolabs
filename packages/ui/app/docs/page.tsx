@@ -13,12 +13,15 @@ import { DOCS_ORDERED, DOC_PILL, type DocCategory } from "./content";
 export const metadata: Metadata = {
   title: "Docs — Braavolabs",
   description:
-    "Braavolabs documentation: getting started, core concepts, BYOK across 12 providers, mid-run steering and ask_user, webhooks, connecting external automations, the mobile app, and an FAQ.",
+    "Braavolabs documentation: getting started, BYOK setup for 12 providers, mid-run steering, webhooks, external automation connections, the mobile app, and FAQ.",
+  alternates: { canonical: "https://braavolabs.com/docs" },
   openGraph: {
     title: "Braavolabs Docs",
     description:
-      "Everything you need to compose, run, and govern an autonomous AI company — getting started, concepts, BYOK, steering, webhooks and more.",
+      "Everything you need to compose, run, and govern an autonomous AI company — getting started, BYOK, steering, webhooks and more.",
     type: "website",
+    url: "https://braavolabs.com/docs",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }],
   },
 };
 

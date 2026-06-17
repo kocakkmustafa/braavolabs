@@ -26,7 +26,14 @@ export async function generateMetadata({
   return {
     title: `${post.title} — Braavolabs`,
     description: post.desc,
-    openGraph: { title: post.title, description: post.desc, type: "article" },
+    alternates: { canonical: `https://braavolabs.com/blog/${slug}` },
+    openGraph: {
+      title: post.title,
+      description: post.desc,
+      type: "article",
+      url: `https://braavolabs.com/blog/${slug}`,
+      images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }],
+    },
   };
 }
 

@@ -69,7 +69,7 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://plausible.io",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' data: https:",
+              "img-src 'self' data: https://lh3.googleusercontent.com https://avatars.githubusercontent.com",
               `connect-src 'self' ${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:*"} https://fonts.googleapis.com https://fonts.gstatic.com https://cloudflareinsights.com https://plausible.io`,
               "frame-ancestors 'none'",
               "base-uri 'self'",

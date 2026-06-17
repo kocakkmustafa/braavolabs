@@ -3,11 +3,14 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Security & trust",
   description:
-    "How Braavolabs protects your keys and data: AES-256-GCM encryption at rest, rotated JWT refresh tokens, SSRF-guarded outbound connections, HMAC-signed webhooks, a full audit trail, tenant isolation, BYOK, an on-device offline option, five risk-stops, and a GDPR/KVKK posture with account deletion.",
+    "Braavolabs security: AES-256-GCM at rest, SSRF guards, HMAC webhooks, full audit trail, tenant isolation, BYOK, offline mode, five risk-stops, and GDPR/KVKK compliance.",
+  alternates: { canonical: "https://braavolabs.com/security" },
   openGraph: {
     title: "Security & trust — Braavolabs",
     description:
-      "Encryption at rest, SSRF guards, signed webhooks, full audit trail, tenant isolation, BYOK, offline mode, five risk-stops, and responsible disclosure at security@braavolabs.com.",
+      "Encryption at rest, SSRF guards, signed webhooks, full audit trail, tenant isolation, BYOK, offline mode, five risk-stops, and responsible disclosure.",
+    url: "https://braavolabs.com/security",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }],
   },
 };
 

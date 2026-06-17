@@ -4,11 +4,14 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "How Braavolabs compares",
   description:
-    "An honest look at where Braavolabs fits next to workflow automation (Zapier, Make, n8n) and AI agent builders (Lindy, Gumloop, Relevance) — mid-run steering, mobile control, flat pricing, governance, and where the incumbents still win.",
+    "How Braavolabs compares to Zapier, Make, n8n, Lindy, and Gumloop — mid-run steering, mobile control, flat pricing, governance, and where each tool wins.",
+  alternates: { canonical: "https://braavolabs.com/compare" },
   openGraph: {
     title: "How Braavolabs compares — Braavolabs",
     description:
-      "Where Braavolabs is strong (mobile control, mid-run steering, flat price, offline) and where workflow tools and agent builders win (raw connector count). Qualitative, defensible claims only.",
+      "Where Braavolabs is strong (mobile control, mid-run steering, flat price, offline) and where workflow tools and agent builders win. Qualitative, defensible claims only.",
+    url: "https://braavolabs.com/compare",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }],
   },
 };
 

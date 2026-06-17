@@ -48,10 +48,20 @@ async function fetchBench(): Promise<SuiteWithLeaderboard[]> {
   }
 }
 
-export const metadata = {
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
   title: "Braavolabs Bench — agent-quality leaderboard",
   description:
     "Public benchmark of every supported LLM provider against agent-reasoning, spend-approval, and audit-trace task suites. Updated weekly.",
+  alternates: { canonical: "https://braavolabs.com/bench" },
+  openGraph: {
+    title: "Braavolabs Bench — agent-quality leaderboard",
+    description:
+      "Public benchmark of every supported LLM provider against agent-reasoning, spend-approval, and audit-trace task suites. Updated weekly.",
+    url: "https://braavolabs.com/bench",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }],
+  },
 };
 
 export default async function BenchPage() {

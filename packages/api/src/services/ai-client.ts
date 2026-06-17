@@ -21,7 +21,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages";
 import { logger } from "../lib/logger";
-import { encrypt, decrypt } from "../lib/encryption";
+import { encryptForTenant, decryptForTenant } from "../lib/encryption";
 import { assertSafeExternalUrl, SsrfError } from "../lib/ssrf";
 import { env } from "../config/env";
 
@@ -460,7 +460,7 @@ export async function getTenantAIConfig(tenantId: string): Promise<AIClientConfi
       let apiKey = "";
       if (aiConfig.encryptedApiKey) {
         try {
-          apiKey = decrypt(aiConfig.encryptedApiKey);
+          apiKey = decryptForTenant(aiConfig.encryptedApiKey, tenantId);
         } catch (err) {
           logger.warn({ tenantId, err }, "Failed to decrypt tenant AI key — proceeding without it (local provider) or falling back to system default");
           if (!isLocal) {
@@ -504,7 +504,7 @@ export async function saveTenantAIConfig(
   apiKey: string,
   baseUrl?: string,
 ): Promise<void> {
-  const encryptedApiKey = apiKey ? encrypt(apiKey) : null;
+  const encryptedApiKey = apiKey ? encryptForTenant(apiKey, tenantId) : null;
   const trimmedBaseUrl = baseUrl?.trim() || null;
 
   await prisma.userAIConfig.upsert({
