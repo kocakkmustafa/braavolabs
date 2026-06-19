@@ -13,6 +13,13 @@ out/
 .env.local
 .env.*.local
 
+# Keys / certs / service accounts — never commit (IAP, Apple .p8, etc.)
+*.pem
+*.p8
+*.p12
+*.key
+*-service-account*.json
+
 # IDE
 .vscode/
 !.vscode/extensions.json

@@ -8,25 +8,11 @@
  * misconfigured integration doesn't poison an otherwise-healthy run.
  */
 
+import { assertPublicUrl, guardedFetch } from "../lib/net";
+
 export interface N8nConfig {
   webhookUrl: string;
   apiKey?: string;
-}
-
-const PRIVATE_HOST_PATTERNS: RegExp[] = [
-  /^localhost$/i,
-  /^127\./,
-  /^10\./,
-  /^192\.168\./,
-  /^172\.(1[6-9]|2\d|3[01])\./,
-  /^169\.254\./, // link-local
-  /^::1$/, // ipv6 loopback
-  /^fc00:/i, // ipv6 ULA
-  /^fe80:/i, // ipv6 link-local
-];
-
-function isPrivateHost(hostname: string): boolean {
-  return PRIVATE_HOST_PATTERNS.some((re) => re.test(hostname));
 }
 
 export async function triggerN8nWorkflow(
@@ -38,23 +24,15 @@ export async function triggerN8nWorkflow(
     return { status: "skipped", reason: "n8n integration not configured (N8N_WEBHOOK_URL empty)" };
   }
 
-  let url: URL;
+  // SSRF guard (FINDINGS H4) — resolve DNS and refuse any host that lands on
+  // a private/loopback/link-local/CGNAT/cloud-metadata address. The previous
+  // regex-only check was bypassable by a public hostname resolving to
+  // 127.0.0.1 / 169.254.169.254. assertPublicUrl resolves A+AAAA and checks
+  // every returned address.
   try {
-    url = new URL(config.webhookUrl);
-  } catch {
-    return { status: "skipped", reason: `Invalid n8n webhook URL: ${config.webhookUrl}` };
-  }
-
-  if (url.protocol !== "https:" && url.protocol !== "http:") {
-    return { status: "skipped", reason: `Unsupported protocol: ${url.protocol}` };
-  }
-
-  // SSRF guard — refuse private/loopback/link-local hosts. n8n is meant to
-  // be reached over the public internet (or an explicit allowlisted internal
-  // hostname); a tenant-supplied URL pointing at 127.0.0.1 or 169.254.169.254
-  // (cloud metadata) would let the agent loop hit our own infra.
-  if (isPrivateHost(url.hostname)) {
-    return { status: "skipped", reason: `Refusing to send webhook to private host: ${url.hostname}` };
+    await assertPublicUrl(config.webhookUrl);
+  } catch (err) {
+    return { status: "skipped", reason: err instanceof Error ? err.message : String(err) };
   }
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -62,15 +40,19 @@ export async function triggerN8nWorkflow(
     headers["X-N8N-API-KEY"] = config.apiKey;
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10_000);
+  // guardedFetch adds a 10s timeout + bounded exponential-backoff retry
+  // (FINDINGS H3) so a transient n8n blip doesn't silently drop the event.
   try {
-    const res = await fetch(config.webhookUrl, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ event, payload, ts: Date.now() }),
-      signal: controller.signal,
-    });
+    const res = await guardedFetch(
+      config.webhookUrl,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ event, payload, ts: Date.now() }),
+      },
+      // URL already validated above; skip the duplicate guard inside fetch.
+      { timeoutMs: 10_000, retries: 2, skipUrlGuard: true },
+    );
     if (!res.ok) {
       return { status: "skipped", reason: `n8n returned ${res.status}` };
     }
@@ -78,7 +60,5 @@ export async function triggerN8nWorkflow(
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     return { status: "skipped", reason };
-  } finally {
-    clearTimeout(timeout);
   }
 }

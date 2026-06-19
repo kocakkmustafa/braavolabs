@@ -18,6 +18,7 @@
 import crypto from "node:crypto";
 import { prisma } from "../../../lib/db";
 import { decrypt } from "../../../lib/encryption";
+import { env } from "../../../config/env";
 import { AppError } from "../../../middleware/error";
 import { logger } from "../../../lib/logger";
 import type { VoiceProviderAdapter } from "../voice.service";
@@ -98,7 +99,7 @@ export const vapiAdapter: VoiceProviderAdapter = {
   verifyWebhookSignature(req) {
     const sig = req.headers["x-vapi-signature"];
     if (typeof sig !== "string") return false;
-    const secret = process.env.VAPI_WEBHOOK_SECRET;
+    const secret = env.VAPI_WEBHOOK_SECRET;
     if (!secret) {
       logger.warn("VAPI_WEBHOOK_SECRET missing — rejecting webhook");
       return false;

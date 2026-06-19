@@ -23,7 +23,7 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/node-cron": "^3.0.11",
-    "turbo": "^2.9.6"
+    "turbo": "^2.9.18"
   },
   "dependencies": {
     "dotenv": "^17.4.2",
@@ -33,10 +33,12 @@
   "pnpm": {
     "overrides": {
       "defu": ">=6.1.5",
-      "effect": ">=3.20.0",
-      "protobufjs": ">=7.5.5",
       "postcss": ">=8.5.10",
-      "uuid": ">=14.0.0"
+      "protobufjs": ">=8.6.0",
+      "@grpc/grpc-js": ">=1.14.4",
+      "form-data": ">=4.0.6",
+      "qs": ">=6.15.2",
+      "effect": ">=3.20.0"
     },
     "auditConfig": {
       "ignoreCves": ["CVE-2024-45296"]

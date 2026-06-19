@@ -20,11 +20,50 @@
  * RevenueCat which doesn't always touch Play directly).
  */
 
-import { JWT } from "google-auth-library";
+import { JWT, OAuth2Client } from "google-auth-library";
 import { AppError } from "../../../middleware/error";
 import { env } from "../../../config/env";
 import { logger } from "../../../lib/logger";
 import type { VerifiedReceipt } from "./apple";
+
+/**
+ * FINDINGS C1 — verify the OIDC bearer token Google Pub/Sub attaches to
+ * an RTDN push delivery. A push subscription configured with a service
+ * account signs each delivery with a Google-issued ID token; verifying it
+ * proves the request actually came from Pub/Sub (not an attacker POSTing a
+ * crafted `purchaseToken`). Returns `{ ok }` plus a reason for logging.
+ */
+let pubsubOidcClient: OAuth2Client | null = null;
+
+export async function verifyPubSubPushToken(
+  authHeader: string | undefined,
+): Promise<{ ok: boolean; reason?: string }> {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return { ok: false, reason: "missing-bearer-token" };
+  }
+  const token = authHeader.slice(7).trim();
+  if (!token) return { ok: false, reason: "empty-bearer-token" };
+
+  pubsubOidcClient ??= new OAuth2Client();
+  try {
+    const ticket = await pubsubOidcClient.verifyIdToken({
+      idToken: token,
+      // When the audience is configured, enforce it; otherwise Google's
+      // library still validates the signature + expiry against Google's
+      // public certs (the floor that defeats forged tokens).
+      audience: env.GOOGLE_PUBSUB_AUDIENCE || undefined,
+    });
+    const payload = ticket.getPayload();
+    if (!payload) return { ok: false, reason: "no-payload" };
+    if (env.GOOGLE_PUBSUB_SA_EMAIL) {
+      if (payload.email !== env.GOOGLE_PUBSUB_SA_EMAIL) return { ok: false, reason: "email-mismatch" };
+      if (payload.email_verified !== true) return { ok: false, reason: "email-unverified" };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, reason: err instanceof Error ? err.message : "verify-failed" };
+  }
+}
 
 interface GoogleSubscriptionV2 {
   kind?: string;

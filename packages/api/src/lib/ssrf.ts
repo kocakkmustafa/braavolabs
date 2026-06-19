@@ -120,15 +120,37 @@ function isLoopbackIpv6(ip: string): boolean {
   return lower === "::1" || lower === "0:0:0:0:0:0:0:1";
 }
 
+/**
+ * Decode an IPv4-mapped IPv6 address (::ffff:0:0/96) to its embedded dotted
+ * IPv4 — handling the dotted-decimal tail (`::ffff:10.0.0.1`), the HEX tail
+ * that `new URL` normalisation actually emits (`::ffff:a00:1`), and the
+ * fully-expanded `0:0:0:0:0:ffff:...` form. The high-80-bits-zero anchor
+ * prevents false-positives on public IPv6 addresses ending in `:ffff:x:x`.
+ */
+function ipv4MappedToV4(lower: string): string | null {
+  if (!/^(::ffff:|0:0:0:0:0:ffff:)/.test(lower)) return null;
+  const tail = lower.replace(/^(::ffff:|0:0:0:0:0:ffff:)/, "");
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(tail)) return tail;
+  const hm = tail.match(/^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (hm) {
+    const hi = parseInt(hm[1]!, 16);
+    const lo = parseInt(hm[2]!, 16);
+    return `${(hi >> 8) & 255}.${hi & 255}.${(lo >> 8) & 255}.${lo & 255}`;
+  }
+  return null;
+}
+
 function isPrivateIpv6(ip: string): boolean {
   const lower = ip.toLowerCase();
-  // fc00::/7 = ULA, fe80::/10 = link-local. Mapped IPv4-in-IPv6 forms
-  // are also caught via the toLowerCase strip below.
+  // fc00::/7 = ULA, fe80::/10 = link-local.
   if (lower.startsWith("fc") || lower.startsWith("fd")) return true;
   if (lower.startsWith("fe8") || lower.startsWith("fe9") || lower.startsWith("fea") || lower.startsWith("feb")) return true;
-  // ::ffff:a.b.c.d (mapped IPv4) — strip and recheck.
-  const mapped = lower.match(/^::ffff:([0-9.]+)$/);
-  if (mapped) return isPrivateIpv4(mapped[1]) || isLoopbackIpv4(mapped[1]);
+  // IPv4-mapped (::ffff:a.b.c.d AND the hex form ::ffff:a00:1 that `new URL`
+  // emits — the dotted-only regex was an SSRF bypass for internal/metadata
+  // targets). Decode the embedded v4 and recheck (private/link-local covers
+  // 169.254.0.0/16 cloud metadata).
+  const mapped = ipv4MappedToV4(lower);
+  if (mapped) return isPrivateIpv4(mapped) || isLoopbackIpv4(mapped);
   return false;
 }
 

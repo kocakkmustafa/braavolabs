@@ -32,7 +32,7 @@ import { AppError } from "../../../middleware/error";
 import { env } from "../../../config/env";
 import { logger } from "../../../lib/logger";
 import { verifyAppleReceipt, parseAppleNotification } from "./apple";
-import { verifyGoogleReceipt, parseGoogleRtdnEnvelope } from "./google";
+import { verifyGoogleReceipt, parseGoogleRtdnEnvelope, verifyPubSubPushToken } from "./google";
 import crypto from "node:crypto";
 
 export const iapRouter = Router();
@@ -269,15 +269,13 @@ iapRouter.post("/apple/notify", iapWebhookRateLimit, async (req, res) => {
     return;
   }
   try {
-    // We use the JWS payload ONLY to extract the originalTransactionId
-    // and productId. The actual subscription state (status / expiresAt /
-    // autoRenew) MUST come from a server-to-server call to Apple's
-    // App Store Server API — without that re-fetch, a crafted JWS
-    // (Apple's signature is not yet verified against the x5c chain
-    // here, see SEC-001 in the audit) could downgrade or expire any
-    // tenant whose originalTransactionId an attacker can guess or
-    // observe. Re-fetching turns the JWS into a hint and the Apple
-    // Server API into the source of truth.
+    // parseAppleNotification now VERIFIES the JWS against Apple's x5c chain
+    // (anchored to the pinned Apple Root CA - G3) before returning any field —
+    // a forged/unsigned payload is rejected with 401 (FINDINGS C1, see
+    // ./jws.ts). The server-to-server re-fetch below is therefore now
+    // belt-and-suspenders (authoritative subscription state) rather than the
+    // sole defense: even a validly-signed-but-replayed notification can't move
+    // our row past what Apple's Server API currently reports.
     const note = await parseAppleNotification(signedPayload);
     let verified;
     try {
@@ -367,6 +365,24 @@ iapRouter.post("/apple/notify", iapWebhookRateLimit, async (req, res) => {
 // truth is behind the API.
 iapRouter.post("/google/notify", iapWebhookRateLimit, async (req, res) => {
   try {
+    // FINDINGS C1 — authenticate the sender. Pub/Sub push attaches a
+    // Google-signed OIDC bearer token; verifying it stops an attacker from
+    // POSTing a crafted purchaseToken that would drive a Server-API
+    // re-fetch + tenant plan mutation. Fail CLOSED in production; in
+    // dev/test (no real Pub/Sub) log and continue so local flows work.
+    const oidc = await verifyPubSubPushToken(req.headers.authorization);
+    if (!oidc.ok) {
+      if (env.NODE_ENV === "production") {
+        logger.warn({ reason: oidc.reason }, "Google RTDN OIDC verification failed — rejecting");
+        res.status(401).json({ error: "unauthorized" });
+        return;
+      }
+      logger.warn(
+        { reason: oidc.reason },
+        "Google RTDN OIDC not verified (non-production) — processing anyway",
+      );
+    }
+
     const parsed = parseGoogleRtdnEnvelope(req.body);
     if (!parsed) {
       res.status(200).json({ ok: false, reason: "envelope-not-recognised" });

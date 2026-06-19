@@ -72,12 +72,21 @@ braavolabs/
 
 ## Database
 
-20 core tables: `tenants`, `users`, `companies`, `agents`, `pipelines`,
-`runs`, `run_steps`, `tool_calls`, `approvals`, `memory_items`,
-`memory_embeddings`, `memory_edges`, `contacts`, `deals`,
+47 models (was "20 core" pre-v2; the v2 expansion added voice, web
+research, A/B testing, marketplace, SSO, external automation, devices,
+etc.). The tenant-isolation core: `tenants`, `users`, `companies`,
+`agents`, `pipelines`, `runs`, `run_steps`, `tool_calls`, `approvals`,
+`memory_items`, `memory_embeddings`, `memory_edges`, `contacts`, `deals`,
 `outreach_sequences`, `outreach_enrollments`, `usage_meters`,
 `eval_results`, `activity_log`, `drafts` — plus billing
 (`mobile_subscriptions`, Stripe webhook idempotency, referrals).
+
+Row-Level Security: `tenant_rls` (8 tables) + `tenant_rls_extend`
+(remaining tenant tables) add defense-in-depth RLS policies. They are
+FAIL-OPEN and only enforce when the app runs as a non-superuser DB role
+AND `app.tenant_id` is set transaction-locally on the query connection —
+see the migration headers. The primary isolation guarantee is the
+application-layer `where tenantId` clause (rule #10).
 
 ## API surface (top routes)
 
