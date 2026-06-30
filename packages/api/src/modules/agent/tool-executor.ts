@@ -87,6 +87,11 @@ const SECONDARY_ID_VALIDATORS: Record<
   // re-scopes, but validating here makes the executor the single chokepoint.
   voiceAgentId: async (id, tenantId) =>
     !!(await prisma.voiceAgent.findFirst({ where: { id, company: { tenantId } }, select: { id: true } })),
+  // external_control acts on a tenant's connected automation — the connection
+  // must belong to the acting tenant (ExternalConnection is tenant-scoped
+  // directly, not via company).
+  connectionId: async (id, tenantId) =>
+    !!(await prisma.externalConnection.findFirst({ where: { id, tenantId }, select: { id: true } })),
 };
 
 // `*Id`-shaped input fields that are NOT references to tenant-isolated rows
@@ -94,7 +99,10 @@ const SECONDARY_ID_VALIDATORS: Record<
 //   - companyId  → validated by enforceTenantScopedCompany (runs first)
 //   - voiceId    → external ElevenLabs voice identifier, not a DB row
 //   - tenantId   → if present in input it is ignored; context.tenantId wins
-const SAFE_INPUT_ID_FIELDS = new Set(["companyId", "voiceId", "tenantId"]);
+//   - targetId   → external_control: a platform workflow/scenario id or a
+//                  webhook URL, NOT a Braavolabs row (the connectionId it acts
+//                  through is what's tenant-validated above)
+const SAFE_INPUT_ID_FIELDS = new Set(["companyId", "voiceId", "tenantId", "targetId"]);
 
 export async function enforceTenantScopedSecondaryIds(
   input: unknown,
@@ -251,6 +259,99 @@ export async function executeTool(
     }).catch(() => {});
 
     logger.info({ toolName, approvalId: approval.id }, "Agent asked for human input — paused");
+    return {
+      output: null,
+      status: "PENDING_APPROVAL",
+      durationMs: Date.now() - start,
+      approvalId: approval.id,
+    };
+  }
+
+  // --- External-automation control gate (the #4 moat) ---
+  // The agent wants to act on a CONNECTED automation. Never execute inline:
+  // open an EXTERNAL_CONTROL approval carrying the intent, pause the run, and
+  // let a human approve (dashboard or phone — the same queue the app renders).
+  // The decide handler runs the real action and resumes the agent with the
+  // result as a SteeringMessage. Intercepts BEFORE the spend gate.
+  if (meta?.externalControl) {
+    if (!context.runId) {
+      return {
+        output: null,
+        status: "FAILED",
+        durationMs: Date.now() - start,
+        error: `Tool "${toolName}" requires a run context`,
+      };
+    }
+    const ci = (scopedInput ?? {}) as Record<string, unknown>;
+    const connectionId = typeof ci.connectionId === "string" ? ci.connectionId : "";
+    const action = typeof ci.action === "string" ? ci.action.toUpperCase() : "";
+    const targetId = typeof ci.targetId === "string" ? ci.targetId : "";
+    if (!connectionId || !["TRIGGER", "PAUSE", "RESUME"].includes(action) || !targetId) {
+      return {
+        output: null,
+        status: "FAILED",
+        durationMs: Date.now() - start,
+        error: "external_control needs connectionId, action (TRIGGER|PAUSE|RESUME) and targetId",
+      };
+    }
+    // connectionId was already tenant-validated by the secondary-id guard; load
+    // platform + label for a human-readable approval card.
+    const conn = await prisma.externalConnection.findFirst({
+      where: { id: connectionId, tenantId: context.tenantId },
+      select: { platform: true, label: true },
+    });
+    if (!conn) {
+      return {
+        output: null,
+        status: "FAILED",
+        durationMs: Date.now() - start,
+        error: "Connection not found in your workspace",
+      };
+    }
+    const description = `${action} ${conn.platform} automation "${conn.label}"`;
+    const approval = await prisma.approval.create({
+      data: {
+        runId: context.runId,
+        type: "EXTERNAL_CONTROL",
+        description: description.slice(0, 2000),
+        metadata: { toolName, connectionId, action, targetId } as any,
+        status: "PENDING",
+      },
+    });
+
+    await prisma.run.update({
+      where: { id: context.runId },
+      data: { status: "WAITING_APPROVAL" },
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: context.tenantId,
+        actor: "system",
+        action: "external_control.requested",
+        resource: "approval",
+        resourceId: approval.id,
+        details: { connectionId, action, targetId, platform: conn.platform } as any,
+      },
+    });
+
+    await publishRunEvent(context.runId, {
+      type: "INPUT_REQUESTED",
+      interruptId: approval.id,
+      stepId: context.runStepId,
+      question: description.slice(0, 500),
+    });
+
+    notifyTenantUsers(context.tenantId, "approval", {
+      title: "Automation control needs approval",
+      body: description.slice(0, 120),
+      data: { kind: "approval", id: approval.id, toolName },
+    }).catch(() => {});
+
+    logger.info(
+      { toolName, approvalId: approval.id, action },
+      "Agent requested external control — paused for approval",
+    );
     return {
       output: null,
       status: "PENDING_APPROVAL",
