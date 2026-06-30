@@ -838,7 +838,21 @@
       "connecting": "جارٍ الاتصال…",
       "validatedOk": "تم الاتصال ✓ — تم العثور على {n} عمليات تشغيل حديثة",
       "validatedFail": "تعذّر الوصول إليه: {error}",
-      "validatedFailHint": "تم حفظ الاتصال — سنواصل المحاولة وفق الجدول. تحقّق من الرابط ومفتاح الـ API."
+      "validatedFailHint": "تم حفظ الاتصال — سنواصل المحاولة وفق الجدول. تحقّق من الرابط ومفتاح الـ API.",
+      "controlTitle": "التحكم",
+      "automations": "الأتمتة",
+      "discovering": "جارٍ تحميل الأتمتة…",
+      "noAutomations": "لم يتم العثور على أتمتة",
+      "trigger": "تشغيل",
+      "pause": "إيقاف مؤقت",
+      "resume": "استئناف",
+      "activeTag": "نشط",
+      "pausedTag": "متوقف",
+      "monitorOnly": "مراقبة فقط — هذه المنصة لا توفر واجهة تحكم برمجية.",
+      "triggerWebhook": "تشغيل الويب هوك",
+      "webhookUrlPlaceholder": "https://hooks.zapier.com/…",
+      "controlOk": "تم",
+      "controlFailed": "فشل الإجراء"
     },
     "runsList": {
       "activity": "النشاط",

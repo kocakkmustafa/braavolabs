@@ -838,7 +838,21 @@
       "connecting": "Bağlanıyor…",
       "validatedOk": "Bağlandı ✓ — {n} son çalıştırma bulundu",
       "validatedFail": "Erişilemedi: {error}",
-      "validatedFailHint": "Bağlantı kaydedildi — planlı olarak yeniden denemeye devam edeceğiz. URL ve API anahtarını kontrol edin."
+      "validatedFailHint": "Bağlantı kaydedildi — planlı olarak yeniden denemeye devam edeceğiz. URL ve API anahtarını kontrol edin.",
+      "controlTitle": "Kontrol",
+      "automations": "Otomasyonlar",
+      "discovering": "Otomasyonlar yükleniyor…",
+      "noAutomations": "Otomasyon bulunamadı",
+      "trigger": "Tetikle",
+      "pause": "Duraklat",
+      "resume": "Sürdür",
+      "activeTag": "Aktif",
+      "pausedTag": "Duraklatıldı",
+      "monitorOnly": "Yalnızca izleme — bu platform kontrol API'si sunmuyor.",
+      "triggerWebhook": "Webhook tetikle",
+      "webhookUrlPlaceholder": "https://hooks.zapier.com/…",
+      "controlOk": "Tamam",
+      "controlFailed": "İşlem başarısız"
     },
     "runsList": {
       "activity": "Etkinlik",

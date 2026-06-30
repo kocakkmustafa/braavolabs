@@ -1,5 +1,6 @@
 import {
   assertPublicUrl,
+  type ControlResult,
   type ExternalAdapter,
   type ExternalConnConfig,
   type FetchResult,
@@ -85,6 +86,10 @@ export function normalizeGenericRecord(e: any): NormalizedExecution | null {
 
 export const genericAdapter: ExternalAdapter = {
   platform: "GENERIC",
+  // No standard control API exists for an arbitrary endpoint (this is also how
+  // Zapier connects — it has no run-control API). The one honest lever is a
+  // trigger webhook: POST to a URL the user supplies.
+  capabilities: { discover: false, trigger: true, pauseResume: false, stopExecution: false },
   async fetchExecutions(cfg: ExternalConnConfig): Promise<FetchResult> {
     const base = await assertPublicUrl(cfg.baseUrl);
     const controller = new AbortController();
@@ -114,6 +119,30 @@ export const genericAdapter: ExternalAdapter = {
         return Number.isFinite(n) ? Math.max(m, n) : m;
       }, Number(cfg.cursor) || 0);
       return { executions, cursor: maxNumeric ? String(maxNumeric) : cfg.cursor ?? undefined };
+    } finally {
+      clearTimeout(timer);
+    }
+  },
+
+  async triggerWorkflow(cfg: ExternalConnConfig, targetId: string): Promise<ControlResult> {
+    // targetId is a full https webhook URL (e.g. a Zapier catch hook). SSRF-guard
+    // it the same way as the read endpoint before POSTing.
+    const hook = await assertPublicUrl(targetId);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12_000);
+    try {
+      const res = await fetch(hook.toString(), {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${cfg.apiKey}`,
+          "X-API-Key": cfg.apiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ source: "braavolabs", triggeredAt: new Date().toISOString() }),
+        signal: controller.signal,
+      });
+      if (!res.ok) throw new Error(`Trigger webhook returned ${res.status}`);
+      return { ok: true, detail: "Webhook triggered", raw: { url: hook.origin + hook.pathname } };
     } finally {
       clearTimeout(timer);
     }

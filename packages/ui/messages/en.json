@@ -838,7 +838,21 @@
       "connecting": "Connecting…",
       "validatedOk": "Connected ✓ — {n} recent runs found",
       "validatedFail": "Couldn't reach it: {error}",
-      "validatedFailHint": "The connection was saved — we'll keep retrying on schedule. Check the URL and API key."
+      "validatedFailHint": "The connection was saved — we'll keep retrying on schedule. Check the URL and API key.",
+      "controlTitle": "Control",
+      "automations": "Automations",
+      "discovering": "Loading automations…",
+      "noAutomations": "No automations found",
+      "trigger": "Trigger",
+      "pause": "Pause",
+      "resume": "Resume",
+      "activeTag": "Active",
+      "pausedTag": "Paused",
+      "monitorOnly": "Monitoring only — this platform exposes no control API.",
+      "triggerWebhook": "Trigger webhook",
+      "webhookUrlPlaceholder": "https://hooks.zapier.com/…",
+      "controlOk": "Done",
+      "controlFailed": "Action failed"
     },
     "runsList": {
       "activity": "Activity",
