@@ -157,6 +157,15 @@ const envShape = z.object({
   // network calls. Designed for self-hosted air-gapped deployments —
   // operator pairs this with Ollama or LM Studio as the LLM provider.
   OFFLINE_MODE: z.string().optional().default("false").transform((v) => v === "true"),
+  // ── Native tool-use kill-switch (E2/T3) ──
+  // Comma-separated allowlist of providers permitted to use NATIVE
+  // function-calling (OpenAI `tools`, Gemini `functionDeclarations`).
+  // Unset = all non-Anthropic providers enabled (see
+  // DEFAULT_NATIVE_TOOLUSE_PROVIDERS in services/ai-client.ts). Removing a
+  // provider instantly restores the legacy prompt-embedding behavior for it
+  // — the rollback lever for the tool-use translation layer. ANTHROPIC is
+  // never gated (SDK-native path predates this layer).
+  NATIVE_TOOLUSE_PROVIDERS: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envShape>;
