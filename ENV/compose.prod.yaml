@@ -148,6 +148,12 @@ services:
       APPLE_SHARED_SECRET: ${APPLE_SHARED_SECRET:-}
       GOOGLE_PLAY_PACKAGE_NAME: ${GOOGLE_PLAY_PACKAGE_NAME:-com.braavolabs.mobile}
       GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:-}
+      # Google Play RTDN Pub/Sub push auth (FINDINGS C1). REQUIRED in prod
+      # when GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is set — env.ts fails fast if
+      # both are missing (2026-07-02 outage root cause: check existed in
+      # code but the mapping was never plumbed through compose).
+      GOOGLE_PUBSUB_AUDIENCE: ${GOOGLE_PUBSUB_AUDIENCE:-}
+      GOOGLE_PUBSUB_SA_EMAIL: ${GOOGLE_PUBSUB_SA_EMAIL:-}
       REVENUECAT_WEBHOOK_SECRET: ${REVENUECAT_WEBHOOK_SECRET:-}
       # Email
       SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}

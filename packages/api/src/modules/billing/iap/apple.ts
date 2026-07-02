@@ -37,10 +37,16 @@ const PRODUCTION_BASE = "https://api.storekit.itunes.apple.com";
 const SANDBOX_BASE = "https://api.storekit-sandbox.itunes.apple.com";
 
 /**
- * Sign a short-lived ES256 JWT for the App Store Connect API.
+ * Sign a short-lived ES256 JWT for the App Store Server API.
  * Apple caps `exp` at 60 minutes from `iat`; we use 5 minutes so a
  * leaked token is useless almost immediately. The kid header points at
  * the API key and `bid` claim binds the token to our bundleId.
+ *
+ * Key TYPE matters: APPLE_PRIVATE_KEY/APPLE_KEY_ID must be an
+ * In-App Purchase key (App Store Connect → Users and Access →
+ * Integrations → In-App Purchase). A general App Store Connect API
+ * key is a different key type — the App Store Server API answers
+ * it with 401 Unauthorized even though the JWT itself is valid.
  */
 function signAppStoreJwt(): string {
   if (!env.APPLE_ISSUER_ID || !env.APPLE_KEY_ID || !env.APPLE_PRIVATE_KEY || !env.APPLE_BUNDLE_ID) {
