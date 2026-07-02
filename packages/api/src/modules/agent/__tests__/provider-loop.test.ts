@@ -33,13 +33,23 @@ vi.mock("../../../lib/logger", () => ({
 
 const steeringFindMany = vi.hoisted(() => vi.fn());
 const steeringUpdateMany = vi.hoisted(() => vi.fn());
+const aiConfigFindMany = vi.hoisted(() => vi.fn());
+const tenantFindUnique = vi.hoisted(() => vi.fn());
+const activityLogCreate = vi.hoisted(() => vi.fn());
 vi.mock("../../../lib/db", () => ({
   prisma: {
     steeringMessage: {
       findMany: (...a: unknown[]) => steeringFindMany(...a),
       updateMany: (...a: unknown[]) => steeringUpdateMany(...a),
     },
-    userAIConfig: { findUnique: vi.fn(), upsert: vi.fn() },
+    userAIConfig: {
+      findUnique: vi.fn(),
+      upsert: vi.fn(),
+      // The T7 chain builder resolves tenant rows via findMany.
+      findMany: (...a: unknown[]) => aiConfigFindMany(...a),
+    },
+    tenant: { findUnique: (...a: unknown[]) => tenantFindUnique(...a) },
+    activityLog: { create: (...a: unknown[]) => activityLogCreate(...a) },
   },
 }));
 
@@ -48,8 +58,9 @@ vi.mock("../../../lib/runEvents", () => ({
   publishRunEvent: (...a: unknown[]) => publishRunEventMock(...a),
 }));
 
+const decryptMock = vi.hoisted(() => vi.fn());
 vi.mock("../../../lib/encryption", () => ({
-  decryptForTenant: vi.fn(),
+  decryptForTenant: (...a: unknown[]) => decryptMock(...a),
   encryptForTenant: vi.fn(() => "encrypted"),
 }));
 
@@ -89,16 +100,14 @@ vi.mock("../../../services/trial-llm", () => ({
   commitTrialRun: (...a: unknown[]) => commitTrialRunMock(...a),
 }));
 
-// ai-client — chatCompletion + getTenantAIConfig mocked, everything else
+// ai-client — ONLY chatCompletion mocked; everything else
 // (ToolsUnsupportedError, resolveModelForProvider, catalogues) REAL.
 const chatCompletionMock = vi.hoisted(() => vi.fn());
-const getTenantAIConfigMock = vi.hoisted(() => vi.fn());
 vi.mock("../../../services/ai-client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../services/ai-client")>();
   return {
     ...actual,
     chatCompletion: (...a: unknown[]) => chatCompletionMock(...a),
-    getTenantAIConfig: (...a: unknown[]) => getTenantAIConfigMock(...a),
   };
 });
 
@@ -109,6 +118,7 @@ import {
   type ChatCompletionResult,
   type AIClientConfig,
 } from "../../../services/ai-client";
+import { resetProviderCircuits } from "../../../services/provider-chain";
 
 const GROQ_CONFIG: AIClientConfig = {
   provider: "GROQ",
@@ -135,10 +145,37 @@ function completion(partial: Partial<ChatCompletionResult>): ChatCompletionResul
   };
 }
 
+/** Seed tenant-1 with a single default BYOK row matching `cfg` — the T7
+ * chain builder (real code) resolves it to the chain head, which is what
+ * the pre-T7 getTenantAIConfig mock used to hand the loop directly. */
+function seedTenantProvider(cfg: AIClientConfig): void {
+  aiConfigFindMany.mockResolvedValue([
+    {
+      id: "cfg-1",
+      tenantId: "tenant-1",
+      provider: cfg.provider,
+      model: cfg.model,
+      encryptedApiKey: cfg.apiKey ? `enc:${cfg.apiKey}` : null,
+      baseUrl: cfg.baseUrl ?? null,
+      isDefault: true,
+      fallbackOrder: null,
+      allowSystemFallback: false,
+      createdAt: new Date(2026, 0, 1),
+    },
+  ]);
+  decryptMock.mockImplementation((blob: string) => {
+    if (blob === `enc:${cfg.apiKey}`) return cfg.apiKey;
+    throw new Error("decrypt failed");
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  resetProviderCircuits();
   envMock.ANTHROPIC_API_KEY = "sk-ant-system-key";
-  getTenantAIConfigMock.mockResolvedValue({ ...GROQ_CONFIG });
+  seedTenantProvider({ ...GROQ_CONFIG });
+  tenantFindUnique.mockResolvedValue({ plan: "PRO" });
+  activityLogCreate.mockResolvedValue({});
   steeringFindMany.mockResolvedValue([]);
   steeringUpdateMany.mockResolvedValue({ count: 0 });
   executeToolMock.mockResolvedValue({ status: "SUCCESS", output: { ok: true }, durationMs: 3 });
@@ -271,7 +308,7 @@ describe("unified loop — budget stop (real modelPricing, §2.6)", () => {
         outputTokens: 50_000,
       }),
     );
-    getTenantAIConfigMock.mockResolvedValue({
+    seedTenantProvider({
       provider: "OPENAI",
       model: "gpt-4-turbo",
       apiKey: "sk-oai",
@@ -308,7 +345,7 @@ describe("unified loop — budget stop (real modelPricing, §2.6)", () => {
   });
 
   it("prices local providers at $0 (own hardware)", async () => {
-    getTenantAIConfigMock.mockResolvedValue({
+    seedTenantProvider({
       provider: "OLLAMA",
       model: "qwen2.5:7b",
       apiKey: "",
@@ -343,7 +380,7 @@ describe("unified loop — ToolsUnsupportedError → prompt-embedded fallback", 
         new ToolsUnsupportedError("OLLAMA", "gemma3:4b", "does not support tools"),
       )
       .mockResolvedValueOnce(completion({ content: "best-effort answer", model: "gemma3:4b", provider: "OLLAMA" }));
-    getTenantAIConfigMock.mockResolvedValue({
+    seedTenantProvider({
       provider: "OLLAMA",
       model: "gemma3:4b",
       apiKey: "",
@@ -415,7 +452,9 @@ describe("unified loop — maxTokens travels to the wire", () => {
 
 describe("unified loop — trial Groq path", () => {
   it("routes trial runs through the unified loop with the maxTurns clamp and commits after success", async () => {
-    getTenantAIConfigMock.mockRejectedValue(new Error("No AI provider configured"));
+    // BYOK-less FREE tenant — the T7 chain enters through the counted trial.
+    aiConfigFindMany.mockResolvedValue([]);
+    tenantFindUnique.mockResolvedValue({ plan: "FREE" });
     tryConsumeTrialRunMock.mockResolvedValue({
       config: { provider: "GROQ", model: "llama-3.3-70b-versatile", apiKey: "gsk-trial" },
       remainingBefore: 3,
@@ -463,7 +502,8 @@ describe("runAgentLoop — aiConfigOverride skips tenant resolution", () => {
       aiConfigOverride: { provider: "DEEPSEEK", model: "deepseek-chat", apiKey: "bench-env-key" },
     });
 
-    expect(getTenantAIConfigMock).not.toHaveBeenCalled();
+    // Tenant resolution never consulted: no row lookup, no trial check.
+    expect(aiConfigFindMany).not.toHaveBeenCalled();
     expect(tryConsumeTrialRunMock).not.toHaveBeenCalled();
     // The override config is what reaches the chatCompletion provider switch.
     const cfg = chatCompletionMock.mock.calls[0][0] as AIClientConfig;

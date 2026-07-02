@@ -5,7 +5,6 @@ import { getTool } from "./registry";
 import { executeTool, type ToolExecResult } from "./tool-executor";
 import { runLocalAgentLoop } from "./claude-local";
 import {
-  getTenantAIConfig,
   chatCompletion,
   resolveModelForProvider,
   ToolsUnsupportedError,
@@ -16,8 +15,18 @@ import {
   type ChatToolCall,
   type ChatToolDef,
 } from "../../services/ai-client";
+import {
+  buildTenantProviderChain,
+  classifyProviderError,
+  isFailoverEligible,
+  isProviderTripped,
+  recordProviderFailure,
+  recordProviderSuccess,
+  type ProviderChainLink,
+  type ProviderChainSource,
+} from "../../services/provider-chain";
 import { priceForModel, FREE_PROVIDERS } from "../../lib/modelPricing";
-import { tryConsumeTrialRun, commitTrialRun } from "../../services/trial-llm";
+import { commitTrialRun } from "../../services/trial-llm";
 import { prisma } from "../../lib/db";
 import { publishRunEvent } from "../../lib/runEvents";
 
@@ -142,6 +151,11 @@ export interface AgentLoopResult {
   /** Model that actually ran — after the §2.4 hierarchy resolution
    * (Agent.model > tenant model > provider default). */
   model?: string;
+  /** Which chain link produced the FINAL answer (E2/T7). Only set when the
+   * loop ran with a provider chain; runAgentLoop commits the trial counter
+   * when this is "trial" (a trial link that failed over mid-run did NOT
+   * serve the run and must not burn the slot). */
+  servedBy?: ProviderChainSource;
 }
 
 /**
@@ -482,6 +496,19 @@ export interface ProviderAgentLoopConfig {
   govContext?: AgentGovContext;
 }
 
+/** Failover context for the unified loop (E2/T7). */
+export interface ProviderFailoverOptions {
+  /** Chain links AFTER the entry config — consumed left to right when a
+   * turn dies with a failover-eligible error. */
+  chain?: ProviderChainLink[];
+  /** Source label of the entry aiConfig (chain head). */
+  source?: ProviderChainSource;
+  /** Tenant for circuit-breaker keying + the durable activity_log failover
+   * record. Falls back to govContext.tenantId; hierarchical worker loops
+   * run tenantful but ungoverned, hence the separate field. */
+  tenantId?: string;
+}
+
 /**
  * THE unified agent loop (E2/T4 — plan §2.2 Karar A). One skeleton for
  * every provider:
@@ -499,6 +526,7 @@ export interface ProviderAgentLoopConfig {
 export async function runProviderAgentLoop(
   config: ProviderAgentLoopConfig,
   aiConfig: AIClientConfig,
+  failover?: ProviderFailoverOptions,
 ): Promise<AgentLoopResult> {
   const {
     systemPrompt,
@@ -521,11 +549,89 @@ export async function runProviderAgentLoop(
   // Model hierarchy (plan §2.4 / F-020): Agent.model when catalogue-
   // compatible with the resolved provider > tenant model > provider default.
   const model = resolveModelForProvider(aiConfig.provider, config.model, aiConfig.model);
-  const callConfig: AIClientConfig = { ...aiConfig, model };
+  let callConfig: AIClientConfig = { ...aiConfig, model };
+
+  // ── Turn-boundary failover state (E2/T7, plan §2.2 Karar B) ──
+  // The chain is consumed left to right; each switch re-projects the SAME
+  // canonical transcript onto the next provider (one-way projection — no
+  // bidirectional converters needed, plan A8).
+  const pendingLinks: ProviderChainLink[] = [...(failover?.chain ?? [])];
+  let activeSource: ProviderChainSource | undefined = failover?.source;
+  const cbTenant = failover?.tenantId ?? govContext?.tenantId;
+  let effectiveMaxTurns = maxTurns;
 
   const toolDefs = buildChatToolDefs(toolNames);
   let toolUseMode: "native" | "prompt-fallback" = "native";
   let effectiveSystemPrompt = systemPrompt;
+
+  /** Advance to the next chain link. Prefers the first link whose circuit
+   * breaker is closed; when EVERY remaining link is tripped, takes the
+   * head anyway as a half-open probe (a run must not die purely because
+   * the breaker is pessimistic). Publishes PROVIDER_FAILOVER on the run
+   * stream and writes the durable activity_log record (run events are
+   * Redis-only — plan A5). Returns false when the chain is exhausted. */
+  const switchToNextProvider = async (reason: string, turn: number): Promise<boolean> => {
+    let idx = pendingLinks.findIndex((l) => !isProviderTripped(cbTenant, l.provider));
+    if (idx === -1) idx = pendingLinks.length > 0 ? 0 : -1;
+    if (idx === -1) return false;
+    const [next] = pendingLinks.splice(idx, 1);
+    const from = callConfig.provider;
+
+    callConfig = {
+      ...next.config,
+      // Re-run the §2.4 hierarchy against the NEW provider — the agent's
+      // model may be compatible with one link and not the next.
+      model: resolveModelForProvider(next.provider, config.model, next.config.model),
+    };
+    activeSource = next.source;
+    // A fresh provider gets a fresh chance at NATIVE tool-calling even if
+    // the previous one had degraded to prompt-embedding (the transcript
+    // carries no tool_use blocks in that case, so this is always safe).
+    toolUseMode = "native";
+    effectiveSystemPrompt = systemPrompt;
+    // Trial economics (plan T4/A8): a trial link taking over mid-run may
+    // serve at most TRIAL_MAX_TURNS turns — the CURRENT (retried) turn
+    // counts as its first.
+    if (next.source === "trial") {
+      effectiveMaxTurns = Math.min(effectiveMaxTurns, turn + TRIAL_MAX_TURNS);
+    }
+
+    const truncatedReason = reason.slice(0, 300);
+    logger.warn(
+      { from, to: next.provider, source: next.source, reason: truncatedReason, turn },
+      "Provider failover — advancing to the next link in the tenant chain",
+    );
+    if (govContext) {
+      await publishRunEvent(govContext.runId, {
+        type: "PROVIDER_FAILOVER",
+        stepId: govContext.runStepId,
+        from,
+        to: next.provider,
+        reason: truncatedReason,
+      });
+    }
+    if (cbTenant) {
+      // Durable audit copy (K2 evidence lives here, not in Redis).
+      try {
+        await prisma.activityLog.create({
+          data: {
+            tenantId: cbTenant,
+            actor: "system",
+            action: "run.provider_failover",
+            resource: "run",
+            resourceId: govContext?.runId ?? null,
+            details: { from, to: next.provider, source: next.source, reason: truncatedReason, turn },
+          },
+        });
+      } catch (err) {
+        logger.warn(
+          { tenantId: cbTenant, err: (err as Error).message },
+          "provider_failover activity log write failed (non-fatal)",
+        );
+      }
+    }
+    return true;
+  };
 
   // Canonical transcript — normalized, provider-independent (plan §2.2/A8).
   const messages: ChatMessage[] = [
@@ -536,38 +642,75 @@ export async function runProviderAgentLoop(
   const turns: AgentTurnResult[] = [];
   let totalCost = 0;
 
-  for (let turn = 0; turn < maxTurns; turn++) {
+  // Pre-flight breaker check: don't dial a head provider that just burned
+  // 3 failures when a healthy alternative sits in the chain.
+  if (
+    pendingLinks.length > 0 &&
+    isProviderTripped(cbTenant, callConfig.provider) &&
+    pendingLinks.some((l) => !isProviderTripped(cbTenant, l.provider))
+  ) {
+    await switchToNextProvider("circuit breaker open (3 failures / 5min)", 0);
+  }
+
+  for (let turn = 0; turn < effectiveMaxTurns; turn++) {
     // Mid-run steering (v2 moat) — now on EVERY provider path, not just
     // Anthropic (E2/T4 parity).
     const steering = await drainSteeringText(govContext);
     if (steering) injectSteering(messages, steering);
 
-    const wantNativeTools = toolUseMode === "native" && toolDefs.length > 0;
-    let result: ChatCompletionResult;
-    try {
-      result = await callProvider(
-        callConfig,
-        effectiveSystemPrompt,
-        messages,
-        maxTokens,
-        wantNativeTools ? toolDefs : undefined,
-      );
-    } catch (err) {
-      if (err instanceof ToolsUnsupportedError && wantNativeTools) {
-        // Graceful degradation (plan §2.1): prompt-embedded single shot.
-        // The model can't request tools in this mode, so the loop ends
-        // naturally after this turn — same behaviour every such tenant
-        // had before E2. Never triggers cross-provider failover (the same
-        // model would reject tools elsewhere too).
-        toolUseMode = "prompt-fallback";
-        effectiveSystemPrompt = embedToolsInPrompt(systemPrompt, toolNames);
-        logger.warn(
-          { provider: callConfig.provider, model: callConfig.model, detail: err.message },
-          "Native tool-use unsupported — downgrading to prompt-embedded tools",
+    /** One turn against the ACTIVE provider, with the ToolsUnsupported →
+     * prompt-embedding downgrade handled inline so provider errors from
+     * either dial funnel into the failover catch below. */
+    const attemptTurn = async (): Promise<ChatCompletionResult> => {
+      const wantNativeTools = toolUseMode === "native" && toolDefs.length > 0;
+      try {
+        return await callProvider(
+          callConfig,
+          effectiveSystemPrompt,
+          messages,
+          maxTokens,
+          wantNativeTools ? toolDefs : undefined,
         );
-        result = await callProvider(callConfig, effectiveSystemPrompt, messages, maxTokens);
-      } else {
+      } catch (err) {
+        if (err instanceof ToolsUnsupportedError && wantNativeTools) {
+          // Graceful degradation (plan §2.1): prompt-embedded single shot.
+          // The model can't request tools in this mode, so the loop ends
+          // naturally after this turn — same behaviour every such tenant
+          // had before E2. Never triggers cross-provider failover (the same
+          // model would reject tools elsewhere too).
+          toolUseMode = "prompt-fallback";
+          effectiveSystemPrompt = embedToolsInPrompt(systemPrompt, toolNames);
+          logger.warn(
+            { provider: callConfig.provider, model: callConfig.model, detail: err.message },
+            "Native tool-use unsupported — downgrading to prompt-embedded tools",
+          );
+          return await callProvider(callConfig, effectiveSystemPrompt, messages, maxTokens);
+        }
         throw err;
+      }
+    };
+
+    let result: ChatCompletionResult;
+    // Failover at the TURN BOUNDARY (plan §2.2): a turn that dies with a
+    // failover-eligible error retries the SAME turn — same canonical
+    // transcript — on the next chain link. Bounded: every iteration either
+    // succeeds or permanently consumes a link.
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      try {
+        result = await attemptTurn();
+        recordProviderSuccess(cbTenant, callConfig.provider);
+        break;
+      } catch (err) {
+        const cls = classifyProviderError(err);
+        // FATAL = request-shape error; says nothing about provider health
+        // and would replay identically elsewhere — never breaker-counted,
+        // never chained (plan risk table).
+        if (cls !== "FATAL") recordProviderFailure(cbTenant, callConfig.provider);
+        if (!isFailoverEligible(cls) || pendingLinks.length === 0) throw err;
+        const reason = `${cls}: ${err instanceof Error ? err.message : String(err)}`;
+        const switched = await switchToNextProvider(reason, turn);
+        if (!switched) throw err;
       }
     }
 
@@ -630,10 +773,11 @@ export async function runProviderAgentLoop(
     totalCostUsd: totalCost,
     totalToolCalls,
     toolUseMode,
-    // Actually-used provider/model (E2/T5) — `model` is the post-hierarchy
-    // resolution, i.e. what really went on the wire.
+    // Actually-used provider/model (E2/T5) — post-hierarchy resolution on
+    // the FINAL active link, i.e. what really went on the wire last.
     provider: callConfig.provider,
-    model,
+    model: callConfig.model,
+    ...(activeSource ? { servedBy: activeSource } : {}),
   };
 }
 
@@ -674,7 +818,7 @@ export async function runAgentLoop(config: {
   // ran tenant-less and always landed on system Anthropic while the
   // BenchRun row claimed opts.provider — D-010).
   if (config.aiConfigOverride) {
-    return runProviderAgentLoop(config, config.aiConfigOverride);
+    return await runProviderAgentLoop(config, config.aiConfigOverride);
   }
 
   // Route to local CLI if configured
@@ -689,42 +833,68 @@ export async function runAgentLoop(config: {
     });
   }
 
-  // Resolution order for tenant AI config — PRESERVED VERBATIM in T4,
-  // including the un-awaited returns (loop errors bypass the catch):
-  // documented as D-009; the chain re-ordering (BYOK → trial → opt-in
-  // system) and the `await` fix are T7's job, not this one's.
+  // Tenant resolution — REBUILT in T7 (closes D-009). The pre-T7 order was
+  // effectively "BYOK → system → (only if no system key) trial" because
+  // getTenantAIConfig returned the SYSTEM config instead of throwing, so a
+  // BYOK-less FREE tenant burned the uncounted system Anthropic key and the
+  // trial path was dead code. The chain builder enforces the corrected,
+  // privacy-honouring order:
+  //
+  //   BYOK default → tenant fallbackOrder links → trial Groq (FREE,
+  //   counted) → system Anthropic (opt-in allowSystemFallback only;
+  //   BYOK-less PAID tenants keep the system entry — see provider-chain.ts).
+  //
+  // The old un-awaited `return runProviderAgentLoop(...)` inside try{} let
+  // every LOOP error bypass the catch (D-009 second leg) — resolution and
+  // failover now both live where the `await`s are explicit.
   if (config.tenantId) {
-    try {
-      const aiConfig = await getTenantAIConfig(config.tenantId);
-      // Every provider — Anthropic included — goes through the ONE
-      // unified loop with canonical-transcript projection (plan §2.2).
-      return runProviderAgentLoop(config, aiConfig);
-    } catch (err) {
-      // No BYOK config? Try trial Groq before falling through to system.
-      const trial = await tryConsumeTrialRun(config.tenantId);
-      if (trial) {
-        logger.info(
-          { tenantId: config.tenantId, remainingBefore: trial.remainingBefore },
-          "Routing pipeline run through trial Groq",
-        );
-        const result = await runProviderAgentLoop(
-          {
-            ...config,
-            maxTurns: Math.min(config.maxTurns ?? TRIAL_MAX_TURNS, TRIAL_MAX_TURNS),
-          },
-          trial.config,
-        );
-        // Commit only after success — failures don't burn the slot.
-        await commitTrialRun(config.tenantId);
-        return result;
-      }
-      logger.warn({ err }, "Failed to load tenant AI config — using system default");
+    const chain = await buildTenantProviderChain(config.tenantId);
+    if (chain.length === 0) {
+      // Nothing may serve: no usable BYOK links, trial ineligible/spent,
+      // system not permitted. Explicit failure — never a silent fall-through
+      // to the system wallet (the D-009 bleed).
+      throw new Error(
+        "No AI provider configured. Please add an API key in Settings → AI Provider.",
+      );
     }
+    const [head, ...rest] = chain;
+    if (head.source === "trial") {
+      logger.info(
+        { tenantId: config.tenantId },
+        "Routing pipeline run through trial Groq",
+      );
+    }
+    const result = await runProviderAgentLoop(
+      // Trial economics guard at entry (plan T4/A8) — mid-run failover to a
+      // trial link is clamped inside the loop instead.
+      head.source === "trial"
+        ? { ...config, maxTurns: Math.min(config.maxTurns ?? TRIAL_MAX_TURNS, TRIAL_MAX_TURNS) }
+        : config,
+      head.config,
+      { chain: rest, source: head.source, tenantId: config.tenantId },
+    );
+    // Run-based trial counter: commit ONLY when the trial link actually
+    // served the run to completion (a trial link that failed over mid-run
+    // didn't — the slot is refunded, same contract as before).
+    if (result.servedBy === "trial") {
+      try {
+        await commitTrialRun(config.tenantId);
+      } catch (err) {
+        // A counter miss is cheaper than failing a successful run — the
+        // race-window comment in trial-llm.ts already accepts ±1 accuracy.
+        logger.warn(
+          { tenantId: config.tenantId, err: (err as Error).message },
+          "commitTrialRun failed after a successful trial-served run (non-fatal)",
+        );
+      }
+    }
+    return result;
   }
 
-  // System Anthropic key (legacy / self-hosted operator). The loop throws
-  // the historical "not initialized" error when the key is absent.
-  return runProviderAgentLoop(config, {
+  // Tenant-less invocations (onboarding, composer, NL builder — no BYOK
+  // context exists): system Anthropic key, exactly as before. The loop
+  // throws the historical "not initialized" error when the key is absent.
+  return await runProviderAgentLoop(config, {
     provider: "ANTHROPIC",
     model: env.CLAUDE_MODEL,
     apiKey: env.ANTHROPIC_API_KEY ?? "",

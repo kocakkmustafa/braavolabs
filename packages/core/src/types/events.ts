@@ -37,6 +37,8 @@ export type RunEventType =
   | "APPROVAL_REQUESTED" // spend / risk gate — operator must approve|reject
   | "INPUT_REQUESTED" // agent asked the human a question, awaiting free-text
   | "STEERING_APPLIED" // operator injected a prompt to steer a specific agent
+  // ── Provider orchestration (E2/T7 — auto-mode failover) ────────
+  | "PROVIDER_FAILOVER" // the agent loop advanced to the next provider in the tenant's chain
   // ── Transport keepalive ────────────────────────────────────────
   | "HEARTBEAT";
 
@@ -156,6 +158,25 @@ export interface SteeringAppliedEvent extends RunEventBase {
   instruction: string;
 }
 
+/**
+ * E2/T7 — a turn died with a FAILOVER-class provider error (auth/quota, or
+ * retry-exhausted transient) and the loop re-projected its canonical
+ * transcript onto the NEXT provider in the tenant's chain (BYOK default →
+ * fallbackOrder links → counted trial → opt-in system). Live visibility on
+ * SSE/WS; the durable audit copy is the `activity_log` row the loop writes
+ * alongside this event (run events live in Redis only).
+ */
+export interface ProviderFailoverEvent extends RunEventBase {
+  type: "PROVIDER_FAILOVER";
+  stepId?: string;
+  /** Provider that failed (AIProviderType value, e.g. "DEEPSEEK"). */
+  from: string;
+  /** Provider that took over (e.g. "GROQ"). */
+  to: string;
+  /** Error class + truncated provider error that triggered the switch. */
+  reason: string;
+}
+
 export interface HeartbeatEvent extends RunEventBase {
   type: "HEARTBEAT";
 }
@@ -176,6 +197,7 @@ export type RunEvent =
   | ApprovalRequestedEvent
   | InputRequestedEvent
   | SteeringAppliedEvent
+  | ProviderFailoverEvent
   | HeartbeatEvent;
 
 // ── Human-in-the-loop interrupts (Phase 1 — mid-run steering) ────────────

@@ -43,6 +43,7 @@ settingsRouter.get("/ai-config", async (req, res, next) => {
         model: PROVIDER_DEFAULT_MODELS["ANTHROPIC"],
         hasApiKey: false,
         baseUrl: null,
+        allowSystemFallback: false,
         availableProviders: Object.keys(PROVIDER_DEFAULT_MODELS),
         availableModels: PROVIDER_MODELS,
         providerInfo: PROVIDER_INFO,
@@ -62,6 +63,9 @@ settingsRouter.get("/ai-config", async (req, res, next) => {
           })()
         : null,
       baseUrl: aiConfig.baseUrl ?? null,
+      // E2/T7 — opt-in flag on the default row: may the failover chain fall
+      // to the trial/system providers once the tenant's own links die?
+      allowSystemFallback: aiConfig.allowSystemFallback ?? false,
       availableProviders: Object.keys(PROVIDER_DEFAULT_MODELS),
       availableModels: PROVIDER_MODELS,
       providerInfo: PROVIDER_INFO,
@@ -114,6 +118,10 @@ const aiConfigSchema = z.object({
   // (defaults to localhost:11434/1234), optional for cloud providers
   // (rare but useful for Azure/LiteLLM-shim users).
   baseUrl: z.string().url().optional().or(z.literal("")),
+  // E2/T7 — opt-in: allow the failover chain to fall back to the trial /
+  // system providers once the tenant's own links are exhausted. Stored on
+  // the default row; omitted = keep the stored value (false by default).
+  allowSystemFallback: z.boolean().optional(),
 });
 
 // Plans that may configure self-hosted LLM providers (Ollama, LM Studio,
@@ -132,7 +140,7 @@ const LOCAL_LLM_PLANS: ReadonlySet<string> = new Set([
 // Save AI provider selection and (optionally) API key + base URL.
 settingsRouter.put("/ai-config", async (req, res, next) => {
   try {
-    const { provider, model, apiKey, baseUrl } = aiConfigSchema.parse(req.body);
+    const { provider, model, apiKey, baseUrl, allowSystemFallback } = aiConfigSchema.parse(req.body);
     const isLocal = (LOCAL_PROVIDER_LITERALS as readonly string[]).includes(provider);
 
     // Plan gate — self-hosted providers are CREATOR+ only. FREE-plan
@@ -182,7 +190,12 @@ settingsRouter.put("/ai-config", async (req, res, next) => {
         }),
         prisma.userAIConfig.update({
           where: { tenantId_provider: { tenantId: req.auth!.tenantId, provider } },
-          data: { model, baseUrl: baseUrl || null, isDefault: true },
+          data: {
+            model,
+            baseUrl: baseUrl || null,
+            isDefault: true,
+            ...(allowSystemFallback !== undefined ? { allowSystemFallback } : {}),
+          },
         }),
       ]);
     } else {
@@ -192,6 +205,7 @@ settingsRouter.put("/ai-config", async (req, res, next) => {
         model,
         apiKey || "",  // empty for local
         baseUrl || undefined,
+        allowSystemFallback,
       );
     }
 
@@ -201,7 +215,12 @@ settingsRouter.put("/ai-config", async (req, res, next) => {
         actor: req.auth!.userId,
         action: "settings.ai_config_update",
         resource: "ai_config",
-        details: { provider, model, hasBaseUrl: !!baseUrl },
+        details: {
+          provider,
+          model,
+          hasBaseUrl: !!baseUrl,
+          ...(allowSystemFallback !== undefined ? { allowSystemFallback } : {}),
+        },
       },
     });
 

@@ -1042,9 +1042,16 @@ export async function saveTenantAIConfig(
   model: string,
   apiKey: string,
   baseUrl?: string,
+  // E2/T7 — opt-in escape hatch (plan §2.2): may the run chain fall back to
+  // trial/system providers once the tenant's own links are exhausted?
+  // Evaluated from the DEFAULT row (this row becomes the default below).
+  // undefined = leave the stored value untouched (default false in schema).
+  allowSystemFallback?: boolean,
 ): Promise<void> {
   const encryptedApiKey = apiKey ? encryptForTenant(apiKey, tenantId) : null;
   const trimmedBaseUrl = baseUrl?.trim() || null;
+  const fallbackPatch =
+    allowSystemFallback === undefined ? {} : { allowSystemFallback };
 
   await prisma.$transaction([
     // Demote-then-promote: order matters — the one-default-per-tenant
@@ -1055,8 +1062,8 @@ export async function saveTenantAIConfig(
     }),
     prisma.userAIConfig.upsert({
       where: { tenantId_provider: { tenantId, provider } },
-      update: { model, encryptedApiKey, baseUrl: trimmedBaseUrl, isDefault: true },
-      create: { tenantId, provider, model, encryptedApiKey, baseUrl: trimmedBaseUrl, isDefault: true },
+      update: { model, encryptedApiKey, baseUrl: trimmedBaseUrl, isDefault: true, ...fallbackPatch },
+      create: { tenantId, provider, model, encryptedApiKey, baseUrl: trimmedBaseUrl, isDefault: true, ...fallbackPatch },
     }),
   ]);
 }
