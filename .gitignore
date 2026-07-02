@@ -57,3 +57,9 @@ scheduled_tasks.lock
 
 # Local automation runtime state — generated, never committed.
 HOLDING_CORE/
+
+# iCloud/Finder duplicate copies ("file 2.ts", "dir 2/") — macOS sync
+# artifacts that must never be tracked.
+* 2
+* 2.*
+* 2/
