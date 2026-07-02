@@ -79,6 +79,11 @@ export default function ConnectionsPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [runs, setRuns] = useState<Record<string, any[]>>({});
+  // Control plane — discovered automations + per-card action state.
+  const [workflows, setWorkflows] = useState<Record<string, any[]>>({});
+  const [ctlBusy, setCtlBusy] = useState<string | null>(null);
+  const [ctlMsg, setCtlMsg] = useState<Record<string, { ok: boolean; text: string }>>({});
+  const [webhookUrl, setWebhookUrl] = useState<Record<string, string>>({});
 
   const [showForm, setShowForm] = useState(false);
   const [fPlatform, setFPlatform] = useState("N8N");
@@ -110,10 +115,46 @@ export default function ConnectionsPage() {
     } catch { /* ignore */ }
   }
 
+  async function discover(id: string) {
+    if (!token) return;
+    try {
+      const w = await api.discoverExternalWorkflows(token, id);
+      setWorkflows((p) => ({ ...p, [id]: w }));
+    } catch {
+      setWorkflows((p) => ({ ...p, [id]: [] }));
+    }
+  }
+
+  // Run a control action, then refresh the card status + the discovered list so
+  // the active/paused state reflects reality. One action per card at a time.
+  async function control(id: string, type: "TRIGGER" | "PAUSE" | "RESUME", targetId: string) {
+    if (!token || !targetId) return;
+    setCtlBusy(id);
+    setCtlMsg((p) => ({ ...p, [id]: undefined as any }));
+    try {
+      const res = await api.controlExternalConnection(token, id, { type, targetId });
+      setCtlMsg((p) => ({ ...p, [id]: { ok: true, text: res.detail ?? t("app.connections.controlOk") } }));
+      load();
+      const conn = conns.find((c) => c.id === id);
+      if (conn?.capabilities?.discover) discover(id);
+    } catch (e) {
+      setCtlMsg((p) => ({
+        ...p,
+        [id]: { ok: false, text: e instanceof Error ? e.message : t("app.connections.controlFailed") },
+      }));
+    } finally {
+      setCtlBusy(null);
+    }
+  }
+
   function toggle(id: string) {
     const next = expanded === id ? null : id;
     setExpanded(next);
     if (next && !runs[next]) loadRuns(next);
+    if (next) {
+      const conn = conns.find((c) => c.id === next);
+      if (conn?.capabilities?.discover && !workflows[next]) discover(next);
+    }
   }
 
   async function create() {
@@ -361,9 +402,90 @@ export default function ConnectionsPage() {
                     </button>
                   </div>
 
-                  {/* Expanded runs */}
+                  {/* Expanded: control plane + mirrored runs */}
                   {isOpen && (
                     <div>
+                      <div className="bv-divider" />
+                      {/* ── Control plane (capability-gated) ── */}
+                      <div className="px-5 py-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="material-symbols-outlined text-primary" style={{ fontSize: 15 }}>tune</span>
+                          <span className="bv-micro uppercase tracking-widest text-on-surface">{t("app.connections.controlTitle")}</span>
+                        </div>
+                        {c.capabilities?.discover ? (
+                          !workflows[c.id] ? (
+                            <p className="bv-caption">{t("app.connections.discovering")}</p>
+                          ) : workflows[c.id].length === 0 ? (
+                            <p className="bv-caption">{t("app.connections.noAutomations")}</p>
+                          ) : (
+                            <ul className="flex flex-col gap-1.5">
+                              {workflows[c.id].map((w) => (
+                                <li
+                                  key={w.id}
+                                  className="flex items-center gap-2 px-3 py-2 rounded-[10px]"
+                                  style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}
+                                >
+                                  <span className={`bv-dot ${w.active ? "bv-completed" : "bv-cancelled"}`} />
+                                  <span className="bv-body font-medium truncate text-on-surface flex-1">{w.name}</span>
+                                  <span className="bv-pill bv-pill-muted">
+                                    {w.active ? t("app.connections.activeTag") : t("app.connections.pausedTag")}
+                                  </span>
+                                  {c.capabilities?.trigger && (
+                                    <button
+                                      onClick={() => control(c.id, "TRIGGER", w.id)}
+                                      disabled={ctlBusy === c.id}
+                                      className="bv-btn bv-btn-ghost bv-btn-sm bv-btn-icon disabled:opacity-50"
+                                      title={t("app.connections.trigger")}
+                                    >
+                                      <span className="material-symbols-outlined" style={{ fontSize: 14 }}>play_arrow</span>
+                                    </button>
+                                  )}
+                                  {c.capabilities?.pauseResume && (
+                                    <button
+                                      onClick={() => control(c.id, w.active ? "PAUSE" : "RESUME", w.id)}
+                                      disabled={ctlBusy === c.id}
+                                      className="bv-btn bv-btn-ghost bv-btn-sm bv-btn-icon disabled:opacity-50"
+                                      title={w.active ? t("app.connections.pause") : t("app.connections.resume")}
+                                    >
+                                      <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+                                        {w.active ? "pause" : "play_circle"}
+                                      </span>
+                                    </button>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          )
+                        ) : c.capabilities?.trigger ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              value={webhookUrl[c.id] ?? ""}
+                              onChange={(e) => setWebhookUrl((p) => ({ ...p, [c.id]: e.target.value }))}
+                              placeholder={t("app.connections.webhookUrlPlaceholder")}
+                              className="flex-1 px-3 py-2 rounded-xl text-sm text-on-surface outline-none"
+                              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                            />
+                            <button
+                              onClick={() => control(c.id, "TRIGGER", webhookUrl[c.id] ?? "")}
+                              disabled={!webhookUrl[c.id] || ctlBusy === c.id}
+                              className="bv-btn bv-btn-primary bv-btn-sm disabled:opacity-50"
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>bolt</span>
+                              {t("app.connections.triggerWebhook")}
+                            </button>
+                          </div>
+                        ) : (
+                          <p className="bv-caption">{t("app.connections.monitorOnly")}</p>
+                        )}
+                        {ctlMsg[c.id] && (
+                          <p
+                            className="bv-caption mt-2"
+                            style={{ color: ctlMsg[c.id].ok ? "#60A5FA" : "var(--bv-status-failed)" }}
+                          >
+                            {ctlMsg[c.id].text}
+                          </p>
+                        )}
+                      </div>
                       <div className="bv-divider" />
                       <div className="px-5 py-4">
                         {!runs[c.id] ? (

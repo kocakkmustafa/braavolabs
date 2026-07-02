@@ -20,6 +20,15 @@ export interface ToolMeta {
    * money-gated without per-tool edits.
    */
   moneyTouching?: boolean;
+  /**
+   * Control of a CONNECTED external automation (n8n / Make / Zapier). Like
+   * `interrupt`, the executor intercepts this BEFORE the spend gate: it opens
+   * an EXTERNAL_CONTROL approval carrying the intent and pauses the run; the
+   * decide handler runs the action on approve. `moneyTouching` stays a
+   * defence-in-depth fallback so the call is never ungated if the branch is
+   * bypassed.
+   */
+  externalControl?: boolean;
 }
 
 export type AgentAutonomyLevel = "SUPERVISED" | "BALANCED" | "AUTONOMOUS";
@@ -1540,6 +1549,38 @@ registerTool({
   meta: { requiresApproval: false, riskLevel: "low", interrupt: "INPUT" },
   handler: async (input) => {
     return { status: "PENDING_INPUT", ...(input as object) };
+  },
+});
+
+// ─── EXTERNAL-AUTOMATION CONTROL (the #4 moat — gated) ──
+//
+// external_control lets an agent act on a CONNECTED automation (n8n / Make /
+// Zapier): trigger a run, pause or resume it. Intercepted by tool-executor
+// (meta.externalControl): it opens an EXTERNAL_CONTROL Approval carrying the
+// intent, drives the run to WAITING_APPROVAL, and pushes — so a human approves
+// from the dashboard OR the phone (same approvals queue the app already shows).
+// On approve the decide handler runs the real action and feeds the outcome
+// back as a SteeringMessage(INPUT) the loop injects on resume. The handler
+// below never runs on the governed path; it's a safe no-op otherwise.
+registerTool({
+  name: "external_control",
+  description:
+    "Control one of the workspace's CONNECTED external automations (n8n / Make / Zapier): trigger a run, or pause/resume it. The action ALWAYS requires human approval first — the operator approves from the dashboard or their phone, then it runs. List the connection's automations to get the right connectionId and targetId before calling.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      connectionId: { type: "string", description: "Id of the connected external automation (from the connections list)." },
+      action: { type: "string", enum: ["TRIGGER", "PAUSE", "RESUME"], description: "TRIGGER a run, PAUSE the automation, or RESUME it." },
+      targetId: { type: "string", description: "The platform's workflow/scenario id — or, for a generic/Zapier trigger, the full https webhook URL." },
+    },
+    required: ["connectionId", "action", "targetId"],
+  },
+  // Intercepted by the executor's externalControl branch before any gate.
+  // moneyTouching:true is a fail-safe so it's never ungated if that branch is
+  // removed; requiresApproval:true keeps it gated under every autonomy level.
+  meta: { requiresApproval: true, riskLevel: "high", moneyTouching: true, externalControl: true },
+  handler: async (input) => {
+    return { status: "PENDING_APPROVAL", ...(input as object) };
   },
 });
 

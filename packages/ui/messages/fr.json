@@ -838,7 +838,21 @@
       "connecting": "Connexion…",
       "validatedOk": "Connecté ✓ — {n} exécutions récentes trouvées",
       "validatedFail": "Impossible de l'atteindre : {error}",
-      "validatedFailHint": "La connexion a été enregistrée — nous réessaierons selon le calendrier. Vérifiez l'URL et la clé API."
+      "validatedFailHint": "La connexion a été enregistrée — nous réessaierons selon le calendrier. Vérifiez l'URL et la clé API.",
+      "controlTitle": "Contrôle",
+      "automations": "Automatisations",
+      "discovering": "Chargement des automatisations…",
+      "noAutomations": "Aucune automatisation trouvée",
+      "trigger": "Déclencher",
+      "pause": "Suspendre",
+      "resume": "Reprendre",
+      "activeTag": "Active",
+      "pausedTag": "Suspendue",
+      "monitorOnly": "Surveillance uniquement — cette plateforme n'expose aucune API de contrôle.",
+      "triggerWebhook": "Déclencher le webhook",
+      "webhookUrlPlaceholder": "https://hooks.zapier.com/…",
+      "controlOk": "Terminé",
+      "controlFailed": "Échec de l'action"
     },
     "runsList": {
       "activity": "Activité",

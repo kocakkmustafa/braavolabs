@@ -18,7 +18,7 @@ import { makeAdapter } from "./adapters/make";
 import { genericAdapter } from "./adapters/generic";
 import type { ExternalAdapter, NormalizedExecution } from "./adapters/types";
 
-const ADAPTERS: Record<string, ExternalAdapter> = {
+export const ADAPTERS: Record<string, ExternalAdapter> = {
   N8N: n8nAdapter,
   MAKE: makeAdapter,
   // Zapier has no public task-history read API, so it polls a user-exposed

@@ -1,7 +1,9 @@
 import {
   assertPublicUrl,
+  type ControlResult,
   type ExternalAdapter,
   type ExternalConnConfig,
+  type ExternalWorkflowSummary,
   type FetchResult,
   type NormalizedExecution,
   type NormalizedStatus,
@@ -20,6 +22,28 @@ function mapStatus(e: any): NormalizedStatus {
   return "PENDING";
 }
 
+/** Build an n8n public-API URL from the instance base + a relative path. */
+async function n8nUrl(baseUrl: string, path: string): Promise<URL> {
+  const base = await assertPublicUrl(baseUrl);
+  const root = base.toString().endsWith("/") ? base : new URL(base.toString() + "/");
+  return new URL(path, root);
+}
+
+/** GET/POST against the n8n API with the shared header + a 12s timeout. */
+async function n8nFetch(url: URL, apiKey: string, init?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12_000);
+  try {
+    return await fetch(url.toString(), {
+      ...init,
+      headers: { "X-N8N-API-KEY": apiKey, Accept: "application/json" },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * n8n adapter. Uses the public API: GET {baseUrl}/api/v1/executions with the
  * `X-N8N-API-KEY` header (the same header the outbound webhook bridge uses).
@@ -27,6 +51,9 @@ function mapStatus(e: any): NormalizedStatus {
  */
 export const n8nAdapter: ExternalAdapter = {
   platform: "N8N",
+  // n8n's public API can list + activate/deactivate workflows, but cannot start
+  // a run (that's a trigger-node/webhook concern) nor stop a live execution.
+  capabilities: { discover: true, trigger: false, pauseResume: true, stopExecution: false },
   async fetchExecutions(cfg: ExternalConnConfig): Promise<FetchResult> {
     const base = await assertPublicUrl(cfg.baseUrl);
     const u = new URL("api/v1/executions", base.toString().endsWith("/") ? base : new URL(base.toString() + "/"));
@@ -61,5 +88,23 @@ export const n8nAdapter: ExternalAdapter = {
     } finally {
       clearTimeout(timer);
     }
+  },
+
+  async discoverWorkflows(cfg: ExternalConnConfig): Promise<ExternalWorkflowSummary[]> {
+    const u = await n8nUrl(cfg.baseUrl, "api/v1/workflows");
+    u.searchParams.set("limit", "100");
+    const res = await n8nFetch(u, cfg.apiKey);
+    if (!res.ok) throw new Error(`n8n API returned ${res.status}`);
+    const body = (await res.json()) as { data?: any[] };
+    const list = Array.isArray(body.data) ? body.data : [];
+    return list.map((w) => ({ id: String(w.id), name: w.name ?? `workflow ${w.id}`, active: !!w.active }));
+  },
+
+  async setActive(cfg: ExternalConnConfig, targetId: string, active: boolean): Promise<ControlResult> {
+    const verb = active ? "activate" : "deactivate";
+    const u = await n8nUrl(cfg.baseUrl, `api/v1/workflows/${encodeURIComponent(targetId)}/${verb}`);
+    const res = await n8nFetch(u, cfg.apiKey, { method: "POST" });
+    if (!res.ok) throw new Error(`n8n ${verb} returned ${res.status}`);
+    return { ok: true, detail: `Workflow ${active ? "resumed" : "paused"}`, raw: { workflowId: targetId, active } };
   },
 };

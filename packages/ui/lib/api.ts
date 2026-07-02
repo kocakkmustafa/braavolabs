@@ -760,4 +760,21 @@ export const api = {
     apiFetch<any>(`/external-connections/${id}/poll`, { method: "POST", token }),
   externalRuns: (token: string, id: string) =>
     apiFetch<any[]>(`/external-connections/${id}/runs`, { token }),
+  // Control plane — discover the platform's automations and act on them
+  // (trigger / pause / resume). Capabilities ride along on the list response.
+  discoverExternalWorkflows: (token: string, id: string) =>
+    apiFetch<{ id: string; name: string; active?: boolean }[]>(
+      `/external-connections/${id}/workflows`,
+      { token },
+    ),
+  controlExternalConnection: (
+    token: string,
+    id: string,
+    body: { type: "TRIGGER" | "PAUSE" | "RESUME" | "STOP"; targetId: string },
+  ) =>
+    apiFetch<{ ok: boolean; detail?: string }>(`/external-connections/${id}/control`, {
+      method: "POST",
+      body: JSON.stringify(body),
+      token,
+    }),
 };

@@ -838,7 +838,21 @@
       "connecting": "Wird verbunden…",
       "validatedOk": "Verbunden ✓ — {n} aktuelle Ausführungen gefunden",
       "validatedFail": "Nicht erreichbar: {error}",
-      "validatedFailHint": "Die Verbindung wurde gespeichert — wir versuchen es planmäßig erneut. Prüfe URL und API-Schlüssel."
+      "validatedFailHint": "Die Verbindung wurde gespeichert — wir versuchen es planmäßig erneut. Prüfe URL und API-Schlüssel.",
+      "controlTitle": "Steuerung",
+      "automations": "Automatisierungen",
+      "discovering": "Automatisierungen werden geladen…",
+      "noAutomations": "Keine Automatisierungen gefunden",
+      "trigger": "Auslösen",
+      "pause": "Pausieren",
+      "resume": "Fortsetzen",
+      "activeTag": "Aktiv",
+      "pausedTag": "Pausiert",
+      "monitorOnly": "Nur Überwachung — diese Plattform bietet keine Steuerungs-API.",
+      "triggerWebhook": "Webhook auslösen",
+      "webhookUrlPlaceholder": "https://hooks.zapier.com/…",
+      "controlOk": "Fertig",
+      "controlFailed": "Aktion fehlgeschlagen"
     },
     "runsList": {
       "activity": "Aktivität",

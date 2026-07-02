@@ -1454,6 +1454,14 @@ enum ApprovalType {
   // the question; the operator's answer arrives as a SteeringMessage(INPUT)
   // which resolves this approval and resumes the run.
   INPUT
+  // Agent requested control of a CONNECTED external automation (trigger / pause
+  // / resume an n8n / Make / Zapier run). metadata carries {connectionId,
+  // action, targetId}; on APPROVE the decide handler runs the action
+  // (runControlAction) and feeds the outcome back as a SteeringMessage(INPUT)
+  // so the run resumes with the result. This is the "gate" half of the
+  // external-automation control plane — and it surfaces in the same approvals
+  // queue the mobile app already renders, so phone approval needs no app code.
+  EXTERNAL_CONTROL
 }
 
 enum ApprovalStatus {

@@ -15,6 +15,7 @@ import { AppError } from "../../middleware/error";
 import { encrypt } from "../../lib/encryption";
 import { assertPublicUrl } from "./adapters/types";
 import { pollConnection, credentialsAad, validateConnectionCredentials } from "./poller";
+import { capabilitiesFor, listExternalWorkflows, runControlAction } from "./control";
 
 export const externalRouter = Router();
 externalRouter.use(authMiddleware);
@@ -145,7 +146,9 @@ externalRouter.get("/", async (req, res, next) => {
       select: PUBLIC_SELECT,
       orderBy: { createdAt: "desc" },
     });
-    res.json(conns);
+    // Attach the platform's honest control capabilities so the UI knows which
+    // buttons (trigger / pause / stop) to render per connection.
+    res.json(conns.map((c) => ({ ...c, capabilities: capabilitiesFor(c.platform) })));
   } catch (err) { next(err); }
 });
 
@@ -223,5 +226,37 @@ externalRouter.get("/:id/runs", async (req, res, next) => {
       take: 50,
     });
     res.json(runs);
+  } catch (err) { next(err); }
+});
+
+// ── Control plane ──────────────────────────────────────────────
+
+const controlSchema = z.object({
+  type: z.enum(["TRIGGER", "PAUSE", "RESUME", "STOP"]),
+  // workflow/scenario id, execution id, or (GENERIC trigger) a full https URL.
+  targetId: z.string().min(1).max(2000),
+});
+
+// GET /api/v1/external-connections/:id/workflows — list automations on the platform
+externalRouter.get("/:id/workflows", async (req, res, next) => {
+  try {
+    const conn = await prisma.externalConnection.findFirst({
+      where: { id: req.params.id, tenantId: req.auth!.tenantId },
+    });
+    if (!conn) throw new AppError(404, "Connection not found");
+    res.json(await listExternalWorkflows(conn));
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/external-connections/:id/control — trigger / pause / resume / stop
+externalRouter.post("/:id/control", async (req, res, next) => {
+  try {
+    const conn = await prisma.externalConnection.findFirst({
+      where: { id: req.params.id, tenantId: req.auth!.tenantId },
+    });
+    if (!conn) throw new AppError(404, "Connection not found");
+    const { type, targetId } = controlSchema.parse(req.body);
+    const result = await runControlAction({ conn, actor: req.auth!.userId, type, targetId });
+    res.json(result);
   } catch (err) { next(err); }
 });

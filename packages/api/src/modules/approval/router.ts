@@ -3,6 +3,7 @@ import { authMiddleware } from "../../middleware/auth";
 import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { enqueueRun } from "../pipeline/runner";
+import { runControlAction } from "../external/control";
 import { z } from "zod";
 import {
   type ApprovalArtifact,
@@ -182,6 +183,40 @@ approvalRouter.post("/:id/decide", async (req, res, next) => {
 
     if (!result.won) {
       throw new AppError(409, "Approval was just decided by another admin");
+    }
+
+    // EXTERNAL_CONTROL: the approved decision is a control command on a
+    // connected automation (trigger / pause / resume). Run it now — OUTSIDE the
+    // transaction, since it does network I/O — then feed the outcome back to the
+    // agent as a SteeringMessage(INPUT) so the run resumes with the result. A
+    // failure does NOT block resume: the agent sees the error and decides next.
+    if (decision === "APPROVED" && approval.type === "EXTERNAL_CONTROL") {
+      const meta =
+        approval.metadata && typeof approval.metadata === "object" && !Array.isArray(approval.metadata)
+          ? (approval.metadata as Record<string, unknown>)
+          : {};
+      const connectionId = typeof meta.connectionId === "string" ? meta.connectionId : "";
+      const action = (typeof meta.action === "string" ? meta.action : "") as "TRIGGER" | "PAUSE" | "RESUME";
+      const targetId = typeof meta.targetId === "string" ? meta.targetId : "";
+      let resultText: string;
+      try {
+        const conn = await prisma.externalConnection.findFirst({
+          where: { id: connectionId, tenantId: req.auth!.tenantId },
+        });
+        if (!conn) throw new Error("connection not found");
+        const r = await runControlAction({ conn, actor: req.auth!.userId, type: action, targetId });
+        resultText = `External control ${action} executed: ${r.detail ?? "ok"}`;
+      } catch (err) {
+        resultText = `External control ${action} failed: ${err instanceof Error ? err.message : String(err)}`;
+      }
+      await prisma.steeringMessage.create({
+        data: {
+          runId: approval.runId,
+          kind: "INPUT",
+          content: resultText.slice(0, 4000),
+          createdBy: req.auth!.userId,
+        },
+      });
     }
 
     // On APPROVED, the run is now back to RUNNING but no BullMQ worker is
