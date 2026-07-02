@@ -135,6 +135,13 @@ export interface AgentLoopResult {
    * provider function-calling; "prompt-fallback" = the model rejected the
    * tools payload and the loop downgraded to prompt-embedded descriptions. */
   toolUseMode?: "native" | "prompt-fallback";
+  /** Provider that ACTUALLY served this loop (E2/T5 — D-010). Consumers
+   * that persist run metadata (bench) record these instead of the values
+   * they merely requested. */
+  provider?: AIProviderType;
+  /** Model that actually ran — after the §2.4 hierarchy resolution
+   * (Agent.model > tenant model > provider default). */
+  model?: string;
 }
 
 /**
@@ -623,6 +630,10 @@ export async function runProviderAgentLoop(
     totalCostUsd: totalCost,
     totalToolCalls,
     toolUseMode,
+    // Actually-used provider/model (E2/T5) — `model` is the post-hierarchy
+    // resolution, i.e. what really went on the wire.
+    provider: callConfig.provider,
+    model,
   };
 }
 
@@ -649,7 +660,23 @@ export async function runAgentLoop(config: {
    * REQUIRED for any loop invoked from a pipeline run.
    */
   govContext?: AgentGovContext;
+  /**
+   * Force this exact provider config (E2/T5 — D-010): skips tenant
+   * resolution, the trial path AND the local-CLI mode. Used by consumers
+   * that must hit the REAL provider×model they claim to measure — bench
+   * (env-keyed, tenant-less) and the T8 compare mode. Tenant pipeline
+   * runs never set it.
+   */
+  aiConfigOverride?: AIClientConfig;
 }): Promise<AgentLoopResult> {
+  // Forced provider config wins over everything, local-CLI mode included —
+  // an override is an explicit "go to this wire" order (bench previously
+  // ran tenant-less and always landed on system Anthropic while the
+  // BenchRun row claimed opts.provider — D-010).
+  if (config.aiConfigOverride) {
+    return runProviderAgentLoop(config, config.aiConfigOverride);
+  }
+
   // Route to local CLI if configured
   if (isLocalMode) {
     logger.info("Using local Claude CLI for agent loop");

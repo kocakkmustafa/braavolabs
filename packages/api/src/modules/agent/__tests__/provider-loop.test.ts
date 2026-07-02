@@ -444,6 +444,57 @@ describe("unified loop — trial Groq path", () => {
   });
 });
 
+// ── aiConfigOverride (E2/T5 — D-010 bench provider forcing) ──
+
+describe("runAgentLoop — aiConfigOverride skips tenant resolution", () => {
+  it("forces the exact provider config through to chatCompletion's provider switch", async () => {
+    chatCompletionMock.mockResolvedValue(
+      completion({ content: "forced", provider: "DEEPSEEK", model: "deepseek-chat" }),
+    );
+
+    const result = await runAgentLoop({
+      systemPrompt: "sys",
+      userMessage: "go",
+      toolNames: [],
+      // tenantId present on purpose — the override must still win and the
+      // tenant/trial resolution paths must never be consulted.
+      tenantId: "tenant-1",
+      model: "deepseek-chat",
+      aiConfigOverride: { provider: "DEEPSEEK", model: "deepseek-chat", apiKey: "bench-env-key" },
+    });
+
+    expect(getTenantAIConfigMock).not.toHaveBeenCalled();
+    expect(tryConsumeTrialRunMock).not.toHaveBeenCalled();
+    // The override config is what reaches the chatCompletion provider switch.
+    const cfg = chatCompletionMock.mock.calls[0][0] as AIClientConfig;
+    expect(cfg).toMatchObject({
+      provider: "DEEPSEEK",
+      model: "deepseek-chat",
+      apiKey: "bench-env-key",
+    });
+    // The loop reports the actually-used provider/model back (bench
+    // persists these on the BenchRun row).
+    expect(result.provider).toBe("DEEPSEEK");
+    expect(result.model).toBe("deepseek-chat");
+  });
+
+  it("resolves the model hierarchy against the OVERRIDE provider (incompatible agent model falls to the override model)", async () => {
+    chatCompletionMock.mockResolvedValue(completion({ content: "ok", provider: "GROQ" }));
+
+    const result = await runAgentLoop({
+      systemPrompt: "sys",
+      userMessage: "go",
+      toolNames: [],
+      model: "claude-sonnet-4-20250514", // incompatible with GROQ → skipped
+      aiConfigOverride: { provider: "GROQ", model: "llama-3.1-8b-instant", apiKey: "gsk-bench" },
+    });
+
+    const cfg = chatCompletionMock.mock.calls[0][0] as AIClientConfig;
+    expect(cfg.model).toBe("llama-3.1-8b-instant");
+    expect(result.model).toBe("llama-3.1-8b-instant");
+  });
+});
+
 // ── System-path guard parity ──
 
 describe("unified loop — system Anthropic fallback guard", () => {
