@@ -9,6 +9,7 @@
 
 import {
   NodeSDK,
+  NodeTracerProvider,
   api,
   resources,
   tracing,
@@ -23,7 +24,7 @@ export function initTelemetry(): void {
   // Only initialize if OTEL exporter is configured
   const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
 
-  const resource = new resources.Resource({
+  const resource = resources.resourceFromAttributes({
     "service.name": "ai-company-os-api",
     "service.version": process.env.npm_package_version ?? "0.1.0",
     "deployment.environment": process.env.NODE_ENV ?? "development",
@@ -37,10 +38,12 @@ export function initTelemetry(): void {
     sdk = new NodeSDK({
       resource,
       traceExporter: new OTLPTraceExporter({ url: `${otlpEndpoint}/v1/traces` }),
-      metricReader: new metricsModule.PeriodicExportingMetricReader({
-        exporter: new OTLPMetricExporter({ url: `${otlpEndpoint}/v1/metrics` }),
-        exportIntervalMillis: 30_000,
-      }),
+      metricReaders: [
+        new metricsModule.PeriodicExportingMetricReader({
+          exporter: new OTLPMetricExporter({ url: `${otlpEndpoint}/v1/metrics` }),
+          exportIntervalMillis: 30_000,
+        }),
+      ],
     });
     sdk.start();
   } else {
@@ -48,10 +51,13 @@ export function initTelemetry(): void {
     const consoleExporter = new tracing.ConsoleSpanExporter();
     const spanProcessor = new tracing.SimpleSpanProcessor(consoleExporter);
 
-    const tracerProvider = new tracing.BasicTracerProvider({
+    // SDK 2.x: addSpanProcessor/register removed from BasicTracerProvider —
+    // pass spanProcessors via constructor and use NodeTracerProvider to
+    // register the provider globally.
+    const tracerProvider = new NodeTracerProvider({
       resource,
+      spanProcessors: [spanProcessor],
     });
-    tracerProvider.addSpanProcessor(spanProcessor);
     tracerProvider.register();
   }
 }
