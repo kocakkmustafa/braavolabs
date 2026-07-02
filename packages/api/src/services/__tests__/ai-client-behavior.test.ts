@@ -22,13 +22,18 @@ const envMock = vi.hoisted(() => ({
 }));
 vi.mock("../../config/env", () => ({ env: envMock }));
 
-const db = vi.hoisted(() => ({ findUnique: vi.fn() }));
+// Multi-key BYOK (E2/T6): getTenantAIConfig resolves the tenant's DEFAULT
+// row via findFirst (isDefault-first ordering) instead of the old
+// findUnique-on-tenantId — the mock follows the new query shape.
+const db = vi.hoisted(() => ({ findFirst: vi.fn() }));
 vi.mock("../../lib/db", () => ({
   prisma: {
     userAIConfig: {
-      findUnique: (...a: unknown[]) => db.findUnique(...a),
+      findFirst: (...a: unknown[]) => db.findFirst(...a),
+      updateMany: vi.fn(),
       upsert: vi.fn(),
     },
+    $transaction: (ops: unknown[]) => Promise.all(ops as Promise<unknown>[]),
   },
 }));
 
@@ -60,7 +65,7 @@ function stubFetch(impl: (...a: any[]) => any) {
 }
 
 beforeEach(() => {
-  db.findUnique.mockReset();
+  db.findFirst.mockReset();
   crypto.decryptForTenant.mockReset();
   envMock.ANTHROPIC_API_KEY = "sk-ant-system-key";
 });
@@ -71,7 +76,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("getTenantAIConfig — decrypt failure fallback (D-002)", () => {
   it("cloud provider with an undecryptable key falls back to the system Anthropic default", async () => {
-    db.findUnique.mockResolvedValue({
+    db.findFirst.mockResolvedValue({
       tenantId: TENANT,
       provider: "GROQ",
       model: "llama-3.3-70b-versatile",
@@ -95,7 +100,7 @@ describe("getTenantAIConfig — decrypt failure fallback (D-002)", () => {
 
   it("cloud provider with an undecryptable key and NO system key throws a meaningful error", async () => {
     envMock.ANTHROPIC_API_KEY = "";
-    db.findUnique.mockResolvedValue({
+    db.findFirst.mockResolvedValue({
       tenantId: TENANT,
       provider: "DEEPSEEK",
       model: "deepseek-chat",
@@ -110,7 +115,7 @@ describe("getTenantAIConfig — decrypt failure fallback (D-002)", () => {
   });
 
   it("local provider with an undecryptable key keeps its own config (keyless is valid)", async () => {
-    db.findUnique.mockResolvedValue({
+    db.findFirst.mockResolvedValue({
       tenantId: TENANT,
       provider: "OLLAMA",
       model: "gemma3:4b",
@@ -130,7 +135,7 @@ describe("getTenantAIConfig — decrypt failure fallback (D-002)", () => {
   });
 
   it("cloud provider with a valid key returns the decrypted tenant config", async () => {
-    db.findUnique.mockResolvedValue({
+    db.findFirst.mockResolvedValue({
       tenantId: TENANT,
       provider: "GROQ",
       model: "llama-3.3-70b-versatile",
@@ -147,7 +152,7 @@ describe("getTenantAIConfig — decrypt failure fallback (D-002)", () => {
   });
 
   it("no tenant row → system Anthropic default", async () => {
-    db.findUnique.mockResolvedValue(null);
+    db.findFirst.mockResolvedValue(null);
 
     const config = await getTenantAIConfig(TENANT);
 

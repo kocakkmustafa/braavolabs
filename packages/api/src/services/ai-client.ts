@@ -966,10 +966,17 @@ function envOfflineMode(): boolean {
 /**
  * Load the AI config for a tenant, falling back to system defaults.
  * Returns a ready-to-use AIClientConfig with decrypted API key.
+ *
+ * Multi-key BYOK (E2/T6): a tenant now keeps one UserAIConfig row per
+ * provider; this resolves to the DEFAULT row (isDefault=true). The
+ * createdAt tiebreaker keeps legacy single-row tenants deterministic even
+ * if a row somehow lost its default flag. Walking the OTHER rows as a
+ * failover chain is T7's job — this function stays single-row semantics.
  */
 export async function getTenantAIConfig(tenantId: string): Promise<AIClientConfig> {
-  const aiConfig = await prisma.userAIConfig.findUnique({
+  const aiConfig = await prisma.userAIConfig.findFirst({
     where: { tenantId },
+    orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
   });
 
   if (aiConfig) {
@@ -1020,7 +1027,15 @@ export async function getTenantAIConfig(tenantId: string): Promise<AIClientConfi
 
 /** Encrypt and save tenant AI config. baseUrl is optional and only set
  * when present (used by OLLAMA / LMSTUDIO / CUSTOM, plus rare cases like
- * Azure-OpenAI proxies). apiKey is optional for local providers. */
+ * Azure-OpenAI proxies). apiKey is optional for local providers.
+ *
+ * Multi-key BYOK (E2/T6): upserts the (tenant, provider) row and promotes
+ * it to the tenant's DEFAULT config — preserving the legacy contract of
+ * PUT /settings/ai-config ("this is now my active provider"). Sibling
+ * rows are demoted first inside the same transaction so the partial
+ * unique index (one default per tenant) can never fire; the demoted rows
+ * keep their encrypted keys and remain available as failover links (T7).
+ */
 export async function saveTenantAIConfig(
   tenantId: string,
   provider: AIProviderType,
@@ -1031,9 +1046,17 @@ export async function saveTenantAIConfig(
   const encryptedApiKey = apiKey ? encryptForTenant(apiKey, tenantId) : null;
   const trimmedBaseUrl = baseUrl?.trim() || null;
 
-  await prisma.userAIConfig.upsert({
-    where: { tenantId },
-    update: { provider, model, encryptedApiKey, baseUrl: trimmedBaseUrl },
-    create: { tenantId, provider, model, encryptedApiKey, baseUrl: trimmedBaseUrl },
-  });
+  await prisma.$transaction([
+    // Demote-then-promote: order matters — the one-default-per-tenant
+    // partial unique index is checked per statement (non-deferrable).
+    prisma.userAIConfig.updateMany({
+      where: { tenantId, NOT: { provider }, isDefault: true },
+      data: { isDefault: false },
+    }),
+    prisma.userAIConfig.upsert({
+      where: { tenantId_provider: { tenantId, provider } },
+      update: { model, encryptedApiKey, baseUrl: trimmedBaseUrl, isDefault: true },
+      create: { tenantId, provider, model, encryptedApiKey, baseUrl: trimmedBaseUrl, isDefault: true },
+    }),
+  ]);
 }

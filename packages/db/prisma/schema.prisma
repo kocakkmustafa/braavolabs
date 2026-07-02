@@ -32,16 +32,20 @@ model Tenant {
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
 
-  users              User[]
-  companies          Company[]
-  usageMeters        UsageMeter[]
-  activityLog        ActivityLog[]
-  aiConfig           UserAIConfig?
-  abTests            AbTest[]
-  pipelineLicenses   PipelineLicense[]
+  users               User[]
+  companies           Company[]
+  usageMeters         UsageMeter[]
+  activityLog         ActivityLog[]
+  // Multi-key BYOK (E2/T6): one row per (tenant, provider) — the old
+  // singular `aiConfig` relation became 1-N. The active config is the
+  // row with isDefault=true; the rest form the failover chain (T7).
+  aiConfigs           UserAIConfig[]
+  abTests             AbTest[]
+  pipelineLicenses    PipelineLicense[]
   mobileSubscriptions MobileSubscription[]
-  oidcConnection     OidcConnection?
+  oidcConnection      OidcConnection?
   externalConnections ExternalConnection[]
+  mediaAssets         MediaAsset[]
 
   @@map("tenants")
 }
@@ -49,23 +53,77 @@ model Tenant {
 // ─── AI PROVIDER CONFIG ─────────────────────────────────
 
 model UserAIConfig {
-  id              String     @id @default(cuid())
-  tenantId        String     @unique @map("tenant_id")
-  provider        AIProvider @default(ANTHROPIC)
-  model           String     @default("claude-sonnet-4-20250514")
-  encryptedApiKey String?    @map("encrypted_api_key") @db.Text
+  id                  String     @id @default(cuid())
+  tenantId            String     @map("tenant_id")
+  provider            AIProvider @default(ANTHROPIC)
+  model               String     @default("claude-sonnet-4-20250514")
+  encryptedApiKey     String?    @map("encrypted_api_key") @db.Text
   // Custom base URL — used by OLLAMA / LMSTUDIO / CUSTOM providers and
   // optionally by OPENAI for proxies (Azure, OpenRouter-via-OpenAI-shim,
   // LiteLLM, Together, etc). Default per-provider is hardcoded in
   // ai-client.ts; this column is the user override. Empty/NULL means
   // fall back to the provider's default base URL.
-  baseUrl         String?    @map("base_url") @db.Text
-  createdAt       DateTime   @default(now()) @map("created_at")
-  updatedAt       DateTime   @updatedAt @map("updated_at")
+  baseUrl             String?    @map("base_url") @db.Text
+  // Multi-key BYOK (E2/T6, plan §2.3): a tenant keeps one row PER PROVIDER
+  // (composite unique below replaces the old tenantId @unique). Exactly one
+  // row per tenant should carry isDefault=true — that row is the config
+  // getTenantAIConfig resolves to. Enforced at the DB level by a partial
+  // unique index in the migration (Prisma can't express partial indexes)
+  // and at the app level by saveTenantAIConfig's demote-then-promote
+  // transaction.
+  isDefault           Boolean    @default(false) @map("is_default")
+  // Position in the tenant's cross-provider failover chain (T7). NULL =
+  // not part of the chain; lower = tried earlier. The default row is
+  // always the chain head regardless of this value.
+  fallbackOrder       Int?       @map("fallback_order")
+  // Opt-in escape hatch (plan §2.2 / A8): when the tenant's own provider
+  // chain is exhausted, may the run fall back to trial-Groq / system
+  // Anthropic? Default false — sending tenant data to a provider the
+  // tenant did not configure would break the BYOK trust contract.
+  // Evaluated from the tenant's DEFAULT row (isDefault=true).
+  allowSystemFallback Boolean    @default(false) @map("allow_system_fallback")
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  @@unique([tenantId, provider])
+  @@index([tenantId])
   @@map("user_ai_configs")
+}
+
+// ─── MEDIA ASSETS (E2/T9) ───────────────────────────────
+//
+// Binary outputs produced by agent media tools (text_to_speech audio,
+// downloaded video stills, …). Stored as BYTEA with a hard 10MB cap
+// enforced at write time (1.9GB Lightsail host — full body fits in RAM,
+// no streaming needed). Served via GET /api/v1/media/:id with auth +
+// tenant scoping. tenantId is derived from the owning company at write
+// time (registry handlers only carry companyId — plan T9/A8).
+//
+// Retention: expiresAt defaults to now()+30 days at the DB level; an
+// hourly sweep piggybacked on the approval-expiry cron deletes expired
+// rows so unbounded BYTEA growth can't fill the small host disk.
+
+model MediaAsset {
+  id         String   @id @default(cuid())
+  tenantId   String   @map("tenant_id")
+  companyId  String   @map("company_id")
+  // Loose reference to the producing tool call (no FK — tool_calls
+  // cascade away with their run step; the media may outlive the run).
+  toolCallId String?  @map("tool_call_id")
+  mime       String
+  sizeBytes  Int      @map("size_bytes")
+  bytes      Bytes
+  expiresAt  DateTime @default(dbgenerated("(CURRENT_TIMESTAMP + interval '30 days')")) @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([expiresAt])
+  @@map("media_assets")
 }
 
 model User {
@@ -277,6 +335,7 @@ model Company {
   integrations       Integration[]
   abTests            AbTest[]
   voiceAgents        VoiceAgent[]
+  mediaAssets        MediaAsset[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
