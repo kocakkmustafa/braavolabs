@@ -3,6 +3,7 @@
  *
  * Endpoints:
  *   POST /api/v1/research          start a session (async)
+ *   POST /api/v1/research/compare  multi-model compare-and-synthesize (E2/T8)
  *   GET  /api/v1/research          list sessions for the tenant
  *   GET  /api/v1/research/:id      session detail + sources
  *   POST /api/v1/research/:id/cancel
@@ -14,7 +15,7 @@ import { authMiddleware } from "../../middleware/auth";
 import { rateLimit } from "../../middleware/rateLimit";
 import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
-import { startResearch } from "./research.service";
+import { startCompare, startResearch } from "./research.service";
 
 export const researchRouter = Router();
 researchRouter.use(authMiddleware);
@@ -34,6 +35,9 @@ const startSchema = z.object({
   maxRounds: z.number().int().min(1).max(6).optional(),
   maxSources: z.number().int().min(5).max(40).optional(),
   maxCostUsd: z.number().min(0.1).max(10).optional(),
+  // E2/T8: augment the final synthesis with a multi-model compare across
+  // the tenant's configured providers (embedded in findings.multiModel).
+  multiModel: z.boolean().optional(),
 });
 
 researchRouter.post("/", startLimiter, async (req, res, next) => {
@@ -49,6 +53,47 @@ researchRouter.post("/", startLimiter, async (req, res, next) => {
       query: body.query,
       maxRounds: body.maxRounds,
       maxSources: body.maxSources,
+      maxCostUsd: body.maxCostUsd,
+      multiModel: body.multiModel,
+    });
+    res.status(201).json({ id: sessionId, status: "PENDING" });
+  } catch (err) { next(err); }
+});
+
+// ── Multi-model compare-and-synthesize (E2/T8 — plan §2.5) ──
+//
+// Runs ONE task on ≤3 of the tenant's OWN configured providers in
+// parallel, then the tenant-default provider synthesizes (consensus +
+// disagreements + final answer). Async like POST /: returns a session id,
+// poll GET /research/:id — the result lands in findings.multiModel.
+// Costs up to 4 LLM calls per request → same 20/hour ceiling, own bucket.
+const compareLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  maxRequests: 20,
+  keyPrefix: "rl:research:compare",
+});
+
+const compareSchema = z.object({
+  companyId: z.string().min(1),
+  query: z.string().min(5).max(1000),
+  maxCandidates: z.number().int().min(1).max(3).optional(),
+  maxTokensPerCandidate: z.number().int().min(256).max(8192).optional(),
+  maxCostUsd: z.number().min(0.1).max(10).optional(),
+});
+
+researchRouter.post("/compare", compareLimiter, async (req, res, next) => {
+  try {
+    const body = compareSchema.parse(req.body);
+    const company = await prisma.company.findFirst({
+      where: { id: body.companyId, tenantId: req.auth!.tenantId },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+    const { sessionId } = await startCompare({
+      tenantId: req.auth!.tenantId,
+      companyId: body.companyId,
+      query: body.query,
+      maxCandidates: body.maxCandidates,
+      maxTokensPerCandidate: body.maxTokensPerCandidate,
       maxCostUsd: body.maxCostUsd,
     });
     res.status(201).json({ id: sessionId, status: "PENDING" });

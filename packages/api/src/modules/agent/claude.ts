@@ -1,18 +1,32 @@
-import Anthropic from "@anthropic-ai/sdk";
-import type {
-  MessageParam,
-  ContentBlockParam,
-  ToolUseBlock,
-  ToolResultBlockParam,
-  Tool,
-} from "@anthropic-ai/sdk/resources/messages";
+import type { MessageParam } from "@anthropic-ai/sdk/resources/messages";
 import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
 import { getTool } from "./registry";
 import { executeTool, type ToolExecResult } from "./tool-executor";
 import { runLocalAgentLoop } from "./claude-local";
-import { getTenantAIConfig, chatCompletion, type AIClientConfig } from "../../services/ai-client";
-import { tryConsumeTrialRun, commitTrialRun } from "../../services/trial-llm";
+import {
+  chatCompletion,
+  resolveModelForProvider,
+  ToolsUnsupportedError,
+  type AIClientConfig,
+  type AIProviderType,
+  type ChatCompletionResult,
+  type ChatMessage,
+  type ChatToolCall,
+  type ChatToolDef,
+} from "../../services/ai-client";
+import {
+  buildTenantProviderChain,
+  classifyProviderError,
+  isFailoverEligible,
+  isProviderTripped,
+  recordProviderFailure,
+  recordProviderSuccess,
+  type ProviderChainLink,
+  type ProviderChainSource,
+} from "../../services/provider-chain";
+import { priceForModel, FREE_PROVIDERS } from "../../lib/modelPricing";
+import { commitTrialRun } from "../../services/trial-llm";
 import { prisma } from "../../lib/db";
 import { publishRunEvent } from "../../lib/runEvents";
 
@@ -39,8 +53,6 @@ export interface AgentGovContext {
 }
 
 const isLocalMode = env.LLM_PROVIDER === "local";
-// Legacy system-level Anthropic client (used when no tenant config or for Anthropic provider)
-const systemClient = isLocalMode ? null : (env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }) : null);
 
 // HIGH-7 fix: per-model pricing. The previous flat $3/$15 (Sonnet) was
 // applied to every response, including Opus runs at $15/$75 — making
@@ -77,6 +89,34 @@ function priceFor(model: string): { input: number; output: number } {
   return FALLBACK_PRICE;
 }
 
+// E2/T4 (plan §2.6): the flat $2/$8 guess for non-Anthropic providers is
+// gone. Real prices come from lib/modelPricing.ts; unknown models are
+// priced at the gpt-4-turbo class so cost_anomaly_stop (rule #8) trips
+// EARLY, never late. Local/self-hosted providers cost $0 (own hardware).
+const NON_ANTHROPIC_FALLBACK_PRICE = { inputPerM: 10.0, outputPerM: 30.0 };
+
+function costForUsage(
+  provider: AIProviderType,
+  model: string,
+  inputTokens: number,
+  outputTokens: number,
+): number {
+  if (provider === "ANTHROPIC") {
+    const p = priceFor(model);
+    return (inputTokens / 1_000_000) * p.input + (outputTokens / 1_000_000) * p.output;
+  }
+  if (FREE_PROVIDERS.has(provider)) return 0;
+  const price = priceForModel(model);
+  if (!price) {
+    logger.warn(
+      { provider, model },
+      "Unknown non-Anthropic model — pricing at gpt-4-turbo class (fail-expensive)",
+    );
+  }
+  const p = price ?? NON_ANTHROPIC_FALLBACK_PRICE;
+  return (inputTokens / 1_000_000) * p.inputPerM + (outputTokens / 1_000_000) * p.outputPerM;
+}
+
 export interface AgentTurnResult {
   content: string;
   toolCalls: Array<{
@@ -100,12 +140,30 @@ export interface AgentLoopResult {
   totalOutputTokens: number;
   totalCostUsd: number;
   totalToolCalls: number;
+  /** How tools reached the model on this run (E2/T4): "native" =
+   * provider function-calling; "prompt-fallback" = the model rejected the
+   * tools payload and the loop downgraded to prompt-embedded descriptions. */
+  toolUseMode?: "native" | "prompt-fallback";
+  /** Provider that ACTUALLY served this loop (E2/T5 — D-010). Consumers
+   * that persist run metadata (bench) record these instead of the values
+   * they merely requested. */
+  provider?: AIProviderType;
+  /** Model that actually ran — after the §2.4 hierarchy resolution
+   * (Agent.model > tenant model > provider default). */
+  model?: string;
+  /** Which chain link produced the FINAL answer (E2/T7). Only set when the
+   * loop ran with a provider chain; runAgentLoop commits the trial counter
+   * when this is "trial" (a trial link that failed over mid-run did NOT
+   * serve the run and must not burn the slot). */
+  servedBy?: ProviderChainSource;
 }
 
 /**
- * Convert registered tool names to Anthropic tool definitions.
+ * Convert registered tool names to the normalized ChatToolDef contract
+ * (E2/T3). Same source of truth as the old buildAnthropicTools — the
+ * registry's JSON Schema — projected per provider at call time.
  */
-export function buildAnthropicTools(toolNames: string[]): Tool[] {
+export function buildChatToolDefs(toolNames: string[]): ChatToolDef[] {
   return toolNames
     .map((name) => {
       const tool = getTool(name);
@@ -113,10 +171,10 @@ export function buildAnthropicTools(toolNames: string[]): Tool[] {
       return {
         name: tool.name,
         description: tool.description,
-        input_schema: tool.inputSchema as Tool["input_schema"],
-      } as Tool;
+        parameters: tool.inputSchema as Record<string, unknown>,
+      };
     })
-    .filter((t): t is Tool => t !== null);
+    .filter((t): t is ChatToolDef => t !== null);
 }
 
 /**
@@ -133,6 +191,9 @@ async function withRetry<T>(
       return await fn();
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
+      // ToolsUnsupportedError is a capability verdict, not a transient
+      // fault — retrying would send the same doomed payload again.
+      if (lastError instanceof ToolsUnsupportedError) throw lastError;
       const isRetryable =
         lastError.message.includes("overloaded") ||
         lastError.message.includes("529") ||
@@ -142,201 +203,589 @@ async function withRetry<T>(
         lastError.message.includes("503");
       if (!isRetryable || attempt === maxRetries) throw lastError;
       const delay = baseDelayMs * Math.pow(2, attempt) + Math.random() * 500;
-      logger.warn({ attempt: attempt + 1, maxRetries, delayMs: delay }, "Retrying Claude API call");
+      logger.warn({ attempt: attempt + 1, maxRetries, delayMs: delay }, "Retrying AI provider call");
       await new Promise((r) => setTimeout(r, delay));
     }
   }
   throw lastError;
 }
 
+// Concurrency cap on parallel tool execution. A model can emit 20+
+// tool calls in a single turn, each of which may hit an integration
+// (HubSpot, Stripe, SendGrid, …) with its own per-second rate limit.
+// Running them all in parallel with Promise.all triggers those limits,
+// gets us throttled, and then the whole run fails. 5 parallel tool
+// calls keeps each integration comfortably under its bucket while
+// still leaving room for fast-completing tools.
+const TOOL_PARALLELISM = 5;
+
+async function mapWithConcurrency<TItem, TResult>(
+  items: TItem[],
+  limit: number,
+  fn: (item: TItem, index: number) => Promise<TResult>,
+): Promise<TResult[]> {
+  const out: TResult[] = new Array(items.length);
+  let cursor = 0;
+  const workers: Promise<void>[] = [];
+  const workerCount = Math.min(limit, items.length);
+  for (let w = 0; w < workerCount; w++) {
+    workers.push((async () => {
+      while (true) {
+        const i = cursor++;
+        if (i >= items.length) return;
+        out[i] = await fn(items[i], i);
+      }
+    })());
+  }
+  await Promise.all(workers);
+  return out;
+}
+
+/** Parse the normalized tool-call arguments (raw JSON string) into the
+ * object shape the registry's Zod validation expects. Malformed JSON
+ * degrades to {} — the tool's own schema validation reports the miss. */
+function parseToolArgs(argumentsJson: string): unknown {
+  try {
+    const parsed = JSON.parse(argumentsJson);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 /**
- * Execute a single Anthropic API call with tool use.
- * Returns the response and any tool call results.
+ * Execute the tool calls of one turn — provider-agnostic (E2/T4).
  *
- * When govContext is provided, tool calls run through executeTool() which
- * enforces: approval gates, tenant isolation, rate limits, audit logging.
- * Otherwise tools run directly (used only for non-run contexts — e.g.
- * clarification loops that don't hit governed tools).
+ * Governed path (govContext present): every call goes through executeTool()
+ * with approval gate, tenant isolation, rate limits, and audit logging.
+ * Ungoverned path: registry direct, with the fail-closed guards for
+ * approval-required and tenant-scoped (companyId-carrying) tools.
  */
-async function executeTurn(
-  systemPrompt: string,
-  messages: MessageParam[],
-  tools: Tool[],
-  model: string,
-  maxTokens: number,
-  anthropicClient?: Anthropic,
+async function executeToolCalls(
+  toolCalls: ChatToolCall[],
   govContext?: AgentGovContext,
-): Promise<AgentTurnResult> {
-  const client = anthropicClient ?? systemClient;
-  if (!client) {
-    throw new Error("Anthropic API client not initialized. Configure an API key in Settings → AI Provider.");
-  }
+): Promise<AgentTurnResult["toolCalls"]> {
+  return mapWithConcurrency(toolCalls, TOOL_PARALLELISM, async (call) => {
+    const input = parseToolArgs(call.argumentsJson);
 
-  const response = await withRetry(() =>
-    client!.messages.create({
-      model,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages,
-      tools: tools.length > 0 ? tools : undefined,
-    }),
-  );
-
-  const inputTokens = response.usage.input_tokens;
-  const outputTokens = response.usage.output_tokens;
-  // Use the model the API actually responded with (Anthropic returns it
-  // in `response.model`) rather than the requested model — that handles
-  // server-side downgrades and tier overrides correctly.
-  const actualModel = response.model ?? model;
-  const price = priceFor(actualModel);
-  const costUsd =
-    (inputTokens / 1_000_000) * price.input +
-    (outputTokens / 1_000_000) * price.output;
-
-  // Extract text content
-  const textBlocks = response.content.filter((b) => b.type === "text");
-  const content = textBlocks.map((b) => b.text).join("\n");
-
-  // Execute tool calls
-  const toolUseBlocks = response.content.filter(
-    (b): b is ToolUseBlock => b.type === "tool_use",
-  );
-
-  // Concurrency cap on parallel tool execution. Claude can emit 20+
-  // tool_use blocks in a single turn, each of which may hit an
-  // integration (HubSpot, Stripe, SendGrid, …) with its own per-second
-  // rate limit. Running them all in parallel with Promise.all triggers
-  // those limits, gets us throttled, and then the whole run fails.
-  // 5 parallel tool calls keeps each integration comfortably under
-  // its bucket while still leaving room for fast-completing tools.
-  const TOOL_PARALLELISM = 5;
-  async function mapWithConcurrency<TItem, TResult>(
-    items: TItem[],
-    limit: number,
-    fn: (item: TItem, index: number) => Promise<TResult>,
-  ): Promise<TResult[]> {
-    const out: TResult[] = new Array(items.length);
-    let cursor = 0;
-    const workers: Promise<void>[] = [];
-    const workerCount = Math.min(limit, items.length);
-    for (let w = 0; w < workerCount; w++) {
-      workers.push((async () => {
-        while (true) {
-          const i = cursor++;
-          if (i >= items.length) return;
-          out[i] = await fn(items[i], i);
-        }
-      })());
+    // Governed path: approvals, tenant isolation, rate limits, audit log.
+    if (govContext) {
+      const result: ToolExecResult = await executeTool(call.name, input, govContext);
+      const errorMsg =
+        result.status === "PENDING_APPROVAL"
+          ? `Action paused — waiting for spend approval (approval id ${result.approvalId})`
+          : result.error;
+      return {
+        id: call.id,
+        name: call.name,
+        input,
+        output: result.output,
+        durationMs: result.durationMs,
+        ...(errorMsg ? { error: errorMsg } : {}),
+      };
     }
-    await Promise.all(workers);
-    return out;
+
+    // Ungoverned path — only used when no run context (e.g. onboarding,
+    // natural-language builder). Approval-required tools block here for safety.
+    const start = Date.now();
+    const registeredTool = getTool(call.name);
+
+    if (!registeredTool) {
+      return {
+        id: call.id,
+        name: call.name,
+        input,
+        output: null,
+        durationMs: Date.now() - start,
+        error: `Tool "${call.name}" not found in registry`,
+      };
+    }
+
+    if (registeredTool.meta?.requiresApproval) {
+      return {
+        id: call.id,
+        name: call.name,
+        input,
+        output: null,
+        durationMs: Date.now() - start,
+        error: `Tool "${call.name}" requires spend approval and cannot run outside a governed pipeline run`,
+      };
+    }
+
+    // Defense in depth: tools that take a companyId touch tenant-scoped
+    // DB rows. The ungoverned path skips enforceTenantScopedCompany()
+    // (it has no tenantId to compare against), so any tool with a
+    // companyId field MUST run via a governed pipeline. Refusing here
+    // means a future caller that omits govContext can never silently
+    // escalate cross-tenant — they get an obvious error instead.
+    const inputObj = (input ?? {}) as Record<string, unknown>;
+    if ("companyId" in inputObj) {
+      return {
+        id: call.id,
+        name: call.name,
+        input,
+        output: null,
+        durationMs: Date.now() - start,
+        error: `Tool "${call.name}" requires a tenant-scoped pipeline run (companyId in input)`,
+      };
+    }
+
+    try {
+      const output = await registeredTool.handler(input);
+      return {
+        id: call.id,
+        name: call.name,
+        input,
+        output,
+        durationMs: Date.now() - start,
+      };
+    } catch (err) {
+      const error = err instanceof Error ? err.message : String(err);
+      logger.error({ tool: call.name, error }, "Tool execution failed");
+      return {
+        id: call.id,
+        name: call.name,
+        input,
+        output: null,
+        durationMs: Date.now() - start,
+        error,
+      };
+    }
+  });
+}
+
+/**
+ * Mid-run steering (Phase 1 HITL — the v2 moat), extracted loop-independent
+ * (E2/T4): drains any operator STEER/INPUT messages queued against this run
+ * and returns them as a guidance string for the caller to inject into its
+ * canonical transcript. Publishes STEERING_APPLIED run events. No-op
+ * (returns null) outside a governed run.
+ */
+async function drainSteeringText(govContext?: AgentGovContext): Promise<string | null> {
+  if (!govContext) return null;
+  try {
+    const pending = await prisma.steeringMessage.findMany({
+      where: { runId: govContext.runId, kind: { in: ["STEER", "INPUT"] }, consumedAt: null },
+      orderBy: { createdAt: "asc" },
+    });
+    if (pending.length === 0) return null;
+    await prisma.steeringMessage.updateMany({
+      where: { id: { in: pending.map((m) => m.id) } },
+      data: { consumedAt: new Date() },
+    });
+    const text = pending
+      .map((m) =>
+        m.kind === "INPUT"
+          ? `[Human-in-the-loop answer]: ${m.content}`
+          : `[Operator steering${m.targetAgentId ? ` for agent ${m.targetAgentId}` : ""}]: ${m.content}`,
+      )
+      .join("\n\n");
+    for (const m of pending) {
+      await publishRunEvent(govContext.runId, {
+        type: "STEERING_APPLIED",
+        targetAgentId: m.targetAgentId ?? undefined,
+        instruction: m.content.slice(0, 200),
+      });
+    }
+    return text;
+  } catch (err) {
+    logger.warn(
+      { runId: govContext.runId, err: (err as Error).message },
+      "steering drain failed (non-fatal)",
+    );
+    return null;
+  }
+}
+
+/** Inject steering guidance into the canonical transcript. Merges into a
+ * trailing user message when present; otherwise appends a fresh user turn
+ * (the per-provider projections keep role alternation valid — tool-result
+ * runs followed by a user turn are folded at projection time). */
+function injectSteering(messages: ChatMessage[], text: string): void {
+  const last = messages[messages.length - 1];
+  if (last && last.role === "user") {
+    last.content = `${last.content}\n\n${text}`;
+  } else {
+    messages.push({ role: "user", content: text });
+  }
+}
+
+/** Legacy prompt-embedding fallback (pre-E2 behaviour for non-Anthropic
+ * providers): serialize tool names/descriptions into the system prompt so
+ * models without native function-calling can still reason about them. */
+function embedToolsInPrompt(systemPrompt: string, toolNames: string[]): string {
+  const toolDescriptions = toolNames
+    .map((name) => {
+      const tool = getTool(name);
+      return tool ? `- ${tool.name}: ${tool.description}` : null;
+    })
+    .filter(Boolean)
+    .join("\n");
+  return toolDescriptions
+    ? `${systemPrompt}\n\nAvailable tools:\n${toolDescriptions}`
+    : systemPrompt;
+}
+
+/** Project the (Anthropic-typed, legacy) context messages into the
+ * canonical ChatMessage transcript. Text blocks are flattened; tool
+ * blocks are dropped (no production caller passes them). */
+function projectContextMessages(context?: MessageParam[]): ChatMessage[] {
+  if (!context?.length) return [];
+  const out: ChatMessage[] = [];
+  for (const m of context) {
+    if (m.role !== "user" && m.role !== "assistant") continue;
+    const content =
+      typeof m.content === "string"
+        ? m.content
+        : m.content
+            .filter((b): b is { type: "text"; text: string } => (b as { type?: string }).type === "text")
+            .map((b) => b.text)
+            .join("\n");
+    if (content) out.push({ role: m.role, content });
+  }
+  return out;
+}
+
+/** Map the normalized stop reason back onto the legacy Anthropic-flavored
+ * strings that AgentTurnResult consumers (and claude-local) already use. */
+function toLegacyStopReason(result: ChatCompletionResult): string {
+  if (result.toolCalls?.length) return "tool_use";
+  switch (result.stopReason) {
+    case "length":
+      return "max_tokens";
+    case "tool_calls":
+      return "tool_use";
+    default:
+      return "end_turn";
+  }
+}
+
+/** One wire call. OpenAI-compatible transports already retry 429/5xx
+ * internally (ai-client.ts); the Anthropic SDK path and the Gemini REST
+ * path don't — wrap those in the legacy exponential backoff. */
+async function callProvider(
+  config: AIClientConfig,
+  systemPrompt: string,
+  messages: ChatMessage[],
+  maxTokens: number,
+  tools?: ChatToolDef[],
+): Promise<ChatCompletionResult> {
+  const invoke = () =>
+    chatCompletion(config, systemPrompt, messages, maxTokens, tools?.length ? { tools } : {});
+  if (config.provider === "ANTHROPIC" || config.provider === "GOOGLE") {
+    return withRetry(invoke);
+  }
+  return invoke();
+}
+
+/** Trial economics guard (plan T4/A8): the unified loop gives trial
+ * tenants REAL tool-use turns — clamp the turn count so a single free run
+ * can't burn ~10 tool-use turns of holding-funded Groq tokens. The trial
+ * counter itself stays run-based (T7 owns any chain-order changes). */
+const TRIAL_MAX_TURNS = 4;
+
+export interface ProviderAgentLoopConfig {
+  systemPrompt: string;
+  userMessage: string;
+  toolNames: string[];
+  model?: string;
+  maxTokens?: number;
+  maxTurns?: number;
+  budgetUsd?: number;
+  context?: MessageParam[];
+  govContext?: AgentGovContext;
+}
+
+/** Failover context for the unified loop (E2/T7). */
+export interface ProviderFailoverOptions {
+  /** Chain links AFTER the entry config — consumed left to right when a
+   * turn dies with a failover-eligible error. */
+  chain?: ProviderChainLink[];
+  /** Source label of the entry aiConfig (chain head). */
+  source?: ProviderChainSource;
+  /** Tenant for circuit-breaker keying + the durable activity_log failover
+   * record. Falls back to govContext.tenantId; hierarchical worker loops
+   * run tenantful but ungoverned, hence the separate field. */
+  tenantId?: string;
+}
+
+/**
+ * THE unified agent loop (E2/T4 — plan §2.2 Karar A). One skeleton for
+ * every provider:
+ *
+ *   canonical transcript (normalized ChatMessage[]) → per-provider
+ *   projection at call time (Anthropic included) → native tool-calls →
+ *   governed executeTool (TOOL_PARALLELISM=5) → tool results appended →
+ *   next turn. Steering drain before each turn; budget check after each.
+ *
+ * Replaces both runAnthropicLoop and the single-shot
+ * runNonAnthropicAgentLoop. Providers/models that reject native tools
+ * (ToolsUnsupportedError, pre-flight or runtime 400) downgrade to the
+ * legacy prompt-embedded single shot and mark toolUseMode:"prompt-fallback".
+ */
+export async function runProviderAgentLoop(
+  config: ProviderAgentLoopConfig,
+  aiConfig: AIClientConfig,
+  failover?: ProviderFailoverOptions,
+): Promise<AgentLoopResult> {
+  const {
+    systemPrompt,
+    userMessage,
+    toolNames,
+    maxTurns = 10,
+    budgetUsd = 1.0,
+    govContext,
+  } = config;
+  // A8: agent-configured maxTokens travels to the wire for EVERY provider
+  // (the old non-Anthropic path hardcoded 4096).
+  const maxTokens = config.maxTokens ?? 4096;
+
+  if (aiConfig.provider === "ANTHROPIC" && !aiConfig.apiKey) {
+    throw new Error(
+      "Anthropic API client not initialized. Configure an API key in Settings → AI Provider.",
+    );
   }
 
-  const toolCallResults = await mapWithConcurrency(
-    toolUseBlocks,
-    TOOL_PARALLELISM,
-    async (block) => {
-      // Governed path: approvals, tenant isolation, rate limits, audit log.
-      if (govContext) {
-        const result: ToolExecResult = await executeTool(block.name, block.input, govContext);
-        const errorMsg =
-          result.status === "PENDING_APPROVAL"
-            ? `Action paused — waiting for spend approval (approval id ${result.approvalId})`
-            : result.error;
-        return {
-          id: block.id,
-          name: block.name,
-          input: block.input,
-          output: result.output,
-          durationMs: result.durationMs,
-          ...(errorMsg ? { error: errorMsg } : {}),
-        };
-      }
+  // Model hierarchy (plan §2.4 / F-020): Agent.model when catalogue-
+  // compatible with the resolved provider > tenant model > provider default.
+  const model = resolveModelForProvider(aiConfig.provider, config.model, aiConfig.model);
+  let callConfig: AIClientConfig = { ...aiConfig, model };
 
-      // Ungoverned path — only used when no run context (e.g. onboarding,
-      // natural-language builder). Approval-required tools block here for safety.
-      const start = Date.now();
-      const registeredTool = getTool(block.name);
+  // ── Turn-boundary failover state (E2/T7, plan §2.2 Karar B) ──
+  // The chain is consumed left to right; each switch re-projects the SAME
+  // canonical transcript onto the next provider (one-way projection — no
+  // bidirectional converters needed, plan A8).
+  const pendingLinks: ProviderChainLink[] = [...(failover?.chain ?? [])];
+  let activeSource: ProviderChainSource | undefined = failover?.source;
+  const cbTenant = failover?.tenantId ?? govContext?.tenantId;
+  let effectiveMaxTurns = maxTurns;
 
-      if (!registeredTool) {
-        return {
-          id: block.id,
-          name: block.name,
-          input: block.input,
-          output: null,
-          durationMs: Date.now() - start,
-          error: `Tool "${block.name}" not found in registry`,
-        };
-      }
+  const toolDefs = buildChatToolDefs(toolNames);
+  let toolUseMode: "native" | "prompt-fallback" = "native";
+  let effectiveSystemPrompt = systemPrompt;
 
-      if (registeredTool.meta?.requiresApproval) {
-        return {
-          id: block.id,
-          name: block.name,
-          input: block.input,
-          output: null,
-          durationMs: Date.now() - start,
-          error: `Tool "${block.name}" requires spend approval and cannot run outside a governed pipeline run`,
-        };
-      }
+  /** Advance to the next chain link. Prefers the first link whose circuit
+   * breaker is closed; when EVERY remaining link is tripped, takes the
+   * head anyway as a half-open probe (a run must not die purely because
+   * the breaker is pessimistic). Publishes PROVIDER_FAILOVER on the run
+   * stream and writes the durable activity_log record (run events are
+   * Redis-only — plan A5). Returns false when the chain is exhausted. */
+  const switchToNextProvider = async (reason: string, turn: number): Promise<boolean> => {
+    let idx = pendingLinks.findIndex((l) => !isProviderTripped(cbTenant, l.provider));
+    if (idx === -1) idx = pendingLinks.length > 0 ? 0 : -1;
+    if (idx === -1) return false;
+    const [next] = pendingLinks.splice(idx, 1);
+    const from = callConfig.provider;
 
-      // Defense in depth: tools that take a companyId touch tenant-scoped
-      // DB rows. The ungoverned path skips enforceTenantScopedCompany()
-      // (it has no tenantId to compare against), so any tool with a
-      // companyId field MUST run via a governed pipeline. Refusing here
-      // means a future caller that omits govContext can never silently
-      // escalate cross-tenant — they get an obvious error instead.
-      const inputObj = (block.input ?? {}) as Record<string, unknown>;
-      if ("companyId" in inputObj) {
-        return {
-          id: block.id,
-          name: block.name,
-          input: block.input,
-          output: null,
-          durationMs: Date.now() - start,
-          error: `Tool "${block.name}" requires a tenant-scoped pipeline run (companyId in input)`,
-        };
-      }
+    callConfig = {
+      ...next.config,
+      // Re-run the §2.4 hierarchy against the NEW provider — the agent's
+      // model may be compatible with one link and not the next.
+      model: resolveModelForProvider(next.provider, config.model, next.config.model),
+    };
+    activeSource = next.source;
+    // A fresh provider gets a fresh chance at NATIVE tool-calling even if
+    // the previous one had degraded to prompt-embedding (the transcript
+    // carries no tool_use blocks in that case, so this is always safe).
+    toolUseMode = "native";
+    effectiveSystemPrompt = systemPrompt;
+    // Trial economics (plan T4/A8): a trial link taking over mid-run may
+    // serve at most TRIAL_MAX_TURNS turns — the CURRENT (retried) turn
+    // counts as its first.
+    if (next.source === "trial") {
+      effectiveMaxTurns = Math.min(effectiveMaxTurns, turn + TRIAL_MAX_TURNS);
+    }
 
+    const truncatedReason = reason.slice(0, 300);
+    logger.warn(
+      { from, to: next.provider, source: next.source, reason: truncatedReason, turn },
+      "Provider failover — advancing to the next link in the tenant chain",
+    );
+    if (govContext) {
+      await publishRunEvent(govContext.runId, {
+        type: "PROVIDER_FAILOVER",
+        stepId: govContext.runStepId,
+        from,
+        to: next.provider,
+        reason: truncatedReason,
+      });
+    }
+    if (cbTenant) {
+      // Durable audit copy (K2 evidence lives here, not in Redis).
       try {
-        const output = await registeredTool.handler(block.input);
-        return {
-          id: block.id,
-          name: block.name,
-          input: block.input,
-          output,
-          durationMs: Date.now() - start,
-        };
+        await prisma.activityLog.create({
+          data: {
+            tenantId: cbTenant,
+            actor: "system",
+            action: "run.provider_failover",
+            resource: "run",
+            resourceId: govContext?.runId ?? null,
+            details: { from, to: next.provider, source: next.source, reason: truncatedReason, turn },
+          },
+        });
       } catch (err) {
-        const error = err instanceof Error ? err.message : String(err);
-        logger.error({ tool: block.name, error }, "Tool execution failed");
-        return {
-          id: block.id,
-          name: block.name,
-          input: block.input,
-          output: null,
-          durationMs: Date.now() - start,
-          error,
-        };
+        logger.warn(
+          { tenantId: cbTenant, err: (err as Error).message },
+          "provider_failover activity log write failed (non-fatal)",
+        );
       }
-    },
-  );
+    }
+    return true;
+  };
+
+  // Canonical transcript — normalized, provider-independent (plan §2.2/A8).
+  const messages: ChatMessage[] = [
+    ...projectContextMessages(config.context),
+    { role: "user", content: userMessage },
+  ];
+
+  const turns: AgentTurnResult[] = [];
+  let totalCost = 0;
+
+  // Pre-flight breaker check: don't dial a head provider that just burned
+  // 3 failures when a healthy alternative sits in the chain.
+  if (
+    pendingLinks.length > 0 &&
+    isProviderTripped(cbTenant, callConfig.provider) &&
+    pendingLinks.some((l) => !isProviderTripped(cbTenant, l.provider))
+  ) {
+    await switchToNextProvider("circuit breaker open (3 failures / 5min)", 0);
+  }
+
+  for (let turn = 0; turn < effectiveMaxTurns; turn++) {
+    // Mid-run steering (v2 moat) — now on EVERY provider path, not just
+    // Anthropic (E2/T4 parity).
+    const steering = await drainSteeringText(govContext);
+    if (steering) injectSteering(messages, steering);
+
+    /** One turn against the ACTIVE provider, with the ToolsUnsupported →
+     * prompt-embedding downgrade handled inline so provider errors from
+     * either dial funnel into the failover catch below. */
+    const attemptTurn = async (): Promise<ChatCompletionResult> => {
+      const wantNativeTools = toolUseMode === "native" && toolDefs.length > 0;
+      try {
+        return await callProvider(
+          callConfig,
+          effectiveSystemPrompt,
+          messages,
+          maxTokens,
+          wantNativeTools ? toolDefs : undefined,
+        );
+      } catch (err) {
+        if (err instanceof ToolsUnsupportedError && wantNativeTools) {
+          // Graceful degradation (plan §2.1): prompt-embedded single shot.
+          // The model can't request tools in this mode, so the loop ends
+          // naturally after this turn — same behaviour every such tenant
+          // had before E2. Never triggers cross-provider failover (the same
+          // model would reject tools elsewhere too).
+          toolUseMode = "prompt-fallback";
+          effectiveSystemPrompt = embedToolsInPrompt(systemPrompt, toolNames);
+          logger.warn(
+            { provider: callConfig.provider, model: callConfig.model, detail: err.message },
+            "Native tool-use unsupported — downgrading to prompt-embedded tools",
+          );
+          return await callProvider(callConfig, effectiveSystemPrompt, messages, maxTokens);
+        }
+        throw err;
+      }
+    };
+
+    let result: ChatCompletionResult;
+    // Failover at the TURN BOUNDARY (plan §2.2): a turn that dies with a
+    // failover-eligible error retries the SAME turn — same canonical
+    // transcript — on the next chain link. Bounded: every iteration either
+    // succeeds or permanently consumes a link.
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      try {
+        result = await attemptTurn();
+        recordProviderSuccess(cbTenant, callConfig.provider);
+        break;
+      } catch (err) {
+        const cls = classifyProviderError(err);
+        // FATAL = request-shape error; says nothing about provider health
+        // and would replay identically elsewhere — never breaker-counted,
+        // never chained (plan risk table).
+        if (cls !== "FATAL") recordProviderFailure(cbTenant, callConfig.provider);
+        if (!isFailoverEligible(cls) || pendingLinks.length === 0) throw err;
+        const reason = `${cls}: ${err instanceof Error ? err.message : String(err)}`;
+        const switched = await switchToNextProvider(reason, turn);
+        if (!switched) throw err;
+      }
+    }
+
+    // Cost: real per-model pricing on every path (plan §2.6). Use the
+    // model the provider actually answered with when reported.
+    const costUsd = costForUsage(
+      callConfig.provider,
+      result.model || callConfig.model,
+      result.inputTokens,
+      result.outputTokens,
+    );
+
+    const requestedCalls = result.toolCalls ?? [];
+    const toolCallResults = await executeToolCalls(requestedCalls, govContext);
+
+    turns.push({
+      content: result.content,
+      toolCalls: toolCallResults,
+      inputTokens: result.inputTokens,
+      outputTokens: result.outputTokens,
+      costUsd,
+      stopReason: toLegacyStopReason(result),
+    });
+    totalCost += costUsd;
+
+    // Budget check
+    if (totalCost > budgetUsd) {
+      logger.warn({ totalCost, budgetUsd }, "Agent budget exceeded — stopping");
+      break;
+    }
+
+    // If no tool calls, the agent is done
+    if (requestedCalls.length === 0) {
+      break;
+    }
+
+    // Append the assistant turn + tool results to the canonical transcript.
+    messages.push({ role: "assistant", content: result.content, toolCalls: requestedCalls });
+    for (const tc of toolCallResults) {
+      messages.push({
+        role: "tool",
+        toolCallId: tc.id,
+        content: tc.error
+          ? JSON.stringify({ error: tc.error })
+          : JSON.stringify(tc.output ?? {}),
+      });
+    }
+  }
+
+  const totalInputTokens = turns.reduce((s, t) => s + t.inputTokens, 0);
+  const totalOutputTokens = turns.reduce((s, t) => s + t.outputTokens, 0);
+  const totalToolCalls = turns.reduce((s, t) => s + t.toolCalls.length, 0);
+  const lastTurn = turns[turns.length - 1];
 
   return {
-    content,
-    toolCalls: toolCallResults,
-    inputTokens,
-    outputTokens,
-    costUsd,
-    stopReason: response.stop_reason ?? "end_turn",
+    finalContent: lastTurn?.content ?? "",
+    turns,
+    totalInputTokens,
+    totalOutputTokens,
+    totalCostUsd: totalCost,
+    totalToolCalls,
+    toolUseMode,
+    // Actually-used provider/model (E2/T5) — post-hierarchy resolution on
+    // the FINAL active link, i.e. what really went on the wire last.
+    provider: callConfig.provider,
+    model: callConfig.model,
+    ...(activeSource ? { servedBy: activeSource } : {}),
   };
 }
 
 /**
  * Run the full agent loop:
- * 1. Send message to Claude
- * 2. If Claude uses tools, execute them and feed results back
- * 3. Repeat until Claude produces a final text response or budget is exhausted
+ * 1. Send message to the resolved provider
+ * 2. If the model uses tools, execute them and feed results back
+ * 3. Repeat until it produces a final text response or budget is exhausted
  */
 export async function runAgentLoop(config: {
   systemPrompt: string;
@@ -355,7 +804,23 @@ export async function runAgentLoop(config: {
    * REQUIRED for any loop invoked from a pipeline run.
    */
   govContext?: AgentGovContext;
+  /**
+   * Force this exact provider config (E2/T5 — D-010): skips tenant
+   * resolution, the trial path AND the local-CLI mode. Used by consumers
+   * that must hit the REAL provider×model they claim to measure — bench
+   * (env-keyed, tenant-less) and the T8 compare mode. Tenant pipeline
+   * runs never set it.
+   */
+  aiConfigOverride?: AIClientConfig;
 }): Promise<AgentLoopResult> {
+  // Forced provider config wins over everything, local-CLI mode included —
+  // an override is an explicit "go to this wire" order (bench previously
+  // ran tenant-less and always landed on system Anthropic while the
+  // BenchRun row claimed opts.provider — D-010).
+  if (config.aiConfigOverride) {
+    return await runProviderAgentLoop(config, config.aiConfigOverride);
+  }
+
   // Route to local CLI if configured
   if (isLocalMode) {
     logger.info("Using local Claude CLI for agent loop");
@@ -368,230 +833,70 @@ export async function runAgentLoop(config: {
     });
   }
 
-  // Resolution order for tenant AI config:
-  //   1. BYOK (UserAIConfig with a usable provider)
-  //   2. Trial Groq (FREE-plan tenants with remaining trial credit)
-  //   3. System Anthropic key (legacy / self-hosted operator)
-  //   4. Hard error — caller must surface "Configure an API key" to the user
-  // The trial path commits the counter only after the run succeeds, so
-  // failures inside the loop don't burn a free run.
+  // Tenant resolution — REBUILT in T7 (closes D-009). The pre-T7 order was
+  // effectively "BYOK → system → (only if no system key) trial" because
+  // getTenantAIConfig returned the SYSTEM config instead of throwing, so a
+  // BYOK-less FREE tenant burned the uncounted system Anthropic key and the
+  // trial path was dead code. The chain builder enforces the corrected,
+  // privacy-honouring order:
+  //
+  //   BYOK default → tenant fallbackOrder links → trial Groq (FREE,
+  //   counted) → system Anthropic (opt-in allowSystemFallback only;
+  //   BYOK-less PAID tenants keep the system entry — see provider-chain.ts).
+  //
+  // The old un-awaited `return runProviderAgentLoop(...)` inside try{} let
+  // every LOOP error bypass the catch (D-009 second leg) — resolution and
+  // failover now both live where the `await`s are explicit.
   if (config.tenantId) {
-    try {
-      const aiConfig = await getTenantAIConfig(config.tenantId);
-      if (aiConfig.provider !== "ANTHROPIC") {
-        return runNonAnthropicAgentLoop(config, aiConfig);
-      }
-      // For Anthropic, use the tenant's key
-      const tenantClient = new Anthropic({ apiKey: aiConfig.apiKey });
-      return runAnthropicLoop(config, tenantClient);
-    } catch (err) {
-      // No BYOK config? Try trial Groq before falling through to system.
-      const trial = await tryConsumeTrialRun(config.tenantId);
-      if (trial) {
-        logger.info(
-          { tenantId: config.tenantId, remainingBefore: trial.remainingBefore },
-          "Routing pipeline run through trial Groq",
-        );
-        const result = await runNonAnthropicAgentLoop(config, trial.config);
-        // Commit only after success — failures don't burn the slot.
+    const chain = await buildTenantProviderChain(config.tenantId);
+    if (chain.length === 0) {
+      // Nothing may serve: no usable BYOK links, trial ineligible/spent,
+      // system not permitted. Explicit failure — never a silent fall-through
+      // to the system wallet (the D-009 bleed).
+      throw new Error(
+        "No AI provider configured. Please add an API key in Settings → AI Provider.",
+      );
+    }
+    const [head, ...rest] = chain;
+    if (head.source === "trial") {
+      logger.info(
+        { tenantId: config.tenantId },
+        "Routing pipeline run through trial Groq",
+      );
+    }
+    const result = await runProviderAgentLoop(
+      // Trial economics guard at entry (plan T4/A8) — mid-run failover to a
+      // trial link is clamped inside the loop instead.
+      head.source === "trial"
+        ? { ...config, maxTurns: Math.min(config.maxTurns ?? TRIAL_MAX_TURNS, TRIAL_MAX_TURNS) }
+        : config,
+      head.config,
+      { chain: rest, source: head.source, tenantId: config.tenantId },
+    );
+    // Run-based trial counter: commit ONLY when the trial link actually
+    // served the run to completion (a trial link that failed over mid-run
+    // didn't — the slot is refunded, same contract as before).
+    if (result.servedBy === "trial") {
+      try {
         await commitTrialRun(config.tenantId);
-        return result;
+      } catch (err) {
+        // A counter miss is cheaper than failing a successful run — the
+        // race-window comment in trial-llm.ts already accepts ±1 accuracy.
+        logger.warn(
+          { tenantId: config.tenantId, err: (err as Error).message },
+          "commitTrialRun failed after a successful trial-served run (non-fatal)",
+        );
       }
-      logger.warn({ err }, "Failed to load tenant AI config — using system default");
     }
+    return result;
   }
 
-  return runAnthropicLoop(config, systemClient ?? undefined);
-}
-
-/**
- * Non-Anthropic providers don't support Anthropic's tool-use format.
- * We run a simplified loop: send the message, get a response, done.
- * Tool calls are serialized into the prompt so the model can reason about them.
- */
-async function runNonAnthropicAgentLoop(
-  config: {
-    systemPrompt: string;
-    userMessage: string;
-    toolNames: string[];
-    maxTurns?: number;
-    budgetUsd?: number;
-  },
-  aiConfig: AIClientConfig,
-): Promise<AgentLoopResult> {
-  const toolDescriptions = config.toolNames.map((name) => {
-    const tool = getTool(name);
-    return tool ? `- ${tool.name}: ${tool.description}` : null;
-  }).filter(Boolean).join("\n");
-
-  const systemWithTools = toolDescriptions
-    ? `${config.systemPrompt}\n\nAvailable tools:\n${toolDescriptions}`
-    : config.systemPrompt;
-
-  const result = await chatCompletion(
-    aiConfig,
-    systemWithTools,
-    [{ role: "user", content: config.userMessage }],
-    4096,
-  );
-
-  const inputCostPerM = 2.0; // conservative estimate for non-Anthropic
-  const outputCostPerM = 8.0;
-  const costUsd =
-    (result.inputTokens / 1_000_000) * inputCostPerM +
-    (result.outputTokens / 1_000_000) * outputCostPerM;
-
-  const turn: AgentTurnResult = {
-    content: result.content,
-    toolCalls: [],
-    inputTokens: result.inputTokens,
-    outputTokens: result.outputTokens,
-    costUsd,
-    stopReason: "end_turn",
-  };
-
-  return {
-    finalContent: result.content,
-    turns: [turn],
-    totalInputTokens: result.inputTokens,
-    totalOutputTokens: result.outputTokens,
-    totalCostUsd: costUsd,
-    totalToolCalls: 0,
-  };
-}
-
-async function runAnthropicLoop(
-  config: {
-    systemPrompt: string;
-    userMessage: string;
-    toolNames: string[];
-    model?: string;
-    maxTokens?: number;
-    maxTurns?: number;
-    budgetUsd?: number;
-    context?: MessageParam[];
-    govContext?: AgentGovContext;
-  },
-  anthropicClient?: Anthropic,
-): Promise<AgentLoopResult> {
-  const {
-    systemPrompt,
-    userMessage,
-    toolNames,
-    model = env.CLAUDE_MODEL,
-    maxTokens = 4096,
-    maxTurns = 10,
-    budgetUsd = 1.0,
-    govContext,
-  } = config;
-
-  const tools = buildAnthropicTools(toolNames);
-  const messages: MessageParam[] = [
-    ...(config.context ?? []),
-    { role: "user", content: userMessage },
-  ];
-  const turns: AgentTurnResult[] = [];
-  let totalCost = 0;
-
-  // Mid-run steering (Phase 1 HITL — the v2 moat). Before each turn, drain any
-  // operator STEER messages queued against this run and inject them as guidance
-  // so a human can redirect a running agent live. No-op outside a governed run.
-  async function drainSteering(): Promise<void> {
-    if (!govContext) return;
-    try {
-      const pending = await prisma.steeringMessage.findMany({
-        where: { runId: govContext.runId, kind: { in: ["STEER", "INPUT"] }, consumedAt: null },
-        orderBy: { createdAt: "asc" },
-      });
-      if (pending.length === 0) return;
-      await prisma.steeringMessage.updateMany({
-        where: { id: { in: pending.map((m) => m.id) } },
-        data: { consumedAt: new Date() },
-      });
-      const text = pending
-        .map((m) =>
-          m.kind === "INPUT"
-            ? `[Human-in-the-loop answer]: ${m.content}`
-            : `[Operator steering${m.targetAgentId ? ` for agent ${m.targetAgentId}` : ""}]: ${m.content}`,
-        )
-        .join("\n\n");
-      // Merge into the trailing user message when present to keep the
-      // user/assistant alternation valid; otherwise push a fresh user turn.
-      const last = messages[messages.length - 1];
-      if (last && last.role === "user" && Array.isArray(last.content)) {
-        last.content.push({ type: "text", text });
-      } else if (last && last.role === "user" && typeof last.content === "string") {
-        last.content = `${last.content}\n\n${text}`;
-      } else {
-        messages.push({ role: "user", content: text });
-      }
-      for (const m of pending) {
-        await publishRunEvent(govContext.runId, {
-          type: "STEERING_APPLIED",
-          targetAgentId: m.targetAgentId ?? undefined,
-          instruction: m.content.slice(0, 200),
-        });
-      }
-    } catch (err) {
-      logger.warn({ runId: govContext.runId, err: (err as Error).message }, "steering drain failed (non-fatal)");
-    }
-  }
-
-  for (let turn = 0; turn < maxTurns; turn++) {
-    await drainSteering();
-    const result = await executeTurn(systemPrompt, messages, tools, model, maxTokens, anthropicClient, govContext);
-    turns.push(result);
-    totalCost += result.costUsd;
-
-    // Budget check
-    if (totalCost > budgetUsd) {
-      logger.warn({ totalCost, budgetUsd }, "Agent budget exceeded — stopping");
-      break;
-    }
-
-    // If no tool calls, the agent is done
-    if (result.toolCalls.length === 0) {
-      break;
-    }
-
-    // Build assistant message with tool use blocks
-    const assistantContent: ContentBlockParam[] = [];
-    if (result.content) {
-      assistantContent.push({ type: "text", text: result.content });
-    }
-    for (const tc of result.toolCalls) {
-      assistantContent.push({
-        type: "tool_use",
-        id: tc.id,
-        name: tc.name,
-        input: tc.input as Record<string, unknown>,
-      });
-    }
-    messages.push({ role: "assistant", content: assistantContent });
-
-    // Build tool results message
-    const toolResults: ToolResultBlockParam[] = result.toolCalls.map((tc) => ({
-      type: "tool_result" as const,
-      tool_use_id: tc.id,
-      content: tc.error
-        ? JSON.stringify({ error: tc.error })
-        : JSON.stringify(tc.output ?? {}),
-      is_error: !!tc.error,
-    }));
-    messages.push({ role: "user", content: toolResults });
-  }
-
-  const totalInputTokens = turns.reduce((s, t) => s + t.inputTokens, 0);
-  const totalOutputTokens = turns.reduce((s, t) => s + t.outputTokens, 0);
-  const totalToolCalls = turns.reduce((s, t) => s + t.toolCalls.length, 0);
-  const lastTurn = turns[turns.length - 1];
-
-  return {
-    finalContent: lastTurn?.content ?? "",
-    turns,
-    totalInputTokens,
-    totalOutputTokens,
-    totalCostUsd: totalCost,
-    totalToolCalls,
-  };
+  // Tenant-less invocations (onboarding, composer, NL builder — no BYOK
+  // context exists): system Anthropic key, exactly as before. The loop
+  // throws the historical "not initialized" error when the key is absent.
+  return await runProviderAgentLoop(config, {
+    provider: "ANTHROPIC",
+    model: env.CLAUDE_MODEL,
+    apiKey: env.ANTHROPIC_API_KEY ?? "",
+  });
 }

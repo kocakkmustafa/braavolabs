@@ -54,26 +54,40 @@ const NAV_ITEMS = [
   { id: "referral",      labelKey: "navReferral",      icon: "redeem" },
 ];
 
+// All 12 BYOK providers — mirrors AIProviderType in
+// packages/api/src/services/ai-client.ts (same order). `models` here is the
+// STATIC FALLBACK catalogue only: the live list comes from
+// GET /api/v1/settings/ai-providers/:provider/models (JIT proxy, 5-min
+// server cache) and this list is used when that endpoint is unavailable or
+// the tenant has no key for the provider. Keep it in sync with
+// PROVIDER_MODELS in ai-client.ts.
+//
+// Forge palette rule: NO GREEN anywhere (ok/success = arc-blue #3B82F6
+// family). D-012: OPENAI/OLLAMA/LMSTUDIO chips used to be green/emerald
+// (#10a37f/#34d399/#10b981) — remapped to the blue family below.
 const PROVIDER_LABELS: Record<string, { label: string; color: string; models: string[]; local?: boolean; defaultBaseUrl?: string; setupHint?: string }> = {
   ANTHROPIC:  { label: "Anthropic Claude",   color: "#d97706", models: ["claude-opus-4-20250514", "claude-sonnet-4-5-20250929", "claude-sonnet-4-20250514", "claude-haiku-4-5-20251001"] },
-  OPENAI:     { label: "OpenAI",             color: "#10a37f", models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "o1-mini"] },
+  OPENAI:     { label: "OpenAI",             color: "#38bdf8", models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "o1-mini"] },
   GOOGLE:     { label: "Google Gemini",      color: "#4285f4", models: ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"] },
-  MISTRAL:    { label: "Mistral AI",         color: "#ff6b35", models: ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest"] },
+  MISTRAL:    { label: "Mistral AI",         color: "#ff6b35", models: ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest", "open-mistral-7b"] },
   GROQ:       { label: "Groq",               color: "#f97316", models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"] },
-  OPENROUTER: { label: "OpenRouter",         color: "#8b5cf6", models: ["openai/gpt-4o", "anthropic/claude-opus-4", "meta-llama/llama-3.3-70b-instruct"] },
+  OPENROUTER: { label: "OpenRouter",         color: "#8b5cf6", models: ["openai/gpt-4o", "anthropic/claude-sonnet-4-5", "meta-llama/llama-3.3-70b-instruct", "google/gemini-pro-1.5"] },
+  DEEPSEEK:   { label: "DeepSeek",           color: "#4d6bfe", models: ["deepseek-chat", "deepseek-reasoner", "deepseek-coder"] },
+  KIMI:       { label: "Kimi (Moonshot)",    color: "#6366f1", models: ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k", "moonshot-v1-auto"] },
+  QWEN:       { label: "Qwen (DashScope)",   color: "#7c3aed", models: ["qwen-max", "qwen-plus", "qwen-turbo", "qwen-long", "qwen2.5-72b-instruct", "qwen2.5-32b-instruct"] },
   // Self-hosted / local-first providers — runs on the user's own hardware
   // (laptop, on-prem server, private cloud). Tenant supplies a baseUrl
   // pointing at their own /v1/chat/completions endpoint. Plan-gated to
   // CREATOR and above (FREE plan keeps it simple with cloud-only BYOK).
   // setupHint is rendered in the settings UI for clarity.
   OLLAMA:     {
-    label: "Ollama (self-hosted · Gemma 3)", color: "#34d399", local: true,
+    label: "Ollama (self-hosted · Gemma 3)", color: "#60a5fa", local: true,
     defaultBaseUrl: "http://localhost:11434/v1",
-    models: ["gemma3:4b", "gemma3:12b", "gemma3:27b", "llama3.2:3b", "llama3.3:70b", "qwen2.5:14b", "qwen2.5-coder:14b", "deepseek-r1:8b"],
+    models: ["gemma3:4b", "gemma3:12b", "gemma3:27b", "llama3.2:3b", "llama3.3:70b", "qwen2.5:14b", "qwen2.5-coder:14b", "deepseek-r1:8b", "phi3:14b"],
     setupHint: "Install ollama.com → run `ollama pull gemma3:4b` → keep terminal open with `ollama serve`",
   },
   LMSTUDIO:   {
-    label: "LM Studio (self-hosted)", color: "#10b981", local: true,
+    label: "LM Studio (self-hosted)", color: "#2563eb", local: true,
     defaultBaseUrl: "http://localhost:1234/v1",
     models: ["google/gemma-3-4b-it", "google/gemma-3-12b-it", "meta-llama/llama-3.2-3b-instruct", "qwen/qwen2.5-14b-instruct"],
     setupHint: "Install lmstudio.ai → load Gemma 3 4B → start Local Server",
@@ -139,6 +153,11 @@ export default function SettingsPage() {
   const [aiTesting, setAiTesting] = useState(false);
   const [aiTestResult, setAiTestResult] = useState<{ success: boolean; response?: string; error?: string } | null>(null);
   const [aiSaveMsg, setAiSaveMsg] = useState<string | null>(null);
+  // Live model catalogue per provider, fetched from the API JIT-proxy
+  // endpoint. Missing entry = fall back to the static PROVIDER_LABELS list
+  // (endpoint absent, no key stored, or provider unreachable).
+  const [liveModels, setLiveModels] = useState<Record<string, string[]>>({});
+  const [modelsLoading, setModelsLoading] = useState(false);
 
   // Integration state
   const [companies, setCompanies] = useState<any[]>([]);
@@ -195,6 +214,50 @@ export default function SettingsPage() {
       .catch(() => {})
       .finally(() => setIntLoading(false));
   }, [token, selectedCompanyId]);
+
+  // Refresh the model catalogue for a provider from the API proxy
+  // (GET /settings/ai-providers/:provider/models — server caches 5 min).
+  // Defensive parsing: accepts `{ models: string[] }` or a bare string[].
+  // Any failure (404 while the endpoint ships, 401, network) silently keeps
+  // the static fallback — the selector must never go empty.
+  async function loadProviderModels(provider: string) {
+    if (!token || !provider) return;
+    setModelsLoading(true);
+    try {
+      const res = await fetch(`/api/v1/settings/ai-providers/${encodeURIComponent(provider)}/models`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const models: unknown = Array.isArray(data) ? data : data?.models;
+      if (Array.isArray(models) && models.length > 0 && models.every((m) => typeof m === "string")) {
+        setLiveModels((prev) => ({ ...prev, [provider]: models as string[] }));
+      }
+    } catch {
+      // static fallback stays in place
+    } finally {
+      setModelsLoading(false);
+    }
+  }
+
+  // Fetch live models when the AI Provider panel is open and the selected
+  // provider changes (skip if we already have a live list for it).
+  useEffect(() => {
+    if (active !== "ai_provider" || !token || liveModels[aiProvider]) return;
+    loadProviderModels(aiProvider);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, aiProvider, token]);
+
+  /** Effective model list: live catalogue if fetched, else static fallback.
+   * The currently-selected model is always included so the <select> never
+   * renders empty when a live list omits the tenant's configured model. */
+  function modelsFor(provider: string): string[] {
+    const list = liveModels[provider] ?? PROVIDER_LABELS[provider]?.models ?? [];
+    if (provider === aiProvider && aiModel && !list.includes(aiModel)) {
+      return [aiModel, ...list];
+    }
+    return list;
+  }
 
   if (!hydrated || !token) return (
     <div className="flex items-center justify-center min-h-[60vh] bg-background">
@@ -785,7 +848,7 @@ export default function SettingsPage() {
                             onClick={() => {
                               if (locked) return;
                               setAiProvider(id);
-                              setAiModel(info.models[0] ?? "");
+                              setAiModel(modelsFor(id)[0] ?? "");
                             }}
                             className="flex items-center gap-2.5 p-3.5 rounded-xl text-left transition-all"
                             style={{
@@ -829,12 +892,23 @@ export default function SettingsPage() {
 
                   {/* Model selector */}
                   <div>
-                    <p className="bv-micro text-outline mb-2">
-                      Model
-                      {PROVIDER_LABELS[aiProvider]?.local && aiProvider !== "CUSTOM" && (
-                        <span className="ml-2 font-normal normal-case text-[10px] text-outline opacity-60">(type any tag your local server has loaded)</span>
-                      )}
-                    </p>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="bv-micro text-outline">
+                        Model
+                        {PROVIDER_LABELS[aiProvider]?.local && aiProvider !== "CUSTOM" && (
+                          <span className="ml-2 font-normal normal-case text-[10px] text-outline opacity-60">(type any tag your local server has loaded)</span>
+                        )}
+                      </p>
+                      <button
+                        onClick={() => loadProviderModels(aiProvider)}
+                        disabled={modelsLoading}
+                        className="bv-btn bv-btn-ghost bv-btn-sm flex items-center gap-1 disabled:opacity-50"
+                        title={t("app.settings.aiModelsRefresh")}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 13 }}>refresh</span>
+                        {modelsLoading ? t("app.settings.aiModelsRefreshing") : t("app.settings.aiModelsRefresh")}
+                      </button>
+                    </div>
                     {PROVIDER_LABELS[aiProvider]?.local ? (
                       <input
                         type="text"
@@ -850,16 +924,20 @@ export default function SettingsPage() {
                         onChange={(e) => setAiModel(e.target.value)}
                         className="w-full px-3.5 py-2.5 rounded-xl text-sm font-mono bg-surface-container border border-outline-variant/30 text-on-surface outline-none focus:border-primary/50 transition-colors"
                       >
-                        {(PROVIDER_LABELS[aiProvider]?.models ?? []).map((m) => (
+                        {modelsFor(aiProvider).map((m) => (
                           <option key={m} value={m} style={{ background: "var(--color-surface-container)" }}>{m}</option>
                         ))}
                       </select>
                     )}
                     <datalist id={`${aiProvider}-models`}>
-                      {(PROVIDER_LABELS[aiProvider]?.models ?? []).map((m) => (
+                      {modelsFor(aiProvider).map((m) => (
                         <option key={m} value={m} />
                       ))}
                     </datalist>
+                    {/* Catalogue source badge: live proxy list vs built-in fallback */}
+                    <p className="text-[10px] mt-1 text-outline opacity-60">
+                      {liveModels[aiProvider] ? t("app.settings.aiModelsLive") : t("app.settings.aiModelsStatic")}
+                    </p>
                   </div>
 
                   {/* Base URL */}
@@ -907,6 +985,9 @@ export default function SettingsPage() {
                         {aiProvider === "MISTRAL" && "Get your key from console.mistral.ai"}
                         {aiProvider === "GROQ" && "Get your key from console.groq.com"}
                         {aiProvider === "OPENROUTER" && "Get your key from openrouter.ai/keys"}
+                        {aiProvider === "DEEPSEEK" && "Get your key from platform.deepseek.com"}
+                        {aiProvider === "KIMI" && "Get your key from platform.moonshot.ai"}
+                        {aiProvider === "QWEN" && "Get your key from Alibaba Cloud Model Studio (DashScope) console"}
                       </p>
                       <input
                         type="password"

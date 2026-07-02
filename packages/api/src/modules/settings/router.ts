@@ -17,6 +17,7 @@ import {
   type AIProviderType,
 } from "../../services/ai-client";
 import { decryptForTenant } from "../../lib/encryption";
+import { getProviderModels, isKnownProvider } from "./provider-models";
 
 export const settingsRouter = Router();
 settingsRouter.use(authMiddleware);
@@ -27,8 +28,12 @@ settingsRouter.use(authMiddleware);
 // Returns current AI provider config. API key is masked.
 settingsRouter.get("/ai-config", async (req, res, next) => {
   try {
-    const aiConfig = await prisma.userAIConfig.findUnique({
+    // Multi-key BYOK (E2/T6): one row per (tenant, provider) — this legacy
+    // endpoint keeps its one-config contract by returning the DEFAULT row
+    // (same resolution order as getTenantAIConfig).
+    const aiConfig = await prisma.userAIConfig.findFirst({
       where: { tenantId: req.auth!.tenantId },
+      orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
     });
 
     if (!aiConfig) {
@@ -38,6 +43,7 @@ settingsRouter.get("/ai-config", async (req, res, next) => {
         model: PROVIDER_DEFAULT_MODELS["ANTHROPIC"],
         hasApiKey: false,
         baseUrl: null,
+        allowSystemFallback: false,
         availableProviders: Object.keys(PROVIDER_DEFAULT_MODELS),
         availableModels: PROVIDER_MODELS,
         providerInfo: PROVIDER_INFO,
@@ -57,12 +63,47 @@ settingsRouter.get("/ai-config", async (req, res, next) => {
           })()
         : null,
       baseUrl: aiConfig.baseUrl ?? null,
+      // E2/T7 — opt-in flag on the default row: may the failover chain fall
+      // to the trial/system providers once the tenant's own links die?
+      allowSystemFallback: aiConfig.allowSystemFallback ?? false,
       availableProviders: Object.keys(PROVIDER_DEFAULT_MODELS),
       availableModels: PROVIDER_MODELS,
       providerInfo: PROVIDER_INFO,
       defaultBaseUrls: PROVIDER_BASE_URLS,
     });
   } catch (err) { next(err); }
+});
+
+// GET /api/v1/settings/ai-providers/:provider/models  (E2/T10 — API leg)
+// Live model catalogue for one provider: JIT proxy of the provider's own
+// /models listing using the tenant's stored BYOK key (5-minute cache),
+// falling back to the static PROVIDER_MODELS catalogue whenever a live
+// list can't be produced (no key, decrypt failure, timeout, non-2xx…).
+//
+// Contract with the Settings UI (packages/ui/app/settings/page.tsx
+// loadProviderModels): Bearer auth; responds `{ models: string[] }` (plus
+// provider/source metadata) with 200 on every outcome except an unknown
+// provider id (400). It must NEVER 500 — the UI tolerates the fallback,
+// but a 500 here would surface as a broken settings panel.
+settingsRouter.get("/ai-providers/:provider/models", async (req, res) => {
+  const provider = String(req.params.provider ?? "").trim().toUpperCase();
+  if (!isKnownProvider(provider)) {
+    return res.status(400).json({ error: `Unknown AI provider: ${provider || "(empty)"}`, models: [] });
+  }
+
+  try {
+    const result = await getProviderModels(req.auth!.tenantId, provider);
+    res.json(result);
+  } catch (err) {
+    // getProviderModels degrades internally on every upstream failure —
+    // this catch is belt-and-suspenders against programmer errors so the
+    // never-500 contract holds even then.
+    logger.warn(
+      { provider, err: err instanceof Error ? err.message : String(err) },
+      "ai-providers/:provider/models fell through to the static catalogue",
+    );
+    res.json({ provider, models: PROVIDER_MODELS[provider], source: "static" });
+  }
 });
 
 const LOCAL_PROVIDER_LITERALS = ["OLLAMA", "LMSTUDIO", "CUSTOM"] as const;
@@ -77,6 +118,10 @@ const aiConfigSchema = z.object({
   // (defaults to localhost:11434/1234), optional for cloud providers
   // (rare but useful for Azure/LiteLLM-shim users).
   baseUrl: z.string().url().optional().or(z.literal("")),
+  // E2/T7 — opt-in: allow the failover chain to fall back to the trial /
+  // system providers once the tenant's own links are exhausted. Stored on
+  // the default row; omitted = keep the stored value (false by default).
+  allowSystemFallback: z.boolean().optional(),
 });
 
 // Plans that may configure self-hosted LLM providers (Ollama, LM Studio,
@@ -95,7 +140,7 @@ const LOCAL_LLM_PLANS: ReadonlySet<string> = new Set([
 // Save AI provider selection and (optionally) API key + base URL.
 settingsRouter.put("/ai-config", async (req, res, next) => {
   try {
-    const { provider, model, apiKey, baseUrl } = aiConfigSchema.parse(req.body);
+    const { provider, model, apiKey, baseUrl, allowSystemFallback } = aiConfigSchema.parse(req.body);
     const isLocal = (LOCAL_PROVIDER_LITERALS as readonly string[]).includes(provider);
 
     // Plan gate — self-hosted providers are CREATOR+ only. FREE-plan
@@ -122,18 +167,37 @@ settingsRouter.put("/ai-config", async (req, res, next) => {
     // Local providers don't need an API key. Cloud providers do — but
     // only on first save (subsequent updates can reuse the existing
     // encrypted key by omitting apiKey).
+    //
+    // Multi-key BYOK (E2/T6): the reusable key must belong to THIS
+    // provider's row. (The old single-row code reused whatever key the
+    // tenant had — switching provider without a key could silently pair
+    // e.g. OpenAI with a Groq key and 401. Per-provider rows fix that:
+    // switching to an unconfigured cloud provider without a key is 400.)
     if (!apiKey && !isLocal) {
       const existing = await prisma.userAIConfig.findUnique({
-        where: { tenantId: req.auth!.tenantId },
+        where: { tenantId_provider: { tenantId: req.auth!.tenantId, provider } },
       });
       if (!existing?.encryptedApiKey) {
         throw new AppError(400, "API key is required when configuring a cloud provider for the first time");
       }
-      // Just update provider/model/baseUrl, keep existing encrypted key
-      await prisma.userAIConfig.update({
-        where: { tenantId: req.auth!.tenantId },
-        data: { provider, model, baseUrl: baseUrl || null },
-      });
+      // Update model/baseUrl, keep the existing encrypted key, and promote
+      // this row to the tenant's default (demote-then-promote, same
+      // invariant as saveTenantAIConfig — one default per tenant).
+      await prisma.$transaction([
+        prisma.userAIConfig.updateMany({
+          where: { tenantId: req.auth!.tenantId, NOT: { provider }, isDefault: true },
+          data: { isDefault: false },
+        }),
+        prisma.userAIConfig.update({
+          where: { tenantId_provider: { tenantId: req.auth!.tenantId, provider } },
+          data: {
+            model,
+            baseUrl: baseUrl || null,
+            isDefault: true,
+            ...(allowSystemFallback !== undefined ? { allowSystemFallback } : {}),
+          },
+        }),
+      ]);
     } else {
       await saveTenantAIConfig(
         req.auth!.tenantId,
@@ -141,6 +205,7 @@ settingsRouter.put("/ai-config", async (req, res, next) => {
         model,
         apiKey || "",  // empty for local
         baseUrl || undefined,
+        allowSystemFallback,
       );
     }
 
@@ -150,7 +215,12 @@ settingsRouter.put("/ai-config", async (req, res, next) => {
         actor: req.auth!.userId,
         action: "settings.ai_config_update",
         resource: "ai_config",
-        details: { provider, model, hasBaseUrl: !!baseUrl },
+        details: {
+          provider,
+          model,
+          hasBaseUrl: !!baseUrl,
+          ...(allowSystemFallback !== undefined ? { allowSystemFallback } : {}),
+        },
       },
     });
 
