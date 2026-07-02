@@ -32,6 +32,7 @@ import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { assertSafeExternalUrl, SsrfError } from "../../lib/ssrf";
 import { runAgentLoop } from "../agent/claude";
+import { compareAcrossModels } from "../../services/multi-model";
 
 // ── Provider interface ──────────────────────────────────────
 
@@ -249,6 +250,15 @@ export interface RunResearchOptions {
   maxSources?: number;
   maxCostUsd?: number;
   initiatedByRunStepId?: string;
+  /**
+   * E2/T8 (plan §2.5): when true, the session's final synthesis is
+   * augmented with a multi-model compare — the query (grounded on the
+   * gathered sources) runs on ≤3 of the tenant's configured providers in
+   * parallel and the per-model answers + consensus/disagreements are
+   * embedded into the findings JSON under `multiModel`. A failed compare
+   * never fails the research session (partial results rule).
+   */
+  multiModel?: boolean;
 }
 
 export async function startResearch(opts: RunResearchOptions): Promise<{ sessionId: string }> {
@@ -266,14 +276,129 @@ export async function startResearch(opts: RunResearchOptions): Promise<{ session
   });
   // Fire-and-forget — the loop can take 30-120s; the caller doesn't
   // wait. UI polls /research/:id for status. Errors are persisted
-  // onto the session row.
-  void runResearchLoop(session.id).catch((err) => {
+  // onto the session row. The multiModel flag travels as a parameter
+  // (not a session column — T6 is this epic's single migration).
+  void runResearchLoop(session.id, opts.multiModel === true).catch((err) => {
     logger.error({ err, sessionId: session.id }, "Research loop crashed");
   });
   return { sessionId: session.id };
 }
 
-async function runResearchLoop(sessionId: string): Promise<void> {
+// ── Multi-model compare (E2/T8 — plan §2.5) ────────────────
+
+export interface StartCompareOptions {
+  tenantId: string;
+  companyId: string;
+  query: string;
+  maxCandidates?: number;
+  maxTokensPerCandidate?: number;
+  maxCostUsd?: number;
+  initiatedByRunStepId?: string;
+}
+
+/**
+ * Standalone compare-and-synthesize surface (POST /research/compare):
+ * reuses the WebResearchSession lifecycle (PENDING → RUNNING →
+ * COMPLETED/FAILED, findings JSON, costUsd) so the existing polling UI
+ * works unchanged — but runs NO web search; the "sources" are the
+ * tenant's own models answering in parallel.
+ */
+export async function startCompare(opts: StartCompareOptions): Promise<{ sessionId: string }> {
+  const session = await prisma.webResearchSession.create({
+    data: {
+      tenantId: opts.tenantId,
+      companyId: opts.companyId,
+      query: opts.query,
+      maxRounds: 1,
+      maxSources: 0,
+      maxCostUsd: opts.maxCostUsd ?? 1.0,
+      initiatedByRunStepId: opts.initiatedByRunStepId,
+      status: "PENDING",
+    },
+  });
+  void runCompareSession(session.id, opts).catch((err) => {
+    logger.error({ err, sessionId: session.id }, "Multi-model compare session crashed");
+  });
+  return { sessionId: session.id };
+}
+
+async function runCompareSession(sessionId: string, opts: StartCompareOptions): Promise<void> {
+  await prisma.webResearchSession.update({
+    where: { id: sessionId },
+    data: { status: "RUNNING", startedAt: new Date() },
+  });
+  try {
+    const compare = await compareAcrossModels(opts.tenantId, opts.query, {
+      maxCandidates: opts.maxCandidates,
+      maxTokensPerCandidate: opts.maxTokensPerCandidate,
+      maxCostUsd: opts.maxCostUsd,
+    });
+    await prisma.webResearchSession.update({
+      where: { id: sessionId },
+      data: {
+        status: "COMPLETED",
+        // Same findings envelope as research (summary + claims) so every
+        // existing consumer renders it; the full compare payload —
+        // perModel answers, consensus, disagreements, synthesizer — is
+        // embedded under `multiModel` (plan §2.5: "research findings
+        // JSON'ına gömülür").
+        findings: { summary: compare.finalAnswer, claims: [], multiModel: compare } as any,
+        costUsd: compare.totalCostUsd,
+        completedAt: new Date(),
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await prisma.webResearchSession.update({
+      where: { id: sessionId },
+      data: {
+        status: "FAILED",
+        error: message,
+        completedAt: new Date(),
+      },
+    });
+  }
+}
+
+/**
+ * multiModel:true leg of a research session: re-run the query — grounded
+ * on a digest of the gathered sources — across the tenant's providers and
+ * attach the compare block to the findings. Additive and non-fatal: any
+ * error leaves the original findings untouched.
+ */
+async function augmentFindingsWithMultiModel(
+  session: { id: string; tenantId: string; query: string; maxCostUsd: unknown },
+  allSources: Array<{ url: string; title: string | null; content: string }>,
+  findings: unknown,
+  costSoFar: number,
+): Promise<{ findings: unknown; addedCostUsd: number }> {
+  try {
+    const digest = allSources
+      .slice(0, 5)
+      .map((s, i) => `[${i}] ${s.title ?? "(untitled)"} — ${s.url}\n${s.content.slice(0, 800)}`)
+      .join("\n\n");
+    const task = digest
+      ? `${session.query}\n\nBase your answer on these sources where possible:\n${digest}`
+      : session.query;
+    const remainingBudget = Math.max(0.1, Number(session.maxCostUsd) - costSoFar);
+    const compare = await compareAcrossModels(session.tenantId, task, {
+      maxCostUsd: remainingBudget,
+    });
+    const base =
+      findings && typeof findings === "object" && !Array.isArray(findings)
+        ? (findings as Record<string, unknown>)
+        : { summary: String(findings ?? ""), claims: [] };
+    return { findings: { ...base, multiModel: compare }, addedCostUsd: compare.totalCostUsd };
+  } catch (err) {
+    logger.warn(
+      { sessionId: session.id, err: (err as Error).message },
+      "multiModel augment failed (non-fatal) — research findings stand without it",
+    );
+    return { findings, addedCostUsd: 0 };
+  }
+}
+
+async function runResearchLoop(sessionId: string, multiModel = false): Promise<void> {
   const session = await prisma.webResearchSession.findUnique({ where: { id: sessionId } });
   if (!session) return;
   await prisma.webResearchSession.update({
@@ -375,11 +500,17 @@ async function runResearchLoop(sessionId: string): Promise<void> {
       }
 
       if (parsed && parsed.done) {
+        let findings: unknown = parsed.findings;
+        if (multiModel) {
+          const augmented = await augmentFindingsWithMultiModel(session, allSources, findings, cost);
+          findings = augmented.findings;
+          cost += augmented.addedCostUsd;
+        }
         await prisma.webResearchSession.update({
           where: { id: sessionId },
           data: {
             status: "COMPLETED",
-            findings: parsed.findings as any,
+            findings: findings as any,
             costUsd: cost,
             completedAt: new Date(),
           },
@@ -412,6 +543,11 @@ async function runResearchLoop(sessionId: string): Promise<void> {
       findings = JSON.parse(final.finalContent.trim());
     } catch {
       /* leave the fallback */
+    }
+    if (multiModel) {
+      const augmented = await augmentFindingsWithMultiModel(session, allSources, findings, cost);
+      findings = augmented.findings;
+      cost += augmented.addedCostUsd;
     }
     await prisma.webResearchSession.update({
       where: { id: sessionId },
