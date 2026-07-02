@@ -35,6 +35,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 interface DelegationContext {
   runId: string;
+  tenantId: string;
   pipelineCompanyId: string;
   managerAgentId: string;
   maxDepth: number;
@@ -98,12 +99,18 @@ function ensureDelegateToolRegistered(): void {
       // counter — but it CAN if its toolNames include "delegate"
       // explicitly. The default worker has no delegate tool so this
       // is the safe path.
+      // D-011 fix (E2/T4): worker loops used to run with tenantId:undefined,
+      // which silently routed a BYOK tenant's data to the SYSTEM Anthropic
+      // key on every delegated step — a live violation of the BYOK privacy
+      // contract (plan §2.2). Workers now resolve the SAME tenant AI config
+      // as the manager. Tool governance stays as before (ungoverned path
+      // with its fail-closed approval/tenant-scope guards).
       const workerResult = await runAgentLoop({
         systemPrompt: worker.systemPrompt,
         userMessage: args.task,
         toolNames: (worker.tools as string[] | null) ?? [],
         model: worker.model ?? undefined,
-        tenantId: undefined, // governance context provided by parent run
+        tenantId: ctx.tenantId,
       });
       ctx.totalCost.value += workerResult.totalCostUsd ?? 0;
 
@@ -188,6 +195,7 @@ export async function processHierarchicalRun(opts: {
 
   const ctx: DelegationContext = {
     runId,
+    tenantId,
     pipelineCompanyId: pipeline.companyId,
     managerAgentId: manager.id,
     maxDepth: pipeline.maxDelegationDepth,
