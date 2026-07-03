@@ -43,6 +43,7 @@ const runFindUnique = vi.hoisted(() => vi.fn());
 const runUpdate = vi.hoisted(() => vi.fn());
 const runStepCreate = vi.hoisted(() => vi.fn());
 const runStepUpdate = vi.hoisted(() => vi.fn());
+const runStepFindMany = vi.hoisted(() => vi.fn());
 const handoffFindFirst = vi.hoisted(() => vi.fn());
 // OPEN-ledger behaviour, scripted per-test; the shared handoffFindFirst mock
 // (beforeEach) routes non-CLAIMED lookups here so the T6 takeover resolver's
@@ -71,6 +72,7 @@ vi.mock("../../../lib/db", () => ({
     runStep: {
       create: (...a: unknown[]) => runStepCreate(...a),
       update: (...a: unknown[]) => runStepUpdate(...a),
+      findMany: (...a: unknown[]) => runStepFindMany(...a),
     },
     handoffLedger: {
       findFirst: (...a: unknown[]) => handoffFindFirst(...a),
@@ -258,6 +260,10 @@ beforeEach(() => {
   runUpdate.mockResolvedValue({});
   runStepCreate.mockResolvedValue({ id: "rs-1", startedAt: new Date() });
   runStepUpdate.mockResolvedValue({});
+  // D-015: the freeze path reads COMPLETED step names for the mechanical
+  // summary. Default: none completed (single-step run) — tests that assert on
+  // the summary's "Completed steps:" prefix script this per-case.
+  runStepFindMany.mockResolvedValue([]);
   // handoffLedger.findFirst is queried by TWO distinct call sites with distinct
   // statuses: the T6 takeover resolver (status:"CLAIMED", at the top of
   // executeStep) and the T2 interrupt/race-guard checks (status:"OPEN"). These
@@ -440,9 +446,94 @@ describe("turn-boundary interrupt — PAUSED run / OPEN handoff ledger", () => {
     ]);
     expect(frozen.data.checkpoint.turn).toBe(1);
 
+    // D-015: the freeze ALSO refreshes contextSummary from the REAL checkpoint
+    // messages — the manual-early-handoff placeholder is replaced with the
+    // genuine mid-step note (built from the same "Working." assistant turn).
+    expect(frozen.data.contextSummary).toContain("Last provider left off: Working.");
+    expect(frozen.data.contextSummary).not.toBe("No prior context captured.");
+
     // The interrupt also persisted the live transcript (crash carrier):
     // once at turn-1 end + once inside the interrupt handler.
     expect(transcriptPersists().length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("D-015: refreshes contextSummary from checkpoint messages (with completed-step names) on freeze", async () => {
+    chatCompletionMock.mockResolvedValue(
+      completion({
+        content: "Drafting the outline now.",
+        toolCalls: [{ id: "c1", name: "get_time", argumentsJson: "{}" }],
+        stopReason: "tool_calls",
+      }),
+    );
+    let statusChecks = 0;
+    runFindUnique.mockImplementation((args: any) => {
+      if (args?.select?.status) {
+        statusChecks += 1;
+        return Promise.resolve({ status: statusChecks >= 2 ? "PAUSED" : "RUNNING" });
+      }
+      return Promise.resolve(FULL_RUN);
+    });
+    handoffFindFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue({ id: "hl-9", checkpoint: null });
+    // Two earlier steps already completed — they must surface in the summary.
+    runStepFindMany.mockResolvedValue([{ name: "research" }, { name: "gather" }]);
+
+    await expect(
+      runProviderAgentLoop(
+        { systemPrompt: "sys", userMessage: "go", toolNames: ["get_time"], govContext: GOV },
+        { ...GROQ_CONFIG },
+      ),
+    ).rejects.toBeInstanceOf(HandoffInterrupt);
+
+    expect(handoffUpdate).toHaveBeenCalledTimes(1);
+    const frozen = handoffUpdate.mock.calls[0][0];
+    expect(frozen.where).toEqual({ id: "hl-9" });
+    // Completed-step prefix + the real "left off" note, NOT the placeholder.
+    expect(frozen.data.contextSummary).toBe(
+      "Completed steps: research, gather. Last provider left off: Drafting the outline now. " +
+        "Pending tool calls: get_time. (1 turn(s) into the step; " +
+        `$${frozen.data.checkpoint.costSoFarUsd.toFixed(4)} spent.)`,
+    );
+  });
+
+  it("D-015: freezes the checkpoint even when the completed-step read throws (summary from checkpoint only)", async () => {
+    chatCompletionMock.mockResolvedValue(
+      completion({
+        content: "Halfway through the analysis.",
+        toolCalls: [{ id: "c1", name: "get_time", argumentsJson: "{}" }],
+        stopReason: "tool_calls",
+      }),
+    );
+    let statusChecks = 0;
+    runFindUnique.mockImplementation((args: any) => {
+      if (args?.select?.status) {
+        statusChecks += 1;
+        return Promise.resolve({ status: statusChecks >= 2 ? "PAUSED" : "RUNNING" });
+      }
+      return Promise.resolve(FULL_RUN);
+    });
+    handoffFindFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue({ id: "hl-11", checkpoint: null });
+    runStepFindMany.mockRejectedValue(new Error("db down")); // best-effort read fails
+
+    await expect(
+      runProviderAgentLoop(
+        { systemPrompt: "sys", userMessage: "go", toolNames: ["get_time"], govContext: GOV },
+        { ...GROQ_CONFIG },
+      ),
+    ).rejects.toBeInstanceOf(HandoffInterrupt);
+
+    // Freeze still happened; summary built from the checkpoint alone (no
+    // "Completed steps:" prefix), NOT the placeholder.
+    expect(handoffUpdate).toHaveBeenCalledTimes(1);
+    const frozen = handoffUpdate.mock.calls[0][0];
+    expect(frozen.data.contextSummary).toContain(
+      "Last provider left off: Halfway through the analysis.",
+    );
+    expect(frozen.data.contextSummary).not.toContain("Completed steps:");
+    expect(frozen.data.contextSummary).not.toBe("No prior context captured.");
   });
 
   it("never overwrites an already-frozen ledger checkpoint (immutable audit copy)", async () => {
