@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages";
 import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
@@ -354,6 +355,188 @@ async function executeToolCalls(
   });
 }
 
+// ─── E3/T2 — live turn-boundary checkpoint + handoff interrupt (§2.2/§2.3a) ───
+
+/** Size cap for the persisted checkpoint JSON (plan §2.2-1): beyond 1MB the
+ * oldest turns are dropped so run_steps.transcript can't balloon the DB. */
+export const CHECKPOINT_MAX_BYTES = 1024 * 1024;
+
+/** When truncating, keep the first user message (the step prompt) plus the
+ * last N turns. Halved further (6 → 3 → 1) if a single giant tool output
+ * still blows the cap. */
+const CHECKPOINT_KEEP_TURNS = [6, 3, 1] as const;
+
+/**
+ * The canonical transcript checkpoint (§2.1 checkpoint contract). Written to
+ * `run_steps.transcript` at the END of every governed turn (crash carrier)
+ * and frozen — copied — into `handoff_ledger.checkpoint` at handoff time.
+ */
+export interface TranscriptCheckpoint {
+  messages: ChatMessage[];
+  /** Number of COMPLETED turns the messages cover. */
+  turn: number;
+  toolUseMode: "native" | "prompt-fallback";
+  costSoFarUsd: number;
+  /** sha256 (first 16 hex chars) of the BASE system prompt — lets a takeover
+   * detect prompt drift between the leaving and the taking provider. */
+  systemPromptHash: string;
+  truncated: boolean;
+}
+
+/** Cut the transcript down to the first user message + the last `keepTurns`
+ * turns. Turns are anchored on assistant messages, so assistant→tool-result
+ * groups are never split apart. */
+function truncateToLastTurns(messages: ChatMessage[], keepTurns: number): ChatMessage[] {
+  const anchors: number[] = [];
+  for (let i = 0; i < messages.length; i++) {
+    if (messages[i].role === "assistant") anchors.push(i);
+  }
+  if (anchors.length <= keepTurns) return messages;
+  const cut = anchors[anchors.length - keepTurns];
+  const firstUser = messages.find((m) => m.role === "user");
+  const tail = messages.slice(cut);
+  return firstUser ? [firstUser, ...tail] : tail;
+}
+
+/**
+ * Build the checkpoint payload, enforcing the 1MB cap (§2.2-1): oversize
+ * transcripts keep the first user message + the last 6 turns (then 3, then 1),
+ * flagged `truncated:true`. A single turn that alone exceeds the cap is kept
+ * whole — better an oversized checkpoint than a useless one.
+ */
+export function serializeCheckpoint(
+  messages: ChatMessage[],
+  turn: number,
+  toolUseMode: "native" | "prompt-fallback",
+  costSoFarUsd: number,
+  systemPromptHash: string,
+): TranscriptCheckpoint {
+  const full: TranscriptCheckpoint = {
+    messages,
+    turn,
+    toolUseMode,
+    costSoFarUsd,
+    systemPromptHash,
+    truncated: false,
+  };
+  if (Buffer.byteLength(JSON.stringify(full), "utf8") <= CHECKPOINT_MAX_BYTES) return full;
+  let candidate: TranscriptCheckpoint = full;
+  for (const keep of CHECKPOINT_KEEP_TURNS) {
+    candidate = { ...full, messages: truncateToLastTurns(messages, keep), truncated: true };
+    if (Buffer.byteLength(JSON.stringify(candidate), "utf8") <= CHECKPOINT_MAX_BYTES) break;
+  }
+  return candidate;
+}
+
+/**
+ * E3/T2 marker error (§2.3a-2). NOT a failure: thrown by the loop when the
+ * turn-boundary check sees a PAUSED/CANCELLED run or an OPEN handoff ledger.
+ * The pipeline executor catches it, resets the step to PENDING (error null,
+ * transcript preserved), and the runner exits WITHOUT finalizing the run —
+ * the run stays PAUSED/CANCELLED, claimable by a takeover.
+ */
+export class HandoffInterrupt extends Error {
+  constructor(
+    public readonly runId: string,
+    public readonly runStatus: string,
+    public readonly handoffLedgerId: string | null,
+  ) {
+    super(
+      `Run ${runId} interrupted at a turn boundary (status=${runStatus}` +
+        `${handoffLedgerId ? `, open handoff ${handoffLedgerId}` : ""})`,
+    );
+    this.name = "HandoffInterrupt";
+  }
+}
+
+/** Persist the live checkpoint to run_steps.transcript. Errors are swallowed
+ * (§2.2-1): a checkpoint miss must never kill the run — the next turn simply
+ * retries the write. */
+async function persistTurnCheckpoint(
+  govContext: AgentGovContext,
+  checkpoint: TranscriptCheckpoint,
+): Promise<void> {
+  try {
+    await prisma.runStep.update({
+      where: { id: govContext.runStepId },
+      data: { transcript: checkpoint as any },
+    });
+  } catch (err) {
+    logger.warn(
+      { runId: govContext.runId, runStepId: govContext.runStepId, err: (err as Error).message },
+      "turn checkpoint persist failed (non-fatal — next turn retries)",
+    );
+  }
+}
+
+/**
+ * Turn-boundary interrupt check (§2.3a-2 — B2 fix). Runs at the START of
+ * every governed turn, at the same point as the steering drain. Two cheap
+ * SELECTs (≪ LLM latency): run.status and any OPEN handoff ledger. When the
+ * run is PAUSED/CANCELLED or a handoff was requested:
+ *
+ *   1. persist the live checkpoint (crash carrier),
+ *   2. FREEZE the OPEN ledger's checkpoint — the live loop is the SINGLE
+ *      writer for RUNNING runs (§2.3a-3): claim only accepts a FULL
+ *      checkpoint, so this freeze is what makes the handoff claimable.
+ *      An already-frozen copy is never overwritten (immutable audit fact),
+ *   3. throw HandoffInterrupt for a graceful exit.
+ *
+ * SELECT failures are swallowed: a DB hiccup must not kill a healthy run —
+ * worst case the interrupt lands one turn later.
+ */
+async function checkTurnBoundaryInterrupt(
+  govContext: AgentGovContext | undefined,
+  buildCheckpoint: () => TranscriptCheckpoint,
+): Promise<void> {
+  if (!govContext) return;
+  let runStatus: string | undefined;
+  let openLedger: { id: string; checkpoint: unknown } | null = null;
+  try {
+    const [run, ledger] = await Promise.all([
+      prisma.run.findUnique({
+        where: { id: govContext.runId },
+        select: { status: true },
+      }),
+      prisma.handoffLedger.findFirst({
+        where: { runId: govContext.runId, status: "OPEN" },
+        select: { id: true, checkpoint: true },
+      }),
+    ]);
+    runStatus = run?.status;
+    openLedger = ledger;
+  } catch (err) {
+    logger.warn(
+      { runId: govContext.runId, err: (err as Error).message },
+      "turn-boundary interrupt check failed (non-fatal — continuing the turn)",
+    );
+    return;
+  }
+
+  const interrupted =
+    runStatus === "PAUSED" || runStatus === "CANCELLED" || openLedger !== null;
+  if (!interrupted) return;
+
+  const checkpoint = buildCheckpoint();
+  await persistTurnCheckpoint(govContext, checkpoint);
+
+  if (openLedger && openLedger.checkpoint === null) {
+    try {
+      await prisma.handoffLedger.update({
+        where: { id: openLedger.id },
+        data: { checkpoint: checkpoint as any },
+      });
+    } catch (err) {
+      logger.warn(
+        { runId: govContext.runId, handoffId: openLedger.id, err: (err as Error).message },
+        "handoff checkpoint freeze failed (non-fatal — claim's 120s stale path recovers from run_steps.transcript)",
+      );
+    }
+  }
+
+  throw new HandoffInterrupt(govContext.runId, runStatus ?? "RUNNING", openLedger?.id ?? null);
+}
+
 /**
  * Mid-run steering (Phase 1 HITL — the v2 moat), extracted loop-independent
  * (E2/T4): drains any operator STEER/INPUT messages queued against this run
@@ -642,6 +825,11 @@ export async function runProviderAgentLoop(
   const turns: AgentTurnResult[] = [];
   let totalCost = 0;
 
+  // E3/T2: base-prompt fingerprint — travels in every checkpoint (§2.1).
+  const systemPromptHash = createHash("sha256").update(systemPrompt).digest("hex").slice(0, 16);
+  const buildCheckpoint = (): TranscriptCheckpoint =>
+    serializeCheckpoint(messages, turns.length, toolUseMode, totalCost, systemPromptHash);
+
   // Pre-flight breaker check: don't dial a head provider that just burned
   // 3 failures when a healthy alternative sits in the chain.
   if (
@@ -653,6 +841,14 @@ export async function runProviderAgentLoop(
   }
 
   for (let turn = 0; turn < effectiveMaxTurns; turn++) {
+    // E3/T2 (§2.3a-2): turn-boundary interrupt check — same point as the
+    // steering drain. PAUSED/CANCELLED run or an OPEN handoff ledger →
+    // persist the transcript, freeze the ledger checkpoint, exit gracefully
+    // via HandoffInterrupt. Deliberately BEFORE the steering drain: an
+    // interrupt must not consume pending steering — the takeover loop
+    // drains it instead.
+    await checkTurnBoundaryInterrupt(govContext, buildCheckpoint);
+
     // Mid-run steering (v2 moat) — now on EVERY provider path, not just
     // Anthropic (E2/T4 parity).
     const steering = await drainSteeringText(govContext);
@@ -736,6 +932,47 @@ export async function runProviderAgentLoop(
     });
     totalCost += costUsd;
 
+    // Append the assistant turn + tool results to the canonical transcript —
+    // exactly as in E2: ONLY when the loop continues (the live array is what
+    // the next turn projects from; a final-turn append would change its
+    // observable shape).
+    const continuing = totalCost <= budgetUsd && requestedCalls.length > 0;
+    const toolMessages: ChatMessage[] = toolCallResults.map((tc) => ({
+      role: "tool" as const,
+      toolCallId: tc.id,
+      content: tc.error
+        ? JSON.stringify({ error: tc.error })
+        : JSON.stringify(tc.output ?? {}),
+    }));
+    if (continuing) {
+      messages.push({ role: "assistant", content: result.content, toolCalls: requestedCalls });
+      messages.push(...toolMessages);
+    }
+
+    // E3/T2 (§2.2-1): live checkpoint — the crash carrier. Written at the
+    // END of every governed turn, tool results INCLUDED: if the process dies
+    // right now, the last FULL turn is already in run_steps.transcript. On a
+    // FINAL turn (budget stop / no tool calls) the closing assistant message
+    // is folded into a checkpoint-only COPY, keeping the live transcript's
+    // E2 shape untouched.
+    if (govContext) {
+      const checkpointMessages = continuing
+        ? messages
+        : [
+            ...messages,
+            {
+              role: "assistant" as const,
+              content: result.content,
+              ...(requestedCalls.length > 0 ? { toolCalls: requestedCalls } : {}),
+            },
+            ...toolMessages,
+          ];
+      await persistTurnCheckpoint(
+        govContext,
+        serializeCheckpoint(checkpointMessages, turns.length, toolUseMode, totalCost, systemPromptHash),
+      );
+    }
+
     // Budget check
     if (totalCost > budgetUsd) {
       logger.warn({ totalCost, budgetUsd }, "Agent budget exceeded — stopping");
@@ -745,18 +982,6 @@ export async function runProviderAgentLoop(
     // If no tool calls, the agent is done
     if (requestedCalls.length === 0) {
       break;
-    }
-
-    // Append the assistant turn + tool results to the canonical transcript.
-    messages.push({ role: "assistant", content: result.content, toolCalls: requestedCalls });
-    for (const tc of toolCallResults) {
-      messages.push({
-        role: "tool",
-        toolCallId: tc.id,
-        content: tc.error
-          ? JSON.stringify({ error: tc.error })
-          : JSON.stringify(tc.output ?? {}),
-      });
     }
   }
 

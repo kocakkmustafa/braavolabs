@@ -121,6 +121,66 @@ export function isFailoverEligible(cls: ProviderErrorClass): boolean {
   return cls !== "FATAL";
 }
 
+/** Public status extractor — the E3 marker records what extractStatus saw so
+ * downstream consumers (handoff trigger) don't re-parse the message. */
+export function extractProviderErrorStatus(err: unknown): number | undefined {
+  return extractStatus(err);
+}
+
+/**
+ * E3/T3 marker (§2.3b — B3): thrown by the agent loop when the tenant's
+ * provider chain is EXHAUSTED by a failover-eligible error (FAILOVER class,
+ * or a retry-exhausted TRANSIENT). It is the ONLY error class allowed to
+ * open an automatic handoff ledger — the executor's catch sees every error
+ * in the process (Prisma failures, "No AI provider configured", plain code
+ * bugs) and classifyProviderError defaults unknowns to TRANSIENT, so a bare
+ * "FAILOVER|TRANSIENT → handoff" rule would inflate the ledger with
+ * meaningless "continue with another provider" suggestions.
+ *
+ * The message mirrors the cause's message so run/step error strings (and
+ * every `.toThrow(/…/)` consumer) read exactly as before the wrap.
+ */
+export class ProviderExhaustedError extends Error {
+  constructor(
+    /** classifyProviderError verdict on the final chain link's error. */
+    public readonly classification: ProviderErrorClass,
+    /** HTTP status when extractStatus recovered one (undefined = default-
+     * TRANSIENT guess — NOT handoff-eligible, see isHandoffTriggerEligible). */
+    public readonly status: number | undefined,
+    /** Provider/model of the LAST link that failed (handoff fromProvider). */
+    public readonly provider: AIProviderType,
+    public readonly model: string,
+    /** The original provider error. */
+    public readonly original: unknown,
+  ) {
+    super(original instanceof Error ? original.message : String(original));
+    this.name = "ProviderExhaustedError";
+  }
+
+  static wrap(
+    classification: ProviderErrorClass,
+    provider: AIProviderType,
+    model: string,
+    err: unknown,
+  ): ProviderExhaustedError {
+    return new ProviderExhaustedError(classification, extractStatus(err), provider, model, err);
+  }
+}
+
+/**
+ * B3 trigger guard: automatic handoffs fire ONLY on a marked chain-exhaustion
+ * whose classification is trustworthy — explicit FAILOVER (auth/quota/credit)
+ * or a TRANSIENT with a REAL HTTP status. A default-TRANSIENT (unknown error
+ * that merely fell through the classifier) never opens a ledger.
+ */
+export function isHandoffTriggerEligible(err: unknown): err is ProviderExhaustedError {
+  return (
+    err instanceof ProviderExhaustedError &&
+    (err.classification === "FAILOVER" ||
+      (err.classification === "TRANSIENT" && err.status !== undefined))
+  );
+}
+
 // ─── Circuit breaker (in-memory, tenant×provider) ─────────
 
 const CIRCUIT_FAILURE_THRESHOLD = 3;

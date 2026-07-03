@@ -1,7 +1,8 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { publishRunEvent } from "../../lib/runEvents";
-import { runAgentLoop, type AgentLoopResult } from "../agent/claude";
+import { runAgentLoop, HandoffInterrupt, type AgentLoopResult } from "../agent/claude";
 import { AppError } from "../../middleware/error";
 import { withSpan, toolCallCounter, stepDurationHistogram } from "../../lib/telemetry";
 
@@ -20,7 +21,10 @@ export interface StepDef {
 
 export interface StepExecutionResult {
   stepId: string;
-  status: "COMPLETED" | "FAILED";
+  /** INTERRUPTED (E3/T2 §2.3a-2): the loop exited gracefully at a turn
+   * boundary (pause/handoff) — the step went back to PENDING, the run must
+   * NOT be finalized. Neither a completion nor a failure. */
+  status: "COMPLETED" | "FAILED" | "INTERRUPTED";
   reasoning: string;
   output: unknown;
   costUsd: number;
@@ -187,8 +191,37 @@ export async function executeStep(
         output: { content: result.finalContent, turns: result.turns.length } as any,
         costUsd: result.totalCostUsd,
         completedAt: new Date(),
+        // E3/T2 hygiene (§2.2-3): the live checkpoint served its purpose —
+        // a COMPLETED step's durable truth lives in output/tool_calls (and,
+        // for handoffs, in the frozen ledger checkpoint). Nulling keeps
+        // run_steps lean.
+        transcript: Prisma.DbNull,
       },
     });
+
+    // E3/T2 race guard (§2.2-3): a handoff requested exactly while this step
+    // was FINISHING (OPEN ledger, checkpoint still null — the loop's
+    // turn-start check never saw it). Freeze it as a STEP-BOUNDARY handoff:
+    // empty messages signal "no mid-step context", the takeover runs the
+    // NEXT step from scratch. The run was already set PAUSED by whoever
+    // opened the ledger. Error-swallowed — never blocks the completed step.
+    try {
+      const openLedger = await prisma.handoffLedger.findFirst({
+        where: { runId, status: "OPEN" },
+        select: { id: true, checkpoint: true },
+      });
+      if (openLedger && openLedger.checkpoint === null) {
+        await prisma.handoffLedger.update({
+          where: { id: openLedger.id },
+          data: { checkpoint: { messages: [], stepBoundary: true } as any },
+        });
+      }
+    } catch (guardErr) {
+      logger.warn(
+        { runId, runStepId: runStep.id, err: (guardErr as Error).message },
+        "step-boundary handoff freeze failed (non-fatal — claim's stale path recovers)",
+      );
+    }
 
     await publishRunEvent(runId, {
       type: "STEP_COMPLETED",
@@ -212,6 +245,46 @@ export async function executeStep(
       memoryKey: stepDef.writeMemoryKey,
     };
   } catch (err) {
+    // E3/T2 (§2.3a-2): turn-boundary interrupt is NOT a failure. The step
+    // goes back to PENDING — no error, `transcript` deliberately untouched
+    // (it carries the checkpoint the takeover resumes from; planResume only
+    // skips COMPLETED steps, so the step stays claimable). The run stays
+    // PAUSED/CANCELLED; the runner exits without finalizing.
+    if (err instanceof HandoffInterrupt) {
+      const interruptNote =
+        "Interrupted at a turn boundary (pause/handoff) — resumable from the persisted checkpoint.";
+      try {
+        await prisma.runStep.update({
+          where: { id: runStep.id },
+          data: {
+            status: "PENDING",
+            reasoning: interruptNote,
+            error: null,
+            startedAt: null,
+            completedAt: null,
+          },
+        });
+      } catch (updateErr) {
+        // Swallow: propagating would fail the BullMQ job, and its retry
+        // re-enters processRun which force-sets the run back to RUNNING —
+        // un-pausing a paused run. The claim stale path recovers the step.
+        logger.warn(
+          { runId, runStepId: runStep.id, err: (updateErr as Error).message },
+          "interrupt PENDING reset failed (non-fatal)",
+        );
+      }
+      return {
+        stepId: runStep.id,
+        status: "INTERRUPTED",
+        reasoning: interruptNote,
+        output: null,
+        // Cost burned before the interrupt travels in the checkpoint
+        // (costSoFarUsd) — the takeover leg accounts for it (T6).
+        costUsd: 0,
+        toolCallIds: [],
+      };
+    }
+
     const errorMsg = err instanceof Error ? err.message : String(err);
 
     await prisma.runStep.update({
