@@ -1,0 +1,29 @@
+{
+  "name": "n8n Daily Digest",
+  "nodes": [
+    {
+      "id": "http-1",
+      "name": "Fetch headlines",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "https://example.com/api/headlines",
+        "method": "GET",
+        "apiKey": "sk-should-be-redacted"
+      }
+    },
+    {
+      "id": "llm-1",
+      "name": "Summarize",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "parameters": {
+        "prompt": "Summarize the fetched headlines into three bullet points."
+      }
+    },
+    {
+      "id": "sticky-1",
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "parameters": {}
+    }
+  ]
+}
