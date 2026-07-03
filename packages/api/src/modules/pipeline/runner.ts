@@ -141,8 +141,13 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
     return;
   }
 
-  // Sort steps and group by order for parallel execution
-  const allSteps = (run.pipeline.steps as unknown as StepDef[]).sort((a, b) => a.order - b.order);
+  // Sort steps and group by order for parallel execution.
+  // Defence-in-depth (E5/T2): coalesce a missing `order` to the array index so
+  // a legacy/partial step list without explicit orders can't produce NaN
+  // comparisons (unstable sort) or collapse every step into one parallel group.
+  const allSteps = (run.pipeline.steps as unknown as StepDef[])
+    .map((s, idx) => ({ ...s, order: s.order ?? idx }))
+    .sort((a, b) => a.order - b.order);
 
   // ── Step count guard (ISS-009) ─────────────────────────────────────────────
   // Reject pathologically large pipelines before doing any work. The natural
