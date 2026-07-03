@@ -136,12 +136,32 @@ approvalRouter.post("/:id/decide", async (req, res, next) => {
       }
 
       // We won — drive the run to its post-approval state.
-      await tx.run.update({
-        where: { id: approval.runId },
-        data: decision === "APPROVED"
-          ? { status: "RUNNING" }
-          : { status: "CANCELLED", completedAt: new Date() },
-      });
+      //
+      // HANDOFF is the exception (E3/T5 — B4b/B4d): the approved thing is a
+      // devir PROPOSAL, not the run itself.
+      //   • APPROVED → do NOT flip to RUNNING here. The claim must succeed
+      //     FIRST (outside this tx, network I/O); only then does the run go
+      //     RUNNING + enqueue. A premature RUNNING would re-run the dead
+      //     provider if the claim fails.
+      //   • REJECTED → the run stays FAILED (NOT CANCELLED — we're rejecting
+      //     the takeover suggestion, not the run); the ledger is CANCELLED
+      //     below. Manual handoff can still be re-triggered on a FAILED run.
+      if (approval.type === "HANDOFF") {
+        if (decision === "REJECTED") {
+          await tx.run.update({
+            where: { id: approval.runId },
+            data: { status: "FAILED", completedAt: new Date() },
+          });
+        }
+        // APPROVED: leave the run as-is; the post-tx claim block drives it.
+      } else {
+        await tx.run.update({
+          where: { id: approval.runId },
+          data: decision === "APPROVED"
+            ? { status: "RUNNING" }
+            : { status: "CANCELLED", completedAt: new Date() },
+        });
+      }
 
       await tx.activityLog.create({
         data: {
@@ -219,11 +239,78 @@ approvalRouter.post("/:id/decide", async (req, res, next) => {
       });
     }
 
+    // HANDOFF decision (E3/T5 — B4b/B4d), OUTSIDE the transaction (claim does
+    // network-free DB work but stays out of the approval tx so a claim failure
+    // can't roll back the recorded decision).
+    if (approval.type === "HANDOFF") {
+      const meta =
+        approval.metadata && typeof approval.metadata === "object" && !Array.isArray(approval.metadata)
+          ? (approval.metadata as Record<string, unknown>)
+          : {};
+      const handoffId = typeof meta.handoffId === "string" ? meta.handoffId : "";
+      const { logger } = await import("../../lib/logger");
+
+      if (decision === "REJECTED") {
+        // B4d: run already set FAILED in the tx; cancel the ledger so it isn't
+        // claimable. Best-effort — the run FAILED state is the source of truth.
+        if (handoffId) {
+          await prisma.handoffLedger
+            .updateMany({ where: { id: handoffId, status: "OPEN" }, data: { status: "CANCELLED", completedAt: new Date() } })
+            .catch((err) =>
+              logger.warn({ handoffId, err: (err as Error).message }, "HANDOFF reject: ledger cancel failed (non-fatal)"),
+            );
+        }
+        return res.json({ success: true, decision });
+      }
+
+      // APPROVED — B4b: claim FIRST, then RUNNING + enqueue. On claim failure
+      // CANCEL the takeover: run stays FAILED, ledger stays OPEN (re-claimable
+      // from web/CLI with a different target), a note goes on the approval, and
+      // NO job is enqueued.
+      const suggestedProvider = typeof meta.suggestedProvider === "string" ? meta.suggestedProvider : "";
+      const suggestedModel = typeof meta.suggestedModel === "string" ? meta.suggestedModel : "";
+      const { claimHandoff, HandoffClaimError } = await import("../run/handoff.service");
+      const { PROVIDER_DEFAULT_MODELS } = await import("../../services/ai-client");
+
+      try {
+        if (!handoffId || !suggestedProvider) {
+          throw new Error("handoff approval is missing handoffId/suggestedProvider metadata");
+        }
+        await claimHandoff({
+          handoffId,
+          provider: suggestedProvider as any,
+          model: suggestedModel || PROVIDER_DEFAULT_MODELS[suggestedProvider as keyof typeof PROVIDER_DEFAULT_MODELS] || suggestedProvider,
+          claimedBy: req.auth!.userId,
+        });
+        // Claim won — NOW drive the run and enqueue.
+        await prisma.run.update({ where: { id: approval.runId }, data: { status: "RUNNING" } });
+        await enqueueRun(approval.runId);
+      } catch (err) {
+        const reason = err instanceof HandoffClaimError ? err.message : (err as Error).message;
+        logger.warn(
+          { runId: approval.runId, handoffId, err: reason },
+          "HANDOFF approve: claim failed — run stays FAILED, ledger stays OPEN, no enqueue (B4b)",
+        );
+        // Run stays FAILED (it was never flipped to RUNNING for HANDOFF).
+        await prisma.run
+          .update({ where: { id: approval.runId }, data: { status: "FAILED", completedAt: new Date() } })
+          .catch(() => { /* already FAILED */ });
+        // Note the failure on the approval for the operator.
+        const prevMeta = { ...meta };
+        await prisma.approval
+          .update({ where: { id: approval.id }, data: { metadata: { ...prevMeta, claimError: reason } as any } })
+          .catch(() => { /* audit best-effort */ });
+        return res.json({ success: true, decision, claimFailed: true, error: reason });
+      }
+
+      return res.json({ success: true, decision });
+    }
+
     // On APPROVED, the run is now back to RUNNING but no BullMQ worker is
     // listening — re-enqueue so the runner picks the resume cursor. The
     // current runner replays from step group 0; per-step idempotency keys
     // keep most external side effects safe. (REJECTED leaves the run as
-    // CANCELLED — no enqueue needed.)
+    // CANCELLED — no enqueue needed.) HANDOFF handled its own enqueue above.
     if (decision === "APPROVED") {
       try {
         await enqueueRun(approval.runId);

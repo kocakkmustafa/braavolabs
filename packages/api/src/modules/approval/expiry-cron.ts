@@ -11,6 +11,13 @@
  *   3. Cancel the linked run.
  *   4. Log the auto-action so the user sees it in their activity feed.
  *
+ * HANDOFF exception (E3 §2.5 — B6.1): a HANDOFF approval is a devir PROPOSAL,
+ * not the run itself. Expiring it flips the approval to REJECTED but does NOT
+ * touch the run (it stays FAILED) and does NOT cancel the ledger — the ledger
+ * stays OPEN so the operator can still claim it from web/CLI indefinitely. The
+ * generic "run → CANCELLED" branch would otherwise strand the ledger on a
+ * CANCELLED run that manual handoff can never re-open.
+ *
  * Idempotent — re-running this cron twice in the same minute won't
  * double-cancel anything because each transition uses
  * `updateMany({ where: { status: PENDING } })`.
@@ -22,7 +29,9 @@ import { logger } from "../../lib/logger";
 const EXPIRY_INTERVAL_MS = 60 * 60 * 1000; // run hourly
 const APPROVAL_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-async function runApprovalExpiry(): Promise<void> {
+/** Exported for unit tests (E3/T3 — B6.1 HANDOFF branch). Not part of the
+ * public cron surface; initApprovalExpiryCron drives it on the timer. */
+export async function runApprovalExpiry(): Promise<void> {
   const cutoff = new Date(Date.now() - APPROVAL_TTL_MS);
 
   // Pull stale approvals — keep the include shallow so we have what we
@@ -36,6 +45,7 @@ async function runApprovalExpiry(): Promise<void> {
     select: {
       id: true,
       runId: true,
+      type: true,
       run: {
         select: {
           pipeline: { select: { company: { select: { tenantId: true } } } },
@@ -69,10 +79,15 @@ async function runApprovalExpiry(): Promise<void> {
       continue;
     }
 
-    await prisma.run.update({
-      where: { id: approval.runId },
-      data: { status: "CANCELLED", completedAt: new Date() },
-    });
+    // HANDOFF exception (B6.1): the approval is REJECTED but the run is LEFT
+    // ALONE (stays FAILED) and the ledger is LEFT OPEN — the operator can still
+    // claim the handoff from web/CLI. Only NON-handoff approvals cancel the run.
+    if (approval.type !== "HANDOFF") {
+      await prisma.run.update({
+        where: { id: approval.runId },
+        data: { status: "CANCELLED", completedAt: new Date() },
+      });
+    }
 
     await prisma.activityLog.create({
       data: {
@@ -81,7 +96,13 @@ async function runApprovalExpiry(): Promise<void> {
         action: "approval.expired",
         resource: "approval",
         resourceId: approval.id,
-        details: { runId: approval.runId, ttlHours: 24 },
+        details: {
+          runId: approval.runId,
+          ttlHours: 24,
+          type: approval.type,
+          // Make the "run untouched, ledger stays OPEN" decision auditable.
+          runCancelled: approval.type !== "HANDOFF",
+        },
       },
     });
 

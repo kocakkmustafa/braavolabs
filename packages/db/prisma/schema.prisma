@@ -46,6 +46,7 @@ model Tenant {
   oidcConnection      OidcConnection?
   externalConnections ExternalConnection[]
   mediaAssets         MediaAsset[]
+  handoffs            HandoffLedger[]
 
   @@map("tenants")
 }
@@ -460,6 +461,7 @@ model Run {
   steps     RunStep[]
   approvals Approval[]
   steeringMessages SteeringMessage[]
+  handoffs  HandoffLedger[]
 
   @@index([pipelineId])
   @@index([status])
@@ -478,6 +480,13 @@ model RunStep {
   output      Json?
   error       String?       @db.Text
   costUsd     Decimal?      @map("cost_usd") @db.Decimal(10, 6)
+  // Live turn-boundary checkpoint (E3 §2.2): the agent loop persists the
+  // canonical ChatMessage[] transcript here at the END of every turn (tool
+  // results included) on governed runs — { messages, turn, toolUseMode,
+  // costSoFarUsd, truncated? }. Crash-safe carrier for handoffs: if the
+  // process dies mid-step the last full turn survives. NULLed when the step
+  // COMPLETEs (hygiene — the frozen copy lives in handoff_ledger.checkpoint).
+  transcript  Json?
   startedAt   DateTime?     @map("started_at")
   completedAt DateTime?     @map("completed_at")
   createdAt   DateTime      @default(now()) @map("created_at")
@@ -485,6 +494,7 @@ model RunStep {
   run       Run        @relation(fields: [runId], references: [id], onDelete: Cascade)
   agent     Agent?     @relation(fields: [agentId], references: [id])
   toolCalls ToolCall[]
+  handoffs  HandoffLedger[]
 
   @@index([runId])
   @@map("run_steps")
@@ -558,6 +568,68 @@ model SteeringMessage {
 enum SteeringKind {
   INPUT
   STEER
+}
+
+// ─── CROSS-MODEL HANDOFF LEDGER (E3) ────────────────────
+//
+// Persistent, cross-session record of a run being handed from one provider/
+// model to another (E3 plan §2.1). E2's turn-boundary failover is in-memory
+// and single-process; the ledger makes takeover state durable so ANOTHER
+// process/provider can read it and resume from the interrupted turn. Built as
+// its own model on runs/run_steps FKs — NOT on packages/memory (F-005:
+// MemoryItem is company-scoped, gated by a 7-day/3-use promotion lifecycle,
+// and the memory layer is fragmented across 3 implementations with 0 tests).
+
+enum HandoffReason {
+  MANUAL            // operatör "continue with X" istedi
+  PROVIDER_FAILOVER // zincir FAILOVER-sınıfı hatayla tükendi (401/402/403, kota/kredi)
+  PROVIDER_EXHAUSTED// retry-tükenmiş TRANSIENT (429/5xx) ile zincir bitti
+  SESSION_LOST      // ileride: stale-run dedektörü (bu epikte yazan yok — enum yeri ayrılır)
+}
+
+enum HandoffStatus {
+  OPEN       // devir bekliyor — checkpoint dondurulunca claimable
+  CLAIMED    // devralan sağlayıcı atandı, run re-enqueue edildi
+  COMPLETED  // devralınan koşu adımı/run'ı bitirdi
+  FAILED     // devralınan koşu da öldü (yeni handoff açılabilir)
+  CANCELLED  // operatör iptal etti / rerun ile geçersizleşti
+}
+
+model HandoffLedger {
+  id             String        @id @default(cuid())
+  tenantId       String        @map("tenant_id")
+  runId          String        @map("run_id")
+  runStepId      String?       @map("run_step_id") // kesilen adımın (ESKİ) satırı — devralma YENİ satır açar (B6.5)
+  stepIndex      Int           @map("step_index")  // devralan executor'ın eşleşme anahtarı
+  fromProvider   AIProvider    @map("from_provider")
+  fromModel      String        @map("from_model")
+  toProvider     AIProvider?   @map("to_provider") // CLAIMED'e kadar null
+  toModel        String?       @map("to_model")
+  reason         HandoffReason
+  status         HandoffStatus @default(OPEN)
+  // Devir anında DONDURULMUŞ kopya: { messages: ChatMessage[], turn: number,
+  // toolUseMode, costSoFarUsd, systemPromptHash }. NULL = dondurma bekleniyor
+  // (canlı loop interrupt'ı işleyene kadar — §2.3a). Kaynağı canlı checkpoint
+  // (run_steps.transcript — §2.2); kopya = audit + devralanın okuduğu sabit gerçek.
+  checkpoint     Json?
+  // github.ts okumalarından best-effort snapshot (§2.4): { pr?: {number,state,
+  // mergeable,headRef,headSha}, branch?: {name,aheadBy,behindBy,headSha}, capturedAt }.
+  // GITHUB entegrasyonu yoksa null — handoff çalışmaya devam eder.
+  gitState       Json?         @map("git_state")
+  contextSummary String?       @map("context_summary") @db.Text
+  createdBy      String?       @map("created_by") // userId | "system"
+  claimedBy      String?       @map("claimed_by")
+  claimedAt      DateTime?     @map("claimed_at")
+  completedAt    DateTime?     @map("completed_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  tenant Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  run    Run      @relation(fields: [runId], references: [id], onDelete: Cascade)
+  step   RunStep? @relation(fields: [runStepId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status])
+  @@index([runId])
+  @@map("handoff_ledger")
 }
 
 // ─── MEMORY ─────────────────────────────────────────────
@@ -1521,6 +1593,14 @@ enum ApprovalType {
   // external-automation control plane — and it surfaces in the same approvals
   // queue the mobile app already renders, so phone approval needs no app code.
   EXTERNAL_CONTROL
+  // Cross-model handoff proposal (E3 §2.5): the provider chain died with a
+  // marked FAILOVER-class error and a viable alternative provider exists —
+  // metadata carries {handoffId, suggestedProvider, suggestedModel}. APPROVE
+  // claims the handoff (claim runs BEFORE the generic re-enqueue; claim
+  // failure cancels the enqueue). REJECT leaves the run FAILED (the proposal
+  // is rejected, not the run) and cancels the ledger row. Surfaces in the
+  // same approvals queue the mobile app already renders — zero mobile code.
+  HANDOFF
 }
 
 enum ApprovalStatus {

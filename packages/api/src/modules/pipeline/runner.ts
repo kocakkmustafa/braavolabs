@@ -339,6 +339,7 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
       // Collect parallel outputs — merge into an array for next sequential step
       const parallelOutputs: unknown[] = [];
       let stepFailed = false;
+      let interrupted = false;
 
       for (let j = 0; j < parallelResults.length; j++) {
         const pr = parallelResults[j];
@@ -360,6 +361,14 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
 
         const result = pr.value;
         totalCost += result.costUsd;
+
+        // E3/T2 (§2.3a-2): a turn-boundary interrupt is neither a completion
+        // nor a failure — the step is back at PENDING, the run stays
+        // PAUSED/CANCELLED for a takeover. Skip the completion bookkeeping.
+        if (result.status === "INTERRUPTED") {
+          interrupted = true;
+          continue;
+        }
 
         if (result.status === "FAILED") {
           stepFailed = true;
@@ -395,6 +404,25 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
 
       await prisma.run.update({ where: { id: runId }, data: { costUsd: totalCost } });
 
+      // E3/T2 (§2.3a-2): exit exactly like the order-group boundary check —
+      // WITHOUT the finalize block below, which would overwrite the paused
+      // run with COMPLETED/FAILED (the last-order-group case never reaches
+      // another boundary check). The run keeps whatever status the interrupt
+      // requester set (PAUSED/CANCELLED).
+      if (interrupted) {
+        const current = await prisma.run.findUnique({ where: { id: runId }, select: { status: true } });
+        logger.info(
+          { runId, order: orderIndex, status: current?.status },
+          "Run interrupted at a turn boundary (pause/handoff) — exiting without finalize",
+        );
+        await publishRunEvent(runId, {
+          type: "RUN_STATUS",
+          status: current?.status ?? "PAUSED",
+          reason: "interrupted at a turn boundary (pause/handoff)",
+        });
+        return;
+      }
+
       if (stepFailed) {
         failed = true;
         break;
@@ -421,6 +449,25 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
       totalCost += result.costUsd;
 
       await prisma.run.update({ where: { id: runId }, data: { costUsd: totalCost } });
+
+      // E3/T2 (§2.3a-2): turn-boundary interrupt — the step is back at
+      // PENDING, the run stays PAUSED/CANCELLED. Exit like the order-group
+      // boundary check does, and crucially BEFORE the finalize block (a
+      // last-group interrupt would otherwise flip the paused run to
+      // COMPLETED and fire RUN_COMPLETED).
+      if (result.status === "INTERRUPTED") {
+        const current = await prisma.run.findUnique({ where: { id: runId }, select: { status: true } });
+        logger.info(
+          { runId, step: stepDef.name, status: current?.status },
+          "Run interrupted at a turn boundary (pause/handoff) — exiting without finalize",
+        );
+        await publishRunEvent(runId, {
+          type: "RUN_STATUS",
+          status: current?.status ?? "PAUSED",
+          reason: "interrupted at a turn boundary (pause/handoff)",
+        });
+        return;
+      }
 
       if (result.status === "FAILED") {
         failed = true;

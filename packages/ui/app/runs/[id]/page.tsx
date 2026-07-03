@@ -393,6 +393,14 @@ export default function RunDetailPage() {
                   )}
                 </section>
 
+                {/* Cross-model handoff (E3/T8) — request a handoff or, when an
+                    OPEN ledger exists, continue the run on another provider.
+                    Rendered for any non-terminal-or-failed run; the panel
+                    itself decides which affordance to show from the ledger. */}
+                {run.status && ["running", "paused", "waiting_approval", "failed"].includes(run.status.toLowerCase()) && (
+                  <HandoffPanel runId={run.id} runStatus={run.status.toLowerCase()} token={token} t={t} />
+                )}
+
                 {/* Approvals */}
                 {run.approvals && run.approvals.length > 0 && (
                   <section className="bv-glass bv-panel">
@@ -868,6 +876,390 @@ function BurnMeter({
         <span style={{ fontSize: 10.5, color: "var(--color-outline)" }}>{t("app.cost.liveNote")}</span>
       </div>
     </div>
+  );
+}
+
+/* ── Cross-model handoff panel (E3/T8) ────────────────────────────────────
+ * Two affordances, chosen from the ledger:
+ *  • No OPEN ledger  → "Hand off this task" button (POST /runs/:id/handoff).
+ *    On a RUNNING run this freezes the checkpoint at the next turn boundary;
+ *    on a non-running run it copies the frozen transcript immediately.
+ *  • OPEN ledger      → takeover-provider picker + "Continue with X"
+ *    (POST /runs/:id/continue). While the live loop hasn't frozen the
+ *    checkpoint yet the API answers 409 CHECKPOINT_PENDING — we surface a
+ *    calm "freezing…" note and let the operator retry.
+ * A flat timeline of every ledger row sits below, tolerant of the
+ * stepIndex-per-multiple-rows reality (B6.5) — it's a plain list. FORGE
+ * palette throughout: OPEN/CLAIMED = arc-blue, COMPLETED = arc-blue,
+ * FAILED = molten red, CANCELLED = steel. No green anywhere. */
+
+type ProviderLink = {
+  provider: string;
+  model: string;
+  isDefault: boolean;
+  fallbackOrder: number | null;
+  baseUrl: string | null;
+  keyMasked: string | null;
+};
+
+type HandoffRow = {
+  id: string;
+  runId: string;
+  stepIndex: number;
+  status: "OPEN" | "CLAIMED" | "COMPLETED" | "FAILED" | "CANCELLED";
+  reason: "MANUAL" | "PROVIDER_FAILOVER" | "PROVIDER_EXHAUSTED" | "SESSION_LOST";
+  fromProvider: string;
+  fromModel: string;
+  toProvider: string | null;
+  toModel: string | null;
+  contextSummary: string | null;
+  createdAt: string;
+  claimedAt: string | null;
+  completedAt: string | null;
+};
+
+// Keyless-local providers (user-supplied baseUrl, no API key). These appear in
+// the picker even without a configured link so the operator can hand off to a
+// local model on the fly.
+const LOCAL_PROVIDERS = ["OLLAMA", "LMSTUDIO", "CUSTOM"] as const;
+const isLocalProvider = (p: string) => (LOCAL_PROVIDERS as readonly string[]).includes(p.toUpperCase());
+
+function HandoffPanel({
+  runId,
+  runStatus,
+  token,
+  t,
+}: {
+  runId: string;
+  runStatus: string;
+  token: string;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const [ledgers, setLedgers] = useState<HandoffRow[]>([]);
+  const [links, setLinks] = useState<ProviderLink[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [provider, setProvider] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<{ kind: "info" | "error"; text: string } | null>(null);
+
+  const load = async () => {
+    try {
+      const [h, p] = await Promise.all([
+        api.listHandoffs(token, runId),
+        api.listProviderLinks(token).catch(() => ({ providers: [] as ProviderLink[] })),
+      ]);
+      setLedgers(h.handoffs ?? []);
+      setLinks(p.providers ?? []);
+    } catch {
+      /* leave prior state — the run page's own error banner covers hard failures */
+    } finally {
+      setLoaded(true);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runId, token, runStatus]);
+
+  const openLedger = ledgers.find((l) => l.status === "OPEN") ?? null;
+
+  // Local models default to localhost only outside production; in prod the
+  // API rejects a keyless-local claim without an explicit baseUrl (B4c), so we
+  // require the field there. We can't read NODE_ENV client-side reliably, so
+  // we always show the field for local providers and only hard-block empty
+  // when it's clearly a hosted origin (non-localhost). The API is the real
+  // gate — this is guidance, not enforcement.
+  const localSelected = isLocalProvider(provider);
+
+  // Build the picker options: configured cloud/local links first (labelled with
+  // their masked key), then any local providers not already configured.
+  const linkProviders = new Set(links.map((l) => l.provider.toUpperCase()));
+  const extraLocals = LOCAL_PROVIDERS.filter((p) => !linkProviders.has(p));
+
+  const doHandoff = async () => {
+    if (busy) return;
+    setBusy(true);
+    setNotice(null);
+    try {
+      const res = await api.startHandoff(token, runId);
+      setNotice({
+        kind: "info",
+        text: res.checkpointPending ? t("app.handoff.freezingNote") : t("app.handoff.frozenNote"),
+      });
+      await load();
+    } catch (e) {
+      setNotice({ kind: "error", text: e instanceof Error ? e.message : t("app.handoff.errorGeneric") });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doContinue = async () => {
+    if (busy || !provider) return;
+    setBusy(true);
+    setNotice(null);
+    try {
+      await api.continueHandoff(token, runId, {
+        provider,
+        baseUrl: localSelected && baseUrl.trim() ? baseUrl.trim() : undefined,
+      });
+      setNotice({ kind: "info", text: t("app.handoff.continuedNote", { provider }) });
+      await load();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : t("app.handoff.errorGeneric");
+      // The API answers 409 CHECKPOINT_PENDING while the live loop hasn't
+      // reached a turn boundary. Present it as a transient "freezing" state,
+      // not a hard error, and invite a retry.
+      const pending = /checkpoint_pending|freezing|turn boundary/i.test(msg);
+      setNotice({
+        kind: pending ? "info" : "error",
+        text: pending ? t("app.handoff.pendingRetry") : msg,
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reasonLabel = (r: HandoffRow["reason"]) =>
+    r === "MANUAL" ? t("app.handoff.reasonManual") :
+    r === "PROVIDER_FAILOVER" ? t("app.handoff.reasonFailover") :
+    r === "PROVIDER_EXHAUSTED" ? t("app.handoff.reasonExhausted") :
+    t("app.handoff.reasonSessionLost");
+
+  if (!loaded) {
+    return <div className="animate-shimmer" style={{ height: 84, borderRadius: 16 }} />;
+  }
+
+  // Nothing to show only when there's neither history nor an actionable state.
+  const canRequest = !openLedger;
+
+  return (
+    <section className="bv-glass bv-panel">
+      <header className="bv-panel-head">
+        <div>
+          <h2 className="bv-title">{t("app.handoff.title")}</h2>
+          <div className="bv-caption">{t("app.handoff.subtitle")}</div>
+        </div>
+      </header>
+
+      {/* ── Action zone ── */}
+      {openLedger ? (
+        /* Continue: pick a takeover provider */
+        <div
+          style={{
+            padding: "14px 16px",
+            borderRadius: 14,
+            background: "linear-gradient(135deg,rgba(59,130,246,0.06),transparent)",
+            border: "1px solid rgba(59,130,246,0.3)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span className="bv-dot bv-completed" aria-hidden />
+            <span style={{ fontSize: 13, color: "var(--color-on-surface)" }}>
+              {t("app.handoff.openBanner", { from: openLedger.fromProvider })}
+            </span>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <label
+              className="bv-mono"
+              style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--color-outline)" }}
+            >
+              {t("app.handoff.pickProvider")}
+            </label>
+            <select
+              value={provider}
+              onChange={(e) => setProvider(e.target.value)}
+              className="bv-mono"
+              style={{
+                width: "100%",
+                padding: "9px 12px",
+                borderRadius: 10,
+                background: "rgba(5,6,10,0.7)",
+                border: "1px solid var(--bv-glass-border)",
+                color: "var(--color-on-surface)",
+                fontSize: 13,
+                outline: "none",
+              }}
+            >
+              <option value="">{t("app.handoff.pickPlaceholder")}</option>
+              {links.map((l) => (
+                <option key={`link-${l.provider}`} value={l.provider}>
+                  {l.provider} · {l.model}
+                  {l.keyMasked ? ` (${l.keyMasked})` : l.baseUrl ? ` (${l.baseUrl})` : ""}
+                  {l.isDefault ? ` · ${t("app.handoff.defaultTag")}` : ""}
+                </option>
+              ))}
+              {extraLocals.map((p) => (
+                <option key={`local-${p}`} value={p}>
+                  {p} · {t("app.handoff.localTag")}
+                </option>
+              ))}
+            </select>
+
+            {localSelected && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label
+                  className="bv-mono"
+                  style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--color-outline)" }}
+                >
+                  {t("app.handoff.baseUrlLabel")}
+                </label>
+                <input
+                  value={baseUrl}
+                  onChange={(e) => setBaseUrl(e.target.value)}
+                  placeholder="http://localhost:11434/v1"
+                  className="bv-mono"
+                  style={{
+                    width: "100%",
+                    padding: "9px 12px",
+                    borderRadius: 10,
+                    background: "rgba(5,6,10,0.7)",
+                    border: "1px solid var(--bv-glass-border)",
+                    color: "var(--color-on-surface)",
+                    fontSize: 13,
+                    outline: "none",
+                  }}
+                />
+                <span style={{ fontSize: 10.5, color: "var(--color-outline)" }}>
+                  {t("app.handoff.baseUrlHint")}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <button
+            className="bv-btn bv-btn-primary"
+            onClick={() => void doContinue()}
+            disabled={busy || !provider}
+            style={{ alignSelf: "flex-start" }}
+          >
+            {busy ? (
+              <span
+                className="inline-block border-2 border-t-transparent rounded-full animate-spin"
+                style={{ width: 13, height: 13, borderColor: "rgba(255,255,255,0.5)", borderTopColor: "transparent" }}
+              />
+            ) : (
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>swap_horiz</span>
+            )}
+            {provider
+              ? t("app.handoff.continueWith", { provider })
+              : t("app.handoff.continueButton")}
+          </button>
+        </div>
+      ) : canRequest ? (
+        /* Request a handoff */
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--color-on-surface-variant)", lineHeight: 1.5 }}>
+            {t("app.handoff.requestBlurb")}
+          </p>
+          <button
+            className="bv-btn bv-btn-ghost bv-btn-sm"
+            onClick={() => void doHandoff()}
+            disabled={busy}
+            style={{ alignSelf: "flex-start" }}
+          >
+            {busy ? (
+              <span
+                className="inline-block border-2 border-t-transparent rounded-full animate-spin"
+                style={{ width: 13, height: 13, borderColor: "rgba(96,165,250,0.4)", borderTopColor: "transparent" }}
+              />
+            ) : (
+              <span className="material-symbols-outlined" style={{ fontSize: 15 }}>alt_route</span>
+            )}
+            {t("app.handoff.requestButton")}
+          </button>
+        </div>
+      ) : null}
+
+      {/* ── Notice ── */}
+      {notice && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: "10px 12px",
+            borderRadius: 10,
+            fontSize: 12.5,
+            lineHeight: 1.5,
+            background: notice.kind === "error" ? "rgba(255,77,77,0.06)" : "rgba(59,130,246,0.06)",
+            border: `1px solid ${notice.kind === "error" ? "rgba(255,77,77,0.25)" : "rgba(59,130,246,0.22)"}`,
+            color: notice.kind === "error" ? "#FF4D4D" : "var(--color-on-surface)",
+          }}
+        >
+          {notice.text}
+        </div>
+      )}
+
+      {/* ── Ledger timeline ── */}
+      {ledgers.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <div className="bv-micro" style={{ marginBottom: 10 }}>{t("app.handoff.historyTitle")}</div>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+            {ledgers.map((l) => (
+              <li
+                key={l.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "9px 12px",
+                  borderRadius: 10,
+                  background: "rgba(255,255,255,0.02)",
+                  border: "1px solid var(--bv-glass-border)",
+                  fontSize: 12.5,
+                  flexWrap: "wrap",
+                }}
+              >
+                <HandoffStatusBadge status={l.status} t={t} />
+                <span className="bv-mono" style={{ color: "var(--color-on-surface)" }}>
+                  {l.fromProvider}
+                  <span style={{ color: "var(--color-outline)", margin: "0 6px" }}>→</span>
+                  {l.toProvider ?? t("app.handoff.awaiting")}
+                </span>
+                <span className="bv-pill bv-pill-muted">{reasonLabel(l.reason)}</span>
+                <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--color-outline)" }}>
+                  {timeAgo(l.createdAt)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* Handoff status badge — arc-blue for OPEN/CLAIMED/COMPLETED, molten for
+ * FAILED, steel for CANCELLED. No green. */
+function HandoffStatusBadge({
+  status,
+  t,
+}: {
+  status: HandoffRow["status"];
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const label =
+    status === "OPEN" ? t("app.handoff.statusOpen") :
+    status === "CLAIMED" ? t("app.handoff.statusClaimed") :
+    status === "COMPLETED" ? t("app.handoff.statusCompleted") :
+    status === "FAILED" ? t("app.handoff.statusFailed") :
+    t("app.handoff.statusCancelled");
+
+  const dotCls =
+    status === "FAILED" ? "bv-failed" :
+    status === "CANCELLED" ? "bv-paused" :
+    "bv-completed"; // OPEN / CLAIMED / COMPLETED all read as arc-blue
+
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+      <span className={`bv-dot ${dotCls}`} aria-hidden />
+      <span style={{ fontSize: 12, color: "var(--color-on-surface-variant)" }}>{label}</span>
+    </span>
   );
 }
 

@@ -7,7 +7,11 @@ import { logger } from "../../lib/logger";
 import { redis } from "../../lib/redis";
 import { runEventChannel, getBufferedRunEvents } from "../../lib/runEvents";
 import { enqueueRun } from "../pipeline/runner";
-import { chatCompletion, getTenantAIConfig } from "../../services/ai-client";
+import { chatCompletion, getTenantAIConfig, LOCAL_PROVIDERS, type AIProviderType } from "../../services/ai-client";
+import { listTenantProviderLinks } from "../../services/provider-chain";
+import { assertKeylessLocalBaseUrl } from "../../services/takeover-config";
+import { createHandoff, claimHandoff, HandoffClaimError, cancelOpenHandoffForRun } from "./handoff.service";
+import { env } from "../../config/env";
 import type { RunEvent } from "@ai-company-os/core";
 
 export const runRouter = Router();
@@ -16,6 +20,50 @@ runRouter.use(authMiddleware);
 // "Explain this failure" calls the tenant's own LLM — throttle per-tenant so a
 // rage-click on the Explain button can't rack up provider cost.
 const explainLimiter = rateLimit({ windowMs: 60_000, maxRequests: 10, keyPrefix: "rl:run:explain" });
+
+// Handoff create/continue can enqueue a run — throttle per-tenant so a
+// mis-scripted client can't stack ledgers/jobs (same shape as explainLimiter).
+const handoffLimiter = rateLimit({ windowMs: 60_000, maxRequests: 30, keyPrefix: "rl:run:handoff" });
+
+/**
+ * Validate a takeover target (§2.5 — B4c). The requested provider must be one
+ * the tenant CONFIGURED (a BYOK link) or a keyless-local provider (Ollama / LM
+ * Studio / Custom). Enforces the prod baseUrl rule: in production (and not
+ * OFFLINE_MODE) a keyless-local takeover MUST carry an explicit baseUrl —
+ * PROVIDER_BASE_URLS' localhost default points at Lightsail's OWN localhost and
+ * would break the orchestration-only invariant. Throws AppError(400) on any
+ * violation; returns nothing on success.
+ */
+async function assertValidTakeoverTarget(
+  tenantId: string,
+  provider: AIProviderType,
+  baseUrl: string | undefined,
+): Promise<void> {
+  const isLocal = LOCAL_PROVIDERS.has(provider);
+
+  if (isLocal) {
+    // B4c: prod keyless-local devir MUST carry a baseUrl — the localhost
+    // default is Lightsail's own loopback (orchestration-only violation). The
+    // rule lives in ONE place (takeover-config) so the claim boundary here and
+    // the resume boundary (T6) enforce it identically; translate its throw into
+    // the HTTP 400 this endpoint contracts.
+    try {
+      assertKeylessLocalBaseUrl(provider, baseUrl);
+    } catch (err) {
+      throw new AppError(400, (err as Error).message);
+    }
+    return; // keyless-local is always a valid target shape
+  }
+
+  // Cloud provider: must be a link the tenant actually configured.
+  const links = await listTenantProviderLinks(tenantId);
+  if (!links.some((l) => l.provider === provider)) {
+    throw new AppError(
+      400,
+      `Provider ${provider} is not configured for this workspace. Add it in Settings → AI Provider, or hand off to a self-hosted provider with a base URL.`,
+    );
+  }
+}
 
 // GET /api/v1/runs/:id — run detail with steps and tool calls
 runRouter.get("/:id", async (req, res, next) => {
@@ -250,6 +298,195 @@ runRouter.post("/:id/resume", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ─── Cross-model handoff (E3/T5, plan §2.3a/§2.5) ─────────
+
+// POST /api/v1/runs/:id/handoff — request a manual handoff (§2.3a-1).
+//
+// RUNNING run → flip to PAUSED and open an OPEN ledger with checkpoint=NULL;
+// the live agent loop freezes the checkpoint at its next turn boundary
+// (claude.ts checkTurnBoundaryInterrupt) and exits gracefully. NON-RUNNING
+// run (PAUSED/WAITING_APPROVAL/FAILED) → the ledger copies the frozen
+// transcript from run_steps.transcript immediately (no live loop to wait on).
+// Either way the operator then calls /continue to pick the takeover provider.
+runRouter.post("/:id/handoff", handoffLimiter, async (req, res, next) => {
+  try {
+    const reason = typeof req.body?.reason === "string" ? req.body.reason.trim().slice(0, 500) : undefined;
+
+    // Tenant-scope via relation traversal (same lightweight pattern as /steer)
+    // — kept include-free so we resolve the active provider/model separately.
+    const run = await prisma.run.findFirst({
+      where: { id: req.params.id as string, pipeline: { company: { tenantId: req.auth!.tenantId } } },
+    });
+    if (!run) throw new AppError(404, "Run not found");
+    if (!["RUNNING", "PAUSED", "WAITING_APPROVAL", "FAILED"].includes(run.status)) {
+      throw new AppError(400, "Run is not in a handoff-able state (already finished or cancelled).");
+    }
+
+    // The provider/model that's leaving the run — the run's default AI config.
+    // Best-effort: if none resolves we record UNKNOWN rather than block the
+    // handoff (the takeover is what matters; fromProvider is audit context).
+    let fromProvider: AIProviderType = "ANTHROPIC";
+    let fromModel = "unknown";
+    try {
+      const cfg = await getTenantAIConfig(req.auth!.tenantId);
+      fromProvider = cfg.provider;
+      fromModel = cfg.model;
+    } catch {
+      /* leave the audit default — handoff proceeds */
+    }
+
+    // Order matters (§2.3a-1/-2): for a RUNNING run we open the ledger FIRST
+    // (checkpoint=NULL) while the run is still RUNNING, so createHandoff's
+    // isRunning check leaves the checkpoint to the live loop. THEN we PAUSE.
+    // The loop's turn-boundary check keys on the OPEN ledger (not status), so
+    // it freezes the true checkpoint at the next boundary and exits via
+    // HandoffInterrupt. Doing it the other way (PAUSE first) would make
+    // createHandoff see a PAUSED run and copy a possibly-stale transcript,
+    // racing the live loop's authoritative freeze.
+    //
+    // For a non-RUNNING run there's no live loop: freezeFromTranscript copies
+    // the frozen transcript straight from run_steps.transcript now.
+    const wasRunning = run.status === "RUNNING";
+    const ledger = await createHandoff({
+      runId: run.id,
+      reason: "MANUAL",
+      createdBy: req.auth!.userId,
+      fromProvider,
+      fromModel,
+      freezeFromTranscript: !wasRunning,
+    });
+
+    if (wasRunning) {
+      await prisma.run.update({ where: { id: run.id }, data: { status: "PAUSED" } });
+    }
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "run.handoff_requested",
+        resource: "run",
+        resourceId: run.id,
+        details: { handoffId: ledger.id, reason, fromStatus: run.status },
+      },
+    }).catch(() => { /* audit best-effort */ });
+
+    res.status(201).json({
+      success: true,
+      handoffId: ledger.id,
+      status: wasRunning ? "PAUSED" : run.status,
+      checkpointPending: ledger.checkpoint === null,
+    });
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/runs/:id/continue — claim the run's OPEN handoff for a provider
+// and re-enqueue (§2.5). Body: { provider, model?, baseUrl? }.
+//
+// Gates, in order: tenant-scope (404) → an OPEN ledger exists (400) → the
+// target is valid (400: unconfigured cloud provider, or prod keyless-local
+// without a baseUrl) → the checkpoint is frozen (claimHandoff 409
+// CHECKPOINT_PENDING if the live loop hasn't reached a turn boundary yet; past
+// the 120s stale threshold it recovers from run_steps.transcript). On success:
+// ledger CLAIMED, run RUNNING, job enqueued — the takeover leg (T6) resumes
+// from the checkpoint.
+runRouter.post("/:id/continue", handoffLimiter, async (req, res, next) => {
+  try {
+    const provider = String(req.body?.provider ?? "").trim().toUpperCase() as AIProviderType;
+    const model = typeof req.body?.model === "string" ? req.body.model.trim() : "";
+    const baseUrl = typeof req.body?.baseUrl === "string" ? req.body.baseUrl.trim() : undefined;
+
+    const VALID_PROVIDERS: AIProviderType[] = [
+      "ANTHROPIC", "OPENAI", "GOOGLE", "MISTRAL", "GROQ", "OPENROUTER",
+      "DEEPSEEK", "KIMI", "QWEN", "OLLAMA", "LMSTUDIO", "CUSTOM",
+    ];
+    if (!VALID_PROVIDERS.includes(provider)) {
+      throw new AppError(400, `Invalid provider: ${provider || "(empty)"}`);
+    }
+
+    const run = await prisma.run.findFirst({
+      where: { id: req.params.id as string, pipeline: { company: { tenantId: req.auth!.tenantId } } },
+    });
+    if (!run) throw new AppError(404, "Run not found");
+
+    const ledger = await prisma.handoffLedger.findFirst({
+      where: { runId: run.id, status: "OPEN" },
+    });
+    if (!ledger) {
+      throw new AppError(400, "No open handoff to continue. Request a handoff first.");
+    }
+
+    // Target validity (B4c) — before we claim, so a bad target 400s cleanly
+    // without touching the ledger.
+    await assertValidTakeoverTarget(req.auth!.tenantId, provider, baseUrl);
+
+    // Resolve the model: caller override → ledger's fromModel is NOT reused
+    // (different provider) → provider default. Keep it a real string so the
+    // takeover config always has a model.
+    const { PROVIDER_DEFAULT_MODELS } = await import("../../services/ai-client");
+    const resolvedModel = model || PROVIDER_DEFAULT_MODELS[provider];
+
+    // Claim — 409 CHECKPOINT_PENDING while the live loop hasn't frozen the
+    // checkpoint (client retries). We persist baseUrl for the takeover leg (T6)
+    // by writing it into the ledger's checkpoint-adjacent claim fields via the
+    // service; the service records toProvider/toModel, and the takeover reads
+    // baseUrl from here.
+    let claimed;
+    try {
+      claimed = await claimHandoff({
+        handoffId: ledger.id,
+        provider,
+        model: resolvedModel,
+        baseUrl,
+        claimedBy: req.auth!.userId,
+      });
+    } catch (err) {
+      if (err instanceof HandoffClaimError && err.code === "CHECKPOINT_PENDING") {
+        throw new AppError(409, err.message);
+      }
+      throw err;
+    }
+
+    await prisma.run.update({ where: { id: run.id }, data: { status: "RUNNING" } });
+    await enqueueRun(run.id);
+
+    res.json({
+      success: true,
+      handoffId: claimed.id,
+      status: "RUNNING",
+      toProvider: provider,
+      toModel: resolvedModel,
+    });
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/runs/:id/handoffs — this run's handoff ledger history, newest
+// first (§2.6). Powers the HandoffPanel timeline; tolerant of the
+// stepIndex-per-multiple-rows reality (B6.5) — it's a flat ledger list.
+runRouter.get("/:id/handoffs", async (req, res, next) => {
+  try {
+    const run = await prisma.run.findFirst({
+      where: { id: req.params.id, pipeline: { company: { tenantId: req.auth!.tenantId } } },
+      select: { id: true },
+    });
+    if (!run) throw new AppError(404, "Run not found");
+
+    const ledgers = await prisma.handoffLedger.findMany({
+      where: { runId: run.id },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true, runId: true, stepIndex: true, status: true, reason: true,
+        fromProvider: true, fromModel: true, toProvider: true, toModel: true,
+        contextSummary: true, gitState: true, createdBy: true, claimedBy: true,
+        createdAt: true, claimedAt: true, completedAt: true,
+        // checkpoint deliberately omitted — it can be large and is not needed
+        // for the timeline. The takeover leg reads it server-side.
+      },
+    });
+    res.json({ handoffs: ledgers });
+  } catch (err) { next(err); }
+});
+
 // POST /api/v1/runs/:id/steer — queue an operator steering message for a live
 // run. The agent loop drains it at the top of its next turn and injects it as
 // guidance (Phase 1 HITL — "steer a running agent"). Does not pause the run.
@@ -426,6 +663,22 @@ runRouter.post("/steps/:id/rerun", async (req, res, next) => {
     }
     if (step.status !== "FAILED" && step.status !== "ROLLED_BACK") {
       throw new AppError(400, "Only FAILED or ROLLED_BACK steps can be rerun");
+    }
+
+    // E3/T5 rerun × handoff guard (B6.3). A rerun resets this step — so a
+    // handoff frozen against it must not stay live. A CLAIMED ledger means a
+    // takeover is already resuming this run: refuse the rerun (409). An OPEN
+    // ledger is stale once we rerun: cancel it so it can't be claimed against a
+    // reset step.
+    const relatedHandoff = await prisma.handoffLedger.findFirst({
+      where: { runId: step.runId, status: { in: ["OPEN", "CLAIMED"] } },
+      select: { id: true, status: true },
+    });
+    if (relatedHandoff?.status === "CLAIMED") {
+      throw new AppError(409, "A handoff is already resuming this run — cancel or complete it before rerunning the step.");
+    }
+    if (relatedHandoff?.status === "OPEN") {
+      await cancelOpenHandoffForRun(step.runId, "rerun", req.auth!.userId);
     }
 
     // Reset step status to RUNNING
