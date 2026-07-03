@@ -303,6 +303,76 @@ export const api = {
       method: "POST", body: JSON.stringify({ content, targetAgentId }), token,
     }),
 
+  // Cross-model handoff (E3/T8, plan §2.6) — the HandoffPanel on /runs/[id]
+  // drives these. The provider picker is fed by listProviderLinks (the
+  // key-masked LIST endpoint T5 added); startHandoff freezes the run's
+  // checkpoint; continueHandoff claims the OPEN ledger for a takeover
+  // provider (409 CHECKPOINT_PENDING while the live loop hasn't reached a
+  // turn boundary yet — the panel surfaces "freezing…" and lets the operator
+  // retry); listHandoffs powers the ledger timeline.
+  listHandoffs: (token: string, runId: string) =>
+    apiFetch<{
+      handoffs: Array<{
+        id: string;
+        runId: string;
+        stepIndex: number;
+        status: "OPEN" | "CLAIMED" | "COMPLETED" | "FAILED" | "CANCELLED";
+        reason: "MANUAL" | "PROVIDER_FAILOVER" | "PROVIDER_EXHAUSTED" | "SESSION_LOST";
+        fromProvider: string;
+        fromModel: string;
+        toProvider: string | null;
+        toModel: string | null;
+        contextSummary: string | null;
+        gitState: unknown | null;
+        createdBy: string | null;
+        claimedBy: string | null;
+        createdAt: string;
+        claimedAt: string | null;
+        completedAt: string | null;
+      }>;
+    }>(`/runs/${runId}/handoffs`, { token }),
+  startHandoff: (token: string, runId: string, reason?: string) =>
+    apiFetch<{
+      success: boolean;
+      handoffId: string;
+      status: string;
+      checkpointPending: boolean;
+    }>(`/runs/${runId}/handoff`, {
+      method: "POST",
+      body: JSON.stringify(reason ? { reason } : {}),
+      token,
+    }),
+  continueHandoff: (
+    token: string,
+    runId: string,
+    body: { provider: string; model?: string; baseUrl?: string },
+  ) =>
+    apiFetch<{
+      success: boolean;
+      handoffId: string;
+      status: string;
+      toProvider: string;
+      toModel: string;
+    }>(`/runs/${runId}/continue`, {
+      method: "POST",
+      body: JSON.stringify(body),
+      token,
+    }),
+  // Key-masked multi-BYOK provider list (T5 — GET /settings/ai-config/providers).
+  // Powers the HandoffPanel takeover-provider picker. keyMasked is "••••abcd"
+  // for cloud rows, null for keyless-local (Ollama/LM Studio/Custom).
+  listProviderLinks: (token: string) =>
+    apiFetch<{
+      providers: Array<{
+        provider: string;
+        model: string;
+        isDefault: boolean;
+        fallbackOrder: number | null;
+        baseUrl: string | null;
+        keyMasked: string | null;
+      }>;
+    }>("/settings/ai-config/providers", { token }),
+
   // Dashboard extended
   listRuns: (token: string, limit = 50, offset = 0) =>
     apiFetch<{ runs: any[]; total: number }>(`/dashboard/runs?limit=${limit}&offset=${offset}`, { token }),
