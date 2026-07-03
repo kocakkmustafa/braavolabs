@@ -114,6 +114,7 @@ vi.mock("../../../services/ai-client", async (importOriginal) => {
 });
 
 import { runAgentLoop, type AgentGovContext } from "../claude";
+import { ProviderExhaustedError } from "../../../services/provider-chain";
 import type { AIClientConfig, ChatCompletionResult } from "../../../services/ai-client";
 
 const TENANT = "tenant-t7";
@@ -470,6 +471,51 @@ describe("privacy rule — allowSystemFallback gates the trial/system tail", () 
 
     expect(dialedConfigs().map((c) => c.provider)).toEqual(["DEEPSEEK"]);
     expect(dialedConfigs().every((c) => c.apiKey !== SYSTEM_KEY)).toBe(true);
+  });
+
+  // E3/T3 — B3: the loop wraps a FAILOVER-class chain exhaustion in the
+  // ProviderExhaustedError marker so the executor can open an AUTOMATIC handoff.
+  // The message still mirrors the cause (401) — every `.toThrow(/401/)`
+  // consumer above keeps passing.
+  it("chain exhaustion on a FAILOVER error throws the ProviderExhaustedError marker (FAILOVER, status 401)", async () => {
+    seedTenantRows([
+      { provider: "DEEPSEEK", model: "deepseek-chat", apiKey: "sk-ds", isDefault: true },
+    ]);
+    chatCompletionMock.mockRejectedValue(new Error("DEEPSEEK API error 401: invalid api key"));
+
+    const thrown = await runAgentLoop({
+      systemPrompt: "sys",
+      userMessage: "go",
+      toolNames: [],
+      tenantId: TENANT,
+      govContext: GOV,
+    }).catch((e) => e);
+
+    expect(thrown).toBeInstanceOf(ProviderExhaustedError);
+    expect(thrown.classification).toBe("FAILOVER");
+    expect(thrown.status).toBe(401);
+    expect(thrown.provider).toBe("DEEPSEEK");
+    expect(thrown.message).toMatch(/401/);
+  });
+
+  // B3: a FATAL (request-shape) error is thrown RAW — never the marker, so it
+  // can never open a handoff (the same doomed request would die anywhere).
+  it("a FATAL error is thrown raw (NOT the ProviderExhaustedError marker)", async () => {
+    seedTenantRows([
+      { provider: "DEEPSEEK", model: "deepseek-chat", apiKey: "sk-ds", isDefault: true },
+    ]);
+    chatCompletionMock.mockRejectedValue(new Error("DEEPSEEK API error 400: bad request"));
+
+    const thrown = await runAgentLoop({
+      systemPrompt: "sys",
+      userMessage: "go",
+      toolNames: [],
+      tenantId: TENANT,
+      govContext: GOV,
+    }).catch((e) => e);
+
+    expect(thrown).not.toBeInstanceOf(ProviderExhaustedError);
+    expect(thrown.message).toMatch(/400/);
   });
 
   it("allowSystemFallback=true → the system Anthropic link takes over after the tenant chain dies", async () => {

@@ -21,6 +21,7 @@ import {
   classifyProviderError,
   isFailoverEligible,
   isProviderTripped,
+  ProviderExhaustedError,
   recordProviderFailure,
   recordProviderSuccess,
   type ProviderChainLink,
@@ -903,10 +904,26 @@ export async function runProviderAgentLoop(
         // and would replay identically elsewhere — never breaker-counted,
         // never chained (plan risk table).
         if (cls !== "FATAL") recordProviderFailure(cbTenant, callConfig.provider);
-        if (!isFailoverEligible(cls) || pendingLinks.length === 0) throw err;
+        // FATAL never chains — throw it raw (NOT handoff-eligible: the same
+        // doomed request would die on any provider — B3).
+        if (!isFailoverEligible(cls)) throw err;
+        // Failover-eligible but no link left in the chain: the tenant's chain
+        // is EXHAUSTED. Wrap in the ProviderExhaustedError marker (§2.3b/B3)
+        // so the executor's catch can open an AUTOMATIC handoff — but ONLY on
+        // a trustworthy classification (FAILOVER, or TRANSIENT with a real
+        // status). isHandoffTriggerEligible() does that filtering downstream;
+        // here we just record what the classifier saw. The message mirrors the
+        // cause so every `.toThrow(/…/)` consumer reads exactly as before.
+        if (pendingLinks.length === 0) {
+          throw ProviderExhaustedError.wrap(cls, callConfig.provider, callConfig.model, err);
+        }
         const reason = `${cls}: ${err instanceof Error ? err.message : String(err)}`;
         const switched = await switchToNextProvider(reason, turn);
-        if (!switched) throw err;
+        // switchToNextProvider returned false ⇒ every remaining link is gone
+        // (idx === -1, pendingLinks emptied) ⇒ chain exhausted, same marker.
+        if (!switched) {
+          throw ProviderExhaustedError.wrap(cls, callConfig.provider, callConfig.model, err);
+        }
       }
     }
 

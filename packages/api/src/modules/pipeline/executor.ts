@@ -3,6 +3,8 @@ import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { publishRunEvent } from "../../lib/runEvents";
 import { runAgentLoop, HandoffInterrupt, type AgentLoopResult } from "../agent/claude";
+import { isHandoffTriggerEligible } from "../../services/provider-chain";
+import { maybeOpenAutoHandoff } from "../run/handoff.trigger";
 import { AppError } from "../../middleware/error";
 import { withSpan, toolCallCounter, stepDurationHistogram } from "../../lib/telemetry";
 
@@ -298,6 +300,25 @@ export async function executeStep(
     });
 
     await publishRunEvent(runId, { type: "STEP_FAILED", stepId: runStep.id, error: errorMsg });
+
+    // E3/T3 automatic handoff trigger (§2.3b — B3): ONLY a marked provider
+    // chain-exhaustion with a trustworthy classification (FAILOVER, or a
+    // TRANSIENT carrying a real HTTP status) opens a ledger. Generic failures
+    // — "No AI provider configured", Prisma errors, plain code bugs, and
+    // default-TRANSIENT guesses — never trigger. The whole call is
+    // error-swallowing (B6.2): opening a ledger must NEVER re-throw and un-do
+    // the FAILED marking above (a throw would let BullMQ attempts:2 re-run the
+    // step). The step stays FAILED regardless of the handoff outcome.
+    if (isHandoffTriggerEligible(err)) {
+      try {
+        await maybeOpenAutoHandoff(runId, err);
+      } catch (handoffErr) {
+        logger.warn(
+          { runId, runStepId: runStep.id, err: (handoffErr as Error).message },
+          "auto handoff trigger failed (non-fatal — step stays FAILED)",
+        );
+      }
+    }
 
     return {
       stepId: runStep.id,

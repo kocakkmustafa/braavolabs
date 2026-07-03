@@ -74,6 +74,60 @@ settingsRouter.get("/ai-config", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /api/v1/settings/ai-config/providers  (E3/T5 — B5.2)
+//
+// The multi-BYOK LIST endpoint E2 never wrote: the schema moved to one row per
+// (tenant, provider) but the settings router stayed single-config (GET/PUT/
+// DELETE /ai-config all resolve the DEFAULT row only). E3 needs the full list
+// so the HandoffPanel provider picker (and the CLI) can show every provider the
+// tenant configured — this is that data source.
+//
+// Contract (packages/ui/lib/api.ts listProviderLinks): Bearer auth; returns
+// `{ providers: [{ provider, model, isDefault, fallbackOrder, keyMasked }] }`.
+// keyMasked is "sk-…abcd"-style (last 4 chars) or null for keyless-local rows —
+// the plaintext apiKey is NEVER returned. Rows are ordered exactly like
+// listTenantProviderLinks (default first, then fallbackOrder asc, then
+// createdAt) so the picker's default is the picker's first entry.
+settingsRouter.get("/ai-config/providers", async (req, res, next) => {
+  try {
+    const rows = await prisma.userAIConfig.findMany({
+      where: { tenantId: req.auth!.tenantId },
+    });
+
+    const sorted = [...rows].sort((a, b) => {
+      if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
+      const ao = a.fallbackOrder ?? Number.MAX_SAFE_INTEGER;
+      const bo = b.fallbackOrder ?? Number.MAX_SAFE_INTEGER;
+      if (ao !== bo) return ao - bo;
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    });
+
+    const providers = sorted.map((row) => {
+      // Mask the key: show only the last 4 plaintext chars behind a fixed dot
+      // prefix. Never surfaces the ciphertext or the plaintext key. Keyless-
+      // local rows (Ollama/LM Studio/Custom) legitimately have no key → null.
+      let keyMasked: string | null = null;
+      if (row.encryptedApiKey) {
+        try {
+          keyMasked = "••••" + decryptForTenant(row.encryptedApiKey, req.auth!.tenantId).slice(-4);
+        } catch {
+          keyMasked = "••••????";
+        }
+      }
+      return {
+        provider: row.provider,
+        model: row.model,
+        isDefault: row.isDefault,
+        fallbackOrder: row.fallbackOrder,
+        baseUrl: row.baseUrl ?? null,
+        keyMasked,
+      };
+    });
+
+    res.json({ providers });
+  } catch (err) { next(err); }
+});
+
 // GET /api/v1/settings/ai-providers/:provider/models  (E2/T10 — API leg)
 // Live model catalogue for one provider: JIT proxy of the provider's own
 // /models listing using the tenant's stored BYOK key (5-minute cache),

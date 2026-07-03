@@ -39,6 +39,9 @@ export type RunEventType =
   | "STEERING_APPLIED" // operator injected a prompt to steer a specific agent
   // ── Provider orchestration (E2/T7 — auto-mode failover) ────────
   | "PROVIDER_FAILOVER" // the agent loop advanced to the next provider in the tenant's chain
+  // ── Cross-model handoff (E3 — durable, cross-session takeover) ──
+  | "HANDOFF_CREATED" // a handoff ledger row was opened (manual or auto chain-exhaustion)
+  | "HANDOFF_CLAIMED" // a provider took the handoff over; the run re-enqueues on it
   // ── Transport keepalive ────────────────────────────────────────
   | "HEARTBEAT";
 
@@ -177,6 +180,33 @@ export interface ProviderFailoverEvent extends RunEventBase {
   reason: string;
 }
 
+/**
+ * A handoff ledger row was opened (E3 §2.6). Emitted by handoff.service for
+ * both the manual (`POST /runs/:id/handoff`) and automatic (marked provider
+ * chain-exhaustion) paths. The durable audit copy is the `run.handoff_created`
+ * activity_log row (run events are Redis-only, plan A5).
+ */
+export interface HandoffCreatedEvent extends RunEventBase {
+  type: "HANDOFF_CREATED";
+  handoffId: string;
+  /** Provider that left the run (AIProvider value, e.g. "ANTHROPIC"). */
+  fromProvider: string;
+  /** MANUAL | PROVIDER_FAILOVER | PROVIDER_EXHAUSTED | SESSION_LOST. */
+  reason: string;
+  stepIndex: number;
+}
+
+/**
+ * A handoff was claimed — a provider took the run over (E3 §2.6). Emitted when
+ * the ledger flips OPEN → CLAIMED; the run re-enqueues on `toProvider`.
+ */
+export interface HandoffClaimedEvent extends RunEventBase {
+  type: "HANDOFF_CLAIMED";
+  handoffId: string;
+  /** Provider taking the run over (AIProvider value, e.g. "OLLAMA"). */
+  toProvider: string;
+}
+
 export interface HeartbeatEvent extends RunEventBase {
   type: "HEARTBEAT";
 }
@@ -198,6 +228,8 @@ export type RunEvent =
   | InputRequestedEvent
   | SteeringAppliedEvent
   | ProviderFailoverEvent
+  | HandoffCreatedEvent
+  | HandoffClaimedEvent
   | HeartbeatEvent;
 
 // ── Human-in-the-loop interrupts (Phase 1 — mid-run steering) ────────────
