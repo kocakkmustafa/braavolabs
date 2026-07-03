@@ -166,6 +166,15 @@ const envShape = z.object({
   // — the rollback lever for the tool-use translation layer. ANTHROPIC is
   // never gated (SDK-native path predates this layer).
   NATIVE_TOOLUSE_PROVIDERS: z.string().optional(),
+  // ── Scheduled-pipeline timezone pin (E4) ──
+  // BullMQ JobScheduler evaluates cron patterns against this IANA timezone.
+  // The prod container ships no TZ env and node:20-alpine carries no tzdata,
+  // so the *old* in-process node-cron effectively fired against UTC. We pin
+  // the default to "UTC" to reproduce that firing behavior byte-for-byte on
+  // cutover (deterministic, no silent wall-clock shift). Operators who want
+  // schedules interpreted in local time set e.g. SCHEDULER_TZ="Europe/Istanbul"
+  // — but that is an intentional behavior change, never an accidental drift.
+  SCHEDULER_TZ: z.string().default("UTC"),
 });
 
 export type Env = z.infer<typeof envShape>;

@@ -10,8 +10,26 @@ const connection = redis as any;
 // are serialised to Redis; per-job opts live at enqueueRun time.
 export const runQueue = new Queue("pipeline-runs", { connection });
 
-// Memory consolidation queue
-export const memoryQueue = new Queue("memory-consolidation", { connection });
+// Pipeline schedule queue (E4) — DEDICATED queue for BullMQ JobScheduler
+// repeat state. It MUST be separate from runQueue: BullMQ delivers a job to
+// exactly one worker per queue regardless of job.name, so two workers on the
+// same queue race for every job. If the scheduled-tick worker and the
+// execute-run worker shared "pipeline-runs", the tick worker could grab an
+// execute-run job (and no-op ACK it → the pipeline never runs) and the
+// execute-run worker could grab a scheduled-tick job (→ runId=undefined). By
+// giving schedulers their own queue, each queue has exactly ONE worker and the
+// two job types can never cross-consume. The scheduled tick still funnels the
+// actual pipeline run back onto runQueue via enqueueRun("execute-run").
+export const scheduleQueue = new Queue("pipeline-schedules", { connection });
+
+// NOTE (E4/T4): a "memory-consolidation" Queue used to be declared here but
+// had no producer and no worker — memory consolidation actually runs on a
+// plain setInterval (modules/memory/consolidation-cron.ts). The dead export
+// was removed to avoid implying a BullMQ path that doesn't exist. Redis
+// key-prefixing was evaluated and intentionally NOT added: prod runs a
+// dedicated password-auth aicos-redis (compose.prod.yaml) and the only other
+// workspace project (Burun Farkı) is Vercel-hosted with no shared Redis, so
+// getJobSchedulers() cannot enumerate a foreign app's schedulers.
 
 /**
  * Default worker options applied to every queue we manage. Long-running
