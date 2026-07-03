@@ -4,7 +4,9 @@ import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { rateLimit } from "../../middleware/rateLimit";
 import { z } from "zod";
-import { enqueueRun } from "./runner";
+import { enqueueRun, registerSchedule, removeSchedule } from "./runner";
+import { scheduleQueue } from "../../lib/queue";
+import * as cron from "node-cron";
 import { claimQuota } from "../billing/metering";
 import Anthropic from "@anthropic-ai/sdk";
 import { env } from "../../config/env";
@@ -46,6 +48,17 @@ const createSchema = z.object({
       path: ["managerAgentId"],
       message: "Hierarchical pipelines require a managerAgentId",
     });
+  }
+  // SCHED-06 — a SCHEDULED pipeline without a valid cron schedule would be
+  // silently dropped by the scheduler filter, so reject it at the door.
+  if (val.trigger === "SCHEDULED") {
+    if (!val.schedule || !cron.validate(val.schedule)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["schedule"],
+        message: "SCHEDULED pipelines require a valid cron schedule",
+      });
+    }
   }
 });
 
@@ -182,6 +195,13 @@ Rules:
       },
     });
 
+    // E4 — register the schedule for an NL-generated SCHEDULED pipeline (G1).
+    // The NL builder can emit a cron schedule; validate before registering so
+    // a malformed AI-produced pattern is logged-and-skipped, not thrown.
+    if (pipeline.trigger === "SCHEDULED" && pipeline.enabled && pipeline.schedule) {
+      await registerSchedule(pipeline);
+    }
+
     await prisma.activityLog.create({
       data: {
         tenantId: req.auth!.tenantId,
@@ -213,6 +233,24 @@ const updatePipelineSchema = z.object({
     order: z.number(),
     config: z.record(z.unknown()).optional(),
   })).optional(),
+}).superRefine((val, ctx) => {
+  // When a PATCH explicitly sets trigger=SCHEDULED it must carry a valid cron
+  // schedule in the same request (SCHED-06). When it only supplies a schedule
+  // string (keeping an existing SCHEDULED trigger), that string must still be
+  // a valid pattern. Fuller "resulting-state" validation lives in the handler.
+  if (val.trigger === "SCHEDULED" && (!val.schedule || !cron.validate(val.schedule))) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["schedule"],
+      message: "SCHEDULED pipelines require a valid cron schedule",
+    });
+  } else if (val.schedule !== undefined && !cron.validate(val.schedule)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["schedule"],
+      message: "Invalid cron schedule",
+    });
+  }
 });
 
 // GET /api/v1/pipelines?companyId=xxx
@@ -230,6 +268,71 @@ pipelineRouter.get("/", async (req, res, next) => {
       orderBy: { createdAt: "desc" },
     });
     res.json(pipelines);
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/pipelines/scheduled — the scheduling dashboard feed (E4/T5).
+//
+// nextRunAt is read live from the BullMQ JobScheduler (source of truth for the
+// next fire), lastRunAt from the DB column stamped by processScheduledTick.
+// Every field is real — no placeholder/hardcoded values; an empty result is a
+// genuine empty [] (no schedulers registered for this tenant).
+//
+// MUST be declared before GET /:id so "/scheduled" isn't captured as an :id.
+pipelineRouter.get("/scheduled", async (req, res, next) => {
+  try {
+    // Tenant-scope: only this tenant's SCHEDULED pipelines. Optional companyId
+    // query narrows further (and is ownership-checked when present).
+    const companyId = req.query.companyId as string | undefined;
+    if (companyId) {
+      const company = await prisma.company.findFirst({
+        where: { id: companyId, tenantId: req.auth!.tenantId },
+        select: { id: true },
+      });
+      if (!company) throw new AppError(404, "Company not found");
+    }
+
+    const pipelines = await prisma.pipeline.findMany({
+      where: {
+        trigger: "SCHEDULED",
+        ...(companyId ? { companyId } : {}),
+        company: { tenantId: req.auth!.tenantId },
+      },
+      select: {
+        id: true,
+        name: true,
+        schedule: true,
+        enabled: true,
+        lastRunAt: true,
+        companyId: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Build a pipelineId → nextRun(epoch ms) map from the live schedulers.
+    // Schedulers live on the dedicated pipeline-schedules queue (E4), not
+    // runQueue.
+    const schedulers = await scheduleQueue.getJobSchedulers(0, -1);
+    const nextByKey = new Map<string, number | undefined>();
+    for (const s of schedulers) {
+      const key = s.key ?? s.id;
+      if (key) nextByKey.set(key, s.next ?? undefined);
+    }
+
+    const result = pipelines.map((p) => {
+      const next = nextByKey.get(p.id);
+      return {
+        id: p.id,
+        name: p.name,
+        companyId: p.companyId,
+        schedule: p.schedule,
+        enabled: p.enabled,
+        nextRunAt: next != null ? new Date(next).toISOString() : null,
+        lastRunAt: p.lastRunAt ? p.lastRunAt.toISOString() : null,
+      };
+    });
+
+    res.json(result);
   } catch (err) { next(err); }
 });
 
@@ -256,6 +359,12 @@ pipelineRouter.post("/", async (req, res, next) => {
     }
 
     const pipeline = await prisma.pipeline.create({ data: { ...data, steps: data.steps as any } });
+
+    // E4 — register the BullMQ schedule immediately so a runtime-created
+    // SCHEDULED pipeline fires without waiting for a process restart (G1).
+    if (pipeline.trigger === "SCHEDULED" && pipeline.enabled && pipeline.schedule) {
+      await registerSchedule(pipeline);
+    }
 
     await prisma.activityLog.create({
       data: {
@@ -420,6 +529,17 @@ pipelineRouter.patch("/:id", async (req, res, next) => {
       where: { id: pipeline.id },
       data: { ...patchData, steps: patchData.steps as any },
     });
+
+    // E4 — reconcile the BullMQ schedule against the RESULTING state (G1/G3).
+    // registerSchedule is idempotent (jobSchedulerId=pipeline.id), so a PATCH
+    // that changes the cron pattern updates in place; anything that leaves the
+    // pipeline non-schedulable (disabled, trigger away from SCHEDULED, or
+    // schedule cleared) tears the scheduler down.
+    if (updated.trigger === "SCHEDULED" && updated.enabled && updated.schedule) {
+      await registerSchedule(updated);
+    } else {
+      await removeSchedule(updated.id);
+    }
 
     if (stepsChanged) {
       await prisma.activityLog.create({
@@ -600,6 +720,11 @@ pipelineRouter.delete("/:id", async (req, res, next) => {
     }
 
     await prisma.pipeline.delete({ where: { id: pipeline.id } });
+
+    // E4 — tear down the BullMQ schedule so a deleted pipeline's scheduler
+    // doesn't keep firing ticks that create runs against a now-invalid FK
+    // (G1/SCHED-04). Safe no-op when the pipeline had no scheduler.
+    await removeSchedule(pipeline.id);
 
     await prisma.activityLog.create({
       data: {
