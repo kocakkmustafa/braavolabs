@@ -37,6 +37,12 @@ import { storeEpisodicMemory } from "@ai-company-os/memory";
 import { listTenantProviderLinks, isProviderTripped } from "../../services/provider-chain";
 import { LOCAL_PROVIDERS, type AIProviderType } from "../../services/ai-client";
 import type { TranscriptCheckpoint } from "../agent/claude";
+import { buildContextSummary } from "./handoff-summary";
+
+// Re-exported so existing callers/tests keep importing the mechanical summariser
+// from the handoff surface; the implementation now lives in the dependency-light
+// handoff-summary module (shared with claude.ts's freeze path — D-015).
+export { buildContextSummary } from "./handoff-summary";
 
 /** claim recovers a still-null checkpoint from run_steps.transcript once the
  * ledger is older than this — the "process died before the live loop could
@@ -89,35 +95,6 @@ async function loadLatestStep(runId: string): Promise<{
     stepIndex: step.stepIndex,
     transcript: (step.transcript as unknown as TranscriptCheckpoint | null) ?? null,
   };
-}
-
-/**
- * Mechanical (LLM-free — §2.5) context summary. No cost, no dependency, no
- * cross-provider call: completed step names + the tail of the interrupted
- * step's last assistant message + any tool calls the model left pending. The
- * takeover reads this as the "here's where the last provider left off" note.
- */
-export function buildContextSummary(
-  completedStepNames: string[],
-  checkpoint: TranscriptCheckpoint | null,
-): string {
-  const parts: string[] = [];
-  if (completedStepNames.length > 0) {
-    parts.push(`Completed steps: ${completedStepNames.join(", ")}.`);
-  }
-  const messages = checkpoint?.messages ?? [];
-  const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
-  if (lastAssistant?.content) {
-    parts.push(`Last provider left off: ${lastAssistant.content.slice(0, 500)}`);
-  }
-  const pendingToolCalls = lastAssistant?.toolCalls ?? [];
-  if (pendingToolCalls.length > 0) {
-    parts.push(`Pending tool calls: ${pendingToolCalls.map((t) => t.name).join(", ")}.`);
-  }
-  if (checkpoint) {
-    parts.push(`(${checkpoint.turn} turn(s) into the step; $${checkpoint.costSoFarUsd.toFixed(4)} spent.)`);
-  }
-  return parts.join(" ") || "No prior context captured.";
 }
 
 /**

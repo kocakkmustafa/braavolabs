@@ -31,6 +31,7 @@ import { priceForModel, FREE_PROVIDERS } from "../../lib/modelPricing";
 import { commitTrialRun } from "../../services/trial-llm";
 import { prisma } from "../../lib/db";
 import { publishRunEvent } from "../../lib/runEvents";
+import { buildContextSummary, NO_PRIOR_CONTEXT } from "../run/handoff-summary";
 
 /**
  * Governance context threaded from pipeline executor → agent loop → tool execution.
@@ -522,10 +523,46 @@ async function checkTurnBoundaryInterrupt(
   await persistTurnCheckpoint(govContext, checkpoint);
 
   if (openLedger && openLedger.checkpoint === null) {
+    // D-015: RE-derive contextSummary from the REAL frozen checkpoint here.
+    // On the MANUAL early-handoff path createHandoff wrote its summary while
+    // run_steps.transcript was still null (loop interrupted before its first
+    // turn produced anything) → the placeholder NO_PRIOR_CONTEXT. This freeze
+    // is the first moment the genuine mid-step transcript exists, so we replace
+    // that placeholder with the real note built from the same messages we're
+    // freezing. Same mechanical summariser as createHandoff → identical text
+    // for the same transcript. Completed-step names are a cheap best-effort
+    // read; its failure must never block the checkpoint freeze.
+    let completedStepNames: string[] = [];
+    try {
+      const completed = await prisma.runStep.findMany({
+        where: { runId: govContext.runId, status: "COMPLETED" },
+        orderBy: { stepIndex: "asc" },
+        select: { name: true },
+      });
+      completedStepNames = completed
+        .map((s) => s.name)
+        .filter(Boolean) as string[];
+    } catch (err) {
+      logger.warn(
+        { runId: govContext.runId, err: (err as Error).message },
+        "completed-step read for handoff summary failed (non-fatal — summary built from checkpoint only)",
+      );
+    }
+    const contextSummary = buildContextSummary(completedStepNames, checkpoint);
+
     try {
       await prisma.handoffLedger.update({
         where: { id: openLedger.id },
-        data: { checkpoint: checkpoint as any },
+        // Freeze the checkpoint AND refresh the summary in one write. The
+        // summary is only ever rewritten here at the null→frozen transition
+        // (never on an already-frozen ledger), so the audit copy stays as
+        // immutable as the checkpoint itself. Skip the summary write only when
+        // the checkpoint genuinely yields no context (keeps createHandoff's
+        // own text — e.g. completed-step names — instead of clobbering it).
+        data: {
+          checkpoint: checkpoint as any,
+          ...(contextSummary !== NO_PRIOR_CONTEXT ? { contextSummary } : {}),
+        },
       });
     } catch (err) {
       logger.warn(

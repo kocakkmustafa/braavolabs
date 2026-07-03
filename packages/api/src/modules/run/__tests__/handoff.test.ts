@@ -287,6 +287,20 @@ describe("createHandoff", () => {
     expect(created.checkpoint).toBeUndefined(); // null → omitted
   });
 
+  it("D-015 (baseline): manual RUNNING handoff before any turn writes an EMPTY summary — the loop's freeze must fix it", async () => {
+    // The manual /handoff endpoint fires before the loop produces a turn:
+    // run_steps.transcript is still null, so createHandoff can only write the
+    // placeholder. This documents the state the D-015 freeze re-derives from
+    // the real checkpoint (see transcript-checkpoint.test.ts).
+    runFindUnique.mockResolvedValue({ ...RUN_CTX, status: "RUNNING" });
+    runStepFindFirst.mockResolvedValue({ id: "rs-1", stepIndex: 0, transcript: null });
+    runStepFindMany.mockResolvedValue([]); // no completed steps either
+    await createHandoff({ runId: "run-1", reason: "MANUAL", fromProvider: "ANTHROPIC", fromModel: "m" });
+    const created = handoffCreate.mock.calls[0][0].data;
+    expect(created.checkpoint).toBeUndefined();
+    expect(created.contextSummary).toBe("No prior context captured.");
+  });
+
   it("non-RUNNING run copies the frozen transcript into checkpoint", async () => {
     await createHandoff({ runId: "run-1", reason: "MANUAL", fromProvider: "ANTHROPIC", fromModel: "m" });
     const created = handoffCreate.mock.calls[0][0].data;
