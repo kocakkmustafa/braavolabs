@@ -57,7 +57,7 @@ import { settingsRouter } from "./modules/settings/router";
 import { agentVersionRouter } from "./modules/agent/version-router";
 import { collaborationRouter } from "./modules/collaboration/router";
 import { abTestRouter } from "./modules/ab-test/router";
-import { initPipelineRunner, initScheduledPipelines, stopScheduledPipelines } from "./modules/pipeline/runner";
+import { initPipelineRunner, initScheduledPipelines, initScheduledTickWorker, stopScheduledPipelines } from "./modules/pipeline/runner";
 import { initOutreachWorker } from "./modules/outreach/sequence-runner";
 import { initConsolidationCron, stopConsolidationCron } from "./modules/memory/consolidation-cron";
 import { initApprovalExpiryCron, stopApprovalExpiryCron } from "./modules/approval/expiry-cron";
@@ -335,8 +335,20 @@ app.listen(env.API_PORT, env.API_HOST, () => {
   // Initialize pipeline runner (BullMQ worker)
   initPipelineRunner();
 
-  // Initialize scheduled pipeline crons
-  initScheduledPipelines();
+  // Initialize the scheduled-tick worker — consumes JobScheduler-produced
+  // scheduled-run jobs. Coupled to this process alongside initPipelineRunner.
+  initScheduledTickWorker();
+
+  // Reconcile scheduled pipelines against Redis (register desired, drop
+  // orphans). app.listen's callback can't await, so run it as a tracked
+  // async IIFE and log any failure rather than silently swallowing it.
+  void (async () => {
+    try {
+      await initScheduledPipelines();
+    } catch (err) {
+      logger.error({ err }, "Failed to reconcile scheduled pipelines on boot");
+    }
+  })();
 
   // Initialize outreach sequence worker
   initOutreachWorker();

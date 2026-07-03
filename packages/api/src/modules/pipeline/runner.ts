@@ -2,7 +2,8 @@ import type { Job } from "bullmq";
 import * as cron from "node-cron";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
-import { runQueue, createWorker } from "../../lib/queue";
+import { env } from "../../config/env";
+import { runQueue, scheduleQueue, createWorker } from "../../lib/queue";
 import { executeStep, checkGovernance, planResume, type StepDef, type StepExecutionResult } from "./executor";
 import { publishRunEvent } from "../../lib/runEvents";
 import { incrementMeter, checkQuota, claimQuota } from "../billing/metering";
@@ -612,80 +613,261 @@ export function initPipelineRunner(): void {
   logger.info("Pipeline runner worker initialized");
 }
 
-const scheduledJobs = new Map<string, cron.ScheduledTask>();
+// ─── Scheduled pipelines — BullMQ JobScheduler (E4) ───────────────────────
+//
+// Replaces the previous in-process node-cron Map. The old design registered
+// crons ONLY at boot (initScheduledPipelines) and dropped them on SIGTERM, so
+// runtime create/patch/delete never took effect until a restart (G1) and a
+// process bounce could silently drop a fire (G4). BullMQ JobScheduler holds
+// the repeat state in Redis, so:
+//   - register/remove happen at request time from the router (G1 closed),
+//   - the schedule survives a process restart (G4 closed),
+//   - a fixed jobSchedulerId=pipeline.id makes re-registration idempotent, so
+//     even two API processes sharing one Redis produce ONE scheduler (G2).
+//
+// CRITICAL durability contract: SIGTERM must NOT touch the schedulers.
+// removeJobScheduler is called ONLY on pipeline delete/disable, never on
+// shutdown — see stopScheduledPipelines() below.
 
+/** Name given to every scheduled-tick job produced by a JobScheduler. */
+export const SCHEDULED_TICK_JOB = "scheduled-run";
+
+interface ScheduledTickData {
+  pipelineId: string;
+}
+
+/**
+ * Register (or update) the BullMQ repeat schedule for a SCHEDULED pipeline.
+ *
+ * Idempotent by construction: jobSchedulerId = pipeline.id. Calling this again
+ * with a changed pattern updates the existing scheduler in place; it never
+ * spawns a second one. Invalid cron patterns are logged and skipped (no
+ * scheduler created) so a bad PATCH can't wedge the queue.
+ *
+ * The firing timezone is pinned to env.SCHEDULER_TZ (default "UTC") so the
+ * wall-clock firing time is deterministic and matches the old node-cron
+ * behavior on the (TZ-unpinned → UTC) prod container.
+ */
+export async function registerSchedule(pipeline: {
+  id: string;
+  schedule: string | null;
+}): Promise<void> {
+  if (!pipeline.schedule || !cron.validate(pipeline.schedule)) {
+    logger.warn(
+      { pipelineId: pipeline.id, schedule: pipeline.schedule },
+      "registerSchedule skipped — invalid cron pattern",
+    );
+    return;
+  }
+
+  // Target the DEDICATED schedule queue — NOT runQueue. See scheduleQueue's
+  // doc in lib/queue.ts: keeping schedulers off the run queue is what prevents
+  // the two workers from racing (and the execute-run regression where a tick
+  // worker no-op-ACKs a real run job).
+  await scheduleQueue.upsertJobScheduler(
+    pipeline.id,
+    { pattern: pipeline.schedule, tz: env.SCHEDULER_TZ },
+    {
+      name: SCHEDULED_TICK_JOB,
+      data: { pipelineId: pipeline.id } satisfies ScheduledTickData,
+    },
+  );
+  logger.info(
+    { pipelineId: pipeline.id, schedule: pipeline.schedule, tz: env.SCHEDULER_TZ },
+    "Scheduled pipeline registered (BullMQ JobScheduler)",
+  );
+}
+
+/**
+ * Remove the BullMQ repeat schedule for a pipeline. Safe to call when no
+ * scheduler exists (BullMQ returns false; we don't treat that as an error).
+ * This is the ONLY place a scheduler is torn down — pipeline delete/disable.
+ */
+export async function removeSchedule(pipelineId: string): Promise<void> {
+  const removed = await scheduleQueue.removeJobScheduler(pipelineId);
+  logger.info({ pipelineId, removed }, "Scheduled pipeline scheduler removed");
+}
+
+/**
+ * The tick body a scheduled JobScheduler enqueues on each fire. Exported so it
+ * can be unit-tested directly (the old inline node-cron callback could not be).
+ *
+ * Fire-time re-checks (G3): the pipeline may have been disabled, re-scheduled,
+ * or switched away from SCHEDULED trigger since the scheduler was registered,
+ * and the company may have been paused. All are re-loaded from the DB here so a
+ * stale scheduler that briefly outlives a mutation cannot produce a run.
+ *
+ * Idempotency (A2): this worker MUST be registered with attempts:1 (see
+ * initScheduledTickWorker). claimQuota has no rollback, so a retry after a
+ * post-claim throw would double-bill. We never retry the tick.
+ */
+export async function processScheduledTick(job: Job<ScheduledTickData>): Promise<void> {
+  const { pipelineId } = job.data;
+
+  const pipeline = await prisma.pipeline.findUnique({
+    where: { id: pipelineId },
+    select: {
+      id: true,
+      enabled: true,
+      trigger: true,
+      schedule: true,
+      companyId: true,
+      company: { select: { status: true, tenantId: true } },
+    },
+  });
+
+  // G3 — pipeline gone / disabled / no longer SCHEDULED / schedule cleared.
+  if (
+    !pipeline ||
+    !pipeline.enabled ||
+    pipeline.trigger !== "SCHEDULED" ||
+    !pipeline.schedule
+  ) {
+    logger.info(
+      {
+        pipelineId,
+        exists: !!pipeline,
+        enabled: pipeline?.enabled,
+        trigger: pipeline?.trigger,
+      },
+      "Scheduled tick skipped — pipeline not an enabled SCHEDULED pipeline",
+    );
+    return;
+  }
+
+  // Re-check company status at fire time — a paused/archived workspace
+  // shouldn't keep burning scheduled runs.
+  if (!pipeline.company || pipeline.company.status !== "ACTIVE") {
+    logger.info(
+      { pipelineId, companyStatus: pipeline.company?.status ?? "missing" },
+      "Scheduled run skipped — company not active",
+    );
+    return;
+  }
+
+  // Atomic quota claim before enqueue (ISS-010). Skip the tick if the tenant
+  // is over limit — scheduled runs shouldn't quietly burn the entire monthly
+  // quota because the cron keeps firing after the quota is exhausted.
+  const claim = await claimQuota(pipeline.company.tenantId, "runs");
+  if (!claim.claimed) {
+    logger.warn(
+      { pipelineId, tenantId: pipeline.company.tenantId, value: claim.value, limit: claim.limit },
+      "Scheduled run skipped — quota exhausted",
+    );
+    return;
+  }
+
+  const run = await prisma.run.create({
+    data: {
+      pipelineId: pipeline.id,
+      trigger: "scheduled",
+      status: "PENDING",
+      input: {},
+    },
+  });
+  await enqueueRun(run.id);
+
+  // Persist last fire time for the dashboard (T5). Best-effort: a failure to
+  // stamp lastRunAt must not fail the tick (the run is already enqueued).
+  await prisma.pipeline
+    .update({ where: { id: pipeline.id }, data: { lastRunAt: new Date() } })
+    .catch((err) => logger.warn({ pipelineId, err }, "Failed to stamp lastRunAt"));
+
+  logger.info({ pipelineId, runId: run.id }, "Scheduled pipeline run enqueued");
+}
+
+/**
+ * Start the worker that consumes scheduled-tick jobs.
+ *
+ * Runs on the DEDICATED "pipeline-schedules" queue — NOT the "pipeline-runs"
+ * queue that initPipelineRunner's execute-run worker consumes. This isolation
+ * is load-bearing: BullMQ delivers each job to exactly one worker per queue
+ * regardless of job.name, so if this worker shared "pipeline-runs" with the
+ * execute-run worker they would race for every job. That race caused two
+ * failures: (1) a scheduled-tick job grabbed by the execute-run worker →
+ * runId=undefined and the scheduled run is dropped; (2) FAR worse, an
+ * execute-run job grabbed by this tick worker → it isn't a SCHEDULED_TICK_JOB,
+ * so the job is ACK'd but the pipeline never runs, silently swallowing manual
+ * POST /:id/run, webhook, and approval-resume runs at random. Separate queues
+ * mean each queue has one worker and the two job types can never cross-consume.
+ *
+ * The scheduled tick itself does NOT execute the pipeline — it creates a Run
+ * and calls enqueueRun(), which puts an "execute-run" job on runQueue where
+ * processRun (the sole "pipeline-runs" consumer) picks it up.
+ *
+ * attempts is NOT overridable per-job for scheduler-produced jobs the way
+ * enqueueRun sets it, so we hard-cap retries at the worker's own default of 1.
+ * See processScheduledTick doc (A2): claimQuota has no rollback, so a
+ * post-claim throw must not be retried by BullMQ.
+ */
+export function initScheduledTickWorker(): void {
+  createWorker<ScheduledTickData>("pipeline-schedules", async (job) => {
+    // Defensive: the schedule queue only ever carries SCHEDULED_TICK_JOB jobs
+    // (registerSchedule is the only producer). This guard is belt-and-braces
+    // against a future producer accidentally targeting this queue — a foreign
+    // job is left alone rather than mis-processed as a tick.
+    if (job.name !== SCHEDULED_TICK_JOB) {
+      logger.warn(
+        { jobId: job.id, jobName: job.name },
+        "Scheduled-tick worker received an unexpected job name on pipeline-schedules — ignoring",
+      );
+      return;
+    }
+    await processScheduledTick(job as Job<ScheduledTickData>);
+  });
+  logger.info("Scheduled-tick worker initialized (queue=pipeline-schedules)");
+}
+
+/**
+ * Reconcile Redis schedulers against the DB on boot (replaces the old
+ * boot-only registration). Registers every enabled SCHEDULED pipeline of an
+ * ACTIVE company, and removes any orphan scheduler in Redis whose pipeline is
+ * gone / disabled / no longer SCHEDULED (G1/SCHED-04 — a deleted pipeline must
+ * not keep a live scheduler after a restart).
+ */
 export async function initScheduledPipelines(): Promise<void> {
   const pipelines = await prisma.pipeline.findMany({
-    // Only ACTIVE companies get their crons registered — a paused or
-    // archived workspace shouldn't keep burning scheduled runs.
     where: {
       enabled: true,
       trigger: "SCHEDULED",
       schedule: { not: null },
       company: { status: "ACTIVE" },
     },
-    include: { company: true },
+    select: { id: true, schedule: true },
   });
 
+  const desired = new Set(pipelines.map((p) => p.id));
+
+  // Register/refresh all desired schedules.
   for (const pipeline of pipelines) {
-    if (!pipeline.schedule || !cron.validate(pipeline.schedule)) {
-      logger.warn({ pipelineId: pipeline.id, schedule: pipeline.schedule }, "Invalid cron schedule");
-      continue;
-    }
-
-    const job = cron.schedule(pipeline.schedule, async () => {
-      logger.info({ pipelineId: pipeline.id, name: pipeline.name }, "Scheduled pipeline triggered");
-      try {
-        // Re-check company status at fire time — the registration-time
-        // filter goes stale the moment a user pauses or archives the
-        // workspace, and crons live until the next process restart.
-        const company = await prisma.company.findUnique({
-          where: { id: pipeline.companyId },
-          select: { status: true, tenantId: true },
-        });
-        if (!company || company.status !== "ACTIVE") {
-          logger.info(
-            { pipelineId: pipeline.id, companyStatus: company?.status ?? "missing" },
-            "Scheduled run skipped — company not active",
-          );
-          return;
-        }
-        // Atomic quota claim before enqueue (ISS-010). Skip the tick if the
-        // tenant is over limit — scheduled runs shouldn't quietly burn the
-        // entire monthly quota in a single hour because the cron fires before
-        // the user notices the quota is exhausted.
-        const claim = await claimQuota(company.tenantId, "runs");
-        if (!claim.claimed) {
-          logger.warn(
-            { pipelineId: pipeline.id, tenantId: pipeline.company.tenantId, value: claim.value, limit: claim.limit },
-            "Scheduled run skipped — quota exhausted",
-          );
-          return;
-        }
-        const run = await prisma.run.create({
-          data: {
-            pipelineId: pipeline.id,
-            trigger: "scheduled",
-            status: "PENDING",
-            input: {},
-          },
-        });
-        await enqueueRun(run.id);
-      } catch (err) {
-        logger.error({ pipelineId: pipeline.id, err }, "Failed to trigger scheduled pipeline");
-      }
-    });
-
-    scheduledJobs.set(pipeline.id, job);
-    logger.info({ pipelineId: pipeline.id, schedule: pipeline.schedule, name: pipeline.name }, "Scheduled pipeline cron registered");
+    await registerSchedule(pipeline);
   }
 
-  logger.info({ count: scheduledJobs.size }, "Scheduled pipelines initialized");
+  // Remove orphan schedulers: anything in Redis not in the desired set.
+  // Enumerate the DEDICATED schedule queue (schedulers live there now, not on
+  // runQueue).
+  const existing = await scheduleQueue.getJobSchedulers(0, -1);
+  let orphans = 0;
+  for (const sched of existing) {
+    const id = sched.key ?? sched.id;
+    if (id && !desired.has(id)) {
+      await removeSchedule(id);
+      orphans++;
+    }
+  }
+
+  logger.info(
+    { registered: desired.size, orphansRemoved: orphans },
+    "Scheduled pipelines reconciled (BullMQ JobScheduler)",
+  );
 }
 
+/**
+ * SIGTERM hook. Under BullMQ JobScheduler the repeat state lives in Redis, so
+ * a graceful shutdown MUST NOT remove the schedulers — doing so would delete
+ * every schedule on every deploy. This is intentionally a no-op; schedulers
+ * are only torn down by pipeline delete/disable via removeSchedule().
+ */
 export function stopScheduledPipelines(): void {
-  for (const [id, job] of scheduledJobs) {
-    job.stop();
-  }
-  scheduledJobs.clear();
+  logger.info("stopScheduledPipelines — no-op (JobScheduler state is durable in Redis)");
 }
