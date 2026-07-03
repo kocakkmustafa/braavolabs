@@ -11,7 +11,8 @@
  * stable for the dashboard preview path.
  */
 
-import type { ConvertedPipeline } from "./types";
+import type { ConvertedPipeline, RawStep } from "./types";
+import { finalizeSteps } from "../agent-synthesis";
 
 interface SkillTool {
   name: string;
@@ -36,12 +37,13 @@ export function fromOpenClaw(payload: string): ConvertedPipeline {
     );
   }
 
-  const steps: ConvertedPipeline["pipeline"]["steps"] = [];
+  const rawSteps: RawStep[] = [];
 
   if (manifest.prompts?.system || manifest.prompts?.user) {
-    steps.push({
+    rawSteps.push({
       id: "prompt",
       type: "llm",
+      name: "Prompt",
       config: {
         systemPrompt: manifest.prompts.system ?? "",
         userPrompt: manifest.prompts.user ?? "",
@@ -50,12 +52,15 @@ export function fromOpenClaw(payload: string): ConvertedPipeline {
   }
 
   for (const [idx, tool] of (manifest.tools ?? []).entries()) {
-    steps.push({
+    rawSteps.push({
       id: `tool-${idx + 1}`,
       type: "tool",
+      name: tool.name,
       config: { name: tool.name, description: tool.description, parameters: tool.parameters ?? {} },
     });
   }
+
+  const steps = finalizeSteps(rawSteps);
 
   return {
     pipeline: {

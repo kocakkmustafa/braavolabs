@@ -1,0 +1,9 @@
+{
+  "name": "MCP Weather Server",
+  "description": "server.json mirror — tools become mcp.invoke steps.",
+  "tools": [
+    { "name": "get_forecast", "description": "Return the forecast for a city.", "inputSchema": { "type": "object", "properties": { "city": { "type": "string" } } } },
+    { "name": "list_stations", "description": "List weather stations near a coordinate.", "inputSchema": { "type": "object", "properties": { "lat": { "type": "number" }, "lon": { "type": "number" } } } }
+  ],
+  "resources": [{ "uri": "weather://readme", "name": "Readme" }]
+}

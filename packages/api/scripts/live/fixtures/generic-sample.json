@@ -1,0 +1,9 @@
+{
+  "name": "Generic Two-Step Automation",
+  "description": "A last-resort nodes+edges graph.",
+  "nodes": [
+    { "id": "n1", "type": "http", "config": { "url": "https://example.com/ping" } },
+    { "id": "n2", "type": "transform", "config": { "expression": "$json.map(x => x.id)" } }
+  ],
+  "edges": [{ "from": "n1", "to": "n2" }]
+}

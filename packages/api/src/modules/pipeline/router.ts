@@ -392,6 +392,21 @@ pipelineRouter.post("/:id/run", runTriggerLimiter, async (req, res, next) => {
       throw new AppError(404, "Pipeline not found");
     }
 
+    // ── Empty-steps guard (E5/T2 — findings E5-IMP-05) ──────────────────
+    // A pipeline with no materialized steps (e.g. a freshly-imported one that
+    // couldn't synthesize any runnable step) would otherwise be enqueued,
+    // loop over zero steps, and finalize as a SILENT COMPLETED — the "I ran
+    // it and nothing happened" trap. Surface a visible 422 BEFORE claiming
+    // quota so no Run is created and NO quota unit is consumed (adversarial
+    // B5 — the atomic claim is not refunded).
+    const stepCount = Array.isArray(pipeline.steps) ? (pipeline.steps as unknown[]).length : 0;
+    if (stepCount === 0) {
+      throw new AppError(
+        422,
+        "This import can't be run yet — it has no runnable steps. Materialize or edit its steps first.",
+      );
+    }
+
     // ── Atomic quota claim (ISS-010) ────────────────────────────────────
     // Single SQL statement claims one run from the meter or refuses if over
     // limit. Closes the read-then-write TOCTOU window that previously let

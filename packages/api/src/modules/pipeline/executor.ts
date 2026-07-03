@@ -176,14 +176,24 @@ export async function executeStep(
       `Step "${stepLabel}" has no agent assigned. Open the pipeline editor and pick an agent for this step.`,
     );
   }
-  const agent = run.pipeline.company.agents.find(
-    (a) =>
-      a.role === agentRole ||
-      a.name === agentRole ||
-      a.name.toLowerCase() === agentRole.toLowerCase() ||
-      a.role.toLowerCase().startsWith(agentRole.toLowerCase()) ||
-      agentRole.toLowerCase().includes(a.name.toLowerCase()),
-  );
+  // Matcher (E5/T1 hardening — adversarial A3/B6): try an EXACT role/name match
+  // FIRST. Imported pipelines synthesize agents with exact roles
+  // (imported_llm / imported_operator); the loose startsWith/includes branches
+  // below let a short pre-existing agent name (e.g. "op", "ai") in the shared
+  // "imported-automations" bucket poison a later import's step. Exact-first
+  // guarantees a synthesized role binds to ITS synthesized agent; the loose
+  // branches remain only as a fallback for legacy/native pipelines whose steps
+  // were authored before this contract.
+  const agents = run.pipeline.company.agents;
+  const roleLower = agentRole.toLowerCase();
+  const agent =
+    agents.find((a) => a.role === agentRole || a.name === agentRole) ??
+    agents.find((a) => a.name.toLowerCase() === roleLower) ??
+    agents.find(
+      (a) =>
+        a.role.toLowerCase().startsWith(roleLower) ||
+        roleLower.includes(a.name.toLowerCase()),
+    );
   if (!agent) {
     const available = run.pipeline.company.agents
       .map((a) => `${a.name} (${a.role.slice(0, 40)})`)

@@ -10,7 +10,8 @@
  * type" error rather than silently mis-routing.
  */
 
-import type { ConvertedPipeline } from "./types";
+import type { ConvertedPipeline, RawStep } from "./types";
+import { finalizeSteps } from "../agent-synthesis";
 
 interface GenericGraph {
   name?: string;
@@ -28,7 +29,8 @@ export function fromGeneric(payload: string): ConvertedPipeline {
   }
 
   const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
-  const steps = nodes.map((n) => ({ id: n.id, type: n.type, config: n.config ?? {} }));
+  const rawSteps: RawStep[] = nodes.map((n) => ({ id: n.id, type: n.type, config: n.config ?? {} }));
+  const steps = finalizeSteps(rawSteps);
 
   return {
     pipeline: {

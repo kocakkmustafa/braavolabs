@@ -8,7 +8,8 @@
  * don't yet have a primitive that maps to "read-only resource").
  */
 
-import type { ConvertedPipeline } from "./types";
+import type { ConvertedPipeline, RawStep } from "./types";
+import { finalizeSteps } from "../agent-synthesis";
 
 interface McpServerJson {
   name?: string;
@@ -25,11 +26,13 @@ export function fromMcp(payload: string): ConvertedPipeline {
     throw new Error(`Invalid MCP server.json: ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  const steps: ConvertedPipeline["pipeline"]["steps"] = (server.tools ?? []).map((tool, idx) => ({
+  const rawSteps: RawStep[] = (server.tools ?? []).map((tool, idx) => ({
     id: `mcp-${idx + 1}`,
     type: "mcp.invoke",
+    name: tool.name,
     config: { tool: tool.name, description: tool.description, inputSchema: tool.inputSchema ?? {} },
   }));
+  const steps = finalizeSteps(rawSteps);
 
   const dropped: ConvertedPipeline["dropped"] = (server.resources ?? []).map((res, idx) => ({
     id: `resource-${idx + 1}`,
