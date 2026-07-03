@@ -12,7 +12,8 @@
  * step config. The user can refine in the dashboard.
  */
 
-import type { ConvertedPipeline } from "./types";
+import type { ConvertedPipeline, RawStep } from "./types";
+import { finalizeSteps } from "../agent-synthesis";
 
 export function fromClaudeAutomation(payload: string): ConvertedPipeline {
   // Strip YAML frontmatter if present.
@@ -22,22 +23,26 @@ export function fromClaudeAutomation(payload: string): ConvertedPipeline {
   // catch-all step when the document doesn't have headings.
   const sections = body.split(/^##\s+/m).filter(Boolean);
 
-  const steps: ConvertedPipeline["pipeline"]["steps"] = sections.map((section, idx) => {
+  const rawSteps: RawStep[] = sections.map((section, idx) => {
     const firstLine = section.split("\n", 1)[0]?.trim() ?? `step-${idx + 1}`;
     return {
       id: `step-${idx + 1}`,
       type: "claude-routine-step",
+      name: firstLine || `Step ${idx + 1}`,
       config: { title: firstLine, body: section },
     };
   });
 
-  if (steps.length === 0) {
-    steps.push({
+  if (rawSteps.length === 0) {
+    rawSteps.push({
       id: "step-1",
       type: "claude-routine-step",
+      name: "Imported routine",
       config: { title: "Imported routine", body },
     });
   }
+
+  const steps = finalizeSteps(rawSteps);
 
   // Detect "## Plan" / "## Implementation" / "## Verification" headers
   // common in auto-dev playbooks — surface as a warning so the user

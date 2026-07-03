@@ -15,7 +15,8 @@
  * can re-attempt without losing the user's source-of-truth.
  */
 
-import type { ConvertedPipeline } from "./types";
+import type { ConvertedPipeline, RawStep } from "./types";
+import { finalizeSteps } from "../agent-synthesis";
 
 interface N8nNode {
   id?: string;
@@ -48,11 +49,11 @@ export function fromN8n(payload: string): ConvertedPipeline {
   }
 
   const nodes = Array.isArray(workflow.nodes) ? workflow.nodes : [];
-  const steps: ConvertedPipeline["pipeline"]["steps"] = [];
+  const rawSteps: RawStep[] = [];
   const dropped: ConvertedPipeline["dropped"] = [];
 
   for (const node of nodes) {
-    const id = node.id ?? node.name ?? `node-${steps.length + dropped.length}`;
+    const id = node.id ?? node.name ?? `node-${rawSteps.length + dropped.length}`;
     const mapped = SUPPORTED_NODE_TYPES[node.type];
     if (!mapped) {
       dropped.push({
@@ -62,8 +63,10 @@ export function fromN8n(payload: string): ConvertedPipeline {
       });
       continue;
     }
-    steps.push({ id, type: mapped, config: node.parameters ?? {} });
+    rawSteps.push({ id, type: mapped, name: node.name, config: node.parameters ?? {} });
   }
+
+  const steps = finalizeSteps(rawSteps);
 
   return {
     pipeline: {
