@@ -9,6 +9,7 @@ import { runEventChannel, getBufferedRunEvents } from "../../lib/runEvents";
 import { enqueueRun } from "../pipeline/runner";
 import { chatCompletion, getTenantAIConfig, LOCAL_PROVIDERS, type AIProviderType } from "../../services/ai-client";
 import { listTenantProviderLinks } from "../../services/provider-chain";
+import { assertKeylessLocalBaseUrl } from "../../services/takeover-config";
 import { createHandoff, claimHandoff, HandoffClaimError, cancelOpenHandoffForRun } from "./handoff.service";
 import { env } from "../../config/env";
 import type { RunEvent } from "@ai-company-os/core";
@@ -42,13 +43,14 @@ async function assertValidTakeoverTarget(
 
   if (isLocal) {
     // B4c: prod keyless-local devir MUST carry a baseUrl — the localhost
-    // default is Lightsail's own loopback (orchestration-only violation).
-    const prodLike = env.NODE_ENV === "production" && env.OFFLINE_MODE !== true;
-    if (prodLike && (!baseUrl || !baseUrl.trim())) {
-      throw new AppError(
-        400,
-        "A base URL is required to hand off to a self-hosted provider in production (the server won't fall back to its own localhost).",
-      );
+    // default is Lightsail's own loopback (orchestration-only violation). The
+    // rule lives in ONE place (takeover-config) so the claim boundary here and
+    // the resume boundary (T6) enforce it identically; translate its throw into
+    // the HTTP 400 this endpoint contracts.
+    try {
+      assertKeylessLocalBaseUrl(provider, baseUrl);
+    } catch (err) {
+      throw new AppError(400, (err as Error).message);
     }
     return; // keyless-local is always a valid target shape
   }

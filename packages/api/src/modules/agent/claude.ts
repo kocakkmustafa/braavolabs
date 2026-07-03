@@ -678,6 +678,35 @@ export interface ProviderAgentLoopConfig {
   budgetUsd?: number;
   context?: MessageParam[];
   govContext?: AgentGovContext;
+  /**
+   * E3/T6 handoff resume (§2.5): the frozen canonical transcript the LEAVING
+   * provider left off at (handoff_ledger.checkpoint.messages). When present the
+   * loop SEEDS its canonical transcript with these messages followed by a short
+   * handoff-note user message — and does NOT append `userMessage` (the original
+   * step prompt already lives in the resumed transcript). The takeover provider
+   * picks up "from where the last one stopped" (K1). Absent on every normal
+   * (non-handoff) invocation, so those keep today's [context, userMessage] seed.
+   */
+  resumeMessages?: ChatMessage[];
+}
+
+/**
+ * Build the handoff-note user message the resume leg appends after the resumed
+ * transcript (§2.5). Verbatim format from plan §2.5: leaving provider + turn +
+ * context summary + "resume from where you left off". Role alternation is folded
+ * by the projection layer (injectSteering precedent), so a plain user turn after
+ * the (possibly tool-ending) transcript is safe.
+ */
+export function buildHandoffResumeNote(
+  fromProvider: string,
+  turn: number,
+  contextSummary: string,
+): string {
+  return (
+    `[Handoff] The previous provider ${fromProvider} left this task at turn ${turn}. ` +
+    `Summary: ${contextSummary} ` +
+    `Continue from where it left off and complete the task.`
+  );
 }
 
 /** Failover context for the unified loop (E2/T7). */
@@ -818,10 +847,15 @@ export async function runProviderAgentLoop(
   };
 
   // Canonical transcript — normalized, provider-independent (plan §2.2/A8).
-  const messages: ChatMessage[] = [
-    ...projectContextMessages(config.context),
-    { role: "user", content: userMessage },
-  ];
+  // E3/T6 handoff resume (§2.5): when resumeMessages is present the takeover
+  // SEEDS the transcript from the leaving provider's frozen checkpoint (which
+  // already ends with the handoff-note user turn the executor appended) and does
+  // NOT add `userMessage` — the original step prompt is already inside those
+  // messages. Normal (non-handoff) runs keep the historical [context, user] seed.
+  const messages: ChatMessage[] =
+    config.resumeMessages && config.resumeMessages.length > 0
+      ? [...config.resumeMessages]
+      : [...projectContextMessages(config.context), { role: "user", content: userMessage }];
 
   const turns: AgentTurnResult[] = [];
   let totalCost = 0;
@@ -1051,9 +1085,17 @@ export async function runAgentLoop(config: {
    * resolution, the trial path AND the local-CLI mode. Used by consumers
    * that must hit the REAL provider×model they claim to measure — bench
    * (env-keyed, tenant-less) and the T8 compare mode. Tenant pipeline
-   * runs never set it.
+   * runs never set it. The E3 takeover leg (T6) sets it to the resolved
+   * takeover config so the handoff dials the tenant-chosen provider directly.
    */
   aiConfigOverride?: AIClientConfig;
+  /**
+   * E3/T6 handoff resume (§2.5): the frozen checkpoint transcript to seed the
+   * takeover loop with (ending in the handoff-note user turn). Threaded straight
+   * through to runProviderAgentLoop. Only ever set alongside aiConfigOverride on
+   * the takeover leg.
+   */
+  resumeMessages?: ChatMessage[];
 }): Promise<AgentLoopResult> {
   // Forced provider config wins over everything, local-CLI mode included —
   // an override is an explicit "go to this wire" order (bench previously

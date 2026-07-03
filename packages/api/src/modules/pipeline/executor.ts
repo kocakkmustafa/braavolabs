@@ -2,11 +2,93 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { publishRunEvent } from "../../lib/runEvents";
-import { runAgentLoop, HandoffInterrupt, type AgentLoopResult } from "../agent/claude";
+import {
+  runAgentLoop,
+  HandoffInterrupt,
+  buildHandoffResumeNote,
+  type AgentLoopResult,
+} from "../agent/claude";
 import { isHandoffTriggerEligible } from "../../services/provider-chain";
+import { resolveTakeoverConfig } from "../../services/takeover-config";
+import type { AIClientConfig, ChatMessage } from "../../services/ai-client";
 import { maybeOpenAutoHandoff } from "../run/handoff.trigger";
 import { AppError } from "../../middleware/error";
 import { withSpan, toolCallCounter, stepDurationHistogram } from "../../lib/telemetry";
+
+/**
+ * E3/T6 takeover plan (§2.5): a CLAIMED handoff for THIS run+stepIndex means the
+ * agent loop must resume the leaving provider's transcript on the tenant-chosen
+ * takeover provider instead of starting the step fresh. Resolved once at the top
+ * of executeStep; null on every normal (non-handoff) step.
+ */
+interface StepTakeover {
+  ledgerId: string;
+  aiConfig: AIClientConfig;
+  resumeMessages: ChatMessage[];
+}
+
+/**
+ * Resolve a CLAIMED handoff for this run+stepIndex into a takeover plan (§2.5).
+ * Returns null when there's no claimed handoff for this step (the overwhelming
+ * common case) OR when the takeover config can't be resolved (a vanished cloud
+ * link / prod keyless-local without baseUrl) — in that case the ledger is marked
+ * FAILED and the step runs fresh rather than stalling, so the run doesn't hang on
+ * an unresolvable takeover. resumeMessages = frozen checkpoint messages + the
+ * handoff-note user turn the loop resumes from; a step-boundary handoff
+ * (empty messages) yields an empty resume set → the step runs fresh under the
+ * takeover provider.
+ */
+async function resolveStepTakeover(
+  runId: string,
+  stepIndex: number,
+): Promise<StepTakeover | null> {
+  const ledger = await prisma.handoffLedger.findFirst({
+    where: { runId, stepIndex, status: "CLAIMED" },
+    orderBy: { claimedAt: "desc" },
+  });
+  if (!ledger) return null;
+
+  let aiConfig: AIClientConfig;
+  try {
+    aiConfig = await resolveTakeoverConfig(ledger);
+  } catch (err) {
+    // The claim already validated the target (T5 assertValidTakeoverTarget), so
+    // this is the rare "config drifted after claim" path. Mark the ledger FAILED
+    // and let the step run fresh — never hang the run on an unresolvable takeover.
+    logger.warn(
+      { runId, stepIndex, handoffId: ledger.id, err: (err as Error).message },
+      "takeover config unresolvable — marking handoff FAILED, running step fresh",
+    );
+    await prisma.handoffLedger
+      .update({ where: { id: ledger.id }, data: { status: "FAILED", completedAt: new Date() } })
+      .catch(() => { /* best-effort */ });
+    return null;
+  }
+
+  // Frozen checkpoint messages + the handoff note (§2.5). A step-boundary
+  // handoff froze { messages: [] } → no resume context; the step runs fresh
+  // under the takeover provider (still a valid takeover).
+  const checkpoint = ledger.checkpoint as unknown as
+    | { messages?: ChatMessage[]; turn?: number }
+    | null;
+  const frozen = checkpoint?.messages ?? [];
+  const resumeMessages: ChatMessage[] =
+    frozen.length > 0
+      ? [
+          ...frozen,
+          {
+            role: "user",
+            content: buildHandoffResumeNote(
+              ledger.fromProvider,
+              checkpoint?.turn ?? 0,
+              ledger.contextSummary ?? "No prior context captured.",
+            ),
+          },
+        ]
+      : [];
+
+  return { ledgerId: ledger.id, aiConfig, resumeMessages };
+}
 
 export interface StepDef {
   name: string;
@@ -114,6 +196,16 @@ export async function executeStep(
     );
   }
 
+  // E3/T6 takeover (§2.5): is there a CLAIMED handoff for THIS run+stepIndex? If
+  // so the agent loop resumes the leaving provider's transcript on the tenant-
+  // chosen takeover provider (aiConfigOverride + resumeMessages) instead of
+  // starting the step fresh. Resolved before the step runs so the branch below
+  // is a single decision. null on every normal step. B6.5: this executeStep call
+  // creates a NEW RunStep row (below) — the same stepIndex now has the old
+  // (FAILED/PENDING) row AND this new one; planResume only skips COMPLETED, so
+  // this is correct.
+  const takeover = await resolveStepTakeover(runId, stepIndex);
+
   // Create run step record
   const runStep = await prisma.runStep.create({
     data: {
@@ -153,6 +245,14 @@ export async function executeStep(
 
     // Execute agent loop — govContext threads through to every tool call so that
     // approvals, tenant isolation, rate limits, and audit logs are enforced.
+    //
+    // E3/T6 takeover branch (§2.5): when a CLAIMED handoff targets this step, we
+    // force the tenant-chosen takeover provider (aiConfigOverride — which skips
+    // tenant chain / trial resolution, E2/T5) and SEED the loop from the frozen
+    // checkpoint (resumeMessages). The loop then ignores `userMessage` and picks
+    // up "from where the leaving provider stopped". Everything else — govContext,
+    // tools, budget — is identical, so tool governance still applies to the
+    // takeover leg.
     const result = await runAgentLoop({
       systemPrompt: agent.systemPrompt,
       userMessage: stepPrompt,
@@ -162,6 +262,9 @@ export async function executeStep(
       maxTurns: 10,
       budgetUsd: Number(run.budgetUsd ?? 1),
       tenantId: run.pipeline.company.tenantId,
+      ...(takeover
+        ? { aiConfigOverride: takeover.aiConfig, resumeMessages: takeover.resumeMessages }
+        : {}),
       govContext: {
         tenantId: run.pipeline.company.tenantId,
         companyId: run.pipeline.company.id,
@@ -184,13 +287,19 @@ export async function executeStep(
     toolCallCounter.add(toolCallIds.length, { step: stepDef.name });
     stepDurationHistogram.record(Date.now() - runStep.startedAt!.getTime(), { step: stepDef.name });
 
-    // Update run step
+    // Update run step. B6.5: on a takeover leg the new row records the ledger id
+    // in its output meta so the K1 evidence query and the UI timeline can tie
+    // this (second) stepIndex row back to the handoff it resumed.
     await prisma.runStep.update({
       where: { id: runStep.id },
       data: {
         status: "COMPLETED",
         reasoning: reasoning || "Agent completed step without explicit reasoning.",
-        output: { content: result.finalContent, turns: result.turns.length } as any,
+        output: {
+          content: result.finalContent,
+          turns: result.turns.length,
+          ...(takeover ? { handoffLedgerId: takeover.ledgerId } : {}),
+        } as any,
         costUsd: result.totalCostUsd,
         completedAt: new Date(),
         // E3/T2 hygiene (§2.2-3): the live checkpoint served its purpose —
@@ -200,6 +309,23 @@ export async function executeStep(
         transcript: Prisma.DbNull,
       },
     });
+
+    // E3/T6 (§2.5): the takeover step COMPLETED → close its ledger COMPLETED.
+    // Error-swallowed — the step is authoritative; a ledger bookkeeping miss must
+    // never turn a completed step into a failure.
+    if (takeover) {
+      await prisma.handoffLedger
+        .update({
+          where: { id: takeover.ledgerId },
+          data: { status: "COMPLETED", completedAt: new Date() },
+        })
+        .catch((err) =>
+          logger.warn(
+            { runId, handoffId: takeover.ledgerId, err: (err as Error).message },
+            "handoff ledger COMPLETED update failed (non-fatal — step is COMPLETED)",
+          ),
+        );
+    }
 
     // E3/T2 race guard (§2.2-3): a handoff requested exactly while this step
     // was FINISHING (OPEN ledger, checkpoint still null — the loop's
@@ -298,6 +424,24 @@ export async function executeStep(
         completedAt: new Date(),
       },
     });
+
+    // E3/T6 (§2.5): a takeover leg that FAILED closes its ledger FAILED. The
+    // auto-trigger below may then open a FRESH handoff if the failure was a
+    // marked provider chain-exhaustion ("adım FAILED → ledger FAILED + yeni
+    // handoff açılabilir"). Error-swallowed — never blocks the FAILED marking.
+    if (takeover) {
+      await prisma.handoffLedger
+        .update({
+          where: { id: takeover.ledgerId },
+          data: { status: "FAILED", completedAt: new Date() },
+        })
+        .catch((ledgerErr) =>
+          logger.warn(
+            { runId, handoffId: takeover.ledgerId, err: (ledgerErr as Error).message },
+            "handoff ledger FAILED update failed (non-fatal — step is FAILED)",
+          ),
+        );
+    }
 
     await publishRunEvent(runId, { type: "STEP_FAILED", stepId: runStep.id, error: errorMsg });
 

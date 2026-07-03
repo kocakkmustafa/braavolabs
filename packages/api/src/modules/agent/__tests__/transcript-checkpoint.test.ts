@@ -44,6 +44,10 @@ const runUpdate = vi.hoisted(() => vi.fn());
 const runStepCreate = vi.hoisted(() => vi.fn());
 const runStepUpdate = vi.hoisted(() => vi.fn());
 const handoffFindFirst = vi.hoisted(() => vi.fn());
+// OPEN-ledger behaviour, scripted per-test; the shared handoffFindFirst mock
+// (beforeEach) routes non-CLAIMED lookups here so the T6 takeover resolver's
+// CLAIMED query never consumes a test's OPEN script.
+const handoffOpenFindFirst = vi.hoisted(() => vi.fn());
 const handoffUpdate = vi.hoisted(() => vi.fn());
 const toolCallCreateMany = vi.hoisted(() => vi.fn());
 const toolCallFindMany = vi.hoisted(() => vi.fn());
@@ -254,7 +258,15 @@ beforeEach(() => {
   runUpdate.mockResolvedValue({});
   runStepCreate.mockResolvedValue({ id: "rs-1", startedAt: new Date() });
   runStepUpdate.mockResolvedValue({});
-  handoffFindFirst.mockResolvedValue(null);
+  // handoffLedger.findFirst is queried by TWO distinct call sites with distinct
+  // statuses: the T6 takeover resolver (status:"CLAIMED", at the top of
+  // executeStep) and the T2 interrupt/race-guard checks (status:"OPEN"). These
+  // T2 tests don't exercise takeover, so the CLAIMED lookup always resolves null
+  // here; individual tests script the OPEN behaviour via handoffOpenFindFirst.
+  handoffOpenFindFirst.mockResolvedValue(null);
+  handoffFindFirst.mockImplementation((args: any) =>
+    args?.where?.status === "CLAIMED" ? Promise.resolve(null) : handoffOpenFindFirst(args),
+  );
   handoffUpdate.mockResolvedValue({});
   toolCallCreateMany.mockResolvedValue({ count: 0 });
   toolCallFindMany.mockResolvedValue([]);
@@ -474,7 +486,9 @@ describe("executor — COMPLETED hygiene and HandoffInterrupt handling", () => {
 
   it("freezes a null-checkpoint OPEN ledger to a STEP-BOUNDARY handoff on the COMPLETED path (§2.2-3 race guard)", async () => {
     chatCompletionMock.mockResolvedValue(completion({ content: "done" }));
-    handoffFindFirst
+    // The T6 takeover resolver's CLAIMED lookup returns null (beforeEach); only
+    // the OPEN lookups are scripted here.
+    handoffOpenFindFirst
       .mockResolvedValueOnce(null) // turn-0 interrupt check: handoff not requested yet
       .mockResolvedValue({ id: "hl-2", checkpoint: null }); // appears as the step finishes
 
@@ -495,7 +509,7 @@ describe("executor — COMPLETED hygiene and HandoffInterrupt handling", () => {
         stopReason: "tool_calls",
       }),
     );
-    handoffFindFirst
+    handoffOpenFindFirst
       .mockResolvedValueOnce(null)
       .mockResolvedValue({ id: "hl-1", checkpoint: null });
 
