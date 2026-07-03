@@ -1,0 +1,13 @@
+-- E4 scheduler dashboard — persist last scheduled fire time (plan §T-M).
+--
+-- The scheduled-tick worker (packages/api/src/modules/pipeline/runner.ts,
+-- processScheduledTick) stamps this column each time it enqueues a run, and
+-- GET /pipelines/scheduled returns it as `lastRunAt` alongside the
+-- JobScheduler-derived `nextRunAt`. A dedicated nullable column is used
+-- instead of stuffing the value into the shared `config` JSON blob so the
+-- targeted `UPDATE ... SET last_run_at` is atomic and cannot race a
+-- concurrent PATCH that rewrites `config` (lost-update guard).
+--
+-- Additive + nullable → backfills instantly on existing rows, no default,
+-- no rewrite. Safe to apply with `prisma migrate deploy`.
+ALTER TABLE "pipelines" ADD COLUMN "last_run_at" TIMESTAMP(3);

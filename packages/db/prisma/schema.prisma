@@ -414,6 +414,10 @@ model Pipeline {
   // delegates in a loop). Applied at runtime.
   maxDelegationDepth Int @default(3) @map("max_delegation_depth")
   schedule    String?  // cron expression for SCHEDULED trigger
+  // Last time a SCHEDULED tick actually enqueued a run for this pipeline (E4).
+  // Stamped by processScheduledTick; surfaced by GET /pipelines/scheduled next
+  // to the JobScheduler-derived nextRunAt. NULL until the first scheduled fire.
+  lastRunAt   DateTime? @map("last_run_at")
   steps       Json     @default("[]")  // pipeline step definitions
   config      Json     @default("{}")  // trigger-specific config (webhookTemplate, etc.)
   enabled     Boolean  @default(true)
