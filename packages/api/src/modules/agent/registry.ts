@@ -1422,6 +1422,110 @@ registerTool({
   },
 });
 
+// ─── GitHub read-only tools (E3 T4 — git-awareness) ──
+//
+// Two READ-ONLY status tools so a taking-over agent can inspect the repo's git
+// state during a handoff ("git/PR durumunun otomatik okunması" — plan §2.4).
+// Both reuse the tenant's GITHUB Integration credentials (same MISSING_INTEGRATION
+// pattern as generate_image); no writes, so requiresApproval:false/riskLevel:low.
+// owner defaults to the credentials' defaultOwner when the caller omits it.
+
+registerTool({
+  name: "get_github_pr_status",
+  description:
+    "Read the status of a pull request (state, merged, mergeable, checks-relevant fields, head/base refs, diff size). Read-only. Requires a GITHUB integration.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      companyId: { type: "string", description: "Company ID for integration lookup" },
+      prNumber: { type: "number", description: "Pull request number" },
+      owner: { type: "string", description: "Repo owner/org (optional; falls back to the integration's default owner)" },
+      repo: { type: "string", description: "Repository name" },
+    },
+    required: ["companyId", "prNumber", "repo"],
+  },
+  meta: { requiresApproval: false, riskLevel: "low" },
+  handler: async (input) => {
+    const { companyId, prNumber, owner, repo } = input as {
+      companyId: string; prNumber: number; owner?: string; repo: string;
+    };
+    const { getActiveIntegration } = await import("../integration/checker");
+    const creds = await getActiveIntegration(companyId, "GITHUB");
+    if (!creds) {
+      return {
+        status: "MISSING_INTEGRATION",
+        provider: "GITHUB",
+        message: "GitHub integration not configured. Please add your GitHub Personal Access Token in Settings > Integrations.",
+      };
+    }
+    const resolvedOwner = owner || creds.defaultOwner;
+    if (!resolvedOwner) {
+      return { status: "FAILED", error: "No owner provided and the GitHub integration has no default owner." };
+    }
+    try {
+      const { getGitHubPRStatus } = await import("@ai-company-os/integrations");
+      const pr = await getGitHubPRStatus(
+        { personalAccessToken: creds.personalAccessToken, defaultOwner: creds.defaultOwner },
+        resolvedOwner,
+        repo,
+        prNumber,
+      );
+      return { status: "COMPLETED", pr };
+    } catch (err) {
+      return { status: "FAILED", error: err instanceof Error ? err.message : String(err) };
+    }
+  },
+});
+
+registerTool({
+  name: "get_github_branch_status",
+  description:
+    "Read a branch's position relative to a base branch (ahead/behind commits, head SHA). Read-only. Requires a GITHUB integration.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      companyId: { type: "string", description: "Company ID for integration lookup" },
+      branch: { type: "string", description: "Branch to inspect" },
+      base: { type: "string", description: "Base branch to compare against (default: main)" },
+      owner: { type: "string", description: "Repo owner/org (optional; falls back to the integration's default owner)" },
+      repo: { type: "string", description: "Repository name" },
+    },
+    required: ["companyId", "branch", "repo"],
+  },
+  meta: { requiresApproval: false, riskLevel: "low" },
+  handler: async (input) => {
+    const { companyId, branch, base, owner, repo } = input as {
+      companyId: string; branch: string; base?: string; owner?: string; repo: string;
+    };
+    const { getActiveIntegration } = await import("../integration/checker");
+    const creds = await getActiveIntegration(companyId, "GITHUB");
+    if (!creds) {
+      return {
+        status: "MISSING_INTEGRATION",
+        provider: "GITHUB",
+        message: "GitHub integration not configured. Please add your GitHub Personal Access Token in Settings > Integrations.",
+      };
+    }
+    const resolvedOwner = owner || creds.defaultOwner;
+    if (!resolvedOwner) {
+      return { status: "FAILED", error: "No owner provided and the GitHub integration has no default owner." };
+    }
+    try {
+      const { getGitHubBranchStatus } = await import("@ai-company-os/integrations");
+      const branchStatus = await getGitHubBranchStatus(
+        { personalAccessToken: creds.personalAccessToken, defaultOwner: creds.defaultOwner },
+        resolvedOwner,
+        repo,
+        branch,
+        base || "main",
+      );
+      return { status: "COMPLETED", branch: branchStatus };
+    } catch (err) {
+      return { status: "FAILED", error: err instanceof Error ? err.message : String(err) };
+    }
+  },
+});
+
 // ─── Voice agent tool — placeOutboundCall(voiceAgentId, prompt) ──
 //
 // Delegated to from a non-voice agent (e.g. the sales agent saying

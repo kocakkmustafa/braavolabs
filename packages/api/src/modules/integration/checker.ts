@@ -69,6 +69,8 @@ export const TOOL_PROVIDER_MAP: Record<string, string> = {
   // Dev tools
   create_github_issue: "GITHUB",
   create_github_pr: "GITHUB",
+  get_github_pr_status: "GITHUB",
+  get_github_branch_status: "GITHUB",
   create_trello_card: "TRELLO",
   update_trello_card: "TRELLO",
 };
