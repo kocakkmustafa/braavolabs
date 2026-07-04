@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages";
 import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
-import { getTool } from "./registry";
+import { getTool, type ToolDefinition } from "./registry";
 import { executeTool, type ToolExecResult } from "./tool-executor";
 import { runLocalAgentLoop } from "./claude-local";
 import {
@@ -166,10 +166,15 @@ export interface AgentLoopResult {
  * (E2/T3). Same source of truth as the old buildAnthropicTools — the
  * registry's JSON Schema — projected per provider at call time.
  */
-export function buildChatToolDefs(toolNames: string[]): ChatToolDef[] {
+export function buildChatToolDefs(
+  toolNames: string[],
+  extraTools?: Map<string, ToolDefinition>,
+): ChatToolDef[] {
   return toolNames
     .map((name) => {
-      const tool = getTool(name);
+      // D-005 (E5/T7): a connector tool lives ONLY in the request-scoped
+      // extraTools map (never the global registry), so resolve there first.
+      const tool = extraTools?.get(name) ?? getTool(name);
       if (!tool) return null;
       return {
         name: tool.name,
@@ -267,13 +272,19 @@ function parseToolArgs(argumentsJson: string): unknown {
 async function executeToolCalls(
   toolCalls: ChatToolCall[],
   govContext?: AgentGovContext,
+  extraTools?: Map<string, ToolDefinition>,
 ): Promise<AgentTurnResult["toolCalls"]> {
   return mapWithConcurrency(toolCalls, TOOL_PARALLELISM, async (call) => {
     const input = parseToolArgs(call.argumentsJson);
 
     // Governed path: approvals, tenant isolation, rate limits, audit log.
     if (govContext) {
-      const result: ToolExecResult = await executeTool(call.name, input, govContext);
+      // D-005 (E5/T7): thread the request-scoped connector tools so the
+      // executor resolves + gates them with their DERIVED meta.
+      const result: ToolExecResult = await executeTool(call.name, input, {
+        ...govContext,
+        ...(extraTools ? { extraTools } : {}),
+      });
       const errorMsg =
         result.status === "PENDING_APPROVAL"
           ? `Action paused — waiting for spend approval (approval id ${result.approvalId})`
@@ -290,8 +301,12 @@ async function executeToolCalls(
 
     // Ungoverned path — only used when no run context (e.g. onboarding,
     // natural-language builder). Approval-required tools block here for safety.
+    // Connector tools (extraTools) are per-tenant + credential-bearing and are
+    // only ever spliced on the GOVERNED path; resolving them here for
+    // completeness means an approval-required connector tool is blocked below
+    // rather than silently missing.
     const start = Date.now();
-    const registeredTool = getTool(call.name);
+    const registeredTool = extraTools?.get(call.name) ?? getTool(call.name);
 
     if (!registeredTool) {
       return {
@@ -634,10 +649,14 @@ function injectSteering(messages: ChatMessage[], text: string): void {
 /** Legacy prompt-embedding fallback (pre-E2 behaviour for non-Anthropic
  * providers): serialize tool names/descriptions into the system prompt so
  * models without native function-calling can still reason about them. */
-function embedToolsInPrompt(systemPrompt: string, toolNames: string[]): string {
+function embedToolsInPrompt(
+  systemPrompt: string,
+  toolNames: string[],
+  extraTools?: Map<string, ToolDefinition>,
+): string {
   const toolDescriptions = toolNames
     .map((name) => {
-      const tool = getTool(name);
+      const tool = extraTools?.get(name) ?? getTool(name);
       return tool ? `- ${tool.name}: ${tool.description}` : null;
     })
     .filter(Boolean)
@@ -725,6 +744,15 @@ export interface ProviderAgentLoopConfig {
    * (non-handoff) invocation, so those keep today's [context, userMessage] seed.
    */
   resumeMessages?: ChatMessage[];
+  /**
+   * D-005 (E5/T7): request-scoped dynamic connector tools for the acting
+   * tenant. Spliced into the model's tool set (buildChatToolDefs) and the
+   * governed executor (executeToolCalls → executeTool.extraTools) alongside
+   * the static registry — but NEVER written to the global registry, so
+   * tenant-A's connector tools are invisible to tenant-B's loop. Absent on
+   * every run that installs no connectors.
+   */
+  extraTools?: Map<string, ToolDefinition>;
 }
 
 /**
@@ -810,7 +838,16 @@ export async function runProviderAgentLoop(
   const cbTenant = failover?.tenantId ?? govContext?.tenantId;
   let effectiveMaxTurns = maxTurns;
 
-  const toolDefs = buildChatToolDefs(toolNames);
+  // D-005 (E5/T7): request-scoped connector tools. Their names are also
+  // added to toolNames so the prompt-fallback path and buildChatToolDefs
+  // surface them; resolution always prefers extraTools over the global
+  // registry so nothing is registered globally.
+  const extraTools = config.extraTools;
+  const effectiveToolNames =
+    extraTools && extraTools.size > 0
+      ? [...toolNames, ...[...extraTools.keys()].filter((n) => !toolNames.includes(n))]
+      : toolNames;
+  const toolDefs = buildChatToolDefs(effectiveToolNames, extraTools);
   let toolUseMode: "native" | "prompt-fallback" = "native";
   let effectiveSystemPrompt = systemPrompt;
 
@@ -947,7 +984,7 @@ export async function runProviderAgentLoop(
           // had before E2. Never triggers cross-provider failover (the same
           // model would reject tools elsewhere too).
           toolUseMode = "prompt-fallback";
-          effectiveSystemPrompt = embedToolsInPrompt(systemPrompt, toolNames);
+          effectiveSystemPrompt = embedToolsInPrompt(systemPrompt, effectiveToolNames, extraTools);
           logger.warn(
             { provider: callConfig.provider, model: callConfig.model, detail: err.message },
             "Native tool-use unsupported — downgrading to prompt-embedded tools",
@@ -1008,7 +1045,7 @@ export async function runProviderAgentLoop(
     );
 
     const requestedCalls = result.toolCalls ?? [];
-    const toolCallResults = await executeToolCalls(requestedCalls, govContext);
+    const toolCallResults = await executeToolCalls(requestedCalls, govContext, extraTools);
 
     turns.push({
       content: result.content,
@@ -1133,6 +1170,14 @@ export async function runAgentLoop(config: {
    * the takeover leg.
    */
   resumeMessages?: ChatMessage[];
+  /**
+   * D-005 (E5/T7): the acting tenant's request-scoped dynamic connector
+   * tools. Threaded straight through to runProviderAgentLoop, spliced into
+   * the tool set alongside the static registry, and NEVER registered
+   * globally (cross-tenant isolation). The pipeline executor resolves these
+   * per run via listConnectorToolsForTenant(tenantId).
+   */
+  extraTools?: Map<string, ToolDefinition>;
 }): Promise<AgentLoopResult> {
   // Forced provider config wins over everything, local-CLI mode included —
   // an override is an explicit "go to this wire" order (bench previously

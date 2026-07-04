@@ -26,6 +26,7 @@ import { prisma } from "../../lib/db";
 import { decrypt } from "../../lib/encryption";
 import { callTool, type McpTool } from "../../lib/mcp";
 import type { ToolDefinition } from "../agent/registry";
+import { deriveConnectorToolMeta } from "./connector-tool-risk";
 import { AppError } from "../../middleware/error";
 import { logger } from "../../lib/logger";
 
@@ -58,12 +59,17 @@ export async function listConnectorToolsForTenant(tenantId: string): Promise<Too
   for (const install of installs) {
     const manifest = (install.cachedToolsManifest ?? []) as unknown as McpTool[];
     for (const tool of manifest) {
+      // D-005 (E5/T4): DERIVE the risk meta from the remote tool's name +
+      // description instead of the old blanket `low / no-approval`. A remote
+      // delete/send/charge tool must NOT slip past the approval gate once it
+      // is spliced into the agent loop (T7). Fail-safe: ambiguous → medium +
+      // approval; money verbs → moneyTouching (gated at every autonomy).
       tools.push({
         name: makeConnectorToolName(install.connector.slug, tool.name),
         description:
           `[${install.connector.name}] ${tool.description ?? ""}`.trim().slice(0, 1000),
         inputSchema: tool.inputSchema ?? { type: "object", properties: {} },
-        meta: { requiresApproval: false, riskLevel: "low" },
+        meta: deriveConnectorToolMeta(tool.name, tool.description, tool.inputSchema),
         handler: async (args) => executeMcpTool(tenantId, install.connector.slug, tool.name, args),
       });
     }
