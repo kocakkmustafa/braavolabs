@@ -10,6 +10,7 @@ COPY packages/core/package.json ./packages/core/
 COPY packages/api/package.json ./packages/api/
 COPY packages/memory/package.json ./packages/memory/
 COPY packages/integrations/package.json ./packages/integrations/
+COPY packages/connector-sdk/package.json ./packages/connector-sdk/
 RUN pnpm install --frozen-lockfile
 
 # Build
@@ -25,11 +26,14 @@ COPY --from=deps /app/packages/core/node_modules ./packages/core/node_modules
 COPY --from=deps /app/packages/api/node_modules ./packages/api/node_modules
 COPY --from=deps /app/packages/memory/node_modules ./packages/memory/node_modules
 COPY --from=deps /app/packages/integrations/node_modules ./packages/integrations/node_modules
+COPY --from=deps /app/packages/connector-sdk/node_modules ./packages/connector-sdk/node_modules
 COPY . .
 RUN pnpm --filter @ai-company-os/db exec prisma generate
 RUN pnpm --filter @ai-company-os/core build
 RUN pnpm --filter @ai-company-os/memory build
 RUN pnpm --filter @ai-company-os/integrations build
+# connector-sdk before api — the API's tsc build imports its dist types.
+RUN pnpm --filter @ai-company-os/connector-sdk build
 RUN pnpm --filter @ai-company-os/api build
 
 # Strip source maps from the runtime build. tsconfig.base.json keeps
@@ -47,6 +51,7 @@ COPY --from=build /app/packages/api/dist ./packages/api/dist
 COPY --from=build /app/packages/core/dist ./packages/core/dist
 COPY --from=build /app/packages/memory/dist ./packages/memory/dist
 COPY --from=build /app/packages/integrations/dist ./packages/integrations/dist
+COPY --from=build /app/packages/connector-sdk/dist ./packages/connector-sdk/dist
 COPY --from=build /app/packages/db/prisma ./packages/db/prisma
 COPY --from=build /app/node_modules ./node_modules
 # Same per-package COPY as in the build stage — glob destination is
@@ -57,12 +62,14 @@ COPY --from=build /app/packages/core/node_modules ./packages/core/node_modules
 COPY --from=build /app/packages/api/node_modules ./packages/api/node_modules
 COPY --from=build /app/packages/memory/node_modules ./packages/memory/node_modules
 COPY --from=build /app/packages/integrations/node_modules ./packages/integrations/node_modules
+COPY --from=build /app/packages/connector-sdk/node_modules ./packages/connector-sdk/node_modules
 COPY --from=build /app/package.json ./
 COPY --from=build /app/packages/db/package.json ./packages/db/
 COPY --from=build /app/packages/core/package.json ./packages/core/
 COPY --from=build /app/packages/api/package.json ./packages/api/
 COPY --from=build /app/packages/memory/package.json ./packages/memory/
 COPY --from=build /app/packages/integrations/package.json ./packages/integrations/
+COPY --from=build /app/packages/connector-sdk/package.json ./packages/connector-sdk/
 
 # Normalize file permissions before dropping privileges. Cross-platform
 # buildx builds on macOS hosts have produced files with mode 600 (only

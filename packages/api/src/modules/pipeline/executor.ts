@@ -14,6 +14,8 @@ import type { AIClientConfig, ChatMessage } from "../../services/ai-client";
 import { maybeOpenAutoHandoff } from "../run/handoff.trigger";
 import { AppError } from "../../middleware/error";
 import { withSpan, toolCallCounter, stepDurationHistogram } from "../../lib/telemetry";
+import { listConnectorToolsForTenant } from "../marketplace/dynamic-tools";
+import type { ToolDefinition } from "../agent/registry";
 
 /**
  * E3/T6 takeover plan (§2.5): a CLAIMED handoff for THIS run+stepIndex means the
@@ -253,6 +255,28 @@ export async function executeStep(
     // Build the step-specific prompt
     const stepPrompt = buildStepPrompt(stepDef, input, run.pipeline.company.name, memoryContext);
 
+    // D-005 (E5/T7): resolve THIS tenant's installed connector tools and splice
+    // them REQUEST-SCOPED into the agent loop. They are never written to the
+    // global tool registry, so tenant-A's connector tools can never appear in
+    // tenant-B's loop (cross-tenant isolation, R2). Each carries a DERIVED risk
+    // meta (deriveConnectorToolMeta) so the executor's approval / money gate
+    // treats a remote delete/charge tool exactly like a static high-risk tool.
+    // A resolution failure must not kill the step — the run continues with only
+    // the static tools.
+    const stepTenantId = run.pipeline.company.tenantId;
+    let extraTools: Map<string, ToolDefinition> | undefined;
+    try {
+      const connectorTools = await listConnectorToolsForTenant(stepTenantId);
+      if (connectorTools.length > 0) {
+        extraTools = new Map(connectorTools.map((t) => [t.name, t]));
+      }
+    } catch (err) {
+      logger.warn(
+        { tenantId: stepTenantId, err: (err as Error).message },
+        "connector tool resolution failed (non-fatal — running with static tools only)",
+      );
+    }
+
     // Execute agent loop — govContext threads through to every tool call so that
     // approvals, tenant isolation, rate limits, and audit logs are enforced.
     //
@@ -272,6 +296,7 @@ export async function executeStep(
       maxTurns: 10,
       budgetUsd: Number(run.budgetUsd ?? 1),
       tenantId: run.pipeline.company.tenantId,
+      ...(extraTools ? { extraTools } : {}),
       ...(takeover
         ? { aiConfigOverride: takeover.aiConfig, resumeMessages: takeover.resumeMessages }
         : {}),

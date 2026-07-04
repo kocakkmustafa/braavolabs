@@ -13,6 +13,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@ai-company-os/connector-sdk": "workspace:*",
     "@ai-company-os/core": "workspace:*",
     "@ai-company-os/db": "workspace:*",
     "@ai-company-os/integrations": "workspace:*",

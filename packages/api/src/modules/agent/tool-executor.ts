@@ -10,6 +10,7 @@ import {
   getToolMeta,
   isMoneyTouching,
   requiresApprovalForAutonomy,
+  type ToolDefinition,
   type ToolMeta,
   type AgentAutonomyLevel,
 } from "./registry";
@@ -154,11 +155,24 @@ export async function executeTool(
      * historical behaviour — when the caller omits it (bare invocations).
      */
     autonomy?: AgentAutonomyLevel;
+    /**
+     * D-005 (E5/T7): request-scoped dynamic connector tools. These come from
+     * the acting tenant's installed connectors and are NEVER written to the
+     * global tool registry — that would leak tenant-A's tools into tenant-B's
+     * agent loop. The executor resolves the definition + its DERIVED meta
+     * (deriveConnectorToolMeta) from this map FIRST, then falls back to the
+     * global registry, so a connector tool's approval/money gate is honoured
+     * exactly like a static tool's.
+     */
+    extraTools?: Map<string, ToolDefinition>;
   },
 ): Promise<ToolExecResult> {
   const start = Date.now();
-  const tool = getTool(toolName);
-  const meta = getToolMeta(toolName);
+  // Request-scoped connector tools take precedence over the global registry.
+  // They are per-tenant and MUST NOT be resolvable by any other request.
+  const dynamicTool = context.extraTools?.get(toolName);
+  const tool = dynamicTool ?? getTool(toolName);
+  const meta = dynamicTool ? dynamicTool.meta : getToolMeta(toolName);
 
   if (!tool) {
     return {
