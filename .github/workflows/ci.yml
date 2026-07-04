@@ -39,6 +39,12 @@ jobs:
       - name: Build integrations package
         run: pnpm --filter @ai-company-os/integrations build
 
+      # The API imports @ai-company-os/connector-sdk, which resolves via its
+      # built dist/ (main/types point at dist, and dist is gitignored). Build it
+      # before type-checking the API or tsc raises TS2307 (module not found).
+      - name: Build connector-sdk package
+        run: pnpm --filter @ai-company-os/connector-sdk build
+
       - name: Type check API
         run: pnpm --filter @ai-company-os/api exec tsc --noEmit
 
@@ -66,6 +72,7 @@ jobs:
           pnpm --filter @ai-company-os/core build
           pnpm --filter @ai-company-os/memory build
           pnpm --filter @ai-company-os/integrations build
+          pnpm --filter @ai-company-os/connector-sdk build
       # Seed the env vars that env.ts validates at module-load time.
       # Vitest imports the API source which transitively loads env.ts;
       # without these the parse step throws at import and entire test
