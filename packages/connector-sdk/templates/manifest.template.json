@@ -1,0 +1,40 @@
+{
+  "manifestVersion": 1,
+  "slug": "my-connector",
+  "name": "My Connector",
+  "version": "1.0.0",
+  "vendor": "My Company",
+  "description": "One-sentence description of what this connector does.",
+  "iconUrl": "https://example.com/icon.png",
+  "documentationUrl": "https://example.com/docs",
+  "mcpServerUrl": "https://mcp.example.com/rpc",
+  "authMethod": "API_KEY",
+  "authFields": [
+    {
+      "name": "apiKey",
+      "type": "password",
+      "required": true,
+      "label": "API key",
+      "hint": "Find this in Settings → API in your account."
+    }
+  ],
+  "visibility": "PRIVATE",
+  "tools": [
+    {
+      "name": "list_items",
+      "description": "List items (read-only).",
+      "inputSchema": { "type": "object", "properties": {} },
+      "riskHint": "low"
+    },
+    {
+      "name": "delete_item",
+      "description": "Delete an item by id.",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "id": { "type": "string" } },
+        "required": ["id"]
+      },
+      "riskHint": "high"
+    }
+  ]
+}
