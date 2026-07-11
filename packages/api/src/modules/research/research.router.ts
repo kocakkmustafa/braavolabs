@@ -4,6 +4,7 @@
  * Endpoints:
  *   POST /api/v1/research          start a session (async)
  *   POST /api/v1/research/compare  multi-model compare-and-synthesize (E2/T8)
+ *   POST /api/v1/research/cascade  cheapest-capable-first cascade (Forge P1)
  *   GET  /api/v1/research          list sessions for the tenant
  *   GET  /api/v1/research/:id      session detail + sources
  *   POST /api/v1/research/:id/cancel
@@ -16,6 +17,7 @@ import { rateLimit } from "../../middleware/rateLimit";
 import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { startCompare, startResearch } from "./research.service";
+import { runTenantCascade } from "./cascade.service";
 
 export const researchRouter = Router();
 researchRouter.use(authMiddleware);
@@ -97,6 +99,39 @@ researchRouter.post("/compare", compareLimiter, async (req, res, next) => {
       maxCostUsd: body.maxCostUsd,
     });
     res.status(201).json({ id: sessionId, status: "PENDING" });
+  } catch (err) { next(err); }
+});
+
+// ── Cascade: cheapest-capable-first, escalate-on-low-confidence (Forge P1) ──
+//
+// Runs `prompt` on the tenant's cheapest configured provider first;
+// escalates to a costlier tenant-configured provider only when the
+// answer's (heuristic) confidence is below threshold. Synchronous —
+// bounded by the tenant's own provider count (small, no polling needed
+// unlike the async research/compare sessions above). Candidates are the
+// tenant's OWN BYOK rows only (cascade.service.ts#runTenantCascade).
+const cascadeLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  maxRequests: 20,
+  keyPrefix: "rl:research:cascade",
+});
+
+const cascadeSchema = z.object({
+  prompt: z.string().min(1).max(4000),
+  confidenceThreshold: z.number().min(0).max(1).optional(),
+  secondOpinion: z.boolean().optional(),
+  budgetUsdCap: z.number().min(0).max(10).optional(),
+});
+
+researchRouter.post("/cascade", cascadeLimiter, async (req, res, next) => {
+  try {
+    const body = cascadeSchema.parse(req.body);
+    const result = await runTenantCascade(req.auth!.tenantId, body.prompt, {
+      confidenceThreshold: body.confidenceThreshold,
+      secondOpinion: body.secondOpinion,
+      budgetUsdCap: body.budgetUsdCap,
+    });
+    res.status(200).json(result);
   } catch (err) { next(err); }
 });
 

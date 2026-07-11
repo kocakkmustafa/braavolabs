@@ -49,8 +49,8 @@ import { prisma } from "../../lib/db";
 import {
   tokensSaved,
   modelSpecFromPricing,
+  deriveTier,
   type ModelSpec,
-  type ModelTier,
   type RunEvent,
   type SavingsReport,
 } from "../../lib/routing";
@@ -75,23 +75,13 @@ export interface TenantSavingsResult {
   note: string;
 }
 
-/**
- * Above this blended $/1M-token rate (input + 3×output, same weighting
- * `lib/routing.ts` uses internally) a model is classified "frontier".
- * Chosen so the flagship reasoning models (claude-opus ≈240, o1 ≈195,
- * gpt-4-turbo ≈100) land above the line and the default agent workhorse
- * models (claude-sonnet ≈48, gpt-4o ≈32.5, gemini-1.5-pro ≈16, claude-haiku
- * ≈12.8, …) land below it as "cheap". Zero-priced entries are "local".
- */
-const FRONTIER_BLENDED_THRESHOLD_PER_M = 50;
-
+// Tier boundary (frontier/cheap/local) now lives in lib/routing.ts —
+// deriveTier(modelId) — shared with the Forge-P1 cascade wiring
+// (modules/research/cascade.service.ts) so the classification line is
+// defined exactly once. This module keeps only its own picking-the-
+// priciest-entry helper (frontierBaseline below), a distinct concern.
 function blendedPerM(inputPerM: number, outputPerM: number): number {
   return inputPerM + outputPerM * 3;
-}
-
-function deriveTier(inputPerM: number, outputPerM: number): ModelTier {
-  if (inputPerM === 0 && outputPerM === 0) return "local";
-  return blendedPerM(inputPerM, outputPerM) > FRONTIER_BLENDED_THRESHOLD_PER_M ? "frontier" : "cheap";
 }
 
 let cachedFrontier: ModelSpec | null = null;
@@ -121,9 +111,7 @@ function frontierBaseline(): ModelSpec {
 function resolveModelSpec(modelId: string, unknownModelIds: Set<string>): ModelSpec {
   const price = priceForModel(modelId);
   if (!price) unknownModelIds.add(modelId);
-  const inputPerM = price?.inputPerM ?? 0;
-  const outputPerM = price?.outputPerM ?? 0;
-  const tier = deriveTier(inputPerM, outputPerM);
+  const tier = deriveTier(modelId);
   return modelSpecFromPricing(modelId, tier, []);
 }
 

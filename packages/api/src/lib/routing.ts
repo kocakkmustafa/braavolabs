@@ -17,6 +17,38 @@ import { priceForModel } from "./modelPricing";
 
 export type ModelTier = "local" | "cheap" | "frontier";
 
+/**
+ * Above this blended $/1M-token rate (input + 3×output — same output-skew
+ * weighting `blended()` below uses internally, just expressed per-1M instead
+ * of per-1k) a model is classified "frontier". Chosen so the flagship
+ * reasoning models (claude-opus ≈240, o1 ≈195, gpt-4-turbo ≈100) land above
+ * the line and the default agent workhorse models (claude-sonnet ≈48,
+ * gpt-4o ≈32.5, gemini-1.5-pro ≈16, claude-haiku ≈12.8, …) land below it as
+ * "cheap". Single source of truth for this boundary — shared by
+ * modules/billing/savings.service.ts (historical spend classification) and
+ * the cascade wiring (modules/research/cascade.service.ts) so the
+ * frontier/cheap/local line is defined exactly once.
+ */
+const FRONTIER_BLENDED_THRESHOLD_PER_M = 50;
+
+function blendedPerM(inputPerM: number, outputPerM: number): number {
+  return inputPerM + outputPerM * 3;
+}
+
+/**
+ * Derive a model's cost TIER from its real per-1M pricing (modelPricing.ts —
+ * the single pricing source of truth). $0 in+out (local/self-hosted, an
+ * unpriced/unknown model id, or a genuinely free-tier model like
+ * glm-4.7-flash) → "local"; > $50 blended/1M → "frontier"; else "cheap".
+ */
+export function deriveTier(modelId: string): ModelTier {
+  const price = priceForModel(modelId);
+  const inputPerM = price?.inputPerM ?? 0;
+  const outputPerM = price?.outputPerM ?? 0;
+  if (inputPerM === 0 && outputPerM === 0) return "local";
+  return blendedPerM(inputPerM, outputPerM) > FRONTIER_BLENDED_THRESHOLD_PER_M ? "frontier" : "cheap";
+}
+
 export interface ModelSpec {
   id: string;
   tier: ModelTier;
