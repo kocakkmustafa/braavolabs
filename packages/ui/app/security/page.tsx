@@ -88,7 +88,7 @@ const PILLARS: Pillar[] = [
     title: "BYOK — your keys, your data",
     body: "Bring your own model and integration keys. You stay in control of where inference runs and which vendors see your prompts.",
     points: [
-      "A 12-provider BYOK router (Anthropic, OpenAI, Google, and more)",
+      "A 14-provider BYOK router (Anthropic, OpenAI, Google, and more)",
       "Free-tier trial traffic is pooled through Groq; paid usage runs on your keys",
       "No lock-in to a single model vendor",
     ],

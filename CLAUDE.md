@@ -26,9 +26,10 @@ machine-bound encrypted bundles for offline / air-gapped use.
 - **UI**: Next.js 15 (App Router) + Tailwind CSS + Material Symbols
 - **DB**: Postgres 16 + pgvector (HNSW)
 - **Cache / queue**: Redis 7 + BullMQ
-- **LLM**: 12-provider BYOK router (Anthropic, OpenAI, Google,
-  Mistral, Groq, OpenRouter, DeepSeek, Kimi, Qwen, Ollama, LM Studio,
-  Custom). Trial pool routes free-tier users through Groq.
+- **LLM**: 14-provider BYOK router (Anthropic, OpenAI, Google,
+  Mistral, Groq, OpenRouter, DeepSeek, Kimi, Qwen, Cerebras, Zhipu GLM,
+  Ollama, LM Studio, Custom). Trial pool routes free-tier users through
+  Groq.
 - **Auth**: JWT + rotated refresh tokens (Redis allowlist), Google +
   GitHub OAuth with CSRF state
 - **Billing**: Stripe (subscription + usage meters) + Apple /

@@ -139,7 +139,7 @@ export const DOCS: DocPage[] = [
         kind: "list",
         items: [
           "Concepts — the vocabulary: workspaces, agents, pipelines, runs, the nine primitives, approvals, the five risk-stops, and the audit trail.",
-          "BYOK & providers — add a key across 12 providers, or run fully on-device.",
+          "BYOK & providers — add a key across 14 providers, or run fully on-device.",
           "Mid-run steering & ask_user — redirect a run in flight without re-running it.",
           "Webhooks — let external events trigger your pipelines, signed and verified.",
         ],
@@ -268,7 +268,7 @@ export const DOCS: DocPage[] = [
     category: "Reference",
     icon: "vpn_key",
     order: 3,
-    desc: "Bring your own keys across 12 providers, run fully on-device, and understand how keys are stored and how data-sharing consent works.",
+    desc: "Bring your own keys across 14 providers, run fully on-device, and understand how keys are stored and how data-sharing consent works.",
     blocks: [
       {
         kind: "para",
@@ -276,17 +276,17 @@ export const DOCS: DocPage[] = [
       },
       {
         kind: "heading",
-        id: "twelve-providers",
-        text: "Twelve providers",
+        id: "fourteen-providers",
+        text: "Fourteen providers",
       },
       {
         kind: "para",
-        text: "The router speaks to twelve providers behind one abstraction — nine cloud and three local:",
+        text: "The router speaks to fourteen providers behind one abstraction — eleven cloud and three local:",
       },
       {
         kind: "list",
         items: [
-          "Cloud — Anthropic, OpenAI, Google, Mistral, Groq, OpenRouter, DeepSeek, Kimi, Qwen.",
+          "Cloud — Anthropic, OpenAI, Google, Mistral, Groq, OpenRouter, DeepSeek, Kimi, Qwen, Cerebras, Zhipu GLM.",
           "Local / on-device — Ollama, LM Studio, and any custom OpenAI-compatible endpoint.",
         ],
       },
@@ -333,7 +333,7 @@ export const DOCS: DocPage[] = [
       },
       {
         kind: "para",
-        text: "Three of the twelve providers never leave your machine. Ollama and LM Studio expose local models — Gemma, Llama, Qwen and friends — through the same OpenAI-compatible wire format the cloud providers use, so the router treats your laptop like any other endpoint. Ollama's default base URL is localhost:11434; LM Studio's is localhost:1234. The default local model is Gemma 3 4B, which runs comfortably on a 16GB laptop; larger Gemma variants and other local models are a pull command away. There is no API key because there is no key — and the cost column reads zero.",
+        text: "Three of the fourteen providers never leave your machine. Ollama and LM Studio expose local models — Gemma, Llama, Qwen and friends — through the same OpenAI-compatible wire format the cloud providers use, so the router treats your laptop like any other endpoint. Ollama's default base URL is localhost:11434; LM Studio's is localhost:1234. The default local model is Gemma 3 4B, which runs comfortably on a 16GB laptop; larger Gemma variants and other local models are a pull command away. There is no API key because there is no key — and the cost column reads zero.",
       },
       {
         kind: "para",
@@ -637,7 +637,7 @@ curl -X POST https://braavolabs.com/hooks/acme-content/order_created \\
           },
           {
             q: "What models can I use?",
-            a: "Bring your own keys across twelve providers: Anthropic, OpenAI, Google, Mistral, Groq, OpenRouter, DeepSeek, Kimi, Qwen, plus local Ollama, LM Studio, and any custom OpenAI-compatible endpoint. You can mix models per step and swap providers from settings without touching your pipelines.",
+            a: "Bring your own keys across fourteen providers: Anthropic, OpenAI, Google, Mistral, Groq, OpenRouter, DeepSeek, Kimi, Qwen, Cerebras, Zhipu GLM, plus local Ollama, LM Studio, and any custom OpenAI-compatible endpoint. You can mix models per step and swap providers from settings without touching your pipelines.",
           },
           {
             q: "Is my data private?",
@@ -645,7 +645,7 @@ curl -X POST https://braavolabs.com/hooks/acme-content/order_created \\
           },
           {
             q: "Can it run offline?",
-            a: "Yes. Three of the twelve providers — Ollama, LM Studio, and any custom OpenAI-compatible endpoint — run entirely on your own hardware, with no API key and no data egress. The same pipelines, the same audit trail, and all five risk-stops still apply. For air-gapped use, pipelines export as encrypted, machine-bound bundles that will not open on different hardware.",
+            a: "Yes. Three of the fourteen providers — Ollama, LM Studio, and any custom OpenAI-compatible endpoint — run entirely on your own hardware, with no API key and no data egress. The same pipelines, the same audit trail, and all five risk-stops still apply. For air-gapped use, pipelines export as encrypted, machine-bound bundles that will not open on different hardware.",
           },
           {
             q: "How is this different from a generic automation tool?",

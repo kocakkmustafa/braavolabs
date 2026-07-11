@@ -143,7 +143,7 @@ export default async function BlogPostPage({
         <div className="bv-glass rounded-2xl px-7 py-7 mt-12 flex items-center gap-5 flex-wrap" style={{ border: "1px solid rgba(59,130,246,0.25)" }}>
           <div style={{ flex: 1, minWidth: 240 }}>
             <p className="bv-title" style={{ color: "#E8EBF0", marginBottom: 4 }}>Command the agents you already run.</p>
-            <p className="bv-caption" style={{ margin: 0 }}>Start free — no card needed. Bring your own keys across 12 providers.</p>
+            <p className="bv-caption" style={{ margin: 0 }}>Start free — no card needed. Bring your own keys across 14 providers.</p>
           </div>
           <Link href="/register" className="bv-btn bv-btn-primary" style={{ textDecoration: "none" }}>
             Start free

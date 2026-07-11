@@ -38,7 +38,7 @@ export default function FeaturesPage() {
     },
     {
       tag: "BYOK router",
-      title: "Twelve providers, one router",
+      title: "Fourteen providers, one router",
       desc: "Bring your own keys and route each step to the best model — swap providers without touching your pipelines.",
       bullets: ["OpenAI · Anthropic · Gemini · Mistral …", "Per-step model routing", "Zero lock-in"],
       demo: "router",

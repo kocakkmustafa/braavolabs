@@ -13,7 +13,7 @@ import { DOCS_ORDERED, DOC_PILL, type DocCategory } from "./content";
 export const metadata: Metadata = {
   title: "Docs — Braavolabs",
   description:
-    "Braavolabs documentation: getting started, BYOK setup for 12 providers, mid-run steering, webhooks, external automation connections, the mobile app, and FAQ.",
+    "Braavolabs documentation: getting started, BYOK setup for 14 providers, mid-run steering, webhooks, external automation connections, the mobile app, and FAQ.",
   alternates: { canonical: "https://braavolabs.com/docs" },
   openGraph: {
     title: "Braavolabs Docs",

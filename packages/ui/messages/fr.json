@@ -1536,7 +1536,7 @@
       "line1": "Commandez les agents",
       "line2a": "que vous faites déjà",
       "line2b": "tourner.",
-      "sub": "Construisez sur le web. Pilotez et approuvez depuis votre poche. Tournez entièrement hors ligne. Apportez vos propres clés sur 12 fournisseurs — un seul poste de commande pour chaque agent et automatisation que vous opérez.",
+      "sub": "Construisez sur le web. Pilotez et approuvez depuis votre poche. Tournez entièrement hors ligne. Apportez vos propres clés sur 14 fournisseurs — un seul poste de commande pour chaque agent et automatisation que vous opérez.",
       "ctaPrimary": "Commencez gratuitement — sans carte",
       "ctaSecondary": "Voyez-le se piloter",
       "builderLabel": "Constructeur d'Entreprise IA",
@@ -1564,8 +1564,8 @@
           "body": "Lisez, approuvez et réorientez les exécutions depuis votre téléphone. La création reste sur le web ; le contrôle tient dans votre poche."
         },
         "byok": {
-          "title": "BYOK · 12 fournisseurs",
-          "body": "Apportez vos propres clés et routez sur 12 fournisseurs — ou passez entièrement sur l'appareil avec Gemma hors ligne."
+          "title": "BYOK · 14 fournisseurs",
+          "body": "Apportez vos propres clés et routez sur 14 fournisseurs — ou passez entièrement sur l'appareil avec Gemma hors ligne."
         },
         "dashboard": {
           "title": "Un seul tableau de bord",
@@ -1612,7 +1612,7 @@
     },
     "providers": {
       "eyebrow": "Apportez vos propres clés",
-      "title": "Douze fournisseurs. Un seul routeur."
+      "title": "Quatorze fournisseurs. Un seul routeur."
     },
     "flagship": {
       "pill": "Modèle phare",
