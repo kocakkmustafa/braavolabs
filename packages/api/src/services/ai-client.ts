@@ -37,6 +37,8 @@ export type AIProviderType =
   | "DEEPSEEK"
   | "KIMI"
   | "QWEN"
+  | "CEREBRAS"
+  | "ZHIPU"
   | "OLLAMA"
   | "LMSTUDIO"
   | "CUSTOM";
@@ -144,6 +146,8 @@ export const PROVIDER_DEFAULT_MODELS: Record<AIProviderType, string> = {
   DEEPSEEK:   "deepseek-chat",
   KIMI:       "moonshot-v1-128k",
   QWEN:       "qwen-max",
+  CEREBRAS:   "gpt-oss-120b",
+  ZHIPU:      "glm-4.7-flash",
   // Local-first defaults — Gemma 3 4B is the sweet spot for 16GB MacBooks
   // (runs at ~30 tok/s, ~3GB RAM footprint, beats Llama 3.2 3B on agents).
   OLLAMA:     "gemma3:4b",
@@ -167,6 +171,8 @@ export const PROVIDER_MODELS: Record<AIProviderType, string[]> = {
   DEEPSEEK:   ["deepseek-chat", "deepseek-reasoner", "deepseek-coder"],
   KIMI:       ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k", "moonshot-v1-auto"],
   QWEN:       ["qwen-max", "qwen-plus", "qwen-turbo", "qwen-long", "qwen2.5-72b-instruct", "qwen2.5-32b-instruct"],
+  CEREBRAS:   ["gpt-oss-120b", "glm-4.7"],
+  ZHIPU:      ["glm-4.7-flash", "glm-4.5-flash", "glm-4.6v-flash", "glm-4.7", "glm-4.6"],
   OLLAMA:     ["gemma3:4b", "gemma3:12b", "gemma3:27b", "llama3.2:3b", "llama3.3:70b", "qwen2.5:14b", "qwen2.5-coder:14b", "deepseek-r1:8b", "phi3:14b"],
   LMSTUDIO:   ["google/gemma-3-4b-it", "google/gemma-3-12b-it", "meta-llama/llama-3.2-3b-instruct", "qwen/qwen2.5-14b-instruct"],
   CUSTOM:     [],
@@ -259,6 +265,8 @@ export const TOOL_CAPABLE_MODEL_PREFIXES: Record<AIProviderType, string[]> = {
   DEEPSEEK:   ["deepseek-chat"],
   KIMI:       ["moonshot-", "kimi-"],
   QWEN:       ["qwen-max", "qwen-plus", "qwen-turbo", "qwen2.5-"],
+  CEREBRAS:   ["gpt-oss", "glm-"],
+  ZHIPU:      ["glm-"],
   OLLAMA:     ["qwen2.5", "llama3.1", "llama3.2", "llama3.3", "mistral"],
   LMSTUDIO:   ["qwen/", "meta-llama/"],
   CUSTOM:     [],   // depends entirely on what sits behind the URL
@@ -284,7 +292,7 @@ export const TOOL_INCAPABLE_MODEL_PREFIXES: readonly string[] = [
  * instantly restores the legacy prompt-embedding behavior for it (plan §2.1
  * rollback lever). */
 export const DEFAULT_NATIVE_TOOLUSE_PROVIDERS =
-  "OPENAI,GROQ,MISTRAL,DEEPSEEK,KIMI,QWEN,OPENROUTER,GOOGLE,OLLAMA,LMSTUDIO,CUSTOM";
+  "OPENAI,GROQ,MISTRAL,DEEPSEEK,KIMI,QWEN,CEREBRAS,ZHIPU,OPENROUTER,GOOGLE,OLLAMA,LMSTUDIO,CUSTOM";
 
 function nativeToolUseProviderEnabled(provider: AIProviderType): boolean {
   const raw = env.NATIVE_TOOLUSE_PROVIDERS ?? DEFAULT_NATIVE_TOOLUSE_PROVIDERS;
@@ -322,6 +330,8 @@ export const PROVIDER_BASE_URLS: Record<Exclude<AIProviderType, "ANTHROPIC" | "G
   DEEPSEEK:   "https://api.deepseek.com/v1",
   KIMI:       "https://api.moonshot.ai/v1",       // International endpoint; mainland: api.moonshot.cn/v1
   QWEN:       "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",  // Alibaba DashScope OpenAI-compatible
+  CEREBRAS:   "https://api.cerebras.ai/v1",              // OpenAI-compatible; free tier ~1M tok/day
+  ZHIPU:      "https://api.z.ai/api/paas/v4",            // Z.ai GLM; OpenAI-compatible, Flash tiers free
   OLLAMA:     "http://localhost:11434/v1",
   LMSTUDIO:   "http://localhost:1234/v1",
   CUSTOM:     "",  // user must supply
@@ -343,6 +353,8 @@ export const PROVIDER_INFO: Record<AIProviderType, {
   DEEPSEEK:   { label: "DeepSeek (Chat / R1 reasoner)", cost: "byok-cloud", privacy: "cloud", setupHint: "Get key at platform.deepseek.com — strong reasoning at low $/M tokens" },
   KIMI:       { label: "Kimi by Moonshot",  cost: "byok-cloud", privacy: "cloud", setupHint: "Get key at platform.moonshot.ai — 128k context, OpenAI-compatible" },
   QWEN:       { label: "Qwen by Alibaba",   cost: "byok-cloud", privacy: "cloud", setupHint: "Get key at modelstudio.console.alibabacloud.com (DashScope) — strong on multilingual + Chinese" },
+  CEREBRAS:   { label: "Cerebras (fast, free tier)", cost: "byok-cloud", privacy: "cloud", setupHint: "Get key at cloud.cerebras.ai — free ~1M tokens/day (8k context); gpt-oss-120b + GLM-4.7" },
+  ZHIPU:      { label: "Zhipu GLM (free Flash)", cost: "byok-cloud", privacy: "cloud", setupHint: "Get key at z.ai — GLM-4.x-Flash permanently free (text + vision); GLM-4.7/4.6 paid; OpenAI-compatible" },
   OLLAMA:     { label: "Ollama (local Gemma)",   cost: "free",       privacy: "local", setupHint: "Install ollama.com → run `ollama pull gemma3:4b` → set base URL to http://localhost:11434/v1" },
   LMSTUDIO:   { label: "LM Studio (local)",      cost: "free",       privacy: "local", setupHint: "Install lmstudio.ai → load Gemma 3 4B → start server → use http://localhost:1234/v1" },
   CUSTOM:     { label: "Custom OpenAI-compatible", cost: "byok-local", privacy: "local", setupHint: "Any OpenAI-compatible endpoint (LiteLLM, vLLM, Together, etc)" },
@@ -941,6 +953,8 @@ export async function chatCompletion(
     case "DEEPSEEK":
     case "KIMI":
     case "QWEN":
+    case "CEREBRAS":
+    case "ZHIPU":
     // Local-first / self-hosted — same OpenAI Chat Completions wire format,
     // user-supplied baseUrl resolves to localhost or any LiteLLM-style
     // proxy. apiKey is optional (Ollama default = no auth).

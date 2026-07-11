@@ -1719,6 +1719,9 @@ enum AIProvider {
   DEEPSEEK
   KIMI
   QWEN
+  // Cerebras + Zhipu GLM — OpenAI-compatible cloud, free tiers. Added 2026-07-09.
+  CEREBRAS
+  ZHIPU
   // OLLAMA + LMSTUDIO + CUSTOM are OpenAI-compatible local/self-hosted
   // endpoints. The user supplies a baseUrl pointing at their own server
   // (Ollama default: http://localhost:11434/v1). Free, private, runs on

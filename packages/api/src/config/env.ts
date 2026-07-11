@@ -115,6 +115,8 @@ const envShape = z.object({
   // where the operator doesn't want to pay for LLM trials).
   GROQ_API_KEY: z.string().optional(),
   GROQ_TRIAL_MODEL: z.string().default("llama-3.3-70b-versatile"),
+  CEREBRAS_API_KEY: z.string().optional(),
+  ZHIPU_API_KEY: z.string().optional(),
   // Pipeline export DRM. LICENSE_JWT_SECRET signs offline license tokens;
   // empty here means the /license/* endpoints return 503. TTL controls how
   // many days the token is valid before requiring an online re-verify.
