@@ -1,0 +1,79 @@
+/*
+ * /integrations (+ /integrations/import) — Forge sinematik-lite restyle
+ * (additive, route-scoped).
+ *
+ * Ports the same ingredients already landed on /dashboard, /companies,
+ * /pipelines, /runs, /approvals, /analytics, /drafts, /risks, /settings,
+ * /connections and /billing (see app/dashboard/dashboard.module.css for
+ * the canonical pattern this mirrors) onto the connector catalog +
+ * automation importer. Shared by both pages under this route —
+ * app/integrations/layout.tsx wraps both /integrations and
+ * /integrations/import (no nested layout under import/), so one module
+ * + one font override covers both.
+ *
+ *   - a route-scoped JetBrains Mono override for --bv-font-mono (both
+ *     pages already render `bv-mono` feature tags / step ids / DAG
+ *     preview labels, but nothing here ever loaded the actual face, so
+ *     they were silently falling back to system ui-monospace. Fixed
+ *     only for this route via layout.tsx.)
+ *   - a mono "> LABEL" kicker, ported from dashboard.module.css .kicker,
+ *     reusing the existing hardcoded "Connections" / "Integrations"
+ *     eyebrow copy as-is — no new i18n.
+ *   - one static (non-animated), low-opacity arc-radial wash behind the
+ *     page head — screen-blended so it never fights text contrast.
+ *   - a scoped prefers-reduced-motion kill-switch for the pre-existing
+ *     bv-* animations this route actually uses (bv-rise — the import
+ *     wizard's step cards; the catalog list itself has no bv-stagger/
+ *     bv-ping).
+ *
+ * Nothing here edits the shared bv-* rule bodies in globals.css.
+ */
+
+.integrationsShell {
+  --bv-font-mono: var(--integrations-font-mono), "JetBrains Mono", ui-monospace, monospace;
+  position: relative;
+}
+
+.integrationsShell::before {
+  content: "";
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  width: 820px;
+  max-width: 160%;
+  height: 360px;
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgba(59, 130, 246, 0.14), transparent 72%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* ── kicker mono-label — ports dashboard.module.css .kicker's "> " mark ── */
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-family: var(--bv-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--bv-cobalt-glow);
+}
+.kicker::before {
+  content: ">";
+  color: var(--bv-cobalt-glow);
+}
+
+/* ── reduced motion: scoped kill-switch, mirrors dashboard.module.css.
+   Only targets bv-* classes this route actually renders. ── */
+@media (prefers-reduced-motion: reduce) {
+  .integrationsShell::before {
+    display: none;
+  }
+  .integrationsShell :global(.bv-rise) {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

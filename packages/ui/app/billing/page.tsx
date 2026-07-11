@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { PLAN_LIMITS as SHARED_PLAN_LIMITS, PLAN_LABEL, PLAN_PRICING } from "@ai-company-os/core";
+import styles from "./billing.module.css";
 
 // Display-friendly summary per plan — pulled from the shared 5-tier source of
 // truth in @ai-company-os/core so /pricing, /settings, /billing all stay in sync.
@@ -100,12 +101,14 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
+    <div className={`max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in ${styles.billingShell}`}>
 
       {/* Page head */}
       <div className="bv-page-head mb-6">
         <div>
-          <p className="bv-micro text-on-surface-variant mb-1">Account</p>
+          {/* eyebrow — mono "> " kicker (dashboard.module.css .kicker, ported).
+              Same literal "Account" copy as before, no i18n change. */}
+          <p className={styles.kicker}>Account</p>
           <h1 className="bv-display gradient-text">{t("app.billing.title")}</h1>
           <p className="bv-caption mt-1">{t("app.billing.subtitle")}</p>
         </div>
@@ -135,7 +138,7 @@ export default function BillingPage() {
           <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-[18px] mb-[18px]">
 
             {/* Current plan card */}
-            <div className="bv-glass p-[26px]">
+            <div className="bv-glass bv-rim p-[26px]">
               {/* Row 1: tier name + active badge */}
               <div className="flex items-center gap-3 mb-[14px]">
                 <span className="bv-display uppercase tracking-tight text-on-surface">
@@ -146,7 +149,7 @@ export default function BillingPage() {
 
               {/* Price */}
               <div className="flex items-baseline gap-1 mb-[6px]">
-                <span className="bv-headline text-on-surface">
+                <span className={`bv-headline text-on-surface ${styles.metricValue}`}>
                   {PLAN_PRICING[plan as keyof typeof PLAN_PRICING]?.monthlyUsd
                     ? `$${PLAN_PRICING[plan as keyof typeof PLAN_PRICING].monthlyUsd}`
                     : t("app.billing.planEnterprisePrice")}
@@ -172,7 +175,7 @@ export default function BillingPage() {
               >
                 <span className="bv-dot bv-running bv-ping flex-shrink-0" />
                 <div className="flex items-baseline gap-2">
-                  <span className="bv-headline" style={{ color: "var(--bv-status-running)" }}>
+                  <span className={`bv-headline ${styles.metricValue}`} style={{ color: "var(--bv-status-running)" }}>
                     {limits.runs < 0 ? "∞" : limits.runs - (usage?.live?.runs ?? 0)}
                   </span>
                   <span className="bv-caption">runs remaining on {PLAN_LABEL?.[plan as keyof typeof PLAN_LABEL] ?? plan}</span>
@@ -181,7 +184,7 @@ export default function BillingPage() {
             </div>
 
             {/* Manage subscription card */}
-            <div className="bv-glass p-[22px] flex flex-col gap-2">
+            <div className="bv-glass bv-rim p-[22px] flex flex-col gap-2">
               <p className="bv-micro mb-2">Manage subscription</p>
               <p className="bv-caption leading-relaxed mb-2">
                 Web plans bill through Stripe — manage, upgrade or cancel anytime in the billing portal. Mobile subscriptions are managed in the store you subscribed through; changes sync here automatically.
@@ -239,7 +242,7 @@ export default function BillingPage() {
           </div>
 
           {/* ── Usage meters ── */}
-          <div className="bv-glass mb-[18px]">
+          <div className="bv-glass bv-rim mb-[18px]">
             <div className="p-6 pb-0 flex items-center justify-between">
               <h2 className="bv-title uppercase tracking-wider">Usage this cycle</h2>
             </div>
@@ -300,7 +303,7 @@ export default function BillingPage() {
             ].map((p) => (
               <div
                 key={p.id}
-                className="bv-glass p-6 flex flex-col relative overflow-hidden"
+                className="bv-glass bv-rim p-6 flex flex-col relative overflow-hidden"
                 style={plan === p.id ? { borderColor: "rgba(96,165,250,0.4)" } : undefined}
               >
                 {(p as any).popular && plan !== p.id && (
@@ -310,7 +313,7 @@ export default function BillingPage() {
                 )}
                 <p className="bv-title mb-1">{p.name}</p>
                 <div className="mb-4 flex items-baseline gap-1">
-                  <span className="bv-headline gradient-text">{p.price}</span>
+                  <span className={`bv-headline gradient-text ${styles.metricValue}`}>{p.price}</span>
                   <span className="bv-caption">{p.priceNote}</span>
                 </div>
                 {plan === p.id && (
@@ -343,7 +346,7 @@ export default function BillingPage() {
           {usage?.meters && usage.meters.length > 0 && (
             <>
               <h2 className="bv-title uppercase tracking-wider mb-4">{t("app.billing.usageHistory")}</h2>
-              <div className="bv-glass overflow-hidden">
+              <div className="bv-glass bv-rim overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm border-collapse">
                     <thead>

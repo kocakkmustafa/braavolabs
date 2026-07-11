@@ -1,0 +1,95 @@
+/*
+ * /settings (+ /settings/identity) — Forge sinematik-lite restyle
+ * (additive, route-scoped).
+ *
+ * Ports the same ingredients already landed on /dashboard, /companies,
+ * /pipelines, /runs, /approvals, /analytics, /drafts and /risks (see
+ * app/dashboard/dashboard.module.css for the canonical pattern this
+ * mirrors) onto the account/config surface. Shared by both settings
+ * pages under this route — app/settings/layout.tsx wraps both
+ * /settings and /settings/identity (no nested layout under identity/),
+ * so one module + one font override covers both.
+ *
+ *   - a route-scoped JetBrains Mono override for --bv-font-mono (both
+ *     pages already render plenty of `bv-mono` values — tenant/session
+ *     ids, live-preview rows, code snippets — but nothing here ever
+ *     loaded the actual face, so they were silently falling back to
+ *     system ui-monospace. Fixed only for this route via layout.tsx.)
+ *   - a mono "> LABEL" kicker, ported from dashboard.module.css .kicker,
+ *     reusing existing hardcoded eyebrow copy ("Configuration" / the
+ *     "Settings" breadcrumb string already in identity/page.tsx) —
+ *     no new i18n.
+ *   - a mono treatment for the billing tab's numeric values (plan
+ *     price, runs-remaining count), mirroring dashboard's KpiCard
+ *     value styling — task requirement: price/quota/usage numbers
+ *     render in mono.
+ *   - one static (non-animated), low-opacity arc-radial wash behind the
+ *     page head — screen-blended so it never fights text contrast.
+ *   - a scoped prefers-reduced-motion kill-switch for the pre-existing
+ *     bv-* animations this route actually uses (bv-stagger / bv-rise /
+ *     bv-ping — union of both pages).
+ *
+ * Nothing here edits the shared bv-* rule bodies in globals.css.
+ */
+
+.settingsShell {
+  --bv-font-mono: var(--settings-font-mono), "JetBrains Mono", ui-monospace, monospace;
+  position: relative;
+}
+
+.settingsShell::before {
+  content: "";
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  width: 820px;
+  max-width: 160%;
+  height: 360px;
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgba(59, 130, 246, 0.14), transparent 72%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* ── kicker mono-label — ports dashboard.module.css .kicker's "> " mark ── */
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-family: var(--bv-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--bv-cobalt-glow);
+}
+.kicker::before {
+  content: ">";
+  color: var(--bv-cobalt-glow);
+}
+
+/* ── mono metric values — billing tab price / runs-remaining figures ── */
+.metricValue {
+  font-family: var(--bv-font-mono);
+}
+
+/* ── reduced motion: scoped kill-switch, mirrors dashboard.module.css.
+   Only targets bv-* classes this route actually renders. ── */
+@media (prefers-reduced-motion: reduce) {
+  .settingsShell::before {
+    display: none;
+  }
+  .settingsShell :global(.bv-stagger) > * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .settingsShell :global(.bv-rise) {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .settingsShell :global(.bv-dot.bv-ping)::before {
+    animation: none !important;
+  }
+}

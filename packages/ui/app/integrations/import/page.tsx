@@ -18,6 +18,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { api } from "../../../lib/api";
 import { useAuthGuard } from "../../../lib/useAuthGuard";
+import styles from "../integrations.module.css";
 
 type Source =
   | "n8n"
@@ -144,7 +145,7 @@ export default function ImportAutomationPage() {
   };
 
   return (
-    <div className="bv-dash bv-dash-shell min-h-screen">
+    <div className={`bv-dash bv-dash-shell min-h-screen ${styles.integrationsShell}`}>
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-outline-variant/40">
         <div className="flex items-center gap-2 text-sm text-on-surface-variant">
@@ -168,7 +169,9 @@ export default function ImportAutomationPage() {
         {/* Page head */}
         <div className="bv-page-head mb-8">
           <div>
-            <p className="bv-micro text-outline mb-2 tracking-widest">Integrations</p>
+            {/* eyebrow — mono "> " kicker (dashboard.module.css .kicker, ported).
+                Same literal "Integrations" copy as before, no i18n change. */}
+            <p className={styles.kicker}>Integrations</p>
             <h1 className="bv-display gradient-text mb-2">{t("app.importAutomation.title")}</h1>
             <p className="bv-body text-on-surface-variant">{t("app.importAutomation.intro")}</p>
           </div>
@@ -198,7 +201,7 @@ export default function ImportAutomationPage() {
 
         {/* ── Phase 0: Paste export ── */}
         {phase === 0 && (
-          <div className="bv-glass bv-rise p-7 animate-fade-in">
+          <div className="bv-glass bv-rim bv-rise p-7 animate-fade-in">
             <p className="bv-micro text-outline mb-1 tracking-widest">Step 1</p>
             <h2 className="bv-headline text-on-surface mb-1">Paste your export</h2>
             <p className="bv-body text-on-surface-variant mb-6">
@@ -294,7 +297,7 @@ export default function ImportAutomationPage() {
 
         {/* ── Phase 1: Preview & map ── */}
         {phase === 1 && preview && (
-          <div className="bv-glass bv-rise p-7 animate-fade-in">
+          <div className="bv-glass bv-rim bv-rise p-7 animate-fade-in">
             <p className="bv-micro text-outline mb-1 tracking-widest">Step 2</p>
             <h2 className="bv-headline text-on-surface mb-1">Preview &amp; map</h2>
             <p className="bv-body text-on-surface-variant mb-6">
@@ -411,7 +414,7 @@ export default function ImportAutomationPage() {
 
         {/* ── Phase 2: Forging / Done ── */}
         {phase === 2 && (
-          <div className="bv-glass bv-rise p-7 animate-fade-in">
+          <div className="bv-glass bv-rim bv-rise p-7 animate-fade-in">
             {committing ? (
               /* Forging in progress */
               <div className="flex flex-col items-center gap-5 py-10">

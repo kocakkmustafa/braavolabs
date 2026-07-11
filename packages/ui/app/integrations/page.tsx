@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useAuthGuard } from "../../lib/useAuthGuard";
+import styles from "./integrations.module.css";
 
 // Stable category ids — labels resolve via useTranslations at render.
 const CATEGORIES = [
@@ -235,12 +236,14 @@ export default function IntegrationsPage() {
   );
 
   return (
-    <div className="bv-dash max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
+    <div className={`bv-dash max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in ${styles.integrationsShell}`}>
 
       {/* Page head */}
       <div className="bv-page-head mb-6">
         <div>
-          <p className="bv-micro mb-1 text-outline">Connections</p>
+          {/* eyebrow — mono "> " kicker (dashboard.module.css .kicker, ported).
+              Same literal "Connections" copy as before, no i18n change. */}
+          <p className={styles.kicker}>Connections</p>
           <h1 className="bv-headline gradient-text mb-1">{t("app.integrations.title")}</h1>
           <p className="bv-caption">
             {t("app.integrations.subtitleTemplate", { total: totalCount, available: availableCount, beta: betaCount, comingSoon: totalCount - availableCount - betaCount })}
@@ -316,7 +319,7 @@ export default function IntegrationsPage() {
           return (
             <div
               key={connector.id}
-              className={`bv-glass cursor-pointer transition-all${isExpanded ? " glow-cyan" : ""}`}
+              className={`bv-glass bv-rim cursor-pointer transition-all${isExpanded ? " glow-cyan" : ""}`}
               style={isExpanded ? { borderColor: "rgba(59,130,246,0.25)" } : {}}
               onClick={() => setExpandedId(isExpanded ? null : connector.id)}
             >

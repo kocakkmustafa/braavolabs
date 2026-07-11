@@ -7,6 +7,7 @@ import { api } from "../../lib/api";
 import { useAppStore } from "../../lib/store";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { useToast } from "../../components/Toast";
+import styles from "./settings.module.css";
 
 interface BillingUsage {
   plan: string;
@@ -373,7 +374,7 @@ export default function SettingsPage() {
   const limits = PLAN_LIMITS[currentPlan] ?? PLAN_LIMITS.FREE;
 
   return (
-    <div className="bv-dash-shell min-h-screen">
+    <div className={`bv-dash-shell min-h-screen ${styles.settingsShell}`}>
       {/* Top bar */}
       <header className="sticky top-0 z-40 flex items-center justify-between px-6 h-14 glass-panel border-b border-outline-variant/20">
         <div className="flex items-center gap-4">
@@ -398,7 +399,9 @@ export default function SettingsPage() {
         {/* Page head */}
         <div className="bv-page-head mb-7">
           <div>
-            <p className="bv-micro text-outline mb-1">Configuration</p>
+            {/* eyebrow — mono "> " kicker (dashboard.module.css .kicker, ported).
+                Same literal "Configuration" copy as before, no i18n change. */}
+            <p className={styles.kicker}>Configuration</p>
             <h1 className="bv-headline text-on-surface">Settings</h1>
             <p className="bv-caption mt-1">Profile, workspace, locale and notifications.</p>
           </div>
@@ -564,7 +567,7 @@ export default function SettingsPage() {
                     <ForgeUsageBar label={t("app.settings.runsThisMonth")} current={billingUsage.live.runs} limit={limits.runs} />
                     <div className="flex justify-between text-sm">
                       <span className="text-on-surface-variant">Tool Calls</span>
-                      <span className="font-semibold text-on-surface">{billingUsage.live.toolCalls}</span>
+                      <span className={`font-semibold text-on-surface ${styles.metricValue}`}>{billingUsage.live.toolCalls}</span>
                     </div>
                   </div>
                 )}
@@ -590,7 +593,7 @@ export default function SettingsPage() {
                   }).map((plan) => (
                     <div
                       key={plan.id}
-                      className="bv-glass rounded-xl p-3.5 flex flex-col"
+                      className="bv-glass bv-rim rounded-xl p-3.5 flex flex-col"
                       style={{
                         background: currentPlan === plan.id
                           ? "rgba(59,130,246,0.06)"
@@ -606,7 +609,7 @@ export default function SettingsPage() {
                         </span>
                       )}
                       <p className="font-headline font-semibold text-sm text-on-surface mb-0.5">{plan.name}</p>
-                      <p className="bv-numeric text-lg text-primary mb-2">{plan.price}</p>
+                      <p className={`bv-numeric text-lg text-primary mb-2 ${styles.metricValue}`}>{plan.price}</p>
                       {currentPlan === plan.id && (
                         <span className="bv-pill bv-pill-cyan mb-2 self-start">Current</span>
                       )}
@@ -673,7 +676,7 @@ export default function SettingsPage() {
                       const statusLabel = existing?.status ?? t("app.settings.notConnected");
 
                       return (
-                        <div key={prov.provider} className="bv-glass rounded-xl overflow-hidden">
+                        <div key={prov.provider} className="bv-glass bv-rim rounded-xl overflow-hidden">
                           <div
                             className="flex items-center justify-between px-4 py-3.5 cursor-pointer"
                             onClick={() => {
@@ -1313,7 +1316,7 @@ export default function SettingsPage() {
 
 function ForgeSection({ title, subtitle, icon, children }: { title: string; subtitle: string; icon?: string; children: React.ReactNode }) {
   return (
-    <div className="bv-glass rounded-2xl p-6 bv-rise">
+    <div className="bv-glass bv-rim rounded-2xl p-6 bv-rise">
       <div className="mb-5 pb-4 border-b border-outline-variant/15">
         <div className="flex items-center gap-2 mb-0.5">
           {icon && <span className="material-symbols-outlined text-primary" style={{ fontSize: 18 }}>{icon}</span>}
@@ -1363,7 +1366,7 @@ function ForgeUsageBar({ label, current, limit }: { label: string; current: numb
     <div>
       <div className="flex justify-between text-sm mb-1.5">
         <span className="text-on-surface-variant">{label}</span>
-        <span className="font-semibold" style={{ color: danger ? "var(--color-error)" : "var(--color-on-surface)" }}>
+        <span className={`font-semibold ${styles.metricValue}`} style={{ color: danger ? "var(--color-error)" : "var(--color-on-surface)" }}>
           {current}{unlimited ? "" : ` / ${limit}`}
         </span>
       </div>

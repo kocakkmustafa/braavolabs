@@ -26,6 +26,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { api } from "../../../lib/api";
 import { useAuthGuard } from "../../../lib/useAuthGuard";
+import styles from "../settings.module.css";
 
 type ConfigShape = Awaited<ReturnType<typeof api.getOidcConfig>>;
 
@@ -137,7 +138,7 @@ export default function IdentitySettingsPage() {
   /* ── Loading skeleton ── */
   if (!hydrated || loading) {
     return (
-      <div className="bv-dash min-h-screen bv-dash-shell">
+      <div className={`bv-dash min-h-screen bv-dash-shell ${styles.settingsShell}`}>
         <div className="max-w-4xl mx-auto px-6 py-10">
           {/* breadcrumb skeleton */}
           <div className="flex items-center gap-2 mb-8">
@@ -161,7 +162,7 @@ export default function IdentitySettingsPage() {
   /* ── Plan gate ── */
   if (planGate) {
     return (
-      <div className="bv-dash min-h-screen bv-dash-shell">
+      <div className={`bv-dash min-h-screen bv-dash-shell ${styles.settingsShell}`}>
         <div className="max-w-4xl mx-auto px-6 py-10 animate-fade-in">
           {/* breadcrumb */}
           <nav className="flex items-center gap-2 mb-8" aria-label="breadcrumb">
@@ -178,7 +179,7 @@ export default function IdentitySettingsPage() {
             </span>
           </nav>
 
-          <div className="bv-glass rounded-2xl p-10 text-center max-w-lg mx-auto">
+          <div className="bv-glass bv-rim rounded-2xl p-10 text-center max-w-lg mx-auto">
             <div
               className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5"
               style={{ background: "rgba(59,130,246,0.10)", border: "1px solid rgba(59,130,246,0.20)" }}
@@ -205,7 +206,7 @@ export default function IdentitySettingsPage() {
     : "";
 
   return (
-    <div className="bv-dash min-h-screen bv-dash-shell">
+    <div className={`bv-dash min-h-screen bv-dash-shell ${styles.settingsShell}`}>
       <div className="max-w-4xl mx-auto px-6 py-10 animate-fade-in bv-stagger">
 
         {/* ── Breadcrumb ── */}
@@ -226,6 +227,10 @@ export default function IdentitySettingsPage() {
         {/* ── Page head ── */}
         <div className="bv-page-head mb-8">
           <div>
+            {/* eyebrow — mono "> " kicker (dashboard.module.css .kicker, ported).
+                Reuses the literal "Settings" string already used in the
+                breadcrumb above, no new i18n. */}
+            <p className={styles.kicker}>Settings</p>
             <div className="flex items-center gap-3 mb-1">
               <div
                 className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -266,7 +271,7 @@ export default function IdentitySettingsPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
             {/* Issuer + Client ID card */}
-            <div className="bv-glass rounded-2xl p-6">
+            <div className="bv-glass bv-rim rounded-2xl p-6">
               <p className="bv-micro mb-4" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 14 }}>dns</span>
                 Provider endpoint
@@ -306,7 +311,7 @@ export default function IdentitySettingsPage() {
             </div>
 
             {/* Callback + Scopes card */}
-            <div className="bv-glass rounded-2xl p-6">
+            <div className="bv-glass bv-rim rounded-2xl p-6">
               <p className="bv-micro mb-4" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 14 }}>route</span>
                 Redirect & scopes
@@ -351,7 +356,7 @@ export default function IdentitySettingsPage() {
             </div>
 
             {/* Active toggle */}
-            <div className="bv-glass rounded-2xl p-5">
+            <div className="bv-glass bv-rim rounded-2xl p-5">
               <label className="flex items-center justify-between gap-4 cursor-pointer">
                 <div>
                   <p className="text-on-surface font-medium" style={{ fontSize: 13 }}>{t("active_toggle")}</p>
@@ -476,7 +481,7 @@ export default function IdentitySettingsPage() {
           <div style={{ position: "sticky", top: 84, display: "flex", flexDirection: "column", gap: 16 }}>
 
             {/* Connection status card */}
-            <div className="bv-glass rounded-2xl p-5">
+            <div className="bv-glass bv-rim rounded-2xl p-5">
               <p className="bv-micro mb-4" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span className={`bv-dot ${config?.isActive ? "bv-completed bv-ping" : "bv-paused"}`} />
                 Live preview
@@ -533,7 +538,7 @@ export default function IdentitySettingsPage() {
 
             {/* Callback hint */}
             {callbackHint && (
-              <div className="bv-glass rounded-2xl p-5">
+              <div className="bv-glass bv-rim rounded-2xl p-5">
                 <p className="bv-micro mb-3" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 14 }}>info</span>
                   Callback URL

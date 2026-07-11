@@ -17,6 +17,7 @@ import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { timeAgo } from "../../lib/timeAgo";
 import { useTranslations } from "next-intl";
+import styles from "./connections.module.css";
 
 const PLATFORMS = [
   { value: "N8N", label: "n8n" },
@@ -218,13 +219,15 @@ export default function ConnectionsPage() {
   }
 
   return (
-    <div className="bv-dash bv-dash-shell min-h-screen">
+    <div className={`bv-dash bv-dash-shell min-h-screen ${styles.connectionsShell}`}>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 animate-fade-in">
 
         {/* ── Page head ── */}
         <div className="bv-page-head mb-8">
           <div>
-            <p className="bv-micro text-on-surface-variant mb-1">Automation Hub</p>
+            {/* eyebrow — mono "> " kicker (dashboard.module.css .kicker, ported).
+                Same literal "Automation Hub" copy as before, no i18n change. */}
+            <p className={styles.kicker}>Automation Hub</p>
             <h1 className="bv-headline text-on-surface">{t("app.connections.title")}</h1>
             <p className="bv-body text-on-surface-variant mt-1">{t("app.connections.subtitle")}</p>
           </div>
@@ -302,7 +305,7 @@ export default function ConnectionsPage() {
             ))}
           </div>
         ) : conns.length === 0 ? (
-          <div className="bv-glass bv-rise text-center py-16 mb-8">
+          <div className="bv-glass bv-rim bv-rise text-center py-16 mb-8">
             <span className="material-symbols-outlined text-4xl mb-4 block text-primary">hub</span>
             <p className="bv-title mb-1">{t("app.connections.emptyTitle")}</p>
             <p className="bv-caption">{t("app.connections.emptyBody")}</p>
@@ -324,7 +327,7 @@ export default function ConnectionsPage() {
               const platGrad = PLATFORM_GRADIENT[c.platform] ?? PLATFORM_GRADIENT.GENERIC;
               const isOpen = expanded === c.id;
               return (
-                <div key={c.id} className="bv-glass overflow-hidden">
+                <div key={c.id} className="bv-glass bv-rim overflow-hidden">
                   {/* Card top */}
                   <div className="p-5">
                     <div className="flex items-start gap-3 mb-4">
@@ -540,7 +543,7 @@ export default function ConnectionsPage() {
               <span className="bv-caption">native + external · one timeline</span>
             </div>
 
-            <div className="bv-glass bv-panel">
+            <div className="bv-glass bv-rim bv-panel">
               {/* Feed header row */}
               <div className="bv-runs-row bv-runs-head" style={{ gridTemplateColumns: "24px 1fr auto" }}>
                 <span />
@@ -601,7 +604,7 @@ export default function ConnectionsPage() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bv-glass bv-rise w-full max-w-[480px] overflow-hidden"
+            className="bv-glass bv-rim bv-rise w-full max-w-[480px] overflow-hidden"
             style={{ borderRadius: 20 }}
           >
             {/* Modal header */}
