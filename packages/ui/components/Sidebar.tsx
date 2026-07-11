@@ -12,6 +12,7 @@ import { sounds } from "../lib/sounds";
 const NAV_ITEMS = [
   { href: "/", labelKey: "nav.home", icon: "home", publicOnly: true },
   { href: "/dashboard", labelKey: "nav.commandCenter", icon: "dashboard", authOnly: true },
+  { href: "/ask", labelKey: "nav.askAll", icon: "forum", authOnly: true },
   { href: "/companies", labelKey: "nav.workspaces", icon: "business", authOnly: true },
   { href: "/pipelines", labelKey: "nav.workflows", icon: "account_tree", authOnly: true },
   { href: "/approvals", labelKey: "nav.approvals", icon: "task_alt", authOnly: true },

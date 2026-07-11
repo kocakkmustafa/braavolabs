@@ -373,6 +373,55 @@ export const api = {
       }>;
     }>("/settings/ai-config/providers", { token }),
 
+  // Research — multi-model Ask-all (compare) + Cascade (Forge P1, app/ask).
+  // Backend contracts: packages/api/src/modules/research/research.router.ts.
+  //
+  // Ask-all is ASYNC (same WebResearchSession lifecycle GET /research/:id
+  // already uses for the research module) — POST returns a session id,
+  // the caller polls until status is COMPLETED/FAILED/CANCELLED. The full
+  // MultiModelCompareResult (perModel/consensus/disagreements/finalAnswer/
+  // totalCostUsd) lands in session.findings.multiModel on completion.
+  startCompare: (
+    token: string,
+    data: { companyId: string; query: string; maxCandidates?: number; maxTokensPerCandidate?: number; maxCostUsd?: number },
+  ) =>
+    apiFetch<{ id: string; status: string }>("/research/compare", {
+      method: "POST",
+      body: JSON.stringify(data),
+      token,
+    }),
+  getResearchSession: (token: string, id: string) =>
+    apiFetch<{
+      id: string;
+      companyId: string;
+      query: string;
+      status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED";
+      findings: { summary?: string; claims?: unknown[]; multiModel?: any } | null;
+      costUsd: number | null;
+      error: string | null;
+      startedAt: string | null;
+      completedAt: string | null;
+      createdAt: string;
+    }>(`/research/${id}`, { token }),
+  // Cascade is SYNCHRONOUS — the tenant's cheapest-capable-first ladder,
+  // escalating only on low confidence. Returns TenantCascadeResult directly.
+  runCascade: (
+    token: string,
+    data: { prompt: string; confidenceThreshold?: number; secondOpinion?: boolean; budgetUsdCap?: number },
+  ) =>
+    apiFetch<{
+      answer: string;
+      provider: string;
+      model: string;
+      tier: string;
+      confidence: number;
+      escalated: boolean;
+      totalCostUsd: number;
+      stoppedReason: string;
+      rationale: string;
+      attempts: Array<{ provider: string; model: string; tier: string; confidence: number; costUsd: number }>;
+    }>("/research/cascade", { method: "POST", body: JSON.stringify(data), token }),
+
   // Dashboard extended
   listRuns: (token: string, limit = 50, offset = 0) =>
     apiFetch<{ runs: any[]; total: number }>(`/dashboard/runs?limit=${limit}&offset=${offset}`, { token }),

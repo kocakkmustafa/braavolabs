@@ -1,0 +1,112 @@
+/*
+ * /ask — Ask-all / Cascade multi-model command panel (Forge P1).
+ *
+ * Same additive, route-scoped restyle pattern as every other Forge screen
+ * (see app/dashboard/dashboard.module.css for the canonical write-up this
+ * mirrors): a JetBrains Mono override for --bv-font-mono, a mono "> LABEL"
+ * kicker, one static arc-radial wash behind the page head, and a scoped
+ * prefers-reduced-motion kill-switch. Two new ADDITIVE pieces on top,
+ * specific to this route's "models thinking in parallel" UI:
+ *
+ *   - .emberPulse — a slow amber glow on a candidate card while its model
+ *     is still answering (ember = "running", matching the existing
+ *     --bv-status-running token everywhere else in the app).
+ *   - .thinkingDots — a 3-dot mono typing indicator for the same state.
+ *
+ * Nothing here edits the shared bv-* rule bodies in globals.css.
+ */
+
+.askShell {
+  --bv-font-mono: var(--ask-font-mono), "JetBrains Mono", ui-monospace, monospace;
+  position: relative;
+}
+
+.askShell::before {
+  content: "";
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  width: 820px;
+  max-width: 160%;
+  height: 360px;
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgba(59, 130, 246, 0.14), transparent 72%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* ── kicker mono-label — ports dashboard.module.css .kicker's "> " mark ── */
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-family: var(--bv-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--bv-cobalt-glow);
+}
+.kicker::before {
+  content: ">";
+  color: var(--bv-cobalt-glow);
+}
+
+/* ── candidate card mid-flight (ember/running, same hue as .bv-dot.bv-running) ── */
+.emberPulse {
+  animation: ask-ember-pulse 2.4s ease-in-out infinite;
+}
+@keyframes ask-ember-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(255,122,26,0.18), 0 0 20px rgba(255,122,26,0.08); }
+  50%      { box-shadow: 0 0 0 1px rgba(255,122,26,0.38), 0 0 28px rgba(255,122,26,0.18); }
+}
+
+/* ── "thinking…" 3-dot mono indicator ── */
+.thinkingDots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.thinkingDots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--bv-status-running);
+  display: inline-block;
+  animation: ask-thinking-dot 1.2s ease-in-out infinite;
+}
+.thinkingDots span:nth-child(2) { animation-delay: 0.15s; }
+.thinkingDots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes ask-thinking-dot {
+  0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+  40%           { opacity: 1; transform: translateY(-2px); }
+}
+
+/* ── reduced motion: scoped kill-switch, mirrors dashboard.module.css.
+   Only targets bv-* classes + the two new ones this route renders. ── */
+@media (prefers-reduced-motion: reduce) {
+  .askShell::before {
+    display: none;
+  }
+  .askShell :global(.bv-stagger) > * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .askShell :global(.bv-rise) {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .askShell :global(.bv-dot.bv-ping)::before {
+    animation: none !important;
+  }
+  .emberPulse {
+    animation: none !important;
+    box-shadow: 0 0 0 1px rgba(255,122,26,0.28) !important;
+  }
+  .thinkingDots span {
+    animation: none !important;
+    opacity: 0.7 !important;
+  }
+}
