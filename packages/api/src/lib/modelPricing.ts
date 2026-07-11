@@ -58,6 +58,14 @@ export const MODEL_PRICES: Record<string, ModelPrice> = {
   "moonshot-v1": { inputPerM: 1.2, outputPerM: 1.2 },
   "qwen-max": { inputPerM: 1.6, outputPerM: 6.4 },
   "qwen-plus": { inputPerM: 0.4, outputPerM: 1.2 },
+  // ── Cerebras (free tier ~1M tok/day; paid rate below for cost accounting) ──
+  "gpt-oss-120b": { inputPerM: 0.35, outputPerM: 0.75 },
+  // ── Zhipu GLM (Flash tiers permanently free = $0; GLM-4.7/4.6 paid) ──
+  "glm-4.7-flash": { inputPerM: 0, outputPerM: 0 },
+  "glm-4.5-flash": { inputPerM: 0, outputPerM: 0 },
+  "glm-4.6v-flash": { inputPerM: 0, outputPerM: 0 },
+  "glm-4.7": { inputPerM: 0.6, outputPerM: 2.2 },
+  "glm-4.6": { inputPerM: 0.6, outputPerM: 2.2 },
 };
 
 /**

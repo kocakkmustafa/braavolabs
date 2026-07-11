@@ -99,8 +99,13 @@ describe("Provider catalog consistency", () => {
     expect(LOCAL_PROVIDERS.size).toBe(3);
   });
 
-  it("Schema covers exactly 12 providers (3 cloud-major + 3 cloud-aux + 3 cloud-new + 3 local)", () => {
-    expect(Object.keys(PROVIDER_DEFAULT_MODELS).length).toBe(12);
-    expect(Object.keys(PROVIDER_INFO).length).toBe(12);
+  it("Schema covers exactly 14 providers (3 cloud-major + 3 cloud-aux + 5 cloud-new + 3 local)", () => {
+    expect(Object.keys(PROVIDER_DEFAULT_MODELS).length).toBe(14);
+    expect(Object.keys(PROVIDER_INFO).length).toBe(14);
+    // Forge FAZ 1 / 1A: Cerebras + Zhipu GLM added (OpenAI-compatible, free tiers)
+    expect(PROVIDER_DEFAULT_MODELS.CEREBRAS).toBeDefined();
+    expect(PROVIDER_DEFAULT_MODELS.ZHIPU).toBeDefined();
+    expect(PROVIDER_INFO.CEREBRAS).toBeDefined();
+    expect(PROVIDER_INFO.ZHIPU).toBeDefined();
   });
 });

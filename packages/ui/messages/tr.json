@@ -1536,7 +1536,7 @@
       "line1": "Zaten kullandığın",
       "line2a": "ajanları",
       "line2b": "yönet.",
-      "sub": "Web'de kur. Cebinden yönlendir ve onayla. Tamamen çevrimdışı çalıştır. 12 sağlayıcıda kendi anahtarlarını getir — işlettiğin her ajan ve otomasyon için tek bir komuta merkezi.",
+      "sub": "Web'de kur. Cebinden yönlendir ve onayla. Tamamen çevrimdışı çalıştır. 14 sağlayıcıda kendi anahtarlarını getir — işlettiğin her ajan ve otomasyon için tek bir komuta merkezi.",
       "ctaPrimary": "Ücretsiz başla — kart gerekmez",
       "ctaSecondary": "Nasıl yönettiğini gör",
       "builderLabel": "AI Şirket Kurucusu",
@@ -1564,8 +1564,8 @@
           "body": "Çalışmaları telefonundan oku, onayla ve yönünü değiştir. Kurulum web'de kalır; kontrol cebine sığar."
         },
         "byok": {
-          "title": "BYOK · 12 sağlayıcı",
-          "body": "Kendi anahtarlarını getir ve 12 sağlayıcı arasında yönlendir — ya da çevrimdışı Gemma ile tamamen cihaz üstünde çalış."
+          "title": "BYOK · 14 sağlayıcı",
+          "body": "Kendi anahtarlarını getir ve 14 sağlayıcı arasında yönlendir — ya da çevrimdışı Gemma ile tamamen cihaz üstünde çalış."
         },
         "dashboard": {
           "title": "Tek panel",
@@ -1612,7 +1612,7 @@
     },
     "providers": {
       "eyebrow": "Kendi anahtarlarını getir",
-      "title": "On iki sağlayıcı. Tek yönlendirici."
+      "title": "On dört sağlayıcı. Tek yönlendirici."
     },
     "flagship": {
       "pill": "Amiral gemisi şablon",

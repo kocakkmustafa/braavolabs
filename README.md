@@ -14,7 +14,7 @@ Build, run, and steer AI agent workflows in plain English — or connect the n8n
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6)
 ![Next.js](https://img.shields.io/badge/Next.js-15-000)
 ![Postgres](https://img.shields.io/badge/Postgres-16-336791)
-![Tests](https://img.shields.io/badge/tests-133%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-650%20passing-brightgreen)
 ![i18n](https://img.shields.io/badge/i18n-6%20locales-00d1ff)
 
 </div>
@@ -23,7 +23,7 @@ Build, run, and steer AI agent workflows in plain English — or connect the n8n
 
 ## What it does
 
-Users sign up, describe their idea (or pick a starter — Content Studio, Outreach Strategist, Market Research, Brand Voice Builder), and Braavolabs composes a multi-agent AI team with a runnable pipeline. The platform is **BYOK** — users plug in their own Claude / OpenAI / Gemini / Groq / Ollama / 8 more provider keys, or take 3 free trial runs on a platform-provided Groq pool.
+Users sign up, describe their idea (or pick a starter — Content Studio, Outreach Strategist, Market Research, Brand Voice Builder), and Braavolabs composes a multi-agent AI team with a runnable pipeline. The platform is **BYOK** — users plug in their own Claude / OpenAI / Gemini / Groq / Ollama / 9 more provider keys, or take 3 free trial runs on a platform-provided Groq pool.
 
 Every pipeline run produces:
 - A reasoned, step-by-step audit trail (every tool call, every decision, every cost cent)
@@ -86,7 +86,7 @@ App is at `http://localhost:3000`, API at `http://localhost:8080`.
 | **Frontend** | Next.js 15 (App Router) + Tailwind + Material Symbols |
 | **Database** | Postgres 16 + pgvector (HNSW index) |
 | **Cache / queue** | Redis 7 + BullMQ |
-| **LLM** | Anthropic / OpenAI / Google / Mistral / Groq / OpenRouter / DeepSeek / Kimi / Qwen / Ollama / LM Studio / custom (12 providers, BYOK) |
+| **LLM** | Anthropic / OpenAI / Google / Mistral / Groq / OpenRouter / DeepSeek / Kimi / Qwen / Cerebras / Zhipu GLM / Ollama / LM Studio / custom (14 providers, BYOK) |
 | **Auth** | JWT + refresh tokens, Google + GitHub OAuth |
 | **Billing** | Stripe (subscription + usage-based) |
 | **Crypto** | AES-256-GCM (scrypt-derived), HKDF-SHA256, JWT HS256 |

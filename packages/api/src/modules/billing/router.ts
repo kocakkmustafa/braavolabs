@@ -13,6 +13,7 @@ import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { redis } from "../../lib/redis";
 import { computeSpendForecast } from "./forecast";
+import { computeTenantSavings } from "./savings.service";
 import {
   createCustomer,
   createCheckoutSession,
@@ -259,6 +260,18 @@ authedRouter.get("/forecast", async (req, res, next) => {
   try {
     const forecast = await computeSpendForecast(req.auth!.tenantId);
     res.json(forecast);
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/billing/savings — tokens-saved report vs. a naive
+// always-frontier baseline. Optional `?days=N` (1-90, default 7) window.
+// See savings.service.ts for the honest-data-quality tradeoffs baked
+// into this report (run_steps doesn't log per-call token splits).
+authedRouter.get("/savings", async (req, res, next) => {
+  try {
+    const days = req.query.days !== undefined ? Number(req.query.days) : undefined;
+    const result = await computeTenantSavings(req.auth!.tenantId, days);
+    res.json(result);
   } catch (err) { next(err); }
 });
 

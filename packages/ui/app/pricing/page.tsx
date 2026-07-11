@@ -27,7 +27,7 @@ const FEATURE_MATRIX = [
   { label: "Runs",                              free: "trial", creator: "∞",  pro: "∞",    business: "∞" },
   { label: "Connected automations (n8n · Make · Zapier)", free: false, creator: "5", pro: "20", business: "∞" },
   { label: "Team seats",                        free: "1",    creator: "1",    pro: "5",    business: "∞" },
-  { label: "BYOK · 12 providers",              free: true,   creator: true,   pro: true,   business: true },
+  { label: "BYOK · 14 providers",              free: true,   creator: true,   pro: true,   business: true },
   { label: "On-device Gemma (offline)",         free: false,  creator: false,  pro: true,   business: true },
   { label: "Mobile pocket-steer",              free: true,   creator: true,   pro: true,   business: true },
   { label: "5 risk-stops & full audit trail",  free: true,   creator: true,   pro: true,   business: true },

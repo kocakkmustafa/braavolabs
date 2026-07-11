@@ -336,6 +336,12 @@ export async function executeStep(
           ...(takeover ? { handoffLedgerId: takeover.ledgerId } : {}),
         } as any,
         costUsd: result.totalCostUsd,
+        // Forge P1: real per-call token counts alongside the cost they
+        // produced — same call site, so cost_usd and the token split can
+        // never drift apart. AgentLoopResult always reports these (0 for a
+        // zero-turn loop), so this is never a fabricated value.
+        promptTokens: result.totalInputTokens,
+        completionTokens: result.totalOutputTokens,
         completedAt: new Date(),
         // E3/T2 hygiene (§2.2-3): the live checkpoint served its purpose —
         // a COMPLETED step's durable truth lives in output/tool_calls (and,

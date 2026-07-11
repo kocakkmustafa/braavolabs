@@ -1536,7 +1536,7 @@
       "line1": "Steuere die Agenten,",
       "line2a": "die du bereits",
       "line2b": "betreibst.",
-      "sub": "Baue im Web. Steuere und genehmige aus der Hosentasche. Lass alles vollständig offline laufen. Bring deine eigenen Schlüssel über 12 Anbieter mit — eine Kommandozentrale für jeden Agenten und jede Automatisierung, die du betreibst.",
+      "sub": "Baue im Web. Steuere und genehmige aus der Hosentasche. Lass alles vollständig offline laufen. Bring deine eigenen Schlüssel über 14 Anbieter mit — eine Kommandozentrale für jeden Agenten und jede Automatisierung, die du betreibst.",
       "ctaPrimary": "Kostenlos starten — ohne Karte",
       "ctaSecondary": "Sieh, wie du steuerst",
       "builderLabel": "KI-Firmen-Baukasten",
@@ -1564,8 +1564,8 @@
           "body": "Lies, genehmige und lenke Läufe von deinem Handy. Das Erstellen bleibt im Web; die Kontrolle passt in deine Hosentasche."
         },
         "byok": {
-          "title": "BYOK · 12 Anbieter",
-          "body": "Bring deine eigenen Schlüssel mit und route über 12 Anbieter — oder arbeite mit offline Gemma vollständig auf dem Gerät."
+          "title": "BYOK · 14 Anbieter",
+          "body": "Bring deine eigenen Schlüssel mit und route über 14 Anbieter — oder arbeite mit offline Gemma vollständig auf dem Gerät."
         },
         "dashboard": {
           "title": "Ein Dashboard",
@@ -1612,7 +1612,7 @@
     },
     "providers": {
       "eyebrow": "Bring deine eigenen Schlüssel mit",
-      "title": "Zwölf Anbieter. Ein Router."
+      "title": "Vierzehn Anbieter. Ein Router."
     },
     "flagship": {
       "pill": "Flaggschiff-Vorlage",

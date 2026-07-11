@@ -1536,7 +1536,7 @@
       "line1": "Comanda los agentes",
       "line2a": "que ya",
       "line2b": "ejecutas.",
-      "sub": "Crea en la web. Dirige y aprueba desde tu bolsillo. Ejecuta totalmente sin conexión. Usa tus propias claves en 12 proveedores: un único centro de mando para cada agente y automatización que operas.",
+      "sub": "Crea en la web. Dirige y aprueba desde tu bolsillo. Ejecuta totalmente sin conexión. Usa tus propias claves en 14 proveedores: un único centro de mando para cada agente y automatización que operas.",
       "ctaPrimary": "Empieza gratis — sin tarjeta",
       "ctaSecondary": "Mira cómo lo diriges",
       "builderLabel": "Constructor de Empresa IA",
@@ -1564,8 +1564,8 @@
           "body": "Lee, aprueba y reorienta ejecuciones desde tu teléfono. La creación se queda en la web; el control cabe en tu bolsillo."
         },
         "byok": {
-          "title": "BYOK · 12 proveedores",
-          "body": "Usa tus propias claves y enruta entre 12 proveedores, o trabaja totalmente en el dispositivo con Gemma sin conexión."
+          "title": "BYOK · 14 proveedores",
+          "body": "Usa tus propias claves y enruta entre 14 proveedores, o trabaja totalmente en el dispositivo con Gemma sin conexión."
         },
         "dashboard": {
           "title": "Un solo panel",
@@ -1612,7 +1612,7 @@
     },
     "providers": {
       "eyebrow": "Usa tus propias claves",
-      "title": "Doce proveedores. Un enrutador."
+      "title": "Catorce proveedores. Un enrutador."
     },
     "flagship": {
       "pill": "Plantilla insignia",

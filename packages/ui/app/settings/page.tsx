@@ -75,6 +75,9 @@ const PROVIDER_LABELS: Record<string, { label: string; color: string; models: st
   DEEPSEEK:   { label: "DeepSeek",           color: "#4d6bfe", models: ["deepseek-chat", "deepseek-reasoner", "deepseek-coder"] },
   KIMI:       { label: "Kimi (Moonshot)",    color: "#6366f1", models: ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k", "moonshot-v1-auto"] },
   QWEN:       { label: "Qwen (DashScope)",   color: "#7c3aed", models: ["qwen-max", "qwen-plus", "qwen-turbo", "qwen-long", "qwen2.5-72b-instruct", "qwen2.5-32b-instruct"] },
+  // Cerebras + Zhipu GLM — OpenAI-compatible cloud, generous free tiers (Forge FAZ 1 / 1A)
+  CEREBRAS:   { label: "Cerebras (free tier)", color: "#f59e0b", models: ["gpt-oss-120b", "glm-4.7"] },
+  ZHIPU:      { label: "Zhipu GLM (free Flash)", color: "#818cf8", models: ["glm-4.7-flash", "glm-4.5-flash", "glm-4.6v-flash", "glm-4.7", "glm-4.6"] },
   // Self-hosted / local-first providers — runs on the user's own hardware
   // (laptop, on-prem server, private cloud). Tenant supplies a baseUrl
   // pointing at their own /v1/chat/completions endpoint. Plan-gated to

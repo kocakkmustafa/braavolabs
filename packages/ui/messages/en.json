@@ -1536,7 +1536,7 @@
       "line1": "Command the agents",
       "line2a": "you already",
       "line2b": "run.",
-      "sub": "Build on the web. Steer & approve from your pocket. Run fully offline. Bring your own keys across 12 providers — one war-room for every agent and automation you operate.",
+      "sub": "Build on the web. Steer & approve from your pocket. Run fully offline. Bring your own keys across 14 providers — one war-room for every agent and automation you operate.",
       "ctaPrimary": "Start free — no card needed",
       "ctaSecondary": "Watch it steer",
       "builderLabel": "AI Company Builder",
@@ -1564,8 +1564,8 @@
           "body": "Read, approve and redirect runs from your phone. Authoring stays on the web; control fits in your pocket."
         },
         "byok": {
-          "title": "BYOK · 12 providers",
-          "body": "Bring your own keys and route across 12 providers — or go fully on-device with offline Gemma."
+          "title": "BYOK · 14 providers",
+          "body": "Bring your own keys and route across 14 providers — or go fully on-device with offline Gemma."
         },
         "dashboard": {
           "title": "One dashboard",
@@ -1612,7 +1612,7 @@
     },
     "providers": {
       "eyebrow": "Bring your own keys",
-      "title": "Twelve providers. One router."
+      "title": "Fourteen providers. One router."
     },
     "flagship": {
       "pill": "Flagship template",
