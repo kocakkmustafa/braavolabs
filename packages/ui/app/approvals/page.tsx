@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { sounds } from "../../lib/sounds";
+import styles from "./approvals.module.css";
 
 export default function ApprovalsPage() {
   const t = useTranslations();
@@ -43,14 +44,14 @@ export default function ApprovalsPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-8 animate-fade-in">
+    <div className={`bv-dash max-w-3xl mx-auto px-6 py-8 animate-fade-in ${styles.approvalsShell}`}>
 
       {/* Page head */}
       <div className="bv-page-head mb-8">
         <div>
-          <p className="bv-micro mb-1" style={{ color: "var(--bv-status-running)" }}>
-            Spend queue
-          </p>
+          {/* eyebrow — mono "> " kicker (dashboard.module.css .kicker, ported),
+              same hardcoded string as before, no i18n change */}
+          <div className={styles.kicker}>Spend queue</div>
           <h1 className="bv-headline text-on-surface">
             {t("app.approvals.title")}
           </h1>
@@ -89,7 +90,7 @@ export default function ApprovalsPage() {
 
       {/* Empty state */}
       {approvals.length === 0 ? (
-        <div className="bv-glass rounded-2xl py-16 px-6 text-center bv-rise">
+        <div className="bv-glass bv-rim rounded-2xl py-16 px-6 text-center bv-rise">
           <div
             className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
             style={{
@@ -113,7 +114,7 @@ export default function ApprovalsPage() {
           {approvals.map((a) => (
             <div
               key={a.id}
-              className="bv-glass bv-pulse-glow"
+              className="bv-glass bv-pulse-glow bv-rim"
               style={{
                 padding: "22px",
                 borderColor: "rgba(255,122,26,0.35)",
@@ -149,7 +150,7 @@ export default function ApprovalsPage() {
               <div className="flex items-baseline gap-4 my-3">
                 {a.amountUsd && (
                   <span
-                    className="bv-numeric"
+                    className={`bv-numeric ${styles.metricValue}`}
                     style={{
                       fontSize: 32,
                       color: "var(--bv-status-running)",

@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { sounds } from "../../lib/sounds";
+import styles from "./drafts.module.css";
 
 const STATUS_STYLES: Record<string, { background: string; color: string; border: string }> = {
   DRAFT:     { background: "rgba(133,147,153,0.1)", color: "#859399", border: "1px solid rgba(133,147,153,0.2)" },
@@ -89,14 +90,14 @@ export default function DraftsPage() {
   const pendingDrafts = drafts.filter((d) => d.status === "DRAFT" || d.status === "REVIEW");
 
   return (
-    <div className="animate-fade-in" style={{ padding: "28px 32px", maxWidth: 1200, margin: "0 auto" }}>
+    <div className={`bv-dash animate-fade-in ${styles.draftsShell}`} style={{ padding: "28px 32px", maxWidth: 1200, margin: "0 auto" }}>
       {/* Page head */}
       <div className="bv-page-head" style={{ marginBottom: 24 }}>
         <div>
-          <div className="bv-micro" style={{ marginBottom: 4, color: "var(--color-outline)" }}>
-            <span className="material-symbols-outlined" style={{ fontSize: 12, marginRight: 4 }}>edit_note</span>
-            Content review
-          </div>
+          {/* eyebrow — mono "> " kicker (dashboard.module.css .kicker, ported),
+              same hardcoded string as before (icon replaced by the shared
+              "> " mark), no i18n change */}
+          <div className={styles.kicker}>Content review</div>
           <h1 className="bv-headline gradient-text" style={{ margin: 0 }}>{t("app.drafts.title")}</h1>
           <p className="bv-caption" style={{ marginTop: 4 }}>{t("app.drafts.subtitle")}</p>
         </div>
@@ -162,7 +163,7 @@ export default function DraftsPage() {
         </div>
       ) : drafts.length === 0 ? (
         /* Empty state */
-        <div className="bv-glass" style={{ padding: "64px 32px", textAlign: "center" }}>
+        <div className="bv-glass bv-rim" style={{ padding: "64px 32px", textAlign: "center" }}>
           <div
             style={{
               width: 48,
@@ -199,7 +200,7 @@ export default function DraftsPage() {
                 <button
                   key={d.id}
                   onClick={() => { sounds.click(); setSelectedDraft(d.id); }}
-                  className="bv-glass"
+                  className="bv-glass bv-rim"
                   style={{
                     display: "block",
                     width: "100%",
@@ -264,7 +265,7 @@ export default function DraftsPage() {
 
           {/* Right: preview panel — sticky */}
           <div
-            className="bv-glass"
+            className="bv-glass bv-rim"
             style={{ position: "sticky", top: 84, borderRadius: 16, overflow: "hidden" }}
           >
             {activeDraft ? (

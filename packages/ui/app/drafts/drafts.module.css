@@ -1,0 +1,71 @@
+/*
+ * /drafts — Forge sinematik-lite restyle (additive, route-scoped).
+ *
+ * Ports the same ingredients already landed on /dashboard, /companies,
+ * /pipelines and /runs (see app/dashboard/dashboard.module.css for the
+ * canonical pattern this mirrors) onto the content-review split view:
+ *
+ *   - a route-scoped JetBrains Mono override for --bv-font-mono (this
+ *     route already renders `bv-mono` channel/type labels and
+ *     created/scheduled timestamps, but nothing here ever loaded the
+ *     actual face, so they were silently falling back to system
+ *     ui-monospace. Fixed only for this route via layout.tsx.)
+ *   - a mono "> LABEL" kicker, ported from dashboard.module.css .kicker,
+ *     reusing the existing hardcoded "Content review" eyebrow copy
+ *     (previously rendered with an icon glyph instead of the shared
+ *     "> " mark) — no new i18n.
+ *   - a scoped prefers-reduced-motion kill-switch for the pre-existing
+ *     bv-* animation this route actually uses (bv-stagger, on the
+ *     draft list).
+ *
+ * Nothing here edits the shared bv-* rule bodies in globals.css.
+ */
+
+.draftsShell {
+  --bv-font-mono: var(--drafts-font-mono), "JetBrains Mono", ui-monospace, monospace;
+  position: relative;
+}
+
+.draftsShell::before {
+  content: "";
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  width: 820px;
+  max-width: 160%;
+  height: 360px;
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgba(59, 130, 246, 0.14), transparent 72%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* ── kicker mono-label — ports dashboard.module.css .kicker's "> " mark ── */
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-family: var(--bv-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--bv-cobalt-glow);
+}
+.kicker::before {
+  content: ">";
+  color: var(--bv-cobalt-glow);
+}
+
+/* ── reduced motion: scoped kill-switch, mirrors dashboard.module.css.
+   Only targets bv-* classes this route actually renders. ── */
+@media (prefers-reduced-motion: reduce) {
+  .draftsShell::before {
+    display: none;
+  }
+  .draftsShell :global(.bv-stagger) > * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

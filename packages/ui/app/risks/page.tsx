@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
+import styles from "./risks.module.css";
 
 // Color palette stays static — only the human-readable label localises
 // at render time, keyed off the action string returned by the API.
@@ -87,11 +88,13 @@ export default function RisksPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8 animate-fade-in">
+    <div className={`bv-dash max-w-7xl mx-auto px-6 py-8 animate-fade-in ${styles.risksShell}`}>
 
       {/* Page head */}
       <div className="mb-8">
-        <p className="bv-micro text-[var(--color-outline)] mb-2 tracking-widest">GOVERNANCE</p>
+        {/* eyebrow — mono "> " kicker (dashboard.module.css .kicker, ported),
+            same hardcoded string as before, no i18n change */}
+        <div className={styles.kicker}>GOVERNANCE</div>
         <h1 className="bv-headline bv-grad-text mb-1">{t("app.risks.title")}</h1>
         <p className="bv-body text-[var(--color-on-surface-variant)]">{t("app.risks.subtitle")}</p>
       </div>
@@ -124,12 +127,12 @@ export default function RisksPage() {
             dotClass: "bv-dot bv-cancelled",
           },
         ].map((card) => (
-          <div key={card.label} className="bv-glass p-5">
+          <div key={card.label} className="bv-glass bv-rim p-5">
             <div className="flex items-center gap-2 mb-3">
               <span className={card.dotClass} />
               <span className="bv-micro">{card.label}</span>
             </div>
-            <p className="bv-display bv-numeric text-[var(--color-on-surface)]">{card.value}</p>
+            <p className={`bv-display bv-numeric text-[var(--color-on-surface)] ${styles.metricValue}`}>{card.value}</p>
           </div>
         ))}
       </div>
@@ -172,7 +175,7 @@ export default function RisksPage() {
 
           {/* Risk event feed */}
           {filteredEvents.length === 0 ? (
-            <div className="bv-glass rounded-2xl text-center py-16">
+            <div className="bv-glass bv-rim rounded-2xl text-center py-16">
               <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-[rgba(59,130,246,0.10)] border border-[rgba(59,130,246,0.20)]">
                 <span className="material-symbols-outlined text-xl text-[#60A5FA]">verified_user</span>
               </div>
@@ -191,7 +194,7 @@ export default function RisksPage() {
                 return (
                   <div
                     key={e.id ?? i}
-                    className="bv-glass overflow-hidden cursor-pointer"
+                    className="bv-glass bv-rim overflow-hidden cursor-pointer"
                     style={{ borderLeft: `2px solid ${borderColor}`, borderRadius: "16px" }}
                     onClick={() => toggleOpen(e.id ?? String(i))}
                   >
@@ -248,11 +251,11 @@ export default function RisksPage() {
         </>
       ) : (
         activityLogs.length === 0 ? (
-          <div className="bv-glass rounded-2xl text-center py-16">
+          <div className="bv-glass bv-rim rounded-2xl text-center py-16">
             <p className="bv-caption">{t("app.risks.emptyActivity")}</p>
           </div>
         ) : (
-          <div className="bv-glass overflow-hidden overflow-x-auto">
+          <div className="bv-glass bv-rim overflow-hidden overflow-x-auto">
             <table className="w-full bv-body">
               <thead className="border-b border-[var(--color-outline-variant)]">
                 <tr>

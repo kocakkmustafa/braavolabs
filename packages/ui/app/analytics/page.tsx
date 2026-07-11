@@ -6,17 +6,24 @@ import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { sounds } from "../../lib/sounds";
+import styles from "./analytics.module.css";
 
+// Forge palette only (arc/ember/molten/steel — no green): COMPLETED was
+// previously rendered in emerald green (#34d399), which never belonged to
+// the Forge accent set used everywhere else in this restyle. Realigned to
+// the same status→color convention as /dashboard and /runs
+// (bv-status-completed = arc blue, bv-status-running = ember,
+// bv-status-failed = molten red).
 const STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
-  COMPLETED:        { bg: "rgba(52,211,153,0.1)",  color: "#34d399", border: "rgba(52,211,153,0.2)" },
-  RUNNING:          { bg: "rgba(0,209,255,0.1)",   color: "#a4e6ff", border: "rgba(0,209,255,0.2)" },
-  FAILED:           { bg: "rgba(239,68,68,0.1)",   color: "#f87171", border: "rgba(239,68,68,0.2)" },
-  CANCELLED:        { bg: "rgba(133,147,153,0.1)", color: "#859399", border: "rgba(133,147,153,0.2)" },
-  PAUSED:           { bg: "rgba(251,191,36,0.1)",  color: "#fbbf24", border: "rgba(251,191,36,0.2)" },
-  WAITING_APPROVAL: { bg: "rgba(251,146,60,0.1)",  color: "#fb923c", border: "rgba(251,146,60,0.2)" },
+  COMPLETED:        { bg: "rgba(59,130,246,0.1)",  color: "#3B82F6", border: "rgba(59,130,246,0.2)" },
+  RUNNING:          { bg: "rgba(255,122,26,0.1)",  color: "#FF7A1A", border: "rgba(255,122,26,0.2)" },
+  FAILED:           { bg: "rgba(255,77,77,0.1)",   color: "#FF4D4D", border: "rgba(255,77,77,0.2)" },
+  CANCELLED:        { bg: "rgba(91,100,115,0.1)",  color: "#5B6473", border: "rgba(91,100,115,0.2)" },
+  PAUSED:           { bg: "rgba(58,65,80,0.14)",   color: "#8A93A6", border: "rgba(58,65,80,0.3)" },
+  WAITING_APPROVAL: { bg: "rgba(255,122,26,0.1)",  color: "#FF7A1A", border: "rgba(255,122,26,0.2)" },
   QUEUED:           { bg: "rgba(109,17,173,0.15)", color: "#e0b6ff", border: "rgba(109,17,173,0.3)" },
 };
-const defaultStatus = { bg: "rgba(133,147,153,0.1)", color: "#859399", border: "rgba(133,147,153,0.2)" };
+const defaultStatus = { bg: "rgba(91,100,115,0.1)", color: "#5B6473", border: "rgba(91,100,115,0.2)" };
 
 interface UsageData {
   totalRuns: number;
@@ -106,11 +113,13 @@ export default function AnalyticsPage() {
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <div className="bv-dash max-w-7xl mx-auto px-6 py-8 animate-fade-in bv-mesh">
+    <div className={`bv-dash max-w-7xl mx-auto px-6 py-8 animate-fade-in bv-mesh ${styles.analyticsShell}`}>
       {/* Page head */}
       <div className="bv-page-head mb-6">
         <div>
-          <p className="bv-micro mb-1" style={{ color: "var(--bv-text-faint)" }}>Workspace</p>
+          {/* eyebrow — mono "> " kicker (dashboard.module.css .kicker, ported),
+              same hardcoded string as before, no i18n change */}
+          <div className={styles.kicker}>Workspace</div>
           <h1 className="bv-display gradient-text">{t("app.analytics.title")}</h1>
           <p className="bv-caption mt-1">{t("app.analytics.subtitle")}</p>
         </div>
@@ -140,7 +149,7 @@ export default function AnalyticsPage() {
       {/* KPI cards */}
       <div className="bv-metrics bv-stagger mb-5">
         {/* Total runs */}
-        <div className="bv-glass bv-metric" style={{ position: "relative" }}>
+        <div className="bv-glass bv-metric bv-rim" style={{ position: "relative" }}>
           <div className="bv-metric-accent" style={{ background: "var(--bv-cobalt-glow)" }} />
           <div className="bv-metric-head">
             <div className="bv-metric-icon">
@@ -149,7 +158,7 @@ export default function AnalyticsPage() {
             <span className="bv-micro">{t("app.analytics.statTotalRuns")}</span>
           </div>
           <div className="bv-metric-value">
-            <span className="bv-display">{usage?.totalRuns ?? "—"}</span>
+            <span className={`bv-display ${styles.metricValue}`}>{usage?.totalRuns ?? "—"}</span>
           </div>
           <div className="bv-metric-delta good">
             <span className="material-symbols-outlined">trending_up</span>
@@ -158,7 +167,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Success rate */}
-        <div className="bv-glass bv-metric" style={{ position: "relative" }}>
+        <div className="bv-glass bv-metric bv-rim" style={{ position: "relative" }}>
           <div className="bv-metric-accent" style={{ background: "linear-gradient(90deg, #3B82F6, #60A5FA)" }} />
           <div className="bv-metric-head">
             <div className="bv-metric-icon">
@@ -167,7 +176,7 @@ export default function AnalyticsPage() {
             <span className="bv-micro">{t("app.analytics.statSuccessRate")}</span>
           </div>
           <div className="bv-metric-value">
-            <span className="bv-display">{usage ? `${(usage.successRate * 100).toFixed(1)}` : "—"}</span>
+            <span className={`bv-display ${styles.metricValue}`}>{usage ? `${(usage.successRate * 100).toFixed(1)}` : "—"}</span>
             <span className="bv-metric-suffix">%</span>
           </div>
           <div className="bv-metric-delta good">
@@ -177,7 +186,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Total spend */}
-        <div className="bv-glass bv-metric" style={{ position: "relative" }}>
+        <div className="bv-glass bv-metric bv-rim" style={{ position: "relative" }}>
           <div className="bv-metric-accent" style={{ background: "linear-gradient(90deg, #60A5FA, #7DD3FC)" }} />
           <div className="bv-metric-head">
             <div className="bv-metric-icon">
@@ -187,7 +196,7 @@ export default function AnalyticsPage() {
           </div>
           <div className="bv-metric-value">
             <span className="bv-metric-suffix">$</span>
-            <span className="bv-display">{finance ? finance.totalCostUsd.toFixed(2) : "—"}</span>
+            <span className={`bv-display ${styles.metricValue}`}>{finance ? finance.totalCostUsd.toFixed(2) : "—"}</span>
           </div>
           <div className="bv-metric-delta good">
             <span className="material-symbols-outlined">trending_up</span>
@@ -196,7 +205,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Avg run cost */}
-        <div className="bv-glass bv-metric" style={{ position: "relative" }}>
+        <div className="bv-glass bv-metric bv-rim" style={{ position: "relative" }}>
           <div className="bv-metric-accent" style={{ background: "linear-gradient(90deg, #FF7A1A, #FF4D4D)" }} />
           <div className="bv-metric-head">
             <div className="bv-metric-icon">
@@ -206,7 +215,7 @@ export default function AnalyticsPage() {
           </div>
           <div className="bv-metric-value">
             <span className="bv-metric-suffix">$</span>
-            <span className="bv-display">{finance ? finance.avgCostPerRun.toFixed(4) : "—"}</span>
+            <span className={`bv-display ${styles.metricValue}`}>{finance ? finance.avgCostPerRun.toFixed(4) : "—"}</span>
           </div>
           <div className="bv-metric-delta bad">
             <span className="material-symbols-outlined">trending_down</span>
@@ -218,7 +227,7 @@ export default function AnalyticsPage() {
       {/* Two-column section: spend trend + agent leaderboard */}
       <div className="bv-twocol mb-5">
         {/* Spend trend chart */}
-        <div className="bv-glass bv-panel">
+        <div className="bv-glass bv-panel bv-rim">
           <div className="bv-panel-head">
             <div>
               <p className="bv-micro mb-0.5">Spend over time</p>
@@ -235,7 +244,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Agent leaderboard */}
-        <div className="bv-glass bv-panel">
+        <div className="bv-glass bv-panel bv-rim">
           <div className="bv-panel-head">
             <div>
               <p className="bv-micro mb-0.5">By run count</p>
@@ -247,7 +256,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Tool usage */}
-      <div className="bv-glass bv-panel mb-5">
+      <div className="bv-glass bv-panel bv-rim mb-5">
         <div className="bv-panel-head">
           <div>
             <p className="bv-micro mb-0.5">Calls this period</p>
@@ -259,7 +268,7 @@ export default function AnalyticsPage() {
 
       {/* Run breakdown + cost summary */}
       <div className="bv-twocol mb-5">
-        <div className="bv-glass bv-panel">
+        <div className="bv-glass bv-panel bv-rim">
           <div className="bv-panel-head">
             <div>
               <p className="bv-micro mb-0.5">Outcomes</p>
@@ -290,7 +299,7 @@ export default function AnalyticsPage() {
           )}
         </div>
 
-        <div className="bv-glass bv-panel">
+        <div className="bv-glass bv-panel bv-rim">
           <div className="bv-panel-head">
             <div>
               <p className="bv-micro mb-0.5">Billing summary</p>
@@ -319,7 +328,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Run History table */}
-      <div className="bv-glass overflow-hidden">
+      <div className="bv-glass bv-rim overflow-hidden">
         <div className="bv-panel-head px-5 py-4" style={{ borderBottom: "1px solid var(--bv-glass-border)" }}>
           <div>
             <p className="bv-micro mb-0.5">All executions</p>
