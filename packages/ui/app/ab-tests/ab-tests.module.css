@@ -1,0 +1,106 @@
+/*
+ * /ab-tests (+ /ab-tests/[id]) — Forge sinematik-lite restyle
+ * (additive, route-scoped).
+ *
+ * Ports the same ingredients already landed on /dashboard, /approvals,
+ * /risks, /companies, /pipelines, /runs, /analytics and /drafts (see
+ * app/dashboard/dashboard.module.css for the canonical pattern this
+ * mirrors) onto the experiment list + the per-test studio. Shared by
+ * both pages under this route — app/ab-tests/layout.tsx wraps both
+ * /ab-tests and /ab-tests/[id] (no nested layout under [id]/), so one
+ * module + one font override covers both, same as settings.module.css
+ * covering /settings + /settings/identity.
+ *
+ *   - a route-scoped JetBrains Mono override for --bv-font-mono (both
+ *     pages already render plenty of `bv-mono` values — variant
+ *     weights, p-values, metric avg/stddev/count, config JSON preview —
+ *     but nothing here ever loaded the actual face, so they were
+ *     silently falling back to system ui-monospace. Fixed only for
+ *     this route via layout.tsx.)
+ *   - a mono "> LABEL" kicker, ported from dashboard.module.css .kicker,
+ *     reusing the existing hardcoded "Experiments" eyebrow copy on the
+ *     list page as-is — no new i18n. The studio page's breadcrumb is
+ *     left as-is (it's navigation, not a page-eyebrow).
+ *   - a mono treatment for the numeric result figures (metricValue):
+ *     the list page's per-row "Lift" percentage, and the studio's big
+ *     primary-metric average and improvement-summary percentage —
+ *     mirroring dashboard's KpiCard value styling. Per task requirement:
+ *     metric/ratio numbers render in mono.
+ *   - one static (non-animated), low-opacity arc-radial wash behind the
+ *     page head — screen-blended so it never fights text contrast.
+ *   - a scoped prefers-reduced-motion kill-switch for the pre-existing
+ *     bv-* animations both pages actually use (bv-stagger / bv-rise /
+ *     bv-ping — union of both pages).
+ *
+ * Forge palette rule: NO GREEN — this route already uses arc-blue
+ * (#3B82F6 / #60A5FA) for "winning"/completed states, so nothing to
+ * remap here.
+ *
+ * Nothing here edits the shared bv-* rule bodies in globals.css.
+ */
+
+.abTestsShell {
+  --bv-font-mono: var(--ab-tests-font-mono), "JetBrains Mono", ui-monospace, monospace;
+  position: relative;
+}
+
+.abTestsShell::before {
+  content: "";
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  width: 820px;
+  max-width: 160%;
+  height: 360px;
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgba(59, 130, 246, 0.14), transparent 72%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* ── kicker mono-label — ports dashboard.module.css .kicker's "> " mark ── */
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-family: var(--bv-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--bv-cobalt-glow);
+}
+.kicker::before {
+  content: ">";
+  color: var(--bv-cobalt-glow);
+}
+
+/* ── mono metric values — list-row "Lift" %, studio's big primary metric
+   average and improvement-summary % ── */
+.metricValue {
+  font-family: var(--bv-font-mono);
+}
+
+/* ── reduced motion: scoped kill-switch, mirrors dashboard.module.css.
+   Only targets bv-* classes these two pages actually render. ── */
+@media (prefers-reduced-motion: reduce) {
+  .abTestsShell {
+    animation: none !important;
+  }
+  .abTestsShell::before {
+    display: none;
+  }
+  .abTestsShell :global(.bv-stagger) > * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .abTestsShell :global(.bv-rise) {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .abTestsShell :global(.bv-dot.bv-ping)::before {
+    animation: none !important;
+  }
+}

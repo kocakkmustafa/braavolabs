@@ -34,6 +34,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { api } from "../../../lib/api";
 import { useAuthGuard } from "../../../lib/useAuthGuard";
+import styles from "../ab-tests.module.css";
 
 interface Variant {
   id: string;
@@ -182,7 +183,7 @@ export default function AbTestStudioPage() {
   // ── Loading state ──────────────────────────────────────────────────
   if (!hydrated || loading) {
     return (
-      <div className="bv-dash-shell min-h-screen flex items-center justify-center">
+      <div className={`bv-dash-shell min-h-screen flex items-center justify-center ${styles.abTestsShell}`}>
         <div className="flex items-center gap-3 text-[var(--color-outline)] text-sm">
           <span className="bv-dot bv-running bv-ping" />
           {t("app.abTests.loading")}
@@ -194,8 +195,8 @@ export default function AbTestStudioPage() {
   // ── Error state ────────────────────────────────────────────────────
   if (error || !test) {
     return (
-      <div className="bv-dash-shell min-h-screen flex items-center justify-center">
-        <div className="bv-glass p-8 flex flex-col gap-4 max-w-sm w-full mx-4">
+      <div className={`bv-dash-shell min-h-screen flex items-center justify-center ${styles.abTestsShell}`}>
+        <div className="bv-glass bv-rim p-8 flex flex-col gap-4 max-w-sm w-full mx-4">
           <div className="flex items-center gap-3">
             <span className="material-symbols-outlined text-[var(--color-error)]">error</span>
             <p className="text-[var(--color-error)] text-sm">{error ?? t("app.abTests.notFound")}</p>
@@ -220,7 +221,7 @@ export default function AbTestStudioPage() {
     : null;
 
   return (
-    <div className="bv-dash-shell min-h-screen">
+    <div className={`bv-dash-shell min-h-screen ${styles.abTestsShell}`}>
       <div className="bv-dash max-w-[1280px] mx-auto px-6 py-6 flex flex-col gap-5 bv-stagger">
 
         {/* ── Breadcrumb + page head ─────────────────────────────── */}
@@ -315,7 +316,7 @@ export default function AbTestStudioPage() {
         {/* ── Winner callout banner ──────────────────────────────── */}
         {winnerVariant && (
           <div
-            className="bv-glass flex items-center gap-4 px-6 py-5"
+            className="bv-glass bv-rim flex items-center gap-4 px-6 py-5"
             style={{
               borderColor: "rgba(59,130,246,0.4)",
               background: "linear-gradient(135deg,rgba(59,130,246,.10),transparent)",
@@ -381,7 +382,7 @@ export default function AbTestStudioPage() {
             return (
               <article
                 key={variant.id}
-                className="bv-glass flex flex-col gap-4 p-6"
+                className="bv-glass bv-rim flex flex-col gap-4 p-6"
                 style={isWinner ? {
                   borderColor: "rgba(59,130,246,0.35)",
                 } : undefined}
@@ -424,7 +425,7 @@ export default function AbTestStudioPage() {
                     {/* Big primary metric (first one) */}
                     {Object.entries(r.metrics).slice(0, 1).map(([metricName, cell]) => (
                       <div key={`big-${metricName}`} className="flex flex-col gap-1">
-                        <div className={`bv-numeric text-5xl leading-none ${isWinner ? "gradient-text" : "text-[var(--color-on-surface)]"}`}>
+                        <div className={`bv-numeric ${styles.metricValue} text-5xl leading-none ${isWinner ? "gradient-text" : "text-[var(--color-on-surface)]"}`}>
                           {fmt(cell.avg)}
                         </div>
                         <div className="bv-micro">{metricName}</div>
@@ -506,7 +507,7 @@ export default function AbTestStudioPage() {
 
         {/* ── Conversion chart panel ────────────────────────────── */}
         {results && results.variants.length > 0 && (
-          <div className="bv-glass bv-panel">
+          <div className="bv-glass bv-panel bv-rim">
             <div className="bv-panel-head">
               <h2 className="bv-title font-headline uppercase tracking-wide">
                 Metrics over time · with confidence band
@@ -568,7 +569,7 @@ export default function AbTestStudioPage() {
 
         {/* ── Improvement summary panel ─────────────────────────── */}
         {results && Object.keys(results.comparison).length > 0 && (
-          <div className="bv-glass bv-panel">
+          <div className="bv-glass bv-panel bv-rim">
             <div className="bv-panel-head">
               <h2 className="bv-title font-headline uppercase tracking-wide">
                 {t("app.abTests.improvementSummary")}
@@ -585,7 +586,7 @@ export default function AbTestStudioPage() {
                   }}
                 >
                   <span className="bv-micro">{metric}</span>
-                  <span className="bv-numeric text-2xl gradient-text">
+                  <span className={`bv-numeric ${styles.metricValue} text-2xl gradient-text`}>
                     {cmp.improvement} {t("app.abTests.better")}
                   </span>
                   <span className="bv-caption">

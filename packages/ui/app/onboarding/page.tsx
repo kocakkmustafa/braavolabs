@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
+import styles from "./onboarding.module.css";
 
 interface OnboardingStatus {
   completed: boolean;
@@ -246,7 +247,7 @@ export default function OnboardingPage() {
   // Already completed
   if (result || status?.steps?.heroCompanyCreated) {
     return (
-      <div className="bv-mesh min-h-screen flex flex-col" style={{ overflow: "hidden" }}>
+      <div className={`bv-mesh min-h-screen flex flex-col ${styles.onboardingShell}`} style={{ overflow: "hidden" }}>
         {/* Progress bar — full */}
         <div className="h-[3px] flex-none" style={{ background: "var(--bv-steel-shadow)" }}>
           <div className="h-full transition-all duration-700" style={{ width: "100%", background: "linear-gradient(90deg, var(--bv-cobalt-glow), var(--bv-cobalt-deep))", boxShadow: "0 0 14px var(--bv-cobalt-glow)" }} />
@@ -262,7 +263,7 @@ export default function OnboardingPage() {
 
         {/* Done step */}
         <div className="flex-1 flex items-center justify-center px-5 py-8">
-          <div className="bv-glass bv-rise w-full max-w-[520px] p-8 text-center" style={{ border: "1px solid rgba(59,130,246,0.2)" }}>
+          <div className="bv-glass bv-rim bv-rise w-full max-w-[520px] p-8 text-center" style={{ border: "1px solid rgba(59,130,246,0.2)" }}>
             {/* Emblem with halo */}
             <div className="relative w-24 h-24 mx-auto mb-6">
               <div
@@ -274,7 +275,7 @@ export default function OnboardingPage() {
               </div>
             </div>
 
-            <p className="bv-micro mb-2" style={{ color: "var(--bv-cobalt-glow)", letterSpacing: "0.12em" }}>workspace forged</p>
+            <p className={styles.kicker}>workspace forged</p>
             <h1 className="bv-display mb-3" style={{ fontSize: "clamp(26px,3.8vw,40px)", textTransform: "uppercase", letterSpacing: "-0.02em" }}>
               {result?.company?.name ?? t("app.onboarding.successCompanyFallback")}{t("app.onboarding.successLiveSuffix")}
             </h1>
@@ -287,11 +288,11 @@ export default function OnboardingPage() {
             {result && !result.fromBlueprint && (
               <div className="flex justify-center gap-10 mb-6">
                 <div>
-                  <p className="bv-numeric text-2xl" style={{ color: "var(--bv-cobalt-glow)" }}>{result.agents?.length ?? 0}</p>
+                  <p className={`bv-numeric ${styles.metricValue} text-2xl`} style={{ color: "var(--bv-cobalt-glow)" }}>{result.agents?.length ?? 0}</p>
                   <p className="bv-caption">{t("app.onboarding.agents")}</p>
                 </div>
                 <div>
-                  <p className="bv-numeric text-2xl" style={{ color: "var(--color-primary)" }}>1</p>
+                  <p className={`bv-numeric ${styles.metricValue} text-2xl`} style={{ color: "var(--color-primary)" }}>1</p>
                   <p className="bv-caption">{t("app.onboarding.pipeline")}</p>
                 </div>
               </div>
@@ -346,7 +347,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="bv-mesh min-h-screen flex flex-col" style={{ height: "100vh", overflow: "hidden" }}>
+    <div className={`bv-mesh min-h-screen flex flex-col ${styles.onboardingShell}`} style={{ height: "100vh", overflow: "hidden" }}>
       {/* Arc progress bar */}
       <div className="h-[3px] flex-none" style={{ background: "var(--bv-steel-shadow)" }}>
         <div
@@ -386,7 +387,7 @@ export default function OnboardingPage() {
               </div>
             </div>
 
-            <p className="bv-micro mb-2" style={{ color: "var(--bv-cobalt-glow)", letterSpacing: "0.12em" }}>step 1 of {TOTAL_STEPS}</p>
+            <p className={styles.kicker}>step 1 of {TOTAL_STEPS}</p>
             <h1
               className="font-headline font-semibold mb-3"
               style={{ fontSize: "clamp(28px,4vw,48px)", textTransform: "uppercase", letterSpacing: "-0.02em", lineHeight: 1 }}
@@ -523,7 +524,7 @@ export default function OnboardingPage() {
         {/* Step 1: Company description */}
         {step === 1 && (
           <div className="bv-rise w-full max-w-[640px] text-center">
-            <p className="bv-micro mb-2" style={{ color: "var(--bv-cobalt-glow)", letterSpacing: "0.12em" }}>step 2 of {TOTAL_STEPS}</p>
+            <p className={styles.kicker}>step 2 of {TOTAL_STEPS}</p>
             <h1
               className="font-headline font-semibold mb-3"
               style={{ fontSize: "clamp(28px,4vw,48px)", textTransform: "uppercase", letterSpacing: "-0.02em", lineHeight: 1 }}
@@ -633,7 +634,7 @@ export default function OnboardingPage() {
         {/* Step 2: Primitives */}
         {step === 2 && (
           <div className="bv-rise w-full max-w-[640px] text-center">
-            <p className="bv-micro mb-2" style={{ color: "var(--bv-cobalt-glow)", letterSpacing: "0.12em" }}>step 3 of {TOTAL_STEPS}</p>
+            <p className={styles.kicker}>step 3 of {TOTAL_STEPS}</p>
             <h1
               className="font-headline font-semibold mb-3"
               style={{ fontSize: "clamp(28px,4vw,48px)", textTransform: "uppercase", letterSpacing: "-0.02em", lineHeight: 1 }}
@@ -695,7 +696,7 @@ export default function OnboardingPage() {
         {/* Step 3: Channels */}
         {step === 3 && (
           <div className="bv-rise w-full max-w-[640px] text-center">
-            <p className="bv-micro mb-2" style={{ color: "var(--bv-cobalt-glow)", letterSpacing: "0.12em" }}>step 4 of {TOTAL_STEPS}</p>
+            <p className={styles.kicker}>step 4 of {TOTAL_STEPS}</p>
             <h1
               className="font-headline font-semibold mb-3"
               style={{ fontSize: "clamp(28px,4vw,48px)", textTransform: "uppercase", letterSpacing: "-0.02em", lineHeight: 1 }}
@@ -795,7 +796,7 @@ export default function OnboardingPage() {
         {/* Step 4: Launch */}
         {step === 4 && (
           <div className="bv-rise w-full max-w-[640px] text-center">
-            <p className="bv-micro mb-2" style={{ color: "var(--bv-cobalt-glow)", letterSpacing: "0.12em" }}>step 5 of {TOTAL_STEPS}</p>
+            <p className={styles.kicker}>step 5 of {TOTAL_STEPS}</p>
             <h1
               className="font-headline font-semibold mb-3"
               style={{ fontSize: "clamp(28px,4vw,48px)", textTransform: "uppercase", letterSpacing: "-0.02em", lineHeight: 1 }}
@@ -807,7 +808,7 @@ export default function OnboardingPage() {
             </p>
 
             {/* Summary */}
-            <div className="bv-glass rounded-xl p-5 mb-5 space-y-3 text-left" style={{ borderRadius: "14px" }}>
+            <div className="bv-glass bv-rim rounded-xl p-5 mb-5 space-y-3 text-left" style={{ borderRadius: "14px" }}>
               <SummaryRow label={t("app.onboarding.summaryCompanyName")} value={companyName || t("app.onboarding.companyNamePlaceholder")} />
               <SummaryRow label={t("app.onboarding.summaryIndustry")} value={selectedIndustry ? t(`app.onboarding.industries.${selectedIndustry}.label`) : "—"} />
               {selectedBlueprintSlug && (
@@ -855,7 +856,7 @@ export default function OnboardingPage() {
       {/* Onboarding progress bar (if server status exists) */}
       {status && (
         <div className="flex-none px-7 pb-5">
-          <div className="bv-glass rounded-xl p-4 flex items-center gap-4 max-w-[640px] mx-auto" style={{ borderRadius: "14px" }}>
+          <div className="bv-glass bv-rim rounded-xl p-4 flex items-center gap-4 max-w-[640px] mx-auto" style={{ borderRadius: "14px" }}>
             <div className="flex-1">
               <div className="flex justify-between mb-1">
                 <span className="bv-caption">{t("app.onboarding.onboardingProgress")}</span>

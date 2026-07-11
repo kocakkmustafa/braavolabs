@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
+import styles from "./webhooks.module.css";
 
 // Stable category ids — labels resolve at render via useTranslations.
 const CATEGORIES = [
@@ -110,7 +111,7 @@ function HookCard({ hook }: { hook: LiveHook }) {
   }
 
   return (
-    <div className="bv-glass rounded-2xl px-5 py-4">
+    <div className="bv-glass bv-rim rounded-2xl px-5 py-4">
       {/* Top row — workspace + delivery status */}
       <div className="flex items-center gap-3 flex-wrap">
         <span
@@ -252,14 +253,12 @@ export default function WebhooksPage() {
     );
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
+    <div className={`max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in ${styles.webhooksShell}`}>
 
       {/* ── Page head ── */}
       <div className="bv-page-head mb-7">
         <div>
-          <p className="bv-micro mb-1" style={{ color: "var(--color-outline)" }}>
-            Integrations
-          </p>
+          <p className={styles.kicker}>Integrations</p>
           <h1 className="bv-headline gradient-text">Webhooks</h1>
           <p className="bv-caption mt-1" style={{ color: "var(--color-on-surface-variant)" }}>
             {t("app.webhooks.subtitleTemplate", { count: WEBHOOK_TEMPLATES.length })}
@@ -277,11 +276,11 @@ export default function WebhooksPage() {
           Live Endpoints
         </h2>
         {liveHooks === null ? (
-          <div className="bv-glass rounded-2xl px-5 py-6 mb-6 bv-caption" style={{ color: "var(--color-on-surface-variant)" }}>
+          <div className="bv-glass bv-rim rounded-2xl px-5 py-6 mb-6 bv-caption" style={{ color: "var(--color-on-surface-variant)" }}>
             Loading your endpoints…
           </div>
         ) : liveHooks.length === 0 ? (
-          <div className="bv-glass rounded-2xl px-5 py-6 mb-6">
+          <div className="bv-glass bv-rim rounded-2xl px-5 py-6 mb-6">
             <p className="bv-caption" style={{ color: "var(--color-on-surface-variant)", margin: 0 }}>
               Each workspace gets a signed fan-in endpoint at{" "}
               <code className="bv-mono">/hooks/&lt;workspace&gt;/&lt;event&gt;</code>. Create your
@@ -425,7 +424,7 @@ export default function WebhooksPage() {
           return (
             <div
               key={template.id}
-              className="bv-glass rounded-2xl overflow-hidden"
+              className="bv-glass bv-rim rounded-2xl overflow-hidden"
               style={
                 isExpanded
                   ? { borderColor: "rgba(59,130,246,0.25)" }

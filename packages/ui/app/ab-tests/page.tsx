@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
+import styles from "./ab-tests.module.css";
 
 // FORGE status → bv-* pill + bv-dot class mapping
 const STATUS_DOT: Record<string, string> = {
@@ -128,12 +129,12 @@ export default function AbTestsPage() {
   );
 
   return (
-    <div className="bv-dash max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
+    <div className={`bv-dash max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in ${styles.abTestsShell}`}>
 
       {/* ── Page head ─────────────────────────────────────────── */}
       <div className="bv-page-head mb-6">
         <div>
-          <p className="bv-micro mb-1" style={{ color: "var(--color-outline)" }}>Experiments</p>
+          <p className={styles.kicker}>Experiments</p>
           <h1 className="bv-headline gradient-text">{t("app.abTests.title")}</h1>
           <p className="bv-caption mt-1">{t("app.abTests.subtitle")}</p>
         </div>
@@ -197,7 +198,7 @@ export default function AbTestsPage() {
           />
         </div>
       ) : tests.length === 0 ? (
-        <div className="bv-glass flex flex-col items-center py-16 px-6 text-center">
+        <div className="bv-glass bv-rim flex flex-col items-center py-16 px-6 text-center">
           <span className="material-symbols-outlined text-4xl mb-3 block" style={{ color: "var(--bv-text-faint)", fontSize: 40 }}>science</span>
           <p className="bv-title mb-1">{t("app.abTests.emptyTitle")}</p>
           <p className="bv-caption mb-5">{t("app.abTests.emptyBody")}</p>
@@ -236,7 +237,7 @@ export default function AbTestsPage() {
               return (
                 <div
                   key={test.id}
-                  className="bv-glass"
+                  className="bv-glass bv-rim"
                   style={{
                     borderRadius: 16,
                     borderColor: isExpanded ? "rgba(59,130,246,0.18)" : undefined,
@@ -281,7 +282,7 @@ export default function AbTestsPage() {
 
                     {/* Lift — placeholder metric using run count */}
                     <div
-                      className="bv-numeric"
+                      className={`bv-numeric ${styles.metricValue}`}
                       style={{
                         fontSize: 20,
                         color: test.status === "RUNNING"
@@ -500,7 +501,7 @@ export default function AbTestsPage() {
           style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}
         >
           <div
-            className="bv-glass bv-rise w-full max-w-[560px] p-6 max-h-[85vh] overflow-y-auto"
+            className="bv-glass bv-rim bv-rise w-full max-w-[560px] p-6 max-h-[85vh] overflow-y-auto"
             style={{ borderRadius: 20, background: "rgba(11,13,18,0.95)" }}
           >
             {/* Modal header */}

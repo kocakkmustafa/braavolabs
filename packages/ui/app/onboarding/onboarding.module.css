@@ -1,0 +1,105 @@
+/*
+ * /onboarding — Forge sinematik-lite restyle (additive, route-scoped).
+ *
+ * Ports the same ingredients already landed on /dashboard, /approvals,
+ * /risks, /companies, /pipelines, /runs, /analytics, /drafts, /webhooks
+ * and /ab-tests (see app/dashboard/dashboard.module.css for the
+ * canonical pattern this mirrors) onto the Hero-company wizard — the
+ * first screen most tenants see right after /forge, so this is also
+ * where the landing page's mono/arc-wash treatment should carry over
+ * into the app for a light "same universe" transition feel:
+ *
+ *   - a route-scoped JetBrains Mono override for --bv-font-mono (this
+ *     route already renders `bv-mono` character counters, blueprint
+ *     agent/pipeline counts and the onboarding-progress percentage,
+ *     but nothing here ever loaded the actual face, so they were
+ *     silently falling back to system ui-monospace. Fixed only for
+ *     this route via layout.tsx.)
+ *   - a mono "> LABEL" kicker, ported from dashboard.module.css .kicker,
+ *     applied to the wizard's existing short static eyebrows ("step N
+ *     of TOTAL" per step, "workspace forged" on the done screen) —
+ *     these already used the same cobalt-glow mono-ish styling inline,
+ *     just not the shared "> " mark; no new i18n, same strings.
+ *   - a mono treatment for the two numeric result figures on the done
+ *     screen (agents / pipeline count), mirroring dashboard's KpiCard
+ *     value styling — general rule: numeric values render in mono.
+ *   - one static (non-animated), low-opacity arc-radial wash behind the
+ *     top bar — screen-blended so it never fights text contrast. Kept
+ *     deliberately light (single wash, no extra motion) per this
+ *     route's "clean, light landing→app transition" brief, layered
+ *     on top of the wizard's existing bv-mesh background rather than
+ *     replacing it.
+ *   - a scoped prefers-reduced-motion kill-switch for the pre-existing
+ *     bv-* animations this route actually uses (bv-rise on every step
+ *     panel and the done card) plus the pre-existing bv-mesh drift this
+ *     route already opts into on the same root element (same fix
+ *     dashboard.module.css / analytics.module.css already apply to
+ *     their own bv-mesh/bv-dash-shell root).
+ *
+ * bv-rim is applied in the page only to informational cards (done-state
+ * card, step-4 summary card, bottom progress widget) — NOT to the
+ * industry/primitive/blueprint selection tiles, since those already use
+ * the same arc-blue for their selected-state border and a rim accent
+ * on every unselected tile would visually compete with that selection
+ * affordance across ~20 repeated tiles.
+ *
+ * Nothing here edits the shared bv-* rule bodies in globals.css.
+ */
+
+.onboardingShell {
+  --bv-font-mono: var(--onboarding-font-mono), "JetBrains Mono", ui-monospace, monospace;
+  position: relative;
+}
+
+.onboardingShell::before {
+  content: "";
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  width: 820px;
+  max-width: 160%;
+  height: 360px;
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgba(59, 130, 246, 0.14), transparent 72%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* ── kicker mono-label — ports dashboard.module.css .kicker's "> " mark ── */
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-family: var(--bv-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--bv-cobalt-glow);
+}
+.kicker::before {
+  content: ">";
+  color: var(--bv-cobalt-glow);
+}
+
+/* ── mono metric values — done-screen agent/pipeline counts ── */
+.metricValue {
+  font-family: var(--bv-font-mono);
+}
+
+/* ── reduced motion: scoped kill-switch, mirrors analytics.module.css'
+   bv-mesh handling (same-element animation:none override) plus the
+   bv-rise this route renders on every step panel. ── */
+@media (prefers-reduced-motion: reduce) {
+  .onboardingShell {
+    animation: none !important;
+  }
+  .onboardingShell::before {
+    display: none;
+  }
+  .onboardingShell :global(.bv-rise) {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
