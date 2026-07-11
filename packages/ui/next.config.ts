@@ -10,6 +10,11 @@ const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 // Monorepo root (two levels up from packages/ui)
 const MONOREPO_ROOT = path.resolve(__dirname, "../..");
 
+// Next.js dev HMR (Fast Refresh / webpack eval-source-maps) requires
+// `'unsafe-eval'` in script-src to run — without it `next dev` fails to
+// hydrate. Prod CSP must stay strict, so this only ever applies in dev.
+const isDev = process.env.NODE_ENV === "development";
+
 const nextConfig: NextConfig = {
   transpilePackages: ["@ai-company-os/core"],
   productionBrowserSourceMaps: false,
@@ -67,7 +72,7 @@ const nextConfig: NextConfig = {
               // gated on NEXT_PUBLIC_PLAUSIBLE_DOMAIN at render time but
               // CSP needs the host pre-allowed so we don't have to flip
               // CSP at the same time the env var lands.
-              "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://plausible.io",
+              `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://static.cloudflareinsights.com https://plausible.io`,
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: https://lh3.googleusercontent.com https://avatars.githubusercontent.com",
