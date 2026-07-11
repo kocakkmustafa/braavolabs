@@ -191,4 +191,37 @@ describe("computeTenantSavings", () => {
     expect(result.realTokenSampleSize).toBe(0);
     expect(result.reconstructedSampleSize).toBe(1);
   });
+
+  // Forge P1 regression net — behavioral (not just where-clause-shape)
+  // confirmation that two tenants never see each other's spend. The where-
+  // clause test above ("scopes every query to the tenant...") only proves the
+  // ARGUMENT passed to findMany is correct; this proves the RESULT a caller
+  // actually receives for tenant A never contains tenant B's numbers, by
+  // driving the mock off the exact tenantId embedded in the where-clause
+  // (i.e. simulating what a real tenant-scoped query would return).
+  it("two tenants queried back-to-back each get a report built ONLY from their own steps", async () => {
+    const stepsByTenant: Record<string, unknown[]> = {
+      "tenant-A": [{ costUsd: "0.05", agent: { model: "claude-sonnet-4-20250514" } }],
+      "tenant-B": [
+        { costUsd: "0.09", agent: { model: "claude-haiku" } },
+        { costUsd: "0.11", agent: { model: "claude-haiku" } },
+      ],
+    };
+    mockedFindMany.mockImplementation(async (args: { where: { run: { pipeline: { company: { tenantId: string } } } } }) => {
+      const requestedTenant = args.where.run.pipeline.company.tenantId;
+      return stepsByTenant[requestedTenant] ?? [];
+    });
+
+    const resultA = await computeTenantSavings("tenant-A", 7);
+    const resultB = await computeTenantSavings("tenant-B", 7);
+
+    expect(resultA.sampleSize).toBe(1);
+    expect(resultA.report.actualUsd).toBeCloseTo(0.05, 4);
+    expect(resultB.sampleSize).toBe(2);
+    expect(resultB.report.actualUsd).toBeCloseTo(0.2, 4);
+    // Cross-check: tenant A's actualUsd must never equal tenant B's — a
+    // regression that accidentally shared/cached the where-clause (or the
+    // mock closure in a real query builder) would collapse these together.
+    expect(resultA.report.actualUsd).not.toBeCloseTo(resultB.report.actualUsd, 4);
+  });
 });

@@ -198,6 +198,30 @@ describe("runTenantCascade — tenant isolation", () => {
     );
     expect(dialedProviders).toEqual(["ZHIPU"]);
   });
+
+  // Forge P1 regression net — two tenants with DISJOINT BYOK key sets, each
+  // called back-to-back, must never have their API keys cross-dialed. This
+  // is the concrete "what actually leaks" version of the provider-name
+  // check above: an API key crossing tenants is a credential leak, not just
+  // a routing bug, and would be invisible to a test that only inspects
+  // provider names.
+  it("two tenants called sequentially each dial ONLY their own API key — never the other's", async () => {
+    listLinksMock.mockImplementation(async (tenantId: string) =>
+      tenantId === "tenant-a"
+        ? [link("ZHIPU", "glm-4.7-flash", "key-tenant-a-secret")]
+        : [link("OPENAI", "gpt-4o", "key-tenant-b-secret")],
+    );
+    runAgentLoopMock.mockResolvedValue(loopResult(CLEAN_ANSWER, 0));
+
+    await runTenantCascade("tenant-a", "prompt");
+    await runTenantCascade("tenant-b", "prompt");
+
+    const keysUsed = runAgentLoopMock.mock.calls.map(
+      ([c]: [LoopCall]) => c.aiConfigOverride?.apiKey,
+    );
+    expect(keysUsed).toEqual(["key-tenant-a-secret", "key-tenant-b-secret"]);
+    expect(keysUsed[0]).not.toBe(keysUsed[1]);
+  });
 });
 
 // ─── No configured providers ───

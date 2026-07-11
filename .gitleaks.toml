@@ -1,0 +1,39 @@
+# Gitleaks config — Forge P1 security hardening.
+#
+# Extends gitleaks' full default ruleset (do NOT replace it) and layers a
+# narrow allowlist on top for the handful of known-safe, non-secret strings
+# that already live in this repo (`.env.example` placeholders, compose files
+# that only ever reference `${VAR}` substitutions — never literal values).
+#
+# This file intentionally does NOT exempt any real config/deploy file
+# wholesale — only specific placeholder tokens are allowlisted by regex, so
+# a genuine credential accidentally pasted into `.env.example` (or anywhere
+# else) still trips the scan.
+title = "braavolabs gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known-safe placeholders — not real credentials"
+regexTarget = "match"
+regexes = [
+  # .env.example — instructional placeholder values, never real secrets.
+  '''change-me-to-a-random-32-char-secret''',
+  '''PLEASE_GENERATE_USING_openssl_rand_hex_32''',
+  # Local-only dev/CI Postgres passwords (docker-compose dev defaults,
+  # CI service-container credentials) — not reachable outside localhost /
+  # the CI runner's ephemeral network.
+  '''aicos_dev''',
+  '''aicos_ci''',
+  # .github/workflows/ci.yml — the fixed placeholder JWT_SECRET the test job
+  # seeds so env.ts's Zod parser is satisfied (tests never touch a real JWT).
+  # Verified via `gitleaks detect --log-opts="--all"` (2026-07-12).
+  '''ci-test-jwt-secret-must-be-at-least-32-characters-long-xx''',
+  # packages/ui/app/docs/page.tsx — truncated example JWT shown in the public
+  # API docs code sample ("eyJhbGciOiJIUzI1NiIs..."), not a real token.
+  '''eyJhbGciOiJIUzI1NiIs\.\.\.''',
+  # packages/api/src/modules/webhook/templates.ts — fabricated Shopify
+  # "checkout token" sample value shown in the webhook-template picker UI.
+  '''abc123def456''',
+]
