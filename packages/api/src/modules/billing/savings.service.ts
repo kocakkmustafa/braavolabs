@@ -7,41 +7,42 @@
  *
  * ─── DATA-QUALITY NOTE (read before trusting the numbers) ───────────
  * `run_steps` persists `cost_usd` (the REAL dollar amount billed for
- * that step, computed at call time by modules/agent/claude.ts /
- * services/ai-client.ts from the provider's real `usage.input_tokens`
- * / `usage.output_tokens`) and `agent_id` → `agents.model` (the model
- * configured on the agent that ran the step). It does NOT persist the
- * per-call `promptTokens` / `completionTokens` split, nor prompt-cache
- * or retrieval-avoided token counts — those numbers are computed
- * transiently during the call and discarded after the cost is rolled
- * into `run_steps.cost_usd`.
+ * that step) AND, as of the `prompt_tokens` / `completion_tokens` /
+ * `cached_input_tokens` migration, the REAL per-call token counts —
+ * both written at the same call site (modules/pipeline/executor.ts,
+ * modules/pipeline/hierarchical-runner.ts) from the same
+ * `AgentLoopResult` the provider actually returned (ultimately
+ * `usage.input_tokens` / `usage.output_tokens` off
+ * modules/agent/claude.ts / services/ai-client.ts). `agent_id` →
+ * `agents.model` still supplies the model id used to price/tier the
+ * event.
  *
+ * Those new columns are nullable and were added additively — every
+ * `run_steps` row written BEFORE the migration landed has them NULL.
  * `tokensSaved()` needs a `{promptTokens, completionTokens}` pair per
- * event. To stay honest (no invented numbers) this service:
- *   1. Uses the REAL `cost_usd` for the "actual spend" side — never
- *      fabricated.
- *   2. Reconstructs a plausible input:output token split using the
- *      SAME baseline ratio (`BASELINE_INPUT_TOKENS_PER_STEP` :
+ * event, so this service branches per row:
+ *   1. **Real data available** (`prompt_tokens` AND `completion_tokens`
+ *      both non-null): use them directly — no reconstruction, no
+ *      estimation. `cached_input_tokens` (when logged) feeds
+ *      `tokensSaved()`'s cache-savings term directly, so
+ *      `breakdown.cacheUsd` can now reflect a REAL signal for these
+ *      rows instead of always being 0.
+ *   2. **Legacy row** (either column NULL): falls back to the original
+ *      reconstruction — a plausible input:output split using the SAME
+ *      baseline ratio (`BASELINE_INPUT_TOKENS_PER_STEP` :
  *      `BASELINE_OUTPUT_TOKENS_PER_STEP`, i.e. 1500:800) that
  *      `lib/modelPricing.ts` already uses elsewhere in this codebase
- *      for "ballpark, not precise" cost estimates — not an ad-hoc
- *      ratio invented here — then scales it so the reconstructed
- *      per-event actual cost matches the real `cost_usd` exactly
- *      (verified in the unit tests: the sum of `report.actualUsd`
- *      always equals the sum of the real `cost_usd` values fed in).
- *   3. Never claims prompt-cache or retrieval savings — those fields
- *      are simply left unset (0), because there is no logged data
- *      for them anywhere in the schema today. `breakdown.cacheUsd`
- *      and `breakdown.retrievalUsd` are therefore always 0; only
- *      `breakdown.cheapRoutingUsd` (cheap/local-tier vs frontier
- *      pricing) reflects a real signal.
+ *      for "ballpark, not precise" cost estimates, scaled so the
+ *      reconstructed actual cost matches the row's real `cost_usd`
+ *      exactly. No `cachedInputTokens` is invented for these rows —
+ *      cache savings on a reconstructed row are always 0.
  *
- * For byte-exact accounting (no reconstruction), `run_steps` would
- * need real `prompt_tokens` / `completion_tokens` (and ideally
- * `cached_input_tokens` / `retrieval_avoided_input_tokens`) columns,
- * populated from the `usage` object already available at the call
- * site. That is a schema change this task deliberately does not make
- * (see PR notes) — it's called out here so the gap is easy to find.
+ * `sampleSize` in the result is `realTokenSampleSize +
+ * reconstructedSampleSize`; `note` reports the real/reconstructed
+ * split in plain language so a caller can see at a glance how much of
+ * the report is byte-exact vs. estimated. As older rows age out of the
+ * lookback window and new runs land, `reconstructedSampleSize` trends
+ * to 0 on its own — no migration/backfill needed.
  */
 
 import { prisma } from "../../lib/db";
@@ -64,6 +65,10 @@ export interface TenantSavingsResult {
   period: { days: number; since: string; until: string };
   /** Number of run_steps that fed into this report (agent-attributed, costed). */
   sampleSize: number;
+  /** Of `sampleSize`, how many used REAL logged prompt_tokens/completion_tokens (no reconstruction). */
+  realTokenSampleSize: number;
+  /** Of `sampleSize`, how many predate the token-count migration and used cost-based reconstruction. */
+  reconstructedSampleSize: number;
   /** Model ids seen that have no entry in modelPricing.ts (zero-costed — see note). */
   unknownModelIds: string[];
   report: SavingsReport;
@@ -112,19 +117,55 @@ function frontierBaseline(): ModelSpec {
   return cachedFrontier;
 }
 
-/**
- * Build one RunEvent from a real run_step's cost + model id. See the
- * file header for why the promptTokens/completionTokens split is a
- * reconstruction rather than logged data, and why it's calibrated to
- * preserve the real cost_usd exactly.
- */
-function buildRunEvent(costUsd: number, modelId: string, unknownModelIds: Set<string>): RunEvent {
+/** Resolve a run_step's model id to a priced+tiered ModelSpec, flagging unknown ids. */
+function resolveModelSpec(modelId: string, unknownModelIds: Set<string>): ModelSpec {
   const price = priceForModel(modelId);
   if (!price) unknownModelIds.add(modelId);
   const inputPerM = price?.inputPerM ?? 0;
   const outputPerM = price?.outputPerM ?? 0;
   const tier = deriveTier(inputPerM, outputPerM);
-  const model = modelSpecFromPricing(modelId, tier, []);
+  return modelSpecFromPricing(modelId, tier, []);
+}
+
+/**
+ * Build one RunEvent from a run_step's REAL logged token counts (Forge
+ * P1 migration: run_steps.prompt_tokens / completion_tokens /
+ * cached_input_tokens, populated at the same call site as cost_usd — no
+ * reconstruction, no estimation). `cachedInputTokens` is only set when
+ * the row actually logged one (most rows today — no call site requests
+ * prompt caching yet), so `tokensSaved()`'s cache-savings term stays
+ * honest rather than defaulting to a fabricated 0 or non-zero value.
+ */
+function buildRealRunEvent(
+  promptTokens: number,
+  completionTokens: number,
+  cachedInputTokens: number | null,
+  modelId: string,
+  unknownModelIds: Set<string>,
+): RunEvent {
+  const model = resolveModelSpec(modelId, unknownModelIds);
+  return {
+    model,
+    promptTokens,
+    completionTokens,
+    ...(cachedInputTokens != null ? { cachedInputTokens } : {}),
+  };
+}
+
+/**
+ * Build one RunEvent from a run_step's cost + model id, for rows that
+ * predate the token-count migration (`prompt_tokens`/`completion_tokens`
+ * NULL). See the file header for why this split is a reconstruction
+ * rather than logged data, and why it's calibrated to preserve the real
+ * cost_usd exactly. Never fabricates cache savings — cachedInputTokens
+ * is left unset.
+ */
+function buildReconstructedRunEvent(
+  costUsd: number,
+  modelId: string,
+  unknownModelIds: Set<string>,
+): RunEvent {
+  const model = resolveModelSpec(modelId, unknownModelIds);
 
   const denom =
     BASELINE_INPUT_TOKENS_PER_STEP * model.costPer1kIn + BASELINE_OUTPUT_TOKENS_PER_STEP * model.costPer1kOut;
@@ -147,15 +188,22 @@ function buildRunEvent(costUsd: number, modelId: string, unknownModelIds: Set<st
   return { model, promptTokens, completionTokens };
 }
 
-const DATA_QUALITY_NOTE =
-  "run_steps only persists cost_usd + agent_id (-> agents.model), not per-call promptTokens/completionTokens. " +
-  `This report reconstructs each step's input:output token split from its real cost_usd using the same ` +
-  `${BASELINE_INPUT_TOKENS_PER_STEP}:${BASELINE_OUTPUT_TOKENS_PER_STEP} baseline ratio modelPricing.ts already uses ` +
-  "for ballpark estimates, scaled so the reconstructed actual cost matches real cost_usd exactly. Prompt-cache and " +
-  "retrieval-avoided savings are not logged anywhere today, so breakdown.cacheUsd/retrievalUsd are always 0 — only " +
-  "breakdown.cheapRoutingUsd (cheap/local tier vs. frontier pricing) reflects a real, non-estimated signal. Exact " +
-  "token accounting needs prompt_tokens/completion_tokens (ideally cached_input_tokens/retrieval_avoided_input_tokens) " +
-  "columns on run_steps, populated from the usage object already computed in modules/agent/claude.ts and services/ai-client.ts.";
+/** Builds the `note` field with the real/reconstructed split spelled out numerically. */
+function buildDataQualityNote(realCount: number, reconstructedCount: number): string {
+  const total = realCount + reconstructedCount;
+  return (
+    `${realCount}/${total} run_steps used REAL logged prompt_tokens/completion_tokens ` +
+    `(and cached_input_tokens where logged) — no reconstruction. ${reconstructedCount}/${total} ` +
+    "predate the token-count migration (prompt_tokens/completion_tokens NULL) and fall back to " +
+    `reconstructing each step's input:output split from its real cost_usd using the same ` +
+    `${BASELINE_INPUT_TOKENS_PER_STEP}:${BASELINE_OUTPUT_TOKENS_PER_STEP} baseline ratio modelPricing.ts already ` +
+    "uses for ballpark estimates, scaled so the reconstructed actual cost matches real cost_usd exactly — those " +
+    "reconstructed rows never claim cache savings (cachedInputTokens left unset). breakdown.cheapRoutingUsd " +
+    "(cheap/local tier vs. frontier pricing) is always a real, non-estimated signal; breakdown.cacheUsd is real " +
+    "for rows with logged cached_input_tokens and 0 otherwise; breakdown.retrievalUsd is always 0 — retrieval-" +
+    "avoided token counts are not logged anywhere in the schema today."
+  );
+}
 
 /**
  * Computes a tenant's tokens-saved report over the last `days` days.
@@ -181,19 +229,42 @@ export async function computeTenantSavings(tenantId: string, days = 7): Promise<
     },
     select: {
       costUsd: true,
+      promptTokens: true,
+      completionTokens: true,
+      cachedInputTokens: true,
       agent: { select: { model: true } },
     },
   });
 
   const unknownModelIds = new Set<string>();
   const events: RunEvent[] = [];
+  let realTokenSampleSize = 0;
+  let reconstructedSampleSize = 0;
   for (const step of steps) {
     // No agent association -> no model to attribute the spend to. Skip
     // rather than guess; this keeps the report honest at the cost of
     // slightly undercounting steps run without an agent link.
     if (!step.agent?.model) continue;
     const costUsd = Number(step.costUsd ?? 0);
-    events.push(buildRunEvent(costUsd, step.agent.model, unknownModelIds));
+    // Prefer the REAL logged token counts (Forge P1 migration). Both
+    // must be present — a step with only one of the two would produce
+    // a nonsensical split, so treat it like any other legacy row and
+    // fall back to reconstruction.
+    if (step.promptTokens != null && step.completionTokens != null) {
+      events.push(
+        buildRealRunEvent(
+          step.promptTokens,
+          step.completionTokens,
+          step.cachedInputTokens,
+          step.agent.model,
+          unknownModelIds,
+        ),
+      );
+      realTokenSampleSize++;
+    } else {
+      events.push(buildReconstructedRunEvent(costUsd, step.agent.model, unknownModelIds));
+      reconstructedSampleSize++;
+    }
   }
 
   const report = tokensSaved(events, frontierBaseline());
@@ -201,8 +272,10 @@ export async function computeTenantSavings(tenantId: string, days = 7): Promise<
   return {
     period: { days: clampedDays, since: since.toISOString(), until: until.toISOString() },
     sampleSize: events.length,
+    realTokenSampleSize,
+    reconstructedSampleSize,
     unknownModelIds: Array.from(unknownModelIds),
     report,
-    note: DATA_QUALITY_NOTE,
+    note: buildDataQualityNote(realTokenSampleSize, reconstructedSampleSize),
   };
 }

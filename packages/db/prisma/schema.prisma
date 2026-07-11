@@ -484,6 +484,19 @@ model RunStep {
   output      Json?
   error       String?       @db.Text
   costUsd     Decimal?      @map("cost_usd") @db.Decimal(10, 6)
+  // Forge P1 — real per-call token counts, for savings.service.ts's honest
+  // "tokens saved" metric. Populated from the provider's actual
+  // `usage.input_tokens` / `usage.output_tokens` (Anthropic; equivalent
+  // fields on other providers) at the SAME call sites that already compute
+  // cost_usd (modules/pipeline/executor.ts, modules/pipeline/
+  // hierarchical-runner.ts). Nullable + additive: existing rows stay NULL
+  // and savings.service falls back to its cost-based reconstruction for
+  // them. cachedInputTokens is reserved for prompt-cache accounting (e.g.
+  // Anthropic cache_read_input_tokens) — left NULL today since no call
+  // site requests prompt caching yet.
+  promptTokens      Int? @map("prompt_tokens")
+  completionTokens  Int? @map("completion_tokens")
+  cachedInputTokens Int? @map("cached_input_tokens")
   // Live turn-boundary checkpoint (E3 §2.2): the agent loop persists the
   // canonical ChatMessage[] transcript here at the END of every turn (tool
   // results included) on governed runs — { messages, turn, toolUseMode,

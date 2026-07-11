@@ -133,6 +133,10 @@ function ensureDelegateToolRegistered(): void {
             toolCalls: workerResult.totalToolCalls,
           } as any,
           costUsd: workerResult.totalCostUsd ?? 0,
+          // Forge P1: real per-call token counts, same call site as
+          // cost_usd — see run_steps.prompt_tokens doc comment in schema.
+          promptTokens: workerResult.totalInputTokens,
+          completionTokens: workerResult.totalOutputTokens,
           error: workerError ?? null,
           completedAt: new Date(),
         },

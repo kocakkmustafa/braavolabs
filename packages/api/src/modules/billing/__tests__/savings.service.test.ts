@@ -97,4 +97,98 @@ describe("computeTenantSavings", () => {
 
     expect(result.unknownModelIds).toContain("some-custom-finetune-v9");
   });
+
+  it("uses REAL logged prompt_tokens/completion_tokens directly — no reconstruction — when both are present", async () => {
+    // claude-sonnet: $3/$15 per 1M. 2000 in + 500 out -> exact real cost.
+    const realCostUsd = (2000 / 1_000_000) * 3 + (500 / 1_000_000) * 15;
+    mockedFindMany.mockResolvedValue([
+      {
+        costUsd: String(realCostUsd),
+        promptTokens: 2000,
+        completionTokens: 500,
+        cachedInputTokens: null,
+        agent: { model: "claude-sonnet-4-20250514" },
+      },
+    ]);
+
+    const result = await computeTenantSavings(TENANT, 7);
+
+    expect(result.sampleSize).toBe(1);
+    expect(result.realTokenSampleSize).toBe(1);
+    expect(result.reconstructedSampleSize).toBe(0);
+    // Real tokens x real per-model pricing reproduce the real cost_usd
+    // exactly (no reconstruction/rounding involved).
+    expect(result.report.actualUsd).toBeCloseTo(realCostUsd, 6);
+    expect(result.note).toContain("1/1 run_steps used REAL logged");
+    expect(result.note).toContain("0/1");
+  });
+
+  it("feeds real cached_input_tokens into a non-zero breakdown.cacheUsd (only possible with logged data)", async () => {
+    mockedFindMany.mockResolvedValue([
+      {
+        costUsd: "0.02",
+        promptTokens: 2000,
+        completionTokens: 500,
+        cachedInputTokens: 1000,
+        agent: { model: "claude-sonnet-4-20250514" },
+      },
+    ]);
+
+    const result = await computeTenantSavings(TENANT, 7);
+
+    expect(result.realTokenSampleSize).toBe(1);
+    // Cache savings can only ever be non-zero for a real-token row — a
+    // reconstructed row never invents cachedInputTokens.
+    expect(result.report.breakdown.cacheUsd).toBeGreaterThan(0);
+  });
+
+  it("handles a mixed batch — real-token rows use logged data, legacy (NULL) rows fall back to reconstruction", async () => {
+    mockedFindMany.mockResolvedValue([
+      {
+        costUsd: "0.03",
+        promptTokens: 2000,
+        completionTokens: 500,
+        cachedInputTokens: null,
+        agent: { model: "claude-sonnet-4-20250514" },
+      },
+      // Legacy row — predates the migration, no token columns.
+      { costUsd: "0.01", agent: { model: "claude-haiku" } },
+      // Legacy row with an explicit NULL (same as undefined — still falls back).
+      {
+        costUsd: "0.005",
+        promptTokens: null,
+        completionTokens: null,
+        cachedInputTokens: null,
+        agent: { model: "claude-haiku" },
+      },
+    ]);
+
+    const result = await computeTenantSavings(TENANT, 7);
+
+    expect(result.sampleSize).toBe(3);
+    expect(result.realTokenSampleSize).toBe(1);
+    expect(result.reconstructedSampleSize).toBe(2);
+    expect(result.note).toContain("1/3 run_steps used REAL logged");
+    expect(result.note).toContain("2/3");
+    // Every real dollar (real cost_usd for legacy rows + real-tokens-priced
+    // cost for the logged row) still lands in actualUsd — nothing is dropped.
+    expect(result.report.actualUsd).toBeGreaterThan(0);
+  });
+
+  it("falls back to reconstruction when only one of promptTokens/completionTokens is logged (malformed row)", async () => {
+    mockedFindMany.mockResolvedValue([
+      {
+        costUsd: "0.01",
+        promptTokens: 2000,
+        completionTokens: null,
+        cachedInputTokens: null,
+        agent: { model: "claude-haiku" },
+      },
+    ]);
+
+    const result = await computeTenantSavings(TENANT, 7);
+
+    expect(result.realTokenSampleSize).toBe(0);
+    expect(result.reconstructedSampleSize).toBe(1);
+  });
 });
