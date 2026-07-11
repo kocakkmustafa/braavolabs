@@ -10,10 +10,10 @@
  *                    invites the user to set a budget via the inline
  *                    "Set budget" button (opens the budget editor
  *                    inside this card; no separate page)
- *   under_budget    green bar at projected / budget
- *   nearing_budget  amber bar, "{n}% of budget projected" caption
- *   over_budget     red bar at 100%, banner: "Auto-spend gating active.
- *                    Approvals require manual override."
+ *   under_budget    arc-blue bar at projected / budget
+ *   nearing_budget  ember/warn bar, "{n}% of budget projected" caption
+ *   over_budget     molten-red bar at 100%, banner: "Auto-spend gating
+ *                    active. Approvals require manual override."
  *
  * The 14-day sparkline at the bottom uses inline SVG (no chart lib;
  * matches the rest of the dashboard) — quadratic smoothing on a
@@ -43,11 +43,16 @@ type Forecast = {
   topToolsByCost: Array<{ toolName: string; costUsd: number; callCount: number }>;
 };
 
+// Forge palette — no green anywhere in the product (see forge-hero.module.css
+// / app/globals.css bv-* tokens): "healthy" reads as arc-blue instead of the
+// traditional green, "nearing" reuses the same ember/warn tone the rest of
+// the dashboard already uses for running/caution state, "over" is molten red
+// (matches --bv-status-failed exactly, same as .bv-pill-red / risk severity).
 const STATUS_COLOR: Record<Forecast["status"], string> = {
   no_budget: "#859399",
-  under_budget: "#34d399",
-  nearing_budget: "#fbbf24",
-  over_budget: "#f87171",
+  under_budget: "var(--bv-cobalt-glow)",
+  nearing_budget: "var(--bv-status-running)",
+  over_budget: "var(--bv-status-failed)",
 };
 
 function fmtUsd(n: number): string {
@@ -147,8 +152,12 @@ export default function SpendForecastCard() {
 
   if (!data) {
     return (
-      <div className="bv-tile" style={{ minHeight: 220 }}>
-        <div className="bv-tile-title">{t("title")}</div>
+      // bv-tile/bv-tile-title were never defined anywhere in globals.css —
+      // this card rendered unstyled (no glass surface, no border, no
+      // radius) next to bv-glass/bv-panel siblings in the side rail.
+      // Swapped to the same primitives the rest of the dashboard uses.
+      <div className="bv-glass bv-rim" style={{ minHeight: 220, padding: 18 }}>
+        <div className="bv-title">{t("title")}</div>
         <div style={{ color: "var(--color-outline)", fontSize: 13, marginTop: 12 }}>
           {error ?? t("loading")}
         </div>
@@ -166,9 +175,9 @@ export default function SpendForecastCard() {
     : null;
 
   return (
-    <div className="bv-tile" style={{ minHeight: 220 }}>
+    <div className="bv-glass bv-rim" style={{ minHeight: 220, padding: 18 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div className="bv-tile-title">{t("title")}</div>
+        <div className="bv-title">{t("title")}</div>
         {!editingBudget && (
           <button
             type="button"
@@ -242,11 +251,11 @@ export default function SpendForecastCard() {
               style={{
                 marginTop: 8,
                 padding: "8px 10px",
-                background: "rgba(248,113,113,0.10)",
-                border: "1px solid rgba(248,113,113,0.25)",
+                background: "rgba(255,77,77,0.10)",
+                border: "1px solid rgba(255,77,77,0.25)",
                 borderRadius: 8,
                 fontSize: 11,
-                color: "#fca5a5",
+                color: "var(--bv-status-failed)",
               }}
             >
               {t("over_budget_warning")}
@@ -307,8 +316,8 @@ export default function SpendForecastCard() {
                 style={{
                   padding: "6px 12px",
                   background: "transparent",
-                  color: "#f87171",
-                  border: "1px solid rgba(248,113,113,0.25)",
+                  color: "var(--bv-status-failed)",
+                  border: "1px solid rgba(255,77,77,0.25)",
                   borderRadius: 8,
                   fontSize: 12,
                   cursor: "pointer",
@@ -336,7 +345,7 @@ export default function SpendForecastCard() {
             </button>
           </div>
           {error && (
-            <div style={{ fontSize: 11, color: "#f87171", marginTop: 6 }}>{error}</div>
+            <div style={{ fontSize: 11, color: "var(--bv-status-failed)", marginTop: 6 }}>{error}</div>
           )}
         </div>
       )}

@@ -1,0 +1,107 @@
+/*
+ * /dashboard — Forge sinematik-lite restyle (additive, dashboard-scoped).
+ *
+ * The app's shared bv-* utility layer (app/globals.css) already sits inside
+ * Forge's obsidian + arc-blue + ember palette (see forge-hero.module.css:
+ * --void/--arc/--ember there ≈ --color-background/--bv-cobalt-glow/
+ * --bv-status-running here), so this file only ADDS a few Forge-hero
+ * accents on top of it rather than replacing anything:
+ *
+ *   - a dashboard-scoped JetBrains Mono override for --bv-font-mono (the
+ *     shared token already reads "JetBrains Mono" but nothing on this
+ *     route ever loaded that face — only /forge self-hosts it via
+ *     next/font — so .bv-mono/.bv-numeric here were silently falling back
+ *     to system ui-monospace. Fixed only for this route via layout.tsx.)
+ *   - a mono "> LABEL" kicker, ported from forge-hero.module.css .kicker
+ *   - a mono treatment for the big KPI numbers
+ *   - one static (non-animated), low-opacity arc-radial wash behind the
+ *     page head — screen-blended so it never fights text contrast
+ *   - a scoped prefers-reduced-motion kill-switch for the pre-existing
+ *     bv-* animations (mesh-drift / stagger / rise / ping / pulse-glow /
+ *     sheen), none of which currently honor the media query anywhere
+ *     else in the app — scoping the fix here avoids a site-wide change.
+ *
+ * Nothing here edits the shared bv-* rule bodies in globals.css itself —
+ * see the single new additive .bv-rim utility appended there instead,
+ * which this file does not duplicate.
+ */
+
+.dashShell {
+  --bv-font-mono: var(--dash-font-mono), "JetBrains Mono", ui-monospace, monospace;
+  position: relative;
+}
+
+.dashShell::before {
+  content: "";
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  width: 820px;
+  max-width: 160%;
+  height: 360px;
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgba(59, 130, 246, 0.14), transparent 72%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* ── kicker mono-label — ports forge-hero.module.css .kicker's "> " mark ── */
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-family: var(--bv-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--bv-cobalt-glow);
+}
+.kicker::before {
+  content: ">";
+  color: var(--bv-cobalt-glow);
+}
+
+/* ── mono metric values — dashboard-only; doesn't touch global .bv-numeric,
+   which other routes still render in the display face on purpose ── */
+.metricValue {
+  font-family: var(--bv-font-mono);
+}
+
+/* ── reduced motion: scoped kill-switch. Targets the *shared* bv-*
+   animation classes via :global() but only when they're descendants of
+   (or, for .dashShell itself, equal to) this route's root element, so
+   other pages that also use bv-stagger/bv-rise/etc. are unaffected. ── */
+@media (prefers-reduced-motion: reduce) {
+  .dashShell {
+    animation: none !important;
+  }
+  .dashShell::before {
+    display: none;
+  }
+  .dashShell :global(.bv-stagger) > * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .dashShell :global(.bv-rise) {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .dashShell :global(.bv-dot.bv-ping)::before {
+    animation: none !important;
+  }
+  .dashShell :global(.bv-pulse-glow) {
+    animation: none !important;
+  }
+  .dashShell :global(.bv-btn-primary) {
+    animation: none !important;
+  }
+  .dashShell :global(.bv-btn-primary)::before {
+    animation: none !important;
+  }
+  .dashShell :global(.bv-agent-load-bar) {
+    animation: none !important;
+  }
+}

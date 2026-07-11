@@ -29,6 +29,7 @@ import { sounds } from "../../lib/sounds";
 import { timeAgo } from "../../lib/timeAgo";
 import TrialBanner from "../../components/TrialBanner";
 import SpendForecastCard from "../../components/SpendForecastCard";
+import styles from "./dashboard.module.css";
 
 interface HealthData { activeCompanies: number; activeRuns: number; pendingApprovals: number; }
 interface UsageData { totalRuns: number; completedRuns: number; failedRuns: number; successRate: number; }
@@ -121,18 +122,16 @@ export default function DashboardPage() {
     : "";
 
   return (
-    <div className="bv-dash bv-dash-shell">
+    <div className={`bv-dash bv-dash-shell ${styles.dashShell}`}>
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "24px 24px 40px" }}>
         <TrialBanner token={token} />
 
         {/* ─── Page head: greeting + status sub-line + date-range ─── */}
         <div className="bv-page-head bv-rise" style={{ marginBottom: 26 }}>
           <div>
-            {/* eyebrow */}
-            <div className="bv-micro" style={{ marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>speed</span>
-              {t("app.dashboard.title")}
-            </div>
+            {/* eyebrow — mono "> " kicker (forge-hero.module.css .kicker,
+                ported), same t() string as before, no i18n change */}
+            <div className={styles.kicker}>{t("app.dashboard.title")}</div>
             {/* display greeting */}
             <h1
               className="bv-display"
@@ -261,7 +260,7 @@ export default function DashboardPage() {
             />
 
             {/* Activity feed */}
-            <section className="bv-glass bv-panel">
+            <section className="bv-glass bv-panel bv-rim">
               <header className="bv-panel-head">
                 <div>
                   <h2 className="bv-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -351,7 +350,7 @@ function KpiCard(props: {
 }) {
   const { label, value, valueSuffix, dot, warn, loaded, sparkPoints, sparkColor, sparkFill } = props;
   return (
-    <div className="bv-glass" style={{ padding: "20px 22px", position: "relative" }}>
+    <div className="bv-glass bv-rim" style={{ padding: "20px 22px", position: "relative" }}>
       {/* label row */}
       <div
         className="bv-mono"
@@ -368,9 +367,9 @@ function KpiCard(props: {
         <span className={`bv-dot bv-${dot}${dot === "running" ? " bv-ping" : ""}`} aria-hidden />
         {label}
       </div>
-      {/* value */}
+      {/* value — mono face (dashboard-scoped .metricValue), Forge HUD feel */}
       <div
-        className="bv-numeric"
+        className={`bv-numeric ${styles.metricValue}`}
         style={{
           fontSize: 38,
           fontWeight: 700,
@@ -448,7 +447,7 @@ function RecentRunsPanel(props: {
   const t = useTranslations();
 
   return (
-    <section className="bv-glass bv-panel">
+    <section className="bv-glass bv-panel bv-rim">
       <header className="bv-panel-head">
         <div>
           <h2 className="bv-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -777,7 +776,7 @@ function ApprovalsPanel({
   const list = approvals.slice(0, 4);
 
   return (
-    <section className={`bv-glass bv-panel ${approvals.length > 0 ? "bv-pulse-glow" : ""}`}>
+    <section className={`bv-glass bv-panel bv-rim ${approvals.length > 0 ? "bv-pulse-glow" : ""}`}>
       <header className="bv-panel-head">
         <div>
           <h2 className="bv-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -863,7 +862,7 @@ function RiskPanel({ risks, loaded }: { risks: RiskEvent[]; loaded: boolean }) {
   const t = useTranslations();
 
   return (
-    <section className="bv-glass bv-panel">
+    <section className="bv-glass bv-panel bv-rim">
       <header className="bv-panel-head">
         <div>
           <h2 className="bv-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -940,7 +939,7 @@ function DraftsPanel({ runs, loaded }: { runs: RunRow[]; loaded: boolean }) {
   );
 
   return (
-    <section className="bv-glass bv-panel">
+    <section className="bv-glass bv-panel bv-rim">
       <header className="bv-panel-head">
         <div>
           <h2 className="bv-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>

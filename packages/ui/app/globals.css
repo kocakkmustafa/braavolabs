@@ -915,6 +915,24 @@ html.light {
   90%, 100% { transform: translateX(100%); }
 }
 
+/* ───── Rim-light — thin arc-blue accent along a card's top edge
+   (Forge dashboard restyle, 2026-07 — additive/new utility, does not
+   touch .bv-glass or any other existing rule, so pages that already use
+   bv-glass/bv-panel without bv-rim render exactly as before). ───── */
+.bv-rim { position: relative; }
+.bv-rim::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--bv-cobalt-glow), transparent);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 /* ───── Stagger fade — 8-child cascade on first paint ───── */
 .bv-stagger > * { opacity: 0; transform: translateY(8px); animation: bv-stagger-fade 500ms var(--bv-ease-out) forwards; }
 .bv-stagger > *:nth-child(1) { animation-delay: 0ms; }

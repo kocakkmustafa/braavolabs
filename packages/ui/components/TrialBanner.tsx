@@ -5,7 +5,9 @@
  * has remaining trial credits AND when their credit just ran out.
  *
  * Three visual states:
- *   1. trial.exhausted=false, remaining > 0 → green "X free runs left"
+ *   1. trial.exhausted=false, remaining > 0 → arc-blue "X free runs left"
+ *      (Forge palette has no green — see app/globals.css bv-* tokens /
+ *      app/forge/forge-hero.module.css)
  *   2. trial.exhausted=true                  → amber "Trial used up — add API key or upgrade"
  *   3. trial.enabled=false                   → render nothing (paid tenants
  *      and self-hosted operators with no GROQ_API_KEY)
@@ -106,20 +108,20 @@ export default function TrialBanner({ token }: TrialBannerProps) {
   return (
     <div
       role="status"
-      className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-sm"
+      className="mb-6 rounded-2xl border border-blue-500/30 bg-blue-500/10 p-5 text-sm bv-rim"
     >
       <div className="flex items-start gap-3">
         <span
-          className="material-symbols-outlined text-emerald-300"
+          className="material-symbols-outlined text-blue-300"
           aria-hidden
         >
           rocket_launch
         </span>
         <div className="flex-1">
-          <p className="font-semibold text-emerald-200">
+          <p className="font-semibold text-blue-200">
             {trial.remaining} of {trial.limit} free trial runs left
           </p>
-          <p className="mt-1 text-emerald-100/80">
+          <p className="mt-1 text-blue-100/80">
             We'll route the next {trial.remaining}{" "}
             {trial.remaining === 1 ? "pipeline run" : "pipeline runs"} through
             our Groq trial pool — no API key required. After that, add your own
@@ -129,7 +131,7 @@ export default function TrialBanner({ token }: TrialBannerProps) {
         <button
           type="button"
           onClick={() => setDismissed(true)}
-          className="text-emerald-200/70 transition hover:text-emerald-100"
+          className="text-blue-200/70 transition hover:text-blue-100"
           aria-label="Dismiss"
         >
           <span className="material-symbols-outlined text-base">close</span>
