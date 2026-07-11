@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
+import styles from "./companies.module.css";
 
 // Status → FORGE dot class + i18n label key (app.companies.*)
 const STATUS_DOT: Record<string, { cls: string; labelKey: string }> = {
@@ -131,12 +132,14 @@ export default function CompaniesPage() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8 bv-dash animate-fade-in">
+    <div className={`max-w-7xl mx-auto px-6 py-8 bv-dash animate-fade-in ${styles.companiesShell}`}>
 
       {/* ── Page head ─────────────────────────────────────── */}
       <div className="bv-page-head mb-8">
         <div>
-          <p className="bv-micro mb-1" style={{ color: "var(--color-outline)" }}>
+          {/* eyebrow — mono "> " kicker (dashboard.module.css .kicker, ported),
+              same t() string as before, no i18n change */}
+          <p className={styles.kicker}>
             {t("app.companies.warRoom")}
           </p>
           <h1 className="bv-headline" style={{ color: "var(--color-on-surface)" }}>
@@ -219,7 +222,7 @@ export default function CompaniesPage() {
 
       {/* ── Workspace grid ────────────────────────────────── */}
       {visible.length === 0 ? (
-        <div className="bv-glass rounded-2xl text-center py-20 bv-rise">
+        <div className="bv-glass bv-rim rounded-2xl text-center py-20 bv-rise">
           <div
             className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5"
             style={{
@@ -287,7 +290,7 @@ export default function CompaniesPage() {
               <Link
                 key={c.id}
                 href={`/companies/${c.id}`}
-                className="bv-glass"
+                className="bv-glass bv-rim"
                 style={{ display: "flex", flexDirection: "column", padding: 22, textDecoration: "none" }}
               >
                 {/* Card top */}

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { timeAgo } from "../../lib/timeAgo";
+import styles from "./pipelines.module.css";
 
 const TRIGGER_ICONS: Record<string, string> = {
   manual: "touch_app",
@@ -157,12 +158,16 @@ export default function PipelinesPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
+    <div className={`bv-dash max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in ${styles.pipelinesShell}`}>
 
       {/* ── Page head ── */}
       <div className="bv-page-head mb-6">
         <div>
-          <p className="bv-micro mb-1" style={{ color: "var(--bv-steel-mid)" }}>Pipelines</p>
+          {/* eyebrow — mono "> " kicker (dashboard.module.css .kicker, ported).
+              Reuses app.pipelineDetail.backLink ("Pipelines" in en) instead of
+              the previous hardcoded English-only string — same rendered text,
+              now actually localized across all 6 locales. */}
+          <p className={styles.kicker}>{t("app.pipelineDetail.backLink")}</p>
           <h1 className="bv-headline" style={{ color: "var(--color-on-surface)" }}>
             {t("app.pipelines.title")}
           </h1>
@@ -187,7 +192,7 @@ export default function PipelinesPage() {
           { label: t("app.pipelines.statActive"),    value: stats.active,    icon: "play_circle",  accentColor: "var(--bv-status-running)" },
           { label: t("app.pipelines.statScheduled"), value: stats.scheduled, icon: "schedule",     accentColor: "var(--bv-status-paused)" },
         ].map((s) => (
-          <div key={s.label} className="bv-glass bv-metric" style={{ position: "relative" }}>
+          <div key={s.label} className="bv-glass bv-metric bv-rim" style={{ position: "relative" }}>
             <div
               className="bv-metric-accent"
               style={{ background: s.accentColor }}
@@ -257,11 +262,11 @@ export default function PipelinesPage() {
           }}
         >
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bv-glass animate-shimmer" style={{ height: 180 }} />
+            <div key={i} className="bv-glass bv-rim animate-shimmer" style={{ height: 180 }} />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bv-glass text-center py-16">
+        <div className="bv-glass bv-rim text-center py-16">
           <span
             className="material-symbols-outlined text-4xl mb-4 block"
             style={{ color: "var(--bv-cobalt-glow)" }}
@@ -299,7 +304,7 @@ export default function PipelinesPage() {
             return (
               <div
                 key={pipeline.id}
-                className="bv-glass"
+                className="bv-glass bv-rim"
                 style={{ padding: 22, cursor: "pointer" }}
                 onClick={() => router.push(`/pipelines/${pipeline.id}`)}
               >
@@ -414,7 +419,7 @@ export default function PipelinesPage() {
           }}
         >
           <div
-            className="bv-glass bv-rise"
+            className="bv-glass bv-rim bv-rise"
             onClick={(e) => e.stopPropagation()}
             style={{ width: "100%", maxWidth: 440, padding: 24 }}
           >

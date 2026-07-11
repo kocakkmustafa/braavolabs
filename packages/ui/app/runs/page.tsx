@@ -15,6 +15,7 @@ import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { timeAgo } from "../../lib/timeAgo";
 import { useTranslations } from "next-intl";
+import styles from "./runs.module.css";
 
 type RunStatus =
   | "RUNNING" | "COMPLETED" | "PAUSED" | "FAILED" | "CANCELLED" | "PENDING" | "WAITING_APPROVAL";
@@ -77,7 +78,7 @@ export default function RunsPage() {
 
   if (!hydrated || !token) {
     return (
-      <div className="bv-dash bv-dash-shell flex items-center justify-center min-h-screen">
+      <div className={`bv-dash bv-dash-shell flex items-center justify-center min-h-screen ${styles.runsShell}`}>
         <div
           className="w-6 h-6 border-2 rounded-full animate-spin"
           style={{ borderColor: "rgba(59,130,246,0.2)", borderTopColor: "var(--bv-cobalt-glow)" }}
@@ -87,13 +88,15 @@ export default function RunsPage() {
   }
 
   return (
-    <div className="bv-dash bv-dash-shell">
+    <div className={`bv-dash bv-dash-shell ${styles.runsShell}`}>
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
         {/* ── Page head ── */}
         <div className="bv-page-head bv-rise" style={{ marginBottom: 24 }}>
           <div>
-            <div className="bv-micro" style={{ marginBottom: 6 }}>{t("app.runsList.activity")}</div>
+            {/* eyebrow — mono "> " kicker (dashboard.module.css .kicker, ported),
+                same t() string as before, no i18n change */}
+            <div className={styles.kicker}>{t("app.runsList.activity")}</div>
             <h1 className="bv-display" style={{ margin: 0 }}>{t("app.runsList.title")}</h1>
             <div className="bv-caption" style={{ marginTop: 8 }}>
               {total > 0 ? t("app.runsList.totalCount", { n: total }) : t("app.runsList.noneYet")}
@@ -195,7 +198,7 @@ export default function RunsPage() {
         </div>
 
         {/* ── Runs table card ── */}
-        <section className="bv-glass bv-panel" style={{ padding: 0, overflow: "hidden" }}>
+        <section className="bv-glass bv-panel bv-rim" style={{ padding: 0, overflow: "hidden" }}>
           {/* Table */}
           <div className="bv-runs-table" role="table">
             {/* Header */}
