@@ -18,6 +18,7 @@ import { useAuthGuard } from "../../../lib/useAuthGuard";
 import { timeAgo } from "../../../lib/timeAgo";
 import { RunStepHeatmap } from "../../../components/RunStepHeatmap";
 import { useTranslations } from "next-intl";
+import styles from "../runs.module.css";
 
 interface RunDetail {
   id: string;
@@ -129,7 +130,7 @@ export default function RunDetailPage() {
   }
 
   return (
-    <div className="bv-dash bv-dash-shell">
+    <div className={`bv-dash bv-dash-shell ${styles.runsShell}`}>
       <div
         style={{
           maxWidth: 1200,
@@ -171,7 +172,9 @@ export default function RunDetailPage() {
             {/* ── Page head ── */}
             <div className="bv-page-head bv-rise" style={{ marginBottom: 28 }}>
               <div>
-                <div className="bv-micro" style={{ marginBottom: 8 }}>{t("app.runAudit.auditTrail")}</div>
+                {/* eyebrow — mono "> " kicker (runs.module.css .kicker), reuses
+                    the existing auditTrail copy — no new i18n */}
+                <div className={styles.kicker}>{t("app.runAudit.auditTrail")}</div>
                 <h1 className="bv-display" style={{ margin: 0, fontSize: 26 }}>
                   <span className="bv-grad-text">
                     {run.pipeline?.name ?? t("app.runAudit.pipelineFallback")}
@@ -336,7 +339,7 @@ export default function RunDetailPage() {
 
                 {/* Heatmap */}
                 {run.steps && run.steps.length >= 2 && (
-                  <div className="bv-glass bv-panel" style={{ gap: 10 }}>
+                  <div className="bv-glass bv-panel bv-rim" style={{ gap: 10 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-outline)" }}>bar_chart</span>
                       <span className="bv-micro">Cost heatmap</span>
@@ -350,7 +353,7 @@ export default function RunDetailPage() {
                 )}
 
                 {/* Steps stream */}
-                <section className="bv-glass bv-panel">
+                <section className="bv-glass bv-panel bv-rim">
                   <header className="bv-panel-head">
                     <div>
                       <h2 className="bv-title">{t("app.runAudit.stepsTitle")}</h2>
@@ -403,7 +406,7 @@ export default function RunDetailPage() {
 
                 {/* Approvals */}
                 {run.approvals && run.approvals.length > 0 && (
-                  <section className="bv-glass bv-panel">
+                  <section className="bv-glass bv-panel bv-rim">
                     <header className="bv-panel-head">
                       <div>
                         <h2 className="bv-title">{t("app.runAudit.approvalsTitle")}</h2>
@@ -431,7 +434,7 @@ export default function RunDetailPage() {
 
               {/* ─── Right: meta rail ─── */}
               <div style={{ position: "sticky", top: 84 }}>
-                <div className="bv-glass bv-panel" style={{ gap: 0 }}>
+                <div className="bv-glass bv-panel bv-rim" style={{ gap: 0 }}>
                   {/* Run meta section */}
                   <div className="bv-micro" style={{ marginBottom: 14 }}>Run meta</div>
 
@@ -1036,7 +1039,7 @@ function HandoffPanel({
   const canRequest = !openLedger;
 
   return (
-    <section className="bv-glass bv-panel">
+    <section className="bv-glass bv-panel bv-rim">
       <header className="bv-panel-head">
         <div>
           <h2 className="bv-title">{t("app.handoff.title")}</h2>

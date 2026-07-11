@@ -7,6 +7,7 @@ import { api, apiFetch } from "../../../lib/api";
 import { useAuthGuard } from "../../../lib/useAuthGuard";
 import { useToast } from "../../../components/Toast";
 import { useTranslations } from "next-intl";
+import styles from "../companies.module.css";
 
 type Tab = "overview" | "pipelines" | "agents" | "runs" | "contacts" | "memory";
 
@@ -171,7 +172,7 @@ export default function CompanyDetailPage() {
   };
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: 1152, margin: "0 auto", padding: "32px 24px" }}>
+    <div className={`bv-dash animate-fade-in ${styles.companiesShell}`} style={{ maxWidth: 1152, margin: "0 auto", padding: "32px 24px" }}>
 
       {/* ── Page head ── */}
       <div className="bv-page-head" style={{ marginBottom: 28 }}>
@@ -180,6 +181,9 @@ export default function CompanyDetailPage() {
             {company.name?.charAt(0)}
           </div>
           <div>
+            {/* eyebrow — mono "> " kicker (companies.module.css .kicker, ported
+                from /companies list), reuses the same warRoom copy — no new i18n */}
+            <p className={styles.kicker}>{t("app.companies.warRoom")}</p>
             <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               <h1 className="bv-headline" style={{ color: "var(--color-on-surface)", margin: 0 }}>{company.name}</h1>
               <span className={pillCls} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -286,7 +290,7 @@ export default function CompanyDetailPage() {
                 <div
                   key={a.id}
                   onClick={() => setExpandedAgent(isExpanded ? null : a.id)}
-                  className="bv-glass"
+                  className="bv-glass bv-rim"
                   style={{
                     padding: "18px 20px",
                     cursor: "pointer",
@@ -476,7 +480,7 @@ export default function CompanyDetailPage() {
             return (
               <div
                 key={p.id}
-                className="bv-glass"
+                className="bv-glass bv-rim"
                 style={{ padding: "16px 18px", display: "flex", alignItems: "center", gap: 16, borderRadius: 14 }}
               >
                 <span className="bv-dot bv-completed" style={{ flexShrink: 0 }} />
@@ -519,7 +523,7 @@ export default function CompanyDetailPage() {
               <Link
                 key={r.id}
                 href={`/companies/${company.id}/runs/${r.id}`}
-                className="bv-glass"
+                className="bv-glass bv-rim"
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
                   padding: "14px 18px", textDecoration: "none", borderRadius: 12,
@@ -534,7 +538,7 @@ export default function CompanyDetailPage() {
                   <span className={pillCl}>{r.status}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span className="bv-caption">{new Date(r.createdAt).toLocaleString()}</span>
+                  <span className="bv-caption bv-mono">{new Date(r.createdAt).toLocaleString()}</span>
                   <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-outline)" }}>chevron_right</span>
                 </div>
               </Link>
@@ -553,7 +557,7 @@ export default function CompanyDetailPage() {
       {tab === "memory" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
           {/* Candidate */}
-          <div className="bv-glass bv-panel" style={{ borderRadius: 16 }}>
+          <div className="bv-glass bv-panel bv-rim" style={{ borderRadius: 16 }}>
             <div className="bv-panel-head">
               <h4 className="bv-micro" style={{ display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
                 <span className="bv-dot bv-running bv-ping" />
@@ -563,7 +567,7 @@ export default function CompanyDetailPage() {
             <MemoryChip text={t("app.companyDetail.memoryTitle")} meta={t("app.companyDetail.memoryBody")} variant="candidate" />
           </div>
           {/* Approved */}
-          <div className="bv-glass bv-panel" style={{ borderRadius: 16 }}>
+          <div className="bv-glass bv-panel bv-rim" style={{ borderRadius: 16 }}>
             <div className="bv-panel-head">
               <h4 className="bv-micro" style={{ display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
                 <span className="bv-dot bv-completed" />
@@ -573,7 +577,7 @@ export default function CompanyDetailPage() {
             <div className="bv-caption" style={{ textAlign: "center", padding: "24px 0", color: "var(--color-outline)" }}>No approved memory yet</div>
           </div>
           {/* Deprecated */}
-          <div className="bv-glass bv-panel" style={{ borderRadius: 16 }}>
+          <div className="bv-glass bv-panel bv-rim" style={{ borderRadius: 16 }}>
             <div className="bv-panel-head">
               <h4 className="bv-micro" style={{ display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
                 <span className="bv-dot bv-cancelled" />
@@ -588,7 +592,7 @@ export default function CompanyDetailPage() {
       {/* ── Export tab (reusing "overview" key for the 6th tab slot) ── */}
       {tab === "overview" && (
         <div style={{ maxWidth: 620 }}>
-          <div className="bv-glass bv-panel" style={{ borderRadius: 16, padding: 28 }}>
+          <div className="bv-glass bv-panel bv-rim" style={{ borderRadius: 16, padding: 28 }}>
             <div className="bv-panel-head" style={{ marginBottom: 8 }}>
               <div>
                 <h3 className="bv-headline" style={{ textTransform: "uppercase", margin: 0 }}>Encrypted offline bundle</h3>
@@ -637,7 +641,7 @@ export default function CompanyDetailPage() {
           }}
         >
           <div
-            className="bv-glass bv-rise"
+            className="bv-glass bv-rim bv-rise"
             style={{
               maxWidth: 600, width: "100%", maxHeight: "90vh", overflow: "auto",
               padding: 24, borderRadius: 20, borderColor: "rgba(59,130,246,0.3)",
@@ -771,7 +775,7 @@ function StatBox({ label, value, icon }: { label: string; value: string | number
     date:     "calendar_today",
   };
   return (
-    <div className="bv-glass bv-metric" style={{ borderRadius: 16, position: "relative" }}>
+    <div className="bv-glass bv-metric bv-rim" style={{ borderRadius: 16, position: "relative" }}>
       <div className="bv-metric-accent" style={{ background: "var(--bv-gradient-brand)" }} />
       <div className="bv-metric-head">
         <div className="bv-metric-icon">
@@ -852,7 +856,7 @@ function DealsKanban({ companyId, token }: { companyId: string; token: string })
         {dealsByStage.map((stage) => (
           <div
             key={stage.key}
-            className="bv-glass"
+            className="bv-glass bv-rim"
             style={{ padding: 12, minHeight: 180, borderRadius: 12 }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>

@@ -7,6 +7,7 @@ import { api } from "../../../lib/api";
 import { useAuthGuard } from "../../../lib/useAuthGuard";
 import StarterPicker from "../../../components/StarterPicker";
 import { useTranslations } from "next-intl";
+import styles from "../companies.module.css";
 
 type WizardStep = "describe" | "clarify" | "preview" | "creating" | "done";
 
@@ -477,7 +478,7 @@ function CompanyBuilderWizardInner() {
   const currentStepIndex = stepKeys.indexOf(step as any);
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-10 animate-fade-in">
+    <div className={`max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-10 bv-dash animate-fade-in ${styles.companiesShell}`}>
 
       {/* Page head — matches mock .page-head / .eyebrow pattern */}
       <div className="mb-8">
@@ -701,7 +702,7 @@ function CompanyBuilderWizardInner() {
 
           {/* Prompt box — matches mock .promptbox inside .steel-card */}
           <div
-            className="bv-glass"
+            className="bv-glass bv-rim"
             style={{ padding: 0, overflow: "hidden" }}
           >
             {/* Textarea area */}
@@ -774,7 +775,7 @@ function CompanyBuilderWizardInner() {
 
       {/* ── Step 2: Clarification Chat ── */}
       {step === "clarify" && session && (
-        <div className="bv-glass" style={{ overflow: "hidden", maxHeight: "65vh", display: "flex", flexDirection: "column" }}>
+        <div className="bv-glass bv-rim" style={{ overflow: "hidden", maxHeight: "65vh", display: "flex", flexDirection: "column" }}>
 
           {/* Chat header */}
           <div
@@ -894,10 +895,12 @@ function CompanyBuilderWizardInner() {
 
       {/* ── Step 3: Preview ── */}
       {step === "preview" && session?.companySpec && (
-        <div className="bv-glass bv-rise" style={{ padding: "24px 28px" }}>
+        <div className="bv-glass bv-rim bv-rise" style={{ padding: "24px 28px" }}>
           <div className="bv-panel-head mb-5">
             <div>
-              <p className="bv-micro mb-1" style={{ color: "var(--color-outline)" }}>Workspace spec</p>
+              {/* eyebrow — mono "> " kicker (companies.module.css .kicker), same
+                  "Workspace spec" label as before — no new i18n */}
+              <p className={styles.kicker}>Workspace spec</p>
               <h2 className="bv-headline" style={{ color: "var(--color-on-surface)" }}>
                 {t("app.companyNew.previewTitle")}
               </h2>
@@ -1025,7 +1028,7 @@ function CompanyBuilderWizardInner() {
 
       {/* ── Step 4: Creating (forge constellation) ── */}
       {step === "creating" && (
-        <div className="bv-glass bv-rise" style={{ padding: "48px 32px", textAlign: "center" }}>
+        <div className="bv-glass bv-rim bv-rise" style={{ padding: "48px 32px", textAlign: "center" }}>
           {/* Title */}
           <h2
             className="bv-headline mb-2"
@@ -1119,7 +1122,7 @@ function CompanyBuilderWizardInner() {
 
       {/* ── Step 5: Done ── */}
       {step === "done" && session && (
-        <div className="bv-glass bv-rise" style={{ padding: "48px 32px", textAlign: "center" }}>
+        <div className="bv-glass bv-rim bv-rise" style={{ padding: "48px 32px", textAlign: "center" }}>
           {/* Success icon */}
           <div
             className="flex items-center justify-center mx-auto mb-5"

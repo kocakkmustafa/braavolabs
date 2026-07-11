@@ -62,6 +62,12 @@
 /* ── reduced motion: scoped kill-switch, mirrors dashboard.module.css.
    Only targets bv-* classes this route actually renders. ── */
 @media (prefers-reduced-motion: reduce) {
+  /* /companies/[id]/export carries bv-mesh (mesh-drift) directly on the
+     same element as .companiesShell — kill it here too, same precedent
+     as runs.module.css's .runsShell rule for bv-dash-shell. */
+  .companiesShell {
+    animation: none !important;
+  }
   .companiesShell::before {
     display: none;
   }

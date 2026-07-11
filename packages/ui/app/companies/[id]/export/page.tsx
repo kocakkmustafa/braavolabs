@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { api } from "@/lib/api";
 import { useAuthGuard } from "@/lib/useAuthGuard";
+import styles from "../../companies.module.css";
 
 export default function ExportPage() {
   const { id } = useParams<{ id: string }>();
@@ -51,13 +52,15 @@ export default function ExportPage() {
   if (!token) return null;
 
   return (
-    <div className="bv-mesh min-h-screen">
+    <div className={`bv-mesh min-h-screen ${styles.companiesShell}`}>
       <div className="max-w-[1020px] mx-auto px-6 py-8 bv-rise">
 
         {/* Page head */}
         <div className="bv-page-head mb-7">
           <div>
-            <p className="bv-micro mb-1 text-on-surface-variant">
+            {/* eyebrow — mono "> " kicker (companies.module.css .kicker), reuses
+                the existing exportBundle.title copy — no new i18n */}
+            <p className={styles.kicker}>
               {t("app.exportBundle.title")}
             </p>
             <h1 className="bv-headline text-on-surface">
@@ -93,7 +96,7 @@ export default function ExportPage() {
 
             {/* Loading state */}
             {loading && (
-              <div className="bv-glass bv-panel items-center justify-center py-12">
+              <div className="bv-glass bv-panel bv-rim items-center justify-center py-12">
                 <span
                   className="material-symbols-outlined text-primary mb-3"
                   style={{ fontSize: 36, animation: "spin-slow 1s linear infinite" }}
@@ -108,7 +111,7 @@ export default function ExportPage() {
               <div className="bv-stagger flex flex-col gap-4">
 
                 {/* CLAUDE.md */}
-                <div className="bv-glass overflow-hidden">
+                <div className="bv-glass bv-rim overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant">
                     <div className="flex items-center gap-2">
                       <span className="material-symbols-outlined text-primary" style={{ fontSize: 18 }}>
@@ -146,7 +149,7 @@ export default function ExportPage() {
                 </div>
 
                 {/* Skills */}
-                <div className="bv-glass bv-panel">
+                <div className="bv-glass bv-panel bv-rim">
                   <div className="bv-panel-head">
                     <div className="flex items-center gap-2">
                       <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--color-secondary)" }}>
@@ -195,7 +198,7 @@ export default function ExportPage() {
                 </div>
 
                 {/* Hooks */}
-                <div className="bv-glass bv-panel">
+                <div className="bv-glass bv-panel bv-rim">
                   <div className="bv-panel-head">
                     <div className="flex items-center gap-2">
                       <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--bv-status-running)" }}>
@@ -238,7 +241,7 @@ export default function ExportPage() {
 
           {/* ── Right: sticky bundle summary ── */}
           <div className="bv-twocol-side">
-            <div className="bv-glass bv-panel sticky top-20">
+            <div className="bv-glass bv-panel bv-rim sticky top-20">
               <div className="bv-panel-head">
                 <p className="bv-micro">Bundle summary</p>
               </div>

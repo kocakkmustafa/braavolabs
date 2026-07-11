@@ -22,6 +22,7 @@ import { useAuthGuard } from "../../../lib/useAuthGuard";
 import { timeAgo } from "../../../lib/timeAgo";
 import { useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
+import styles from "../pipelines.module.css";
 
 // React Flow measures the DOM, so load the canvas client-only — never during
 // SSR/prerender. Light shimmer while the chunk loads.
@@ -339,7 +340,7 @@ export default function PipelineDetailPage() {
     /* Full-viewport FORGE builder shell — 4-col grid (rail | palette | canvas | inspector)
        collapses to 3-col at 1200 px (palette hides) and 1-col at 900 px (inspector hides). */
     <div
-      className="bv-dash"
+      className={`bv-dash ${styles.pipelinesShell}`}
       style={{
         display: "grid",
         gridTemplateColumns: "minmax(0,1fr)",
@@ -700,7 +701,7 @@ export default function PipelineDetailPage() {
             ) : editingSteps ? (
               /* ── Step editor (list view, inline) ── */
               <div
-                className="bv-glass bv-panel bv-rise"
+                className="bv-glass bv-panel bv-rim bv-rise"
                 style={{ marginTop: 20 }}
               >
                 <header className="bv-panel-head">
@@ -846,7 +847,7 @@ export default function PipelineDetailPage() {
             ) : isHierarchical ? (
               /* ── Hierarchical note ── */
               <div
-                className="bv-glass bv-panel bv-rise"
+                className="bv-glass bv-panel bv-rim bv-rise"
                 style={{ marginTop: 20 }}
               >
                 <header className="bv-panel-head">
@@ -895,7 +896,7 @@ export default function PipelineDetailPage() {
 
                 {stages.length === 0 ? (
                   <div
-                    className="bv-glass bv-panel"
+                    className="bv-glass bv-panel bv-rim"
                     style={{ textAlign: "center", color: "var(--color-outline)", fontSize: 13 }}
                   >
                     {t("app.pipelineDetail.noSteps")}
@@ -1089,7 +1090,9 @@ export default function PipelineDetailPage() {
               {/* Header metadata */}
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span className="bv-micro">{t("app.pipelineDetail.pipelineLabel")}</span>
+                  {/* eyebrow — mono "> " kicker (pipelines.module.css .kicker),
+                      reuses the existing pipelineLabel copy — no new i18n */}
+                  <span className={styles.kicker}>{t("app.pipelineDetail.pipelineLabel")}</span>
                   <h1
                     className="bv-grad-text"
                     style={{
@@ -1403,7 +1406,7 @@ function RevisionHistoryModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bv-glass bv-rise"
+        className="bv-glass bv-rim bv-rise"
         style={{ width: "100%", maxWidth: 520, maxHeight: "80vh", overflow: "hidden", borderRadius: 18, display: "flex", flexDirection: "column" }}
       >
         {/* Header */}

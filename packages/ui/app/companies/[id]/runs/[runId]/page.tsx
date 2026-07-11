@@ -6,6 +6,7 @@ import { api, apiFetch } from "../../../../../lib/api";
 import { streamRun } from "../../../../../lib/runStream";
 import { useAppStore } from "../../../../../lib/store";
 import { useTranslations } from "next-intl";
+import styles from "../../../companies.module.css";
 
 interface RunStep {
   id: string;
@@ -227,12 +228,13 @@ export default function RunDetailPage() {
   const statusPillCls = STATUS_PILL[run.status] ?? "bv-pill bv-pill-muted";
 
   return (
-    <div className="bv-dash animate-fade-in" style={{ paddingBottom: isLive ? 110 : 0 }}>
+    <div className={`bv-dash animate-fade-in ${styles.companiesShell}`} style={{ paddingBottom: isLive ? 110 : 0 }}>
       {/* ── Page head ───────────────────────────────────────── */}
       <div className="bv-page-head mb-6">
         <div>
-          {/* eyebrow */}
-          <p className="bv-micro mb-1" style={{ color: "var(--bv-text-faint)" }}>
+          {/* eyebrow — mono "> " kicker (companies.module.css .kicker), same
+              company/pipeline breadcrumb text as before — no new i18n */}
+          <p className={styles.kicker}>
             {run.pipeline.company.name}
             <span className="bv-divider-dot" />
             {run.pipeline.name}
@@ -357,7 +359,7 @@ export default function RunDetailPage() {
           {/* ask_user — pending input card (arc glow) */}
           {pendingInput.length > 0 && (
             <div
-              className="bv-glass rounded-2xl p-5"
+              className="bv-glass bv-rim rounded-2xl p-5"
               style={{
                 border: "1px solid rgba(96,165,250,0.4)",
                 background: "linear-gradient(135deg,rgba(59,130,246,0.09),transparent)",
@@ -444,7 +446,7 @@ export default function RunDetailPage() {
                   {/* Card column */}
                   <div style={{ paddingBottom: isLast ? 0 : 18 }}>
                     <div
-                      className="bv-glass rounded-2xl overflow-hidden"
+                      className="bv-glass bv-rim rounded-2xl overflow-hidden"
                       style={{
                         border: isRunning
                           ? "1px solid rgba(255,122,26,0.35)"
@@ -463,7 +465,7 @@ export default function RunDetailPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap mb-1">
                             <span
-                              className="font-mono text-xs tracking-widest"
+                              className="bv-mono text-xs tracking-widest"
                               style={{ color: "var(--bv-cobalt-glow)", letterSpacing: "0.06em" }}
                             >
                               {step.name}
@@ -473,7 +475,7 @@ export default function RunDetailPage() {
                             )}
                             <span className={pillCls}>{step.status}</span>
                             <span
-                              className="font-mono text-xs ml-auto"
+                              className="bv-mono text-xs ml-auto"
                               style={{ color: "var(--color-on-surface-variant)" }}
                             >
                               ${Number(step.costUsd ?? 0).toFixed(4)}
@@ -657,7 +659,7 @@ export default function RunDetailPage() {
 
         {/* ── RIGHT rail: run meta + cost gauge + actions ────── */}
         <div className="bv-twocol-side" style={{ position: "sticky", top: 84 }}>
-          <div className="bv-glass bv-panel rounded-2xl">
+          <div className="bv-glass bv-panel bv-rim rounded-2xl">
             <h3 className="bv-micro" style={{ color: "var(--bv-text-faint)", marginBottom: 14 }}>Run meta</h3>
 
             {/* Meta rows */}
