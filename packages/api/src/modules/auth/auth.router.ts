@@ -9,6 +9,7 @@ import crypto from "crypto";
 import { z } from "zod";
 import { register, login, getGoogleAuthUrl, googleCallback, getGitHubAuthUrl, githubCallback, requestPasswordReset, resetPassword, refreshTokens, revokeAllRefreshTokens, stashOAuthExchange, redeemOAuthExchange, appleMobileSignIn, googleMobileSignIn, githubMobileSignIn, verifyEmail, resendVerifyEmail, getAppleWebAuthUrl, appleWebCallback } from "./auth.service";
 import { authMiddleware } from "../../middleware/auth";
+import { setAuthCookies, clearAuthCookies, getCookieRefreshToken, csrfOkForCookieAuth } from "../../lib/authCookies";
 import { validate } from "../../middleware/validate";
 import { rateLimit } from "../../middleware/rateLimit";
 import { redis } from "../../lib/redis";
@@ -159,6 +160,10 @@ export const loginSchema = z.object({
 authRouter.post("/register", registerRateLimit, validate(registerSchema), async (req, res, next) => {
   try {
     const result = await register(req.body);
+    // Dual-mode: also mint httpOnly auth cookies (no-op unless the flag is
+    // on). Response body is unchanged, so existing/mobile clients that read
+    // the JSON token bundle keep working.
+    setAuthCookies(res, result);
     res.status(201).json(result);
   } catch (err) { next(err); }
 });
@@ -170,6 +175,8 @@ authRouter.post("/login", loginRateLimit, validate(loginSchema), async (req, res
     // an attacker bombarding /login with bad passwords can only lock out
     // their own (email,ip) pair, not arbitrary users.
     const result = await login(req.body, req.ip);
+    // Dual-mode cookies — no-op unless AUTH_COOKIE_MODE is on; body unchanged.
+    setAuthCookies(res, result);
     res.json(result);
   } catch (err) { next(err); }
 });
@@ -206,8 +213,33 @@ const refreshRateLimit = rateLimit({
 // POST /api/v1/auth/refresh — exchange refresh token for new access + refresh tokens
 authRouter.post("/refresh", refreshRateLimit, async (req, res, next) => {
   try {
-    const { refreshToken } = z.object({ refreshToken: z.string().min(1) }).parse(req.body);
+    // Body token keeps PRIORITY (current clients POST { refreshToken }).
+    // Only when the body omits it do we fall back to the httpOnly refresh
+    // cookie — and since that cookie is browser-auto-attached, a cookie-
+    // sourced refresh is a state-changing request that must clear the CSRF
+    // gate. getCookieRefreshToken returns null when the flag is off, so the
+    // strict-parse path below is byte-for-byte the previous behavior.
+    const bodyToken =
+      typeof req.body?.refreshToken === "string" ? req.body.refreshToken : undefined;
+    let refreshToken = bodyToken;
+    if (!refreshToken) {
+      const cookieToken = getCookieRefreshToken(req);
+      if (cookieToken) {
+        if (!csrfOkForCookieAuth(req)) {
+          res.status(403).json({ error: "Missing CSRF header for cookie-based auth" });
+          return;
+        }
+        refreshToken = cookieToken;
+      }
+    }
+    if (!refreshToken) {
+      // Unchanged contract when there is neither a body token nor a cookie:
+      // strict zod validation → ZodError → 400 (kept identical for tests).
+      refreshToken = z.object({ refreshToken: z.string().min(1) }).parse(req.body).refreshToken;
+    }
     const result = await refreshTokens(refreshToken);
+    // Rotate the cookies too (no-op unless the flag is on).
+    setAuthCookies(res, result);
     res.json(result);
   } catch (err) { next(err); }
 });
@@ -216,6 +248,8 @@ authRouter.post("/refresh", refreshRateLimit, async (req, res, next) => {
 authRouter.post("/logout", authMiddleware, async (req, res, next) => {
   try {
     await revokeAllRefreshTokens(req.auth!.userId);
+    // Evict auth cookies (runs unconditionally — safe during a flag rollback).
+    clearAuthCookies(res);
     res.json({ message: "Logged out successfully." });
   } catch (err) { next(err); }
 });
