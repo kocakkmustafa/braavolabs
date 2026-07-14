@@ -42,12 +42,15 @@ import { prisma } from "../lib/db";
 import { logger } from "../lib/logger";
 import { env } from "../config/env";
 import { decryptForTenant } from "../lib/encryption";
-import { tryConsumeTrialRun } from "./trial-llm";
+import { tryConsumeTrialRun, commitTrialRun } from "./trial-llm";
 import {
   LOCAL_PROVIDERS,
   ToolsUnsupportedError,
+  chatCompletion,
   type AIClientConfig,
   type AIProviderType,
+  type ChatMessage,
+  type ChatCompletionResult,
 } from "./ai-client";
 
 // ─── Error classification ─────────────────────────────────
@@ -436,4 +439,77 @@ export async function buildTenantProviderChain(tenantId: string): Promise<Provid
   }
 
   return chain;
+}
+
+// ─── D-013: honest single-completion resolution ───────────
+//
+// buildTenantProviderChain (above) is what the MAIN pipeline/run agent loop
+// dials through (claude.ts runAgentLoop) — it enforces the D-009 privacy
+// rule: BYOK default → tenant fallbackOrder links → counted trial Groq
+// (FREE) → opt-in/PAID system Anthropic → (nothing ⇒ honest error).
+//
+// Several one-shot completion call sites (agent composer, run/:id/explain,
+// the NL company builder) NEVER went through the chain: they called
+// ai-client's getTenantAIConfig() directly, which — by design for its OTHER
+// callers (pipeline cost-estimate, Settings "test connection") — falls
+// through to the system Anthropic key the instant the tenant has no usable
+// BYOK row, with NO regard for plan tier, the allowSystemFallback opt-in,
+// OR the counted trial pool. That is fine for a cost estimate or a
+// connectivity ping (nothing is spent), but for the composer/explain/
+// builder call sites it silently spent the shared system Anthropic credit
+// for tenants who should have been metered through the trial pool or told
+// to configure a provider (D-013 — the single-completion sibling of D-009).
+//
+// resolveTenantCompletionLink closes that gap by resolving the HEAD of the
+// very same buildTenantProviderChain the run loop uses — so the two can
+// never drift. The head is exactly the D-009 policy's first choice (BYOK →
+// counted trial → opt-in/PAID system); an empty chain becomes the honest
+// "No AI provider configured" error instead of a silent system completion.
+// When the head is the trial link, the caller commits the run-based counter
+// after the completion succeeds (commitTrialCompletion) — same consume-on-
+// serve/refund-on-failure contract runAgentLoop honors.
+
+/**
+ * D-013 honest resolver for single-completion surfaces (composer,
+ * run/:id/explain, NL company builder). Returns the FIRST link of the
+ * tenant's D-009 provider chain — BYOK default → counted trial (FREE) →
+ * opt-in/PAID system Anthropic — or throws the historical "No AI provider
+ * configured" error when NOTHING may serve (BYOK-less FREE with a spent
+ * trial, an unusable-key tenant that never opted into system fallback,
+ * etc.). Single source of truth with runAgentLoop: it dials this exact
+ * chain, so a keyless tenant can never silently reach the system wallet
+ * here while being blocked there.
+ *
+ * When the returned link's `source === "trial"`, the caller MUST call
+ * commitTrialCompletion(tenantId, source) AFTER the completion SUCCEEDS
+ * (and must NOT on failure — a thrown chatCompletion refunds the slot).
+ */
+export async function resolveTenantCompletionLink(tenantId: string): Promise<ProviderChainLink> {
+  const [head] = await buildTenantProviderChain(tenantId);
+  if (!head) {
+    throw new Error("No AI provider configured. Please add an API key in Settings → AI Provider.");
+  }
+  return head;
+}
+
+/**
+ * Commit the run-based trial counter for a single completion that was served
+ * by the trial link — the same contract runAgentLoop applies: consume on
+ * serve, and because a failed completion throws before reaching this call,
+ * the slot is refunded on failure. No-op for every other source. Counter
+ * misses are non-fatal (trial-llm already documents ±1 tolerance).
+ */
+export async function commitTrialCompletion(
+  tenantId: string,
+  source: ProviderChainSource,
+): Promise<void> {
+  if (source !== "trial") return;
+  try {
+    await commitTrialRun(tenantId);
+  } catch (err) {
+    logger.warn(
+      { tenantId, err: (err as Error).message },
+      "commitTrialRun failed after a trial-served single completion (non-fatal)",
+    );
+  }
 }
