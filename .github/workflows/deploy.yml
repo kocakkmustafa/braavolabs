@@ -191,6 +191,21 @@ jobs:
             set -e
             cd /opt/braavolabs/app/ENV
 
+            # ── ROLLBACK RECORD ────────────────────────────────────────────
+            # Capture the image ref + local image id of the CURRENTLY running
+            # containers BEFORE we pull/replace them. If the health gate
+            # (next step) fails, this is the anchor to revert to: map the
+            # image id / RepoDigest below back to its immutable sha-XXXXXXXX
+            # ghcr tag and pin IMAGE_TAG to it in .env.
+            echo "=== ROLLBACK RECORD — currently running images (revert target) ==="
+            for c in aicos-api aicos-ui; do
+              img=$(sudo docker inspect --format "{{.Config.Image}}" "$c" 2>/dev/null || echo "none")
+              id=$(sudo docker inspect --format "{{.Image}}" "$c" 2>/dev/null || echo "none")
+              digest=$(sudo docker inspect --format "{{range .RepoDigests}}{{.}} {{end}}" "$c" 2>/dev/null || echo "")
+              echo "  $c: image=$img id=$id digest=$digest"
+            done
+            echo "=================================================================="
+
             # Log in to ghcr.io on the host so it can pull private images.
             # The packages are public for now (set in repo Packages
             # settings), so this is a no-op — but kept for future
@@ -212,6 +227,82 @@ jobs:
             echo "=== Container status ==="
             sudo docker compose --env-file=/opt/braavolabs/app/.env -f compose.prod.yaml ps --format "{{.Name}}|{{.State}}|{{.Status}}"
           '
+
+      - name: Health gate (post-restart)
+        # Runs immediately after the container restart. Probes the API +
+        # frontend from OUTSIDE (the real user path) with a ~90s retry
+        # budget. On failure it dumps the last 60 api log lines and prints an
+        # explicit ROLLBACK instruction, then fails the job.
+        #
+        # It does NOT auto-rollback — by design. Automatically reverting a
+        # deploy that may be mid-migration is riskier than a red pipeline
+        # plus a recorded previous tag; a human (or the deploy loop) makes
+        # the revert call using the ROLLBACK RECORD printed in the previous
+        # step. This gate catches the I-001 class (new image boots but the
+        # container is unhealthy / crash-looping) before the pipeline
+        # reports success.
+        #
+        # API host: primary is api.braavolabs.com (nginx serves it directly
+        # → :8080, see ENV/nginx/braavolabs.conf). We also accept the apex
+        # path braavolabs.com/api/v1/health so a not-yet-provisioned api
+        # subdomain (DNS/cert) cannot false-fail an otherwise healthy deploy.
+        run: |
+          set -uo pipefail
+
+          API_PRIMARY="https://api.braavolabs.com/api/v1/health"
+          API_FALLBACK="https://braavolabs.com/api/v1/health"
+          FRONTEND="https://braavolabs.com"
+
+          echo "=== Health gate — ~90s budget (18 × 5s) ==="
+          api_ok=0
+          front_ok=0
+          for i in $(seq 1 18); do
+            if [ "$api_ok" != "1" ]; then
+              if curl -fsS --max-time 8 "$API_PRIMARY" 2>/dev/null | grep -q '"status":"ok"'; then
+                echo "✅ API health ok via $API_PRIMARY (attempt $i)"
+                api_ok=1
+              elif curl -fsS --max-time 8 "$API_FALLBACK" 2>/dev/null | grep -q '"status":"ok"'; then
+                echo "✅ API health ok via $API_FALLBACK (attempt $i)"
+                api_ok=1
+              fi
+            fi
+            if [ "$front_ok" != "1" ]; then
+              code=$(curl -sS --max-time 8 -o /dev/null -w "%{http_code}" "$FRONTEND" 2>/dev/null || echo "000")
+              if [ "$code" = "200" ]; then
+                echo "✅ Frontend ok ($FRONTEND → 200, attempt $i)"
+                front_ok=1
+              fi
+            fi
+            if [ "$api_ok" = "1" ] && [ "$front_ok" = "1" ]; then
+              echo "✅ Health gate PASSED"
+              exit 0
+            fi
+            echo "  attempt $i — api_ok=$api_ok front_ok=$front_ok — waiting 5s..."
+            sleep 5
+          done
+
+          echo ""
+          echo "❌❌❌ HEALTH GATE FAILED (api_ok=$api_ok front_ok=$front_ok) ❌❌❌"
+          echo "=== aicos-api logs (last 60 lines) for diagnosis ==="
+          ssh -i ~/.ssh/lightsail_key -o StrictHostKeyChecking=no \
+              "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" \
+              'sudo docker logs aicos-api --tail 60 2>&1 || echo "(could not read aicos-api logs)"'
+          echo ""
+          echo "================================================================"
+          echo " ROLLBACK GEREKLİ — önceki sha-tag'e dön / ROLLBACK REQUIRED"
+          echo "----------------------------------------------------------------"
+          echo " The just-deployed image is NOT serving healthy traffic."
+          echo " This job did NOT auto-rollback (intentional). To revert:"
+          echo "   1. Read the 'ROLLBACK RECORD' block in the 'Pull new images"
+          echo "      & restart containers' step log above and find the"
+          echo "      previous good sha-XXXXXXXX ghcr tag for the image id."
+          echo "   2. On the Lightsail host:"
+          echo "        cd /opt/braavolabs/app/ENV"
+          echo "        # edit /opt/braavolabs/app/.env → IMAGE_TAG=sha-XXXXXXXX"
+          echo "        sudo docker compose --env-file=/opt/braavolabs/app/.env -f compose.prod.yaml pull api ui"
+          echo "        sudo docker compose --env-file=/opt/braavolabs/app/.env -f compose.prod.yaml up -d api ui"
+          echo "================================================================"
+          exit 1
 
       - name: Apply Prisma migrations
         # Run prisma migrate deploy against the new schema. Idempotent —

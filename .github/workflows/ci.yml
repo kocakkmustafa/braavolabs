@@ -131,6 +131,123 @@ jobs:
           sleep 2
           docker stop test-api || true
 
+  boot-smoke:
+    name: Boot Smoke
+    runs-on: ubuntu-latest
+    needs: build
+    # Runs on PRs too (unlike "Docker Build", which is gated to main). That
+    # is the whole point: I-001 (2026-07-14) shipped a pnpm-override that
+    # crashed the api container at BOOT — an import-time failure vitest can
+    # never see because it does not load the OpenTelemetry instrumentation
+    # entry (packages/api/src/lib/otel-imports → telemetry.ts, imported at
+    # the very top of index.ts before app.listen). CI was green; prod 502'd
+    # for ~8 minutes. This job builds the real api image and starts the real
+    # `node dist/index.js` entrypoint, so any import-time crash turns the PR
+    # red instead of reaching prod.
+    #
+    # /api/v1/health does `SELECT 1` + `redis.ping()` and only returns
+    # status:"ok" (HTTP 200) when BOTH are reachable — so we run real
+    # postgres + redis service containers (env values based on the `test`
+    # job above). No migrations are needed: the health probe is
+    # schema-independent, and boot-time seeds (seedBenchSuites etc.) are
+    # catch-wrapped, so the server binds and serves 200 without them.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build ONLY the api image, loaded into the local docker daemon.
+      # Shares the GitHub Actions layer cache with deploy.yml's api build
+      # (scope=api) so re-builds are ~90s once warm.
+      - name: Build api image (cached)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ENV/Dockerfile.api
+          load: true
+          tags: aicos-api:boot-smoke
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Boot api container + wait for /api/v1/health (from inside)
+        run: |
+          set -uo pipefail
+
+          # --network host so the container reaches the postgres/redis
+          # service containers (published on the runner's localhost) and so
+          # the in-container probe at 127.0.0.1:8080 hits the API listener.
+          # NODE_ENV=production reproduces the exact prod boot path (the
+          # production-only env.ts safety checks, prod CORS branch, etc.).
+          # Secrets/URLs are dummy but valid-shaped: APP_URL must be https,
+          # JWT_SECRET/ENCRYPTION_KEY are the >=32-char CI test values (they
+          # contain no placeholder tokens, so env.ts prod checks pass).
+          docker run -d --name boot-smoke-api --network host \
+            -e NODE_ENV=production \
+            -e API_HOST=0.0.0.0 \
+            -e API_PORT=8080 \
+            -e APP_URL=https://braavolabs.com \
+            -e DATABASE_URL="postgresql://test:test@localhost:5432/test?schema=public" \
+            -e REDIS_URL="redis://localhost:6379" \
+            -e JWT_SECRET="ci-test-jwt-secret-must-be-at-least-32-characters-long-xx" \
+            -e ENCRYPTION_KEY="ci-test-encryption-key-32-chars-minimum-aabbccddeeff00" \
+            aicos-api:boot-smoke
+
+          echo "=== Waiting up to 60s for /api/v1/health → 200 from INSIDE the container ==="
+          ok=0
+          for i in $(seq 1 30); do
+            # Probe with the image's own busybox wget from inside the
+            # container — proves the container itself serves, not the host.
+            if docker exec boot-smoke-api wget -q -O- http://127.0.0.1:8080/api/v1/health 2>/dev/null | grep -q '"status":"ok"'; then
+              echo "✅ /api/v1/health → ok (attempt $i)"
+              ok=1
+              break
+            fi
+            # Fail fast if the container already died — that IS the I-001
+            # import-time crash signature.
+            if [ "$(docker inspect -f '{{.State.Running}}' boot-smoke-api 2>/dev/null)" != "true" ]; then
+              echo "❌ Container exited before becoming healthy (import-time boot crash)"
+              break
+            fi
+            echo "  attempt $i — not ready, waiting 2s..."
+            sleep 2
+          done
+
+          if [ "$ok" != "1" ]; then
+            echo "❌ BOOT SMOKE FAILED — container logs:"
+            echo "────────────────────────────────────────────────────────────"
+            docker logs boot-smoke-api 2>&1 || true
+            echo "────────────────────────────────────────────────────────────"
+            docker rm -f boot-smoke-api >/dev/null 2>&1 || true
+            exit 1
+          fi
+
+          echo "Boot smoke passed — container booted and served /api/v1/health."
+          docker rm -f boot-smoke-api >/dev/null 2>&1 || true
+
   db-migration-check:
     name: DB Migration Check
     runs-on: ubuntu-latest
