@@ -28,7 +28,9 @@ const db = vi.hoisted(() => ({
 }));
 vi.mock("../../lib/db", () => ({
   prisma: {
-    userAIConfig: { findMany: (...a: unknown[]) => db.aiConfigFindMany(...a) },
+    userAIConfig: {
+      findMany: (...a: unknown[]) => db.aiConfigFindMany(...a),
+    },
     tenant: { findUnique: (...a: unknown[]) => db.tenantFindUnique(...a) },
   },
 }));
@@ -40,9 +42,10 @@ vi.mock("../../lib/encryption", () => ({
 }));
 
 const tryConsumeTrialRunMock = vi.hoisted(() => vi.fn());
+const commitTrialRunMock = vi.hoisted(() => vi.fn());
 vi.mock("../trial-llm", () => ({
   tryConsumeTrialRun: (...a: unknown[]) => tryConsumeTrialRunMock(...a),
-  commitTrialRun: vi.fn(),
+  commitTrialRun: (...a: unknown[]) => commitTrialRunMock(...a),
 }));
 
 import {
@@ -54,6 +57,11 @@ import {
   resetProviderCircuits,
   buildTenantProviderChain,
   listTenantProviderLinks,
+  resolveTenantCompletionLink,
+  commitTrialCompletion,
+  extractProviderErrorStatus,
+  ProviderExhaustedError,
+  isHandoffTriggerEligible,
 } from "../provider-chain";
 import { ToolsUnsupportedError } from "../ai-client";
 
@@ -72,20 +80,19 @@ interface RowSpec {
 }
 
 function seedRows(rows: RowSpec[], plan = "FREE"): void {
-  db.aiConfigFindMany.mockResolvedValue(
-    rows.map((r, i) => ({
-      id: `row-${i}`,
-      tenantId: TENANT,
-      provider: r.provider,
-      model: r.model,
-      encryptedApiKey: r.key == null ? null : `enc:${i}`,
-      baseUrl: r.baseUrl ?? null,
-      isDefault: r.isDefault ?? false,
-      fallbackOrder: r.fallbackOrder ?? null,
-      allowSystemFallback: r.allowSystemFallback ?? false,
-      createdAt: new Date(2026, 0, r.createdAtDay ?? i + 1),
-    })),
-  );
+  const mapped = rows.map((r, i) => ({
+    id: `row-${i}`,
+    tenantId: TENANT,
+    provider: r.provider,
+    model: r.model,
+    encryptedApiKey: r.key == null ? null : `enc:${i}`,
+    baseUrl: r.baseUrl ?? null,
+    isDefault: r.isDefault ?? false,
+    fallbackOrder: r.fallbackOrder ?? null,
+    allowSystemFallback: r.allowSystemFallback ?? false,
+    createdAt: new Date(2026, 0, r.createdAtDay ?? i + 1),
+  }));
+  db.aiConfigFindMany.mockResolvedValue(mapped);
   db.tenantFindUnique.mockResolvedValue({ plan });
   decryptMock.mockImplementation((blob: string) => {
     const idx = Number(blob.split(":")[1]);
@@ -161,6 +168,90 @@ describe("classifyProviderError — TRANSIENT / FAILOVER / FATAL", () => {
     expect(isFailoverEligible("TRANSIENT")).toBe(true);
     expect(isFailoverEligible("FAILOVER")).toBe(true);
     expect(isFailoverEligible("FATAL")).toBe(false);
+  });
+});
+
+// ─── B3 handoff-trigger guard (only exercised indirectly today via
+// pipeline/__tests__/executor-handoff-trigger.test.ts, which asserts the
+// executor's behavior around a hand-built FAILOVER marker — it never
+// varies the TRANSIENT-with-status vs. TRANSIENT-without-status boundary
+// that isHandoffTriggerEligible itself encodes). ───
+
+describe("extractProviderErrorStatus", () => {
+  it("prefers a numeric .status over the message", () => {
+    const err = Object.assign(new Error("ANTHROPIC API error 500: internal"), { status: 401 });
+    expect(extractProviderErrorStatus(err)).toBe(401);
+  });
+
+  it("falls back to .statusCode when .status is absent", () => {
+    const err = Object.assign(new Error("boom"), { statusCode: 429 });
+    expect(extractProviderErrorStatus(err)).toBe(429);
+  });
+
+  it("parses the ai-client transports' own '<PROVIDER> API error NNN:' message format", () => {
+    expect(extractProviderErrorStatus(new Error("GROQ API error 503: overloaded"))).toBe(503);
+  });
+
+  it("returns undefined when no status can be recovered at all", () => {
+    expect(extractProviderErrorStatus(new Error("something odd happened"))).toBeUndefined();
+    expect(extractProviderErrorStatus("a plain string, not even an Error")).toBeUndefined();
+  });
+});
+
+describe("ProviderExhaustedError.wrap", () => {
+  it("captures the classification, extracted status, provider/model of the failed link, and mirrors the cause's message", () => {
+    const cause = new Error("OPENAI API error 402: insufficient_quota");
+    const wrapped = ProviderExhaustedError.wrap("FAILOVER", "OPENAI", "gpt-4o", cause);
+
+    expect(wrapped).toBeInstanceOf(ProviderExhaustedError);
+    expect(wrapped.name).toBe("ProviderExhaustedError");
+    expect(wrapped.classification).toBe("FAILOVER");
+    expect(wrapped.status).toBe(402);
+    expect(wrapped.provider).toBe("OPENAI");
+    expect(wrapped.model).toBe("gpt-4o");
+    expect(wrapped.original).toBe(cause);
+    // Message mirrors the cause — every existing `.toThrow(/…/)` consumer
+    // in the run/pipeline suites depends on this staying byte-identical.
+    expect(wrapped.message).toBe(cause.message);
+  });
+
+  it("a default-TRANSIENT classification with no recoverable status still wraps, but status is undefined", () => {
+    const wrapped = ProviderExhaustedError.wrap("TRANSIENT", "GROQ", "llama", new Error("something odd"));
+    expect(wrapped.status).toBeUndefined();
+  });
+});
+
+describe("isHandoffTriggerEligible — B3 trigger guard", () => {
+  it("FAILOVER (auth/quota/credit) is always trigger-eligible", () => {
+    const marker = ProviderExhaustedError.wrap("FAILOVER", "ANTHROPIC", "claude", new Error("401"));
+    expect(isHandoffTriggerEligible(marker)).toBe(true);
+  });
+
+  it("TRANSIENT with a REAL recovered HTTP status is trigger-eligible", () => {
+    const marker = ProviderExhaustedError.wrap(
+      "TRANSIENT",
+      "GROQ",
+      "llama",
+      new Error("GROQ API error 503: overloaded"),
+    );
+    expect(marker.status).toBe(503);
+    expect(isHandoffTriggerEligible(marker)).toBe(true);
+  });
+
+  it("TRANSIENT with NO recoverable status (default-guess classification) is NOT trigger-eligible", () => {
+    const marker = ProviderExhaustedError.wrap("TRANSIENT", "GROQ", "llama", new Error("something odd happened"));
+    expect(marker.status).toBeUndefined();
+    expect(isHandoffTriggerEligible(marker)).toBe(false);
+  });
+
+  it("FATAL is never trigger-eligible, even with a recovered status", () => {
+    const marker = ProviderExhaustedError.wrap("FATAL", "GROQ", "llama", new Error("GROQ API error 400: bad request"));
+    expect(isHandoffTriggerEligible(marker)).toBe(false);
+  });
+
+  it("a plain (unmarked) error is never trigger-eligible — only a ProviderExhaustedError marker qualifies", () => {
+    expect(isHandoffTriggerEligible(new Error("some other bug"))).toBe(false);
+    expect(isHandoffTriggerEligible(undefined)).toBe(false);
   });
 });
 
@@ -414,5 +505,118 @@ describe("listTenantProviderLinks — configured providers as compare candidates
     const links = await listTenantProviderLinks(TENANT);
 
     expect(links.map((l) => l.provider)).toEqual(["OLLAMA"]);
+  });
+});
+
+// ─── D-013: honest single-completion resolution ───────────
+//
+// composer / run/:id/explain / company-builder called getTenantAIConfig
+// directly and inherited its unconditional "no usable BYOK row → system
+// Anthropic key" fallthrough — no plan-tier, allowSystemFallback OR counted-
+// trial gate at all. resolveTenantCompletionLink closes that gap by returning
+// the HEAD of the very same buildTenantProviderChain the run loop dials, so
+// the single-completion surfaces obey the exact same D-009 policy (BYOK →
+// counted trial → opt-in/PAID system → honest error) and can never drift.
+// commitTrialCompletion mirrors runAgentLoop's consume-on-serve counter.
+
+describe("resolveTenantCompletionLink — chain head, D-009 policy for one-shots (D-013)", () => {
+  it("BYOK-keyed tenant → own default link (byok-default); no trial/system lookups", async () => {
+    seedRows([{ provider: "DEEPSEEK", model: "deepseek-chat", key: "sk-ds", isDefault: true }]);
+
+    const link = await resolveTenantCompletionLink(TENANT);
+
+    expect(link.source).toBe("byok-default");
+    expect(link.config).toMatchObject({ provider: "DEEPSEEK", model: "deepseek-chat", apiKey: "sk-ds" });
+    // No opt-in, has BYOK → the chain never consults the trial pool or the
+    // tenant plan row for a system fallback.
+    expect(tryConsumeTrialRunMock).not.toHaveBeenCalled();
+    expect(db.tenantFindUnique).not.toHaveBeenCalled();
+  });
+
+  it("keyless local BYOK row (Ollama) → usable as-is (byok-default), no trial/system lookups", async () => {
+    seedRows([{ provider: "OLLAMA", model: "gemma3:4b", key: null, isDefault: true, baseUrl: "http://localhost:11434/v1" }]);
+
+    const link = await resolveTenantCompletionLink(TENANT);
+
+    expect(link.source).toBe("byok-default");
+    expect(link.config).toMatchObject({ provider: "OLLAMA", apiKey: "", baseUrl: "http://localhost:11434/v1" });
+    expect(tryConsumeTrialRunMock).not.toHaveBeenCalled();
+    expect(db.tenantFindUnique).not.toHaveBeenCalled();
+  });
+
+  it("D-009 PARITY: BYOK-less FREE tenant with trial available → COUNTED trial Groq, never the system key", async () => {
+    seedRows([], "FREE");
+    tryConsumeTrialRunMock.mockResolvedValue({
+      config: { provider: "GROQ", model: "llama-3.3-70b-versatile", apiKey: "gsk-trial" },
+      remainingBefore: 3,
+      remainingAfter: 2,
+    });
+
+    const link = await resolveTenantCompletionLink(TENANT);
+
+    expect(link.source).toBe("trial");
+    expect(link.config).toMatchObject({ provider: "GROQ", apiKey: "gsk-trial" });
+  });
+
+  it("HONESTY: BYOK-less FREE tenant with a SPENT trial → throws (no silent system-key completion)", async () => {
+    seedRows([], "FREE");
+    tryConsumeTrialRunMock.mockResolvedValue(null);
+
+    await expect(resolveTenantCompletionLink(TENANT)).rejects.toThrow(/no ai provider configured/i);
+  });
+
+  it("HONESTY: BYOK tenant opted OUT of system fallback + corrupted key → throws (the exact D-013 bleed)", async () => {
+    // getTenantAIConfig alone would fall through to the system Anthropic key
+    // here because the row is unusable — the chain head must refuse instead.
+    seedRows([{ provider: "DEEPSEEK", model: "deepseek-chat", key: "sk-ds", isDefault: true, corrupt: true, allowSystemFallback: false }]);
+
+    await expect(resolveTenantCompletionLink(TENANT)).rejects.toThrow(/no ai provider configured/i);
+  });
+
+  it("HONESTY: no ANTHROPIC_API_KEY and no usable BYOK → throws the historical 'not configured' error", async () => {
+    envMock.ANTHROPIC_API_KEY = undefined;
+    seedRows([], "BUSINESS");
+
+    await expect(resolveTenantCompletionLink(TENANT)).rejects.toThrow(/no ai provider configured/i);
+  });
+
+  it("D-009 PRESERVED: BYOK-less PAID tenant → system Anthropic key, exactly as the chain's entry path", async () => {
+    seedRows([], "BUSINESS");
+
+    const link = await resolveTenantCompletionLink(TENANT);
+
+    expect(link.source).toBe("system");
+    expect(link.config).toMatchObject({ provider: "ANTHROPIC", apiKey: "sk-ant-system-key", model: envMock.CLAUDE_MODEL });
+  });
+
+  it("D-009 PRESERVED: BYOK tenant opted IN (allowSystemFallback=true) + corrupted key → system Anthropic key", async () => {
+    seedRows([
+      { provider: "DEEPSEEK", model: "deepseek-chat", key: "sk-ds", isDefault: true, corrupt: true, allowSystemFallback: true },
+    ]);
+
+    const link = await resolveTenantCompletionLink(TENANT);
+
+    expect(link.source).toBe("system");
+    expect(link.config).toMatchObject({ provider: "ANTHROPIC", apiKey: "sk-ant-system-key" });
+  });
+});
+
+describe("commitTrialCompletion — run-based counter, trial link only (D-013)", () => {
+  it("source='trial' → commits the counter for the tenant (consume on serve)", async () => {
+    await commitTrialCompletion(TENANT, "trial");
+    expect(commitTrialRunMock).toHaveBeenCalledExactlyOnceWith(TENANT);
+  });
+
+  it.each(["byok-default", "byok-fallback", "system"] as const)(
+    "source='%s' → never touches the trial counter",
+    async (source) => {
+      await commitTrialCompletion(TENANT, source);
+      expect(commitTrialRunMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("a counter-write failure is swallowed (non-fatal — ±1 tolerance)", async () => {
+    commitTrialRunMock.mockRejectedValue(new Error("db down"));
+    await expect(commitTrialCompletion(TENANT, "trial")).resolves.toBeUndefined();
   });
 });

@@ -147,7 +147,7 @@ See [`docs/deployment-github-actions.md`](docs/deployment-github-actions.md) for
 
 ## Status
 
-Production. **133 tests passing**, typecheck clean across every workspace package, OWASP Top 10 coverage in place: parameterized SQL via Prisma, per-tenant isolation on every query, HMAC-signed Stripe webhooks with replay-bound timestamps, fail-closed rate limits (auth + IAP + register + refresh, even when Redis is unreachable), strict CSP + HSTS + frame-ancestors, AES-256-GCM at-rest credential encryption (scrypt-derived per-row key, placeholder-detection at boot), cross-tenant IAP hijack defence, SSRF guard on tenant-controlled outbound URLs (blocks AWS / GCP / Azure metadata endpoints, loopback, RFC1918 ranges from every BYOK provider and integration code path), and refresh tokens that re-read user + tenant from the database on every rotation so role / workspace changes propagate within one round-trip.
+Production. **650+ tests passing**, typecheck clean across every workspace package, OWASP Top 10 coverage in place: parameterized SQL via Prisma, per-tenant isolation on every query, HMAC-signed Stripe webhooks with replay-bound timestamps, fail-closed rate limits (auth + IAP + register + refresh, even when Redis is unreachable), strict CSP + HSTS + frame-ancestors, AES-256-GCM at-rest credential encryption (scrypt-derived per-row key, placeholder-detection at boot), cross-tenant IAP hijack defence, SSRF guard on tenant-controlled outbound URLs (blocks AWS / GCP / Azure metadata endpoints, loopback, RFC1918 ranges from every BYOK provider and integration code path), and refresh tokens that re-read user + tenant from the database on every rotation so role / workspace changes propagate within one round-trip.
 
 ---
 

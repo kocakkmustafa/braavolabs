@@ -6,7 +6,13 @@ import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { slugify } from "@ai-company-os/core";
 import { PRIMITIVES, PLAN_LIMITS } from "@ai-company-os/core";
-import { getTenantAIConfig, chatCompletion, type ChatMessage } from "../../services/ai-client";
+import { chatCompletion, type ChatMessage } from "../../services/ai-client";
+// D-013: resolveTenantCompletionLink (not the raw getTenantAIConfig) — this
+// is a single-completion call site, so it must honor the SAME D-009 policy
+// the run loop does (BYOK → counted trial → opt-in/PAID system → honest
+// error) instead of silently spending the shared system Anthropic key for a
+// keyless tenant. commitTrialCompletion counts the trial slot on success.
+import { resolveTenantCompletionLink, commitTrialCompletion } from "../../services/provider-chain";
 
 const isLocalMode = env.LLM_PROVIDER === "local";
 
@@ -62,9 +68,12 @@ async function callAI(
     return result;
   }
 
-  // API mode — use tenant's configured provider (or system default)
-  const config = await getTenantAIConfig(tenantId);
-  const result = await chatCompletion(config, systemPrompt, messages, 4096);
+  // API mode — resolve the tenant's D-009 chain head (BYOK → counted trial →
+  // opt-in/PAID system → honest error), never a silent system-key fallthrough.
+  const link = await resolveTenantCompletionLink(tenantId);
+  const result = await chatCompletion(link.config, systemPrompt, messages, 4096);
+  // Count the trial slot only after a successful serve (D-009/D-013 parity).
+  await commitTrialCompletion(tenantId, link.source);
   return result.content;
 }
 

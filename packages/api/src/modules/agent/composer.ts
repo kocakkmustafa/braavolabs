@@ -13,7 +13,13 @@
  */
 import { z } from "zod";
 import { getTool, getToolNames } from "./registry";
-import { chatCompletion, getTenantAIConfig, type ChatMessage } from "../../services/ai-client";
+import { chatCompletion, type ChatMessage } from "../../services/ai-client";
+// D-013: resolveTenantCompletionLink (not the raw getTenantAIConfig) — this
+// is a single-completion call site, so it must honor the SAME D-009 policy
+// the run loop does (BYOK → counted trial → opt-in/PAID system → honest
+// error) instead of silently spending the shared system Anthropic key for a
+// keyless tenant. commitTrialCompletion counts the trial slot on success.
+import { resolveTenantCompletionLink, commitTrialCompletion } from "../../services/provider-chain";
 import { logger } from "../../lib/logger";
 
 export const ComposedAgentSchema = z.object({
@@ -148,17 +154,20 @@ export async function composeAgent(
     throw new Error("Description is too long (max 4000 characters).");
   }
 
-  const aiConfig = await getTenantAIConfig(tenantId);
+  const link = await resolveTenantCompletionLink(tenantId);
+  const aiConfig = link.config;
   const toolCatalog = buildToolCatalog();
   const systemPrompt = SYSTEM_PROMPT(toolCatalog);
   const messages: ChatMessage[] = [{ role: "user", content: description.trim() }];
 
   logger.info(
-    { tenantId, provider: aiConfig.provider, model: aiConfig.model, descLen: description.length },
+    { tenantId, provider: aiConfig.provider, model: aiConfig.model, source: link.source, descLen: description.length },
     "Composing agent via LLM",
   );
 
   const result = await chatCompletion(aiConfig, systemPrompt, messages, 4096);
+  // Count the trial slot only after a successful serve (D-009/D-013 parity).
+  await commitTrialCompletion(tenantId, link.source);
 
   let parsed: unknown;
   try {

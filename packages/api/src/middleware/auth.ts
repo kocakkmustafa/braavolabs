@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env";
 import { prisma } from "../lib/db";
+import { getCookieAccessToken, csrfOkForCookieAuth } from "../lib/authCookies";
 
 export interface AuthPayload {
   userId: string;
@@ -23,18 +24,44 @@ declare global {
  * PostgreSQL session variable `app.tenant_id` for RLS policies.
  */
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
+  // Bearer header keeps PRIORITY — mobile clients, API callers, and the
+  // current web client are unaffected. Only when there is no Bearer header
+  // do we consult the httpOnly access cookie, and only when AUTH_COOKIE_MODE
+  // is on (getCookieAccessToken returns null otherwise). This preserves the
+  // exact bearer-only behavior while the flag is off.
   const header = req.headers.authorization;
-  if (!header?.startsWith("Bearer ")) {
+  let token: string | undefined;
+  let viaCookie = false;
+  if (header?.startsWith("Bearer ")) {
+    token = header.slice(7);
+  } else {
+    const cookieToken = getCookieAccessToken(req);
+    if (cookieToken) {
+      token = cookieToken;
+      viaCookie = true;
+    }
+  }
+
+  if (!token) {
     res.status(401).json({ error: "Missing or invalid authorization header" });
     return;
   }
 
-  const token = header.slice(7);
   let payload: AuthPayload;
   try {
     payload = jwt.verify(token, env.JWT_SECRET, { algorithms: ["HS256"] }) as AuthPayload;
   } catch {
     res.status(401).json({ error: "Invalid or expired token" });
+    return;
+  }
+
+  // CSRF: a cookie-authenticated, state-changing request must present the
+  // custom header (SameSite=Strict is the first layer; this is the second).
+  // Bearer callers are exempt — see csrfOkForCookieAuth for the full
+  // rationale. Placed after token verification so a bad token still reads
+  // as 401, not 403.
+  if (viaCookie && !csrfOkForCookieAuth(req)) {
+    res.status(403).json({ error: "Missing CSRF header for cookie-based auth" });
     return;
   }
 

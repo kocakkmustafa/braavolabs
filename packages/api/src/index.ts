@@ -126,7 +126,11 @@ app.use(
     origin: corsOrigins,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    // X-Requested-With is the CSRF custom-header for AUTH_COOKIE_MODE (see
+    // lib/authCookies.csrfOkForCookieAuth). Allowlisting it lets the eventual
+    // cross-subdomain (app.* → api.*) cookie-authed requests clear preflight;
+    // harmless while the flag is off since no client sends it.
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
     maxAge: 86400, // Cache preflight for 24 hours
   }),
 );

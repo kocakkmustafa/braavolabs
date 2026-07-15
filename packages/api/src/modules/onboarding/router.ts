@@ -8,9 +8,18 @@
 import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
+import { rateLimit } from "../../middleware/rateLimit";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
+import {
+  chatCompletion,
+  PROVIDER_DEFAULT_MODELS,
+  LOCAL_PROVIDERS,
+  type AIClientConfig,
+} from "../../services/ai-client";
+import { classifyProviderError } from "../../services/provider-chain";
+import { isKnownProvider } from "../settings/provider-models";
 
 export const onboardingRouter = Router();
 onboardingRouter.use(authMiddleware);
@@ -221,5 +230,109 @@ onboardingRouter.post("/hero-company", async (req, res, next) => {
       pipeline,
       nextStep: "Run your first pipeline to generate content!",
     });
+  } catch (err) { next(err); }
+});
+
+// ─── Key validation (FAZ-A 1C) ─────────────────────────────
+//
+// POST /api/v1/onboarding/validate-key — lets the onboarding wizard check
+// a provider API key BEFORE the tenant commits to saving it (PUT
+// /settings/ai-config). Never persists, never logs, never echoes the raw
+// key back — it only ever answers "does this key work".
+//
+// Validation call: the cheapest real request that proves the key is live —
+// a 1-token chat completion via the SAME chatCompletion() transport every
+// other AI surface in this codebase uses (ai-config/test in settings/router
+// is the established sibling pattern; this just skips the persistence step
+// and takes the key straight from the request body instead of storage).
+
+/** Strip anything that could leak the plaintext key (or a partial echo of
+ * it some providers include in their error body, e.g. "Incorrect API key
+ * provided: sk-ab…yz") out of a provider error message before it goes back
+ * to the client or into a log line. */
+function sanitizeValidationReason(message: string, apiKey: string | undefined): string {
+  let msg = message.slice(0, 300);
+  if (apiKey && apiKey.length >= 6) {
+    msg = msg.split(apiKey).join("[REDACTED]");
+  }
+  // Generic secret-shaped token catch-all (sk-…, pk-…, Bearer …, etc.) for
+  // any partial-echo shape we didn't anticipate above.
+  msg = msg.replace(/\b(sk|pk|sess|key|token|bearer)[-_ ][A-Za-z0-9_-]{6,}\b/gi, "[REDACTED]");
+  return msg;
+}
+
+const validateKeyLimiter = rateLimit({
+  windowMs: 60_000,
+  maxRequests: 5,
+  keyPrefix: "rl:onboarding:validate-key",
+});
+
+const validateKeySchema = z.object({
+  provider: z.string().min(1),
+  apiKey: z.string().min(1).optional(),
+  // Required for CUSTOM, optional self-hosted override for OLLAMA/LMSTUDIO.
+  baseUrl: z.string().url().optional().or(z.literal("")),
+});
+
+// POST /api/v1/onboarding/validate-key
+// Auth'lu, tenant-scoped, rate-limited. Body: { provider, apiKey?, baseUrl? }.
+// Response: { valid: boolean, provider, reason? } — always 200 on a
+// completed check (provider rejection is a *result*, not an HTTP error);
+// 400 only for malformed input (unknown provider, missing required field).
+onboardingRouter.post("/validate-key", validateKeyLimiter, async (req, res, next) => {
+  try {
+    const { provider: rawProvider, apiKey, baseUrl } = validateKeySchema.parse(req.body);
+    const provider = rawProvider.trim().toUpperCase();
+
+    if (!isKnownProvider(provider)) {
+      throw new AppError(400, `Unknown AI provider: ${provider}`);
+    }
+
+    const isLocal = LOCAL_PROVIDERS.has(provider);
+    if (!isLocal && !apiKey) {
+      throw new AppError(400, "apiKey is required to validate a cloud provider");
+    }
+    if (provider === "CUSTOM" && !baseUrl) {
+      throw new AppError(400, "Custom provider requires a base URL to validate");
+    }
+
+    const config: AIClientConfig = {
+      provider,
+      model: PROVIDER_DEFAULT_MODELS[provider],
+      apiKey: apiKey ?? "",
+      baseUrl: baseUrl || undefined,
+    };
+
+    try {
+      // 1-token ping — cheapest real call that proves the key/endpoint works
+      // across every provider transport (Anthropic SDK + every OpenAI-
+      // compatible fetch path) without a bespoke per-provider request.
+      await chatCompletion(
+        config,
+        "You are a connectivity check.",
+        [{ role: "user", content: "Reply with exactly: OK" }],
+        8,
+      );
+
+      logger.info(
+        { tenantId: req.auth!.tenantId, provider },
+        "onboarding.validate_key succeeded",
+      );
+      res.json({ valid: true, provider });
+    } catch (err) {
+      const classification = classifyProviderError(err);
+      const rawMessage = err instanceof Error ? err.message : "Unknown error";
+      const reason = sanitizeValidationReason(rawMessage, apiKey);
+
+      // Log the classification only — never the (potentially key-bearing)
+      // raw provider message, and the key itself is never passed to the
+      // logger at all (req.body.apiKey is additionally redacted by the
+      // pino-http request logger in index.ts, defense-in-depth).
+      logger.info(
+        { tenantId: req.auth!.tenantId, provider, classification },
+        "onboarding.validate_key failed",
+      );
+      res.json({ valid: false, provider, reason });
+    }
   } catch (err) { next(err); }
 });

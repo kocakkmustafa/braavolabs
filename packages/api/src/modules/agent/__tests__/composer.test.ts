@@ -5,9 +5,37 @@
  * exercised in the e2e suite (production playwright run); these unit
  * tests pin the schema shape so a schema regression breaks the build
  * before it reaches Anthropic's API.
+ *
+ * The provider-resolution honesty gate (D-013) IS unit-tested here though:
+ * composeAgent() must resolve its AI config through resolveTenantCompletionLink
+ * (not the raw getTenantAIConfig) so a BYOK-less/ineligible tenant gets an
+ * honest error instead of a silent system-funded completion, and a trial-
+ * served completion commits the run-based counter.
  */
-import { describe, it, expect } from "vitest";
-import { ComposedAgentSchema } from "../composer";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { ComposedAgentSchema, composeAgent } from "../composer";
+
+vi.mock("../../../lib/logger", () => ({
+  logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
+
+vi.mock("../registry", () => ({
+  getTool: (name: string) =>
+    name === "send_email" ? { name: "send_email", description: "Send an email." } : undefined,
+  getToolNames: () => ["send_email"],
+}));
+
+const resolveTenantCompletionLinkMock = vi.hoisted(() => vi.fn());
+const commitTrialCompletionMock = vi.hoisted(() => vi.fn());
+vi.mock("../../../services/provider-chain", () => ({
+  resolveTenantCompletionLink: (...a: unknown[]) => resolveTenantCompletionLinkMock(...a),
+  commitTrialCompletion: (...a: unknown[]) => commitTrialCompletionMock(...a),
+}));
+
+const chatCompletionMock = vi.hoisted(() => vi.fn());
+vi.mock("../../../services/ai-client", () => ({
+  chatCompletion: (...a: unknown[]) => chatCompletionMock(...a),
+}));
 
 const validAgent = {
   name: "Memory Curator",
@@ -88,5 +116,87 @@ describe("ComposedAgentSchema", () => {
       maliciousKey: "drop tables",
     });
     expect(result.success).toBe(true);
+  });
+});
+
+// ─── D-013: honest provider resolution ─────────────────────
+//
+// composeAgent must resolve its AI config via resolveTenantCompletionLink
+// (D-013) — an ineligible tenant gets composeAgent's thrown error surfaced
+// (company/router.ts translates "no ai provider|api key|..." into a 400),
+// never a silent completion against the shared system Anthropic key. A
+// trial-served completion commits the run-based counter after success.
+
+describe("composeAgent — provider resolution honesty (D-013)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("ineligible tenant: resolveTenantCompletionLink rejects → composeAgent throws WITHOUT ever calling chatCompletion", async () => {
+    resolveTenantCompletionLinkMock.mockRejectedValue(
+      new Error("No AI provider configured. Please add an API key in Settings → AI Provider."),
+    );
+
+    await expect(composeAgent("tenant-1", "a support agent that answers billing questions")).rejects.toThrow(
+      /no ai provider configured/i,
+    );
+    expect(chatCompletionMock).not.toHaveBeenCalled();
+    expect(commitTrialCompletionMock).not.toHaveBeenCalled();
+  });
+
+  it("eligible/BYOK tenant: resolved config is threaded straight into chatCompletion, unchanged", async () => {
+    const resolvedConfig = { provider: "DEEPSEEK", model: "deepseek-chat", apiKey: "sk-ds" };
+    resolveTenantCompletionLinkMock.mockResolvedValue({ provider: "DEEPSEEK", source: "byok-default", config: resolvedConfig });
+    chatCompletionMock.mockResolvedValue({
+      content: JSON.stringify({
+        name: "Billing Support Bot",
+        role: "billing_support",
+        systemPrompt: "You answer billing questions for customers, politely and accurately, escalating refunds.",
+        tools: ["send_email"],
+      }),
+      inputTokens: 10,
+      outputTokens: 20,
+      provider: "DEEPSEEK",
+      model: "deepseek-chat",
+    });
+
+    const result = await composeAgent("tenant-1", "a support agent that answers billing questions");
+
+    expect(resolveTenantCompletionLinkMock).toHaveBeenCalledWith("tenant-1");
+    expect(chatCompletionMock).toHaveBeenCalledWith(resolvedConfig, expect.any(String), expect.any(Array), 4096);
+    expect(result.agent.role).toBe("billing_support");
+    expect(result.provider).toBe("DEEPSEEK");
+    // BYOK source → the trial counter is never touched.
+    expect(commitTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "byok-default");
+  });
+
+  it("trial-served completion: the run-based counter is committed AFTER a successful serve", async () => {
+    resolveTenantCompletionLinkMock.mockResolvedValue({
+      provider: "GROQ",
+      source: "trial",
+      config: { provider: "GROQ", model: "llama-3.3-70b-versatile", apiKey: "gsk-trial" },
+    });
+    chatCompletionMock.mockResolvedValue({
+      content: JSON.stringify({
+        name: "Billing Support Bot",
+        role: "billing_support",
+        systemPrompt: "You answer billing questions for customers, politely and accurately, escalating refunds.",
+        tools: ["send_email"],
+      }),
+      inputTokens: 10,
+      outputTokens: 20,
+      provider: "GROQ",
+      model: "llama-3.3-70b-versatile",
+    });
+
+    await composeAgent("tenant-1", "a support agent that answers billing questions");
+
+    // commitTrialCompletion is called with the trial source only after the
+    // completion resolved — a thrown completion would skip it (slot refunded).
+    expect(commitTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "trial");
+    // Ordering: chatCompletion must run BEFORE the counter commit.
+    expect(chatCompletionMock.mock.invocationCallOrder[0]).toBeLessThan(
+      commitTrialCompletionMock.mock.invocationCallOrder[0],
+    );
   });
 });

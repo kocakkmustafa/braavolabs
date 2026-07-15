@@ -8,7 +8,13 @@ import { redis } from "../../lib/redis";
 import { runEventChannel, getBufferedRunEvents } from "../../lib/runEvents";
 import { enqueueRun } from "../pipeline/runner";
 import { chatCompletion, getTenantAIConfig, LOCAL_PROVIDERS, type AIProviderType } from "../../services/ai-client";
-import { listTenantProviderLinks } from "../../services/provider-chain";
+// D-013: resolveTenantCompletionLink is used ONLY for the /:id/explain
+// single-completion call below — it honors the same D-009 policy the run
+// loop does (BYOK → counted trial → opt-in/PAID system → honest error). The
+// /:id/handoff route's getTenantAIConfig call is a best-effort AUDIT lookup
+// (records fromProvider on the ledger, never dials the LLM) and stays on the
+// plain getTenantAIConfig import.
+import { listTenantProviderLinks, resolveTenantCompletionLink, commitTrialCompletion } from "../../services/provider-chain";
 import { assertKeylessLocalBaseUrl } from "../../services/takeover-config";
 import { createHandoff, claimHandoff, HandoffClaimError, cancelOpenHandoffForRun } from "./handoff.service";
 import { env } from "../../config/env";
@@ -122,17 +128,21 @@ runRouter.post("/:id/explain", explainLimiter, async (req, res, next) => {
       throw new AppError(400, "This run has no recorded error to explain.");
     }
 
-    // Load the tenant's AI config. If none is configured (and no system key),
-    // return a friendly 400 instead of a 500 — the feature is optional.
-    let aiConfig;
+    // Resolve the tenant's D-009 chain head (BYOK → counted trial → opt-in/
+    // PAID system → honest error). If NOTHING may serve (BYOK-less FREE with a
+    // spent trial, unusable-key tenant that never opted into system fallback,
+    // etc.) return a friendly 400 instead of a 500 — the feature is optional,
+    // and a keyless tenant never silently reaches the shared system key here.
+    let link;
     try {
-      aiConfig = await getTenantAIConfig(req.auth!.tenantId);
+      link = await resolveTenantCompletionLink(req.auth!.tenantId);
     } catch {
       throw new AppError(
         400,
         "No AI provider configured. Add one in Settings → AI Provider to use AI explanations.",
       );
     }
+    const aiConfig = link.config;
 
     const systemPrompt =
       "You are a senior automation engineer helping a non-technical operator " +
@@ -163,6 +173,8 @@ runRouter.post("/:id/explain", explainLimiter, async (req, res, next) => {
       );
       throw new AppError(502, "Couldn't reach your AI provider to generate an explanation. Try again shortly.");
     }
+    // Count the trial slot only after a successful serve (D-009/D-013 parity).
+    await commitTrialCompletion(req.auth!.tenantId, link.source);
 
     // Parse the JSON the model returned; tolerate markdown fences and fall back
     // to using the raw text as the explanation if it isn't valid JSON.

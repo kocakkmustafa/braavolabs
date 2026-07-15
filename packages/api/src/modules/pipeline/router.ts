@@ -8,10 +8,16 @@ import { enqueueRun, registerSchedule, removeSchedule } from "./runner";
 import { scheduleQueue } from "../../lib/queue";
 import * as cron from "node-cron";
 import { claimQuota } from "../billing/metering";
-import Anthropic from "@anthropic-ai/sdk";
 import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
-import { getTenantAIConfig, type AIProviderType } from "../../services/ai-client";
+import { getTenantAIConfig, chatCompletion, type AIProviderType, type ChatMessage } from "../../services/ai-client";
+// D-013: the NL pipeline builder is a single-completion surface — it must
+// honor the SAME D-009 policy the run loop and the other one-shot surfaces
+// (composer/explain/builder) do (BYOK → counted trial → opt-in/PAID system →
+// honest error) instead of unconditionally spending the shared system
+// Anthropic key for EVERY tenant. getTenantAIConfig stays for the cost
+// estimate below (a read-only provider/model lookup that never dials the LLM).
+import { resolveTenantCompletionLink, commitTrialCompletion } from "../../services/provider-chain";
 import { estimatePipelineCostUsd } from "../../lib/modelPricing";
 
 // Expensive endpoints — per-tenant throttle to prevent Claude API cost abuse.
@@ -120,45 +126,62 @@ Rules:
 - If a step needs to run after another, use sequential order numbers
 - For parallel steps, assign the same order number`;
 
-    if (!env.ANTHROPIC_API_KEY) {
-      throw new AppError(503, "Pipeline natural-language builder unavailable: ANTHROPIC_API_KEY not configured.");
+    // Resolve the tenant's D-009 chain head (BYOK → counted trial → opt-in/
+    // PAID system → honest error). If NOTHING may serve (BYOK-less FREE with a
+    // spent trial, an unusable-key tenant that never opted into system
+    // fallback, etc.) return a friendly 400 — the shared system Anthropic key
+    // is NEVER silently spent for a keyless tenant here (the D-013 bleed this
+    // endpoint used to be: it dialed env.ANTHROPIC_API_KEY unconditionally for
+    // every tenant, even ones with their own BYOK key configured).
+    let link;
+    try {
+      link = await resolveTenantCompletionLink(req.auth!.tenantId);
+    } catch {
+      throw new AppError(
+        400,
+        "No AI provider configured. Add one in Settings → AI Provider to build pipelines from natural language.",
+      );
     }
 
-    // Wrap the Anthropic call with explicit timeout + retry. The bare SDK
-    // call has no per-request deadline by default, so a slow Anthropic API
-    // could pin this Express handler indefinitely; the rateLimiter at
-    // /from-natural-language gives 10 req/min which means up to ~10
-    // wedged handlers can hold up the worker pool. 60s timeout + 3 retries
-    // (built into the SDK) gives a hard upper bound of ~3 minutes per
-    // request before we surface a 504 to the caller.
-    const anthropic = new Anthropic({
-      apiKey: env.ANTHROPIC_API_KEY,
-      timeout: 60_000,
-      maxRetries: 3,
-    });
-
-    const message = await anthropic.messages.create({
-      model: env.CLAUDE_MODEL,
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: [{ role: "user", content: `Create a pipeline for: ${description}` }],
-    });
+    const builderMessages: ChatMessage[] = [
+      { role: "user", content: `Create a pipeline for: ${description}` },
+    ];
+    let completion;
+    try {
+      completion = await chatCompletion(link.config, systemPrompt, builderMessages, 1024);
+    } catch (err) {
+      logger.error(
+        {
+          tenantId: req.auth!.tenantId,
+          companyId,
+          provider: link.config.provider,
+          model: link.config.model,
+          err: (err as Error).message,
+        },
+        "Pipeline NL builder provider call failed",
+      );
+      throw new AppError(502, "Couldn't reach your AI provider to generate the pipeline. Try again shortly.");
+    }
+    // Count the trial slot only after a successful serve (D-009/D-013 parity):
+    // a thrown completion above never reaches this line, so the slot is refunded.
+    await commitTrialCompletion(req.auth!.tenantId, link.source);
 
     // Cost telemetry — without this, every NL pipeline build is an
-    // un-tracked Claude charge that won't show up in usage analytics.
+    // un-tracked LLM charge that won't show up in usage analytics.
     logger.info(
       {
         tenantId: req.auth!.tenantId,
         companyId,
-        inputTokens: message.usage.input_tokens,
-        outputTokens: message.usage.output_tokens,
-        model: env.CLAUDE_MODEL,
+        inputTokens: completion.inputTokens,
+        outputTokens: completion.outputTokens,
+        provider: completion.provider,
+        model: completion.model,
+        source: link.source,
       },
-      "Pipeline NL builder Claude call completed",
+      "Pipeline NL builder LLM call completed",
     );
 
-    const rawContent = message.content[0];
-    if (rawContent.type !== "text") throw new AppError(500, "Unexpected AI response format");
+    const rawText = completion.content;
 
     // Parse the JSON response
     let pipelineConfig: {
@@ -170,7 +193,7 @@ Rules:
 
     try {
       // Strip markdown code blocks if present
-      const cleaned = rawContent.text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      const cleaned = rawText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       pipelineConfig = JSON.parse(cleaned);
     } catch {
       throw new AppError(422, "Failed to parse AI-generated pipeline config. Please try a more detailed description.");
@@ -216,7 +239,7 @@ Rules:
     res.status(201).json({
       pipeline,
       generatedFrom: description,
-      aiModel: env.CLAUDE_MODEL,
+      aiModel: completion.model,
     });
   } catch (err) { next(err); }
 });

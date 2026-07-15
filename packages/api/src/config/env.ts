@@ -18,6 +18,16 @@ const envShape = z.object({
   JWT_SECRET: z.string().min(32),
   JWT_EXPIRES_IN: z.string().default("1h"),
   JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
+  // ── Web auth cookie mode (D-007 / E9) ──
+  // When "true", the email/password login + register + refresh responses
+  // ALSO deposit the access/refresh JWTs into httpOnly+Secure+SameSite=Strict
+  // cookies, and authMiddleware accepts the access cookie when no
+  // Authorization: Bearer header is present (bearer keeps priority). Default
+  // "false" → byte-for-byte the pre-existing bearer-only behavior. Same
+  // explicit string→bool transform as BYPASS_BILLING so ONLY the literal
+  // "true" flips it on. Flipping this on in prod is a separate, user-gated
+  // step that lands with the UI migration — see .env.example.
+  AUTH_COOKIE_MODE: z.string().optional().default("false").transform((v) => v === "true"),
   LLM_PROVIDER: z.enum(["local", "api"]).default("api"),
   ANTHROPIC_API_KEY: z.string().optional(),
   // Default to Sonnet 4.5 (best price/perf for typical agent workloads). Override
