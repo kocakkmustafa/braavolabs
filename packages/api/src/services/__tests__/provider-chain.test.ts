@@ -59,6 +59,9 @@ import {
   listTenantProviderLinks,
   resolveTenantCompletionLink,
   commitTrialCompletion,
+  extractProviderErrorStatus,
+  ProviderExhaustedError,
+  isHandoffTriggerEligible,
 } from "../provider-chain";
 import { ToolsUnsupportedError } from "../ai-client";
 
@@ -165,6 +168,90 @@ describe("classifyProviderError — TRANSIENT / FAILOVER / FATAL", () => {
     expect(isFailoverEligible("TRANSIENT")).toBe(true);
     expect(isFailoverEligible("FAILOVER")).toBe(true);
     expect(isFailoverEligible("FATAL")).toBe(false);
+  });
+});
+
+// ─── B3 handoff-trigger guard (only exercised indirectly today via
+// pipeline/__tests__/executor-handoff-trigger.test.ts, which asserts the
+// executor's behavior around a hand-built FAILOVER marker — it never
+// varies the TRANSIENT-with-status vs. TRANSIENT-without-status boundary
+// that isHandoffTriggerEligible itself encodes). ───
+
+describe("extractProviderErrorStatus", () => {
+  it("prefers a numeric .status over the message", () => {
+    const err = Object.assign(new Error("ANTHROPIC API error 500: internal"), { status: 401 });
+    expect(extractProviderErrorStatus(err)).toBe(401);
+  });
+
+  it("falls back to .statusCode when .status is absent", () => {
+    const err = Object.assign(new Error("boom"), { statusCode: 429 });
+    expect(extractProviderErrorStatus(err)).toBe(429);
+  });
+
+  it("parses the ai-client transports' own '<PROVIDER> API error NNN:' message format", () => {
+    expect(extractProviderErrorStatus(new Error("GROQ API error 503: overloaded"))).toBe(503);
+  });
+
+  it("returns undefined when no status can be recovered at all", () => {
+    expect(extractProviderErrorStatus(new Error("something odd happened"))).toBeUndefined();
+    expect(extractProviderErrorStatus("a plain string, not even an Error")).toBeUndefined();
+  });
+});
+
+describe("ProviderExhaustedError.wrap", () => {
+  it("captures the classification, extracted status, provider/model of the failed link, and mirrors the cause's message", () => {
+    const cause = new Error("OPENAI API error 402: insufficient_quota");
+    const wrapped = ProviderExhaustedError.wrap("FAILOVER", "OPENAI", "gpt-4o", cause);
+
+    expect(wrapped).toBeInstanceOf(ProviderExhaustedError);
+    expect(wrapped.name).toBe("ProviderExhaustedError");
+    expect(wrapped.classification).toBe("FAILOVER");
+    expect(wrapped.status).toBe(402);
+    expect(wrapped.provider).toBe("OPENAI");
+    expect(wrapped.model).toBe("gpt-4o");
+    expect(wrapped.original).toBe(cause);
+    // Message mirrors the cause — every existing `.toThrow(/…/)` consumer
+    // in the run/pipeline suites depends on this staying byte-identical.
+    expect(wrapped.message).toBe(cause.message);
+  });
+
+  it("a default-TRANSIENT classification with no recoverable status still wraps, but status is undefined", () => {
+    const wrapped = ProviderExhaustedError.wrap("TRANSIENT", "GROQ", "llama", new Error("something odd"));
+    expect(wrapped.status).toBeUndefined();
+  });
+});
+
+describe("isHandoffTriggerEligible — B3 trigger guard", () => {
+  it("FAILOVER (auth/quota/credit) is always trigger-eligible", () => {
+    const marker = ProviderExhaustedError.wrap("FAILOVER", "ANTHROPIC", "claude", new Error("401"));
+    expect(isHandoffTriggerEligible(marker)).toBe(true);
+  });
+
+  it("TRANSIENT with a REAL recovered HTTP status is trigger-eligible", () => {
+    const marker = ProviderExhaustedError.wrap(
+      "TRANSIENT",
+      "GROQ",
+      "llama",
+      new Error("GROQ API error 503: overloaded"),
+    );
+    expect(marker.status).toBe(503);
+    expect(isHandoffTriggerEligible(marker)).toBe(true);
+  });
+
+  it("TRANSIENT with NO recoverable status (default-guess classification) is NOT trigger-eligible", () => {
+    const marker = ProviderExhaustedError.wrap("TRANSIENT", "GROQ", "llama", new Error("something odd happened"));
+    expect(marker.status).toBeUndefined();
+    expect(isHandoffTriggerEligible(marker)).toBe(false);
+  });
+
+  it("FATAL is never trigger-eligible, even with a recovered status", () => {
+    const marker = ProviderExhaustedError.wrap("FATAL", "GROQ", "llama", new Error("GROQ API error 400: bad request"));
+    expect(isHandoffTriggerEligible(marker)).toBe(false);
+  });
+
+  it("a plain (unmarked) error is never trigger-eligible — only a ProviderExhaustedError marker qualifies", () => {
+    expect(isHandoffTriggerEligible(new Error("some other bug"))).toBe(false);
+    expect(isHandoffTriggerEligible(undefined)).toBe(false);
   });
 });
 
