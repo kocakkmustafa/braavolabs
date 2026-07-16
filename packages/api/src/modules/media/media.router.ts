@@ -20,7 +20,7 @@ import { AppError } from "../../middleware/error";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { encryptForTenant, decryptForTenant } from "../../lib/encryption";
-import { IMAGE_PRICES, TTS_PRICES, estimateImage, estimateTts, type TtsProvider } from "../../lib/mediaPricing";
+import { IMAGE_PRICES, TTS_PRICES, PRICING_CAPTURED_AT, estimateImage, estimateTts, type TtsProvider } from "../../lib/mediaPricing";
 import { generateImage, synthesizeTts, recordGeneration } from "./media.service";
 import type { MediaProvider } from "@prisma/client";
 
@@ -193,7 +193,7 @@ mediaRouter.post("/generate", async (req, res, next) => {
     if (body.kind === "image") {
       const promptPreview = body.prompt;
       const model = body.model;
-      const paramsJson = { model: body.model, prompt: body.prompt, n: body.n, width: body.width, height: body.height };
+      const paramsJson = { model: body.model, prompt: body.prompt, n: body.n, width: body.width, height: body.height, pricingCapturedAt: PRICING_CAPTURED_AT };
 
       let result: Awaited<ReturnType<typeof generateImage>>;
       try {
@@ -236,6 +236,10 @@ mediaRouter.post("/generate", async (req, res, next) => {
 
       res.json({
         generationId,
+        // Ledger yazımı best-effort: DB hatasında generationId null döner ama
+        // üretim gerçekleşti (tenant parası gitti). Kullanıcıya audit satırının
+        // yazılamadığını dürüstçe bildir.
+        ledgerRecorded: generationId !== null,
         estimate,
         result,
         storageNote: "görsel URL'leri sağlayıcı CDN'inde barınır; süresi dolabilir.",
@@ -246,7 +250,7 @@ mediaRouter.post("/generate", async (req, res, next) => {
     // body.kind === "tts"
     const promptPreview = body.text;
     const model = resolveTtsModelLabel(body);
-    const paramsJson = { provider: body.provider, textLength: body.text.length, voice: body.voice ?? null, model: body.model ?? null };
+    const paramsJson = { provider: body.provider, textLength: body.text.length, voice: body.voice ?? null, model: body.model ?? null, pricingCapturedAt: PRICING_CAPTURED_AT };
 
     let result: Awaited<ReturnType<typeof synthesizeTts>>;
     try {
@@ -287,6 +291,7 @@ mediaRouter.post("/generate", async (req, res, next) => {
 
     res.json({
       generationId,
+      ledgerRecorded: generationId !== null,
       estimate,
       result,
       storageNote: "TTS ses içeriği yalnız bu yanıtta döner, sunucuda saklanmaz.",
@@ -298,7 +303,8 @@ mediaRouter.post("/generate", async (req, res, next) => {
 
 mediaRouter.get("/generations", async (req, res, next) => {
   try {
-    const take = Math.min(Number(req.query.take) || 20, 50);
+    // Math.max(1, …) negatif/0 take'in Prisma'da ters-take'e dönmesini engeller.
+    const take = Math.max(1, Math.min(Number(req.query.take) || 20, 50));
     const generations = await prisma.mediaGeneration.findMany({
       where: { tenantId: req.auth!.tenantId },
       orderBy: { createdAt: "desc" },

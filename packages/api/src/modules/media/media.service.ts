@@ -28,6 +28,9 @@ const elevenLabsTtsUrl = (voiceId: string) =>
 const IMAGE_TIMEOUT_MS = 60_000;
 const TTS_TIMEOUT_MS = 30_000;
 const ELEVENLABS_MAX_BYTES = 15 * 1024 * 1024; // 15MB okuma tavanı
+// Google TTS yanıtı base64 JSON (girdi ≤5000 char → küçük); yine de yapısal
+// bir tavan uygula (sağlayıcı yanıtına güvenme). 8MB fazlasıyla yeterli.
+const TTS_MAX_BYTES = 8 * 1024 * 1024;
 
 // ─── Tenant anahtarı (fail-closed) ──────────────────────────────────────
 
@@ -50,9 +53,17 @@ export async function getTenantMediaKey(tenantId: string, provider: MediaProvide
 
 // ─── Hata gövdesi sanitizasyonu ─────────────────────────────────────────
 
-/** Sağlayıcı hata gövdesini 200 karaktere kırpar — ham yanıttan anahtar/iç detay sızmasın. */
+/**
+ * Sağlayıcı hata gövdesini kısaltır. Bu bir uzunluk-sınırıdır, içerik-filtresi
+ * DEĞİL: amaç yanıt gövdesini makul boyutta tutmak. API anahtarı istekte
+ * (Authorization / xi-api-key / X-Goog-Api-Key HEADER'ında) taşınır ve bu üç
+ * sağlayıcı da onu hata GÖVDESİNDE yansıtmaz — dolayısıyla anahtar buradan
+ * geçmez. Ek savunma olarak, anahtar-benzeri uzun token dizilerini yine de
+ * redakte ederiz (sağlayıcı davranışı değişirse diye).
+ */
 function truncateProviderError(text: string): string {
-  const clean = text.replace(/\s+/g, " ").trim();
+  const redacted = text.replace(/\b[A-Za-z0-9_-]{32,}\b/g, "[redacted]");
+  const clean = redacted.replace(/\s+/g, " ").trim();
   if (!clean) return "(empty response body)";
   return clean.length > 200 ? `${clean.slice(0, 200)}…` : clean;
 }
@@ -63,6 +74,61 @@ async function safeReadText(res: Response): Promise<string> {
   } catch {
     return "";
   }
+}
+
+/**
+ * Bir yanıt gövdesini bayt tavanını AŞMADAN okur. arrayBuffer() tüm gövdeyi
+ * belleğe alır ve sınırı SONRADAN kontrol eder — kötü/uzun bir yanıt gövdesi
+ * tampon dolana kadar OOM riski taşır. Bunun yerine gövdeyi parça parça
+ * okuyup çalışan toplam tavanı geçtiği AN abort ederiz (tampon büyümez).
+ * Web ReadableStream yoksa (test ortamı) arrayBuffer()'a düşer ama yine de
+ * okuma-sonrası tavan kontrolünü uygular.
+ */
+async function readCapped(res: Response, maxBytes: number, label: string): Promise<Buffer> {
+  const body = res.body as ReadableStream<Uint8Array> | null | undefined;
+  if (body && typeof body.getReader === "function") {
+    const reader = body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          total += value.byteLength;
+          if (total > maxBytes) {
+            await reader.cancel();
+            throw new AppError(502, `${label} response exceeded the ${maxBytes / (1024 * 1024)}MB read cap`);
+          }
+          chunks.push(value);
+        }
+      }
+    } finally {
+      reader.releaseLock?.();
+    }
+    return Buffer.concat(chunks.map((c) => Buffer.from(c)));
+  }
+  // Streaming API yok — tam okumaya düş, ama tavanı yine de uygula.
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (buf.byteLength > maxBytes) {
+    throw new AppError(502, `${label} response exceeded the ${maxBytes / (1024 * 1024)}MB read cap`);
+  }
+  return buf;
+}
+
+/**
+ * Bir gövde-okuma sırasında timer abort ederse fetch()'in AbortError'ı buraya
+ * generic hata olarak sızar. fetch-fazı timeout'uyla tutarlı 504 vermek için
+ * AbortError'ı yeniden sınıflandırırız.
+ */
+function rethrowAbortAs504(err: unknown, label: string): never {
+  if (err instanceof AppError) throw err;
+  if (err instanceof Error && err.name === "AbortError") {
+    throw new AppError(504, `${label} timed out`);
+  }
+  throw err instanceof Error
+    ? new AppError(502, `${label} failed: ${truncateProviderError(err.message)}`)
+    : new AppError(502, `${label} failed`);
 }
 
 // ─── Görsel üretimi (fal.ai) ─────────────────────────────────────────────
@@ -84,6 +150,13 @@ export async function generateImage(
   tenantId: string,
   params: GenerateImageParams,
 ): Promise<GenerateImageResult> {
+  // Defense-in-depth: router zaten model'i zod enum'la (IMAGE_MODEL_KEYS)
+  // allowlist'liyor, ama bu servis fonksiyonu host'u ${FAL_HOST}/${model} ile
+  // kuruyor — enum'u atlayan gelecekteki bir çağıran host'u kaçırmasın diye
+  // burada da yol-güvenli bir model şekli dayat.
+  if (!/^[a-z0-9]+(?:[-/][a-z0-9]+)*$/i.test(params.model) || params.model.includes("..")) {
+    throw new AppError(400, `Invalid image model: ${params.model}`);
+  }
   const apiKey = await getTenantMediaKey(tenantId, "FAL");
 
   const controller = new AbortController();
@@ -119,7 +192,12 @@ export async function generateImage(
       throw new AppError(502, `fal.ai request failed (${res.status}): ${truncateProviderError(bodyText)}`);
     }
 
-    const data = (await res.json()) as { images?: Array<{ url?: unknown; width?: unknown; height?: unknown }> };
+    let data: { images?: Array<{ url?: unknown; width?: unknown; height?: unknown }> };
+    try {
+      data = (await res.json()) as { images?: Array<{ url?: unknown; width?: unknown; height?: unknown }> };
+    } catch (err) {
+      rethrowAbortAs504(err, "fal.ai request");
+    }
     const rawImages = Array.isArray(data.images) ? data.images : [];
     const images = rawImages
       .filter((img) => typeof img?.url === "string" && img.url.length > 0)
@@ -200,7 +278,19 @@ async function synthesizeGoogleTts(apiKey: string, params: SynthesizeTtsParams, 
     throw new AppError(502, `Google TTS request failed (${res.status}): ${truncateProviderError(bodyText)}`);
   }
 
-  const data = (await res.json()) as { audioContent?: unknown };
+  // Google yanıtı base64 audioContent taşıyan JSON. Girdi ≤5000 char olduğundan
+  // yanıt yapısal olarak sınırlıdır (ElevenLabs'in sınırsız binary'sinin aksine);
+  // yine de sağlayıcı Content-Length'i büyükse erken reddet.
+  const contentLengthHeader = res.headers.get("content-length");
+  if (contentLengthHeader && Number(contentLengthHeader) > TTS_MAX_BYTES) {
+    throw new AppError(502, "Google TTS response exceeded the read cap");
+  }
+  let data: { audioContent?: unknown };
+  try {
+    data = (await res.json()) as { audioContent?: unknown };
+  } catch (err) {
+    rethrowAbortAs504(err, "Google TTS request");
+  }
   if (typeof data.audioContent !== "string" || data.audioContent.length === 0) {
     throw new AppError(502, "Google TTS response did not include audioContent");
   }
@@ -242,17 +332,18 @@ async function synthesizeElevenLabsTts(apiKey: string, params: SynthesizeTtsPara
     throw new AppError(502, `ElevenLabs request failed (${res.status}): ${truncateProviderError(bodyText)}`);
   }
 
-  // Content-Length ön-kontrolü (varsa) + gerçek okuma boyutu kontrolü —
-  // sağlayıcı header'ı yalan söylerse (chunked / eksik) ikinci kontrol yakalar.
+  // Content-Length ön-kontrolü (header dürüstse erken reddeder) + streaming
+  // okuma tavanı (readCapped tampon büyümeden erken abort eder — yalan/eksik
+  // Content-Length'e karşı gerçek koruma, arrayBuffer'ın tam-tamponlamasından
+  // farklı olarak OOM'a açık değil).
   const contentLengthHeader = res.headers.get("content-length");
   if (contentLengthHeader && Number(contentLengthHeader) > ELEVENLABS_MAX_BYTES) {
     throw new AppError(502, "ElevenLabs audio response exceeded the 15MB read cap");
   }
 
-  const buf = Buffer.from(await res.arrayBuffer());
-  if (buf.byteLength > ELEVENLABS_MAX_BYTES) {
-    throw new AppError(502, "ElevenLabs audio response exceeded the 15MB read cap");
-  }
+  const buf = await readCapped(res, ELEVENLABS_MAX_BYTES, "ElevenLabs audio").catch((err) =>
+    rethrowAbortAs504(err, "ElevenLabs request"),
+  );
 
   return { audioBase64: buf.toString("base64"), mime: "audio/mpeg", chars: params.text.length };
 }

@@ -348,8 +348,23 @@ describe("POST /media/generate", () => {
       tenantId: TENANT, kind: "IMAGE", provider: "FAL", status: "SUCCEEDED", estimatedCostUsd: real.usd,
     }));
     expect(res.body.generationId).toBe("gen-1");
+    expect(res.body.ledgerRecorded).toBe(true);
     expect(res.body.estimate).toEqual(real);
     expect(res.body.result.images).toEqual([{ url: "https://fal.cdn/img.png", width: 1024, height: 1024 }]);
+    // pricingCapturedAt is written into the ledger params for audit traceability.
+    expect(recordGenerationMock.mock.calls[0][0].paramsJson).toMatchObject({ pricingCapturedAt: "2026-07" });
+  });
+
+  it("SUCCEEDED but ledger write fails (generationId null) → response honestly flags ledgerRecorded:false", async () => {
+    recordGenerationMock.mockResolvedValue(null);
+    const real = estimateImage("fal-ai/flux/schnell", 1, 1024, 1024);
+    const { res } = await invoke(handler, {
+      body: { kind: "image", model: "fal-ai/flux/schnell", prompt: "a cat", n: 1, width: 1024, height: 1024, acknowledgedCostUsd: real.usd },
+    });
+    expect(res.body.generationId).toBeNull();
+    expect(res.body.ledgerRecorded).toBe(false);
+    // The generated result is still returned — the user's provider charge happened.
+    expect(res.body.result.images.length).toBeGreaterThan(0);
   });
 
   it("(l) tts generate happy path calls synthesizeTts and records the TTS ledger row", async () => {
@@ -418,6 +433,11 @@ describe("GET /media/generations", () => {
   it("non-numeric take falls back to the default of 20", async () => {
     await invoke(handler, { query: { take: "not-a-number" } });
     expect(mediaGenerationFindMany.mock.calls[0][0].take).toBe(20);
+  });
+
+  it("a negative take is clamped up to 1 (never a Prisma reverse-take)", async () => {
+    await invoke(handler, { query: { take: "-5" } });
+    expect(mediaGenerationFindMany.mock.calls[0][0].take).toBe(1);
   });
 
   it("a different tenant's request is scoped to ITS OWN tenantId", async () => {

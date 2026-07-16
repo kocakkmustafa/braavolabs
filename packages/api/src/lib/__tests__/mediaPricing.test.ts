@@ -68,8 +68,26 @@ describe("estimateTts — GOOGLE_TTS voice-name tier derivation", () => {
     expect(e.usd).toBeCloseTo(0.1 * TTS_PRICES.GOOGLE_TTS.studioPerMChars, 6);
   });
 
-  it("falls back to standard for an unrecognised voice name", () => {
+  it("prices Journey/Casual/Chirp premium families at the studio tier (honesty: never the cheapest)", () => {
+    for (const voice of ["en-US-Journey-D", "en-US-Casual-K", "en-US-Chirp3-HD-Aoede"]) {
+      const e = estimateTts("GOOGLE_TTS", 100_000, voice);
+      // These families are billed above standard — must NOT fall to $4/1M.
+      expect(e.usd).toBeCloseTo(0.1 * TTS_PRICES.GOOGLE_TTS.studioPerMChars, 6);
+      expect(e.usd).toBeGreaterThan(0.1 * TTS_PRICES.GOOGLE_TTS.standardPerMChars);
+    }
+  });
+
+  it("estimates an unrecognised NAMED voice at the neural tier (conservative) with an uncertainty note", () => {
     const e = estimateTts("GOOGLE_TTS", 1_000_000, "some-custom-voice");
+    // Honesty mandate: a given-but-unknown voice must NOT resolve to the
+    // cheapest standard tier (that under-reports cost before the user acks).
+    expect(e.usd).toBeCloseTo(TTS_PRICES.GOOGLE_TTS.neuralPerMChars, 6);
+    expect(e.usd).toBeGreaterThan(TTS_PRICES.GOOGLE_TTS.standardPerMChars);
+    expect(e.note).toContain("tanınmadı");
+  });
+
+  it("prices an explicit Standard voice at the standard tier", () => {
+    const e = estimateTts("GOOGLE_TTS", 1_000_000, "en-US-Standard-C");
     expect(e.usd).toBeCloseTo(TTS_PRICES.GOOGLE_TTS.standardPerMChars, 6);
   });
 });

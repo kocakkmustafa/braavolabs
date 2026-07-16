@@ -65,6 +65,13 @@ export const TTS_PRICES: {
   },
 };
 
+/**
+ * Fiyat tablolarının yakalandığı sürüm etiketi. media_generations.params_json'a
+ * yazılır ki tarihsel bir satırın estimate'i hangi fiyat-snapshot'ından geldiği
+ * audit'te geri-izlenebilsin (fiyat tablosu ileride değişse bile).
+ */
+export const PRICING_CAPTURED_AT = "2026-07";
+
 /** Round to 6 decimals — matches the DB Decimal(10,6) precision for costs. */
 const round = (n: number): number => Math.round(n * 1e6) / 1e6;
 
@@ -125,17 +132,47 @@ export interface TtsEstimate {
 
 type GoogleTtsTier = "standard" | "neural" | "studio";
 
+interface GoogleTtsTierResult {
+  tier: GoogleTtsTier;
+  /** true when the voice name was given but matched no known family — the
+   * tier is a conservative guess, not a certainty (drives the estimate note). */
+  uncertain: boolean;
+}
+
 /**
- * Google ses adından tier türetir: "…Studio…" → studio,
- * "…Neural2…|…Wavenet…|…News…|…Polyglot…" → neural, aksi halde standard.
- * Ses adı verilmemişse (voiceName undefined) standard varsayılır.
+ * Google ses adından tier türetir (fiyat-dürüstlüğü kuralı: bilinmeyeni ASLA
+ * en-ucuz tier'a düşürme — o, kullanıcıya gerçek maliyetten düşük rakam
+ * gösterir).
+ *
+ *   - ses adı YOK               → standard (Google'ın gerçek default sesi
+ *                                 standard ailedendir; belirsizlik yok).
+ *   - "…Standard…"              → standard.
+ *   - premium aileler (Studio /
+ *     Journey / Casual / Chirp)  → studio-fiyatı (bu aileler Studio ile
+ *                                 aynı üst-katmanda faturalanır).
+ *   - "…Neural2/Wavenet/News/
+ *     Polyglot…"                 → neural.
+ *   - ses adı VERİLDİ ama hiçbir
+ *     aileye uymadı              → neural (muhafazakâr orta tahmin) +
+ *                                 uncertain=true → "tier tanınmadı" notu.
+ *
+ * Böylece yeni/bilinmeyen bir premium ses (ör. gelecekteki bir aile) sessizce
+ * $4/1M'e düşüp kullanıcıyı yanıltmaz; en fazla neural ($16/1M) tahmini +
+ * açık belirsizlik uyarısı görür.
  */
-function googleTtsTierFromVoiceName(voiceName?: string): GoogleTtsTier {
-  if (!voiceName) return "standard";
-  if (voiceName.includes("Studio")) return "studio";
+function googleTtsTierFromVoiceName(voiceName?: string): GoogleTtsTierResult {
+  if (!voiceName) return { tier: "standard", uncertain: false };
+  const studioMarkers = ["Studio", "Journey", "Casual", "Chirp"];
+  if (studioMarkers.some((marker) => voiceName.includes(marker))) {
+    return { tier: "studio", uncertain: false };
+  }
   const neuralMarkers = ["Neural2", "Wavenet", "News", "Polyglot"];
-  if (neuralMarkers.some((marker) => voiceName.includes(marker))) return "neural";
-  return "standard";
+  if (neuralMarkers.some((marker) => voiceName.includes(marker))) {
+    return { tier: "neural", uncertain: false };
+  }
+  if (voiceName.includes("Standard")) return { tier: "standard", uncertain: false };
+  // Ses adı var ama tanınmadı → en-ucuza DEĞİL, muhafazakâr neural'a düş + uyar.
+  return { tier: "neural", uncertain: true };
 }
 
 /**
@@ -150,7 +187,7 @@ function googleTtsTierFromVoiceName(voiceName?: string): GoogleTtsTier {
  */
 export function estimateTts(provider: TtsProvider, chars: number, voiceName?: string): TtsEstimate {
   if (provider === "GOOGLE_TTS") {
-    const tier = googleTtsTierFromVoiceName(voiceName);
+    const { tier, uncertain } = googleTtsTierFromVoiceName(voiceName);
     const rate =
       tier === "studio"
         ? TTS_PRICES.GOOGLE_TTS.studioPerMChars
@@ -158,13 +195,16 @@ export function estimateTts(provider: TtsProvider, chars: number, voiceName?: st
           ? TTS_PRICES.GOOGLE_TTS.neuralPerMChars
           : TTS_PRICES.GOOGLE_TTS.standardPerMChars;
     const usd = round((chars / 1_000_000) * rate);
+    const tierNote = uncertain
+      ? `${tier} tier VARSAYILDI (ses "${voiceName}" tanınmadı — gerçek maliyet farklı olabilir)`
+      : `${tier} tier`;
     return {
       kind: "tts",
       provider,
       units: chars,
       usd,
       estimate: true,
-      note: `${chars} karakter × ${tier} tier ($${rate}/1M karakter) — TAHMİN. ${TTS_PRICES.GOOGLE_TTS.freeTierNote}`,
+      note: `${chars} karakter × ${tierNote} ($${rate}/1M karakter) — TAHMİN. ${TTS_PRICES.GOOGLE_TTS.freeTierNote}`,
     };
   }
   if (provider === "ELEVENLABS") {

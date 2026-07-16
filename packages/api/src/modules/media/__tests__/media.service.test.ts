@@ -175,8 +175,20 @@ describe("generateImage", () => {
     }
   });
 
+  it("defense-in-depth: a path-traversal model is rejected with AppError 400 before any fetch", async () => {
+    const f = stubFetch(async () => okJsonRes({ images: [{ url: "https://x/y.png" }] }));
+    for (const badModel of ["../../../secret", "fal-ai/../evil", "https://evil.com/x"]) {
+      await expect(
+        generateImage(TENANT, { ...params, model: badModel }),
+      ).rejects.toMatchObject({ statusCode: 400 });
+    }
+    expect(f).not.toHaveBeenCalled();
+  });
+
   it("provider error body over 200 chars is truncated with an ellipsis", async () => {
-    const longBody = "x".repeat(500);
+    // Realistic long error (short words + spaces) — no 32+ char token, so it
+    // survives redaction and exercises the length-based truncation path.
+    const longBody = "upstream failure occurred ".repeat(30);
     stubFetch(async () => errRes(502, longBody));
     try {
       await generateImage(TENANT, params);
@@ -185,6 +197,19 @@ describe("generateImage", () => {
       const msg = (err as Error).message;
       expect(msg).toContain("…");
       expect(msg.length).toBeLessThan(500);
+    }
+  });
+
+  it("redacts a long token-like string from a provider error body (defense-in-depth)", async () => {
+    const leakyBody = `error: sk_live_${"A1b2C3d4".repeat(6)} was rejected`;
+    stubFetch(async () => errRes(502, leakyBody));
+    try {
+      await generateImage(TENANT, params);
+      throw new Error("should have thrown");
+    } catch (err) {
+      const msg = (err as Error).message;
+      expect(msg).toContain("[redacted]");
+      expect(msg).not.toContain("A1b2C3d4A1b2C3d4");
     }
   });
 
@@ -351,6 +376,37 @@ describe("synthesizeTts — ELEVENLABS", () => {
   it("timeout abort → AppError 504", async () => {
     stubFetch(async () => { throw abortError(); });
     await expect(synthesizeTts(TENANT, { provider: "ELEVENLABS", text: "hi", voice: "v1" })).rejects.toMatchObject({ statusCode: 504 });
+  });
+
+  it("streaming body over the 15MB cap → aborts mid-stream (never buffers the whole body)", async () => {
+    // A res.body ReadableStream whose chunks sum past the cap. readCapped must
+    // cancel the reader and throw BEFORE draining every chunk — proving the
+    // OOM guard is a real streaming cap, not a post-hoc full-buffer check.
+    const CHUNK = new Uint8Array(4 * 1024 * 1024); // 4MB per chunk
+    let served = 0;
+    const cancel = vi.fn(async () => {});
+    const reader = {
+      read: vi.fn(async () => {
+        served += 1;
+        return { done: false, value: CHUNK }; // never "done" — cap must stop it
+      }),
+      cancel,
+      releaseLock: vi.fn(),
+    };
+    stubFetch(async () => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => null }, // no content-length → pre-check can't help
+      body: { getReader: () => reader },
+      arrayBuffer: async () => { throw new Error("must not fall back to arrayBuffer"); },
+    }));
+
+    await expect(
+      synthesizeTts(TENANT, { provider: "ELEVENLABS", text: "hi", voice: "v1" }),
+    ).rejects.toMatchObject({ statusCode: 502 });
+    expect(cancel).toHaveBeenCalledTimes(1);
+    // 15MB cap / 4MB chunks → aborts on the 4th read, not an unbounded drain.
+    expect(reader.read.mock.calls.length).toBeLessThanOrEqual(5);
   });
 });
 
