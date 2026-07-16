@@ -19,7 +19,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
 import { AppError } from "../../middleware/error";
-import { prisma } from "../../lib/db";
+import { prisma, tenantTx } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import {
   STARTER_TEMPLATES,
@@ -134,7 +134,7 @@ starterRouter.post("/:id/clone", authMiddleware, async (req, res, next) => {
 
     // Single transaction so a failure halfway through doesn't leave
     // orphan companies/agents in the DB.
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await tenantTx(async (tx) => {
       const company = await tx.company.create({
         data: {
           tenantId,

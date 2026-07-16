@@ -5,7 +5,7 @@
  * and optionally reports to Stripe.
  */
 
-import { prisma } from "../../lib/db";
+import { prisma, tenantTx } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { PLAN_LIMITS } from "@ai-company-os/core";
 import type { Plan } from "@ai-company-os/core";
@@ -117,14 +117,14 @@ export async function claimQuota(
   // window — two concurrent claims at value=9 with limit=10 will see
   // the second hit `WHERE value < limit` after the first commits, so
   // exactly one returns 1 row and the other returns 0.
-  const rows = await prisma.$queryRaw<Array<{ value: number }>>`
+  const rows = await tenantTx((tx) => tx.$queryRaw<Array<{ value: number }>>`
     INSERT INTO usage_meters (id, tenant_id, metric, value, period_start, period_end, created_at, updated_at)
     VALUES (gen_random_uuid()::text, ${tenantId}, ${metric}, 1, ${periodStart}, ${periodEnd}, NOW(), NOW())
     ON CONFLICT (tenant_id, metric, period_start) DO UPDATE
       SET value = usage_meters.value + 1, updated_at = NOW()
       WHERE usage_meters.value < ${limit}
     RETURNING value
-  `;
+  `);
 
   if (rows.length === 0) {
     // Conflict happened but the WHERE on UPDATE failed → over limit.
@@ -157,11 +157,11 @@ export async function releaseQuota(tenantId: string, metric: string, amount = 1)
   const now = new Date();
   const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   try {
-    await prisma.$executeRaw`
+    await tenantTx((tx) => tx.$executeRaw`
       UPDATE usage_meters
       SET value = GREATEST(0, value - ${amount}), updated_at = NOW()
       WHERE tenant_id = ${tenantId} AND metric = ${metric} AND period_start = ${periodStart}
-    `;
+    `);
   } catch (err) {
     // Non-fatal — the meter will self-correct at the next period rollover.
     logger.warn({ err, tenantId, metric }, "releaseQuota failed");

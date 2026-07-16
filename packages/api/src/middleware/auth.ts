@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env";
-import { prisma } from "../lib/db";
+import { runWithTenant } from "../lib/tenant-context";
 import { getCookieAccessToken, csrfOkForCookieAuth } from "../lib/authCookies";
 
 export interface AuthPayload {
@@ -67,21 +67,15 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
   req.auth = payload;
 
-  // Set PostgreSQL session variable for RLS — defense-in-depth layer.
-  // Primary isolation is the Prisma WHERE tenantId clause; this adds DB-level
-  // enforcement so a missed filter can't leak cross-tenant rows.
-  // Non-fatal: if the DB call fails (e.g. migration not yet run), log and continue.
-  try {
-    await prisma.$executeRaw`SELECT set_config('app.tenant_id', ${payload.tenantId}, false)`;
-    res.on("finish", () => {
-      // Reset on response finish so the connection is clean when returned to the pool.
-      prisma.$executeRaw`SELECT set_config('app.tenant_id', '', false)`.catch(() => {});
-    });
-  } catch {
-    // Non-fatal — app-layer tenantId filters remain the primary isolation guard.
-  }
-
-  next();
+  // RLS-real: bind the tenant into the async context. The Prisma layer
+  // (lib/db.ts) reads it and sets `app.tenant_id` on the SAME connection as
+  // each query (transaction-local), which is the only reliable way to enforce
+  // RLS under a connection pool. This REPLACES the old middleware-level
+  // `set_config` (which ran on a pool-picked connection that a later query
+  // might not use, so RLS failed open — and a stale value could hide a
+  // tenant's own rows). Primary isolation remains the app-layer WHERE tenantId;
+  // RLS is the enforced DB-level second layer.
+  runWithTenant(payload.tenantId, next);
 }
 
 /**

@@ -115,9 +115,13 @@ crmRouter.post("/sync", async (req, res, next) => {
     }
 
     const config = { accessToken, portalId };
+    // The RLS extension brands the client type; the runtime object still has
+    // every model delegate (and stays RLS-bound). Cast to the params' expected
+    // shape — the sync writes CRM rows within this request's tenant context.
+    const rlsClient = prisma as unknown as Parameters<typeof syncContacts>[2];
     const [contacts, deals] = await Promise.all([
-      syncContacts(config, companyId, prisma),
-      syncDeals(config, companyId, prisma),
+      syncContacts(config, companyId, rlsClient),
+      syncDeals(config, companyId, rlsClient),
     ]);
 
     await prisma.activityLog.create({

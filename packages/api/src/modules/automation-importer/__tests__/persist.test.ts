@@ -43,6 +43,11 @@ vi.mock("../../../lib/db", () => {
         return fn(tx);
       },
     },
+    // RLS-real: tenantTx behaves like $transaction in tests (fn against tx mock).
+    tenantTx: (fn: (t: typeof tx) => unknown) => {
+      txRun();
+      return fn(tx);
+    },
   };
 });
 

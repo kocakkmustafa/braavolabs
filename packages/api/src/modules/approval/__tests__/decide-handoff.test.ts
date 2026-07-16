@@ -55,6 +55,9 @@ vi.mock("../../../lib/db", () => {
       draft: { findFirst: (...a: unknown[]) => draftFindFirst(...a) },
       $transaction: async (fn: any) => fn(tx),
     },
+    // RLS-real: tenantTx wraps a transaction with a tenant-scoped set_config;
+    // in tests it behaves like $transaction (runs fn against the tx mock).
+    tenantTx: async (fn: any) => fn(tx),
   };
 });
 

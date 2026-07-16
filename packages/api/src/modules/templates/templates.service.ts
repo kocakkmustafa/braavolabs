@@ -23,7 +23,7 @@
  */
 
 import crypto from "node:crypto";
-import { prisma } from "../../lib/db";
+import { prisma, tenantTx } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 
 // ── Snapshot shape ──────────────────────────────────────────
@@ -172,7 +172,7 @@ export async function materialiseTemplate(
 
   // Single transaction so a half-installed template can't leave the
   // tenant with orphan agents or pipelines.
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await tenantTx(async (tx) => {
     const company = await tx.company.create({
       data: {
         tenantId,
@@ -284,7 +284,7 @@ export async function rateTemplate(
   if (!installed) {
     throw new AppError(403, "Install the template before rating it");
   }
-  await prisma.$transaction(async (tx) => {
+  await tenantTx(async (tx) => {
     await tx.templateRating.upsert({
       where: { templateId_tenantId: { templateId, tenantId } },
       create: { templateId, tenantId, rating, review },

@@ -970,7 +970,7 @@ export async function chatCompletion(
 
 // ─── Tenant config helpers ────────────────────────────────
 
-import { prisma } from "../lib/db";
+import { prisma, tenantTx } from "../lib/db";
 
 /** Lazy accessor so tests can mock env without re-importing. */
 function envOfflineMode(): boolean {
@@ -1067,17 +1067,17 @@ export async function saveTenantAIConfig(
   const fallbackPatch =
     allowSystemFallback === undefined ? {} : { allowSystemFallback };
 
-  await prisma.$transaction([
+  await tenantTx(async (tx) => {
     // Demote-then-promote: order matters — the one-default-per-tenant
     // partial unique index is checked per statement (non-deferrable).
-    prisma.userAIConfig.updateMany({
+    await tx.userAIConfig.updateMany({
       where: { tenantId, NOT: { provider }, isDefault: true },
       data: { isDefault: false },
-    }),
-    prisma.userAIConfig.upsert({
+    });
+    await tx.userAIConfig.upsert({
       where: { tenantId_provider: { tenantId, provider } },
       update: { model, encryptedApiKey, baseUrl: trimmedBaseUrl, isDefault: true, ...fallbackPatch },
       create: { tenantId, provider, model, encryptedApiKey, baseUrl: trimmedBaseUrl, isDefault: true, ...fallbackPatch },
-    }),
-  ]);
+    });
+  });
 }
