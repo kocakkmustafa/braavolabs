@@ -57,6 +57,7 @@ import { settingsRouter } from "./modules/settings/router";
 import { agentVersionRouter } from "./modules/agent/version-router";
 import { collaborationRouter } from "./modules/collaboration/router";
 import { abTestRouter } from "./modules/ab-test/router";
+import { mediaRouter } from "./modules/media/media.router";
 import { initPipelineRunner, initScheduledPipelines, initScheduledTickWorker, stopScheduledPipelines } from "./modules/pipeline/runner";
 import { initOutreachWorker } from "./modules/outreach/sequence-runner";
 import { initConsolidationCron, stopConsolidationCron } from "./modules/memory/consolidation-cron";
@@ -283,6 +284,8 @@ api.use("/sso", ssoConfigRouter);
 api.use("/voice", voiceRouter);
 // Autonomous web research sessions.
 api.use("/research", researchRouter);
+// Medya orkestrasyonu (FAZ E) — BYOK-only image+TTS, zorunlu maliyet-ack, sağlayıcı-CDN passthrough
+api.use("/media", mediaRouter);
 // Connector marketplace (public catalog + tenant install surface).
 api.use("/marketplace", marketplaceRouter);
 // Company-template marketplace.
