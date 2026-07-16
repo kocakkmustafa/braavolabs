@@ -11,21 +11,26 @@
 //! host token); AI/orchestration stays out. See the "GOVERNANCE-BY-DEFAULT"
 //! section below.
 //!
-//! ## Secret storage
-//! `secure_store_{get,set,clear}` persist the bearer + refresh tokens to a
-//! `secrets.json`, and `key_{add,list,remove,get}` persist BYOK provider keys
-//! to a `keys.json` — both in the OS app-config dir, written with `0600` perms
-//! on unix. This mirrors the CLI's `forge/keys.ts` (macOS Keychain + 0600
-//! fallback) design in the desktop's Tauri context.
+//! ## Secret storage (S-010: OS keychain)
+//! Raw secrets — the bearer + refresh tokens and the BYOK provider keys — live
+//! in the OS keychain on the platforms this app ships to: the macOS Keychain and
+//! the Windows Credential Manager (via the `keyring` crate), where they are
+//! encrypted at rest and OS-gated. On any other platform, or if the keychain is
+//! unreachable, they fall back to a single owner-only (`0600`) `vault.json`. The
+//! `secret_backend_secure` command reports which backend is live, HONESTLY, so
+//! the UI never claims OS-grade protection it doesn't actually have.
 //!
-//! `key_list` returns only MASKED fingerprints (first4…last4) — a raw key value
-//! is never surfaced to the webview by `list`. `key_get` returns the raw secret
-//! and is called ONLY at the moment of a BYOK direct dispatch (Lane-A), never to
-//! populate UI. This is an INTERIM measure: it keeps keys off localStorage / out
-//! of a world-readable file. The production target is the OS keychain (macOS
-//! Keychain / Windows Credential Manager) via a keyring/stronghold plugin — a
-//! documented HUMAN GATE in the README, deliberately not wired here to keep the
-//! crate's dependency surface (and `cargo check` time) minimal.
+//! The keychain is not enumerable by service, so the set of BYOK provider names
+//! is tracked in a plaintext `keys-index.json` that holds provider → MASKED
+//! fingerprint ONLY (never a secret) — mirroring the CLI's proven `forge/keys.ts`
+//! design. `key_list` reads the index and thus never touches a raw secret; the
+//! raw value leaves the host solely via `key_get`, at BYOK direct-dispatch time.
+//!
+//! On first access any legacy `secrets.json` / `keys.json` (the earlier 0600
+//! plaintext files) are migrated into the backend and then deleted — the write
+//! into the backend happens BEFORE the legacy file is removed, so a crash
+//! mid-migration can only leave the old file behind (safe to retry), never lose
+//! a secret.
 
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
@@ -49,20 +54,231 @@ struct Secrets {
     refresh_token: Option<String>,
 }
 
-fn secrets_path(app: &AppHandle) -> Result<PathBuf, String> {
+// ── Secret backend abstraction ───────────────────────────────────────────────
+
+const VAULT_SERVICE: &str = "forge-desktop";
+const ACCT_TOKEN: &str = "auth.token";
+const ACCT_REFRESH: &str = "auth.refreshToken";
+
+/// Keychain account name for a BYOK provider's secret.
+fn byok_account(provider: &str) -> String {
+    format!("byok.{provider}")
+}
+
+/// An account-keyed secret store. Two production impls: the OS keychain
+/// (`KeychainBackend`, macOS/Windows) and a 0600 JSON file (`FileBackend`,
+/// every platform). The command layer resolves one via `make_backend`.
+trait SecretBackend: Send + Sync {
+    fn set(&self, account: &str, secret: &str) -> Result<(), String>;
+    fn get(&self, account: &str) -> Result<Option<String>, String>;
+    fn delete(&self, account: &str) -> Result<(), String>;
+    /// True ONLY when backed by the OS keychain (encrypted at rest, OS-gated).
+    /// The webview surfaces this so it never over-claims protection.
+    fn secure(&self) -> bool;
+}
+
+/// OS keychain backend — macOS Keychain / Windows Credential Manager. Each
+/// (service, account) pair is one credential. `keyring` access is synchronous.
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+struct KeychainBackend;
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+impl SecretBackend for KeychainBackend {
+    fn set(&self, account: &str, secret: &str) -> Result<(), String> {
+        keyring::Entry::new(VAULT_SERVICE, account)
+            .and_then(|e| e.set_password(secret))
+            .map_err(|e| e.to_string())
+    }
+    fn get(&self, account: &str) -> Result<Option<String>, String> {
+        match keyring::Entry::new(VAULT_SERVICE, account).and_then(|e| e.get_password()) {
+            Ok(s) => Ok(Some(s)),
+            Err(keyring::Error::NoEntry) => Ok(None),
+            Err(e) => Err(e.to_string()),
+        }
+    }
+    fn delete(&self, account: &str) -> Result<(), String> {
+        match keyring::Entry::new(VAULT_SERVICE, account).and_then(|e| e.delete_credential()) {
+            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+            Err(e) => Err(e.to_string()),
+        }
+    }
+    fn secure(&self) -> bool {
+        true
+    }
+}
+
+/// 0600 fallback: a single JSON `{ account: secret }` map so the token and BYOK
+/// keys share one owner-only artifact. The active backend on non-mac/win
+/// platforms (Linux/other — not a shipping target); on macOS/Windows it exists
+/// only as a test fixture (those platforms are keychain-only, fail-closed), so
+/// it reads as dead code in a non-test mac/win `cargo check` — hence the scoped
+/// allow rather than deleting a genuinely-used-elsewhere type.
+#[cfg_attr(any(target_os = "macos", target_os = "windows"), allow(dead_code))]
+struct FileBackend {
+    path: PathBuf,
+}
+
+#[cfg_attr(any(target_os = "macos", target_os = "windows"), allow(dead_code))]
+impl FileBackend {
+    fn read_map(&self) -> Result<BTreeMap<String, String>, String> {
+        match fs::read(&self.path) {
+            Ok(bytes) => serde_json::from_slice(&bytes).map_err(|e| e.to_string()),
+            Err(_) => Ok(BTreeMap::new()),
+        }
+    }
+    fn write_map(&self, map: &BTreeMap<String, String>) -> Result<(), String> {
+        if map.is_empty() {
+            let _ = fs::remove_file(&self.path);
+            return Ok(());
+        }
+        let data = serde_json::to_vec(map).map_err(|e| e.to_string())?;
+        write_private(&self.path, &data)
+    }
+}
+
+impl SecretBackend for FileBackend {
+    fn set(&self, account: &str, secret: &str) -> Result<(), String> {
+        let mut map = self.read_map()?;
+        map.insert(account.to_string(), secret.to_string());
+        self.write_map(&map)
+    }
+    fn get(&self, account: &str) -> Result<Option<String>, String> {
+        Ok(self.read_map()?.get(account).cloned())
+    }
+    fn delete(&self, account: &str) -> Result<(), String> {
+        let mut map = self.read_map()?;
+        if map.remove(account).is_some() {
+            self.write_map(&map)?;
+        }
+        Ok(())
+    }
+    fn secure(&self) -> bool {
+        false
+    }
+}
+
+/// Resolve the live backend for this platform. On macOS/Windows it is ALWAYS
+/// the OS keychain — FAIL-CLOSED: if the keychain is momentarily unreachable a
+/// secret operation returns an error, it does NOT silently downgrade to a
+/// plaintext file. That silent-downgrade path (an earlier design) caused a
+/// split-brain: a transient keychain hiccup would write some secrets to the
+/// keychain and others to plaintext `vault.json`, and a later delete on the
+/// keychain backend would leave the plaintext copy orphaned. On platforms with
+/// no keychain (Linux/other — not a shipping target) it is the 0600 file, and
+/// `secure()` reports that honestly.
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn make_backend(_config_dir: &Path) -> Box<dyn SecretBackend> {
+    Box::new(KeychainBackend)
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn make_backend(config_dir: &Path) -> Box<dyn SecretBackend> {
+    Box::new(FileBackend {
+        path: config_dir.join("vault.json"),
+    })
+}
+
+#[cfg(unix)]
+fn write_private(path: &Path, data: &[u8]) -> Result<(), String> {
+    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+    let mut f = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600) // owner read/write only — applied on CREATE
+        .open(path)
+        .map_err(|e| e.to_string())?;
+    f.write_all(data).map_err(|e| e.to_string())?;
+    // .mode() only takes effect when the file is created; a pre-existing file
+    // (e.g. one written by an older build with looser perms) keeps its mode.
+    // Re-assert 0600 idempotently so an existing file is tightened too.
+    let _ = fs::set_permissions(path, fs::Permissions::from_mode(0o600));
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn write_private(path: &Path, data: &[u8]) -> Result<(), String> {
+    // Windows ACL hardening is a follow-up; app-config dir is already per-user.
+    fs::write(path, data).map_err(|e| e.to_string())
+}
+
+// ── One-time legacy migration (0600 files → backend) ─────────────────────────
+
+/// Move any pre-S-010 `secrets.json` / `keys.json` into the backend + masked
+/// index, then delete them. Idempotent (missing files are a no-op). Runs on
+/// every secret command; once the legacy files are gone it's two cheap
+/// `fs::read` misses.
+///
+/// Data-safety invariants (each legacy file is handled independently):
+///   - The backend write happens BEFORE the file is removed, so a crash between
+///     them can only leave the old file behind (safe to retry), never lose a
+///     secret. If `backend.set` errors, we `?`-return with the file INTACT.
+///   - A file that fails to PARSE is NOT deleted — it is renamed to
+///     `<name>.corrupt` and left in place. A truncated write from an earlier
+///     crash is exactly this case; deleting it (the earlier behaviour) would be
+///     permanent secret loss. Renaming keeps it recoverable without letting it
+///     re-trigger migration on every call.
+fn migrate_legacy(backend: &dyn SecretBackend, config_dir: &Path) -> Result<(), String> {
+    let secrets_file = config_dir.join("secrets.json");
+    if let Ok(bytes) = fs::read(&secrets_file) {
+        match serde_json::from_slice::<Secrets>(&bytes) {
+            Ok(s) => {
+                if let Some(t) = s.token {
+                    backend.set(ACCT_TOKEN, &t)?; // file intact if this errors
+                }
+                if let Some(r) = s.refresh_token {
+                    backend.set(ACCT_REFRESH, &r)?;
+                }
+                let _ = fs::remove_file(&secrets_file); // only after successful set(s)
+            }
+            Err(_) => quarantine_corrupt(&secrets_file),
+        }
+    }
+
+    let keys_file = config_dir.join("keys.json");
+    if let Ok(bytes) = fs::read(&keys_file) {
+        match serde_json::from_slice::<BTreeMap<String, String>>(&bytes) {
+            Ok(map) => {
+                let mut index = read_index(config_dir);
+                for (provider, secret) in map {
+                    backend.set(&byok_account(&provider), &secret)?; // file intact if this errors
+                    index.insert(provider, mask_key(&secret));
+                }
+                write_index(config_dir, &index)?;
+                let _ = fs::remove_file(&keys_file); // only after every set + index write
+            }
+            Err(_) => quarantine_corrupt(&keys_file),
+        }
+    }
+    Ok(())
+}
+
+/// A legacy file we couldn't parse is renamed aside (never deleted) so its
+/// bytes stay recoverable, and it stops re-triggering migration every call.
+fn quarantine_corrupt(path: &Path) {
+    let quarantined = path.with_extension("corrupt");
+    // If the rename fails, leave the original untouched — losing nothing is the
+    // whole point; the file simply gets retried next time.
+    let _ = fs::rename(path, quarantined);
+}
+
+// ── Auth token store (secure_store_*) ────────────────────────────────────────
+
+fn config_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    Ok(dir.join("secrets.json"))
+    Ok(dir)
 }
 
 #[tauri::command]
 fn secure_store_get(app: AppHandle) -> Result<Secrets, String> {
-    let path = secrets_path(&app)?;
-    match fs::read(&path) {
-        Ok(bytes) => serde_json::from_slice(&bytes).map_err(|e| e.to_string()),
-        // No file yet ⇒ signed out; return empty rather than erroring.
-        Err(_) => Ok(Secrets::default()),
-    }
+    let dir = config_dir(&app)?;
+    let backend = make_backend(&dir);
+    migrate_legacy(backend.as_ref(), &dir)?;
+    Ok(Secrets {
+        token: backend.get(ACCT_TOKEN)?,
+        refresh_token: backend.get(ACCT_REFRESH)?,
+    })
 }
 
 #[tauri::command]
@@ -71,44 +287,46 @@ fn secure_store_set(
     token: Option<String>,
     refresh_token: Option<String>,
 ) -> Result<(), String> {
-    let path = secrets_path(&app)?;
-    let secrets = Secrets { token, refresh_token };
-    let data = serde_json::to_vec(&secrets).map_err(|e| e.to_string())?;
-    write_private(&path, &data)
+    let dir = config_dir(&app)?;
+    let backend = make_backend(&dir);
+    // Per-account set/delete mirrors the old whole-struct write: a field passed
+    // as None clears that account (the previous code stored a struct with the
+    // field absent, i.e. logged out of that token).
+    set_or_delete(backend.as_ref(), ACCT_TOKEN, token)?;
+    set_or_delete(backend.as_ref(), ACCT_REFRESH, refresh_token)?;
+    Ok(())
+}
+
+fn set_or_delete(backend: &dyn SecretBackend, account: &str, value: Option<String>) -> Result<(), String> {
+    match value {
+        Some(v) => backend.set(account, &v),
+        None => backend.delete(account),
+    }
 }
 
 #[tauri::command]
 fn secure_store_clear(app: AppHandle) -> Result<(), String> {
-    let path = secrets_path(&app)?;
-    // Missing file is fine — clearing an already-cleared store is idempotent.
-    let _ = fs::remove_file(path);
+    let dir = config_dir(&app)?;
+    let backend = make_backend(&dir);
+    // Idempotent — clearing already-clear accounts is fine.
+    let _ = backend.delete(ACCT_TOKEN);
+    let _ = backend.delete(ACCT_REFRESH);
     Ok(())
 }
 
-#[cfg(unix)]
-fn write_private(path: &PathBuf, data: &[u8]) -> Result<(), String> {
-    use std::os::unix::fs::OpenOptionsExt;
-    let mut f = fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(0o600) // owner read/write only
-        .open(path)
-        .map_err(|e| e.to_string())?;
-    f.write_all(data).map_err(|e| e.to_string())
-}
-
-#[cfg(not(unix))]
-fn write_private(path: &PathBuf, data: &[u8]) -> Result<(), String> {
-    // Windows ACL hardening is a follow-up; app-config dir is already per-user.
-    fs::write(path, data).map_err(|e| e.to_string())
+/// Honest backend indicator for the UI ("OS keychain" vs "encrypted file").
+#[tauri::command]
+fn secret_backend_secure(app: AppHandle) -> Result<bool, String> {
+    let dir = config_dir(&app)?;
+    Ok(make_backend(&dir).secure())
 }
 
 // ── BYOK provider keys ───────────────────────────────────────────────────────
 //
-// Stored as a flat { provider: secret } map in `keys.json` (0600 on unix). The
-// masked list is the only thing the webview sees for enumeration; the raw secret
-// leaves the host solely via `key_get`, at direct-dispatch time.
+// Secrets live in the backend under `byok.<provider>`. `keys-index.json` holds
+// provider → MASKED fingerprint (never a secret), so `key_list` enumerates
+// without ever reading a raw secret. `key_get` returns the raw value and is
+// called ONLY at direct-dispatch time.
 
 /// One masked entry for the Settings → Keys list. `masked` is first4…last4 (or
 /// "…" for short values) — never the raw secret.
@@ -118,12 +336,14 @@ struct KeyEntry {
     masked: String,
 }
 
-/// Reveal nothing meaningful: first4…last4 for long keys, just "…" for short.
+/// Reveal nothing meaningful: first4…last4 only when there's a real hidden
+/// middle (≥5 chars hidden ⇒ len ≥ 13), otherwise just "…". A shorter key would
+/// leak most of its entropy through first4…last4, so it shows nothing at all.
 /// Char-based so multibyte keys never panic on a byte-boundary slice.
 fn mask_key(secret: &str) -> String {
     let s = secret.trim();
     let chars: Vec<char> = s.chars().collect();
-    if chars.len() <= 8 {
+    if chars.len() < 13 {
         return "…".to_string();
     }
     let first: String = chars[..4].iter().collect();
@@ -131,25 +351,26 @@ fn mask_key(secret: &str) -> String {
     format!("{first}…{last}")
 }
 
-fn keys_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
-    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    Ok(dir.join("keys.json"))
+fn index_file(config_dir: &Path) -> PathBuf {
+    config_dir.join("keys-index.json")
 }
 
-fn read_keys(app: &AppHandle) -> Result<BTreeMap<String, String>, String> {
-    let path = keys_path(app)?;
-    match fs::read(&path) {
-        Ok(bytes) => serde_json::from_slice(&bytes).map_err(|e| e.to_string()),
-        // No file yet ⇒ empty store rather than an error.
-        Err(_) => Ok(BTreeMap::new()),
+/// provider → masked fingerprint. Masked values are NOT secrets, but the file
+/// is still written 0600 for tidiness.
+fn read_index(config_dir: &Path) -> BTreeMap<String, String> {
+    match fs::read(index_file(config_dir)) {
+        Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or_default(),
+        Err(_) => BTreeMap::new(),
     }
 }
 
-fn write_keys(app: &AppHandle, map: &BTreeMap<String, String>) -> Result<(), String> {
-    let path = keys_path(app)?;
-    let data = serde_json::to_vec(map).map_err(|e| e.to_string())?;
-    write_private(&path, &data)
+fn write_index(config_dir: &Path, index: &BTreeMap<String, String>) -> Result<(), String> {
+    if index.is_empty() {
+        let _ = fs::remove_file(index_file(config_dir));
+        return Ok(());
+    }
+    let data = serde_json::to_vec(index).map_err(|e| e.to_string())?;
+    write_private(&index_file(config_dir), &data)
 }
 
 #[tauri::command]
@@ -161,28 +382,38 @@ fn key_add(app: AppHandle, provider: String, secret: String) -> Result<(), Strin
     if secret.trim().is_empty() {
         return Err("secret is required".into());
     }
-    let mut map = read_keys(&app)?;
-    map.insert(provider, secret);
-    write_keys(&app, &map)
+    let dir = config_dir(&app)?;
+    let backend = make_backend(&dir);
+    migrate_legacy(backend.as_ref(), &dir)?;
+    // Secret into the backend FIRST; only then record it in the index, so the
+    // index never advertises a provider whose secret failed to persist.
+    backend.set(&byok_account(&provider), &secret)?;
+    let mut index = read_index(&dir);
+    index.insert(provider, mask_key(&secret));
+    write_index(&dir, &index)
 }
 
 #[tauri::command]
 fn key_list(app: AppHandle) -> Result<Vec<KeyEntry>, String> {
-    let map = read_keys(&app)?;
-    Ok(map
+    let dir = config_dir(&app)?;
+    let backend = make_backend(&dir);
+    migrate_legacy(backend.as_ref(), &dir)?;
+    // Reads ONLY the masked index — never a raw secret.
+    Ok(read_index(&dir)
         .into_iter()
-        .map(|(provider, secret)| KeyEntry {
-            provider,
-            masked: mask_key(&secret),
-        })
+        .map(|(provider, masked)| KeyEntry { provider, masked })
         .collect())
 }
 
 #[tauri::command]
 fn key_remove(app: AppHandle, provider: String) -> Result<(), String> {
-    let mut map = read_keys(&app)?;
-    map.remove(provider.trim());
-    write_keys(&app, &map)
+    let provider = provider.trim().to_string();
+    let dir = config_dir(&app)?;
+    let backend = make_backend(&dir);
+    backend.delete(&byok_account(&provider))?;
+    let mut index = read_index(&dir);
+    index.remove(&provider);
+    write_index(&dir, &index)
 }
 
 /// Raw secret for a single provider — call ONLY at direct-dispatch time.
@@ -190,8 +421,10 @@ fn key_remove(app: AppHandle, provider: String) -> Result<(), String> {
 /// honest "no key" error rather than dispatching).
 #[tauri::command]
 fn key_get(app: AppHandle, provider: String) -> Result<Option<String>, String> {
-    let map = read_keys(&app)?;
-    Ok(map.get(provider.trim()).cloned())
+    let dir = config_dir(&app)?;
+    let backend = make_backend(&dir);
+    migrate_legacy(backend.as_ref(), &dir)?;
+    backend.get(&byok_account(provider.trim()))
 }
 
 // ── Lane-B SAFE-SPAWN — vendor CLI detection ─────────────────────────────────
@@ -1241,6 +1474,262 @@ mod mcp_tests {
 }
 
 #[cfg(test)]
+mod secret_store_tests {
+    use super::*;
+    use std::collections::BTreeMap as Map;
+    use std::sync::Mutex as StdMutex;
+
+    /// In-memory backend that records every operation, so tests exercise the
+    /// vault logic (migration, index, set/delete semantics) without touching a
+    /// real OS keychain. Backed by a `Mutex` so it is naturally `Send + Sync`
+    /// (no `unsafe`). `secure` is configurable to test both the honest
+    /// keychain-on and file-fallback answers.
+    struct MockBackend {
+        store: StdMutex<Map<String, String>>,
+        secure: bool,
+    }
+    impl MockBackend {
+        fn new(secure: bool) -> Self {
+            Self { store: StdMutex::new(Map::new()), secure }
+        }
+        fn snapshot(&self) -> Map<String, String> {
+            self.store.lock().unwrap().clone()
+        }
+    }
+    impl SecretBackend for MockBackend {
+        fn set(&self, account: &str, secret: &str) -> Result<(), String> {
+            self.store.lock().unwrap().insert(account.to_string(), secret.to_string());
+            Ok(())
+        }
+        fn get(&self, account: &str) -> Result<Option<String>, String> {
+            Ok(self.store.lock().unwrap().get(account).cloned())
+        }
+        fn delete(&self, account: &str) -> Result<(), String> {
+            self.store.lock().unwrap().remove(account);
+            Ok(())
+        }
+        fn secure(&self) -> bool {
+            self.secure
+        }
+    }
+
+    fn tmpdir() -> PathBuf {
+        let mut p = std::env::temp_dir();
+        // Unique-ish per test via nanos; tests don't run the same instant twice
+        // for the same name and each cleans its own files.
+        let n = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        p.push(format!("forge-s010-{n}"));
+        fs::create_dir_all(&p).unwrap();
+        p
+    }
+
+    #[test]
+    fn mask_key_reveals_only_first4_last4() {
+        assert_eq!(mask_key("sk-ant-1234567890ABCD"), "sk-a…ABCD");
+        assert_eq!(mask_key("short"), "…");
+        assert_eq!(mask_key("  sk-ant-1234567890ABCD  "), "sk-a…ABCD"); // trims
+    }
+
+    #[test]
+    fn file_backend_roundtrip_and_delete_removes_empty_file() {
+        let dir = tmpdir();
+        let be = FileBackend { path: dir.join("vault.json") };
+        assert_eq!(be.get("auth.token").unwrap(), None);
+        be.set("auth.token", "tok-abc").unwrap();
+        assert_eq!(be.get("auth.token").unwrap(), Some("tok-abc".into()));
+        assert!(be.secure() == false);
+        be.delete("auth.token").unwrap();
+        assert_eq!(be.get("auth.token").unwrap(), None);
+        // Last account removed ⇒ the file is deleted, not left as `{}`.
+        assert!(!dir.join("vault.json").exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn file_backend_writes_owner_only_0600() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tmpdir();
+        let be = FileBackend { path: dir.join("vault.json") };
+        be.set("byok.fal", "secret-value").unwrap();
+        let mode = fs::metadata(dir.join("vault.json")).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o600);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn key_index_stores_masked_never_the_secret() {
+        let dir = tmpdir();
+        let be = MockBackend::new(true);
+        // Simulate key_add's core: backend.set then index insert of the MASK.
+        be.set(&byok_account("openai"), "sk-openai-verysecret-1234").unwrap();
+        let mut index = read_index(&dir);
+        index.insert("openai".into(), mask_key("sk-openai-verysecret-1234"));
+        write_index(&dir, &index).unwrap();
+
+        let raw = fs::read_to_string(index_file(&dir)).unwrap();
+        assert!(!raw.contains("verysecret"), "index must never contain the raw secret");
+        assert!(raw.contains("sk-o…1234"), "index holds the masked fingerprint");
+        // And the raw secret IS retrievable from the backend for dispatch.
+        assert_eq!(be.get(&byok_account("openai")).unwrap(), Some("sk-openai-verysecret-1234".into()));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn migration_moves_legacy_secrets_into_backend_and_deletes_files() {
+        let dir = tmpdir();
+        // Seed the pre-S-010 plaintext files.
+        fs::write(
+            dir.join("secrets.json"),
+            serde_json::to_vec(&Secrets { token: Some("legacy-tok".into()), refresh_token: Some("legacy-ref".into()) }).unwrap(),
+        ).unwrap();
+        let mut legacy_keys = BTreeMap::new();
+        legacy_keys.insert("anthropic".to_string(), "sk-ant-legacy-secret-9999".to_string());
+        fs::write(dir.join("keys.json"), serde_json::to_vec(&legacy_keys).unwrap()).unwrap();
+
+        let be = MockBackend::new(true);
+        migrate_legacy(&be, &dir).unwrap();
+
+        // Secrets landed in the backend under the new account names.
+        assert_eq!(be.get(ACCT_TOKEN).unwrap(), Some("legacy-tok".into()));
+        assert_eq!(be.get(ACCT_REFRESH).unwrap(), Some("legacy-ref".into()));
+        assert_eq!(be.get(&byok_account("anthropic")).unwrap(), Some("sk-ant-legacy-secret-9999".into()));
+        // The BYOK provider is now in the masked index.
+        assert_eq!(read_index(&dir).get("anthropic"), Some(&mask_key("sk-ant-legacy-secret-9999")));
+        // Legacy plaintext files are GONE.
+        assert!(!dir.join("secrets.json").exists());
+        assert!(!dir.join("keys.json").exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn migration_is_idempotent_and_noop_without_legacy_files() {
+        let dir = tmpdir();
+        let be = MockBackend::new(true);
+        migrate_legacy(&be, &dir).unwrap(); // nothing to do
+        assert!(be.snapshot().is_empty());
+        migrate_legacy(&be, &dir).unwrap(); // still fine on a second pass
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Backend that fails every write — models a keychain hiccup mid-migration.
+    struct FailingBackend;
+    impl SecretBackend for FailingBackend {
+        fn set(&self, _a: &str, _s: &str) -> Result<(), String> {
+            Err("keychain unavailable".into())
+        }
+        fn get(&self, _a: &str) -> Result<Option<String>, String> {
+            Ok(None)
+        }
+        fn delete(&self, _a: &str) -> Result<(), String> {
+            Ok(())
+        }
+        fn secure(&self) -> bool {
+            true
+        }
+    }
+
+    #[test]
+    fn migration_keeps_legacy_file_when_backend_write_fails() {
+        // Crash-safety: if the backend can't persist the secret, the legacy
+        // plaintext file MUST survive so the secret isn't lost (retry next run).
+        let dir = tmpdir();
+        fs::write(
+            dir.join("keys.json"),
+            serde_json::to_vec(&{
+                let mut m = BTreeMap::new();
+                m.insert("openai".to_string(), "sk-openai-secret-12345".to_string());
+                m
+            }).unwrap(),
+        ).unwrap();
+
+        let err = migrate_legacy(&FailingBackend, &dir);
+        assert!(err.is_err(), "a failed backend write must propagate, not swallow");
+        // File intact — nothing lost.
+        assert!(dir.join("keys.json").exists(), "legacy file must survive a failed migration");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn migration_quarantines_a_corrupt_legacy_file_instead_of_deleting_it() {
+        // A truncated write from an older crash produces unparseable JSON. It
+        // must NOT be silently deleted (permanent secret loss) — it is renamed
+        // aside, recoverable, and no longer re-triggers migration.
+        let dir = tmpdir();
+        fs::write(dir.join("keys.json"), b"{\"anthropic\":\"sk-ant-REAL-999").unwrap(); // truncated
+        let be = MockBackend::new(true);
+        migrate_legacy(&be, &dir).unwrap();
+
+        assert!(!dir.join("keys.json").exists(), "corrupt file is moved aside");
+        assert!(dir.join("keys.corrupt").exists(), "corrupt file is preserved, not lost");
+        // Its bytes are intact for recovery.
+        let recovered = fs::read_to_string(dir.join("keys.corrupt")).unwrap();
+        assert!(recovered.contains("sk-ant-REAL-999"));
+        // Backend stayed empty (nothing parseable to migrate).
+        assert!(be.snapshot().is_empty());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn mask_key_hides_short_secrets_entirely() {
+        // A short secret would leak most of its entropy through first4…last4,
+        // so anything under 13 chars shows nothing.
+        assert_eq!(mask_key("abcdefghi"), "…"); // 9 chars → fully hidden
+        assert_eq!(mask_key("hunter1234567"), "hunt…4567"); // 13 chars → revealed
+    }
+
+    #[test]
+    fn set_or_delete_mirrors_whole_struct_semantics() {
+        let be = MockBackend::new(true);
+        set_or_delete(&be, ACCT_TOKEN, Some("t1".into())).unwrap();
+        assert_eq!(be.get(ACCT_TOKEN).unwrap(), Some("t1".into()));
+        // Passing None for a field clears that account (logged out of it).
+        set_or_delete(&be, ACCT_TOKEN, None).unwrap();
+        assert_eq!(be.get(ACCT_TOKEN).unwrap(), None);
+    }
+
+    #[test]
+    fn key_remove_clears_both_backend_and_index() {
+        let dir = tmpdir();
+        let be = MockBackend::new(true);
+        be.set(&byok_account("groq"), "sk-groq-abcdefgh1234").unwrap();
+        let mut index = read_index(&dir);
+        index.insert("groq".into(), mask_key("sk-groq-abcdefgh1234"));
+        write_index(&dir, &index).unwrap();
+
+        // Simulate key_remove's core.
+        be.delete(&byok_account("groq")).unwrap();
+        let mut index = read_index(&dir);
+        index.remove("groq");
+        write_index(&dir, &index).unwrap();
+
+        assert_eq!(be.get(&byok_account("groq")).unwrap(), None);
+        assert!(read_index(&dir).get("groq").is_none());
+        // Index empty ⇒ file removed.
+        assert!(!index_file(&dir).exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Real OS-keychain round-trip. `#[ignore]` so the default `cargo test`
+    /// never touches the developer's login keychain; run explicitly with
+    /// `cargo test --ignored keychain_roundtrip` on macOS/Windows to verify.
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    #[test]
+    #[ignore]
+    fn keychain_roundtrip() {
+        let be = KeychainBackend;
+        assert!(be.secure());
+        let acct = "test.s010.roundtrip";
+        be.set(acct, "keychain-secret-xyz").unwrap();
+        assert_eq!(be.get(acct).unwrap(), Some("keychain-secret-xyz".into()));
+        be.delete(acct).unwrap();
+        assert_eq!(be.get(acct).unwrap(), None);
+        // Deleting an absent credential is a no-op, not an error.
+        be.delete(acct).unwrap();
+    }
+}
+
+#[cfg(test)]
 mod governance_tests {
     use super::*;
 
@@ -1330,6 +1819,7 @@ pub fn run() {
             secure_store_get,
             secure_store_set,
             secure_store_clear,
+            secret_backend_secure,
             key_add,
             key_list,
             key_remove,
