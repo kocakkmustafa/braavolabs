@@ -229,16 +229,39 @@ The Settings → **Activity → Policy** panel renders this table live, straight
 from the compile-time constant — so a compromised host can't misrepresent which
 actions auto-run.
 
-### 2. One-time approval tokens (nothing runs without passing the gate)
+### 2. One-time approval tokens + native approval dialog (S-012)
 
-`request → (approve|reject) → consume`. `request()` classifies + audits;
+`request → (native approve | reject) → consume`. `request()` classifies + audits;
 `approve()` mints a token bound to *that* action; `consume()` spends it **exactly
 once** and refuses a replayed, forged, or mis-bound token. An executor that
 requires a consumed token therefore **cannot run without passing the gate** —
 verified by tests (replay-after-consume → refused; a token for action A → refused
-for action B; a never-issued token → refused). The Lane-A Direct, Lane-B launch,
-and Local lanes in the UI are all funnelled through this gate; the approval modal
-is the "coin-flip" moment (arc-rim card, ember/molten accent).
+for action B; a never-issued token → refused).
+
+**The approval itself is a NATIVE OS dialog (S-012), not a webview modal.** The
+old `approve_action` minted a token as soon as the webview called it — so a
+compromised webview could skip its own HTML modal and self-approve. Now
+`approve_action` shows a host-side native confirm ("Allow" / "Deny", OS chrome
+outside the webview's reach), and mints a token ONLY on a real human "Allow".
+Deny, dismiss, or a 120s timeout → **fail-closed** (no token, audited `rejected`).
+The dialog runs async off the main thread (non-blocking `show()` + oneshot channel)
+so it can't deadlock the event loop.
+
+The dialog body is derived from the **enforced binding fields** — the actual
+`argv` + `cwd` (for a command), `server` + `tool` (for an MCP call), `path` (for a
+file write) — the exact things the token binds to and the host runs. It is **never**
+the webview's free-text `summary`: a compromised webview could set `summary` to
+"Sync notes folder" while requesting `rm -rf` in `argv`, so the human must see
+what actually runs. Each field is sanitized to a single bounded line (control
+chars/newlines stripped, length-capped) so the webview can't inject fake dialog
+chrome. The in-app arc-rim modal remains a rich preview, but the native dialog is
+the **trust anchor** — a webview can neither forge an OS click nor control what the
+dialog says. The Lane-A Direct, Lane-B launch, and Local lanes funnel through this
+gate.
+
+> **Human gate:** the native dialog's actual rendering + click flow is verified in
+> a GUI session (`cargo tauri dev`), like every other desktop runtime surface —
+> the host wiring, fail-closed timeout, and token logic are unit-/compile-verified.
 
 ### 3. Append-only audit ledger (0600, secret-free)
 
