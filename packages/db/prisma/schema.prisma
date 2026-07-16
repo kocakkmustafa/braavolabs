@@ -47,6 +47,9 @@ model Tenant {
   externalConnections ExternalConnection[]
   mediaAssets         MediaAsset[]
   handoffs            HandoffLedger[]
+  // Media orchestration (FAZ E) — BYOK provider keys + generation ledger.
+  mediaProviderKeys   MediaProviderKey[]
+  mediaGenerations    MediaGeneration[]
 
   @@map("tenants")
 }
@@ -1806,4 +1809,77 @@ enum AbTestStatus {
   RUNNING
   PAUSED
   COMPLETED
+}
+
+// ─── MEDIA ORCHESTRATION (FAZ E) ────────────────────────
+//
+// BYOK-only image + TTS generation. Two tables, additive to the existing
+// MediaAsset (T9) binary-storage model above — this section stores NEITHER
+// API keys in plaintext NOR generated binaries. MediaProviderKey holds one
+// encrypted key per (tenant, provider) via encryptForTenant/decryptForTenant
+// (lib/encryption.ts). MediaGeneration is an append-only ledger row per
+// generation attempt (success or failure) for audit + honest cost history;
+// resultUrl is a provider-CDN link only (images) — TTS audio is returned to
+// the caller inline and never persisted server-side, so resultUrl is NULL
+// for TTS rows. No binary/BYTEA column on either table.
+
+enum MediaProvider {
+  FAL
+  ELEVENLABS
+  GOOGLE_TTS
+}
+
+enum MediaGenerationKind {
+  IMAGE
+  TTS
+}
+
+enum MediaGenerationStatus {
+  SUCCEEDED
+  FAILED
+}
+
+model MediaProviderKey {
+  id              String         @id @default(cuid())
+  tenantId        String         @map("tenant_id")
+  provider        MediaProvider
+  // AES-256-GCM ciphertext via encryptForTenant — never the plaintext key.
+  encryptedApiKey String         @map("encrypted_api_key") @db.Text
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, provider])
+  @@index([tenantId])
+  @@map("media_provider_keys")
+}
+
+model MediaGeneration {
+  id       String              @id @default(cuid())
+  tenantId String              @map("tenant_id")
+  kind     MediaGenerationKind
+  provider MediaProvider
+  model    String
+  // First 300 chars of the prompt/text input — enough for audit/history
+  // without storing the full (potentially long) TTS script verbatim.
+  promptPreview    String                 @map("prompt_preview") @db.VarChar(300)
+  // Request params as submitted (model, size, voice, …). NEVER contains
+  // the API key or any Authorization header value.
+  paramsJson       Json                   @map("params_json")
+  estimatedCostUsd Decimal                @map("estimated_cost_usd") @db.Decimal(10, 6)
+  status           MediaGenerationStatus
+  // Truncated (500 char) sanitized error — provider raw error bodies are
+  // never stored verbatim (see media.service.ts's key-leak guard).
+  errorMessage     String?                @map("error_message") @db.VarChar(500)
+  // Provider-CDN URL only (image generations); NULL for TTS (audio is
+  // returned inline, not persisted) and for FAILED rows.
+  resultUrl        String?                @map("result_url") @db.Text
+  resultMeta       Json?                  @map("result_meta")
+  createdAt        DateTime               @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@map("media_generations")
 }
