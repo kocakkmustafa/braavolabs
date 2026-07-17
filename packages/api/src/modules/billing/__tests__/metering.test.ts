@@ -26,6 +26,14 @@ vi.mock("../../../lib/db", () => ({
     $queryRaw: (...a: unknown[]) => queryRawMock(...a),
     $executeRaw: (...a: unknown[]) => executeRawMock(...a),
   },
+  // RLS-real: the raw quota queries now run through tenantTx (set_config-first
+  // on the same connection). In tests it runs fn against a tx exposing the raw
+  // delegates, so the SQL + assertions are unchanged.
+  tenantTx: (fn: any) =>
+    fn({
+      $queryRaw: (...a: unknown[]) => queryRawMock(...a),
+      $executeRaw: (...a: unknown[]) => executeRawMock(...a),
+    }),
 }));
 
 vi.mock("../../../lib/logger", () => ({

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../../middleware/auth";
-import { prisma } from "../../lib/db";
+import { prisma, tenantTx } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { z } from "zod";
 import { notifyTenantUsers } from "../../services/push";
@@ -41,14 +41,14 @@ async function claimEmailQuota(tenantId: string): Promise<{ ok: boolean; sent: n
 
   // Atomic: insert a fresh daily row at value=1, or increment IFF still
   // under the limit. Same TOCTOU pattern as monthly run quota.
-  const rows = await prisma.$queryRaw<Array<{ value: number }>>`
+  const rows = await tenantTx((tx) => tx.$queryRaw<Array<{ value: number }>>`
     INSERT INTO usage_meters (id, tenant_id, metric, value, period_start, period_end, created_at, updated_at)
     VALUES (gen_random_uuid()::text, ${tenantId}, 'emails_sent_today', 1, ${periodStart}, ${periodEnd}, NOW(), NOW())
     ON CONFLICT (tenant_id, metric, period_start) DO UPDATE
       SET value = usage_meters.value + 1, updated_at = NOW()
       WHERE usage_meters.value < ${limit}
     RETURNING value
-  `;
+  `);
 
   if (rows.length === 0) {
     const current = await prisma.usageMeter.findUnique({

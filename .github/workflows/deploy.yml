@@ -319,8 +319,16 @@ jobs:
             # rolled-back first; the deploy then re-applies cleanly.
             # `|| true` after resolve so a no-op (migration is not in
             # failed state) does not abort the chain.
-            echo "=== self-heal failed migrations + migrate deploy ==="
-            sudo docker exec aicos-api sh -c "cd /app/packages/db && (npx prisma migrate resolve --rolled-back 20260512_activity_log_composite_index || true) && (npx prisma migrate deploy || true)" || echo "(migration step skipped)"
+            #
+            # RLS-real STAGE 2: migrate as the schema OWNER. Once the runtime
+            # DATABASE_URL is the non-superuser aicos_app role, it cannot ALTER
+            # the schema, so the migrate command uses MIGRATE_DATABASE_URL (the
+            # owner URL from compose). Falls back to DATABASE_URL when
+            # MIGRATE_DATABASE_URL is absent → byte-for-byte todays behavior
+            # before STAGE 2. Both vars live inside the container, so no host
+            # .env sourcing / URL-quoting on the SSH side.
+            echo "=== self-heal failed migrations + migrate deploy (owner role) ==="
+            sudo docker exec aicos-api sh -c "cd /app/packages/db && export DATABASE_URL=\"\${MIGRATE_DATABASE_URL:-\$DATABASE_URL}\" && (npx prisma migrate resolve --rolled-back 20260512_activity_log_composite_index || true) && (npx prisma migrate deploy || true)" || echo "(migration step skipped)"
 
             # Restart the API container so any boot-time seed code
             # (seedBenchSuites etc.) runs against the freshly-migrated

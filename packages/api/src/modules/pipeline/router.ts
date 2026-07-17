@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../../middleware/auth";
-import { prisma } from "../../lib/db";
+import { prisma, tenantTx } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { rateLimit } from "../../middleware/rateLimit";
 import { z } from "zod";
@@ -708,7 +708,7 @@ pipelineRouter.post("/:id/revisions/restore", async (req, res, next) => {
 
     // Snapshot the CURRENT steps as a new revision so the restore is reversible,
     // then apply the chosen snapshot — both in one transaction.
-    const restored = await prisma.$transaction(async (tx) => {
+    const restored = await tenantTx(async (tx) => {
       await tx.activityLog.create({
         data: {
           tenantId: req.auth!.tenantId,

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../../middleware/auth";
-import { prisma } from "../../lib/db";
+import { prisma, tenantTx } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { enqueueRun } from "../pipeline/runner";
 import { runControlAction } from "../external/control";
@@ -119,7 +119,7 @@ approvalRouter.post("/:id/decide", async (req, res, next) => {
       throw new AppError(409, "Approval already decided");
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await tenantTx(async (tx) => {
       // Atomic state transition — only the row that's still PENDING wins.
       const claim = await tx.approval.updateMany({
         where: { id: approval.id, status: "PENDING" },

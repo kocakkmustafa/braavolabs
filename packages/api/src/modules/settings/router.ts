@@ -6,7 +6,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
 import { AppError } from "../../middleware/error";
-import { prisma } from "../../lib/db";
+import { prisma, tenantTx } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import {
   saveTenantAIConfig,
@@ -237,12 +237,12 @@ settingsRouter.put("/ai-config", async (req, res, next) => {
       // Update model/baseUrl, keep the existing encrypted key, and promote
       // this row to the tenant's default (demote-then-promote, same
       // invariant as saveTenantAIConfig — one default per tenant).
-      await prisma.$transaction([
-        prisma.userAIConfig.updateMany({
+      await tenantTx(async (tx) => {
+        await tx.userAIConfig.updateMany({
           where: { tenantId: req.auth!.tenantId, NOT: { provider }, isDefault: true },
           data: { isDefault: false },
-        }),
-        prisma.userAIConfig.update({
+        });
+        await tx.userAIConfig.update({
           where: { tenantId_provider: { tenantId: req.auth!.tenantId, provider } },
           data: {
             model,
@@ -250,8 +250,8 @@ settingsRouter.put("/ai-config", async (req, res, next) => {
             isDefault: true,
             ...(allowSystemFallback !== undefined ? { allowSystemFallback } : {}),
           },
-        }),
-      ]);
+        });
+      });
     } else {
       await saveTenantAIConfig(
         req.auth!.tenantId,

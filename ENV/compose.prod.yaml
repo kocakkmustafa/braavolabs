@@ -84,7 +84,17 @@ services:
       # workers run alongside, then exhausts under burst). pool_timeout
       # caps the queue wait for a connection so a leaking pool surfaces
       # quickly instead of pinning an HTTP request for minutes.
-      DATABASE_URL: postgresql://aicos:${POSTGRES_PASSWORD}@postgres:5432/aicos_prod?schema=public&connection_limit=20&pool_timeout=15
+      # RLS-real STAGE 2: the app's RUNTIME connection. Set RUNTIME_DATABASE_URL
+      # in the host .env to the non-superuser `aicos_app` role to ACTIVATE RLS
+      # (that role can't bypass row-level security, so the STAGE 1 per-query
+      # tenant binding starts being enforced). Unset → falls back to the owner
+      # `aicos` role = today's behavior (RLS stays a no-op). One env line flips
+      # it; remove the line to roll back. See RLS-STAGE2-RUNBOOK.md.
+      DATABASE_URL: ${RUNTIME_DATABASE_URL:-postgresql://aicos:${POSTGRES_PASSWORD}@postgres:5432/aicos_prod?schema=public&connection_limit=20&pool_timeout=15}
+      # Migrations MUST run as the schema OWNER (aicos) even after the runtime
+      # switches to aicos_app — a non-superuser can't ALTER the schema. Always
+      # the owner URL; consumed only by the deploy pipeline's migrate step.
+      MIGRATE_DATABASE_URL: postgresql://aicos:${POSTGRES_PASSWORD}@postgres:5432/aicos_prod?schema=public
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       # Auth / crypto (required)
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env (min 32 chars, generate with openssl rand -hex 32)}

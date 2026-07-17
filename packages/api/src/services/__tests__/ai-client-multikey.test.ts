@@ -45,6 +45,19 @@ vi.mock("../../lib/db", () => ({
       return Promise.all(ops as Promise<unknown>[]);
     },
   },
+  // RLS-real: saveTenantAIConfig now uses the interactive tenantTx helper
+  // (set_config-first, then demote → promote on the same connection). The mock
+  // records the transaction marker and runs fn against a tx exposing the
+  // userAIConfig delegates, preserving the demote-then-promote call order.
+  tenantTx: async (fn: any) => {
+    db.transaction();
+    return fn({
+      userAIConfig: {
+        updateMany: (...a: unknown[]) => db.updateMany(...a),
+        upsert: (...a: unknown[]) => db.upsert(...a),
+      },
+    });
+  },
 }));
 
 const crypto = vi.hoisted(() => ({
@@ -146,9 +159,8 @@ describe("saveTenantAIConfig — per-provider upsert + default promotion (T6)", 
 
     await saveTenantAIConfig(TENANT, "DEEPSEEK", "deepseek-chat", "sk-deepseek-plain");
 
-    // Single transaction wrapping exactly the two operations.
+    // Single (tenant-scoped) transaction wrapping the two operations.
     expect(db.transaction).toHaveBeenCalledOnce();
-    expect(db.transaction.mock.calls[0][0]).toHaveLength(2);
 
     // 1) Demote every OTHER default row of this tenant…
     expect(db.updateMany).toHaveBeenCalledExactlyOnceWith({

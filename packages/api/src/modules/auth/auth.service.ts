@@ -8,7 +8,7 @@ import jwt from "jsonwebtoken";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { sendWelcomeEmail, sendPasswordResetEmail, sendVerifyEmail } from "../../integrations/email-templates";
 import { OAuth2Client } from "google-auth-library";
-import { prisma } from "../../lib/db";
+import { prisma, tenantTx } from "../../lib/db";
 import { redis } from "../../lib/redis";
 import { env } from "../../config/env";
 import { AppError } from "../../middleware/error";
@@ -329,7 +329,7 @@ export async function register(data: {
   const passwordHash = await bcrypt.hash(data.password, 12);
 
   // Create tenant + user in transaction
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await tenantTx(async (tx) => {
     const slug = data.tenantName
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
@@ -648,7 +648,7 @@ export async function googleCallback(
       "-" +
       Date.now().toString(36);
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await tenantTx(async (tx) => {
       const tenant = await tx.tenant.create({
         data: { name: name ?? email.split("@")[0], slug, plan: "FREE" },
       });
@@ -980,7 +980,7 @@ export async function githubCallback(
       "-" +
       Date.now().toString(36);
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await tenantTx(async (tx) => {
       const tenant = await tx.tenant.create({
         data: { name: name ?? email!.split("@")[0], slug, plan: "FREE" },
       });
@@ -1114,7 +1114,7 @@ async function upsertAndIssueTokens(args: {
       "-" +
       Date.now().toString(36);
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await tenantTx(async (tx) => {
       const tenant = await tx.tenant.create({
         data: { name: name ?? email.split("@")[0], slug, plan: "FREE" },
       });

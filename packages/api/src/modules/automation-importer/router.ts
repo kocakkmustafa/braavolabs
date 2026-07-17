@@ -25,7 +25,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
-import { prisma } from "../../lib/db";
+import { prisma, tenantTx } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { logger } from "../../lib/logger";
 import type { ConvertedPipeline } from "./adapters/types";
@@ -158,7 +158,7 @@ automationImporterRouter.post("/", async (req, res, next) => {
     // are created FIRST (idempotent findFirst→create — Agent has no @@unique on
     // (companyId, role) so upsert is impossible, adversarial A2), THEN the
     // pipeline that references them by role.
-    const pipeline = await prisma.$transaction(async (tx) => {
+    const pipeline = await tenantTx(async (tx) => {
       for (const spec of agentSpecs) {
         const existing = await tx.agent.findFirst({
           where: { companyId: companyId!, role: spec.role },

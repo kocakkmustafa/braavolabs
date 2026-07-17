@@ -1,5 +1,9 @@
 import { Client } from "@hubspot/api-client";
-import { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
+
+/** Accepts the base client OR an $extends()-wrapped one (RLS-bound) — only the
+ * contact + deal model delegates are used, so a structural subset keeps both. */
+type HubSpotPrisma = Pick<PrismaClient, "contact" | "deal">;
 import pino from "pino";
 
 const logger = pino({ name: "hubspot" });
@@ -19,7 +23,7 @@ function createClient(config: HubSpotConfig): Client {
 export async function syncContacts(
   config: HubSpotConfig,
   companyId: string,
-  prisma: PrismaClient,
+  prisma: HubSpotPrisma,
 ): Promise<{ created: number; updated: number }> {
   const hubspot = createClient(config);
   let created = 0;
@@ -86,7 +90,7 @@ export async function syncContacts(
 export async function syncDeals(
   config: HubSpotConfig,
   companyId: string,
-  prisma: PrismaClient,
+  prisma: HubSpotPrisma,
 ): Promise<{ created: number; updated: number }> {
   const hubspot = createClient(config);
   let created = 0;

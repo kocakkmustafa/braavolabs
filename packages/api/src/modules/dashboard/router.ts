@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../../middleware/auth";
-import { prisma } from "../../lib/db";
+import { prisma, tenantTx } from "../../lib/db";
 
 export const dashboardRouter = Router();
 dashboardRouter.use(authMiddleware);
@@ -213,14 +213,14 @@ dashboardRouter.get("/agent-performance", async (req, res, next) => {
     });
 
     // Tool calls count per agent
-    const toolCallCountsByAgent = await prisma.$queryRaw<Array<{ agentId: string; count: bigint }>>`
+    const toolCallCountsByAgent = await tenantTx((tx) => tx.$queryRaw<Array<{ agentId: string; count: bigint }>>`
       SELECT rs."agentId", COUNT(tc.id) as count
       FROM "ToolCall" tc
       JOIN "RunStep" rs ON tc."runStepId" = rs.id
       WHERE rs."agentId" = ANY(${agentIds})
         AND rs."createdAt" >= ${periodStart}
       GROUP BY rs."agentId"
-    `;
+    `);
 
     // Build per-agent stats map
     const statsMap: Record<string, {

@@ -14,6 +14,18 @@ const envShape = z.object({
   API_HOST: z.string().default("0.0.0.0"),
   LOG_LEVEL: z.string().default("debug"),
   DATABASE_URL: z.string(),
+  // ── DB transaction wrapper budget (RLS-real) ──
+  // The RLS binding wraps every model op in an interactive transaction. Prisma's
+  // interactive-tx DEFAULTS (timeout 5s / maxWait 2s) are far tighter than the
+  // pre-RLS world, where a plain query had no app-side wall-clock ceiling and
+  // waited up to pool_timeout for a connection. Left at the defaults, a slow
+  // analytics/report query would newly throw P2028 → 500 (a regression that
+  // fires even before the STAGE 2 role switch). These generous defaults keep
+  // STAGE 1 behavior-preserving; tune per-deployment via env.
+  DB_TX_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
+  // Aligned with the compose pool_timeout (15s) so contention QUEUES for a
+  // connection rather than fast-failing with P2028.
+  DB_TX_MAXWAIT_MS: z.coerce.number().int().positive().default(15_000),
   REDIS_URL: z.string().default("redis://localhost:6379"),
   JWT_SECRET: z.string().min(32),
   JWT_EXPIRES_IN: z.string().default("1h"),
