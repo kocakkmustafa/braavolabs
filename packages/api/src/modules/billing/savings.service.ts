@@ -130,6 +130,7 @@ function buildRealRunEvent(
   cachedInputTokens: number | null,
   modelId: string,
   unknownModelIds: Set<string>,
+  costUsd: number,
 ): RunEvent {
   const model = resolveModelSpec(modelId, unknownModelIds);
   return {
@@ -137,6 +138,11 @@ function buildRealRunEvent(
     promptTokens,
     completionTokens,
     ...(cachedInputTokens != null ? { cachedInputTokens } : {}),
+    // Use the row's REAL billed cost as the actual (correct even when the served
+    // model ≠ agent.model via failover/trial). Only when it's a real positive
+    // number — a 0/missing cost falls back to token-repricing rather than
+    // reporting $0 actual. (audit finding C-LOGIC-savings)
+    ...(costUsd > 0 ? { actualUsdOverride: costUsd } : {}),
   };
 }
 
@@ -246,6 +252,7 @@ export async function computeTenantSavings(tenantId: string, days = 7): Promise<
           step.cachedInputTokens,
           step.agent.model,
           unknownModelIds,
+          costUsd,
         ),
       );
       realTokenSampleSize++;

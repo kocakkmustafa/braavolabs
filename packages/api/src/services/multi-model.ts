@@ -199,6 +199,12 @@ export async function compareAcrossModels(
   }
   const candidates = links.slice(0, maxCandidates);
 
+  // maxCostUsd is the budget for the WHOLE compare (not per candidate). Split it
+  // evenly across the candidates so the candidate phase total stays within the
+  // documented ceiling — passing the full maxCostUsd to each let the parallel
+  // fan-out spend up to N× the budget (audit finding C-LOGIC-budget).
+  const perCandidateBudget = candidates.length > 0 ? maxCostUsd / candidates.length : maxCostUsd;
+
   const settled = await Promise.allSettled(
     candidates.map(async (link) => {
       const start = Date.now();
@@ -208,7 +214,7 @@ export async function compareAcrossModels(
         toolNames: [], // toolless, research-style single task (plan §2.5)
         maxTurns: 1,
         maxTokens: maxTokensPerCandidate,
-        budgetUsd: maxCostUsd,
+        budgetUsd: perCandidateBudget,
         // T5/D-010: force the REAL provider×model this candidate claims —
         // skips tenant resolution, trial and local-CLI mode.
         aiConfigOverride: link.config,

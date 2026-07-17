@@ -133,6 +133,15 @@ export interface RunEvent {
   cachedInputTokens?: number;
   /** Input tokens avoided by top-K retrieval instead of stuffing the whole context. */
   retrievalAvoidedInputTokens?: number;
+  /**
+   * The REAL billed cost for this event, when known (real-token rows carry the
+   * exact `cost_usd`). When present, tokensSaved() uses it verbatim as the
+   * actual cost instead of repricing tokens at `model`'s list price — which is
+   * WRONG whenever the served model differs from the configured one (failover /
+   * trial / downgrade). Absent for reconstructed rows (audit finding
+   * C-LOGIC-savings).
+   */
+  actualUsdOverride?: number;
 }
 
 export interface SavingsReport {
@@ -163,10 +172,15 @@ export function tokensSaved(events: RunEvent[], frontier: ModelSpec): SavingsRep
     const avoided = e.retrievalAvoidedInputTokens ?? 0;
     const billedInput = Math.max(0, e.promptTokens - cached);
 
-    // Actual cost: what we really billed on the chosen model (cache ~free).
+    // Actual cost: prefer the REAL billed cost_usd when the row carries it
+    // (exact, and correct even when the served model ≠ the configured one via
+    // failover/trial/downgrade). Only reprice from the model's list price when
+    // no real cost is available (reconstructed rows).
     const actual =
-      (billedInput / 1000) * e.model.costPer1kIn +
-      (e.completionTokens / 1000) * e.model.costPer1kOut;
+      e.actualUsdOverride != null
+        ? e.actualUsdOverride
+        : (billedInput / 1000) * e.model.costPer1kIn +
+          (e.completionTokens / 1000) * e.model.costPer1kOut;
     actualUsd += actual;
 
     // Baseline: same work on the frontier, no cache, full context (add back the
