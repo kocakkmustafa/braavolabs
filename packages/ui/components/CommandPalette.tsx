@@ -22,7 +22,6 @@ export default function CommandPalette() {
   const router = useRouter();
   const t = useTranslations();
   const token = useAppStore((s) => s.token);
-  const clearAuth = useAppStore((s) => s.clearAuth);
   const labelOf = (cmd: Command) => (cmd.labelKey ? t(cmd.labelKey) : cmd.label ?? "");
   const [companies, setCompanies] = useState<any[]>([]);
   const companiesFetched = useRef(false);
@@ -46,7 +45,7 @@ export default function CommandPalette() {
     { id: "features", labelKey: "nav.features", icon: "auto_awesome", href: "/features", auth: false, category: "navigate" },
     { id: "pricing", labelKey: "nav.pricing", icon: "sell", href: "/pricing", auth: false, category: "navigate" },
     // Actions
-    { id: "sign-out", labelKey: "app.cmdk.signOut", icon: "logout", auth: true, category: "action", action: () => { clearAuth(); router.push("/login"); } },
+    { id: "sign-out", labelKey: "app.cmdk.signOut", icon: "logout", auth: true, category: "action", action: () => { void api.signOut().finally(() => router.push("/login")); } },
     { id: "home", labelKey: "app.cmdk.goHome", icon: "home", href: "/", auth: false, category: "quick" },
   ];
 
