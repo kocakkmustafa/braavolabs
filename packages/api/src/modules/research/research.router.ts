@@ -81,6 +81,8 @@ const compareSchema = z.object({
   maxCandidates: z.number().int().min(1).max(3).optional(),
   maxTokensPerCandidate: z.number().int().min(256).max(8192).optional(),
   maxCostUsd: z.number().min(0.1).max(10).optional(),
+  // Optional debate rounds (0 = classic compare). Budget-gated server-side.
+  debateRounds: z.number().int().min(0).max(3).optional(),
 });
 
 researchRouter.post("/compare", compareLimiter, async (req, res, next) => {
@@ -97,6 +99,7 @@ researchRouter.post("/compare", compareLimiter, async (req, res, next) => {
       maxCandidates: body.maxCandidates,
       maxTokensPerCandidate: body.maxTokensPerCandidate,
       maxCostUsd: body.maxCostUsd,
+      debateRounds: body.debateRounds,
     });
     res.status(201).json({ id: sessionId, status: "PENDING" });
   } catch (err) { next(err); }

@@ -37,11 +37,17 @@
  * This is intentionally coarse and over-escalates on borderline cases
  * (cheap/false-negative is the safe failure direction for a cost-routing
  * feature — worst case we pay for a redundant frontier call, never worse
- * than that). TODO(P2): swap for a model self-reported confidence (e.g.
- * require the candidate to emit a small JSON envelope with a `confidence`
- * field) once the BYOK matrix is trusted to self-report honestly — only
- * `computeHeuristicConfidence` below changes; `CascadeRunner`'s contract in
- * lib/cascade.ts already supports either source.
+ * than that).
+ *
+ * ─── v2 hybrid (self-report ∧ heuristic) ────────────────────────────
+ * The candidate is now asked to emit `{answer, confidence}` JSON, so the
+ * model SELF-REPORTS. But self-report alone is gameable (a wrong-but-sure
+ * model reports 0.9), so the final confidence is `min(structural, self)`:
+ * the structural heuristic (empty/truncated/refusal/too-short) is a CEILING
+ * a model cannot inflate past, and the self-report can only LOWER confidence
+ * within a structurally-clean answer (finer routing — a complete-but-unsure
+ * answer still escalates). Graceful: a non-JSON reply falls back to the raw
+ * answer + heuristic-only. See `parseCascadeCandidate` + the runner.
  *
  * Failure handling: a per-candidate dial failure (network error, revoked
  * key, rate limit) is NOT caught here — it propagates out of `runCascade`
@@ -66,13 +72,47 @@ import {
   type RouteRequest,
 } from "../../lib/routing";
 
-/** Toolless, single-turn candidate call — same shape as multi-model's
- * CANDIDATE_SYSTEM_PROMPT, but framed for a single answering model rather
- * than "one of several". */
+/** Toolless, single-turn candidate call. Asks for a STRICT JSON envelope so the
+ * model can SELF-REPORT its confidence (v2 hybrid — see header). Graceful: a
+ * model that emits prose instead of JSON still works (raw text becomes the
+ * answer, confidence falls back to the structural heuristic). */
 const CASCADE_SYSTEM_PROMPT =
-  "Answer the user's request directly and completely. If you are not " +
-  "confident in your answer, or lack information to answer well, say so " +
-  "plainly rather than guessing.";
+  "Answer the user's request directly and completely. Respond with STRICT JSON: " +
+  '{"answer": string, "confidence": number} where "confidence" is your own honest ' +
+  "0..1 estimate that your answer is correct and complete — use a LOW value if you " +
+  "are unsure or lack information; do NOT guess high. Output ONLY the JSON object.";
+
+/** Clamp any number-ish input into [0,1]; non-finite → undefined (no self-report). */
+function clamp01(n: unknown): number | undefined {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return undefined;
+  return v < 0 ? 0 : v > 1 ? 1 : v;
+}
+
+/**
+ * Extract the answer + optional self-reported confidence from a candidate's
+ * completion. Tolerates a ```json fence and leading/trailing prose. When the
+ * reply isn't a valid `{answer, confidence}` envelope, the WHOLE raw content is
+ * the answer and there is no self-report (caller uses the heuristic only).
+ */
+export function parseCascadeCandidate(content: string): { answer: string; selfConfidence?: number } {
+  const raw = content.trim();
+  const fenced = /```(?:json)?\s*([\s\S]*?)\s*```/i.exec(raw);
+  const candidate = fenced ? fenced[1] : raw;
+  const start = candidate.indexOf("{");
+  const end = candidate.lastIndexOf("}");
+  if (start !== -1 && end > start) {
+    try {
+      const obj = JSON.parse(candidate.slice(start, end + 1));
+      if (obj && typeof obj.answer === "string") {
+        return { answer: obj.answer, selfConfidence: clamp01(obj.confidence) };
+      }
+    } catch {
+      // fall through to raw
+    }
+  }
+  return { answer: content };
+}
 
 /** Per-attempt output-token cap — bounds each cascade rung's spend
  * structurally, same role as multi-model's DEFAULT_MAX_TOKENS_PER_CANDIDATE. */
@@ -223,8 +263,15 @@ export async function runTenantCascade(
       aiConfigOverride: link.config,
     });
     const lastTurn = result.turns[result.turns.length - 1];
-    const confidence = computeHeuristicConfidence(result.finalContent, lastTurn?.stopReason);
-    return { answer: result.finalContent, confidence, costUsd: result.totalCostUsd };
+    const { answer, selfConfidence } = parseCascadeCandidate(result.finalContent);
+    // Hybrid confidence (v2): the structural heuristic (empty / truncated /
+    // refusal / too-short) is a CEILING a model can't fake past; the model's
+    // own self-report can only LOWER confidence within a structurally-clean
+    // answer (finer routing — a complete-but-unsure answer still escalates). A
+    // model can never inflate above the structural signal.
+    const structural = computeHeuristicConfidence(answer, lastTurn?.stopReason);
+    const confidence = selfConfidence != null ? Math.min(structural, selfConfidence) : structural;
+    return { answer, confidence, costUsd: result.totalCostUsd };
   };
 
   const cascadeOpts: CascadeOptions = {

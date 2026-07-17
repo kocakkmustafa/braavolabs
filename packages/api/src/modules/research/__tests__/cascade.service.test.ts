@@ -27,7 +27,7 @@ vi.mock("../../agent/claude", () => ({
   runAgentLoop: (...a: unknown[]) => runAgentLoopMock(...a),
 }));
 
-import { runTenantCascade, computeHeuristicConfidence } from "../cascade.service";
+import { runTenantCascade, computeHeuristicConfidence, parseCascadeCandidate } from "../cascade.service";
 import { AppError } from "../../../middleware/error";
 
 const TENANT = "tenant-cascade";
@@ -211,5 +211,50 @@ describe("runTenantCascade — zero configured providers", () => {
       /requires at least one configured AI provider/,
     );
     expect(runAgentLoopMock).not.toHaveBeenCalled();
+  });
+});
+
+// ─── parseCascadeCandidate + v2 hybrid confidence ───
+describe("parseCascadeCandidate — self-report envelope", () => {
+  it("extracts answer + confidence from a strict JSON envelope", () => {
+    const r = parseCascadeCandidate('{"answer":"Paris","confidence":0.8}');
+    expect(r.answer).toBe("Paris");
+    expect(r.selfConfidence).toBe(0.8);
+  });
+  it("tolerates a ```json fence and surrounding prose", () => {
+    const r = parseCascadeCandidate('here:\n```json\n{"answer":"42","confidence":0.3}\n```');
+    expect(r.answer).toBe("42");
+    expect(r.selfConfidence).toBe(0.3);
+  });
+  it("clamps confidence to [0,1]", () => {
+    expect(parseCascadeCandidate('{"answer":"x","confidence":5}').selfConfidence).toBe(1);
+    expect(parseCascadeCandidate('{"answer":"x","confidence":-2}').selfConfidence).toBe(0);
+    expect(parseCascadeCandidate('{"answer":"x","confidence":"nope"}').selfConfidence).toBeUndefined();
+  });
+  it("falls back to raw content (no self-report) for non-JSON prose", () => {
+    const r = parseCascadeCandidate("Just a plain prose answer, no JSON here.");
+    expect(r.answer).toBe("Just a plain prose answer, no JSON here.");
+    expect(r.selfConfidence).toBeUndefined();
+  });
+});
+
+describe("v2 hybrid confidence — structural CEILING, self-report only LOWERS", () => {
+  const clean = "This is a complete, well-formed answer that clears the length bar easily.";
+  it("a model cannot inflate past the structural ceiling", () => {
+    // Structurally clean → heuristic 0.9. Self-report 0.99 can't push above it.
+    const structural = computeHeuristicConfidence(clean, "end_turn");
+    const hybrid = Math.min(structural, 0.99);
+    expect(hybrid).toBe(structural); // capped at 0.9, not 0.99
+  });
+  it("a complete-but-unsure self-report lowers confidence (finer routing)", () => {
+    const structural = computeHeuristicConfidence(clean, "end_turn"); // 0.9
+    const hybrid = Math.min(structural, 0.4); // model says 0.4
+    expect(hybrid).toBe(0.4); // escalates even though structurally clean
+  });
+  it("structural failure dominates any high self-report", () => {
+    // Truncated answer → heuristic 0.2; a lying 0.95 self-report can't rescue it.
+    const structural = computeHeuristicConfidence(clean, "max_tokens");
+    expect(Math.min(structural, 0.95)).toBe(structural);
+    expect(structural).toBeLessThan(0.5);
   });
 });
