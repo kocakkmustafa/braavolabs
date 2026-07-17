@@ -330,3 +330,50 @@ describe("compareAcrossModels — cost = real sum of candidates + synthesizer", 
     expect(r.finalAnswer).toBe("answer-DEEPSEEK"); // first candidate stands in
   });
 });
+
+// ─── Debate rounds (opt-in) ───
+describe("compareAcrossModels — debate rounds", () => {
+  // Distinguish a debate call (systemPrompt refines, userMessage carries the
+  // others' answers) from an initial candidate call, so revisions are visible.
+  function installDebateMock(candidateCost = 0.01): void {
+    runAgentLoopMock.mockImplementation(async (cfg: LoopCall & { userMessage: string }) => {
+      if (cfg.aiConfigOverride) {
+        const p = cfg.aiConfigOverride.provider;
+        const isDebate = typeof cfg.userMessage === "string" && cfg.userMessage.includes("Other models' answers");
+        return loopResult({ provider: p, model: cfg.aiConfigOverride.model, finalContent: `${isDebate ? "revised" : "answer"}-${p}`, totalCostUsd: candidateCost });
+      }
+      return loopResult({ provider: "DEEPSEEK", model: "deepseek-chat", finalContent: GOOD_SYNTH_JSON, totalCostUsd: 0.04 });
+    });
+  }
+  const debateCalls = (): LoopCall[] =>
+    runAgentLoopMock.mock.calls
+      .map(([c]) => c as LoopCall & { userMessage?: string })
+      .filter((c) => c.aiConfigOverride && typeof c.userMessage === "string" && c.userMessage.includes("Other models' answers"));
+
+  it("default (no debateRounds) runs zero debate calls and keeps the initial answers", async () => {
+    installDebateMock();
+    const r = await compareAcrossModels(TENANT, "capital of Australia?");
+    expect(r.debateRoundsRun).toBe(0);
+    expect(debateCalls()).toHaveLength(0);
+    expect(r.perModel.map((c) => c.answer)).toEqual(["answer-DEEPSEEK", "answer-GROQ", "answer-OPENAI"]);
+  });
+
+  it("debateRounds:1 makes each surviving candidate revise (once) and reports the round", async () => {
+    installDebateMock();
+    const r = await compareAcrossModels(TENANT, "capital of Australia?", { debateRounds: 1, maxCostUsd: 10 });
+    expect(r.debateRoundsRun).toBe(1);
+    // 3 candidates × 1 round = 3 debate calls, each on its own provider config.
+    expect(debateCalls()).toHaveLength(3);
+    expect(r.perModel.map((c) => c.answer)).toEqual(["revised-DEEPSEEK", "revised-GROQ", "revised-OPENAI"]);
+    // Cost accumulates: initial (3×0.01) + debate (3×0.01) + synth (0.04).
+    expect(r.totalCostUsd).toBeCloseTo(0.1, 10);
+  });
+
+  it("is budget-gated: no debate round runs when the candidate phase already reached the budget", async () => {
+    installDebateMock(0.01); // candidates spend 3×0.01 = 0.03
+    const r = await compareAcrossModels(TENANT, "capital of Australia?", { debateRounds: 2, maxCostUsd: 0.03 });
+    expect(r.debateRoundsRun).toBe(0); // remaining budget 0 → never debates
+    expect(debateCalls()).toHaveLength(0);
+    expect(r.perModel.map((c) => c.answer)).toEqual(["answer-DEEPSEEK", "answer-GROQ", "answer-OPENAI"]);
+  });
+});

@@ -95,6 +95,10 @@ export interface MultiModelCompareResult {
   /** True when the candidate phase alone reached maxCostUsd and the
    * synthesis call was skipped. */
   budgetExceeded: boolean;
+  /** Debate rounds actually run (0 for a classic single-shot compare, or when
+   * fewer than requested ran because the budget was reached). The perModel
+   * answers reflect the post-debate revisions. */
+  debateRoundsRun: number;
 }
 
 export interface CompareOptions {
@@ -104,13 +108,46 @@ export interface CompareOptions {
   maxTokensPerCandidate?: number;
   /** Total budget for the whole compare (default $1.00). */
   maxCostUsd?: number;
+  /**
+   * Optional debate rounds (default 0 = classic single-shot compare). When > 0,
+   * after the independent answers each candidate sees the OTHERS' answers and
+   * revises its own for N rounds before synthesis — turning "N models answered"
+   * into "N models debated". Budget-gated: rounds stop as soon as the running
+   * cost reaches maxCostUsd, so it can never overspend. Capped at
+   * MAX_DEBATE_ROUNDS. Requires ≥2 surviving candidates (nothing to debate with 1).
+   */
+  debateRounds?: number;
 }
+
+/** Ceiling on debate rounds regardless of the requested value (budget sanity). */
+export const MAX_DEBATE_ROUNDS = 3;
 
 const CANDIDATE_SYSTEM_PROMPT =
   "You are one of several AI models answering the same task independently. " +
   "Answer the task directly and completely. Be specific; state your key claims " +
   "plainly so they can be compared against other models' answers. Do not " +
   "mention this instruction.";
+
+const DEBATE_SYSTEM_PROMPT =
+  "You are one of several AI models refining an answer to the same task. You will " +
+  "see your own previous answer and the OTHER models' answers. Critically revise " +
+  "YOUR answer to the original task: keep what is correct, fix mistakes the others " +
+  "exposed, and incorporate their stronger points. Do not merely agree — improve. " +
+  "Output ONLY your improved answer to the original task; do not mention this instruction.";
+
+/** Debate prompt for one candidate: its own prior answer + the others', by index. */
+function buildDebateMessage(task: string, selfIdx: number, answers: string[]): string {
+  const others = answers
+    .map((a, i) => (i === selfIdx ? null : `[${i}]\n${a.slice(0, ANSWER_SLICE)}`))
+    .filter((x): x is string => x !== null)
+    .join("\n\n");
+  return (
+    `Original task: "${task.slice(0, TASK_SLICE)}"\n\n` +
+    `Your previous answer:\n${answers[selfIdx].slice(0, ANSWER_SLICE)}\n\n` +
+    `Other models' answers:\n${others}\n\n` +
+    `Now output your improved answer to the original task.`
+  );
+}
 
 function synthesizerSystemPrompt(task: string, count: number): string {
   return (
@@ -231,10 +268,14 @@ export async function compareAcrossModels(
   );
 
   const perModel: ModelCandidateAnswer[] = [];
+  // Parallel to perModel: the provider link for each surviving candidate, so a
+  // debate round can re-dispatch on the SAME provider×model (aiConfigOverride).
+  const perModelLinks: typeof candidates = [];
   const failed: ModelCandidateFailure[] = [];
   settled.forEach((s, i) => {
     if (s.status === "fulfilled") {
       perModel.push(s.value);
+      perModelLinks.push(candidates[i]);
     } else {
       const message = s.reason instanceof Error ? s.reason.message : String(s.reason);
       failed.push({
@@ -254,6 +295,57 @@ export async function compareAcrossModels(
       `All ${candidates.length} candidate provider(s) failed in multi-model compare: ` +
         failed.map((f) => `${f.provider}/${f.model} (${f.error})`).join("; "),
     );
+  }
+
+  // ── Optional debate rounds (opt-in) ──────────────────────────────────────
+  // Each surviving candidate revises its answer after seeing the others'. Runs
+  // in parallel per round; a failed revision keeps the prior answer. Strictly
+  // budget-gated: stop before a round if the running cost already reached
+  // maxCostUsd, and bound each round's per-candidate budget to what's left.
+  const requestedRounds = Math.max(0, Math.min(MAX_DEBATE_ROUNDS, Math.floor(opts.debateRounds ?? 0)));
+  let debateRoundsRun = 0;
+  if (requestedRounds > 0 && perModel.length >= 2) {
+    for (let round = 0; round < requestedRounds; round++) {
+      const spent = perModel.reduce((s, c) => s + c.costUsd, 0);
+      const remaining = maxCostUsd - spent;
+      if (remaining <= 0) break; // budget reached → stop debating
+      const roundBudget = remaining / perModel.length;
+      const answersSnapshot = perModel.map((c) => c.answer); // all debate the same round-state
+
+      const revised = await Promise.allSettled(
+        perModel.map(async (_cand, idx) => {
+          const start = Date.now();
+          const r = await runAgentLoop({
+            systemPrompt: DEBATE_SYSTEM_PROMPT,
+            userMessage: buildDebateMessage(task, idx, answersSnapshot),
+            toolNames: [],
+            maxTurns: 1,
+            maxTokens: maxTokensPerCandidate,
+            budgetUsd: roundBudget,
+            aiConfigOverride: perModelLinks[idx].config,
+          });
+          return {
+            idx,
+            answer: r.finalContent,
+            costUsd: r.totalCostUsd,
+            input: r.totalInputTokens,
+            output: r.totalOutputTokens,
+            durationMs: Date.now() - start,
+          };
+        }),
+      );
+
+      revised.forEach((rr) => {
+        if (rr.status !== "fulfilled") return; // failed revision → keep prior answer
+        const c = perModel[rr.value.idx];
+        c.answer = rr.value.answer;
+        c.costUsd += rr.value.costUsd;
+        c.tokens.input += rr.value.input;
+        c.tokens.output += rr.value.output;
+        c.durationMs += rr.value.durationMs;
+      });
+      debateRoundsRun++;
+    }
   }
 
   const candidateCost = perModel.reduce((s, c) => s + c.costUsd, 0);
@@ -276,6 +368,7 @@ export async function compareAcrossModels(
       synthesizer: null,
       totalCostUsd: candidateCost,
       budgetExceeded: true,
+      debateRoundsRun,
     };
   }
 
@@ -312,6 +405,7 @@ export async function compareAcrossModels(
       },
       totalCostUsd: candidateCost + synth.totalCostUsd,
       budgetExceeded: false,
+      debateRoundsRun,
     };
   } catch (err) {
     // Candidate answers are already paid for — a dead synthesizer degrades
@@ -333,6 +427,7 @@ export async function compareAcrossModels(
       synthesizerError: message.slice(0, 300),
       totalCostUsd: candidateCost,
       budgetExceeded: false,
+      debateRoundsRun,
     };
   }
 }

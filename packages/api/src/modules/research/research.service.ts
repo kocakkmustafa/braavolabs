@@ -293,6 +293,7 @@ export interface StartCompareOptions {
   maxCandidates?: number;
   maxTokensPerCandidate?: number;
   maxCostUsd?: number;
+  debateRounds?: number;
   initiatedByRunStepId?: string;
 }
 
@@ -332,6 +333,7 @@ async function runCompareSession(sessionId: string, opts: StartCompareOptions): 
       maxCandidates: opts.maxCandidates,
       maxTokensPerCandidate: opts.maxTokensPerCandidate,
       maxCostUsd: opts.maxCostUsd,
+      debateRounds: opts.debateRounds,
     });
     await prisma.webResearchSession.update({
       where: { id: sessionId },
