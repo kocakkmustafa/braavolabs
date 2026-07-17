@@ -25,6 +25,10 @@ async function refreshAccessToken(): Promise<string | null> {
   try {
     const res = await fetch(`${API_BASE}/auth/refresh`, {
       method: "POST",
+      // credentials: send the httpOnly refresh cookie under AUTH_COOKIE_MODE;
+      // the server falls back to it when the body omits refreshToken (which is
+      // the case once the store stops persisting tokens in cookie-mode).
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
     });
@@ -78,14 +82,20 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
 
   // `rest.body` is always a string (callers JSON.stringify), so the
   // request can be safely replayed after a token refresh.
+  // `credentials: "include"` sends the httpOnly access cookie the API sets
+  // under AUTH_COOKIE_MODE. It's behavior-neutral today (bearer keeps priority
+  // server-side, and no such cookie exists while the flag is off) and is the
+  // prerequisite for the cookie-only auth migration. Placed AFTER `...rest` so
+  // it's always applied.
   const doFetch = (bearer?: string) =>
     fetch(`${API_BASE}${path}`, {
+      ...rest,
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         ...(bearer && { Authorization: `Bearer ${bearer}` }),
         ...headers,
       },
-      ...rest,
     });
 
   let res = await doFetch(token);
