@@ -63,6 +63,7 @@ function hardLogout(): void {
   }
 }
 
+
 async function throwApiError(res: Response): Promise<never> {
   const body = await res.json().catch(() => ({}));
   // Server's zod errors put the actionable text in `message` ("password:
@@ -132,6 +133,18 @@ export const api = {
     apiFetch<{ token: string; user: any; tenant: any }>("/auth/login", {
       method: "POST", body: JSON.stringify({ email, password }),
     }),
+  /** User-initiated sign-out: best-effort server-side refresh-token revocation
+   * (POST /auth/logout, token still valid) THEN clear the local session. The UI
+   * previously only cleared local state, contradicting the security page's
+   * "revoke on logout" claim (audit C3). Caller handles the redirect. */
+  signOut: async (): Promise<void> => {
+    try {
+      await apiFetch("/auth/logout", { method: "POST" });
+    } catch {
+      // Offline / already-expired — the local clear still signs the user out.
+    }
+    useAppStore.getState().clearAuth();
+  },
   register: (data: { email: string; password: string; name: string; tenantName: string; ref?: string }) =>
     apiFetch<{ token: string; user: any; tenant: any }>("/auth/register", {
       method: "POST", body: JSON.stringify(data),
