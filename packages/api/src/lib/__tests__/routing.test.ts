@@ -66,6 +66,21 @@ describe("tokensSaved — honest savings vs naive frontier/full-context baseline
     expect(rep.breakdown.cheapRoutingUsd).toBeCloseTo(0.0497, 6);
   });
 
+  it("uses actualUsdOverride (the REAL billed cost) as actual, not the model list price", () => {
+    // A failover/trial run: configured model = opus, but the real billed cost
+    // (cost_usd) was cheap because it actually ran on a cheaper served model.
+    // The report must use the real cost, not reprice tokens at opus's price.
+    const events: RunEvent[] = [
+      { model: opus, promptTokens: 1000, completionTokens: 500, actualUsdOverride: 0.0028 },
+    ];
+    const rep = tokensSaved(events, opus);
+    // actual = the override (0.0028), NOT 1*0.015 + 0.5*0.075 = 0.0525.
+    expect(rep.actualUsd).toBeCloseTo(0.0028, 6);
+    // baseline still frontier×real-tokens = 0.0525 → savings are real, not ~0.
+    expect(rep.baselineUsd).toBeCloseTo(0.0525, 6);
+    expect(rep.savedUsd).toBeCloseTo(0.0497, 6);
+  });
+
   it("counts prompt-cache + retrieval-avoided input as saved tokens", () => {
     const events: RunEvent[] = [
       {

@@ -135,6 +135,10 @@ describe("compareAcrossModels — 3-candidate happy path", () => {
       expect(c.toolNames).toEqual([]);
       expect(c.maxTurns).toBe(1);
       expect(c.maxTokens).toBe(1024);
+      // Budget: the whole-compare maxCostUsd ($1.00 default) is split evenly
+      // across the 3 candidates so the fan-out can't spend N× the budget
+      // (audit finding C-LOGIC-budget). Each candidate gets 1.00/3.
+      expect(c.budgetUsd).toBeCloseTo(1.0 / 3, 6);
     }
     expect(cands.map((c) => c.aiConfigOverride!.apiKey)).toEqual([
       "key-DEEPSEEK",
