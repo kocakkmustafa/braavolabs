@@ -1,5 +1,15 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import { currentTenantId } from "./tenant-context";
+import { env } from "../config/env";
+
+/**
+ * Interactive-transaction budget for the RLS wrapper (both the auto-wrap and
+ * tenantTx). Generous by default so wrapping every op in a transaction does not
+ * newly impose Prisma's tight 5s/2s interactive-tx defaults on queries that
+ * previously had no app-side ceiling (see env.ts DB_TX_TIMEOUT_MS). Callers may
+ * still override per-tenantTx via its `options`.
+ */
+const TX_OPTIONS = { timeout: env.DB_TX_TIMEOUT_MS, maxWait: env.DB_TX_MAXWAIT_MS } as const;
 
 /**
  * Prisma client with reliable RLS binding (RLS-real).
@@ -73,7 +83,7 @@ export const prisma = base.$extends({
           // `tx` is an un-extended client → this does not re-enter the extension.
           const delegate = (tx as Record<string, any>)[delegateName];
           return delegate[operation as string](args);
-        });
+        }, TX_OPTIONS);
       },
     },
   },
@@ -96,5 +106,7 @@ export function tenantTx<T>(
       await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
     }
     return fn(tx);
-  }, options);
+    // Caller options win, but default to the generous RLS budget (not Prisma's
+    // 5s/2s) so a multi-statement unit isn't newly starved of time.
+  }, { ...TX_OPTIONS, ...options });
 }
