@@ -20,8 +20,9 @@ const loginMock = vi.hoisted(() => vi.fn());
 const registerMock = vi.hoisted(() => vi.fn());
 const refreshTokensMock = vi.hoisted(() => vi.fn());
 const revokeAllMock = vi.hoisted(() => vi.fn());
+const userIdFromRefreshMock = vi.hoisted(() => vi.fn());
 
-// Mock the whole service module — only the four functions the tested handlers
+// Mock the whole service module — only the functions the tested handlers
 // call need real behavior; the rest are referenced only inside untested
 // handlers, so `undefined` is harmless.
 vi.mock("../auth.service", () => ({
@@ -29,15 +30,26 @@ vi.mock("../auth.service", () => ({
   register: (...a: unknown[]) => registerMock(...a),
   refreshTokens: (...a: unknown[]) => refreshTokensMock(...a),
   revokeAllRefreshTokens: (...a: unknown[]) => revokeAllMock(...a),
+  userIdFromRefreshToken: (...a: unknown[]) => userIdFromRefreshMock(...a),
+}));
+
+// jwt.verify is the access-token path of the auth-optional logout. Mocking it
+// lets us drive "valid access" vs "expired access → fall back to refresh"
+// without signing real tokens.
+const jwtVerifyMock = vi.hoisted(() => vi.fn());
+vi.mock("jsonwebtoken", () => ({
+  default: { verify: (...a: unknown[]) => jwtVerifyMock(...a) },
 }));
 
 const setAuthCookiesMock = vi.hoisted(() => vi.fn());
 const clearAuthCookiesMock = vi.hoisted(() => vi.fn());
+const getCookieAccessTokenMock = vi.hoisted(() => vi.fn());
 const getCookieRefreshTokenMock = vi.hoisted(() => vi.fn());
 const csrfOkMock = vi.hoisted(() => vi.fn());
 vi.mock("../../../lib/authCookies", () => ({
   setAuthCookies: (...a: unknown[]) => setAuthCookiesMock(...a),
   clearAuthCookies: (...a: unknown[]) => clearAuthCookiesMock(...a),
+  getCookieAccessToken: (...a: unknown[]) => getCookieAccessTokenMock(...a),
   getCookieRefreshToken: (...a: unknown[]) => getCookieRefreshTokenMock(...a),
   csrfOkForCookieAuth: (...a: unknown[]) => csrfOkMock(...a),
 }));
@@ -92,6 +104,7 @@ const BUNDLE = {
 beforeEach(() => {
   vi.clearAllMocks();
   csrfOkMock.mockReturnValue(true);
+  getCookieAccessTokenMock.mockReturnValue(null);
   getCookieRefreshTokenMock.mockReturnValue(null);
 });
 
@@ -171,17 +184,102 @@ describe("POST /refresh", () => {
   });
 });
 
-describe("POST /logout", () => {
+describe("POST /logout (auth-optional — audit #1)", () => {
   const handler = getHandler(authRouter, "post", "/logout");
 
-  it("revokes refresh tokens and clears the auth cookies", async () => {
+  it("revokes by the Bearer access token's userId when it is valid", async () => {
     revokeAllMock.mockResolvedValue(undefined);
+    jwtVerifyMock.mockReturnValue({ userId: "u1" });
     const { res, nextErr } = await invoke(handler, {
-      auth: { userId: "u1", tenantId: "t1", role: "admin" },
+      headers: { authorization: "Bearer good-access" },
     });
     expect(nextErr).toBeUndefined();
     expect(revokeAllMock).toHaveBeenCalledWith("u1");
+    expect(userIdFromRefreshMock).not.toHaveBeenCalled(); // access path won — no fallback
     expect(clearAuthCookiesMock).toHaveBeenCalledWith(res);
     expect(res.body).toEqual({ message: "Logged out successfully." });
+  });
+
+  it("THE #1 FIX: expired access token → falls back to the refresh token in the body", async () => {
+    revokeAllMock.mockResolvedValue(undefined);
+    jwtVerifyMock.mockImplementation(() => { throw new Error("jwt expired"); });
+    userIdFromRefreshMock.mockReturnValue("u1");
+    const { res, nextErr } = await invoke(handler, {
+      headers: { authorization: "Bearer expired-access" },
+      body: { refreshToken: "still-valid-refresh" },
+    });
+    expect(nextErr).toBeUndefined();
+    expect(userIdFromRefreshMock).toHaveBeenCalledWith("still-valid-refresh");
+    expect(revokeAllMock).toHaveBeenCalledWith("u1"); // revoked despite the dead access token
+    expect(clearAuthCookiesMock).toHaveBeenCalledWith(res);
+  });
+
+  it("revokes from the refresh body even with NO access token at all", async () => {
+    revokeAllMock.mockResolvedValue(undefined);
+    userIdFromRefreshMock.mockReturnValue("u2");
+    const { res, nextErr } = await invoke(handler, {
+      body: { refreshToken: "r2" },
+    });
+    expect(nextErr).toBeUndefined();
+    expect(jwtVerifyMock).not.toHaveBeenCalled(); // no bearer, no access cookie
+    expect(revokeAllMock).toHaveBeenCalledWith("u2");
+  });
+
+  it("is a safe 200 no-op with no credentials (never a token-validity oracle)", async () => {
+    const { res, nextErr } = await invoke(handler, { body: {} });
+    expect(nextErr).toBeUndefined();
+    expect(revokeAllMock).not.toHaveBeenCalled();
+    expect(clearAuthCookiesMock).toHaveBeenCalledWith(res); // cookies still cleared
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ message: "Logged out successfully." });
+  });
+
+  it("does NOT revoke a forged/invalid refresh token (userIdFromRefreshToken → null)", async () => {
+    userIdFromRefreshMock.mockReturnValue(null); // signature check failed
+    const { res, nextErr } = await invoke(handler, {
+      body: { refreshToken: "forged" },
+    });
+    expect(nextErr).toBeUndefined();
+    expect(revokeAllMock).not.toHaveBeenCalled();
+    expect(res.body).toEqual({ message: "Logged out successfully." }); // identical response → no oracle
+  });
+
+  it("does NOT resolve a REFRESH token in the bearer slot via the access path — falls through to the body (typ guard, audit #1)", async () => {
+    revokeAllMock.mockResolvedValue(undefined);
+    jwtVerifyMock.mockReturnValue({ userId: "attacker-from-access", typ: "refresh" }); // refresh in bearer
+    userIdFromRefreshMock.mockReturnValue("u9"); // the body token verifies to the real user
+    const { nextErr } = await invoke(handler, {
+      headers: { authorization: "Bearer a-refresh-token" },
+      body: { refreshToken: "same-or-other-refresh" },
+    });
+    expect(nextErr).toBeUndefined();
+    // access path rejected typ:refresh → body path owns the userId
+    expect(userIdFromRefreshMock).toHaveBeenCalledWith("same-or-other-refresh");
+    expect(revokeAllMock).toHaveBeenCalledWith("u9");
+    expect(revokeAllMock).not.toHaveBeenCalledWith("attacker-from-access");
+  });
+
+  it("403s a cookie-sourced refresh logout with no CSRF header, without revoking", async () => {
+    getCookieRefreshTokenMock.mockReturnValue("cookie-refresh");
+    csrfOkMock.mockReturnValue(false);
+    const { res, nextErr } = await invoke(handler, { body: {} });
+    expect(nextErr).toBeUndefined();
+    expect(res.statusCode).toBe(403);
+    expect(res.body).toEqual({ error: "Missing CSRF header for cookie-based auth" });
+    expect(revokeAllMock).not.toHaveBeenCalled();
+  });
+
+  it("403s a cookie-ACCESS logout with no CSRF header (cookie-mode) — the web client MUST send x-requested-with (audit #3)", async () => {
+    // Documents the latent web gap: under AUTH_COOKIE_MODE the browser auto-attaches
+    // the access cookie; without the CSRF header the handler 403s BEFORE the
+    // body-refresh fallback, so the web client must send x-requested-with or its
+    // own logout silently fails to revoke. (Web apiFetch now sends that header.)
+    getCookieAccessTokenMock.mockReturnValue("cookie-access-jwt");
+    csrfOkMock.mockReturnValue(false);
+    const { res, nextErr } = await invoke(handler, { body: { refreshToken: "r" } });
+    expect(nextErr).toBeUndefined();
+    expect(res.statusCode).toBe(403);
+    expect(jwtVerifyMock).not.toHaveBeenCalled(); // 403 before verifying
+    expect(revokeAllMock).not.toHaveBeenCalled();
   });
 });

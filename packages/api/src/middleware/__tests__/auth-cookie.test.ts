@@ -264,6 +264,20 @@ describe("authMiddleware — bearer mode (flag off)", () => {
     expect(res.statusCode).toBe(401);
     expect(res.body).toEqual({ error: "Invalid or expired token" });
   });
+
+  it("401s a validly-signed REFRESH token in the bearer slot (typ guard — audit #1)", async () => {
+    // Same {userId,tenantId,role} payload as an access token but typ:"refresh" —
+    // a real, correctly-signed refresh token. It must NOT authenticate as a
+    // bearer, else a captured refresh token (now also sent in logout bodies) is
+    // a replayable 7-day access token.
+    const refreshBearer = tokenFor({ ...AUTH, typ: "refresh", jti: "j1" });
+    const { res, nexted } = await runMiddleware({
+      headers: { authorization: `Bearer ${refreshBearer}` },
+    });
+    expect(nexted).toBe(false);
+    expect(res.statusCode).toBe(401);
+    expect(res.body).toEqual({ error: "Invalid or expired token" });
+  });
 });
 
 describe("authMiddleware — cookie mode (flag on)", () => {

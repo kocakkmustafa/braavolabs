@@ -213,6 +213,29 @@ export async function redeemOAuthExchange(code: string): Promise<OAuthTokenBundl
   }
 }
 
+/**
+ * Verify a refresh token's signature + shape and return its userId, WITHOUT
+ * rotating it or touching Redis. Used by POST /auth/logout so a user whose
+ * short-lived ACCESS token has expired (idle app) can still be identified from
+ * the refresh token they are signing out, and have every session revoked —
+ * otherwise sign-out would leave the 7-day refresh token valid server-side
+ * (audit #1 / the original C3 hole). Returns null on any invalid / forged /
+ * expired token, so logout degrades to a safe no-op instead of throwing. An
+ * expired refresh token is already dead (its Redis allowlist key shares the
+ * same TTL), so there is nothing to revoke in that case anyway.
+ */
+export function userIdFromRefreshToken(refreshToken: string): string | null {
+  try {
+    const decoded = jwt.verify(refreshToken, env.JWT_SECRET, {
+      algorithms: ["HS256"],
+    }) as RefreshTokenPayload;
+    if (decoded.typ !== "refresh" || !decoded.jti || !decoded.userId) return null;
+    return decoded.userId;
+  } catch {
+    return null;
+  }
+}
+
 export async function revokeAllRefreshTokens(userId: string): Promise<void> {
   // SCAN — never KEYS. `redis.keys()` walks the entire keyspace in one
   // blocking call; on a busy production Redis with hundreds of thousands
