@@ -7,9 +7,10 @@ import { Router, urlencoded } from "express";
 import type { Request, Response } from "express";
 import crypto from "crypto";
 import { z } from "zod";
-import { register, login, getGoogleAuthUrl, googleCallback, getGitHubAuthUrl, githubCallback, requestPasswordReset, resetPassword, refreshTokens, revokeAllRefreshTokens, stashOAuthExchange, redeemOAuthExchange, appleMobileSignIn, googleMobileSignIn, githubMobileSignIn, verifyEmail, resendVerifyEmail, getAppleWebAuthUrl, appleWebCallback } from "./auth.service";
+import jwt from "jsonwebtoken";
+import { register, login, getGoogleAuthUrl, googleCallback, getGitHubAuthUrl, githubCallback, requestPasswordReset, resetPassword, refreshTokens, revokeAllRefreshTokens, userIdFromRefreshToken, stashOAuthExchange, redeemOAuthExchange, appleMobileSignIn, googleMobileSignIn, githubMobileSignIn, verifyEmail, resendVerifyEmail, getAppleWebAuthUrl, appleWebCallback } from "./auth.service";
 import { authMiddleware } from "../../middleware/auth";
-import { setAuthCookies, clearAuthCookies, getCookieRefreshToken, csrfOkForCookieAuth } from "../../lib/authCookies";
+import { setAuthCookies, clearAuthCookies, getCookieAccessToken, getCookieRefreshToken, csrfOkForCookieAuth } from "../../lib/authCookies";
 import { validate } from "../../middleware/validate";
 import { rateLimit } from "../../middleware/rateLimit";
 import { redis } from "../../lib/redis";
@@ -244,11 +245,84 @@ authRouter.post("/refresh", refreshRateLimit, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/v1/auth/logout — revoke all refresh tokens for the current user
-authRouter.post("/logout", authMiddleware, async (req, res, next) => {
+// Rate limit logout — it is auth-OPTIONAL (below), so unlike the old
+// authMiddleware-gated version it can be reached without a valid access token.
+// 30/15-min/IP is generous for real sign-outs and a DDoS shield on the
+// (cheap, Redis-only) revoke path.
+const logoutRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  maxRequests: 30,
+  keyPrefix: "rl:auth:logout",
+});
+
+// POST /api/v1/auth/logout — revoke ALL refresh tokens for the user.
+//
+// Auth-OPTIONAL by design (audit #1 / the original C3 hole). A valid access
+// token identifies the user, BUT a user whose short-lived access token has
+// EXPIRED (idle app, a very common sign-out state) must still be able to
+// revoke — otherwise sign-out clears only local state and leaves the 7-day
+// refresh token valid server-side, which is exactly C3. So we fall back to
+// identifying the user from a cryptographically-verified refresh token (body
+// keeps priority, then the httpOnly cookie).
+//
+// Safe to expose without authMiddleware: both paths verify against JWT_SECRET
+// before revoking, so this adds no forge/oracle surface beyond POST
+// /auth/refresh (already public). A forged/absent token yields userId=null → a
+// harmless no-op, and the 200 response is byte-identical whether or not
+// anything was revoked, so the endpoint is not a token-validity oracle. A
+// cookie-sourced token (browser-auto-attached) must clear the CSRF gate, matching
+// the /auth/refresh contract — without it, logout would be CSRF-able once
+// AUTH_COOKIE_MODE is enabled.
+authRouter.post("/logout", logoutRateLimit, async (req, res, next) => {
   try {
-    await revokeAllRefreshTokens(req.auth!.userId);
-    // Evict auth cookies (runs unconditionally — safe during a flag rollback).
+    let userId: string | null = null;
+
+    // 1) Access token — Bearer header first, then the httpOnly access cookie
+    //    (null unless AUTH_COOKIE_MODE is on). Verify-only; never 401 here.
+    const header = req.headers.authorization;
+    if (header?.startsWith("Bearer ")) {
+      try {
+        const p = jwt.verify(header.slice(7), env.JWT_SECRET, { algorithms: ["HS256"] }) as { userId?: string; typ?: string };
+        // A refresh token in the bearer slot must NOT resolve here (typ guard,
+        // mirrors authMiddleware) — it falls through to the refresh path below.
+        if (p.typ !== "refresh") userId = p.userId ?? null;
+      } catch { /* expired/invalid access token — fall through to the refresh path */ }
+    } else {
+      const cookieAccess = getCookieAccessToken(req);
+      if (cookieAccess) {
+        if (!csrfOkForCookieAuth(req)) {
+          res.status(403).json({ error: "Missing CSRF header for cookie-based auth" });
+          return;
+        }
+        try {
+          const p = jwt.verify(cookieAccess, env.JWT_SECRET, { algorithms: ["HS256"] }) as { userId?: string; typ?: string };
+          if (p.typ !== "refresh") userId = p.userId ?? null;
+        } catch { /* fall through to the refresh path */ }
+      }
+    }
+
+    // 2) Refresh token fallback — body keeps priority; a cookie-sourced token
+    //    requires the CSRF header.
+    if (!userId) {
+      const bodyToken = typeof req.body?.refreshToken === "string" ? req.body.refreshToken : undefined;
+      let refreshToken = bodyToken;
+      if (!refreshToken) {
+        const cookieRefresh = getCookieRefreshToken(req);
+        if (cookieRefresh) {
+          if (!csrfOkForCookieAuth(req)) {
+            res.status(403).json({ error: "Missing CSRF header for cookie-based auth" });
+            return;
+          }
+          refreshToken = cookieRefresh;
+        }
+      }
+      if (refreshToken) userId = userIdFromRefreshToken(refreshToken);
+    }
+
+    // 3) Revoke everything for the resolved user (no-op if unresolved). Always
+    //    clear cookies + 200 — idempotent, and identical for valid/invalid so
+    //    the endpoint cannot be used as a token-validity oracle.
+    if (userId) await revokeAllRefreshTokens(userId);
     clearAuthCookies(res);
     res.json({ message: "Logged out successfully." });
   } catch (err) { next(err); }

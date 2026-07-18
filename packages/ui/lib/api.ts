@@ -94,6 +94,12 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
+        // CSRF companion to credentials:"include". Under AUTH_COOKIE_MODE the
+        // server requires this custom header on cookie-authed MUTATIONS
+        // (csrfOkForCookieAuth) — SameSite=Strict is the first layer, this is the
+        // second. Behavior-neutral while the flag is off (bearer auth ignores it).
+        // Without it, cookie-mode logout + every mutation 403s (audit #3).
+        "X-Requested-With": "XMLHttpRequest",
         ...(bearer && { Authorization: `Bearer ${bearer}` }),
         ...headers,
       },
@@ -134,12 +140,19 @@ export const api = {
       method: "POST", body: JSON.stringify({ email, password }),
     }),
   /** User-initiated sign-out: best-effort server-side refresh-token revocation
-   * (POST /auth/logout, token still valid) THEN clear the local session. The UI
-   * previously only cleared local state, contradicting the security page's
-   * "revoke on logout" claim (audit C3). Caller handles the redirect. */
+   * (POST /auth/logout) THEN clear the local session. The UI previously only
+   * cleared local state, contradicting the security page's "revoke on logout"
+   * claim (audit C3). The refresh token is sent in the body so the server can
+   * revoke even when this session's ACCESS token has expired — the auth-optional
+   * endpoint falls back to it when the bearer is dead (audit #1). Caller handles
+   * the redirect. */
   signOut: async (): Promise<void> => {
     try {
-      await apiFetch("/auth/logout", { method: "POST" });
+      const { refreshToken } = useAppStore.getState();
+      await apiFetch("/auth/logout", {
+        method: "POST",
+        ...(refreshToken ? { body: JSON.stringify({ refreshToken }) } : {}),
+      });
     } catch {
       // Offline / already-expired — the local clear still signs the user out.
     }

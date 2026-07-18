@@ -47,10 +47,20 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     return;
   }
 
-  let payload: AuthPayload;
+  let payload: AuthPayload & { typ?: string };
   try {
-    payload = jwt.verify(token, env.JWT_SECRET, { algorithms: ["HS256"] }) as AuthPayload;
+    payload = jwt.verify(token, env.JWT_SECRET, { algorithms: ["HS256"] }) as AuthPayload & { typ?: string };
   } catch {
+    res.status(401).json({ error: "Invalid or expired token" });
+    return;
+  }
+
+  // A REFRESH token carries the same {userId,tenantId,role} payload as an access
+  // token, distinguished only by typ:"refresh" (see auth.service signRefreshToken).
+  // Access tokens have no typ. Reject refresh tokens in the bearer slot — otherwise
+  // a captured refresh token (now also sent in /auth/logout request bodies) is a
+  // replayable 7-day bearer, defeating the short-access/long-refresh split.
+  if (payload.typ === "refresh") {
     res.status(401).json({ error: "Invalid or expired token" });
     return;
   }
