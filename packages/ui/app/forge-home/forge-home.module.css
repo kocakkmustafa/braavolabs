@@ -1,0 +1,599 @@
+/*
+ * Braavolabs marketing scrollytelling — "forge-home".
+ *
+ * Scoped entirely under `.root` (this component's own wrapper), same
+ * convention as ../forge/forge-hero.module.css, so nothing leaks into the
+ * rest of the site and nothing from the rest of the site leaks in.
+ *
+ * Art principle (binding, per spec): the scene-image layer (`.bgWrap`/`.bg`)
+ * and the copy/UI layer (`.sceneCopy` and everything in the HUD) are always
+ * two separate stacked layers, never merged — `.grade` sits between them
+ * purely to keep copy readable regardless of the underlying image's
+ * brightness.
+ */
+
+.root {
+  --void: #0a0b0f;
+  --steel: #6b7280;
+  --steel-l: #9aa3af;
+  --gunmetal: #3a3f4a;
+  --hair: #20242e;
+  --arc: #3b82f6;
+  --arc-l: #60a5fa;
+  --arc-glow: rgba(59, 130, 246, 0.55);
+  --ember: #f97316;
+  --ember-glow: rgba(249, 115, 22, 0.5);
+  --ink: #e8ebf2;
+  --muted: #8a93a6;
+  --muted-d: #5c6474;
+  --display: -apple-system, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+  --body: -apple-system, "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  --mx: 0;
+  --my: 0;
+
+  position: relative;
+  background: var(--void);
+  color: var(--ink);
+  font-family: var(--body);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+.root img {
+  display: block;
+  max-width: 100%;
+}
+.root a {
+  color: inherit;
+}
+.root ::selection {
+  background: rgba(59, 130, 246, 0.3);
+}
+
+/* ================= cold-open ================= */
+.introOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  background: var(--void);
+  cursor: pointer;
+  opacity: 1;
+  transition: opacity 0.26s ease-out;
+}
+.introLeaving {
+  opacity: 0;
+}
+.introLines {
+  font-family: var(--mono);
+  font-size: clamp(16px, 3vw, 22px);
+  letter-spacing: 0.02em;
+  color: var(--arc-l);
+  min-height: 2.6em;
+}
+.introLine {
+  min-height: 1.3em;
+  white-space: pre;
+}
+.introPrompt {
+  color: var(--ember);
+  font-weight: 700;
+}
+.introCaret {
+  display: inline-block;
+  width: 8px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: var(--arc-l);
+  box-shadow: 0 0 8px var(--arc-glow);
+  animation: caretBlink 1s steps(1) infinite;
+}
+@keyframes caretBlink {
+  50% {
+    opacity: 0;
+  }
+}
+.introSkip {
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted-d);
+  background: transparent;
+  border: 1px solid var(--gunmetal);
+  border-radius: 8px;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.introSkip:hover {
+  color: var(--ink);
+  border-color: var(--arc);
+}
+
+/* ================= pinned stage ================= */
+.stage {
+  position: fixed;
+  inset: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  z-index: 1;
+  background: var(--void);
+}
+.scene {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  will-change: opacity, transform;
+  transform-origin: 50% 50%;
+}
+.bgWrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.bg {
+  transform: translate3d(calc(var(--mx) * -16px), calc(var(--my) * -12px), 0) scale(1.04);
+}
+/* Warm cursor "torch" — desktop/pointer:fine only, see JS gating in
+   ForgeHomeScroll.tsx (the mousemove listener is never attached on coarse
+   pointers, and this rule is a second, CSS-only guarantee it stays invisible
+   there even if it were). */
+.torch {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0.9;
+  background: radial-gradient(
+    280px 280px at var(--hx, 50%) var(--hy, 50%),
+    rgba(249, 150, 90, 0.28),
+    rgba(59, 130, 246, 0.1) 46%,
+    transparent 68%
+  );
+}
+@media (pointer: coarse) {
+  .torch {
+    display: none;
+  }
+}
+/* Readability gradient — the art-principle seam between the scene layer and
+   the copy layer above it. */
+.grade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 62%, transparent 34%, rgba(5, 6, 10, 0.78) 100%),
+    linear-gradient(180deg, rgba(5, 6, 10, 0.5) 0%, transparent 30%, transparent 56%, rgba(5, 6, 10, 0.92) 100%);
+}
+
+/* ================= copy layer ================= */
+.sceneCopy {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(11vh + env(safe-area-inset-bottom));
+  text-align: center;
+  padding: 0 6vw;
+  opacity: 0;
+  transform: translate3d(calc(var(--mx) * 12px), 22px, 0);
+  transition: opacity 0.55s cubic-bezier(0.2, 0.7, 0.2, 1), transform 0.55s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.copyActive {
+  opacity: 1;
+  transform: translate3d(calc(var(--mx) * 12px), 0, 0);
+}
+.kicker {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.36em;
+  text-transform: uppercase;
+  color: var(--arc-l);
+  margin-bottom: 16px;
+}
+.kicker::before {
+  content: "> ";
+  color: var(--arc);
+}
+.actTitle {
+  font-family: var(--display);
+  font-weight: 700;
+  line-height: 1.04;
+  font-size: clamp(30px, 5.2vw, 62px);
+  letter-spacing: -0.015em;
+  margin: 0;
+  text-shadow: 0 4px 40px rgba(0, 0, 0, 0.7);
+  min-height: 1.1em;
+}
+.word {
+  display: inline-block;
+  opacity: 0;
+  animation: wordIn 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+  animation-delay: calc(var(--wi) * 70ms + 120ms);
+}
+@keyframes wordIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.scrambleTitle {
+  font-family: var(--mono);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.actSub {
+  margin: 16px auto 0;
+  max-width: 56ch;
+  color: var(--muted);
+  font-size: clamp(14.5px, 1.5vw, 17.5px);
+  line-height: 1.6;
+}
+
+/* ---- Act 3 ("Ledger") — tokens counter + coin ---- */
+.ledger {
+  margin-top: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 34px;
+  flex-wrap: wrap;
+}
+.counterBlock {
+  text-align: left;
+  background: rgba(10, 11, 16, 0.6);
+  border: 1px solid var(--hair);
+  border-radius: 14px;
+  padding: 16px 22px;
+  backdrop-filter: blur(6px);
+}
+.counterLabel {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.counterNum {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: clamp(26px, 4vw, 38px);
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.counterUsd {
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--ember);
+}
+
+.coinWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  perspective: 1000px;
+}
+.coinTilt {
+  transform-style: preserve-3d;
+  transition: transform 0.15s ease-out;
+}
+.coin {
+  width: 96px;
+  height: 96px;
+  position: relative;
+  transform-style: preserve-3d;
+  cursor: pointer;
+  transition: transform 0.9s cubic-bezier(0.4, 0.1, 0.2, 1);
+}
+.coin:hover,
+.coin.coinFlipped {
+  transform: rotateY(180deg);
+}
+.coinFace {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  backface-visibility: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 22px rgba(59, 130, 246, 0.18);
+}
+.coinFace img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.coinFaceBack {
+  transform: rotateY(180deg);
+}
+.coinHint {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-d);
+}
+
+/* ---- Act 4 ("Engine") — CTA ---- */
+.ctaRow {
+  margin-top: 30px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+.btnPrimary {
+  position: relative;
+  overflow: hidden;
+  font-family: var(--display);
+  font-weight: 650;
+  font-size: 15px;
+  color: #fff;
+  background: linear-gradient(180deg, var(--arc-l), var(--arc));
+  border-radius: 12px;
+  padding: 14px 24px;
+  box-shadow: 0 8px 26px rgba(59, 130, 246, 0.4);
+  transition: filter 0.2s, transform 0.15s;
+}
+.btnPrimary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+.sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.55) 45%, rgba(255, 255, 255, 0.15) 52%, transparent 65%);
+  transform: translateX(-120%);
+  animation: sweep 4.4s ease-in-out infinite;
+  animation-delay: 1.4s;
+  pointer-events: none;
+}
+@keyframes sweep {
+  0%,
+  58% {
+    transform: translateX(-120%);
+  }
+  84% {
+    transform: translateX(120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+.btnGhost {
+  font-family: var(--mono);
+  font-size: 13.5px;
+  color: var(--ink);
+  border: 1px solid var(--gunmetal);
+  padding: 13px 20px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.btnGhost:hover {
+  border-color: var(--arc);
+  box-shadow: 0 0 0 1px var(--arc-glow);
+}
+.footnote {
+  margin-top: 26px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  color: var(--muted-d);
+}
+
+/* ================= atmosphere overlays ================= */
+.vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  box-shadow: inset 0 0 22vw 6vw rgba(3, 4, 8, 0.78);
+}
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0.045;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+/* ================= HUD ================= */
+.brandmark {
+  position: fixed;
+  z-index: 6;
+  top: 26px;
+  left: 30px;
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-size: 18px;
+  pointer-events: none;
+}
+.brandmark b {
+  color: var(--arc-l);
+}
+
+.rail {
+  position: fixed;
+  z-index: 6;
+  right: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 16px;
+}
+.railTrack {
+  position: relative;
+  width: 2px;
+  height: 30vh;
+  max-height: 220px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  margin-bottom: 4px;
+}
+.railFill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 0%;
+  background: linear-gradient(var(--arc-l), var(--arc));
+  border-radius: 2px;
+  box-shadow: 0 0 10px var(--arc-glow);
+}
+.railDot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: inherit;
+  background: transparent;
+  border: 0;
+  padding: 2px 0;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.3s;
+}
+.railDot:hover {
+  opacity: 0.85;
+}
+.railDotActive {
+  opacity: 1;
+}
+.railDotMark {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid var(--steel);
+  background: transparent;
+  transition: all 0.3s;
+}
+.railDotActive .railDotMark {
+  background: var(--arc);
+  border-color: var(--arc-l);
+  box-shadow: 0 0 10px var(--arc-glow);
+}
+.railDotLabel {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.railDotActive .railDotLabel {
+  color: var(--ink);
+}
+
+/* end spacer driving the pinned scroll */
+.driver {
+  position: relative;
+  z-index: 0;
+  height: 400vh; /* static fallback if the inline dvh value is rejected —
+                    keep in sync with ACTS.length * 100 in the TSX */
+}
+
+/* ================= mobile (375px baseline) ================= */
+@media (max-width: 720px) {
+  .brandmark {
+    display: none;
+  }
+  .rail {
+    left: 50%;
+    right: auto;
+    top: auto;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+  }
+  .railTrack {
+    display: none;
+  }
+  .railDotLabel {
+    display: none;
+  }
+  .sceneCopy {
+    bottom: calc(9dvh + env(safe-area-inset-bottom));
+    padding: 0 22px;
+  }
+  .ledger {
+    gap: 20px;
+  }
+  .coin,
+  .coinFace {
+    width: 76px;
+    height: 76px;
+  }
+  .counterBlock {
+    padding: 14px 18px;
+  }
+}
+
+/* ================= reduced motion (JS also short-circuits the whole
+   scroll/torch/scramble engine — this is the CSS-only safety net for the
+   moment between first paint and that check running) ================= */
+.static .stage {
+  position: relative;
+  height: auto;
+}
+.static .scene {
+  position: relative;
+  height: 100vh;
+  height: 100dvh;
+  opacity: 1 !important;
+  transform: none !important;
+}
+.static .sceneCopy {
+  position: absolute;
+  opacity: 1 !important;
+  transform: none !important;
+}
+.static .torch,
+.static .introOverlay,
+.static .vignette {
+  display: none;
+}
+.static .driver {
+  display: none;
+}
+.static .word {
+  opacity: 1;
+  animation: none;
+}
+.static .sweep::after {
+  animation: none;
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .introOverlay {
+    display: none;
+  }
+}
