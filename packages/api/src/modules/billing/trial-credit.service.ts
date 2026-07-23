@@ -77,6 +77,36 @@ const LIFETIME_PERIOD_END = new Date("9999-12-31T00:00:00.000Z");
  */
 export const TRIAL_CALL_RESERVATION_USD = 0.02;
 
+/**
+ * P2-F fix (Opus adversarial review, 2026-07-23): minimum USD retired from
+ * the trial-credit bucket per SUCCESSFUL trial call, regardless of the
+ * model's real metered cost.
+ *
+ * lib/modelPricing.ts genuinely prices some catalogue models at $0 (e.g.
+ * ZHIPU's default model "glm-4.7-flash" — Flash tiers are permanently
+ * free). Without a floor, `costForTrialUsage()` returns EXACTLY 0 for
+ * those calls, `settleTrialCredit` nets the full reservation back out
+ * (delta = 0 − reservationUsd), and the bucket returns to its pre-call
+ * value every single time — the USD cap becomes a total no-op for any
+ * $0-priced model, and a tenant could make effectively UNLIMITED trial
+ * calls against Braavolabs' held key for it (the only remaining bound
+ * would be the 5/min rate limiter on POST /validate — far too loose for a
+ * cost-control mechanism whose entire purpose is a dollar ceiling).
+ *
+ * The floor makes the bucket monotonically non-decreasing per successful
+ * call even at $0 metered cost, which turns the single USD cap into an
+ * EFFECTIVE call-count ceiling too for zero-priced models — no second
+ * "trial run count" knob is introduced; `FORGE_TRIAL_CREDIT_USD_CAP`
+ * remains the only operator-facing setting. (Once the bucket is deep
+ * enough into the cap that a fresh `TRIAL_CALL_RESERVATION_USD`
+ * reservation no longer fits, `reserveTrialCredit` refuses further calls
+ * regardless of the floor — see its docblock.)
+ *
+ * NEVER applied to `refundTrialCredit` — a call that THREW consumed
+ * nothing and must be refunded in full, not floored.
+ */
+export const MIN_TRIAL_UNIT_USD = 0.0001; // $0.0001 = 100 micro-usd
+
 function usdToMicros(usd: number): number {
   return Math.round(usd * MICRO_PER_USD);
 }
@@ -131,15 +161,30 @@ export interface TrialCreditReservation {
 /**
  * Atomically reserve `TRIAL_CALL_RESERVATION_USD` against the tenant's
  * lifetime Forge trial-credit bucket. Returns `null` (never throws) when the
- * gate is closed (cap=0 / unset) or the reservation would push the bucket
- * past the cap — the caller MUST treat `null` as "no trial call may be made"
- * and fall back to BYOK or a plain error. Never fail-open.
+ * gate is closed (cap=0 / unset), the cap itself is smaller than a single
+ * reservation, or the reservation would push the bucket past the cap — the
+ * caller MUST treat `null` as "no trial call may be made" and fall back to
+ * BYOK or a plain error. Never fail-open.
  *
  * The `WHERE usage_meters.value + reservation <= cap` guard (rather than the
  * draft/router.ts-style `WHERE value < cap`) means the reservation itself
  * can NEVER push the bucket over the cap even for the very first caller of a
  * concurrent burst — every accepted reservation keeps the running total
  * `<= cap` by construction, not just "was under cap before this one landed".
+ *
+ * P2-A2 fix (Opus adversarial review, 2026-07-23): the ON CONFLICT…DO UPDATE
+ * WHERE only guards the UPDATE branch — a plain `INSERT … VALUES (…)` with
+ * no matching row yet is UNCONDITIONAL, so a tenant's very FIRST reservation
+ * used to bypass the cap check entirely (it always inserted, regardless of
+ * whether `reservation > cap`). Fixed two ways, belt-and-suspenders:
+ *   1. `INSERT … SELECT … WHERE reservation <= cap` — the INSERT's source
+ *      rowset is now itself conditioned on the cap, so it also produces ZERO
+ *      rows (and therefore never reaches ON CONFLICT) when a reservation
+ *      alone would already exceed the cap, on the very first row.
+ *   2. An explicit early return in this function for the same condition —
+ *      cheaper (skips a DB round trip for a permanently-pathological
+ *      cap/reservation combination) and keeps that case unit-testable
+ *      without depending on exact Postgres INSERT…SELECT semantics.
  */
 export async function reserveTrialCredit(
   tenantId: string,
@@ -149,9 +194,20 @@ export async function reserveTrialCredit(
   const capMicros = usdToMicros(env.FORGE_TRIAL_CREDIT_USD_CAP);
   const reservationMicros = usdToMicros(TRIAL_CALL_RESERVATION_USD);
 
+  // A cap smaller than a single call's reservation ceiling can never admit
+  // even the FIRST trial call — refuse before touching the DB (P2-A2).
+  if (reservationMicros > capMicros) {
+    logger.warn(
+      { tenantId, capUsd: env.FORGE_TRIAL_CREDIT_USD_CAP, reservationUsd: TRIAL_CALL_RESERVATION_USD },
+      "Forge trial-credit cap is smaller than the per-call reservation ceiling — every trial call refused (fail-closed)",
+    );
+    return null;
+  }
+
   const rows = await tenantTx((tx) => tx.$queryRaw<Array<{ value: number }>>`
     INSERT INTO usage_meters (id, tenant_id, metric, value, period_start, period_end, created_at, updated_at)
-    VALUES (gen_random_uuid()::text, ${tenantId}, ${METRIC}, ${reservationMicros}, ${LIFETIME_PERIOD_START}, ${LIFETIME_PERIOD_END}, NOW(), NOW())
+    SELECT gen_random_uuid()::text, ${tenantId}, ${METRIC}, ${reservationMicros}, ${LIFETIME_PERIOD_START}, ${LIFETIME_PERIOD_END}, NOW(), NOW()
+    WHERE ${reservationMicros} <= ${capMicros}
     ON CONFLICT (tenant_id, metric, period_start) DO UPDATE
       SET value = usage_meters.value + ${reservationMicros}, updated_at = NOW()
       WHERE usage_meters.value + ${reservationMicros} <= ${capMicros}
@@ -169,24 +225,17 @@ export async function reserveTrialCredit(
   return { reservationUsd: TRIAL_CALL_RESERVATION_USD };
 }
 
-/**
- * True the reservation up to the REAL cost after a trial-funded call
- * succeeds: `delta = actualCostUsd - reservationUsd` is applied to the
- * bucket (negative when the real call was cheaper than the reservation —
- * the common case — refunding the difference; positive in the rare case the
- * real cost exceeded the flat ceiling, which is bookkeeping-only at this
- * point since the call already happened and can't be un-served). Clamped at
- * 0 so it can never go negative. Non-fatal on DB failure — the same
- * self-corrects-next-period stance as releaseQuota in metering.ts, except
- * this bucket has no next period, so a missed settle just leaves a few
- * cents of unclaimed headroom rather than corrupting state.
- */
-export async function settleTrialCredit(
+/** Shared atomic delta-apply — both settleTrialCredit and refundTrialCredit
+ * bottom out here. Skips the DB round trip for a true no-op delta. Non-fatal
+ * on failure — the same self-corrects-next-period stance as releaseQuota in
+ * metering.ts, except this bucket has no next period, so a missed apply just
+ * leaves a few cents of unclaimed headroom rather than corrupting state. */
+async function applyBucketDeltaMicros(
   tenantId: string,
-  reservationUsd: number,
-  actualCostUsd: number,
+  deltaMicros: number,
+  failureLogMessage: string,
+  logContext: Record<string, unknown>,
 ): Promise<void> {
-  const deltaMicros = usdToMicros(actualCostUsd) - usdToMicros(reservationUsd);
   if (deltaMicros === 0) return;
   try {
     await tenantTx((tx) => tx.$executeRaw`
@@ -195,21 +244,66 @@ export async function settleTrialCredit(
       WHERE tenant_id = ${tenantId} AND metric = ${METRIC} AND period_start = ${LIFETIME_PERIOD_START}
     `);
   } catch (err) {
-    logger.warn(
-      { err, tenantId, actualCostUsd },
-      "settleTrialCredit failed (non-fatal — bucket keeps the flat reservation until the next successful settle)",
-    );
+    logger.warn({ err, tenantId, ...logContext }, failureLogMessage);
   }
 }
 
-/** Refund a reservation in full — the trial-funded call THREW before we
+/**
+ * True the reservation up to the REAL cost after a trial-funded call
+ * SUCCEEDS: `delta = effectiveCostUsd - reservationUsd` is applied to the
+ * bucket (negative when the real call was cheaper than the reservation —
+ * the common case — refunding the difference; positive in the rare case the
+ * real cost exceeded the flat ceiling, which is bookkeeping-only at this
+ * point since the call already happened and can't be un-served). The
+ * bucket-level GREATEST(0, …) clamp still guards against ever going
+ * negative.
+ *
+ * `effectiveCostUsd` applies two P3/P2-F hardenings on top of the raw
+ * `actualCostUsd` the caller measured:
+ *   - NaN / Infinity / negative input collapses to the floor rather than
+ *     propagating into the delta math or the SQL template (a corrupt cost
+ *     must never produce a corrupt or negative bucket write).
+ *   - `MIN_TRIAL_UNIT_USD` floor (P2-F) — see that constant's docblock: a
+ *     genuinely $0-priced model must still retire at least the floor from
+ *     the bucket, or the USD cap is a no-op for it.
+ */
+export async function settleTrialCredit(
+  tenantId: string,
+  reservationUsd: number,
+  actualCostUsd: number,
+): Promise<void> {
+  const safeCostUsd =
+    Number.isFinite(actualCostUsd) && actualCostUsd >= 0 ? actualCostUsd : MIN_TRIAL_UNIT_USD;
+  const effectiveCostUsd = Math.max(safeCostUsd, MIN_TRIAL_UNIT_USD);
+  const deltaMicros = usdToMicros(effectiveCostUsd) - usdToMicros(reservationUsd);
+  await applyBucketDeltaMicros(
+    tenantId,
+    deltaMicros,
+    "settleTrialCredit failed (non-fatal — bucket keeps the flat reservation until the next successful settle)",
+    { actualCostUsd },
+  );
+}
+
+/**
+ * Refund a reservation in FULL — the trial-funded call THREW before we
  * could learn its real cost, so the tenant must not be charged for it at
- * all. Equivalent to `settleTrialCredit(tenantId, reservationUsd, 0)`. */
+ * all. Deliberately NOT implemented as `settleTrialCredit(tenantId,
+ * reservationUsd, 0)` anymore (P2-F): that would now run the cost through
+ * the floor and retire `MIN_TRIAL_UNIT_USD` even though the call never
+ * completed and consumed nothing. This function always gives back exactly
+ * `reservationUsd`, unfloored.
+ */
 export async function refundTrialCredit(
   tenantId: string,
   reservationUsd: number,
 ): Promise<void> {
-  return settleTrialCredit(tenantId, reservationUsd, 0);
+  const deltaMicros = -usdToMicros(reservationUsd);
+  await applyBucketDeltaMicros(
+    tenantId,
+    deltaMicros,
+    "refundTrialCredit failed (non-fatal — bucket keeps the reservation until the next successful refund/settle)",
+    { reservationUsd },
+  );
 }
 
 export interface ForgeTrialCreditStatus {

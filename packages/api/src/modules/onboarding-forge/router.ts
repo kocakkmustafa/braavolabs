@@ -168,7 +168,15 @@ onboardingForgeRouter.get("/catalog", async (_req, res, next) => {
  * is an intentionally independent surface. */
 function sanitizeValidationReason(message: string, apiKey: string | undefined): string {
   let msg = message.slice(0, 300);
-  if (apiKey && apiKey.length >= 6) {
+  // P3 hardening (Opus adversarial review, 2026-07-23): threshold lowered
+  // from 6→4. Real provider keys are always far longer than 4 chars, so this
+  // is a defensive margin, not a behavior change for any real key — a 4-6
+  // char threshold makes no practical difference to what gets redacted in
+  // production, it only widens the (already-narrow) window that a
+  // deliberately short test/malformed key still gets exact-match redacted.
+  // Kept above ~3 so we don't start over-redacting common short substrings
+  // that could legitimately appear in a provider's error prose.
+  if (apiKey && apiKey.length >= 4) {
     msg = msg.split(apiKey).join("[REDACTED]");
   }
   msg = msg.replace(/\b(sk|pk|sess|key|token|bearer)[-_ ][A-Za-z0-9_-]{6,}\b/gi, "[REDACTED]");

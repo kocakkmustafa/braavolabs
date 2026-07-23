@@ -117,16 +117,40 @@ describe("reserveTrialCredit — fail-closed boundary", () => {
     expect(db.queryRaw).toHaveBeenCalledTimes(1);
   });
 
-  it("cap already reached → the atomic WHERE fails (empty rows) → null, fail-closed, never throws", async () => {
-    envMock.FORGE_TRIAL_CREDIT_USD_CAP = 0.01;
+  it("cap already reached (existing usage leaves no headroom) → the atomic WHERE fails (empty rows) → null, fail-closed, never throws", async () => {
+    // cap (0.03) is deliberately LARGER than the reservation ceiling (0.02)
+    // here — this test is specifically about the DB-side WHERE failing
+    // because prior usage already ate the headroom, as distinct from the
+    // "cap itself is smaller than one reservation" case covered below.
+    envMock.FORGE_TRIAL_CREDIT_USD_CAP = 0.03;
     db.queryRaw.mockResolvedValue([]); // WHERE value+reservation<=cap failed on the DB side
 
     const result = await reserveTrialCredit(TENANT);
 
     expect(result).toBeNull();
+    expect(db.queryRaw).toHaveBeenCalledTimes(1); // the DB path WAS reached this time
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: TENANT }),
       expect.stringMatching(/cap reached/i),
+    );
+  });
+
+  it("P2-A2: a cap SMALLER than a single reservation refuses even the tenant's very FIRST trial call — never bypasses via the unconditional INSERT branch", async () => {
+    // Before the fix, `INSERT … VALUES (…) ON CONFLICT … WHERE …` only
+    // guarded the UPDATE (conflict) branch — a brand new row (no conflict
+    // yet) inserted UNCONDITIONALLY, so a cap smaller than the reservation
+    // ceiling still let the very first call through. cap=0.01 (10,000
+    // micro) < reservation=0.02 (20,000 micro) must now refuse before ever
+    // touching the DB.
+    envMock.FORGE_TRIAL_CREDIT_USD_CAP = 0.01;
+
+    const result = await reserveTrialCredit(TENANT);
+
+    expect(result).toBeNull();
+    expect(db.queryRaw).not.toHaveBeenCalled(); // short-circuited in JS, no wasted round trip
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: TENANT, capUsd: 0.01 }),
+      expect.stringMatching(/smaller than the per-call reservation ceiling/i),
     );
   });
 
@@ -198,6 +222,39 @@ describe("settleTrialCredit / refundTrialCredit", () => {
       expect.stringMatching(/settleTrialCredit failed/i),
     );
   });
+
+  it("P2-F: a $0 actual cost still retires MIN_TRIAL_UNIT_USD from the bucket via settleTrialCredit — never a full no-op", async () => {
+    db.executeRaw.mockResolvedValue(1);
+    await settleTrialCredit(TENANT, TRIAL_CALL_RESERVATION_USD, 0);
+
+    expect(db.executeRaw).toHaveBeenCalledTimes(1);
+    // First interpolation in the UPDATE template is deltaMicros (see the SQL
+    // in trial-credit.service.ts). floor(100) − reservation(20,000) = −19,900.
+    const deltaMicros = db.executeRaw.mock.calls[0]![1] as number;
+    expect(deltaMicros).toBe(100 - Math.round(TRIAL_CALL_RESERVATION_USD * MICRO));
+  });
+
+  it("P2-F: NaN / negative / non-finite actual cost collapses to the floor, never to a negative or corrupt delta", async () => {
+    db.executeRaw.mockResolvedValue(1);
+    for (const badCost of [NaN, -5, Infinity, -Infinity]) {
+      db.executeRaw.mockClear();
+      await settleTrialCredit(TENANT, TRIAL_CALL_RESERVATION_USD, badCost);
+      expect(db.executeRaw).toHaveBeenCalledTimes(1);
+      const deltaMicros = db.executeRaw.mock.calls[0]![1] as number;
+      // Same delta as a real $0 cost (floored) — never NaN, never more
+      // negative than the reservation itself (i.e. never "extra credit").
+      expect(deltaMicros).toBe(100 - Math.round(TRIAL_CALL_RESERVATION_USD * MICRO));
+      expect(Number.isFinite(deltaMicros)).toBe(true);
+    }
+  });
+
+  it("refundTrialCredit is NEVER floored (distinct from settleTrialCredit) — a failed call gives back the exact full reservation, no floor retained", async () => {
+    db.executeRaw.mockResolvedValue(1);
+    await refundTrialCredit(TENANT, TRIAL_CALL_RESERVATION_USD);
+
+    const deltaMicros = db.executeRaw.mock.calls[0]![1] as number;
+    expect(deltaMicros).toBe(-Math.round(TRIAL_CALL_RESERVATION_USD * MICRO)); // exactly -20,000, no floor subtracted
+  });
 });
 
 describe("getForgeTrialCreditStatus", () => {
@@ -254,7 +311,7 @@ describe("runForgeTrialCompletion — the single wiring point", () => {
 
   it("throws TrialCreditExhaustedError when the cap is reached — chatCompletion is NEVER dialed", async () => {
     envMock.CEREBRAS_API_KEY = "csk-live";
-    envMock.FORGE_TRIAL_CREDIT_USD_CAP = 0.01;
+    envMock.FORGE_TRIAL_CREDIT_USD_CAP = 0.03; // > reservation ceiling — this exercises the DB-WHERE-fails path, not the cap-too-small early guard
     db.queryRaw.mockResolvedValue([]); // reservation refused
 
     await expect(
@@ -298,6 +355,69 @@ describe("runForgeTrialCompletion — the single wiring point", () => {
     );
     // Settled (true-up), not just reserved.
     expect(db.executeRaw).toHaveBeenCalledTimes(1);
+  });
+
+  it("P2-F: ZHIPU's glm-4.7-flash (a genuinely $0-priced model) still gets BOUNDED by the cap — never unlimited trial calls", async () => {
+    // End-to-end through the real reserve→dial→settle pipeline (no shortcut
+    // mocking of settleTrialCredit/reserveTrialCredit themselves) — proves
+    // the floor closes the "cap is a no-op for $0-priced models" gap for
+    // real, not just at the unit level.
+    //
+    // cap is deliberately set to reservation + 10×floor = 0.02 + 10×0.0001
+    // = 0.021 (21,000 micro) so this test lands on a clean, small,
+    // documented number of successful calls before refusal — NOT because
+    // that specific cap is a recommended production value (a real operator
+    // cap will usually be an order of magnitude bigger than a single
+    // reservation; this file just needs a tractable number of loop
+    // iterations to prove the bound is real and finite).
+    envMock.ZHIPU_API_KEY = "zhipu-live";
+    envMock.FORGE_TRIAL_CREDIT_USD_CAP = 0.021;
+    chatCompletionMock.mockResolvedValue({
+      content: "OK", inputTokens: 5, outputTokens: 1, model: "glm-4.7-flash", provider: "ZHIPU",
+    });
+
+    let value = 0;
+    db.queryRaw.mockImplementation(async (_strings: unknown, ...vals: unknown[]) => {
+      const reservationMicros = vals[2] as number;
+      const capMicros = vals[vals.length - 1] as number;
+      if (value + reservationMicros <= capMicros) {
+        value += reservationMicros;
+        return [{ value }];
+      }
+      return [];
+    });
+    db.executeRaw.mockImplementation(async (_strings: unknown, ...vals: unknown[]) => {
+      const deltaMicros = vals[0] as number;
+      value = Math.max(0, value + deltaMicros);
+      return 1;
+    });
+
+    let succeeded = 0;
+    let terminalError: unknown;
+    for (let i = 0; i < 50; i++) {
+      try {
+        const result = await runForgeTrialCompletion(
+          TENANT, "ZHIPU", "glm-4.7-flash", "sys", [{ role: "user", content: "hi" }],
+        );
+        expect(result.costUsd).toBe(0); // priceForModel("glm-4.7-flash") is genuinely {0,0} — real, not fabricated
+        succeeded++;
+      } catch (err) {
+        terminalError = err;
+        break;
+      }
+    }
+
+    // Bounded, not unlimited: the loop hit a real refusal well before the
+    // 50-iteration ceiling, and every successful call actually settled
+    // (retiring the floor) rather than silently no-op'ing back to 0.
+    expect(terminalError).toBeInstanceOf(TrialCreditExhaustedError);
+    expect(succeeded).toBeGreaterThan(0);
+    expect(succeeded).toBeLessThan(50);
+    expect(db.executeRaw).toHaveBeenCalledTimes(succeeded); // one floor-settle per success
+    // Bucket after the last success sits within one reservation ceiling of
+    // the cap (can't have more headroom than that, or one more would fit).
+    expect(value).toBeGreaterThan(0);
+    expect(value).toBeLessThanOrEqual(Math.round(0.021 * MICRO));
   });
 
   it("failure path: chatCompletion throws → the reservation is refunded in full, the original error propagates", async () => {
