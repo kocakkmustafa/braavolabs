@@ -35,6 +35,7 @@ import { billingRouter, stripeWebhookRouter } from "./modules/billing/router";
 import { iapRouter } from "./modules/billing/iap/router";
 import { automationImporterRouter } from "./modules/automation-importer/router";
 import { externalRouter } from "./modules/external/router";
+import { relayRouter } from "./modules/relay/router";
 import { initExternalPoller, stopExternalPoller } from "./modules/external/poller";
 import { governanceRouter } from "./modules/governance/router";
 import { onboardingRouter } from "./modules/onboarding/router";
@@ -326,6 +327,10 @@ api.use("/collaboration", collaborationRouter);
 api.use("/webhooks", webhookTemplateRouter);
 api.use("/automation-imports", automationImporterRouter);
 api.use("/external-connections", externalRouter);
+// Cloud-broker relay control plane (first slice) — local desktop/CLI
+// sessions (Lane-A/B, R6 computer-use) mirror activity up and receive
+// operator commands down, tenant-scoped. See modules/relay/router.ts.
+api.use("/relay", relayRouter);
 
 app.use("/api/v1", api);
 
