@@ -139,6 +139,19 @@ const envShape = z.object({
   GROQ_TRIAL_MODEL: z.string().default("llama-3.3-70b-versatile"),
   CEREBRAS_API_KEY: z.string().optional(),
   ZHIPU_API_KEY: z.string().optional(),
+  // ── Forge onboarding trial-credit cap (FAZ1-1C) ──
+  // Separate from GROQ_TRIAL_MODEL / trialRunsLimit above (that gate is a
+  // per-tenant RUN COUNT for the main pipeline runner's Groq fallback). This
+  // one is a USD SPEND ceiling, tenant-wide + lifetime (not periodic), that
+  // bounds how much of Braavolabs' own held free-tier keys (Cerebras / Groq /
+  // Zhipu — see modules/billing/trial-credit.service.ts) the Forge onboarding
+  // wizard's "try before you BYOK" flow may spend on a tenant's behalf.
+  // Default 0 = the trial-credit gate is CLOSED — every trial-funded call is
+  // refused fail-closed until an operator explicitly sets a positive cap.
+  // Plain USD (e.g. "0.50"), NOT micro-usd — trial-credit.service.ts is the
+  // only place that converts to the micro-usd integer units usage_meters
+  // stores its `value` column as.
+  FORGE_TRIAL_CREDIT_USD_CAP: z.coerce.number().nonnegative().default(0),
   // Pipeline export DRM. LICENSE_JWT_SECRET signs offline license tokens;
   // empty here means the /license/* endpoints return 503. TTL controls how
   // many days the token is valid before requiring an online re-verify.

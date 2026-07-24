@@ -38,6 +38,7 @@ import { externalRouter } from "./modules/external/router";
 import { initExternalPoller, stopExternalPoller } from "./modules/external/poller";
 import { governanceRouter } from "./modules/governance/router";
 import { onboardingRouter } from "./modules/onboarding/router";
+import { onboardingForgeRouter } from "./modules/onboarding-forge/router";
 import { growthRouter } from "./modules/growth/router";
 import { authRouter } from "./modules/auth/auth.router";
 import { ssoConfigRouter, ssoAuthRouter } from "./modules/sso/sso.router";
@@ -314,6 +315,9 @@ api.use("/billing", billingRouter);
 api.use("/billing/iap", iapRouter);
 api.use("/governance", governanceRouter);
 api.use("/onboarding", onboardingRouter);
+// Forge provider-setup wizard (FAZ1-1C) — independent surface from the
+// Faz-8 hero-company onboarding above; own catalogue/validate/status.
+api.use("/onboarding/forge", onboardingForgeRouter);
 api.use("/growth", growthRouter);
 api.use("/export", exportRouter);
 api.use("/license", licenseRouter);
