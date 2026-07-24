@@ -10,9 +10,10 @@ import Breadcrumb from "../components/Breadcrumb";
 import PresenceBar from "../components/PresenceBar";
 
 // Landing page renders its own nav — skip sidebar offset
-// "/forge" is the cinematic hero prototype route: it's a fixed full-bleed
-// stage and must not be squeezed by the dashboard sidebar/breadcrumb chrome.
-const FULL_WIDTH_PATHS = ["/", "/login", "/register", "/reset-password", "/features", "/pricing", "/terms", "/privacy", "/auth/callback", "/forge"];
+// "/forge" and "/forge-home" are the cinematic hero prototype routes: both
+// are fixed full-bleed stages and must not be squeezed by the dashboard
+// sidebar/breadcrumb chrome.
+const FULL_WIDTH_PATHS = ["/", "/login", "/register", "/reset-password", "/features", "/pricing", "/terms", "/privacy", "/auth/callback", "/forge", "/forge-home"];
 
 export default function AuthLayout({
   children,
