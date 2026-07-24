@@ -20,9 +20,18 @@
  *
  * REDACTION RULE: this contract never intentionally carries a raw secret
  * (API key / token / password). Free-text fields (dialogText / summary /
- * decoded output) are bounded AND passed through `redact()` before they are
- * buffered or published — see redactSessionEventInput / redactControlCommand
- * below, applied by the relay's bus (bus.ts) at publish time.
+ * decoded output / SessionRegistration.label+cwd) are bounded AND passed
+ * through `redact()` before they are buffered or published — see
+ * redactSessionEventInput / redactControlCommand below, applied by the
+ * relay's bus (bus.ts) at publish time. `label`/`cwd` are redacted once, at
+ * registration time, in relay.core.ts's registerSession (they have no
+ * round-trip requirement, unlike actionId below).
+ *
+ * EXCEPTION — structured/round-tripped identifiers: `approval-request`'s
+ * `actionId`/`kind` and `approve`/`reject`'s `actionId` are NOT passed
+ * through the general `redact()` (which would corrupt a UUID/hex-shaped id
+ * and silently break the approve/reject round-trip). They get the narrower
+ * `redactStructuredId()` instead — see its doc comment.
  */
 import { z } from "zod";
 
@@ -56,6 +65,29 @@ const SECRET_PATTERNS: RegExp[] = [
 export function redact(text: string): string {
   let out = text;
   for (const pattern of SECRET_PATTERNS) {
+    out = out.replace(pattern, "«redacted»");
+  }
+  return out;
+}
+
+// Narrower pass for STRUCTURED IDENTIFIERS that must remain functional after
+// redaction: `approval-request.actionId`/`.kind` and `approve`/`reject`
+// commands' `actionId` round-trip — the companion echoes the exact actionId
+// back to approve/reject the SAME governed action, and the LOCAL session
+// matches it against its own pending-action table. Those ids are commonly
+// UUID/hex-shaped (>=32 chars) and would be destroyed by the generic
+// long-opaque-token rule in `redact()`, silently breaking the approval flow
+// (worse than the redaction gap it would "fix"). So structured ids only pass
+// through the sk-/Bearer patterns — vanishingly unlikely to appear in a
+// system-generated id, but still a free extra layer if one ever does.
+const STRUCTURED_ID_PATTERNS: RegExp[] = [
+  /sk-[A-Za-z0-9_-]{10,}/g,
+  /Bearer\s+[A-Za-z0-9._-]{10,}/gi,
+];
+
+export function redactStructuredId(text: string): string {
+  let out = text;
+  for (const pattern of STRUCTURED_ID_PATTERNS) {
     out = out.replace(pattern, "«redacted»");
   }
   return out;
@@ -136,7 +168,14 @@ export type SessionEvent = SessionEventInput & {
 export function redactSessionEventInput(ev: SessionEventInput): SessionEventInput {
   switch (ev.type) {
     case "approval-request":
-      return { ...ev, dialogText: redact(ev.dialogText) };
+      // actionId/kind: structured-id pass (round-trip safety, see
+      // redactStructuredId doc). dialogText: full redaction (free text).
+      return {
+        ...ev,
+        actionId: redactStructuredId(ev.actionId),
+        kind: redactStructuredId(ev.kind),
+        dialogText: redact(ev.dialogText),
+      };
     case "agent-turn":
       return { ...ev, summary: redact(ev.summary) };
     case "audit":
@@ -187,10 +226,19 @@ export type ControlCommandMessage = ControlCommand & {
   ts: string;
 };
 
-/** Symmetric redaction pass for outbound commands (only `steer` carries free text). */
+/**
+ * Symmetric redaction pass for outbound commands. `steer.message` is free
+ * text → full redaction. `approve`/`reject`'s `actionId` is a structured,
+ * round-tripped identifier (the LOCAL session matches it against its own
+ * pending-action table) → structured-id pass only, same rationale as
+ * approval-request above. `kill` carries no payload.
+ */
 export function redactControlCommand(cmd: ControlCommand): ControlCommand {
   if (cmd.type === "steer") {
     return { ...cmd, message: redact(cmd.message) };
+  }
+  if (cmd.type === "approve" || cmd.type === "reject") {
+    return { ...cmd, actionId: redactStructuredId(cmd.actionId) };
   }
   return cmd;
 }

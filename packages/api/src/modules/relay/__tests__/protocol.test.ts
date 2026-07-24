@@ -9,6 +9,7 @@ import {
   SessionEventInputSchema,
   ControlCommandSchema,
   redact,
+  redactStructuredId,
   redactSessionEventInput,
   redactControlCommand,
   MAX_TEXT_LEN,
@@ -124,8 +125,27 @@ describe("redact()", () => {
   });
 });
 
+describe("redactStructuredId() — round-trip-safe pass for actionId/kind", () => {
+  it("leaves a UUID-shaped id untouched (would be destroyed by the generic long-token rule)", () => {
+    const uuid = "550e8400-e29b-41d4-a716-446655440000";
+    expect(redactStructuredId(uuid)).toBe(uuid);
+    // Sanity: the GENERAL redact() would have mangled this same UUID —
+    // proving the narrower pass is doing something different on purpose.
+    expect(redact(uuid)).not.toBe(uuid);
+  });
+
+  it("leaves a short descriptive kind untouched", () => {
+    expect(redactStructuredId("shell.exec")).toBe("shell.exec");
+  });
+
+  it("still redacts an sk- or Bearer pattern embedded in a structured id", () => {
+    expect(redactStructuredId("sk-ABCDEFGHIJ1234567890")).toBe("«redacted»");
+    expect(redactStructuredId("Bearer aaaaaaaaaaaaaaaaaaaaaaaa")).toBe("«redacted»");
+  });
+});
+
 describe("redactSessionEventInput()", () => {
-  it("redacts approval-request dialogText", () => {
+  it("redacts approval-request dialogText, leaves round-trippable actionId/kind untouched", () => {
     const ev = redactSessionEventInput({
       type: "approval-request",
       actionId: "act-1",
@@ -134,6 +154,19 @@ describe("redactSessionEventInput()", () => {
     });
     expect(ev.type).toBe("approval-request");
     expect((ev as any).dialogText).toBe("export KEY=«redacted» && run");
+    expect((ev as any).actionId).toBe("act-1");
+    expect((ev as any).kind).toBe("shell.exec");
+  });
+
+  it("preserves a UUID-shaped actionId (approve/reject round-trip safety) while still redacting dialogText", () => {
+    const uuid = "550e8400-e29b-41d4-a716-446655440000";
+    const ev = redactSessionEventInput({
+      type: "approval-request",
+      actionId: uuid,
+      kind: "shell.exec",
+      dialogText: "plain text, nothing to redact",
+    });
+    expect((ev as any).actionId).toBe(uuid);
   });
 
   it("redacts agent-turn and audit summaries", () => {
@@ -163,9 +196,12 @@ describe("redactControlCommand()", () => {
     expect((cmd as any).message).toBe("use key «redacted» next");
   });
 
-  it("leaves approve/reject/kill untouched (no free text)", () => {
+  it("leaves approve/reject/kill's structured actionId untouched (round-trip safety)", () => {
     expect(redactControlCommand({ type: "approve", actionId: "a1" })).toEqual({ type: "approve", actionId: "a1" });
     expect(redactControlCommand({ type: "reject", actionId: "a1" })).toEqual({ type: "reject", actionId: "a1" });
     expect(redactControlCommand({ type: "kill" })).toEqual({ type: "kill" });
+
+    const uuid = "550e8400-e29b-41d4-a716-446655440000";
+    expect(redactControlCommand({ type: "approve", actionId: uuid })).toEqual({ type: "approve", actionId: uuid });
   });
 });
