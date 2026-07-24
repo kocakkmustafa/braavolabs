@@ -253,6 +253,27 @@ relayRouter.get("/sessions/:id/events", async (req, res) => {
   }
 });
 
+// GET /relay/sessions/:id/events/poll?after=<seq> — a JSON poll of buffered
+// events for clients that can't hold an SSE stream. React Native's fetch has
+// no EventSource and no streaming response body, so the mobile companion
+// polls this instead of subscribing. Same owner-binding gate + buffer source
+// as the SSE endpoint (canAccessSession → getBufferedSessionEvents); returns
+// the events after `after`, the highest seq seen, and whether the session has
+// ended (so the poller knows to stop).
+relayRouter.get("/sessions/:id/events/poll", async (req, res) => {
+  const sessionId = req.params.id as string;
+  const tenantId = req.auth!.tenantId;
+  if (!canAccessSession(relayState, tenantId, req.auth!.userId, sessionId)) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+  const after = Number(req.query.after ?? 0) || 0;
+  const events = await getBufferedSessionEvents(sessionId, tenantId, after);
+  const lastSeq = events.length ? events[events.length - 1]!.seq : after;
+  const record = getSession(relayState, sessionId);
+  res.json({ events, lastSeq, ended: record?.status === "ended" });
+});
+
 // POST /relay/sessions/:id/commands — the companion sends a ControlCommand.
 // zod parse (malformed → 400) → authorizeCommand (owner/lifecycle/kind →
 // 404, no existence leak) → publish, CHECKING delivery (adversarial review

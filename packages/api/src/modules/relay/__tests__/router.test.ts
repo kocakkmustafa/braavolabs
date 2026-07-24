@@ -181,6 +181,7 @@ describe("relay router — transport smoke (mocked Redis)", () => {
   const listHandler = getHandler(relayRouter, "get", "/sessions");
   const postEventHandler = getHandler(relayRouter, "post", "/sessions/:id/events");
   const getEventsSSE = getHandler(relayRouter, "get", "/sessions/:id/events");
+  const getEventsPoll = getHandler(relayRouter, "get", "/sessions/:id/events/poll");
   const postCommandHandler = getHandler(relayRouter, "post", "/sessions/:id/commands");
   const getCommandsSSE = getHandler(relayRouter, "get", "/sessions/:id/commands");
 
@@ -227,6 +228,33 @@ describe("relay router — transport smoke (mocked Redis)", () => {
     await getCommandsSSE(req, res);
     return { req, res };
   }
+
+  it("events/poll returns buffered events after `after` + the ended flag (RN no-SSE path)", async () => {
+    const sessionId = await httpRegisterSession("tenant-a", "u");
+    // Publish two events as the owner.
+    for (const ev of [
+      { type: "status", state: "running" },
+      { type: "output", textB64: Buffer.from("hello").toString("base64") },
+    ]) {
+      await invoke(postEventHandler, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, body: ev }));
+    }
+    const { res } = await invoke(getEventsPoll, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, query: {} }));
+    expect(res.statusCode ?? 200).toBe(200);
+    expect(res.body.events.length).toBe(2);
+    expect(res.body.lastSeq).toBe(res.body.events[1].seq);
+    expect(res.body.ended).toBe(false);
+    // Poll again with `after=lastSeq` → no new events.
+    const again = await invoke(getEventsPoll, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, query: { after: String(res.body.lastSeq) } }));
+    expect(again.res.body.events.length).toBe(0);
+  });
+
+  it("events/poll is owner-bound: another user in the same tenant gets 404, not the events", async () => {
+    const sessionId = await httpRegisterSession("tenant-a", "u");
+    await invoke(postEventHandler, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, body: { type: "status", state: "running" } }));
+    const { res } = await invoke(getEventsPoll, mockReq({ auth: auth("tenant-a", "teammate"), params: { id: sessionId }, query: {} }));
+    expect(res.statusCode).toBe(404);
+    expect(res.body.events).toBeUndefined();
+  });
 
   it("register → event publish → companion SSE receives it (same owner, two devices)", async () => {
     const sessionId = await httpRegisterSession("tenant-a", "u");
