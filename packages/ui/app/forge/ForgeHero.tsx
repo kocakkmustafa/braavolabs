@@ -2,7 +2,7 @@
 
 /**
  * Braavolabs cinematic hero — faithful port of
- * braavolabs-v2-workspace/hero-prototype/index.html into a Next.js client
+ * ventures/braavolabs/workspace/hero-prototype/index.html into a Next.js client
  * component. Five fixed "scenes" (Kapı / Yüzler Salonu / İç Salon / Kule /
  * CTA) are crossfaded by a single GSAP ScrollTrigger-scrubbed timeline as
  * the user scrolls through a tall spacer ("driver"); Lenis provides the

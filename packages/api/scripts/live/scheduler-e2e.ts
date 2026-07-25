@@ -64,7 +64,7 @@ import {
 
 const EVIDENCE_DIR =
   process.env.E4_EVIDENCE_DIR ??
-  "/Users/mustafakaankocak/Documents/YULAlab-AI/braavolabs-v2-workspace/findings-e4";
+  "/Users/mustafakaankocak/Documents/YULAlab-AI/ventures/braavolabs/workspace/findings-e4";
 const STATE_PATH = resolve(EVIDENCE_DIR, "scheduler-state.json");
 const EVERY_MINUTE = "*/1 * * * *"; // 5-field minute cron — prod semantics.
 const WAIT_MS = 130_000; // ≤2min + margin.

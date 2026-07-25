@@ -55,7 +55,7 @@ const MODEL = "gemma3:4b";
 // Evidence lands in the workspace (E3_EVIDENCE_DIR override), NOT the worktree.
 const EVIDENCE_DIR =
   process.env.E3_EVIDENCE_DIR ??
-  "/Users/mustafakaankocak/Documents/YULAlab-AI/braavolabs-v2-workspace/findings-e3";
+  "/Users/mustafakaankocak/Documents/YULAlab-AI/ventures/braavolabs/workspace/findings-e3";
 const STATE_PATH = resolve(EVIDENCE_DIR, "handoff-state.json");
 
 /** The FROM provider config: CUSTOM enum, keyless, pointed at local Ollama. A

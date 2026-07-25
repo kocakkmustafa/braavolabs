@@ -33,7 +33,7 @@ import { executeStep, type StepDef } from "../../src/modules/pipeline/executor";
 
 const EVIDENCE_DIR =
   process.env.E3_EVIDENCE_DIR ??
-  "/Users/mustafakaankocak/Documents/YULAlab-AI/braavolabs-v2-workspace/findings-e3";
+  "/Users/mustafakaankocak/Documents/YULAlab-AI/ventures/braavolabs/workspace/findings-e3";
 const STATE_PATH = resolve(EVIDENCE_DIR, "handoff-state.json");
 
 function log(section: string, obj: unknown): void {

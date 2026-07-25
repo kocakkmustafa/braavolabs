@@ -8,7 +8,7 @@ export { searchMemory, searchMemoryText } from "./search";
 
 // Obsidian-native project-memory vault writer (Forge P1a — least-token memory moat).
 // Pure Markdown renderers + an injectable-FS MarkdownVault; logic verified by
-// standalone tests (braavolabs-v2-workspace/vibecoding-slices/vault.test.ts, 11/11).
+// standalone tests (ventures/braavolabs/workspace/vibecoding-slices/vault.test.ts, 11/11).
 export {
   wikilink,
   frontmatter,

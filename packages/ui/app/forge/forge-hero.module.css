@@ -1,6 +1,6 @@
 /*
  * Braavolabs cinematic hero — ported from
- * braavolabs-v2-workspace/hero-prototype/index.html (salt-oku kaynak).
+ * ventures/braavolabs/workspace/hero-prototype/index.html (salt-oku kaynak).
  *
  * All rules below are scoped under `.root` (the component's own wrapper)
  * instead of `html`/`body`/`:root` so nothing leaks into the rest of the
