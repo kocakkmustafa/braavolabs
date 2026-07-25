@@ -103,21 +103,56 @@ dashboardRouter.get("/runs", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+/**
+ * Verbs that mean "someone looked at something".
+ *
+ * The activity log is an AUDIT log and is right to record reads — that stays
+ * untouched. But this endpoint feeds a user-facing "what happened" surface,
+ * and reads are not things that happened to the business; they are things
+ * the viewer just did. Because the clients poll `/companies` on several
+ * screens, every few seconds writes another `company.list` row: measured
+ * against the live App Review tenant on 2026-07-26, **99 of the 100 most
+ * recent rows were `company.list`** and the only other row was a sign-in.
+ * Any client rendering this endpoint showed a wall of "Viewed".
+ *
+ * Matched by SUFFIX so new read actions (`x.list`, `x.get`, …) are excluded
+ * automatically instead of needing this list updated. `auth.login` is
+ * deliberately NOT here: a sign-in is a security-relevant event the owner
+ * should see.
+ */
+export const READ_ACTION_SUFFIXES = [".list", ".get", ".view", ".read", ".fetch", ".search", ".export"] as const;
+
+/** Exported for tests: the `where` both the rows and the count must share. */
+export function buildActivityWhere(tenantId: string, includeReads: boolean) {
+  if (includeReads) return { tenantId };
+  return {
+    tenantId,
+    AND: READ_ACTION_SUFFIXES.map((suffix) => ({ NOT: { action: { endsWith: suffix } } })),
+  };
+}
+
 // GET /api/v1/dashboard/activity — recent activity log
+// `?includeReads=1` returns the unfiltered audit stream (for a future audit
+// view); the default is the business-event feed the clients render.
 dashboardRouter.get("/activity", async (req, res, next) => {
   try {
     const tenantId = req.auth!.tenantId;
     const limit = Math.min(Number(req.query.limit) || 50, 100);
     const offset = Number(req.query.offset) || 0;
+    const includeReads = req.query.includeReads === "1" || req.query.includeReads === "true";
+
+    const where = buildActivityWhere(tenantId, includeReads);
 
     const logs = await prisma.activityLog.findMany({
-      where: { tenantId },
+      where,
       orderBy: { createdAt: "desc" },
       take: limit,
       skip: offset,
     });
 
-    const total = await prisma.activityLog.count({ where: { tenantId } });
+    // Same filter as the rows: a total that counted the reads would make
+    // pagination lie about how much there is left to page through.
+    const total = await prisma.activityLog.count({ where });
 
     res.json({ logs, total, limit, offset });
   } catch (err) { next(err); }
