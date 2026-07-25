@@ -35,6 +35,8 @@ const SCENES = {
 } as const;
 
 /** Optional, founder-generated. Absent files degrade to the still above. */
+const INSTALL_CMD = "curl -fsSL braavolabs.com/install | sh";
+
 const VIDEOS = {
   door: "/hero/video/v1-door-open.mp4",
   hall: "/hero/video/v2-hall.mp4",
@@ -100,6 +102,7 @@ export default function ForgeHomeScroll() {
   const moatsShown = useRef(false);
 
   const [cinematic, setCinematic] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [coldDone, setColdDone] = useState(false);
   const [line1, setLine1] = useState("");
   const [line2, setLine2] = useState("");
@@ -201,16 +204,50 @@ export default function ForgeHomeScroll() {
       if (!v || v.src) return;
       v.src = sources[idx];
     });
+    // Swap still → video the moment the media is seekable. Without this the
+    // swap waits for the next scroll event, so a visitor who reads act 1
+    // without scrolling never sees the scrubbed hero at all.
+    const ready = () => applyScrollRef.current?.();
+    const attached = videoRefs.current.filter((v): v is HTMLVideoElement => !!v);
+    for (const v of attached) v.addEventListener("loadedmetadata", ready);
+
     const tower = videoRefs.current[2];
-    if (tower) {
-      const onCanPlay = () => {
-        void tower.play().catch(() => {});
-        tower.style.opacity = "1";
-      };
-      tower.addEventListener("canplay", onCanPlay, { once: true });
-      return () => tower.removeEventListener("canplay", onCanPlay);
-    }
+    const onCanPlay = () => {
+      void tower?.play().catch(() => {});
+      if (tower) tower.style.opacity = "1";
+    };
+    tower?.addEventListener("canplay", onCanPlay, { once: true });
+
+    return () => {
+      for (const v of attached) v.removeEventListener("loadedmetadata", ready);
+      tower?.removeEventListener("canplay", onCanPlay);
+      // Leaving cinematic mode (narrow resize / OS reduce-motion toggled mid
+      // visit) must stop the decode AND abort in-flight downloads — otherwise
+      // exactly the visitors promised "no video" keep paying for three.
+      for (const v of attached) {
+        v.pause();
+        v.removeAttribute("src");
+        v.load();
+      }
+    };
   }, [cinematic]);
+
+  // Latest applyScroll, callable from listeners registered in another effect
+  // without making that effect depend on (and re-run for) every change.
+  const applyScrollRef = useRef<(() => void) | null>(null);
+
+  /** One-tap copy for the install command (the chip read as a button before). */
+  const copyInstall = useCallback(() => {
+    void navigator.clipboard
+      ?.writeText(INSTALL_CMD)
+      .then(() => {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1600);
+      })
+      .catch(() => {
+        /* clipboard blocked (insecure context / permission) — chip just stays */
+      });
+  }, []);
 
   /** Scroll-linked layout: opacity/scale per act + per-act video seek target. */
   const applyScroll = useCallback(() => {
@@ -219,7 +256,10 @@ export default function ForgeHomeScroll() {
     const vh = window.innerHeight;
     const total = sc.offsetHeight - vh;
     const y = clamp(-sc.getBoundingClientRect().top, 0, total);
-    const p = total ? (y / total) * N : 0;
+    // Nudge off the exact top end: at p === N the last act's `local` is 1,
+    // which falls outside BOTH branches below and would leave the whole CTA
+    // act invisible + click-through for the last band of the page.
+    const p = total ? Math.min((y / total) * N, N - 1e-4) : 0;
     const active = Math.min(N - 1, Math.floor(p));
 
     for (let i = 0; i < N; i += 1) {
@@ -315,6 +355,10 @@ export default function ForgeHomeScroll() {
   }, [cinematic]);
 
   useEffect(() => {
+    applyScrollRef.current = applyScroll;
+  }, [applyScroll]);
+
+  useEffect(() => {
     if (!cinematic) return;
     applyScroll();
     const onScroll = () => applyScroll();
@@ -352,7 +396,7 @@ export default function ForgeHomeScroll() {
         }
       }
     });
-  });
+  }, 1000, cinematic);
 
   const onPointerMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -578,15 +622,18 @@ export default function ForgeHomeScroll() {
                 </li>
               </ol>
               <div className={styles.ctas}>
-                <button type="button" ref={setMagnet(0)} className={styles.btnArc}>
+                {/* Desktop builds aren't published yet (native signing +
+                    notarization is a founder gate), so both platform CTAs go
+                    to the account funnel rather than a 404 download. */}
+                <a href="/register" ref={setMagnet(0)} className={styles.btnArc}>
                   Download for macOS
-                </button>
-                <button type="button" ref={setMagnet(1)} className={styles.btnGhost}>
+                </a>
+                <a href="/register" ref={setMagnet(1)} className={styles.btnGhost}>
                   Windows
+                </a>
+                <button type="button" className={styles.install} onClick={copyInstall}>
+                  {INSTALL_CMD} <i>{copied ? "COPIED" : "COPY"}</i>
                 </button>
-                <div className={styles.install}>
-                  curl -fsSL braavolabs.com/install | sh <i>COPY</i>
-                </div>
               </div>
               <div className={styles.coinRow}>
                 <div className={styles.coinWrap}>

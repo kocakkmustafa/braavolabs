@@ -18,7 +18,8 @@
   --line: #232836;
   --text: #e8eaf0;
   --muted: #8b93a7;
-  --faint: #5a6175;
+  /* AA on --void for small text: #5a6175 measured 3.34:1, this is ~4.6:1. */
+  --faint: #737b8f;
   --arc: #3b82f6;
   --arc-2: #60a5fa;
   --arc-3: #7dd3fc;
@@ -79,6 +80,8 @@
   background-size: cover;
   background-repeat: no-repeat;
   will-change: transform;
+  /* Matches .video's fade so the poster→video handoff never shows the void. */
+  transition: opacity 0.6s ease;
 }
 .rootStatic .bg {
   opacity: 1 !important;
@@ -206,9 +209,12 @@
   max-width: none;
   opacity: 1 !important;
 }
-/* Stacked, act 2's two copies would sit on top of each other — show the first. */
+/* Stacked, the two act-2 panels can't overlap — so the second one is REVEALED
+   here (it carries the three-lane cascade copy + the 38%/0/3 stats). Hiding it
+   would cost mobile and reduced-motion visitors a primary value prop. */
 .rootStatic .copyHidden {
-  display: none;
+  opacity: 1 !important;
+  margin-top: 26px;
 }
 
 .kicker {
