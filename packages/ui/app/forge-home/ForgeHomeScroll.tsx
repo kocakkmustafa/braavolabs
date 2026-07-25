@@ -701,7 +701,9 @@ export default function ForgeHomeScroll() {
           <span className={styles.caretMark}>&gt; </span>braavolabs · valar dohaeris
         </span>
         <div>
-          <a href="/ask">/ask web-lite</a>
+          {/* No /ask link: founder decision W-0 (2026-07-24) — production
+              happens on desktop + CLI, the web surface is marketing + account
+              only. Pointing at a web-lite AI surface would contradict that. */}
           <a href="/docs">docs</a>
           <a href="https://github.com/kocakkmustafa" rel="noreferrer">
             github
