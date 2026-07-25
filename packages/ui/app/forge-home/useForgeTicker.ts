@@ -27,11 +27,21 @@ import { useEffect, useRef } from "react";
  * from the interval watchdog just resolves in one larger step rather than
  * skipping animation state entirely.
  */
-export function useForgeTicker(callback: (dt: number, now: number) => void, intervalMs = 1000) {
+export function useForgeTicker(
+  callback: (dt: number, now: number) => void,
+  intervalMs = 1000,
+  /**
+   * When false NOTHING is scheduled — no rAF loop, no watchdog. Reduced-motion
+   * and narrow-viewport visitors must not have the main thread woken ~60x/s to
+   * run a callback that immediately returns.
+   */
+  enabled = true,
+) {
   const callbackRef = useRef(callback);
   callbackRef.current = callback;
 
   useEffect(() => {
+    if (!enabled) return;
     let alive = true;
     let rafId = 0;
     let last = performance.now();
@@ -63,5 +73,5 @@ export function useForgeTicker(callback: (dt: number, now: number) => void, inte
       window.clearInterval(watchdog);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [intervalMs]);
+  }, [intervalMs, enabled]);
 }

@@ -1,599 +1,717 @@
 /*
- * Braavolabs marketing scrollytelling — "forge-home".
+ * forge-home v2 — ported from the approved Claude Design comp.
  *
- * Scoped entirely under `.root` (this component's own wrapper), same
- * convention as ../forge/forge-hero.module.css, so nothing leaks into the
- * rest of the site and nothing from the rest of the site leaks in.
- *
- * Art principle (binding, per spec): the scene-image layer (`.bgWrap`/`.bg`)
- * and the copy/UI layer (`.sceneCopy` and everything in the HUD) are always
- * two separate stacked layers, never merged — `.grade` sits between them
- * purely to keep copy readable regardless of the underlying image's
- * brightness.
+ * Two layouts share one markup tree:
+ *   .rootCinematic — desktop + full motion: sticky stage, absolutely-stacked
+ *                    acts crossfaded by JS, torch cursor, scrubbed video.
+ *   .rootStatic    — narrow viewports, reduced-motion, and the no-JS /
+ *                    pre-hydration state: the same acts as plain stacked
+ *                    sections with copy pinned to the bottom of each scene.
+ * Everything the JS writes inline (opacity/transform) is overridden with
+ * !important in the static layout, so a stale inline value left over from a
+ * resize can never leave a section invisible.
  */
 
-.root {
-  --void: #0a0b0f;
-  --steel: #6b7280;
-  --steel-l: #9aa3af;
-  --gunmetal: #3a3f4a;
-  --hair: #20242e;
+.rootCinematic,
+.rootStatic {
+  --void: #040508;
+  --line: #232836;
+  --text: #e8eaf0;
+  --muted: #8b93a7;
+  /* AA on --void for small text: #5a6175 measured 3.34:1, this is ~4.6:1. */
+  --faint: #737b8f;
   --arc: #3b82f6;
-  --arc-l: #60a5fa;
-  --arc-glow: rgba(59, 130, 246, 0.55);
-  --ember: #f97316;
-  --ember-glow: rgba(249, 115, 22, 0.5);
-  --ink: #e8ebf2;
-  --muted: #8a93a6;
-  --muted-d: #5c6474;
-  --display: -apple-system, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
-  --body: -apple-system, "Segoe UI", system-ui, sans-serif;
-  --mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
-  --mx: 0;
-  --my: 0;
+  --arc-2: #60a5fa;
+  --arc-3: #7dd3fc;
+  --disp: "Space Grotesk", "Clash Display", -apple-system, system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--void);
+  color: var(--text);
+}
 
+/* ---------- stage ---------- */
+
+.scroll {
   position: relative;
-  background: var(--void);
-  color: var(--ink);
-  font-family: var(--body);
-  -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+}
+.rootCinematic .scroll {
+  height: 900vh;
 }
 
-.root img {
-  display: block;
-  max-width: 100%;
-}
-.root a {
-  color: inherit;
-}
-.root ::selection {
-  background: rgba(59, 130, 246, 0.3);
-}
-
-/* ================= cold-open ================= */
-.introOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 28px;
-  background: var(--void);
-  cursor: pointer;
-  opacity: 1;
-  transition: opacity 0.26s ease-out;
-}
-.introLeaving {
-  opacity: 0;
-}
-.introLines {
-  font-family: var(--mono);
-  font-size: clamp(16px, 3vw, 22px);
-  letter-spacing: 0.02em;
-  color: var(--arc-l);
-  min-height: 2.6em;
-}
-.introLine {
-  min-height: 1.3em;
-  white-space: pre;
-}
-.introPrompt {
-  color: var(--ember);
-  font-weight: 700;
-}
-.introCaret {
-  display: inline-block;
-  width: 8px;
-  height: 1em;
-  margin-left: 2px;
-  vertical-align: -0.15em;
-  background: var(--arc-l);
-  box-shadow: 0 0 8px var(--arc-glow);
-  animation: caretBlink 1s steps(1) infinite;
-}
-@keyframes caretBlink {
-  50% {
-    opacity: 0;
-  }
-}
-.introSkip {
-  font: inherit;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--muted-d);
-  background: transparent;
-  border: 1px solid var(--gunmetal);
-  border-radius: 8px;
-  padding: 7px 14px;
-  cursor: pointer;
-  transition: color 0.2s, border-color 0.2s;
-}
-.introSkip:hover {
-  color: var(--ink);
-  border-color: var(--arc);
-}
-
-/* ================= pinned stage ================= */
 .stage {
-  position: fixed;
-  inset: 0;
-  height: 100vh;
-  height: 100dvh;
+  position: relative;
   overflow: hidden;
-  z-index: 1;
   background: var(--void);
 }
-.scene {
+.rootCinematic .stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  min-height: 640px;
+  cursor: none;
+}
+
+.act {
   position: absolute;
   inset: 0;
-  opacity: 0;
   will-change: opacity, transform;
-  transform-origin: 50% 50%;
 }
-.bgWrap {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-}
-.bg {
-  transform: translate3d(calc(var(--mx) * -16px), calc(var(--my) * -12px), 0) scale(1.04);
-}
-/* Warm cursor "torch" — desktop/pointer:fine only, see JS gating in
-   ForgeHomeScroll.tsx (the mousemove listener is never attached on coarse
-   pointers, and this rule is a second, CSS-only guarantee it stays invisible
-   there even if it were). */
-.torch {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  mix-blend-mode: screen;
-  opacity: 0.9;
-  background: radial-gradient(
-    280px 280px at var(--hx, 50%) var(--hy, 50%),
-    rgba(249, 150, 90, 0.28),
-    rgba(59, 130, 246, 0.1) 46%,
-    transparent 68%
-  );
-}
-@media (pointer: coarse) {
-  .torch {
-    display: none;
-  }
-}
-/* Readability gradient — the art-principle seam between the scene layer and
-   the copy layer above it. */
-.grade {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: radial-gradient(120% 90% at 50% 62%, transparent 34%, rgba(5, 6, 10, 0.78) 100%),
-    linear-gradient(180deg, rgba(5, 6, 10, 0.5) 0%, transparent 30%, transparent 56%, rgba(5, 6, 10, 0.92) 100%);
-}
-
-/* ================= copy layer ================= */
-.sceneCopy {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: calc(11vh + env(safe-area-inset-bottom));
-  text-align: center;
-  padding: 0 6vw;
-  opacity: 0;
-  transform: translate3d(calc(var(--mx) * 12px), 22px, 0);
-  transition: opacity 0.55s cubic-bezier(0.2, 0.7, 0.2, 1), transform 0.55s cubic-bezier(0.2, 0.7, 0.2, 1);
-}
-.copyActive {
-  opacity: 1;
-  transform: translate3d(calc(var(--mx) * 12px), 0, 0);
-}
-.kicker {
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.36em;
-  text-transform: uppercase;
-  color: var(--arc-l);
-  margin-bottom: 16px;
-}
-.kicker::before {
-  content: "> ";
-  color: var(--arc);
-}
-.actTitle {
-  font-family: var(--display);
-  font-weight: 700;
-  line-height: 1.04;
-  font-size: clamp(30px, 5.2vw, 62px);
-  letter-spacing: -0.015em;
-  margin: 0;
-  text-shadow: 0 4px 40px rgba(0, 0, 0, 0.7);
-  min-height: 1.1em;
-}
-.word {
-  display: inline-block;
-  opacity: 0;
-  animation: wordIn 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
-  animation-delay: calc(var(--wi) * 70ms + 120ms);
-}
-@keyframes wordIn {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-.scrambleTitle {
-  font-family: var(--mono);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-.actSub {
-  margin: 16px auto 0;
-  max-width: 56ch;
-  color: var(--muted);
-  font-size: clamp(14.5px, 1.5vw, 17.5px);
-  line-height: 1.6;
-}
-
-/* ---- Act 3 ("Ledger") — tokens counter + coin ---- */
-.ledger {
-  margin-top: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 34px;
-  flex-wrap: wrap;
-}
-.counterBlock {
-  text-align: left;
-  background: rgba(10, 11, 16, 0.6);
-  border: 1px solid var(--hair);
-  border-radius: 14px;
-  padding: 16px 22px;
-  backdrop-filter: blur(6px);
-}
-.counterLabel {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 8px;
-}
-.counterNum {
-  font-family: var(--mono);
-  font-weight: 700;
-  font-size: clamp(26px, 4vw, 38px);
-  color: #fff;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-.counterUsd {
-  margin-top: 8px;
-  font-family: var(--mono);
-  font-size: 12.5px;
-  color: var(--ember);
-}
-
-.coinWrap {
+/* Stacked layout: each act becomes a normal section with its scene as a
+   background and its content flowing bottom-aligned inside it — so copy
+   comes first and the moat cards fall underneath, in DOM order. */
+.rootStatic .act {
+  position: relative;
+  inset: auto;
+  min-height: 82vh;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  perspective: 1000px;
+  justify-content: flex-end;
+  padding: 26px 22px;
+  opacity: 1 !important;
+  transform: none !important;
+  pointer-events: auto !important;
+  border-bottom: 1px solid #12151d;
 }
-.coinTilt {
-  transform-style: preserve-3d;
-  transition: transform 0.15s ease-out;
-}
-.coin {
-  width: 96px;
-  height: 96px;
-  position: relative;
-  transform-style: preserve-3d;
-  cursor: pointer;
-  transition: transform 0.9s cubic-bezier(0.4, 0.1, 0.2, 1);
-}
-.coin:hover,
-.coin.coinFlipped {
-  transform: rotateY(180deg);
-}
-.coinFace {
+
+.bg {
   position: absolute;
   inset: 0;
-  border-radius: 50%;
-  overflow: hidden;
-  backface-visibility: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 22px rgba(59, 130, 246, 0.18);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  will-change: transform;
+  /* Matches .video's fade so the poster→video handoff never shows the void. */
+  transition: opacity 0.6s ease;
 }
-.coinFace img {
+.rootStatic .bg {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+.video {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.6s ease;
 }
-.coinFaceBack {
-  transform: rotateY(180deg);
-}
-.coinHint {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--muted-d);
+.rootStatic .video {
+  display: none;
 }
 
-/* ---- Act 4 ("Engine") — CTA ---- */
-.ctaRow {
-  margin-top: 30px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-}
-.btnPrimary {
-  position: relative;
-  overflow: hidden;
-  font-family: var(--display);
-  font-weight: 650;
-  font-size: 15px;
-  color: #fff;
-  background: linear-gradient(180deg, var(--arc-l), var(--arc));
-  border-radius: 12px;
-  padding: 14px 24px;
-  box-shadow: 0 8px 26px rgba(59, 130, 246, 0.4);
-  transition: filter 0.2s, transform 0.15s;
-}
-.btnPrimary:hover {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-}
-.sweep::after {
-  content: "";
+/* Left-third darkening — the art-direction rule that keeps copy readable
+   over every scene without putting a slab behind the text. */
+.shadeLeft {
   position: absolute;
   inset: 0;
-  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.55) 45%, rgba(255, 255, 255, 0.15) 52%, transparent 65%);
-  transform: translateX(-120%);
-  animation: sweep 4.4s ease-in-out infinite;
-  animation-delay: 1.4s;
+  background: linear-gradient(
+    90deg,
+    rgba(4, 5, 8, 0.93) 0%,
+    rgba(4, 5, 8, 0.75) 32%,
+    rgba(4, 5, 8, 0.12) 66%,
+    rgba(4, 5, 8, 0.35) 100%
+  );
+}
+.rootStatic .shadeLeft {
+  background: linear-gradient(
+    180deg,
+    rgba(4, 5, 8, 0.3) 0%,
+    rgba(4, 5, 8, 0.6) 45%,
+    rgba(4, 5, 8, 0.95) 82%
+  );
+}
+
+.beam {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 26%;
+  transform: translateX(-8%);
+  background: radial-gradient(
+    45% 60% at 50% 46%,
+    rgba(125, 211, 252, 0.3) 0%,
+    rgba(96, 165, 250, 0.12) 45%,
+    transparent 75%
+  );
+  mix-blend-mode: screen;
+  opacity: 0.4;
+}
+.flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    60% 80% at 55% 46%,
+    rgba(160, 200, 255, 0.9) 0%,
+    rgba(96, 165, 250, 0.35) 45%,
+    transparent 75%
+  );
+  mix-blend-mode: screen;
+  opacity: 0;
   pointer-events: none;
 }
-@keyframes sweep {
+.rootStatic .beam,
+.rootStatic .flash {
+  display: none;
+}
+
+/* Niche rim-lights pulsing down the corridor — stands in for the V2 video's
+   light wave when that file isn't present. */
+.nicheWaves i {
+  position: absolute;
+  display: block;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(96, 165, 250, 0.15), transparent 70%);
+  mix-blend-mode: screen;
+  animation: wave 5s ease-in-out infinite;
+}
+@keyframes wave {
   0%,
-  58% {
-    transform: translateX(-120%);
-  }
-  84% {
-    transform: translateX(120%);
-  }
   100% {
-    transform: translateX(120%);
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.75;
   }
 }
-.btnGhost {
+.rootStatic .nicheWaves {
+  display: none;
+}
+
+/* ---------- copy ---------- */
+
+.copy {
+  position: absolute;
+  left: 64px;
+  top: 50%;
+  transform: translateY(-50%);
+  max-width: 460px;
+  z-index: 3;
+  transition: opacity 0.45s ease;
+}
+.copyHigh {
+  top: 44%;
+}
+.copyHidden {
+  opacity: 0;
+}
+.copyWide {
+  max-width: 520px;
+}
+.rootStatic .copy {
+  position: relative;
+  left: auto;
+  right: auto;
+  top: auto;
+  bottom: auto;
+  transform: none;
+  max-width: none;
+  opacity: 1 !important;
+}
+/* Stacked, the two act-2 panels can't overlap — so the second one is REVEALED
+   here (it carries the three-lane cascade copy + the 38%/0/3 stats). Hiding it
+   would cost mobile and reduced-motion visitors a primary value prop. */
+.rootStatic .copyHidden {
+  opacity: 1 !important;
+  margin-top: 26px;
+}
+
+.kicker {
   font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--arc-2);
+}
+.caretMark {
+  color: var(--arc);
+}
+
+.h1 {
+  margin: 14px 0 0;
+  font-family: var(--disp);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  font-size: clamp(38px, 5vw, 64px);
+}
+.h2 {
+  margin: 12px 0 0;
+  font-family: var(--disp);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  font-size: clamp(30px, 3.6vw, 46px);
+}
+.h2Big {
+  margin: 12px 0 0;
+  font-family: var(--disp);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  font-size: clamp(36px, 4.6vw, 58px);
+}
+.accent {
+  color: var(--arc-2);
+}
+
+.lede {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 15.5px;
+  line-height: 1.55;
+  max-width: 400px;
+}
+.rootStatic .lede {
+  max-width: none;
+  font-size: 14.5px;
+}
+
+.stats {
+  display: flex;
+  gap: 24px;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(96, 165, 250, 0.22);
+  flex-wrap: wrap;
+}
+.stats > div {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.stats b {
+  color: var(--arc-3);
+  display: block;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.points {
+  list-style: none;
+  margin: 20px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  max-width: 430px;
+}
+.points li {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
   font-size: 13.5px;
-  color: var(--ink);
-  border: 1px solid var(--gunmetal);
-  padding: 13px 20px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.02);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.points b {
+  color: var(--text);
+  font-weight: 600;
+}
+.num {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--arc);
+  line-height: 1.5;
+  flex: none;
+}
+.rootStatic .points {
+  max-width: none;
+}
+
+/* ---------- moat cards ---------- */
+
+.moats {
+  position: absolute;
+  left: 64px;
+  bottom: 40px;
+  display: flex;
+  gap: 12px;
+  z-index: 3;
+  transition: opacity 0.45s ease;
+}
+.moat {
+  width: 190px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, #12151d, #0e1016);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.6s ease, transform 0.6s ease, border-color 0.3s ease;
+}
+.moat::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(96, 165, 250, 0.75), transparent);
+}
+.moat:hover {
+  border-color: rgba(96, 165, 250, 0.6);
+  transform: rotate3d(1, -1, 0, 2deg);
+}
+.moat b {
+  font-size: 13px;
+  display: block;
+  margin-bottom: 3px;
+}
+.moat span {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+/* Stacked layout: cards fall into the flow under act 2's copy. Kept
+   position:relative (not static) so the z-index still lifts them off the
+   scene background. */
+.rootStatic .moats {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  flex-direction: column;
+  margin-top: 12px;
+  opacity: 1 !important;
+}
+.rootStatic .moat {
+  width: auto;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* ---------- CTA ---------- */
+
+.ctas {
+  margin-top: 24px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.btnArc,
+.btnGhost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 11px 22px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1), border-color 0.3s, color 0.3s,
+    filter 0.3s;
+}
+.rootCinematic .btnArc,
+.rootCinematic .btnGhost {
+  cursor: none;
+}
+.btnArc {
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, #2f6fe4, #3b82f6 45%, #60a5fa);
+  color: #fff;
+  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.25), 0 8px 24px rgba(59, 130, 246, 0.28);
+}
+.btnArc:hover {
+  filter: brightness(1.12);
+}
+.btnGhost {
+  border: 1px solid var(--line);
+  background: rgba(26, 30, 40, 0.6);
+  color: var(--text);
 }
 .btnGhost:hover {
   border-color: var(--arc);
-  box-shadow: 0 0 0 1px var(--arc-glow);
+  color: var(--arc-3);
 }
-.footnote {
+.install {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  background: #07080c;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 16px;
+  color: var(--arc-3);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.install i {
+  font-style: normal;
+  color: var(--faint);
+  font-size: 11px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+.rootStatic .ctas {
+  flex-direction: column;
+  align-items: stretch;
+}
+.rootStatic .btnArc,
+.rootStatic .btnGhost {
+  justify-content: center;
+  padding: 13px 22px;
+}
+.rootStatic .install {
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+/* ---------- coin ---------- */
+
+.coinRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
   margin-top: 26px;
+}
+.coinWrap {
+  position: relative;
+  width: 82px;
+  height: 82px;
+  flex: none;
+  perspective: 700px;
+}
+.coinGlow {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  transform: translate(-50%, -50%);
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.22), transparent 70%);
+  pointer-events: none;
+}
+.coin {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transition: transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: transform;
+}
+.coinWrap:hover .coin {
+  transform: rotateY(180deg);
+}
+.coin img {
+  position: absolute;
+  inset: 0;
+  width: 82px;
+  height: 82px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  pointer-events: none;
+}
+.coinBack {
+  transform: rotateY(180deg);
+}
+.coinNote {
   font-family: var(--mono);
   font-size: 11px;
-  letter-spacing: 0.24em;
-  color: var(--muted-d);
+  color: var(--faint);
+  max-width: 200px;
+  line-height: 1.6;
+}
+.rootStatic .coinRow {
+  display: none;
 }
 
-/* ================= atmosphere overlays ================= */
+/* ---------- overlays ---------- */
+
 .vignette {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: 3;
   pointer-events: none;
-  box-shadow: inset 0 0 22vw 6vw rgba(3, 4, 8, 0.78);
+  z-index: 2;
+  background: radial-gradient(120% 90% at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
 }
 .grain {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: 4;
   pointer-events: none;
-  opacity: 0.045;
+  z-index: 2;
+  opacity: 0.5;
   mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+}
+.rootStatic .vignette,
+.rootStatic .grain {
+  display: none;
 }
 
-/* ================= HUD ================= */
-.brandmark {
-  position: fixed;
-  z-index: 6;
-  top: 26px;
-  left: 30px;
-  font-family: var(--display);
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  font-size: 18px;
-  pointer-events: none;
+.hint {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--faint);
+  animation: hint 2.4s ease-in-out infinite;
 }
-.brandmark b {
-  color: var(--arc-l);
+@keyframes hint {
+  0%,
+  100% {
+    transform: translate(-50%, 0);
+  }
+  50% {
+    transform: translate(-50%, 6px);
+  }
+}
+.rootStatic .hint {
+  display: none;
 }
 
 .rail {
-  position: fixed;
-  z-index: 6;
-  right: 28px;
+  position: absolute;
+  right: 26px;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 16px;
+  gap: 10px;
+  z-index: 7;
 }
-.railTrack {
-  position: relative;
-  width: 2px;
-  height: 30vh;
-  max-height: 220px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 2px;
-  margin-bottom: 4px;
+.dot {
+  width: 14px;
+  height: 14px;
+  padding: 4px;
+  border: none;
+  border-radius: 50%;
+  background: #2a3040;
+  background-clip: content-box;
+  cursor: pointer;
+  transition: background 0.3s, box-shadow 0.3s;
 }
-.railFill {
+.rootCinematic .dot {
+  cursor: none;
+}
+.dotOn {
+  background: var(--arc-2);
+  background-clip: content-box;
+  box-shadow: 0 0 8px rgba(96, 165, 250, 0.8);
+}
+.rootStatic .rail {
+  display: none;
+}
+
+.torch {
   position: absolute;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 0%;
-  background: linear-gradient(var(--arc-l), var(--arc));
-  border-radius: 2px;
-  box-shadow: 0 0 10px var(--arc-glow);
+  left: -600px;
+  top: -600px;
+  width: 320px;
+  height: 320px;
+  margin: -160px 0 0 -160px;
+  pointer-events: none;
+  z-index: 6;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(125, 211, 252, 0.26) 0%,
+    rgba(59, 130, 246, 0.1) 40%,
+    transparent 70%
+  );
+  mix-blend-mode: screen;
 }
-.railDot {
+.rootStatic .torch {
+  display: none;
+}
+
+/* ---------- cold open ---------- */
+
+.cold {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: var(--void);
   display: flex;
   align-items: center;
-  gap: 10px;
-  font: inherit;
-  background: transparent;
-  border: 0;
-  padding: 2px 0;
+  justify-content: center;
   cursor: pointer;
-  opacity: 0.55;
-  transition: opacity 0.3s;
 }
-.railDot:hover {
-  opacity: 0.85;
-}
-.railDotActive {
-  opacity: 1;
-}
-.railDotMark {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  border: 1px solid var(--steel);
-  background: transparent;
-  transition: all 0.3s;
-}
-.railDotActive .railDotMark {
-  background: var(--arc);
-  border-color: var(--arc-l);
-  box-shadow: 0 0 10px var(--arc-glow);
-}
-.railDotLabel {
+.coldLines {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--muted);
+  font-size: clamp(17px, 2.2vw, 26px);
+  line-height: 2.1;
+  color: var(--text);
 }
-.railDotActive .railDotLabel {
-  color: var(--ink);
+.caret {
+  display: inline-block;
+  width: 10px;
+  height: 22px;
+  background: var(--arc-2);
+  vertical-align: -3px;
+  animation: blink 1s steps(1) infinite;
 }
-
-/* end spacer driving the pinned scroll */
-.driver {
-  position: relative;
-  z-index: 0;
-  height: 400vh; /* static fallback if the inline dvh value is rejected —
-                    keep in sync with ACTS.length * 100 in the TSX */
-}
-
-/* ================= mobile (375px baseline) ================= */
-@media (max-width: 720px) {
-  .brandmark {
-    display: none;
-  }
-  .rail {
-    left: 50%;
-    right: auto;
-    top: auto;
-    bottom: calc(14px + env(safe-area-inset-bottom));
-    transform: translateX(-50%);
-    flex-direction: row;
-    align-items: center;
-    gap: 14px;
-  }
-  .railTrack {
-    display: none;
-  }
-  .railDotLabel {
-    display: none;
-  }
-  .sceneCopy {
-    bottom: calc(9dvh + env(safe-area-inset-bottom));
-    padding: 0 22px;
-  }
-  .ledger {
-    gap: 20px;
-  }
-  .coin,
-  .coinFace {
-    width: 76px;
-    height: 76px;
-  }
-  .counterBlock {
-    padding: 14px 18px;
+@keyframes blink {
+  50% {
+    opacity: 0;
   }
 }
-
-/* ================= reduced motion (JS also short-circuits the whole
-   scroll/torch/scramble engine — this is the CSS-only safety net for the
-   moment between first paint and that check running) ================= */
-.static .stage {
-  position: relative;
-  height: auto;
-}
-.static .scene {
-  position: relative;
-  height: 100vh;
-  height: 100dvh;
-  opacity: 1 !important;
-  transform: none !important;
-}
-.static .sceneCopy {
+.skip {
   position: absolute;
-  opacity: 1 !important;
-  transform: none !important;
+  bottom: 26px;
+  right: 30px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--faint);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 12px;
 }
-.static .torch,
-.static .introOverlay,
-.static .vignette {
+.rootStatic .cold {
   display: none;
 }
-.static .driver {
-  display: none;
+
+/* ---------- footer ---------- */
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 22px 64px;
+  border-top: 1px solid #12151d;
+  background: #06070a;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--faint);
 }
-.static .word {
-  opacity: 1;
-  animation: none;
+.footer div {
+  display: flex;
+  gap: 22px;
 }
-.static .sweep::after {
-  animation: none;
-  display: none;
+.footer a {
+  color: var(--muted);
+  text-decoration: none;
+}
+.footer a:hover {
+  color: var(--arc-3);
+}
+@media (max-width: 900px) {
+  .footer {
+    padding: 20px 22px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .root * {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
+  .nicheWaves i,
+  .hint,
+  .caret {
+    animation: none;
   }
-  .introOverlay {
-    display: none;
+  .coin,
+  .moat,
+  .btnArc,
+  .btnGhost {
+    transition: none;
   }
 }
