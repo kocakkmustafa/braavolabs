@@ -657,6 +657,23 @@ export default function ForgeHomeScroll() {
           <div className={styles.vignette} aria-hidden />
           <div className={styles.grain} aria-hidden />
 
+          {/* Site chrome. The prototype shipped without any — it was an
+              unlinked demo, so nothing had to lead anywhere. As the homepage
+              it does: a visitor must be able to reach pricing, and someone who
+              already has an account must be able to get back in without
+              scrolling four acts to the footer. Held back until the cold open
+              finishes so it never sits on top of the intro. */}
+          {coldDone && (
+            <div className={styles.topbar}>
+              <span className={styles.wordmark}>braavolabs</span>
+              <nav className={styles.topnav} aria-label="Main">
+                <a href="/pricing">pricing</a>
+                <a href="/docs">docs</a>
+                <a href="/login">sign in</a>
+              </nav>
+            </div>
+          )}
+
           <nav className={styles.rail} aria-label="Scene navigation">
             {RAIL.map((label, i) => (
               <button
@@ -704,7 +721,9 @@ export default function ForgeHomeScroll() {
           {/* No /ask link: founder decision W-0 (2026-07-24) — production
               happens on desktop + CLI, the web surface is marketing + account
               only. Pointing at a web-lite AI surface would contradict that. */}
+          <a href="/pricing">pricing</a>
           <a href="/docs">docs</a>
+          <a href="/login">sign in</a>
           <a href="https://github.com/kocakkmustafa" rel="noreferrer">
             github
           </a>

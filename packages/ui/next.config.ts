@@ -55,6 +55,12 @@ const nextConfig: NextConfig = {
       { source: "/destek", destination: "/support", permanent: true },
       { source: "/legal/privacy", destination: "/privacy", permanent: true },
       { source: "/legal/terms", destination: "/terms", permanent: true },
+      // The two cinematic prototypes now live at `/`. Both were `noindex`
+      // and linked from nowhere, so there is nothing to preserve in search —
+      // but they were shared by hand while under review, so redirect rather
+      // than 404 the people holding those links.
+      { source: "/forge-home", destination: "/", permanent: true },
+      { source: "/forge", destination: "/", permanent: true },
     ];
   },
   async headers() {
