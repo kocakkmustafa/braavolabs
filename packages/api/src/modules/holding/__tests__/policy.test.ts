@@ -14,11 +14,13 @@ describe("holding policy engine", () => {
     expect(evaluatePolicy({ riskClass: "R3", trustLevel: "TRUSTED", autonomyLevel: 5 }).decision).toBe("ALLOW");
   });
 
-  it("R4/R5 NEVER auto-execute — founder-only at any autonomy level", () => {
+  it("R4/R5 NEVER auto-execute — founder-only at any autonomy/trust combination", () => {
     for (const riskClass of ["R4", "R5"] as const) {
       for (const autonomyLevel of [0, 4, 5]) {
-        const result = evaluatePolicy({ riskClass, trustLevel: "TRUSTED", autonomyLevel });
-        expect(result.decision).toBe("REQUIRE_APPROVAL");
+        for (const trustLevel of ["TRUSTED", "UNTRUSTED"] as const) {
+          const result = evaluatePolicy({ riskClass, trustLevel, autonomyLevel });
+          expect(result.decision).toBe("REQUIRE_APPROVAL");
+        }
       }
     }
   });

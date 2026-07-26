@@ -1,6 +1,7 @@
 import type { Job } from "bullmq";
 import { prisma } from "../../lib/db";
 import { holdingRunQueue, createWorker } from "../../lib/queue";
+import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
 import { audit } from "./audit";
 import { charterHash, lintCharter } from "./charter";
@@ -74,6 +75,11 @@ function parseStepDefs(raw: unknown): HoldingStepDef[] {
  * is persisted until every gate has passed (no half-created runs).
  */
 export async function createHoldingRun(request: CreateRunInput) {
+  // Function-level dormancy guard: the bootstrap flag alone is not enough
+  // once other modules can import this function — dormant means NO new runs.
+  if (!env.HOLDING_ENABLED) {
+    throw new HoldingRunRejected("holding module is dormant (HOLDING_ENABLED != true)");
+  }
   const definition = await prisma.holdingWorkflowDefinition.findUnique({
     where: { key: request.definitionKey },
   });
@@ -187,7 +193,9 @@ export async function createHoldingRun(request: CreateRunInput) {
   return run;
 }
 
-export async function enqueueHoldingRun(runId: string, cursor: number): Promise<void> {
+// NOT exported on purpose: createHoldingRun is the single policy choke-point
+// (K0 → policy → cost guard). Direct enqueue would bypass all three gates.
+async function enqueueHoldingRun(runId: string, cursor: number): Promise<void> {
   await holdingRunQueue.add(
     "execute-holding-run",
     { runId },
@@ -282,6 +290,9 @@ export async function processHoldingRun(job: Job<{ runId: string }>): Promise<vo
         return;
       }
 
+      // CONSTRAINT for future step kinds: any kind that spends real money
+      // (LLM/API calls) MUST call cost-guard recordSpend() with the actual
+      // amount — without it the spend-rate freeze (>$2/5dk) is blind.
       if (step.kind === "log") {
         logger.info({ runId, step: step.name, params: step.params }, "holding log step");
         lastOutput = { logged: true, ...step.params };
@@ -352,8 +363,15 @@ export interface ApprovalDecisionInput {
 export async function resolveHoldingApproval(input: ApprovalDecisionInput): Promise<{ ok: boolean; reason?: string }> {
   const approval = await prisma.holdingApproval.findUnique({ where: { id: input.approvalId } });
   if (!approval) return { ok: false, reason: "approval not found" };
-  if (approval.status !== "PENDING") {
-    // Double-tap / replay guard — first decision wins, later ones are audited.
+
+  // ATOMIC claim: the status condition lives in the WHERE clause, so two
+  // concurrent deciders can never both win — count 0 means someone else's
+  // decision landed first (TOCTOU guard; first decision wins, rest audited).
+  const claimed = await prisma.holdingApproval.updateMany({
+    where: { id: input.approvalId, status: "PENDING" },
+    data: { status: input.decision, decidedBy: input.decidedBy, decidedAt: new Date() },
+  });
+  if (claimed.count === 0) {
     await audit({
       actor: input.decidedBy,
       action: "holding.approval_replay_ignored",
@@ -361,13 +379,9 @@ export async function resolveHoldingApproval(input: ApprovalDecisionInput): Prom
       entityId: approval.id,
       runId: approval.runId ?? undefined,
     });
-    return { ok: false, reason: `already ${approval.status}` };
+    return { ok: false, reason: "already decided" };
   }
 
-  await prisma.holdingApproval.update({
-    where: { id: approval.id },
-    data: { status: input.decision, decidedBy: input.decidedBy, decidedAt: new Date() },
-  });
   await audit({
     actor: input.decidedBy,
     action: `holding.approval_${input.decision.toLowerCase()}`,
@@ -378,31 +392,50 @@ export async function resolveHoldingApproval(input: ApprovalDecisionInput): Prom
 
   if (!approval.runId) return { ok: true };
 
-  const run = await prisma.holdingWorkflowRun.findUnique({ where: { id: approval.runId } });
-  if (!run || run.status !== "WAITING_APPROVAL") {
-    return { ok: true, reason: "run not waiting — nothing to resume" };
-  }
-
   if (input.decision === "APPROVED") {
-    await prisma.holdingWorkflowRun.update({
-      where: { id: run.id },
+    // Same atomic pattern on the run: only a WAITING_APPROVAL run may resume.
+    const resumed = await prisma.holdingWorkflowRun.updateMany({
+      where: { id: approval.runId, status: "WAITING_APPROVAL" },
       data: { status: "PENDING" },
     });
-    await enqueueHoldingRun(run.id, run.resumeCursor ?? 0);
+    if (resumed.count === 0) {
+      return { ok: true, reason: "run not waiting — nothing to resume" };
+    }
+    const run = await prisma.holdingWorkflowRun.findUnique({ where: { id: approval.runId } });
+    await enqueueHoldingRun(approval.runId, run?.resumeCursor ?? 0);
   } else {
-    await prisma.holdingWorkflowRun.update({
-      where: { id: run.id },
+    const cancelled = await prisma.holdingWorkflowRun.updateMany({
+      where: { id: approval.runId, status: "WAITING_APPROVAL" },
       data: { status: "CANCELLED", error: `approval ${approval.id} rejected`, finishedAt: new Date() },
     });
-    await audit({
-      actor: input.decidedBy,
-      action: "holding.run_cancelled",
-      entity: "holding_workflow_run",
-      entityId: run.id,
-      runId: run.id,
-    });
+    if (cancelled.count > 0) {
+      await audit({
+        actor: input.decidedBy,
+        action: "holding.run_cancelled",
+        entity: "holding_workflow_run",
+        entityId: approval.runId,
+        runId: approval.runId,
+      });
+    }
   }
   return { ok: true };
+}
+
+/**
+ * Boot reconciliation (orphan guard): a crash between the DB write and the
+ * Redis enqueue leaves a PENDING/RUNNING run with no job. Re-enqueueing is
+ * safe because jobIds are (runId, cursor)-idempotent — a live or completed
+ * job with the same id simply wins.
+ */
+export async function reconcileOrphanHoldingRuns(): Promise<number> {
+  const orphans = await prisma.holdingWorkflowRun.findMany({
+    where: { status: { in: ["PENDING", "RUNNING"] } },
+  });
+  for (const run of orphans) {
+    await enqueueHoldingRun(run.id, run.resumeCursor ?? 0);
+    logger.warn({ runId: run.id, status: run.status }, "re-enqueued possibly-orphaned holding run");
+  }
+  return orphans.length;
 }
 
 export function initHoldingWorker() {

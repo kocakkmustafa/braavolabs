@@ -34,11 +34,17 @@ export function telegramConfig(): TelegramConfig | null {
   };
 }
 
-async function tg(cfg: TelegramConfig, method: string, body: Record<string, unknown>): Promise<any> {
+async function tg(
+  cfg: TelegramConfig,
+  method: string,
+  body: Record<string, unknown>,
+  signal?: AbortSignal,
+): Promise<any> {
   const res = await fetch(`https://api.telegram.org/bot${cfg.token}/${method}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
+    signal,
   });
   const json: any = await res.json().catch(() => ({}));
   if (!res.ok || json?.ok === false) {
@@ -135,16 +141,26 @@ export function startTelegramPolling(
   }
 
   let stopped = false;
+  // Abortable long-poll: without this, shutdown would wait out a 25s
+  // getUpdates and then touch an already-closed Redis (30s force-exit race).
+  let aborter: AbortController | null = null;
 
   const loop = async () => {
     while (!stopped) {
       try {
         const offsetRaw = await redis.get(OFFSET_KEY);
-        const updates: any[] = await tg(cfg, "getUpdates", {
-          timeout: 25,
-          offset: offsetRaw ? Number(offsetRaw) + 1 : undefined,
-          allowed_updates: ["callback_query"],
-        });
+        aborter = new AbortController();
+        const updates: any[] = await tg(
+          cfg,
+          "getUpdates",
+          {
+            timeout: 25,
+            offset: offsetRaw ? Number(offsetRaw) + 1 : undefined,
+            allowed_updates: ["callback_query"],
+          },
+          aborter.signal,
+        );
+        if (stopped) break;
         for (const update of updates) {
           await redis.set(OFFSET_KEY, String(update.update_id));
           const decision = await authenticateCallback(update);
@@ -162,6 +178,7 @@ export function startTelegramPolling(
           }
         }
       } catch (err) {
+        if (stopped) break; // abort on shutdown is expected, not an error
         logger.error({ err }, "Telegram poll cycle failed — backing off");
         await new Promise((r) => setTimeout(r, 10_000));
       }
@@ -171,5 +188,6 @@ export function startTelegramPolling(
   void loop();
   return () => {
     stopped = true;
+    aborter?.abort();
   };
 }

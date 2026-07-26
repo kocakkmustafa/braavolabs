@@ -39,7 +39,17 @@ const prismaMock = vi.hoisted(() => {
         }
         return run;
       }),
+      findMany: vi.fn(async ({ where }: any) =>
+        state.runs.filter((r) => (where?.status?.in ? where.status.in.includes(r.status) : true)),
+      ),
       update: vi.fn(async ({ where, data }: any) => Object.assign(byId(state.runs)(where.id), data)),
+      updateMany: vi.fn(async ({ where, data }: any) => {
+        const rows = state.runs.filter(
+          (r) => r.id === where.id && (where.status === undefined || r.status === where.status),
+        );
+        rows.forEach((r) => Object.assign(r, data));
+        return { count: rows.length };
+      }),
     },
     holdingStepRun: {
       create: vi.fn(async ({ data }: any) => {
@@ -57,6 +67,13 @@ const prismaMock = vi.hoisted(() => {
       }),
       findUnique: vi.fn(async ({ where }: any) => byId(state.approvals)(where.id) ?? null),
       update: vi.fn(async ({ where, data }: any) => Object.assign(byId(state.approvals)(where.id), data)),
+      updateMany: vi.fn(async ({ where, data }: any) => {
+        const rows = state.approvals.filter(
+          (a) => a.id === where.id && (where.status === undefined || a.status === where.status),
+        );
+        rows.forEach((a) => Object.assign(a, data));
+        return { count: rows.length };
+      }),
     },
     holdingAuditLog: {
       create: vi.fn(async ({ data }: any) => {
@@ -84,8 +101,16 @@ vi.mock("../telegram", () => ({
 }));
 const preflightMock = vi.hoisted(() => vi.fn(async () => ({ ok: true, softAlert: false })));
 vi.mock("../cost-guard", () => ({ preflight: preflightMock }));
+const envMock = vi.hoisted(() => ({ HOLDING_ENABLED: true }));
+vi.mock("../../../config/env", () => ({ env: envMock }));
 
-import { createHoldingRun, processHoldingRun, resolveHoldingApproval, HoldingRunRejected } from "../runner";
+import {
+  createHoldingRun,
+  processHoldingRun,
+  resolveHoldingApproval,
+  reconcileOrphanHoldingRuns,
+  HoldingRunRejected,
+} from "../runner";
 import type { HoldingCharter } from "../types";
 
 const charter: HoldingCharter = {
@@ -134,9 +159,20 @@ beforeEach(() => {
   }
   preflightMock.mockClear();
   preflightMock.mockResolvedValue({ ok: true, softAlert: false });
+  envMock.HOLDING_ENABLED = true;
 });
 
 describe("createHoldingRun gates", () => {
+  it("rejects every run while the module is dormant", async () => {
+    seedDefinition();
+    envMock.HOLDING_ENABLED = false;
+    await expect(
+      createHoldingRun({ definitionKey: "gp-smoke", charter, trustLevel: "TRUSTED", venture: "holding" }),
+    ).rejects.toThrow(/dormant/);
+    expect(state.runs).toHaveLength(0);
+    expect(state.jobs).toHaveLength(0);
+  });
+
   it("rejects an unknown definition", async () => {
     await expect(
       createHoldingRun({ definitionKey: "yok", charter, trustLevel: "TRUSTED", venture: "holding" }),
@@ -291,6 +327,26 @@ describe("end-to-end deterministic golden path", () => {
     expect(replay.ok).toBe(false);
     expect(state.approvals[0].status).toBe("APPROVED"); // first decision wins
     expect(state.audits.some((a) => a.action === "holding.approval_replay_ignored")).toBe(true);
+  });
+
+  it("reconciliation re-enqueues stranded PENDING/RUNNING runs only", async () => {
+    seedDefinition();
+    const run = await createHoldingRun({
+      definitionKey: "gp-smoke",
+      charter,
+      trustLevel: "TRUSTED",
+      venture: "holding",
+    });
+    // Simulate the crash window: job lost after the DB write.
+    state.jobs.length = 0;
+    const count = await reconcileOrphanHoldingRuns();
+    expect(count).toBe(1);
+    expect(state.jobs[0].opts.jobId).toBe(`${run.id}:0`);
+    // Terminal runs are never re-enqueued.
+    state.runs[0].status = "SUCCEEDED";
+    state.jobs.length = 0;
+    expect(await reconcileOrphanHoldingRuns()).toBe(0);
+    expect(state.jobs).toHaveLength(0);
   });
 
   it("stale jobs against a parked/terminal run are ignored", async () => {

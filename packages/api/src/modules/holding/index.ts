@@ -1,7 +1,7 @@
 import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
 import { checkHeartbeats } from "./sentinel";
-import { initHoldingWorker, resolveHoldingApproval } from "./runner";
+import { initHoldingWorker, resolveHoldingApproval, reconcileOrphanHoldingRuns } from "./runner";
 import { startTelegramPolling } from "./telegram";
 
 /**
@@ -24,6 +24,11 @@ export function initHoldingModule(): void {
     return;
   }
   worker = initHoldingWorker();
+  // Orphan guard: re-enqueue runs stranded by a crash between the DB write
+  // and the Redis enqueue (idempotent jobIds make this safe to repeat).
+  reconcileOrphanHoldingRuns()
+    .then((n) => n > 0 && logger.warn({ count: n }, "holding orphan reconciliation re-enqueued runs"))
+    .catch((err) => logger.error({ err }, "holding orphan reconciliation failed"));
   heartbeatTimer = setInterval(() => {
     checkHeartbeats().catch((err) => logger.error({ err }, "heartbeat sweep failed"));
   }, HEARTBEAT_SWEEP_MS);
