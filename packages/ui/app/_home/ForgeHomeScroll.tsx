@@ -640,10 +640,12 @@ export default function ForgeHomeScroll() {
                   <div className={styles.coinGlow} />
                   <div className={styles.coin}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/hero/coin-front.webp" alt="Braavolabs coin — obverse" />
+                    {/* The comp ships the "-a" coin artwork, not the earlier
+                        .webp pair still sitting beside it in public/hero. */}
+                    <img src="/hero/coin-front-a.png" alt="Braavolabs coin — obverse" />
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src="/hero/coin-back.webp"
+                      src="/hero/coin-back-a.png"
                       alt="Braavolabs coin — reverse, circuit-line BL monogram"
                       className={styles.coinBack}
                     />
@@ -657,22 +659,11 @@ export default function ForgeHomeScroll() {
           <div className={styles.vignette} aria-hidden />
           <div className={styles.grain} aria-hidden />
 
-          {/* Site chrome. The prototype shipped without any — it was an
-              unlinked demo, so nothing had to lead anywhere. As the homepage
-              it does: a visitor must be able to reach pricing, and someone who
-              already has an account must be able to get back in without
-              scrolling four acts to the footer. Held back until the cold open
-              finishes so it never sits on top of the intro. */}
-          {coldDone && (
-            <div className={styles.topbar}>
-              <span className={styles.wordmark}>braavolabs</span>
-              <nav className={styles.topnav} aria-label="Main">
-                <a href="/pricing">pricing</a>
-                <a href="/docs">docs</a>
-                <a href="/login">sign in</a>
-              </nav>
-            </div>
-          )}
+          {/* NO top bar. The comp has none — the stage is meant to be edge to
+              edge, and the founder's brief for this page is narrow: the only
+              things it offers are the download and the install command. A
+              pricing/sign-in rail would both break the frame and widen that
+              offer. Account routes stay reachable from the footer. */}
 
           <nav className={styles.rail} aria-label="Scene navigation">
             {RAIL.map((label, i) => (
@@ -718,12 +709,14 @@ export default function ForgeHomeScroll() {
           <span className={styles.caretMark}>&gt; </span>braavolabs · valar dohaeris
         </span>
         <div>
-          {/* No /ask link: founder decision W-0 (2026-07-24) — production
-              happens on desktop + CLI, the web surface is marketing + account
-              only. Pointing at a web-lite AI surface would contradict that. */}
-          <a href="/pricing">pricing</a>
+          {/* The comp's footer reads: "/ask web-lite · docs · github". The
+              first one is deliberately NOT wired — founder decision W-0
+              (2026-07-24), restated for this page: nothing on the site does
+              AI or automation work; the site hands you the download and the
+              install command, and the work happens on your own machine. An
+              in-browser "/ask" surface is exactly the thing that is out of
+              scope, so the link is dropped rather than pointed somewhere. */}
           <a href="/docs">docs</a>
-          <a href="/login">sign in</a>
           <a href="https://github.com/kocakkmustafa" rel="noreferrer">
             github
           </a>
