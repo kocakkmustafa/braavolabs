@@ -706,6 +706,12 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  /* The comp dissolves the intro into act 1 rather than cutting to it. */
+  transition: opacity 0.8s ease;
+}
+.coldOut {
+  opacity: 0;
+  pointer-events: none;
 }
 .coldLines {
   font-family: var(--mono);

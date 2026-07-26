@@ -44,6 +44,8 @@ const VIDEOS = {
 } as const;
 
 const COLD_OPEN = ["ai morghulis", "ai dohaeris"] as const;
+/** Comp: `transition: opacity .8s ease`, then `display:none` at 850ms. */
+const FADE_OUT_MS = 850;
 const CHAR_MS = 80;
 const LINE_GAP_MS = 600;
 const HOLD_MS = 1000;
@@ -101,9 +103,21 @@ export default function ForgeHomeScroll() {
   ]);
   const moatsShown = useRef(false);
 
-  const [cinematic, setCinematic] = useState(false);
+  /**
+   * `null` until the media queries have actually been evaluated — NOT `false`.
+   *
+   * It used to start `false`, and that silently killed the cold open: on mount
+   * the intro effect read `cinematic === false`, concluded "narrow viewport,
+   * skip the intro", and set `coldDone` before the width was ever measured. The
+   * media query resolved a tick later and set `cinematic = true`, but by then
+   * the intro was marked done and never rendered a single frame. Anything that
+   * decides "no motion for this visitor" has to wait for the measurement rather
+   * than assume the pre-measurement default means no.
+   */
+  const [cinematic, setCinematic] = useState<boolean | null>(null);
   const [copied, setCopied] = useState(false);
   const [coldDone, setColdDone] = useState(false);
+  const [coldGone, setColdGone] = useState(false);
   const [line1, setLine1] = useState("");
   const [line2, setLine2] = useState("");
   const [line2Visible, setLine2Visible] = useState(false);
@@ -127,17 +141,26 @@ export default function ForgeHomeScroll() {
     };
   }, []);
 
+  /**
+   * `coldDone` starts the 0.8s fade the comp specifies; `coldGone` unmounts the
+   * overlay once it has finished. Two flags because unmounting on `coldDone`
+   * alone deletes the element mid-transition — which is what happened here, so
+   * the intro vanished in one frame instead of dissolving into act 1.
+   */
   const endCold = useCallback(() => {
     setLine1(COLD_OPEN[0]);
     setLine2(COLD_OPEN[1]);
     setLine2Visible(true);
     setColdDone(true);
+    window.setTimeout(() => setColdGone(true), FADE_OUT_MS);
   }, []);
 
   // Cold open. Runs on its own timers rather than the ticker so the two lines
   // keep their cadence even if the tab is backgrounded mid-type.
   useEffect(() => {
     if (coldDone) return;
+    // Not measured yet — hold. Deciding here is what used to skip the intro.
+    if (cinematic === null) return;
     if (!cinematic) {
       endCold();
       return;
@@ -396,7 +419,9 @@ export default function ForgeHomeScroll() {
         }
       }
     });
-  }, 1000, cinematic);
+    // `=== true`: the ticker must stay off while the measurement is still
+    // pending (null), same as when it resolves to "not cinematic".
+  }, 1000, cinematic === true);
 
   const onPointerMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -680,9 +705,9 @@ export default function ForgeHomeScroll() {
 
           <div ref={torchRef} className={styles.torch} aria-hidden />
 
-          {!coldDone && (
+          {!coldGone && (
             <div
-              className={styles.cold}
+              className={`${styles.cold} ${coldDone ? styles.coldOut : ""}`}
               onClick={endCold}
               role="button"
               tabIndex={0}
