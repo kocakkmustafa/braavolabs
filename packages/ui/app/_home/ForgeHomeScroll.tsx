@@ -48,58 +48,8 @@ const CHAR_MS = 80;
 const LINE_GAP_MS = 600;
 const HOLD_MS = 1000;
 
-/**
- * The four acts of the v3 mockup (artifact 09b478c7): Gate → Council → Ledger
- * → Tower.
- *
- * The 2026-07-25 rebuild compressed Council and Ledger into ONE act with a
- * copy swap at its midpoint, which left `scene3-hall.webp` orphaned (zero
- * references) and gave two separate arguments — "many models, one desk" and
- * "the moat is the ledger" — half an act each. Restored 2026-07-26 on founder
- * review: each argument gets its own act and its own scene again.
- */
-const RAIL = ["Gate", "Council", "Ledger", "Tower"] as const;
+const RAIL = ["Gate", "Hall", "Tower"] as const;
 const N = RAIL.length;
-
-/**
- * Scroll length per act. The stage is sticky, so the page needs N × this much
- * height for the timeline to run.
- *
- * Derived rather than written into the CSS: the stylesheet used to hardcode
- * `height: 900vh` for three acts, so adding an act silently squeezed every
- * act's pacing instead of lengthening the page. Keeping the number here means
- * the act list is the single source of truth.
- */
-const VH_PER_ACT = 300;
-
-/**
- * Tower headline scramble (v3 mockup). Characters churn, then lock in from the
- * left, so the last act's title resolves out of noise instead of fading in.
- * Runs once, the first time the act is reached.
- */
-/**
- * Savings figure on the ledger act.
- *
- * The v3 mockup drove this as a LIVE counter: it counted up to the target and
- * then incremented by a random 40–220 every couple of seconds, so a visitor
- * read it as real product telemetry. It never was — the number is invented and
- * the page has no connection to any meter. Shipping that would contradict the
- * two honesty fixes made the same week (mobile chat's quick actions promised
- * answers the endpoint can't produce; the job list invented a "Draft" status
- * from a field the wire never sends), and this claim is load-bearing for a
- * purchase decision.
- *
- * So: the count-up on reveal stays — it is presentation, and the label says
- * plainly that the figure is an example rather than a live reading. The random
- * drift is gone. Wiring this to a real aggregate is a backend change, not a
- * copy change.
- */
-const TOKENS_EXAMPLE = 1_284_900;
-const COUNT_UP_MS = 1400;
-
-const TOWER_TITLE = "Ai Dohaeris.";
-const SCRAMBLE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ01?<>-_/\\[]{}=+*^#";
-const SCRAMBLE_MS = 620;
 
 /** Shared crossfade width, in segment units (1 segment = 1 act of scroll). */
 const W = 0.26;
@@ -152,13 +102,6 @@ export default function ForgeHomeScroll() {
   const moatsShown = useRef(false);
 
   const [cinematic, setCinematic] = useState(false);
-  const [scrambleText, setScrambleText] = useState(TOWER_TITLE);
-  const scramble = useRef({ active: false, done: false, startedAt: 0, lastFrame: 0 });
-  // Starts at the full figure: without the cinematic ticker (narrow viewport or
-  // reduce-motion) nothing would ever animate it up from zero, and a savings
-  // block reading "0" is worse than no block at all.
-  const [tokens, setTokens] = useState(TOKENS_EXAMPLE);
-  const countUp = useRef({ active: false, done: false, startedAt: 0 });
   const [copied, setCopied] = useState(false);
   const [coldDone, setColdDone] = useState(false);
   const [line1, setLine1] = useState("");
@@ -364,31 +307,34 @@ export default function ForgeHomeScroll() {
       if (hint) hint.style.opacity = String(clamp(1 - local * 2.5, 0, 1));
     }
 
-    // Act 2 — the council. No video of its own (only three were produced), so
-    // this act is the still + a slow push-in. That is the SAME path a missing
-    // video takes elsewhere, which is why it needs no special case: `scrubbable`
-    // is false, the still shows, and the zoom carries the motion.
+    // Act 2 — the hall. Copy swaps at the midpoint: the corridor sells the
+    // council, the columned hall behind it sells the cascade.
     {
       const local = clamp(p - 1, 0, 1);
-      const bg = bgRefs.current[1];
-      if (bg) {
-        bg.style.opacity = "1";
-        bg.style.transform = `scale(${1 + local * 0.14})`;
-      }
-    }
-
-    // Act 3 — the ledger. Was welded onto the council act with a mid-act copy
-    // swap; it owns its own scene and its own scroll again.
-    {
-      const local = clamp(p - 2, 0, 1);
       const v = videoRefs.current[1];
       const has = scrubbable(v);
       if (has) seek.current[1].target = local * (v.duration - 0.05);
       if (v) v.style.opacity = has ? "1" : "0";
-      const bg = bgRefs.current[2];
+      const bg = bgRefs.current[1];
       if (bg) {
         bg.style.opacity = has ? "0" : "1";
         bg.style.transform = has ? "none" : `scale(${1 + local * 0.14})`;
+      }
+      const second = local > 0.5;
+      const a = copyARef.current;
+      const b = copyBRef.current;
+      const m = moatsRef.current;
+      if (a) {
+        a.style.opacity = second ? "0" : "1";
+        a.style.pointerEvents = second ? "none" : "auto";
+      }
+      if (b) {
+        b.style.opacity = second ? "1" : "0";
+        b.style.pointerEvents = second ? "auto" : "none";
+      }
+      if (m) {
+        m.style.opacity = second ? "0" : "1";
+        m.style.pointerEvents = second ? "none" : "auto";
       }
     }
 
@@ -396,19 +342,6 @@ export default function ForgeHomeScroll() {
       if (!d) return;
       d.classList.toggle(styles.dotOn, i === active);
     });
-
-    // Tower reached for the first time — start the headline scramble. Guarded
-    // by `done` rather than `active` alone so scrolling back up and down again
-    // doesn't re-scramble a title the visitor has already read.
-    // Ledger reached — run the count-up once.
-    if (cinematic && active === 2 && !countUp.current.done) {
-      countUp.current = { active: true, done: true, startedAt: performance.now() };
-      setTokens(0);
-    }
-
-    if (active === N - 1 && !scramble.current.done) {
-      scramble.current = { active: true, done: true, startedAt: performance.now(), lastFrame: 0 };
-    }
 
     if (active === 1 && !moatsShown.current) {
       moatsShown.current = true;
@@ -463,44 +396,6 @@ export default function ForgeHomeScroll() {
         }
       }
     });
-
-    // ---- ledger figure count-up (presentation only; the value is fixed) ----
-    const cu = countUp.current;
-    if (cu.active) {
-      const t = clamp((performance.now() - cu.startedAt) / COUNT_UP_MS, 0, 1);
-      setTokens(Math.round(TOKENS_EXAMPLE * ease(t)));
-      if (t >= 1) {
-        cu.active = false;
-        setTokens(TOKENS_EXAMPLE);
-      }
-    }
-
-    // ---- tower headline scramble ----
-    const sc = scramble.current;
-    if (sc.active) {
-      const now = performance.now();
-      // Throttled to ~28fps on purpose: churning every frame reads as noise
-      // rather than as characters resolving.
-      if (now - sc.lastFrame > 35) {
-        sc.lastFrame = now;
-        const elapsed = now - sc.startedAt;
-        // Overshoot the length so the final characters get a beat locked-in
-        // before the effect ends, instead of the last one snapping at t=1.
-        const locked = Math.floor((elapsed / SCRAMBLE_MS) * (TOWER_TITLE.length + 5));
-        let out = "";
-        for (let i = 0; i < TOWER_TITLE.length; i += 1) {
-          const ch = TOWER_TITLE[i];
-          // Keep spacing stable — scrambling the space makes the line jump.
-          if (i < locked || ch === " ") out += ch;
-          else out += SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
-        }
-        setScrambleText(out);
-        if (elapsed >= SCRAMBLE_MS) {
-          sc.active = false;
-          setScrambleText(TOWER_TITLE);
-        }
-      }
-    }
   }, 1000, cinematic);
 
   const onPointerMove = useCallback(
@@ -562,11 +457,7 @@ export default function ForgeHomeScroll() {
 
   return (
     <div className={cinematic ? styles.rootCinematic : styles.rootStatic}>
-      <div
-        ref={scrollRef}
-        className={styles.scroll}
-        style={cinematic ? { height: `${N * VH_PER_ACT}vh` } : undefined}
-      >
+      <div ref={scrollRef} className={styles.scroll}>
         <div
           ref={stageRef}
           className={styles.stage}
@@ -588,19 +479,8 @@ export default function ForgeHomeScroll() {
               <span className={styles.kicker} lang="en">
                 <span className={styles.caretMark}>&gt; </span>braavolabs
               </span>
-              {/* Word-stagger: the two words ride in on indexed delays rather
-                  than the whole line fading at once. `--wi` drives the delay
-                  from CSS, so the timing lives with the animation. */}
               <h1 className={styles.h1}>
-                <span className={styles.word} style={{ ["--wi" as string]: "0" }}>
-                  Ai&nbsp;
-                </span>
-                <span
-                  className={`${styles.word} ${styles.accent}`}
-                  style={{ ["--wi" as string]: "1" }}
-                >
-                  Morghulis.
-                </span>
+                Ai <span className={styles.accent}>Morghulis.</span>
               </h1>
               <p className={styles.lede}>
                 Every task must die. Quietly, on your machine. The governed command center for your
@@ -612,15 +492,14 @@ export default function ForgeHomeScroll() {
             </div>
           </div>
 
-          {/* ACT 2 — the council. Still-only: three videos were produced and
-              this act is not one of them, so the push-in on the scene carries
-              the motion (same path any act takes when its video is absent). */}
+          {/* ACT 2 — the hall */}
           <div ref={setAct(1)} className={styles.act} style={{ opacity: 0 }}>
             <div
               ref={setBg(1)}
               className={styles.bg}
               style={{ backgroundImage: `url(${SCENES.faces})`, transformOrigin: "50% 45%" }}
             />
+            <video ref={setVideo(1)} className={styles.video} muted playsInline preload="auto" />
             <div className={styles.nicheWaves} aria-hidden>
               <i style={{ left: "20%", top: "20%", width: "18%", height: "50%" }} />
               <i style={{ left: "44%", top: "22%", width: "16%", height: "46%", animationDelay: "1.2s" }} />
@@ -641,32 +520,7 @@ export default function ForgeHomeScroll() {
                 Hand a task to one; watch it pass the thread to the next.
               </p>
             </div>
-            <div ref={moatsRef} className={styles.moats}>
-              <div className={styles.moat}>
-                <b>Model-agnostic memory</b>
-                <span>Your context stays yours, whichever model runs.</span>
-              </div>
-              <div className={styles.moat}>
-                <b>Governance by default</b>
-                <span>Every risky step passes an approval gate.</span>
-              </div>
-              <div className={styles.moat}>
-                <b>Multi-model handoff</b>
-                <span>One agent hands the thread to the next.</span>
-              </div>
-            </div>
-          </div>
-
-          {/* ACT 3 — the ledger */}
-          <div ref={setAct(2)} className={styles.act} style={{ opacity: 0 }}>
-            <div
-              ref={setBg(2)}
-              className={styles.bg}
-              style={{ backgroundImage: `url(${SCENES.hall})`, transformOrigin: "50% 52%" }}
-            />
-            <video ref={setVideo(1)} className={styles.video} muted playsInline preload="auto" />
-            <div className={styles.shadeLeft} />
-            <div ref={copyBRef} className={`${styles.copy} ${styles.copyHigh}`}>
+            <div ref={copyBRef} className={`${styles.copy} ${styles.copyHigh} ${styles.copyHidden}`}>
               <span className={styles.kicker} lang="en">
                 <span className={styles.caretMark}>&gt; </span>three lanes, one bill
               </span>
@@ -699,24 +553,27 @@ export default function ForgeHomeScroll() {
                   local · API · your CLI
                 </div>
               </div>
-              {/* Labelled as an example on purpose. The figure is illustrative,
-                  not a reading off a meter, and the copy has to say so — a
-                  number that ticks upward on a marketing page reads as live
-                  telemetry unless it tells you otherwise. */}
-              <div className={styles.counterBlock}>
-                <div className={styles.counterLabel}>Example week</div>
-                <div className={styles.counterNum}>{tokens.toLocaleString("en-US")}</div>
-                <div className={styles.counterFoot}>
-                  tokens the cascade kept off frontier models — illustrative, not a live meter
-                </div>
+            </div>
+            <div ref={moatsRef} className={styles.moats}>
+              <div className={styles.moat}>
+                <b>Model-agnostic memory</b>
+                <span>Your context stays yours, whichever model runs.</span>
+              </div>
+              <div className={styles.moat}>
+                <b>Governance by default</b>
+                <span>Every risky step passes an approval gate.</span>
+              </div>
+              <div className={styles.moat}>
+                <b>Multi-model handoff</b>
+                <span>One agent hands the thread to the next.</span>
               </div>
             </div>
           </div>
 
-          {/* ACT 4 — the tower / CTA */}
-          <div ref={setAct(3)} className={styles.act} style={{ opacity: 0 }}>
+          {/* ACT 3 — the tower / CTA */}
+          <div ref={setAct(2)} className={styles.act} style={{ opacity: 0 }}>
             <div
-              ref={setBg(3)}
+              ref={setBg(2)}
               className={styles.bg}
               style={{ backgroundImage: `url(${SCENES.tower})`, backgroundPosition: "62% 45%" }}
             />
@@ -734,17 +591,8 @@ export default function ForgeHomeScroll() {
               <span className={styles.kicker} lang="en">
                 <span className={styles.caretMark}>&gt; </span>ai serves. you command.
               </span>
-              {/* While the scramble runs the line is plain monospace (the
-                  accent span can't survive characters churning through it);
-                  once it resolves, the branded version takes over. */}
-              <h2 className={`${styles.h2Big} ${scrambleText !== TOWER_TITLE ? styles.scrambleTitle : ""}`}>
-                {scrambleText === TOWER_TITLE ? (
-                  <>
-                    Ai <span className={styles.accent}>Dohaeris.</span>
-                  </>
-                ) : (
-                  scrambleText
-                )}
+              <h2 className={styles.h2Big}>
+                Ai <span className={styles.accent}>Dohaeris.</span>
               </h2>
               <p className={styles.lede}>
                 Runs live on your machine and keep going while you walk away. The tower watches; you
@@ -777,7 +625,7 @@ export default function ForgeHomeScroll() {
                 {/* Desktop builds aren't published yet (native signing +
                     notarization is a founder gate), so both platform CTAs go
                     to the account funnel rather than a 404 download. */}
-                <a href="/register" ref={setMagnet(0)} className={`${styles.btnArc} ${styles.sweep}`}>
+                <a href="/register" ref={setMagnet(0)} className={styles.btnArc}>
                   Download for macOS
                 </a>
                 <a href="/register" ref={setMagnet(1)} className={styles.btnGhost}>
