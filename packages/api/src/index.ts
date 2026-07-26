@@ -64,6 +64,7 @@ import { initPipelineRunner, initScheduledPipelines, initScheduledTickWorker, st
 import { initOutreachWorker } from "./modules/outreach/sequence-runner";
 import { initConsolidationCron, stopConsolidationCron } from "./modules/memory/consolidation-cron";
 import { initApprovalExpiryCron, stopApprovalExpiryCron } from "./modules/approval/expiry-cron";
+import { initHoldingModule, stopHoldingModule } from "./modules/holding";
 
 // Import tool registry to trigger tool registration on startup
 import "./modules/agent/registry";
@@ -381,6 +382,10 @@ app.listen(env.API_PORT, env.API_HOST, () => {
   // n8n/Make/Zapier executions into ExternalRun for the unified dashboard.
   initExternalPoller();
 
+  // YULA holding orchestrator — DORMANT unless HOLDING_ENABLED=true
+  // (founder-gated; see modules/holding/index.ts).
+  initHoldingModule();
+
   // Seed Braavolabs Bench suites on every boot — idempotent upsert
   // so the suites table tracks code changes without a manual step.
   seedBenchSuites().catch((err) => {
@@ -421,6 +426,7 @@ process.on("SIGTERM", async () => {
   stopConsolidationCron();
   stopApprovalExpiryCron();
   stopExternalPoller();
+  try { await stopHoldingModule(); } catch (e) { logger.warn({ err: e }, "Holding module close failed during shutdown"); }
 
   // Close Redis
   try { await redis.quit(); } catch (e) { logger.warn({ err: e }, "Redis close failed during shutdown"); }

@@ -22,6 +22,12 @@ export const runQueue = new Queue("pipeline-runs", { connection });
 // actual pipeline run back onto runQueue via enqueueRun("execute-run").
 export const scheduleQueue = new Queue("pipeline-schedules", { connection });
 
+// YULA holding orchestrator queue (modules/holding/runner.ts). DEDICATED
+// queue for the same reason pipeline-schedules is: exactly ONE worker per
+// queue, so holding jobs and tenant pipeline jobs can never cross-consume.
+// Jobs are idempotent per (runId, cursor) — see enqueueHoldingRun.
+export const holdingRunQueue = new Queue("holding-runs", { connection });
+
 // NOTE (E4/T4): a "memory-consolidation" Queue used to be declared here but
 // had no producer and no worker — memory consolidation actually runs on a
 // plain setInterval (modules/memory/consolidation-cron.ts). The dead export

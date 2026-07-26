@@ -40,6 +40,16 @@ const envShape = z.object({
   // "true" flips it on. Flipping this on in prod is a separate, user-gated
   // step that lands with the UI migration — see .env.example.
   AUTH_COOKIE_MODE: z.string().optional().default("false").transform((v) => v === "true"),
+  // ── YULA holding orchestrator (modules/holding) ──
+  // DORMANT unless the literal "true" — same explicit transform as
+  // AUTH_COOKIE_MODE. Flipping this on in prod is a founder-gated step that
+  // waits on the K2 provider spend-caps (MOTOR-KICKOFF sert kural #4).
+  HOLDING_ENABLED: z.string().optional().default("false").transform((v) => v === "true"),
+  // Telegram approval transport (all optional — without them approvals wait
+  // in the DB queue). FOUNDER id is the ONLY identity allowed to decide.
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  HOLDING_APPROVAL_CHAT_ID: z.string().optional(),
+  HOLDING_FOUNDER_TELEGRAM_ID: z.string().optional(),
   LLM_PROVIDER: z.enum(["local", "api"]).default("api"),
   ANTHROPIC_API_KEY: z.string().optional(),
   // Default to Sonnet 4.5 (best price/perf for typical agent workloads). Override

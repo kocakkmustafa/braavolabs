@@ -1883,3 +1883,256 @@ model MediaGeneration {
   @@index([tenantId, createdAt])
   @@map("media_generations")
 }
+
+// ─── YULA HOLDING ORCHESTRATOR (motor) ──────────────────
+//
+// Holding-internal automation state (FABLE_PLAN §3) — NOT tenant/product
+// data. Lives in `holding_*` tables so it can never collide with the
+// customer-facing pipeline tables (runs/run_steps), carries no tenant_id,
+// and is reachable only from modules/holding (no HTTP surface in v1).
+// holding_audit_logs is APPEND-ONLY at the DB level (trigger in the
+// migration blocks UPDATE/DELETE) because all later governance checks
+// build on it.
+
+enum HoldingRiskClass {
+  R0
+  R1
+  R2
+  R3
+  R4
+  R5
+}
+
+enum HoldingTrustLevel {
+  TRUSTED
+  UNTRUSTED
+}
+
+enum HoldingRunStatus {
+  PENDING
+  RUNNING
+  WAITING_APPROVAL
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum HoldingStepStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  SKIPPED
+}
+
+enum HoldingApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum HoldingSeverity {
+  SEV0
+  SEV1
+  SEV2
+  SEV3
+  INFO
+}
+
+enum HoldingEventStatus {
+  NEW
+  CLASSIFIED
+  ESCALATED
+  CLOSED
+}
+
+enum HoldingFindingType {
+  HATA
+  GOREV
+  GELISTIRME
+  RISK
+}
+
+enum HoldingFindingSeverity {
+  P0
+  P1
+  P2
+}
+
+enum HoldingFindingStatus {
+  ACIK
+  CALISILIYOR
+  KAPANDI
+}
+
+model HoldingWorkflowDefinition {
+  id            String           @id @default(cuid())
+  key           String           @unique
+  name          String
+  description   String?          @db.Text
+  riskClass     HoldingRiskClass @map("risk_class")
+  // L0-L5 (Anayasa §2). The autonomy ladder is per-DEFINITION, never
+  // per-agent; promotion to ≥4 is a founder decision recorded elsewhere.
+  autonomyLevel Int              @default(2) @map("autonomy_level")
+  // Declarative step list: [{ name, kind, reasoning, params? }] — executed
+  // in order by modules/holding/runner.ts. Kinds are a closed set validated
+  // at run creation so arbitrary behaviour cannot enter via DB rows.
+  steps         Json
+  enabled       Boolean          @default(true)
+  version       Int              @default(1)
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  runs HoldingWorkflowRun[]
+
+  @@map("holding_workflow_definitions")
+}
+
+model HoldingWorkflowRun {
+  id           String            @id @default(cuid())
+  definitionId String            @map("definition_id")
+  status       HoldingRunStatus  @default(PENDING)
+  // Immutable charter (Kompanzasyon §5A): frozen at creation, ≤500 token,
+  // K0-linted. charterHash = sha256 of the canonical JSON — an integrity
+  // witness only, never proof of obedience.
+  charter      Json
+  charterHash  String            @map("charter_hash")
+  trustLevel   HoldingTrustLevel @default(TRUSTED) @map("trust_level")
+  // Denormalized from the definition at creation so a later definition edit
+  // can never retroactively change what an old run was allowed to do.
+  riskClass    HoldingRiskClass  @map("risk_class")
+  // Cost attribution target (venture slug or "holding") — required from day
+  // one so P9's "untagged runs are rejected" rule needs no backfill.
+  venture      String
+  trigger      String            @default("manual")
+  input        Json              @default("{}")
+  output       Json?
+  error        String?           @db.Text
+  costUsd      Decimal?          @map("cost_usd") @db.Decimal(10, 6)
+  // Step cursor for approval-pause / retry resume; advanced after every
+  // completed step so BullMQ retries never re-run finished steps.
+  resumeCursor Int?              @map("resume_cursor")
+  startedAt    DateTime?         @map("started_at")
+  finishedAt   DateTime?         @map("finished_at")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  definition HoldingWorkflowDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  steps      HoldingStepRun[]
+  approvals  HoldingApproval[]
+
+  @@index([definitionId])
+  @@index([status])
+  @@map("holding_workflow_runs")
+}
+
+model HoldingStepRun {
+  id         String            @id @default(cuid())
+  runId      String            @map("run_id")
+  stepIndex  Int               @map("step_index")
+  name       String
+  status     HoldingStepStatus @default(PENDING)
+  reasoning  String            @db.Text
+  input      Json              @default("{}")
+  output     Json?
+  error      String?           @db.Text
+  costUsd    Decimal?          @map("cost_usd") @db.Decimal(10, 6)
+  startedAt  DateTime?         @map("started_at")
+  finishedAt DateTime?         @map("finished_at")
+  createdAt  DateTime          @default(now()) @map("created_at")
+
+  run HoldingWorkflowRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+  @@map("holding_step_runs")
+}
+
+model HoldingApproval {
+  id                String                @id @default(cuid())
+  runId             String?               @map("run_id")
+  stepIndex         Int?                  @map("step_index")
+  riskClass         HoldingRiskClass      @map("risk_class")
+  status            HoldingApprovalStatus @default(PENDING)
+  description       String                @db.Text
+  metadata          Json                  @default("{}")
+  decidedBy         String?               @map("decided_by")
+  decidedAt         DateTime?             @map("decided_at")
+  expiresAt         DateTime?             @map("expires_at")
+  telegramMessageId String?               @map("telegram_message_id")
+  createdAt         DateTime              @default(now()) @map("created_at")
+
+  run HoldingWorkflowRun? @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("holding_approvals")
+}
+
+model HoldingSentinelEvent {
+  id          String             @id @default(cuid())
+  source      String
+  kind        String
+  severity    HoldingSeverity
+  // External content (mail bodies, review text, webhooks) is UNTRUSTED by
+  // default — patrol layers may read it as data, never as instructions.
+  trustLevel  HoldingTrustLevel  @default(UNTRUSTED) @map("trust_level")
+  payload     Json               @default("{}")
+  fingerprint String
+  status      HoldingEventStatus @default(NEW)
+  // Dedup folds COPIES only; it may never delete an event or lower its
+  // severity (Nöbetçi §5B: S1 cannot suppress an S0-originated signal).
+  dedupCount  Int                @default(1) @map("dedup_count")
+  lastSeenAt  DateTime           @default(now()) @map("last_seen_at")
+  createdAt   DateTime           @default(now()) @map("created_at")
+
+  @@index([fingerprint])
+  @@index([status, severity])
+  @@map("holding_sentinel_events")
+}
+
+model HoldingHeartbeat {
+  id              String   @id @default(cuid())
+  sensorId        String   @unique @map("sensor_id")
+  intervalSeconds Int      @map("interval_seconds")
+  lastBeatAt      DateTime @map("last_beat_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("holding_heartbeats")
+}
+
+model HoldingFinding {
+  id              String                 @id @default(cuid())
+  code            String?                @unique
+  type            HoldingFindingType
+  severity        HoldingFindingSeverity
+  title           String
+  detail          String                 @db.Text
+  source          String
+  owner           String
+  venture         String?
+  status          HoldingFindingStatus   @default(ACIK)
+  // §5C: closing without evidence is forbidden — enforced both here (service
+  // layer) and by a CHECK constraint added in the migration.
+  closureEvidence String?                @map("closure_evidence") @db.Text
+  createdAt       DateTime               @default(now()) @map("created_at")
+  updatedAt       DateTime               @updatedAt @map("updated_at")
+
+  @@index([status, severity])
+  @@map("holding_findings")
+}
+
+model HoldingAuditLog {
+  id       String   @id @default(cuid())
+  ts       DateTime @default(now())
+  actor    String
+  action   String
+  entity   String?
+  entityId String?  @map("entity_id")
+  runId    String?  @map("run_id")
+  payload  Json     @default("{}")
+
+  @@index([ts])
+  @@index([entity, entityId])
+  @@map("holding_audit_logs")
+}
