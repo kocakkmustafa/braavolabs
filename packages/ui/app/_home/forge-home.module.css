@@ -567,6 +567,77 @@
   display: none;
 }
 
+/* Site chrome over the cinematic stage.
+   ABSOLUTE, not fixed, for the same reason .rail is: the scroll timeline
+   transforms .stage, and a `position: fixed` child of a transformed ancestor
+   is contained by that ancestor anyway — so fixed would buy nothing and only
+   differ across browsers. The bar sits above the rail (7) and below the cold
+   open (10), so the intro still covers it.
+   `pointer-events: none` on the bar keeps the full-width strip from eating
+   mouse-move events the parallax/torch effect listens for; the links
+   themselves opt back in. */
+.topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 64px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+  animation: topbarIn 600ms ease both;
+}
+.topbar > * {
+  pointer-events: auto;
+}
+.wordmark {
+  color: var(--faint);
+}
+.topnav {
+  display: flex;
+  gap: 22px;
+}
+.topnav a {
+  color: var(--faint);
+  text-decoration: none;
+  transition: color 160ms ease;
+}
+.topnav a:hover,
+.topnav a:focus-visible {
+  color: var(--arc-3);
+}
+@keyframes topbarIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .topbar {
+    animation: none;
+  }
+}
+/* The rail hugs the right edge on wide screens; on narrow ones the bar and
+   the rail would otherwise crowd each other, so tighten the gutters. */
+@media (max-width: 720px) {
+  .topbar {
+    padding: 14px 20px;
+  }
+  .topnav {
+    gap: 14px;
+  }
+}
+
 .rail {
   position: absolute;
   right: 26px;
