@@ -34,10 +34,9 @@
 .scroll {
   position: relative;
 }
-/* Height is set inline from `N * VH_PER_ACT` in ForgeHomeScroll.tsx — it MUST
-   track the act count, and hardcoding it here once cost us exactly that: the
-   file said 900vh (three acts) and stayed there, so a fourth act would have
-   squeezed all four instead of lengthening the page. Nothing to set here. */
+.rootCinematic .scroll {
+  height: 900vh;
+}
 
 .stage {
   position: relative;
@@ -566,117 +565,6 @@
 }
 .rootStatic .hint {
   display: none;
-}
-
-/* Savings figure on the ledger act. Deliberately labelled as an example, not
-   dressed up as a live meter — see the JSX for why. */
-.counterBlock {
-  margin-top: 22px;
-  align-self: flex-start;
-  text-align: left;
-  background: rgba(10, 11, 16, 0.6);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 16px 22px;
-  backdrop-filter: blur(6px);
-}
-.counterLabel {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 8px;
-}
-.counterNum {
-  font-family: var(--mono);
-  font-weight: 700;
-  font-size: clamp(26px, 4vw, 38px);
-  color: #fff;
-  /* Tabular figures so the digits don't jitter while the number counts up. */
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-.counterFoot {
-  margin-top: 8px;
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--faint);
-  max-width: 34ch;
-}
-
-/* ── v3 mockup effects, restored 2026-07-26 ──────────────────────────────
-   These three shipped in the 2026-07-23 build (cbe78a3) and were dropped by
-   the 07-25 rewrite. Ported back verbatim so the page matches the approved
-   comp rather than a reduction of it. */
-
-/* Word-stagger hero: each word carries its index as --wi and rides in on a
-   delay derived from it, so the headline assembles instead of appearing. */
-.word {
-  display: inline-block;
-  opacity: 0;
-  animation: wordIn 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
-  animation-delay: calc(var(--wi) * 70ms + 120ms);
-}
-@keyframes wordIn {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Shiny sweep across the primary CTA. `overflow: hidden` on the host keeps the
-   highlight inside the button; without it the gradient bleeds over the layout. */
-.sweep {
-  position: relative;
-  overflow: hidden;
-}
-.sweep::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.55) 45%, rgba(255, 255, 255, 0.15) 52%, transparent 65%);
-  transform: translateX(-120%);
-  animation: sweep 4.4s ease-in-out infinite;
-  animation-delay: 1.4s;
-  pointer-events: none;
-}
-@keyframes sweep {
-  0%,
-  58% {
-    transform: translateX(-120%);
-  }
-  84% {
-    transform: translateX(120%);
-  }
-  100% {
-    transform: translateX(120%);
-  }
-}
-
-/* Scrambled tower headline — monospace so the characters keep their box while
-   they churn; a proportional face would make the line jitter in width. */
-.scrambleTitle {
-  font-family: var(--mono);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-/* Every one of the above is decoration, so none of it should run for a visitor
-   who asked the OS to stop moving things. */
-@media (prefers-reduced-motion: reduce) {
-  .word {
-    opacity: 1;
-    animation: none;
-  }
-  .sweep::after {
-    animation: none;
-    opacity: 0;
-  }
 }
 
 /* Site chrome over the cinematic stage.
