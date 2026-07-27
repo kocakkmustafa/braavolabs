@@ -1,6 +1,7 @@
 import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
 import { checkHeartbeats } from "./sentinel";
+import { sweepSentinelSensors } from "./sensors";
 import { initHoldingWorker, resolveHoldingApproval, reconcileOrphanHoldingRuns } from "./runner";
 import { startTelegramPolling } from "./telegram";
 
@@ -30,7 +31,13 @@ export function initHoldingModule(): void {
     .then((n) => n > 0 && logger.warn({ count: n }, "holding orphan reconciliation re-enqueued runs"))
     .catch((err) => logger.error({ err }, "holding orphan reconciliation failed"));
   heartbeatTimer = setInterval(() => {
-    checkHeartbeats().catch((err) => logger.error({ err }, "heartbeat sweep failed"));
+    // Order matters: sensors first (they refresh their own heartbeat), then
+    // the dead-man's sweep judges everyone's freshness.
+    sweepSentinelSensors()
+      .catch((err) => logger.error({ err }, "sensor sweep failed"))
+      .finally(() => {
+        checkHeartbeats().catch((err) => logger.error({ err }, "heartbeat sweep failed"));
+      });
   }, HEARTBEAT_SWEEP_MS);
   // unref: a sweep timer must never keep a dying process alive.
   heartbeatTimer.unref?.();
