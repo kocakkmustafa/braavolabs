@@ -23,17 +23,6 @@
     "newWorkspace": "Yeni Çalışma Alanı",
     "quickStart": "Hızlı Başlangıç"
   },
-  "hero": {
-    "tagline": "AI ajanların ve otomasyonların,",
-    "taglineHighlight": "10 dakikada çalışır halde.",
-    "subtitle": "AI ajan iş akışlarını düz Türkçeyle kur, çalıştır ve yönlendir — ya da hâlihazırda çalıştırdığın n8n, Make ve Zapier otomasyonlarını bağla — ve hepsini tek bir çalışma alanından kontrol et. BYOK, isteğe bağlı cihaz-üstü. Her karar loglanır, her harcamayı sen onaylarsın.",
-    "cta": "Çalışma alanını kur",
-    "ctaSecondary": "Nasıl çalıştığını gör"
-  },
-  "stats": {
-    "deploy": "ilk yayına çıkış",
-    "audited": "denetlenen aksiyon"
-  },
   "features": {
     "badge": "PLATFORM YETKİNLİKLERİ",
     "title": "AI çalışma alanının ihtiyaç duyduğu her şey",
@@ -1399,13 +1388,6 @@
       "back": "← Girişe dön"
     },
     "brandPanel": {
-      "headlineLine1": "Otonom",
-      "headlineHighlight": "işin,",
-      "headlineLine2": "her zaman açık.",
-      "subtitle": "Satış, içerik ve operasyonları 7/24 yürüten AI ajan iş akışları kur — ya da mevcut otomasyonlarını bağla — tam denetim kayıtları ve insan onay kapılarıyla.",
-      "feature1": "AI ajanlar 7/24 çalışır — satış, içerik, ops",
-      "feature2": "Her kararın eksiksiz denetim kaydı",
-      "feature3": "İlk çalışma alanına 10 dakika",
       "footer": "© 2026 Braavolabs. Claude ile geliştirildi."
     },
     "errors": {
@@ -1521,135 +1503,6 @@
     "rights": "© 2026 Braavolabs. Claude ile geliştirildi.",
     "privacy": "Gizlilik",
     "terms": "Şartlar"
-  },
-  "landing": {
-    "nav": {
-      "features": "Özellikler",
-      "pricing": "Fiyatlandırma",
-      "integrations": "Entegrasyonlar",
-      "changelog": "Sürüm Notları",
-      "blog": "Blog",
-      "compare": "Karşılaştır",
-      "calculator": "Maliyet hesaplayıcı"
-    },
-    "hero": {
-      "line1": "Zaten kullandığın",
-      "line2a": "ajanları",
-      "line2b": "yönet.",
-      "sub": "Web'de kur. Cebinden yönlendir ve onayla. Tamamen çevrimdışı çalıştır. 14 sağlayıcıda kendi anahtarlarını getir — işlettiğin her ajan ve otomasyon için tek bir komuta merkezi.",
-      "ctaPrimary": "Ücretsiz başla — kart gerekmez",
-      "ctaSecondary": "Nasıl yönettiğini gör",
-      "builderLabel": "AI Şirket Kurucusu",
-      "buildKbd": "kurmak için",
-      "buildBtn": "AI ekibimi kur — ücretsiz",
-      "scroll": "Kaydır",
-      "chips": [
-        "TikTok İçerik Stüdyosu",
-        "Bülten Büyütme",
-        "Müşteri Takibi",
-        "Müşteri Raporlama"
-      ]
-    },
-    "moat": {
-      "eyebrow": "Asıl fark",
-      "title1": "Kontrol, mobilite ve gizlilik —",
-      "title2": "entegrasyon sayısı değil.",
-      "sub": "Sıradan hiçbir otomasyon panelinin sunmadığı beş şey. Her biri dövme çelik gibi yerine oturuyor.",
-      "featuredPill": "En keskin kenar",
-      "featuredTitle": "Çalışırken yönlendirme ve ask_user",
-      "featuredBody": "Ajanlar durup sorar. Sen yanıtlarsın — çalışma tam ortasından kaldığı yerden devam eder. Baştan çalıştırma yok, başında bekleme yok.",
-      "cards": {
-        "pocket": {
-          "title": "Cepten yönlendir",
-          "body": "Çalışmaları telefonundan oku, onayla ve yönünü değiştir. Kurulum web'de kalır; kontrol cebine sığar."
-        },
-        "byok": {
-          "title": "BYOK · 14 sağlayıcı",
-          "body": "Kendi anahtarlarını getir ve 14 sağlayıcı arasında yönlendir — ya da çevrimdışı Gemma ile tamamen cihaz üstünde çalış."
-        },
-        "dashboard": {
-          "title": "Tek panel",
-          "body": "n8n, Make ve Zapier'ı yerel pipeline'larla birlikte tek bir denetlenebilir komuta merkezinde topla."
-        },
-        "price": {
-          "title": "Sabit, öngörülebilir fiyat",
-          "body": "Entegrasyon başına ücret yok, sürpriz sayaç yok. Tek öngörülebilir fiyat, her çalışmanın hesabı belli."
-        }
-      }
-    },
-    "how": {
-      "eyebrow": "Nasıl çalışır",
-      "title1": "Fikirden çalışan ekibe",
-      "title2": "üç adımda.",
-      "steps": {
-        "describe": {
-          "title": "Anlat",
-          "body": "Braavolabs'a neyi otomatikleştirmek istediğini sade bir dille söyle. Birkaç keskin netleştirici soru sorar."
-        },
-        "compose": {
-          "title": "Oluştur",
-          "body": "Çok ajanlı bir ekibin hayata geçişini izle — edinim, satış, teslimat, operasyon — hepsi bir pipeline'a bağlı."
-        },
-        "run": {
-          "title": "Çalıştır ve onayla",
-          "body": "Canlı SSE akışıyla başlat. Her harcamayı onayla, çalışırken yönlendir, her araç çağrısını denetle."
-        }
-      }
-    },
-    "gov": {
-      "eyebrow": "Yönetişim",
-      "t1": "Her araç çağrısı",
-      "t2": "her harcama",
-      "t3": "her çalışma",
-      "logged": "kayıtlı",
-      "approved": "onaylı",
-      "audited": "denetli"
-    },
-    "trail": {
-      "eyebrow": "Canlı denetim izi",
-      "title": "Çalışmanın düşünüşünü izle.",
-      "sub": "Her adım gerçek zamanlı akar — muhakeme, araç çağrıları ve maliyet — çalışma ilerledikçe ark ışığıyla birbirine bağlanır."
-    },
-    "providers": {
-      "eyebrow": "Kendi anahtarlarını getir",
-      "title": "On dört sağlayıcı. Tek yönlendirici."
-    },
-    "flagship": {
-      "pill": "Amiral gemisi şablon",
-      "title": "AI Şirketi",
-      "body": "Tek bir komutla dokuz temel taşlı eksiksiz bir ajan şirketi ayağa kaldır — edinim, satış, teslimat, içerik, operasyon, finans, analitik, hafıza ve yönetişim.",
-      "cta": "AI Şirketini kur"
-    },
-    "pricing": {
-      "eyebrow": "Fiyatlandırma",
-      "title": "Tek sabit fiyat. Entegrasyon vergisi yok.",
-      "sub": "Ayda 10 çalışmayla ücretsiz başla — ilk 3 çalışman barındırılan Groq havuzumuzu kullanır, API anahtarı gerekmez. Çalışma alanı, bağlı otomasyon ve koltuk üzerinden büyü — asla entegrasyon sayısı üzerinden değil.",
-      "billNote": "Ücretli planlar App Store / Google Play üzerinden uygulama içi abonelik olarak faturalandırılır."
-    },
-    "cta": {
-      "title1": "Çalışma alanını",
-      "title2": "kur.",
-      "sub": "İşlettiğin her ajan için komuta merkezi. Web'de kur, cebinden yönet."
-    },
-    "footer": {
-      "blurb": "Zaten kullandığın AI ajanlarını ve otomasyonlarını yönet. Kontrol, mobilite ve gizlilik için tasarlandı.",
-      "product": "Ürün",
-      "developers": "Geliştiriciler",
-      "legal": "Yasal",
-      "privacy": "Gizlilik",
-      "terms": "Koşullar",
-      "copyright": "© 2026 Braavolabs. Tüm hakları saklıdır.",
-      "deleteAccount": "Hesabı Sil",
-      "cookies": "Çerezler",
-      "contact": "İletişim",
-      "links": {
-        "webhooks": "Webhook'lar",
-        "status": "Durum",
-        "support": "Destek",
-        "docs": "Dokümanlar",
-        "security": "Güvenlik"
-      }
-    }
   },
   "language": {
     "label": "Dil",

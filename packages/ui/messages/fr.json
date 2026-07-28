@@ -23,17 +23,6 @@
     "newWorkspace": "Nouvel espace de travail",
     "quickStart": "Démarrage rapide"
   },
-  "hero": {
-    "tagline": "Vos agents & automatisations IA,",
-    "taglineHighlight": "opérationnels en 10 minutes.",
-    "subtitle": "Créez, exécutez et pilotez des workflows d'agents IA en langage naturel — ou connectez les automatisations n8n, Make et Zapier que vous utilisez déjà — et pilotez le tout depuis un seul espace de travail. BYOK, sur l'appareil en option. Chaque décision est journalisée, chaque dépense approuvée par vous.",
-    "cta": "Créez votre espace de travail",
-    "ctaSecondary": "Voir comment ça marche"
-  },
-  "stats": {
-    "deploy": "jusqu'au premier déploiement",
-    "audited": "actions auditées"
-  },
   "features": {
     "badge": "CAPACITÉS DE LA PLATEFORME",
     "title": "Tout ce dont votre espace de travail IA a besoin",
@@ -1399,13 +1388,6 @@
       "back": "← Retour à la connexion"
     },
     "brandPanel": {
-      "headlineLine1": "Votre entreprise",
-      "headlineHighlight": "autonome,",
-      "headlineLine2": "toujours active.",
-      "subtitle": "Créez des workflows d'agents IA — ou connectez vos automatisations existantes — qui gèrent ventes, contenu et opérations 24/7, avec des journaux d'audit complets et des approbations humaines.",
-      "feature1": "Agents IA actifs 24/7 — ventes, contenu, ops",
-      "feature2": "Journal d'audit complet de chaque décision",
-      "feature3": "10 minutes jusqu'à votre premier espace de travail",
       "footer": "© 2026 Braavolabs. Conçu avec Claude."
     },
     "errors": {
@@ -1521,135 +1503,6 @@
     "rights": "© 2026 Braavolabs. Conçu avec Claude.",
     "privacy": "Confidentialité",
     "terms": "Conditions"
-  },
-  "landing": {
-    "nav": {
-      "features": "Fonctionnalités",
-      "pricing": "Tarifs",
-      "integrations": "Intégrations",
-      "changelog": "Nouveautés",
-      "blog": "Blog",
-      "compare": "Comparer",
-      "calculator": "Calculateur de coûts"
-    },
-    "hero": {
-      "line1": "Commandez les agents",
-      "line2a": "que vous faites déjà",
-      "line2b": "tourner.",
-      "sub": "Construisez sur le web. Pilotez et approuvez depuis votre poche. Tournez entièrement hors ligne. Apportez vos propres clés sur 14 fournisseurs — un seul poste de commande pour chaque agent et automatisation que vous opérez.",
-      "ctaPrimary": "Commencez gratuitement — sans carte",
-      "ctaSecondary": "Voyez-le se piloter",
-      "builderLabel": "Constructeur d'Entreprise IA",
-      "buildKbd": "pour construire",
-      "buildBtn": "Recruter mon équipe IA — gratuit",
-      "scroll": "Défiler",
-      "chips": [
-        "Studio de Contenu TikTok",
-        "Croissance Newsletter",
-        "Suivi des Leads",
-        "Reporting Client"
-      ]
-    },
-    "moat": {
-      "eyebrow": "L'avantage",
-      "title1": "Contrôle, mobilité et confidentialité —",
-      "title2": "pas le nombre de connecteurs.",
-      "sub": "Cinq choses qu'aucun tableau de bord d'automatisation générique ne vous offre. Chacune s'emboîte comme une plaque d'acier forgé.",
-      "featuredPill": "Le tranchant le plus affûté",
-      "featuredTitle": "Pilotage en cours d'exécution & ask_user",
-      "featuredBody": "Les agents s'arrêtent pour demander. Vous répondez — l'exécution reprend, en plein vol. Pas de relance, pas de surveillance.",
-      "cards": {
-        "pocket": {
-          "title": "Pilotez depuis votre poche",
-          "body": "Lisez, approuvez et réorientez les exécutions depuis votre téléphone. La création reste sur le web ; le contrôle tient dans votre poche."
-        },
-        "byok": {
-          "title": "BYOK · 14 fournisseurs",
-          "body": "Apportez vos propres clés et routez sur 14 fournisseurs — ou passez entièrement sur l'appareil avec Gemma hors ligne."
-        },
-        "dashboard": {
-          "title": "Un seul tableau de bord",
-          "body": "Unifiez n8n, Make et Zapier aux côtés des pipelines natifs dans un unique poste de commande audité."
-        },
-        "price": {
-          "title": "Prix fixe et prévisible",
-          "body": "Pas de taxe par connecteur, pas de facturation surprise. Un prix prévisible, chaque exécution comptabilisée."
-        }
-      }
-    },
-    "how": {
-      "eyebrow": "Comment ça marche",
-      "title1": "De l'idée à l'équipe en marche",
-      "title2": "en trois étapes.",
-      "steps": {
-        "describe": {
-          "title": "Décrivez",
-          "body": "Dites à Braavolabs ce que vous voulez automatiser, en langage clair. Il pose quelques questions précises pour clarifier."
-        },
-        "compose": {
-          "title": "Composez",
-          "body": "Regardez une équipe multi-agents prendre vie — acquisition, ventes, livraison, opérations — câblée dans un pipeline."
-        },
-        "run": {
-          "title": "Lancez et approuvez",
-          "body": "Lancez avec un streaming SSE en direct. Approuvez chaque dépense, pilotez en cours, auditez chaque appel d'outil."
-        }
-      }
-    },
-    "gov": {
-      "eyebrow": "Gouvernance",
-      "t1": "Chaque appel d'outil",
-      "t2": "chaque dépense",
-      "t3": "chaque exécution",
-      "logged": "journalisé",
-      "approved": "approuvée",
-      "audited": "auditée"
-    },
-    "trail": {
-      "eyebrow": "Journal d'audit en direct",
-      "title": "Regardez l'exécution réfléchir.",
-      "sub": "Chaque étape est diffusée en temps réel — raisonnement, appels d'outils et coût — reliés par un arc de lumière à mesure que l'exécution avance."
-    },
-    "providers": {
-      "eyebrow": "Apportez vos propres clés",
-      "title": "Quatorze fournisseurs. Un seul routeur."
-    },
-    "flagship": {
-      "pill": "Modèle phare",
-      "title": "L'Entreprise IA",
-      "body": "Déployez une entreprise d'agents complète à neuf primitives — acquisition, ventes, livraison, contenu, opérations, finance, analytique, mémoire et gouvernance — à partir d'un seul prompt.",
-      "cta": "Forger l'Entreprise IA"
-    },
-    "pricing": {
-      "eyebrow": "Tarifs",
-      "title": "Un prix fixe. Pas de taxe par connecteur.",
-      "sub": "Commencez gratuitement avec 10 exécutions par mois — vos 3 premières utilisent notre pool Groq hébergé, sans clé API. Évoluez selon les espaces de travail, les automatisations connectées et les sièges — jamais selon le nombre de connecteurs.",
-      "billNote": "Les forfaits payants sont facturés en abonnements in-app via l'App Store / Google Play."
-    },
-    "cta": {
-      "title1": "Forgez votre",
-      "title2": "espace de travail.",
-      "sub": "Le poste de commande pour chaque agent que vous faites tourner. Construisez sur le web, commandez depuis votre poche."
-    },
-    "footer": {
-      "blurb": "Commandez les agents IA et automatisations que vous faites déjà tourner. Forgé pour le contrôle, la mobilité et la confidentialité.",
-      "product": "Produit",
-      "developers": "Développeurs",
-      "legal": "Mentions légales",
-      "privacy": "Confidentialité",
-      "terms": "Conditions",
-      "copyright": "© 2026 Braavolabs. Tous droits réservés.",
-      "deleteAccount": "Supprimer le compte",
-      "cookies": "Cookies",
-      "contact": "Contact",
-      "links": {
-        "webhooks": "Webhooks",
-        "status": "Statut",
-        "support": "Assistance",
-        "docs": "Documentation",
-        "security": "Sécurité"
-      }
-    }
   },
   "language": {
     "label": "Langue",

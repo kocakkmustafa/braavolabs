@@ -23,17 +23,6 @@
     "newWorkspace": "Neuer Arbeitsbereich",
     "quickStart": "Schnellstart"
   },
-  "hero": {
-    "tagline": "Deine KI-Agenten & Automatisierungen,",
-    "taglineHighlight": "in 10 Minuten startklar.",
-    "subtitle": "Erstelle, starte und steuere KI-Agenten-Workflows in einfacher Sprache — oder verbinde die n8n-, Make- und Zapier-Automatisierungen, die du bereits nutzt — und steuere alles aus einem Arbeitsbereich. BYOK, on-device optional. Jede Entscheidung wird protokolliert, jede Ausgabe von dir freigegeben.",
-    "cta": "Arbeitsbereich erstellen",
-    "ctaSecondary": "Wie es funktioniert"
-  },
-  "stats": {
-    "deploy": "bis zum ersten Deploy",
-    "audited": "auditierte Aktionen"
-  },
   "features": {
     "badge": "PLATTFORM-FUNKTIONEN",
     "title": "Alles, was dein KI-Arbeitsbereich braucht",
@@ -1399,13 +1388,6 @@
       "back": "← Zurück zum Login"
     },
     "brandPanel": {
-      "headlineLine1": "Dein autonomes",
-      "headlineHighlight": "Unternehmen,",
-      "headlineLine2": "immer aktiv.",
-      "subtitle": "Baue KI-Agenten-Workflows — oder verbinde deine bestehenden Automatisierungen — die Vertrieb, Content und Betrieb rund um die Uhr ausführen, mit vollständigen Audit-Logs und menschlichen Freigaben.",
-      "feature1": "KI-Agenten arbeiten 24/7 — Vertrieb, Content, Ops",
-      "feature2": "Vollständiges Audit-Log jeder Entscheidung",
-      "feature3": "10 Minuten bis zu deinem ersten Arbeitsbereich",
       "footer": "© 2026 Braavolabs. Mit Claude gebaut."
     },
     "errors": {
@@ -1521,135 +1503,6 @@
     "rights": "© 2026 Braavolabs. Mit Claude gebaut.",
     "privacy": "Datenschutz",
     "terms": "AGB"
-  },
-  "landing": {
-    "nav": {
-      "features": "Funktionen",
-      "pricing": "Preise",
-      "integrations": "Integrationen",
-      "changelog": "Änderungen",
-      "blog": "Blog",
-      "compare": "Vergleich",
-      "calculator": "Kostenrechner"
-    },
-    "hero": {
-      "line1": "Steuere die Agenten,",
-      "line2a": "die du bereits",
-      "line2b": "betreibst.",
-      "sub": "Baue im Web. Steuere und genehmige aus der Hosentasche. Lass alles vollständig offline laufen. Bring deine eigenen Schlüssel über 14 Anbieter mit — eine Kommandozentrale für jeden Agenten und jede Automatisierung, die du betreibst.",
-      "ctaPrimary": "Kostenlos starten — ohne Karte",
-      "ctaSecondary": "Sieh, wie du steuerst",
-      "builderLabel": "KI-Firmen-Baukasten",
-      "buildKbd": "zum Bauen",
-      "buildBtn": "Mein KI-Team anheuern — gratis",
-      "scroll": "Scrollen",
-      "chips": [
-        "TikTok-Content-Studio",
-        "Newsletter-Wachstum",
-        "Lead-Nachverfolgung",
-        "Kundenreporting"
-      ]
-    },
-    "moat": {
-      "eyebrow": "Der Vorsprung",
-      "title1": "Kontrolle, Mobilität & Datenschutz —",
-      "title2": "nicht die Zahl der Konnektoren.",
-      "sub": "Fünf Dinge, die dir kein generisches Automatisierungs-Dashboard bietet. Jedes rastet ein wie eine geschmiedete Stahlplatte.",
-      "featuredPill": "Die schärfste Kante",
-      "featuredTitle": "Steuern während des Laufs & ask_user",
-      "featuredBody": "Agenten halten an und fragen. Du antwortest — der Lauf setzt mittendrin fort. Kein Neustart, kein Babysitten.",
-      "cards": {
-        "pocket": {
-          "title": "Aus der Hosentasche steuern",
-          "body": "Lies, genehmige und lenke Läufe von deinem Handy. Das Erstellen bleibt im Web; die Kontrolle passt in deine Hosentasche."
-        },
-        "byok": {
-          "title": "BYOK · 14 Anbieter",
-          "body": "Bring deine eigenen Schlüssel mit und route über 14 Anbieter — oder arbeite mit offline Gemma vollständig auf dem Gerät."
-        },
-        "dashboard": {
-          "title": "Ein Dashboard",
-          "body": "Vereine n8n, Make und Zapier neben nativen Pipelines in einer einzigen auditierten Kommandozentrale."
-        },
-        "price": {
-          "title": "Fester, planbarer Preis",
-          "body": "Keine Gebühr pro Konnektor, keine Überraschungsabrechnung. Ein planbarer Preis, jeder Lauf nachvollziehbar."
-        }
-      }
-    },
-    "how": {
-      "eyebrow": "So funktioniert's",
-      "title1": "Von der Idee zum laufenden Team",
-      "title2": "in drei Schritten.",
-      "steps": {
-        "describe": {
-          "title": "Beschreiben",
-          "body": "Sag Braavolabs in einfacher Sprache, was du automatisieren willst. Es stellt ein paar gezielte Rückfragen."
-        },
-        "compose": {
-          "title": "Zusammenstellen",
-          "body": "Sieh zu, wie ein Multi-Agenten-Team entsteht — Akquise, Vertrieb, Lieferung, Betrieb — verdrahtet in einer Pipeline."
-        },
-        "run": {
-          "title": "Starten & genehmigen",
-          "body": "Starte mit Live-SSE-Streaming. Genehmige jede Ausgabe, steuere mittendrin, prüfe jeden Tool-Aufruf."
-        }
-      }
-    },
-    "gov": {
-      "eyebrow": "Governance",
-      "t1": "Jeder Tool-Aufruf",
-      "t2": "jede Ausgabe",
-      "t3": "jeder Lauf",
-      "logged": "protokolliert",
-      "approved": "genehmigt",
-      "audited": "geprüft"
-    },
-    "trail": {
-      "eyebrow": "Live-Audit-Trail",
-      "title": "Sieh dem Lauf beim Denken zu.",
-      "sub": "Jeder Schritt wird in Echtzeit gestreamt — Begründung, Tool-Aufrufe und Kosten — verbunden durch Lichtbögen, während der Lauf voranschreitet."
-    },
-    "providers": {
-      "eyebrow": "Bring deine eigenen Schlüssel mit",
-      "title": "Vierzehn Anbieter. Ein Router."
-    },
-    "flagship": {
-      "pill": "Flaggschiff-Vorlage",
-      "title": "Die KI-Firma",
-      "body": "Bau aus einem einzigen Prompt eine vollständige Agenten-Firma mit neun Bausteinen — Akquise, Vertrieb, Lieferung, Content, Betrieb, Finanzen, Analytik, Gedächtnis und Governance.",
-      "cta": "Die KI-Firma schmieden"
-    },
-    "pricing": {
-      "eyebrow": "Preise",
-      "title": "Ein fester Preis. Keine Konnektor-Steuer.",
-      "sub": "Starte kostenlos mit 10 Läufen pro Monat — deine ersten 3 Läufe nutzen unseren gehosteten Groq-Pool, ohne API-Schlüssel. Skaliere über Workspaces, verbundene Automatisierungen und Sitze — nie über die Zahl der Konnektoren.",
-      "billNote": "Bezahlte Pläne werden als In-App-Abos über App Store / Google Play abgerechnet."
-    },
-    "cta": {
-      "title1": "Schmiede deinen",
-      "title2": "Workspace.",
-      "sub": "Die Kommandozentrale für jeden Agenten, den du betreibst. Baue im Web, steuere aus der Hosentasche."
-    },
-    "footer": {
-      "blurb": "Steuere die KI-Agenten & Automatisierungen, die du bereits betreibst. Geschmiedet für Kontrolle, Mobilität und Datenschutz.",
-      "product": "Produkt",
-      "developers": "Entwickler",
-      "legal": "Rechtliches",
-      "privacy": "Datenschutz",
-      "terms": "AGB",
-      "copyright": "© 2026 Braavolabs. Alle Rechte vorbehalten.",
-      "deleteAccount": "Konto löschen",
-      "cookies": "Cookies",
-      "contact": "Kontakt",
-      "links": {
-        "webhooks": "Webhooks",
-        "status": "Status",
-        "support": "Support",
-        "docs": "Dokumentation",
-        "security": "Sicherheit"
-      }
-    }
   },
   "language": {
     "label": "Sprache",

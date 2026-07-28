@@ -23,17 +23,6 @@
     "newWorkspace": "New Workspace",
     "quickStart": "Quick Start"
   },
-  "hero": {
-    "tagline": "Your AI agents & automations,",
-    "taglineHighlight": "running in 10 minutes.",
-    "subtitle": "Build, run, and steer AI agent workflows in plain English — or connect the n8n, Make & Zapier automations you already run — and control them all from one workspace. BYOK, on-device optional. Every decision is logged, every spend is approved by you.",
-    "cta": "Build your workspace",
-    "ctaSecondary": "See how it works"
-  },
-  "stats": {
-    "deploy": "to first deploy",
-    "audited": "actions audited"
-  },
   "features": {
     "badge": "PLATFORM CAPABILITIES",
     "title": "Everything your AI workspace needs",
@@ -1399,13 +1388,6 @@
       "back": "← Back to login"
     },
     "brandPanel": {
-      "headlineLine1": "Your autonomous",
-      "headlineHighlight": "business,",
-      "headlineLine2": "always on.",
-      "subtitle": "Build AI agent workflows — or connect your existing automations — that run sales, content, and operations 24/7, with full audit logs and human approval gates.",
-      "feature1": "AI agents run 24/7 — sales, content, ops",
-      "feature2": "Full audit log of every decision",
-      "feature3": "10 minutes to your first workspace",
       "footer": "© 2026 Braavolabs. Built with Claude."
     },
     "errors": {
@@ -1521,135 +1503,6 @@
     "rights": "© 2026 Braavolabs. Built with Claude.",
     "privacy": "Privacy",
     "terms": "Terms"
-  },
-  "landing": {
-    "nav": {
-      "features": "Features",
-      "pricing": "Pricing",
-      "integrations": "Integrations",
-      "changelog": "Changelog",
-      "blog": "Blog",
-      "compare": "Compare",
-      "calculator": "Cost calculator"
-    },
-    "hero": {
-      "line1": "Command the agents",
-      "line2a": "you already",
-      "line2b": "run.",
-      "sub": "Build on the web. Steer & approve from your pocket. Run fully offline. Bring your own keys across 14 providers — one war-room for every agent and automation you operate.",
-      "ctaPrimary": "Start free — no card needed",
-      "ctaSecondary": "Watch it steer",
-      "builderLabel": "AI Company Builder",
-      "buildKbd": "to build",
-      "buildBtn": "Hire my AI team — free",
-      "scroll": "Scroll",
-      "chips": [
-        "TikTok Content Studio",
-        "Newsletter Growth",
-        "Lead Follow-up",
-        "Client Reporting"
-      ]
-    },
-    "moat": {
-      "eyebrow": "The moat",
-      "title1": "Control, mobility & privacy —",
-      "title2": "not connector count.",
-      "sub": "Five things no generic automation dashboard gives you. Each one locks into place like a forged steel plate.",
-      "featuredPill": "The sharpest edge",
-      "featuredTitle": "Mid-run steering & ask_user",
-      "featuredBody": "Agents pause to ask. You answer — the run resumes, mid-flight. No re-runs, no babysitting.",
-      "cards": {
-        "pocket": {
-          "title": "Pocket-steer",
-          "body": "Read, approve and redirect runs from your phone. Authoring stays on the web; control fits in your pocket."
-        },
-        "byok": {
-          "title": "BYOK · 14 providers",
-          "body": "Bring your own keys and route across 14 providers — or go fully on-device with offline Gemma."
-        },
-        "dashboard": {
-          "title": "One dashboard",
-          "body": "Unify n8n, Make and Zapier alongside native pipelines in a single audited war-room."
-        },
-        "price": {
-          "title": "Flat, predictable price",
-          "body": "No per-connector tax, no surprise metering. One predictable price, every run accounted for."
-        }
-      }
-    },
-    "how": {
-      "eyebrow": "How it works",
-      "title1": "From idea to running team",
-      "title2": "in three steps.",
-      "steps": {
-        "describe": {
-          "title": "Describe",
-          "body": "Tell Braavolabs what you want to automate in plain language. It asks a few sharp clarifying questions."
-        },
-        "compose": {
-          "title": "Compose",
-          "body": "Watch a multi-agent team spark into existence — acquisition, sales, delivery, ops — wired into a pipeline."
-        },
-        "run": {
-          "title": "Run & approve",
-          "body": "Launch with live SSE streaming. Approve every spend, steer mid-run, audit every tool call."
-        }
-      }
-    },
-    "gov": {
-      "eyebrow": "Governance",
-      "t1": "Every tool call",
-      "t2": "every spend",
-      "t3": "every run",
-      "logged": "logged",
-      "approved": "approved",
-      "audited": "audited"
-    },
-    "trail": {
-      "eyebrow": "Live audit trail",
-      "title": "Watch the run think.",
-      "sub": "Every step streams in real time — reasoning, tool calls and cost — connected by arc-light as the run forges forward."
-    },
-    "providers": {
-      "eyebrow": "Bring your own keys",
-      "title": "Fourteen providers. One router."
-    },
-    "flagship": {
-      "pill": "Flagship template",
-      "title": "The AI Company",
-      "body": "Spin up a full nine-primitive agent company — acquisition, sales, delivery, content, ops, finance, analytics, memory and governance — from a single prompt.",
-      "cta": "Forge the AI Company"
-    },
-    "pricing": {
-      "eyebrow": "Pricing",
-      "title": "One flat price. No connector tax.",
-      "sub": "Start free with 10 runs a month — your first 3 runs use our hosted Groq pool, no API key needed. Scale on workspaces, connected automations and seats — never on connector count.",
-      "billNote": "Paid plans bill as in-app subscriptions via the App Store / Google Play."
-    },
-    "cta": {
-      "title1": "Forge your",
-      "title2": "workspace.",
-      "sub": "The war-room for every agent you run. Build on the web, command from your pocket."
-    },
-    "footer": {
-      "blurb": "Command the AI agents & automations you already run. Forged for control, mobility and privacy.",
-      "product": "Product",
-      "developers": "Developers",
-      "legal": "Legal",
-      "privacy": "Privacy",
-      "terms": "Terms",
-      "copyright": "© 2026 Braavolabs. All rights reserved.",
-      "deleteAccount": "Delete Account",
-      "cookies": "Cookies",
-      "contact": "Contact",
-      "links": {
-        "webhooks": "Webhooks",
-        "status": "Status",
-        "support": "Support",
-        "docs": "Docs",
-        "security": "Security"
-      }
-    }
   },
   "language": {
     "label": "Language",

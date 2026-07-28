@@ -611,7 +611,9 @@ export default function ForgeHomeScroll() {
               preload="auto"
               poster={SCENES.tower}
             />
-            <div className={styles.shadeLeft} />
+            {/* `shadeDeep` is a no-op above 900px; in the stacked layout it
+                swaps in a curve tuned for this scene's lit figure. */}
+            <div className={`${styles.shadeLeft} ${styles.shadeDeep}`} />
             <div className={`${styles.copy} ${styles.copyWide}`}>
               <span className={styles.kicker} lang="en">
                 <span className={styles.caretMark}>&gt; </span>ai serves. you command.

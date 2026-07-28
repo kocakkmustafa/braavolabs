@@ -6,17 +6,25 @@ import CookieConsent from "../components/CookieConsent";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 
+// These are the SITE-WIDE DEFAULTS: the title a page without its own falls
+// back to, and — because `openGraph`/`twitter` are inherited, not per-page —
+// the card every shared link renders with. They kept describing the landing
+// page that was deleted on 2026-07-25 ("Your AI company, built in 10 minutes",
+// "runs while you sleep"), so the old positioning outlived the old homepage in
+// exactly the places nobody looks at while editing a page: search snippets and
+// link previews. The wording below is not new copy — it is lifted from the
+// approved homepage comp and from `app/page.tsx`, so the two cannot drift.
 export const metadata: Metadata = {
   title: {
-    default: "Braavolabs — Your AI company, built in 10 minutes",
+    default: "Braavolabs — Every agent needs a gate",
     template: "%s | Braavolabs",
   },
-  description: "Describe your business in plain English. Braavolabs builds a fully-staffed autonomous company — content, sales, ops — that runs while you sleep. Every decision logged.",
-  keywords: ["Braavolabs", "AI", "autonomous company", "AI agents", "automation", "pipeline", "Claude"],
+  description: "Governed agents, a multi-model council, an auditable ledger, and a desktop app that runs on your own machine. Every risky step passes an approval gate.",
+  keywords: ["Braavolabs", "AI agents", "agent governance", "approval gate", "audit log", "multi-model", "BYOK", "desktop app", "CLI", "Claude", "local-first"],
   authors: [{ name: "Braavolabs" }],
   openGraph: {
-    title: "Braavolabs — Your AI company, built in 10 minutes",
-    description: "Describe your business in plain English. Braavolabs builds a fully-staffed autonomous company — content, sales, ops — that runs while you sleep.",
+    title: "Braavolabs — Every agent needs a gate",
+    description: "Governed agents, a multi-model council, an auditable ledger, and a desktop app that runs on your own machine. Every risky step passes an approval gate.",
     type: "website",
     siteName: "Braavolabs",
     url: "https://braavolabs.com",
@@ -25,14 +33,14 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Braavolabs — Your AI company, built in 10 minutes",
+        alt: "Braavolabs — Every agent needs a gate",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Braavolabs — Your AI company, built in 10 minutes",
-    description: "Describe your business in plain English. Braavolabs builds an autonomous company that runs while you sleep.",
+    title: "Braavolabs — Every agent needs a gate",
+    description: "Governed agents, a multi-model council, an auditable ledger, and a desktop app that runs on your own machine.",
     images: ["/og-image.png"],
   },
   // Next.js 15 picks up app/icon.png and app/apple-icon.png automatically
@@ -96,7 +104,7 @@ const SCHEMA_LD = {
       url: "https://braavolabs.com",
       name: "Braavolabs",
       description:
-        "Your AI company, built in 10 minutes. Describe your business in plain English — Braavolabs assembles a fully-staffed autonomous company that runs while you sleep.",
+        "The governed command center for your AI agents. One panel for every model, an approval gate on every risky step, and a full ledger of what ran.",
       publisher: { "@id": "https://braavolabs.com/#organization" },
       inLanguage: "en",
     },
@@ -104,12 +112,16 @@ const SCHEMA_LD = {
       "@type": "SoftwareApplication",
       "@id": "https://braavolabs.com/#software",
       name: "Braavolabs",
-      applicationCategory: "BusinessApplication",
+      applicationCategory: "DeveloperApplication",
       applicationSubCategory: "AI Agent Platform",
-      operatingSystem: "Web (any modern browser)",
+      // The product this page sells is the desktop app and the CLI; the web
+      // surface is marketing plus account/billing. Keep this list in step with
+      // the download buttons on the homepage — if a platform ships or stops
+      // shipping, both change together.
+      operatingSystem: "macOS, Windows",
       url: "https://braavolabs.com",
       description:
-        "Autonomous AI company creation platform. 9 primitives (Acquisition, Sales, Delivery, Content, Operations, Finance, Analytics, Memory, Governance) compose into agents and pipelines. Every action audit-logged with explicit reasoning. BYOK Anthropic API keys; AES-256-GCM at-rest credential encryption.",
+        "A governed command center for AI agents. Runs on your own machine across three lanes — local models, provider APIs, and your existing vendor CLI subscription. Every risky step passes an approval gate, every command and tool call lands in an auditable ledger, and one kill switch stops every session at once. BYOK with no token markup; AES-256-GCM at-rest credential encryption.",
       offers: [
         { "@type": "Offer", name: "Free", price: "0", priceCurrency: "USD", availability: "https://schema.org/InStock" },
         { "@type": "Offer", name: "Creator", price: "19", priceCurrency: "USD", availability: "https://schema.org/InStock" },
@@ -118,15 +130,16 @@ const SCHEMA_LD = {
         { "@type": "Offer", name: "Enterprise", priceCurrency: "USD", description: "Custom pricing — contact sales@braavolabs.com" },
       ],
       featureList: [
-        "Freeform company creation",
-        "9 composable primitives",
-        "Spend approval gates",
-        "Full audit log",
-        "Memory lifecycle (candidate → approved → deprecated)",
+        "Approval gate on every risky step",
+        "Auditable ledger — every command, diff and tool call recorded",
+        "One kill switch across sessions, hosts and vendor CLIs",
+        "Multi-model council — cascade and compare across providers",
+        "Model-agnostic memory that outlives any single model",
+        "Multi-model handoff — one agent passes the thread to the next",
+        "Three lanes: local models, provider APIs, your own CLI subscription",
+        "BYOK with zero token markup",
+        "Mobile companion — approve, deny or steer from your phone",
         "Risk stops (cost anomaly, loop detection, brand violation, spam)",
-        "BYOK Anthropic / OpenAI / Google / Mistral / Groq / OpenRouter",
-        "HMAC-signed webhooks",
-        "Stripe usage-based billing",
         "KVKK + GDPR compliant",
       ],
     },

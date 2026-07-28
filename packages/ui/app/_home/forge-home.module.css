@@ -122,6 +122,31 @@
     rgba(4, 5, 8, 0.95) 82%
   );
 }
+/* Act 3 only. The base stacked gradient assumes copy is pinned to the very
+   bottom — reasonable, since `.rootStatic .act` bottom-aligns — but the copy
+   blocks are tall and start about a third of the way down. Measured at 375px:
+   the copy bands land at 40-60% (gate), 31-57% (hall) and 11-89% (tower), so
+   the base curve is still under 0.75 alpha across most of the text.
+   The gate and hall get away with it because their copy falls on near-black
+   regions of the door and the hall floor. Scene 4 does not: the lit figure
+   sits directly behind the numbered list, and 13.5px muted text loses against
+   its hood. So this act — and only this act — carries a curve that reaches
+   0.82 by 34% instead of 82%. It reads DARKER behind the text and LIGHTER at
+   the top than the base (0.18 vs 0.30), which keeps the ivy and the arch
+   visible while the figure drops back to a silhouette. Applying this globally
+   was tried and rejected: it flattened the door, which is act 1's whole image.
+   Cinematic (>900px) is unaffected — there the copy is left, the figure right,
+   and `.shadeLeft`'s horizontal ramp already separates them. */
+.rootStatic .shadeDeep {
+  background: linear-gradient(
+    180deg,
+    rgba(4, 5, 8, 0.18) 0%,
+    rgba(4, 5, 8, 0.42) 18%,
+    rgba(4, 5, 8, 0.82) 34%,
+    rgba(4, 5, 8, 0.93) 60%,
+    rgba(4, 5, 8, 0.96) 100%
+  );
+}
 
 .beam {
   position: absolute;
