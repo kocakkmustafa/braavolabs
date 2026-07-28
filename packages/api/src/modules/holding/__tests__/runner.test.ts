@@ -99,6 +99,11 @@ vi.mock("../../../lib/queue", () => ({
 vi.mock("../telegram", () => ({
   sendApprovalRequest: vi.fn(async () => null),
 }));
+// kinds.ts, ürün pipeline runner'ını (ağır bağımlılık zinciri) çeker — bu
+// suite çekirdek runner'ı izole test eder; extended kind'lar kinds.test'te.
+vi.mock("../kinds", () => ({
+  executeExtendedStep: vi.fn(async () => ({ mocked: true })),
+}));
 const preflightMock = vi.hoisted(() => vi.fn(async () => ({ ok: true, softAlert: false })));
 vi.mock("../cost-guard", () => ({ preflight: preflightMock }));
 const envMock = vi.hoisted(() => ({ HOLDING_ENABLED: true }));

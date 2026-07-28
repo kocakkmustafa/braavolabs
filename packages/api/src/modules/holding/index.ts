@@ -25,6 +25,14 @@ export function initHoldingModule(): void {
     return;
   }
   worker = initHoldingWorker();
+  // D4 bootstrap: YULA tenant + governance workflow catalog (idempotent).
+  void (async () => {
+    const { ensureYulaTenant } = await import("./tenant");
+    const { seedHoldingDefinitions } = await import("./seeds");
+    await ensureYulaTenant();
+    const seeded = await seedHoldingDefinitions();
+    logger.info(seeded, "holding D4 bootstrap complete (tenant + seeds)");
+  })().catch((err) => logger.error({ err }, "holding D4 bootstrap failed"));
   // Orphan guard: re-enqueue runs stranded by a crash between the DB write
   // and the Redis enqueue (idempotent jobIds make this safe to repeat).
   reconcileOrphanHoldingRuns()

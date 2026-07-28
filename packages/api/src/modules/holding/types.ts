@@ -40,10 +40,12 @@ export interface HoldingCharter {
 /**
  * Closed set of executable step kinds. Anything not in this set is rejected
  * at run creation — DB rows can never smuggle new behaviour into the runner.
- * v1 is deliberately boring (deterministic golden-path proof); LLM/router
- * steps arrive with the model-key wiring in a later slice.
+ * D4 additions: `pipeline` (runs a PRODUCT pipeline in the YULA tenant —
+ * dogfood bridge), `patrol` (deterministic sentinel sweep) and `classify`
+ * (table-driven classification; LLM chains attach when BYOK keys arrive).
+ * Implementations live in kinds.ts.
  */
-export const STEP_KINDS = ["noop", "log", "approval"] as const;
+export const STEP_KINDS = ["noop", "log", "approval", "pipeline", "patrol", "classify"] as const;
 export type HoldingStepKind = (typeof STEP_KINDS)[number];
 
 export interface HoldingStepDef {

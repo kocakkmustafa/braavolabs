@@ -7,6 +7,7 @@ import { audit } from "./audit";
 import { charterHash, lintCharter } from "./charter";
 import { evaluatePolicy } from "./policy";
 import { preflight } from "./cost-guard";
+import { executeExtendedStep } from "./kinds";
 import { sendApprovalRequest } from "./telegram";
 import {
   STEP_KINDS,
@@ -293,9 +294,13 @@ export async function processHoldingRun(job: Job<{ runId: string }>): Promise<vo
       // CONSTRAINT for future step kinds: any kind that spends real money
       // (LLM/API calls) MUST call cost-guard recordSpend() with the actual
       // amount — without it the spend-rate freeze (>$2/5dk) is blind.
+      // (D4 kinds are deterministic/$0; the pipeline kind's product-side
+      // spend is metered by the PRODUCT's own usage_meters.)
       if (step.kind === "log") {
         logger.info({ runId, step: step.name, params: step.params }, "holding log step");
         lastOutput = { logged: true, ...step.params };
+      } else if (step.kind === "pipeline" || step.kind === "patrol" || step.kind === "classify") {
+        lastOutput = await executeExtendedStep(step, (run.input ?? {}) as Record<string, unknown>);
       } else {
         lastOutput = {};
       }
