@@ -649,11 +649,15 @@ export default function ForgeHomeScroll() {
                 </li>
               </ol>
               <div className={styles.ctas}>
-                {/* Linux ships today. macOS is built and Developer ID signed but
-                    is still in Apple's notarization queue, and Windows has no
-                    build host yet — until each one has a real file behind it,
-                    its CTA goes to the account funnel rather than a 404. */}
-                <a href="/register" ref={setMagnet(0)} className={styles.btnArc}>
+                {/* macOS and Linux ship today. Windows has no build host yet, so
+                    its CTA still goes to the account funnel rather than a 404.
+                    The macOS asset name is deliberately version-free so this link
+                    keeps resolving to the newest release without an edit here. */}
+                <a
+                  href="https://github.com/kocakkmustafa/braavolabs-releases/releases/latest/download/Braavolabs-macos-universal.dmg"
+                  ref={setMagnet(0)}
+                  className={styles.btnArc}
+                >
                   Download for macOS
                 </a>
                 <a href="/register" ref={setMagnet(1)} className={styles.btnGhost}>
