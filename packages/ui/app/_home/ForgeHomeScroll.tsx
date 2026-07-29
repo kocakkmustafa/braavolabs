@@ -649,14 +649,24 @@ export default function ForgeHomeScroll() {
                 </li>
               </ol>
               <div className={styles.ctas}>
-                {/* Desktop builds aren't published yet (native signing +
-                    notarization is a founder gate), so both platform CTAs go
-                    to the account funnel rather than a 404 download. */}
+                {/* Linux ships today. macOS is built and Developer ID signed but
+                    is still in Apple's notarization queue, and Windows has no
+                    build host yet — until each one has a real file behind it,
+                    its CTA goes to the account funnel rather than a 404. */}
                 <a href="/register" ref={setMagnet(0)} className={styles.btnArc}>
                   Download for macOS
                 </a>
                 <a href="/register" ref={setMagnet(1)} className={styles.btnGhost}>
                   Windows
+                </a>
+                <a
+                  href="https://github.com/kocakkmustafa/braavolabs-releases/releases/latest"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  ref={setMagnet(2)}
+                  className={styles.btnGhost}
+                >
+                  Linux
                 </a>
                 <button type="button" className={styles.install} onClick={copyInstall}>
                   {INSTALL_CMD} <i>{copied ? "COPIED" : "COPY"}</i>
