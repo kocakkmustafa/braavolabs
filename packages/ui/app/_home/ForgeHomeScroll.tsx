@@ -649,10 +649,11 @@ export default function ForgeHomeScroll() {
                 </li>
               </ol>
               <div className={styles.ctas}>
-                {/* macOS and Linux ship today. Windows has no build host yet, so
-                    its CTA still goes to the account funnel rather than a 404.
-                    The macOS asset name is deliberately version-free so this link
-                    keeps resolving to the newest release without an edit here. */}
+                {/* All three platforms ship. Asset names are deliberately
+                    version-free, so these links keep resolving to the newest
+                    release without an edit here. Windows is not code-signed yet —
+                    SmartScreen shows an "unknown publisher" notice; the release
+                    notes tell people what to expect and publish the checksum. */}
                 <a
                   href="https://github.com/kocakkmustafa/braavolabs-releases/releases/latest/download/Braavolabs-macos-universal.dmg"
                   ref={setMagnet(0)}
@@ -660,7 +661,11 @@ export default function ForgeHomeScroll() {
                 >
                   Download for macOS
                 </a>
-                <a href="/register" ref={setMagnet(1)} className={styles.btnGhost}>
+                <a
+                  href="https://github.com/kocakkmustafa/braavolabs-releases/releases/latest/download/Braavolabs-windows-x64-setup.exe"
+                  ref={setMagnet(1)}
+                  className={styles.btnGhost}
+                >
                   Windows
                 </a>
                 <a
