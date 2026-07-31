@@ -34,8 +34,8 @@ describe("D4 workflow seed", () => {
   it("loads the FULL governance catalog (28 definitions) with governance-verbatim enabled flags", async () => {
     const result = await seedHoldingDefinitions();
     expect(result.total).toBe(workflowSeeds.length);
-    expect(workflowSeeds.length).toBe(28); // governance workflows.yaml v2 ile kilitli
-    expect(store.defs.size).toBe(28);
+    expect(workflowSeeds.length).toBe(31); // governance workflows.yaml v3 ile kilitli
+    expect(store.defs.size).toBe(workflowSeeds.length);
     // Dormant-by-design: yalnız duman testi açık doğar.
     expect(result.enabled).toBe(1);
     expect(store.defs.get("kapi-duman-testi")!.enabled).toBe(true);
@@ -47,7 +47,7 @@ describe("D4 workflow seed", () => {
     await seedHoldingDefinitions();
     store.defs.get("kapi-duman-testi")!.name = "elle bozulmuş ad";
     await seedHoldingDefinitions();
-    expect(store.defs.size).toBe(28);
+    expect(store.defs.size).toBe(workflowSeeds.length);
     expect(store.defs.get("kapi-duman-testi")!.name).not.toBe("elle bozulmuş ad"); // dosya kazanır
   });
 

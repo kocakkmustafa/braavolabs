@@ -215,7 +215,7 @@
         "reasoning": "şirketin DEFTER'i + sentinel/brief logları üzerinden haftalık metrik çıkarımı",
         "planned_kind": true,
         "params": {
-          "sirket": "<parametrik: a1-lifeos | a2-burun-farki | a3-braavolabs | a4-yulalab-com | a5..a9-motion | b1-gozcu | b2-kesif | b3-medya | b6-kalkan | b10-hukuk | ...>"
+          "sirket": "<parametrik (v3 iştirak id'leri): a1-lifeos | a2-burun-farki | a3-braavolabs | a4-yulalab-com | a5-gravita | a6-lissom | a7-jablab | a8-ostinato | a9-choreia | b1-gozcu | b2-kesif | b3-medya | b4-atolye | b5-lab | b6-kalkan | b7-arge | b8-oyun | b9-reklam | b10-hukuk>"
         }
       },
       {
@@ -747,6 +747,104 @@
         "name": "uyar",
         "kind": "log",
         "reasoning": "çökmeden ÖNCE bildirim"
+      }
+    ]
+  },
+  {
+    "key": "istirak-raporu",
+    "name": "İştirak raporu (parametrik — haftalık ŞİRKET RAPORU)",
+    "description": "EK-C C2/C3 madde 1: her ürün şirketi (A1-A9) için ayrı örnekleme — params.sirket. GM (rol 1), kendi 11 kadro ajanının (Müşteri-Sesi, İzleme&Doğruluk, Rakip, Pazar, Pazarlama, Güvenlik, Veri Gizliliği, Hukuk-Uyum, Sosyal-Medya, İçerik, Kod&Test) haftalık çıktısını kanıt-linkli tek ŞİRKET RAPORU'na derler; rapor DOĞRUDAN kurucuya gider (Köprü + şirketin DEFTER'i). Holding raporunun girdisidir ama üzerine yazılmaz — iki rapor ayrık kalır (C3).",
+    "riskClass": "R2",
+    "autonomyLevel": 2,
+    "enabled": false,
+    "steps": [
+      {
+        "name": "kadro çıktılarını derle",
+        "kind": "pipeline",
+        "reasoning": "11 ajanın haftalık ozet+kanit_link çıktısını şirketin pipeline'ında topla (C2 kadro tablosu)",
+        "planned_kind": true,
+        "params": {
+          "sirket": "<parametrik: a1-lifeos | a2-burun-farki | a3-braavolabs | a4-yulalab-com | a5-gravita | a6-lissom | a7-jablab | a8-ostinato | a9-choreia>"
+        }
+      },
+      {
+        "name": "GM sentezi",
+        "kind": "patrol",
+        "reasoning": "GM 7 zorunlu bölümü (sağlık/doğruluk · müşteri sesi · rakip/pazar · pazarlama · güvenlik/gizlilik/hukuk · içerik performansı · kod&test) kanıt-linkli tek rapora bağlar; bir ajan zaten acil sinyal yollamışsa raporu BEKLEMEZ (C7-2), eş-zamanlı bilgilenir",
+        "planned_kind": true
+      },
+      {
+        "name": "kurucuya gönderim",
+        "kind": "approval",
+        "reasoning": "şablon L4 onayına kadar insan-kapılı; şirket raporu holding raporunun ÜZERİNE yazılmaz, ayrı gider (C3)",
+        "params": {
+          "description": "<sirket> ŞİRKET RAPORU hazır — kurucuya gönderilsin mi?"
+        }
+      }
+    ]
+  },
+  {
+    "key": "holding-raporu",
+    "name": "Holding raporu (haftalık — 9 şirket raporunun yönetim-katı sentezi)",
+    "description": "EK-C C3 madde 2: 9 şirketin (A1-A9) o haftaki istirak-raporu çıktıları yönetim katı tarafından İŞLENİR — CEO sentezi + R&A'nın bağımsız denetim notları (bir şirketin iddiası doğrulanamadıysa bunu İÇERİR) + CFO maliyet/P&L özeti + Data&Learning'in şirketler-arası çapraz-desenleri + portföy öncelik önerileri. Şirket raporlarının yerine geçmez, üzerine de yazılmaz — kurucuya AYRI bir rapor olarak, ayrı gönderilir (denetlenebilirlik, C3).",
+    "riskClass": "R2",
+    "autonomyLevel": 2,
+    "enabled": false,
+    "steps": [
+      {
+        "name": "9 şirket raporunu topla",
+        "kind": "patrol",
+        "reasoning": "haftanın 9 istirak-raporu çıktısını (A1-A9) tek girdi kümesine indir — henüz yorum eklenmez",
+        "planned_kind": true
+      },
+      {
+        "name": "yönetim-katı sentezi",
+        "kind": "pipeline",
+        "reasoning": "CEO sentez + R&A bağımsız denetim notu + CFO maliyet/P&L + D&L çapraz-desen — dört ayrı orkestratör girdisi tek pipeline'da birleşir",
+        "planned_kind": true,
+        "params": {
+          "pipelineKey": "yula-holding-report"
+        }
+      },
+      {
+        "name": "kurucuya AYRI gönderim",
+        "kind": "approval",
+        "reasoning": "şablon L4 onayına kadar insan-kapılı; şirket raporlarıyla AYNI mesajda BİRLEŞTİRİLMEZ (C3)",
+        "params": {
+          "description": "Haftalık Holding Raporu hazır — kurucuya AYRI rapor olarak gönderilsin mi?"
+        }
+      }
+    ]
+  },
+  {
+    "key": "flas-not",
+    "name": "Flaş Not (talep-tetikli — GM ara-raporu)",
+    "description": "EK-C C7 madde 2/3: GM, haftalık ŞİRKET RAPORU döngüsünü beklemeden takvim-dışı bir ara-rapor üretebilir (kurucu talebiyle veya GM'in kendi şirketinde önemli gördüğü bir gelişmede — ör. viral an, momentum fırsatı). Severity sinyaliyle KARIŞTIRILMAZ: SEV0-1/şirket-tanımlı acil eşikler zaten sorumlu ajandan DOĞRUDAN Köprü Kanalı'na gider ve GM'i beklemez — bağlayıcı kural (C7-2, aynen): 'Hiçbir severity sinyali rapor bekletilerek geciktirilemez.' Flaş Not, GM'in BİLİNÇLİ ara-rapor kararının taşıyıcısıdır; severity yolunun yerine geçmez.",
+    "riskClass": "R2",
+    "autonomyLevel": 2,
+    "enabled": false,
+    "steps": [
+      {
+        "name": "tetik",
+        "kind": "noop",
+        "reasoning": "kurucu talebi VEYA GM'in C7-3 sınırları içindeki kendi kararı — cron YOK, yalnız olay/talep"
+      },
+      {
+        "name": "ara-rapor taslağı",
+        "kind": "pipeline",
+        "reasoning": "GM sınıf-5 derlemesiyle kısa, kanıt-linkli ara-rapor (haftalık ŞİRKET RAPORU formatını KOPYALAMAZ — konu-odaklı)",
+        "planned_kind": true,
+        "params": {
+          "sirket": "<parametrik: a1-lifeos | a2-burun-farki | a3-braavolabs | a4-yulalab-com | a5-gravita | a6-lissom | a7-jablab | a8-ostinato | a9-choreia>"
+        }
+      },
+      {
+        "name": "kurucuya gönderim",
+        "kind": "approval",
+        "reasoning": "şablon L4 onayına kadar insan-kapılı; severity sinyalinin YERİNE geçmez — bu yalnız GM'in ek/ara-rapor kanalı",
+        "params": {
+          "description": "<sirket> GM'inden Flaş Not — kurucuya gönderilsin mi?"
+        }
       }
     ]
   }
