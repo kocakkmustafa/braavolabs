@@ -129,7 +129,14 @@ export default function ForgeHomeScroll() {
    * hydrates, since `cinematic` starts false.
    */
   useEffect(() => {
-    const wide = window.matchMedia("(min-width: 901px)");
+    // 901 was too high a bar in practice: a browser window at anything less
+    // than roughly two thirds of a laptop screen fell through to the static
+    // layout, which is how the page came to be reported as broken from a
+    // half-width Safari window. 768 is the standard landscape-tablet width and
+    // still comfortably fits the composed "copy left, figure right" layout.
+    // Below it the sticky acts genuinely are cramped, so the static path — now
+    // composed for its own widths — remains the right answer there.
+    const wide = window.matchMedia("(min-width: 768px)");
     const motionOk = window.matchMedia("(prefers-reduced-motion: no-preference)");
     const sync = () => setCinematic(wide.matches && motionOk.matches);
     sync();
@@ -611,7 +618,7 @@ export default function ForgeHomeScroll() {
               preload="auto"
               poster={SCENES.tower}
             />
-            {/* `shadeDeep` is a no-op above 900px; in the stacked layout it
+            {/* `shadeDeep` is a no-op in the cinematic layout; when stacked it
                 swaps in a curve tuned for this scene's lit figure. */}
             <div className={`${styles.shadeLeft} ${styles.shadeDeep}`} />
             <div className={`${styles.copy} ${styles.copyWide}`}>

@@ -135,7 +135,7 @@
    the top than the base (0.18 vs 0.30), which keeps the ivy and the arch
    visible while the figure drops back to a silhouette. Applying this globally
    was tried and rejected: it flattened the door, which is act 1's whole image.
-   Cinematic (>900px) is unaffected — there the copy is left, the figure right,
+   Cinematic (>=768px) is unaffected — there the copy is left, the figure right,
    and `.shadeLeft`'s horizontal ramp already separates them. */
 .rootStatic .shadeDeep {
   background: linear-gradient(
@@ -231,7 +231,15 @@
   top: auto;
   bottom: auto;
   transform: none;
-  max-width: none;
+  /* Was `none`, which only reads correctly on a phone: at 375px the viewport
+     IS the measure. From ~500px up the lines ran the full width of the window
+     and the page stopped looking composed — the single biggest reason the
+     static layout was mistaken for a broken build (reported 2026-08-05 from a
+     half-width Safari window at ~685px). 60ch keeps the same phone rendering
+     (60ch > 375px, so this is a no-op there) while giving every wider static
+     viewport — including reduced-motion and no-JS visitors on a full desktop —
+     a deliberate text column instead of a stretched one. */
+  max-width: 60ch;
   opacity: 1 !important;
 }
 /* Stacked, the two act-2 panels can't overlap — so the second one is REVEALED
@@ -801,6 +809,37 @@
 @media (max-width: 900px) {
   .footer {
     padding: 20px 22px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Static layout above phone width.
+
+   The static path was tuned at 375px (see the shade-curve notes above) and had
+   no treatment of its own between there and the cinematic gate. Anything in
+   between — a half-width browser window, a small tablet, and every
+   reduced-motion or no-JS visitor regardless of screen size — got the phone
+   composition stretched across a wide viewport, which reads as unfinished
+   rather than as a deliberate alternative.
+
+   These rules only widen the gutters and the vertical rhythm; they never
+   reintroduce the cinematic behaviour. Scoped to .rootStatic so the composed
+   >=768px experience is untouched.
+   --------------------------------------------------------------------------- */
+@media (min-width: 601px) {
+  .rootStatic .act {
+    /* 26/22 is a phone gutter. At 685px it leaves the copy hard against the
+       edge while the scene art has room to spare. */
+    padding: 56px 48px;
+    min-height: 78vh;
+  }
+  .rootStatic .copyHidden {
+    margin-top: 40px;
+  }
+  .rootStatic .points,
+  .rootStatic .moats,
+  .rootStatic .ctas {
+    max-width: 60ch;
   }
 }
 
