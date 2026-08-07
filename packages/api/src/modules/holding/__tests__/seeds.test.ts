@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { STEP_KINDS } from "../types";
 
 const store = vi.hoisted(() => ({ defs: new Map<string, any>(), audits: [] as any[] }));
 const prismaMock = vi.hoisted(() => ({
@@ -34,7 +35,7 @@ describe("D4 workflow seed", () => {
   it("loads the FULL governance catalog (28 definitions) with governance-verbatim enabled flags", async () => {
     const result = await seedHoldingDefinitions();
     expect(result.total).toBe(workflowSeeds.length);
-    expect(workflowSeeds.length).toBe(31); // governance workflows.yaml v3 ile kilitli
+    expect(workflowSeeds.length).toBe(33); // governance v3 (31) + D5 sosyal yayın/rapor (2)
     expect(store.defs.size).toBe(workflowSeeds.length);
     // Dormant-by-design: yalnız duman testi açık doğar.
     expect(result.enabled).toBe(1);
@@ -52,7 +53,9 @@ describe("D4 workflow seed", () => {
   });
 
   it("every seeded definition carries valid steps with closed-set kinds", () => {
-    const allowed = new Set(["noop", "log", "approval", "pipeline", "patrol", "classify"]);
+    // Sabit liste yerine kaynağın kendisi: yeni bir kind eklendiğinde bu test
+    // sessizce bayatlamasın (D5'te publish/report eklenince tam bu oldu).
+    const allowed = new Set<string>(STEP_KINDS);
     for (const seed of workflowSeeds) {
       expect(seed.steps.length).toBeGreaterThan(0);
       for (const step of seed.steps) {

@@ -50,6 +50,20 @@ const envShape = z.object({
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   HOLDING_APPROVAL_CHAT_ID: z.string().optional(),
   HOLDING_FOUNDER_TELEGRAM_ID: z.string().optional(),
+  // ── D5 (2026-08-07): Slack raporlaması + sosyal yayın hattı ──
+  // Slack webhook'ları PROJE bazlıdır; isimler Mac tarafındaki
+  // ops/social-media/secrets/.env ile birebir aynı tutulur ki tek bir .env
+  // iki tarafı da besleyebilsin. Tanımlı değilse Slack sessiz no-op olur.
+  SLACK_WEBHOOK_HOLDING: z.string().optional(),
+  SLACK_WEBHOOK_YULALAB: z.string().optional(),
+  SLACK_WEBHOOK_BRAAVO: z.string().optional(),
+  SLACK_WEBHOOK_BURUNFARKI: z.string().optional(),
+  SLACK_WEBHOOK_LIFEOS: z.string().optional(),
+  // Yayın hattının KENDİ Supabase projesi (onay kuyruğu + medya bucket'ı +
+  // Telegram callback edge function'ı orada canlı). Motorun kendi
+  // DATABASE_URL'inden ayrıdır — çalışan altyapıyı taşımak yerine bağlanıyoruz.
+  YULA_SOCIAL_SUPABASE_URL: z.string().optional(),
+  YULA_SOCIAL_SUPABASE_SERVICE_KEY: z.string().optional(),
   LLM_PROVIDER: z.enum(["local", "api"]).default("api"),
   ANTHROPIC_API_KEY: z.string().optional(),
   // Default to Sonnet 4.5 (best price/perf for typical agent workloads). Override

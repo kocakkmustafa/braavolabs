@@ -45,7 +45,22 @@ export interface HoldingCharter {
  * (table-driven classification; LLM chains attach when BYOK keys arrive).
  * Implementations live in kinds.ts.
  */
-export const STEP_KINDS = ["noop", "log", "approval", "pipeline", "patrol", "classify"] as const;
+/**
+ * D5 eklentileri (2026-08-07, kurucu kararı — sosyal hattın motora gömülmesi):
+ * `publish` bir sosyal yayın turunu sürer (onay kuyruğu → gerçek API yayını);
+ * `report` bir Slack raporu/günlük özeti gönderir. İkisi de deterministiktir —
+ * LLM çağırmaz, bu yüzden $0 ve BYOK anahtarlarından bağımsız çalışır.
+ */
+export const STEP_KINDS = [
+  "noop",
+  "log",
+  "approval",
+  "pipeline",
+  "patrol",
+  "classify",
+  "publish",
+  "report",
+] as const;
 export type HoldingStepKind = (typeof STEP_KINDS)[number];
 
 export interface HoldingStepDef {

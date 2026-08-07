@@ -40,9 +40,75 @@ export async function executeExtendedStep(
       return executePatrol(step);
     case "pipeline":
       return executePipeline(step, opts);
+    case "publish":
+      return executePublish(step);
+    case "report":
+      return executeReport(step, runInput);
     default:
       throw new ExtendedStepError(`extended kind değil: ${step.kind}`);
   }
+}
+
+/**
+ * `publish` — sosyal yayın turunu sürer (D5, 2026-08-07).
+ *
+ * Bir tur: Telegram callback'lerini işle → hatırlatmaları gönder → penceresi
+ * dolanları auto-approve et → onaylananları gerçek API ile yayınla.
+ * Yayın hattının kendisi `social/` altındadır ve Mac'te CANLI KANITLANMIŞ
+ * Python kodunun portudur.
+ *
+ * Deterministik ve $0: LLM çağırmaz. Yayın izni tamamen onay kuyruğundan
+ * gelir — bu adım kendiliğinden içerik üretmez, yalnız onaylanmışı taşır.
+ */
+async function executePublish(step: HoldingStepDef): Promise<Record<string, unknown>> {
+  const { runTurn } = await import("./social/orchestrator");
+  const dryRun = step.params?.dryRun === true;
+  const summary = await runTurn({ dryRun });
+  return {
+    onaylanan: summary.approved,
+    atlanan: summary.skipped,
+    hatirlatma: summary.reminders,
+    zaman_asimi_onayi: summary.timeouts,
+    yayinlanan: summary.published.length,
+    basarisiz: summary.failures.length,
+    yayinlar: summary.published.map((p) => ({
+      marka: p.row.brand,
+      platform: p.result.platform,
+      url: p.result.platformUrl ?? null,
+      onay: p.row.approved_by === "timeout" ? "sessizlik" : "kurucu",
+    })),
+    hatalar: summary.failures.map((f) => ({
+      marka: f.row.brand,
+      platform: f.result.platform,
+      hata: (f.result.error ?? "").slice(0, 300),
+    })),
+  };
+}
+
+/**
+ * `report` — Slack'e anlamlı bir olay bildirir (D5, 2026-08-07).
+ *
+ * Kurucu kararı: "anlamlı olaylar + günlük özet" — her tekil adım değil.
+ * Bu yüzden rapor adımı bilinçli olarak workflow'un İÇİNE konur: neyin
+ * raporlanacağına workflow tasarımı karar verir, motor her nefeste
+ * Slack'e yazmaz.
+ */
+async function executeReport(
+  step: HoldingStepDef,
+  runInput: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const { notifySlack } = await import("./slack");
+  const project = String(step.params?.project ?? runInput.project ?? "holding");
+  const title = String(step.params?.title ?? step.name);
+  const kind = String(step.params?.event ?? "workflow.completed");
+  const sent = await notifySlack({
+    kind: kind as never,
+    project: project as never,
+    title,
+    fields: (step.params?.fields as Record<string, string>) ?? undefined,
+    url: step.params?.url ? String(step.params.url) : undefined,
+  });
+  return { slack_gonderildi: sent, proje: project, baslik: title };
 }
 
 async function executeClassify(step: HoldingStepDef, runInput: Record<string, unknown>) {

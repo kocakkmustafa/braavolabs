@@ -8,6 +8,7 @@ import { charterHash, lintCharter } from "./charter";
 import { evaluatePolicy } from "./policy";
 import { preflight } from "./cost-guard";
 import { executeExtendedStep } from "./kinds";
+import { notifySlack, type SlackProject } from "./slack";
 import { sendApprovalRequest } from "./telegram";
 import {
   STEP_KINDS,
@@ -235,6 +236,17 @@ export async function processHoldingRun(job: Job<{ runId: string }>): Promise<vo
     data: { status: "RUNNING", startedAt: run.startedAt ?? new Date() },
   });
 
+  // Slack raporlaması (D5, kurucu kararı 2026-08-07): "anlamlı olaylar".
+  // Workflow başlangıcı/bitişi anlamlıdır, tekil adımlar değil — bu ayrım
+  // bilinçlidir, yoksa kanal günde yüzlerce mesajla okunamaz hale gelir.
+  void notifySlack({
+    kind: "workflow.started",
+    project: slackProjectOf(run),
+    title: `${run.definition.name} başladı`,
+    fields: { adım: steps.length, risk: run.riskClass },
+    runId,
+  });
+
   let lastOutput: Record<string, unknown> = {};
   for (let i = run.resumeCursor ?? 0; i < steps.length; i++) {
     const step = steps[i];
@@ -299,7 +311,16 @@ export async function processHoldingRun(job: Job<{ runId: string }>): Promise<vo
       if (step.kind === "log") {
         logger.info({ runId, step: step.name, params: step.params }, "holding log step");
         lastOutput = { logged: true, ...step.params };
-      } else if (step.kind === "pipeline" || step.kind === "patrol" || step.kind === "classify") {
+      } else if (
+        step.kind === "pipeline" ||
+        step.kind === "patrol" ||
+        step.kind === "classify" ||
+        // D5 (2026-08-07): publish/report da deterministik ve $0 —
+        // sosyal platform API'leri ücretsiz, Slack webhook'u ücretsiz.
+        // Yukarıdaki cost-guard şartı bu yüzden tetiklenmiyor.
+        step.kind === "publish" ||
+        step.kind === "report"
+      ) {
         lastOutput = await executeExtendedStep(step, (run.input ?? {}) as Record<string, unknown>);
       } else {
         lastOutput = {};
@@ -333,6 +354,14 @@ export async function processHoldingRun(job: Job<{ runId: string }>): Promise<vo
           where: { id: runId },
           data: { status: "FAILED", error: message, finishedAt: new Date() },
         });
+        void notifySlack({
+          kind: "workflow.failed",
+          project: slackProjectOf(run),
+          title: `${run.definition.name} BAŞARISIZ — ${step.name}`,
+          fields: { hata: message.slice(0, 280), adım: step.name },
+          severity: "SEV2",
+          runId,
+        });
       }
       await audit({
         actor: "holding.runner",
@@ -357,6 +386,26 @@ export async function processHoldingRun(job: Job<{ runId: string }>): Promise<vo
     entityId: runId,
     runId,
   });
+  void notifySlack({
+    kind: "workflow.completed",
+    project: slackProjectOf(run),
+    title: `${run.definition.name} tamamlandı`,
+    fields: { adım: steps.length },
+    runId,
+  });
+}
+
+/**
+ * Bir run'ı Slack projesine eşle. Workflow adı bir marka içeriyorsa o markanın
+ * kanalına, içermiyorsa holding kanalına düşer — hiçbir olay sessizce kaybolmaz.
+ */
+function slackProjectOf(run: { definition: { name: string } }): SlackProject {
+  const name = run.definition.name.toLowerCase();
+  if (name.includes("braavo")) return "braavolabs";
+  if (name.includes("burun")) return "burunfarki";
+  if (name.includes("lifeos")) return "lifeos";
+  if (name.includes("yulalab") || name.includes("yula lab")) return "yulalab";
+  return "holding";
 }
 
 export interface ApprovalDecisionInput {

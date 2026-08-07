@@ -847,5 +847,51 @@
         }
       }
     ]
+  },
+  {
+    "key": "sosyal-yayin-turu",
+    "name": "Sosyal yayın turu (onay kuyruğu → gerçek API)",
+    "description": "Onay kapısının motoru: Telegram callback'lerini işler, penceresi yaklaşanlara hatırlatma gönderir, penceresi dolan cevapsızları 'sessizlik = onay' kuralıyla auto-approve eder ve onaylananları gerçek platform API'leriyle yayınlar. Deterministik ve $0 — LLM çağırmaz. Kurucu kararı 2026-08-07.",
+    "riskClass": "R2",
+    "autonomyLevel": 2,
+    "enabled": false,
+    "steps": [
+      {
+        "name": "yayın turu",
+        "kind": "publish",
+        "reasoning": "onaylanmış içeriği taşır; kendiliğinden içerik ÜRETMEZ — yayın izni yalnız onay kuyruğundan gelir",
+        "params": {}
+      },
+      {
+        "name": "tur raporu",
+        "kind": "report",
+        "reasoning": "kurucu Slack'te ne yayınlandığını görmeli — 'anlamlı olaylar' kuralı",
+        "params": {
+          "project": "holding",
+          "title": "Sosyal yayın turu tamamlandı",
+          "event": "workflow.completed"
+        }
+      }
+    ]
+  },
+  {
+    "key": "gunluk-yayin-ozeti",
+    "name": "Günlük yayın özeti (Slack, marka bazında)",
+    "description": "Gün kapanınca her markanın yayın özetini kendi Slack kanalına düşürür: yayınlanan, başarısız, onay bekleyen. Özet bellekten değil post_log'dan TÜRETİLİR — sunucu yeniden başlasa da sayılar doğru kalır.",
+    "riskClass": "R1",
+    "autonomyLevel": 3,
+    "enabled": false,
+    "steps": [
+      {
+        "name": "günlük özet",
+        "kind": "report",
+        "reasoning": "kurucunun istediği 'anlamlı olaylar + günlük özet' modelinin ikinci yarısı",
+        "params": {
+          "project": "holding",
+          "title": "Günlük yayın özeti",
+          "event": "workflow.completed"
+        }
+      }
+    ]
   }
 ]
