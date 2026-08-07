@@ -2,7 +2,6 @@ import { prisma } from "../../lib/db";
 import { enqueueRun } from "../pipeline/runner";
 import { ensureYulaTenant } from "./tenant";
 import { classifyMail, type InboundMail } from "./sensors";
-import { suggestAdvisor } from "./reference";
 import type { HoldingStepDef } from "./types";
 
 /**
@@ -119,10 +118,10 @@ async function executeClassify(step: HoldingStepDef, runInput: Record<string, un
       throw new ExtendedStepError("classify(mail): girdi şeması eksik ({from, subject} zorunlu)");
     }
     const signal = classifyMail(mail);
-    // Escalation enrichment: the small model doesn't think — it attaches the
-    // catalog's advisor suggestion for the founder session (ENTEGRASYON §1).
-    const advisor = signal.severity === "SEV1" ? suggestAdvisor(`${signal.kind} store ret policy`) : null;
-    return { signal, onerilen_danisman: advisor?.id ?? null };
+    // 2026-08-07: Danışman öneri katmanı (Fable Mental) KALDIRILDI — kurucu kararı,
+    // Claude yönlendirilmeden çalışıyor. Eskalasyon artık sinyalin kendisiyle gider;
+    // "hangi danışmana sor" ekini motor üretmez.
+    return { signal };
   }
   // Tabloda olmayan mod = tahmin yok, eskalasyon (run FAILED → bildirim).
   throw new ExtendedStepError(`classify: '${mode}' modu tanımsız — ESKALE (LLM zinciri K3 sonrası)`);

@@ -61,14 +61,16 @@ beforeEach(() => {
 });
 
 describe("classify kind", () => {
-  it("classifies mail deterministically and enriches SEV1 with an advisor suggestion", async () => {
+  it("classifies mail deterministically — advisor katmanı YOK (2026-08-07)", async () => {
     const out = await executeExtendedStep(
       { name: "sınıflandır", kind: "classify", reasoning: "test", params: {} },
       { mail: { from: "noreply@apple.com", subject: "Burun Farkı has been rejected" } },
     );
     expect((out.signal as any).severity).toBe("SEV1");
-    // Katalog köprüsü: SEV1'de danışman önerisi dolu olmalı (store bağlamı).
-    expect(out.onerilen_danisman).toBeTruthy();
+    // Fable Mental danışman öneri katmanı kurucu kararıyla kaldırıldı:
+    // eskalasyon artık sinyalin kendisiyle gider, "hangi danışmana sor" eki üretilmez.
+    expect(out.onerilen_danisman).toBeUndefined();
+    expect(Object.keys(out)).toEqual(["signal"]);
   });
 
   it("ESCALATES on an unknown mode instead of guessing (DNA 7)", async () => {
