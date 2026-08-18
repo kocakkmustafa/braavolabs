@@ -3,35 +3,80 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import LanguageSwitcher from "../../components/LanguageSwitcher";
+import { PLAN_LIMITS, PLAN_PRICING } from "@ai-company-os/core";
 
 type BillingCycle = "monthly" | "yearly";
 
-// Numeric/visual config only — copy lives under pricing.plans.<id> in
-// messages/*.json so the entire page localises with one language switch.
-// Order here drives card order; ids must match the JSON keys exactly.
+// id → the shared catalog's plan key. Price and the feature-matrix numbers
+// below are DERIVED from @ai-company-os/core (the single source of truth
+// billing/settings/API entitlement also read) so this public page can never
+// silently drift from what a subscriber actually gets — see the sibling fix
+// in billing/page.tsx's SHARED_PLAN_LIMITS comment, which fixed the same
+// bait-and-switch bug class there but never reached this file. highlight/
+// hasBadge are pure marketing choices with no entitlement meaning.
+const PLAN_KEY = { free: "FREE", creator: "CREATOR", pro: "PRO", business: "BUSINESS" } as const;
+
+// Copy lives under pricing.plans.<id> in messages/*.json so the entire page
+// localises with one language switch. Order here drives card order; ids must
+// match the JSON keys exactly.
 const PLANS: Array<{
   id: "free" | "creator" | "pro" | "business";
   priceMonthly: number;
   priceYearlyMonthlyEquivalent: number;
   highlight: boolean;
   hasBadge: boolean;
-}> = [
-  { id: "free", priceMonthly: 0, priceYearlyMonthlyEquivalent: 0, highlight: false, hasBadge: false },
-  { id: "creator", priceMonthly: 19, priceYearlyMonthlyEquivalent: 15.2, highlight: false, hasBadge: false },
-  { id: "pro", priceMonthly: 39, priceYearlyMonthlyEquivalent: 31.2, highlight: true, hasBadge: true },
-  { id: "business", priceMonthly: 99, priceYearlyMonthlyEquivalent: 79.2, highlight: false, hasBadge: false },
-];
+}> = (Object.keys(PLAN_KEY) as Array<keyof typeof PLAN_KEY>).map((id) => {
+  const pricing = PLAN_PRICING[PLAN_KEY[id]];
+  return {
+    id,
+    priceMonthly: pricing.monthlyUsd,
+    priceYearlyMonthlyEquivalent: pricing.yearlyMonthlyEquivalent,
+    highlight: id === "pro",
+    hasBadge: id === "pro",
+  };
+});
 
+// -1 is the catalog's unlimited sentinel (see plans.ts) — everything else is
+// a real, enforced cap and must be shown as a number, never as "∞".
+const fmt = (n: number) => (n === -1 ? "∞" : String(n));
+
+// On-device Gemma is deliberately NOT a row here: the platform roadmap's
+// binding plan decision is that it appears on no plan until a native adapter,
+// model download and real-device quality evidence exist. Do not re-add it
+// without that evidence landing first.
 const FEATURE_MATRIX = [
-  { label: "Workspaces",                       free: "1",    creator: "3",    pro: "10",   business: "∞" },
-  { label: "Runs",                              free: "trial", creator: "∞",  pro: "∞",    business: "∞" },
-  { label: "Connected automations (n8n · Make · Zapier)", free: false, creator: "5", pro: "20", business: "∞" },
-  { label: "Team seats",                        free: "1",    creator: "1",    pro: "5",    business: "∞" },
-  { label: "BYOK · 14 providers",              free: true,   creator: true,   pro: true,   business: true },
-  { label: "On-device Gemma (offline)",         free: false,  creator: false,  pro: true,   business: true },
-  { label: "Mobile pocket-steer",              free: true,   creator: true,   pro: true,   business: true },
-  { label: "5 risk-stops & full audit trail",  free: true,   creator: true,   pro: true,   business: true },
-  { label: "Encrypted offline export bundle",  free: false,  creator: false,  pro: true,   business: true },
+  {
+    label: "Workspaces",
+    free: fmt(PLAN_LIMITS.FREE.maxCompanies),
+    creator: fmt(PLAN_LIMITS.CREATOR.maxCompanies),
+    pro: fmt(PLAN_LIMITS.PRO.maxCompanies),
+    business: fmt(PLAN_LIMITS.BUSINESS.maxCompanies),
+  },
+  {
+    label: "Runs",
+    free: fmt(PLAN_LIMITS.FREE.maxRunsPerMonth),
+    creator: fmt(PLAN_LIMITS.CREATOR.maxRunsPerMonth),
+    pro: fmt(PLAN_LIMITS.PRO.maxRunsPerMonth),
+    business: fmt(PLAN_LIMITS.BUSINESS.maxRunsPerMonth),
+  },
+  {
+    label: "Connected automations (n8n · Make · Zapier)",
+    free: fmt(PLAN_LIMITS.FREE.maxConnectedAutomations),
+    creator: fmt(PLAN_LIMITS.CREATOR.maxConnectedAutomations),
+    pro: fmt(PLAN_LIMITS.PRO.maxConnectedAutomations),
+    business: fmt(PLAN_LIMITS.BUSINESS.maxConnectedAutomations),
+  },
+  {
+    label: "Team seats",
+    free: fmt(PLAN_LIMITS.FREE.maxSeats),
+    creator: fmt(PLAN_LIMITS.CREATOR.maxSeats),
+    pro: fmt(PLAN_LIMITS.PRO.maxSeats),
+    business: fmt(PLAN_LIMITS.BUSINESS.maxSeats),
+  },
+  { label: "BYOK · 14 providers", free: true, creator: true, pro: true, business: true },
+  { label: "Mobile pocket-steer", free: true, creator: true, pro: true, business: true },
+  { label: "5 risk-stops & full audit trail", free: true, creator: true, pro: true, business: true },
+  { label: "Encrypted offline export bundle", free: false, creator: false, pro: true, business: true },
 ];
 
 function formatMonthly(n: number) {
@@ -50,9 +95,6 @@ function MatrixCell({ value, isHighlight }: { value: MatrixCell; isHighlight: bo
   }
   if (value === false) {
     return <span style={{ color: "var(--color-outline)" }}>—</span>;
-  }
-  if (value === "trial" || value === "3 trial") {
-    return <span style={{ color: "#FF7A1A", fontFamily: "var(--bv-font-mono)", fontSize: 13 }}>3 trial</span>;
   }
   return (
     <span style={{ color: isHighlight ? "#60A5FA" : "var(--color-on-surface)", fontWeight: value === "∞" ? 600 : 400 }}>
