@@ -27,6 +27,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { prisma } from "../../src/lib/db";
+import { runWithoutTenant } from "../../src/lib/tenant-context";
 import type { ChatMessage } from "../../src/services/ai-client";
 import { claimHandoff } from "../../src/modules/run/handoff.service";
 import { executeStep, type StepDef } from "../../src/modules/pipeline/executor";
@@ -230,7 +231,8 @@ async function main(): Promise<void> {
   });
 }
 
-main()
+// BR-P0-004: maintenance scripts touch many tenants deliberately.
+runWithoutTenant("script:handoff-e2e-resume", () => main())
   .then(async () => {
     await prisma.$disconnect();
     process.exit(0);

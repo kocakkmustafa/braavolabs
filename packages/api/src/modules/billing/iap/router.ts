@@ -26,6 +26,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../../middleware/auth";
+import { systemScope } from "../../../middleware/system-scope";
 import { rateLimit } from "../../../middleware/rateLimit";
 import { prisma } from "../../../lib/db";
 import { AppError } from "../../../middleware/error";
@@ -280,7 +281,7 @@ iapRouter.get("/entitlement", authMiddleware, iapEntitlementRateLimit, async (re
 // Server API so a malicious replay (which we'd never accept anyway
 // because we only trust the JWS structure for the transactionId) can't
 // move our row past what Apple actually says is active.
-iapRouter.post("/apple/notify", iapWebhookRateLimit, async (req, res) => {
+iapRouter.post("/apple/notify", systemScope("webhook:iap-apple"), iapWebhookRateLimit, async (req, res) => {
   const signedPayload = (req.body as { signedPayload?: string })?.signedPayload;
   if (!signedPayload || typeof signedPayload !== "string") {
     res.status(400).json({ error: "missing signedPayload" });
@@ -389,7 +390,7 @@ iapRouter.post("/apple/notify", iapWebhookRateLimit, async (req, res) => {
 // We re-fetch authoritative state via verifyGoogleReceipt — the
 // notification only carries `purchaseToken + notificationType`, the
 // truth is behind the API.
-iapRouter.post("/google/notify", iapWebhookRateLimit, async (req, res) => {
+iapRouter.post("/google/notify", systemScope("webhook:iap-google"), iapWebhookRateLimit, async (req, res) => {
   try {
     // FINDINGS C1 — authenticate the sender. Pub/Sub push attaches a
     // Google-signed OIDC bearer token; verifying it stops an attacker from

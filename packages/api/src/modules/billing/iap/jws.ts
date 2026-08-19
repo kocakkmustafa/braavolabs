@@ -45,6 +45,13 @@ at+qIxUCMG1mihDK1A3UT82NQz60imOlM27jbdoXt2QfyFMm+YhidDkLF1vLUagM
 6BgD56KyKA==
 -----END CERTIFICATE-----`;
 
+/**
+ * Maximum x5c chain length accepted. Apple sends leaf + intermediate + root;
+ * anything beyond this is either malformed or an attempt to make an
+ * unauthenticated request expensive to reject.
+ */
+const MAX_X5C_CHAIN = 5;
+
 export class JwsVerificationError extends Error {}
 
 export interface VerifyJwsOptions {
@@ -88,6 +95,15 @@ export async function verifyAppleJws(
   if (!Array.isArray(header.x5c) || header.x5c.length < 2) {
     throw new JwsVerificationError("JWS missing x5c certificate chain");
   }
+  // Cap the chain BEFORE parsing or verifying anything. Apple's real chain is
+  // leaf + intermediate + root; MAX_X5C_CHAIN leaves headroom without letting
+  // an unauthenticated caller buy an unbounded number of ECDSA verifications
+  // (this endpoint is a public webhook — see the F-8 tests in __tests__/jws.test.ts).
+  if (header.x5c.length > MAX_X5C_CHAIN) {
+    throw new JwsVerificationError(
+      `JWS x5c chain is too long (${header.x5c.length} > ${MAX_X5C_CHAIN})`,
+    );
+  }
 
   let certs: X509Certificate[];
   try {
@@ -103,14 +119,11 @@ export async function verifyAppleJws(
     }
   }
 
-  // Each cert must be signed by the next one up the chain.
-  for (let i = 0; i < certs.length - 1; i++) {
-    if (!certs[i]!.verify(certs[i + 1]!.publicKey)) {
-      throw new JwsVerificationError("JWS x5c chain is broken");
-    }
-  }
-
-  // The top of the supplied chain must be (or be signed by) a trusted root.
+  // Anchoring is checked FIRST, before the pairwise walk. Order matters for
+  // cost, not correctness: a chain of N identical self-signed certs is
+  // internally consistent, so the pairwise loop would perform N-1 real ECDSA
+  // verifications before anything rejected it. Anchoring is at most
+  // len(trustedRoots) verifications and eliminates that amplification.
   const trustedRoots = (opts.trustedRootsPem ?? [APPLE_ROOT_CA_G3_PEM]).map(
     (pem) => new X509Certificate(pem),
   );
@@ -120,6 +133,13 @@ export async function verifyAppleJws(
   );
   if (!anchored) {
     throw new JwsVerificationError("JWS x5c chain is not anchored to a trusted root");
+  }
+
+  // Each cert must be signed by the next one up the chain.
+  for (let i = 0; i < certs.length - 1; i++) {
+    if (!certs[i]!.verify(certs[i + 1]!.publicKey)) {
+      throw new JwsVerificationError("JWS x5c chain is broken");
+    }
   }
 
   // Finally verify the JWS signature against the leaf certificate.

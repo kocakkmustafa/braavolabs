@@ -12,6 +12,7 @@
 import { Router, raw } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
+import { systemScope } from "../../middleware/system-scope";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
@@ -158,9 +159,11 @@ voiceRouter.post("/agents/:id/dial", async (req, res, next) => {
 // ─── Webhook router — public, signature-verified ───────────
 
 export const voiceWebhookRouter = Router();
+// BR-P0-004: signature-verified provider ingress — see billing/router.ts for
+// why this is marked per-route rather than router-wide.
 
 voiceWebhookRouter.post(
-  "/:provider/:agentId",
+  "/:provider/:agentId", systemScope("webhook:voice"),
   raw({ type: "*/*", limit: "2mb" }),
   async (req, res) => {
     const { provider, agentId } = req.params;

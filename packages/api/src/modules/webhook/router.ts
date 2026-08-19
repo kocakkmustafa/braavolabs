@@ -7,6 +7,7 @@ import { enqueueRun } from "../pipeline/runner";
 import { claimQuota, releaseQuota } from "../billing/metering";
 import { getWebhookTemplates, getWebhookTemplateById, getWebhookTemplateCategories } from "./templates";
 import { authMiddleware } from "../../middleware/auth";
+import { systemScope } from "../../middleware/system-scope";
 import { AppError } from "../../middleware/error";
 import { env } from "../../config/env";
 import { redis } from "../../lib/redis";
@@ -17,6 +18,7 @@ const webhookParamsSchema = z.object({
 });
 
 export const webhookRouter = Router();
+// BR-P0-004: signature-verified provider ingress (per-company HMAC).
 
 // POST /hooks/:companySlug/:event — handle external webhooks.
 //
@@ -27,7 +29,7 @@ export const webhookRouter = Router();
 // invalidating the signature. The Stripe webhook handler uses the same
 // pattern — we mirror it here.
 webhookRouter.post(
-  "/:companySlug/:event",
+  "/:companySlug/:event", systemScope("webhook:external"),
   // type:'*/*' captures every Content-Type — different providers send
   // application/json, text/plain, or x-www-form-urlencoded; the HMAC
   // is over raw bytes regardless. 1mb cap matches the global JSON

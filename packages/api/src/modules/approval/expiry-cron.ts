@@ -25,6 +25,7 @@
 
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
+import { runWithoutTenant } from "../../lib/tenant-context";
 
 const EXPIRY_INTERVAL_MS = 60 * 60 * 1000; // run hourly
 const APPROVAL_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -32,6 +33,13 @@ const APPROVAL_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 /** Exported for unit tests (E3/T3 — B6.1 HANDOFF branch). Not part of the
  * public cron surface; initApprovalExpiryCron drives it on the timer. */
 export async function runApprovalExpiry(): Promise<void> {
+  // BR-P0-004: a cron sweep spans every tenant by design, so it has no single
+  // tenant to bind. Marked here (on the exported entry point rather than the
+  // timer) so direct callers — tests, manual invocations — are scoped too.
+  return runWithoutTenant("cron:approval-expiry", () => runApprovalExpiryImpl());
+}
+
+async function runApprovalExpiryImpl(): Promise<void> {
   const cutoff = new Date(Date.now() - APPROVAL_TTL_MS);
 
   // Pull stale approvals — keep the include shallow so we have what we

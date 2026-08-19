@@ -11,6 +11,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
+import { systemScope } from "../../middleware/system-scope";
 import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { runBenchSuite } from "./bench.service";
@@ -18,7 +19,7 @@ import crypto from "node:crypto";
 
 export const benchRouter = Router();
 
-benchRouter.get("/", async (_req, res, next) => {
+benchRouter.get("/", systemScope("route:bench-public"), async (_req, res, next) => {
   try {
     const suites = await prisma.benchSuite.findMany({
       where: { isPublic: true },
@@ -64,7 +65,7 @@ benchRouter.get("/", async (_req, res, next) => {
   } catch (err) { next(err); }
 });
 
-benchRouter.get("/:slug", async (req, res, next) => {
+benchRouter.get("/:slug", systemScope("route:bench-public"), async (req, res, next) => {
   try {
     const suite = await prisma.benchSuite.findUnique({ where: { slug: req.params.slug } });
     if (!suite || !suite.isPublic) throw new AppError(404, "Suite not found");
@@ -91,7 +92,7 @@ const runSchema = z.object({
   notes: z.string().max(400).optional(),
 });
 
-benchRouter.post("/run", async (req, res, next) => {
+benchRouter.post("/run", systemScope("route:bench-public"), async (req, res, next) => {
   try {
     // Worker token path — constant-time compare against env.
     const presented = req.headers["x-bench-worker-token"];

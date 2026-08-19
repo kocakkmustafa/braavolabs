@@ -23,6 +23,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
+import { systemScope } from "../../middleware/system-scope";
 import { prisma } from "../../lib/db";
 import { encrypt, decrypt } from "../../lib/encryption";
 import { AppError } from "../../middleware/error";
@@ -39,7 +40,7 @@ export const marketplaceRouter = Router();
 
 // ── Public catalog ────────────────────────────────────────
 
-marketplaceRouter.get("/connectors", async (req, res, next) => {
+marketplaceRouter.get("/connectors", systemScope("route:marketplace-public"), async (req, res, next) => {
   try {
     const q = (req.query.q as string | undefined)?.trim();
     const where: any = { visibility: "PUBLIC", isApproved: true };
@@ -65,7 +66,7 @@ marketplaceRouter.get("/connectors", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-marketplaceRouter.get("/connectors/:slug", async (req, res, next) => {
+marketplaceRouter.get("/connectors/:slug", systemScope("route:marketplace-public"), async (req, res, next) => {
   try {
     const slug = req.params.slug;
     const c = await prisma.connector.findUnique({ where: { slug } });

@@ -51,6 +51,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { prisma } from "../../src/lib/db";
+import { runWithoutTenant } from "../../src/lib/tenant-context";
 import { runQueue } from "../../src/lib/queue";
 import { initPipelineRunner, enqueueRun } from "../../src/modules/pipeline/runner";
 import { saveTenantAIConfig } from "../../src/services/ai-client";
@@ -237,7 +238,8 @@ async function main(): Promise<void> {
   process.exit(0);
 }
 
-main().catch(async (err) => {
+// BR-P0-004: maintenance scripts touch many tenants deliberately.
+runWithoutTenant("script:import-run-e2e", () => main()).catch(async (err) => {
   log("FAILED", { error: err instanceof Error ? `${err.name}: ${err.message}` : String(err) });
   try {
     await runQueue.close();

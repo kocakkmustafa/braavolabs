@@ -208,10 +208,18 @@ app.use(pinoHttp({
 // the raw request bytes; once express.json() consumes the stream, route-
 // level express.raw() can no longer recover it and signature verification
 // fails. pinoHttp is mounted above so HTTP access logs still cover them.
-app.use("/hooks", stripeWebhookRouter);
-// Voice provider webhooks (Vapi / Twilio / Retell / custom) — also
-// raw-body + provider-specific HMAC; mounted before json parser.
+// MOUNT ORDER RULE (BR-P0-004): when one mount path is a prefix of another,
+// the MORE SPECIFIC path is mounted FIRST. Express matches mounts in order, and
+// a general router that applies authMiddleware through a PATHLESS
+// `router.use(subRouter)` shadows every path beneath it — which silently 401'd
+// the Apple/Google store webhooks under /billing/iap for months. The invariant
+// is enforced by __tests__/mount-order-invariant.test.ts; do not reorder these
+// so that a general prefix precedes a specific one.
+// Voice provider webhooks (Vapi / Twilio / Retell / custom) — raw-body +
+// provider-specific HMAC; mounted before the json parser AND before the
+// broader /hooks mounts below.
 app.use("/hooks/voice", voiceWebhookRouter);
+app.use("/hooks", stripeWebhookRouter);
 // Generic external webhook router — uses raw body + per-company HMAC for
 // signature verification (key/whitespace mutations on a parsed body would
 // otherwise allow an attacker to mutate a captured signed payload).
@@ -275,10 +283,11 @@ app.get("/health", healthHandler);
 const api = express.Router();
 // /api/v1/health alias (same handler as /health) for external probes.
 api.get("/health", healthHandler);
-api.use("/auth", authRouter);
 // SSO auth flow shares the same /auth/* prefix so the redirect-based
-// sign-in surfaces (Google / GitHub / SSO) live in one mental model.
+// sign-in surfaces (Google / GitHub / SSO) live in one mental model. Mounted
+// BEFORE /auth per the mount-order rule above.
 api.use("/auth/sso", ssoAuthRouter);
+api.use("/auth", authRouter);
 // SSO config CRUD is a tenant-admin surface — mounted under /sso/* so
 // it's clearly separate from auth flows.
 api.use("/sso", ssoConfigRouter);
@@ -288,10 +297,12 @@ api.use("/voice", voiceRouter);
 api.use("/research", researchRouter);
 // Medya orkestrasyonu (FAZ E) — BYOK-only image+TTS, zorunlu maliyet-ack, sağlayıcı-CDN passthrough
 api.use("/media", mediaRouter);
+// Company-template marketplace. Mounted BEFORE /marketplace: marketplaceRouter
+// applies authMiddleware via a PATHLESS `marketplaceRouter.use(tenantRouter)`,
+// which otherwise shadows every /marketplace/templates/* path.
+api.use("/marketplace/templates", templatesRouter);
 // Connector marketplace (public catalog + tenant install surface).
 api.use("/marketplace", marketplaceRouter);
-// Company-template marketplace.
-api.use("/marketplace/templates", templatesRouter);
 // Public Braavolabs Bench leaderboard.
 api.use("/bench", benchRouter);
 api.use("/users", userRouter);
@@ -309,16 +320,26 @@ api.use("/drafts", draftRouter);
 api.use("/dashboard", dashboardRouter);
 api.use("/crm", crmRouter);
 api.use("/outreach", outreachRouter);
-api.use("/billing", billingRouter);
 // Mobile IAP entitlement bridge — mounted under /billing/iap so the path
 // stays clearly under "billing" but lives in its own module to avoid
 // piling Apple/Google verification logic into the Stripe-centric router.
+//
+// MUST be mounted BEFORE /billing. billingRouter contains a PATHLESS
+// `billingRouter.use(authedRouter)` whose authMiddleware therefore matches
+// every /billing/** path, /billing/iap/** included. With /billing first,
+// Apple's App Store Server Notifications V2 and Google Play's RTDN Pub/Sub
+// push both received 401 and never reached their handlers — renewals,
+// cancellations, refunds and grace transitions never updated
+// MobileSubscription. See modules/billing/iap/__tests__/mount-order.test.ts,
+// which drives the real routers through a real app in this exact order.
 api.use("/billing/iap", iapRouter);
+api.use("/billing", billingRouter);
 api.use("/governance", governanceRouter);
-api.use("/onboarding", onboardingRouter);
 // Forge provider-setup wizard (FAZ1-1C) — independent surface from the
-// Faz-8 hero-company onboarding above; own catalogue/validate/status.
+// Faz-8 hero-company onboarding; own catalogue/validate/status. Mounted BEFORE
+// /onboarding per the mount-order rule above.
 api.use("/onboarding/forge", onboardingForgeRouter);
+api.use("/onboarding", onboardingRouter);
 api.use("/growth", growthRouter);
 api.use("/export", exportRouter);
 api.use("/license", licenseRouter);

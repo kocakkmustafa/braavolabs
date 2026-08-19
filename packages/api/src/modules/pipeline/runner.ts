@@ -2,6 +2,7 @@ import type { Job } from "bullmq";
 import * as cron from "node-cron";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
+import { runWithoutTenant } from "../../lib/tenant-context";
 import { env } from "../../config/env";
 import { runQueue, scheduleQueue, createWorker } from "../../lib/queue";
 import { executeStep, checkGovernance, planResume, type StepDef, type StepExecutionResult } from "./executor";
@@ -831,6 +832,11 @@ export function initScheduledTickWorker(): void {
  * not keep a live scheduler after a restart).
  */
 export async function initScheduledPipelines(): Promise<void> {
+  // BR-P0-004: boot-time reconciliation across every tenant's pipelines.
+  return runWithoutTenant("boot:init-scheduled-pipelines", () => initScheduledPipelinesImpl());
+}
+
+async function initScheduledPipelinesImpl(): Promise<void> {
   const pipelines = await prisma.pipeline.findMany({
     where: {
       enabled: true,

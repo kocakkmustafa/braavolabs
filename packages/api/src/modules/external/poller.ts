@@ -12,6 +12,7 @@
  */
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
+import { runWithoutTenant } from "../../lib/tenant-context";
 import { decrypt } from "../../lib/encryption";
 import { n8nAdapter } from "./adapters/n8n";
 import { makeAdapter } from "./adapters/make";
@@ -153,6 +154,11 @@ async function upsertExternalRun(connectionId: string, ex: NormalizedExecution):
 let timer: ReturnType<typeof setInterval> | null = null;
 
 async function tick(): Promise<void> {
+  // BR-P0-004: polls every enabled connection across all tenants.
+  return runWithoutTenant("cron:external-poller", () => tickImpl());
+}
+
+async function tickImpl(): Promise<void> {
   const now = Date.now();
   const conns = await prisma.externalConnection.findMany({ where: { enabled: true }, take: 100 });
   const due = conns.filter(

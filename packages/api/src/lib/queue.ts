@@ -1,6 +1,7 @@
 import { Queue, Worker, type Job, type WorkerOptions } from "bullmq";
 import { redis } from "./redis";
 import { logger } from "./logger";
+import { runWithoutTenant } from "./tenant-context";
 
 // Cast to any to avoid ioredis version mismatch between bullmq's peer dep and direct dep
 const connection = redis as any;
@@ -52,7 +53,22 @@ export function createWorker<T>(
   processor: (job: Job<T>) => Promise<void>,
   opts: Partial<WorkerOptions> = {},
 ) {
-  const worker = new Worker<T>(queueName, processor, {
+  // BR-P0-004: a worker has no request and therefore no tenant context. Mark
+  // that explicitly HERE, at the factory, rather than in each worker body —
+  // a worker added later then inherits the marker instead of silently becoming
+  // an unmarked path (which the fail-closed DB rule rejects at runtime, in
+  // production, on a queue nobody is watching). Behavior is unchanged today:
+  // currentTenantId() stays undefined inside the processor, exactly as before.
+  // Forward EVERY argument: BullMQ calls the processor as
+  // `processFn(job, token, signal)`. Swallowing token/signal would silently
+  // disable Worker.RateLimitError, `job.moveToDelayed(ts, token)` and
+  // abort-on-lock-loss for anything created through this factory.
+  const scopedProcessor = (job: Job<T>, ...rest: unknown[]) =>
+    runWithoutTenant(`worker:${queueName}`, () =>
+      (processor as (...a: unknown[]) => Promise<void>)(job, ...rest),
+    );
+
+  const worker = new Worker<T>(queueName, scopedProcessor, {
     ...DEFAULT_WORKER_OPTS,
     ...opts,
     // connection is enforced — callers cannot pass a different redis

@@ -38,6 +38,7 @@
 import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { prisma } from "../../src/lib/db";
+import { runWithoutTenant } from "../../src/lib/tenant-context";
 import {
   chatCompletion,
   type AIClientConfig,
@@ -333,7 +334,8 @@ async function main(): Promise<void> {
   });
 }
 
-main()
+// BR-P0-004: maintenance scripts touch many tenants deliberately.
+runWithoutTenant("script:handoff-e2e-setup", () => main())
   .then(async () => {
     await prisma.$disconnect();
     process.exit(0);

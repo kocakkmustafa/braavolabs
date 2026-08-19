@@ -7,6 +7,7 @@
 import { Router, raw } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
+import { systemScope } from "../../middleware/system-scope";
 import { prisma } from "../../lib/db";
 import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
@@ -443,9 +444,13 @@ billingRouter.use(authedRouter);
 // ─── Stripe Webhook (no auth, raw body) ──────────────────
 
 export const stripeWebhookRouter = Router();
+// BR-P0-004: signature-verified provider ingress — no authenticated tenant.
+// Marked PER-ROUTE, not router-wide: a router-level marker stays active while
+// Express cascades next() out to sibling routers mounted on the same prefix,
+// which would hand them a marker they never declared.
 
 stripeWebhookRouter.post(
-  "/stripe",
+  "/stripe", systemScope("webhook:stripe"),
   raw({ type: "application/json" }),
   async (req, res) => {
     let config: StripeConfig;

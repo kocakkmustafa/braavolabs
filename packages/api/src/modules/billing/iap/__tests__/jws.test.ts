@@ -67,6 +67,48 @@ d("verifyAppleJws", () => {
       .sign(key);
   }
 
+  // ── BR-P0-004 / F-8: unauthenticated CPU amplifier ──────────────────────
+  //
+  // The /billing/iap/apple/notify route was unreachable for months (shadowed by
+  // billingRouter's auth), so this was never exercised in production. Making it
+  // reachable exposed it: x5c had NO length cap, and the pairwise
+  // certs[i].verify(certs[i+1].publicKey) loop ran BEFORE the cheap
+  // trusted-root anchoring check. A self-signed cert verifies against its own
+  // key, so N identical self-signed certs bought N-1 real ECDSA verifications
+  // per unauthenticated request — ~80ms of single-threaded event-loop CPU at
+  // the 1mb body limit, enough for a handful of IPs to stall the API for every
+  // tenant.
+  it("rejects an oversized x5c chain outright, before verifying any pair", async () => {
+    const bloat = Array.from({ length: 200 }, () => pemBodyToDerB64(rootPem));
+    const jws = await signJws({ a: 1 }, bloat);
+    await expect(verifyAppleJws(jws, { trustedRootsPem: [rootPem] })).rejects.toThrow(
+      /x5c chain is too long/i,
+    );
+  });
+
+  it("still accepts Apple's real chain depth (leaf + intermediate + root)", async () => {
+    const jws = await signJws({ ok: true }, [
+      pemBodyToDerB64(leafPem),
+      pemBodyToDerB64(intPem),
+      pemBodyToDerB64(rootPem),
+    ]);
+    await expect(verifyAppleJws(jws, { trustedRootsPem: [rootPem] })).resolves.toMatchObject({
+      ok: true,
+    });
+  });
+
+  it("checks trusted-root anchoring BEFORE the pairwise chain walk", async () => {
+    // A self-signed cert repeated is internally consistent, so the pairwise
+    // loop would happily verify every pair and only fail at anchoring. If the
+    // error says "not anchored" rather than "chain is broken", the cheap check
+    // ran first — which is what makes the amplifier unprofitable.
+    const selfSigned = pemBodyToDerB64(leafPem);
+    const jws = await signJws({ a: 1 }, [selfSigned, selfSigned, selfSigned]);
+    await expect(verifyAppleJws(jws, { trustedRootsPem: [rootPem] })).rejects.toThrow(
+      /not anchored to a trusted root/i,
+    );
+  });
+
   it("accepts a valid chain anchored to the trusted root and returns the payload", async () => {
     const jws = await signJws({ hello: "world", n: 42 }, [
       pemBodyToDerB64(leafPem),
