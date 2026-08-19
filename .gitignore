@@ -69,3 +69,6 @@ HOLDING_CORE/
 /test-results/
 /playwright-report/
 /blob-report/
+
+# Release artifacts (generated)
+/dist-release/
