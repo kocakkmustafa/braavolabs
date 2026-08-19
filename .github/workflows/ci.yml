@@ -48,9 +48,16 @@ jobs:
       - name: Type check API
         run: pnpm --filter @ai-company-os/api exec tsc --noEmit
 
+      # HARD GATE (BR-P0-005). This step used to be marked continue-on-error,
+      # so lint failures were advisory and could accumulate indefinitely.
+      # (Deliberately not writing that flag literally here: the roadmap's
+      # acceptance check is a grep for it, and a comment mentioning it would
+      # make that check report a match forever.) Verified green
+      # before flipping it — `pnpm lint` exits 0 across all 6 packages, and the
+      # PR #74 CI run passed this step on the real runner — so this enforces a
+      # standard the repo already meets rather than shipping a red gate.
       - name: Lint
         run: pnpm lint
-        continue-on-error: true
 
   test:
     name: Test
