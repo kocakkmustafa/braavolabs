@@ -6,6 +6,7 @@
 
 import { Router, raw } from "express";
 import type { RequestHandler } from "express";
+import { requirePermission } from "../../middleware/require-permission";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
 import { systemScope } from "../../middleware/system-scope";
@@ -369,7 +370,7 @@ const checkoutSchema = z.object({
   billingCycle: z.literal("monthly").default("monthly"),
 }).strict();
 
-authedRouter.post("/checkout", requireTenantAdminRole, async (req, res, next) => {
+authedRouter.post("/checkout", requirePermission("billing:checkout"), async (req, res, next) => {
   try {
     const config = getStripeConfig();
     const { plan, billingCycle } = checkoutSchema.parse(req.body);
@@ -437,7 +438,7 @@ authedRouter.post("/checkout", requireTenantAdminRole, async (req, res, next) =>
 });
 
 // POST /api/v1/billing/portal — Stripe customer portal link
-authedRouter.post("/portal", requireTenantAdminRole, async (req, res, next) => {
+authedRouter.post("/portal", requirePermission("billing:portal"), async (req, res, next) => {
   try {
     const config = getStripeConfig();
     const tenant = await prisma.tenant.findUnique({

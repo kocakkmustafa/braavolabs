@@ -5,6 +5,7 @@
  */
 
 import { Router } from "express";
+import { requirePermission } from "../../middleware/require-permission";
 import { authMiddleware } from "../../middleware/auth";
 import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
@@ -51,7 +52,7 @@ governanceRouter.get("/stops", async (req, res, next) => {
 });
 
 // POST /api/v1/governance/hard-stop/:runId — manually trigger a hard stop on a run
-governanceRouter.post("/hard-stop/:runId", async (req, res, next) => {
+governanceRouter.post("/hard-stop/:runId", requirePermission("governance:hard-stop"), async (req, res, next) => {
   try {
     const run = await prisma.run.findUnique({
       where: { id: req.params.runId },
