@@ -8,10 +8,16 @@
 
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
+import { runWithoutTenant } from "../../lib/tenant-context";
 
 const CONSOLIDATION_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 async function runConsolidation() {
+  // BR-P0-004: cross-tenant sweep — see approval/expiry-cron.ts.
+  return runWithoutTenant("cron:memory-consolidation", () => runConsolidationImpl());
+}
+
+async function runConsolidationImpl() {
   logger.info("Starting memory consolidation cron");
 
   try {

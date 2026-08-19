@@ -9,6 +9,7 @@
 import { Queue, Worker, type Job } from "bullmq";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
+import { runWithoutTenant } from "../../lib/tenant-context";
 import { env } from "../../config/env";
 import { sendEmail } from "../../integrations/email";
 
@@ -218,7 +219,13 @@ function interpolateTemplate(
  * the job would be re-picked up while the original was still running.
  */
 export function initOutreachWorker(): void {
-  const worker = new Worker(QUEUE_NAME, processSequenceStep, {
+  // BR-P0-004: this worker builds its Worker directly rather than through
+  // createWorker (it needs a bespoke lockDuration), so it carries its own
+  // system-scope marker. Behavior unchanged — no tenant context either way.
+  const scopedProcessor = (job: Job<SequenceJobData>) =>
+    runWithoutTenant(`worker:${QUEUE_NAME}`, () => processSequenceStep(job));
+
+  const worker = new Worker(QUEUE_NAME, scopedProcessor, {
     connection,
     concurrency: 1,
     lockDuration: 600_000,

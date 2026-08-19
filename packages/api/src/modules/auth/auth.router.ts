@@ -10,6 +10,7 @@ import { z } from "zod";
 import jwt from "jsonwebtoken";
 import { register, login, getGoogleAuthUrl, googleCallback, getGitHubAuthUrl, githubCallback, requestPasswordReset, resetPassword, refreshTokens, revokeAllRefreshTokens, userIdFromRefreshToken, stashOAuthExchange, redeemOAuthExchange, appleMobileSignIn, googleMobileSignIn, githubMobileSignIn, verifyEmail, resendVerifyEmail, getAppleWebAuthUrl, appleWebCallback } from "./auth.service";
 import { authMiddleware } from "../../middleware/auth";
+import { systemScope } from "../../middleware/system-scope";
 import { setAuthCookies, clearAuthCookies, getCookieAccessToken, getCookieRefreshToken, csrfOkForCookieAuth } from "../../lib/authCookies";
 import { validate } from "../../middleware/validate";
 import { rateLimit } from "../../middleware/rateLimit";
@@ -18,6 +19,11 @@ import { env } from "../../config/env";
 import { AppError } from "../../middleware/error";
 
 export const authRouter = Router();
+// BR-P0-004: register/login/refresh/reset/OAuth-callback all run before a
+// session exists. Mounted router-wide and BEFORE any per-route authMiddleware:
+// the one gated route here (/verify-email/resend) then binds its tenant INSIDE
+// this scope, which is the permitted nesting direction.
+authRouter.use(systemScope("route:auth"));
 
 // Rate limit auth endpoints. Tuned for shared NAT / corporate WiFi where
 // many users share one egress IP — at 10 req / 15 min the previous limit

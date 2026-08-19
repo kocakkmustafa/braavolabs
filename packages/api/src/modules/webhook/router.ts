@@ -7,6 +7,7 @@ import { enqueueRun } from "../pipeline/runner";
 import { claimQuota, releaseQuota } from "../billing/metering";
 import { getWebhookTemplates, getWebhookTemplateById, getWebhookTemplateCategories } from "./templates";
 import { authMiddleware } from "../../middleware/auth";
+import { systemScope } from "../../middleware/system-scope";
 import { AppError } from "../../middleware/error";
 import { env } from "../../config/env";
 import { redis } from "../../lib/redis";
@@ -17,6 +18,10 @@ const webhookParamsSchema = z.object({
 });
 
 export const webhookRouter = Router();
+// BR-P0-004: signature-verified provider ingress — no authenticated tenant.
+// The tenant is only discoverable after the payload is parsed; handlers that
+// do row-level work should bind it with runWithTenant at that point.
+webhookRouter.use(systemScope("webhook:external"));
 
 // POST /hooks/:companySlug/:event — handle external webhooks.
 //

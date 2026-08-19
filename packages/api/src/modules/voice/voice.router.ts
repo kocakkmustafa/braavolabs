@@ -12,6 +12,7 @@
 import { Router, raw } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
+import { systemScope } from "../../middleware/system-scope";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
@@ -158,6 +159,10 @@ voiceRouter.post("/agents/:id/dial", async (req, res, next) => {
 // ─── Webhook router — public, signature-verified ───────────
 
 export const voiceWebhookRouter = Router();
+// BR-P0-004: signature-verified provider ingress — no authenticated tenant.
+// The tenant is only discoverable after the payload is parsed; handlers that
+// do row-level work should bind it with runWithTenant at that point.
+voiceWebhookRouter.use(systemScope("webhook:voice"));
 
 voiceWebhookRouter.post(
   "/:provider/:agentId",

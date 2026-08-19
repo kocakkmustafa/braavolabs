@@ -55,6 +55,7 @@
 import { writeFileSync, readFileSync, mkdirSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { prisma } from "../../src/lib/db";
+import { runWithoutTenant } from "../../src/lib/tenant-context";
 import { runQueue, scheduleQueue } from "../../src/lib/queue";
 import {
   registerSchedule,
@@ -195,7 +196,8 @@ async function main(): Promise<void> {
   process.exit(0);
 }
 
-main().catch(async (err) => {
+// BR-P0-004: maintenance scripts touch many tenants deliberately.
+runWithoutTenant("script:scheduler-e2e", () => main()).catch(async (err) => {
   log("FAILED", { error: err instanceof Error ? err.message : String(err) });
   try { await prisma.$disconnect(); } catch { /* ignore */ }
   process.exit(1);

@@ -16,6 +16,7 @@ import { Router } from "express";
 import { z } from "zod";
 import crypto from "node:crypto";
 import { authMiddleware } from "../../middleware/auth";
+import { systemScope } from "../../middleware/system-scope";
 import { rateLimit } from "../../middleware/rateLimit";
 import { prisma } from "../../lib/db";
 import { redis } from "../../lib/redis";
@@ -115,6 +116,9 @@ ssoConfigRouter.delete("/oidc", async (req, res, next) => {
 // ─── /auth/sso/:tenantSlug — auth flow ────────────────────────
 
 export const ssoAuthRouter = Router();
+// BR-P0-004: pre-auth by definition — the SSO handshake is what establishes
+// the session. ssoConfigRouter above is authMiddleware-gated and stays so.
+ssoAuthRouter.use(systemScope("route:sso-login"));
 
 const initRateLimit = rateLimit({
   windowMs: 60_000,

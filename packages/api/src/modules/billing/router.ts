@@ -7,6 +7,7 @@
 import { Router, raw } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
+import { systemScope } from "../../middleware/system-scope";
 import { prisma } from "../../lib/db";
 import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
@@ -443,6 +444,10 @@ billingRouter.use(authedRouter);
 // ─── Stripe Webhook (no auth, raw body) ──────────────────
 
 export const stripeWebhookRouter = Router();
+// BR-P0-004: signature-verified provider ingress — no authenticated tenant.
+// The tenant is only discoverable after the payload is parsed; handlers that
+// do row-level work should bind it with runWithTenant at that point.
+stripeWebhookRouter.use(systemScope("webhook:stripe"));
 
 stripeWebhookRouter.post(
   "/stripe",
