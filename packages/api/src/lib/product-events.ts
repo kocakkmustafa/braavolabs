@@ -17,7 +17,13 @@
  */
 
 /** A property may be a fixed set of strings, or a number. Never free text. */
-type PropSpec = { enum: readonly string[] } | { number: true };
+type PropSpec =
+  | { enum: readonly string[] }
+  // Bounded and integral, ALWAYS. An unbounded "finite number" is a covert
+  // channel: an IEEE-754 double carries ~53 bits of caller-chosen mantissa,
+  // which is ~6 ASCII characters or a stable pseudonymous id smuggled through
+  // a field named "week". Proven by review, not hypothesised.
+  | { integer: true; min: number; max: number };
 
 interface EventSpec {
   readonly properties: Readonly<Record<string, PropSpec>>;
@@ -46,9 +52,29 @@ export const PRODUCT_EVENTS = {
   },
   run_steered: { properties: { surface: SURFACE } },
   checkout_started: { properties: { plan: { enum: ["creator", "pro", "business"] } } },
-  paid: { properties: { plan: { enum: ["creator", "pro", "business"] } } },
-  retained_control_week: { properties: { week: { number: true } } },
+  // `plan` deliberately OMITTED here. checkout_started already gives conversion
+  // by tier, and at this product's actual volume `paid{plan:"business"}` is
+  // plausibly a population of one — which becomes re-identification the moment
+  // a resettable install id makes the funnel joinable per person.
+  paid: { properties: {} },
+  // Weeks since activation. Bounded to ten years: the value is a small ordinal,
+  // and anything wider is a payload channel rather than a week number.
+  retained_control_week: { properties: { week: { integer: true, min: 0, max: 520 } } },
 } as const satisfies Record<string, EventSpec>;
+
+/**
+ * `as const` is compile-time only — in-process code, or a compromised
+ * dependency, can widen the allowlist or add an event at runtime. For a privacy
+ * control that has to be a hard boundary, freeze it.
+ */
+function deepFreeze<T>(o: T): T {
+  if (o && typeof o === "object") {
+    Object.values(o as Record<string, unknown>).forEach(deepFreeze);
+    Object.freeze(o);
+  }
+  return o;
+}
+deepFreeze(PRODUCT_EVENTS);
 
 export type ProductEventName = keyof typeof PRODUCT_EVENTS;
 
@@ -78,42 +104,67 @@ export function validateProductEvent(
   name: ProductEventName,
   properties: Record<string, unknown>,
 ): ValidationResult {
-  const spec = (PRODUCT_EVENTS as Record<string, EventSpec | undefined>)[name];
-  if (!spec) {
-    return { ok: false, reason: `"${name}" is not on the product-event allowlist (roadmap §6.5)` };
+  // hasOwnProperty, NOT a bare index: `PRODUCT_EVENTS["constructor"]` and
+  // `["__proto__"]` resolve through the prototype chain, so a bare lookup let
+  // nine off-allowlist names validate. Proven by review.
+  if (!Object.prototype.hasOwnProperty.call(PRODUCT_EVENTS, name)) {
+    // Names the EXPECTED set, never the received token — the token is
+    // caller-controlled and may itself be the thing we must not record.
+    return { ok: false, reason: "event name is not on the product-event allowlist (roadmap §6.5)" };
+  }
+  const spec = PRODUCT_EVENTS[name] as EventSpec;
+
+  // Null-prototype: a declared key can then never reach the `__proto__` setter.
+  const out: Record<string, string | number> = Object.create(null);
+
+  let entries: [string, unknown][];
+  try {
+    // Object.entries INVOKES getters, so a hostile or buggy getter throws from
+    // inside the validator. This function is documented to RETURN a result;
+    // throwing here means a caller's `if (!result.ok)` never runs, and under
+    // Express 4 (which does not catch async rejections) the request hangs
+    // rather than 500s.
+    entries = Object.entries(properties);
+  } catch {
+    return { ok: false, reason: "event properties could not be read" };
   }
 
-  const out: Record<string, string | number> = {};
-  for (const [key, value] of Object.entries(properties)) {
-    const propSpec = spec.properties[key];
-    if (!propSpec) {
-      // The default-deny guarantee. Naming the event and property makes the
-      // fix obvious: declare it here, or stop sending it.
+  for (const [key, value] of entries) {
+    if (!Object.prototype.hasOwnProperty.call(spec.properties, key)) {
+      // Same prototype hazard as the name lookup. JSON.parse('{"__proto__":…}')
+      // produces an OWN enumerable "__proto__", so this is reachable from real
+      // inbound payloads, not just hand-written objects.
       return {
         ok: false,
-        reason: `"${key}" is not a declared property of "${name}" — product events are default-deny, so add it to PRODUCT_EVENTS or stop sending it`,
+        reason: `event carries a property that is not declared for it — product events are default-deny, so declare it in PRODUCT_EVENTS or stop sending it`,
       };
     }
-    if ("number" in propSpec) {
-      if (typeof value !== "number" || !Number.isFinite(value)) {
-        return { ok: false, reason: `"${key}" on "${name}" must be a finite number` };
+    const propSpec = spec.properties[key]!;
+
+    if ("integer" in propSpec) {
+      if (
+        typeof value !== "number" ||
+        !Number.isInteger(value) ||
+        value < propSpec.min ||
+        value > propSpec.max
+      ) {
+        return {
+          ok: false,
+          reason: `a numeric property must be an integer between ${propSpec.min} and ${propSpec.max}`,
+        };
       }
       out[key] = value;
       continue;
     }
-    if (typeof value !== "string") {
-      return { ok: false, reason: `"${key}" on "${name}" must be one of: ${propSpec.enum.join(", ")}` };
-    }
-    if (!propSpec.enum.includes(value)) {
-      // Deliberately does NOT echo the value: if it IS a leaked prompt, the
-      // rejection message would become the leak.
+
+    if (typeof value !== "string" || !propSpec.enum.includes(value)) {
       return {
         ok: false,
-        reason: `"${key}" on "${name}" is not an allowed value (expected one of: ${propSpec.enum.join(", ")})`,
+        reason: `a property value is not on its allowed list (expected one of: ${propSpec.enum.join(", ")})`,
       };
     }
     out[key] = value;
   }
 
-  return { ok: true, event: { name, properties: out } };
+  return { ok: true, event: { name, properties: { ...out } } };
 }

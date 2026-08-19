@@ -332,6 +332,15 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @ai-company-os/db exec prisma db push --skip-generate --accept-data-loss
+      # BR-P0-004 slice 4. The cross-tenant matrix skips itself unless
+      # XTENANT_DATABASE_URL is set — deliberate, so a laptop `pnpm test` does
+      # not need a database. But that meant all 15 of its tests were SKIPPED in
+      # every CI run too, so the suite contributed ZERO assurance where it
+      # matters most. It runs here, against the same throwaway Postgres.
+      - name: Cross-tenant isolation matrix
+        run: pnpm --filter @ai-company-os/api test:xtenant
+        env:
+          XTENANT_DATABASE_URL: postgresql://test:test@localhost:5432/aicos_e2e
       - run: pnpm build
       - name: Link standalone assets
         # Next does not copy .next/static or public/ into the standalone bundle;
