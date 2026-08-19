@@ -56,27 +56,16 @@ templatesRouter.get("/", systemScope("route:templates-public"), async (req, res,
   } catch (err) { next(err); }
 });
 
-templatesRouter.get("/:slug", systemScope("route:templates-public"), async (req, res, next) => {
-  try {
-    const t = await prisma.companyTemplate.findUnique({ where: { slug: req.params.slug } });
-    if (!t) throw new AppError(404, "Template not found");
-    if (t.visibility !== "PUBLIC" || !t.isApproved) throw new AppError(404, "Template not found");
-    const ratings = await prisma.templateRating.findMany({
-      where: { templateId: t.id, review: { not: null } },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-      select: { rating: true, review: true, createdAt: true },
-    });
-    res.json({ ...t, recentRatings: ratings });
-  } catch (err) { next(err); }
-});
 
 // ── Tenant surfaces ────────────────────────────────────────
 
 const tenantRouter = Router();
-tenantRouter.use(authMiddleware);
+// Auth is applied PER ROUTE, not as a pathless `tenantRouter.use(authMiddleware)`.
+// This router is mounted ahead of the public `GET /:slug` (see below), so a
+// router-level guard would 401 every public template lookup on its way past.
+// Same reasoning as the per-route systemScope markers (BR-P0-004).
 
-tenantRouter.get("/my-installs", async (req, res, next) => {
+tenantRouter.get("/my-installs", authMiddleware, async (req, res, next) => {
   try {
     const installs = await prisma.templateInstall.findMany({
       where: { tenantId: req.auth!.tenantId },
@@ -89,7 +78,7 @@ tenantRouter.get("/my-installs", async (req, res, next) => {
 
 const installSchema = z.object({ companyNameOverride: z.string().min(1).max(120).optional() });
 
-tenantRouter.post("/:slug/install", async (req, res, next) => {
+tenantRouter.post("/:slug/install", authMiddleware, async (req, res, next) => {
   try {
     const body = installSchema.parse(req.body);
     const t = await prisma.companyTemplate.findUnique({ where: { slug: req.params.slug } });
@@ -117,7 +106,7 @@ const checkoutSchema = z.object({
 // materialising the install. The Stripe-side verification step is
 // the operator's responsibility — the Stripe webhook handler
 // processes the canonical confirmation event.
-tenantRouter.post("/:slug/install-paid", async (req, res, next) => {
+tenantRouter.post("/:slug/install-paid", authMiddleware, async (req, res, next) => {
   try {
     const body = checkoutSchema.parse(req.body);
     const t = await prisma.companyTemplate.findUnique({ where: { slug: req.params.slug } });
@@ -142,7 +131,7 @@ const rateSchema = z.object({
   review: z.string().max(2000).optional(),
 });
 
-tenantRouter.post("/:slug/rate", async (req, res, next) => {
+tenantRouter.post("/:slug/rate", authMiddleware, async (req, res, next) => {
   try {
     const body = rateSchema.parse(req.body);
     const t = await prisma.companyTemplate.findUnique({ where: { slug: req.params.slug } });
@@ -170,7 +159,7 @@ const publishSchema = z.object({
   visibility: z.enum(["PUBLIC", "UNLISTED", "PRIVATE"]).default("PRIVATE"),
 });
 
-tenantRouter.post("/publish", async (req, res, next) => {
+tenantRouter.post("/publish", authMiddleware, async (req, res, next) => {
   try {
     const body = publishSchema.parse(req.body);
     if (body.pricing === "PAID" && !body.priceUsd) {
@@ -228,7 +217,7 @@ tenantRouter.post("/publish", async (req, res, next) => {
 
 // Admin approval gate, env-listed admin emails (same approach as the
 // connector marketplace).
-tenantRouter.post("/:slug/approve", async (req, res, next) => {
+tenantRouter.post("/:slug/approve", authMiddleware, async (req, res, next) => {
   try {
     const adminEmails = (process.env.MARKETPLACE_ADMIN_EMAILS ?? "")
       .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
@@ -242,3 +231,26 @@ tenantRouter.post("/:slug/approve", async (req, res, next) => {
 });
 
 templatesRouter.use(tenantRouter);
+
+// ── Public template detail — registered LAST, deliberately ──────────────────
+//
+// `GET /:slug` matches any single segment, so wherever it sits, every literal
+// sibling route with the same verb and segment count registered AFTER it
+// becomes unreachable. `GET /marketplace/templates/my-installs` was answering
+// 404 "Template not found" instead of reaching its handler for exactly this
+// reason. Keeping the catch-all last is what makes the literal routes above
+// win. Same shadowing class as the index.ts mount-order rule, one level down.
+templatesRouter.get("/:slug", systemScope("route:templates-public"), async (req, res, next) => {
+  try {
+    const t = await prisma.companyTemplate.findUnique({ where: { slug: req.params.slug } });
+    if (!t) throw new AppError(404, "Template not found");
+    if (t.visibility !== "PUBLIC" || !t.isApproved) throw new AppError(404, "Template not found");
+    const ratings = await prisma.templateRating.findMany({
+      where: { templateId: t.id, review: { not: null } },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: { rating: true, review: true, createdAt: true },
+    });
+    res.json({ ...t, recentRatings: ratings });
+  } catch (err) { next(err); }
+});

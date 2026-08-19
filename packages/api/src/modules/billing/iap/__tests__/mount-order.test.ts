@@ -73,7 +73,7 @@ beforeAll(async () => {
   api.use("/billing", billingRouter);
   app.use("/api/v1", api);
   app.use((err: any, _req: any, res: any, _next: any) => {
-    res.status(err?.status ?? 500).json({ error: err?.message ?? "error" });
+    res.status(err?.statusCode ?? err?.status ?? 500).json({ error: err?.message ?? "error" });
   });
 
   server = http.createServer(app);

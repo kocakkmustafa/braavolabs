@@ -24,13 +24,41 @@ import { join } from "node:path";
  */
 const SRC = readFileSync(join(__dirname, "..", "index.ts"), "utf8");
 
-/** Every `app.use("/path", …)` / `api.use("/path", …)` in registration order. */
-function mounts(): Array<{ line: number; path: string; router: string }> {
-  const out: Array<{ line: number; path: string; router: string }> = [];
-  SRC.split("\n").forEach((text, i) => {
-    const m = /^\s*(?:app|api)\.use\(\s*"([^"]+)"\s*,\s*([A-Za-z0-9_]+)/.exec(text);
-    if (m) out.push({ line: i + 1, path: m[1], router: m[2] });
-  });
+/**
+ * Every `app.use(<path>, …)` / `api.use(<path>, …)` in registration order.
+ *
+ * Scans for the call, then walks the balanced argument list — so a mount split
+ * across lines (what Prettier produces once the line exceeds print width) is
+ * still seen. A mount whose path is NOT a plain string literal (template
+ * literal, variable) is returned with `path: null` and FAILS the suite rather
+ * than being skipped: a check that silently stops seeing a mount is worse than
+ * no check, which is the whole lesson of the two shadowing bugs below.
+ */
+function mounts(): Array<{ line: number; path: string | null; router: string; raw: string }> {
+  const out: Array<{ line: number; path: string | null; router: string; raw: string }> = [];
+  const call = /\b(?:app|api)\.use\(/g;
+  let m: RegExpExecArray | null;
+  while ((m = call.exec(SRC))) {
+    // Walk to the matching close paren so multi-line calls are captured whole.
+    let depth = 1;
+    let i = m.index + m[0].length;
+    for (; i < SRC.length && depth > 0; i++) {
+      const ch = SRC[i];
+      if (ch === "(") depth++;
+      else if (ch === ")") depth--;
+    }
+    const raw = SRC.slice(m.index, i);
+    const args = raw.slice(m[0].length, -1).trim();
+    const line = SRC.slice(0, m.index).split("\n").length;
+
+    // `app.use(router)` with no path — not a prefix mount, nothing to order.
+    const firstArg = args.split(",")[0]?.trim() ?? "";
+    if (!firstArg.startsWith('"') && !firstArg.startsWith("'") && !firstArg.startsWith("`")) continue;
+
+    const lit = /^["']([^"']+)["']$/.exec(firstArg);
+    const router = (args.split(",")[1] ?? "").trim().split(/[^A-Za-z0-9_]/)[0] || "<inline>";
+    out.push({ line, path: lit ? lit[1]! : null, router, raw: raw.slice(0, 60) });
+  }
   return out;
 }
 
@@ -38,10 +66,18 @@ const isPrefixOf = (general: string, specific: string) =>
   specific !== general && specific.startsWith(general.replace(/\/$/, "") + "/");
 
 describe("index.ts mount order", () => {
-  it("parses a plausible number of path mounts (guards the regex itself)", () => {
-    // If index.ts is reformatted and the regex silently matches nothing, every
-    // assertion below would pass vacuously. Pin a floor.
-    expect(mounts().length).toBeGreaterThan(30);
+  it("sees every path mount (a parser that goes blind must fail, not pass)", () => {
+    // Pinned exactly, not as a floor: if index.ts is reformatted and the parser
+    // silently stops seeing mounts, every assertion below would pass vacuously.
+    // Update this number deliberately when a mount is genuinely added/removed.
+    expect(mounts().length).toBe(43);
+  });
+
+  it("refuses a mount path it cannot statically read", () => {
+    // A template-literal or variable path would be invisible to the ordering
+    // check. Fail loudly rather than skipping it.
+    const opaque = mounts().filter((m) => m.path === null);
+    expect(opaque.map((m) => `line ${m.line}: ${m.raw}`)).toEqual([]);
   });
 
   it("never mounts a general prefix before a more specific one", () => {
@@ -49,7 +85,7 @@ describe("index.ts mount order", () => {
     const violations: string[] = [];
     all.forEach((general, i) => {
       all.slice(i + 1).forEach((specific) => {
-        if (isPrefixOf(general.path, specific.path)) {
+        if (general.path && specific.path && isPrefixOf(general.path, specific.path)) {
           violations.push(
             `"${general.path}" (${general.router}, line ${general.line}) is mounted BEFORE ` +
               `"${specific.path}" (${specific.router}, line ${specific.line}) — ` +

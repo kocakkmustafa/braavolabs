@@ -1,4 +1,4 @@
-import type { Request, Response, NextFunction } from "express";
+import type { Request, RequestHandler, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env";
 import { runWithTenant } from "../lib/tenant-context";
@@ -23,7 +23,16 @@ declare global {
  * Extracts tenant context for tenant-isolated queries and sets the
  * PostgreSQL session variable `app.tenant_id` for RLS policies.
  */
-export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
+export const authMiddleware: RequestHandler<any, any, any, any> = async function authMiddleware(
+  // Generics are deliberately `any`. As ROUTE middleware this sits alongside the
+  // real handler, and a concretely-typed RequestHandler becomes an inference
+  // candidate for Express's route-parameter generic — which collapses
+  // `req.params.slug` on a "/:slug" route from `string` to `string | string[]`
+  // in the handler beside it. Same reasoning as middleware/system-scope.ts.
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   // Bearer header keeps PRIORITY — mobile clients, API callers, and the
   // current web client are unaffected. Only when there is no Bearer header
   // do we consult the httpOnly access cookie, and only when AUTH_COOKIE_MODE
@@ -86,7 +95,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   // tenant's own rows). Primary isolation remains the app-layer WHERE tenantId;
   // RLS is the enforced DB-level second layer.
   runWithTenant(payload.tenantId, next);
-}
+};
 
 /**
  * Require specific role(s).
