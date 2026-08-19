@@ -5,5 +5,18 @@
     "rootDir": "./src"
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.test.ts", "src/**/*.spec.ts", "src/**/__tests__/**"]
+  // "* 2.ts" / "* 3.ts" are iCloud Drive sync-conflict duplicates (the same
+  // pattern .gitignore:64 already ignores). They are untracked, nothing imports
+  // them, but tsc was compiling them into dist/ — shipping stale copies of
+  // money-path modules in the image, free to drift out of sync with the real
+  // file. Excluded here so the build is unaffected whether or not iCloud
+  // recreates them.
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+    "src/**/__tests__/**",
+    "src/**/* 2.ts",
+    "src/**/* 3.ts",
+    "src/**/* 4.ts"
+  ]
 }
