@@ -16,6 +16,8 @@
  * name-only check.
  */
 
+import { logger } from "./logger";
+
 /** A property may be a fixed set of strings, or a number. Never free text. */
 type PropSpec =
   | { enum: readonly string[] }
@@ -59,6 +61,26 @@ export const PRODUCT_EVENTS = {
   paid: { properties: {} },
   // Weeks since activation. Bounded to ten years: the value is a small ordinal,
   // and anything wider is a payload channel rather than a week number.
+  //
+  // ⚠️ READ THIS BEFORE ADDING A RESETTABLE INSTALL ID.
+  //
+  // [0,520] is 521 values = ~9 bits PER EVENT. That is narrowed, not closed: a
+  // SEQUENCE of retained_control_week events reassembles arbitrary data — 5
+  // events carry 6 ASCII characters, 8 carry a 64-bit id, 15 carry a UUID
+  // (measured, not estimated).
+  //
+  // Today that is harmless because there is no transport and no install id, so
+  // events are unlinkable — a receiver cannot tell which events came from the
+  // same client, and an unordered multiset of week numbers from a mixed
+  // population carries nothing. An install id is EXACTLY what makes the
+  // sequence reassemblable, so it turns this into a live covert channel.
+  //
+  // The fix at that point is NOT a tighter range. DERIVE `week` SERVER-SIDE
+  // from the install's first-seen timestamp and ignore the client's value: this
+  // is a weekly retention ping, the server already knows the answer, and that
+  // makes the channel 0 bits. Failing that, dedupe on (install_id, week),
+  // reject non-monotonic values, and accept one event per install per week —
+  // which caps the channel at ~9 bits total per install rather than per event.
   retained_control_week: { properties: { week: { integer: true, min: 0, max: 520 } } },
 } as const satisfies Record<string, EventSpec>;
 
@@ -131,6 +153,10 @@ export function validateProductEvent(
 
   for (const [key, value] of entries) {
     if (!Object.prototype.hasOwnProperty.call(spec.properties, key)) {
+      // The RETURNED reason names no token (it may cross a trust boundary), but
+      // an engineer wiring a new event needs to know which property was
+      // refused. Log it here, where we are already inside the boundary.
+      logger.debug({ event: name, property: key }, "product event rejected: undeclared property");
       // Same prototype hazard as the name lookup. JSON.parse('{"__proto__":…}')
       // produces an OWN enumerable "__proto__", so this is reachable from real
       // inbound payloads, not just hand-written objects.
@@ -145,6 +171,10 @@ export function validateProductEvent(
       if (
         typeof value !== "number" ||
         !Number.isInteger(value) ||
+        // -0 passes Number.isInteger and both bounds, and JSON.stringify(-0) is
+        // "0" — so it is one bit that exists in memory and vanishes on the wire.
+        // Harmless today; rejected so the schema means exactly what it says.
+        Object.is(value, -0) ||
         value < propSpec.min ||
         value > propSpec.max
       ) {

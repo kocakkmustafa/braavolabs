@@ -179,6 +179,13 @@ describe("review regressions", () => {
     }
   });
 
+  it("rejects -0 so the schema means exactly what it says", () => {
+    // -0 passes Number.isInteger and both bounds, and JSON.stringify(-0) is
+    // "0" — a bit that exists in memory and vanishes on the wire.
+    expect(validateProductEvent("retained_control_week", { week: -0 }).ok).toBe(false);
+    expect(validateProductEvent("retained_control_week", { week: 0 }).ok).toBe(true);
+  });
+
   it("Q4: `paid` no longer carries plan (re-identification at low volume)", () => {
     expect(validateProductEvent("paid", { plan: "business" } as never).ok).toBe(false);
     expect(validateProductEvent("paid", {}).ok).toBe(true);
