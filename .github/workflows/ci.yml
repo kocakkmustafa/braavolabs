@@ -353,3 +353,44 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 14
+
+  release-artifacts:
+    name: SBOM + checksums
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # Generates a CycloneDX SBOM and SHA256SUMS, then VERIFIES the checksums
+      # it just wrote — generating them proves nothing on its own.
+      - run: bash scripts/release-artifacts.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-provenance
+          path: dist-release/
+          retention-days: 90
+
+  workflow-watchdog:
+    name: Post-merge workflow watchdog
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Runs AFTER the other jobs so it observes their real outcome.
+    needs: [lint-and-typecheck, test, build]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # NOTE the inherent limit: a watchdog running INSIDE Actions cannot report
+      # "Actions never ran" — it would be blocked too. That is the outage this
+      # check exists for, so it is ALSO runnable standalone:
+      #   bash scripts/workflow-watchdog.sh <sha>
+      # Run it from a laptop or an external scheduler for real coverage.
+      - run: bash scripts/workflow-watchdog.sh "${{ github.sha }}" CI
+        env:
+          GH_TOKEN: ${{ github.token }}
