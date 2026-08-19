@@ -13,6 +13,7 @@
  */
 
 import { Router } from "express";
+import { requirePermission } from "../../middleware/require-permission";
 import { z } from "zod";
 import crypto from "node:crypto";
 import { authMiddleware } from "../../middleware/auth";
@@ -72,11 +73,8 @@ const oidcUpsertSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
-ssoConfigRouter.put("/oidc", async (req, res, next) => {
+ssoConfigRouter.put("/oidc", requirePermission("sso:configure"), async (req, res, next) => {
   try {
-    if (req.auth!.role !== "OWNER" && req.auth!.role !== "ADMIN") {
-      throw new AppError(403, "Only tenant owners or admins can change SSO configuration");
-    }
     await requireSsoEnabledPlan(req.auth!.tenantId);
     const body = oidcUpsertSchema.parse(req.body);
     const result = await upsertOidcConnection(req.auth!.tenantId, body);
@@ -94,11 +92,8 @@ ssoConfigRouter.put("/oidc", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-ssoConfigRouter.delete("/oidc", async (req, res, next) => {
+ssoConfigRouter.delete("/oidc", requirePermission("sso:configure"), async (req, res, next) => {
   try {
-    if (req.auth!.role !== "OWNER" && req.auth!.role !== "ADMIN") {
-      throw new AppError(403, "Only tenant owners or admins can remove SSO configuration");
-    }
     await deleteOidcConnection(req.auth!.tenantId);
     await prisma.activityLog.create({
       data: {

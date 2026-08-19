@@ -48,9 +48,34 @@ export const PRIVILEGED_ACTIONS = {
   "company:delete": "OWNER",
   "billing:checkout": "OWNER",
   "billing:portal": "OWNER",
+  // The SPEND CAP, not just the act of paying. A review caught that shipping
+  // "money is OWNER-only" while leaving this open made the claim false: any
+  // member could raise monthlyBudgetUsd to the schema max, or null it and
+  // thereby disable the cost-anomaly stop that rule #8 depends on.
+  "billing:budget": "OWNER",
+  // Tenant-wide credential control, and keyed on tenantId rather than userId:
+  // whoever writes this replaces the BYOK apiKey AND baseUrl for every user in
+  // the tenant, which points every LLM call at an endpoint of their choosing
+  // and exfiltrates prompts and outputs. Strictly more damaging than
+  // company:delete, which is a soft archive.
+  "settings:ai-config": "ADMIN",
   "governance:hard-stop": "ADMIN",
-  "approval:decide": "ADMIN",
   "sso:configure": "ADMIN",
+
+  // ── approval:decide is deliberately held at MEMBER ────────────────────────
+  //
+  // It belongs at ADMIN on the reversibility principle, and it was set there.
+  // A review found that would break the product the first time an org enables
+  // SSO: sso.router.ts provisions every JIT user as MEMBER, there is NO
+  // member-management endpoint anywhere in the API, and approvals are a core
+  // workflow (rule #3 makes them the gate on every money-touching action). So
+  // ADMIN would be an unreachable tier, and the only remedy would be a manual
+  // UPDATE against production.
+  //
+  // Holding at MEMBER preserves today's behaviour rather than shipping a matrix
+  // whose ADMIN tier nobody can reach. Raising it requires a role-management
+  // surface first — a founder decision, recorded in the evidence ledger.
+  "approval:decide": "MEMBER",
 } as const satisfies Record<string, AppRole>;
 
 export type PrivilegedAction = keyof typeof PRIVILEGED_ACTIONS;
