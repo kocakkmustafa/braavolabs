@@ -239,8 +239,14 @@ export function parseGoogleRtdnEnvelope(envelope: unknown): {
   notificationType: number;
   purchaseToken: string;
   subscriptionId: string;
+  /** Pub/Sub's own per-delivery message id — the entitlement ledger's
+   * dedup key. A redelivery of the same publish carries the same
+   * messageId, same principle as Apple's notificationUUID. */
+  messageId: string;
+  /** When Pub/Sub published this message — the ledger's ordering key. */
+  publishTime: Date;
 } | null {
-  const msg = (envelope as { message?: { data?: string } })?.message;
+  const msg = (envelope as { message?: { data?: string; messageId?: string; publishTime?: string } })?.message;
   if (!msg?.data) return null;
   let parsed: {
     packageName?: string;
@@ -263,5 +269,7 @@ export function parseGoogleRtdnEnvelope(envelope: unknown): {
     notificationType,
     purchaseToken,
     subscriptionId,
+    messageId: msg.messageId ?? "",
+    publishTime: msg.publishTime ? new Date(msg.publishTime) : new Date(),
   };
 }
