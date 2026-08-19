@@ -167,7 +167,9 @@ describe("composeAgent — provider resolution honesty (D-013)", () => {
     expect(result.agent.role).toBe("billing_support");
     expect(result.provider).toBe("DEEPSEEK");
     // BYOK source → the trial counter is never touched.
-    expect(commitTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "byok-default");
+    expect(commitTrialCompletionMock).toHaveBeenCalledWith(
+      "tenant-1", "byok-default", expect.objectContaining({ provider: "DEEPSEEK", model: "deepseek-chat" }),
+    );
   });
 
   it("trial-served completion: the run-based counter is committed AFTER a successful serve", async () => {
@@ -193,7 +195,9 @@ describe("composeAgent — provider resolution honesty (D-013)", () => {
 
     // commitTrialCompletion is called with the trial source only after the
     // completion resolved — a thrown completion would skip it (slot refunded).
-    expect(commitTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "trial");
+    expect(commitTrialCompletionMock).toHaveBeenCalledWith(
+      "tenant-1", "trial", expect.objectContaining({ provider: "GROQ", model: "llama-3.3-70b-versatile" }),
+    );
     // Ordering: chatCompletion must run BEFORE the counter commit.
     expect(chatCompletionMock.mock.invocationCallOrder[0]).toBeLessThan(
       commitTrialCompletionMock.mock.invocationCallOrder[0],

@@ -28,12 +28,33 @@
  * The race window (two concurrent runs both seeing remaining=1) is fine
  * — worst case a tenant gets 4 trial runs instead of 3. Cheaper to live
  * with than to lock the row across the entire AI call.
+ *
+ * $0.30 TOTAL cost cap: the roadmap's "3 hosted guided run, $0.30 total
+ * provider cost" is one requirement, not two independent ones — the run
+ * COUNT above bounds the number of calls, but not what a single call could
+ * cost (an oversized prompt could burn far more than a typical trial turn).
+ * The dollar ceiling closes that gap, and it settles into the SAME bucket
+ * trial-credit.service.ts already guards (FORGE_TRIAL_CREDIT_USD_CAP,
+ * metric "forge_trial_credit_usd") — that module's atomic reserve/settle
+ * primitives are reused here, not reimplemented. Unlike the run counter,
+ * this is a plain check-before / settle-after (no upfront reservation):
+ * trial-credit.service.ts reserves upfront because a single validation
+ * ping is cheap enough to lock atomically end-to-end; a full trial-served
+ * pipeline run is not, and this module's own race tolerance above already
+ * accepts the equivalent imprecision for the run counter. Same trade,
+ * applied consistently — cheaper to live with a small race than to hold a
+ * reservation open across an entire agent-loop run.
  */
 
 import { prisma } from "../lib/db";
 import { env } from "../config/env";
 import { logger } from "../lib/logger";
 import type { AIClientConfig } from "./ai-client";
+import {
+  trialCreditEnabled,
+  getForgeTrialCreditStatus,
+  settleTrialCredit,
+} from "../modules/billing/trial-credit.service";
 
 export interface TrialDecision {
   config: AIClientConfig;
@@ -96,6 +117,21 @@ export async function tryConsumeTrialRun(tenantId: string): Promise<TrialDecisio
     return null;
   }
 
+  // $0.30 total cost cap — checked last (most expensive: a DB read against
+  // the shared credit bucket) and short-circuited entirely while the cap is
+  // disabled (env.FORGE_TRIAL_CREDIT_USD_CAP=0, prod's current default), so
+  // this is a complete no-op until that value is deliberately raised.
+  if (trialCreditEnabled()) {
+    const creditStatus = await getForgeTrialCreditStatus(tenantId);
+    if (creditStatus.exhausted) {
+      logger.info(
+        { tenantId, spentUsd: creditStatus.spentUsd, capUsd: creditStatus.capUsd },
+        "tryConsumeTrialRun: hosted-trial cost cap reached — trial credit withheld (fail-closed)",
+      );
+      return null;
+    }
+  }
+
   const trialKey = process.env.GROQ_API_KEY!;
   const trialModel = process.env.GROQ_TRIAL_MODEL || "llama-3.3-70b-versatile";
 
@@ -114,13 +150,33 @@ export async function tryConsumeTrialRun(tenantId: string): Promise<TrialDecisio
  * Commit a successful trial run — increments the counter atomically.
  * Called from the executor after the AI call returns. If the run failed,
  * skip this — we don't burn trial credit on our own errors.
+ *
+ * `costUsd`, when given, retires that REAL cost from the shared $0.30
+ * hosted-trial bucket (see the module docblock) — passed as `reservationUsd
+ * = 0` to settleTrialCredit since nothing was reserved upfront here, so the
+ * whole cost becomes the delta. A no-op whenever the cap is disabled or no
+ * cost was measured, and never allowed to fail the run-count commit: the
+ * counter is the run-count source of truth and must land even if the cost
+ * bucket write has a transient hiccup (mirrors trial-credit.service.ts's
+ * own "non-fatal, self-corrects" stance on bucket writes).
  */
-export async function commitTrialRun(tenantId: string): Promise<void> {
+export async function commitTrialRun(tenantId: string, costUsd?: number): Promise<void> {
   await prisma.tenant.update({
     where: { id: tenantId },
     data: { trialRunsUsed: { increment: 1 } },
   });
   logger.info({ tenantId }, "Trial run committed");
+
+  if (costUsd !== undefined && trialCreditEnabled()) {
+    try {
+      await settleTrialCredit(tenantId, 0, costUsd);
+    } catch (err) {
+      logger.warn(
+        { tenantId, costUsd, err: (err as Error).message },
+        "commitTrialRun: settling the hosted-trial cost bucket failed (non-fatal — run-count commit already landed)",
+      );
+    }
+  }
 }
 
 /**

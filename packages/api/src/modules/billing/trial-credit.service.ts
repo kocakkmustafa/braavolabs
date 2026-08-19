@@ -356,7 +356,11 @@ export async function getForgeTrialCreditStatus(
 
 const UNKNOWN_MODEL_FALLBACK_PRICE = { inputPerM: 10.0, outputPerM: 30.0 };
 
-function costForTrialUsage(
+/** Exported for reuse by trial-llm.ts's completion call sites, which settle
+ * against this SAME bucket (see that module's cost-cap section) — the
+ * roadmap's "$0.30 hosted trial" figure is one TOTAL cap across every
+ * trial-funded surface, not a separate allowance per flow. */
+export function costForTrialUsage(
   provider: AIProviderType,
   model: string,
   inputTokens: number,

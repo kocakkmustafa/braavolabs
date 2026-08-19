@@ -234,8 +234,10 @@ describe("D-009 — BYOK-less FREE tenant must NEVER burn the uncounted system k
     // The run went to the TRIAL Groq key — counted — not the system wallet.
     expect(dialedConfigs()[0]).toMatchObject({ provider: "GROQ", apiKey: TRIAL_KEY });
     expect(dialedConfigs().every((c) => c.apiKey !== SYSTEM_KEY)).toBe(true);
-    // Trial counter committed after success (run-based counter).
-    expect(commitTrialRunMock).toHaveBeenCalledExactlyOnceWith(TENANT);
+    // Trial counter committed after success (run-based counter), together
+    // with the run's real cost — settles into the shared $0.30 hosted-trial
+    // bucket (trial-llm.ts's cost-cap section).
+    expect(commitTrialRunMock).toHaveBeenCalledExactlyOnceWith(TENANT, expect.any(Number));
     expect(result.finalContent).toBe("trial answer");
   });
 

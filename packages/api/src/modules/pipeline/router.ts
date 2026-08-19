@@ -164,7 +164,7 @@ Rules:
     }
     // Count the trial slot only after a successful serve (D-009/D-013 parity):
     // a thrown completion above never reaches this line, so the slot is refunded.
-    await commitTrialCompletion(req.auth!.tenantId, link.source);
+    await commitTrialCompletion(req.auth!.tenantId, link.source, completion);
 
     // Cost telemetry — without this, every NL pipeline build is an
     // un-tracked LLM charge that won't show up in usage analytics.

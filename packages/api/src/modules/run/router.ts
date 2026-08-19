@@ -174,7 +174,7 @@ runRouter.post("/:id/explain", explainLimiter, async (req, res, next) => {
       throw new AppError(502, "Couldn't reach your AI provider to generate an explanation. Try again shortly.");
     }
     // Count the trial slot only after a successful serve (D-009/D-013 parity).
-    await commitTrialCompletion(req.auth!.tenantId, link.source);
+    await commitTrialCompletion(req.auth!.tenantId, link.source, result);
 
     // Parse the JSON the model returned; tolerate markdown fences and fall back
     // to using the raw text as the explanation if it isn't valid JSON.

@@ -167,7 +167,7 @@ export async function composeAgent(
 
   const result = await chatCompletion(aiConfig, systemPrompt, messages, 4096);
   // Count the trial slot only after a successful serve (D-009/D-013 parity).
-  await commitTrialCompletion(tenantId, link.source);
+  await commitTrialCompletion(tenantId, link.source, result);
 
   let parsed: unknown;
   try {

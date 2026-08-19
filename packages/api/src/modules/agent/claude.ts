@@ -1244,7 +1244,13 @@ export async function runAgentLoop(config: {
     // didn't — the slot is refunded, same contract as before).
     if (result.servedBy === "trial") {
       try {
-        await commitTrialRun(config.tenantId);
+        // totalCostUsd covers the whole run, not just the trial-served
+        // turns (a mid-run failover could mix sources) — conservative by
+        // construction: the hosted-trial bucket is charged at least what
+        // the trial link caused, never less. Matches this counter's own
+        // existing all-or-nothing granularity (servedBy is a single flag,
+        // not a per-turn attribution either).
+        await commitTrialRun(config.tenantId, result.totalCostUsd);
       } catch (err) {
         // A counter miss is cheaper than failing a successful run — the
         // race-window comment in trial-llm.ts already accepts ±1 accuracy.

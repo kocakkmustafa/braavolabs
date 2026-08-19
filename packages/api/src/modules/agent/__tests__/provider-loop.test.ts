@@ -479,7 +479,7 @@ describe("unified loop — trial Groq path", () => {
     });
 
     expect(result.turns).toHaveLength(4); // TRIAL_MAX_TURNS clamp (plan T4/A8)
-    expect(commitTrialRunMock).toHaveBeenCalledExactlyOnceWith("tenant-1");
+    expect(commitTrialRunMock).toHaveBeenCalledExactlyOnceWith("tenant-1", expect.any(Number));
   });
 });
 

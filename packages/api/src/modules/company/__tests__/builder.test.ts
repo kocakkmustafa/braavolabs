@@ -80,7 +80,9 @@ describe("startBuildSession — provider resolution honesty (D-013)", () => {
     expect(chatCompletionMock).toHaveBeenCalledWith(resolvedConfig, expect.any(String), expect.any(Array), 4096);
     expect(session.status).toBe("clarifying");
     // BYOK source → the trial counter must not be committed.
-    expect(commitTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "byok-default");
+    expect(commitTrialCompletionMock).toHaveBeenCalledWith(
+      "tenant-1", "byok-default", expect.objectContaining({ provider: "GROQ", model: "llama-3.3-70b-versatile" }),
+    );
   });
 
   it("trial-served build: commits the run-based counter after a successful serve", async () => {
@@ -99,6 +101,8 @@ describe("startBuildSession — provider resolution honesty (D-013)", () => {
 
     await startBuildSession("tenant-1", "a TikTok content factory for indie game devs");
 
-    expect(commitTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "trial");
+    expect(commitTrialCompletionMock).toHaveBeenCalledWith(
+      "tenant-1", "trial", expect.objectContaining({ provider: "GROQ", model: "llama-3.3-70b-versatile" }),
+    );
   });
 });

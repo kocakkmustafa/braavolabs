@@ -43,6 +43,7 @@ import { logger } from "../lib/logger";
 import { env } from "../config/env";
 import { decryptForTenant } from "../lib/encryption";
 import { tryConsumeTrialRun, commitTrialRun } from "./trial-llm";
+import { costForTrialUsage } from "../modules/billing/trial-credit.service";
 import {
   LOCAL_PROVIDERS,
   ToolsUnsupportedError,
@@ -498,14 +499,28 @@ export async function resolveTenantCompletionLink(tenantId: string): Promise<Pro
  * serve, and because a failed completion throws before reaching this call,
  * the slot is refunded on failure. No-op for every other source. Counter
  * misses are non-fatal (trial-llm already documents ±1 tolerance).
+ *
+ * `usage`, when given (the caller's raw ChatCompletionResult fields), also
+ * retires the real dollar cost from the shared $0.30 hosted-trial bucket —
+ * see trial-llm.ts's module docblock. Omit it and only the run count moves,
+ * same as before this cap existed.
  */
 export async function commitTrialCompletion(
   tenantId: string,
   source: ProviderChainSource,
+  usage?: { provider: AIProviderType; model: string; inputTokens: number; outputTokens: number },
 ): Promise<void> {
   if (source !== "trial") return;
   try {
-    await commitTrialRun(tenantId);
+    // Omitting usage entirely (vs. passing an explicit undefined cost)
+    // keeps commitTrialRun's call shape identical to before this cap
+    // existed for every caller that doesn't supply it.
+    if (usage) {
+      const costUsd = costForTrialUsage(usage.provider, usage.model, usage.inputTokens, usage.outputTokens);
+      await commitTrialRun(tenantId, costUsd);
+    } else {
+      await commitTrialRun(tenantId);
+    }
   } catch (err) {
     logger.warn(
       { tenantId, err: (err as Error).message },

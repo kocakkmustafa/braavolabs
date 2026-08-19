@@ -73,7 +73,7 @@ async function callAI(
   const link = await resolveTenantCompletionLink(tenantId);
   const result = await chatCompletion(link.config, systemPrompt, messages, 4096);
   // Count the trial slot only after a successful serve (D-009/D-013 parity).
-  await commitTrialCompletion(tenantId, link.source);
+  await commitTrialCompletion(tenantId, link.source, result);
   return result.content;
 }
 
