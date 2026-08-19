@@ -64,3 +64,8 @@ HOLDING_CORE/
 * 2.*
 * 2/
 .npmrc
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
