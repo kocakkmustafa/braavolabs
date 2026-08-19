@@ -25,7 +25,7 @@
  */
 
 import type { Plan } from "@prisma/client";
-import { prisma } from "../../lib/db";
+import { prisma, tenantTx } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import {
   foldStream,
@@ -122,7 +122,22 @@ function isKnownPlan(value: string): boolean {
  * function is about to write, nothing broader.
  */
 export async function reprojectEntitlement(tenantId: string): Promise<Plan> {
-  return prisma.$transaction(async (tx) => {
+  // MUST be tenantTx, NOT prisma.$transaction. The `tx` handed to a
+  // $transaction callback on the EXTENDED client is itself extended, so every
+  // model op inside re-enters the RLS wrapper in lib/db.ts. With a tenant
+  // context that wrapper opens a SEPARATE interactive transaction on a
+  // DIFFERENT pooled connection — whose `tenants` UPDATE then blocks forever on
+  // the FOR UPDATE lock the OUTER transaction still holds. Postgres sees no
+  // cycle (the outer transaction is waiting on the app, not on the database),
+  // so it never breaks the deadlock, and each hung request pins two pooled
+  // connections until the pool is exhausted and every query in the process
+  // fails. Reproduced against real Postgres: unextended control 16ms,
+  // system-scoped passthrough 3ms, tenant-bound path never returned.
+  //
+  // tenantTx runs on the UN-extended `base` client, so its `tx` cannot
+  // re-enter, every statement shares one connection, and the FOR UPDATE below
+  // actually serializes the read-modify-write it was added for.
+  return tenantTx(async (tx) => {
     await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${tenantId} FOR UPDATE`;
 
     const rows = await tx.entitlementEvent.findMany({ where: { tenantId } });

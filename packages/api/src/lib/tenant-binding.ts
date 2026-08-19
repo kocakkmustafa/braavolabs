@@ -14,6 +14,31 @@
  *
  * This is the decision that closes it. Kept pure and separate from db.ts so it
  * can be tested exhaustively without a Postgres.
+ *
+ * ── TWO TIMING SUBTLETIES, both load-bearing ────────────────────────────────
+ *
+ * 1. WHEN the rule is evaluated differs by path. `tenantTx` resolves the
+ *    binding at CALL time; the `$allModels` auto-wrap resolves it at AWAIT
+ *    time, because a Prisma model call returns a lazy PrismaPromise that does
+ *    not execute until awaited. So this:
+ *
+ *        runWithTenant("t1", () => prisma.company.findMany())   // no await
+ *
+ *    returns an unexecuted promise, `storage.run` exits, and the query is
+ *    later awaited with NO context — and refused. It has to be:
+ *
+ *        runWithTenant("t1", async () => await prisma.company.findMany())
+ *
+ *    Every current call site awaits in scope. But this means "drop the
+ *    redundant async/await" is now a production-breaking refactor, not a
+ *    cleanup.
+ *
+ * 2. AsyncLocalStorage propagates into timers and awaited work, but NOT into
+ *    EventEmitter listeners registered earlier — `req.on("close", …)` runs
+ *    with no context. Today every SSE cleanup is in-memory only
+ *    (clearInterval, map deletes, redis unsubscribe), so nothing breaks; the
+ *    natural next step of "mark the stream closed in the DB" would throw.
+ *    Wrap such a callback in runWithTenant/runWithoutTenant explicitly.
  */
 import { TenantContextError, type TenantContext } from "./tenant-context";
 
