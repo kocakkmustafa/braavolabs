@@ -3,6 +3,7 @@
  */
 
 import { Router } from "express";
+import { requirePermission } from "../../middleware/require-permission";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
 import { AppError } from "../../middleware/error";
@@ -192,7 +193,7 @@ const LOCAL_LLM_PLANS: ReadonlySet<string> = new Set([
 
 // PUT /api/v1/settings/ai-config
 // Save AI provider selection and (optionally) API key + base URL.
-settingsRouter.put("/ai-config", async (req, res, next) => {
+settingsRouter.put("/ai-config", requirePermission("settings:ai-config"), async (req, res, next) => {
   try {
     const { provider, model, apiKey, baseUrl, allowSystemFallback } = aiConfigSchema.parse(req.body);
     const isLocal = (LOCAL_PROVIDER_LITERALS as readonly string[]).includes(provider);
@@ -285,7 +286,7 @@ settingsRouter.put("/ai-config", async (req, res, next) => {
 
 // DELETE /api/v1/settings/ai-config
 // Remove AI config — revert to system default (Anthropic system key).
-settingsRouter.delete("/ai-config", async (req, res, next) => {
+settingsRouter.delete("/ai-config", requirePermission("settings:ai-config"), async (req, res, next) => {
   try {
     await prisma.userAIConfig.deleteMany({
       where: { tenantId: req.auth!.tenantId },

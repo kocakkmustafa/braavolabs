@@ -41,11 +41,41 @@ describe("roleCan — least privilege", () => {
     }
   });
 
-  it("DENIES MEMBER every privileged action — the hole this closes", () => {
-    // Each of these is currently reachable by a MEMBER in production.
+  it("DENIES MEMBER every privileged action except the one deliberately held", () => {
+    // Each of these was reachable by a MEMBER in production before this change.
+    //
+    // approval:decide is the single exception and it is deliberate, not an
+    // oversight: SSO provisions every JIT user as MEMBER, there is no
+    // member-management endpoint anywhere in the API, and approvals are a core
+    // workflow — so an ADMIN tier would be unreachable and the only remedy
+    // would be a manual UPDATE against production. See lib/rbac.ts.
+    const DELIBERATELY_MEMBER = new Set(["approval:decide"]);
     for (const action of Object.keys(PRIVILEGED_ACTIONS) as (keyof typeof PRIVILEGED_ACTIONS)[]) {
+      if (DELIBERATELY_MEMBER.has(action)) continue;
       expect(roleCan("MEMBER", action), `MEMBER must NOT be able to ${action}`).toBe(false);
     }
+  });
+
+  it("holds approval:decide at MEMBER, and says so out loud", () => {
+    expect(PRIVILEGED_ACTIONS["approval:decide"]).toBe("MEMBER");
+    expect(roleCan("MEMBER", "approval:decide")).toBe(true);
+  });
+
+  it("keeps the SPEND CAP owner-only, not just the act of paying", () => {
+    // Shipping "money is OWNER-only" while leaving the budget knob open made
+    // the claim false: a member could raise the cap to the schema max, or null
+    // it and disable the cost-anomaly stop entirely.
+    expect(roleCan("MEMBER", "billing:budget")).toBe(false);
+    expect(roleCan("ADMIN", "billing:budget")).toBe(false);
+    expect(roleCan("OWNER", "billing:budget")).toBe(true);
+  });
+
+  it("keeps tenant-wide BYOK credentials off MEMBER", () => {
+    // Whoever writes settings/ai-config replaces the apiKey AND baseUrl for
+    // every user in the tenant — i.e. can point every LLM call at an endpoint
+    // of their choosing and exfiltrate prompts and outputs.
+    expect(roleCan("MEMBER", "settings:ai-config")).toBe(false);
+    expect(roleCan("ADMIN", "settings:ai-config")).toBe(true);
   });
 
   it("keeps money and tenant-destruction OWNER-only, not merely admin-only", () => {
@@ -54,12 +84,12 @@ describe("roleCan — least privilege", () => {
     expect(roleCan("ADMIN", "billing:checkout")).toBe(false);
     expect(roleCan("ADMIN", "billing:portal")).toBe(false);
     expect(roleCan("ADMIN", "company:delete")).toBe(false);
+    expect(roleCan("ADMIN", "billing:budget")).toBe(false);
     expect(roleCan("OWNER", "company:delete")).toBe(true);
   });
 
   it("lets ADMIN run operational controls that are reversible", () => {
     expect(roleCan("ADMIN", "governance:hard-stop")).toBe(true);
-    expect(roleCan("ADMIN", "approval:decide")).toBe(true);
     expect(roleCan("ADMIN", "sso:configure")).toBe(true);
   });
 

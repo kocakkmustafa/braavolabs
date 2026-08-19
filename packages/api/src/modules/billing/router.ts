@@ -291,7 +291,7 @@ authedRouter.get("/savings", async (req, res, next) => {
 const budgetSchema = z.object({
   monthlyBudgetUsd: z.union([z.number().min(0.01).max(1_000_000), z.null()]),
 });
-authedRouter.patch("/budget", async (req, res, next) => {
+authedRouter.patch("/budget", requirePermission("billing:budget"), async (req, res, next) => {
   try {
     const { monthlyBudgetUsd } = budgetSchema.parse(req.body);
     await prisma.tenant.update({

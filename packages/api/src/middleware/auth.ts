@@ -97,19 +97,11 @@ export const authMiddleware: RequestHandler<any, any, any, any> = async function
   runWithTenant(payload.tenantId, next);
 };
 
-/**
- * Require specific role(s).
- */
-export function requireRole(...roles: string[]) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    if (!req.auth) {
-      res.status(401).json({ error: "Not authenticated" });
-      return;
-    }
-    if (!roles.includes(req.auth.role)) {
-      res.status(403).json({ error: "Insufficient permissions" });
-      return;
-    }
-    next();
-  };
-}
+// `requireRole` used to live here. It was exported for a long time and applied
+// by ZERO routes, which is precisely how company deletion, billing and
+// governance ended up reachable by any authenticated member. Removed rather
+// than left in place: a plausible-looking authorisation helper that nothing
+// calls is worse than no helper, because it reads as coverage. Use
+// middleware/require-permission.ts, which is expressed in terms of actions and
+// enforced by lib/rbac.ts.
+
