@@ -78,6 +78,24 @@ export async function tryConsumeTrialRun(tenantId: string): Promise<TrialDecisio
   const remaining = tenant.trialRunsLimit - tenant.trialRunsUsed;
   if (remaining <= 0) return null;
 
+  // Abuse guard: at least one user on the tenant must have a verified email.
+  // User.emailVerifiedAt's own schema comment has promised this since it was
+  // added ("free-tier abuse vectors are restricted") but nothing enforced it
+  // — an unlimited number of unverified signups could each farm a fresh
+  // trialRunsLimit. Checked after the cheap remaining-credit check so an
+  // already-exhausted tenant never pays for the extra query.
+  const verifiedUser = await prisma.user.findFirst({
+    where: { tenantId, emailVerifiedAt: { not: null } },
+    select: { id: true },
+  });
+  if (!verifiedUser) {
+    logger.info(
+      { tenantId },
+      "tryConsumeTrialRun: no verified-email user on tenant — trial credit withheld (fail-closed)",
+    );
+    return null;
+  }
+
   const trialKey = process.env.GROQ_API_KEY!;
   const trialModel = process.env.GROQ_TRIAL_MODEL || "llama-3.3-70b-versatile";
 

@@ -23,12 +23,16 @@ vi.mock("../../config/env", () => ({ env: envMock }));
 const db = vi.hoisted(() => ({
   tenantFindUnique: vi.fn(),
   tenantUpdate: vi.fn(),
+  userFindFirst: vi.fn(),
 }));
 vi.mock("../../lib/db", () => ({
   prisma: {
     tenant: {
       findUnique: (...a: unknown[]) => db.tenantFindUnique(...a),
       update: (...a: unknown[]) => db.tenantUpdate(...a),
+    },
+    user: {
+      findFirst: (...a: unknown[]) => db.userFindFirst(...a),
     },
   },
 }));
@@ -59,6 +63,10 @@ beforeEach(() => {
   process.env.GROQ_API_KEY = "gsk_trial_key";
   envMock.GROQ_TRIAL_MODEL = undefined;
   db.tenantUpdate.mockResolvedValue({});
+  // Default: tenant has a verified-email user — existing tests exercise the
+  // credit/plan/dormant boundaries and shouldn't also have to know about the
+  // separate email-verification gate. Tests for THAT gate override this.
+  db.userFindFirst.mockResolvedValue({ id: "user-verified" });
 });
 
 describe("trialEnabled", () => {
@@ -132,6 +140,40 @@ describe("tryConsumeTrialRun — fail-closed boundary", () => {
     // never an unbounded/negative credit condition).
     expect(a?.remainingBefore).toBe(1);
     expect(b?.remainingBefore).toBe(1);
+  });
+});
+
+describe("tryConsumeTrialRun — verified-email abuse guard", () => {
+  it("no verified-email user on the tenant → null, even with full credit and FREE plan", async () => {
+    seedTenant({ trialRunsUsed: 0, trialRunsLimit: 3 });
+    db.userFindFirst.mockResolvedValue(null);
+    const decision = await tryConsumeTrialRun(TENANT);
+    expect(decision).toBeNull();
+  });
+
+  it("queries for a user on THIS tenant with a non-null emailVerifiedAt", async () => {
+    seedTenant({ trialRunsUsed: 0, trialRunsLimit: 3 });
+    await tryConsumeTrialRun(TENANT);
+    expect(db.userFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ tenantId: TENANT, emailVerifiedAt: { not: null } }),
+      }),
+    );
+  });
+
+  it("does not even check email verification once credit is already exhausted (cheap check first)", async () => {
+    seedTenant({ trialRunsUsed: 3, trialRunsLimit: 3 });
+    const decision = await tryConsumeTrialRun(TENANT);
+    expect(decision).toBeNull();
+    expect(db.userFindFirst).not.toHaveBeenCalled();
+  });
+
+  it("a verified-email user unblocks the trial exactly as before this gate existed", async () => {
+    seedTenant({ trialRunsUsed: 0, trialRunsLimit: 3 });
+    db.userFindFirst.mockResolvedValue({ id: "user-verified" });
+    const decision = await tryConsumeTrialRun(TENANT);
+    expect(decision).not.toBeNull();
+    expect(decision!.config.provider).toBe("GROQ");
   });
 });
 

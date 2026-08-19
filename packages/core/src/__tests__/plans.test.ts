@@ -54,14 +54,36 @@ describe("PLAN_LIMITS", () => {
     expect(PLAN_LIMITS.BUSINESS.maxConnectedAutomations).toBe(-1); // unlimited
   });
 
-  it("v2: seats grow with tier; on-device offline gated above Free", () => {
+  it("v2: seats grow with tier; local BYOK provider gated above Free", () => {
     expect(PLAN_LIMITS.FREE.maxSeats).toBe(1);
     expect(PLAN_LIMITS.PRO.maxSeats).toBeGreaterThan(PLAN_LIMITS.CREATOR.maxSeats);
     expect(PLAN_LIMITS.BUSINESS.maxSeats).toBeGreaterThan(PLAN_LIMITS.PRO.maxSeats);
-    expect(PLAN_LIMITS.FREE.onDeviceOffline).toBe(false);
+    expect(PLAN_LIMITS.FREE.localProvider).toBe(false);
     for (const p of ["CREATOR", "PRO", "BUSINESS", "ENTERPRISE"] as const) {
-      expect(PLAN_LIMITS[p].onDeviceOffline).toBe(true);
+      expect(PLAN_LIMITS[p].localProvider).toBe(true);
     }
+  });
+
+  it("audit retention scales monotonically with tier, ENTERPRISE is a contract sentinel", () => {
+    expect(PLAN_LIMITS.FREE.auditRetentionDays).toBe(7);
+    expect(PLAN_LIMITS.CREATOR.auditRetentionDays).toBe(90);
+    expect(PLAN_LIMITS.PRO.auditRetentionDays).toBe(365);
+    expect(PLAN_LIMITS.BUSINESS.auditRetentionDays).toBe(730);
+    expect(PLAN_LIMITS.ENTERPRISE.auditRetentionDays).toBe(-1); // sentinel: negotiated by contract
+    const metered = ["FREE", "CREATOR", "PRO", "BUSINESS"] as const;
+    for (let i = 1; i < metered.length; i++) {
+      expect(PLAN_LIMITS[metered[i]!]!.auditRetentionDays).toBeGreaterThan(
+        PLAN_LIMITS[metered[i - 1]!]!.auditRetentionDays,
+      );
+    }
+  });
+
+  it("SSO is unavailable below Business, OIDC on Business, OIDC+SCIM on Enterprise", () => {
+    expect(PLAN_LIMITS.FREE.sso).toBe("none");
+    expect(PLAN_LIMITS.CREATOR.sso).toBe("none");
+    expect(PLAN_LIMITS.PRO.sso).toBe("none");
+    expect(PLAN_LIMITS.BUSINESS.sso).toBe("oidc");
+    expect(PLAN_LIMITS.ENTERPRISE.sso).toBe("oidc_scim");
   });
 
   it("keeps FREE plan within the documented free-tier shape", () => {

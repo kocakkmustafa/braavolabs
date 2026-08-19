@@ -579,7 +579,7 @@ export default function SettingsPage() {
                       planLimits.maxCompanies === -1 ? "Unlimited workspaces" : `${planLimits.maxCompanies} workspace${planLimits.maxCompanies === 1 ? "" : "s"}`,
                       planLimits.maxRunsPerMonth === -1 ? "Unlimited runs" : `${planLimits.maxRunsPerMonth} runs/mo`,
                       planLimits.maxConnectedAutomations === -1 ? "Unlimited connected automations" : `${planLimits.maxConnectedAutomations} connected automation${planLimits.maxConnectedAutomations === 1 ? "" : "s"}`,
-                      ...(planLimits.onDeviceOffline ? ["On-device / offline mode"] : []),
+                      ...(planLimits.localProvider ? ["Self-hosted local provider (Ollama / LM Studio)"] : []),
                       ...planLimits.features.includes("crm_sync") ? ["CRM sync"] : [],
                       ...planLimits.features.includes("sso") ? ["SSO"] : [],
                       ...planLimits.features.includes("sla") ? ["SLA"] : [],

@@ -10,8 +10,18 @@ export interface PlanLimits {
   maxConnectedAutomations: number;
   /** v2: max team members on the tenant. -1 = unlimited. */
   maxSeats: number;
-  /** v2: may use on-device / offline inference (mobile Gemma, desktop local). */
-  onDeviceOffline: boolean;
+  /**
+   * May use a self-hosted local model provider (Ollama / LM Studio) as a
+   * BYOK route — desktop/CLI only. Distinct from, and NOT a proxy for, an
+   * on-device MOBILE model: that entitlement appears on no plan until a
+   * native adapter, model download and real-device quality evidence exist
+   * (roadmap §1.4) — do not repurpose this field for it.
+   */
+  localProvider: boolean;
+  /** Audit log retention window in days. -1 = negotiated by contract (ENTERPRISE only). */
+  auditRetentionDays: number;
+  /** SSO tier: no SSO, OIDC login, or OIDC + SCIM provisioning. */
+  sso: "none" | "oidc" | "oidc_scim";
   channels: string[];
   features: string[];
 }
