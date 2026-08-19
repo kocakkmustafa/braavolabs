@@ -42,7 +42,7 @@ import { prisma } from "../lib/db";
 import { logger } from "../lib/logger";
 import { env } from "../config/env";
 import { decryptForTenant } from "../lib/encryption";
-import { tryConsumeTrialRun, commitTrialRun } from "./trial-llm";
+import { tryConsumeTrialRun, commitTrialRun, refundTrialReservation } from "./trial-llm";
 import { costForTrialUsage } from "../modules/billing/trial-credit.service";
 import {
   LOCAL_PROVIDERS,
@@ -482,13 +482,27 @@ export async function buildTenantProviderChain(tenantId: string): Promise<Provid
  * here while being blocked there.
  *
  * When the returned link's `source === "trial"`, the caller MUST call
- * commitTrialCompletion(tenantId, source) AFTER the completion SUCCEEDS
- * (and must NOT on failure — a thrown chatCompletion refunds the slot).
+ * commitTrialCompletion(tenantId, source) AFTER the completion SUCCEEDS,
+ * or refundTrialCompletion(tenantId, source) if it throws.
  */
 export async function resolveTenantCompletionLink(tenantId: string): Promise<ProviderChainLink> {
-  const [head] = await buildTenantProviderChain(tenantId);
+  const chain = await buildTenantProviderChain(tenantId);
+  const [head] = chain;
   if (!head) {
     throw new Error("No AI provider configured. Please add an API key in Settings → AI Provider.");
+  }
+  // buildTenantProviderChain atomically reserves hosted-trial cost budget
+  // as soon as it decides trial belongs ANYWHERE in the chain (head or a
+  // later opt-in fallback tail, e.g. a BYOK tenant with
+  // allowSystemFallback=true) — but single-completion callers only ever
+  // dial `head` and never fail over into the rest of the chain like the
+  // multi-turn agent loop does. If trial landed in the chain but isn't
+  // head, that reservation can never be settled or naturally refunded by
+  // anything downstream — refund it right here, immediately, before a
+  // stranded reservation silently drains this tenant's own trial budget
+  // over repeated non-trial-served calls.
+  if (head.source !== "trial" && chain.some((l) => l.source === "trial")) {
+    await refundTrialReservation(tenantId);
   }
   return head;
 }
@@ -496,14 +510,16 @@ export async function resolveTenantCompletionLink(tenantId: string): Promise<Pro
 /**
  * Commit the run-based trial counter for a single completion that was served
  * by the trial link — the same contract runAgentLoop applies: consume on
- * serve, and because a failed completion throws before reaching this call,
- * the slot is refunded on failure. No-op for every other source. Counter
- * misses are non-fatal (trial-llm already documents ±1 tolerance).
+ * serve; a failed completion must call refundTrialCompletion (below)
+ * instead of this. No-op for every other source. Counter misses are
+ * non-fatal (trial-llm already documents ±1 tolerance).
  *
  * `usage`, when given (the caller's raw ChatCompletionResult fields), also
- * retires the real dollar cost from the shared $0.30 hosted-trial bucket —
- * see trial-llm.ts's module docblock. Omit it and only the run count moves,
- * same as before this cap existed.
+ * trues up the shared $0.30 hosted-trial cost bucket to the REAL dollar
+ * cost — see trial-llm.ts's module docblock. Only pass it when the caller
+ * actually held a reservation for this call (i.e. `source==="trial"` came
+ * from a link resolveTenantCompletionLink/buildTenantProviderChain
+ * produced, with the cap enabled) — commitTrialRun trusts it as such.
  */
 export async function commitTrialCompletion(
   tenantId: string,
@@ -527,4 +543,21 @@ export async function commitTrialCompletion(
       "commitTrialRun failed after a trial-served single completion (non-fatal)",
     );
   }
+}
+
+/**
+ * Refund an unused hosted-trial cost reservation after a single completion
+ * that was ABOUT to be served by the trial link never actually completed
+ * (the chatCompletion call threw). Symmetric with commitTrialCompletion:
+ * every trial-sourced completion attempt must call exactly one of the two,
+ * never both, never neither — call this from the catch branch, immediately
+ * before rethrowing, at every resolveTenantCompletionLink call site. No-op
+ * for every other source (mirrors commitTrialCompletion's own guard).
+ */
+export async function refundTrialCompletion(
+  tenantId: string,
+  source: ProviderChainSource,
+): Promise<void> {
+  if (source !== "trial") return;
+  await refundTrialReservation(tenantId);
 }

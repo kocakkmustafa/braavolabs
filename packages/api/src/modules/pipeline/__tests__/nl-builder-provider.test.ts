@@ -64,9 +64,11 @@ vi.mock("../../../services/ai-client", () => ({
 
 const resolveTenantCompletionLinkMock = vi.hoisted(() => vi.fn());
 const commitTrialCompletionMock = vi.hoisted(() => vi.fn());
+const refundTrialCompletionMock = vi.hoisted(() => vi.fn());
 vi.mock("../../../services/provider-chain", () => ({
   resolveTenantCompletionLink: (...a: unknown[]) => resolveTenantCompletionLinkMock(...a),
   commitTrialCompletion: (...a: unknown[]) => commitTrialCompletionMock(...a),
+  refundTrialCompletion: (...a: unknown[]) => refundTrialCompletionMock(...a),
 }));
 
 import { pipelineRouter } from "../router";
@@ -215,6 +217,9 @@ describe("POST /pipelines/from-natural-language — D-013 provider resolution", 
 
     expect(nextErr?.statusCode).toBe(502);
     expect(commitTrialCompletionMock).not.toHaveBeenCalled();
+    // The hosted-trial cost reservation this call held is refunded, not
+    // stranded — symmetric with commitTrialCompletion on the success path.
+    expect(refundTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "trial");
     expect(pipelineCreate).not.toHaveBeenCalled();
   });
 });

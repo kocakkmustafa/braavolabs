@@ -117,6 +117,23 @@ describe("reserveTrialCredit — fail-closed boundary", () => {
     expect(db.queryRaw).toHaveBeenCalledTimes(1);
   });
 
+  it("a caller-supplied reservationUsd overrides the default ceiling (e.g. trial-llm.ts's larger per-run reservation)", async () => {
+    envMock.FORGE_TRIAL_CREDIT_USD_CAP = 1;
+    const customReservation = 0.1;
+    db.queryRaw.mockResolvedValue([{ value: Math.round(customReservation * MICRO) }]);
+
+    const result = await reserveTrialCredit(TENANT, customReservation);
+
+    expect(result).toEqual({ reservationUsd: customReservation });
+  });
+
+  it("a caller-supplied reservationUsd larger than the cap is refused fail-closed, same as the default ceiling would be", async () => {
+    envMock.FORGE_TRIAL_CREDIT_USD_CAP = 0.05;
+    const result = await reserveTrialCredit(TENANT, 0.1);
+    expect(result).toBeNull();
+    expect(db.queryRaw).not.toHaveBeenCalled();
+  });
+
   it("cap already reached (existing usage leaves no headroom) → the atomic WHERE fails (empty rows) → null, fail-closed, never throws", async () => {
     // cap (0.03) is deliberately LARGER than the reservation ceiling (0.02)
     // here — this test is specifically about the DB-side WHERE failing

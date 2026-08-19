@@ -188,17 +188,18 @@ export interface TrialCreditReservation {
  */
 export async function reserveTrialCredit(
   tenantId: string,
+  reservationUsd: number = TRIAL_CALL_RESERVATION_USD,
 ): Promise<TrialCreditReservation | null> {
   if (!trialCreditEnabled()) return null;
 
   const capMicros = usdToMicros(env.FORGE_TRIAL_CREDIT_USD_CAP);
-  const reservationMicros = usdToMicros(TRIAL_CALL_RESERVATION_USD);
+  const reservationMicros = usdToMicros(reservationUsd);
 
   // A cap smaller than a single call's reservation ceiling can never admit
   // even the FIRST trial call — refuse before touching the DB (P2-A2).
   if (reservationMicros > capMicros) {
     logger.warn(
-      { tenantId, capUsd: env.FORGE_TRIAL_CREDIT_USD_CAP, reservationUsd: TRIAL_CALL_RESERVATION_USD },
+      { tenantId, capUsd: env.FORGE_TRIAL_CREDIT_USD_CAP, reservationUsd },
       "Forge trial-credit cap is smaller than the per-call reservation ceiling — every trial call refused (fail-closed)",
     );
     return null;
@@ -216,13 +217,13 @@ export async function reserveTrialCredit(
 
   if (rows.length === 0) {
     logger.warn(
-      { tenantId, capUsd: env.FORGE_TRIAL_CREDIT_USD_CAP },
+      { tenantId, capUsd: env.FORGE_TRIAL_CREDIT_USD_CAP, reservationUsd },
       "Forge trial-credit cap reached — trial-funded call refused (fail-closed)",
     );
     return null;
   }
 
-  return { reservationUsd: TRIAL_CALL_RESERVATION_USD };
+  return { reservationUsd };
 }
 
 /** Shared atomic delta-apply — both settleTrialCredit and refundTrialCredit

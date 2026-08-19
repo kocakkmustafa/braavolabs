@@ -17,7 +17,7 @@ import { getTenantAIConfig, chatCompletion, type AIProviderType, type ChatMessag
 // honest error) instead of unconditionally spending the shared system
 // Anthropic key for EVERY tenant. getTenantAIConfig stays for the cost
 // estimate below (a read-only provider/model lookup that never dials the LLM).
-import { resolveTenantCompletionLink, commitTrialCompletion } from "../../services/provider-chain";
+import { resolveTenantCompletionLink, commitTrialCompletion, refundTrialCompletion } from "../../services/provider-chain";
 import { estimatePipelineCostUsd } from "../../lib/modelPricing";
 
 // Expensive endpoints — per-tenant throttle to prevent Claude API cost abuse.
@@ -160,10 +160,12 @@ Rules:
         },
         "Pipeline NL builder provider call failed",
       );
+      // Refund an unused hosted-trial cost reservation before rethrowing —
+      // symmetric with the commit below (exactly one of the two must fire).
+      await refundTrialCompletion(req.auth!.tenantId, link.source);
       throw new AppError(502, "Couldn't reach your AI provider to generate the pipeline. Try again shortly.");
     }
-    // Count the trial slot only after a successful serve (D-009/D-013 parity):
-    // a thrown completion above never reaches this line, so the slot is refunded.
+    // Count the trial slot only after a successful serve (D-009/D-013 parity).
     await commitTrialCompletion(req.auth!.tenantId, link.source, completion);
 
     // Cost telemetry — without this, every NL pipeline build is an

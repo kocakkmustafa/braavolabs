@@ -28,7 +28,7 @@ import {
   type ProviderChainSource,
 } from "../../services/provider-chain";
 import { priceForModel, FREE_PROVIDERS } from "../../lib/modelPricing";
-import { commitTrialRun } from "../../services/trial-llm";
+import { commitTrialRun, refundTrialReservation } from "../../services/trial-llm";
 import { prisma } from "../../lib/db";
 import { publishRunEvent } from "../../lib/runEvents";
 import { buildContextSummary, NO_PRIOR_CONTEXT } from "../run/handoff-summary";
@@ -1230,15 +1230,36 @@ export async function runAgentLoop(config: {
         "Routing pipeline run through trial Groq",
       );
     }
-    const result = await runProviderAgentLoop(
-      // Trial economics guard at entry (plan T4/A8) — mid-run failover to a
-      // trial link is clamped inside the loop instead.
-      head.source === "trial"
-        ? { ...config, maxTurns: Math.min(config.maxTurns ?? TRIAL_MAX_TURNS, TRIAL_MAX_TURNS) }
-        : config,
-      head.config,
-      { chain: rest, source: head.source, tenantId: config.tenantId },
-    );
+    // buildTenantProviderChain atomically reserves hosted-trial cost budget
+    // as soon as it decides trial belongs ANYWHERE in the chain — as the
+    // head (the BYOK-less FREE tenant's primary path) OR further down as
+    // an opt-in fallback tail for a BYOK tenant with allowSystemFallback.
+    // Either way, that reservation MUST end in exactly one of settle
+    // (below, only when servedBy==="trial") or refund (on throw; on any
+    // other outcome) — checking the WHOLE chain, not just head, so a
+    // reservation for a trial link that sat unused in `rest` (e.g. BYOK
+    // served the run directly, never failing over) isn't left stranded.
+    const reservedTrial = chain.some((l) => l.source === "trial");
+    let result: AgentLoopResult;
+    try {
+      result = await runProviderAgentLoop(
+        // Trial economics guard at entry (plan T4/A8) — mid-run failover to a
+        // trial link is clamped inside the loop instead.
+        head.source === "trial"
+          ? { ...config, maxTurns: Math.min(config.maxTurns ?? TRIAL_MAX_TURNS, TRIAL_MAX_TURNS) }
+          : config,
+        head.config,
+        { chain: rest, source: head.source, tenantId: config.tenantId },
+      );
+    } catch (err) {
+      // refundTrialReservation never throws (self-contained non-fatal
+      // handling, same contract as commitTrialRun below) — a plain await
+      // is enough, no extra try/catch needed at this call site.
+      if (reservedTrial) {
+        await refundTrialReservation(config.tenantId);
+      }
+      throw err;
+    }
     // Run-based trial counter: commit ONLY when the trial link actually
     // served the run to completion (a trial link that failed over mid-run
     // didn't — the slot is refunded, same contract as before).
@@ -1259,6 +1280,14 @@ export async function runAgentLoop(config: {
           "commitTrialRun failed after a successful trial-served run (non-fatal)",
         );
       }
+    } else if (reservedTrial) {
+      // The run succeeded but never actually spent the reservation — either
+      // mid-run failover moved it to a different link, or trial sat unused
+      // in the tail while a BYOK head served the whole run directly. Either
+      // way no trial cost was incurred, so refund rather than leave the
+      // reservation stranded (settle only fires above, when
+      // servedBy==="trial"). refundTrialReservation never throws.
+      await refundTrialReservation(config.tenantId);
     }
     return result;
   }

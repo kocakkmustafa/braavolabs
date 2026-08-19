@@ -27,9 +27,11 @@ vi.mock("../registry", () => ({
 
 const resolveTenantCompletionLinkMock = vi.hoisted(() => vi.fn());
 const commitTrialCompletionMock = vi.hoisted(() => vi.fn());
+const refundTrialCompletionMock = vi.hoisted(() => vi.fn());
 vi.mock("../../../services/provider-chain", () => ({
   resolveTenantCompletionLink: (...a: unknown[]) => resolveTenantCompletionLinkMock(...a),
   commitTrialCompletion: (...a: unknown[]) => commitTrialCompletionMock(...a),
+  refundTrialCompletion: (...a: unknown[]) => refundTrialCompletionMock(...a),
 }));
 
 const chatCompletionMock = vi.hoisted(() => vi.fn());
@@ -202,5 +204,21 @@ describe("composeAgent — provider resolution honesty (D-013)", () => {
     expect(chatCompletionMock.mock.invocationCallOrder[0]).toBeLessThan(
       commitTrialCompletionMock.mock.invocationCallOrder[0],
     );
+  });
+
+  it("REFUND: trial-served completion throws → the reservation is refunded, not committed or stranded", async () => {
+    resolveTenantCompletionLinkMock.mockResolvedValue({
+      provider: "GROQ",
+      source: "trial",
+      config: { provider: "GROQ", model: "llama-3.3-70b-versatile", apiKey: "gsk-trial" },
+    });
+    chatCompletionMock.mockRejectedValue(new Error("GROQ API error 503: overloaded"));
+
+    await expect(
+      composeAgent("tenant-1", "a support agent that answers billing questions"),
+    ).rejects.toThrow("GROQ API error 503");
+
+    expect(commitTrialCompletionMock).not.toHaveBeenCalled();
+    expect(refundTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "trial");
   });
 });

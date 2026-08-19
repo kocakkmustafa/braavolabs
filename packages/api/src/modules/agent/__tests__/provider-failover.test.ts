@@ -96,9 +96,11 @@ vi.mock("../claude-local", () => ({ runLocalAgentLoop: vi.fn() }));
 
 const tryConsumeTrialRunMock = vi.hoisted(() => vi.fn());
 const commitTrialRunMock = vi.hoisted(() => vi.fn());
+const refundTrialReservationMock = vi.hoisted(() => vi.fn());
 vi.mock("../../../services/trial-llm", () => ({
   tryConsumeTrialRun: (...a: unknown[]) => tryConsumeTrialRunMock(...a),
   commitTrialRun: (...a: unknown[]) => commitTrialRunMock(...a),
+  refundTrialReservation: (...a: unknown[]) => refundTrialReservationMock(...a),
 }));
 
 // ai-client — ONLY chatCompletion is mocked; getTenantAIConfig, catalogues
@@ -589,10 +591,48 @@ describe("privacy rule — allowSystemFallback gates the trial/system tail", () 
     });
 
     // Chain walked BYOK → trial → system; the trial link did NOT serve the
-    // run to completion, so the run-based counter is untouched.
+    // run to completion, so the run-based counter is untouched AND the
+    // atomic hosted-trial-cost reservation buildTenantProviderChain made
+    // for it is refunded, not stranded (R2 fix).
     expect(dialedConfigs().map((c) => c.provider)).toEqual(["DEEPSEEK", "GROQ", "ANTHROPIC"]);
     expect(result.servedBy).toBe("system");
     expect(commitTrialRunMock).not.toHaveBeenCalled();
+    expect(refundTrialReservationMock).toHaveBeenCalledWith(TENANT);
+  });
+
+  it("R2 FIX: a healthy BYOK head with allowSystemFallback=true never even dials the trial tail, but the reservation buildTenantProviderChain made for it is still refunded, not stranded", async () => {
+    seedTenantRows(
+      [
+        {
+          provider: "DEEPSEEK",
+          model: "deepseek-chat",
+          apiKey: "sk-ds",
+          isDefault: true,
+          allowSystemFallback: true,
+        },
+      ],
+      "FREE",
+    );
+    tryConsumeTrialRunMock.mockResolvedValue({
+      config: { provider: "GROQ", model: "llama-3.3-70b-versatile", apiKey: TRIAL_KEY },
+      remainingBefore: 2,
+      remainingAfter: 1,
+    });
+    chatCompletionMock.mockResolvedValue(completion({ content: "byok answered", provider: "DEEPSEEK", model: "deepseek-chat" }));
+
+    const result = await runAgentLoop({
+      systemPrompt: "sys",
+      userMessage: "go",
+      toolNames: [],
+      tenantId: TENANT,
+      govContext: GOV,
+    });
+
+    // BYOK served the whole run on the first try — trial was never dialed.
+    expect(dialedConfigs().map((c) => c.provider)).toEqual(["DEEPSEEK"]);
+    expect(result.servedBy).toBe("byok-default");
+    expect(commitTrialRunMock).not.toHaveBeenCalled();
+    expect(refundTrialReservationMock).toHaveBeenCalledWith(TENANT);
   });
 });
 
