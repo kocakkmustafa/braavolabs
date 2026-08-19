@@ -180,10 +180,45 @@ function isCurrentlyGranting(status: StreamStatus): boolean {
 }
 
 /**
+ * Whether a stream's grant should actually be trusted right now — the
+ * shared wall-clock check used by BOTH combineStreams (to pick the right
+ * winner) and resolveEntitlement (to gate the winner's final answer).
+ *
+ * Only "active" streams are checked against their own expiresAt: nothing
+ * sends a webhook at the exact moment a subscription's paid period
+ * silently lapses, so that fact has to be checked at read time. "grace"
+ * streams are deliberately NEVER wall-clock-gated — none of the 3 sources
+ * hand us a fully reliable "grace truly ends at X" timestamp (Stripe's
+ * past_due in particular carries no such field at all; its
+ * current_period_end is simply the already-past-or-current period that
+ * failed to renew, not a retry deadline). Grace is trusted until the
+ * SOURCE sends an explicit follow-up event — back to active, or revoked
+ * — which all 3 sources reliably eventually do; this is event-driven
+ * trust, not time-driven, by design.
+ *
+ * R2 finding (2026-08-19): the previous split — combineStreams ranking
+ * purely by status+tier with no time check, resolveEntitlement checking
+ * expiresAt only on the single already-picked winner — let a stale
+ * "active" high-tier stream (its own expiry-notifying webhook lost or
+ * delayed) shadow a genuinely-active lower-tier one during selection,
+ * AND (combined with Stripe's grace mapping unconditionally excluding
+ * itself from "granting") made every Stripe past_due event resolve to
+ * FREE almost immediately instead of preserving the plan during
+ * Stripe's retry window. Unifying the check here, used identically by
+ * both selection and resolution, closes both.
+ */
+function isEffectivelyGranting(s: StreamState, now: Date): boolean {
+  if (!isCurrentlyGranting(s.status)) return false;
+  if (s.status === "active" && s.expiresAt && s.expiresAt.getTime() <= now.getTime()) return false;
+  return true;
+}
+
+/**
  * Combine a tenant's concurrent subscription streams into the ONE that
  * actually governs their entitlement — the highest-tier stream that is
- * still granting access. Returns null when nothing is currently granting
- * (every stream expired/refunded/revoked, or there were no streams).
+ * still effectively granting access (status-wise AND, for active
+ * streams, not yet expired). Returns null when nothing qualifies (every
+ * stream expired/refunded/revoked, or there were no streams).
  *
  * This is the generalization of the "don't downgrade if another active
  * mobile subscription exists" check duplicated today across
@@ -191,10 +226,10 @@ function isCurrentlyGranting(status: StreamStatus): boolean {
  * — one rule, one place, works across all 3 sources instead of only
  * guarding the mobile-vs-mobile case.
  */
-export function combineStreams(streams: StreamState[]): StreamState | null {
+export function combineStreams(streams: StreamState[], now: Date): StreamState | null {
   let best: StreamState | null = null;
   for (const s of streams) {
-    if (!isCurrentlyGranting(s.status)) continue;
+    if (!isEffectivelyGranting(s, now)) continue;
     const rank = PLAN_RANK[s.planTier ?? "FREE"] ?? 0;
     const bestRank = best ? (PLAN_RANK[best.planTier ?? "FREE"] ?? 0) : -1;
     if (rank > bestRank) best = s;
@@ -203,17 +238,14 @@ export function combineStreams(streams: StreamState[]): StreamState | null {
 }
 
 /**
- * The only function in this module that reads wall-clock time — kept
- * separate from foldStream/combineStreams (which never do) so those stay
- * pure and their determinism tests never need to mock Date. A stream can
- * be event-wise "active" yet past its expiresAt: nothing sends a webhook
- * at the exact moment a subscription's paid period lapses, so that fact
- * has to be checked at read time against whatever `now` the caller
- * supplies (usually `new Date()`, but explicit for testability).
+ * The final read-time gate on whatever combineStreams picked. Kept as a
+ * separate step (rather than folding this into combineStreams' return)
+ * so a single already-selected stream can still be re-checked against a
+ * DIFFERENT `now` than selection used, and so callers with just one
+ * stream (no combineStreams call at all) get the same guarantee.
  */
 export function resolveEntitlement(stream: StreamState | null, now: Date): string {
   if (!stream) return "FREE";
-  if (!isCurrentlyGranting(stream.status)) return "FREE";
-  if (stream.expiresAt && stream.expiresAt.getTime() <= now.getTime()) return "FREE";
+  if (!isEffectivelyGranting(stream, now)) return "FREE";
   return stream.planTier ?? "FREE";
 }

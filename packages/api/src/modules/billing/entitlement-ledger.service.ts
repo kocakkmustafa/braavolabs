@@ -105,46 +105,66 @@ function isKnownPlan(value: string): value is Plan {
  * Safe to call repeatedly, after a crash, or redundantly on a duplicate
  * event — it never trusts "what the last write said", only what the
  * complete ledger says right now.
+ *
+ * R2 fix (2026-08-19): the read (findMany) and write (tenant.update)
+ * used to be two separate round trips with no lock between them. Proven
+ * exploit against a real DB: request A reads before request B's
+ * concurrent event exists, B fully completes (read+write) with the
+ * correct, complete picture, then A's write — computed from a STALE,
+ * incomplete event set — lands last and silently overwrites B's correct
+ * result. Only self-heals if some future event happens to arrive for
+ * this tenant; otherwise the wrong plan sticks indefinitely. Fixed by
+ * locking the tenant row for the duration of the read-modify-write, so
+ * two concurrent reprojections for the SAME tenant serialize (different
+ * tenants lock different rows — this doesn't serialize unrelated
+ * traffic). `SELECT ... FOR UPDATE` rather than bumping the whole
+ * transaction's isolation level: locks exactly the one row this
+ * function is about to write, nothing broader.
  */
 export async function reprojectEntitlement(tenantId: string): Promise<Plan> {
-  const rows = await prisma.entitlementEvent.findMany({ where: { tenantId } });
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${tenantId} FOR UPDATE`;
 
-  const byStream = new Map<string, EntitlementEvent[]>();
-  for (const row of rows) {
-    const event: EntitlementEvent = {
-      id: row.id,
-      source: row.source as EntitlementSource,
-      streamId: row.streamId,
-      sourceTimestamp: row.sourceTimestamp,
-      type: row.type as EntitlementEventType,
-      planTier: row.planTier,
-      expiresAt: row.expiresAt,
-      autoRenew: row.autoRenew,
-    };
-    const list = byStream.get(row.streamId);
-    if (list) list.push(event);
-    else byStream.set(row.streamId, [event]);
-  }
+    const rows = await tx.entitlementEvent.findMany({ where: { tenantId } });
 
-  const streamStates = [...byStream.values()]
-    .map((events) => foldStream(events))
-    .filter((s): s is NonNullable<typeof s> => s !== null);
+    const byStream = new Map<string, EntitlementEvent[]>();
+    for (const row of rows) {
+      const event: EntitlementEvent = {
+        id: row.id,
+        source: row.source as EntitlementSource,
+        streamId: row.streamId,
+        sourceTimestamp: row.sourceTimestamp,
+        type: row.type as EntitlementEventType,
+        planTier: row.planTier,
+        expiresAt: row.expiresAt,
+        autoRenew: row.autoRenew,
+      };
+      const list = byStream.get(row.streamId);
+      if (list) list.push(event);
+      else byStream.set(row.streamId, [event]);
+    }
 
-  const best = combineStreams(streamStates);
-  const resolved = resolveEntitlement(best, new Date());
-  const plan: Plan = isKnownPlan(resolved) ? resolved : FALLBACK_PLAN;
+    const streamStates = [...byStream.values()]
+      .map((events) => foldStream(events))
+      .filter((s): s is NonNullable<typeof s> => s !== null);
 
-  if (!isKnownPlan(resolved)) {
-    // Defensive — should be unreachable: resolveEntitlement only ever
-    // returns "FREE" or a planTier some event actually carried, and
-    // every write site is expected to pass a real catalog tier. Fail
-    // closed (FREE) rather than write a plan string the Plan enum
-    // doesn't recognize (which Prisma would reject anyway).
-    logger.warn({ tenantId, resolved }, "reprojectEntitlement: reducer returned an unrecognized plan tier — falling back to FREE");
-  }
+    const now = new Date();
+    const best = combineStreams(streamStates, now);
+    const resolved = resolveEntitlement(best, now);
+    const plan: Plan = isKnownPlan(resolved) ? resolved : FALLBACK_PLAN;
 
-  await prisma.tenant.update({ where: { id: tenantId }, data: { plan } });
-  return plan;
+    if (!isKnownPlan(resolved)) {
+      // Defensive — should be unreachable: resolveEntitlement only ever
+      // returns "FREE" or a planTier some event actually carried, and
+      // every write site is expected to pass a real catalog tier. Fail
+      // closed (FREE) rather than write a plan string the Plan enum
+      // doesn't recognize (which Prisma would reject anyway).
+      logger.warn({ tenantId, resolved }, "reprojectEntitlement: reducer returned an unrecognized plan tier — falling back to FREE");
+    }
+
+    await tx.tenant.update({ where: { id: tenantId }, data: { plan } });
+    return plan;
+  });
 }
 
 /**

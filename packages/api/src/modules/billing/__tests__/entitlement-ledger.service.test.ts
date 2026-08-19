@@ -2,12 +2,24 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Same convention as savings.service.test.ts / forecast.test.ts — mock the
 // Prisma client before importing the module under test.
-vi.mock("../../../lib/db", () => ({
-  prisma: {
+//
+// $transaction just invokes the callback with the SAME mocked client as
+// `tx` (so mockFindMany/mockTenantUpdate below are literally the same
+// mock functions the transaction body calls — no separate tx-mock to
+// keep in sync). $queryRaw (the FOR UPDATE row lock) is a no-op here —
+// these are unit tests of the reduction/persistence LOGIC against a
+// fake client, not a proof the lock actually serializes concurrent
+// callers; that's what the live-DB demo script's concurrency scenario
+// is for.
+vi.mock("../../../lib/db", () => {
+  const client: any = {
     entitlementEvent: { create: vi.fn(), findMany: vi.fn() },
     tenant: { update: vi.fn() },
-  },
-}));
+    $queryRaw: vi.fn().mockResolvedValue([]),
+  };
+  client.$transaction = vi.fn((cb: (tx: unknown) => unknown) => cb(client));
+  return { prisma: client };
+});
 
 vi.mock("../../../lib/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },

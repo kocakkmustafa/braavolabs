@@ -28,6 +28,7 @@ import {
   PLAN_RANK,
   type EntitlementEvent,
 } from "../entitlement-reducer";
+import { PLAN_ORDER } from "@ai-company-os/core";
 
 const T0 = new Date("2026-01-01T00:00:00Z");
 const T1 = new Date("2026-01-02T00:00:00Z");
@@ -166,24 +167,29 @@ describe("foldStream — determinism under reordering and duplication", () => {
 
 describe("combineStreams — multi-source tenant entitlement (the 'don't downgrade' rule, generalized)", () => {
   it("a single active stream wins outright", () => {
-    const best = combineStreams([
-      { streamId: "s1", source: "stripe", status: "active", planTier: "CREATOR", expiresAt: T3, autoRenew: true },
-    ]);
+    const best = combineStreams(
+      [{ streamId: "s1", source: "stripe", status: "active", planTier: "CREATOR", expiresAt: T3, autoRenew: true }],
+      T1,
+    );
     expect(best?.planTier).toBe("CREATOR");
   });
 
   it("no active streams (all expired/revoked/refunded) → null, nothing to combine", () => {
-    const best = combineStreams([
-      { streamId: "s1", source: "stripe", status: "revoked", planTier: null, expiresAt: null, autoRenew: false },
-    ]);
+    const best = combineStreams(
+      [{ streamId: "s1", source: "stripe", status: "revoked", planTier: null, expiresAt: null, autoRenew: false }],
+      T1,
+    );
     expect(best).toBeNull();
   });
 
   it("Stripe web sub cancels but a mobile IAP sub is still active on a HIGHER tier → mobile wins (never silently downgrades)", () => {
-    const best = combineStreams([
-      { streamId: "stripe-1", source: "stripe", status: "revoked", planTier: null, expiresAt: null, autoRenew: false },
-      { streamId: "apple-1", source: "apple", status: "active", planTier: "BUSINESS", expiresAt: T3, autoRenew: true },
-    ]);
+    const best = combineStreams(
+      [
+        { streamId: "stripe-1", source: "stripe", status: "revoked", planTier: null, expiresAt: null, autoRenew: false },
+        { streamId: "apple-1", source: "apple", status: "active", planTier: "BUSINESS", expiresAt: T3, autoRenew: true },
+      ],
+      T1,
+    );
     expect(best).toMatchObject({ source: "apple", planTier: "BUSINESS" });
   });
 
@@ -192,16 +198,39 @@ describe("combineStreams — multi-source tenant entitlement (the 'don't downgra
       { streamId: "s1", source: "stripe" as const, status: "active" as const, planTier: "CREATOR", expiresAt: T3, autoRenew: true },
       { streamId: "s2", source: "google" as const, status: "active" as const, planTier: "BUSINESS", expiresAt: T3, autoRenew: true },
     ];
-    expect(combineStreams(streams)?.planTier).toBe("BUSINESS");
-    expect(combineStreams([...streams].reverse())?.planTier).toBe("BUSINESS");
+    expect(combineStreams(streams, T1)?.planTier).toBe("BUSINESS");
+    expect(combineStreams([...streams].reverse(), T1)?.planTier).toBe("BUSINESS");
   });
 
   it("in_grace_period counts as provisionally active (still entitled, still beats an expired/revoked stream)", () => {
-    const best = combineStreams([
-      { streamId: "s1", source: "stripe", status: "in_grace_period", planTier: "CREATOR", expiresAt: T3, autoRenew: true },
-      { streamId: "s2", source: "apple", status: "revoked", planTier: null, expiresAt: null, autoRenew: false },
-    ]);
+    const best = combineStreams(
+      [
+        { streamId: "s1", source: "stripe", status: "in_grace_period", planTier: "CREATOR", expiresAt: T3, autoRenew: true },
+        { streamId: "s2", source: "apple", status: "revoked", planTier: null, expiresAt: null, autoRenew: false },
+      ],
+      T1,
+    );
     expect(best?.planTier).toBe("CREATOR");
+  });
+
+  it("R2 regression: a stale event-wise-'active' HIGH-tier stream past its own expiresAt must NOT shadow a genuinely-active LOWER-tier stream during selection", () => {
+    const best = combineStreams(
+      [
+        // BUSINESS's own expiry notification was lost/delayed — still "active" in our records, but its time has passed.
+        { streamId: "stripe-1", source: "stripe", status: "active", planTier: "BUSINESS", expiresAt: T1, autoRenew: true },
+        { streamId: "apple-1", source: "apple", status: "active", planTier: "CREATOR", expiresAt: T3, autoRenew: true },
+      ],
+      T2, // after the Stripe stream's expiresAt (T1), before Apple's (T3)
+    );
+    expect(best).toMatchObject({ source: "apple", planTier: "CREATOR" });
+  });
+
+  it("R2 regression: in_grace_period is picked/ranked WITHOUT a wall-clock check, even past what would-be its own expiresAt — grace is event-driven, not time-driven", () => {
+    const best = combineStreams(
+      [{ streamId: "s1", source: "stripe", status: "in_grace_period", planTier: "PRO", expiresAt: T0, autoRenew: false }],
+      T3, // long after T0 — would fail an active-style check, must not matter for grace
+    );
+    expect(best?.planTier).toBe("PRO");
   });
 
   it("PLAN_RANK covers every tier the catalog defines, in ascending order — a regression guard so a newly-added plan doesn't silently rank as 0/undefined", () => {
@@ -209,6 +238,13 @@ describe("combineStreams — multi-source tenant entitlement (the 'don't downgra
     expect(PLAN_RANK.CREATOR).toBeLessThan(PLAN_RANK.PRO);
     expect(PLAN_RANK.PRO).toBeLessThan(PLAN_RANK.BUSINESS);
     expect(PLAN_RANK.BUSINESS).toBeLessThan(PLAN_RANK.ENTERPRISE);
+  });
+
+  it("R2 finding #9: PLAN_RANK's tier SET and ORDER actually match @ai-company-os/core's PLAN_ORDER — not just internally self-consistent", () => {
+    expect(Object.keys(PLAN_RANK).sort()).toEqual([...PLAN_ORDER].sort());
+    PLAN_ORDER.forEach((tier, i) => {
+      expect(PLAN_RANK[tier]).toBe(i);
+    });
   });
 });
 
@@ -233,11 +269,19 @@ describe("resolveEntitlement — the only place wall-clock time enters", () => {
     expect(resolveEntitlement(null, T1)).toBe("FREE");
   });
 
-  it("in_grace_period is entitled until expiresAt, exactly like active", () => {
+  it("in_grace_period is entitled, unconditionally on wall-clock time (unlike active) — event-driven, not time-driven", () => {
     const plan = resolveEntitlement(
       { streamId: "s1", source: "stripe", status: "in_grace_period", planTier: "CREATOR", expiresAt: T3, autoRenew: true },
       T1,
     );
     expect(plan).toBe("CREATOR");
+  });
+
+  it("R2 regression (finding #1): in_grace_period stays entitled even PAST what would-be its own expiresAt — Stripe past_due carries no reliable grace-deadline field, so grace must not be wall-clock-gated the way active is", () => {
+    const plan = resolveEntitlement(
+      { streamId: "s1", source: "stripe", status: "in_grace_period", planTier: "PRO", expiresAt: T0, autoRenew: false },
+      T3, // long after T0 — would be FREE for an "active" stream, must stay PRO for grace
+    );
+    expect(plan).toBe("PRO");
   });
 });

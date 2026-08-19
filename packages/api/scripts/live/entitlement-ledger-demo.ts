@@ -27,6 +27,7 @@ import {
   recordEntitlementEvent,
   reprojectEntitlement,
 } from "../../src/modules/billing/entitlement-ledger.service";
+import { mapStripeSubscriptionUpdated } from "../../src/modules/billing/entitlement-mapping";
 
 const dbUrl = process.env.DATABASE_URL ?? "";
 if (!/aicos_entitlement_ledger_demo/.test(dbUrl)) {
@@ -140,6 +141,12 @@ async function main() {
     "PRO",
   );
 
+  // NOTE (R2 finding #7): this step's prior event set expiresAt 30 REAL
+  // days in the future, so it doesn't exercise the case that actually
+  // broke (a past_due whose current_period_end has already passed, per
+  // Stripe's real payload shape) — see Test 5 below for that, through
+  // the real mapper. This step only proves the simpler "grace status
+  // itself grants" property in isolation.
   await recordEntitlementEvent({
     tenantId: t3.id, source: "stripe", streamId: stream,
     sourceEventId: "lc-grace", sourceTimestamp: next(), type: "grace",
@@ -202,8 +209,84 @@ async function main() {
     "BUSINESS",
   );
 
+  // ── 5. R2 regression: a realistic Stripe past_due event, through the REAL mapper ──
+  // Test 3's "grace" step above only passes because its prior renewal's
+  // expiresAt was set 30 real-world days in the future while the rest of
+  // that lifecycle uses fake January 2026 timestamps — it doesn't prove
+  // grace survives the case that actually broke (a past_due webhook
+  // whose current_period_end has ALREADY passed, which is what Stripe
+  // really sends: the failed-to-renew period's own end, not a
+  // fabricated future grace deadline). This test goes through the real
+  // mapStripeSubscriptionUpdated mapper — not a hand-built literal — with
+  // an already-past current_period_end, the exact shape of the R2 finding.
+  console.log("\n--- Test 5: realistic past_due through the real mapper (R2 finding #1) ---");
+  const t5 = await freshTenant(`br-p0-003-pastdue-${Date.now()}`);
+  const pastDueStream = "sub-pastdue-1";
+  // The period that just failed to renew — ends 3 days ago, matching
+  // Stripe's actual shape (current_period_end is never a fabricated
+  // future grace deadline, it's simply the period that didn't renew).
+  const originalPeriodEndUnix = Math.floor((Date.now() - 3 * 86_400_000) / 1000);
+  // NOTE: no intermediate "purchase → PRO" assertion here (unlike Test
+  // 3) — with only the purchase event recorded and this same
+  // already-past period end, reprojecting RIGHT NOW would correctly
+  // show FREE (an unrenewed period that's already elapsed genuinely
+  // isn't active) — that's correct product behavior, not the thing
+  // under test. What matters is the state AFTER the past_due event
+  // arrives, checked below.
+  await recordEntitlementEvent({
+    tenantId: t5.id,
+    ...mapStripeSubscriptionUpdated(
+      { id: "evt-pastdue-purchase", created: Math.floor((Date.now() - 33 * 86_400_000) / 1000) },
+      { id: pastDueStream, status: "active", current_period_end: originalPeriodEndUnix, cancel_at_period_end: false },
+      "PRO",
+    ),
+  });
+  await recordEntitlementEvent({
+    tenantId: t5.id,
+    ...mapStripeSubscriptionUpdated(
+      { id: "evt-pastdue-webhook", created: Math.floor(Date.now() / 1000) },
+      { id: pastDueStream, status: "past_due", current_period_end: originalPeriodEndUnix, cancel_at_period_end: false },
+      "PRO",
+    ),
+  });
+  check(
+    "past_due through the REAL mapper, with an ALREADY-PASSED current_period_end (Stripe's actual shape) → still PRO, not FREE",
+    (await prisma.tenant.findUniqueOrThrow({ where: { id: t5.id } })).plan,
+    "PRO",
+  );
+
+  // ── 6. R2 finding #3: concurrent reprojectEntitlement for the SAME tenant must not lose an update ──
+  // Two DIFFERENT streams' events recorded via genuinely concurrent
+  // recordEntitlementEvent calls (Promise.all, not sequential awaits) —
+  // without the FOR UPDATE row lock, one call's read-modify-write could
+  // interleave with the other's and silently overwrite it with a
+  // stale, incomplete-history computation. The final plan must reflect
+  // BOTH events (the higher of the two tiers), proving neither write
+  // was lost.
+  console.log("\n--- Test 6: concurrent recordEntitlementEvent for the same tenant (R2 finding #3) ---");
+  const t6 = await freshTenant(`br-p0-003-concurrency-${Date.now()}`);
+  await Promise.all([
+    recordEntitlementEvent({
+      tenantId: t6.id, source: "stripe", streamId: "sub-conc-1",
+      sourceEventId: "conc-stripe", sourceTimestamp: new Date("2026-01-01T00:00:00Z"),
+      type: "purchase", planTier: "PRO", expiresAt: new Date(Date.now() + 30 * 86_400_000), autoRenew: true,
+    }),
+    recordEntitlementEvent({
+      tenantId: t6.id, source: "apple", streamId: "orig-tx-conc-1",
+      sourceEventId: "conc-apple", sourceTimestamp: new Date("2026-01-01T00:00:01Z"),
+      type: "purchase", planTier: "BUSINESS", expiresAt: new Date(Date.now() + 30 * 86_400_000), autoRenew: true,
+    }),
+  ]);
+  const eventCountAfterConcurrency = await prisma.entitlementEvent.count({ where: { tenantId: t6.id } });
+  check("both concurrent events actually landed in the ledger (2 rows, neither insert lost)", eventCountAfterConcurrency, 2);
+  check(
+    "final plan reflects BOTH concurrent writes (highest tier, BUSINESS) — neither reprojection's write was lost to the race",
+    (await prisma.tenant.findUniqueOrThrow({ where: { id: t6.id } })).plan,
+    "BUSINESS",
+  );
+
   // ── cleanup ──
-  const tenantIds = [t1.id, t2.id, t3.id, t4.id];
+  const tenantIds = [t1.id, t2.id, t3.id, t4.id, t5.id, t6.id];
   await prisma.entitlementEvent.deleteMany({ where: { tenantId: { in: tenantIds } } });
   await prisma.tenant.deleteMany({ where: { id: { in: tenantIds } } });
 

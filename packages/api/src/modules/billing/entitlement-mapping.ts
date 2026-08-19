@@ -49,6 +49,19 @@ interface MinimalStripeSubscription {
  * unpaid, incomplete_expired, paused, incomplete) is an immediate
  * `revoke` — matches the old code's blanket-FREE fallback for "anything
  * else".
+ *
+ * R2 fix (2026-08-19): `granting` now includes `"grace"`, matching
+ * mapAppleNotify/mapGoogleNotify's already-correct pattern — Stripe's
+ * version originally only granted on `"renewal"`, which meant a
+ * past_due event carried expiresAt:null and (since foldStream's own
+ * "grace" case never touches expiresAt either) left the stream's
+ * expiresAt frozen at whatever the last successful renewal set it to —
+ * which, by definition, is already at-or-before "now" once payment has
+ * actually failed. Combined with the reducer no longer wall-clock-gating
+ * grace at all (see entitlement-reducer.ts's isEffectivelyGranting),
+ * this fixes past_due resolving to FREE almost immediately instead of
+ * preserving the plan through Stripe's retry window — planTier stays
+ * renewal-only below since foldStream's grace case doesn't read it.
  */
 export function mapStripeSubscriptionUpdated(
   event: MinimalStripeEvent,
@@ -62,14 +75,14 @@ export function mapStripeSubscriptionUpdated(
         ? "grace"
         : "revoke";
 
-  const granting = type === "renewal";
+  const granting = type === "renewal" || type === "grace";
   return {
     source: "stripe",
     streamId: subscription.id,
     sourceEventId: event.id,
     sourceTimestamp: new Date(event.created * 1000),
     type,
-    planTier: granting ? plan : null,
+    planTier: type === "renewal" ? plan : null,
     expiresAt: granting && subscription.current_period_end
       ? new Date(subscription.current_period_end * 1000)
       : null,
@@ -83,14 +96,23 @@ export function mapStripeSubscriptionUpdated(
  * landed, or an admin/API cancelled it mid-period). Either way access
  * ends NOW: mapped as `revoke` (immediate, foldStream clears
  * planTier/expiresAt unconditionally) rather than `cancel` (which
- * deliberately preserves access until expiresAt) — the "cancel" event
- * already fired earlier, at whatever point cancel_at_period_end was
- * first set, via a subscription.updated delivery; by the time
- * .deleted arrives there is nothing left to preserve. This matches the
+ * deliberately preserves access until expiresAt, and by the time
+ * .deleted arrives there is nothing left to preserve). This matches the
  * existing handler's unconditional "downgrade to FREE now, flag early
  * cancellations for manual refund review" behavior exactly (the
  * early-cancel warning log is unrelated ActivityLog bookkeeping, not
  * touched by this mapper).
+ *
+ * Correction (R2, 2026-08-19): none of the 6 real call sites ever emits
+ * a literal `type: "cancel"` event — `mapStripeSubscriptionUpdated`
+ * carries the CURRENT `autoRenew` value (derived from
+ * `cancel_at_period_end`) on every `"renewal"` event instead, which is
+ * functionally equivalent (foldStream's own "cancel" case only ever
+ * flips `autoRenew`) without needing a dedicated event type. `"cancel"`
+ * remains in the reducer's vocabulary for completeness/future sources,
+ * but is presently unreached by any of this repo's 6 mappers — this is
+ * not a gap, just worth knowing so nobody goes looking for where it
+ * fires.
  */
 export function mapStripeSubscriptionDeleted(
   event: MinimalStripeEvent,
@@ -119,6 +141,22 @@ export function mapStripeSubscriptionDeleted(
  * identifier subscription.updated/.deleted use as streamId. If a tenant
  * has no tracked Stripe subscription id there is no stream to attach a
  * refund to and the caller should skip calling this entirely.
+ *
+ * KNOWN LIMITATION (R2 finding #5, 2026-08-19, NOT fixed this pass —
+ * pre-existing, the old blind-UPDATE code had the same gap in a
+ * different shape, and the ledger is a strictly-better failure mode
+ * than a silent overwrite): if a tenant churns (subscription A deleted,
+ * stripeSubscriptionId cleared) and resubscribes (subscription B) before
+ * a LATE refund for an old charge under A arrives, this attaches the
+ * refund to B (whatever's currently on the tenant row) instead of A,
+ * potentially clearing B's legitimate, currently-paid entitlement. Two
+ * possible fixes, neither implemented here: (1) check whether the
+ * webhook's charge object has an expandable `invoice.subscription` that
+ * more precisely identifies the ORIGINATING subscription (needs
+ * confirming that's actually populated on this account's webhook
+ * config, or an extra Stripe API call to fetch it), or (2) track
+ * refund-eligible charges against their subscription id at charge-time
+ * rather than reaching for whatever's on the tenant row later.
  */
 export function mapStripeChargeRefunded(
   event: MinimalStripeEvent,
@@ -143,11 +181,18 @@ export function mapStripeChargeRefunded(
  * states (google.ts imports the type from apple.ts). Shared mapping so
  * the two notify handlers can't silently drift from each other.
  *
- * "paused" is defensively mapped to `grace` (temporarily-not-renewing,
- * not yet gone) — Apple's own verify/parse logic never actually
- * produces "paused" today (grep-confirmed), this branch exists for
- * exhaustiveness against the shared union and for Google, where a
- * user-initiated Play subscription pause is a real state.
+ * "paused" maps to `revoke` (immediate, no grant) — Apple's own
+ * verify/parse logic never actually produces "paused" today
+ * (grep-confirmed), this branch exists for exhaustiveness against the
+ * shared union and for Google, where a user-initiated Play subscription
+ * pause is a real state. R2 correction (2026-08-19): this previously
+ * mapped to `grace` (still granting) on the reasoning "temporarily not
+ * renewing, not yet gone" — but Play's pause feature is explicitly
+ * "stop billing AND access until resumed", not a payment-retry window,
+ * so granting access while paused overgrants. Fail-closed default
+ * (matches this codebase's existing convention — e.g. the unknown-Stripe-priceId
+ * and unrecognized-plan-tier fallbacks elsewhere in this module) until a
+ * product decision says otherwise.
  */
 function mobileStatusToEventType(status: VerifiedReceipt["status"]): EntitlementEventType {
   switch (status) {
@@ -156,7 +201,6 @@ function mobileStatusToEventType(status: VerifiedReceipt["status"]): Entitlement
     case "in_grace_period":
       return "grace";
     case "paused":
-      return "grace";
     case "expired":
     case "revoked":
       return "revoke";
@@ -172,11 +216,18 @@ function mobileStatusToEventType(status: VerifiedReceipt["status"]): Entitlement
  *
  * sourceEventId has no natural source here (unlike a true webhook,
  * /verify carries no server-issued event id — StoreKit/Play just hand
- * back "here's the current state"). Deriving a stable id from
- * (originalTransactionId, status, expiresAt) means repeat /verify calls
- * for an UNCHANGED subscription dedupe to the same ledger row, while an
- * actual state change (renewal pushing expiresAt forward, a fresh
- * purchase) produces a genuinely new one.
+ * back "here's the current state"). Deriving a stable id from every
+ * field that actually determines the event's meaning
+ * (originalTransactionId, status, expiresAt, planTier, autoRenew) means
+ * repeat /verify calls for a TRULY unchanged subscription dedupe to the
+ * same ledger row, while any real state change produces a genuinely new
+ * one. R2 correction (2026-08-19): the key previously omitted planTier
+ * and autoRenew, so (a) a user toggling auto-renew off in platform
+ * settings then reopening the app produced the SAME key as their prior
+ * verify (status/expiresAt unchanged) and got silently dropped by the
+ * unique constraint, and (b) an immediate-upgrade whose proration keeps
+ * the same period end likewise collided with the pre-upgrade purchase
+ * event. Both are now distinct keys.
  */
 export function mapIapVerify(
   source: EntitlementSource,
@@ -187,7 +238,7 @@ export function mapIapVerify(
   return {
     source,
     streamId: verified.originalTransactionId,
-    sourceEventId: `verify:${verified.originalTransactionId}:${verified.status}:${verified.expiresAt.getTime()}`,
+    sourceEventId: `verify:${verified.originalTransactionId}:${verified.status}:${verified.expiresAt.getTime()}:${planTier}:${verified.autoRenew}`,
     sourceTimestamp: new Date(),
     type: verified.status === "active" ? "purchase" : "grace",
     planTier: verified.status === "active" ? planTier : null,

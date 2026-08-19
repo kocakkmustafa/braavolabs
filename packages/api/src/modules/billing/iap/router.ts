@@ -171,6 +171,18 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
         lastVerifiedAt: new Date(),
       },
       update: {
+        // R2 fix (2026-08-19): productId/planTier were missing here, so a
+        // tier UPGRADE via /verify (same originalTransactionId — tier
+        // changes reuse the same row) updated status/expiresAt/autoRenew
+        // correctly but left planTier frozen at whatever the FIRST
+        // purchase set. Harmless before this PR (nothing downstream read
+        // the column), but this PR's notify handlers now feed it into
+        // entitlement-granting renewal events — the next ROUTINE
+        // renewal (no user action) would silently revert the tenant to
+        // their pre-upgrade tier. See mapAppleNotify/mapGoogleNotify's
+        // own defense-in-depth fix for the same root cause.
+        productId: body.productId,
+        planTier,
         latestReceipt: body.receipt,
         status: verified.status,
         expiresAt: verified.expiresAt,
@@ -331,9 +343,22 @@ iapRouter.post("/apple/notify", iapWebhookRateLimit, async (req, res) => {
       // order. combineStreams still preserves any other active source
       // automatically (Stripe web, or the other store), same as the
       // other 5 call sites — no manual "stillActive" query needed.
+      //
+      // R2 fix: derive the tier from THIS notification's own productId
+      // rather than trusting `updated.planTier` — defense-in-depth on
+      // top of the upsert fix above, since `updated` here comes from a
+      // separate `mobileSubscription.update()` (not the /verify upsert)
+      // that has never written planTier either. Falls back to the
+      // (possibly stale) DB value only if the productId isn't in the
+      // catalog, so an operator forgetting to register a new SKU fails
+      // soft instead of dropping the event's planTier to undefined.
+      const freshTier = PRODUCT_TIER_MAP[note.productId] ?? (updated.planTier as PlanTier);
+      if (!PRODUCT_TIER_MAP[note.productId]) {
+        logger.warn({ productId: note.productId, tenantId: updated.tenantId }, "Apple notify: unknown productId, falling back to stored planTier");
+      }
       await recordEntitlementEvent({
         tenantId: updated.tenantId,
-        ...mapAppleNotify(note, verified, updated.planTier as PlanTier),
+        ...mapAppleNotify(note, verified, freshTier),
       });
       await prisma.activityLog.create({
         data: {
@@ -425,9 +450,18 @@ iapRouter.post("/google/notify", iapWebhookRateLimit, async (req, res) => {
       // notify handler above: recorded for every status, not just
       // expired/revoked, so out-of-order delivery is provably safe
       // rather than merely "usually fine".
+      //
+      // R2 fix: same defense-in-depth as the Apple handler — derive the
+      // tier from this notification's own subscriptionId rather than
+      // trusting `updated.planTier`, falling back to the DB value only
+      // for an unrecognized SKU.
+      const freshTier = PRODUCT_TIER_MAP[parsed.subscriptionId] ?? (updated.planTier as PlanTier);
+      if (!PRODUCT_TIER_MAP[parsed.subscriptionId]) {
+        logger.warn({ subscriptionId: parsed.subscriptionId, tenantId: updated.tenantId }, "Google RTDN: unknown subscriptionId, falling back to stored planTier");
+      }
       await recordEntitlementEvent({
         tenantId: updated.tenantId,
-        ...mapGoogleNotify(parsed, verified, updated.planTier as PlanTier),
+        ...mapGoogleNotify(parsed, verified, freshTier),
       });
       await prisma.activityLog.create({
         data: {

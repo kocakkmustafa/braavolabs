@@ -63,6 +63,18 @@ describe("mapStripeSubscriptionUpdated", () => {
     expect(out.planTier).toBeNull();
   });
 
+  it("R2 fix (finding #1): past_due is `granting` too — carries expiresAt/autoRenew like renewal does, not null like the old revoke-only granting check produced", () => {
+    const out = mapStripeSubscriptionUpdated(
+      EVENT,
+      { id: "sub_1", status: "past_due", current_period_end: 1_802_000_000, cancel_at_period_end: false },
+      "PRO",
+    );
+    expect(out.type).toBe("grace");
+    expect(out.planTier).toBeNull(); // still null — foldStream's grace case never reads planTier
+    expect(out.expiresAt).toEqual(new Date(1_802_000_000 * 1000)); // NOT null — this is the actual fix
+    expect(out.autoRenew).toBe(true);
+  });
+
   it.each(["canceled", "unpaid", "incomplete_expired", "paused", "incomplete"])(
     "status=%s → revoke (matches the old blanket-FREE fallback)",
     (status) => {
@@ -139,6 +151,20 @@ describe("mapIapVerify", () => {
     const b = mapIapVerify("apple", receipt({ status: "active", expiresAt: new Date("2026-03-01T00:00:00Z") }), "PRO")!;
     expect(a.sourceEventId).not.toBe(b.sourceEventId);
   });
+
+  it("R2 regression (finding #6a): sourceEventId CHANGES when only autoRenew flips (status/expiresAt unchanged) — a user toggling auto-renew off must not be silently deduped away", () => {
+    const r = receipt({ status: "active", autoRenew: true });
+    const a = mapIapVerify("apple", r, "PRO")!;
+    const b = mapIapVerify("apple", { ...r, autoRenew: false }, "PRO")!;
+    expect(a.sourceEventId).not.toBe(b.sourceEventId);
+  });
+
+  it("R2 regression (finding #6b): sourceEventId CHANGES on a same-expiresAt tier change (an immediate-upgrade proration that keeps the same period end) — must not collide with the pre-upgrade purchase event", () => {
+    const r = receipt({ status: "active" });
+    const a = mapIapVerify("apple", r, "CREATOR")!;
+    const b = mapIapVerify("apple", r, "BUSINESS")!;
+    expect(a.sourceEventId).not.toBe(b.sourceEventId);
+  });
 });
 
 describe("mapAppleNotify / mapGoogleNotify — shared status vocabulary", () => {
@@ -167,9 +193,10 @@ describe("mapAppleNotify / mapGoogleNotify — shared status vocabulary", () => 
     }
   });
 
-  it("apple: paused → grace (defensive — unreachable via today's apple.ts, exhaustiveness only)", () => {
+  it("R2 fix (finding #10): paused → revoke, fail-closed (unreachable via today's apple.ts, exhaustiveness only) — Play's pause is 'stop access', not a payment-retry window, so it must not grant", () => {
     const out = mapAppleNotify(note, receipt({ status: "paused" }), "PRO");
-    expect(out.type).toBe("grace");
+    expect(out.type).toBe("revoke");
+    expect(out.expiresAt).toBeNull();
   });
 
   it("google: same status vocabulary, uses Pub/Sub messageId/publishTime as the ledger key", () => {
