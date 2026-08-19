@@ -14,6 +14,12 @@ import { AppError } from "../../middleware/error";
 import { redis } from "../../lib/redis";
 import { computeSpendForecast } from "./forecast";
 import { computeTenantSavings } from "./savings.service";
+import { recordEntitlementEvent } from "./entitlement-ledger.service";
+import {
+  mapStripeSubscriptionUpdated,
+  mapStripeSubscriptionDeleted,
+  mapStripeChargeRefunded,
+} from "./entitlement-mapping";
 import {
   createCustomer,
   createCheckoutSession,
@@ -561,10 +567,17 @@ stripeWebhookRouter.post(
 
             await prisma.tenant.update({
               where: { id: tenant.id },
-              data: {
-                plan,
-                stripeSubscriptionId: subscription.id,
-              },
+              data: { stripeSubscriptionId: subscription.id },
+            });
+
+            // Entitlement ledger — BR-P0-003. Appends this event and
+            // recomputes tenant.plan from the tenant's FULL event
+            // history (all sources), not a blind write of `plan`. A
+            // delayed/out-of-order delivery of this same webhook can no
+            // longer overwrite a chronologically newer state.
+            await recordEntitlementEvent({
+              tenantId: tenant.id,
+              ...mapStripeSubscriptionUpdated(event, subscription, plan),
             });
 
             await prisma.activityLog.create({
@@ -606,10 +619,12 @@ stripeWebhookRouter.post(
 
             await prisma.tenant.update({
               where: { id: tenant.id },
-              data: {
-                plan: "FREE",
-                stripeSubscriptionId: null,
-              },
+              data: { stripeSubscriptionId: null },
+            });
+
+            await recordEntitlementEvent({
+              tenantId: tenant.id,
+              ...mapStripeSubscriptionDeleted(event, subscription),
             });
 
             if (earlyCancel) {
@@ -727,28 +742,23 @@ stripeWebhookRouter.post(
               where: { stripeCustomerId: customerId },
             });
             if (tenant) {
-              // Full refund → downgrade to FREE. FINDINGS M4: but NOT if the
-              // tenant still holds an active mobile (Apple/Google IAP)
-              // entitlement — both billing systems write tenant.plan, and a
-              // Stripe refund must not strip a still-valid IAP subscription.
-              // Mirror the IAP notify path's stillActive check.
+              // Full refund → downgrade to FREE, UNLESS the tenant still
+              // holds an active mobile (Apple/Google IAP) entitlement.
+              // FINDINGS M4's original fix mirrored the IAP notify path's
+              // "stillActive" check by hand; BR-P0-003 replaces that
+              // per-call-site check with recordEntitlementEvent + the
+              // shared reducer's combineStreams, which picks the
+              // highest still-granting stream across ALL sources — a
+              // still-active mobile stream is preserved automatically,
+              // no manual "is there another active one" query needed.
               const fullyRefunded = charge.amount_refunded >= charge.amount;
               let downgraded = false;
-              if (fullyRefunded) {
-                const activeMobile = await prisma.mobileSubscription.findFirst({
-                  where: {
-                    tenantId: tenant.id,
-                    status: { in: ["active", "in_grace_period"] },
-                    expiresAt: { gt: new Date() },
-                  },
+              if (fullyRefunded && tenant.stripeSubscriptionId) {
+                const resultingPlan = await recordEntitlementEvent({
+                  tenantId: tenant.id,
+                  ...mapStripeChargeRefunded(event, tenant.stripeSubscriptionId),
                 });
-                if (!activeMobile) {
-                  await prisma.tenant.update({
-                    where: { id: tenant.id },
-                    data: { plan: "FREE" },
-                  });
-                  downgraded = true;
-                }
+                downgraded = resultingPlan === "FREE";
               }
               await prisma.activityLog.create({
                 data: {

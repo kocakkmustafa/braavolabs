@@ -43,6 +43,7 @@ model Tenant {
   abTests             AbTest[]
   pipelineLicenses    PipelineLicense[]
   mobileSubscriptions MobileSubscription[]
+  entitlementEvents   EntitlementEvent[]
   oidcConnection      OidcConnection?
   externalConnections ExternalConnection[]
   mediaAssets         MediaAsset[]
@@ -1455,6 +1456,53 @@ model StripeWebhookEvent {
   @@index([type])
   @@index([createdAt])
   @@map("stripe_webhook_events")
+}
+
+// Append-only entitlement event ledger (BR-P0-003) — the single source of
+// truth Stripe, Apple and Google events all fold through. See
+// packages/api/src/modules/billing/entitlement-reducer.ts for the pure
+// fold/combine/resolve logic this table feeds; tenant.plan and
+// MobileSubscription stay as read PROJECTIONS of that fold's result,
+// written by the same code path that appends here — never written to
+// directly by a webhook handler anymore. StripeWebhookEvent's own dedup
+// is untouched (this is a new, normalized layer alongside it, not a
+// replacement — Stripe's row still records the raw payload for audit;
+// this table records the normalized fact the reducer needs).
+model EntitlementEvent {
+  id       String @id @default(cuid())
+  tenantId String @map("tenant_id")
+  /// "stripe" | "apple" | "google" — see EntitlementSource in the reducer.
+  source   String
+  // Groups events into one subscription's stream (a Stripe subscription
+  // id, or an Apple/Google originalTransactionId) — the unit foldStream()
+  // operates over. A tenant can have more than one concurrent stream
+  // (e.g. a Stripe web sub AND a mobile IAP sub); combineStreams()
+  // resolves those into the entitlement that actually governs the tenant.
+  streamId String @map("stream_id")
+  // Dedup key: the SOURCE's own event/notification id (Stripe event.id,
+  // Apple notificationUUID, Google Pub/Sub messageId) — unique PER
+  // SOURCE, so the same webhook delivered twice never appends twice.
+  // Mirrors StripeWebhookEvent.stripeEventId's already-proven pattern.
+  sourceEventId String @map("source_event_id")
+  // When the event happened per the SOURCE (Stripe's `created`, the
+  // transaction/notification time from Apple/Google) — NOT when we
+  // received it. This is the ordering key the reducer sorts by, which is
+  // exactly what makes a delayed webhook unable to overwrite a newer one.
+  sourceTimestamp DateTime @map("source_timestamp")
+  /// "purchase" | "renewal" | "cancel" | "grace" | "refund" | "revoke" | "restore"
+  type      String
+  // Matches MobileSubscription.planTier's own choice of String over the
+  // Plan enum — a new catalog tier shouldn't need a migration here either.
+  planTier  String?   @map("plan_tier")
+  expiresAt DateTime? @map("expires_at")
+  autoRenew Boolean   @default(true) @map("auto_renew")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([source, sourceEventId])
+  @@index([tenantId, streamId])
+  @@map("entitlement_events")
 }
 
 // ─── EXTERNAL AUTOMATION MONITORING (Phase 3 — connect-and-watch) ──

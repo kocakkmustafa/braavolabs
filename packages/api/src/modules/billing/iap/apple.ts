@@ -279,6 +279,16 @@ export async function parseAppleNotification(
   expiresAt: Date;
   status: VerifiedReceipt["status"];
   autoRenew: boolean;
+  /** Apple's own per-delivery id (top-level `notificationUUID` in the
+   * decoded payload) — the entitlement ledger's dedup key. NOT the same
+   * thing as originalTransactionId (which identifies the SUBSCRIPTION,
+   * not this delivery) — a redelivery of the same notification carries
+   * the same notificationUUID, which is exactly what makes it dedupe. */
+  notificationUUID: string;
+  /** When Apple signed this notification — the ledger's ordering key.
+   * Distinct from "when we received it", same principle as Stripe's
+   * event.created. */
+  signedDate: Date;
 }> {
   // FINDINGS C1 — this payload arrives at the UNAUTHENTICATED notify
   // endpoint, so we MUST verify Apple's signature (x5c chain → Apple Root
@@ -287,6 +297,8 @@ export async function parseAppleNotification(
   let payload: Record<string, unknown> & {
     notificationType?: string;
     subtype?: string;
+    notificationUUID?: string;
+    signedDate?: number;
     data?: { signedTransactionInfo?: string; signedRenewalInfo?: string };
   };
   try {
@@ -320,5 +332,7 @@ export async function parseAppleNotification(
     expiresAt,
     status,
     autoRenew: renewal?.autoRenewStatus === 1,
+    notificationUUID: String(payload.notificationUUID ?? ""),
+    signedDate: new Date(payload.signedDate ?? Date.now()),
   };
 }

@@ -33,6 +33,8 @@ import { env } from "../../../config/env";
 import { logger } from "../../../lib/logger";
 import { verifyAppleReceipt, parseAppleNotification } from "./apple";
 import { verifyGoogleReceipt, parseGoogleRtdnEnvelope, verifyPubSubPushToken } from "./google";
+import { recordEntitlementEvent } from "../entitlement-ledger.service";
+import { mapIapVerify, mapAppleNotify, mapGoogleNotify, type PlanTier } from "../entitlement-mapping";
 import crypto from "node:crypto";
 
 export const iapRouter = Router();
@@ -177,14 +179,18 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
       },
     });
 
-    // Reflect the plan on the tenant immediately so the next /users/me
-    // call from the web mirrors the upgrade. We do NOT downgrade — a
-    // future expiry-cron handles that path with proper grace logic.
-    if (verified.status === "active" || verified.status === "in_grace_period") {
-      await prisma.tenant.update({
-        where: { id: tenantId },
-        data: { plan: planTier as any },
-      });
+    // Entitlement ledger — BR-P0-003. mapIapVerify returns null for
+    // exactly the statuses the old code's `if` skipped (anything but
+    // active/in_grace_period), so this preserves that behavior exactly
+    // while recomputing tenant.plan from the FULL cross-source event
+    // history rather than a blind write. body.provider is narrowed
+    // explicitly here: the RevenueCat branch above always throws before
+    // reaching this point, so `verified` only ever comes from apple/google
+    // in practice, but the zod schema's wider union doesn't let TS see that.
+    const entitlementSource = body.provider === "apple" ? "apple" : "google";
+    const mappedEvent = mapIapVerify(entitlementSource, verified, planTier);
+    if (mappedEvent) {
+      await recordEntitlementEvent({ tenantId, ...mappedEvent });
     }
 
     await prisma.activityLog.create({
@@ -316,24 +322,19 @@ iapRouter.post("/apple/notify", iapWebhookRateLimit, async (req, res) => {
     });
 
     if (updated) {
-      // Downgrade the tenant when entitlement is actually gone. Active
-      // states leave the existing tenant.plan untouched (the upgrade
-      // was already applied at /verify time).
-      if (verified.status === "expired" || verified.status === "revoked") {
-        const stillActive = await prisma.mobileSubscription.findFirst({
-          where: {
-            tenantId: updated.tenantId,
-            status: { in: ["active", "in_grace_period"] },
-            expiresAt: { gt: new Date() },
-          },
-        });
-        if (!stillActive) {
-          await prisma.tenant.update({
-            where: { id: updated.tenantId },
-            data: { plan: "FREE" },
-          });
-        }
-      }
+      // Entitlement ledger — BR-P0-003. Recorded for every status (not
+      // just expired/revoked, as the old downgrade-only check did) —
+      // the active/grace deliveries matter too, because it's THEIR
+      // accurate sourceTimestamp in the ledger that lets a
+      // late-arriving but chronologically OLDER "expired" notification
+      // be correctly ignored instead of wrongly winning on arrival
+      // order. combineStreams still preserves any other active source
+      // automatically (Stripe web, or the other store), same as the
+      // other 5 call sites — no manual "stillActive" query needed.
+      await recordEntitlementEvent({
+        tenantId: updated.tenantId,
+        ...mapAppleNotify(note, verified, updated.planTier as PlanTier),
+      });
       await prisma.activityLog.create({
         data: {
           tenantId: updated.tenantId,
@@ -420,21 +421,14 @@ iapRouter.post("/google/notify", iapWebhookRateLimit, async (req, res) => {
     });
 
     if (updated) {
-      if (verified.status === "expired" || verified.status === "revoked") {
-        const stillActive = await prisma.mobileSubscription.findFirst({
-          where: {
-            tenantId: updated.tenantId,
-            status: { in: ["active", "in_grace_period"] },
-            expiresAt: { gt: new Date() },
-          },
-        });
-        if (!stillActive) {
-          await prisma.tenant.update({
-            where: { id: updated.tenantId },
-            data: { plan: "FREE" },
-          });
-        }
-      }
+      // Entitlement ledger — BR-P0-003. Same reasoning as the Apple
+      // notify handler above: recorded for every status, not just
+      // expired/revoked, so out-of-order delivery is provably safe
+      // rather than merely "usually fine".
+      await recordEntitlementEvent({
+        tenantId: updated.tenantId,
+        ...mapGoogleNotify(parsed, verified, updated.planTier as PlanTier),
+      });
       await prisma.activityLog.create({
         data: {
           tenantId: updated.tenantId,
