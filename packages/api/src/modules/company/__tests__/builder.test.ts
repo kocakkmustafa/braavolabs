@@ -35,9 +35,11 @@ vi.mock("../../../services/ai-client", () => ({
 
 const resolveTenantCompletionLinkMock = vi.hoisted(() => vi.fn());
 const commitTrialCompletionMock = vi.hoisted(() => vi.fn());
+const refundTrialCompletionMock = vi.hoisted(() => vi.fn());
 vi.mock("../../../services/provider-chain", () => ({
   resolveTenantCompletionLink: (...a: unknown[]) => resolveTenantCompletionLinkMock(...a),
   commitTrialCompletion: (...a: unknown[]) => commitTrialCompletionMock(...a),
+  refundTrialCompletion: (...a: unknown[]) => refundTrialCompletionMock(...a),
 }));
 
 import { startBuildSession } from "../builder";
@@ -80,7 +82,9 @@ describe("startBuildSession — provider resolution honesty (D-013)", () => {
     expect(chatCompletionMock).toHaveBeenCalledWith(resolvedConfig, expect.any(String), expect.any(Array), 4096);
     expect(session.status).toBe("clarifying");
     // BYOK source → the trial counter must not be committed.
-    expect(commitTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "byok-default");
+    expect(commitTrialCompletionMock).toHaveBeenCalledWith(
+      "tenant-1", "byok-default", expect.objectContaining({ provider: "GROQ", model: "llama-3.3-70b-versatile" }),
+    );
   });
 
   it("trial-served build: commits the run-based counter after a successful serve", async () => {
@@ -99,6 +103,24 @@ describe("startBuildSession — provider resolution honesty (D-013)", () => {
 
     await startBuildSession("tenant-1", "a TikTok content factory for indie game devs");
 
-    expect(commitTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "trial");
+    expect(commitTrialCompletionMock).toHaveBeenCalledWith(
+      "tenant-1", "trial", expect.objectContaining({ provider: "GROQ", model: "llama-3.3-70b-versatile" }),
+    );
+  });
+
+  it("REFUND: trial-served build throws → the reservation is refunded, not committed or stranded", async () => {
+    resolveTenantCompletionLinkMock.mockResolvedValue({
+      provider: "GROQ",
+      source: "trial",
+      config: { provider: "GROQ", model: "llama-3.3-70b-versatile", apiKey: "gsk-trial" },
+    });
+    chatCompletionMock.mockRejectedValue(new Error("GROQ timeout after 30s"));
+
+    await expect(
+      startBuildSession("tenant-1", "a TikTok content factory for indie game devs"),
+    ).rejects.toThrow();
+
+    expect(commitTrialCompletionMock).not.toHaveBeenCalled();
+    expect(refundTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "trial");
   });
 });

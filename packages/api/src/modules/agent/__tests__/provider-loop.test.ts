@@ -95,9 +95,11 @@ vi.mock("../claude-local", () => ({ runLocalAgentLoop: vi.fn() }));
 
 const tryConsumeTrialRunMock = vi.hoisted(() => vi.fn());
 const commitTrialRunMock = vi.hoisted(() => vi.fn());
+const refundTrialReservationMock = vi.hoisted(() => vi.fn());
 vi.mock("../../../services/trial-llm", () => ({
   tryConsumeTrialRun: (...a: unknown[]) => tryConsumeTrialRunMock(...a),
   commitTrialRun: (...a: unknown[]) => commitTrialRunMock(...a),
+  refundTrialReservation: (...a: unknown[]) => refundTrialReservationMock(...a),
 }));
 
 // ai-client — ONLY chatCompletion mocked; everything else
@@ -479,7 +481,7 @@ describe("unified loop — trial Groq path", () => {
     });
 
     expect(result.turns).toHaveLength(4); // TRIAL_MAX_TURNS clamp (plan T4/A8)
-    expect(commitTrialRunMock).toHaveBeenCalledExactlyOnceWith("tenant-1");
+    expect(commitTrialRunMock).toHaveBeenCalledExactlyOnceWith("tenant-1", expect.any(Number));
   });
 });
 

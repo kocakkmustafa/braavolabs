@@ -43,9 +43,11 @@ vi.mock("../../lib/encryption", () => ({
 
 const tryConsumeTrialRunMock = vi.hoisted(() => vi.fn());
 const commitTrialRunMock = vi.hoisted(() => vi.fn());
+const refundTrialReservationMock = vi.hoisted(() => vi.fn());
 vi.mock("../trial-llm", () => ({
   tryConsumeTrialRun: (...a: unknown[]) => tryConsumeTrialRunMock(...a),
   commitTrialRun: (...a: unknown[]) => commitTrialRunMock(...a),
+  refundTrialReservation: (...a: unknown[]) => refundTrialReservationMock(...a),
 }));
 
 import {
@@ -598,6 +600,33 @@ describe("resolveTenantCompletionLink — chain head, D-009 policy for one-shots
 
     expect(link.source).toBe("system");
     expect(link.config).toMatchObject({ provider: "ANTHROPIC", apiKey: "sk-ant-system-key" });
+  });
+
+  it("R2 FIX: a healthy BYOK head with allowSystemFallback=true still reserves hosted-trial cost for the opt-in tail — self-refunds it immediately since this caller only ever dials head, never the tail", async () => {
+    seedRows([
+      { provider: "DEEPSEEK", model: "deepseek-chat", key: "sk-ds", isDefault: true, allowSystemFallback: true },
+    ]);
+    // buildTenantProviderChain includes trial in the tail whenever
+    // allowSystemFallback is set, regardless of whether head is healthy —
+    // tryConsumeTrialRun (now atomic) reserves as a side effect of that.
+    tryConsumeTrialRunMock.mockResolvedValue({
+      config: { provider: "GROQ", model: "llama-3.3-70b-versatile", apiKey: "gsk-trial" },
+      remainingBefore: 3,
+      remainingAfter: 2,
+    });
+
+    const link = await resolveTenantCompletionLink(TENANT);
+
+    expect(link.source).toBe("byok-default"); // head is BYOK, trial never dialed
+    expect(refundTrialReservationMock).toHaveBeenCalledWith(TENANT);
+  });
+
+  it("no stranded-reservation refund when trial was never reserved at all (BYOK-only chain, no allowSystemFallback)", async () => {
+    seedRows([{ provider: "DEEPSEEK", model: "deepseek-chat", key: "sk-ds", isDefault: true }]);
+
+    await resolveTenantCompletionLink(TENANT);
+
+    expect(refundTrialReservationMock).not.toHaveBeenCalled();
   });
 });
 

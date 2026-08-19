@@ -64,9 +64,11 @@ vi.mock("../../../services/ai-client", () => ({
 
 const resolveTenantCompletionLinkMock = vi.hoisted(() => vi.fn());
 const commitTrialCompletionMock = vi.hoisted(() => vi.fn());
+const refundTrialCompletionMock = vi.hoisted(() => vi.fn());
 vi.mock("../../../services/provider-chain", () => ({
   resolveTenantCompletionLink: (...a: unknown[]) => resolveTenantCompletionLinkMock(...a),
   commitTrialCompletion: (...a: unknown[]) => commitTrialCompletionMock(...a),
+  refundTrialCompletion: (...a: unknown[]) => refundTrialCompletionMock(...a),
 }));
 
 import { pipelineRouter } from "../router";
@@ -162,8 +164,15 @@ describe("POST /pipelines/from-natural-language — D-013 provider resolution", 
     expect(res.statusCode).toBe(201);
     // The response echoes the model that actually served — not env.CLAUDE_MODEL.
     expect(res.body).toMatchObject({ aiModel: "deepseek-chat" });
-    // BYOK source → commit is a no-op but still called with the honest source.
-    expect(commitTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "byok-default");
+    // BYOK source → commit is a no-op but still called with the honest source
+    // and the completion's usage (cost-cap settlement — no-op for non-trial).
+    expect(commitTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "byok-default", {
+      content: NL_CONFIG,
+      inputTokens: 12,
+      outputTokens: 30,
+      provider: "DEEPSEEK",
+      model: "deepseek-chat",
+    });
   });
 
   it("HONESTY: BYOK-less FREE tenant served by the counted trial → the run-based counter is committed after success", async () => {
@@ -183,7 +192,13 @@ describe("POST /pipelines/from-natural-language — D-013 provider resolution", 
     const { nextErr } = await invoke(handler, { body });
 
     expect(nextErr).toBeUndefined();
-    expect(commitTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "trial");
+    expect(commitTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "trial", {
+      content: NL_CONFIG,
+      inputTokens: 12,
+      outputTokens: 30,
+      provider: "GROQ",
+      model: "llama-3.3-70b-versatile",
+    });
     // Ordering: the completion runs BEFORE the counter commit (consume-on-serve).
     expect(chatCompletionMock.mock.invocationCallOrder[0]).toBeLessThan(
       commitTrialCompletionMock.mock.invocationCallOrder[0],
@@ -202,6 +217,9 @@ describe("POST /pipelines/from-natural-language — D-013 provider resolution", 
 
     expect(nextErr?.statusCode).toBe(502);
     expect(commitTrialCompletionMock).not.toHaveBeenCalled();
+    // The hosted-trial cost reservation this call held is refunded, not
+    // stranded — symmetric with commitTrialCompletion on the success path.
+    expect(refundTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "trial");
     expect(pipelineCreate).not.toHaveBeenCalled();
   });
 });

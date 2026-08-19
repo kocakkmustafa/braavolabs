@@ -183,7 +183,9 @@ describe("POST /runs/:id/explain — D-013 provider resolution", () => {
       generatedByAi: true,
     });
     // BYOK source → the trial counter is not committed.
-    expect(commitTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "byok-default");
+    expect(commitTrialCompletionMock).toHaveBeenCalledWith(
+      "tenant-1", "byok-default", expect.objectContaining({ provider: "DEEPSEEK", model: "deepseek-chat" }),
+    );
   });
 
   it("HONESTY: BYOK-less FREE tenant served by the counted trial → the run-based counter is committed after success", async () => {
@@ -203,6 +205,8 @@ describe("POST /runs/:id/explain — D-013 provider resolution", () => {
     const { nextErr } = await invoke(handler, { params: { id: "run-1" } });
 
     expect(nextErr).toBeUndefined();
-    expect(commitTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "trial");
+    expect(commitTrialCompletionMock).toHaveBeenCalledWith(
+      "tenant-1", "trial", expect.objectContaining({ provider: "GROQ", model: "llama-3.3-70b-versatile" }),
+    );
   });
 });

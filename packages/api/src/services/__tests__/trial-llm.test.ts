@@ -37,11 +37,26 @@ vi.mock("../../lib/db", () => ({
   },
 }));
 
+// The $0.30-total hosted-trial cost cap is the SAME bucket trial-credit
+// .service.ts already guards (atomic reserve/settle/refund, Opus-hardened
+// AND R2-adversarial-hardened again 2026-08-19 for this module's own
+// reuse of it) — this module reserves/settles/refunds real cost into it,
+// never re-implements the atomic guard itself.
+const creditGate = vi.hoisted(() => ({
+  trialCreditEnabled: vi.fn(),
+  reserveTrialCredit: vi.fn(),
+  settleTrialCredit: vi.fn(),
+  refundTrialCredit: vi.fn(),
+}));
+vi.mock("../../modules/billing/trial-credit.service", () => creditGate);
+
 import {
   tryConsumeTrialRun,
   commitTrialRun,
+  refundTrialReservation,
   getTrialStatus,
   trialEnabled,
+  TRIAL_LLM_RESERVATION_USD,
 } from "../trial-llm";
 
 const TENANT = "tenant-trial";
@@ -67,6 +82,13 @@ beforeEach(() => {
   // credit/plan/dormant boundaries and shouldn't also have to know about the
   // separate email-verification gate. Tests for THAT gate override this.
   db.userFindFirst.mockResolvedValue({ id: "user-verified" });
+  // Default: cost cap disabled (mirrors prod's FORGE_TRIAL_CREDIT_USD_CAP=0
+  // default) — existing tests shouldn't need to know about the cap either.
+  // Tests for the cap gate override this.
+  creditGate.trialCreditEnabled.mockReturnValue(false);
+  creditGate.reserveTrialCredit.mockResolvedValue({ reservationUsd: TRIAL_LLM_RESERVATION_USD });
+  creditGate.settleTrialCredit.mockResolvedValue(undefined);
+  creditGate.refundTrialCredit.mockResolvedValue(undefined);
 });
 
 describe("trialEnabled", () => {
@@ -177,6 +199,80 @@ describe("tryConsumeTrialRun — verified-email abuse guard", () => {
   });
 });
 
+describe("tryConsumeTrialRun — $0.30 hosted-trial cost cap: ATOMIC reservation (R2 fix)", () => {
+  it("cap disabled (prod default) — never even attempts a reservation", async () => {
+    seedTenant({ trialRunsUsed: 0, trialRunsLimit: 3 });
+    creditGate.trialCreditEnabled.mockReturnValue(false);
+    const decision = await tryConsumeTrialRun(TENANT);
+    expect(decision).not.toBeNull();
+    expect(creditGate.reserveTrialCredit).not.toHaveBeenCalled();
+  });
+
+  it("cap enabled but the atomic reservation fails (bucket exhausted) — null, even with full run-count credit and a verified user", async () => {
+    seedTenant({ trialRunsUsed: 0, trialRunsLimit: 3 });
+    creditGate.trialCreditEnabled.mockReturnValue(true);
+    creditGate.reserveTrialCredit.mockResolvedValue(null); // the SQL WHERE guard rejected it
+    const decision = await tryConsumeTrialRun(TENANT);
+    expect(decision).toBeNull();
+  });
+
+  it("cap enabled and the reservation succeeds — serves normally, reserving this flow's OWN ceiling (not trial-credit.service.ts's smaller validation-ping one)", async () => {
+    seedTenant({ trialRunsUsed: 0, trialRunsLimit: 3 });
+    creditGate.trialCreditEnabled.mockReturnValue(true);
+    const decision = await tryConsumeTrialRun(TENANT);
+    expect(decision).not.toBeNull();
+    expect(creditGate.reserveTrialCredit).toHaveBeenCalledWith(TENANT, TRIAL_LLM_RESERVATION_USD);
+  });
+
+  it("checks the cost cap AFTER the cheaper run-count/email checks, not before", async () => {
+    seedTenant({ trialRunsUsed: 3, trialRunsLimit: 3 }); // exhausted count
+    creditGate.trialCreditEnabled.mockReturnValue(true);
+    const decision = await tryConsumeTrialRun(TENANT);
+    expect(decision).toBeNull();
+    expect(creditGate.reserveTrialCredit).not.toHaveBeenCalled();
+  });
+
+  it("ATOMICITY PROOF: N concurrent callers cannot all reserve past the cap — the mock enforces the same running-total invariant reserveTrialCredit's real SQL WHERE clause does, unlike a plain read-check which every caller would pass simultaneously", async () => {
+    seedTenant({ trialRunsUsed: 0, trialRunsLimit: 50 }); // count high enough to isolate the cost dimension
+    creditGate.trialCreditEnabled.mockReturnValue(true);
+    let reservedTotal = 0;
+    const CAP = 0.3;
+    creditGate.reserveTrialCredit.mockImplementation(async (_t: string, usd: number) => {
+      if (reservedTotal + usd > CAP) return null;
+      reservedTotal += usd; // synchronous within the mock — models the DB's atomic guard
+      return { reservationUsd: usd };
+    });
+
+    const results = await Promise.all(Array.from({ length: 50 }, () => tryConsumeTrialRun(TENANT)));
+    const granted = results.filter((r) => r !== null);
+    // At $0.10/reservation against a $0.30 cap, AT MOST 3 of 50 concurrent
+    // callers can ever be granted — a fixed, provable ceiling instead of
+    // the unbounded fan-out a read-then-settle check would allow.
+    expect(granted.length).toBeLessThanOrEqual(3);
+    expect(reservedTotal).toBeLessThanOrEqual(CAP);
+  });
+});
+
+describe("refundTrialReservation", () => {
+  it("cap disabled — never calls refundTrialCredit", async () => {
+    creditGate.trialCreditEnabled.mockReturnValue(false);
+    await refundTrialReservation(TENANT);
+    expect(creditGate.refundTrialCredit).not.toHaveBeenCalled();
+  });
+
+  it("cap enabled — refunds exactly TRIAL_LLM_RESERVATION_USD", async () => {
+    creditGate.trialCreditEnabled.mockReturnValue(true);
+    await refundTrialReservation(TENANT);
+    expect(creditGate.refundTrialCredit).toHaveBeenCalledWith(TENANT, TRIAL_LLM_RESERVATION_USD);
+  });
+
+  it("never throws even if the underlying refund fails (non-fatal, self-correcting)", async () => {
+    creditGate.trialCreditEnabled.mockReturnValue(true);
+    creditGate.refundTrialCredit.mockRejectedValue(new Error("db blip"));
+    await expect(refundTrialReservation(TENANT)).resolves.not.toThrow();
+  });
+});
+
 describe("commitTrialRun", () => {
   it("increments trialRunsUsed by exactly 1", async () => {
     await commitTrialRun(TENANT);
@@ -184,6 +280,30 @@ describe("commitTrialRun", () => {
       where: { id: TENANT },
       data: { trialRunsUsed: { increment: 1 } },
     });
+  });
+
+  it("no costUsd argument — never touches the cost-cap bucket (count-only callers unaffected)", async () => {
+    await commitTrialRun(TENANT);
+    expect(creditGate.settleTrialCredit).not.toHaveBeenCalled();
+  });
+
+  it("cap disabled — a costUsd argument is still a no-op on the bucket (matches prod default)", async () => {
+    creditGate.trialCreditEnabled.mockReturnValue(false);
+    await commitTrialRun(TENANT, 0.0015);
+    expect(creditGate.settleTrialCredit).not.toHaveBeenCalled();
+  });
+
+  it("cap enabled + costUsd given — trues the ALREADY-RESERVED TRIAL_LLM_RESERVATION_USD up to the real cost", async () => {
+    creditGate.trialCreditEnabled.mockReturnValue(true);
+    await commitTrialRun(TENANT, 0.0015);
+    expect(creditGate.settleTrialCredit).toHaveBeenCalledWith(TENANT, TRIAL_LLM_RESERVATION_USD, 0.0015);
+  });
+
+  it("the counter increment still happens even if settling the cost bucket throws (counter is the run-count source of truth)", async () => {
+    creditGate.trialCreditEnabled.mockReturnValue(true);
+    creditGate.settleTrialCredit.mockRejectedValue(new Error("db blip"));
+    await expect(commitTrialRun(TENANT, 0.0015)).resolves.not.toThrow();
+    expect(db.tenantUpdate).toHaveBeenCalled();
   });
 });
 

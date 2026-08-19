@@ -14,7 +14,7 @@ import { chatCompletion, getTenantAIConfig, LOCAL_PROVIDERS, type AIProviderType
 // /:id/handoff route's getTenantAIConfig call is a best-effort AUDIT lookup
 // (records fromProvider on the ledger, never dials the LLM) and stays on the
 // plain getTenantAIConfig import.
-import { listTenantProviderLinks, resolveTenantCompletionLink, commitTrialCompletion } from "../../services/provider-chain";
+import { listTenantProviderLinks, resolveTenantCompletionLink, commitTrialCompletion, refundTrialCompletion } from "../../services/provider-chain";
 import { assertKeylessLocalBaseUrl } from "../../services/takeover-config";
 import { createHandoff, claimHandoff, HandoffClaimError, cancelOpenHandoffForRun } from "./handoff.service";
 import { env } from "../../config/env";
@@ -171,10 +171,13 @@ runRouter.post("/:id/explain", explainLimiter, async (req, res, next) => {
         { runId: run.id, tenantId: req.auth!.tenantId, err: (err as Error).message },
         "run explain LLM call failed",
       );
+      // Refund an unused hosted-trial cost reservation before rethrowing —
+      // symmetric with the commit below (exactly one of the two must fire).
+      await refundTrialCompletion(req.auth!.tenantId, link.source);
       throw new AppError(502, "Couldn't reach your AI provider to generate an explanation. Try again shortly.");
     }
     // Count the trial slot only after a successful serve (D-009/D-013 parity).
-    await commitTrialCompletion(req.auth!.tenantId, link.source);
+    await commitTrialCompletion(req.auth!.tenantId, link.source, result);
 
     // Parse the JSON the model returned; tolerate markdown fences and fall back
     // to using the raw text as the explanation if it isn't valid JSON.

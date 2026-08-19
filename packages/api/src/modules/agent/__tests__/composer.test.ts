@@ -27,9 +27,11 @@ vi.mock("../registry", () => ({
 
 const resolveTenantCompletionLinkMock = vi.hoisted(() => vi.fn());
 const commitTrialCompletionMock = vi.hoisted(() => vi.fn());
+const refundTrialCompletionMock = vi.hoisted(() => vi.fn());
 vi.mock("../../../services/provider-chain", () => ({
   resolveTenantCompletionLink: (...a: unknown[]) => resolveTenantCompletionLinkMock(...a),
   commitTrialCompletion: (...a: unknown[]) => commitTrialCompletionMock(...a),
+  refundTrialCompletion: (...a: unknown[]) => refundTrialCompletionMock(...a),
 }));
 
 const chatCompletionMock = vi.hoisted(() => vi.fn());
@@ -167,7 +169,9 @@ describe("composeAgent — provider resolution honesty (D-013)", () => {
     expect(result.agent.role).toBe("billing_support");
     expect(result.provider).toBe("DEEPSEEK");
     // BYOK source → the trial counter is never touched.
-    expect(commitTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "byok-default");
+    expect(commitTrialCompletionMock).toHaveBeenCalledWith(
+      "tenant-1", "byok-default", expect.objectContaining({ provider: "DEEPSEEK", model: "deepseek-chat" }),
+    );
   });
 
   it("trial-served completion: the run-based counter is committed AFTER a successful serve", async () => {
@@ -193,10 +197,28 @@ describe("composeAgent — provider resolution honesty (D-013)", () => {
 
     // commitTrialCompletion is called with the trial source only after the
     // completion resolved — a thrown completion would skip it (slot refunded).
-    expect(commitTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "trial");
+    expect(commitTrialCompletionMock).toHaveBeenCalledWith(
+      "tenant-1", "trial", expect.objectContaining({ provider: "GROQ", model: "llama-3.3-70b-versatile" }),
+    );
     // Ordering: chatCompletion must run BEFORE the counter commit.
     expect(chatCompletionMock.mock.invocationCallOrder[0]).toBeLessThan(
       commitTrialCompletionMock.mock.invocationCallOrder[0],
     );
+  });
+
+  it("REFUND: trial-served completion throws → the reservation is refunded, not committed or stranded", async () => {
+    resolveTenantCompletionLinkMock.mockResolvedValue({
+      provider: "GROQ",
+      source: "trial",
+      config: { provider: "GROQ", model: "llama-3.3-70b-versatile", apiKey: "gsk-trial" },
+    });
+    chatCompletionMock.mockRejectedValue(new Error("GROQ API error 503: overloaded"));
+
+    await expect(
+      composeAgent("tenant-1", "a support agent that answers billing questions"),
+    ).rejects.toThrow("GROQ API error 503");
+
+    expect(commitTrialCompletionMock).not.toHaveBeenCalled();
+    expect(refundTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "trial");
   });
 });

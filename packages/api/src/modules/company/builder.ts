@@ -12,7 +12,7 @@ import { chatCompletion, type ChatMessage } from "../../services/ai-client";
 // the run loop does (BYOK → counted trial → opt-in/PAID system → honest
 // error) instead of silently spending the shared system Anthropic key for a
 // keyless tenant. commitTrialCompletion counts the trial slot on success.
-import { resolveTenantCompletionLink, commitTrialCompletion } from "../../services/provider-chain";
+import { resolveTenantCompletionLink, commitTrialCompletion, refundTrialCompletion } from "../../services/provider-chain";
 
 const isLocalMode = env.LLM_PROVIDER === "local";
 
@@ -71,9 +71,17 @@ async function callAI(
   // API mode — resolve the tenant's D-009 chain head (BYOK → counted trial →
   // opt-in/PAID system → honest error), never a silent system-key fallthrough.
   const link = await resolveTenantCompletionLink(tenantId);
-  const result = await chatCompletion(link.config, systemPrompt, messages, 4096);
+  let result;
+  try {
+    result = await chatCompletion(link.config, systemPrompt, messages, 4096);
+  } catch (err) {
+    // Refund an unused hosted-trial cost reservation before rethrowing —
+    // symmetric with the commit below (exactly one of the two must fire).
+    await refundTrialCompletion(tenantId, link.source);
+    throw err;
+  }
   // Count the trial slot only after a successful serve (D-009/D-013 parity).
-  await commitTrialCompletion(tenantId, link.source);
+  await commitTrialCompletion(tenantId, link.source, result);
   return result.content;
 }
 
