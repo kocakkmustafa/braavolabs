@@ -14,10 +14,33 @@
 -- This migration extends the SAME defense-in-depth RLS layer (see the
 -- 20260616 migration's own header for the full mechanism explanation —
 -- current_tenant_id(), the app-layer WHERE-clause as primary isolation,
--- RLS as the enforced DB-level second layer) to every REMAINING
+-- RLS as the enforced DB-level second layer) to every remaining
 -- tenant-scoped table: 11 with a direct tenant_id column, 7 reachable
--- via one hop through companies, and 7 reachable via two-to-four hops
--- (runs -> pipelines -> companies, and deeper) — 25 tables total.
+-- via one hop through companies, 7 reachable via two-to-four hops
+-- through companies (runs -> pipelines -> companies, and deeper), and
+-- 8 reachable via one-to-three hops through a DIFFERENT already-covered
+-- parent (users / web_research_sessions / external_connections /
+-- ab_tests / ab_test_variants / agents / runs) — 33 tables total.
+--
+-- R2 review (2026-08-19) caught that an earlier draft's "every
+-- REMAINING tenant-scoped table" claim was false — it independently
+-- cross-checked all 52 @@map'd tables in schema.prisma against the
+-- covered set and found 8 real, unambiguous gaps matching the exact
+-- pattern of tables already here (devices/notification_prefs one hop
+-- via users; agent_versions two hops via agents; steering_messages
+-- three hops via runs, identical depth to run_steps/approvals;
+-- web_research_sources/external_runs/ab_test_variants one hop via
+-- their already-covered parent; ab_test_metrics two hops via
+-- ab_test_variants). Added below, closing the gap the review flagged
+-- rather than opening a fast-follow for a same-pattern, same-review-pass
+-- addition. Four OTHER tables the review flagged are deliberately still
+-- NOT here — tenants (would need a structurally different `id =
+-- current_tenant_id()` pattern, not this migration's shape), referrals
+-- (dual tenant ownership, doesn't fit either pattern), company_templates
+-- and connectors (public marketplace catalogs with a nullable owning
+-- tenant — what "tenant-scoped" even means for a public row here is a
+-- product question, not a mechanical gap) — left for a deliberate,
+-- separate pass rather than forced into patterns that don't actually fit.
 --
 -- Purely ADDITIVE — no existing policy touched, no data mutated. Safe on
 -- a live database: RLS is currently a no-op in production regardless
@@ -203,18 +226,35 @@ CREATE POLICY tenant_rls ON memory_embeddings
     )
   );
 
--- Checks only the `from` endpoint's company — edges are constructed
--- exclusively within a single company's memory graph (never linked
--- across companies by any application code path), so the two endpoints
--- always agree in practice. Documented assumption, not re-verified here.
+-- R2 review (2026-08-19) caught that the ORIGINAL version of this
+-- policy (checking only `from_id`'s company) was based on a false
+-- premise: `packages/api/src/modules/memory/router.ts`'s real
+-- POST /api/v1/memory/edges validates both endpoints belong to the
+-- caller's TENANT, not the same COMPANY — a same-tenant,
+-- cross-company edge is a real, reachable state through the actual
+-- app, not merely theoretical. That still doesn't cross a tenant
+-- boundary today (both endpoints ARE tenant-checked at the one real
+-- write path), but the review also built a local canary and proved
+-- that if a cross-TENANT edge ever existed (e.g. a future bug, a
+-- different write path, direct DB access) THIS policy's single-ended
+-- check would expose it asymmetrically — tenant A visible via
+-- `from_id`, tenant B's own copy invisible via `to_id`. Cheap to close
+-- properly rather than leave as a documented gap: check both ends.
 ALTER TABLE memory_edges ENABLE ROW LEVEL SECURITY;
 CREATE POLICY tenant_rls ON memory_edges
   USING (
     current_tenant_id() IS NULL
-    OR EXISTS (
-      SELECT 1 FROM memory_items mi
-      JOIN companies c ON c.id = mi.company_id
-      WHERE mi.id = from_id AND c.tenant_id = current_tenant_id()
+    OR (
+      EXISTS (
+        SELECT 1 FROM memory_items mi
+        JOIN companies c ON c.id = mi.company_id
+        WHERE mi.id = from_id AND c.tenant_id = current_tenant_id()
+      )
+      AND EXISTS (
+        SELECT 1 FROM memory_items mi
+        JOIN companies c ON c.id = mi.company_id
+        WHERE mi.id = to_id AND c.tenant_id = current_tenant_id()
+      )
     )
   );
 
@@ -226,5 +266,79 @@ CREATE POLICY tenant_rls ON outreach_enrollments
       SELECT 1 FROM outreach_sequences os
       JOIN companies c ON c.id = os.company_id
       WHERE os.id = sequence_id AND c.tenant_id = current_tenant_id()
+    )
+  );
+
+-- ── R2-review-found gap (8 tables) — one-to-three hops through a
+-- DIFFERENT already-covered parent (not companies directly) ──────────
+
+ALTER TABLE devices ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_rls ON devices
+  USING (
+    current_tenant_id() IS NULL
+    OR EXISTS (SELECT 1 FROM users u WHERE u.id = user_id AND u.tenant_id = current_tenant_id())
+  );
+
+ALTER TABLE notification_prefs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_rls ON notification_prefs
+  USING (
+    current_tenant_id() IS NULL
+    OR EXISTS (SELECT 1 FROM users u WHERE u.id = user_id AND u.tenant_id = current_tenant_id())
+  );
+
+ALTER TABLE web_research_sources ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_rls ON web_research_sources
+  USING (
+    current_tenant_id() IS NULL
+    OR EXISTS (SELECT 1 FROM web_research_sessions s WHERE s.id = session_id AND s.tenant_id = current_tenant_id())
+  );
+
+ALTER TABLE external_runs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_rls ON external_runs
+  USING (
+    current_tenant_id() IS NULL
+    OR EXISTS (SELECT 1 FROM external_connections ec WHERE ec.id = connection_id AND ec.tenant_id = current_tenant_id())
+  );
+
+ALTER TABLE ab_test_variants ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_rls ON ab_test_variants
+  USING (
+    current_tenant_id() IS NULL
+    OR EXISTS (SELECT 1 FROM ab_tests t WHERE t.id = test_id AND t.tenant_id = current_tenant_id())
+  );
+
+ALTER TABLE agent_versions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_rls ON agent_versions
+  USING (
+    current_tenant_id() IS NULL
+    OR EXISTS (
+      SELECT 1 FROM agents a
+      JOIN companies c ON c.id = a.company_id
+      WHERE a.id = agent_id AND c.tenant_id = current_tenant_id()
+    )
+  );
+
+ALTER TABLE ab_test_metrics ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_rls ON ab_test_metrics
+  USING (
+    current_tenant_id() IS NULL
+    OR EXISTS (
+      SELECT 1 FROM ab_test_variants v
+      JOIN ab_tests t ON t.id = v.test_id
+      WHERE v.id = variant_id AND t.tenant_id = current_tenant_id()
+    )
+  );
+
+-- Same depth/shape as run_steps and approvals above — steering_messages
+-- hangs off runs the same way.
+ALTER TABLE steering_messages ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_rls ON steering_messages
+  USING (
+    current_tenant_id() IS NULL
+    OR EXISTS (
+      SELECT 1 FROM runs r
+      JOIN pipelines p ON p.id = r.pipeline_id
+      JOIN companies c ON c.id = p.company_id
+      WHERE r.id = run_id AND c.tenant_id = current_tenant_id()
     )
   );
