@@ -46,6 +46,24 @@ import { randomUUID } from "node:crypto";
 const PROBE_URL = process.env.XTENANT_DATABASE_URL;
 const d = PROBE_URL ? describe : describe.skip;
 
+/**
+ * The gate needs a gate.
+ *
+ * `describe.skip` is right for a laptop — nobody should need a database to run
+ * `pnpm test`. But vitest exits 0 when everything skips, so a CI step that runs
+ * this suite is GREEN whether the matrix executed or not. That is exactly how
+ * these 15 tests sat skipped in every CI run while appearing to pass. One typo
+ * in the env var name, or one change to the service container, and the silence
+ * returns with no signal.
+ *
+ * This test is deliberately NOT inside the skipped describe.
+ */
+it("the isolation matrix must actually run in CI", () => {
+  if (process.env.CI) {
+    expect(PROBE_URL, "XTENANT_DATABASE_URL is unset in CI — the cross-tenant matrix would silently skip").toBeTruthy();
+  }
+});
+
 const SECRET = "xtenant-probe-secret-at-least-32-chars-long";
 process.env.DATABASE_URL = PROBE_URL ?? "";
 process.env.JWT_SECRET = SECRET;
