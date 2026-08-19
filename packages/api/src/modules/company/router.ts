@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { requirePermission } from "../../middleware/require-permission";
 import { authMiddleware } from "../../middleware/auth";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
@@ -363,7 +364,7 @@ companyRouter.get("/build/:sessionId", async (req, res, next) => {
 });
 
 // DELETE /api/v1/companies/:id — archive (soft-delete) a company
-companyRouter.delete("/:id", async (req, res, next) => {
+companyRouter.delete("/:id", requirePermission("company:delete"), async (req, res, next) => {
   try {
     const result = await prisma.company.updateMany({
       where: { id: req.params.id, tenantId: req.auth!.tenantId },
