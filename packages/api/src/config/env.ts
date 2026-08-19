@@ -117,6 +117,17 @@ const envShape = z.object({
   // transform so only the literal "true" enables bypass — every other value
   // (including "false", "0", empty, missing) keeps billing enforcement on.
   BYPASS_BILLING: z.string().optional().default("false").transform((v) => v === "true"),
+  // TENANT_CONTEXT_FAIL_CLOSED (BR-P0-004): when on, a Prisma model op from a
+  // path that declared NEITHER runWithTenant nor runWithoutTenant throws
+  // instead of querying with app.tenant_id NULL (which disables RLS for that
+  // query). Defaults ON. Same explicit string transform as BYPASS_BILLING —
+  // z.coerce.boolean() would make "false" true. Set the literal "false" to
+  // restore the old fail-open behavior without a rollback.
+  TENANT_CONTEXT_FAIL_CLOSED: z
+    .string()
+    .optional()
+    .default("true")
+    .transform((v) => v !== "false"),
   ENCRYPTION_KEY: z.string().min(32),
   // Sentry — leave unset in dev, set in prod. The SDK no-ops when missing.
   // Empty string tolerated (docker-compose default substitution).
