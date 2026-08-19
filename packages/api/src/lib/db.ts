@@ -1,5 +1,6 @@
 import { Prisma, PrismaClient } from "@prisma/client";
-import { currentTenantId } from "./tenant-context";
+import { currentTenantContext } from "./tenant-context";
+import { resolveTenantBinding } from "./tenant-binding";
 import { env } from "../config/env";
 
 /**
@@ -34,9 +35,16 @@ const TX_OPTIONS = { timeout: env.DB_TX_TIMEOUT_MS, maxWait: env.DB_TX_MAXWAIT_M
  * statement of the SAME transaction and hands the caller a `tx` client whose
  * operations run on that connection — so the whole unit is RLS-bound too.
  *
- * When there is no tenant context (public routes, background jobs, Prisma
- * migrations) both paths pass through unwrapped: `current_tenant_id()` is NULL
- * and the policies allow the query — exactly today's behavior.
+ * When a path is EXPLICITLY system-scoped (`runWithoutTenant` — workers, cron
+ * sweeps, signature-verified webhooks, pre-auth routes, maintenance scripts)
+ * both paths pass through unwrapped: `current_tenant_id()` is NULL and the
+ * policies allow the query.
+ *
+ * When a path declared NOTHING at all, both paths now THROW (BR-P0-004 slice
+ * 3). That case used to be indistinguishable from the one above and was
+ * therefore fail-OPEN: a route that forgot to establish context queried with
+ * RLS silently disabled. See lib/tenant-binding.ts; TENANT_CONTEXT_FAIL_CLOSED
+ * restores the old behavior without a rollback.
  */
 
 const globalForPrisma = globalThis as unknown as { basePrisma?: PrismaClient };
@@ -66,8 +74,15 @@ export const prisma = base.$extends({
   query: {
     $allModels: {
       async $allOperations({ model, operation, args, query }) {
-        const tenantId = currentTenantId();
-        if (!tenantId) return query(args);
+        // BR-P0-004 slice 3: an unmarked path is now an ERROR rather than a
+        // silent unwrapped query. See lib/tenant-binding.ts.
+        const binding = resolveTenantBinding(currentTenantContext(), {
+          failClosed: env.TENANT_CONTEXT_FAIL_CLOSED,
+          model: model as string,
+          operation: operation as string,
+        });
+        if (binding.mode === "passthrough") return query(args);
+        const tenantId = binding.tenantId;
         // Bind the tenant on the SAME connection as the query. An interactive
         // transaction pins one connection; we set_config on it, then RE-DISPATCH
         // the operation on that transaction client (`tx`). NOTE: the array form
@@ -93,17 +108,32 @@ export const prisma = base.$extends({
  * Run a multi-statement unit (what used to be `prisma.$transaction(async tx =>
  * …)`) with RLS bound. Sets `app.tenant_id` as the first statement of the
  * transaction, then runs `fn(tx)` on that same connection. The `tx` is an
- * un-extended client, so operations inside never re-wrap. Pass-through (no
- * set_config) when there is no tenant context.
+ * un-extended client, so operations inside never re-wrap. Passes through
+ * without set_config on an explicitly system-scoped path, and REJECTS on an
+ * unmarked one (BR-P0-004 slice 3).
  */
 export function tenantTx<T>(
   fn: (tx: Prisma.TransactionClient) => Promise<T>,
   options?: { maxWait?: number; timeout?: number; isolationLevel?: Prisma.TransactionIsolationLevel },
 ): Promise<T> {
-  const tenantId = currentTenantId();
+  // Same fail-closed rule as the auto-wrap above — a multi-statement unit from
+  // an unmarked path is exactly as unsafe as a single one.
+  //
+  // Resolved inside the promise chain deliberately: this function is declared
+  // to return Promise<T>, and a SYNCHRONOUS throw would bypass a caller's
+  // `.catch()` and surface as an uncaught exception instead of a rejection.
+  let binding: ReturnType<typeof resolveTenantBinding>;
+  try {
+    binding = resolveTenantBinding(currentTenantContext(), {
+      failClosed: env.TENANT_CONTEXT_FAIL_CLOSED,
+      operation: "tenantTx",
+    });
+  } catch (err) {
+    return Promise.reject(err);
+  }
   return base.$transaction(async (tx) => {
-    if (tenantId) {
-      await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
+    if (binding.mode === "bind") {
+      await tx.$executeRaw`SELECT set_config('app.tenant_id', ${binding.tenantId}, true)`;
     }
     return fn(tx);
     // Caller options win, but default to the generous RLS budget (not Prisma's
