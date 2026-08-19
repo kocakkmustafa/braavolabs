@@ -12,6 +12,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
+import { systemScope } from "../../middleware/system-scope";
 import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import {
@@ -26,7 +27,7 @@ export const templatesRouter = Router();
 
 // ── Public catalog ────────────────────────────────────────
 
-templatesRouter.get("/", async (req, res, next) => {
+templatesRouter.get("/", systemScope("route:templates-public"), async (req, res, next) => {
   try {
     const q = (req.query.q as string | undefined)?.trim();
     const where: any = { visibility: "PUBLIC", isApproved: true };
@@ -55,7 +56,7 @@ templatesRouter.get("/", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-templatesRouter.get("/:slug", async (req, res, next) => {
+templatesRouter.get("/:slug", systemScope("route:templates-public"), async (req, res, next) => {
   try {
     const t = await prisma.companyTemplate.findUnique({ where: { slug: req.params.slug } });
     if (!t) throw new AppError(404, "Template not found");

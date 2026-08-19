@@ -309,11 +309,20 @@ api.use("/drafts", draftRouter);
 api.use("/dashboard", dashboardRouter);
 api.use("/crm", crmRouter);
 api.use("/outreach", outreachRouter);
-api.use("/billing", billingRouter);
 // Mobile IAP entitlement bridge — mounted under /billing/iap so the path
 // stays clearly under "billing" but lives in its own module to avoid
 // piling Apple/Google verification logic into the Stripe-centric router.
+//
+// MUST be mounted BEFORE /billing. billingRouter contains a PATHLESS
+// `billingRouter.use(authedRouter)` whose authMiddleware therefore matches
+// every /billing/** path, /billing/iap/** included. With /billing first,
+// Apple's App Store Server Notifications V2 and Google Play's RTDN Pub/Sub
+// push both received 401 and never reached their handlers — renewals,
+// cancellations, refunds and grace transitions never updated
+// MobileSubscription. See modules/billing/iap/__tests__/mount-order.test.ts,
+// which drives the real routers through a real app in this exact order.
 api.use("/billing/iap", iapRouter);
+api.use("/billing", billingRouter);
 api.use("/governance", governanceRouter);
 api.use("/onboarding", onboardingRouter);
 // Forge provider-setup wizard (FAZ1-1C) — independent surface from the

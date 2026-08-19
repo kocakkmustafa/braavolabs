@@ -59,8 +59,14 @@ export function createWorker<T>(
   // an unmarked path (which the fail-closed DB rule rejects at runtime, in
   // production, on a queue nobody is watching). Behavior is unchanged today:
   // currentTenantId() stays undefined inside the processor, exactly as before.
-  const scopedProcessor = (job: Job<T>) =>
-    runWithoutTenant(`worker:${queueName}`, () => processor(job));
+  // Forward EVERY argument: BullMQ calls the processor as
+  // `processFn(job, token, signal)`. Swallowing token/signal would silently
+  // disable Worker.RateLimitError, `job.moveToDelayed(ts, token)` and
+  // abort-on-lock-loss for anything created through this factory.
+  const scopedProcessor = (job: Job<T>, ...rest: unknown[]) =>
+    runWithoutTenant(`worker:${queueName}`, () =>
+      (processor as (...a: unknown[]) => Promise<void>)(job, ...rest),
+    );
 
   const worker = new Worker<T>(queueName, scopedProcessor, {
     ...DEFAULT_WORKER_OPTS,

@@ -21,12 +21,18 @@
 
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
+import { runWithoutTenant } from "../../lib/tenant-context";
 import { env } from "../../config/env";
 import { runAgentLoop } from "../agent/claude";
 import { LOCAL_PROVIDERS, type AIClientConfig } from "../../services/ai-client";
 import { BUILTIN_SUITES, type BenchTask } from "./suites";
 
 export async function seedBenchSuites(): Promise<void> {
+  // BR-P0-004: runs at server boot (index.ts) — no request, no tenant.
+  return runWithoutTenant("boot:seed-bench-suites", () => seedBenchSuitesImpl());
+}
+
+async function seedBenchSuitesImpl(): Promise<void> {
   for (const def of BUILTIN_SUITES) {
     await prisma.benchSuite.upsert({
       where: { slug: def.slug },

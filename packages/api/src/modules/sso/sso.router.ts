@@ -116,9 +116,8 @@ ssoConfigRouter.delete("/oidc", async (req, res, next) => {
 // ─── /auth/sso/:tenantSlug — auth flow ────────────────────────
 
 export const ssoAuthRouter = Router();
-// BR-P0-004: pre-auth by definition — the SSO handshake is what establishes
-// the session. ssoConfigRouter above is authMiddleware-gated and stays so.
-ssoAuthRouter.use(systemScope("route:sso-login"));
+// BR-P0-004: pre-auth by definition — the SSO handshake establishes the
+// session. ssoConfigRouter above is authMiddleware-gated and stays so.
 
 const initRateLimit = rateLimit({
   windowMs: 60_000,
@@ -131,7 +130,7 @@ const initRateLimit = rateLimit({
 // Public — anyone with the tenant's slug can hit this. The IdP's own
 // session enforcement is the real gate; we just need to know which
 // connection to use.
-ssoAuthRouter.get("/:tenantSlug", initRateLimit, async (req, res, next) => {
+ssoAuthRouter.get("/:tenantSlug", systemScope("route:sso-login"), initRateLimit, async (req, res, next) => {
   try {
     const slug = z.string().min(1).max(120).parse(req.params.tenantSlug);
     const tenant = await prisma.tenant.findUnique({ where: { slug }, select: { id: true, plan: true } });
@@ -150,7 +149,7 @@ ssoAuthRouter.get("/:tenantSlug", initRateLimit, async (req, res, next) => {
 });
 
 // GET /api/v1/auth/sso/:tenantSlug/callback  → consume IdP response
-ssoAuthRouter.get("/:tenantSlug/callback", async (req, res, next) => {
+ssoAuthRouter.get("/:tenantSlug/callback", systemScope("route:sso-login"), async (req, res, next) => {
   try {
     const { code, state, error } = z
       .object({

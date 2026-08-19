@@ -159,13 +159,11 @@ voiceRouter.post("/agents/:id/dial", async (req, res, next) => {
 // ─── Webhook router — public, signature-verified ───────────
 
 export const voiceWebhookRouter = Router();
-// BR-P0-004: signature-verified provider ingress — no authenticated tenant.
-// The tenant is only discoverable after the payload is parsed; handlers that
-// do row-level work should bind it with runWithTenant at that point.
-voiceWebhookRouter.use(systemScope("webhook:voice"));
+// BR-P0-004: signature-verified provider ingress — see billing/router.ts for
+// why this is marked per-route rather than router-wide.
 
 voiceWebhookRouter.post(
-  "/:provider/:agentId",
+  "/:provider/:agentId", systemScope("webhook:voice"),
   raw({ type: "*/*", limit: "2mb" }),
   async (req, res) => {
     const { provider, agentId } = req.params;

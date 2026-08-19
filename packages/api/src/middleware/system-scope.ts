@@ -23,7 +23,7 @@
  * marker placed after authMiddleware throws rather than silently stripping the
  * request's RLS binding.
  */
-import type { Request, Response, NextFunction } from "express";
+import type { RequestHandler } from "express";
 import { runWithoutTenant } from "../lib/tenant-context";
 
 /**
@@ -33,8 +33,14 @@ import { runWithoutTenant } from "../lib/tenant-context";
  *   It appears in isolation-violation errors so an operator can identify the
  *   path without reading a stack trace.
  */
-export function systemScope(reason: string) {
-  return function systemScopeMiddleware(_req: Request, _res: Response, next: NextFunction): void {
-    runWithoutTenant(reason, next);
+export function systemScope(reason: string): RequestHandler<any, any, any, any> {
+  // The generics are deliberately `any`: as ROUTE middleware this sits
+  // alongside the real handler, and a concretely-typed RequestHandler becomes
+  // an inference candidate for Express's route-parameter generic — which
+  // collapses `req.params.slug` on paths like "/:slug" from `string` to
+  // `string | string[]` in the handler beside it. This middleware genuinely
+  // does not read req or res, so it should not constrain their types.
+  return function systemScopeMiddleware(_req, _res, next): void {
+    runWithoutTenant(reason, () => next());
   };
 }

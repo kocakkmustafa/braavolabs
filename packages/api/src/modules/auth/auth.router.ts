@@ -19,11 +19,9 @@ import { env } from "../../config/env";
 import { AppError } from "../../middleware/error";
 
 export const authRouter = Router();
-// BR-P0-004: register/login/refresh/reset/OAuth-callback all run before a
-// session exists. Mounted router-wide and BEFORE any per-route authMiddleware:
-// the one gated route here (/verify-email/resend) then binds its tenant INSIDE
-// this scope, which is the permitted nesting direction.
-authRouter.use(systemScope("route:auth"));
+// BR-P0-004: pre-auth surface — no session exists yet. Marked per-route so a
+// route added here later has NO marker and fails loudly under the slice-3
+// fail-closed rule, rather than silently inheriting a pass.
 
 // Rate limit auth endpoints. Tuned for shared NAT / corporate WiFi where
 // many users share one egress IP — at 10 req / 15 min the previous limit
@@ -164,7 +162,7 @@ export const loginSchema = z.object({
 
 
 // POST /api/v1/auth/register
-authRouter.post("/register", registerRateLimit, validate(registerSchema), async (req, res, next) => {
+authRouter.post("/register", systemScope("route:auth"), registerRateLimit, validate(registerSchema), async (req, res, next) => {
   try {
     const result = await register(req.body);
     // Dual-mode: also mint httpOnly auth cookies (no-op unless the flag is
@@ -176,7 +174,7 @@ authRouter.post("/register", registerRateLimit, validate(registerSchema), async 
 });
 
 // POST /api/v1/auth/login
-authRouter.post("/login", loginRateLimit, validate(loginSchema), async (req, res, next) => {
+authRouter.post("/login", systemScope("route:auth"), loginRateLimit, validate(loginSchema), async (req, res, next) => {
   try {
     // Pass requesting IP into login() so the lockout key is composite —
     // an attacker bombarding /login with bad passwords can only lock out
@@ -195,7 +193,7 @@ export const resetSchema = z.object({
 });
 
 // POST /api/v1/auth/forgot-password
-authRouter.post("/forgot-password", forgotRateLimit, validate(forgotSchema), async (req, res, next) => {
+authRouter.post("/forgot-password", systemScope("route:auth"), forgotRateLimit, validate(forgotSchema), async (req, res, next) => {
   try {
     await requestPasswordReset(req.body.email);
     res.json({ message: "If that email exists, a reset link has been sent." });
@@ -203,7 +201,7 @@ authRouter.post("/forgot-password", forgotRateLimit, validate(forgotSchema), asy
 });
 
 // POST /api/v1/auth/reset-password
-authRouter.post("/reset-password", resetRateLimit, validate(resetSchema), async (req, res, next) => {
+authRouter.post("/reset-password", systemScope("route:auth"), resetRateLimit, validate(resetSchema), async (req, res, next) => {
   try {
     await resetPassword(req.body.token, req.body.password);
     res.json({ message: "Password reset successful." });
@@ -218,7 +216,7 @@ const refreshRateLimit = rateLimit({
 });
 
 // POST /api/v1/auth/refresh — exchange refresh token for new access + refresh tokens
-authRouter.post("/refresh", refreshRateLimit, async (req, res, next) => {
+authRouter.post("/refresh", systemScope("route:auth"), refreshRateLimit, async (req, res, next) => {
   try {
     // Body token keeps PRIORITY (current clients POST { refreshToken }).
     // Only when the body omits it do we fall back to the httpOnly refresh
@@ -279,7 +277,7 @@ const logoutRateLimit = rateLimit({
 // cookie-sourced token (browser-auto-attached) must clear the CSRF gate, matching
 // the /auth/refresh contract — without it, logout would be CSRF-able once
 // AUTH_COOKIE_MODE is enabled.
-authRouter.post("/logout", logoutRateLimit, async (req, res, next) => {
+authRouter.post("/logout", systemScope("route:auth"), logoutRateLimit, async (req, res, next) => {
   try {
     let userId: string | null = null;
 
@@ -335,7 +333,7 @@ authRouter.post("/logout", logoutRateLimit, async (req, res, next) => {
 });
 
 // GET /api/v1/auth/google — redirect to Google consent screen with CSRF state
-authRouter.get("/google", async (_req, res, next) => {
+authRouter.get("/google", systemScope("route:auth"), async (_req, res, next) => {
   try {
     const state = crypto.randomBytes(32).toString("hex");
     await redis.set(`oauth:state:${state}`, "1", "EX", 600); // 10 min TTL
@@ -352,7 +350,7 @@ const googleCallbackSchema = z.object({
   ref: z.string().optional(),
 });
 
-authRouter.get("/google/callback", async (req, res, next) => {
+authRouter.get("/google/callback", systemScope("route:auth"), async (req, res, next) => {
   try {
     const { code, state, ref } = googleCallbackSchema.parse(req.query);
 
@@ -387,7 +385,7 @@ authRouter.get("/google/callback", async (req, res, next) => {
 });
 
 // GET /api/v1/auth/github — redirect to GitHub consent with CSRF state
-authRouter.get("/github", async (_req, res, next) => {
+authRouter.get("/github", systemScope("route:auth"), async (_req, res, next) => {
   try {
     const state = crypto.randomBytes(32).toString("hex");
     await redis.set(`oauth:state:${state}`, "1", "EX", 600);
@@ -404,7 +402,7 @@ const githubCallbackSchema = z.object({
   ref: z.string().optional(),
 });
 
-authRouter.get("/github/callback", async (req, res, next) => {
+authRouter.get("/github/callback", systemScope("route:auth"), async (req, res, next) => {
   try {
     const { code, state, ref } = githubCallbackSchema.parse(req.query);
     const stateKey = `oauth:state:${state}`;
@@ -433,7 +431,7 @@ authRouter.get("/github/callback", async (req, res, next) => {
 // the OAuth callback for the underlying token bundle. Same rate-limit
 // budget as /auth/refresh because both endpoints mint long-lived
 // refresh tokens.
-authRouter.post("/oauth/exchange", refreshRateLimit, async (req, res, next) => {
+authRouter.post("/oauth/exchange", systemScope("route:auth"), refreshRateLimit, async (req, res, next) => {
   try {
     const { code } = z.object({ code: z.string().min(1).max(128) }).parse(req.body);
     const bundle = await redeemOAuthExchange(code);
@@ -453,7 +451,7 @@ const appleMobileSchema = z.object({
   fullName: z.string().max(120).optional().nullable(),
 });
 authRouter.post(
-  "/apple/mobile",
+  "/apple/mobile", systemScope("route:auth"),
   loginRateLimit,
   validate(appleMobileSchema),
   async (req, res, next) => {
@@ -469,7 +467,7 @@ const googleMobileSchema = z.object({
   idToken: z.string().min(20).max(8192),
 });
 authRouter.post(
-  "/google/mobile",
+  "/google/mobile", systemScope("route:auth"),
   loginRateLimit,
   validate(googleMobileSchema),
   async (req, res, next) => {
@@ -486,7 +484,7 @@ const githubMobileSchema = z.object({
   redirectUri: z.string().min(1).max(256),
 });
 authRouter.post(
-  "/github/mobile",
+  "/github/mobile", systemScope("route:auth"),
   loginRateLimit,
   validate(githubMobileSchema),
   async (req, res, next) => {
@@ -509,7 +507,7 @@ authRouter.post(
 // passed as `?status=invalid` or `?status=expired` so the front-end
 // can render a localised message.
 
-authRouter.get("/verify-email", async (req, res, next) => {
+authRouter.get("/verify-email", systemScope("route:auth"), async (req, res, next) => {
   try {
     const token = z.string().min(16).max(256).parse(req.query.token);
     const { email } = await verifyEmail(token);
@@ -528,7 +526,7 @@ authRouter.get("/verify-email", async (req, res, next) => {
 });
 
 authRouter.post(
-  "/verify-email/resend",
+  "/verify-email/resend", systemScope("route:auth"),
   refreshRateLimit, // Same bucket as refresh — both issue emails / tokens
   authMiddleware,
   async (req, res, next) => {
@@ -552,7 +550,7 @@ authRouter.post(
 // won't read it.
 
 // GET /api/v1/auth/apple — issue OAuth state, return Apple authorize URL
-authRouter.get("/apple", async (_req, res, next) => {
+authRouter.get("/apple", systemScope("route:auth"), async (_req, res, next) => {
   try {
     const state = crypto.randomBytes(32).toString("hex");
     await redis.set(`oauth:state:${state}`, "1", "EX", 600);
@@ -568,7 +566,7 @@ authRouter.get("/apple", async (_req, res, next) => {
 // Mounted with a dedicated urlencoded parser because the global stack
 // only parses JSON for /api/* routes.
 authRouter.post(
-  "/apple/callback",
+  "/apple/callback", systemScope("route:auth"),
   urlencoded({ extended: false }),
   async (req, res, next) => {
     try {

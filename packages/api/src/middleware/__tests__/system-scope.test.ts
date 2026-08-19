@@ -80,3 +80,70 @@ describe("systemScope middleware", () => {
     expect(seen).toEqual({ kind: "system", reason: "webhook:iap-apple" });
   });
 });
+
+/**
+ * F-4 regression (found by the BR-P0-004 independent review).
+ *
+ * A router-level `router.use(systemScope(...))` stays ACTIVE while Express
+ * cascades `next()` out of the non-matching router and on to siblings mounted
+ * on the same prefix — because the whole cascade happens synchronously inside
+ * `storage.run(...)`. A sibling would then inherit a marker it never declared,
+ * and once the slice-3 fail-closed rule lands, an unmarked handler there would
+ * silently pass the very check the marker exists to enforce.
+ *
+ * The fix is to mark per ROUTE (route middleware runs only after a path match),
+ * never router-wide. These tests pin that difference.
+ */
+describe("systemScope does not leak to sibling routers", () => {
+  it("ROUTER-level marking leaks into a sibling — why we do not use it", async () => {
+    const express = (await import("express")).default;
+    const http = await import("node:http");
+    let seenInSibling: unknown = "unset";
+
+    const app = express();
+    const first = express.Router();
+    first.use(systemScope("webhook:first")); // the anti-pattern
+    first.post("/only-mine", (_q, s) => { s.json({ ok: true }); });
+    const sibling = express.Router();
+    sibling.post("/other", (_q, s) => {
+      seenInSibling = currentTenantContext();
+      s.json({ ok: true });
+    });
+    app.use("/hooks", first);
+    app.use("/hooks", sibling);
+
+    const server = http.createServer(app);
+    await new Promise<void>((r) => server.listen(0, r));
+    const port = (server.address() as any).port;
+    await fetch(`http://127.0.0.1:${port}/hooks/other`, { method: "POST" });
+    await new Promise<void>((r) => server.close(() => r()));
+
+    // Documents the hazard: the sibling declared nothing, yet is scoped.
+    expect(seenInSibling).toEqual({ kind: "system", reason: "webhook:first" });
+  });
+
+  it("ROUTE-level marking does NOT leak — the shape we actually ship", async () => {
+    const express = (await import("express")).default;
+    const http = await import("node:http");
+    let seenInSibling: unknown = "unset";
+
+    const app = express();
+    const first = express.Router();
+    first.post("/only-mine", systemScope("webhook:first"), (_q, s) => { s.json({ ok: true }); });
+    const sibling = express.Router();
+    sibling.post("/other", (_q, s) => {
+      seenInSibling = currentTenantContext();
+      s.json({ ok: true });
+    });
+    app.use("/hooks", first);
+    app.use("/hooks", sibling);
+
+    const server = http.createServer(app);
+    await new Promise<void>((r) => server.listen(0, r));
+    const port = (server.address() as any).port;
+    await fetch(`http://127.0.0.1:${port}/hooks/other`, { method: "POST" });
+    await new Promise<void>((r) => server.close(() => r()));
+
+    expect(seenInSibling).toBeUndefined();
+  });
+});

@@ -51,12 +51,27 @@ describe("createWorker: system scope", () => {
     expect(seen).toBeUndefined();
   });
 
-  it("passes the job through and propagates the processor's return value", async () => {
+  it("passes the job through and propagates the processor's resolved value", async () => {
     const { createWorker } = await import("../queue");
     let gotJob: any;
-    createWorker("q", async (job: any) => { gotJob = job; });
-    await workerCtor.mock.calls.at(-1)![1]({ id: "job-3", data: { runId: "r1" } });
+    createWorker("q", (async (job: any) => { gotJob = job; return "done"; }) as any);
+    const result = await workerCtor.mock.calls.at(-1)![1]({ id: "job-3", data: { runId: "r1" } });
     expect(gotJob).toEqual({ id: "job-3", data: { runId: "r1" } });
+    // the name of this test used to promise a return-value check it never made
+    expect(result).toBe("done");
+  });
+
+  it("forwards BullMQ's token and signal to the processor", async () => {
+    // BullMQ calls processFn(job, token, signal); dropping them disables
+    // Worker.RateLimitError, job.moveToDelayed(ts, token) and abort-on-lock-loss.
+    const { createWorker } = await import("../queue");
+    let args: unknown[] = [];
+    createWorker("q", ((...a: unknown[]) => { args = a; return Promise.resolve(); }) as any);
+    const signal = new AbortController().signal;
+    await workerCtor.mock.calls.at(-1)![1]({ id: "job-6" }, "TOKEN-123", signal);
+    expect(args).toHaveLength(3);
+    expect(args[1]).toBe("TOKEN-123");
+    expect(args[2]).toBe(signal);
   });
 
   it("lets a processor error propagate so BullMQ still fails/retries the job", async () => {
