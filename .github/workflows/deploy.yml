@@ -220,6 +220,19 @@ jobs:
             sudo docker compose --env-file=/opt/braavolabs/app/.env -f compose.prod.yaml up -d api ui
 
             echo ""
+            echo "=== Ensure postgres-backup is running (idempotent — up -d on an already-running service is a no-op) ==="
+            # BR-P0-004 finding: this service (daily pg_dump + optional S3
+            # sync, DB-NEW-004) has been fully written since compose.prod.yaml
+            # was added but was NEVER actually started — it lives behind the
+            # `backup` compose profile, and every prior deploy only ever
+            # passed `up -d api ui`, which never activates a profiled
+            # service. `restart: unless-stopped` means this only needs
+            # activating once to persist across host reboots, but including
+            # it in the deploy script (rather than a one-off manual command)
+            # makes it self-healing if the container is ever removed.
+            sudo docker compose --env-file=/opt/braavolabs/app/.env -f compose.prod.yaml --profile backup up -d postgres-backup
+
+            echo ""
             echo "=== Wait 20s for healthchecks ==="
             sleep 20
 
