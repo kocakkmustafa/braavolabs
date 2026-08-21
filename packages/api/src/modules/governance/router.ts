@@ -11,6 +11,7 @@ import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { getGovernanceConfig, getRiskSummary } from "./engine";
 import { DEFAULT_GOVERNANCE_CONFIG, RISK_STOP_DESCRIPTIONS } from "@ai-company-os/core";
+import { ACTIVITY_REVISION_SELECT } from "../../lib/activity-projection";
 
 export const governanceRouter = Router();
 governanceRouter.use(authMiddleware);
@@ -39,6 +40,14 @@ governanceRouter.get("/stops", async (req, res, next) => {
     const limit = Math.min(Number(req.query.limit) || 50, 100);
 
     const stops = await prisma.activityLog.findMany({
+      // The route's own contract is "recent risk stops WITH DETAILS", and the
+      // payload is the diagnostic: engine.ts writes { reason, stopType, ... }.
+      // Narrowing this to the feed silently emptied the thing the endpoint
+      // exists to return — the same mistake as /dashboard/risk-events, caught
+      // here by reading the route's stated contract rather than its types.
+      // Scoped to `governance.*` actions, so this is operational diagnostics,
+      // not the billing/PII class that motivated the split. Still no `ip`.
+      select: ACTIVITY_REVISION_SELECT,
       where: {
         tenantId,
         action: { startsWith: "governance." },

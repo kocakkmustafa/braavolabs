@@ -62,6 +62,15 @@ export const PRIVILEGED_ACTIONS = {
   "governance:hard-stop": "ADMIN",
   "sso:configure": "ADMIN",
 
+  // Bulk read of the tenant's audit trail — every actor id, every ip, every
+  // action. Sensitive, but neither irreversible nor money, so ADMIN by the
+  // reversibility principle above. In the roadmap's six-role vocabulary this
+  // is the `auditor` tier's job; with three roles ADMIN is the closest
+  // REACHABLE tier that is not "everyone", and putting it at OWNER would make
+  // the only person who can review denials the same person most likely to be
+  // the subject of them.
+  "audit:export": "ADMIN",
+
   // ── approval:decide is deliberately held at MEMBER ────────────────────────
   //
   // It belongs at ADMIN on the reversibility principle, and it was set there.

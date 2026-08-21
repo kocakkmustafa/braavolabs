@@ -1,6 +1,12 @@
 import { Router } from "express";
 import { authMiddleware } from "../../middleware/auth";
+import { requirePermission } from "../../middleware/require-permission";
 import { prisma, tenantTx } from "../../lib/db";
+import {
+  ACTIVITY_FEED_SELECT,
+  ACTIVITY_AUDIT_SELECT,
+  ACTIVITY_REVISION_SELECT,
+} from "../../lib/activity-projection";
 
 export const dashboardRouter = Router();
 dashboardRouter.use(authMiddleware);
@@ -131,19 +137,46 @@ export function buildActivityWhere(tenantId: string, includeReads: boolean) {
   };
 }
 
+/** Is this request asking for the raw audit stream rather than the feed? */
+function wantsUnfilteredStream(req: { query: Record<string, unknown> }): boolean {
+  return req.query.includeReads === "1" || req.query.includeReads === "true";
+}
+
+/**
+ * `?includeReads=1` is not a display preference — it is the audit trail.
+ *
+ * Independent review caught that this route made the new ADMIN-gated
+ * `/audit/export` decorative: it returned the SAME rows, unfiltered and
+ * un-projected, to any authenticated MEMBER. That is the exact shape of
+ * defect this codebase closed in `requireRole` — a correct-looking gate
+ * standing next to an open door.
+ *
+ * Gated CONDITIONALLY rather than at the router: the default response is the
+ * business-event feed every client renders on its dashboard, and putting the
+ * whole route behind ADMIN would break the product for members — the same
+ * trap that held `approval:decide` at MEMBER.
+ */
+const requireAuditScopeForUnfilteredStream: import("express").RequestHandler = (req, res, next) => {
+  if (!wantsUnfilteredStream(req as never)) return next();
+  return requirePermission("audit:export")(req, res, next);
+};
+
 // GET /api/v1/dashboard/activity — recent activity log
-// `?includeReads=1` returns the unfiltered audit stream (for a future audit
-// view); the default is the business-event feed the clients render.
-dashboardRouter.get("/activity", async (req, res, next) => {
+// `?includeReads=1` returns the unfiltered audit stream and requires
+// `audit:export`; the default is the business-event feed clients render.
+dashboardRouter.get("/activity", requireAuditScopeForUnfilteredStream, async (req, res, next) => {
   try {
     const tenantId = req.auth!.tenantId;
     const limit = Math.min(Number(req.query.limit) || 50, 100);
     const offset = Number(req.query.offset) || 0;
-    const includeReads = req.query.includeReads === "1" || req.query.includeReads === "true";
+    const includeReads = wantsUnfilteredStream(req as never);
 
     const where = buildActivityWhere(tenantId, includeReads);
 
     const logs = await prisma.activityLog.findMany({
+      // The payload columns follow the permission, not the route: the
+      // unfiltered stream is already gated on `audit:export` above.
+      select: includeReads ? ACTIVITY_AUDIT_SELECT : ACTIVITY_FEED_SELECT,
       where,
       orderBy: { createdAt: "desc" },
       take: limit,
@@ -165,6 +198,13 @@ dashboardRouter.get("/risk-events", async (req, res, next) => {
     const limit = Math.min(Number(req.query.limit) || 50, 100);
 
     const events = await prisma.activityLog.findMany({
+      // Seven fixed governance/run-failure actions, and the payload IS the
+      // diagnostic: engine.ts writes { reason, stopType, ... } and the risks
+      // and errors panels both render it in their "why did this stop fire"
+      // block. Stripping it here broke both, silently — the mirror image of
+      // the bug this split exists to fix, applied to a reader whose consumer
+      // genuinely needed the field. Still no `ip`.
+      select: ACTIVITY_REVISION_SELECT,
       where: {
         tenantId,
         action: {

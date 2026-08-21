@@ -1333,6 +1333,20 @@ model ActivityLog {
   ip         String?
   createdAt  DateTime @default(now()) @map("created_at")
 
+  // BR-P1-005. The audit trail had no concept of an OUTCOME: all 130 writers
+  // sit on success paths, so a denied privileged attempt left no row at all —
+  // the moment a control most needs to produce evidence. `result` records
+  // what happened ("allowed" | "denied" | "error"); `policy` records the
+  // privileged action that governed it (e.g. "company:delete"), so an export
+  // can answer "who was refused what, and under which rule".
+  //
+  // Both nullable ON PURPOSE: the existing writers do not set them and
+  // historical rows cannot have them. A non-null default would manufacture an
+  // answer for millions of rows that were never evaluated against a policy,
+  // which is worse than an honest absence.
+  result     String?
+  policy     String?
+
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   // The dashboard + per-resource activity timelines always filter by

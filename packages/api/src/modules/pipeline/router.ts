@@ -19,6 +19,7 @@ import { getTenantAIConfig, chatCompletion, type AIProviderType, type ChatMessag
 // estimate below (a read-only provider/model lookup that never dials the LLM).
 import { resolveTenantCompletionLink, commitTrialCompletion, refundTrialCompletion } from "../../services/provider-chain";
 import { estimatePipelineCostUsd } from "../../lib/modelPricing";
+import { ACTIVITY_REVISION_SELECT } from "../../lib/activity-projection";
 
 // Expensive endpoints — per-tenant throttle to prevent Claude API cost abuse.
 const naturalLanguageBuilderLimiter = rateLimit({ windowMs: 60_000, maxRequests: 10, keyPrefix: "rl:pipeline:nl" });
@@ -628,6 +629,7 @@ pipelineRouter.get("/:id/revisions", async (req, res, next) => {
     }
 
     const logs = await prisma.activityLog.findMany({
+      select: ACTIVITY_REVISION_SELECT,
       where: {
         tenantId: req.auth!.tenantId,
         action: "pipeline.revision",
@@ -685,6 +687,7 @@ pipelineRouter.post("/:id/revisions/restore", async (req, res, next) => {
     const body = restoreRevisionSchema.parse(req.body);
 
     const logs = await prisma.activityLog.findMany({
+      select: ACTIVITY_REVISION_SELECT,
       where: {
         tenantId: req.auth!.tenantId,
         action: "pipeline.revision",

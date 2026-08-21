@@ -10,6 +10,7 @@ import { logger } from "../../lib/logger";
 import { DEFAULT_GOVERNANCE_CONFIG } from "@ai-company-os/core";
 import type { GovernanceConfig, RiskStopType } from "@ai-company-os/core";
 import { notifyTenantUsers } from "../../services/push";
+import { ACTIVITY_FEED_SELECT } from "../../lib/activity-projection";
 
 export interface GovernanceCheckResult {
   allowed: boolean;
@@ -265,6 +266,7 @@ async function checkBrandViolation(ctx: CheckContext): Promise<GovernanceCheckRe
 async function checkHardStop(ctx: CheckContext): Promise<GovernanceCheckResult> {
   // Check for hard stop activity log entries
   const hardStop = await prisma.activityLog.findFirst({
+      select: ACTIVITY_FEED_SELECT,
     where: {
       resourceId: ctx.run.id,
       action: "governance.hard_stop",
@@ -301,6 +303,7 @@ export async function getRiskSummary(tenantId: string): Promise<{
   recent: any[];
 }> {
   const events = await prisma.activityLog.findMany({
+      select: ACTIVITY_FEED_SELECT,
     where: {
       tenantId,
       action: { startsWith: "governance." },

@@ -43,7 +43,12 @@ export function rateLimit(options: RateLimitOptions) {
       if (
         keyPrefix.startsWith("rl:auth") ||
         keyPrefix === "rl:register" ||
-        keyPrefix === "rl:refresh"
+        keyPrefix === "rl:refresh" ||
+        // The audit export drains the whole tenant trail a thousand rows at a
+        // time. A Redis outage must not silently remove its only ceiling —
+        // and unlike a product read, refusing an export for a few minutes
+        // costs nothing that matters.
+        keyPrefix === "rl:audit-export"
       ) {
         res.status(503).json({ error: "Service temporarily unavailable" });
         return;

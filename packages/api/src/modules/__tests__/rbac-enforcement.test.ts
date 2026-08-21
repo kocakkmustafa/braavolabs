@@ -40,6 +40,7 @@ beforeAll(async () => {
   const { billingRouter } = await import("../billing/router");
   const { governanceRouter } = await import("../governance/router");
   const { approvalRouter } = await import("../approval/router");
+  const { dashboardRouter } = await import("../dashboard/router");
 
   const app = express();
   app.use(express.json());
@@ -48,6 +49,7 @@ beforeAll(async () => {
   api.use("/billing", billingRouter);
   api.use("/governance", governanceRouter);
   api.use("/approvals", approvalRouter);
+  api.use("/dashboard", dashboardRouter);
   app.use("/api/v1", api);
   app.use((err: any, _q: any, res: any, _n: any) =>
     res.status(err?.statusCode ?? err?.status ?? 500).json({ error: err?.message ?? "error" }));
@@ -104,5 +106,70 @@ describe("privileged routes actually enforce the matrix", () => {
 
   it.each(MATRIX)("%s still requires authentication at all", async (_label, method, path) => {
     expect(await call(method, path)).toBe(401);
+  });
+});
+
+/**
+ * The audit trail must not have a second, ungated door.
+ *
+ * Independent review found that `/dashboard/activity?includeReads=1` returned
+ * the unfiltered audit stream — a SUPERSET of the ADMIN-gated /audit/export —
+ * to any MEMBER. A suite that only exercises the new endpoint can never see
+ * that; the defect lives at the seam between two routes, which is where all
+ * three of this codebase's authorisation failures have lived.
+ *
+ * NAMED CAREFULLY. An earlier title claimed the audit TRAIL has one door, and
+ * that was false: the DEFAULT feed subtracts only 7 read-shaped suffixes, so
+ * 130 of 135 distinct actions still reach any MEMBER through it. What is
+ * gated here is the UNFILTERED stream. The payload columns (`details`, `ip`)
+ * were separately moved behind the same permission — see
+ * lib/activity-projection.ts — but the action names themselves are still
+ * broadly visible by design. A test title is an artifact people quote.
+ */
+describe("the UNFILTERED audit stream has exactly one door (BR-P1-005)", () => {
+  it("refuses the unfiltered stream to a MEMBER", async () => {
+    expect(await call("GET", "/api/v1/dashboard/activity?includeReads=1", "MEMBER")).toBe(403);
+    expect(await call("GET", "/api/v1/dashboard/activity?includeReads=true", "MEMBER")).toBe(403);
+  });
+
+  it("still serves the ordinary business-event feed to a MEMBER", async () => {
+    // The gate must be a gate, not an outage. Members render this on their
+    // dashboard; putting the whole route behind ADMIN would break the product
+    // exactly the way holding approval:decide at ADMIN would have.
+    expect(await call("GET", "/api/v1/dashboard/activity", "MEMBER")).not.toBe(403);
+  });
+
+  it("grants the unfiltered stream to the roles that hold audit:export", async () => {
+    expect(await call("GET", "/api/v1/dashboard/activity?includeReads=1", "ADMIN")).not.toBe(403);
+    expect(await call("GET", "/api/v1/dashboard/activity?includeReads=1", "OWNER")).not.toBe(403);
+  });
+
+  it("refuses the unfiltered stream to an unauthenticated caller", async () => {
+    expect(await call("GET", "/api/v1/dashboard/activity?includeReads=1")).toBe(401);
+  });
+
+  it("cannot be reached by an unrecognised spelling of includeReads", async () => {
+    // The gate is CONDITIONAL, so the obvious attack is a spelling the gate
+    // misses. It is safe by construction rather than by luck: the middleware
+    // and the handler call the SAME predicate, so a spelling the gate does
+    // not recognise is equally unrecognised downstream and the request falls
+    // through to the FILTERED feed, never the stream.
+    //
+    // Pinned behaviourally because that property is one careless refactor
+    // away — duplicating the predicate would silently restore the seam. An
+    // independent review drove 14 spellings against a real database and got
+    // 403 or the filtered feed for every one.
+    for (const q of [
+      "includeReads=1&includeReads=0",
+      "includeReads[]=1",
+      "INCLUDEREADS=1",
+      "includeReads=TRUE",
+      "includeReads=True",
+      "includeReads=01",
+      "includeReads=%31",
+    ]) {
+      const status = await call("GET", `/api/v1/dashboard/activity?${q}`, "MEMBER");
+      expect([200, 403], `${q} produced ${status}`).toContain(status);
+    }
   });
 });

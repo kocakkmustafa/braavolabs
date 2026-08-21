@@ -16,6 +16,7 @@ import {
 } from "./builder";
 import { createVersion } from "../agent/version-control";
 import { composeAgent } from "../agent/composer";
+import { ACTIVITY_FEED_SELECT } from "../../lib/activity-projection";
 
 export const companyRouter = Router();
 companyRouter.use(authMiddleware);
@@ -786,6 +787,7 @@ companyRouter.get("/:id/activity", async (req, res, next) => {
       resourceId: company.id,
     };
     const logs = await prisma.activityLog.findMany({
+      select: ACTIVITY_FEED_SELECT,
       where: whereClause,
       orderBy: { createdAt: "desc" },
       take: limit,
@@ -842,6 +844,7 @@ companyRouter.get("/:id/webhooks", async (req, res, next) => {
     if (!company) throw new AppError(404, "Company not found");
 
     const logs = await prisma.activityLog.findMany({
+      select: ACTIVITY_FEED_SELECT,
       where: {
         tenantId: req.auth!.tenantId,
         resourceId: company.id,

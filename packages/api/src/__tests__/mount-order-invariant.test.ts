@@ -70,7 +70,8 @@ describe("index.ts mount order", () => {
     // Pinned exactly, not as a floor: if index.ts is reformatted and the parser
     // silently stops seeing mounts, every assertion below would pass vacuously.
     // Update this number deliberately when a mount is genuinely added/removed.
-    expect(mounts().length).toBe(43);
+    // 43 -> 44: /audit added for the BR-P1-005 audit export.
+    expect(mounts().length).toBe(44);
   });
 
   it("refuses a mount path it cannot statically read", () => {
