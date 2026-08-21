@@ -128,6 +128,45 @@ const envShape = z.object({
     .optional()
     .default("true")
     .transform((v) => v !== "false"),
+  // AUDIT_RETENTION_ENABLED / AUDIT_RETENTION_DRY_RUN (BR-P1-005 #4).
+  //
+  // The per-plan audit window has been enforced by nothing:
+  // `auditRetentionDays` was read by no production code and there was not one
+  // activityLog delete in the API. This turns it on, and DEFAULTS OFF because
+  // it DELETES production audit rows.
+  //
+  // 🚪 FOUNDER GATE — two published statements contradict, and it is legal.
+  //   - ui/app/gdpr/page.tsx tells a supervisory authority "Audit logs and run
+  //     history are kept for 12 months", flat, for everyone.
+  //   - the roadmap plan table says Free 7 / Creator 90 / Pro 365 / Business
+  //     730. Those tiers are rendered NOWHERE in the product — the pricing
+  //     page shows "full audit trail" identically on every tier.
+  // Both directions are a problem, not just one: undercutting the 12-month
+  // line is a truthfulness issue, and keeping BUSINESS 730 days or ENTERPRISE
+  // forever is a storage-limitation issue under GDPR Art. 5(1)(e). Until it
+  // is decided, retention.ts applies max(plan window, 365).
+  //
+  // NOT a prerequisite, contrary to what this comment said before: the
+  // collapse design in lib/audit-writer.ts. An earlier version claimed a
+  // flood of denial rows would "roll real events out of the window". That is
+  // FALSE — a time-anchored window is not a ring buffer, rows die by AGE and
+  // never by count or table pressure. The real hazard is plan DOWNGRADE (a
+  // Business tenant whose card fails is revoked to FREE), which the 365-day
+  // floor bounds but does not eliminate.
+  //
+  // DRY_RUN defaults ON, so the first thing an operator gets is a count of
+  // what WOULD go. Same explicit string transform as
+  // TENANT_CONTEXT_FAIL_CLOSED — z.coerce.boolean() makes "false" true.
+  AUDIT_RETENTION_ENABLED: z
+    .string()
+    .optional()
+    .default("false")
+    .transform((v) => v === "true"),
+  AUDIT_RETENTION_DRY_RUN: z
+    .string()
+    .optional()
+    .default("true")
+    .transform((v) => v !== "false"),
   ENCRYPTION_KEY: z.string().min(32),
   // Sentry — leave unset in dev, set in prod. The SDK no-ops when missing.
   // Empty string tolerated (docker-compose default substitution).

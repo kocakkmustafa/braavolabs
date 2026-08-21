@@ -101,6 +101,23 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in .env (min 32 chars)}
+      # ── Operator kill switches ────────────────────────────────────────────
+      # Plumbed HERE deliberately: this service uses an explicit env allowlist
+      # with no env_file, so a value set only in the host .env never reaches
+      # the container. That is the same shape as the 2026-07-02 outage noted
+      # further down — a check that existed in code and was never mapped
+      # through compose.
+      #
+      # TENANT_CONTEXT_FAIL_CLOSED (BR-P0-004) was in that position too: the
+      # documented escape hatch for the fail-closed tenant guard could not be
+      # set in production at all.
+      TENANT_CONTEXT_FAIL_CLOSED: ${TENANT_CONTEXT_FAIL_CLOSED:-true}
+      # Audit retention (BR-P1-005 #4). Leave DISABLED until the retention
+      # statements are reconciled: ui/app/gdpr/page.tsx promises "12 months"
+      # flat to a supervisory authority, while the plan tiers say 7/90/365/730.
+      # Founder gate — see the docblock in modules/audit/retention.ts.
+      AUDIT_RETENTION_ENABLED: ${AUDIT_RETENTION_ENABLED:-false}
+      AUDIT_RETENTION_DRY_RUN: ${AUDIT_RETENTION_DRY_RUN:-true}
       # App URL
       APP_URL: ${APP_URL:?Set APP_URL in .env (e.g. https://braavolabs.com)}
       # LLM

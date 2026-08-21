@@ -65,6 +65,7 @@ import { initPipelineRunner, initScheduledPipelines, initScheduledTickWorker, st
 import { initOutreachWorker } from "./modules/outreach/sequence-runner";
 import { initConsolidationCron, stopConsolidationCron } from "./modules/memory/consolidation-cron";
 import { initApprovalExpiryCron, stopApprovalExpiryCron } from "./modules/approval/expiry-cron";
+import { initAuditRetentionCron, stopAuditRetentionCron } from "./modules/audit/retention";
 
 // Import tool registry to trigger tool registration on startup
 import "./modules/agent/registry";
@@ -399,6 +400,7 @@ app.listen(env.API_PORT, env.API_HOST, () => {
   // forgotten pending approvals so their runs don't permanently hold
   // a slot in the tenant's monthly quota)
   initApprovalExpiryCron();
+  initAuditRetentionCron();
 
   // Initialize the external-automation poller (30s tick) — mirrors connected
   // n8n/Make/Zapier executions into ExternalRun for the unified dashboard.
@@ -443,6 +445,7 @@ process.on("SIGTERM", async () => {
   stopScheduledPipelines();
   stopConsolidationCron();
   stopApprovalExpiryCron();
+  stopAuditRetentionCron();
   stopExternalPoller();
 
   // Close Redis

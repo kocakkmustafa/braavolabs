@@ -56,18 +56,29 @@ function bounded(v: unknown): string | null {
  * ⚠️ UNBOUNDED BY DESIGN — open item, not an oversight. A single MEMBER with
  * one token was measured writing 150 rows in 111ms (~1,351 rows/sec, ~4.8M
  * rows/hour), and of the 11 gates that can actually deny, none of the routes
- * carry a rate limiter. Against the roadmap's 7-day retention tier that does
- * not merely make noise: it pushes every real event out of the window, so an
- * attacker can erase the trail USING the logger built to protect it. Flooding
- * destroys existing evidence, where suppression only loses hypothetical
- * future evidence — the flood is the worse of the two.
+ * carry a rate limiter.
  *
- * The fix is collapse, which is NOT suppression: always write the first
+ * CORRECTION, because the first version of this comment argued something
+ * false and the argument is worth keeping visible: it claimed a flood would
+ * "roll real events out of the retention window". IT CANNOT. A time-anchored
+ * window is not a ring buffer — the retention predicate is
+ * `createdAt < now - N days`, so rows are deleted by AGE, never by count or
+ * table pressure. Four million rows on Monday do not delete Tuesday's real
+ * login one second sooner. Independent review also measured that a 1.96M-row
+ * DELETE does not block concurrent inserts (0.7-2.3 ms throughout), so the
+ * weaker "the purge stalls the writer" version is false too.
+ *
+ * What the flood actually costs is unbounded GROWTH — table size, index
+ * size, and the practicality of reviewing the trail — against a schema that
+ * already projects ~180M rows/year. That is real, and worth fixing, but it
+ * is not evidence destruction and must not be sold as such.
+ *
+ * The fix remains collapse, which is NOT suppression: always write the first
  * denial in a window immediately, count the rest keyed on
  * (tenantId, actor, policy), and emit one row carrying a server-derived
  * count on roll. A derived integer in `details` does not reopen the
  * caller-controlled-payload problem. If Redis is unavailable, fall back to
- * writing every row. Not implemented here; tracked against §7.4 retention.
+ * writing every row. Not implemented here.
  */
 export function recordDenial(params: {
   tenantId: string;

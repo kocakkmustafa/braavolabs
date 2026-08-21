@@ -1945,3 +1945,34 @@ model MediaGeneration {
   @@index([tenantId, createdAt])
   @@map("media_generations")
 }
+
+/// The audit-retention sweep's own log (BR-P1-005 #4).
+///
+/// Deliberately NOT a row in `activity_log`. The sweep is system-wide, so it
+/// has no legitimate tenant to be attributed to, and anchoring it to an
+/// arbitrary one broke three things at once: the tenant FK rejected a
+/// "system" placeholder on an install with no tenants (so no baseline was
+/// ever laid and the failure was swallowed), `onDelete: Cascade` meant
+/// deleting whichever tenant it landed on silently wiped the baseline, and
+/// the row surfaced inside that customer's audit export claiming they had
+/// run a sweep — carrying an install-wide deletion count.
+///
+/// This table is also the monotonicity baseline the sweep checks itself
+/// against: a STORED value, unlike a live clock read, cannot be defeated by
+/// the app and the database sharing a host kernel.
+model RetentionSweep {
+  id          String   @id @default(cuid())
+  /// "allowed" | "dry-run" | "refused" — refusals are recorded TOO, so a
+  /// stale baseline self-heals instead of locking the sweep out forever.
+  result      String
+  /// Why, when refused. Null on a successful sweep.
+  reason      String?
+  deleted     Int      @default(0)
+  wouldDelete Int      @default(0) @map("would_delete")
+  skippedCount Int     @default(0) @map("skipped_count")
+  failedCount  Int     @default(0) @map("failed_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt(sort: Desc)])
+  @@map("retention_sweep")
+}

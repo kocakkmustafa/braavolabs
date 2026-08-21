@@ -77,7 +77,10 @@ describe("audit-trail reads are projected (BR-P1-005)", () => {
     // every assertion below passes vacuously. Update deliberately.
     // 11 -> 12: the audit export's tenant-scoped cursor anchor (findFirst),
     // added to replace Prisma's untenanted cursor sub-select.
-    expect(total, "activityLog read-site count changed — update deliberately").toBe(12);
+    // 12 -> 13: the retention sweep's batching read, which selects only ids.
+    // 13 -> 14 -> 13: the retention rail's baseline read moved OUT of
+    // activity_log into its own retention_sweep table, which has no tenant FK.
+    expect(total, "activityLog read-site count changed — update deliberately").toBe(13);
   });
 
   it("names the columns at every read site", () => {
