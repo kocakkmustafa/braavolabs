@@ -17,6 +17,13 @@
 #                              the Lightsail host). Paste the FULL contents
 #                              of ~/.ssh/id_ed25519 — including header /
 #                              footer lines.
+#   LIGHTSAIL_KNOWN_HOSTS    — the host's public key in known_hosts format,
+#                              e.g. `63.180.74.27 ssh-ed25519 AAAA...`.
+#                              Its fingerprint MUST be verified against the
+#                              Lightsail console before being stored here;
+#                              this secret is the only thing standing between
+#                              the deploy key and an on-path attacker. Deploy
+#                              fails closed if it is unset.
 #
 # Optional secret:
 #   SLACK_DEPLOY_WEBHOOK     — if set, posts a deploy summary to Slack
@@ -144,14 +151,51 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up SSH key
+      - name: Set up SSH key and pin the host key
+        env:
+          LIGHTSAIL_KNOWN_HOSTS: ${{ secrets.LIGHTSAIL_KNOWN_HOSTS }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail_key
+          chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail_key
           chmod 600 ~/.ssh/lightsail_key
-          # Pin the host key to its first observed value to defeat MITM —
-          # ssh-keyscan first, then trust-on-first-use into known_hosts.
-          ssh-keyscan -H "${{ secrets.LIGHTSAIL_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+          # The host key comes from a secret whose fingerprint was verified
+          # OUT OF BAND (Lightsail console -> "Connect using SSH" -> compare
+          # the fingerprint). It is deliberately NOT scanned here at deploy
+          # time: scanning trusts whatever answers on that address during
+          # this run, which is exactly the traffic an on-path attacker
+          # controls -- and whatever answers receives the deploy key, the ENV
+          # directory and a root-capable shell.
+          if [ -z "$LIGHTSAIL_KNOWN_HOSTS" ]; then
+            echo "::error::LIGHTSAIL_KNOWN_HOSTS secret is not set. Deploy stops here."
+            echo "To set it, on a machine you trust:"
+            echo "  1. Run ssh-keyscan -t ed25519 HOST to get the candidate line."
+            echo "  2. Fingerprint it with ssh-keygen -lf on that captured line."
+            echo "  3. Compare that fingerprint against the Lightsail console"
+            echo "     (Connect using SSH). They MUST match."
+            echo "  4. Store the line from step 1 as the LIGHTSAIL_KNOWN_HOSTS secret."
+            exit 1
+          fi
+          printf '%s\n' "$LIGHTSAIL_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+          # A non-empty secret is not the same as a USABLE one. A line
+          # generated for a different address or port fails three steps
+          # later with an opaque "Host key verification failed" in the
+          # middle of a deploy. Catch it here, where the message can name
+          # the cause. Works for hashed and plain lines alike.
+          if ! ssh-keygen -F "${{ secrets.LIGHTSAIL_HOST }}" -f ~/.ssh/known_hosts > /dev/null; then
+            echo "::error::LIGHTSAIL_KNOWN_HOSTS has no entry matching LIGHTSAIL_HOST."
+            echo "The pinned line must name the same address this workflow connects to."
+            exit 1
+          fi
+
+          # Single definition of how this workflow talks to the server. Every
+          # ssh/rsync call below goes through it, and a test gate fails the
+          # build if a new call site does not (packages/api/src/__tests__/
+          # deploy-ssh-hardening.test.ts).
+          echo "SSH_OPTS=-i $HOME/.ssh/lightsail_key -o IdentitiesOnly=yes -o BatchMode=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o StrictHostKeyChecking=yes" >> "$GITHUB_ENV"
 
       - name: Sync compose + migrations to server (no source code)
         # The server only needs ENV/compose.prod.yaml + the Prisma
@@ -167,10 +211,10 @@ jobs:
             --include="packages/db/prisma/" \
             --include="packages/db/prisma/**" \
             --exclude="*" \
-            -e "ssh -i ~/.ssh/lightsail_key -o StrictHostKeyChecking=no" \
+            -e "ssh $SSH_OPTS" \
             ./ "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}:/tmp/braavolabs-deploy/"
 
-          ssh -i ~/.ssh/lightsail_key -o StrictHostKeyChecking=no \
+          ssh $SSH_OPTS \
               "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" '
             set -e
             sudo rsync -a \
@@ -186,7 +230,7 @@ jobs:
 
       - name: Pull new images & restart containers
         run: |
-          ssh -i ~/.ssh/lightsail_key -o StrictHostKeyChecking=no \
+          ssh $SSH_OPTS \
               "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" '
             set -e
             cd /opt/braavolabs/app/ENV
@@ -297,7 +341,7 @@ jobs:
           echo ""
           echo "❌❌❌ HEALTH GATE FAILED (api_ok=$api_ok front_ok=$front_ok) ❌❌❌"
           echo "=== aicos-api logs (last 60 lines) for diagnosis ==="
-          ssh -i ~/.ssh/lightsail_key -o StrictHostKeyChecking=no \
+          ssh $SSH_OPTS \
               "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" \
               'sudo docker logs aicos-api --tail 60 2>&1 || echo "(could not read aicos-api logs)"'
           echo ""
@@ -321,7 +365,7 @@ jobs:
         # Run prisma migrate deploy against the new schema. Idempotent —
         # already-applied migrations are no-ops.
         run: |
-          ssh -i ~/.ssh/lightsail_key -o StrictHostKeyChecking=no \
+          ssh $SSH_OPTS \
               "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" '
             set -e
             cd /opt/braavolabs/app
