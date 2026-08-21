@@ -84,6 +84,12 @@ export const PRIVILEGED_ACTIONS = {
   // Holding at MEMBER preserves today's behaviour rather than shipping a matrix
   // whose ADMIN tier nobody can reach. Raising it requires a role-management
   // surface first — a founder decision, recorded in the evidence ledger.
+  //
+  // ⚠️ Consequence worth stating: MEMBER is the FLOOR of ROLE_RANK, so
+  // `roleCan` is unconditionally true for this action and the gate can never
+  // refuse. It is one of twelve declared actions and one of the twelve gated
+  // routes, but only ELEVEN can ever produce a denial — so "twelve gated
+  // routes, denials recorded" must not be read as twelve.
   "approval:decide": "MEMBER",
 } as const satisfies Record<string, AppRole>;
 
