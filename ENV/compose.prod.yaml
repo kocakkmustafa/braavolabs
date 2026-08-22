@@ -89,7 +89,9 @@ services:
       # (that role can't bypass row-level security, so the STAGE 1 per-query
       # tenant binding starts being enforced). Unset → falls back to the owner
       # `aicos` role = today's behavior (RLS stays a no-op). One env line flips
-      # it; remove the line to roll back. See RLS-STAGE2-RUNBOOK.md.
+      # it; remove the line to roll back. This repository only PREPARES that
+      # switch: production activation remains MANUAL-BRAAVO-SECURITY-ROOTS.
+      # See docs/security/tenant-rls-stage2-runbook.md.
       DATABASE_URL: ${RUNTIME_DATABASE_URL:-postgresql://aicos:${POSTGRES_PASSWORD}@postgres:5432/aicos_prod?schema=public&connection_limit=20&pool_timeout=15}
       # Migrations MUST run as the schema OWNER (aicos) even after the runtime
       # switches to aicos_app — a non-superuser can't ALTER the schema. Always
