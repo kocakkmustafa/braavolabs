@@ -26,12 +26,12 @@ export async function generateMetadata({
   return {
     title: `${post.title} — Braavolabs`,
     description: post.desc,
-    alternates: { canonical: `https://braavolabs.com/blog/${slug}` },
+    alternates: { canonical: `https://www.braavolabs.com/blog/${slug}` },
     openGraph: {
       title: post.title,
       description: post.desc,
       type: "article",
-      url: `https://braavolabs.com/blog/${slug}`,
+      url: `https://www.braavolabs.com/blog/${slug}`,
       images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }],
     },
   };
@@ -104,8 +104,8 @@ export default async function BlogPostPage({
           <Link href="/pricing" className="hover:text-on-surface transition-colors" style={{ textDecoration: "none", color: "inherit" }}>Pricing</Link>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/login" className="bv-btn bv-btn-ghost bv-btn-sm" style={{ textDecoration: "none" }}>Sign in</Link>
-          <Link href="/register" className="bv-btn bv-btn-primary bv-btn-sm" style={{ textDecoration: "none" }}>Start free</Link>
+          <Link href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm" style={{ textDecoration: "none" }}>Sign in</Link>
+          <Link href="https://app.braavolabs.com/register" className="bv-btn bv-btn-primary bv-btn-sm" style={{ textDecoration: "none" }}>Choose a plan</Link>
         </div>
       </nav>
 
@@ -143,10 +143,10 @@ export default async function BlogPostPage({
         <div className="bv-glass rounded-2xl px-7 py-7 mt-12 flex items-center gap-5 flex-wrap" style={{ border: "1px solid rgba(59,130,246,0.25)" }}>
           <div style={{ flex: 1, minWidth: 240 }}>
             <p className="bv-title" style={{ color: "#E8EBF0", marginBottom: 4 }}>Command the agents you already run.</p>
-            <p className="bv-caption" style={{ margin: 0 }}>Start free — no card needed. Bring your own keys across 14 providers.</p>
+            <p className="bv-caption" style={{ margin: 0 }}>Compare Individual and Team, then connect your own provider key or local model route.</p>
           </div>
-          <Link href="/register" className="bv-btn bv-btn-primary" style={{ textDecoration: "none" }}>
-            Start free
+          <Link href="https://app.braavolabs.com/register" className="bv-btn bv-btn-primary" style={{ textDecoration: "none" }}>
+            Choose a plan
           </Link>
         </div>
 

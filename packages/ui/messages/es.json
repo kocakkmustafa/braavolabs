@@ -1206,11 +1206,11 @@
             "body": "No puedes usar la plataforma para generar spam, realizar actividades ilegales, violar derechos de terceros o eludir los controles de gobernanza y riesgo de la plataforma. El outreach automatizado está sujeto a los límites antispam integrados en la plataforma."
           },
           {
-            "title": "4. Plan Gratuito",
-            "body": "El plan gratuito incluye 1 empresa, 10 ejecuciones al mes y acceso a los canales TikTok y LinkedIn. Las funciones del plan gratuito pueden cambiar con 30 días de aviso."
+            "title": "4. Individual y Team",
+            "body": "Las opciones públicas de suscripción son Individual — $19/month y Team — $39/active-user/month. La inferencia no está incluida; usa tus propias claves de proveedor (BYOK) o modelos locales."
           },
           {
-            "title": "5. Planes de Pago",
+            "title": "5. Facturación y Cancelación",
             "body": "Las suscripciones de pago se facturan mensualmente vía Stripe. Puedes cancelar en cualquier momento; la cancelación tiene efecto al final del período de facturación actual. No se emiten reembolsos por meses parciales."
           },
           {

@@ -1206,11 +1206,11 @@
             "body": "You may not use the platform to generate spam, conduct illegal activities, violate third-party rights, or circumvent the platform's governance and risk controls. Automated outreach is subject to anti-spam limits built into the platform."
           },
           {
-            "title": "4. Free Plan",
-            "body": "The free plan includes 1 company, 10 runs per month, and access to TikTok and LinkedIn channels. Free plan features may change with 30 days' notice."
+            "title": "4. Individual and Team",
+            "body": "The public subscription options are Individual — $19/month and Team — $39/active-user/month. Inference is not included; use your own provider keys (BYOK) or local models."
           },
           {
-            "title": "5. Paid Plans",
+            "title": "5. Billing and Cancellation",
             "body": "Paid subscriptions are billed monthly via Stripe. You may cancel at any time; cancellation takes effect at the end of the current billing period. No refunds are issued for partial months."
           },
           {

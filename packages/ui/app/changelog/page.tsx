@@ -1,6 +1,15 @@
-"use client";
+import type { Metadata } from "next";
 
-import { useTranslations } from "next-intl";
+export const metadata: Metadata = {
+  title: "Changelog — Braavolabs",
+  description: "Braavolabs product changes with public maturity and boundary notes.",
+  alternates: { canonical: "https://www.braavolabs.com/changelog" },
+  openGraph: {
+    title: "Changelog — Braavolabs",
+    description: "Braavolabs product changes with public maturity and boundary notes.",
+    url: "https://www.braavolabs.com/changelog",
+  },
+};
 
 // Changelog entries — mirrors the LOG array in changelog.html reference mock
 const LOG: Array<{
@@ -14,8 +23,8 @@ const LOG: Array<{
     date: "Jun 1, 2026",
     latest: true,
     items: [
-      ["added", "On-device Gemma — run pipelines fully offline with zero token cost"],
-      ["added", "Encrypted offline export bundle for any workspace"],
+      ["changed", "Local-model routing now states its runtime and network boundaries explicitly"],
+      ["changed", "Signed evidence is labelled in development until independent verification is accepted"],
       ["changed", "Run detail now streams reasoning tokens live as they generate"],
     ],
   },
@@ -41,7 +50,7 @@ const LOG: Array<{
     v: "v1.5",
     date: "Apr 20, 2026",
     items: [
-      ["added", "BYOK router across 12 providers with per-step model routing"],
+      ["added", "BYOK model routing with explicit per-step route selection"],
       ["added", "Brand-stop risk-stop for tone & brand-rule violations"],
       ["fixed", "Mobile pocket-steer push deep-links open straight to the run"],
     ],
@@ -56,11 +65,6 @@ const KIND_STYLES: Record<string, { pill: string; icon: string }> = {
 };
 
 export default function ChangelogPage() {
-  const t = useTranslations();
-  // t.raw returns the unprocessed JSON value — required for arrays so we
-  // can map over the items list without resorting to indexed key lookups.
-  const _items = t.raw("static.changelog.items") as string[];
-
   return (
     <div className="bv-mesh min-h-screen">
       {/* ── Nav ── */}
@@ -85,11 +89,11 @@ export default function ChangelogPage() {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            <a href="/login" className="bv-btn bv-btn-ghost bv-btn-sm hidden sm:inline-flex">
-              {t("static.common.back")}
+            <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm hidden sm:inline-flex">
+              Back
             </a>
-            <a href="/register" className="bv-btn bv-btn-primary bv-btn-sm bv-sheen">
-              Start free
+            <a href="https://app.braavolabs.com/register" className="bv-btn bv-btn-primary bv-btn-sm bv-sheen">
+              Choose a plan
             </a>
           </div>
         </div>
@@ -201,7 +205,7 @@ export default function ChangelogPage() {
 
         {/* GitHub releases link */}
         <p className="text-center text-on-surface-variant text-sm pt-4">
-          {t("static.changelog.githubIntro")}{" "}
+          Release notes are also published at{" "}
           <a
             href="https://github.com/kocakkmustafa/braavolabs/releases"
             target="_blank"

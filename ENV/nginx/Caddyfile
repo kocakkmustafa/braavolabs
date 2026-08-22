@@ -20,16 +20,26 @@ braavolabs.com, www.braavolabs.com {
         X-Content-Type-Options nosniff
         Referrer-Policy strict-origin-when-cross-origin
         Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://plausible.io; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://cloudflareinsights.com https://plausible.io; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://app.braavolabs.com"
+        Cross-Origin-Resource-Policy same-origin
     }
 
     # Long-cache static Next.js assets
     @nextStatic path /_next/static/*
     handle @nextStatic {
         header Cache-Control "public, max-age=31536000, immutable"
-        reverse_proxy 127.0.0.1:3000
+        reverse_proxy 127.0.0.1:3000 {
+            header_down -Set-Cookie
+            header_down -Access-Control-Allow-Origin
+        }
     }
 
-    reverse_proxy 127.0.0.1:3000
+    # Public responses never forward an upstream cookie or CORS grant. Locale
+    # preference remains a host-only client cookie; auth cookies stay on API.
+    reverse_proxy 127.0.0.1:3000 {
+        header_down -Set-Cookie
+        header_down -Access-Control-Allow-Origin
+    }
 }
 
 # api.braavolabs.com — Express API
@@ -39,6 +49,9 @@ api.braavolabs.com {
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
         X-Content-Type-Options nosniff
+        Access-Control-Allow-Origin "https://app.braavolabs.com"
+        Access-Control-Allow-Credentials "true"
+        Vary Origin
     }
 
     # SSE run streaming — disable buffering, long timeout
@@ -79,6 +92,8 @@ app.braavolabs.com {
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
         X-Frame-Options SAMEORIGIN
         X-Content-Type-Options nosniff
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://lh3.googleusercontent.com https://avatars.githubusercontent.com; connect-src 'self' https://api.braavolabs.com wss://api.braavolabs.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        Cross-Origin-Resource-Policy same-origin
     }
 
     @nextStatic path /_next/static/*

@@ -39,12 +39,12 @@ export async function generateMetadata({
   return {
     title: `${doc.title} — Braavolabs Docs`,
     description: doc.desc,
-    alternates: { canonical: `https://braavolabs.com/docs/${slug}` },
+    alternates: { canonical: `https://www.braavolabs.com/docs/${slug}` },
     openGraph: {
       title: `${doc.title} — Braavolabs Docs`,
       description: doc.desc,
       type: "article",
-      url: `https://braavolabs.com/docs/${slug}`,
+      url: `https://www.braavolabs.com/docs/${slug}`,
       images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }],
     },
   };
@@ -272,8 +272,8 @@ export default async function DocsArticlePage({
             <a href="/docs" className="text-sm font-semibold text-primary no-underline">Docs</a>
           </div>
           <div className="flex items-center gap-3">
-            <a href="/login" className="bv-btn bv-btn-ghost bv-btn-sm text-sm no-underline">Sign in</a>
-            <a href="/register" className="bv-btn bv-btn-primary bv-btn-sm text-sm no-underline">Start free</a>
+            <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm text-sm no-underline">Sign in</a>
+            <a href="https://app.braavolabs.com/register" className="bv-btn bv-btn-primary bv-btn-sm text-sm no-underline">Choose a plan</a>
           </div>
         </div>
       </nav>
@@ -372,10 +372,10 @@ export default async function DocsArticlePage({
           <div className="bv-glass rounded-2xl px-7 py-7 mt-10 flex items-center gap-5 flex-wrap" style={{ border: "1px solid rgba(59,130,246,0.25)" }}>
             <div style={{ flex: 1, minWidth: 240 }}>
               <p className="bv-title" style={{ color: "#E8EBF0", marginBottom: 4 }}>Command the agents you already run.</p>
-              <p className="bv-caption" style={{ margin: 0 }}>Start free — no card needed. 10 runs a month, first three on us.</p>
+              <p className="bv-caption" style={{ margin: 0 }}>Individual is $19/month. Team is $39/active-user/month. Inference is not included.</p>
             </div>
-            <Link href="/register" className="bv-btn bv-btn-primary no-underline">
-              Start free
+            <Link href="https://app.braavolabs.com/register" className="bv-btn bv-btn-primary no-underline">
+              Choose a plan
             </Link>
           </div>
         </article>

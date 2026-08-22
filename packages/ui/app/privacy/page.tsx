@@ -67,8 +67,8 @@ export default function PrivacyPage() {
             <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_back</span>
             {t("static.common.back")}
           </a>
-          <a href="/register" className="bv-btn bv-btn-primary bv-btn-sm no-underline">
-            Start free
+          <a href="https://app.braavolabs.com/register" className="bv-btn bv-btn-primary bv-btn-sm no-underline">
+            Choose a plan
           </a>
         </div>
       </nav>

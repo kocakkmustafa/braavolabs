@@ -118,14 +118,14 @@ export default function CookiesPage() {
             {t("static.common.back")}
           </a>
           <a
-            href="/register"
+            href="https://app.braavolabs.com/register"
             className="no-underline text-sm font-semibold px-4 py-2 rounded-lg"
             style={{
               background: "linear-gradient(135deg, var(--color-primary), var(--color-secondary-container))",
               color: "#fff",
             }}
           >
-            Start free
+            Choose a plan
           </a>
         </div>
       </nav>

@@ -81,8 +81,8 @@ export default function KvkkPage() {
             <Link href="/about" className="hover:text-on-surface transition-colors">About</Link>
           </div>
           <div className="flex items-center gap-2">
-            <Link href="/login" className="bv-btn bv-btn-ghost bv-btn-sm">Sign in</Link>
-            <Link href="/register" className="bv-btn bv-btn-primary bv-btn-sm">Start free</Link>
+            <Link href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm">Sign in</Link>
+            <Link href="https://app.braavolabs.com/register" className="bv-btn bv-btn-primary bv-btn-sm">Choose a plan</Link>
           </div>
         </div>
       </nav>

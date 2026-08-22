@@ -58,8 +58,8 @@ export default function ContactPage() {
           <a href="/changelog" className="hover:text-on-surface transition-colors">Changelog</a>
         </div>
         <div className="flex items-center gap-2">
-          <a href="/login" className="bv-btn bv-btn-ghost bv-btn-sm">Sign in</a>
-          <a href="/register" className="bv-btn bv-btn-primary bv-btn-sm">Start free</a>
+          <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm">Sign in</a>
+          <a href="https://app.braavolabs.com/register" className="bv-btn bv-btn-primary bv-btn-sm">Choose a plan</a>
         </div>
       </nav>
 

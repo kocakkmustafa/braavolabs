@@ -1206,11 +1206,11 @@
             "body": "Vous ne pouvez pas utiliser la plateforme pour générer du spam, mener des activités illégales, violer les droits de tiers ou contourner les contrôles de gouvernance et de risque de la plateforme. L'outreach automatisé est soumis aux limites anti-spam intégrées."
           },
           {
-            "title": "4. Forfait Gratuit",
-            "body": "Le forfait gratuit inclut 1 entreprise, 10 exécutions par mois et l'accès aux canaux TikTok et LinkedIn. Les fonctionnalités du forfait gratuit peuvent changer avec un préavis de 30 jours."
+            "title": "4. Individual et Team",
+            "body": "Les options publiques d'abonnement sont Individual — $19/month et Team — $39/active-user/month. L'inférence n'est pas incluse ; utilisez vos propres clés fournisseur (BYOK) ou des modèles locaux."
           },
           {
-            "title": "5. Forfaits Payants",
+            "title": "5. Facturation et Résiliation",
             "body": "Les abonnements payants sont facturés mensuellement via Stripe. Vous pouvez annuler à tout moment ; l'annulation prend effet à la fin de la période de facturation en cours. Aucun remboursement n'est émis pour les mois partiels."
           },
           {

@@ -9,8 +9,7 @@
  *
  * Content rule: every product claim in these articles is grounded in the
  * codebase (governance engine, agent loop, webhook router, BYOK router,
- * license/export DRM, plan constants). No invented customers, metrics or
- * benchmarks.
+ * current product contracts). No invented customers, metrics or benchmarks.
  */
 
 export type BlogCategory = "Product" | "Engineering" | "Governance" | "Field notes";
@@ -79,7 +78,7 @@ That guarantee is what makes the whole feature trustworthy. People only pause ru
 
 Once you can redirect a run in flight, your relationship with autonomy changes. You stop writing paranoid, over-specified prompts that try to anticipate every fork, because you know you can correct course live. You let pipelines run longer and deeper, because depth no longer multiplies the cost of a mistake. The agent does the work; you keep the wheel.
 
-Try Braavolabs free and steer your first run mid-flight — no card, no re-runs.
+Review the public contract, then continue to the authenticated app when the run model fits your work.
 `,
   },
   {
@@ -122,12 +121,12 @@ All five stops are on by default because opt-in safety is decorative safety. The
 
 And every stop leaves evidence. Each halt writes the stop type, the human-readable reason, and the supporting details to the audit trail, so "why did this run stop?" always has an answer you can read.
 
-Try Braavolabs free — every run ships with all five brakes on.
+Review the governance boundaries in the docs before enabling a run.
 `,
   },
   {
-    slug: "byok-routing-12-providers",
-    title: "BYOK: routing 12 providers without lock-in",
+    slug: "byok-routing-without-lock-in",
+    title: "BYOK: routing models without lock-in",
     category: "Engineering",
     date: "May 21, 2026",
     read: "9 min",
@@ -137,15 +136,15 @@ The model market reshuffles itself every few months. A provider that leads on re
 
 We built Braavolabs the other way around: bring your own keys, and let the platform route.
 
-## Twelve providers, one wire
+## Provider choice, one wire
 
-The router speaks to twelve providers: Anthropic, OpenAI, Google, Mistral, Groq, OpenRouter, DeepSeek, Kimi, Qwen — and on the local side, Ollama, LM Studio, and any custom OpenAI-compatible endpoint you point it at. Cloud or local, hosted or self-run, they all sit behind the same abstraction.
+The router can use configured cloud providers and local endpoints such as Ollama, LM Studio, or a custom OpenAI-compatible endpoint. Available routes depend on the connections the operator configures; the public contract does not claim a fixed provider count.
 
 That abstraction is the point. Your pipelines are written against the router, not against a vendor SDK. Swapping providers is a settings change, not a migration: no pipeline definitions touched, no prompts rewritten, no redeploy. When the market moves, you move with it in one screen.
 
 ## How a run finds its model
 
-When a run starts, the router resolves credentials in a fixed order. First, your own key — BYOK is always preferred. If you haven't added one yet and you're on the free tier, your first three runs route through a platform-owned Groq pool, so you can watch real pipelines execute before pasting a single key. A trial run is only consumed when it succeeds — a failure inside the loop doesn't burn one of your three. And if nothing resolves, the run fails loudly with a clear "add a key in settings" error instead of silently degrading to some model you didn't choose.
+When a run starts, the router resolves the model route selected for that work. Braavolabs does not include inference: configure your own provider key or an available local model endpoint. If the selected route has no usable credential or endpoint, the run should fail clearly instead of silently substituting a model you did not choose.
 
 That last behavior is deliberate. Silent model substitution is how platforms quietly trade your output quality for their margin. We'd rather fail with an instruction than succeed with a surprise.
 
@@ -155,21 +154,21 @@ A provider key is among the most sensitive things you can hand a platform, so we
 
 ## The local escape hatch
 
-Three of the twelve providers never leave your machine. Ollama and LM Studio expose local models — Gemma, Llama, Qwen and friends — through the same OpenAI-compatible wire format the cloud providers use, so the router treats your laptop like any other endpoint. The custom provider covers anything else that speaks that protocol, including servers inside your own network. Zero token cost, zero data egress, same pipelines. We wrote up the fully-offline setup separately, but the headline is: lock-in isn't just avoidable across vendors, it's avoidable across the cloud boundary entirely.
+Ollama, LM Studio, and custom OpenAI-compatible endpoints can be selected as local model routes when the operator has installed and configured them. That changes where model inference is sent; it does not by itself prove that tools, telemetry, or the surrounding control plane make no network requests. Those boundaries must be evaluated for the selected data mode and task.
 
 ## The economics of not metering you
 
-BYOK changes the business model, and we think the change is honest. Braavolabs charges flat tiers — free, then $19, $39, and $99 a month — and your token spend happens on your own keys, at provider cost, visible in your own provider dashboard. We don't mark up tokens and we don't meter per task.
+BYOK makes the billing boundary explicit. Individual is $19/month and Team is $39/active-user/month. Inference is not included, so provider usage is billed through the operator's own account or handled by the operator's local runtime.
 
 Per-task pricing deserves a moment of attention, because it's the dominant model in automation and it quietly punishes exactly the behavior agents are good at. A multi-step agent might take dozens of small steps to do one piece of real work; charge per step or per task, and the bill scales with the agent's thoroughness rather than with the value delivered. The incentive lands on you to keep automations shallow. Flat platform fee plus at-cost tokens points the incentive the right way: deeper pipelines cost us nothing extra, so nothing in our pricing nudges you to cripple them.
 
 ## Routing as strategy, not plumbing
 
-The practical pattern we see is mixing: a strong reasoning model where judgment matters, a fast cheap model for extraction and glue steps, a local model where the data is sensitive. The router makes that a per-company configuration decision instead of an architecture decision — and keeps every one of those choices reversible.
+The practical pattern is to select routes by task: a reasoning model where judgment matters, a faster route for extraction and glue steps, or a local endpoint where its verified boundary fits the work. The router keeps that choice explicit rather than silently substituting a vendor.
 
 Vendors will keep leapfrogging each other. That's good for you, but only if switching costs stay near zero. Keeping them near zero is the router's whole job.
 
-Try Braavolabs free — your first three runs are on us, then your keys, your models, your call.
+Review pricing, connect your own model route, and keep the inference bill visible at its source.
 `,
   },
   {
@@ -201,54 +200,44 @@ Push notifications carry the moments that matter: an approval waiting, an agent 
 
 ## Security without ceremony
 
-A phone that can approve spending and redirect agents is a credential, so we treat the token storage seriously. Auth tokens live in SecureStore — the device's hardware-backed keychain — not in any storage that syncs or backs up off the device. Sessions ride the same JWT-plus-rotating-refresh scheme as the web app. Nothing about going mobile loosens the security model; the phone is a first-class, fully-audited client, and every action you take from it lands in the same activity log as everything else.
+A phone that can approve spending and redirect agents is a credential. The current client uses SecureStore for auth tokens and the authenticated session contract used by the app. Mobile actions are intended to write into the same activity model; signed, independently verifiable evidence for that record remains in development.
 
 ## Why this split works
 
 Mid-run steering changed what a phone could be worth. Before it, a mobile app for an agent platform was a read-only status widget — nice, optional. Once a run can accept guidance in flight and pause on a question, the phone becomes the difference between an agent waiting twelve minutes for you versus twelve hours. The web is where you build the machine. The pocket is where you keep your hand on it.
 
-Try Braavolabs free, then put the command seat in your pocket.
+Review the mobile control contract before pairing a device.
 `,
   },
   {
-    slug: "offline-on-device-gemma",
-    title: "Running fully offline with on-device Gemma",
+    slug: "local-model-routing-boundaries",
+    title: "What local model routing does — and does not — guarantee",
     category: "Engineering",
     date: "May 7, 2026",
     read: "8 min",
-    desc: "When tokens can't leave the building — how local inference plugs into the same pipelines.",
+    desc: "Local model routing changes the inference endpoint; data mode, tools, and network boundaries still need explicit review.",
     body: `
-Some work simply cannot leak tokens. Client material under NDA, regulated documents, internal data that policy says never crosses the network boundary — for these, "we have a privacy policy" is not an architecture. The only honest answer is inference that physically happens on hardware you control.
+Local model routing means the selected inference request is sent to an endpoint the operator configured, such as Ollama, LM Studio, or another compatible runtime. Braavolabs does not bundle the runtime, model, hardware, or inference usage.
 
-Braavolabs treats that answer as a first-class provider, not a special mode.
+## The endpoint is only one boundary
 
-## Local is just another endpoint
+Choosing a local endpoint does not make the whole task disconnected from the network. Tool calls, external integrations, updates, telemetry, and the surrounding control plane can have separate network behavior. Review each of those surfaces before treating a task as suitable for restricted data.
 
-Three of our twelve BYOK providers are local: Ollama, LM Studio, and any custom OpenAI-compatible server. All three speak the same chat-completions wire format the cloud providers use, so to the router your laptop is simply an endpoint with a base URL — Ollama's default is localhost:11434, LM Studio's is localhost:1234 — and no API key leaving the building because there's no key at all.
+## Data mode remains explicit
 
-Our default local model is Gemma 3 4B. It's the pragmatic sweet spot: small enough to run comfortably on a 16GB laptop, capable enough to drive real pipeline steps. If you have more hardware, the larger Gemma variants and the usual local suspects — Llama, Qwen, DeepSeek — are a pull command away, and the platform lists them as selectable models rather than making you type identifiers from memory.
+Private Mode keeps prompt, output, and artifact content end-to-end encrypted so Braavolabs cloud cannot read the plaintext.
 
-## Same pipelines, same brakes
+Cloud Agent Mode processes the content needed to run the task in Braavolabs execution infrastructure with explicit consent and visible retention.
 
-Here's the part we care most about: switching to local inference changes nothing else. The agent loop is identical. Tool calls are still logged, every step still records its required reasoning, spends still wait for approvals, and all five risk-stops — hard, loop, cost, spam, brand — still run between steps. Governance in Braavolabs lives in the pipeline layer, not in any model vendor's cloud, so it travels with you to the edge. An offline agent is not an ungoverned agent.
+Those sentences describe the two product data modes. They do not certify the operator's device, local runtime, third-party tools, or network configuration.
 
-This matters because the environments that demand local inference are usually the ones that demand the most accountability, not the least. Air-gapped doesn't mean audit-free.
+## Billing remains separate
 
-## Honest expectations
+Inference is not included. Use your own provider keys (BYOK) or local models. A local runtime can have hardware, electricity, licensing, and operational costs even when there is no provider token invoice.
 
-A 4B model is not a frontier model, and pretending otherwise would waste your time. Small local models are weaker at long-horizon, many-step tool use; they lose the thread faster and need more explicit instructions. The pattern that works: keep offline pipelines tighter and more prescriptive, lean harder on approvals and ask_user checkpoints, and route the judgment-heavy steps to a bigger local model if your hardware allows. The router makes the mix a configuration choice — sensitive steps local, everything else wherever you like — so privacy is per-step, not all-or-nothing.
+## Verify the actual task
 
-## Air-gapped, with teeth
-
-For environments where even the control plane can't phone home, pipelines export as encrypted, machine-bound bundles. The bundle is encrypted for a specific machine: the license token is derived per device, so a copied bundle on different hardware simply fails to open. There's an explicit machine-change flow when you genuinely migrate — deliberate, bounded, and logged — rather than a quiet copy-anywhere loophole. That's the difference between "offline export" as a checkbox and as a security property.
-
-## The cost column reads zero
-
-One more property falls out for free: local tokens cost nothing. Braavolabs charges a flat plan and never marks up inference, so a pipeline running against your own Ollama box has no per-token line at all — useful for high-volume, low-stakes steps even when privacy isn't the driver.
-
-The deeper point is symmetry. We refuse model lock-in across cloud vendors, and the same principle holds across the cloud boundary itself: where your inference runs should be your decision, revisable any time, with the same pipelines and the same audit trail on either side of it.
-
-Try Braavolabs free — and when the work demands it, run it where nobody else can see it.
+Before using a local route for sensitive work, inspect the selected runtime, tool list, integrations, update behavior, and network controls. Signed evidence is in development, so public copy must not turn a routing option into a broader security guarantee.
 `,
   },
   {
@@ -281,7 +270,7 @@ We cap question length, store the asked question verbatim in the audit trail, an
 
 What we shipped is small on the surface: one tool, one pause, one form. What it changed is the default posture of every pipeline — from "guess and hope" to "ask and proceed." We'll take that trade every time.
 
-Try Braavolabs free and let your first agent ask you something.
+Review the run and approval contract before connecting an agent.
 `,
   },
   {
@@ -290,20 +279,22 @@ Try Braavolabs free and let your first agent ask you something.
     category: "Governance",
     date: "Apr 23, 2026",
     read: "7 min",
-    desc: "Reasoning, tool calls and cost — every step reconstructable, none of it noise.",
+    desc: "How current run records are organized for review, and where signed verification is still in development.",
     body: `
 Most audit logs are written to be ignored. They exist so a compliance box can be ticked, they capture everything indiscriminately, and the one time someone actually opens them — after an incident — they find a haystack engineered without needles in mind. We refused to ship that. If software is going to act autonomously on your behalf, the record of what it did and why isn't a feature; it's the basis of the entire relationship.
 
 So we designed the Braavolabs audit trail backwards: from the questions a human asks, to the data that answers them.
 
-## Four invariants, no exceptions
+## The current record model
 
-Everything rests on four rules that hold across the whole platform — they're in our engineering guidelines as non-negotiables, and the code enforces them rather than recommending them.
+The run model has separate records for steps, tool calls, approvals, costs, and activity events. That structure makes it possible to inspect what the current runtime persisted without claiming that all external actions are already covered.
 
-- Every tool call is logged. Each action an agent takes — every send, every fetch, every write — lands in the tool-call record with its inputs, outputs and timing. Not a sample. All of them.
-- Every step has a reasoning field, and it's required. Before the what, the agent records the why. The schema won't accept an empty one — explanation is captured at decision time, not reconstructed after.
-- Every spend has an approval row. No money-touching action executes without an explicit decision attached to it. The pause-and-ask machinery for agent questions was built on this same primitive, because a gate people already check is worth ten new ones.
-- The activity log covers everything else. Every create, update, send, and decision — human or agent — writes an activity entry, including the governance engine's own interventions.
+- Tool integrations can attach their inputs, outputs, and timing to tool-call records.
+- Run steps carry a reasoning field in the current schema.
+- Approval records bind decisions to the action context represented by the runtime.
+- Activity entries capture supported lifecycle events and governance interventions.
+
+Coverage must be proven per surface. Signed evidence remains in development, so these database records are not presented as an independently verifiable replay.
 
 ## Three questions, answered fast
 
@@ -323,7 +314,7 @@ Of the four invariants, mandatory reasoning is the one we defend hardest, becaus
 
 Here's the loop we're really building. You give agents more autonomy when you can steer them and stop them; you steer and stop them well when you can see exactly what they're doing and why; you can see that because every step, call, spend and decision leaves a record designed to be read. The audit trail isn't the boring part of an agent platform. It's the part that makes the exciting parts safe to use.
 
-Try Braavolabs free — and read exactly what your agents did, the same evening.
+Use the run detail to review the records the current runtime produced.
 `,
   },
 ];

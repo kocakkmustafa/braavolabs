@@ -1206,11 +1206,11 @@
             "body": "Du darfst die Plattform nicht für Spam, illegale Aktivitäten, Verletzung von Drittrechten oder zur Umgehung der Governance- und Risikokontrollen der Plattform nutzen. Automatisierte Outreach-Aktionen unterliegen den eingebauten Anti-Spam-Limits."
           },
           {
-            "title": "4. Kostenloser Plan",
-            "body": "Der kostenlose Plan umfasst 1 Unternehmen, 10 Runs pro Monat und Zugang zu TikTok- und LinkedIn-Kanälen. Funktionen des kostenlosen Plans können mit 30 Tagen Vorlaufzeit geändert werden."
+            "title": "4. Individual und Team",
+            "body": "Die öffentlichen Abonnementoptionen sind Individual — $19/month und Team — $39/active-user/month. Inferenz ist nicht enthalten; verwende eigene Anbieterschlüssel (BYOK) oder lokale Modelle."
           },
           {
-            "title": "5. Bezahlte Pläne",
+            "title": "5. Abrechnung und Kündigung",
             "body": "Bezahlte Abonnements werden monatlich über Stripe abgerechnet. Du kannst jederzeit kündigen; die Kündigung wird zum Ende des aktuellen Abrechnungszeitraums wirksam. Es gibt keine Rückerstattungen für Teilmonate."
           },
           {

@@ -1206,11 +1206,11 @@
             "body": "Platformu spam üretmek, yasa dışı faaliyetler yürütmek, üçüncü taraf haklarını ihlal etmek veya yönetişim ve risk kontrollerini atlamak için kullanamazsın. Otomatik dış erişim, platforma yerleşik anti-spam limitlere tabidir."
           },
           {
-            "title": "4. Ücretsiz Plan",
-            "body": "Ücretsiz plan 1 şirket, ayda 10 çalıştırma ve TikTok + LinkedIn kanallarına erişim içerir. Ücretsiz plan özellikleri 30 gün önceden bildirimle değişebilir."
+            "title": "4. Individual ve Team",
+            "body": "Herkese açık abonelik seçenekleri Individual — $19/month ve Team — $39/active-user/month olarak sunulur. Çıkarım dahil değildir; kendi sağlayıcı anahtarlarını (BYOK) veya yerel modelleri kullanırsın."
           },
           {
-            "title": "5. Ücretli Planlar",
+            "title": "5. Faturalama ve İptal",
             "body": "Ücretli abonelikler Stripe üzerinden aylık faturalanır. İstediğin an iptal edebilirsin; iptal mevcut faturalama döneminin sonunda etkili olur. Kısmi aylar için iade yapılmaz."
           },
           {
