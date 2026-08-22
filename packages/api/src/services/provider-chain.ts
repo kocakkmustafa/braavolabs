@@ -19,18 +19,11 @@
  *
  *   3. buildTenantProviderChain() — the D-009-corrected resolution order:
  *
- *        BYOK default row → tenant's other rows with fallbackOrder (asc) →
- *        trial Groq (FREE plan, counted) → system Anthropic (OPT-IN only)
+ *        BYOK/local default row → tenant's own fallbackOrder rows (asc)
  *
- *      Privacy rule (plan §2.2, binding): auto-failover only ever walks
- *      providers the TENANT configured. Falling to the trial pool / system
- *      Anthropic when the tenant HAS BYOK rows requires the explicit
- *      allowSystemFallback flag on the default row (default false). A
- *      tenant with NO BYOK at all enters through trial-Groq when on the
- *      FREE plan (counted — closes the D-009 uncounted-system-key bleed);
- *      BYOK-less PAID tenants keep the system entry (deliberate: they pay
- *      for the platform, and cutting them over would brick every paying
- *      tenant that hasn't configured BYOK yet — the D-009 bleed was FREE).
+ *      Privacy rule (BR-P0-002-D, binding): auto-failover only ever walks
+ *      providers the TENANT configured. Historical trial/system flags and
+ *      Braavolabs-held keys are ignored by this resolver.
  *
  *      Failover is default-OFF end to end: fresh rows have
  *      fallbackOrder=NULL (not part of the chain) and
@@ -42,16 +35,11 @@ import { prisma } from "../lib/db";
 import { logger } from "../lib/logger";
 import { env } from "../config/env";
 import { decryptForTenant } from "../lib/encryption";
-import { tryConsumeTrialRun, commitTrialRun, refundTrialReservation } from "./trial-llm";
-import { costForTrialUsage } from "../modules/billing/trial-credit.service";
 import {
   LOCAL_PROVIDERS,
   ToolsUnsupportedError,
-  chatCompletion,
   type AIClientConfig,
   type AIProviderType,
-  type ChatMessage,
-  type ChatCompletionResult,
 } from "./ai-client";
 
 // ─── Error classification ─────────────────────────────────
@@ -251,6 +239,7 @@ export function resetProviderCircuits(): void {
 
 // ─── Chain building ───────────────────────────────────────
 
+/** trial/system remain type-only compatibility values for older callers. */
 export type ProviderChainSource = "byok-default" | "byok-fallback" | "trial" | "system";
 
 export interface ProviderChainLink {
@@ -351,8 +340,8 @@ export async function listTenantProviderLinks(tenantId: string): Promise<Provide
  * that into the historical "No AI provider configured" error instead of
  * silently burning the system key (the pre-T7 bleed).
  *
- * OFFLINE_MODE strips every cloud link (trial + system included) — only
- * OLLAMA / LMSTUDIO / CUSTOM survive, mirroring chatCompletion's guard.
+ * OFFLINE_MODE strips every cloud BYOK link — only tenant-owned
+ * OLLAMA / LMSTUDIO / CUSTOM survive.
  */
 export async function buildTenantProviderChain(tenantId: string): Promise<ProviderChainLink[]> {
   const rows = (await prisma.userAIConfig.findMany({
@@ -392,62 +381,17 @@ export async function buildTenantProviderChain(tenantId: string): Promise<Provid
     ? links.filter((l) => LOCAL_PROVIDERS.has(l.provider))
     : links;
 
-  const hasByok = rows.length > 0; // configured INTENT, even if rows are unusable
-  const allowSystemFallback = defaultRow?.allowSystemFallback === true;
-
-  // Trial + system links are CLOUD links — never under OFFLINE_MODE.
-  if (offline) return byokLinks;
-
-  const chain = [...byokLinks];
-
-  // Trial Groq — entry path for BYOK-less FREE tenants (counted; closes
-  // D-009), and an opt-in tail link for BYOK tenants. tryConsumeTrialRun
-  // does the eligibility work (FREE plan + counter + holding key present)
-  // WITHOUT mutating the counter — the loop commits only after a
-  // trial-served run succeeds.
-  if (!hasByok || allowSystemFallback) {
-    const trial = await tryConsumeTrialRun(tenantId);
-    if (trial) {
-      chain.push({ provider: "GROQ", source: "trial", config: trial.config });
-    }
-  }
-
-  // System Anthropic — strictly opt-in for BYOK tenants (privacy rule);
-  // entry path only for BYOK-less PAID tenants (see module docs). A
-  // missing tenant row is treated as FREE (fail-closed — no system key).
-  if (env.ANTHROPIC_API_KEY) {
-    let systemAllowed = false;
-    if (hasByok) {
-      systemAllowed = allowSystemFallback;
-    } else {
-      const tenant = await prisma.tenant.findUnique({
-        where: { id: tenantId },
-        select: { plan: true },
-      });
-      systemAllowed = !!tenant && tenant.plan !== "FREE";
-    }
-    if (systemAllowed) {
-      chain.push({
-        provider: "ANTHROPIC",
-        source: "system",
-        config: {
-          provider: "ANTHROPIC",
-          model: env.CLAUDE_MODEL,
-          apiKey: env.ANTHROPIC_API_KEY,
-        },
-      });
-    }
-  }
-
-  return chain;
+  // BR-P0-002-D: allowSystemFallback and system-held environment keys are
+  // historical inputs only. Runtime resolution returns tenant-owned BYOK or
+  // local links exclusively, even when adversarial fallback flags are set.
+  return byokLinks;
 }
 
 // ─── D-013: honest single-completion resolution ───────────
 //
 // buildTenantProviderChain (above) is what the MAIN pipeline/run agent loop
-// dials through (claude.ts runAgentLoop) — it enforces the D-009 privacy
-// rule: BYOK default → tenant fallbackOrder links → counted trial Groq
-// (FREE) → opt-in/PAID system Anthropic → (nothing ⇒ honest error).
+// dials through: tenant BYOK/local default → tenant-owned fallback links →
+// nothing (an honest configuration error).
 //
 // Several one-shot completion call sites (agent composer, run/:id/explain,
 // the NL company builder) NEVER went through the chain: they called
@@ -473,17 +417,8 @@ export async function buildTenantProviderChain(tenantId: string): Promise<Provid
 /**
  * D-013 honest resolver for single-completion surfaces (composer,
  * run/:id/explain, NL company builder). Returns the FIRST link of the
- * tenant's D-009 provider chain — BYOK default → counted trial (FREE) →
- * opt-in/PAID system Anthropic — or throws the historical "No AI provider
- * configured" error when NOTHING may serve (BYOK-less FREE with a spent
- * trial, an unusable-key tenant that never opted into system fallback,
- * etc.). Single source of truth with runAgentLoop: it dials this exact
- * chain, so a keyless tenant can never silently reach the system wallet
- * here while being blocked there.
- *
- * When the returned link's `source === "trial"`, the caller MUST call
- * commitTrialCompletion(tenantId, source) AFTER the completion SUCCEEDS,
- * or refundTrialCompletion(tenantId, source) if it throws.
+ * tenant's BYOK/local chain, or throws when no tenant-owned provider may
+ * serve. It cannot return a trial/system link.
  */
 export async function resolveTenantCompletionLink(tenantId: string): Promise<ProviderChainLink> {
   const chain = await buildTenantProviderChain(tenantId);
@@ -491,73 +426,27 @@ export async function resolveTenantCompletionLink(tenantId: string): Promise<Pro
   if (!head) {
     throw new Error("No AI provider configured. Please add an API key in Settings → AI Provider.");
   }
-  // buildTenantProviderChain atomically reserves hosted-trial cost budget
-  // as soon as it decides trial belongs ANYWHERE in the chain (head or a
-  // later opt-in fallback tail, e.g. a BYOK tenant with
-  // allowSystemFallback=true) — but single-completion callers only ever
-  // dial `head` and never fail over into the rest of the chain like the
-  // multi-turn agent loop does. If trial landed in the chain but isn't
-  // head, that reservation can never be settled or naturally refunded by
-  // anything downstream — refund it right here, immediately, before a
-  // stranded reservation silently drains this tenant's own trial budget
-  // over repeated non-trial-served calls.
-  if (head.source !== "trial" && chain.some((l) => l.source === "trial")) {
-    await refundTrialReservation(tenantId);
-  }
   return head;
 }
 
 /**
- * Commit the run-based trial counter for a single completion that was served
- * by the trial link — the same contract runAgentLoop applies: consume on
- * serve; a failed completion must call refundTrialCompletion (below)
- * instead of this. No-op for every other source. Counter misses are
- * non-fatal (trial-llm already documents ±1 tolerance).
- *
- * `usage`, when given (the caller's raw ChatCompletionResult fields), also
- * trues up the shared $0.30 hosted-trial cost bucket to the REAL dollar
- * cost — see trial-llm.ts's module docblock. Only pass it when the caller
- * actually held a reservation for this call (i.e. `source==="trial"` came
- * from a link resolveTenantCompletionLink/buildTenantProviderChain
- * produced, with the cap enabled) — commitTrialRun trusts it as such.
+ * Compatibility no-op. Hosted trial completions cannot be produced by this
+ * module after BR-P0-002-D.
  */
 export async function commitTrialCompletion(
-  tenantId: string,
-  source: ProviderChainSource,
-  usage?: { provider: AIProviderType; model: string; inputTokens: number; outputTokens: number },
+  _tenantId: string,
+  _source: ProviderChainSource,
+  _usage?: { provider: AIProviderType; model: string; inputTokens: number; outputTokens: number },
 ): Promise<void> {
-  if (source !== "trial") return;
-  try {
-    // Omitting usage entirely (vs. passing an explicit undefined cost)
-    // keeps commitTrialRun's call shape identical to before this cap
-    // existed for every caller that doesn't supply it.
-    if (usage) {
-      const costUsd = costForTrialUsage(usage.provider, usage.model, usage.inputTokens, usage.outputTokens);
-      await commitTrialRun(tenantId, costUsd);
-    } else {
-      await commitTrialRun(tenantId);
-    }
-  } catch (err) {
-    logger.warn(
-      { tenantId, err: (err as Error).message },
-      "commitTrialRun failed after a trial-served single completion (non-fatal)",
-    );
-  }
+  return undefined;
 }
 
 /**
- * Refund an unused hosted-trial cost reservation after a single completion
- * that was ABOUT to be served by the trial link never actually completed
- * (the chatCompletion call threw). Symmetric with commitTrialCompletion:
- * every trial-sourced completion attempt must call exactly one of the two,
- * never both, never neither — call this from the catch branch, immediately
- * before rethrowing, at every resolveTenantCompletionLink call site. No-op
- * for every other source (mirrors commitTrialCompletion's own guard).
+ * Compatibility no-op paired with commitTrialCompletion.
  */
 export async function refundTrialCompletion(
-  tenantId: string,
-  source: ProviderChainSource,
+  _tenantId: string,
+  _source: ProviderChainSource,
 ): Promise<void> {
-  if (source !== "trial") return;
-  await refundTrialReservation(tenantId);
+  return undefined;
 }

@@ -433,13 +433,11 @@ export const api = {
         id: string; status: string; currentPeriodEnd: string; cancelAtPeriodEnd: boolean;
       } | null;
     }>("/billing/subscription", { token }),
-  // Backend accepts the full 5-tier set; client signature now matches.
+  // New-sale checkout is deliberately narrower than the compatibility enum.
   billingCheckout: (
     token: string,
-    plan: "CREATOR" | "PRO" | "BUSINESS" | "ENTERPRISE",
-    // Field name must be `billingCycle` — the API's checkout Zod schema
-    // (billing/router.ts) silently defaulted `billingPeriod` to monthly.
-    billingCycle: "monthly" | "yearly" = "monthly",
+    plan: "INDIVIDUAL" | "TEAM",
+    billingCycle: "monthly" = "monthly",
   ) =>
     apiFetch<{ url: string }>("/billing/checkout", {
       method: "POST",

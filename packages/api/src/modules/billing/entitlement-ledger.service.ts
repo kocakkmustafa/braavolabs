@@ -93,9 +93,9 @@ export async function appendEntitlementEvent(
  * happen in practice (the FK guarantees the tenant existed at insert
  * time), but reprojectEntitlement must not throw into a webhook 500
  * over a race with tenant deletion. */
-const FALLBACK_PLAN: Plan = "FREE";
+const FALLBACK_PLAN = "MANUAL_REVIEW" as Plan;
 
-function isKnownPlan(value: string): value is Plan {
+function isKnownPlan(value: string): boolean {
   return value in PLAN_RANK;
 }
 
@@ -166,7 +166,7 @@ export async function reprojectEntitlement(tenantId: string): Promise<Plan> {
     const now = new Date();
     const best = combineStreams(streamStates, now);
     const resolved = resolveEntitlement(best, now);
-    const plan: Plan = isKnownPlan(resolved) ? resolved : FALLBACK_PLAN;
+    const plan = (isKnownPlan(resolved) ? resolved : FALLBACK_PLAN) as Plan;
 
     if (!isKnownPlan(resolved)) {
       // Defensive — should be unreachable: resolveEntitlement only ever

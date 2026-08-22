@@ -403,6 +403,21 @@ async function augmentFindingsWithMultiModel(
 async function runResearchLoop(sessionId: string, multiModel = false): Promise<void> {
   const session = await prisma.webResearchSession.findUnique({ where: { id: sessionId } });
   if (!session) return;
+  const tenantId =
+    typeof session.tenantId === "string" && session.tenantId.trim().length > 0
+      ? session.tenantId
+      : null;
+  if (!tenantId) {
+    await prisma.webResearchSession.update({
+      where: { id: sessionId },
+      data: {
+        status: "FAILED",
+        error: "Research session has no valid tenant binding; provider execution was refused.",
+        completedAt: new Date(),
+      },
+    });
+    return;
+  }
   await prisma.webResearchSession.update({
     where: { id: sessionId },
     data: { status: "RUNNING", startedAt: new Date() },
@@ -483,6 +498,7 @@ async function runResearchLoop(sessionId: string, multiModel = false): Promise<v
             .map((s, i) => `[${i}] ${s.title ?? "(untitled)"} — ${s.url}\n${s.content.slice(0, 1200)}`)
             .join("\n\n---\n\n"),
         toolNames: [],
+        tenantId,
       });
       cost += distill.totalCostUsd ?? 0;
 
@@ -538,6 +554,7 @@ async function runResearchLoop(sessionId: string, multiModel = false): Promise<v
         .map((s, i) => `[${i}] ${s.title ?? "(untitled)"} — ${s.url}\n${s.content.slice(0, 1500)}`)
         .join("\n\n---\n\n"),
       toolNames: [],
+      tenantId,
     });
     cost += final.totalCostUsd ?? 0;
     let findings: unknown = { summary: final.finalContent.slice(0, 4000), claims: [] };

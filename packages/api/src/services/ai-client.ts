@@ -978,8 +978,9 @@ function envOfflineMode(): boolean {
 }
 
 /**
- * Load the AI config for a tenant, falling back to system defaults.
- * Returns a ready-to-use AIClientConfig with decrypted API key.
+ * Load a tenant-owned AI config. Shared process-level provider keys are never
+ * a tenant completion fallback; callers fail closed until the tenant supplies
+ * BYOK or selects a usable local provider.
  *
  * Multi-key BYOK (E2/T6): a tenant now keeps one UserAIConfig row per
  * provider; this resolves to the DEFAULT row (isDefault=true). The
@@ -996,8 +997,17 @@ export async function getTenantAIConfig(tenantId: string): Promise<AIClientConfi
   if (aiConfig) {
     const provider = aiConfig.provider as AIProviderType;
     const isLocal = LOCAL_PROVIDERS.has(provider);
-    // Local providers don't need an API key (Ollama default = no auth).
-    // Cloud providers do; fall through to the system default if missing.
+    const baseUrl = aiConfig.baseUrl?.trim() || undefined;
+
+    if (provider === "CUSTOM" && !baseUrl) {
+      throw new Error(
+        "CUSTOM local provider requires a tenant-owned base URL. Configure it in Settings → AI Provider.",
+      );
+    }
+
+    // Local providers don't require a key. If an optional local key cannot be
+    // decrypted, preserve the existing keyless-local behavior without ever
+    // consulting a process-level secret.
     if (isLocal || aiConfig.encryptedApiKey) {
       let apiKey = "";
       let decryptFailed = false;
@@ -1006,14 +1016,13 @@ export async function getTenantAIConfig(tenantId: string): Promise<AIClientConfi
           apiKey = decryptForTenant(aiConfig.encryptedApiKey, tenantId);
         } catch (err) {
           decryptFailed = true;
-          logger.warn({ tenantId, err }, "Failed to decrypt tenant AI key — proceeding without it (local provider) or falling back to system default");
+          logger.warn(
+            { tenantId, provider, reason: "tenant_credential_decrypt_failed" },
+            "Tenant AI credential could not be decrypted",
+          );
         }
       }
-      // A cloud provider with a corrupted/undecryptable key cannot work —
-      // sending apiKey:"" just yields a 401 from the provider (D-002).
-      // Skip the return and fall through to the system default below.
-      // Local providers legitimately run keyless, so they keep their config.
-      if (isLocal || !decryptFailed) {
+      if (isLocal || (!decryptFailed && apiKey.trim().length > 0)) {
         return {
           provider,
           model: aiConfig.model,
@@ -1021,22 +1030,15 @@ export async function getTenantAIConfig(tenantId: string): Promise<AIClientConfi
           // Tenant-supplied custom base URL (Settings UI). Empty → adapter
           // falls back to PROVIDER_BASE_URLS default (e.g. localhost:11434
           // for Ollama). Trim to avoid trailing-slash double-slash issues.
-          baseUrl: aiConfig.baseUrl?.trim() || undefined,
+          baseUrl,
         };
       }
     }
   }
 
-  // Fall back to system Anthropic key
-  if (!env.ANTHROPIC_API_KEY) {
-    throw new Error("No AI provider configured. Please add an API key in Settings → AI Provider.");
-  }
-
-  return {
-    provider: "ANTHROPIC",
-    model: env.CLAUDE_MODEL,
-    apiKey: env.ANTHROPIC_API_KEY,
-  };
+  throw new Error(
+    "No usable tenant-owned AI provider configured. Add a BYOK API key or configure a local provider in Settings → AI Provider.",
+  );
 }
 
 /** Encrypt and save tenant AI config. baseUrl is optional and only set

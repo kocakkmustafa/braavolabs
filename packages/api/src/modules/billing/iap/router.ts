@@ -35,7 +35,12 @@ import { logger } from "../../../lib/logger";
 import { verifyAppleReceipt, parseAppleNotification } from "./apple";
 import { verifyGoogleReceipt, parseGoogleRtdnEnvelope, verifyPubSubPushToken } from "./google";
 import { recordEntitlementEvent } from "../entitlement-ledger.service";
-import { mapIapVerify, mapAppleNotify, mapGoogleNotify, type PlanTier } from "../entitlement-mapping";
+import {
+  mapIapVerify,
+  mapAppleNotify,
+  mapGoogleNotify,
+  resolveIapProductPlan,
+} from "../entitlement-mapping";
 import crypto from "node:crypto";
 
 export const iapRouter = Router();
@@ -85,31 +90,18 @@ const verifySchema = z.object({
  * keep this list in sync with the products configured in App Store
  * Connect / Play Console — see docs/manual-tasks.md.
  *
- * The same productId is used for monthly + yearly variants — the tier
- * the user gets is identical, only the billing cadence differs and
- * Apple/Google handle that internally.
+ * New sale is monthly-only. Historical identifiers are accepted solely for
+ * deterministic receipt replay and may resolve to MANUAL_REVIEW.
  */
-const PRODUCT_TIER_MAP: Record<string, "CREATOR" | "BUSINESS" | "PRO" | "ENTERPRISE"> = {
-  "com.braavolabs.creator.monthly":    "CREATOR",
-  "com.braavolabs.creator.yearly":     "CREATOR",
-  "com.braavolabs.business.monthly":   "BUSINESS",
-  "com.braavolabs.business.yearly":    "BUSINESS",
-  "com.braavolabs.pro.monthly":        "PRO",
-  "com.braavolabs.pro.yearly":         "PRO",
-  "com.braavolabs.enterprise.monthly": "ENTERPRISE",
-  "com.braavolabs.enterprise.yearly":  "ENTERPRISE",
-};
-
 // POST /api/v1/billing/iap/verify — verify a mobile receipt
 iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, next) => {
   try {
     const body = verifySchema.parse(req.body);
     const tenantId = req.auth!.tenantId;
 
-    const planTier = PRODUCT_TIER_MAP[body.productId];
-    if (!planTier) {
-      throw new AppError(400, `Unknown productId: ${body.productId}`);
-    }
+    // The store still verifies the receipt. Unknown or ambiguous product
+    // identities persist as MANUAL_REVIEW and never receive a guessed grant.
+    const planTier = resolveIapProductPlan(body.productId);
 
     // Verify with the relevant provider. Failures here are treated as
     // payment-not-confirmed — we never grant entitlement on an
@@ -353,9 +345,9 @@ iapRouter.post("/apple/notify", systemScope("webhook:iap-apple"), iapWebhookRate
       // (possibly stale) DB value only if the productId isn't in the
       // catalog, so an operator forgetting to register a new SKU fails
       // soft instead of dropping the event's planTier to undefined.
-      const freshTier = PRODUCT_TIER_MAP[note.productId] ?? (updated.planTier as PlanTier);
-      if (!PRODUCT_TIER_MAP[note.productId]) {
-        logger.warn({ productId: note.productId, tenantId: updated.tenantId }, "Apple notify: unknown productId, falling back to stored planTier");
+      const freshTier = resolveIapProductPlan(note.productId);
+      if (freshTier === "MANUAL_REVIEW") {
+        logger.warn({ productId: note.productId, tenantId: updated.tenantId }, "Apple notify: unknown or ambiguous productId, manual review required");
       }
       await recordEntitlementEvent({
         tenantId: updated.tenantId,
@@ -456,9 +448,9 @@ iapRouter.post("/google/notify", systemScope("webhook:iap-google"), iapWebhookRa
       // tier from this notification's own subscriptionId rather than
       // trusting `updated.planTier`, falling back to the DB value only
       // for an unrecognized SKU.
-      const freshTier = PRODUCT_TIER_MAP[parsed.subscriptionId] ?? (updated.planTier as PlanTier);
-      if (!PRODUCT_TIER_MAP[parsed.subscriptionId]) {
-        logger.warn({ subscriptionId: parsed.subscriptionId, tenantId: updated.tenantId }, "Google RTDN: unknown subscriptionId, falling back to stored planTier");
+      const freshTier = resolveIapProductPlan(parsed.subscriptionId);
+      if (freshTier === "MANUAL_REVIEW") {
+        logger.warn({ subscriptionId: parsed.subscriptionId, tenantId: updated.tenantId }, "Google RTDN: unknown or ambiguous subscriptionId, manual review required");
       }
       await recordEntitlementEvent({
         tenantId: updated.tenantId,

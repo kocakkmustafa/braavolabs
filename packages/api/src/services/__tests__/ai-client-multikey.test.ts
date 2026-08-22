@@ -93,7 +93,7 @@ describe("getTenantAIConfig — multi-row default resolution (T6)", () => {
   it("queries the default row first: where {tenantId}, orderBy isDefault desc + createdAt asc", async () => {
     db.findFirst.mockResolvedValue(null);
 
-    await getTenantAIConfig(TENANT);
+    await expect(getTenantAIConfig(TENANT)).rejects.toThrow(/tenant-owned.*BYOK.*local/i);
 
     expect(db.findFirst).toHaveBeenCalledExactlyOnceWith({
       where: { tenantId: TENANT },

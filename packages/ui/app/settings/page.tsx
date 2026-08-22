@@ -23,11 +23,15 @@ interface BillingSubscription {
   } | null;
 }
 
-// Pull plan limits from the shared 5-tier source of truth in @ai-company-os/core.
-// Earlier this file hardcoded a stale 3-tier list (FREE / PRO $49 / ENTERPRISE)
-// that disagreed with /pricing's 5-tier offer ($19 / $39 / $99). One import,
-// one source, no drift.
-import { PLAN_LIMITS as SHARED_PLAN_LIMITS, PLAN_PRICING, PLAN_LABEL, PLAN_ORDER } from "@ai-company-os/core";
+// Runtime limits include one-release legacy compatibility; PLAN_ORDER below is
+// the only list used for new-sale checkout rendering.
+import {
+  PLAN_LIMITS as SHARED_PLAN_LIMITS,
+  PLAN_PRICING,
+  PLAN_LABEL,
+  PLAN_ORDER,
+  normalizePlanForEntitlement,
+} from "@ai-company-os/core";
 
 const PLAN_LIMITS: Record<string, { runs: number; companies: number }> = Object.fromEntries(
   (Object.keys(SHARED_PLAN_LIMITS) as Array<keyof typeof SHARED_PLAN_LIMITS>).map((plan) => [
@@ -76,12 +80,12 @@ const PROVIDER_LABELS: Record<string, { label: string; color: string; models: st
   KIMI:       { label: "Kimi (Moonshot)",    color: "#6366f1", models: ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k", "moonshot-v1-auto"] },
   QWEN:       { label: "Qwen (DashScope)",   color: "#7c3aed", models: ["qwen-max", "qwen-plus", "qwen-turbo", "qwen-long", "qwen2.5-72b-instruct", "qwen2.5-32b-instruct"] },
   // Cerebras + Zhipu GLM — OpenAI-compatible cloud, generous free tiers (Forge FAZ 1 / 1A)
-  CEREBRAS:   { label: "Cerebras (free tier)", color: "#f59e0b", models: ["gpt-oss-120b", "glm-4.7"] },
-  ZHIPU:      { label: "Zhipu GLM (free Flash)", color: "#818cf8", models: ["glm-4.7-flash", "glm-4.5-flash", "glm-4.6v-flash", "glm-4.7", "glm-4.6"] },
+  CEREBRAS:   { label: "Cerebras (BYOK)", color: "#f59e0b", models: ["gpt-oss-120b", "glm-4.7"] },
+  ZHIPU:      { label: "Zhipu GLM (BYOK)", color: "#818cf8", models: ["glm-4.7-flash", "glm-4.5-flash", "glm-4.6v-flash", "glm-4.7", "glm-4.6"] },
   // Self-hosted / local-first providers — runs on the user's own hardware
   // (laptop, on-prem server, private cloud). Tenant supplies a baseUrl
   // pointing at their own /v1/chat/completions endpoint. Plan-gated to
-  // CREATOR and above (FREE plan keeps it simple with cloud-only BYOK).
+  // Canonical plans support tenant-owned local providers.
   // setupHint is rendered in the settings UI for clarity.
   OLLAMA:     {
     label: "Ollama (self-hosted · Gemma 3)", color: "#60a5fa", local: true,
@@ -103,8 +107,7 @@ const PROVIDER_LABELS: Record<string, { label: string; color: string; models: st
   },
 };
 
-// Plans that may configure self-hosted/local providers. FREE keeps it
-// simple — cloud BYOK only. CREATOR+ unlocks self-hosted endpoints.
+// Canonical plans that may configure self-hosted/local providers.
 // Pulled into the AI Provider section so the disabled <option>s explain
 // why and the upgrade CTA points to /pricing.
 //
@@ -112,7 +115,7 @@ const PROVIDER_LABELS: Record<string, { label: string; color: string; models: st
 // packages/db/prisma/schema.prisma + LOCAL_LLM_PLANS in
 // packages/api/src/modules/settings/router.ts (any drift between the
 // three breaks the gate logic).
-const LOCAL_LLM_PLANS: ReadonlySet<string> = new Set(["CREATOR", "PRO", "BUSINESS", "ENTERPRISE"]);
+const LOCAL_LLM_PLANS: ReadonlySet<string> = new Set(["INDIVIDUAL", "TEAM"]);
 
 export default function SettingsPage() {
   const t = useTranslations();
@@ -267,7 +270,7 @@ export default function SettingsPage() {
     </div>
   );
 
-  async function handleUpgrade(plan: "CREATOR" | "PRO" | "BUSINESS" | "ENTERPRISE") {
+  async function handleUpgrade(plan: "INDIVIDUAL" | "TEAM") {
     setUpgradeLoading(true);
     setBillingError(null);
     try { const { url } = await api.billingCheckout(token!, plan); window.location.href = url; }
@@ -368,8 +371,8 @@ export default function SettingsPage() {
     }
   }
 
-  const currentPlan = billingUsage?.plan ?? "FREE";
-  const limits = PLAN_LIMITS[currentPlan] ?? PLAN_LIMITS.FREE;
+  const currentPlan = normalizePlanForEntitlement(billingUsage?.plan);
+  const limits = PLAN_LIMITS[currentPlan] ?? PLAN_LIMITS.MANUAL_REVIEW;
 
   return (
     <div className="bv-dash-shell min-h-screen">
@@ -568,23 +571,24 @@ export default function SettingsPage() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                   {PLAN_ORDER.map((id) => {
                     const planLimits = SHARED_PLAN_LIMITS[id];
                     const pricing = PLAN_PRICING[id];
-                    const isFree = id === "FREE";
-                    const isEnt = id === "ENTERPRISE";
-                    const price = isFree ? "$0" : isEnt ? "Custom" : `$${pricing.monthlyUsd}/mo`;
+                    const price = id === "TEAM"
+                      ? `$${pricing.monthlyUsd}/active seat/mo`
+                      : `$${pricing.monthlyUsd}/mo`;
                     const features: string[] = [
                       planLimits.maxCompanies === -1 ? "Unlimited workspaces" : `${planLimits.maxCompanies} workspace${planLimits.maxCompanies === 1 ? "" : "s"}`,
-                      planLimits.maxRunsPerMonth === -1 ? "Unlimited runs" : `${planLimits.maxRunsPerMonth} runs/mo`,
+                      "Inference not included",
+                      "Tenant BYOK or local providers",
                       planLimits.maxConnectedAutomations === -1 ? "Unlimited connected automations" : `${planLimits.maxConnectedAutomations} connected automation${planLimits.maxConnectedAutomations === 1 ? "" : "s"}`,
                       ...(planLimits.localProvider ? ["Self-hosted local provider (Ollama / LM Studio)"] : []),
                       ...planLimits.features.includes("crm_sync") ? ["CRM sync"] : [],
                       ...planLimits.features.includes("sso") ? ["SSO"] : [],
                       ...planLimits.features.includes("sla") ? ["SLA"] : [],
                     ].slice(0, 5);
-                    const popular = id === "PRO";
+                    const popular = id === "TEAM";
                     return { name: PLAN_LABEL[id], price, id, popular, features };
                   }).map((plan) => (
                     <div
@@ -617,23 +621,14 @@ export default function SettingsPage() {
                           </li>
                         ))}
                       </ul>
-                      {currentPlan !== plan.id && plan.id !== "FREE" && (
-                        plan.id === "ENTERPRISE" ? (
-                          <a
-                            href="mailto:founder@braavolabs.com?subject=Enterprise%20plan%20inquiry"
-                            className="bv-btn bv-btn-primary bv-btn-sm w-full justify-center"
-                          >
-                            Contact sales
-                          </a>
-                        ) : (
+                      {currentPlan !== plan.id && (
                           <button
-                            onClick={() => handleUpgrade(plan.id as "CREATOR" | "PRO" | "BUSINESS")}
+                            onClick={() => handleUpgrade(plan.id as "INDIVIDUAL" | "TEAM")}
                             disabled={upgradeLoading}
                             className="bv-btn bv-btn-primary bv-btn-sm w-full justify-center disabled:opacity-50"
                           >
                             Upgrade
                           </button>
-                        )
                       )}
                     </div>
                   ))}
@@ -859,12 +854,12 @@ export default function SettingsPage() {
                               opacity: locked ? 0.5 : 1,
                               cursor: locked ? "not-allowed" : "pointer",
                             }}
-                            title={locked ? "Self-hosted providers are a Creator+ feature — upgrade to unlock" : ""}
+                            title={locked ? "Self-hosted providers require Individual or Team — choose a plan to unlock" : ""}
                           >
                             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: info.color }} />
                             <span className="text-xs font-semibold truncate" style={{ color: aiProvider === id ? "var(--color-on-surface)" : "var(--color-on-surface-variant)" }}>
                               {info.label}
-                              {locked && <span className="ml-1 text-primary"> · PRO</span>}
+                              {locked && <span className="ml-1 text-primary"> · Individual or Team</span>}
                             </span>
                           </button>
                         );
@@ -877,8 +872,8 @@ export default function SettingsPage() {
                     <div className="rounded-xl px-4 py-3 text-xs flex items-start gap-3 bg-primary/5 border border-primary/20 text-on-surface-variant">
                       <span className="material-symbols-outlined text-primary flex-shrink-0 mt-0.5" style={{ fontSize: 18 }}>workspace_premium</span>
                       <div className="flex-1">
-                        <p className="font-semibold mb-1 text-on-surface">Self-hosted Gemma is a Creator-plan feature</p>
-                        <p>Upgrade to Creator ($19/mo) or higher to point Braavolabs at your own Ollama / LM Studio / vLLM endpoint.</p>
+                        <p className="font-semibold mb-1 text-on-surface">Self-hosted providers require Individual or Team</p>
+                        <p>Choose Individual ($19/month) or Team ($39/active seat/month) to use your own Ollama / LM Studio / vLLM endpoint.</p>
                         <a href="/pricing" className="bv-btn bv-btn-primary bv-btn-sm mt-2 inline-flex">View plans →</a>
                       </div>
                     </div>
@@ -1076,11 +1071,11 @@ export default function SettingsPage() {
                     <p className="font-semibold mb-1 text-on-surface">How it works</p>
                     <p>
                       Your API key is encrypted with AES-256-GCM before storage. When running pipelines and building companies, agents will use your configured provider.{" "}
-                      <strong className="text-primary">An API key is required</strong> — without one, the company builder will fall back to a placeholder spec and pipeline runs will fail with &ldquo;Anthropic API client not initialized&rdquo;. Get your key from{" "}
+                      <strong className="text-primary">A tenant-owned API key is required for cloud providers</strong> — without one, cloud completions fail closed. Configure BYOK with your provider or select a local provider. Get an Anthropic key from{" "}
                       <a href="https://console.anthropic.com" target="_blank" rel="noopener" className="text-primary underline">console.anthropic.com</a> (or pick another provider above).
                     </p>
                     <p className="mt-2">
-                      <strong className="text-primary">Self-hosted option (Creator+):</strong> point Braavolabs at <code>Ollama</code> or <code>LM Studio</code> running on your own machine — Gemma 3 4B is a good starting point. Prompts stay on your hardware, no per-token LLM costs, works offline.
+                      <strong className="text-primary">Self-hosted option (Individual or Team):</strong> point Braavolabs at <code>Ollama</code> or <code>LM Studio</code> running on your own machine — Gemma 3 4B is a good starting point. Prompts stay on your hardware, no per-token LLM costs, works offline.
                     </p>
                   </div>
                 </div>

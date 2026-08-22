@@ -1,124 +1,100 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
+  LEGACY_PLAN_MIGRATION,
+  NEW_SALE_PLAN_CATALOG,
   PLAN_LABEL,
   PLAN_LIMITS,
   PLAN_ORDER,
   PLAN_PRICING,
   isPlanUpgrade,
+  normalizePlanForEntitlement,
 } from "../constants/plans";
 
-describe("isPlanUpgrade", () => {
-  it("returns true when moving from a lower tier to a higher tier", () => {
-    expect(isPlanUpgrade("FREE", "CREATOR")).toBe(true);
-    expect(isPlanUpgrade("CREATOR", "PRO")).toBe(true);
-    expect(isPlanUpgrade("FREE", "ENTERPRISE")).toBe(true);
+describe("canonical new-sale catalog", () => {
+  it("contains exactly Individual and Team, with the accepted monthly price units", () => {
+    expect(PLAN_ORDER).toEqual(["INDIVIDUAL", "TEAM"]);
+    expect(NEW_SALE_PLAN_CATALOG).toEqual([
+      {
+        id: "INDIVIDUAL", label: "Individual", monthlyUsd: 19,
+        billingUnit: "account", inferenceIncluded: false,
+        billingCycle: "monthly", providerFunding: "tenant",
+      },
+      {
+        id: "TEAM", label: "Team", monthlyUsd: 39,
+        billingUnit: "active-seat", inferenceIncluded: false,
+        billingCycle: "monthly", providerFunding: "tenant",
+      },
+    ]);
+    expect(Object.keys(PLAN_LABEL)).toEqual(["INDIVIDUAL", "TEAM"]);
+    expect(Object.keys(PLAN_PRICING)).toEqual(["INDIVIDUAL", "TEAM"]);
   });
 
-  it("returns false when moving from a higher tier to a lower tier", () => {
-    expect(isPlanUpgrade("BUSINESS", "CREATOR")).toBe(false);
-    expect(isPlanUpgrade("ENTERPRISE", "FREE")).toBe(false);
+  it("does not publish a free, trial, annual, token, cost, or hosted-inference entitlement", () => {
+    const serialized = JSON.stringify(NEW_SALE_PLAN_CATALOG).toLowerCase();
+    for (const forbidden of ["free", "trial", "yearly", "annual", "token", "credit", "managed", "system-funded"]) {
+      expect(serialized).not.toContain(forbidden);
+    }
+    expect(NEW_SALE_PLAN_CATALOG.every((plan) => plan.inferenceIncluded === false)).toBe(true);
+    expect(PLAN_LIMITS.INDIVIDUAL.maxRunsPerMonth).toBe(-1);
+    expect(PLAN_LIMITS.TEAM.maxRunsPerMonth).toBe(-1);
   });
 
-  it("returns false when current and target are the same tier", () => {
-    expect(isPlanUpgrade("PRO", "PRO")).toBe(false);
+  it("keeps the task checkout/settings corpus free of legacy sale and fallback copy", () => {
+    const uiCorpus = [
+      "../../../ui/app/billing/page.tsx",
+      "../../../ui/app/settings/page.tsx",
+    ].map((path) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8")).join("\n");
+
+    for (const forbidden of [
+      "Creator-plan",
+      "Creator+",
+      "Upgrade to Creator",
+      "planEnterprisePrice",
+      "company builder will fall back",
+      "Anthropic API client not initialized",
+    ]) {
+      expect(uiCorpus).not.toContain(forbidden);
+    }
+    expect(uiCorpus).toContain("Individual");
+    expect(uiCorpus).toContain("Team");
   });
 });
 
-describe("PLAN_ORDER", () => {
-  it("contains exactly the five plan tiers in monotonically increasing value order", () => {
-    expect(PLAN_ORDER).toEqual(["FREE", "CREATOR", "PRO", "BUSINESS", "ENTERPRISE"]);
+describe("additive legacy normalization", () => {
+  it("maps only stable price-equivalent identities and fails every ambiguous tier closed", () => {
+    expect(LEGACY_PLAN_MIGRATION).toEqual({
+      FREE: "MANUAL_REVIEW", CREATOR: "INDIVIDUAL", PRO: "TEAM",
+      BUSINESS: "MANUAL_REVIEW", ENTERPRISE: "MANUAL_REVIEW",
+    });
+    expect(normalizePlanForEntitlement("INDIVIDUAL")).toBe("INDIVIDUAL");
+    expect(normalizePlanForEntitlement("TEAM")).toBe("TEAM");
+    expect(normalizePlanForEntitlement("UNKNOWN_TIER")).toBe("MANUAL_REVIEW");
+    expect(normalizePlanForEntitlement(null)).toBe("MANUAL_REVIEW");
   });
 
-  it("matches the keys defined in PLAN_LIMITS / PLAN_PRICING / PLAN_LABEL", () => {
-    expect(Object.keys(PLAN_LIMITS).sort()).toEqual([...PLAN_ORDER].sort());
-    expect(Object.keys(PLAN_PRICING).sort()).toEqual([...PLAN_ORDER].sort());
-    expect(Object.keys(PLAN_LABEL).sort()).toEqual([...PLAN_ORDER].sort());
-  });
-});
-
-describe("PLAN_LIMITS", () => {
-  it("uses the -1 sentinel for unlimited dimensions on ENTERPRISE", () => {
-    expect(PLAN_LIMITS.ENTERPRISE.maxCompanies).toBe(-1);
-    expect(PLAN_LIMITS.ENTERPRISE.maxRunsPerMonth).toBe(-1);
-    expect(PLAN_LIMITS.ENTERPRISE.maxAgentsPerCompany).toBe(-1);
-    expect(PLAN_LIMITS.ENTERPRISE.maxConnectedAutomations).toBe(-1);
-    expect(PLAN_LIMITS.ENTERPRISE.maxSeats).toBe(-1);
-  });
-
-  it("v2 automation dims: connected-automations scale on metered tiers, unlimited above", () => {
-    expect(PLAN_LIMITS.FREE.maxConnectedAutomations).toBe(1);
-    expect(PLAN_LIMITS.CREATOR.maxConnectedAutomations).toBe(3);
-    expect(PLAN_LIMITS.PRO.maxConnectedAutomations).toBe(10);
-    expect(PLAN_LIMITS.FREE.maxConnectedAutomations).toBeLessThan(PLAN_LIMITS.CREATOR.maxConnectedAutomations);
-    expect(PLAN_LIMITS.CREATOR.maxConnectedAutomations).toBeLessThan(PLAN_LIMITS.PRO.maxConnectedAutomations);
-    expect(PLAN_LIMITS.BUSINESS.maxConnectedAutomations).toBe(-1); // unlimited
-  });
-
-  it("v2: seats grow with tier; local BYOK provider gated above Free", () => {
-    expect(PLAN_LIMITS.FREE.maxSeats).toBe(1);
-    expect(PLAN_LIMITS.PRO.maxSeats).toBeGreaterThan(PLAN_LIMITS.CREATOR.maxSeats);
-    expect(PLAN_LIMITS.BUSINESS.maxSeats).toBeGreaterThan(PLAN_LIMITS.PRO.maxSeats);
-    expect(PLAN_LIMITS.FREE.localProvider).toBe(false);
-    for (const p of ["CREATOR", "PRO", "BUSINESS", "ENTERPRISE"] as const) {
-      expect(PLAN_LIMITS[p].localProvider).toBe(true);
-    }
-  });
-
-  it("audit retention scales monotonically with tier, ENTERPRISE is a contract sentinel", () => {
-    expect(PLAN_LIMITS.FREE.auditRetentionDays).toBe(7);
-    expect(PLAN_LIMITS.CREATOR.auditRetentionDays).toBe(90);
-    expect(PLAN_LIMITS.PRO.auditRetentionDays).toBe(365);
-    expect(PLAN_LIMITS.BUSINESS.auditRetentionDays).toBe(730);
-    expect(PLAN_LIMITS.ENTERPRISE.auditRetentionDays).toBe(-1); // sentinel: negotiated by contract
-    const metered = ["FREE", "CREATOR", "PRO", "BUSINESS"] as const;
-    for (let i = 1; i < metered.length; i++) {
-      expect(PLAN_LIMITS[metered[i]!]!.auditRetentionDays).toBeGreaterThan(
-        PLAN_LIMITS[metered[i - 1]!]!.auditRetentionDays,
-      );
-    }
-  });
-
-  it("SSO is unavailable below Business, OIDC on Business, OIDC+SCIM on Enterprise", () => {
-    expect(PLAN_LIMITS.FREE.sso).toBe("none");
-    expect(PLAN_LIMITS.CREATOR.sso).toBe("none");
-    expect(PLAN_LIMITS.PRO.sso).toBe("none");
-    expect(PLAN_LIMITS.BUSINESS.sso).toBe("oidc");
-    expect(PLAN_LIMITS.ENTERPRISE.sso).toBe("oidc_scim");
-  });
-
-  it("keeps FREE plan within the documented free-tier shape", () => {
-    expect(PLAN_LIMITS.FREE.maxCompanies).toBe(1);
-    expect(PLAN_LIMITS.FREE.maxRunsPerMonth).toBe(10);
-    expect(PLAN_LIMITS.FREE.channels).toEqual(["tiktok", "linkedin"]);
-  });
-
-  it("scales monotonically across paid tiers for the headline limits", () => {
-    const tiers = ["CREATOR", "PRO", "BUSINESS"] as const;
-    for (let i = 1; i < tiers.length; i++) {
-      const prev = PLAN_LIMITS[tiers[i - 1]!]!;
-      const curr = PLAN_LIMITS[tiers[i]!]!;
-      expect(curr.maxCompanies).toBeGreaterThan(prev.maxCompanies);
-      expect(curr.maxRunsPerMonth).toBeGreaterThan(prev.maxRunsPerMonth);
-      expect(curr.maxAgentsPerCompany).toBeGreaterThanOrEqual(prev.maxAgentsPerCompany);
-    }
+  it("retains compatibility limits without making legacy tiers saleable", () => {
+    expect(Object.keys(PLAN_LIMITS).sort()).toEqual(
+      ["INDIVIDUAL", "TEAM", "MANUAL_REVIEW", "FREE", "CREATOR", "PRO", "BUSINESS", "ENTERPRISE"].sort(),
+    );
+    expect(PLAN_LIMITS.CREATOR).toEqual(PLAN_LIMITS.INDIVIDUAL);
+    expect(PLAN_LIMITS.PRO).toEqual(PLAN_LIMITS.TEAM);
+    expect(PLAN_LIMITS.MANUAL_REVIEW.maxCompanies).toBe(0);
+    expect(PLAN_LIMITS.FREE).toEqual(PLAN_LIMITS.MANUAL_REVIEW);
   });
 });
 
-describe("PLAN_PRICING", () => {
-  it("encodes the 20% annual discount within $1 of (monthly × 12 × 0.80)", () => {
-    // FREE and ENTERPRISE are sentinel-priced (0) — skip them.
-    const billable = ["CREATOR", "PRO", "BUSINESS"] as const;
-    for (const plan of billable) {
-      const { monthlyUsd, yearlyUsd } = PLAN_PRICING[plan];
-      const expected = monthlyUsd * 12 * 0.8;
-      expect(Math.abs(yearlyUsd - expected)).toBeLessThanOrEqual(1);
-    }
+describe("upgrade comparison", () => {
+  it("compares canonical plans after normalization", () => {
+    expect(isPlanUpgrade("INDIVIDUAL", "TEAM")).toBe(true);
+    expect(isPlanUpgrade("CREATOR", "TEAM")).toBe(true);
+    expect(isPlanUpgrade("TEAM", "INDIVIDUAL")).toBe(false);
+    expect(isPlanUpgrade("PRO", "TEAM")).toBe(false);
   });
 
-  it("keeps FREE and ENTERPRISE at price 0 (sentinel for free / contact-sales)", () => {
-    expect(PLAN_PRICING.FREE.monthlyUsd).toBe(0);
-    expect(PLAN_PRICING.FREE.yearlyUsd).toBe(0);
-    expect(PLAN_PRICING.ENTERPRISE.monthlyUsd).toBe(0);
-    expect(PLAN_PRICING.ENTERPRISE.yearlyUsd).toBe(0);
+  it("lets a manual-review account explicitly choose either new-sale plan without guessing one", () => {
+    expect(isPlanUpgrade("MANUAL_REVIEW", "INDIVIDUAL")).toBe(true);
+    expect(isPlanUpgrade("BUSINESS", "TEAM")).toBe(true);
   });
 });

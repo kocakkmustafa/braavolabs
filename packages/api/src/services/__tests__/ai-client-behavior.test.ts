@@ -2,9 +2,8 @@
  * AI client behavior tests — mocked Prisma / crypto / fetch, no real network.
  *
  * Covers three E2 defects:
- *   D-002 — getTenantAIConfig: a CLOUD tenant whose stored key fails to
- *           decrypt must fall back to the system default (the old code
- *           returned the tenant provider with apiKey:"" → guaranteed 401).
+ *   BR-P0-002-D — getTenantAIConfig must resolve only tenant-owned BYOK/local
+ *           config. Missing/corrupt cloud config cannot reach a shared key.
  *           Local providers legitimately run keyless and keep their config.
  *   D-001 — Gemini: the API key must travel in the `x-goog-api-key` header,
  *           never in the URL query string (log / proxy leak).
@@ -72,10 +71,10 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals());
 
-// ── D-002: decrypt-failure fallback ──
+// ── BR-P0-002-D: tenant-owned config only ──
 
-describe("getTenantAIConfig — decrypt failure fallback (D-002)", () => {
-  it("cloud provider with an undecryptable key falls back to the system Anthropic default", async () => {
+describe("getTenantAIConfig — BYOK/local only", () => {
+  it("rejects an undecryptable cloud key even when a shared Anthropic key exists", async () => {
     db.findFirst.mockResolvedValue({
       tenantId: TENANT,
       provider: "GROQ",
@@ -87,18 +86,10 @@ describe("getTenantAIConfig — decrypt failure fallback (D-002)", () => {
       throw new Error("Unsupported payload version");
     });
 
-    const config = await getTenantAIConfig(TENANT);
-
-    // The defect: the old code returned { provider:"GROQ", apiKey:"" },
-    // which the provider rejects with 401. A broken cloud key must mean
-    // "no usable tenant config" → system default.
-    expect(config.provider).toBe("ANTHROPIC");
-    expect(config.model).toBe(envMock.CLAUDE_MODEL);
-    expect(config.apiKey).toBe("sk-ant-system-key");
-    expect(config.apiKey).not.toBe("");
+    await expect(getTenantAIConfig(TENANT)).rejects.toThrow(/tenant-owned.*BYOK.*local/i);
   });
 
-  it("cloud provider with an undecryptable key and NO system key throws a meaningful error", async () => {
+  it("cloud provider with an undecryptable key and NO system key throws the same actionable error", async () => {
     envMock.ANTHROPIC_API_KEY = "";
     db.findFirst.mockResolvedValue({
       tenantId: TENANT,
@@ -111,7 +102,7 @@ describe("getTenantAIConfig — decrypt failure fallback (D-002)", () => {
       throw new Error("bad auth tag");
     });
 
-    await expect(getTenantAIConfig(TENANT)).rejects.toThrow(/No AI provider configured/);
+    await expect(getTenantAIConfig(TENANT)).rejects.toThrow(/tenant-owned.*BYOK.*local/i);
   });
 
   it("local provider with an undecryptable key keeps its own config (keyless is valid)", async () => {
@@ -151,13 +142,58 @@ describe("getTenantAIConfig — decrypt failure fallback (D-002)", () => {
     expect(config.baseUrl).toBeUndefined();
   });
 
-  it("no tenant row → system Anthropic default", async () => {
+  it("a tenant-provided Anthropic key remains a valid BYOK config", async () => {
+    db.findFirst.mockResolvedValue({
+      tenantId: TENANT,
+      provider: "ANTHROPIC",
+      model: "claude-sonnet-4-20250514",
+      encryptedApiKey: "v4:tenant-anthropic",
+      baseUrl: null,
+      allowSystemFallback: false,
+    });
+    crypto.decryptForTenant.mockReturnValue("sk-ant-tenant-owned");
+
+    await expect(getTenantAIConfig(TENANT)).resolves.toEqual({
+      provider: "ANTHROPIC",
+      model: "claude-sonnet-4-20250514",
+      apiKey: "sk-ant-tenant-owned",
+      baseUrl: undefined,
+    });
+  });
+
+  it("no tenant row rejects instead of returning the shared Anthropic key", async () => {
     db.findFirst.mockResolvedValue(null);
 
-    const config = await getTenantAIConfig(TENANT);
+    await expect(getTenantAIConfig(TENANT)).rejects.toThrow(/tenant-owned.*BYOK.*local/i);
+  });
 
-    expect(config.provider).toBe("ANTHROPIC");
-    expect(config.apiKey).toBe("sk-ant-system-key");
+  it("an adversarial allowSystemFallback flag cannot revive a shared key", async () => {
+    db.findFirst.mockResolvedValue({
+      tenantId: TENANT,
+      provider: "ANTHROPIC",
+      model: "claude-sonnet-4-20250514",
+      encryptedApiKey: "v4:corrupted-blob",
+      baseUrl: null,
+      allowSystemFallback: true,
+    });
+    crypto.decryptForTenant.mockImplementation(() => {
+      throw new Error("bad auth tag");
+    });
+
+    await expect(getTenantAIConfig(TENANT)).rejects.toThrow(/tenant-owned.*BYOK.*local/i);
+  });
+
+  it("rejects a keyless CUSTOM row without its tenant-owned base URL", async () => {
+    db.findFirst.mockResolvedValue({
+      tenantId: TENANT,
+      provider: "CUSTOM",
+      model: "tenant-model",
+      encryptedApiKey: null,
+      baseUrl: null,
+      allowSystemFallback: true,
+    });
+
+    await expect(getTenantAIConfig(TENANT)).rejects.toThrow(/CUSTOM.*base URL/i);
   });
 });
 

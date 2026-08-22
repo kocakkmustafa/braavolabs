@@ -153,12 +153,16 @@ export async function createCheckoutSession(
   priceId: string,
   successUrl: string,
   cancelUrl: string,
+  seatQuantity = 1,
 ): Promise<string> {
   const stripe = getStripe(config);
+  const quantity = Number.isSafeInteger(seatQuantity) && seatQuantity > 0
+    ? seatQuantity
+    : 1;
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: "subscription",
-    line_items: [{ price: priceId, quantity: 1 }],
+    line_items: [{ price: priceId, quantity }],
     success_url: successUrl,
     cancel_url: cancelUrl,
   });
