@@ -27,6 +27,12 @@ import type { AddressInfo } from "node:net";
 vi.mock("../../../../lib/logger", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
+vi.mock("../../../../lib/redis", () => ({
+  redis: {
+    hsetnx: vi.fn().mockResolvedValue(1),
+    hget: vi.fn().mockResolvedValue(null),
+  },
+}));
 vi.mock("../../../../lib/db", () => ({
   prisma: {},
   tenantTx: (fn: any) => fn({}),
@@ -50,7 +56,7 @@ vi.mock("../../../../config/env", () => ({
   },
 }));
 
-let server: http.Server;
+let server: http.Server | undefined;
 let baseUrl: string;
 let token: string;
 
@@ -81,7 +87,10 @@ beforeAll(async () => {
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
 
-afterAll(() => new Promise<void>((r) => server.close(() => r())));
+afterAll(() => new Promise<void>((resolve) => {
+  if (!server) return resolve();
+  server.close(() => resolve());
+}));
 
 async function post(path: string, body: unknown, auth?: string) {
   const res = await fetch(`${baseUrl}${path}`, {

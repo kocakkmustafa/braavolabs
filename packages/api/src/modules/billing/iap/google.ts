@@ -25,6 +25,7 @@ import { AppError } from "../../../middleware/error";
 import { env } from "../../../config/env";
 import { logger } from "../../../lib/logger";
 import type { VerifiedReceipt } from "./apple";
+import { PermanentIapDeliveryError } from "./delivery-ledger";
 
 /**
  * FINDINGS C1 — verify the OIDC bearer token Google Pub/Sub attaches to
@@ -60,8 +61,10 @@ export async function verifyPubSubPushToken(
       if (payload.email_verified !== true) return { ok: false, reason: "email-unverified" };
     }
     return { ok: true };
-  } catch (err) {
-    return { ok: false, reason: err instanceof Error ? err.message : "verify-failed" };
+  } catch {
+    // Library error messages are not a stable public contract and can include
+    // token/certificate diagnostics. The reason code is intentionally fixed.
+    return { ok: false, reason: "verify-failed" };
   }
 }
 
@@ -170,22 +173,33 @@ export async function verifyGoogleReceipt(
     // linkedPurchaseToken on the previous record. Surface as expired
     // for now; the upsert keys on originalTransactionId so a separate
     // /verify call with the new token will heal the row.
-    throw new AppError(410, "Purchase token has been superseded by a renewal");
+    throw new PermanentIapDeliveryError(
+      "provider-rejected-payload",
+      "Google purchase token has been superseded by a renewal",
+      410,
+    );
   }
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    logger.error({ status: res.status, body }, "Google subscription lookup failed");
+    // Do not log provider bodies: they can contain subscription metadata or
+    // opaque receipt material. Status is enough to classify the retry.
+    logger.error({ status: res.status }, "Google subscription lookup failed");
     throw new AppError(502, `Google subscription lookup failed: ${res.status}`);
   }
 
   const sub = (await res.json()) as GoogleSubscriptionV2;
   const item = sub.lineItems?.[0];
-  if (!item) throw new AppError(404, "Google subscription has no line items");
+  if (!item) {
+    throw new PermanentIapDeliveryError(
+      "provider-rejected-payload",
+      "Google subscription has no line items",
+      404,
+    );
+  }
 
   if (item.productId !== productId) {
-    throw new AppError(
-      400,
-      `Receipt productId (${item.productId}) does not match requested productId (${productId})`,
+    throw new PermanentIapDeliveryError(
+      "provider-rejected-payload",
+      "Google receipt product does not match the requested product",
     );
   }
 
@@ -201,7 +215,7 @@ export async function verifyGoogleReceipt(
     void callGoogleApi(
       `/applications/${encodeURIComponent(env.GOOGLE_PLAY_PACKAGE_NAME)}/purchases/subscriptions/${encodeURIComponent(item.productId)}/tokens/${encodeURIComponent(purchaseToken)}:acknowledge`,
       { method: "POST", body: JSON.stringify({}) },
-    ).catch((err) => logger.warn({ err: err instanceof Error ? err.message : err }, "Google ack failed"));
+    ).catch(() => logger.warn({ provider: "google" }, "Google acknowledgement failed"));
   }
 
   // linkedPurchaseToken is the previous token in the renewal chain;
@@ -247,7 +261,7 @@ export function parseGoogleRtdnEnvelope(envelope: unknown): {
   publishTime: Date;
 } | null {
   const msg = (envelope as { message?: { data?: string; messageId?: string; publishTime?: string } })?.message;
-  if (!msg?.data) return null;
+  if (!msg?.data || !msg.messageId || !msg.publishTime) return null;
   let parsed: {
     packageName?: string;
     subscriptionNotification?: {
@@ -264,12 +278,14 @@ export function parseGoogleRtdnEnvelope(envelope: unknown): {
   if (!parsed.subscriptionNotification) return null;
   const { notificationType, purchaseToken, subscriptionId } = parsed.subscriptionNotification;
   if (!purchaseToken || !subscriptionId || notificationType === undefined) return null;
+  const publishTime = new Date(msg.publishTime);
+  if (!Number.isFinite(publishTime.getTime())) return null;
   return {
     packageName: parsed.packageName ?? env.GOOGLE_PLAY_PACKAGE_NAME ?? "",
     notificationType,
     purchaseToken,
     subscriptionId,
-    messageId: msg.messageId ?? "",
-    publishTime: msg.publishTime ? new Date(msg.publishTime) : new Date(),
+    messageId: msg.messageId,
+    publishTime,
   };
 }

@@ -23,7 +23,7 @@
  * verification credentials" for the operator runbook.
  */
 
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../../middleware/auth";
 import { systemScope } from "../../../middleware/system-scope";
@@ -33,8 +33,15 @@ import { AppError } from "../../../middleware/error";
 import { env } from "../../../config/env";
 import { logger } from "../../../lib/logger";
 import { verifyAppleReceipt, parseAppleNotification } from "./apple";
+import { JwsVerificationError } from "./jws";
 import { verifyGoogleReceipt, parseGoogleRtdnEnvelope, verifyPubSubPushToken } from "./google";
 import { recordEntitlementEvent } from "../entitlement-ledger.service";
+import {
+  appendIapDeadLetter,
+  isPermanentIapDeliveryError,
+  type IapDeadLetterFailureCode,
+  type IapDeliveryProvider,
+} from "./delivery-ledger";
 import {
   mapIapVerify,
   mapAppleNotify,
@@ -67,6 +74,74 @@ const iapWebhookRateLimit = rateLimit({
   maxRequests: 120,
   keyPrefix: "rl:iap:webhook",
 });
+
+type DeliveryPhase = "parse" | "provider" | "persistence";
+
+function isPermanentPayloadFailure(error: unknown, phase: DeliveryPhase): boolean {
+  if (isPermanentIapDeliveryError(error)) return true;
+  if (phase === "parse" && error instanceof JwsVerificationError) return true;
+  return phase === "parse"
+    && error instanceof AppError
+    && error.statusCode >= 400
+    && error.statusCode < 500;
+}
+
+function permanentFailureCode(
+  error: unknown,
+  fallback: IapDeadLetterFailureCode,
+): IapDeadLetterFailureCode {
+  return isPermanentIapDeliveryError(error) ? error.deliveryCode : fallback;
+}
+
+function transientFailureCode(phase: DeliveryPhase): string {
+  return phase === "provider"
+    ? "provider-temporary-failure"
+    : "persistence-temporary-failure";
+}
+
+function sendRetry(
+  res: Response,
+  provider: IapDeliveryProvider,
+  phase: DeliveryPhase | "dead-letter",
+): void {
+  const code = phase === "dead-letter"
+    ? "dead-letter-write-failed"
+    : transientFailureCode(phase);
+  logger.warn({ provider, phase, code }, "IAP delivery rejected for retry");
+  res.setHeader("Retry-After", "5");
+  res.status(503).json({ ok: false, disposition: "retry", code });
+}
+
+async function sendDeadLetter(
+  res: Response,
+  input: {
+    provider: IapDeliveryProvider;
+    failureCode: IapDeadLetterFailureCode;
+    rawPayload: string;
+    deliveryId?: string;
+  },
+): Promise<void> {
+  try {
+    await appendIapDeadLetter(input);
+    res.status(202).json({
+      ok: false,
+      disposition: "dead-lettered",
+      code: input.failureCode,
+    });
+  } catch {
+    // A poison event is only safe to acknowledge after its redacted record is
+    // durable. If Redis is unavailable, ask the store to redeliver instead.
+    sendRetry(res, input.provider, "dead-letter");
+  }
+}
+
+function opaquePayload(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "[unserializable-provider-payload]";
+  }
+}
 
 const verifySchema = z.object({
   // Provider the receipt comes from.
@@ -222,7 +297,9 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
     });
   } catch (err) {
     if (err instanceof AppError) return next(err);
-    logger.error({ err }, "IAP verification failed");
+    // Provider SDK/network exceptions can embed request URLs, receipts, or
+    // tokens. Keep the diagnostic boundary fixed and secret-free.
+    logger.error({ route: "iap.verify" }, "IAP verification failed");
     next(new AppError(500, "Receipt verification failed"));
   }
 });
@@ -279,6 +356,8 @@ iapRouter.post("/apple/notify", systemScope("webhook:iap-apple"), iapWebhookRate
     res.status(400).json({ error: "missing signedPayload" });
     return;
   }
+  let phase: DeliveryPhase = "parse";
+  let deliveryId: string | undefined;
   try {
     // parseAppleNotification now VERIFIES the JWS against Apple's x5c chain
     // (anchored to the pinned Apple Root CA - G3) before returning any field —
@@ -288,23 +367,11 @@ iapRouter.post("/apple/notify", systemScope("webhook:iap-apple"), iapWebhookRate
     // sole defense: even a validly-signed-but-replayed notification can't move
     // our row past what Apple's Server API currently reports.
     const note = await parseAppleNotification(signedPayload);
-    let verified;
-    try {
-      verified = await verifyAppleReceipt(note.originalTransactionId, note.productId);
-    } catch (err) {
-      // Verification failure can be a legit "Apple hasn't fully
-      // propagated the transaction yet" race (404 on production +
-      // sandbox), or a malicious / malformed payload. Either way,
-      // return 200 so Apple stops retrying immediately while the
-      // server log captures the diagnostic.
-      logger.warn(
-        { err: err instanceof Error ? err.message : err, type: note.notificationType, originalTransactionId: note.originalTransactionId },
-        "Apple ASN re-verify failed; not mutating subscription",
-      );
-      res.status(200).json({ ok: false, reason: "verify-failed" });
-      return;
-    }
+    deliveryId = note.notificationUUID;
+    phase = "provider";
+    const verified = await verifyAppleReceipt(note.originalTransactionId, note.productId);
 
+    phase = "persistence";
     const updated = await prisma.mobileSubscription.update({
       where: { originalTransactionId: verified.originalTransactionId },
       data: {
@@ -315,63 +382,46 @@ iapRouter.post("/apple/notify", systemScope("webhook:iap-apple"), iapWebhookRate
         autoRenew: verified.autoRenew,
         lastVerifiedAt: new Date(),
       },
-    }).catch((err) => {
-      // Unknown originalTransactionId — usually a TEST notification
-      // before any real purchase has hit our /verify path. Log and
-      // ack so Apple doesn't retry.
-      logger.warn(
-        { err: err instanceof Error ? err.message : err, type: note.notificationType },
-        "Apple notification for unknown subscription",
-      );
-      return null;
     });
 
-    if (updated) {
-      // Entitlement ledger — BR-P0-003. Recorded for every status (not
-      // just expired/revoked, as the old downgrade-only check did) —
-      // the active/grace deliveries matter too, because it's THEIR
-      // accurate sourceTimestamp in the ledger that lets a
-      // late-arriving but chronologically OLDER "expired" notification
-      // be correctly ignored instead of wrongly winning on arrival
-      // order. combineStreams still preserves any other active source
-      // automatically (Stripe web, or the other store), same as the
-      // other 5 call sites — no manual "stillActive" query needed.
-      //
-      // R2 fix: derive the tier from THIS notification's own productId
-      // rather than trusting `updated.planTier` — defense-in-depth on
-      // top of the upsert fix above, since `updated` here comes from a
-      // separate `mobileSubscription.update()` (not the /verify upsert)
-      // that has never written planTier either. Falls back to the
-      // (possibly stale) DB value only if the productId isn't in the
-      // catalog, so an operator forgetting to register a new SKU fails
-      // soft instead of dropping the event's planTier to undefined.
-      const freshTier = resolveIapProductPlan(note.productId);
-      if (freshTier === "MANUAL_REVIEW") {
-        logger.warn({ productId: note.productId, tenantId: updated.tenantId }, "Apple notify: unknown or ambiguous productId, manual review required");
-      }
-      await recordEntitlementEvent({
-        tenantId: updated.tenantId,
-        ...mapAppleNotify(note, verified, freshTier),
-      });
-      await prisma.activityLog.create({
-        data: {
-          tenantId: updated.tenantId,
-          actor: "apple-asn",
-          action: "billing.iap.notification",
-          resource: "mobile_subscription",
-          resourceId: updated.id,
-          details: { type: note.notificationType, subtype: note.subtype, status: verified.status } as any,
-        },
-      });
+    // Entitlement ledger — BR-P0-003. Recorded for every status; its
+    // sourceEventId unique key makes exact store redelivery idempotent.
+    const freshTier = resolveIapProductPlan(note.productId);
+    if (freshTier === "MANUAL_REVIEW") {
+      logger.warn(
+        { productId: note.productId, tenantId: updated.tenantId },
+        "Apple notify: unknown or ambiguous productId, manual review required",
+      );
     }
+    await recordEntitlementEvent({
+      tenantId: updated.tenantId,
+      ...mapAppleNotify(note, verified, freshTier),
+    });
+    await prisma.activityLog.create({
+      data: {
+        tenantId: updated.tenantId,
+        actor: "apple-asn",
+        action: "billing.iap.notification",
+        resource: "mobile_subscription",
+        resourceId: updated.id,
+        details: { type: note.notificationType, subtype: note.subtype, status: verified.status } as any,
+      },
+    });
 
     res.status(200).json({ ok: true });
   } catch (err) {
-    logger.error({ err }, "Failed to process Apple notification");
-    // 200 even on parse error — Apple retries 5xx aggressively and we
-    // don't want a malformed test notification to flood our queue.
-    // Real errors are visible in logs.
-    res.status(200).json({ ok: false });
+    if (isPermanentPayloadFailure(err, phase)) {
+      await sendDeadLetter(res, {
+        provider: "apple",
+        failureCode: permanentFailureCode(err, "invalid-payload"),
+        rawPayload: signedPayload,
+        deliveryId,
+      });
+      return;
+    }
+    // Do not attach err: provider and persistence exceptions can contain
+    // receipt/JWS diagnostics. Structured phase is enough for retry triage.
+    sendRetry(res, "apple", phase);
   }
 });
 
@@ -383,6 +433,9 @@ iapRouter.post("/apple/notify", systemScope("webhook:iap-apple"), iapWebhookRate
 // notification only carries `purchaseToken + notificationType`, the
 // truth is behind the API.
 iapRouter.post("/google/notify", systemScope("webhook:iap-google"), iapWebhookRateLimit, async (req, res) => {
+  const rawPayload = opaquePayload(req.body);
+  let phase: DeliveryPhase = "provider";
+  let deliveryId: string | undefined;
   try {
     // FINDINGS C1 — authenticate the sender. Pub/Sub push attaches a
     // Google-signed OIDC bearer token; verifying it stops an attacker from
@@ -402,26 +455,24 @@ iapRouter.post("/google/notify", systemScope("webhook:iap-google"), iapWebhookRa
       );
     }
 
+    phase = "parse";
     const parsed = parseGoogleRtdnEnvelope(req.body);
     if (!parsed) {
-      res.status(200).json({ ok: false, reason: "envelope-not-recognised" });
+      await sendDeadLetter(res, {
+        provider: "google",
+        failureCode: "invalid-envelope",
+        rawPayload,
+      });
       return;
     }
+    deliveryId = parsed.messageId;
 
     // Re-verify against the API so we're not trusting the
     // notification body (which doesn't carry expiresAt etc).
-    let verified;
-    try {
-      verified = await verifyGoogleReceipt(parsed.purchaseToken, parsed.subscriptionId);
-    } catch (err) {
-      logger.warn(
-        { err: err instanceof Error ? err.message : err, type: parsed.notificationType },
-        "Google RTDN re-verify failed",
-      );
-      res.status(200).json({ ok: false, reason: "verify-failed" });
-      return;
-    }
+    phase = "provider";
+    const verified = await verifyGoogleReceipt(parsed.purchaseToken, parsed.subscriptionId);
 
+    phase = "persistence";
     const updated = await prisma.mobileSubscription.update({
       where: { originalTransactionId: verified.originalTransactionId },
       data: {
@@ -430,47 +481,41 @@ iapRouter.post("/google/notify", systemScope("webhook:iap-google"), iapWebhookRa
         autoRenew: verified.autoRenew,
         lastVerifiedAt: new Date(),
       },
-    }).catch((err) => {
-      logger.warn(
-        { err: err instanceof Error ? err.message : err, type: parsed.notificationType },
-        "Google RTDN for unknown subscription",
-      );
-      return null;
     });
 
-    if (updated) {
-      // Entitlement ledger — BR-P0-003. Same reasoning as the Apple
-      // notify handler above: recorded for every status, not just
-      // expired/revoked, so out-of-order delivery is provably safe
-      // rather than merely "usually fine".
-      //
-      // R2 fix: same defense-in-depth as the Apple handler — derive the
-      // tier from this notification's own subscriptionId rather than
-      // trusting `updated.planTier`, falling back to the DB value only
-      // for an unrecognized SKU.
-      const freshTier = resolveIapProductPlan(parsed.subscriptionId);
-      if (freshTier === "MANUAL_REVIEW") {
-        logger.warn({ subscriptionId: parsed.subscriptionId, tenantId: updated.tenantId }, "Google RTDN: unknown or ambiguous subscriptionId, manual review required");
-      }
-      await recordEntitlementEvent({
-        tenantId: updated.tenantId,
-        ...mapGoogleNotify(parsed, verified, freshTier),
-      });
-      await prisma.activityLog.create({
-        data: {
-          tenantId: updated.tenantId,
-          actor: "google-rtdn",
-          action: "billing.iap.notification",
-          resource: "mobile_subscription",
-          resourceId: updated.id,
-          details: { type: parsed.notificationType, status: verified.status } as any,
-        },
-      });
+    const freshTier = resolveIapProductPlan(parsed.subscriptionId);
+    if (freshTier === "MANUAL_REVIEW") {
+      logger.warn(
+        { subscriptionId: parsed.subscriptionId, tenantId: updated.tenantId },
+        "Google RTDN: unknown or ambiguous subscriptionId, manual review required",
+      );
     }
+    await recordEntitlementEvent({
+      tenantId: updated.tenantId,
+      ...mapGoogleNotify(parsed, verified, freshTier),
+    });
+    await prisma.activityLog.create({
+      data: {
+        tenantId: updated.tenantId,
+        actor: "google-rtdn",
+        action: "billing.iap.notification",
+        resource: "mobile_subscription",
+        resourceId: updated.id,
+        details: { type: parsed.notificationType, status: verified.status } as any,
+      },
+    });
 
     res.status(200).json({ ok: true });
   } catch (err) {
-    logger.error({ err }, "Failed to process Google RTDN");
-    res.status(200).json({ ok: false });
+    if (isPermanentPayloadFailure(err, phase)) {
+      await sendDeadLetter(res, {
+        provider: "google",
+        failureCode: permanentFailureCode(err, "provider-rejected-payload"),
+        rawPayload,
+        deliveryId,
+      });
+      return;
+    }
+    sendRetry(res, "google", phase);
   }
 });

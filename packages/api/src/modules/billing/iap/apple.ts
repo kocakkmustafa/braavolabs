@@ -24,6 +24,7 @@ import { AppError } from "../../../middleware/error";
 import { env } from "../../../config/env";
 import { logger } from "../../../lib/logger";
 import { verifyAppleJws, JwsVerificationError, type VerifyJwsOptions } from "./jws";
+import { PermanentIapDeliveryError } from "./delivery-ledger";
 
 export interface VerifiedReceipt {
   originalTransactionId: string;
@@ -145,8 +146,12 @@ async function callAppleSubscriptionApi(
   // caller retries against sandbox base.
   if (res.status === 404) return null;
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    logger.error({ status: res.status, body, base }, "Apple subscription lookup failed");
+    // Provider response bodies may contain signed transaction material. Keep
+    // them out of logs; status + environment is sufficient for operations.
+    logger.error(
+      { status: res.status, environment: base === SANDBOX_BASE ? "sandbox" : "production" },
+      "Apple subscription lookup failed",
+    );
     throw new AppError(502, `Apple subscription lookup failed: ${res.status}`);
   }
   return res.json() as Promise<AppleSubscriptionResponse>;
@@ -192,9 +197,9 @@ export async function verifyAppleReceipt(
     const renewal = decodeJws(last.signedRenewalInfo) as unknown as AppleRenewalPayload;
 
     if (tx.productId !== productId) {
-      throw new AppError(
-        400,
-        `Receipt productId (${tx.productId}) does not match requested productId (${productId})`,
+      throw new PermanentIapDeliveryError(
+        "provider-rejected-payload",
+        "Apple receipt product does not match the requested product",
       );
     }
 
@@ -239,13 +244,16 @@ export async function verifyAppleReceipt(
     body = await verify("https://sandbox.itunes.apple.com");
   }
   if (body.status !== 0 || !body.latest_receipt_info?.length) {
-    throw new AppError(400, `Apple verifyReceipt status ${body.status}`);
+    throw new PermanentIapDeliveryError(
+      "provider-rejected-payload",
+      `Apple rejected the receipt with status ${body.status}`,
+    );
   }
   const latest = body.latest_receipt_info[body.latest_receipt_info.length - 1];
   if (latest.product_id !== productId) {
-    throw new AppError(
-      400,
-      `Receipt productId (${latest.product_id}) does not match requested productId (${productId})`,
+    throw new PermanentIapDeliveryError(
+      "provider-rejected-payload",
+      "Apple receipt product does not match the requested product",
     );
   }
   const expiresAt = new Date(parseInt(latest.expires_date_ms, 10));
@@ -305,7 +313,11 @@ export async function parseAppleNotification(
     payload = await verifyAppleJws(signedPayload, opts);
   } catch (err) {
     if (err instanceof JwsVerificationError) {
-      throw new AppError(401, `Apple notification signature invalid: ${err.message}`);
+      throw new PermanentIapDeliveryError(
+        "invalid-payload",
+        "Apple notification signature is invalid",
+        401,
+      );
     }
     throw err;
   }
@@ -315,9 +327,34 @@ export async function parseAppleNotification(
   const renewal = payload.data?.signedRenewalInfo
     ? ((await verifyAppleJws(payload.data.signedRenewalInfo, opts)) as unknown as AppleRenewalPayload)
     : null;
-  if (!tx) throw new AppError(400, "Apple notification missing transaction payload");
+  if (!tx) {
+    throw new PermanentIapDeliveryError(
+      "invalid-payload",
+      "Apple notification is missing its transaction payload",
+    );
+  }
+  if (
+    !tx.originalTransactionId
+    || !tx.productId
+    || typeof payload.notificationUUID !== "string"
+    || payload.notificationUUID.length === 0
+    || typeof payload.signedDate !== "number"
+    || !Number.isFinite(payload.signedDate)
+  ) {
+    throw new PermanentIapDeliveryError(
+      "invalid-payload",
+      "Apple notification is missing required delivery identity fields",
+    );
+  }
 
   const expiresAt = new Date(tx.expiresDate ?? Date.now());
+  const signedDate = new Date(payload.signedDate);
+  if (!Number.isFinite(expiresAt.getTime()) || !Number.isFinite(signedDate.getTime())) {
+    throw new PermanentIapDeliveryError(
+      "invalid-payload",
+      "Apple notification contains an invalid timestamp",
+    );
+  }
   const notificationType = String(payload.notificationType ?? "UNKNOWN");
   let status: VerifiedReceipt["status"] = "active";
   if (notificationType === "EXPIRED" || notificationType === "GRACE_PERIOD_EXPIRED") status = "expired";
@@ -332,7 +369,7 @@ export async function parseAppleNotification(
     expiresAt,
     status,
     autoRenew: renewal?.autoRenewStatus === 1,
-    notificationUUID: String(payload.notificationUUID ?? ""),
-    signedDate: new Date(payload.signedDate ?? Date.now()),
+    notificationUUID: payload.notificationUUID,
+    signedDate,
   };
 }
