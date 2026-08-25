@@ -311,6 +311,23 @@ test("surface routing denies www authentication before tenant render", () => {
   assert.match(publicSource, /https:\/\/app\.braavolabs\.com\/register/);
 });
 
+test("production API origin matches the authenticated CSP contract", () => {
+  const deploy = read(".github/workflows/deploy.yml");
+  const middleware = read("packages/ui/middleware.ts");
+
+  assert.match(deploy, /NEXT_PUBLIC_API_URL=https:\/\/api\.braavolabs\.com\/api\/v1/);
+  assert.doesNotMatch(deploy, /NEXT_PUBLIC_API_URL=https:\/\/braavolabs\.com\/api\/v1/);
+  assert.match(
+    middleware,
+    /connect-src[^\n]*https:\/\/api\.braavolabs\.com[^\n]*wss:\/\/api\.braavolabs\.com/,
+  );
+});
+
+test("shared logo is an explicit exact surface asset", () => {
+  const surface = read("packages/ui/lib/surface-domain.ts");
+  assert.match(surface, /SHARED_EXACT_PATHS[^;]*["']\/braavolabs-logo\.png["']/s);
+});
+
 test("next config delegates canonical routing to fail-closed middleware", () => {
   const nextConfig = read("packages/ui/next.config.ts");
   const playwright = read("playwright.config.ts");

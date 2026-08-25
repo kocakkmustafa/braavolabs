@@ -40,7 +40,7 @@ const PUBLIC_PREFIXES = ["/docs/", "/blog/", "/download/", "/install/"];
 const AUTHENTICATED_EXACT_PATHS = new Set(["/forge", "/forge-home"]);
 const AUTHENTICATED_PREFIXES = ["/forge/", "/forge-home/"];
 const SHARED_PREFIXES = ["/_next/", "/favicon", "/icon", "/apple-icon", "/og-image"];
-const SHARED_EXACT_PATHS = new Set(["/robots.txt", "/sitemap.xml"]);
+const SHARED_EXACT_PATHS = new Set(["/robots.txt", "/sitemap.xml", "/braavolabs-logo.png"]);
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 export function normalizeSurfaceHost(host: string | null): string {

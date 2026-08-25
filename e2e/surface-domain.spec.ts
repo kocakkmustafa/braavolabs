@@ -2,6 +2,7 @@ import net from "node:net";
 import { expect, test, type APIResponse } from "@playwright/test";
 import { POSTS } from "../packages/ui/app/blog/posts";
 import { DOCS } from "../packages/ui/app/docs/content";
+import { classifySurfacePath } from "../packages/ui/lib/surface-domain";
 
 const WWW = { Host: "www.braavolabs.com", "X-Forwarded-Proto": "https" };
 const APP = { Host: "app.braavolabs.com", "X-Forwarded-Proto": "https" };
@@ -150,6 +151,21 @@ test("www renders public truth without tenant content, auth cookies, or unresolv
   expect(body).toContain("Pricing preview — not currently purchasable");
   expect(body).not.toMatch(/\bfeatures\.[a-zA-Z0-9_.-]+\b/);
   expect(body).not.toMatch(/data-tenant|dashboard API|CommandPalette/i);
+});
+
+test("shared logo is available logged out on both product hosts", async ({ request }) => {
+  expect(classifySurfacePath("/braavolabs-logo.png")).toBe("shared");
+
+  for (const { headers, hostSurface } of [
+    { headers: WWW, hostSurface: "public" },
+    { headers: APP, hostSurface: "authenticated" },
+  ] as const) {
+    const response = await request.get("/braavolabs-logo.png", { headers, maxRedirects: 0 });
+    expect(response.status(), headers.Host).toBe(200);
+    expect(response.headers()["x-braavolabs-surface"], headers.Host).toBe(hostSurface);
+    expect(response.headers()["content-type"], headers.Host).toMatch(/^image\/png\b/);
+    expect(response.headers()["set-cookie"] ?? "", headers.Host).not.toMatch(/bv_(?:access|refresh)_token/i);
+  }
 });
 
 test("all public locale namespaces render without raw translation output", async ({ request }) => {
