@@ -283,7 +283,7 @@
         "disconnect": "Desconectar SSO",
         "confirm_disconnect": "¿Eliminar la conexión SSO? Los usuarios SSO existentes volverán al inicio de sesión por correo/contraseña.",
         "test_sign_in": "Probar inicio de sesión →",
-        "plan_gate_body": "El SSO empresarial está incluido en los planes Business y Enterprise. Actualiza para conectar tu espacio de trabajo.",
+        "plan_gate_body": "El SSO de organización está en desarrollo y no se puede comprar actualmente.",
         "plan_gate_cta": "Ver planes →"
       },
       "fieldName": "Nombre",
@@ -406,7 +406,7 @@
       "byokSubtitle": "Tienes dos opciones. Ambas mantienen tus datos aislados por tenant y auditados.",
       "byokCloudTitle": "☁ Cloud BYOK (cualquier plan)",
       "byokCloudDesc": "Anthropic, OpenAI, Gemini, Mistral, Groq, OpenRouter",
-      "byokSelfTitle": "⚡ Gemma autoalojado (Creator+)",
+      "byokSelfTitle": "⚡ Modelo local autoalojado — requiere configuración",
       "byokSelfDesc": "Ollama / LM Studio · sin coste por token · KVKK",
       "addApiKey": "Añadir API Key",
       "viewCompanies": "Ver espacios de trabajo",
@@ -443,7 +443,7 @@
       "audiencePlaceholder": "ej. fundadores de startups, marketers, desarrolladores...",
       "optional": "(opcional)",
       "activeChannelsTitle": "Canales Activos (Plan Gratuito)",
-      "upgradeToProForChannels": "Mejora a Pro para todos los canales",
+      "upgradeToProForChannels": "Configura los canales en los ajustes del espacio",
       "step4Title": "Listo para lanzar",
       "step4Subtitle": "Revisa tu configuración y crea tu primera empresa autónoma de IA.",
       "summaryCompanyName": "Nombre del espacio de trabajo",
@@ -660,15 +660,15 @@
       "usageHistory": "Historial de Uso",
       "thMetric": "Métrica",
       "thValue": "Valor",
-      "planFreeName": "Gratis",
-      "planFreeNote": "para siempre",
-      "planProName": "Pro",
+      "planFreeName": "Vista previa de precios",
+      "planFreeNote": "no se puede comprar actualmente",
+      "planProName": "Team",
       "planProNote": "/mes",
-      "planEnterpriseName": "Enterprise",
+      "planEnterpriseName": "Plan histórico — revisión manual",
       "planEnterprisePrice": "Personalizado",
       "planEnterpriseNote": "contáctanos",
-      "planCreatorName": "Creator",
-      "planBusinessName": "Business",
+      "planCreatorName": "Individual",
+      "planBusinessName": "Controles adicionales — en desarrollo",
       "planMonthlyNote": "/mes",
       "meterConnections": "Automatizaciones conectadas"
     },
@@ -1137,7 +1137,7 @@
       "releaseTitle": "v0.1.0 — Vista previa pública",
       "releaseDate": "Mayo 2026",
       "items": [
-        "Prueba gratuita con Groq (10 ejecuciones/mes, sin necesidad de API key).",
+        "El enrutamiento BYOK del tenant y las rutas locales configuradas fallan de forma cerrada si no hay una ruta elegible.",
         "DRM de exportación de pipelines con licencias JWT offline.",
         "Inicio de sesión con Google + GitHub OAuth.",
         "Deploy reforzado: webhooks HMAC, bloqueo de cuenta, CSP, HSTS.",
@@ -1177,7 +1177,7 @@
           },
           {
             "title": "Seguridad",
-            "body": "Usamos cifrado estándar de la industria en tránsito (TLS 1.3) y en reposo (AES-256). El acceso a los sistemas de producción está restringido a personal autorizado. Realizamos revisiones de seguridad periódicas."
+          "body": "Nuestra configuración pública del proxy web admite TLS 1.2 y TLS 1.3 en tránsito. No prometemos aquí otros detalles sobre datos en reposo, acceso a producción, seguridad o retención sin evidencia actual del proveedor y del despliegue."
           },
           {
             "title": "Cambios",
@@ -1206,8 +1206,8 @@
             "body": "No puedes usar la plataforma para generar spam, realizar actividades ilegales, violar derechos de terceros o eludir los controles de gobernanza y riesgo de la plataforma. El outreach automatizado está sujeto a los límites antispam integrados en la plataforma."
           },
           {
-            "title": "4. Plan Gratuito",
-            "body": "El plan gratuito incluye 1 empresa, 10 ejecuciones al mes y acceso a los canales TikTok y LinkedIn. Las funciones del plan gratuito pueden cambiar con 30 días de aviso."
+            "title": "4. Suscripciones planificadas",
+            "body": "Individual está planificado a $19/mes y Team a $39/usuario activo/mes. Las suscripciones no se pueden comprar actualmente y la inferencia no está incluida."
           },
           {
             "title": "5. Planes de Pago",
@@ -1276,7 +1276,7 @@
       "section3Title": "Quién está detrás",
       "section3Body": "Braavolabs es un proyecto independiente fundado en 2026. Construimos en público — cada commit, cada decisión, cada actualización de roadmap es visible. Escríbenos cuando quieras: hello@braavolabs.com.",
       "section4Title": "Qué sigue",
-      "section4Body": "Nuestra hoja de ruta se modela por lo que los usuarios realmente encuentran — no por un plan de 12 meses escrito en el vacío. ¿Quieres influir en lo que construimos? Prueba el plan gratuito, danos feedback en hello@braavolabs.com, o sigue las actualizaciones de build-in-public en redes sociales."
+      "section4Body": "Nuestra hoja de ruta se modela por lo que los usuarios realmente encuentran — no por un plan de 12 meses escrito en el vacío. Danos feedback en hello@braavolabs.com o sigue las actualizaciones de build-in-public en redes sociales."
     },
     "contact": {
       "title": "Contacto",
@@ -1395,9 +1395,9 @@
     }
   },
   "pricing": {
-    "badge": "GRATIS PARA EMPEZAR · SIN TARJETA",
+    "badge": "PRECIOS PLANIFICADOS · NO DISPONIBLES PARA COMPRA",
     "title": "Precios simples y transparentes",
-    "subtitle": "Empieza gratis con un espacio de trabajo de IA. Sube de plan cuando quieras ejecutar más. Cada plan de pago es un 20% más barato con facturación anual.",
+    "subtitle": "Individual está planificado a $19/mes y Team a $39/usuario activo/mes. La inferencia no está incluida.",
     "cycle": {
       "monthly": "Mensual",
       "yearly": "Anual",
@@ -1411,79 +1411,63 @@
     "mostPopular": "Más Popular",
     "plans": {
       "free": {
-        "name": "Free",
-        "desc": "Resultados reales de IA desde el primer día. Crea 1 espacio de trabajo y míralo funcionar.",
+        "name": "Vista previa de precios",
+        "desc": "Solo información de precios; las suscripciones no se pueden comprar actualmente.",
         "features": [
-          "1 espacio de trabajo",
-          "10 ejecuciones / mes",
-          "Canales TikTok + LinkedIn",
-          "Plantilla hero simplificada",
-          "Registro de auditoría completo",
-          "Cloud BYOK (Anthropic / OpenAI / Gemini)",
-          "Soporte de comunidad"
+          "Individual — planificado a $19/mes",
+          "Team — planificado a $39/usuario activo/mes",
+          "La inferencia no está incluida"
         ],
-        "cta": "Empezar gratis"
+        "cta": "Ver vista previa de precios"
       },
       "creator": {
-        "name": "Creator",
-        "desc": "Para autónomos que gestionan varios espacios de trabajo de IA.",
+        "name": "Individual",
+        "desc": "Suscripción planificada para un operador individual; no se puede comprar actualmente.",
         "features": [
-          "5 espacios de trabajo en paralelo",
-          "100 ejecuciones / mes",
-          "Todos los canales (TikTok, LinkedIn, IG, X, Email)",
-          "Pipelines personalizados",
-          "Motor de memoria",
-          "Self-hosted Gemma (Ollama / LM Studio)",
-          "Soporte por email"
+          "$19/mes — precio planificado",
+          "BYOK del tenant o runtime local configurado",
+          "La inferencia no está incluida"
         ],
-        "cta": "Elegir Creator"
+        "cta": "Vista previa de Individual"
       },
       "pro": {
-        "name": "Pro",
-        "desc": "Para agencias y fundadores que escalan múltiples marcas.",
+        "name": "Team",
+        "desc": "Suscripción planificada por usuario activo; no se puede comprar actualmente.",
         "features": [
-          "20 espacios de trabajo",
-          "500 ejecuciones / mes",
-          "Sincronización con HubSpot CRM",
-          "Automatización de outreach",
-          "Analítica avanzada",
-          "Self-hosted Gemma + Endpoints OpenAI personalizados",
-          "Soporte prioritario"
+          "$39/usuario activo/mes — precio planificado",
+          "BYOK del tenant o runtime local configurado",
+          "La inferencia no está incluida"
         ],
-        "cta": "Elegir Pro"
+        "cta": "Vista previa de Team"
       },
       "business": {
-        "name": "Business",
-        "desc": "Autonomía a escala de equipo con gobernanza incorporada.",
+        "name": "Controles adicionales — en desarrollo",
+        "desc": "Los controles de organización más allá de las dos suscripciones planificadas siguen en desarrollo.",
         "features": [
-          "100 espacios de trabajo",
-          "2.000 ejecuciones / mes",
-          "3 asientos de equipo",
-          "Gobernanza + exportación de auditoría",
-          "Preparación white-label",
-          "Self-hosted LLM + opción air-gapped",
-          "Soporte dedicado"
+          "Private Mode — vista previa",
+          "Cloud Agent Mode — en desarrollo",
+          "Exact-action approval — en desarrollo"
         ],
-        "cta": "Elegir Business"
+        "cta": "Ver hoja de ruta"
       }
     },
     "enterprise": {
       "title": "¿Necesitas más?",
-      "desc": "Enterprise — espacios de trabajo ilimitados, SSO, despliegue privado, SLA dedicado.",
+      "desc": "Los controles adicionales de organización están en desarrollo; las suscripciones no se pueden comprar actualmente.",
       "cta": "Habla con el fundador"
     },
     "faq": [
       {
-        "q": "¿Necesito tarjeta de crédito para el plan gratuito?",
-        "a": "No. El plan Gratis es completamente gratis para siempre — sin tarjeta. Obtienes 1 espacio de trabajo y 10 ejecuciones al mes, con resultados reales de IA."
+        "q": "¿Puedo comprar una suscripción hoy?",
+        "a": "No. Los precios de Individual y Team son una vista previa y no se pueden comprar actualmente. La inferencia no está incluida."
       },
       {
         "q": "¿Qué cuenta como una 'ejecución'?",
         "a": "Cada ejecución de pipeline es una ejecución. Ejemplo: 1 generación de post TikTok = 1 ejecución. 1 secuencia de outreach por email = 1 ejecución."
       },
       {
-        "q": "¿Por qué no hay prueba gratuita en planes de pago?",
-        "a": "Porque el plan Gratis ya te da valor real. Prueba el producto gratis y elige un nivel cuando quieras más espacios de trabajo."
+        "q": "¿Quién paga la inferencia?",
+        "a": "El cliente. Usa claves de proveedor del tenant o un runtime local configurado; la inferencia no está incluida."
       },
       {
         "q": "¿Qué pasa si supero mi cuota de ejecuciones?",

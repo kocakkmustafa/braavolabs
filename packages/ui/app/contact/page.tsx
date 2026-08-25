@@ -58,8 +58,8 @@ export default function ContactPage() {
           <a href="/changelog" className="hover:text-on-surface transition-colors">Changelog</a>
         </div>
         <div className="flex items-center gap-2">
-          <a href="/login" className="bv-btn bv-btn-ghost bv-btn-sm">Sign in</a>
-          <a href="/register" className="bv-btn bv-btn-primary bv-btn-sm">Start free</a>
+          <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm">Sign in</a>
+          <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm">Open app</a>
         </div>
       </nav>
 
@@ -270,9 +270,9 @@ export default function ContactPage() {
           </div>
           <div className="flex flex-col gap-2">
             <h5 className="bv-micro mb-1">Legal</h5>
-            <a href="#" className="bv-caption hover:text-on-surface transition-colors">Privacy</a>
-            <a href="#" className="bv-caption hover:text-on-surface transition-colors">Terms</a>
-            <a href="#" className="bv-caption hover:text-on-surface transition-colors">KVKK</a>
+            <a href="/privacy" className="bv-caption hover:text-on-surface transition-colors">Privacy</a>
+            <a href="/terms" className="bv-caption hover:text-on-surface transition-colors">Terms</a>
+            <a href="/kvkk" className="bv-caption hover:text-on-surface transition-colors">KVKK</a>
           </div>
         </div>
       </footer>

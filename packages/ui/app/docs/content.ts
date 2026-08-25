@@ -68,11 +68,11 @@ export const DOCS: DocPage[] = [
     category: "Start here",
     icon: "rocket_launch",
     order: 1,
-    desc: "From a plain-English business idea to a running, governed AI company — the whole first-run path.",
+    desc: "Braavolabs is a cross-vendor AI workbench and control plane for governed runs, approvals, and explicit model and data-mode choice.",
     blocks: [
       {
         kind: "para",
-        text: "Braavolabs turns a plain-English description of a business into a staffed, runnable AI company. You describe what you want; Braavolabs asks a couple of sharp clarifying questions, composes a set of agents and a pipeline to run them, and then executes that pipeline under your control — pausing for your approval before it ever spends money. This page walks the path end to end.",
+        text: "Braavolabs is a cross-vendor AI workbench and control plane. It coordinates governed model and agent work while keeping model choice, approval, and data mode explicit. This page introduces that product contract without promising unfinished release capabilities.",
       },
       {
         kind: "heading",
@@ -84,7 +84,7 @@ export const DOCS: DocPage[] = [
         items: [
           {
             title: "Create an account",
-            body: "Sign up with email, Google, or GitHub. No card is required to start — the free tier is real, not a timed trial.",
+            body: "Create an account with email, Google, or GitHub on the authenticated app surface.",
           },
           {
             title: "Describe your business",
@@ -114,16 +114,29 @@ export const DOCS: DocPage[] = [
       },
       {
         kind: "heading",
-        id: "the-free-tier",
-        text: "The free tier and your first three runs",
+        id: "plans-and-inference",
+        text: "Plans and inference",
       },
       {
         kind: "para",
-        text: "The free tier includes 10 runs per month. Your first three runs route through a hosted Groq pool, so you can watch real pipelines execute before pasting in a single API key. A trial run is only consumed when it succeeds — a failure inside the loop does not burn one of your three.",
+        text: "Individual — $19/month. Team — $39/active-user/month.",
       },
       {
         kind: "para",
-        text: "After those first three, add your own provider key (see BYOK & providers) and the platform routes through it. Braavolabs never marks up tokens: your model spend lands on your own keys at provider cost, and the plan fee is flat.",
+        text: "Inference is not included. Use your own provider keys (BYOK) or local models.",
+      },
+      {
+        kind: "para",
+        text: "Private Mode — preview. Its complete data-handling and security contract remains in development.",
+      },
+      {
+        kind: "para",
+        text: "Cloud Agent Mode — in development. Its execution, consent, and retention contract is not presented as generally available.",
+      },
+      {
+        kind: "note",
+        tone: "info",
+        text: "Holding — premium/private preview. Signed evidence — in development.",
       },
       {
         kind: "note",
@@ -139,7 +152,7 @@ export const DOCS: DocPage[] = [
         kind: "list",
         items: [
           "Concepts — the vocabulary: workspaces, agents, pipelines, runs, the nine primitives, approvals, the five risk-stops, and the audit trail.",
-          "BYOK & providers — add a key across 14 providers, or run fully on-device.",
+          "BYOK & providers — add a provider key or select a local runtime.",
           "Mid-run steering & ask_user — redirect a run in flight without re-running it.",
           "Webhooks — let external events trigger your pipelines, signed and verified.",
         ],
@@ -268,7 +281,7 @@ export const DOCS: DocPage[] = [
     category: "Reference",
     icon: "vpn_key",
     order: 3,
-    desc: "Bring your own keys across 14 providers, run fully on-device, and understand how keys are stored and how data-sharing consent works.",
+    desc: "Bring your own keys or select a local runtime, and understand how provider routing and data-mode consent work.",
     blocks: [
       {
         kind: "para",
@@ -277,17 +290,17 @@ export const DOCS: DocPage[] = [
       {
         kind: "heading",
         id: "fourteen-providers",
-        text: "Fourteen providers",
+        text: "Provider routes",
       },
       {
         kind: "para",
-        text: "The router speaks to fourteen providers behind one abstraction — eleven cloud and three local:",
+        text: "The router resolves the cloud-provider or local-model route the operator configured:",
       },
       {
         kind: "list",
         items: [
-          "Cloud — Anthropic, OpenAI, Google, Mistral, Groq, OpenRouter, DeepSeek, Kimi, Qwen, Cerebras, Zhipu GLM.",
-          "Local / on-device — Ollama, LM Studio, and any custom OpenAI-compatible endpoint.",
+          "Cloud routes use provider credentials supplied by the operator.",
+          "Local routes can use Ollama, LM Studio, or a custom OpenAI-compatible endpoint.",
         ],
       },
       {
@@ -304,7 +317,7 @@ export const DOCS: DocPage[] = [
           },
           {
             title: "Paste your API key",
-            body: "Enter the key from that provider's own dashboard. The platform always prefers your own key (BYOK) over the trial pool when resolving credentials for a run.",
+            body: "Enter the key from that provider's own dashboard. The platform resolves the provider you explicitly selected for the run.",
           },
           {
             title: "Pick models per step",
@@ -315,7 +328,7 @@ export const DOCS: DocPage[] = [
       {
         kind: "note",
         tone: "warn",
-        text: "If no key resolves and your three free trial runs are spent, a run fails loudly with a clear \"add a key in settings\" error rather than silently degrading to a model you did not choose. Silent model substitution is how platforms quietly trade your output quality for their margin — Braavolabs refuses to.",
+        text: "If no key or local runtime resolves, a run must fail loudly with a clear configuration error rather than silently switching to a model you did not choose.",
       },
       {
         kind: "heading",
@@ -328,12 +341,12 @@ export const DOCS: DocPage[] = [
       },
       {
         kind: "heading",
-        id: "on-device",
-        text: "Running on-device",
+        id: "local-runtime",
+        text: "Running locally",
       },
       {
         kind: "para",
-        text: "Three of the fourteen providers never leave your machine. Ollama and LM Studio expose local models — Gemma, Llama, Qwen and friends — through the same OpenAI-compatible wire format the cloud providers use, so the router treats your laptop like any other endpoint. Ollama's default base URL is localhost:11434; LM Studio's is localhost:1234. The default local model is Gemma 3 4B, which runs comfortably on a 16GB laptop; larger Gemma variants and other local models are a pull command away. There is no API key because there is no key — and the cost column reads zero.",
+        text: "Ollama, LM Studio, and custom OpenAI-compatible endpoints can provide a local model route. Availability, model download, hardware fit, and quality remain the operator's responsibility; the public contract does not promise a bundled local model.",
       },
       {
         kind: "para",
@@ -478,7 +491,7 @@ SIG=$(printf '%s' "$BODY" \\
   | openssl dgst -sha256 -hmac "$SECRET" \\
   | sed 's/^.* //')
 
-curl -X POST https://braavolabs.com/hooks/acme-content/order_created \\
+curl -X POST https://api.braavolabs.com/hooks/acme-content/order_created \\
   -H "Content-Type: application/json" \\
   -H "X-Braavo-Timestamp: $TS" \\
   -H "X-Braavo-Signature: $SIG" \\
@@ -596,7 +609,7 @@ curl -X POST https://braavolabs.com/hooks/acme-content/order_created \\
       },
       {
         kind: "para",
-        text: "A phone that can approve spending and redirect agents is a credential, so auth tokens live in the device's hardware-backed secure storage — not in anything that syncs or backs up off the device. Sessions ride the same JWT-plus-rotating-refresh scheme as the web app, and every action you take from the phone lands in the same audit trail as everything else. The phone is a first-class, fully-audited client.",
+        text: "A phone that can approve spending and redirect agents is a credential. The current client uses hardware-backed secure storage for auth tokens and the authenticated session contract used by the app. Supported mobile actions are intended to write into the shared activity model; signed, independently verifiable evidence remains in development.",
       },
       {
         kind: "note",
@@ -633,19 +646,19 @@ curl -X POST https://braavolabs.com/hooks/acme-content/order_created \\
           },
           {
             q: "Do I pay per task?",
-            a: "No. Braavolabs charges flat monthly tiers — free, then paid plans — and never marks up tokens or meters per task. Your model spend happens on your own API keys at provider cost, visible in your own provider dashboard. Per-task pricing punishes exactly the depth that agents are good at; a flat fee does not.",
+            a: "No per-task inference is bundled. Individual is $19/month and Team is $39/active-user/month. Inference is not included; use your own provider keys or local models.",
           },
           {
             q: "What models can I use?",
-            a: "Bring your own keys across fourteen providers: Anthropic, OpenAI, Google, Mistral, Groq, OpenRouter, DeepSeek, Kimi, Qwen, Cerebras, Zhipu GLM, plus local Ollama, LM Studio, and any custom OpenAI-compatible endpoint. You can mix models per step and swap providers from settings without touching your pipelines.",
+            a: "Use a supported cloud route with credentials you supply, or a configured local route such as Ollama, LM Studio, or a custom OpenAI-compatible endpoint. Available routes are shown in settings and are not represented here as a fixed provider count.",
           },
           {
             q: "Is my data private?",
-            a: "Your provider keys are encrypted with AES-256-GCM and never shown back to you after you save them. Because Braavolabs is bring-your-own-key, your run data goes to the providers you choose, under their terms — and you consent to that explicitly. For work that cannot leave your machine, route sensitive steps to a local on-device model so no tokens egress at all.",
+            a: "Your provider keys are encrypted with AES-256-GCM and never shown back to you after you save them. Because Braavolabs is bring-your-own-key, your run data goes to the providers you choose, under their terms — and you consent to that explicitly. A local model route changes the inference endpoint; verify the selected data mode, tools, telemetry, and network boundary separately.",
           },
           {
             q: "Can it run offline?",
-            a: "Yes. Three of the fourteen providers — Ollama, LM Studio, and any custom OpenAI-compatible endpoint — run entirely on your own hardware, with no API key and no data egress. The same pipelines, the same audit trail, and all five risk-stops still apply. For air-gapped use, pipelines export as encrypted, machine-bound bundles that will not open on different hardware.",
+            a: "A configured local runtime can serve supported models without using a cloud-provider key. Availability and data handling depend on the runtime and route you select; no offline bundle capability is claimed here.",
           },
           {
             q: "How is this different from a generic automation tool?",

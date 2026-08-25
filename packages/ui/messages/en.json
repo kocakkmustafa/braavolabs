@@ -51,7 +51,7 @@
       },
       "billing": {
         "title": "Usage Billing",
-        "desc": "Stripe-powered metering. Free tier included. Scale from $0 to enterprise on demand with usage-based pricing."
+        "desc": "Planned pricing is Individual $19/month and Team $39/active-user/month. It is not currently purchasable; inference is not included."
       },
       "audit": {
         "title": "Full Audit Log",
@@ -254,7 +254,7 @@
       "noCompaniesFound": "No workspaces found",
       "saveButton": "Save",
       "identity": {
-        "title": "Enterprise SSO (OIDC)",
+        "title": "Organization SSO (OIDC) — in development",
         "subtitle": "Connect your workspace to Microsoft Entra, Okta, Google Workspace, Auth0, JumpCloud, or any spec-compliant identity provider.",
         "back": "Back to settings",
         "loading": "Loading SSO configuration…",
@@ -283,7 +283,7 @@
         "disconnect": "Disconnect SSO",
         "confirm_disconnect": "Remove SSO connection? Existing SSO users will fall back to email/password sign-in.",
         "test_sign_in": "Test sign-in →",
-        "plan_gate_body": "Enterprise SSO is included with Business and Enterprise plans. Upgrade to connect your workspace to your identity provider.",
+        "plan_gate_body": "Organization SSO is in development and is not currently purchasable.",
         "plan_gate_cta": "View plans →"
       },
       "fieldName": "Name",
@@ -347,7 +347,7 @@
           "desc": "Professional services"
         },
         "creator": {
-          "label": "Creator / Personal Brand",
+          "label": "Independent / Personal Brand",
           "desc": "Content & audience building"
         },
         "b2b_sales": {
@@ -393,7 +393,7 @@
         "Agency",
         "E-commerce",
         "Consulting",
-        "Creator Business"
+        "Independent Business"
       ],
       "suggestionTemplate": "I run a {kind} business. I need AI agents to handle acquisition, content creation, and operations.",
       "successCompanyFallback": "Your Workspace",
@@ -406,7 +406,7 @@
       "byokSubtitle": "You have two options. Both keep your data tenant-isolated and audit-logged.",
       "byokCloudTitle": "☁ Cloud BYOK (any plan)",
       "byokCloudDesc": "Anthropic, OpenAI, Gemini, Mistral, Groq, OpenRouter",
-      "byokSelfTitle": "⚡ Self-hosted Gemma (Creator+)",
+      "byokSelfTitle": "⚡ Self-hosted local model — configuration required",
       "byokSelfDesc": "Ollama / LM Studio · no per-token cost · KVKK",
       "addApiKey": "Add API Key",
       "viewCompanies": "View Workspaces",
@@ -442,8 +442,8 @@
       "fieldTargetAudience": "Target Audience",
       "audiencePlaceholder": "e.g. startup founders, marketers, developers...",
       "optional": "(optional)",
-      "activeChannelsTitle": "Active Channels (Free plan)",
-      "upgradeToProForChannels": "Upgrade to Pro for all channels",
+      "activeChannelsTitle": "Active Channels",
+      "upgradeToProForChannels": "Configure channels in workspace settings",
       "step4Title": "Ready to launch",
       "step4Subtitle": "Review your configuration and create your first autonomous AI company.",
       "summaryCompanyName": "Workspace Name",
@@ -660,15 +660,15 @@
       "usageHistory": "Usage History",
       "thMetric": "Metric",
       "thValue": "Value",
-      "planFreeName": "Free",
-      "planFreeNote": "forever",
-      "planProName": "Pro",
+      "planFreeName": "Pricing preview",
+      "planFreeNote": "not currently purchasable",
+      "planProName": "Team",
       "planProNote": "/month",
-      "planEnterpriseName": "Enterprise",
+      "planEnterpriseName": "Historical plan — manual review",
       "planEnterprisePrice": "Custom",
       "planEnterpriseNote": "contact us",
-      "planCreatorName": "Creator",
-      "planBusinessName": "Business",
+      "planCreatorName": "Individual",
+      "planBusinessName": "Additional controls — in development",
       "planMonthlyNote": "/month",
       "meterConnections": "Connected automations"
     },
@@ -716,7 +716,7 @@
       "sendAnswer": "Send answer",
       "steerTitle": "Steer this run",
       "steerHelp": "Send a message to redirect the agent mid-run — injected as operator guidance on its next turn.",
-      "steerPlaceholder": "e.g. Focus on enterprise leads only — skip the SMB segment.",
+      "steerPlaceholder": "e.g. Focus on large-account leads only — skip the SMB segment.",
       "steerSent": "Steering sent — the agent will pick it up on its next turn.",
       "steerFailed": "Failed to send steering",
       "sendSteer": "Send steering",
@@ -1137,7 +1137,7 @@
       "releaseTitle": "v0.1.0 — Public preview",
       "releaseDate": "May 2026",
       "items": [
-        "Free-tier trial powered by Groq (10 runs/month, no API key needed).",
+        "Tenant-owned BYOK and configured local routing fail closed when no eligible route exists.",
         "Pipeline export DRM with offline JWT licenses.",
         "Google + GitHub OAuth sign-in.",
         "Hardened deploy: HMAC webhooks, account lockout, CSP, HSTS.",
@@ -1177,7 +1177,7 @@
           },
           {
             "title": "Security",
-            "body": "We use industry-standard encryption in transit (TLS 1.3) and at rest (AES-256). Access to production systems is restricted to authorized personnel. We conduct regular security reviews."
+          "body": "Our published web proxy configuration supports TLS 1.2 and TLS 1.3 in transit. Other at-rest, production-access, security, and retention details are not promised here without current provider and deployment evidence."
           },
           {
             "title": "Changes",
@@ -1206,8 +1206,8 @@
             "body": "You may not use the platform to generate spam, conduct illegal activities, violate third-party rights, or circumvent the platform's governance and risk controls. Automated outreach is subject to anti-spam limits built into the platform."
           },
           {
-            "title": "4. Free Plan",
-            "body": "The free plan includes 1 company, 10 runs per month, and access to TikTok and LinkedIn channels. Free plan features may change with 30 days' notice."
+            "title": "4. Planned subscriptions",
+            "body": "Individual is planned at $19/month and Team at $39/active-user/month. Subscriptions are not currently purchasable and inference is not included."
           },
           {
             "title": "5. Paid Plans",
@@ -1276,7 +1276,7 @@
       "section3Title": "Who's behind it",
       "section3Body": "Braavolabs is an independent project founded in 2026. We build in public — every commit, every decision, every roadmap update is visible. Reach out anytime: hello@braavolabs.com.",
       "section4Title": "What's next",
-      "section4Body": "Our roadmap is shaped by what users actually run into — not by a 12-month plan written in a vacuum. Want to influence what we build? Try the free tier, give us feedback at hello@braavolabs.com, or follow build-in-public updates on social."
+      "section4Body": "Our roadmap is shaped by what users actually run into — not by a 12-month plan written in a vacuum. Share feedback at hello@braavolabs.com or follow build-in-public updates on social."
     },
     "contact": {
       "title": "Contact",
@@ -1362,7 +1362,7 @@
       "githubFailed": "GitHub login failed. Please try email/password.",
       "appleNotConfigured": "Apple Sign-In is not configured on this server. Use email/password instead.",
       "appleFailed": "Apple Sign-In failed. Please try email/password.",
-      "ssoToggle": "Use Enterprise SSO →",
+      "ssoToggle": "Organization SSO — in development →",
       "ssoSlugPlaceholder": "workspace slug",
       "ssoSubmit": "Continue"
     },
@@ -1395,9 +1395,9 @@
     }
   },
   "pricing": {
-    "badge": "FREE TO START · NO CARD REQUIRED",
+    "badge": "PLANNED PRICING · NOT CURRENTLY PURCHASABLE",
     "title": "Simple, transparent pricing",
-    "subtitle": "Start free with one AI workspace. Upgrade when you want to run more. Every paid plan is 20% cheaper on annual billing.",
+    "subtitle": "Individual is planned at $19/month and Team at $39/active-user/month. Inference is not included; subscriptions are not currently purchasable.",
     "cycle": {
       "monthly": "Monthly",
       "yearly": "Yearly",
@@ -1411,79 +1411,63 @@
     "mostPopular": "Most Popular",
     "plans": {
       "free": {
-        "name": "Free",
-        "desc": "Real AI output from day one. Build 1 workspace, see it work.",
+        "name": "Pricing preview",
+        "desc": "Pricing information only; subscriptions are not currently purchasable.",
         "features": [
-          "1 workspace",
-          "10 runs / month",
-          "TikTok + LinkedIn channels",
-          "Simplified hero template",
-          "Full audit log",
-          "Cloud BYOK (Anthropic / OpenAI / Gemini)",
-          "Community support"
+          "Individual — planned at $19/month",
+          "Team — planned at $39/active-user/month",
+          "Inference is not included"
         ],
-        "cta": "Start Free"
+        "cta": "View pricing preview"
       },
       "creator": {
-        "name": "Creator",
-        "desc": "For solopreneurs running a handful of AI workspaces.",
+        "name": "Individual",
+        "desc": "Planned subscription for an individual operator; not currently purchasable.",
         "features": [
-          "5 workspaces running in parallel",
-          "100 runs / month",
-          "All channels (TikTok, LinkedIn, IG, X, Email)",
-          "Custom pipelines",
-          "Memory engine",
-          "Self-hosted Gemma (Ollama / LM Studio)",
-          "Email support"
+          "$19/month — planned pricing",
+          "Tenant-owned BYOK or configured local runtime",
+          "Inference is not included"
         ],
-        "cta": "Choose Creator"
+        "cta": "Preview Individual"
       },
       "pro": {
-        "name": "Pro",
-        "desc": "For agencies and founders scaling across many brands.",
+        "name": "Team",
+        "desc": "Planned subscription priced per active user; not currently purchasable.",
         "features": [
-          "20 workspaces",
-          "500 runs / month",
-          "HubSpot CRM sync",
-          "Outreach automation",
-          "Advanced analytics",
-          "Self-hosted Gemma + Custom OpenAI endpoints",
-          "Priority support"
+          "$39/active-user/month — planned pricing",
+          "Tenant-owned BYOK or configured local runtime",
+          "Inference is not included"
         ],
-        "cta": "Choose Pro"
+        "cta": "Preview Team"
       },
       "business": {
-        "name": "Business",
-        "desc": "Team-scale autonomy with governance built in.",
+        "name": "Additional controls — in development",
+        "desc": "Organization controls beyond the two planned subscriptions remain in development.",
         "features": [
-          "100 workspaces",
-          "2,000 runs / month",
-          "3 team seats",
-          "Governance + audit export",
-          "White-label prep",
-          "Self-hosted LLM + air-gapped option",
-          "Dedicated support"
+          "Private Mode — preview",
+          "Cloud Agent Mode — in development",
+          "Exact-action approval — in development"
         ],
-        "cta": "Choose Business"
+        "cta": "View roadmap"
       }
     },
     "enterprise": {
       "title": "Need more?",
-      "desc": "Enterprise — unlimited workspaces, SSO, private deployment, dedicated SLA.",
+      "desc": "Additional organization controls are in development; subscriptions are not currently purchasable.",
       "cta": "Talk to the Founder"
     },
     "faq": [
       {
-        "q": "Do I need a credit card for the free plan?",
-        "a": "No. Free is completely free forever — no card required. You get 1 workspace and 10 runs per month, with real AI output."
+        "q": "Can I buy a subscription today?",
+        "a": "No. Individual and Team pricing is a preview and is not currently purchasable. Inference is not included."
       },
       {
         "q": "What counts as a 'run'?",
         "a": "Each pipeline execution is one run. Example: 1 TikTok post generation = 1 run. 1 email outreach sequence = 1 run."
       },
       {
-        "q": "Why is there no free trial on paid plans?",
-        "a": "Because the Free plan already gives you real value. Try the product for free, then pick a tier when you're ready for more workspaces."
+        "q": "Who pays for inference?",
+        "a": "The customer does. Use tenant-owned provider keys or a configured local runtime; inference is not included."
       },
       {
         "q": "What if I exceed my run quota?",

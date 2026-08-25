@@ -67,8 +67,8 @@ export default function PrivacyPage() {
             <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_back</span>
             {t("static.common.back")}
           </a>
-          <a href="/register" className="bv-btn bv-btn-primary bv-btn-sm no-underline">
-            Start free
+          <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm no-underline">
+            Open app
           </a>
         </div>
       </nav>
@@ -139,7 +139,7 @@ export default function PrivacyPage() {
               { key: "cookies", label: "Cookies", href: "/cookies" },
               { key: "gdpr", label: "GDPR", href: "/gdpr" },
               { key: "kvkk", label: "KVKK", href: "/kvkk" },
-              { key: "account-deletion", label: "Account deletion", href: "/account-deletion" },
+              { key: "account-deletion", label: "Account deletion", href: "/legal/account-deletion" },
             ].map((doc) => (
               <a
                 key={doc.key}

@@ -283,7 +283,7 @@
         "disconnect": "SSO bağlantısını kes",
         "confirm_disconnect": "SSO bağlantısı kaldırılsın mı? Mevcut SSO kullanıcıları e-posta/şifre girişine düşer.",
         "test_sign_in": "Girişi test et →",
-        "plan_gate_body": "Kurumsal SSO, Business ve Enterprise planlarına dahildir. Kimlik sağlayıcınıza bağlanmak için yükseltin.",
+        "plan_gate_body": "Kuruluş SSO'su geliştirme aşamasındadır ve şu anda satın alınamaz.",
         "plan_gate_cta": "Planları gör →"
       },
       "fieldName": "Ad Soyad",
@@ -406,7 +406,7 @@
       "byokSubtitle": "İki seçeneğin var. İkisi de verini tenant-isolated tutuyor ve denetim kaydı altında.",
       "byokCloudTitle": "☁ Bulut BYOK (her planda)",
       "byokCloudDesc": "Anthropic, OpenAI, Gemini, Mistral, Groq, OpenRouter",
-      "byokSelfTitle": "⚡ Self-hosted Gemma (Creator+ planı)",
+      "byokSelfTitle": "⚡ Kullanıcı tarafından barındırılan yerel model — yapılandırma gerekir",
       "byokSelfDesc": "Ollama / LM Studio · token başına maliyet yok · KVKK",
       "addApiKey": "API Anahtarı Ekle",
       "viewCompanies": "Çalışma Alanlarını Gör",
@@ -443,7 +443,7 @@
       "audiencePlaceholder": "ör. startup kurucuları, pazarlamacılar, geliştiriciler...",
       "optional": "(opsiyonel)",
       "activeChannelsTitle": "Aktif Kanallar (Ücretsiz plan)",
-      "upgradeToProForChannels": "Tüm kanallar için Pro'ya yükselt",
+      "upgradeToProForChannels": "Kanalları çalışma alanı ayarlarından yapılandır",
       "step4Title": "Başlatmaya hazırsın",
       "step4Subtitle": "Yapılandırmanı gözden geçir ve ilk otonom AI şirketini oluştur.",
       "summaryCompanyName": "Çalışma Alanı Adı",
@@ -660,15 +660,15 @@
       "usageHistory": "Kullanım Geçmişi",
       "thMetric": "Metrik",
       "thValue": "Değer",
-      "planFreeName": "Ücretsiz",
-      "planFreeNote": "süresiz",
-      "planProName": "Pro",
+      "planFreeName": "Fiyatlandırma önizlemesi",
+      "planFreeNote": "şu anda satın alınamaz",
+      "planProName": "Team",
       "planProNote": "/ay",
       "planEnterpriseName": "Kurumsal",
       "planEnterprisePrice": "Özel",
       "planEnterpriseNote": "bize ulaş",
-      "planCreatorName": "Creator",
-      "planBusinessName": "Business",
+      "planCreatorName": "Individual",
+      "planBusinessName": "Ek kontroller — geliştirme aşamasında",
       "planMonthlyNote": "/ay",
       "meterConnections": "Bağlı otomasyonlar"
     },
@@ -1137,7 +1137,7 @@
       "releaseTitle": "v0.1.0 — Açık önizleme",
       "releaseDate": "Mayıs 2026",
       "items": [
-        "Groq ile çalışan ücretsiz deneme (ayda 10 çalıştırma, API anahtarına gerek yok).",
+        "Tenant'a ait BYOK ve yapılandırılmış yerel yönlendirme, uygun yol yoksa kapalı başarısız olur.",
         "Çevrimdışı JWT lisanslarıyla pipeline dışa aktarma DRM.",
         "Google + GitHub OAuth ile giriş.",
         "Sertleştirilmiş deploy: HMAC webhook, hesap kilidi, CSP, HSTS.",
@@ -1177,7 +1177,7 @@
           },
           {
             "title": "Güvenlik",
-            "body": "Veri taşımada (TLS 1.3) ve depolamada (AES-256) endüstri standardı şifreleme kullanırız. Üretim sistemlerine erişim yetkili personelle sınırlıdır. Düzenli güvenlik incelemeleri yapıyoruz."
+          "body": "Yayımlanmış web proxy yapılandırmamız aktarımda TLS 1.2 ve TLS 1.3 destekler. Bekleyen veri, üretim erişimi, güvenlik ve saklama ayrıntıları güncel sağlayıcı ve dağıtım kanıtı olmadan burada taahhüt edilmez."
           },
           {
             "title": "Değişiklikler",
@@ -1206,8 +1206,8 @@
             "body": "Platformu spam üretmek, yasa dışı faaliyetler yürütmek, üçüncü taraf haklarını ihlal etmek veya yönetişim ve risk kontrollerini atlamak için kullanamazsın. Otomatik dış erişim, platforma yerleşik anti-spam limitlere tabidir."
           },
           {
-            "title": "4. Ücretsiz Plan",
-            "body": "Ücretsiz plan 1 şirket, ayda 10 çalıştırma ve TikTok + LinkedIn kanallarına erişim içerir. Ücretsiz plan özellikleri 30 gün önceden bildirimle değişebilir."
+            "title": "4. Planlanan abonelikler",
+            "body": "Individual $19/ay, Team $39/aktif kullanıcı/ay olarak planlanmıştır. Abonelikler şu anda satın alınamaz ve çıkarım dahil değildir."
           },
           {
             "title": "5. Ücretli Planlar",
@@ -1276,7 +1276,7 @@
       "section3Title": "Arkasında kim var",
       "section3Body": "Braavolabs 2026'da kurulan bağımsız bir projedir. Açıkta inşa ediyoruz — her commit, her karar, her yol haritası güncellemesi görünür. Bize her zaman yazabilirsin: hello@braavolabs.com.",
       "section4Title": "Sırada ne var",
-      "section4Body": "Yol haritamızı boş bir odada yazılan 12 aylık bir plan değil, kullanıcıların gerçekten karşılaştığı sorunlar şekillendirir. Ne inşa edeceğimize yön vermek mi istiyorsun? Ücretsiz katmanı dene, hello@braavolabs.com'a geri bildirim yaz veya açık geliştirme güncellemelerini sosyal medyada takip et."
+      "section4Body": "Yol haritamızı boş bir odada yazılan 12 aylık bir plan değil, kullanıcıların gerçekten karşılaştığı sorunlar şekillendirir. hello@braavolabs.com'a geri bildirim yaz veya açık geliştirme güncellemelerini sosyal medyada takip et."
     },
     "contact": {
       "title": "İletişim",
@@ -1395,9 +1395,9 @@
     }
   },
   "pricing": {
-    "badge": "ÜCRETSİZ BAŞLA · KART GEREKMEZ",
+    "badge": "PLANLANAN FİYATLANDIRMA · ŞU ANDA SATIN ALINAMAZ",
     "title": "Sade ve şeffaf fiyatlandırma",
-    "subtitle": "Tek bir AI çalışma alanıyla ücretsiz başla. Daha fazlasını çalıştırmak istediğinde yükselt. Her ücretli plan yıllık faturalandırmada %20 daha ucuz.",
+    "subtitle": "Individual $19/ay, Team $39/aktif kullanıcı/ay olarak planlanmıştır. Çıkarım dahil değildir.",
     "cycle": {
       "monthly": "Aylık",
       "yearly": "Yıllık",
@@ -1411,79 +1411,63 @@
     "mostPopular": "En Popüler",
     "plans": {
       "free": {
-        "name": "Ücretsiz",
-        "desc": "İlk günden gerçek AI çıktısı. 1 çalışma alanı kur, işe yaradığını gör.",
+        "name": "Fiyatlandırma önizlemesi",
+        "desc": "Yalnız fiyatlandırma bilgisi; abonelikler şu anda satın alınamaz.",
         "features": [
-          "1 çalışma alanı",
-          "Ayda 10 çalıştırma",
-          "TikTok + LinkedIn kanalları",
-          "Sadeleştirilmiş hero şablon",
-          "Eksiksiz denetim kaydı",
-          "Cloud BYOK (Anthropic / OpenAI / Gemini)",
-          "Topluluk desteği"
+          "Individual — $19/ay olarak planlandı",
+          "Team — $39/aktif kullanıcı/ay olarak planlandı",
+          "Çıkarım dahil değildir"
         ],
-        "cta": "Ücretsiz Başla"
+        "cta": "Fiyatlandırma önizlemesini gör"
       },
       "creator": {
-        "name": "Creator",
-        "desc": "Birkaç AI çalışma alanı çalıştıran solo girişimciler için.",
+        "name": "Individual",
+        "desc": "Bireysel operatör için planlanan abonelik; şu anda satın alınamaz.",
         "features": [
-          "Paralel çalışan 5 çalışma alanı",
-          "Ayda 100 çalıştırma",
-          "Tüm kanallar (TikTok, LinkedIn, IG, X, E-posta)",
-          "Özel pipeline'lar",
-          "Hafıza motoru",
-          "Self-hosted Gemma (Ollama / LM Studio)",
-          "E-posta desteği"
+          "$19/ay — planlanan fiyat",
+          "Tenant'a ait BYOK veya yapılandırılmış yerel çalışma zamanı",
+          "Çıkarım dahil değildir"
         ],
-        "cta": "Creator'ı Seç"
+        "cta": "Individual önizlemesi"
       },
       "pro": {
-        "name": "Pro",
-        "desc": "Çok sayıda markaya ölçeklenen ajanslar ve founder'lar için.",
+        "name": "Team",
+        "desc": "Aktif kullanıcı başına planlanan abonelik; şu anda satın alınamaz.",
         "features": [
-          "20 çalışma alanı",
-          "Ayda 500 çalıştırma",
-          "HubSpot CRM senkronizasyonu",
-          "Outreach otomasyonu",
-          "Gelişmiş analitik",
-          "Self-hosted Gemma + Özel OpenAI endpoint'leri",
-          "Öncelikli destek"
+          "$39/aktif kullanıcı/ay — planlanan fiyat",
+          "Tenant'a ait BYOK veya yapılandırılmış yerel çalışma zamanı",
+          "Çıkarım dahil değildir"
         ],
-        "cta": "Pro'yu Seç"
+        "cta": "Team önizlemesi"
       },
       "business": {
-        "name": "Business",
-        "desc": "Yönetişim dahil, takım ölçeğinde otonomi.",
+        "name": "Ek kontroller — geliştirme aşamasında",
+        "desc": "Planlanan iki aboneliğin ötesindeki kuruluş kontrolleri geliştirme aşamasındadır.",
         "features": [
-          "100 çalışma alanı",
-          "Ayda 2.000 çalıştırma",
-          "3 takım koltuğu",
-          "Yönetişim + denetim dışa aktarımı",
-          "White-label hazırlığı",
-          "Self-hosted LLM + air-gapped seçeneği",
-          "Özel destek"
+          "Private Mode — önizleme",
+          "Cloud Agent Mode — geliştirme aşamasında",
+          "Exact-action approval — geliştirme aşamasında"
         ],
-        "cta": "Business'ı Seç"
+        "cta": "Yol haritasını gör"
       }
     },
     "enterprise": {
       "title": "Daha fazlasını mı istiyorsun?",
-      "desc": "Enterprise — sınırsız çalışma alanı, SSO, özel dağıtım, özel SLA.",
+      "desc": "Ek kuruluş kontrolleri geliştirme aşamasındadır; abonelikler şu anda satın alınamaz.",
       "cta": "Kurucu ile Görüş"
     },
     "faq": [
       {
-        "q": "Ücretsiz plan için kredi kartı gerekli mi?",
-        "a": "Hayır. Ücretsiz plan sonsuza dek tamamen ücretsiz — kart gerekmez. Gerçek AI çıktısıyla 1 çalışma alanı ve ayda 10 çalıştırma alırsın."
+        "q": "Bugün abonelik satın alabilir miyim?",
+        "a": "Hayır. Individual ve Team fiyatları önizlemedir ve şu anda satın alınamaz. Çıkarım dahil değildir."
       },
       {
         "q": "'Çalıştırma' ne anlama geliyor?",
         "a": "Her pipeline çalıştırması bir adettir. Örnek: 1 TikTok gönderisi üretimi = 1 çalıştırma. 1 e-posta outreach sekansı = 1 çalıştırma."
       },
       {
-        "q": "Ücretli planlarda neden ücretsiz deneme yok?",
-        "a": "Çünkü Ücretsiz plan zaten gerçek değer veriyor. Ürünü ücretsiz dene, daha fazla çalışma alanına hazır olduğunda bir kademe seç."
+        "q": "Çıkarım maliyetini kim öder?",
+        "a": "Müşteri. Tenant'a ait sağlayıcı anahtarlarını veya yapılandırılmış yerel çalışma zamanını kullanın; çıkarım dahil değildir."
       },
       {
         "q": "Çalıştırma kotamı aşarsam ne olur?",

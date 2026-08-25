@@ -3,14 +3,21 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Pricing — Braavolabs",
   description:
-    "Simple, transparent pricing. Free plan with 1 AI company + 10 runs/month — no card. Creator $19, Pro $39, Business $99. 20% off on annual billing.",
-  alternates: { canonical: "https://braavolabs.com/pricing" },
+    "Planned pricing preview: Individual $19/month and Team $39/active-user/month. Not currently purchasable; inference is not included.",
+  alternates: { canonical: "https://www.braavolabs.com/pricing" },
   openGraph: {
     title: "Pricing — Braavolabs",
     description:
-      "Free plan with 1 AI company + 10 runs/month, no card required. Creator $19, Pro $39, Business $99. 20% off annual.",
-    url: "https://braavolabs.com/pricing",
+      "Planned pricing preview: Individual $19/month and Team $39/active-user/month. Not currently purchasable; inference is not included.",
+    url: "https://www.braavolabs.com/pricing",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Pricing — Braavolabs",
+    description:
+      "Planned pricing preview: Individual $19/month and Team $39/active-user/month. Not currently purchasable; inference is not included.",
+    images: ["/og-image.png"],
   },
 };
 

@@ -180,9 +180,9 @@ export default function AboutPage() {
               {t("static.about.title")}
             </h2>
             <div className="flex gap-3.5 justify-center flex-wrap">
-              <a href="/register" className="bv-btn bv-btn-primary bv-sheen">
+              <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-sheen">
                 <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>rocket_launch</span>
-                Start free — 3 runs
+                Open app
               </a>
               <a href="/contact" className="bv-btn bv-btn-ghost">
                 Talk to us

@@ -14,8 +14,8 @@ const LOG: Array<{
     date: "Jun 1, 2026",
     latest: true,
     items: [
-      ["added", "On-device Gemma — run pipelines fully offline with zero token cost"],
-      ["added", "Encrypted offline export bundle for any workspace"],
+      ["added", "Local-route boundaries documented without claiming an offline product bundle"],
+      ["added", "Evidence export preview documented for development testing"],
       ["changed", "Run detail now streams reasoning tokens live as they generate"],
     ],
   },
@@ -41,7 +41,7 @@ const LOG: Array<{
     v: "v1.5",
     date: "Apr 20, 2026",
     items: [
-      ["added", "BYOK router across 12 providers with per-step model routing"],
+      ["added", "BYOK and local-route selection documented without a fixed provider-count claim"],
       ["added", "Brand-stop risk-stop for tone & brand-rule violations"],
       ["fixed", "Mobile pocket-steer push deep-links open straight to the run"],
     ],
@@ -85,11 +85,11 @@ export default function ChangelogPage() {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            <a href="/login" className="bv-btn bv-btn-ghost bv-btn-sm hidden sm:inline-flex">
+            <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm hidden sm:inline-flex">
               {t("static.common.back")}
             </a>
-            <a href="/register" className="bv-btn bv-btn-primary bv-btn-sm bv-sheen">
-              Start free
+            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm bv-sheen">
+              Open app
             </a>
           </div>
         </div>

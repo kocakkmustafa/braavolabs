@@ -74,11 +74,11 @@ export default function BlogPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <a href="/login" className="bv-btn bv-btn-sm bv-btn-ghost no-underline">
+          <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-sm bv-btn-ghost no-underline">
             Sign in
           </a>
-          <a href="/register" className="bv-btn bv-btn-sm bv-btn-primary no-underline">
-            Start free
+          <a href="https://app.braavolabs.com" className="bv-btn bv-btn-sm bv-btn-primary no-underline">
+            Open app
           </a>
         </div>
       </nav>

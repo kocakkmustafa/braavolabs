@@ -73,11 +73,11 @@ export default function TermsPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <a href="/login" className="bv-btn bv-btn-ghost bv-btn-sm">
+            <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm">
               Sign in
             </a>
-            <a href="/register" className="bv-btn bv-btn-primary bv-btn-sm bv-sheen">
-              Start free
+            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm bv-sheen">
+              Open app
             </a>
           </div>
         </div>
