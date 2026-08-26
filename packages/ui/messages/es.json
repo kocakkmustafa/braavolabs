@@ -1157,23 +1157,23 @@
         "sections": [
           {
             "title": "Datos que recopilamos",
-            "body": "Recopilamos la información que proporcionas al crear una cuenta (nombre, correo, nombre de la organización) y los datos generados por tu uso de la plataforma (descripciones de empresas, configuraciones de agentes, registros de ejecución de pipelines y métricas de uso). No recopilamos directamente datos de pago — los pagos los procesa Stripe."
+            "body": "Recopilamos datos de la cuenta (nombre, correo y organización), contenido del espacio de trabajo vinculado al tenant (prompts, entradas y salidas de agentes y pipelines, registros de ejecución, mensajes de dirección, informes y actividad de uso) y datos del dispositivo para notificaciones (push token, plataforma, nombre del dispositivo y versión del sistema operativo). Para suscripciones de Apple App Store o Google Play conservamos producto, token de transacción o compra, recibo, estado y fechas. No recibimos datos brutos de tarjeta; Stripe procesa la facturación web."
           },
           {
             "title": "Cómo usamos tus datos",
-            "body": "Tus datos se usan exclusivamente para operar la plataforma Braavolabs: ejecutar tus agentes, almacenar tu historial de pipelines y generar analíticas. No vendemos, compartimos ni usamos tus datos para entrenar modelos de IA. Los datos de cada tenant están estrictamente aislados."
+            "body": "Procesamos los datos de cuenta y del espacio de trabajo vinculado al tenant para prestar las funciones solicitadas, ejecutar flujos, conservar el historial, medir uso, gestionar derechos de acceso y atender operaciones de cuenta. El contenido puede enviarse a proveedores de IA que selecciones o conectes para un flujo solicitado; su tratamiento se rige por sus términos y ajustes aplicables."
           },
           {
             "title": "Almacenamiento de datos",
-            "body": "Todos los datos se almacenan en bases de datos PostgreSQL cifradas. Los registros de auditoría y actividad se conservan 12 meses por defecto. Puedes solicitar la eliminación de tu cuenta y todos los datos asociados en cualquier momento."
+            "body": "Los registros de cuenta y dispositivo permanecen vinculados al usuario, mientras que los de espacio de trabajo, actividad y suscripción permanecen vinculados al tenant, sin un plazo fijo de conservación publicado. Eliminar tu cuenta borra tu registro de usuario. Si eres el último miembro del tenant, los registros del espacio se eliminan mediante esa relación; si quedan otros miembros, el contenido del espacio de trabajo, la actividad y las suscripciones de tienda permanecen con ese tenant. La retirada del token al cerrar sesión es de mejor esfuerzo; eliminar la cuenta quita los dispositivos restantes vinculados al usuario."
           },
           {
             "title": "Servicios de terceros",
-            "body": "Usamos Stripe para facturación, SendGrid para correo transaccional, Google OAuth para autenticación (opcional) y HubSpot para integración CRM (opt-in). Cada uno tiene su propia política de privacidad."
+            "body": "Usamos Stripe para facturación web; Apple App Store y Google Play para facturación de tienda; Expo para entregar notificaciones push; SendGrid para correo transaccional; Google OAuth para autenticación opcional y HubSpot para CRM con opt-in. Sentry puede recibir eventos de fallos, trazas y diagnóstico de sesión. Cada proveedor trata datos según sus propios términos y ajustes."
           },
           {
             "title": "Tus derechos",
-            "body": "Tienes derecho a acceder, exportar y eliminar tus datos en cualquier momento. Para ejercer estos derechos, contáctanos en privacy@braavolabs.com. Responderemos en un plazo de 30 días."
+            "body": "Puedes solicitar acceso, exportación, corrección o eliminación escribiendo a privacy@braavolabs.com. La eliminación de cuenta sigue el comportamiento de membresía del tenant descrito arriba; cancelar una suscripción de Stripe, Apple App Store o Google Play es una acción separada. Responderemos en 30 días."
           },
           {
             "title": "Seguridad",
@@ -1207,11 +1207,11 @@
           },
           {
             "title": "4. Suscripciones planificadas",
-            "body": "Individual está planificado a $19/mes y Team a $39/usuario activo/mes. Las suscripciones no se pueden comprar actualmente y la inferencia no está incluida."
+            "body": "Individual está planificado a $19/mes y Team a $39/usuario activo/mes. El checkout web no está disponible actualmente y la inferencia no está incluida. Una oferta dentro de la app se muestra y vende mediante la ficha aplicable de Apple App Store o Google Play."
           },
           {
             "title": "5. Planes de Pago",
-            "body": "Las suscripciones de pago se facturan mensualmente vía Stripe. Puedes cancelar en cualquier momento; la cancelación tiene efecto al final del período de facturación actual. No se emiten reembolsos por meses parciales."
+            "body": "Las suscripciones web se facturan mediante Stripe. Las suscripciones dentro de la app las factura Apple mediante App Store o Google mediante Google Play y se rigen por las reglas de facturación, cancelación y reembolso de esa tienda. Gestiona o cancela en el canal donde te suscribiste. La cancelación no elimina por sí sola tu cuenta ni los datos del espacio del tenant."
           },
           {
             "title": "6. Propiedad de los Datos",

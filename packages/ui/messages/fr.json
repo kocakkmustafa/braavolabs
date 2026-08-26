@@ -1157,23 +1157,23 @@
         "sections": [
           {
             "title": "Données que nous collectons",
-            "body": "Nous recueillons les informations que vous fournissez lors de la création d'un compte (nom, email, nom de l'organisation) et les données générées par votre utilisation de la plateforme (descriptions d'entreprises, configurations d'agents, journaux de pipelines, métriques d'usage). Nous ne recueillons pas directement les détails de paiement — les paiements sont traités par Stripe."
+            "body": "Nous recueillons les données du compte (nom, email, organisation), le contenu de l'espace de travail lié au tenant (prompts, entrées et sorties d'agents et de pipelines, enregistrements d'exécution, messages de pilotage, signalements et activité d'usage) et les données d'appareil nécessaires aux notifications (push token, plateforme, nom de l'appareil et version du système). Pour les abonnements Apple App Store ou Google Play, nous conservons le produit, le jeton de transaction ou d'achat, le reçu, le statut et les dates. Nous ne recevons pas les données brutes de carte ; Stripe traite la facturation web."
           },
           {
             "title": "Comment nous utilisons vos données",
-            "body": "Vos données servent uniquement à exploiter la plateforme Braavolabs : exécuter vos agents, stocker votre historique de pipelines et générer des analyses. Nous ne vendons pas, ne partageons pas et n'utilisons pas vos données pour entraîner des modèles IA. Les données de chaque tenant sont strictement isolées."
+            "body": "Nous traitons les données du compte et de l'espace de travail lié au tenant pour fournir les fonctions demandées, exécuter les workflows, conserver l'historique, mesurer l'usage, gérer les droits et assurer les opérations du compte. Le contenu peut être envoyé aux fournisseurs d'IA que vous sélectionnez ou connectez pour un workflow demandé ; leur traitement dépend de leurs conditions et réglages applicables."
           },
           {
             "title": "Stockage des données",
-            "body": "Toutes les données sont stockées dans des bases PostgreSQL chiffrées. Les journaux d'audit et d'activité sont conservés 12 mois par défaut. Vous pouvez demander la suppression de votre compte et de toutes les données associées à tout moment."
+            "body": "Les enregistrements de compte et d'appareil restent liés à l'utilisateur, tandis que ceux de l'espace de travail, de l'activité et des abonnements restent liés au tenant, sans durée fixe de conservation publiée. Supprimer votre compte retire votre enregistrement utilisateur. Si vous êtes le dernier membre du tenant, les enregistrements de l'espace sont supprimés via cette relation ; si d'autres membres restent, le contenu de l'espace de travail, l'activité et les abonnements de boutique restent avec ce tenant. Le retrait du push token à la déconnexion est effectué au mieux ; la suppression du compte retire les appareils encore liés à l'utilisateur."
           },
           {
             "title": "Services tiers",
-            "body": "Nous utilisons Stripe pour la facturation, SendGrid pour les e-mails transactionnels, Google OAuth pour l'authentification (optionnel) et HubSpot pour l'intégration CRM (opt-in). Chacun a sa propre politique de confidentialité."
+            "body": "Nous utilisons Stripe pour la facturation web, Apple App Store et Google Play pour la facturation en boutique, Expo pour la livraison push, SendGrid pour les e-mails transactionnels, Google OAuth pour l'authentification optionnelle et HubSpot pour le CRM avec opt-in. Sentry peut recevoir des événements de crash, de trace et de diagnostic de session. Chaque fournisseur traite les données selon ses propres conditions et réglages."
           },
           {
             "title": "Vos droits",
-            "body": "Vous avez le droit d'accéder, d'exporter et de supprimer vos données à tout moment. Pour exercer ces droits, contactez-nous à privacy@braavolabs.com. Nous répondrons sous 30 jours."
+            "body": "Vous pouvez demander l'accès, l'export, la correction ou la suppression à privacy@braavolabs.com. La suppression du compte suit le comportement d'adhésion au tenant décrit ci-dessus ; annuler un abonnement Stripe, Apple App Store ou Google Play est une action distincte. Nous répondrons sous 30 jours."
           },
           {
             "title": "Sécurité",
@@ -1207,11 +1207,11 @@
           },
           {
             "title": "4. Abonnements prévus",
-            "body": "Individual est prévu à $19/mois et Team à $39/utilisateur actif/mois. Les abonnements ne sont pas disponibles à l'achat et l'inférence n'est pas incluse."
+            "body": "Individual est prévu à $19/mois et Team à $39/utilisateur actif/mois. Le checkout web n'est pas disponible actuellement et l'inférence n'est pas incluse. Toute offre intégrée à l'app est affichée et vendue via la fiche Apple App Store ou Google Play applicable."
           },
           {
             "title": "5. Forfaits Payants",
-            "body": "Les abonnements payants sont facturés mensuellement via Stripe. Vous pouvez annuler à tout moment ; l'annulation prend effet à la fin de la période de facturation en cours. Aucun remboursement n'est émis pour les mois partiels."
+            "body": "Les abonnements web sont facturés par Stripe. Les abonnements intégrés à l'app sont facturés par Apple via l'App Store ou par Google via Google Play et suivent les règles de facturation, d'annulation et de remboursement de cette boutique. Gérez ou annulez dans le canal où vous vous êtes abonné. L'annulation ne supprime pas à elle seule votre compte ni les données de l'espace du tenant."
           },
           {
             "title": "6. Propriété des Données",

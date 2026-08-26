@@ -1157,23 +1157,23 @@
         "sections": [
           {
             "title": "Topladığımız Veriler",
-            "body": "Hesap oluştururken sağladığın bilgileri (ad, e-posta, organizasyon adı) ve platformu kullanırken üretilen verileri (şirket açıklamaları, ajan yapılandırmaları, pipeline çalıştırma kayıtları, kullanım metrikleri) topluyoruz. Ödeme bilgilerini doğrudan toplamayız — ödemeler Stripe tarafından işlenir."
+            "body": "Hesap bilgilerini (ad, e-posta, organizasyon adı), tenant'a bağlı çalışma alanı içeriğini (promptlar, ajan ve pipeline girdileri, çıktılar, çalıştırma kayıtları, yönlendirme mesajları, raporlar ve kullanım etkinliği) ve bildirimler için kullanılan cihaz bilgilerini (push token, platform, cihaz adı ve işletim sistemi sürümü) topluyoruz. Apple App Store veya Google Play abonelikleri için ürün, işlem ya da satın alma tokenı, makbuz, durum ve abonelik tarihlerini saklarız. Ham kart bilgilerini almayız; web faturalaması Stripe tarafından işlenir."
           },
           {
             "title": "Verini Nasıl Kullanıyoruz",
-            "body": "Verin yalnızca Braavolabs platformunu işletmek için kullanılır: ajanlarını çalıştırmak, pipeline geçmişini saklamak ve analitik üretmek. Verini satmıyor, paylaşmıyor veya AI modellerini eğitmek için kullanmıyoruz. Her tenant'ın verisi sıkı şekilde izole edilir."
+            "body": "Hesap ve tenant'a bağlı çalışma alanı verilerini istenen platform özelliklerini sunmak, iş akışlarını çalıştırmak, çalışma alanı ve çalıştırma geçmişini korumak, kullanımı ölçmek, yetkileri yönetmek ve hesap işlemlerini desteklemek için işleriz. İçerik, istenen bir iş akışı için seçtiğin veya bağladığın AI sağlayıcılarına gönderilebilir; sağlayıcının işlemesi kendi şartlarına ve ayarlarına tabidir."
           },
           {
             "title": "Veri Saklama",
-            "body": "Tüm veriler şifrelenmiş PostgreSQL veritabanlarında saklanır. Denetim kayıtları ve aktivite kayıtları varsayılan olarak 12 ay tutulur. Hesabının ve ilişkili tüm verilerinin silinmesini istediğin an talep edebilirsin."
+            "body": "Hesap ve cihaz kayıtları kullanıcıya; çalışma alanı, etkinlik ve abonelik kayıtları tenant'a bağlı kalır ve bunlar için yayımlanmış sabit bir saklama süresi yoktur. Kullanıcı hesabını silmek kullanıcı kaydını kaldırır. Tenant'ın son üyesiysen tenant çalışma alanı kayıtları hesap ilişkisi üzerinden silinir; diğer üyeler kalırsa çalışma alanı içeriği, etkinlik ve mağaza abonelik kayıtları o tenant ile kalır. Çıkışta bildirim tokenını kaldırma en iyi çabayla yapılır; hesap silme kalan kullanıcıya bağlı cihazları kaldırır."
           },
           {
             "title": "Üçüncü Taraf Hizmetler",
-            "body": "Faturalama için Stripe, transactional e-posta için SendGrid, kimlik doğrulama için Google OAuth (opsiyonel) ve CRM entegrasyonu için HubSpot (opt-in) kullanıyoruz. Her birinin kendi gizlilik politikası vardır."
+            "body": "Web faturalaması için Stripe; mağaza faturalaması için Apple App Store ve Google Play; push iletimi için Expo; işlemsel e-posta için SendGrid; isteğe bağlı kimlik doğrulama için Google OAuth ve opt-in CRM entegrasyonu için HubSpot kullanıyoruz. Sentry çökme, trace ve oturum tanılama olaylarını alabilir. Her sağlayıcı veriyi kendi şartları ve ayarları kapsamında işler."
           },
           {
             "title": "Hakların",
-            "body": "Verine erişme, dışa aktarma ve silme hakkın istediğin zaman vardır. Bu hakları kullanmak için privacy@braavolabs.com adresinden bize yaz. 30 gün içinde yanıtlarız."
+            "body": "Erişim, dışa aktarma, düzeltme veya silme talebi için privacy@braavolabs.com adresinden bize yazabilirsin. Hesap silme yukarıdaki tenant üyeliği davranışını izler; Stripe, Apple App Store veya Google Play aboneliğini iptal etmek ayrı bir işlemdir. 30 gün içinde yanıtlarız."
           },
           {
             "title": "Güvenlik",
@@ -1207,11 +1207,11 @@
           },
           {
             "title": "4. Planlanan abonelikler",
-            "body": "Individual $19/ay, Team $39/aktif kullanıcı/ay olarak planlanmıştır. Abonelikler şu anda satın alınamaz ve çıkarım dahil değildir."
+            "body": "Individual $19/ay, Team $39/aktif kullanıcı/ay olarak planlanmıştır. Web checkout şu anda açık değildir ve çıkarım dahil değildir. Uygulama içi bir teklif varsa ilgili Apple App Store veya Google Play listesi üzerinden gösterilir ve satılır."
           },
           {
             "title": "5. Ücretli Planlar",
-            "body": "Ücretli abonelikler Stripe üzerinden aylık faturalanır. İstediğin an iptal edebilirsin; iptal mevcut faturalama döneminin sonunda etkili olur. Kısmi aylar için iade yapılmaz."
+            "body": "Web abonelikleri Stripe üzerinden faturalanır. Uygulama içi abonelikler Apple tarafından App Store veya Google tarafından Google Play üzerinden faturalanır ve ilgili mağazanın faturalama, iptal ve iade kurallarına tabidir. Aboneliği satın aldığın kanalda yönet veya iptal et. İptal, hesabını ya da tenant çalışma alanı verilerini kendiliğinden silmez."
           },
           {
             "title": "6. Veri Sahipliği",

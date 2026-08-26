@@ -1157,23 +1157,23 @@
         "sections": [
           {
             "title": "Daten, die wir erheben",
-            "body": "Wir erfassen die Informationen, die du bei der Kontoerstellung angibst (Name, E-Mail, Organisationsname) sowie Daten, die durch deine Nutzung der Plattform entstehen (Unternehmensbeschreibungen, Agenten-Konfigurationen, Pipeline-Run-Logs, Nutzungsmetriken). Zahlungsdetails erfassen wir nicht direkt — Zahlungen werden von Stripe abgewickelt."
+            "body": "Wir erfassen Kontodaten (Name, E-Mail, Organisationsname), tenantgebundene Workspace-Inhalte (Prompts, Ein- und Ausgaben von Agenten und Pipelines, Run-Datensätze, Steuerungsnachrichten, Meldungen und Nutzungsaktivität) sowie Gerätedaten für Benachrichtigungen (Push-Token, Plattform, Gerätename und Betriebssystemversion). Für Abonnements im Apple App Store oder bei Google Play speichern wir Produkt, Transaktions- oder Kauf-Token, Beleg, Status und Abonnementdaten. Rohe Kartendaten erhalten wir nicht; die Web-Abrechnung erfolgt über Stripe."
           },
           {
             "title": "Wie wir deine Daten nutzen",
-            "body": "Deine Daten werden ausschließlich zum Betrieb der Braavolabs-Plattform genutzt: zum Ausführen deiner Agenten, zum Speichern deiner Pipeline-Historie und zur Analyse-Erzeugung. Wir verkaufen, teilen oder nutzen deine Daten nicht zum Training von KI-Modellen. Die Daten jedes Tenants sind strikt isoliert."
+            "body": "Wir verarbeiten Konto- und tenantgebundene Workspace-Daten, um angeforderte Plattformfunktionen bereitzustellen, Workflows auszuführen, Workspace- und Run-Verläufe zu erhalten, Nutzung zu messen, Berechtigungen zu verwalten und Kontovorgänge zu unterstützen. Inhalte können für einen angeforderten Workflow an von dir ausgewählte oder verbundene KI-Anbieter gesendet werden; deren Verarbeitung richtet sich nach den geltenden Anbieterbedingungen und Einstellungen."
           },
           {
             "title": "Datenspeicherung",
-            "body": "Alle Daten werden in verschlüsselten PostgreSQL-Datenbanken gespeichert. Audit-Logs und Aktivitätsaufzeichnungen werden standardmäßig 12 Monate aufbewahrt. Du kannst jederzeit die Löschung deines Kontos und aller zugehörigen Daten verlangen."
+            "body": "Konto- und Gerätedatensätze bleiben an den Nutzer gebunden, Workspace-, Aktivitäts- und Abonnementdatensätze an den Tenant; eine feste Aufbewahrungsfrist ist nicht veröffentlicht. Beim Löschen deines Kontos wird dein Nutzerdatensatz entfernt. Bist du das letzte Mitglied des Tenants, werden die Tenant-Workspace-Datensätze über die Kontobeziehung gelöscht; bleiben andere Mitglieder, verbleiben Workspace-Inhalte, Aktivität und Store-Abonnementdatensätze bei diesem Tenant. Das Entfernen des Push-Tokens beim Abmelden erfolgt nach bestem Bemühen; die Kontolöschung entfernt verbleibende nutzergebundene Geräte."
           },
           {
             "title": "Drittanbieter-Dienste",
-            "body": "Wir nutzen Stripe für die Abrechnung, SendGrid für transaktionale E-Mails, Google OAuth für die Authentifizierung (optional) und HubSpot für CRM-Integration (opt-in). Jeder dieser Dienste hat seine eigene Datenschutzerklärung."
+            "body": "Wir nutzen Stripe für Web-Abrechnung, Apple App Store und Google Play für Store-Abrechnung, Expo für Push-Zustellung, SendGrid für transaktionale E-Mails, Google OAuth für optionale Authentifizierung und HubSpot für eine Opt-in-CRM-Integration. Sentry kann Absturz-, Trace- und Sitzungsdiagnoseereignisse erhalten. Jeder Anbieter verarbeitet Daten nach seinen eigenen Bedingungen und Einstellungen."
           },
           {
             "title": "Deine Rechte",
-            "body": "Du hast jederzeit das Recht, auf deine Daten zuzugreifen, sie zu exportieren und zu löschen. Um diese Rechte auszuüben, schreibe uns an privacy@braavolabs.com. Wir antworten innerhalb von 30 Tagen."
+            "body": "Du kannst unter privacy@braavolabs.com Zugriff, Export, Berichtigung oder Löschung beantragen. Die Kontolöschung folgt dem oben beschriebenen Tenant-Mitgliedschaftsverhalten; die Kündigung eines Stripe-, Apple-App-Store- oder Google-Play-Abonnements ist ein separater Vorgang. Wir antworten innerhalb von 30 Tagen."
           },
           {
             "title": "Sicherheit",
@@ -1207,11 +1207,11 @@
           },
           {
             "title": "4. Geplante Abonnements",
-            "body": "Individual ist mit $19/Monat und Team mit $39/aktivem Nutzer/Monat geplant. Abonnements sind derzeit nicht kaufbar und Inferenz ist nicht enthalten."
+            "body": "Individual ist mit $19/Monat und Team mit $39/aktivem Nutzer/Monat geplant. Web-Checkout ist derzeit nicht verfügbar und Inferenz ist nicht enthalten. Ein In-App-Angebot wird über den jeweiligen Eintrag im Apple App Store oder bei Google Play angezeigt und verkauft."
           },
           {
             "title": "5. Bezahlte Pläne",
-            "body": "Bezahlte Abonnements werden monatlich über Stripe abgerechnet. Du kannst jederzeit kündigen; die Kündigung wird zum Ende des aktuellen Abrechnungszeitraums wirksam. Es gibt keine Rückerstattungen für Teilmonate."
+            "body": "Web-Abonnements werden über Stripe abgerechnet. In-App-Abonnements werden von Apple über den App Store oder von Google über Google Play abgerechnet und unterliegen den Abrechnungs-, Kündigungs- und Erstattungsregeln des jeweiligen Stores. Verwalte oder kündige im Kanal, in dem du abonniert hast. Eine Kündigung löscht nicht automatisch dein Konto oder die Workspace-Daten des Tenants."
           },
           {
             "title": "6. Dateneigentum",
