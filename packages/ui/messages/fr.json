@@ -1475,11 +1475,11 @@
       },
       {
         "q": "Puis-je annuler à tout moment ?",
-        "a": "Oui. Annulez depuis votre page de facturation à tout moment — pas de pénalité, pas de lock-in. Conservez l'accès jusqu'à la fin de votre période."
+        "a": "Gérez les abonnements web Stripe dans les réglages de facturation web. Gérez ou annulez les abonnements Apple App Store ou Google Play dans cette boutique ; la facturation, l'annulation, l'accès et les remboursements suivent les règles du canal applicable."
       },
       {
         "q": "Mes données sont-elles privées ?",
-        "a": "Oui. Chaque locataire est totalement isolé. Nous ne partageons ni n'entraînons jamais sur les données de votre espace de travail."
+        "a": "Le contenu de l'espace de travail est lié au tenant dans Braavolabs. Il peut être envoyé aux fournisseurs d'IA que vous sélectionnez ou connectez pour les workflows demandés. Leur traitement suit les conditions et réglages applicables du fournisseur."
       }
     ]
   },

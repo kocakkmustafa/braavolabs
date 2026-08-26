@@ -1475,11 +1475,11 @@
       },
       {
         "q": "¿Puedo cancelar en cualquier momento?",
-        "a": "Sí. Cancela desde tu página de facturación en cualquier momento — sin penalización, sin lock-in. Mantén el acceso hasta que termine tu periodo."
+        "a": "Gestiona las suscripciones web de Stripe en los ajustes de facturación web. Gestiona o cancela las suscripciones de Apple App Store o Google Play en esa tienda; la facturación, cancelación, acceso y reembolsos siguen las reglas del canal aplicable."
       },
       {
         "q": "¿Mis datos son privados?",
-        "a": "Sí. Cada inquilino está totalmente aislado. Nunca compartimos ni entrenamos con los datos de tu espacio de trabajo."
+        "a": "El contenido del espacio de trabajo está vinculado al tenant en Braavolabs. El contenido puede enviarse a los proveedores de IA que selecciones o conectes para los flujos solicitados. Su tratamiento sigue los términos y ajustes aplicables del proveedor."
       }
     ]
   },

@@ -1475,11 +1475,11 @@
       },
       {
         "q": "İstediğim zaman iptal edebilir miyim?",
-        "a": "Evet. Faturalandırma sayfandan istediğin zaman iptal edebilirsin — ceza yok, kilit yok. Dönem sonuna kadar erişimini koru."
+        "a": "Stripe web aboneliklerini web faturalama ayarlarında yönet. Apple App Store veya Google Play aboneliklerini ilgili mağazada yönet ya da iptal et; faturalama, iptal, erişim ve iadeler ilgili kanalın kurallarına tabidir."
       },
       {
         "q": "Verilerim güvende mi?",
-        "a": "Evet. Her kiracı tamamen izole. Çalışma alanı verilerinizi asla paylaşmaz veya üzerinde eğitim yapmayız."
+        "a": "Çalışma alanı içeriği Braavolabs içinde tenant'a bağlıdır. İçerik, istediğin iş akışları için seçtiğin veya bağladığın AI sağlayıcılarına gönderilebilir. Sağlayıcının işlemesi ilgili sağlayıcı şartlarına ve ayarlarına tabidir."
       }
     ]
   },

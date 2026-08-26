@@ -1475,11 +1475,11 @@
       },
       {
         "q": "Can I cancel anytime?",
-        "a": "Yes. Cancel from your billing page at any time — no penalty, no lock-in. Keep access until your period ends."
+        "a": "Manage Stripe web subscriptions in web billing settings. Manage Apple App Store or Google Play subscriptions in that store; billing, cancellation, access, and refunds follow the applicable channel's rules."
       },
       {
         "q": "Is my data private?",
-        "a": "Yes. Each tenant is fully isolated. We never share or train on your workspace data."
+        "a": "Workspace content is tenant-bound in Braavolabs. Content may be sent to AI providers you select or connect for requested workflows. Provider handling follows the applicable provider terms and settings."
       }
     ]
   },

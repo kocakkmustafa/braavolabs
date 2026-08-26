@@ -1475,11 +1475,11 @@
       },
       {
         "q": "Kann ich jederzeit kündigen?",
-        "a": "Ja. Kündige jederzeit über deine Billing-Seite — keine Strafe, kein Lock-in. Behalte den Zugang bis zum Periodenende."
+        "a": "Verwalte Stripe-Web-Abonnements in den Web-Abrechnungseinstellungen. Verwalte oder kündige Abonnements aus dem Apple App Store oder von Google Play im jeweiligen Store; Abrechnung, Kündigung, Zugang und Erstattungen richten sich nach den Regeln des jeweiligen Kanals."
       },
       {
         "q": "Sind meine Daten privat?",
-        "a": "Ja. Jeder Mandant ist vollständig isoliert. Wir teilen deine Arbeitsbereich-Daten nie und trainieren nicht damit."
+        "a": "Workspace-Inhalte sind in Braavolabs an den Tenant gebunden. Inhalte können für angeforderte Workflows an von dir ausgewählte oder verbundene KI-Anbieter gesendet werden. Die Verarbeitung richtet sich nach den geltenden Bedingungen und Einstellungen des Anbieters."
       }
     ]
   },

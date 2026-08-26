@@ -396,34 +396,45 @@ test("localized privacy and terms match platform data and billing truth", () => 
     const messages = JSON.parse(read(`packages/ui/messages/${locale}.json`));
     const privacy = messages.static?.legal?.privacy;
     const terms = messages.static?.legal?.terms;
+    const pricingFaq = messages.pricing?.faq;
     assert.equal(privacy?.sections?.length, 8, `${locale}: privacy structure drift`);
     assert.equal(terms?.sections?.length, 10, `${locale}: terms structure drift`);
+    assert.ok(Array.isArray(pricingFaq), `${locale}: pricing FAQ structure drift`);
 
     const privacyCopy = privacy.sections.map(({ body }) => body).join("\n");
     const termsCopy = terms.sections.map(({ body }) => body).join("\n");
+    const faqCopy = pricingFaq.map(({ a }) => a).join("\n");
     for (const vendor of ["Stripe", "Apple App Store", "Google Play", "Expo", "Sentry"]) {
       assert.match(privacyCopy, new RegExp(vendor), `${locale}: privacy omits ${vendor}`);
     }
     for (const vendor of ["Stripe", "Apple App Store", "Google Play"]) {
       assert.match(termsCopy, new RegExp(vendor), `${locale}: terms omit ${vendor} billing`);
+      assert.match(faqCopy, new RegExp(vendor), `${locale}: FAQ omits ${vendor} subscription management`);
     }
     for (const phrase of deletionParity[locale]) {
       assert.ok(privacyCopy.includes(phrase), `${locale}: tenant-bound deletion truth omits ${phrase}`);
     }
     for (const pattern of unsupportedLegalClaims) {
       assert.doesNotMatch(privacyCopy, pattern, `${locale}: unsupported privacy promise remains`);
+      assert.doesNotMatch(faqCopy, pattern, `${locale}: unsupported FAQ promise remains`);
     }
+    assert.doesNotMatch(faqCopy, /(?:never|asla|jamás|nie|jamais|أبدًا)[^.]{0,100}(?:share|paylaş|compart|teil|partag|نشارك)/i);
   }
 
   const english = JSON.parse(read("packages/ui/messages/en.json"));
   const englishPrivacy = english.static.legal.privacy.sections.map(({ body }) => body).join("\n");
   const englishTerms = english.static.legal.terms.sections.map(({ body }) => body).join("\n");
+  const englishFaq = english.pricing.faq.map(({ a }) => a).join("\n");
   assert.match(englishPrivacy, /push token, platform, device name, and OS version/);
   assert.match(englishPrivacy, /product, transaction or purchase token, receipt, status, and subscription dates/);
   assert.match(englishPrivacy, /Sentry may receive crash, trace, and session diagnostic events/);
   assert.match(englishTerms, /Web subscriptions are billed through Stripe/);
   assert.match(englishTerms, /In-app subscriptions are billed by Apple through the App Store or by Google through Google Play/);
   assert.match(englishTerms, /Cancellation does not itself delete your account or tenant workspace data/);
+  assert.match(englishFaq, /Manage Stripe web subscriptions in web billing settings/);
+  assert.match(englishFaq, /Manage Apple App Store or Google Play subscriptions in that store/);
+  assert.match(englishFaq, /Content may be sent to AI providers you select or connect for requested workflows/);
+  assert.match(englishFaq, /Provider handling follows the applicable provider terms and settings/);
 });
 
 test("GDPR transfer copy cannot name unevidenced processors or legal mechanisms", () => {
