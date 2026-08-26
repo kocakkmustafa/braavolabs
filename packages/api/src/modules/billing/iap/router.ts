@@ -36,6 +36,11 @@ import { verifyAppleReceipt, parseAppleNotification } from "./apple";
 import { verifyGoogleReceipt, parseGoogleRtdnEnvelope, verifyPubSubPushToken } from "./google";
 import { recordEntitlementEvent } from "../entitlement-ledger.service";
 import { mapIapVerify, mapAppleNotify, mapGoogleNotify, type PlanTier } from "../entitlement-mapping";
+import {
+  getIapProduct,
+  internalPlanForProduct,
+  verificationResponseTier,
+} from "./catalog";
 import crypto from "node:crypto";
 
 export const iapRouter = Router();
@@ -80,36 +85,17 @@ const verifySchema = z.object({
   appUserId: z.string().max(200).optional(),
 });
 
-/**
- * Map Apple/Google product identifiers to internal plan tiers. Operators
- * keep this list in sync with the products configured in App Store
- * Connect / Play Console — see docs/manual-tasks.md.
- *
- * The same productId is used for monthly + yearly variants — the tier
- * the user gets is identical, only the billing cadence differs and
- * Apple/Google handle that internally.
- */
-const PRODUCT_TIER_MAP: Record<string, "CREATOR" | "BUSINESS" | "PRO" | "ENTERPRISE"> = {
-  "com.braavolabs.creator.monthly":    "CREATOR",
-  "com.braavolabs.creator.yearly":     "CREATOR",
-  "com.braavolabs.business.monthly":   "BUSINESS",
-  "com.braavolabs.business.yearly":    "BUSINESS",
-  "com.braavolabs.pro.monthly":        "PRO",
-  "com.braavolabs.pro.yearly":         "PRO",
-  "com.braavolabs.enterprise.monthly": "ENTERPRISE",
-  "com.braavolabs.enterprise.yearly":  "ENTERPRISE",
-};
-
 // POST /api/v1/billing/iap/verify — verify a mobile receipt
 iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, next) => {
   try {
     const body = verifySchema.parse(req.body);
     const tenantId = req.auth!.tenantId;
 
-    const planTier = PRODUCT_TIER_MAP[body.productId];
-    if (!planTier) {
+    const catalogProduct = getIapProduct(body.productId);
+    if (!catalogProduct) {
       throw new AppError(400, `Unknown productId: ${body.productId}`);
     }
+    const planTier = catalogProduct.internalPlan;
 
     // Verify with the relevant provider. Failures here are treated as
     // payment-not-confirmed — we never grant entitlement on an
@@ -224,7 +210,7 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
 
     res.json({
       success: true,
-      planTier,
+      planTier: verificationResponseTier(catalogProduct),
       status: verified.status,
       expiresAt: verified.expiresAt,
     });
@@ -251,9 +237,15 @@ iapRouter.get("/entitlement", authMiddleware, iapEntitlementRateLimit, async (re
       orderBy: { expiresAt: "desc" },
     });
 
+    const catalogProduct = subscription
+      ? getIapProduct(subscription.productId)
+      : undefined;
+
     res.json({
       hasActiveMobileSubscription: !!subscription,
-      planTier: subscription?.planTier ?? null,
+      planTier: catalogProduct
+        ? verificationResponseTier(catalogProduct)
+        : subscription?.planTier ?? null,
       expiresAt: subscription?.expiresAt ?? null,
       provider: subscription?.provider ?? null,
       autoRenew: subscription?.autoRenew ?? null,
@@ -353,8 +345,9 @@ iapRouter.post("/apple/notify", systemScope("webhook:iap-apple"), iapWebhookRate
       // (possibly stale) DB value only if the productId isn't in the
       // catalog, so an operator forgetting to register a new SKU fails
       // soft instead of dropping the event's planTier to undefined.
-      const freshTier = PRODUCT_TIER_MAP[note.productId] ?? (updated.planTier as PlanTier);
-      if (!PRODUCT_TIER_MAP[note.productId]) {
+      const catalogTier = internalPlanForProduct(note.productId);
+      const freshTier = catalogTier ?? (updated.planTier as PlanTier);
+      if (!catalogTier) {
         logger.warn({ productId: note.productId, tenantId: updated.tenantId }, "Apple notify: unknown productId, falling back to stored planTier");
       }
       await recordEntitlementEvent({
@@ -456,8 +449,9 @@ iapRouter.post("/google/notify", systemScope("webhook:iap-google"), iapWebhookRa
       // tier from this notification's own subscriptionId rather than
       // trusting `updated.planTier`, falling back to the DB value only
       // for an unrecognized SKU.
-      const freshTier = PRODUCT_TIER_MAP[parsed.subscriptionId] ?? (updated.planTier as PlanTier);
-      if (!PRODUCT_TIER_MAP[parsed.subscriptionId]) {
+      const catalogTier = internalPlanForProduct(parsed.subscriptionId);
+      const freshTier = catalogTier ?? (updated.planTier as PlanTier);
+      if (!catalogTier) {
         logger.warn({ subscriptionId: parsed.subscriptionId, tenantId: updated.tenantId }, "Google RTDN: unknown subscriptionId, falling back to stored planTier");
       }
       await recordEntitlementEvent({
