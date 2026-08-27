@@ -95,6 +95,11 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
     if (!catalogProduct) {
       throw new AppError(400, `Unknown productId: ${body.productId}`);
     }
+    if (catalogProduct.sale === "manual-review") {
+      throw new AppError(409, "This product requires manual review.", {
+        reason: "manual-review-required",
+      });
+    }
     const planTier = catalogProduct.internalPlan;
 
     // Verify with the relevant provider. Failures here are treated as

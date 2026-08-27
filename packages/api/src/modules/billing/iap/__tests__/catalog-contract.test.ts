@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   mobileSubscriptionFindFirst: vi.fn(),
   mobileSubscriptionUpdate: vi.fn(),
   activityLogCreate: vi.fn(),
+  transaction: vi.fn(),
 }));
 
 vi.mock("../../../../middleware/auth", () => ({
@@ -37,6 +38,7 @@ vi.mock("../../../../lib/db", () => ({
       update: mocks.mobileSubscriptionUpdate,
     },
     activityLog: { create: mocks.activityLogCreate },
+    $transaction: mocks.transaction,
   },
 }));
 vi.mock("../../../../lib/logger", () => ({
@@ -76,7 +78,10 @@ beforeAll(async () => {
   app.use(express.json());
   app.use("/api/v1/billing/iap", iapRouter);
   app.use((err: any, _req: unknown, res: any, _next: unknown) => {
-    res.status(err?.statusCode ?? 500).json({ error: err?.message ?? "error" });
+    res.status(err?.statusCode ?? 500).json({
+      error: err?.message ?? "error",
+      ...(err?.details === undefined ? {} : { details: err.details }),
+    });
   });
 
   server = http.createServer(app);
@@ -111,6 +116,18 @@ async function postVerify(provider: "apple" | "google", productId: string) {
 async function getEntitlement() {
   const response = await fetch(`${baseUrl}/api/v1/billing/iap/entitlement`);
   return { status: response.status, body: await response.json() as Record<string, unknown> };
+}
+
+function expectNoManualReviewSideEffects() {
+  expect(mocks.verifyAppleReceipt).not.toHaveBeenCalled();
+  expect(mocks.verifyGoogleReceipt).not.toHaveBeenCalled();
+  expect(mocks.mobileSubscriptionFindUnique).not.toHaveBeenCalled();
+  expect(mocks.mobileSubscriptionUpsert).not.toHaveBeenCalled();
+  expect(mocks.mobileSubscriptionFindFirst).not.toHaveBeenCalled();
+  expect(mocks.mobileSubscriptionUpdate).not.toHaveBeenCalled();
+  expect(mocks.transaction).not.toHaveBeenCalled();
+  expect(mocks.recordEntitlementEvent).not.toHaveBeenCalled();
+  expect(mocks.activityLogCreate).not.toHaveBeenCalled();
 }
 
 function verifiedReceipt(id: string) {
@@ -162,6 +179,25 @@ describe("canonical IAP catalog", () => {
 });
 
 describe("POST /billing/iap/verify catalog boundary", () => {
+  it.each([
+    ["apple", "com.braavolabs.business.monthly"],
+    ["google", "com.braavolabs.enterprise.monthly"],
+  ] as const)(
+    "rejects %s manual-review products before provider or persistence work",
+    async (provider, productId) => {
+      const result = await postVerify(provider, productId);
+
+      expect(result).toEqual({
+        status: 409,
+        body: {
+          error: "This product requires manual review.",
+          details: { reason: "manual-review-required" },
+        },
+      });
+      expectNoManualReviewSideEffects();
+    },
+  );
+
   it("rejects an unknown SKU before provider verification or entitlement mutation", async () => {
     const result = await postVerify("apple", "com.braavolabs.unknown.monthly");
 
