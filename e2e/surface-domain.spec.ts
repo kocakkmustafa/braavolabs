@@ -2,10 +2,65 @@ import net from "node:net";
 import { expect, test, type APIResponse } from "@playwright/test";
 import { POSTS } from "../packages/ui/app/blog/posts";
 import { DOCS } from "../packages/ui/app/docs/content";
-import { classifySurfacePath } from "../packages/ui/lib/surface-domain";
+import {
+  classifySurfacePath,
+  normalizeSurfaceHost,
+  parseSelfHostedApiCspSources,
+  parseSelfHostedSurfaceHosts,
+} from "../packages/ui/lib/surface-domain";
 
 const WWW = { Host: "www.braavolabs.com", "X-Forwarded-Proto": "https" };
 const APP = { Host: "app.braavolabs.com", "X-Forwarded-Proto": "https" };
+const SELF_HOSTED = { Host: "operator.example", "X-Forwarded-Proto": "https" };
+const FORBIDDEN_SELF_HOSTED_IPS = [
+  "0.0.0.0",
+  "10.0.0.1",
+  "100.64.0.1",
+  "127.0.0.2",
+  "127.1",
+  "2130706433",
+  "0x7f000001",
+  "169.254.169.254",
+  "172.16.0.1",
+  "192.0.2.1",
+  "192.168.0.1",
+  "198.18.0.1",
+  "198.51.100.1",
+  "203.0.113.1",
+  "224.0.0.1",
+  "240.0.0.1",
+  "[::]",
+  "[::1]",
+  "[::ffff:127.0.0.1]",
+  "[::ffff:8.8.8.8]",
+  "[::ffff:808:808]",
+  "[100::1]",
+  "[2001:10::1]",
+  "[2001:db8::1]",
+  "[2002::1]",
+  "[3fff::1]",
+  "[fc00::1]",
+  "[fd00::1]",
+  "[fe80::1]",
+  "[ff02::1]",
+] as const;
+const PUBLIC_SELF_HOSTED_IPV6_HOSTS = [
+  "[2404:6800:4001::200e]",
+  "[2606:4700:4700::1111]",
+  "[2a00:1450:4001::200e]",
+] as const;
+const MALFORMED_BRACKETED_AUTHORITIES = [
+  "[abcd]",
+  "[1:2:3]",
+  "[2001:db8:::1]",
+  "[::::]",
+  "[12345::1]",
+  "[]",
+  "[hostname.example]",
+  "[2001:db8::1]junk",
+  "[2001:db8::1",
+  "2001:db8::1]",
+] as const;
 const LOCALES = ["ar", "de", "en", "es", "fr", "tr"] as const;
 const EXPECTED_PRICING_DESCRIPTION =
   "Planned pricing preview: Individual $19/month and Team $39/active-user/month. Not currently purchasable; inference is not included.";
@@ -107,6 +162,79 @@ const PUBLIC_ROUTES = [
   ...DOCS.map(({ slug }) => `/docs/${slug}`),
   ...POSTS.map(({ slug }) => `/blog/${slug}`),
 ];
+
+test("self-hosted host allowlist normalization is all-or-nothing", () => {
+  expect([...parseSelfHostedSurfaceHosts(undefined)]).toEqual([]);
+  expect([...parseSelfHostedSurfaceHosts("  ")]).toEqual([]);
+  expect([...parseSelfHostedSurfaceHosts("operator.example, TENANT.EXAMPLE,operator.example")]).toEqual([
+    "operator.example",
+    "tenant.example",
+  ]);
+  expect([...parseSelfHostedSurfaceHosts(PUBLIC_SELF_HOSTED_IPV6_HOSTS.join(","))]).toEqual(
+    PUBLIC_SELF_HOSTED_IPV6_HOSTS,
+  );
+
+  for (const malformed of MALFORMED_BRACKETED_AUTHORITIES) {
+    expect(normalizeSurfaceHost(malformed), malformed).toBe("");
+    expect([...parseSelfHostedSurfaceHosts(malformed)], malformed).toEqual([]);
+    expect([...parseSelfHostedSurfaceHosts(`operator.example,${malformed}`)], `mixed ${malformed}`).toEqual([]);
+  }
+
+  for (const malformed of [
+    "operator.example,user@evil.example",
+    "operator.example,,tenant.example",
+    "operator.example,https://tenant.example",
+    "operator.example,tenant.example/path",
+    "operator.example,tenant example",
+    "operator.example:65536",
+    "localhost",
+    "127.0.0.1",
+    "[::1]",
+    "braavolabs.com",
+    "www.braavolabs.com",
+    "app.braavolabs.com",
+    "api.braavolabs.com",
+    "operator.example,app.braavolabs.com",
+    ...FORBIDDEN_SELF_HOSTED_IPS,
+  ]) {
+    expect([...parseSelfHostedSurfaceHosts(malformed)], malformed).toEqual([]);
+  }
+});
+
+test("self-hosted API CSP sources accept one explicit operator origin only", () => {
+  expect(parseSelfHostedApiCspSources("/api/v1")).toEqual([]);
+  expect(parseSelfHostedApiCspSources("https://api.operator.example/api/v1")).toEqual([
+    "https://api.operator.example",
+    "wss://api.operator.example",
+  ]);
+  expect(parseSelfHostedApiCspSources("https://api.operator.example:8443/api/v1")).toEqual([
+    "https://api.operator.example:8443",
+    "wss://api.operator.example:8443",
+  ]);
+  for (const host of PUBLIC_SELF_HOSTED_IPV6_HOSTS) {
+    expect(parseSelfHostedApiCspSources(`https://${host}/api/v1`), host).toEqual([
+      `https://${host}`,
+      `wss://${host}`,
+    ]);
+  }
+
+  for (const unsafe of [
+    undefined,
+    "",
+    "//evil.example/api/v1",
+    "http://api.operator.example/api/v1",
+    "https://user:pass@api.operator.example/api/v1",
+    "https://api.operator.example/api/v1?redirect=https://evil.example",
+    "https://api.operator.example/api/v1#evil",
+    "https://api.braavolabs.com/api/v1",
+    "https://app.braavolabs.com/api/v1",
+    "https://localhost/api/v1",
+    ...MALFORMED_BRACKETED_AUTHORITIES.map((host) => `https://${host}/api/v1`),
+    ...FORBIDDEN_SELF_HOSTED_IPS.map((host) => `https://${host}/api/v1`),
+  ]) {
+    expect(parseSelfHostedApiCspSources(unsafe), String(unsafe)).toBeNull();
+  }
+});
 
 function canonicalForRoute(route: string): string {
   return route === "/" ? "https://www.braavolabs.com" : `https://www.braavolabs.com${route}`;
@@ -441,4 +569,87 @@ test("unrecognized production hosts fail closed before rendering", async ({ requ
   });
   expect(tenantResponse.status()).toBe(421);
   expect(await tenantResponse.text()).not.toMatch(/<main|<html|data-tenant/i);
+});
+
+test("configured malformed bracketed authority returns strict 421 before authenticated render", async ({ request }) => {
+  const response = await request.get("/companies", {
+    headers: { Host: "[abcd]", "X-Forwarded-Proto": "https" },
+    maxRedirects: 0,
+  });
+  await expectStrict421(response, "configured malformed bracketed authority");
+});
+
+test("configured self-hosted host serves public and authenticated paths on one operator host", async ({ request }) => {
+  const publicResponse = await request.get("/docs", { headers: SELF_HOSTED, maxRedirects: 0 });
+  expect(publicResponse.status()).toBe(200);
+  expect(publicResponse.headers()["x-braavolabs-surface"]).toBe("public");
+  expect(publicResponse.headers()["content-security-policy"]).toContain("form-action 'self'");
+  expect(publicResponse.headers()["content-security-policy"]).not.toContain("https://app.braavolabs.com");
+
+  const authenticatedResponse = await request.get("/companies", { headers: SELF_HOSTED, maxRedirects: 0 });
+  expect(authenticatedResponse.status()).toBe(200);
+  expect(authenticatedResponse.headers()["x-braavolabs-surface"]).toBe("authenticated");
+  expect(authenticatedResponse.headers()["content-security-policy"]).toContain("connect-src 'self'");
+  expect(authenticatedResponse.headers()["content-security-policy"]).toContain("https://api.operator.example");
+  expect(authenticatedResponse.headers()["content-security-policy"]).toContain("wss://api.operator.example");
+  expect(authenticatedResponse.headers()["content-security-policy"]).not.toContain("api.braavolabs.com");
+  expect(authenticatedResponse.headers()["set-cookie"] ?? "").not.toMatch(/bv_(?:access|refresh)_token/i);
+
+  const installerResponse = await request.get("/install", { headers: SELF_HOSTED, maxRedirects: 0 });
+  expect(installerResponse.status()).toBe(503);
+  expect(installerResponse.headers()["content-security-policy"]).toContain("form-action 'self'");
+  expect(installerResponse.headers()["content-security-policy"]).not.toContain("https://app.braavolabs.com");
+});
+
+test("configured self-hosted aliases and downloads stay on the operator host", async ({ request }) => {
+  for (const { path, location } of [
+    { path: "/destek?lang=tr", location: "https://operator.example/support?lang=tr" },
+    { path: "/legal/privacy", location: "https://operator.example/privacy" },
+    { path: "/download/desktop?source=nav", location: "https://operator.example/docs/getting-started?source=nav" },
+  ]) {
+    const response = await request.get(path, { headers: SELF_HOSTED, maxRedirects: 0 });
+    expect(response.status(), path).toBe(308);
+    expect(response.headers().location, path).toBe(location);
+    expect(response.headers().location, path).not.toMatch(/https:\/\/(?:www|app)\.braavolabs\.com/);
+  }
+});
+
+test("configured self-hosted host still requires matching forwarded host", async ({ request }) => {
+  const matching = await request.get("/companies", {
+    headers: { ...SELF_HOSTED, "X-Forwarded-Host": "OPERATOR.EXAMPLE:443" },
+    maxRedirects: 0,
+  });
+  expect(matching.status()).toBe(200);
+  expect(matching.headers()["x-braavolabs-surface"]).toBe("authenticated");
+
+  const spoofed = await request.get("/companies", {
+    headers: { ...SELF_HOSTED, "X-Forwarded-Host": "app.braavolabs.com" },
+    maxRedirects: 0,
+  });
+  await expectStrict421(spoofed, "configured self-host forwarded spoof");
+});
+
+test("configured self-hosted host requires exactly one normalized HTTPS forwarded proto", async ({ request }) => {
+  for (const { label, forwardedProto } of [
+    { label: "missing", forwardedProto: undefined },
+    { label: "http", forwardedProto: "http" },
+    { label: "ftp", forwardedProto: "ftp" },
+    { label: "comma chain", forwardedProto: "https,http" },
+    { label: "duplicate chain", forwardedProto: "https, https" },
+    { label: "ambiguous whitespace", forwardedProto: "https http" },
+  ] as const) {
+    const headers: Record<string, string> = { Host: SELF_HOSTED.Host };
+    if (forwardedProto !== undefined) headers["X-Forwarded-Proto"] = forwardedProto;
+    const response = await request.get("/companies", { headers, maxRedirects: 0 });
+    await expectStrict421(response, `configured self-host ${label} forwarded proto`);
+  }
+
+  for (const forwardedProto of ["https", " HTTPS "]) {
+    const response = await request.get("/companies", {
+      headers: { Host: SELF_HOSTED.Host, "X-Forwarded-Proto": forwardedProto },
+      maxRedirects: 0,
+    });
+    expect(response.status(), forwardedProto).toBe(200);
+    expect(response.headers()["x-braavolabs-surface"], forwardedProto).toBe("authenticated");
+  }
 });
