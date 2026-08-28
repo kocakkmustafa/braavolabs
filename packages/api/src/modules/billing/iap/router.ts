@@ -35,7 +35,7 @@ import { logger } from "../../../lib/logger";
 import { verifyAppleReceipt, parseAppleNotification } from "./apple";
 import { verifyGoogleReceipt, parseGoogleRtdnEnvelope, verifyPubSubPushToken } from "./google";
 import { recordEntitlementEvent } from "../entitlement-ledger.service";
-import { mapIapVerify, mapAppleNotify, mapGoogleNotify, type PlanTier } from "../entitlement-mapping";
+import { mapIapVerify, mapAppleNotify, mapGoogleNotify } from "../entitlement-mapping";
 import {
   getIapProduct,
   internalPlanForProduct,
@@ -246,11 +246,24 @@ iapRouter.get("/entitlement", authMiddleware, iapEntitlementRateLimit, async (re
       ? getIapProduct(subscription.productId)
       : undefined;
 
+    if (subscription && !catalogProduct) {
+      logger.warn(
+        { productId: subscription.productId, tenantId: req.auth!.tenantId },
+        "IAP entitlement row references unknown productId; withholding stale tier",
+      );
+      res.json({
+        hasActiveMobileSubscription: false,
+        planTier: null,
+        expiresAt: null,
+        provider: null,
+        autoRenew: null,
+      });
+      return;
+    }
+
     res.json({
       hasActiveMobileSubscription: !!subscription,
-      planTier: catalogProduct
-        ? verificationResponseTier(catalogProduct)
-        : subscription?.planTier ?? null,
+      planTier: catalogProduct ? verificationResponseTier(catalogProduct) : null,
       expiresAt: subscription?.expiresAt ?? null,
       provider: subscription?.provider ?? null,
       autoRenew: subscription?.autoRenew ?? null,
@@ -310,6 +323,16 @@ iapRouter.post("/apple/notify", systemScope("webhook:iap-apple"), iapWebhookRate
       return;
     }
 
+    const catalogTier = internalPlanForProduct(note.productId);
+    if (!catalogTier) {
+      logger.warn(
+        { productId: note.productId, type: note.notificationType },
+        "Apple notification productId is outside the IAP catalog; acknowledging without mutation",
+      );
+      res.status(200).json({ ok: false, reason: "unknown-product" });
+      return;
+    }
+
     const updated = await prisma.mobileSubscription.update({
       where: { originalTransactionId: verified.originalTransactionId },
       data: {
@@ -342,22 +365,9 @@ iapRouter.post("/apple/notify", systemScope("webhook:iap-apple"), iapWebhookRate
       // automatically (Stripe web, or the other store), same as the
       // other 5 call sites — no manual "stillActive" query needed.
       //
-      // R2 fix: derive the tier from THIS notification's own productId
-      // rather than trusting `updated.planTier` — defense-in-depth on
-      // top of the upsert fix above, since `updated` here comes from a
-      // separate `mobileSubscription.update()` (not the /verify upsert)
-      // that has never written planTier either. Falls back to the
-      // (possibly stale) DB value only if the productId isn't in the
-      // catalog, so an operator forgetting to register a new SKU fails
-      // soft instead of dropping the event's planTier to undefined.
-      const catalogTier = internalPlanForProduct(note.productId);
-      const freshTier = catalogTier ?? (updated.planTier as PlanTier);
-      if (!catalogTier) {
-        logger.warn({ productId: note.productId, tenantId: updated.tenantId }, "Apple notify: unknown productId, falling back to stored planTier");
-      }
       await recordEntitlementEvent({
         tenantId: updated.tenantId,
-        ...mapAppleNotify(note, verified, freshTier),
+        ...mapAppleNotify(note, verified, catalogTier),
       });
       await prisma.activityLog.create({
         data: {
@@ -428,6 +438,16 @@ iapRouter.post("/google/notify", systemScope("webhook:iap-google"), iapWebhookRa
       return;
     }
 
+    const catalogTier = internalPlanForProduct(parsed.subscriptionId);
+    if (!catalogTier) {
+      logger.warn(
+        { subscriptionId: parsed.subscriptionId, type: parsed.notificationType },
+        "Google RTDN subscriptionId is outside the IAP catalog; acknowledging without mutation",
+      );
+      res.status(200).json({ ok: false, reason: "unknown-product" });
+      return;
+    }
+
     const updated = await prisma.mobileSubscription.update({
       where: { originalTransactionId: verified.originalTransactionId },
       data: {
@@ -450,18 +470,9 @@ iapRouter.post("/google/notify", systemScope("webhook:iap-google"), iapWebhookRa
       // expired/revoked, so out-of-order delivery is provably safe
       // rather than merely "usually fine".
       //
-      // R2 fix: same defense-in-depth as the Apple handler — derive the
-      // tier from this notification's own subscriptionId rather than
-      // trusting `updated.planTier`, falling back to the DB value only
-      // for an unrecognized SKU.
-      const catalogTier = internalPlanForProduct(parsed.subscriptionId);
-      const freshTier = catalogTier ?? (updated.planTier as PlanTier);
-      if (!catalogTier) {
-        logger.warn({ subscriptionId: parsed.subscriptionId, tenantId: updated.tenantId }, "Google RTDN: unknown subscriptionId, falling back to stored planTier");
-      }
       await recordEntitlementEvent({
         tenantId: updated.tenantId,
-        ...mapGoogleNotify(parsed, verified, freshTier),
+        ...mapGoogleNotify(parsed, verified, catalogTier),
       });
       await prisma.activityLog.create({
         data: {

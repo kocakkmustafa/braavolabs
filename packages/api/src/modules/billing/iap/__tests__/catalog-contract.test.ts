@@ -8,6 +8,9 @@ import { resolve } from "node:path";
 const mocks = vi.hoisted(() => ({
   verifyAppleReceipt: vi.fn(),
   verifyGoogleReceipt: vi.fn(),
+  parseAppleNotification: vi.fn(),
+  parseGoogleRtdnEnvelope: vi.fn(),
+  verifyPubSubPushToken: vi.fn(),
   recordEntitlementEvent: vi.fn(),
   mobileSubscriptionFindUnique: vi.fn(),
   mobileSubscriptionUpsert: vi.fn(),
@@ -49,12 +52,12 @@ vi.mock("../../../../config/env", () => ({
 }));
 vi.mock("../apple", () => ({
   verifyAppleReceipt: mocks.verifyAppleReceipt,
-  parseAppleNotification: vi.fn(),
+  parseAppleNotification: mocks.parseAppleNotification,
 }));
 vi.mock("../google", () => ({
   verifyGoogleReceipt: mocks.verifyGoogleReceipt,
-  parseGoogleRtdnEnvelope: vi.fn(),
-  verifyPubSubPushToken: vi.fn().mockResolvedValue({ ok: false, reason: "test" }),
+  parseGoogleRtdnEnvelope: mocks.parseGoogleRtdnEnvelope,
+  verifyPubSubPushToken: mocks.verifyPubSubPushToken,
 }));
 vi.mock("../../entitlement-ledger.service", () => ({
   recordEntitlementEvent: mocks.recordEntitlementEvent,
@@ -100,6 +103,25 @@ beforeEach(() => {
     id: "mobile-sub-1",
     ...create,
   }));
+  mocks.parseAppleNotification.mockResolvedValue({
+    notificationType: "DID_RENEW",
+    originalTransactionId: "apple-notification-transaction",
+    productId: "com.braavolabs.individual.monthly",
+    expiresAt: ACTIVE_EXPIRY,
+    status: "active",
+    autoRenew: true,
+    notificationUUID: "apple-notification-1",
+    signedDate: new Date("2026-08-28T00:00:00.000Z"),
+  });
+  mocks.parseGoogleRtdnEnvelope.mockReturnValue({
+    packageName: "com.braavolabs.mobile",
+    notificationType: 2,
+    purchaseToken: "google-purchase-token",
+    subscriptionId: "com.braavolabs.team.monthly",
+    messageId: "google-message-1",
+    publishTime: new Date("2026-08-28T00:00:00.000Z"),
+  });
+  mocks.verifyPubSubPushToken.mockResolvedValue({ ok: true });
   mocks.activityLogCreate.mockResolvedValue({ id: "activity-1" });
   mocks.recordEntitlementEvent.mockResolvedValue(undefined);
 });
@@ -115,6 +137,27 @@ async function postVerify(provider: "apple" | "google", productId: string) {
 
 async function getEntitlement() {
   const response = await fetch(`${baseUrl}/api/v1/billing/iap/entitlement`);
+  return { status: response.status, body: await response.json() as Record<string, unknown> };
+}
+
+async function postAppleNotification() {
+  const response = await fetch(`${baseUrl}/api/v1/billing/iap/apple/notify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ signedPayload: "apple-signed-notification" }),
+  });
+  return { status: response.status, body: await response.json() as Record<string, unknown> };
+}
+
+async function postGoogleNotification() {
+  const response = await fetch(`${baseUrl}/api/v1/billing/iap/google/notify`, {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer google-pubsub-token",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ message: { data: "mocked-by-parser" } }),
+  });
   return { status: response.status, body: await response.json() as Record<string, unknown> };
 }
 
@@ -314,6 +357,126 @@ describe("GET /billing/iap/entitlement catalog boundary", () => {
       status: 200,
       body: { hasActiveMobileSubscription: true, planTier: "CREATOR" },
     });
+  });
+
+  it("does not expose a stale tier from an active catalog-unknown row", async () => {
+    mocks.mobileSubscriptionFindFirst.mockResolvedValue({
+      planTier: "ENTERPRISE",
+      productId: "com.braavolabs.unregistered.monthly",
+      expiresAt: ACTIVE_EXPIRY,
+      provider: "apple",
+      autoRenew: true,
+    });
+
+    const result = await getEntitlement();
+
+    expect(result).toEqual({
+      status: 200,
+      body: {
+        hasActiveMobileSubscription: false,
+        planTier: null,
+        expiresAt: null,
+        provider: null,
+        autoRenew: null,
+      },
+    });
+  });
+});
+
+describe("store notification catalog boundary", () => {
+  it("acknowledges an Apple unknown product after verification without billing mutation", async () => {
+    mocks.parseAppleNotification.mockResolvedValue({
+      notificationType: "DID_RENEW",
+      originalTransactionId: "apple-unknown-transaction",
+      productId: "com.braavolabs.unregistered.monthly",
+      expiresAt: ACTIVE_EXPIRY,
+      status: "active",
+      autoRenew: true,
+      notificationUUID: "apple-unknown-notification",
+      signedDate: new Date("2026-08-28T00:00:00.000Z"),
+    });
+    mocks.verifyAppleReceipt.mockResolvedValue(verifiedReceipt("apple-unknown-transaction"));
+
+    const result = await postAppleNotification();
+
+    expect(result).toEqual({ status: 200, body: { ok: false, reason: "unknown-product" } });
+    expect(mocks.verifyAppleReceipt).toHaveBeenCalledWith(
+      "apple-unknown-transaction",
+      "com.braavolabs.unregistered.monthly",
+    );
+    expect(mocks.mobileSubscriptionUpdate).not.toHaveBeenCalled();
+    expect(mocks.transaction).not.toHaveBeenCalled();
+    expect(mocks.recordEntitlementEvent).not.toHaveBeenCalled();
+    expect(mocks.activityLogCreate).not.toHaveBeenCalled();
+  });
+
+  it("acknowledges a Google unknown product after verification without billing mutation", async () => {
+    mocks.parseGoogleRtdnEnvelope.mockReturnValue({
+      packageName: "com.braavolabs.mobile",
+      notificationType: 2,
+      purchaseToken: "google-unknown-token",
+      subscriptionId: "com.braavolabs.unregistered.monthly",
+      messageId: "google-unknown-message",
+      publishTime: new Date("2026-08-28T00:00:00.000Z"),
+    });
+    mocks.verifyGoogleReceipt.mockResolvedValue(verifiedReceipt("google-unknown-transaction"));
+
+    const result = await postGoogleNotification();
+
+    expect(result).toEqual({ status: 200, body: { ok: false, reason: "unknown-product" } });
+    expect(mocks.verifyGoogleReceipt).toHaveBeenCalledWith(
+      "google-unknown-token",
+      "com.braavolabs.unregistered.monthly",
+    );
+    expect(mocks.mobileSubscriptionUpdate).not.toHaveBeenCalled();
+    expect(mocks.transaction).not.toHaveBeenCalled();
+    expect(mocks.recordEntitlementEvent).not.toHaveBeenCalled();
+    expect(mocks.activityLogCreate).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["apple", "com.braavolabs.individual.monthly", "CREATOR"],
+    ["google", "com.braavolabs.team.monthly", "PRO"],
+  ] as const)("preserves known %s renewal mapping", async (provider, productId, planTier) => {
+    mocks.mobileSubscriptionUpdate.mockResolvedValue({
+      id: `${provider}-subscription`,
+      tenantId: "tenant-1",
+      planTier: "ENTERPRISE",
+    });
+
+    let result;
+    if (provider === "apple") {
+      mocks.parseAppleNotification.mockResolvedValue({
+        notificationType: "DID_RENEW",
+        originalTransactionId: "apple-known-transaction",
+        productId,
+        expiresAt: ACTIVE_EXPIRY,
+        status: "active",
+        autoRenew: true,
+        notificationUUID: "apple-known-notification",
+        signedDate: new Date("2026-08-28T00:00:00.000Z"),
+      });
+      mocks.verifyAppleReceipt.mockResolvedValue(verifiedReceipt("apple-known-transaction"));
+      result = await postAppleNotification();
+    } else {
+      mocks.parseGoogleRtdnEnvelope.mockReturnValue({
+        packageName: "com.braavolabs.mobile",
+        notificationType: 2,
+        purchaseToken: "google-known-token",
+        subscriptionId: productId,
+        messageId: "google-known-message",
+        publishTime: new Date("2026-08-28T00:00:00.000Z"),
+      });
+      mocks.verifyGoogleReceipt.mockResolvedValue(verifiedReceipt("google-known-transaction"));
+      result = await postGoogleNotification();
+    }
+
+    expect(result).toEqual({ status: 200, body: { ok: true } });
+    expect(mocks.mobileSubscriptionUpdate).toHaveBeenCalledTimes(1);
+    expect(mocks.recordEntitlementEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: "tenant-1", planTier }),
+    );
+    expect(mocks.activityLogCreate).toHaveBeenCalledTimes(1);
   });
 });
 
