@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   verifyPubSubPushToken: vi.fn(),
   recordEntitlementEvent: vi.fn(),
   mobileSubscriptionFindUnique: vi.fn(),
+  mobileSubscriptionCreate: vi.fn(),
+  mobileSubscriptionUpdateMany: vi.fn(),
   mobileSubscriptionUpsert: vi.fn(),
   mobileSubscriptionFindFirst: vi.fn(),
   mobileSubscriptionUpdate: vi.fn(),
@@ -22,7 +24,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../../../../middleware/auth", () => ({
   authMiddleware: (req: any, _res: unknown, next: () => void) => {
-    req.auth = { userId: "user-1", tenantId: "tenant-1", role: "OWNER" };
+    const tenantId = req.headers["x-test-tenant-id"] ?? "tenant-1";
+    req.auth = { userId: `user-for-${tenantId}`, tenantId, role: "OWNER" };
     next();
   },
 }));
@@ -36,6 +39,8 @@ vi.mock("../../../../lib/db", () => ({
   prisma: {
     mobileSubscription: {
       findUnique: mocks.mobileSubscriptionFindUnique,
+      create: mocks.mobileSubscriptionCreate,
+      updateMany: mocks.mobileSubscriptionUpdateMany,
       upsert: mocks.mobileSubscriptionUpsert,
       findFirst: mocks.mobileSubscriptionFindFirst,
       update: mocks.mobileSubscriptionUpdate,
@@ -99,6 +104,11 @@ beforeEach(() => {
   mocks.mobileSubscriptionFindUnique.mockResolvedValue(null);
   mocks.mobileSubscriptionFindFirst.mockResolvedValue(null);
   mocks.mobileSubscriptionUpdate.mockResolvedValue(null);
+  mocks.mobileSubscriptionCreate.mockImplementation(async ({ data }: any) => ({
+    id: "mobile-sub-1",
+    ...data,
+  }));
+  mocks.mobileSubscriptionUpdateMany.mockResolvedValue({ count: 0 });
   mocks.mobileSubscriptionUpsert.mockImplementation(async ({ create }: any) => ({
     id: "mobile-sub-1",
     ...create,
@@ -126,11 +136,22 @@ beforeEach(() => {
   mocks.recordEntitlementEvent.mockResolvedValue(undefined);
 });
 
-async function postVerify(provider: "apple" | "google", productId: string) {
+async function postVerify(
+  provider: "apple" | "google",
+  productId: string,
+  options: { tenantId?: string; receipt?: string } = {},
+) {
   const response = await fetch(`${baseUrl}/api/v1/billing/iap/verify`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ provider, receipt: "store-proof", productId }),
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.tenantId === undefined ? {} : { "X-Test-Tenant-Id": options.tenantId }),
+    },
+    body: JSON.stringify({
+      provider,
+      receipt: options.receipt ?? "store-proof",
+      productId,
+    }),
   });
   return { status: response.status, body: await response.json() as Record<string, unknown> };
 }
@@ -165,6 +186,8 @@ function expectNoManualReviewSideEffects() {
   expect(mocks.verifyAppleReceipt).not.toHaveBeenCalled();
   expect(mocks.verifyGoogleReceipt).not.toHaveBeenCalled();
   expect(mocks.mobileSubscriptionFindUnique).not.toHaveBeenCalled();
+  expect(mocks.mobileSubscriptionCreate).not.toHaveBeenCalled();
+  expect(mocks.mobileSubscriptionUpdateMany).not.toHaveBeenCalled();
   expect(mocks.mobileSubscriptionUpsert).not.toHaveBeenCalled();
   expect(mocks.mobileSubscriptionFindFirst).not.toHaveBeenCalled();
   expect(mocks.mobileSubscriptionUpdate).not.toHaveBeenCalled();
@@ -232,6 +255,84 @@ describe("canonical IAP catalog", () => {
 });
 
 describe("POST /billing/iap/verify catalog boundary", () => {
+  it("atomically gives one tenant ownership when two tenants verify the same transaction", async () => {
+    const transactionId = "apple-shared-original-transaction";
+    mocks.verifyAppleReceipt.mockResolvedValue(verifiedReceipt(transactionId));
+
+    let storedSubscription: Record<string, any> | null = null;
+    let emptyReadCount = 0;
+    let releaseEmptyReads!: () => void;
+    const bothEmptyReads = new Promise<void>((resolveReads) => {
+      releaseEmptyReads = resolveReads;
+    });
+
+    mocks.mobileSubscriptionFindUnique.mockImplementation(async () => {
+      if (storedSubscription) return storedSubscription;
+      emptyReadCount += 1;
+      if (emptyReadCount === 2) releaseEmptyReads();
+      await bothEmptyReads;
+      return null;
+    });
+    mocks.mobileSubscriptionUpsert.mockImplementation(async ({ create, update }: any) => {
+      if (!storedSubscription) {
+        storedSubscription = { id: "mobile-sub-race", ...create };
+      } else {
+        storedSubscription = { ...storedSubscription, ...update };
+      }
+      return storedSubscription;
+    });
+    mocks.mobileSubscriptionCreate.mockImplementation(async ({ data }: any) => {
+      if (storedSubscription) {
+        throw { code: "P2002", meta: { target: ["originalTransactionId"] } };
+      }
+      storedSubscription = { id: "mobile-sub-race", ...data };
+      return storedSubscription;
+    });
+    mocks.mobileSubscriptionUpdateMany.mockImplementation(async ({ where, data }: any) => {
+      if (!storedSubscription || storedSubscription.tenantId !== where.tenantId) {
+        return { count: 0 };
+      }
+      storedSubscription = { ...storedSubscription, ...data };
+      return { count: 1 };
+    });
+
+    const results = await Promise.all([
+      postVerify("apple", "com.braavolabs.individual.monthly", {
+        tenantId: "tenant-a",
+        receipt: "receipt-a",
+      }),
+      postVerify("apple", "com.braavolabs.individual.monthly", {
+        tenantId: "tenant-b",
+        receipt: "receipt-b",
+      }),
+    ]);
+
+    expect(results.map((result) => result.status).sort()).toEqual([200, 409]);
+    const winningTenant = storedSubscription!.tenantId;
+    const losingTenant = winningTenant === "tenant-a" ? "tenant-b" : "tenant-a";
+    expect(storedSubscription).toMatchObject({
+      tenantId: winningTenant,
+      originalTransactionId: transactionId,
+      latestReceipt: winningTenant === "tenant-a" ? "receipt-a" : "receipt-b",
+      productId: "com.braavolabs.individual.monthly",
+      status: "active",
+      planTier: "CREATOR",
+      expiresAt: ACTIVE_EXPIRY,
+    });
+    expect(mocks.recordEntitlementEvent).toHaveBeenCalledTimes(1);
+    expect(mocks.recordEntitlementEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: winningTenant }),
+    );
+    expect(mocks.recordEntitlementEvent).not.toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: losingTenant }),
+    );
+    expect(mocks.activityLogCreate).toHaveBeenCalledTimes(1);
+    expect(mocks.activityLogCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ tenantId: winningTenant }) }),
+    );
+    expect(mocks.mobileSubscriptionFindUnique).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["apple", "com.braavolabs.business.monthly"],
     ["google", "com.braavolabs.enterprise.monthly"],
@@ -261,6 +362,7 @@ describe("POST /billing/iap/verify catalog boundary", () => {
     expect(result.status).toBe(400);
     expect(result.body.error).toMatch(/Unknown productId/);
     expect(mocks.verifyAppleReceipt).not.toHaveBeenCalled();
+    expect(mocks.mobileSubscriptionCreate).not.toHaveBeenCalled();
     expect(mocks.mobileSubscriptionUpsert).not.toHaveBeenCalled();
     expect(mocks.recordEntitlementEvent).not.toHaveBeenCalled();
   });
@@ -280,19 +382,18 @@ describe("POST /billing/iap/verify catalog boundary", () => {
       "store-proof",
       "com.braavolabs.individual.monthly",
     );
-    expect(mocks.mobileSubscriptionUpsert).toHaveBeenCalledWith(
+    expect(mocks.mobileSubscriptionCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        create: expect.objectContaining({ planTier: "CREATOR" }),
-        update: expect.objectContaining({ planTier: "CREATOR" }),
+        data: expect.objectContaining({ planTier: "CREATOR" }),
       }),
     );
     expect(mocks.recordEntitlementEvent).toHaveBeenCalledWith(
       expect.objectContaining({ planTier: "CREATOR" }),
     );
     expect(mocks.verifyAppleReceipt.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.mobileSubscriptionUpsert.mock.invocationCallOrder[0],
+      mocks.mobileSubscriptionCreate.mock.invocationCallOrder[0],
     );
-    expect(mocks.mobileSubscriptionUpsert.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(mocks.mobileSubscriptionCreate.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.recordEntitlementEvent.mock.invocationCallOrder[0],
     );
   });
@@ -308,11 +409,81 @@ describe("POST /billing/iap/verify catalog boundary", () => {
       status: 200,
       body: { success: true, planTier: "CREATOR", status: "active" },
     });
-    expect(mocks.mobileSubscriptionUpsert).toHaveBeenCalledWith(
+    expect(mocks.mobileSubscriptionCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        create: expect.objectContaining({ planTier: "CREATOR" }),
+        data: expect.objectContaining({ planTier: "CREATOR" }),
       }),
     );
+  });
+
+  it("keeps same-owner reverify successful through a tenant-guarded update", async () => {
+    const transactionId = "apple-same-owner-transaction";
+    let storedSubscription: Record<string, any> | null = null;
+    mocks.verifyAppleReceipt.mockResolvedValue(verifiedReceipt(transactionId));
+    mocks.mobileSubscriptionFindUnique.mockImplementation(async () => storedSubscription);
+    mocks.mobileSubscriptionCreate.mockImplementation(async ({ data }: any) => {
+      storedSubscription = { id: "mobile-sub-same-owner", ...data };
+      return storedSubscription;
+    });
+    mocks.mobileSubscriptionUpdateMany.mockImplementation(async ({ where, data }: any) => {
+      if (!storedSubscription || storedSubscription.tenantId !== where.tenantId) {
+        return { count: 0 };
+      }
+      storedSubscription = { ...storedSubscription, ...data };
+      return { count: 1 };
+    });
+
+    const first = await postVerify("apple", "com.braavolabs.individual.monthly", {
+      tenantId: "tenant-owner",
+      receipt: "receipt-first",
+    });
+    const second = await postVerify("apple", "com.braavolabs.individual.monthly", {
+      tenantId: "tenant-owner",
+      receipt: "receipt-renewal",
+    });
+
+    expect([first.status, second.status]).toEqual([200, 200]);
+    expect(mocks.mobileSubscriptionCreate).toHaveBeenCalledTimes(1);
+    expect(mocks.mobileSubscriptionUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { originalTransactionId: transactionId, tenantId: "tenant-owner" },
+        data: expect.objectContaining({ latestReceipt: "receipt-renewal" }),
+      }),
+    );
+    expect(mocks.mobileSubscriptionFindUnique).toHaveBeenCalledWith({
+      where: { originalTransactionId: transactionId, tenantId: "tenant-owner" },
+    });
+    expect(storedSubscription).toMatchObject({
+      tenantId: "tenant-owner",
+      latestReceipt: "receipt-renewal",
+    });
+    expect(mocks.recordEntitlementEvent).toHaveBeenCalledTimes(2);
+    expect(mocks.activityLogCreate).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not mislabel an unrelated database conflict as receipt ownership", async () => {
+    mocks.verifyAppleReceipt.mockResolvedValue(
+      verifiedReceipt("apple-unrelated-conflict-transaction"),
+    );
+    mocks.mobileSubscriptionCreate.mockRejectedValue({
+      code: "P2002",
+      meta: { target: ["someOtherUniqueField"] },
+    });
+
+    const result = await postVerify("apple", "com.braavolabs.individual.monthly");
+
+    expect(result).toEqual({ status: 500, body: { error: "Receipt verification failed" } });
+    expect(mocks.mobileSubscriptionUpdateMany).toHaveBeenCalledOnce();
+    expect(mocks.mobileSubscriptionUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          originalTransactionId: "apple-unrelated-conflict-transaction",
+          tenantId: "tenant-1",
+        },
+      }),
+    );
+    expect(mocks.recordEntitlementEvent).not.toHaveBeenCalled();
+    expect(mocks.activityLogCreate).not.toHaveBeenCalled();
   });
 });
 

@@ -85,6 +85,20 @@ const verifySchema = z.object({
   appUserId: z.string().max(200).optional(),
 });
 
+function isOriginalTransactionIdUniqueConflict(error: unknown): boolean {
+  if (!error || typeof error !== "object" || (error as { code?: unknown }).code !== "P2002") {
+    return false;
+  }
+
+  const target = (error as { meta?: { target?: unknown } }).meta?.target;
+  const targets = Array.isArray(target) ? target : [target];
+  return targets.some(
+    (candidate) =>
+      typeof candidate === "string" &&
+      (candidate.includes("originalTransactionId") || candidate.includes("original_transaction_id")),
+  );
+}
+
 // POST /api/v1/billing/iap/verify — verify a mobile receipt
 iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, next) => {
   try {
@@ -122,34 +136,18 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
       throw new AppError(501, "RevenueCat verification not yet implemented");
     }
 
-    // Cross-tenant hijack defense: originalTransactionId is globally unique
-    // in the schema, but a plain upsert would let any user POST another
-    // tenant's verified receipt and silently upgrade their own row to the
-    // paid tier. Refuse when the existing row belongs to a different tenant
-    // so the original purchaser keeps the entitlement and the second caller
-    // sees a 409. (Apple/Google entitle a single original-transaction to a
-    // single account; the legitimate re-verify path always comes from the
-    // same authenticated tenant.)
-    const existingForTransaction = await prisma.mobileSubscription.findUnique({
-      where: { originalTransactionId: verified.originalTransactionId },
-    });
-    if (existingForTransaction && existingForTransaction.tenantId !== tenantId) {
+    const rejectDifferentOwner = (): never => {
       logger.warn(
         {
           originalTransactionId: verified.originalTransactionId,
-          ownerTenantId: existingForTransaction.tenantId,
           callerTenantId: tenantId,
         },
         "IAP verify rejected — receipt belongs to a different tenant",
       );
       throw new AppError(409, "This subscription is already linked to a different account.");
-    }
+    };
 
-    // Persist/upsert. originalTransactionId is the natural key — every
-    // renewal mutates expiresAt + lastVerifiedAt on the same row.
-    const subscription = await prisma.mobileSubscription.upsert({
-      where: { originalTransactionId: verified.originalTransactionId },
-      create: {
+    const createData = {
         tenantId,
         provider: body.provider,
         productId: body.productId,
@@ -161,8 +159,8 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
         expiresAt: verified.expiresAt,
         autoRenew: verified.autoRenew,
         lastVerifiedAt: new Date(),
-      },
-      update: {
+    };
+    const updateData = {
         // R2 fix (2026-08-19): productId/planTier were missing here, so a
         // tier UPGRADE via /verify (same originalTransactionId — tier
         // changes reuse the same row) updated status/expiresAt/autoRenew
@@ -180,8 +178,49 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
         expiresAt: verified.expiresAt,
         autoRenew: verified.autoRenew,
         lastVerifiedAt: new Date(),
-      },
-    });
+    };
+
+    const updateSameOwner = async () => {
+      const updated = await prisma.mobileSubscription.updateMany({
+        where: {
+          originalTransactionId: verified.originalTransactionId,
+          tenantId,
+        },
+        data: updateData,
+      });
+      if (updated.count === 0) return null;
+      if (updated.count !== 1) throw new Error("IAP guarded update affected multiple rows");
+
+      const subscription = await prisma.mobileSubscription.findUnique({
+        where: {
+          originalTransactionId: verified.originalTransactionId,
+          tenantId,
+        },
+      });
+      if (!subscription || subscription.tenantId !== tenantId) {
+        throw new Error("IAP subscription missing after guarded update");
+      }
+      return subscription;
+    };
+
+    // A tenant-guarded update handles the normal renewal fast path without
+    // reading another tenant's row. If no owned row exists, create competes on
+    // the globally unique originalTransactionId and becomes the atomic claim.
+    // After a matching P2002, retrying the guarded update distinguishes a
+    // same-owner concurrent retry from a different owner even when RLS hides
+    // cross-tenant rows.
+    let subscription = await updateSameOwner();
+    if (!subscription) {
+      try {
+        subscription = await prisma.mobileSubscription.create({ data: createData });
+      } catch (error) {
+        if (!isOriginalTransactionIdUniqueConflict(error)) throw error;
+
+        subscription = await updateSameOwner();
+        if (!subscription) rejectDifferentOwner();
+      }
+    }
+    if (!subscription) throw new Error("IAP subscription ownership resolution failed");
 
     // Entitlement ledger — BR-P0-003. mapIapVerify returns null for
     // exactly the statuses the old code's `if` skipped (anything but
