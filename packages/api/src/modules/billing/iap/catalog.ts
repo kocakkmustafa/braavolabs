@@ -21,12 +21,14 @@ function product(
  *
  * Internal plans remain the Prisma/entitlement vocabulary. Public tiers are
  * the canonical names understood by the mobile purchase flow. Historical
- * products stay verifiable for restore, but only the two explicit new-sale
- * rows may return a canonical public tier.
+ * products stay verifiable for restore. Individual is the only automatic
+ * new-sale row; Team remains known but manual-review until active-seat
+ * settlement and store-price parity are independently accepted.
  */
 const IAP_PRODUCT_CATALOG: Readonly<Record<string, IapProduct>> = Object.freeze({
   "com.braavolabs.individual.monthly": product("CREATOR", "INDIVIDUAL", "new-sale"),
-  "com.braavolabs.team.monthly": product("PRO", "TEAM", "new-sale"),
+  "com.braavolabs.team.monthly": product("PRO", "TEAM", "manual-review"),
+  "com.braavolabs.team.yearly": product("PRO", "TEAM", "manual-review"),
 
   "com.braavolabs.creator.monthly": product("CREATOR", "INDIVIDUAL", "legacy-restore"),
   "com.braavolabs.creator.yearly": product("CREATOR", "INDIVIDUAL", "legacy-restore"),

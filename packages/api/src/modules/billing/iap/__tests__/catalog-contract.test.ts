@@ -184,22 +184,32 @@ function verifiedReceipt(id: string) {
 }
 
 describe("canonical IAP catalog", () => {
-  it("separates new-sale public tiers from internal entitlement plans", () => {
+  it("keeps Individual new-sale while Team waits for active-seat settlement", () => {
     const individual = getIapProduct("com.braavolabs.individual.monthly");
-    const team = getIapProduct("com.braavolabs.team.monthly");
+    const teamMonthly = getIapProduct("com.braavolabs.team.monthly");
+    const teamYearly = getIapProduct("com.braavolabs.team.yearly");
 
     expect(individual).toEqual({
       internalPlan: "CREATOR",
       publicTier: "INDIVIDUAL",
       sale: "new-sale",
     });
-    expect(team).toEqual({
+    expect(teamMonthly).toEqual({
       internalPlan: "PRO",
       publicTier: "TEAM",
-      sale: "new-sale",
+      sale: "manual-review",
+    });
+    expect(teamYearly).toEqual({
+      internalPlan: "PRO",
+      publicTier: "TEAM",
+      sale: "manual-review",
     });
     expect(verificationResponseTier(individual!)).toBe("INDIVIDUAL");
-    expect(verificationResponseTier(team!)).toBe("TEAM");
+    expect(verificationResponseTier(teamMonthly!)).toBe("PRO");
+    expect(verificationResponseTier(teamYearly!)).toBe("PRO");
+    expect(isNewSaleProduct("com.braavolabs.individual.monthly")).toBe(true);
+    expect(isNewSaleProduct("com.braavolabs.team.monthly")).toBe(false);
+    expect(isNewSaleProduct("com.braavolabs.team.yearly")).toBe(false);
   });
 
   it("keeps legacy aliases restore-only and retired higher tiers manual-review", () => {
@@ -225,6 +235,10 @@ describe("POST /billing/iap/verify catalog boundary", () => {
   it.each([
     ["apple", "com.braavolabs.business.monthly"],
     ["google", "com.braavolabs.enterprise.monthly"],
+    ["apple", "com.braavolabs.team.monthly"],
+    ["google", "com.braavolabs.team.monthly"],
+    ["apple", "com.braavolabs.team.yearly"],
+    ["google", "com.braavolabs.team.yearly"],
   ] as const)(
     "rejects %s manual-review products before provider or persistence work",
     async (provider, productId) => {
@@ -280,28 +294,6 @@ describe("POST /billing/iap/verify catalog boundary", () => {
     );
     expect(mocks.mobileSubscriptionUpsert.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.recordEntitlementEvent.mock.invocationCallOrder[0],
-    );
-  });
-
-  it("persists Team as PRO and returns TEAM", async () => {
-    mocks.verifyGoogleReceipt.mockResolvedValue(
-      verifiedReceipt("google-team-transaction"),
-    );
-
-    const result = await postVerify("google", "com.braavolabs.team.monthly");
-
-    expect(result).toMatchObject({
-      status: 200,
-      body: { success: true, planTier: "TEAM", status: "active" },
-    });
-    expect(mocks.mobileSubscriptionUpsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        create: expect.objectContaining({ planTier: "PRO" }),
-        update: expect.objectContaining({ planTier: "PRO" }),
-      }),
-    );
-    expect(mocks.recordEntitlementEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ planTier: "PRO" }),
     );
   });
 
