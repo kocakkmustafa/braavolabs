@@ -516,3 +516,34 @@ test("nginx static-asset cache headers cannot shadow parent security headers", (
     assert.ok(line?.trim().endsWith(" always;"), `www static block drops ${header}`);
   }
 });
+
+test("UI build keeps the Sentry upload token ephemeral", () => {
+  const workflow = read(".github/workflows/deploy.yml");
+  const dockerfile = read("ENV/Dockerfile.ui");
+  assert.doesNotMatch(workflow, /^\s*SENTRY_AUTH_TOKEN=.*$/m);
+  assert.doesNotMatch(dockerfile, /^ARG\s+SENTRY_AUTH_TOKEN\b/m);
+  assert.doesNotMatch(dockerfile, /^ENV\s+SENTRY_AUTH_TOKEN\b/m);
+  assert.match(workflow, /secrets:\s*\|[\s\S]*sentry_auth_token=\$\{\{\s*secrets\.SENTRY_AUTH_TOKEN\s*\}\}/);
+  assert.match(dockerfile, /RUN\s+--mount=type=secret,id=sentry_auth_token\s+\\/);
+  assert.doesNotMatch(dockerfile, /id=sentry_auth_token,required=true/);
+  assert.match(dockerfile, /id=sentry_cli,target=\/run\/secrets\/sentry-cli,mode=0555/);
+  assert.match(dockerfile, /\/run\/secrets\/sentry_auth_token/);
+});
+
+test("deploy workflow delegates one fail-closed release invocation", () => {
+  const workflow = read(".github/workflows/deploy.yml");
+  assert.match(workflow, /actions\/download-artifact@v4/);
+  assert.match(workflow, /scripts\/deploy-platform\.sh/);
+  assert.equal((workflow.match(/scripts\/deploy-platform\.sh/g) ?? []).length, 1);
+  assert.match(workflow, /LIGHTSAIL_KNOWN_HOSTS/);
+  assert.match(workflow, /LIGHTSAIL_HOST_KEY_SHA256/);
+  assert.match(workflow, /SSH_KNOWN_HOSTS_FILE/);
+  assert.match(workflow, /PREVIOUS_RELEASE_COMMIT:\s*\$\{\{ vars\.BRAAVOLABS_PREVIOUS_GOOD_COMMIT \}\}/);
+  assert.match(workflow, /trap\s+cleanup\s+EXIT/);
+  assert.match(workflow, /trap\s+signal_cleanup\s+HUP\s+INT\s+TERM/);
+  assert.doesNotMatch(workflow, /ssh-keyscan/);
+  assert.doesNotMatch(workflow, /StrictHostKeyChecking=no/);
+  assert.doesNotMatch(workflow, /prisma migrate resolve/);
+  assert.doesNotMatch(workflow, /prisma migrate deploy\s*\|\|/);
+  assert.doesNotMatch(workflow, /migration step skipped|api restart skipped/);
+});
