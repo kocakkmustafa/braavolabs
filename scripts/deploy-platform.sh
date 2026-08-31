@@ -4,10 +4,15 @@ IFS=$'\n\t'
 readonly EXIT_INPUT=64 EXIT_HOST=65 EXIT_REMOTE=66 EXIT_IMAGE=67 EXIT_MIGRATION=68
 readonly EXIT_CUTOVER=69 EXIT_HEALTH_ROLLED_BACK=70 EXIT_ROLLBACK=71
 readonly EXIT_JOURNAL=72 EXIT_LOCK=75
+readonly REVIEWED_PLAN_PREVIOUS_RELEASE='6d8c7b3d9b32cbc4a50722bc3c57cd047ebfe898'
 readonly REVIEWED_PLAN_ENUM_PATH='packages/db/prisma/migrations/20260820000000_subscription_plan_enum_values/migration.sql'
 readonly REVIEWED_PLAN_ENUM_SHA256='c2f18d9a7fa37b1e7398d9b212275c227279c448102e2e55f7d41aa2ea943280'
 readonly REVIEWED_PLAN_PROJECTION_PATH='packages/db/prisma/migrations/20260821_subscription_only_plans/migration.sql'
 readonly REVIEWED_PLAN_PROJECTION_SHA256='b9f35a25baf868e93c1fb44dc83e2e826c1a6eeafdd9ffded859a791af2326de'
+readonly REVIEWED_IAP_DELIVERY_PATH='packages/db/prisma/migrations/20260825233000_iap_delivery_dlq/migration.sql'
+readonly REVIEWED_IAP_DELIVERY_SHA256='c7aca6cbe9ffecb0bf7b9dae02412318ad4086860cdb0d3cf2d727526078f57b'
+readonly REVIEWED_GOOGLE_ALIAS_PATH='packages/db/prisma/migrations/20260828_google_purchase_alias_ownership/migration.sql'
+readonly REVIEWED_GOOGLE_ALIAS_SHA256='a12c727a77bc30a70b86048ac959c986d031e4e20530eb0f09ae10b3306d44ee'
 readonly REVIEWED_PLAN_MIGRATION_TREE_SHA256='666ee6e523d92276eea4d48a1c1976863e6faddba700d26ecc04d723d4c39ea9'
 
 die() { local code="$1"; shift; printf 'deploy-platform: %s\n' "$*" >&2; exit "$code"; }
@@ -119,8 +124,11 @@ cleanup_remote() {
 
 reviewed_subscription_plan_bundle() {
   local staged="$1" delta_manifest="$2" hash path extra
-  local enum_seen=0 projection_seen=0 tree_hash discovery expected_discovery
-  test "$(awk 'NF { count += 1 } END { print count + 0 }' "$delta_manifest")" = 2 || return 1
+  local enum_seen=0 projection_seen=0 delivery_seen=0 alias_seen=0
+  local tree_hash discovery expected_discovery manifest expected_manifest reviewed_previous_release
+  reviewed_previous_release="${delta_previous_release:-${PREVIOUS_RELEASE_COMMIT:-}}"
+  test "$reviewed_previous_release" = "$REVIEWED_PLAN_PREVIOUS_RELEASE" || return 1
+  test "$(awk 'NF { count += 1 } END { print count + 0 }' "$delta_manifest")" = 4 || return 1
   while IFS=' ' read -r hash path extra || test -n "${hash:-}"; do
     test -n "$hash" && test -n "$path" && test -z "${extra:-}" || return 1
     case "$path" in
@@ -132,15 +140,33 @@ reviewed_subscription_plan_bundle() {
         test "$projection_seen" = 0 && test "$hash" = "$REVIEWED_PLAN_PROJECTION_SHA256" || return 1
         test "$(sha256sum "$staged/$path" | awk '{print $1}')" = "$REVIEWED_PLAN_PROJECTION_SHA256" || return 1
         projection_seen=1 ;;
+      "$REVIEWED_IAP_DELIVERY_PATH")
+        test "$delivery_seen" = 0 && test "$hash" = "$REVIEWED_IAP_DELIVERY_SHA256" || return 1
+        test "$(sha256sum "$staged/$path" | awk '{print $1}')" = "$REVIEWED_IAP_DELIVERY_SHA256" || return 1
+        delivery_seen=1 ;;
+      "$REVIEWED_GOOGLE_ALIAS_PATH")
+        test "$alias_seen" = 0 && test "$hash" = "$REVIEWED_GOOGLE_ALIAS_SHA256" || return 1
+        test "$(sha256sum "$staged/$path" | awk '{print $1}')" = "$REVIEWED_GOOGLE_ALIAS_SHA256" || return 1
+        alias_seen=1 ;;
       *) return 1 ;;
     esac
   done < "$delta_manifest"
-  test "$enum_seen" = 1 && test "$projection_seen" = 1 || return 1
+  test "$enum_seen" = 1 && test "$projection_seen" = 1 &&
+    test "$delivery_seen" = 1 && test "$alias_seen" = 1 || return 1
 
   discovery="$(cat "$staged/migration-delta.name-status")" || return 1
-  expected_discovery="$(printf 'A\t%s\nM\t%s' \
-    "$REVIEWED_PLAN_ENUM_PATH" "$REVIEWED_PLAN_PROJECTION_PATH")"
+  expected_discovery="$(printf 'A\t%s\nA\t%s\nA\t%s\nA\t%s' \
+    "$REVIEWED_PLAN_ENUM_PATH" "$REVIEWED_PLAN_PROJECTION_PATH" \
+    "$REVIEWED_IAP_DELIVERY_PATH" "$REVIEWED_GOOGLE_ALIAS_PATH")"
   test "$discovery" = "$expected_discovery" || return 1
+
+  manifest="$(cat "$delta_manifest")" || return 1
+  expected_manifest="$(printf '%s  %s\n%s  %s\n%s  %s\n%s  %s' \
+    "$REVIEWED_PLAN_ENUM_SHA256" "$REVIEWED_PLAN_ENUM_PATH" \
+    "$REVIEWED_PLAN_PROJECTION_SHA256" "$REVIEWED_PLAN_PROJECTION_PATH" \
+    "$REVIEWED_IAP_DELIVERY_SHA256" "$REVIEWED_IAP_DELIVERY_PATH" \
+    "$REVIEWED_GOOGLE_ALIAS_SHA256" "$REVIEWED_GOOGLE_ALIAS_PATH")"
+  test "$manifest" = "$expected_manifest" || return 1
 
   tree_hash="$(cd "$staged" &&
     find packages/db/prisma/migrations -type f -name migration.sql -print0 |

@@ -12,6 +12,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SCRIPT = join(ROOT, "scripts/deploy-platform.sh");
 const RELEASE = "1".repeat(40);
 const PREVIOUS_RELEASE = "0".repeat(40);
+const AUTHORITATIVE_PREVIOUS_RELEASE = "6d8c7b3d9b32cbc4a50722bc3c57cd047ebfe898";
+const REAL_MIGRATION_CANDIDATE = "1a8e966c8739d05a917d90941c19ce18398f714e";
 const API = "ghcr.io/kocakkmustafa/braavolabs/api@sha256:" + "a".repeat(64);
 const UI = "ghcr.io/kocakkmustafa/braavolabs/ui@sha256:" + "b".repeat(64);
 const PREVIOUS_API = "ghcr.io/kocakkmustafa/braavolabs/api@sha256:" + "c".repeat(64);
@@ -24,8 +26,15 @@ const REVIEWED_ENUM_MIGRATION =
   "packages/db/prisma/migrations/20260820000000_subscription_plan_enum_values/migration.sql";
 const REVIEWED_PROJECTION_MIGRATION =
   "packages/db/prisma/migrations/20260821_subscription_only_plans/migration.sql";
+const REVIEWED_IAP_DELIVERY_MIGRATION =
+  "packages/db/prisma/migrations/20260825233000_iap_delivery_dlq/migration.sql";
+const REVIEWED_GOOGLE_ALIAS_MIGRATION =
+  "packages/db/prisma/migrations/20260828_google_purchase_alias_ownership/migration.sql";
 const REVIEWED_SUBSCRIPTION_DIFF =
-  `A\t${REVIEWED_ENUM_MIGRATION}\nM\t${REVIEWED_PROJECTION_MIGRATION}\n`;
+  `A\t${REVIEWED_ENUM_MIGRATION}\n` +
+  `A\t${REVIEWED_PROJECTION_MIGRATION}\n` +
+  `A\t${REVIEWED_IAP_DELIVERY_MIGRATION}\n` +
+  `A\t${REVIEWED_GOOGLE_ALIAS_MIGRATION}\n`;
 
 function executable(path, body) {
   writeFileSync(path, `#!/bin/sh\nset -eu\n${body}\n`, { mode: 0o700 });
@@ -261,6 +270,8 @@ if [ "${tool}" = cp ] && [ -n "${'${FAKE_STAGE_MUTATION_MODE:-}'}" ]; then
         mapping) /usr/bin/perl -0pi -e "s/WHEN 'CREATOR' THEN 'INDIVIDUAL'/WHEN 'CREATOR' THEN 'TEAM'/" "$projection" ;;
         default) /usr/bin/perl -0pi -e "s/SET DEFAULT 'MANUAL_REVIEW'/SET DEFAULT 'INDIVIDUAL'/" "$projection" ;;
         extra-statement) printf '%s\n' 'CREATE TABLE IF NOT EXISTS reviewed_looking_extra (id TEXT);' >> "$projection" ;;
+        iap-delivery-hash) printf '%s\n' '-- tampered IAP delivery bytes' >> "$target/20260825233000_iap_delivery_dlq/migration.sql" ;;
+        google-alias-hash) printf '%s\n' '-- tampered Google alias bytes' >> "$target/20260828_google_purchase_alias_ownership/migration.sql" ;;
         third-migration)
           /bin/mkdir -p "$target/20260820000001_unreviewed"
           printf '%s\n' 'ALTER TABLE tenants ADD COLUMN unreviewed TEXT;' > "$target/20260820000001_unreviewed/migration.sql" ;;
@@ -341,6 +352,7 @@ printf '256 %s synthetic (ED25519)\\n' "$fp"`);
 case "${'${1:-}'}" in
   cat-file) exit 0 ;;
   diff)
+    [ "${'${USE_REAL_GIT_DIFF:-0}'}" = 1 ] && exec /usr/bin/git "$@"
     printf '%b' "${'${FAKE_GIT_DIFF:-}'}"
     [ "${'${FAKE_GIT_DIFF_IO_FAILURE:-0}'}" = 1 ] && exit 74
     exit "${'${FAKE_GIT_DIFF_EXIT:-0}'}" ;;
@@ -740,10 +752,21 @@ test("known_hosts bracketed non-default port is accepted", () => withHarness((h)
   assertNoExternalNetwork(h);
 }));
 
-test("reviewed subscription migration bundle reaches the mocked Prisma sink", () =>
+test("real main-to-candidate four-path migration discovery reaches the mocked Prisma sink", () =>
   withHarness((h) => {
-    const result = runDeploy(h, { FAKE_GIT_DIFF: REVIEWED_SUBSCRIPTION_DIFF });
+    writeFileSync(join(h.appRoot, "releases/previous-good.json"), JSON.stringify({
+      release: AUTHORITATIVE_PREVIOUS_RELEASE,
+      previousRelease: AUTHORITATIVE_PREVIOUS_RELEASE,
+      tuple: "previous-tuple", api: PREVIOUS_API, ui: PREVIOUS_UI,
+      migrationDeltaSha256: "e".repeat(64), result: "success",
+    }) + "\n");
+    const result = runDeploy(h, {
+      PREVIOUS_RELEASE_COMMIT: AUTHORITATIVE_PREVIOUS_RELEASE,
+      RELEASE_COMMIT: REAL_MIGRATION_CANDIDATE,
+      USE_REAL_GIT_DIFF: "1",
+    });
     assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stderr.includes("FAKE_GIT_DIFF"), false);
     assert.match(result.calls, /^ssh /m);
     assert.match(result.calls, /^rsync /m);
     assert.match(result.calls, /docker compose .* run --rm --no-deps api/);
@@ -756,6 +779,8 @@ for (const [name, mutation, gitDiff = REVIEWED_SUBSCRIPTION_DIFF] of [
   ["legacy mapping", "mapping"],
   ["default", "default"],
   ["extra reviewed-looking statement", "extra-statement"],
+  ["IAP delivery byte hash", "iap-delivery-hash"],
+  ["Google alias byte hash", "google-alias-hash"],
   ["third migration", "third-migration",
     `${REVIEWED_SUBSCRIPTION_DIFF}A\tpackages/db/prisma/migrations/20260820000001_unreviewed/migration.sql\n`],
   ["unmanifested historical migration", "unmanifested"],
@@ -776,10 +801,55 @@ test("reviewed subscription bundle denies a changed path before transport", () =
     const result = runDeploy(h, {
       FAKE_GIT_DIFF:
         `A\tpackages/db/prisma/migrations/20260820000000_changed_path/migration.sql\n` +
-        `M\t${REVIEWED_PROJECTION_MIGRATION}\n`,
+        `A\t${REVIEWED_PROJECTION_MIGRATION}\n` +
+        `A\t${REVIEWED_IAP_DELIVERY_MIGRATION}\n` +
+        `A\t${REVIEWED_GOOGLE_ALIAS_MIGRATION}\n`,
     });
     assert.equal(result.status, 68);
     assert.doesNotMatch(result.calls, /^ssh |^rsync |migrate deploy|up -d|curl /m);
+  }));
+
+for (const [name, gitDiff] of [
+  ["modified status", REVIEWED_SUBSCRIPTION_DIFF.replace(`A\t${REVIEWED_PROJECTION_MIGRATION}`, `M\t${REVIEWED_PROJECTION_MIGRATION}`)],
+  ["omitted path", REVIEWED_SUBSCRIPTION_DIFF.replace(`A\t${REVIEWED_IAP_DELIVERY_MIGRATION}\n`, "")],
+  ["reordered paths",
+    `A\t${REVIEWED_PROJECTION_MIGRATION}\n` +
+    `A\t${REVIEWED_ENUM_MIGRATION}\n` +
+    `A\t${REVIEWED_IAP_DELIVERY_MIGRATION}\n` +
+    `A\t${REVIEWED_GOOGLE_ALIAS_MIGRATION}\n`],
+  ["duplicate path", REVIEWED_SUBSCRIPTION_DIFF + `A\t${REVIEWED_ENUM_MIGRATION}\n`],
+  ["rename-copy status", `R100\t${REVIEWED_ENUM_MIGRATION}\t${REVIEWED_PROJECTION_MIGRATION}\n`],
+]) test(`reviewed subscription bundle denies ${name} before transport`, () =>
+  withHarness((h) => {
+    const result = runDeploy(h, {
+      PREVIOUS_RELEASE_COMMIT: AUTHORITATIVE_PREVIOUS_RELEASE,
+      FAKE_GIT_DIFF: gitDiff,
+    });
+    assert.equal(result.status, 68);
+    assert.doesNotMatch(result.calls, /^ssh |^rsync |migrate deploy|up -d|curl /m);
+    assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
+  }));
+
+test("non-authoritative previous-good base lease is rejected before SSH", () =>
+  withHarness((h) => {
+    const result = runDeploy(h, {
+      PREVIOUS_RELEASE_COMMIT: "f".repeat(40),
+      FAKE_GIT_DIFF: REVIEWED_SUBSCRIPTION_DIFF,
+    });
+    assert.equal(result.status, 68);
+    assert.doesNotMatch(result.calls, /^ssh |^rsync |migrate deploy|up -d|curl /m);
+  }));
+
+test("remote previous-good drift is rejected before transfer and migration", () =>
+  withHarness((h) => {
+    const result = runDeploy(h, {
+      PREVIOUS_RELEASE_COMMIT: AUTHORITATIVE_PREVIOUS_RELEASE,
+      FAKE_GIT_DIFF: REVIEWED_SUBSCRIPTION_DIFF,
+    });
+    assert.equal(result.status, 68);
+    assert.match(result.calls, /^ssh /m);
+    assert.doesNotMatch(result.calls, /^rsync |migrate deploy|up -d|curl /m);
+    assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
   }));
 
 const migrationCases = [
