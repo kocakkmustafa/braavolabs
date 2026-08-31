@@ -201,8 +201,9 @@ describe("extractProviderErrorStatus", () => {
 });
 
 describe("ProviderExhaustedError.wrap", () => {
-  it("captures the classification, extracted status, provider/model of the failed link, and mirrors the cause's message", () => {
-    const cause = new Error("OPENAI API error 402: insufficient_quota");
+  it("captures structured routing fields without retaining the raw provider cause", () => {
+    const canary = "RAW-UPSTREAM-SECRET http://10.0.0.8";
+    const cause = Object.assign(new Error(`OPENAI API error 402: ${canary}`), { status: 402 });
     const wrapped = ProviderExhaustedError.wrap("FAILOVER", "OPENAI", "gpt-4o", cause);
 
     expect(wrapped).toBeInstanceOf(ProviderExhaustedError);
@@ -211,10 +212,10 @@ describe("ProviderExhaustedError.wrap", () => {
     expect(wrapped.status).toBe(402);
     expect(wrapped.provider).toBe("OPENAI");
     expect(wrapped.model).toBe("gpt-4o");
-    expect(wrapped.original).toBe(cause);
-    // Message mirrors the cause — every existing `.toThrow(/…/)` consumer
-    // in the run/pipeline suites depends on this staying byte-identical.
-    expect(wrapped.message).toBe(cause.message);
+    expect(wrapped.original).not.toBe(cause);
+    expect(wrapped.message).not.toContain(canary);
+    expect(JSON.stringify(wrapped.original)).not.toContain(canary);
+    expect(wrapped.message).toContain("OPENAI");
   });
 
   it("a default-TRANSIENT classification with no recoverable status still wraps, but status is undefined", () => {
@@ -307,7 +308,7 @@ describe("circuit breaker — 3 failures / 5min → open, 5min cooldown", () => 
 // ─── Chain building (D-009 order + privacy rule) ───
 
 describe("buildTenantProviderChain — order + privacy", () => {
-  it("orders links: BYOK default → fallbackOrder asc; keys decrypted per row", async () => {
+  it("orders links without decrypting, then resolves each credential once on demand", async () => {
     seedRows([
       { provider: "OPENAI", model: "gpt-4o", key: "sk-oai", fallbackOrder: 2 },
       { provider: "DEEPSEEK", model: "deepseek-chat", key: "sk-ds", isDefault: true },
@@ -321,8 +322,13 @@ describe("buildTenantProviderChain — order + privacy", () => {
       ["GROQ", "byok-fallback"],
       ["OPENAI", "byok-fallback"],
     ]);
-    expect(chain[0]!.config.apiKey).toBe("sk-ds");
-    expect(chain[1]!.config.apiKey).toBe("gsk-1");
+    expect(decryptMock).not.toHaveBeenCalled();
+    expect(chain[0]!.config.apiKey).not.toBe("sk-ds");
+    expect(chain[1]!.config.apiKey).not.toBe("gsk-1");
+    expect(chain[0]!.config.getApiKey!()).toBe("sk-ds");
+    expect(chain[0]!.config.getApiKey!()).toBe("sk-ds");
+    expect(chain[1]!.config.getApiKey!()).toBe("gsk-1");
+    expect(decryptMock).toHaveBeenCalledTimes(2);
   });
 
   it("rows WITHOUT fallbackOrder are stored keys, not chain members (failover default-OFF)", async () => {
@@ -337,24 +343,18 @@ describe("buildTenantProviderChain — order + privacy", () => {
     expect(chain[0]!.provider).toBe("DEEPSEEK");
   });
 
-  it("PRIVACY: BYOK tenant with allowSystemFallback=false gets NO trial and NO system link", async () => {
+  it("BYOK tenant receives only its own configured provider", async () => {
     seedRows([
       { provider: "DEEPSEEK", model: "deepseek-chat", key: "sk-ds", isDefault: true },
     ]);
-    tryConsumeTrialRunMock.mockResolvedValue({
-      config: { provider: "GROQ", model: "llama-3.3-70b-versatile", apiKey: "gsk-trial" },
-      remainingBefore: 3,
-      remainingAfter: 2,
-    });
-
     const chain = await buildTenantProviderChain(TENANT);
 
     expect(chain.map((l) => l.source)).toEqual(["byok-default"]);
-    // Trial eligibility isn't even consulted without the opt-in.
     expect(tryConsumeTrialRunMock).not.toHaveBeenCalled();
+    expect(db.tenantFindUnique).not.toHaveBeenCalled();
   });
 
-  it("opt-in (allowSystemFallback=true on the default row) appends trial then system", async () => {
+  it("adversarial allowSystemFallback=true and system keys still cannot append hosted links", async () => {
     seedRows([
       {
         provider: "DEEPSEEK",
@@ -364,57 +364,43 @@ describe("buildTenantProviderChain — order + privacy", () => {
         allowSystemFallback: true,
       },
     ]);
-    tryConsumeTrialRunMock.mockResolvedValue({
-      config: { provider: "GROQ", model: "llama-3.3-70b-versatile", apiKey: "gsk-trial" },
-      remainingBefore: 3,
-      remainingAfter: 2,
-    });
-
     const chain = await buildTenantProviderChain(TENANT);
 
-    expect(chain.map((l) => l.source)).toEqual(["byok-default", "trial", "system"]);
-    expect(chain[2]!.config).toMatchObject({
-      provider: "ANTHROPIC",
-      apiKey: "sk-ant-system-key",
-    });
+    expect(chain.map((l) => l.source)).toEqual(["byok-default"]);
+    expect(tryConsumeTrialRunMock).not.toHaveBeenCalled();
+    expect(db.tenantFindUnique).not.toHaveBeenCalled();
   });
 
-  it("D-009: BYOK-less FREE tenant → trial only, never the system key", async () => {
-    seedRows([], "FREE");
+  it.each(["MANUAL_REVIEW", "INDIVIDUAL", "TEAM", "FREE", "BUSINESS"])(
+    "BYOK-less %s tenant always receives an empty chain",
+    async (plan) => {
+      seedRows([], plan);
+      tryConsumeTrialRunMock.mockResolvedValue({
+        config: { provider: "GROQ", model: "llama-3.3-70b-versatile", apiKey: "gsk-trial" },
+        remainingBefore: 1,
+        remainingAfter: 0,
+      });
+
+      expect(await buildTenantProviderChain(TENANT)).toEqual([]);
+      expect(tryConsumeTrialRunMock).not.toHaveBeenCalled();
+      expect(db.tenantFindUnique).not.toHaveBeenCalled();
+    },
+  );
+
+  it("a missing tenant row cannot trigger any system lookup or grant", async () => {
+    seedRows([]);
+    db.tenantFindUnique.mockResolvedValue(null);
     tryConsumeTrialRunMock.mockResolvedValue({
       config: { provider: "GROQ", model: "llama-3.3-70b-versatile", apiKey: "gsk-trial" },
       remainingBefore: 1,
       remainingAfter: 0,
     });
 
-    const chain = await buildTenantProviderChain(TENANT);
-
-    expect(chain.map((l) => l.source)).toEqual(["trial"]);
-  });
-
-  it("D-009: BYOK-less FREE tenant with a spent trial gets an EMPTY chain", async () => {
-    seedRows([], "FREE");
-    tryConsumeTrialRunMock.mockResolvedValue(null);
-
     expect(await buildTenantProviderChain(TENANT)).toEqual([]);
+    expect(db.tenantFindUnique).not.toHaveBeenCalled();
   });
 
-  it("BYOK-less PAID tenant keeps the system entry (deliberate — see module docs)", async () => {
-    seedRows([], "BUSINESS");
-
-    const chain = await buildTenantProviderChain(TENANT);
-
-    expect(chain.map((l) => l.source)).toEqual(["system"]);
-  });
-
-  it("a MISSING tenant row is fail-closed (treated as FREE — no system key)", async () => {
-    seedRows([]);
-    db.tenantFindUnique.mockResolvedValue(null);
-
-    expect(await buildTenantProviderChain(TENANT)).toEqual([]);
-  });
-
-  it("cloud rows whose key won't decrypt are skipped (D-002 reasoning), local rows run keyless", async () => {
+  it("cloud decrypt failure is deferred to use while local keyless rows remain usable", async () => {
     seedRows([
       { provider: "DEEPSEEK", model: "deepseek-chat", key: "sk-ds", isDefault: true, corrupt: true },
       { provider: "OLLAMA", model: "gemma3:4b", key: null, fallbackOrder: 1, baseUrl: "http://localhost:11434/v1" },
@@ -422,8 +408,13 @@ describe("buildTenantProviderChain — order + privacy", () => {
 
     const chain = await buildTenantProviderChain(TENANT);
 
-    expect(chain.map((l) => [l.provider, l.source])).toEqual([["OLLAMA", "byok-fallback"]]);
-    expect(chain[0]!.config).toMatchObject({ apiKey: "", baseUrl: "http://localhost:11434/v1" });
+    expect(chain.map((l) => [l.provider, l.source])).toEqual([
+      ["DEEPSEEK", "byok-default"],
+      ["OLLAMA", "byok-fallback"],
+    ]);
+    expect(decryptMock).not.toHaveBeenCalled();
+    expect(() => chain[0]!.config.getApiKey!()).toThrow(/credential/i);
+    expect(chain[1]!.config).toMatchObject({ apiKey: "", baseUrl: "http://localhost:11434/v1" });
   });
 
   it("OFFLINE_MODE strips every cloud link — BYOK cloud rows, trial and system included", async () => {
@@ -476,11 +467,12 @@ describe("listTenantProviderLinks — configured providers as compare candidates
       ["MISTRAL", "byok-fallback"],
       ["OPENAI", "byok-fallback"], // stored key: candidate, even if not a chain member
     ]);
-    expect(links[0]!.config.apiKey).toBe("sk-ds");
-    expect(links[3]!.config.apiKey).toBe("sk-oai");
+    expect(decryptMock).not.toHaveBeenCalled();
+    expect(links[0]!.config.getApiKey!()).toBe("sk-ds");
+    expect(links[3]!.config.getApiKey!()).toBe("sk-oai");
   });
 
-  it("never contains trial/system links (tenant's own keys ONLY) and skips undecryptable cloud rows", async () => {
+  it("never contains trial/system links and defers corrupt cloud credentials to dial time", async () => {
     seedRows([
       { provider: "DEEPSEEK", model: "deepseek-chat", key: "sk-ds", isDefault: true, corrupt: true, allowSystemFallback: true },
       { provider: "OLLAMA", model: "gemma3:4b", key: null, baseUrl: "http://localhost:11434/v1" },
@@ -493,7 +485,9 @@ describe("listTenantProviderLinks — configured providers as compare candidates
 
     const links = await listTenantProviderLinks(TENANT);
 
-    expect(links.map((l) => l.provider)).toEqual(["OLLAMA"]); // corrupt DEEPSEEK dropped
+    expect(links.map((l) => l.provider)).toEqual(["DEEPSEEK", "OLLAMA"]);
+    expect(decryptMock).not.toHaveBeenCalled();
+    expect(() => links[0]!.config.getApiKey!()).toThrow(/credential/i);
     expect(tryConsumeTrialRunMock).not.toHaveBeenCalled(); // no trial leg in compare mode
   });
 
@@ -528,7 +522,9 @@ describe("resolveTenantCompletionLink — chain head, D-009 policy for one-shots
     const link = await resolveTenantCompletionLink(TENANT);
 
     expect(link.source).toBe("byok-default");
-    expect(link.config).toMatchObject({ provider: "DEEPSEEK", model: "deepseek-chat", apiKey: "sk-ds" });
+    expect(link.config).toMatchObject({ provider: "DEEPSEEK", model: "deepseek-chat" });
+    expect(decryptMock).not.toHaveBeenCalled();
+    expect(link.config.getApiKey!()).toBe("sk-ds");
     // No opt-in, has BYOK → the chain never consults the trial pool or the
     // tenant plan row for a system fallback.
     expect(tryConsumeTrialRunMock).not.toHaveBeenCalled();
@@ -546,7 +542,7 @@ describe("resolveTenantCompletionLink — chain head, D-009 policy for one-shots
     expect(db.tenantFindUnique).not.toHaveBeenCalled();
   });
 
-  it("D-009 PARITY: BYOK-less FREE tenant with trial available → COUNTED trial Groq, never the system key", async () => {
+  it("BYOK-less tenant throws even when the historical trial mock says credit is available", async () => {
     seedRows([], "FREE");
     tryConsumeTrialRunMock.mockResolvedValue({
       config: { provider: "GROQ", model: "llama-3.3-70b-versatile", apiKey: "gsk-trial" },
@@ -554,10 +550,8 @@ describe("resolveTenantCompletionLink — chain head, D-009 policy for one-shots
       remainingAfter: 2,
     });
 
-    const link = await resolveTenantCompletionLink(TENANT);
-
-    expect(link.source).toBe("trial");
-    expect(link.config).toMatchObject({ provider: "GROQ", apiKey: "gsk-trial" });
+    await expect(resolveTenantCompletionLink(TENANT)).rejects.toThrow(/no ai provider configured/i);
+    expect(tryConsumeTrialRunMock).not.toHaveBeenCalled();
   });
 
   it("HONESTY: BYOK-less FREE tenant with a SPENT trial → throws (no silent system-key completion)", async () => {
@@ -567,12 +561,12 @@ describe("resolveTenantCompletionLink — chain head, D-009 policy for one-shots
     await expect(resolveTenantCompletionLink(TENANT)).rejects.toThrow(/no ai provider configured/i);
   });
 
-  it("HONESTY: BYOK tenant opted OUT of system fallback + corrupted key → throws (the exact D-013 bleed)", async () => {
-    // getTenantAIConfig alone would fall through to the system Anthropic key
-    // here because the row is unusable — the chain head must refuse instead.
+  it("HONESTY: corrupt BYOK remains tenant-owned and fails only when dialed", async () => {
     seedRows([{ provider: "DEEPSEEK", model: "deepseek-chat", key: "sk-ds", isDefault: true, corrupt: true, allowSystemFallback: false }]);
 
-    await expect(resolveTenantCompletionLink(TENANT)).rejects.toThrow(/no ai provider configured/i);
+    const link = await resolveTenantCompletionLink(TENANT);
+    expect(decryptMock).not.toHaveBeenCalled();
+    expect(() => link.config.getApiKey!()).toThrow(/credential/i);
   });
 
   it("HONESTY: no ANTHROPIC_API_KEY and no usable BYOK → throws the historical 'not configured' error", async () => {
@@ -582,33 +576,28 @@ describe("resolveTenantCompletionLink — chain head, D-009 policy for one-shots
     await expect(resolveTenantCompletionLink(TENANT)).rejects.toThrow(/no ai provider configured/i);
   });
 
-  it("D-009 PRESERVED: BYOK-less PAID tenant → system Anthropic key, exactly as the chain's entry path", async () => {
+  it("BYOK-less paid tenant cannot use the system Anthropic key", async () => {
     seedRows([], "BUSINESS");
 
-    const link = await resolveTenantCompletionLink(TENANT);
-
-    expect(link.source).toBe("system");
-    expect(link.config).toMatchObject({ provider: "ANTHROPIC", apiKey: "sk-ant-system-key", model: envMock.CLAUDE_MODEL });
+    await expect(resolveTenantCompletionLink(TENANT)).rejects.toThrow(/no ai provider configured/i);
+    expect(db.tenantFindUnique).not.toHaveBeenCalled();
   });
 
-  it("D-009 PRESERVED: BYOK tenant opted IN (allowSystemFallback=true) + corrupted key → system Anthropic key", async () => {
+  it("BYOK tenant opted IN plus a corrupt key still never reaches a system key", async () => {
     seedRows([
       { provider: "DEEPSEEK", model: "deepseek-chat", key: "sk-ds", isDefault: true, corrupt: true, allowSystemFallback: true },
     ]);
 
     const link = await resolveTenantCompletionLink(TENANT);
-
-    expect(link.source).toBe("system");
-    expect(link.config).toMatchObject({ provider: "ANTHROPIC", apiKey: "sk-ant-system-key" });
+    expect(link.provider).toBe("DEEPSEEK");
+    expect(() => link.config.getApiKey!()).toThrow(/credential/i);
+    expect(tryConsumeTrialRunMock).not.toHaveBeenCalled();
   });
 
-  it("R2 FIX: a healthy BYOK head with allowSystemFallback=true still reserves hosted-trial cost for the opt-in tail — self-refunds it immediately since this caller only ever dials head, never the tail", async () => {
+  it("a healthy BYOK head ignores historical hosted-fallback flags without reserving or refunding trial credit", async () => {
     seedRows([
       { provider: "DEEPSEEK", model: "deepseek-chat", key: "sk-ds", isDefault: true, allowSystemFallback: true },
     ]);
-    // buildTenantProviderChain includes trial in the tail whenever
-    // allowSystemFallback is set, regardless of whether head is healthy —
-    // tryConsumeTrialRun (now atomic) reserves as a side effect of that.
     tryConsumeTrialRunMock.mockResolvedValue({
       config: { provider: "GROQ", model: "llama-3.3-70b-versatile", apiKey: "gsk-trial" },
       remainingBefore: 3,
@@ -617,8 +606,9 @@ describe("resolveTenantCompletionLink — chain head, D-009 policy for one-shots
 
     const link = await resolveTenantCompletionLink(TENANT);
 
-    expect(link.source).toBe("byok-default"); // head is BYOK, trial never dialed
-    expect(refundTrialReservationMock).toHaveBeenCalledWith(TENANT);
+    expect(link.source).toBe("byok-default");
+    expect(tryConsumeTrialRunMock).not.toHaveBeenCalled();
+    expect(refundTrialReservationMock).not.toHaveBeenCalled();
   });
 
   it("no stranded-reservation refund when trial was never reserved at all (BYOK-only chain, no allowSystemFallback)", async () => {
@@ -630,10 +620,10 @@ describe("resolveTenantCompletionLink — chain head, D-009 policy for one-shots
   });
 });
 
-describe("commitTrialCompletion — run-based counter, trial link only (D-013)", () => {
-  it("source='trial' → commits the counter for the tenant (consume on serve)", async () => {
+describe("retired trial completion hooks", () => {
+  it("source='trial' is a compatibility no-op and cannot mutate a hosted counter", async () => {
     await commitTrialCompletion(TENANT, "trial");
-    expect(commitTrialRunMock).toHaveBeenCalledExactlyOnceWith(TENANT);
+    expect(commitTrialRunMock).not.toHaveBeenCalled();
   });
 
   it.each(["byok-default", "byok-fallback", "system"] as const)(
@@ -644,7 +634,7 @@ describe("commitTrialCompletion — run-based counter, trial link only (D-013)",
     },
   );
 
-  it("a counter-write failure is swallowed (non-fatal — ±1 tolerance)", async () => {
+  it("never calls the historical counter even if that mock would fail", async () => {
     commitTrialRunMock.mockRejectedValue(new Error("db down"));
     await expect(commitTrialCompletion(TENANT, "trial")).resolves.toBeUndefined();
   });

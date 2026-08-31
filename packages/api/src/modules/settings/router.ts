@@ -3,6 +3,7 @@
  */
 
 import { Router } from "express";
+import type { RequestHandler } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
 import { AppError } from "../../middleware/error";
@@ -21,6 +22,18 @@ import { getProviderModels, isKnownProvider } from "./provider-models";
 
 export const settingsRouter = Router();
 settingsRouter.use(authMiddleware);
+
+const requireProviderMutationRole: RequestHandler = (req, res, next) => {
+  if (!req.auth) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  if (!req.auth.role || !["OWNER", "ADMIN"].includes(req.auth.role)) {
+    res.status(403).json({ error: "Insufficient permissions" });
+    return;
+  }
+  next();
+};
 
 // ─── AI Provider Config ───────────────────────────────────
 
@@ -63,8 +76,8 @@ settingsRouter.get("/ai-config", async (req, res, next) => {
           })()
         : null,
       baseUrl: aiConfig.baseUrl ?? null,
-      // E2/T7 — opt-in flag on the default row: may the failover chain fall
-      // to the trial/system providers once the tenant's own links die?
+      // Historical field retained for response compatibility. Runtime
+      // resolution ignores it and never reaches shared provider funding.
       allowSystemFallback: aiConfig.allowSystemFallback ?? false,
       availableProviders: Object.keys(PROVIDER_DEFAULT_MODELS),
       availableModels: PROVIDER_MODELS,
@@ -172,34 +185,30 @@ const aiConfigSchema = z.object({
   // (defaults to localhost:11434/1234), optional for cloud providers
   // (rare but useful for Azure/LiteLLM-shim users).
   baseUrl: z.string().url().optional().or(z.literal("")),
-  // E2/T7 — opt-in: allow the failover chain to fall back to the trial /
-  // system providers once the tenant's own links are exhausted. Stored on
-  // the default row; omitted = keep the stored value (false by default).
+  // Historical input retained for one compatibility release. It is stored but
+  // cannot enable a shared provider path in getTenantAIConfig/provider-chain.
   allowSystemFallback: z.boolean().optional(),
 });
 
-// Plans that may configure self-hosted LLM providers (Ollama, LM Studio,
-// Custom). FREE plan keeps it simple — cloud BYOK only. CREATOR+ unlocks
-// self-hosted endpoints. The frontend mirrors this list in LOCAL_LLM_PLANS.
+// Canonical plans may configure self-hosted LLM providers (Ollama, LM Studio,
+// Custom). The frontend mirrors this list in LOCAL_LLM_PLANS.
 //
 // IMPORTANT: these names MUST match the Plan enum in
 // packages/db/prisma/schema.prisma exactly. The previous version
 // referenced STARTER/TEAM which don't exist — that bug would have
 // rejected every paying customer's first self-hosted save with a 402.
 const LOCAL_LLM_PLANS: ReadonlySet<string> = new Set([
-  "CREATOR", "PRO", "BUSINESS", "ENTERPRISE",
+  "INDIVIDUAL", "TEAM",
 ]);
 
 // PUT /api/v1/settings/ai-config
 // Save AI provider selection and (optionally) API key + base URL.
-settingsRouter.put("/ai-config", async (req, res, next) => {
+settingsRouter.put("/ai-config", requireProviderMutationRole, async (req, res, next) => {
   try {
     const { provider, model, apiKey, baseUrl, allowSystemFallback } = aiConfigSchema.parse(req.body);
     const isLocal = (LOCAL_PROVIDER_LITERALS as readonly string[]).includes(provider);
 
-    // Plan gate — self-hosted providers are CREATOR+ only. FREE-plan
-    // tenants who attempt OLLAMA/LMSTUDIO/CUSTOM get a 402 with a
-    // pointer to /pricing. Mirrors the UI guard.
+    // Plan gate mirrors the canonical two-plan UI guard.
     if (isLocal) {
       const tenant = await prisma.tenant.findUnique({
         where: { id: req.auth!.tenantId },
@@ -208,7 +217,7 @@ settingsRouter.put("/ai-config", async (req, res, next) => {
       if (!tenant || !LOCAL_LLM_PLANS.has(tenant.plan)) {
         throw new AppError(
           402,
-          "Self-hosted LLM providers (Ollama / LM Studio / Custom) require a Creator plan or higher. Visit /pricing to upgrade."
+          "Self-hosted LLM providers (Ollama / LM Studio / Custom) require an Individual or Team subscription. Visit /pricing to subscribe."
         );
       }
     }
@@ -284,8 +293,9 @@ settingsRouter.put("/ai-config", async (req, res, next) => {
 });
 
 // DELETE /api/v1/settings/ai-config
-// Remove AI config — revert to system default (Anthropic system key).
-settingsRouter.delete("/ai-config", async (req, res, next) => {
+// Remove tenant AI config — provider execution stays disabled until BYOK/local
+// configuration is added again.
+settingsRouter.delete("/ai-config", requireProviderMutationRole, async (req, res, next) => {
   try {
     await prisma.userAIConfig.deleteMany({
       where: { tenantId: req.auth!.tenantId },
@@ -300,13 +310,16 @@ settingsRouter.delete("/ai-config", async (req, res, next) => {
       },
     });
 
-    res.json({ success: true, message: "AI config removed. Using system default." });
+    res.json({
+      success: true,
+      message: "AI config removed. Provider execution is disabled until BYOK or local configuration is added.",
+    });
   } catch (err) { next(err); }
 });
 
 // GET /api/v1/settings/ai-config/test
 // Quick connectivity test — send a trivial message to the configured provider.
-settingsRouter.post("/ai-config/test", async (req, res, next) => {
+settingsRouter.post("/ai-config/test", requireProviderMutationRole, async (req, res, next) => {
   try {
     const { getTenantAIConfig, chatCompletion } = await import("../../services/ai-client");
     const config = await getTenantAIConfig(req.auth!.tenantId);
@@ -326,6 +339,6 @@ settingsRouter.post("/ai-config/test", async (req, res, next) => {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    res.json({ success: false, error: message });
+    res.status(400).json({ success: false, error: message });
   }
 });

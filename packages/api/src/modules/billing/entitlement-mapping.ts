@@ -13,10 +13,69 @@
 import type { EntitlementEventType, EntitlementSource } from "./entitlement-reducer";
 import type { AppendEntitlementEventInput } from "./entitlement-ledger.service";
 import type { VerifiedReceipt } from "./iap/apple";
+import { normalizePlanForEntitlement, type Plan } from "@ai-company-os/core";
 
 export type EntitlementEventInput = Omit<AppendEntitlementEventInput, "tenantId">;
 
-export type PlanTier = "FREE" | "CREATOR" | "PRO" | "BUSINESS" | "ENTERPRISE";
+export type PlanTier = Plan;
+
+export const NEW_SALE_IAP_PRODUCT_MAP = {
+  "com.braavolabs.individual.monthly": "INDIVIDUAL",
+  "com.braavolabs.team.monthly": "TEAM",
+} as const;
+
+export const LEGACY_IAP_PRODUCT_MAP: Record<string, PlanTier> = {
+  "com.braavolabs.creator.monthly": "CREATOR",
+  "com.braavolabs.creator.yearly": "CREATOR",
+  "com.braavolabs.pro.monthly": "PRO",
+  "com.braavolabs.pro.yearly": "PRO",
+  "com.braavolabs.business.monthly": "BUSINESS",
+  "com.braavolabs.business.yearly": "BUSINESS",
+  "com.braavolabs.enterprise.monthly": "ENTERPRISE",
+  "com.braavolabs.enterprise.yearly": "ENTERPRISE",
+};
+
+export function resolveIapProductPlan(productId: string): "INDIVIDUAL" | "TEAM" | "MANUAL_REVIEW" {
+  const raw = NEW_SALE_IAP_PRODUCT_MAP[productId as keyof typeof NEW_SALE_IAP_PRODUCT_MAP]
+    ?? LEGACY_IAP_PRODUCT_MAP[productId];
+  return normalizePlanForEntitlement(raw);
+}
+
+export interface SubscriptionMigrationRow {
+  plan: string;
+  legacyPlan: string | null;
+  migrationState: "pending" | "mapped" | "manual_review";
+}
+
+/** Pure mirror of the additive SQL projection, used for fixture/replay proof. */
+export function migrateSubscriptionProjection(row: SubscriptionMigrationRow): SubscriptionMigrationRow {
+  if (row.migrationState !== "pending") return { ...row };
+  if (!row.legacyPlan && (row.plan === "INDIVIDUAL" || row.plan === "TEAM")) {
+    return { ...row, migrationState: "mapped" };
+  }
+  const legacyPlan = row.legacyPlan ?? row.plan;
+  const plan = normalizePlanForEntitlement(legacyPlan);
+  return {
+    plan,
+    legacyPlan,
+    migrationState: plan === "MANUAL_REVIEW" ? "manual_review" : "mapped",
+  };
+}
+
+export interface StripePriceSnapshot {
+  individual: readonly (string | undefined)[];
+  team: readonly (string | undefined)[];
+  ambiguousLegacy: readonly (string | undefined)[];
+}
+
+export function resolveStripePricePlan(
+  priceId: string | undefined,
+  snapshot: StripePriceSnapshot,
+): "INDIVIDUAL" | "TEAM" | "MANUAL_REVIEW" {
+  if (priceId && snapshot.individual.includes(priceId)) return "INDIVIDUAL";
+  if (priceId && snapshot.team.includes(priceId)) return "TEAM";
+  return "MANUAL_REVIEW";
+}
 
 // ─── Stripe ──────────────────────────────────────────────────────────
 
@@ -69,7 +128,7 @@ export function mapStripeSubscriptionUpdated(
   plan: PlanTier,
 ): EntitlementEventInput {
   const type: EntitlementEventType =
-    subscription.status === "active" || subscription.status === "trialing"
+    subscription.status === "active"
       ? "renewal"
       : subscription.status === "past_due"
         ? "grace"
@@ -82,7 +141,7 @@ export function mapStripeSubscriptionUpdated(
     sourceEventId: event.id,
     sourceTimestamp: new Date(event.created * 1000),
     type,
-    planTier: type === "renewal" ? plan : null,
+    planTier: type === "renewal" ? normalizePlanForEntitlement(plan) : null,
     expiresAt: granting && subscription.current_period_end
       ? new Date(subscription.current_period_end * 1000)
       : null,
@@ -235,13 +294,14 @@ export function mapIapVerify(
   planTier: PlanTier,
 ): EntitlementEventInput | null {
   if (verified.status !== "active" && verified.status !== "in_grace_period") return null;
+  const canonicalPlan = normalizePlanForEntitlement(planTier);
   return {
     source,
     streamId: verified.originalTransactionId,
-    sourceEventId: `verify:${verified.originalTransactionId}:${verified.status}:${verified.expiresAt.getTime()}:${planTier}:${verified.autoRenew}`,
+    sourceEventId: `verify:${verified.originalTransactionId}:${verified.status}:${verified.expiresAt.getTime()}:${canonicalPlan}:${verified.autoRenew}`,
     sourceTimestamp: new Date(),
     type: verified.status === "active" ? "purchase" : "grace",
-    planTier: verified.status === "active" ? planTier : null,
+    planTier: verified.status === "active" ? canonicalPlan : null,
     expiresAt: verified.status === "active" ? verified.expiresAt : null,
     autoRenew: verified.autoRenew,
   };
@@ -270,7 +330,7 @@ export function mapAppleNotify(
     sourceEventId: note.notificationUUID,
     sourceTimestamp: note.signedDate,
     type,
-    planTier: type === "renewal" ? planTier : null,
+    planTier: type === "renewal" ? normalizePlanForEntitlement(planTier) : null,
     expiresAt: granting ? verified.expiresAt : null,
     autoRenew: granting ? verified.autoRenew : false,
   };
@@ -291,7 +351,7 @@ export function mapGoogleNotify(
     sourceEventId: parsed.messageId,
     sourceTimestamp: parsed.publishTime,
     type,
-    planTier: type === "renewal" ? planTier : null,
+    planTier: type === "renewal" ? normalizePlanForEntitlement(planTier) : null,
     expiresAt: granting ? verified.expiresAt : null,
     autoRenew: granting ? verified.autoRenew : false,
   };

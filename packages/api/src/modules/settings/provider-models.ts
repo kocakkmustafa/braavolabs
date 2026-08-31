@@ -19,16 +19,16 @@
  *   - The Gemini key travels in the `x-goog-api-key` HEADER, never the URL
  *     query string (mirrors the D-001 fix in ai-client.callGoogle — query
  *     keys leak into proxy/server logs).
- *   - OpenAI-compatible base URLs are tenant-controllable → the same SSRF
- *     policy as ai-client.callOpenAICompatible applies: loopback/private
- *     ranges only for local-first providers (OLLAMA/LMSTUDIO/CUSTOM) or
- *     OFFLINE_MODE deployments; cloud-metadata IPs refused for everyone.
+ *   - Every catalogue request uses the socket-bound SSRF transport. For
+ *     tenant-controllable OpenAI-compatible base URLs, loopback/private
+ *     ranges are available only to local-first providers in an explicit
+ *     OFFLINE_MODE deployment; cloud-metadata IPs are refused for everyone.
  */
 
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { decryptForTenant } from "../../lib/encryption";
-import { assertSafeExternalUrl } from "../../lib/ssrf";
+import { safeExternalFetch, type SafeExternalFetchOptions } from "../../lib/ssrf";
 import { env } from "../../config/env";
 import {
   PROVIDER_MODELS,
@@ -94,11 +94,15 @@ function pruneCache(now: number): void {
 
 // ─── Live fetch per provider ──────────────────────────────
 
-async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  options: SafeExternalFetchOptions = {},
+): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), LIVE_FETCH_TIMEOUT_MS);
   try {
-    return await fetch(url, { ...init, signal: controller.signal });
+    return await safeExternalFetch(url, { ...init, signal: controller.signal }, options);
   } finally {
     clearTimeout(timer);
   }
@@ -129,7 +133,7 @@ function isChatModelId(id: string): boolean {
  */
 async function fetchLiveModels(
   provider: AIProviderType,
-  cfg: { apiKey: string; baseUrl?: string },
+  cfg: { apiKey: string; baseUrl?: string; getApiKey?: () => string },
 ): Promise<string[] | null> {
   if (provider === "ANTHROPIC") {
     const res = await fetchWithTimeout("https://api.anthropic.com/v1/models?limit=100", {
@@ -170,23 +174,45 @@ async function fetchLiveModels(
   if (!baseUrl) return null; // CUSTOM without a saved base URL
 
   // Same SSRF policy as ai-client.callOpenAICompatible (see docblock).
-  const isLocal = LOCAL_PROVIDERS.has(provider);
-  await assertSafeExternalUrl(baseUrl, {
-    allowLoopback: isLocal,
-    allowPrivateNetworks: isLocal || env.OFFLINE_MODE,
-  });
+  // A local provider name alone is not authority to reach private networks:
+  // the deployment must explicitly opt into offline/local operation too.
+  const allowLocalNetworks = LOCAL_PROVIDERS.has(provider) && env.OFFLINE_MODE === true;
+  const catalogueUrl = new URL(`${baseUrl}/models`);
 
-  const headers: Record<string, string> = {};
-  // Local providers often run without auth — only send the header when a
-  // key exists (mirrors ai-client).
-  if (cfg.apiKey) headers["Authorization"] = `Bearer ${cfg.apiKey}`;
-  // OpenRouter attribution headers (D-003 parity with ai-client).
-  if (provider === "OPENROUTER") {
-    headers["HTTP-Referer"] = "https://braavolabs.com";
-    headers["X-Title"] = "Braavolabs";
+  // A credential-bearing public provider must never downgrade to cleartext.
+  // HTTP remains available only to an explicitly local provider in an exact
+  // OFFLINE_MODE deployment; safeExternalFetch still binds DNS validation to
+  // the socket and enforces the loopback/private/metadata policy.
+  if (catalogueUrl.protocol !== "https:" && !(allowLocalNetworks && catalogueUrl.protocol === "http:")) {
+    return null;
   }
 
-  const res = await fetchWithTimeout(`${baseUrl}/models`, { headers });
+  const buildHeaders = (): Record<string, string> => {
+    const headers: Record<string, string> = {};
+    const apiKey = cfg.getApiKey ? cfg.getApiKey() : cfg.apiKey;
+    // Local providers often run without auth — only send the header when a
+    // key exists (mirrors ai-client).
+    if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+    // OpenRouter attribution headers (D-003 parity with ai-client).
+    if (provider === "OPENROUTER") {
+      headers["HTTP-Referer"] = "https://braavolabs.com";
+      headers["X-Title"] = "Braavolabs";
+    }
+    return headers;
+  };
+
+  const res = await fetchWithTimeout(
+    catalogueUrl.href,
+    allowLocalNetworks ? {} : { headers: buildHeaders() },
+    allowLocalNetworks
+      ? {
+          allowLoopback: true,
+          allowPrivateNetworks: true,
+          requireLocalDestination: true,
+          prepareRequest: () => ({ headers: buildHeaders() }),
+        }
+      : { allowLoopback: false, allowPrivateNetworks: false },
+  );
   if (!res.ok) return null;
   const body = (await res.json()) as { data?: unknown; models?: unknown };
   // Standard OpenAI shape is { data:[{id}] }; a few compatible servers
@@ -221,6 +247,13 @@ export async function getProviderModels(
     source: "static",
   };
 
+  // OFFLINE_MODE is a no-cloud boundary, not merely permission for private
+  // addresses. Check it before cache, Prisma, or decryption so a previously
+  // cached live list and a stored cloud key are both unreachable offline.
+  if (env.OFFLINE_MODE === true && !LOCAL_PROVIDERS.has(provider)) {
+    return staticResult;
+  }
+
   const now = Date.now();
   const cacheKey = `${tenantId}:${provider}`;
   const cached = cache.get(cacheKey);
@@ -240,7 +273,7 @@ export async function getProviderModels(
 
     const isLocal = LOCAL_PROVIDERS.has(provider);
     let apiKey = "";
-    if (aiConfig.encryptedApiKey) {
+    if (aiConfig.encryptedApiKey && !isLocal) {
       // Throws on corrupt/undecryptable keys → outer catch → static
       // (same D-002 stance as getTenantAIConfig: never call out with "").
       apiKey = decryptForTenant(aiConfig.encryptedApiKey, tenantId);
@@ -251,6 +284,9 @@ export async function getProviderModels(
     const live = await fetchLiveModels(provider, {
       apiKey,
       baseUrl: aiConfig.baseUrl?.trim() || undefined,
+      ...(isLocal && aiConfig.encryptedApiKey
+        ? { getApiKey: () => decryptForTenant(aiConfig.encryptedApiKey!, tenantId) }
+        : {}),
     });
     if (!live || live.length === 0) return staticResult;
 
@@ -259,7 +295,7 @@ export async function getProviderModels(
     return { provider, models: live, source: "live" };
   } catch (err) {
     logger.info(
-      { tenantId, provider, err: err instanceof Error ? err.message : String(err) },
+      { tenantId, provider, reason: "provider_model_listing_unavailable" },
       "Live provider model listing failed — serving static catalogue",
     );
     return staticResult;

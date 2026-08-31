@@ -13,7 +13,11 @@ model Tenant {
   id                   String   @id @default(cuid())
   name                 String
   slug                 String   @unique
-  plan                 Plan     @default(FREE)
+  plan                 Plan     @default(MANUAL_REVIEW)
+  // One-release compatibility snapshot retained by the additive
+  // subscription-only migration. Never used as a new-sale entitlement.
+  legacyPlan           String?  @map("legacy_plan")
+  subscriptionMigrationState String @default("pending") @map("subscription_migration_state")
   stripeCustomerId     String?  @unique @map("stripe_customer_id")
   stripeSubscriptionId String?  @map("stripe_subscription_id")
   // Trial LLM counter — incremented every time a pipeline run is routed
@@ -43,6 +47,7 @@ model Tenant {
   abTests             AbTest[]
   pipelineLicenses    PipelineLicense[]
   mobileSubscriptions MobileSubscription[]
+  googlePurchaseAliases GooglePurchaseAlias[]
   entitlementEvents   EntitlementEvent[]
   oidcConnection      OidcConnection?
   externalConnections ExternalConnection[]
@@ -228,10 +233,10 @@ model MobileSubscription {
   // Apple: original_transaction_id; Google: subscriptionId.
   // RevenueCat: app_user_id+entitlement composite to keep a single row.
   originalTransactionId String   @unique @map("original_transaction_id")
-  // Latest verified receipt blob. Apple receipts are base64; Google
-  // purchase tokens are short opaque strings. Stored encrypted at rest
-  // — the verification path decrypts only on inbound webhook /
-  // /verify calls. Treated as PII per Apple/Google ToS.
+  // Deprecated compatibility column. New writes are always NULL: Apple
+  // receipts and Google purchase tokens are verification credentials and
+  // must not be persisted. Durable reconciliation uses provider identity
+  // plus the append-only entitlement event ledger instead.
   latestReceipt         String?  @map("latest_receipt") @db.Text
   status                String // "active" | "in_grace_period" | "expired" | "revoked" | "paused"
   // Plan tier this subscription grants ("CREATOR" / "BUSINESS" / etc.).
@@ -248,10 +253,56 @@ model MobileSubscription {
   updatedAt             DateTime @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  googlePurchaseAliases GooglePurchaseAlias[]
 
+  @@unique([id, tenantId, provider, originalTransactionId])
   @@index([tenantId, status])
   @@index([expiresAt])
   @@map("mobile_subscriptions")
+}
+
+// Digest-only ownership aliases for Google Play replacement chains. Active
+// rows bind one globally unique token digest to one tenant/subscription/root.
+// `legacy_blocked` rows deliberately carry no owner: they prevent historical
+// raw identities from being silently claimed before a separate reconciliation.
+model GooglePurchaseAlias {
+  tokenDigest              String   @id @map("token_digest")
+  state                    String   @default("active")
+  tenantId                 String?  @map("tenant_id")
+  mobileSubscriptionId     String?  @map("mobile_subscription_id")
+  provider                 String?
+  canonicalRootIdentity    String?  @map("canonical_root_identity")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+
+  tenant       Tenant?             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subscription MobileSubscription? @relation(fields: [mobileSubscriptionId, tenantId, provider, canonicalRootIdentity], references: [id, tenantId, provider, originalTransactionId], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([mobileSubscriptionId])
+  @@index([canonicalRootIdentity])
+  @@map("google_purchase_aliases")
+}
+
+// Redacted delivery admission/DLQ ledger for Apple ASN and Google RTDN.
+// Raw signedPayload/JWS/purchaseToken/OIDC/secret material is forbidden here;
+// fingerprint is a one-way digest used only to detect identity collisions.
+model IapWebhookDelivery {
+  id                  String    @id @default(cuid())
+  provider            String
+  deliveryId          String    @map("delivery_id")
+  fingerprint         String
+  status              String
+  attempts            Int       @default(1)
+  failureCode         String?   @map("failure_code")
+  processingStartedAt DateTime? @map("processing_started_at")
+  processedAt         DateTime? @map("processed_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@unique([provider, deliveryId])
+  @@index([status, updatedAt])
+  @@map("iap_webhook_deliveries")
 }
 
 // Per-user push notification preferences. Stored on its own row (not
@@ -1583,6 +1634,9 @@ enum ExternalConnectionStatus {
 // ─── ENUMS ──────────────────────────────────────────────
 
 enum Plan {
+  INDIVIDUAL
+  TEAM
+  MANUAL_REVIEW
   FREE
   CREATOR
   PRO

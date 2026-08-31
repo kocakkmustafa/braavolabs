@@ -1,171 +1,123 @@
-import type { Plan, PlanLimits, PlanPricing } from "../types/billing";
+import type {
+  LegacyPlan,
+  NewSalePlan,
+  Plan,
+  PlanLimits,
+  PlanPricing,
+} from "../types/billing";
+
+const NEW_SALE_PLAN_ORDER = ["INDIVIDUAL", "TEAM"] as const satisfies readonly NewSalePlan[];
 
 /**
- * Braavolabs plan tiers (2026-04 revision).
- *
- * Philosophy:
- * - Free: Real taste — 1 company, hero use-case (TikTok+LinkedIn simplified)
- *   so every user sees meaningful output on day 1.
- * - Creator: Solopreneurs who want to run a handful of simple AI companies.
- * - Pro: Agencies / founders scaling across many brands.
- * - Business: Multi-user teams with volume needs.
- * - Enterprise: Custom (SSO, SLA, private deployment).
- *
- * No trial — Free plan already gives real value. Yearly billing offers 20% discount.
+ * Runtime enumeration is exactly the two new-sale plans. The wider element
+ * type is a one-release compile-time compatibility veneer for protected UI
+ * code that still compares an enumerated id with historical plan literals.
+ */
+export const PLAN_ORDER: readonly (NewSalePlan | LegacyPlan)[] = NEW_SALE_PLAN_ORDER;
+
+export const PLAN_PRICING = {
+  INDIVIDUAL: { monthlyUsd: 19, billingUnit: "account", inferenceIncluded: false },
+  TEAM: { monthlyUsd: 39, billingUnit: "active-seat", inferenceIncluded: false },
+} as Record<NewSalePlan | LegacyPlan, PlanPricing>;
+
+export const PLAN_LABEL = {
+  INDIVIDUAL: "Individual",
+  TEAM: "Team",
+} as Record<NewSalePlan | LegacyPlan, string>;
+
+export const NEW_SALE_PLAN_CATALOG = NEW_SALE_PLAN_ORDER.map((id) => ({
+  id,
+  label: PLAN_LABEL[id],
+  ...PLAN_PRICING[id],
+  billingCycle: "monthly" as const,
+  providerFunding: "tenant" as const,
+}));
+
+/** Stable price-equivalent legacy identities migrate automatically. */
+export const LEGACY_PLAN_MIGRATION: Record<LegacyPlan, NewSalePlan | "MANUAL_REVIEW"> = {
+  FREE: "MANUAL_REVIEW",
+  CREATOR: "INDIVIDUAL",
+  PRO: "TEAM",
+  BUSINESS: "MANUAL_REVIEW",
+  ENTERPRISE: "MANUAL_REVIEW",
+};
+
+export function normalizePlanForEntitlement(
+  value: string | null | undefined,
+): NewSalePlan | "MANUAL_REVIEW" {
+  if (value === "INDIVIDUAL" || value === "TEAM") return value;
+  if (value && Object.prototype.hasOwnProperty.call(LEGACY_PLAN_MIGRATION, value)) {
+    return LEGACY_PLAN_MIGRATION[value as LegacyPlan];
+  }
+  return "MANUAL_REVIEW";
+}
+
+const individualLimits: PlanLimits = {
+  maxCompanies: 5,
+  maxRunsPerMonth: -1,
+  maxAgentsPerCompany: 5,
+  maxConnectedAutomations: 3,
+  maxSeats: 1,
+  localProvider: true,
+  auditRetentionDays: 90,
+  sso: "none",
+  channels: ["tiktok", "linkedin", "twitter", "instagram", "email"],
+  features: ["basic_content", "basic_analytics", "advanced_content", "memory", "custom_pipelines"],
+};
+
+const teamLimits: PlanLimits = {
+  maxCompanies: 20,
+  maxRunsPerMonth: -1,
+  maxAgentsPerCompany: 9,
+  maxConnectedAutomations: 10,
+  maxSeats: -1,
+  localProvider: true,
+  auditRetentionDays: 365,
+  sso: "none",
+  channels: ["tiktok", "linkedin", "twitter", "instagram", "email", "youtube"],
+  features: [
+    "basic_content",
+    "basic_analytics",
+    "advanced_content",
+    "crm_sync",
+    "outreach",
+    "memory",
+    "custom_pipelines",
+    "priority_support",
+    "team_seats",
+  ],
+};
+
+const manualReviewLimits: PlanLimits = {
+  maxCompanies: 0,
+  maxRunsPerMonth: 0,
+  maxAgentsPerCompany: 0,
+  maxConnectedAutomations: 0,
+  maxSeats: 0,
+  localProvider: false,
+  auditRetentionDays: 0,
+  sso: "none",
+  channels: [],
+  features: [],
+};
+
+/**
+ * Compatibility limits cover historical database values for one release.
+ * New checkout code must enumerate PLAN_ORDER, never this record.
  */
 export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
-  FREE: {
-    maxCompanies: 1,
-    maxRunsPerMonth: 10,
-    maxAgentsPerCompany: 3,
-    maxConnectedAutomations: 1,
-    maxSeats: 1,
-    localProvider: false,
-    auditRetentionDays: 7,
-    sso: "none",
-    channels: ["tiktok", "linkedin"],
-    features: ["basic_content", "basic_analytics", "hero_template"],
-  },
-  CREATOR: {
-    maxCompanies: 5,
-    maxRunsPerMonth: 100,
-    maxAgentsPerCompany: 5,
-    maxConnectedAutomations: 3,
-    maxSeats: 1,
-    localProvider: true,
-    auditRetentionDays: 90,
-    sso: "none",
-    channels: ["tiktok", "linkedin", "twitter", "instagram", "email"],
-    features: [
-      "basic_content",
-      "basic_analytics",
-      "advanced_content",
-      "memory",
-      "custom_pipelines",
-    ],
-  },
-  PRO: {
-    maxCompanies: 20,
-    maxRunsPerMonth: 500,
-    maxAgentsPerCompany: 9,
-    maxConnectedAutomations: 10,
-    maxSeats: 3,
-    localProvider: true,
-    auditRetentionDays: 365,
-    sso: "none",
-    channels: ["tiktok", "linkedin", "twitter", "instagram", "email", "youtube"],
-    features: [
-      "basic_content",
-      "basic_analytics",
-      "advanced_content",
-      "crm_sync",
-      "outreach",
-      "memory",
-      "custom_pipelines",
-      "priority_support",
-    ],
-  },
-  BUSINESS: {
-    maxCompanies: 100,
-    maxRunsPerMonth: 2000,
-    maxAgentsPerCompany: 15,
-    maxConnectedAutomations: -1,
-    maxSeats: 10,
-    localProvider: true,
-    auditRetentionDays: 730,
-    sso: "oidc",
-    channels: ["tiktok", "linkedin", "twitter", "instagram", "email", "youtube", "custom"],
-    features: [
-      "basic_content",
-      "basic_analytics",
-      "advanced_content",
-      "crm_sync",
-      "outreach",
-      "memory",
-      "custom_pipelines",
-      "priority_support",
-      "team_seats",
-      "governance",
-      "audit_export",
-    ],
-  },
-  ENTERPRISE: {
-    maxCompanies: -1, // unlimited
-    maxRunsPerMonth: -1,
-    maxAgentsPerCompany: -1,
-    maxConnectedAutomations: -1,
-    maxSeats: -1,
-    localProvider: true,
-    auditRetentionDays: -1, // sentinel: negotiated by contract
-    sso: "oidc_scim",
-    channels: ["tiktok", "linkedin", "twitter", "instagram", "email", "youtube", "custom"],
-    features: [
-      "basic_content",
-      "basic_analytics",
-      "advanced_content",
-      "crm_sync",
-      "outreach",
-      "memory",
-      "custom_pipelines",
-      "priority_support",
-      "team_seats",
-      "governance",
-      "audit_export",
-      "white_label",
-      "sso",
-      "dedicated_support",
-      "sla",
-    ],
-  },
+  INDIVIDUAL: individualLimits,
+  TEAM: teamLimits,
+  MANUAL_REVIEW: manualReviewLimits,
+  FREE: manualReviewLimits,
+  CREATOR: individualLimits,
+  PRO: teamLimits,
+  BUSINESS: manualReviewLimits,
+  ENTERPRISE: manualReviewLimits,
 };
 
-/**
- * Plan pricing (USD). Yearly = monthly × 12 × 0.80 (20% annual discount).
- */
-export const PLAN_PRICING: Record<Plan, PlanPricing> = {
-  FREE: {
-    monthlyUsd: 0,
-    yearlyUsd: 0,
-    yearlyMonthlyEquivalent: 0,
-  },
-  CREATOR: {
-    monthlyUsd: 19,
-    yearlyUsd: 182, // 19 × 12 × 0.80 = 182.4 → rounded
-    yearlyMonthlyEquivalent: 15.2,
-  },
-  PRO: {
-    monthlyUsd: 39,
-    yearlyUsd: 374, // 39 × 12 × 0.80 = 374.4
-    yearlyMonthlyEquivalent: 31.2,
-  },
-  BUSINESS: {
-    monthlyUsd: 99,
-    yearlyUsd: 950, // 99 × 12 × 0.80 = 950.4
-    yearlyMonthlyEquivalent: 79.2,
-  },
-  ENTERPRISE: {
-    monthlyUsd: 0, // custom pricing — contact sales
-    yearlyUsd: 0,
-    yearlyMonthlyEquivalent: 0,
-  },
-};
-
-export const PLAN_LABEL: Record<Plan, string> = {
-  FREE: "Free",
-  CREATOR: "Creator",
-  PRO: "Pro",
-  BUSINESS: "Business",
-  ENTERPRISE: "Enterprise",
-};
-
-/**
- * Ordered list — used for upgrade/downgrade comparison and marketing pages.
- */
-export const PLAN_ORDER: Plan[] = ["FREE", "CREATOR", "PRO", "BUSINESS", "ENTERPRISE"];
-
-/**
- * Returns true if targetPlan is an upgrade from currentPlan.
- */
-export function isPlanUpgrade(currentPlan: Plan, targetPlan: Plan): boolean {
-  return PLAN_ORDER.indexOf(targetPlan) > PLAN_ORDER.indexOf(currentPlan);
+export function isPlanUpgrade(currentPlan: Plan, targetPlan: NewSalePlan): boolean {
+  const current = normalizePlanForEntitlement(currentPlan);
+  if (current === "MANUAL_REVIEW") return true;
+  return PLAN_ORDER.indexOf(targetPlan) > PLAN_ORDER.indexOf(current);
 }

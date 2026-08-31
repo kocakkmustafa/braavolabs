@@ -6,6 +6,9 @@ import {
   mapIapVerify,
   mapAppleNotify,
   mapGoogleNotify,
+  NEW_SALE_IAP_PRODUCT_MAP,
+  resolveIapProductPlan,
+  resolveStripePricePlan,
 } from "../entitlement-mapping";
 import type { VerifiedReceipt } from "../iap/apple";
 
@@ -22,43 +25,81 @@ function receipt(overrides: Partial<VerifiedReceipt> = {}): VerifiedReceipt {
   };
 }
 
+describe("IAP catalog and additive receipt normalization", () => {
+  it("offers exactly the two canonical monthly products", () => {
+    expect(NEW_SALE_IAP_PRODUCT_MAP).toEqual({
+      "com.braavolabs.individual.monthly": "INDIVIDUAL",
+      "com.braavolabs.team.monthly": "TEAM",
+    });
+  });
+
+  it("replays stable legacy SKUs deterministically and fails ambiguity closed", () => {
+    expect(resolveIapProductPlan("com.braavolabs.creator.monthly")).toBe("INDIVIDUAL");
+    expect(resolveIapProductPlan("com.braavolabs.creator.yearly")).toBe("INDIVIDUAL");
+    expect(resolveIapProductPlan("com.braavolabs.pro.monthly")).toBe("TEAM");
+    expect(resolveIapProductPlan("com.braavolabs.pro.yearly")).toBe("TEAM");
+    expect(resolveIapProductPlan("com.braavolabs.business.monthly")).toBe("MANUAL_REVIEW");
+    expect(resolveIapProductPlan("unknown.sku")).toBe("MANUAL_REVIEW");
+  });
+});
+
+describe("Stripe price snapshot", () => {
+  const snapshot = {
+    individual: ["price_individual", "legacy_creator_yearly"],
+    team: ["price_team", "legacy_pro_yearly"],
+    ambiguousLegacy: ["legacy_business", "legacy_enterprise"],
+  } as const;
+
+  it("maps canonical and stable legacy aliases without exposing extra saleable plans", () => {
+    expect(resolveStripePricePlan("price_individual", snapshot)).toBe("INDIVIDUAL");
+    expect(resolveStripePricePlan("legacy_creator_yearly", snapshot)).toBe("INDIVIDUAL");
+    expect(resolveStripePricePlan("price_team", snapshot)).toBe("TEAM");
+    expect(resolveStripePricePlan("legacy_pro_yearly", snapshot)).toBe("TEAM");
+  });
+
+  it.each(["legacy_business", "legacy_enterprise", "unknown", undefined])(
+    "fails ambiguous/unknown price %s closed",
+    (priceId) => expect(resolveStripePricePlan(priceId, snapshot)).toBe("MANUAL_REVIEW"),
+  );
+});
+
 describe("mapStripeSubscriptionUpdated", () => {
   it("active → renewal, carries the resolved plan + Stripe's own period end", () => {
     const out = mapStripeSubscriptionUpdated(
       EVENT,
       { id: "sub_1", status: "active", current_period_end: 1_802_000_000, cancel_at_period_end: false },
-      "PRO",
+      "TEAM",
     );
     expect(out).toMatchObject({
       source: "stripe",
       streamId: "sub_1",
       sourceEventId: "evt_123",
       type: "renewal",
-      planTier: "PRO",
+      planTier: "TEAM",
       autoRenew: true,
     });
     expect(out.sourceTimestamp).toEqual(new Date(1_800_000_000 * 1000));
     expect(out.expiresAt).toEqual(new Date(1_802_000_000 * 1000));
   });
 
-  it("trialing → renewal (same as active)", () => {
-    const out = mapStripeSubscriptionUpdated(EVENT, { id: "sub_1", status: "trialing" }, "CREATOR");
-    expect(out.type).toBe("renewal");
-    expect(out.planTier).toBe("CREATOR");
+  it("trialing cannot grant under the no-hosted-trial contract", () => {
+    const out = mapStripeSubscriptionUpdated(EVENT, { id: "sub_1", status: "trialing" }, "INDIVIDUAL");
+    expect(out.type).toBe("revoke");
+    expect(out.planTier).toBeNull();
   });
 
   it("cancel_at_period_end=true flips autoRenew off while still granting the current period", () => {
     const out = mapStripeSubscriptionUpdated(
       EVENT,
       { id: "sub_1", status: "active", cancel_at_period_end: true },
-      "PRO",
+      "TEAM",
     );
     expect(out.type).toBe("renewal");
     expect(out.autoRenew).toBe(false);
   });
 
   it("past_due → grace, NOT an immediate FREE (the fix — old code blanket-downgraded this)", () => {
-    const out = mapStripeSubscriptionUpdated(EVENT, { id: "sub_1", status: "past_due" }, "PRO");
+    const out = mapStripeSubscriptionUpdated(EVENT, { id: "sub_1", status: "past_due" }, "TEAM");
     expect(out.type).toBe("grace");
     expect(out.planTier).toBeNull();
   });
@@ -67,7 +108,7 @@ describe("mapStripeSubscriptionUpdated", () => {
     const out = mapStripeSubscriptionUpdated(
       EVENT,
       { id: "sub_1", status: "past_due", current_period_end: 1_802_000_000, cancel_at_period_end: false },
-      "PRO",
+      "TEAM",
     );
     expect(out.type).toBe("grace");
     expect(out.planTier).toBeNull(); // still null — foldStream's grace case never reads planTier
@@ -78,7 +119,7 @@ describe("mapStripeSubscriptionUpdated", () => {
   it.each(["canceled", "unpaid", "incomplete_expired", "paused", "incomplete"])(
     "status=%s → revoke (matches the old blanket-FREE fallback)",
     (status) => {
-      const out = mapStripeSubscriptionUpdated(EVENT, { id: "sub_1", status }, "PRO");
+      const out = mapStripeSubscriptionUpdated(EVENT, { id: "sub_1", status }, "TEAM");
       expect(out.type).toBe("revoke");
       expect(out.planTier).toBeNull();
       expect(out.expiresAt).toBeNull();
@@ -115,19 +156,19 @@ describe("mapStripeChargeRefunded", () => {
 
 describe("mapIapVerify", () => {
   it("active → purchase, carries the resolved plan tier + real expiresAt", () => {
-    const out = mapIapVerify("apple", receipt({ status: "active" }), "BUSINESS");
+    const out = mapIapVerify("apple", receipt({ status: "active" }), "TEAM");
     expect(out).toMatchObject({
       source: "apple",
       streamId: "orig-tx-1",
       type: "purchase",
-      planTier: "BUSINESS",
+      planTier: "TEAM",
       autoRenew: true,
     });
     expect(out!.expiresAt).toEqual(new Date("2026-02-01T00:00:00Z"));
   });
 
   it("in_grace_period → grace, no planTier", () => {
-    const out = mapIapVerify("google", receipt({ status: "in_grace_period" }), "PRO");
+    const out = mapIapVerify("google", receipt({ status: "in_grace_period" }), "TEAM");
     expect(out?.type).toBe("grace");
     expect(out?.planTier).toBeNull();
   });
@@ -135,34 +176,34 @@ describe("mapIapVerify", () => {
   it.each(["expired", "revoked", "paused"] as const)(
     "status=%s → null (matches the existing handler's exact no-op for non-active/grace)",
     (status) => {
-      expect(mapIapVerify("apple", receipt({ status }), "PRO")).toBeNull();
+      expect(mapIapVerify("apple", receipt({ status }), "TEAM")).toBeNull();
     },
   );
 
   it("sourceEventId is stable across repeat calls for an UNCHANGED receipt (dedup property)", () => {
     const r = receipt({ status: "active" });
-    const a = mapIapVerify("apple", r, "PRO")!;
-    const b = mapIapVerify("apple", r, "PRO")!;
+    const a = mapIapVerify("apple", r, "TEAM")!;
+    const b = mapIapVerify("apple", r, "TEAM")!;
     expect(a.sourceEventId).toBe(b.sourceEventId);
   });
 
   it("sourceEventId CHANGES when expiresAt actually advances (a genuine renewal, not a dedupe-worthy repeat)", () => {
-    const a = mapIapVerify("apple", receipt({ status: "active", expiresAt: new Date("2026-02-01T00:00:00Z") }), "PRO")!;
-    const b = mapIapVerify("apple", receipt({ status: "active", expiresAt: new Date("2026-03-01T00:00:00Z") }), "PRO")!;
+    const a = mapIapVerify("apple", receipt({ status: "active", expiresAt: new Date("2026-02-01T00:00:00Z") }), "TEAM")!;
+    const b = mapIapVerify("apple", receipt({ status: "active", expiresAt: new Date("2026-03-01T00:00:00Z") }), "TEAM")!;
     expect(a.sourceEventId).not.toBe(b.sourceEventId);
   });
 
   it("R2 regression (finding #6a): sourceEventId CHANGES when only autoRenew flips (status/expiresAt unchanged) — a user toggling auto-renew off must not be silently deduped away", () => {
     const r = receipt({ status: "active", autoRenew: true });
-    const a = mapIapVerify("apple", r, "PRO")!;
-    const b = mapIapVerify("apple", { ...r, autoRenew: false }, "PRO")!;
+    const a = mapIapVerify("apple", r, "TEAM")!;
+    const b = mapIapVerify("apple", { ...r, autoRenew: false }, "TEAM")!;
     expect(a.sourceEventId).not.toBe(b.sourceEventId);
   });
 
   it("R2 regression (finding #6b): sourceEventId CHANGES on a same-expiresAt tier change (an immediate-upgrade proration that keeps the same period end) — must not collide with the pre-upgrade purchase event", () => {
     const r = receipt({ status: "active" });
-    const a = mapIapVerify("apple", r, "CREATOR")!;
-    const b = mapIapVerify("apple", r, "BUSINESS")!;
+    const a = mapIapVerify("apple", r, "INDIVIDUAL")!;
+    const b = mapIapVerify("apple", r, "TEAM")!;
     expect(a.sourceEventId).not.toBe(b.sourceEventId);
   });
 });
@@ -172,14 +213,14 @@ describe("mapAppleNotify / mapGoogleNotify — shared status vocabulary", () => 
   const parsed = { messageId: "pubsub-msg-1", publishTime: new Date("2026-01-15T00:00:00Z") };
 
   it("apple: active → renewal, carries verified.expiresAt (NOT note's own guess)", () => {
-    const out = mapAppleNotify(note, receipt({ status: "active", expiresAt: new Date("2026-05-01T00:00:00Z") }), "PRO");
-    expect(out).toMatchObject({ source: "apple", streamId: "orig-tx-1", sourceEventId: "apple-uuid-1", type: "renewal", planTier: "PRO" });
+    const out = mapAppleNotify(note, receipt({ status: "active", expiresAt: new Date("2026-05-01T00:00:00Z") }), "TEAM");
+    expect(out).toMatchObject({ source: "apple", streamId: "orig-tx-1", sourceEventId: "apple-uuid-1", type: "renewal", planTier: "TEAM" });
     expect(out.expiresAt).toEqual(new Date("2026-05-01T00:00:00Z"));
     expect(out.sourceTimestamp).toEqual(new Date("2026-01-15T00:00:00Z"));
   });
 
   it("apple: in_grace_period → grace, keeps expiresAt (still granting) but no planTier", () => {
-    const out = mapAppleNotify(note, receipt({ status: "in_grace_period" }), "PRO");
+    const out = mapAppleNotify(note, receipt({ status: "in_grace_period" }), "TEAM");
     expect(out.type).toBe("grace");
     expect(out.planTier).toBeNull();
     expect(out.expiresAt).not.toBeNull();
@@ -187,26 +228,26 @@ describe("mapAppleNotify / mapGoogleNotify — shared status vocabulary", () => 
 
   it("apple: expired/revoked → revoke, clears expiresAt", () => {
     for (const status of ["expired", "revoked"] as const) {
-      const out = mapAppleNotify(note, receipt({ status }), "PRO");
+      const out = mapAppleNotify(note, receipt({ status }), "TEAM");
       expect(out.type).toBe("revoke");
       expect(out.expiresAt).toBeNull();
     }
   });
 
   it("R2 fix (finding #10): paused → revoke, fail-closed (unreachable via today's apple.ts, exhaustiveness only) — Play's pause is 'stop access', not a payment-retry window, so it must not grant", () => {
-    const out = mapAppleNotify(note, receipt({ status: "paused" }), "PRO");
+    const out = mapAppleNotify(note, receipt({ status: "paused" }), "TEAM");
     expect(out.type).toBe("revoke");
     expect(out.expiresAt).toBeNull();
   });
 
   it("google: same status vocabulary, uses Pub/Sub messageId/publishTime as the ledger key", () => {
-    const out = mapGoogleNotify(parsed, receipt({ status: "active" }), "CREATOR");
-    expect(out).toMatchObject({ source: "google", sourceEventId: "pubsub-msg-1", type: "renewal", planTier: "CREATOR" });
+    const out = mapGoogleNotify(parsed, receipt({ status: "active" }), "INDIVIDUAL");
+    expect(out).toMatchObject({ source: "google", sourceEventId: "pubsub-msg-1", type: "renewal", planTier: "INDIVIDUAL" });
     expect(out.sourceTimestamp).toEqual(new Date("2026-01-15T00:00:00Z"));
   });
 
   it("google: revoked → revoke", () => {
-    const out = mapGoogleNotify(parsed, receipt({ status: "revoked" }), "CREATOR");
+    const out = mapGoogleNotify(parsed, receipt({ status: "revoked" }), "INDIVIDUAL");
     expect(out.type).toBe("revoke");
     expect(out.planTier).toBeNull();
   });

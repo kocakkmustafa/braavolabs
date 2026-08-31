@@ -5,6 +5,7 @@
  */
 
 import { Router, raw } from "express";
+import type { RequestHandler } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
 import { systemScope } from "../../middleware/system-scope";
@@ -20,6 +21,7 @@ import {
   mapStripeSubscriptionUpdated,
   mapStripeSubscriptionDeleted,
   mapStripeChargeRefunded,
+  resolveStripePricePlan,
 } from "./entitlement-mapping";
 import {
   createCustomer,
@@ -209,6 +211,18 @@ export const billingRouter = Router();
 const authedRouter = Router();
 authedRouter.use(authMiddleware);
 
+const requireTenantAdminRole: RequestHandler = (req, res, next) => {
+  if (!req.auth) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  if (!req.auth.role || !["OWNER", "ADMIN"].includes(req.auth.role)) {
+    res.status(403).json({ error: "Insufficient permissions" });
+    return;
+  }
+  next();
+};
+
 // GET /api/v1/billing/usage — current period usage meters
 authedRouter.get("/usage", async (req, res, next) => {
   try {
@@ -245,7 +259,7 @@ authedRouter.get("/usage", async (req, res, next) => {
     ]);
 
     res.json({
-      plan: tenant?.plan ?? "FREE",
+      plan: tenant?.plan ?? "MANUAL_REVIEW",
       period: { start: periodStart.toISOString(), end: now.toISOString() },
       meters: meters.map((m) => ({
         metric: m.metric,
@@ -290,7 +304,7 @@ authedRouter.get("/savings", async (req, res, next) => {
 const budgetSchema = z.object({
   monthlyBudgetUsd: z.union([z.number().min(0.01).max(1_000_000), z.null()]),
 });
-authedRouter.patch("/budget", async (req, res, next) => {
+authedRouter.patch("/budget", requireTenantAdminRole, async (req, res, next) => {
   try {
     const { monthlyBudgetUsd } = budgetSchema.parse(req.body);
     await prisma.tenant.update({
@@ -351,26 +365,22 @@ authedRouter.get("/subscription", async (req, res, next) => {
 
 // POST /api/v1/billing/checkout — create Stripe checkout session
 const checkoutSchema = z.object({
-  plan: z.enum(["CREATOR", "PRO", "BUSINESS", "ENTERPRISE"]),
-  billingCycle: z.enum(["monthly", "yearly"]).default("monthly"),
-});
+  plan: z.enum(["INDIVIDUAL", "TEAM"]),
+  billingCycle: z.literal("monthly").default("monthly"),
+}).strict();
 
-authedRouter.post("/checkout", async (req, res, next) => {
+authedRouter.post("/checkout", requireTenantAdminRole, async (req, res, next) => {
   try {
     const config = getStripeConfig();
     const { plan, billingCycle } = checkoutSchema.parse(req.body);
 
-    // Pick the price ID for the requested plan + cycle. yearly is
-    // optional — if the corresponding env slot is empty, fall back to
-    // monthly so a partial Stripe setup still produces a usable
-    // checkout (rather than a 400 the moment a user clicks Yearly).
-    const priceMap: Record<string, { monthly?: string; yearly?: string }> = {
-      CREATOR: { monthly: env.STRIPE_CREATOR_PRICE_ID, yearly: env.STRIPE_CREATOR_YEARLY_PRICE_ID },
-      PRO: { monthly: env.STRIPE_PRO_PRICE_ID, yearly: env.STRIPE_PRO_YEARLY_PRICE_ID },
-      BUSINESS: { monthly: env.STRIPE_BUSINESS_PRICE_ID, yearly: env.STRIPE_BUSINESS_YEARLY_PRICE_ID },
-      ENTERPRISE: { monthly: env.STRIPE_ENTERPRISE_PRICE_ID, yearly: env.STRIPE_ENTERPRISE_YEARLY_PRICE_ID },
+    // Existing env slots are temporary aliases until the manual Stripe
+    // catalog gate assigns the canonical external IDs.
+    const priceMap: Record<typeof plan, string | undefined> = {
+      INDIVIDUAL: env.STRIPE_CREATOR_PRICE_ID,
+      TEAM: env.STRIPE_PRO_PRICE_ID,
     };
-    const priceId = priceMap[plan][billingCycle] ?? priceMap[plan].monthly;
+    const priceId = priceMap[plan];
     if (!priceId) throw new AppError(400, `No price configured for plan: ${plan} (${billingCycle})`);
 
     const tenant = await prisma.tenant.findUnique({
@@ -378,6 +388,14 @@ authedRouter.post("/checkout", async (req, res, next) => {
       include: { users: { take: 1 } },
     });
     if (!tenant) throw new AppError(404, "Tenant not found");
+
+    // The current schema has no inactive-membership marker, so tenant users
+    // are the canonical local active-seat proxy for this migration. Never
+    // accept quantity from the client; Team is server-counted and fails safe
+    // to one seat, while Individual is always one account.
+    const seatQuantity = plan === "TEAM"
+      ? Math.max(1, await prisma.user.count({ where: { tenantId: tenant.id } }))
+      : 1;
 
     // Create Stripe customer if needed
     let customerId = tenant.stripeCustomerId;
@@ -400,6 +418,7 @@ authedRouter.post("/checkout", async (req, res, next) => {
       priceId,
       `${env.APP_URL}/settings?billing=success`,
       `${env.APP_URL}/settings?billing=cancelled`,
+      seatQuantity,
     );
 
     await prisma.activityLog.create({
@@ -409,7 +428,7 @@ authedRouter.post("/checkout", async (req, res, next) => {
         action: "billing.checkout_started",
         resource: "tenant",
         resourceId: tenant.id,
-        details: { plan, billingCycle },
+        details: { plan, billingCycle, seatQuantity },
       },
     });
 
@@ -418,7 +437,7 @@ authedRouter.post("/checkout", async (req, res, next) => {
 });
 
 // POST /api/v1/billing/portal — Stripe customer portal link
-authedRouter.post("/portal", async (req, res, next) => {
+authedRouter.post("/portal", requireTenantAdminRole, async (req, res, next) => {
   try {
     const config = getStripeConfig();
     const tenant = await prisma.tenant.findUnique({
@@ -546,28 +565,21 @@ stripeWebhookRouter.post(
           });
 
           if (tenant) {
-            // Map Stripe subscription status + price ID to plan. Both
-            // monthly and yearly price IDs map to the same plan tier —
-            // missing a yearly slot here means the customer who picks
-            // yearly is silently downgraded to PRO (and then billed for
-            // the wrong tier next renewal).
-            let plan: "FREE" | "CREATOR" | "PRO" | "BUSINESS" | "ENTERPRISE" = "FREE";
-            if (status === "active" || status === "trialing") {
-              if (priceId === env.STRIPE_ENTERPRISE_PRICE_ID || priceId === env.STRIPE_ENTERPRISE_YEARLY_PRICE_ID) plan = "ENTERPRISE";
-              else if (priceId === env.STRIPE_BUSINESS_PRICE_ID || priceId === env.STRIPE_BUSINESS_YEARLY_PRICE_ID) plan = "BUSINESS";
-              else if (priceId === env.STRIPE_PRO_PRICE_ID || priceId === env.STRIPE_PRO_YEARLY_PRICE_ID) plan = "PRO";
-              else if (priceId === env.STRIPE_CREATOR_PRICE_ID || priceId === env.STRIPE_CREATOR_YEARLY_PRICE_ID) plan = "CREATOR";
-              else {
-                // HIGH-6 fix: unknown priceId must NOT silently upgrade to PRO.
-                // Either an env-config typo or a Stripe Connect / test-mode
-                // edge case can deliver a price ID that doesn't match any
-                // configured tier; treat as untrusted and stay on FREE.
-                logger.warn(
-                  { tenantId: tenant.id, priceId, status, subscriptionId: subscription.id },
-                  "Stripe webhook: unknown price ID — keeping tenant on FREE plan",
-                );
-                plan = "FREE";
-              }
+            const plan = resolveStripePricePlan(priceId, {
+              individual: [env.STRIPE_CREATOR_PRICE_ID, env.STRIPE_CREATOR_YEARLY_PRICE_ID],
+              team: [env.STRIPE_PRO_PRICE_ID, env.STRIPE_PRO_YEARLY_PRICE_ID],
+              ambiguousLegacy: [
+                env.STRIPE_BUSINESS_PRICE_ID,
+                env.STRIPE_BUSINESS_YEARLY_PRICE_ID,
+                env.STRIPE_ENTERPRISE_PRICE_ID,
+                env.STRIPE_ENTERPRISE_YEARLY_PRICE_ID,
+              ],
+            });
+            if (plan === "MANUAL_REVIEW") {
+              logger.warn(
+                { tenantId: tenant.id, priceId, status, subscriptionId: subscription.id },
+                "Stripe webhook: unknown or ambiguous price ID — manual review required",
+              );
             }
 
             await prisma.tenant.update({
@@ -763,7 +775,7 @@ stripeWebhookRouter.post(
                   tenantId: tenant.id,
                   ...mapStripeChargeRefunded(event, tenant.stripeSubscriptionId),
                 });
-                downgraded = resultingPlan === "FREE";
+                downgraded = resultingPlan === "MANUAL_REVIEW";
               }
               await prisma.activityLog.create({
                 data: {

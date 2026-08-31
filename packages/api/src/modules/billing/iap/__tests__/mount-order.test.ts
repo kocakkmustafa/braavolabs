@@ -19,17 +19,57 @@
  * mount order, so they fail if anyone reorders the mounts again or makes
  * `authedRouter` pathless-greedy over a sibling.
  */
-import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from "vitest";
 import express from "express";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
+
+const routeEnv = vi.hoisted(() => ({
+  JWT_SECRET: "test-secret-for-mount-order",
+  AUTH_COOKIE_MODE: false,
+  NODE_ENV: "test",
+  STRIPE_SECRET_KEY: "",
+  STRIPE_WEBHOOK_SECRET: "",
+  APPLE_IAP_SHARED_SECRET: "",
+  GOOGLE_PLAY_PACKAGE_NAME: "",
+  GOOGLE_PUBSUB_AUDIENCE: "https://api.braavolabs.com/api/v1/billing/iap/google/notify",
+  GOOGLE_PUBSUB_SA_EMAIL: "rtdn@example.iam.gserviceaccount.com",
+  IAP_DELIVERY_RELIABILITY_ENABLED: false,
+  IAP_DELIVERY_MAX_ATTEMPTS: 3,
+  REVENUECAT_WEBHOOK_SECRET: "",
+}));
+
+const routeMocks = vi.hoisted(() => ({
+  verifyPubSubPushToken: vi.fn(),
+  parseGoogleRtdnEnvelope: vi.fn(),
+  verifyGoogleReceipt: vi.fn(),
+  acknowledgeGoogleReceipt: vi.fn(),
+  processIapDelivery: vi.fn(),
+  recordEntitlementEvent: vi.fn(),
+  activityLogCreate: vi.fn(),
+  mobileSubscriptionFindUnique: vi.fn(),
+  mobileSubscriptionCreate: vi.fn(),
+  mobileSubscriptionUpdate: vi.fn(),
+  mobileSubscriptionUpdateMany: vi.fn(),
+  transaction: vi.fn(),
+  tenantTx: vi.fn(),
+}));
 
 vi.mock("../../../../lib/logger", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 vi.mock("../../../../lib/db", () => ({
-  prisma: {},
-  tenantTx: (fn: any) => fn({}),
+  prisma: {
+    activityLog: { create: routeMocks.activityLogCreate },
+    mobileSubscription: {
+      findUnique: routeMocks.mobileSubscriptionFindUnique,
+      create: routeMocks.mobileSubscriptionCreate,
+      update: routeMocks.mobileSubscriptionUpdate,
+      updateMany: routeMocks.mobileSubscriptionUpdateMany,
+    },
+    $transaction: routeMocks.transaction,
+  },
+  tenantTx: routeMocks.tenantTx,
 }));
 vi.mock("../../../../middleware/rateLimit", () => ({
   rateLimit: () => (_req: unknown, _res: unknown, next: () => void) => next(),
@@ -37,17 +77,22 @@ vi.mock("../../../../middleware/rateLimit", () => ({
 // Auth is REAL — the shadowing bug lives in how it is mounted, so mocking it
 // away would mock away the very thing under test. Only the secret is stubbed.
 vi.mock("../../../../config/env", () => ({
-  env: {
-    JWT_SECRET: "test-secret-for-mount-order",
-    AUTH_COOKIE_MODE: false,
-    NODE_ENV: "test",
-    STRIPE_SECRET_KEY: "",
-    STRIPE_WEBHOOK_SECRET: "",
-    APPLE_IAP_SHARED_SECRET: "",
-    GOOGLE_PLAY_PACKAGE_NAME: "",
-    GOOGLE_PUBSUB_VERIFICATION_TOKEN: "",
-    REVENUECAT_WEBHOOK_SECRET: "",
-  },
+  env: routeEnv,
+}));
+vi.mock("../google", () => ({
+  verifyPubSubPushToken: routeMocks.verifyPubSubPushToken,
+  parseGoogleRtdnEnvelope: routeMocks.parseGoogleRtdnEnvelope,
+  verifyGoogleReceipt: routeMocks.verifyGoogleReceipt,
+  acknowledgeGoogleReceipt: routeMocks.acknowledgeGoogleReceipt,
+}));
+vi.mock("../delivery-ledger", () => ({
+  IapPoisonDeliveryError: class IapPoisonDeliveryError extends Error {},
+  IapTransientDeliveryError: class IapTransientDeliveryError extends Error {},
+  deliveryFingerprint: vi.fn(() => "test-fingerprint"),
+  processIapDelivery: routeMocks.processIapDelivery,
+}));
+vi.mock("../../entitlement-ledger.service", () => ({
+  recordEntitlementEvent: routeMocks.recordEntitlementEvent,
 }));
 
 let server: http.Server;
@@ -83,6 +128,12 @@ beforeAll(async () => {
 
 afterAll(() => new Promise<void>((r) => server.close(() => r())));
 
+beforeEach(() => {
+  vi.clearAllMocks();
+  routeEnv.IAP_DELIVERY_RELIABILITY_ENABLED = false;
+  routeMocks.verifyPubSubPushToken.mockResolvedValue({ ok: false, reason: "missing-bearer-token" });
+});
+
 async function post(path: string, body: unknown, auth?: string) {
   const res = await fetch(`${baseUrl}${path}`, {
     method: "POST",
@@ -106,10 +157,26 @@ describe("IAP store webhooks are reachable (mount-order regression)", () => {
     expect(r.body).toEqual({ error: "missing signedPayload" });
   });
 
-  it("Google RTDN Pub/Sub push posts UNAUTHENTICATED and reaches the handler", async () => {
+  it.each([
+    ["legacy", false],
+    ["reliable", true],
+  ])("Google RTDN %s mode reaches iapRouter and fails closed before downstream work", async (_mode, reliable) => {
+    routeEnv.IAP_DELIVERY_RELIABILITY_ENABLED = reliable;
     const r = await post("/api/v1/billing/iap/google/notify", {});
-    expect(r.status).not.toBe(401);
-    expect(r.status).toBeLessThan(500);
+    expect(r).toEqual({ status: 401, body: { error: "unauthorized" } });
+    expect(routeMocks.verifyPubSubPushToken).toHaveBeenCalledTimes(1);
+    expect(routeMocks.parseGoogleRtdnEnvelope).not.toHaveBeenCalled();
+    expect(routeMocks.verifyGoogleReceipt).not.toHaveBeenCalled();
+    expect(routeMocks.acknowledgeGoogleReceipt).not.toHaveBeenCalled();
+    expect(routeMocks.processIapDelivery).not.toHaveBeenCalled();
+    expect(routeMocks.recordEntitlementEvent).not.toHaveBeenCalled();
+    expect(routeMocks.activityLogCreate).not.toHaveBeenCalled();
+    expect(routeMocks.mobileSubscriptionFindUnique).not.toHaveBeenCalled();
+    expect(routeMocks.mobileSubscriptionCreate).not.toHaveBeenCalled();
+    expect(routeMocks.mobileSubscriptionUpdate).not.toHaveBeenCalled();
+    expect(routeMocks.mobileSubscriptionUpdateMany).not.toHaveBeenCalled();
+    expect(routeMocks.transaction).not.toHaveBeenCalled();
+    expect(routeMocks.tenantTx).not.toHaveBeenCalled();
   });
 
   it("an AUTHENTICATED post to the webhook does not 500 on the tenant-context guard", async () => {
@@ -130,5 +197,10 @@ describe("IAP store webhooks are reachable (mount-order regression)", () => {
   it("does not break sibling /billing routes that DO require auth", async () => {
     const r = await post("/api/v1/billing/checkout", {});
     expect(r.status).toBe(401);
+  });
+
+  it("does not expose an unauthenticated webhook replay endpoint", async () => {
+    const r = await post("/api/v1/billing/iap/replay", {}, token);
+    expect(r.status).toBe(404);
   });
 });

@@ -18,8 +18,13 @@ const mocks = vi.hoisted(() => ({
   mobileSubscriptionUpsert: vi.fn(),
   mobileSubscriptionFindFirst: vi.fn(),
   mobileSubscriptionUpdate: vi.fn(),
+  googlePurchaseAliasFindMany: vi.fn(),
+  googlePurchaseAliasCreateMany: vi.fn(),
   activityLogCreate: vi.fn(),
   transaction: vi.fn(),
+  tenantTx: vi.fn(),
+  loggerError: vi.fn(),
+  loggerWarn: vi.fn(),
 }));
 
 vi.mock("../../../../middleware/auth", () => ({
@@ -48,9 +53,10 @@ vi.mock("../../../../lib/db", () => ({
     activityLog: { create: mocks.activityLogCreate },
     $transaction: mocks.transaction,
   },
+  tenantTx: mocks.tenantTx,
 }));
 vi.mock("../../../../lib/logger", () => ({
-  logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+  logger: { debug: vi.fn(), info: vi.fn(), warn: mocks.loggerWarn, error: mocks.loggerError },
 }));
 vi.mock("../../../../config/env", () => ({
   env: { NODE_ENV: "test", REVENUECAT_WEBHOOK_SECRET: "" },
@@ -134,6 +140,20 @@ beforeEach(() => {
   mocks.verifyPubSubPushToken.mockResolvedValue({ ok: true });
   mocks.activityLogCreate.mockResolvedValue({ id: "activity-1" });
   mocks.recordEntitlementEvent.mockResolvedValue(undefined);
+  mocks.googlePurchaseAliasFindMany.mockResolvedValue([]);
+  mocks.googlePurchaseAliasCreateMany.mockResolvedValue({ count: 0 });
+  mocks.tenantTx.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => fn({
+    mobileSubscription: {
+      findUnique: mocks.mobileSubscriptionFindUnique,
+      create: mocks.mobileSubscriptionCreate,
+      updateMany: mocks.mobileSubscriptionUpdateMany,
+      update: mocks.mobileSubscriptionUpdate,
+    },
+    googlePurchaseAlias: {
+      findMany: mocks.googlePurchaseAliasFindMany,
+      createMany: mocks.googlePurchaseAliasCreateMany,
+    },
+  }));
 });
 
 async function postVerify(
@@ -255,6 +275,192 @@ describe("canonical IAP catalog", () => {
 });
 
 describe("POST /billing/iap/verify catalog boundary", () => {
+  it("claims every verified Google alias transactionally before subscription and entitlement effects", async () => {
+    const currentIdentity = `google:${"c".repeat(64)}`;
+    const rootIdentity = `google:${"a".repeat(64)}`;
+    mocks.verifyGoogleReceipt.mockResolvedValue({
+      ...verifiedReceipt(rootIdentity),
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [currentIdentity, rootIdentity],
+    });
+    mocks.googlePurchaseAliasFindMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          tokenDigest: currentIdentity,
+          state: "active",
+          tenantId: "tenant-1",
+          mobileSubscriptionId: "mobile-sub-1",
+          provider: "google",
+          canonicalRootIdentity: rootIdentity,
+        },
+        {
+          tokenDigest: rootIdentity,
+          state: "active",
+          tenantId: "tenant-1",
+          mobileSubscriptionId: "mobile-sub-1",
+          provider: "google",
+          canonicalRootIdentity: rootIdentity,
+        },
+      ]);
+    mocks.googlePurchaseAliasCreateMany.mockResolvedValue({ count: 2 });
+
+    const result = await postVerify("google", "com.braavolabs.individual.monthly");
+
+    expect(result.status).toBe(200);
+    expect(mocks.tenantTx).toHaveBeenCalledTimes(1);
+    expect(mocks.googlePurchaseAliasCreateMany).toHaveBeenCalledWith(expect.objectContaining({
+      skipDuplicates: true,
+      data: expect.arrayContaining([
+        expect.objectContaining({ tokenDigest: currentIdentity }),
+        expect.objectContaining({ tokenDigest: rootIdentity }),
+      ]),
+    }));
+    expect(mocks.googlePurchaseAliasCreateMany.mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.mobileSubscriptionCreate.mock.invocationCallOrder[0]);
+    expect(mocks.mobileSubscriptionCreate.mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.recordEntitlementEvent.mock.invocationCallOrder[0]);
+  });
+
+  it("returns 409 with all downstream effects zero when an alias conflict is hidden by RLS", async () => {
+    const currentIdentity = `google:${"d".repeat(64)}`;
+    const rootIdentity = `google:${"b".repeat(64)}`;
+    mocks.verifyGoogleReceipt.mockResolvedValue({
+      ...verifiedReceipt(rootIdentity),
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [currentIdentity, rootIdentity],
+    });
+    mocks.googlePurchaseAliasFindMany.mockResolvedValue([]);
+    mocks.googlePurchaseAliasCreateMany.mockResolvedValue({ count: 0 });
+
+    const result = await postVerify("google", "com.braavolabs.individual.monthly", {
+      tenantId: "tenant-loser",
+    });
+
+    expect(result.status).toBe(409);
+    expect(mocks.mobileSubscriptionCreate).not.toHaveBeenCalled();
+    expect(mocks.mobileSubscriptionUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.recordEntitlementEvent).not.toHaveBeenCalled();
+    expect(mocks.activityLogCreate).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["tenant", { tenantId: "other-tenant" }],
+    ["root", { canonicalRootIdentity: `google:${"f".repeat(64)}` }],
+    ["legacy state", {
+      state: "legacy_blocked",
+      tenantId: null,
+      mobileSubscriptionId: null,
+      provider: null,
+      canonicalRootIdentity: null,
+    }],
+  ])("fails closed for a visible Google alias %s conflict", async (_label, override) => {
+    const currentIdentity = `google:${"d".repeat(64)}`;
+    const rootIdentity = `google:${"b".repeat(64)}`;
+    mocks.verifyGoogleReceipt.mockResolvedValue({
+      ...verifiedReceipt(rootIdentity),
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [currentIdentity, rootIdentity],
+      googleAcknowledgementPending: true,
+    });
+    mocks.googlePurchaseAliasFindMany.mockResolvedValueOnce([{
+      tokenDigest: currentIdentity,
+      state: "active",
+      tenantId: "tenant-1",
+      mobileSubscriptionId: "mobile-sub-owner",
+      provider: "google",
+      canonicalRootIdentity: rootIdentity,
+      ...override,
+    }]);
+
+    const result = await postVerify("google", "com.braavolabs.individual.monthly");
+
+    expect(result.status).toBe(409);
+    expect(mocks.googlePurchaseAliasCreateMany).not.toHaveBeenCalled();
+    expect(mocks.mobileSubscriptionCreate).not.toHaveBeenCalled();
+    expect(mocks.mobileSubscriptionUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.recordEntitlementEvent).not.toHaveBeenCalled();
+    expect(mocks.activityLogCreate).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when verified aliases point at different subscription owners", async () => {
+    const currentIdentity = `google:${"d".repeat(64)}`;
+    const rootIdentity = `google:${"b".repeat(64)}`;
+    mocks.verifyGoogleReceipt.mockResolvedValue({
+      ...verifiedReceipt(rootIdentity),
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [currentIdentity, rootIdentity],
+      googleAcknowledgementPending: false,
+    });
+    mocks.googlePurchaseAliasFindMany.mockResolvedValueOnce([
+      {
+        tokenDigest: currentIdentity,
+        state: "active",
+        tenantId: "tenant-1",
+        mobileSubscriptionId: "owner-one",
+        provider: "google",
+        canonicalRootIdentity: rootIdentity,
+      },
+      {
+        tokenDigest: rootIdentity,
+        state: "active",
+        tenantId: "tenant-1",
+        mobileSubscriptionId: "owner-two",
+        provider: "google",
+        canonicalRootIdentity: rootIdentity,
+      },
+    ]);
+
+    const result = await postVerify("google", "com.braavolabs.individual.monthly");
+
+    expect(result.status).toBe(409);
+    expect(mocks.googlePurchaseAliasCreateMany).not.toHaveBeenCalled();
+    expect(mocks.mobileSubscriptionCreate).not.toHaveBeenCalled();
+    expect(mocks.recordEntitlementEvent).not.toHaveBeenCalled();
+    expect(mocks.activityLogCreate).not.toHaveBeenCalled();
+  });
+
+  it("keeps a same-owner Google renewal on the existing canonical subscription", async () => {
+    const currentIdentity = `google:${"8".repeat(64)}`;
+    const rootIdentity = `google:${"7".repeat(64)}`;
+    const ownerAliases = [currentIdentity, rootIdentity].map((tokenDigest) => ({
+      tokenDigest,
+      state: "active",
+      tenantId: "tenant-1",
+      mobileSubscriptionId: "mobile-sub-owner",
+      provider: "google",
+      canonicalRootIdentity: rootIdentity,
+    }));
+    mocks.verifyGoogleReceipt.mockResolvedValue({
+      ...verifiedReceipt(rootIdentity),
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [currentIdentity, rootIdentity],
+      googleAcknowledgementPending: false,
+    });
+    mocks.googlePurchaseAliasFindMany.mockResolvedValue(ownerAliases);
+    mocks.googlePurchaseAliasCreateMany.mockResolvedValue({ count: 0 });
+    mocks.mobileSubscriptionUpdateMany.mockResolvedValue({ count: 1 });
+    mocks.mobileSubscriptionFindUnique.mockResolvedValue({
+      id: "mobile-sub-owner",
+      tenantId: "tenant-1",
+      planTier: "CREATOR",
+    });
+
+    const result = await postVerify("google", "com.braavolabs.individual.monthly");
+
+    expect(result.status).toBe(200);
+    expect(mocks.mobileSubscriptionCreate).not.toHaveBeenCalled();
+    expect(mocks.mobileSubscriptionUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        id: "mobile-sub-owner",
+        tenantId: "tenant-1",
+        originalTransactionId: rootIdentity,
+      }),
+    }));
+    expect(mocks.recordEntitlementEvent).toHaveBeenCalledTimes(1);
+    expect(mocks.activityLogCreate).toHaveBeenCalledTimes(1);
+  });
+
   it("atomically gives one tenant ownership when two tenants verify the same transaction", async () => {
     const transactionId = "apple-shared-original-transaction";
     mocks.verifyAppleReceipt.mockResolvedValue(verifiedReceipt(transactionId));
@@ -313,7 +519,7 @@ describe("POST /billing/iap/verify catalog boundary", () => {
     expect(storedSubscription).toMatchObject({
       tenantId: winningTenant,
       originalTransactionId: transactionId,
-      latestReceipt: winningTenant === "tenant-a" ? "receipt-a" : "receipt-b",
+      latestReceipt: null,
       productId: "com.braavolabs.individual.monthly",
       status: "active",
       planTier: "CREATOR",
@@ -384,9 +590,12 @@ describe("POST /billing/iap/verify catalog boundary", () => {
     );
     expect(mocks.mobileSubscriptionCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ planTier: "CREATOR" }),
+        data: expect.objectContaining({ planTier: "CREATOR", latestReceipt: null }),
       }),
     );
+    expect(JSON.stringify(mocks.mobileSubscriptionCreate.mock.calls)).not.toContain("store-proof");
+    expect(JSON.stringify(mocks.loggerError.mock.calls)).not.toContain("store-proof");
+    expect(JSON.stringify(mocks.loggerWarn.mock.calls)).not.toContain("store-proof");
     expect(mocks.recordEntitlementEvent).toHaveBeenCalledWith(
       expect.objectContaining({ planTier: "CREATOR" }),
     );
@@ -447,7 +656,7 @@ describe("POST /billing/iap/verify catalog boundary", () => {
     expect(mocks.mobileSubscriptionUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { originalTransactionId: transactionId, tenantId: "tenant-owner" },
-        data: expect.objectContaining({ latestReceipt: "receipt-renewal" }),
+        data: expect.objectContaining({ latestReceipt: null }),
       }),
     );
     expect(mocks.mobileSubscriptionFindUnique).toHaveBeenCalledWith({
@@ -455,8 +664,15 @@ describe("POST /billing/iap/verify catalog boundary", () => {
     });
     expect(storedSubscription).toMatchObject({
       tenantId: "tenant-owner",
-      latestReceipt: "receipt-renewal",
+      latestReceipt: null,
     });
+    const persistenceCalls = JSON.stringify([
+      mocks.mobileSubscriptionCreate.mock.calls,
+      mocks.mobileSubscriptionUpdateMany.mock.calls,
+    ]);
+    expect(persistenceCalls).not.toContain("receipt-first");
+    expect(persistenceCalls).not.toContain("receipt-renewal");
+    expect(JSON.stringify(mocks.loggerError.mock.calls)).not.toContain("receipt-renewal");
     expect(mocks.recordEntitlementEvent).toHaveBeenCalledTimes(2);
     expect(mocks.activityLogCreate).toHaveBeenCalledTimes(2);
   });
@@ -622,6 +838,7 @@ describe("store notification catalog boundary", () => {
       mocks.verifyAppleReceipt.mockResolvedValue(verifiedReceipt("apple-known-transaction"));
       result = await postAppleNotification();
     } else {
+      const rootIdentity = `google:${"e".repeat(64)}`;
       mocks.parseGoogleRtdnEnvelope.mockReturnValue({
         packageName: "com.braavolabs.mobile",
         notificationType: 2,
@@ -630,12 +847,36 @@ describe("store notification catalog boundary", () => {
         messageId: "google-known-message",
         publishTime: new Date("2026-08-28T00:00:00.000Z"),
       });
-      mocks.verifyGoogleReceipt.mockResolvedValue(verifiedReceipt("google-known-transaction"));
+      mocks.verifyGoogleReceipt.mockResolvedValue({
+        ...verifiedReceipt(rootIdentity),
+        googleCanonicalRootIdentity: rootIdentity,
+        googlePurchaseAliases: [rootIdentity],
+        googleAcknowledgementPending: false,
+      });
+      mocks.googlePurchaseAliasFindMany.mockResolvedValue([{
+        tokenDigest: rootIdentity,
+        state: "active",
+        tenantId: "tenant-1",
+        mobileSubscriptionId: "google-subscription",
+        provider: "google",
+        canonicalRootIdentity: rootIdentity,
+      }]);
+      mocks.mobileSubscriptionUpdateMany.mockResolvedValue({ count: 1 });
+      mocks.mobileSubscriptionFindUnique.mockResolvedValue({
+        id: "google-subscription",
+        tenantId: "tenant-1",
+        planTier: "ENTERPRISE",
+      });
       result = await postGoogleNotification();
     }
 
     expect(result).toEqual({ status: 200, body: { ok: true } });
-    expect(mocks.mobileSubscriptionUpdate).toHaveBeenCalledTimes(1);
+    if (provider === "apple") {
+      expect(mocks.mobileSubscriptionUpdate).toHaveBeenCalledTimes(1);
+    } else {
+      expect(mocks.mobileSubscriptionUpdateMany).toHaveBeenCalledTimes(1);
+      expect(mocks.mobileSubscriptionUpdate).not.toHaveBeenCalled();
+    }
     expect(mocks.recordEntitlementEvent).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: "tenant-1", planTier }),
     );

@@ -675,9 +675,16 @@ for (const [name, lines, fingerprints, mode] of deniedHosts) {
   }));
 }
 test("known_hosts exact host is accepted", () => withHarness((h) => {
-  const historicalCount = readdirSync(join(ROOT, "packages/db/prisma/migrations"))
-    .filter((name) => existsSync(join(ROOT, "packages/db/prisma/migrations", name, "migration.sql"))).length;
-  assert.equal(historicalCount, 44);
+  const historicalMigrations = readdirSync(join(ROOT, "packages/db/prisma/migrations"))
+    .filter((name) => existsSync(join(ROOT, "packages/db/prisma/migrations", name, "migration.sql")));
+  assert.equal(historicalMigrations.length, 47);
+  for (const acceptedMigration of [
+    "20260821_subscription_only_plans",
+    "20260825233000_iap_delivery_dlq",
+    "20260828_google_purchase_alias_ownership",
+  ]) {
+    assert.ok(historicalMigrations.includes(acceptedMigration), `missing accepted migration: ${acceptedMigration}`);
+  }
   const result = runDeploy(h);
   assert.equal(result.status, 0);
   assert.match(result.calls, /StrictHostKeyChecking=yes/);

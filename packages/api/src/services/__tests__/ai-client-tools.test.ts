@@ -38,6 +38,7 @@ vi.mock("../../lib/encryption", () => ({
 // Skip real DNS resolution in the SSRF guard (own suite: ssrf.test.ts).
 vi.mock("../../lib/ssrf", () => ({
   assertSafeExternalUrl: async () => {},
+  safeExternalFetch: (...args: Parameters<typeof fetch>) => globalThis.fetch(...args),
   SsrfError: class SsrfError extends Error {},
 }));
 

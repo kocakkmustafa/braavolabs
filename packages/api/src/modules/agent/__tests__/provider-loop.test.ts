@@ -450,11 +450,10 @@ describe("unified loop — maxTokens travels to the wire", () => {
   });
 });
 
-// ── Trial path compatibility (behavioural order unchanged — D-009 is T7's) ──
+// ── Hosted-trial removal compatibility ──
 
-describe("unified loop — trial Groq path", () => {
-  it("routes trial runs through the unified loop with the maxTurns clamp and commits after success", async () => {
-    // BYOK-less FREE tenant — the T7 chain enters through the counted trial.
+describe("unified loop — BYOK/local-only entry", () => {
+  it("fails closed without tenant-owned config and never reserves or commits a hosted trial", async () => {
     aiConfigFindMany.mockResolvedValue([]);
     tenantFindUnique.mockResolvedValue({ plan: "FREE" });
     tryConsumeTrialRunMock.mockResolvedValue({
@@ -462,26 +461,20 @@ describe("unified loop — trial Groq path", () => {
       remainingBefore: 3,
       remainingAfter: 2,
     });
-    // Model keeps asking for tools — an unclamped loop would run 10 turns
-    chatCompletionMock.mockResolvedValue(
-      completion({
-        content: "again",
-        toolCalls: [{ id: "c1", name: "get_time", argumentsJson: "{}" }],
-        stopReason: "tool_calls",
+    await expect(
+      runAgentLoop({
+        systemPrompt: "sys",
+        userMessage: "go",
+        toolNames: ["get_time"],
+        maxTurns: 10,
+        tenantId: "tenant-1",
+        govContext: GOV,
       }),
-    );
+    ).rejects.toThrow(/No AI provider configured/);
 
-    const result = await runAgentLoop({
-      systemPrompt: "sys",
-      userMessage: "go",
-      toolNames: ["get_time"],
-      maxTurns: 10,
-      tenantId: "tenant-1",
-      govContext: GOV,
-    });
-
-    expect(result.turns).toHaveLength(4); // TRIAL_MAX_TURNS clamp (plan T4/A8)
-    expect(commitTrialRunMock).toHaveBeenCalledExactlyOnceWith("tenant-1", expect.any(Number));
+    expect(tryConsumeTrialRunMock).not.toHaveBeenCalled();
+    expect(commitTrialRunMock).not.toHaveBeenCalled();
+    expect(chatCompletionMock).not.toHaveBeenCalled();
   });
 });
 

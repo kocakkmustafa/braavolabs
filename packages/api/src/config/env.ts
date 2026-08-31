@@ -179,10 +179,25 @@ const envShape = z.object({
   // Google Play RTDN Pub/Sub push authentication (FINDINGS C1). The push
   // subscription must be configured with an OIDC service-account token;
   // the /billing/iap/google/notify endpoint verifies it. Audience is the
-  // value set on the push subscription (typically the notify URL). Email,
-  // if set, is asserted against the verified token's `email` claim.
-  GOOGLE_PUBSUB_AUDIENCE: z.string().optional(),
-  GOOGLE_PUBSUB_SA_EMAIL: z.string().optional(),
+  // value set on the push subscription (typically the notify URL). The
+  // service-account email is a complementary binding: RTDN admission requires
+  // both the exact audience and the exact verified workload identity.
+  GOOGLE_PUBSUB_AUDIENCE: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+    z.string().trim().min(1).optional(),
+  ),
+  GOOGLE_PUBSUB_SA_EMAIL: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+    z.string().trim().email().optional(),
+  ),
+  // Durable webhook admission/DLQ rollout switch. Default-off keeps the
+  // migration and code deploy reversible until the operator explicitly
+  // enables delivery-ledger processing after schema verification.
+  IAP_DELIVERY_RELIABILITY_ENABLED: z.string().optional().default("false").transform((v) => v === "true"),
+  // A permanently failing provider lookup or persistence target must not
+  // create an infinite store-redelivery loop. The final validated attempt is
+  // durably poisoned with a bounded code and terminally acknowledged.
+  IAP_DELIVERY_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(20).default(5),
   // RevenueCat (optional unified path covering both stores):
   REVENUECAT_WEBHOOK_SECRET: z.string().optional(),
   // Vapi voice webhook HMAC secret — used to verify inbound Vapi callbacks.
@@ -290,18 +305,19 @@ if (parsed.NODE_ENV === "production") {
 // Safety: if Google Play IAP is configured (service account present) in
 // production, the unauthenticated /billing/iap/google/notify endpoint becomes
 // live — and verifyPubSubPushToken only meaningfully authenticates the Pub/Sub
-// sender when GOOGLE_PUBSUB_AUDIENCE or GOOGLE_PUBSUB_SA_EMAIL is set. Without
-// either, the floor is "any Google-signed OIDC token", which is too weak to
-// gate plan mutations. Fail fast so a prod deploy can't silently run open.
+// sender only when GOOGLE_PUBSUB_AUDIENCE and GOOGLE_PUBSUB_SA_EMAIL are both
+// set. Audience binds the intended endpoint; verified email binds the exact
+// service account. Fail fast so a prod deploy cannot silently run with only
+// one half of the workload identity contract.
 if (
   parsed.NODE_ENV === "production" &&
   parsed.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON &&
-  !parsed.GOOGLE_PUBSUB_AUDIENCE &&
-  !parsed.GOOGLE_PUBSUB_SA_EMAIL
+  (!parsed.GOOGLE_PUBSUB_AUDIENCE || !parsed.GOOGLE_PUBSUB_SA_EMAIL)
 ) {
   throw new Error(
-    "Google Play IAP is configured but GOOGLE_PUBSUB_AUDIENCE and GOOGLE_PUBSUB_SA_EMAIL are both unset. " +
-      "Set at least one so /billing/iap/google/notify can authenticate the Pub/Sub push sender (FINDINGS C1).",
+    "Google Play IAP is configured but the complementary GOOGLE_PUBSUB_AUDIENCE and " +
+      "GOOGLE_PUBSUB_SA_EMAIL workload identity bindings are incomplete. Set both so " +
+      "/billing/iap/google/notify can authenticate the exact Pub/Sub push sender (FINDINGS C1).",
   );
 }
 

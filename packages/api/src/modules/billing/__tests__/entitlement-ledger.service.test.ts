@@ -47,7 +47,7 @@ function row(overrides: Partial<Record<string, unknown>> = {}) {
     sourceEventId: "evt-1",
     sourceTimestamp: new Date("2026-01-01T00:00:00Z"),
     type: "purchase",
-    planTier: "PRO",
+    planTier: "TEAM",
     expiresAt: new Date("2026-02-01T00:00:00Z"),
     autoRenew: true,
     ...overrides,
@@ -70,7 +70,7 @@ describe("appendEntitlementEvent", () => {
       sourceEventId: "evt-1",
       sourceTimestamp: new Date("2026-01-01T00:00:00Z"),
       type: "purchase",
-      planTier: "PRO",
+      planTier: "TEAM",
       expiresAt: new Date("2026-02-01T00:00:00Z"),
       autoRenew: true,
     });
@@ -84,7 +84,7 @@ describe("appendEntitlementEvent", () => {
         sourceEventId: "evt-1",
         sourceTimestamp: new Date("2026-01-01T00:00:00Z"),
         type: "purchase",
-        planTier: "PRO",
+        planTier: "TEAM",
         expiresAt: new Date("2026-02-01T00:00:00Z"),
         autoRenew: true,
       },
@@ -105,7 +105,7 @@ describe("appendEntitlementEvent", () => {
       sourceEventId: "evt-1",
       sourceTimestamp: new Date(),
       type: "purchase",
-      planTier: "PRO",
+      planTier: "TEAM",
       expiresAt: null,
       autoRenew: true,
     });
@@ -124,7 +124,7 @@ describe("appendEntitlementEvent", () => {
         sourceEventId: "evt-1",
         sourceTimestamp: new Date(),
         type: "purchase",
-        planTier: "PRO",
+        planTier: "TEAM",
         expiresAt: null,
         autoRenew: true,
       }),
@@ -133,24 +133,24 @@ describe("appendEntitlementEvent", () => {
 });
 
 describe("reprojectEntitlement", () => {
-  it("writes FREE when the tenant has no events at all", async () => {
+  it("writes MANUAL_REVIEW when the tenant has no events at all", async () => {
     mockFindMany.mockResolvedValue([]);
 
     const plan = await reprojectEntitlement(TENANT);
 
-    expect(plan).toBe("FREE");
-    expect(mockTenantUpdate).toHaveBeenCalledWith({ where: { id: TENANT }, data: { plan: "FREE" } });
+    expect(plan).toBe("MANUAL_REVIEW");
+    expect(mockTenantUpdate).toHaveBeenCalledWith({ where: { id: TENANT }, data: { plan: "MANUAL_REVIEW" } });
   });
 
   it("projects a single active stream's plan tier onto tenant.plan", async () => {
     mockFindMany.mockResolvedValue([
-      row({ type: "purchase", planTier: "PRO", expiresAt: new Date(Date.now() + 86_400_000) }),
+      row({ type: "purchase", planTier: "TEAM", expiresAt: new Date(Date.now() + 86_400_000) }),
     ]);
 
     const plan = await reprojectEntitlement(TENANT);
 
-    expect(plan).toBe("PRO");
-    expect(mockTenantUpdate).toHaveBeenCalledWith({ where: { id: TENANT }, data: { plan: "PRO" } });
+    expect(plan).toBe("TEAM");
+    expect(mockTenantUpdate).toHaveBeenCalledWith({ where: { id: TENANT }, data: { plan: "TEAM" } });
   });
 
   it("folds a stream's full history (purchase then cancel then renewal) before projecting — not just the latest row blindly", async () => {
@@ -158,14 +158,14 @@ describe("reprojectEntitlement", () => {
       row({
         id: "e1",
         type: "purchase",
-        planTier: "CREATOR",
+        planTier: "INDIVIDUAL",
         sourceTimestamp: new Date("2026-01-01T00:00:00Z"),
         expiresAt: new Date("2026-02-01T00:00:00Z"),
       }),
       row({
         id: "e2",
         type: "renewal",
-        planTier: "PRO",
+        planTier: "TEAM",
         sourceTimestamp: new Date("2026-02-01T00:00:00Z"),
         expiresAt: new Date(Date.now() + 86_400_000),
       }),
@@ -173,7 +173,7 @@ describe("reprojectEntitlement", () => {
 
     const plan = await reprojectEntitlement(TENANT);
 
-    expect(plan).toBe("PRO");
+    expect(plan).toBe("TEAM");
   });
 
   it("combines multiple concurrent streams and projects the highest still-granting tier (Stripe refunded, mobile still active)", async () => {
@@ -191,36 +191,36 @@ describe("reprojectEntitlement", () => {
         source: "apple",
         streamId: "orig-tx-1",
         type: "purchase",
-        planTier: "BUSINESS",
+        planTier: "TEAM",
         expiresAt: new Date(Date.now() + 86_400_000),
       }),
     ]);
 
     const plan = await reprojectEntitlement(TENANT);
 
-    expect(plan).toBe("BUSINESS");
-    expect(mockTenantUpdate).toHaveBeenCalledWith({ where: { id: TENANT }, data: { plan: "BUSINESS" } });
+    expect(plan).toBe("TEAM");
+    expect(mockTenantUpdate).toHaveBeenCalledWith({ where: { id: TENANT }, data: { plan: "TEAM" } });
   });
 
-  it("projects FREE once expiresAt has passed even though the last event never said so explicitly (wall-clock, not event-count)", async () => {
+  it("projects MANUAL_REVIEW once expiresAt has passed", async () => {
     mockFindMany.mockResolvedValue([
-      row({ type: "purchase", planTier: "ENTERPRISE", expiresAt: new Date("2020-01-01T00:00:00Z") }),
+      row({ type: "purchase", planTier: "MANUAL_REVIEW", expiresAt: new Date("2020-01-01T00:00:00Z") }),
     ]);
 
     const plan = await reprojectEntitlement(TENANT);
 
-    expect(plan).toBe("FREE");
+    expect(plan).toBe("MANUAL_REVIEW");
   });
 
-  it("fails closed to FREE (not a Prisma enum error) if the reducer ever resolves a tier outside the known catalog", async () => {
+  it("fails closed to MANUAL_REVIEW if the reducer sees an unknown tier", async () => {
     mockFindMany.mockResolvedValue([
       row({ type: "purchase", planTier: "NOT_A_REAL_TIER", expiresAt: new Date(Date.now() + 86_400_000) }),
     ]);
 
     const plan = await reprojectEntitlement(TENANT);
 
-    expect(plan).toBe("FREE");
-    expect(mockTenantUpdate).toHaveBeenCalledWith({ where: { id: TENANT }, data: { plan: "FREE" } });
+    expect(plan).toBe("MANUAL_REVIEW");
+    expect(mockTenantUpdate).toHaveBeenCalledWith({ where: { id: TENANT }, data: { plan: "MANUAL_REVIEW" } });
   });
 
   it("scopes the read to this tenant only — tenant isolation (CLAUDE.md rule #10)", async () => {
@@ -236,7 +236,7 @@ describe("recordEntitlementEvent", () => {
   it("appends then reprojects, and returns the reprojected plan", async () => {
     mockCreate.mockResolvedValue(row());
     mockFindMany.mockResolvedValue([
-      row({ type: "purchase", planTier: "CREATOR", expiresAt: new Date(Date.now() + 86_400_000) }),
+      row({ type: "purchase", planTier: "INDIVIDUAL", expiresAt: new Date(Date.now() + 86_400_000) }),
     ]);
 
     const plan = await recordEntitlementEvent({
@@ -246,12 +246,12 @@ describe("recordEntitlementEvent", () => {
       sourceEventId: "evt-1",
       sourceTimestamp: new Date(),
       type: "purchase",
-      planTier: "CREATOR",
+      planTier: "INDIVIDUAL",
       expiresAt: new Date(Date.now() + 86_400_000),
       autoRenew: true,
     });
 
-    expect(plan).toBe("CREATOR");
+    expect(plan).toBe("INDIVIDUAL");
     expect(mockCreate).toHaveBeenCalledTimes(1);
     expect(mockFindMany).toHaveBeenCalledTimes(1);
   });
@@ -259,7 +259,7 @@ describe("recordEntitlementEvent", () => {
   it("still reprojects from the full history on a duplicate append — the observable effect is identical whichever delivery 'wins' the insert", async () => {
     mockCreate.mockRejectedValue(Object.assign(new Error("Unique constraint failed"), { code: "P2002" }));
     mockFindMany.mockResolvedValue([
-      row({ type: "purchase", planTier: "PRO", expiresAt: new Date(Date.now() + 86_400_000) }),
+      row({ type: "purchase", planTier: "TEAM", expiresAt: new Date(Date.now() + 86_400_000) }),
     ]);
 
     const plan = await recordEntitlementEvent({
@@ -269,12 +269,12 @@ describe("recordEntitlementEvent", () => {
       sourceEventId: "evt-1",
       sourceTimestamp: new Date(),
       type: "purchase",
-      planTier: "PRO",
+      planTier: "TEAM",
       expiresAt: new Date(Date.now() + 86_400_000),
       autoRenew: true,
     });
 
-    expect(plan).toBe("PRO");
+    expect(plan).toBe("TEAM");
     expect(mockFindMany).toHaveBeenCalledTimes(1);
   });
 });

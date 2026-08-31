@@ -73,7 +73,11 @@ vi.mock("../../lib/logger", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-import { getTenantAIConfig, saveTenantAIConfig } from "../ai-client";
+import {
+  getTenantAIConfig,
+  saveTenantAIConfig,
+  TENANT_CREDENTIAL_MARKER,
+} from "../ai-client";
 
 const TENANT = "tenant-multi";
 
@@ -93,7 +97,7 @@ describe("getTenantAIConfig — multi-row default resolution (T6)", () => {
   it("queries the default row first: where {tenantId}, orderBy isDefault desc + createdAt asc", async () => {
     db.findFirst.mockResolvedValue(null);
 
-    await getTenantAIConfig(TENANT);
+    await expect(getTenantAIConfig(TENANT)).rejects.toThrow(/tenant-owned.*BYOK.*local/i);
 
     expect(db.findFirst).toHaveBeenCalledExactlyOnceWith({
       where: { tenantId: TENANT },
@@ -121,9 +125,14 @@ describe("getTenantAIConfig — multi-row default resolution (T6)", () => {
     expect(config).toEqual({
       provider: "GROQ",
       model: "llama-3.3-70b-versatile",
-      apiKey: "gsk_live_key",
+      apiKey: TENANT_CREDENTIAL_MARKER,
+      getApiKey: expect.any(Function),
       baseUrl: undefined,
     });
+    expect(crypto.decryptForTenant).not.toHaveBeenCalled();
+
+    expect(config.getApiKey?.()).toBe("gsk_live_key");
+    expect(config.getApiKey?.()).toBe("gsk_live_key");
     expect(crypto.decryptForTenant).toHaveBeenCalledExactlyOnceWith("v4:groq-blob", TENANT);
   });
 
