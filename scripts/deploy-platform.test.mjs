@@ -677,8 +677,9 @@ for (const [name, lines, fingerprints, mode] of deniedHosts) {
 test("known_hosts exact host is accepted", () => withHarness((h) => {
   const historicalMigrations = readdirSync(join(ROOT, "packages/db/prisma/migrations"))
     .filter((name) => existsSync(join(ROOT, "packages/db/prisma/migrations", name, "migration.sql")));
-  assert.equal(historicalMigrations.length, 47);
+  assert.equal(historicalMigrations.length, 48);
   for (const acceptedMigration of [
+    "20260820000000_subscription_plan_enum_values",
     "20260821_subscription_only_plans",
     "20260825233000_iap_delivery_dlq",
     "20260828_google_purchase_alias_ownership",

@@ -1,7 +1,11 @@
--- BR-P0-002-D: additive subscription-only plan migration.
+-- BR-P0-002-D: additive subscription-only plan projection migration.
 -- There is intentionally no destructive down migration. Historical enum
 -- values remain readable for one compatibility release and every original
 -- tenant plan is copied to legacy_plan before the projection changes.
+--
+-- 20260820000000_subscription_plan_enum_values commits the new enum values
+-- first. These IF NOT EXISTS statements are compatibility guards and must be
+-- no-ops in ordered Prisma history; they do not introduce values here.
 
 ALTER TYPE "Plan" ADD VALUE IF NOT EXISTS 'INDIVIDUAL';
 ALTER TYPE "Plan" ADD VALUE IF NOT EXISTS 'TEAM';
