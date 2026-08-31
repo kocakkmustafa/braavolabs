@@ -4,6 +4,11 @@ IFS=$'\n\t'
 readonly EXIT_INPUT=64 EXIT_HOST=65 EXIT_REMOTE=66 EXIT_IMAGE=67 EXIT_MIGRATION=68
 readonly EXIT_CUTOVER=69 EXIT_HEALTH_ROLLED_BACK=70 EXIT_ROLLBACK=71
 readonly EXIT_JOURNAL=72 EXIT_LOCK=75
+readonly REVIEWED_PLAN_ENUM_PATH='packages/db/prisma/migrations/20260820000000_subscription_plan_enum_values/migration.sql'
+readonly REVIEWED_PLAN_ENUM_SHA256='c2f18d9a7fa37b1e7398d9b212275c227279c448102e2e55f7d41aa2ea943280'
+readonly REVIEWED_PLAN_PROJECTION_PATH='packages/db/prisma/migrations/20260821_subscription_only_plans/migration.sql'
+readonly REVIEWED_PLAN_PROJECTION_SHA256='b9f35a25baf868e93c1fb44dc83e2e826c1a6eeafdd9ffded859a791af2326de'
+readonly REVIEWED_PLAN_MIGRATION_TREE_SHA256='666ee6e523d92276eea4d48a1c1976863e6faddba700d26ecc04d723d4c39ea9'
 
 die() { local code="$1"; shift; printf 'deploy-platform: %s\n' "$*" >&2; exit "$code"; }
 require_value() { test -n "${!1:-}" || die "$EXIT_INPUT" "missing required input: $1"; }
@@ -112,9 +117,62 @@ cleanup_remote() {
   exit 0
 }
 
+reviewed_subscription_plan_bundle() {
+  local staged="$1" delta_manifest="$2" hash path extra
+  local enum_seen=0 projection_seen=0 tree_hash discovery expected_discovery
+  test "$(awk 'NF { count += 1 } END { print count + 0 }' "$delta_manifest")" = 2 || return 1
+  while IFS=' ' read -r hash path extra || test -n "${hash:-}"; do
+    test -n "$hash" && test -n "$path" && test -z "${extra:-}" || return 1
+    case "$path" in
+      "$REVIEWED_PLAN_ENUM_PATH")
+        test "$enum_seen" = 0 && test "$hash" = "$REVIEWED_PLAN_ENUM_SHA256" || return 1
+        test "$(sha256sum "$staged/$path" | awk '{print $1}')" = "$REVIEWED_PLAN_ENUM_SHA256" || return 1
+        enum_seen=1 ;;
+      "$REVIEWED_PLAN_PROJECTION_PATH")
+        test "$projection_seen" = 0 && test "$hash" = "$REVIEWED_PLAN_PROJECTION_SHA256" || return 1
+        test "$(sha256sum "$staged/$path" | awk '{print $1}')" = "$REVIEWED_PLAN_PROJECTION_SHA256" || return 1
+        projection_seen=1 ;;
+      *) return 1 ;;
+    esac
+  done < "$delta_manifest"
+  test "$enum_seen" = 1 && test "$projection_seen" = 1 || return 1
+
+  discovery="$(cat "$staged/migration-delta.name-status")" || return 1
+  expected_discovery="$(printf 'A\t%s\nM\t%s' \
+    "$REVIEWED_PLAN_ENUM_PATH" "$REVIEWED_PLAN_PROJECTION_PATH")"
+  test "$discovery" = "$expected_discovery" || return 1
+
+  tree_hash="$(cd "$staged" &&
+    find packages/db/prisma/migrations -type f -name migration.sql -print0 |
+      LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')" || return 1
+  test "$tree_hash" = "$REVIEWED_PLAN_MIGRATION_TREE_SHA256"
+}
+
+delta_discovery_matches_manifest() {
+  local discovery="$1" manifest="$2" discovered manifested status
+  discovered="$(mktemp)"; manifested="$(mktemp)"
+  if ! awk -F '\t' '
+    NF == 0 { next }
+    NF != 2 || ($1 != "A" && $1 != "M") ||
+      $2 !~ "^packages/db/prisma/migrations/[^/]+/migration[.]sql$" { exit 1 }
+    { print $2 }
+  ' "$discovery" | LC_ALL=C sort -u > "$discovered"; then
+    rm -f "$discovered" "$manifested"; return 1
+  fi
+  awk 'NF { print $2 }' "$manifest" | LC_ALL=C sort -u > "$manifested" || {
+    rm -f "$discovered" "$manifested"; return 1;
+  }
+  cmp -s "$discovered" "$manifested"; status="$?"
+  rm -f "$discovered" "$manifested"
+  return "$status"
+}
+
 migration_is_eligible() {
   local staged="$1" delta_manifest="$2" relative file normalized statement upper
   test -f "$delta_manifest" || return 1
+  if reviewed_subscription_plan_bundle "$staged" "$delta_manifest"; then
+    return 0
+  fi
   while IFS= read -r relative; do
     test -n "$relative" || continue
     case "$relative" in packages/db/prisma/migrations/*/migration.sql) ;; *) return 1 ;; esac
@@ -177,6 +235,7 @@ verify_delta_contract() {
   grep -Fx "ui=$ui_ref" "$meta" >/dev/null || return 1
   grep -Fx "discoverySha256=$(sha256sum "$discovery" | awk '{print $1}')" "$meta" >/dev/null || return 1
   grep -Fx "deltaSha256=$(sha256sum "$manifest" | awk '{print $1}')" "$meta" >/dev/null || return 1
+  delta_discovery_matches_manifest "$discovery" "$manifest" || return 1
   while IFS= read -r path; do
     case "$path" in packages/db/prisma/migrations/*/migration.sql) ;; *) return 1 ;; esac
   done < <(awk '{print $2}' "$manifest")
@@ -526,6 +585,10 @@ stage_release_inputs() {
     "$PREVIOUS_RELEASE_COMMIT" "$RELEASE_COMMIT" "$API_IMAGE_REF" "$UI_IMAGE_REF" \
     "$discovery_sha" "$delta_sha" \
     > "$LOCAL_STAGE/migration-delta.meta"
+  delta_discovery_matches_manifest "$discovery_tmp" "$LOCAL_STAGE/migration-delta.sha256" \
+    || die "$EXIT_MIGRATION" 'migration discovery and manifest differ'
+  migration_is_eligible "$LOCAL_STAGE" "$LOCAL_STAGE/migration-delta.sha256" \
+    || die "$EXIT_MIGRATION" 'migration requires manual review'
   (cd "$LOCAL_STAGE" && {
     printf '%s\0' migration-delta.meta migration-delta.name-status migration-delta.sha256
     find ENV packages -type f -print0

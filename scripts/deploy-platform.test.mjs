@@ -20,6 +20,12 @@ const KEY_A = "AAAAC3NzaC1lZDI1NTE5AAAAIEtleUFTeXN0aGV0aWNLZXlB"; // gitleaks:al
 const KEY_B = "AAAAC3NzaC1lZDI1NTE5AAAAIEtleUJTeXN0aGV0aWNLZXlC"; // gitleaks:allow — synthetic public key fixture
 const FINGERPRINT_A = "SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 const FINGERPRINT_B = "SHA256:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
+const REVIEWED_ENUM_MIGRATION =
+  "packages/db/prisma/migrations/20260820000000_subscription_plan_enum_values/migration.sql";
+const REVIEWED_PROJECTION_MIGRATION =
+  "packages/db/prisma/migrations/20260821_subscription_only_plans/migration.sql";
+const REVIEWED_SUBSCRIPTION_DIFF =
+  `A\t${REVIEWED_ENUM_MIGRATION}\nM\t${REVIEWED_PROJECTION_MIGRATION}\n`;
 
 function executable(path, body) {
   writeFileSync(path, `#!/bin/sh\nset -eu\n${body}\n`, { mode: 0o700 });
@@ -242,7 +248,32 @@ exec /usr/bin/shasum -a 256 "$@"`);
   for (const [tool, real] of [["cp", "/bin/cp"], ["mv", "/bin/mv"], ["rm", "/bin/rm"]]) {
     primitive(h, tool, `
 [ -n "${'${FAIL_WRITE_PHASE:-}'}" ] && [ "${'${FAIL_WRITE_PHASE:-}'}" = "${'${DEPLOY_WRITE_PHASE:-}'}" ] && exit 1
-exec ${real} "$@"`);
+${real} "$@"
+if [ "${tool}" = cp ] && [ -n "${'${FAKE_STAGE_MUTATION_MODE:-}'}" ]; then
+  target=''; for arg in "$@"; do target="$arg"; done
+  case " $* " in
+    *' packages/db/prisma/migrations '*)
+      enum="$target/20260820000000_subscription_plan_enum_values/migration.sql"
+      projection="$target/20260821_subscription_only_plans/migration.sql"
+      case "$FAKE_STAGE_MUTATION_MODE" in
+        hash) printf '%s\n' '-- tampered bytes' >> "$enum" ;;
+        enum-label) /usr/bin/perl -0pi -e "s/'INDIVIDUAL'/'PERSONAL'/" "$enum" ;;
+        mapping) /usr/bin/perl -0pi -e "s/WHEN 'CREATOR' THEN 'INDIVIDUAL'/WHEN 'CREATOR' THEN 'TEAM'/" "$projection" ;;
+        default) /usr/bin/perl -0pi -e "s/SET DEFAULT 'MANUAL_REVIEW'/SET DEFAULT 'INDIVIDUAL'/" "$projection" ;;
+        extra-statement) printf '%s\n' 'CREATE TABLE IF NOT EXISTS reviewed_looking_extra (id TEXT);' >> "$projection" ;;
+        third-migration)
+          /bin/mkdir -p "$target/20260820000001_unreviewed"
+          printf '%s\n' 'ALTER TABLE tenants ADD COLUMN unreviewed TEXT;' > "$target/20260820000001_unreviewed/migration.sql" ;;
+        unmanifested)
+          other=$(find "$target" -type f -name migration.sql \
+            ! -path "*/20260820000000_subscription_plan_enum_values/*" \
+            ! -path "*/20260821_subscription_only_plans/*" | head -1)
+          test -n "$other"; printf '%s\n' '-- unmanifested tamper' >> "$other" ;;
+        *) exit 98 ;;
+      esac ;;
+  esac
+fi
+exit 0`);
   }
   primitive(h, "curl", `
 url=''; for arg in "$@"; do case "$arg" in http://*|https://*) url="$arg" ;; esac; done
@@ -708,6 +739,49 @@ test("known_hosts bracketed non-default port is accepted", () => withHarness((h)
   assert.match(result.calls, /StrictHostKeyChecking=yes/);
   assertNoExternalNetwork(h);
 }));
+
+test("reviewed subscription migration bundle reaches the mocked Prisma sink", () =>
+  withHarness((h) => {
+    const result = runDeploy(h, { FAKE_GIT_DIFF: REVIEWED_SUBSCRIPTION_DIFF });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.calls, /^ssh /m);
+    assert.match(result.calls, /^rsync /m);
+    assert.match(result.calls, /docker compose .* run --rm --no-deps api/);
+    assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "1");
+  }));
+
+for (const [name, mutation, gitDiff = REVIEWED_SUBSCRIPTION_DIFF] of [
+  ["byte hash", "hash"],
+  ["enum label", "enum-label"],
+  ["legacy mapping", "mapping"],
+  ["default", "default"],
+  ["extra reviewed-looking statement", "extra-statement"],
+  ["third migration", "third-migration",
+    `${REVIEWED_SUBSCRIPTION_DIFF}A\tpackages/db/prisma/migrations/20260820000001_unreviewed/migration.sql\n`],
+  ["unmanifested historical migration", "unmanifested"],
+]) test(`reviewed subscription bundle denies ${name} mutation before transport`, () =>
+  withHarness((h) => {
+    const result = runDeploy(h, {
+      FAKE_GIT_DIFF: gitDiff,
+      FAKE_STAGE_MUTATION_MODE: mutation,
+    });
+    assert.equal(result.status, 68);
+    assert.doesNotMatch(result.calls, /^ssh |^rsync |migrate deploy|up -d|curl /m);
+    assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
+    assert.equal(existsSync(join(h.state, "transport")), false);
+  }));
+
+test("reviewed subscription bundle denies a changed path before transport", () =>
+  withHarness((h) => {
+    const result = runDeploy(h, {
+      FAKE_GIT_DIFF:
+        `A\tpackages/db/prisma/migrations/20260820000000_changed_path/migration.sql\n` +
+        `M\t${REVIEWED_PROJECTION_MIGRATION}\n`,
+    });
+    assert.equal(result.status, 68);
+    assert.doesNotMatch(result.calls, /^ssh |^rsync |migrate deploy|up -d|curl /m);
+  }));
+
 const migrationCases = [
   ["nullable add", "ALTER TABLE subscription ADD COLUMN settlement_version INTEGER;", 0],
   ["safe index", "CREATE INDEX IF NOT EXISTS subscription_tenant_idx ON subscription(tenant_id);", 0],
