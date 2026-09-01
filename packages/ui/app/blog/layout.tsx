@@ -2,14 +2,12 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Blog — Braavolabs",
-  description:
-    "Product updates, engineering deep-dives, and field notes on building autonomous AI companies — from the Braavolabs team.",
-  alternates: { canonical: "https://braavolabs.com/blog" },
+  description: "Product updates, engineering notes, and public maturity boundaries from the Braavolabs team.",
+  alternates: { canonical: "https://www.braavolabs.com/blog" },
   openGraph: {
     title: "Braavolabs Blog",
-    description:
-      "Product updates, engineering deep-dives, and field notes on building autonomous AI companies.",
-    url: "https://braavolabs.com/blog",
+    description: "Product updates, engineering notes, and public maturity boundaries from Braavolabs.",
+    url: "https://www.braavolabs.com/blog",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }],
   },
 };

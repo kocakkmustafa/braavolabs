@@ -1,5 +1,39 @@
-FROM node:20-alpine AS base
+# syntax=docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e
+ARG COREPACK_BOOTSTRAP=corepack_online
+FROM scratch AS corepack_archive
+
+FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS corepack_online
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+
+FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS corepack_offline
+RUN --network=none --mount=type=bind,from=corepack_archive,source=/,target=/run/corepack-archive,ro <<'COREPACK'
+set -eu
+archive=/run/corepack-archive/corepack-pnpm-9.15.4.tgz
+manifest=/run/corepack-archive/COREPACK-CONTEXT-MANIFEST.json
+count="$(find /run/corepack-archive -mindepth 1 -maxdepth 1 -print | wc -l | tr -d ' ')"
+test "$count" -eq 2
+test -f "$archive" && test ! -L "$archive"
+test -f "$manifest" && test ! -L "$manifest"
+test "$(wc -c < "$archive" | tr -d ' ')" = 3882495
+test "$(sha256sum "$archive" | awk '{print $1}')" = d389715b4d2966e8c84103387f83d2ea698d797bf678f56b6895f179be7db6a5
+node -e 'const fs=require("fs");const m=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));if(m.schema!==1||m.archive!=="corepack-pnpm-9.15.4.tgz"||m.archiveBytes!==3882495||m.archiveSha256!=="d389715b4d2966e8c84103387f83d2ea698d797bf678f56b6895f179be7db6a5"||m.corepack?.name!=="pnpm"||m.corepack?.version!=="9.15.4"||m.corepack?.embeddedSha512Hex!=="b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0"||m.origin?.url!=="https://registry.npmjs.org/pnpm/-/pnpm-9.15.4.tgz"||m.origin?.integrity!=="sha512-stwg4vxys+GISEWbNzWaMgZGY+VielHkx0ssKd2OjgSRSDw6u0B4nP1Xi/Ni+2uoJhsF8Dh9dnku1uI+o7G2oA==")process.exit(1)' "$manifest"
+test "$(tar -xOf "$archive" pnpm/9.15.4/.corepack)" = '{"locator":{"name":"pnpm","reference":"9.15.4"},"bin":{"pnpm":"./bin/pnpm.cjs","pnpx":"./bin/pnpx.cjs"},"hash":"sha512.b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0"}'
+corepack install -g --cache-only "$archive"
+corepack enable
+corepack prepare pnpm@9.15.4 --activate
+test "$(pnpm --version)" = 9.15.4
+package_root="$(find /root/.cache/node/corepack -type f -path '*/pnpm/9.15.4/bin/pnpm.cjs' -print | sed 's#/bin/pnpm.cjs$##')"
+test "$(printf '%s\n' "$package_root" | sed '/^$/d' | wc -l | tr -d ' ')" -eq 1
+cp -R "$package_root" /usr/local/lib/pnpm-9.15.4
+rm -f /usr/local/lib/pnpm-9.15.4/.corepack
+ln -sf /usr/local/lib/pnpm-9.15.4/bin/pnpm.cjs /usr/local/bin/pnpm
+ln -sf /usr/local/lib/pnpm-9.15.4/bin/pnpx.cjs /usr/local/bin/pnpx
+rm -rf /root/.cache/node/corepack
+test "$(pnpm --version)" = 9.15.4
+touch /usr/local/share/braavo-offline-corepack
+COREPACK
+
+FROM ${COREPACK_BOOTSTRAP} AS base
 WORKDIR /app
 
 # Install dependencies
@@ -11,7 +45,19 @@ COPY packages/api/package.json ./packages/api/
 COPY packages/memory/package.json ./packages/memory/
 COPY packages/integrations/package.json ./packages/integrations/
 COPY packages/connector-sdk/package.json ./packages/connector-sdk/
-RUN pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=braavo-pnpm-9.15.4-7c9e73f60bc2bfed4abf091eab49c03d897dc1801afa1c679d242e275a48c4c1,target=/pnpm/store,sharing=locked <<'INSTALL'
+set -eu
+pnpm config set store-dir /pnpm/store
+if test -f /usr/local/share/braavo-offline-corepack; then
+  pnpm install --offline --frozen-lockfile
+else
+  pnpm fetch --frozen-lockfile
+  pnpm install --frozen-lockfile
+fi
+# This upstream test fixture is not runtime code. Remove it in the same install
+# layer so no historical OCI/cache layer contains an unsupported nested ZIP.
+find "/app/node_modules/.pnpm/thread-stream@3.1.0/node_modules/thread-stream/test" -type f -name '*.zip' -delete
+INSTALL
 
 # Build
 FROM base AS build
@@ -28,7 +74,8 @@ COPY --from=deps /app/packages/memory/node_modules ./packages/memory/node_module
 COPY --from=deps /app/packages/integrations/node_modules ./packages/integrations/node_modules
 COPY --from=deps /app/packages/connector-sdk/node_modules ./packages/connector-sdk/node_modules
 COPY . .
-RUN pnpm --filter @ai-company-os/db exec prisma generate
+RUN --mount=type=cache,id=braavo-prisma-6.19.2-linux-musl-arm64,target=/root/.cache/prisma,sharing=locked \
+    pnpm --filter @ai-company-os/db exec prisma generate
 RUN pnpm --filter @ai-company-os/core build
 RUN pnpm --filter @ai-company-os/memory build
 RUN pnpm --filter @ai-company-os/integrations build

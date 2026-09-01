@@ -7,9 +7,8 @@
  * - Google Play Data Safety (Feb 2024): apps that allow account creation
  *   must provide a publicly accessible URL where users can request
  *   account + data deletion without needing to install the app.
- * - Apple App Store Guideline 5.1.1(v): in-app deletion exists in
- *   /settings/delete-account on mobile; this page is the externally
- *   reachable mirror for users who already uninstalled.
+ * This page documents the deletion-request channel that is currently
+ * evidenced and publicly reachable. It does not claim an in-app workflow.
  *
  * Linked from the marketing footer and listed in sitemap.ts.
  */
@@ -24,70 +23,56 @@ const sections = [
     content: (
       <>
         <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
-          You can permanently delete your Braavolabs account and the data we hold for you at any time.
-          There are three ways to request deletion — pick whichever is most convenient. Every route hits
-          the same cascade and the same retention rules, so the outcome is identical.
+          You can ask Braavolabs to delete your account and associated personal data. The current public
+          request channel is email, which lets us verify account ownership and confirm the request in writing.
         </p>
       </>
     ),
   },
   {
     id: "option-1",
-    title: "Option 1 — Delete from inside the app (fastest)",
-    icon: "smartphone",
-    content: (
-      <>
-        <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
-          Open Braavolabs on mobile (iOS or Android), go to{" "}
-          <strong className="text-on-surface font-medium">Settings → Delete account</strong>, type{" "}
-          <code className="font-mono text-sm bg-surface-container-high px-[6px] py-[2px] rounded text-primary">
-            DELETE
-          </code>{" "}
-          into the confirmation box, then tap the destructive button. The cascade runs immediately.
-          On web, the same flow lives under{" "}
-          <strong className="text-on-surface font-medium">Settings → Privacy → Delete account</strong>.
-        </p>
-      </>
-    ),
-  },
-  {
-    id: "option-2",
-    title: "Option 2 — Email request (recommended if you no longer have the app installed)",
+    title: "Request deletion by email",
     icon: "mail",
     content: (
       <>
         <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
-          Send a message from the email address on your account to{" "}
+          Send a message from the email address associated with your account to{" "}
           <a
             href="mailto:privacy@braavolabs.com?subject=Account%20deletion%20request"
             className="text-primary underline hover:text-primary-fixed transition-colors"
           >
             privacy@braavolabs.com
           </a>{" "}
-          with the subject <em>&quot;Account deletion request&quot;</em>. Include the email or username you signed
-          up with. We confirm receipt within 1 business day and complete the deletion within 30 days
-          (GDPR Article 12(3) / KVKK 13. madde).
+          with the subject <em>&quot;Account deletion request&quot;</em>. Include the account email or username,
+          but never send a password, API key, access token, or payment credential.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "option-2",
+    title: "Verification and next steps",
+    icon: "verified_user",
+    content: (
+      <>
+        <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
+          We may ask for additional information needed to verify that you control the account. We will
+          confirm the request and communicate its status through the verified email channel. Applicable
+          statutory response periods continue to apply; this page does not promise an automated completion time.
         </p>
       </>
     ),
   },
   {
     id: "option-3",
-    title: "Option 3 — Web form",
-    icon: "web",
+    title: "Current availability",
+    icon: "info",
     content: (
       <>
         <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
-          Visit{" "}
-          <a
-            href="/contact?topic=delete"
-            className="text-primary underline hover:text-primary-fixed transition-colors"
-          >
-            braavolabs.com/contact
-          </a>{" "}
-          and select &quot;Delete my account&quot; from the topic dropdown. The form does not require you to be
-          logged in; you only need to prove control of the email address tied to your account before
-          we run the cascade.
+          Braavolabs does not currently publish a separate deletion form or promise an in-app deletion
+          control on this public site. Use the verified email channel above so the request is not lost or
+          sent through an unrelated contact topic.
         </p>
       </>
     ),
@@ -99,17 +84,14 @@ const sections = [
     content: (
       <>
         <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
-          When the request completes, the following are removed from production storage and from every
-          hot replica:
+          The deletion scope depends on the account records associated with the verified requester. We
+          review that scope and confirm the outcome in writing, including any record that cannot lawfully
+          be deleted.
         </p>
         <ul className="text-[15.5px] leading-[1.8] text-on-surface-variant pl-[22px] list-disc mb-[18px] space-y-2">
-          <li>Your profile (name, email, password hash, OAuth links, profile photo)</li>
-          <li>Your tenant and every company you created inside it</li>
-          <li>Every pipeline, agent, draft, and run history record (run steps, tool calls, approvals)</li>
-          <li>Encrypted credentials and integration tokens (HubSpot, Stripe Connect, GitHub, etc.)</li>
-          <li>Memory items, embeddings, and graph edges scoped to your tenant</li>
-          <li>Mobile push tokens, refresh tokens, and active sessions</li>
-          <li>Marketing email subscriptions and onboarding email queues</li>
+          <li>Account identity and profile records associated with the verified request</li>
+          <li>Tenant-scoped content eligible for deletion under the applicable service and legal obligations</li>
+          <li>Active credentials and sessions associated with the account, where technically and legally eligible</li>
         </ul>
       </>
     ),
@@ -121,28 +103,15 @@ const sections = [
     content: (
       <>
         <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
-          A small set of records is retained after deletion because the law requires it or the data is
-          already anonymised:
+          Some records may need to be retained for tax, accounting, dispute, fraud-prevention, or other
+          legal obligations. The applicable categories and periods depend on the current deployment,
+          provider contracts, and jurisdiction; they are communicated for the verified request rather
+          than promised here as a fixed public schedule.
         </p>
         <ul className="text-[15.5px] leading-[1.8] text-on-surface-variant pl-[22px] list-disc mb-[18px] space-y-2">
-          <li>
-            <strong className="text-on-surface font-medium">Financial records</strong> — invoices, Stripe charges, IAP receipts,
-            refund decisions: retained for the period required by tax and accounting law in the user&apos;s
-            jurisdiction (typically 6–10 years).
-          </li>
-          <li>
-            <strong className="text-on-surface font-medium">Aggregated, anonymised usage metrics</strong> — counts of pipeline runs,
-            LLM token totals, error rates with no link back to your identity.
-          </li>
-          <li>
-            <strong className="text-on-surface font-medium">Audit log entries that mention your user ID for compliance investigations</strong>{" "}
-            — retained for up to 12 months and then automatically purged.
-          </li>
-          <li>
-            <strong className="text-on-surface font-medium">Encrypted off-site backups</strong> — overwritten on the rolling backup
-            cycle (90 days). We do not selectively redact within a backup file; instead the file ages
-            out and is replaced with a backup taken after your deletion.
-          </li>
+          <li>Records that applicable tax, accounting, or regulatory law requires us to keep</li>
+          <li>Records needed to document the request, verification, and legally required response</li>
+          <li>Data subject to a valid legal hold or an unresolved dispute</li>
         </ul>
       </>
     ),
@@ -154,11 +123,9 @@ const sections = [
     content: (
       <>
         <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
-          In-app deletion runs synchronously: the cascade completes in seconds and you are signed out
-          immediately. Email and form requests are answered within 1 business day and the cascade
-          completes within 30 calendar days, in line with GDPR Article 12(3) and KVKK Madde 13. If a
-          legal hold prevents us from deleting on time we will tell you in writing within the same
-          window and explain why.
+          We process verified requests under the response periods required by applicable law and provide
+          status updates through the verified email channel. Verification needs, legal holds, and lawful
+          retention obligations can affect completion; any applicable limitation is explained in writing.
         </p>
       </>
     ),
@@ -170,18 +137,15 @@ const sections = [
     content: (
       <>
         <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
-          Deleting your account does not automatically cancel a paid subscription billed through Apple
-          or Google. Cancel from{" "}
-          <strong className="text-on-surface font-medium">Settings → Subscriptions</strong> on your device first
-          (or via the App Store / Google Play account screen), then run the deletion. If you delete
-          first, contact{" "}
+          An account-deletion request and a billing cancellation are separate actions. If your account has
+          a billing question, contact{" "}
           <a
             href="mailto:support@braavolabs.com"
             className="text-primary underline hover:text-primary-fixed transition-colors"
           >
             support@braavolabs.com
           </a>{" "}
-          and we will help reconcile the remaining billing period.
+          and we will identify the currently supported channel without claiming a store or in-app flow here.
         </p>
       </>
     ),
@@ -235,8 +199,8 @@ export default function AccountDeletionPage() {
             <a href="/about" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">About</a>
           </div>
           <div className="flex items-center gap-3">
-            <a href="/login" className="bv-btn bv-btn-ghost bv-btn-sm text-sm">Sign in</a>
-            <a href="/register" className="bv-btn bv-btn-primary bv-btn-sm text-sm">Start free</a>
+            <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm text-sm">Sign in</a>
+            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm text-sm">Open app</a>
           </div>
         </div>
       </nav>
@@ -340,7 +304,7 @@ export default function AccountDeletionPage() {
             <div className="flex-1">
               <p className="bv-title mb-1">Ready to delete your account?</p>
               <p className="bv-caption">
-                The fastest path is directly from the app. If you no longer have access, email us.
+                Send the request from the email address associated with your account.
               </p>
             </div>
             <div className="flex gap-3 flex-shrink-0">
@@ -350,13 +314,6 @@ export default function AccountDeletionPage() {
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 16 }}>mail</span>
                 Email us
-              </a>
-              <a
-                href="/contact?topic=delete"
-                className="bv-btn bv-btn-primary bv-btn-sm"
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>open_in_new</span>
-                Web form
               </a>
             </div>
           </div>

@@ -169,12 +169,13 @@ describe("POST /publish — manifest validation (fail-closed)", () => {
 });
 
 describe("POST /publish — plan / quota / admin gate (T6)", () => {
-  it("FREE plan (limit 1) may publish its first connector", async () => {
+  it("FREE plan fails closed before quota claim or connector persistence", async () => {
     tenantFindUnique.mockResolvedValue({ plan: "FREE" });
     connectorCount.mockResolvedValue(0);
     const { nextErr } = await invoke(publish, { body: validBody });
-    expect(nextErr).toBeUndefined();
-    expect(connectorUpsert).toHaveBeenCalledOnce();
+    expect(nextErr?.statusCode).toBe(403);
+    expect(claimQuotaMock).not.toHaveBeenCalled();
+    expect(connectorUpsert).not.toHaveBeenCalled();
   });
 
   it("FREE plan at its cap (1 already published) is blocked (403)", async () => {

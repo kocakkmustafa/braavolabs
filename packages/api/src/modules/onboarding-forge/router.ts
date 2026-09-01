@@ -13,6 +13,7 @@
  */
 
 import { Router } from "express";
+import type { RequestHandler } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
 import { rateLimit } from "../../middleware/rateLimit";
@@ -189,6 +190,22 @@ const validateLimiter = rateLimit({
   keyPrefix: "rl:onboarding-forge:validate",
 });
 
+const requireForgeSaveRole: RequestHandler = (req, res, next) => {
+  if (req.body?.save !== true) {
+    next();
+    return;
+  }
+  if (!req.auth) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  if (req.auth.role !== "OWNER" && req.auth.role !== "ADMIN") {
+    res.status(403).json({ error: "Insufficient permissions" });
+    return;
+  }
+  next();
+};
+
 const validateSchema = z.object({
   provider: z.string().min(1),
   apiKey: z.string().min(1).optional(),
@@ -209,7 +226,7 @@ const validateSchema = z.object({
 // Always 200 on a completed check (provider/trial rejection is a *result*,
 // not an HTTP error) — 400 only for malformed input. Response shape:
 //   { valid, provider, reason?, saved?, trial?, trialExhausted?, costUsd? }
-onboardingForgeRouter.post("/validate", validateLimiter, async (req, res, next) => {
+onboardingForgeRouter.post("/validate", requireForgeSaveRole, validateLimiter, async (req, res, next) => {
   try {
     const parsed = validateSchema.parse(req.body);
     const provider = parsed.provider.trim().toUpperCase();

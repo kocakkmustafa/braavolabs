@@ -4,13 +4,15 @@ import { useEffect, useState, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
-import { PLAN_LIMITS as SHARED_PLAN_LIMITS, PLAN_LABEL, PLAN_PRICING } from "@ai-company-os/core";
+import {
+  PLAN_LIMITS as SHARED_PLAN_LIMITS,
+  PLAN_LABEL,
+  PLAN_PRICING,
+  normalizePlanForEntitlement,
+} from "@ai-company-os/core";
 
-// Display-friendly summary per plan — pulled from the shared 5-tier source of
-// truth in @ai-company-os/core so /pricing, /settings, /billing all stay in sync.
-// Previously this file hardcoded only 3 tiers (FREE/PRO/ENTERPRISE) at $49 while
-// /pricing advertised 5 tiers ($19/$39/$99) — that mismatch caused a bait-and-
-// switch perception. One source now feeds all consumers.
+// Display-friendly compatibility summary. Checkout cards below enumerate only
+// PLAN_ORDER's two canonical new-sale plans.
 const PLAN_LIMITS: Record<string, { runs: number; companies: number; channels: string; connectedAutomations: number }> =
   Object.fromEntries(
     (Object.keys(SHARED_PLAN_LIMITS) as Array<keyof typeof SHARED_PLAN_LIMITS>).map((plan) => {
@@ -74,10 +76,10 @@ export default function BillingPage() {
     </div>
   );
 
-  const plan = usage?.plan ?? "FREE";
-  const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.FREE;
+  const plan = normalizePlanForEntitlement(usage?.plan);
+  const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.MANUAL_REVIEW;
 
-  async function handleUpgrade(target: "PRO" | "ENTERPRISE") {
+  async function handleUpgrade(target: "INDIVIDUAL" | "TEAM") {
     setUpgradeLoading(true);
     setErrorMsg(null);
     try {
@@ -149,9 +151,13 @@ export default function BillingPage() {
                 <span className="bv-headline text-on-surface">
                   {PLAN_PRICING[plan as keyof typeof PLAN_PRICING]?.monthlyUsd
                     ? `$${PLAN_PRICING[plan as keyof typeof PLAN_PRICING].monthlyUsd}`
-                    : t("app.billing.planEnterprisePrice")}
+                    : "Manual review"}
                 </span>
-                <span className="bv-caption">/ month</span>
+                {plan !== "MANUAL_REVIEW" && (
+                  <span className="bv-caption">
+                    {plan === "TEAM" ? "/ active seat / month" : "/ month"}
+                  </span>
+                )}
               </div>
 
               {/* Renew date */}
@@ -162,7 +168,7 @@ export default function BillingPage() {
                 </p>
               )}
 
-              {/* Runs remaining trial strip */}
+              {/* Operational run telemetry; not an inference entitlement. */}
               <div
                 className="flex items-center gap-3 px-4 py-3 rounded-[11px] mt-5"
                 style={{
@@ -275,27 +281,22 @@ export default function BillingPage() {
 
           {/* ── Plans comparison ── */}
           <h2 className="bv-title uppercase tracking-wider mb-4">{t("app.billing.comparePlans")}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6 stagger-children">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 stagger-children">
             {[
               {
-                name: t("app.billing.planFreeName"), price: `$${PLAN_PRICING.FREE.monthlyUsd}`, priceNote: t("app.billing.planFreeNote"), id: "FREE",
-                features: ["1 company", "10 runs/month", "TikTok + LinkedIn", "Community support", "Basic analytics"],
+                name: PLAN_LABEL.INDIVIDUAL,
+                price: `$${PLAN_PRICING.INDIVIDUAL.monthlyUsd}`,
+                priceNote: "/month",
+                id: "INDIVIDUAL",
+                features: ["Single account", "Inference not included", "Tenant BYOK or local providers", "5 workspaces", "No plan-funded model credits"],
               },
               {
-                name: t("app.billing.planCreatorName"), price: `$${PLAN_PRICING.CREATOR.monthlyUsd}`, priceNote: t("app.billing.planMonthlyNote"), id: "CREATOR",
-                features: ["5 companies", "100 runs/month", "5 channels", "Email support", "Basic analytics"],
-              },
-              {
-                name: t("app.billing.planProName"), price: `$${PLAN_PRICING.PRO.monthlyUsd}`, priceNote: t("app.billing.planMonthlyNote"), id: "PRO", popular: true,
-                features: ["15 companies", "500 runs/month", "All channels", "CRM sync (HubSpot)", "Priority support", "Blueprint sharing", "Advanced analytics"],
-              },
-              {
-                name: t("app.billing.planBusinessName"), price: `$${PLAN_PRICING.BUSINESS.monthlyUsd}`, priceNote: t("app.billing.planMonthlyNote"), id: "BUSINESS",
-                features: ["50 companies", "2,000 runs/month", "All channels + custom", "Webhooks", "Dedicated support", "Approval workflows", "Audit log export"],
-              },
-              {
-                name: t("app.billing.planEnterpriseName"), price: t("app.billing.planEnterprisePrice"), priceNote: t("app.billing.planEnterpriseNote"), id: "ENTERPRISE",
-                features: ["Unlimited everything", "SSO / SAML", "Dedicated SLA", "Custom integrations", "White-label option", "On-premise deployment"],
+                name: PLAN_LABEL.TEAM,
+                price: `$${PLAN_PRICING.TEAM.monthlyUsd}`,
+                priceNote: "/active seat/month",
+                id: "TEAM",
+                popular: true,
+                features: ["Active-seat billing", "Inference not included", "Tenant BYOK or local providers", "20 workspaces", "Team collaboration"],
               },
             ].map((p) => (
               <div
@@ -326,9 +327,9 @@ export default function BillingPage() {
                     </li>
                   ))}
                 </ul>
-                {plan !== p.id && p.id !== "FREE" && (
+                {plan !== p.id && (
                   <button
-                    onClick={() => handleUpgrade(p.id as "PRO" | "ENTERPRISE")}
+                    onClick={() => handleUpgrade(p.id as "INDIVIDUAL" | "TEAM")}
                     disabled={upgradeLoading}
                     className="bv-btn bv-btn-primary w-full justify-center disabled:opacity-50"
                   >

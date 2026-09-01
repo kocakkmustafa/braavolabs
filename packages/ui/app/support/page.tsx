@@ -16,12 +16,12 @@ export const metadata: Metadata = {
   title: "Support — Braavolabs",
   description:
     "Get help with Braavolabs: contact channels, response times, billing and subscription help, account deletion, and frequently asked questions.",
-  alternates: { canonical: "https://braavolabs.com/support" },
+  alternates: { canonical: "https://www.braavolabs.com/support" },
   openGraph: {
     title: "Braavolabs Support",
     description:
       "Contact channels, response times, billing and subscription help, account deletion, and frequently asked questions.",
-    url: "https://braavolabs.com/support",
+    url: "https://www.braavolabs.com/support",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }],
   },
 };
@@ -102,7 +102,7 @@ const sections = [
             <strong className="text-on-surface font-medium">Which AI providers does Braavolabs use?</strong>{" "}
             Braavolabs is bring-your-own-key: your workspace only talks to the providers you connect
             in <em>Settings → AI Providers</em> (Anthropic, OpenAI, Google, Mistral, Groq, and others),
-            or to the built-in trial pool while you evaluate. Run history shows every call an agent
+            or to a configured local route. Run history shows every call an agent
             makes.
           </li>
           <li>
@@ -204,8 +204,8 @@ export default function SupportPage() {
             <a href="/about" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">About</a>
           </div>
           <div className="flex items-center gap-3">
-            <a href="/login" className="bv-btn bv-btn-ghost bv-btn-sm text-sm">Sign in</a>
-            <a href="/register" className="bv-btn bv-btn-primary bv-btn-sm text-sm">Start free</a>
+            <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm text-sm">Sign in</a>
+            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm text-sm">Open app</a>
           </div>
         </div>
       </nav>

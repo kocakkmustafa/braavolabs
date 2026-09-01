@@ -1,0 +1,935 @@
+import assert from "node:assert/strict";
+import { spawn, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { once } from "node:events";
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const SCRIPT = join(ROOT, "scripts/deploy-platform.sh");
+const RELEASE = "1".repeat(40);
+const PREVIOUS_RELEASE = "0".repeat(40);
+const AUTHORITATIVE_PREVIOUS_RELEASE = "fd2b3c3ad7795f20a1cf93d3506c72cbf3a5424b";
+const REAL_MIGRATION_CANDIDATE = "1a8e966c8739d05a917d90941c19ce18398f714e";
+const API = "ghcr.io/kocakkmustafa/braavolabs/api@sha256:" + "a".repeat(64);
+const UI = "ghcr.io/kocakkmustafa/braavolabs/ui@sha256:" + "b".repeat(64);
+const PREVIOUS_API = "ghcr.io/kocakkmustafa/braavolabs/api@sha256:" + "c".repeat(64);
+const PREVIOUS_UI = "ghcr.io/kocakkmustafa/braavolabs/ui@sha256:" + "d".repeat(64);
+const KEY_A = "AAAAC3NzaC1lZDI1NTE5AAAAIEtleUFTeXN0aGV0aWNLZXlB"; // gitleaks:allow — synthetic public key fixture
+const KEY_B = "AAAAC3NzaC1lZDI1NTE5AAAAIEtleUJTeXN0aGV0aWNLZXlC"; // gitleaks:allow — synthetic public key fixture
+const FINGERPRINT_A = "SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+const FINGERPRINT_B = "SHA256:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
+const REVIEWED_ENUM_MIGRATION =
+  "packages/db/prisma/migrations/20260820000000_subscription_plan_enum_values/migration.sql";
+const REVIEWED_PROJECTION_MIGRATION =
+  "packages/db/prisma/migrations/20260821_subscription_only_plans/migration.sql";
+const REVIEWED_IAP_DELIVERY_MIGRATION =
+  "packages/db/prisma/migrations/20260825233000_iap_delivery_dlq/migration.sql";
+const REVIEWED_GOOGLE_ALIAS_MIGRATION =
+  "packages/db/prisma/migrations/20260828_google_purchase_alias_ownership/migration.sql";
+const REVIEWED_SUBSCRIPTION_DIFF =
+  `A\t${REVIEWED_ENUM_MIGRATION}\n` +
+  `A\t${REVIEWED_PROJECTION_MIGRATION}\n` +
+  `A\t${REVIEWED_IAP_DELIVERY_MIGRATION}\n` +
+  `A\t${REVIEWED_GOOGLE_ALIAS_MIGRATION}\n`;
+
+function executable(path, body) {
+  writeFileSync(path, `#!/bin/sh\nset -eu\n${body}\n`, { mode: 0o700 });
+}
+function sha256File(path) {
+  return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+function writeKnownHosts(h, lines, mode = 0o600) {
+  writeFileSync(h.knownHosts, lines.join("\n") + "\n", { mode });
+  chmodSync(h.knownHosts, mode);
+}
+function buildIncoming(h, migrationSql = "ALTER TABLE subscription ADD COLUMN settlement_version INTEGER;\n") {
+  const incoming = join(h.appRoot, "incoming", `${RELEASE}.${process.pid}`);
+  mkdirSync(join(incoming, "ENV"), { recursive: true });
+  cpSync(join(ROOT, "packages/db/prisma/migrations"),
+    join(incoming, "packages/db/prisma/migrations"), { recursive: true });
+  mkdirSync(join(incoming, "packages/db/prisma/migrations/20991231000000_fixture"), { recursive: true });
+  writeFileSync(join(incoming, "ENV/compose.prod.yaml"), "services: {}\n");
+  const deltaPath = "packages/db/prisma/migrations/20991231000000_fixture/migration.sql";
+  writeFileSync(join(incoming, deltaPath), migrationSql);
+  writeFileSync(join(incoming, "migration-delta.name-status"), `A\t${deltaPath}\n`);
+  writeFileSync(join(incoming, "migration-delta.sha256"),
+    `${sha256File(join(incoming, deltaPath))}  ${deltaPath}\n`);
+  writeFileSync(join(incoming, "migration-delta.meta"), [
+    `previousRelease=${PREVIOUS_RELEASE}`,
+    `candidateRelease=${RELEASE}`,
+    `api=${API}`,
+    `ui=${UI}`,
+    `discoverySha256=${sha256File(join(incoming, "migration-delta.name-status"))}`,
+    `deltaSha256=${sha256File(join(incoming, "migration-delta.sha256"))}`,
+    "",
+  ].join("\n"));
+  const files = [];
+  const walk = (directory, prefix = "") => {
+    for (const name of readdirSync(directory).sort()) {
+      const absolute = join(directory, name);
+      const relative = prefix ? `${prefix}/${name}` : name;
+      try { files.push(...walk(absolute, relative)); } catch { files.push(relative); }
+    }
+    return [];
+  };
+  walk(incoming);
+  const manifestFiles = [...new Set(files)].filter((path) => path !== "release-inputs.sha256").sort();
+  writeFileSync(join(incoming, "release-inputs.sha256"),
+    manifestFiles.map((path) => `${sha256File(join(incoming, path))}  ${path}`).join("\n") + "\n");
+  h.incoming = incoming;
+  return incoming;
+}
+function remoteEnvironment(h, overrides = {}) {
+  return {
+    ...process.env,
+    PATH: `${h.bin}:/usr/bin:/bin`,
+    DEPLOY_HERMETIC_TEST: "1",
+    FAKE_CALL_LOG: h.log,
+    FAKE_STATE_ROOT: h.state,
+    PREVIOUS_RELEASE_COMMIT: PREVIOUS_RELEASE,
+    RELEASE_COMMIT: RELEASE,
+    API_IMAGE_REF: API,
+    UI_IMAGE_REF: UI,
+    PREVIOUS_API_REF: PREVIOUS_API,
+    PREVIOUS_UI_REF: PREVIOUS_UI,
+    HTTP_PROXY: "", HTTPS_PROXY: "", ALL_PROXY: "", NO_PROXY: "*", no_proxy: "*",
+    ...overrides,
+  };
+}
+function runDeploy(h, overrides = {}) {
+  const result = spawnSync("bash", [SCRIPT], {
+    cwd: ROOT,
+    encoding: "utf8",
+    env: {
+      ...remoteEnvironment(h, overrides),
+      DEPLOY_HOST: "deploy.example.test",
+      DEPLOY_PORT: "22",
+      DEPLOY_USER: "deploy",
+      SSH_IDENTITY_FILE: h.key,
+      SSH_KNOWN_HOSTS_FILE: h.knownHosts,
+      SSH_HOST_KEY_SHA256: FINGERPRINT_A,
+      RELEASE_COMMIT: RELEASE,
+      API_IMAGE_REF: API,
+      UI_IMAGE_REF: UI,
+      REMOTE_APP_ROOT: "/opt/braavolabs",
+      FAKE_APP_ROOT: h.appRoot,
+      ...overrides,
+    },
+  });
+  return { ...result, calls: readFileSync(h.log, "utf8") };
+}
+function runRemote(h, overrides = {}) {
+  const incoming = buildIncoming(h, overrides.MIGRATION_SQL);
+  const result = spawnSync("bash", [SCRIPT, "--remote", RELEASE, API, UI, h.appRoot, incoming], {
+    cwd: ROOT, encoding: "utf8", env: remoteEnvironment(h, overrides),
+  });
+  return {
+    ...result,
+    calls: readFileSync(h.log, "utf8"),
+    network: readFileSync(join(h.state, "network-attempts.jsonl"), "utf8")
+      .trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)),
+  };
+}
+function readCurrentRecord(h) {
+  return JSON.parse(readFileSync(join(h.appRoot, "releases", RELEASE, "release.json"), "utf8"));
+}
+function readTransitions(h) {
+  const directory = join(h.appRoot, "releases", RELEASE, "transitions");
+  if (!existsSync(directory)) return [];
+  return readdirSync(directory).sort().map((name) =>
+    JSON.parse(readFileSync(join(directory, name), "utf8")));
+}
+function readCurrentTransition(h) {
+  if (!existsSync(join(h.appRoot, "releases", RELEASE, "release.json"))) return null;
+  const record = readCurrentRecord(h);
+  return `${record.state}:${record.result}`;
+}
+function assertNoExternalNetwork(h) {
+  const attempts = readFileSync(join(h.state, "network-attempts.jsonl"), "utf8")
+    .trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
+  assert.equal(attempts.every((entry) => entry.policy === "fixture"), true, JSON.stringify(attempts));
+  assert.equal(attempts.every((entry) => entry.socketOpened === false), true, JSON.stringify(attempts));
+}
+function seedSuccessfulJournal(h, { updatePreviousGood = true } = {}) {
+  const incoming = buildIncoming(h);
+  const manifestHash = sha256File(join(incoming, "release-inputs.sha256"));
+  const deltaHash = sha256File(join(incoming, "migration-delta.sha256"));
+  const releaseRoot = join(h.appRoot, "releases", RELEASE);
+  mkdirSync(join(releaseRoot, "transitions"), { recursive: true });
+  cpSync(join(h.appRoot, "releases/previous-good.json"),
+    join(releaseRoot, "previous-good.before.json"));
+  writeFileSync(join(releaseRoot, "release.json"), JSON.stringify({
+    release: RELEASE,
+    tuple: `${RELEASE}|${API}|${UI}|${manifestHash}|${deltaHash}`,
+    api: API,
+    ui: UI,
+    state: "COMMIT_RELEASE",
+    result: "success",
+  }) + "\n");
+  if (updatePreviousGood) {
+    writeFileSync(join(h.appRoot, "releases/previous-good.json"), JSON.stringify({
+      release: RELEASE, previousRelease: PREVIOUS_RELEASE,
+      tuple: `${RELEASE}|${API}|${UI}|${manifestHash}|${deltaHash}`,
+      api: API, ui: UI, migrationDeltaSha256: deltaHash,
+      result: "success",
+    }) + "\n");
+  }
+}
+function seedCommitRestartState(h, { result = "pending", durable = "old" } = {}) {
+  const incoming = buildIncoming(h);
+  const manifestHash = sha256File(join(incoming, "release-inputs.sha256"));
+  const deltaHash = sha256File(join(incoming, "migration-delta.sha256"));
+  const tuple = `${RELEASE}|${API}|${UI}|${manifestHash}|${deltaHash}`;
+  const releaseRoot = join(h.appRoot, "releases", RELEASE);
+  mkdirSync(join(releaseRoot, "transitions"), { recursive: true });
+  cpSync(join(h.appRoot, "releases/previous-good.json"),
+    join(releaseRoot, "previous-good.before.json"));
+  writeFileSync(join(releaseRoot, "release.json"), JSON.stringify({
+    release: RELEASE, tuple, api: API, ui: UI,
+    state: "COMMIT_RELEASE", result,
+  }) + "\n");
+  const durablePath = join(h.appRoot, "releases/previous-good.json");
+  if (durable === "candidate") {
+    writeFileSync(durablePath, JSON.stringify({
+      release: RELEASE, previousRelease: PREVIOUS_RELEASE, tuple,
+      api: API, ui: UI, migrationDeltaSha256: deltaHash, result: "success",
+    }) + "\n");
+  } else if (durable === "missing") {
+    rmSync(durablePath);
+  } else if (durable === "mismatch") {
+    writeFileSync(durablePath, JSON.stringify({
+      release: RELEASE, previousRelease: PREVIOUS_RELEASE, tuple: "wrong-tuple",
+      api: API, ui: UI, migrationDeltaSha256: deltaHash, result: "success",
+    }) + "\n");
+  }
+  writeFileSync(join(h.state, "active-api"), API);
+  writeFileSync(join(h.state, "active-ui"), UI);
+  return tuple;
+}
+function primitive(h, name, body) {
+  executable(join(h.bin, name), `printf '%s\\n' "${name} $*" >> "$FAKE_CALL_LOG"\n${body}`);
+}
+
+function makeHarness() {
+  const root = mkdtempSync(join(tmpdir(), "braavo-deploy-test-"));
+  const h = {
+    root,
+    bin: join(root, "bin"),
+    state: join(root, "state"),
+    appRoot: join(root, "opt/braavolabs"),
+    log: join(root, "calls.log"),
+    key: join(root, "identity"),
+    knownHosts: join(root, "known_hosts"),
+  };
+  mkdirSync(h.bin, { recursive: true });
+  mkdirSync(h.state, { recursive: true });
+  mkdirSync(join(h.appRoot, "app"), { recursive: true });
+  mkdirSync(join(h.appRoot, "incoming"), { recursive: true });
+  mkdirSync(join(h.appRoot, "releases"), { recursive: true });
+  writeFileSync(h.log, "");
+  writeFileSync(join(h.state, "network-attempts.jsonl"), "");
+  writeFileSync(join(h.state, "active-api"), PREVIOUS_API);
+  writeFileSync(join(h.state, "active-ui"), PREVIOUS_UI);
+  writeFileSync(join(h.state, "migrate-count"), "0");
+  writeFileSync(join(h.state, "cutover-count"), "0");
+  writeFileSync(join(h.appRoot, "app/.env"), "MIGRATE_DATABASE_URL=postgresql://hermetic\n");
+  writeFileSync(join(h.appRoot, "releases/previous-good.json"), JSON.stringify({
+    release: PREVIOUS_RELEASE, previousRelease: PREVIOUS_RELEASE,
+    tuple: "previous-tuple", api: PREVIOUS_API, ui: PREVIOUS_UI,
+    migrationDeltaSha256: "e".repeat(64), result: "success",
+  }) + "\n");
+  writeFileSync(h.key, "synthetic-key\n", { mode: 0o600 });
+  writeKnownHosts(h, [`deploy.example.test ssh-ed25519 ${KEY_A}`]);
+
+  primitive(h, "flock", `[ "${'${FAIL_PRIMITIVE:-}'}" = flock ] && exit 1; exit 0`);
+  primitive(h, "date", `printf '%s\\n' 2026-08-29T00:00:00Z`);
+  primitive(h, "sync", `
+[ "${'${PAUSE_AT:-}'}" = journal-finalize ] && case "${'${DEPLOY_WRITE_PHASE:-}'}" in commit-release-*) sleep 30 ;; esac
+[ -n "${'${FAIL_WRITE_PHASE:-}'}" ] && [ "${'${FAIL_WRITE_PHASE:-}'}" = "${'${DEPLOY_WRITE_PHASE:-}'}" ] && exit 1
+exit 0`);
+  primitive(h, "sha256sum", `
+if [ "${'${1:-}'}" = -c ]; then shift; exec /usr/bin/shasum -a 256 -c "$@"; fi
+exec /usr/bin/shasum -a 256 "$@"`);
+  for (const [tool, real] of [["cp", "/bin/cp"], ["mv", "/bin/mv"], ["rm", "/bin/rm"]]) {
+    primitive(h, tool, `
+[ -n "${'${FAIL_WRITE_PHASE:-}'}" ] && [ "${'${FAIL_WRITE_PHASE:-}'}" = "${'${DEPLOY_WRITE_PHASE:-}'}" ] && exit 1
+${real} "$@"
+if [ "${tool}" = cp ] && [ -n "${'${FAKE_STAGE_MUTATION_MODE:-}'}" ]; then
+  target=''; for arg in "$@"; do target="$arg"; done
+  case " $* " in
+    *' packages/db/prisma/migrations '*)
+      enum="$target/20260820000000_subscription_plan_enum_values/migration.sql"
+      projection="$target/20260821_subscription_only_plans/migration.sql"
+      case "$FAKE_STAGE_MUTATION_MODE" in
+        hash) printf '%s\n' '-- tampered bytes' >> "$enum" ;;
+        enum-label) /usr/bin/perl -0pi -e "s/'INDIVIDUAL'/'PERSONAL'/" "$enum" ;;
+        mapping) /usr/bin/perl -0pi -e "s/WHEN 'CREATOR' THEN 'INDIVIDUAL'/WHEN 'CREATOR' THEN 'TEAM'/" "$projection" ;;
+        default) /usr/bin/perl -0pi -e "s/SET DEFAULT 'MANUAL_REVIEW'/SET DEFAULT 'INDIVIDUAL'/" "$projection" ;;
+        extra-statement) printf '%s\n' 'CREATE TABLE IF NOT EXISTS reviewed_looking_extra (id TEXT);' >> "$projection" ;;
+        iap-delivery-hash) printf '%s\n' '-- tampered IAP delivery bytes' >> "$target/20260825233000_iap_delivery_dlq/migration.sql" ;;
+        google-alias-hash) printf '%s\n' '-- tampered Google alias bytes' >> "$target/20260828_google_purchase_alias_ownership/migration.sql" ;;
+        third-migration)
+          /bin/mkdir -p "$target/20260820000001_unreviewed"
+          printf '%s\n' 'ALTER TABLE tenants ADD COLUMN unreviewed TEXT;' > "$target/20260820000001_unreviewed/migration.sql" ;;
+        unmanifested)
+          other=$(find "$target" -type f -name migration.sql \
+            ! -path "*/20260820000000_subscription_plan_enum_values/*" \
+            ! -path "*/20260821_subscription_only_plans/*" | head -1)
+          test -n "$other"; printf '%s\n' '-- unmanifested tamper' >> "$other" ;;
+        *) exit 98 ;;
+      esac ;;
+  esac
+fi
+exit 0`);
+  }
+  primitive(h, "curl", `
+url=''; for arg in "$@"; do case "$arg" in http://*|https://*) url="$arg" ;; esac; done
+case "$url" in
+  https://api.braavolabs.com/health|https://braavolabs.com/)
+    printf '{"primitive":"curl","url":"%s","policy":"fixture","socketOpened":false}\n' "$url" >> "$FAKE_STATE_ROOT/network-attempts.jsonl" ;;
+  *)
+    printf '{"primitive":"curl","url":"%s","policy":"denied","socketOpened":false}\n' "$url" >> "$FAKE_STATE_ROOT/network-attempts.jsonl"
+    exit 97 ;;
+esac
+api=$(cat "$FAKE_STATE_ROOT/active-api")
+[ "${'${PAUSE_AT:-}'}" = target-health ] && [ "$api" = "$API_IMAGE_REF" ] && sleep 30
+if [ "$api" = "$API_IMAGE_REF" ] && [ "${'${FAIL_TARGET_HEALTH:-0}'}" = 1 ]; then exit 22; fi
+if [ "$api" = "$PREVIOUS_API_REF" ] && [ "${'${FAIL_ROLLBACK_HEALTH:-0}'}" = 1 ]; then exit 22; fi
+exit 0`);
+  primitive(h, "docker", `
+api=$(cat "$FAKE_STATE_ROOT/active-api"); ui=$(cat "$FAKE_STATE_ROOT/active-ui")
+case "$*" in
+  *'pull '*) [ "${'${PAUSE_AT:-}'}" = pull ] && sleep 30; [ "${'${FAIL_PRIMITIVE:-}'}" = pull ] && exit 1; exit 0 ;;
+  *'image inspect'*"$API_IMAGE_REF"*) printf '%s\\n' "$API_IMAGE_REF"; exit 0 ;;
+  *'image inspect'*"$UI_IMAGE_REF"*) printf '%s\\n' "$UI_IMAGE_REF"; exit 0 ;;
+  *'image inspect'*"$PREVIOUS_API_REF"*) [ "${'${PREVIOUS_IMAGES_MISSING:-0}'}" = 1 ] && exit 1; printf '%s\\n' "$PREVIOUS_API_REF"; exit 0 ;;
+  *'image inspect'*"$PREVIOUS_UI_REF"*) [ "${'${PREVIOUS_IMAGES_MISSING:-0}'}" = 1 ] && exit 1; printf '%s\\n' "$PREVIOUS_UI_REF"; exit 0 ;;
+  *'inspect --format {{.Image}}'*aicos-api*) printf '%s\\n' api-active; exit 0 ;;
+  *'inspect --format {{.Image}}'*aicos-ui*) printf '%s\\n' ui-active; exit 0 ;;
+  *'image inspect'*api-active*) printf '%s\\n' "$api"; exit 0 ;;
+  *'image inspect'*ui-active*) printf '%s\\n' "$ui"; exit 0 ;;
+  *'inspect --format {{.Id}}'*aicos-api*) printf api-container; exit 0 ;;
+  *'inspect --format {{.Id}}'*aicos-ui*) printf ui-container; exit 0 ;;
+  *'inspect --format {{.State.Running}}'*) printf true; exit 0 ;;
+  *'compose'*'run --rm --no-deps api'*)
+    count=$(( $(cat "$FAKE_STATE_ROOT/migrate-count") + 1 )); printf '%s' "$count" > "$FAKE_STATE_ROOT/migrate-count"
+    [ "${'${FAIL_MIGRATION_LEDGER:-0}'}" = 1 ] && exit 1
+    [ "${'${FAIL_PRIMITIVE:-}'}" = migrate ] && exit 1
+    exit 0 ;;
+  *'compose'*'up -d --no-deps api ui'*)
+    override=''; previous=''
+    for arg in "$@"; do
+      if [ "$previous" = -f ]; then override="$arg"; previous=''; else previous="$arg"; fi
+    done
+    test -n "$override" && test -f "$override"
+    next_api=$(awk '$1=="image:" && index($2,"/api@sha256:") {print $2}' "$override")
+    next_ui=$(awk '$1=="image:" && index($2,"/ui@sha256:") {print $2}' "$override")
+    test -n "$next_api" && test -n "$next_ui"
+    count=$(( $(cat "$FAKE_STATE_ROOT/cutover-count") + 1 )); printf '%s' "$count" > "$FAKE_STATE_ROOT/cutover-count"
+    if [ "${'${FAIL_INITIAL_CUTOVER:-0}'}" = 1 ] && [ "$count" = 1 ]; then exit 1; fi
+    if [ "${'${FAIL_PARTIAL_CUTOVER:-0}'}" = 1 ] && [ "$count" = 1 ]; then
+      printf '%s' "$next_api" > "$FAKE_STATE_ROOT/active-api"; exit 1
+    fi
+    if [ "${'${FAIL_PARTIAL_UI_CUTOVER:-0}'}" = 1 ] && [ "$count" = 1 ]; then
+      printf '%s' "$next_ui" > "$FAKE_STATE_ROOT/active-ui"; exit 1
+    fi
+    [ "${'${FAKE_DIGEST_MISMATCH:-}'}" = api ] && next_api="$PREVIOUS_API_REF"
+    printf '%s' "$next_api" > "$FAKE_STATE_ROOT/active-api"
+    printf '%s' "$next_ui" > "$FAKE_STATE_ROOT/active-ui"
+    exit 0 ;;
+  *'compose'*'postgres-backup'*) [ "${'${PAUSE_AT:-}'}" = backup ] && sleep 30; [ "${'${FAIL_PRIMITIVE:-}'}" = backup ] && exit 1; exit 0 ;;
+  *) exit 0 ;;
+esac`);
+  primitive(h, "ssh-keygen", `
+data=$(awk '{print $2}' | tail -1)
+case "$data" in ${KEY_A}) fp='${FINGERPRINT_A}' ;; ${KEY_B}) fp='${FINGERPRINT_B}' ;; *) exit 1 ;; esac
+printf '256 %s synthetic (ED25519)\\n' "$fp"`);
+  primitive(h, "git", `
+case "${'${1:-}'}" in
+  cat-file) exit 0 ;;
+  diff)
+    [ "${'${USE_REAL_GIT_DIFF:-0}'}" = 1 ] && exec /usr/bin/git "$@"
+    printf '%b' "${'${FAKE_GIT_DIFF:-}'}"
+    [ "${'${FAKE_GIT_DIFF_IO_FAILURE:-0}'}" = 1 ] && exit 74
+    exit "${'${FAKE_GIT_DIFF_EXIT:-0}'}" ;;
+  *) exec /usr/bin/git "$@" ;;
+esac`);
+  primitive(h, "ssh", `
+case " $* " in
+  *' deploy@deploy.example.test '*)
+    printf '{"primitive":"ssh","destination":"deploy@deploy.example.test","policy":"fixture","socketOpened":false}\\n' >> "$FAKE_STATE_ROOT/network-attempts.jsonl" ;;
+  *)
+    printf '{"primitive":"ssh","destination":"denied","policy":"denied","socketOpened":false}\\n' >> "$FAKE_STATE_ROOT/network-attempts.jsonl"; exit 97 ;;
+esac
+printf '%s\\n' ssh >> "$FAKE_STATE_ROOT/transport"
+case "$*" in
+  *' true') exit 0 ;;
+  *'sudo cat /opt/braavolabs/releases/previous-good.json'*)
+    exec /bin/cat "$FAKE_APP_ROOT/releases/previous-good.json" ;;
+  *'sudo install -d'*) /bin/mkdir -p "$FAKE_APP_ROOT/incoming"; exit 0 ;;
+  *'sudo bash -s -- --remote'*)
+    script="$FAKE_STATE_ROOT/remote-script"; /bin/cat > "$script"; chmod 700 "$script"
+    while [ "$#" -gt 0 ] && [ "$1" != --remote ]; do shift; done
+    release="$2"; api="$3"; ui="$4"; remote_incoming="$6"
+    mapped="$FAKE_APP_ROOT/incoming/$(basename "$remote_incoming")"
+    exec /bin/bash "$script" --remote "$release" "$api" "$ui" "$FAKE_APP_ROOT" "$mapped" ;;
+  *) exit 66 ;;
+esac`);
+  primitive(h, "rsync", `
+case " $* " in
+  *' deploy@deploy.example.test:/opt/braavolabs/incoming/'*)
+    printf '{"primitive":"rsync","destination":"deploy@deploy.example.test","policy":"fixture","socketOpened":false}\\n' >> "$FAKE_STATE_ROOT/network-attempts.jsonl" ;;
+  *)
+    printf '{"primitive":"rsync","destination":"denied","policy":"denied","socketOpened":false}\\n' >> "$FAKE_STATE_ROOT/network-attempts.jsonl"; exit 97 ;;
+esac
+printf '%s\\n' rsync >> "$FAKE_STATE_ROOT/transport"
+source=''; destination=''
+for arg in "$@"; do case "$arg" in *:/opt/braavolabs/incoming/*) destination="$arg" ;; */) source="$arg" ;; esac; done
+test -n "$source" && test -n "$destination"
+target="$FAKE_APP_ROOT/incoming/$(basename "${'${destination#*:}'}")"
+/bin/mkdir -p "$target"; /bin/cp -R "$source"/. "$target"/`);
+  return h;
+}
+
+function withHarness(fn) {
+  const h = makeHarness();
+  return Promise.resolve()
+    .then(() => fn(h))
+    .finally(() => rmSync(h.root, { recursive: true, force: true }));
+}
+test("cutover persists candidate digests and success journal", () => withHarness((h) => {
+  const result = runRemote(h);
+  assert.equal(result.status, 0);
+  assert.equal(readFileSync(join(h.state, "active-api"), "utf8"), API);
+  assert.equal(readFileSync(join(h.state, "active-ui"), "utf8"), UI);
+  assert.equal(readCurrentRecord(h).result, "success");
+  assertNoExternalNetwork(h);
+}));
+
+for (const [name, env, status] of [
+  ["target health", { FAIL_TARGET_HEALTH: "1" }, 70],
+  ["rollback health", { FAIL_TARGET_HEALTH: "1", FAIL_ROLLBACK_HEALTH: "1" }, 71],
+  ["digest mismatch", { FAKE_DIGEST_MISMATCH: "api" }, 70],
+]) test(`${name} derives rollback from real state`, () => withHarness((h) => {
+  const result = runRemote(h, env);
+  assert.equal(result.status, status);
+  if (status === 70) {
+    assert.equal(readFileSync(join(h.state, "active-api"), "utf8"), PREVIOUS_API);
+    assert.equal(readFileSync(join(h.state, "active-ui"), "utf8"), PREVIOUS_UI);
+  }
+  assertNoExternalNetwork(h);
+}));
+
+test("default-deny network primitive records and rejects an unapproved destination", () =>
+  withHarness((h) => {
+    const result = spawnSync(join(h.bin, "curl"), ["https://provider.example.invalid/"], {
+      encoding: "utf8", env: remoteEnvironment(h),
+    });
+    assert.equal(result.status, 97);
+    const entry = JSON.parse(readFileSync(join(h.state, "network-attempts.jsonl"), "utf8").trim());
+    assert.deepEqual(entry, {
+      primitive: "curl", url: "https://provider.example.invalid/",
+      policy: "denied", socketOpened: false,
+    });
+  }));
+
+for (const [name, env, expectedStatus] of [
+  ["initial cutover failure", { FAIL_INITIAL_CUTOVER: "1" }, 69],
+  ["partial API cutover failure", { FAIL_PARTIAL_CUTOVER: "1" }, 69],
+  ["partial UI cutover failure", { FAIL_PARTIAL_UI_CUTOVER: "1" }, 69],
+  ["complete cutover then target-health failure", { FAIL_TARGET_HEALTH: "1" }, 70],
+]) test(`${name} restores from the generated previous-digest override`, () =>
+  withHarness((h) => {
+    const result = runRemote(h, env);
+    assert.equal(result.status, expectedStatus);
+    assert.equal(readFileSync(join(h.state, "active-api"), "utf8"), PREVIOUS_API);
+    assert.equal(readFileSync(join(h.state, "active-ui"), "utf8"), PREVIOUS_UI);
+    assert.equal(readTransitions(h).some((entry) =>
+      entry.state === "ROLLBACK_APPLICATION" && entry.result === "restored"), true);
+    assertNoExternalNetwork(h);
+  }));
+
+for (const [state, seed] of [
+  ["previous/previous", [PREVIOUS_API, PREVIOUS_UI]],
+  ["candidate/previous", [API, PREVIOUS_UI]],
+  ["previous/candidate", [PREVIOUS_API, UI]],
+  ["candidate/candidate", [API, UI]],
+]) test(`rollback override restores both digests from state ${state}`, () =>
+  withHarness((h) => {
+    writeFileSync(join(h.state, "active-api"), seed[0]);
+    writeFileSync(join(h.state, "active-ui"), seed[1]);
+    const override = join(h.root, "rollback.override.yaml");
+    writeFileSync(override, `services:\n  api:\n    image: ${PREVIOUS_API}\n  ui:\n    image: ${PREVIOUS_UI}\n`);
+    const result = spawnSync(join(h.bin, "docker"), [
+      "compose", "-f", override, "up", "-d", "--no-deps", "api", "ui",
+    ], { encoding: "utf8", env: remoteEnvironment(h) });
+    assert.equal(result.status, 0);
+    assert.equal(readFileSync(join(h.state, "active-api"), "utf8"), PREVIOUS_API);
+    assert.equal(readFileSync(join(h.state, "active-ui"), "utf8"), PREVIOUS_UI);
+  }));
+
+for (const [state, seed] of [
+  ["candidate API / previous UI", [API, PREVIOUS_UI]],
+  ["previous API / candidate UI", [PREVIOUS_API, UI]],
+  ["candidate API / candidate UI without success", [API, UI]],
+]) test(`real remote restart restores durable previous-good from ${state}`, () =>
+  withHarness((h) => {
+    writeFileSync(join(h.state, "active-api"), seed[0]);
+    writeFileSync(join(h.state, "active-ui"), seed[1]);
+    const result = runRemote(h);
+    assert.equal(result.status, 66);
+    assert.equal(readFileSync(join(h.state, "active-api"), "utf8"), PREVIOUS_API);
+    assert.equal(readFileSync(join(h.state, "active-ui"), "utf8"), PREVIOUS_UI);
+  }));
+
+test("real remote restart reports 71 when durable recovery health fails", () =>
+  withHarness((h) => {
+    writeFileSync(join(h.state, "active-api"), API);
+    const result = runRemote(h, { FAIL_ROLLBACK_HEALTH: "1" });
+    assert.equal(result.status, 71);
+  }));
+
+test("resumed release rejects tampered staged bytes before migration health or rollback", () =>
+  withHarness((h) => {
+    assert.equal(runRemote(h).status, 0);
+    const staged = join(h.appRoot, "releases", RELEASE, "input", "ENV", "compose.prod.yaml");
+    writeFileSync(staged, "services:\n  api:\n    image: tampered\n");
+    const before = readFileSync(h.log, "utf8").split("\n").length;
+    const result = runRemote(h);
+    assert.equal(result.status, 67);
+    assert.doesNotMatch(result.calls.split("\n").slice(before).join("\n"),
+      /migrate|curl|up -d|ROLLBACK_APPLICATION/);
+  }));
+
+for (const [name, gitDiff] of [
+  ["deleted migration", "D\\tpackages/db/prisma/migrations/20200101000000_old/migration.sql\\n"],
+  ["renamed migration", "R100\\tpackages/db/prisma/migrations/old/migration.sql\\tpackages/db/prisma/migrations/new/migration.sql\\n"],
+]) test(`${name} fails locally before ssh staging`, () => withHarness((h) => {
+  const result = runDeploy(h, { FAKE_GIT_DIFF: gitDiff });
+  assert.equal(result.status, 68);
+  assert.doesNotMatch(result.calls, /sudo install -d|rsync|--remote/);
+}));
+
+test("unmanifested staged migration fails exact membership before migration", () =>
+  withHarness((h) => {
+    const incoming = buildIncoming(h);
+    writeFileSync(join(incoming, "packages/db/prisma/migrations/unmanifested.sql"), "SELECT 1;\n");
+    const result = spawnSync("bash", [SCRIPT, "--remote", RELEASE, API, UI, h.appRoot, incoming], {
+      cwd: ROOT, encoding: "utf8", env: remoteEnvironment(h),
+    });
+    assert.equal(result.status, 67);
+    assert.doesNotMatch(readFileSync(h.log, "utf8"), /migrate|up -d/);
+  }));
+
+test("idempotent tuple proves candidate digests migration no-op and health", () => withHarness((h) => {
+  seedSuccessfulJournal(h);
+  writeFileSync(join(h.state, "active-api"), API);
+  writeFileSync(join(h.state, "active-ui"), UI);
+  const result = runRemote(h);
+  assert.equal(result.status, 0);
+  assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "1");
+  assert.doesNotMatch(result.calls, /up -d --no-deps api ui/);
+}));
+
+for (const [name, field, value] of [
+  ["missing release", "release", undefined],
+  ["mismatched release", "release", "f".repeat(40)],
+  ["missing API digest", "api", undefined],
+  ["mismatched API digest", "api", `ghcr.io/kocakkmustafa/braavolabs/api@sha256:${"f".repeat(64)}`],
+  ["missing UI digest", "ui", undefined],
+  ["mismatched UI digest", "ui", `ghcr.io/kocakkmustafa/braavolabs/ui@sha256:${"f".repeat(64)}`],
+]) test(`idempotent success denies ${name} before downstream effects`, () => withHarness((h) => {
+  seedSuccessfulJournal(h);
+  writeFileSync(join(h.state, "active-api"), API);
+  writeFileSync(join(h.state, "active-ui"), UI);
+  const journalPath = join(h.appRoot, "releases", RELEASE, "release.json");
+  const journal = JSON.parse(readFileSync(journalPath, "utf8"));
+  if (value === undefined) delete journal[field]; else journal[field] = value;
+  writeFileSync(journalPath, JSON.stringify(journal) + "\n");
+  const durablePath = join(h.appRoot, "releases", "previous-good.json");
+  const durableBefore = readFileSync(durablePath, "utf8");
+
+  const result = runRemote(h);
+
+  assert.equal(result.status, 67);
+  assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
+  assert.equal(readFileSync(join(h.state, "cutover-count"), "utf8"), "0");
+  assert.doesNotMatch(result.calls, /migrate deploy|curl |commit-release-success|COMMIT_RELEASE success/);
+  assert.equal(readFileSync(durablePath, "utf8"), durableBefore);
+  assert.equal(readFileSync(journalPath, "utf8"), JSON.stringify(journal) + "\n");
+}));
+
+for (const [name, resultState, field, value] of [
+  ["pending missing release", "pending", "release", undefined],
+  ["pending mismatched release", "pending", "release", "f".repeat(40)],
+  ["pending missing API digest", "pending", "api", undefined],
+  ["pending mismatched API digest", "pending", "api", `ghcr.io/kocakkmustafa/braavolabs/api@sha256:${"f".repeat(64)}`],
+  ["pending missing UI digest", "pending", "ui", undefined],
+  ["pending mismatched UI digest", "pending", "ui", `ghcr.io/kocakkmustafa/braavolabs/ui@sha256:${"f".repeat(64)}`],
+]) test(`${name} resume is denied before migration health durable rewrite or success`, () =>
+  withHarness((h) => {
+    seedCommitRestartState(h, { result: resultState, durable: "candidate" });
+    const journalPath = join(h.appRoot, "releases", RELEASE, "release.json");
+    const journal = JSON.parse(readFileSync(journalPath, "utf8"));
+    if (value === undefined) delete journal[field]; else journal[field] = value;
+    writeFileSync(journalPath, JSON.stringify(journal) + "\n");
+    const durablePath = join(h.appRoot, "releases", "previous-good.json");
+    const durableBefore = readFileSync(durablePath, "utf8");
+
+    const result = runRemote(h);
+
+    assert.equal(result.status, 67);
+    assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
+    assert.equal(readFileSync(join(h.state, "cutover-count"), "utf8"), "0");
+    assert.doesNotMatch(result.calls, /migrate deploy|curl |commit-release-success|COMMIT_RELEASE success/);
+    assert.equal(readFileSync(durablePath, "utf8"), durableBefore);
+    assert.equal(readFileSync(journalPath, "utf8"), JSON.stringify(journal) + "\n");
+  }));
+
+for (const [name, resultState, durableState] of [
+  ["crash before durable previous-good write", "pending", "old"],
+  ["crash after durable write before success journal", "pending", "candidate"],
+  ["legacy success with stale durable tuple", "success", "old"],
+  ["legacy success with missing durable tuple", "success", "missing"],
+  ["legacy success with mismatched durable tuple", "success", "mismatch"],
+]) test(`${name} deterministically completes the verified commit`, () => withHarness((h) => {
+  const tuple = seedCommitRestartState(h, { result: resultState, durable: durableState });
+  const resumed = runRemote(h);
+  assert.equal(resumed.status, 0);
+  const durable = JSON.parse(readFileSync(join(h.appRoot, "releases/previous-good.json"), "utf8"));
+  assert.deepEqual(
+    { release: durable.release, tuple: durable.tuple, api: durable.api, ui: durable.ui, result: durable.result },
+    { release: RELEASE, tuple, api: API, ui: UI, result: "success" },
+  );
+  assert.equal(readCurrentTransition(h), "COMMIT_RELEASE:success");
+}));
+
+test("durable write failure restores sealed old tuple and never journals success", () => withHarness((h) => {
+  const result = runRemote(h, { FAIL_WRITE_PHASE: "commit-release-success:copy" });
+  assert.equal(result.status, 72);
+  const durable = JSON.parse(readFileSync(join(h.appRoot, "releases/previous-good.json"), "utf8"));
+  assert.equal(durable.release, PREVIOUS_RELEASE);
+  assert.notEqual(readCurrentTransition(h), "COMMIT_RELEASE:success");
+}));
+
+test("success-journal failure after durable write restores old tuple and exits 72", () =>
+  withHarness((h) => {
+    seedCommitRestartState(h, { result: "pending", durable: "candidate" });
+    const result = runRemote(h, { FAIL_WRITE_PHASE: "transition-COMMIT_RELEASE-record:copy" });
+    assert.equal(result.status, 72);
+    const durable = JSON.parse(readFileSync(join(h.appRoot, "releases/previous-good.json"), "utf8"));
+    assert.equal(durable.release, PREVIOUS_RELEASE);
+  }));
+
+for (const [name, mutate, env, status, updatePreviousGood = true] of [
+  ["stale success previous digests", (h) => {}, {}, 67, false],
+  ["mixed active digests", (h) => writeFileSync(join(h.state, "active-api"), API), {}, 66, false],
+  ["migration ledger failure", (h) => { writeFileSync(join(h.state, "active-api"), API); writeFileSync(join(h.state, "active-ui"), UI); }, { FAIL_MIGRATION_LEDGER: "1" }, 68],
+]) test(`idempotent ${name} fails closed`, () => withHarness((h) => {
+  seedSuccessfulJournal(h, { updatePreviousGood }); mutate(h);
+  assert.equal(runRemote(h, env).status, status);
+}));
+
+for (const [name, env] of [
+  ["git diff exits 91", { FAKE_GIT_DIFF_EXIT: "91" }],
+  ["git diff reports output I/O failure", { FAKE_GIT_DIFF_IO_FAILURE: "1" }],
+]) test(`${name} is exit 68 before every transport and release side effect`, () =>
+  withHarness((h) => {
+    const result = runDeploy(h, env);
+    assert.equal(result.status, 68);
+    assert.doesNotMatch(result.calls,
+      /^ssh |^rsync |migrate deploy|up -d|curl |COMMIT_RELEASE|previous-good committed/m);
+    assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
+    assert.equal(readFileSync(join(h.state, "cutover-count"), "utf8"), "0");
+    assert.equal(existsSync(join(h.state, "transport")), false);
+  }));
+async function signalAt(h, pauseAt, extra = {}) {
+  const incoming = buildIncoming(h);
+  const child = spawn("bash", [SCRIPT, "--remote", RELEASE, API, UI, h.appRoot, incoming], {
+    cwd: ROOT,
+    detached: true,
+    env: remoteEnvironment(h, { PAUSE_AT: pauseAt, ...extra }),
+  });
+  for (let attempt = 0; attempt < 300; attempt += 1) {
+    if (readFileSync(h.log, "utf8").includes(pauseAt === "pull" ? "docker pull" :
+      pauseAt === "backup" ? "postgres-backup" :
+      pauseAt === "target-health" ? "curl " : "sync ")) break;
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+  }
+  process.kill(-child.pid, "SIGTERM");
+  const [status] = await once(child, "exit");
+  return status;
+}
+
+test("SIGTERM before cutover preserves 66 and task-only cleanup", () => withHarness(async (h) => {
+  writeFileSync(join(h.appRoot, "unrelated.keep"), "keep\n");
+  assert.equal(await signalAt(h, "pull"), 66);
+  assert.equal(existsSync(join(h.appRoot, "unrelated.keep")), true);
+}));
+for (const phase of ["backup", "target-health", "journal-finalize"]) {
+  test(`SIGTERM at ${phase} performs verified rollback and preserves 66`, () =>
+    withHarness(async (h) => {
+      assert.equal(await signalAt(h, phase), 66);
+      assert.equal(readFileSync(join(h.state, "active-api"), "utf8"), PREVIOUS_API);
+      assert.equal(readFileSync(join(h.state, "active-ui"), "utf8"), PREVIOUS_UI);
+    }));
+}
+test("SIGTERM rollback-health failure exits 71", () => withHarness(async (h) => {
+  assert.equal(await signalAt(h, "target-health", { FAIL_ROLLBACK_HEALTH: "1" }), 71);
+}));
+test("restart after interrupted cutover recovers and completes from sealed staged bytes", () =>
+  withHarness(async (h) => {
+    assert.equal(await signalAt(h, "backup"), 66);
+    assert.equal(readFileSync(join(h.state, "active-api"), "utf8"), PREVIOUS_API);
+    assert.equal(readFileSync(join(h.state, "active-ui"), "utf8"), PREVIOUS_UI);
+    const resumed = runRemote(h);
+    assert.equal(resumed.status, 0);
+    assert.equal(readCurrentRecord(h).result, "success");
+  }));
+
+const deniedHosts = [
+  ["wildcard", ["*.example.test ssh-ed25519 " + KEY_A], FINGERPRINT_A, 0o600],
+  ["hashed", ["|1|salt|hash ssh-ed25519 " + KEY_A], FINGERPRINT_A, 0o600],
+  ["unexpected", ["other.example.test ssh-ed25519 " + KEY_A], FINGERPRINT_A, 0o600],
+  ["marker", ["@revoked deploy.example.test ssh-ed25519 " + KEY_A], FINGERPRINT_A, 0o600],
+  ["malformed", ["deploy.example.test ssh-ed25519"], FINGERPRINT_A, 0o600],
+  ["wrong type", ["deploy.example.test ssh-rsa " + KEY_A], FINGERPRINT_A, 0o600],
+  ["duplicate", ["deploy.example.test ssh-ed25519 " + KEY_A, "deploy.example.test ssh-ed25519 " + KEY_A], FINGERPRINT_A, 0o600],
+  ["mode", ["deploy.example.test ssh-ed25519 " + KEY_A], FINGERPRINT_A, 0o644],
+  ["fingerprint", ["deploy.example.test ssh-ed25519 " + KEY_A], FINGERPRINT_B, 0o600],
+  ["duplicate expected fingerprint", ["deploy.example.test ssh-ed25519 " + KEY_A], `${FINGERPRINT_A},${FINGERPRINT_A}`, 0o600],
+  ["partial rotation", ["deploy.example.test ssh-ed25519 " + KEY_A], `${FINGERPRINT_A},${FINGERPRINT_B}`, 0o600],
+  ["more than two rotation keys", [
+    "deploy.example.test ssh-ed25519 " + KEY_A,
+    "deploy.example.test ssh-ed25519 " + KEY_B,
+    "deploy.example.test ssh-ed25519 " + KEY_A + "A",
+  ], `${FINGERPRINT_A},${FINGERPRINT_B},SHA256:CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC`, 0o600],
+];
+for (const [name, lines, fingerprints, mode] of deniedHosts) {
+  test(`known_hosts ${name} denies before transport`, () => withHarness((h) => {
+    writeKnownHosts(h, lines, mode);
+    const result = runDeploy(h, { SSH_HOST_KEY_SHA256: fingerprints });
+    assert.equal(result.status, 65);
+    assert.doesNotMatch(result.calls, /^ssh |^rsync /m);
+  }));
+}
+test("known_hosts exact host is accepted", () => withHarness((h) => {
+  const historicalMigrations = readdirSync(join(ROOT, "packages/db/prisma/migrations"))
+    .filter((name) => existsSync(join(ROOT, "packages/db/prisma/migrations", name, "migration.sql")));
+  assert.equal(historicalMigrations.length, 48);
+  for (const acceptedMigration of [
+    "20260820000000_subscription_plan_enum_values",
+    "20260821_subscription_only_plans",
+    "20260825233000_iap_delivery_dlq",
+    "20260828_google_purchase_alias_ownership",
+  ]) {
+    assert.ok(historicalMigrations.includes(acceptedMigration), `missing accepted migration: ${acceptedMigration}`);
+  }
+  const result = runDeploy(h);
+  assert.equal(result.status, 0);
+  assert.match(result.calls, /StrictHostKeyChecking=yes/);
+  assertNoExternalNetwork(h);
+}));
+test("known_hosts exact two-key rotation is accepted", () => withHarness((h) => {
+  writeKnownHosts(h, [
+    `deploy.example.test ssh-ed25519 ${KEY_A}`,
+    `deploy.example.test ssh-ed25519 ${KEY_B}`,
+  ]);
+  const result = runDeploy(h, { SSH_HOST_KEY_SHA256: `${FINGERPRINT_A},${FINGERPRINT_B}` });
+  assert.equal(result.status, 0);
+  assert.match(result.calls, /StrictHostKeyChecking=yes/);
+  assertNoExternalNetwork(h);
+}));
+test("known_hosts bracketed non-default port is accepted", () => withHarness((h) => {
+  writeKnownHosts(h, [`[deploy.example.test]:2222 ssh-ed25519 ${KEY_A}`]);
+  const result = runDeploy(h, { DEPLOY_PORT: "2222" });
+  assert.equal(result.status, 0);
+  assert.match(result.calls, /StrictHostKeyChecking=yes/);
+  assertNoExternalNetwork(h);
+}));
+
+test("real main-to-candidate four-path migration discovery reaches the mocked Prisma sink", () =>
+  withHarness((h) => {
+    writeFileSync(join(h.appRoot, "releases/previous-good.json"), JSON.stringify({
+      release: AUTHORITATIVE_PREVIOUS_RELEASE,
+      previousRelease: AUTHORITATIVE_PREVIOUS_RELEASE,
+      tuple: "previous-tuple", api: PREVIOUS_API, ui: PREVIOUS_UI,
+      migrationDeltaSha256: "e".repeat(64), result: "success",
+    }) + "\n");
+    const result = runDeploy(h, {
+      PREVIOUS_RELEASE_COMMIT: AUTHORITATIVE_PREVIOUS_RELEASE,
+      RELEASE_COMMIT: REAL_MIGRATION_CANDIDATE,
+      USE_REAL_GIT_DIFF: "1",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stderr.includes("FAKE_GIT_DIFF"), false);
+    assert.match(result.calls, /^ssh /m);
+    assert.match(result.calls, /^rsync /m);
+    assert.match(result.calls, /docker compose .* run --rm --no-deps api/);
+    assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "1");
+  }));
+
+for (const [name, mutation, gitDiff = REVIEWED_SUBSCRIPTION_DIFF] of [
+  ["byte hash", "hash"],
+  ["enum label", "enum-label"],
+  ["legacy mapping", "mapping"],
+  ["default", "default"],
+  ["extra reviewed-looking statement", "extra-statement"],
+  ["IAP delivery byte hash", "iap-delivery-hash"],
+  ["Google alias byte hash", "google-alias-hash"],
+  ["third migration", "third-migration",
+    `${REVIEWED_SUBSCRIPTION_DIFF}A\tpackages/db/prisma/migrations/20260820000001_unreviewed/migration.sql\n`],
+  ["unmanifested historical migration", "unmanifested"],
+]) test(`reviewed subscription bundle denies ${name} mutation before transport`, () =>
+  withHarness((h) => {
+    const result = runDeploy(h, {
+      FAKE_GIT_DIFF: gitDiff,
+      FAKE_STAGE_MUTATION_MODE: mutation,
+    });
+    assert.equal(result.status, 68);
+    assert.doesNotMatch(result.calls, /^ssh |^rsync |migrate deploy|up -d|curl /m);
+    assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
+    assert.equal(existsSync(join(h.state, "transport")), false);
+  }));
+
+test("reviewed subscription bundle denies a changed path before transport", () =>
+  withHarness((h) => {
+    const result = runDeploy(h, {
+      FAKE_GIT_DIFF:
+        `A\tpackages/db/prisma/migrations/20260820000000_changed_path/migration.sql\n` +
+        `A\t${REVIEWED_PROJECTION_MIGRATION}\n` +
+        `A\t${REVIEWED_IAP_DELIVERY_MIGRATION}\n` +
+        `A\t${REVIEWED_GOOGLE_ALIAS_MIGRATION}\n`,
+    });
+    assert.equal(result.status, 68);
+    assert.doesNotMatch(result.calls, /^ssh |^rsync |migrate deploy|up -d|curl /m);
+  }));
+
+for (const [name, gitDiff] of [
+  ["modified status", REVIEWED_SUBSCRIPTION_DIFF.replace(`A\t${REVIEWED_PROJECTION_MIGRATION}`, `M\t${REVIEWED_PROJECTION_MIGRATION}`)],
+  ["omitted path", REVIEWED_SUBSCRIPTION_DIFF.replace(`A\t${REVIEWED_IAP_DELIVERY_MIGRATION}\n`, "")],
+  ["reordered paths",
+    `A\t${REVIEWED_PROJECTION_MIGRATION}\n` +
+    `A\t${REVIEWED_ENUM_MIGRATION}\n` +
+    `A\t${REVIEWED_IAP_DELIVERY_MIGRATION}\n` +
+    `A\t${REVIEWED_GOOGLE_ALIAS_MIGRATION}\n`],
+  ["duplicate path", REVIEWED_SUBSCRIPTION_DIFF + `A\t${REVIEWED_ENUM_MIGRATION}\n`],
+  ["rename-copy status", `R100\t${REVIEWED_ENUM_MIGRATION}\t${REVIEWED_PROJECTION_MIGRATION}\n`],
+]) test(`reviewed subscription bundle denies ${name} before transport`, () =>
+  withHarness((h) => {
+    const result = runDeploy(h, {
+      PREVIOUS_RELEASE_COMMIT: AUTHORITATIVE_PREVIOUS_RELEASE,
+      FAKE_GIT_DIFF: gitDiff,
+    });
+    assert.equal(result.status, 68);
+    assert.doesNotMatch(result.calls, /^ssh |^rsync |migrate deploy|up -d|curl /m);
+    assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
+  }));
+
+test("non-authoritative previous-good base lease is rejected before SSH", () =>
+  withHarness((h) => {
+    const result = runDeploy(h, {
+      PREVIOUS_RELEASE_COMMIT: "f".repeat(40),
+      FAKE_GIT_DIFF: REVIEWED_SUBSCRIPTION_DIFF,
+    });
+    assert.equal(result.status, 68);
+    assert.doesNotMatch(result.calls, /^ssh |^rsync |migrate deploy|up -d|curl /m);
+  }));
+
+test("remote previous-good drift is rejected before transfer and migration", () =>
+  withHarness((h) => {
+    const result = runDeploy(h, {
+      PREVIOUS_RELEASE_COMMIT: AUTHORITATIVE_PREVIOUS_RELEASE,
+      FAKE_GIT_DIFF: REVIEWED_SUBSCRIPTION_DIFF,
+    });
+    assert.equal(result.status, 68);
+    assert.match(result.calls, /^ssh /m);
+    assert.doesNotMatch(result.calls, /^rsync |migrate deploy|up -d|curl /m);
+    assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
+  }));
+
+const migrationCases = [
+  ["nullable add", "ALTER TABLE subscription ADD COLUMN settlement_version INTEGER;", 0],
+  ["safe index", "CREATE INDEX IF NOT EXISTS subscription_tenant_idx ON subscription(tenant_id);", 0],
+  ["comments multiline casing", "/* expand */\nalter table subscription\n add column settlement_note TEXT; -- nullable", 0],
+  ["rename", "ALTER TABLE subscription RENAME COLUMN plan TO plan_tier;", 68],
+  ["type narrowing", "ALTER TABLE subscription ALTER COLUMN quota TYPE SMALLINT;", 68],
+  ["not null", "ALTER TABLE subscription ADD COLUMN owner TEXT NOT NULL;", 68],
+  ["drop index", "DROP INDEX subscription_tenant_idx;", 68],
+  ["constraint", "ALTER TABLE subscription ADD CONSTRAINT tenant_fk FOREIGN KEY (tenant_id) REFERENCES tenant(id);", 68],
+  ["unknown", "DO $$ BEGIN RAISE NOTICE 'manual'; END $$;", 68],
+  ["unterminated comment", "/* broken", 68],
+];
+for (const [name, sql, status] of migrationCases) test(`migration policy ${name}`, () => withHarness((h) => {
+  const result = runRemote(h, { MIGRATION_SQL: sql });
+  assert.equal(result.status, status);
+  if (status === 68) assert.doesNotMatch(result.calls, /migrate deploy|up -d --no-deps/);
+}));
+
+const COREPACK_ARCHIVE_SHA256 = "d389715b4d2966e8c84103387f83d2ea698d797bf678f56b6895f179be7db6a5";
+const COREPACK_EMBEDDED_SHA512 = "b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0";
+const COREPACK_ORIGIN = "https://registry.npmjs.org/pnpm/-/pnpm-9.15.4.tgz";
+const LOCKFILE_SHA256 = "7c9e73f60bc2bfed4abf091eab49c03d897dc1801afa1c679d242e275a48c4c1";
+
+function assertOfflineCorepackContract(source, label) {
+  assert.match(source, /^# syntax=docker\/dockerfile:1\.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e$/m, `${label}: frontend digest`);
+  assert.match(source, /^FROM scratch AS corepack_archive$/m, `${label}: empty named-context fallback`);
+  assert.match(source, /^FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS corepack_(?:online|offline)$/m, `${label}: pinned Node base`);
+  assert.match(source, /RUN --network=none --mount=type=bind,from=corepack_archive,source=\/,target=\/run\/corepack-archive,ro/, `${label}: read-only networkless bind`);
+  assert.match(source, /find \/run\/corepack-archive -mindepth 1 -maxdepth 1/, `${label}: exact membership`);
+  assert.match(source, /test "\$count" -eq 2/, `${label}: two-file context`);
+  assert.match(source, /test -f "\$archive" && test ! -L "\$archive"/, `${label}: archive is regular non-link`);
+  assert.match(source, /test -f "\$manifest" && test ! -L "\$manifest"/, `${label}: manifest is regular non-link`);
+  assert.match(source, /3882495/, `${label}: archive size`);
+  assert.match(source, new RegExp(COREPACK_ARCHIVE_SHA256), `${label}: archive SHA-256`);
+  assert.match(source, new RegExp(COREPACK_EMBEDDED_SHA512), `${label}: embedded SHA-512`);
+  assert.match(source, new RegExp(COREPACK_ORIGIN.replaceAll(".", "\\.")), `${label}: npm origin`);
+  assert.match(source, /corepack install -g --cache-only "\$archive"/, `${label}: cache-only install`);
+  assert.match(source, /test "\$\(pnpm --version\)" = 9\.15\.4/, `${label}: activated version`);
+  assert.match(source, /rm -rf \/root\/\.cache\/node\/corepack/, `${label}: Corepack cache removed before snapshot`);
+  assert.match(source, new RegExp(`id=braavo-pnpm-9\\.15\\.4-${LOCKFILE_SHA256}`), `${label}: lockfile-bound pnpm cache`);
+  assert.match(source, /pnpm fetch --frozen-lockfile/, `${label}: acquisition fills the complete offline store`);
+  assert.match(source, /pnpm install --offline --frozen-lockfile/, `${label}: offline install branch`);
+  assert.match(source, /pnpm install --frozen-lockfile/, `${label}: context-absent network install branch`);
+  assert.doesNotMatch(source, /(?:COPY|ADD).*corepack-pnpm|(?:ARG|ENV).*COREPACK_ARCHIVE|type=secret,id=corepack_archive|--build-arg[^\n]*corepack/i, `${label}: archive transport must remain ephemeral`);
+}
+
+test("API and UI Dockerfiles enforce the exact offline Corepack contract", () => {
+  const api = readFileSync(join(ROOT, "ENV/Dockerfile.api"), "utf8");
+  assertOfflineCorepackContract(api, "api");
+  assert.match(
+    api,
+    /id=braavo-prisma-6\.19\.2-linux-musl-arm64,target=\/root\/\.cache\/prisma,sharing=locked[\s\\]*\n\s*pnpm --filter @ai-company-os\/db exec prisma generate/,
+    "api: acquisition-bound Prisma engine cache",
+  );
+  assert.match(
+    api,
+    /find "\/app\/node_modules\/\.pnpm\/thread-stream@3\.1\.0\/node_modules\/thread-stream\/test" -type f -name '\*\.zip' -delete/,
+    "api: all unsupported upstream test archives are absent before the install layer commits",
+  );
+  assertOfflineCorepackContract(readFileSync(join(ROOT, "ENV/Dockerfile.ui"), "utf8"), "ui");
+});
+
+test("offline Corepack security-property mutations are rejected", () => {
+  const source = readFileSync(join(ROOT, "ENV/Dockerfile.ui"), "utf8");
+  const mutations = [
+    source.replace("FROM scratch AS corepack_archive", "FROM scratch AS missing_context"),
+    source.replace("--network=none ", ""),
+    source.replace(",ro", ",rw"),
+    source.replaceAll(COREPACK_ARCHIVE_SHA256, "0".repeat(64)),
+    source.replace(COREPACK_ORIGIN, "https://example.invalid/pnpm.tgz"),
+    source.replace("rm -rf /root/.cache/node/corepack", ":"),
+    source.replace(`braavo-pnpm-9.15.4-${LOCKFILE_SHA256}`, "braavo-pnpm-unbound"),
+    source.replace("pnpm fetch --frozen-lockfile", ":"),
+  ];
+  for (const [index, mutation] of mutations.entries()) {
+    assert.throws(
+      () => assertOfflineCorepackContract(mutation, `mutation-${index}`),
+      `security-property mutation ${index} must be rejected`,
+    );
+  }
+});

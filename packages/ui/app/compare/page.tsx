@@ -5,12 +5,12 @@ export const metadata: Metadata = {
   title: "How Braavolabs compares",
   description:
     "How Braavolabs compares to Zapier, Make, n8n, Lindy, and Gumloop — mid-run steering, mobile control, flat pricing, governance, and where each tool wins.",
-  alternates: { canonical: "https://braavolabs.com/compare" },
+  alternates: { canonical: "https://www.braavolabs.com/compare" },
   openGraph: {
     title: "How Braavolabs compares — Braavolabs",
     description:
       "Where Braavolabs is strong (mobile control, mid-run steering, flat price, offline) and where workflow tools and agent builders win. Qualitative, defensible claims only.",
-    url: "https://braavolabs.com/compare",
+    url: "https://www.braavolabs.com/compare",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }],
   },
 };
@@ -65,8 +65,8 @@ const ROWS: Row[] = [
     agents: "partial",
   },
   {
-    label: "On-device / offline",
-    note: "Run sensitive work locally with on-device models",
+    label: "Local provider route",
+    note: "Use a configured local model endpoint where supported",
     braavolabs: "yes",
     workflow: "no",
     agents: "no",
@@ -159,7 +159,7 @@ const AUDIENCE = [
   {
     icon: "shield_lock",
     title: "Privacy-sensitive work",
-    body: "Bring your own keys, keep your data, and run the sensitive parts on-device or fully offline with a machine-bound encrypted bundle.",
+    body: "Bring your own keys or select a configured local endpoint. Verify the selected route, tools, telemetry, and network boundary separately.",
   },
   {
     icon: "hub",
@@ -212,11 +212,11 @@ export default function ComparePage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <a href="/login" className="bv-btn bv-btn-sm bv-btn-ghost no-underline">
+          <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-sm bv-btn-ghost no-underline">
             Sign in
           </a>
-          <a href="/register" className="bv-btn bv-btn-sm bv-btn-primary no-underline">
-            Start free
+          <a href="https://app.braavolabs.com" className="bv-btn bv-btn-sm bv-btn-primary no-underline">
+            Open app
           </a>
         </div>
       </nav>
@@ -426,7 +426,7 @@ export default function ComparePage() {
               <p className="bv-body" style={{ color: "var(--color-on-surface-variant)", lineHeight: 1.6 }}>
                 The closest neighbours — they also compose agents from steps. The difference is the operating
                 surface: Braavolabs is built phone-first, with mid-run steering, approve-from-phone spend
-                gates, BYOK across many providers, an on-device offline path, and five built-in risk-stops.
+                gates, customer-supplied provider credentials, configured local routes, and five built-in risk-stops.
                 Most builders are web-first and priced on credits or per-run, which can be hard to predict.
               </p>
             </div>
@@ -493,8 +493,8 @@ export default function ComparePage() {
                   </span>
                   Cost calculator
                 </Link>
-                <a href="/register" className="bv-btn bv-btn-primary bv-sheen whitespace-nowrap no-underline">
-                  Start free
+                <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-sheen whitespace-nowrap no-underline">
+                  Open app
                 </a>
               </div>
             </div>

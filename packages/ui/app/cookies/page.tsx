@@ -118,14 +118,14 @@ export default function CookiesPage() {
             {t("static.common.back")}
           </a>
           <a
-            href="/register"
+            href="https://app.braavolabs.com"
             className="no-underline text-sm font-semibold px-4 py-2 rounded-lg"
             style={{
               background: "linear-gradient(135deg, var(--color-primary), var(--color-secondary-container))",
               color: "#fff",
             }}
           >
-            Start free
+            Open app
           </a>
         </div>
       </nav>
@@ -213,7 +213,7 @@ export default function CookiesPage() {
               { key: "cookies", label: "Cookies", href: "/cookies" },
               { key: "gdpr", label: "GDPR", href: "/gdpr" },
               { key: "kvkk", label: "KVKK", href: "/kvkk" },
-              { key: "account-deletion", label: "Account deletion", href: "/account-deletion" },
+              { key: "account-deletion", label: "Account deletion", href: "/legal/account-deletion" },
             ].map((doc) => (
               <a
                 key={doc.key}

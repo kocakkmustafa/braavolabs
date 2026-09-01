@@ -15,7 +15,7 @@
  * SSRF guard wraps every outbound fetch — even though search results
  * are public URLs, an attacker who poisons the search index can
  * still feed us internal hostnames. Each fetch goes through
- * `assertSafeExternalUrl`.
+ * `safeExternalFetch`, which binds the validated destination to the socket.
  *
  * Robots.txt: respected via a per-host cache. Disallowed URLs are
  * skipped and recorded in the session's sources list with content="".
@@ -30,7 +30,7 @@ import crypto from "node:crypto";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
-import { assertSafeExternalUrl, SsrfError } from "../../lib/ssrf";
+import { safeExternalFetch, SsrfError } from "../../lib/ssrf";
 import { runAgentLoop } from "../agent/claude";
 import { compareAcrossModels } from "../../services/multi-model";
 
@@ -122,6 +122,13 @@ function getSearchProvider(): SearchProvider {
 
 const robotsCache = new Map<string, { fetchedAt: number; rules: string[] }>();
 const ROBOTS_TTL_MS = 60 * 60 * 1000;
+const MAX_FETCH_BYTES = 1_500_000;
+const RESEARCH_FETCH_POLICY = {
+  requireHttps: true,
+  redirectPolicy: "validated-public-https",
+  maxResponseBytes: MAX_FETCH_BYTES,
+  responseOverflow: "truncate",
+} as const;
 
 async function isUrlAllowed(targetUrl: string): Promise<boolean> {
   let parsed: URL;
@@ -137,14 +144,17 @@ async function isUrlAllowed(targetUrl: string): Promise<boolean> {
   }
   let rules: string[] = [];
   try {
-    const res = await fetch(`${parsed.protocol}//${parsed.host}/robots.txt`, {
-      signal: AbortSignal.timeout(5_000),
-    });
+    const res = await safeExternalFetch(
+      `${parsed.protocol}//${parsed.host}/robots.txt`,
+      { signal: AbortSignal.timeout(5_000) },
+      RESEARCH_FETCH_POLICY,
+    );
     if (res.ok) {
       const body = await res.text();
       rules = parseRobots(body);
     }
-  } catch {
+  } catch (err) {
+    if (err instanceof SsrfError) throw err;
     // No robots.txt or fetch failed — assume allow (best-effort).
   }
   robotsCache.set(host, { fetchedAt: Date.now(), rules });
@@ -172,34 +182,41 @@ function parseRobots(body: string): string[] {
 
 // ── Page fetch + readability ────────────────────────────────
 
-const MAX_FETCH_BYTES = 1_500_000;
 const MAX_CONTENT_LENGTH = 50_000;
 
-async function fetchPage(url: string): Promise<{ title: string | null; content: string }> {
+async function fetchPage(url: string): Promise<{ title: string | null; content: string } | null> {
   try {
-    await assertSafeExternalUrl(url);
+    if (!(await isUrlAllowed(url))) {
+      return { title: null, content: "" };
+    }
   } catch (err) {
     if (err instanceof SsrfError) {
-      logger.debug({ url, msg: err.message }, "Skipping URL — SSRF guard");
-      return { title: null, content: "" };
+      logger.debug("Skipping research URL — SSRF guard");
+      return null;
     }
     throw err;
   }
-  if (!(await isUrlAllowed(url))) {
-    return { title: null, content: "" };
-  }
   let res: Response;
   try {
-    res = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Braavolabs-Research/1.0 (+https://braavolabs.com/bot; contact@braavolabs.com)",
-        Accept: "text/html,application/xhtml+xml,text/plain",
+    res = await safeExternalFetch(
+      url,
+      {
+        headers: {
+          "User-Agent":
+            "Braavolabs-Research/1.0 (+https://braavolabs.com/bot; contact@braavolabs.com)",
+          Accept: "text/html,application/xhtml+xml,text/plain",
+          "Accept-Encoding": "identity",
+        },
+        signal: AbortSignal.timeout(15_000),
+        redirect: undefined,
       },
-      signal: AbortSignal.timeout(15_000),
-      redirect: "follow",
-    });
-  } catch {
+      RESEARCH_FETCH_POLICY,
+    );
+  } catch (err) {
+    if (err instanceof SsrfError) {
+      logger.debug("Skipping research URL — SSRF guard");
+      return null;
+    }
     return { title: null, content: "" };
   }
   if (!res.ok) return { title: null, content: "" };
@@ -403,6 +420,21 @@ async function augmentFindingsWithMultiModel(
 async function runResearchLoop(sessionId: string, multiModel = false): Promise<void> {
   const session = await prisma.webResearchSession.findUnique({ where: { id: sessionId } });
   if (!session) return;
+  const tenantId =
+    typeof session.tenantId === "string" && session.tenantId.trim().length > 0
+      ? session.tenantId
+      : null;
+  if (!tenantId) {
+    await prisma.webResearchSession.update({
+      where: { id: sessionId },
+      data: {
+        status: "FAILED",
+        error: "Research session has no valid tenant binding; provider execution was refused.",
+        completedAt: new Date(),
+      },
+    });
+    return;
+  }
   await prisma.webResearchSession.update({
     where: { id: sessionId },
     data: { status: "RUNNING", startedAt: new Date() },
@@ -410,6 +442,7 @@ async function runResearchLoop(sessionId: string, multiModel = false): Promise<v
   const provider = getSearchProvider();
   let cost = 0;
   let totalSources = 0;
+  let unsafeRejectedSources = 0;
   let currentQueries = [session.query];
   let allSources: Array<{ id: string; url: string; title: string | null; content: string; relevance: number }> = [];
 
@@ -437,6 +470,10 @@ async function runResearchLoop(sessionId: string, multiModel = false): Promise<v
         while (queue.length > 0) {
           const hit = queue.shift()!;
           const page = await fetchPage(hit.url);
+          if (!page) {
+            unsafeRejectedSources++;
+            continue;
+          }
           fetched.push({ url: hit.url, title: page.title ?? hit.title, content: page.content, snippet: hit.snippet });
         }
       });
@@ -464,6 +501,10 @@ async function runResearchLoop(sessionId: string, multiModel = false): Promise<v
         }
       }
 
+      // Unsafe search results must never become stored source records or an
+      // ungrounded LLM prompt after the socket-bound guard rejects them.
+      if (allSources.length === 0 && unsafeRejectedSources > 0) continue;
+
       // Ask Claude: have we got enough to answer, or do we need
       // more queries? The reply schema is strict JSON so we can
       // parse it deterministically.
@@ -483,6 +524,7 @@ async function runResearchLoop(sessionId: string, multiModel = false): Promise<v
             .map((s, i) => `[${i}] ${s.title ?? "(untitled)"} — ${s.url}\n${s.content.slice(0, 1200)}`)
             .join("\n\n---\n\n"),
         toolNames: [],
+        tenantId,
       });
       cost += distill.totalCostUsd ?? 0;
 
@@ -528,6 +570,19 @@ async function runResearchLoop(sessionId: string, multiModel = false): Promise<v
       }
     }
 
+    if (allSources.length === 0 && unsafeRejectedSources > 0) {
+      await prisma.webResearchSession.update({
+        where: { id: sessionId },
+        data: {
+          status: "COMPLETED",
+          findings: { summary: "No safe research sources were available.", claims: [] },
+          costUsd: cost,
+          completedAt: new Date(),
+        },
+      });
+      return;
+    }
+
     // Ran out of rounds / sources / budget. Synthesise from what we
     // have so the caller still gets something usable.
     const final = await runAgentLoop({
@@ -538,6 +593,7 @@ async function runResearchLoop(sessionId: string, multiModel = false): Promise<v
         .map((s, i) => `[${i}] ${s.title ?? "(untitled)"} — ${s.url}\n${s.content.slice(0, 1500)}`)
         .join("\n\n---\n\n"),
       toolNames: [],
+      tenantId,
     });
     cost += final.totalCostUsd ?? 0;
     let findings: unknown = { summary: final.finalContent.slice(0, 4000), claims: [] };

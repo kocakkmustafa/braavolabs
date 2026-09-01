@@ -36,6 +36,8 @@
  * make the fold's result reproducible given the same event set.
  */
 
+import { normalizePlanForEntitlement } from "@ai-company-os/core";
+
 export type EntitlementSource = "stripe" | "apple" | "google";
 
 export type EntitlementEventType =
@@ -129,7 +131,7 @@ export function foldStream(events: EntitlementEvent[]): StreamState | null {
       case "renewal":
       case "restore":
         status = "active";
-        planTier = e.planTier;
+        planTier = normalizePlanForEntitlement(e.planTier);
         expiresAt = e.expiresAt;
         autoRenew = e.autoRenew;
         break;
@@ -168,11 +170,9 @@ export function foldStream(events: EntitlementEvent[]): StreamState | null {
  * guard against the two drifting.
  */
 export const PLAN_RANK: Record<string, number> = {
-  FREE: 0,
-  CREATOR: 1,
-  PRO: 2,
-  BUSINESS: 3,
-  ENTERPRISE: 4,
+  MANUAL_REVIEW: 0,
+  INDIVIDUAL: 1,
+  TEAM: 2,
 };
 
 function isCurrentlyGranting(status: StreamStatus): boolean {
@@ -209,6 +209,7 @@ function isCurrentlyGranting(status: StreamStatus): boolean {
  */
 function isEffectivelyGranting(s: StreamState, now: Date): boolean {
   if (!isCurrentlyGranting(s.status)) return false;
+  if (normalizePlanForEntitlement(s.planTier) === "MANUAL_REVIEW") return false;
   if (s.status === "active" && s.expiresAt && s.expiresAt.getTime() <= now.getTime()) return false;
   return true;
 }
@@ -230,8 +231,8 @@ export function combineStreams(streams: StreamState[], now: Date): StreamState |
   let best: StreamState | null = null;
   for (const s of streams) {
     if (!isEffectivelyGranting(s, now)) continue;
-    const rank = PLAN_RANK[s.planTier ?? "FREE"] ?? 0;
-    const bestRank = best ? (PLAN_RANK[best.planTier ?? "FREE"] ?? 0) : -1;
+    const rank = PLAN_RANK[normalizePlanForEntitlement(s.planTier)];
+    const bestRank = best ? PLAN_RANK[normalizePlanForEntitlement(best.planTier)] : -1;
     if (rank > bestRank) best = s;
   }
   return best;
@@ -245,7 +246,7 @@ export function combineStreams(streams: StreamState[], now: Date): StreamState |
  * stream (no combineStreams call at all) get the same guarantee.
  */
 export function resolveEntitlement(stream: StreamState | null, now: Date): string {
-  if (!stream) return "FREE";
-  if (!isEffectivelyGranting(stream, now)) return "FREE";
-  return stream.planTier ?? "FREE";
+  if (!stream) return "MANUAL_REVIEW";
+  if (!isEffectivelyGranting(stream, now)) return "MANUAL_REVIEW";
+  return normalizePlanForEntitlement(stream.planTier);
 }

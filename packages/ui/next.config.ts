@@ -22,6 +22,9 @@ const nextConfig: NextConfig = {
   // Standalone output — builds a minimal server bundle in `.next/standalone/`
   // used by Dockerfile.ui. Critical for small production images (~150MB vs 1GB+).
   output: "standalone",
+  // Canonical slash/alias decisions require the validated Host. Let the
+  // middleware own them so Next cannot redirect an untrusted request first.
+  skipTrailingSlashRedirect: true,
   // outputFileTracingRoot ensures monorepo workspace packages get copied
   // into the standalone bundle (otherwise runtime module resolution fails).
   outputFileTracingRoot: MONOREPO_ROOT,
@@ -45,24 +48,6 @@ const nextConfig: NextConfig = {
   // Strip the X-Powered-By: Next.js header — frameworks that leak their
   // identity narrow attacker exploit search.
   poweredByHeader: false,
-  // Store-listing aliases. App Store Connect's Support URL points at
-  // /destek and Play's privacy-policy field at /legal/privacy — both
-  // reviewers hard-fail on 404s (Apple Guideline 1.5, Play pre-submit
-  // check), so these must resolve even after metadata is corrected to
-  // the canonical paths.
-  async redirects() {
-    return [
-      { source: "/destek", destination: "/support", permanent: true },
-      { source: "/legal/privacy", destination: "/privacy", permanent: true },
-      { source: "/legal/terms", destination: "/terms", permanent: true },
-      // The two cinematic prototypes now live at `/`. Both were `noindex`
-      // and linked from nowhere, so there is nothing to preserve in search —
-      // but they were shared by hand while under review, so redirect rather
-      // than 404 the people holding those links.
-      { source: "/forge-home", destination: "/", permanent: true },
-      { source: "/forge", destination: "/", permanent: true },
-    ];
-  },
   async headers() {
     return [
       {

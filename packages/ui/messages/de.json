@@ -51,7 +51,7 @@
       },
       "billing": {
         "title": "Nutzungsabrechnung",
-        "desc": "Stripe-basiertes Metering. Free Tier inklusive. Skaliere von $0 bis Enterprise on-demand mit nutzungsbasierter Abrechnung."
+        "desc": "Geplante Preise: Individual $19/Monat und Team $39/aktivem Nutzer/Monat. Nicht aktuell kaufbar; Inferenz ist nicht enthalten."
       },
       "audit": {
         "title": "Vollständiges Audit-Log",
@@ -283,7 +283,7 @@
         "disconnect": "SSO trennen",
         "confirm_disconnect": "SSO-Verbindung entfernen? Bestehende SSO-Benutzer fallen auf E-Mail/Passwort-Anmeldung zurück.",
         "test_sign_in": "Anmeldung testen →",
-        "plan_gate_body": "Enterprise SSO ist in den Business- und Enterprise-Plänen enthalten. Upgraden Sie, um Ihren Workspace mit Ihrem Identity Provider zu verbinden.",
+        "plan_gate_body": "Organisations-SSO ist in Entwicklung und derzeit nicht kaufbar.",
         "plan_gate_cta": "Pläne ansehen →"
       },
       "fieldName": "Name",
@@ -347,7 +347,7 @@
           "desc": "Professionelle Dienstleistungen"
         },
         "creator": {
-          "label": "Creator / Persönliche Marke",
+          "label": "Selbstständig / Persönliche Marke",
           "desc": "Content & Audience-Building"
         },
         "b2b_sales": {
@@ -393,7 +393,7 @@
         "Agentur",
         "E-Commerce",
         "Beratung",
-        "Creator-Business"
+        "Selbstständiges Unternehmen"
       ],
       "suggestionTemplate": "Ich betreibe ein {kind}-Geschäft. Ich brauche KI-Agenten für Akquise, Content-Erstellung und Operations.",
       "successCompanyFallback": "Dein Arbeitsbereich",
@@ -406,7 +406,7 @@
       "byokSubtitle": "Du hast zwei Optionen. Beide halten deine Daten tenant-isoliert und audit-protokolliert.",
       "byokCloudTitle": "☁ Cloud BYOK (jeder Plan)",
       "byokCloudDesc": "Anthropic, OpenAI, Gemini, Mistral, Groq, OpenRouter",
-      "byokSelfTitle": "⚡ Self-hosted Gemma (Creator+)",
+      "byokSelfTitle": "⚡ Selbst gehostetes lokales Modell — Konfiguration erforderlich",
       "byokSelfDesc": "Ollama / LM Studio · keine Token-Kosten · KVKK",
       "addApiKey": "API-Key hinzufügen",
       "viewCompanies": "Arbeitsbereiche ansehen",
@@ -443,7 +443,7 @@
       "audiencePlaceholder": "z.B. Startup-Gründer, Marketer, Entwickler...",
       "optional": "(optional)",
       "activeChannelsTitle": "Aktive Kanäle (Kostenloser Plan)",
-      "upgradeToProForChannels": "Auf Pro upgraden für alle Kanäle",
+      "upgradeToProForChannels": "Kanäle in den Workspace-Einstellungen konfigurieren",
       "step4Title": "Bereit zum Start",
       "step4Subtitle": "Überprüfe deine Konfiguration und erstelle dein erstes autonomes KI-Unternehmen.",
       "summaryCompanyName": "Arbeitsbereich-Name",
@@ -660,15 +660,15 @@
       "usageHistory": "Nutzungsverlauf",
       "thMetric": "Metrik",
       "thValue": "Wert",
-      "planFreeName": "Kostenlos",
-      "planFreeNote": "für immer",
-      "planProName": "Pro",
+      "planFreeName": "Preisvorschau",
+      "planFreeNote": "derzeit nicht kaufbar",
+      "planProName": "Team",
       "planProNote": "/Monat",
-      "planEnterpriseName": "Enterprise",
+      "planEnterpriseName": "Historischer Tarif — manuelle Prüfung",
       "planEnterprisePrice": "Individuell",
       "planEnterpriseNote": "kontaktiere uns",
-      "planCreatorName": "Creator",
-      "planBusinessName": "Business",
+      "planCreatorName": "Individual",
+      "planBusinessName": "Zusätzliche Kontrollen — in Entwicklung",
       "planMonthlyNote": "/Monat",
       "meterConnections": "Verbundene Automatisierungen"
     },
@@ -716,7 +716,7 @@
       "sendAnswer": "Antwort senden",
       "steerTitle": "Diesen Lauf steuern",
       "steerHelp": "Senden Sie eine Nachricht, um den Agenten mitten im Lauf umzulenken — sie wird beim nächsten Schritt als Bediener-Anweisung eingefügt.",
-      "steerPlaceholder": "z. B. Konzentriere dich nur auf Enterprise-Leads — überspringe das KMU-Segment.",
+      "steerPlaceholder": "z. B. Konzentriere dich nur auf Großkunden-Leads — überspringe das KMU-Segment.",
       "steerSent": "Steuerung gesendet — der Agent berücksichtigt sie beim nächsten Schritt.",
       "steerFailed": "Steuerung konnte nicht gesendet werden",
       "sendSteer": "Steuerung senden",
@@ -1137,7 +1137,7 @@
       "releaseTitle": "v0.1.0 — Öffentliche Preview",
       "releaseDate": "Mai 2026",
       "items": [
-        "Kostenlose Testphase mit Groq (10 Runs/Monat, kein API-Key nötig).",
+        "Mandanteneigenes BYOK und konfigurierte lokale Routen schlagen ohne geeignete Route sicher fehl.",
         "Pipeline-Export-DRM mit Offline-JWT-Lizenzen.",
         "Google- + GitHub-OAuth-Anmeldung.",
         "Gehärteter Deploy: HMAC-Webhooks, Account-Lockout, CSP, HSTS.",
@@ -1157,27 +1157,27 @@
         "sections": [
           {
             "title": "Daten, die wir erheben",
-            "body": "Wir erfassen die Informationen, die du bei der Kontoerstellung angibst (Name, E-Mail, Organisationsname) sowie Daten, die durch deine Nutzung der Plattform entstehen (Unternehmensbeschreibungen, Agenten-Konfigurationen, Pipeline-Run-Logs, Nutzungsmetriken). Zahlungsdetails erfassen wir nicht direkt — Zahlungen werden von Stripe abgewickelt."
+            "body": "Wir erfassen Kontodaten (Name, E-Mail, Organisationsname), tenantgebundene Workspace-Inhalte (Prompts, Ein- und Ausgaben von Agenten und Pipelines, Run-Datensätze, Steuerungsnachrichten, Meldungen und Nutzungsaktivität) sowie Gerätedaten für Benachrichtigungen (Push-Token, Plattform, Gerätename und Betriebssystemversion). Für Abonnements im Apple App Store oder bei Google Play speichern wir Produkt, Transaktions- oder Kauf-Token, Beleg, Status und Abonnementdaten. Rohe Kartendaten erhalten wir nicht; die Web-Abrechnung erfolgt über Stripe."
           },
           {
             "title": "Wie wir deine Daten nutzen",
-            "body": "Deine Daten werden ausschließlich zum Betrieb der Braavolabs-Plattform genutzt: zum Ausführen deiner Agenten, zum Speichern deiner Pipeline-Historie und zur Analyse-Erzeugung. Wir verkaufen, teilen oder nutzen deine Daten nicht zum Training von KI-Modellen. Die Daten jedes Tenants sind strikt isoliert."
+            "body": "Wir verarbeiten Konto- und tenantgebundene Workspace-Daten, um angeforderte Plattformfunktionen bereitzustellen, Workflows auszuführen, Workspace- und Run-Verläufe zu erhalten, Nutzung zu messen, Berechtigungen zu verwalten und Kontovorgänge zu unterstützen. Inhalte können für einen angeforderten Workflow an von dir ausgewählte oder verbundene KI-Anbieter gesendet werden; deren Verarbeitung richtet sich nach den geltenden Anbieterbedingungen und Einstellungen."
           },
           {
             "title": "Datenspeicherung",
-            "body": "Alle Daten werden in verschlüsselten PostgreSQL-Datenbanken gespeichert. Audit-Logs und Aktivitätsaufzeichnungen werden standardmäßig 12 Monate aufbewahrt. Du kannst jederzeit die Löschung deines Kontos und aller zugehörigen Daten verlangen."
+            "body": "Konto- und Gerätedatensätze bleiben an den Nutzer gebunden, Workspace-, Aktivitäts- und Abonnementdatensätze an den Tenant; eine feste Aufbewahrungsfrist ist nicht veröffentlicht. Beim Löschen deines Kontos wird dein Nutzerdatensatz entfernt. Bist du das letzte Mitglied des Tenants, werden die Tenant-Workspace-Datensätze über die Kontobeziehung gelöscht; bleiben andere Mitglieder, verbleiben Workspace-Inhalte, Aktivität und Store-Abonnementdatensätze bei diesem Tenant. Das Entfernen des Push-Tokens beim Abmelden erfolgt nach bestem Bemühen; die Kontolöschung entfernt verbleibende nutzergebundene Geräte."
           },
           {
             "title": "Drittanbieter-Dienste",
-            "body": "Wir nutzen Stripe für die Abrechnung, SendGrid für transaktionale E-Mails, Google OAuth für die Authentifizierung (optional) und HubSpot für CRM-Integration (opt-in). Jeder dieser Dienste hat seine eigene Datenschutzerklärung."
+            "body": "Wir nutzen Stripe für Web-Abrechnung, Apple App Store und Google Play für Store-Abrechnung, Expo für Push-Zustellung, SendGrid für transaktionale E-Mails, Google OAuth für optionale Authentifizierung und HubSpot für eine Opt-in-CRM-Integration. Sentry kann Absturz-, Trace- und Sitzungsdiagnoseereignisse erhalten. Jeder Anbieter verarbeitet Daten nach seinen eigenen Bedingungen und Einstellungen."
           },
           {
             "title": "Deine Rechte",
-            "body": "Du hast jederzeit das Recht, auf deine Daten zuzugreifen, sie zu exportieren und zu löschen. Um diese Rechte auszuüben, schreibe uns an privacy@braavolabs.com. Wir antworten innerhalb von 30 Tagen."
+            "body": "Du kannst unter privacy@braavolabs.com Zugriff, Export, Berichtigung oder Löschung beantragen. Die Kontolöschung folgt dem oben beschriebenen Tenant-Mitgliedschaftsverhalten; die Kündigung eines Stripe-, Apple-App-Store- oder Google-Play-Abonnements ist ein separater Vorgang. Wir antworten innerhalb von 30 Tagen."
           },
           {
             "title": "Sicherheit",
-            "body": "Wir verwenden branchenübliche Verschlüsselung bei der Übertragung (TLS 1.3) und im Ruhezustand (AES-256). Der Zugriff auf Produktionssysteme ist auf autorisiertes Personal beschränkt. Wir führen regelmäßige Sicherheitsprüfungen durch."
+          "body": "Unsere veröffentlichte Web-Proxy-Konfiguration unterstützt TLS 1.2 und TLS 1.3 bei der Übertragung. Weitere Angaben zu ruhenden Daten, Produktionszugriff, Sicherheit und Aufbewahrung werden hier ohne aktuelle Anbieter- und Bereitstellungsnachweise nicht zugesichert."
           },
           {
             "title": "Änderungen",
@@ -1206,12 +1206,12 @@
             "body": "Du darfst die Plattform nicht für Spam, illegale Aktivitäten, Verletzung von Drittrechten oder zur Umgehung der Governance- und Risikokontrollen der Plattform nutzen. Automatisierte Outreach-Aktionen unterliegen den eingebauten Anti-Spam-Limits."
           },
           {
-            "title": "4. Kostenloser Plan",
-            "body": "Der kostenlose Plan umfasst 1 Unternehmen, 10 Runs pro Monat und Zugang zu TikTok- und LinkedIn-Kanälen. Funktionen des kostenlosen Plans können mit 30 Tagen Vorlaufzeit geändert werden."
+            "title": "4. Geplante Abonnements",
+            "body": "Individual ist mit $19/Monat und Team mit $39/aktivem Nutzer/Monat geplant. Web-Checkout ist derzeit nicht verfügbar und Inferenz ist nicht enthalten. Ein In-App-Angebot wird über den jeweiligen Eintrag im Apple App Store oder bei Google Play angezeigt und verkauft."
           },
           {
             "title": "5. Bezahlte Pläne",
-            "body": "Bezahlte Abonnements werden monatlich über Stripe abgerechnet. Du kannst jederzeit kündigen; die Kündigung wird zum Ende des aktuellen Abrechnungszeitraums wirksam. Es gibt keine Rückerstattungen für Teilmonate."
+            "body": "Web-Abonnements werden über Stripe abgerechnet. In-App-Abonnements werden von Apple über den App Store oder von Google über Google Play abgerechnet und unterliegen den Abrechnungs-, Kündigungs- und Erstattungsregeln des jeweiligen Stores. Verwalte oder kündige im Kanal, in dem du abonniert hast. Eine Kündigung löscht nicht automatisch dein Konto oder die Workspace-Daten des Tenants."
           },
           {
             "title": "6. Dateneigentum",
@@ -1276,7 +1276,7 @@
       "section3Title": "Wer dahintersteht",
       "section3Body": "Braavolabs ist ein unabhängiges Projekt, gegründet 2026. Wir bauen in der Öffentlichkeit — jeder Commit, jede Entscheidung, jedes Roadmap-Update ist sichtbar. Schreib uns jederzeit: hello@braavolabs.com.",
       "section4Title": "Was als Nächstes kommt",
-      "section4Body": "Unsere Roadmap wird davon geprägt, worauf Nutzer tatsächlich stoßen — nicht von einem 12-Monats-Plan, der im luftleeren Raum geschrieben wird. Möchtest du beeinflussen, was wir bauen? Probiere die kostenlose Stufe, gib uns Feedback an hello@braavolabs.com oder folge den Build-in-Public-Updates auf Social Media."
+      "section4Body": "Unsere Roadmap wird davon geprägt, worauf Nutzer tatsächlich stoßen — nicht von einem 12-Monats-Plan, der im luftleeren Raum geschrieben wird. Gib uns Feedback an hello@braavolabs.com oder folge den Build-in-Public-Updates auf Social Media."
     },
     "contact": {
       "title": "Kontakt",
@@ -1362,7 +1362,7 @@
       "githubFailed": "GitHub-Login fehlgeschlagen. Bitte mit E-Mail/Passwort versuchen.",
       "appleNotConfigured": "Apple Sign-In ist auf diesem Server nicht konfiguriert. Nutze E-Mail/Passwort.",
       "appleFailed": "Apple Sign-In fehlgeschlagen. Bitte mit E-Mail/Passwort versuchen.",
-      "ssoToggle": "Enterprise SSO verwenden →",
+      "ssoToggle": "Organisations-SSO — in Entwicklung →",
       "ssoSlugPlaceholder": "Workspace-Slug",
       "ssoSubmit": "Weiter"
     },
@@ -1395,9 +1395,9 @@
     }
   },
   "pricing": {
-    "badge": "KOSTENLOS STARTEN · KEINE KARTE NÖTIG",
+    "badge": "GEPLANTE PREISE · DERZEIT NICHT KAUFBAR",
     "title": "Einfache, transparente Preise",
-    "subtitle": "Starte kostenlos mit einem KI-Arbeitsbereich. Upgrade, wenn du mehr ausführen willst. Jeder bezahlte Tarif ist bei jährlicher Abrechnung 20% günstiger.",
+    "subtitle": "Individual ist mit $19/Monat und Team mit $39/aktivem Nutzer/Monat geplant. Inferenz ist nicht enthalten.",
     "cycle": {
       "monthly": "Monatlich",
       "yearly": "Jährlich",
@@ -1411,79 +1411,63 @@
     "mostPopular": "Am beliebtesten",
     "plans": {
       "free": {
-        "name": "Free",
-        "desc": "Echte KI-Ergebnisse ab Tag eins. Baue 1 Arbeitsbereich und sieh ihn arbeiten.",
+        "name": "Preisvorschau",
+        "desc": "Nur Preisinformationen; Abonnements sind derzeit nicht kaufbar.",
         "features": [
-          "1 Arbeitsbereich",
-          "10 Läufe / Monat",
-          "TikTok + LinkedIn Kanäle",
-          "Vereinfachte Hero-Vorlage",
-          "Vollständiges Audit-Log",
-          "Cloud BYOK (Anthropic / OpenAI / Gemini)",
-          "Community-Support"
+          "Individual — geplant mit $19/Monat",
+          "Team — geplant mit $39/aktivem Nutzer/Monat",
+          "Inferenz ist nicht enthalten"
         ],
-        "cta": "Kostenlos starten"
+        "cta": "Preisvorschau ansehen"
       },
       "creator": {
-        "name": "Creator",
-        "desc": "Für Solo-Gründer, die einige KI-Arbeitsbereiche betreiben.",
+        "name": "Individual",
+        "desc": "Geplantes Abonnement für eine einzelne Person; derzeit nicht kaufbar.",
         "features": [
-          "5 Arbeitsbereiche parallel",
-          "100 Läufe / Monat",
-          "Alle Kanäle (TikTok, LinkedIn, IG, X, E-Mail)",
-          "Eigene Pipelines",
-          "Memory Engine",
-          "Self-hosted Gemma (Ollama / LM Studio)",
-          "E-Mail-Support"
+          "$19/Monat — geplanter Preis",
+          "Mandanteneigenes BYOK oder konfigurierte lokale Laufzeit",
+          "Inferenz ist nicht enthalten"
         ],
-        "cta": "Creator wählen"
+        "cta": "Individual ansehen"
       },
       "pro": {
-        "name": "Pro",
-        "desc": "Für Agenturen und Founder, die über viele Marken skalieren.",
+        "name": "Team",
+        "desc": "Geplantes Abonnement pro aktivem Nutzer; derzeit nicht kaufbar.",
         "features": [
-          "20 Arbeitsbereiche",
-          "500 Läufe / Monat",
-          "HubSpot CRM-Sync",
-          "Outreach-Automatisierung",
-          "Erweiterte Analytics",
-          "Self-hosted Gemma + Eigene OpenAI-Endpunkte",
-          "Priority-Support"
+          "$39/aktivem Nutzer/Monat — geplanter Preis",
+          "Mandanteneigenes BYOK oder konfigurierte lokale Laufzeit",
+          "Inferenz ist nicht enthalten"
         ],
-        "cta": "Pro wählen"
+        "cta": "Team ansehen"
       },
       "business": {
-        "name": "Business",
-        "desc": "Team-Autonomie mit eingebauter Governance.",
+        "name": "Zusätzliche Kontrollen — in Entwicklung",
+        "desc": "Organisationskontrollen jenseits der zwei geplanten Abonnements bleiben in Entwicklung.",
         "features": [
-          "100 Arbeitsbereiche",
-          "2.000 Läufe / Monat",
-          "3 Team-Sitze",
-          "Governance + Audit-Export",
-          "White-Label-Vorbereitung",
-          "Self-hosted LLM + Air-gapped-Option",
-          "Dedizierter Support"
+          "Private Mode — Vorschau",
+          "Cloud Agent Mode — in Entwicklung",
+          "Exact-action approval — in Entwicklung"
         ],
-        "cta": "Business wählen"
+        "cta": "Roadmap ansehen"
       }
     },
     "enterprise": {
       "title": "Mehr nötig?",
-      "desc": "Enterprise — unbegrenzte Arbeitsbereiche, SSO, private Bereitstellung, dediziertes SLA.",
+      "desc": "Zusätzliche Organisationskontrollen sind in Entwicklung; Abonnements sind derzeit nicht kaufbar.",
       "cta": "Mit dem Founder sprechen"
     },
     "faq": [
       {
-        "q": "Brauche ich für den kostenlosen Plan eine Kreditkarte?",
-        "a": "Nein. Der Free-Tarif ist für immer komplett kostenlos — keine Karte nötig. Du bekommst 1 Arbeitsbereich und 10 Läufe pro Monat, mit echten KI-Ergebnissen."
+        "q": "Kann ich heute ein Abonnement kaufen?",
+        "a": "Nein. Individual- und Team-Preise sind eine Vorschau und derzeit nicht kaufbar. Inferenz ist nicht enthalten."
       },
       {
         "q": "Was zählt als „Lauf“?",
         "a": "Jede Pipeline-Ausführung ist ein Lauf. Beispiel: 1 TikTok-Post-Generierung = 1 Lauf. 1 E-Mail-Outreach-Sequenz = 1 Lauf."
       },
       {
-        "q": "Warum gibt es keine kostenlose Testversion auf bezahlten Plänen?",
-        "a": "Weil der Free-Tarif schon echten Mehrwert bietet. Teste das Produkt kostenlos und wähle einen Tarif, wenn du mehr Arbeitsbereiche brauchst."
+        "q": "Wer bezahlt die Inferenz?",
+        "a": "Der Kunde. Verwende mandanteneigene Anbieterschlüssel oder eine konfigurierte lokale Laufzeit; Inferenz ist nicht enthalten."
       },
       {
         "q": "Was passiert, wenn ich mein Lauf-Kontingent überschreite?",
@@ -1491,11 +1475,11 @@
       },
       {
         "q": "Kann ich jederzeit kündigen?",
-        "a": "Ja. Kündige jederzeit über deine Billing-Seite — keine Strafe, kein Lock-in. Behalte den Zugang bis zum Periodenende."
+        "a": "Verwalte Stripe-Web-Abonnements in den Web-Abrechnungseinstellungen. Verwalte oder kündige Abonnements aus dem Apple App Store oder von Google Play im jeweiligen Store; Abrechnung, Kündigung, Zugang und Erstattungen richten sich nach den Regeln des jeweiligen Kanals."
       },
       {
         "q": "Sind meine Daten privat?",
-        "a": "Ja. Jeder Mandant ist vollständig isoliert. Wir teilen deine Arbeitsbereich-Daten nie und trainieren nicht damit."
+        "a": "Workspace-Inhalte sind in Braavolabs an den Tenant gebunden. Inhalte können für angeforderte Workflows an von dir ausgewählte oder verbundene KI-Anbieter gesendet werden. Die Verarbeitung richtet sich nach den geltenden Bedingungen und Einstellungen des Anbieters."
       }
     ]
   },

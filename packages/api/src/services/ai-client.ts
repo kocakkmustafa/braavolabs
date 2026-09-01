@@ -22,7 +22,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { MessageParam, Tool } from "@anthropic-ai/sdk/resources/messages";
 import { logger } from "../lib/logger";
 import { encryptForTenant, decryptForTenant } from "../lib/encryption";
-import { assertSafeExternalUrl, SsrfError } from "../lib/ssrf";
+import { safeExternalFetch, SsrfError } from "../lib/ssrf";
 import { env } from "../config/env";
 
 // ─── Types ────────────────────────────────────────────────
@@ -49,8 +49,13 @@ export const LOCAL_PROVIDERS: ReadonlySet<AIProviderType> = new Set(["OLLAMA", "
 export interface AIClientConfig {
   provider: AIProviderType;
   model: string;
-  /** Plaintext API key (decrypt before passing in). Optional for local providers. */
+  /**
+   * Immediate key for process-owned/static configs. Stored tenant credentials
+   * use a non-secret marker here so existing truthiness guards remain valid.
+   */
   apiKey: string;
+  /** Resolve a stored tenant credential only at the validated transport sink. */
+  getApiKey?: () => string;
   /** Override base URL (used by OLLAMA / LMSTUDIO / CUSTOM, optional for OPENAI proxies). */
   baseUrl?: string;
 }
@@ -123,15 +128,81 @@ export interface ChatCompletionOptions {
 export class ToolsUnsupportedError extends Error {
   readonly provider: AIProviderType;
   readonly model: string;
-  constructor(provider: AIProviderType, model: string, detail?: string) {
-    super(
-      `${provider} model "${model}" cannot use native tool-calling` +
-        (detail ? `: ${detail}` : ""),
-    );
+  constructor(provider: AIProviderType, model: string, _detail?: string) {
+    super(`${provider} model "${model}" cannot use native tool-calling`);
     this.name = "ToolsUnsupportedError";
     this.provider = provider;
     this.model = model;
   }
+}
+
+/** Structured provider failure that preserves retry classification without
+ * retaining an upstream response body, URL, credential or internal address. */
+export class ProviderHttpError extends Error {
+  readonly status: number;
+  readonly provider: AIProviderType;
+  readonly model: string;
+
+  constructor(provider: AIProviderType, model: string, status: number) {
+    super(`${provider} API error ${status}`);
+    this.name = "ProviderHttpError";
+    this.provider = provider;
+    this.model = model;
+    this.status = status;
+  }
+}
+
+class ProviderCredentialError extends Error {
+  readonly status = 401;
+  constructor(provider: AIProviderType) {
+    super(`${provider} tenant credential is unavailable`);
+    this.name = "ProviderCredentialError";
+  }
+}
+
+export const TENANT_CREDENTIAL_MARKER = "[tenant-credential]";
+
+function clientApiKey(config: AIClientConfig): string {
+  return config.getApiKey ? config.getApiKey() : config.apiKey;
+}
+
+function providerStatus(err: unknown, fallback = 502): number {
+  if (err && typeof err === "object") {
+    const candidate = err as { status?: unknown; statusCode?: unknown };
+    if (typeof candidate.status === "number") return candidate.status;
+    if (typeof candidate.statusCode === "number") return candidate.statusCode;
+  }
+  return fallback;
+}
+
+export function createTenantApiKeyResolver(
+  encryptedApiKey: string,
+  tenantId: string,
+  provider: AIProviderType,
+  localProvider: boolean,
+): () => string {
+  let settled = false;
+  let value = "";
+  let failure: ProviderCredentialError | undefined;
+
+  return () => {
+    if (failure) throw failure;
+    if (settled) return value;
+    settled = true;
+    try {
+      value = decryptForTenant(encryptedApiKey, tenantId).trim();
+      if (!localProvider && !value) throw new Error("empty credential");
+      return value;
+    } catch {
+      logger.warn(
+        { tenantId, provider, reason: "tenant_credential_decrypt_failed" },
+        "Tenant AI credential could not be decrypted",
+      );
+      if (localProvider) return "";
+      failure = new ProviderCredentialError(provider);
+      throw failure;
+    }
+  };
 }
 
 // ─── Provider model defaults ──────────────────────────────
@@ -585,14 +656,19 @@ async function callAnthropic(
   maxTokens: number,
   tools?: ChatToolDef[],
 ): Promise<ChatCompletionResult> {
-  const client = new Anthropic({ apiKey: config.apiKey });
-  const response = await client.messages.create({
-    model: config.model,
-    max_tokens: maxTokens,
-    system: systemPrompt,
-    messages,
-    ...(tools?.length ? { tools: toAnthropicTools(tools) } : {}),
-  });
+  const client = new Anthropic({ apiKey: clientApiKey(config) });
+  let response: Awaited<ReturnType<typeof client.messages.create>>;
+  try {
+    response = await client.messages.create({
+      model: config.model,
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages,
+      ...(tools?.length ? { tools: toAnthropicTools(tools) } : {}),
+    });
+  } catch (err) {
+    throw new ProviderHttpError("ANTHROPIC", config.model, providerStatus(err));
+  }
 
   const content = response.content
     .filter((b) => b.type === "text")
@@ -643,34 +719,32 @@ async function callOpenAICompatible(
     );
   }
 
-  // SSRF guard for tenant-controlled URLs. Local-first providers
-  // (OLLAMA / LMSTUDIO / CUSTOM) and their default loopback URLs are
-  // the whole point of those routes, so we permit loopback + private
-  // ranges for them. Cloud providers' hardcoded SaaS URLs go through
-  // the same check defensively (in case the user overrides them) but
-  // with the strict policy — no loopback, no private network. Cloud
-  // metadata IPs are refused for every provider, no exception.
+  // SSRF guard for tenant-controlled URLs. Loopback/private networks are
+  // available only in an explicitly offline/self-hosted deployment. In SaaS,
+  // every tenant-controlled URL — including OLLAMA / LMSTUDIO / CUSTOM — uses
+  // the strict policy. Cloud metadata IPs are refused in every mode.
   const isLocalProvider = LOCAL_PROVIDERS.has(config.provider);
   // Self-hosted deployments may legitimately point CUSTOM at an internal
   // VPC LLM (e.g. on-prem vLLM behind a private subnet). The OFFLINE_MODE
   // env knob signals an air-gapped deployment, and `allowPrivateNetworks`
   // tracks that. Anyone running the SaaS production deployment has
-  // OFFLINE_MODE=false, so private ranges stay blocked there.
-  try {
-    await assertSafeExternalUrl(baseUrl, {
-      allowLoopback: isLocalProvider,
-      allowPrivateNetworks: isLocalProvider || env.OFFLINE_MODE,
-    });
-  } catch (err) {
-    if (err instanceof SsrfError) {
-      throw new Error(
-        `Refusing to call ${config.provider} at ${baseUrl}: ${err.message}. ` +
-          "Cloud-metadata, loopback, and private-network endpoints are blocked.",
-      );
+  // OFFLINE_MODE=false, so loopback and private ranges stay blocked there.
+  const allowLocalNetworks = isLocalProvider && env.OFFLINE_MODE;
+  const buildHeaders = (): Record<string, string> => {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    // Local providers (Ollama, LM Studio) often run without auth — only
+    // attach Authorization if the user supplied a key. Cloud providers
+    // require it and will return 401 when it is missing.
+    const apiKey = clientApiKey(config);
+    if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+    if (config.provider === "OPENROUTER") {
+      headers["HTTP-Referer"] = "https://braavolabs.com";
+      headers["X-Title"] = "Braavolabs";
     }
-    throw err;
-  }
-
+    return headers;
+  };
   const requestMessages = toOpenAIMessages(systemPrompt, messages);
 
   // o-series reasoning models (o1 / o3 …) reject `max_tokens` — they take
@@ -690,25 +764,22 @@ async function callOpenAICompatible(
     requestBody.tools = toOpenAITools(tools);
     requestBody.tool_choice = "auto";
   }
-
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-
-  // Local providers (Ollama, LM Studio) often run without auth — only
-  // attach Authorization if the user supplied a key. Cloud providers
-  // (OpenAI / Mistral / Groq / OpenRouter / Custom-cloud) require it
-  // and the API call will fail with 401 if missing — that's fine.
-  if (config.apiKey) {
-    headers["Authorization"] = `Bearer ${config.apiKey}`;
-  }
-
-  // OpenRouter requires additional attribution headers — referer must be
-  // the real brand domain, consistent with X-Title (D-003).
-  if (config.provider === "OPENROUTER") {
-    headers["HTTP-Referer"] = "https://braavolabs.com";
-    headers["X-Title"] = "Braavolabs";
-  }
+  const prepareRequest = () => ({
+    headers: buildHeaders(),
+  });
+  const networkPolicy = allowLocalNetworks
+    ? {
+        allowLoopback: true,
+        allowPrivateNetworks: true,
+        requireLocalDestination: true,
+        prepareRequest,
+      }
+    : {
+        allowLoopback: false,
+        allowPrivateNetworks: false,
+        requireHttps: true,
+        prepareRequest,
+      };
 
   // Local providers can be slow on the first request (model load into
   // RAM) — give them a generous timeout. Cloud providers should respond
@@ -728,14 +799,18 @@ async function callOpenAICompatible(
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      response = await fetch(`${baseUrl}/chat/completions`, {
+      response = await safeExternalFetch(`${baseUrl}/chat/completions`, {
         method: "POST",
-        headers,
         body: JSON.stringify(requestBody),
         signal: controller.signal,
-      });
+      }, networkPolicy);
     } catch (err) {
       clearTimeout(timer);
+      if (err instanceof SsrfError) {
+        throw new Error(
+          `Refusing to call ${config.provider}: destination policy rejected the request.`,
+        );
+      }
       if (err instanceof Error && err.name === "AbortError") {
         throw new Error(
           `${config.provider} timeout after ${timeoutMs / 1000}s. ` +
@@ -745,10 +820,9 @@ async function callOpenAICompatible(
         );
       }
       if (LOCAL_PROVIDERS.has(config.provider)) {
-        const e = err instanceof Error ? err.message : String(err);
         throw new Error(
-          `${config.provider} unreachable at ${baseUrl}: ${e}. ` +
-            "Verify the local server is running (e.g. `ollama serve`) and reachable from this machine.",
+          `${config.provider} local endpoint is unreachable. ` +
+            "Verify the local server is running and reachable from this machine.",
         );
       }
       throw err;
@@ -780,9 +854,9 @@ async function callOpenAICompatible(
     // deepseek-reasoner, …) — signal the caller to downgrade to
     // prompt-embedding instead of failing the run (plan §2.1).
     if (tools?.length && response.status === 400 && /tool|function/i.test(errorText)) {
-      throw new ToolsUnsupportedError(config.provider, config.model, errorText.slice(0, 300));
+      throw new ToolsUnsupportedError(config.provider, config.model);
     }
-    throw new Error(`${config.provider} API error ${response.status}: ${errorText.slice(0, 300)}`);
+    throw new ProviderHttpError(config.provider, config.model, response.status);
   }
 
   const data = await response.json() as any;
@@ -832,7 +906,7 @@ async function callGoogle(
     `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": config.apiKey },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": clientApiKey(config) },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt }] },
         contents,
@@ -845,9 +919,9 @@ async function callGoogle(
   if (!response.ok) {
     const errorText = await response.text().catch(() => "unknown error");
     if (tools?.length && response.status === 400 && /tool|function/i.test(errorText)) {
-      throw new ToolsUnsupportedError("GOOGLE", config.model, errorText.slice(0, 300));
+      throw new ToolsUnsupportedError("GOOGLE", config.model);
     }
-    throw new Error(`Google Gemini API error ${response.status}: ${errorText.slice(0, 300)}`);
+    throw new ProviderHttpError("GOOGLE", config.model, response.status);
   }
 
   const data = await response.json() as any;
@@ -978,8 +1052,9 @@ function envOfflineMode(): boolean {
 }
 
 /**
- * Load the AI config for a tenant, falling back to system defaults.
- * Returns a ready-to-use AIClientConfig with decrypted API key.
+ * Load a tenant-owned AI config. Shared process-level provider keys are never
+ * a tenant completion fallback; callers fail closed until the tenant supplies
+ * BYOK or selects a usable local provider.
  *
  * Multi-key BYOK (E2/T6): a tenant now keeps one UserAIConfig row per
  * provider; this resolves to the DEFAULT row (isDefault=true). The
@@ -996,47 +1071,38 @@ export async function getTenantAIConfig(tenantId: string): Promise<AIClientConfi
   if (aiConfig) {
     const provider = aiConfig.provider as AIProviderType;
     const isLocal = LOCAL_PROVIDERS.has(provider);
-    // Local providers don't need an API key (Ollama default = no auth).
-    // Cloud providers do; fall through to the system default if missing.
+    const baseUrl = aiConfig.baseUrl?.trim() || undefined;
+
+    if (provider === "CUSTOM" && !baseUrl) {
+      throw new Error(
+        "CUSTOM local provider requires a tenant-owned base URL. Configure it in Settings → AI Provider.",
+      );
+    }
+
+    // A stored credential is represented by a non-secret marker plus a
+    // memoized resolver. No decrypt occurs while configuration/chain objects
+    // are built; the transport invokes the resolver only after destination
+    // validation. Local providers without a key remain genuinely keyless.
     if (isLocal || aiConfig.encryptedApiKey) {
-      let apiKey = "";
-      let decryptFailed = false;
-      if (aiConfig.encryptedApiKey) {
-        try {
-          apiKey = decryptForTenant(aiConfig.encryptedApiKey, tenantId);
-        } catch (err) {
-          decryptFailed = true;
-          logger.warn({ tenantId, err }, "Failed to decrypt tenant AI key — proceeding without it (local provider) or falling back to system default");
-        }
-      }
-      // A cloud provider with a corrupted/undecryptable key cannot work —
-      // sending apiKey:"" just yields a 401 from the provider (D-002).
-      // Skip the return and fall through to the system default below.
-      // Local providers legitimately run keyless, so they keep their config.
-      if (isLocal || !decryptFailed) {
-        return {
-          provider,
-          model: aiConfig.model,
-          apiKey,
-          // Tenant-supplied custom base URL (Settings UI). Empty → adapter
-          // falls back to PROVIDER_BASE_URLS default (e.g. localhost:11434
-          // for Ollama). Trim to avoid trailing-slash double-slash issues.
-          baseUrl: aiConfig.baseUrl?.trim() || undefined,
-        };
-      }
+      const getApiKey = aiConfig.encryptedApiKey
+        ? createTenantApiKeyResolver(aiConfig.encryptedApiKey, tenantId, provider, isLocal)
+        : undefined;
+      return {
+        provider,
+        model: aiConfig.model,
+        apiKey: getApiKey ? TENANT_CREDENTIAL_MARKER : "",
+        ...(getApiKey ? { getApiKey } : {}),
+        // Tenant-supplied custom base URL (Settings UI). Empty → adapter
+        // falls back to PROVIDER_BASE_URLS default (e.g. localhost:11434
+        // for Ollama). Trim to avoid trailing-slash double-slash issues.
+        baseUrl,
+      };
     }
   }
 
-  // Fall back to system Anthropic key
-  if (!env.ANTHROPIC_API_KEY) {
-    throw new Error("No AI provider configured. Please add an API key in Settings → AI Provider.");
-  }
-
-  return {
-    provider: "ANTHROPIC",
-    model: env.CLAUDE_MODEL,
-    apiKey: env.ANTHROPIC_API_KEY,
-  };
+  throw new Error(
+    "No usable tenant-owned AI provider configured. Add a BYOK API key or configure a local provider in Settings → AI Provider.",
+  );
 }
 
 /** Encrypt and save tenant AI config. baseUrl is optional and only set

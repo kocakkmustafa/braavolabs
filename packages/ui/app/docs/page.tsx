@@ -13,14 +13,14 @@ import { DOCS_ORDERED, DOC_PILL, type DocCategory } from "./content";
 export const metadata: Metadata = {
   title: "Docs — Braavolabs",
   description:
-    "Braavolabs documentation: getting started, BYOK setup for 14 providers, mid-run steering, webhooks, external automation connections, the mobile app, and FAQ.",
-  alternates: { canonical: "https://braavolabs.com/docs" },
+    "Braavolabs documentation: getting started, BYOK and local-route setup, mid-run steering, webhooks, external automation connections, the mobile app, and FAQ.",
+  alternates: { canonical: "https://www.braavolabs.com/docs" },
   openGraph: {
     title: "Braavolabs Docs",
     description:
       "Everything you need to compose, run, and govern an autonomous AI company — getting started, BYOK, steering, webhooks and more.",
     type: "website",
-    url: "https://braavolabs.com/docs",
+    url: "https://www.braavolabs.com/docs",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }],
   },
 };
@@ -46,8 +46,8 @@ export default function DocsIndexPage() {
             <a href="/docs" className="text-sm font-semibold text-primary no-underline">Docs</a>
           </div>
           <div className="flex items-center gap-3">
-            <a href="/login" className="bv-btn bv-btn-ghost bv-btn-sm text-sm no-underline">Sign in</a>
-            <a href="/register" className="bv-btn bv-btn-primary bv-btn-sm text-sm no-underline">Start free</a>
+            <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm text-sm no-underline">Sign in</a>
+            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm text-sm no-underline">Open app</a>
           </div>
         </div>
       </nav>
@@ -66,7 +66,7 @@ export default function DocsIndexPage() {
           </h1>
           <p className="text-on-surface-variant max-w-[58ch] mx-auto">
             How to compose, run, and govern an autonomous AI company — from your
-            first run to webhooks, on-device models, and steering agents from
+            first run to webhooks, configured local model routes, and steering agents from
             your phone.
           </p>
           <div className="flex flex-wrap justify-center gap-3 mt-8">

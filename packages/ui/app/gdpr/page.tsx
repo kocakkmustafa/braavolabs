@@ -14,7 +14,7 @@ const sections = [
   },
   {
     title: "Personal Data We Process",
-    body: "Identity data (name, email, organization name), account data (subscription status, billing history), usage data (pipeline run records, audit logs, IP, session ID), and payment metadata. We never store card details — Stripe handles them.",
+    body: "Identity data (name, email, organization name), account data (subscription status, billing history), usage data (pipeline run records, audit logs, IP, session ID), and payment metadata when billing is enabled. The card-data handling boundary and records depend on the current payment provider and deployment; contact gdpr@braavolabs.com for the current details relevant to a verified request.",
   },
   {
     title: "Lawful Bases",
@@ -22,7 +22,7 @@ const sections = [
   },
   {
     title: "Cross-Border Transfers",
-    body: "Some processors are located outside the EEA: Stripe (US), SendGrid (US), HubSpot (US, optional), Google (US, optional), GitHub (US, optional). Transfers are governed by Standard Contractual Clauses (SCCs) per the European Commission's 2021 modules.",
+    body: "Some processing may involve providers or infrastructure outside your jurisdiction. The current providers, destinations, and applicable legal safeguards depend on the active deployment and are not promised here without current provider and legal evidence. Contact gdpr@braavolabs.com for the current position relevant to a verified request.",
   },
   {
     title: "Your Rights",
@@ -30,11 +30,11 @@ const sections = [
   },
   {
     title: "Retention",
-    body: "Account data is retained while your account is active. Audit logs and run history are kept for 12 months. After account deletion, financial records are retained for the period required by tax law (typically 6–10 years depending on jurisdiction).",
+    body: "Account data is retained while it is needed to provide the account. Other retention periods depend on current provider, deployment, and legal requirements and are communicated for a verified request rather than promised here as a fixed public schedule.",
   },
   {
     title: "Security",
-    body: "We use TLS 1.3 in transit, AES-256 at rest, role-based access control on production systems, and regular security reviews. Breach notification per Article 33 is delivered within 72 hours of detection.",
+    body: "Our published web proxy configuration supports TLS 1.2 and TLS 1.3 in transit. Other at-rest, production-access, security, and retention details are not promised here without current provider and deployment evidence.",
   },
   {
     title: "Data Protection Officer",
@@ -104,8 +104,8 @@ export default function GdprPage() {
             <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_back</span>
             {t("static.common.back")}
           </a>
-          <a href="/register" className="bv-btn bv-btn-primary bv-btn-sm no-underline">
-            Start free
+          <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm no-underline">
+            Open app
           </a>
         </div>
       </nav>
@@ -195,7 +195,7 @@ export default function GdprPage() {
               { key: "cookies", label: "Cookies", href: "/cookies" },
               { key: "gdpr", label: "GDPR", href: "/gdpr" },
               { key: "kvkk", label: "KVKK", href: "/kvkk" },
-              { key: "account-deletion", label: "Account deletion", href: "/account-deletion" },
+              { key: "account-deletion", label: "Account deletion", href: "/legal/account-deletion" },
             ].map((doc) => (
               <a
                 key={doc.key}

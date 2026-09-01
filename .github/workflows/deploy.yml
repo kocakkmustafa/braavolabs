@@ -1,30 +1,3 @@
-# Build api + ui Docker images on GitHub Actions runners (4-core, 16GB
-# RAM — plenty), push them to ghcr.io, then SSH to Lightsail and run
-# `docker compose pull && up -d`. The Lightsail host (1.9GB RAM) NEVER
-# builds images itself — that pattern OOM-killed the kernel multiple
-# times. The pull-only path uses ~50MB RAM during deploy.
-#
-# Triggers:
-#   • push to main           — auto-build + auto-deploy
-#   • tag v*                 — auto-build + auto-deploy + immutable version tag
-#   • workflow_dispatch      — manual fallback (env input: staging | production)
-#
-# Required GitHub repository secrets (Settings → Secrets → Actions):
-#   LIGHTSAIL_HOST           — IPv4 of the Lightsail instance (e.g. 63.180.74.27)
-#   LIGHTSAIL_USER           — SSH user (typically `ubuntu`)
-#   LIGHTSAIL_SSH_KEY        — private key content (the matching ed25519 key
-#                              authorized in ~ubuntu/.ssh/authorized_keys on
-#                              the Lightsail host). Paste the FULL contents
-#                              of ~/.ssh/id_ed25519 — including header /
-#                              footer lines.
-#
-# Optional secret:
-#   SLACK_DEPLOY_WEBHOOK     — if set, posts a deploy summary to Slack
-#
-# `GITHUB_TOKEN` is auto-provided by GitHub Actions and has packages:write
-# scope for the same repository — used to push to ghcr.io with no
-# additional configuration.
-
 name: Build & Deploy
 
 on:
@@ -34,65 +7,48 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Deployment environment"
+        description: Deployment environment
         required: true
-        default: "production"
+        default: production
         type: choice
         options:
           - production
           - staging
 
-# Cancel in-progress runs of the same branch when a newer commit lands —
-# avoids deploying an older image after a newer one's build started.
 concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: false
 
 env:
   REGISTRY: ghcr.io
-  # ghcr.io requires lowercase image paths. github.repository is
-  # `kocakkmustafa/braavolabs` already lowercase post-rename, but we
-  # toLower() defensively below in case of future case drift.
   IMAGE_PREFIX_RAW: ${{ github.repository }}
 
 jobs:
-  # ───────────────────────── Build & push ─────────────────────────
-
   build-images:
     name: Build & push (api + ui)
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-    outputs:
-      image-tag: ${{ steps.tag.outputs.tag }}
-      image-prefix: ${{ steps.tag.outputs.prefix }}
     strategy:
-      # Build the two services in parallel — independent Docker contexts.
       fail-fast: false
       matrix:
         service: [api, ui]
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Compute image tag + lowercased prefix
+      - name: Compute image tag and lowercased prefix
         id: tag
+        shell: bash
         run: |
-          # Lowercase the registry path (ghcr requirement)
-          PREFIX_LOWER=$(echo "${IMAGE_PREFIX_RAW}" | tr '[:upper:]' '[:lower:]')
-          echo "prefix=${PREFIX_LOWER}" >> "$GITHUB_OUTPUT"
-
-          # Tag policy: `vX.Y.Z` for tag pushes, `sha-XXXXXXXX` otherwise.
-          # Both styles ALSO get aliased to `latest` so compose.prod.yaml
-          # doesn't have to be edited per-deploy.
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            TAG="${GITHUB_REF#refs/tags/}"
+          set -euo pipefail
+          prefix_lower="$(printf '%s' "$IMAGE_PREFIX_RAW" | tr '[:upper:]' '[:lower:]')"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            tag="${GITHUB_REF#refs/tags/}"
           else
-            TAG="sha-${GITHUB_SHA::8}"
+            tag="sha-${GITHUB_SHA::8}"
           fi
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "Computed: prefix=${PREFIX_LOWER} tag=${TAG}"
+          printf 'prefix=%s\ntag=%s\n' "$prefix_lower" "$tag" >> "$GITHUB_OUTPUT"
 
       - name: Log in to ghcr.io
         uses: docker/login-action@v3
@@ -104,35 +60,60 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push ${{ matrix.service }} image
+      - name: Build and push api image
+        if: matrix.service == 'api'
+        id: build-api
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ENV/Dockerfile.${{ matrix.service }}
+          file: ENV/Dockerfile.api
           push: true
-          # Two tags per build — immutable for rollback, latest for the
-          # normal pull path. Same digest on both, so `pull` + `up -d`
-          # is idempotent.
           tags: |
-            ${{ env.REGISTRY }}/${{ steps.tag.outputs.prefix }}/${{ matrix.service }}:${{ steps.tag.outputs.tag }}
-            ${{ env.REGISTRY }}/${{ steps.tag.outputs.prefix }}/${{ matrix.service }}:latest
-          # GitHub Actions cache speeds re-builds dramatically on the
-          # second push — first-time cold cache build still takes ~5 min,
-          # subsequent ~90 seconds.
-          cache-from: type=gha,scope=${{ matrix.service }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
-          # The UI build needs NEXT_PUBLIC_API_URL + NEXT_PUBLIC_APP_URL
-          # baked into the static bundle. They're the same per-environment
-          # so we pin them as build-args here. (Different from runtime
-          # env, which compose.prod.yaml supplies.)
+            ${{ env.REGISTRY }}/${{ steps.tag.outputs.prefix }}/api:${{ steps.tag.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ steps.tag.outputs.prefix }}/api:latest
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Build and push ui image
+        if: matrix.service == 'ui'
+        id: build-ui
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ENV/Dockerfile.ui
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.tag.outputs.prefix }}/ui:${{ steps.tag.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ steps.tag.outputs.prefix }}/ui:latest
+          cache-from: type=gha,scope=ui
+          cache-to: type=gha,mode=max,scope=ui
           build-args: |
-            NEXT_PUBLIC_API_URL=https://braavolabs.com/api/v1
+            NEXT_PUBLIC_API_URL=https://api.braavolabs.com/api/v1
             NEXT_PUBLIC_APP_URL=https://braavolabs.com
             NEXT_PUBLIC_SENTRY_DSN=${{ secrets.UI_SENTRY_DSN }}
             NEXT_PUBLIC_SENTRY_RELEASE=${{ github.sha }}
-            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
+          secrets: |
+            sentry_auth_token=${{ secrets.SENTRY_AUTH_TOKEN }}
 
-  # ───────────────────────── Deploy to Lightsail ─────────────────────────
+      - name: Record immutable service digest
+        shell: bash
+        env:
+          API_DIGEST: ${{ steps.build-api.outputs.digest }}
+          UI_DIGEST: ${{ steps.build-ui.outputs.digest }}
+        run: |
+          set -euo pipefail
+          digest="${API_DIGEST:-${UI_DIGEST:-}}"
+          test -n "$digest"
+          test "${digest#sha256:}" != "$digest"
+          printf '%s\n' "$digest" > "$RUNNER_TEMP/${{ matrix.service }}.digest"
+
+      - name: Upload immutable service digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-digest-${{ matrix.service }}
+          path: ${{ runner.temp }}/${{ matrix.service }}.digest
+          if-no-files-found: error
+          retention-days: 1
 
   deploy:
     name: Deploy to ${{ github.event.inputs.environment || 'production' }}
@@ -140,271 +121,61 @@ jobs:
     needs: build-images
     environment: ${{ github.event.inputs.environment || 'production' }}
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          # deploy-platform.sh verifies and diffs the previous-good commit.
+          fetch-depth: 0
 
-      - name: Set up SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail_key
-          chmod 600 ~/.ssh/lightsail_key
-          # Pin the host key to its first observed value to defeat MITM —
-          # ssh-keyscan first, then trust-on-first-use into known_hosts.
-          ssh-keyscan -H "${{ secrets.LIGHTSAIL_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Download immutable image digests
+        uses: actions/download-artifact@v4
+        with:
+          pattern: image-digest-*
+          path: ${{ runner.temp }}/image-digests
+          merge-multiple: false
 
-      - name: Sync compose + migrations to server (no source code)
-        # The server only needs ENV/compose.prod.yaml + the Prisma
-        # migration files (so we can run migrate against the new DB
-        # schema). Source code lives in the image, so we explicitly
-        # exclude packages/*/src + packages/ui/app etc.
-        run: |
-          rsync -az \
-            --include="ENV/" \
-            --include="ENV/**" \
-            --include="packages/" \
-            --include="packages/db/" \
-            --include="packages/db/prisma/" \
-            --include="packages/db/prisma/**" \
-            --exclude="*" \
-            -e "ssh -i ~/.ssh/lightsail_key -o StrictHostKeyChecking=no" \
-            ./ "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}:/tmp/braavolabs-deploy/"
-
-          ssh -i ~/.ssh/lightsail_key -o StrictHostKeyChecking=no \
-              "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" '
-            set -e
-            sudo rsync -a \
-              --include="ENV/" \
-              --include="ENV/**" \
-              --include="packages/db/" \
-              --include="packages/db/prisma/" \
-              --include="packages/db/prisma/**" \
-              --exclude="*" \
-              /tmp/braavolabs-deploy/ /opt/braavolabs/app/
-            sudo rm -rf /tmp/braavolabs-deploy
-          '
-
-      - name: Pull new images & restart containers
-        run: |
-          ssh -i ~/.ssh/lightsail_key -o StrictHostKeyChecking=no \
-              "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" '
-            set -e
-            cd /opt/braavolabs/app/ENV
-
-            # ── ROLLBACK RECORD ────────────────────────────────────────────
-            # Capture the image ref + local image id of the CURRENTLY running
-            # containers BEFORE we pull/replace them. If the health gate
-            # (next step) fails, this is the anchor to revert to: map the
-            # image id / RepoDigest below back to its immutable sha-XXXXXXXX
-            # ghcr tag and pin IMAGE_TAG to it in .env.
-            echo "=== ROLLBACK RECORD — currently running images (revert target) ==="
-            for c in aicos-api aicos-ui; do
-              img=$(sudo docker inspect --format "{{.Config.Image}}" "$c" 2>/dev/null || echo "none")
-              id=$(sudo docker inspect --format "{{.Image}}" "$c" 2>/dev/null || echo "none")
-              digest=$(sudo docker inspect --format "{{range .RepoDigests}}{{.}} {{end}}" "$c" 2>/dev/null || echo "")
-              echo "  $c: image=$img id=$id digest=$digest"
-            done
-            echo "=================================================================="
-
-            # Log in to ghcr.io on the host so it can pull private images.
-            # The packages are public for now (set in repo Packages
-            # settings), so this is a no-op — but kept for future
-            # private-package support.
-            # echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-
-            echo "=== Pulling new images ==="
-            sudo docker compose --env-file=/opt/braavolabs/app/.env -f compose.prod.yaml pull api ui
-
-            echo ""
-            echo "=== Restart api + ui (postgres + redis untouched) ==="
-            sudo docker compose --env-file=/opt/braavolabs/app/.env -f compose.prod.yaml up -d api ui
-
-            echo ""
-            echo "=== Ensure postgres-backup is running (idempotent — up -d on an already-running service is a no-op) ==="
-            # BR-P0-004 finding: this service (daily pg_dump + optional S3
-            # sync, DB-NEW-004) has been fully written since compose.prod.yaml
-            # was added but was NEVER actually started — it lives behind the
-            # `backup` compose profile, and every prior deploy only ever
-            # passed `up -d api ui`, which never activates a profiled
-            # service. `restart: unless-stopped` means this only needs
-            # activating once to persist across host reboots, but including
-            # it in the deploy script (rather than a one-off manual command)
-            # makes it self-healing if the container is ever removed.
-            sudo docker compose --env-file=/opt/braavolabs/app/.env -f compose.prod.yaml --profile backup up -d postgres-backup
-
-            echo ""
-            echo "=== Wait 20s for healthchecks ==="
-            sleep 20
-
-            echo ""
-            echo "=== Container status ==="
-            sudo docker compose --env-file=/opt/braavolabs/app/.env -f compose.prod.yaml ps --format "{{.Name}}|{{.State}}|{{.Status}}"
-          '
-
-      - name: Health gate (post-restart)
-        # Runs immediately after the container restart. Probes the API +
-        # frontend from OUTSIDE (the real user path) with a ~90s retry
-        # budget. On failure it dumps the last 60 api log lines and prints an
-        # explicit ROLLBACK instruction, then fails the job.
-        #
-        # It does NOT auto-rollback — by design. Automatically reverting a
-        # deploy that may be mid-migration is riskier than a red pipeline
-        # plus a recorded previous tag; a human (or the deploy loop) makes
-        # the revert call using the ROLLBACK RECORD printed in the previous
-        # step. This gate catches the I-001 class (new image boots but the
-        # container is unhealthy / crash-looping) before the pipeline
-        # reports success.
-        #
-        # API host: primary is api.braavolabs.com (nginx serves it directly
-        # → :8080, see ENV/nginx/braavolabs.conf). We also accept the apex
-        # path braavolabs.com/api/v1/health so a not-yet-provisioned api
-        # subdomain (DNS/cert) cannot false-fail an otherwise healthy deploy.
-        run: |
-          set -uo pipefail
-
-          API_PRIMARY="https://api.braavolabs.com/api/v1/health"
-          API_FALLBACK="https://braavolabs.com/api/v1/health"
-          FRONTEND="https://braavolabs.com"
-
-          echo "=== Health gate — ~90s budget (18 × 5s) ==="
-          api_ok=0
-          front_ok=0
-          for i in $(seq 1 18); do
-            if [ "$api_ok" != "1" ]; then
-              if curl -fsS --max-time 8 "$API_PRIMARY" 2>/dev/null | grep -q '"status":"ok"'; then
-                echo "✅ API health ok via $API_PRIMARY (attempt $i)"
-                api_ok=1
-              elif curl -fsS --max-time 8 "$API_FALLBACK" 2>/dev/null | grep -q '"status":"ok"'; then
-                echo "✅ API health ok via $API_FALLBACK (attempt $i)"
-                api_ok=1
-              fi
-            fi
-            if [ "$front_ok" != "1" ]; then
-              code=$(curl -sS --max-time 8 -o /dev/null -w "%{http_code}" "$FRONTEND" 2>/dev/null || echo "000")
-              if [ "$code" = "200" ]; then
-                echo "✅ Frontend ok ($FRONTEND → 200, attempt $i)"
-                front_ok=1
-              fi
-            fi
-            if [ "$api_ok" = "1" ] && [ "$front_ok" = "1" ]; then
-              echo "✅ Health gate PASSED"
-              exit 0
-            fi
-            echo "  attempt $i — api_ok=$api_ok front_ok=$front_ok — waiting 5s..."
-            sleep 5
-          done
-
-          echo ""
-          echo "❌❌❌ HEALTH GATE FAILED (api_ok=$api_ok front_ok=$front_ok) ❌❌❌"
-          echo "=== aicos-api logs (last 60 lines) for diagnosis ==="
-          ssh -i ~/.ssh/lightsail_key -o StrictHostKeyChecking=no \
-              "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" \
-              'sudo docker logs aicos-api --tail 60 2>&1 || echo "(could not read aicos-api logs)"'
-          echo ""
-          echo "================================================================"
-          echo " ROLLBACK GEREKLİ — önceki sha-tag'e dön / ROLLBACK REQUIRED"
-          echo "----------------------------------------------------------------"
-          echo " The just-deployed image is NOT serving healthy traffic."
-          echo " This job did NOT auto-rollback (intentional). To revert:"
-          echo "   1. Read the 'ROLLBACK RECORD' block in the 'Pull new images"
-          echo "      & restart containers' step log above and find the"
-          echo "      previous good sha-XXXXXXXX ghcr tag for the image id."
-          echo "   2. On the Lightsail host:"
-          echo "        cd /opt/braavolabs/app/ENV"
-          echo "        # edit /opt/braavolabs/app/.env → IMAGE_TAG=sha-XXXXXXXX"
-          echo "        sudo docker compose --env-file=/opt/braavolabs/app/.env -f compose.prod.yaml pull api ui"
-          echo "        sudo docker compose --env-file=/opt/braavolabs/app/.env -f compose.prod.yaml up -d api ui"
-          echo "================================================================"
-          exit 1
-
-      - name: Apply Prisma migrations
-        # Run prisma migrate deploy against the new schema. Idempotent —
-        # already-applied migrations are no-ops.
-        run: |
-          ssh -i ~/.ssh/lightsail_key -o StrictHostKeyChecking=no \
-              "${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}" '
-            set -e
-            cd /opt/braavolabs/app
-
-            # Self-heal + migrate. Single chained shell command so the
-            # nested SSH-→-bash-→-docker quoting stays flat: any failed
-            # migration on file (CONCURRENTLY-in-tx etc.) gets marked
-            # rolled-back first; the deploy then re-applies cleanly.
-            # `|| true` after resolve so a no-op (migration is not in
-            # failed state) does not abort the chain.
-            #
-            # RLS-real STAGE 2: migrate as the schema OWNER. Once the runtime
-            # DATABASE_URL is the non-superuser aicos_app role, it cannot ALTER
-            # the schema, so the migrate command uses MIGRATE_DATABASE_URL (the
-            # owner URL from compose). Falls back to DATABASE_URL when
-            # MIGRATE_DATABASE_URL is absent → byte-for-byte todays behavior
-            # before STAGE 2. Both vars live inside the container, so no host
-            # .env sourcing / URL-quoting on the SSH side.
-            echo "=== self-heal failed migrations + migrate deploy (owner role) ==="
-            sudo docker exec aicos-api sh -c "cd /app/packages/db && export DATABASE_URL=\"\${MIGRATE_DATABASE_URL:-\$DATABASE_URL}\" && (npx prisma migrate resolve --rolled-back 20260512_activity_log_composite_index || true) && (npx prisma migrate deploy || true)" || echo "(migration step skipped)"
-
-            # Restart the API container so any boot-time seed code
-            # (seedBenchSuites etc.) runs against the freshly-migrated
-            # schema. The "Pull new images & restart" step before
-            # migrations starts the API with the old schema, so any
-            # seed call that queries a new table no-ops or 500s.
-            # `docker restart` keeps the existing volume mounts and is
-            # safe for the healthcheck loop.
-            echo "=== restart API to run post-migration seeds ==="
-            sudo docker restart aicos-api || echo "(api restart skipped)"
-            sleep 10
-            sudo docker ps --filter "name=aicos-api" --format "{{.Names}}|{{.Status}}"
-          '
-
-      - name: Verify production health
-        run: |
-          set -e
-          echo "=== Public health check ==="
-          for i in 1 2 3 4 5; do
-            if curl -sS --max-time 10 https://braavolabs.com/api/v1/health | grep -q "\"status\":\"ok\""; then
-              echo "✅ /api/v1/health → ok"
-              break
-            else
-              echo "  attempt $i — not ready yet, waiting 10s..."
-              sleep 10
-              if [ $i -eq 5 ]; then
-                echo "❌ Health check FAILED after 5 attempts"
-                exit 1
-              fi
-            fi
-          done
-
-          echo ""
-          echo "=== Public pages ==="
-          for url in / /pricing /features /about /privacy; do
-            code=$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" "https://braavolabs.com${url}")
-            echo "  ${code}  https://braavolabs.com${url}"
-            if [ "$code" != "200" ]; then
-              echo "❌ Non-200 response on $url"
-              exit 1
-            fi
-          done
-
-      - name: Slack deploy summary (optional)
-        if: success() && env.SLACK_DEPLOY_WEBHOOK != ''
+      - name: Execute fail-closed release orchestration
+        shell: bash
         env:
-          SLACK_DEPLOY_WEBHOOK: ${{ secrets.SLACK_DEPLOY_WEBHOOK }}
+          DEPLOY_HOST: ${{ secrets.LIGHTSAIL_HOST }}
+          DEPLOY_PORT: "22"
+          DEPLOY_USER: ${{ secrets.LIGHTSAIL_USER }}
+          LIGHTSAIL_SSH_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          LIGHTSAIL_KNOWN_HOSTS: ${{ secrets.LIGHTSAIL_KNOWN_HOSTS }}
+          SSH_HOST_KEY_SHA256: ${{ secrets.LIGHTSAIL_HOST_KEY_SHA256 }}
+          PREVIOUS_RELEASE_COMMIT: ${{ vars.BRAAVOLABS_PREVIOUS_GOOD_COMMIT }}
+          RELEASE_COMMIT: ${{ github.sha }}
+          REMOTE_APP_ROOT: /opt/braavolabs
+          IMAGE_PREFIX: ghcr.io/${{ github.repository }}
         run: |
-          curl -sS -X POST "${SLACK_DEPLOY_WEBHOOK}" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"text\": \"✅ Braavolabs deploy ${{ needs.build-images.outputs.image-tag }} → production\",
-              \"blocks\": [{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*✅ Deploy succeeded*\\n• Image: \`${{ needs.build-images.outputs.image-tag }}\`\\n• Commit: <https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>\\n• Triggered by: ${{ github.actor }}\"}}]
-            }"
-
-      - name: Slack deploy failure (optional)
-        if: failure() && env.SLACK_DEPLOY_WEBHOOK != ''
-        env:
-          SLACK_DEPLOY_WEBHOOK: ${{ secrets.SLACK_DEPLOY_WEBHOOK }}
-        run: |
-          curl -sS -X POST "${SLACK_DEPLOY_WEBHOOK}" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"text\": \"❌ Braavolabs deploy FAILED\",
-              \"blocks\": [{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*❌ Deploy failed*\\n• Run: <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|view logs>\\n• Commit: <https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>\"}}]
-            }"
+          set -euo pipefail
+          umask 077
+          identity_file="$RUNNER_TEMP/lightsail-identity"
+          known_hosts_file="$RUNNER_TEMP/lightsail-known-hosts"
+          cleanup() {
+            primary=$?
+            set +e
+            rm -f -- "$identity_file" "$known_hosts_file"
+            cleanup_status=$?
+            set -e
+            if test "$primary" -ne 0; then exit "$primary"; fi
+            if test "$cleanup_status" -ne 0; then exit 66; fi
+            exit 0
+          }
+          signal_cleanup() { trap - HUP INT TERM; exit 66; }
+          trap cleanup EXIT
+          trap signal_cleanup HUP INT TERM
+          printf '%s\n' "$LIGHTSAIL_SSH_KEY" > "$identity_file"
+          printf '%s\n' "$LIGHTSAIL_KNOWN_HOSTS" > "$known_hosts_file"
+          chmod 0600 "$identity_file" "$known_hosts_file"
+          api_digest="$(cat "$RUNNER_TEMP/image-digests/image-digest-api/api.digest")"
+          ui_digest="$(cat "$RUNNER_TEMP/image-digests/image-digest-ui/ui.digest")"
+          test "${api_digest#sha256:}" != "$api_digest"
+          test "${ui_digest#sha256:}" != "$ui_digest"
+          export SSH_IDENTITY_FILE="$identity_file"
+          export SSH_KNOWN_HOSTS_FILE="$known_hosts_file"
+          export API_IMAGE_REF="${IMAGE_PREFIX,,}/api@${api_digest}"
+          export UI_IMAGE_REF="${IMAGE_PREFIX,,}/ui@${ui_digest}"
+          ./scripts/deploy-platform.sh

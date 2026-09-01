@@ -8,8 +8,7 @@
  * getTenantAIConfig returns the system config before the trial path is
  * ever consulted (ai-client.ts system fallback beats claude.ts's trial
  * catch — plan A2). After the T7 chain re-ordering they pass:
- *   BYOK (default → fallbackOrder) → trial Groq (counted) → system
- *   Anthropic ONLY on opt-in (allowSystemFallback).
+ *   BYOK/local default → tenant-owned fallbackOrder rows only.
  *
  * Mocked: prisma, encryption, trial-llm, chatCompletion (no network).
  * REAL: provider-chain (chain building, classification, circuit breaker),
@@ -215,32 +214,22 @@ function dialedConfigs(): AIClientConfig[] {
 // D-009 — the chain re-ordering (KIRMIZI first: these fail pre-T7)
 // ─────────────────────────────────────────────────────────────────────────
 
-describe("D-009 — BYOK-less FREE tenant must NEVER burn the uncounted system key", () => {
-  it("routes through counted trial-Groq (BYOK → trial → opt-in system order)", async () => {
+describe("D-009 — BYOK-less tenant must NEVER burn a shared wallet", () => {
+  it("fails closed without tenant-owned config even when a trial mock is available", async () => {
     seedTenantRows([], "FREE"); // no BYOK rows
     tryConsumeTrialRunMock.mockResolvedValue({
       config: { provider: "GROQ", model: "llama-3.3-70b-versatile", apiKey: TRIAL_KEY },
       remainingBefore: 3,
       remainingAfter: 2,
     });
-    chatCompletionMock.mockResolvedValue(completion({ content: "trial answer" }));
+    await expect(
+      runAgentLoop({ systemPrompt: "sys", userMessage: "go", toolNames: ["get_time"], tenantId: TENANT, govContext: GOV }),
+    ).rejects.toThrow(/No AI provider configured/);
 
-    const result = await runAgentLoop({
-      systemPrompt: "sys",
-      userMessage: "go",
-      toolNames: ["get_time"],
-      tenantId: TENANT,
-      govContext: GOV,
-    });
-
-    // The run went to the TRIAL Groq key — counted — not the system wallet.
-    expect(dialedConfigs()[0]).toMatchObject({ provider: "GROQ", apiKey: TRIAL_KEY });
-    expect(dialedConfigs().every((c) => c.apiKey !== SYSTEM_KEY)).toBe(true);
-    // Trial counter committed after success (run-based counter), together
-    // with the run's real cost — settles into the shared $0.30 hosted-trial
-    // bucket (trial-llm.ts's cost-cap section).
-    expect(commitTrialRunMock).toHaveBeenCalledExactlyOnceWith(TENANT, expect.any(Number));
-    expect(result.finalContent).toBe("trial answer");
+    expect(tryConsumeTrialRunMock).not.toHaveBeenCalled();
+    expect(commitTrialRunMock).not.toHaveBeenCalled();
+    expect(refundTrialReservationMock).not.toHaveBeenCalled();
+    expect(chatCompletionMock).not.toHaveBeenCalled();
   });
 
   it("trial exhausted → explicit error, NOT a silent fall-through to the system key", async () => {
@@ -262,15 +251,13 @@ describe("D-009 — BYOK-less FREE tenant must NEVER burn the uncounted system k
     expect(commitTrialRunMock).not.toHaveBeenCalled();
   });
 
-  it("trial counter is NOT committed when the trial run fails (slot refunded)", async () => {
+  it("does not reserve, commit, or refund a trial slot when no tenant provider exists", async () => {
     seedTenantRows([], "FREE");
     tryConsumeTrialRunMock.mockResolvedValue({
       config: { provider: "GROQ", model: "llama-3.3-70b-versatile", apiKey: TRIAL_KEY },
       remainingBefore: 1,
       remainingAfter: 0,
     });
-    chatCompletionMock.mockRejectedValue(new Error("GROQ API error 400: bad request"));
-
     await expect(
       runAgentLoop({
         systemPrompt: "sys",
@@ -279,30 +266,27 @@ describe("D-009 — BYOK-less FREE tenant must NEVER burn the uncounted system k
         tenantId: TENANT,
         govContext: GOV,
       }),
-    ).rejects.toThrow(/400/);
+    ).rejects.toThrow(/No AI provider configured/);
 
+    expect(tryConsumeTrialRunMock).not.toHaveBeenCalled();
     expect(commitTrialRunMock).not.toHaveBeenCalled();
-    expect(dialedConfigs().every((c) => c.apiKey !== SYSTEM_KEY)).toBe(true);
+    expect(refundTrialReservationMock).not.toHaveBeenCalled();
+    expect(chatCompletionMock).not.toHaveBeenCalled();
   });
 
-  it("BYOK-less PAID tenant keeps the system entry path (deliberate: the D-009 bleed was FREE tenants)", async () => {
+  it("BYOK-less paid tenant also fails closed instead of using the system key", async () => {
     seedTenantRows([], "PRO");
     chatCompletionMock.mockResolvedValue(
       completion({ content: "paid", provider: "ANTHROPIC", model: "claude-sonnet-4-5-20250929" }),
     );
 
-    const result = await runAgentLoop({
-      systemPrompt: "sys",
-      userMessage: "go",
-      toolNames: [],
-      tenantId: TENANT,
-      govContext: GOV,
-    });
+    await expect(
+      runAgentLoop({ systemPrompt: "sys", userMessage: "go", toolNames: [], tenantId: TENANT, govContext: GOV }),
+    ).rejects.toThrow(/No AI provider configured/);
 
-    expect(dialedConfigs()[0]).toMatchObject({ provider: "ANTHROPIC", apiKey: SYSTEM_KEY });
-    // Paid tenants never draw from the trial pool.
+    expect(chatCompletionMock).not.toHaveBeenCalled();
+    expect(tryConsumeTrialRunMock).not.toHaveBeenCalled();
     expect(commitTrialRunMock).not.toHaveBeenCalled();
-    expect(result.finalContent).toBe("paid");
   });
 });
 
@@ -455,7 +439,7 @@ describe("turn-boundary failover — canonical transcript moves to the next link
 // Privacy rule (plan §2.2 — binding): only the tenant's OWN providers
 // ─────────────────────────────────────────────────────────────────────────
 
-describe("privacy rule — allowSystemFallback gates the trial/system tail", () => {
+describe("privacy rule — historical fallback flags cannot add shared-wallet links", () => {
   it("allowSystemFallback=false → chain exhaustion is an ERROR; the system key is NEVER dialed", async () => {
     seedTenantRows([
       { provider: "DEEPSEEK", model: "deepseek-chat", apiKey: "sk-ds", isDefault: true },
@@ -522,7 +506,7 @@ describe("privacy rule — allowSystemFallback gates the trial/system tail", () 
     expect(thrown.message).toMatch(/400/);
   });
 
-  it("allowSystemFallback=true → the system Anthropic link takes over after the tenant chain dies", async () => {
+  it("allowSystemFallback=true still stops after the tenant-owned chain dies", async () => {
     seedTenantRows(
       [
         {
@@ -540,24 +524,16 @@ describe("privacy rule — allowSystemFallback gates the trial/system tail", () 
       return completion({ content: "system served", provider: "ANTHROPIC", model: "claude-sonnet-4-5-20250929" });
     });
 
-    const result = await runAgentLoop({
-      systemPrompt: "sys",
-      userMessage: "go",
-      toolNames: [],
-      tenantId: TENANT,
-      govContext: GOV,
-    });
+    await expect(
+      runAgentLoop({ systemPrompt: "sys", userMessage: "go", toolNames: [], tenantId: TENANT, govContext: GOV }),
+    ).rejects.toThrow(/401/);
 
-    expect(result.finalContent).toBe("system served");
-    expect(result.servedBy).toBe("system");
-    expect(dialedConfigs().map((c) => c.provider)).toEqual(["DEEPSEEK", "ANTHROPIC"]);
-    expect(publishRunEventMock).toHaveBeenCalledWith(
-      GOV.runId,
-      expect.objectContaining({ type: "PROVIDER_FAILOVER", from: "DEEPSEEK", to: "ANTHROPIC" }),
-    );
+    expect(dialedConfigs().map((c) => c.provider)).toEqual(["DEEPSEEK"]);
+    expect(dialedConfigs().every((c) => c.apiKey !== SYSTEM_KEY)).toBe(true);
+    expect(tryConsumeTrialRunMock).not.toHaveBeenCalled();
   });
 
-  it("a failed-over trial link does NOT burn the trial slot (counter stays refunded)", async () => {
+  it("does not append a trial/system tail or touch trial accounting after BYOK failure", async () => {
     seedTenantRows(
       [
         {
@@ -582,25 +558,17 @@ describe("privacy rule — allowSystemFallback gates the trial/system tail", () 
       throw new Error(`${cfg.provider} API error 401: invalid api key`);
     });
 
-    const result = await runAgentLoop({
-      systemPrompt: "sys",
-      userMessage: "go",
-      toolNames: [],
-      tenantId: TENANT,
-      govContext: GOV,
-    });
+    await expect(
+      runAgentLoop({ systemPrompt: "sys", userMessage: "go", toolNames: [], tenantId: TENANT, govContext: GOV }),
+    ).rejects.toThrow(/401/);
 
-    // Chain walked BYOK → trial → system; the trial link did NOT serve the
-    // run to completion, so the run-based counter is untouched AND the
-    // atomic hosted-trial-cost reservation buildTenantProviderChain made
-    // for it is refunded, not stranded (R2 fix).
-    expect(dialedConfigs().map((c) => c.provider)).toEqual(["DEEPSEEK", "GROQ", "ANTHROPIC"]);
-    expect(result.servedBy).toBe("system");
+    expect(dialedConfigs().map((c) => c.provider)).toEqual(["DEEPSEEK"]);
+    expect(tryConsumeTrialRunMock).not.toHaveBeenCalled();
     expect(commitTrialRunMock).not.toHaveBeenCalled();
-    expect(refundTrialReservationMock).toHaveBeenCalledWith(TENANT);
+    expect(refundTrialReservationMock).not.toHaveBeenCalled();
   });
 
-  it("R2 FIX: a healthy BYOK head with allowSystemFallback=true never even dials the trial tail, but the reservation buildTenantProviderChain made for it is still refunded, not stranded", async () => {
+  it("a healthy BYOK head ignores historical fallback flags without touching trial accounting", async () => {
     seedTenantRows(
       [
         {
@@ -632,7 +600,8 @@ describe("privacy rule — allowSystemFallback gates the trial/system tail", () 
     expect(dialedConfigs().map((c) => c.provider)).toEqual(["DEEPSEEK"]);
     expect(result.servedBy).toBe("byok-default");
     expect(commitTrialRunMock).not.toHaveBeenCalled();
-    expect(refundTrialReservationMock).toHaveBeenCalledWith(TENANT);
+    expect(tryConsumeTrialRunMock).not.toHaveBeenCalled();
+    expect(refundTrialReservationMock).not.toHaveBeenCalled();
   });
 });
 

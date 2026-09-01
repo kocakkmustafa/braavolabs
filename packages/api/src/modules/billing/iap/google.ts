@@ -25,6 +25,8 @@ import { AppError } from "../../../middleware/error";
 import { env } from "../../../config/env";
 import { logger } from "../../../lib/logger";
 import type { VerifiedReceipt } from "./apple";
+import crypto from "node:crypto";
+import { getIapProduct } from "./catalog";
 
 /**
  * FINDINGS C1 — verify the OIDC bearer token Google Pub/Sub attaches to
@@ -35,8 +37,20 @@ import type { VerifiedReceipt } from "./apple";
  */
 let pubsubOidcClient: OAuth2Client | null = null;
 
+export interface PubSubOidcVerifier {
+  verifyIdToken(options: { idToken: string; audience: string }): Promise<{
+    getPayload(): { email?: string; email_verified?: boolean } | undefined;
+  }>;
+}
+
+function getPubSubOidcVerifier(): PubSubOidcVerifier {
+  pubsubOidcClient ??= new OAuth2Client();
+  return pubsubOidcClient;
+}
+
 export async function verifyPubSubPushToken(
   authHeader: string | undefined,
+  verifier?: PubSubOidcVerifier,
 ): Promise<{ ok: boolean; reason?: string }> {
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return { ok: false, reason: "missing-bearer-token" };
@@ -44,24 +58,26 @@ export async function verifyPubSubPushToken(
   const token = authHeader.slice(7).trim();
   if (!token) return { ok: false, reason: "empty-bearer-token" };
 
-  pubsubOidcClient ??= new OAuth2Client();
+  const audience = env.GOOGLE_PUBSUB_AUDIENCE;
+  const serviceAccountEmail = env.GOOGLE_PUBSUB_SA_EMAIL;
+  if (!audience || !serviceAccountEmail) {
+    return { ok: false, reason: "workload-identity-not-configured" };
+  }
+
   try {
-    const ticket = await pubsubOidcClient.verifyIdToken({
+    const ticket = await (verifier ?? getPubSubOidcVerifier()).verifyIdToken({
       idToken: token,
-      // When the audience is configured, enforce it; otherwise Google's
-      // library still validates the signature + expiry against Google's
-      // public certs (the floor that defeats forged tokens).
-      audience: env.GOOGLE_PUBSUB_AUDIENCE || undefined,
+      // google-auth-library validates issuer, signature, expiry and the exact
+      // configured audience before returning a payload.
+      audience,
     });
     const payload = ticket.getPayload();
     if (!payload) return { ok: false, reason: "no-payload" };
-    if (env.GOOGLE_PUBSUB_SA_EMAIL) {
-      if (payload.email !== env.GOOGLE_PUBSUB_SA_EMAIL) return { ok: false, reason: "email-mismatch" };
-      if (payload.email_verified !== true) return { ok: false, reason: "email-unverified" };
-    }
+    if (payload.email !== serviceAccountEmail) return { ok: false, reason: "email-mismatch" };
+    if (payload.email_verified !== true) return { ok: false, reason: "email-unverified" };
     return { ok: true };
   } catch (err) {
-    return { ok: false, reason: err instanceof Error ? err.message : "verify-failed" };
+    return { ok: false, reason: "token-verification-failed" };
   }
 }
 
@@ -85,6 +101,20 @@ interface GoogleSubscriptionV2 {
 }
 
 const GOOGLE_API_BASE = "https://androidpublisher.googleapis.com/androidpublisher/v3";
+const MAX_GOOGLE_REPLACEMENT_HOPS = 8;
+
+export type VerifiedGoogleReceipt = VerifiedReceipt & {
+  /** Digest-only identities for every record verified in the replacement chain. */
+  googlePurchaseAliases: string[];
+  /** Digest of the oldest verified token in the bounded chain. */
+  googleCanonicalRootIdentity: string;
+  /** The current receipt may be acknowledged only after ownership commits. */
+  googleAcknowledgementPending: boolean;
+};
+
+function googlePurchaseIdentity(token: string): string {
+  return `google:${crypto.createHash("sha256").update(token, "utf8").digest("hex")}`;
+}
 
 /**
  * Cache the JWT auth client across requests — instantiating a new one
@@ -141,20 +171,27 @@ async function callGoogleApi(
   const auth = getAuth();
   const accessToken = await auth.getAccessToken();
   if (!accessToken) throw new AppError(503, "Could not obtain Google API access token");
-  return fetch(`${GOOGLE_API_BASE}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-  });
+  try {
+    return await fetch(`${GOOGLE_API_BASE}${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        ...(init?.headers ?? {}),
+      },
+    });
+  } catch {
+    // Native fetch errors commonly include the complete URL. That URL embeds
+    // the purchase token, so replace it at this boundary rather than letting a
+    // caller log the raw cause.
+    throw new AppError(502, "Google subscription service is unavailable");
+  }
 }
 
 export async function verifyGoogleReceipt(
   purchaseToken: string,
   productId: string,
-): Promise<VerifiedReceipt> {
+): Promise<VerifiedGoogleReceipt> {
   if (!env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON || !env.GOOGLE_PLAY_PACKAGE_NAME) {
     throw new AppError(
       503,
@@ -162,59 +199,106 @@ export async function verifyGoogleReceipt(
     );
   }
 
-  const path = `/applications/${encodeURIComponent(env.GOOGLE_PLAY_PACKAGE_NAME)}/purchases/subscriptionsv2/tokens/${encodeURIComponent(purchaseToken)}`;
-  const res = await callGoogleApi(path);
+  const aliases: string[] = [];
+  const seen = new Set<string>();
+  let token = purchaseToken;
+  let currentAuthority: {
+    status: VerifiedReceipt["status"];
+    startedAt: Date;
+    expiresAt: Date;
+    autoRenew: boolean;
+    acknowledgementPending: boolean;
+  } | null = null;
 
-  if (res.status === 410) {
-    // Token has been replaced by a renewal — Play wants us to follow
-    // linkedPurchaseToken on the previous record. Surface as expired
-    // for now; the upsert keys on originalTransactionId so a separate
-    // /verify call with the new token will heal the row.
-    throw new AppError(410, "Purchase token has been superseded by a renewal");
+  for (let depth = 0; depth < MAX_GOOGLE_REPLACEMENT_HOPS; depth += 1) {
+    if (!token || token.length > 40_000 || seen.has(token)) {
+      throw new AppError(400, "Google purchase replacement chain is invalid");
+    }
+    seen.add(token);
+
+    const path = `/applications/${encodeURIComponent(env.GOOGLE_PLAY_PACKAGE_NAME)}/purchases/subscriptionsv2/tokens/${encodeURIComponent(token)}`;
+    const res = await callGoogleApi(path);
+    if (!res.ok) {
+      await res.text().catch(() => "");
+      logger.error({ status: res.status }, "Google subscription chain lookup failed");
+      if (res.status === 404 || res.status === 410) {
+        throw new AppError(400, "Google purchase replacement chain could not be verified");
+      }
+      throw new AppError(502, `Google subscription lookup failed: ${res.status}`);
+    }
+
+    const sub = (await res.json()) as GoogleSubscriptionV2;
+    const item = sub.lineItems?.[0];
+    if (!item) throw new AppError(400, "Google subscription chain has no line items");
+
+    if (depth === 0) {
+      if (item.productId !== productId) {
+        throw new AppError(
+          400,
+          `Receipt productId (${item.productId}) does not match requested productId (${productId})`,
+        );
+      }
+      const expiresAt = new Date(item.expiryTime);
+      currentAuthority = {
+        status: mapGoogleStatus(sub.subscriptionState, expiresAt),
+        startedAt: sub.startTime ? new Date(sub.startTime) : new Date(),
+        expiresAt,
+        autoRenew: !!item.autoRenewingPlan?.autoRenewEnabled,
+        acknowledgementPending:
+          sub.acknowledgementState === "ACKNOWLEDGEMENT_STATE_PENDING",
+      };
+    } else if (!getIapProduct(item.productId)) {
+      throw new AppError(400, "Google purchase replacement chain contains an unknown product");
+    }
+
+    aliases.push(googlePurchaseIdentity(token));
+    const previousToken = sub.linkedPurchaseToken;
+    if (previousToken === undefined) break;
+    if (!previousToken || previousToken.length > 40_000 || seen.has(previousToken)) {
+      throw new AppError(400, "Google purchase replacement chain is invalid");
+    }
+    if (depth === MAX_GOOGLE_REPLACEMENT_HOPS - 1) {
+      throw new AppError(400, "Google purchase replacement chain exceeds the supported depth");
+    }
+    token = previousToken;
   }
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    logger.error({ status: res.status, body }, "Google subscription lookup failed");
-    throw new AppError(502, `Google subscription lookup failed: ${res.status}`);
+
+  if (!currentAuthority || aliases.length === 0) {
+    throw new AppError(400, "Google purchase replacement chain is invalid");
   }
-
-  const sub = (await res.json()) as GoogleSubscriptionV2;
-  const item = sub.lineItems?.[0];
-  if (!item) throw new AppError(404, "Google subscription has no line items");
-
-  if (item.productId !== productId) {
-    throw new AppError(
-      400,
-      `Receipt productId (${item.productId}) does not match requested productId (${productId})`,
-    );
-  }
-
-  const expiresAt = new Date(item.expiryTime);
-  const startedAt = sub.startTime ? new Date(sub.startTime) : new Date();
-  const autoRenew = !!item.autoRenewingPlan?.autoRenewEnabled;
-  const status = mapGoogleStatus(sub.subscriptionState, expiresAt);
-
-  // Acknowledge if Play still considers it pending acknowledgement.
-  // Failure here is non-fatal — we already captured entitlement; the
-  // background job can retry later.
-  if (sub.acknowledgementState === "ACKNOWLEDGEMENT_STATE_PENDING") {
-    void callGoogleApi(
-      `/applications/${encodeURIComponent(env.GOOGLE_PLAY_PACKAGE_NAME)}/purchases/subscriptions/${encodeURIComponent(item.productId)}/tokens/${encodeURIComponent(purchaseToken)}:acknowledge`,
-      { method: "POST", body: JSON.stringify({}) },
-    ).catch((err) => logger.warn({ err: err instanceof Error ? err.message : err }, "Google ack failed"));
-  }
-
-  // linkedPurchaseToken is the previous token in the renewal chain;
-  // when present we return it as the "original" so the upsert key is
-  // stable across renewals. When absent, the current purchaseToken IS
-  // the chain root.
+  const canonicalRootIdentity = aliases.at(-1)!;
   return {
-    originalTransactionId: sub.linkedPurchaseToken ?? purchaseToken,
-    status,
-    startedAt,
-    expiresAt,
-    autoRenew,
+    originalTransactionId: canonicalRootIdentity,
+    status: currentAuthority.status,
+    startedAt: currentAuthority.startedAt,
+    expiresAt: currentAuthority.expiresAt,
+    autoRenew: currentAuthority.autoRenew,
+    googlePurchaseAliases: aliases,
+    googleCanonicalRootIdentity: canonicalRootIdentity,
+    googleAcknowledgementPending: currentAuthority.acknowledgementPending,
   };
+}
+
+/**
+ * Acknowledgement is deliberately separate from verification. Callers invoke
+ * it only after the alias ownership transaction succeeds, so a rejected or
+ * cross-tenant receipt cannot consume the store-side acknowledgement effect.
+ */
+export async function acknowledgeGoogleReceipt(
+  purchaseToken: string,
+  productId: string,
+): Promise<void> {
+  try {
+    const packageName = env.GOOGLE_PLAY_PACKAGE_NAME;
+    if (!packageName) throw new Error("Google Play package is not configured");
+    const res = await callGoogleApi(
+      `/applications/${encodeURIComponent(packageName)}/purchases/subscriptions/${encodeURIComponent(productId)}/tokens/${encodeURIComponent(purchaseToken)}:acknowledge`,
+      { method: "POST", body: JSON.stringify({}) },
+    );
+    if (!res.ok) throw new Error("acknowledgement rejected");
+  } catch {
+    logger.warn({ code: "GOOGLE_ACK_FAILED" }, "Google ack failed");
+  }
 }
 
 /**

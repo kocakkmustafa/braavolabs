@@ -23,20 +23,38 @@
  * verification credentials" for the operator runbook.
  */
 
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import { authMiddleware } from "../../../middleware/auth";
 import { systemScope } from "../../../middleware/system-scope";
 import { rateLimit } from "../../../middleware/rateLimit";
-import { prisma } from "../../../lib/db";
+import { prisma, tenantTx } from "../../../lib/db";
 import { AppError } from "../../../middleware/error";
 import { env } from "../../../config/env";
 import { logger } from "../../../lib/logger";
 import { verifyAppleReceipt, parseAppleNotification } from "./apple";
-import { verifyGoogleReceipt, parseGoogleRtdnEnvelope, verifyPubSubPushToken } from "./google";
+import {
+  acknowledgeGoogleReceipt,
+  verifyGoogleReceipt,
+  parseGoogleRtdnEnvelope,
+  verifyPubSubPushToken,
+  type VerifiedGoogleReceipt,
+} from "./google";
 import { recordEntitlementEvent } from "../entitlement-ledger.service";
-import { mapIapVerify, mapAppleNotify, mapGoogleNotify, type PlanTier } from "../entitlement-mapping";
+import { mapIapVerify, mapAppleNotify, mapGoogleNotify } from "../entitlement-mapping";
+import {
+  getIapProduct,
+  internalPlanForProduct,
+  verificationResponseTier,
+} from "./catalog";
 import crypto from "node:crypto";
+import {
+  IapPoisonDeliveryError,
+  IapTransientDeliveryError,
+  deliveryFingerprint,
+  processIapDelivery,
+} from "./delivery-ledger";
 
 export const iapRouter = Router();
 
@@ -80,25 +98,239 @@ const verifySchema = z.object({
   appUserId: z.string().max(200).optional(),
 });
 
-/**
- * Map Apple/Google product identifiers to internal plan tiers. Operators
- * keep this list in sync with the products configured in App Store
- * Connect / Play Console — see docs/manual-tasks.md.
- *
- * The same productId is used for monthly + yearly variants — the tier
- * the user gets is identical, only the billing cadence differs and
- * Apple/Google handle that internally.
- */
-const PRODUCT_TIER_MAP: Record<string, "CREATOR" | "BUSINESS" | "PRO" | "ENTERPRISE"> = {
-  "com.braavolabs.creator.monthly":    "CREATOR",
-  "com.braavolabs.creator.yearly":     "CREATOR",
-  "com.braavolabs.business.monthly":   "BUSINESS",
-  "com.braavolabs.business.yearly":    "BUSINESS",
-  "com.braavolabs.pro.monthly":        "PRO",
-  "com.braavolabs.pro.yearly":         "PRO",
-  "com.braavolabs.enterprise.monthly": "ENTERPRISE",
-  "com.braavolabs.enterprise.yearly":  "ENTERPRISE",
-};
+function isOriginalTransactionIdUniqueConflict(error: unknown): boolean {
+  if (!error || typeof error !== "object" || (error as { code?: unknown }).code !== "P2002") {
+    return false;
+  }
+
+  const target = (error as { meta?: { target?: unknown } }).meta?.target;
+  const targets = Array.isArray(target) ? target : [target];
+  return targets.some(
+    (candidate) =>
+      typeof candidate === "string" &&
+      (candidate.includes("originalTransactionId") || candidate.includes("original_transaction_id")),
+  );
+}
+
+function iapActivityId(provider: "apple" | "google", deliveryId: string): string {
+  return `iap_${deliveryFingerprint(`${provider}:${deliveryId}`)}`;
+}
+
+function retainInternalCatalogTier<T extends { planTier: string | null }>(
+  event: T,
+  internalTier: string,
+): T {
+  return {
+    ...event,
+    planTier: event.planTier === null ? null : internalTier,
+  };
+}
+
+const GOOGLE_PURCHASE_IDENTITY = /^google:[0-9a-f]{64}$/;
+
+function normalizedGoogleAliases(verified: VerifiedGoogleReceipt): string[] {
+  const aliases = [...new Set(verified.googlePurchaseAliases)];
+  if (
+    aliases.length === 0
+    || aliases.length !== verified.googlePurchaseAliases.length
+    || verified.googleCanonicalRootIdentity !== verified.originalTransactionId
+    || aliases.at(-1) !== verified.googleCanonicalRootIdentity
+    || aliases.some((identity) => !GOOGLE_PURCHASE_IDENTITY.test(identity))
+  ) {
+    throw new AppError(400, "Google purchase ownership metadata is invalid");
+  }
+  return aliases;
+}
+
+function googleOwnershipConflict(): AppError {
+  return new AppError(409, "This subscription is already linked to a different account.");
+}
+
+function activeAliasMatches(
+  alias: {
+    state: string;
+    tenantId: string | null;
+    mobileSubscriptionId: string | null;
+    provider: string | null;
+    canonicalRootIdentity: string | null;
+  },
+  tenantId: string,
+  rootIdentity: string,
+  subscriptionId?: string,
+): boolean {
+  return alias.state === "active"
+    && alias.tenantId === tenantId
+    && alias.provider === "google"
+    && alias.canonicalRootIdentity === rootIdentity
+    && alias.mobileSubscriptionId !== null
+    && (subscriptionId === undefined || alias.mobileSubscriptionId === subscriptionId);
+}
+
+async function claimGooglePurchaseOwnership(
+  tenantId: string,
+  verified: VerifiedGoogleReceipt,
+  createData: Prisma.MobileSubscriptionUncheckedCreateInput,
+  updateData: Prisma.MobileSubscriptionUpdateManyMutationInput,
+) {
+  const aliases = normalizedGoogleAliases(verified);
+  const rootIdentity = verified.googleCanonicalRootIdentity;
+
+  try {
+    return await tenantTx(async (tx) => {
+      const visibleBefore = await tx.googlePurchaseAlias.findMany({
+        where: { tokenDigest: { in: aliases } },
+      });
+      if (visibleBefore.some((alias) => !activeAliasMatches(alias, tenantId, rootIdentity))) {
+        throw googleOwnershipConflict();
+      }
+
+      const visibleOwnerIds = [...new Set(
+        visibleBefore.map((alias) => alias.mobileSubscriptionId).filter((id): id is string => !!id),
+      )];
+      if (visibleOwnerIds.length > 1) throw googleOwnershipConflict();
+      const proposedSubscriptionId = visibleOwnerIds[0] ?? crypto.randomUUID();
+
+      await tx.googlePurchaseAlias.createMany({
+        data: aliases.map((tokenDigest) => ({
+          tokenDigest,
+          state: "active",
+          tenantId,
+          mobileSubscriptionId: proposedSubscriptionId,
+          provider: "google",
+          canonicalRootIdentity: rootIdentity,
+        })),
+        skipDuplicates: true,
+      });
+
+      // A global unique conflict against an RLS-hidden row is intentionally
+      // indistinguishable from an absent insert. Re-reading the COMPLETE set on
+      // this tenant-bound connection turns either case into deterministic 409.
+      const claimed = await tx.googlePurchaseAlias.findMany({
+        where: { tokenDigest: { in: aliases } },
+      });
+      if (
+        claimed.length !== aliases.length
+        || claimed.some((alias) => !activeAliasMatches(
+          alias,
+          tenantId,
+          rootIdentity,
+          claimed[0]?.mobileSubscriptionId ?? undefined,
+        ))
+      ) {
+        throw googleOwnershipConflict();
+      }
+      const subscriptionId = claimed[0]!.mobileSubscriptionId!;
+
+      const updated = await tx.mobileSubscription.updateMany({
+        where: {
+          id: subscriptionId,
+          tenantId,
+          provider: "google",
+          originalTransactionId: rootIdentity,
+        },
+        data: updateData,
+      });
+      if (updated.count > 1) throw new Error("Google ownership update affected multiple rows");
+      if (updated.count === 0) {
+        return tx.mobileSubscription.create({
+          data: { ...createData, id: subscriptionId },
+        });
+      }
+      const subscription = await tx.mobileSubscription.findUnique({ where: { id: subscriptionId } });
+      if (!subscription || subscription.tenantId !== tenantId) throw googleOwnershipConflict();
+      return subscription;
+    });
+  } catch (error) {
+    // Covers a rolling-deploy race where an older process creates the global
+    // canonical subscription key without its alias rows. The transaction has
+    // already rolled back; translate only that exact uniqueness target to the
+    // same deterministic ownership response.
+    if (isOriginalTransactionIdUniqueConflict(error)) throw googleOwnershipConflict();
+    throw error;
+  }
+}
+
+async function updateGoogleOwnedSubscription(
+  verified: VerifiedGoogleReceipt,
+  updateData: Prisma.MobileSubscriptionUpdateManyMutationInput,
+) {
+  const aliases = normalizedGoogleAliases(verified);
+  const rootIdentity = verified.googleCanonicalRootIdentity;
+
+  return tenantTx(async (tx) => {
+    const visibleBefore = await tx.googlePurchaseAlias.findMany({
+      where: { tokenDigest: { in: aliases } },
+    });
+    const rootOwner = visibleBefore.find((alias) => alias.tokenDigest === rootIdentity);
+    if (
+      !rootOwner?.tenantId
+      || !rootOwner.mobileSubscriptionId
+      || !activeAliasMatches(rootOwner, rootOwner.tenantId, rootIdentity, rootOwner.mobileSubscriptionId)
+      || visibleBefore.some((alias) => !activeAliasMatches(
+        alias,
+        rootOwner.tenantId!,
+        rootIdentity,
+        rootOwner.mobileSubscriptionId!,
+      ))
+    ) {
+      throw googleOwnershipConflict();
+    }
+
+    const visibleDigests = new Set(visibleBefore.map((alias) => alias.tokenDigest));
+    const missingAliases = aliases.filter((tokenDigest) => !visibleDigests.has(tokenDigest));
+    if (missingAliases.length > 0) {
+      await tx.googlePurchaseAlias.createMany({
+        data: missingAliases.map((tokenDigest) => ({
+          tokenDigest,
+          state: "active",
+          tenantId: rootOwner.tenantId!,
+          mobileSubscriptionId: rootOwner.mobileSubscriptionId!,
+          provider: "google",
+          canonicalRootIdentity: rootIdentity,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    // The root owner must pre-exist, so an RTDN can extend an established
+    // replacement chain but can never bootstrap ownership. Re-reading the
+    // complete set catches a concurrent or RLS-hidden conflicting alias.
+    const claimed = missingAliases.length === 0
+      ? visibleBefore
+      : await tx.googlePurchaseAlias.findMany({
+          where: { tokenDigest: { in: aliases } },
+        });
+    if (
+      claimed.length !== aliases.length
+      || claimed.some((alias) => !activeAliasMatches(
+        alias,
+        rootOwner.tenantId!,
+        rootIdentity,
+        rootOwner.mobileSubscriptionId!,
+      ))
+    ) {
+      throw googleOwnershipConflict();
+    }
+
+    const updated = await tx.mobileSubscription.updateMany({
+      where: {
+        id: rootOwner.mobileSubscriptionId,
+        tenantId: rootOwner.tenantId,
+        provider: "google",
+        originalTransactionId: rootIdentity,
+      },
+      data: updateData,
+    });
+    if (updated.count !== 1) throw googleOwnershipConflict();
+    const subscription = await tx.mobileSubscription.findUnique({
+      where: { id: rootOwner.mobileSubscriptionId },
+    });
+    if (!subscription || subscription.tenantId !== rootOwner.tenantId) {
+      throw googleOwnershipConflict();
+    }
+    return subscription;
+  });
+}
 
 // POST /api/v1/billing/iap/verify — verify a mobile receipt
 iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, next) => {
@@ -106,10 +338,16 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
     const body = verifySchema.parse(req.body);
     const tenantId = req.auth!.tenantId;
 
-    const planTier = PRODUCT_TIER_MAP[body.productId];
-    if (!planTier) {
+    const catalogProduct = getIapProduct(body.productId);
+    if (!catalogProduct) {
       throw new AppError(400, `Unknown productId: ${body.productId}`);
     }
+    if (catalogProduct.sale === "manual-review") {
+      throw new AppError(409, "This product requires manual review.", {
+        reason: "manual-review-required",
+      });
+    }
+    const planTier = catalogProduct.internalPlan;
 
     // Verify with the relevant provider. Failures here are treated as
     // payment-not-confirmed — we never grant entitlement on an
@@ -131,47 +369,31 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
       throw new AppError(501, "RevenueCat verification not yet implemented");
     }
 
-    // Cross-tenant hijack defense: originalTransactionId is globally unique
-    // in the schema, but a plain upsert would let any user POST another
-    // tenant's verified receipt and silently upgrade their own row to the
-    // paid tier. Refuse when the existing row belongs to a different tenant
-    // so the original purchaser keeps the entitlement and the second caller
-    // sees a 409. (Apple/Google entitle a single original-transaction to a
-    // single account; the legitimate re-verify path always comes from the
-    // same authenticated tenant.)
-    const existingForTransaction = await prisma.mobileSubscription.findUnique({
-      where: { originalTransactionId: verified.originalTransactionId },
-    });
-    if (existingForTransaction && existingForTransaction.tenantId !== tenantId) {
+    const rejectDifferentOwner = (): never => {
       logger.warn(
         {
           originalTransactionId: verified.originalTransactionId,
-          ownerTenantId: existingForTransaction.tenantId,
           callerTenantId: tenantId,
         },
         "IAP verify rejected — receipt belongs to a different tenant",
       );
       throw new AppError(409, "This subscription is already linked to a different account.");
-    }
+    };
 
-    // Persist/upsert. originalTransactionId is the natural key — every
-    // renewal mutates expiresAt + lastVerifiedAt on the same row.
-    const subscription = await prisma.mobileSubscription.upsert({
-      where: { originalTransactionId: verified.originalTransactionId },
-      create: {
+    const createData = {
         tenantId,
         provider: body.provider,
         productId: body.productId,
         originalTransactionId: verified.originalTransactionId,
-        latestReceipt: body.receipt,
+        latestReceipt: null,
         status: verified.status,
         planTier,
         startedAt: verified.startedAt,
         expiresAt: verified.expiresAt,
         autoRenew: verified.autoRenew,
         lastVerifiedAt: new Date(),
-      },
-      update: {
+    };
+    const updateData = {
         // R2 fix (2026-08-19): productId/planTier were missing here, so a
         // tier UPGRADE via /verify (same originalTransactionId — tier
         // changes reuse the same row) updated status/expiresAt/autoRenew
@@ -184,13 +406,64 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
         // own defense-in-depth fix for the same root cause.
         productId: body.productId,
         planTier,
-        latestReceipt: body.receipt,
+        latestReceipt: null,
         status: verified.status,
         expiresAt: verified.expiresAt,
         autoRenew: verified.autoRenew,
         lastVerifiedAt: new Date(),
-      },
-    });
+    };
+
+    const updateSameOwner = async () => {
+      const updated = await prisma.mobileSubscription.updateMany({
+        where: {
+          originalTransactionId: verified.originalTransactionId,
+          tenantId,
+        },
+        data: updateData,
+      });
+      if (updated.count === 0) return null;
+      if (updated.count !== 1) throw new Error("IAP guarded update affected multiple rows");
+
+      const subscription = await prisma.mobileSubscription.findUnique({
+        where: {
+          originalTransactionId: verified.originalTransactionId,
+          tenantId,
+        },
+      });
+      if (!subscription || subscription.tenantId !== tenantId) {
+        throw new Error("IAP subscription missing after guarded update");
+      }
+      return subscription;
+    };
+
+    // A tenant-guarded update handles the normal renewal fast path without
+    // reading another tenant's row. If no owned row exists, create competes on
+    // the globally unique originalTransactionId and becomes the atomic claim.
+    // After a matching P2002, retrying the guarded update distinguishes a
+    // same-owner concurrent retry from a different owner even when RLS hides
+    // cross-tenant rows.
+    let subscription;
+    if (body.provider === "google") {
+      subscription = await claimGooglePurchaseOwnership(
+        tenantId,
+        verified as VerifiedGoogleReceipt,
+        createData,
+        updateData,
+      );
+    } else {
+      subscription = await updateSameOwner();
+      if (!subscription) {
+        try {
+          subscription = await prisma.mobileSubscription.create({ data: createData });
+        } catch (error) {
+          if (!isOriginalTransactionIdUniqueConflict(error)) throw error;
+
+          subscription = await updateSameOwner();
+          if (!subscription) rejectDifferentOwner();
+        }
+      }
+    }
+    if (!subscription) throw new Error("IAP subscription ownership resolution failed");
 
     // Entitlement ledger — BR-P0-003. mapIapVerify returns null for
     // exactly the statuses the old code's `if` skipped (anything but
@@ -203,7 +476,10 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
     const entitlementSource = body.provider === "apple" ? "apple" : "google";
     const mappedEvent = mapIapVerify(entitlementSource, verified, planTier);
     if (mappedEvent) {
-      await recordEntitlementEvent({ tenantId, ...mappedEvent });
+      await recordEntitlementEvent({
+        tenantId,
+        ...retainInternalCatalogTier(mappedEvent, planTier),
+      });
     }
 
     await prisma.activityLog.create({
@@ -222,9 +498,16 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
       },
     });
 
+    const googleVerified = body.provider === "google"
+      ? verified as VerifiedGoogleReceipt
+      : null;
+    if (googleVerified?.googleAcknowledgementPending) {
+      void acknowledgeGoogleReceipt(body.receipt, body.productId);
+    }
+
     res.json({
       success: true,
-      planTier,
+      planTier: verificationResponseTier(catalogProduct),
       status: verified.status,
       expiresAt: verified.expiresAt,
     });
@@ -251,9 +534,28 @@ iapRouter.get("/entitlement", authMiddleware, iapEntitlementRateLimit, async (re
       orderBy: { expiresAt: "desc" },
     });
 
+    const catalogProduct = subscription
+      ? getIapProduct(subscription.productId)
+      : undefined;
+
+    if (subscription && !catalogProduct) {
+      logger.warn(
+        { productId: subscription.productId, tenantId: req.auth!.tenantId },
+        "IAP entitlement row references unknown productId; withholding stale tier",
+      );
+      res.json({
+        hasActiveMobileSubscription: false,
+        planTier: null,
+        expiresAt: null,
+        provider: null,
+        autoRenew: null,
+      });
+      return;
+    }
+
     res.json({
       hasActiveMobileSubscription: !!subscription,
-      planTier: subscription?.planTier ?? null,
+      planTier: catalogProduct ? verificationResponseTier(catalogProduct) : null,
       expiresAt: subscription?.expiresAt ?? null,
       provider: subscription?.provider ?? null,
       autoRenew: subscription?.autoRenew ?? null,
@@ -281,7 +583,138 @@ iapRouter.get("/entitlement", authMiddleware, iapEntitlementRateLimit, async (re
 // Server API so a malicious replay (which we'd never accept anyway
 // because we only trust the JWS structure for the transactionId) can't
 // move our row past what Apple actually says is active.
+type AppleNotification = Awaited<ReturnType<typeof parseAppleNotification>>;
+type GoogleNotification = NonNullable<ReturnType<typeof parseGoogleRtdnEnvelope>>;
+
+function providerFailure(error: unknown, provider: "APPLE" | "GOOGLE"): never {
+  if (error instanceof AppError && (error.statusCode === 400 || error.statusCode === 401)) {
+    throw new IapPoisonDeliveryError(`${provider}_PROVIDER_REJECTED`);
+  }
+  throw new IapTransientDeliveryError(`${provider}_PROVIDER_UNAVAILABLE`);
+}
+
+async function applyAppleReliable(note: AppleNotification): Promise<void> {
+  let verified: Awaited<ReturnType<typeof verifyAppleReceipt>>;
+  try {
+    verified = await verifyAppleReceipt(note.originalTransactionId, note.productId);
+  } catch (error) {
+    providerFailure(error, "APPLE");
+  }
+
+  const catalogTier = getIapProduct(note.productId)?.internalPlan;
+  if (!catalogTier) {
+    throw new IapPoisonDeliveryError("APPLE_PRODUCT_UNKNOWN");
+  }
+
+  let updated;
+  try {
+    updated = await prisma.mobileSubscription.update({
+      where: { originalTransactionId: verified.originalTransactionId },
+      data: {
+        latestReceipt: null,
+        status: verified.status,
+        expiresAt: verified.expiresAt,
+        autoRenew: verified.autoRenew,
+        lastVerifiedAt: new Date(),
+      },
+    });
+  } catch {
+    throw new IapTransientDeliveryError("APPLE_PERSISTENCE_FAILED");
+  }
+
+  try {
+    await recordEntitlementEvent({
+      tenantId: updated.tenantId,
+      ...retainInternalCatalogTier(mapAppleNotify(note, verified, catalogTier), catalogTier),
+    });
+    const activityId = iapActivityId("apple", note.notificationUUID);
+    await prisma.activityLog.upsert({
+      where: { id: activityId },
+      create: {
+        id: activityId,
+        tenantId: updated.tenantId,
+        actor: "apple-asn",
+        action: "billing.iap.notification",
+        resource: "mobile_subscription",
+        resourceId: updated.id,
+        details: {
+          type: note.notificationType,
+          subtype: note.subtype,
+          status: verified.status,
+        } as any,
+      },
+      update: {},
+    });
+  } catch {
+    throw new IapTransientDeliveryError("APPLE_PERSISTENCE_FAILED");
+  }
+}
+
+async function handleAppleReliable(req: Request, res: Response): Promise<void> {
+  const signedPayload = (req.body as { signedPayload?: string })?.signedPayload;
+  const rawForDigest = typeof signedPayload === "string"
+    ? signedPayload
+    : "apple:missing-signed-payload";
+  const fingerprint = deliveryFingerprint(rawForDigest);
+  let note: AppleNotification;
+
+  try {
+    if (!signedPayload || typeof signedPayload !== "string") {
+      throw new IapPoisonDeliveryError("APPLE_SIGNED_PAYLOAD_MISSING");
+    }
+    note = await parseAppleNotification(signedPayload);
+    if (!note.notificationUUID) {
+      throw new IapPoisonDeliveryError("APPLE_NOTIFICATION_ID_MISSING");
+    }
+  } catch (error) {
+    const code = error instanceof IapPoisonDeliveryError
+      ? error.code
+      : "APPLE_JWS_INVALID";
+    const result = await processIapDelivery(
+      { provider: "apple", deliveryId: `poison:${fingerprint}`, fingerprint },
+      async () => {
+        throw new IapPoisonDeliveryError(code);
+      },
+    );
+    res.status(result.httpStatus).json({ ok: false, reason: code.toLowerCase() });
+    return;
+  }
+
+  try {
+    const identityFingerprint = deliveryFingerprint(`apple:${note.notificationUUID}`);
+    const result = await processIapDelivery(
+      {
+        provider: "apple",
+        deliveryId: note.notificationUUID,
+        fingerprint: identityFingerprint,
+      },
+      () => applyAppleReliable(note),
+      undefined,
+      env.IAP_DELIVERY_MAX_ATTEMPTS,
+    );
+    res.status(result.httpStatus).json({ ok: true, disposition: result.disposition });
+  } catch (error) {
+    const code = error instanceof IapTransientDeliveryError
+      ? error.code
+      : "DELIVERY_RETRY_REQUIRED";
+    logger.warn({ provider: "apple", code }, "IAP delivery scheduled for provider retry");
+    res.status(503).json({ ok: false, reason: "retry-required" });
+  }
+}
+
 iapRouter.post("/apple/notify", systemScope("webhook:iap-apple"), iapWebhookRateLimit, async (req, res) => {
+  if (env.IAP_DELIVERY_RELIABILITY_ENABLED) {
+    try {
+      await handleAppleReliable(req, res);
+    } catch {
+      logger.warn(
+        { provider: "apple", code: "DELIVERY_LEDGER_UNAVAILABLE" },
+        "IAP delivery admission failed",
+      );
+      res.status(503).json({ ok: false, reason: "retry-required" });
+    }
+    return;
+  }
   const signedPayload = (req.body as { signedPayload?: string })?.signedPayload;
   if (!signedPayload || typeof signedPayload !== "string") {
     res.status(400).json({ error: "missing signedPayload" });
@@ -310,6 +743,16 @@ iapRouter.post("/apple/notify", systemScope("webhook:iap-apple"), iapWebhookRate
         "Apple ASN re-verify failed; not mutating subscription",
       );
       res.status(200).json({ ok: false, reason: "verify-failed" });
+      return;
+    }
+
+    const catalogTier = internalPlanForProduct(note.productId);
+    if (!catalogTier) {
+      logger.warn(
+        { productId: note.productId, type: note.notificationType },
+        "Apple notification productId is outside the IAP catalog; acknowledging without mutation",
+      );
+      res.status(200).json({ ok: false, reason: "unknown-product" });
       return;
     }
 
@@ -345,21 +788,9 @@ iapRouter.post("/apple/notify", systemScope("webhook:iap-apple"), iapWebhookRate
       // automatically (Stripe web, or the other store), same as the
       // other 5 call sites — no manual "stillActive" query needed.
       //
-      // R2 fix: derive the tier from THIS notification's own productId
-      // rather than trusting `updated.planTier` — defense-in-depth on
-      // top of the upsert fix above, since `updated` here comes from a
-      // separate `mobileSubscription.update()` (not the /verify upsert)
-      // that has never written planTier either. Falls back to the
-      // (possibly stale) DB value only if the productId isn't in the
-      // catalog, so an operator forgetting to register a new SKU fails
-      // soft instead of dropping the event's planTier to undefined.
-      const freshTier = PRODUCT_TIER_MAP[note.productId] ?? (updated.planTier as PlanTier);
-      if (!PRODUCT_TIER_MAP[note.productId]) {
-        logger.warn({ productId: note.productId, tenantId: updated.tenantId }, "Apple notify: unknown productId, falling back to stored planTier");
-      }
       await recordEntitlementEvent({
         tenantId: updated.tenantId,
-        ...mapAppleNotify(note, verified, freshTier),
+        ...retainInternalCatalogTier(mapAppleNotify(note, verified, catalogTier), catalogTier),
       });
       await prisma.activityLog.create({
         data: {
@@ -390,26 +821,152 @@ iapRouter.post("/apple/notify", systemScope("webhook:iap-apple"), iapWebhookRate
 // We re-fetch authoritative state via verifyGoogleReceipt — the
 // notification only carries `purchaseToken + notificationType`, the
 // truth is behind the API.
-iapRouter.post("/google/notify", systemScope("webhook:iap-google"), iapWebhookRateLimit, async (req, res) => {
+async function applyGoogleReliable(note: GoogleNotification): Promise<void> {
+  let verified: Awaited<ReturnType<typeof verifyGoogleReceipt>>;
   try {
-    // FINDINGS C1 — authenticate the sender. Pub/Sub push attaches a
-    // Google-signed OIDC bearer token; verifying it stops an attacker from
-    // POSTing a crafted purchaseToken that would drive a Server-API
-    // re-fetch + tenant plan mutation. Fail CLOSED in production; in
-    // dev/test (no real Pub/Sub) log and continue so local flows work.
-    const oidc = await verifyPubSubPushToken(req.headers.authorization);
-    if (!oidc.ok) {
-      if (env.NODE_ENV === "production") {
-        logger.warn({ reason: oidc.reason }, "Google RTDN OIDC verification failed — rejecting");
-        res.status(401).json({ error: "unauthorized" });
-        return;
-      }
-      logger.warn(
-        { reason: oidc.reason },
-        "Google RTDN OIDC not verified (non-production) — processing anyway",
-      );
-    }
+    verified = await verifyGoogleReceipt(note.purchaseToken, note.subscriptionId);
+  } catch (error) {
+    providerFailure(error, "GOOGLE");
+  }
 
+  const catalogTier = getIapProduct(note.subscriptionId)?.internalPlan;
+  if (!catalogTier) {
+    throw new IapPoisonDeliveryError("GOOGLE_PRODUCT_UNKNOWN");
+  }
+
+  let updated;
+  try {
+    updated = await updateGoogleOwnedSubscription(verified, {
+      latestReceipt: null,
+      status: verified.status,
+      expiresAt: verified.expiresAt,
+      autoRenew: verified.autoRenew,
+      lastVerifiedAt: new Date(),
+    });
+  } catch (error) {
+    if (error instanceof AppError && error.statusCode === 409) {
+      throw new IapPoisonDeliveryError("GOOGLE_OWNERSHIP_UNRESOLVED");
+    }
+    throw new IapTransientDeliveryError("GOOGLE_PERSISTENCE_FAILED");
+  }
+
+  try {
+    await recordEntitlementEvent({
+      tenantId: updated.tenantId,
+      ...retainInternalCatalogTier(mapGoogleNotify(note, verified, catalogTier), catalogTier),
+    });
+    const activityId = iapActivityId("google", note.messageId);
+    await prisma.activityLog.upsert({
+      where: { id: activityId },
+      create: {
+        id: activityId,
+        tenantId: updated.tenantId,
+        actor: "google-rtdn",
+        action: "billing.iap.notification",
+        resource: "mobile_subscription",
+        resourceId: updated.id,
+        details: { type: note.notificationType, status: verified.status } as any,
+      },
+      update: {},
+    });
+    if (verified.googleAcknowledgementPending) {
+      void acknowledgeGoogleReceipt(note.purchaseToken, note.subscriptionId);
+    }
+  } catch {
+    throw new IapTransientDeliveryError("GOOGLE_PERSISTENCE_FAILED");
+  }
+}
+
+function googleEnvelopeMessageId(body: unknown): string | null {
+  const value = (body as { message?: { messageId?: unknown } })?.message?.messageId;
+  return typeof value === "string" && value.length > 0 && value.length <= 256
+    ? value
+    : null;
+}
+
+async function handleGoogleReliable(req: Request, res: Response): Promise<void> {
+  const rawForDigest = JSON.stringify(req.body ?? null);
+  const fingerprint = deliveryFingerprint(rawForDigest);
+  const parsed = parseGoogleRtdnEnvelope(req.body);
+  const sourceMessageId = googleEnvelopeMessageId(req.body);
+  const sourceFingerprint = sourceMessageId
+    ? deliveryFingerprint(`google:${sourceMessageId}`)
+    : fingerprint;
+
+  if (!parsed || !sourceMessageId) {
+    const result = await processIapDelivery(
+      {
+        provider: "google",
+        deliveryId: sourceMessageId ?? `poison:${fingerprint}`,
+        fingerprint: sourceFingerprint,
+      },
+      async () => {
+        throw new IapPoisonDeliveryError(
+          parsed ? "GOOGLE_MESSAGE_ID_MISSING" : "GOOGLE_ENVELOPE_INVALID",
+        );
+      },
+    );
+    res.status(result.httpStatus).json({ ok: false, reason: "envelope-not-recognised" });
+    return;
+  }
+
+  if (env.GOOGLE_PLAY_PACKAGE_NAME && parsed.packageName !== env.GOOGLE_PLAY_PACKAGE_NAME) {
+    const result = await processIapDelivery(
+      { provider: "google", deliveryId: sourceMessageId, fingerprint: sourceFingerprint },
+      async () => {
+        throw new IapPoisonDeliveryError("GOOGLE_PACKAGE_MISMATCH");
+      },
+    );
+    res.status(result.httpStatus).json({ ok: false, reason: "package-mismatch" });
+    return;
+  }
+
+  try {
+    const identityFingerprint = deliveryFingerprint(`google:${parsed.messageId}`);
+    const result = await processIapDelivery(
+      {
+        provider: "google",
+        deliveryId: parsed.messageId,
+        fingerprint: identityFingerprint,
+      },
+      () => applyGoogleReliable(parsed),
+      undefined,
+      env.IAP_DELIVERY_MAX_ATTEMPTS,
+    );
+    res.status(result.httpStatus).json({ ok: true, disposition: result.disposition });
+  } catch (error) {
+    const code = error instanceof IapTransientDeliveryError
+      ? error.code
+      : "DELIVERY_RETRY_REQUIRED";
+    logger.warn({ provider: "google", code }, "IAP delivery scheduled for provider retry");
+    res.status(503).json({ ok: false, reason: "retry-required" });
+  }
+}
+
+iapRouter.post("/google/notify", systemScope("webhook:iap-google"), iapWebhookRateLimit, async (req, res) => {
+  // Authenticate once, before the delivery-mode branch. Both the legacy and
+  // durable-ledger paths therefore share the same fail-closed boundary and no
+  // envelope, provider or persistence work can run after an OIDC rejection.
+  const oidc = await verifyPubSubPushToken(req.headers.authorization);
+  if (!oidc.ok) {
+    logger.warn({ provider: "google", code: oidc.reason }, "Google RTDN OIDC rejected");
+    res.status(401).json({ error: "unauthorized" });
+    return;
+  }
+
+  if (env.IAP_DELIVERY_RELIABILITY_ENABLED) {
+    try {
+      await handleGoogleReliable(req, res);
+    } catch {
+      logger.warn(
+        { provider: "google", code: "DELIVERY_LEDGER_UNAVAILABLE" },
+        "IAP delivery admission failed",
+      );
+      res.status(503).json({ ok: false, reason: "retry-required" });
+    }
+    return;
+  }
+  try {
     const parsed = parseGoogleRtdnEnvelope(req.body);
     if (!parsed) {
       res.status(200).json({ ok: false, reason: "envelope-not-recognised" });
@@ -430,18 +987,30 @@ iapRouter.post("/google/notify", systemScope("webhook:iap-google"), iapWebhookRa
       return;
     }
 
-    const updated = await prisma.mobileSubscription.update({
-      where: { originalTransactionId: verified.originalTransactionId },
-      data: {
+    const catalogTier = internalPlanForProduct(parsed.subscriptionId);
+    if (!catalogTier) {
+      logger.warn(
+        { subscriptionId: parsed.subscriptionId, type: parsed.notificationType },
+        "Google RTDN subscriptionId is outside the IAP catalog; acknowledging without mutation",
+      );
+      res.status(200).json({ ok: false, reason: "unknown-product" });
+      return;
+    }
+
+    const updated = await updateGoogleOwnedSubscription(verified, {
         status: verified.status,
         expiresAt: verified.expiresAt,
         autoRenew: verified.autoRenew,
         lastVerifiedAt: new Date(),
-      },
     }).catch((err) => {
       logger.warn(
-        { err: err instanceof Error ? err.message : err, type: parsed.notificationType },
-        "Google RTDN for unknown subscription",
+        {
+          code: err instanceof AppError && err.statusCode === 409
+            ? "GOOGLE_OWNERSHIP_UNRESOLVED"
+            : "GOOGLE_PERSISTENCE_FAILED",
+          type: parsed.notificationType,
+        },
+        "Google RTDN ownership resolution failed",
       );
       return null;
     });
@@ -452,17 +1021,9 @@ iapRouter.post("/google/notify", systemScope("webhook:iap-google"), iapWebhookRa
       // expired/revoked, so out-of-order delivery is provably safe
       // rather than merely "usually fine".
       //
-      // R2 fix: same defense-in-depth as the Apple handler — derive the
-      // tier from this notification's own subscriptionId rather than
-      // trusting `updated.planTier`, falling back to the DB value only
-      // for an unrecognized SKU.
-      const freshTier = PRODUCT_TIER_MAP[parsed.subscriptionId] ?? (updated.planTier as PlanTier);
-      if (!PRODUCT_TIER_MAP[parsed.subscriptionId]) {
-        logger.warn({ subscriptionId: parsed.subscriptionId, tenantId: updated.tenantId }, "Google RTDN: unknown subscriptionId, falling back to stored planTier");
-      }
       await recordEntitlementEvent({
         tenantId: updated.tenantId,
-        ...mapGoogleNotify(parsed, verified, freshTier),
+        ...retainInternalCatalogTier(mapGoogleNotify(parsed, verified, catalogTier), catalogTier),
       });
       await prisma.activityLog.create({
         data: {
@@ -474,6 +1035,9 @@ iapRouter.post("/google/notify", systemScope("webhook:iap-google"), iapWebhookRa
           details: { type: parsed.notificationType, status: verified.status } as any,
         },
       });
+      if (verified.googleAcknowledgementPending) {
+        void acknowledgeGoogleReceipt(parsed.purchaseToken, parsed.subscriptionId);
+      }
     }
 
     res.status(200).json({ ok: true });

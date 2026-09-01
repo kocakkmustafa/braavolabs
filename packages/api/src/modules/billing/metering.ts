@@ -7,8 +7,7 @@
 
 import { prisma, tenantTx } from "../../lib/db";
 import { logger } from "../../lib/logger";
-import { PLAN_LIMITS } from "@ai-company-os/core";
-import type { Plan } from "@ai-company-os/core";
+import { PLAN_LIMITS, normalizePlanForEntitlement } from "@ai-company-os/core";
 import { env } from "../../config/env";
 
 /**
@@ -52,10 +51,10 @@ export async function incrementMeter(
     select: { plan: true },
   });
 
-  const plan = (tenant?.plan ?? "FREE") as Plan;
+  const plan = normalizePlanForEntitlement(tenant?.plan);
   const limits = PLAN_LIMITS[plan];
   const limit = metric === "runs" ? limits.maxRunsPerMonth : -1;
-  const exceeded = limit > 0 && meter.value > limit;
+  const exceeded = limit >= 0 && meter.value > limit;
 
   if (exceeded) {
     logger.warn(
@@ -93,7 +92,7 @@ export async function claimQuota(
     where: { id: tenantId },
     select: { plan: true },
   });
-  const plan = (tenant?.plan ?? "FREE") as Plan;
+  const plan = normalizePlanForEntitlement(tenant?.plan);
   const limits = PLAN_LIMITS[plan];
   const limit = metric === "runs" ? limits.maxRunsPerMonth : -1;
 
@@ -101,6 +100,11 @@ export async function claimQuota(
     // Unlimited — still bump the counter for analytics, but don't gate.
     await incrementMeter(tenantId, metric, 1);
     return { claimed: true, value: -1, limit: -1 };
+  }
+
+  if (limit === 0) {
+    logger.warn({ tenantId, metric, value: 0, limit }, "Quota claim refused — manual review required");
+    return { claimed: false, value: 0, limit };
   }
 
   const now = new Date();
@@ -203,7 +207,7 @@ export async function checkQuota(
     select: { plan: true },
   });
 
-  const plan = (tenant?.plan ?? "FREE") as Plan;
+  const plan = normalizePlanForEntitlement(tenant?.plan);
   const limits = PLAN_LIMITS[plan];
   const limit = metric === "runs" ? limits.maxRunsPerMonth : -1;
   const currentValue = meter?.value ?? 0;

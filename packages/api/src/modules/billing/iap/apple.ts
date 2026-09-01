@@ -145,8 +145,8 @@ async function callAppleSubscriptionApi(
   // caller retries against sandbox base.
   if (res.status === 404) return null;
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    logger.error({ status: res.status, body, base }, "Apple subscription lookup failed");
+    await res.text().catch(() => "");
+    logger.error({ status: res.status, base }, "Apple subscription lookup failed");
     throw new AppError(502, `Apple subscription lookup failed: ${res.status}`);
   }
   return res.json() as Promise<AppleSubscriptionResponse>;

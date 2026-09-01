@@ -52,7 +52,7 @@ const DOC_LINKS = [
   { href: "/cookies", label: "Cookies" },
   { href: "/gdpr", label: "GDPR" },
   { href: "/kvkk", label: "KVKK", active: true },
-  { href: "/account-deletion", label: "Account Deletion" },
+  { href: "/legal/account-deletion", label: "Account Deletion" },
 ];
 
 export default function KvkkPage() {
@@ -81,8 +81,8 @@ export default function KvkkPage() {
             <Link href="/about" className="hover:text-on-surface transition-colors">About</Link>
           </div>
           <div className="flex items-center gap-2">
-            <Link href="/login" className="bv-btn bv-btn-ghost bv-btn-sm">Sign in</Link>
-            <Link href="/register" className="bv-btn bv-btn-primary bv-btn-sm">Start free</Link>
+            <Link href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm">Sign in</Link>
+            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm">Open app</a>
           </div>
         </div>
       </nav>
