@@ -46,6 +46,9 @@ function writeKnownHosts(h, lines, mode = 0o600) {
   writeFileSync(h.knownHosts, lines.join("\n") + "\n", { mode });
   chmodSync(h.knownHosts, mode);
 }
+function writeStatFixture(h, body) {
+  executable(join(h.bin, "stat"), body);
+}
 function buildIncoming(h, migrationSql = "ALTER TABLE subscription ADD COLUMN settlement_version INTEGER;\n") {
   const incoming = join(h.appRoot, "incoming", `${RELEASE}.${process.pid}`);
   mkdirSync(join(incoming, "ENV"), { recursive: true });
@@ -709,6 +712,29 @@ const deniedHosts = [
     "deploy.example.test ssh-ed25519 " + KEY_A + "A",
   ], `${FINGERPRINT_A},${FINGERPRINT_B},SHA256:CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC`, 0o600],
 ];
+test("GNU stat mode probe is preferred over the incompatible -f form", () => withHarness((h) => {
+  writeStatFixture(h, `
+if [ "${'${1:-}'}" = -c ]; then printf '%s\n' 600; exit 0; fi
+if [ "${'${1:-}'}" = -f ]; then printf '%s\n' unexpected-filesystem-report; exit 0; fi
+exit 2`);
+  const result = runDeploy(h);
+  assert.equal(result.status, 0, result.stderr);
+}));
+test("BSD stat mode probe is used only after GNU stat is unsupported", () => withHarness((h) => {
+  writeStatFixture(h, `
+if [ "${'${1:-}'}" = -c ]; then exit 1; fi
+if [ "${'${1:-}'}" = -f ]; then printf '%s\n' 600; exit 0; fi
+exit 2`);
+  const result = runDeploy(h);
+  assert.equal(result.status, 0, result.stderr);
+}));
+test("stat mode probe failure denies before transport", () => withHarness((h) => {
+  writeStatFixture(h, "exit 1");
+  const result = runDeploy(h);
+  assert.equal(result.status, 64);
+  assert.match(result.stderr, /identity mode must be 0600/);
+  assert.doesNotMatch(result.calls, /^ssh |^rsync /m);
+}));
 for (const [name, lines, fingerprints, mode] of deniedHosts) {
   test(`known_hosts ${name} denies before transport`, () => withHarness((h) => {
     writeKnownHosts(h, lines, mode);
