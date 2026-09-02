@@ -331,6 +331,11 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Prisma db push cannot create a table with vector(1536) until the
+      # extension exists. The pgvector image ships the extension but does not
+      # enable it in every newly-created database automatically.
+      - name: Enable pgvector extension
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS vector;'
       - run: pnpm --filter @ai-company-os/db exec prisma db push --skip-generate --accept-data-loss
       # BR-P0-004 slice 4. The cross-tenant matrix skips itself unless
       # XTENANT_DATABASE_URL is set — deliberate, so a laptop `pnpm test` does
