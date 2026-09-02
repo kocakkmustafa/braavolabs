@@ -337,6 +337,8 @@ jobs:
       - name: Enable pgvector extension
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS vector;'
       - run: pnpm --filter @ai-company-os/db exec prisma db push --skip-generate --accept-data-loss
+      - name: Generate Prisma Client
+        run: pnpm --filter @ai-company-os/db exec prisma generate
       # BR-P0-004 slice 4. The cross-tenant matrix skips itself unless
       # XTENANT_DATABASE_URL is set — deliberate, so a laptop `pnpm test` does
       # not need a database. But that meant all 15 of its tests were SKIPPED in

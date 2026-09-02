@@ -38,11 +38,9 @@ export type AppRole = keyof typeof ROLE_RANK;
 /**
  * Minimum role per privileged action.
  *
- * The split is by REVERSIBILITY, not by seniority for its own sake:
- *   - OWNER-only: moving money and destroying a tenant's data. Neither can be
- *     undone by the person who did it.
- *   - ADMIN+: operational controls that are reversible or already audited
- *     (stopping a run, deciding an approval, configuring SSO).
+ * The split follows the current product contract while keeping every
+ * security-sensitive mutation off MEMBER. Tenant destruction stays
+ * OWNER-only; tenant billing and audited operational controls are ADMIN+.
  */
 export const PRIVILEGED_ACTIONS = {
   "company:delete": "OWNER",
@@ -65,20 +63,11 @@ export const PRIVILEGED_ACTIONS = {
   "governance:hard-stop": "ADMIN",
   "sso:configure": "ADMIN",
 
-  // ── approval:decide is deliberately held at MEMBER ────────────────────────
-  //
-  // It belongs at ADMIN on the reversibility principle, and it was set there.
-  // A review found that would break the product the first time an org enables
-  // SSO: sso.router.ts provisions every JIT user as MEMBER, there is NO
-  // member-management endpoint anywhere in the API, and approvals are a core
-  // workflow (rule #3 makes them the gate on every money-touching action). So
-  // ADMIN would be an unreachable tier, and the only remedy would be a manual
-  // UPDATE against production.
-  //
-  // Holding at MEMBER preserves today's behaviour rather than shipping a matrix
-  // whose ADMIN tier nobody can reach. Raising it requires a role-management
-  // surface first — a founder decision, recorded in the evidence ledger.
-  "approval:decide": "MEMBER",
+  // Approval rows can authorize SPEND and EXTERNAL_CONTROL actions and resume
+  // runs. The schema has no assigned approver or per-row requiredRole, so a
+  // same-tenant MEMBER must never be able to decide one. Role provisioning is
+  // a separate product gate; weakening this boundary is not a safe fallback.
+  "approval:decide": "ADMIN",
 } as const satisfies Record<string, AppRole>;
 
 export type PrivilegedAction = keyof typeof PRIVILEGED_ACTIONS;

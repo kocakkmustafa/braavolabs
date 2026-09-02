@@ -76,11 +76,8 @@ const MATRIX: [string, string, string, "OWNER" | "ADMIN"][] = [
   // "money is OWNER-only" with this open made the claim false.
   ["billing:budget", "PATCH", "/api/v1/billing/budget", "ADMIN"],
   ["governance:hard-stop", "POST", "/api/v1/governance/hard-stop/r1", "ADMIN"],
+  ["approval:decide", "POST", "/api/v1/approvals/a1/decide", "ADMIN"],
 ];
-
-// approval:decide is deliberately NOT here: it is held at MEMBER because SSO
-// provisions every user as MEMBER and no member-management endpoint exists, so
-// an ADMIN tier would be unreachable. See lib/rbac.ts for the full reasoning.
 
 describe("privileged routes actually enforce the matrix", () => {
   it.each(MATRIX)("%s DENIES a MEMBER with 403", async (_label, method, path) => {

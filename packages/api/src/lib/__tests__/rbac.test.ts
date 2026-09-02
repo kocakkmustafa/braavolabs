@@ -41,24 +41,17 @@ describe("roleCan — least privilege", () => {
     }
   });
 
-  it("DENIES MEMBER every privileged action except the one deliberately held", () => {
+  it("DENIES MEMBER every privileged action", () => {
     // Each of these was reachable by a MEMBER in production before this change.
-    //
-    // approval:decide is the single exception and it is deliberate, not an
-    // oversight: SSO provisions every JIT user as MEMBER, there is no
-    // member-management endpoint anywhere in the API, and approvals are a core
-    // workflow — so an ADMIN tier would be unreachable and the only remedy
-    // would be a manual UPDATE against production. See lib/rbac.ts.
-    const DELIBERATELY_MEMBER = new Set(["approval:decide"]);
     for (const action of Object.keys(PRIVILEGED_ACTIONS) as (keyof typeof PRIVILEGED_ACTIONS)[]) {
-      if (DELIBERATELY_MEMBER.has(action)) continue;
       expect(roleCan("MEMBER", action), `MEMBER must NOT be able to ${action}`).toBe(false);
     }
   });
 
-  it("holds approval:decide at MEMBER, and says so out loud", () => {
-    expect(PRIVILEGED_ACTIONS["approval:decide"]).toBe("MEMBER");
-    expect(roleCan("MEMBER", "approval:decide")).toBe(true);
+  it("requires ADMIN for approvals that may authorize spend or external control", () => {
+    expect(PRIVILEGED_ACTIONS["approval:decide"]).toBe("ADMIN");
+    expect(roleCan("MEMBER", "approval:decide")).toBe(false);
+    expect(roleCan("ADMIN", "approval:decide")).toBe(true);
   });
 
   it("keeps the SPEND CAP off members while preserving tenant-admin operations", () => {

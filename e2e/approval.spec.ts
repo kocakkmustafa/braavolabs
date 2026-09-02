@@ -36,17 +36,17 @@ test.describe("approvals", () => {
 
   test("deciding an approval that does not belong to you is refused", async ({ request }) => {
     // Two tenants; A tries to act on an id B would own. The id is synthetic, so
-    // the assertion is that the route refuses rather than 500s — a handler that
-    // looked up by id ALONE would leak or crash instead of cleanly refusing.
+    // the assertion is the route's exact tenant-hiding 404 — a handler that
+    // looked up by id ALONE could leak whether the approval exists.
     const a = await registerViaApi(request);
-    for (const decision of ["approve", "deny"]) {
-      const res = await request.post(`${API}/approvals/nonexistent-id-owned-by-someone-else/${decision}`, {
+    for (const decision of ["APPROVED", "REJECTED"] as const) {
+      const res = await request.post(`${API}/approvals/nonexistent-id-owned-by-someone-else/decide`, {
         headers: { Authorization: `Bearer ${a.token}` },
-        data: { reason: "e2e" },
+        data: { decision, note: "e2e" },
         failOnStatusCode: false,
       });
-      expect(res.status(), `${decision} should be refused, not served`).toBeGreaterThanOrEqual(400);
-      expect(res.status(), `${decision} must not 500`).toBeLessThan(500);
+      expect(res.status(), `${decision} should use the tenant-hiding response`).toBe(404);
+      expect(await res.json()).toMatchObject({ error: "Approval not found" });
     }
   });
 });
