@@ -3,22 +3,37 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Same convention as savings.service.test.ts / forecast.test.ts — mock the
 // Prisma client before importing the module under test.
 //
-// $transaction just invokes the callback with the SAME mocked client as
-// `tx` (so mockFindMany/mockTenantUpdate below are literally the same
-// mock functions the transaction body calls — no separate tx-mock to
-// keep in sync). $queryRaw (the FOR UPDATE row lock) is a no-op here —
-// these are unit tests of the reduction/persistence LOGIC against a
-// fake client, not a proof the lock actually serializes concurrent
-// callers; that's what the live-DB demo script's concurrency scenario
-// is for.
+// tenantTx invokes the callback with the SAME mocked client as `tx` (so
+// mockFindMany/mockTenantUpdate below are literally the same mock functions
+// the transaction body calls — no separate tx-mock to keep in sync).
+// $queryRaw (the FOR UPDATE row lock) is a no-op here — these are unit tests
+// of the reduction/persistence LOGIC against a fake client, not a proof the
+// lock actually serializes concurrent callers; that's what the live-DB demo
+// script's concurrency scenario is for.
+//
+// `prisma.$transaction` is deliberately a THROWING stub. reprojectEntitlement
+// must use tenantTx: the `tx` from a $transaction on the EXTENDED client is
+// itself extended, so its model ops re-enter the RLS wrapper, open a second
+// transaction on a different connection, and deadlock on the FOR UPDATE lock
+// the outer transaction holds (reproduced against real Postgres). The previous
+// double passed the same client back for BOTH, so it modelled neither the
+// re-entry nor the deadlock and the bug was invisible to this suite — a test
+// double that does not enforce reality's rule proves nothing.
 vi.mock("../../../lib/db", () => {
   const client: any = {
     entitlementEvent: { create: vi.fn(), findMany: vi.fn() },
     tenant: { update: vi.fn() },
     $queryRaw: vi.fn().mockResolvedValue([]),
   };
-  client.$transaction = vi.fn((cb: (tx: unknown) => unknown) => cb(client));
-  return { prisma: client };
+  client.$transaction = vi.fn(() => {
+    throw new Error(
+      "prisma.$transaction must not be used here — its tx is EXTENDED and deadlocks against the FOR UPDATE lock. Use tenantTx (un-extended tx).",
+    );
+  });
+  return {
+    prisma: client,
+    tenantTx: vi.fn((cb: (tx: unknown) => unknown) => cb(client)),
+  };
 });
 
 vi.mock("../../../lib/logger", () => ({

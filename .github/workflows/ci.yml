@@ -288,3 +288,142 @@ jobs:
         env:
           DATABASE_URL: postgresql://aicos:aicos_ci@localhost:5432/aicos_ci?schema=public
         run: pnpm --filter @ai-company-os/db exec prisma validate
+
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: aicos_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      E2E_DATABASE_URL: postgresql://test:test@localhost:5432/aicos_e2e
+      DATABASE_URL: postgresql://test:test@localhost:5432/aicos_e2e
+      REDIS_URL: redis://localhost:6379
+      # Build + serve one explicit self-hosted operator surface. The real
+      # middleware rejects 127.0.0.1 in non-development mode, so browser tests
+      # use the resolved operator authority and request tests send explicit
+      # product hosts instead of weakening the production host boundary for CI.
+      SELF_HOSTED_SURFACE_HOSTS: operator.example
+      NEXT_PUBLIC_API_URL: https://api.operator.example/api/v1
+      # The standalone bundle is correct on a runner (no relocated pnpm store —
+      # see e2e/README.md for why it is bypassed locally).
+      E2E_UI_STANDALONE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Prisma db push cannot create a table with vector(1536) until the
+      # extension exists. The pgvector image ships the extension but does not
+      # enable it in every newly-created database automatically.
+      - name: Enable pgvector extension
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+      - run: pnpm --filter @ai-company-os/db exec prisma db push --skip-generate --accept-data-loss
+      - name: Generate Prisma Client
+        run: pnpm --filter @ai-company-os/db exec prisma generate
+      # The real-router isolation suite imports workspace packages through
+      # their package.json dist/ entrypoints. A clean runner has no dist/
+      # artifacts after install, so build the same dependency set as the
+      # unit-test job before loading the routers.
+      - name: Build deps for cross-tenant matrix
+        run: |
+          pnpm --filter @ai-company-os/core build
+          pnpm --filter @ai-company-os/memory build
+          pnpm --filter @ai-company-os/integrations build
+          pnpm --filter @ai-company-os/connector-sdk build
+      # BR-P0-004 slice 4. The cross-tenant matrix skips itself unless
+      # XTENANT_DATABASE_URL is set — deliberate, so a laptop `pnpm test` does
+      # not need a database. But that meant all 15 of its tests were SKIPPED in
+      # every CI run too, so the suite contributed ZERO assurance where it
+      # matters most. It runs here, against the same throwaway Postgres.
+      - name: Cross-tenant isolation matrix
+        run: pnpm --filter @ai-company-os/api test:xtenant
+        env:
+          XTENANT_DATABASE_URL: postgresql://test:test@localhost:5432/aicos_e2e
+          REQUIRE_XTENANT_MATRIX: "1"
+      - run: pnpm build
+      - name: Link standalone assets
+        # Next does not copy .next/static or public/ into the standalone bundle;
+        # without this the server starts and every asset 404s.
+        run: |
+          SA=packages/ui/.next/standalone/packages/ui
+          mkdir -p "$SA/.next"
+          cp -R packages/ui/.next/static "$SA/.next/static"
+          if [ -d packages/ui/public ]; then cp -R packages/ui/public "$SA/public"; fi
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec playwright test
+      - uses: actions/upload-artifact@v4
+        # Traces/videos are retain-on-failure, so this only has content when
+        # something actually broke — which is exactly when it is needed.
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+  release-artifacts:
+    name: SBOM + checksums
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # Generates a CycloneDX SBOM and SHA256SUMS, then VERIFIES the checksums
+      # it just wrote — generating them proves nothing on its own.
+      - run: bash scripts/release-artifacts.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-provenance
+          path: dist-release/
+          retention-days: 90
+
+  workflow-watchdog:
+    name: Post-merge workflow watchdog
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Runs AFTER the other jobs so it observes their real outcome.
+    needs: [lint-and-typecheck, test, build]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # NOTE the inherent limit: a watchdog running INSIDE Actions cannot report
+      # "Actions never ran" — it would be blocked too. That is the outage this
+      # check exists for, so it is ALSO runnable standalone:
+      #   bash scripts/workflow-watchdog.sh <sha>
+      # Run it from a laptop or an external scheduler for real coverage.
+      - run: bash scripts/workflow-watchdog.sh "${{ github.sha }}" CI
+        env:
+          GH_TOKEN: ${{ github.token }}

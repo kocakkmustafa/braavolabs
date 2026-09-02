@@ -3,7 +3,7 @@
  */
 
 import { Router } from "express";
-import type { RequestHandler } from "express";
+import { requirePermission } from "../../middleware/require-permission";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
 import { AppError } from "../../middleware/error";
@@ -22,18 +22,6 @@ import { getProviderModels, isKnownProvider } from "./provider-models";
 
 export const settingsRouter = Router();
 settingsRouter.use(authMiddleware);
-
-const requireProviderMutationRole: RequestHandler = (req, res, next) => {
-  if (!req.auth) {
-    res.status(401).json({ error: "Not authenticated" });
-    return;
-  }
-  if (!req.auth.role || !["OWNER", "ADMIN"].includes(req.auth.role)) {
-    res.status(403).json({ error: "Insufficient permissions" });
-    return;
-  }
-  next();
-};
 
 // ─── AI Provider Config ───────────────────────────────────
 
@@ -203,7 +191,7 @@ const LOCAL_LLM_PLANS: ReadonlySet<string> = new Set([
 
 // PUT /api/v1/settings/ai-config
 // Save AI provider selection and (optionally) API key + base URL.
-settingsRouter.put("/ai-config", requireProviderMutationRole, async (req, res, next) => {
+settingsRouter.put("/ai-config", requirePermission("settings:ai-config"), async (req, res, next) => {
   try {
     const { provider, model, apiKey, baseUrl, allowSystemFallback } = aiConfigSchema.parse(req.body);
     const isLocal = (LOCAL_PROVIDER_LITERALS as readonly string[]).includes(provider);
@@ -295,7 +283,7 @@ settingsRouter.put("/ai-config", requireProviderMutationRole, async (req, res, n
 // DELETE /api/v1/settings/ai-config
 // Remove tenant AI config — provider execution stays disabled until BYOK/local
 // configuration is added again.
-settingsRouter.delete("/ai-config", requireProviderMutationRole, async (req, res, next) => {
+settingsRouter.delete("/ai-config", requirePermission("settings:ai-config"), async (req, res, next) => {
   try {
     await prisma.userAIConfig.deleteMany({
       where: { tenantId: req.auth!.tenantId },
@@ -319,7 +307,7 @@ settingsRouter.delete("/ai-config", requireProviderMutationRole, async (req, res
 
 // GET /api/v1/settings/ai-config/test
 // Quick connectivity test — send a trivial message to the configured provider.
-settingsRouter.post("/ai-config/test", requireProviderMutationRole, async (req, res, next) => {
+settingsRouter.post("/ai-config/test", requirePermission("settings:ai-config"), async (req, res, next) => {
   try {
     const { getTenantAIConfig, chatCompletion } = await import("../../services/ai-client");
     const config = await getTenantAIConfig(req.auth!.tenantId);

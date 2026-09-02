@@ -8,6 +8,7 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:xtenant": "vitest run src/__tests__/integration/cross-tenant.test.ts",
     "test:watch": "vitest",
     "start": "node dist/index.js",
     "clean": "rm -rf dist"

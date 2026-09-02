@@ -5,7 +5,7 @@
  */
 
 import { Router, raw } from "express";
-import type { RequestHandler } from "express";
+import { requirePermission } from "../../middleware/require-permission";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
 import { systemScope } from "../../middleware/system-scope";
@@ -211,18 +211,6 @@ export const billingRouter = Router();
 const authedRouter = Router();
 authedRouter.use(authMiddleware);
 
-const requireTenantAdminRole: RequestHandler = (req, res, next) => {
-  if (!req.auth) {
-    res.status(401).json({ error: "Not authenticated" });
-    return;
-  }
-  if (!req.auth.role || !["OWNER", "ADMIN"].includes(req.auth.role)) {
-    res.status(403).json({ error: "Insufficient permissions" });
-    return;
-  }
-  next();
-};
-
 // GET /api/v1/billing/usage — current period usage meters
 authedRouter.get("/usage", async (req, res, next) => {
   try {
@@ -304,7 +292,7 @@ authedRouter.get("/savings", async (req, res, next) => {
 const budgetSchema = z.object({
   monthlyBudgetUsd: z.union([z.number().min(0.01).max(1_000_000), z.null()]),
 });
-authedRouter.patch("/budget", requireTenantAdminRole, async (req, res, next) => {
+authedRouter.patch("/budget", requirePermission("billing:budget"), async (req, res, next) => {
   try {
     const { monthlyBudgetUsd } = budgetSchema.parse(req.body);
     await prisma.tenant.update({
@@ -369,7 +357,7 @@ const checkoutSchema = z.object({
   billingCycle: z.literal("monthly").default("monthly"),
 }).strict();
 
-authedRouter.post("/checkout", requireTenantAdminRole, async (req, res, next) => {
+authedRouter.post("/checkout", requirePermission("billing:checkout"), async (req, res, next) => {
   try {
     const config = getStripeConfig();
     const { plan, billingCycle } = checkoutSchema.parse(req.body);
@@ -437,7 +425,7 @@ authedRouter.post("/checkout", requireTenantAdminRole, async (req, res, next) =>
 });
 
 // POST /api/v1/billing/portal — Stripe customer portal link
-authedRouter.post("/portal", requireTenantAdminRole, async (req, res, next) => {
+authedRouter.post("/portal", requirePermission("billing:portal"), async (req, res, next) => {
   try {
     const config = getStripeConfig();
     const tenant = await prisma.tenant.findUnique({

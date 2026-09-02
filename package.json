@@ -21,9 +21,10 @@
   },
   "packageManager": "pnpm@9.15.4",
   "devDependencies": {
-    "@playwright/test": "1.51.1",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^22.0.0",
     "@types/node-cron": "^3.0.11",
+    "ioredis": "^5.4.0",
     "turbo": "^2.9.18"
   },
   "dependencies": {
@@ -44,7 +45,9 @@
       "@babel/core": "^7.29.6"
     },
     "auditConfig": {
-      "ignoreCves": ["CVE-2024-45296"]
+      "ignoreCves": [
+        "CVE-2024-45296"
+      ]
     }
   }
 }

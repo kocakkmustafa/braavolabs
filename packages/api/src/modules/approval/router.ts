@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { requirePermission } from "../../middleware/require-permission";
 import { authMiddleware } from "../../middleware/auth";
 import { prisma, tenantTx } from "../../lib/db";
 import { AppError } from "../../middleware/error";
@@ -104,7 +105,7 @@ const decideSchema = z.object({
 // loser sees `count === 0` and we 409 cleanly. Run-status update + activity
 // log are batched in a single $transaction so a partial commit can never
 // leave an APPROVED approval pointing at a still-CANCELLED run.
-approvalRouter.post("/:id/decide", async (req, res, next) => {
+approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (req, res, next) => {
   try {
     const { decision, note } = decideSchema.parse(req.body);
 
