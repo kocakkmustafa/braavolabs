@@ -320,6 +320,12 @@ jobs:
       E2E_DATABASE_URL: postgresql://test:test@localhost:5432/aicos_e2e
       DATABASE_URL: postgresql://test:test@localhost:5432/aicos_e2e
       REDIS_URL: redis://localhost:6379
+      # Build + serve one explicit self-hosted operator surface. The real
+      # middleware rejects 127.0.0.1 in non-development mode, so browser tests
+      # use the resolved operator authority and request tests send explicit
+      # product hosts instead of weakening the production host boundary for CI.
+      SELF_HOSTED_SURFACE_HOSTS: operator.example
+      NEXT_PUBLIC_API_URL: https://api.operator.example/api/v1
       # The standalone bundle is correct on a runner (no relocated pnpm store —
       # see e2e/README.md for why it is bypassed locally).
       E2E_UI_STANDALONE: "1"

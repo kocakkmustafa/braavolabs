@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { registerViaApi, API } from "./helpers";
+import { registerViaApi, API, UI } from "./helpers";
 
 /**
  * Journey 3 (BR-P0-005): billing surfaces.
@@ -10,7 +10,8 @@ import { registerViaApi, API } from "./helpers";
  */
 test.describe("billing", () => {
   test("the public pricing page renders", async ({ page }) => {
-    const res = await page.goto("/pricing");
+    await page.setExtraHTTPHeaders({ "X-Forwarded-Proto": "https" });
+    const res = await page.goto(`${UI}/pricing`);
     expect(res?.status()).toBeLessThan(400);
     await expect(page.locator("body")).toBeVisible();
   });
@@ -36,7 +37,7 @@ test.describe("billing", () => {
     expect(JSON.stringify(body).toLowerCase()).toContain("free");
   });
 
-  test("the IAP store webhooks are reachable WITHOUT auth (they are provider ingress)", async ({ request }) => {
+  test("IAP provider ingress uses provider authentication, not a tenant token", async ({ request }) => {
     // Regression guard for the shadowing bug that returned 401 to Apple and
     // Google for months. 400 "missing signedPayload" means the handler ran.
     const apple = await request.post(`${API}/billing/iap/apple/notify`, {
@@ -50,7 +51,12 @@ test.describe("billing", () => {
       data: {},
       failOnStatusCode: false,
     });
-    expect(google.status(), "Google RTDN must reach its handler").not.toBe(401);
+    // Google Pub/Sub push uses an OIDC bearer token. A missing provider token
+    // must be rejected even though this endpoint intentionally has no tenant
+    // JWT; treating any 401 as route shadowing made this security boundary look
+    // like a regression.
+    expect(google.status(), "Google RTDN must require provider OIDC").toBe(401);
+    expect(await google.json()).toEqual({ error: "unauthorized" });
   });
 
   test("the authenticated IAP routes still require a token (no over-correction)", async ({ request }) => {

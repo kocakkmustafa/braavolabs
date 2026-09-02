@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { UI } from "./helpers";
 
 /**
  * Harness smoke test.
@@ -15,7 +16,8 @@ test("the API is reachable and healthy", async ({ request }) => {
 });
 
 test("the UI serves the landing page", async ({ page }) => {
-  const res = await page.goto("/");
+  await page.setExtraHTTPHeaders({ "X-Forwarded-Proto": "https" });
+  const res = await page.goto(`${UI}/`);
   expect(res?.status()).toBeLessThan(400);
   await expect(page.locator("body")).toBeVisible();
 });

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { registerViaApi, API } from "./helpers";
+import { registerViaApi, API, UI } from "./helpers";
 
 /**
  * Journey 1 (BR-P0-005): signup → authenticated app → first controlled run.
@@ -10,7 +10,8 @@ import { registerViaApi, API } from "./helpers";
  */
 test.describe("signup and first run", () => {
   test("a new user can register through the UI form", async ({ page }) => {
-    await page.goto("/register");
+    await page.setExtraHTTPHeaders({ "X-Forwarded-Proto": "https" });
+    await page.goto(`${UI}/register`);
     // Assert the form is really there before typing — a redirect or a crashed
     // page would otherwise fail later with a confusing "element not found".
     await expect(
@@ -21,7 +22,8 @@ test.describe("signup and first run", () => {
   });
 
   test("the login page renders and rejects bad credentials", async ({ page, request }) => {
-    await page.goto("/login");
+    await page.setExtraHTTPHeaders({ "X-Forwarded-Proto": "https" });
+    await page.goto(`${UI}/login`);
     // /login renders two forms (sign-in and a secondary panel), so scope to the
     // one that actually takes a password rather than using a bare `form`.
     await expect(page.locator("form").filter({ has: page.locator('input[type="password"]') }).first()).toBeVisible();
@@ -35,7 +37,7 @@ test.describe("signup and first run", () => {
     expect(res.status()).toBeLessThan(500);
   });
 
-  test("register → authenticated session → first company (the first controlled result)", async ({ request }) => {
+  test("a new unpaid tenant is stopped at the explicit entitlement gate", async ({ request }) => {
     const { token, email } = await registerViaApi(request);
     expect(token, `registration did not return a token for ${email}`).toBeTruthy();
 
@@ -46,7 +48,12 @@ test.describe("signup and first run", () => {
     expect(empty.status()).toBe(200);
     expect(await empty.json()).toEqual([]);
 
-    // First controlled result.
+    // FREE is a compatibility/manual-review state in the frozen two-plan
+    // contract, and its company limit is deliberately zero. The previous E2E
+    // expectation still claimed a free first company even though public copy
+    // says subscriptions are not currently purchasable. Pin the honest gate:
+    // registration works, but no product resource is created without an
+    // entitlement.
     const created = await request.post(`${API}/companies`, {
       headers: { Authorization: `Bearer ${token}` },
       data: {
@@ -56,17 +63,17 @@ test.describe("signup and first run", () => {
         description: "created by the first-run journey",
       },
     });
-    expect(created.status()).toBe(201);
-    const company = await created.json();
-    expect(company.id).toBeTruthy();
+    expect(created.status()).toBe(402);
+    expect(await created.json()).toMatchObject({
+      error: "Company limit reached for FREE plan (0). Upgrade to add more.",
+    });
 
-    // It is readable back, and it is the ONLY thing this tenant owns.
+    // The denied request leaves no partial tenant resource behind.
     const list = await request.get(`${API}/companies`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const all = await list.json();
-    expect(all).toHaveLength(1);
-    expect(all[0].id).toBe(company.id);
+    expect(all).toEqual([]);
   });
 
   test("the run surface is reachable for an authenticated tenant", async ({ request }) => {

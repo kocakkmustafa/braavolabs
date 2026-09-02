@@ -51,7 +51,14 @@ export default defineConfig({
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
-        launchOptions: chromeExecutable ? { executablePath: chromeExecutable } : undefined,
+        launchOptions: {
+          ...(chromeExecutable ? { executablePath: chromeExecutable } : {}),
+          // Chromium deliberately forbids overriding `Host` as an extra HTTP
+          // header. Resolve the synthetic public operator hostname to the
+          // local Next server instead, preserving the real authority seen by
+          // middleware while APIRequestContext continues to use 127.0.0.1.
+          args: ["--host-resolver-rules=MAP operator.example 127.0.0.1"],
+        },
       },
     },
   ],
@@ -89,7 +96,11 @@ export default defineConfig({
       env: {
         ...process.env,
         ...SECRETS,
-        NEXT_PUBLIC_API_URL: `http://127.0.0.1:${API_PORT}`,
+        // Exercise the explicit self-hosted boundary with a public operator
+        // hostname. Local/private hosts remain rejected by middleware, just as
+        // they are in production.
+        SELF_HOSTED_SURFACE_HOSTS: "operator.example",
+        NEXT_PUBLIC_API_URL: "https://api.operator.example/api/v1",
         HOSTNAME: "127.0.0.1",
         PORT: String(UI_PORT),
       },
