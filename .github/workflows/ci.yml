@@ -9,6 +9,14 @@ on:
 env:
   NODE_VERSION: "20"
 
+# The post-merge watchdog queries this commit's workflow runs and jobs through
+# the Actions API. Keep the workflow token otherwise read-only, but grant the
+# one API permission that job needs; without it `gh api .../actions/runs`
+# returns 403 and the watchdog reports API_ERROR instead of checking CI truth.
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   lint-and-typecheck:
     name: Lint & Type Check

@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+    # Workflow-only maintenance must not rebuild images or touch production.
+    # GitHub does not evaluate path filters for tag pushes, so release tags
+    # remain deploy-capable; workflow_dispatch below is also unchanged.
+    paths-ignore:
+      - ".github/workflows/**"
   workflow_dispatch:
     inputs:
       environment:
