@@ -104,4 +104,3 @@ export const authMiddleware: RequestHandler<any, any, any, any> = async function
 // calls is worse than no helper, because it reads as coverage. Use
 // middleware/require-permission.ts, which is expressed in terms of actions and
 // enforced by lib/rbac.ts.
-
