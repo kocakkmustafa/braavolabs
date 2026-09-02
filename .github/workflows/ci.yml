@@ -9,13 +9,8 @@ on:
 env:
   NODE_VERSION: "20"
 
-# The post-merge watchdog queries this commit's workflow runs and jobs through
-# the Actions API. Keep the workflow token otherwise read-only, but grant the
-# one API permission that job needs; without it `gh api .../actions/runs`
-# returns 403 and the watchdog reports API_ERROR instead of checking CI truth.
 permissions:
   contents: read
-  actions: read
 
 jobs:
   lint-and-typecheck:
@@ -420,18 +415,33 @@ jobs:
   workflow-watchdog:
     name: Post-merge workflow watchdog
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    # Runs AFTER the other jobs so it observes their real outcome.
-    needs: [lint-and-typecheck, test, build]
+    # `always()` makes this fail closed when a required sibling fails or is
+    # cancelled instead of silently skipping the watchdog because of `needs`.
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # The watchdog is itself part of the CI run, so polling that run's overall
+    # conclusion from inside this job creates a self-deadlock: the run cannot
+    # finish until the watchdog finishes. Observe every required sibling's
+    # terminal result directly instead.
+    needs:
+      - lint-and-typecheck
+      - test
+      - build
+      - docker
+      - boot-smoke
+      - db-migration-check
+      - e2e
+      - release-artifacts
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      # NOTE the inherent limit: a watchdog running INSIDE Actions cannot report
-      # "Actions never ran" — it would be blocked too. That is the outage this
-      # check exists for, so it is ALSO runnable standalone:
-      #   bash scripts/workflow-watchdog.sh <sha>
-      # Run it from a laptop or an external scheduler for real coverage.
-      - run: bash scripts/workflow-watchdog.sh "${{ github.sha }}" CI
+      - name: Verify required sibling jobs
         env:
-          GH_TOKEN: ${{ github.token }}
+          REQUIRED_JOB_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$REQUIRED_JOB_RESULTS" | jq -r \
+            'to_entries[] | "  \(.key): \(.value.result)"'
+          if ! echo "$REQUIRED_JOB_RESULTS" | jq -e \
+            'to_entries | length == 8 and all(.value.result == "success")' \
+            >/dev/null; then
+            echo "RESULT: at least one required CI sibling did not succeed." >&2
+            exit 1
+          fi
+          echo "RESULT: all required CI siblings succeeded."
