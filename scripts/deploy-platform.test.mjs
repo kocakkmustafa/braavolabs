@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { once } from "node:events";
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
@@ -12,6 +12,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SCRIPT = join(ROOT, "scripts/deploy-platform.sh");
 const RELEASE = "1".repeat(40);
 const PREVIOUS_RELEASE = "0".repeat(40);
+const ROLLBACK_RELEASE = "2".repeat(40);
 const AUTHORITATIVE_PREVIOUS_RELEASE = "fd2b3c3ad7795f20a1cf93d3506c72cbf3a5424b";
 const REAL_MIGRATION_CANDIDATE = "1a8e966c8739d05a917d90941c19ce18398f714e";
 const API = "ghcr.io/kocakkmustafa/braavolabs/api@sha256:" + "a".repeat(64);
@@ -93,6 +94,7 @@ function remoteEnvironment(h, overrides = {}) {
     DEPLOY_HERMETIC_TEST: "1",
     FAKE_CALL_LOG: h.log,
     FAKE_STATE_ROOT: h.state,
+    FAKE_APP_ROOT: h.appRoot,
     PREVIOUS_RELEASE_COMMIT: PREVIOUS_RELEASE,
     RELEASE_COMMIT: RELEASE,
     API_IMAGE_REF: API,
@@ -163,6 +165,7 @@ function seedSuccessfulJournal(h, { updatePreviousGood = true } = {}) {
   const deltaHash = sha256File(join(incoming, "migration-delta.sha256"));
   const releaseRoot = join(h.appRoot, "releases", RELEASE);
   mkdirSync(join(releaseRoot, "transitions"), { recursive: true });
+  writeFileSync(join(releaseRoot, "compose.digest-override.yaml"), "services: {}\n");
   cpSync(join(h.appRoot, "releases/previous-good.json"),
     join(releaseRoot, "previous-good.before.json"));
   writeFileSync(join(releaseRoot, "release.json"), JSON.stringify({
@@ -170,9 +173,12 @@ function seedSuccessfulJournal(h, { updatePreviousGood = true } = {}) {
     tuple: `${RELEASE}|${API}|${UI}|${manifestHash}|${deltaHash}`,
     api: API,
     ui: UI,
+    previousApi: PREVIOUS_API,
+    previousUi: PREVIOUS_UI,
     state: "COMMIT_RELEASE",
     result: "success",
   }) + "\n");
+  writeFileSync(join(h.state, "active-compose-release"), RELEASE);
   if (updatePreviousGood) {
     writeFileSync(join(h.appRoot, "releases/previous-good.json"), JSON.stringify({
       release: RELEASE, previousRelease: PREVIOUS_RELEASE,
@@ -182,18 +188,24 @@ function seedSuccessfulJournal(h, { updatePreviousGood = true } = {}) {
     }) + "\n");
   }
 }
-function seedCommitRestartState(h, { result = "pending", durable = "old" } = {}) {
+function seedCommitRestartState(h, {
+  state = "COMMIT_RELEASE",
+  result = "pending",
+  durable = "old",
+} = {}) {
   const incoming = buildIncoming(h);
   const manifestHash = sha256File(join(incoming, "release-inputs.sha256"));
   const deltaHash = sha256File(join(incoming, "migration-delta.sha256"));
   const tuple = `${RELEASE}|${API}|${UI}|${manifestHash}|${deltaHash}`;
   const releaseRoot = join(h.appRoot, "releases", RELEASE);
   mkdirSync(join(releaseRoot, "transitions"), { recursive: true });
+  writeFileSync(join(releaseRoot, "compose.digest-override.yaml"), "services: {}\n");
   cpSync(join(h.appRoot, "releases/previous-good.json"),
     join(releaseRoot, "previous-good.before.json"));
   writeFileSync(join(releaseRoot, "release.json"), JSON.stringify({
     release: RELEASE, tuple, api: API, ui: UI,
-    state: "COMMIT_RELEASE", result,
+    previousApi: PREVIOUS_API, previousUi: PREVIOUS_UI,
+    state, result,
   }) + "\n");
   const durablePath = join(h.appRoot, "releases/previous-good.json");
   if (durable === "candidate") {
@@ -211,10 +223,31 @@ function seedCommitRestartState(h, { result = "pending", durable = "old" } = {})
   }
   writeFileSync(join(h.state, "active-api"), API);
   writeFileSync(join(h.state, "active-ui"), UI);
+  writeFileSync(join(h.state, "active-compose-release"), RELEASE);
   return tuple;
 }
 function primitive(h, name, body) {
   executable(join(h.bin, name), `printf '%s\\n' "${name} $*" >> "$FAKE_CALL_LOG"\n${body}`);
+}
+
+function seedComposeIdentity(h, {
+  release = PREVIOUS_RELEASE,
+  state = "COMMIT_RELEASE",
+  result = "success",
+  api = PREVIOUS_API,
+  ui = PREVIOUS_UI,
+  previousApi = PREVIOUS_API,
+  previousUi = PREVIOUS_UI,
+} = {}) {
+  const releaseRoot = join(h.appRoot, "releases", release);
+  mkdirSync(join(releaseRoot, "input/ENV"), { recursive: true });
+  writeFileSync(join(releaseRoot, "input/ENV/compose.prod.yaml"), "services: {}\n");
+  writeFileSync(join(releaseRoot, "compose.digest-override.yaml"), "services: {}\n");
+  writeFileSync(join(releaseRoot, "release.json"), JSON.stringify({
+    release, state, result, api, ui, previousApi, previousUi,
+  }) + "\n");
+  writeFileSync(join(h.state, "active-compose-release"), release);
+  return releaseRoot;
 }
 
 function makeHarness() {
@@ -245,6 +278,7 @@ function makeHarness() {
     tuple: "previous-tuple", api: PREVIOUS_API, ui: PREVIOUS_UI,
     migrationDeltaSha256: "e".repeat(64), result: "success",
   }) + "\n");
+  seedComposeIdentity(h);
   writeFileSync(h.key, "synthetic-key\n", { mode: 0o600 });
   writeKnownHosts(h, [`deploy.example.test ssh-ed25519 ${KEY_A}`]);
 
@@ -316,13 +350,32 @@ identity_value() {
   fi
 }
 case "$*" in
-  *'com.docker.compose.project.config_files'*) identity_value /opt/braavolabs/app/ENV/compose.prod.yaml FAKE_COMPOSE_CONFIG ; exit 0 ;;
-  *'com.docker.compose.project.working_dir'*) identity_value /opt/braavolabs/app/ENV FAKE_COMPOSE_WORKING_DIR ; exit 0 ;;
-  *'com.docker.compose.project'*) identity_value env FAKE_COMPOSE_PROJECT ; exit 0 ;;
+  *'com.docker.compose.project.config_files'*)
+    rid=$(cat "$FAKE_STATE_ROOT/active-compose-release"); root="$FAKE_APP_ROOT/releases/$rid"
+    case "${'${FAKE_COMPOSE_IDENTITY_MUTATION:-}'}" in
+      canonical-mix) value="$FAKE_APP_ROOT/app/ENV/compose.prod.yaml,$root/compose.digest-override.yaml" ;;
+      extra-config) value="$root/input/ENV/compose.prod.yaml,$root/compose.digest-override.yaml,/tmp/extra.yaml" ;;
+      traversal) value="$FAKE_APP_ROOT/releases/$rid/../$rid/input/ENV/compose.prod.yaml,$root/compose.digest-override.yaml" ;;
+      mismatched-release)
+        if [ "$container" = aicos-ui ]; then other='3333333333333333333333333333333333333333'; value="$FAKE_APP_ROOT/releases/$other/input/ENV/compose.prod.yaml,$FAKE_APP_ROOT/releases/$other/compose.digest-override.yaml"
+        else value="$root/input/ENV/compose.prod.yaml,$root/compose.digest-override.yaml"; fi ;;
+      *) value="$root/input/ENV/compose.prod.yaml,$root/compose.digest-override.yaml" ;;
+    esac
+    identity_value "$value" FAKE_COMPOSE_CONFIG; exit 0 ;;
+  *'com.docker.compose.project.working_dir'*)
+    rid=$(cat "$FAKE_STATE_ROOT/active-compose-release"); value="$FAKE_APP_ROOT/releases/$rid/input/ENV"
+    [ "${'${FAKE_COMPOSE_IDENTITY_MUTATION:-}'}" = work-mismatch ] && value="$FAKE_APP_ROOT/releases/$rid/input"
+    identity_value "$value" FAKE_COMPOSE_WORKING_DIR; exit 0 ;;
+  *'com.docker.compose.project'*)
+    value=env; [ "${'${FAKE_COMPOSE_IDENTITY_MUTATION:-}'}" = project-mismatch ] && value=wrong
+    identity_value "$value" FAKE_COMPOSE_PROJECT; exit 0 ;;
   *'com.docker.compose.service'*)
     case "$container" in aicos-api) service=api ;; aicos-ui) service=ui ;; aicos-postgres) service=postgres ;; aicos-redis) service=redis ;; *) service=unknown ;; esac
+    [ "${'${FAKE_COMPOSE_IDENTITY_MUTATION:-}'}" = service-mismatch ] && service=wrong
     identity_value "$service" FAKE_COMPOSE_SERVICE; exit 0 ;;
-  *'NetworkSettings.Networks'*) identity_value present FAKE_COMPOSE_NETWORK ; exit 0 ;;
+  *'NetworkSettings.Networks'*)
+    value=present; [ "${'${FAKE_COMPOSE_IDENTITY_MUTATION:-}'}" = network-mismatch ] && value=''
+    identity_value "$value" FAKE_COMPOSE_NETWORK; exit 0 ;;
   *'pull '*) [ "${'${PAUSE_AT:-}'}" = pull ] && sleep 30; [ "${'${FAIL_PRIMITIVE:-}'}" = pull ] && exit 1; exit 0 ;;
   *'image inspect'*"$API_IMAGE_REF"*) printf '%s\\n' "$API_IMAGE_REF"; exit 0 ;;
   *'image inspect'*"$UI_IMAGE_REF"*) printf '%s\\n' "$UI_IMAGE_REF"; exit 0 ;;
@@ -360,6 +413,7 @@ case "$*" in
     [ "${'${FAKE_DIGEST_MISMATCH:-}'}" = api ] && next_api="$PREVIOUS_API_REF"
     printf '%s' "$next_api" > "$FAKE_STATE_ROOT/active-api"
     printf '%s' "$next_ui" > "$FAKE_STATE_ROOT/active-ui"
+    basename "$(dirname "$override")" > "$FAKE_STATE_ROOT/active-compose-release"
     exit 0 ;;
   *'compose'*'postgres-backup'*) [ "${'${PAUSE_AT:-}'}" = backup ] && sleep 30; [ "${'${FAIL_PRIMITIVE:-}'}" = backup ] && exit 1; exit 0 ;;
   *) exit 0 ;;
@@ -454,6 +508,104 @@ for (const [name, container, env] of [
   assertNoExternalNetwork(h);
 }));
 
+test("release-scoped identity accepts a proven restored rollback journal", () =>
+  withHarness((h) => {
+    seedComposeIdentity(h, {
+      release: ROLLBACK_RELEASE,
+      state: "ROLLBACK_APPLICATION",
+      result: "restored",
+      api: API,
+      ui: UI,
+    });
+    const result = runRemote(h);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "1");
+    assert.equal(readFileSync(join(h.state, "cutover-count"), "utf8"), "1");
+  }));
+
+for (const mutation of [
+  "canonical-mix",
+  "extra-config",
+  "traversal",
+  "mismatched-release",
+  "work-mismatch",
+  "project-mismatch",
+  "service-mismatch",
+  "network-mismatch",
+]) test(`compose identity denies ${mutation} before migration or cutover`, () =>
+  withHarness((h) => {
+    const result = runRemote(h, { FAKE_COMPOSE_IDENTITY_MUTATION: mutation });
+    assert.equal(result.status, 66, result.stderr);
+    assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
+    assert.equal(readFileSync(join(h.state, "cutover-count"), "utf8"), "0");
+    assert.doesNotMatch(result.calls, /migrate deploy|up -d --no-deps api ui|curl /);
+  }));
+
+for (const [name, mutate] of [
+  ["absent journal", (h, root) => rmSync(join(root, "release.json"))],
+  ["mismatched journal release", (h, root) => {
+    const path = join(root, "release.json");
+    const journal = JSON.parse(readFileSync(path, "utf8"));
+    journal.release = ROLLBACK_RELEASE;
+    writeFileSync(path, JSON.stringify(journal) + "\n");
+  }],
+  ["untrusted journal state", (h, root) => {
+    const path = join(root, "release.json");
+    const journal = JSON.parse(readFileSync(path, "utf8"));
+    journal.state = "CUTOVER";
+    writeFileSync(path, JSON.stringify(journal) + "\n");
+  }],
+  ["mismatched journal digest", (h, root) => {
+    const path = join(root, "release.json");
+    const journal = JSON.parse(readFileSync(path, "utf8"));
+    journal.api = API;
+    writeFileSync(path, JSON.stringify(journal) + "\n");
+  }],
+  ["symlinked override escape", (h, root) => {
+    const escape = join(h.root, "escape.override.yaml");
+    writeFileSync(escape, "services: {}\n");
+    rmSync(join(root, "compose.digest-override.yaml"));
+    symlinkSync(escape, join(root, "compose.digest-override.yaml"));
+  }],
+  ["symlinked compose-file escape", (h, root) => {
+    const escape = join(h.root, "escape.compose.yaml");
+    writeFileSync(escape, "services: {}\n");
+    rmSync(join(root, "input/ENV/compose.prod.yaml"));
+    symlinkSync(escape, join(root, "input/ENV/compose.prod.yaml"));
+  }],
+]) test(`compose identity denies ${name} before migration or cutover`, () =>
+  withHarness((h) => {
+    const root = join(h.appRoot, "releases", PREVIOUS_RELEASE);
+    mutate(h, root);
+    const result = runRemote(h);
+    assert.equal(result.status, 66, result.stderr);
+    assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
+    assert.equal(readFileSync(join(h.state, "cutover-count"), "utf8"), "0");
+    assert.doesNotMatch(result.calls, /migrate deploy|up -d --no-deps api ui|curl /);
+  }));
+
+test("candidate identity denies an active API outside its journal digest pair", () =>
+  withHarness((h) => {
+    seedCommitRestartState(h, { state: "CUTOVER", result: "pending" });
+    writeFileSync(join(h.state, "active-api"),
+      `ghcr.io/kocakkmustafa/braavolabs/api@sha256:${"f".repeat(64)}`);
+    const result = runRemote(h);
+    assert.equal(result.status, 66, result.stderr);
+    assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
+    assert.equal(readFileSync(join(h.state, "cutover-count"), "utf8"), "0");
+    assert.doesNotMatch(result.calls, /migrate deploy|up -d --no-deps api ui|curl /);
+  }));
+
+test("candidate identity denies an impossible durable transition result", () =>
+  withHarness((h) => {
+    seedCommitRestartState(h, { state: "CUTOVER", result: "success" });
+    const result = runRemote(h);
+    assert.equal(result.status, 66, result.stderr);
+    assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
+    assert.equal(readFileSync(join(h.state, "cutover-count"), "utf8"), "0");
+    assert.doesNotMatch(result.calls, /migrate deploy|up -d --no-deps api ui|curl /);
+  }));
+
 for (const [name, env, status] of [
   ["target health", { FAIL_TARGET_HEALTH: "1" }, 70],
   ["rollback health", { FAIL_TARGET_HEALTH: "1", FAIL_ROLLBACK_HEALTH: "1" }, 71],
@@ -522,6 +674,7 @@ for (const [state, seed] of [
   ["candidate API / candidate UI without success", [API, UI]],
 ]) test(`real remote restart restores durable previous-good from ${state}`, () =>
   withHarness((h) => {
+    seedCommitRestartState(h, { state: "CUTOVER", result: "pending" });
     writeFileSync(join(h.state, "active-api"), seed[0]);
     writeFileSync(join(h.state, "active-ui"), seed[1]);
     const result = runRemote(h);
@@ -532,7 +685,9 @@ for (const [state, seed] of [
 
 test("real remote restart reports 71 when durable recovery health fails", () =>
   withHarness((h) => {
+    seedCommitRestartState(h, { state: "CUTOVER", result: "pending" });
     writeFileSync(join(h.state, "active-api"), API);
+    writeFileSync(join(h.state, "active-ui"), PREVIOUS_UI);
     const result = runRemote(h, { FAIL_ROLLBACK_HEALTH: "1" });
     assert.equal(result.status, 71);
   }));
@@ -599,7 +754,7 @@ for (const [name, field, value] of [
 
   const result = runRemote(h);
 
-  assert.equal(result.status, 67);
+  assert.equal(result.status, 66);
   assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
   assert.equal(readFileSync(join(h.state, "cutover-count"), "utf8"), "0");
   assert.doesNotMatch(result.calls, /migrate deploy|curl |commit-release-success|COMMIT_RELEASE success/);
@@ -626,7 +781,7 @@ for (const [name, resultState, field, value] of [
 
     const result = runRemote(h);
 
-    assert.equal(result.status, 67);
+    assert.equal(result.status, 66);
     assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
     assert.equal(readFileSync(join(h.state, "cutover-count"), "utf8"), "0");
     assert.doesNotMatch(result.calls, /migrate deploy|curl |commit-release-success|COMMIT_RELEASE success/);
@@ -698,12 +853,18 @@ async function signalAt(h, pauseAt, extra = {}) {
     detached: true,
     env: remoteEnvironment(h, { PAUSE_AT: pauseAt, ...extra }),
   });
-  for (let attempt = 0; attempt < 300; attempt += 1) {
-    if (readFileSync(h.log, "utf8").includes(pauseAt === "pull" ? "docker pull" :
-      pauseAt === "backup" ? "postgres-backup" :
-      pauseAt === "target-health" ? "curl " : "sync ")) break;
+  const marker = pauseAt === "pull" ? "docker pull" :
+    pauseAt === "backup" ? "postgres-backup" :
+    pauseAt === "target-health" ? "curl " : "sync ";
+  let reached = false;
+  for (let attempt = 0; attempt < 3000; attempt += 1) {
+    if (readFileSync(h.log, "utf8").includes(marker)) {
+      reached = true;
+      break;
+    }
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
   }
+  assert.equal(reached, true, `timed out waiting for ${pauseAt} marker ${marker}`);
   process.kill(-child.pid, "SIGTERM");
   const [status] = await once(child, "exit");
   return status;
@@ -849,6 +1010,7 @@ test("known_hosts bracketed non-default port is accepted", () => withHarness((h)
 
 test("real main-to-candidate four-path migration discovery reaches the mocked Prisma sink", () =>
   withHarness((h) => {
+    seedComposeIdentity(h, { release: AUTHORITATIVE_PREVIOUS_RELEASE });
     writeFileSync(join(h.appRoot, "releases/previous-good.json"), JSON.stringify({
       release: AUTHORITATIVE_PREVIOUS_RELEASE,
       previousRelease: AUTHORITATIVE_PREVIOUS_RELEASE,

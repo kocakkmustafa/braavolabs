@@ -5,8 +5,6 @@ readonly EXIT_INPUT=64 EXIT_HOST=65 EXIT_REMOTE=66 EXIT_IMAGE=67 EXIT_MIGRATION=
 readonly EXIT_CUTOVER=69 EXIT_HEALTH_ROLLED_BACK=70 EXIT_ROLLBACK=71
 readonly EXIT_JOURNAL=72 EXIT_LOCK=75
 readonly COMPOSE_PROJECT='env'
-readonly COMPOSE_CONFIG_PATH='/opt/braavolabs/app/ENV/compose.prod.yaml'
-readonly COMPOSE_WORKING_DIR='/opt/braavolabs/app/ENV'
 readonly COMPOSE_NETWORK='env_default'
 readonly REVIEWED_PLAN_PREVIOUS_RELEASE='fd2b3c3ad7795f20a1cf93d3506c72cbf3a5424b'
 readonly REVIEWED_PLAN_ENUM_PATH='packages/db/prisma/migrations/20260820000000_subscription_plan_enum_values/migration.sql'
@@ -70,7 +68,10 @@ container_label() {
 }
 
 verify_compose_identity() {
-  local container expected_service
+  local container expected_service config_files working_dir relative identity_release=''
+  local identity_root expected_config expected_work journal releases_real identity_real
+  local journal_release journal_state journal_result journal_api journal_ui
+  local journal_previous_api journal_previous_ui
   for container in aicos-api aicos-ui aicos-postgres aicos-redis; do
     case "$container" in
       aicos-api) expected_service=api ;;
@@ -81,10 +82,69 @@ verify_compose_identity() {
     esac
     test "$(container_label "$container" com.docker.compose.project)" = "$COMPOSE_PROJECT" || return 1
     test "$(container_label "$container" com.docker.compose.service)" = "$expected_service" || return 1
-    test "$(container_label "$container" com.docker.compose.project.config_files)" = "$COMPOSE_CONFIG_PATH" || return 1
-    test "$(container_label "$container" com.docker.compose.project.working_dir)" = "$COMPOSE_WORKING_DIR" || return 1
+    config_files="$(container_label "$container" com.docker.compose.project.config_files)" || return 1
+    working_dir="$(container_label "$container" com.docker.compose.project.working_dir)" || return 1
+    relative="${config_files#"$app_root/releases/"}"
+    test "$relative" != "$config_files" || return 1
+    test "${relative#*/}" != "$relative" || return 1
+    test -z "$identity_release" || test "${relative%%/*}" = "$identity_release" || return 1
+    identity_release="${relative%%/*}"
+    [[ "$identity_release" =~ ^[0-9a-f]{40}$ ]] || return 1
+    identity_root="$app_root/releases/$identity_release"
+    expected_config="$identity_root/input/ENV/compose.prod.yaml,$identity_root/compose.digest-override.yaml"
+    expected_work="$identity_root/input/ENV"
+    test "$config_files" = "$expected_config" || return 1
+    test "$working_dir" = "$expected_work" || return 1
     test "$(docker inspect --format "{{with index .NetworkSettings.Networks \"$COMPOSE_NETWORK\"}}present{{end}}" "$container")" = present || return 1
   done
+
+  test -n "$identity_release" || return 1
+  releases_real="$(realpath -- "$app_root/releases")" || return 1
+  identity_real="$(realpath -- "$identity_root")" || return 1
+  test "$identity_real" = "$releases_real/$identity_release" || return 1
+  test "$(realpath -- "$identity_root/input/ENV/compose.prod.yaml")" = "$identity_real/input/ENV/compose.prod.yaml" || return 1
+  test "$(realpath -- "$identity_root/compose.digest-override.yaml")" = "$identity_real/compose.digest-override.yaml" || return 1
+  test "$(realpath -- "$identity_root/input/ENV")" = "$identity_real/input/ENV" || return 1
+
+  journal="$identity_root/release.json"
+  test -f "$journal" && test ! -L "$journal" || return 1
+  journal_release="$(json_field release "$journal")" || return 1
+  journal_state="$(json_field state "$journal")" || return 1
+  journal_result="$(json_field result "$journal")" || return 1
+  journal_api="$(json_field api "$journal")" || return 1
+  journal_ui="$(json_field ui "$journal")" || return 1
+  journal_previous_api="$(json_field previousApi "$journal")" || return 1
+  journal_previous_ui="$(json_field previousUi "$journal")" || return 1
+  test "$journal_release" = "$identity_release" || return 1
+  is_digest_ref "$journal_api" && is_digest_ref "$journal_ui" || return 1
+  is_digest_ref "$journal_previous_api" && is_digest_ref "$journal_previous_ui" || return 1
+
+  if test "$identity_release" = "$release_commit"; then
+    # A restarted candidate may have stopped at any durable transition between
+    # staging and commit. Bind both digest pairs to this invocation, then let
+    # remote_main resume a complete candidate or roll back a partial cutover.
+    test "$journal_api" = "$api_ref" && test "$journal_ui" = "$ui_ref" || return 1
+    test "$journal_previous_api" = "$previous_api" && test "$journal_previous_ui" = "$previous_ui" || return 1
+    case "$journal_state:$journal_result" in
+      CAPTURE_PREVIOUS:complete|STAGE_RELEASE:complete|MIGRATE_CANDIDATE:pending|MIGRATE_CANDIDATE:complete|MIGRATE_CANDIDATE:failed|MIGRATE_CANDIDATE:rejected|CUTOVER:pending|CUTOVER:complete|VERIFY_TARGET:pending|VERIFY_TARGET:complete|COMMIT_RELEASE:pending|COMMIT_RELEASE:success|ROLLBACK_APPLICATION:pending|ROLLBACK_APPLICATION:restored|ROLLBACK_APPLICATION:failed) ;;
+      *) return 1 ;;
+    esac
+    { test "$active_api" = "$journal_api" || test "$active_api" = "$journal_previous_api"; } || return 1
+    { test "$active_ui" = "$journal_ui" || test "$active_ui" = "$journal_previous_ui"; } || return 1
+  elif test "$journal_state" = ROLLBACK_APPLICATION && test "$journal_result" = restored; then
+    # After an earlier failed release, Docker legitimately retains that
+    # release's config/workdir labels while its override restores previous-good.
+    test "$journal_previous_api" = "$previous_api" && test "$journal_previous_ui" = "$previous_ui" || return 1
+    test "$active_api" = "$journal_previous_api" && test "$active_ui" = "$journal_previous_ui" || return 1
+  elif test "$identity_release" = "$previous_release"; then
+    # A clean previous release must be a fully committed journal whose primary
+    # image pair is exactly the durable authority loaded above.
+    test "$journal_state" = COMMIT_RELEASE && test "$journal_result" = success || return 1
+    test "$journal_api" = "$previous_api" && test "$journal_ui" = "$previous_ui" || return 1
+    test "$active_api" = "$journal_api" && test "$active_ui" = "$journal_ui" || return 1
+  else
+    return 1
+  fi
 }
 now_utc() { date -u '+%Y-%m-%dT%H:%M:%SZ'; }
 
