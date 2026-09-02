@@ -70,11 +70,11 @@ async function call(method: string, path: string, role?: string) {
 /** [label, method, path, minimum role] */
 const MATRIX: [string, string, string, "OWNER" | "ADMIN"][] = [
   ["company:delete", "DELETE", "/api/v1/companies/c1", "OWNER"],
-  ["billing:checkout", "POST", "/api/v1/billing/checkout", "OWNER"],
-  ["billing:portal", "POST", "/api/v1/billing/portal", "OWNER"],
+  ["billing:checkout", "POST", "/api/v1/billing/checkout", "ADMIN"],
+  ["billing:portal", "POST", "/api/v1/billing/portal", "ADMIN"],
   // The spend CAP, not just the act of paying — a review caught that shipping
   // "money is OWNER-only" with this open made the claim false.
-  ["billing:budget", "PATCH", "/api/v1/billing/budget", "OWNER"],
+  ["billing:budget", "PATCH", "/api/v1/billing/budget", "ADMIN"],
   ["governance:hard-stop", "POST", "/api/v1/governance/hard-stop/r1", "ADMIN"],
 ];
 

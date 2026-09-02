@@ -32,9 +32,10 @@ export function requirePermission(action: PrivilegedAction): RequestHandler<any,
         { action, role: auth.role, userId: auth.userId, tenantId: auth.tenantId },
         "authorisation denied",
       );
-      // Names the action, never the required role: telling a caller "you need
-      // OWNER" enumerates the privilege model for them.
-      res.status(403).json({ error: `Insufficient permissions for ${action}` });
+      // Keep the public response generic. The action is already captured in
+      // the structured warning above; echoing it to a caller needlessly
+      // enumerates the privilege model and breaks the stable denial contract.
+      res.status(403).json({ error: "Insufficient permissions" });
       return;
     }
     next();

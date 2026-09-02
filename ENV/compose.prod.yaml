@@ -93,6 +93,7 @@ services:
       # switch: production activation remains MANUAL-BRAAVO-SECURITY-ROOTS.
       # See docs/security/tenant-rls-stage2-runbook.md.
       DATABASE_URL: ${RUNTIME_DATABASE_URL:-postgresql://aicos:${POSTGRES_PASSWORD}@postgres:5432/aicos_prod?schema=public&connection_limit=20&pool_timeout=15}
+      TENANT_CONTEXT_FAIL_CLOSED: ${TENANT_CONTEXT_FAIL_CLOSED:-true}
       # Migrations MUST run as the schema OWNER (aicos) even after the runtime
       # switches to aicos_app — a non-superuser can't ALTER the schema. Always
       # the owner URL; consumed only by the deploy pipeline's migrate step.

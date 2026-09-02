@@ -20,6 +20,7 @@ import { rateLimit } from "../../middleware/rateLimit";
 import { AppError } from "../../middleware/error";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
+import { roleCan, type AppRole } from "../../lib/rbac";
 import {
   chatCompletion,
   saveTenantAIConfig,
@@ -199,7 +200,7 @@ const requireForgeSaveRole: RequestHandler = (req, res, next) => {
     res.status(401).json({ error: "Not authenticated" });
     return;
   }
-  if (req.auth.role !== "OWNER" && req.auth.role !== "ADMIN") {
+  if (!roleCan(req.auth.role as AppRole, "settings:ai-config")) {
     res.status(403).json({ error: "Insufficient permissions" });
     return;
   }

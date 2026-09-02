@@ -341,6 +341,7 @@ jobs:
         run: pnpm --filter @ai-company-os/api test:xtenant
         env:
           XTENANT_DATABASE_URL: postgresql://test:test@localhost:5432/aicos_e2e
+          REQUIRE_XTENANT_MATRIX: "1"
       - run: pnpm build
       - name: Link standalone assets
         # Next does not copy .next/static or public/ into the standalone bundle;

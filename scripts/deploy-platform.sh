@@ -84,6 +84,22 @@ verify_compose_identity() {
     test "$(container_label "$container" com.docker.compose.service)" = "$expected_service" || return 1
     config_files="$(container_label "$container" com.docker.compose.project.config_files)" || return 1
     working_dir="$(container_label "$container" com.docker.compose.project.working_dir)" || return 1
+    test "$(docker inspect --format "{{with index .NetworkSettings.Networks \"$COMPOSE_NETWORK\"}}present{{end}}" "$container")" = present || return 1
+
+    # Cutovers intentionally recreate only api/ui (`--no-deps`). The stateful
+    # postgres/redis containers therefore keep the canonical bootstrap labels;
+    # requiring release labels on them made a healthy restored deployment fail
+    # preflight with exit 66 forever. Bind those long-lived services to their
+    # exact canonical identity, while the two replaceable application services
+    # must share one sealed release identity below.
+    case "$container" in
+      aicos-postgres|aicos-redis)
+        test "$config_files" = "$app_root/app/ENV/compose.prod.yaml" || return 1
+        test "$working_dir" = "$app_root/app/ENV" || return 1
+        continue
+        ;;
+    esac
+
     relative="${config_files#"$app_root/releases/"}"
     test "$relative" != "$config_files" || return 1
     test "${relative#*/}" != "$relative" || return 1
@@ -95,7 +111,6 @@ verify_compose_identity() {
     expected_work="$identity_root/input/ENV"
     test "$config_files" = "$expected_config" || return 1
     test "$working_dir" = "$expected_work" || return 1
-    test "$(docker inspect --format "{{with index .NetworkSettings.Networks \"$COMPOSE_NETWORK\"}}present{{end}}" "$container")" = present || return 1
   done
 
   test -n "$identity_release" || return 1

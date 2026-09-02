@@ -352,18 +352,24 @@ identity_value() {
 case "$*" in
   *'com.docker.compose.project.config_files'*)
     rid=$(cat "$FAKE_STATE_ROOT/active-compose-release"); root="$FAKE_APP_ROOT/releases/$rid"
-    case "${'${FAKE_COMPOSE_IDENTITY_MUTATION:-}'}" in
-      canonical-mix) value="$FAKE_APP_ROOT/app/ENV/compose.prod.yaml,$root/compose.digest-override.yaml" ;;
-      extra-config) value="$root/input/ENV/compose.prod.yaml,$root/compose.digest-override.yaml,/tmp/extra.yaml" ;;
-      traversal) value="$FAKE_APP_ROOT/releases/$rid/../$rid/input/ENV/compose.prod.yaml,$root/compose.digest-override.yaml" ;;
-      mismatched-release)
-        if [ "$container" = aicos-ui ]; then other='3333333333333333333333333333333333333333'; value="$FAKE_APP_ROOT/releases/$other/input/ENV/compose.prod.yaml,$FAKE_APP_ROOT/releases/$other/compose.digest-override.yaml"
-        else value="$root/input/ENV/compose.prod.yaml,$root/compose.digest-override.yaml"; fi ;;
-      *) value="$root/input/ENV/compose.prod.yaml,$root/compose.digest-override.yaml" ;;
-    esac
+    if [ "$container" = aicos-postgres ] || [ "$container" = aicos-redis ]; then
+      value="$FAKE_APP_ROOT/app/ENV/compose.prod.yaml"
+    else
+      case "${'${FAKE_COMPOSE_IDENTITY_MUTATION:-}'}" in
+        canonical-mix) value="$FAKE_APP_ROOT/app/ENV/compose.prod.yaml,$root/compose.digest-override.yaml" ;;
+        extra-config) value="$root/input/ENV/compose.prod.yaml,$root/compose.digest-override.yaml,/tmp/extra.yaml" ;;
+        traversal) value="$FAKE_APP_ROOT/releases/$rid/../$rid/input/ENV/compose.prod.yaml,$root/compose.digest-override.yaml" ;;
+        mismatched-release)
+          if [ "$container" = aicos-ui ]; then other='3333333333333333333333333333333333333333'; value="$FAKE_APP_ROOT/releases/$other/input/ENV/compose.prod.yaml,$FAKE_APP_ROOT/releases/$other/compose.digest-override.yaml"
+          else value="$root/input/ENV/compose.prod.yaml,$root/compose.digest-override.yaml"; fi ;;
+        *) value="$root/input/ENV/compose.prod.yaml,$root/compose.digest-override.yaml" ;;
+      esac
+    fi
     identity_value "$value" FAKE_COMPOSE_CONFIG; exit 0 ;;
   *'com.docker.compose.project.working_dir'*)
-    rid=$(cat "$FAKE_STATE_ROOT/active-compose-release"); value="$FAKE_APP_ROOT/releases/$rid/input/ENV"
+    rid=$(cat "$FAKE_STATE_ROOT/active-compose-release")
+    if [ "$container" = aicos-postgres ] || [ "$container" = aicos-redis ]; then value="$FAKE_APP_ROOT/app/ENV"
+    else value="$FAKE_APP_ROOT/releases/$rid/input/ENV"; fi
     [ "${'${FAKE_COMPOSE_IDENTITY_MUTATION:-}'}" = work-mismatch ] && value="$FAKE_APP_ROOT/releases/$rid/input"
     identity_value "$value" FAKE_COMPOSE_WORKING_DIR; exit 0 ;;
   *'com.docker.compose.project'*)

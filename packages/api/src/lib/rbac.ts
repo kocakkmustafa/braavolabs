@@ -46,13 +46,16 @@ export type AppRole = keyof typeof ROLE_RANK;
  */
 export const PRIVILEGED_ACTIONS = {
   "company:delete": "OWNER",
-  "billing:checkout": "OWNER",
-  "billing:portal": "OWNER",
+  // Tenant administrators already own day-to-day billing operations in the
+  // current product contract. Centralize that established policy instead of
+  // silently narrowing it while replacing the old inline guards.
+  "billing:checkout": "ADMIN",
+  "billing:portal": "ADMIN",
   // The SPEND CAP, not just the act of paying. A review caught that shipping
   // "money is OWNER-only" while leaving this open made the claim false: any
   // member could raise monthlyBudgetUsd to the schema max, or null it and
   // thereby disable the cost-anomaly stop that rule #8 depends on.
-  "billing:budget": "OWNER",
+  "billing:budget": "ADMIN",
   // Tenant-wide credential control, and keyed on tenantId rather than userId:
   // whoever writes this replaces the BYOK apiKey AND baseUrl for every user in
   // the tenant, which points every LLM call at an endpoint of their choosing

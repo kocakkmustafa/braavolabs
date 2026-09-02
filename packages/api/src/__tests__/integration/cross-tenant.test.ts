@@ -61,9 +61,12 @@ const d = PROBE_URL ? describe : describe.skip;
  *
  * This test is deliberately NOT inside the skipped describe.
  */
-it("the isolation matrix must actually run in CI", () => {
-  if (process.env.CI) {
-    expect(PROBE_URL, "XTENANT_DATABASE_URL is unset in CI — the cross-tenant matrix would silently skip").toBeTruthy();
+it("the isolation matrix must actually run in the dedicated CI gate", () => {
+  if (process.env.REQUIRE_XTENANT_MATRIX === "1") {
+    expect(
+      PROBE_URL,
+      "XTENANT_DATABASE_URL is unset in the dedicated CI gate — the cross-tenant matrix would silently skip",
+    ).toBeTruthy();
   }
 });
 

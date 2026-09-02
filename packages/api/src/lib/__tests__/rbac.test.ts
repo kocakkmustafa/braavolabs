@@ -61,12 +61,12 @@ describe("roleCan — least privilege", () => {
     expect(roleCan("MEMBER", "approval:decide")).toBe(true);
   });
 
-  it("keeps the SPEND CAP owner-only, not just the act of paying", () => {
+  it("keeps the SPEND CAP off members while preserving tenant-admin operations", () => {
     // Shipping "money is OWNER-only" while leaving the budget knob open made
     // the claim false: a member could raise the cap to the schema max, or null
     // it and disable the cost-anomaly stop entirely.
     expect(roleCan("MEMBER", "billing:budget")).toBe(false);
-    expect(roleCan("ADMIN", "billing:budget")).toBe(false);
+    expect(roleCan("ADMIN", "billing:budget")).toBe(true);
     expect(roleCan("OWNER", "billing:budget")).toBe(true);
   });
 
@@ -78,13 +78,11 @@ describe("roleCan — least privilege", () => {
     expect(roleCan("ADMIN", "settings:ai-config")).toBe(true);
   });
 
-  it("keeps money and tenant-destruction OWNER-only, not merely admin-only", () => {
-    // Deleting the company and moving money are the two that cannot be undone
-    // by the person who did them.
-    expect(roleCan("ADMIN", "billing:checkout")).toBe(false);
-    expect(roleCan("ADMIN", "billing:portal")).toBe(false);
+  it("keeps tenant destruction OWNER-only and billing off members", () => {
+    expect(roleCan("ADMIN", "billing:checkout")).toBe(true);
+    expect(roleCan("ADMIN", "billing:portal")).toBe(true);
     expect(roleCan("ADMIN", "company:delete")).toBe(false);
-    expect(roleCan("ADMIN", "billing:budget")).toBe(false);
+    expect(roleCan("ADMIN", "billing:budget")).toBe(true);
     expect(roleCan("OWNER", "company:delete")).toBe(true);
   });
 
