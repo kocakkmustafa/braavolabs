@@ -4,6 +4,10 @@ IFS=$'\n\t'
 readonly EXIT_INPUT=64 EXIT_HOST=65 EXIT_REMOTE=66 EXIT_IMAGE=67 EXIT_MIGRATION=68
 readonly EXIT_CUTOVER=69 EXIT_HEALTH_ROLLED_BACK=70 EXIT_ROLLBACK=71
 readonly EXIT_JOURNAL=72 EXIT_LOCK=75
+readonly COMPOSE_PROJECT='env'
+readonly COMPOSE_CONFIG_PATH='/opt/braavolabs/app/ENV/compose.prod.yaml'
+readonly COMPOSE_WORKING_DIR='/opt/braavolabs/app/ENV'
+readonly COMPOSE_NETWORK='env_default'
 readonly REVIEWED_PLAN_PREVIOUS_RELEASE='fd2b3c3ad7795f20a1cf93d3506c72cbf3a5424b'
 readonly REVIEWED_PLAN_ENUM_PATH='packages/db/prisma/migrations/20260820000000_subscription_plan_enum_values/migration.sql'
 readonly REVIEWED_PLAN_ENUM_SHA256='c2f18d9a7fa37b1e7398d9b212275c227279c448102e2e55f7d41aa2ea943280'
@@ -56,8 +60,31 @@ write_override() {
 }
 
 compose() {
-  docker compose -p braavolabs --env-file "$env_file" \
+  docker compose -p "$COMPOSE_PROJECT" --env-file "$env_file" \
     -f "$compose_file" -f "$override_file" "$@"
+}
+
+container_label() {
+  local container="$1" label="$2"
+  docker inspect --format "{{ index .Config.Labels \"$label\" }}" "$container"
+}
+
+verify_compose_identity() {
+  local container expected_service
+  for container in aicos-api aicos-ui aicos-postgres aicos-redis; do
+    case "$container" in
+      aicos-api) expected_service=api ;;
+      aicos-ui) expected_service=ui ;;
+      aicos-postgres) expected_service=postgres ;;
+      aicos-redis) expected_service=redis ;;
+      *) return 1 ;;
+    esac
+    test "$(container_label "$container" com.docker.compose.project)" = "$COMPOSE_PROJECT" || return 1
+    test "$(container_label "$container" com.docker.compose.service)" = "$expected_service" || return 1
+    test "$(container_label "$container" com.docker.compose.project.config_files)" = "$COMPOSE_CONFIG_PATH" || return 1
+    test "$(container_label "$container" com.docker.compose.project.working_dir)" = "$COMPOSE_WORKING_DIR" || return 1
+    test "$(docker inspect --format "{{with index .NetworkSettings.Networks \"$COMPOSE_NETWORK\"}}present{{end}}" "$container")" = present || return 1
+  done
 }
 now_utc() { date -u '+%Y-%m-%dT%H:%M:%SZ'; }
 
@@ -410,6 +437,7 @@ remote_main() {
   previous_api_container="$(docker inspect --format '{{.Id}}' aicos-api)" || exit "$EXIT_REMOTE"
   previous_ui_container="$(docker inspect --format '{{.Id}}' aicos-ui)" || exit "$EXIT_REMOTE"
   is_digest_ref "$active_api" && is_digest_ref "$active_ui" || exit "$EXIT_ROLLBACK"
+  verify_compose_identity || exit "$EXIT_REMOTE"
 
   recorded_release=''; recorded_tuple=''; recorded_api=''; recorded_ui=''
   recorded_result=''; recorded_state=''; resume_candidate=0
@@ -643,7 +671,7 @@ run_remote_release() {
   local incoming="$1" primary=0
   ssh "${SSH_OPTIONS[@]}" "$TARGET" sudo bash -s -- --remote "$RELEASE_COMMIT" "$API_IMAGE_REF" "$UI_IMAGE_REF" "$REMOTE_APP_ROOT" "$incoming" < "$0" || primary="$?"
   if test "$primary" -ne 0; then
-    set +e; ssh "${SSH_OPTIONS[@]}" "$TARGET" sudo docker compose -p braavolabs ps >&2; set -e
+    set +e; ssh "${SSH_OPTIONS[@]}" "$TARGET" sudo docker compose -p "$COMPOSE_PROJECT" ps >&2; set -e
     return "$primary"
   fi
 }
