@@ -551,7 +551,13 @@ validate_host_identity() {
     test "$hosts" = "$expected_token" || die "$EXIT_HOST" 'unexpected known_hosts host'
     test "$key_type" = ssh-ed25519 || die "$EXIT_HOST" 'unsupported host key type'
     [[ "$key_data" =~ ^[A-Za-z0-9+/]+={0,2}$ ]] || die "$EXIT_HOST" 'malformed host key data'
-    fingerprint="$(printf '%s %s\n' "$key_type" "$key_data" | ssh-keygen -lf - -E sha256 | awk 'NF==4 {print $2}')"
+    fingerprint="$(printf '%s %s\n' "$key_type" "$key_data" | ssh-keygen -lf - -E sha256 | awk '
+      NF == 0 { next }
+      { records++ }
+      records != 1 || $1 !~ /^[0-9]+$/ || $2 !~ /^SHA256:[A-Za-z0-9+\/]+=?$/ || $NF != "(ED25519)" { invalid=1 }
+      records == 1 { value=$2 }
+      END { if (records == 1 && !invalid) print value }
+    ')"
     test -n "$fingerprint" || die "$EXIT_HOST" 'fingerprint unavailable'
     case "$seen" in *"|$fingerprint|"*) die "$EXIT_HOST" 'duplicate host key' ;; esac
     seen="${seen}${fingerprint}|"

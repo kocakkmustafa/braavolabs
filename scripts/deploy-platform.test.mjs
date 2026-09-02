@@ -348,9 +348,13 @@ case "$*" in
   *) exit 0 ;;
 esac`);
   primitive(h, "ssh-keygen", `
+if [ "${'${FAKE_SSH_KEYGEN_OUTPUT+x}'}" = x ]; then
+  printf '%b' "$FAKE_SSH_KEYGEN_OUTPUT"
+  exit "${'${FAKE_SSH_KEYGEN_EXIT:-0}'}"
+fi
 data=$(awk '{print $2}' | tail -1)
 case "$data" in ${KEY_A}) fp='${FINGERPRINT_A}' ;; ${KEY_B}) fp='${FINGERPRINT_B}' ;; *) exit 1 ;; esac
-printf '256 %s synthetic (ED25519)\\n' "$fp"`);
+printf '256 %s no comment (ED25519)\\n' "$fp"`);
   primitive(h, "git", `
 case "${'${1:-}'}" in
   cat-file) exit 0 ;;
@@ -760,6 +764,34 @@ test("known_hosts exact host is accepted", () => withHarness((h) => {
   assert.match(result.calls, /StrictHostKeyChecking=yes/);
   assertNoExternalNetwork(h);
 }));
+test("system ssh-keygen emits a commentless ED25519 record accepted by the parser contract", () => {
+  const keyRoot = mkdtempSync(join(tmpdir(), "braavo-commentless-key-"));
+  try {
+    const keyPath = join(keyRoot, "id_ed25519");
+    const generated = spawnSync("ssh-keygen", ["-q", "-t", "ed25519", "-N", "", "-C", "", "-f", keyPath], {
+      encoding: "utf8",
+    });
+    assert.equal(generated.status, 0);
+    const result = spawnSync("ssh-keygen", ["-lf", "-", "-E", "sha256"], {
+      encoding: "utf8",
+      input: readFileSync(`${keyPath}.pub`, "utf8"),
+    });
+    assert.equal(result.status, 0);
+    assert.match(result.stdout.trim(), /^\d+ SHA256:[A-Za-z0-9+/]+=? no comment \(ED25519\)$/);
+  } finally {
+    rmSync(keyRoot, { recursive: true, force: true });
+  }
+});
+for (const [name, output] of [
+  ["malformed fingerprint output", "256 not-a-fingerprint no comment (ED25519)\\n"],
+  ["multiple fingerprint records", `256 ${FINGERPRINT_A} no comment (ED25519)\\n256 ${FINGERPRINT_A} no comment (ED25519)\\n`],
+]) {
+  test(`known_hosts ${name} denies before transport`, () => withHarness((h) => {
+    const result = runDeploy(h, { FAKE_SSH_KEYGEN_OUTPUT: output });
+    assert.equal(result.status, 65);
+    assert.doesNotMatch(result.calls, /^ssh |^rsync /m);
+  }));
+}
 test("known_hosts exact two-key rotation is accepted", () => withHarness((h) => {
   writeKnownHosts(h, [
     `deploy.example.test ssh-ed25519 ${KEY_A}`,
