@@ -302,24 +302,12 @@ if (parsed.NODE_ENV === "production") {
   }
 }
 
-// Safety: if Google Play IAP is configured (service account present) in
-// production, the unauthenticated /billing/iap/google/notify endpoint becomes
-// live — and verifyPubSubPushToken only meaningfully authenticates the Pub/Sub
-// sender only when GOOGLE_PUBSUB_AUDIENCE and GOOGLE_PUBSUB_SA_EMAIL are both
-// set. Audience binds the intended endpoint; verified email binds the exact
-// service account. Fail fast so a prod deploy cannot silently run with only
-// one half of the workload identity contract.
-if (
-  parsed.NODE_ENV === "production" &&
-  parsed.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON &&
-  (!parsed.GOOGLE_PUBSUB_AUDIENCE || !parsed.GOOGLE_PUBSUB_SA_EMAIL)
-) {
-  throw new Error(
-    "Google Play IAP is configured but the complementary GOOGLE_PUBSUB_AUDIENCE and " +
-      "GOOGLE_PUBSUB_SA_EMAIL workload identity bindings are incomplete. Set both so " +
-      "/billing/iap/google/notify can authenticate the exact Pub/Sub push sender (FINDINGS C1).",
-  );
-}
+// Google Play purchase verification and RTDN admission are independent
+// provider gates. A Play service account may be configured before the Pub/Sub
+// push identity exists (for example while the mobile release is still held).
+// Keep the API available in that state. verifyPubSubPushToken remains the
+// fail-closed boundary: without both workload bindings every RTDN request is
+// rejected before token verification or any downstream mutation.
 
 // Resolve API_PUBLIC_URL when unset. In production the API is reachable on
 // the APP_URL origin (nginx proxies /api/v1 → :8080 — live-verified); in

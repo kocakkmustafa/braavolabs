@@ -60,11 +60,12 @@ describe("Google RTDN production configuration", () => {
     ["neither binding", { GOOGLE_PUBSUB_AUDIENCE: undefined, GOOGLE_PUBSUB_SA_EMAIL: undefined }],
     ["whitespace audience", { GOOGLE_PUBSUB_AUDIENCE: "   " }],
     ["whitespace service-account email", { GOOGLE_PUBSUB_SA_EMAIL: "   " }],
-  ])("rejects %s at production startup", async (_label, overrides) => {
-    await expect(importEnv(overrides)).rejects.toThrow(/GOOGLE_PUBSUB_AUDIENCE.*GOOGLE_PUBSUB_SA_EMAIL/);
+  ])("keeps the platform available with %s while RTDN stays disabled", async (_label, overrides) => {
+    const { env } = await importEnv(overrides);
+    expect(Boolean(env.GOOGLE_PUBSUB_AUDIENCE && env.GOOGLE_PUBSUB_SA_EMAIL)).toBe(false);
   });
 
-  it("accepts production startup only when both workload bindings are configured", async () => {
+  it("preserves both production workload bindings when configured", async () => {
     const { env } = await importEnv({});
     expect(env.GOOGLE_PUBSUB_AUDIENCE).toBe(audience);
     expect(env.GOOGLE_PUBSUB_SA_EMAIL).toBe(serviceAccountEmail);
@@ -89,6 +90,21 @@ describe("verifyPubSubPushToken — dual workload identity", () => {
     ["missing both bindings", { GOOGLE_PUBSUB_AUDIENCE: undefined, GOOGLE_PUBSUB_SA_EMAIL: undefined }],
   ])("rejects %s before token verification", async (_label, overrides) => {
     const { verifyPubSubPushToken } = await importVerifier(overrides);
+    const verifier = fakeVerifier();
+    await expect(verifyPubSubPushToken("Bearer signed-token", verifier)).resolves.toEqual({
+      ok: false,
+      reason: "workload-identity-not-configured",
+    });
+    expect(verifier.verifyIdToken).not.toHaveBeenCalled();
+  });
+
+  it("keeps the RTDN admission boundary closed in production when provider bindings are absent", async () => {
+    process.env = requiredEnv("production", {
+      GOOGLE_PUBSUB_AUDIENCE: undefined,
+      GOOGLE_PUBSUB_SA_EMAIL: undefined,
+    });
+    vi.resetModules();
+    const { verifyPubSubPushToken } = await import("../google");
     const verifier = fakeVerifier();
     await expect(verifyPubSubPushToken("Bearer signed-token", verifier)).resolves.toEqual({
       ok: false,
