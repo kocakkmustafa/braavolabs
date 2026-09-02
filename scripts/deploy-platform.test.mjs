@@ -305,7 +305,24 @@ if [ "$api" = "$PREVIOUS_API_REF" ] && [ "${'${FAIL_ROLLBACK_HEALTH:-0}'}" = 1 ]
 exit 0`);
   primitive(h, "docker", `
 api=$(cat "$FAKE_STATE_ROOT/active-api"); ui=$(cat "$FAKE_STATE_ROOT/active-ui")
+container=''; for arg in "$@"; do container="$arg"; done
+identity_value() {
+  expected="$1"; mismatch_name="$2"
+  if [ "${'${FAKE_COMPOSE_IDENTITY_MISMATCH_CONTAINER:-}'}" = "$container" ]; then
+    eval "value=\${$mismatch_name:-mismatch}"
+    printf '%s\n' "$value"
+  else
+    printf '%s\n' "$expected"
+  fi
+}
 case "$*" in
+  *'com.docker.compose.project.config_files'*) identity_value /opt/braavolabs/app/ENV/compose.prod.yaml FAKE_COMPOSE_CONFIG ; exit 0 ;;
+  *'com.docker.compose.project.working_dir'*) identity_value /opt/braavolabs/app/ENV FAKE_COMPOSE_WORKING_DIR ; exit 0 ;;
+  *'com.docker.compose.project'*) identity_value env FAKE_COMPOSE_PROJECT ; exit 0 ;;
+  *'com.docker.compose.service'*)
+    case "$container" in aicos-api) service=api ;; aicos-ui) service=ui ;; aicos-postgres) service=postgres ;; aicos-redis) service=redis ;; *) service=unknown ;; esac
+    identity_value "$service" FAKE_COMPOSE_SERVICE; exit 0 ;;
+  *'NetworkSettings.Networks'*) identity_value present FAKE_COMPOSE_NETWORK ; exit 0 ;;
   *'pull '*) [ "${'${PAUSE_AT:-}'}" = pull ] && sleep 30; [ "${'${FAIL_PRIMITIVE:-}'}" = pull ] && exit 1; exit 0 ;;
   *'image inspect'*"$API_IMAGE_REF"*) printf '%s\\n' "$API_IMAGE_REF"; exit 0 ;;
   *'image inspect'*"$UI_IMAGE_REF"*) printf '%s\\n' "$UI_IMAGE_REF"; exit 0 ;;
@@ -411,9 +428,29 @@ function withHarness(fn) {
 test("cutover persists candidate digests and success journal", () => withHarness((h) => {
   const result = runRemote(h);
   assert.equal(result.status, 0);
+  assert.match(result.calls, /docker compose -p env /);
+  assert.doesNotMatch(result.calls, /docker compose -p braavolabs /);
   assert.equal(readFileSync(join(h.state, "active-api"), "utf8"), API);
   assert.equal(readFileSync(join(h.state, "active-ui"), "utf8"), UI);
   assert.equal(readCurrentRecord(h).result, "success");
+  assertNoExternalNetwork(h);
+}));
+
+for (const [name, container, env] of [
+  ["project", "aicos-api", { FAKE_COMPOSE_PROJECT: "braavolabs" }],
+  ["service", "aicos-ui", { FAKE_COMPOSE_SERVICE: "api" }],
+  ["config path", "aicos-postgres", { FAKE_COMPOSE_CONFIG: "/tmp/compose.prod.yaml" }],
+  ["working directory", "aicos-redis", { FAKE_COMPOSE_WORKING_DIR: "/tmp" }],
+  ["network", "aicos-api", { FAKE_COMPOSE_NETWORK: "" }],
+]) test(`compose identity denies ${name} mismatch before migration and cutover`, () => withHarness((h) => {
+  const result = runRemote(h, {
+    FAKE_COMPOSE_IDENTITY_MISMATCH_CONTAINER: container,
+    ...env,
+  });
+  assert.equal(result.status, 66, result.stderr);
+  assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
+  assert.equal(readFileSync(join(h.state, "cutover-count"), "utf8"), "0");
+  assert.doesNotMatch(result.calls, /docker compose .* run --rm --no-deps api|docker compose .* up -d/m);
   assertNoExternalNetwork(h);
 }));
 
