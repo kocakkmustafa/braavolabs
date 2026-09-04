@@ -26,20 +26,21 @@ function receipt(overrides: Partial<VerifiedReceipt> = {}): VerifiedReceipt {
 }
 
 describe("IAP catalog and additive receipt normalization", () => {
-  it("offers exactly the two canonical monthly products", () => {
+  it("offers exactly one canonical monthly product", () => {
     expect(NEW_SALE_IAP_PRODUCT_MAP).toEqual({
       "com.braavolabs.individual.monthly": "INDIVIDUAL",
-      "com.braavolabs.team.monthly": "TEAM",
     });
   });
 
   it("replays stable legacy SKUs deterministically and fails ambiguity closed", () => {
     expect(resolveIapProductPlan("com.braavolabs.creator.monthly")).toBe("INDIVIDUAL");
     expect(resolveIapProductPlan("com.braavolabs.creator.yearly")).toBe("INDIVIDUAL");
+    expect(resolveIapProductPlan("com.braavolabs.team.monthly")).toBe("TEAM");
+    expect(resolveIapProductPlan("com.braavolabs.team.yearly")).toBe("TEAM");
     expect(resolveIapProductPlan("com.braavolabs.pro.monthly")).toBe("TEAM");
     expect(resolveIapProductPlan("com.braavolabs.pro.yearly")).toBe("TEAM");
     expect(resolveIapProductPlan("com.braavolabs.business.monthly")).toBe("MANUAL_REVIEW");
-    expect(resolveIapProductPlan("unknown.sku")).toBe("MANUAL_REVIEW");
+    expect(resolveIapProductPlan("unknown.sku")).toBeUndefined();
   });
 });
 
@@ -159,24 +160,36 @@ describe("mapIapVerify", () => {
     const out = mapIapVerify("apple", receipt({ status: "active" }), "TEAM");
     expect(out).toMatchObject({
       source: "apple",
-      streamId: "orig-tx-1",
+      streamId: expect.stringMatching(/^apple:[a-f0-9]{64}$/),
       type: "purchase",
       planTier: "TEAM",
       autoRenew: true,
     });
     expect(out!.expiresAt).toEqual(new Date("2026-02-01T00:00:00Z"));
+    expect(out!.sourceEventId).not.toContain("orig-tx-1");
   });
 
-  it("in_grace_period → grace, no planTier", () => {
+  it("in_grace_period → grace and carries the tier for first-seen restore", () => {
     const out = mapIapVerify("google", receipt({ status: "in_grace_period" }), "TEAM");
     expect(out?.type).toBe("grace");
-    expect(out?.planTier).toBeNull();
+    expect(out?.planTier).toBe("TEAM");
   });
 
   it.each(["expired", "revoked", "paused"] as const)(
-    "status=%s → null (matches the existing handler's exact no-op for non-active/grace)",
+    "status=%s → terminal revoke on the same canonical stream",
     (status) => {
-      expect(mapIapVerify("apple", receipt({ status }), "TEAM")).toBeNull();
+      const active = mapIapVerify("apple", receipt({ status: "active" }), "TEAM");
+      const terminal = mapIapVerify("apple", receipt({ status }), "TEAM");
+
+      expect(terminal).toMatchObject({
+        source: "apple",
+        streamId: active.streamId,
+        type: "revoke",
+        planTier: null,
+        expiresAt: null,
+        autoRenew: false,
+      });
+      expect(terminal.sourceEventId).not.toBe(active.sourceEventId);
     },
   );
 
@@ -214,15 +227,15 @@ describe("mapAppleNotify / mapGoogleNotify — shared status vocabulary", () => 
 
   it("apple: active → renewal, carries verified.expiresAt (NOT note's own guess)", () => {
     const out = mapAppleNotify(note, receipt({ status: "active", expiresAt: new Date("2026-05-01T00:00:00Z") }), "TEAM");
-    expect(out).toMatchObject({ source: "apple", streamId: "orig-tx-1", sourceEventId: "apple-uuid-1", type: "renewal", planTier: "TEAM" });
+    expect(out).toMatchObject({ source: "apple", streamId: expect.stringMatching(/^apple:[a-f0-9]{64}$/), sourceEventId: "apple-uuid-1", type: "renewal", planTier: "TEAM" });
     expect(out.expiresAt).toEqual(new Date("2026-05-01T00:00:00Z"));
     expect(out.sourceTimestamp).toEqual(new Date("2026-01-15T00:00:00Z"));
   });
 
-  it("apple: in_grace_period → grace, keeps expiresAt (still granting) but no planTier", () => {
+  it("apple: in_grace_period → grace, keeps expiresAt and the tier for first-seen restore", () => {
     const out = mapAppleNotify(note, receipt({ status: "in_grace_period" }), "TEAM");
     expect(out.type).toBe("grace");
-    expect(out.planTier).toBeNull();
+    expect(out.planTier).toBe("TEAM");
     expect(out.expiresAt).not.toBeNull();
   });
 

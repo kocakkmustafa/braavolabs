@@ -27,26 +27,34 @@ import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { authMiddleware } from "../../../middleware/auth";
+import { requirePermission } from "../../../middleware/require-permission";
 import { systemScope } from "../../../middleware/system-scope";
 import { rateLimit } from "../../../middleware/rateLimit";
 import { prisma, tenantTx } from "../../../lib/db";
 import { AppError } from "../../../middleware/error";
 import { env } from "../../../config/env";
 import { logger } from "../../../lib/logger";
-import { verifyAppleReceipt, parseAppleNotification } from "./apple";
+import { verifyAppleReceipt, parseAppleNotification, type VerifiedReceipt } from "./apple";
 import {
   acknowledgeGoogleReceipt,
   verifyGoogleReceipt,
   parseGoogleRtdnEnvelope,
   verifyPubSubPushToken,
+  type GoogleSubscriptionNotification,
   type VerifiedGoogleReceipt,
 } from "./google";
-import { recordEntitlementEvent } from "../entitlement-ledger.service";
-import { mapIapVerify, mapAppleNotify, mapGoogleNotify } from "../entitlement-mapping";
+import { getEntitlementProjection, recordEntitlementEvent } from "../entitlement-ledger.service";
+import {
+  iapCredentialDigest,
+  iapCredentialReference,
+  mapIapVerify,
+  mapAppleNotify,
+  mapGoogleNotify,
+} from "../entitlement-mapping";
 import {
   getIapProduct,
-  internalPlanForProduct,
   verificationResponseTier,
+  type MobilePublicTier,
 } from "./catalog";
 import crypto from "node:crypto";
 import {
@@ -55,6 +63,14 @@ import {
   deliveryFingerprint,
   processIapDelivery,
 } from "./delivery-ledger";
+import {
+  ensureManualReviewCase,
+  getManualReviewCase,
+  hasPendingManualReviewCases,
+  manualReviewCaseId,
+  transitionManualReviewCase,
+  validateManualReviewReason,
+} from "./manual-review.service";
 
 export const iapRouter = Router();
 
@@ -98,6 +114,58 @@ const verifySchema = z.object({
   appUserId: z.string().max(200).optional(),
 });
 
+const manualReviewDecisionSchema = z.discriminatedUnion("state", [
+  z.object({
+    state: z.literal("approved_mapping"),
+    targetTier: z.enum(["INDIVIDUAL", "TEAM"]),
+    reason: z.string().trim().min(1).max(500),
+    receipt: z.string().min(1).max(40_000),
+  }).strict(),
+  z.object({
+    state: z.literal("rejected"),
+    reason: z.string().trim().min(1).max(500),
+  }).strict(),
+  z.object({
+    state: z.literal("expired"),
+    reason: z.string().trim().min(1).max(500),
+    receipt: z.string().min(1).max(40_000),
+  }).strict(),
+]);
+
+type NativeIapProvider = "apple" | "google";
+
+function isGrantingStatus(status: VerifiedReceipt["status"]): boolean {
+  return status === "active" || status === "in_grace_period";
+}
+
+function publicProviderStatus(
+  status: VerifiedReceipt["status"],
+): "active" | "in_grace_period" | "inactive" {
+  if (status === "active" || status === "in_grace_period") return status;
+  return "inactive";
+}
+
+function effectiveTierFromPlan(plan: unknown): MobilePublicTier | null {
+  return plan === "INDIVIDUAL" || plan === "TEAM" ? plan : null;
+}
+
+async function verifyNativeReceipt(
+  provider: NativeIapProvider,
+  receipt: string,
+  productId: string,
+): Promise<VerifiedReceipt | VerifiedGoogleReceipt> {
+  return provider === "apple"
+    ? verifyAppleReceipt(receipt, productId)
+    : verifyGoogleReceipt(receipt, productId);
+}
+
+function safeVerificationFailure(provider: string, productId: string): void {
+  logger.error(
+    { provider, productId, code: "IAP_VERIFICATION_FAILED" },
+    "IAP verification failed",
+  );
+}
+
 function isOriginalTransactionIdUniqueConflict(error: unknown): boolean {
   if (!error || typeof error !== "object" || (error as { code?: unknown }).code !== "P2002") {
     return false;
@@ -124,6 +192,24 @@ function retainInternalCatalogTier<T extends { planTier: string | null }>(
     ...event,
     planTier: event.planTier === null ? null : internalTier,
   };
+}
+
+type ManualReviewObservationInput = Parameters<typeof ensureManualReviewCase>[0];
+
+/**
+ * Granting observations may open a review case. Terminal provider states may
+ * only update a case that already exists: a revoked/refunded receipt must not
+ * manufacture a new operator workflow merely by being replayed.
+ */
+async function observeManualReviewCase(
+  input: ManualReviewObservationInput,
+  allowCreate: boolean,
+) {
+  if (!allowCreate) {
+    const caseId = manualReviewCaseId(input);
+    if (!await getManualReviewCase(input.tenantId, caseId)) return null;
+  }
+  return ensureManualReviewCase(input);
 }
 
 const GOOGLE_PURCHASE_IDENTITY = /^google:[0-9a-f]{64}$/;
@@ -342,23 +428,9 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
     if (!catalogProduct) {
       throw new AppError(400, `Unknown productId: ${body.productId}`);
     }
-    if (catalogProduct.sale === "manual-review") {
-      throw new AppError(409, "This product requires manual review.", {
-        reason: "manual-review-required",
-      });
-    }
     const planTier = catalogProduct.internalPlan;
 
-    // Verify with the relevant provider. Failures here are treated as
-    // payment-not-confirmed — we never grant entitlement on an
-    // unverified receipt, even at the cost of a slightly slower UX
-    // when the provider is rate-limiting us.
-    let verified;
-    if (body.provider === "apple") {
-      verified = await verifyAppleReceipt(body.receipt, body.productId);
-    } else if (body.provider === "google") {
-      verified = await verifyGoogleReceipt(body.receipt, body.productId);
-    } else {
+    if (body.provider === "revenuecat") {
       // RevenueCat path — trust the SDK payload only when the shared
       // webhook secret is configured (mobile sends it in the receipt
       // as a signed envelope). Until that's wired we treat this branch
@@ -368,11 +440,13 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
       }
       throw new AppError(501, "RevenueCat verification not yet implemented");
     }
+    const provider: NativeIapProvider = body.provider;
+    const verified = await verifyNativeReceipt(provider, body.receipt, body.productId);
 
     const rejectDifferentOwner = (): never => {
       logger.warn(
         {
-          originalTransactionId: verified.originalTransactionId,
+          identityRef: iapCredentialReference(provider, verified.originalTransactionId),
           callerTenantId: tenantId,
         },
         "IAP verify rejected — receipt belongs to a different tenant",
@@ -382,7 +456,7 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
 
     const createData = {
         tenantId,
-        provider: body.provider,
+        provider,
         productId: body.productId,
         originalTransactionId: verified.originalTransactionId,
         latestReceipt: null,
@@ -443,7 +517,7 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
     // same-owner concurrent retry from a different owner even when RLS hides
     // cross-tenant rows.
     let subscription;
-    if (body.provider === "google") {
+    if (provider === "google") {
       subscription = await claimGooglePurchaseOwnership(
         tenantId,
         verified as VerifiedGoogleReceipt,
@@ -465,21 +539,114 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
     }
     if (!subscription) throw new Error("IAP subscription ownership resolution failed");
 
-    // Entitlement ledger — BR-P0-003. mapIapVerify returns null for
-    // exactly the statuses the old code's `if` skipped (anything but
-    // active/in_grace_period), so this preserves that behavior exactly
-    // while recomputing tenant.plan from the FULL cross-source event
-    // history rather than a blind write. body.provider is narrowed
-    // explicitly here: the RevenueCat branch above always throws before
-    // reaching this point, so `verified` only ever comes from apple/google
-    // in practice, but the zod schema's wider union doesn't let TS see that.
-    const entitlementSource = body.provider === "apple" ? "apple" : "google";
-    const mappedEvent = mapIapVerify(entitlementSource, verified, planTier);
-    if (mappedEvent) {
-      await recordEntitlementEvent({
+    const providerStatus = publicProviderStatus(verified.status);
+    const granting = isGrantingStatus(verified.status);
+    let receiptTier = verificationResponseTier(catalogProduct);
+    let reviewCaseId: string | undefined;
+    if (catalogProduct.sale === "manual-review") {
+      const review = await observeManualReviewCase({
         tenantId,
-        ...retainInternalCatalogTier(mappedEvent, planTier),
+        actor: req.auth!.userId,
+        provider,
+        productId: body.productId,
+        internalPlan: planTier,
+        subscriptionId: subscription.id,
+        providerIdentity: verified.originalTransactionId,
+        providerStatus,
+        expiresAt: verified.expiresAt,
+        autoRenew: verified.autoRenew,
+      }, granting);
+      reviewCaseId = review?.caseId;
+      if (review?.state !== "approved_mapping" || !review.targetTier) {
+        receiptTier = null;
+        if (granting) {
+          if (!reviewCaseId) throw new Error("Manual review case was not persisted");
+          const projection = await getEntitlementProjection(tenantId);
+          res.json({
+            outcome: "manual_review",
+            receiptTier: null,
+            effectiveTier: projection.effectiveTier,
+            providerStatus,
+            expiresAt: verified.expiresAt,
+            reviewCaseId,
+          });
+          return;
+        }
+      } else {
+        receiptTier = review.targetTier;
+      }
+    }
+
+    if (!granting) {
+      const terminalTier = catalogProduct.sale === "manual-review" ? receiptTier : planTier;
+      if (terminalTier) {
+        const terminalEvent = mapIapVerify(provider, verified, terminalTier);
+        try {
+          await recordEntitlementEvent({
+            tenantId,
+            ...(catalogProduct.sale === "manual-review"
+              ? terminalEvent
+              : retainInternalCatalogTier(terminalEvent, planTier)),
+          });
+        } catch {
+          throw new AppError(503, "Entitlement persistence temporarily unavailable");
+        }
+      }
+
+      const projection = await getEntitlementProjection(tenantId);
+      await prisma.activityLog.create({
+        data: {
+          tenantId,
+          actor: req.auth!.userId,
+          action: "billing.iap.verified",
+          resource: "mobile_subscription",
+          resourceId: subscription.id,
+          details: {
+            provider,
+            productId: body.productId,
+            planTier,
+            status: providerStatus,
+            identityRef: iapCredentialReference(provider, verified.originalTransactionId),
+          } as any,
+        },
       });
+      res.json({
+        outcome: "inactive",
+        receiptTier: null,
+        effectiveTier: projection.effectiveTier,
+        providerStatus,
+        expiresAt: verified.expiresAt,
+      });
+      return;
+    }
+
+    if (!receiptTier) {
+      throw new AppError(409, "Verified receipt is not eligible for entitlement");
+    }
+
+    const mappedEvent = mapIapVerify(provider, verified, receiptTier);
+
+    let projectedPlan;
+    try {
+      projectedPlan = await recordEntitlementEvent({
+        tenantId,
+        ...(catalogProduct.sale === "manual-review"
+          ? mappedEvent
+          : retainInternalCatalogTier(mappedEvent, planTier)),
+      });
+    } catch {
+      throw new AppError(503, "Entitlement persistence temporarily unavailable");
+    }
+
+    const googleVerified = provider === "google"
+      ? verified as VerifiedGoogleReceipt
+      : null;
+    if (googleVerified?.googleAcknowledgementPending) {
+      try {
+        await acknowledgeGoogleReceipt(body.receipt, body.productId);
+      } catch {
+        throw new AppError(503, "Google purchase acknowledgement failed");
+      }
     }
 
     await prisma.activityLog.create({
@@ -490,33 +657,176 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
         resource: "mobile_subscription",
         resourceId: subscription.id,
         details: {
-          provider: body.provider,
+          provider,
           productId: body.productId,
           planTier,
-          status: verified.status,
+          status: providerStatus,
+          identityRef: iapCredentialReference(provider, verified.originalTransactionId),
         } as any,
       },
     });
 
-    const googleVerified = body.provider === "google"
-      ? verified as VerifiedGoogleReceipt
-      : null;
-    if (googleVerified?.googleAcknowledgementPending) {
-      void acknowledgeGoogleReceipt(body.receipt, body.productId);
-    }
-
     res.json({
-      success: true,
-      planTier: verificationResponseTier(catalogProduct),
-      status: verified.status,
+      outcome: "granted",
+      receiptTier,
+      effectiveTier: effectiveTierFromPlan(projectedPlan),
+      providerStatus,
       expiresAt: verified.expiresAt,
     });
   } catch (err) {
     if (err instanceof AppError) return next(err);
-    logger.error({ err }, "IAP verification failed");
+    const provider = typeof req.body?.provider === "string" ? req.body.provider : "unknown";
+    const productId = typeof req.body?.productId === "string" ? req.body.productId : "unknown";
+    safeVerificationFailure(provider, productId);
     next(new AppError(500, "Receipt verification failed"));
   }
 });
+
+// Mapping a historical receipt can directly grant paid access, so the
+// dedicated OWNER permission executes before body parsing or service work.
+iapRouter.post(
+  "/manual-reviews/:caseId/decide",
+  authMiddleware,
+  requirePermission("billing:iap-review"),
+  async (req, res, next) => {
+    try {
+      const body = manualReviewDecisionSchema.parse(req.body);
+      const reason = validateManualReviewReason(
+        body.reason,
+        "receipt" in body ? [body.receipt] : [],
+      );
+      const tenantId = req.auth!.tenantId;
+      const actor = req.auth!.userId;
+      const current = await getManualReviewCase(tenantId, req.params.caseId);
+      if (!current) throw new AppError(404, "Manual review case not found");
+
+      if (body.state === "rejected") {
+        const decided = await transitionManualReviewCase({
+          tenantId,
+          actor,
+          caseId: req.params.caseId,
+          state: body.state,
+          reason,
+        });
+        res.json({ caseId: decided.caseId, state: decided.state, targetTier: decided.targetTier });
+        return;
+      }
+
+      // approved_mapping and expired both require a fresh provider read. The
+      // receipt stays ephemeral and is never forwarded to the review store.
+      const verified = await verifyNativeReceipt(current.provider, body.receipt, current.productId);
+      validateManualReviewReason(reason, [body.receipt, verified.originalTransactionId]);
+      if (
+        iapCredentialDigest(current.provider, verified.originalTransactionId)
+        !== current.identityRef
+      ) {
+        throw new AppError(409, "Verified receipt does not match the review case");
+      }
+
+      if (current.provider === "google") {
+        const subscription = await updateGoogleOwnedSubscription(
+          verified as VerifiedGoogleReceipt,
+          {
+            productId: current.productId,
+            planTier: current.internalPlan,
+            latestReceipt: null,
+            status: verified.status,
+            expiresAt: verified.expiresAt,
+            autoRenew: verified.autoRenew,
+            lastVerifiedAt: new Date(),
+          },
+        );
+        if (
+          subscription.id !== current.subscriptionId
+          || subscription.tenantId !== tenantId
+          || subscription.provider !== current.provider
+          || subscription.productId !== current.productId
+        ) {
+          throw new AppError(409, "Verified receipt ownership does not match the review case");
+        }
+      } else {
+        const updated = await prisma.mobileSubscription.updateMany({
+          where: {
+            id: current.subscriptionId,
+            tenantId,
+            provider: current.provider,
+            productId: current.productId,
+            originalTransactionId: verified.originalTransactionId,
+          },
+          data: {
+            latestReceipt: null,
+            status: verified.status,
+            expiresAt: verified.expiresAt,
+            autoRenew: verified.autoRenew,
+            lastVerifiedAt: new Date(),
+          },
+        });
+        if (updated.count !== 1) {
+          throw new AppError(409, "Verified receipt ownership does not match the review case");
+        }
+      }
+
+      if (body.state === "expired") {
+        if (isGrantingStatus(verified.status)) {
+          throw new AppError(409, "Provider still reports an active entitlement");
+        }
+        const decided = await transitionManualReviewCase({
+          tenantId,
+          actor,
+          caseId: req.params.caseId,
+          state: body.state,
+          reason,
+        });
+        res.json({ caseId: decided.caseId, state: decided.state, targetTier: decided.targetTier });
+        return;
+      }
+
+      if (!isGrantingStatus(verified.status)) {
+        throw new AppError(409, "Provider does not report an active entitlement");
+      }
+
+      const decided = await transitionManualReviewCase({
+        tenantId,
+        actor,
+        caseId: req.params.caseId,
+        state: body.state,
+        targetTier: body.targetTier,
+        reason,
+      });
+      const mappedEvent = mapIapVerify(current.provider, verified, body.targetTier);
+      if (!mappedEvent) throw new AppError(409, "Verified receipt is not eligible for entitlement");
+
+      let projectedPlan;
+      try {
+        projectedPlan = await recordEntitlementEvent({ tenantId, ...mappedEvent });
+      } catch {
+        throw new AppError(503, "Entitlement persistence temporarily unavailable");
+      }
+
+      if (
+        current.provider === "google"
+        && (verified as VerifiedGoogleReceipt).googleAcknowledgementPending
+      ) {
+        try {
+          await acknowledgeGoogleReceipt(body.receipt, current.productId);
+        } catch {
+          throw new AppError(503, "Google purchase acknowledgement failed");
+        }
+      }
+
+      res.json({
+        caseId: decided.caseId,
+        state: decided.state,
+        targetTier: decided.targetTier,
+        effectiveTier: effectiveTierFromPlan(projectedPlan),
+      });
+    } catch (err) {
+      if (err instanceof AppError) return next(err);
+      safeVerificationFailure("manual-review", req.params.caseId ?? "unknown");
+      next(new AppError(500, "Manual review decision failed"));
+    }
+  },
+);
 
 // GET /api/v1/billing/iap/entitlement — current mobile entitlement
 //
@@ -525,40 +835,20 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
 // /users/me to drive plan-gating across the app.
 iapRouter.get("/entitlement", authMiddleware, iapEntitlementRateLimit, async (req, res, next) => {
   try {
-    const subscription = await prisma.mobileSubscription.findFirst({
-      where: {
-        tenantId: req.auth!.tenantId,
-        status: { in: ["active", "in_grace_period"] },
-        expiresAt: { gt: new Date() },
-      },
-      orderBy: { expiresAt: "desc" },
-    });
-
-    const catalogProduct = subscription
-      ? getIapProduct(subscription.productId)
-      : undefined;
-
-    if (subscription && !catalogProduct) {
-      logger.warn(
-        { productId: subscription.productId, tenantId: req.auth!.tenantId },
-        "IAP entitlement row references unknown productId; withholding stale tier",
-      );
-      res.json({
-        hasActiveMobileSubscription: false,
-        planTier: null,
-        expiresAt: null,
-        provider: null,
-        autoRenew: null,
-      });
-      return;
-    }
+    const tenantId = req.auth!.tenantId;
+    const [projection, hasPendingManualReview] = await Promise.all([
+      getEntitlementProjection(tenantId),
+      hasPendingManualReviewCases(tenantId),
+    ]);
 
     res.json({
-      hasActiveMobileSubscription: !!subscription,
-      planTier: catalogProduct ? verificationResponseTier(catalogProduct) : null,
-      expiresAt: subscription?.expiresAt ?? null,
-      provider: subscription?.provider ?? null,
-      autoRenew: subscription?.autoRenew ?? null,
+      hasActiveMobileSubscription: projection.effectiveTier !== null,
+      planTier: projection.effectiveTier,
+      effectiveTier: projection.effectiveTier,
+      expiresAt: projection.expiresAt ?? projection.winner?.expiresAt ?? null,
+      provider: projection.source ?? projection.winner?.source ?? null,
+      autoRenew: projection.autoRenew ?? projection.winner?.autoRenew ?? null,
+      hasManualReview: projection.hasManualReview || hasPendingManualReview,
     });
   } catch (err) {
     next(err);
@@ -584,7 +874,7 @@ iapRouter.get("/entitlement", authMiddleware, iapEntitlementRateLimit, async (re
 // because we only trust the JWS structure for the transactionId) can't
 // move our row past what Apple actually says is active.
 type AppleNotification = Awaited<ReturnType<typeof parseAppleNotification>>;
-type GoogleNotification = NonNullable<ReturnType<typeof parseGoogleRtdnEnvelope>>;
+type GoogleNotification = GoogleSubscriptionNotification;
 
 function providerFailure(error: unknown, provider: "APPLE" | "GOOGLE"): never {
   if (error instanceof AppError && (error.statusCode === 400 || error.statusCode === 401)) {
@@ -601,10 +891,11 @@ async function applyAppleReliable(note: AppleNotification): Promise<void> {
     providerFailure(error, "APPLE");
   }
 
-  const catalogTier = getIapProduct(note.productId)?.internalPlan;
-  if (!catalogTier) {
+  const catalogProduct = getIapProduct(note.productId);
+  if (!catalogProduct) {
     throw new IapPoisonDeliveryError("APPLE_PRODUCT_UNKNOWN");
   }
+  const catalogTier = catalogProduct.internalPlan;
 
   let updated;
   try {
@@ -620,6 +911,54 @@ async function applyAppleReliable(note: AppleNotification): Promise<void> {
     });
   } catch {
     throw new IapTransientDeliveryError("APPLE_PERSISTENCE_FAILED");
+  }
+
+  if (catalogProduct.sale === "manual-review") {
+    const reviewInput = {
+      tenantId: updated.tenantId,
+      actor: "apple-asn",
+      provider: "apple" as const,
+      productId: note.productId,
+      internalPlan: catalogTier,
+      subscriptionId: updated.id,
+      providerIdentity: verified.originalTransactionId,
+      providerStatus: publicProviderStatus(verified.status),
+      expiresAt: verified.expiresAt,
+      autoRenew: verified.autoRenew,
+    };
+    const review = await observeManualReviewCase(
+      reviewInput,
+      isGrantingStatus(verified.status),
+    );
+    if (review?.state !== "approved_mapping" || !review.targetTier) return;
+
+    try {
+      await recordEntitlementEvent({
+        tenantId: updated.tenantId,
+        ...mapAppleNotify(note, verified, review.targetTier),
+      });
+      const activityId = iapActivityId("apple", note.notificationUUID);
+      await prisma.activityLog.upsert({
+        where: { id: activityId },
+        create: {
+          id: activityId,
+          tenantId: updated.tenantId,
+          actor: "apple-asn",
+          action: "billing.iap.notification",
+          resource: "mobile_subscription",
+          resourceId: updated.id,
+          details: {
+            type: note.notificationType,
+            subtype: note.subtype,
+            status: verified.status,
+          } as any,
+        },
+        update: {},
+      });
+    } catch {
+      throw new IapTransientDeliveryError("APPLE_PERSISTENCE_FAILED");
+    }
+    return;
   }
 
   try {
@@ -720,97 +1059,31 @@ iapRouter.post("/apple/notify", systemScope("webhook:iap-apple"), iapWebhookRate
     res.status(400).json({ error: "missing signedPayload" });
     return;
   }
+  let note: AppleNotification;
   try {
-    // parseAppleNotification now VERIFIES the JWS against Apple's x5c chain
-    // (anchored to the pinned Apple Root CA - G3) before returning any field —
-    // a forged/unsigned payload is rejected with 401 (FINDINGS C1, see
-    // ./jws.ts). The server-to-server re-fetch below is therefore now
-    // belt-and-suspenders (authoritative subscription state) rather than the
-    // sole defense: even a validly-signed-but-replayed notification can't move
-    // our row past what Apple's Server API currently reports.
-    const note = await parseAppleNotification(signedPayload);
-    let verified;
-    try {
-      verified = await verifyAppleReceipt(note.originalTransactionId, note.productId);
-    } catch (err) {
-      // Verification failure can be a legit "Apple hasn't fully
-      // propagated the transaction yet" race (404 on production +
-      // sandbox), or a malicious / malformed payload. Either way,
-      // return 200 so Apple stops retrying immediately while the
-      // server log captures the diagnostic.
-      logger.warn(
-        { err: err instanceof Error ? err.message : err, type: note.notificationType, originalTransactionId: note.originalTransactionId },
-        "Apple ASN re-verify failed; not mutating subscription",
-      );
-      res.status(200).json({ ok: false, reason: "verify-failed" });
-      return;
-    }
-
-    const catalogTier = internalPlanForProduct(note.productId);
-    if (!catalogTier) {
-      logger.warn(
-        { productId: note.productId, type: note.notificationType },
-        "Apple notification productId is outside the IAP catalog; acknowledging without mutation",
-      );
-      res.status(200).json({ ok: false, reason: "unknown-product" });
-      return;
-    }
-
-    const updated = await prisma.mobileSubscription.update({
-      where: { originalTransactionId: verified.originalTransactionId },
-      data: {
-        // Server-supplied state — guaranteed to match Apple's view of
-        // the world rather than whatever the JWS claimed.
-        status: verified.status,
-        expiresAt: verified.expiresAt,
-        autoRenew: verified.autoRenew,
-        lastVerifiedAt: new Date(),
-      },
-    }).catch((err) => {
-      // Unknown originalTransactionId — usually a TEST notification
-      // before any real purchase has hit our /verify path. Log and
-      // ack so Apple doesn't retry.
-      logger.warn(
-        { err: err instanceof Error ? err.message : err, type: note.notificationType },
-        "Apple notification for unknown subscription",
-      );
-      return null;
-    });
-
-    if (updated) {
-      // Entitlement ledger — BR-P0-003. Recorded for every status (not
-      // just expired/revoked, as the old downgrade-only check did) —
-      // the active/grace deliveries matter too, because it's THEIR
-      // accurate sourceTimestamp in the ledger that lets a
-      // late-arriving but chronologically OLDER "expired" notification
-      // be correctly ignored instead of wrongly winning on arrival
-      // order. combineStreams still preserves any other active source
-      // automatically (Stripe web, or the other store), same as the
-      // other 5 call sites — no manual "stillActive" query needed.
-      //
-      await recordEntitlementEvent({
-        tenantId: updated.tenantId,
-        ...retainInternalCatalogTier(mapAppleNotify(note, verified, catalogTier), catalogTier),
-      });
-      await prisma.activityLog.create({
-        data: {
-          tenantId: updated.tenantId,
-          actor: "apple-asn",
-          action: "billing.iap.notification",
-          resource: "mobile_subscription",
-          resourceId: updated.id,
-          details: { type: note.notificationType, subtype: note.subtype, status: verified.status } as any,
-        },
-      });
-    }
-
+    // This verifies the JWS chain before any provider or database work.
+    note = await parseAppleNotification(signedPayload);
+  } catch {
+    logger.warn({ provider: "apple", code: "APPLE_JWS_INVALID" }, "Apple notification rejected");
+    res.status(200).json({ ok: false, reason: "invalid-signature" });
+    return;
+  }
+  try {
+    await applyAppleReliable(note);
     res.status(200).json({ ok: true });
-  } catch (err) {
-    logger.error({ err }, "Failed to process Apple notification");
-    // 200 even on parse error — Apple retries 5xx aggressively and we
-    // don't want a malformed test notification to flood our queue.
-    // Real errors are visible in logs.
-    res.status(200).json({ ok: false });
+  } catch (error) {
+    if (error instanceof IapPoisonDeliveryError) {
+      res.status(200).json({
+        ok: false,
+        reason: error.code === "APPLE_PRODUCT_UNKNOWN" ? "unknown-product" : "provider-rejected",
+      });
+      return;
+    }
+    const code = error instanceof IapTransientDeliveryError
+      ? error.code
+      : "APPLE_NOTIFICATION_PROCESSING_FAILED";
+    logger.warn({ provider: "apple", code }, "Apple notification retry required");
+    res.status(503).json({ ok: false, reason: "retry-required" });
   }
 });
 
@@ -829,10 +1102,11 @@ async function applyGoogleReliable(note: GoogleNotification): Promise<void> {
     providerFailure(error, "GOOGLE");
   }
 
-  const catalogTier = getIapProduct(note.subscriptionId)?.internalPlan;
-  if (!catalogTier) {
+  const catalogProduct = getIapProduct(note.subscriptionId);
+  if (!catalogProduct) {
     throw new IapPoisonDeliveryError("GOOGLE_PRODUCT_UNKNOWN");
   }
+  const catalogTier = catalogProduct.internalPlan;
 
   let updated;
   try {
@@ -848,6 +1122,57 @@ async function applyGoogleReliable(note: GoogleNotification): Promise<void> {
       throw new IapPoisonDeliveryError("GOOGLE_OWNERSHIP_UNRESOLVED");
     }
     throw new IapTransientDeliveryError("GOOGLE_PERSISTENCE_FAILED");
+  }
+
+  if (catalogProduct.sale === "manual-review") {
+    const reviewInput = {
+      tenantId: updated.tenantId,
+      actor: "google-rtdn",
+      provider: "google" as const,
+      productId: note.subscriptionId,
+      internalPlan: catalogTier,
+      subscriptionId: updated.id,
+      providerIdentity: verified.originalTransactionId,
+      providerStatus: publicProviderStatus(verified.status),
+      expiresAt: verified.expiresAt,
+      autoRenew: verified.autoRenew,
+    };
+    const review = await observeManualReviewCase(
+      reviewInput,
+      isGrantingStatus(verified.status),
+    );
+    if (review?.state !== "approved_mapping" || !review.targetTier) return;
+
+    try {
+      await recordEntitlementEvent({
+        tenantId: updated.tenantId,
+        ...mapGoogleNotify(note, verified, review.targetTier),
+      });
+      const activityId = iapActivityId("google", note.messageId);
+      await prisma.activityLog.upsert({
+        where: { id: activityId },
+        create: {
+          id: activityId,
+          tenantId: updated.tenantId,
+          actor: "google-rtdn",
+          action: "billing.iap.notification",
+          resource: "mobile_subscription",
+          resourceId: updated.id,
+          details: { type: note.notificationType, status: verified.status } as any,
+        },
+        update: {},
+      });
+    } catch {
+      throw new IapTransientDeliveryError("GOOGLE_PERSISTENCE_FAILED");
+    }
+    if (verified.googleAcknowledgementPending) {
+      try {
+        await acknowledgeGoogleReceipt(note.purchaseToken, note.subscriptionId);
+      } catch {
+        throw new IapTransientDeliveryError("GOOGLE_ACKNOWLEDGEMENT_FAILED");
+      }
+    }
+    return;
   }
 
   try {
@@ -869,11 +1194,15 @@ async function applyGoogleReliable(note: GoogleNotification): Promise<void> {
       },
       update: {},
     });
-    if (verified.googleAcknowledgementPending) {
-      void acknowledgeGoogleReceipt(note.purchaseToken, note.subscriptionId);
-    }
   } catch {
     throw new IapTransientDeliveryError("GOOGLE_PERSISTENCE_FAILED");
+  }
+  if (verified.googleAcknowledgementPending) {
+    try {
+      await acknowledgeGoogleReceipt(note.purchaseToken, note.subscriptionId);
+    } catch {
+      throw new IapTransientDeliveryError("GOOGLE_ACKNOWLEDGEMENT_FAILED");
+    }
   }
 }
 
@@ -918,6 +1247,25 @@ async function handleGoogleReliable(req: Request, res: Response): Promise<void> 
       },
     );
     res.status(result.httpStatus).json({ ok: false, reason: "package-mismatch" });
+    return;
+  }
+
+  if (parsed.kind === "test") {
+    try {
+      const result = await processIapDelivery(
+        {
+          provider: "google",
+          deliveryId: parsed.messageId,
+          fingerprint: deliveryFingerprint(`google:${parsed.messageId}`),
+        },
+        async () => undefined,
+        undefined,
+        env.IAP_DELIVERY_MAX_ATTEMPTS,
+      );
+      res.status(result.httpStatus).json({ ok: true, disposition: result.disposition });
+    } catch {
+      res.status(503).json({ ok: false, reason: "retry-required" });
+    }
     return;
   }
 
@@ -966,83 +1314,37 @@ iapRouter.post("/google/notify", systemScope("webhook:iap-google"), iapWebhookRa
     }
     return;
   }
+  let parsed;
   try {
-    const parsed = parseGoogleRtdnEnvelope(req.body);
-    if (!parsed) {
-      res.status(200).json({ ok: false, reason: "envelope-not-recognised" });
-      return;
-    }
-
-    // Re-verify against the API so we're not trusting the
-    // notification body (which doesn't carry expiresAt etc).
-    let verified;
-    try {
-      verified = await verifyGoogleReceipt(parsed.purchaseToken, parsed.subscriptionId);
-    } catch (err) {
-      logger.warn(
-        { err: err instanceof Error ? err.message : err, type: parsed.notificationType },
-        "Google RTDN re-verify failed",
-      );
-      res.status(200).json({ ok: false, reason: "verify-failed" });
-      return;
-    }
-
-    const catalogTier = internalPlanForProduct(parsed.subscriptionId);
-    if (!catalogTier) {
-      logger.warn(
-        { subscriptionId: parsed.subscriptionId, type: parsed.notificationType },
-        "Google RTDN subscriptionId is outside the IAP catalog; acknowledging without mutation",
-      );
-      res.status(200).json({ ok: false, reason: "unknown-product" });
-      return;
-    }
-
-    const updated = await updateGoogleOwnedSubscription(verified, {
-        status: verified.status,
-        expiresAt: verified.expiresAt,
-        autoRenew: verified.autoRenew,
-        lastVerifiedAt: new Date(),
-    }).catch((err) => {
-      logger.warn(
-        {
-          code: err instanceof AppError && err.statusCode === 409
-            ? "GOOGLE_OWNERSHIP_UNRESOLVED"
-            : "GOOGLE_PERSISTENCE_FAILED",
-          type: parsed.notificationType,
-        },
-        "Google RTDN ownership resolution failed",
-      );
-      return null;
-    });
-
-    if (updated) {
-      // Entitlement ledger — BR-P0-003. Same reasoning as the Apple
-      // notify handler above: recorded for every status, not just
-      // expired/revoked, so out-of-order delivery is provably safe
-      // rather than merely "usually fine".
-      //
-      await recordEntitlementEvent({
-        tenantId: updated.tenantId,
-        ...retainInternalCatalogTier(mapGoogleNotify(parsed, verified, catalogTier), catalogTier),
-      });
-      await prisma.activityLog.create({
-        data: {
-          tenantId: updated.tenantId,
-          actor: "google-rtdn",
-          action: "billing.iap.notification",
-          resource: "mobile_subscription",
-          resourceId: updated.id,
-          details: { type: parsed.notificationType, status: verified.status } as any,
-        },
-      });
-      if (verified.googleAcknowledgementPending) {
-        void acknowledgeGoogleReceipt(parsed.purchaseToken, parsed.subscriptionId);
-      }
-    }
-
+    parsed = parseGoogleRtdnEnvelope(req.body);
+  } catch {
+    parsed = null;
+  }
+  if (!parsed) {
+    res.status(200).json({ ok: false, reason: "envelope-not-recognised" });
+    return;
+  }
+  if (parsed.kind === "test") {
+    res.status(200).json({ ok: true, disposition: "test" });
+    return;
+  }
+  try {
+    await applyGoogleReliable(parsed);
     res.status(200).json({ ok: true });
-  } catch (err) {
-    logger.error({ err }, "Failed to process Google RTDN");
-    res.status(200).json({ ok: false });
+  } catch (error) {
+    if (error instanceof IapPoisonDeliveryError) {
+      res.status(200).json({
+        ok: false,
+        reason: error.code === "GOOGLE_PRODUCT_UNKNOWN"
+          ? "unknown-product"
+          : "ownership-unresolved",
+      });
+      return;
+    }
+    const code = error instanceof IapTransientDeliveryError
+      ? error.code
+      : "GOOGLE_NOTIFICATION_PROCESSING_FAILED";
+    logger.warn({ provider: "google", code }, "Google notification retry required");
+    res.status(503).json({ ok: false, reason: "retry-required" });
   }
 });

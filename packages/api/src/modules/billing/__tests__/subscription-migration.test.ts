@@ -74,9 +74,11 @@ describe("legacy receipt replay", () => {
       ["com.braavolabs.creator.yearly", "INDIVIDUAL"],
       ["com.braavolabs.pro.monthly", "TEAM"],
       ["com.braavolabs.pro.yearly", "TEAM"],
+      ["com.braavolabs.team.monthly", "TEAM"],
+      ["com.braavolabs.team.yearly", "TEAM"],
       ["com.braavolabs.business.monthly", "MANUAL_REVIEW"],
       ["com.braavolabs.enterprise.yearly", "MANUAL_REVIEW"],
-      ["tampered.product", "MANUAL_REVIEW"],
+      ["tampered.product", undefined],
     ] as const;
     for (const [sku, expected] of cases) {
       expect(resolveIapProductPlan(sku)).toBe(expected);

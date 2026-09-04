@@ -178,6 +178,31 @@ describe("Google replacement-chain ownership identity", () => {
     expect(calls.at(-1)).toEqual({ method: "POST", token: "C" });
   });
 
+  it.each([
+    ["SUBSCRIPTION_STATE_EXPIRED", "expired"],
+    ["SUBSCRIPTION_STATE_ON_HOLD", "expired"],
+    ["SUBSCRIPTION_STATE_IN_GRACE_PERIOD", "in_grace_period"],
+  ] as const)("maps Google %s to the fail-closed provider status %s", async (subscriptionState, status) => {
+    const row = subscription(PRODUCT);
+    row.subscriptionState = subscriptionState;
+    installGoogleApiStub({ current: row });
+
+    await expect(verifyGoogleReceipt("current", PRODUCT)).resolves.toMatchObject({ status });
+  });
+
+  it("preserves a canceled purchase only through its paid expiry and never reports auto-renew", async () => {
+    const row = subscription(PRODUCT);
+    row.subscriptionState = "SUBSCRIPTION_STATE_CANCELED";
+    row.lineItems[0].autoRenewingPlan = { autoRenewEnabled: false };
+    installGoogleApiStub({ current: row });
+
+    await expect(verifyGoogleReceipt("current", PRODUCT)).resolves.toMatchObject({
+      status: "active",
+      expiresAt: new Date(ACTIVE_EXPIRY),
+      autoRenew: false,
+    });
+  });
+
   it("redacts a network failure whose native cause contains the purchase token URL", async () => {
     const secretToken = "raw-secret-token-that-must-not-escape";
     vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {

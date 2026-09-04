@@ -35,6 +35,7 @@ import {
   type EntitlementEvent,
   type EntitlementSource,
   type EntitlementEventType,
+  type StreamState,
 } from "./entitlement-reducer";
 
 export interface AppendEntitlementEventInput {
@@ -99,6 +100,73 @@ function isKnownPlan(value: string): boolean {
   return value in PLAN_RANK;
 }
 
+type EntitlementRow = {
+  id: string;
+  source: string;
+  streamId: string;
+  sourceTimestamp: Date;
+  type: string;
+  planTier: string | null;
+  expiresAt: Date | null;
+  autoRenew: boolean;
+};
+
+export interface EntitlementProjection {
+  effectiveTier: "INDIVIDUAL" | "TEAM" | null;
+  winner: StreamState | null;
+  source: EntitlementSource | null;
+  streamId: string | null;
+  expiresAt: Date | null;
+  autoRenew: boolean | null;
+  hasManualReview: boolean;
+}
+
+function projectRows(rows: EntitlementRow[], now: Date): EntitlementProjection {
+  const byStream = new Map<string, EntitlementEvent[]>();
+  for (const row of rows) {
+    const event: EntitlementEvent = {
+      id: row.id,
+      source: row.source as EntitlementSource,
+      streamId: row.streamId,
+      sourceTimestamp: row.sourceTimestamp,
+      type: row.type as EntitlementEventType,
+      planTier: row.planTier,
+      expiresAt: row.expiresAt,
+      autoRenew: row.autoRenew,
+    };
+    const key = `${event.source}\0${event.streamId}`;
+    const list = byStream.get(key);
+    if (list) list.push(event);
+    else byStream.set(key, [event]);
+  }
+
+  const streamStates = [...byStream.values()]
+    .map((events) => foldStream(events))
+    .filter((state): state is StreamState => state !== null);
+  const winner = combineStreams(streamStates, now);
+  const resolved = resolveEntitlement(winner, now);
+  const effectiveTier = resolved === "INDIVIDUAL" || resolved === "TEAM" ? resolved : null;
+
+  return {
+    effectiveTier,
+    winner,
+    source: winner?.source ?? null,
+    streamId: winner?.streamId ?? null,
+    expiresAt: winner?.expiresAt ?? null,
+    autoRenew: winner?.autoRenew ?? null,
+    hasManualReview: streamStates.some((state) => state.planTier === "MANUAL_REVIEW"),
+  };
+}
+
+/** Read-only view used by the IAP API; no tenant.plan write is performed. */
+export async function getEntitlementProjection(
+  tenantId: string,
+  now = new Date(),
+): Promise<EntitlementProjection> {
+  const rows = await prisma.entitlementEvent.findMany({ where: { tenantId } });
+  return projectRows(rows, now);
+}
+
 /**
  * Recompute a tenant's current entitlement from its FULL event history
  * (all sources, all streams) and write the projection to tenant.plan.
@@ -142,30 +210,8 @@ export async function reprojectEntitlement(tenantId: string): Promise<Plan> {
 
     const rows = await tx.entitlementEvent.findMany({ where: { tenantId } });
 
-    const byStream = new Map<string, EntitlementEvent[]>();
-    for (const row of rows) {
-      const event: EntitlementEvent = {
-        id: row.id,
-        source: row.source as EntitlementSource,
-        streamId: row.streamId,
-        sourceTimestamp: row.sourceTimestamp,
-        type: row.type as EntitlementEventType,
-        planTier: row.planTier,
-        expiresAt: row.expiresAt,
-        autoRenew: row.autoRenew,
-      };
-      const list = byStream.get(row.streamId);
-      if (list) list.push(event);
-      else byStream.set(row.streamId, [event]);
-    }
-
-    const streamStates = [...byStream.values()]
-      .map((events) => foldStream(events))
-      .filter((s): s is NonNullable<typeof s> => s !== null);
-
-    const now = new Date();
-    const best = combineStreams(streamStates, now);
-    const resolved = resolveEntitlement(best, now);
+    const projection = projectRows(rows, new Date());
+    const resolved = projection.effectiveTier ?? "MANUAL_REVIEW";
     const plan = (isKnownPlan(resolved) ? resolved : FALLBACK_PLAN) as Plan;
 
     if (!isKnownPlan(resolved)) {

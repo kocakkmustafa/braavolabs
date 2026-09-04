@@ -54,6 +54,9 @@ export const PRIVILEGED_ACTIONS = {
   // member could raise monthlyBudgetUsd to the schema max, or null it and
   // thereby disable the cost-anomaly stop that rule #8 depends on.
   "billing:budget": "ADMIN",
+  // Mapping a historical receipt directly controls a paid entitlement.
+  // Until a dedicated support/operator role exists this stays OWNER-only.
+  "billing:iap-review": "OWNER",
   // Tenant-wide credential control, and keyed on tenantId rather than userId:
   // whoever writes this replaces the BYOK apiKey AND baseUrl for every user in
   // the tenant, which points every LLM call at an endpoint of their choosing

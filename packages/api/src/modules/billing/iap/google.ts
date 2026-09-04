@@ -129,15 +129,20 @@ function getAuth(): JWT {
   if (!env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON) {
     throw new AppError(503, "Google Play service account not configured");
   }
-  let credentials: { client_email: string; private_key: string };
+  let credentials: { client_email?: unknown; private_key?: unknown };
   try {
     const decoded = Buffer.from(env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON, "base64").toString("utf8");
     credentials = JSON.parse(decoded);
-  } catch (err) {
-    throw new AppError(
-      503,
-      `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON could not be decoded: ${err instanceof Error ? err.message : String(err)}`,
-    );
+  } catch {
+    throw new AppError(503, "Google Play service account configuration is invalid");
+  }
+  if (
+    typeof credentials.client_email !== "string"
+    || credentials.client_email.length === 0
+    || typeof credentials.private_key !== "string"
+    || credentials.private_key.length === 0
+  ) {
+    throw new AppError(503, "Google Play service account configuration is invalid");
   }
   cachedAuth = new JWT({
     email: credentials.client_email,
@@ -149,18 +154,18 @@ function getAuth(): JWT {
 
 /**
  * Map Google's subscriptionState enum to our internal status enum.
- * SUBSCRIPTION_STATE_ON_HOLD is treated like in_grace_period because
- * Play continues to consider the user "having access" while it
- * retries billing.
+ * Grace retains access. Account hold and explicit expiry do not. A canceled
+ * subscription remains paid only through its provider-reported period end.
  */
 function mapGoogleStatus(state: string | undefined, expiresAt: Date): VerifiedReceipt["status"] {
   if (state === "SUBSCRIPTION_STATE_ACTIVE") return "active";
-  if (state === "SUBSCRIPTION_STATE_IN_GRACE_PERIOD" || state === "SUBSCRIPTION_STATE_ON_HOLD")
-    return "in_grace_period";
+  if (state === "SUBSCRIPTION_STATE_IN_GRACE_PERIOD") return "in_grace_period";
+  if (state === "SUBSCRIPTION_STATE_ON_HOLD") return "expired";
   if (state === "SUBSCRIPTION_STATE_PAUSED") return "paused";
-  if (state === "SUBSCRIPTION_STATE_CANCELED" || state === "SUBSCRIPTION_STATE_EXPIRED") {
+  if (state === "SUBSCRIPTION_STATE_CANCELED") {
     return expiresAt.getTime() > Date.now() ? "active" : "expired";
   }
+  if (state === "SUBSCRIPTION_STATE_EXPIRED") return "expired";
   return "expired";
 }
 
@@ -298,6 +303,7 @@ export async function acknowledgeGoogleReceipt(
     if (!res.ok) throw new Error("acknowledgement rejected");
   } catch {
     logger.warn({ code: "GOOGLE_ACK_FAILED" }, "Google ack failed");
+    throw new AppError(503, "Google purchase acknowledgement failed");
   }
 }
 
@@ -318,7 +324,8 @@ export async function acknowledgeGoogleReceipt(
  * notification body, because the body only carries a minimal envelope
  * and the actual state lives behind the API.
  */
-export function parseGoogleRtdnEnvelope(envelope: unknown): {
+export type GoogleSubscriptionNotification = {
+  kind: "subscription";
   packageName: string;
   notificationType: number;
   purchaseToken: string;
@@ -329,31 +336,88 @@ export function parseGoogleRtdnEnvelope(envelope: unknown): {
   messageId: string;
   /** When Pub/Sub published this message — the ledger's ordering key. */
   publishTime: Date;
-} | null {
-  const msg = (envelope as { message?: { data?: string; messageId?: string; publishTime?: string } })?.message;
-  if (!msg?.data) return null;
-  let parsed: {
-    packageName?: string;
-    subscriptionNotification?: {
-      notificationType?: number;
-      purchaseToken?: string;
-      subscriptionId?: string;
-    };
-  };
+};
+
+export type GoogleTestNotification = {
+  kind: "test";
+  packageName: string;
+  messageId: string;
+  publishTime: Date;
+  version: string;
+};
+
+export type GoogleRtdnNotification = GoogleSubscriptionNotification | GoogleTestNotification;
+
+export function parseGoogleRtdnEnvelope(envelope: unknown): GoogleRtdnNotification | null {
+  if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) return null;
+  const msg = (envelope as { message?: unknown }).message;
+  if (!msg || typeof msg !== "object" || Array.isArray(msg)) return null;
+  const rawMessage = msg as Record<string, unknown>;
+  if (
+    typeof rawMessage.data !== "string"
+    || typeof rawMessage.messageId !== "string"
+    || rawMessage.messageId.length < 1
+    || rawMessage.messageId.length > 256
+    || typeof rawMessage.publishTime !== "string"
+  ) return null;
+  let parsed: Record<string, unknown>;
   try {
-    parsed = JSON.parse(Buffer.from(msg.data, "base64").toString("utf8"));
+    const decoded = JSON.parse(Buffer.from(rawMessage.data, "base64").toString("utf8"));
+    if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) return null;
+    parsed = decoded as Record<string, unknown>;
   } catch {
     return null;
   }
-  if (!parsed.subscriptionNotification) return null;
-  const { notificationType, purchaseToken, subscriptionId } = parsed.subscriptionNotification;
-  if (!purchaseToken || !subscriptionId || notificationType === undefined) return null;
+  const publishTime = new Date(rawMessage.publishTime);
+  if (Number.isNaN(publishTime.getTime())) return null;
+  const packageName = parsed.packageName === undefined
+    ? env.GOOGLE_PLAY_PACKAGE_NAME ?? ""
+    : typeof parsed.packageName === "string"
+      ? parsed.packageName
+      : null;
+  if (packageName === null) return null;
+
+  if (parsed.testNotification !== undefined) {
+    if (
+      !parsed.testNotification
+      || typeof parsed.testNotification !== "object"
+      || Array.isArray(parsed.testNotification)
+    ) return null;
+    const version = (parsed.testNotification as Record<string, unknown>).version;
+    if (version !== undefined && typeof version !== "string") return null;
+    return {
+      kind: "test",
+      packageName,
+      messageId: rawMessage.messageId,
+      publishTime,
+      version: version ?? "",
+    };
+  }
+  if (
+    !parsed.subscriptionNotification
+    || typeof parsed.subscriptionNotification !== "object"
+    || Array.isArray(parsed.subscriptionNotification)
+  ) return null;
+  const { notificationType, purchaseToken, subscriptionId } =
+    parsed.subscriptionNotification as Record<string, unknown>;
+  if (
+    typeof purchaseToken !== "string"
+    || purchaseToken.length < 1
+    || purchaseToken.length > 40_000
+    || typeof subscriptionId !== "string"
+    || subscriptionId.length < 1
+    || subscriptionId.length > 200
+    || typeof notificationType !== "number"
+    || !Number.isInteger(notificationType)
+    || notificationType < 0
+  ) return null;
   return {
-    packageName: parsed.packageName ?? env.GOOGLE_PLAY_PACKAGE_NAME ?? "",
+    kind: "subscription",
+    packageName,
     notificationType,
     purchaseToken,
     subscriptionId,
-    messageId: msg.messageId ?? "",
-    publishTime: msg.publishTime ? new Date(msg.publishTime) : new Date(),
+    messageId: rawMessage.messageId,
+    publishTime,
   };
 }
