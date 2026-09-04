@@ -12,6 +12,12 @@ const routeMocks = vi.hoisted(() => ({
   acknowledgeGoogleReceipt: vi.fn(),
   verifyPubSubPushToken: vi.fn(),
   recordEntitlementEvent: vi.fn(),
+  getEntitlementProjection: vi.fn(),
+  ensureManualReviewCase: vi.fn(),
+  getManualReviewCase: vi.fn(),
+  hasPendingManualReviewCases: vi.fn().mockResolvedValue(false),
+  manualReviewCaseId: vi.fn(() => "iap_review_notification_case"),
+  validateManualReviewReason: vi.fn((reason: string) => reason.trim()),
   googlePurchaseAliasFindMany: vi.fn(),
   googlePurchaseAliasCreateMany: vi.fn(),
   tenantTx: vi.fn(),
@@ -49,6 +55,15 @@ vi.mock("../google", () => ({
 }));
 vi.mock("../../entitlement-ledger.service", () => ({
   recordEntitlementEvent: routeMocks.recordEntitlementEvent,
+  getEntitlementProjection: routeMocks.getEntitlementProjection,
+}));
+vi.mock("../manual-review.service", () => ({
+  ensureManualReviewCase: routeMocks.ensureManualReviewCase,
+  getManualReviewCase: routeMocks.getManualReviewCase,
+  hasPendingManualReviewCases: routeMocks.hasPendingManualReviewCases,
+  manualReviewCaseId: routeMocks.manualReviewCaseId,
+  transitionManualReviewCase: vi.fn(),
+  validateManualReviewReason: routeMocks.validateManualReviewReason,
 }));
 vi.mock("../../entitlement-mapping", () => ({
   NEW_SALE_IAP_PRODUCT_MAP: {
@@ -59,26 +74,40 @@ vi.mock("../../entitlement-mapping", () => ({
   resolveIapProductPlan: (productId: string) =>
     productId.includes("team") ? "TEAM" : "INDIVIDUAL",
   mapIapVerify: vi.fn(),
-  mapAppleNotify: (note: { notificationUUID: string }) => ({
-    source: "apple",
-    streamId: "apple-stream",
-    sourceEventId: note.notificationUUID,
-    sourceTimestamp: new Date("2026-08-25T20:00:00Z"),
-    type: "renewal",
-    planTier: "INDIVIDUAL",
-    expiresAt: new Date("2026-09-25T20:00:00Z"),
-    autoRenew: true,
-  }),
-  mapGoogleNotify: (note: { messageId: string }) => ({
-    source: "google",
-    streamId: "google-stream",
-    sourceEventId: note.messageId,
-    sourceTimestamp: new Date("2026-08-25T20:00:00Z"),
-    type: "renewal",
-    planTier: "INDIVIDUAL",
-    expiresAt: new Date("2026-09-25T20:00:00Z"),
-    autoRenew: true,
-  }),
+  mapAppleNotify: (
+    note: { notificationUUID: string },
+    verified: { status: string; expiresAt: Date; autoRenew: boolean },
+    planTier: string,
+  ) => {
+    const granting = verified.status === "active" || verified.status === "in_grace_period";
+    return {
+      source: "apple",
+      streamId: "apple-stream",
+      sourceEventId: note.notificationUUID,
+      sourceTimestamp: new Date("2026-08-25T20:00:00Z"),
+      type: verified.status === "active" ? "renewal" : verified.status === "in_grace_period" ? "grace" : "revoke",
+      planTier: granting ? planTier : null,
+      expiresAt: granting ? verified.expiresAt : null,
+      autoRenew: granting ? verified.autoRenew : false,
+    };
+  },
+  mapGoogleNotify: (
+    note: { messageId: string },
+    verified: { status: string; expiresAt: Date; autoRenew: boolean },
+    planTier: string,
+  ) => {
+    const granting = verified.status === "active" || verified.status === "in_grace_period";
+    return {
+      source: "google",
+      streamId: "google-stream",
+      sourceEventId: note.messageId,
+      sourceTimestamp: new Date("2026-08-25T20:00:00Z"),
+      type: verified.status === "active" ? "renewal" : verified.status === "in_grace_period" ? "grace" : "revoke",
+      planTier: granting ? planTier : null,
+      expiresAt: granting ? verified.expiresAt : null,
+      autoRenew: granting ? verified.autoRenew : false,
+    };
+  },
 }));
 
 import {
@@ -284,7 +313,7 @@ describe("durable IAP delivery reliability", () => {
     expect(activities.size).toBe(1);
   });
 
-  it("bounds persistent provider failure and terminally poisons the final source delivery", async () => {
+  it("keeps persistent transient failures retryable after local exhaustion for the external DLQ", async () => {
     const db = memoryStore();
     const effect = vi.fn(async () => {
       throw new IapTransientDeliveryError("APPLE_PROVIDER_UNAVAILABLE");
@@ -296,15 +325,17 @@ describe("durable IAP delivery reliability", () => {
     await expect(processIapDelivery(appleDelivery, effect, db.store, 3)).rejects.toMatchObject({
       httpStatus: 503,
     });
-    await expect(processIapDelivery(appleDelivery, effect, db.store, 3)).resolves.toEqual({
-      disposition: "poisoned",
-      httpStatus: 200,
+    await expect(processIapDelivery(appleDelivery, effect, db.store, 3)).rejects.toMatchObject({
+      code: "APPLE_PROVIDER_UNAVAILABLE",
+      httpStatus: 503,
     });
     expect([...db.rows.values()][0]).toMatchObject({
-      status: "POISONED",
+      status: "RETRYABLE",
       attempts: 3,
-      failureCode: "DELIVERY_RETRY_EXHAUSTED",
+      failureCode: "APPLE_PROVIDER_UNAVAILABLE",
     });
+    await expect(processIapDelivery(appleDelivery, effect, db.store, 3)).rejects.toMatchObject({ httpStatus: 503 });
+    expect([...db.rows.values()][0]).toMatchObject({ status: "RETRYABLE", attempts: 4 });
   });
 
   it("keeps identity collisions and active leases retriable without running a second effect", async () => {
@@ -525,6 +556,181 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
     expect(routeMocks.recordEntitlementEvent.mock.calls.length - before).toBe(1);
   });
 
+  it("provider-relooks up a manual-review notification and updates only its durable case state", async () => {
+    const note = {
+      notificationUUID: "apple-manual-review-1",
+      originalTransactionId: "untrusted-payload-identity",
+      productId: "com.braavolabs.business.monthly",
+      notificationType: "DID_RENEW",
+      signedDate: new Date("2026-09-04T08:00:00Z"),
+      expiresAt: new Date("2026-09-05T00:00:00Z"),
+      status: "revoked",
+      autoRenew: false,
+    };
+    const providerExpiry = new Date("2026-11-01T00:00:00Z");
+    const ledgerBefore = routeMocks.recordEntitlementEvent.mock.calls.length;
+    const ackBefore = routeMocks.acknowledgeGoogleReceipt.mock.calls.length;
+    routeMocks.parseAppleNotification.mockResolvedValueOnce(note);
+    routeMocks.verifyAppleReceipt.mockResolvedValueOnce({
+      originalTransactionId: "authoritative-provider-identity",
+      status: "active",
+      startedAt: new Date("2026-08-01T00:00:00Z"),
+      expiresAt: providerExpiry,
+      autoRenew: true,
+    });
+    const update = (routeMocks.prisma.mobileSubscription as { update: ReturnType<typeof vi.fn> }).update;
+    update.mockResolvedValueOnce({
+      id: "manual-subscription-1",
+      tenantId: "tenant-1",
+      provider: "apple",
+      productId: note.productId,
+    });
+    routeMocks.ensureManualReviewCase.mockResolvedValueOnce({
+      caseId: "iap_review_notification_case",
+      state: "pending",
+    });
+
+    const result = await post("/apple/notify", { signedPayload: "valid-manual-review-jws" });
+
+    expect(result).toEqual({ status: 200, body: { ok: true, disposition: "processed" } });
+    expect(routeMocks.verifyAppleReceipt).toHaveBeenCalledWith(
+      note.originalTransactionId,
+      note.productId,
+    );
+    expect(routeMocks.ensureManualReviewCase).toHaveBeenCalledWith(expect.objectContaining({
+      tenantId: "tenant-1",
+      subscriptionId: "manual-subscription-1",
+      providerIdentity: "authoritative-provider-identity",
+      providerStatus: "active",
+      expiresAt: providerExpiry,
+      autoRenew: true,
+    }));
+    expect(routeMocks.recordEntitlementEvent.mock.calls.length).toBe(ledgerBefore);
+    expect(routeMocks.acknowledgeGoogleReceipt.mock.calls.length).toBe(ackBefore);
+  });
+
+  it("applies an approved Apple manual-review renewal using the operator-mapped tier", async () => {
+    const note = {
+      notificationUUID: "apple-approved-review-renewal-1",
+      originalTransactionId: "apple-approved-review-stream",
+      productId: "com.braavolabs.business.monthly",
+      notificationType: "DID_RENEW",
+      signedDate: new Date("2026-09-04T09:00:00Z"),
+      expiresAt: new Date("2026-11-01T00:00:00Z"),
+      status: "active",
+      autoRenew: true,
+    };
+    routeMocks.parseAppleNotification.mockResolvedValueOnce(note);
+    routeMocks.verifyAppleReceipt.mockResolvedValueOnce({
+      originalTransactionId: note.originalTransactionId,
+      status: "active",
+      startedAt: new Date("2026-08-01T00:00:00Z"),
+      expiresAt: note.expiresAt,
+      autoRenew: true,
+    });
+    routeMocks.ensureManualReviewCase.mockResolvedValueOnce({
+      caseId: "iap_review_notification_case",
+      state: "approved_mapping",
+      targetTier: "TEAM",
+    });
+    const ledgerBefore = routeMocks.recordEntitlementEvent.mock.calls.length;
+
+    const result = await post("/apple/notify", { signedPayload: "approved-renewal-jws" });
+
+    expect(result).toEqual({ status: 200, body: { ok: true, disposition: "processed" } });
+    expect(routeMocks.recordEntitlementEvent.mock.calls.length - ledgerBefore).toBe(1);
+    expect(routeMocks.recordEntitlementEvent).toHaveBeenLastCalledWith(expect.objectContaining({
+      tenantId: "tenant-1",
+      source: "apple",
+      type: "renewal",
+      planTier: "TEAM",
+    }));
+    expect((routeMocks.prisma.mobileSubscription as { update: ReturnType<typeof vi.fn> }).update
+      .mock.invocationCallOrder.at(-1)).toBeLessThan(
+      routeMocks.recordEntitlementEvent.mock.invocationCallOrder.at(-1)!,
+    );
+  });
+
+  it("applies an approved Apple manual-review revocation to the existing mapped stream", async () => {
+    const note = {
+      notificationUUID: "apple-approved-review-revoke-1",
+      originalTransactionId: "apple-approved-review-stream",
+      productId: "com.braavolabs.business.monthly",
+      notificationType: "REVOKE",
+      signedDate: new Date("2026-09-04T10:00:00Z"),
+      expiresAt: new Date("2026-09-04T10:00:00Z"),
+      status: "revoked",
+      autoRenew: false,
+    };
+    routeMocks.parseAppleNotification.mockResolvedValueOnce(note);
+    routeMocks.verifyAppleReceipt.mockResolvedValueOnce({
+      originalTransactionId: note.originalTransactionId,
+      status: "revoked",
+      startedAt: new Date("2026-08-01T00:00:00Z"),
+      expiresAt: note.expiresAt,
+      autoRenew: false,
+    });
+    routeMocks.getManualReviewCase.mockResolvedValueOnce({
+      caseId: "iap_review_notification_case",
+      state: "approved_mapping",
+      targetTier: "TEAM",
+    });
+    routeMocks.ensureManualReviewCase.mockResolvedValueOnce({
+      caseId: "iap_review_notification_case",
+      state: "approved_mapping",
+      targetTier: "TEAM",
+    });
+    const ledgerBefore = routeMocks.recordEntitlementEvent.mock.calls.length;
+
+    const result = await post("/apple/notify", { signedPayload: "approved-revoke-jws" });
+
+    expect(result).toEqual({ status: 200, body: { ok: true, disposition: "processed" } });
+    expect(routeMocks.getManualReviewCase).toHaveBeenCalledWith("tenant-1", "iap_review_notification_case");
+    expect(routeMocks.recordEntitlementEvent.mock.calls.length - ledgerBefore).toBe(1);
+    expect(routeMocks.recordEntitlementEvent).toHaveBeenLastCalledWith(expect.objectContaining({
+      tenantId: "tenant-1",
+      source: "apple",
+      streamId: "apple-stream",
+      type: "revoke",
+      planTier: null,
+    }));
+  });
+
+  it.each(["pending", "rejected", "expired"] as const)(
+    "keeps an Apple manual-review case in terminal decision state %s without ledger or acknowledgement",
+    async (state) => {
+      const note = {
+        notificationUUID: `apple-review-${state}-1`,
+        originalTransactionId: `apple-review-${state}-stream`,
+        productId: "com.braavolabs.business.monthly",
+        notificationType: "DID_RENEW",
+        signedDate: new Date("2026-09-04T11:00:00Z"),
+        expiresAt: new Date("2026-11-01T00:00:00Z"),
+        status: "active",
+        autoRenew: true,
+      };
+      routeMocks.parseAppleNotification.mockResolvedValueOnce(note);
+      routeMocks.verifyAppleReceipt.mockResolvedValueOnce({
+        originalTransactionId: note.originalTransactionId,
+        status: "active",
+        startedAt: new Date("2026-08-01T00:00:00Z"),
+        expiresAt: note.expiresAt,
+        autoRenew: true,
+      });
+      routeMocks.ensureManualReviewCase.mockResolvedValueOnce({
+        caseId: "iap_review_notification_case",
+        state,
+        targetTier: null,
+      });
+      const ledgerBefore = routeMocks.recordEntitlementEvent.mock.calls.length;
+      const ackBefore = routeMocks.acknowledgeGoogleReceipt.mock.calls.length;
+
+      expect((await post("/apple/notify", { signedPayload: `review-${state}-jws` })).status).toBe(200);
+      expect(routeMocks.recordEntitlementEvent.mock.calls.length).toBe(ledgerBefore);
+      expect(routeMocks.acknowledgeGoogleReceipt.mock.calls.length).toBe(ackBefore);
+    },
+  );
+
   it("terminal-write failure followed by real Apple redelivery leaves all logical effects exactly once", async () => {
     const note = {
       notificationUUID: "apple-terminal-redelivery-1",
@@ -557,7 +763,7 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
     expect(logicalActivities.size - activitiesBefore).toBe(1);
   });
 
-  it("bounds repeated P2025 persistence failure and returns terminal redacted 200", async () => {
+  it("keeps repeated P2025 persistence failure at 503 for Pub/Sub external retry/DLQ", async () => {
     const note = {
       notificationUUID: "apple-p2025-exhaustion-1",
       originalTransactionId: "apple-missing-stream-1",
@@ -582,13 +788,13 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
 
     expect((await post("/apple/notify", { signedPayload: "p2025-jws" })).status).toBe(503);
     expect((await post("/apple/notify", { signedPayload: "p2025-jws" })).status).toBe(503);
-    const terminal = await post("/apple/notify", { signedPayload: "p2025-jws" });
-    expect(terminal.status).toBe(200);
-    expect(JSON.stringify(terminal.body)).not.toContain("P2025");
+    const exhausted = await post("/apple/notify", { signedPayload: "p2025-jws" });
+    expect(exhausted.status).toBe(503);
+    expect(JSON.stringify(exhausted.body)).not.toContain("P2025");
     expect([...db.rows.values()].find((row) => row.deliveryId === note.notificationUUID)).toMatchObject({
-      status: "POISONED",
+      status: "RETRYABLE",
       attempts: 3,
-      failureCode: "DELIVERY_RETRY_EXHAUSTED",
+      failureCode: "APPLE_PERSISTENCE_FAILED",
     });
     update.mockImplementation(defaultImplementation!);
   });
@@ -612,6 +818,207 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
     expect(result.body).toMatchObject({ ok: false, reason: "envelope-not-recognised" });
     expect(JSON.stringify(db.writes)).not.toContain("verified-token");
   });
+
+  it("records testNotification as SUCCEEDED without provider, ownership, entitlement or acknowledgement work", async () => {
+    const messageId = "google-test-notification-1";
+    const verifyBefore = routeMocks.verifyGoogleReceipt.mock.calls.length;
+    const ownershipBefore = routeMocks.googlePurchaseAliasFindMany.mock.calls.length;
+    const entitlementBefore = routeMocks.recordEntitlementEvent.mock.calls.length;
+    const ackBefore = routeMocks.acknowledgeGoogleReceipt.mock.calls.length;
+    routeMocks.verifyPubSubPushToken.mockResolvedValue({ ok: true });
+    routeMocks.parseGoogleRtdnEnvelope.mockReturnValue({
+      kind: "test",
+      packageName: "com.braavolabs.app",
+      messageId,
+      publishTime: new Date("2026-09-04T08:00:00Z"),
+      version: "1.0",
+    });
+
+    const first = await post(
+      "/google/notify",
+      { message: { messageId, data: "mocked-by-parser" } },
+      "Bearer verified-token",
+    );
+    const duplicate = await post(
+      "/google/notify",
+      { message: { messageId, data: "mocked-by-parser" } },
+      "Bearer verified-token",
+    );
+
+    expect(first).toEqual({ status: 200, body: { ok: true, disposition: "processed" } });
+    expect(duplicate).toEqual({ status: 200, body: { ok: true, disposition: "duplicate" } });
+    expect([...db.rows.values()].find((row) => row.deliveryId === messageId)).toMatchObject({ status: "SUCCEEDED" });
+    expect(routeMocks.verifyGoogleReceipt.mock.calls.length).toBe(verifyBefore);
+    expect(routeMocks.googlePurchaseAliasFindMany.mock.calls.length).toBe(ownershipBefore);
+    expect(routeMocks.recordEntitlementEvent.mock.calls.length).toBe(entitlementBefore);
+    expect(routeMocks.acknowledgeGoogleReceipt.mock.calls.length).toBe(ackBefore);
+  });
+
+  it("applies an approved Google manual-review renewal and acknowledges only after ownership and ledger", async () => {
+    const rootIdentity = `google:${"9".repeat(64)}`;
+    const note = {
+      packageName: "com.braavolabs.app",
+      notificationType: 2,
+      purchaseToken: "google-approved-review-renewal-token",
+      subscriptionId: "com.braavolabs.business.monthly",
+      messageId: "google-approved-review-renewal-1",
+      publishTime: new Date("2026-09-04T12:00:00Z"),
+    };
+    routeMocks.verifyPubSubPushToken.mockResolvedValueOnce({ ok: true });
+    routeMocks.parseGoogleRtdnEnvelope.mockReturnValueOnce(note);
+    routeMocks.verifyGoogleReceipt.mockResolvedValueOnce({
+      originalTransactionId: rootIdentity,
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [rootIdentity],
+      googleAcknowledgementPending: true,
+      status: "active",
+      startedAt: new Date("2026-08-01T00:00:00Z"),
+      expiresAt: new Date("2026-11-01T00:00:00Z"),
+      autoRenew: true,
+    });
+    routeMocks.googlePurchaseAliasFindMany.mockResolvedValueOnce([{
+      tokenDigest: rootIdentity,
+      state: "active",
+      tenantId: "tenant-1",
+      mobileSubscriptionId: "subscription-1",
+      provider: "google",
+      canonicalRootIdentity: rootIdentity,
+    }]);
+    routeMocks.ensureManualReviewCase.mockResolvedValueOnce({
+      caseId: "iap_review_notification_case",
+      state: "approved_mapping",
+      targetTier: "TEAM",
+    });
+    const ledgerBefore = routeMocks.recordEntitlementEvent.mock.calls.length;
+    const ackBefore = routeMocks.acknowledgeGoogleReceipt.mock.calls.length;
+
+    const result = await post(
+      "/google/notify",
+      { message: { messageId: note.messageId, data: "mocked-by-parser" } },
+      "Bearer verified-token",
+    );
+
+    expect(result).toEqual({ status: 200, body: { ok: true, disposition: "processed" } });
+    expect(routeMocks.recordEntitlementEvent.mock.calls.length - ledgerBefore).toBe(1);
+    expect(routeMocks.recordEntitlementEvent).toHaveBeenLastCalledWith(expect.objectContaining({
+      tenantId: "tenant-1",
+      source: "google",
+      type: "renewal",
+      planTier: "TEAM",
+    }));
+    expect(routeMocks.acknowledgeGoogleReceipt.mock.calls.length - ackBefore).toBe(1);
+    expect(routeMocks.googlePurchaseAliasFindMany.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      routeMocks.recordEntitlementEvent.mock.invocationCallOrder.at(-1)!,
+    );
+    expect(routeMocks.recordEntitlementEvent.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      routeMocks.acknowledgeGoogleReceipt.mock.invocationCallOrder.at(-1)!,
+    );
+  });
+
+  it("keeps an approved Google manual-review acknowledgement failure retryable for the external DLQ", async () => {
+    const rootIdentity = `google:${"8".repeat(64)}`;
+    const note = {
+      packageName: "com.braavolabs.app",
+      notificationType: 2,
+      purchaseToken: "google-approved-review-ack-failure-token",
+      subscriptionId: "com.braavolabs.business.monthly",
+      messageId: "google-approved-review-ack-failure-1",
+      publishTime: new Date("2026-09-04T12:30:00Z"),
+    };
+    routeMocks.verifyPubSubPushToken.mockResolvedValueOnce({ ok: true });
+    routeMocks.parseGoogleRtdnEnvelope.mockReturnValueOnce(note);
+    routeMocks.verifyGoogleReceipt.mockResolvedValueOnce({
+      originalTransactionId: rootIdentity,
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [rootIdentity],
+      googleAcknowledgementPending: true,
+      status: "active",
+      startedAt: new Date("2026-08-01T00:00:00Z"),
+      expiresAt: new Date("2026-11-01T00:00:00Z"),
+      autoRenew: true,
+    });
+    routeMocks.googlePurchaseAliasFindMany.mockResolvedValueOnce([{
+      tokenDigest: rootIdentity,
+      state: "active",
+      tenantId: "tenant-1",
+      mobileSubscriptionId: "subscription-1",
+      provider: "google",
+      canonicalRootIdentity: rootIdentity,
+    }]);
+    routeMocks.ensureManualReviewCase.mockResolvedValueOnce({
+      caseId: "iap_review_notification_case",
+      state: "approved_mapping",
+      targetTier: "TEAM",
+    });
+    const acknowledgementCallsBefore = routeMocks.acknowledgeGoogleReceipt.mock.calls.length;
+    routeMocks.acknowledgeGoogleReceipt.mockRejectedValueOnce(new Error("provider unavailable"));
+
+    const result = await post(
+      "/google/notify",
+      { message: { messageId: note.messageId, data: "mocked-by-parser" } },
+      "Bearer verified-token",
+    );
+    const acknowledgementCalls = routeMocks.acknowledgeGoogleReceipt.mock.calls.length
+      - acknowledgementCallsBefore;
+    routeMocks.acknowledgeGoogleReceipt.mockReset().mockResolvedValue(undefined);
+
+    expect(result).toEqual({ status: 503, body: { ok: false, reason: "retry-required" } });
+    expect(acknowledgementCalls).toBe(1);
+    expect([...db.rows.values()].find((row) => row.deliveryId === note.messageId)).toMatchObject({
+      status: "RETRYABLE",
+      failureCode: "GOOGLE_ACKNOWLEDGEMENT_FAILED",
+    });
+  });
+
+  it.each(["pending", "rejected", "expired"] as const)(
+    "keeps a Google manual-review case in decision state %s without grant or acknowledgement",
+    async (state) => {
+      const rootIdentity = `google:${state === "pending" ? "1" : state === "rejected" ? "2" : "3"}`.padEnd(71, state === "pending" ? "1" : state === "rejected" ? "2" : "3");
+      const note = {
+        packageName: "com.braavolabs.app",
+        notificationType: 2,
+        purchaseToken: `google-review-${state}-token`,
+        subscriptionId: "com.braavolabs.business.monthly",
+        messageId: `google-review-${state}-1`,
+        publishTime: new Date("2026-09-04T13:00:00Z"),
+      };
+      routeMocks.verifyPubSubPushToken.mockResolvedValueOnce({ ok: true });
+      routeMocks.parseGoogleRtdnEnvelope.mockReturnValueOnce(note);
+      routeMocks.verifyGoogleReceipt.mockResolvedValueOnce({
+        originalTransactionId: rootIdentity,
+        googleCanonicalRootIdentity: rootIdentity,
+        googlePurchaseAliases: [rootIdentity],
+        googleAcknowledgementPending: true,
+        status: "active",
+        startedAt: new Date("2026-08-01T00:00:00Z"),
+        expiresAt: new Date("2026-11-01T00:00:00Z"),
+        autoRenew: true,
+      });
+      routeMocks.googlePurchaseAliasFindMany.mockResolvedValueOnce([{
+        tokenDigest: rootIdentity,
+        state: "active",
+        tenantId: "tenant-1",
+        mobileSubscriptionId: "subscription-1",
+        provider: "google",
+        canonicalRootIdentity: rootIdentity,
+      }]);
+      routeMocks.ensureManualReviewCase.mockResolvedValueOnce({
+        caseId: "iap_review_notification_case",
+        state,
+        targetTier: null,
+      });
+      const ledgerBefore = routeMocks.recordEntitlementEvent.mock.calls.length;
+      const ackBefore = routeMocks.acknowledgeGoogleReceipt.mock.calls.length;
+
+      expect((await post(
+        "/google/notify",
+        { message: { messageId: note.messageId, data: "mocked-by-parser" } },
+        "Bearer verified-token",
+      )).status).toBe(200);
+      expect(routeMocks.recordEntitlementEvent.mock.calls.length).toBe(ledgerBefore);
+      expect(routeMocks.acknowledgeGoogleReceipt.mock.calls.length).toBe(ackBefore);
+    },
+  );
 
   it("terminally rejects a Google package mismatch before provider or billing work", async () => {
     const verifyBefore = routeMocks.verifyGoogleReceipt.mock.calls.length;

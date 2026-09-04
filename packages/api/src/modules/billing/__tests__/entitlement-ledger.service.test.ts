@@ -42,6 +42,7 @@ vi.mock("../../../lib/logger", () => ({
 
 import {
   appendEntitlementEvent,
+  getEntitlementProjection,
   reprojectEntitlement,
   recordEntitlementEvent,
 } from "../entitlement-ledger.service";
@@ -244,6 +245,37 @@ describe("reprojectEntitlement", () => {
     await reprojectEntitlement(TENANT);
 
     expect(mockFindMany).toHaveBeenCalledWith({ where: { tenantId: TENANT } });
+  });
+});
+
+describe("getEntitlementProjection", () => {
+  it("reads the same all-stream projection without mutating tenant.plan", async () => {
+    mockFindMany.mockResolvedValue([
+      row({ id: "individual", streamId: "individual", planTier: "INDIVIDUAL", expiresAt: new Date(Date.now() + 172_800_000) }),
+      row({ id: "team", source: "google", streamId: "team", planTier: "TEAM", expiresAt: new Date(Date.now() + 86_400_000) }),
+    ]);
+
+    const projection = await getEntitlementProjection(TENANT);
+
+    expect(projection).toMatchObject({
+      effectiveTier: "TEAM",
+      source: "google",
+      streamId: "team",
+    });
+    expect(mockFindMany).toHaveBeenCalledWith({ where: { tenantId: TENANT } });
+    expect(mockTenantUpdate).not.toHaveBeenCalled();
+  });
+
+  it("keeps manual-review-only history visible without granting paid access", async () => {
+    mockFindMany.mockResolvedValue([
+      row({ id: "review", planTier: "MANUAL_REVIEW", expiresAt: new Date(Date.now() + 86_400_000) }),
+    ]);
+
+    await expect(getEntitlementProjection(TENANT)).resolves.toMatchObject({
+      effectiveTier: null,
+      winner: null,
+      hasManualReview: true,
+    });
   });
 });
 

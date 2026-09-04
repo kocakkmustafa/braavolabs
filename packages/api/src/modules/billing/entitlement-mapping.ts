@@ -14,6 +14,8 @@ import type { EntitlementEventType, EntitlementSource } from "./entitlement-redu
 import type { AppendEntitlementEventInput } from "./entitlement-ledger.service";
 import type { VerifiedReceipt } from "./iap/apple";
 import { normalizePlanForEntitlement, type Plan } from "@ai-company-os/core";
+import crypto from "node:crypto";
+import { getIapProduct, type MobilePublicTier } from "./iap/catalog";
 
 export type EntitlementEventInput = Omit<AppendEntitlementEventInput, "tenantId">;
 
@@ -21,10 +23,11 @@ export type PlanTier = Plan;
 
 export const NEW_SALE_IAP_PRODUCT_MAP = {
   "com.braavolabs.individual.monthly": "INDIVIDUAL",
-  "com.braavolabs.team.monthly": "TEAM",
 } as const;
 
 export const LEGACY_IAP_PRODUCT_MAP: Record<string, PlanTier> = {
+  "com.braavolabs.team.monthly": "PRO",
+  "com.braavolabs.team.yearly": "PRO",
   "com.braavolabs.creator.monthly": "CREATOR",
   "com.braavolabs.creator.yearly": "CREATOR",
   "com.braavolabs.pro.monthly": "PRO",
@@ -35,10 +38,37 @@ export const LEGACY_IAP_PRODUCT_MAP: Record<string, PlanTier> = {
   "com.braavolabs.enterprise.yearly": "ENTERPRISE",
 };
 
-export function resolveIapProductPlan(productId: string): "INDIVIDUAL" | "TEAM" | "MANUAL_REVIEW" {
-  const raw = NEW_SALE_IAP_PRODUCT_MAP[productId as keyof typeof NEW_SALE_IAP_PRODUCT_MAP]
-    ?? LEGACY_IAP_PRODUCT_MAP[productId];
-  return normalizePlanForEntitlement(raw);
+export function resolveIapProductPlan(
+  productId: string,
+): MobilePublicTier | "MANUAL_REVIEW" | undefined {
+  const product = getIapProduct(productId);
+  if (!product) return undefined;
+  return product.publicTier ?? "MANUAL_REVIEW";
+}
+
+function domainDigest(domain: string, ...values: string[]): string {
+  const hash = crypto.createHash("sha256");
+  hash.update(domain, "utf8");
+  for (const value of values) {
+    hash.update("\0", "utf8");
+    hash.update(value, "utf8");
+  }
+  return hash.digest("hex");
+}
+
+/** Bounded, one-way correlation safe for logs and audit metadata. */
+export function iapCredentialReference(source: EntitlementSource, providerIdentity: string): string {
+  return `${source}:${domainDigest("braavo:iap:credential-ref:v1", source, providerIdentity).slice(0, 12)}`;
+}
+
+/** Full-width digest for security decisions and durable identity matching. */
+export function iapCredentialDigest(source: EntitlementSource, providerIdentity: string): string {
+  return `${source}:${domainDigest("braavo:iap:credential-digest:v1", source, providerIdentity)}`;
+}
+
+/** Ledger stream identity. Raw Apple transaction credentials never enter the ledger. */
+export function iapLedgerStreamId(source: EntitlementSource, providerIdentity: string): string {
+  return `${source}:${domainDigest("braavo:iap:ledger-stream:v1", source, providerIdentity)}`;
 }
 
 export interface SubscriptionMigrationRow {
@@ -268,10 +298,9 @@ function mobileStatusToEventType(status: VerifiedReceipt["status"]): Entitlement
 
 /**
  * POST /billing/iap/verify — the mobile client's own post-purchase
- * confirmation. Returns null when the receipt doesn't verify as
- * active/in_grace_period, matching the existing handler's exact no-op
- * for any other status (it only ever WROTE tenant.plan in that one
- * condition — see iap/router.ts:183).
+ * confirmation. Every authoritative provider state becomes an event:
+ * active/grace grant, while expired/revoked/paused revoke the same
+ * canonical stream so an older purchase cannot remain effective.
  *
  * sourceEventId has no natural source here (unlike a true webhook,
  * /verify carries no server-issued event id — StoreKit/Play just hand
@@ -292,18 +321,32 @@ export function mapIapVerify(
   source: EntitlementSource,
   verified: VerifiedReceipt,
   planTier: PlanTier,
-): EntitlementEventInput | null {
-  if (verified.status !== "active" && verified.status !== "in_grace_period") return null;
+): EntitlementEventInput {
   const canonicalPlan = normalizePlanForEntitlement(planTier);
+  const streamId = iapLedgerStreamId(source, verified.originalTransactionId);
+  const granting = verified.status === "active" || verified.status === "in_grace_period";
+  const sourceEventId = `verify:${domainDigest(
+    "braavo:iap:verify-event:v1",
+    source,
+    streamId,
+    verified.status,
+    String(verified.expiresAt.getTime()),
+    canonicalPlan,
+    String(verified.autoRenew),
+  )}`;
   return {
     source,
-    streamId: verified.originalTransactionId,
-    sourceEventId: `verify:${verified.originalTransactionId}:${verified.status}:${verified.expiresAt.getTime()}:${canonicalPlan}:${verified.autoRenew}`,
+    streamId,
+    sourceEventId,
     sourceTimestamp: new Date(),
-    type: verified.status === "active" ? "purchase" : "grace",
-    planTier: verified.status === "active" ? canonicalPlan : null,
-    expiresAt: verified.status === "active" ? verified.expiresAt : null,
-    autoRenew: verified.autoRenew,
+    type: verified.status === "active"
+      ? "purchase"
+      : verified.status === "in_grace_period"
+        ? "grace"
+        : "revoke",
+    planTier: granting ? canonicalPlan : null,
+    expiresAt: granting ? verified.expiresAt : null,
+    autoRenew: granting ? verified.autoRenew : false,
   };
 }
 
@@ -326,11 +369,11 @@ export function mapAppleNotify(
   const granting = type === "renewal" || type === "grace";
   return {
     source: "apple",
-    streamId: verified.originalTransactionId,
+    streamId: iapLedgerStreamId("apple", verified.originalTransactionId),
     sourceEventId: note.notificationUUID,
     sourceTimestamp: note.signedDate,
     type,
-    planTier: type === "renewal" ? normalizePlanForEntitlement(planTier) : null,
+    planTier: granting ? normalizePlanForEntitlement(planTier) : null,
     expiresAt: granting ? verified.expiresAt : null,
     autoRenew: granting ? verified.autoRenew : false,
   };
@@ -347,11 +390,11 @@ export function mapGoogleNotify(
   const granting = type === "renewal" || type === "grace";
   return {
     source: "google",
-    streamId: verified.originalTransactionId,
+    streamId: iapLedgerStreamId("google", verified.originalTransactionId),
     sourceEventId: parsed.messageId,
     sourceTimestamp: parsed.publishTime,
     type,
-    planTier: type === "renewal" ? normalizePlanForEntitlement(planTier) : null,
+    planTier: granting ? normalizePlanForEntitlement(planTier) : null,
     expiresAt: granting ? verified.expiresAt : null,
     autoRenew: granting ? verified.autoRenew : false,
   };

@@ -77,6 +77,9 @@ describe("roleCan — least privilege", () => {
     expect(roleCan("ADMIN", "company:delete")).toBe(false);
     expect(roleCan("ADMIN", "billing:budget")).toBe(true);
     expect(roleCan("OWNER", "company:delete")).toBe(true);
+    expect(roleCan("MEMBER", "billing:iap-review")).toBe(false);
+    expect(roleCan("ADMIN", "billing:iap-review")).toBe(false);
+    expect(roleCan("OWNER", "billing:iap-review")).toBe(true);
   });
 
   it("lets ADMIN run operational controls that are reversible", () => {

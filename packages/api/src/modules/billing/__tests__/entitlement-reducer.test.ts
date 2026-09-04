@@ -78,6 +78,13 @@ describe("foldStream — single-stream lifecycle", () => {
     expect(state).toMatchObject({ status: "in_grace_period", planTier: "INDIVIDUAL" });
   });
 
+  it("a first-seen grace restore can establish its verified tier without an earlier local event", () => {
+    const state = foldStream([
+      ev({ id: "grace-restore", type: "grace", sourceTimestamp: T1, planTier: "TEAM", expiresAt: T3 }),
+    ]);
+    expect(state).toMatchObject({ status: "in_grace_period", planTier: "TEAM", expiresAt: T3 });
+  });
+
   it("grace → renewal (payment recovered) returns to active", () => {
     const state = foldStream([
       ev({ id: "e1", type: "purchase", sourceTimestamp: T0, planTier: "INDIVIDUAL", expiresAt: T1 }),
@@ -209,6 +216,27 @@ describe("combineStreams — multi-source tenant entitlement (the 'don't downgra
     ];
     expect(combineStreams(streams, T1)?.planTier).toBe("TEAM");
     expect(combineStreams([...streams].reverse(), T1)?.planTier).toBe("TEAM");
+  });
+
+  it("uses status, expiry and source+streamId as deterministic same-tier tie-breakers", () => {
+    const grace = { streamId: "grace", source: "google" as const, status: "in_grace_period" as const, planTier: "TEAM", expiresAt: T3, autoRenew: true };
+    const activeSooner = { streamId: "soon", source: "google" as const, status: "active" as const, planTier: "TEAM", expiresAt: T2, autoRenew: true };
+    const activeLaterGoogle = { streamId: "z", source: "google" as const, status: "active" as const, planTier: "TEAM", expiresAt: T3, autoRenew: true };
+    const activeLaterApple = { streamId: "a", source: "apple" as const, status: "active" as const, planTier: "TEAM", expiresAt: T3, autoRenew: true };
+
+    const streams = [grace, activeSooner, activeLaterGoogle, activeLaterApple];
+    expect(combineStreams(streams, T1)).toEqual(activeLaterApple);
+    expect(combineStreams([...streams].reverse(), T1)).toEqual(activeLaterApple);
+  });
+
+  it("keeps active Team above a longer-expiring active Individual and ignores terminal Team", () => {
+    const individual = { streamId: "individual", source: "apple" as const, status: "active" as const, planTier: "INDIVIDUAL", expiresAt: T3, autoRenew: true };
+    const team = { streamId: "team", source: "google" as const, status: "active" as const, planTier: "TEAM", expiresAt: T2, autoRenew: true };
+    expect(combineStreams([individual, team], T1)?.planTier).toBe("TEAM");
+    expect(combineStreams([
+      individual,
+      { ...team, status: "revoked" as const, planTier: null, expiresAt: null },
+    ], T1)?.planTier).toBe("INDIVIDUAL");
   });
 
   it("in_grace_period counts as provisionally active (still entitled, still beats an expired/revoked stream)", () => {

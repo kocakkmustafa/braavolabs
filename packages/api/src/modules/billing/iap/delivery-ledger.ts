@@ -225,10 +225,11 @@ export async function processIapDelivery(
       return { disposition: "poisoned", httpStatus: 200 };
     }
     const code = err instanceof IapTransientDeliveryError ? err.code : "DELIVERY_HANDLER_FAILED";
-    if (claim.attempts >= maxAttempts) {
-      await persistStatus(store, claim, "POISONED", "DELIVERY_RETRY_EXHAUSTED");
-      return { disposition: "poisoned", httpStatus: 200 };
-    }
+    // `maxAttempts` bounds only local policy validation. A transient failure
+    // never becomes poison/200: Pub/Sub/Apple remain responsible for their
+    // external retry and DLQ policy even after our local counter is exceeded.
+    // Turning exhaustion into 200 would acknowledge and permanently drop the
+    // event before the external DLQ can observe it.
     await persistStatus(store, claim, "RETRYABLE", code);
     throw new IapTransientDeliveryError(code);
   }

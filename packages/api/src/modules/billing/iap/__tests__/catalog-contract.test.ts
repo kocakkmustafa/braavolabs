@@ -12,6 +12,14 @@ const mocks = vi.hoisted(() => ({
   parseGoogleRtdnEnvelope: vi.fn(),
   verifyPubSubPushToken: vi.fn(),
   recordEntitlementEvent: vi.fn(),
+  getEntitlementProjection: vi.fn(),
+  acknowledgeGoogleReceipt: vi.fn(),
+  ensureManualReviewCase: vi.fn(),
+  getManualReviewCase: vi.fn(),
+  hasPendingManualReviewCases: vi.fn(),
+  manualReviewCaseId: vi.fn(() => "iap_review_provider_case"),
+  transitionManualReviewCase: vi.fn(),
+  validateManualReviewReason: vi.fn(),
   mobileSubscriptionFindUnique: vi.fn(),
   mobileSubscriptionCreate: vi.fn(),
   mobileSubscriptionUpdateMany: vi.fn(),
@@ -21,6 +29,7 @@ const mocks = vi.hoisted(() => ({
   googlePurchaseAliasFindMany: vi.fn(),
   googlePurchaseAliasCreateMany: vi.fn(),
   activityLogCreate: vi.fn(),
+  activityLogUpsert: vi.fn(),
   transaction: vi.fn(),
   tenantTx: vi.fn(),
   loggerError: vi.fn(),
@@ -28,9 +37,17 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../../../../middleware/auth", () => ({
-  authMiddleware: (req: any, _res: unknown, next: () => void) => {
+  authMiddleware: (req: any, res: any, next: () => void) => {
+    if (req.headers["x-test-no-auth"] === "true") {
+      res.status(401).json({ error: "Missing or invalid authorization header" });
+      return;
+    }
     const tenantId = req.headers["x-test-tenant-id"] ?? "tenant-1";
-    req.auth = { userId: `user-for-${tenantId}`, tenantId, role: "OWNER" };
+    req.auth = {
+      userId: `user-for-${tenantId}`,
+      tenantId,
+      role: req.headers["x-test-role"] ?? "OWNER",
+    };
     next();
   },
 }));
@@ -50,7 +67,7 @@ vi.mock("../../../../lib/db", () => ({
       findFirst: mocks.mobileSubscriptionFindFirst,
       update: mocks.mobileSubscriptionUpdate,
     },
-    activityLog: { create: mocks.activityLogCreate },
+    activityLog: { create: mocks.activityLogCreate, upsert: mocks.activityLogUpsert },
     $transaction: mocks.transaction,
   },
   tenantTx: mocks.tenantTx,
@@ -67,13 +84,27 @@ vi.mock("../apple", () => ({
 }));
 vi.mock("../google", () => ({
   verifyGoogleReceipt: mocks.verifyGoogleReceipt,
+  acknowledgeGoogleReceipt: mocks.acknowledgeGoogleReceipt,
   parseGoogleRtdnEnvelope: mocks.parseGoogleRtdnEnvelope,
   verifyPubSubPushToken: mocks.verifyPubSubPushToken,
 }));
 vi.mock("../../entitlement-ledger.service", () => ({
   recordEntitlementEvent: mocks.recordEntitlementEvent,
+  getEntitlementProjection: mocks.getEntitlementProjection,
+}));
+vi.mock("../manual-review.service", () => ({
+  ensureManualReviewCase: mocks.ensureManualReviewCase,
+  getManualReviewCase: mocks.getManualReviewCase,
+  hasPendingManualReviewCases: mocks.hasPendingManualReviewCases,
+  manualReviewCaseId: mocks.manualReviewCaseId,
+  transitionManualReviewCase: mocks.transitionManualReviewCase,
+  validateManualReviewReason: mocks.validateManualReviewReason,
 }));
 
+import {
+  iapCredentialDigest,
+} from "../../entitlement-mapping";
+import { AppError } from "../../../../middleware/error";
 import {
   getIapProduct,
   internalPlanForProduct,
@@ -139,7 +170,44 @@ beforeEach(() => {
   });
   mocks.verifyPubSubPushToken.mockResolvedValue({ ok: true });
   mocks.activityLogCreate.mockResolvedValue({ id: "activity-1" });
-  mocks.recordEntitlementEvent.mockResolvedValue(undefined);
+  mocks.activityLogUpsert.mockResolvedValue({ id: "activity-notification-1" });
+  mocks.recordEntitlementEvent.mockResolvedValue("INDIVIDUAL");
+  mocks.getEntitlementProjection.mockResolvedValue({
+    effectiveTier: "INDIVIDUAL",
+    winner: {
+      source: "apple",
+      streamId: "apple:projected",
+      expiresAt: ACTIVE_EXPIRY,
+      autoRenew: true,
+    },
+    hasManualReview: false,
+  });
+  mocks.acknowledgeGoogleReceipt.mockResolvedValue(undefined);
+  mocks.ensureManualReviewCase.mockResolvedValue({
+    caseId: "iap_review_pending_case",
+    state: "pending",
+    targetTier: null,
+  });
+  mocks.getManualReviewCase.mockResolvedValue({
+    caseId: "iap_review_pending_case",
+    tenantId: "tenant-1",
+    provider: "apple",
+    productId: "com.braavolabs.business.monthly",
+    internalPlan: "BUSINESS",
+    subscriptionId: "mobile-sub-1",
+    identityRef: iapCredentialDigest("apple", "operator-apple-identity"),
+    state: "pending",
+    targetTier: null,
+  });
+  mocks.hasPendingManualReviewCases.mockResolvedValue(false);
+  mocks.manualReviewCaseId.mockReturnValue("iap_review_provider_case");
+  mocks.validateManualReviewReason.mockImplementation((reason: string) => reason.trim());
+  mocks.verifyAppleReceipt.mockResolvedValue(verifiedReceipt("operator-apple-identity"));
+  mocks.transitionManualReviewCase.mockResolvedValue({
+    caseId: "iap_review_pending_case",
+    state: "approved_mapping",
+    targetTier: "TEAM",
+  });
   mocks.googlePurchaseAliasFindMany.mockResolvedValue([]);
   mocks.googlePurchaseAliasCreateMany.mockResolvedValue({ count: 0 });
   mocks.tenantTx.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => fn({
@@ -178,6 +246,28 @@ async function postVerify(
 
 async function getEntitlement() {
   const response = await fetch(`${baseUrl}/api/v1/billing/iap/entitlement`);
+  return { status: response.status, body: await response.json() as Record<string, unknown> };
+}
+
+async function postManualReviewDecision(
+  role?: "OWNER" | "ADMIN" | "MEMBER" | "UNKNOWN",
+  tenantId = "tenant-1",
+  body: Record<string, unknown> = {
+    state: "approved_mapping",
+    targetTier: "TEAM",
+    reason: "provider records verified by billing operator",
+    receipt: "operator-apple-receipt",
+  },
+) {
+  const response = await fetch(`${baseUrl}/api/v1/billing/iap/manual-reviews/iap_review_pending_case/decide`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Test-Tenant-Id": tenantId,
+      ...(role ? { "X-Test-Role": role } : { "X-Test-No-Auth": "true" }),
+    },
+    body: JSON.stringify(body),
+  });
   return { status: response.status, body: await response.json() as Record<string, unknown> };
 }
 
@@ -227,7 +317,7 @@ function verifiedReceipt(id: string) {
 }
 
 describe("canonical IAP catalog", () => {
-  it("keeps Individual new-sale while Team waits for active-seat settlement", () => {
+  it("keeps exactly one new-sale SKU and classifies canonical Team as restore-only", () => {
     const individual = getIapProduct("com.braavolabs.individual.monthly");
     const teamMonthly = getIapProduct("com.braavolabs.team.monthly");
     const teamYearly = getIapProduct("com.braavolabs.team.yearly");
@@ -240,31 +330,31 @@ describe("canonical IAP catalog", () => {
     expect(teamMonthly).toEqual({
       internalPlan: "PRO",
       publicTier: "TEAM",
-      sale: "manual-review",
+      sale: "restore-only",
     });
     expect(teamYearly).toEqual({
       internalPlan: "PRO",
       publicTier: "TEAM",
-      sale: "manual-review",
+      sale: "restore-only",
     });
     expect(verificationResponseTier(individual!)).toBe("INDIVIDUAL");
-    expect(verificationResponseTier(teamMonthly!)).toBe("PRO");
-    expect(verificationResponseTier(teamYearly!)).toBe("PRO");
+    expect(verificationResponseTier(teamMonthly!)).toBe("TEAM");
+    expect(verificationResponseTier(teamYearly!)).toBe("TEAM");
     expect(isNewSaleProduct("com.braavolabs.individual.monthly")).toBe(true);
     expect(isNewSaleProduct("com.braavolabs.team.monthly")).toBe(false);
     expect(isNewSaleProduct("com.braavolabs.team.yearly")).toBe(false);
   });
 
   it("keeps legacy aliases restore-only and retired higher tiers manual-review", () => {
-    expect(getIapProduct("com.braavolabs.creator.monthly")?.sale).toBe("legacy-restore");
-    expect(getIapProduct("com.braavolabs.creator.yearly")?.sale).toBe("legacy-restore");
-    expect(getIapProduct("com.braavolabs.pro.monthly")?.sale).toBe("legacy-restore");
-    expect(getIapProduct("com.braavolabs.pro.yearly")?.sale).toBe("legacy-restore");
+    expect(getIapProduct("com.braavolabs.creator.monthly")?.sale).toBe("restore-only");
+    expect(getIapProduct("com.braavolabs.creator.yearly")?.sale).toBe("restore-only");
+    expect(getIapProduct("com.braavolabs.pro.monthly")?.sale).toBe("restore-only");
+    expect(getIapProduct("com.braavolabs.pro.yearly")?.sale).toBe("restore-only");
     expect(getIapProduct("com.braavolabs.business.monthly")?.sale).toBe("manual-review");
     expect(getIapProduct("com.braavolabs.enterprise.monthly")?.sale).toBe("manual-review");
     expect(isNewSaleProduct("com.braavolabs.business.monthly")).toBe(false);
     expect(isNewSaleProduct("com.braavolabs.enterprise.monthly")).toBe(false);
-    expect(verificationResponseTier(getIapProduct("com.braavolabs.creator.monthly")!)).toBe("CREATOR");
+    expect(verificationResponseTier(getIapProduct("com.braavolabs.creator.monthly")!)).toBe("INDIVIDUAL");
   });
 
   it("fails closed for unknown products", () => {
@@ -540,27 +630,152 @@ describe("POST /billing/iap/verify catalog boundary", () => {
   });
 
   it.each([
-    ["apple", "com.braavolabs.business.monthly"],
-    ["google", "com.braavolabs.enterprise.monthly"],
-    ["apple", "com.braavolabs.team.monthly"],
-    ["google", "com.braavolabs.team.monthly"],
-    ["apple", "com.braavolabs.team.yearly"],
-    ["google", "com.braavolabs.team.yearly"],
-  ] as const)(
-    "rejects %s manual-review products before provider or persistence work",
-    async (provider, productId) => {
-      const result = await postVerify(provider, productId);
+    ["com.braavolabs.team.monthly", "TEAM", "PRO"],
+    ["com.braavolabs.team.yearly", "TEAM", "PRO"],
+    ["com.braavolabs.creator.monthly", "INDIVIDUAL", "CREATOR"],
+    ["com.braavolabs.pro.yearly", "TEAM", "PRO"],
+  ] as const)("provider-verifies restore-only %s and returns public %s", async (productId, receiptTier, internalPlan) => {
+    mocks.verifyAppleReceipt.mockResolvedValue(verifiedReceipt(`raw-${productId}`));
+    mocks.recordEntitlementEvent.mockResolvedValue(receiptTier);
 
-      expect(result).toEqual({
-        status: 409,
+    const result = await postVerify("apple", productId);
+
+    expect(result).toMatchObject({
+      status: 200,
+      body: {
+        outcome: "granted",
+        receiptTier,
+        effectiveTier: receiptTier,
+        providerStatus: "active",
+        expiresAt: ACTIVE_EXPIRY.toISOString(),
+      },
+    });
+    expect(mocks.verifyAppleReceipt).toHaveBeenCalled();
+    expect(mocks.recordEntitlementEvent).toHaveBeenCalledWith(expect.objectContaining({ planTier: internalPlan }));
+  });
+
+  it.each([
+    "com.braavolabs.business.monthly",
+    "com.braavolabs.enterprise.yearly",
+  ] as const)("provider-verifies %s before returning a durable manual-review case", async (productId) => {
+    const raw = `raw-${productId}`;
+    mocks.verifyAppleReceipt.mockResolvedValue(verifiedReceipt(raw));
+
+    const result = await postVerify("apple", productId);
+
+    expect(result).toMatchObject({
+      status: 200,
+      body: {
+        outcome: "manual_review",
+        receiptTier: null,
+        effectiveTier: "INDIVIDUAL",
+        providerStatus: "active",
+        reviewCaseId: "iap_review_pending_case",
+      },
+    });
+    expect(mocks.verifyAppleReceipt.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.ensureManualReviewCase.mock.invocationCallOrder[0],
+    );
+    expect(mocks.ensureManualReviewCase).toHaveBeenCalledWith(expect.objectContaining({
+      tenantId: "tenant-1",
+      productId,
+      providerIdentity: raw,
+    }));
+    expect(mocks.recordEntitlementEvent).not.toHaveBeenCalled();
+    expect(mocks.acknowledgeGoogleReceipt).not.toHaveBeenCalled();
+    expect(JSON.stringify(result.body)).not.toContain(raw);
+  });
+
+  it("grants an approved manual mapping only after a fresh Google provider/ownership/ledger/ack chain", async () => {
+    const token = "google-approved-review-token";
+    const rootIdentity = `google:${"5".repeat(64)}`;
+    mocks.verifyGoogleReceipt.mockResolvedValue({
+      ...verifiedReceipt(rootIdentity),
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [rootIdentity],
+      googleAcknowledgementPending: true,
+    });
+    mocks.googlePurchaseAliasFindMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{
+        tokenDigest: rootIdentity,
+        state: "active",
+        tenantId: "tenant-1",
+        mobileSubscriptionId: "mobile-sub-1",
+        provider: "google",
+        canonicalRootIdentity: rootIdentity,
+      }]);
+    mocks.googlePurchaseAliasCreateMany.mockResolvedValue({ count: 1 });
+    mocks.ensureManualReviewCase.mockResolvedValue({
+      caseId: "iap_review_approved_case",
+      state: "approved_mapping",
+      targetTier: "TEAM",
+    });
+    mocks.recordEntitlementEvent.mockResolvedValue("TEAM");
+
+    const result = await postVerify("google", "com.braavolabs.business.monthly", { receipt: token });
+
+    expect(result).toMatchObject({
+      status: 200,
+      body: {
+        outcome: "granted",
+        receiptTier: "TEAM",
+        effectiveTier: "TEAM",
+        providerStatus: "active",
+      },
+    });
+    expect(result.body).not.toHaveProperty("reviewCaseId");
+    expect(mocks.verifyGoogleReceipt.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.mobileSubscriptionCreate.mock.invocationCallOrder[0],
+    );
+    expect(mocks.mobileSubscriptionCreate.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.recordEntitlementEvent.mock.invocationCallOrder[0],
+    );
+    expect(mocks.recordEntitlementEvent.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.acknowledgeGoogleReceipt.mock.invocationCallOrder[0],
+    );
+  });
+
+  it.each(["pending", "rejected", "expired"] as const)(
+    "keeps a %s manual-review decision non-granting and non-acknowledging",
+    async (state) => {
+      mocks.verifyAppleReceipt.mockResolvedValue(verifiedReceipt(`apple-review-${state}`));
+      mocks.ensureManualReviewCase.mockResolvedValue({
+        caseId: `iap_review_${state}`,
+        state,
+        targetTier: null,
+      });
+
+      const result = await postVerify("apple", "com.braavolabs.business.monthly");
+
+      expect(result).toMatchObject({
+        status: 200,
         body: {
-          error: "This product requires manual review.",
-          details: { reason: "manual-review-required" },
+          outcome: "manual_review",
+          receiptTier: null,
+          reviewCaseId: `iap_review_${state}`,
         },
       });
-      expectNoManualReviewSideEffects();
+      expect(mocks.recordEntitlementEvent).not.toHaveBeenCalled();
+      expect(mocks.acknowledgeGoogleReceipt).not.toHaveBeenCalled();
     },
   );
+
+  it("does not open or advance manual review for an inactive provider receipt", async () => {
+    mocks.verifyAppleReceipt.mockResolvedValue({
+      ...verifiedReceipt("apple-inactive-business"),
+      status: "revoked",
+    });
+    mocks.getManualReviewCase.mockResolvedValue(null);
+
+    const result = await postVerify("apple", "com.braavolabs.business.monthly");
+
+    expect(result).toMatchObject({ status: 200, body: { outcome: "inactive", receiptTier: null } });
+    expect(mocks.getManualReviewCase).toHaveBeenCalledWith("tenant-1", "iap_review_provider_case");
+    expect(mocks.ensureManualReviewCase).not.toHaveBeenCalled();
+    expect(mocks.recordEntitlementEvent).not.toHaveBeenCalled();
+    expect(mocks.acknowledgeGoogleReceipt).not.toHaveBeenCalled();
+  });
 
   it("rejects an unknown SKU before provider verification or entitlement mutation", async () => {
     const result = await postVerify("apple", "com.braavolabs.unknown.monthly");
@@ -582,7 +797,12 @@ describe("POST /billing/iap/verify catalog boundary", () => {
 
     expect(result).toMatchObject({
       status: 200,
-      body: { success: true, planTier: "INDIVIDUAL", status: "active" },
+      body: {
+        outcome: "granted",
+        receiptTier: "INDIVIDUAL",
+        effectiveTier: "INDIVIDUAL",
+        providerStatus: "active",
+      },
     });
     expect(mocks.verifyAppleReceipt).toHaveBeenCalledWith(
       "store-proof",
@@ -616,13 +836,236 @@ describe("POST /billing/iap/verify catalog boundary", () => {
 
     expect(result).toMatchObject({
       status: 200,
-      body: { success: true, planTier: "CREATOR", status: "active" },
+      body: {
+        outcome: "granted",
+        receiptTier: "INDIVIDUAL",
+        effectiveTier: "INDIVIDUAL",
+        providerStatus: "active",
+      },
     });
     expect(mocks.mobileSubscriptionCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ planTier: "CREATOR" }),
       }),
     );
+  });
+
+  it("separates an Individual receipt tier from a higher effective Team projection", async () => {
+    mocks.verifyAppleReceipt.mockResolvedValue(verifiedReceipt("apple-individual-under-team"));
+    mocks.recordEntitlementEvent.mockResolvedValue("TEAM");
+
+    const result = await postVerify("apple", "com.braavolabs.individual.monthly");
+
+    expect(result).toMatchObject({
+      status: 200,
+      body: {
+        outcome: "granted",
+        receiptTier: "INDIVIDUAL",
+        effectiveTier: "TEAM",
+        providerStatus: "active",
+      },
+    });
+  });
+
+  it.each(["expired", "revoked", "paused"] as const)(
+    "records provider status %s as a terminal event before returning the shared projection",
+    async (status) => {
+      mocks.verifyAppleReceipt.mockResolvedValue({
+        ...verifiedReceipt(`apple-${status}-credential`),
+        status,
+      });
+      mocks.getEntitlementProjection.mockResolvedValueOnce({
+        effectiveTier: null,
+        winner: null,
+        source: null,
+        streamId: null,
+        expiresAt: null,
+        autoRenew: null,
+        hasManualReview: false,
+      });
+
+      const result = await postVerify("apple", "com.braavolabs.team.monthly");
+
+      expect(result).toMatchObject({
+        status: 200,
+        body: {
+          outcome: "inactive",
+          receiptTier: null,
+          effectiveTier: null,
+          providerStatus: "inactive",
+        },
+      });
+      expect(mocks.recordEntitlementEvent).toHaveBeenCalledWith(expect.objectContaining({
+        tenantId: "tenant-1",
+        source: "apple",
+        streamId: expect.stringMatching(/^apple:[a-f0-9]{64}$/),
+        type: "revoke",
+        planTier: null,
+        expiresAt: null,
+        autoRenew: false,
+      }));
+      expect(mocks.mobileSubscriptionCreate.mock.invocationCallOrder[0]).toBeLessThan(
+        mocks.recordEntitlementEvent.mock.invocationCallOrder[0],
+      );
+      expect(mocks.recordEntitlementEvent.mock.invocationCallOrder[0]).toBeLessThan(
+        mocks.getEntitlementProjection.mock.invocationCallOrder[0],
+      );
+      expect(mocks.acknowledgeGoogleReceipt).not.toHaveBeenCalled();
+    },
+  );
+
+  it("closes the same canonical stream that an earlier active verify opened", async () => {
+    const identity = "apple-active-then-expired";
+    mocks.verifyAppleReceipt
+      .mockResolvedValueOnce(verifiedReceipt(identity))
+      .mockResolvedValueOnce({ ...verifiedReceipt(identity), status: "expired" });
+    mocks.getEntitlementProjection.mockResolvedValueOnce({
+      effectiveTier: null,
+      winner: null,
+      source: null,
+      streamId: null,
+      expiresAt: null,
+      autoRenew: null,
+      hasManualReview: false,
+    });
+
+    expect((await postVerify("apple", "com.braavolabs.team.monthly")).body.outcome).toBe("granted");
+    expect((await postVerify("apple", "com.braavolabs.team.monthly")).body).toMatchObject({
+      outcome: "inactive",
+      effectiveTier: null,
+    });
+
+    const [grant, terminal] = mocks.recordEntitlementEvent.mock.calls.map(([event]) => event);
+    expect(terminal).toMatchObject({ streamId: grant.streamId, type: "revoke", planTier: null });
+  });
+
+  it.each(["pending", "rejected", "expired"] as const)(
+    "keeps an inactive %s manual-review case non-granting and non-acknowledging",
+    async (state) => {
+      mocks.verifyAppleReceipt.mockResolvedValue({
+        ...verifiedReceipt(`apple-inactive-review-${state}`),
+        status: "revoked",
+      });
+      mocks.getManualReviewCase.mockResolvedValue({
+        caseId: "iap_review_provider_case",
+        state,
+        targetTier: null,
+      });
+      mocks.ensureManualReviewCase.mockResolvedValue({
+        caseId: "iap_review_provider_case",
+        state,
+        targetTier: null,
+      });
+
+      const result = await postVerify("apple", "com.braavolabs.business.monthly");
+
+      expect(result).toMatchObject({ status: 200, body: { outcome: "inactive", receiptTier: null } });
+      expect(mocks.getManualReviewCase).toHaveBeenCalledWith("tenant-1", "iap_review_provider_case");
+      expect(mocks.ensureManualReviewCase).toHaveBeenCalledTimes(1);
+      expect(mocks.recordEntitlementEvent).not.toHaveBeenCalled();
+      expect(mocks.acknowledgeGoogleReceipt).not.toHaveBeenCalled();
+    },
+  );
+
+  it("writes an inactive approved mapping to its mapped canonical stream without acknowledgement", async () => {
+    mocks.verifyAppleReceipt.mockResolvedValue({
+      ...verifiedReceipt("apple-inactive-approved-review"),
+      status: "revoked",
+    });
+    mocks.getManualReviewCase.mockResolvedValue({
+      caseId: "iap_review_provider_case",
+      state: "approved_mapping",
+      targetTier: "TEAM",
+    });
+    mocks.ensureManualReviewCase.mockResolvedValue({
+      caseId: "iap_review_provider_case",
+      state: "approved_mapping",
+      targetTier: "TEAM",
+    });
+
+    const result = await postVerify("apple", "com.braavolabs.business.monthly");
+
+    expect(result).toMatchObject({ status: 200, body: { outcome: "inactive", receiptTier: null } });
+    expect(mocks.recordEntitlementEvent).toHaveBeenCalledWith(expect.objectContaining({
+      source: "apple",
+      type: "revoke",
+      planTier: null,
+    }));
+    expect(mocks.ensureManualReviewCase.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.recordEntitlementEvent.mock.invocationCallOrder[0],
+    );
+    expect(mocks.acknowledgeGoogleReceipt).not.toHaveBeenCalled();
+  });
+
+  it("awaits Google acknowledgement after ownership and ledger, surfacing a redacted 503 on failure", async () => {
+    const token = "google-raw-purchase-token-sentinel";
+    const rootIdentity = `google:${"6".repeat(64)}`;
+    mocks.verifyGoogleReceipt.mockResolvedValue({
+      ...verifiedReceipt(rootIdentity),
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [rootIdentity],
+      googleAcknowledgementPending: true,
+    });
+    mocks.googlePurchaseAliasFindMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{
+        tokenDigest: rootIdentity,
+        state: "active",
+        tenantId: "tenant-1",
+        mobileSubscriptionId: "mobile-sub-1",
+        provider: "google",
+        canonicalRootIdentity: rootIdentity,
+      }]);
+    mocks.googlePurchaseAliasCreateMany.mockResolvedValue({ count: 1 });
+    mocks.acknowledgeGoogleReceipt.mockRejectedValue(new Error(`provider failed for ${token}`));
+
+    const result = await postVerify("google", "com.braavolabs.individual.monthly", { receipt: token });
+
+    expect(result).toEqual({ status: 503, body: { error: "Google purchase acknowledgement failed" } });
+    expect(mocks.mobileSubscriptionCreate.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.recordEntitlementEvent.mock.invocationCallOrder[0],
+    );
+    expect(mocks.recordEntitlementEvent.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.acknowledgeGoogleReceipt.mock.invocationCallOrder[0],
+    );
+    expect(JSON.stringify([result.body, mocks.loggerError.mock.calls, mocks.loggerWarn.mock.calls])).not.toContain(token);
+  });
+
+  it("does not acknowledge when entitlement-ledger persistence fails", async () => {
+    const rootIdentity = `google:${"4".repeat(64)}`;
+    mocks.verifyGoogleReceipt.mockResolvedValue({
+      ...verifiedReceipt(rootIdentity),
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [rootIdentity],
+      googleAcknowledgementPending: true,
+    });
+    mocks.googlePurchaseAliasFindMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{
+        tokenDigest: rootIdentity,
+        state: "active",
+        tenantId: "tenant-1",
+        mobileSubscriptionId: "mobile-sub-1",
+        provider: "google",
+        canonicalRootIdentity: rootIdentity,
+      }]);
+    mocks.googlePurchaseAliasCreateMany.mockResolvedValue({ count: 1 });
+    mocks.recordEntitlementEvent.mockRejectedValue(new Error("database unavailable"));
+
+    const result = await postVerify("google", "com.braavolabs.individual.monthly");
+
+    expect(result).toEqual({ status: 503, body: { error: "Entitlement persistence temporarily unavailable" } });
+    expect(mocks.acknowledgeGoogleReceipt).not.toHaveBeenCalled();
+  });
+
+  it("redacts raw provider failures from logs and public errors", async () => {
+    const receipt = "full-apple-receipt-sentinel";
+    mocks.verifyAppleReceipt.mockRejectedValue(new Error(`provider leaked ${receipt}`));
+
+    const result = await postVerify("apple", "com.braavolabs.individual.monthly", { receipt });
+
+    expect(result).toEqual({ status: 500, body: { error: "Receipt verification failed" } });
+    expect(JSON.stringify([result.body, mocks.loggerError.mock.calls, mocks.loggerWarn.mock.calls])).not.toContain(receipt);
   });
 
   it("keeps same-owner reverify successful through a tenant-guarded update", async () => {
@@ -704,47 +1147,41 @@ describe("POST /billing/iap/verify catalog boundary", () => {
 });
 
 describe("GET /billing/iap/entitlement catalog boundary", () => {
-  it("returns the public tier for a current-sale Individual row", async () => {
-    mocks.mobileSubscriptionFindFirst.mockResolvedValue({
-      planTier: "CREATOR",
-      productId: "com.braavolabs.individual.monthly",
-      expiresAt: ACTIVE_EXPIRY,
-      provider: "apple",
-      autoRenew: true,
+  it("returns the shared all-stream projection instead of the latest mobile row", async () => {
+    mocks.getEntitlementProjection.mockResolvedValue({
+      effectiveTier: "TEAM",
+      winner: {
+        source: "google",
+        streamId: "google:team",
+        expiresAt: ACTIVE_EXPIRY,
+        autoRenew: false,
+      },
+      hasManualReview: true,
     });
 
     const result = await getEntitlement();
 
-    expect(result).toMatchObject({
+    expect(result).toEqual({
       status: 200,
-      body: { hasActiveMobileSubscription: true, planTier: "INDIVIDUAL" },
+      body: {
+        hasActiveMobileSubscription: true,
+        planTier: "TEAM",
+        effectiveTier: "TEAM",
+        expiresAt: ACTIVE_EXPIRY.toISOString(),
+        provider: "google",
+        autoRenew: false,
+        hasManualReview: true,
+      },
     });
+    expect(mocks.getEntitlementProjection).toHaveBeenCalledWith("tenant-1");
+    expect(mocks.mobileSubscriptionFindFirst).not.toHaveBeenCalled();
   });
 
-  it("keeps a legacy Creator row fail-closed as its internal tier", async () => {
-    mocks.mobileSubscriptionFindFirst.mockResolvedValue({
-      planTier: "CREATOR",
-      productId: "com.braavolabs.creator.monthly",
-      expiresAt: ACTIVE_EXPIRY,
-      provider: "apple",
-      autoRenew: false,
-    });
-
-    const result = await getEntitlement();
-
-    expect(result).toMatchObject({
-      status: 200,
-      body: { hasActiveMobileSubscription: true, planTier: "CREATOR" },
-    });
-  });
-
-  it("does not expose a stale tier from an active catalog-unknown row", async () => {
-    mocks.mobileSubscriptionFindFirst.mockResolvedValue({
-      planTier: "ENTERPRISE",
-      productId: "com.braavolabs.unregistered.monthly",
-      expiresAt: ACTIVE_EXPIRY,
-      provider: "apple",
-      autoRenew: true,
+  it("returns null paid tier while keeping manual-review visibility", async () => {
+    mocks.getEntitlementProjection.mockResolvedValue({
+      effectiveTier: null,
+      winner: null,
+      hasManualReview: true,
     });
 
     const result = await getEntitlement();
@@ -754,15 +1191,247 @@ describe("GET /billing/iap/entitlement catalog boundary", () => {
       body: {
         hasActiveMobileSubscription: false,
         planTier: null,
+        effectiveTier: null,
         expiresAt: null,
         provider: null,
         autoRenew: null,
+        hasManualReview: true,
       },
     });
+  });
+
+  it("adds tenant-scoped pending-case visibility without replacing an active Individual projection", async () => {
+    mocks.getEntitlementProjection.mockResolvedValue({
+      effectiveTier: "INDIVIDUAL",
+      winner: {
+        source: "apple",
+        streamId: "apple:individual",
+        expiresAt: ACTIVE_EXPIRY,
+        autoRenew: true,
+      },
+      hasManualReview: false,
+    });
+    mocks.hasPendingManualReviewCases.mockResolvedValue(true);
+
+    const result = await getEntitlement();
+
+    expect(result).toMatchObject({
+      status: 200,
+      body: {
+        effectiveTier: "INDIVIDUAL",
+        hasActiveMobileSubscription: true,
+        hasManualReview: true,
+      },
+    });
+    expect(mocks.hasPendingManualReviewCases).toHaveBeenCalledWith("tenant-1");
+  });
+
+  it("fails closed when pending-case visibility cannot be read", async () => {
+    mocks.getEntitlementProjection.mockResolvedValue({
+      effectiveTier: "INDIVIDUAL",
+      winner: null,
+      hasManualReview: false,
+    });
+    mocks.hasPendingManualReviewCases.mockRejectedValue(new Error("activity store unavailable"));
+
+    const result = await getEntitlement();
+
+    expect(result).toEqual({ status: 500, body: { error: "activity store unavailable" } });
+  });
+});
+
+describe("manual-review operator decision boundary", () => {
+  it("rejects an unsafe generic note before case, provider, subscription, ledger or acknowledgement work", async () => {
+    const opaqueReason = `gp_${"A1b2C3d4".repeat(8)}`;
+    mocks.validateManualReviewReason.mockImplementationOnce(() => {
+      throw new AppError(400, "Manual review reason must be a plain human note without credential material");
+    });
+
+    const result = await postManualReviewDecision("OWNER", "tenant-1", {
+      state: "approved_mapping",
+      targetTier: "TEAM",
+      reason: opaqueReason,
+      receipt: "operator-apple-receipt",
+    });
+
+    expect(result.status).toBe(400);
+    expect(mocks.validateManualReviewReason).toHaveBeenCalledWith(
+      opaqueReason,
+      ["operator-apple-receipt"],
+    );
+    expect(mocks.getManualReviewCase).not.toHaveBeenCalled();
+    expect(mocks.verifyAppleReceipt).not.toHaveBeenCalled();
+    expect(mocks.verifyGoogleReceipt).not.toHaveBeenCalled();
+    expect(mocks.mobileSubscriptionUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.transitionManualReviewCase).not.toHaveBeenCalled();
+    expect(mocks.recordEntitlementEvent).not.toHaveBeenCalled();
+    expect(mocks.acknowledgeGoogleReceipt).not.toHaveBeenCalled();
+  });
+
+  it("rechecks the verified provider identity before mutating subscription ownership", async () => {
+    const providerIdentity = "owner-stream-id";
+    mocks.verifyAppleReceipt.mockResolvedValue(verifiedReceipt(providerIdentity));
+    mocks.validateManualReviewReason
+      .mockImplementationOnce((reason: string) => reason)
+      .mockImplementationOnce(() => {
+        throw new AppError(400, "Manual review reason must be a plain human note without credential material");
+      });
+
+    const result = await postManualReviewDecision("OWNER", "tenant-1", {
+      state: "approved_mapping",
+      targetTier: "TEAM",
+      reason: providerIdentity,
+      receipt: "operator-apple-receipt",
+    });
+
+    expect(result.status).toBe(400);
+    expect(mocks.verifyAppleReceipt).toHaveBeenCalledOnce();
+    expect(mocks.validateManualReviewReason).toHaveBeenNthCalledWith(
+      2,
+      providerIdentity,
+      ["operator-apple-receipt", providerIdentity],
+    );
+    expect(mocks.mobileSubscriptionUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.transitionManualReviewCase).not.toHaveBeenCalled();
+    expect(mocks.recordEntitlementEvent).not.toHaveBeenCalled();
+    expect(mocks.acknowledgeGoogleReceipt).not.toHaveBeenCalled();
+  });
+
+  it.each(["ADMIN", "MEMBER", "UNKNOWN"] as const)(
+    "denies %s before body handling or service work",
+    async (role) => {
+      const denied = await postManualReviewDecision(role);
+      expect(denied.status).toBe(403);
+      expect(mocks.transitionManualReviewCase).not.toHaveBeenCalled();
+    },
+  );
+
+  it("requires authentication before body handling or service work", async () => {
+    expect((await postManualReviewDecision()).status).toBe(401);
+    expect(mocks.transitionManualReviewCase).not.toHaveBeenCalled();
+  });
+
+  it("allows OWNER and passes the authenticated tenant to append-only transition", async () => {
+    mocks.getManualReviewCase.mockResolvedValue({
+      ...(await mocks.getManualReviewCase()),
+      tenantId: "tenant-operator",
+    });
+    mocks.mobileSubscriptionUpdateMany.mockResolvedValue({ count: 1 });
+    const allowed = await postManualReviewDecision("OWNER", "tenant-operator");
+    expect(allowed).toMatchObject({
+      status: 200,
+      body: { caseId: "iap_review_pending_case", state: "approved_mapping", targetTier: "TEAM" },
+    });
+    expect(mocks.transitionManualReviewCase).toHaveBeenCalledWith({
+      tenantId: "tenant-operator",
+      actor: "user-for-tenant-operator",
+      caseId: "iap_review_pending_case",
+      state: "approved_mapping",
+      targetTier: "TEAM",
+      reason: "provider records verified by billing operator",
+    });
+    expect(mocks.verifyAppleReceipt).toHaveBeenCalledWith(
+      "operator-apple-receipt",
+      "com.braavolabs.business.monthly",
+    );
+    expect(mocks.recordEntitlementEvent).toHaveBeenCalledOnce();
+    expect(mocks.acknowledgeGoogleReceipt).not.toHaveBeenCalled();
+  });
+
+  it("fresh-verifies Google ownership, appends mapping, grants idempotently, then awaits acknowledgement", async () => {
+    const token = "operator-google-receipt-sentinel";
+    const rootIdentity = `google:${"3".repeat(64)}`;
+    mocks.getManualReviewCase.mockResolvedValue({
+      caseId: "iap_review_pending_case",
+      tenantId: "tenant-1",
+      provider: "google",
+      productId: "com.braavolabs.business.monthly",
+      internalPlan: "BUSINESS",
+      subscriptionId: "mobile-sub-google",
+      identityRef: iapCredentialDigest("google", rootIdentity),
+      state: "pending",
+      targetTier: null,
+    });
+    mocks.verifyGoogleReceipt.mockResolvedValue({
+      ...verifiedReceipt(rootIdentity),
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [rootIdentity],
+      googleAcknowledgementPending: true,
+    });
+    mocks.googlePurchaseAliasFindMany.mockResolvedValue([{
+      tokenDigest: rootIdentity,
+      state: "active",
+      tenantId: "tenant-1",
+      mobileSubscriptionId: "mobile-sub-google",
+      provider: "google",
+      canonicalRootIdentity: rootIdentity,
+    }]);
+    mocks.mobileSubscriptionUpdateMany.mockResolvedValue({ count: 1 });
+    mocks.mobileSubscriptionFindUnique.mockResolvedValue({
+      id: "mobile-sub-google",
+      tenantId: "tenant-1",
+      provider: "google",
+      productId: "com.braavolabs.business.monthly",
+    });
+    mocks.recordEntitlementEvent.mockResolvedValue("TEAM");
+
+    const result = await postManualReviewDecision("OWNER", "tenant-1", {
+      state: "approved_mapping",
+      targetTier: "TEAM",
+      reason: "fresh provider history verified",
+      receipt: token,
+    });
+
+    expect(result).toMatchObject({
+      status: 200,
+      body: { state: "approved_mapping", targetTier: "TEAM", effectiveTier: "TEAM" },
+    });
+    expect(mocks.verifyGoogleReceipt.mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.mobileSubscriptionUpdateMany.mock.invocationCallOrder[0]);
+    expect(mocks.mobileSubscriptionUpdateMany.mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.transitionManualReviewCase.mock.invocationCallOrder[0]);
+    expect(mocks.transitionManualReviewCase.mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.recordEntitlementEvent.mock.invocationCallOrder[0]);
+    expect(mocks.recordEntitlementEvent.mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.acknowledgeGoogleReceipt.mock.invocationCallOrder[0]);
+    expect(JSON.stringify([result.body, mocks.loggerError.mock.calls, mocks.loggerWarn.mock.calls]))
+      .not.toContain(token);
+  });
+
+  it("does not expose a case from another authenticated tenant", async () => {
+    mocks.getManualReviewCase.mockResolvedValue(null);
+    const result = await postManualReviewDecision("OWNER", "tenant-other", {
+      state: "rejected",
+      reason: "not owned by this tenant",
+    });
+    expect(result.status).toBe(404);
+    expect(mocks.getManualReviewCase).toHaveBeenCalledWith("tenant-other", "iap_review_pending_case");
+    expect(mocks.transitionManualReviewCase).not.toHaveBeenCalled();
+    expect(mocks.verifyAppleReceipt).not.toHaveBeenCalled();
+    expect(mocks.verifyGoogleReceipt).not.toHaveBeenCalled();
   });
 });
 
 describe("store notification catalog boundary", () => {
+  it("does not swallow a transient Google provider failure when reliability flag is disabled", async () => {
+    const raw = "google-notification-token-sentinel";
+    mocks.parseGoogleRtdnEnvelope.mockReturnValue({
+      packageName: "com.braavolabs.mobile",
+      notificationType: 2,
+      purchaseToken: raw,
+      subscriptionId: "com.braavolabs.individual.monthly",
+      messageId: "google-transient-message",
+      publishTime: new Date("2026-08-28T00:00:00.000Z"),
+    });
+    mocks.verifyGoogleReceipt.mockRejectedValue(new Error(`provider timeout for ${raw}`));
+
+    const result = await postGoogleNotification();
+
+    expect(result).toEqual({ status: 503, body: { ok: false, reason: "retry-required" } });
+    expect(JSON.stringify([result.body, mocks.loggerError.mock.calls, mocks.loggerWarn.mock.calls])).not.toContain(raw);
+    expect(mocks.recordEntitlementEvent).not.toHaveBeenCalled();
+  });
+
   it("acknowledges an Apple unknown product after verification without billing mutation", async () => {
     mocks.parseAppleNotification.mockResolvedValue({
       notificationType: "DID_RENEW",
@@ -880,7 +1549,7 @@ describe("store notification catalog boundary", () => {
     expect(mocks.recordEntitlementEvent).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: "tenant-1", planTier }),
     );
-    expect(mocks.activityLogCreate).toHaveBeenCalledTimes(1);
+    expect(mocks.activityLogUpsert).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -890,6 +1559,6 @@ describe("single catalog authority wiring", () => {
 
     expect(routerSource).not.toContain("PRODUCT_TIER_MAP");
     expect(routerSource).toContain('from "./catalog"');
-    expect(routerSource.match(/internalPlanForProduct\(/g)).toHaveLength(2);
+    expect(routerSource).toContain("getIapProduct(");
   });
 });

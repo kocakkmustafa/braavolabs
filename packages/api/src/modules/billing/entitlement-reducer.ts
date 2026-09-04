@@ -142,6 +142,12 @@ export function foldStream(events: EntitlementEvent[]): StreamState | null {
         break;
       case "grace":
         status = "in_grace_period";
+        // A restore can discover a subscription for the first time while the
+        // provider already has it in grace. Carry verified tier/expiry when
+        // present so that first-seen stream remains provisionally entitled.
+        if (e.planTier !== null) planTier = normalizePlanForEntitlement(e.planTier);
+        if (e.expiresAt !== null) expiresAt = e.expiresAt;
+        autoRenew = e.autoRenew;
         break;
       case "refund":
         status = "refunded";
@@ -231,11 +237,27 @@ export function combineStreams(streams: StreamState[], now: Date): StreamState |
   let best: StreamState | null = null;
   for (const s of streams) {
     if (!isEffectivelyGranting(s, now)) continue;
-    const rank = PLAN_RANK[normalizePlanForEntitlement(s.planTier)];
-    const bestRank = best ? PLAN_RANK[normalizePlanForEntitlement(best.planTier)] : -1;
-    if (rank > bestRank) best = s;
+    if (!best || compareStreamPriority(s, best) > 0) best = s;
   }
   return best;
+}
+
+function compareStreamPriority(a: StreamState, b: StreamState): number {
+  const rankDelta = PLAN_RANK[normalizePlanForEntitlement(a.planTier)]
+    - PLAN_RANK[normalizePlanForEntitlement(b.planTier)];
+  if (rankDelta !== 0) return rankDelta;
+
+  const statusDelta = (a.status === "active" ? 1 : 0) - (b.status === "active" ? 1 : 0);
+  if (statusDelta !== 0) return statusDelta;
+
+  const expiryDelta = (a.expiresAt?.getTime() ?? Number.NEGATIVE_INFINITY)
+    - (b.expiresAt?.getTime() ?? Number.NEGATIVE_INFINITY);
+  if (expiryDelta !== 0) return expiryDelta;
+
+  const aKey = `${a.source}:${a.streamId}`;
+  const bKey = `${b.source}:${b.streamId}`;
+  // Lexically smaller is the deterministic final winner.
+  return aKey < bKey ? 1 : aKey > bKey ? -1 : 0;
 }
 
 /**

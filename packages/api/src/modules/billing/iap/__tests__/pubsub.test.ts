@@ -163,3 +163,46 @@ describe("verifyPubSubPushToken — dual workload identity", () => {
     expect(verifier.verifyIdToken).toHaveBeenCalledWith({ idToken: "signed-token", audience });
   });
 });
+
+describe("parseGoogleRtdnEnvelope — discriminated provider messages", () => {
+  it("parses testNotification separately without inventing a purchase token", async () => {
+    const { parseGoogleRtdnEnvelope } = await importVerifier();
+    const data = Buffer.from(JSON.stringify({
+      version: "1.0",
+      packageName: "com.braavolabs.app",
+      eventTimeMillis: "1788508800000",
+      testNotification: { version: "1.0" },
+    })).toString("base64");
+
+    expect(parseGoogleRtdnEnvelope({
+      message: {
+        data,
+        messageId: "test-message-1",
+        publishTime: "2026-09-04T08:00:00Z",
+      },
+    })).toEqual({
+      kind: "test",
+      packageName: "com.braavolabs.app",
+      messageId: "test-message-1",
+      publishTime: new Date("2026-09-04T08:00:00Z"),
+      version: "1.0",
+    });
+  });
+
+  it.each([
+    ["missing message id", { publishTime: "2026-09-04T08:00:00Z" }],
+    ["missing publish time", { messageId: "message-1" }],
+    ["invalid publish time", { messageId: "message-1", publishTime: "not-a-date" }],
+  ])("rejects %s instead of inventing ordering identity", async (_label, messageFields) => {
+    const { parseGoogleRtdnEnvelope } = await importVerifier();
+    const data = Buffer.from(JSON.stringify({
+      packageName: "com.braavolabs.app",
+      subscriptionNotification: {
+        notificationType: 2,
+        purchaseToken: "token",
+        subscriptionId: "com.braavolabs.individual.monthly",
+      },
+    })).toString("base64");
+    expect(parseGoogleRtdnEnvelope({ message: { data, ...messageFields } })).toBeNull();
+  });
+});
