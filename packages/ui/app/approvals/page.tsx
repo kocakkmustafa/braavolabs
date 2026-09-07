@@ -5,6 +5,8 @@ import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { sounds } from "../../lib/sounds";
+import BrandMotion from "../../components/BrandMotion";
+import { approvalMotion } from "../../lib/brandMotion";
 
 export default function ApprovalsPage() {
   const t = useTranslations();
@@ -56,18 +58,21 @@ export default function ApprovalsPage() {
           </h1>
           <p className="bv-caption mt-1">{t("app.approvals.subtitle")}</p>
         </div>
-        {approvals.length > 0 && (
-          <div
-            className="bv-pill bv-pill-amber"
-            style={{ fontSize: 11 }}
-          >
-            <span
-              className="bv-dot bv-running bv-ping"
-              style={{ width: 6, height: 6 }}
-            />
-            {approvals.length} pending
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <BrandMotion state={approvalMotion(approvals.length, error)} size={48} />
+          {approvals.length > 0 && (
+            <div
+              className="bv-pill bv-pill-amber"
+              style={{ fontSize: 11 }}
+            >
+              <span
+                className="bv-dot bv-running bv-ping"
+                style={{ width: 6, height: 6 }}
+              />
+              {approvals.length} pending
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Error banner */}

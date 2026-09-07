@@ -17,6 +17,8 @@ import { streamRun } from "../../../lib/runStream";
 import { useAuthGuard } from "../../../lib/useAuthGuard";
 import { timeAgo } from "../../../lib/timeAgo";
 import { RunStepHeatmap } from "../../../components/RunStepHeatmap";
+import BrandMotion from "../../../components/BrandMotion";
+import { runMotion } from "../../../lib/brandMotion";
 import { useTranslations } from "next-intl";
 
 interface RunDetail {
@@ -181,6 +183,10 @@ export default function RunDetailPage() {
                   className="bv-caption"
                   style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}
                 >
+                  <BrandMotion
+                    state={runMotion(run.status, run.approvals?.some((approval) => approval.status === "PENDING"))}
+                    size={40}
+                  />
                   <StatusLabel status={(run.status ?? "running").toLowerCase()} />
                   {run.pipeline?.company?.name && (
                     <>

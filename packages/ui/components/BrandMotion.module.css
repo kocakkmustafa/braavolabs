@@ -1,0 +1,56 @@
+.root {
+  --motion-surface: #2a2b27;
+  --motion-ink: #edeee6;
+  --motion-accent: #a3b6d9;
+  --motion-warm: #d7ac8e;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  vertical-align: middle;
+  pointer-events: none;
+  color: var(--motion-ink);
+}
+
+:global(html.light) .root {
+  --motion-surface: #fffefa;
+  --motion-ink: #262724;
+  --motion-accent: #4e6793;
+  --motion-warm: #8f5a3b;
+}
+
+.sprite {
+  display: block;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  background-color: #232420;
+  background-image: url("/brand/mascot-gestures-expressive-v1.png");
+  background-size: 400% 300%;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  /* The approved atlas has an opaque dark stage in both themes. */
+  box-shadow: 0 0 0 1px var(--motion-surface);
+}
+
+.coin {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #232420 url("/brand/coin-front-a.png") center / contain no-repeat;
+  box-shadow: 0 0 0 1px var(--motion-warm);
+}
+
+.root[data-animate="true"] .coin {
+  animation: coin-turn 2.4s ease-in-out infinite;
+}
+
+@keyframes coin-turn {
+  from { transform: perspective(100px) rotateY(0deg); }
+  to { transform: perspective(100px) rotateY(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root[data-animate="true"] .coin { animation: none; }
+}

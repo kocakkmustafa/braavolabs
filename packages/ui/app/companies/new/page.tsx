@@ -6,6 +6,8 @@ import { useSearchParams } from "next/navigation";
 import { api } from "../../../lib/api";
 import { useAuthGuard } from "../../../lib/useAuthGuard";
 import StarterPicker from "../../../components/StarterPicker";
+import BrandMotion from "../../../components/BrandMotion";
+import { wizardMotion } from "../../../lib/brandMotion";
 import { useTranslations } from "next-intl";
 
 type WizardStep = "describe" | "clarify" | "preview" | "creating" | "done";
@@ -491,6 +493,9 @@ function CompanyBuilderWizardInner() {
         </div>
 
         {/* Hero title — matches mock h1 + lede */}
+        <div className="flex justify-center mb-3">
+          <BrandMotion state={wizardMotion({ step, busy: loading, error, session })} size={56} />
+        </div>
         <h1
           className="font-headline text-center leading-none tracking-tight mb-3"
           style={{
