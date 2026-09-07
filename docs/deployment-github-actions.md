@@ -70,6 +70,20 @@ bounded timeout; failed/cancelled/missing evidence, wrong identity, API errors,
 and timeout fail closed. A new rerun during image build must not inherit an
 older run's success. Do not bypass a failed gate.
 
+Recovery requires **rerunning all jobs in the newest applicable CI run** after
+checking the remaining Actions allowance. All ten required jobs must belong to
+the same attempt. "Re-run failed jobs" can leave successful jobs in an older
+attempt, so a green workflow badge alone will still be rejected. If a newer
+retry of an older run makes ordering ambiguous, fully rerun the newest run;
+do not choose an older green result or relax the checker.
+
+Each checker invocation has a 25-minute total budget, polls every 15 seconds,
+and limits each HTTP/JSON read to 10 seconds. Pagination is capped at ten pages
+of 100 entries; incomplete or excessive evidence is rejected. Gate and deploy
+jobs have 30-minute limits. If CI finishes after the checker times out, verify
+its final evidence and remaining allowance before a separately authorized
+deployment retry. A timeout is not permission to continue publication.
+
 The [`CI` workflow](../.github/workflows/ci.yml) must include the release-contract
 and motion tests as hard gates alongside its existing checks, including the
 health/rollback regressions. Its final watchdog must include those jobs and
