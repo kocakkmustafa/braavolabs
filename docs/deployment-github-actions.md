@@ -127,6 +127,24 @@ After the second CI gate and production authorization:
 
 ## 5. Health and APP DNS/TLS acceptance
 
+Production Compose passes `ALLOWED_ORIGINS` to the API without changing
+`APP_URL`. If unset, the extra origin is exactly `https://app.braavolabs.com`.
+An explicitly empty value disables extra origins; a comma-separated value
+replaces the default. This uses `${ALLOWED_ORIGINS-https://app.braavolabs.com}`
+(single `-`, not `:-`) so custom deployments can opt out. `APP_URL` remains
+allowed in every case. Use only controlled exact origins, never a wildcard or
+suffix pattern. A host `.env` change does not update an already-running
+container; verify the effective environment after the separately authorized
+candidate cutover. Do not recreate the live API during PR preparation.
+
+Check real credentialed GET and OPTIONS responses using the intended APP
+Origin: require its exact `Access-Control-Allow-Origin`, credentials support,
+and the required authorization/CSRF request headers. An unrelated Origin must
+receive no allow-origin header, even if HTTP status is200/204. A successful
+HTTPS login page alone does not prove browser-to-API access. Keep these checks
+separate from real-user login, cookie persistence and authenticated agent use;
+do not add CORS headers in Nginx to override an API denial.
+
 Require these checks for both the candidate and an application rollback:
 
 - API and UI Docker `.State.Running` must be true and `.State.Health.Status`

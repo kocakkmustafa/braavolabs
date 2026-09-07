@@ -489,6 +489,21 @@ test("edge proxy configs isolate cookies, CSP, and CORS", () => {
   assert.match(middleware, /unsafe-eval/);
 });
 
+test("production API receives the explicit APP CORS default and the tested policy", () => {
+  const compose = read("ENV/compose.prod.yaml");
+  const apiService = compose.split(/^  api:\s*$/m)[1]?.split(/^  [\w-]+:\s*$/m)[0];
+  assert.ok(apiService, "production Compose must define the API service");
+  assert.match(
+    apiService,
+    /^      ALLOWED_ORIGINS: \$\{ALLOWED_ORIGINS-https:\/\/app\.braavolabs\.com\}$/m,
+    "unset extras must default to APP; explicit empty must remain an opt-out",
+  );
+  const api = read("packages/api/src/index.ts");
+  assert.match(api, /import \{ createCorsOptions \} from "\.\/lib\/cors"/);
+  assert.match(api, /cors\(createCorsOptions\(env\.NODE_ENV, env\.APP_URL, process\.env\.ALLOWED_ORIGINS\)\)/);
+  assert.equal((api.match(/\bcors\(/g) ?? []).length, 1, "no second untested CORS middleware");
+});
+
 test("nginx preserves raw request authority and rejects synthesized hosts", () => {
   const nginx = read("ENV/nginx/braavolabs.conf");
   assert.match(nginx, /map\s+["']\$host\|\$http_host["']\s+\$braavolabs_authority_valid\s*\{/);

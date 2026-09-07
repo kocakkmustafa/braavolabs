@@ -106,6 +106,9 @@ services:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in .env (min 32 chars)}
       # App URL
       APP_URL: ${APP_URL:?Set APP_URL in .env (e.g. https://braavolabs.com)}
+      # Exact additional CORS origins. Unset defaults to the official APP;
+      # explicit empty disables extras; a custom comma-separated list overrides.
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS-https://app.braavolabs.com}
       # LLM
       LLM_PROVIDER: ${LLM_PROVIDER:-api}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}

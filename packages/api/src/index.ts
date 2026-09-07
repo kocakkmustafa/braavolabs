@@ -14,6 +14,7 @@ import helmet from "helmet";
 import compression from "compression";
 import pinoHttp from "pino-http";
 import { env } from "./config/env";
+import { createCorsOptions } from "./lib/cors";
 import { logger } from "./lib/logger";
 import { prisma } from "./lib/db";
 import { redis } from "./lib/redis";
@@ -113,30 +114,9 @@ app.use(
   }),
 );
 app.use(securityHeaders);
-// CORS allowlist — APP_URL plus any extra origins listed in
-// ALLOWED_ORIGINS (comma-separated). Lets the user add `app.braavolabs.com`
-// or `staging.braavolabs.com` without a code change when the custom-
-// domain split lands. Dev mode keeps localhost:3000/:3001 unconditionally.
-const extraOrigins = (process.env.ALLOWED_ORIGINS ?? "")
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
-const corsOrigins = env.NODE_ENV === "production"
-  ? [env.APP_URL, ...extraOrigins]
-  : [env.APP_URL, "http://localhost:3000", "http://localhost:3001", ...extraOrigins];
-app.use(
-  cors({
-    origin: corsOrigins,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    // X-Requested-With is the CSRF custom-header for AUTH_COOKIE_MODE (see
-    // lib/authCookies.csrfOkForCookieAuth). Allowlisting it lets the eventual
-    // cross-subdomain (app.* → api.*) cookie-authed requests clear preflight;
-    // harmless while the flag is off since no client sends it.
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-    maxAge: 86400, // Cache preflight for 24 hours
-  }),
-);
+// APP_URL plus exact comma-separated extras; development keeps local origins.
+// Production Compose supplies the official APP default with an explicit opt-out.
+app.use(cors(createCorsOptions(env.NODE_ENV, env.APP_URL, process.env.ALLOWED_ORIGINS)));
 app.use(compression());
 app.use(pinoHttp({
   logger,
