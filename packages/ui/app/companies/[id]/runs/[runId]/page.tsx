@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import { api, apiFetch } from "../../../../../lib/api";
 import { streamRun } from "../../../../../lib/runStream";
 import { useAppStore } from "../../../../../lib/store";
+import BrandMotion from "../../../../../components/BrandMotion";
+import { runMotion } from "../../../../../lib/brandMotion";
 import { useTranslations } from "next-intl";
 
 interface RunStep {
@@ -239,6 +241,11 @@ export default function RunDetailPage() {
           </p>
           <h1 className="bv-headline">{t("app.runDetail.title")}</h1>
           <div className="flex items-center gap-2 mt-2">
+            <BrandMotion
+              state={runMotion(run.status, run.approvals?.some((approval) => approval.status === "PENDING"))}
+              size={40}
+              active={autoRefresh}
+            />
             <span className={`bv-dot ${statusDotCls}${isLive ? " bv-ping" : ""}`} />
             <span className={statusPillCls}>{run.status}</span>
             <span className="bv-caption" style={{ color: "var(--bv-text-faint)" }}>· {run.id}</span>

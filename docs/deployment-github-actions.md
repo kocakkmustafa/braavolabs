@@ -1,221 +1,189 @@
-# GitHub Actions Deploy — Setup Guide
+# GitHub Actions deployment runbook
 
-This is the deployment path Braavolabs **must** use going forward. The
-old "build on the Lightsail host" path repeatedly OOM-killed the kernel
-because Next.js + multi-stage Docker builds peak well above the 1.9GB
-RAM the nano instance has. GitHub Actions runners (4-core, 16GB RAM)
-build the images, push to ghcr.io, then SSH to the Lightsail host and
-run `docker compose pull && up -d`. The host's RAM usage during deploy
-is ~50MB.
+Braavolabs builds API and UI images on GitHub Actions, then deploys a paired set
+of immutable GHCR digests through [`deploy-platform.sh`](../scripts/deploy-platform.sh).
+Do not build on the Lightsail host: the previous on-host build path exhausted
+memory. A source build, green local tests, or a pushed image is not proof of a
+healthy production release.
 
----
+This runbook defines the release gates. Health and CI changes must be reviewed
+and verified at the final candidate commit before use; this document does not
+assert that CI, DNS/TLS work, migrations, or deployment have completed.
 
-## 1. One-time setup — add GitHub repository secrets
+## 1. Authorization and release identity
 
-Go to https://github.com/kocakkmustafa/braavolabs/settings/secrets/actions
-and add:
+- Record the full candidate commit SHA and obtain founder approval before any
+  commit/push or production-triggering action. Feature-branch/PR approval does
+  not authorize a `main` merge, release tag, manual deploy, or DB migration.
+- [`deploy.yml`](../.github/workflows/deploy.yml) can deploy on `main` pushes,
+  `v*` tag pushes, and manual dispatch. Workflow-only branch changes are excluded;
+  that path filter does not protect tag pushes. Dispatch defaults to production.
+- Do not assume the `staging` choice is isolated: the script targets
+  `/opt/braavolabs`. Prove separate environment credentials and host identity
+  before treating a staging run as non-production.
+- Check remaining Actions/storage allowance first. Stay free-first; no paid
+  runner, host upgrade, new service, package visibility change, or account/secret
+  change is implied by permission to prepare a release.
 
-| Secret name           | Value                                                    |
-| --------------------- | -------------------------------------------------------- |
-| `LIGHTSAIL_HOST`      | `63.180.74.27` (the Lightsail public IPv4)               |
-| `LIGHTSAIL_USER`      | `ubuntu`                                                 |
-| `LIGHTSAIL_SSH_KEY`   | Full contents of `~/.ssh/id_ed25519` on your laptop      |
-| `SLACK_DEPLOY_WEBHOOK` | (optional) Slack incoming-webhook URL                   |
+## 2. Required account and host setup
 
-For `LIGHTSAIL_SSH_KEY`, paste the entire file including the
-`-----BEGIN OPENSSH PRIVATE KEY-----` header and footer lines. On the
-Lightsail host the matching public key (`~/.ssh/id_ed25519.pub`) must
-be in `~ubuntu/.ssh/authorized_keys` — which it already is, since
-you've been SSHing as `ubuntu` from your laptop.
+Verify existing configuration through the authorized GitHub/provider account.
+If login, MFA, ownership, or a missing setting blocks access, stop at that human
+gate. Do not create replacement credentials or bypass account controls.
 
-**Quick command to view the private key for copy-paste:**
+| GitHub setting | Required meaning |
+| --- | --- |
+| Secret `LIGHTSAIL_HOST` / `LIGHTSAIL_USER` | Approved existing deployment host and user |
+| Secret `LIGHTSAIL_SSH_KEY` | Dedicated approved SSH identity; never print it or put it in logs, chat, or source |
+| Secret `LIGHTSAIL_KNOWN_HOSTS` | Independently verified, exact-host ED25519 known-hosts entries |
+| Secret `LIGHTSAIL_HOST_KEY_SHA256` | Matching approved SHA256 fingerprint, or the explicitly approved two-key rotation set |
+| Variable `BRAAVOLABS_PREVIOUS_GOOD_COMMIT` | Full SHA from the durable previous-good record, not a guessed branch HEAD |
+| UI Sentry settings | Existing approved build-time settings used by the workflow, if configured |
 
-```bash
-cat ~/.ssh/id_ed25519
+The workflow writes SSH material to temporary regular, non-symlink files with
+mode `0600` and cleans them up. The script requires exact host-token and
+fingerprint agreement and uses `StrictHostKeyChecking=yes`, an explicit
+`UserKnownHostsFile`, `IdentitiesOnly=yes`, and `BatchMode=yes`. Do not replace
+this with trust-on-first-use `ssh-keyscan`, disabled checking, or a displayed
+private key. Host-key changes require independent verification and approval.
+
+Keep GHCR package visibility unchanged. The runner uses its scoped
+`GITHUB_TOKEN` to push; private-image pulls require the host's existing approved
+read access. An authorization failure is an account/access gate, not a reason
+to make the API or UI package public.
+
+Before cutover, verify `/opt/braavolabs/releases/previous-good.json`, its matching
+release journal, the live API/UI digests, and the local availability of both
+rollback images. The script checks Compose project/service/network/config-path
+identity, preserves the canonical stateful services, and serializes remote
+releases with a lock. Do not invent a previous-good record or bypass a lock.
+
+## 3. Exact-commit CI gate, then images
+
+The `require-green-ci` job must pass before image push; the deploy job must
+repeat the live check before SSH setup and deployment. The checker must query
+the repository's `CI` workflow for the exact full release SHA, `push` event, and
+`main` branch—not an older green commit, PR run, or generic check badge. Use the
+latest applicable run/attempt and require completed success with successful,
+useful required jobs and steps. Queued/in-progress work waits only within the
+bounded timeout; failed/cancelled/missing evidence, wrong identity, API errors,
+and timeout fail closed. A new rerun during image build must not inherit an
+older run's success. Do not bypass a failed gate.
+
+Recovery requires **rerunning all jobs in the newest applicable CI run** after
+checking the remaining Actions allowance. All ten required jobs must belong to
+the same attempt. "Re-run failed jobs" can leave successful jobs in an older
+attempt, so a green workflow badge alone will still be rejected. If a newer
+retry of an older run makes ordering ambiguous, fully rerun the newest run;
+do not choose an older green result or relax the checker.
+
+Each checker invocation has a 25-minute total budget, polls every 15 seconds,
+and limits each HTTP/JSON read to 10 seconds. Pagination is capped at ten pages
+of 100 entries; incomplete or excessive evidence is rejected. Gate and deploy
+jobs have 30-minute limits. If CI finishes after the checker times out, verify
+its final evidence and remaining allowance before a separately authorized
+deployment retry. A timeout is not permission to continue publication.
+
+The [`CI` workflow](../.github/workflows/ci.yml) must include the release-contract
+and motion tests as hard gates alongside its existing checks, including the
+health/rollback regressions. Its final watchdog must include those jobs and
+must not wait for its own workflow to finish. Review the actual required-job
+results at the final SHA; a local test count is not a substitute.
+
+After the first gate passes, Actions builds **both** API and UI and records their
+build-produced digests as same-run artifacts. Deployment uses only:
+
+```text
+ghcr.io/kocakkmustafa/braavolabs/api@sha256:<64 lowercase hex characters>
+ghcr.io/kocakkmustafa/braavolabs/ui@sha256:<64 lowercase hex characters>
 ```
 
-> ⚠️ Never commit this private key to the repo — paste it only into the
-> GitHub Secrets UI (encrypted at rest).
+`latest`, `sha-*`, and `v*` tags may label builds, but are mutable references and
+are not deployment or rollback authority. `NEXT_PUBLIC_*` values are compiled
+into the UI image; changing the host `.env` does not change that browser bundle.
+Confirm the candidate's intended API/APP endpoints and brand assets in the
+actual image. A local Next.js build or standalone archive is not Docker proof.
 
----
+## 4. Migration and cutover
 
-## 2. One-time setup — make ghcr packages public OR keep private
+After the second CI gate and production authorization:
 
-After the first push to `main`, two new packages will appear under
-https://github.com/kocakkmustafa/braavolabs/pkgs/container/braavolabs/api
-and `.../ui`.
+1. The workflow passes the candidate SHA, previous-good SHA, and both digests to
+   the script over pinned SSH. The script seals Compose and migration inputs,
+   validates the exact previous-good → candidate migration delta and hashes,
+   and binds that delta to the image pair. Drift or an ineligible delta stops
+   the release for review; historical exceptions are not general permission.
+2. With separate action-time DB authorization and a verified backup/recovery
+   plan, the candidate API image runs `prisma migrate deploy` using
+   `MIGRATE_DATABASE_URL` **before** API/UI cutover. The command still runs when
+   the discovered delta is empty. Application deployment approval alone is not
+   permission to mutate the database.
+3. The script recreates API/UI from the digest override without rebuilding on
+   the host, ensures the backup service is running, and verifies health and
+   running-image identity.
+4. Only after verification may it persist previous-good and the durable journal
+   state `COMMIT_RELEASE` / `success`. Retain the run URL, full SHA, both digests,
+   migration-delta seal, health evidence, and matching journal as the receipt.
 
-By default they're **private** (only the repo's `GITHUB_TOKEN` can pull).
-You have two choices:
+## 5. Health and APP DNS/TLS acceptance
 
-### Option A — Make them public (recommended, easier)
+Production Compose passes `ALLOWED_ORIGINS` to the API without changing
+`APP_URL`. If unset, the extra origin is exactly `https://app.braavolabs.com`.
+An explicitly empty value disables extra origins; a comma-separated value
+replaces the default. This uses `${ALLOWED_ORIGINS-https://app.braavolabs.com}`
+(single `-`, not `:-`) so custom deployments can opt out. `APP_URL` remains
+allowed in every case. Use only controlled exact origins, never a wildcard or
+suffix pattern. A host `.env` change does not update an already-running
+container; verify the effective environment after the separately authorized
+candidate cutover. Do not recreate the live API during PR preparation.
 
-1. Go to the package page (link above)
-2. Settings → "Change visibility" → Public
-3. Repeat for the `ui` package
-4. The Lightsail host can now pull without login
+Check real credentialed GET and OPTIONS responses using the intended APP
+Origin: require its exact `Access-Control-Allow-Origin`, credentials support,
+and the required authorization/CSRF request headers. An unrelated Origin must
+receive no allow-origin header, even if HTTP status is200/204. A successful
+HTTPS login page alone does not prove browser-to-API access. Keep these checks
+separate from real-user login, cookie persistence and authenticated agent use;
+do not add CORS headers in Nginx to override an API denial.
 
-### Option B — Keep them private
+Require these checks for both the candidate and an application rollback:
 
-1. On the Lightsail host, run:
-   ```bash
-   echo "<personal-access-token-with-read:packages-scope>" \
-     | sudo docker login ghcr.io -u kocakkmustafa --password-stdin
-   ```
-2. The token + login is persisted in `~/.docker/config.json` and survives reboots.
-3. Uncomment the `docker login` step in `.github/workflows/deploy.yml`.
+- API and UI Docker `.State.Running` must be true and `.State.Health.Status`
+  must become `healthy` within the bounded poll. Running alone, missing health
+  data, failed inspection, `unhealthy`, or permanently `starting` is not
+  acceptance. The backup service must be running.
+- The UI loopback probe must use `127.0.0.1:3000` with the trusted
+  `Host: www.braavolabs.com` header. Do not weaken production middleware to allow
+  localhost or unknown hosts merely to turn the probe green.
+- Normal certificate-verified HTTPS must return **exactly 200**, without
+  following redirects, for `https://api.braavolabs.com/health`,
+  `https://www.braavolabs.com/`, and `https://app.braavolabs.com/login`.
+  An apex redirect, HTTP 308, `curl --fail` alone, or `curl -k` is insufficient.
+- APP DNS must resolve to the approved existing origin, and its TLS certificate
+  and virtual host must cover `app.braavolabs.com`. Verify normal public HTTPS,
+  login/cookie/host behavior, and the candidate's `/brand/` asset bodies/hashes.
+  Do not broaden the public middleware allowlist to conceal an APP routing gap.
 
-For now we're going with Option A — much less moving parts.
+DNS/TLS changes are a separate authorized provider operation: preserve unrelated
+records, take exact rollback evidence, validate nginx configuration before any
+reload, and respect account/MFA gates. Successful DNS/TLS work does not prove
+that the candidate application images have been deployed.
 
----
+## 6. Failure and rollback
 
-## 3. One-time setup — enable Lightsail swap (resilience)
+After a cutover failure, the script attempts to restore **both** previous-good
+application digests, verifies the same health and digest checks, restores the
+previous-good record, and journals `ROLLBACK_APPLICATION` / `restored`. The
+rollback uses the staged Compose definition; verify that its corrected health
+probe remains compatible with the old images. A restored application is a
+failed candidate release, not a successful deployment.
 
-Even with off-loaded builds, having 4GB of swap on disk gives the
-kernel a safety net for memory spikes (e.g. concurrent deploys, log
-rotation, postgres VACUUM):
+Application rollback does **not** undo database migrations. Schema/data
+compatibility and any DB recovery require their own review and authorization.
+Do not use `IMAGE_TAG`, `latest`, a branch checkout, or an arbitrary Compose
+command as a rollback shortcut.
 
-```bash
-ssh ubuntu@63.180.74.27
-
-# Check current swap
-swapon --show
-free -h
-
-# Create 4GB swap file (one-time)
-sudo fallocate -l 4G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-
-# Make it persistent across reboots
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-
-# Tune for server workload (default swappiness=60 is too eager)
-echo 'vm.swappiness=10' | sudo tee /etc/sysctl.d/99-swappiness.conf
-sudo sysctl --system
-
-# Verify
-free -h
-swapon --show
-```
-
-This adds 4GB virtual memory at the cost of ~4GB SSD space. With the
-$12 Lightsail nano you have ~30GB SSD — plenty.
-
----
-
-## 4. Normal workflow
-
-```bash
-# Make changes locally
-git add ...
-git commit -m "..."
-git push origin main
-```
-
-GitHub Actions automatically:
-1. Builds api + ui images in parallel (~5 min cold, ~90 sec cached)
-2. Pushes to `ghcr.io/kocakkmustafa/braavolabs/{api,ui}:latest` + `:sha-XXXXXXXX`
-3. SSHes to Lightsail
-4. Syncs `ENV/compose.prod.yaml` and `packages/db/prisma/migrations/` (only)
-5. Runs `docker compose pull api ui && up -d api ui`
-6. Runs `prisma migrate deploy` inside the api container
-7. Verifies `/api/v1/health` returns ok (5 retries, 10s apart)
-8. Verifies the 5 main public pages return 200
-9. (Optional) Posts a summary to Slack
-
-Total wall time on a cached build: ~3-4 minutes from `git push` to
-"production verified."
-
----
-
-## 5. Rollback
-
-Every successful build leaves an immutable `sha-XXXXXXXX` tag. To roll
-back:
-
-```bash
-ssh ubuntu@63.180.74.27
-sudo nano /opt/braavolabs/app/.env
-# Add or modify this line:
-IMAGE_TAG=sha-1af9837a
-sudo docker compose -f /opt/braavolabs/app/ENV/compose.prod.yaml pull api ui
-sudo docker compose -f /opt/braavolabs/app/ENV/compose.prod.yaml up -d api ui
-```
-
-The `IMAGE_TAG` env var in `compose.prod.yaml` defaults to `latest`,
-so omitting / unsetting it returns you to the latest auto-deployed
-build.
-
----
-
-## 6. Triggering a manual deploy
-
-If you need to redeploy without making a commit:
-
-1. Go to https://github.com/kocakkmustafa/braavolabs/actions
-2. Click "Build & Deploy" workflow
-3. Click "Run workflow" → choose `production` → Run
-
-This rebuilds + redeploys from the current `main` HEAD.
-
----
-
-## 7. Tagged releases (optional, recommended for stability)
-
-For production milestones, tag the commit:
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-This builds with image tag `v1.0.0` instead of the `sha-...` style,
-which makes rollback in step 5 readable (`IMAGE_TAG=v0.9.0`).
-
----
-
-## 8. Troubleshooting
-
-### Deploy step fails at "Set up SSH key"
-- Check `LIGHTSAIL_SSH_KEY` secret is the full key content including
-  header/footer lines. Common mistake: only pasting the base64 body.
-
-### Deploy step fails at "Pull new images"
-- Check the package visibility in step 2 — packages may still be
-  private. Either make them public or set up `docker login` on the
-  host (Option B).
-
-### Deploy succeeds but health check fails
-- Wait another minute and re-run from Actions UI — Next.js standalone
-  cold-start can take 30-45 seconds for the first request after a
-  container swap.
-- If still failing: SSH and check `sudo docker logs aicos-api --tail 100`.
-
-### "Unauthorized" pushing to ghcr.io
-- The repository's `GITHUB_TOKEN` has `packages:write` only when the
-  package belongs to the same repo. First push creates the package; if
-  it's been linked to a different repo, you'll see this error.
-
-### Build runs forever / hangs
-- Check `concurrency.cancel-in-progress` — by default this workflow
-  doesn't cancel in-progress builds (set to `false`) to avoid mid-build
-  cancellations. If a build is genuinely stuck, cancel it manually
-  from the Actions UI.
-
----
-
-## 9. Migration plan (one-time)
-
-To migrate from the current "rsync source + build on host" pattern:
-
-1. **First push to main** — workflow builds and pushes images for the
-   first time. This is the slow build (~5 min).
-2. **First successful deploy** — the workflow's deploy step pulls
-   from ghcr.io for the first time. After this point the host's
-   `compose.prod.yaml` is using the registry image.
-3. **Optional cleanup** — once the workflow is reliable, you can
-   delete the old build pattern from your shell history. The
-   `build:` directives in `compose.prod.yaml` are kept commented as
-   a fallback but aren't used.
+On CI, identity, registry, migration, health, or journal failure, inspect the
+recorded failing phase and redact diagnostics. If rollback is not verified,
+treat production state as unknown and escalate. Do not blindly rerun, remove
+the deploy lock, rebuild on the host, overwrite release records, or report
+success from process status alone.

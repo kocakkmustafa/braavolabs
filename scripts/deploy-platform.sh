@@ -179,12 +179,58 @@ journal_transition() {
   test "$(sed -n 's/.*\"state\":\"\([^\"]*\)\".*/\1/p' "$journal")" = "$state"
 }
 
+health_command_budget() {
+  local remaining=$(( $1 - SECONDS )) limit="$2"
+  test "$remaining" -gt 0 || return 1
+  if test "$remaining" -gt "$limit"; then remaining="$limit"; fi
+  printf '%s\n' "$remaining"
+}
+
+health_inspect() {
+  local budget
+  budget="$(health_command_budget "$2" 5)" || return 1
+  # Inspect is read-only. A stuck Docker client must not outlive readiness.
+  timeout --signal=KILL "$budget" docker inspect --format "$3" "$1"
+}
+
+health_https_200() {
+  local budget status
+  budget="$(health_command_budget "$2" 15)" || return 1
+  status="$(curl --disable --proto '=https' --max-redirs 0 --fail --silent --show-error \
+    --connect-timeout 5 --max-time "$budget" --output /dev/null --write-out '%{http_code}' "$1")" || return 1
+  test "$status" = 200
+}
+
 verify_health() {
-  test "$(docker inspect --format '{{.State.Running}}' aicos-api)" = true &&
-  test "$(docker inspect --format '{{.State.Running}}' aicos-ui)" = true &&
-  test "$(docker inspect --format '{{.State.Running}}' aicos-backup)" = true &&
-  curl --fail --silent --show-error --max-time 15 https://api.braavolabs.com/health >/dev/null &&
-  curl --fail --silent --show-error --max-time 15 https://braavolabs.com/ >/dev/null
+  local deadline=$((SECONDS + 90)) attempt state starting pause api_state ui_state backup_running
+  local health_format='{{.State.Running}}:{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}'
+  # One shared deadline covers Docker polling and all HTTPS probes. Only a
+  # running, explicitly starting container is retryable; missing/error/unhealthy
+  # is never silently promoted to ready. No initial blind startup sleep.
+  for ((attempt=1; attempt<=30; attempt++)); do
+    api_state="$(health_inspect aicos-api "$deadline" "$health_format")" || return 1
+    ui_state="$(health_inspect aicos-ui "$deadline" "$health_format")" || return 1
+    backup_running="$(health_inspect aicos-backup "$deadline" '{{.State.Running}}')" || return 1
+    test "$backup_running" = true || return 1
+    starting=0
+    for state in "$api_state" "$ui_state"; do
+      case "$state" in
+        true:healthy) ;;
+        true:starting) starting=1 ;;
+        *) return 1 ;;
+      esac
+    done
+    if test "$starting" = 0; then
+      health_https_200 https://api.braavolabs.com/health "$deadline" &&
+      health_https_200 https://www.braavolabs.com/ "$deadline" &&
+      health_https_200 https://app.braavolabs.com/login "$deadline"
+      return "$?"
+    fi
+    test "$attempt" -lt 30 || return 1
+    pause="$(health_command_budget "$deadline" 2)" || return 1
+    sleep "$pause" || return 1
+  done
+  return 1
 }
 
 rollback_application() {

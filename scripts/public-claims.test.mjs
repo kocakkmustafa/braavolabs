@@ -337,8 +337,18 @@ test("next config delegates canonical routing to fail-closed middleware", () => 
   for (const route of ["/destek", "/legal/privacy", "/legal/terms", "/forge", "/forge-home"]) {
     assert.ok(!nextConfig.includes(route), `next.config.ts duplicates middleware route ${route}`);
   }
-  assert.match(playwright, /node packages\/ui\/\.next\/standalone\/packages\/ui\/server\.js/);
-  assert.doesNotMatch(playwright, /\bnext start\b|@ai-company-os\/ui start/);
+  // CI must select the production standalone entry. A deliberately local-only
+  // next-start fallback handles relocated pnpm stores without weakening Host
+  // validation or replacing the real built application with a mock server.
+  assert.match(playwright, /command: process\.env\.E2E_UI_STANDALONE\s*\? `node packages\/ui\/\.next\/standalone\/packages\/ui\/server\.js`\s*:\s*`pnpm --filter @ai-company-os\/ui exec next start --port \$\{UI_PORT\}`/);
+  const ci = read(".github/workflows/ci.yml");
+  const e2e = ci.match(/^  e2e:\n([\s\S]*?)(?=^  [\w-]+:)/m)?.[1];
+  assert.ok(e2e, "CI must have its real E2E job");
+  assert.match(e2e, /^      E2E_UI_STANDALONE: "1"$/m);
+  assert.equal((e2e.match(/E2E_UI_STANDALONE/g) ?? []).length, 1, "no per-step standalone override");
+  assert.match(e2e, /run: pnpm exec playwright test/);
+  assert.doesNotMatch(e2e, /continue-on-error:/);
+  assert.match(playwright, /SELF_HOSTED_SURFACE_HOSTS: "operator\.example"/);
 });
 
 test("public legal and deletion copy exposes only canonical evidenced channels", () => {
@@ -477,6 +487,21 @@ test("edge proxy configs isolate cookies, CSP, and CORS", () => {
   const middleware = read("packages/ui/middleware.ts");
   assert.match(middleware, /process\.env\.NODE_ENV\s*===\s*["']development["']/);
   assert.match(middleware, /unsafe-eval/);
+});
+
+test("production API receives the explicit APP CORS default and the tested policy", () => {
+  const compose = read("ENV/compose.prod.yaml");
+  const apiService = compose.split(/^  api:\s*$/m)[1]?.split(/^  [\w-]+:\s*$/m)[0];
+  assert.ok(apiService, "production Compose must define the API service");
+  assert.match(
+    apiService,
+    /^      ALLOWED_ORIGINS: \$\{ALLOWED_ORIGINS-https:\/\/app\.braavolabs\.com\}$/m,
+    "unset extras must default to APP; explicit empty must remain an opt-out",
+  );
+  const api = read("packages/api/src/index.ts");
+  assert.match(api, /import \{ createCorsOptions \} from "\.\/lib\/cors"/);
+  assert.match(api, /cors\(createCorsOptions\(env\.NODE_ENV, env\.APP_URL, process\.env\.ALLOWED_ORIGINS\)\)/);
+  assert.equal((api.match(/\bcors\(/g) ?? []).length, 1, "no second untested CORS middleware");
 });
 
 test("nginx preserves raw request authority and rejects synthesized hosts", () => {

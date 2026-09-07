@@ -16,6 +16,7 @@ jobs:
   lint-and-typecheck:
     name: Lint & Type Check
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -58,6 +59,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: lint-and-typecheck
     steps:
       - uses: actions/checkout@v4
@@ -97,6 +99,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     needs: lint-and-typecheck
     steps:
       - uses: actions/checkout@v4
@@ -109,11 +112,13 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - name: Build workspaces
+        run: pnpm build
 
   docker:
     name: Docker Build
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: build
     if: github.ref == 'refs/heads/main'
     steps:
@@ -137,6 +142,7 @@ jobs:
   boot-smoke:
     name: Boot Smoke
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: build
     # Runs on PRs too (unlike "Docker Build", which is gated to main). That
     # is the whole point: I-001 (2026-07-14) shipped a pnpm-override that
@@ -254,6 +260,7 @@ jobs:
   db-migration-check:
     name: DB Migration Check
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: lint-and-typecheck
     services:
       postgres:
@@ -295,6 +302,7 @@ jobs:
   e2e:
     name: E2E (Playwright)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: lint-and-typecheck
     services:
       postgres:
@@ -378,7 +386,8 @@ jobs:
           cp -R packages/ui/.next/static "$SA/.next/static"
           if [ -d packages/ui/public ]; then cp -R packages/ui/public "$SA/public"; fi
       - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm exec playwright test
+      - name: Run E2E
+        run: pnpm exec playwright test
       - uses: actions/upload-artifact@v4
         # Traces/videos are retain-on-failure, so this only has content when
         # something actually broke — which is exactly when it is needed.
@@ -388,11 +397,12 @@ jobs:
           path: |
             playwright-report/
             test-results/
-          retention-days: 14
+          retention-days: 3
 
   release-artifacts:
     name: SBOM + checksums
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: lint-and-typecheck
     steps:
       - uses: actions/checkout@v4
@@ -405,16 +415,37 @@ jobs:
       - run: pnpm build
       # Generates a CycloneDX SBOM and SHA256SUMS, then VERIFIES the checksums
       # it just wrote — generating them proves nothing on its own.
-      - run: bash scripts/release-artifacts.sh
+      - name: Generate and verify release artifacts
+        run: bash scripts/release-artifacts.sh
       - uses: actions/upload-artifact@v4
         with:
           name: release-provenance
           path: dist-release/
-          retention-days: 90
+          retention-days: 3
+
+  release-contracts:
+    name: Release contracts + brand motion
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Release regressions compare two fixed historical migration commits.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # These hermetic root suites are not found by pnpm's workspace test task.
+      # No install, service, network credential or optional/continue-on-error path.
+      - name: Release contract regressions
+        run: node --test scripts/require-green-ci.test.mjs scripts/public-claims.test.mjs scripts/deploy-platform.test.mjs
+      - name: Brand motion regressions
+        run: node --experimental-strip-types --test packages/ui/lib/brandMotion.test.mjs
 
   workflow-watchdog:
     name: Post-merge workflow watchdog
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     # `always()` makes this fail closed when a required sibling fails or is
     # cancelled instead of silently skipping the watchdog because of `needs`.
     if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -431,6 +462,7 @@ jobs:
       - db-migration-check
       - e2e
       - release-artifacts
+      - release-contracts
     steps:
       - name: Verify required sibling jobs
         env:
@@ -439,7 +471,7 @@ jobs:
           echo "$REQUIRED_JOB_RESULTS" | jq -r \
             'to_entries[] | "  \(.key): \(.value.result)"'
           if ! echo "$REQUIRED_JOB_RESULTS" | jq -e \
-            'to_entries | length == 8 and all(.value.result == "success")' \
+            'to_entries | length == 9 and all(.value.result == "success")' \
             >/dev/null; then
             echo "RESULT: at least one required CI sibling did not succeed." >&2
             exit 1
