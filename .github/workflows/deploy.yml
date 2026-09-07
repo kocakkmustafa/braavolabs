@@ -29,9 +29,31 @@ env:
   IMAGE_PREFIX_RAW: ${{ github.repository }}
 
 jobs:
+  require-green-ci:
+    name: Require exact main CI before image push
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # main, tag and manual releases all require CI push/main evidence for
+      # this exact SHA. PR green is not deployment permission. The checker
+      # polls for at most 25 minutes, outside the CI run to avoid deadlock.
+      - name: Verify latest exact-SHA CI and useful jobs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/require-green-ci.mjs
+
   build-images:
     name: Build & push (api + ui)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: require-green-ci
     permissions:
       contents: read
       packages: write
@@ -123,16 +145,29 @@ jobs:
   deploy:
     name: Deploy to ${{ github.event.inputs.environment || 'production' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: build-images
     environment: ${{ github.event.inputs.environment || 'production' }}
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v4
         with:
           # deploy-platform.sh verifies and diffs the previous-good commit.
           fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Image builds take time. Refuse an older green result if the same CI
+      # commit was re-run/failed in the meantime, before preparing SSH secrets.
+      - name: Reverify latest exact-SHA CI before deployment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/require-green-ci.mjs
 
       - name: Download immutable image digests
         uses: actions/download-artifact@v4
