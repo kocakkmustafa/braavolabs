@@ -56,7 +56,7 @@ function buildIncoming(h, migrationSql = "ALTER TABLE subscription ADD COLUMN se
   cpSync(join(ROOT, "packages/db/prisma/migrations"),
     join(incoming, "packages/db/prisma/migrations"), { recursive: true });
   mkdirSync(join(incoming, "packages/db/prisma/migrations/20991231000000_fixture"), { recursive: true });
-  writeFileSync(join(incoming, "ENV/compose.prod.yaml"), "services: {}\n");
+  cpSync(join(ROOT, "ENV/compose.prod.yaml"), join(incoming, "ENV/compose.prod.yaml"));
   const deltaPath = "packages/db/prisma/migrations/20991231000000_fixture/migration.sql";
   writeFileSync(join(incoming, deltaPath), migrationSql);
   writeFileSync(join(incoming, "migration-delta.name-status"), `A\t${deltaPath}\n`);
@@ -283,6 +283,10 @@ function makeHarness() {
   writeKnownHosts(h, [`deploy.example.test ssh-ed25519 ${KEY_A}`]);
 
   primitive(h, "flock", `[ "${'${FAIL_PRIMITIVE:-}'}" = flock ] && exit 1; exit 0`);
+  // Readiness uses the real bounded loop with injectable command primitives;
+  // only explicit signal-test pauses sleep in wall-clock time.
+  primitive(h, "sleep", `[ "$1" = 30 ] && exec /bin/sleep "$@"; exit 0`);
+  primitive(h, "timeout", `test "$1" = --signal=KILL; shift 2; exec "$@"`);
   primitive(h, "date", `printf '%s\\n' 2026-08-29T00:00:00Z`);
   primitive(h, "sync", `
 [ "${'${PAUSE_AT:-}'}" = journal-finalize ] && case "${'${DEPLOY_WRITE_PHASE:-}'}" in commit-release-*) sleep 30 ;; esac
@@ -326,7 +330,7 @@ exit 0`);
   primitive(h, "curl", `
 url=''; for arg in "$@"; do case "$arg" in http://*|https://*) url="$arg" ;; esac; done
 case "$url" in
-  https://api.braavolabs.com/health|https://braavolabs.com/)
+  https://api.braavolabs.com/health|https://braavolabs.com/|https://www.braavolabs.com/|https://app.braavolabs.com/login)
     printf '{"primitive":"curl","url":"%s","policy":"fixture","socketOpened":false}\n' "$url" >> "$FAKE_STATE_ROOT/network-attempts.jsonl" ;;
   *)
     printf '{"primitive":"curl","url":"%s","policy":"denied","socketOpened":false}\n' "$url" >> "$FAKE_STATE_ROOT/network-attempts.jsonl"
@@ -336,6 +340,23 @@ api=$(cat "$FAKE_STATE_ROOT/active-api")
 [ "${'${PAUSE_AT:-}'}" = target-health ] && [ "$api" = "$API_IMAGE_REF" ] && sleep 30
 if [ "$api" = "$API_IMAGE_REF" ] && [ "${'${FAIL_TARGET_HEALTH:-0}'}" = 1 ]; then exit 22; fi
 if [ "$api" = "$PREVIOUS_API_REF" ] && [ "${'${FAIL_ROLLBACK_HEALTH:-0}'}" = 1 ]; then exit 22; fi
+phase=ROLLBACK; [ "$api" = "$API_IMAGE_REF" ] && phase=TARGET
+case "$url" in
+  https://api.braavolabs.com/health) endpoint=API ;;
+  https://app.braavolabs.com/login) endpoint=APP ;;
+  *) endpoint=WWW ;;
+esac
+case "$phase:$endpoint" in
+  TARGET:API) status="${'${FAKE_TARGET_HTTP_API:-200}'}" ;;
+  TARGET:APP) status="${'${FAKE_TARGET_HTTP_APP:-200}'}" ;;
+  TARGET:WWW) status="${'${FAKE_TARGET_HTTP_WWW:-200}'}" ;;
+  ROLLBACK:API) status="${'${FAKE_ROLLBACK_HTTP_API:-200}'}" ;;
+  ROLLBACK:APP) status="${'${FAKE_ROLLBACK_HTTP_APP:-200}'}" ;;
+  ROLLBACK:WWW) status="${'${FAKE_ROLLBACK_HTTP_WWW:-200}'}" ;;
+esac
+[ "$status" = error ] && { printf 200; exit 7; }
+case " $* " in *' --write-out '*) printf '%s' "$status" ;; esac
+case "$status" in 4*|5*) exit 22 ;; esac
 exit 0`);
   primitive(h, "docker", `
 api=$(cat "$FAKE_STATE_ROOT/active-api"); ui=$(cat "$FAKE_STATE_ROOT/active-ui")
@@ -393,18 +414,53 @@ case "$*" in
   *'image inspect'*ui-active*) printf '%s\\n' "$ui"; exit 0 ;;
   *'inspect --format {{.Id}}'*aicos-api*) printf api-container; exit 0 ;;
   *'inspect --format {{.Id}}'*aicos-ui*) printf ui-container; exit 0 ;;
-  *'inspect --format {{.State.Running}}'*) printf true; exit 0 ;;
+  *'State.Health'*aicos-*)
+    phase=ROLLBACK; [ "$api" = "$API_IMAGE_REF" ] && phase=TARGET
+    service=UI; [ "$container" = aicos-api ] && service=API
+    case "$phase:$service" in
+      TARGET:API) health="${'${FAKE_TARGET_API_HEALTH:-healthy}'}" ;;
+      TARGET:UI) health="${'${FAKE_TARGET_UI_HEALTH:-healthy}'}" ;;
+      ROLLBACK:API) health="${'${FAKE_ROLLBACK_API_HEALTH:-healthy}'}" ;;
+      ROLLBACK:UI) health="${'${FAKE_ROLLBACK_UI_HEALTH:-healthy}'}" ;;
+    esac
+    counter="$FAKE_STATE_ROOT/$phase-$service-health-count"
+    count=0; [ ! -f "$counter" ] || count=$(cat "$counter")
+    count=$((count + 1)); printf '%s' "$count" > "$counter"
+    if [ "$container" = aicos-ui ] && [ "${'${FAKE_REQUIRE_TRUSTED_UI_PROBE:-0}'}" = 1 ]; then
+      [ "$(cat "$FAKE_STATE_ROOT/applied-ui-probe")" = trusted ] || health=unhealthy
+    fi
+    case "$health" in
+      starting-once) [ "$count" = 1 ] && health=starting || health=healthy ;;
+      starting-20) [ "$count" -le 20 ] && health=starting || health=healthy ;;
+      empty) exit 0 ;;
+      error) printf true:healthy; exit 1 ;;
+      timeout) exit 124 ;;
+      stopped) printf false:healthy; exit 0 ;;
+    esac
+    printf 'true:%s' "$health"; exit 0 ;;
+  *'inspect --format {{.State.Running}}'*)
+    phase=ROLLBACK; [ "$api" = "$API_IMAGE_REF" ] && phase=TARGET
+    if [ "$phase" = TARGET ]; then running="${'${FAKE_TARGET_BACKUP_RUNNING:-true}'}"
+    else running="${'${FAKE_ROLLBACK_BACKUP_RUNNING:-true}'}"; fi
+    [ "$running" = error ] && { printf true; exit 1; }
+    [ "$running" = empty ] || printf '%s' "$running"
+    exit 0 ;;
   *'compose'*'run --rm --no-deps api'*)
     count=$(( $(cat "$FAKE_STATE_ROOT/migrate-count") + 1 )); printf '%s' "$count" > "$FAKE_STATE_ROOT/migrate-count"
     [ "${'${FAIL_MIGRATION_LEDGER:-0}'}" = 1 ] && exit 1
     [ "${'${FAIL_PRIMITIVE:-}'}" = migrate ] && exit 1
     exit 0 ;;
   *'compose'*'up -d --no-deps api ui'*)
-    override=''; previous=''
+    override=''; compose_file=''; previous=''
     for arg in "$@"; do
-      if [ "$previous" = -f ]; then override="$arg"; previous=''; else previous="$arg"; fi
+      if [ "$previous" = -f ]; then
+        [ -n "$compose_file" ] || compose_file="$arg"
+        override="$arg"; previous=''
+      else previous="$arg"; fi
     done
     test -n "$override" && test -f "$override"
+    if grep -q -- '--header=Host:www.braavolabs.com' "$compose_file"; then probe=trusted; else probe=untrusted; fi
+    printf '%s' "$probe" > "$FAKE_STATE_ROOT/applied-ui-probe"
     next_api=$(awk '$1=="image:" && index($2,"/api@sha256:") {print $2}' "$override")
     next_ui=$(awk '$1=="image:" && index($2,"/ui@sha256:") {print $2}' "$override")
     test -n "$next_api" && test -n "$next_ui"
@@ -485,6 +541,133 @@ function withHarness(fn) {
     .then(() => fn(h))
     .finally(() => rmSync(h.root, { recursive: true, force: true }));
 }
+
+function runHealth(h, overrides = {}, command = "verify_health") {
+  const source = readFileSync(SCRIPT, "utf8");
+  const entrypoint = source.lastIndexOf('\nif test "${1:-}" = --remote;');
+  assert.ok(entrypoint > 0, "isolate function definitions, never run a deployment entrypoint");
+  writeFileSync(join(h.state, "active-api"), API);
+  writeFileSync(join(h.state, "active-ui"), UI);
+  const result = spawnSync("bash", ["-c", `${source.slice(0, entrypoint)}\n${command}`], {
+    cwd: ROOT, encoding: "utf8", env: remoteEnvironment(h, overrides), timeout: 10_000,
+  });
+  return { ...result, calls: readFileSync(h.log, "utf8") };
+}
+
+test("UI compose health probe retains loopback with a trusted public Host", () => {
+  const compose = readFileSync(join(ROOT, "ENV/compose.prod.yaml"), "utf8");
+  const ui = compose.slice(compose.indexOf("\n  ui:"), compose.indexOf("\n  otel-collector:"));
+  assert.match(ui, /test: \["CMD", "wget", "-q", "--spider", "--header=Host:www\.braavolabs\.com", "http:\/\/127\.0\.0\.1:3000\/"\]/);
+  assert.match(ui, /NODE_ENV: production/);
+});
+
+test("health readiness requires healthy API/UI and exact HTTPS 200 on all three surfaces", () => withHarness((h) => {
+  const result = runHealth(h);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal((result.calls.match(/^timeout --signal=KILL 5 docker inspect/gm) ?? []).length, 3);
+  for (const endpoint of ["https://api.braavolabs.com/health", "https://www.braavolabs.com/", "https://app.braavolabs.com/login"]) {
+    const call = result.calls.split("\n").find((line) => line.startsWith("curl ") && line.endsWith(endpoint));
+    assert.ok(call, endpoint);
+    assert.match(call, /--proto =https/);
+    assert.match(call, /--max-redirs 0/);
+    assert.match(call, /--max-time 15/);
+    assert.match(call, /--output \/dev\/null --write-out %\{http_code\}/);
+    assert.doesNotMatch(call, /--location|--insecure| -L\b| -k\b/);
+  }
+  assert.doesNotMatch(result.calls, /https:\/\/braavolabs\.com\/|^sleep /m);
+  assertNoExternalNetwork(h);
+}));
+
+for (const service of ["API", "UI"]) {
+  for (const state of ["unhealthy", "missing", "empty", "stopped", "error", "timeout", "unknown"]) {
+    test(`health readiness rejects ${service} ${state} despite a running process`, () => withHarness((h) => {
+      const result = runHealth(h, { [`FAKE_TARGET_${service}_HEALTH`]: state });
+      assert.equal(result.status, 1, result.stderr);
+      assert.doesNotMatch(result.calls, /^curl |^sleep /m);
+      assertNoExternalNetwork(h);
+    }));
+  }
+  test(`health readiness polls ${service} starting then healthy without a blind startup sleep`, () => withHarness((h) => {
+    const result = runHealth(h, { [`FAKE_TARGET_${service}_HEALTH`]: "starting-once" });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal((result.calls.match(/^sleep 2$/gm) ?? []).length, 1);
+    assert.equal(readFileSync(join(h.state, `TARGET-${service}-health-count`), "utf8"), "2");
+    assert.ok(result.calls.indexOf("sleep 2") < result.calls.indexOf("curl "));
+  }));
+}
+
+test("health readiness times out permanently starting containers after 30 bounded attempts", () => withHarness((h) => {
+  const result = runHealth(h, { FAKE_TARGET_UI_HEALTH: "starting" });
+  assert.equal(result.status, 1, result.stderr);
+  assert.equal(readFileSync(join(h.state, "TARGET-UI-health-count"), "utf8"), "30");
+  assert.equal((result.calls.match(/^sleep 2$/gm) ?? []).length, 29);
+  assert.doesNotMatch(result.calls, /^curl /m);
+}));
+
+test("health readiness accepts startup after twenty polling intervals (nominal 40 seconds)", () => withHarness((h) => {
+  const result = runHealth(h, { FAKE_TARGET_API_HEALTH: "starting-20" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal((result.calls.match(/^sleep 2$/gm) ?? []).length, 20);
+  assert.equal(readFileSync(join(h.state, "TARGET-API-health-count"), "utf8"), "21");
+  assertNoExternalNetwork(h);
+}));
+
+test("health readiness deadline caps each command by the remaining fixed budget", () => withHarness((h) => {
+  for (const [command, status, output] of [
+    ['health_command_budget "$((SECONDS + 90))" 5', 0, "5"],
+    ['health_command_budget "$((SECONDS + 2))" 15', 0, "2"],
+    ['health_command_budget "$((SECONDS - 1))" 5', 1, ""],
+  ]) {
+    const result = runHealth(h, {}, command);
+    assert.equal(result.status, status, result.stderr);
+    assert.equal(result.stdout.trim(), output);
+  }
+  const exhausted = runHealth(h, {}, "health_command_budget() { return 1; }; verify_health");
+  assert.equal(exhausted.status, 1, exhausted.stderr);
+  assert.doesNotMatch(exhausted.calls, /^docker |^curl |^sleep /m);
+}));
+
+for (const running of ["false", "empty", "error"]) {
+  test(`health readiness rejects backup running=${running}`, () => withHarness((h) => {
+    const result = runHealth(h, { FAKE_TARGET_BACKUP_RUNNING: running });
+    assert.equal(result.status, 1, result.stderr);
+    assert.doesNotMatch(result.calls, /^curl /m);
+  }));
+}
+
+for (const endpoint of ["API", "WWW", "APP"]) {
+  for (const status of ["308", "500", "204", "error"]) {
+    test(`health readiness rejects ${endpoint} HTTP ${status}`, () => withHarness((h) => {
+      const result = runHealth(h, { [`FAKE_TARGET_HTTP_${endpoint}`]: status });
+      assert.equal(result.status, 1, result.stderr);
+      assertNoExternalNetwork(h);
+    }));
+  }
+}
+
+test("health rollback uses candidate compose trusted probe with previous image digests", () => withHarness((h) => {
+  const result = runRemote(h, { FAKE_REQUIRE_TRUSTED_UI_PROBE: "1", FAKE_TARGET_HTTP_APP: "500" });
+  assert.equal(result.status, 70, result.stderr);
+  assert.equal(readFileSync(join(h.state, "active-api"), "utf8"), PREVIOUS_API);
+  assert.equal(readFileSync(join(h.state, "active-ui"), "utf8"), PREVIOUS_UI);
+  assert.equal(readFileSync(join(h.state, "applied-ui-probe"), "utf8"), "trusted");
+  const expectedCompose = join(h.appRoot, "releases", RELEASE, "input/ENV/compose.prod.yaml");
+  const cutovers = result.calls.split("\n").filter((line) => line.startsWith("docker compose ") && line.includes("up -d --no-deps api ui"));
+  assert.equal(cutovers.length, 2);
+  assert.ok(cutovers.every((line) => line.includes(`-f ${expectedCompose} -f `)));
+  assert.equal(readCurrentTransition(h), "ROLLBACK_APPLICATION:restored");
+  assertNoExternalNetwork(h);
+}));
+
+for (const [state, expected] of [["starting-once", 70], ["unhealthy", 71], ["missing", 71], ["starting", 71]]) {
+  test(`health rollback ${state} is verified by the same readiness helper`, () => withHarness((h) => {
+    const result = runRemote(h, { FAIL_TARGET_HEALTH: "1", FAKE_ROLLBACK_UI_HEALTH: state });
+    assert.equal(result.status, expected, result.stderr);
+    assert.equal(readCurrentTransition(h), `ROLLBACK_APPLICATION:${expected === 70 ? "restored" : "failed"}`);
+    assertNoExternalNetwork(h);
+  }));
+}
+
 test("cutover persists candidate digests and success journal", () => withHarness((h) => {
   const result = runRemote(h);
   assert.equal(result.status, 0);

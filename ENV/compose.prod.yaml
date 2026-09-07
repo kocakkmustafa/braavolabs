@@ -270,7 +270,9 @@ services:
         condition: service_healthy
     healthcheck:
       # 127.0.0.1 — same Alpine BusyBox IPv6-first issue as the api block.
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000"]
+      # Keep the connection local, but use the trusted public authority:
+      # production middleware intentionally rejects a loopback HTTP Host.
+      test: ["CMD", "wget", "-q", "--spider", "--header=Host:www.braavolabs.com", "http://127.0.0.1:3000/"]
       interval: 10s
       timeout: 5s
       retries: 3
