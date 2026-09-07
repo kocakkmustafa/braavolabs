@@ -95,6 +95,8 @@ jobs:
           ENCRYPTION_KEY: "ci-test-encryption-key-32-chars-minimum-aabbccddeeff00"
           NODE_ENV: "test"
         run: pnpm -r --if-present test
+      - name: Anonymous auth entry regressions (SSR and HTTP contract)
+        run: node --test scripts/auth-entry-contract.test.mjs
 
   build:
     name: Build
@@ -389,9 +391,9 @@ jobs:
       - name: Run E2E
         run: pnpm exec playwright test
       - uses: actions/upload-artifact@v4
-        # Traces/videos are retain-on-failure, so this only has content when
-        # something actually broke — which is exactly when it is needed.
-        if: failure()
+        # Anonymous auth screenshots + source/build identities are attached on
+        # success too. Existing trace/video capture remains failure-only.
+        if: always()
         with:
           name: playwright-report
           path: |
@@ -438,7 +440,7 @@ jobs:
       # These hermetic root suites are not found by pnpm's workspace test task.
       # No install, service, network credential or optional/continue-on-error path.
       - name: Release contract regressions
-        run: node --test scripts/require-green-ci.test.mjs scripts/public-claims.test.mjs scripts/deploy-platform.test.mjs
+        run: node --test scripts/require-green-ci.test.mjs scripts/public-claims.test.mjs scripts/deploy-platform.test.mjs scripts/backup-service.test.mjs
       - name: Brand motion regressions
         run: node --experimental-strip-types --test packages/ui/lib/brandMotion.test.mjs
 

@@ -21,6 +21,8 @@ const ALLOWED_PUBLIC_SOURCE_PATHS = [
 // publishes retired pricing, auth links, or unsupported delivery promises.
 const PUBLIC_CORPUS_PATHS = [
   ...ALLOWED_PUBLIC_SOURCE_PATHS,
+  "packages/ui/app/login/page.tsx",
+  "packages/ui/app/login/layout.tsx",
   "packages/ui/app/about/page.tsx",
   "packages/ui/app/blog/[slug]/page.tsx",
   "packages/ui/app/blog/page.tsx",
@@ -199,7 +201,7 @@ test("planned pricing cannot be presented as currently purchasable", () => {
 
 test("complete reachable public source corpus has zero retired claims", () => {
   assert.equal(new Set(PUBLIC_CORPUS_PATHS).size, PUBLIC_CORPUS_PATHS.length, "public corpus contains duplicate paths");
-  assert.equal(PUBLIC_CORPUS_PATHS.length, 30, "public corpus sentinel changed without review");
+  assert.equal(PUBLIC_CORPUS_PATHS.length, 32, "public corpus sentinel changed without review");
 
   const violations = [];
   for (const path of PUBLIC_CORPUS_PATHS) {

@@ -1306,13 +1306,18 @@
     }
   },
   "auth": {
+    "hero": {
+      "title": "مساحة عملك في Braavolabs."
+    },
     "login": {
+      "newHere": "هل أنت جديد هنا؟",
       "welcome": "مرحباً بعودتك",
       "subtitle": "سجّل الدخول إلى حساب Braavolabs",
       "tabSignIn": "تسجيل الدخول",
       "tabRegister": "إنشاء حساب"
     },
     "register": {
+      "hasAccount": "هل لديك حساب بالفعل؟",
       "welcome": "إنشاء حساب",
       "subtitle": "ابدأ ببناء وكلاء وأتمتة الذكاء الاصطناعي"
     },
@@ -1391,7 +1396,10 @@
       "footer": "© 2026 Braavolabs. مصنوع باستخدام Claude."
     },
     "errors": {
-      "generic": "حدث خطأ ما"
+      "generic": "حدث خطأ ما",
+      "invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+      "rateLimited": "محاولات كثيرة جداً. يرجى المحاولة لاحقاً.",
+      "unavailable": "تسجيل الدخول غير متاح مؤقتاً. يرجى المحاولة لاحقاً."
     }
   },
   "pricing": {

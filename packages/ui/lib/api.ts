@@ -6,6 +6,13 @@ interface FetchOptions extends RequestInit {
   token?: string;
 }
 
+export class ApiRequestError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message);
+    this.name = "ApiRequestError";
+  }
+}
+
 // ─── Session refresh on 401 ─────────────────────────────────────────
 //
 // Access tokens expire after 1h while the refresh token lives for days.
@@ -71,11 +78,11 @@ async function throwApiError(res: Response): Promise<never> {
   // the top-level `error` ("Validation failed"). Surface the most
   // specific field available so the form shows the real reason.
   const detail =
-    body.message ||
-    body.issues?.[0]?.message ||
-    body.error ||
+    body?.message ||
+    body?.issues?.[0]?.message ||
+    body?.error ||
     `API error: ${res.status}`;
-  throw new Error(detail);
+  throw new ApiRequestError(res.status, detail);
 }
 
 export async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {

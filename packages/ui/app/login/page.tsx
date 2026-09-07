@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { apiFetch, api } from "../../lib/api";
+import { apiFetch, api, ApiRequestError } from "../../lib/api";
+import { authErrorKey } from "../../lib/auth-errors";
 import { useAppStore } from "../../lib/store";
+import LanguageSwitcher from "../../components/LanguageSwitcher";
 
 export default function LoginPage() {
   const t = useTranslations();
@@ -37,21 +39,6 @@ export default function LoginPage() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotStatus, setForgotStatus] = useState<"idle" | "loading" | "sent" | "error">("idle");
   const [forgotError, setForgotError] = useState<string | null>(null);
-  const [propIndex, setPropIndex] = useState(0);
-
-  const PROPS = [
-    { before: "Command the agents you already", highlight: "run." },
-    { before: "Steer & approve from your", highlight: "pocket." },
-    { before: "Bring your own keys. Run fully", highlight: "offline." },
-    { before: "Every spend approved. Every run", highlight: "audited." },
-  ];
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setPropIndex((i) => (i + 1) % PROPS.length);
-    }, 3800);
-    return () => clearInterval(interval);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     // router.replace, NOT push — see comment block above for why.
@@ -109,7 +96,7 @@ export default function LoginPage() {
         router.replace("/onboarding");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("auth.errors.generic"));
+      setError(t(authErrorKey(err, { credentials: mode === "login" })));
     } finally {
       setLoading(false);
     }
@@ -123,16 +110,13 @@ export default function LoginPage() {
   ];
   const strengthKeys = ["weak", "fair", "good", "strong"] as const;
 
-  const currentProp = PROPS[propIndex];
-
   return (
     <div
-      className="bv-mesh"
-      style={{ display: "grid", gridTemplateColumns: "1.05fr .95fr", minHeight: "100vh", position: "relative" }}
+      className="bv-mesh relative grid min-h-dvh grid-cols-1 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,.95fr)]"
     >
       {/* ── Left cinematic panel ─────────────────────────────── */}
       <div
-        className="hidden lg:flex flex-col justify-between relative overflow-hidden"
+        className="hidden min-w-0 lg:flex flex-col justify-between relative overflow-hidden"
         style={{ padding: "44px", borderRight: "1px solid var(--bv-steel-shadow)" }}
       >
         {/* Halo orb behind emblem */}
@@ -160,7 +144,7 @@ export default function LoginPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/braavolabs-logo.png"
-              alt="Braavolabs emblem"
+              alt=""
               className="animate-float"
               style={{
                 position: "relative",
@@ -196,7 +180,7 @@ export default function LoginPage() {
           </span>
         </a>
 
-        {/* Rotating value prop */}
+        {/* Localized workspace identity; no delivery or pricing promise. */}
         <div
           className="relative"
           style={{
@@ -213,17 +197,19 @@ export default function LoginPage() {
             color: "var(--color-on-surface)",
           }}
         >
-          {currentProp.before}{" "}
-          <span className="bv-grad-text">{currentProp.highlight}</span>
+          {t("auth.hero.title")}
         </div>
       </div>
 
       {/* ── Right form panel ─────────────────────────────────── */}
       <div
-        className="flex items-center justify-center overflow-y-auto"
-        style={{ padding: "44px", minHeight: "100vh" }}
+        className="flex min-w-0 items-center justify-center"
+        style={{ padding: "clamp(16px, 3vw, 44px)", minHeight: "100dvh" }}
       >
-        <div className="bv-glass bv-rise" style={{ width: "min(420px, 100%)", padding: "36px" }}>
+        <div className="bv-glass bv-rise" style={{ width: "100%", maxWidth: 420, minWidth: 0, padding: "clamp(20px, 3vw, 36px)" }}>
+          <div className="flex justify-end mb-4">
+            <LanguageSwitcher />
+          </div>
           {/* Mobile logo */}
           <a
             href="/"
@@ -282,6 +268,7 @@ export default function LoginPage() {
           {/* Error banner */}
           {error && (
             <div
+              role="alert"
               className="flex items-center gap-2 mb-4 px-4 py-3 rounded-xl text-sm bv-mono"
               style={{
                 background: "rgba(255,77,77,.08)",
@@ -295,7 +282,7 @@ export default function LoginPage() {
           )}
 
           {/* OAuth buttons */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 22 }}>
+          <div className="grid grid-cols-1 min-[480px]:grid-cols-3 gap-3" style={{ marginBottom: 22 }}>
             {/* Apple */}
             <button
               type="button"
@@ -305,17 +292,17 @@ export default function LoginPage() {
                   window.location.href = url;
                 } catch (err) {
                   const msg = err instanceof Error ? err.message : "";
-                  if (msg.includes("503") || msg.includes("not configured")) {
+                  if ((err instanceof ApiRequestError && err.status === 503) || msg.includes("not configured")) {
                     setError(t("auth.oauth.appleNotConfigured"));
                   } else if (msg.includes("fetch") || msg.includes("Failed") || msg.includes("ECONNREFUSED")) {
                     setError(t("auth.oauth.cannotConnect"));
                   } else {
-                    setError(msg || t("auth.oauth.appleFailed"));
+                    setError(t("auth.oauth.appleFailed"));
                   }
                 }
               }}
               className="bv-btn bv-btn-ghost flex items-center justify-center gap-2"
-              style={{ fontSize: 14 }}
+              style={{ fontSize: 14, minWidth: 0, padding: "10px 8px" }}
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
@@ -331,17 +318,17 @@ export default function LoginPage() {
                   window.location.href = url;
                 } catch (err) {
                   const msg = err instanceof Error ? err.message : "";
-                  if (msg.includes("503") || msg.includes("not configured")) {
+                  if ((err instanceof ApiRequestError && err.status === 503) || msg.includes("not configured")) {
                     setError(t("auth.oauth.googleNotConfigured"));
                   } else if (msg.includes("fetch") || msg.includes("Failed") || msg.includes("ECONNREFUSED")) {
                     setError(t("auth.oauth.cannotConnect"));
                   } else {
-                    setError(msg || t("auth.oauth.googleFailed"));
+                    setError(t("auth.oauth.googleFailed"));
                   }
                 }
               }}
               className="bv-btn bv-btn-ghost flex items-center justify-center gap-2"
-              style={{ fontSize: 14 }}
+              style={{ fontSize: 14, minWidth: 0, padding: "10px 8px" }}
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
@@ -360,17 +347,17 @@ export default function LoginPage() {
                   window.location.href = url;
                 } catch (err) {
                   const msg = err instanceof Error ? err.message : "";
-                  if (msg.includes("503") || msg.includes("not configured")) {
+                  if ((err instanceof ApiRequestError && err.status === 503) || msg.includes("not configured")) {
                     setError(t("auth.oauth.githubNotConfigured"));
                   } else if (msg.includes("fetch") || msg.includes("Failed") || msg.includes("ECONNREFUSED")) {
                     setError(t("auth.oauth.cannotConnect"));
                   } else {
-                    setError(msg || t("auth.oauth.githubFailed"));
+                    setError(t("auth.oauth.githubFailed"));
                   }
                 }
               }}
               className="bv-btn bv-btn-ghost flex items-center justify-center gap-2"
-              style={{ fontSize: 14 }}
+              style={{ fontSize: 14, minWidth: 0, padding: "10px 8px" }}
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 .5A11.5 11.5 0 0 0 .5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2.17c-3.2.7-3.87-1.36-3.87-1.36-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.75 1.18 1.75 1.18 1.02 1.74 2.67 1.24 3.32.95.1-.74.4-1.24.72-1.53-2.55-.29-5.24-1.27-5.24-5.66 0-1.25.45-2.27 1.18-3.07-.12-.29-.51-1.46.11-3.04 0 0 .96-.31 3.15 1.17a10.94 10.94 0 0 1 5.74 0c2.19-1.48 3.15-1.17 3.15-1.17.62 1.58.23 2.75.11 3.04.74.8 1.18 1.82 1.18 3.07 0 4.4-2.69 5.36-5.26 5.65.41.36.78 1.06.78 2.13v3.16c0 .31.21.67.8.55A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5z" />
@@ -460,23 +447,6 @@ export default function LoginPage() {
               />
             )}
 
-            {mode === "login" && (
-              <div className="flex items-center gap-2" style={{ marginTop: -4 }}>
-                <input
-                  type="checkbox"
-                  id="remember"
-                  style={{ width: 16, height: 16, accentColor: "var(--color-primary)", cursor: "pointer" }}
-                />
-                <label
-                  htmlFor="remember"
-                  className="bv-caption"
-                  style={{ cursor: "pointer", fontSize: 13, color: "var(--color-on-surface-variant)" }}
-                >
-                  Remember me
-                </label>
-              </div>
-            )}
-
             <button
               type="submit"
               disabled={loading}
@@ -495,18 +465,18 @@ export default function LoginPage() {
           <p className="bv-caption" style={{ textAlign: "center", marginTop: 24, fontSize: 14 }}>
             {mode === "login" ? (
               <>
-                New here?{" "}
+                {t("auth.login.newHere")}{" "}
                 <button
                   type="button"
                   onClick={() => { setMode("register"); setError(null); }}
                   style={{ color: "var(--color-primary)", background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: "inherit" }}
                 >
-                  {t("auth.login.tabRegister")} — 3 free runs
+                  {t("auth.login.tabRegister")}
                 </button>
               </>
             ) : (
               <>
-                Already have an account?{" "}
+                {t("auth.register.hasAccount")}{" "}
                 <button
                   type="button"
                   onClick={() => { setMode("login"); setError(null); }}
@@ -518,11 +488,7 @@ export default function LoginPage() {
             )}
           </p>
 
-          {/* Enterprise SSO — workspace slug-based entry point. The
-              admin links their team to this URL once their tenant
-              has BUSINESS+ + an OIDC connection configured. We don't
-              know the slug at the marketing-side login page, so
-              prompt for it. */}
+          {/* Workspace slug-based SSO entry; configuration is server-owned. */}
           <details style={{ marginTop: 16 }}>
             <summary className="bv-micro" style={{ cursor: "pointer" }}>
               {t("auth.oauth.ssoToggle")}
@@ -542,6 +508,7 @@ export default function LoginPage() {
                 aria-label={t("auth.oauth.ssoSlugPlaceholder")}
                 style={{
                   flex: 1,
+                  minWidth: 0,
                   padding: "8px 10px",
                   background: "rgba(255,255,255,0.04)",
                   border: "1px solid var(--bv-glass-border)",
@@ -574,6 +541,7 @@ export default function LoginPage() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="bv-title">{t("auth.forgot.modalTitle")}</h3>
               <button
+                aria-label={t("auth.forgot.backToLogin")}
                 onClick={() => { setShowForgot(false); setForgotStatus("idle"); setForgotError(null); setForgotEmail(""); }}
                 className="bv-btn bv-btn-ghost bv-btn-icon"
                 style={{ color: "var(--color-outline)" }}
@@ -607,6 +575,7 @@ export default function LoginPage() {
                 <p className="bv-caption mb-4">{t("auth.forgot.modalDesc")}</p>
                 {forgotError && (
                   <div
+                    role="alert"
                     className="px-3 py-2 rounded-xl mb-3 bv-caption"
                     style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "var(--color-error)" }}
                   >
@@ -615,6 +584,7 @@ export default function LoginPage() {
                 )}
                 <input
                   type="email"
+                  aria-label={t("auth.fields.email")}
                   value={forgotEmail}
                   onChange={(e) => setForgotEmail(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
@@ -642,7 +612,7 @@ export default function LoginPage() {
                       setForgotStatus("sent");
                     } catch (err) {
                       setForgotStatus("error");
-                      setForgotError(err instanceof Error ? err.message : t("auth.errors.generic"));
+                      setForgotError(t(authErrorKey(err)));
                     }
                   }}
                   disabled={forgotStatus === "loading" || !forgotEmail.trim()}
@@ -666,9 +636,11 @@ function ForgeField({
   label: string; type: string; value: string; onChange: (v: string) => void;
   placeholder: string; required?: boolean; optional?: boolean; optionalLabel?: string; minLength?: number;
 }) {
+  const id = useId();
   return (
     <div>
       <label
+        htmlFor={id}
         className="block bv-caption font-semibold"
         style={{ marginBottom: 6, color: "var(--color-on-surface-variant)" }}
       >
@@ -680,6 +652,7 @@ function ForgeField({
         )}
       </label>
       <input
+        id={id}
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
