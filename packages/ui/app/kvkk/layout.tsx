@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "KVKK Aydınlatma Metni — Braavolabs",
+  title: "KVKK Aydınlatma Metni",
   description:
     "Braavolabs KVKK aydınlatma metni: kişisel verilerin işlenmesi, hukuki dayanakları, saklama süreleri ve 6698 sayılı KVKK kapsamındaki haklarınız.",
   alternates: { canonical: "https://www.braavolabs.com/kvkk" },
