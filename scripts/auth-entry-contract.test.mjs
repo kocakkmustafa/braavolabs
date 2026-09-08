@@ -222,6 +222,97 @@ const anchorsIn = (html) => [...html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)].m
   href: attributes.match(/\bhref="([^"]+)"/)?.[1], content: content.trim(), attributes,
 }));
 
+test("legal layout hooks belong only to their actual TSX owners", async () => {
+  for (const locale of LOCALES) {
+    for (const route of ["privacy", "cookies", "kvkk"]) {
+      const { load } = fixture(locale, "login", undefined, {
+        realIntl: true, headers: {
+          host: "www.braavolabs.com", "x-braavolabs-surface": "public",
+          "x-braavolabs-pathname": "/" + route,
+        },
+      });
+      const Page = load("packages/ui/app/" + route + "/page.tsx").default;
+      const layout = await load("packages/ui/app/layout.tsx").default({ children: React.createElement(Page) });
+      const html = renderToStaticMarkup(React.createElement(uiRequire("next-intl").NextIntlClientProvider,
+        { locale, timeZone: "UTC", onError: (error) => { throw error; } }, layout));
+      const appLinks = anchorsIn(html).filter((anchor) => anchor.href === "https://app.braavolabs.com");
+      assert.equal(appLinks.length, 1, locale + "/" + route + ": exact existing app anchor");
+      assert.equal(/\bbv-legal-cta\b/.test(appLinks[0].attributes), route !== "cookies",
+        locale + "/" + route + ": legal decoration scope");
+      if (route === "privacy") {
+        const nav = html.match(/<nav\b[^>]*class="[^"]*\bbv-privacy-nav\b[^"]*"[^>]*>/)?.[0];
+        assert.ok(nav, "actual privacy navbar owns the mobile reflow hook");
+        const inlineStyle = nav.match(/\bstyle="([^"]*)"/)?.[1] ?? "";
+        assert.doesNotMatch(inlineStyle, /(?:^|;)height:/, "scoped CSS owns desktop/mobile height");
+        assert.match(html, /<div\b[^>]*class="[^"]*\bbv-privacy-nav-actions\b/);
+        assert.match(html, /<h1\b[^>]*class="[^"]*\bbv-privacy-title\b/);
+      } else {
+        assert.doesNotMatch(html, /\bbv-privacy-/);
+      }
+    }
+    for (const mode of ["login", "register"]) {
+      const { load } = fixture(locale, mode);
+      const html = renderToStaticMarkup(React.createElement(load("packages/ui/app/login/page.tsx").default));
+      assert.doesNotMatch(html, /\bbv-legal-cta\b|\bbv-privacy-/,
+        locale + "/" + mode + ": legal hooks must not affect auth");
+    }
+  }
+});
+
+// These selectors contain only class names and an optional ::before suffix.
+// Read actual CSS declarations; browser geometry remains a separate hosted gate.
+const legalCssRule = (css, selector) => {
+  const escaped = selector.replaceAll(".", "\\.");
+  const match = css.match(new RegExp(escaped + "\\s*\\{([^{}]*)\\}"));
+  assert.ok(match, "missing actual CSS rule " + selector);
+  return match[1];
+};
+
+test("privacy mobile layout reflows without clipping or truncation", () => {
+  const css = read("packages/ui/app/globals.css");
+  const mobile = [...css.matchAll(/@media\s*\(max-width:\s*640px\)\s*\{([\s\S]*?)\n\}/g)]
+    .map((match) => match[1]).find((body) => body.includes(".bv-privacy-nav"));
+  assert.ok(mobile, "privacy needs its own narrow-layout rules");
+  assert.match(legalCssRule(css, ".bv-privacy-nav"), /height:\s*64px\s*;/);
+  const nav = legalCssRule(mobile, ".bv-privacy-nav");
+  assert.match(nav, /height:\s*auto\s*;/);
+  assert.match(nav, /min-height:\s*64px\s*;/);
+  assert.match(nav, /flex-wrap:\s*wrap\s*;/);
+  assert.match(nav, /padding-block:\s*12px\s*;/);
+  const actions = legalCssRule(mobile, ".bv-privacy-nav-actions");
+  assert.match(actions, /flex-wrap:\s*wrap\s*;/);
+  assert.match(actions, /min-width:\s*0\s*;/);
+  assert.match(actions, /max-width:\s*100%\s*;/);
+  assert.match(actions, /margin-inline-start:\s*auto\s*;/);
+  assert.match(legalCssRule(mobile, ".bv-privacy-title"), /overflow-wrap:\s*anywhere\s*;/);
+  assert.doesNotMatch(mobile, /overflow(?:-x)?:\s*(?:hidden|clip)|text-overflow:\s*ellipsis/);
+  const selectors = [...mobile.matchAll(/([^{}]+)\{[^{}]*\}/g)].map((match) => match[1].trim());
+  assert.deepEqual(selectors, [".bv-privacy-nav", ".bv-privacy-nav-actions", ".bv-privacy-title"]);
+});
+
+test("legal sheen moves paint within its stationary scoped box", () => {
+  const css = read("packages/ui/app/globals.css");
+  const pseudo = legalCssRule(css, ".bv-legal-cta.bv-btn-primary::before");
+  assert.match(pseudo, /transform:\s*none\s*;/);
+  assert.match(pseudo, /animation:\s*bv-legal-sheen\s+8s\s+ease-in-out\s+infinite\s*;/);
+  assert.match(pseudo, /background-size:\s*300%\s+100%\s*;/);
+  assert.match(pseudo, /background-repeat:\s*no-repeat\s*;/);
+  const frames = css.match(/@keyframes bv-legal-sheen\s*\{([\s\S]*?)\n\}/)?.[1];
+  assert.ok(frames, "bounded legal sheen owns its keyframes");
+  assert.match(frames, /0%,\s*80%\s*\{\s*background-position:\s*150%\s+0;\s*\}/);
+  assert.match(frames, /90%,\s*100%\s*\{\s*background-position:\s*-50%\s+0;\s*\}/);
+  assert.doesNotMatch(frames, /transform|translate|\binset\s*:|\b(?:left|right|width|height)\s*:/);
+  const reduced = css.match(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*\.bv-legal-cta([\s\S]*?)\n\}/)?.[0];
+  assert.ok(reduced, "legal controls have a separate reduced-motion scope");
+  assert.match(legalCssRule(reduced, ".bv-legal-cta.bv-btn-primary"), /animation:\s*none\s*;/);
+  const reducedPseudo = legalCssRule(reduced, ".bv-legal-cta.bv-btn-primary::before");
+  assert.match(reducedPseudo, /content:\s*none\s*;/);
+  assert.match(reducedPseudo, /animation:\s*none\s*;/);
+  assert.match(reducedPseudo, /transform:\s*none\s*;/);
+  const selectors = [...reduced.matchAll(/([^{}]+)\{[^{}]*\}/g)].map((match) => match[1].trim());
+  assert.deepEqual(selectors, [".bv-legal-cta.bv-btn-primary", ".bv-legal-cta.bv-btn-primary::before"]);
+});
+
 for (const locale of LOCALES) {
   test(`${locale}: legal chrome has exactly the approved eight translations and ICU title argument`, () => {
     const messages = JSON.parse(read(`packages/ui/messages/${locale}.json`));

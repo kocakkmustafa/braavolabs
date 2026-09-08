@@ -38,9 +38,8 @@ export default function PrivacyPage() {
     >
       {/* ── Nav ── */}
       <nav
-        className="sticky top-0 z-50 flex items-center justify-between px-6 md:px-10"
+        className="sticky top-0 z-50 flex items-center justify-between px-6 md:px-10 bv-privacy-nav"
         style={{
-          height: "64px",
           background: "rgba(6,7,10,0.85)",
           backdropFilter: "blur(20px) saturate(1.1)",
           WebkitBackdropFilter: "blur(20px) saturate(1.1)",
@@ -62,12 +61,12 @@ export default function PrivacyPage() {
           </span>
         </a>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 bv-privacy-nav-actions">
           <a href="/" className="bv-btn bv-btn-ghost bv-btn-sm no-underline">
             <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_back</span>
             {t("static.common.back")}
           </a>
-          <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm no-underline">
+          <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm no-underline bv-legal-cta">
             {t("static.common.legalNavigation.openApp")}
           </a>
         </div>
@@ -102,7 +101,7 @@ export default function PrivacyPage() {
           </div>
 
           <h1
-            className="bv-grad-text"
+            className="bv-grad-text bv-privacy-title"
             style={{
               fontFamily: "var(--bv-font-display)",
               fontSize: "clamp(34px,5vw,60px)",

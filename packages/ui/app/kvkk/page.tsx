@@ -82,7 +82,7 @@ export default function KvkkPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm">Sign in</Link>
-            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm">{t("static.common.legalNavigation.openApp")}</a>
+            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm bv-legal-cta">{t("static.common.legalNavigation.openApp")}</a>
           </div>
         </div>
       </nav>

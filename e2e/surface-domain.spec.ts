@@ -71,39 +71,51 @@ async function expectLegalChrome(page: Page, locale: string, path: string) {
     }
   }
 
-  // Long translations must fit the existing CTA/tab geometry. Do not relax
-  // the assertions or change CSS in this translation-only patch.
+  // Keep strict bounds for long translations in both motion preferences.
   const labels = page.locator('header a, a[href="https://app.braavolabs.com"]');
   await expect(labels).toHaveCount(7);
-  for (const width of [1110, 390]) {
-    await page.setViewportSize({ width, height: 718 });
-    for (const label of await labels.all()) await expect(label).toBeVisible();
-    const geometry = await labels.evaluateAll((nodes) => ({
-      viewport: innerWidth,
-      documentWidth: document.documentElement.scrollWidth,
-      bodyWidth: document.body.scrollWidth,
-      labels: nodes.map((node) => {
-        const box = node.getBoundingClientRect();
-        const range = document.createRange();
-        range.selectNodeContents(node);
-        const text = range.getBoundingClientRect();
-        return {
-          label: node.textContent, left: box.left, right: box.right, top: box.top, bottom: box.bottom,
-          clientWidth: node.clientWidth, scrollWidth: node.scrollWidth,
-          text: { left: text.left, right: text.right, top: text.top, bottom: text.bottom },
-        };
-      }),
-    }));
-    expect(geometry.documentWidth, JSON.stringify(geometry)).toBeLessThanOrEqual(width + 1);
-    expect(geometry.bodyWidth, JSON.stringify(geometry)).toBeLessThanOrEqual(width + 1);
-    for (const label of geometry.labels) {
-      expect(label.left, JSON.stringify(label)).toBeGreaterThanOrEqual(-1);
-      expect(label.right, JSON.stringify(label)).toBeLessThanOrEqual(width + 1);
-      expect(label.scrollWidth, JSON.stringify(label)).toBeLessThanOrEqual(label.clientWidth + 1);
-      expect(label.text.left, JSON.stringify(label)).toBeGreaterThanOrEqual(label.left - 1);
-      expect(label.text.right, JSON.stringify(label)).toBeLessThanOrEqual(label.right + 1);
-      expect(label.text.top, JSON.stringify(label)).toBeGreaterThanOrEqual(label.top - 1);
-      expect(label.text.bottom, JSON.stringify(label)).toBeLessThanOrEqual(label.bottom + 1);
+  for (const reducedMotion of ["no-preference", "reduce"] as const) {
+    await page.emulateMedia({ reducedMotion });
+    for (const width of [1110, 390]) {
+      await page.setViewportSize({ width, height: 718 });
+      for (const label of await labels.all()) await expect(label).toBeVisible();
+      const geometry = await labels.evaluateAll((nodes) => ({
+        viewport: innerWidth,
+        documentWidth: document.documentElement.scrollWidth,
+        bodyWidth: document.body.scrollWidth,
+        labels: nodes.map((node) => {
+          const box = node.getBoundingClientRect();
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          const text = range.getBoundingClientRect();
+          const pseudo = node.matches(".bv-legal-cta") ? getComputedStyle(node, "::before") : null;
+          return {
+            label: node.textContent, left: box.left, right: box.right, top: box.top, bottom: box.bottom,
+            clientWidth: node.clientWidth, scrollWidth: node.scrollWidth,
+            text: { left: text.left, right: text.right, top: text.top, bottom: text.bottom },
+            decoration: pseudo ? {
+              content: pseudo.content, transform: pseudo.transform, animationName: pseudo.animationName,
+            } : null,
+          };
+        }),
+      }));
+      expect(geometry.documentWidth, JSON.stringify(geometry)).toBeLessThanOrEqual(width + 1);
+      expect(geometry.bodyWidth, JSON.stringify(geometry)).toBeLessThanOrEqual(width + 1);
+      for (const label of geometry.labels) {
+        expect(label.left, JSON.stringify(label)).toBeGreaterThanOrEqual(-1);
+        expect(label.right, JSON.stringify(label)).toBeLessThanOrEqual(width + 1);
+        expect(label.scrollWidth, JSON.stringify(label)).toBeLessThanOrEqual(label.clientWidth + 1);
+        expect(label.text.left, JSON.stringify(label)).toBeGreaterThanOrEqual(label.left - 1);
+        expect(label.text.right, JSON.stringify(label)).toBeLessThanOrEqual(label.right + 1);
+        expect(label.text.top, JSON.stringify(label)).toBeGreaterThanOrEqual(label.top - 1);
+        expect(label.text.bottom, JSON.stringify(label)).toBeLessThanOrEqual(label.bottom + 1);
+        if (label.decoration) {
+          expect(label.decoration.transform, JSON.stringify(label)).toBe("none");
+          expect(label.decoration.animationName, JSON.stringify(label))
+            .toBe(reducedMotion === "reduce" ? "none" : "bv-legal-sheen");
+          if (reducedMotion === "reduce") expect(label.decoration.content, JSON.stringify(label)).toBe("none");
+        }
+      }
     }
   }
 }
