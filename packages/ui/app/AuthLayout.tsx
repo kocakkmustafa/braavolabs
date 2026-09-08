@@ -28,7 +28,7 @@ export default function AuthLayout({
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
   if (!hydrated) {
-    return <div className="min-h-screen" style={{ background: "#0a0d14" }}><main>{children}</main></div>;
+    return <div className="min-h-screen" style={{ background: "#0a0d14" }}><main id={pathname === "/terms" ? undefined : "main-content"} tabIndex={-1}>{children}</main></div>;
   }
 
   const isFullWidth = FULL_WIDTH_PATHS.includes(pathname);
@@ -67,6 +67,8 @@ export default function AuthLayout({
 
       {/* Main content */}
       <main
+        id={pathname === "/terms" ? undefined : "main-content"}
+        tabIndex={-1}
         className={`min-h-screen ${!isFullWidth ? "lg:ml-14" : ""}`}
         style={{ background: "#0a0d14" }}
       >

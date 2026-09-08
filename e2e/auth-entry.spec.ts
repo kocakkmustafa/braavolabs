@@ -20,6 +20,14 @@ test.beforeEach(async ({ context, page }) => {
 });
 
 async function expectUnclipped(page: Page) {
+  const documentGeometry = await page.evaluate(() => ({
+    viewportWidth: innerWidth,
+    document: { clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth },
+    body: { clientWidth: document.body.clientWidth, scrollWidth: document.body.scrollWidth },
+  }));
+  for (const element of [documentGeometry.document, documentGeometry.body]) {
+    expect(element.scrollWidth, JSON.stringify(documentGeometry)).toBeLessThanOrEqual(documentGeometry.viewportWidth + 1);
+  }
   const clipped = await page.locator("main input, main button, main select, main h1, main .bv-glass").evaluateAll((nodes) =>
     nodes.filter((node) => {
       const rect = node.getBoundingClientRect();
@@ -39,6 +47,33 @@ async function expectUnclipped(page: Page) {
     }),
   );
   expect(clipped).toEqual([]);
+}
+
+async function expectKeyboardSkipLink(page: Page) {
+  const skipLink = page.locator("a.skip-link");
+  await expect(skipLink).toHaveCount(1);
+  // Start from a fresh navigation: this must be the first keyboard stop.
+  await page.keyboard.press("Tab");
+  await expect(skipLink).toBeFocused();
+  await expect(skipLink).toBeVisible();
+  await expect(skipLink).toHaveCSS("opacity", "1");
+  await expect(skipLink).toHaveCSS("clip-path", "none");
+  await expect(skipLink).toHaveCSS("overflow", "visible");
+  const geometry = await skipLink.evaluate((node) => {
+    const box = node.getBoundingClientRect();
+    return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, viewportWidth: innerWidth, viewportHeight: innerHeight };
+  });
+  expect(geometry.left, JSON.stringify(geometry)).toBeGreaterThanOrEqual(0);
+  expect(geometry.right, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.viewportWidth);
+  expect(geometry.top, JSON.stringify(geometry)).toBeGreaterThanOrEqual(0);
+  expect(geometry.bottom, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.viewportHeight);
+  await expect(skipLink).toHaveAttribute("href", "#main-content");
+  const main = page.locator("main#main-content");
+  await expect(main).toHaveCount(1);
+  await expect(main).toHaveAttribute("tabindex", "-1");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/#main-content$/);
+  await expect(main).toBeFocused();
 }
 
 async function expectPaintedAuthSubmit(page: Page) {
@@ -84,7 +119,13 @@ for (const [index, locale] of LOCALES.entries()) {
       await context.addCookies([{ name: "NEXT_LOCALE", value: locale, url: UI }]);
       await page.setViewportSize({ width, height: 718 });
       for (const mode of ["login", "register"]) {
-        await page.goto(`${UI}/login${mode === "register" ? "?tab=register" : ""}`);
+        const url = `${UI}/login${mode === "register" ? "?tab=register" : ""}`;
+        await page.goto(url);
+        await expectKeyboardSkipLink(page);
+        // Keep anonymous screenshots free of the focus/fragment check above.
+        await page.goto(url);
+        // Removing only a fragment can be a same-document navigation.
+        await page.reload();
         await expect(page.locator("html")).toHaveAttribute("lang", locale);
         await expect(page.locator("html")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
         await expect(page.getByRole("heading", { level: 1 })).toHaveText(messages.auth[mode].welcome);
@@ -105,12 +146,16 @@ for (const [index, locale] of LOCALES.entries()) {
         // credential/error fixtures. Keep the matrix bounded to 24 PNGs.
         if (width === 390 || width === 1110) {
           const name = `auth-entry-${locale}-${width}-${mode}`;
+          const png = await page.screenshot({ fullPage: true, animations: "disabled" });
+          expect(png.toString("ascii", 12, 16)).toBe("IHDR");
+          expect(png.readUInt32BE(16), `${name}: full-page PNG must fit its viewport`).toBe(width);
           await testInfo.attach(`${name}.png`, {
-            body: await page.screenshot({ fullPage: true, animations: "disabled" }),
+            body: png,
             contentType: "image/png",
           });
           const sourcePaths = [
             "packages/ui/app/login/page.tsx", "packages/ui/app/login/layout.tsx",
+            "packages/ui/app/AuthLayout.tsx",
             "packages/ui/app/globals.css", "packages/ui/lib/api.ts",
             "packages/ui/lib/auth-errors.ts", `packages/ui/messages/${locale}.json`,
           ];

@@ -53,10 +53,17 @@ function fixture(locale = "en", mode = "login", fetchImpl = () => { throw new Er
         };
         return { ...runtime, jsx: capture("jsx"), jsxs: capture("jsxs") };
       }
-      if (id === "next/navigation") return { useRouter: () => ({ replace() { throw new Error("Unexpected navigation"); } }) };
+      if (id === "next/navigation") return {
+        useRouter: () => ({ replace() { throw new Error("Unexpected navigation"); } }),
+        usePathname: () => interaction?.pathname ?? "/login",
+      };
       if (id === "next-intl") return { useTranslations: translate, useLocale: () => locale };
       if (id === "next-intl/server") return { getTranslations: async (namespace) => translate(namespace) };
       if (id.endsWith("/store")) return { useAppStore: store };
+      if (absolute.endsWith("/app/AuthLayout.tsx") && [
+        "../components/Sidebar", "../components/CommandPalette", "../components/NotificationBell",
+        "../components/OnboardingChecklist", "../components/Breadcrumb", "../components/PresenceBar",
+      ].includes(id)) return { __esModule: true, default: () => null };
       if (id.startsWith(".")) {
         const target = resolve(dirname(absolute), id);
         for (const extension of [".ts", ".tsx"]) {
@@ -129,6 +136,69 @@ test("auth submit does not inherit the opacity-zero stagger animation", () => {
     assert.doesNotMatch(form, /bv-stagger/, "primary gradient overrides stagger fade and leaves opacity zero");
     assert.match(html, /class="[^"]*\bbv-auth-entry\b/);
     assert.match(html, /<button[^>]*type="submit"[^>]*bv-btn-primary/);
+  }
+});
+
+function skipLinkDeclarations(selector) {
+  const css = read("packages/ui/app/globals.css");
+  const rule = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].find(([, selectors]) =>
+    selectors.split(",").some((value) => value.trim().replace(/\/\*[\s\S]*?\*\//g, "").trim() === selector),
+  );
+  assert.ok(rule, `${selector} must remain in the actual stylesheet`);
+  return Object.fromEntries(rule[2].split(";").filter((value) => value.trim()).map((value) => {
+    const colon = value.indexOf(":");
+    return [value.slice(0, colon).trim(), value.slice(colon + 1).trim()];
+  }));
+}
+
+test("skip link stays clipped inside the viewport without inaccessible or off-canvas hiding", () => {
+  const declarations = skipLinkDeclarations(".skip-link");
+  assert.ok(!Object.values(declarations).some((value) => /-9999/.test(value)), "off-canvas hiding expands RTL document width");
+  for (const [property, value] of Object.entries({
+    position: "absolute", "inset-inline-start": "8px", "inset-block-start": "8px",
+    width: "1px", height: "1px", padding: "0", margin: "-1px", overflow: "hidden",
+    clip: "rect(0, 0, 0, 0)", "clip-path": "inset(50%)", "white-space": "nowrap",
+  })) assert.equal(declarations[property], value, property);
+  assert.notEqual(declarations.display, "none");
+  assert.notEqual(declarations.visibility, "hidden");
+  assert.notEqual(declarations.opacity, "0");
+});
+
+test("skip link restores visible geometry and clipping for keyboard focus", () => {
+  for (const selector of [".skip-link:focus", ".skip-link:focus-visible"]) {
+    const declarations = skipLinkDeclarations(selector);
+    for (const [property, value] of Object.entries({
+      "inset-inline-start": "8px", "inset-block-start": "8px", width: "auto", height: "auto",
+      padding: "8px 16px", margin: "0", overflow: "visible", clip: "auto", "clip-path": "none", "white-space": "normal",
+    })) assert.equal(declarations[property], value, `${selector} ${property}`);
+  }
+});
+
+test("skip link has one focusable actual auth main target before and after hydration", () => {
+  assert.match(read("packages/ui/app/layout.tsx"), /<a href="#main-content" className="skip-link">/);
+  for (const hydrated of [false, true]) {
+    for (const pathname of ["/login", "/register"]) {
+      const mode = pathname === "/login" ? "login" : "register";
+      const { load } = fixture("en", mode, undefined, { initial: { 0: hydrated }, updates: [], pathname });
+      const AuthLayout = load("packages/ui/app/AuthLayout.tsx").default;
+      const Page = load("packages/ui/app/login/page.tsx").default;
+      const html = renderToStaticMarkup(React.createElement(AuthLayout, null, React.createElement(Page)));
+      assert.equal([...html.matchAll(/id="main-content"/g)].length, 1, `${pathname} hydrated=${hydrated}`);
+      assert.match(html, /<main\b[^>]*id="main-content"[^>]*tabindex="-1"/);
+    }
+  }
+});
+
+test("skip link preserves the existing terms child target without a duplicate outer id", () => {
+  assert.match(read("packages/ui/app/terms/page.tsx"), /<main\s+id="main-content"/);
+  for (const hydrated of [false, true]) {
+    const { load } = fixture("en", "login", undefined, { initial: { 0: hydrated }, updates: [], pathname: "/terms" });
+    const AuthLayout = load("packages/ui/app/AuthLayout.tsx").default;
+    const html = renderToStaticMarkup(React.createElement(AuthLayout, null,
+      React.createElement("main", { id: "main-content" }, "Existing terms child target"),
+    ));
+    assert.equal([...html.matchAll(/id="main-content"/g)].length, 1, `terms hydrated=${hydrated}`);
+    assert.doesNotMatch(html.match(/<main\b[^>]*>/)?.[0] ?? "", /id="main-content"/);
   }
 });
 
