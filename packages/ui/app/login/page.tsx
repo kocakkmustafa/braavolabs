@@ -112,7 +112,7 @@ export default function LoginPage() {
 
   return (
     <div
-      className="bv-mesh relative grid min-h-dvh grid-cols-1 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,.95fr)]"
+      className="bv-auth-entry bv-mesh relative grid min-h-dvh grid-cols-1 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,.95fr)]"
     >
       {/* ── Left cinematic panel ─────────────────────────────── */}
       <div
@@ -374,7 +374,7 @@ export default function LoginPage() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="bv-stagger" style={{ display: "flex", flexDirection: "column", gap: 16 }} noValidate>
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }} noValidate>
             {mode === "register" && (
               <>
                 <ForgeField label={t("auth.fields.fullName")} type="text" value={name} onChange={setName} placeholder={t("auth.fields.fullNamePlaceholder")} required />

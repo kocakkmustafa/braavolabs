@@ -120,6 +120,42 @@ test("login responsive and accessible error/reset contracts are explicit", () =>
   assert.doesNotMatch(page, /setError\(msg\s*\|\||set(?:Forgot)?Error\(err instanceof Error/);
 });
 
+test("auth submit does not inherit the opacity-zero stagger animation", () => {
+  for (const mode of ["login", "register"]) {
+    const { load } = fixture("en", mode);
+    const html = renderToStaticMarkup(React.createElement(load("packages/ui/app/login/page.tsx").default));
+    const form = html.match(/<form\b[^>]*>/)?.[0];
+    assert.ok(form, "the actual auth form must render");
+    assert.doesNotMatch(form, /bv-stagger/, "primary gradient overrides stagger fade and leaves opacity zero");
+    assert.match(html, /class="[^"]*\bbv-auth-entry\b/);
+    assert.match(html, /<button[^>]*type="submit"[^>]*bv-btn-primary/);
+  }
+});
+
+test("reduced-motion auth styles stop entrance and decorative animations without changing other surfaces", () => {
+  const css = read("packages/ui/app/globals.css");
+  const media = css.match(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{([\s\S]*?)\n\}/)?.[1];
+  assert.ok(media, "auth needs an explicit reduced-motion rule");
+  const rules = [...media.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+  const declarations = new Map();
+  for (const [, selectors, body] of rules) {
+    for (const selector of selectors.split(",").map(value => value.trim())) {
+      assert.ok(selector.startsWith(".bv-auth-entry "), `out-of-scope reduced motion: ${selector}`);
+      declarations.set(selector, body);
+    }
+  }
+  assert.deepEqual([...declarations.keys()].sort(), [
+    ".bv-auth-entry .bv-btn-primary", ".bv-auth-entry .bv-btn-primary::before", ".bv-auth-entry .bv-rise",
+  ]);
+  for (const selector of [".bv-auth-entry .bv-rise", ".bv-auth-entry .bv-btn-primary"]) {
+    assert.match(declarations.get(selector), /animation:\s*none\s*;/);
+    assert.match(declarations.get(selector), /opacity:\s*1\s*;/);
+    assert.match(declarations.get(selector), /transform:\s*none\s*;/);
+  }
+  assert.match(declarations.get(".bv-auth-entry .bv-btn-primary::before"), /content:\s*none\s*;/);
+  assert.match(declarations.get(".bv-auth-entry .bv-btn-primary::before"), /animation:\s*none\s*;/);
+});
+
 test("apiFetch preserves HTTP status, detail and request semantics without refreshing anonymous auth", async () => {
   for (const status of [400, 401, 429, 500, 503]) {
     for (const body of [{ message: "server detail" }, { issues: [{ message: "field detail" }] }, { error: "top-level detail" }, null, [], "proxy detail", undefined]) {

@@ -1331,3 +1331,19 @@ html.light .bv-approval-item { background: rgba(15,23,42,0.02); }
   .bv-approval-item { grid-template-columns: 28px 1fr; }
   .bv-approval-actions { grid-column: 1 / -1; justify-content: flex-end; }
 }
+
+/* Auth controls remain painted and decorative layers add no RTL scroll area
+   when motion is reduced. Mascot and other surfaces keep their own policies. */
+@media (prefers-reduced-motion: reduce) {
+  .bv-auth-entry .bv-rise,
+  .bv-auth-entry .bv-btn-primary {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .bv-auth-entry .bv-btn-primary::before {
+    content: none;
+    animation: none;
+    transform: none;
+  }
+}

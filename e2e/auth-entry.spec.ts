@@ -25,9 +25,56 @@ async function expectUnclipped(page: Page) {
       const rect = node.getBoundingClientRect();
       return rect.width > 0 && rect.height > 0 &&
         (rect.left < -1 || rect.right > innerWidth + 1 || node.scrollWidth > node.clientWidth + 1);
-    }).map((node) => ({ tag: node.tagName, text: node.textContent?.slice(0, 80) })),
+    }).map((node) => {
+      const rect = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      const before = getComputedStyle(node, "::before");
+      return {
+        tag: node.tagName, text: node.textContent?.slice(0, 80),
+        left: rect.left, right: rect.right, width: rect.width, height: rect.height,
+        viewportWidth: innerWidth, clientWidth: node.clientWidth, scrollWidth: node.scrollWidth,
+        direction: style.direction, opacity: style.opacity,
+        before: { content: before.content, transform: before.transform, animation: before.animationName },
+      };
+    }),
   );
   expect(clipped).toEqual([]);
+}
+
+async function expectPaintedAuthSubmit(page: Page) {
+  const submit = page.locator('form:has(input[type="password"]) button[type="submit"]');
+  await expect(submit).toBeVisible();
+  // Playwright visibility/clickability alone accepts opacity:0. Check the
+  // actual button and every ancestor before treating a PNG as paint evidence.
+  await expect(submit).toHaveCSS("opacity", "1");
+  await expect.poll(() => submit.evaluate((node) => {
+    const hidden = [];
+    for (let current: Element | null = node; current; current = current.parentElement) {
+      const style = getComputedStyle(current);
+      if (style.opacity !== "1" || style.visibility !== "visible" || style.display === "none") {
+        hidden.push({ tag: current.tagName, opacity: style.opacity, visibility: style.visibility, display: style.display });
+      }
+    }
+    return hidden;
+  })).toEqual([]);
+  const geometry = await submit.evaluate((node) => {
+    const box = node.getBoundingClientRect();
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const text = range.getBoundingClientRect();
+    return {
+      box: { left: box.left, right: box.right, top: box.top, bottom: box.bottom },
+      text: { left: text.left, right: text.right, top: text.top, bottom: text.bottom, width: text.width, height: text.height },
+      color: getComputedStyle(node).color,
+    };
+  });
+  expect(geometry.color).not.toMatch(/transparent|rgba\([^)]*,\s*0\s*\)/);
+  expect(geometry.text.width, JSON.stringify(geometry)).toBeGreaterThan(0);
+  expect(geometry.text.height, JSON.stringify(geometry)).toBeGreaterThan(0);
+  expect(geometry.text.left, JSON.stringify(geometry)).toBeGreaterThanOrEqual(geometry.box.left - 1);
+  expect(geometry.text.right, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.box.right + 1);
+  expect(geometry.text.top, JSON.stringify(geometry)).toBeGreaterThanOrEqual(geometry.box.top - 1);
+  expect(geometry.text.bottom, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.box.bottom + 1);
 }
 
 for (const [index, locale] of LOCALES.entries()) {
@@ -48,6 +95,11 @@ for (const [index, locale] of LOCALES.entries()) {
         await expect(page.locator("main")).not.toContainText(/3 free runs|Run fully|Remember me|Command the agents you already/);
         await expect(page.locator('input[type="checkbox"]')).toHaveCount(0);
         if (width >= 1024) await expect(page.getByText(messages.auth.hero.title, { exact: true })).toBeVisible();
+        await expectPaintedAuthSubmit(page);
+        await expect(page.locator(".bv-auth-entry .bv-rise")).toHaveCSS("animation-name", "none");
+        const submit = page.locator('form:has(input[type="password"]) button[type="submit"]');
+        await expect(submit).toHaveCSS("animation-name", "none");
+        expect(await submit.evaluate((node) => getComputedStyle(node, "::before").content)).toBe("none");
         await expectUnclipped(page);
         // Successful anonymous screens are release QA evidence, not synthetic
         // credential/error fixtures. Keep the matrix bounded to 24 PNGs.
@@ -80,6 +132,11 @@ for (const [index, locale] of LOCALES.entries()) {
         }
         await page.getByText(messages.auth.oauth.ssoToggle, { exact: true }).click();
         await expectUnclipped(page);
+        // Default motion must not make the submit transparent either. Keep
+        // screenshots in reduced motion; do not change the evidence matrix.
+        await page.emulateMedia({ reducedMotion: "no-preference" });
+        await expectPaintedAuthSubmit(page);
+        await page.emulateMedia({ reducedMotion: "reduce" });
       }
       await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", messages.auth.login.subtitle);
       await expect(page).toHaveTitle(new RegExp(messages.auth.login.tabSignIn));
