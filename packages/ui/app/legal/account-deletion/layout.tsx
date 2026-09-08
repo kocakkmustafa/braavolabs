@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Account Deletion — Braavolabs",
+  title: "Account Deletion",
   description:
-    "How to permanently delete your Braavolabs account and all associated data, data retention periods after deletion, and contact details for assistance.",
+    "How to permanently delete your Braavolabs account, what data is removed, and how to request assistance.",
   alternates: { canonical: "https://www.braavolabs.com/legal/account-deletion" },
   openGraph: {
     title: "Braavolabs Account Deletion",

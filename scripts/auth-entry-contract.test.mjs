@@ -11,6 +11,7 @@ const uiRequire = createRequire(resolve(ROOT, "packages/ui/package.json"));
 const ts = uiRequire("typescript");
 const React = uiRequire("react");
 const { renderToStaticMarkup } = uiRequire("react-dom/server");
+const { resolveTitle } = uiRequire("next/dist/lib/metadata/resolvers/resolve-title");
 const LOCALES = ["en", "tr", "es", "de", "fr", "ar"];
 const read = (path) => readFileSync(resolve(ROOT, path), "utf8");
 const lookup = (messages, key) => key.split(".").reduce((value, part) => value?.[part], messages);
@@ -86,11 +87,118 @@ function fixture(locale = "en", mode = "login", fetchImpl = () => { throw new Er
       }
       throw new Error(`Unexpected import: ${id}`);
     };
-    vm.runInNewContext(output, { exports, require, process: { env: {} }, fetch: fetchImpl, Response, Error, console, window: interaction?.window }, { filename: absolute });
+    vm.runInNewContext(output, { exports, require, process: { env: {} }, fetch: fetchImpl, Response, URL, Error, console, window: interaction?.window }, { filename: absolute });
     return exports;
   }
   return { load, messages };
 }
+
+// Independent expectations freeze the existing non-title metadata contract.
+// Only the deletion description intentionally reuses its original OG copy.
+const LEGAL_METADATA = {
+  privacy: {
+    title: "Privacy Policy",
+    description: "The published Braavolabs privacy policy and its current data-handling disclosures.",
+    ogDescription: "The published Braavolabs privacy policy and its current data-handling disclosures.",
+    robots: { index: true, follow: true },
+  },
+  cookies: {
+    title: "Cookie Policy",
+    description: "Braavolabs cookie policy: what cookies we use, why we use them, and how to manage or withdraw your consent at any time.",
+    ogDescription: "What cookies Braavolabs uses, why, and how to manage or withdraw your consent at any time.",
+  },
+  terms: {
+    title: "Terms of Service",
+    description: "Braavolabs Terms of Service. Acceptable use, planned subscriptions, cancellation, intellectual property, and limitation of liability.",
+    ogDescription: "Acceptable use, planned subscriptions, cancellation, intellectual property, and limitation of liability.",
+    robots: { index: true, follow: true },
+  },
+  gdpr: {
+    title: "GDPR Statement",
+    description: "Braavolabs GDPR statement: data controller identity, lawful bases, cross-border transfers, retention periods, and your rights under EU data protection law.",
+    ogTitle: "Braavolabs GDPR Statement",
+    ogDescription: "Data controller, lawful bases, cross-border transfers, retention, and your rights under the EU General Data Protection Regulation.",
+  },
+  kvkk: {
+    title: "KVKK Aydınlatma Metni",
+    description: "Braavolabs KVKK aydınlatma metni: kişisel verilerin işlenmesi, hukuki dayanakları, saklama süreleri ve 6698 sayılı KVKK kapsamındaki haklarınız.",
+    ogTitle: "Braavolabs KVKK Aydınlatma Metni",
+    ogDescription: "Kişisel verilerin işlenmesi, hukuki dayanakları, saklama süreleri ve KVKK kapsamındaki haklarınız.",
+  },
+  "legal/account-deletion": {
+    title: "Account Deletion",
+    description: "How to permanently delete your Braavolabs account, what data is removed, and how to request assistance.",
+    ogTitle: "Braavolabs Account Deletion",
+    ogDescription: "How to permanently delete your Braavolabs account, what data is removed, and how to request assistance.",
+  },
+};
+const TRANSLATED_LEGAL_ROUTES = ["privacy", "cookies", "terms"];
+
+async function actualLegalMetadata(locale, route) {
+  const { load, messages } = fixture(locale, "login", undefined, {
+    headers: { host: "www.braavolabs.com", "x-braavolabs-surface": "public", "x-braavolabs-pathname": `/${route}` },
+  });
+  const layout = load(`packages/ui/app/${route}/layout.tsx`);
+  // The RED baseline has static exports; GREEN evaluates real generators.
+  const metadata = layout.generateMetadata ? await layout.generateMetadata() : layout.metadata;
+  assert.ok(metadata && typeof metadata === "object", `${route}: metadata export missing`);
+  const rootMetadata = await load("packages/ui/app/layout.tsx").generateMetadata();
+  assert.equal(rootMetadata.title.template, "%s | Braavolabs");
+  return { metadata, messages, template: rootMetadata.title.template };
+}
+
+function assertSingleBrandTitle(metadata, template, expected) {
+  const actual = resolveTitle(metadata.title, template).absolute;
+  assert.equal(actual, `${expected} | Braavolabs`);
+  assert.equal((actual.match(/\bBraavolabs\b/g) ?? []).length, 1);
+}
+
+for (const locale of LOCALES) {
+  for (const route of TRANSLATED_LEGAL_ROUTES) {
+    test(`legal metadata ${locale}/${route}: real title and OG title use the existing translation`, async () => {
+      const { metadata, messages, template } = await actualLegalMetadata(locale, route);
+      const expected = messages.static.legal[route].title;
+      assert.equal(metadata.title, expected);
+      assert.equal(metadata.openGraph.title, expected);
+      assertSingleBrandTitle(metadata, template, expected);
+    });
+  }
+}
+
+for (const [route, expected] of Object.entries(LEGAL_METADATA)) {
+  test(`legal metadata ${route}: actual root template adds the brand exactly once`, async () => {
+    for (const locale of LOCALES) {
+      const { metadata, messages, template } = await actualLegalMetadata(locale, route);
+      const title = TRANSLATED_LEGAL_ROUTES.includes(route) ? messages.static.legal[route].title : expected.title;
+      assertSingleBrandTitle(metadata, template, title);
+      if (expected.ogTitle) assert.equal(metadata.openGraph.title, expected.ogTitle);
+    }
+  });
+
+  test(`legal metadata ${route}: canonical, robots, descriptions and OG image remain unchanged`, async () => {
+    const { metadata } = await actualLegalMetadata("en", route);
+    const actual = JSON.parse(JSON.stringify(metadata));
+    delete actual.title;
+    delete actual.openGraph.title;
+    assert.deepEqual(actual, {
+      description: expected.description,
+      ...(expected.robots ? { robots: expected.robots } : {}),
+      alternates: { canonical: `https://www.braavolabs.com/${route}` },
+      openGraph: {
+        description: expected.ogDescription,
+        url: `https://www.braavolabs.com/${route}`,
+        images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }],
+      },
+    });
+  });
+}
+
+test("legal metadata account deletion: standard description reuses the existing narrower OG wording", async () => {
+  const { metadata } = await actualLegalMetadata("en", "legal/account-deletion");
+  assert.equal(metadata.description, LEGAL_METADATA["legal/account-deletion"].ogDescription);
+  assert.equal(metadata.description, metadata.openGraph.description);
+  assert.doesNotMatch(`${metadata.description}\n${metadata.openGraph.description}`, /all associated data|retention periods after deletion/i);
+});
 
 for (const locale of LOCALES) {
   for (const mode of ["login", "register"]) {

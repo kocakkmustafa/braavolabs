@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "GDPR Statement — Braavolabs",
+  title: "GDPR Statement",
   description:
     "Braavolabs GDPR statement: data controller identity, lawful bases, cross-border transfers, retention periods, and your rights under EU data protection law.",
   alternates: { canonical: "https://www.braavolabs.com/gdpr" },
