@@ -56,7 +56,9 @@ function fixture(locale = "en", mode = "login", fetchImpl = () => { throw new Er
         const capture = (method) => (type, props, key) => {
           if (interaction && type === "form" && props.noValidate) interaction.submit = props.onSubmit;
           if (interaction?.buttons && type === "button") interaction.buttons.push(props);
-          return runtime[method](type, props, key);
+          const node = runtime[method](type, props, key);
+          if (interaction?.nodes && typeof type === "string") interaction.nodes.push(node);
+          return node;
         };
         return { ...runtime, jsx: capture("jsx"), jsxs: capture("jsxs") };
       }
@@ -649,3 +651,168 @@ test("real form submission renders localized HTTP categories without storing an 
     }
   }
 });
+
+// LEGAL_NAV_20260908_BEGIN
+const NAV_DOCS = ["privacy", "terms", "cookies", "gdpr", "kvkk", "deletion"];
+const NAV_HREFS = ["/privacy", "/terms", "/cookies", "/gdpr", "/kvkk", "/legal/account-deletion"];
+const NAV_GDPR_TITLES = ["Data Controller", "Personal Data We Process", "Lawful Bases", "Cross-Border Transfers", "Your Rights", "Retention", "Security", "Data Protection Officer"];
+const NAV_DELETION_TITLES = ["Overview", "Request deletion by email", "Verification and next steps", "Current availability", "What gets deleted", "What we retain — and why", "Timeline", "Active subscriptions", "Questions"];
+const navClass = (node, name) => (node.props.className ?? "").split(/\s+/).includes(name);
+const navChildren = (node) => React.Children.toArray(node.props.children);
+const navOwnText = (node) => navChildren(node)
+  .filter((child) => typeof child === "string" || typeof child === "number").join("").trim();
+function navText(value) {
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  if (Array.isArray(value)) return value.map(navText).join("");
+  return React.isValidElement(value) ? navText(value.props.children) : "";
+}
+function navElements(owner, predicate) {
+  const matches = [];
+  function visit(value) {
+    if (Array.isArray(value)) { value.forEach(visit); return; }
+    if (!React.isValidElement(value)) return;
+    if (predicate(value)) matches.push(value);
+    visit(value.props.children);
+  }
+  visit(owner.props.children);
+  return matches;
+}
+function navOne(nodes, message) {
+  assert.equal(nodes.length, 1, message);
+  return nodes[0];
+}
+const navPairs = (owner) => navElements(owner, (n) => n.type === "a")
+  .map((n) => [n.props.href, navText(n.props.children).trim()]);
+const navLabels = (copy) => [copy.privacy, copy.terms, copy.cookies, "GDPR", "KVKK", copy.accountDeletion];
+function navLegalColumn(footer) {
+  return navOne(navElements(footer, (n) => n.type === "div"
+    && navChildren(n).some((child) => React.isValidElement(child) && child.type === "h5")
+    && navElements(n, (child) => child.type === "a" && child.props.href === "/privacy").length === 1),
+  "one legal footer column, selected by structure and destination");
+}
+async function renderLegalNav(locale, route, options = {}) {
+  // A fresh fixture per render keeps the actual Terms state index deterministic.
+  const interaction = {
+    realIntl: true, nodes: [], updates: [], ...options,
+    headers: {host: "www.braavolabs.com", "x-braavolabs-surface": "public", "x-braavolabs-pathname": "/" + route},
+  };
+  const {load, messages} = fixture(locale, "login", undefined, interaction);
+  const Page = load("packages/ui/app/" + route + "/page.tsx").default;
+  const layout = await load("packages/ui/app/layout.tsx").default({children: React.createElement(Page)});
+  const html = renderToStaticMarkup(React.createElement(uiRequire("next-intl").NextIntlClientProvider,
+    {locale, timeZone: "UTC", onError: (error) => { throw error; }}, layout));
+  for (const tag of ["header", "nav", "article", "footer"]) {
+    const actual = html.match(new RegExp("<" + tag + "\\b[^>]*>[\\s\\S]*?</" + tag + ">", "g")) ?? [];
+    assert.deepEqual(actual, interaction.nodes.filter((n) => n.type === tag)
+      .map((n) => renderToStaticMarkup(n)), `${locale}/${route}: ${tag} owners really rendered`);
+  }
+  assert.doesNotMatch(html, /static\.common\.legalNavigation\.|\{title\}/);
+  return {interaction, messages, nodes: interaction.nodes};
+}
+
+for (const locale of LOCALES) {
+  for (const route of ["terms", "gdpr", "legal/account-deletion"]) {
+    test(`legal-nav ${locale}/${route}: exact owned chrome, public pruning and ICU`, async () => {
+      const {nodes, messages} = await renderLegalNav(locale, route);
+      const copy = LEGAL_CHROME[locale];
+      const header = navOne(nodes.filter((n) => n.type === "header"), "one page header");
+      const eyebrow = navOne(navElements(header, (n) => navClass(n, "bv-pill")
+        && navElements(n, (child) => child.type === "span"
+          && navClass(child, "material-symbols-outlined") && navOwnText(child) === "gavel").length === 1), "one legal eyebrow owner");
+      assert.equal(navOwnText(eyebrow), copy.legal);
+      const openApp = navOne(nodes.filter((n) => n.type === "a" && n.props.href === "https://app.braavolabs.com"), "one existing app destination");
+      assert.equal(navText(openApp.props.children).trim(), copy.openApp);
+      const pills = navElements(header, (n) => navClass(n, "bv-fpill"));
+      assert.equal(pills.length, 6);
+      assert.deepEqual(pills.map((n) => navText(n.props.children).trim()), navLabels(copy));
+      assert.deepEqual(pills.map((n) => n.type), Array(6).fill(route === "terms" ? "button" : "a"));
+      assert.deepEqual(pills.filter((n) => navClass(n, "active")).map((n) => navText(n.props.children).trim()),
+        [route === "terms" ? copy.terms : route === "gdpr" ? "GDPR" : copy.accountDeletion]);
+      if (route === "terms") assert.equal(navElements(header, (n) => n.type === "a").length, 0);
+      else assert.deepEqual(pills.map((n) => n.props.href), NAV_HREFS);
+
+      const title = navOne(navElements(header, (n) => n.type === "h1"), "one unchanged document title");
+      assert.equal(navText(title.props.children).trim(), route === "terms"
+        ? messages.static.legal.terms.title : route === "gdpr" ? "GDPR Statement" : "Account & Data Deletion");
+      const date = navOne(navElements(header, (n) => n.type === "p" && navClass(n, "bv-mono")), "one unchanged date");
+      assert.equal(navText(date.props.children).trim(), route === "terms"
+        ? "Last updated " + messages.static.legal.terms.date
+        : route === "gdpr" ? messages.static.common.lastUpdated + " May 2026" : "Last updated: May 2026");
+      if (route === "gdpr") {
+        const banners = navElements(header, (n) => navClass(n, "bv-panel"));
+        assert.equal(banners.length, locale === "en" ? 0 : 1);
+        if (locale !== "en") assert.equal(navOwnText(banners[0]), messages.static.singleLocale.gdprBanner);
+      }
+
+      const toc = navOne(nodes.filter((n) => n.type === "nav" && n.props["aria-label"] !== undefined), "one actual labelled TOC");
+      assert.equal(toc.props["aria-label"], copy.onThisPage);
+      const tocLabel = navOne(navElements(toc, (n) => n.type === "p" && navClass(n, "bv-micro")), "one visible TOC label");
+      assert.equal(navOwnText(tocLabel), copy.onThisPage);
+      const titles = route === "terms" ? messages.static.legal.terms.sections.map((s) => s.title)
+        : route === "gdpr" ? NAV_GDPR_TITLES : NAV_DELETION_TITLES;
+      const tocLinks = navElements(toc, (n) => n.type === "a");
+      assert.deepEqual(tocLinks.map((n) => navText(n.props.children).trim()), titles);
+      const article = navOne(nodes.filter((n) => n.type === "article"), "one prose article");
+      const headings = navElements(article, (n) => n.type === "h2");
+      assert.equal(headings.length, titles.length);
+      headings.forEach((heading, index) => {
+        const permalink = navOne(navElements(heading, (n) => n.type === "a"), "one owned section permalink");
+        assert.equal(permalink.props["aria-label"], copy.permalinkTo.replace("{title}", titles[index]));
+        assert.equal(permalink.props.href, tocLinks[index].props.href);
+        assert.equal(navText(permalink.props.children).trim(), "¶");
+        const headingText = route === "legal/account-deletion"
+          ? navOwnText(navOne(navElements(heading, (n) => n.type === "span" && !navClass(n, "material-symbols-outlined")), "one deletion heading label"))
+          : navOwnText(heading);
+        assert.equal(headingText, titles[index]);
+      });
+      const footers = nodes.filter((n) => n.type === "footer");
+      assert.equal(footers.length, route === "gdpr" ? 0 : 1);
+      if (route !== "gdpr") {
+        const column = navLegalColumn(footers[0]);
+        const label = navOne(navElements(column, (n) => n.type === "h5"), "one legal footer heading");
+        assert.equal(navOwnText(label), copy.legal);
+        assert.deepEqual(navPairs(column), route === "terms"
+          ? NAV_HREFS.map((href, i) => [href, navLabels(copy)[i]])
+          : [["/privacy", copy.privacy], ["/terms", copy.terms], ["/kvkk", "KVKK"], ["/gdpr", "GDPR"]]);
+      }
+    });
+  }
+
+  test(`legal-nav ${locale}/terms: deletion branch uses one truthful canonical URL`, async () => {
+    const {nodes} = await renderLegalNav(locale, "terms", {initial: {0: "deletion"}});
+    const header = navOne(nodes.filter((n) => n.type === "header"), "actual alternate header");
+    const title = navOne(navElements(header, (n) => n.type === "h1"), "alternate document title");
+    const pills = navElements(header, (n) => navClass(n, "bv-fpill"));
+    const article = navOne(nodes.filter((n) => n.type === "article"), "actual alternate article");
+    assert.equal(navElements(article, (n) => n.type === "h2").length, 0);
+    const link = navOne(navElements(article, (n) => n.type === "a"), "one placeholder URL");
+    assert.equal(link.props.href, "/legal/account-deletion");
+    assert.equal(navText(link.props.children).trim(), "braavolabs.com/legal/account-deletion");
+    assert.equal(navText(title.props.children).trim(), LEGAL_CHROME[locale].accountDeletion);
+    assert.deepEqual(pills.filter((n) => navClass(n, "active")).map((n) => navText(n.props.children).trim()), [LEGAL_CHROME[locale].accountDeletion]);
+    const footer = navOne(nodes.filter((n) => n.type === "footer"), "actual footer");
+    assert.deepEqual(navPairs(navLegalColumn(footer)), NAV_HREFS.map((href, i) => [href, navLabels(LEGAL_CHROME[locale])[i]]));
+    assert.equal(nodes.filter((n) => n.type === "a" && n.props.href === "/deletion").length, 0);
+  });
+
+  test(`legal-nav ${locale}/terms: six real buttons preserve state and scroll handlers`, async () => {
+    const scrolls = [];
+    const {nodes, interaction} = await renderLegalNav(locale, "terms", {
+      window: {scrollTo(options) { scrolls.push({keys: Object.keys(options), top: options.top}); }},
+    });
+    const header = navOne(nodes.filter((n) => n.type === "header"), "one actual header");
+    const buttons = navElements(header, (n) => n.type === "button" && navClass(n, "bv-fpill"));
+    assert.equal(buttons.length, 6);
+    assert.equal(navElements(header, (n) => n.type === "a").length, 0);
+    assert.deepEqual(buttons.map((n) => navClass(n, "active")), [false, true, false, false, false, false]);
+    buttons.forEach((button, index) => {
+      interaction.updates.length = 0;
+      scrolls.length = 0;
+      assert.equal(typeof button.props.onClick, "function");
+      button.props.onClick();
+      assert.deepEqual(interaction.updates, [{index: 0, value: NAV_DOCS[index]}]);
+      assert.deepEqual(scrolls, [{keys: ["top"], top: 0}]);
+    });
+  });
+}
+// LEGAL_NAV_20260908_END

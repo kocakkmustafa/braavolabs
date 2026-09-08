@@ -181,6 +181,7 @@ const sections = [
 
 export default function AccountDeletionPage() {
   const t = useTranslations();
+  const legal = useTranslations("static.common.legalNavigation");
 
   return (
     <div className="min-h-screen bg-background bv-mesh">
@@ -200,7 +201,7 @@ export default function AccountDeletionPage() {
           </div>
           <div className="flex items-center gap-3">
             <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm text-sm">Sign in</a>
-            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm text-sm">Open app</a>
+            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm text-sm">{legal("openApp")}</a>
           </div>
         </div>
       </nav>
@@ -221,7 +222,7 @@ export default function AccountDeletionPage() {
           <div className="flex items-center justify-center gap-2 mb-4">
             <span className="bv-pill bv-pill-cyan">
               <span className="material-symbols-outlined" style={{ fontSize: 12 }}>gavel</span>
-              Legal
+              {legal("legal")}
             </span>
           </div>
 
@@ -233,12 +234,12 @@ export default function AccountDeletionPage() {
           {/* Doc switcher */}
           <div className="flex flex-wrap justify-center gap-2 mt-6">
             {[
-              { label: "Privacy", href: "/privacy" },
-              { label: "Terms", href: "/terms" },
-              { label: "Cookies", href: "/cookies" },
+              { label: legal("privacy"), href: "/privacy" },
+              { label: legal("terms"), href: "/terms" },
+              { label: legal("cookies"), href: "/cookies" },
               { label: "GDPR", href: "/gdpr" },
               { label: "KVKK", href: "/kvkk" },
-              { label: "Account deletion", href: "/legal/account-deletion", active: true },
+              { label: legal("accountDeletion"), href: "/legal/account-deletion", active: true },
             ].map((doc) => (
               <a
                 key={doc.href}
@@ -256,8 +257,8 @@ export default function AccountDeletionPage() {
       <div className="max-w-[1040px] mx-auto px-6 md:px-8 mt-10 mb-24 grid grid-cols-1 md:grid-cols-[230px_1fr] gap-12">
 
         {/* Sticky TOC (desktop) */}
-        <nav className="hidden md:block sticky top-[72px] self-start" aria-label="On this page">
-          <p className="bv-micro mb-[14px]">On this page</p>
+        <nav className="hidden md:block sticky top-[72px] self-start" aria-label={legal("onThisPage")}>
+          <p className="bv-micro mb-[14px]">{legal("onThisPage")}</p>
           <div className="flex flex-col">
             {sections.map((s) => (
               <a
@@ -289,7 +290,7 @@ export default function AccountDeletionPage() {
                 <a
                   href={`#${s.id}`}
                   className="opacity-0 group-hover:opacity-100 text-[15px] text-primary no-underline transition-opacity"
-                  aria-label={`Link to ${s.title}`}
+                  aria-label={legal("permalinkTo", { title: s.title })}
                 >
                   ¶
                 </a>
@@ -352,10 +353,10 @@ export default function AccountDeletionPage() {
               </div>
             </div>
             <div>
-              <h5 className="bv-micro mb-3">Legal</h5>
+              <h5 className="bv-micro mb-3">{legal("legal")}</h5>
               <div className="flex flex-col gap-2">
-                <a href="/privacy" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">Privacy</a>
-                <a href="/terms" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">Terms</a>
+                <a href="/privacy" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{legal("privacy")}</a>
+                <a href="/terms" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{legal("terms")}</a>
                 <a href="/kvkk" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">KVKK</a>
                 <a href="/gdpr" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">GDPR</a>
               </div>

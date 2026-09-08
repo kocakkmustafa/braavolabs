@@ -47,6 +47,7 @@ export default function GdprPage() {
   // language; chrome localises and a banner notes the single-locale
   // design when a visitor arrives on a non-EN locale.
   const t = useTranslations();
+  const legal = useTranslations("static.common.legalNavigation");
   const locale = useLocale();
   const showBanner = locale !== "en";
 
@@ -105,7 +106,7 @@ export default function GdprPage() {
             {t("static.common.back")}
           </a>
           <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm no-underline">
-            Open app
+            {legal("openApp")}
           </a>
         </div>
       </nav>
@@ -154,7 +155,7 @@ export default function GdprPage() {
             style={{ display: "inline-flex", marginBottom: 16, letterSpacing: "0.12em" }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 12 }}>gavel</span>
-            Legal
+            {legal("legal")}
           </div>
 
           <h1
@@ -190,12 +191,12 @@ export default function GdprPage() {
             }}
           >
             {[
-              { key: "privacy", label: "Privacy", href: "/privacy" },
-              { key: "terms", label: "Terms", href: "/terms" },
-              { key: "cookies", label: "Cookies", href: "/cookies" },
+              { key: "privacy", label: legal("privacy"), href: "/privacy" },
+              { key: "terms", label: legal("terms"), href: "/terms" },
+              { key: "cookies", label: legal("cookies"), href: "/cookies" },
               { key: "gdpr", label: "GDPR", href: "/gdpr" },
               { key: "kvkk", label: "KVKK", href: "/kvkk" },
-              { key: "account-deletion", label: "Account deletion", href: "/legal/account-deletion" },
+              { key: "account-deletion", label: legal("accountDeletion"), href: "/legal/account-deletion" },
             ].map((doc) => (
               <a
                 key={doc.key}
@@ -224,7 +225,7 @@ export default function GdprPage() {
       >
         {/* Sticky TOC */}
         <nav
-          aria-label="On this page"
+          aria-label={legal("onThisPage")}
           style={{
             position: "sticky",
             top: 84,
@@ -235,7 +236,7 @@ export default function GdprPage() {
             className="bv-micro"
             style={{ marginBottom: 14 }}
           >
-            On this page
+            {legal("onThisPage")}
           </p>
           <div style={{ display: "flex", flexDirection: "column" }}>
             {sections.map((section) => {
@@ -293,7 +294,7 @@ export default function GdprPage() {
                   {section.title}
                   <a
                     href={`#${id}`}
-                    aria-label={`Permalink to ${section.title}`}
+                    aria-label={legal("permalinkTo", { title: section.title })}
                     className="section-anchor"
                     style={{
                       opacity: 0,

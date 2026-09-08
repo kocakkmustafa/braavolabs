@@ -10,17 +10,26 @@ function slugify(s: string) {
 const DOC_KEYS = ["privacy", "terms", "cookies", "gdpr", "kvkk", "deletion"] as const;
 type DocKey = (typeof DOC_KEYS)[number];
 
-const DOC_LABELS: Record<DocKey, string> = {
-  privacy: "Privacy",
-  terms: "Terms",
-  cookies: "Cookies",
-  gdpr: "GDPR",
-  kvkk: "KVKK",
-  deletion: "Account Deletion",
+const DOC_HREFS: Record<DocKey, string> = {
+  privacy: "/privacy",
+  terms: "/terms",
+  cookies: "/cookies",
+  gdpr: "/gdpr",
+  kvkk: "/kvkk",
+  deletion: "/legal/account-deletion",
 };
 
 export default function TermsPage() {
   const t = useTranslations();
+  const legal = useTranslations("static.common.legalNavigation");
+  const DOC_LABELS: Record<DocKey, string> = {
+    privacy: legal("privacy"),
+    terms: legal("terms"),
+    cookies: legal("cookies"),
+    gdpr: "GDPR",
+    kvkk: "KVKK",
+    deletion: legal("accountDeletion"),
+  };
   const sections = t.raw("static.legal.terms.sections") as Array<{ title: string; body: string }>;
 
   const [activeDoc, setActiveDoc] = useState<DocKey>("terms");
@@ -77,7 +86,7 @@ export default function TermsPage() {
               Sign in
             </a>
             <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm bv-sheen">
-              Open app
+              {legal("openApp")}
             </a>
           </div>
         </div>
@@ -104,7 +113,7 @@ export default function TermsPage() {
               <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
                 gavel
               </span>
-              Legal
+              {legal("legal")}
             </span>
           </div>
 
@@ -147,9 +156,9 @@ export default function TermsPage() {
         <nav
           className="hidden md:block"
           style={{ position: "sticky", top: 84, alignSelf: "start" }}
-          aria-label="On this page"
+          aria-label={legal("onThisPage")}
         >
-          <p className="bv-micro mb-3">On this page</p>
+          <p className="bv-micro mb-3">{legal("onThisPage")}</p>
           <div className="flex flex-col">
             {sections.map(({ title }) => {
               const id = slugify(title);
@@ -195,7 +204,7 @@ export default function TermsPage() {
                       href={`#${id}`}
                       className="opacity-0 group-hover:opacity-100 transition-opacity text-primary"
                       style={{ fontSize: 14, textDecoration: "none" }}
-                      aria-label={`Link to ${title}`}
+                      aria-label={legal("permalinkTo", { title })}
                     >
                       ¶
                     </a>
@@ -215,8 +224,8 @@ export default function TermsPage() {
               </span>
               <p className="bv-body">
                 The <strong className="text-on-surface">{DOC_LABELS[activeDoc]}</strong> document is available at{" "}
-                <a href={`/${activeDoc}`} className="text-primary hover:underline">
-                  braavolabs.com/{activeDoc}
+                <a href={DOC_HREFS[activeDoc]} className="text-primary hover:underline">
+                  braavolabs.com{DOC_HREFS[activeDoc]}
                 </a>
                 .
               </p>
@@ -246,8 +255,8 @@ export default function TermsPage() {
                 { heading: "Product", links: [["Features", "/features"], ["Pricing", "/pricing"], ["Changelog", "/changelog"]] },
                 { heading: "Company", links: [["About", "/about"], ["Blog", "/blog"], ["Contact", "/contact"]] },
                 {
-                  heading: "Legal",
-                  links: DOC_KEYS.map((k) => [DOC_LABELS[k], `/${k}`] as [string, string]),
+                  heading: legal("legal"),
+                  links: DOC_KEYS.map((k) => [DOC_LABELS[k], DOC_HREFS[k]] as [string, string]),
                 },
               ] as Array<{ heading: string; links: [string, string][] }>
             ).map(({ heading, links }) => (
