@@ -1306,13 +1306,18 @@
     }
   },
   "auth": {
+    "hero": {
+      "title": "Your Braavolabs workspace."
+    },
     "login": {
+      "newHere": "New here?",
       "welcome": "Welcome back",
       "subtitle": "Sign in to your Braavolabs account",
       "tabSignIn": "Sign In",
       "tabRegister": "Register"
     },
     "register": {
+      "hasAccount": "Already have an account?",
       "welcome": "Create account",
       "subtitle": "Start building AI agents & automations"
     },
@@ -1391,7 +1396,10 @@
       "footer": "© 2026 Braavolabs. Built with Claude."
     },
     "errors": {
-      "generic": "Something went wrong"
+      "generic": "Something went wrong",
+      "invalidCredentials": "Invalid email or password.",
+      "rateLimited": "Too many attempts. Please try again later.",
+      "unavailable": "Sign-in is temporarily unavailable. Please try again later."
     }
   },
   "pricing": {

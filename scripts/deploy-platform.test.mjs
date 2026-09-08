@@ -923,6 +923,30 @@ test("idempotent tuple proves candidate digests migration no-op and health", () 
   assert.doesNotMatch(result.calls, /up -d --no-deps api ui/);
 }));
 
+test("backup-shaped unmanifested release input is still rejected on retry", () => withHarness((h) => {
+  assert.equal(runRemote(h).status, 0);
+  const backups = join(h.appRoot, "releases", RELEASE, "input", "ENV", "backups");
+  mkdirSync(backups);
+  writeFileSync(join(backups, "aicos_prod_probe.sql.gz"), "unmanifested fixture");
+  const before = readFileSync(h.log, "utf8").split("\n").length;
+  const result = runRemote(h);
+  assert.equal(result.status, 67);
+  assert.doesNotMatch(result.calls.split("\n").slice(before).join("\n"), /migrate|curl|up -d|ROLLBACK_APPLICATION/);
+}));
+
+test("mutable backup state outside input does not invalidate exact-tuple retry", () => withHarness((h) => {
+  seedSuccessfulJournal(h);
+  writeFileSync(join(h.state, "active-api"), API);
+  writeFileSync(join(h.state, "active-ui"), UI);
+  const outsideInput = join(h.state, "postgres_backup_data");
+  mkdirSync(outsideInput);
+  writeFileSync(join(outsideInput, "aicos_prod_fixture.sql.gz"), "external volume fixture");
+  const result = runRemote(h);
+  assert.equal(result.status, 0);
+  assert.equal(readFileSync(join(outsideInput, "aicos_prod_fixture.sql.gz"), "utf8"), "external volume fixture");
+  assert.doesNotMatch(result.calls, /up -d --no-deps api ui/);
+}));
+
 for (const [name, field, value] of [
   ["missing release", "release", undefined],
   ["mismatched release", "release", "f".repeat(40)],

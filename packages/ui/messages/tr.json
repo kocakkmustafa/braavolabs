@@ -1306,13 +1306,18 @@
     }
   },
   "auth": {
+    "hero": {
+      "title": "Braavolabs çalışma alanın."
+    },
     "login": {
+      "newHere": "Burada yeni misin?",
       "welcome": "Tekrar hoş geldin",
       "subtitle": "Braavolabs hesabına giriş yap",
       "tabSignIn": "Giriş Yap",
       "tabRegister": "Kayıt Ol"
     },
     "register": {
+      "hasAccount": "Zaten hesabın var mı?",
       "welcome": "Hesap oluştur",
       "subtitle": "AI ajanları ve otomasyonları kurmaya başla"
     },
@@ -1391,7 +1396,10 @@
       "footer": "© 2026 Braavolabs. Claude ile geliştirildi."
     },
     "errors": {
-      "generic": "Bir şeyler ters gitti"
+      "generic": "Bir şeyler ters gitti",
+      "invalidCredentials": "E-posta veya şifre hatalı.",
+      "rateLimited": "Çok fazla deneme yapıldı. Lütfen daha sonra tekrar dene.",
+      "unavailable": "Giriş geçici olarak kullanılamıyor. Lütfen daha sonra tekrar dene."
     }
   },
   "pricing": {

@@ -1306,13 +1306,18 @@
     }
   },
   "auth": {
+    "hero": {
+      "title": "Votre espace de travail Braavolabs."
+    },
     "login": {
+      "newHere": "Nouveau ici ?",
       "welcome": "Bon retour",
       "subtitle": "Connectez-vous à votre compte Braavolabs",
       "tabSignIn": "Se connecter",
       "tabRegister": "S'inscrire"
     },
     "register": {
+      "hasAccount": "Vous avez déjà un compte ?",
       "welcome": "Créer un compte",
       "subtitle": "Commencez à créer des agents & automatisations IA"
     },
@@ -1391,7 +1396,10 @@
       "footer": "© 2026 Braavolabs. Conçu avec Claude."
     },
     "errors": {
-      "generic": "Une erreur est survenue"
+      "generic": "Une erreur est survenue",
+      "invalidCredentials": "Adresse e-mail ou mot de passe incorrect.",
+      "rateLimited": "Trop de tentatives. Veuillez réessayer plus tard.",
+      "unavailable": "La connexion est temporairement indisponible. Veuillez réessayer plus tard."
     }
   },
   "pricing": {

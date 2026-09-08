@@ -730,10 +730,17 @@ html.light ::selection {
    * and jump straight to <main> (WCAG 2.4.1 Bypass Blocks). */
   .skip-link {
     position: absolute;
-    left: -9999px;
-    top: 8px;
+    inset-inline-start: 8px;
+    inset-block-start: 8px;
     z-index: 10000;
-    padding: 8px 16px;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
     background: #3B82F6;
     color: #0a0d14;
     text-decoration: none;
@@ -742,7 +749,16 @@ html.light ::selection {
   }
   .skip-link:focus,
   .skip-link:focus-visible {
-    left: 8px;
+    inset-inline-start: 8px;
+    inset-block-start: 8px;
+    width: auto;
+    height: auto;
+    padding: 8px 16px;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    white-space: normal;
   }
 }
 
@@ -1330,4 +1346,20 @@ html.light .bv-approval-item { background: rgba(15,23,42,0.02); }
   .bv-agentgrid  { grid-template-columns: repeat(2, 1fr); }
   .bv-approval-item { grid-template-columns: 28px 1fr; }
   .bv-approval-actions { grid-column: 1 / -1; justify-content: flex-end; }
+}
+
+/* Auth controls remain painted and decorative layers add no RTL scroll area
+   when motion is reduced. Mascot and other surfaces keep their own policies. */
+@media (prefers-reduced-motion: reduce) {
+  .bv-auth-entry .bv-rise,
+  .bv-auth-entry .bv-btn-primary {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .bv-auth-entry .bv-btn-primary::before {
+    content: none;
+    animation: none;
+    transform: none;
+  }
 }
