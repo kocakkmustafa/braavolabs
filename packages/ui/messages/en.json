@@ -1124,7 +1124,18 @@
   "static": {
     "common": {
       "back": "← Back",
-      "lastUpdated": "Last updated:"
+      "lastUpdated": "Last updated:",
+      "skipToMainContent": "Skip to main content",
+      "legalNavigation": {
+        "legal": "Legal",
+        "openApp": "Open app",
+        "privacy": "Privacy",
+        "terms": "Terms",
+        "cookies": "Cookies",
+        "accountDeletion": "Account deletion",
+        "onThisPage": "On this page",
+        "permalinkTo": "Permalink to {title}"
+      }
     },
     "blog": {
       "title": "Blog coming soon",

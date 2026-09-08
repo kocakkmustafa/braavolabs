@@ -1124,7 +1124,18 @@
   "static": {
     "common": {
       "back": "← رجوع",
-      "lastUpdated": "آخر تحديث:"
+      "lastUpdated": "آخر تحديث:",
+      "skipToMainContent": "انتقل إلى المحتوى الرئيسي",
+      "legalNavigation": {
+        "legal": "المعلومات القانونية",
+        "openApp": "فتح التطبيق",
+        "privacy": "الخصوصية",
+        "terms": "الشروط",
+        "cookies": "ملفات تعريف الارتباط",
+        "accountDeletion": "حذف الحساب",
+        "onThisPage": "في هذه الصفحة",
+        "permalinkTo": "رابط دائم إلى {title}"
+      }
     },
     "blog": {
       "title": "المدوّنة قريباً",

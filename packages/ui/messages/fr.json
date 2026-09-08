@@ -1124,7 +1124,18 @@
   "static": {
     "common": {
       "back": "← Retour",
-      "lastUpdated": "Dernière mise à jour :"
+      "lastUpdated": "Dernière mise à jour :",
+      "skipToMainContent": "Aller au contenu principal",
+      "legalNavigation": {
+        "legal": "Informations juridiques",
+        "openApp": "Ouvrir l’application",
+        "privacy": "Confidentialité",
+        "terms": "Conditions",
+        "cookies": "Cookies",
+        "accountDeletion": "Suppression du compte",
+        "onThisPage": "Sur cette page",
+        "permalinkTo": "Lien permanent vers {title}"
+      }
     },
     "blog": {
       "title": "Blog bientôt disponible",

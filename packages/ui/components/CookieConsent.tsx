@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 
 /**
  * Minimal KVKK/GDPR cookie consent banner.
@@ -92,13 +91,13 @@ const COPY: Record<Locale, {
         Braavolabs uses essential cookies for session and security. Optional
         anonymous analytics help us improve the product — no personal data is
         collected, IP addresses are redacted.{" "}
-        <Link href="/privacy" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
+        <a href="/privacy" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
           {privacyLabel}
-        </Link>
+        </a>
         {" · "}
-        <Link href="/cookies" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
+        <a href="/cookies" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
           Cookie Policy
-        </Link>
+        </a>
         .
       </>
     ),
@@ -114,17 +113,17 @@ const COPY: Record<Locale, {
         Braavolabs, oturum yönetimi ve servis güvenliği için zorunlu çerezler
         kullanır. İstersen anonim kullanım analitiğine de izin verebilirsin —
         kişisel veri toplamayız, IP'ler bile redact'lenir.{" "}
-        <Link href="/privacy" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
+        <a href="/privacy" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
           {privacyLabel}
-        </Link>
+        </a>
         {" · "}
-        <Link href="/cookies" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
+        <a href="/cookies" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
           Çerez Politikası
-        </Link>
+        </a>
         {" · "}
-        <Link href="/kvkk" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
+        <a href="/kvkk" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
           KVKK
-        </Link>
+        </a>
         .
       </>
     ),

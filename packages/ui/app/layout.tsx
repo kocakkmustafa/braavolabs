@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import AuthLayout from "./AuthLayout";
 import CookieConsent from "../components/CookieConsent";
+import SkipLink from "../components/SkipLink";
 import { ToastProvider } from "../components/Toast";
 import { surfaceForHost } from "../lib/surface-domain";
 import "./globals.css";
@@ -177,8 +178,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         )}
       </head>
       <body className="bg-background text-on-surface antialiased">
-        <a href="#main-content" className="skip-link">Skip to main content</a>
         <NextIntlClientProvider locale={locale} messages={providerMessages}>
+          <SkipLink />
           <ToastProvider>
             {content}
             <CookieConsent />

@@ -1,5 +1,7 @@
 import net from "node:net";
-import { expect, test, type APIResponse } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { expect, test, type APIResponse, type Page } from "@playwright/test";
 import { POSTS } from "../packages/ui/app/blog/posts";
 import { DOCS } from "../packages/ui/app/docs/content";
 import {
@@ -12,6 +14,186 @@ import {
 const WWW = { Host: "www.braavolabs.com", "X-Forwarded-Proto": "https" };
 const APP = { Host: "app.braavolabs.com", "X-Forwarded-Proto": "https" };
 const SELF_HOSTED = { Host: "operator.example", "X-Forwarded-Proto": "https" };
+const OPERATOR_UI = "http://operator.example:4311";
+
+async function expectLegalSkipTarget(page: Page, locale: string) {
+  const messages = JSON.parse(readFileSync(join(process.cwd(), "packages/ui/messages", `${locale}.json`), "utf8"));
+  const link = page.locator("a.skip-link");
+  await expect(link).toHaveCount(1);
+  await expect(link).toHaveAccessibleName(messages.static.common.skipToMainContent);
+  await expect(link).toHaveAttribute("href", "#main-content");
+  await page.keyboard.press("Tab");
+  await expect(link).toBeFocused();
+  await expect(link).toBeVisible();
+  const main = page.locator("main#main-content");
+  await expect(page.locator("#main-content")).toHaveCount(1);
+  await expect(main).toHaveAttribute("tabindex", "-1");
+  await page.keyboard.press("Enter");
+  await expect(main).toBeFocused();
+  await expect(page).toHaveURL(/#main-content$/);
+  await expect(main.locator("h2").first()).toBeAttached();
+}
+
+async function expectLegalChrome(page: Page, locale: string, path: string) {
+  const messages = JSON.parse(readFileSync(join(process.cwd(), "packages/ui/messages", `${locale}.json`), "utf8"));
+  const copy = messages.static.common.legalNavigation;
+  await page.setViewportSize({ width: 1110, height: 718 });
+  const header = page.locator("header");
+  const main = page.locator("main#main-content");
+  if (path === "/kvkk") {
+    await expect(header.getByText(copy.legal, { exact: true })).toBeVisible();
+  } else {
+    // Icon-font text participates in getByText: the full DOM text is
+    // "gavel" + label. Keep exact copy validation on the non-icon text.
+    const eyebrow = header.locator("span.material-symbols-outlined").filter({ hasText: /^gavel$/ }).locator("..");
+    await expect(eyebrow).toHaveCount(1);
+    await expect(eyebrow).toBeVisible();
+    await expect.poll(() => eyebrow.evaluate((node) => Array.from(node.childNodes)
+      .filter((child) => child.nodeType === Node.TEXT_NODE)
+      .map((child) => child.textContent).join("").trim())).toBe(copy.legal);
+  }
+  await expect(page.getByRole("link", { name: copy.openApp, exact: true })).toHaveAttribute("href", "https://app.braavolabs.com");
+  for (const [href, label] of [
+    ["/privacy", copy.privacy], ["/terms", copy.terms], ["/cookies", copy.cookies],
+    ["/gdpr", "GDPR"], ["/kvkk", "KVKK"], ["/legal/account-deletion", copy.accountDeletion],
+  ]) {
+    await expect(header.getByRole("link", { name: label, exact: true })).toHaveAttribute("href", href);
+  }
+  await expect(main.getByText(copy.onThisPage, { exact: true })).toBeVisible();
+  if (path !== "/kvkk") await expect(main.getByRole("navigation", { name: copy.onThisPage, exact: true })).toBeVisible();
+  const title = path === "/kvkk" ? "Veri Sorumlusu" : messages.static.legal[path.slice(1)].sections[0].title;
+  await expect(main.locator("h2 a").first()).toHaveAccessibleName(copy.permalinkTo.replace("{title}", title));
+  if (path === "/kvkk") {
+    const footer = page.locator("footer + div");
+    await expect(footer.getByText(copy.legal, { exact: true })).toBeVisible();
+    for (const key of ["privacy", "terms"]) {
+      await expect(footer.getByRole("link", { name: copy[key], exact: true })).toHaveAttribute("href", `/${key}`);
+    }
+  }
+
+  // Long translations must fit the existing CTA/tab geometry. Do not relax
+  // the assertions or change CSS in this translation-only patch.
+  const labels = page.locator('header a, a[href="https://app.braavolabs.com"]');
+  await expect(labels).toHaveCount(7);
+  for (const width of [1110, 390]) {
+    await page.setViewportSize({ width, height: 718 });
+    for (const label of await labels.all()) await expect(label).toBeVisible();
+    const geometry = await labels.evaluateAll((nodes) => ({
+      viewport: innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      bodyWidth: document.body.scrollWidth,
+      labels: nodes.map((node) => {
+        const box = node.getBoundingClientRect();
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        const text = range.getBoundingClientRect();
+        return {
+          label: node.textContent, left: box.left, right: box.right, top: box.top, bottom: box.bottom,
+          clientWidth: node.clientWidth, scrollWidth: node.scrollWidth,
+          text: { left: text.left, right: text.right, top: text.top, bottom: text.bottom },
+        };
+      }),
+    }));
+    expect(geometry.documentWidth, JSON.stringify(geometry)).toBeLessThanOrEqual(width + 1);
+    expect(geometry.bodyWidth, JSON.stringify(geometry)).toBeLessThanOrEqual(width + 1);
+    for (const label of geometry.labels) {
+      expect(label.left, JSON.stringify(label)).toBeGreaterThanOrEqual(-1);
+      expect(label.right, JSON.stringify(label)).toBeLessThanOrEqual(width + 1);
+      expect(label.scrollWidth, JSON.stringify(label)).toBeLessThanOrEqual(label.clientWidth + 1);
+      expect(label.text.left, JSON.stringify(label)).toBeGreaterThanOrEqual(label.left - 1);
+      expect(label.text.right, JSON.stringify(label)).toBeLessThanOrEqual(label.right + 1);
+      expect(label.text.top, JSON.stringify(label)).toBeGreaterThanOrEqual(label.top - 1);
+      expect(label.text.bottom, JSON.stringify(label)).toBeLessThanOrEqual(label.bottom + 1);
+    }
+  }
+}
+
+// These contexts deliberately do NOT inherit auth-entry's stored-consent
+// fixture. Exercise the real mounted anonymous banner, never real accounts.
+for (const { locale, path, label } of [
+  { locale: "en", path: "/privacy", label: "Privacy Policy" },
+  { locale: "en", path: "/cookies", label: "Cookie Policy" },
+  { locale: "tr", path: "/privacy", label: "Gizlilik Politikası" },
+  { locale: "tr", path: "/cookies", label: "Çerez Politikası" },
+  { locale: "tr", path: "/kvkk", label: "KVKK" },
+]) {
+  test(`anonymous consent ${locale} ${path}: native document navigation and real skip target`, async ({ browser, request }) => {
+    // HTTP redirect identity is independent from the browser's operator host.
+    const redirect = await request.get(path, { headers: APP, maxRedirects: 0 });
+    expect(redirect.status()).toBe(308);
+    expect(redirect.headers().location).toBe(`https://www.braavolabs.com${path}`);
+    const document = await request.get(path, { headers: { ...WWW, "Accept-Language": locale }, maxRedirects: 0 });
+    expect(document.status()).toBe(200);
+    expect(document.headers()["content-type"]).toContain("text/html");
+    const html = await document.text();
+    expect((html.match(/<main\b[^>]*id="main-content"[^>]*tabindex="-1"/g) ?? []).length).toBe(1);
+
+    const context = await browser.newContext({ locale, extraHTTPHeaders: { "X-Forwarded-Proto": "https" } });
+    try {
+      await context.route(/\/api\/v1\/auth\//, (route) => route.abort());
+      const page = await context.newPage();
+      const legalRscRequests: string[] = [];
+      const prefetchErrors: string[] = [];
+      let onAuthDocument = true;
+      page.on("request", (request) => {
+        const url = new URL(request.url());
+        if (url.pathname !== path) return;
+        if (request.isNavigationRequest() && request.resourceType() === "document") onAuthDocument = false;
+        if (onAuthDocument && (request.headers().rsc || url.searchParams.has("_rsc"))) legalRscRequests.push(request.url());
+      });
+      page.on("console", (message) => {
+        if (onAuthDocument && /Failed to fetch RSC payload/.test(message.text())) prefetchErrors.push(message.text());
+      });
+      await page.goto(`${OPERATOR_UI}/login`);
+      expect(await page.evaluate(() => localStorage.getItem("cookie_consent"))).toBeNull();
+      const banner = page.getByRole("dialog", { name: locale === "tr" ? "Çerezler hakkında" : "Cookies & privacy" });
+      await expect(banner).toBeVisible();
+      await expect(banner).toHaveAttribute("lang", locale);
+      const link = banner.getByRole("link", { name: label, exact: true });
+      await expect(link).toHaveAttribute("href", path);
+      await link.hover();
+      const [navigation] = await Promise.all([
+        page.waitForRequest((request) => request.isNavigationRequest() && request.resourceType() === "document" && new URL(request.url()).pathname === path),
+        link.click(),
+      ]);
+      await page.waitForLoadState("domcontentloaded");
+      expect(navigation.headers().rsc).toBeUndefined();
+      expect(legalRscRequests).toEqual([]);
+      expect(prefetchErrors).toEqual([]);
+      await expect(page).toHaveURL(`${OPERATOR_UI}${path}`);
+      await expect(page.locator("html")).toHaveAttribute("lang", locale);
+      expect(await page.evaluate(() => localStorage.getItem("cookie_consent"))).toBeNull();
+      await expectLegalSkipTarget(page, locale);
+      await expectLegalChrome(page, locale, path);
+    } finally {
+      await context.close();
+    }
+  });
+}
+
+// Five EN/TR combinations already reach the same assertions via the actual
+// consent links above. Keep the three Arabic cases and add only ten missing
+// combinations, yielding all 18 locale/path pairs without runtime skips.
+for (const { locale, path } of [
+  ...["/privacy", "/cookies", "/kvkk"].map((path) => ({ locale: "ar", path })),
+  { locale: "en", path: "/kvkk" },
+  ...["es", "de", "fr"].flatMap((locale) => ["/privacy", "/cookies", "/kvkk"].map((path) => ({ locale, path }))),
+]) {
+  const label = locale === "ar" ? "anonymous Arabic" : `anonymous legal ${locale}`;
+  test(`${label} ${path}: first keyboard stop reaches actual legal main`, async ({ browser }) => {
+    const context = await browser.newContext({ locale, extraHTTPHeaders: { "X-Forwarded-Proto": "https" } });
+    try {
+      const page = await context.newPage();
+      await page.goto(`${OPERATOR_UI}${path}`);
+      await expect(page.locator("html")).toHaveAttribute("lang", locale);
+      await expect(page.locator("html")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
+      await expectLegalSkipTarget(page, locale);
+      await expectLegalChrome(page, locale, path);
+    } finally {
+      await context.close();
+    }
+  });
+}
 const FORBIDDEN_SELF_HOSTED_IPS = [
   "0.0.0.0",
   "10.0.0.1",
