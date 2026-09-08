@@ -1124,7 +1124,18 @@
   "static": {
     "common": {
       "back": "← Geri",
-      "lastUpdated": "Son güncelleme:"
+      "lastUpdated": "Son güncelleme:",
+      "skipToMainContent": "Ana içeriğe geç",
+      "legalNavigation": {
+        "legal": "Yasal",
+        "openApp": "Uygulamayı aç",
+        "privacy": "Gizlilik",
+        "terms": "Şartlar",
+        "cookies": "Çerezler",
+        "accountDeletion": "Hesap silme",
+        "onThisPage": "Bu sayfada",
+        "permalinkTo": "{title} bölümüne kalıcı bağlantı"
+      }
     },
     "blog": {
       "title": "Blog yakında",

@@ -47,12 +47,12 @@ const SECTIONS = [
 ];
 
 const DOC_LINKS = [
-  { href: "/privacy", label: "Privacy" },
-  { href: "/terms", label: "Terms" },
-  { href: "/cookies", label: "Cookies" },
+  { href: "/privacy", labelKey: "privacy" },
+  { href: "/terms", labelKey: "terms" },
+  { href: "/cookies", labelKey: "cookies" },
   { href: "/gdpr", label: "GDPR" },
   { href: "/kvkk", label: "KVKK", active: true },
-  { href: "/legal/account-deletion", label: "Account Deletion" },
+  { href: "/legal/account-deletion", labelKey: "accountDeletion" },
 ];
 
 export default function KvkkPage() {
@@ -82,7 +82,7 @@ export default function KvkkPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm">Sign in</Link>
-            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm">Open app</a>
+            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm bv-legal-cta">{t("static.common.legalNavigation.openApp")}</a>
           </div>
         </div>
       </nav>
@@ -100,7 +100,7 @@ export default function KvkkPage() {
         <div className="relative max-w-[1100px] mx-auto px-6">
           {/* Eyebrow */}
           <div className="flex items-center justify-center gap-2 mb-4">
-            <span className="bv-micro">Legal</span>
+            <span className="bv-micro">{t("static.common.legalNavigation.legal")}</span>
           </div>
           <h1 className="bv-display text-on-surface" style={{ fontSize: "clamp(2rem, 5vw, 3.75rem)", textTransform: "uppercase", letterSpacing: "-0.02em" }}>
             KVKK
@@ -115,7 +115,7 @@ export default function KvkkPage() {
                 href={d.href}
                 className={`bv-fpill${d.active ? " active" : ""}`}
               >
-                {d.label}
+                {d.labelKey ? t(`static.common.legalNavigation.${d.labelKey}`) : d.label}
               </Link>
             ))}
           </div>
@@ -123,11 +123,11 @@ export default function KvkkPage() {
       </header>
 
       {/* ── Article grid: TOC + prose ───────────────────────── */}
-      <div className="max-w-[1040px] mx-auto px-6 md:px-8 mt-10 pb-28 grid grid-cols-1 md:grid-cols-[220px_1fr] gap-12">
+      <main id="main-content" tabIndex={-1} className="max-w-[1040px] mx-auto px-6 md:px-8 mt-10 pb-28 grid grid-cols-1 md:grid-cols-[220px_1fr] gap-12">
         {/* TOC — hidden on mobile */}
         <aside className="hidden md:block">
           <nav className="sticky top-20 space-y-0.5">
-            <p className="bv-micro mb-3">On this page</p>
+            <p className="bv-micro mb-3">{t("static.common.legalNavigation.onThisPage")}</p>
             {SECTIONS.map((s) => (
               <a
                 key={s.id}
@@ -171,7 +171,7 @@ export default function KvkkPage() {
                 <a
                   href={`#${section.id}`}
                   className="opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity text-primary text-sm font-normal"
-                  aria-label={`Link to ${section.title}`}
+                  aria-label={t("static.common.legalNavigation.permalinkTo", { title: section.title })}
                 >
                   ¶
                 </a>
@@ -205,7 +205,7 @@ export default function KvkkPage() {
             </div>
           </div>
         </article>
-      </div>
+      </main>
 
       {/* ── Footer ──────────────────────────────────────────── */}
       <footer className="bv-divider" />
@@ -234,10 +234,10 @@ export default function KvkkPage() {
           </div>
         </div>
         <div>
-          <p className="bv-micro mb-3">Legal</p>
+          <p className="bv-micro mb-3">{t("static.common.legalNavigation.legal")}</p>
           <div className="space-y-2 text-sm text-on-surface-variant">
-            <Link href="/privacy" className="block hover:text-on-surface transition-colors">Privacy</Link>
-            <Link href="/terms" className="block hover:text-on-surface transition-colors">Terms</Link>
+            <Link href="/privacy" className="block hover:text-on-surface transition-colors">{t("static.common.legalNavigation.privacy")}</Link>
+            <Link href="/terms" className="block hover:text-on-surface transition-colors">{t("static.common.legalNavigation.terms")}</Link>
             <Link href="/kvkk" className="block text-primary">KVKK</Link>
             <Link href="/gdpr" className="block hover:text-on-surface transition-colors">GDPR</Link>
           </div>

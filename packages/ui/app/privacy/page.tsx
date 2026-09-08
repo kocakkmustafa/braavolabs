@@ -38,9 +38,8 @@ export default function PrivacyPage() {
     >
       {/* ── Nav ── */}
       <nav
-        className="sticky top-0 z-50 flex items-center justify-between px-6 md:px-10"
+        className="sticky top-0 z-50 flex items-center justify-between px-6 md:px-10 bv-privacy-nav"
         style={{
-          height: "64px",
           background: "rgba(6,7,10,0.85)",
           backdropFilter: "blur(20px) saturate(1.1)",
           WebkitBackdropFilter: "blur(20px) saturate(1.1)",
@@ -62,13 +61,13 @@ export default function PrivacyPage() {
           </span>
         </a>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 bv-privacy-nav-actions">
           <a href="/" className="bv-btn bv-btn-ghost bv-btn-sm no-underline">
             <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_back</span>
             {t("static.common.back")}
           </a>
-          <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm no-underline">
-            Open app
+          <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm no-underline bv-legal-cta">
+            {t("static.common.legalNavigation.openApp")}
           </a>
         </div>
       </nav>
@@ -98,11 +97,11 @@ export default function PrivacyPage() {
             style={{ display: "inline-flex", marginBottom: 16, letterSpacing: "0.12em" }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 12 }}>gavel</span>
-            Legal
+            {t("static.common.legalNavigation.legal")}
           </div>
 
           <h1
-            className="bv-grad-text"
+            className="bv-grad-text bv-privacy-title"
             style={{
               fontFamily: "var(--bv-font-display)",
               fontSize: "clamp(34px,5vw,60px)",
@@ -134,12 +133,12 @@ export default function PrivacyPage() {
             }}
           >
             {[
-              { key: "privacy", label: "Privacy", href: "/privacy" },
-              { key: "terms", label: "Terms", href: "/terms" },
-              { key: "cookies", label: "Cookies", href: "/cookies" },
+              { key: "privacy", label: t("static.common.legalNavigation.privacy"), href: "/privacy" },
+              { key: "terms", label: t("static.common.legalNavigation.terms"), href: "/terms" },
+              { key: "cookies", label: t("static.common.legalNavigation.cookies"), href: "/cookies" },
               { key: "gdpr", label: "GDPR", href: "/gdpr" },
               { key: "kvkk", label: "KVKK", href: "/kvkk" },
-              { key: "account-deletion", label: "Account deletion", href: "/legal/account-deletion" },
+              { key: "account-deletion", label: t("static.common.legalNavigation.accountDeletion"), href: "/legal/account-deletion" },
             ].map((doc) => (
               <a
                 key={doc.key}
@@ -155,7 +154,9 @@ export default function PrivacyPage() {
       </header>
 
       {/* ── Two-column legal layout ── */}
-      <div
+      <main
+        id="main-content"
+        tabIndex={-1}
         style={{
           display: "grid",
           gridTemplateColumns: "230px 1fr",
@@ -168,7 +169,7 @@ export default function PrivacyPage() {
       >
         {/* Sticky TOC */}
         <nav
-          aria-label="On this page"
+          aria-label={t("static.common.legalNavigation.onThisPage")}
           style={{
             position: "sticky",
             top: 84,
@@ -179,7 +180,7 @@ export default function PrivacyPage() {
             className="bv-micro"
             style={{ marginBottom: 14 }}
           >
-            On this page
+            {t("static.common.legalNavigation.onThisPage")}
           </p>
           <div style={{ display: "flex", flexDirection: "column" }}>
             {sections.map((section) => {
@@ -237,7 +238,7 @@ export default function PrivacyPage() {
                   {section.title}
                   <a
                     href={`#${id}`}
-                    aria-label={`Permalink to ${section.title}`}
+                    aria-label={t("static.common.legalNavigation.permalinkTo", { title: section.title })}
                     className="section-anchor"
                     style={{
                       opacity: 0,
@@ -271,7 +272,7 @@ export default function PrivacyPage() {
             );
           })}
         </article>
-      </div>
+      </main>
 
       {/* Responsive: hide TOC on mobile */}
       <style>{`

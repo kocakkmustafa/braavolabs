@@ -1363,3 +1363,44 @@ html.light .bv-approval-item { background: rgba(15,23,42,0.02); }
     transform: none;
   }
 }
+
+/* Legal navigation keeps long labels visible without changing auth or other pages. */
+.bv-privacy-nav { height: 64px; }
+@media (max-width: 640px) {
+  .bv-privacy-nav {
+    height: auto;
+    min-height: 64px;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-block: 12px;
+  }
+  .bv-privacy-nav-actions {
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    margin-inline-start: auto;
+  }
+  .bv-privacy-title { overflow-wrap: anywhere; }
+}
+
+/* Move decorative paint, not the pseudo-element's box, including in RTL. */
+.bv-legal-cta.bv-btn-primary::before {
+  transform: none;
+  background-size: 300% 100%;
+  background-repeat: no-repeat;
+  background-position: 150% 0;
+  animation: bv-legal-sheen 8s ease-in-out infinite;
+}
+@keyframes bv-legal-sheen {
+  0%, 80% { background-position: 150% 0; }
+  90%, 100% { background-position: -50% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bv-legal-cta.bv-btn-primary { animation: none; }
+  .bv-legal-cta.bv-btn-primary::before {
+    content: none;
+    animation: none;
+    transform: none;
+  }
+}

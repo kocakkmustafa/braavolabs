@@ -125,7 +125,7 @@ export default function CookiesPage() {
               color: "#fff",
             }}
           >
-            Open app
+            {t("static.common.legalNavigation.openApp")}
           </a>
         </div>
       </nav>
@@ -168,7 +168,7 @@ export default function CookiesPage() {
             }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 12 }}>gavel</span>
-            Legal
+            {t("static.common.legalNavigation.legal")}
           </div>
 
           <h1
@@ -208,12 +208,12 @@ export default function CookiesPage() {
             }}
           >
             {[
-              { key: "privacy", label: "Privacy", href: "/privacy" },
-              { key: "terms", label: "Terms", href: "/terms" },
-              { key: "cookies", label: "Cookies", href: "/cookies" },
+              { key: "privacy", label: t("static.common.legalNavigation.privacy"), href: "/privacy" },
+              { key: "terms", label: t("static.common.legalNavigation.terms"), href: "/terms" },
+              { key: "cookies", label: t("static.common.legalNavigation.cookies"), href: "/cookies" },
               { key: "gdpr", label: "GDPR", href: "/gdpr" },
               { key: "kvkk", label: "KVKK", href: "/kvkk" },
-              { key: "account-deletion", label: "Account deletion", href: "/legal/account-deletion" },
+              { key: "account-deletion", label: t("static.common.legalNavigation.accountDeletion"), href: "/legal/account-deletion" },
             ].map((doc) => (
               <a
                 key={doc.key}
@@ -238,7 +238,9 @@ export default function CookiesPage() {
       </header>
 
       {/* ── Two-column legal layout ── */}
-      <div
+      <main
+        id="main-content"
+        tabIndex={-1}
         style={{
           display: "grid",
           gridTemplateColumns: "230px 1fr",
@@ -251,7 +253,7 @@ export default function CookiesPage() {
       >
         {/* Sticky TOC */}
         <nav
-          aria-label="On this page"
+          aria-label={t("static.common.legalNavigation.onThisPage")}
           style={{
             position: "sticky",
             top: 84,
@@ -268,7 +270,7 @@ export default function CookiesPage() {
               marginBottom: 14,
             }}
           >
-            On this page
+            {t("static.common.legalNavigation.onThisPage")}
           </p>
           <div style={{ display: "flex", flexDirection: "column" }}>
             {allTocSections.map(({ id, title }) => {
@@ -325,7 +327,7 @@ export default function CookiesPage() {
                   {section.title}
                   <a
                     href={`#${id}`}
-                    aria-label={`Permalink to ${section.title}`}
+                    aria-label={t("static.common.legalNavigation.permalinkTo", { title: section.title })}
                     className="section-anchor"
                     style={{
                       opacity: 0,
@@ -444,7 +446,7 @@ export default function CookiesPage() {
             )}
           </div>
         </article>
-      </div>
+      </main>
 
       {/* Responsive: hide TOC on mobile */}
       <style>{`

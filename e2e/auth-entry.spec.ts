@@ -49,9 +49,10 @@ async function expectUnclipped(page: Page) {
   expect(clipped).toEqual([]);
 }
 
-async function expectKeyboardSkipLink(page: Page) {
+async function expectKeyboardSkipLink(page: Page, locale: string) {
   const skipLink = page.locator("a.skip-link");
   await expect(skipLink).toHaveCount(1);
+  await expect(skipLink).toHaveAccessibleName(messagesFor(locale).static.common.skipToMainContent);
   // Start from a fresh navigation: this must be the first keyboard stop.
   await page.keyboard.press("Tab");
   await expect(skipLink).toBeFocused();
@@ -121,7 +122,7 @@ for (const [index, locale] of LOCALES.entries()) {
       for (const mode of ["login", "register"]) {
         const url = `${UI}/login${mode === "register" ? "?tab=register" : ""}`;
         await page.goto(url);
-        await expectKeyboardSkipLink(page);
+        await expectKeyboardSkipLink(page, locale);
         // Keep anonymous screenshots free of the focus/fragment check above.
         await page.goto(url);
         // Removing only a fragment can be a same-document navigation.
@@ -156,6 +157,7 @@ for (const [index, locale] of LOCALES.entries()) {
           const sourcePaths = [
             "packages/ui/app/login/page.tsx", "packages/ui/app/login/layout.tsx",
             "packages/ui/app/AuthLayout.tsx",
+            "packages/ui/app/layout.tsx", "packages/ui/components/SkipLink.tsx",
             "packages/ui/app/globals.css", "packages/ui/lib/api.ts",
             "packages/ui/lib/auth-errors.ts", `packages/ui/messages/${locale}.json`,
           ];
@@ -226,10 +228,16 @@ for (const [index, locale] of LOCALES.entries()) {
     await expect(reset.getByRole("textbox", { name: messages.auth.fields.email, exact: true })).toBeVisible();
     await reset.getByRole("button", { name: messages.auth.forgot.backToLogin, exact: true }).click();
     await expect(reset).toHaveCount(0);
-    const nextLocale = LOCALES[(index + 1) % LOCALES.length];
-    await page.getByRole("combobox").selectOption(nextLocale);
+    const nextLocale = locale === "tr" ? "ar" : LOCALES[(index + 1) % LOCALES.length];
+    // The existing selector reloads the document; do not mask a stale label
+    // with a second test-driven reload or a same-URL wait that resolves early.
+    await Promise.all([
+      page.waitForEvent("domcontentloaded"),
+      page.getByRole("combobox").selectOption(nextLocale),
+    ]);
     await expect(page.locator("html")).toHaveAttribute("lang", nextLocale);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(messagesFor(nextLocale).auth.login.welcome);
+    await expectKeyboardSkipLink(page, nextLocale);
     expect((await context.cookies()).find((cookie) => cookie.name === "NEXT_LOCALE")?.value).toBe(nextLocale);
   });
 }
