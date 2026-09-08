@@ -722,6 +722,7 @@ for (const locale of LOCALES) {
       assert.equal(navOwnText(eyebrow), copy.legal);
       const openApp = navOne(nodes.filter((n) => n.type === "a" && n.props.href === "https://app.braavolabs.com"), "one existing app destination");
       assert.equal(navText(openApp.props.children).trim(), copy.openApp);
+      assert.ok(navClass(openApp, "bv-legal-cta") && navClass(openApp, "bv-btn-primary"), "actual app CTA owns stationary RTL decoration and reduced-motion scope");
       const pills = navElements(header, (n) => navClass(n, "bv-fpill"));
       assert.equal(pills.length, 6);
       assert.deepEqual(pills.map((n) => navText(n.props.children).trim()), navLabels(copy));

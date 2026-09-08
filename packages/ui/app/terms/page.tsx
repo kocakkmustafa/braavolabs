@@ -85,7 +85,7 @@ export default function TermsPage() {
             <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm">
               Sign in
             </a>
-            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm bv-sheen">
+            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm bv-sheen bv-legal-cta">
               {legal("openApp")}
             </a>
           </div>

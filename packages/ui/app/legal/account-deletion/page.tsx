@@ -201,7 +201,7 @@ export default function AccountDeletionPage() {
           </div>
           <div className="flex items-center gap-3">
             <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm text-sm">Sign in</a>
-            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm text-sm">{legal("openApp")}</a>
+            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm text-sm bv-legal-cta">{legal("openApp")}</a>
           </div>
         </div>
       </nav>

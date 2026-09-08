@@ -105,7 +105,7 @@ export default function GdprPage() {
             <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_back</span>
             {t("static.common.back")}
           </a>
-          <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm no-underline">
+          <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm no-underline bv-legal-cta">
             {legal("openApp")}
           </a>
         </div>
