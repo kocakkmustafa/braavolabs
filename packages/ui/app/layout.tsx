@@ -134,6 +134,13 @@ function publicMessagesForPath(messages: IntlMessages, pathname: string): IntlMe
     selected.changelog = staticMessages.changelog;
   }
 
+  if (pathname === "/terms" || pathname === "/legal/account-deletion") {
+    const nav = record(record(messages).nav);
+    selected.changelog = { title: record(staticMessages.changelog).title };
+    selected.contact = { title: record(staticMessages.contact).title };
+    return { static: selected, nav: { features: nav.features, pricing: nav.pricing, signIn: nav.signIn } } as IntlMessages;
+  }
+
   return { static: selected } as IntlMessages;
 }
 

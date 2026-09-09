@@ -1135,6 +1135,15 @@
         "accountDeletion": "Kontolöschung",
         "onThisPage": "Auf dieser Seite",
         "permalinkTo": "Permanenter Link zu {title}"
+      },
+      "legalPage": {
+        "about": "Über uns",
+        "blog": "Blog",
+        "product": "Produkt",
+        "company": "Unternehmen",
+        "tagline": "Steuere die KI-Agenten und Automatisierungen, die du bereits einsetzt.",
+        "rights": "Alle Rechte vorbehalten.",
+        "englishOnly": "Dieses Dokument ist derzeit auf Englisch verfügbar."
       }
     },
     "blog": {

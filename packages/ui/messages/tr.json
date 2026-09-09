@@ -1135,6 +1135,15 @@
         "accountDeletion": "Hesap silme",
         "onThisPage": "Bu sayfada",
         "permalinkTo": "{title} bölümüne kalıcı bağlantı"
+      },
+      "legalPage": {
+        "about": "Hakkımızda",
+        "blog": "Blog",
+        "product": "Ürün",
+        "company": "Şirket",
+        "tagline": "Zaten çalıştırdığınız yapay zekâ ajanlarını ve otomasyonları yönetin.",
+        "rights": "Tüm hakları saklıdır.",
+        "englishOnly": "Bu belge şu anda İngilizce olarak sunulmaktadır."
       }
     },
     "blog": {

@@ -50,6 +50,8 @@ export default function GdprPage() {
   const legal = useTranslations("static.common.legalNavigation");
   const locale = useLocale();
   const showBanner = locale !== "en";
+  const updatedMonth = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric", timeZone: "UTC" })
+    .format(new Date("2026-05-01T00:00:00Z"));
 
   const [activeSection, setActiveSection] = useState<string>("");
   const proseRef = useRef<HTMLDivElement>(null);
@@ -71,14 +73,14 @@ export default function GdprPage() {
 
   return (
     <div
-      className="min-h-screen bv-mesh"
+      className="min-h-screen bv-mesh [--bv-legal-offset:140px] lg:[--bv-legal-offset:90px]"
       style={{ fontFamily: "var(--bv-font-body)" }}
     >
       {/* ── Nav ── */}
       <nav
-        className="sticky top-0 z-50 flex items-center justify-between px-6 md:px-10"
+        className="sticky top-0 z-50 flex flex-wrap items-center justify-between gap-3 px-6 md:px-10 py-3"
         style={{
-          height: "64px",
+          minHeight: "64px",
           background: "rgba(6,7,10,0.85)",
           backdropFilter: "blur(20px) saturate(1.1)",
           WebkitBackdropFilter: "blur(20px) saturate(1.1)",
@@ -100,9 +102,8 @@ export default function GdprPage() {
           </span>
         </a>
 
-        <div className="flex items-center gap-3">
+        <div className="ms-auto flex flex-wrap items-center justify-end gap-3">
           <a href="/" className="bv-btn bv-btn-ghost bv-btn-sm no-underline">
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_back</span>
             {t("static.common.back")}
           </a>
           <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm no-underline bv-legal-cta">
@@ -159,6 +160,8 @@ export default function GdprPage() {
           </div>
 
           <h1
+            lang="en"
+            dir="ltr"
             className="bv-grad-text"
             style={{
               fontFamily: "var(--bv-font-display)",
@@ -176,7 +179,7 @@ export default function GdprPage() {
             className="bv-mono"
             style={{ color: "var(--color-outline)", marginTop: 12 }}
           >
-            {t("static.common.lastUpdated")} May 2026
+            {t("static.common.lastUpdated")}{" "}<time dateTime="2026-05">{updatedMonth}</time>
           </p>
 
           {/* Doc switcher pills */}
@@ -228,7 +231,7 @@ export default function GdprPage() {
           aria-label={legal("onThisPage")}
           style={{
             position: "sticky",
-            top: 84,
+            top: "var(--bv-legal-offset)",
             alignSelf: "start",
           }}
         >
@@ -238,7 +241,7 @@ export default function GdprPage() {
           >
             {legal("onThisPage")}
           </p>
-          <div style={{ display: "flex", flexDirection: "column" }}>
+          <div lang="en" dir="ltr" style={{ display: "flex", flexDirection: "column" }}>
             {sections.map((section) => {
               const id = slugify(section.title);
               const isActive = activeSection === id;
@@ -268,6 +271,8 @@ export default function GdprPage() {
 
         {/* Prose */}
         <article
+          lang="en"
+          dir="ltr"
           ref={proseRef}
           style={{ maxWidth: "72ch", paddingBottom: 0 }}
         >
@@ -285,7 +290,7 @@ export default function GdprPage() {
                     letterSpacing: "-0.01em",
                     color: "var(--color-on-surface)",
                     margin: "0 0 14px 0",
-                    scrollMarginTop: 90,
+                    scrollMarginTop: "var(--bv-legal-offset)",
                     display: "flex",
                     alignItems: "center",
                     gap: 10,
@@ -295,6 +300,8 @@ export default function GdprPage() {
                   <a
                     href={`#${id}`}
                     aria-label={legal("permalinkTo", { title: section.title })}
+                    lang={locale}
+                    dir={locale === "ar" ? "rtl" : "ltr"}
                     className="section-anchor"
                     style={{
                       opacity: 0,

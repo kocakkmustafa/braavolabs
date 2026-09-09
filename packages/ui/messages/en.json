@@ -1135,6 +1135,15 @@
         "accountDeletion": "Account deletion",
         "onThisPage": "On this page",
         "permalinkTo": "Permalink to {title}"
+      },
+      "legalPage": {
+        "about": "About",
+        "blog": "Blog",
+        "product": "Product",
+        "company": "Company",
+        "tagline": "Command the AI agents & automations you already run.",
+        "rights": "All rights reserved.",
+        "englishOnly": "This document is currently available in English."
       }
     },
     "blog": {

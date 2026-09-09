@@ -13,7 +13,7 @@
  * Linked from the marketing footer and listed in sitemap.ts.
  */
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 const sections = [
   {
@@ -182,25 +182,29 @@ const sections = [
 export default function AccountDeletionPage() {
   const t = useTranslations();
   const legal = useTranslations("static.common.legalNavigation");
+  const page = useTranslations("static.common.legalPage");
+  const locale = useLocale();
+  const updatedMonth = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric", timeZone: "UTC" })
+    .format(new Date("2026-05-01T00:00:00Z"));
 
   return (
-    <div className="min-h-screen bg-background bv-mesh">
+    <div className="min-h-screen bg-background bv-mesh [--bv-legal-offset:140px] lg:[--bv-legal-offset:90px]">
       {/* ── Nav ── */}
       <nav className="sticky top-0 z-40 border-b border-outline-variant bg-surface/80 backdrop-blur-xl">
-        <div className="max-w-[1100px] mx-auto flex items-center justify-between px-6 md:px-10 h-14">
+        <div className="max-w-[1100px] mx-auto flex flex-wrap items-center justify-between gap-3 px-6 md:px-10 min-h-14 py-3">
           <a href="/" className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center bv-btn-primary bv-btn">
               <span className="text-white font-bold text-xs leading-none">AI</span>
             </div>
             <span className="font-headline font-bold text-sm text-on-surface">Braavolabs</span>
           </a>
-          <div className="hidden md:flex items-center gap-6">
-            <a href="/features" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">Features</a>
-            <a href="/pricing" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">Pricing</a>
-            <a href="/about" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">About</a>
+          <div className="hidden md:flex md:order-3 lg:order-none md:w-full lg:w-auto flex-wrap items-center justify-center gap-x-6 gap-y-2">
+            <a href="/features" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{t("nav.features")}</a>
+            <a href="/pricing" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{t("nav.pricing")}</a>
+            <a href="/about" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{page("about")}</a>
           </div>
-          <div className="flex items-center gap-3">
-            <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm text-sm">Sign in</a>
+          <div className="ms-auto flex flex-wrap items-center justify-end gap-3">
+            <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm text-sm">{t("nav.signIn")}</a>
             <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm text-sm bv-legal-cta">{legal("openApp")}</a>
           </div>
         </div>
@@ -218,6 +222,11 @@ export default function AccountDeletionPage() {
         </div>
 
         <div className="relative max-w-[1100px] mx-auto px-6">
+          {locale !== "en" && (
+            <div className="bv-panel inline-flex mb-5 px-4 py-2.5 text-xs text-on-surface-variant">
+              {page("englishOnly")}
+            </div>
+          )}
           {/* Eyebrow */}
           <div className="flex items-center justify-center gap-2 mb-4">
             <span className="bv-pill bv-pill-cyan">
@@ -226,10 +235,10 @@ export default function AccountDeletionPage() {
             </span>
           </div>
 
-          <h1 className="font-headline font-semibold uppercase tracking-tight text-on-surface text-[clamp(34px,5vw,60px)] leading-[1.05] mb-3">
+          <h1 lang="en" dir="ltr" className="font-headline font-semibold uppercase tracking-tight text-on-surface text-[clamp(34px,5vw,60px)] leading-[1.05] mb-3">
             Account &amp; Data Deletion
           </h1>
-          <p className="bv-mono text-outline mt-3">Last updated: May 2026</p>
+          <p className="bv-mono text-outline mt-3">{t("static.common.lastUpdated")}{" "}<time dateTime="2026-05">{updatedMonth}</time></p>
 
           {/* Doc switcher */}
           <div className="flex flex-wrap justify-center gap-2 mt-6">
@@ -257,9 +266,9 @@ export default function AccountDeletionPage() {
       <div className="max-w-[1040px] mx-auto px-6 md:px-8 mt-10 mb-24 grid grid-cols-1 md:grid-cols-[230px_1fr] gap-12">
 
         {/* Sticky TOC (desktop) */}
-        <nav className="hidden md:block sticky top-[72px] self-start" aria-label={legal("onThisPage")}>
+        <nav className="hidden md:block sticky self-start" style={{ top: "var(--bv-legal-offset)" }} aria-label={legal("onThisPage")}>
           <p className="bv-micro mb-[14px]">{legal("onThisPage")}</p>
-          <div className="flex flex-col">
+          <div lang="en" dir="ltr" className="flex flex-col">
             {sections.map((s) => (
               <a
                 key={s.id}
@@ -273,9 +282,9 @@ export default function AccountDeletionPage() {
         </nav>
 
         {/* Prose */}
-        <article className="max-w-[72ch] pb-24 bv-stagger">
+        <article lang="en" dir="ltr" className="max-w-[72ch] pb-24 bv-stagger">
           {sections.map((s) => (
-            <section key={s.id} id={s.id} className="mb-0 scroll-mt-[90px]">
+            <section key={s.id} id={s.id} className="mb-0" style={{ scrollMarginTop: "var(--bv-legal-offset)" }}>
               {/* Section divider (skip first) */}
               <div className="bv-divider my-9 first:hidden" />
 
@@ -291,6 +300,8 @@ export default function AccountDeletionPage() {
                   href={`#${s.id}`}
                   className="opacity-0 group-hover:opacity-100 text-[15px] text-primary no-underline transition-opacity"
                   aria-label={legal("permalinkTo", { title: s.title })}
+                  lang={locale}
+                  dir={locale === "ar" ? "rtl" : "ltr"}
                 >
                   ¶
                 </a>
@@ -333,23 +344,23 @@ export default function AccountDeletionPage() {
                 <span className="font-headline font-bold text-sm text-on-surface">Braavolabs</span>
               </a>
               <p className="text-sm text-on-surface-variant leading-relaxed">
-                Command the AI agents &amp; automations you already run.
+                {page("tagline")}
               </p>
             </div>
             <div>
-              <h5 className="bv-micro mb-3">Product</h5>
+              <h5 className="bv-micro mb-3">{page("product")}</h5>
               <div className="flex flex-col gap-2">
-                <a href="/features" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">Features</a>
-                <a href="/pricing" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">Pricing</a>
-                <a href="/changelog" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">Changelog</a>
+                <a href="/features" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{t("nav.features")}</a>
+                <a href="/pricing" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{t("nav.pricing")}</a>
+                <a href="/changelog" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{t("static.changelog.title")}</a>
               </div>
             </div>
             <div>
-              <h5 className="bv-micro mb-3">Company</h5>
+              <h5 className="bv-micro mb-3">{page("company")}</h5>
               <div className="flex flex-col gap-2">
-                <a href="/about" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">About</a>
-                <a href="/blog" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">Blog</a>
-                <a href="/contact" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">Contact</a>
+                <a href="/about" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{page("about")}</a>
+                <a href="/blog" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{page("blog")}</a>
+                <a href="/contact" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{t("static.contact.title")}</a>
               </div>
             </div>
             <div>
@@ -364,7 +375,7 @@ export default function AccountDeletionPage() {
           </div>
           <div className="bv-divider" />
           <p className="text-sm text-outline mt-6 text-center">
-            &copy; {new Date().getFullYear()} Braavolabs. All rights reserved.
+            &copy; {new Date().getFullYear()} Braavolabs. {page("rights")}
           </p>
         </div>
       </footer>

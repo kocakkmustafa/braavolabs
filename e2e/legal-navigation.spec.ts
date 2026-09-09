@@ -9,7 +9,7 @@ const DELETION = "/legal/account-deletion";
 const LOCALES = ["en", "tr", "es", "de", "fr", "ar"] as const;
 const PATHS = ["/terms", "/gdpr", DELETION];
 const HREFS = ["/privacy", "/terms", "/cookies", "/gdpr", "/kvkk", DELETION];
-const WIDTHS = [390, 1110];
+const WIDTHS = [390, 768, 1110];
 const MOTIONS = ["reduce", "no-preference"] as const;
 type Copy = Record<"legal" | "openApp" | "privacy" | "terms" | "cookies" | "accountDeletion" | "onThisPage" | "permalinkTo", string>;
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -71,13 +71,44 @@ async function chrome(page: Page, locale: string, path: string, width: number) {
  await expect(openApp).toHaveCount(1);
  await expect(openApp).toHaveText(copy.openApp);
  await expect(openApp).toHaveAccessibleName(copy.openApp);
+ const top = page.locator("nav").filter({has: openApp});
+ await expect(top).toHaveCount(1);
+ if (path === "/gdpr") {
+  const back = top.getByRole("link", {name: messages.static.common.back, exact: true});
+  await expect(back).toHaveCount(1);
+  await expect(back).toHaveAttribute("href", "/");
+  await expect(back).toHaveText(messages.static.common.back);
+  expect(((await back.textContent()) ?? "").match(/←/g)).toHaveLength(1);
+  await expect(top.locator(".material-symbols-outlined").filter({hasText: /^arrow_back$/})).toHaveCount(0);
+ } else {
+  const links = [["/features", messages.nav.features], ["/pricing", messages.nav.pricing], ["/about", messages.static.common.legalPage.about]];
+  if (path === "/terms") links.push(["/changelog", messages.static.changelog.title]);
+  for (const [href, label] of links) {
+   const link = top.locator(`a[href="${href}"]`);
+   await expect(link).toHaveCount(1);
+   await expect(link).toHaveText(label);
+   if (width >= 768) {
+    await expect(link).toBeVisible();
+    await expect(link).toHaveAccessibleName(label);
+   }
+   else await expect(link).toBeHidden();
+  }
+  const signIn = top.locator('a[href="https://app.braavolabs.com/login"]');
+  await expect(signIn).toHaveCount(1);
+  await expect(signIn).toBeVisible();
+  await expect(signIn).toHaveText(messages.nav.signIn);
+  await expect(signIn).toHaveAccessibleName(messages.nav.signIn);
+ }
  const title = path === "/terms" ? messages.static.legal.terms.title : path === "/gdpr" ? "GDPR Statement" : "Account & Data Deletion";
  await expect(header.locator("h1")).toHaveText(title);
+ const date = header.locator("p.bv-mono");
+ await expect(date).toHaveText(messages.static.common.lastUpdated + " " + (path === "/terms" ? messages.static.legal.terms.date
+  : new Intl.DateTimeFormat(locale, {month: "long", year: "numeric", timeZone: "UTC"}).format(new Date("2026-05-01T00:00:00Z"))));
  const toc = page.locator("nav[aria-label]");
  await expect(toc).toHaveCount(1);
  await expect(toc).toHaveAttribute("aria-label", copy.onThisPage);
  await expect(toc.locator("p.bv-micro")).toHaveText(copy.onThisPage);
- if (width === 1110) await expect(toc).toBeVisible();
+ if (width === 1110 || (width === 768 && path !== "/gdpr")) await expect(toc).toBeVisible();
  else await expect(toc).toBeHidden();
  const section = path === "/terms" ? messages.static.legal.terms.sections[0].title : path === "/gdpr" ? "Data Controller" : "Overview";
  const permalink = page.locator("article h2 a").first();
@@ -85,10 +116,28 @@ async function chrome(page: Page, locale: string, path: string, width: number) {
  await expect(permalink).toHaveAccessibleName(copy.permalinkTo.replace("{title}", section));
  expect(await permalink.getAttribute("href")).toBe(await toc.locator("a").first().getAttribute("href"));
  await expect(toc.locator("a").first()).toHaveText(section);
+ if (path !== "/terms") {
+  for (const owner of [header.locator("h1"), page.locator("article"), toc.locator('div[lang="en"]')]) {
+   await expect(owner).toHaveCount(1);
+   await expect(owner).toHaveAttribute("lang", "en");
+   await expect(owner).toHaveAttribute("dir", "ltr");
+   await expect(owner).toHaveCSS("direction", "ltr");
+  }
+  await expect(toc).not.toHaveAttribute("lang", "en");
+  await expect(permalink).toHaveAttribute("lang", locale);
+  await expect(permalink).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
+  await expect(date.locator("time")).toHaveAttribute("datetime", "2026-05");
+  expect(await header.locator("h1").evaluate((node) => node.textContent?.trim().toLocaleUpperCase(node.getAttribute("lang") ?? "en"))).toBe(title.toUpperCase());
+ }
+ if (path === DELETION) {
+  const banner = header.locator(".bv-panel");
+  await expect(banner).toHaveCount(locale === "en" ? 0 : 1);
+  if (locale !== "en") await expect(banner).toHaveText(messages.static.common.legalPage.englishOnly);
+ }
  await expect(page.locator("body")).not.toContainText(/static\.common\.legalNavigation\.|\{title\}/);
 }
-async function geometry(page: Page, controls: Locator) {
- await expect(controls).toHaveCount(7);
+async function geometry(page: Page, controls: Locator, expectedCount = 7) {
+ await expect(controls).toHaveCount(expectedCount);
  for (const control of await controls.all()) await expect(control).toBeVisible();
  await expect.poll(() => controls.evaluateAll((nodes) => nodes.flatMap((node) => {
   const hidden: string[] = [];
@@ -146,6 +195,52 @@ async function geometry(page: Page, controls: Locator) {
  }
  return g;
 }
+async function anchorProof(page: Page, path: string, width: number, documents: string[]) {
+ const start = page.url(), before = documents.length, toc = page.locator("nav[aria-label]");
+ const links = toc.locator("a"), middle = Math.floor(await links.count() / 2);
+ const visible = await toc.isVisible(), evidence: unknown[] = [];
+ for (const [index, via] of (visible ? [[middle, "toc"], [middle + 1, "permalink"]] : [[middle, "permalink"]]) as [number, string][]) {
+  const href = await links.nth(index).getAttribute("href");
+  expect(href).toMatch(/^#[a-z0-9]+(?:-[a-z0-9]+)*$/);
+  const target = page.locator(`[id="${href!.slice(1)}"]`);
+  await expect(target).toHaveCount(1);
+  const heading = path === DELETION ? target.locator("h2") : target;
+  if (via === "toc") await links.nth(index).click();
+  else { await heading.hover(); await heading.locator("a").click(); }
+  await expect(page).toHaveURL(start + href);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
+  const measure = () => target.evaluate((node, showToc) => {
+   const top = document.querySelector('nav:not([aria-label])')!;
+   const toc = document.querySelector("nav[aria-label]")!;
+   const rect = (el: Element) => {
+    const b = el.getBoundingClientRect(), hit = document.elementFromPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2);
+    return {top: b.top, bottom: b.bottom, hit: hit !== null && (hit === el || el.contains(hit))};
+   };
+   return {scrollY, offset: parseFloat(getComputedStyle(node).scrollMarginTop), top: rect(top), target: rect(node),
+    heading: rect(node.matches("h2") ? node : node.querySelector("h2")!),
+    toc: showToc ? {position: getComputedStyle(toc).position, ...rect(toc.querySelector("p")!)} : null,
+    controls: Array.from(top.querySelectorAll("a")).filter((a) => a.getClientRects().length > 0).map(rect)};
+  }, visible);
+  await expect.poll(async () => {
+   const previous = await measure();
+   await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
+   const s = await measure();
+   return Math.abs(s.scrollY - previous.scrollY) <= 1 && s.target.top >= s.top.bottom - 2 && s.heading.top >= s.top.bottom - 2 && s.heading.hit
+    && (!s.toc || s.toc.top >= s.top.bottom - 2 && s.toc.hit) && s.controls.every((c) => c.hit);
+  }).toBe(true);
+  const s = await measure();
+  expect(s.offset).toBe(width < 1024 ? 140 : 90);
+  expect(s.top.top).toBeGreaterThanOrEqual(-1);
+  expect(s.top.bottom).toBeLessThanOrEqual(s.offset);
+  if (s.toc) expect(s.toc.position).toBe("sticky");
+  evidence.push({via, href, ...s});
+ }
+ // Restore via real history navigation, without changing scroll or fragment in JavaScript.
+ for (let i = 0; i < evidence.length; i++) await page.goBack();
+ await expect(page).toHaveURL(start);
+ expect(documents.length).toBe(before);
+ return evidence;
+}
 async function termsJump(page: Page, locale: string, documents: string[]) {
  const copy: Copy = messagesFor(locale).static.common.legalNavigation;
  const before = documents.length;
@@ -186,7 +281,7 @@ async function termsJump(page: Page, locale: string, documents: string[]) {
 
 test.use({deviceScaleFactor: 1, serviceWorkers: "block"});
 for (const locale of LOCALES) for (const path of PATHS) {
- test(`legal navigation ${locale} ${path}: two widths, two motions, real document semantics`, async ({context, page}, testInfo) => {
+ test(`legal navigation ${locale} ${path}: three widths, two motions, real document semantics`, async ({context, page}, testInfo) => {
   const source = identity(locale);
   const blocked: string[] = [], rsc: string[] = [], rscErrors: string[] = [], documents: string[] = [];
   await context.route("**/*", (route) => {
@@ -221,7 +316,11 @@ for (const locale of LOCALES) for (const path of PATHS) {
     await expect(page).toHaveURL(UI + path);
     await chrome(page, locale, path, width);
     const controls = page.locator('header .bv-fpill, a[href="https://app.braavolabs.com"]');
-    const cell: {geometry: unknown; navigation?: unknown} = {geometry: await geometry(page, controls)};
+    const topControls = page.locator('nav:not([aria-label]) a:visible');
+    const topCount = path === "/gdpr" || width === 390 ? 3 : path === "/terms" ? 7 : 6;
+    const cell: {geometry: unknown; topGeometry: unknown; anchors?: unknown; navigation?: unknown} = {
+     geometry: await geometry(page, controls), topGeometry: await geometry(page, topControls, topCount),
+    };
     matrix[motion] = cell;
     if (motion === "reduce") {
      const name = `legal-nav-${locale}-${path.slice(1).replaceAll("/", "-")}-${width}-reduce`;
@@ -235,6 +334,7 @@ for (const locale of LOCALES) for (const path of PATHS) {
       browser: context.browser()?.version(), retry: testInfo.retry, pngSha256: sha(png),
       credentialSubmission: false, consentFixture: "essential-only"}});
     }
+    cell.anchors = await anchorProof(page, path, width, documents);
     if (path === "/terms") cell.navigation = await termsJump(page, locale, documents);
    }
   }
@@ -244,7 +344,7 @@ for (const locale of LOCALES) for (const path of PATHS) {
   expect(sourceHashes(locale)).toEqual(source.sources);
   expect(git("rev-parse", "HEAD")).toBe(source.sourceRevision);
   expect(buildId()).toBe(source.buildId);
-  expect(shots).toHaveLength(2);
+  expect(shots).toHaveLength(3);
   for (const shot of shots) {
    await testInfo.attach(shot.name + ".png", {body: shot.png, contentType: "image/png"});
    await testInfo.attach(shot.name + "-identity.json", {

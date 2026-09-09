@@ -1135,6 +1135,15 @@
         "accountDeletion": "Eliminación de la cuenta",
         "onThisPage": "En esta página",
         "permalinkTo": "Enlace permanente a {title}"
+      },
+      "legalPage": {
+        "about": "Acerca de",
+        "blog": "Blog",
+        "product": "Producto",
+        "company": "Empresa",
+        "tagline": "Dirige los agentes de IA y las automatizaciones que ya utilizas.",
+        "rights": "Todos los derechos reservados.",
+        "englishOnly": "Este documento está disponible actualmente en inglés."
       }
     },
     "blog": {
