@@ -74,11 +74,13 @@ async function chrome(page: Page, locale: string, path: string, width: number) {
  const top = page.locator("nav").filter({has: openApp});
  await expect(top).toHaveCount(1);
  if (path === "/gdpr") {
-  const back = top.getByRole("link", {name: messages.static.common.back, exact: true});
+  const backLabel = locale === "ar" ? "→ رجوع" : messages.static.common.back;
+  const back = top.locator('a.bv-btn-ghost[href="/"]');
   await expect(back).toHaveCount(1);
   await expect(back).toHaveAttribute("href", "/");
-  await expect(back).toHaveText(messages.static.common.back);
-  expect(((await back.textContent()) ?? "").match(/←/g)).toHaveLength(1);
+  await expect(back).toHaveText(backLabel);
+  await expect(back).toHaveAccessibleName(backLabel);
+  expect(((await back.textContent()) ?? "").match(/[←→]/g)).toEqual([locale === "ar" ? "→" : "←"]);
   await expect(top.locator(".material-symbols-outlined").filter({hasText: /^arrow_back$/})).toHaveCount(0);
  } else {
   const links = [["/features", messages.nav.features], ["/pricing", messages.nav.pricing], ["/about", messages.static.common.legalPage.about]];
@@ -128,6 +130,25 @@ async function chrome(page: Page, locale: string, path: string, width: number) {
   await expect(permalink).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
   await expect(date.locator("time")).toHaveAttribute("datetime", "2026-05");
   expect(await header.locator("h1").evaluate((node) => node.textContent?.trim().toLocaleUpperCase(node.getAttribute("lang") ?? "en"))).toBe(title.toUpperCase());
+ }
+ if (path === "/gdpr") {
+  const banner = header.locator(".bv-panel");
+  await expect(banner).toHaveCount(locale === "en" ? 0 : 1);
+  if (locale !== "en") {
+   await expect(banner).toContainText(messages.static.singleLocale.gdprBanner);
+   await expect(banner).toHaveCSS("display", "flex");
+   const noticeBox = await banner.boundingBox();
+   const badgeBox = await eyebrow.boundingBox();
+   const headerBox = await header.boundingBox();
+   expect(noticeBox).not.toBeNull();
+   expect(badgeBox).not.toBeNull();
+   expect(headerBox).not.toBeNull();
+   if (!noticeBox || !badgeBox || !headerBox) throw new Error("Missing GDPR header geometry");
+   expect(badgeBox.y).toBeGreaterThanOrEqual(noticeBox.y + noticeBox.height);
+   const center = headerBox.x + headerBox.width / 2;
+   expect(Math.abs(noticeBox.x + noticeBox.width / 2 - center)).toBeLessThanOrEqual(1);
+   expect(Math.abs(badgeBox.x + badgeBox.width / 2 - center)).toBeLessThanOrEqual(1);
+  }
  }
  if (path === DELETION) {
   const banner = header.locator(".bv-panel");

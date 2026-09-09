@@ -1387,7 +1387,7 @@
       "githubFailed": "Login con GitHub falló. Intenta con correo/contraseña.",
       "appleNotConfigured": "Apple Sign-In no está configurado en este servidor. Usa correo/contraseña.",
       "appleFailed": "Login con Apple falló. Intenta con correo/contraseña.",
-      "ssoToggle": "Usar SSO empresarial →",
+      "ssoToggle": "SSO empresarial — en desarrollo →",
       "ssoSlugPlaceholder": "slug del workspace",
       "ssoSubmit": "Continuar"
     },

@@ -1387,7 +1387,7 @@
       "githubFailed": "GitHub girişi başarısız. E-posta/şifre ile dene.",
       "appleNotConfigured": "Bu sunucuda Apple Sign-In yapılandırılmamış. E-posta/şifre kullan.",
       "appleFailed": "Apple Sign-In başarısız. E-posta/şifre ile dene.",
-      "ssoToggle": "Kurumsal SSO kullan →",
+      "ssoToggle": "Kurumsal SSO — geliştirme aşamasında →",
       "ssoSlugPlaceholder": "çalışma alanı slug'ı",
       "ssoSubmit": "Devam"
     },

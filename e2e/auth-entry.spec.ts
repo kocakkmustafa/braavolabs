@@ -28,7 +28,7 @@ async function expectUnclipped(page: Page) {
   for (const element of [documentGeometry.document, documentGeometry.body]) {
     expect(element.scrollWidth, JSON.stringify(documentGeometry)).toBeLessThanOrEqual(documentGeometry.viewportWidth + 1);
   }
-  const clipped = await page.locator("main input, main button, main select, main h1, main .bv-glass").evaluateAll((nodes) =>
+  const clipped = await page.locator("main input, main button, main select, main summary, main h1, main .bv-glass").evaluateAll((nodes) =>
     nodes.filter((node) => {
       const rect = node.getBoundingClientRect();
       return rect.width > 0 && rect.height > 0 &&
@@ -133,6 +133,10 @@ for (const [index, locale] of LOCALES.entries()) {
         await expect(page.getByLabel(messages.auth.fields.email, { exact: true })).toBeVisible();
         await expect(page.getByLabel(messages.auth.fields.password, { exact: true })).toBeVisible();
         await expect(page.getByRole("combobox")).toHaveValue(locale);
+        const ssoSummary = page.locator("main details summary");
+        await expect(ssoSummary).toHaveCount(1);
+        await expect(ssoSummary).toHaveText(messages.auth.oauth.ssoToggle);
+        await expect(ssoSummary).toBeVisible();
         await expect(page.getByText(mode === "login" ? messages.auth.login.newHere : messages.auth.register.hasAccount, { exact: false })).toBeVisible();
         await expect(page.locator("main")).not.toContainText(/3 free runs|Run fully|Remember me|Command the agents you already/);
         await expect(page.locator('input[type="checkbox"]')).toHaveCount(0);

@@ -1387,7 +1387,7 @@
       "githubFailed": "فشل تسجيل الدخول بـ GitHub. حاول بالبريد/كلمة المرور.",
       "appleNotConfigured": "Apple Sign-In غير مكوّن على هذا الخادم. استخدم البريد/كلمة المرور.",
       "appleFailed": "فشل تسجيل الدخول بـ Apple. حاول بالبريد/كلمة المرور.",
-      "ssoToggle": "استخدم SSO المؤسسة ←",
+      "ssoToggle": "SSO للمؤسسات — قيد التطوير ←",
       "ssoSlugPlaceholder": "slug مساحة العمل",
       "ssoSubmit": "متابعة"
     },

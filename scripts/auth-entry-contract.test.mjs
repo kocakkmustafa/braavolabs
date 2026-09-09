@@ -240,6 +240,28 @@ for (const locale of LOCALES) {
   });
 }
 
+const SSO_MATURITY_LABELS = {
+  en: "Organization SSO — in development →",
+  tr: "Kurumsal SSO — geliştirme aşamasında →",
+  es: "SSO empresarial — en desarrollo →",
+  de: "Organisations-SSO — in Entwicklung →",
+  fr: "SSO d’entreprise — en développement →",
+  ar: "SSO للمؤسسات — قيد التطوير ←",
+};
+
+for (const locale of LOCALES) {
+  for (const mode of ["login", "register"]) {
+    test(`${locale} ${mode}: rendered SSO entry discloses development status`, () => {
+      const { load } = fixture(locale, mode);
+      const html = renderToStaticMarkup(React.createElement(load("packages/ui/app/login/page.tsx").default));
+      const summaries = [...html.matchAll(/<summary\b[^>]*>([\s\S]*?)<\/summary>/g)];
+      assert.equal(summaries.length, 1, "the actual SSO disclosure must render once");
+      const expected = renderToStaticMarkup(React.createElement("span", null, SSO_MATURITY_LABELS[locale])).slice(6, -7);
+      assert.equal(summaries[0][1], expected);
+    });
+  }
+}
+
 test("login responsive and accessible error/reset contracts are explicit", () => {
   const page = read("packages/ui/app/login/page.tsx");
   assert.match(page, /grid-cols-1/);
@@ -771,7 +793,15 @@ for (const locale of LOCALES) {
       if (route === "gdpr") {
         const banners = navElements(header, (n) => navClass(n, "bv-panel"));
         assert.equal(banners.length, locale === "en" ? 0 : 1);
-        if (locale !== "en") assert.equal(navOwnText(banners[0]), messages.static.singleLocale.gdprBanner);
+        if (locale !== "en") {
+          assert.equal(navOwnText(banners[0]), messages.static.singleLocale.gdprBanner);
+          const style = banners[0].props.style;
+          assert.equal(style.display, "flex", "notice owns a block row separate from the legal badge");
+          assert.equal(style.width, "fit-content");
+          assert.equal(style.maxWidth, "100%");
+          assert.equal(style.margin, "0 auto 20px", "short translations are independently centered");
+          assert.notEqual(banners[0], eyebrow);
+        }
       }
 
       const toc = navOne(nodes.filter((n) => n.type === "nav" && n.props["aria-label"] !== undefined), "one actual labelled TOC");
@@ -830,9 +860,12 @@ for (const locale of LOCALES) {
       assert.deepEqual(Object.keys(providerMessages).sort(), route === "gdpr" ? ["static"] : ["nav", "static"]);
       if (route === "gdpr") {
         assert.deepEqual(Object.keys(providerMessages.static).sort(), ["common", "singleLocale"]);
-        const back = navOne(navElements(top, (n) => n.type === "a" && navText(n.props.children).trim() === common.back), "one translated back link, with no extra icon");
+        const back = navOne(navElements(top, (n) => n.type === "a" && n.props.href === "/" && navClass(n, "bv-btn-ghost")), "one translated back link, with no extra icon");
         assert.equal(back.props.href, "/");
-        assert.equal((navText(back).match(/←/g) ?? []).length, 1);
+        const direction = locale === "ar" ? "→" : "←";
+        assert.equal(navText(back).trim(), locale === "ar" ? "→ رجوع" : common.back);
+        assert.equal((navText(back).match(/[←→]/g) ?? []).length, 1);
+        assert.ok(navText(back).includes(direction));
         assert.equal(navElements(back, (n) => navText(n) === "arrow_back").length, 0);
       } else {
         assert.deepEqual(Object.keys(providerMessages.nav).sort(), ["features", "pricing", "signIn"]);

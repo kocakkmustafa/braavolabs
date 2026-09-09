@@ -49,6 +49,7 @@ export default function GdprPage() {
   const t = useTranslations();
   const legal = useTranslations("static.common.legalNavigation");
   const locale = useLocale();
+  const backLabel = t("static.common.back");
   const showBanner = locale !== "en";
   const updatedMonth = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric", timeZone: "UTC" })
     .format(new Date("2026-05-01T00:00:00Z"));
@@ -104,7 +105,7 @@ export default function GdprPage() {
 
         <div className="ms-auto flex flex-wrap items-center justify-end gap-3">
           <a href="/" className="bv-btn bv-btn-ghost bv-btn-sm no-underline">
-            {t("static.common.back")}
+            {locale === "ar" ? backLabel.replace(/^←/, "→") : backLabel}
           </a>
           <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm no-underline bv-legal-cta">
             {legal("openApp")}
@@ -136,8 +137,10 @@ export default function GdprPage() {
             <div
               className="bv-panel"
               style={{
-                display: "inline-flex",
-                marginBottom: 20,
+                display: "flex",
+                width: "fit-content",
+                maxWidth: "100%",
+                margin: "0 auto 20px",
                 padding: "10px 16px",
                 fontSize: 12,
                 color: "var(--color-on-surface-variant)",
