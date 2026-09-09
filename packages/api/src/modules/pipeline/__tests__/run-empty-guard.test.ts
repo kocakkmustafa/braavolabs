@@ -5,6 +5,8 @@
  * Asserts: steps=[] → 422, NO Run created, and claimQuota NOT called (quota is
  * not consumed by a run that can never execute). A non-empty pipeline still
  * reaches claimQuota (control).
+ * Native104: PAUSED/ARCHIVED companies reject new manual runs before any
+ * side effect; DRAFT/ACTIVE and disabled automatic triggers remain runnable.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Router } from "express";
@@ -81,6 +83,14 @@ async function invoke(handler: any, req: any) {
 }
 
 const handler = getHandler(pipelineRouter, "post", "/:id/run");
+const runnableSteps = [{ name: "s1", agentRole: "imported_operator", order: 0 }];
+
+function expectNoRunSideEffects() {
+  expect(claimQuotaMock).not.toHaveBeenCalled();
+  expect(runCreate).not.toHaveBeenCalled();
+  expect(activityLogCreate).not.toHaveBeenCalled();
+  expect(enqueueRunMock).not.toHaveBeenCalled();
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -95,7 +105,7 @@ describe("POST /:id/run — empty-steps guard", () => {
     pipelineFindUnique.mockResolvedValue({
       id: "pipe-1",
       steps: [],
-      company: { tenantId: "tenant-1" },
+      company: { tenantId: "tenant-1", status: "ACTIVE" },
     });
 
     const { res, nextErr } = await invoke(handler, { params: { id: "pipe-1" } });
@@ -103,16 +113,14 @@ describe("POST /:id/run — empty-steps guard", () => {
     expect(res.statusCode).toBe(200); // handler threw → next(err), res untouched
     expect(nextErr).toBeTruthy();
     expect(nextErr.statusCode).toBe(422);
-    expect(claimQuotaMock).not.toHaveBeenCalled();
-    expect(runCreate).not.toHaveBeenCalled();
-    expect(enqueueRunMock).not.toHaveBeenCalled();
+    expectNoRunSideEffects();
   });
 
   it("non-empty steps → proceeds to claimQuota and creates a Run (control)", async () => {
     pipelineFindUnique.mockResolvedValue({
       id: "pipe-1",
       steps: [{ name: "s1", agentRole: "imported_operator", order: 0 }],
-      company: { tenantId: "tenant-1" },
+      company: { tenantId: "tenant-1", status: "ACTIVE" },
     });
 
     const { res, nextErr } = await invoke(handler, { params: { id: "pipe-1" } });
@@ -121,5 +129,84 @@ describe("POST /:id/run — empty-steps guard", () => {
     expect(claimQuotaMock).toHaveBeenCalledOnce();
     expect(runCreate).toHaveBeenCalledOnce();
     expect(res.statusCode).toBe(201);
+  });
+});
+
+describe("POST /:id/run — company lifecycle guard", () => {
+  it.each([
+    { status: "PAUSED", steps: runnableSteps },
+    { status: "ARCHIVED", steps: runnableSteps },
+    { status: "PAUSED", steps: [] },
+    { status: "ARCHIVED", steps: [] },
+  ])("$status with $steps → 409 before empty-step validation or side effects", async ({ status, steps }) => {
+    pipelineFindUnique.mockResolvedValue({
+      id: "pipe-1",
+      steps,
+      enabled: true,
+      company: { tenantId: "tenant-1", status },
+    });
+
+    const { res, nextErr } = await invoke(handler, { params: { id: "pipe-1" } });
+
+    expect(nextErr?.statusCode).toBe(409);
+    expect(nextErr?.message).toBe("New runs are unavailable while the company is paused or archived.");
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toBeUndefined();
+    expectNoRunSideEffects();
+  });
+
+  it.each(["PAUSED", "ARCHIVED"])("another tenant's %s company → 404 before lifecycle disclosure", async (status) => {
+    pipelineFindUnique.mockResolvedValue({
+      id: "pipe-1",
+      steps: [],
+      company: { tenantId: "tenant-other", status },
+    });
+
+    const { res, nextErr } = await invoke(handler, { params: { id: "pipe-1" } });
+
+    expect(nextErr?.statusCode).toBe(404);
+    expect(nextErr?.message).toBe("Pipeline not found");
+    expect(res.body).toBeUndefined();
+    expectNoRunSideEffects();
+  });
+
+  it.each([
+    { label: "missing pipeline", pipeline: null },
+    { label: "missing company", pipeline: { id: "pipe-1", steps: runnableSteps, company: null } },
+  ])("$label → 404 without side effects", async ({ pipeline }) => {
+    pipelineFindUnique.mockResolvedValue(pipeline);
+
+    const { nextErr } = await invoke(handler, { params: { id: "pipe-1" } });
+
+    expect(nextErr?.statusCode).toBe(404);
+    expectNoRunSideEffects();
+  });
+
+  it.each([
+    { status: "ACTIVE", enabled: true },
+    { status: "DRAFT", enabled: true },
+    { status: "ACTIVE", enabled: false },
+    { status: "DRAFT", enabled: false },
+  ])("$status / enabled=$enabled preserves manual Run", async ({ status, enabled }) => {
+    pipelineFindUnique.mockResolvedValue({
+      id: "pipe-1",
+      steps: runnableSteps,
+      enabled,
+      company: { tenantId: "tenant-1", status },
+    });
+
+    const { res, nextErr } = await invoke(handler, {
+      params: { id: "pipe-1" }, body: { input: { brief: "fixture-only" } },
+    });
+
+    expect(nextErr).toBeUndefined();
+    expect(claimQuotaMock).toHaveBeenCalledExactlyOnceWith("tenant-1", "runs");
+    expect(runCreate).toHaveBeenCalledExactlyOnceWith({
+      data: { pipelineId: "pipe-1", status: "PENDING", trigger: "manual", input: { brief: "fixture-only" } },
+    });
+    expect(activityLogCreate).toHaveBeenCalledOnce();
+    expect(enqueueRunMock).toHaveBeenCalledExactlyOnceWith("run-1");
+    expect(res.statusCode).toBe(201);
+    expect(res.body).toEqual({ id: "run-1", jobId: "job-1" });
   });
 });

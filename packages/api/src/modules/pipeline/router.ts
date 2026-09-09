@@ -417,6 +417,12 @@ pipelineRouter.post("/:id/run", runTriggerLimiter, async (req, res, next) => {
       throw new AppError(404, "Pipeline not found");
     }
 
+    // Stop new manual runs for paused/archived companies, not in-flight work.
+    // DRAFT remains manually runnable; enabled controls automatic triggers.
+    if (pipeline.company.status === "PAUSED" || pipeline.company.status === "ARCHIVED") {
+      throw new AppError(409, "New runs are unavailable while the company is paused or archived.");
+    }
+
     // ── Empty-steps guard (E5/T2 — findings E5-IMP-05) ──────────────────
     // A pipeline with no materialized steps (e.g. a freshly-imported one that
     // couldn't synthesize any runnable step) would otherwise be enqueued,
