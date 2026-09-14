@@ -10,17 +10,27 @@ function slugify(s: string) {
 const DOC_KEYS = ["privacy", "terms", "cookies", "gdpr", "kvkk", "deletion"] as const;
 type DocKey = (typeof DOC_KEYS)[number];
 
-const DOC_LABELS: Record<DocKey, string> = {
-  privacy: "Privacy",
-  terms: "Terms",
-  cookies: "Cookies",
-  gdpr: "GDPR",
-  kvkk: "KVKK",
-  deletion: "Account Deletion",
+const DOC_HREFS: Record<DocKey, string> = {
+  privacy: "/privacy",
+  terms: "/terms",
+  cookies: "/cookies",
+  gdpr: "/gdpr",
+  kvkk: "/kvkk",
+  deletion: "/legal/account-deletion",
 };
 
 export default function TermsPage() {
   const t = useTranslations();
+  const legal = useTranslations("static.common.legalNavigation");
+  const page = useTranslations("static.common.legalPage");
+  const DOC_LABELS: Record<DocKey, string> = {
+    privacy: legal("privacy"),
+    terms: legal("terms"),
+    cookies: legal("cookies"),
+    gdpr: "GDPR",
+    kvkk: "KVKK",
+    deletion: legal("accountDeletion"),
+  };
   const sections = t.raw("static.legal.terms.sections") as Array<{ title: string; body: string }>;
 
   const [activeDoc, setActiveDoc] = useState<DocKey>("terms");
@@ -43,16 +53,16 @@ export default function TermsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background bv-mesh">
+    <div className="min-h-screen bg-background bv-mesh [--bv-legal-offset:140px] lg:[--bv-legal-offset:90px]">
       {/* Skip link */}
-      <a href="#main-content" className="skip-link">Skip to content</a>
+      <a href="#main-content" className="skip-link">{t("static.common.skipToMainContent")}</a>
 
       {/* ── Nav ── */}
       <nav
         className="sticky top-0 z-50 glass-panel"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
       >
-        <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-4 flex items-center justify-between">
+        <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-4 flex flex-wrap items-center justify-between gap-3">
           <a href="/" className="flex items-center gap-2.5 group">
             <div className="bv-avatar" style={{ width: 32, height: 32, borderRadius: 10, fontSize: 12 }}>
               AI
@@ -60,24 +70,29 @@ export default function TermsPage() {
             <span className="font-headline font-bold text-sm text-on-surface">Braavolabs</span>
           </a>
 
-          <div className="hidden md:flex items-center gap-6">
-            {(["Features", "Pricing", "About", "Changelog"] as const).map((label) => (
+          <div className="hidden md:flex md:order-3 lg:order-none md:w-full lg:w-auto flex-wrap items-center justify-center gap-x-6 gap-y-2">
+            {([
+              ["/features", "nav.features"],
+              ["/pricing", "nav.pricing"],
+              ["/about", "static.common.legalPage.about"],
+              ["/changelog", "static.changelog.title"],
+            ] as const).map(([href, key]) => (
               <a
-                key={label}
-                href={`/${label.toLowerCase()}`}
+                key={href}
+                href={href}
                 className="text-sm text-on-surface-variant hover:text-on-surface transition-colors"
               >
-                {label}
+                {t(key)}
               </a>
             ))}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="ms-auto flex flex-wrap items-center justify-end gap-3">
             <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm">
-              Sign in
+              {t("nav.signIn")}
             </a>
-            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm bv-sheen">
-              Open app
+            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm bv-sheen bv-legal-cta">
+              {legal("openApp")}
             </a>
           </div>
         </div>
@@ -104,7 +119,7 @@ export default function TermsPage() {
               <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
                 gavel
               </span>
-              Legal
+              {legal("legal")}
             </span>
           </div>
 
@@ -115,8 +130,8 @@ export default function TermsPage() {
           </h1>
 
           <p className="bv-mono text-on-surface-variant mb-8">
-            Last updated{" "}
-            {activeDoc === "terms" ? t("static.legal.terms.date") : "June 1, 2026"}
+            {t("static.common.lastUpdated")}{" "}
+            {activeDoc === "terms" ? t("static.legal.terms.date") : <time dateTime="2026-06-01" lang="en" dir="ltr">June 1, 2026</time>}
           </p>
 
           {/* doc switcher */}
@@ -146,10 +161,10 @@ export default function TermsPage() {
         {/* TOC — sticky sidebar */}
         <nav
           className="hidden md:block"
-          style={{ position: "sticky", top: 84, alignSelf: "start" }}
-          aria-label="On this page"
+          style={{ position: "sticky", top: "var(--bv-legal-offset)", alignSelf: "start" }}
+          aria-label={legal("onThisPage")}
         >
-          <p className="bv-micro mb-3">On this page</p>
+          <p className="bv-micro mb-3">{legal("onThisPage")}</p>
           <div className="flex flex-col">
             {sections.map(({ title }) => {
               const id = slugify(title);
@@ -188,14 +203,14 @@ export default function TermsPage() {
                   <h2
                     id={id}
                     className="bv-headline text-on-surface uppercase mb-3 flex items-center gap-2 group"
-                    style={{ scrollMarginTop: 90, fontSize: 20 }}
+                    style={{ scrollMarginTop: "var(--bv-legal-offset)", fontSize: 20 }}
                   >
                     {title}
                     <a
                       href={`#${id}`}
                       className="opacity-0 group-hover:opacity-100 transition-opacity text-primary"
                       style={{ fontSize: 14, textDecoration: "none" }}
-                      aria-label={`Link to ${title}`}
+                      aria-label={legal("permalinkTo", { title })}
                     >
                       ¶
                     </a>
@@ -215,8 +230,8 @@ export default function TermsPage() {
               </span>
               <p className="bv-body">
                 The <strong className="text-on-surface">{DOC_LABELS[activeDoc]}</strong> document is available at{" "}
-                <a href={`/${activeDoc}`} className="text-primary hover:underline">
-                  braavolabs.com/{activeDoc}
+                <a href={DOC_HREFS[activeDoc]} className="text-primary hover:underline">
+                  braavolabs.com{DOC_HREFS[activeDoc]}
                 </a>
                 .
               </p>
@@ -237,17 +252,17 @@ export default function TermsPage() {
                 <span className="font-headline font-bold text-sm text-on-surface">Braavolabs</span>
               </a>
               <p className="text-sm text-on-surface-variant leading-relaxed">
-                Command the AI agents &amp; automations you already run.
+                {page("tagline")}
               </p>
             </div>
 
             {(
               [
-                { heading: "Product", links: [["Features", "/features"], ["Pricing", "/pricing"], ["Changelog", "/changelog"]] },
-                { heading: "Company", links: [["About", "/about"], ["Blog", "/blog"], ["Contact", "/contact"]] },
+                { heading: page("product"), links: [[t("nav.features"), "/features"], [t("nav.pricing"), "/pricing"], [t("static.changelog.title"), "/changelog"]] },
+                { heading: page("company"), links: [[page("about"), "/about"], [page("blog"), "/blog"], [t("static.contact.title"), "/contact"]] },
                 {
-                  heading: "Legal",
-                  links: DOC_KEYS.map((k) => [DOC_LABELS[k], `/${k}`] as [string, string]),
+                  heading: legal("legal"),
+                  links: DOC_KEYS.map((k) => [DOC_LABELS[k], DOC_HREFS[k]] as [string, string]),
                 },
               ] as Array<{ heading: string; links: [string, string][] }>
             ).map(({ heading, links }) => (
@@ -270,7 +285,7 @@ export default function TermsPage() {
 
           <div className="bv-divider mb-6" />
           <p className="text-sm text-on-surface-variant text-center">
-            &copy; {new Date().getFullYear()} Braavolabs. All rights reserved.
+            &copy; {new Date().getFullYear()} Braavolabs. {page("rights")}
           </p>
         </div>
       </footer>
