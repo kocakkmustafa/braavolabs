@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   parseGoogleRtdnEnvelope: vi.fn(),
   verifyPubSubPushToken: vi.fn(),
   recordEntitlementEvent: vi.fn(),
+  recordGoogleEntitlementWithDecision: vi.fn(),
+  withCurrentGooglePurchase: vi.fn(),
   getEntitlementProjection: vi.fn(),
   acknowledgeGoogleReceipt: vi.fn(),
   ensureManualReviewCase: vi.fn(),
@@ -27,7 +29,9 @@ const mocks = vi.hoisted(() => ({
   mobileSubscriptionFindFirst: vi.fn(),
   mobileSubscriptionUpdate: vi.fn(),
   googlePurchaseAliasFindMany: vi.fn(),
+  googlePurchaseAliasFindFirst: vi.fn(),
   googlePurchaseAliasCreateMany: vi.fn(),
+  queryRaw: vi.fn(),
   activityLogCreate: vi.fn(),
   activityLogUpsert: vi.fn(),
   transaction: vi.fn(),
@@ -89,7 +93,10 @@ vi.mock("../google", () => ({
   verifyPubSubPushToken: mocks.verifyPubSubPushToken,
 }));
 vi.mock("../../entitlement-ledger.service", () => ({
+  GOOGLE_OBSERVATION_STALE: "Google verification was superseded; retry",
   recordEntitlementEvent: mocks.recordEntitlementEvent,
+  recordGoogleEntitlementWithDecision: mocks.recordGoogleEntitlementWithDecision,
+  withCurrentGooglePurchase: mocks.withCurrentGooglePurchase,
   getEntitlementProjection: mocks.getEntitlementProjection,
 }));
 vi.mock("../manual-review.service", () => ({
@@ -162,9 +169,9 @@ beforeEach(() => {
   });
   mocks.parseGoogleRtdnEnvelope.mockReturnValue({
     packageName: "com.braavolabs.mobile",
+    kind: "subscription",
     notificationType: 2,
     purchaseToken: "google-purchase-token",
-    subscriptionId: "com.braavolabs.team.monthly",
     messageId: "google-message-1",
     publishTime: new Date("2026-08-28T00:00:00.000Z"),
   });
@@ -172,6 +179,12 @@ beforeEach(() => {
   mocks.activityLogCreate.mockResolvedValue({ id: "activity-1" });
   mocks.activityLogUpsert.mockResolvedValue({ id: "activity-notification-1" });
   mocks.recordEntitlementEvent.mockResolvedValue("INDIVIDUAL");
+  mocks.recordGoogleEntitlementWithDecision.mockImplementation(async (
+    _event: unknown, _fence: unknown, decide: (tx: unknown) => Promise<unknown>,
+  ) => ({ decision: await decide({}), plan: "TEAM" }));
+  mocks.withCurrentGooglePurchase.mockImplementation(async (
+    _tenantId: string, _fence: unknown, effect: (tx: unknown) => Promise<unknown>,
+  ) => ({ value: await effect({}) }));
   mocks.getEntitlementProjection.mockResolvedValue({
     effectiveTier: "INDIVIDUAL",
     winner: {
@@ -209,8 +222,14 @@ beforeEach(() => {
     targetTier: "TEAM",
   });
   mocks.googlePurchaseAliasFindMany.mockResolvedValue([]);
+  mocks.googlePurchaseAliasFindFirst.mockResolvedValue(null);
   mocks.googlePurchaseAliasCreateMany.mockResolvedValue({ count: 0 });
+  mocks.queryRaw.mockResolvedValue([{
+    id: "mobile-sub-1",
+    last_verified_at: new Date(0),
+  }]);
   mocks.tenantTx.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => fn({
+    $queryRaw: mocks.queryRaw,
     mobileSubscription: {
       findUnique: mocks.mobileSubscriptionFindUnique,
       create: mocks.mobileSubscriptionCreate,
@@ -219,6 +238,7 @@ beforeEach(() => {
     },
     googlePurchaseAlias: {
       findMany: mocks.googlePurchaseAliasFindMany,
+      findFirst: mocks.googlePurchaseAliasFindFirst,
       createMany: mocks.googlePurchaseAliasCreateMany,
     },
   }));
@@ -280,14 +300,14 @@ async function postAppleNotification() {
   return { status: response.status, body: await response.json() as Record<string, unknown> };
 }
 
-async function postGoogleNotification() {
+async function postGoogleNotification(messageId: string) {
   const response = await fetch(`${baseUrl}/api/v1/billing/iap/google/notify`, {
     method: "POST",
     headers: {
       Authorization: "Bearer google-pubsub-token",
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ message: { data: "mocked-by-parser" } }),
+    body: JSON.stringify({ message: { messageId, data: "mocked-by-parser" } }),
   });
   return { status: response.status, body: await response.json() as Record<string, unknown> };
 }
@@ -361,6 +381,11 @@ describe("canonical IAP catalog", () => {
     expect(getIapProduct("com.braavolabs.unknown.monthly")).toBeUndefined();
     expect(internalPlanForProduct("com.braavolabs.unknown.monthly")).toBeUndefined();
     expect(isNewSaleProduct("com.braavolabs.unknown.monthly")).toBe(false);
+    for (const inheritedKey of ["constructor", "__proto__", "toString"]) {
+      expect(getIapProduct(inheritedKey)).toBeUndefined();
+      expect(internalPlanForProduct(inheritedKey)).toBeUndefined();
+      expect(isNewSaleProduct(inheritedKey)).toBe(false);
+    }
   });
 });
 
@@ -410,6 +435,125 @@ describe("POST /billing/iap/verify catalog boundary", () => {
       .toBeLessThan(mocks.mobileSubscriptionCreate.mock.invocationCallOrder[0]);
     expect(mocks.mobileSubscriptionCreate.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.recordEntitlementEvent.mock.invocationCallOrder[0]);
+  });
+
+  it("rejects an expired old Google token after a newer alias is owned without revoking the shared stream", async () => {
+    const rootIdentity = `google:${"a".repeat(64)}`;
+    const newerIdentity = `google:${"c".repeat(64)}`;
+    mocks.verifyGoogleReceipt.mockResolvedValue({
+      ...verifiedReceipt(rootIdentity),
+      status: "expired",
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [rootIdentity],
+      googleAcknowledgementPending: false,
+    });
+    const owner = {
+      tokenDigest: rootIdentity,
+      state: "active",
+      tenantId: "tenant-1",
+      mobileSubscriptionId: "mobile-sub-1",
+      provider: "google",
+      canonicalRootIdentity: rootIdentity,
+    };
+    mocks.googlePurchaseAliasFindMany.mockResolvedValue([owner]);
+    mocks.googlePurchaseAliasFindFirst.mockResolvedValueOnce({ tokenDigest: newerIdentity });
+    mocks.mobileSubscriptionUpdateMany.mockResolvedValue({ count: 1 });
+    mocks.mobileSubscriptionFindUnique.mockResolvedValue({
+      id: "mobile-sub-1", tenantId: "tenant-1", provider: "google", status: "active",
+    });
+
+    const result = await postVerify("google", "com.braavolabs.individual.monthly");
+
+    expect(result.status).toBe(409);
+    expect(mocks.googlePurchaseAliasFindFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        tenantId: "tenant-1",
+        mobileSubscriptionId: "mobile-sub-1",
+        canonicalRootIdentity: rootIdentity,
+        tokenDigest: { notIn: [rootIdentity] },
+      }),
+    }));
+    expect(mocks.mobileSubscriptionUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.recordEntitlementEvent).not.toHaveBeenCalled();
+    expect(mocks.activityLogCreate).not.toHaveBeenCalled();
+    expect(mocks.acknowledgeGoogleReceipt).not.toHaveBeenCalled();
+  });
+
+  it("still revokes a verified current Google token when no newer alias exists", async () => {
+    const rootIdentity = `google:${"a".repeat(64)}`;
+    const currentIdentity = `google:${"c".repeat(64)}`;
+    mocks.verifyGoogleReceipt.mockResolvedValue({
+      ...verifiedReceipt(rootIdentity),
+      status: "expired",
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [currentIdentity, rootIdentity],
+      googleAcknowledgementPending: false,
+    });
+    const owner = (tokenDigest: string) => ({
+      tokenDigest,
+      state: "active",
+      tenantId: "tenant-1",
+      mobileSubscriptionId: "mobile-sub-1",
+      provider: "google",
+      canonicalRootIdentity: rootIdentity,
+    });
+    mocks.googlePurchaseAliasFindMany.mockResolvedValue([owner(currentIdentity), owner(rootIdentity)]);
+    mocks.mobileSubscriptionUpdateMany.mockResolvedValue({ count: 1 });
+    mocks.mobileSubscriptionFindUnique.mockResolvedValue({
+      id: "mobile-sub-1", tenantId: "tenant-1", provider: "google", status: "expired",
+    });
+
+    const result = await postVerify("google", "com.braavolabs.individual.monthly");
+
+    expect(result).toMatchObject({ status: 200, body: { outcome: "inactive" } });
+    expect(mocks.mobileSubscriptionUpdateMany).toHaveBeenCalledTimes(1);
+    expect(mocks.recordEntitlementEvent).toHaveBeenCalledWith(expect.objectContaining({
+      source: "google", type: "revoke", planTier: null,
+    }), expect.objectContaining({
+      rootIdentity,
+      subscriptionId: "mobile-sub-1",
+      verifiedAliases: [currentIdentity, rootIdentity],
+    }));
+    expect(mocks.googlePurchaseAliasFindFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ tokenDigest: { notIn: [currentIdentity, rootIdentity] } }),
+    }));
+  });
+
+  it("rejects an old Google verify when a replacement appears before the fenced ledger append", async () => {
+    const rootIdentity = `google:${"a".repeat(64)}`;
+    mocks.verifyGoogleReceipt.mockResolvedValue({
+      ...verifiedReceipt(rootIdentity),
+      status: "expired",
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [rootIdentity],
+      googleAcknowledgementPending: false,
+    });
+    const owner = {
+      tokenDigest: rootIdentity,
+      state: "active",
+      tenantId: "tenant-1",
+      mobileSubscriptionId: "mobile-sub-1",
+      provider: "google",
+      canonicalRootIdentity: rootIdentity,
+    };
+    mocks.googlePurchaseAliasFindMany.mockResolvedValue([owner]);
+    mocks.mobileSubscriptionUpdateMany.mockResolvedValue({ count: 1 });
+    mocks.mobileSubscriptionFindUnique.mockResolvedValue({
+      id: "mobile-sub-1", tenantId: "tenant-1", provider: "google", status: "expired",
+    });
+    // A concurrent replacement claims its alias after the earlier ownership
+    // transaction, so the ledger's second row-locked check skips the append.
+    mocks.recordEntitlementEvent.mockResolvedValueOnce(null);
+
+    const result = await postVerify("google", "com.braavolabs.individual.monthly");
+
+    expect(result.status).toBe(409);
+    expect(mocks.recordEntitlementEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ source: "google", type: "revoke" }),
+      expect.objectContaining({ rootIdentity, verifiedAliases: [rootIdentity] }),
+    );
+    expect(mocks.activityLogCreate).not.toHaveBeenCalled();
+    expect(mocks.acknowledgeGoogleReceipt).not.toHaveBeenCalled();
   });
 
   it("returns 409 with all downstream effects zero when an alias conflict is hidden by RLS", async () => {
@@ -549,6 +693,87 @@ describe("POST /billing/iap/verify catalog boundary", () => {
     }));
     expect(mocks.recordEntitlementEvent).toHaveBeenCalledTimes(1);
     expect(mocks.activityLogCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-fetches an overlapping Google read and records a newer revocation", async () => {
+    const rootIdentity = `google:${"9".repeat(64)}`;
+    const active = {
+      ...verifiedReceipt(rootIdentity),
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [rootIdentity],
+      googleAcknowledgementPending: false,
+    };
+    let competingCompletedAt: Date | undefined;
+    mocks.verifyGoogleReceipt.mockImplementationOnce(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      competingCompletedAt = new Date();
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return active;
+    });
+    mocks.verifyGoogleReceipt.mockResolvedValueOnce({ ...active, status: "revoked" });
+    mocks.googlePurchaseAliasFindMany.mockResolvedValue([{
+      tokenDigest: rootIdentity,
+      state: "active",
+      tenantId: "tenant-1",
+      mobileSubscriptionId: "mobile-sub-1",
+      provider: "google",
+      canonicalRootIdentity: rootIdentity,
+    }]);
+    mocks.queryRaw.mockImplementationOnce(async () => [{
+      id: "mobile-sub-1",
+      last_verified_at: competingCompletedAt,
+    }]);
+    mocks.mobileSubscriptionUpdateMany.mockResolvedValue({ count: 1 });
+    mocks.mobileSubscriptionFindUnique.mockResolvedValue({
+      id: "mobile-sub-1", tenantId: "tenant-1", provider: "google", status: "revoked",
+    });
+
+    const result = await postVerify("google", "com.braavolabs.individual.monthly");
+
+    expect(result).toMatchObject({ status: 200, body: { outcome: "inactive" } });
+    expect(mocks.verifyGoogleReceipt).toHaveBeenCalledTimes(2);
+    expect(mocks.mobileSubscriptionUpdateMany).toHaveBeenCalledTimes(1);
+    expect(mocks.recordEntitlementEvent).toHaveBeenCalledWith(expect.objectContaining({
+      source: "google", type: "revoke", planTier: null,
+    }), expect.objectContaining({ rootIdentity }));
+    expect(mocks.acknowledgeGoogleReceipt).not.toHaveBeenCalled();
+  });
+
+  it("re-fetches after a second-fence Google conflict and keeps the newer revoke", async () => {
+    const rootIdentity = `google:${"9".repeat(64)}`;
+    const active = {
+      ...verifiedReceipt(rootIdentity),
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [rootIdentity],
+      googleAcknowledgementPending: false,
+    };
+    mocks.verifyGoogleReceipt.mockResolvedValueOnce(active)
+      .mockResolvedValueOnce({ ...active, status: "revoked" });
+    mocks.googlePurchaseAliasFindMany.mockResolvedValue([{
+      tokenDigest: rootIdentity,
+      state: "active",
+      tenantId: "tenant-1",
+      mobileSubscriptionId: "mobile-sub-1",
+      provider: "google",
+      canonicalRootIdentity: rootIdentity,
+    }]);
+    mocks.mobileSubscriptionUpdateMany.mockResolvedValue({ count: 1 });
+    mocks.mobileSubscriptionFindUnique.mockResolvedValue({
+      id: "mobile-sub-1", tenantId: "tenant-1", provider: "google", status: "revoked",
+    });
+    mocks.recordEntitlementEvent.mockRejectedValueOnce(
+      new AppError(409, "Google verification was superseded; retry"),
+    ).mockResolvedValueOnce("MANUAL_REVIEW");
+
+    const result = await postVerify("google", "com.braavolabs.individual.monthly");
+
+    expect(result).toMatchObject({ status: 200, body: { outcome: "inactive" } });
+    expect(mocks.verifyGoogleReceipt).toHaveBeenCalledTimes(2);
+    expect(mocks.recordEntitlementEvent).toHaveBeenCalledTimes(2);
+    expect(mocks.recordEntitlementEvent).toHaveBeenLastCalledWith(expect.objectContaining({
+      source: "google", type: "revoke", planTier: null,
+    }), expect.objectContaining({ rootIdentity }));
+    expect(mocks.acknowledgeGoogleReceipt).not.toHaveBeenCalled();
   });
 
   it("atomically gives one tenant ownership when two tenants verify the same transaction", async () => {
@@ -1390,12 +1615,124 @@ describe("manual-review operator decision boundary", () => {
       .toBeLessThan(mocks.mobileSubscriptionUpdateMany.mock.invocationCallOrder[0]);
     expect(mocks.mobileSubscriptionUpdateMany.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.transitionManualReviewCase.mock.invocationCallOrder[0]);
+    expect(mocks.recordGoogleEntitlementWithDecision.mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.transitionManualReviewCase.mock.invocationCallOrder[0]);
     expect(mocks.transitionManualReviewCase.mock.invocationCallOrder[0])
-      .toBeLessThan(mocks.recordEntitlementEvent.mock.invocationCallOrder[0]);
-    expect(mocks.recordEntitlementEvent.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.acknowledgeGoogleReceipt.mock.invocationCallOrder[0]);
+    expect(mocks.recordEntitlementEvent).not.toHaveBeenCalled();
     expect(JSON.stringify([result.body, mocks.loggerError.mock.calls, mocks.loggerWarn.mock.calls]))
       .not.toContain(token);
+  });
+
+  it.each([
+    ["approved_mapping", "active"],
+    ["expired", "expired"],
+  ] as const)("keeps a late old-token %s review decision pending when a replacement wins the second fence", async (
+    decisionState, providerStatus,
+  ) => {
+    const rootIdentity = `google:${"3".repeat(64)}`;
+    mocks.getManualReviewCase.mockResolvedValue({
+      caseId: "iap_review_pending_case",
+      tenantId: "tenant-1",
+      provider: "google",
+      productId: "com.braavolabs.business.monthly",
+      internalPlan: "BUSINESS",
+      subscriptionId: "mobile-sub-google",
+      identityRef: iapCredentialDigest("google", rootIdentity),
+      state: "pending",
+      targetTier: null,
+    });
+    mocks.verifyGoogleReceipt.mockResolvedValue({
+      ...verifiedReceipt(rootIdentity),
+      status: providerStatus,
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [rootIdentity],
+      googleAcknowledgementPending: true,
+    });
+    mocks.googlePurchaseAliasFindMany.mockResolvedValue([{
+      tokenDigest: rootIdentity,
+      state: "active",
+      tenantId: "tenant-1",
+      mobileSubscriptionId: "mobile-sub-google",
+      provider: "google",
+      canonicalRootIdentity: rootIdentity,
+    }]);
+    mocks.mobileSubscriptionUpdateMany.mockResolvedValue({ count: 1 });
+    mocks.mobileSubscriptionFindUnique.mockResolvedValue({
+      id: "mobile-sub-google",
+      tenantId: "tenant-1",
+      provider: "google",
+      productId: "com.braavolabs.business.monthly",
+    });
+    if (decisionState === "expired") {
+      mocks.withCurrentGooglePurchase.mockResolvedValueOnce(null);
+    } else {
+      mocks.recordGoogleEntitlementWithDecision.mockResolvedValueOnce(null);
+    }
+
+    const result = await postManualReviewDecision("OWNER", "tenant-1", {
+      state: decisionState,
+      ...(decisionState === "approved_mapping" ? { targetTier: "TEAM" } : {}),
+      reason: "fresh provider history verified",
+      receipt: "historical-google-token",
+    });
+
+    expect(result.status).toBe(409);
+    expect(mocks.mobileSubscriptionUpdateMany).toHaveBeenCalledTimes(1);
+    expect(mocks.transitionManualReviewCase).not.toHaveBeenCalled();
+    expect(mocks.recordEntitlementEvent).not.toHaveBeenCalled();
+    expect(mocks.acknowledgeGoogleReceipt).not.toHaveBeenCalled();
+  });
+
+  it("does not approve a historical Google review receipt after a replacement token is owned", async () => {
+    const rootIdentity = `google:${"3".repeat(64)}`;
+    mocks.getManualReviewCase.mockResolvedValue({
+      caseId: "iap_review_pending_case",
+      tenantId: "tenant-1",
+      provider: "google",
+      productId: "com.braavolabs.business.monthly",
+      internalPlan: "BUSINESS",
+      subscriptionId: "mobile-sub-google",
+      identityRef: iapCredentialDigest("google", rootIdentity),
+      state: "pending",
+      targetTier: null,
+    });
+    mocks.verifyGoogleReceipt.mockResolvedValue({
+      ...verifiedReceipt(rootIdentity),
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [rootIdentity],
+      googleAcknowledgementPending: true,
+    });
+    mocks.googlePurchaseAliasFindMany.mockResolvedValue([{
+      tokenDigest: rootIdentity,
+      state: "active",
+      tenantId: "tenant-1",
+      mobileSubscriptionId: "mobile-sub-google",
+      provider: "google",
+      canonicalRootIdentity: rootIdentity,
+    }]);
+    mocks.googlePurchaseAliasFindFirst.mockResolvedValueOnce({
+      tokenDigest: `google:${"4".repeat(64)}`,
+    });
+    mocks.mobileSubscriptionFindUnique.mockResolvedValue({
+      id: "mobile-sub-google",
+      tenantId: "tenant-1",
+      provider: "google",
+      productId: "com.braavolabs.business.monthly",
+    });
+
+    const result = await postManualReviewDecision("OWNER", "tenant-1", {
+      state: "approved_mapping",
+      targetTier: "TEAM",
+      reason: "fresh provider history verified",
+      receipt: "historical-google-token",
+    });
+
+    expect(result.status).toBe(409);
+    expect(mocks.mobileSubscriptionUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.transitionManualReviewCase).not.toHaveBeenCalled();
+    expect(mocks.recordEntitlementEvent).not.toHaveBeenCalled();
+    expect(mocks.acknowledgeGoogleReceipt).not.toHaveBeenCalled();
   });
 
   it("does not expose a case from another authenticated tenant", async () => {
@@ -1417,15 +1754,15 @@ describe("store notification catalog boundary", () => {
     const raw = "google-notification-token-sentinel";
     mocks.parseGoogleRtdnEnvelope.mockReturnValue({
       packageName: "com.braavolabs.mobile",
+      kind: "subscription",
       notificationType: 2,
       purchaseToken: raw,
-      subscriptionId: "com.braavolabs.individual.monthly",
       messageId: "google-transient-message",
       publishTime: new Date("2026-08-28T00:00:00.000Z"),
     });
     mocks.verifyGoogleReceipt.mockRejectedValue(new Error(`provider timeout for ${raw}`));
 
-    const result = await postGoogleNotification();
+    const result = await postGoogleNotification("google-transient-message");
 
     expect(result).toEqual({ status: 503, body: { ok: false, reason: "retry-required" } });
     expect(JSON.stringify([result.body, mocks.loggerError.mock.calls, mocks.loggerWarn.mock.calls])).not.toContain(raw);
@@ -1461,21 +1798,21 @@ describe("store notification catalog boundary", () => {
   it("acknowledges a Google unknown product after verification without billing mutation", async () => {
     mocks.parseGoogleRtdnEnvelope.mockReturnValue({
       packageName: "com.braavolabs.mobile",
+      kind: "subscription",
       notificationType: 2,
       purchaseToken: "google-unknown-token",
-      subscriptionId: "com.braavolabs.unregistered.monthly",
       messageId: "google-unknown-message",
       publishTime: new Date("2026-08-28T00:00:00.000Z"),
     });
-    mocks.verifyGoogleReceipt.mockResolvedValue(verifiedReceipt("google-unknown-transaction"));
+    mocks.verifyGoogleReceipt.mockResolvedValue({
+      ...verifiedReceipt("google-unknown-transaction"),
+      googleProductId: "com.braavolabs.unregistered.monthly",
+    });
 
-    const result = await postGoogleNotification();
+    const result = await postGoogleNotification("google-unknown-message");
 
     expect(result).toEqual({ status: 200, body: { ok: false, reason: "unknown-product" } });
-    expect(mocks.verifyGoogleReceipt).toHaveBeenCalledWith(
-      "google-unknown-token",
-      "com.braavolabs.unregistered.monthly",
-    );
+    expect(mocks.verifyGoogleReceipt).toHaveBeenCalledWith("google-unknown-token");
     expect(mocks.mobileSubscriptionUpdate).not.toHaveBeenCalled();
     expect(mocks.transaction).not.toHaveBeenCalled();
     expect(mocks.recordEntitlementEvent).not.toHaveBeenCalled();
@@ -1510,9 +1847,9 @@ describe("store notification catalog boundary", () => {
       const rootIdentity = `google:${"e".repeat(64)}`;
       mocks.parseGoogleRtdnEnvelope.mockReturnValue({
         packageName: "com.braavolabs.mobile",
+        kind: "subscription",
         notificationType: 2,
         purchaseToken: "google-known-token",
-        subscriptionId: productId,
         messageId: "google-known-message",
         publishTime: new Date("2026-08-28T00:00:00.000Z"),
       });
@@ -1521,6 +1858,8 @@ describe("store notification catalog boundary", () => {
         googleCanonicalRootIdentity: rootIdentity,
         googlePurchaseAliases: [rootIdentity],
         googleAcknowledgementPending: false,
+        googleProductId: productId,
+        googleLatestSuccessfulOrderId: null,
       });
       mocks.googlePurchaseAliasFindMany.mockResolvedValue([{
         tokenDigest: rootIdentity,
@@ -1536,7 +1875,7 @@ describe("store notification catalog boundary", () => {
         tenantId: "tenant-1",
         planTier: "ENTERPRISE",
       });
-      result = await postGoogleNotification();
+      result = await postGoogleNotification("google-known-message");
     }
 
     expect(result).toEqual({ status: 200, body: { ok: true } });
@@ -1548,6 +1887,7 @@ describe("store notification catalog boundary", () => {
     }
     expect(mocks.recordEntitlementEvent).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: "tenant-1", planTier }),
+      ...(provider === "google" ? [expect.objectContaining({ rootIdentity: expect.any(String) })] : []),
     );
     expect(mocks.activityLogUpsert).toHaveBeenCalledTimes(1);
   });

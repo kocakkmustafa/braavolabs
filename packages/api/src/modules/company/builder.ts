@@ -1,11 +1,12 @@
 import crypto from "crypto";
 import { spawn } from "node:child_process";
 import { env } from "../../config/env";
-import { prisma } from "../../lib/db";
+import { prisma, tenantTx } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { slugify } from "@ai-company-os/core";
-import { PRIMITIVES, PLAN_LIMITS } from "@ai-company-os/core";
+import { PRIMITIVES, PLAN_LIMITS, normalizePlanForEntitlement } from "@ai-company-os/core";
+import { assertCompanyCapacity } from "./company-capacity";
 import { chatCompletion, type ChatMessage } from "../../services/ai-client";
 // D-013: resolveTenantCompletionLink (not the raw getTenantAIConfig) — this
 // is a single-completion call site, so it must honor the SAME D-009 policy
@@ -302,11 +303,11 @@ export async function startBuildSession(
   // Check plan limits
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
-    include: { companies: { where: { status: { not: "ARCHIVED" } } } },
+    include: { companies: { select: { id: true } } },
   });
 
   if (tenant) {
-    const limits = PLAN_LIMITS[tenant.plan];
+    const limits = PLAN_LIMITS[normalizePlanForEntitlement(tenant.plan)];
     if (limits.maxCompanies !== -1 && tenant.companies.length >= limits.maxCompanies) {
       return {
         sessionId,
@@ -448,61 +449,61 @@ export async function confirmBuild(sessionId: string, tenantId: string): Promise
 
   const spec = session.companySpec;
 
-  // Create company
-  const company = await prisma.company.create({
-    data: {
-      tenantId: session.tenantId,
-      name: spec.name,
-      slug: spec.slug,
-      description: spec.description,
-      primitives: spec.primitives as any,
-      status: "ACTIVE",
-      config: spec.config as any,
-    },
-  });
-
-  // Create agents
-  for (const agentDef of spec.agents) {
-    await prisma.agent.create({
+  const company = await tenantTx(async (tx) => {
+    await assertCompanyCapacity(tx, session.tenantId);
+    const created = await tx.company.create({
       data: {
-        companyId: company.id,
-        name: agentDef.name,
-        role: agentDef.role,
-        systemPrompt: agentDef.systemPrompt,
-        tools: agentDef.tools,
+        tenantId: session.tenantId,
+        name: spec.name,
+        slug: spec.slug,
+        description: spec.description,
+        primitives: spec.primitives as any,
+        status: "ACTIVE",
+        config: spec.config as any,
       },
     });
-  }
 
-  // Create pipelines
-  for (const pipelineDef of spec.pipelines) {
-    await prisma.pipeline.create({
+    for (const agentDef of spec.agents) {
+      await tx.agent.create({
+        data: {
+          companyId: created.id,
+          name: agentDef.name,
+          role: agentDef.role,
+          systemPrompt: agentDef.systemPrompt,
+          tools: agentDef.tools,
+        },
+      });
+    }
+
+    for (const pipelineDef of spec.pipelines) {
+      await tx.pipeline.create({
+        data: {
+          companyId: created.id,
+          name: pipelineDef.name,
+          trigger: pipelineDef.trigger as any,
+          schedule: pipelineDef.schedule,
+          steps: pipelineDef.steps as any,
+        },
+      });
+    }
+
+    await tx.activityLog.create({
       data: {
-        companyId: company.id,
-        name: pipelineDef.name,
-        trigger: pipelineDef.trigger as any,
-        schedule: pipelineDef.schedule,
-        steps: pipelineDef.steps as any,
+        tenantId: session.tenantId,
+        actor: "company_builder",
+        action: "company.build",
+        resource: "company",
+        resourceId: created.id,
+        details: {
+          sessionId,
+          turns: session.turn,
+          primitives: spec.primitives,
+          agentCount: spec.agents.length,
+          pipelineCount: spec.pipelines.length,
+        },
       },
     });
-  }
-
-  // Activity log
-  await prisma.activityLog.create({
-    data: {
-      tenantId: session.tenantId,
-      actor: "company_builder",
-      action: "company.build",
-      resource: "company",
-      resourceId: company.id,
-      details: {
-        sessionId,
-        turns: session.turn,
-        primitives: spec.primitives,
-        agentCount: spec.agents.length,
-        pipelineCount: spec.pipelines.length,
-      },
-    },
+    return created;
   });
 
   // Check for missing integrations

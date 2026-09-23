@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requirePermission } from "../../middleware/require-permission";
 import { authMiddleware } from "../../middleware/auth";
-import { prisma } from "../../lib/db";
+import { prisma, tenantTx } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { rateLimit } from "../../middleware/rateLimit";
@@ -16,6 +16,7 @@ import {
 } from "./builder";
 import { createVersion } from "../agent/version-control";
 import { composeAgent } from "../agent/composer";
+import { assertCompanyCapacity } from "./company-capacity";
 
 export const companyRouter = Router();
 companyRouter.use(authMiddleware);
@@ -87,33 +88,22 @@ companyRouter.post("/", async (req, res, next) => {
     const data = createSchema.parse(req.body);
     const tenantId = req.auth!.tenantId;
 
-    // Enforce plan company limit (Free=1, Creator=5, Pro=20, Business=100, Enterprise=∞)
-    const tenant = await prisma.tenant.findUnique({
-      where: { id: tenantId },
-      select: { plan: true, _count: { select: { companies: true } } },
-    });
-    if (!tenant) throw new AppError(401, "Tenant not found");
-    const limit = PLAN_LIMITS[tenant.plan].maxCompanies;
-    if (limit !== -1 && tenant._count.companies >= limit) {
-      throw new AppError(
-        402,
-        `Company limit reached for ${tenant.plan} plan (${limit}). Upgrade to add more.`,
-      );
-    }
-
-    const company = await prisma.company.create({
-      data: { ...data, config: data.config as any, tenantId },
-    });
-
-    await prisma.activityLog.create({
-      data: {
-        tenantId,
-        actor: req.auth!.userId,
-        action: "company.create",
-        resource: "company",
-        resourceId: company.id,
-        details: { name: company.name, slug: company.slug },
-      },
+    const company = await tenantTx(async (tx) => {
+      await assertCompanyCapacity(tx, tenantId);
+      const created = await tx.company.create({
+        data: { ...data, config: data.config as any, tenantId },
+      });
+      await tx.activityLog.create({
+        data: {
+          tenantId,
+          actor: req.auth!.userId,
+          action: "company.create",
+          resource: "company",
+          resourceId: created.id,
+          details: { name: created.name, slug: created.slug },
+        },
+      });
+      return created;
     });
 
     logger.info({ companyId: company.id }, "Company created");

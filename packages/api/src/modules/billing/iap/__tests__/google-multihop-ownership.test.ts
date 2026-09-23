@@ -52,6 +52,7 @@ function subscription(
     lineItems: [{
       productId,
       expiryTime: ACTIVE_EXPIRY,
+      latestSuccessfulOrderId: "GPA.1111-2222-3333-44444",
       autoRenewingPlan: { autoRenewEnabled: true },
     }],
     startTime: "2026-08-01T00:00:00.000Z",
@@ -95,6 +96,27 @@ beforeEach(() => {
 });
 
 describe("Google replacement-chain ownership identity", () => {
+  it("derives the product and latest paid order from Google for an RTDN token-only lookup", async () => {
+    installGoogleApiStub({ current: subscription(PRODUCT) });
+
+    await expect(verifyGoogleReceipt("current")).resolves.toMatchObject({
+      googleProductId: PRODUCT,
+      googleLatestSuccessfulOrderId: "GPA.1111-2222-3333-44444",
+      originalTransactionId: identity("current"),
+    });
+    await expect(verifyGoogleReceipt("current", "com.braavolabs.team.monthly"))
+      .rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("retries an ambiguous multi-product subscription without guessing its catalog tier", async () => {
+    const row = subscription(PRODUCT);
+    row.lineItems.push({ ...row.lineItems[0], productId: "com.braavolabs.team.monthly" });
+    const { calls } = installGoogleApiStub({ current: row });
+
+    await expect(verifyGoogleReceipt("current")).rejects.toMatchObject({ statusCode: 503 });
+    expect(calls).toEqual([{ method: "GET", token: "current" }]);
+  });
+
   it("resolves A→B→C to one root and returns only verified hashed aliases", async () => {
     const { calls } = installGoogleApiStub({
       C: subscription(PRODUCT, "B"),

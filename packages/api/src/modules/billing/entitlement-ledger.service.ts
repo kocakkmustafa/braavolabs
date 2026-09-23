@@ -24,9 +24,10 @@
  *     (tenant.plan) is recomputed from the same history either way.
  */
 
-import type { Plan } from "@prisma/client";
+import type { Plan, Prisma } from "@prisma/client";
 import { prisma, tenantTx } from "../../lib/db";
 import { logger } from "../../lib/logger";
+import { AppError } from "../../middleware/error";
 import {
   foldStream,
   combineStreams,
@@ -50,6 +51,17 @@ export interface AppendEntitlementEventInput {
   expiresAt: Date | null;
   autoRenew: boolean;
 }
+
+/** Digest-only proof of which Google replacement chain was provider-verified. */
+export interface GoogleEntitlementFence {
+  subscriptionId: string;
+  rootIdentity: string;
+  verifiedAliases: string[];
+  /** Persisted provider-read completion time; detects an intervening write. */
+  readCompletedAt: Date;
+}
+
+export const GOOGLE_OBSERVATION_STALE = "Google verification was superseded; retry";
 
 /**
  * Append one entitlement event, idempotently. Returns `true` when this
@@ -228,12 +240,137 @@ export async function reprojectEntitlement(tenantId: string): Promise<Plan> {
   });
 }
 
-/**
- * Convenience wrapper every webhook/verify handler should call instead
- * of writing tenant.plan directly: append the event, then recompute and
- * persist the projection from the full history.
- */
-export async function recordEntitlementEvent(input: AppendEntitlementEventInput): Promise<Plan> {
-  await appendEntitlementEvent(input);
+/** Run a digest-only Google purchase effect under its root ownership lock. */
+export async function withCurrentGooglePurchase<T>(
+  tenantId: string,
+  googleFence: GoogleEntitlementFence,
+  effect: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<{ value: T } | null> {
+  if (googleFence.verifiedAliases.length === 0) {
+    throw new Error("Google entitlement fence requires verified aliases");
+  }
+  // Google purchase tokens are replaced in a backwards-linked chain, while
+  // every replacement shares one root entitlement stream. Claim/update paths
+  // lock this subscription row BEFORE adding an alias. Checking the aliases
+  // and running the effect under the SAME row lock prevents a late old-token
+  // event or manual-review decision after a newer replacement is claimed.
+  return tenantTx(async (tx) => {
+    const owner = await tx.$queryRaw<Array<{ id: string; last_verified_at: Date }>>`
+      SELECT id, last_verified_at FROM mobile_subscriptions
+      WHERE id = ${googleFence.subscriptionId}
+        AND tenant_id = ${tenantId}
+        AND provider = 'google'
+        AND original_transaction_id = ${googleFence.rootIdentity}
+      FOR UPDATE
+    `;
+    if (owner.length !== 1) throw new Error("Google entitlement owner is unavailable");
+    // A later provider read may have committed between ownership update and
+    // this effect. The alias chain can be unchanged for a revoke/reactivation,
+    // so it cannot serve as the only freshness fence.
+    if (owner[0]!.last_verified_at.getTime() !== googleFence.readCompletedAt.getTime()) {
+      throw new AppError(409, GOOGLE_OBSERVATION_STALE);
+    }
+
+    const newerAlias = await tx.googlePurchaseAlias.findFirst({
+      where: {
+        tenantId,
+        mobileSubscriptionId: googleFence.subscriptionId,
+        provider: "google",
+        canonicalRootIdentity: googleFence.rootIdentity,
+        state: "active",
+        tokenDigest: { notIn: googleFence.verifiedAliases },
+      },
+      select: { tokenDigest: true },
+    });
+    if (newerAlias) return null;
+    return { value: await effect(tx) };
+  });
+}
+
+async function appendCurrentGoogleEvent(
+  tx: Prisma.TransactionClient,
+  input: AppendEntitlementEventInput,
+): Promise<void> {
+  if (input.source !== "google") {
+    throw new Error("Google entitlement fence requires a Google event");
+  }
+  // The reducer orders by sourceTimestamp, not insertion order. A Google
+  // RTDN for an old token may carry a publishTime later than a replacement
+  // /verify. Since we re-fetch current provider state before each write,
+  // preserve provider order unless it would put this freshly verified state
+  // behind a previously committed event on this Google root. In that case,
+  // bump one millisecond past it under the same lock.
+  const latest = await tx.entitlementEvent.findFirst({
+    where: { tenantId: input.tenantId, source: "google", streamId: input.streamId },
+    orderBy: [{ sourceTimestamp: "desc" }, { id: "desc" }],
+    select: { id: true, sourceTimestamp: true, type: true, sourceEventId: true },
+  });
+  const previousTime = latest?.sourceTimestamp.getTime() ?? Number.NEGATIVE_INFINITY;
+  const nextTime = Math.max(input.sourceTimestamp.getTime(), previousTime + 1);
+  if (!Number.isFinite(nextTime) || nextTime > 8_640_000_000_000_000) {
+    throw new Error("Google entitlement event ordering exhausted");
+  }
+  // /verify has no provider-issued event id. Its deterministic identity can
+  // recur when the same token reactivates after a revoke without changing its
+  // expiry or tier. Under the root lock, bind that recovery to the terminal
+  // row so repeat verification stays idempotent while a real reactivation
+  // becomes a new grant after the terminal event.
+  let sourceEventId = input.sourceEventId;
+  if (latest && (latest.type === "revoke" || latest.type === "refund")
+    && (input.type === "purchase" || input.type === "renewal"
+      || input.type === "restore" || input.type === "grace")) {
+    const existing = await tx.entitlementEvent.findFirst({
+      where: { source: "google", sourceEventId: input.sourceEventId },
+      select: { id: true, streamId: true },
+    });
+    if (existing?.streamId && existing.streamId !== input.streamId) {
+      throw new Error("Google entitlement event identity crossed streams");
+    }
+    if (existing) sourceEventId = `${input.sourceEventId}:after:${latest.id}`;
+  }
+  await tx.entitlementEvent.createMany({
+    data: [{ ...input, sourceEventId, sourceTimestamp: new Date(nextTime) }],
+    skipDuplicates: true,
+  });
+}
+
+/** Append an event and reproject the tenant from its complete history. */
+export function recordEntitlementEvent(input: AppendEntitlementEventInput): Promise<Plan>;
+export function recordEntitlementEvent(
+  input: AppendEntitlementEventInput,
+  googleFence: GoogleEntitlementFence,
+): Promise<Plan | null>;
+export async function recordEntitlementEvent(
+  input: AppendEntitlementEventInput,
+  googleFence?: GoogleEntitlementFence,
+): Promise<Plan | null> {
+  if (!googleFence) {
+    await appendEntitlementEvent(input);
+    return reprojectEntitlement(input.tenantId);
+  }
+  if (input.source !== "google") {
+    throw new Error("Google entitlement fence requires a Google event");
+  }
+  const current = await withCurrentGooglePurchase(input.tenantId, googleFence, (tx) =>
+    appendCurrentGoogleEvent(tx, input));
+  if (!current) return null;
   return reprojectEntitlement(input.tenantId);
+}
+
+/** Commit an operator decision and its Google grant as one fenced unit. */
+export async function recordGoogleEntitlementWithDecision<T>(
+  input: AppendEntitlementEventInput,
+  googleFence: GoogleEntitlementFence,
+  decide: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<{ decision: T; plan: Plan } | null> {
+  if (input.source !== "google") {
+    throw new Error("Google decision fence requires a Google event");
+  }
+  const current = await withCurrentGooglePurchase(input.tenantId, googleFence, async (tx) => {
+    const decision = await decide(tx);
+    await appendCurrentGoogleEvent(tx, input);
+    return decision;
+  });
+  if (!current) return null;
+  return { decision: current.value, plan: await reprojectEntitlement(input.tenantId) };
 }

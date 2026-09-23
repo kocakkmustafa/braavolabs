@@ -1535,10 +1535,10 @@ model EntitlementEvent {
   // SOURCE, so the same webhook delivered twice never appends twice.
   // Mirrors StripeWebhookEvent.stripeEventId's already-proven pattern.
   sourceEventId String @map("source_event_id")
-  // When the event happened per the SOURCE (Stripe's `created`, the
-  // transaction/notification time from Apple/Google) — NOT when we
-  // received it. This is the ordering key the reducer sorts by, which is
-  // exactly what makes a delayed webhook unable to overwrite a newer one.
+  // The reducer's ordering key. Usually the SOURCE time (Stripe's `created`,
+  // Apple/Google notification time); a Google replacement-chain event may
+  // be raised 1 ms past its root's previous event under the ownership lock
+  // so an old-token revoke cannot sort after a newer verified grant.
   sourceTimestamp DateTime @map("source_timestamp")
   /// "purchase" | "renewal" | "cancel" | "grace" | "refund" | "revoke" | "restore"
   type      String

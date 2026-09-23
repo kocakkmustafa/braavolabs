@@ -18,9 +18,7 @@ import { AppError } from "../../middleware/error";
 import {
   exportCompanyToTemplate,
   installTemplate,
-  materialiseTemplate,
   rateTemplate,
-  type CompanyTemplateSnapshot,
 } from "./templates.service";
 
 export const templatesRouter = Router();
@@ -85,8 +83,8 @@ tenantRouter.post("/:slug/install", authMiddleware, async (req, res, next) => {
     if (!t) throw new AppError(404, "Template not found");
     if (t.pricing === "PAID") {
       throw new AppError(
-        402,
-        "This template requires checkout. POST /marketplace/templates/{slug}/checkout to start the Stripe flow.",
+        503,
+        "Paid template installation is unavailable until verified checkout is implemented.",
       );
     }
     const result = await installTemplate(t.id, req.auth!.tenantId, body);
@@ -94,36 +92,10 @@ tenantRouter.post("/:slug/install", authMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-const checkoutSchema = z.object({
-  paymentIntentId: z.string().min(1).max(200),
-  companyNameOverride: z.string().min(1).max(120).optional(),
-});
-
-// PAID-template install hook: the SPA owns Stripe Checkout (separate
-// from this endpoint); on success Stripe returns a paymentIntentId
-// which the SPA POSTs here. The service verifies the payment intent
-// belongs to the right template / tenant / amount before
-// materialising the install. The Stripe-side verification step is
-// the operator's responsibility — the Stripe webhook handler
-// processes the canonical confirmation event.
-tenantRouter.post("/:slug/install-paid", authMiddleware, async (req, res, next) => {
-  try {
-    const body = checkoutSchema.parse(req.body);
-    const t = await prisma.companyTemplate.findUnique({ where: { slug: req.params.slug } });
-    if (!t || t.pricing !== "PAID") throw new AppError(404, "Paid template not found");
-    if (!t.priceUsd) throw new AppError(500, "Template missing price");
-    const result = await materialiseTemplate(
-      t.id,
-      req.auth!.tenantId,
-      t.snapshot as unknown as CompanyTemplateSnapshot,
-      {
-        companyNameOverride: body.companyNameOverride,
-        pricePaidUsd: Number(t.priceUsd),
-        stripePaymentIntentId: body.paymentIntentId,
-      },
-    );
-    res.status(201).json(result);
-  } catch (err) { next(err); }
+// There is no server-owned template checkout or payment verification yet.
+// Never turn an untrusted paymentIntentId into a paid install record.
+tenantRouter.post("/:slug/install-paid", authMiddleware, (_req, _res, next) => {
+  next(new AppError(503, "Paid template installation is unavailable until verified checkout is implemented."));
 });
 
 const rateSchema = z.object({

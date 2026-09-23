@@ -22,10 +22,26 @@ vi.mock("../../../lib/logger", () => ({
 }));
 
 const tenantFindUnique = vi.hoisted(() => vi.fn());
+const queryRaw = vi.hoisted(() => vi.fn());
+const companyCount = vi.hoisted(() => vi.fn());
+const companyCreate = vi.hoisted(() => vi.fn());
+const agentCreate = vi.hoisted(() => vi.fn());
+const pipelineCreate = vi.hoisted(() => vi.fn());
+const activityLogCreate = vi.hoisted(() => vi.fn());
 vi.mock("../../../lib/db", () => ({
   prisma: {
     tenant: { findUnique: (...a: unknown[]) => tenantFindUnique(...a) },
   },
+  tenantTx: (fn: (tx: unknown) => unknown) => fn({
+    $queryRaw: (...a: unknown[]) => queryRaw(...a),
+    company: {
+      create: (...a: unknown[]) => companyCreate(...a),
+      count: (...a: unknown[]) => companyCount(...a),
+    },
+    agent: { create: (...a: unknown[]) => agentCreate(...a) },
+    pipeline: { create: (...a: unknown[]) => pipelineCreate(...a) },
+    activityLog: { create: (...a: unknown[]) => activityLogCreate(...a) },
+  }),
 }));
 
 const chatCompletionMock = vi.hoisted(() => vi.fn());
@@ -42,7 +58,7 @@ vi.mock("../../../services/provider-chain", () => ({
   refundTrialCompletion: (...a: unknown[]) => refundTrialCompletionMock(...a),
 }));
 
-import { startBuildSession } from "../builder";
+import { startBuildSession, confirmBuild } from "../builder";
 import { AppError } from "../../../middleware/error";
 
 describe("startBuildSession — provider resolution honesty (D-013)", () => {
@@ -122,5 +138,43 @@ describe("startBuildSession — provider resolution honesty (D-013)", () => {
 
     expect(commitTrialCompletionMock).not.toHaveBeenCalled();
     expect(refundTrialCompletionMock).toHaveBeenCalledWith("tenant-1", "trial");
+  });
+
+  it("confirm rechecks capacity after the AI session and writes nothing when the plan is full", async () => {
+    resolveTenantCompletionLinkMock.mockResolvedValue({
+      provider: "GROQ", source: "byok-default",
+      config: { provider: "GROQ", model: "test-model", apiKey: "synthetic" },
+    });
+    chatCompletionMock.mockResolvedValue({
+      content: JSON.stringify({ ready: false, questions: ["What is the audience?"] }),
+      inputTokens: 1, outputTokens: 1, provider: "GROQ", model: "test-model",
+    });
+    const session = await startBuildSession("tenant-1", "a test studio for launch readiness");
+    // The builder keeps this exact session object in its in-memory map. Move
+    // it to the confirm stage without exercising buildSpec's dynamic require.
+    session.status = "ready";
+    session.companySpec = {
+      name: "Test Studio", slug: "test-studio", description: "Test",
+      primitives: ["CONTENT"], agents: [], pipelines: [], config: {},
+    };
+    expect(session.status).toBe("ready");
+    queryRaw.mockResolvedValue([{ plan: "MANUAL_REVIEW" }]);
+    companyCount.mockResolvedValue(0);
+
+    await expect(confirmBuild(session.sessionId, "tenant-1")).rejects.toMatchObject({ statusCode: 402 });
+    expect(companyCount).toHaveBeenCalledWith({ where: { tenantId: "tenant-1" } });
+    expect(companyCreate).not.toHaveBeenCalled();
+    expect(agentCreate).not.toHaveBeenCalled();
+    expect(pipelineCreate).not.toHaveBeenCalled();
+    expect(activityLogCreate).not.toHaveBeenCalled();
+
+    queryRaw.mockResolvedValue([{ plan: "INDIVIDUAL" }]);
+    companyCount.mockResolvedValue(4);
+    companyCreate.mockResolvedValue({ id: "co-1", name: "Test Studio" });
+    activityLogCreate.mockResolvedValue({});
+    const created = await confirmBuild(session.sessionId, "tenant-1");
+    expect(created.status).toBe("created");
+    expect(created.companyId).toBe("co-1");
+    expect(companyCreate).toHaveBeenCalledOnce();
   });
 });

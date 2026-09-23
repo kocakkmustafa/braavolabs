@@ -26,11 +26,14 @@
  *      for. Takes `now` as an explicit parameter so it stays pure and
  *      testable without mocking Date.
  *
- * Ordering key: (sourceTimestamp ASC, id ASC). sourceTimestamp is when
- * the event happened per the payment source (Stripe's `created`,
- * Apple/Google's transaction/notification time) — NOT when we received
- * or persisted it, which is exactly what makes a delayed webhook not
- * jump the queue. `id` is the event row's own unique id, used only as a
+ * Ordering key: (sourceTimestamp ASC, id ASC). sourceTimestamp normally
+ * comes from the payment source (Stripe's `created`, Apple/Google's
+ * notification time), so a delayed webhook does not jump the queue.
+ * Google replacement-chain events are the exception: the persistence
+ * service may raise their timestamp by 1 ms past the previous event on
+ * the same root, under its ownership lock. That keeps a freshly verified
+ * replacement grant after an old-token revoke whose Pub/Sub publish time
+ * happens to be later. `id` is the event row's own unique id, used only as a
  * deterministic, stable tie-break when two events share a timestamp —
  * it does not claim to recover true sub-millisecond ordering, only to
  * make the fold's result reproducible given the same event set.

@@ -92,6 +92,7 @@ vi.mock("../delivery-ledger", () => ({
   processIapDelivery: routeMocks.processIapDelivery,
 }));
 vi.mock("../../entitlement-ledger.service", () => ({
+  GOOGLE_OBSERVATION_STALE: "Google verification was superseded; retry",
   recordEntitlementEvent: routeMocks.recordEntitlementEvent,
 }));
 

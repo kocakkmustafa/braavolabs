@@ -1,7 +1,7 @@
 /**
  * Onboarding Router — Faz 8
  *
- * Free plan onboarding: auto-creates hero social media company
+ * Onboarding: creates a hero social media company within plan capacity
  * with content pipeline pre-configured.
  */
 
@@ -9,7 +9,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
 import { rateLimit } from "../../middleware/rateLimit";
-import { prisma } from "../../lib/db";
+import { prisma, tenantTx } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import {
@@ -20,6 +20,7 @@ import {
 } from "../../services/ai-client";
 import { classifyProviderError } from "../../services/provider-chain";
 import { isKnownProvider } from "../settings/provider-models";
+import { assertCompanyCapacity } from "../company/company-capacity";
 
 export const onboardingRouter = Router();
 onboardingRouter.use(authMiddleware);
@@ -76,23 +77,6 @@ onboardingRouter.post("/hero-company", async (req, res, next) => {
     const tenantId = req.auth!.tenantId;
     const { companyName, niche, targetAudience } = heroSchema.parse(req.body);
 
-    // Check plan limit
-    const existingCompanies = await prisma.company.count({
-      where: { tenantId },
-    });
-
-    const tenant = await prisma.tenant.findUnique({
-      where: { id: tenantId },
-      select: { plan: true },
-    });
-
-    if (tenant?.plan === "FREE" && existingCompanies >= 1) {
-      throw new AppError(
-        403,
-        "Free plan allows only 1 company. Upgrade to Pro for more.",
-      );
-    }
-
     // Create the hero company from template
     const slug = companyName
       .toLowerCase()
@@ -107,116 +91,120 @@ onboardingRouter.post("/hero-company", async (req, res, next) => {
       .filter(Boolean)
       .join(", ");
 
-    const company = await prisma.company.create({
-      data: {
-        tenantId,
-        name: companyName,
-        slug: `${slug}-${Date.now().toString(36)}`,
-        description,
-        primitives: ["CONTENT", "ACQUISITION", "ANALYTICS", "DELIVERY"],
-        status: "ACTIVE",
-        config: {
-          channels: ["tiktok", "linkedin"],
-          postingFrequency: "daily",
-          niche: niche ?? "general",
-          targetAudience: targetAudience ?? "B2B professionals",
+    const { company, contentAgent, analyticsAgent, pipeline } = await tenantTx(async (tx) => {
+      await assertCompanyCapacity(tx, tenantId);
+      const company = await tx.company.create({
+        data: {
+          tenantId,
+          name: companyName,
+          slug: `${slug}-${Date.now().toString(36)}`,
+          description,
+          primitives: ["CONTENT", "ACQUISITION", "ANALYTICS", "DELIVERY"],
+          status: "ACTIVE",
+          config: {
+            channels: ["tiktok", "linkedin"],
+            postingFrequency: "daily",
+            niche: niche ?? "general",
+            targetAudience: targetAudience ?? "B2B professionals",
+          },
         },
-      },
-    });
+      });
 
-    // Create agents
-    const contentAgent = await prisma.agent.create({
-      data: {
-        companyId: company.id,
-        name: "Content Creator",
-        role: "content_creator",
-        systemPrompt: [
-          `You are a social media content creator for "${companyName}".`,
-          niche ? `Your niche is: ${niche}.` : "",
-          targetAudience ? `Target audience: ${targetAudience}.` : "",
-          "",
-          "You create engaging social media posts for TikTok and LinkedIn.",
-          "Always explain your reasoning for content decisions.",
-          "Use trends analysis to inform your content strategy.",
-          "Create drafts and schedule them for optimal engagement times.",
-        ]
-          .filter(Boolean)
-          .join("\n"),
-        tools: [
-          "generate_post",
-          "create_draft",
-          "schedule_content",
-          "analyze_trends",
-          "store_memory",
-          "recall_memory",
-        ],
-        model: "claude-sonnet-4-20250514",
-        maxTokens: 4096,
-      },
-    });
+      // Create agents
+      const contentAgent = await tx.agent.create({
+        data: {
+          companyId: company.id,
+          name: "Content Creator",
+          role: "content_creator",
+          systemPrompt: [
+            `You are a social media content creator for "${companyName}".`,
+            niche ? `Your niche is: ${niche}.` : "",
+            targetAudience ? `Target audience: ${targetAudience}.` : "",
+            "",
+            "You create engaging social media posts for TikTok and LinkedIn.",
+            "Always explain your reasoning for content decisions.",
+            "Use trends analysis to inform your content strategy.",
+            "Create drafts and schedule them for optimal engagement times.",
+          ]
+            .filter(Boolean)
+            .join("\n"),
+          tools: [
+            "generate_post",
+            "create_draft",
+            "schedule_content",
+            "analyze_trends",
+            "store_memory",
+            "recall_memory",
+          ],
+          model: "claude-sonnet-4-20250514",
+          maxTokens: 4096,
+        },
+      });
 
-    const analyticsAgent = await prisma.agent.create({
-      data: {
-        companyId: company.id,
-        name: "Analytics Agent",
-        role: "analytics",
-        systemPrompt: [
-          `You are the analytics agent for "${companyName}".`,
-          "You analyze trends, track performance metrics, and generate reports.",
-          "Always provide data-driven insights with clear reasoning.",
-          "Compare performance across periods to identify growth opportunities.",
-        ].join("\n"),
-        tools: [
-          "fetch_metrics",
-          "generate_report",
-          "compare_performance",
-          "recall_memory",
-        ],
-        model: "claude-sonnet-4-20250514",
-        maxTokens: 4096,
-      },
-    });
+      const analyticsAgent = await tx.agent.create({
+        data: {
+          companyId: company.id,
+          name: "Analytics Agent",
+          role: "analytics",
+          systemPrompt: [
+            `You are the analytics agent for "${companyName}".`,
+            "You analyze trends, track performance metrics, and generate reports.",
+            "Always provide data-driven insights with clear reasoning.",
+            "Compare performance across periods to identify growth opportunities.",
+          ].join("\n"),
+          tools: [
+            "fetch_metrics",
+            "generate_report",
+            "compare_performance",
+            "recall_memory",
+          ],
+          model: "claude-sonnet-4-20250514",
+          maxTokens: 4096,
+        },
+      });
 
-    // Create daily content pipeline
-    const pipeline = await prisma.pipeline.create({
-      data: {
-        companyId: company.id,
-        name: "Daily Content Pipeline",
-        trigger: "SCHEDULED",
-        schedule: "0 9 * * *",
-        steps: [
-          {
-            name: "analyze_trends",
-            agentRole: "analytics",
-            order: 1,
-            config: { lookbackDays: 7 },
-          },
-          {
-            name: "create_content",
-            agentRole: "content_creator",
-            order: 2,
-            config: { platforms: ["tiktok", "linkedin"], count: 2 },
-          },
-          {
-            name: "review_draft",
-            agentRole: "content_creator",
-            order: 3,
-            config: { autoApprove: false },
-          },
-        ],
-      },
-    });
+      // Create daily content pipeline
+      const pipeline = await tx.pipeline.create({
+        data: {
+          companyId: company.id,
+          name: "Daily Content Pipeline",
+          trigger: "SCHEDULED",
+          schedule: "0 9 * * *",
+          steps: [
+            {
+              name: "analyze_trends",
+              agentRole: "analytics",
+              order: 1,
+              config: { lookbackDays: 7 },
+            },
+            {
+              name: "create_content",
+              agentRole: "content_creator",
+              order: 2,
+              config: { platforms: ["tiktok", "linkedin"], count: 2 },
+            },
+            {
+              name: "review_draft",
+              agentRole: "content_creator",
+              order: 3,
+              config: { autoApprove: false },
+            },
+          ],
+        },
+      });
 
-    // Log onboarding activity
-    await prisma.activityLog.create({
-      data: {
-        tenantId,
-        actor: req.auth!.userId,
-        action: "onboarding.hero_company_created",
-        resource: "company",
-        resourceId: company.id,
-        details: { niche, targetAudience, template: "hero_social_media" },
-      },
+      // Log onboarding activity
+      await tx.activityLog.create({
+        data: {
+          tenantId,
+          actor: req.auth!.userId,
+          action: "onboarding.hero_company_created",
+          resource: "company",
+          resourceId: company.id,
+          details: { niche, targetAudience, template: "hero_social_media" },
+        },
+      });
+      return { company, contentAgent, analyticsAgent, pipeline };
     });
 
     logger.info(

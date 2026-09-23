@@ -19,8 +19,9 @@ import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
 import { AppError } from "../../middleware/error";
-import { prisma, tenantTx } from "../../lib/db";
+import { tenantTx } from "../../lib/db";
 import { logger } from "../../lib/logger";
+import { assertCompanyCapacity } from "../company/company-capacity";
 import {
   STARTER_TEMPLATES,
   STARTER_TEMPLATE_IDS,
@@ -109,32 +110,31 @@ starterRouter.post("/:id/clone", authMiddleware, async (req, res, next) => {
       }
     }
 
-    // Find an unused slug. Tenants can clone the same template up to 10
-    // times before we ask them to rename existing copies.
-    let slug = "";
-    let attempt = 0;
-    while (attempt < 10) {
-      const candidate = deriveCompanySlug(template, attempt);
-      const existing = await prisma.company.findFirst({
-        where: { tenantId, slug: candidate },
-        select: { id: true },
-      });
-      if (!existing) {
-        slug = candidate;
-        break;
-      }
-      attempt++;
-    }
-    if (!slug) {
-      throw new AppError(
-        409,
-        `You already have 10 copies of "${template.name}" — rename or archive the older ones first.`,
-      );
-    }
-
     // Single transaction so a failure halfway through doesn't leave
-    // orphan companies/agents in the DB.
+    // orphan companies/agents in the DB. The tenant lock also makes slug
+    // selection safe when two clone requests arrive together.
     const result = await tenantTx(async (tx) => {
+      await assertCompanyCapacity(tx, tenantId);
+      let slug = "";
+      let attempt = 0;
+      while (attempt < 10) {
+        const candidate = deriveCompanySlug(template, attempt);
+        const existing = await tx.company.findFirst({
+          where: { tenantId, slug: candidate },
+          select: { id: true },
+        });
+        if (!existing) {
+          slug = candidate;
+          break;
+        }
+        attempt++;
+      }
+      if (!slug) {
+        throw new AppError(
+          409,
+          `You already have 10 copies of "${template.name}" — rename or archive the older ones first.`,
+        );
+      }
       const company = await tx.company.create({
         data: {
           tenantId,
@@ -205,7 +205,7 @@ starterRouter.post("/:id/clone", authMiddleware, async (req, res, next) => {
     });
 
     logger.info(
-      { tenantId, templateId: template.id, companyId: result.id, slug },
+      { tenantId, templateId: template.id, companyId: result.id, slug: result.slug },
       "Starter template cloned",
     );
 

@@ -165,6 +165,95 @@ describe("verifyPubSubPushToken — dual workload identity", () => {
 });
 
 describe("parseGoogleRtdnEnvelope — discriminated provider messages", () => {
+  it("accepts the documented subscription notification without a subscriptionId", async () => {
+    const { parseGoogleRtdnEnvelope } = await importVerifier();
+    const data = Buffer.from(JSON.stringify({
+      version: "1.0",
+      packageName: "com.braavolabs.app",
+      subscriptionNotification: {
+        version: "1.0",
+        notificationType: 2,
+        purchaseToken: "purchase-token",
+      },
+    })).toString("base64");
+
+    expect(parseGoogleRtdnEnvelope({
+      message: {
+        data,
+        messageId: "subscription-message-1",
+        publishTime: "2026-09-04T08:00:00Z",
+      },
+    })).toEqual({
+      kind: "subscription",
+      packageName: "com.braavolabs.app",
+      notificationType: 2,
+      purchaseToken: "purchase-token",
+      messageId: "subscription-message-1",
+      publishTime: new Date("2026-09-04T08:00:00Z"),
+    });
+  });
+
+  it.each([
+    [1, "voided-subscription"],
+    [2, "voided-one-time"],
+  ] as const)("classifies a documented productType %i voided purchase as %s", async (productType, kind) => {
+    const { parseGoogleRtdnEnvelope } = await importVerifier();
+    const data = Buffer.from(JSON.stringify({
+      version: "1.0",
+      packageName: "com.braavolabs.app",
+      voidedPurchaseNotification: {
+        purchaseToken: "voided-token",
+        orderId: "GPA.1111-2222-3333-44444",
+        productType,
+        refundType: 1,
+      },
+    })).toString("base64");
+
+    expect(parseGoogleRtdnEnvelope({
+      message: {
+        data,
+        messageId: `voided-${productType}`,
+        publishTime: "2026-09-04T08:00:00Z",
+      },
+    })).toEqual({
+      kind,
+      packageName: "com.braavolabs.app",
+      purchaseToken: "voided-token",
+      orderId: "GPA.1111-2222-3333-44444",
+      refundType: 1,
+      messageId: `voided-${productType}`,
+      publishTime: new Date("2026-09-04T08:00:00Z"),
+    });
+  });
+
+  it("recognises a pending refund review without treating its token as a purchase token", async () => {
+    const { parseGoogleRtdnEnvelope } = await importVerifier();
+    const data = Buffer.from(JSON.stringify({
+      version: "1.0",
+      packageName: "com.braavolabs.app",
+      pendingRefundReviewNotification: {
+        version: "1.0",
+        pendingRefundToken: "review-token",
+        orderId: "GPA.1111-2222-3333-44444",
+        refundReason: 7,
+      },
+    })).toString("base64");
+
+    expect(parseGoogleRtdnEnvelope({
+      message: {
+        data,
+        messageId: "refund-review-1",
+        publishTime: "2026-09-04T08:00:00Z",
+      },
+    })).toEqual({
+      kind: "pending-refund-review",
+      packageName: "com.braavolabs.app",
+      messageId: "refund-review-1",
+      publishTime: new Date("2026-09-04T08:00:00Z"),
+      refundReason: 7,
+    });
+  });
+
   it("parses testNotification separately without inventing a purchase token", async () => {
     const { parseGoogleRtdnEnvelope } = await importVerifier();
     const data = Buffer.from(JSON.stringify({
@@ -187,6 +276,25 @@ describe("parseGoogleRtdnEnvelope — discriminated provider messages", () => {
       publishTime: new Date("2026-09-04T08:00:00Z"),
       version: "1.0",
     });
+  });
+
+  it("rejects a missing package name instead of assuming this app's package", async () => {
+    const { parseGoogleRtdnEnvelope } = await importVerifier();
+    const data = Buffer.from(JSON.stringify({
+      version: "1.0",
+      subscriptionNotification: {
+        version: "1.0",
+        notificationType: 2,
+        purchaseToken: "purchase-token",
+      },
+    })).toString("base64");
+    expect(parseGoogleRtdnEnvelope({
+      message: {
+        data,
+        messageId: "missing-package-1",
+        publishTime: "2026-09-04T08:00:00Z",
+      },
+    })).toBeNull();
   });
 
   it.each([

@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { sounds } from "../../lib/sounds";
+import { draftActions, previewDraftContent } from "../../lib/draftWorkflow";
 
 const STATUS_STYLES: Record<string, { background: string; color: string; border: string }> = {
-  DRAFT:     { background: "rgba(133,147,153,0.1)", color: "#859399", border: "1px solid rgba(133,147,153,0.2)" },
-  REVIEW:    { background: "rgba(255,122,26,0.1)",  color: "#FF7A1A", border: "1px solid rgba(255,122,26,0.2)" },
+  PENDING:   { background: "rgba(255,122,26,0.1)",  color: "#FF7A1A", border: "1px solid rgba(255,122,26,0.2)" },
   APPROVED:  { background: "rgba(59,130,246,0.1)",  color: "#60A5FA", border: "1px solid rgba(59,130,246,0.2)" },
   PUBLISHED: { background: "rgba(59,130,246,0.1)",  color: "#7DD3FC", border: "1px solid rgba(59,130,246,0.2)" },
   REJECTED:  { background: "rgba(255,77,77,0.1)",   color: "#FF4D4D", border: "1px solid rgba(255,77,77,0.2)" },
+  ARCHIVED:  { background: "rgba(133,147,153,0.1)", color: "#859399", border: "1px solid rgba(133,147,153,0.2)" },
 };
 
 const DEFAULT_STATUS = { background: "rgba(133,147,153,0.1)", color: "#859399", border: "1px solid rgba(133,147,153,0.2)" };
@@ -24,6 +25,13 @@ const TYPE_KEY: Record<string, string> = {
   AD_COPY: "typeAd",
   VIDEO_SCRIPT: "typeVideo",
 };
+const STATUS_KEY: Record<string, string> = {
+  PENDING: "statusPending",
+  APPROVED: "statusApproved",
+  PUBLISHED: "statusPublished",
+  REJECTED: "statusRejected",
+  ARCHIVED: "statusArchived",
+};
 
 export default function DraftsPage() {
   const t = useTranslations();
@@ -33,25 +41,39 @@ export default function DraftsPage() {
   const [drafts, setDrafts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedDraft, setSelectedDraft] = useState<string | null>(null);
+  const [actionPending, setActionPending] = useState(false);
+  const decisionInFlight = useRef(false);
 
   useEffect(() => {
     if (!hydrated || !token) return;
+    let cancelled = false;
+    setCompanies([]);
+    setSelectedCompany("");
+    setDrafts([]);
+    setSelectedDraft(null);
     api.listCompanies(token).then((list) => {
+      if (cancelled) return;
       setCompanies(list);
       if (list.length > 0) setSelectedCompany(list[0].id);
     }).catch(() => {});
+    return () => { cancelled = true; };
   }, [token, hydrated]);
 
   useEffect(() => {
     if (!token || !selectedCompany) return;
+    let cancelled = false;
     setLoading(true);
+    setDrafts([]);
+    setSelectedDraft(null);
     api.listDrafts(token, selectedCompany)
       .then((list) => {
+        if (cancelled) return;
         setDrafts(list);
         if (list.length > 0) setSelectedDraft(list[0].id);
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [token, selectedCompany]);
 
   const [error, setError] = useState<string | null>(null);
@@ -62,31 +84,61 @@ export default function DraftsPage() {
     </div>
   );
 
-  async function updateStatus(id: string, status: string) {
+  async function rejectDraft(id: string) {
+    if (decisionInFlight.current) return;
+    decisionInFlight.current = true;
+    setActionPending(true);
     setError(null);
     try {
-      await api.updateDraft(token!, id, { status });
+      const updatedDraft = await api.updateDraft(token!, id, { status: "REJECTED" });
       setDrafts((prev) => {
-        const updated = prev.map((d) => (d.id === id ? { ...d, status } : d));
-        // If rejecting or discarding, move selection to next available
-        if (status === "REJECTED") {
-          const remaining = updated.filter((d) => d.status !== "REJECTED");
-          if (selectedDraft === id && remaining.length > 0) {
-            setSelectedDraft(remaining[0].id);
-          }
+        const updated = prev.map((d) => (d.id === id ? { ...d, ...updatedDraft } : d));
+        const remaining = updated.filter((d) => d.status !== "REJECTED");
+        if (selectedDraft === id && remaining.length > 0) {
+          setSelectedDraft(remaining[0].id);
         }
         return updated;
       });
-      status === "APPROVED" || status === "PUBLISHED" ? sounds.success() : sounds.click();
+      sounds.click();
     } catch (err) {
       console.error("Draft status update failed:", err);
       setError((err as Error).message);
       sounds.error();
+    } finally {
+      decisionInFlight.current = false;
+      setActionPending(false);
+    }
+  }
+
+  async function approveDraft(id: string, send: boolean) {
+    if (decisionInFlight.current) return;
+    decisionInFlight.current = true;
+    setActionPending(true);
+    setError(null);
+    try {
+      const updatedDraft = await api.approveDraft(token!, id, send);
+      setDrafts((prev) => prev.map((d) => d.id === id ? { ...d, ...updatedDraft } : d));
+      if (send && updatedDraft.status !== "PUBLISHED") {
+        setError(t("app.drafts.sendNotCompleted"));
+        sounds.error();
+      } else {
+        sounds.success();
+      }
+    } catch (err) {
+      console.error("Draft approval failed:", err);
+      setError((err as Error).message);
+      sounds.error();
+    } finally {
+      decisionInFlight.current = false;
+      setActionPending(false);
     }
   }
 
   const activeDraft = drafts.find((d) => d.id === selectedDraft) ?? null;
-  const pendingDrafts = drafts.filter((d) => d.status === "DRAFT" || d.status === "REVIEW");
+  const pendingDrafts = drafts.filter((d) => d.status === "PENDING");
+  const selectedCompanyRecord = companies.find((company) => company.id === selectedCompany);
+  const actions = draftActions(activeDraft, selectedCompanyRecord);
+  const preview = activeDraft ? previewDraftContent(activeDraft.content) : null;
 
   return (
     <div className="animate-fade-in" style={{ padding: "28px 32px", maxWidth: 1200, margin: "0 auto" }}>
@@ -123,7 +175,7 @@ export default function DraftsPage() {
           </div>
           {pendingDrafts.length > 0 && (
             <span className="bv-pill bv-pill-amber">
-              {pendingDrafts.length} pending
+              {t("app.drafts.pendingCount", { count: pendingDrafts.length })}
             </span>
           )}
         </div>
@@ -234,7 +286,7 @@ export default function DraftsPage() {
                       className="bv-dot"
                       style={{
                         background:
-                          d.status === "DRAFT" || d.status === "REVIEW"
+                          d.status === "PENDING"
                             ? "var(--bv-status-running)"
                             : d.status === "APPROVED" || d.status === "PUBLISHED"
                             ? "var(--bv-status-completed)"
@@ -254,7 +306,7 @@ export default function DraftsPage() {
                       className="bv-pill"
                       style={{ ...(STATUS_STYLES[d.status] ?? DEFAULT_STATUS), textTransform: "none", letterSpacing: 0, fontWeight: 500 }}
                     >
-                      {d.status}
+                      {STATUS_KEY[d.status] ? t(`app.drafts.${STATUS_KEY[d.status]}`) : d.status}
                     </span>
                   </div>
                 </button>
@@ -298,22 +350,6 @@ export default function DraftsPage() {
                   </span>
                 </div>
 
-                {/* Diff legend */}
-                {activeDraft.content && (
-                  <div
-                    className="bv-mono"
-                    style={{
-                      padding: "10px 22px 0",
-                      display: "flex",
-                      gap: 16,
-                      color: "var(--color-outline)",
-                    }}
-                  >
-                    <span style={{ color: "#60A5FA" }}>+ additions</span>
-                    <span style={{ color: "#FF4D4D" }}>– removed</span>
-                  </div>
-                )}
-
                 {/* Content body */}
                 <div
                   style={{
@@ -326,12 +362,7 @@ export default function DraftsPage() {
                     whiteSpace: "pre-wrap",
                   }}
                 >
-                  {activeDraft.content
-                    ? typeof activeDraft.content === "string"
-                      ? activeDraft.content
-                      : JSON.stringify(activeDraft.content, null, 2)
-                    : <span style={{ color: "var(--color-outline)", fontStyle: "italic" }}>No preview content available.</span>
-                  }
+                  {preview ?? <span style={{ color: "var(--color-outline)", fontStyle: "italic" }}>{t("app.drafts.noPreview")}</span>}
                 </div>
 
                 {/* Created timestamp */}
@@ -356,34 +387,34 @@ export default function DraftsPage() {
                     flexWrap: "wrap",
                   }}
                 >
-                  {activeDraft.status === "DRAFT" && (
+                  {actions.approve && (
                     <button
                       className="bv-btn bv-btn-primary bv-btn-sm"
-                      onClick={() => updateStatus(activeDraft.id, "APPROVED")}
+                      disabled={actionPending}
+                      onClick={() => approveDraft(activeDraft.id, false)}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: 14 }}>check_circle</span>
-                      {t("app.drafts.approve")} &amp; publish
+                      {t("app.drafts.approve")}
                     </button>
                   )}
-                  {activeDraft.status === "APPROVED" && (
+                  {actions.send && (
                     <button
                       className="bv-btn bv-btn-primary bv-btn-sm"
-                      onClick={() => updateStatus(activeDraft.id, "PUBLISHED")}
+                      disabled={actionPending}
+                      onClick={() => approveDraft(activeDraft.id, true)}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: 14 }}>publish</span>
-                      {t("app.drafts.publish")}
+                      <span className="material-symbols-outlined" style={{ fontSize: 14 }}>send</span>
+                      {t("app.drafts.approveAndSend")}
                     </button>
                   )}
-                  <button
-                    className="bv-btn bv-btn-ghost bv-btn-sm"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
-                    Edit
-                  </button>
-                  {(activeDraft.status === "DRAFT" || activeDraft.status === "REVIEW") && (
+                  {activeDraft.status === "PENDING" && activeDraft.companyId === selectedCompanyRecord?.id && selectedCompanyRecord?.status !== "ACTIVE" && (
+                    <span className="bv-caption">{t("app.drafts.inactiveCompany")}</span>
+                  )}
+                  {actions.reject && (
                     <button
                       className="bv-btn bv-btn-danger bv-btn-sm"
-                      onClick={() => updateStatus(activeDraft.id, "REJECTED")}
+                      disabled={actionPending}
+                      onClick={() => rejectDraft(activeDraft.id)}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: 14 }}>cancel</span>
                       {t("app.drafts.reject")}
@@ -393,7 +424,7 @@ export default function DraftsPage() {
               </>
             ) : (
               <div style={{ padding: "50px 32px", textAlign: "center" }}>
-                <p className="bv-caption">Select a draft to preview.</p>
+                <p className="bv-caption">{t("app.drafts.selectPreview")}</p>
               </div>
             )}
           </div>
