@@ -48,10 +48,9 @@ test.describe("signup and first run", () => {
     expect(empty.status()).toBe(200);
     expect(await empty.json()).toEqual([]);
 
-    // FREE is a compatibility/manual-review state in the frozen two-plan
-    // contract, and its company limit is deliberately zero. The previous E2E
-    // expectation still claimed a free first company even though public copy
-    // says subscriptions are not currently purchasable. Pin the honest gate:
+    // FREE is a compatibility value normalized to MANUAL_REVIEW by the
+    // entitlement gate, and its company limit is deliberately zero. Pin the
+    // honest gate while subscriptions are not currently purchasable:
     // registration works, but no product resource is created without an
     // entitlement.
     const created = await request.post(`${API}/companies`, {
@@ -65,7 +64,7 @@ test.describe("signup and first run", () => {
     });
     expect(created.status()).toBe(402);
     expect(await created.json()).toMatchObject({
-      error: "Company limit reached for FREE plan (0). Upgrade to add more.",
+      error: "Company limit reached for MANUAL_REVIEW plan (0). Upgrade to add more.",
     });
 
     // The denied request leaves no partial tenant resource behind.
