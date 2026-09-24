@@ -170,6 +170,10 @@ services:
       # must exactly match the configured Pub/Sub push OIDC identity.
       GOOGLE_PUBSUB_AUDIENCE: ${GOOGLE_PUBSUB_AUDIENCE:-}
       GOOGLE_PUBSUB_SA_EMAIL: ${GOOGLE_PUBSUB_SA_EMAIL:-}
+      # Keep durable webhook delivery off until the migration and provider
+      # readback are accepted; the host .env can then enable it explicitly.
+      IAP_DELIVERY_RELIABILITY_ENABLED: ${IAP_DELIVERY_RELIABILITY_ENABLED:-false}
+      IAP_DELIVERY_MAX_ATTEMPTS: ${IAP_DELIVERY_MAX_ATTEMPTS:-5}
       REVENUECAT_WEBHOOK_SECRET: ${REVENUECAT_WEBHOOK_SECRET:-}
       # Email
       SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
