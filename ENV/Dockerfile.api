@@ -2,33 +2,43 @@
 ARG COREPACK_BOOTSTRAP=corepack_online
 FROM scratch AS corepack_archive
 
-FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS corepack_online
-RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+# Node 26 does not bundle Corepack. Keep bootstrap inputs immutable and avoid
+# installing a second package manager just to run the pinned pnpm release.
+FROM scratch AS pnpm_origin
+ADD --checksum=sha256:9bee59c7313a216722c079c1e22160dea7f88df4e0c3450b1d7b01b882336c6a https://registry.npmjs.org/pnpm/-/pnpm-9.15.4.tgz /pnpm-9.15.4.tgz
 
-FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS corepack_offline
+FROM node:26.9.0-alpine@sha256:dbaa92e5758cbbcf85d65d5403fdb530fe3442cbe8c6dbfb7ef23365450d5070 AS corepack_online
+RUN --network=none --mount=type=bind,from=pnpm_origin,source=/,target=/run/pnpm-origin,ro <<'PNPM'
+set -eu
+mkdir -p /usr/local/lib/pnpm-9.15.4
+tar -xzf /run/pnpm-origin/pnpm-9.15.4.tgz -C /usr/local/lib/pnpm-9.15.4 --strip-components=1
+ln -sf /usr/local/lib/pnpm-9.15.4/bin/pnpm.cjs /usr/local/bin/pnpm
+ln -sf /usr/local/lib/pnpm-9.15.4/bin/pnpx.cjs /usr/local/bin/pnpx
+test "$(node --version)" = v26.9.0
+test "$(pnpm --version)" = 9.15.4
+PNPM
+
+FROM node:26.9.0-alpine@sha256:dbaa92e5758cbbcf85d65d5403fdb530fe3442cbe8c6dbfb7ef23365450d5070 AS corepack_offline
 RUN --network=none --mount=type=bind,from=corepack_archive,source=/,target=/run/corepack-archive,ro <<'COREPACK'
 set -eu
-archive=/run/corepack-archive/corepack-pnpm-9.15.4.tgz
+archive=/run/corepack-archive/corepack-pnpm-9.15.4-node26-v1.tgz
 manifest=/run/corepack-archive/COREPACK-CONTEXT-MANIFEST.json
 count="$(find /run/corepack-archive -mindepth 1 -maxdepth 1 -print | wc -l | tr -d ' ')"
 test "$count" -eq 2
 test -f "$archive" && test ! -L "$archive"
 test -f "$manifest" && test ! -L "$manifest"
-test "$(wc -c < "$archive" | tr -d ' ')" = 3882495
-test "$(sha256sum "$archive" | awk '{print $1}')" = d389715b4d2966e8c84103387f83d2ea698d797bf678f56b6895f179be7db6a5
-node -e 'const fs=require("fs");const m=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));if(m.schema!==1||m.archive!=="corepack-pnpm-9.15.4.tgz"||m.archiveBytes!==3882495||m.archiveSha256!=="d389715b4d2966e8c84103387f83d2ea698d797bf678f56b6895f179be7db6a5"||m.corepack?.name!=="pnpm"||m.corepack?.version!=="9.15.4"||m.corepack?.embeddedSha512Hex!=="b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0"||m.origin?.url!=="https://registry.npmjs.org/pnpm/-/pnpm-9.15.4.tgz"||m.origin?.integrity!=="sha512-stwg4vxys+GISEWbNzWaMgZGY+VielHkx0ssKd2OjgSRSDw6u0B4nP1Xi/Ni+2uoJhsF8Dh9dnku1uI+o7G2oA==")process.exit(1)' "$manifest"
+test "$(wc -c < "$archive" | tr -d ' ')" = 3858114
+test "$(sha256sum "$archive" | awk '{print $1}')" = 377e4092a114e8a919900faf6db7ff503de953ea85c587cef79f46ec2628289c
+node -e 'const fs=require("fs");const m=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));if(m.schema!==2||m.archive!=="corepack-pnpm-9.15.4-node26-v1.tgz"||m.archiveBytes!==3858114||m.archiveSha256!=="377e4092a114e8a919900faf6db7ff503de953ea85c587cef79f46ec2628289c"||m.corepack?.name!=="pnpm"||m.corepack?.version!=="9.15.4"||m.corepack?.embeddedSha512Hex!=="b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0"||m.origin?.url!=="https://registry.npmjs.org/pnpm/-/pnpm-9.15.4.tgz"||m.origin?.integrity!=="sha512-stwg4vxys+GISEWbNzWaMgZGY+VielHkx0ssKd2OjgSRSDw6u0B4nP1Xi/Ni+2uoJhsF8Dh9dnku1uI+o7G2oA=="||m.producer?.recipe!=="canonical-tar-gzip-v1"||m.producer?.scriptSha256!=="e111c997be4c8c05ccd5c62a92f99f699b1e0713569e36a514ac6ef4f6635cca"||m.upstreamFileCount!==899||m.upstreamTreeSha256!=="707e9b48bc3f17adb274a2a70ce1ce726b2537becda3d26b6db22b629f292842"||m.licenseSha256!=="e0a867ff513ea7be2a0ddc339ac6a031e459a38668e077b8f0e649544062f9f2")process.exit(1)' "$manifest"
 test "$(tar -xOf "$archive" pnpm/9.15.4/.corepack)" = '{"locator":{"name":"pnpm","reference":"9.15.4"},"bin":{"pnpm":"./bin/pnpm.cjs","pnpx":"./bin/pnpx.cjs"},"hash":"sha512.b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0"}'
-corepack install -g --cache-only "$archive"
-corepack enable
-corepack prepare pnpm@9.15.4 --activate
-test "$(pnpm --version)" = 9.15.4
-package_root="$(find /root/.cache/node/corepack -type f -path '*/pnpm/9.15.4/bin/pnpm.cjs' -print | sed 's#/bin/pnpm.cjs$##')"
-test "$(printf '%s\n' "$package_root" | sed '/^$/d' | wc -l | tr -d ' ')" -eq 1
-cp -R "$package_root" /usr/local/lib/pnpm-9.15.4
+# All archive and manifest checks above must pass before extraction.
+mkdir -p /usr/local/lib/pnpm-9.15.4
+tar -xzf "$archive" -C /usr/local/lib/pnpm-9.15.4 --strip-components=2
 rm -f /usr/local/lib/pnpm-9.15.4/.corepack
 ln -sf /usr/local/lib/pnpm-9.15.4/bin/pnpm.cjs /usr/local/bin/pnpm
 ln -sf /usr/local/lib/pnpm-9.15.4/bin/pnpx.cjs /usr/local/bin/pnpx
 rm -rf /root/.cache/node/corepack
+test "$(node --version)" = v26.9.0
 test "$(pnpm --version)" = 9.15.4
 touch /usr/local/share/braavo-offline-corepack
 COREPACK
@@ -45,7 +55,7 @@ COPY packages/api/package.json ./packages/api/
 COPY packages/memory/package.json ./packages/memory/
 COPY packages/integrations/package.json ./packages/integrations/
 COPY packages/connector-sdk/package.json ./packages/connector-sdk/
-RUN --mount=type=cache,id=braavo-pnpm-9.15.4-7c9e73f60bc2bfed4abf091eab49c03d897dc1801afa1c679d242e275a48c4c1,target=/pnpm/store,sharing=locked <<'INSTALL'
+RUN --mount=type=cache,id=braavo-pnpm-9.15.4-40c3a48a43a7722fccbd017f7f8ea168be110562c1234643ce714c18f9a272d9,target=/pnpm/store,sharing=locked <<'INSTALL'
 set -eu
 pnpm config set store-dir /pnpm/store
 if test -f /usr/local/share/braavo-offline-corepack; then

@@ -175,7 +175,7 @@ userRouter.delete("/me", async (req, res, next) => {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true, role: true, tenant: { select: { plan: true, stripeSubscriptionId: true } } },
+      select: { email: true, role: true, appleId: true, tenant: { select: { plan: true, stripeSubscriptionId: true } } },
     });
     if (!user) throw new AppError(404, "User not found");
 
@@ -221,6 +221,10 @@ userRouter.delete("/me", async (req, res, next) => {
 
     res.json({
       success: true,
+      // Existing SIWA accounts have no stored Apple revocation token. TN3194:
+      // complete erasure and direct the user to remove Apple access manually.
+      // Only this data-free outcome survives deletion; never return appleId.
+      appleAccessRemovalRequired: Boolean(user.appleId),
       message: lastUser
         ? "Account and tenant erased. Stripe subscription (if any) must be cancelled manually."
         : "Account erased. Tenant retained because other members exist.",

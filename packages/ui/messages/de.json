@@ -1144,6 +1144,11 @@
         "tagline": "Steuere die KI-Agenten und Automatisierungen, die du bereits einsetzt.",
         "rights": "Alle Rechte vorbehalten.",
         "englishOnly": "Dieses Dokument ist derzeit auf Englisch verfügbar."
+      },
+      "appleAccessRemoval": {
+        "title": "Zugriff über „Mit Apple anmelden“",
+        "body": "Wenn Sie „Mit Apple anmelden“ verwendet haben, entfernt die Löschung Ihres Braavolabs-Kontos diese Apple-Verbindung nicht automatisch. Folgen Sie nach der Bestätigung der Kontolöschung Apples Anleitung, um „Mit Apple anmelden“ für Braavolabs nicht mehr zu verwenden. Sie können die Kontolöschung auch ohne diesen Apple-Schritt anfordern. Store-Abonnements müssen separat gekündigt werden.",
+        "link": "Apple-Zugriff entfernen"
       }
     },
     "blog": {
@@ -1197,7 +1202,7 @@
           },
           {
             "title": "Sicherheit",
-          "body": "Unsere veröffentlichte Web-Proxy-Konfiguration unterstützt TLS 1.2 und TLS 1.3 bei der Übertragung. Weitere Angaben zu ruhenden Daten, Produktionszugriff, Sicherheit und Aufbewahrung werden hier ohne aktuelle Anbieter- und Bereitstellungsnachweise nicht zugesichert."
+            "body": "Unsere veröffentlichte Web-Proxy-Konfiguration unterstützt TLS 1.2 und TLS 1.3 bei der Übertragung. Weitere Angaben zu ruhenden Daten, Produktionszugriff, Sicherheit und Aufbewahrung werden hier ohne aktuelle Anbieter- und Bereitstellungsnachweise nicht zugesichert."
           },
           {
             "title": "Änderungen",

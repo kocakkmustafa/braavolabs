@@ -1144,6 +1144,11 @@
         "tagline": "Dirige los agentes de IA y las automatizaciones que ya utilizas.",
         "rights": "Todos los derechos reservados.",
         "englishOnly": "Este documento está disponible actualmente en inglés."
+      },
+      "appleAccessRemoval": {
+        "title": "Acceso con «Iniciar sesión con Apple»",
+        "body": "Si usaste «Iniciar sesión con Apple», eliminar tu cuenta de Braavolabs no elimina automáticamente esa conexión de Apple. Tras confirmar la eliminación de tu cuenta, sigue las instrucciones de Apple para dejar de usar ese servicio con Braavolabs. Puedes solicitar la eliminación sin completar este paso de Apple. Las suscripciones de la tienda deben cancelarse por separado.",
+        "link": "Eliminar el acceso de Apple"
       }
     },
     "blog": {
@@ -1197,7 +1202,7 @@
           },
           {
             "title": "Seguridad",
-          "body": "Nuestra configuración pública del proxy web admite TLS 1.2 y TLS 1.3 en tránsito. No prometemos aquí otros detalles sobre datos en reposo, acceso a producción, seguridad o retención sin evidencia actual del proveedor y del despliegue."
+            "body": "Nuestra configuración pública del proxy web admite TLS 1.2 y TLS 1.3 en tránsito. No prometemos aquí otros detalles sobre datos en reposo, acceso a producción, seguridad o retención sin evidencia actual del proveedor y del despliegue."
           },
           {
             "title": "Cambios",

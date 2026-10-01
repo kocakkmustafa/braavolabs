@@ -1340,25 +1340,40 @@ for (const [name, sql, status] of migrationCases) test(`migration policy ${name}
   if (status === 68) assert.doesNotMatch(result.calls, /migrate deploy|up -d --no-deps/);
 }));
 
-const COREPACK_ARCHIVE_SHA256 = "d389715b4d2966e8c84103387f83d2ea698d797bf678f56b6895f179be7db6a5";
+const COREPACK_ARCHIVE_SHA256 = "377e4092a114e8a919900faf6db7ff503de953ea85c587cef79f46ec2628289c";
 const COREPACK_EMBEDDED_SHA512 = "b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0";
 const COREPACK_ORIGIN = "https://registry.npmjs.org/pnpm/-/pnpm-9.15.4.tgz";
-const LOCKFILE_SHA256 = "7c9e73f60bc2bfed4abf091eab49c03d897dc1801afa1c679d242e275a48c4c1";
+const LOCKFILE_SHA256 = createHash("sha256").update(readFileSync(join(ROOT, "pnpm-lock.yaml"))).digest("hex");
+const NODE_BASE = "node:26.9.0-alpine@sha256:dbaa92e5758cbbcf85d65d5403fdb530fe3442cbe8c6dbfb7ef23365450d5070";
+const PNPM_ORIGIN_SHA256 = "9bee59c7313a216722c079c1e22160dea7f88df4e0c3450b1d7b01b882336c6a";
+
+const PRODUCER_SHA256 = createHash("sha256").update(readFileSync(join(ROOT, "scripts/prepare-offline-pnpm.py"))).digest("hex");
 
 function assertOfflineCorepackContract(source, label) {
   assert.match(source, /^# syntax=docker\/dockerfile:1\.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e$/m, `${label}: frontend digest`);
   assert.match(source, /^FROM scratch AS corepack_archive$/m, `${label}: empty named-context fallback`);
-  assert.match(source, /^FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS corepack_(?:online|offline)$/m, `${label}: pinned Node base`);
+  assert.deepEqual(source.match(/^FROM node:[^\n]+/gm), [
+    `FROM ${NODE_BASE} AS corepack_online`,
+    `FROM ${NODE_BASE} AS corepack_offline`,
+  ], `${label}: every Node base uses the accepted immutable runtime`);
+  assert.ok(source.includes(`ADD --checksum=sha256:${PNPM_ORIGIN_SHA256} ${COREPACK_ORIGIN} /pnpm-9.15.4.tgz`), `${label}: pinned upstream pnpm archive`);
+  assert.match(source, /RUN --network=none --mount=type=bind,from=pnpm_origin,source=\/,target=\/run\/pnpm-origin,ro/, `${label}: verified online archive is installed without network`);
+  assert.match(source, /tar -xzf \/run\/pnpm-origin\/pnpm-9\.15\.4\.tgz -C \/usr\/local\/lib\/pnpm-9\.15\.4 --strip-components=1/, `${label}: pnpm package extraction`);
+  assert.doesNotMatch(source, /corepack (?:install|prepare|enable)/, `${label}: Node 26 does not bundle Corepack`);
   assert.match(source, /RUN --network=none --mount=type=bind,from=corepack_archive,source=\/,target=\/run\/corepack-archive,ro/, `${label}: read-only networkless bind`);
   assert.match(source, /find \/run\/corepack-archive -mindepth 1 -maxdepth 1/, `${label}: exact membership`);
   assert.match(source, /test "\$count" -eq 2/, `${label}: two-file context`);
   assert.match(source, /test -f "\$archive" && test ! -L "\$archive"/, `${label}: archive is regular non-link`);
   assert.match(source, /test -f "\$manifest" && test ! -L "\$manifest"/, `${label}: manifest is regular non-link`);
-  assert.match(source, /3882495/, `${label}: archive size`);
+  assert.match(source, /3858114/, `${label}: archive size`);
+  assert.ok(source.includes('m.schema!==2'), `${label}: explicit archive schema migration`);
+  assert.ok(source.includes('corepack-pnpm-9.15.4-node26-v1.tgz'), `${label}: versioned offline artifact`);
+  assert.ok(source.includes('m.producer?.recipe!=="canonical-tar-gzip-v1"'), `${label}: deterministic producer recipe`);
+  assert.ok(source.includes(`m.producer?.scriptSha256!=="${PRODUCER_SHA256}"`), `${label}: producer and replay share exact source`);
   assert.match(source, new RegExp(COREPACK_ARCHIVE_SHA256), `${label}: archive SHA-256`);
   assert.match(source, new RegExp(COREPACK_EMBEDDED_SHA512), `${label}: embedded SHA-512`);
   assert.match(source, new RegExp(COREPACK_ORIGIN.replaceAll(".", "\\.")), `${label}: npm origin`);
-  assert.match(source, /corepack install -g --cache-only "\$archive"/, `${label}: cache-only install`);
+  assert.match(source, /tar -xzf "\$archive" -C \/usr\/local\/lib\/pnpm-9\.15\.4 --strip-components=2/, `${label}: exact verified archive installs without Corepack or network`);
   assert.match(source, /test "\$\(pnpm --version\)" = 9\.15\.4/, `${label}: activated version`);
   assert.match(source, /rm -rf \/root\/\.cache\/node\/corepack/, `${label}: Corepack cache removed before snapshot`);
   assert.match(source, new RegExp(`id=braavo-pnpm-9\\.15\\.4-${LOCKFILE_SHA256}`), `${label}: lockfile-bound pnpm cache`);
@@ -1388,6 +1403,11 @@ test("offline Corepack security-property mutations are rejected", () => {
   const source = readFileSync(join(ROOT, "ENV/Dockerfile.ui"), "utf8");
   const mutations = [
     source.replace("FROM scratch AS corepack_archive", "FROM scratch AS missing_context"),
+    source.replace(NODE_BASE, "node:26.9.0-alpine"),
+    source.replace(PNPM_ORIGIN_SHA256, "0".repeat(64)),
+    source.replace(PRODUCER_SHA256, "0".repeat(64)),
+    source.replace('m.schema!==2', 'm.schema!==1'),
+    source.replace("--strip-components=2", "--strip-components=1"),
     source.replace("--network=none ", ""),
     source.replace(",ro", ",rw"),
     source.replaceAll(COREPACK_ARCHIVE_SHA256, "0".repeat(64)),

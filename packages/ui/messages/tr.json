@@ -1144,6 +1144,11 @@
         "tagline": "Zaten çalıştırdığınız yapay zekâ ajanlarını ve otomasyonları yönetin.",
         "rights": "Tüm hakları saklıdır.",
         "englishOnly": "Bu belge şu anda İngilizce olarak sunulmaktadır."
+      },
+      "appleAccessRemoval": {
+        "title": "Apple ile Giriş erişimi",
+        "body": "Apple ile Giriş kullandıysanız Braavolabs hesabınızı silmek bu Apple bağlantısını otomatik kaldırmaz. Hesabınızın silindiği doğrulandıktan sonra Braavolabs için Apple ile Giriş kullanımını durdurmak üzere Apple’ın yönergelerini izleyin. Bu Apple adımını tamamlamadan da hesabınızın silinmesini isteyebilirsiniz. Mağaza abonelikleri ayrıca iptal edilmelidir.",
+        "link": "Apple erişimini kaldırın"
       }
     },
     "blog": {
@@ -1197,7 +1202,7 @@
           },
           {
             "title": "Güvenlik",
-          "body": "Yayımlanmış web proxy yapılandırmamız aktarımda TLS 1.2 ve TLS 1.3 destekler. Bekleyen veri, üretim erişimi, güvenlik ve saklama ayrıntıları güncel sağlayıcı ve dağıtım kanıtı olmadan burada taahhüt edilmez."
+            "body": "Yayımlanmış web proxy yapılandırmamız aktarımda TLS 1.2 ve TLS 1.3 destekler. Bekleyen veri, üretim erişimi, güvenlik ve saklama ayrıntıları güncel sağlayıcı ve dağıtım kanıtı olmadan burada taahhüt edilmez."
           },
           {
             "title": "Değişiklikler",

@@ -1144,6 +1144,11 @@
         "tagline": "Command the AI agents & automations you already run.",
         "rights": "All rights reserved.",
         "englishOnly": "This document is currently available in English."
+      },
+      "appleAccessRemoval": {
+        "title": "Sign in with Apple access",
+        "body": "If you used Sign in with Apple, deleting your Braavolabs account does not automatically remove that Apple connection. After your account deletion is confirmed, follow Apple’s instructions to stop using Sign in with Apple for Braavolabs. You can request account deletion without completing this Apple step. Store subscriptions must be cancelled separately.",
+        "link": "Remove Apple access"
       }
     },
     "blog": {
@@ -1197,7 +1202,7 @@
           },
           {
             "title": "Security",
-          "body": "Our published web proxy configuration supports TLS 1.2 and TLS 1.3 in transit. Other at-rest, production-access, security, and retention details are not promised here without current provider and deployment evidence."
+            "body": "Our published web proxy configuration supports TLS 1.2 and TLS 1.3 in transit. Other at-rest, production-access, security, and retention details are not promised here without current provider and deployment evidence."
           },
           {
             "title": "Changes",

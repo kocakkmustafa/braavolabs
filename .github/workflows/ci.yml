@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: "26.9.0"
 
 permissions:
   contents: read
@@ -347,7 +347,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: "26.9.0"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # Prisma db push cannot create a table with vector(1536) until the
@@ -411,7 +411,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: "26.9.0"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
@@ -436,11 +436,11 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: "26.9.0"
       # These hermetic root suites are not found by pnpm's workspace test task.
       # No install, service, network credential or optional/continue-on-error path.
       - name: Release contract regressions
-        run: node --test scripts/require-green-ci.test.mjs scripts/public-claims.test.mjs scripts/deploy-platform.test.mjs scripts/backup-service.test.mjs
+        run: node --test scripts/require-green-ci.test.mjs scripts/public-claims.test.mjs scripts/deploy-platform.test.mjs scripts/backup-service.test.mjs scripts/e2e-source-manifest.test.mjs
       - name: Brand motion regressions
         run: node --experimental-strip-types --test packages/ui/lib/brandMotion.test.mjs
 

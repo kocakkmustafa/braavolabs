@@ -2,7 +2,7 @@
   "name": "ai-company-os",
   "version": "0.1.0",
   "private": true,
-  "description": "Braavolabs — Autonomous AI company creation platform",
+  "description": "Braavolabs \u2014 Autonomous AI company creation platform",
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
@@ -25,7 +25,8 @@
     "@types/node": "^22.0.0",
     "@types/node-cron": "^3.0.11",
     "ioredis": "^5.4.0",
-    "turbo": "^2.9.18"
+    "turbo": "^2.9.18",
+    "vite": "7.3.6"
   },
   "dependencies": {
     "dotenv": "^17.4.2",
@@ -35,14 +36,24 @@
   "pnpm": {
     "overrides": {
       "defu": ">=6.1.5",
-      "postcss": ">=8.5.10",
-      "protobufjs": ">=8.6.0",
+      "postcss": ">=8.5.23",
+      "protobufjs": ">=8.6.6",
       "@grpc/grpc-js": ">=1.14.4",
       "form-data": ">=4.0.6",
-      "qs": ">=6.15.2",
+      "qs": ">=6.16.0",
       "effect": ">=3.20.0",
       "@opentelemetry/core": ">=2.8.0",
-      "@babel/core": "^7.29.6"
+      "@babel/core": "^7.29.6",
+      "vite": "7.3.6",
+      "brace-expansion@5": "5.0.9",
+      "@opentelemetry/propagator-jaeger": "2.9.0",
+      "fast-uri@3": "3.1.6",
+      "sharp": "0.35.4",
+      "deepmerge-ts@7": "8.0.0",
+      "browserslist@4": "4.28.7",
+      "nanoid@3": "3.3.18",
+      "body-parser@1": "1.20.6",
+      "esbuild@0.27": "0.28.2"
     },
     "auditConfig": {
       "ignoreCves": [

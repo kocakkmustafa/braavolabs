@@ -262,6 +262,18 @@ export default function AccountDeletionPage() {
         </div>
       </header>
 
+          <aside lang={locale} dir={locale === "ar" ? "rtl" : "ltr"} aria-labelledby="apple-access-removal" className="max-w-[1040px] mx-auto mt-8 bv-glass p-6">
+            <h2 id="apple-access-removal" className="font-headline font-semibold text-xl mb-3">
+              {t("static.common.appleAccessRemoval.title")}
+            </h2>
+            <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-4">
+              {t("static.common.appleAccessRemoval.body")}
+            </p>
+            <a href="https://support.apple.com/102571" className="text-primary underline hover:text-primary-fixed transition-colors">
+              {t("static.common.appleAccessRemoval.link")}
+            </a>
+          </aside>
+
       {/* ── Article grid (TOC + prose) ── */}
       <div className="max-w-[1040px] mx-auto px-6 md:px-8 mt-10 mb-24 grid grid-cols-1 md:grid-cols-[230px_1fr] gap-12">
 
@@ -310,6 +322,8 @@ export default function AccountDeletionPage() {
               {s.content}
             </section>
           ))}
+
+
 
           {/* CTA card */}
           <div className="mt-10 bv-glass p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">

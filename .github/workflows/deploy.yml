@@ -40,7 +40,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: "26.9.0"
       # main, tag and manual releases all require CI push/main evidence for
       # this exact SHA. PR green is not deployment permission. The checker
       # polls for at most 25 minutes, outside the CI run to avoid deadlock.
@@ -160,7 +160,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: "26.9.0"
 
       # Image builds take time. Refuse an older green result if the same CI
       # commit was re-run/failed in the meantime, before preparing SSH secrets.

@@ -1144,6 +1144,11 @@
         "tagline": "Pilotez les agents IA et les automatisations que vous utilisez déjà.",
         "rights": "Tous droits réservés.",
         "englishOnly": "Ce document est actuellement disponible en anglais."
+      },
+      "appleAccessRemoval": {
+        "title": "Accès via « Se connecter avec Apple »",
+        "body": "Si vous avez utilisé « Se connecter avec Apple », la suppression de votre compte Braavolabs ne retire pas automatiquement cette connexion Apple. Après confirmation de la suppression du compte, suivez les instructions d’Apple pour ne plus utiliser ce service pour Braavolabs. Vous pouvez demander la suppression sans effectuer cette étape Apple. Les abonnements de boutique doivent être résiliés séparément.",
+        "link": "Retirer l’accès Apple"
       }
     },
     "blog": {
@@ -1197,7 +1202,7 @@
           },
           {
             "title": "Sécurité",
-          "body": "La configuration publiée de notre proxy web prend en charge TLS 1.2 et TLS 1.3 en transit. Aucun autre détail sur les données au repos, l’accès à la production, la sécurité ou la conservation n’est promis ici sans preuve actuelle du fournisseur et du déploiement."
+            "body": "La configuration publiée de notre proxy web prend en charge TLS 1.2 et TLS 1.3 en transit. Aucun autre détail sur les données au repos, l’accès à la production, la sécurité ou la conservation n’est promis ici sans preuve actuelle du fournisseur et du déploiement."
           },
           {
             "title": "Modifications",

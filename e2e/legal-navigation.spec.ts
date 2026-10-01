@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { test, expect, type Page, type Locator } from "@playwright/test";
+import { localIdentity } from "../scripts/e2e-source-manifest.mjs";
 
 const UI = "http://operator.example:4311";
 const DELETION = "/legal/account-deletion";
@@ -27,6 +28,8 @@ function sourcePaths(locale: string) {
 }
 const sourceHashes = (locale: string) => Object.fromEntries(sourcePaths(locale).map((path) => [path, sha(read(path))]));
 function identity(locale: string) {
+ const candidate = localIdentity(process.cwd(), sourcePaths(locale));
+ if (candidate) return candidate;
  const sourceRevision = git("rev-parse", "HEAD");
  const sourceTree = git("rev-parse", "HEAD^{tree}");
  expect(sourceRevision).toMatch(/^[a-f0-9]{40}$/);
@@ -363,7 +366,7 @@ for (const locale of LOCALES) for (const path of PATHS) {
   expect(rsc).toEqual([]);
   expect(rscErrors).toEqual([]);
   expect(sourceHashes(locale)).toEqual(source.sources);
-  expect(git("rev-parse", "HEAD")).toBe(source.sourceRevision);
+  expect(identity(locale)).toEqual(source);
   expect(buildId()).toBe(source.buildId);
   expect(shots).toHaveLength(3);
   for (const shot of shots) {

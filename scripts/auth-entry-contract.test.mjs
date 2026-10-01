@@ -680,6 +680,26 @@ const NAV_DOCS = ["privacy", "terms", "cookies", "gdpr", "kvkk", "deletion"];
 const NAV_HREFS = ["/privacy", "/terms", "/cookies", "/gdpr", "/kvkk", "/legal/account-deletion"];
 const NAV_GDPR_TITLES = ["Data Controller", "Personal Data We Process", "Lawful Bases", "Cross-Border Transfers", "Your Rights", "Retention", "Security", "Data Protection Officer"];
 const NAV_DELETION_TITLES = ["Overview", "Request deletion by email", "Verification and next steps", "Current availability", "What gets deleted", "What we retain — and why", "Timeline", "Active subscriptions", "Questions"];
+
+for (const locale of ["en", "tr", "es", "de", "fr", "ar"]) {
+  test(`Apple deletion follow-up is visible and localized without claiming automatic revocation: ${locale}`, async () => {
+    const { nodes, messages } = await renderLegalNav(locale, "legal/account-deletion");
+    const note = navOne(nodes.filter(node => node.type === "aside" && node.props["aria-labelledby"] === "apple-access-removal"), "one Apple follow-up note");
+    assert.equal(note.props.lang, locale);
+    assert.equal(note.props.dir, locale === "ar" ? "rtl" : "ltr");
+    const copy = messages.static.common.appleAccessRemoval;
+    for (const value of Object.values(copy)) {
+      assert.ok(value.length > 0);
+      assert.ok(navText(note).includes(value));
+    }
+    const heading = navOne(navElements(note, node => node.type === "h2"), "one accessible notice heading");
+    assert.equal(heading.props.id, note.props["aria-labelledby"]);
+    const link = navOne(navElements(note, node => node.type === "a"), "one official help link");
+    assert.equal(link.props.href, "https://support.apple.com/102571");
+    assert.equal(navText(link), copy.link);
+    assert.equal(navElements(note, node => node.type === "form" || node.type === "input").length, 0);
+  });
+}
 // Captured from the clean a895f3c source before this presentation-only change.
 // Hash the complete initializer, including JSX, not a projection of title text.
 for (const [route, digest] of Object.entries({
