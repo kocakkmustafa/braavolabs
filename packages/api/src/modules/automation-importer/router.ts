@@ -25,12 +25,13 @@
 import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
-import { prisma, tenantTx } from "../../lib/db";
+import { tenantTx } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { logger } from "../../lib/logger";
 import type { ConvertedPipeline } from "./adapters/types";
 import { deriveAgentsFromSteps } from "./agent-synthesis";
 import { maskSecrets } from "./mask-secrets";
+import { assertCompanyCapacity } from "../company/company-capacity";
 
 export const automationImporterRouter = Router();
 automationImporterRouter.use(authMiddleware);
@@ -93,35 +94,6 @@ automationImporterRouter.post("/", async (req, res, next) => {
 
     const result = await convertOne(body.source, body.payload);
 
-    // Resolve target company. If the caller didn't provide one we
-    // create a single bucket company per tenant so all imports collect
-    // in one place — the user can split them out later.
-    let companyId = body.companyId;
-    if (companyId) {
-      const company = await prisma.company.findFirst({
-        where: { id: companyId, tenantId },
-      });
-      if (!company) throw new AppError(404, "Company not found");
-    } else {
-      const bucket = await prisma.company.findFirst({
-        where: { tenantId, slug: "imported-automations" },
-      });
-      if (bucket) {
-        companyId = bucket.id;
-      } else {
-        const created = await prisma.company.create({
-          data: {
-            tenantId,
-            name: "Imported automations",
-            slug: "imported-automations",
-            primitives: ["OPERATIONS"] as any,
-            status: "ACTIVE" as any,
-          },
-        });
-        companyId = created.id;
-      }
-    }
-
     // ── Agent synthesis (E5/T1) ──────────────────────────────────────────
     // Synthesize the fixed-2-role Agents the converted steps reference so the
     // pipeline is actually RUNNABLE (findings E5-IMP-01/02). Each step's
@@ -159,14 +131,43 @@ automationImporterRouter.post("/", async (req, res, next) => {
     // (companyId, role) so upsert is impossible, adversarial A2), THEN the
     // pipeline that references them by role.
     const pipeline = await tenantTx(async (tx) => {
-      for (const spec of agentSpecs) {
-        const existing = await tx.agent.findFirst({
-          where: { companyId: companyId!, role: spec.role },
+      // Resolve the bucket after taking the tenant lock. Two imports with
+      // no companyId can then share one bucket instead of racing to INSERT.
+      let companyId = body.companyId;
+      if (companyId) {
+        const company = await tx.company.findFirst({ where: { id: companyId, tenantId } });
+        if (!company) throw new AppError(404, "Company not found");
+      } else {
+        const lockedTenant = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM tenants WHERE id = ${tenantId} FOR UPDATE
+        `;
+        if (lockedTenant.length !== 1) throw new AppError(401, "Tenant not found");
+        const bucket = await tx.company.findFirst({
+          where: { tenantId, slug: "imported-automations" },
         });
+        if (bucket) {
+          companyId = bucket.id;
+        } else {
+          await assertCompanyCapacity(tx, tenantId);
+          const created = await tx.company.create({
+            data: {
+              tenantId,
+              name: "Imported automations",
+              slug: "imported-automations",
+              primitives: ["OPERATIONS"] as any,
+              status: "ACTIVE" as any,
+            },
+          });
+          companyId = created.id;
+        }
+      }
+
+      for (const spec of agentSpecs) {
+        const existing = await tx.agent.findFirst({ where: { companyId, role: spec.role } });
         if (!existing) {
           await tx.agent.create({
             data: {
-              companyId: companyId!,
+              companyId,
               name: spec.name,
               role: spec.role,
               systemPrompt: spec.systemPrompt,
@@ -177,7 +178,7 @@ automationImporterRouter.post("/", async (req, res, next) => {
 
       const created = await tx.pipeline.create({
         data: {
-          companyId: companyId!,
+          companyId,
           name: body.name ?? result.pipeline.name,
           trigger: "MANUAL",
           // The runnable step list — the executor reads THIS column

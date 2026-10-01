@@ -24,6 +24,7 @@
 
 import crypto from "node:crypto";
 import { prisma, tenantTx } from "../../lib/db";
+import { assertCompanyCapacity } from "../company/company-capacity";
 import { AppError } from "../../middleware/error";
 
 // ── Snapshot shape ──────────────────────────────────────────
@@ -173,6 +174,7 @@ export async function materialiseTemplate(
   // Single transaction so a half-installed template can't leave the
   // tenant with orphan agents or pipelines.
   const result = await tenantTx(async (tx) => {
+    await assertCompanyCapacity(tx, tenantId);
     const company = await tx.company.create({
       data: {
         tenantId,
@@ -247,18 +249,18 @@ export async function materialiseTemplate(
       },
     });
 
-    return { companyId: company.id, slug: company.slug };
-  });
+    await tx.activityLog.create({
+      data: {
+        tenantId,
+        actor: "marketplace",
+        action: "template.install",
+        resource: "company",
+        resourceId: company.id,
+        details: { templateId },
+      },
+    });
 
-  await prisma.activityLog.create({
-    data: {
-      tenantId,
-      actor: "marketplace",
-      action: "template.install",
-      resource: "company",
-      resourceId: result.companyId,
-      details: { templateId },
-    },
+    return { companyId: company.id, slug: company.slug };
   });
   return result;
 }
