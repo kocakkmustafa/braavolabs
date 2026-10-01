@@ -174,7 +174,9 @@ draftRouter.post("/", async (req, res, next) => {
 const updateDraftSchema = z.object({
   title: z.string().optional(),
   content: z.any().optional(),
-  status: z.enum(["PENDING", "APPROVED", "PUBLISHED", "REJECTED", "ARCHIVED"]).optional(),
+  // Approval and publication must pass through /:id/approve, where the
+  // company lifecycle, recipient, quota, and delivery outcome are checked.
+  status: z.enum(["REJECTED", "ARCHIVED"]).optional(),
   channel: z.string().optional(),
 }).strict();
 
@@ -190,11 +192,19 @@ draftRouter.patch("/:id", async (req, res, next) => {
     if (!draft || draft.company.tenantId !== req.auth!.tenantId) {
       throw new AppError(404, "Draft not found");
     }
+    if (draft.status !== "PENDING") {
+      throw new AppError(409, "Only pending drafts can be edited, rejected, or archived.");
+    }
 
-    const updated = await prisma.draft.update({
-      where: { id: draft.id },
+    // Edits and terminal decisions share /approve's PENDING compare-and-swap.
+    // A stale edit cannot change the recorded content after send is claimed.
+    const decision = await prisma.draft.updateMany({
+      where: { id: draft.id, status: "PENDING", company: { tenantId: req.auth!.tenantId } },
       data,
     });
+    if (decision.count !== 1) throw new AppError(409, "Draft was already decided.");
+    const updated = await prisma.draft.findUnique({ where: { id: draft.id } });
+    if (!updated) throw new AppError(404, "Draft not found");
 
     await prisma.activityLog.create({
       data: {
@@ -223,22 +233,28 @@ draftRouter.post("/:id/approve", async (req, res, next) => {
     if (draft.status !== "PENDING") {
       throw new AppError(400, "Draft is not in PENDING status");
     }
+    // The draft can remain pending after its company is paused or archived.
+    // Check the company lifecycle before quota claims, external sends, or writes.
+    if (draft.company.status !== "ACTIVE") {
+      throw new AppError(409, "Activate the company before approving or publishing drafts.");
+    }
 
     const { send } = z.object({ send: z.boolean().optional() }).parse(req.body ?? {});
+    if (send && draft.type !== "EMAIL") {
+      throw new AppError(422, "Publishing non-email drafts is unavailable until delivery is configured.");
+    }
 
-    // CRIT-1 hardening — gate the actual SendGrid call behind:
-    //  1. Recipient must be in this tenant's CRM and not opted-out.
-    //  2. Per-tenant daily outbound cap (plan-tiered).
-    // Both checks happen BEFORE the draft is marked PUBLISHED so a
-    // refused send leaves the draft in PENDING for retry / inspection,
-    // and never burns the daily quota.
-    let publishOk = !send; // approve-only path always succeeds
-    if (send && draft.type === "EMAIL") {
-      const content = draft.content as { to?: string; subject?: string; body?: string };
-      if (!content.to || !content.subject || !content.body) {
+    // Reject invalid recipients before taking the one-time decision claim.
+    const content = send && draft.content && typeof draft.content === "object" && !Array.isArray(draft.content)
+      ? draft.content as { to?: unknown; subject?: unknown; body?: unknown }
+      : null;
+    if (send && !content) throw new AppError(400, "Email draft is missing to/subject/body in content");
+    if (content) {
+      if (typeof content.to !== "string" || !content.to.trim()
+        || typeof content.subject !== "string" || !content.subject.trim()
+        || typeof content.body !== "string" || !content.body.trim()) {
         throw new AppError(400, "Email draft is missing to/subject/body in content");
       }
-      // Tenant CRM allowlist
       const allowed = await isRecipientAllowed(req.auth!.tenantId, content.to);
       if (!allowed) {
         throw new AppError(
@@ -246,45 +262,67 @@ draftRouter.post("/:id/approve", async (req, res, next) => {
           "Recipient is not in your CRM, or has unsubscribed. Add them as a contact first.",
         );
       }
-      // Per-tenant daily cap
-      const quota = await claimEmailQuota(req.auth!.tenantId);
-      if (!quota.ok) {
-        throw new AppError(
-          429,
-          `Daily outbound email cap reached (${quota.sent}/${quota.limit}). Resets at 00:00 UTC.`,
-        );
+    }
+
+    // Only one approver can move this draft out of PENDING. Include company
+    // ownership and ACTIVE state in the write so a pause/archive that won
+    // before this point prevents the send as well.
+    const claim = await prisma.draft.updateMany({
+      where: {
+        id: draft.id,
+        status: "PENDING",
+        company: { tenantId: req.auth!.tenantId, status: "ACTIVE" },
+      },
+      data: { status: "APPROVED" },
+    });
+    if (claim.count !== 1) throw new AppError(409, "Draft was already decided or the company is inactive.");
+
+    let published = false;
+    if (content) {
+      // Quota is claimed only by the winner. If it refuses the send, restore
+      // PENDING; no provider call has happened, so retry remains safe.
+      try {
+        const quota = await claimEmailQuota(req.auth!.tenantId);
+        if (!quota.ok) {
+          throw new AppError(
+            429,
+            `Daily outbound email cap reached (${quota.sent}/${quota.limit}). Resets at 00:00 UTC.`,
+          );
+        }
+      } catch (quotaErr) {
+        await prisma.draft.updateMany({
+          where: { id: draft.id, status: "APPROVED" },
+          data: { status: "PENDING" },
+        });
+        throw quotaErr;
       }
-      // All gates passed — actually send.
+
       try {
         const { sendEmail } = await import("../../integrations/email");
-        await sendEmail({
-          to: content.to,
-          subject: content.subject,
-          body: content.body,
+        const receipt = await sendEmail({
+          to: content.to as string,
+          subject: content.subject as string,
+          body: content.body as string,
         });
-        publishOk = true;
+        // The adapter deliberately returns dev_* for its offline/no-key
+        // logging path. That is not external delivery and cannot be PUBLISHED.
+        if (!receipt?.messageId || receipt.messageId.startsWith("dev_")) {
+          throw new Error("Email adapter did not confirm provider acceptance");
+        }
+        published = true;
       } catch (emailErr) {
-        // Log; downgrade status to APPROVED so caller sees the partial
-        // outcome (we already debited the quota — that's the trade-off
-        // for closing the TOCTOU between cap-check and actual SendGrid
-        // RTT failure).
+        // A provider/network error can be ambiguous: it may have accepted
+        // the message. Leave APPROVED claimed so a retry cannot send twice.
         const { logger } = await import("../../lib/logger");
-        logger.error({ draftId: draft.id, error: emailErr }, "Failed to send draft email");
-        publishOk = false;
+        logger.error({ draftId: draft.id, error: emailErr }, "Draft email delivery outcome uncertain");
       }
-    } else if (send && draft.type !== "EMAIL") {
-      // Non-email channels (social, blog) currently auto-publish through
-      // the same approve-with-send flag. They don't hit SendGrid, so the
-      // mail-relay gates don't apply — but they DO change the draft
-      // record state.
-      publishOk = true;
     }
 
     const updated = await prisma.draft.update({
       where: { id: draft.id },
       data: {
-        status: publishOk && send ? "PUBLISHED" : "APPROVED",
-        ...(publishOk && send && { publishedAt: new Date() }),
+        status: published ? "PUBLISHED" : "APPROVED",
+        ...(published && { publishedAt: new Date() }),
       },
     });
 
@@ -292,7 +330,7 @@ draftRouter.post("/:id/approve", async (req, res, next) => {
       data: {
         tenantId: req.auth!.tenantId,
         actor: req.auth!.userId,
-        action: send ? "draft.publish" : "draft.approve",
+        action: published ? "draft.publish" : send ? "draft.delivery_uncertain" : "draft.approve",
         resource: "draft",
         resourceId: draft.id,
       },
