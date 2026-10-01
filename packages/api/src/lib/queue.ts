@@ -44,7 +44,10 @@ export const holdingRunQueue = new Queue("holding-runs", { connection });
  * that a slow heartbeat doesn't trigger a false re-queue.
  */
 const DEFAULT_WORKER_OPTS: Partial<WorkerOptions> = {
-  lockDuration: 600_000, // 10 min — covers max run wall-clock + margin
+  // 20 dk: yerel model zaman aşımı 600 sn'ye çıktı; kilit ondan UZUN olmalı,
+  // yoksa hâlâ koşan iş "stalled" sayılıp yeniden kuyruğa alınır ve aynı adım
+  // iki kez çalışır.
+  lockDuration: 1_200_000,
   stalledInterval: 60_000,
   maxStalledCount: 1,
 };

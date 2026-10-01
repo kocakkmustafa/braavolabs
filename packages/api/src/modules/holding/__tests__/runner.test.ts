@@ -86,10 +86,19 @@ const prismaMock = vi.hoisted(() => {
 
 const queueMock = vi.hoisted(() => ({
   add: vi.fn(async (name: string, data: any, opts: any) => {
+    // BullMQ'nun gerçek kısıtını burada da uygula. Sahte kuyruk bu kuralı
+    // doğrulamadığı için `jobId` içindeki ":" karakteri testlerden geçip
+    // gerçek Redis'te HER run'ı düşürmüştü (2026-08-07). Bir test double,
+    // taklit ettiği sistemin kurallarını uygulamıyorsa yeşil kalması
+    // "çalışıyor" anlamına gelmez.
+    if (typeof opts?.jobId === "string" && opts.jobId.includes(":")) {
+      throw new Error("Custom Ids cannot contain :");
+    }
     state.jobs.push({ name, data, opts });
   }),
 }));
 const createWorkerMock = vi.hoisted(() => vi.fn());
+const slackMock = vi.hoisted(() => ({ notifySlack: vi.fn(async () => undefined) }));
 
 vi.mock("../../../lib/db", () => ({ prisma: prismaMock }));
 vi.mock("../../../lib/queue", () => ({
@@ -99,6 +108,7 @@ vi.mock("../../../lib/queue", () => ({
 vi.mock("../telegram", () => ({
   sendApprovalRequest: vi.fn(async () => null),
 }));
+vi.mock("../slack", () => ({ notifySlack: slackMock.notifySlack }));
 // kinds.ts, ürün pipeline runner'ını (ağır bağımlılık zinciri) çeker — bu
 // suite çekirdek runner'ı izole test eder; extended kind'lar kinds.test'te.
 vi.mock("../kinds", () => ({
@@ -162,6 +172,7 @@ beforeEach(() => {
   for (const key of ["definitions", "runs", "stepRuns", "approvals", "audits", "jobs"] as const) {
     state[key].length = 0;
   }
+  slackMock.notifySlack.mockClear();
   preflightMock.mockClear();
   preflightMock.mockResolvedValue({ ok: true, softAlert: false });
   envMock.HOLDING_ENABLED = true;
@@ -245,7 +256,7 @@ describe("end-to-end deterministic golden path", () => {
     });
     expect(run.status).toBe("PENDING");
     expect(state.jobs).toHaveLength(1);
-    expect(state.jobs[0].opts.jobId).toBe(`${run.id}:0`);
+    expect(state.jobs[0].opts.jobId).toBe(`${run.id}__0`);
 
     await drainJobs();
 
@@ -288,13 +299,19 @@ describe("end-to-end deterministic golden path", () => {
       decidedBy: "telegram:42",
     });
     expect(res.ok).toBe(true);
-    expect(state.jobs.at(-1)?.opts.jobId).toBe(`${run.id}:2`);
+    // Ayraç "__" — ":" BullMQ tarafından reddedilir (bkz. queueMock).
+    expect(state.jobs.at(-1)?.opts.jobId).toBe(`${run.id}__2`);
     await drainJobs();
 
     expect(state.runs[0].status).toBe("SUCCEEDED");
     // The pre-gate step ran exactly once (idempotent resume).
     expect(state.stepRuns.filter((s) => s.name === "hazırlık")).toHaveLength(1);
     expect(state.stepRuns.filter((s) => s.name === "uygula")).toHaveLength(1);
+    // Park + resume = 2 yürütme, ama workflow TEK kez başlar. Bildirim her
+    // yürütmede tetiklenirse kanal gürültüye boğulur (ölçülmüş kusur).
+    expect(
+      slackMock.notifySlack.mock.calls.filter((c: any[]) => c[0]?.kind === "workflow.started"),
+    ).toHaveLength(1);
   });
 
   it("REJECTED cancels the run and never executes the gated step", async () => {
@@ -346,7 +363,7 @@ describe("end-to-end deterministic golden path", () => {
     state.jobs.length = 0;
     const count = await reconcileOrphanHoldingRuns();
     expect(count).toBe(1);
-    expect(state.jobs[0].opts.jobId).toBe(`${run.id}:0`);
+    expect(state.jobs[0].opts.jobId).toBe(`${run.id}__0`);
     // Terminal runs are never re-enqueued.
     state.runs[0].status = "SUCCEEDED";
     state.jobs.length = 0;

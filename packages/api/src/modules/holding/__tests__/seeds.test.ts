@@ -37,10 +37,40 @@ describe("D4 workflow seed", () => {
     expect(result.total).toBe(workflowSeeds.length);
     expect(workflowSeeds.length).toBe(33); // governance v3 (31) + D5 sosyal yayın/rapor (2)
     expect(store.defs.size).toBe(workflowSeeds.length);
-    // Dormant-by-design: yalnız duman testi açık doğar.
-    expect(result.enabled).toBe(1);
+    // Kurucu 2026-08-08'de güvenli kümeyi kalıcı açtı (dosyadan, DB'den DEĞİL —
+    // seed her açılışta DB'yi dosyaya yakınsadığı için elle UPDATE kalıcı olmaz).
+    // Korunan değişmez artık "yalnız 1 açık" değil, ŞU: dış yayın (`publish`) ve
+    // ürün hattı (`pipeline`) gerektiren hiçbir workflow kendiliğinden açılamaz.
     expect(store.defs.get("kapi-duman-testi")!.enabled).toBe(true);
-    expect(store.defs.get("gp1-hikaye-yayini")!.enabled).toBe(false);
+
+    // SERT KURAL: `publish` adımı olan hiçbir workflow kendiliğinden açılamaz —
+    // dış dünyaya yayın kurucu kararıdır, katalog düzenlemesiyle sızmamalı.
+    for (const seed of workflowSeeds) {
+      if (seed.steps.some((s: any) => s.kind === "publish")) {
+        expect(store.defs.get(seed.key)!.enabled).toBe(false);
+      }
+    }
+
+    // `pipeline` adımı olanlar YALNIZ hattı sağlanmışsa açılabilir; aksi halde
+    // her koşuda "pipeline'ı yok" diye düşer. Sağlananlar burada TEK TEK
+    // listelenir — liste büyüdükçe bilinçli genişletilir, otomatik değil.
+    const hattiSaglanan = new Set([
+      "gunluk-brief",              // yula-daily-brief
+      "haftalik-scorecard",        // yula-weekly-scorecard
+      "holding-raporu",            // yula-holding-report
+      "firsat-raporu-haftalik",    // yula-opportunity-report
+      "yillik-risk-konsolidasyonu",// yula-annual-risk-map
+      "kayit-senkronu",            // yula-registry-refresh
+      "bcp-dr-game-day",           // yula-bcp-restore-drill
+    ]);
+    for (const seed of workflowSeeds) {
+      if (seed.steps.some((s: any) => s.kind === "pipeline") && !hattiSaglanan.has(seed.key)) {
+        expect(store.defs.get(seed.key)!.enabled).toBe(false);
+      }
+    }
+    expect(store.defs.get("gp1-hikaye-yayini")!.enabled).toBe(false);   // hattı yok
+    expect(store.defs.get("sosyal-yayin-turu")!.enabled).toBe(false);   // publish
+    expect(result.enabled).toBe(workflowSeeds.filter((w: any) => w.enabled).length);
     expect(store.audits.some((a) => a.action === "holding.definitions_seeded")).toBe(true);
   });
 

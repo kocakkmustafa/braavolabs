@@ -2,6 +2,7 @@ import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
 import { redis } from "../../lib/redis";
 import { audit } from "./audit";
+import { markCallbackProcessed, unprocessedCallbacks } from "./social/queue";
 
 /**
  * Telegram approval bot v1 (FABLE_PLAN §2 onay UX + §2A güvenlik sınırı).
@@ -91,6 +92,37 @@ export async function sendSev0Alert(text: string): Promise<void> {
   await tg(cfg, "sendMessage", { chat_id: cfg.approvalChatId, text: `🔴 SEV0\n\n${text}` });
 }
 
+/**
+ * Rapor teslimi — düğmesiz, düz bildirim (kurucu kararı 2026-08-08: raporlar
+ * hem Telegram'a hem Slack'e düşsün).
+ *
+ * `sendApprovalRequest`'ten AYRI tutulur: onay mesajı bir KARAR ister ve
+ * callback döngüsüne bağlıdır; rapor yalnız bilgi taşır. İkisini tek fonksiyona
+ * sıkıştırmak, bir gün raporun yanına yanlışlıkla onay düğmesi koymayı kolay
+ * hale getirirdi.
+ *
+ * Gönderim başarısızlığı FIRLATMAZ: bir teslim kanalının düşmesi raporu
+ * üreten workflow'u başarısız saymamalı (Slack'e gitmiş olabilir).
+ */
+export async function sendReport(title: string, body: string): Promise<boolean> {
+  const cfg = telegramConfig();
+  if (!cfg) {
+    logger.info({ title }, "Telegram rapor teslimi atlandı (bot yapılandırılmamış)");
+    return false;
+  }
+  try {
+    // Telegram mesaj sınırı 4096 karakter; rapor uzunsa kırpılır ve bu
+    // kırpma GÖRÜNÜR olur — sessizce yarım rapor göndermek yanıltıcıdır.
+    const full = `📋 ${title}\n\n${body}`;
+    const text = full.length > 3900 ? `${full.slice(0, 3900)}\n\n… (kırpıldı)` : full;
+    await tg(cfg, "sendMessage", { chat_id: cfg.approvalChatId, text });
+    return true;
+  } catch (err) {
+    logger.error({ err, title }, "Telegram rapor teslimi başarısız");
+    return false;
+  }
+}
+
 export interface TelegramDecision {
   approvalId: string;
   decision: "APPROVED" | "REJECTED";
@@ -127,9 +159,34 @@ export async function authenticateCallback(update: any): Promise<TelegramDecisio
 }
 
 /**
+ * Authenticate a decision that reached us through the webhook relay (an
+ * `approval_callbacks` row written by the Supabase edge function) rather than
+ * through getUpdates. The edge function already checks the founder id; this is
+ * the second layer — the motor never trusts a table it does not own.
+ */
+export function authenticateRelayRow(row: {
+  callback_data: string;
+  user_id: string;
+}): TelegramDecision | null {
+  const match = row.callback_data?.match(/^holding:(approve|reject):(\S+)$/);
+  if (!match) return null;
+  const cfg = telegramConfig();
+  if (!cfg || String(row.user_id) !== cfg.founderUserId) return null;
+  return {
+    approvalId: match[2],
+    decision: match[1] === "approve" ? "APPROVED" : "REJECTED",
+    decidedBy: `telegram:${row.user_id}`,
+  };
+}
+
+/**
  * Long-poll loop for bot updates. Runs only when the module is enabled AND
  * configured; offset survives restarts via Redis. `handleDecision` is
  * injected (runner.resolveHoldingApproval) to avoid an import cycle.
+ *
+ * ⚠️ Only valid when NO webhook is registered — Telegram allows a bot exactly
+ * one transport and answers getUpdates with 409 while a webhook exists. Use
+ * `startTelegramTransport`, which picks the correct one at boot.
  */
 export function startTelegramPolling(
   handleDecision: (decision: TelegramDecision) => Promise<void>,
@@ -190,4 +247,87 @@ export function startTelegramPolling(
     stopped = true;
     aborter?.abort();
   };
+}
+
+const RELAY_INTERVAL_MS = 5_000;
+
+/**
+ * Webhook relay transport: the Supabase edge function receives the tap and
+ * writes an `approval_callbacks` row; we consume the holding-shaped rows.
+ *
+ * Why a relay instead of polling: the social pipeline already owns a webhook
+ * on this bot, and a bot may have only one transport. The webhook is also the
+ * more durable half — it is serverless and stays up while this process does
+ * not, which the "24h silence = approval" rule depends on.
+ */
+export function startTelegramRelay(
+  handleDecision: (decision: TelegramDecision) => Promise<void>,
+): () => void {
+  let stopped = false;
+  let timer: NodeJS.Timeout | null = null;
+
+  const tick = async () => {
+    try {
+      const rows = await unprocessedCallbacks();
+      for (const row of rows) {
+        if (!row.callback_data?.startsWith("holding:")) continue; // sosyal satırlar orkestratörün
+        const decision = authenticateRelayRow(row);
+        if (decision) {
+          await handleDecision(decision);
+        } else {
+          await audit({
+            actor: `telegram:${row.user_id || "unknown"}`,
+            action: "holding.approval_unauthorized_attempt",
+            entity: "holding_approval",
+            entityId: row.callback_data,
+          });
+        }
+        // Yetkisiz satır da işaretlenir; aksi halde her turda yeniden okunup
+        // denetim kaydını sonsuza dek şişirirdi.
+        await markCallbackProcessed(row.id);
+      }
+    } catch (err) {
+      logger.error({ err }, "Telegram relay cycle failed — retrying next tick");
+    } finally {
+      if (!stopped) timer = setTimeout(() => void tick(), RELAY_INTERVAL_MS);
+    }
+  };
+
+  void tick();
+  return () => {
+    stopped = true;
+    if (timer) clearTimeout(timer);
+  };
+}
+
+/**
+ * Pick the transport that Telegram will actually allow, then start it.
+ *
+ * A webhook and getUpdates are mutually exclusive per bot: while a webhook URL
+ * is registered, getUpdates returns 409 and the loop never sees a tap. Probing
+ * once at boot keeps the same build correct in both deployments — locally
+ * (social webhook registered → relay) and on a server with no webhook
+ * (→ long polling) — with no extra configuration to keep in sync.
+ */
+export async function startTelegramTransport(
+  handleDecision: (decision: TelegramDecision) => Promise<void>,
+): Promise<() => void> {
+  const cfg = telegramConfig();
+  if (!cfg) {
+    logger.info("Telegram transport not started (bot not configured)");
+    return () => {};
+  }
+  let webhookUrl = "";
+  try {
+    const info = await tg(cfg, "getWebhookInfo", {});
+    webhookUrl = String(info?.url ?? "");
+  } catch (err) {
+    logger.warn({ err }, "getWebhookInfo failed — assuming polling transport");
+  }
+  if (webhookUrl) {
+    logger.info("Telegram transport: webhook relay (approval_callbacks)");
+    return startTelegramRelay(handleDecision);
+  }
+  logger.info("Telegram transport: long polling (no webhook registered)");
+  return startTelegramPolling(handleDecision);
 }

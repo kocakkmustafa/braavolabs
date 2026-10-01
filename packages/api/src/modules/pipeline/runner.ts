@@ -614,7 +614,11 @@ export async function enqueueRun(runId: string): Promise<string> {
  * (double-billing the tenant + duplicate side effects).
  */
 export function initPipelineRunner(): void {
-  createWorker<RunJobData>("pipeline-runs", processRun);
+  // Eşzamanlılık 3 (ölçüm 2026-08-12): yerel Ollama'ya 3 paralel istek, seri
+  // koşuya göre istek başına 111,8 sn → 43,7 sn. Tek model örneği bellekte
+  // kaldığı için RAM artmıyor; Ollama istekleri kendi içinde toplu işliyor.
+  // 3'ün üstü kazanç getirmedi (2 ve 3 duvar saati neredeyse aynı: 132/131 sn).
+  createWorker<RunJobData>("pipeline-runs", processRun, { concurrency: 3 });
   logger.info("Pipeline runner worker initialized");
 }
 

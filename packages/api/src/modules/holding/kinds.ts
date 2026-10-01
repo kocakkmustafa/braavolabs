@@ -38,7 +38,7 @@ export async function executeExtendedStep(
     case "patrol":
       return executePatrol(step);
     case "pipeline":
-      return executePipeline(step, opts);
+      return executePipeline(step, runInput, opts);
     case "publish":
       return executePublish(step);
     case "report":
@@ -100,14 +100,26 @@ async function executeReport(
   const project = String(step.params?.project ?? runInput.project ?? "holding");
   const title = String(step.params?.title ?? step.name);
   const kind = String(step.params?.event ?? "workflow.completed");
+  const fields = (step.params?.fields as Record<string, string>) ?? undefined;
   const sent = await notifySlack({
     kind: kind as never,
     project: project as never,
     title,
-    fields: (step.params?.fields as Record<string, string>) ?? undefined,
+    fields,
     url: step.params?.url ? String(step.params.url) : undefined,
   });
-  return { slack_gonderildi: sent, proje: project, baslik: title };
+
+  // İKİ KANAL (kurucu kararı 2026-08-08): Telegram + Slack. Paralel değil
+  // sıralı çağrılır ve ikisi de AYRI raporlanır — "gönderildi" tek bir bayrağa
+  // indirilirse bir kanalın sessizce düşmesi görünmez olur.
+  const { sendReport } = await import("./telegram");
+  const govde =
+    (step.params?.body ? String(step.params.body) : "") ||
+    (fields ? Object.entries(fields).map(([k, v]) => `• ${k}: ${v}`).join("\n") : "") ||
+    String(runInput.ozet ?? "(içerik yok)");
+  const tgSent = await sendReport(title, govde);
+
+  return { slack_gonderildi: sent, telegram_gonderildi: tgSent, proje: project, baslik: title };
 }
 
 async function executeClassify(step: HoldingStepDef, runInput: Record<string, unknown>) {
@@ -127,16 +139,34 @@ async function executeClassify(step: HoldingStepDef, runInput: Record<string, un
   throw new ExtendedStepError(`classify: '${mode}' modu tanımsız — ESKALE (LLM zinciri K3 sonrası)`);
 }
 
+/**
+ * `params.kinds` desenleri: tam ad (`ci-failure-mail`) veya sonek joker
+ * (`store-*`). Boş bırakılırsa workflow HER olayı üstlenir (süpürücü rolü).
+ */
+function matchesKind(kind: string, patterns: string[]): boolean {
+  return patterns.some((p) => (p.endsWith("*") ? kind.startsWith(p.slice(0, -1)) : kind === p));
+}
+
 async function executePatrol(step: HoldingStepDef) {
   const scope = String(step.params?.scope ?? "sentinel-summary");
   if (scope !== "sentinel-summary") {
     throw new ExtendedStepError(`patrol: '${scope}' kapsamı tanımsız — ESKALE`);
   }
-  const events = await prisma.holdingSentinelEvent.findMany({
+  // Alan süzgeci (H-026). Süzgeç YOKKEN patrol `NEW` olayların TAMAMINI okuyup
+  // tüketiyordu; 12 patrol workflow'u etkinken alfabetik olarak ilk koşan
+  // hepsini yutuyor, kalan 11'i `scanned: 0` görüyordu. Ölçülen sonuç: Google
+  // Play son-tarih uyarısı ve `lissom` CI hataları "abonelik süpürmesi"ne
+  // yazıldı — sayı doğru, SAHİP yanlış. Süzgeç, her workflow'un yalnız kendi
+  // alanının sinyalini üstlenmesini sağlar.
+  const kinds = Array.isArray(step.params?.kinds) ? (step.params.kinds as string[]) : null;
+
+  const candidates = await prisma.holdingSentinelEvent.findMany({
     where: { status: "NEW" },
     take: 200,
     orderBy: { createdAt: "asc" },
   });
+  const events = kinds ? candidates.filter((e) => matchesKind(e.kind, kinds)) : candidates;
+
   const summary: Record<string, number> = {};
   for (const event of events) {
     const bucket = `${event.severity}:${event.kind}`;
@@ -150,10 +180,16 @@ async function executePatrol(step: HoldingStepDef) {
       data: { status: "CLASSIFIED" },
     });
   }
-  return { scanned: events.length, summary };
+  // `matched` ile `scanned` ayrı raporlanır: süzgeç yüzünden mi 0 gördük,
+  // yoksa ortada hiç yeni olay yok muydu — ikisi farklı teşhis.
+  return { scanned: events.length, candidates: candidates.length, filter: kinds, summary };
 }
 
-async function executePipeline(step: HoldingStepDef, opts: ExtendedStepOpts) {
+async function executePipeline(
+  step: HoldingStepDef,
+  runInput: Record<string, unknown>,
+  opts: ExtendedStepOpts,
+) {
   const pipelineKey = String(step.params?.pipelineKey ?? "");
   if (!pipelineKey) throw new ExtendedStepError("pipeline: params.pipelineKey zorunlu");
 
@@ -171,7 +207,13 @@ async function executePipeline(step: HoldingStepDef, opts: ExtendedStepOpts) {
     data: {
       pipelineId: pipeline.id,
       trigger: "holding",
-      input: (step.params?.input ?? {}) as object,
+      // Hat, kendisinden ÖNCEKİ adımın çıktısını görür. Aksi halde ürün hattı
+      // boş girdiyle koşar ve model "veri verilmedi" der — koşu SUCCEEDED
+      // görünür ama rapor boştur (2026-08-08'de ölçüldü).
+      input: {
+        ...((step.params?.input ?? {}) as Record<string, unknown>),
+        veri: (runInput as Record<string, unknown>)?.oncekiAdim ?? null,
+      } as object,
     },
   });
   await enqueueRun(productRun.id);

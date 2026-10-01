@@ -250,7 +250,16 @@ async function logResult(
 }
 
 export async function unprocessedCallbacks(deps: QueueDeps = {}): Promise<
-  Array<{ id: number; post_queue_id: number | null; action: string; payload_json: Record<string, unknown> | null }>
+  Array<{
+    id: number;
+    post_queue_id: number | null;
+    action: string;
+    payload_json: Record<string, unknown> | null;
+    /** Ham `callback_data` — holding onayları (`holding:approve:<uuid>`) burada taşınır. */
+    callback_data: string;
+    /** Butona basan Telegram kullanıcısı; kimlik doğrulaması için gerekli. */
+    user_id: string;
+  }>
 > {
   return (
     (await req("GET", "approval_callbacks?processed_at=is.null&select=*&order=created_at", deps)) ?? []

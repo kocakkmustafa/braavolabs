@@ -691,6 +691,25 @@ async function callOpenAICompatible(
     requestBody.tool_choice = "auto";
   }
 
+  // ── Yerel "düşünen" modellerde akıl yürütmeyi KAPAT ─────────────────────
+  // Qwen3 gibi modeller varsayılan olarak düşünme modundadır ve Ollama'nın
+  // OpenAI-uyumlu ucunda akıl yürütme `message.reasoning` alanına gider,
+  // `content` BOŞ kalır. Ölçüm (2026-08-12): 600 token bütçesinin TAMAMI
+  // düşünmeye harcanıyor, `finish_reason: "length"` dönüyor ve ajan hiçbir
+  // cevap üretmiyordu — 10 adım 240sn zaman aşımına düştü, "tamamlanan"
+  // adımların çıktısı ise karar değil İngilizce "## Reasoning" metniydi.
+  // Yani ajanlar yeşil görünüp yanlış üretiyordu.
+  //
+  // `reasoning_effort: "none"` bunu kapatır: AYNI istem 0 karakter akıl
+  // yürütme + 1691 karakter gerçek Türkçe çıktı verdi. `/no_think` yönergesi
+  // ve `chat_template_kwargs` ölçüldü, İKİSİ DE İŞE YARAMADI.
+  //
+  // Yalnız YEREL sağlayıcılara uygulanır: bulut modellerinde bu alan farklı
+  // anlam taşır (OpenAI o-serisinde düşünme derinliğini ayarlar).
+  if (LOCAL_PROVIDERS.has(config.provider)) {
+    requestBody.reasoning_effort = "none";
+  }
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
@@ -713,7 +732,13 @@ async function callOpenAICompatible(
   // Local providers can be slow on the first request (model load into
   // RAM) — give them a generous timeout. Cloud providers should respond
   // in <60s; if they don't something else is wrong.
-  const timeoutMs = LOCAL_PROVIDERS.has(config.provider) ? 240_000 : 60_000;
+  // ⚠️ Yerel modelde zaman aşımı EŞZAMANLILIKLA BİRLİKTE düşünülmeli.
+  // Ölçüm (2026-08-12): işçi eşzamanlılığı 1→3 yapıldığında verim 2,5 kat
+  // arttı AMA istek başına gecikme de ~3 katına çıktı (istekler Ollama
+  // kuyruğunda birbirini bekler). 240 sn sınırıyla 156 ajanlık koşunun
+  // 126'sı zaman aşımına düştü — verimi iyileştiren değişiklik, sabit sınır
+  // yüzünden sistemi tamamen durdurdu. Sınır gecikmeye göre yeniden ölçüldü.
+  const timeoutMs = LOCAL_PROVIDERS.has(config.provider) ? 600_000 : 60_000;
 
   // Rate limits are a fact of life on shared/free tiers (the Groq trial
   // pool's tokens-per-minute window in particular) — a single 429 must

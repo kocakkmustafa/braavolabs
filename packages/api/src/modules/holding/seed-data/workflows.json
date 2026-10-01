@@ -36,7 +36,7 @@
     "description": "3 saatte bir: yeni sentinel_events var mı → sınıf-1 zinciriyle (lokal Qwen3-4B) SEV/kategori etiketle → brief kuyruğuna özet; eşik üstü S2'ye. SİNYAL YOKSA LLM ÇAĞRILMAZ.",
     "riskClass": "R1",
     "autonomyLevel": 4,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "kuyruk ön-kontrol",
@@ -47,7 +47,15 @@
         "name": "devriye",
         "kind": "patrol",
         "reasoning": "yalnız-okuma sınıflandırma; S0 sinyali bastıramaz, severity DÜŞÜREMEZ",
-        "planned_kind": true
+        "planned_kind": true,
+        "params": {
+          "kinds": [
+            "store-*",
+            "mail-other",
+            "holding-dead-letter",
+            "spend-rate-freeze"
+          ]
+        }
       },
       {
         "name": "brief özeti",
@@ -62,7 +70,7 @@
     "description": "S0 mail sinyali (Apple/Play) → venture ataması + aksiyon önerisi; RET = hard sinyal, devriye beklemez, doğrudan kurucu bildirimi.",
     "riskClass": "R1",
     "autonomyLevel": 4,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "sınıflandır",
@@ -91,8 +99,24 @@
     "description": "Masaların satırları + COO akış durumu + CFO maliyet satırı → tek Telegram mesajı. Rapor enflasyonu yasak.",
     "riskClass": "R2",
     "autonomyLevel": 2,
-    "enabled": false,
+    "enabled": true,
     "steps": [
+      {
+        "name": "sinyalleri topla",
+        "kind": "patrol",
+        "reasoning": "brief'in hammaddesi: işlenmemiş sentinel olaylarının özeti",
+        "params": {
+          "kinds": [
+            "ci-*",
+            "store-*",
+            "infra-*",
+            "defter-*",
+            "motor-*",
+            "mail-other"
+          ]
+        },
+        "order": 0
+      },
       {
         "name": "topla",
         "kind": "pipeline",
@@ -100,7 +124,8 @@
         "planned_kind": true,
         "params": {
           "pipelineKey": "yula-daily-brief"
-        }
+        },
+        "order": 1
       },
       {
         "name": "gönder",
@@ -108,7 +133,8 @@
         "reasoning": "şablon L4 onayına kadar insan-kapılı",
         "params": {
           "description": "Günlük brief hazır — gönderilsin mi?"
-        }
+        },
+        "order": 2
       }
     ]
   },
@@ -118,7 +144,7 @@
     "description": "cosφ + en-kötü-hop + maliyet/venture + defter yaşlanması + kanal sağlığı.",
     "riskClass": "R2",
     "autonomyLevel": 2,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "derle",
@@ -186,13 +212,18 @@
     "description": "Haftalık: sahipsiz bulgu · 30 günü aşan P1 · kanıtsız kapanış denemesi · BAYAT durum satırı (H-008) taraması → CoS raporu.",
     "riskClass": "R1",
     "autonomyLevel": 4,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "tara",
         "kind": "patrol",
         "reasoning": "5 venture + holding defterlerinde yaşlanma/bayatlık taraması",
-        "planned_kind": true
+        "planned_kind": true,
+        "params": {
+          "kinds": [
+            "defter-*"
+          ]
+        }
       },
       {
         "name": "raporla",
@@ -207,7 +238,7 @@
     "description": "DNA kural 1+3.4: her şirket (A1-A9, B1-B10) için ayrı örnekleme — params.sirket. O haftanın kaçan-sinyal, yanlış-sınıflandırma oranı, eskalasyon isabeti, bildirim gürültü oranı (kurucunun 👍/👎/gereksiz tepkisi) ve maliyet metrikleri → Data&Learning orkestratörüne akar; bulgu runbook revizyon ÖNERİSİ üretir, küçük model kendi kuralını değiştiremez.",
     "riskClass": "R1",
     "autonomyLevel": 4,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "metrik topla",
@@ -215,7 +246,10 @@
         "reasoning": "şirketin DEFTER'i + sentinel/brief logları üzerinden haftalık metrik çıkarımı",
         "planned_kind": true,
         "params": {
-          "sirket": "<parametrik (v3 iştirak id'leri): a1-lifeos | a2-burun-farki | a3-braavolabs | a4-yulalab-com | a5-gravita | a6-lissom | a7-jablab | a8-ostinato | a9-choreia | b1-gozcu | b2-kesif | b3-medya | b4-atolye | b5-lab | b6-kalkan | b7-arge | b8-oyun | b9-reklam | b10-hukuk>"
+          "sirket": "<parametrik (v3 iştirak id'leri): a1-lifeos | a2-burun-farki | a3-braavolabs | a4-yulalab-com | a5-gravita | a6-lissom | a7-jablab | a8-ostinato | a9-choreia | b1-gozcu | b2-kesif | b3-medya | b4-atolye | b5-lab | b6-kalkan | b7-arge | b8-oyun | b9-reklam | b10-hukuk>",
+          "kinds": [
+            "retro-*"
+          ]
         }
       },
       {
@@ -284,7 +318,7 @@
     "description": "COO ajanının çeyreklik işi (kurucu ekleme, 2026-07-27): 'yedek var ≠ yedek çalışıyor' — Supabase (at-yarisi hgllgyuckwjeyykidrox / lifeos hidivnqmuhqjehmozbks), Lightsail (braavolabs backend + BF retrain cron), GitHub repoları için yedekten GERÇEK dönüş denemesi, izole ortamda. Başarı/süre/bulgu COO'ya raporlanır.",
     "riskClass": "R2",
     "autonomyLevel": 2,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "hedef seç",
@@ -321,7 +355,7 @@
     "description": "R&A orkestratörü işi: TÜM şirket DEFTER'lerinin (7 aktif/yarı-aktif + kurulu-uykuda) risk satırları → tek risk haritası + senaryo soruları. Kurucu ekleme (2026-07-27) — UYKUDA doğar, ilk koşum kurucu tetikli; cron YOK.",
     "riskClass": "R1",
     "autonomyLevel": 1,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "tetik bekle",
@@ -332,7 +366,12 @@
         "name": "risk satırları topla",
         "kind": "patrol",
         "reasoning": "7 aktif/yarı-aktif + 5 Motion şirketinin tüm DEFTER'lerinden risk satırı çıkarımı",
-        "planned_kind": true
+        "planned_kind": true,
+        "params": {
+          "kinds": [
+            "risk-*"
+          ]
+        }
       },
       {
         "name": "risk haritası derle",
@@ -359,13 +398,18 @@
     "description": "ENTEGRASYON-KATALOG-VE-VAULT.md §3 tetikleri: yeni venture dizini/repo tespiti · governance'a yeni KK · vault'ta '10 Holding'/'20 Şirketler' değişikliği · haftalık sabit süpürme. L1-fırsatçı (Mac açıkken) veya kurucu-oturumunda koşar; küçük senkronlar (pano satırı, registry tazeleme) OTONOM R1, yapısal olanlar (şirket açma/kapama, anayasa değişikliği) DAİMA kurucu+Fable onayı ister.",
     "riskClass": "R1",
     "autonomyLevel": 3,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "değişiklik tara",
         "kind": "patrol",
         "reasoning": "vault git log + workspace + governance yeni-KK taraması (L1-fırsatçı)",
-        "planned_kind": true
+        "planned_kind": true,
+        "params": {
+          "kinds": [
+            "registry-*"
+          ]
+        }
       },
       {
         "name": "registry tazele",
@@ -397,13 +441,18 @@
     "description": "ENTEGRASYON §1-2: Fable Mental (66 danışman) roster'ı + The Repo God (arsenal/the-repo-god/INDEX.md, 91 repo) + kurulu skill/MCP envanteri taranır; yeni/değişmiş kayıt bulunursa registry-ekleme ÖNERİSİ üretilir (regen-registry.sh koşumu daima kurucu-oturumunda — bu workflow yalnız TESPİT eder, yazmaz).",
     "riskClass": "R1",
     "autonomyLevel": 4,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "tara",
         "kind": "patrol",
         "reasoning": "fable-mental/ROSTER.md + arsenal INDEX.md + kurulu skill/MCP listesi diff taraması",
-        "planned_kind": true
+        "planned_kind": true,
+        "params": {
+          "kinds": [
+            "catalog-*"
+          ]
+        }
       },
       {
         "name": "öneri kaydı",
@@ -418,13 +467,18 @@
     "description": "Abonelik-bekçisi (ajan #53, CFO'ya bağlı) işi: Apple Developer ($99, T5HZGYBWK8) · GoDaddy (yulalab.com/burunfark.com/braavolabs.com domain yenilemeleri) · Google One · Lightsail (braavolabs+BF ortak instance) · Supabase (at-yarisi+lifeos) · diğer SaaS/API abonelikleri — yenileme tarihi sayaçları, fiyat-değişikliği tespiti, kullanılmayan-abonelik avı. Deadline ≤30/14/7 gün → artan SEV (L0 betik).",
     "riskClass": "R1",
     "autonomyLevel": 4,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "envanter tara",
         "kind": "patrol",
         "reasoning": "abonelik/servis envanteri üzerinde yenileme+fiyat taraması",
-        "planned_kind": true
+        "planned_kind": true,
+        "params": {
+          "kinds": [
+            "subscription-*"
+          ]
+        }
       },
       {
         "name": "eşik kontrolü",
@@ -444,7 +498,7 @@
     "description": "B2 YULA Keşif işi (YAPI-TASLAĞI §3.5): params.hat ile 5 ayrı örnekleme — fikir-radari (HN API+Product Hunt API+GH Trending), ihtiyac-madenciligi (kendi+rakip store yorumları, resmî API + Reddit YALNIZ DİNLEME), icerik-firsati (Google Trends+GSC), rakip-hareketi (changelog/blog RSS+store listing diff), seo-firsati (GSC pozisyon 5-20). Resmî API/feed öncelikli — Anayasa İlke 8; scraping yalnız API/feed yoksa ve robots-uyumluysa.",
     "riskClass": "R1",
     "autonomyLevel": 4,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "hat taraması",
@@ -452,7 +506,10 @@
         "reasoning": "5 hattan biri (params.hat) — resmî yüzey öncelikli, ToS-uyumlu",
         "planned_kind": true,
         "params": {
-          "hat": "<parametrik: fikir-radari | ihtiyac-madenciligi | icerik-firsati | rakip-hareketi | seo-firsati>"
+          "hat": "<parametrik: fikir-radari | ihtiyac-madenciligi | icerik-firsati | rakip-hareketi | seo-firsati>",
+          "kinds": [
+            "discovery-*"
+          ]
         }
       },
       {
@@ -468,13 +525,19 @@
     "description": "İzleme matrisi v1'in bel kemiği (§3.1): Gmail API OAuth readonly poll (kocakmkaan@gmail.com, 5-15dk) — ASC/Play mailleri, Sentry alarmları, Cloudflare/Vercel bildirimleri, Supabase pause uyarıları, GoDaddy yenileme mailleri TEK veriyoludan yakalanır. Taşıyıcı-bağımsız mail-sınıflandırıcı (sensors.ts, dalda testli) sentinel_events'e yazar; store-mail-triyaj ve sentinel-s1-devriye buradan beslenir.",
     "riskClass": "R1",
     "autonomyLevel": 4,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "poll",
         "kind": "patrol",
         "reasoning": "Gmail API OAuth readonly poll — IMAP/app-password DEĞİL, iptal edilebilir OAuth",
-        "planned_kind": true
+        "planned_kind": true,
+        "params": {
+          "kinds": [
+            "ci-*",
+            "infra-*"
+          ]
+        }
       },
       {
         "name": "sınıflandır",
@@ -495,7 +558,7 @@
     "description": "Sentezci ajanı (#26, B2 Keşif) işi: 5 tarama hattının haftalık sinyalini kanıt-linkli tek rapora derler — proje fikirleri + içerik fikirleri + geliştirme önerileri. Sınıf-5; hassas/yaratıcı yorum gerekirse Fable-seans opsiyonu. Köprü Kanalı'na şablon L4 onayına kadar insan-kapılı gönderilir (gunluk-brief deseniyle aynı).",
     "riskClass": "R2",
     "autonomyLevel": 2,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "5 hattı sentezle",
@@ -522,13 +585,18 @@
     "description": "AI Act/KVKK/GDPR/store-hukuku/TR-mevzuat diff → etki analizi → karar kuyruğu. Runbook: ajanlar/hukuk/49.",
     "riskClass": "R1",
     "autonomyLevel": 4,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "diff tara",
         "kind": "patrol",
         "reasoning": "kaynak sayfaların saklanan snapshot'ıyla karşılaştırma",
-        "planned_kind": true
+        "planned_kind": true,
+        "params": {
+          "kinds": [
+            "legal-*"
+          ]
+        }
       },
       {
         "name": "etki yaz",
@@ -543,13 +611,18 @@
     "description": "App Privacy/Data Safety/ToS ↔ kod/davranış mutabakatı; dürüstlük-çizgisi dil kontrolü. Runbook: 50.",
     "riskClass": "R1",
     "autonomyLevel": 4,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "tara",
         "kind": "patrol",
         "reasoning": "beyan-kaynak çiftlerinin karşılaştırması",
-        "planned_kind": true
+        "planned_kind": true,
+        "params": {
+          "kinds": [
+            "legal-*"
+          ]
+        }
       },
       {
         "name": "raporla",
@@ -588,13 +661,18 @@
     "description": "Ürün başına kişisel-veri haritasının aylık tazeliği (DPO-lite). Runbook: 52.",
     "riskClass": "R1",
     "autonomyLevel": 4,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "tazele",
         "kind": "patrol",
         "reasoning": "beyan+şema diff'i; sağlık verisi (LifeOS) öncelikli",
-        "planned_kind": true
+        "planned_kind": true,
+        "params": {
+          "kinds": [
+            "legal-*"
+          ]
+        }
       },
       {
         "name": "raporla",
@@ -609,13 +687,18 @@
     "description": "YULA/Braavolabs/BurunFarkı/Motion adlarının Türk Patent (+uluslararası) tescil durumu envanteri + yenileme sayaçları + çakışma radarı. Runbook: 50-51.",
     "riskClass": "R1",
     "autonomyLevel": 4,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "envanter",
         "kind": "patrol",
         "reasoning": "tescil durum sorgusu (kamu kayıtları)",
-        "planned_kind": true
+        "planned_kind": true,
+        "params": {
+          "kinds": [
+            "legal-*"
+          ]
+        }
       },
       {
         "name": "sayaçlar",
@@ -630,13 +713,18 @@
     "description": "11 repo + log örneklemlerinde API key/secret deseni avı. Runbook: 36. Bulgu YALNIZ Köprü'ye.",
     "riskClass": "R1",
     "autonomyLevel": 4,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "tara",
         "kind": "patrol",
         "reasoning": "regex+entropi taraması (betik ağırlıklı, $0)",
-        "planned_kind": true
+        "planned_kind": true,
+        "params": {
+          "kinds": [
+            "secret-*"
+          ]
+        }
       },
       {
         "name": "raporla",
@@ -651,13 +739,18 @@
     "description": "Tüm repoların dependency'lerinde bilinen zafiyet taraması. Runbook: 37.",
     "riskClass": "R1",
     "autonomyLevel": 4,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "tara",
         "kind": "patrol",
         "reasoning": "lockfile'lar × CVE veritabanı",
-        "planned_kind": true
+        "planned_kind": true,
+        "params": {
+          "kinds": [
+            "cve-*"
+          ]
+        }
       },
       {
         "name": "raporla",
@@ -672,13 +765,18 @@
     "description": "Auth-log anomalileri (şüpheli login, 401/403 fırtınası). Runbook: 38. Log içeriği DAİMA untrusted-veri.",
     "riskClass": "R1",
     "autonomyLevel": 4,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "izle",
         "kind": "patrol",
         "reasoning": "eşik-tabanlı anomali tespiti",
-        "planned_kind": true
+        "planned_kind": true,
+        "params": {
+          "kinds": [
+            "attack-*"
+          ]
+        }
       },
       {
         "name": "eskale",
@@ -714,7 +812,7 @@
     "description": "Uptime+Sentry-fırtınası+heartbeat sinyallerini tek incident'e bağlar. Runbook: 34. (Sensörlerin kendisi motor kodudur — bu tanım yalnız ilişkilendirme katmanı.)",
     "riskClass": "R1",
     "autonomyLevel": 4,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "ilişkilendir",
@@ -735,13 +833,19 @@
     "description": "Yanıt süresi/5xx/kaynak trendi → 'yük yaklaşıyor' erken uyarısı. Runbook: 35.",
     "riskClass": "R1",
     "autonomyLevel": 4,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "trend",
         "kind": "patrol",
         "reasoning": "eşik+eğim analizi (betik ağırlıklı)",
-        "planned_kind": true
+        "planned_kind": true,
+        "params": {
+          "kinds": [
+            "infra-sentry-mail",
+            "motor-*"
+          ]
+        }
       },
       {
         "name": "uyar",
@@ -771,7 +875,12 @@
         "name": "GM sentezi",
         "kind": "patrol",
         "reasoning": "GM 7 zorunlu bölümü (sağlık/doğruluk · müşteri sesi · rakip/pazar · pazarlama · güvenlik/gizlilik/hukuk · içerik performansı · kod&test) kanıt-linkli tek rapora bağlar; bir ajan zaten acil sinyal yollamışsa raporu BEKLEMEZ (C7-2), eş-zamanlı bilgilenir",
-        "planned_kind": true
+        "planned_kind": true,
+        "params": {
+          "kinds": [
+            "retro-*"
+          ]
+        }
       },
       {
         "name": "kurucuya gönderim",
@@ -789,13 +898,18 @@
     "description": "EK-C C3 madde 2: 9 şirketin (A1-A9) o haftaki istirak-raporu çıktıları yönetim katı tarafından İŞLENİR — CEO sentezi + R&A'nın bağımsız denetim notları (bir şirketin iddiası doğrulanamadıysa bunu İÇERİR) + CFO maliyet/P&L özeti + Data&Learning'in şirketler-arası çapraz-desenleri + portföy öncelik önerileri. Şirket raporlarının yerine geçmez, üzerine de yazılmaz — kurucuya AYRI bir rapor olarak, ayrı gönderilir (denetlenebilirlik, C3).",
     "riskClass": "R2",
     "autonomyLevel": 2,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "9 şirket raporunu topla",
         "kind": "patrol",
         "reasoning": "haftanın 9 istirak-raporu çıktısını (A1-A9) tek girdi kümesine indir — henüz yorum eklenmez",
-        "planned_kind": true
+        "planned_kind": true,
+        "params": {
+          "kinds": [
+            "retro-*"
+          ]
+        }
       },
       {
         "name": "yönetim-katı sentezi",
@@ -880,7 +994,7 @@
     "description": "Gün kapanınca her markanın yayın özetini kendi Slack kanalına düşürür: yayınlanan, başarısız, onay bekleyen. Özet bellekten değil post_log'dan TÜRETİLİR — sunucu yeniden başlasa da sayılar doğru kalır.",
     "riskClass": "R1",
     "autonomyLevel": 3,
-    "enabled": false,
+    "enabled": true,
     "steps": [
       {
         "name": "günlük özet",

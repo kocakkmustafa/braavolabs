@@ -204,7 +204,14 @@ async function enqueueHoldingRun(runId: string, cursor: number): Promise<void> {
     {
       // Idempotency: one Redis job per (run, cursor) — a double resume or a
       // duplicated webhook can never double-execute a step window.
-      jobId: `${runId}:${cursor}`,
+      //
+      // ⚠️ Separator is "__", NOT ":" — BullMQ rejects custom job ids that
+      // contain ":" ("Custom Ids cannot contain :") because ":" is its own
+      // Redis key separator. With ":" this add() threw on EVERY run, so no
+      // workflow could ever be enqueued. The unit tests missed it: they swap
+      // the queue for an in-memory double that does not enforce BullMQ's id
+      // rules, so the defect only surfaced against real Redis.
+      jobId: `${runId}__${cursor}`,
       attempts: JOB_ATTEMPTS,
       backoff: { type: "exponential", delay: 5_000 },
       removeOnComplete: 1000,
@@ -231,6 +238,10 @@ export async function processHoldingRun(job: Job<{ runId: string }>): Promise<vo
   }
 
   const steps = parseStepDefs(run.definition.steps);
+  // `startedAt` boşsa bu run'ın İLK yürütmesindeyiz. Bir run birden çok kez
+  // yürütülür: onay kapısında park edip devam ettiğinde ve motor yeniden
+  // başladığında yetim-kurtarma yeniden kuyruğa aldığında.
+  const isFirstExecution = run.startedAt == null;
   await prisma.holdingWorkflowRun.update({
     where: { id: runId },
     data: { status: "RUNNING", startedAt: run.startedAt ?? new Date() },
@@ -239,13 +250,20 @@ export async function processHoldingRun(job: Job<{ runId: string }>): Promise<vo
   // Slack raporlaması (D5, kurucu kararı 2026-08-07): "anlamlı olaylar".
   // Workflow başlangıcı/bitişi anlamlıdır, tekil adımlar değil — bu ayrım
   // bilinçlidir, yoksa kanal günde yüzlerce mesajla okunamaz hale gelir.
-  void notifySlack({
-    kind: "workflow.started",
-    project: slackProjectOf(run),
-    title: `${run.definition.name} başladı`,
-    fields: { adım: steps.length, risk: run.riskClass },
-    runId,
-  });
+  //
+  // ⚠️ `isFirstExecution` kapısı şart: bu blok koşulsuz çalıştığında tek bir
+  // workflow "başladı" bildirimini her devam edişte ve her motor yeniden
+  // başlatmasında tekrar yolluyordu (ölçüm: 2 run → 11 started olayı).
+  // Gürültüyü önleme amacı tam da burada kaybediliyordu.
+  if (isFirstExecution) {
+    void notifySlack({
+      kind: "workflow.started",
+      project: slackProjectOf(run),
+      title: `${run.definition.name} başladı`,
+      fields: { adım: steps.length, risk: run.riskClass },
+      runId,
+    });
+  }
 
   let lastOutput: Record<string, unknown> = {};
   for (let i = run.resumeCursor ?? 0; i < steps.length; i++) {
@@ -321,7 +339,15 @@ export async function processHoldingRun(job: Job<{ runId: string }>): Promise<vo
         step.kind === "publish" ||
         step.kind === "report"
       ) {
-        lastOutput = await executeExtendedStep(step, (run.input ?? {}) as Record<string, unknown>);
+        // ⚠️ Önceki adımın çıktısı İLERİ TAŞINIR (`oncekiAdim`). Eskiden yalnız
+        // `run.input` geçiliyordu; `lastOutput` hesaplanıp kullanılmıyordu.
+        // Sonucu ölçüldü: `gunluk-brief` hattı SUCCEEDED döndü ama modele
+        // özetleyecek hiçbir veri ulaşmadı ("verilen veri eksik" yanıtı).
+        // Boru hattı bağlıydı, içinden su akmıyordu.
+        lastOutput = await executeExtendedStep(step, {
+          ...((run.input ?? {}) as Record<string, unknown>),
+          oncekiAdim: lastOutput,
+        });
       } else {
         lastOutput = {};
       }

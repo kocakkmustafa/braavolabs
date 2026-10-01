@@ -1,3 +1,4 @@
+import { prisma } from "../../lib/db";
 import { holdingRunQueue } from "../../lib/queue";
 import { logger } from "../../lib/logger";
 import { heartbeat, ingestSentinelEvent } from "./sentinel";
@@ -24,6 +25,15 @@ import type { HoldingSeverityStr } from "./types";
 export interface InboundMail {
   from: string;
   subject: string;
+  /**
+   * Postanın DÜŞTÜĞÜ kutunun sahibi olan venture (ör. `burunfark@gmail.com`
+   * → `burun-farki`). Konu deseninden GÜÇLÜDÜR: Apple'ın "Your app status
+   * changed" gibi jenerik konulu postası desenle sahipsiz kalır, kutu
+   * bilgisiyle doğru şirkete yazılır. Yalnız desen boş dönerse kullanılır —
+   * konu açıkça başka bir uygulamayı işaret ediyorsa ona saygı gösterilir
+   * (tek kutuya birden çok ürünün postası düşebilir).
+   */
+  mailboxVenture?: string;
   /** Stable dedup key; falls back to from|subject when the carrier has none. */
   messageId?: string;
   receivedAt?: string;
@@ -70,7 +80,8 @@ function ventureOf(subject: string): string | null {
 export function classifyMail(mail: InboundMail): MailSignal {
   const from = mail.from.toLowerCase();
   const subject = mail.subject ?? "";
-  const venture = ventureOf(subject);
+  // Desen önce: konu bir ürünü AÇIKÇA söylüyorsa kutu sahibini ezmez.
+  const venture = ventureOf(subject) ?? (mail.mailboxVenture || null);
 
   if (from.includes("apple.com")) {
     if (REJECTION_PATTERN.test(subject)) return { kind: "store-apple-rejection", severity: "SEV1", venture };
@@ -91,7 +102,17 @@ export function classifyMail(mail: InboundMail): MailSignal {
   }
   if (from.includes("sentry")) return { kind: "infra-sentry-mail", severity: "SEV2", venture };
   if (from.includes("github")) {
-    return /fail|başarısız/i.test(subject)
+    const basarisiz = /fail|başarısız/i.test(subject);
+    // Dependabot bağımlılık PR'ı CI OLAYI DEĞİLDİR. Ölçüm (2026-08-08): 96
+    // saatlik pencerede GitHub postalarının çoğu `chore(deps)/build(deps)`
+    // bump bildirimiydi — hepsini sinyale çevirmek gözcü tablosunu INFO
+    // gürültüsüyle doldurur ve gerçek CI hatasını görünmez yapar.
+    // İSTİSNA: bump PR'ı BAŞARISIZ olduysa gerçek bir CI sinyalidir.
+    const bagimlilikBump = /\b(deps|dependabot|bump)\b/i.test(subject) || from.includes("dependabot");
+    if (bagimlilikBump && !basarisiz) {
+      return { kind: "ci-bagimlilik-bildirimi", severity: "SEV3", venture };
+    }
+    return basarisiz
       ? { kind: "ci-failure-mail", severity: "SEV2", venture }
       : { kind: "ci-mail", severity: "INFO", venture };
   }
@@ -149,6 +170,36 @@ export async function sweepSentinelSensors(): Promise<void> {
     }
   } catch (err) {
     logger.error({ err }, "queue-health sweep failed");
+  }
+
+  // (3) Motorun kendi durumu — günlük brief bileşeni (kurucu kararı 2026-08-08).
+  //
+  // Neden harici bir script değil: veri zaten burada. Neden GÜNDE BİR: süpürme
+  // 10 dakikada bir koşuyor; her turda olay üretmek günde 144 eşdeğer kayıt
+  // demek olurdu — `salient` gün bazlı olduğu için sonraki turlar aynı kaydı
+  // KATLAR (dedupCount artar), yeni satır açmaz.
+  //
+  // Sağlıklı günde de üretilir: "hata yok" bilgisi brief'te bir SATIRDIR;
+  // yalnız bozukken üretmek "sessizlik = her şey yolunda" yanılgısını doğurur.
+  try {
+    const gun = new Date().toISOString().slice(0, 10);
+    const [toplam, basarisiz, bekleyenOnay, calisan] = await Promise.all([
+      prisma.holdingWorkflowRun.count(),
+      prisma.holdingStepRun.count({ where: { status: "FAILED" } }),
+      prisma.holdingApproval.count({ where: { status: "PENDING" } }),
+      prisma.holdingWorkflowRun.count({ where: { status: { in: ["PENDING", "RUNNING"] } } }),
+    ]);
+    await ingestSentinelEvent({
+      source: "motor",
+      kind: "motor-saglik",
+      // Başarısız adım varsa SEV2, yoksa INFO — şiddet gerçeği yansıtsın.
+      severity: basarisiz > 0 ? "SEV2" : "INFO",
+      trustLevel: "TRUSTED",
+      payload: { toplamKosu: toplam, basarisizAdim: basarisiz, bekleyenOnay, calisan },
+      salient: `motor-saglik|${gun}`,
+    });
+  } catch (err) {
+    logger.error({ err }, "motor-saglik sweep failed");
   }
 }
 

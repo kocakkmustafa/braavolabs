@@ -20,6 +20,8 @@ import { redis } from "./lib/redis";
 import { errorHandler } from "./middleware/error";
 import { securityHeaders } from "./middleware/security";
 import { requestId } from "./middleware/requestId";
+import { sensorRouter } from "./modules/holding/sensor.router";
+import { holdingOverviewRouter } from "./modules/holding/overview.router";
 import { companyRouter } from "./modules/company/router";
 import { pipelineRouter } from "./modules/pipeline/router";
 import { runRouter } from "./modules/run/router";
@@ -298,6 +300,12 @@ api.use("/bench", benchRouter);
 api.use("/users", userRouter);
 api.use("/devices", deviceRouter);
 api.use("/companies", companyRouter);
+// Holding sensör alımı — makine besleyiciler için (H-023). Kendi token'ıyla
+// korunur; token yoksa uç 404 döner (dormant-by-default).
+api.use("/holding/sensor", sensorRouter);
+// Holding yüzeyi (masaüstü/web "Holding" sekmesi) — kullanıcı JWT'siyle korunur
+// ve YALNIZ yula-internal tenant'ına açıktır.
+api.use("/holding", holdingOverviewRouter);
 api.use("/pipelines", pipelineRouter);
 api.use("/runs", runRouter);
 // Tenant-wide handoff ledger list (E3/T5) — the per-run history lives under
