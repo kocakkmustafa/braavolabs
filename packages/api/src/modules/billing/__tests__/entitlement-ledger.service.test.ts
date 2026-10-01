@@ -21,7 +21,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // double that does not enforce reality's rule proves nothing.
 vi.mock("../../../lib/db", () => {
   const client: any = {
-    entitlementEvent: { create: vi.fn(), findMany: vi.fn() },
+    entitlementEvent: { create: vi.fn(), createMany: vi.fn(), findFirst: vi.fn(), findMany: vi.fn() },
+    googlePurchaseAlias: { findFirst: vi.fn() },
     tenant: { update: vi.fn() },
     $queryRaw: vi.fn().mockResolvedValue([]),
   };
@@ -45,11 +46,17 @@ import {
   getEntitlementProjection,
   reprojectEntitlement,
   recordEntitlementEvent,
+  recordGoogleEntitlementWithDecision,
 } from "../entitlement-ledger.service";
+import { iapLedgerStreamId, mapIapVerify } from "../entitlement-mapping";
 import { prisma } from "../../../lib/db";
 
 const mockCreate = prisma.entitlementEvent.create as unknown as ReturnType<typeof vi.fn>;
 const mockFindMany = prisma.entitlementEvent.findMany as unknown as ReturnType<typeof vi.fn>;
+const mockFindFirst = prisma.entitlementEvent.findFirst as unknown as ReturnType<typeof vi.fn>;
+const mockCreateMany = prisma.entitlementEvent.createMany as unknown as ReturnType<typeof vi.fn>;
+const mockAliasFindFirst = prisma.googlePurchaseAlias.findFirst as unknown as ReturnType<typeof vi.fn>;
+const mockQueryRaw = prisma.$queryRaw as unknown as ReturnType<typeof vi.fn>;
 const mockTenantUpdate = prisma.tenant.update as unknown as ReturnType<typeof vi.fn>;
 
 const TENANT = "tenant-A";
@@ -323,5 +330,149 @@ describe("recordEntitlementEvent", () => {
 
     expect(plan).toBe("TEAM");
     expect(mockFindMany).toHaveBeenCalledTimes(1);
+  });
+
+  it("fences a replaced Google root and projects the newer grant even when an old revoke has a later provider timestamp", async () => {
+    const rootIdentity = `google:${"a".repeat(64)}`;
+    const newIdentity = `google:${"b".repeat(64)}`;
+    const streamId = iapLedgerStreamId("google", rootIdentity);
+    const aliases = new Set([rootIdentity]);
+    const events: ReturnType<typeof row>[] = [];
+    const verified = {
+      originalTransactionId: rootIdentity,
+      status: "active" as const,
+      startedAt: new Date("2026-08-01T00:00:00Z"),
+      expiresAt: new Date(Date.now() + 86_400_000),
+      autoRenew: true,
+    };
+    const oldGrant = mapIapVerify("google", verified, "TEAM", rootIdentity);
+    const replacementGrant = mapIapVerify("google", verified, "TEAM", newIdentity);
+    expect(replacementGrant.sourceEventId).not.toBe(oldGrant.sourceEventId);
+    events.push(row({ ...oldGrant, id: "old-grant", tenantId: TENANT }));
+    mockQueryRaw.mockResolvedValue([{ id: "mobile-sub-google" }]);
+    mockAliasFindFirst.mockImplementation(async ({ where }: any) =>
+      [...aliases].find((digest) => !where.tokenDigest.notIn.includes(digest))
+        ? { tokenDigest: newIdentity }
+        : null);
+    mockFindFirst.mockImplementation(async () => {
+      const latest = [...events].sort((a, b) =>
+        b.sourceTimestamp.getTime() - a.sourceTimestamp.getTime())[0];
+      return latest ? { sourceTimestamp: latest.sourceTimestamp } : null;
+    });
+    mockCreateMany.mockImplementation(async ({ data }: any) => {
+      const [candidate] = data;
+      if (events.some((event) => event.sourceEventId === candidate.sourceEventId)) {
+        return { count: 0 };
+      }
+      events.push(row({ ...candidate, id: `event-${events.length + 1}` }));
+      return { count: 1 };
+    });
+    mockFindMany.mockImplementation(async () => events);
+
+    const oldEvent = {
+      tenantId: TENANT,
+      source: "google" as const,
+      streamId,
+      sourceEventId: "late-old-voided",
+      sourceTimestamp: new Date(Date.now() + 60_000),
+      type: "revoke" as const,
+      planTier: null,
+      expiresAt: null,
+      autoRenew: false,
+    };
+    const oldFence = {
+      subscriptionId: "mobile-sub-google",
+      rootIdentity,
+      verifiedAliases: [rootIdentity],
+    };
+    const newFence = {
+      ...oldFence,
+      verifiedAliases: [newIdentity, rootIdentity],
+    };
+
+    expect(await recordEntitlementEvent(oldEvent, oldFence)).toBe("MANUAL_REVIEW");
+    aliases.add(newIdentity); // A new-token claim commits after the old append.
+    const newEvent = {
+      ...replacementGrant,
+      tenantId: TENANT,
+      sourceTimestamp: new Date(Date.now() - 60_000),
+    };
+    expect(await recordEntitlementEvent(newEvent, newFence)).toBe("TEAM");
+    expect(events[2]!.sourceTimestamp.getTime()).toBeGreaterThan(events[1]!.sourceTimestamp.getTime());
+    expect(await getEntitlementProjection(TENANT)).toMatchObject({ effectiveTier: "TEAM" });
+
+    // A late old-token retry observes the new alias under the same root lock.
+    expect(await recordEntitlementEvent({ ...oldEvent, sourceEventId: "old-retry" }, oldFence))
+      .toBeNull();
+    expect(events).toHaveLength(3);
+    expect(await getEntitlementProjection(TENANT)).toMatchObject({ effectiveTier: "TEAM" });
+    expect(mockCreateMany).toHaveBeenCalledTimes(2);
+    expect(mockAliasFindFirst).toHaveBeenLastCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ tokenDigest: { notIn: [rootIdentity] } }),
+    }));
+  });
+
+  it("never runs a Google manual-review decision after a replacement alias wins the root fence", async () => {
+    const rootIdentity = `google:${"a".repeat(64)}`;
+    const event = {
+      tenantId: TENANT,
+      source: "google" as const,
+      streamId: iapLedgerStreamId("google", rootIdentity),
+      sourceEventId: "manual-review-grant",
+      sourceTimestamp: new Date(),
+      type: "purchase" as const,
+      planTier: "TEAM",
+      expiresAt: new Date(Date.now() + 86_400_000),
+      autoRenew: true,
+    };
+    mockQueryRaw.mockResolvedValue([{ id: "mobile-sub-google" }]);
+    mockAliasFindFirst.mockResolvedValue({ tokenDigest: `google:${"b".repeat(64)}` });
+    const decide = vi.fn().mockResolvedValue({ state: "approved_mapping" });
+
+    const result = await recordGoogleEntitlementWithDecision(event, {
+      subscriptionId: "mobile-sub-google",
+      rootIdentity,
+      verifiedAliases: [rootIdentity],
+    }, decide);
+
+    expect(result).toBeNull();
+    expect(decide).not.toHaveBeenCalled();
+    expect(mockCreateMany).not.toHaveBeenCalled();
+    expect(mockTenantUpdate).not.toHaveBeenCalled();
+  });
+
+  it("runs an eligible Google review decision before its grant append under the root fence", async () => {
+    const rootIdentity = `google:${"a".repeat(64)}`;
+    const event = {
+      tenantId: TENANT,
+      source: "google" as const,
+      streamId: iapLedgerStreamId("google", rootIdentity),
+      sourceEventId: "approved-manual-review",
+      sourceTimestamp: new Date(),
+      type: "purchase" as const,
+      planTier: "TEAM",
+      expiresAt: new Date(Date.now() + 86_400_000),
+      autoRenew: true,
+    };
+    mockQueryRaw.mockResolvedValue([{ id: "mobile-sub-google" }]);
+    mockAliasFindFirst.mockResolvedValue(null);
+    mockFindFirst.mockResolvedValue(null);
+    mockCreateMany.mockResolvedValue({ count: 1 });
+    mockFindMany.mockResolvedValue([row({ ...event, id: "approved-event" })]);
+    const decide = vi.fn().mockResolvedValue({ state: "approved_mapping" });
+
+    const result = await recordGoogleEntitlementWithDecision(event, {
+      subscriptionId: "mobile-sub-google",
+      rootIdentity,
+      verifiedAliases: [rootIdentity],
+    }, decide);
+
+    expect(result).toEqual({ decision: { state: "approved_mapping" }, plan: "TEAM" });
+    expect(mockQueryRaw.mock.invocationCallOrder[0])
+      .toBeLessThan(mockAliasFindFirst.mock.invocationCallOrder[0]);
+    expect(mockAliasFindFirst.mock.invocationCallOrder[0])
+      .toBeLessThan(decide.mock.invocationCallOrder[0]);
+    expect(decide.mock.invocationCallOrder[0])
+      .toBeLessThan(mockCreateMany.mock.invocationCallOrder[0]);
   });
 });

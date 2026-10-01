@@ -87,6 +87,7 @@ interface GoogleSubscriptionV2 {
   lineItems?: Array<{
     productId: string;
     expiryTime: string;
+    latestSuccessfulOrderId?: string;
     autoRenewingPlan?: { autoRenewEnabled?: boolean };
     prepaidPlan?: unknown;
     offerDetails?: { basePlanId?: string; offerId?: string };
@@ -104,6 +105,10 @@ const GOOGLE_API_BASE = "https://androidpublisher.googleapis.com/androidpublishe
 const MAX_GOOGLE_REPLACEMENT_HOPS = 8;
 
 export type VerifiedGoogleReceipt = VerifiedReceipt & {
+  /** Product ID returned by subscriptionsv2, never inferred from an RTDN. */
+  googleProductId: string;
+  /** Most recent paid renewal order, used to classify a voided order. */
+  googleLatestSuccessfulOrderId: string | null;
   /** Digest-only identities for every record verified in the replacement chain. */
   googlePurchaseAliases: string[];
   /** Digest of the oldest verified token in the bounded chain. */
@@ -195,7 +200,7 @@ async function callGoogleApi(
 
 export async function verifyGoogleReceipt(
   purchaseToken: string,
-  productId: string,
+  productId?: string,
 ): Promise<VerifiedGoogleReceipt> {
   if (!env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON || !env.GOOGLE_PLAY_PACKAGE_NAME) {
     throw new AppError(
@@ -208,6 +213,8 @@ export async function verifyGoogleReceipt(
   const seen = new Set<string>();
   let token = purchaseToken;
   let currentAuthority: {
+    productId: string;
+    latestSuccessfulOrderId: string | null;
     status: VerifiedReceipt["status"];
     startedAt: Date;
     expiresAt: Date;
@@ -234,17 +241,33 @@ export async function verifyGoogleReceipt(
 
     const sub = (await res.json()) as GoogleSubscriptionV2;
     const item = sub.lineItems?.[0];
-    if (!item) throw new AppError(400, "Google subscription chain has no line items");
+    if (
+      !item
+      || sub.lineItems?.length !== 1
+      || typeof item.productId !== "string"
+      || item.productId.length < 1
+      || item.productId.length > 200
+    ) throw new AppError(503, "Google subscription line items cannot be reconciled");
 
     if (depth === 0) {
-      if (item.productId !== productId) {
+      if (productId !== undefined && item.productId !== productId) {
         throw new AppError(
           400,
           `Receipt productId (${item.productId}) does not match requested productId (${productId})`,
         );
       }
       const expiresAt = new Date(item.expiryTime);
+      if (Number.isNaN(expiresAt.getTime())) {
+        throw new AppError(400, "Google subscription expiry is invalid");
+      }
       currentAuthority = {
+        productId: item.productId,
+        latestSuccessfulOrderId:
+          typeof item.latestSuccessfulOrderId === "string"
+          && item.latestSuccessfulOrderId.length > 0
+          && item.latestSuccessfulOrderId.length <= 200
+            ? item.latestSuccessfulOrderId
+            : null,
         status: mapGoogleStatus(sub.subscriptionState, expiresAt),
         startedAt: sub.startTime ? new Date(sub.startTime) : new Date(),
         expiresAt,
@@ -274,6 +297,8 @@ export async function verifyGoogleReceipt(
   const canonicalRootIdentity = aliases.at(-1)!;
   return {
     originalTransactionId: canonicalRootIdentity,
+    googleProductId: currentAuthority.productId,
+    googleLatestSuccessfulOrderId: currentAuthority.latestSuccessfulOrderId,
     status: currentAuthority.status,
     startedAt: currentAuthority.startedAt,
     expiresAt: currentAuthority.expiresAt,
@@ -329,12 +354,46 @@ export type GoogleSubscriptionNotification = {
   packageName: string;
   notificationType: number;
   purchaseToken: string;
-  subscriptionId: string;
   /** Pub/Sub's own per-delivery message id — the entitlement ledger's
    * dedup key. A redelivery of the same publish carries the same
    * messageId, same principle as Apple's notificationUUID. */
   messageId: string;
   /** When Pub/Sub published this message — the ledger's ordering key. */
+  publishTime: Date;
+};
+
+type GoogleVoidedNotificationBase = {
+  packageName: string;
+  purchaseToken: string;
+  orderId: string;
+  refundType: 1 | 2;
+  messageId: string;
+  publishTime: Date;
+};
+
+export type GoogleVoidedSubscriptionNotification = GoogleVoidedNotificationBase & {
+  kind: "voided-subscription";
+};
+
+export type GoogleVoidedOneTimeNotification = GoogleVoidedNotificationBase & {
+  kind: "voided-one-time";
+};
+
+export type GoogleOneTimeNotification = {
+  kind: "one-time";
+  packageName: string;
+  notificationType: number;
+  purchaseToken: string;
+  sku: string;
+  messageId: string;
+  publishTime: Date;
+};
+
+export type GooglePendingRefundReviewNotification = {
+  kind: "pending-refund-review";
+  packageName: string;
+  refundReason: number;
+  messageId: string;
   publishTime: Date;
 };
 
@@ -346,7 +405,13 @@ export type GoogleTestNotification = {
   version: string;
 };
 
-export type GoogleRtdnNotification = GoogleSubscriptionNotification | GoogleTestNotification;
+export type GoogleRtdnNotification =
+  | GoogleSubscriptionNotification
+  | GoogleVoidedSubscriptionNotification
+  | GoogleVoidedOneTimeNotification
+  | GoogleOneTimeNotification
+  | GooglePendingRefundReviewNotification
+  | GoogleTestNotification;
 
 export function parseGoogleRtdnEnvelope(envelope: unknown): GoogleRtdnNotification | null {
   if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) return null;
@@ -370,12 +435,21 @@ export function parseGoogleRtdnEnvelope(envelope: unknown): GoogleRtdnNotificati
   }
   const publishTime = new Date(rawMessage.publishTime);
   if (Number.isNaN(publishTime.getTime())) return null;
-  const packageName = parsed.packageName === undefined
-    ? env.GOOGLE_PLAY_PACKAGE_NAME ?? ""
-    : typeof parsed.packageName === "string"
-      ? parsed.packageName
-      : null;
-  if (packageName === null) return null;
+  const packageName = parsed.packageName;
+  if (
+    typeof packageName !== "string"
+    || packageName.length < 1
+    || packageName.length > 255
+  ) return null;
+
+  const variantCount = [
+    parsed.testNotification,
+    parsed.subscriptionNotification,
+    parsed.voidedPurchaseNotification,
+    parsed.oneTimeProductNotification,
+    parsed.pendingRefundReviewNotification,
+  ].filter((variant) => variant !== undefined).length;
+  if (variantCount !== 1) return null;
 
   if (parsed.testNotification !== undefined) {
     if (
@@ -393,20 +467,103 @@ export function parseGoogleRtdnEnvelope(envelope: unknown): GoogleRtdnNotificati
       version: version ?? "",
     };
   }
+  if (parsed.voidedPurchaseNotification !== undefined) {
+    if (
+      !parsed.voidedPurchaseNotification
+      || typeof parsed.voidedPurchaseNotification !== "object"
+      || Array.isArray(parsed.voidedPurchaseNotification)
+    ) return null;
+    const { purchaseToken, orderId, productType, refundType } =
+      parsed.voidedPurchaseNotification as Record<string, unknown>;
+    if (
+      typeof purchaseToken !== "string"
+      || purchaseToken.length < 1
+      || purchaseToken.length > 40_000
+      || typeof orderId !== "string"
+      || orderId.length < 1
+      || orderId.length > 200
+      || (productType !== 1 && productType !== 2)
+      || (refundType !== 1 && refundType !== 2)
+    ) return null;
+    return {
+      kind: productType === 1 ? "voided-subscription" : "voided-one-time",
+      packageName,
+      purchaseToken,
+      orderId,
+      refundType,
+      messageId: rawMessage.messageId,
+      publishTime,
+    };
+  }
+  if (parsed.oneTimeProductNotification !== undefined) {
+    if (
+      !parsed.oneTimeProductNotification
+      || typeof parsed.oneTimeProductNotification !== "object"
+      || Array.isArray(parsed.oneTimeProductNotification)
+    ) return null;
+    const { notificationType, purchaseToken, sku } =
+      parsed.oneTimeProductNotification as Record<string, unknown>;
+    if (
+      typeof notificationType !== "number"
+      || !Number.isInteger(notificationType)
+      || notificationType < 0
+      || typeof purchaseToken !== "string"
+      || purchaseToken.length < 1
+      || purchaseToken.length > 40_000
+      || typeof sku !== "string"
+      || sku.length < 1
+      || sku.length > 200
+    ) return null;
+    return {
+      kind: "one-time",
+      packageName,
+      notificationType,
+      purchaseToken,
+      sku,
+      messageId: rawMessage.messageId,
+      publishTime,
+    };
+  }
+  if (parsed.pendingRefundReviewNotification !== undefined) {
+    if (
+      !parsed.pendingRefundReviewNotification
+      || typeof parsed.pendingRefundReviewNotification !== "object"
+      || Array.isArray(parsed.pendingRefundReviewNotification)
+    ) return null;
+    const { pendingRefundToken, orderId, refundReason } =
+      parsed.pendingRefundReviewNotification as Record<string, unknown>;
+    if (
+      typeof pendingRefundToken !== "string"
+      || pendingRefundToken.length < 1
+      || pendingRefundToken.length > 40_000
+      || typeof orderId !== "string"
+      || orderId.length < 1
+      || orderId.length > 200
+      || typeof refundReason !== "number"
+      || !Number.isInteger(refundReason)
+      || refundReason < 0
+    ) return null;
+    // The review token is a provider credential. Keep it only inside the
+    // Pub/Sub/DLQ envelope; do not return it to a caller that might log it.
+    return {
+      kind: "pending-refund-review",
+      packageName,
+      refundReason,
+      messageId: rawMessage.messageId,
+      publishTime,
+    };
+  }
   if (
     !parsed.subscriptionNotification
     || typeof parsed.subscriptionNotification !== "object"
     || Array.isArray(parsed.subscriptionNotification)
   ) return null;
-  const { notificationType, purchaseToken, subscriptionId } =
+  const { notificationType, purchaseToken } =
     parsed.subscriptionNotification as Record<string, unknown>;
   if (
     typeof purchaseToken !== "string"
     || purchaseToken.length < 1
     || purchaseToken.length > 40_000
-    || typeof subscriptionId !== "string"
-    || subscriptionId.length < 1
-    || subscriptionId.length > 200
     || typeof notificationType !== "number"
     || !Number.isInteger(notificationType)
     || notificationType < 0
@@ -416,7 +573,6 @@ export function parseGoogleRtdnEnvelope(envelope: unknown): GoogleRtdnNotificati
     packageName,
     notificationType,
     purchaseToken,
-    subscriptionId,
     messageId: rawMessage.messageId,
     publishTime,
   };

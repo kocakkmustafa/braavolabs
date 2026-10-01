@@ -19,6 +19,7 @@ const routeMocks = vi.hoisted(() => ({
   manualReviewCaseId: vi.fn(() => "iap_review_notification_case"),
   validateManualReviewReason: vi.fn((reason: string) => reason.trim()),
   googlePurchaseAliasFindMany: vi.fn(),
+  googlePurchaseAliasFindFirst: vi.fn(),
   googlePurchaseAliasCreateMany: vi.fn(),
   tenantTx: vi.fn(),
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -117,6 +118,8 @@ import {
   processIapDelivery,
   type IapDeliveryStore,
 } from "../delivery-ledger";
+import { env } from "../../../../config/env";
+import { AppError } from "../../../../middleware/error";
 
 type DeliveryRow = {
   id: string;
@@ -404,6 +407,7 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
   beforeAll(async () => {
     db = memoryStore();
     Object.assign(routeMocks.prisma, {
+      $queryRaw: vi.fn().mockResolvedValue([{ id: "subscription-1" }]),
       iapWebhookDelivery: db.store,
       mobileSubscription: {
         update: vi.fn().mockImplementation(async (args: { where: { originalTransactionId: string }; data: unknown }) => {
@@ -423,6 +427,7 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
       },
       googlePurchaseAlias: {
         findMany: routeMocks.googlePurchaseAliasFindMany,
+        findFirst: routeMocks.googlePurchaseAliasFindFirst,
         createMany: routeMocks.googlePurchaseAliasCreateMany,
       },
       activityLog: {
@@ -858,9 +863,9 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
     const rootIdentity = `google:${"9".repeat(64)}`;
     const note = {
       packageName: "com.braavolabs.app",
+      kind: "subscription",
       notificationType: 2,
       purchaseToken: "google-approved-review-renewal-token",
-      subscriptionId: "com.braavolabs.business.monthly",
       messageId: "google-approved-review-renewal-1",
       publishTime: new Date("2026-09-04T12:00:00Z"),
     };
@@ -871,6 +876,8 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
       googleCanonicalRootIdentity: rootIdentity,
       googlePurchaseAliases: [rootIdentity],
       googleAcknowledgementPending: true,
+      googleProductId: "com.braavolabs.business.monthly",
+      googleLatestSuccessfulOrderId: null,
       status: "active",
       startedAt: new Date("2026-08-01T00:00:00Z"),
       expiresAt: new Date("2026-11-01T00:00:00Z"),
@@ -905,7 +912,7 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
       source: "google",
       type: "renewal",
       planTier: "TEAM",
-    }));
+    }), expect.objectContaining({ rootIdentity }));
     expect(routeMocks.acknowledgeGoogleReceipt.mock.calls.length - ackBefore).toBe(1);
     expect(routeMocks.googlePurchaseAliasFindMany.mock.invocationCallOrder.at(-1)).toBeLessThan(
       routeMocks.recordEntitlementEvent.mock.invocationCallOrder.at(-1)!,
@@ -919,9 +926,9 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
     const rootIdentity = `google:${"8".repeat(64)}`;
     const note = {
       packageName: "com.braavolabs.app",
+      kind: "subscription",
       notificationType: 2,
       purchaseToken: "google-approved-review-ack-failure-token",
-      subscriptionId: "com.braavolabs.business.monthly",
       messageId: "google-approved-review-ack-failure-1",
       publishTime: new Date("2026-09-04T12:30:00Z"),
     };
@@ -932,6 +939,8 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
       googleCanonicalRootIdentity: rootIdentity,
       googlePurchaseAliases: [rootIdentity],
       googleAcknowledgementPending: true,
+      googleProductId: "com.braavolabs.business.monthly",
+      googleLatestSuccessfulOrderId: null,
       status: "active",
       startedAt: new Date("2026-08-01T00:00:00Z"),
       expiresAt: new Date("2026-11-01T00:00:00Z"),
@@ -976,9 +985,9 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
       const rootIdentity = `google:${state === "pending" ? "1" : state === "rejected" ? "2" : "3"}`.padEnd(71, state === "pending" ? "1" : state === "rejected" ? "2" : "3");
       const note = {
         packageName: "com.braavolabs.app",
+        kind: "subscription",
         notificationType: 2,
         purchaseToken: `google-review-${state}-token`,
-        subscriptionId: "com.braavolabs.business.monthly",
         messageId: `google-review-${state}-1`,
         publishTime: new Date("2026-09-04T13:00:00Z"),
       };
@@ -989,6 +998,8 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
         googleCanonicalRootIdentity: rootIdentity,
         googlePurchaseAliases: [rootIdentity],
         googleAcknowledgementPending: true,
+        googleProductId: "com.braavolabs.business.monthly",
+        googleLatestSuccessfulOrderId: null,
         status: "active",
         startedAt: new Date("2026-08-01T00:00:00Z"),
         expiresAt: new Date("2026-11-01T00:00:00Z"),
@@ -1026,9 +1037,9 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
     routeMocks.verifyPubSubPushToken.mockResolvedValueOnce({ ok: true });
     routeMocks.parseGoogleRtdnEnvelope.mockReturnValueOnce({
       packageName: "com.example.wrong",
+      kind: "subscription",
       notificationType: 2,
       purchaseToken: "synthetic-package-mismatch",
-      subscriptionId: "com.braavolabs.individual.monthly",
       messageId: "google-package-mismatch-1",
       publishTime: new Date("2026-08-25T20:00:00Z"),
     });
@@ -1051,9 +1062,9 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
   it("terminally poisons a Google catalog-unknown product without billing effects", async () => {
     const note = {
       packageName: "com.braavolabs.app",
+      kind: "subscription",
       notificationType: 2,
       purchaseToken: "unknown-product-purchase-token",
-      subscriptionId: "com.braavolabs.unregistered.monthly",
       messageId: "google-unknown-delivery-1",
       publishTime: new Date("2026-08-25T20:00:00Z"),
     };
@@ -1061,6 +1072,7 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
     routeMocks.parseGoogleRtdnEnvelope.mockReturnValueOnce(note);
     routeMocks.verifyGoogleReceipt.mockResolvedValueOnce({
       originalTransactionId: `google:${"b".repeat(64)}`,
+      googleProductId: "com.braavolabs.unregistered.monthly",
       status: "active",
       startedAt: new Date("2026-08-01T00:00:00Z"),
       expiresAt: new Date("2026-09-25T20:00:00Z"),
@@ -1093,9 +1105,9 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
     routeMocks.verifyPubSubPushToken.mockResolvedValueOnce({ ok: true });
     routeMocks.parseGoogleRtdnEnvelope.mockReturnValueOnce({
       packageName: "com.braavolabs.app",
+      kind: "subscription",
       notificationType: 2,
       purchaseToken: rawPurchaseToken,
-      subscriptionId: "com.braavolabs.individual.monthly",
       messageId: "google-legacy-migration-1",
       publishTime: new Date("2026-08-25T20:00:00Z"),
     });
@@ -1104,6 +1116,8 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
       googleCanonicalRootIdentity: hashedIdentity,
       googlePurchaseAliases: [hashedIdentity],
       googleAcknowledgementPending: true,
+      googleProductId: "com.braavolabs.individual.monthly",
+      googleLatestSuccessfulOrderId: null,
       status: "active",
       startedAt: new Date("2026-08-01T00:00:00Z"),
       expiresAt: new Date("2026-09-25T20:00:00Z"),
@@ -1126,7 +1140,6 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
       subscriptionNotification: {
         notificationType: 2,
         purchaseToken: rawPurchaseToken,
-        subscriptionId: "com.braavolabs.individual.monthly",
       },
     })).toString("base64");
     const result = await post(
@@ -1150,9 +1163,9 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
     const rootIdentity = `google:${"6".repeat(64)}`;
     const note = {
       packageName: "com.braavolabs.app",
+      kind: "subscription",
       notificationType: 2,
       purchaseToken: "synthetic-known-rtdn",
-      subscriptionId: "com.braavolabs.individual.monthly",
       messageId: "google-known-owner-1",
       publishTime: new Date("2026-08-25T20:00:00Z"),
     };
@@ -1163,6 +1176,8 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
       googleCanonicalRootIdentity: rootIdentity,
       googlePurchaseAliases: [rootIdentity],
       googleAcknowledgementPending: true,
+      googleProductId: "com.braavolabs.individual.monthly",
+      googleLatestSuccessfulOrderId: null,
       status: "active",
       startedAt: new Date("2026-08-01T00:00:00Z"),
       expiresAt: new Date("2026-09-25T20:00:00Z"),
@@ -1206,9 +1221,9 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
     routeMocks.verifyPubSubPushToken.mockResolvedValueOnce({ ok: true });
     routeMocks.parseGoogleRtdnEnvelope.mockReturnValueOnce({
       packageName: "com.braavolabs.app",
+      kind: "subscription",
       notificationType: 2,
       purchaseToken: "synthetic-unseen-replacement",
-      subscriptionId: "com.braavolabs.individual.monthly",
       messageId: "google-unseen-replacement-1",
       publishTime: new Date("2026-08-25T20:00:00Z"),
     });
@@ -1217,6 +1232,8 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
       googleCanonicalRootIdentity: rootIdentity,
       googlePurchaseAliases: [replacementIdentity, rootIdentity],
       googleAcknowledgementPending: true,
+      googleProductId: "com.braavolabs.individual.monthly",
+      googleLatestSuccessfulOrderId: null,
       status: "active",
       startedAt: new Date("2026-08-01T00:00:00Z"),
       expiresAt: new Date("2026-09-25T20:00:00Z"),
@@ -1247,5 +1264,499 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
       skipDuplicates: true,
     });
     expect(routeMocks.acknowledgeGoogleReceipt.mock.calls.length - ackBefore).toBe(1);
+  });
+
+  it.each(["one-time", "voided-one-time"] as const)(
+    "durably classifies %s without touching subscription entitlement",
+    async (kind) => {
+      const messageId = `google-${kind}-unsupported-1`;
+      const purchaseToken = `${kind}-purchase-secret`;
+      routeMocks.verifyPubSubPushToken.mockResolvedValueOnce({ ok: true });
+      routeMocks.parseGoogleRtdnEnvelope.mockReturnValueOnce({
+        kind,
+        packageName: "com.braavolabs.app",
+        messageId,
+        publishTime: new Date("2026-09-04T08:00:00Z"),
+        purchaseToken,
+        ...(kind === "one-time"
+          ? { notificationType: 1, sku: "one-time-sku" }
+          : { orderId: "GPA.1111-2222-3333-44444", refundType: 1 }),
+      });
+      const verifyBefore = routeMocks.verifyGoogleReceipt.mock.calls.length;
+      const entitlementBefore = logicalEntitlements.size;
+
+      const result = await post(
+        "/google/notify",
+        { message: { messageId, data: "mocked-by-parser" } },
+        "Bearer verified-token",
+      );
+
+      expect(result).toEqual({ status: 200, body: { ok: false, reason: "unsupported-one-time" } });
+      expect([...db.rows.values()].find((row) => row.deliveryId === messageId)).toMatchObject({
+        status: "POISONED",
+        failureCode: kind === "one-time"
+          ? "GOOGLE_ONE_TIME_UNSUPPORTED"
+          : "GOOGLE_ONE_TIME_VOIDED_UNSUPPORTED",
+      });
+      expect(routeMocks.verifyGoogleReceipt.mock.calls.length).toBe(verifyBefore);
+      expect(logicalEntitlements.size).toBe(entitlementBefore);
+      expect(JSON.stringify(db.writes)).not.toContain(purchaseToken);
+    },
+  );
+
+  it("keeps pending refund review retryable and alerts without persisting its review token", async () => {
+    const messageId = "google-refund-review-1";
+    const reviewToken = "private-review-token";
+    routeMocks.verifyPubSubPushToken.mockResolvedValueOnce({ ok: true });
+    routeMocks.parseGoogleRtdnEnvelope.mockReturnValueOnce({
+      kind: "pending-refund-review",
+      packageName: "com.braavolabs.app",
+      messageId,
+      publishTime: new Date("2026-09-04T08:00:00Z"),
+      refundReason: 7,
+    });
+    const verifyBefore = routeMocks.verifyGoogleReceipt.mock.calls.length;
+    const entitlementBefore = logicalEntitlements.size;
+
+    const result = await post(
+      "/google/notify",
+      { message: { messageId, data: "mocked-by-parser" } },
+      "Bearer verified-token",
+    );
+
+    expect(result).toEqual({ status: 503, body: { ok: false, reason: "refund-review-action-required" } });
+    expect([...db.rows.values()].find((row) => row.deliveryId === messageId)).toMatchObject({
+      status: "RETRYABLE",
+      failureCode: "GOOGLE_REFUND_REVIEW_ACTION_REQUIRED",
+    });
+    expect(routeMocks.logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "GOOGLE_REFUND_REVIEW_ACTION_REQUIRED" }),
+      expect.any(String),
+    );
+    expect(routeMocks.verifyGoogleReceipt.mock.calls.length).toBe(verifyBefore);
+    expect(logicalEntitlements.size).toBe(entitlementBefore);
+    expect(JSON.stringify([db.writes, routeMocks.logger.error.mock.calls])).not.toContain(reviewToken);
+  });
+
+  it.each([
+    ["current active order", "active", "GPA.1111-2222-3333-44444", true, true, "renewal"],
+    ["prior renewal", "active", "GPA.9999-8888-7777-66666", false, false, "renewal"],
+    ["provider-expired order", "expired", "GPA.1111-2222-3333-44444", true, false, "revoke"],
+  ] as const)("reconciles voided %s using Play state and order identity", async (
+    label, status, latestOrderId, currentOrderMatch, reviewRequired, eventType,
+  ) => {
+    const rootIdentity = `google:${"d".repeat(64)}`;
+    const messageId = `google-voided-${label.replaceAll(" ", "-")}-1`;
+    const purchaseToken = "voided-subscription-token";
+    const orderId = "GPA.1111-2222-3333-44444";
+    routeMocks.verifyPubSubPushToken.mockResolvedValueOnce({ ok: true });
+    routeMocks.parseGoogleRtdnEnvelope.mockReturnValueOnce({
+      kind: "voided-subscription",
+      packageName: "com.braavolabs.app",
+      purchaseToken,
+      orderId,
+      refundType: 1,
+      messageId,
+      publishTime: new Date("2026-09-04T08:00:00Z"),
+    });
+    routeMocks.verifyGoogleReceipt.mockResolvedValueOnce({
+      originalTransactionId: rootIdentity,
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [rootIdentity],
+      googleAcknowledgementPending: true,
+      googleProductId: "com.braavolabs.individual.monthly",
+      googleLatestSuccessfulOrderId: latestOrderId,
+      status,
+      startedAt: new Date("2026-08-01T00:00:00Z"),
+      expiresAt: new Date("2026-10-01T00:00:00Z"),
+      autoRenew: true,
+    });
+    routeMocks.googlePurchaseAliasFindMany.mockResolvedValueOnce([{
+      tokenDigest: rootIdentity,
+      state: "active",
+      tenantId: "tenant-1",
+      mobileSubscriptionId: "subscription-1",
+      provider: "google",
+      canonicalRootIdentity: rootIdentity,
+    }]);
+    const ackBefore = routeMocks.acknowledgeGoogleReceipt.mock.calls.length;
+    const warnBefore = routeMocks.logger.warn.mock.calls.length;
+
+    const result = await post(
+      "/google/notify",
+      { message: { messageId, data: "mocked-by-parser" } },
+      "Bearer verified-token",
+    );
+
+    expect(result).toEqual({ status: 200, body: { ok: true, disposition: "processed" } });
+    expect(routeMocks.verifyGoogleReceipt).toHaveBeenLastCalledWith(purchaseToken);
+    expect(routeMocks.recordEntitlementEvent).toHaveBeenLastCalledWith(
+      expect.objectContaining({ source: "google", sourceEventId: messageId, type: eventType }),
+      expect.objectContaining({ rootIdentity }),
+    );
+    const activityLog = (routeMocks.prisma.activityLog as { upsert: ReturnType<typeof vi.fn> }).upsert;
+    expect(activityLog).toHaveBeenLastCalledWith(expect.objectContaining({
+      create: expect.objectContaining({
+        action: "billing.iap.voided_purchase",
+        details: expect.objectContaining({
+          type: "VOIDED_PURCHASE",
+          currentOrderMatch,
+          reviewRequired,
+        }),
+      }),
+    }));
+    expect(routeMocks.logger.warn.mock.calls.length - warnBefore).toBe(reviewRequired ? 1 : 0);
+    if (reviewRequired) {
+      expect(routeMocks.logger.warn).toHaveBeenLastCalledWith(
+        expect.objectContaining({ code: "GOOGLE_VOIDED_CURRENT_ORDER_REVIEW" }),
+        expect.any(String),
+      );
+    }
+    expect(routeMocks.acknowledgeGoogleReceipt.mock.calls.length).toBe(ackBefore);
+    expect(JSON.stringify(activityLog.mock.calls.at(-1))).not.toContain(orderId);
+    expect(JSON.stringify(db.writes)).not.toContain(purchaseToken);
+  });
+
+  it.each(["voided-subscription", "subscription"] as const)(
+    "does not revoke a newer verified Google replacement for a late old-token %s",
+    async (kind) => {
+      const rootIdentity = `google:${"a".repeat(64)}`;
+      const newerIdentity = `google:${"b".repeat(64)}`;
+      const owner = {
+        tokenDigest: rootIdentity,
+        state: "active",
+        tenantId: "tenant-1",
+        mobileSubscriptionId: "subscription-1",
+        provider: "google",
+        canonicalRootIdentity: rootIdentity,
+      };
+      const messageId = `google-late-old-${kind}-1`;
+      const purchaseToken = `old-${kind}-purchase-token`;
+      routeMocks.verifyPubSubPushToken.mockResolvedValueOnce({ ok: true });
+      routeMocks.parseGoogleRtdnEnvelope.mockReturnValueOnce({
+        kind,
+        packageName: "com.braavolabs.app",
+        purchaseToken,
+        messageId,
+        publishTime: new Date("2026-09-22T12:00:00Z"),
+        ...(kind === "voided-subscription"
+          ? { orderId: "GPA.OLD-ORDER", refundType: 1 }
+          : { notificationType: 13 }),
+      });
+      routeMocks.verifyGoogleReceipt.mockResolvedValueOnce({
+        originalTransactionId: rootIdentity,
+        googleCanonicalRootIdentity: rootIdentity,
+        googlePurchaseAliases: [rootIdentity],
+        googleAcknowledgementPending: false,
+        googleProductId: "com.braavolabs.individual.monthly",
+        googleLatestSuccessfulOrderId: "GPA.OLD-ORDER",
+        status: "expired",
+        startedAt: new Date("2026-08-01T00:00:00Z"),
+        expiresAt: new Date("2026-09-01T00:00:00Z"),
+        autoRenew: false,
+      });
+      routeMocks.googlePurchaseAliasFindMany.mockResolvedValueOnce([owner]);
+      routeMocks.googlePurchaseAliasFindFirst.mockResolvedValueOnce({
+        tokenDigest: newerIdentity,
+      });
+      const subscriptionUpdate = (routeMocks.prisma.mobileSubscription as {
+        updateMany: ReturnType<typeof vi.fn>;
+      }).updateMany;
+      const beforeUpdates = subscriptionUpdate.mock.calls.length;
+      const beforeEntitlements = routeMocks.recordEntitlementEvent.mock.calls.length;
+      const beforeAcks = routeMocks.acknowledgeGoogleReceipt.mock.calls.length;
+
+      const result = await post(
+        "/google/notify",
+        { message: { messageId, data: "mocked-by-parser" } },
+        "Bearer verified-token",
+      );
+
+      expect(result).toEqual({ status: 200, body: { ok: true, disposition: "processed" } });
+      expect(subscriptionUpdate.mock.calls.length).toBe(beforeUpdates);
+      expect(routeMocks.recordEntitlementEvent.mock.calls.length).toBe(beforeEntitlements);
+      expect(routeMocks.acknowledgeGoogleReceipt.mock.calls.length).toBe(beforeAcks);
+      const activityLog = (routeMocks.prisma.activityLog as { upsert: ReturnType<typeof vi.fn> }).upsert;
+      expect(activityLog).toHaveBeenLastCalledWith(expect.objectContaining({
+        create: expect.objectContaining({
+          resourceId: "subscription-1",
+          details: expect.objectContaining({ staleReplacedToken: true }),
+        }),
+      }));
+      expect(JSON.stringify(activityLog.mock.calls.at(-1))).not.toContain(purchaseToken);
+      expect(JSON.stringify(activityLog.mock.calls.at(-1))).not.toContain("GPA.OLD-ORDER");
+    },
+  );
+
+  it("drops an old-token revoke when a replacement is claimed after the subscription update", async () => {
+    const rootIdentity = `google:${"e".repeat(64)}`;
+    const messageId = "google-old-token-second-fence";
+    routeMocks.verifyPubSubPushToken.mockResolvedValueOnce({ ok: true });
+    routeMocks.parseGoogleRtdnEnvelope.mockReturnValueOnce({
+      kind: "subscription",
+      packageName: "com.braavolabs.app",
+      purchaseToken: "old-token-before-new-claim",
+      messageId,
+      notificationType: 13,
+      publishTime: new Date("2026-09-22T12:00:00Z"),
+    });
+    routeMocks.verifyGoogleReceipt.mockResolvedValueOnce({
+      originalTransactionId: rootIdentity,
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [rootIdentity],
+      googleAcknowledgementPending: false,
+      googleProductId: "com.braavolabs.individual.monthly",
+      googleLatestSuccessfulOrderId: null,
+      status: "expired",
+      startedAt: new Date("2026-08-01T00:00:00Z"),
+      expiresAt: new Date("2026-09-01T00:00:00Z"),
+      autoRenew: false,
+    });
+    routeMocks.googlePurchaseAliasFindMany.mockResolvedValueOnce([{
+      tokenDigest: rootIdentity,
+      state: "active",
+      tenantId: "tenant-1",
+      mobileSubscriptionId: "subscription-1",
+      provider: "google",
+      canonicalRootIdentity: rootIdentity,
+    }]);
+    routeMocks.googlePurchaseAliasFindFirst.mockResolvedValueOnce(null);
+    // The ledger's row-locked second check observes a new alias after the
+    // earlier subscription transaction completed.
+    routeMocks.recordEntitlementEvent.mockResolvedValueOnce(null);
+    const logicalBefore = logicalEntitlements.size;
+    const ackBefore = routeMocks.acknowledgeGoogleReceipt.mock.calls.length;
+
+    const result = await post(
+      "/google/notify",
+      { message: { messageId, data: "mocked-by-parser" } },
+      "Bearer verified-token",
+    );
+
+    expect(result).toEqual({ status: 200, body: { ok: true, disposition: "processed" } });
+    expect(logicalEntitlements.size).toBe(logicalBefore);
+    expect(routeMocks.acknowledgeGoogleReceipt.mock.calls.length).toBe(ackBefore);
+    expect((routeMocks.prisma.activityLog as { upsert: ReturnType<typeof vi.fn> }).upsert)
+      .toHaveBeenLastCalledWith(expect.objectContaining({
+        create: expect.objectContaining({
+          details: expect.objectContaining({ staleReplacedToken: true }),
+        }),
+      }));
+  });
+
+  it("retries a voided subscription whose provider token is no longer queryable", async () => {
+    const messageId = "google-voided-lookup-unresolved-1";
+    const purchaseToken = "voided-expired-provider-token";
+    routeMocks.verifyPubSubPushToken.mockResolvedValueOnce({ ok: true });
+    routeMocks.parseGoogleRtdnEnvelope.mockReturnValueOnce({
+      kind: "voided-subscription",
+      packageName: "com.braavolabs.app",
+      purchaseToken,
+      orderId: "GPA.1111-2222-3333-44444",
+      refundType: 1,
+      messageId,
+      publishTime: new Date("2026-09-04T08:00:00Z"),
+    });
+    routeMocks.verifyGoogleReceipt.mockRejectedValueOnce(
+      new AppError(400, "Google purchase replacement chain could not be verified"),
+    );
+    const entitlementBefore = logicalEntitlements.size;
+
+    const result = await post(
+      "/google/notify",
+      { message: { messageId, data: "mocked-by-parser" } },
+      "Bearer verified-token",
+    );
+
+    expect(result).toEqual({ status: 503, body: { ok: false, reason: "retry-required" } });
+    expect([...db.rows.values()].find((row) => row.deliveryId === messageId)).toMatchObject({
+      status: "RETRYABLE",
+      failureCode: "GOOGLE_VOIDED_LOOKUP_UNRESOLVED",
+    });
+    expect(logicalEntitlements.size).toBe(entitlementBefore);
+    expect(JSON.stringify(db.writes)).not.toContain(purchaseToken);
+  });
+
+  it.each([
+    ["unsupported product", "com.braavolabs.unregistered.monthly", "GOOGLE_VOIDED_PRODUCT_UNSUPPORTED"],
+    ["unowned token", "com.braavolabs.individual.monthly", "GOOGLE_VOIDED_OWNERSHIP_UNRESOLVED"],
+  ] as const)("keeps a voided %s on the retry/DLQ path", async (label, googleProductId, code) => {
+    const messageId = `google-voided-${label.replaceAll(" ", "-")}-1`;
+    const rootIdentity = `google:${"f".repeat(64)}`;
+    routeMocks.verifyPubSubPushToken.mockResolvedValueOnce({ ok: true });
+    routeMocks.parseGoogleRtdnEnvelope.mockReturnValueOnce({
+      kind: "voided-subscription",
+      packageName: "com.braavolabs.app",
+      purchaseToken: "voided-unresolved-token",
+      orderId: "GPA.1111-2222-3333-44444",
+      refundType: 1,
+      messageId,
+      publishTime: new Date("2026-09-04T08:00:00Z"),
+    });
+    routeMocks.verifyGoogleReceipt.mockResolvedValueOnce({
+      originalTransactionId: rootIdentity,
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [rootIdentity],
+      googleAcknowledgementPending: false,
+      googleProductId,
+      googleLatestSuccessfulOrderId: null,
+      status: "active",
+      startedAt: new Date("2026-08-01T00:00:00Z"),
+      expiresAt: new Date("2026-10-01T00:00:00Z"),
+      autoRenew: true,
+    });
+    if (label === "unowned token") routeMocks.googlePurchaseAliasFindMany.mockResolvedValueOnce([]);
+    const entitlementBefore = logicalEntitlements.size;
+
+    const result = await post(
+      "/google/notify",
+      { message: { messageId, data: "mocked-by-parser" } },
+      "Bearer verified-token",
+    );
+
+    expect(result).toEqual({ status: 503, body: { ok: false, reason: "retry-required" } });
+    expect([...db.rows.values()].find((row) => row.deliveryId === messageId)).toMatchObject({
+      status: "RETRYABLE",
+      failureCode: code,
+    });
+    expect(logicalEntitlements.size).toBe(entitlementBefore);
+  });
+
+  it.each(["one-time", "pending-refund-review"] as const)(
+    "keeps %s auditable in the production legacy route",
+    async (kind) => {
+      const messageId = `google-legacy-${kind}-1`;
+      routeMocks.verifyPubSubPushToken.mockResolvedValueOnce({ ok: true });
+      routeMocks.parseGoogleRtdnEnvelope.mockReturnValueOnce({
+        kind,
+        packageName: "com.braavolabs.app",
+        messageId,
+        publishTime: new Date("2026-09-04T08:00:00Z"),
+        ...(kind === "one-time"
+          ? { purchaseToken: "one-time-secret", sku: "sku", notificationType: 1 }
+          : { refundReason: 7 }),
+      });
+      env.IAP_DELIVERY_RELIABILITY_ENABLED = false;
+      try {
+        const result = await post(
+          "/google/notify",
+          { message: { messageId, data: "mocked-by-parser" } },
+          "Bearer verified-token",
+        );
+        expect(result.status).toBe(kind === "one-time" ? 200 : 503);
+        expect([...db.rows.values()].find((row) => row.deliveryId === messageId)).toMatchObject({
+          status: kind === "one-time" ? "POISONED" : "RETRYABLE",
+          failureCode: kind === "one-time"
+            ? "GOOGLE_ONE_TIME_UNSUPPORTED"
+            : "GOOGLE_REFUND_REVIEW_ACTION_REQUIRED",
+        });
+      } finally {
+        env.IAP_DELIVERY_RELIABILITY_ENABLED = true;
+      }
+    },
+  );
+
+  it("records an authenticated unrecognised envelope in the production legacy route", async () => {
+    const messageId = "google-legacy-unrecognised-1";
+    const verifyBefore = routeMocks.verifyGoogleReceipt.mock.calls.length;
+    routeMocks.verifyPubSubPushToken.mockResolvedValueOnce({ ok: true });
+    routeMocks.parseGoogleRtdnEnvelope.mockReturnValueOnce(null);
+    env.IAP_DELIVERY_RELIABILITY_ENABLED = false;
+    try {
+      const result = await post(
+        "/google/notify",
+        { message: { messageId, data: "unsupported-notification" } },
+        "Bearer verified-token",
+      );
+      expect(result).toEqual({ status: 200, body: { ok: false, reason: "envelope-not-recognised" } });
+      expect([...db.rows.values()].find((row) => row.deliveryId === messageId)).toMatchObject({
+        status: "POISONED",
+        failureCode: "GOOGLE_ENVELOPE_INVALID",
+      });
+      expect(routeMocks.verifyGoogleReceipt.mock.calls.length).toBe(verifyBefore);
+    } finally {
+      env.IAP_DELIVERY_RELIABILITY_ENABLED = true;
+    }
+  });
+
+  it("records a foreign package before provider work in the production legacy route", async () => {
+    const messageId = "google-legacy-package-mismatch-1";
+    const verifyBefore = routeMocks.verifyGoogleReceipt.mock.calls.length;
+    routeMocks.verifyPubSubPushToken.mockResolvedValueOnce({ ok: true });
+    routeMocks.parseGoogleRtdnEnvelope.mockReturnValueOnce({
+      kind: "subscription",
+      packageName: "com.example.other",
+      notificationType: 2,
+      purchaseToken: "foreign-package-token",
+      messageId,
+      publishTime: new Date("2026-09-04T08:00:00Z"),
+    });
+    env.IAP_DELIVERY_RELIABILITY_ENABLED = false;
+    try {
+      const result = await post(
+        "/google/notify",
+        { message: { messageId, data: "mocked-by-parser" } },
+        "Bearer verified-token",
+      );
+      expect(result).toEqual({ status: 200, body: { ok: false, reason: "package-mismatch" } });
+      expect([...db.rows.values()].find((row) => row.deliveryId === messageId)).toMatchObject({
+        status: "POISONED",
+        failureCode: "GOOGLE_PACKAGE_MISMATCH",
+      });
+      expect(routeMocks.verifyGoogleReceipt.mock.calls.length).toBe(verifyBefore);
+    } finally {
+      env.IAP_DELIVERY_RELIABILITY_ENABLED = true;
+    }
+  });
+
+  it("uses token-only provider authority in the production legacy subscription route", async () => {
+    const rootIdentity = `google:${"c".repeat(64)}`;
+    const messageId = "google-legacy-official-subscription-1";
+    const purchaseToken = "official-token-no-product-in-rtdn";
+    routeMocks.verifyPubSubPushToken.mockResolvedValueOnce({ ok: true });
+    routeMocks.parseGoogleRtdnEnvelope.mockReturnValueOnce({
+      kind: "subscription",
+      packageName: "com.braavolabs.app",
+      notificationType: 2,
+      purchaseToken,
+      messageId,
+      publishTime: new Date("2026-09-04T08:00:00Z"),
+    });
+    routeMocks.verifyGoogleReceipt.mockResolvedValueOnce({
+      originalTransactionId: rootIdentity,
+      googleCanonicalRootIdentity: rootIdentity,
+      googlePurchaseAliases: [rootIdentity],
+      googleAcknowledgementPending: false,
+      googleProductId: "com.braavolabs.individual.monthly",
+      googleLatestSuccessfulOrderId: null,
+      status: "active",
+      startedAt: new Date("2026-08-01T00:00:00Z"),
+      expiresAt: new Date("2026-10-01T00:00:00Z"),
+      autoRenew: true,
+    });
+    routeMocks.googlePurchaseAliasFindMany.mockResolvedValueOnce([{
+      tokenDigest: rootIdentity,
+      state: "active",
+      tenantId: "tenant-1",
+      mobileSubscriptionId: "subscription-1",
+      provider: "google",
+      canonicalRootIdentity: rootIdentity,
+    }]);
+    env.IAP_DELIVERY_RELIABILITY_ENABLED = false;
+    try {
+      const result = await post(
+        "/google/notify",
+        { message: { messageId, data: "mocked-by-parser" } },
+        "Bearer verified-token",
+      );
+      expect(result).toEqual({ status: 200, body: { ok: true } });
+      expect(routeMocks.verifyGoogleReceipt).toHaveBeenLastCalledWith(purchaseToken);
+      expect(routeMocks.recordEntitlementEvent).toHaveBeenLastCalledWith(
+        expect.objectContaining({ source: "google", sourceEventId: messageId }),
+        expect.objectContaining({ rootIdentity }),
+      );
+    } finally {
+      env.IAP_DELIVERY_RELIABILITY_ENABLED = true;
+    }
   });
 });

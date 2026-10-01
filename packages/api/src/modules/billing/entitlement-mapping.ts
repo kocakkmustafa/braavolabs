@@ -315,24 +315,32 @@ function mobileStatusToEventType(status: VerifiedReceipt["status"]): Entitlement
  * verify (status/expiresAt unchanged) and got silently dropped by the
  * unique constraint, and (b) an immediate-upgrade whose proration keeps
  * the same period end likewise collided with the pre-upgrade purchase
- * event. Both are now distinct keys.
+ * event. Both are now distinct keys. Google additionally includes the
+ * digest of the current verified purchase token: a replacement can keep
+ * the same expiry and tier, yet must produce a new grant after an old-token
+ * revoke on the shared root stream.
  */
 export function mapIapVerify(
   source: EntitlementSource,
   verified: VerifiedReceipt,
   planTier: PlanTier,
+  currentGoogleAlias?: string,
 ): EntitlementEventInput {
+  if (source === "google" && !/^google:[0-9a-f]{64}$/.test(currentGoogleAlias ?? "")) {
+    throw new Error("Google verify requires the current verified purchase identity");
+  }
   const canonicalPlan = normalizePlanForEntitlement(planTier);
   const streamId = iapLedgerStreamId(source, verified.originalTransactionId);
   const granting = verified.status === "active" || verified.status === "in_grace_period";
   const sourceEventId = `verify:${domainDigest(
-    "braavo:iap:verify-event:v1",
+    source === "google" ? "braavo:iap:verify-event:v2" : "braavo:iap:verify-event:v1",
     source,
     streamId,
     verified.status,
     String(verified.expiresAt.getTime()),
     canonicalPlan,
     String(verified.autoRenew),
+    ...(source === "google" ? [currentGoogleAlias!] : []),
   )}`;
   return {
     source,

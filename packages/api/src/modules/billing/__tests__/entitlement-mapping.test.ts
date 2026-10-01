@@ -170,7 +170,9 @@ describe("mapIapVerify", () => {
   });
 
   it("in_grace_period → grace and carries the tier for first-seen restore", () => {
-    const out = mapIapVerify("google", receipt({ status: "in_grace_period" }), "TEAM");
+    const out = mapIapVerify(
+      "google", receipt({ status: "in_grace_period" }), "TEAM", `google:${"a".repeat(64)}`,
+    );
     expect(out?.type).toBe("grace");
     expect(out?.planTier).toBe("TEAM");
   });
@@ -218,6 +220,20 @@ describe("mapIapVerify", () => {
     const a = mapIapVerify("apple", r, "INDIVIDUAL")!;
     const b = mapIapVerify("apple", r, "TEAM")!;
     expect(a.sourceEventId).not.toBe(b.sourceEventId);
+  });
+
+  it("gives a Google replacement a fresh verify event even when expiry and tier are unchanged", () => {
+    const verified = receipt({ status: "active" });
+    const oldAlias = `google:${"a".repeat(64)}`;
+    const newAlias = `google:${"b".repeat(64)}`;
+    const oldGrant = mapIapVerify("google", verified, "TEAM", oldAlias);
+    const newGrant = mapIapVerify("google", verified, "TEAM", newAlias);
+
+    expect(newGrant.streamId).toBe(oldGrant.streamId);
+    expect(newGrant.sourceEventId).not.toBe(oldGrant.sourceEventId);
+    expect(mapIapVerify("google", verified, "TEAM", newAlias).sourceEventId)
+      .toBe(newGrant.sourceEventId);
+    expect(JSON.stringify(newGrant)).not.toContain(newAlias);
   });
 });
 
