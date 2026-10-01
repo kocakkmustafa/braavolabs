@@ -1,6 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
+import { SUBPROCESSORS } from "@ai-company-os/core";
 import { useState, useEffect, useRef } from "react";
 
 function slugify(s: string): string {
@@ -22,15 +23,54 @@ const sections = [
   },
   {
     title: "Cross-Border Transfers",
-    body: "Some processors are located outside the EEA: Stripe (US), SendGrid (US), HubSpot (US, optional), Google (US, optional), GitHub (US, optional). Transfers are governed by Standard Contractual Clauses (SCCs) per the European Commission's 2021 modules.",
+    // Derived from the same list as the Subprocessors section below, so the
+    // two cannot give a reader two different answers to the same question —
+    // which they did while this sentence was maintained by hand.
+    body:
+      "Processors located outside the EEA: " +
+      SUBPROCESSORS.filter((p) => p.transferRegion !== "EEA" && p.transferRegion !== "customer-chosen")
+        .map((p) => `${p.name} (${p.transferRegion})`)
+        .join(", ") +
+      ". Transfers are governed by Standard Contractual Clauses (SCCs) per the " +
+      "European Commission's 2021 modules. Where a destination is shown as " +
+      "customer-chosen, you selected the vendor and supplied the key, so the " +
+      "destination is determined by your configuration rather than by us.",
   },
   {
     title: "Your Rights",
-    body: "You have the right to access, rectify, erase, restrict processing, port your data, object to processing, withdraw consent at any time, and lodge a complaint with your supervisory authority. To exercise any right, email gdpr@braavolabs.com — we respond within one month per Article 12(3).",
+    body: "You have the right to access, rectify, erase, restrict processing, port your data, object to processing, withdraw consent at any time, and lodge a complaint with your supervisory authority. You can download a machine-readable copy of your personal data yourself, from Settings → Danger zone → Download your data. To exercise any other right, email gdpr@braavolabs.com — we respond within one month per Article 12(3).",
   },
   {
     title: "Retention",
     body: "Account data is retained while your account is active. Audit logs and run history are kept for 12 months. After account deletion, financial records are retained for the period required by tax law (typically 6–10 years depending on jurisdiction).",
+  },
+  {
+    title: "Subprocessors",
+    body:
+      "We use the processors listed below.\n\n" +
+      "How far this list is guaranteed, stated precisely rather than generally: " +
+      "model vendors are cross-checked against the product's provider registry at " +
+      "build time, and a build gate requires the third-party credentials declared in " +
+      "the API's environment schema and its example file to appear here. It does NOT " +
+      "automatically cover recipients that need no credential at all, and browser-side " +
+      "recipients are listed by hand.\n\n" +
+      "Integrations where YOU hold the credential are not listed: you chose that vendor " +
+      "and supplied its key, so it is your processor rather than ours. Where WE hold the " +
+      "credential the vendor is listed above, even if the feature is optional — HubSpot " +
+      "is an example, and an earlier version of this page got that distinction wrong.\n\n" +
+      SUBPROCESSORS.map(
+        (p) =>
+          `• ${p.name} — ${p.purpose} Data: ${p.dataCategories.join(", ")}. Transfer: ${p.transferRegion}.`,
+      ).join("\n") +
+      "\n\nModel vendors marked customer-chosen are ones where you supply the key and " +
+      "select the vendor, so that destination is your configuration. Vendors marked as " +
+      "trial or fallback are different: WE hold the key and route to them on your " +
+      "behalf — on the free plan and during onboarding — so for those requests the " +
+      "vendor and the region are our decision, and they are named with a real region " +
+      "above. " +
+      "Providers that run on your own machine (Ollama, LM Studio, a custom local " +
+      "endpoint) are deliberately NOT listed: nothing leaves your device, and naming " +
+      "them here would overstate what we receive.",
   },
   {
     title: "Security",
@@ -312,6 +352,11 @@ export default function GdprPage() {
                     fontSize: 15.5,
                     lineHeight: 1.8,
                     margin: "0 0 18px 0",
+                    // The subprocessor section is the first body with real
+                    // line breaks; every earlier one was a single paragraph,
+                    // so nothing here preserved them and 19 bullets rendered
+                    // as one ~2000-character block.
+                    whiteSpace: "pre-wrap",
                   }}
                 >
                   {section.body}

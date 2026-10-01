@@ -30,6 +30,14 @@ import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { getTrialStatus } from "../../services/trial-llm";
+import { rateLimit } from "../../middleware/rateLimit";
+import {
+  USER_EXPORT_FIELDS,
+  USER_EXPORT_OMITTED,
+  DEVICE_EXPORT_FIELDS,
+  NOTIFICATION_PREF_EXPORT_FIELDS,
+  ACTIVITY_EXPORT_LIMIT,
+} from "./data-export";
 
 export const userRouter = Router();
 userRouter.use(authMiddleware);
@@ -165,6 +173,105 @@ const deleteSchema = z.object({
     }),
   }),
 });
+
+/**
+ * GET /api/v1/users/me/export — the subject's own data, machine-readable.
+ *
+ * NOTE the plural: `index.ts` mounts this router at `/users`. An earlier
+ * version of this comment said `/user`, and the test stood its app up on that
+ * prefix too — so the suite could never have anchored the real path.
+ *
+ * Art. 20 portability. The projection is an ALLOWLIST rather than deleting
+ * `passwordHash` on the way out, because the failure mode here is silent: a
+ * column added to `User` later would be EXPORTED by a denylist and WITHHELD
+ * by an allowlist, and only one of those defaults is safe when the new column
+ * might be a credential.
+ */
+userRouter.get(
+  "/me/export",
+  rateLimit({
+    windowMs: 60 * 60_000,
+    maxRequests: 5,
+    keyPrefix: "rl:data-export",
+    // Per USER, not per tenant. The default tenant bucket would let one
+    // member's five exports deny nineteen colleagues their Art. 20 right for
+    // the rest of the hour — a rights denial caused by a shared counter.
+    identify: (req) => req.auth?.userId,
+  }),
+  async (req, res, next) => {
+    try {
+      const userId = req.auth!.userId;
+      const tenantId = req.auth!.tenantId;
+
+      const [user, devices, prefs, activity] = await Promise.all([
+        prisma.user.findUnique({ where: { id: userId } }),
+        prisma.device.findMany({ where: { userId } }),
+        prisma.notificationPref.findUnique({ where: { userId } }),
+        prisma.activityLog.findMany({
+          // The subject's OWN actions. Other people's rows in the same tenant
+          // are not this person's personal data to receive.
+          where: { tenantId, actor: userId },
+          select: { id: true, action: true, resource: true, resourceId: true, createdAt: true },
+          orderBy: { createdAt: "desc" },
+          take: ACTIVITY_EXPORT_LIMIT,
+        }),
+      ]);
+
+      if (!user) throw new AppError(404, "User not found");
+
+      const pick = (row: Record<string, unknown>, fields: readonly string[]) =>
+        Object.fromEntries(fields.map((f) => [f, row[f] ?? null]));
+
+      // A bulk read of personal data is itself an event worth recording, and
+      // the trail is where a subject or a regulator would look for it.
+      await prisma.activityLog
+        .create({
+          data: {
+            tenantId,
+            actor: userId,
+            action: "user.data_export",
+            resource: "user",
+            resourceId: userId,
+            ip: req.ip ?? null,
+            result: "allowed",
+            policy: "user:data-export",
+            details: { activityRows: activity.length, deviceRows: devices.length },
+          },
+        })
+        .catch((err: unknown) => logger.error({ err, userId }, "failed to record the data export"));
+
+      res.setHeader("Content-Disposition", 'attachment; filename="braavolabs-data-export.json"');
+      res.json({
+        exportedAt: new Date().toISOString(),
+        // Stated in the artifact itself: a subject holding this file cannot
+        // otherwise tell whether something was withheld or simply absent.
+        // Written FOR THE SUBJECT, in the file itself. An earlier version
+        // pointed them at a source file in a private repo, which is not a
+        // disclosure, and never mentioned that activity is capped.
+        scope: {
+          included:
+            "Your account record, your registered devices, your notification " +
+            "preferences, and the activity rows recording actions you took.",
+          notIncluded:
+            "Workspace records beyond the list above — including approval decisions you " +
+            "made, which we can provide on request — and the fields listed " +
+            "below. If the activity list is marked truncated, older rows exist beyond " +
+            `the ${ACTIVITY_EXPORT_LIMIT}-row limit of this file — contact us for the remainder.`,
+          withheldFields: USER_EXPORT_OMITTED,
+        },
+        account: pick(user as unknown as Record<string, unknown>, USER_EXPORT_FIELDS),
+        devices: devices.map((d) => pick(d as unknown as Record<string, unknown>, DEVICE_EXPORT_FIELDS)),
+        notificationPreferences: prefs
+          ? pick(prefs as unknown as Record<string, unknown>, NOTIFICATION_PREF_EXPORT_FIELDS)
+          : null,
+        activity,
+        activityTruncated: activity.length === ACTIVITY_EXPORT_LIMIT,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 userRouter.delete("/me", async (req, res, next) => {
   try {

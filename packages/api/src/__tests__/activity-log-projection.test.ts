@@ -80,7 +80,9 @@ describe("audit-trail reads are projected (BR-P1-005)", () => {
     // 12 -> 13: the retention sweep's batching read, which selects only ids.
     // 13 -> 14 -> 13: the retention rail's baseline read moved OUT of
     // activity_log into its own retention_sweep table, which has no tenant FK.
-    expect(total, "activityLog read-site count changed — update deliberately").toBe(13);
+    // 13 -> 14: the portability export's read of the subject's OWN rows,
+    // scoped by actor and projected to five columns.
+    expect(total, "activityLog read-site count changed — update deliberately").toBe(14);
   });
 
   it("names the columns at every read site", () => {

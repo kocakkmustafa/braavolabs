@@ -1290,6 +1290,48 @@ export default function SettingsPage() {
                       Sign out
                     </button>
                   </div>
+                  {/* Portability (BR-P1-005 #4). The GDPR page has always told
+                      people they may "port your data"; until this link the only
+                      way to exercise it was to email a mailbox. A right with no
+                      surface is a right on paper. */}
+                  <div className="flex items-center justify-between py-3.5">
+                    <div>
+                      <p className="text-sm font-medium text-on-surface">Download your data</p>
+                      <p className="bv-caption mt-0.5">
+                        A machine-readable copy of the personal data we hold about you
+                      </p>
+                    </div>
+                    <button
+                      className="bv-btn bv-btn-ghost bv-btn-sm"
+                      onClick={async () => {
+                        const res = await fetch(
+                          `${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/v1/users/me/export`,
+                          { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+                        );
+                        if (!res.ok) {
+                          // Silently returning meant a rate-limited or failing
+                          // request looked identical to a click that did
+                          // nothing — on the one control that exists to let
+                          // someone exercise a right.
+                          alert(
+                            res.status === 429
+                              ? "Too many export requests. Please try again in an hour."
+                              : "Could not prepare your export. Please try again, or email gdpr@braavolabs.com.",
+                          );
+                          return;
+                        }
+                        const blob = await res.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = "braavolabs-data-export.json";
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                    >
+                      Download
+                    </button>
+                  </div>
                   <div className="flex items-center justify-between py-3.5">
                     <div>
                       <p className="text-sm font-medium text-on-surface">Delete workspace</p>

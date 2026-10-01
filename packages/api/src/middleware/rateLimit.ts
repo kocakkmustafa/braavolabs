@@ -5,17 +5,23 @@ interface RateLimitOptions {
   windowMs: number;
   maxRequests: number;
   keyPrefix?: string;
+  /**
+   * Choose the bucket. Defaults to the tenant, which is right for cost
+   * control and WRONG for an individual right: a workspace-wide bucket lets
+   * one member exhaust everyone else's ability to exercise it.
+   */
+  identify?: (req: Request) => string | undefined;
 }
 
 /**
  * Redis-based rate limiter middleware.
  */
 export function rateLimit(options: RateLimitOptions) {
-  const { windowMs, maxRequests, keyPrefix = "rl" } = options;
+  const { windowMs, maxRequests, keyPrefix = "rl", identify } = options;
   const windowSec = Math.ceil(windowMs / 1000);
 
   return async (req: Request, res: Response, next: NextFunction) => {
-    const identifier = req.auth?.tenantId ?? req.ip ?? "anonymous";
+    const identifier = identify?.(req) ?? req.auth?.tenantId ?? req.ip ?? "anonymous";
     const key = `${keyPrefix}:${identifier}`;
 
     try {
@@ -48,7 +54,10 @@ export function rateLimit(options: RateLimitOptions) {
         // time. A Redis outage must not silently remove its only ceiling —
         // and unlike a product read, refusing an export for a few minutes
         // costs nothing that matters.
-        keyPrefix === "rl:audit-export"
+        keyPrefix === "rl:audit-export" ||
+        // Same reasoning as audit-export: a Redis outage must not silently
+        // remove the only ceiling on a bulk personal-data read.
+        keyPrefix === "rl:data-export"
       ) {
         res.status(503).json({ error: "Service temporarily unavailable" });
         return;
