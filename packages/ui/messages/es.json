@@ -1071,9 +1071,9 @@
       "pickProvider": "Continuar con",
       "pickPlaceholder": "Selecciona un proveedor…",
       "defaultTag": "predeterminado",
-      "localTag": "local · tu hardware",
+      "localTag": "introduce la URL del punto",
       "baseUrlLabel": "URL base",
-      "baseUrlHint": "Obligatoria en producción para modelos locales — apúntala a tu propio servidor.",
+      "baseUrlHint": "Introduce una URL accesible para el servidor de Braavolabs. El servicio alojado exige HTTPS público; localhost y las direcciones privadas solo funcionan en una instalación autohospedada sin conexión. El operador del punto de conexión puede recibir contenido de la ejecución.",
       "continueButton": "Continuar",
       "continueWith": "Continuar con {provider}",
       "freezingNote": "Congelando el punto de control en el próximo límite de turno — podrás continuar cuando se congele.",
@@ -1211,7 +1211,7 @@
       },
       "terms": {
         "title": "Términos del Servicio",
-        "date": "Marzo 2026",
+        "date": "Septiembre 2026",
         "sections": [
           {
             "title": "1. Aceptación",
@@ -1219,7 +1219,7 @@
           },
           {
             "title": "2. Descripción del Servicio",
-            "body": "Braavolabs proporciona una plataforma impulsada por IA para crear y operar flujos de trabajo empresariales autónomos. La plataforma usa Claude (Anthropic) para generar agentes y pipelines basados en tus descripciones."
+            "body": "Braavolabs ofrece una plataforma impulsada por IA para crear y operar flujos de trabajo empresariales autónomos. Cuando solicitas una tarea de IA, Braavolabs puede enviar contenido relevante del espacio de trabajo y de la ejecución al proveedor o punto de conexión configurado para esa tarea. Si eliges un punto de conexión remoto, su operador puede tratar ese contenido según las condiciones y ajustes aplicables."
           },
           {
             "title": "3. Uso Aceptable",

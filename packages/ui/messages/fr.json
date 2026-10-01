@@ -1071,9 +1071,9 @@
       "pickProvider": "Continuer avec",
       "pickPlaceholder": "Sélectionnez un fournisseur…",
       "defaultTag": "par défaut",
-      "localTag": "local · votre matériel",
+      "localTag": "saisir l'URL du point",
       "baseUrlLabel": "URL de base",
-      "baseUrlHint": "Obligatoire en production pour les modèles locaux — pointez-la vers votre propre serveur.",
+      "baseUrlHint": "Saisissez une URL accessible au serveur Braavolabs. Le service hébergé exige une adresse HTTPS publique ; localhost et les adresses privées ne fonctionnent que dans une installation autonome hors ligne. L'opérateur du point de terminaison peut recevoir le contenu de l'exécution.",
       "continueButton": "Continuer",
       "continueWith": "Continuer avec {provider}",
       "freezingNote": "Gel du point de contrôle à la prochaine limite de tour — vous pourrez continuer une fois qu'il sera figé.",
@@ -1211,7 +1211,7 @@
       },
       "terms": {
         "title": "Conditions d'Utilisation",
-        "date": "Mars 2026",
+        "date": "Septembre 2026",
         "sections": [
           {
             "title": "1. Acceptation",
@@ -1219,7 +1219,7 @@
           },
           {
             "title": "2. Description du Service",
-            "body": "Braavolabs fournit une plateforme propulsée par l'IA pour créer et exploiter des flux de travail métier autonomes. La plateforme utilise Claude (Anthropic) pour générer agents et pipelines à partir de vos descriptions."
+            "body": "Braavolabs fournit une plateforme basée sur l'IA pour créer et exploiter des flux de travail métier autonomes. Lorsque vous demandez une tâche d'IA, Braavolabs peut envoyer le contenu pertinent de l'espace de travail et de l'exécution au fournisseur ou au point de terminaison configuré pour cette tâche. Si vous choisissez un point distant, son opérateur peut traiter ce contenu selon les conditions et paramètres applicables."
           },
           {
             "title": "3. Usage Acceptable",

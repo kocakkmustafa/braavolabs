@@ -1119,7 +1119,7 @@ function HandoffPanel({
                 <input
                   value={baseUrl}
                   onChange={(e) => setBaseUrl(e.target.value)}
-                  placeholder="http://localhost:11434/v1"
+                  placeholder="https://models.example.com/v1"
                   className="bv-mono"
                   style={{
                     width: "100%",
