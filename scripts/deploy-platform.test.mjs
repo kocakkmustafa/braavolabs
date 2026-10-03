@@ -94,6 +94,7 @@ function remoteEnvironment(h, overrides = {}) {
     DEPLOY_HERMETIC_TEST: "1",
     FAKE_CALL_LOG: h.log,
     FAKE_STATE_ROOT: h.state,
+    FAKE_GIT_SOURCE_ROOT: ROOT,
     FAKE_APP_ROOT: h.appRoot,
     PREVIOUS_RELEASE_COMMIT: PREVIOUS_RELEASE,
     RELEASE_COMMIT: RELEASE,
@@ -105,9 +106,29 @@ function remoteEnvironment(h, overrides = {}) {
     ...overrides,
   };
 }
+// Historical deployment acceptance must stage the exact reviewed migration
+// snapshot, not every migration later added to the current source checkout.
+function useReviewedMigrationSnapshot(h) {
+  const snapshot = join(h.root, "reviewed-source");
+  const listed = spawnSync("git", ["-C", ROOT, "ls-tree", "-r", "--name-only", REAL_MIGRATION_CANDIDATE,
+    "packages/db/prisma/migrations"], { encoding: "utf8" });
+  assert.equal(listed.status, 0, listed.stderr);
+  const paths = listed.stdout.trim().split("\n").filter((path) => path.endsWith("/migration.sql"));
+  assert.equal(paths.length, 48);
+  for (const path of paths) {
+    const blob = spawnSync("git", ["-C", ROOT, "show", `${REAL_MIGRATION_CANDIDATE}:${path}`]);
+    assert.equal(blob.status, 0, blob.stderr.toString());
+    mkdirSync(dirname(join(snapshot, path)), { recursive: true });
+    writeFileSync(join(snapshot, path), blob.stdout);
+  }
+  mkdirSync(join(snapshot, "ENV"), { recursive: true });
+  cpSync(join(ROOT, "ENV/compose.prod.yaml"), join(snapshot, "ENV/compose.prod.yaml"));
+  h.sourceRoot = snapshot;
+}
+
 function runDeploy(h, overrides = {}) {
   const result = spawnSync("bash", [SCRIPT], {
-    cwd: ROOT,
+    cwd: h.sourceRoot ?? ROOT,
     encoding: "utf8",
     env: {
       ...remoteEnvironment(h, overrides),
@@ -492,7 +513,7 @@ printf '256 %s no comment (ED25519)\\n' "$fp"`);
 case "${'${1:-}'}" in
   cat-file) exit 0 ;;
   diff)
-    [ "${'${USE_REAL_GIT_DIFF:-0}'}" = 1 ] && exec /usr/bin/git "$@"
+    [ "${'${USE_REAL_GIT_DIFF:-0}'}" = 1 ] && exec /usr/bin/git -C "$FAKE_GIT_SOURCE_ROOT" "$@"
     printf '%b' "${'${FAKE_GIT_DIFF:-}'}"
     [ "${'${FAKE_GIT_DIFF_IO_FAILURE:-0}'}" = 1 ] && exit 74
     exit "${'${FAKE_GIT_DIFF_EXIT:-0}'}" ;;
@@ -1159,8 +1180,9 @@ for (const [name, lines, fingerprints, mode] of deniedHosts) {
   }));
 }
 test("known_hosts exact host is accepted", () => withHarness((h) => {
-  const historicalMigrations = readdirSync(join(ROOT, "packages/db/prisma/migrations"))
-    .filter((name) => existsSync(join(ROOT, "packages/db/prisma/migrations", name, "migration.sql")));
+  useReviewedMigrationSnapshot(h);
+  const historicalMigrations = readdirSync(join(h.sourceRoot, "packages/db/prisma/migrations"))
+    .filter((name) => existsSync(join(h.sourceRoot, "packages/db/prisma/migrations", name, "migration.sql")));
   assert.equal(historicalMigrations.length, 48);
   for (const acceptedMigration of [
     "20260820000000_subscription_plan_enum_values",
@@ -1223,6 +1245,7 @@ test("known_hosts bracketed non-default port is accepted", () => withHarness((h)
 
 test("real main-to-candidate four-path migration discovery reaches the mocked Prisma sink", () =>
   withHarness((h) => {
+    useReviewedMigrationSnapshot(h);
     seedComposeIdentity(h, { release: AUTHORITATIVE_PREVIOUS_RELEASE });
     writeFileSync(join(h.appRoot, "releases/previous-good.json"), JSON.stringify({
       release: AUTHORITATIVE_PREVIOUS_RELEASE,
@@ -1312,6 +1335,7 @@ test("non-authoritative previous-good base lease is rejected before SSH", () =>
 
 test("remote previous-good drift is rejected before transfer and migration", () =>
   withHarness((h) => {
+    useReviewedMigrationSnapshot(h);
     const result = runDeploy(h, {
       PREVIOUS_RELEASE_COMMIT: AUTHORITATIVE_PREVIOUS_RELEASE,
       FAKE_GIT_DIFF: REVIEWED_SUBSCRIPTION_DIFF,
@@ -1403,3 +1427,17 @@ test("offline Corepack security-property mutations are rejected", () => {
     );
   }
 });
+
+// Keep the current Google draft out of the historical deploy allowlist.
+test("current Google lineage migration still requires manual review before transport", () => withHarness((h) => {
+  assert.ok(existsSync(join(ROOT, "packages/db/prisma/migrations/20261003000000_google_verified_lineage/migration.sql")));
+  const result = runDeploy(h, {
+    PREVIOUS_RELEASE_COMMIT: AUTHORITATIVE_PREVIOUS_RELEASE,
+    FAKE_GIT_DIFF: REVIEWED_SUBSCRIPTION_DIFF,
+  });
+  assert.equal(result.status, 68);
+  assert.match(result.stderr, /migration requires manual review/);
+  assert.doesNotMatch(result.calls, /^ssh |^rsync |migrate deploy|up -d|curl /m);
+  assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
+  assertNoExternalNetwork(h);
+}));
