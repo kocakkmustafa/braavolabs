@@ -267,6 +267,11 @@ model MobileSubscription {
 // raw identities from being silently claimed before a separate reconciliation.
 model GooglePurchaseAlias {
   tokenDigest              String   @id @map("token_digest")
+  // Ownership never establishes ordering; legacy records remain unknown.
+  lineageState             String   @default("unknown") @map("lineage_state")
+  lineagePredecessorDigest  String?  @map("lineage_predecessor_digest")
+  lineageVerifiedAt         DateTime? @map("lineage_verified_at")
+  lineageEvidenceSource     String?  @map("lineage_evidence_source")
   state                    String   @default("active")
   tenantId                 String?  @map("tenant_id")
   mobileSubscriptionId     String?  @map("mobile_subscription_id")

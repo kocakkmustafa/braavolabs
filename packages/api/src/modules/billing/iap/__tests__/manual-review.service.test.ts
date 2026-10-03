@@ -13,6 +13,7 @@ vi.mock("../../../../lib/db", () => ({
 import {
   ensureManualReviewCase,
   getManualReviewCase,
+  manualReviewCaseId,
   hasPendingManualReviewCases,
   transitionManualReviewCase,
 } from "../manual-review.service";
@@ -343,5 +344,74 @@ describe("provider-verified durable manual review", () => {
     })).rejects.toMatchObject({ statusCode: 400 });
     expect(db.findMany).not.toHaveBeenCalled();
     expect(db.create).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("Google lineage review contract", () => {
+  const input = {
+    tenantId: TENANT, actor: "google-rtdn", provider: "google" as const,
+    productId: "com.braavolabs.business.monthly", internalPlan: "BUSINESS" as const,
+    subscriptionId: "google-sub", providerIdentity: "local-google-token-sentinel",
+    reviewKind: "google_lineage" as const, reasonCode: "GOOGLE_LINEAGE_UNKNOWN" as const,
+    providerStatus: "expired", expiresAt: new Date("2026-10-01T00:00:00Z"), autoRenew: false,
+  };
+  const lineageRow = () => pendingRow({ details: { ...pendingRow().details, provider: "google",
+    reviewKind: "google_lineage", reasonCode: "GOOGLE_LINEAGE_UNKNOWN" } });
+
+  it("uses a distinct stable domain and creates pending review even for terminal provider state", async () => {
+    const { reviewKind, reasonCode, ...legacy } = input;
+    const first = await ensureManualReviewCase(input);
+    const second = await ensureManualReviewCase({ ...input, actor: "other", subscriptionId: "other" });
+    expect(first.caseId).toBe(second.caseId);
+    expect(first.caseId).not.toBe(manualReviewCaseId(legacy));
+    expect(manualReviewCaseId(legacy)).toBe(manualReviewCaseId({ ...legacy, reviewKind: "catalog_mapping" }));
+    expect(first).toMatchObject({ reviewKind, reasonCode, state: "pending", targetTier: null, providerStatus: "expired" });
+    expect(db.create).not.toHaveBeenCalled();
+    const writes = db.upsert.mock.calls.map(([args]) => args);
+    expect(writes[0].where.id).toBe(writes[2].where.id);
+    expect(writes[0].create.details).toMatchObject({ reviewKind, reasonCode });
+    expect(JSON.stringify(writes)).not.toContain(input.providerIdentity);
+    expect(writes.every((args: any) => args.create.resource === "iap_manual_review")).toBe(true);
+  });
+
+  it("defaults legacy records to catalog mapping", async () => {
+    db.findMany.mockResolvedValue([pendingRow()]);
+    await expect(getManualReviewCase(TENANT, "iap_review_case")).resolves.toMatchObject({ reviewKind: "catalog_mapping", reasonCode: null });
+  });
+
+  it("blocks catalog mapping approval without writing a decision", async () => {
+    db.findMany.mockResolvedValue([lineageRow()]);
+    await expect(transitionManualReviewCase({ tenantId: TENANT, actor: "operator", caseId: "iap_review_case",
+      state: "approved_mapping", targetTier: "TEAM", reason: "Catalog verified" })).rejects.toMatchObject({ statusCode: 400 });
+    expect(db.create).not.toHaveBeenCalled();
+  });
+
+  it.each(["rejected", "expired"] as const)("preserves %s replay idempotence", async (state) => {
+    db.findMany.mockResolvedValue([lineageRow()]);
+    const decision = { tenantId: TENANT, actor: "operator", caseId: "iap_review_case", state, reason: "Ancestry remains unverified" };
+    await expect(transitionManualReviewCase(decision)).resolves.toMatchObject({ state, reviewKind: "google_lineage", targetTier: null });
+    const persisted = db.create.mock.calls[0][0].data;
+    expect(persisted.details).toMatchObject({ reviewKind: "google_lineage", reasonCode: "GOOGLE_LINEAGE_UNKNOWN" });
+    db.findMany.mockResolvedValue([lineageRow(), pendingRow({ ...persisted, createdAt: new Date() })]);
+    await expect(transitionManualReviewCase(decision)).resolves.toMatchObject({ state });
+    expect(db.create).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    { reviewKind: "unknown", reasonCode: undefined },
+    { reviewKind: "google_lineage", reasonCode: "unknown" },
+    { reviewKind: "catalog_mapping", reasonCode: "GOOGLE_LINEAGE_UNKNOWN" },
+    { reviewKind: "google_lineage", reasonCode: undefined },
+  ])("fails closed for invalid metadata %j", async (metadata) => {
+    await expect(ensureManualReviewCase({ ...input, ...metadata } as any)).rejects.toMatchObject({ statusCode: 400 });
+    expect(db.upsert).not.toHaveBeenCalled();
+    db.findMany.mockResolvedValue([pendingRow({ details: { ...lineageRow().details, ...metadata } })]);
+    await expect(getManualReviewCase(TENANT, "iap_review_case")).rejects.toMatchObject({ statusCode: 500 });
+  });
+
+  it("fails closed for a persisted lineage mapping bypass", async () => {
+    db.findMany.mockResolvedValue([lineageRow(), pendingRow({ details: { state: "approved_mapping", targetTier: "TEAM" } })]);
+    await expect(getManualReviewCase(TENANT, "iap_review_case")).rejects.toMatchObject({ statusCode: 500 });
   });
 });

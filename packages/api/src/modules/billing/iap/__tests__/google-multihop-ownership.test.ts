@@ -34,6 +34,7 @@ vi.mock("../../../../lib/logger", () => ({
 }));
 
 import { acknowledgeGoogleReceipt, verifyGoogleReceipt } from "../google";
+import { env } from "../../../../config/env";
 
 const PRODUCT = "com.braavolabs.individual.monthly";
 const ACTIVE_EXPIRY = "2099-09-01T00:00:00.000Z";
@@ -329,5 +330,35 @@ describe("Google replacement-chain ownership identity", () => {
     expect(String(error)).not.toContain(secretToken);
     expect(JSON.stringify(loggerMocks.error.mock.calls)).not.toContain(secretToken);
     expect(JSON.stringify(loggerMocks.warn.mock.calls)).not.toContain(secretToken);
+  });
+});
+
+
+describe("Google directed lineage metadata", () => {
+  it("records only successful response edges and evidenced ROOT", async () => {
+    env.GOOGLE_PURCHASE_LINEAGE_ENABLED = true;
+    try {
+      installGoogleApiStub({ C: subscription(PRODUCT, "B"), B: subscription(PRODUCT, "A"), A: subscription(PRODUCT) });
+      const verified = await verifyGoogleReceipt("C", PRODUCT);
+      expect(verified.googleLineageComplete).toBe(true);
+      expect(verified.googleLineageObservations).toEqual([
+        { tokenDigest: identity("C"), state: "edge", predecessorDigest: identity("B") },
+        { tokenDigest: identity("B"), state: "edge", predecessorDigest: identity("A") },
+        { tokenDigest: identity("A"), state: "root", predecessorDigest: null },
+      ]);
+    } finally { env.GOOGLE_PURCHASE_LINEAGE_ENABLED = false; }
+  });
+  it("reconstructs persisted suffix but never emits fresh observations for HTTP410", async () => {
+    env.GOOGLE_PURCHASE_LINEAGE_ENABLED = true;
+    try {
+      installGoogleApiStub({ D: subscription(PRODUCT, "C"), C: { status: 410 } });
+      const resolve = vi.fn().mockResolvedValue({ canonicalRootIdentity: identity("A"), aliases: [identity("C"), identity("B"), identity("A")], complete: true });
+      const verified = await verifyGoogleReceipt("D", PRODUCT, resolve);
+      expect(verified.googlePurchaseAliases).toEqual([identity("D"), identity("C"), identity("B"), identity("A")]);
+      expect(verified.googleLineageObservations).toEqual([{tokenDigest:identity("D"),state:"edge",predecessorDigest:identity("C")}]);
+      expect(verified.googleLineageComplete).toBe(true);
+      resolve.mockResolvedValue({canonicalRootIdentity:identity("A"),complete:false});
+      expect((await verifyGoogleReceipt("D", PRODUCT, resolve)).googleLineageComplete).toBe(false);
+    } finally { env.GOOGLE_PURCHASE_LINEAGE_ENABLED = false; }
   });
 });

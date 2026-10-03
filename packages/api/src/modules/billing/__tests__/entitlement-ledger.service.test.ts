@@ -22,7 +22,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("../../../lib/db", () => {
   const client: any = {
     entitlementEvent: { create: vi.fn(), createMany: vi.fn(), findFirst: vi.fn(), findMany: vi.fn() },
-    googlePurchaseAlias: { findFirst: vi.fn() },
+    googlePurchaseAlias: { findFirst: vi.fn(), findMany: vi.fn() },
     tenant: { update: vi.fn() },
     $queryRaw: vi.fn().mockResolvedValue([]),
   };
@@ -37,11 +37,15 @@ vi.mock("../../../lib/db", () => {
   };
 });
 
+const lineageEnv = vi.hoisted(() => ({ GOOGLE_PURCHASE_LINEAGE_ENABLED: false }));
+vi.mock("../../../config/env", () => ({ env: lineageEnv }));
+
 vi.mock("../../../lib/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
 import {
+  withCurrentGooglePurchase,
   appendEntitlementEvent,
   getEntitlementProjection,
   getEffectivePlan,
@@ -80,6 +84,7 @@ function row(overrides: Partial<Record<string, unknown>> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  lineageEnv.GOOGLE_PURCHASE_LINEAGE_ENABLED = false;
   mockTenantUpdate.mockResolvedValue({});
 });
 
@@ -598,5 +603,59 @@ describe("recordEntitlementEvent", () => {
       .toBeLessThan(decide.mock.invocationCallOrder[0]);
     expect(decide.mock.invocationCallOrder[0])
       .toBeLessThan(mockCreateMany.mock.invocationCallOrder[0]);
+  });
+});
+
+
+describe("directed Google lineage effect fence", () => {
+  const rootIdentity = `google:${"a".repeat(64)}`;
+  const current = `google:${"c".repeat(64)}`;
+  const readCompletedAt = new Date("2026-10-03T00:00:00Z");
+  const fence = { subscriptionId: "sub-lineage", rootIdentity, verifiedAliases: [current, rootIdentity], readCompletedAt };
+  function aliases(unknown = false) {
+    return [current, rootIdentity].map((tokenDigest, i) => ({ tokenDigest, state: "active", tenantId: TENANT,
+      mobileSubscriptionId: fence.subscriptionId, provider: "google", canonicalRootIdentity: rootIdentity,
+      lineageState: unknown ? "unknown" : i === 0 ? "edge" : "root",
+      lineagePredecessorDigest: !unknown && i === 0 ? rootIdentity : null,
+      lineageVerifiedAt: unknown ? null : new Date(1), lineageEvidenceSource: unknown ? null : "play-subscriptionsv2-v1" }));
+  }
+  function setup(rows: unknown[]) {
+    lineageEnv.GOOGLE_PURCHASE_LINEAGE_ENABLED = true;
+    mockQueryRaw.mockResolvedValue([{ id: fence.subscriptionId, last_verified_at: readCompletedAt }]);
+    (prisma.googlePurchaseAlias.findMany as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(rows);
+    mockAliasFindFirst.mockResolvedValue(null);
+  }
+  it("revalidates the complete chain under lock even when the caller omits the feature flag", async () => {
+    setup(aliases()); const effect = vi.fn(async () => "effect");
+    await expect(withCurrentGooglePurchase(TENANT, fence, effect)).resolves.toEqual({ value: "effect" });
+    const read = prisma.googlePurchaseAlias.findMany as unknown as ReturnType<typeof vi.fn>;
+    expect(mockQueryRaw.mock.invocationCallOrder[0]).toBeLessThan(read.mock.invocationCallOrder[0]!);
+    expect(read.mock.invocationCallOrder[0]).toBeLessThan(effect.mock.invocationCallOrder[0]!);
+  });
+  it("unknown metadata cannot reach an effect", async () => {
+    setup(aliases(true)); const effect = vi.fn();
+    expect(await withCurrentGooglePurchase(TENANT, fence, effect)).toBeNull(); expect(effect).not.toHaveBeenCalled();
+  });
+  it("contradictory evidence and ownership mismatches cannot reach an effect", async () => {
+    const rows = aliases(); rows[0]!.lineagePredecessorDigest = `google:${"b".repeat(64)}`;
+    setup(rows); const effect = vi.fn();
+    await expect(withCurrentGooglePurchase(TENANT, fence, effect)).rejects.toMatchObject({ statusCode: 409 });
+    rows[0]!.tenantId = "foreign";
+    await expect(withCurrentGooglePurchase(TENANT, fence, effect)).rejects.toMatchObject({ statusCode: 409 });
+    expect(effect).not.toHaveBeenCalled();
+  });
+  it("newer aliases and changed completion time still suppress complete older lineage", async () => {
+    setup(aliases()); const effect = vi.fn();
+    mockAliasFindFirst.mockResolvedValue({ tokenDigest: `google:${"d".repeat(64)}` });
+    expect(await withCurrentGooglePurchase(TENANT, fence, effect)).toBeNull();
+    mockQueryRaw.mockResolvedValue([{ id: fence.subscriptionId, last_verified_at: new Date(readCompletedAt.getTime() + 1) }]);
+    await expect(withCurrentGooglePurchase(TENANT, fence, effect)).rejects.toMatchObject({ statusCode: 409 });
+    expect(effect).not.toHaveBeenCalled();
+  });
+  it("disabled mode keeps the original omission fence and does not query new fields", async () => {
+    setup(aliases()); lineageEnv.GOOGLE_PURCHASE_LINEAGE_ENABLED = false;
+    const effect = vi.fn(async () => "ordinary");
+    await expect(withCurrentGooglePurchase(TENANT, fence, effect)).resolves.toEqual({ value: "ordinary" });
+    expect(prisma.googlePurchaseAlias.findMany).not.toHaveBeenCalled();
   });
 });

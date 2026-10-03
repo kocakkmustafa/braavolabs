@@ -27,6 +27,7 @@ import { logger } from "../../../lib/logger";
 import type { VerifiedReceipt } from "./apple";
 import crypto from "node:crypto";
 import { getIapProduct } from "./catalog";
+import type { GoogleLineageObservation } from "./google-lineage";
 
 /**
  * FINDINGS C1 — verify the OIDC bearer token Google Pub/Sub attaches to
@@ -106,9 +107,11 @@ const MAX_GOOGLE_REPLACEMENT_HOPS = 8;
 
 export type GoogleAncestorResolver = (
   tokenDigest: string,
-) => Promise<{ canonicalRootIdentity: string } | null>;
+) => Promise<{ canonicalRootIdentity: string; aliases?: string[]; complete?: boolean } | null>;
 
 export type VerifiedGoogleReceipt = VerifiedReceipt & {
+  googleLineageObservations?: GoogleLineageObservation[];
+  googleLineageComplete?: boolean;
   /** Product ID returned by subscriptionsv2, never inferred from an RTDN. */
   googleProductId: string;
   /** Most recent paid renewal order, used to classify a voided order. */
@@ -217,6 +220,9 @@ export async function verifyGoogleReceipt(
   }
 
   const aliases: string[] = [];
+  const directed = env.GOOGLE_PURCHASE_LINEAGE_ENABLED === true;
+  const observations: GoogleLineageObservation[] = [];
+  let lineageComplete = true;
   const seen = new Set<string>();
   let token = purchaseToken;
   let currentAuthority: {
@@ -251,7 +257,9 @@ export async function verifyGoogleReceipt(
           if (!/^google:[0-9a-f]{64}$/.test(root) || aliases.includes(root)) {
             throw new AppError(400, "Google purchase replacement chain is invalid");
           }
-          const suffix = root === ancestorIdentity ? [ancestorIdentity] : [ancestorIdentity, root];
+          const suffix = directed && known.aliases ? known.aliases : root === ancestorIdentity ? [ancestorIdentity] : [ancestorIdentity, root];
+          if (suffix[0] !== ancestorIdentity || suffix.at(-1) !== root || new Set(suffix).size !== suffix.length || suffix.some(x => !/^google:[0-9a-f]{64}$/.test(x) || aliases.includes(x))) throw new AppError(400, "Google purchase replacement chain is invalid");
+          if (directed) lineageComplete = known.complete === true;
           if (aliases.length + suffix.length > MAX_GOOGLE_REPLACEMENT_HOPS) {
             throw new AppError(400, "Google purchase replacement chain exceeds the supported depth");
           }
@@ -309,10 +317,14 @@ export async function verifyGoogleReceipt(
 
     aliases.push(googlePurchaseIdentity(token));
     const previousToken = sub.linkedPurchaseToken;
-    if (previousToken === undefined) break;
-    if (!previousToken || previousToken.length > 40_000 || seen.has(previousToken)) {
+    if (previousToken === undefined) {
+      if (directed) observations.push({tokenDigest:googlePurchaseIdentity(token),state:"root",predecessorDigest:null});
+      break;
+    }
+    if (typeof previousToken !== "string" || !previousToken || previousToken.length > 40_000 || seen.has(previousToken)) {
       throw new AppError(400, "Google purchase replacement chain is invalid");
     }
+    if (directed) observations.push({tokenDigest:googlePurchaseIdentity(token),state:"edge",predecessorDigest:googlePurchaseIdentity(previousToken)});
     if (depth === MAX_GOOGLE_REPLACEMENT_HOPS - 1) {
       throw new AppError(400, "Google purchase replacement chain exceeds the supported depth");
     }
@@ -324,6 +336,7 @@ export async function verifyGoogleReceipt(
   }
   const canonicalRootIdentity = aliases.at(-1)!;
   return {
+    ...(directed ? {googleLineageObservations:observations,googleLineageComplete:lineageComplete} : {}),
     originalTransactionId: canonicalRootIdentity,
     googleProductId: currentAuthority.productId,
     googleLatestSuccessfulOrderId: currentAuthority.latestSuccessfulOrderId,

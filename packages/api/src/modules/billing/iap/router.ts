@@ -36,6 +36,7 @@ import { env } from "../../../config/env";
 import { logger } from "../../../lib/logger";
 import { verifyAppleReceipt, parseAppleNotification, type VerifiedReceipt } from "./apple";
 import { knownGoogleAncestorResolver } from "./google-known-ancestry";
+import { assertGoogleLineage, persistGoogleLineage, googleLineageStore } from "./google-lineage";
 import {
   acknowledgeGoogleReceipt,
   verifyGoogleReceipt,
@@ -167,7 +168,7 @@ async function verifyNativeReceipt(
 ): Promise<VerifiedReceipt | VerifiedGoogleReceipt> {
   return provider === "apple"
     ? verifyAppleReceipt(receipt, productId)
-    : verifyGoogleReceipt(receipt, productId, knownGoogleAncestorResolver(prisma.googlePurchaseAlias, tenantId));
+    : verifyGoogleReceipt(receipt, productId, knownGoogleAncestorResolver(prisma.googlePurchaseAlias, tenantId, env.GOOGLE_PURCHASE_LINEAGE_ENABLED));
 }
 
 function safeVerificationFailure(provider: string, productId: string): void {
@@ -249,6 +250,7 @@ function googleEntitlementFence(
     rootIdentity: verified.googleCanonicalRootIdentity,
     verifiedAliases: normalizedGoogleAliases(verified),
     readCompletedAt,
+    requireDirectedLineage: env.GOOGLE_PURCHASE_LINEAGE_ENABLED,
   };
 }
 
@@ -286,6 +288,7 @@ async function claimGooglePurchaseOwnership(
   createData: Prisma.MobileSubscriptionUncheckedCreateInput,
   updateData: Prisma.MobileSubscriptionUpdateManyMutationInput,
   readStartedAt: Date,
+  readCompletedAt: Date,
 ) {
   const aliases = normalizedGoogleAliases(verified);
   const rootIdentity = verified.googleCanonicalRootIdentity;
@@ -357,6 +360,23 @@ async function claimGooglePurchaseOwnership(
       }
       const subscriptionId = claimed[0]!.mobileSubscriptionId!;
 
+      if (env.GOOGLE_PURCHASE_LINEAGE_ENABLED) {
+        const fence = { tenantId, subscriptionId, rootIdentity, aliases };
+        await persistGoogleLineage(googleLineageStore(tx.googlePurchaseAlias), {
+          ...fence, observations: verified.googleLineageObservations ?? [], readComplete: readCompletedAt,
+        });
+        const complete = verified.googleLineageComplete === true
+          && await assertGoogleLineage(googleLineageStore(tx.googlePurchaseAlias), fence);
+        if (!complete) {
+          const subscription = await tx.mobileSubscription.findUnique({ where: { id: subscriptionId } });
+          if (!subscription || subscription.tenantId !== tenantId
+            || subscription.provider !== "google" || subscription.originalTransactionId !== rootIdentity) {
+            throw googleOwnershipConflict();
+          }
+          return { ...subscription, staleReplacedToken: false, lineageReviewRequired: true };
+        }
+      }
+
       // An older token's backwards-only linkedPurchaseToken chain omits any
       // replacement token already claimed for this root. Do not emit a
       // terminal or granting entitlement event from such a stale receipt.
@@ -413,6 +433,7 @@ async function updateGoogleOwnedSubscription(
   verified: VerifiedGoogleReceipt,
   updateData: Prisma.MobileSubscriptionUpdateManyMutationInput,
   readStartedAt: Date,
+  readCompletedAt: Date,
 ) {
   const aliases = normalizedGoogleAliases(verified);
   const rootIdentity = verified.googleCanonicalRootIdentity;
@@ -448,6 +469,13 @@ async function updateGoogleOwnedSubscription(
       FOR UPDATE
     `;
     if (lockedOwner.length !== 1) throw googleOwnershipConflict();
+    // Immutable evidence is also an effect. UNKNOWN/stale early returns must
+    // not persist a read that overlapped a newer committed observation.
+    if (env.GOOGLE_PURCHASE_LINEAGE_ENABLED
+      && lockedOwner[0]!.last_verified_at.getTime() >= readStartedAt.getTime()) {
+      throw googleObservationStale();
+    }
+
 
     const visibleDigests = new Set(visibleBefore.map((alias) => alias.tokenDigest));
     const missingAliases = aliases.filter((tokenDigest) => !visibleDigests.has(tokenDigest));
@@ -483,6 +511,23 @@ async function updateGoogleOwnedSubscription(
       ))
     ) {
       throw googleOwnershipConflict();
+    }
+
+    if (env.GOOGLE_PURCHASE_LINEAGE_ENABLED) {
+      const fence = { tenantId: rootOwner.tenantId, subscriptionId: rootOwner.mobileSubscriptionId, rootIdentity, aliases };
+      await persistGoogleLineage(googleLineageStore(tx.googlePurchaseAlias), {
+        ...fence, observations: verified.googleLineageObservations ?? [], readComplete: readCompletedAt,
+      });
+      const complete = verified.googleLineageComplete === true
+        && await assertGoogleLineage(googleLineageStore(tx.googlePurchaseAlias), fence);
+      if (!complete) {
+        const subscription = await tx.mobileSubscription.findUnique({ where: { id: rootOwner.mobileSubscriptionId } });
+        if (!subscription || subscription.tenantId !== rootOwner.tenantId
+          || subscription.provider !== "google" || subscription.originalTransactionId !== rootIdentity) {
+          throw googleOwnershipConflict();
+        }
+        return { ...subscription, staleReplacedToken: false, lineageReviewRequired: true };
+      }
     }
 
     // linkedPurchaseToken points backwards: an older token's verified alias
@@ -532,6 +577,37 @@ async function updateGoogleOwnedSubscription(
       throw googleOwnershipConflict();
     }
     return { ...subscription, staleReplacedToken: false };
+  });
+}
+
+/** Durable review admission is ownership-bound and never grants or revokes. */
+async function ensureGoogleLineageReview(
+  verified: VerifiedGoogleReceipt,
+  owner: { id: string; tenantId: string; originalTransactionId: string; lastVerifiedAt: Date },
+  actor: string,
+) {
+  const product = getIapProduct(verified.googleProductId);
+  if (!product) throw new AppError(400, "Google lineage product is unsupported");
+  return tenantTx(async (tx) => {
+    const locked = await tx.$queryRaw<Array<{ id: string; last_verified_at: Date }>>`
+      SELECT id, last_verified_at FROM mobile_subscriptions
+      WHERE id = ${owner.id} AND tenant_id = ${owner.tenantId}
+        AND provider = 'google' AND original_transaction_id = ${owner.originalTransactionId}
+      FOR UPDATE
+    `;
+    if (locked.length !== 1) throw googleOwnershipConflict();
+    if (locked[0]!.last_verified_at.getTime() !== owner.lastVerifiedAt.getTime()) throw googleObservationStale();
+    const aliases = normalizedGoogleAliases(verified);
+    const rows = await tx.googlePurchaseAlias.findMany({ where: { tokenDigest: { in: aliases } } });
+    if (rows.length !== aliases.length || rows.some(row => !activeAliasMatches(row, owner.tenantId, owner.originalTransactionId, owner.id))) {
+      throw googleOwnershipConflict();
+    }
+    return ensureManualReviewCase({ tenantId: owner.tenantId, actor, provider: "google",
+      productId: verified.googleProductId, internalPlan: product.internalPlan, subscriptionId: owner.id,
+      providerIdentity: owner.originalTransactionId, providerStatus: publicProviderStatus(verified.status),
+      expiresAt: verified.expiresAt, autoRenew: verified.autoRenew,
+      reviewKind: "google_lineage", reasonCode: "GOOGLE_LINEAGE_UNKNOWN",
+    }, tx as unknown as ManualReviewStore);
   });
 }
 
@@ -645,6 +721,7 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
         createData,
         updateData,
         googleReadStartedAt!,
+        googleReadCompletedAt!,
       );
     } else {
       subscription = await updateSameOwner();
@@ -660,6 +737,14 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
       }
     }
     if (!subscription) throw new Error("IAP subscription ownership resolution failed");
+    if ("lineageReviewRequired" in subscription && subscription.lineageReviewRequired) {
+      const review = await ensureGoogleLineageReview(verified as VerifiedGoogleReceipt, subscription, req.auth!.userId);
+      const projection = await getEntitlementProjection(tenantId);
+      res.json({ outcome: "manual_review", reasonCode: "GOOGLE_LINEAGE_UNKNOWN", receiptTier: null,
+        effectiveTier: projection.effectiveTier, providerStatus: publicProviderStatus(verified.status),
+        reviewCaseId: review.caseId });
+      return;
+    }
     if ("staleReplacedToken" in subscription && subscription.staleReplacedToken) {
       throw new AppError(409, "Replaced Google purchase is no longer current");
     }
@@ -869,6 +954,10 @@ iapRouter.post(
         return;
       }
 
+      if (current.reviewKind === "google_lineage" && body.state === "approved_mapping") {
+        throw new AppError(409, "Google lineage must be provider-verified before any entitlement decision");
+      }
+
       // approved_mapping and expired both require a fresh provider read. The
       // receipt stays ephemeral and is never forwarded to the review store.
       const googleReadStartedAt = current.provider === "google" ? new Date() : null;
@@ -895,6 +984,7 @@ iapRouter.post(
             lastVerifiedAt: googleReadCompletedAt!,
           },
           googleReadStartedAt!,
+          googleReadCompletedAt!,
         );
         if (
           subscription.id !== current.subscriptionId
@@ -903,6 +993,9 @@ iapRouter.post(
           || subscription.productId !== current.productId
         ) {
           throw new AppError(409, "Verified receipt ownership does not match the review case");
+        }
+        if ("lineageReviewRequired" in subscription && subscription.lineageReviewRequired) {
+          throw new AppError(409, "Google lineage remains unresolved");
         }
         if (subscription.staleReplacedToken) {
           throw new AppError(409, "Replaced Google purchase is no longer current");
@@ -1345,7 +1438,7 @@ async function applyGoogleReliable(note: GoogleNotification): Promise<void> {
   const googleReadStartedAt = new Date();
   let googleReadCompletedAt = googleReadStartedAt;
   try {
-    verified = await verifyGoogleReceipt(note.purchaseToken, undefined, knownGoogleAncestorResolver(prisma.googlePurchaseAlias));
+    verified = await verifyGoogleReceipt(note.purchaseToken, undefined, knownGoogleAncestorResolver(prisma.googlePurchaseAlias, undefined, env.GOOGLE_PURCHASE_LINEAGE_ENABLED));
     googleReadCompletedAt = new Date();
   } catch (error) {
     if (
@@ -1375,7 +1468,7 @@ async function applyGoogleReliable(note: GoogleNotification): Promise<void> {
       expiresAt: verified.expiresAt,
       autoRenew: verified.autoRenew,
       lastVerifiedAt: googleReadCompletedAt,
-    }, googleReadStartedAt);
+    }, googleReadStartedAt, googleReadCompletedAt);
   } catch (error) {
     if (error instanceof AppError && error.message === GOOGLE_OBSERVATION_STALE) {
       throw new IapTransientDeliveryError("GOOGLE_OBSERVATION_STALE");
@@ -1387,6 +1480,15 @@ async function applyGoogleReliable(note: GoogleNotification): Promise<void> {
       throw new IapPoisonDeliveryError("GOOGLE_OWNERSHIP_UNRESOLVED");
     }
     throw new IapTransientDeliveryError("GOOGLE_PERSISTENCE_FAILED");
+  }
+
+  if ("lineageReviewRequired" in updated && updated.lineageReviewRequired) {
+    try {
+      await ensureGoogleLineageReview(verified, updated, "google-rtdn");
+    } catch {
+      throw new IapTransientDeliveryError("GOOGLE_LINEAGE_REVIEW_PERSISTENCE_FAILED");
+    }
+    return;
   }
 
   if (updated.staleReplacedToken) {

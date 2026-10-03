@@ -29,6 +29,8 @@ import { normalizePlanForEntitlement } from "@ai-company-os/core";
 import { prisma, tenantTx } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
+import { env } from "../../config/env";
+import { assertGoogleLineage, googleLineageStore } from "./iap/google-lineage";
 import {
   foldStream,
   combineStreams,
@@ -60,6 +62,7 @@ export interface GoogleEntitlementFence {
   verifiedAliases: string[];
   /** Persisted provider-read completion time; detects an intervening write. */
   readCompletedAt: Date;
+  requireDirectedLineage?: boolean;
 }
 
 export const GOOGLE_OBSERVATION_STALE = "Google verification was superseded; retry";
@@ -289,6 +292,14 @@ export async function withCurrentGooglePurchase<T>(
     // so it cannot serve as the only freshness fence.
     if (owner[0]!.last_verified_at.getTime() !== googleFence.readCompletedAt.getTime()) {
       throw new AppError(409, GOOGLE_OBSERVATION_STALE);
+    }
+
+    // Global enabled state cannot be bypassed by a caller omitting a flag.
+    if (env.GOOGLE_PURCHASE_LINEAGE_ENABLED || googleFence.requireDirectedLineage) {
+      if (!await assertGoogleLineage(googleLineageStore(tx.googlePurchaseAlias), {
+        tenantId, subscriptionId: googleFence.subscriptionId, rootIdentity: googleFence.rootIdentity,
+        aliases: googleFence.verifiedAliases,
+      })) return null;
     }
 
     const newerAlias = await tx.googlePurchaseAlias.findFirst({
