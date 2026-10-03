@@ -68,7 +68,10 @@ export default defineConfig({
       port: API_PORT,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
-      env: { ...process.env, ...SECRETS, API_PORT: String(API_PORT) },
+      env: {
+        ...process.env, ...SECRETS, API_PORT: String(API_PORT),
+        ALLOWED_ORIGINS: "http://operator.example:4311",
+      },
     },
     {
       // Production serves the UI through Next's `output: "standalone"` bundle

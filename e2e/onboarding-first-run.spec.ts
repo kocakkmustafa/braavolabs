@@ -94,6 +94,8 @@ test("real registration form keeps its onboarding navigation after session hydra
   await context.route("https://api.operator.example/api/v1/**", async (route) => {
     const original = new URL(route.request().url());
     const response = await route.fetch({ url: `http://127.0.0.1:4310${original.pathname}${original.search}` });
+    expect(response.headers()["access-control-allow-origin"]).toBe(UI);
+    expect(response.headers()["access-control-allow-credentials"]).toBe("true");
     await route.fulfill({ response });
   });
   await page.goto(`${UI}/login?tab=register`);
