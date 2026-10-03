@@ -683,6 +683,17 @@
       "createdLabel": "Erstellt:",
       "scheduledLabel": "Geplant:",
       "approve": "Genehmigen",
+      "approveAndSend": "Genehmigen und senden",
+      "pendingCount": "{count} ausstehend",
+      "inactiveCompany": "Aktiviere diesen Arbeitsbereich, bevor du Entwürfe genehmigst.",
+      "sendNotCompleted": "Der E-Mail-Versand konnte nicht bestätigt werden. Der Entwurf bleibt genehmigt; prüfe die Zustellung vor einem erneuten Versuch.",
+      "selectPreview": "Wähle einen Entwurf für die Vorschau aus.",
+      "noPreview": "Kein verfasster Text für die Vorschau vorhanden.",
+      "statusPending": "Ausstehend",
+      "statusApproved": "Genehmigt",
+      "statusPublished": "Gesendet oder veröffentlicht",
+      "statusRejected": "Abgelehnt",
+      "statusArchived": "Archiviert",
       "reject": "Ablehnen",
       "publish": "Veröffentlichen",
       "typeSocial": "Social-Media-Post",
@@ -1071,9 +1082,9 @@
       "pickProvider": "Fortsetzen mit",
       "pickPlaceholder": "Anbieter auswählen…",
       "defaultTag": "Standard",
-      "localTag": "lokal · deine Hardware",
+      "localTag": "Endpunkt-URL eingeben",
       "baseUrlLabel": "Basis-URL",
-      "baseUrlHint": "In Produktion für lokale Modelle erforderlich — verweise auf deinen eigenen Server.",
+      "baseUrlHint": "Gib eine für den Braavolabs-Server erreichbare URL ein. Der gehostete Dienst erfordert öffentliches HTTPS; localhost und private Adressen funktionieren nur bei einer offline selbst gehosteten Installation. Der Betreiber des Endpunkts kann Laufdaten erhalten.",
       "continueButton": "Fortsetzen",
       "continueWith": "Mit {provider} fortsetzen",
       "freezingNote": "Der Prüfpunkt wird an der nächsten Schrittgrenze eingefroren — du kannst fortfahren, sobald er eingefroren ist.",
@@ -1211,7 +1222,7 @@
       },
       "terms": {
         "title": "Nutzungsbedingungen",
-        "date": "März 2026",
+        "date": "September 2026",
         "sections": [
           {
             "title": "1. Akzeptanz",
@@ -1219,7 +1230,7 @@
           },
           {
             "title": "2. Servicebeschreibung",
-            "body": "Braavolabs bietet eine KI-gestützte Plattform zum Erstellen und Betreiben autonomer Geschäftsabläufe. Die Plattform nutzt Claude (Anthropic), um Agenten und Pipelines basierend auf deinen Beschreibungen zu generieren."
+            "body": "Braavolabs bietet eine KI-gestützte Plattform zum Erstellen und Betreiben autonomer Geschäftsabläufe. Wenn du KI-Arbeit anforderst, kann Braavolabs relevante Inhalte des Arbeitsbereichs und Laufs an den dafür konfigurierten Anbieter oder Endpunkt senden. Wenn du einen entfernten Endpunkt wählst, kann dessen Betreiber die Inhalte nach den geltenden Bedingungen und Einstellungen verarbeiten."
           },
           {
             "title": "3. Zulässige Nutzung",

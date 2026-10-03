@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
+import { useAppStore, captureAuthSession, isAuthSessionCurrent } from "../../lib/store";
 
 interface OnboardingStatus {
   completed: boolean;
@@ -60,6 +61,7 @@ interface CatalogBlueprint {
 const ONBOARDING_DRAFT_KEY = "aicos-onboarding-draft";
 
 type OnboardingDraft = {
+  tenantId: string;
   step: number;
   description: string;
   selectedPrimitives: string[];
@@ -71,13 +73,17 @@ type OnboardingDraft = {
   selectedBlueprintSlug: string | null;
 };
 
-function loadOnboardingDraft(): Partial<OnboardingDraft> | null {
+function loadOnboardingDraft(tenantId: string): Partial<OnboardingDraft> | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(ONBOARDING_DRAFT_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? parsed : null;
+    if (!parsed || typeof parsed !== "object" || parsed.tenantId !== tenantId) {
+      window.localStorage.removeItem(ONBOARDING_DRAFT_KEY);
+      return null;
+    }
+    return parsed;
   } catch {
     return null;
   }
@@ -102,6 +108,15 @@ function clearOnboardingDraft() {
 }
 
 export default function OnboardingPage() {
+  const { token, hydrated } = useAuthGuard();
+  const revision = useAppStore((state) => state.sessionRevision);
+  const tenantId = useAppStore((state) => state.tenantId);
+  if (!hydrated || !token || !tenantId) return null;
+  // Authentication changes reset in-memory wizard state as well as storage.
+  return <OnboardingWizard key={revision} tenantId={tenantId} />;
+}
+
+function OnboardingWizard({ tenantId }: { tenantId: string }) {
   const t = useTranslations();
   // i18n arrays read once via t.raw — useCases, stepLabels, suggestions all
   // ship as ordered lists so per-locale ordering can adjust without code
@@ -111,6 +126,9 @@ export default function OnboardingPage() {
   const SUGGESTIONS = t.raw("app.onboarding.suggestions") as string[];
 
   const router = useRouter();
+  const mounted = useRef(true);
+  const owner = useRef(captureAuthSession());
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const { token, hydrated } = useAuthGuard();
   const [status, setStatus] = useState<OnboardingStatus | null>(null);
   const [step, setStep] = useState(0);
@@ -143,7 +161,8 @@ export default function OnboardingPage() {
   // Restore wizard state from localStorage on mount + pull hero textarea
   // description from sessionStorage if user typed on landing page first.
   useEffect(() => {
-    const draft = loadOnboardingDraft();
+    if (!isAuthSessionCurrent(owner.current)) return;
+    const draft = loadOnboardingDraft(tenantId);
     if (draft) {
       if (typeof draft.step === "number") setStep(draft.step);
       if (typeof draft.description === "string") setDescription(draft.description);
@@ -171,8 +190,9 @@ export default function OnboardingPage() {
 
   // Persist on every change (after hydration completes — see draftHydrated).
   useEffect(() => {
-    if (!draftHydrated) return;
+    if (!draftHydrated || !isAuthSessionCurrent(owner.current)) return;
     saveOnboardingDraft({
+      tenantId,
       step,
       description,
       selectedPrimitives,
@@ -187,8 +207,13 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (!token) return;
-    api.onboardingStatus(token).then(setStatus).catch(() => {});
-    api.getAIConfig(token).then((cfg) => setAiKeyConfigured(cfg.hasApiKey)).catch(() => setAiKeyConfigured(false));
+    const session = captureAuthSession();
+    let active = true;
+    const current = () => active && isAuthSessionCurrent(session);
+    api.onboardingStatus(token).then((value) => { if (current()) setStatus(value); }).catch(() => {});
+    api.getAIConfig(token).then((cfg) => { if (current()) setAiKeyConfigured(cfg.hasApiKey); })
+      .catch(() => { if (current()) setAiKeyConfigured(false); });
+    return () => { active = false; };
   }, [token]);
 
   // Blueprint catalog removed (decision 2026-04-30): users define their
@@ -221,6 +246,9 @@ export default function OnboardingPage() {
   }
 
   async function handleLaunch() {
+    if (!token) return;
+    const session = captureAuthSession();
+    const current = () => mounted.current && isAuthSessionCurrent(session);
     setLoading(true);
     setError(null);
     try {
@@ -229,13 +257,15 @@ export default function OnboardingPage() {
         niche: niche.trim() || undefined,
         targetAudience: targetAudience.trim() || undefined,
       });
+      if (!current()) return;
       setResult(res);
       clearOnboardingDraft();
-      api.onboardingStatus(token!).then(setStatus).catch(() => {});
+      api.onboardingStatus(token!).then((value) => { if (current()) setStatus(value); }).catch(() => {});
     } catch (err) {
-      setError((err as Error).message);
+      if (current()) setError((err as Error).message);
+    } finally {
+      if (current()) setLoading(false);
     }
-    setLoading(false);
   }
 
   const progressPct = status ? Math.round(status.progress * 100) : 0;

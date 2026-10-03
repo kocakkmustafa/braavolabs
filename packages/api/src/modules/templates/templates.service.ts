@@ -24,6 +24,7 @@
 
 import crypto from "node:crypto";
 import { prisma, tenantTx } from "../../lib/db";
+import { assertCompanyCapacity } from "../company/company-capacity";
 import { AppError } from "../../middleware/error";
 
 // ── Snapshot shape ──────────────────────────────────────────
@@ -148,11 +149,8 @@ export async function installTemplate(
     throw new AppError(404, "Template not found");
   }
   if (template.pricing === "PAID") {
-    // Defence-in-depth — the install endpoint is supposed to refuse
-    // PAID templates without a stripe_payment_intent_id. Mirror the
-    // check here so a future code path that bypasses the router
-    // still hits the gate.
-    throw new AppError(402, "PAID templates require a completed checkout — see /marketplace/templates/{slug}/purchase");
+    // There is no server-verified checkout for template purchases yet.
+    throw new AppError(503, "Paid template installation is unavailable until verified checkout is implemented.");
   }
 
   const snapshot = template.snapshot as unknown as CompanyTemplateSnapshot;
@@ -163,7 +161,7 @@ export async function materialiseTemplate(
   templateId: string,
   tenantId: string,
   snapshot: CompanyTemplateSnapshot,
-  opts: { companyNameOverride?: string; pricePaidUsd?: number; stripePaymentIntentId?: string } = {},
+  opts: { companyNameOverride?: string } = {},
 ): Promise<{ companyId: string; slug: string }> {
   const name = opts.companyNameOverride ?? snapshot.name;
   const slug =
@@ -173,6 +171,7 @@ export async function materialiseTemplate(
   // Single transaction so a half-installed template can't leave the
   // tenant with orphan agents or pipelines.
   const result = await tenantTx(async (tx) => {
+    await assertCompanyCapacity(tx, tenantId);
     const company = await tx.company.create({
       data: {
         tenantId,
@@ -242,23 +241,21 @@ export async function materialiseTemplate(
         templateId,
         tenantId,
         installedCompanyId: company.id,
-        pricePaidUsd: opts.pricePaidUsd,
-        stripePaymentIntentId: opts.stripePaymentIntentId,
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        tenantId,
+        actor: "marketplace",
+        action: "template.install",
+        resource: "company",
+        resourceId: company.id,
+        details: { templateId },
       },
     });
 
     return { companyId: company.id, slug: company.slug };
-  });
-
-  await prisma.activityLog.create({
-    data: {
-      tenantId,
-      actor: "marketplace",
-      action: "template.install",
-      resource: "company",
-      resourceId: result.companyId,
-      details: { templateId },
-    },
   });
   return result;
 }

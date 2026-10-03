@@ -77,7 +77,12 @@ function fixture(locale = "en", mode = "login", fetchImpl = () => { throw new Er
       if (absolute.endsWith("/app/layout.tsx") && id === "../components/Toast") return {
         ToastProvider: ({ children }) => React.createElement(React.Fragment, null, children),
       };
-      if (id.endsWith("/store")) return { useAppStore: store };
+      if (id.endsWith("/store")) return {
+        useAppStore: store,
+        captureAuthSession: () => ({ revision: 0, tenantId: null, token: null, refreshToken: null }),
+        isAuthSessionCurrent: () => true,
+        refreshAuthSession() { throw new Error("Anonymous auth must not refresh session storage"); },
+      };
       if (absolute.endsWith("/app/AuthLayout.tsx") && [
         "../components/Sidebar", "../components/CommandPalette", "../components/NotificationBell",
         "../components/OnboardingChecklist", "../components/Breadcrumb", "../components/PresenceBar",
@@ -934,11 +939,9 @@ for (const locale of LOCALES) {
     const footer = navOne(nodes.filter((n) => n.type === "footer"), "actual footer");
     assert.deepEqual(navPairs(navLegalColumn(footer)), NAV_HREFS.map((href, i) => [href, navLabels(LEGAL_CHROME[locale])[i]]));
     assert.equal(nodes.filter((n) => n.type === "a" && n.props.href === "/deletion").length, 0);
-    const time = navOne(navElements(header, (n) => n.type === "time"), "alternate document keeps its original English date");
-    assert.equal(navText(time), "June 1, 2026");
-    assert.equal(time.props.dateTime, "2026-06-01");
-    assert.equal(time.props.lang, "en");
-    assert.equal(time.props.dir, "ltr");
+    assert.equal(navElements(header, (n) => n.type === "time").length, 0,
+      "alternate document must not display the Terms date or a stale English date");
+    assert.equal(navText(header).includes("June 1, 2026"), false);
   });
 
   test(`legal-nav ${locale}/terms: six real buttons preserve state and scroll handlers`, async () => {

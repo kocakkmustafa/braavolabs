@@ -683,6 +683,17 @@
       "createdLabel": "Oluşturuldu:",
       "scheduledLabel": "Zamanlandı:",
       "approve": "Onayla",
+      "approveAndSend": "Onayla ve gönder",
+      "pendingCount": "{count} beklemede",
+      "inactiveCompany": "Taslakları onaylamadan önce bu çalışma alanını etkinleştirin.",
+      "sendNotCompleted": "E-postanın gönderimi doğrulanamadı. Taslak onaylı kaldı; yeniden denemeden önce gönderimi kontrol edin.",
+      "selectPreview": "Önizlemek için bir taslak seçin.",
+      "noPreview": "Önizlenecek metin yok.",
+      "statusPending": "Beklemede",
+      "statusApproved": "Onaylandı",
+      "statusPublished": "Gönderildi veya yayımlandı",
+      "statusRejected": "Reddedildi",
+      "statusArchived": "Arşivlendi",
       "reject": "Reddet",
       "publish": "Yayınla",
       "typeSocial": "Sosyal Medya Gönderisi",
@@ -1071,9 +1082,9 @@
       "pickProvider": "Şununla devam et",
       "pickPlaceholder": "Bir sağlayıcı seç…",
       "defaultTag": "varsayılan",
-      "localTag": "yerel · kendi donanımın",
+      "localTag": "uç nokta URL'si gir",
       "baseUrlLabel": "Temel URL",
-      "baseUrlHint": "Yerel modeller için üretimde zorunlu — kendi sunucunu göster.",
+      "baseUrlHint": "Braavolabs sunucusunun erişebildiği bir URL gir. Barındırılan hizmet genel erişimli HTTPS ister; localhost ve özel ağ adresleri yalnız çevrimdışı öz barındırılan kurulumda çalışır. Uç noktanın işletmecisi çalıştırma içeriğini alabilir.",
       "continueButton": "Devam et",
       "continueWith": "{provider} ile devam et",
       "freezingNote": "Checkpoint bir sonraki tur sınırında donduruluyor — donduğunda devam edebilirsin.",
@@ -1211,7 +1222,7 @@
       },
       "terms": {
         "title": "Kullanım Şartları",
-        "date": "Mart 2026",
+        "date": "Eylül 2026",
         "sections": [
           {
             "title": "1. Kabul",
@@ -1219,7 +1230,7 @@
           },
           {
             "title": "2. Hizmet Açıklaması",
-            "body": "Braavolabs, otonom iş akışları oluşturmak ve çalıştırmak için AI destekli bir platform sunar. Platform, anlattıkların temelinde ajanlar ve pipeline'lar üretmek için Claude'u (Anthropic) kullanır."
+            "body": "Braavolabs, otonom iş akışları oluşturmak ve çalıştırmak için yapay zekâ destekli bir platform sunar. Bir yapay zekâ çalışması istediğinde Braavolabs ilgili çalışma alanı ve çalıştırma içeriğini o iş için yapılandırılan sağlayıcıya veya uç noktaya gönderebilir. Uzak bir uç nokta seçersen onu işleten taraf içeriği ilgili şartlar ve ayarlar kapsamında işleyebilir."
           },
           {
             "title": "3. Kabul Edilebilir Kullanım",

@@ -16,8 +16,16 @@ import { ZodError } from "zod";
 import { AppError } from "../middleware/error";
 
 let initialized = false;
+let unreadablePayloadCount = 0;
+
+/** Payload-free readback for telemetry suppressed at the credential boundary. */
+export function getSentryRedactionStats(): { unreadablePayloadCount: number } {
+  return { unreadablePayloadCount };
+}
 
 const SENTRY_REDACTED = "[REDACTED]";
+const SENTRY_UNREADABLE_REASON_KEY = "sentry.redaction_reason";
+const SENTRY_UNREADABLE_REASON = "unreadable-payload";
 const MIN_PROPAGATED_SECRET_LENGTH = 8;
 
 /**
@@ -240,10 +248,62 @@ function scrubSentryValue(
   return value;
 }
 
-function scrubSentryPayload<T>(payload: T): T {
+/** Detach SDK payloads before redaction; never execute payload accessors. */
+function snapshotSentryValue(
+  value: unknown,
+  seen: WeakMap<object, unknown>,
+  state: { unreadable: boolean },
+): unknown {
+  if (typeof value === "function") {
+    state.unreadable = true;
+    return SENTRY_REDACTED;
+  }
+  if (!value || typeof value !== "object") return value;
+  if (seen.has(value)) return seen.get(value);
+
+  try {
+    const snapshot: Record<string, unknown> | unknown[] = value instanceof Date
+      ? new Date(Date.prototype.getTime.call(value)) as unknown as Record<string, unknown>
+      : Array.isArray(value) ? [] : {};
+    seen.set(value, snapshot);
+    for (const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(value))) {
+      if (!descriptor.enumerable) continue;
+      // The SDK runs span hooks before the transaction hook. Preserve the
+      // placeholder's taint through its child/root span conversion, since a
+      // credential from the original accessor may also appear in outer text.
+      if (key === SENTRY_UNREADABLE_REASON_KEY && "value" in descriptor &&
+          descriptor.value === SENTRY_UNREADABLE_REASON) state.unreadable = true;
+      // Accessors may throw, change between reads, or expose untrusted values.
+      // Retain the key, but emit neither the accessor nor its exception.
+      if (!("value" in descriptor)) state.unreadable = true;
+      const nested = "value" in descriptor
+        ? snapshotSentryValue(descriptor.value, seen, state)
+        : SENTRY_REDACTED;
+      Object.defineProperty(snapshot, key, {
+        value: nested, enumerable: true, writable: true, configurable: true,
+      });
+    }
+    return snapshot;
+  } catch {
+    // An unreadable object (for example a revoked proxy) must not escape raw.
+    state.unreadable = true;
+    return SENTRY_REDACTED;
+  }
+}
+
+function scrubSentryPayload<T>(payload: T): T | null {
+  const state = { unreadable: false };
+  const snapshot = snapshotSentryValue(payload, new WeakMap(), state);
+  // A skipped accessor may be the only source of a credential also copied
+  // into message/exception/span text or keys. We cannot identify it without
+  // executing untrusted code, so none of this payload may leave the boundary.
+  if (state.unreadable) {
+    unreadablePayloadCount += 1;
+    return null;
+  }
   const secrets = new Set<string>();
-  collectSentryCredentials(payload, secrets, new WeakSet());
-  return scrubSentryValue(payload, secrets, new WeakSet()) as T;
+  collectSentryCredentials(snapshot, secrets, new WeakSet());
+  return scrubSentryValue(snapshot, secrets, new WeakSet()) as T;
 }
 
 const CREDENTIAL_BEARING_IAP_ROUTE =
@@ -326,7 +386,16 @@ export function initSentry(): void {
       return scrubSentryPayload(event);
     },
     beforeSendSpan(span) {
-      return scrubSentryPayload(span);
+      // Unlike the other hooks, this SDK hook cannot return null. Emit a
+      // schema-valid zero-duration placeholder containing no original data.
+      return scrubSentryPayload(span) ?? {
+        span_id: "0000000000000001",
+        trace_id: "00000000000000000000000000000001",
+        start_timestamp: 0,
+        timestamp: 0,
+        description: SENTRY_REDACTED,
+        data: { [SENTRY_UNREADABLE_REASON_KEY]: SENTRY_UNREADABLE_REASON },
+      };
     },
   });
   initialized = true;

@@ -27,6 +27,21 @@ function sourcePaths(locale: string) {
 }
 const sourceHashes = (locale: string) => Object.fromEntries(sourcePaths(locale).map((path) => [path, sha(read(path))]));
 function identity(locale: string) {
+ const manifestPath = process.env.E2E_SOURCE_MANIFEST;
+ if (manifestPath) {
+  // Isolated candidates may contain intentional WIP and have no .git folder.
+  // Assert exact candidate bytes instead of pretending they are a clean commit.
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  const sources = sourceHashes(locale);
+  for (const [path, digest] of Object.entries(sources)) {
+   expect(manifest.sources[path], `candidate source drift: ${path}`).toBe(digest);
+  }
+  const id = buildId(); expect(id.length).toBeGreaterThan(0);
+  return { sourceMode: "isolated-candidate", sourceRevision: null, sourceTree: null,
+   baselineRevision: manifest.baselineRevision, candidateSourceSha256: manifest.candidateSourceSha256,
+   sourceManifestSha256: sha(readFileSync(manifestPath)),
+   triggerRevision: process.env.GITHUB_SHA ?? null, buildId: id, sources };
+ }
  const sourceRevision = git("rev-parse", "HEAD");
  const sourceTree = git("rev-parse", "HEAD^{tree}");
  expect(sourceRevision).toMatch(/^[a-f0-9]{40}$/);
@@ -363,7 +378,8 @@ for (const locale of LOCALES) for (const path of PATHS) {
   expect(rsc).toEqual([]);
   expect(rscErrors).toEqual([]);
   expect(sourceHashes(locale)).toEqual(source.sources);
-  expect(git("rev-parse", "HEAD")).toBe(source.sourceRevision);
+  if (source.sourceRevision !== null) expect(git("rev-parse", "HEAD")).toBe(source.sourceRevision);
+  else expect(sha(readFileSync(process.env.E2E_SOURCE_MANIFEST!))).toBe(source.sourceManifestSha256);
   expect(buildId()).toBe(source.buildId);
   expect(shots).toHaveLength(3);
   for (const shot of shots) {

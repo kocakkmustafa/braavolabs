@@ -41,7 +41,9 @@ const IAP_PRODUCT_CATALOG: Readonly<Record<string, IapProduct>> = Object.freeze(
 });
 
 export function getIapProduct(productId: string): IapProduct | undefined {
-  return IAP_PRODUCT_CATALOG[productId];
+  return Object.prototype.hasOwnProperty.call(IAP_PRODUCT_CATALOG, productId)
+    ? IAP_PRODUCT_CATALOG[productId]
+    : undefined;
 }
 
 export function internalPlanForProduct(productId: string): InternalPaidPlan | undefined {

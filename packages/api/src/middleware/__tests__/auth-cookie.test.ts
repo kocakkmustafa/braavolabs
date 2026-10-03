@@ -28,9 +28,9 @@ const envMock = vi.hoisted(() => ({
 }));
 vi.mock("../../config/env", () => ({ env: envMock }));
 
-const executeRawMock = vi.hoisted(() => vi.fn().mockResolvedValue(1));
+const membershipMock = vi.hoisted(() => vi.fn());
 vi.mock("../../lib/db", () => ({
-  prisma: { $executeRaw: (...a: unknown[]) => executeRawMock(...a) },
+  prisma: { user: { findFirst: membershipMock } },
 }));
 
 import { authMiddleware } from "../auth";
@@ -98,6 +98,9 @@ const AUTH = { userId: "u1", tenantId: "t1", role: "admin" };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  membershipMock.mockImplementation(async ({ where }) => ({
+    id: where.id, tenantId: where.tenantId, role: AUTH.role,
+  }));
   envMock.NODE_ENV = "development";
   envMock.AUTH_COOKIE_MODE = false;
   envMock.JWT_EXPIRES_IN = "1h";

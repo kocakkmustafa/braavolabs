@@ -821,8 +821,8 @@ async function callOpenAICompatible(
       }
       if (LOCAL_PROVIDERS.has(config.provider)) {
         throw new Error(
-          `${config.provider} local endpoint is unreachable. ` +
-            "Verify the local server is running and reachable from this machine.",
+          `${config.provider} endpoint is unreachable from the Braavolabs API server. ` +
+            "Verify the endpoint is running and reachable from that server.",
         );
       }
       throw err;

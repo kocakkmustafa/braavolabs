@@ -8,7 +8,7 @@ import type { Request, Response } from "express";
 import crypto from "crypto";
 import { z } from "zod";
 import jwt from "jsonwebtoken";
-import { register, login, getGoogleAuthUrl, googleCallback, getGitHubAuthUrl, githubCallback, requestPasswordReset, resetPassword, refreshTokens, revokeAllRefreshTokens, userIdFromRefreshToken, stashOAuthExchange, redeemOAuthExchange, appleMobileSignIn, googleMobileSignIn, githubMobileSignIn, verifyEmail, resendVerifyEmail, getAppleWebAuthUrl, appleWebCallback } from "./auth.service";
+import { register, login, getGoogleAuthUrl, googleCallback, getGitHubAuthUrl, githubCallback, requestPasswordReset, resetPassword, refreshTokens, revokeAllRefreshTokens, userIdFromRefreshToken, stashOAuthExchange, redeemOAuthExchange, appleMobileSignIn, googleMobileSignIn, googleMobileCodeSignIn, githubMobileSignIn, verifyEmail, resendVerifyEmail, getAppleWebAuthUrl, appleWebCallback } from "./auth.service";
 import { authMiddleware } from "../../middleware/auth";
 import { systemScope } from "../../middleware/system-scope";
 import { setAuthCookies, clearAuthCookies, getCookieAccessToken, getCookieRefreshToken, csrfOkForCookieAuth } from "../../lib/authCookies";
@@ -448,6 +448,7 @@ authRouter.post("/oauth/exchange", systemScope("route:auth"), refreshRateLimit, 
 
 const appleMobileSchema = z.object({
   identityToken: z.string().min(20).max(8192),
+  nonce: z.string().min(32).max(256),
   fullName: z.string().max(120).optional().nullable(),
 });
 authRouter.post(
@@ -456,8 +457,8 @@ authRouter.post(
   validate(appleMobileSchema),
   async (req, res, next) => {
     try {
-      const { identityToken, fullName } = appleMobileSchema.parse(req.body);
-      const result = await appleMobileSignIn(identityToken, fullName ?? null);
+      const { identityToken, fullName, nonce } = appleMobileSchema.parse(req.body);
+      const result = await appleMobileSignIn(identityToken, fullName ?? null, nonce);
       res.json(result);
     } catch (err) { next(err); }
   },
@@ -465,6 +466,7 @@ authRouter.post(
 
 const googleMobileSchema = z.object({
   idToken: z.string().min(20).max(8192),
+  nonce: z.string().min(32).max(256),
 });
 authRouter.post(
   "/google/mobile", systemScope("route:auth"),
@@ -472,12 +474,19 @@ authRouter.post(
   validate(googleMobileSchema),
   async (req, res, next) => {
     try {
-      const { idToken } = googleMobileSchema.parse(req.body);
-      const result = await googleMobileSignIn(idToken);
+      const { idToken, nonce } = googleMobileSchema.parse(req.body);
+      const result = await googleMobileSignIn(idToken, nonce);
       res.json(result);
     } catch (err) { next(err); }
   },
 );
+
+const googleMobileCodeSchema = z.object({ code: z.string().min(20).max(4096) });
+authRouter.post("/google/mobile/code", systemScope("route:auth"), loginRateLimit,
+  validate(googleMobileCodeSchema), async (req, res, next) => {
+    try { const { code } = googleMobileCodeSchema.parse(req.body); res.json(await googleMobileCodeSignIn(code)); }
+    catch (err) { next(err); }
+  });
 
 const githubMobileSchema = z.object({
   code: z.string().min(1).max(512),

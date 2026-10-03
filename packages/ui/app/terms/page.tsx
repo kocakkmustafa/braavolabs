@@ -129,10 +129,11 @@ export default function TermsPage() {
               : DOC_LABELS[activeDoc]}
           </h1>
 
-          <p className="bv-mono text-on-surface-variant mb-8">
-            {t("static.common.lastUpdated")}{" "}
-            {activeDoc === "terms" ? t("static.legal.terms.date") : <time dateTime="2026-06-01" lang="en" dir="ltr">June 1, 2026</time>}
-          </p>
+          {activeDoc === "terms" && (
+            <p className="bv-mono text-on-surface-variant mb-8">
+              {t("static.common.lastUpdated")} {t("static.legal.terms.date")}
+            </p>
+          )}
 
           {/* doc switcher */}
           <div className="flex flex-wrap justify-center gap-2">

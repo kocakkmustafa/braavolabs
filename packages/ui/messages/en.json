@@ -683,6 +683,17 @@
       "createdLabel": "Created:",
       "scheduledLabel": "Scheduled:",
       "approve": "Approve",
+      "approveAndSend": "Approve and send",
+      "pendingCount": "{count} pending",
+      "inactiveCompany": "Activate this workspace before approving drafts.",
+      "sendNotCompleted": "Email delivery could not be confirmed. The draft remains approved; check delivery before retrying.",
+      "selectPreview": "Select a draft to preview.",
+      "noPreview": "No authored text to preview.",
+      "statusPending": "Pending",
+      "statusApproved": "Approved",
+      "statusPublished": "Sent or published",
+      "statusRejected": "Rejected",
+      "statusArchived": "Archived",
       "reject": "Reject",
       "publish": "Publish",
       "typeSocial": "Social Post",
@@ -1071,9 +1082,9 @@
       "pickProvider": "Continue with",
       "pickPlaceholder": "Select a provider…",
       "defaultTag": "default",
-      "localTag": "local · your hardware",
+      "localTag": "enter endpoint URL",
       "baseUrlLabel": "Base URL",
-      "baseUrlHint": "Required in production for local models — point it at your own server.",
+      "baseUrlHint": "Enter a URL reachable by the Braavolabs server. Hosted service requires public HTTPS; localhost and private addresses work only in an offline self-hosted deployment. The endpoint operator may receive run content.",
       "continueButton": "Continue",
       "continueWith": "Continue with {provider}",
       "freezingNote": "Freezing the checkpoint at the next turn boundary — you can continue once it's frozen.",
@@ -1211,7 +1222,7 @@
       },
       "terms": {
         "title": "Terms of Service",
-        "date": "March 2026",
+        "date": "September 2026",
         "sections": [
           {
             "title": "1. Acceptance",
@@ -1219,7 +1230,7 @@
           },
           {
             "title": "2. Service Description",
-            "body": "Braavolabs provides an AI-powered platform for creating and operating autonomous business workflows. The platform uses Claude (Anthropic) to generate agents and pipelines based on your descriptions."
+            "body": "Braavolabs provides an AI-powered platform for creating and operating autonomous business workflows. When you request AI work, Braavolabs may send relevant workspace and run content to the provider or endpoint configured for that work. If you choose a remote endpoint, its operator may process that content under the applicable terms and settings."
           },
           {
             "title": "3. Acceptable Use",

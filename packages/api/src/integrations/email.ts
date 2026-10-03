@@ -15,6 +15,8 @@ interface SendEmailParams {
   body: string;
   from?: string;
   replyTo?: string;
+  /** Transactional account messages keep token-bearing links untracked. */
+  tracking?: boolean;
 }
 
 /**
@@ -74,8 +76,8 @@ export async function sendEmail(params: SendEmailParams): Promise<{ messageId: s
         },
       ],
       tracking_settings: {
-        click_tracking: { enable: true },
-        open_tracking: { enable: true },
+        click_tracking: { enable: params.tracking ?? true, enable_text: params.tracking === false ? false : undefined },
+        open_tracking: { enable: params.tracking ?? true },
       },
     }),
   });

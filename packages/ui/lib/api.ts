@@ -1,4 +1,7 @@
-import { useAppStore } from "./store";
+import {
+  captureAuthSession, isAuthSessionCurrent, refreshAuthSession,
+  useAppStore, type AuthSessionSnapshot,
+} from "./store";
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
 
@@ -13,6 +16,18 @@ export class ApiRequestError extends Error {
   }
 }
 
+/** A superseded request must not change or replay against another session. */
+export class SessionChangedError extends Error {
+  constructor() {
+    super("Session changed while the request was in flight.");
+    this.name = "SessionChangedError";
+  }
+}
+
+function assertSession(session: AuthSessionSnapshot): void {
+  if (!isAuthSessionCurrent(session)) throw new SessionChangedError();
+}
+
 // ─── Session refresh on 401 ─────────────────────────────────────────
 //
 // Access tokens expire after 1h while the refresh token lives for days.
@@ -24,10 +39,14 @@ export class ApiRequestError extends Error {
 // Single-flight: the server ROTATES the refresh token on use (the old
 // one is revoked), so concurrent 401s must share one in-flight refresh —
 // a second redeem of the same token would 401 and log everyone out.
-let refreshInFlight: Promise<string | null> | null = null;
+let refreshInFlight: {
+  session: AuthSessionSnapshot;
+  promise: Promise<string | null>;
+} | null = null;
 
-async function refreshAccessToken(): Promise<string | null> {
-  const { refreshToken } = useAppStore.getState();
+async function refreshAccessToken(session: AuthSessionSnapshot): Promise<string | null> {
+  assertSession(session);
+  const { refreshToken } = session;
   if (!refreshToken) return null;
   try {
     const res = await fetch(`${API_BASE}/auth/refresh`, {
@@ -39,31 +58,49 @@ async function refreshAccessToken(): Promise<string | null> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
     });
-    if (!res.ok) return null;
+    assertSession(session);
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) return null;
+      throw new ApiRequestError(res.status, "Authentication service temporarily unavailable.");
+    }
     const data: {
       token: string;
       refreshToken: string;
       tenant: { id: string };
     } = await res.json();
-    const { setAuth, tenantId } = useAppStore.getState();
-    setAuth(data.token, data.tenant?.id ?? tenantId ?? "", data.refreshToken);
+    assertSession(session);
+    if (!refreshAuthSession(session, data.token, data.tenant?.id ?? session.tenantId ?? "", data.refreshToken)) {
+      throw new SessionChangedError();
+    }
     return data.token;
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof ApiRequestError || error instanceof SessionChangedError) throw error;
+    throw new ApiRequestError(0, "Authentication service temporarily unavailable.");
   }
 }
 
-function refreshOnce(): Promise<string | null> {
-  refreshInFlight ??= refreshAccessToken().finally(() => {
-    refreshInFlight = null;
+function refreshOnce(session: AuthSessionSnapshot): Promise<string | null> {
+  assertSession(session);
+  const current = captureAuthSession();
+  // A slower 401 can arrive after the first request already rotated this pair.
+  // Reuse that result instead of consuming the snapshot's revoked refresh token.
+  if (current.token && (current.token !== session.token || current.refreshToken !== session.refreshToken)) {
+    return Promise.resolve(current.token);
+  }
+  if (refreshInFlight && refreshInFlight.session.revision === session.revision
+    && refreshInFlight.session.tenantId === session.tenantId) return refreshInFlight.promise;
+  const promise = refreshAccessToken(session).finally(() => {
+    if (refreshInFlight?.promise === promise) refreshInFlight = null;
   });
-  return refreshInFlight;
+  refreshInFlight = { session, promise };
+  return promise;
 }
 
 // Refresh failed (revoked / expired / Redis-down fail-closed): drop the
 // dead session and send the user to /login instead of leaving them on a
 // page where every request silently 401s.
-function hardLogout(): void {
+function hardLogout(session: AuthSessionSnapshot): void {
+  if (!isAuthSessionCurrent(session)) return;
   useAppStore.getState().clearAuth();
   if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
     window.location.href = "/login";
@@ -71,8 +108,9 @@ function hardLogout(): void {
 }
 
 
-async function throwApiError(res: Response): Promise<never> {
+async function throwApiError(res: Response, session: AuthSessionSnapshot): Promise<never> {
   const body = await res.json().catch(() => ({}));
+  assertSession(session);
   // Server's zod errors put the actionable text in `message` ("password:
   // Password must contain uppercase, lowercase, and a number"), not in
   // the top-level `error` ("Validation failed"). Surface the most
@@ -87,6 +125,8 @@ async function throwApiError(res: Response): Promise<never> {
 
 export async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
   const { token, headers, ...rest } = options;
+  const session = captureAuthSession();
+  if (token && token !== session.token && !path.startsWith("/auth/")) throw new SessionChangedError();
 
   // `rest.body` is always a string (callers JSON.stringify), so the
   // request can be safely replayed after a token refresh.
@@ -95,8 +135,9 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
   // server-side, and no such cookie exists while the flag is off) and is the
   // prerequisite for the cookie-only auth migration. Placed AFTER `...rest` so
   // it's always applied.
-  const doFetch = (bearer?: string) =>
-    fetch(`${API_BASE}${path}`, {
+  const doFetch = (bearer?: string) => {
+    assertSession(session);
+    return fetch(`${API_BASE}${path}`, {
       ...rest,
       credentials: "include",
       headers: {
@@ -111,32 +152,39 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
         ...headers,
       },
     });
+  };
 
   let res = await doFetch(token);
+  assertSession(session);
 
   // 401 on an authenticated call → try one refresh + replay. /auth/*
   // endpoints are excluded: a 401 there is a real credential failure
   // (bad password, dead refresh token), not an expired access token.
   if (res.status === 401 && token && !path.startsWith("/auth/")) {
-    const newToken = await refreshOnce();
+    const newToken = await refreshOnce(session);
+    assertSession(session);
     if (!newToken) {
-      hardLogout();
+      hardLogout(session);
       throw new Error("Session expired — please sign in again.");
     }
     res = await doFetch(newToken);
+    assertSession(session);
     if (res.status === 401) {
       // A freshly-minted token was rejected — server-side revocation
       // (kicked from tenant, role change). Don't loop; sign out.
-      hardLogout();
+      hardLogout(session);
       throw new Error("Session expired — please sign in again.");
     }
   }
 
   if (!res.ok) {
-    await throwApiError(res);
+    await throwApiError(res, session);
   }
 
-  return res.json();
+  if (res.status === 204) return undefined as T;
+  const data = await res.json();
+  assertSession(session);
+  return data;
 }
 
 // Typed API helpers
@@ -146,16 +194,18 @@ export const api = {
     apiFetch<{ token: string; user: any; tenant: any }>("/auth/login", {
       method: "POST", body: JSON.stringify({ email, password }),
     }),
-  /** User-initiated sign-out: best-effort server-side refresh-token revocation
-   * (POST /auth/logout) THEN clear the local session. The UI previously only
+  /** User-initiated sign-out: immediately retire the local session, then
+   * best-effort server-side refresh-token revocation (POST /auth/logout). The UI previously only
    * cleared local state, contradicting the security page's "revoke on logout"
    * claim (audit C3). The refresh token is sent in the body so the server can
    * revoke even when this session's ACCESS token has expired — the auth-optional
    * endpoint falls back to it when the bearer is dead (audit #1). Caller handles
    * the redirect. */
   signOut: async (): Promise<void> => {
+    const { refreshToken } = useAppStore.getState();
+    // Retire the local session before waiting, so pending refreshes cannot revive it.
+    useAppStore.getState().clearAuth();
     try {
-      const { refreshToken } = useAppStore.getState();
       await apiFetch("/auth/logout", {
         method: "POST",
         ...(refreshToken ? { body: JSON.stringify({ refreshToken }) } : {}),
@@ -163,7 +213,6 @@ export const api = {
     } catch {
       // Offline / already-expired — the local clear still signs the user out.
     }
-    useAppStore.getState().clearAuth();
   },
   register: (data: { email: string; password: string; name: string; tenantName: string; ref?: string }) =>
     apiFetch<{ token: string; user: any; tenant: any }>("/auth/register", {

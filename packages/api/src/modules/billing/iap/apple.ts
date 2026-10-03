@@ -91,15 +91,14 @@ function decodeJws(jws: string): Record<string, unknown> {
  * Apple's subscription status enum (lastTransactions[0].status):
  *   1 = Active
  *   2 = Expired
- *   3 = In Billing Retry Period   (treated as in_grace_period — user
- *                                   still has access while Apple retries)
- *   4 = In Billing Grace Period
+ *   3 = In Billing Retry Period   (no entitlement outside grace)
+ *   4 = In Billing Grace Period   (retains entitlement during grace)
  *   5 = Revoked                    (refund / family-share removal)
  */
 function mapAppleStatus(code: number, expiresAt: Date): VerifiedReceipt["status"] {
   if (code === 5) return "revoked";
   if (code === 1) return "active";
-  if (code === 3 || code === 4) return "in_grace_period";
+  if (code === 4) return "in_grace_period";
   if (expiresAt.getTime() < Date.now()) return "expired";
   return "expired";
 }

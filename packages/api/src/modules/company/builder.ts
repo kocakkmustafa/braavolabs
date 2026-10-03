@@ -1,11 +1,13 @@
 import crypto from "crypto";
 import { spawn } from "node:child_process";
 import { env } from "../../config/env";
-import { prisma } from "../../lib/db";
+import { prisma, tenantTx } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { slugify } from "@ai-company-os/core";
 import { PRIMITIVES, PLAN_LIMITS } from "@ai-company-os/core";
+import { assertCompanyCapacity } from "./company-capacity";
+import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 import { chatCompletion, type ChatMessage } from "../../services/ai-client";
 // D-013: resolveTenantCompletionLink (not the raw getTenantAIConfig) — this
 // is a single-completion call site, so it must honor the SAME D-009 policy
@@ -290,6 +292,18 @@ function titleCase(s: string): string {
     .trim();
 }
 
+/** Recheck capacity before spending a completion, including open sessions. */
+async function hasBuilderCapacity(tenantId: string): Promise<boolean> {
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    include: { companies: { select: { id: true } } },
+  });
+  if (!tenant) throw new AppError(401, "Tenant not found");
+  const plan = await getEffectivePlan(tenantId, tenant.plan);
+  const limit = PLAN_LIMITS[plan].maxCompanies;
+  return limit === -1 || tenant.companies.length < limit;
+}
+
 /**
  * Start a new company building session from freeform text.
  */
@@ -299,25 +313,16 @@ export async function startBuildSession(
 ): Promise<BuilderSession> {
   const sessionId = `build_${crypto.randomUUID()}`;
 
-  // Check plan limits
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
-    include: { companies: { where: { status: { not: "ARCHIVED" } } } },
-  });
-
-  if (tenant) {
-    const limits = PLAN_LIMITS[tenant.plan];
-    if (limits.maxCompanies !== -1 && tenant.companies.length >= limits.maxCompanies) {
-      return {
-        sessionId,
-        tenantId,
-        status: "error",
-        turn: 0,
-        messages: [],
-        companySpec: undefined,
-        companyId: undefined,
-      };
-    }
+  if (!await hasBuilderCapacity(tenantId)) {
+    return {
+      sessionId,
+      tenantId,
+      status: "error",
+      turn: 0,
+      messages: [],
+      companySpec: undefined,
+      companyId: undefined,
+    };
   }
 
   const messages: ChatMessage[] = [
@@ -397,6 +402,9 @@ export async function continueBuildSession(
   }
   if (session.tenantId !== tenantId) throw new AppError(403, "Not authorized to access this session");
   if (session.status !== "clarifying") throw new AppError(400, "Session is not in clarification state");
+  if (!await hasBuilderCapacity(tenantId)) {
+    throw new AppError(402, "Company limit reached for your current plan. Upgrade to build more.");
+  }
 
   session.messages.push({ role: "user", content: userResponse });
   session.turn++;
@@ -448,61 +456,61 @@ export async function confirmBuild(sessionId: string, tenantId: string): Promise
 
   const spec = session.companySpec;
 
-  // Create company
-  const company = await prisma.company.create({
-    data: {
-      tenantId: session.tenantId,
-      name: spec.name,
-      slug: spec.slug,
-      description: spec.description,
-      primitives: spec.primitives as any,
-      status: "ACTIVE",
-      config: spec.config as any,
-    },
-  });
-
-  // Create agents
-  for (const agentDef of spec.agents) {
-    await prisma.agent.create({
+  const company = await tenantTx(async (tx) => {
+    await assertCompanyCapacity(tx, session.tenantId);
+    const created = await tx.company.create({
       data: {
-        companyId: company.id,
-        name: agentDef.name,
-        role: agentDef.role,
-        systemPrompt: agentDef.systemPrompt,
-        tools: agentDef.tools,
+        tenantId: session.tenantId,
+        name: spec.name,
+        slug: spec.slug,
+        description: spec.description,
+        primitives: spec.primitives as any,
+        status: "ACTIVE",
+        config: spec.config as any,
       },
     });
-  }
 
-  // Create pipelines
-  for (const pipelineDef of spec.pipelines) {
-    await prisma.pipeline.create({
+    for (const agentDef of spec.agents) {
+      await tx.agent.create({
+        data: {
+          companyId: created.id,
+          name: agentDef.name,
+          role: agentDef.role,
+          systemPrompt: agentDef.systemPrompt,
+          tools: agentDef.tools,
+        },
+      });
+    }
+
+    for (const pipelineDef of spec.pipelines) {
+      await tx.pipeline.create({
+        data: {
+          companyId: created.id,
+          name: pipelineDef.name,
+          trigger: pipelineDef.trigger as any,
+          schedule: pipelineDef.schedule,
+          steps: pipelineDef.steps as any,
+        },
+      });
+    }
+
+    await tx.activityLog.create({
       data: {
-        companyId: company.id,
-        name: pipelineDef.name,
-        trigger: pipelineDef.trigger as any,
-        schedule: pipelineDef.schedule,
-        steps: pipelineDef.steps as any,
+        tenantId: session.tenantId,
+        actor: "company_builder",
+        action: "company.build",
+        resource: "company",
+        resourceId: created.id,
+        details: {
+          sessionId,
+          turns: session.turn,
+          primitives: spec.primitives,
+          agentCount: spec.agents.length,
+          pipelineCount: spec.pipelines.length,
+        },
       },
     });
-  }
-
-  // Activity log
-  await prisma.activityLog.create({
-    data: {
-      tenantId: session.tenantId,
-      actor: "company_builder",
-      action: "company.build",
-      resource: "company",
-      resourceId: company.id,
-      details: {
-        sessionId,
-        turns: session.turn,
-        primitives: spec.primitives,
-        agentCount: spec.agents.length,
-        pipelineCount: spec.pipelines.length,
-      },
-    },
+    return created;
   });
 
   // Check for missing integrations

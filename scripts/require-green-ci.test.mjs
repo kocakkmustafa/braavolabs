@@ -279,7 +279,11 @@ test("workflow contract gates both image writes and SSH, keeps triggers/pins/dig
   assert.ok(jobs.deploy.indexOf("node scripts/require-green-ci.mjs") < jobs.deploy.indexOf("- name: Download immutable image digests"));
   assert.match(jobs.deploy, /node scripts\/require-green-ci\.mjs/);
   assert.doesNotMatch(ci, /run: node scripts\/require-green-ci\.mjs/);
-  assert.match(deploy, /branches: \[main\]/);
+  // A main source merge runs CI but never starts a production release.
+  const triggers = deploy.slice(deploy.indexOf("on:\n"), deploy.indexOf("concurrency:\n"));
+  assert.doesNotMatch(triggers, /branches:|workflow_run:|repository_dispatch:|schedule:|pull_request:/);
+  assert.match(triggers, /^on:\n  push:\n    tags: \["v\*"\]/);
+  assert.match(ci, /on:\n  push:\n    branches: \[main\]/);
   assert.match(deploy, /tags: \["v\*"\]/);
   assert.match(deploy, /paths-ignore:\n      - "\.github\/workflows\/\*\*"/);
   assert.match(deploy, /workflow_dispatch:/);

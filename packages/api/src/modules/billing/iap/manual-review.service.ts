@@ -7,7 +7,12 @@ import type { InternalPaidPlan, MobilePublicTier } from "./catalog";
 
 export type ManualReviewState = "pending" | "approved_mapping" | "rejected" | "expired";
 
+export type ManualReviewKind = "catalog_mapping" | "google_lineage";
+export type ManualReviewReasonCode = "GOOGLE_LINEAGE_UNKNOWN";
+
 export interface ManualReviewCase {
+  reviewKind: ManualReviewKind;
+  reasonCode: ManualReviewReasonCode | null;
   caseId: string;
   tenantId: string;
   provider: "apple" | "google";
@@ -133,14 +138,34 @@ export function validateManualReviewReason(
   return reason;
 }
 
+function reviewMetadata(
+  provider: unknown,
+  reviewKind: unknown,
+  reasonCode: unknown,
+  statusCode: number,
+): { reviewKind: ManualReviewKind; reasonCode: ManualReviewReasonCode | null } {
+  const kind = reviewKind === undefined ? "catalog_mapping" : reviewKind;
+  if (
+    (kind !== "catalog_mapping" && kind !== "google_lineage")
+    || (kind === "google_lineage" && (provider !== "google" || reasonCode !== "GOOGLE_LINEAGE_UNKNOWN"))
+    || (kind === "catalog_mapping" && reasonCode !== undefined && reasonCode !== null)
+  ) throw new AppError(statusCode, "Manual review metadata is invalid");
+  return { reviewKind: kind, reasonCode: kind === "google_lineage" ? "GOOGLE_LINEAGE_UNKNOWN" : null };
+}
+
 export function manualReviewCaseId(input: {
   tenantId: string;
   provider: "apple" | "google";
   productId: string;
   providerIdentity: string;
+  reviewKind?: ManualReviewKind;
+  reasonCode?: ManualReviewReasonCode;
 }): string {
+  const metadata = reviewMetadata(input.provider, input.reviewKind, input.reasonCode, 400);
   return `iap_review_${digest(
-    "braavo:iap:manual-review-case:v1",
+    metadata.reviewKind === "google_lineage"
+      ? "braavo:iap:manual-review-google-lineage-case:v1"
+      : "braavo:iap:manual-review-case:v1",
     input.tenantId,
     input.provider,
     input.productId,
@@ -176,6 +201,7 @@ export async function getManualReviewCase(
     throw new AppError(500, "Manual review case is malformed");
   }
 
+  const metadata = reviewMetadata(details.provider, details.reviewKind, details.reasonCode, 500);
   let state: ManualReviewState = "pending";
   let targetTier: MobilePublicTier | null = null;
   let reason: string | null = null;
@@ -185,6 +211,12 @@ export async function getManualReviewCase(
   for (const row of rows) {
     const event = asObject(row.details);
     if (!event) continue;
+    if (event.reviewKind !== undefined || event.reasonCode !== undefined) {
+      const eventMetadata = reviewMetadata(details.provider, event.reviewKind, event.reasonCode, 500);
+      if (eventMetadata.reviewKind !== metadata.reviewKind || eventMetadata.reasonCode !== metadata.reasonCode) {
+        throw new AppError(500, "Manual review event metadata is inconsistent");
+      }
+    }
     if (event.kind === "provider_state") {
       providerStatus = typeof event.providerStatus === "string" ? event.providerStatus : providerStatus;
       expiresAt = typeof event.expiresAt === "string" ? event.expiresAt : expiresAt;
@@ -192,6 +224,9 @@ export async function getManualReviewCase(
       continue;
     }
     if (isState(event.state) && event.state !== "pending" && state === "pending") {
+      if (metadata.reviewKind === "google_lineage" && event.state === "approved_mapping") {
+        throw new AppError(500, "Google lineage review cannot approve a catalog mapping");
+      }
       state = event.state;
       targetTier = isTier(event.targetTier) ? event.targetTier : null;
       reason = typeof event.reason === "string" ? event.reason : null;
@@ -199,6 +234,7 @@ export async function getManualReviewCase(
   }
 
   return {
+    ...metadata,
     caseId,
     tenantId,
     provider: details.provider,
@@ -255,14 +291,18 @@ export async function ensureManualReviewCase(input: {
   internalPlan: InternalPaidPlan;
   subscriptionId: string;
   providerIdentity: string;
+  reviewKind?: ManualReviewKind;
+  reasonCode?: ManualReviewReasonCode;
   providerStatus?: string;
   expiresAt?: Date;
   autoRenew?: boolean;
 }, store: ManualReviewStore = prisma as unknown as ManualReviewStore): Promise<ManualReviewCase> {
+  const metadata = reviewMetadata(input.provider, input.reviewKind, input.reasonCode, 400);
   const caseId = manualReviewCaseId(input);
   const identityRef = iapCredentialDigest(input.provider, input.providerIdentity);
   const pendingEventId = `iap_review_pending_${digest("braavo:iap:manual-review-pending:v1", caseId)}`;
   const pendingDetails = {
+    ...metadata,
     schemaVersion: 1,
     state: "pending",
     provider: input.provider,
@@ -319,6 +359,7 @@ export async function ensureManualReviewCase(input: {
   }
 
   return await getManualReviewCase(input.tenantId, caseId, store) ?? {
+    ...metadata,
     caseId,
     tenantId: input.tenantId,
     provider: input.provider,
@@ -353,6 +394,9 @@ export async function transitionManualReviewCase(input: {
 
   const current = await getManualReviewCase(input.tenantId, input.caseId, store);
   if (!current) throw new AppError(404, "Manual review case not found");
+  if (current.reviewKind === "google_lineage" && input.state === "approved_mapping") {
+    throw new AppError(400, "Catalog mapping approval cannot establish Google lineage");
+  }
   if (current.state !== "pending") {
     const replayTarget = input.state === "approved_mapping" ? input.targetTier! : null;
     if (
@@ -365,6 +409,8 @@ export async function transitionManualReviewCase(input: {
 
   const decisionId = `iap_review_decision_${digest("braavo:iap:manual-review-decision:v1", input.caseId)}`;
   const details = {
+    reviewKind: current.reviewKind,
+    reasonCode: current.reasonCode,
     schemaVersion: 1,
     state: input.state,
     targetTier: input.state === "approved_mapping" ? input.targetTier! : null,

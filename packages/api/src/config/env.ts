@@ -204,6 +204,10 @@ const envShape = z.object({
   // Durable webhook admission/DLQ rollout switch. Default-off keeps the
   // migration and code deploy reversible until the operator explicitly
   // enables delivery-ledger processing after schema verification.
+  // Default-off: enable only after the additive lineage migration and client
+  // regeneration have been independently verified. Disable for rollback;
+  // persisted evidence is retained and the old conservative fence returns.
+  GOOGLE_PURCHASE_LINEAGE_ENABLED: z.string().optional().default("false").transform((v) => v === "true"),
   IAP_DELIVERY_RELIABILITY_ENABLED: z.string().optional().default("false").transform((v) => v === "true"),
   // A permanently failing provider lookup or persistence target must not
   // create an infinite store-redelivery loop. The final validated attempt is

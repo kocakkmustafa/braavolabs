@@ -94,6 +94,44 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals());
 
+describe("local-provider endpoint errors", () => {
+  it.each([
+    {
+      deployment: "hosted",
+      offline: false,
+      baseUrl: "https://models.example.com/v1",
+      networkPolicy: { allowLoopback: false, allowPrivateNetworks: false, requireHttps: true },
+    },
+    {
+      deployment: "offline self-hosted",
+      offline: true,
+      baseUrl: "http://localhost:11434/v1",
+      networkPolicy: { allowLoopback: true, allowPrivateNetworks: true, requireLocalDestination: true },
+    },
+  ])(
+    "describes reachability from the API server in $deployment mode",
+    async ({ offline, baseUrl, networkPolicy }) => {
+      envMock.OFFLINE_MODE = offline;
+      stubSafeExternalFetch(async () => {
+        throw new Error("ECONNREFUSED");
+      });
+
+      await expect(chatCompletion(
+        { provider: "OLLAMA", model: "gemma3:4b", apiKey: "", baseUrl },
+        "system",
+        [{ role: "user", content: "hello" }],
+      )).rejects.toThrow(
+        "OLLAMA endpoint is unreachable from the Braavolabs API server. Verify the endpoint is running and reachable from that server.",
+      );
+      expect(ssrf.safeExternalFetch).toHaveBeenCalledWith(
+        `${baseUrl}/chat/completions`,
+        expect.objectContaining({ method: "POST" }),
+        expect.objectContaining(networkPolicy),
+      );
+    },
+  );
+});
+
 // ── BR-P0-002-D: tenant-owned config only ──
 
 describe("getTenantAIConfig — BYOK/local only", () => {

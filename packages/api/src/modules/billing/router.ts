@@ -16,7 +16,7 @@ import { AppError } from "../../middleware/error";
 import { redis } from "../../lib/redis";
 import { computeSpendForecast } from "./forecast";
 import { computeTenantSavings } from "./savings.service";
-import { recordEntitlementEvent } from "./entitlement-ledger.service";
+import { getEffectivePlan, recordEntitlementEvent } from "./entitlement-ledger.service";
 import {
   mapStripeSubscriptionUpdated,
   mapStripeSubscriptionDeleted,
@@ -247,7 +247,7 @@ authedRouter.get("/usage", async (req, res, next) => {
     ]);
 
     res.json({
-      plan: tenant?.plan ?? "MANUAL_REVIEW",
+      plan: await getEffectivePlan(tenantId, tenant?.plan, { now }),
       period: { start: periodStart.toISOString(), end: now.toISOString() },
       meters: meters.map((m) => ({
         metric: m.metric,
@@ -337,7 +337,7 @@ authedRouter.get("/subscription", async (req, res, next) => {
     }
 
     res.json({
-      plan: tenant.plan,
+      plan: await getEffectivePlan(req.auth!.tenantId, tenant.plan),
       stripeCustomerId: tenant.stripeCustomerId,
       subscription: subscription
         ? {

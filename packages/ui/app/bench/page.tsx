@@ -14,6 +14,7 @@
  */
 
 import Link from "next/link";
+import { connection } from "next/server";
 
 interface LeaderboardRow {
   id: string;
@@ -65,6 +66,9 @@ export const metadata: Metadata = {
 };
 
 export default async function BenchPage() {
+  // Fetch live data only while serving a request. The hourly data-cache policy
+  // below still applies, but building the UI must not probe the deployed API.
+  await connection();
   const suites = await fetchBench();
 
   return (
@@ -233,4 +237,3 @@ const tdStyle: React.CSSProperties = {
   fontSize: 13,
   color: "var(--color-on-surface)",
 };
-

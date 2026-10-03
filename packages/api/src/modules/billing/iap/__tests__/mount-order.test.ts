@@ -53,6 +53,7 @@ const routeMocks = vi.hoisted(() => ({
   mobileSubscriptionUpdateMany: vi.fn(),
   transaction: vi.fn(),
   tenantTx: vi.fn(),
+  membershipFindFirst: vi.fn(),
 }));
 
 vi.mock("../../../../lib/logger", () => ({
@@ -60,6 +61,7 @@ vi.mock("../../../../lib/logger", () => ({
 }));
 vi.mock("../../../../lib/db", () => ({
   prisma: {
+    user: { findFirst: routeMocks.membershipFindFirst },
     activityLog: { create: routeMocks.activityLogCreate },
     mobileSubscription: {
       findUnique: routeMocks.mobileSubscriptionFindUnique,
@@ -75,7 +77,8 @@ vi.mock("../../../../middleware/rateLimit", () => ({
   rateLimit: () => (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 // Auth is REAL — the shadowing bug lives in how it is mounted, so mocking it
-// away would mock away the very thing under test. Only the secret is stubbed.
+// away would mock away the very thing under test. The credential and current
+// tenant membership lookup are fixtures; the JWT and tenant binding are real.
 vi.mock("../../../../config/env", () => ({
   env: routeEnv,
 }));
@@ -92,6 +95,7 @@ vi.mock("../delivery-ledger", () => ({
   processIapDelivery: routeMocks.processIapDelivery,
 }));
 vi.mock("../../entitlement-ledger.service", () => ({
+  GOOGLE_OBSERVATION_STALE: "Google verification was superseded; retry",
   recordEntitlementEvent: routeMocks.recordEntitlementEvent,
 }));
 
@@ -130,6 +134,7 @@ afterAll(() => new Promise<void>((r) => server.close(() => r())));
 
 beforeEach(() => {
   vi.clearAllMocks();
+  routeMocks.membershipFindFirst.mockResolvedValue({ id: "u1", tenantId: "tenant-A", role: "OWNER" });
   routeEnv.IAP_DELIVERY_RELIABILITY_ENABLED = false;
   routeMocks.verifyPubSubPushToken.mockResolvedValue({ ok: false, reason: "missing-bearer-token" });
 });

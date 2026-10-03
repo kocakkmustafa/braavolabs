@@ -35,15 +35,25 @@ import { AppError } from "../../../middleware/error";
 import { env } from "../../../config/env";
 import { logger } from "../../../lib/logger";
 import { verifyAppleReceipt, parseAppleNotification, type VerifiedReceipt } from "./apple";
+import { knownGoogleAncestorResolver } from "./google-known-ancestry";
+import { assertGoogleLineage, persistGoogleLineage, googleLineageStore } from "./google-lineage";
 import {
   acknowledgeGoogleReceipt,
   verifyGoogleReceipt,
   parseGoogleRtdnEnvelope,
   verifyPubSubPushToken,
   type GoogleSubscriptionNotification,
+  type GoogleVoidedSubscriptionNotification,
+  type GoogleRtdnNotification,
   type VerifiedGoogleReceipt,
 } from "./google";
-import { getEntitlementProjection, recordEntitlementEvent } from "../entitlement-ledger.service";
+import {
+  getEntitlementProjection,
+  recordEntitlementEvent,
+  recordGoogleEntitlementWithDecision,
+  withCurrentGooglePurchase,
+  GOOGLE_OBSERVATION_STALE,
+} from "../entitlement-ledger.service";
 import {
   iapCredentialDigest,
   iapCredentialReference,
@@ -70,6 +80,7 @@ import {
   manualReviewCaseId,
   transitionManualReviewCase,
   validateManualReviewReason,
+  type ManualReviewStore,
 } from "./manual-review.service";
 
 export const iapRouter = Router();
@@ -153,10 +164,11 @@ async function verifyNativeReceipt(
   provider: NativeIapProvider,
   receipt: string,
   productId: string,
+  tenantId: string,
 ): Promise<VerifiedReceipt | VerifiedGoogleReceipt> {
   return provider === "apple"
     ? verifyAppleReceipt(receipt, productId)
-    : verifyGoogleReceipt(receipt, productId);
+    : verifyGoogleReceipt(receipt, productId, knownGoogleAncestorResolver(prisma.googlePurchaseAlias, tenantId, env.GOOGLE_PURCHASE_LINEAGE_ENABLED));
 }
 
 function safeVerificationFailure(provider: string, productId: string): void {
@@ -228,6 +240,24 @@ function normalizedGoogleAliases(verified: VerifiedGoogleReceipt): string[] {
   return aliases;
 }
 
+function googleEntitlementFence(
+  subscriptionId: string,
+  verified: VerifiedGoogleReceipt,
+  readCompletedAt: Date,
+) {
+  return {
+    subscriptionId,
+    rootIdentity: verified.googleCanonicalRootIdentity,
+    verifiedAliases: normalizedGoogleAliases(verified),
+    readCompletedAt,
+    requireDirectedLineage: env.GOOGLE_PURCHASE_LINEAGE_ENABLED,
+  };
+}
+
+function googleObservationStale(): AppError {
+  return new AppError(409, GOOGLE_OBSERVATION_STALE);
+}
+
 function googleOwnershipConflict(): AppError {
   return new AppError(409, "This subscription is already linked to a different account.");
 }
@@ -257,6 +287,8 @@ async function claimGooglePurchaseOwnership(
   verified: VerifiedGoogleReceipt,
   createData: Prisma.MobileSubscriptionUncheckedCreateInput,
   updateData: Prisma.MobileSubscriptionUpdateManyMutationInput,
+  readStartedAt: Date,
+  readCompletedAt: Date,
 ) {
   const aliases = normalizedGoogleAliases(verified);
   const rootIdentity = verified.googleCanonicalRootIdentity;
@@ -275,6 +307,27 @@ async function claimGooglePurchaseOwnership(
       )];
       if (visibleOwnerIds.length > 1) throw googleOwnershipConflict();
       const proposedSubscriptionId = visibleOwnerIds[0] ?? crypto.randomUUID();
+
+      // Existing roots take the same row lock as RTDN before inserting new
+      // aliases. This serializes replacement claims with old-token updates
+      // without reversing the row/alias lock order between the two paths.
+      if (visibleOwnerIds[0]) {
+        const lockedOwner = await tx.$queryRaw<Array<{ id: string; last_verified_at: Date }>>`
+          SELECT id, last_verified_at FROM mobile_subscriptions
+          WHERE id = ${proposedSubscriptionId}
+            AND tenant_id = ${tenantId}
+            AND provider = 'google'
+            AND original_transaction_id = ${rootIdentity}
+          FOR UPDATE
+        `;
+        if (lockedOwner.length !== 1) throw googleOwnershipConflict();
+        // lastVerifiedAt records the previous provider read's completion.
+        // If this read began before that completion, their observations may
+        // overlap in either order; retry instead of guessing which is newer.
+        if (lockedOwner[0]!.last_verified_at.getTime() >= readStartedAt.getTime()) {
+          throw googleObservationStale();
+        }
+      }
 
       await tx.googlePurchaseAlias.createMany({
         data: aliases.map((tokenDigest) => ({
@@ -307,6 +360,45 @@ async function claimGooglePurchaseOwnership(
       }
       const subscriptionId = claimed[0]!.mobileSubscriptionId!;
 
+      if (env.GOOGLE_PURCHASE_LINEAGE_ENABLED) {
+        const fence = { tenantId, subscriptionId, rootIdentity, aliases };
+        await persistGoogleLineage(googleLineageStore(tx.googlePurchaseAlias), {
+          ...fence, observations: verified.googleLineageObservations ?? [], readComplete: readCompletedAt,
+        });
+        const complete = verified.googleLineageComplete === true
+          && await assertGoogleLineage(googleLineageStore(tx.googlePurchaseAlias), fence);
+        if (!complete) {
+          const subscription = await tx.mobileSubscription.findUnique({ where: { id: subscriptionId } });
+          if (!subscription || subscription.tenantId !== tenantId
+            || subscription.provider !== "google" || subscription.originalTransactionId !== rootIdentity) {
+            throw googleOwnershipConflict();
+          }
+          return { ...subscription, staleReplacedToken: false, lineageReviewRequired: true };
+        }
+      }
+
+      // An older token's backwards-only linkedPurchaseToken chain omits any
+      // replacement token already claimed for this root. Do not emit a
+      // terminal or granting entitlement event from such a stale receipt.
+      const newerOwnedAlias = await tx.googlePurchaseAlias.findFirst({
+        where: {
+          tenantId,
+          mobileSubscriptionId: subscriptionId,
+          provider: "google",
+          canonicalRootIdentity: rootIdentity,
+          state: "active",
+          tokenDigest: { notIn: aliases },
+        },
+        select: { tokenDigest: true },
+      });
+      if (newerOwnedAlias) {
+        const subscription = await tx.mobileSubscription.findUnique({
+          where: { id: subscriptionId },
+        });
+        if (!subscription || subscription.tenantId !== tenantId) throw googleOwnershipConflict();
+        return { ...subscription, staleReplacedToken: true };
+      }
+
       const updated = await tx.mobileSubscription.updateMany({
         where: {
           id: subscriptionId,
@@ -318,13 +410,14 @@ async function claimGooglePurchaseOwnership(
       });
       if (updated.count > 1) throw new Error("Google ownership update affected multiple rows");
       if (updated.count === 0) {
-        return tx.mobileSubscription.create({
+        const subscription = await tx.mobileSubscription.create({
           data: { ...createData, id: subscriptionId },
         });
+        return { ...subscription, staleReplacedToken: false };
       }
       const subscription = await tx.mobileSubscription.findUnique({ where: { id: subscriptionId } });
       if (!subscription || subscription.tenantId !== tenantId) throw googleOwnershipConflict();
-      return subscription;
+      return { ...subscription, staleReplacedToken: false };
     });
   } catch (error) {
     // Covers a rolling-deploy race where an older process creates the global
@@ -339,6 +432,8 @@ async function claimGooglePurchaseOwnership(
 async function updateGoogleOwnedSubscription(
   verified: VerifiedGoogleReceipt,
   updateData: Prisma.MobileSubscriptionUpdateManyMutationInput,
+  readStartedAt: Date,
+  readCompletedAt: Date,
 ) {
   const aliases = normalizedGoogleAliases(verified);
   const rootIdentity = verified.googleCanonicalRootIdentity;
@@ -361,6 +456,26 @@ async function updateGoogleOwnedSubscription(
     ) {
       throw googleOwnershipConflict();
     }
+
+    // Serialize this RTDN with another update of the same owned root. A late
+    // notification for an older purchase token must inspect the committed
+    // replacement aliases after any current-token update has completed.
+    const lockedOwner = await tx.$queryRaw<Array<{ id: string; last_verified_at: Date }>>`
+      SELECT id, last_verified_at FROM mobile_subscriptions
+      WHERE id = ${rootOwner.mobileSubscriptionId}
+        AND tenant_id = ${rootOwner.tenantId}
+        AND provider = 'google'
+        AND original_transaction_id = ${rootIdentity}
+      FOR UPDATE
+    `;
+    if (lockedOwner.length !== 1) throw googleOwnershipConflict();
+    // Immutable evidence is also an effect. UNKNOWN/stale early returns must
+    // not persist a read that overlapped a newer committed observation.
+    if (env.GOOGLE_PURCHASE_LINEAGE_ENABLED
+      && lockedOwner[0]!.last_verified_at.getTime() >= readStartedAt.getTime()) {
+      throw googleObservationStale();
+    }
+
 
     const visibleDigests = new Set(visibleBefore.map((alias) => alias.tokenDigest));
     const missingAliases = aliases.filter((tokenDigest) => !visibleDigests.has(tokenDigest));
@@ -398,6 +513,53 @@ async function updateGoogleOwnedSubscription(
       throw googleOwnershipConflict();
     }
 
+    if (env.GOOGLE_PURCHASE_LINEAGE_ENABLED) {
+      const fence = { tenantId: rootOwner.tenantId, subscriptionId: rootOwner.mobileSubscriptionId, rootIdentity, aliases };
+      await persistGoogleLineage(googleLineageStore(tx.googlePurchaseAlias), {
+        ...fence, observations: verified.googleLineageObservations ?? [], readComplete: readCompletedAt,
+      });
+      const complete = verified.googleLineageComplete === true
+        && await assertGoogleLineage(googleLineageStore(tx.googlePurchaseAlias), fence);
+      if (!complete) {
+        const subscription = await tx.mobileSubscription.findUnique({ where: { id: rootOwner.mobileSubscriptionId } });
+        if (!subscription || subscription.tenantId !== rootOwner.tenantId
+          || subscription.provider !== "google" || subscription.originalTransactionId !== rootIdentity) {
+          throw googleOwnershipConflict();
+        }
+        return { ...subscription, staleReplacedToken: false, lineageReviewRequired: true };
+      }
+    }
+
+    // linkedPurchaseToken points backwards: an older token's verified alias
+    // chain cannot contain a newer token. If a newer alias was already bound
+    // to this root, this delivery remains auditable but cannot rewind the
+    // subscription row or entitlement projection to the old token's state.
+    const newerOwnedAlias = await tx.googlePurchaseAlias.findFirst({
+      where: {
+        tenantId: rootOwner.tenantId,
+        mobileSubscriptionId: rootOwner.mobileSubscriptionId,
+        provider: "google",
+        canonicalRootIdentity: rootIdentity,
+        state: "active",
+        tokenDigest: { notIn: aliases },
+      },
+      select: { tokenDigest: true },
+    });
+    if (newerOwnedAlias) {
+      const subscription = await tx.mobileSubscription.findUnique({
+        where: { id: rootOwner.mobileSubscriptionId },
+      });
+      if (!subscription || subscription.tenantId !== rootOwner.tenantId) {
+        throw googleOwnershipConflict();
+      }
+      return { ...subscription, staleReplacedToken: true };
+    }
+    // The prior provider read completed after this one began. An overlapping
+    // ACTIVE/REVOKED pair cannot be ordered safely from request starts alone.
+    if (lockedOwner[0]!.last_verified_at.getTime() >= readStartedAt.getTime()) {
+      throw googleObservationStale();
+    }
+
     const updated = await tx.mobileSubscription.updateMany({
       where: {
         id: rootOwner.mobileSubscriptionId,
@@ -414,12 +576,44 @@ async function updateGoogleOwnedSubscription(
     if (!subscription || subscription.tenantId !== rootOwner.tenantId) {
       throw googleOwnershipConflict();
     }
-    return subscription;
+    return { ...subscription, staleReplacedToken: false };
+  });
+}
+
+/** Durable review admission is ownership-bound and never grants or revokes. */
+async function ensureGoogleLineageReview(
+  verified: VerifiedGoogleReceipt,
+  owner: { id: string; tenantId: string; originalTransactionId: string; lastVerifiedAt: Date },
+  actor: string,
+) {
+  const product = getIapProduct(verified.googleProductId);
+  if (!product) throw new AppError(400, "Google lineage product is unsupported");
+  return tenantTx(async (tx) => {
+    const locked = await tx.$queryRaw<Array<{ id: string; last_verified_at: Date }>>`
+      SELECT id, last_verified_at FROM mobile_subscriptions
+      WHERE id = ${owner.id} AND tenant_id = ${owner.tenantId}
+        AND provider = 'google' AND original_transaction_id = ${owner.originalTransactionId}
+      FOR UPDATE
+    `;
+    if (locked.length !== 1) throw googleOwnershipConflict();
+    if (locked[0]!.last_verified_at.getTime() !== owner.lastVerifiedAt.getTime()) throw googleObservationStale();
+    const aliases = normalizedGoogleAliases(verified);
+    const rows = await tx.googlePurchaseAlias.findMany({ where: { tokenDigest: { in: aliases } } });
+    if (rows.length !== aliases.length || rows.some(row => !activeAliasMatches(row, owner.tenantId, owner.originalTransactionId, owner.id))) {
+      throw googleOwnershipConflict();
+    }
+    return ensureManualReviewCase({ tenantId: owner.tenantId, actor, provider: "google",
+      productId: verified.googleProductId, internalPlan: product.internalPlan, subscriptionId: owner.id,
+      providerIdentity: owner.originalTransactionId, providerStatus: publicProviderStatus(verified.status),
+      expiresAt: verified.expiresAt, autoRenew: verified.autoRenew,
+      reviewKind: "google_lineage", reasonCode: "GOOGLE_LINEAGE_UNKNOWN",
+    }, tx as unknown as ManualReviewStore);
   });
 }
 
 // POST /api/v1/billing/iap/verify — verify a mobile receipt
 iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, next) => {
+  const attempt = async (remainingGoogleRetries: number): Promise<void> => {
   try {
     const body = verifySchema.parse(req.body);
     const tenantId = req.auth!.tenantId;
@@ -441,7 +635,10 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
       throw new AppError(501, "RevenueCat verification not yet implemented");
     }
     const provider: NativeIapProvider = body.provider;
-    const verified = await verifyNativeReceipt(provider, body.receipt, body.productId);
+    const googleReadStartedAt = provider === "google" ? new Date() : null;
+    const verified = await verifyNativeReceipt(provider, body.receipt, body.productId, tenantId);
+    const googleReadCompletedAt = provider === "google" ? new Date() : null;
+    const storedVerifiedAt = googleReadCompletedAt ?? new Date();
 
     const rejectDifferentOwner = (): never => {
       logger.warn(
@@ -465,7 +662,7 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
         startedAt: verified.startedAt,
         expiresAt: verified.expiresAt,
         autoRenew: verified.autoRenew,
-        lastVerifiedAt: new Date(),
+        lastVerifiedAt: storedVerifiedAt,
     };
     const updateData = {
         // R2 fix (2026-08-19): productId/planTier were missing here, so a
@@ -484,7 +681,7 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
         status: verified.status,
         expiresAt: verified.expiresAt,
         autoRenew: verified.autoRenew,
-        lastVerifiedAt: new Date(),
+        lastVerifiedAt: storedVerifiedAt,
     };
 
     const updateSameOwner = async () => {
@@ -523,6 +720,8 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
         verified as VerifiedGoogleReceipt,
         createData,
         updateData,
+        googleReadStartedAt!,
+        googleReadCompletedAt!,
       );
     } else {
       subscription = await updateSameOwner();
@@ -538,6 +737,28 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
       }
     }
     if (!subscription) throw new Error("IAP subscription ownership resolution failed");
+    if ("lineageReviewRequired" in subscription && subscription.lineageReviewRequired) {
+      const review = await ensureGoogleLineageReview(verified as VerifiedGoogleReceipt, subscription, req.auth!.userId);
+      const projection = await getEntitlementProjection(tenantId);
+      res.json({ outcome: "manual_review", reasonCode: "GOOGLE_LINEAGE_UNKNOWN", receiptTier: null,
+        effectiveTier: projection.effectiveTier, providerStatus: publicProviderStatus(verified.status),
+        reviewCaseId: review.caseId });
+      return;
+    }
+    if ("staleReplacedToken" in subscription && subscription.staleReplacedToken) {
+      throw new AppError(409, "Replaced Google purchase is no longer current");
+    }
+    const currentGoogleAlias = provider === "google"
+      ? normalizedGoogleAliases(verified as VerifiedGoogleReceipt)[0]
+      : undefined;
+
+    const recordVerifiedEntitlement = (event: Parameters<typeof recordEntitlementEvent>[0]) =>
+      provider === "google"
+        ? recordEntitlementEvent(
+            event,
+            googleEntitlementFence(subscription.id, verified as VerifiedGoogleReceipt, googleReadCompletedAt!),
+          )
+        : recordEntitlementEvent(event);
 
     const providerStatus = publicProviderStatus(verified.status);
     const granting = isGrantingStatus(verified.status);
@@ -580,15 +801,19 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
     if (!granting) {
       const terminalTier = catalogProduct.sale === "manual-review" ? receiptTier : planTier;
       if (terminalTier) {
-        const terminalEvent = mapIapVerify(provider, verified, terminalTier);
+        const terminalEvent = mapIapVerify(provider, verified, terminalTier, currentGoogleAlias);
         try {
-          await recordEntitlementEvent({
+          const projected = await recordVerifiedEntitlement({
             tenantId,
             ...(catalogProduct.sale === "manual-review"
               ? terminalEvent
               : retainInternalCatalogTier(terminalEvent, planTier)),
           });
-        } catch {
+          if (projected === null) {
+            throw new AppError(409, "Replaced Google purchase is no longer current");
+          }
+        } catch (error) {
+          if (error instanceof AppError) throw error;
           throw new AppError(503, "Entitlement persistence temporarily unavailable");
         }
       }
@@ -624,17 +849,21 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
       throw new AppError(409, "Verified receipt is not eligible for entitlement");
     }
 
-    const mappedEvent = mapIapVerify(provider, verified, receiptTier);
+    const mappedEvent = mapIapVerify(provider, verified, receiptTier, currentGoogleAlias);
 
     let projectedPlan;
     try {
-      projectedPlan = await recordEntitlementEvent({
+      projectedPlan = await recordVerifiedEntitlement({
         tenantId,
         ...(catalogProduct.sale === "manual-review"
           ? mappedEvent
           : retainInternalCatalogTier(mappedEvent, planTier)),
       });
-    } catch {
+      if (projectedPlan === null) {
+        throw new AppError(409, "Replaced Google purchase is no longer current");
+      }
+    } catch (error) {
+      if (error instanceof AppError) throw error;
       throw new AppError(503, "Entitlement persistence temporarily unavailable");
     }
 
@@ -674,12 +903,25 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
       expiresAt: verified.expiresAt,
     });
   } catch (err) {
+    if (err instanceof AppError && err.message === GOOGLE_OBSERVATION_STALE) {
+      if (remainingGoogleRetries > 0) {
+        // This read overlapped a committed Google read. Re-fetch the provider
+        // before deciding; a later REVOKED observation must not be discarded
+        // simply because an older ACTIVE read committed first.
+        await attempt(remainingGoogleRetries - 1);
+        return;
+      }
+      next(new AppError(503, "Google purchase verification is temporarily busy; retry"));
+      return;
+    }
     if (err instanceof AppError) return next(err);
     const provider = typeof req.body?.provider === "string" ? req.body.provider : "unknown";
     const productId = typeof req.body?.productId === "string" ? req.body.productId : "unknown";
     safeVerificationFailure(provider, productId);
     next(new AppError(500, "Receipt verification failed"));
   }
+  };
+  await attempt(3);
 });
 
 // Mapping a historical receipt can directly grant paid access, so the
@@ -712,9 +954,15 @@ iapRouter.post(
         return;
       }
 
+      if (current.reviewKind === "google_lineage" && body.state === "approved_mapping") {
+        throw new AppError(409, "Google lineage must be provider-verified before any entitlement decision");
+      }
+
       // approved_mapping and expired both require a fresh provider read. The
       // receipt stays ephemeral and is never forwarded to the review store.
-      const verified = await verifyNativeReceipt(current.provider, body.receipt, current.productId);
+      const googleReadStartedAt = current.provider === "google" ? new Date() : null;
+      const verified = await verifyNativeReceipt(current.provider, body.receipt, current.productId, tenantId);
+      const googleReadCompletedAt = current.provider === "google" ? new Date() : null;
       validateManualReviewReason(reason, [body.receipt, verified.originalTransactionId]);
       if (
         iapCredentialDigest(current.provider, verified.originalTransactionId)
@@ -733,8 +981,10 @@ iapRouter.post(
             status: verified.status,
             expiresAt: verified.expiresAt,
             autoRenew: verified.autoRenew,
-            lastVerifiedAt: new Date(),
+            lastVerifiedAt: googleReadCompletedAt!,
           },
+          googleReadStartedAt!,
+          googleReadCompletedAt!,
         );
         if (
           subscription.id !== current.subscriptionId
@@ -743,6 +993,12 @@ iapRouter.post(
           || subscription.productId !== current.productId
         ) {
           throw new AppError(409, "Verified receipt ownership does not match the review case");
+        }
+        if ("lineageReviewRequired" in subscription && subscription.lineageReviewRequired) {
+          throw new AppError(409, "Google lineage remains unresolved");
+        }
+        if (subscription.staleReplacedToken) {
+          throw new AppError(409, "Replaced Google purchase is no longer current");
         }
       } else {
         const updated = await prisma.mobileSubscription.updateMany({
@@ -770,13 +1026,21 @@ iapRouter.post(
         if (isGrantingStatus(verified.status)) {
           throw new AppError(409, "Provider still reports an active entitlement");
         }
-        const decided = await transitionManualReviewCase({
+        const decisionInput = {
           tenantId,
           actor,
           caseId: req.params.caseId,
-          state: body.state,
+          state: "expired" as const,
           reason,
-        });
+        };
+        const decided = current.provider === "google"
+          ? (await withCurrentGooglePurchase(
+              tenantId,
+              googleEntitlementFence(current.subscriptionId, verified as VerifiedGoogleReceipt, googleReadCompletedAt!),
+              (tx) => transitionManualReviewCase(decisionInput, tx as unknown as ManualReviewStore),
+            ))?.value
+          : await transitionManualReviewCase(decisionInput);
+        if (!decided) throw new AppError(409, "Replaced Google purchase is no longer current");
         res.json({ caseId: decided.caseId, state: decided.state, targetTier: decided.targetTier });
         return;
       }
@@ -785,21 +1049,38 @@ iapRouter.post(
         throw new AppError(409, "Provider does not report an active entitlement");
       }
 
-      const decided = await transitionManualReviewCase({
+      const decisionInput = {
         tenantId,
         actor,
         caseId: req.params.caseId,
-        state: body.state,
+        state: "approved_mapping" as const,
         targetTier: body.targetTier,
         reason,
-      });
-      const mappedEvent = mapIapVerify(current.provider, verified, body.targetTier);
+      };
+      const currentGoogleAlias = current.provider === "google"
+        ? normalizedGoogleAliases(verified as VerifiedGoogleReceipt)[0]
+        : undefined;
+      const mappedEvent = mapIapVerify(current.provider, verified, body.targetTier, currentGoogleAlias);
       if (!mappedEvent) throw new AppError(409, "Verified receipt is not eligible for entitlement");
 
+      let decided;
       let projectedPlan;
       try {
-        projectedPlan = await recordEntitlementEvent({ tenantId, ...mappedEvent });
-      } catch {
+        if (current.provider === "google") {
+          const fenced = await recordGoogleEntitlementWithDecision(
+              { tenantId, ...mappedEvent },
+              googleEntitlementFence(current.subscriptionId, verified as VerifiedGoogleReceipt, googleReadCompletedAt!),
+              (tx) => transitionManualReviewCase(decisionInput, tx as unknown as ManualReviewStore),
+            );
+          if (!fenced) throw new AppError(409, "Replaced Google purchase is no longer current");
+          decided = fenced.decision;
+          projectedPlan = fenced.plan;
+        } else {
+          decided = await transitionManualReviewCase(decisionInput);
+          projectedPlan = await recordEntitlementEvent({ tenantId, ...mappedEvent });
+        }
+      } catch (error) {
+        if (error instanceof AppError) throw error;
         throw new AppError(503, "Entitlement persistence temporarily unavailable");
       }
 
@@ -874,7 +1155,11 @@ iapRouter.get("/entitlement", authMiddleware, iapEntitlementRateLimit, async (re
 // because we only trust the JWS structure for the transactionId) can't
 // move our row past what Apple actually says is active.
 type AppleNotification = Awaited<ReturnType<typeof parseAppleNotification>>;
-type GoogleNotification = GoogleSubscriptionNotification;
+type GoogleNotification = GoogleSubscriptionNotification | GoogleVoidedSubscriptionNotification;
+type GoogleOperationalNotice = Extract<
+  GoogleRtdnNotification,
+  { kind: "pending-refund-review" | "one-time" | "voided-one-time" }
+>;
 
 function providerFailure(error: unknown, provider: "APPLE" | "GOOGLE"): never {
   if (error instanceof AppError && (error.statusCode === 400 || error.statusCode === 401)) {
@@ -1094,16 +1379,83 @@ iapRouter.post("/apple/notify", systemScope("webhook:iap-apple"), iapWebhookRate
 // We re-fetch authoritative state via verifyGoogleReceipt — the
 // notification only carries `purchaseToken + notificationType`, the
 // truth is behind the API.
+function googleActivityDetails(
+  note: GoogleNotification,
+  verified: VerifiedGoogleReceipt,
+  staleReplacedToken = false,
+) {
+  if (note.kind === "subscription") {
+    return { type: note.notificationType, status: verified.status, staleReplacedToken };
+  }
+  const latestOrder = verified.googleLatestSuccessfulOrderId;
+  const currentOrderMatch = latestOrder ? latestOrder === note.orderId : null;
+  const reviewRequired = !staleReplacedToken
+    && isGrantingStatus(verified.status) && currentOrderMatch !== false;
+  return {
+    type: "VOIDED_PURCHASE",
+    status: verified.status,
+    staleReplacedToken,
+    refundType: note.refundType,
+    orderIdDigest: deliveryFingerprint(`google:order:${note.orderId}`),
+    currentOrderMatch,
+    reviewRequired,
+  };
+}
+
+async function recordGoogleActivity(
+  note: GoogleNotification,
+  verified: VerifiedGoogleReceipt,
+  updated: { tenantId: string; id: string },
+  staleReplacedToken = false,
+): Promise<void> {
+  const details = googleActivityDetails(note, verified, staleReplacedToken);
+  const activityId = iapActivityId("google", note.messageId);
+  await prisma.activityLog.upsert({
+    where: { id: activityId },
+    create: {
+      id: activityId,
+      tenantId: updated.tenantId,
+      actor: "google-rtdn",
+      action: note.kind === "subscription"
+        ? "billing.iap.notification"
+        : "billing.iap.voided_purchase",
+      resource: "mobile_subscription",
+      resourceId: updated.id,
+      details: details as any,
+    },
+    update: {},
+  });
+  if (note.kind === "voided-subscription" && details.reviewRequired) {
+    logger.warn(
+      { provider: "google", code: "GOOGLE_VOIDED_CURRENT_ORDER_REVIEW", activityId },
+      "Voided Google subscription order requires manual entitlement review",
+    );
+  }
+}
+
 async function applyGoogleReliable(note: GoogleNotification): Promise<void> {
   let verified: Awaited<ReturnType<typeof verifyGoogleReceipt>>;
+  const googleReadStartedAt = new Date();
+  let googleReadCompletedAt = googleReadStartedAt;
   try {
-    verified = await verifyGoogleReceipt(note.purchaseToken, note.subscriptionId);
+    verified = await verifyGoogleReceipt(note.purchaseToken, undefined, knownGoogleAncestorResolver(prisma.googlePurchaseAlias, undefined, env.GOOGLE_PURCHASE_LINEAGE_ENABLED));
+    googleReadCompletedAt = new Date();
   } catch (error) {
+    if (
+      note.kind === "voided-subscription"
+      && error instanceof AppError
+      && error.statusCode === 400
+    ) {
+      throw new IapTransientDeliveryError("GOOGLE_VOIDED_LOOKUP_UNRESOLVED");
+    }
     providerFailure(error, "GOOGLE");
   }
 
-  const catalogProduct = getIapProduct(note.subscriptionId);
+  const catalogProduct = getIapProduct(verified.googleProductId);
   if (!catalogProduct) {
+    if (note.kind === "voided-subscription") {
+      throw new IapTransientDeliveryError("GOOGLE_VOIDED_PRODUCT_UNSUPPORTED");
+    }
     throw new IapPoisonDeliveryError("GOOGLE_PRODUCT_UNKNOWN");
   }
   const catalogTier = catalogProduct.internalPlan;
@@ -1115,13 +1467,37 @@ async function applyGoogleReliable(note: GoogleNotification): Promise<void> {
       status: verified.status,
       expiresAt: verified.expiresAt,
       autoRenew: verified.autoRenew,
-      lastVerifiedAt: new Date(),
-    });
+      lastVerifiedAt: googleReadCompletedAt,
+    }, googleReadStartedAt, googleReadCompletedAt);
   } catch (error) {
+    if (error instanceof AppError && error.message === GOOGLE_OBSERVATION_STALE) {
+      throw new IapTransientDeliveryError("GOOGLE_OBSERVATION_STALE");
+    }
     if (error instanceof AppError && error.statusCode === 409) {
+      if (note.kind === "voided-subscription") {
+        throw new IapTransientDeliveryError("GOOGLE_VOIDED_OWNERSHIP_UNRESOLVED");
+      }
       throw new IapPoisonDeliveryError("GOOGLE_OWNERSHIP_UNRESOLVED");
     }
     throw new IapTransientDeliveryError("GOOGLE_PERSISTENCE_FAILED");
+  }
+
+  if ("lineageReviewRequired" in updated && updated.lineageReviewRequired) {
+    try {
+      await ensureGoogleLineageReview(verified, updated, "google-rtdn");
+    } catch {
+      throw new IapTransientDeliveryError("GOOGLE_LINEAGE_REVIEW_PERSISTENCE_FAILED");
+    }
+    return;
+  }
+
+  if (updated.staleReplacedToken) {
+    try {
+      await recordGoogleActivity(note, verified, updated, true);
+    } catch {
+      throw new IapTransientDeliveryError("GOOGLE_PERSISTENCE_FAILED");
+    }
+    return;
   }
 
   if (catalogProduct.sale === "manual-review") {
@@ -1129,7 +1505,7 @@ async function applyGoogleReliable(note: GoogleNotification): Promise<void> {
       tenantId: updated.tenantId,
       actor: "google-rtdn",
       provider: "google" as const,
-      productId: note.subscriptionId,
+      productId: verified.googleProductId,
       internalPlan: catalogTier,
       subscriptionId: updated.id,
       providerIdentity: verified.originalTransactionId,
@@ -1141,33 +1517,30 @@ async function applyGoogleReliable(note: GoogleNotification): Promise<void> {
       reviewInput,
       isGrantingStatus(verified.status),
     );
-    if (review?.state !== "approved_mapping" || !review.targetTier) return;
+    if (review?.state !== "approved_mapping" || !review.targetTier) {
+      if (note.kind === "voided-subscription") {
+        try {
+          await recordGoogleActivity(note, verified, updated);
+        } catch {
+          throw new IapTransientDeliveryError("GOOGLE_PERSISTENCE_FAILED");
+        }
+      }
+      return;
+    }
 
     try {
-      await recordEntitlementEvent({
+      const projected = await recordEntitlementEvent({
         tenantId: updated.tenantId,
         ...mapGoogleNotify(note, verified, review.targetTier),
-      });
-      const activityId = iapActivityId("google", note.messageId);
-      await prisma.activityLog.upsert({
-        where: { id: activityId },
-        create: {
-          id: activityId,
-          tenantId: updated.tenantId,
-          actor: "google-rtdn",
-          action: "billing.iap.notification",
-          resource: "mobile_subscription",
-          resourceId: updated.id,
-          details: { type: note.notificationType, status: verified.status } as any,
-        },
-        update: {},
-      });
+      }, googleEntitlementFence(updated.id, verified, googleReadCompletedAt));
+      await recordGoogleActivity(note, verified, updated, projected === null);
+      if (projected === null) return;
     } catch {
       throw new IapTransientDeliveryError("GOOGLE_PERSISTENCE_FAILED");
     }
-    if (verified.googleAcknowledgementPending) {
+    if (note.kind === "subscription" && verified.googleAcknowledgementPending) {
       try {
-        await acknowledgeGoogleReceipt(note.purchaseToken, note.subscriptionId);
+        await acknowledgeGoogleReceipt(note.purchaseToken, verified.googleProductId);
       } catch {
         throw new IapTransientDeliveryError("GOOGLE_ACKNOWLEDGEMENT_FAILED");
       }
@@ -1176,30 +1549,18 @@ async function applyGoogleReliable(note: GoogleNotification): Promise<void> {
   }
 
   try {
-    await recordEntitlementEvent({
+    const projected = await recordEntitlementEvent({
       tenantId: updated.tenantId,
       ...retainInternalCatalogTier(mapGoogleNotify(note, verified, catalogTier), catalogTier),
-    });
-    const activityId = iapActivityId("google", note.messageId);
-    await prisma.activityLog.upsert({
-      where: { id: activityId },
-      create: {
-        id: activityId,
-        tenantId: updated.tenantId,
-        actor: "google-rtdn",
-        action: "billing.iap.notification",
-        resource: "mobile_subscription",
-        resourceId: updated.id,
-        details: { type: note.notificationType, status: verified.status } as any,
-      },
-      update: {},
-    });
+    }, googleEntitlementFence(updated.id, verified, googleReadCompletedAt));
+    await recordGoogleActivity(note, verified, updated, projected === null);
+    if (projected === null) return;
   } catch {
     throw new IapTransientDeliveryError("GOOGLE_PERSISTENCE_FAILED");
   }
-  if (verified.googleAcknowledgementPending) {
+  if (note.kind === "subscription" && verified.googleAcknowledgementPending) {
     try {
-      await acknowledgeGoogleReceipt(note.purchaseToken, note.subscriptionId);
+      await acknowledgeGoogleReceipt(note.purchaseToken, verified.googleProductId);
     } catch {
       throw new IapTransientDeliveryError("GOOGLE_ACKNOWLEDGEMENT_FAILED");
     }
@@ -1213,40 +1574,111 @@ function googleEnvelopeMessageId(body: unknown): string | null {
     : null;
 }
 
+async function rejectGoogleEnvelope(
+  body: unknown,
+  parsed: GoogleRtdnNotification | null,
+  res: Response,
+): Promise<void> {
+  const rawFingerprint = deliveryFingerprint(JSON.stringify(body ?? null));
+  const sourceMessageId = googleEnvelopeMessageId(body);
+  const result = await processIapDelivery(
+    {
+      provider: "google",
+      deliveryId: sourceMessageId ?? `poison:${rawFingerprint}`,
+      fingerprint: sourceMessageId
+        ? deliveryFingerprint(`google:${sourceMessageId}`)
+        : rawFingerprint,
+    },
+    async () => {
+      throw new IapPoisonDeliveryError(
+        parsed ? "GOOGLE_MESSAGE_ID_MISSING" : "GOOGLE_ENVELOPE_INVALID",
+      );
+    },
+  );
+  res.status(result.httpStatus).json({ ok: false, reason: "envelope-not-recognised" });
+}
+
+async function rejectGooglePackage(
+  parsed: GoogleRtdnNotification,
+  res: Response,
+): Promise<void> {
+  const result = await processIapDelivery(
+    {
+      provider: "google",
+      deliveryId: parsed.messageId,
+      fingerprint: deliveryFingerprint(`google:${parsed.messageId}`),
+    },
+    async () => { throw new IapPoisonDeliveryError("GOOGLE_PACKAGE_MISMATCH"); },
+  );
+  res.status(result.httpStatus).json({ ok: false, reason: "package-mismatch" });
+}
+
+async function handleGoogleOperationalNotice(
+  parsed: GoogleOperationalNotice,
+  res: Response,
+): Promise<void> {
+  if (parsed.kind === "pending-refund-review") {
+    // A chargeback review needs an operator response through Google's
+    // ReviewRefund API within 24 hours. Keep the Pub/Sub delivery retryable
+    // so its protected payload remains available to the external DLQ.
+    logger.error(
+      { provider: "google", code: "GOOGLE_REFUND_REVIEW_ACTION_REQUIRED", deliveryId: parsed.messageId },
+      "Google pending refund review requires operator action",
+    );
+    try {
+      await processIapDelivery(
+        {
+          provider: "google",
+          deliveryId: parsed.messageId,
+          fingerprint: deliveryFingerprint(`google:${parsed.messageId}`),
+        },
+        async () => { throw new IapTransientDeliveryError("GOOGLE_REFUND_REVIEW_ACTION_REQUIRED"); },
+        undefined,
+        env.IAP_DELIVERY_MAX_ATTEMPTS,
+      );
+    } catch {
+      // A failed admission is also a retry, not an acknowledgement.
+    }
+    res.status(503).json({ ok: false, reason: "refund-review-action-required" });
+    return;
+  }
+
+  if (parsed.kind === "one-time" || parsed.kind === "voided-one-time") {
+    const code = parsed.kind === "one-time"
+      ? "GOOGLE_ONE_TIME_UNSUPPORTED"
+      : "GOOGLE_ONE_TIME_VOIDED_UNSUPPORTED";
+    try {
+      const result = await processIapDelivery(
+        {
+          provider: "google",
+          deliveryId: parsed.messageId,
+          fingerprint: deliveryFingerprint(`google:${parsed.messageId}`),
+        },
+        async () => { throw new IapPoisonDeliveryError(code); },
+        undefined,
+        env.IAP_DELIVERY_MAX_ATTEMPTS,
+      );
+      logger.warn({ provider: "google", code, deliveryId: parsed.messageId },
+        "Google one-time product notification has no subscription entitlement mapping");
+      res.status(result.httpStatus).json({ ok: false, reason: "unsupported-one-time" });
+    } catch {
+      res.status(503).json({ ok: false, reason: "retry-required" });
+    }
+    return;
+  }
+}
+
 async function handleGoogleReliable(req: Request, res: Response): Promise<void> {
-  const rawForDigest = JSON.stringify(req.body ?? null);
-  const fingerprint = deliveryFingerprint(rawForDigest);
   const parsed = parseGoogleRtdnEnvelope(req.body);
   const sourceMessageId = googleEnvelopeMessageId(req.body);
-  const sourceFingerprint = sourceMessageId
-    ? deliveryFingerprint(`google:${sourceMessageId}`)
-    : fingerprint;
 
   if (!parsed || !sourceMessageId) {
-    const result = await processIapDelivery(
-      {
-        provider: "google",
-        deliveryId: sourceMessageId ?? `poison:${fingerprint}`,
-        fingerprint: sourceFingerprint,
-      },
-      async () => {
-        throw new IapPoisonDeliveryError(
-          parsed ? "GOOGLE_MESSAGE_ID_MISSING" : "GOOGLE_ENVELOPE_INVALID",
-        );
-      },
-    );
-    res.status(result.httpStatus).json({ ok: false, reason: "envelope-not-recognised" });
+    await rejectGoogleEnvelope(req.body, parsed, res);
     return;
   }
 
   if (env.GOOGLE_PLAY_PACKAGE_NAME && parsed.packageName !== env.GOOGLE_PLAY_PACKAGE_NAME) {
-    const result = await processIapDelivery(
-      { provider: "google", deliveryId: sourceMessageId, fingerprint: sourceFingerprint },
-      async () => {
-        throw new IapPoisonDeliveryError("GOOGLE_PACKAGE_MISMATCH");
-      },
-    );
-    res.status(result.httpStatus).json({ ok: false, reason: "package-mismatch" });
+    await rejectGooglePackage(parsed, res);
     return;
   }
 
@@ -1266,6 +1698,11 @@ async function handleGoogleReliable(req: Request, res: Response): Promise<void> 
     } catch {
       res.status(503).json({ ok: false, reason: "retry-required" });
     }
+    return;
+  }
+
+  if (parsed.kind !== "subscription" && parsed.kind !== "voided-subscription") {
+    await handleGoogleOperationalNotice(parsed, res);
     return;
   }
 
@@ -1320,12 +1757,28 @@ iapRouter.post("/google/notify", systemScope("webhook:iap-google"), iapWebhookRa
   } catch {
     parsed = null;
   }
-  if (!parsed) {
-    res.status(200).json({ ok: false, reason: "envelope-not-recognised" });
+  if (!parsed || !googleEnvelopeMessageId(req.body)) {
+    try {
+      await rejectGoogleEnvelope(req.body, parsed, res);
+    } catch {
+      res.status(503).json({ ok: false, reason: "retry-required" });
+    }
+    return;
+  }
+  if (env.GOOGLE_PLAY_PACKAGE_NAME && parsed.packageName !== env.GOOGLE_PLAY_PACKAGE_NAME) {
+    try {
+      await rejectGooglePackage(parsed, res);
+    } catch {
+      res.status(503).json({ ok: false, reason: "retry-required" });
+    }
     return;
   }
   if (parsed.kind === "test") {
     res.status(200).json({ ok: true, disposition: "test" });
+    return;
+  }
+  if (parsed.kind !== "subscription" && parsed.kind !== "voided-subscription") {
+    await handleGoogleOperationalNotice(parsed, res);
     return;
   }
   try {

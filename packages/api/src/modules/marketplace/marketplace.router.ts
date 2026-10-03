@@ -33,6 +33,7 @@ import { listTools, type McpTool } from "../../lib/mcp";
 import { connectorManifestSchema } from "@ai-company-os/connector-sdk";
 import { signManifest, verifyManifest, isSignedManifest } from "./manifest-signature";
 import { claimQuota } from "../billing/metering";
+import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 import { PLAN_LIMITS } from "@ai-company-os/core";
 import type { Plan } from "@ai-company-os/core";
 
@@ -393,7 +394,7 @@ tenantRouter.post("/publish", async (req, res, next) => {
         where: { id: tenantId },
         select: { plan: true },
       });
-      const plan = (tenant?.plan ?? "FREE") as Plan;
+      const plan = await getEffectivePlan(tenantId, tenant?.plan);
       const limit = publishLimitForPlan(plan);
       if (limit === 0) {
         throw new AppError(
