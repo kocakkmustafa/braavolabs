@@ -83,3 +83,56 @@ test.describe("signup and first run", () => {
     expect(res.status()).toBe(200);
   });
 });
+
+test("real registration form keeps its onboarding navigation after session hydration", async ({ context, page, request }) => {
+  // The synthetic HTTPS authority is translated only at the transport boundary;
+  // responses come from the real owned API/router/database, never auth mocks.
+  await registerViaApi(request); // owned fixture registration bucket reset
+  await context.addCookies([{ name: "NEXT_LOCALE", value: "en", url: UI }]);
+  await context.addInitScript(() => localStorage.setItem("cookie_consent", "essential-only"));
+  await page.setExtraHTTPHeaders({ "X-Forwarded-Proto": "https" });
+  await context.route("https://api.operator.example/api/v1/**", async (route) => {
+    const original = new URL(route.request().url());
+    const response = await route.fetch({ url: `http://127.0.0.1:4310${original.pathname}${original.search}` });
+    await route.fulfill({ response });
+  });
+  await page.goto(`${UI}/login?tab=register`);
+  await page.getByLabel("Full Name", { exact: true }).fill("Browser Fixture");
+  await page.getByLabel("Organization", { exact: true }).fill("Browser Fixture Org");
+  await page.getByLabel("Email", { exact: true }).fill(`browser-${Date.now()}@probe.test`);
+  await page.getByLabel("Password", { exact: true }).fill("BrowserPassword123!");
+  await page.evaluate(() => sessionStorage.setItem("aicos-build-desc", "NEW_GUEST_INTENT"));
+  const registered = page.waitForResponse((response) => response.url().endsWith("/auth/register") && response.request().method() === "POST");
+  await page.locator('form:has(input[type="password"]) button[type="submit"]').click();
+  expect((await registered).status()).toBe(201);
+  await expect(page).toHaveURL(`${UI}/onboarding`);
+  await page.reload();
+  await expect(page).toHaveURL(`${UI}/onboarding`);
+  await expect(page.locator("main")).toBeVisible();
+  await page.waitForFunction(() => localStorage.getItem("aicos-onboarding-draft") !== null);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("aicos-onboarding-draft")!).description)).toBe("");
+  // The local snapshot is a real A session draft, restored by the wizard.
+  await page.evaluate(() => {
+    const draft = JSON.parse(localStorage.getItem("aicos-onboarding-draft")!);
+    localStorage.setItem("aicos-onboarding-draft", JSON.stringify({ ...draft, step: 1, description: "PRIVATE_TENANT_A_MARKER" }));
+  });
+  await page.reload();
+  await expect(page.locator("textarea")).toHaveValue("PRIVATE_TENANT_A_MARKER");
+  const auth = await page.evaluate(() => JSON.parse(localStorage.getItem("aicos-auth")!).state);
+  const loggedOut = await request.post(`${API}/auth/logout`, { data: { refreshToken: auth.refreshToken } });
+  expect(loggedOut.status()).toBe(200);
+  await page.evaluate(() => localStorage.removeItem("aicos-auth"));
+  await registerViaApi(request); // reset synthetic registration rate bucket
+  await page.goto(`${UI}/login?tab=register`);
+  await page.getByLabel("Full Name", { exact: true }).fill("Browser Tenant B");
+  await page.getByLabel("Organization", { exact: true }).fill("Browser Tenant B Org");
+  await page.getByLabel("Email", { exact: true }).fill(`browser-b-${Date.now()}@probe.test`);
+  await page.getByLabel("Password", { exact: true }).fill("BrowserPassword123!");
+  const registeredB = page.waitForResponse((response) => response.url().endsWith("/auth/register") && response.request().method() === "POST");
+  await page.locator('form:has(input[type="password"]) button[type="submit"]').click();
+  expect((await registeredB).status()).toBe(201);
+  await expect(page).toHaveURL(`${UI}/onboarding`);
+  await page.waitForFunction(() => localStorage.getItem("aicos-onboarding-draft") !== null);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("aicos-onboarding-draft")!).description)).toBe("");
+  await expect(page.locator("main")).not.toContainText("PRIVATE_TENANT_A_MARKER");
+});

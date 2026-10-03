@@ -1443,7 +1443,7 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
     );
 
     expect(result).toEqual({ status: 200, body: { ok: true, disposition: "processed" } });
-    expect(routeMocks.verifyGoogleReceipt).toHaveBeenLastCalledWith(purchaseToken);
+    expect(routeMocks.verifyGoogleReceipt).toHaveBeenLastCalledWith(purchaseToken, undefined, expect.any(Function));
     expect(routeMocks.recordEntitlementEvent).toHaveBeenLastCalledWith(
       expect.objectContaining({ source: "google", sourceEventId: messageId, type: eventType }),
       expect.objectContaining({ rootIdentity }),
@@ -1804,7 +1804,7 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
         "Bearer verified-token",
       );
       expect(result).toEqual({ status: 200, body: { ok: true } });
-      expect(routeMocks.verifyGoogleReceipt).toHaveBeenLastCalledWith(purchaseToken);
+      expect(routeMocks.verifyGoogleReceipt).toHaveBeenLastCalledWith(purchaseToken, undefined, expect.any(Function));
       expect(routeMocks.recordEntitlementEvent).toHaveBeenLastCalledWith(
         expect.objectContaining({ source: "google", sourceEventId: messageId }),
         expect.objectContaining({ rootIdentity }),

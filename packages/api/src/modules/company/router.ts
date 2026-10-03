@@ -17,6 +17,7 @@ import {
 import { createVersion } from "../agent/version-control";
 import { composeAgent } from "../agent/composer";
 import { assertCompanyCapacity } from "./company-capacity";
+import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 
 export const companyRouter = Router();
 companyRouter.use(authMiddleware);
@@ -171,7 +172,7 @@ companyRouter.patch("/:id", async (req, res, next) => {
           where: { id: req.auth!.tenantId },
           select: { plan: true },
         });
-        const plan = (tenant?.plan ?? "FREE") as keyof typeof PLAN_LIMITS;
+        const plan = await getEffectivePlan(req.auth!.tenantId, tenant?.plan);
         const allowed = new Set(PLAN_LIMITS[plan].channels);
         const denied = proposedChannels.filter(
           (c) => typeof c !== "string" || !allowed.has(c),

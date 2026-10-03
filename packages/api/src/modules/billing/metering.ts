@@ -7,8 +7,9 @@
 
 import { prisma, tenantTx } from "../../lib/db";
 import { logger } from "../../lib/logger";
-import { PLAN_LIMITS, normalizePlanForEntitlement } from "@ai-company-os/core";
+import { PLAN_LIMITS } from "@ai-company-os/core";
 import { env } from "../../config/env";
+import { getEffectivePlan } from "./entitlement-ledger.service";
 
 /**
  * Increment a usage meter for the current billing period.
@@ -51,7 +52,7 @@ export async function incrementMeter(
     select: { plan: true },
   });
 
-  const plan = normalizePlanForEntitlement(tenant?.plan);
+  const plan = await getEffectivePlan(tenantId, tenant?.plan, { now });
   const limits = PLAN_LIMITS[plan];
   const limit = metric === "runs" ? limits.maxRunsPerMonth : -1;
   const exceeded = limit >= 0 && meter.value > limit;
@@ -92,7 +93,7 @@ export async function claimQuota(
     where: { id: tenantId },
     select: { plan: true },
   });
-  const plan = normalizePlanForEntitlement(tenant?.plan);
+  const plan = await getEffectivePlan(tenantId, tenant?.plan);
   const limits = PLAN_LIMITS[plan];
   const limit = metric === "runs" ? limits.maxRunsPerMonth : -1;
 
@@ -207,7 +208,7 @@ export async function checkQuota(
     select: { plan: true },
   });
 
-  const plan = normalizePlanForEntitlement(tenant?.plan);
+  const plan = await getEffectivePlan(tenantId, tenant?.plan, { now });
   const limits = PLAN_LIMITS[plan];
   const limit = metric === "runs" ? limits.maxRunsPerMonth : -1;
   const currentValue = meter?.value ?? 0;

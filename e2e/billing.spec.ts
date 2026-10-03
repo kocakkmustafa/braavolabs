@@ -32,9 +32,9 @@ test.describe("billing", () => {
 
     const sub = await request.get(`${API}/billing/subscription`, { headers });
     expect(sub.status()).toBe(200);
-    // A brand-new tenant is on the free plan — not on someone else's.
+    // A new unpaid tenant is normalized to the explicit manual-review gate.
     const body = await sub.json();
-    expect(JSON.stringify(body).toLowerCase()).toContain("free");
+    expect(body).toMatchObject({ plan: "MANUAL_REVIEW", stripeCustomerId: null, subscription: null });
   });
 
   test("IAP provider ingress uses provider authentication, not a tenant token", async ({ request }) => {

@@ -80,10 +80,12 @@ SELECT
 FROM pg_namespace AS n
 WHERE n.nspname = 'public';
 
-SELECT schemaname, tablename, tableowner, rowsecurity, forcerowsecurity
-FROM pg_tables
-WHERE schemaname = 'public'
-ORDER BY tablename;
+SELECT n.nspname AS schemaname, c.relname AS tablename,
+  pg_get_userbyid(c.relowner) AS tableowner,
+  c.relrowsecurity AS rowsecurity, c.relforcerowsecurity AS forcerowsecurity
+FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
+ORDER BY c.relname;
 ```
 
 Record the `schema_owner`, `schema_acl`, `public_can_create` and

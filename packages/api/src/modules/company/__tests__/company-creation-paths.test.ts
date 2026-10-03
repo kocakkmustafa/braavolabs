@@ -7,6 +7,7 @@ const companyCreate = vi.hoisted(() => vi.fn());
 const agentCreate = vi.hoisted(() => vi.fn());
 const pipelineCreate = vi.hoisted(() => vi.fn());
 const activityLogCreate = vi.hoisted(() => vi.fn());
+const entitlementFindMany = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../lib/db", () => {
   const tx = {
@@ -21,6 +22,7 @@ vi.mock("../../../lib/db", () => {
     activityLog: { create: (...args: unknown[]) => activityLogCreate(...args) },
     companyTemplate: { update: vi.fn() },
     templateInstall: { create: vi.fn() },
+    entitlementEvent: { findMany: (...args: unknown[]) => entitlementFindMany(...args) },
   };
   return {
     prisma: {
@@ -33,6 +35,7 @@ vi.mock("../../../lib/db", () => {
 vi.mock("../../../lib/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
+vi.mock("../../../config/env", () => ({ env: { NODE_ENV: "test", LLM_PROVIDER: "api" } }));
 vi.mock("../../../middleware/auth", () => ({
   authMiddleware: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
@@ -94,9 +97,26 @@ beforeEach(() => {
   agentCreate.mockResolvedValue({ id: "agent-1" });
   pipelineCreate.mockResolvedValue({ id: "pipeline-1" });
   activityLogCreate.mockResolvedValue({});
+  entitlementFindMany.mockResolvedValue([]);
 });
 
 describe("company creation entry points", () => {
+  it.each(["company", "starter", "onboarding", "marketplace"].flatMap(
+    (entryPoint) => ["INDIVIDUAL", "TEAM"].map((plan) => [entryPoint, plan]),
+  ))("rejects %s with stale %s after ledger expiry before any creation writes", async (entryPoint, plan) => {
+    queryRaw.mockResolvedValue([{ plan }]);
+    entitlementFindMany.mockResolvedValue([{
+      id: "expired", source: "google", streamId: "mobile", sourceTimestamp: new Date("2026-08-01T00:00:00Z"),
+      type: "purchase", planTier: plan, expiresAt: new Date(Date.now() - 1_000), autoRenew: true,
+    }]);
+    expect((await attempt(entryPoint)).error).toMatchObject({ statusCode: 402 });
+    expect(entitlementFindMany).toHaveBeenCalledWith({ where: { tenantId: "tenant-1" } });
+    expect(companyCreate).not.toHaveBeenCalled();
+    expect(agentCreate).not.toHaveBeenCalled();
+    expect(pipelineCreate).not.toHaveBeenCalled();
+    expect(activityLogCreate).not.toHaveBeenCalled();
+  });
+
   it("POST /companies rejects before creating a company or activity", async () => {
     const { error } = await invoke(handler(companyRouter, "/"), {
       name: "Test", slug: "test", primitives: ["CONTENT"],

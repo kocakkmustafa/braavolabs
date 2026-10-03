@@ -16,6 +16,7 @@ interface AppState {
   token: string | null;
   refreshToken: string | null;
   tenantId: string | null;
+  sessionRevision: number;
   theme: "dark" | "light";
   _hydrated: boolean;
   setAuth: (token: string, tenantId: string, refreshToken?: string) => void;
@@ -24,16 +25,40 @@ interface AppState {
   toggleTheme: () => void;
 }
 
+// Draft content belongs to a login session, not merely a shared tenant ID.
+// Rehydration and same-owner refresh do not call this boundary cleanup.
+function clearOnboardingSessionDraft() {
+  try {
+    localStorage.removeItem("aicos-onboarding-draft");
+  } catch { /* private mode / unavailable browser storage */ }
+  try {
+    sessionStorage.removeItem("aicos-build-desc");
+  } catch { /* independent storage can remain accessible */ }
+}
+
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       token: null,
       refreshToken: null,
       tenantId: null,
+      sessionRevision: 0,
       theme: "dark",
       _hydrated: false,
-      setAuth: (token, tenantId, refreshToken) => set({ token, tenantId, refreshToken: refreshToken ?? null }),
-      clearAuth: () => set({ token: null, tenantId: null, refreshToken: null }),
+      setAuth: (token, tenantId, refreshToken) => {
+        clearOnboardingSessionDraft();
+        set((state) => ({
+        token, tenantId, refreshToken: refreshToken ?? null,
+        sessionRevision: state.sessionRevision + 1,
+      }));
+      },
+      clearAuth: () => {
+        clearOnboardingSessionDraft();
+        set((state) => ({
+        token: null, tenantId: null, refreshToken: null,
+        sessionRevision: state.sessionRevision + 1,
+      }));
+      },
       setTheme: (theme) => set({ theme }),
       toggleTheme: () => set({ theme: get().theme === "dark" ? "light" : "dark" }),
     }),
@@ -59,3 +84,40 @@ export const useAppStore = create<AppState>()(
     },
   ),
 );
+
+export interface AuthSessionSnapshot {
+  readonly revision: number;
+  readonly tenantId: string | null;
+  readonly token: string | null;
+  readonly refreshToken: string | null;
+}
+
+export function captureAuthSession(): AuthSessionSnapshot {
+  const state = useAppStore.getState();
+  return {
+    revision: state.sessionRevision,
+    tenantId: state.tenantId,
+    token: state.token,
+    refreshToken: state.refreshToken,
+  };
+}
+
+export function isAuthSessionCurrent(session: AuthSessionSnapshot): boolean {
+  const state = useAppStore.getState();
+  return state.sessionRevision === session.revision && state.tenantId === session.tenantId;
+}
+
+/** Refresh preserves a session; a server-side tenant move creates a new boundary. */
+export function refreshAuthSession(
+  session: AuthSessionSnapshot,
+  token: string,
+  tenantId: string,
+  refreshToken: string,
+): boolean {
+  if (!isAuthSessionCurrent(session)) return false;
+  useAppStore.setState({
+    token, tenantId, refreshToken,
+    sessionRevision: session.revision + (tenantId === session.tenantId ? 0 : 1),
+  });
+  return true;
+}

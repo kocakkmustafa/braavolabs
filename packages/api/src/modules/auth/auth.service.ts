@@ -7,7 +7,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { sendWelcomeEmail, sendPasswordResetEmail, sendVerifyEmail } from "../../integrations/email-templates";
-import { OAuth2Client } from "google-auth-library";
+import { OAuth2Client, type TokenPayload } from "google-auth-library";
 import { prisma, tenantTx } from "../../lib/db";
 import { redis } from "../../lib/redis";
 import { env } from "../../config/env";
@@ -68,7 +68,7 @@ export async function issueTokenPair(payload: AuthPayload): Promise<{ token: str
   try {
     await redis.set(refreshKey(payload.userId, jti), "1", "EX", REFRESH_TTL_SECONDS);
   } catch {
-    // Redis unavailable — refresh tokens work but can't be revoked
+    throw new AppError(503, "Authentication service temporarily unavailable");
   }
 
   return { token, refreshToken };
@@ -106,11 +106,12 @@ export async function refreshTokens(
   // consistent with login (which already fails closed at line 316).
   const key = refreshKey(decoded.userId, decoded.jti);
   try {
-    const exists = await redis.get(key);
+    // Redis 7 (both compose targets) supports GETDEL. Consumption and deletion
+    // must be one operation so two concurrent requests cannot both rotate it.
+    const exists = await redis.call("GETDEL", key);
     if (!exists) {
       throw new AppError(401, "Refresh token has been revoked");
     }
-    await redis.del(key); // rotate — revoke old token
   } catch (err) {
     if (err instanceof AppError) throw err;
     // Redis unreachable — fail closed: refuse the refresh.
@@ -604,6 +605,55 @@ export function getGoogleAuthUrl(state?: string): string {
   });
 }
 
+/** Resolve a verified Google token by its stable subject before any email link. */
+async function resolveGoogleIdentity(payload: TokenPayload | undefined) {
+  if (!payload || typeof payload.sub !== "string" || !payload.sub) {
+    throw new AppError(401, "Google token missing required claims");
+  }
+  const googleId = payload.sub;
+  let user = await prisma.user.findUnique({
+    where: { googleId },
+    include: { tenant: true },
+  });
+  if (user) {
+    // Subject ownership survives changed/missing email claims. Do not use a
+    // different email in this token to select or verify another local account.
+    return { user, googleId, email: user.email, emailVerified: false };
+  }
+
+  if (typeof payload.email !== "string" || !payload.email.trim() || payload.email_verified !== true) {
+    throw new AppError(401, "Google account email must be verified");
+  }
+  const email = payload.email.toLowerCase().trim();
+  const domain = email.slice(email.lastIndexOf("@") + 1);
+  // Google can vouch for current mailbox ownership only for Gmail or a
+  // verified Workspace email whose signed hosted domain matches its address.
+  // email_verified alone is historical evidence for third-party addresses.
+  const emailVerified = domain === "gmail.com" ||
+    (typeof payload.hd === "string" && !!payload.hd && payload.hd.toLowerCase() === domain);
+  user = await prisma.user.findUnique({
+    where: { email },
+    include: { tenant: true },
+  });
+  if (user) {
+    if (!emailVerified || (user.googleId && user.googleId !== googleId)) {
+      throw new AppError(401, "Sign in to your existing account before linking Google");
+    }
+    if (!user.googleId) {
+      const emailVerifiedAt = user.emailVerifiedAt ?? new Date();
+      const linked = await prisma.user.updateMany({
+        where: { id: user.id, email, googleId: null },
+        data: { googleId, avatarUrl: payload.picture ?? user.avatarUrl, emailVerifiedAt },
+      });
+      if (linked.count !== 1) {
+        throw new AppError(401, "Sign in to your existing account before linking Google");
+      }
+      user = { ...user, googleId, avatarUrl: payload.picture ?? user.avatarUrl, emailVerifiedAt };
+    }
+  }
+  return { user, googleId, email, emailVerified };
+}
+
 /**
  * Handle Google OAuth callback — exchange code for tokens,
  * find or create user, return JWT.
@@ -626,32 +676,12 @@ export async function googleCallback(
     audience: env.GOOGLE_CLIENT_ID!,
   });
   const payload = ticket.getPayload();
-  if (!payload?.email) {
-    throw new AppError(400, "Google account has no email");
-  }
-
-  const { sub: googleId, email, name, picture } = payload;
-
-  // Check if user exists by googleId or email
-  let user = await prisma.user.findFirst({
-    where: {
-      OR: [
-        { googleId: googleId },
-        { email },
-      ],
-    },
-    include: { tenant: true },
-  });
+  const identity = await resolveGoogleIdentity(payload);
+  const { googleId, email, emailVerified } = identity;
+  const { name, picture } = payload!;
+  let user = identity.user;
 
   if (user) {
-    // Link Google ID if not already linked
-    if (!user.googleId) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { googleId, avatarUrl: picture ?? user.avatarUrl },
-      });
-    }
-
     await prisma.activityLog.create({
       data: {
         tenantId: user.tenantId,
@@ -684,6 +714,7 @@ export async function googleCallback(
           avatarUrl: picture ?? null,
           googleId: googleId ?? null,
           role: "OWNER",
+          emailVerifiedAt: emailVerified ? new Date() : null,
         },
       });
 
@@ -819,10 +850,15 @@ export async function resetPassword(token: string, newPassword: string): Promise
 
   const passwordHash = await bcrypt.hash(newPassword, 12);
 
-  await prisma.user.update({
-    where: { id: user.id },
+  const reset = await prisma.user.updateMany({
+    where: {
+      id: user.id,
+      resetTokenHash: tokenHash,
+      resetTokenExpiresAt: { gt: new Date() },
+    },
     data: { passwordHash, resetTokenHash: null, resetTokenExpiresAt: null },
   });
+  if (reset.count !== 1) throw new AppError(400, "Invalid or expired reset token");
 
   // Revoke every refresh token issued before this reset. Without this,
   // an attacker who stole a refresh token before the user reset their
@@ -900,6 +936,73 @@ interface GitHubEmail {
   verified: boolean;
 }
 
+/** Resolve the stable provider subject before considering a verified email link. */
+async function resolveVerifiedProviderIdentity(
+  provider: "apple" | "github",
+  providerUserId: string,
+  emailProof: () => Promise<{ email: string | undefined; verified: boolean }>,
+  avatarUrl: string | null,
+) {
+  if (typeof providerUserId !== "string" || !providerUserId) {
+    throw new AppError(401, `${provider} identity is missing its subject`);
+  }
+  const idField = provider === "apple" ? "appleId" : "githubId";
+  let user = await prisma.user.findUnique({
+    where: provider === "apple" ? { appleId: providerUserId } : { githubId: providerUserId },
+    include: { tenant: true },
+  });
+  if (user) {
+    // An already linked subject owns this account even if email claims change
+    // or are absent. Those claims must not select or verify another account.
+    return { user, email: user.email, emailVerified: false };
+  }
+
+  const proof = await emailProof();
+  if (proof.verified !== true || typeof proof.email !== "string" || !proof.email.trim()) {
+    throw new AppError(401, `${provider} account email must be verified`);
+  }
+  const email = proof.email.toLowerCase().trim();
+  user = await prisma.user.findUnique({ where: { email }, include: { tenant: true } });
+  if (user) {
+    if (user[idField] && user[idField] !== providerUserId) {
+      throw new AppError(401, `Sign in to your existing account before linking ${provider}`);
+    }
+    if (!user[idField]) {
+      const emailVerifiedAt = user.emailVerifiedAt ?? new Date();
+      const linked = await prisma.user.updateMany({
+        where: { id: user.id, email, [idField]: null },
+        data: { [idField]: providerUserId, avatarUrl: avatarUrl ?? user.avatarUrl, emailVerifiedAt },
+      });
+      if (linked.count !== 1) {
+        throw new AppError(401, `Sign in to your existing account before linking ${provider}`);
+      }
+      user = { ...user, [idField]: providerUserId, avatarUrl: avatarUrl ?? user.avatarUrl, emailVerifiedAt };
+    }
+  }
+  return { user, email, emailVerified: true };
+}
+
+/** /user.email has no verification flag; only this authenticated list provides it. */
+async function getVerifiedGitHubEmail(accessToken: string): Promise<string> {
+  const emailsResp = await fetch(GITHUB_EMAILS_URL, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/vnd.github+json",
+      "User-Agent": "Braavolabs-OAuth",
+    },
+  });
+  if (!emailsResp.ok) {
+    throw new AppError(503, "GitHub email verification is unavailable");
+  }
+  const emails = (await emailsResp.json()) as GitHubEmail[];
+  const verified = emails.find((e) => e.primary && e.verified === true) ??
+    emails.find((e) => e.verified === true);
+  if (!verified?.email) {
+    throw new AppError(401, "GitHub account has no verified email");
+  }
+  return verified.email;
+}
+
 export async function githubCallback(
   code: string,
   ref?: string,
@@ -945,46 +1048,19 @@ export async function githubCallback(
   }
   const ghUser = (await userResp.json()) as GitHubUser;
 
-  // 3) Resolve email — primary verified takes priority over /user.email
-  // (which is often null because GitHub privacy defaults hide it).
-  let email: string | null = ghUser.email;
-  if (!email) {
-    const emailsResp = await fetch(GITHUB_EMAILS_URL, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/vnd.github+json",
-        "User-Agent": "Braavolabs-OAuth",
-      },
-    });
-    if (emailsResp.ok) {
-      const emails = (await emailsResp.json()) as GitHubEmail[];
-      const primary = emails.find((e) => e.primary && e.verified) ?? emails.find((e) => e.verified);
-      email = primary?.email ?? null;
-    }
-  }
-  if (!email) {
-    throw new AppError(400, "GitHub account has no verified email — required to create your Braavolabs account");
-  }
-
   const githubId = String(ghUser.id);
   const name = ghUser.name ?? ghUser.login;
   const picture = ghUser.avatar_url;
 
-  // 4) Find or create user. Same OR-on-githubId-or-email pattern as
-  // Google flow so an existing email-password user can link by signing
-  // in with GitHub once.
-  let user = await prisma.user.findFirst({
-    where: { OR: [{ githubId }, { email }] },
-    include: { tenant: true },
-  });
+  // 3) Existing subject first. Unknown subjects need authenticated verified
+  // email evidence before an email-password account can be linked.
+  const identity = await resolveVerifiedProviderIdentity("github", githubId,
+    async () => ({ email: await getVerifiedGitHubEmail(accessToken), verified: true }), picture);
+  const { email, emailVerified } = identity;
+  let user = identity.user;
 
+  // 4) Find or create user.
   if (user) {
-    if (!user.githubId) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { githubId, avatarUrl: picture ?? user.avatarUrl },
-      });
-    }
     await prisma.activityLog.create({
       data: {
         tenantId: user.tenantId,
@@ -1015,6 +1091,7 @@ export async function githubCallback(
           avatarUrl: picture ?? null,
           githubId,
           role: "OWNER",
+          emailVerifiedAt: emailVerified ? new Date() : null,
         },
       });
       await tx.activityLog.create({
@@ -1086,8 +1163,18 @@ async function upsertAndIssueTokens(args: {
   email: string;
   name: string | null;
   avatarUrl: string | null;
+  googleClaims?: TokenPayload;
+  emailVerified?: boolean;
+  verifiedEmail?: () => Promise<string>;
 }): Promise<{ token: string; refreshToken: string; user: any; tenant: any }> {
-  const { provider, providerUserId, email, name, avatarUrl } = args;
+  const { provider, providerUserId, name, avatarUrl } = args;
+  const identity = provider === "google"
+    ? await resolveGoogleIdentity(args.googleClaims)
+    : await resolveVerifiedProviderIdentity(provider, providerUserId, async () => ({
+      email: args.verifiedEmail ? await args.verifiedEmail() : args.email,
+      verified: args.verifiedEmail ? true : args.emailVerified === true,
+    }), avatarUrl);
+  const { email, emailVerified } = identity;
   const idField =
     provider === "apple"
       ? "appleId"
@@ -1095,30 +1182,9 @@ async function upsertAndIssueTokens(args: {
         ? "googleId"
         : "githubId";
 
-  let user = await prisma.user.findFirst({
-    where: { OR: [{ [idField]: providerUserId } as any, { email }] },
-    include: { tenant: true },
-  });
+  let user = identity.user;
 
   if (user) {
-    // OAuth providers verify email before returning, so we trust them
-    // and auto-mark verified. This also lets existing email-signup
-    // users complete verification by simply signing in with their
-    // matching Apple/Google/GitHub account.
-    const updates: Record<string, unknown> = {};
-    if (!(user as any)[idField]) {
-      updates[idField] = providerUserId;
-      updates.avatarUrl = avatarUrl ?? user.avatarUrl;
-    }
-    if (!user.emailVerifiedAt) {
-      updates.emailVerifiedAt = new Date();
-    }
-    if (Object.keys(updates).length > 0) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: updates as any,
-      });
-    }
     await prisma.activityLog.create({
       data: {
         tenantId: user.tenantId,
@@ -1149,9 +1215,7 @@ async function upsertAndIssueTokens(args: {
           avatarUrl: avatarUrl ?? null,
           [idField]: providerUserId,
           role: "OWNER",
-          // OAuth providers vouch for the email before handing it to
-          // us; skip the verification email cycle for them.
-          emailVerifiedAt: new Date(),
+          emailVerifiedAt: emailVerified ? new Date() : null,
         } as any,
       });
       await tx.activityLog.create({
@@ -1192,13 +1256,37 @@ async function upsertAndIssueTokens(args: {
  * Apple's JWKS and pins the audience to our iOS bundle identifier so
  * a token issued for a different app can't grant access here.
  *
- * Apple only delivers the user's name + email on the FIRST
- * authorization. We accept the name from the client on first login
- * and store it; later flows fall back to the appleSub lookup.
+ * Apple only delivers the user's name on the first authorization. Email
+ * claims are optional for some accounts; a linked subject is sufficient for
+ * repeat sign-in, while a new subject needs a verified signed email claim.
  */
+async function consumeMobileIdentityToken(token: string, nonce: string | undefined, payload: { nonce?: unknown; exp?: number }): Promise<void> {
+  if (!nonce || nonce.length < 32 || nonce.length > 256 || payload.nonce !== nonce) {
+    throw new AppError(401, "Mobile identity token nonce mismatch");
+  }
+  if (typeof payload.exp !== "number" || !Number.isFinite(payload.exp)) throw new AppError(401, "Mobile identity token missing expiry");
+  const ttl = Math.ceil(payload.exp - Date.now() / 1000);
+  if (ttl <= 0) throw new AppError(401, "Mobile identity token expired");
+  const segments = token.split(".");
+  if (segments.length !== 3 || segments.some((segment) => !segment)) throw new AppError(401, "Malformed mobile identity token");
+  // Hash only authenticated signing input. Equivalent valid encodings of the
+  // signature (padding, pad bits, or ECDSA malleability) must consume one key.
+  // Header/payload bytes are signed and cannot be changed without verification.
+  const signingInput = `${segments[0]}.${segments[1]}`;
+  const key = `oauth:mobile:consumed:${crypto.createHash("sha256").update(signingInput).digest("hex")}`;
+  let consumed;
+  try {
+    consumed = await redis.call("SET", key, "1", "EX", ttl, "NX");
+  } catch {
+    throw new AppError(503, "Mobile sign-in replay protection unavailable");
+  }
+  if (consumed !== "OK") throw new AppError(401, "Mobile identity token already used");
+}
+
 export async function appleMobileSignIn(
   identityToken: string,
   fullName?: string | null,
+  nonce?: string,
 ): Promise<{ token: string; refreshToken: string; user: any; tenant: any }> {
   if (!env.APPLE_SIWA_BUNDLE_ID) {
     throw new AppError(503, "Apple Sign-In is not configured");
@@ -1218,36 +1306,17 @@ export async function appleMobileSignIn(
     );
   }
 
+  await consumeMobileIdentityToken(identityToken, nonce, payload);
   const appleSub = payload.sub;
   const emailFromToken = payload.email as string | undefined;
   if (!appleSub) {
     throw new AppError(400, "Apple token missing subject");
   }
-  if (!emailFromToken) {
-    // Repeat sign-in: Apple stops sending email after first auth.
-    const existing = await prisma.user.findFirst({
-      where: { appleId: appleSub },
-      include: { tenant: true },
-    });
-    if (!existing) {
-      throw new AppError(
-        400,
-        "Apple did not return an email — sign out and sign in again with 'Share My Email' selected",
-      );
-    }
-    return upsertAndIssueTokens({
-      provider: "apple",
-      providerUserId: appleSub,
-      email: existing.email,
-      name: existing.name,
-      avatarUrl: existing.avatarUrl,
-    });
-  }
-
   return upsertAndIssueTokens({
     provider: "apple",
     providerUserId: appleSub,
-    email: emailFromToken,
+    email: emailFromToken ?? "",
+    emailVerified: payload.email_verified === true || payload.email_verified === "true",
     name: fullName?.trim() || null,
     avatarUrl: null,
   });
@@ -1261,6 +1330,7 @@ export async function appleMobileSignIn(
  */
 export async function googleMobileSignIn(
   idToken: string,
+  nonce?: string,
 ): Promise<{ token: string; refreshToken: string; user: any; tenant: any }> {
   const allowedAudiences = [
     env.GOOGLE_IOS_CLIENT_ID,
@@ -1286,17 +1356,47 @@ export async function googleMobileSignIn(
     );
   }
 
-  if (!payload?.email || !payload.sub) {
-    throw new AppError(400, "Google token missing required claims");
+  if (!payload?.sub) {
+    throw new AppError(401, "Google token missing required claims");
   }
 
+  await consumeMobileIdentityToken(idToken, nonce, payload as TokenPayload & { nonce?: string });
   return upsertAndIssueTokens({
     provider: "google",
     providerUserId: payload.sub,
-    email: payload.email,
+    email: payload.email ?? "",
     name: payload.name ?? null,
     avatarUrl: payload.picture ?? null,
+    googleClaims: payload,
   });
+}
+
+/** Native Google Android server-auth code exchange. Google consumes the
+ * authorization code once; the backend verifies the returned ID token before
+ * applying the same subject-first identity policy as all Google entry points.
+ */
+export async function googleMobileCodeSignIn(code: string): Promise<{ token: string; refreshToken: string; user: any; tenant: any }> {
+  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) throw new AppError(503, "Google mobile code exchange is not configured");
+  // google-auth-library uses `option.redirect_uri || client.redirectUri`.
+  // The supported JSON credential alias preserves the empty native redirect
+  // (redirectUri: "" alone is normalized to undefined by the constructor).
+  const client = new OAuth2Client({ clientId: env.GOOGLE_CLIENT_ID,
+    clientSecret: env.GOOGLE_CLIENT_SECRET, redirect_uris: [""] });
+  let payload: TokenPayload | undefined;
+  try {
+    // Native server-auth codes have no browser redirect URI.
+    const { tokens } = await client.getToken({ code, redirect_uri: "" });
+    if (!tokens.id_token) throw new Error("missing identity token");
+    const ticket = await client.verifyIdToken({ idToken: tokens.id_token, audience: env.GOOGLE_CLIENT_ID });
+    payload = ticket.getPayload();
+  } catch {
+    // Provider exceptions can include token response/configuration details.
+    throw new AppError(401, "Google mobile authorization code verification failed");
+  }
+  if (!payload?.sub) throw new AppError(401, "Google token missing required claims");
+  return upsertAndIssueTokens({ provider: "google", providerUserId: payload.sub,
+    email: payload.email ?? "", name: payload.name ?? null, avatarUrl: payload.picture ?? null,
+    googleClaims: payload });
 }
 
 /**
@@ -1357,46 +1457,13 @@ export async function githubMobileSignIn(
   if (!userResp.ok) {
     throw new AppError(400, `GitHub /user failed: ${userResp.status}`);
   }
-  const ghUser = (await userResp.json()) as {
-    id: number;
-    login: string;
-    name: string | null;
-    email: string | null;
-    avatar_url: string | null;
-  };
-
-  let email = ghUser.email;
-  if (!email) {
-    const emailsResp = await fetch("https://api.github.com/user/emails", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/vnd.github+json",
-        "User-Agent": "Braavolabs-OAuth",
-      },
-    });
-    if (emailsResp.ok) {
-      const emails = (await emailsResp.json()) as Array<{
-        email: string;
-        primary: boolean;
-        verified: boolean;
-      }>;
-      const primary =
-        emails.find((e) => e.primary && e.verified) ??
-        emails.find((e) => e.verified);
-      email = primary?.email ?? null;
-    }
-  }
-  if (!email) {
-    throw new AppError(
-      400,
-      "GitHub account has no verified email — required to create your Braavolabs account",
-    );
-  }
+  const ghUser = (await userResp.json()) as GitHubUser;
 
   return upsertAndIssueTokens({
     provider: "github",
     providerUserId: String(ghUser.id),
-    email,
+    email: "",
+    verifiedEmail: () => getVerifiedGitHubEmail(accessToken),
     name: ghUser.name ?? ghUser.login,
     avatarUrl: ghUser.avatar_url,
   });
@@ -1569,50 +1636,27 @@ export async function appleWebCallback(
 
   // Pull the user's full name out of the first-time-only `user` blob.
   let fullName: string | null = null;
-  let emailFromUser: string | undefined;
   if (userJson) {
     try {
       const parsed = JSON.parse(userJson) as {
         name?: { firstName?: string; lastName?: string };
-        email?: string;
       };
       const first = parsed.name?.firstName?.trim() ?? "";
       const last = parsed.name?.lastName?.trim() ?? "";
       const combined = [first, last].filter(Boolean).join(" ").trim();
       fullName = combined || null;
-      emailFromUser = parsed.email;
     } catch {
       // Malformed `user` blob — ignore, the id_token still has what
       // we need to authenticate.
     }
   }
 
-  const email = emailFromToken ?? emailFromUser;
-  if (!email) {
-    // Repeat sign-in: Apple stops sending email after first auth.
-    const existing = await prisma.user.findFirst({
-      where: { appleId: appleSub },
-      include: { tenant: true },
-    });
-    if (!existing) {
-      throw new AppError(
-        400,
-        "Apple did not return an email — please retry and choose 'Share My Email'",
-      );
-    }
-    return upsertAndIssueTokens({
-      provider: "apple",
-      providerUserId: appleSub,
-      email: existing.email,
-      name: existing.name,
-      avatarUrl: existing.avatarUrl,
-    });
-  }
-
   return upsertAndIssueTokens({
     provider: "apple",
     providerUserId: appleSub,
-    email,
+    // The form's user.email is not signed and cannot authorize an email link.
+    email: emailFromToken ?? "",
+    emailVerified: payload.email_verified === true || payload.email_verified === "true",
     name: fullName,
     avatarUrl: null,
   });

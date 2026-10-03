@@ -1,17 +1,8 @@
 # CLAUDE.md — Braavolabs
 
-Product context for Claude Code and other coding agents working in this
-repo. Keep this file short and load-bearing: it's read into every agent
-session, so out-of-date claims here cost more than they save.
+Ortak şirket/ürün/servis/durum bağlamı için önce [YULAlab ortak girişini](../../../AGENTS.md) oku. Teknik yöntemi model seçer; bu dosya işlem yetkisi üretmez. Yerel ürün ve güvenlik bilgileri aşağıdadır.
 
-## What Braavolabs is
-
-A BYOK multi-agent platform that turns a plain-English business idea
-into a staffed autonomous AI company. Users describe their business →
-Claude runs a 2-3 turn clarification loop → the system composes a set
-of agents across nine primitives (acquisition, sales, delivery,
-content, operations, finance, analytics, memory, governance) and gives
-them a runnable pipeline.
+Braavo/Braavolabs API ve yerel modelleri telefon, desktop ve CLI üzerinden orkestre eden AI çalışma platformunu hedefler. Mevcut company/pipeline modülleri bu kaynakta yer alır; eski "otonom şirket" anlatımı tüm güncel ürün hedefini tanımlamaz.
 
 Every action is logged, every step records its reasoning, every spend
 is gated by an explicit approval, and five risk stops (hard, loop,
@@ -19,7 +10,7 @@ cost-anomaly, spam, brand-violation) protect the user from runaway
 behaviour. Cloud + self-hosted hybrid; pipelines export as
 machine-bound encrypted bundles for offline / air-gapped use.
 
-## Stack
+## Mevcut kaynak mimarisi (tasarım reçetesi değildir)
 
 - **Monorepo**: pnpm workspaces + Turbo
 - **API**: Node.js + TypeScript + Express + Prisma 5
@@ -40,19 +31,6 @@ machine-bound encrypted bundles for offline / air-gapped use.
 - **Observability**: Pino + OpenTelemetry + Sentry
 - **CI / CD**: GitHub Actions → Lightsail (Frankfurt) + Cloudflare CDN
 
-## Common commands
-
-```bash
-pnpm install                       # bootstrap workspaces
-pnpm dev                           # turbo dev — api + ui + workers
-pnpm build                         # turbo build
-pnpm lint                          # lint
-pnpm -r --if-present test          # run tests across workspaces
-pnpm db:migrate                    # prisma migrate
-pnpm db:seed                       # prisma seed
-pnpm db:generate                   # regen prisma client
-pnpm docker:up / docker:down       # local Postgres + Redis
-```
 
 ## Repo layout
 
@@ -121,9 +99,9 @@ application-layer `where tenantId` clause (rule #10).
 10. **Tenant isolation**: every Prisma `where` clause includes
     `tenantId` (or traverses to it).
 
-## Code organisation
+## Mevcut kod yerleşimi
 
-- New modules live under `packages/api/src/modules/<feature>/` or
+- Existing modules live under `packages/api/src/modules/<feature>/` or
   `packages/ui/app/<route>/`.
 - Shared types in `packages/core/src/types/`.
 - External adapters in `packages/integrations/src/`.

@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const authMocks = vi.hoisted(() => ({
-  getAccessToken: vi.fn(async () => "test-access-token"),
+  getAccessToken: vi.fn(async (): Promise<{ token: string | null | undefined }> => ({ token: "test-access-token" })),
 }));
 
 vi.mock("google-auth-library", () => ({
@@ -92,10 +92,31 @@ function installGoogleApiStub(
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  authMocks.getAccessToken.mockResolvedValue("test-access-token");
+  authMocks.getAccessToken.mockResolvedValue({ token: "test-access-token" });
 });
 
 describe("Google replacement-chain ownership identity", () => {
+  it("uses the library's token value for lookup and acknowledgement Authorization", async () => {
+    const { stub } = installGoogleApiStub({ current: subscription(PRODUCT) });
+
+    await verifyGoogleReceipt("current", PRODUCT);
+    await acknowledgeGoogleReceipt("current", PRODUCT);
+
+    expect(stub).toHaveBeenCalledTimes(2);
+    for (const [, init] of stub.mock.calls) {
+      expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer test-access-token");
+    }
+  });
+
+  it.each([null, undefined, "", "   "])("fails closed before a provider call for access token %s", async (token) => {
+    authMocks.getAccessToken.mockResolvedValue({ token });
+    const { stub } = installGoogleApiStub({ current: subscription(PRODUCT) });
+
+    await expect(verifyGoogleReceipt("current", PRODUCT)).rejects.toMatchObject({ statusCode: 503 });
+    await expect(acknowledgeGoogleReceipt("current", PRODUCT)).rejects.toMatchObject({ statusCode: 503 });
+    expect(stub).not.toHaveBeenCalled();
+  });
+
   it("derives the product and latest paid order from Google for an RTDN token-only lookup", async () => {
     installGoogleApiStub({ current: subscription(PRODUCT) });
 
@@ -161,6 +182,77 @@ describe("Google replacement-chain ownership identity", () => {
     expect(error).toBeInstanceOf(Error);
     expect(String(error)).not.toContain("missing");
     expect(String(error)).not.toContain("gone");
+  });
+
+  it("reuses a previously owned root after Google's ancestor token lifetime expires", async () => {
+    const { calls } = installGoogleApiStub({ C: subscription(PRODUCT, "A"), A: { status: 410 } });
+    const resolveKnownAncestor = vi.fn().mockResolvedValue({ canonicalRootIdentity: identity("A") });
+
+    const verified = await verifyGoogleReceipt("C", PRODUCT, resolveKnownAncestor);
+
+    expect(verified).toMatchObject({
+      status: "active",
+      originalTransactionId: identity("A"),
+      googlePurchaseAliases: [identity("C"), identity("A")],
+    });
+    expect(resolveKnownAncestor).toHaveBeenCalledWith(identity("A"));
+    expect(calls.some((call) => call.method === "POST")).toBe(false);
+  });
+
+  it("uses an owned intermediate's canonical root without inventing the rest of its suffix", async () => {
+    installGoogleApiStub({ C: subscription(PRODUCT, "B"), B: { status: 410 } });
+    const resolveKnownAncestor = vi.fn().mockResolvedValue({ canonicalRootIdentity: identity("A") });
+
+    await expect(verifyGoogleReceipt("C", PRODUCT, resolveKnownAncestor)).resolves.toMatchObject({
+      googleCanonicalRootIdentity: identity("A"),
+      googlePurchaseAliases: [identity("C"), identity("B"), identity("A")],
+    });
+  });
+
+  it("retains the current Google status when the persisted ancestor had granted access", async () => {
+    const current = subscription(PRODUCT, "A");
+    current.subscriptionState = "SUBSCRIPTION_STATE_EXPIRED";
+    installGoogleApiStub({ C: current, A: { status: 410 } });
+    const resolveKnownAncestor = vi.fn().mockResolvedValue({ canonicalRootIdentity: identity("A") });
+
+    await expect(verifyGoogleReceipt("C", PRODUCT, resolveKnownAncestor)).resolves.toMatchObject({ status: "expired" });
+  });
+
+  it.each([
+    ["current receipt is gone", "A", { A: { status: 410 } }],
+    ["ancestor is unknown", "C", { C: subscription(PRODUCT, "A"), A: { status: 404 } }],
+  ])("does not use persisted history when %s", async (_label, currentToken, rows) => {
+    installGoogleApiStub(rows as Record<string, ReturnType<typeof subscription> | { status: number }>);
+    const resolveKnownAncestor = vi.fn().mockResolvedValue({ canonicalRootIdentity: identity("A") });
+
+    await expect(verifyGoogleReceipt(currentToken, PRODUCT, resolveKnownAncestor)).rejects.toMatchObject({ statusCode: 400 });
+    expect(resolveKnownAncestor).not.toHaveBeenCalled();
+  });
+
+  it("keeps an unowned expired ancestor fail-closed without raw identity leakage", async () => {
+    installGoogleApiStub({ C: subscription(PRODUCT, "unknown-ancestor-secret"), "unknown-ancestor-secret": { status: 410 } });
+    const resolveKnownAncestor = vi.fn().mockResolvedValue(null);
+
+    const error = await verifyGoogleReceipt("C", PRODUCT, resolveKnownAncestor).catch((caught) => caught);
+    expect(error).toMatchObject({ statusCode: 400 });
+    expect(String(error)).not.toContain("unknown-ancestor-secret");
+  });
+
+  it("rejects a persisted root pointing back into the freshly verified prefix", async () => {
+    installGoogleApiStub({ C: subscription(PRODUCT, "B"), B: { status: 410 } });
+    const resolveKnownAncestor = vi.fn().mockResolvedValue({ canonicalRootIdentity: identity("C") });
+
+    await expect(verifyGoogleReceipt("C", PRODUCT, resolveKnownAncestor)).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("keeps the hop bound when adding a persisted root to a long prefix", async () => {
+    const rows: Record<string, ReturnType<typeof subscription> | { status: number }> = {};
+    for (let index = 0; index < 7; index += 1) rows[`T${index}`] = subscription(PRODUCT, `T${index + 1}`);
+    rows.T7 = { status: 410 };
+    installGoogleApiStub(rows);
+    const resolveKnownAncestor = vi.fn().mockResolvedValue({ canonicalRootIdentity: identity("root") });
+
+    await expect(verifyGoogleReceipt("T0", PRODUCT, resolveKnownAncestor)).rejects.toMatchObject({ statusCode: 400 });
   });
 
   it("rejects a chain beyond the bounded maximum before acknowledgement", async () => {

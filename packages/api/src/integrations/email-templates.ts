@@ -36,7 +36,7 @@ function shell(content: string, preheader: string): string {
 <body style="margin:0;padding:0;background:#f6f8fa;${BASE_STYLE}">
   <!-- Hidden preheader (preview text) -->
   <div style="display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:#f6f8fa;opacity:0;">
-    ${preheader}
+    ${escapeHtml(preheader)}
   </div>
 
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f8fa;padding:32px 16px;">
@@ -138,6 +138,7 @@ export async function sendWelcomeEmail(params: {
       to,
       subject: `Welcome to Braavolabs, ${firstName}`,
       body: shell(content, `Your AI workspace ${tenantName} is ready — three steps to your first run.`),
+      tracking: false,
     });
   } catch (err) {
     // Swallow — welcome email is nice-to-have, not critical to signup.
@@ -148,7 +149,7 @@ export async function sendWelcomeEmail(params: {
 
 /**
  * Password reset email — sent from forgot-password flow.
- * Token is single-use, expires server-side per JWT exp claim.
+ * Token is single-use; its hash and one-hour expiry are checked server-side.
  */
 export async function sendPasswordResetEmail(params: {
   to: string;
@@ -180,6 +181,7 @@ export async function sendPasswordResetEmail(params: {
     to: params.to,
     subject: "Reset your Braavolabs password",
     body: shell(content, "Click the button to choose a new password — link expires in 1 hour."),
+    tracking: false,
   });
 }
 
@@ -219,6 +221,7 @@ export async function sendVerifyEmail(params: {
     to: params.to,
     subject: "Verify your Braavolabs email",
     body: shell(content, "Click the button to verify — link expires in 7 days."),
+    tracking: false,
   });
 }
 

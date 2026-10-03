@@ -5,6 +5,7 @@ import { prisma, tenantTx } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { z } from "zod";
 import { notifyTenantUsers } from "../../services/push";
+import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 
 export const draftRouter = Router();
 draftRouter.use(authMiddleware);
@@ -14,8 +15,9 @@ draftRouter.use(authMiddleware);
 // these gates: any tenant could send unlimited HTML to arbitrary
 // recipients via SendGrid, blowing SPF/DKIM reputation in hours.
 //
-// Cap is plan-tiered: FREE 20/day, INDIVIDUAL 200/day, TEAM 500/day.
-// Other paid/legacy tiers have explicit caps below. Hard ceiling —
+// Current ledger authority sets the cap: INDIVIDUAL 200/day, TEAM 500/day.
+// Empty-ledger stable aliases normalize to these tiers; ambiguous legacy
+// plans and expired grants resolve to MANUAL_REVIEW (zero). Hard ceiling —
 // not configurable at the tenant level (yet). Counted in usage_meters
 // under metric "emails_sent_today" with daily UTC period boundaries.
 const EMAIL_DAILY_LIMITS: Record<string, number> = {
@@ -34,7 +36,7 @@ async function claimEmailQuota(tenantId: string): Promise<{ ok: boolean; sent: n
     where: { id: tenantId },
     select: { plan: true },
   });
-  const plan = tenant?.plan ?? "FREE";
+  const plan = await getEffectivePlan(tenantId, tenant?.plan);
   const limit = EMAIL_DAILY_LIMITS[plan] ?? EMAIL_DAILY_LIMITS.FREE!;
   // A zero-cap plan must stop before INSERT: the conflict UPDATE predicate
   // cannot prevent a fresh row from being inserted at value=1.

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const usageMeterUpsert = vi.hoisted(() => vi.fn());
 const usageMeterFindUnique = vi.hoisted(() => vi.fn());
 const tenantFindUnique = vi.hoisted(() => vi.fn());
+const entitlementFindMany = vi.hoisted(() => vi.fn());
 const queryRawMock = vi.hoisted(() => vi.fn());
 const executeRawMock = vi.hoisted(() => vi.fn());
 
@@ -13,6 +14,7 @@ vi.mock("../../../lib/db", () => ({
       findUnique: (...args: unknown[]) => usageMeterFindUnique(...args),
     },
     tenant: { findUnique: (...args: unknown[]) => tenantFindUnique(...args) },
+    entitlementEvent: { findMany: (...args: unknown[]) => entitlementFindMany(...args) },
   },
   tenantTx: (fn: (tx: unknown) => unknown) => fn({
     $queryRaw: (...args: unknown[]) => queryRawMock(...args),
@@ -37,6 +39,60 @@ beforeEach(() => {
   envMock.BYPASS_BILLING = false;
   usageMeterUpsert.mockResolvedValue({ value: 1 });
   usageMeterFindUnique.mockResolvedValue(null);
+  entitlementFindMany.mockResolvedValue([]);
+});
+
+function entitlement(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "local-google-grant",
+    tenantId: TENANT,
+    source: "google",
+    streamId: "local-google-stream",
+    sourceTimestamp: new Date("2026-08-01T00:00:00Z"),
+    type: "purchase",
+    planTier: "INDIVIDUAL",
+    expiresAt: new Date(Date.now() - 1_000),
+    autoRenew: true,
+    ...overrides,
+  };
+}
+
+describe("ledger authority at paid gates", () => {
+  it("denies a run after ledger expiry despite a stale paid tenant.plan and no new RTDN", async () => {
+    tenantFindUnique.mockResolvedValue({ plan: "INDIVIDUAL" });
+    entitlementFindMany.mockResolvedValue([entitlement()]);
+
+    await expect(claimQuota(TENANT, "runs")).resolves.toEqual({ claimed: false, value: 0, limit: 0 });
+    await expect(checkQuota(TENANT, "runs")).resolves.toEqual({ allowed: false, remaining: 0, limit: 0 });
+    expect(usageMeterUpsert).not.toHaveBeenCalled();
+    expect(entitlementFindMany).toHaveBeenCalledWith({ where: { tenantId: TENANT } });
+  });
+
+  it("keeps a still-active Stripe stream granting after a mobile stream expires", async () => {
+    tenantFindUnique.mockResolvedValue({ plan: "TEAM" });
+    entitlementFindMany.mockResolvedValue([
+      entitlement(),
+      entitlement({ id: "local-stripe-grant", source: "stripe", streamId: "local-stripe-stream", planTier: "TEAM", expiresAt: new Date(Date.now() + 60_000) }),
+    ]);
+
+    await expect(claimQuota(TENANT, "runs")).resolves.toEqual({ claimed: true, value: -1, limit: -1 });
+    await expect(checkQuota(TENANT, "runs")).resolves.toEqual({ allowed: true, remaining: -1, limit: -1 });
+  });
+
+  it("denies manual-review-only ledger history despite a stale paid tenant.plan", async () => {
+    tenantFindUnique.mockResolvedValue({ plan: "TEAM" });
+    entitlementFindMany.mockResolvedValue([entitlement({ planTier: "BUSINESS", expiresAt: new Date(Date.now() + 60_000) })]);
+
+    await expect(claimQuota(TENANT, "runs")).resolves.toEqual({ claimed: false, value: 0, limit: 0 });
+    expect(usageMeterUpsert).not.toHaveBeenCalled();
+  });
+
+  it("reports a telemetry increment as exceeded when the paid ledger has expired", async () => {
+    tenantFindUnique.mockResolvedValue({ plan: "INDIVIDUAL" });
+    entitlementFindMany.mockResolvedValue([entitlement()]);
+
+    await expect(incrementMeter(TENANT, "runs")).resolves.toEqual({ value: 1, limit: 0, exceeded: true });
+  });
 });
 
 describe("subscription-only metering", () => {

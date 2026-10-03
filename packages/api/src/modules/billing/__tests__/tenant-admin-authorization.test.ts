@@ -24,6 +24,7 @@ const db = vi.hoisted(() => ({
   usageMeterFindMany: vi.fn(),
   runCount: vi.fn(),
   toolCallCount: vi.fn(),
+  entitlementFindMany: vi.fn(),
 }));
 
 vi.mock("../../../lib/db", () => ({
@@ -39,7 +40,9 @@ vi.mock("../../../lib/db", () => ({
     toolCall: { count: (...args: unknown[]) => db.toolCallCount(...args) },
     stripeWebhookEvent: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     mobileSubscription: { findMany: vi.fn() },
+    entitlementEvent: { findMany: (...args: unknown[]) => db.entitlementFindMany(...args) },
   },
+  tenantTx: vi.fn(),
 }));
 
 const services = vi.hoisted(() => ({
@@ -73,7 +76,8 @@ vi.mock("../forecast", () => ({
 vi.mock("../savings.service", () => ({
   computeTenantSavings: (...args: unknown[]) => services.computeTenantSavings(...args),
 }));
-vi.mock("../entitlement-ledger.service", () => ({
+vi.mock("../entitlement-ledger.service", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../entitlement-ledger.service")>(),
   recordEntitlementEvent: (...args: unknown[]) => services.recordEntitlementEvent(...args),
 }));
 vi.mock("../entitlement-mapping", () => ({
@@ -201,6 +205,7 @@ beforeEach(() => {
   db.usageMeterFindMany.mockResolvedValue([]);
   db.runCount.mockResolvedValue(0);
   db.toolCallCount.mockResolvedValue(0);
+  db.entitlementFindMany.mockResolvedValue([]);
   integrations.createCheckoutSession.mockResolvedValue("https://checkout.test/session");
   integrations.createCustomerPortalSession.mockResolvedValue("https://portal.test/session");
   services.computeSpendForecast.mockResolvedValue({ status: "under_budget" });
@@ -244,6 +249,21 @@ describe.each(mutationRoutes)("%s %s tenant billing authorization", (method, pat
 });
 
 describe("read-only billing visibility", () => {
+  it.each(["/usage", "/subscription"])("%s reports expired ledger rights despite a stale paid projection", async (path) => {
+    db.entitlementFindMany.mockResolvedValue([{
+      id: "local-expired-google-grant", source: "google", streamId: "local-google-stream",
+      sourceTimestamp: new Date("2026-08-01T00:00:00Z"), type: "purchase", planTier: "INDIVIDUAL",
+      expiresAt: new Date(Date.now() - 1_000), autoRenew: true,
+    }]);
+    const { res, nextError } = await invoke("GET", path, "MEMBER");
+
+    expect(nextError).toBeUndefined();
+    expect(res.body).toMatchObject({ plan: "MANUAL_REVIEW" });
+    expect(db.entitlementFindMany).toHaveBeenCalledWith({ where: { tenantId: "tenant-1" } });
+    expect(db.tenantUpdate).not.toHaveBeenCalled();
+    expect(services.recordEntitlementEvent).not.toHaveBeenCalled();
+  });
+
   it("keeps usage readable by MEMBER", async () => {
     const { res, nextError } = await invoke("GET", "/usage", "MEMBER");
     expect(nextError).toBeUndefined();

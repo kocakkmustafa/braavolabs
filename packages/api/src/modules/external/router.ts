@@ -16,6 +16,7 @@ import { encrypt } from "../../lib/encryption";
 import { assertPublicUrl } from "./adapters/types";
 import { pollConnection, credentialsAad, validateConnectionCredentials } from "./poller";
 import { capabilitiesFor, listExternalWorkflows, runControlAction } from "./control";
+import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 
 export const externalRouter = Router();
 externalRouter.use(authMiddleware);
@@ -55,20 +56,20 @@ externalRouter.post("/", async (req, res, next) => {
       throw new AppError(400, (e as Error).message);
     }
 
-    // Enforce the plan's connected-automation limit (Free=1, Creator=3, Pro=10,
-    // Business/Enterprise=∞) — mirrors the company-limit gate in company/router.
+    // Resolve current ledger rights before validating or storing credentials.
     const tenant = await prisma.tenant.findUnique({
       where: { id: req.auth!.tenantId },
       select: { plan: true },
     });
     if (!tenant) throw new AppError(401, "Tenant not found");
-    const limit = PLAN_LIMITS[tenant.plan].maxConnectedAutomations;
+    const plan = await getEffectivePlan(req.auth!.tenantId, tenant.plan);
+    const limit = PLAN_LIMITS[plan].maxConnectedAutomations;
     if (limit !== -1) {
       const count = await prisma.externalConnection.count({ where: { tenantId: req.auth!.tenantId } });
       if (count >= limit) {
         throw new AppError(
           402,
-          `Connected-automation limit reached for ${tenant.plan} plan (${limit}). Upgrade to connect more.`,
+          `Connected-automation limit reached for ${plan} plan (${limit}). Upgrade to connect more.`,
         );
       }
     }

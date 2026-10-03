@@ -104,14 +104,18 @@ interface GoogleSubscriptionV2 {
 const GOOGLE_API_BASE = "https://androidpublisher.googleapis.com/androidpublisher/v3";
 const MAX_GOOGLE_REPLACEMENT_HOPS = 8;
 
+export type GoogleAncestorResolver = (
+  tokenDigest: string,
+) => Promise<{ canonicalRootIdentity: string } | null>;
+
 export type VerifiedGoogleReceipt = VerifiedReceipt & {
   /** Product ID returned by subscriptionsv2, never inferred from an RTDN. */
   googleProductId: string;
   /** Most recent paid renewal order, used to classify a voided order. */
   googleLatestSuccessfulOrderId: string | null;
-  /** Digest-only identities for every record verified in the replacement chain. */
+  /** Digests verified by the current Play chain or prior persisted ownership. */
   googlePurchaseAliases: string[];
-  /** Digest of the oldest verified token in the bounded chain. */
+  /** Digest of the verified canonical root in the bounded chain. */
   googleCanonicalRootIdentity: string;
   /** The current receipt may be acknowledged only after ownership commits. */
   googleAcknowledgementPending: boolean;
@@ -179,8 +183,10 @@ async function callGoogleApi(
   init?: RequestInit,
 ): Promise<Response> {
   const auth = getAuth();
-  const accessToken = await auth.getAccessToken();
-  if (!accessToken) throw new AppError(503, "Could not obtain Google API access token");
+  const { token: accessToken } = await auth.getAccessToken();
+  if (typeof accessToken !== "string" || accessToken.trim().length === 0) {
+    throw new AppError(503, "Could not obtain Google API access token");
+  }
   try {
     return await fetch(`${GOOGLE_API_BASE}${path}`, {
       ...init,
@@ -201,6 +207,7 @@ async function callGoogleApi(
 export async function verifyGoogleReceipt(
   purchaseToken: string,
   productId?: string,
+  resolveKnownAncestor?: GoogleAncestorResolver,
 ): Promise<VerifiedGoogleReceipt> {
   if (!env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON || !env.GOOGLE_PLAY_PACKAGE_NAME) {
     throw new AppError(
@@ -233,6 +240,27 @@ export async function verifyGoogleReceipt(
     if (!res.ok) {
       await res.text().catch(() => "");
       logger.error({ status: res.status }, "Google subscription chain lookup failed");
+      // Google removes tokens from the API 60 days after expiry. Only an
+      // already owned ancestor can survive that lookup; the current receipt
+      // must still be fetched successfully and supplies every grant field.
+      if (res.status === 410 && depth > 0 && currentAuthority && resolveKnownAncestor) {
+        const ancestorIdentity = googlePurchaseIdentity(token);
+        const known = await resolveKnownAncestor(ancestorIdentity);
+        if (known) {
+          const root = known.canonicalRootIdentity;
+          if (!/^google:[0-9a-f]{64}$/.test(root) || aliases.includes(root)) {
+            throw new AppError(400, "Google purchase replacement chain is invalid");
+          }
+          const suffix = root === ancestorIdentity ? [ancestorIdentity] : [ancestorIdentity, root];
+          if (aliases.length + suffix.length > MAX_GOOGLE_REPLACEMENT_HOPS) {
+            throw new AppError(400, "Google purchase replacement chain exceeds the supported depth");
+          }
+          // Do not union every owned alias into this chain: that would hide
+          // a newer replacement from the existing transaction/event fence.
+          aliases.push(...suffix);
+          break;
+        }
+      }
       if (res.status === 404 || res.status === 410) {
         throw new AppError(400, "Google purchase replacement chain could not be verified");
       }

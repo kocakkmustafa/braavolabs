@@ -6,7 +6,11 @@
  * themselves are thin (timeout + JSON parse) and exercised in integration; the
  * risk surface worth pinning is the mapping logic here.
  */
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
+
+const dns = vi.hoisted(() => ({ lookup: vi.fn() }));
+vi.mock("node:dns/promises", () => ({ lookup: dns.lookup }));
+
 import { assertPublicUrl } from "../adapters/types";
 import { mapGenericStatus, toIso, normalizeGenericRecord, pickArray } from "../adapters/generic";
 import { mapMakeStatus } from "../adapters/make";
@@ -76,9 +80,34 @@ describe("mapMakeStatus", () => {
 });
 
 describe("assertPublicUrl (shared SSRF guard)", () => {
+  beforeEach(() => {
+    dns.lookup.mockReset();
+    dns.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+  });
+
   it("allows public https hosts", async () => {
     const url = await assertPublicUrl("https://eu1.make.com/api/v2/scenarios/1/logs");
     expect(url.hostname).toBe("eu1.make.com");
+    expect(dns.lookup).toHaveBeenCalledExactlyOnceWith("eu1.make.com", { all: true });
+  });
+  it("refuses a hostname that resolves to a private address", async () => {
+    dns.lookup.mockResolvedValueOnce([{ address: "10.0.0.7", family: 4 }]);
+    await expect(assertPublicUrl("https://automation.example.invalid/hooks")).rejects.toThrow();
+    expect(dns.lookup).toHaveBeenCalledOnce();
+  });
+  it("refuses mixed public and private DNS answers", async () => {
+    dns.lookup.mockResolvedValueOnce([
+      { address: "93.184.216.34", family: 4 },
+      { address: "::1", family: 6 },
+    ]);
+    await expect(assertPublicUrl("https://automation.example.invalid/hooks")).rejects.toThrow();
+    expect(dns.lookup).toHaveBeenCalledOnce();
+  });
+  it("refuses a hostname when DNS resolution fails", async () => {
+    dns.lookup.mockRejectedValueOnce(new Error("Synthetic DNS lookup failure"));
+    await expect(assertPublicUrl("https://automation.example.invalid/hooks"))
+      .rejects.toThrow("Hostname does not resolve");
+    expect(dns.lookup).toHaveBeenCalledOnce();
   });
   it("refuses loopback / private / metadata hosts", async () => {
     for (const u of [
@@ -90,6 +119,7 @@ describe("assertPublicUrl (shared SSRF guard)", () => {
     ]) {
       await expect(assertPublicUrl(u)).rejects.toThrow();
     }
+    expect(dns.lookup).not.toHaveBeenCalled();
   });
 });
 

@@ -5,8 +5,9 @@ import { prisma, tenantTx } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { slugify } from "@ai-company-os/core";
-import { PRIMITIVES, PLAN_LIMITS, normalizePlanForEntitlement } from "@ai-company-os/core";
+import { PRIMITIVES, PLAN_LIMITS } from "@ai-company-os/core";
 import { assertCompanyCapacity } from "./company-capacity";
+import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 import { chatCompletion, type ChatMessage } from "../../services/ai-client";
 // D-013: resolveTenantCompletionLink (not the raw getTenantAIConfig) — this
 // is a single-completion call site, so it must honor the SAME D-009 policy
@@ -291,6 +292,18 @@ function titleCase(s: string): string {
     .trim();
 }
 
+/** Recheck capacity before spending a completion, including open sessions. */
+async function hasBuilderCapacity(tenantId: string): Promise<boolean> {
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    include: { companies: { select: { id: true } } },
+  });
+  if (!tenant) throw new AppError(401, "Tenant not found");
+  const plan = await getEffectivePlan(tenantId, tenant.plan);
+  const limit = PLAN_LIMITS[plan].maxCompanies;
+  return limit === -1 || tenant.companies.length < limit;
+}
+
 /**
  * Start a new company building session from freeform text.
  */
@@ -300,25 +313,16 @@ export async function startBuildSession(
 ): Promise<BuilderSession> {
   const sessionId = `build_${crypto.randomUUID()}`;
 
-  // Check plan limits
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
-    include: { companies: { select: { id: true } } },
-  });
-
-  if (tenant) {
-    const limits = PLAN_LIMITS[normalizePlanForEntitlement(tenant.plan)];
-    if (limits.maxCompanies !== -1 && tenant.companies.length >= limits.maxCompanies) {
-      return {
-        sessionId,
-        tenantId,
-        status: "error",
-        turn: 0,
-        messages: [],
-        companySpec: undefined,
-        companyId: undefined,
-      };
-    }
+  if (!await hasBuilderCapacity(tenantId)) {
+    return {
+      sessionId,
+      tenantId,
+      status: "error",
+      turn: 0,
+      messages: [],
+      companySpec: undefined,
+      companyId: undefined,
+    };
   }
 
   const messages: ChatMessage[] = [
@@ -398,6 +402,9 @@ export async function continueBuildSession(
   }
   if (session.tenantId !== tenantId) throw new AppError(403, "Not authorized to access this session");
   if (session.status !== "clarifying") throw new AppError(400, "Session is not in clarification state");
+  if (!await hasBuilderCapacity(tenantId)) {
+    throw new AppError(402, "Company limit reached for your current plan. Upgrade to build more.");
+  }
 
   session.messages.push({ role: "user", content: userResponse });
   session.turn++;

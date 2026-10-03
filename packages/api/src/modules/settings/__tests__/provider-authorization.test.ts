@@ -31,6 +31,7 @@ const db = vi.hoisted(() => ({
   tenantFindUnique: vi.fn(),
   createActivity: vi.fn(),
   tenantTx: vi.fn(),
+  entitlementFindMany: vi.fn(),
 }));
 
 vi.mock("../../../lib/db", () => ({
@@ -46,6 +47,7 @@ vi.mock("../../../lib/db", () => ({
     tenant: {
       findUnique: (...args: unknown[]) => db.tenantFindUnique(...args),
     },
+    entitlementEvent: { findMany: (...args: unknown[]) => db.entitlementFindMany(...args) },
     activityLog: {
       create: (...args: unknown[]) => db.createActivity(...args),
     },
@@ -215,6 +217,7 @@ beforeEach(() => {
   db.findMany.mockResolvedValue([]);
   db.deleteMany.mockResolvedValue({ count: 1 });
   db.createActivity.mockResolvedValue({});
+  db.entitlementFindMany.mockResolvedValue([]);
   ai.saveTenantAIConfig.mockResolvedValue(undefined);
   ai.getTenantAIConfig.mockResolvedValue({
     provider: "ANTHROPIC",
@@ -234,6 +237,27 @@ beforeEach(() => {
 });
 
 describe("settings provider mutation authorization", () => {
+  it("rejects a self-hosted save after paid ledger expiry before config or provider mutation", async () => {
+    db.tenantFindUnique.mockResolvedValue({ plan: "INDIVIDUAL" });
+    db.entitlementFindMany.mockResolvedValue([{
+      id: "local-expired-grant", source: "google", streamId: "local-google-stream",
+      sourceTimestamp: new Date("2026-08-01T00:00:00Z"), type: "purchase", planTier: "INDIVIDUAL",
+      expiresAt: new Date(Date.now() - 1_000), autoRenew: true,
+    }]);
+    const { nextError } = await invokeRoute("put", "/ai-config", { role: "OWNER", body: { provider: "OLLAMA", model: "local-model" } });
+    expect(nextError).toMatchObject({ statusCode: 402 });
+    expect(ai.saveTenantAIConfig).not.toHaveBeenCalled();
+    expect(db.createActivity).not.toHaveBeenCalled();
+    expect(db.entitlementFindMany).toHaveBeenCalledWith({ where: { tenantId: "tenant-acl" } });
+  });
+
+  it.each(["INDIVIDUAL", "TEAM", "CREATOR", "PRO"])("preserves the normalized empty-ledger %s local provider baseline", async (plan) => {
+    db.tenantFindUnique.mockResolvedValue({ plan });
+    const { nextError } = await invokeRoute("put", "/ai-config", { role: "OWNER", body: { provider: "OLLAMA", model: "local-model" } });
+    expect(nextError).toBeUndefined();
+    expect(ai.saveTenantAIConfig).toHaveBeenCalledOnce();
+  });
+
   for (const route of mutationCases) {
     it.each(["MEMBER", "member", "SUPERADMIN", undefined])(
       `${route.method.toUpperCase()} ${route.path} rejects role %s before application work`,

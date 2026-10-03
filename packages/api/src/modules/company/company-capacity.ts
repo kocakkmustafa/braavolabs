@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
-import { normalizePlanForEntitlement, PLAN_LIMITS } from "@ai-company-os/core";
+import { PLAN_LIMITS } from "@ai-company-os/core";
 import { AppError } from "../../middleware/error";
+import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 
 /**
  * Call immediately before a company INSERT inside tenantTx. The tenant row
@@ -16,7 +17,7 @@ export async function assertCompanyCapacity(
   `;
   if (tenants.length !== 1) throw new AppError(401, "Tenant not found");
 
-  const plan = normalizePlanForEntitlement(tenants[0].plan);
+  const plan = await getEffectivePlan(tenantId, tenants[0].plan, { client: tx });
   const limit = PLAN_LIMITS[plan].maxCompanies;
   const count = await tx.company.count({ where: { tenantId } });
   if (limit !== -1 && count >= limit) {

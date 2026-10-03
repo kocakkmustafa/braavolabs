@@ -77,7 +77,12 @@ function fixture(locale = "en", mode = "login", fetchImpl = () => { throw new Er
       if (absolute.endsWith("/app/layout.tsx") && id === "../components/Toast") return {
         ToastProvider: ({ children }) => React.createElement(React.Fragment, null, children),
       };
-      if (id.endsWith("/store")) return { useAppStore: store };
+      if (id.endsWith("/store")) return {
+        useAppStore: store,
+        captureAuthSession: () => ({ revision: 0, tenantId: null, token: null, refreshToken: null }),
+        isAuthSessionCurrent: () => true,
+        refreshAuthSession() { throw new Error("Anonymous auth must not refresh session storage"); },
+      };
       if (absolute.endsWith("/app/AuthLayout.tsx") && [
         "../components/Sidebar", "../components/CommandPalette", "../components/NotificationBell",
         "../components/OnboardingChecklist", "../components/Breadcrumb", "../components/PresenceBar",

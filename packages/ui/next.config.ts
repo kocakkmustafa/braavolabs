@@ -102,6 +102,8 @@ export default withSentryConfig(withNextIntl(nextConfig), {
   org: process.env.SENTRY_ORG ?? "yulalabs",
   project: process.env.SENTRY_PROJECT ?? "braavolabs-ui",
   silent: !process.env.CI,
+  // Keep standalone builds offline unless CI explicitly uploads source maps.
+  telemetry: false,
   // Upload broader chunks (helps source-map resolution for code-split
   // route bundles) but do NOT serve maps publicly — Sentry receives
   // them, browsers do not.

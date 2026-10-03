@@ -383,7 +383,7 @@ export default function SettingsPage() {
           </div>
         </div>
         <button
-          onClick={() => { void api.signOut().finally(() => router.replace("/login")); }}
+          onClick={() => { void api.signOut(); router.replace("/login"); }}
           className="bv-btn bv-btn-sm bv-btn-danger flex items-center gap-1.5"
         >
           <span className="material-symbols-outlined" style={{ fontSize: 15 }}>logout</span>
@@ -1284,7 +1284,7 @@ export default function SettingsPage() {
                       <p className="bv-caption mt-0.5">End all active sessions</p>
                     </div>
                     <button
-                      onClick={() => { void api.signOut().finally(() => router.replace("/login")); }}
+                      onClick={() => { void api.signOut(); router.replace("/login"); }}
                       className="bv-btn bv-btn-ghost bv-btn-sm"
                     >
                       Sign out

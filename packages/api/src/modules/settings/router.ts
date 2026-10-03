@@ -19,6 +19,7 @@ import {
 } from "../../services/ai-client";
 import { decryptForTenant } from "../../lib/encryption";
 import { getProviderModels, isKnownProvider } from "./provider-models";
+import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 
 export const settingsRouter = Router();
 settingsRouter.use(authMiddleware);
@@ -202,7 +203,8 @@ settingsRouter.put("/ai-config", requirePermission("settings:ai-config"), async 
         where: { id: req.auth!.tenantId },
         select: { plan: true },
       });
-      if (!tenant || !LOCAL_LLM_PLANS.has(tenant.plan)) {
+      const plan = await getEffectivePlan(req.auth!.tenantId, tenant?.plan);
+      if (!tenant || !LOCAL_LLM_PLANS.has(plan)) {
         throw new AppError(
           402,
           "Self-hosted LLM providers (Ollama / LM Studio / Custom) require an Individual or Team subscription. Visit /pricing to subscribe."

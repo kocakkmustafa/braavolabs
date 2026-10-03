@@ -1,18 +1,34 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Prisma } from "@prisma/client";
+vi.mock("../../../lib/db", () => ({ prisma: {}, tenantTx: vi.fn() }));
+vi.mock("../../../lib/logger", () => ({ logger: { warn: vi.fn(), info: vi.fn() } }));
 import { assertCompanyCapacity } from "../company-capacity";
 
 function transaction(plan: string | null, count: number) {
   const query = vi.fn().mockResolvedValue(plan === null ? [] : [{ plan }]);
   const companyCount = vi.fn().mockResolvedValue(count);
+  const entitlementFindMany = vi.fn().mockResolvedValue([]);
   const tx = {
     $queryRaw: query,
     company: { count: companyCount },
+    entitlementEvent: { findMany: entitlementFindMany },
   } as unknown as Prisma.TransactionClient;
-  return { tx, query, companyCount };
+  return { tx, query, companyCount, entitlementFindMany };
 }
 
 describe("assertCompanyCapacity", () => {
+  it("reads expired ledger authority on the same locked transaction instead of granting stale Individual", async () => {
+    const { tx, query, entitlementFindMany } = transaction("INDIVIDUAL", 0);
+    entitlementFindMany.mockResolvedValue([{
+      id: "local-expired-grant", source: "google", streamId: "local-google-stream",
+      sourceTimestamp: new Date("2026-08-01T00:00:00Z"), type: "purchase", planTier: "INDIVIDUAL",
+      expiresAt: new Date(Date.now() - 1_000), autoRenew: true,
+    }]);
+    await expect(assertCompanyCapacity(tx, "tenant-1")).rejects.toMatchObject({ statusCode: 402 });
+    expect(entitlementFindMany).toHaveBeenCalledWith({ where: { tenantId: "tenant-1" } });
+    expect(query.mock.invocationCallOrder[0]).toBeLessThan(entitlementFindMany.mock.invocationCallOrder[0]);
+  });
+
   it.each([
     ["MANUAL_REVIEW", 0, 402],
     ["FREE", 0, 402],

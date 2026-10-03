@@ -1812,7 +1812,7 @@ describe("store notification catalog boundary", () => {
     const result = await postGoogleNotification("google-unknown-message");
 
     expect(result).toEqual({ status: 200, body: { ok: false, reason: "unknown-product" } });
-    expect(mocks.verifyGoogleReceipt).toHaveBeenCalledWith("google-unknown-token");
+    expect(mocks.verifyGoogleReceipt).toHaveBeenCalledWith("google-unknown-token", undefined, expect.any(Function));
     expect(mocks.mobileSubscriptionUpdate).not.toHaveBeenCalled();
     expect(mocks.transaction).not.toHaveBeenCalled();
     expect(mocks.recordEntitlementEvent).not.toHaveBeenCalled();

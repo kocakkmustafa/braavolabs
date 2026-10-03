@@ -44,6 +44,7 @@ vi.mock("../../../lib/logger", () => ({
 import {
   appendEntitlementEvent,
   getEntitlementProjection,
+  getEffectivePlan,
   reprojectEntitlement,
   recordEntitlementEvent,
   recordGoogleEntitlementWithDecision,
@@ -80,6 +81,39 @@ function row(overrides: Partial<Record<string, unknown>> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   mockTenantUpdate.mockResolvedValue({});
+});
+
+describe("getEffectivePlan — request-time ledger authority", () => {
+  const now = new Date("2026-10-01T00:00:00Z");
+
+  it.each([
+    ["INDIVIDUAL", "INDIVIDUAL"], ["TEAM", "TEAM"],
+    ["CREATOR", "INDIVIDUAL"], ["PRO", "TEAM"],
+    ["BUSINESS", "MANUAL_REVIEW"], ["MANUAL_REVIEW", "MANUAL_REVIEW"],
+    [undefined, "MANUAL_REVIEW"],
+  ])("preserves the no-ledger baseline %s as %s", async (stored, expected) => {
+    mockFindMany.mockResolvedValue([]);
+    await expect(getEffectivePlan(TENANT, stored, { now })).resolves.toBe(expected);
+    expect(mockTenantUpdate).not.toHaveBeenCalled();
+  });
+
+  it("denies at the exact paid expiry boundary without mutating the stored projection", async () => {
+    mockFindMany.mockResolvedValue([row({ expiresAt: now, planTier: "INDIVIDUAL" })]);
+    await expect(getEffectivePlan(TENANT, "INDIVIDUAL", { now })).resolves.toBe("MANUAL_REVIEW");
+    expect(mockFindMany).toHaveBeenCalledWith({ where: { tenantId: TENANT } });
+    expect(mockTenantUpdate).not.toHaveBeenCalled();
+  });
+
+  it("uses the caller's transaction client while a tenant lock is held", async () => {
+    const findMany = vi.fn().mockResolvedValue([row({ expiresAt: new Date("2026-11-01T00:00:00Z") })]);
+    const client = { entitlementEvent: { findMany } } as unknown as NonNullable<Parameters<typeof getEffectivePlan>[2]>["client"];
+
+    await expect(getEffectivePlan(TENANT, "MANUAL_REVIEW", { now, client })).resolves.toBe("TEAM");
+    expect(findMany).toHaveBeenCalledWith({ where: { tenantId: TENANT } });
+    expect(mockFindMany).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(mockTenantUpdate).not.toHaveBeenCalled();
+  });
 });
 
 describe("appendEntitlementEvent", () => {

@@ -33,6 +33,7 @@ import {
   consumeCallback,
 } from "./sso.service";
 import { stashOAuthExchange, issueTokenPair } from "../auth/auth.service";
+import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 
 // ─── /sso/oidc — owner-only config CRUD ──────────────────────
 
@@ -44,7 +45,8 @@ async function requireSsoEnabledPlan(tenantId: string): Promise<void> {
     where: { id: tenantId },
     select: { plan: true },
   });
-  if (!tenant || !SSO_PLANS.has(tenant.plan)) {
+  const plan = await getEffectivePlan(tenantId, tenant?.plan);
+  if (!tenant || !SSO_PLANS.has(plan)) {
     throw new AppError(
       402,
       "Enterprise SSO is a Business or Enterprise feature. Visit /pricing to upgrade.",
@@ -134,7 +136,8 @@ ssoAuthRouter.get("/:tenantSlug", systemScope("route:sso-login"), initRateLimit,
       res.status(404).json({ error: "SSO is not configured for this workspace" });
       return;
     }
-    if (!SSO_PLANS.has(tenant.plan)) {
+    const plan = await getEffectivePlan(tenant.id, tenant.plan);
+    if (!SSO_PLANS.has(plan)) {
       res.status(402).json({ error: "SSO is not available on this workspace's plan" });
       return;
     }
@@ -166,6 +169,10 @@ ssoAuthRouter.get("/:tenantSlug/callback", systemScope("route:sso-login"), async
     }
 
     const profile = await consumeCallback({ code, state });
+
+    // A subscription may expire during the IdP round trip. Recheck before
+    // linking/creating a user or issuing a fresh session for this tenant.
+    await requireSsoEnabledPlan(profile.tenantId);
 
     // Find-or-create user. Tenant is already bound by the connection
     // — we never let an SSO login wander into a different tenant. Two

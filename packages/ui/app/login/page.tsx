@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useId } from "react";
+import { useState, useEffect, useId, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { apiFetch, api, ApiRequestError } from "../../lib/api";
 import { authErrorKey } from "../../lib/auth-errors";
-import { useAppStore } from "../../lib/store";
+import { captureAuthSession, isAuthSessionCurrent, useAppStore } from "../../lib/store";
 import LanguageSwitcher from "../../components/LanguageSwitcher";
 
 export default function LoginPage() {
@@ -14,6 +14,12 @@ export default function LoginPage() {
   const token = useAppStore((s) => s.token);
   const hydrated = useAppStore((s) => s._hydrated);
   const setAuth = useAppStore((s) => s.setAuth);
+  const mounted = useRef(true);
+  const formOwnsNavigation = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   // ?tab=register lets /register (and any external link/email) deep-link
   // into the sign-up tab. We read window.location.search directly rather
   // than useSearchParams() — Next 15 requires the latter to be wrapped
@@ -42,7 +48,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     // router.replace, NOT push — see comment block above for why.
-    if (hydrated && token) router.replace("/dashboard");
+    if (hydrated && token && !formOwnsNavigation.current) router.replace("/dashboard");
   }, [hydrated, token, router]);
 
   useEffect(() => {
@@ -72,6 +78,9 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const session = captureAuthSession();
+    const stillOwnsResult = () => mounted.current && isAuthSessionCurrent(session);
+    if (!stillOwnsResult()) return;
     const validationError = validate();
     if (validationError) { setError(validationError); return; }
     setError(null);
@@ -82,6 +91,8 @@ export default function LoginPage() {
           "/auth/login",
           { method: "POST", body: JSON.stringify({ email, password }) },
         );
+        if (!stillOwnsResult()) return;
+        formOwnsNavigation.current = true;
         setAuth(res.token, res.tenant.id, res.refreshToken);
         router.replace("/dashboard");
       } else {
@@ -92,13 +103,16 @@ export default function LoginPage() {
             body: JSON.stringify({ email, password, name, tenantName, ...(ref && { ref }) }),
           },
         );
+        if (!stillOwnsResult()) return;
+        formOwnsNavigation.current = true;
         setAuth(res.token, res.tenant.id, res.refreshToken);
         router.replace("/onboarding");
       }
     } catch (err) {
+      if (!stillOwnsResult()) return;
       setError(t(authErrorKey(err, { credentials: mode === "login" })));
     } finally {
-      setLoading(false);
+      if (stillOwnsResult()) setLoading(false);
     }
   }
 

@@ -22,6 +22,7 @@ const companyFindFirst = vi.hoisted(() => vi.fn());
 const companyCreate = vi.hoisted(() => vi.fn());
 const companyCount = vi.hoisted(() => vi.fn());
 const queryRaw = vi.hoisted(() => vi.fn());
+const entitlementFindMany = vi.hoisted(() => vi.fn());
 const agentFindFirst = vi.hoisted(() => vi.fn());
 const agentCreate = vi.hoisted(() => vi.fn());
 const pipelineCreate = vi.hoisted(() => vi.fn());
@@ -31,6 +32,7 @@ const txRun = vi.hoisted(() => vi.fn());
 vi.mock("../../../lib/db", () => {
   const tx = {
     $queryRaw: (...a: unknown[]) => queryRaw(...a),
+    entitlementEvent: { findMany: (...a: unknown[]) => entitlementFindMany(...a) },
     company: {
       findFirst: (...a: unknown[]) => companyFindFirst(...a),
       create: (...a: unknown[]) => companyCreate(...a),
@@ -112,6 +114,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   companyFindFirst.mockResolvedValue({ id: "co-1", tenantId: "tenant-1" });
   companyCount.mockResolvedValue(0);
+  // An empty ledger is the real pre-ledger baseline contract. The actual
+  // getEffectivePlan still runs on tx; it is not mocked into a paid grant.
+  entitlementFindMany.mockResolvedValue([]);
   queryRaw.mockResolvedValue([{ id: "tenant-1", plan: "MANUAL_REVIEW" }]);
   companyCreate.mockResolvedValue({ id: "bucket-1" });
   pipelineCreate.mockResolvedValue({ id: "pipe-1" });
@@ -234,6 +239,13 @@ describe("importer persist — steps + agents", () => {
     companyCount.mockResolvedValue(count);
     const { nextErr } = await invoke(handler, { body: { source: "n8n", payload: n8nPayload } });
     expect(nextErr).toMatchObject({ statusCode: 402 });
+    expect(entitlementFindMany).toHaveBeenCalledExactlyOnceWith({ where: { tenantId: "tenant-1" } });
+    expect(companyCount).toHaveBeenCalledExactlyOnceWith({ where: { tenantId: "tenant-1" } });
+    expect(queryRaw).toHaveBeenCalledTimes(2);
+    expect(queryRaw.mock.calls[1][0].join("")).toMatch(/SELECT plan FROM tenants[\s\S]*FOR UPDATE/);
+    expect(queryRaw.mock.calls[1][1]).toBe("tenant-1");
+    expect(queryRaw.mock.invocationCallOrder[1]).toBeLessThan(entitlementFindMany.mock.invocationCallOrder[0]);
+    expect(entitlementFindMany.mock.invocationCallOrder[0]).toBeLessThan(companyCount.mock.invocationCallOrder[0]);
     expect(companyCreate).not.toHaveBeenCalled();
     expect(agentCreate).not.toHaveBeenCalled();
     expect(pipelineCreate).not.toHaveBeenCalled();
@@ -249,6 +261,9 @@ describe("importer persist — steps + agents", () => {
     expect(nextErr).toBeUndefined();
     expect(res.statusCode).toBe(201);
     expect(companyCreate).toHaveBeenCalledOnce();
+    expect(entitlementFindMany).toHaveBeenCalledExactlyOnceWith({ where: { tenantId: "tenant-1" } });
+    expect(companyCount).toHaveBeenCalledExactlyOnceWith({ where: { tenantId: "tenant-1" } });
+    expect(entitlementFindMany.mock.invocationCallOrder[0]).toBeLessThan(companyCreate.mock.invocationCallOrder[0]);
     expect(pipelineCreate.mock.calls[0][0].data.companyId).toBe("bucket-1");
   });
 
@@ -259,6 +274,25 @@ describe("importer persist — steps + agents", () => {
     expect(res.statusCode).toBe(201);
     expect(companyCreate).not.toHaveBeenCalled();
     expect(companyCount).not.toHaveBeenCalled();
+    expect(entitlementFindMany).not.toHaveBeenCalled();
     expect(pipelineCreate.mock.calls[0][0].data.companyId).toBe("co-1");
+  });
+
+  it("denies a new bucket when authoritative ledger history expired despite stored INDIVIDUAL", async () => {
+    companyFindFirst.mockResolvedValue(null);
+    queryRaw.mockResolvedValue([{ id: "tenant-1", plan: "INDIVIDUAL" }]);
+    entitlementFindMany.mockResolvedValue([{
+      id: "expired-import-grant", source: "google", streamId: "import-stream",
+      sourceTimestamp: new Date("2026-08-01T00:00:00Z"), type: "purchase", planTier: "INDIVIDUAL",
+      expiresAt: new Date(Date.now() - 1_000), autoRenew: true,
+    }]);
+    const { nextErr } = await invoke(handler, { body: { source: "n8n", payload: n8nPayload } });
+    expect(nextErr).toMatchObject({ statusCode: 402 });
+    expect(entitlementFindMany).toHaveBeenCalledExactlyOnceWith({ where: { tenantId: "tenant-1" } });
+    expect(queryRaw.mock.invocationCallOrder[1]).toBeLessThan(entitlementFindMany.mock.invocationCallOrder[0]);
+    expect(companyCreate).not.toHaveBeenCalled();
+    expect(agentCreate).not.toHaveBeenCalled();
+    expect(pipelineCreate).not.toHaveBeenCalled();
+    expect(activityLogCreate).not.toHaveBeenCalled();
   });
 });

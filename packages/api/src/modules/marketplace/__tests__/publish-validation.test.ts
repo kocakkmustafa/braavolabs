@@ -25,6 +25,7 @@ const tenantFindUnique = vi.hoisted(() => vi.fn());
 const activityLogCreate = vi.hoisted(() => vi.fn());
 const claimQuotaMock = vi.hoisted(() => vi.fn());
 const listToolsMock = vi.hoisted(() => vi.fn());
+const entitlementFindMany = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../lib/db", () => ({
   prisma: {
@@ -36,7 +37,9 @@ vi.mock("../../../lib/db", () => ({
     user: { findUnique: (...a: unknown[]) => userFindUnique(...a) },
     tenant: { findUnique: (...a: unknown[]) => tenantFindUnique(...a) },
     activityLog: { create: (...a: unknown[]) => activityLogCreate(...a) },
+    entitlementEvent: { findMany: (...a: unknown[]) => entitlementFindMany(...a) },
   },
+  tenantTx: vi.fn(),
 }));
 vi.mock("../../../lib/mcp", () => ({ listTools: (...a: unknown[]) => listToolsMock(...a) }));
 vi.mock("../../billing/metering", () => ({ claimQuota: (...a: unknown[]) => claimQuotaMock(...a) }));
@@ -120,6 +123,7 @@ beforeEach(() => {
   tenantFindUnique.mockResolvedValue({ plan: "PRO" }); // publish-capable plan
   claimQuotaMock.mockResolvedValue({ claimed: true, value: 1, limit: -1 });
   listToolsMock.mockResolvedValue([{ name: "list_contacts", description: "List contacts", inputSchema: {} }]);
+  entitlementFindMany.mockResolvedValue([]);
 });
 
 describe("POST /publish — manifest validation (fail-closed)", () => {
@@ -169,6 +173,20 @@ describe("POST /publish — manifest validation (fail-closed)", () => {
 });
 
 describe("POST /publish — plan / quota / admin gate (T6)", () => {
+  it("rejects new publish after ledger expiry despite stale paid PRO before quota or persistence", async () => {
+    entitlementFindMany.mockResolvedValue([{
+      id: "local-expired-grant", source: "google", streamId: "local-google-stream",
+      sourceTimestamp: new Date("2026-08-01T00:00:00Z"), type: "purchase", planTier: "TEAM",
+      expiresAt: new Date(Date.now() - 1_000), autoRenew: true,
+    }]);
+    const { nextErr } = await invoke(publish, { body: validBody });
+    expect(nextErr).toMatchObject({ statusCode: 403 });
+    expect(claimQuotaMock).not.toHaveBeenCalled();
+    expect(connectorUpsert).not.toHaveBeenCalled();
+    expect(listToolsMock).not.toHaveBeenCalled();
+    expect(entitlementFindMany).toHaveBeenCalledWith({ where: { tenantId: "pub-1" } });
+  });
+
   it("FREE plan fails closed before quota claim or connector persistence", async () => {
     tenantFindUnique.mockResolvedValue({ plan: "FREE" });
     connectorCount.mockResolvedValue(0);

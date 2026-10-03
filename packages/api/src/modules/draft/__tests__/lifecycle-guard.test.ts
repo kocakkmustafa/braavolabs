@@ -8,6 +8,7 @@ const draftUpdateMany = vi.hoisted(() => vi.fn());
 const contactFindFirst = vi.hoisted(() => vi.fn());
 const enrollmentFindFirst = vi.hoisted(() => vi.fn());
 const tenantFindUnique = vi.hoisted(() => vi.fn());
+const entitlementFindMany = vi.hoisted(() => vi.fn());
 const usageMeterFindUnique = vi.hoisted(() => vi.fn());
 const tenantTxMock = vi.hoisted(() => vi.fn());
 const activityLogCreate = vi.hoisted(() => vi.fn());
@@ -23,6 +24,7 @@ vi.mock("../../../lib/db", () => ({
     contact: { findFirst: (...args: unknown[]) => contactFindFirst(...args) },
     outreachEnrollment: { findFirst: (...args: unknown[]) => enrollmentFindFirst(...args) },
     tenant: { findUnique: (...args: unknown[]) => tenantFindUnique(...args) },
+    entitlementEvent: { findMany: (...args: unknown[]) => entitlementFindMany(...args) },
     usageMeter: { findUnique: (...args: unknown[]) => usageMeterFindUnique(...args) },
     activityLog: { create: (...args: unknown[]) => activityLogCreate(...args) },
   },
@@ -88,8 +90,9 @@ beforeEach(() => {
   activityLogCreate.mockResolvedValue({});
   contactFindFirst.mockResolvedValue({ id: "contact-1" });
   enrollmentFindFirst.mockResolvedValue(null);
-  tenantFindUnique.mockResolvedValue({ plan: "FREE" });
-  usageMeterFindUnique.mockResolvedValue({ value: 20 });
+  tenantFindUnique.mockResolvedValue({ plan: "INDIVIDUAL" });
+  entitlementFindMany.mockResolvedValue([]);
+  usageMeterFindUnique.mockResolvedValue({ value: 200 });
   tenantTxMock.mockResolvedValue([{ value: 1 }]);
   sendEmail.mockResolvedValue({ messageId: "sg-test-accepted" });
 });
@@ -359,6 +362,8 @@ describe("draft decisions respect company lifecycle", () => {
   it.each([
     ["INDIVIDUAL", 200],
     ["TEAM", 500],
+    ["CREATOR", 200],
+    ["PRO", 500],
   ] as const)("%s paid plan uses its paid daily email cap", async (plan, limit) => {
     draftFindUnique.mockResolvedValue(pendingDraft("ACTIVE"));
     tenantFindUnique.mockResolvedValue({ plan });
@@ -369,6 +374,82 @@ describe("draft decisions respect company lifecycle", () => {
     expect(error).toMatchObject({ statusCode: 429 });
     expect(error.message).toContain(`(${limit}/${limit})`);
     expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it.each(["INDIVIDUAL", "TEAM"])("denies stale %s after ledger expiry before quota INSERT", async (plan) => {
+    draftFindUnique.mockResolvedValue(pendingDraft("ACTIVE"));
+    tenantFindUnique.mockResolvedValue({ plan });
+    entitlementFindMany.mockResolvedValue([{
+      id: "expired-mobile", source: "google", streamId: "mobile",
+      sourceTimestamp: new Date("2026-08-01T00:00:00Z"), type: "purchase", planTier: plan,
+      expiresAt: new Date(Date.now() - 1_000), autoRenew: true,
+    }]);
+
+    const { error } = await invoke("post", { send: true });
+    expect(error).toMatchObject({ statusCode: 403 });
+    expect(tenantTxMock).not.toHaveBeenCalled();
+    expect(usageMeterFindUnique).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(draftUpdate).not.toHaveBeenCalled();
+    expect(activityLogCreate).not.toHaveBeenCalled();
+    expect(draftUpdateMany).toHaveBeenNthCalledWith(2, {
+      where: { id: "draft-1", status: "APPROVED" }, data: { status: "PENDING" },
+    });
+    expect(entitlementFindMany).toHaveBeenCalledWith({ where: { tenantId: "tenant-1" } });
+  });
+
+  it("denies a MANUAL_REVIEW ledger even when persisted plan is paid", async () => {
+    draftFindUnique.mockResolvedValue(pendingDraft("ACTIVE"));
+    entitlementFindMany.mockResolvedValue([{
+      id: "manual-review", source: "google", streamId: "mobile",
+      sourceTimestamp: new Date("2026-08-01T00:00:00Z"), type: "purchase", planTier: "MANUAL_REVIEW",
+      expiresAt: new Date(Date.now() + 60_000), autoRenew: true,
+    }]);
+    expect((await invoke("post", { send: true })).error).toMatchObject({ statusCode: 403 });
+    expect(tenantTxMock).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it.each(["INDIVIDUAL", "TEAM", "CREATOR", "PRO"])("preserves empty-ledger %s email delivery", async (plan) => {
+    draftFindUnique.mockResolvedValue(pendingDraft("ACTIVE"));
+    tenantFindUnique.mockResolvedValue({ plan });
+    expect((await invoke("post", { send: true })).error).toBeUndefined();
+    expect(entitlementFindMany).toHaveBeenCalledWith({ where: { tenantId: "tenant-1" } });
+    expect(tenantTxMock).toHaveBeenCalledOnce();
+    expect(sendEmail).toHaveBeenCalledOnce();
+  });
+
+  it.each(["FREE", "BUSINESS", "ENTERPRISE", "UNKNOWN"])("denies ambiguous empty-ledger %s before quota INSERT", async (plan) => {
+    draftFindUnique.mockResolvedValue(pendingDraft("ACTIVE"));
+    tenantFindUnique.mockResolvedValue({ plan });
+    expect((await invoke("post", { send: true })).error).toMatchObject({ statusCode: 403 });
+    expect(tenantTxMock).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("keeps the atomic cap and UTC day bucket when a valid Stripe stream overrides expired mobile", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-02T00:30:00+03:00"));
+      draftFindUnique.mockResolvedValue(pendingDraft("ACTIVE"));
+      entitlementFindMany.mockResolvedValue([
+        { id: "expired", source: "google", streamId: "mobile", sourceTimestamp: new Date("2026-08-01T00:00:00Z"), type: "purchase", planTier: "INDIVIDUAL", expiresAt: new Date("2026-09-01T00:00:00Z"), autoRenew: true },
+        { id: "stripe", source: "stripe", streamId: "stripe", sourceTimestamp: new Date("2026-08-01T00:00:00Z"), type: "purchase", planTier: "TEAM", expiresAt: new Date("2026-11-01T00:00:00Z"), autoRenew: true },
+      ]);
+      const queryRaw = vi.fn().mockResolvedValue([{ value: 1 }]);
+      tenantTxMock.mockImplementation(async (fn) => fn({ $queryRaw: queryRaw }));
+
+      expect((await invoke("post", { send: true })).error).toBeUndefined();
+      const [sql, ...values] = queryRaw.mock.calls[0]!;
+      expect(sql.join("?")).toContain("ON CONFLICT (tenant_id, metric, period_start) DO UPDATE");
+      expect(sql.join("?")).toContain("WHERE usage_meters.value < ?");
+      expect(values).toEqual([
+        "tenant-1", new Date("2026-10-01T00:00:00Z"), new Date("2026-10-02T00:00:00Z"), 500,
+      ]);
+      expect(sendEmail).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("denies MANUAL_REVIEW email before creating a fresh quota row", async () => {

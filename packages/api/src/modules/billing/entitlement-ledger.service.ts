@@ -25,6 +25,7 @@
  */
 
 import type { Plan, Prisma } from "@prisma/client";
+import { normalizePlanForEntitlement } from "@ai-company-os/core";
 import { prisma, tenantTx } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
@@ -177,6 +178,25 @@ export async function getEntitlementProjection(
 ): Promise<EntitlementProjection> {
   const rows = await prisma.entitlementEvent.findMany({ where: { tenantId } });
   return projectRows(rows, now);
+}
+
+/**
+ * Paid gates must evaluate expiry even when no new provider event arrives.
+ * Existing ledger history is authoritative; tenant.plan is only the baseline
+ * for tenants that predate the ledger. An optional unextended transaction
+ * client keeps callers holding the tenant lock on the same RLS connection.
+ */
+export async function getEffectivePlan(
+  tenantId: string,
+  persistedPlan: unknown,
+  options: {
+    now?: Date;
+    client?: Pick<Prisma.TransactionClient, "entitlementEvent">;
+  } = {},
+): Promise<ReturnType<typeof normalizePlanForEntitlement>> {
+  const rows = await (options.client ?? prisma).entitlementEvent.findMany({ where: { tenantId } });
+  if (rows.length === 0) return normalizePlanForEntitlement(typeof persistedPlan === "string" ? persistedPlan : null);
+  return projectRows(rows, options.now ?? new Date()).effectiveTier ?? "MANUAL_REVIEW";
 }
 
 /**

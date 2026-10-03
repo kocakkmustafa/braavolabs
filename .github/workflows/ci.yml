@@ -95,8 +95,8 @@ jobs:
           ENCRYPTION_KEY: "ci-test-encryption-key-32-chars-minimum-aabbccddeeff00"
           NODE_ENV: "test"
         run: pnpm -r --if-present test
-      - name: Anonymous auth entry regressions (SSR and HTTP contract)
-        run: node --test scripts/auth-entry-contract.test.mjs
+      - name: Public rendering regressions (SSR and HTTP contract)
+        run: node --test scripts/auth-entry-contract.test.mjs scripts/bench-request-boundary.test.mjs
 
   build:
     name: Build

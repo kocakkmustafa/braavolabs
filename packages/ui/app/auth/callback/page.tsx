@@ -1,9 +1,9 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useAppStore } from "../../../lib/store";
+import { captureAuthSession, isAuthSessionCurrent, useAppStore } from "../../../lib/store";
 import { api } from "../../../lib/api";
 
 const FORGE_MSGS = [
@@ -107,6 +107,15 @@ function CallbackInner() {
   const router = useRouter();
   const t = useTranslations();
   const searchParams = useSearchParams();
+  // Next synchronizes searchParams when history.replaceState scrubs the URL.
+  // Capture the callback once so that scrub cannot cancel the pending exchange.
+  const [callbackParams] = useState(() => ({
+    exchangeCode: searchParams.get("code"),
+    legacyToken: searchParams.get("token"),
+    legacyRefresh: searchParams.get("refreshToken"),
+  }));
+  const [initialSession] = useState(captureAuthSession);
+  const exchangePromise = useRef<ReturnType<typeof api.exchangeOAuthCode> | null>(null);
   const setAuth = useAppStore((s) => s.setAuth);
   const [msgIndex, setMsgIndex] = useState(0);
 
@@ -119,23 +128,23 @@ function CallbackInner() {
   }, []);
 
   useEffect(() => {
-    const exchangeCode = searchParams.get("code");
+    const { exchangeCode, legacyToken, legacyRefresh } = callbackParams;
     // Legacy fallback for any in-flight redirects from older API
     // releases that still embed the bearer token in the URL. Once the
     // new server has been live for >24h the fallback can be deleted.
-    const legacyToken = searchParams.get("token");
-    const legacyRefresh = searchParams.get("refreshToken");
-
     let cancelled = false;
     async function run() {
       try {
+        if (!isAuthSessionCurrent(initialSession)) return;
         if (exchangeCode) {
           // Scrub the URL BEFORE the network call so the code can't be
           // leaked to Referer headers from any dashboard navigation
           // that happens while the exchange is in-flight.
           window.history.replaceState({}, "", "/auth/callback");
-          const bundle = await api.exchangeOAuthCode(exchangeCode);
-          if (cancelled) return;
+          // StrictMode may repeat the effect before this one-time code resolves.
+          exchangePromise.current ??= api.exchangeOAuthCode(exchangeCode);
+          const bundle = await exchangePromise.current;
+          if (cancelled || !isAuthSessionCurrent(initialSession)) return;
           setAuth(bundle.token, bundle.tenant.id, bundle.refreshToken);
         } else if (legacyToken) {
           const payload = JSON.parse(atob(legacyToken.split(".")[1]));
@@ -150,12 +159,12 @@ function CallbackInner() {
         // code). Skip the callback page in history entirely.
         router.replace("/dashboard");
       } catch {
-        if (!cancelled) router.replace("/login");
+        if (!cancelled && isAuthSessionCurrent(initialSession)) router.replace("/login");
       }
     }
     run();
     return () => { cancelled = true; };
-  }, [searchParams, setAuth, router]);
+  }, [callbackParams, initialSession, setAuth, router]);
 
   void t; // t is available for future i18n expansion; FORGE_MSGS used directly per mock style
   return <ForgeLoader msg={FORGE_MSGS[msgIndex]} />;

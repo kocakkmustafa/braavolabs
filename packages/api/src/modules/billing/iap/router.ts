@@ -35,6 +35,7 @@ import { AppError } from "../../../middleware/error";
 import { env } from "../../../config/env";
 import { logger } from "../../../lib/logger";
 import { verifyAppleReceipt, parseAppleNotification, type VerifiedReceipt } from "./apple";
+import { knownGoogleAncestorResolver } from "./google-known-ancestry";
 import {
   acknowledgeGoogleReceipt,
   verifyGoogleReceipt,
@@ -162,10 +163,11 @@ async function verifyNativeReceipt(
   provider: NativeIapProvider,
   receipt: string,
   productId: string,
+  tenantId: string,
 ): Promise<VerifiedReceipt | VerifiedGoogleReceipt> {
   return provider === "apple"
     ? verifyAppleReceipt(receipt, productId)
-    : verifyGoogleReceipt(receipt, productId);
+    : verifyGoogleReceipt(receipt, productId, knownGoogleAncestorResolver(prisma.googlePurchaseAlias, tenantId));
 }
 
 function safeVerificationFailure(provider: string, productId: string): void {
@@ -558,7 +560,7 @@ iapRouter.post("/verify", authMiddleware, iapVerifyRateLimit, async (req, res, n
     }
     const provider: NativeIapProvider = body.provider;
     const googleReadStartedAt = provider === "google" ? new Date() : null;
-    const verified = await verifyNativeReceipt(provider, body.receipt, body.productId);
+    const verified = await verifyNativeReceipt(provider, body.receipt, body.productId, tenantId);
     const googleReadCompletedAt = provider === "google" ? new Date() : null;
     const storedVerifiedAt = googleReadCompletedAt ?? new Date();
 
@@ -870,7 +872,7 @@ iapRouter.post(
       // approved_mapping and expired both require a fresh provider read. The
       // receipt stays ephemeral and is never forwarded to the review store.
       const googleReadStartedAt = current.provider === "google" ? new Date() : null;
-      const verified = await verifyNativeReceipt(current.provider, body.receipt, current.productId);
+      const verified = await verifyNativeReceipt(current.provider, body.receipt, current.productId, tenantId);
       const googleReadCompletedAt = current.provider === "google" ? new Date() : null;
       validateManualReviewReason(reason, [body.receipt, verified.originalTransactionId]);
       if (
@@ -1343,7 +1345,7 @@ async function applyGoogleReliable(note: GoogleNotification): Promise<void> {
   const googleReadStartedAt = new Date();
   let googleReadCompletedAt = googleReadStartedAt;
   try {
-    verified = await verifyGoogleReceipt(note.purchaseToken);
+    verified = await verifyGoogleReceipt(note.purchaseToken, undefined, knownGoogleAncestorResolver(prisma.googlePurchaseAlias));
     googleReadCompletedAt = new Date();
   } catch (error) {
     if (

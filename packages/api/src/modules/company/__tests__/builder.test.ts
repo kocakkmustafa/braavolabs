@@ -28,9 +28,11 @@ const companyCreate = vi.hoisted(() => vi.fn());
 const agentCreate = vi.hoisted(() => vi.fn());
 const pipelineCreate = vi.hoisted(() => vi.fn());
 const activityLogCreate = vi.hoisted(() => vi.fn());
+const entitlementFindMany = vi.hoisted(() => vi.fn());
 vi.mock("../../../lib/db", () => ({
   prisma: {
     tenant: { findUnique: (...a: unknown[]) => tenantFindUnique(...a) },
+    entitlementEvent: { findMany: (...a: unknown[]) => entitlementFindMany(...a) },
   },
   tenantTx: (fn: (tx: unknown) => unknown) => fn({
     $queryRaw: (...a: unknown[]) => queryRaw(...a),
@@ -41,6 +43,7 @@ vi.mock("../../../lib/db", () => ({
     agent: { create: (...a: unknown[]) => agentCreate(...a) },
     pipeline: { create: (...a: unknown[]) => pipelineCreate(...a) },
     activityLog: { create: (...a: unknown[]) => activityLogCreate(...a) },
+    entitlementEvent: { findMany: (...a: unknown[]) => entitlementFindMany(...a) },
   }),
 }));
 
@@ -58,15 +61,113 @@ vi.mock("../../../services/provider-chain", () => ({
   refundTrialCompletion: (...a: unknown[]) => refundTrialCompletionMock(...a),
 }));
 
-import { startBuildSession, confirmBuild } from "../builder";
+import { startBuildSession, continueBuildSession, confirmBuild } from "../builder";
 import { AppError } from "../../../middleware/error";
 
 describe("startBuildSession — provider resolution honesty (D-013)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     envMock.LLM_PROVIDER = "api";
-    // No plan-limit gate in play — tenant lookup returns null (limits skipped).
+    // Provider-resolution cases use a valid, empty-ledger tenant below capacity.
+    tenantFindUnique.mockResolvedValue({ plan: "INDIVIDUAL", companies: [] });
+    entitlementFindMany.mockResolvedValue([]);
+  });
+
+  it("rejects an expired paid ledger before spending on a builder completion despite stale tenant.plan", async () => {
+    resolveTenantCompletionLinkMock.mockResolvedValue({ provider: "GROQ", source: "byok-default", config: { provider: "GROQ", model: "local-model", apiKey: "local-test-key" } });
+    chatCompletionMock.mockResolvedValue({ content: JSON.stringify({ ready: false, questions: ["local question"] }), provider: "GROQ", inputTokens: 1, outputTokens: 1 });
+    tenantFindUnique.mockResolvedValue({ plan: "INDIVIDUAL", companies: [] });
+    entitlementFindMany.mockResolvedValue([{
+      id: "local-expired-grant", source: "google", streamId: "local-google-stream",
+      sourceTimestamp: new Date("2026-08-01T00:00:00Z"), type: "purchase", planTier: "INDIVIDUAL",
+      expiresAt: new Date(Date.now() - 1_000), autoRenew: true,
+    }]);
+
+    await expect(startBuildSession("tenant-1", "local builder test")).resolves.toMatchObject({ status: "error", turn: 0, messages: [] });
+    expect(chatCompletionMock).not.toHaveBeenCalled();
+    expect(resolveTenantCompletionLinkMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["INDIVIDUAL", "TEAM", "CREATOR", "PRO"])("preserves the empty-ledger %s builder baseline", async (plan) => {
+    tenantFindUnique.mockResolvedValue({ plan, companies: [] });
+    resolveTenantCompletionLinkMock.mockResolvedValue({ provider: "GROQ", source: "byok-default", config: { provider: "GROQ", model: "local-model", apiKey: "local-test-key" } });
+    chatCompletionMock.mockResolvedValue({ content: JSON.stringify({ ready: false, questions: ["local question"] }), provider: "GROQ", inputTokens: 1, outputTokens: 1 });
+    await expect(startBuildSession(`tenant-empty-${plan}`, "local builder test")).resolves.toMatchObject({ status: "clarifying" });
+    expect(chatCompletionMock).toHaveBeenCalledOnce();
+  });
+
+  it("fails closed for a missing tenant before a first completion", async () => {
     tenantFindUnique.mockResolvedValue(null);
+    resolveTenantCompletionLinkMock.mockResolvedValue({ provider: "GROQ", source: "byok-default", config: { provider: "GROQ", model: "local-model", apiKey: "local-test-key" } });
+    chatCompletionMock.mockResolvedValue({ content: JSON.stringify({ ready: false, questions: ["local question"] }), provider: "GROQ", inputTokens: 1, outputTokens: 1 });
+    await expect(startBuildSession("tenant-missing", "local builder test")).rejects.toMatchObject({ statusCode: 401 });
+    expect(resolveTenantCompletionLinkMock).not.toHaveBeenCalled();
+    expect(chatCompletionMock).not.toHaveBeenCalled();
+  });
+
+  it("preserves the existing error response at the company cap before a first completion", async () => {
+    tenantFindUnique.mockResolvedValue({ plan: "INDIVIDUAL", companies: Array.from({ length: 5 }, (_, index) => ({ id: `co-${index}` })) });
+    await expect(startBuildSession("tenant-full", "local builder test")).resolves.toMatchObject({ status: "error", turn: 0, messages: [] });
+    expect(resolveTenantCompletionLinkMock).not.toHaveBeenCalled();
+    expect(chatCompletionMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["INDIVIDUAL", "TEAM"])("denies %s expiry between turns inside the one-hour session before completion or session mutation", async (plan) => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-01T22:00:00Z"));
+      tenantFindUnique.mockResolvedValue({ plan, companies: [] });
+      entitlementFindMany.mockResolvedValue([{
+        id: "expiring", source: "google", streamId: "mobile", sourceTimestamp: new Date("2026-10-01T21:00:00Z"),
+        type: "purchase", planTier: plan, expiresAt: new Date("2026-10-01T22:01:00Z"), autoRenew: true,
+      }]);
+      resolveTenantCompletionLinkMock.mockResolvedValue({ provider: "GROQ", source: "byok-default", config: { provider: "GROQ", model: "local-model", apiKey: "local-test-key" } });
+      chatCompletionMock.mockResolvedValue({ content: JSON.stringify({ ready: false, questions: ["local question"] }), provider: "GROQ", inputTokens: 1, outputTokens: 1 });
+      const tenantId = `tenant-expiring-${plan}`;
+      const session = await startBuildSession(tenantId, "local builder test");
+      const previousMessages = session.messages.map((message) => ({ ...message }));
+      const previousTurn = session.turn;
+      vi.setSystemTime(new Date("2026-10-01T22:02:00Z"));
+      vi.clearAllMocks();
+
+      await expect(continueBuildSession(session.sessionId, tenantId, "new answer")).rejects.toMatchObject({ statusCode: 402 });
+      expect(resolveTenantCompletionLinkMock).not.toHaveBeenCalled();
+      expect(chatCompletionMock).not.toHaveBeenCalled();
+      expect(session.messages).toEqual(previousMessages);
+      expect(session.turn).toBe(previousTurn);
+      expect(session.status).toBe("clarifying");
+      expect(entitlementFindMany).toHaveBeenCalledWith({ where: { tenantId } });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each(["INDIVIDUAL", "TEAM", "CREATOR", "PRO"])("preserves empty-ledger %s continuation below company capacity", async (plan) => {
+    tenantFindUnique.mockResolvedValue({ plan, companies: [] });
+    resolveTenantCompletionLinkMock.mockResolvedValue({ provider: "GROQ", source: "byok-default", config: { provider: "GROQ", model: "local-model", apiKey: "local-test-key" } });
+    chatCompletionMock.mockResolvedValue({ content: JSON.stringify({ ready: false, questions: ["local question"] }), provider: "GROQ", inputTokens: 1, outputTokens: 1 });
+    const tenantId = `tenant-continuing-${plan}`;
+    const session = await startBuildSession(tenantId, "local builder test");
+    vi.clearAllMocks();
+    await expect(continueBuildSession(session.sessionId, tenantId, "new answer")).resolves.toMatchObject({ status: "clarifying", turn: 2 });
+    expect(entitlementFindMany).toHaveBeenCalledWith({ where: { tenantId } });
+    expect(chatCompletionMock).toHaveBeenCalledOnce();
+  });
+
+  it.each(["missing", "full"])("denies continuation for a %s tenant before completion or session mutation", async (state) => {
+    resolveTenantCompletionLinkMock.mockResolvedValue({ provider: "GROQ", source: "byok-default", config: { provider: "GROQ", model: "local-model", apiKey: "local-test-key" } });
+    chatCompletionMock.mockResolvedValue({ content: JSON.stringify({ ready: false, questions: ["local question"] }), provider: "GROQ", inputTokens: 1, outputTokens: 1 });
+    const tenantId = `tenant-continuation-${state}`;
+    const session = await startBuildSession(tenantId, "local builder test");
+    const previousMessages = session.messages.map((message) => ({ ...message }));
+    tenantFindUnique.mockResolvedValue(state === "missing" ? null : { plan: "INDIVIDUAL", companies: Array.from({ length: 5 }, (_, index) => ({ id: `co-${index}` })) });
+    vi.clearAllMocks();
+
+    await expect(continueBuildSession(session.sessionId, tenantId, "new answer")).rejects.toMatchObject({ statusCode: state === "missing" ? 401 : 402 });
+    expect(resolveTenantCompletionLinkMock).not.toHaveBeenCalled();
+    expect(chatCompletionMock).not.toHaveBeenCalled();
+    expect(session.messages).toEqual(previousMessages);
+    expect(session.turn).toBe(1);
   });
 
   it("HONESTY: ineligible tenant → actionable 400 AppError, chatCompletion NEVER called (no system spend)", async () => {
