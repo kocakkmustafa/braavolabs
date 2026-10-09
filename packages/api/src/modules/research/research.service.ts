@@ -32,7 +32,7 @@ import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { safeExternalFetch, SsrfError } from "../../lib/ssrf";
 import { runAgentLoop } from "../agent/claude";
-import { compareAcrossModels } from "../../services/multi-model";
+import { compareAcrossModels, validateModelSelections, type ModelSelection } from "../../services/multi-model";
 
 // ── Provider interface ──────────────────────────────────────
 
@@ -304,6 +304,7 @@ export async function startResearch(opts: RunResearchOptions): Promise<{ session
 // ── Multi-model compare (E2/T8 — plan §2.5) ────────────────
 
 export interface StartCompareOptions {
+  selections?: ModelSelection[];
   tenantId: string;
   companyId: string;
   query: string;
@@ -322,6 +323,10 @@ export interface StartCompareOptions {
  * tenant's own models answering in parallel.
  */
 export async function startCompare(opts: StartCompareOptions): Promise<{ sessionId: string }> {
+  if (opts.selections !== undefined) {
+    try { await validateModelSelections(opts.tenantId, opts.selections, opts.maxCandidates); }
+    catch (err) { throw new AppError(400, err instanceof Error ? err.message : "Invalid model selections"); }
+  }
   const session = await prisma.webResearchSession.create({
     data: {
       tenantId: opts.tenantId,
@@ -347,6 +352,7 @@ async function runCompareSession(sessionId: string, opts: StartCompareOptions): 
   });
   try {
     const compare = await compareAcrossModels(opts.tenantId, opts.query, {
+      selections: opts.selections,
       maxCandidates: opts.maxCandidates,
       maxTokensPerCandidate: opts.maxTokensPerCandidate,
       maxCostUsd: opts.maxCostUsd,
@@ -355,7 +361,12 @@ async function runCompareSession(sessionId: string, opts: StartCompareOptions): 
     await prisma.webResearchSession.update({
       where: { id: sessionId },
       data: {
-        status: "COMPLETED",
+        // Invalid structured output must be visibly failed. Paid candidate
+        // answers and full metered cost remain available as partial findings.
+        status: compare.synthesisStatus === "invalid_structured" ? "FAILED" : "COMPLETED",
+        ...(compare.synthesisStatus === "invalid_structured"
+          ? { error: compare.synthesizerError ?? "Invalid structured synthesis" }
+          : {}),
         // Same findings envelope as research (summary + claims) so every
         // existing consumer renders it; the full compare payload —
         // perModel answers, consensus, disagreements, synthesizer — is

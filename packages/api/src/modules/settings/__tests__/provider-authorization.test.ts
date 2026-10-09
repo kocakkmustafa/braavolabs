@@ -74,7 +74,7 @@ vi.mock("../../../middleware/auth", () => ({
   },
 }));
 
-const decryptForTenant = vi.hoisted(() => vi.fn(() => "tenant-key"));
+const decryptForTenant = vi.hoisted(() => vi.fn((..._args: unknown[]) => "tenant-key"));
 vi.mock("../../../lib/encryption", () => ({
   decryptForTenant: (...args: unknown[]) => decryptForTenant(...args),
 }));
@@ -85,7 +85,7 @@ vi.mock("../../../lib/logger", () => ({
 
 const providerModels = vi.hoisted(() => ({
   getProviderModels: vi.fn(),
-  isKnownProvider: vi.fn(() => true),
+  isKnownProvider: vi.fn((..._args: unknown[]) => true),
 }));
 vi.mock("../provider-models", () => ({
   getProviderModels: (...args: unknown[]) => providerModels.getProviderModels(...args),
@@ -358,5 +358,41 @@ describe("settings provider read compatibility", () => {
     expect(nextError).toBeUndefined();
     expect(res.statusCode).toBe(200);
     expect(providerModels.getProviderModels).toHaveBeenCalledWith("tenant-acl", "GROQ");
+  });
+});
+
+describe("advertised Cerebras settings validation", () => {
+  it("saves the exact advertised provider/model with a synthetic key without provider traffic", async () => {
+    const { res, nextError } = await invokeRoute("put", "/ai-config", {role: "OWNER", body: {
+      provider: "CEREBRAS", model: "gpt-oss-120b", apiKey: "synthetic-cerebras-key-never-sent",
+    }});
+    expect(nextError).toBeUndefined();
+    expect(res.statusCode).toBe(200);
+    expect(ai.saveTenantAIConfig).toHaveBeenCalledWith("tenant-acl", "CEREBRAS", "gpt-oss-120b", "synthetic-cerebras-key-never-sent", undefined, undefined);
+    expect(ai.chatCompletion).not.toHaveBeenCalled(); expect(ai.getTenantAIConfig).not.toHaveBeenCalled();
+    expect(providerModels.getProviderModels).not.toHaveBeenCalled(); expect(decryptForTenant).not.toHaveBeenCalled();
+  });
+  it("reuses only the authenticated tenant's existing Cerebras key without decryption", async () => {
+    db.findUnique.mockResolvedValue({encryptedApiKey: "synthetic-encrypted-marker"});
+    db.tenantTx.mockImplementation(async fn => fn({userAIConfig: {updateMany: db.updateMany, update: db.update}}));
+    const { nextError } = await invokeRoute("put", "/ai-config", {role: "ADMIN", body: {provider: "CEREBRAS", model: "gpt-oss-120b"}});
+    expect(nextError).toBeUndefined();
+    expect(db.findUnique).toHaveBeenCalledWith({where: {tenantId_provider: {tenantId: "tenant-acl", provider: "CEREBRAS"}}});
+    expect(db.update).toHaveBeenCalledWith({where: {tenantId_provider: {tenantId: "tenant-acl", provider: "CEREBRAS"}}, data: {model: "gpt-oss-120b", baseUrl: null, isDefault: true}});
+    expect(ai.saveTenantAIConfig).not.toHaveBeenCalled(); expect(decryptForTenant).not.toHaveBeenCalled(); expect(ai.chatCompletion).not.toHaveBeenCalled();
+  });
+  it("still requires a Cerebras key on first save", async () => {
+    db.findUnique.mockResolvedValue(null);
+    const { nextError } = await invokeRoute("put", "/ai-config", {role: "OWNER", body: {provider: "CEREBRAS", model: "gpt-oss-120b"}});
+    expect(nextError).toMatchObject({statusCode: 400});
+    expect(db.tenantTx).not.toHaveBeenCalled(); expect(ai.saveTenantAIConfig).not.toHaveBeenCalled(); expect(ai.chatCompletion).not.toHaveBeenCalled();
+  });
+  it("keeps an unrecognized provider rejected before mutation", async () => {
+    const { nextError } = await invokeRoute("put", "/ai-config", {role: "OWNER", body: {provider: "UNKNOWN", model: "gpt-oss-120b", apiKey: "synthetic-key"}});
+    expect(nextError).toMatchObject({name: "ZodError"}); expectNoMutationOrProviderWork();
+  });
+  it("requires permission before parsing even the newly admitted provider", async () => {
+    const { res, bodyAccesses } = await invokeRoute("put", "/ai-config", {role: "MEMBER", body: {provider: "CEREBRAS", model: "gpt-oss-120b", apiKey: "synthetic-key"}});
+    expect(res.statusCode).toBe(403); expect(bodyAccesses).toBe(0); expectNoMutationOrProviderWork();
   });
 });

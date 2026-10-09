@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
+import { useApprovalDecision } from "../../lib/useApprovalDecision";
+import { captureAuthSession, isAuthSessionCurrent, useAppStore } from "../../lib/store";
 import { sounds } from "../../lib/sounds";
 import BrandMotion from "../../components/BrandMotion";
 import { approvalMotion } from "../../lib/brandMotion";
@@ -11,6 +13,7 @@ import { approvalMotion } from "../../lib/brandMotion";
 export default function ApprovalsPage() {
   const t = useTranslations();
   const { token, hydrated } = useAuthGuard();
+  const sessionRevision = useAppStore((s) => s.sessionRevision);
   const [approvals, setApprovals] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +23,21 @@ export default function ApprovalsPage() {
     api.listApprovals(token).then(setApprovals).catch(() => {});
   }, [token, hydrated]);
 
+  const decide = useApprovalDecision({
+    scopeKey: sessionRevision,
+    captureSession: captureAuthSession,
+    isSessionCurrent: (session) => !!session.token && isAuthSessionCurrent(session),
+    request: async (id, decision) => ({ ran: true, result: await api.decideApproval(token!, id, decision) }),
+    onBusy: (_id, busy) => { setLoading(busy); if (busy) setError(null); },
+    onCommit: (id) => setApprovals((prev) => prev.filter((a) => a.id !== id)),
+    onSuccess: (decision) => decision === "APPROVED" ? sounds.success() : sounds.click(),
+    onBlocked: (reason) => {
+      setError(t("app.approvals.handoffIncomplete", { reason: reason ?? t("app.approvals.handoffNeedsAttention") }));
+      sounds.error();
+    },
+    onError: (err) => { setError((err as Error).message); sounds.error(); },
+  });
+
   if (!hydrated || !token) return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <div
@@ -28,21 +46,6 @@ export default function ApprovalsPage() {
       />
     </div>
   );
-
-  async function decide(id: string, decision: "APPROVED" | "REJECTED") {
-    setLoading(true);
-    setError(null);
-    try {
-      await api.decideApproval(token!, id, decision);
-      setApprovals((prev) => prev.filter((a) => a.id !== id));
-      decision === "APPROVED" ? sounds.success() : sounds.click();
-    } catch (err) {
-      console.error("Approval decision failed:", err);
-      setError((err as Error).message);
-      sounds.error();
-    }
-    setLoading(false);
-  }
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-8 animate-fade-in">

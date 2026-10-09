@@ -122,6 +122,34 @@ import {
 } from "../../../services/ai-client";
 import { resetProviderCircuits } from "../../../services/provider-chain";
 
+describe("exact effort agent propagation", () => {
+  beforeEach(() => chatCompletionMock.mockReset());
+  const exact: AIClientConfig = {provider: "CEREBRAS", model: "gpt-oss-120b", apiKey: "synthetic-key"};
+  it("threads effort on native turns and the same-model tool fallback", async () => {
+    chatCompletionMock.mockRejectedValueOnce(new ToolsUnsupportedError("CEREBRAS", "gpt-oss-120b", "synthetic tools rejection"))
+      .mockResolvedValueOnce(completion({provider: "CEREBRAS", model: "gpt-oss-120b", content: "answer"}));
+    await runAgentLoop({systemPrompt: "system", userMessage: "question", toolNames: ["get_time"], maxTurns: 1,
+      aiConfigOverride: exact, reasoningEffort: "high"} as any);
+    expect(chatCompletionMock).toHaveBeenCalledTimes(2);
+    expect(chatCompletionMock.mock.calls[0][4]).toMatchObject({reasoningEffort: "high", tools: expect.any(Array)});
+    expect(chatCompletionMock.mock.calls[1][4]).toEqual({reasoningEffort: "high"});
+    expect(chatCompletionMock.mock.calls.map(c => c[0].model)).toEqual(["gpt-oss-120b", "gpt-oss-120b"]);
+  });
+  it("rejects effort before automatic tenant/provider resolution or local CLI", async () => {
+    await expect(runAgentLoop({systemPrompt: "system", userMessage: "question", toolNames: [], tenantId: "tenant-1", reasoningEffort: "high"} as any)).rejects.toMatchObject({status: 400});
+    expect(aiConfigFindMany).not.toHaveBeenCalled(); expect(chatCompletionMock).not.toHaveBeenCalled();
+  });
+  it("rejects a model override outside the exact profile before dialing", async () => {
+    await expect(runAgentLoop({systemPrompt: "system", userMessage: "question", toolNames: [], aiConfigOverride: exact, model: "glm-4.7", reasoningEffort: "high"} as any)).rejects.toMatchObject({status: 400});
+    expect(chatCompletionMock).not.toHaveBeenCalled();
+  });
+  it("rejects explicit effort combined with a failover chain before dialing", async () => {
+    await expect(runProviderAgentLoop({systemPrompt: "system", userMessage: "question", toolNames: [], reasoningEffort: "high"} as any, exact,
+      {chain: [{provider: "GROQ", source: "byok-fallback", config: GROQ_CONFIG}], source: "byok-default", tenantId: "tenant-1"})).rejects.toMatchObject({status: 400});
+    expect(chatCompletionMock).not.toHaveBeenCalled();
+  });
+});
+
 const GROQ_CONFIG: AIClientConfig = {
   provider: "GROQ",
   model: "llama-3.3-70b-versatile",

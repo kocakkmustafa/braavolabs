@@ -69,6 +69,8 @@
   },
   "app": {
     "approvals": {
+      "handoffIncomplete": "Approval recorded; handoff could not complete: {reason}. Check the run.",
+      "handoffNeedsAttention": "Needs attention",
       "title": "Pending Approvals",
       "subtitle": "Review and approve spend actions from your AI agents",
       "emptyTitle": "All clear!",
@@ -1130,6 +1132,35 @@
       "latest": "Latest",
       "versionN": "Version {n}",
       "stepCount": "{n} steps"
+    },
+    "compare": {
+      "title": "Compare models",
+      "synthesisNote": "Choose up to three configured models in order. Synthesis uses the tenant default provider and its default effort.",
+      "query": "Question",
+      "addModel": "Add a model",
+      "chooseModel": "Choose a configured model",
+      "effort": "Reasoning effort",
+      "providerDefault": "Provider default",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "unavailable": "Selection unavailable; refresh or change it.",
+      "up": "Move up",
+      "down": "Move down",
+      "remove": "Remove",
+      "loading": "Loading configured models…",
+      "noModels": "No selectable models are configured.",
+      "refresh": "Refresh models",
+      "start": "Start comparison",
+      "running": "Comparison in progress…",
+      "requestedEffort": "Requested effort",
+      "finalAnswer": "Final answer",
+      "synthesisOutcome": "Synthesis outcome",
+      "requestFailed": "Comparison request failed.",
+      "invalidSelection": "Choose one to three available models and a question of 5–1000 characters.",
+      "failed": "Comparison failed.",
+      "cancelled": "Comparison was cancelled.",
+      "timeout": "Polling limit reached. The session may still be running."
     }
   },
   "static": {
@@ -1208,7 +1239,7 @@
           },
           {
             "title": "Security",
-          "body": "Our published web proxy configuration supports TLS 1.2 and TLS 1.3 in transit. Other at-rest, production-access, security, and retention details are not promised here without current provider and deployment evidence."
+            "body": "Our published web proxy configuration supports TLS 1.2 and TLS 1.3 in transit. Other at-rest, production-access, security, and retention details are not promised here without current provider and deployment evidence."
           },
           {
             "title": "Changes",

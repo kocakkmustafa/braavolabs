@@ -69,6 +69,8 @@
   },
   "app": {
     "approvals": {
+      "handoffIncomplete": "Onay kaydedildi; devir tamamlanamadı: {reason}. Çalıştırmayı kontrol edin.",
+      "handoffNeedsAttention": "İlgilenilmesi gerekiyor",
       "title": "Bekleyen Onaylar",
       "subtitle": "AI ajanlarından gelen harcama aksiyonlarını incele ve onayla",
       "emptyTitle": "Her şey temiz!",
@@ -1130,6 +1132,35 @@
       "latest": "En son",
       "versionN": "Sürüm {n}",
       "stepCount": "{n} adım"
+    },
+    "compare": {
+      "title": "Modelleri karşılaştır",
+      "synthesisNote": "Yapılandırılmış en fazla üç modeli sıralayarak seçin. Sentez, çalışma alanının varsayılan sağlayıcısını ve varsayılan çaba düzeyini kullanır.",
+      "query": "Soru",
+      "addModel": "Model ekle",
+      "chooseModel": "Yapılandırılmış bir model seçin",
+      "effort": "Akıl yürütme çabası",
+      "providerDefault": "Sağlayıcı varsayılanı",
+      "low": "Düşük",
+      "medium": "Orta",
+      "high": "Yüksek",
+      "unavailable": "Seçim kullanılamıyor; yenileyin veya değiştirin.",
+      "up": "Yukarı taşı",
+      "down": "Aşağı taşı",
+      "remove": "Kaldır",
+      "loading": "Yapılandırılmış modeller yükleniyor…",
+      "noModels": "Seçilebilir model yapılandırılmamış.",
+      "refresh": "Modelleri yenile",
+      "start": "Karşılaştırmayı başlat",
+      "running": "Karşılaştırma sürüyor…",
+      "requestedEffort": "İstenen çaba",
+      "finalAnswer": "Son yanıt",
+      "synthesisOutcome": "Sentez sonucu",
+      "requestFailed": "Karşılaştırma isteği başarısız oldu.",
+      "invalidSelection": "Bir ila üç kullanılabilir model ve 5–1000 karakterlik bir soru seçin.",
+      "failed": "Karşılaştırma başarısız oldu.",
+      "cancelled": "Karşılaştırma iptal edildi.",
+      "timeout": "Yoklama sınırına ulaşıldı. Oturum hâlâ çalışıyor olabilir."
     }
   },
   "static": {
@@ -1208,7 +1239,7 @@
           },
           {
             "title": "Güvenlik",
-          "body": "Yayımlanmış web proxy yapılandırmamız aktarımda TLS 1.2 ve TLS 1.3 destekler. Bekleyen veri, üretim erişimi, güvenlik ve saklama ayrıntıları güncel sağlayıcı ve dağıtım kanıtı olmadan burada taahhüt edilmez."
+            "body": "Yayımlanmış web proxy yapılandırmamız aktarımda TLS 1.2 ve TLS 1.3 destekler. Bekleyen veri, üretim erişimi, güvenlik ve saklama ayrıntıları güncel sağlayıcı ve dağıtım kanıtı olmadan burada taahhüt edilmez."
           },
           {
             "title": "Değişiklikler",

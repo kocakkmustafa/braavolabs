@@ -69,6 +69,8 @@
   },
   "app": {
     "approvals": {
+      "handoffIncomplete": "Genehmigung erfasst; die Übergabe konnte nicht abgeschlossen werden: {reason}. Prüfe den Lauf.",
+      "handoffNeedsAttention": "Aufmerksamkeit erforderlich",
       "title": "Ausstehende Freigaben",
       "subtitle": "Prüfe und genehmige Ausgabenaktionen deiner KI-Agenten",
       "emptyTitle": "Alles klar!",
@@ -1130,6 +1132,35 @@
       "latest": "Aktuellste",
       "versionN": "Version {n}",
       "stepCount": "{n} Schritte"
+    },
+    "compare": {
+      "title": "Modelle vergleichen",
+      "synthesisNote": "Wähle bis zu drei konfigurierte Modelle in der gewünschten Reihenfolge. Die Synthese nutzt den Standardanbieter des Arbeitsbereichs und dessen Standardaufwand.",
+      "query": "Frage",
+      "addModel": "Modell hinzufügen",
+      "chooseModel": "Konfiguriertes Modell wählen",
+      "effort": "Denkaufwand",
+      "providerDefault": "Anbieterstandard",
+      "low": "Niedrig",
+      "medium": "Mittel",
+      "high": "Hoch",
+      "unavailable": "Auswahl nicht verfügbar; aktualisieren oder ändern.",
+      "up": "Nach oben",
+      "down": "Nach unten",
+      "remove": "Entfernen",
+      "loading": "Konfigurierte Modelle werden geladen…",
+      "noModels": "Keine auswählbaren Modelle konfiguriert.",
+      "refresh": "Modelle aktualisieren",
+      "start": "Vergleich starten",
+      "running": "Vergleich läuft…",
+      "requestedEffort": "Angeforderter Aufwand",
+      "finalAnswer": "Endgültige Antwort",
+      "synthesisOutcome": "Syntheseergebnis",
+      "requestFailed": "Vergleichsanfrage fehlgeschlagen.",
+      "invalidSelection": "Wähle ein bis drei verfügbare Modelle und eine Frage mit 5–1000 Zeichen.",
+      "failed": "Vergleich fehlgeschlagen.",
+      "cancelled": "Vergleich abgebrochen.",
+      "timeout": "Abfragelimit erreicht. Die Sitzung läuft möglicherweise noch."
     }
   },
   "static": {
@@ -1208,7 +1239,7 @@
           },
           {
             "title": "Sicherheit",
-          "body": "Unsere veröffentlichte Web-Proxy-Konfiguration unterstützt TLS 1.2 und TLS 1.3 bei der Übertragung. Weitere Angaben zu ruhenden Daten, Produktionszugriff, Sicherheit und Aufbewahrung werden hier ohne aktuelle Anbieter- und Bereitstellungsnachweise nicht zugesichert."
+            "body": "Unsere veröffentlichte Web-Proxy-Konfiguration unterstützt TLS 1.2 und TLS 1.3 bei der Übertragung. Weitere Angaben zu ruhenden Daten, Produktionszugriff, Sicherheit und Aufbewahrung werden hier ohne aktuelle Anbieter- und Bereitstellungsnachweise nicht zugesichert."
           },
           {
             "title": "Änderungen",

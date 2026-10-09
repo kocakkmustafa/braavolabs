@@ -165,7 +165,7 @@ settingsRouter.get("/ai-providers/:provider/models", async (req, res) => {
 const LOCAL_PROVIDER_LITERALS = ["OLLAMA", "LMSTUDIO", "CUSTOM"] as const;
 const aiConfigSchema = z.object({
   provider: z.enum([
-    "ANTHROPIC", "OPENAI", "GOOGLE", "MISTRAL", "GROQ", "OPENROUTER",
+    "ANTHROPIC", "OPENAI", "GOOGLE", "MISTRAL", "GROQ", "CEREBRAS", "OPENROUTER",
     "OLLAMA", "LMSTUDIO", "CUSTOM",
   ]),
   model: z.string().min(1),

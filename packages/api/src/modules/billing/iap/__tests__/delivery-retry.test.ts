@@ -454,7 +454,7 @@ describe("IAP delivery HTTP matrix with reliability flag enabled", () => {
     app.use(express.json());
     app.use("/api/v1/billing/iap", iapRouter);
     server = http.createServer(app);
-    await new Promise<void>((resolve) => server.listen(0, resolve));
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   });
 
