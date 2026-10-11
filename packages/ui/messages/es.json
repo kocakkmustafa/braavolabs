@@ -69,6 +69,8 @@
   },
   "app": {
     "approvals": {
+      "handoffIncomplete": "Aprobación registrada; no se pudo completar el traspaso: {reason}. Revisa la ejecución.",
+      "handoffNeedsAttention": "Requiere atención",
       "title": "Aprobaciones Pendientes",
       "subtitle": "Revisa y aprueba acciones de gasto de tus agentes IA",
       "emptyTitle": "¡Todo en orden!",
@@ -1130,6 +1132,35 @@
       "latest": "Más reciente",
       "versionN": "Versión {n}",
       "stepCount": "{n} pasos"
+    },
+    "compare": {
+      "title": "Comparar modelos",
+      "synthesisNote": "Elige hasta tres modelos configurados en orden. La síntesis usa el proveedor predeterminado del espacio y su esfuerzo predeterminado.",
+      "query": "Pregunta",
+      "addModel": "Añadir un modelo",
+      "chooseModel": "Elige un modelo configurado",
+      "effort": "Esfuerzo de razonamiento",
+      "providerDefault": "Predeterminado del proveedor",
+      "low": "Bajo",
+      "medium": "Medio",
+      "high": "Alto",
+      "unavailable": "Selección no disponible; actualízala o cámbiala.",
+      "up": "Subir",
+      "down": "Bajar",
+      "remove": "Eliminar",
+      "loading": "Cargando modelos configurados…",
+      "noModels": "No hay modelos seleccionables configurados.",
+      "refresh": "Actualizar modelos",
+      "start": "Iniciar comparación",
+      "running": "Comparación en curso…",
+      "requestedEffort": "Esfuerzo solicitado",
+      "finalAnswer": "Respuesta final",
+      "synthesisOutcome": "Resultado de la síntesis",
+      "requestFailed": "La solicitud de comparación falló.",
+      "invalidSelection": "Elige entre uno y tres modelos disponibles y una pregunta de 5–1000 caracteres.",
+      "failed": "La comparación falló.",
+      "cancelled": "La comparación se canceló.",
+      "timeout": "Se alcanzó el límite de consultas. La sesión puede seguir en curso."
     }
   },
   "static": {
@@ -1208,7 +1239,7 @@
           },
           {
             "title": "Seguridad",
-          "body": "Nuestra configuración pública del proxy web admite TLS 1.2 y TLS 1.3 en tránsito. No prometemos aquí otros detalles sobre datos en reposo, acceso a producción, seguridad o retención sin evidencia actual del proveedor y del despliegue."
+            "body": "Nuestra configuración pública del proxy web admite TLS 1.2 y TLS 1.3 en tránsito. No prometemos aquí otros detalles sobre datos en reposo, acceso a producción, seguridad o retención sin evidencia actual del proveedor y del despliegue."
           },
           {
             "title": "Cambios",

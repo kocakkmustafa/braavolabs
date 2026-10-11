@@ -36,6 +36,7 @@ import { logger } from "../lib/logger";
 import { runAgentLoop } from "../modules/agent/claude";
 import { listTenantProviderLinks } from "./provider-chain";
 import type { AIProviderType } from "./ai-client";
+import { assertReasoningEffortSupported, type ReasoningEffort } from "./reasoning-effort";
 
 /** Plan §2.5: "≤3 aday" — hard ceiling regardless of options. */
 export const MAX_CANDIDATES = 3;
@@ -47,6 +48,8 @@ const ANSWER_SLICE = 4000;
 const TASK_SLICE = 2000;
 
 export interface ModelCandidateAnswer {
+  /** Submitted control, when explicit; no claim about measured hidden reasoning. */
+  reasoningEffort?: ReasoningEffort;
   provider: AIProviderType;
   model: string;
   answer: string;
@@ -61,8 +64,10 @@ export interface ModelCandidateFailure {
   error: string;
 }
 
+export type SynthesisStatus = "structured" | "plain_text" | "invalid_structured" | "unavailable" | "budget_skipped";
+
 export interface MultiModelCompareResult {
-  /** Successful candidates, in configured order (default row first). */
+  /** Successful candidates, in the selected or automatic configured order. */
   perModel: ModelCandidateAnswer[];
   /** Candidates that errored — recorded, never fatal (allSettled). */
   failed: ModelCandidateFailure[];
@@ -74,11 +79,13 @@ export interface MultiModelCompareResult {
   disagreements: string[];
   /** Best merged answer — falls back to the synthesizer's raw text when
    * its reply wasn't parseable JSON, and to the first candidate's answer
-   * when the synthesis was skipped/failed. */
+   * when synthesis was skipped, unavailable or invalid structured output. */
   finalAnswer: string;
   /** False when the synthesizer's reply couldn't be parsed as strict JSON
    * (raw text fallback) — consumers can badge low-confidence syntheses. */
   synthesisParsed: boolean;
+  /** Explicit format/outcome; malformed structured replies are never plain-text success. */
+  synthesisStatus: SynthesisStatus;
   /** What actually judged (post-hierarchy provider/model), null when the
    * synthesis was skipped (budget) or failed. */
   synthesizer: {
@@ -101,7 +108,10 @@ export interface MultiModelCompareResult {
   debateRoundsRun: number;
 }
 
+export interface ModelSelection { provider: string; model: string; reasoningEffort?: ReasoningEffort }
+
 export interface CompareOptions {
+  selections?: ModelSelection[];
   /** 1..MAX_CANDIDATES (default and ceiling: 3). */
   maxCandidates?: number;
   /** Per-candidate output-token cap (default 1024) — plan §2.5 budget leg. */
@@ -169,43 +179,154 @@ interface ParsedSynthesis {
   disagreements: string[];
   finalAnswer: string;
   parsed: boolean;
+  status: "structured" | "plain_text" | "invalid_structured";
+  error?: string;
 }
 
-/** STRICT-JSON parse with the same resilience ladder as the research
- * distill: direct parse → first {...} block → raw-text fallback. */
-export function parseSynthesisReply(raw: string): ParsedSynthesis {
-  const attempt = (s: string): Record<string, unknown> | null => {
-    try {
-      const p = JSON.parse(s);
-      return p && typeof p === "object" && !Array.isArray(p)
-        ? (p as Record<string, unknown>)
-        : null;
-    } catch {
-      return null;
+/** Find outer containers only; a broken parent never exposes its children. */
+function replyContainers(raw: string, unquoted: string) {
+  const containers: Array<{ start: number; text: string; malformed: boolean }> = [];
+  const stack: string[] = [];
+  let start = 0;
+  let unmatchedClosing = false;
+  for (let index = 0; index < unquoted.length; index++) {
+    const token = unquoted[index];
+    if (token === "{" || token === "[") {
+      if (!stack.length) start = index;
+      stack.push(token);
+    } else if (token === "}" || token === "]") {
+      if (!stack.length) { unmatchedClosing = true; continue; }
+      if (stack.at(-1) !== (token === "}" ? "{" : "[")) {
+        containers.push({ start, text: raw.slice(start), malformed: true });
+        return { containers, unmatchedClosing: true };
+      }
+      stack.pop();
+      if (!stack.length) containers.push({ start, text: raw.slice(start, index + 1), malformed: false });
     }
-  };
-  let obj = attempt(raw.trim());
-  if (!obj) {
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (match) obj = attempt(match[0]);
   }
-  if (!obj) {
+  if (stack.length) containers.push({ start, text: raw.slice(start), malformed: true });
+  return { containers, unmatchedClosing };
+}
+
+/** Validate JSON/fenced JSON as the full structured contract. Ordinary prose
+ * remains an explicit text result; JSON-like malformed output never becomes it. */
+export function parseSynthesisReply(raw: string): ParsedSynthesis {
+  const invalid = (reason: string): ParsedSynthesis => ({
+    synthesis: "", consensus: [], disagreements: [], finalAnswer: "", parsed: false,
+    status: "invalid_structured", error: `Invalid structured synthesis: ${reason}`,
+  });
+  const trimmed = raw.trim();
+  const plainText = (): ParsedSynthesis => {
     const text = raw.slice(0, ANSWER_SLICE);
-    return { synthesis: text, consensus: [], disagreements: [], finalAnswer: text, parsed: false };
-  }
-  const strArray = (v: unknown): string[] =>
-    Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
-  const finalAnswer =
-    typeof obj.finalAnswer === "string" && obj.finalAnswer.trim()
-      ? obj.finalAnswer
-      : raw.slice(0, ANSWER_SLICE);
-  return {
-    synthesis: typeof obj.synthesis === "string" ? obj.synthesis : "",
-    consensus: strArray(obj.consensus),
-    disagreements: strArray(obj.disagreements),
-    finalAnswer,
-    parsed: true,
+    return { synthesis: text, consensus: [], disagreements: [], finalAnswer: text, parsed: false, status: "plain_text" };
   };
+  const structuredPrefix = /^\{/.test(trimmed) || /^```json(?:\s|$)/i.test(trimmed) ||
+    /^```\s*[\[{]/.test(trimmed);
+  const fieldPattern = /["'](?:synthesis|consensus|disagreements|finalAnswer)["']\s*:/;
+  const ownsContractField = (candidate: unknown): boolean => !!candidate && typeof candidate === "object" &&
+    !Array.isArray(candidate) && ["synthesis", "consensus", "disagreements", "finalAnswer"].some(name => Object.hasOwn(candidate, name));
+  const containsFullContract = (candidate: unknown): boolean => {
+    const pending = [candidate];
+    while (pending.length) {
+      const item = pending.pop();
+      if (!item || typeof item !== "object") continue;
+      if (!Array.isArray(item) && ["synthesis", "consensus", "disagreements", "finalAnswer"].every(name => Object.hasOwn(item, name))) return true;
+      for (const child of Object.values(item)) pending.push(child);
+    }
+    return false;
+  };
+  const intendedContainer = (candidate: unknown): boolean => ownsContractField(candidate) ||
+    (Array.isArray(candidate) && candidate.some(ownsContractField)) || containsFullContract(candidate);
+  let value: unknown;
+  let decoded = false;
+  let fence: RegExpMatchArray | undefined;
+  let unquoted = "";
+  // Decode complete JSON first: code fences inside an answer string are data.
+  try { value = JSON.parse(trimmed); decoded = true; } catch { /* try fenced/wrapped synthesis */ }
+  if (!decoded) {
+    // Backticks inside JSON strings are data. Mask strings without changing
+    // offsets, then recover each complete fence body from the original reply.
+    unquoted = trimmed.replace(/"(?:\\.|[^"\\])*"/g, match => " ".repeat(match.length));
+    const fences = [...unquoted.matchAll(/```(?:json)?\s*([\s\S]*?)(```|$)/gi)]
+      .map(match => {
+        const bodyStart = match.index! + match[0].length - match[1].length - match[2].length;
+        match[1] = trimmed.slice(bodyStart, bodyStart + match[1].length);
+        return match;
+      })
+      .filter(match => /^```json(?:\s|$)/i.test(match[0]) || /^[\[{]/.test(match[1].trim()));
+    if (fences.length) {
+      const intended = structuredPrefix || fences.some(match => {
+        try { return intendedContainer(JSON.parse(match[1])); } catch { return fieldPattern.test(match[1]); }
+      });
+      if (!intended) return plainText();
+      if (fences.length !== 1 || (unquoted.match(/```/g)?.length ?? 0) > 2) return invalid("multiple JSON fences");
+      fence = fences[0];
+      if (!fence[2]) return invalid("unclosed JSON fence");
+      // Surrounding prose never licenses extracting an object from an array.
+      try { value = JSON.parse(fence[1]); decoded = true; } catch { return invalid("malformed JSON"); }
+    }
+  }
+  if (!decoded) {
+    const scan = replyContainers(trimmed, unquoted);
+    const attempts: Array<{ value: unknown; decoded: boolean }> = [];
+    for (const container of scan.containers) {
+      let embedded: unknown;
+      let parsed = false;
+      if (!container.malformed) {
+        try { embedded = JSON.parse(container.text); parsed = true; } catch { /* classify malformed intent */ }
+      }
+      const rootArray = container.start === 0 && Array.isArray(embedded) && embedded.some(item => item && typeof item === "object");
+      const intended = parsed ? intendedContainer(embedded) : fieldPattern.test(container.text);
+      if ((structuredPrefix && container.start === 0) || rootArray || intended) attempts.push({ value: embedded, decoded: parsed });
+    }
+    if (attempts.length > 1) return invalid("multiple JSON containers");
+    if (!attempts.length) return structuredPrefix ? invalid("malformed JSON") : plainText();
+    if (scan.unmatchedClosing || !attempts[0].decoded) return invalid("malformed JSON container");
+    value = attempts[0].value; decoded = true;
+  }
+  // A bare numeric/text scalar can be an ordinary answer (for example "42").
+  // Successfully decoded containers still require the full object contract.
+  if (!value || typeof value !== "object") return fence ? invalid("expected an object") : plainText();
+  if (Array.isArray(value)) return invalid("expected an object");
+  const obj = value as Record<string, unknown>;
+  if (typeof obj.synthesis !== "string") return invalid("synthesis must be a string");
+  if (typeof obj.finalAnswer !== "string" || !obj.finalAnswer.trim()) return invalid("finalAnswer must be a nonempty string");
+  for (const name of ["consensus", "disagreements"] as const) {
+    if (!Array.isArray(obj[name]) || !(obj[name] as unknown[]).every(item => typeof item === "string")) {
+      return invalid(`${name} must be an array of strings`);
+    }
+  }
+  return {
+    synthesis: obj.synthesis, consensus: obj.consensus as string[], disagreements: obj.disagreements as string[],
+    finalAnswer: obj.finalAnswer, parsed: true, status: "structured",
+  };
+}
+
+/** Resolve only exact tenant-owned pairs; never fall back for explicit requests. */
+export function resolveModelSelections(
+  links: Awaited<ReturnType<typeof listTenantProviderLinks>>,
+  selections: ModelSelection[] | undefined,
+  maxCandidates = MAX_CANDIDATES,
+) {
+  if (selections === undefined) return links.slice(0, maxCandidates);
+  if (!Array.isArray(selections) || selections.length < 1 || selections.length > MAX_CANDIDATES
+      || selections.length > maxCandidates) throw new Error("Select between 1 and 3 models within maxCandidates");
+  const seen = new Set<string>();
+  return selections.map(selection => {
+    if (!selection || typeof selection.provider !== "string" || typeof selection.model !== "string"
+        || !selection.provider || !selection.model) throw new Error("Invalid model selection");
+    const key = JSON.stringify([selection.provider, selection.model]);
+    if (seen.has(key)) throw new Error("Duplicate model selection");
+    seen.add(key);
+    const matches = links.filter(link => link.provider === selection.provider && link.config.model === selection.model);
+    if (matches.length !== 1) throw new Error("Model selection is unavailable or ambiguous for this tenant");
+    assertReasoningEffortSupported(matches[0]!.config, selection.reasoningEffort);
+    return matches[0]!;
+  });
+}
+
+export async function validateModelSelections(tenantId: string, selections: ModelSelection[], maxCandidates?: number) {
+  resolveModelSelections(await listTenantProviderLinks(tenantId), selections, maxCandidates);
 }
 
 /**
@@ -234,7 +355,11 @@ export async function compareAcrossModels(
       "Multi-model compare requires at least one configured AI provider with a usable key. Add providers in Settings → AI Provider.",
     );
   }
-  const candidates = links.slice(0, maxCandidates);
+  // Keep each option beside its resolved link through failure filtering and debate.
+  const candidates = resolveModelSelections(links, opts.selections, maxCandidates).map((link, i) => ({
+    link, ...(opts.selections?.[i].reasoningEffort !== undefined
+      ? { reasoningEffort: opts.selections[i].reasoningEffort } : {}),
+  }));
 
   // maxCostUsd is the budget for the WHOLE compare (not per candidate). Split it
   // evenly across the candidates so the candidate phase total stays within the
@@ -243,7 +368,7 @@ export async function compareAcrossModels(
   const perCandidateBudget = candidates.length > 0 ? maxCostUsd / candidates.length : maxCostUsd;
 
   const settled = await Promise.allSettled(
-    candidates.map(async (link) => {
+    candidates.map(async ({link, reasoningEffort}) => {
       const start = Date.now();
       const result = await runAgentLoop({
         systemPrompt: CANDIDATE_SYSTEM_PROMPT,
@@ -255,8 +380,10 @@ export async function compareAcrossModels(
         // T5/D-010: force the REAL provider×model this candidate claims —
         // skips tenant resolution, trial and local-CLI mode.
         aiConfigOverride: link.config,
+        ...(reasoningEffort !== undefined ? {reasoningEffort} : {}),
       });
       return {
+        ...(reasoningEffort !== undefined ? {reasoningEffort} : {}),
         provider: result.provider ?? link.provider,
         model: result.model ?? link.config.model,
         answer: result.finalContent,
@@ -270,21 +397,21 @@ export async function compareAcrossModels(
   const perModel: ModelCandidateAnswer[] = [];
   // Parallel to perModel: the provider link for each surviving candidate, so a
   // debate round can re-dispatch on the SAME provider×model (aiConfigOverride).
-  const perModelLinks: typeof candidates = [];
+  const perModelCandidates: typeof candidates = [];
   const failed: ModelCandidateFailure[] = [];
   settled.forEach((s, i) => {
     if (s.status === "fulfilled") {
       perModel.push(s.value);
-      perModelLinks.push(candidates[i]);
+      perModelCandidates.push(candidates[i]);
     } else {
       const message = s.reason instanceof Error ? s.reason.message : String(s.reason);
       failed.push({
-        provider: candidates[i].provider,
-        model: candidates[i].config.model,
+        provider: candidates[i].link.provider,
+        model: candidates[i].link.config.model,
         error: message.slice(0, 300),
       });
       logger.warn(
-        { tenantId, provider: candidates[i].provider, err: message.slice(0, 300) },
+        { tenantId, provider: candidates[i].link.provider, err: message.slice(0, 300) },
         "Multi-model candidate failed — dropped from the compare (allSettled)",
       );
     }
@@ -322,7 +449,9 @@ export async function compareAcrossModels(
             maxTurns: 1,
             maxTokens: maxTokensPerCandidate,
             budgetUsd: roundBudget,
-            aiConfigOverride: perModelLinks[idx].config,
+            aiConfigOverride: perModelCandidates[idx].link.config,
+            ...(perModelCandidates[idx].reasoningEffort !== undefined
+              ? {reasoningEffort: perModelCandidates[idx].reasoningEffort} : {}),
           });
           return {
             idx,
@@ -365,6 +494,7 @@ export async function compareAcrossModels(
       disagreements: [],
       finalAnswer: perModel[0].answer,
       synthesisParsed: false,
+      synthesisStatus: "budget_skipped",
       synthesizer: null,
       totalCostUsd: candidateCost,
       budgetExceeded: true,
@@ -395,8 +525,10 @@ export async function compareAcrossModels(
       synthesis: parsed.synthesis,
       consensus: parsed.consensus,
       disagreements: parsed.disagreements,
-      finalAnswer: parsed.finalAnswer,
+      finalAnswer: parsed.status === "invalid_structured" ? perModel[0].answer : parsed.finalAnswer,
       synthesisParsed: parsed.parsed,
+      synthesisStatus: parsed.status,
+      ...(parsed.error ? { synthesizerError: parsed.error } : {}),
       synthesizer: {
         provider: synth.provider,
         model: synth.model,
@@ -423,6 +555,7 @@ export async function compareAcrossModels(
       disagreements: [],
       finalAnswer: perModel[0].answer,
       synthesisParsed: false,
+      synthesisStatus: "unavailable",
       synthesizer: null,
       synthesizerError: message.slice(0, 300),
       totalCostUsd: candidateCost,

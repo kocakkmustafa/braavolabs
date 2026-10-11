@@ -36,6 +36,7 @@ function link(provider: string, model: string, apiKey = `key-${provider}`) {
 }
 
 interface LoopCall {
+  reasoningEffort?: "low" | "medium" | "high";
   systemPrompt: string;
   userMessage: string;
   toolNames: string[];
@@ -296,12 +297,12 @@ describe("compareAcrossModels — synthesis JSON parse resilience", () => {
     expect(r.totalCostUsd).toBeCloseTo(0.03, 10);
   });
 
-  it("parseSynthesisReply: missing finalAnswer falls back to the raw reply", () => {
+  it("parseSynthesisReply: incomplete structured data is invalid rather than repaired", () => {
     const parsed = parseSynthesisReply(JSON.stringify({ synthesis: "s", consensus: [1, "ok"] }));
-    expect(parsed.parsed).toBe(true);
-    expect(parsed.synthesis).toBe("s");
-    expect(parsed.consensus).toEqual(["ok"]); // non-strings filtered
-    expect(parsed.finalAnswer).toContain('"synthesis"');
+    expect(parsed.parsed).toBe(false);
+    expect(parsed.status).toBe("invalid_structured");
+    expect(parsed.finalAnswer).toBe("");
+    expect(parsed.consensus).toEqual([]);
   });
 });
 
@@ -375,5 +376,71 @@ describe("compareAcrossModels — debate rounds", () => {
     expect(r.debateRoundsRun).toBe(0); // remaining budget 0 → never debates
     expect(debateCalls()).toHaveLength(0);
     expect(r.perModel.map((c) => c.answer)).toEqual(["answer-DEEPSEEK", "answer-GROQ", "answer-OPENAI"]);
+  });
+});
+
+
+describe("explicit tenant provider/model selection", () => {
+  it("retains non-default effort through a preceding failure and all ordered debate calls, leaving synthesis at tenant default", async () => {
+    const cerebras = link("CEREBRAS", "gpt-oss-120b");
+    listLinksMock.mockResolvedValue([link("DEEPSEEK", "deepseek-chat"), link("GROQ", "llama-3.3-70b-versatile"), cerebras, link("OPENAI", "gpt-4o")]);
+    const selections = [{provider: "OPENAI", model: "gpt-4o"}, {provider: "CEREBRAS", model: "gpt-oss-120b", reasoningEffort: "high" as const}, {provider: "GROQ", model: "llama-3.3-70b-versatile"}];
+    runAgentLoopMock.mockImplementation(async (cfg: LoopCall) => {
+      if (cfg.aiConfigOverride?.provider === "OPENAI") throw new Error("synthetic failure");
+      return loopResult({finalContent: cfg.tenantId ? GOOD_SYNTH_JSON : cfg.aiConfigOverride?.model});
+    });
+    const result = await compareAcrossModels(TENANT, "question", {selections, debateRounds: 2, maxCostUsd: 10});
+    expect(result.perModel.map(c => [c.provider, c.model, (c as any).reasoningEffort])).toEqual([
+      ["CEREBRAS", "gpt-oss-120b", "high"], ["GROQ", "llama-3.3-70b-versatile", undefined]]);
+    expect(candidateCalls().map(c => [c.aiConfigOverride?.provider, c.reasoningEffort])).toEqual([
+      ["OPENAI", undefined], ["CEREBRAS", "high"], ["GROQ", undefined],
+      ["CEREBRAS", "high"], ["GROQ", undefined], ["CEREBRAS", "high"], ["GROQ", undefined]]);
+    expect(result.debateRoundsRun).toBe(2);
+    expect(synthCalls()[0]).toMatchObject({tenantId: TENANT});
+    expect(synthCalls()[0]).not.toHaveProperty("reasoningEffort");
+    expect(cerebras.config).not.toHaveProperty("reasoningEffort");
+    expect(selections[2]).not.toHaveProperty("reasoningEffort");
+  });
+  it.each([
+    {provider: "OPENAI", model: "gpt-4o", reasoningEffort: "high"},
+    {provider: "CEREBRAS", model: "gpt-oss-120b", reasoningEffort: "none"},
+    {provider: "CEREBRAS", model: "gpt-oss-120b", reasoningEffort: null},
+  ])("validates every effort before starting any candidate: %j", async unsupported => {
+    listLinksMock.mockResolvedValue([link("GROQ", "llama-3.3-70b-versatile"), link("CEREBRAS", "gpt-oss-120b"), link("OPENAI", "gpt-4o")]);
+    await expect(compareAcrossModels(TENANT, "question", {selections: [{provider: "GROQ", model: "llama-3.3-70b-versatile"}, unsupported] as any})).rejects.toThrow();
+    expect(runAgentLoopMock).not.toHaveBeenCalled();
+  });
+  it("rejects a tenant proxy profile with zero inference", async () => {
+    listLinksMock.mockResolvedValue([{...link("CEREBRAS", "gpt-oss-120b"), config: {...link("CEREBRAS", "gpt-oss-120b").config, baseUrl: "https://proxy.example.invalid/v1"}}]);
+    await expect(compareAcrossModels(TENANT, "question", {selections: [{provider: "CEREBRAS", model: "gpt-oss-120b", reasoningEffort: "high"}] as any})).rejects.toThrow();
+    expect(runAgentLoopMock).not.toHaveBeenCalled();
+  });
+  it("keeps pair identity independent of effort when rejecting duplicates", async () => {
+    listLinksMock.mockResolvedValue([link("CEREBRAS", "gpt-oss-120b")]);
+    await expect(compareAcrossModels(TENANT, "question", {selections: ["low", "high"].map(reasoningEffort => ({provider: "CEREBRAS", model: "gpt-oss-120b", reasoningEffort})) as any})).rejects.toThrow("Duplicate");
+    expect(runAgentLoopMock).not.toHaveBeenCalled();
+  });
+  it("selects the non-default exact model and keeps requested debate order", async () => {
+    const r = await compareAcrossModels(TENANT, "question", {
+      selections: [{provider: "OPENAI", model: "gpt-4o"}, {provider: "GROQ", model: "llama-3.3-70b-versatile"}],
+      debateRounds: 1,
+    });
+    expect(r.perModel.map(c => c.provider)).toEqual(["OPENAI", "GROQ"]);
+    expect(candidateCalls().map(c => c.aiConfigOverride?.model)).toEqual([
+      "gpt-4o", "llama-3.3-70b-versatile", "gpt-4o", "llama-3.3-70b-versatile",
+    ]);
+    expect(synthCalls()[0]?.tenantId).toBe(TENANT);
+  });
+  it.each([[], [{provider: "OPENAI", model: "missing"}],
+    Array(4).fill({provider: "OPENAI", model: "gpt-4o"}),
+    Array(2).fill({provider: "OPENAI", model: "gpt-4o"}),
+  ].map(selections => ({selections})))("rejects invalid selections before any inference: %j", async ({selections}) => {
+    await expect(compareAcrossModels(TENANT, "question", {selections})).rejects.toThrow();
+    expect(runAgentLoopMock).not.toHaveBeenCalled();
+  });
+  it("rejects ambiguous tenant links before inference", async () => {
+    listLinksMock.mockResolvedValue([link("OPENAI", "gpt-4o"), link("OPENAI", "gpt-4o")]);
+    await expect(compareAcrossModels(TENANT, "question", {selections: [{provider: "OPENAI", model: "gpt-4o"}]})).rejects.toThrow();
+    expect(runAgentLoopMock).not.toHaveBeenCalled();
   });
 });

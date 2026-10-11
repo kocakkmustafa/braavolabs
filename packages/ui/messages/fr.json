@@ -69,6 +69,8 @@
   },
   "app": {
     "approvals": {
+      "handoffIncomplete": "Approbation enregistrée ; le transfert n’a pas pu aboutir : {reason}. Vérifiez l’exécution.",
+      "handoffNeedsAttention": "Intervention nécessaire",
       "title": "Approbations en attente",
       "subtitle": "Examinez et approuvez les actions de dépense de vos agents IA",
       "emptyTitle": "Tout est en ordre !",
@@ -1130,6 +1132,35 @@
       "latest": "La plus récente",
       "versionN": "Version {n}",
       "stepCount": "{n} étapes"
+    },
+    "compare": {
+      "title": "Comparer les modèles",
+      "synthesisNote": "Choisissez jusqu’à trois modèles configurés dans l’ordre souhaité. La synthèse utilise le fournisseur par défaut de l’espace et son effort par défaut.",
+      "query": "Question",
+      "addModel": "Ajouter un modèle",
+      "chooseModel": "Choisir un modèle configuré",
+      "effort": "Effort de raisonnement",
+      "providerDefault": "Valeur par défaut du fournisseur",
+      "low": "Faible",
+      "medium": "Moyen",
+      "high": "Élevé",
+      "unavailable": "Sélection indisponible ; actualisez-la ou modifiez-la.",
+      "up": "Monter",
+      "down": "Descendre",
+      "remove": "Retirer",
+      "loading": "Chargement des modèles configurés…",
+      "noModels": "Aucun modèle sélectionnable n’est configuré.",
+      "refresh": "Actualiser les modèles",
+      "start": "Lancer la comparaison",
+      "running": "Comparaison en cours…",
+      "requestedEffort": "Effort demandé",
+      "finalAnswer": "Réponse finale",
+      "synthesisOutcome": "Résultat de synthèse",
+      "requestFailed": "La demande de comparaison a échoué.",
+      "invalidSelection": "Choisissez un à trois modèles disponibles et une question de 5 à 1000 caractères.",
+      "failed": "La comparaison a échoué.",
+      "cancelled": "La comparaison a été annulée.",
+      "timeout": "La limite de consultation est atteinte. La session est peut-être encore en cours."
     }
   },
   "static": {
@@ -1208,7 +1239,7 @@
           },
           {
             "title": "Sécurité",
-          "body": "La configuration publiée de notre proxy web prend en charge TLS 1.2 et TLS 1.3 en transit. Aucun autre détail sur les données au repos, l’accès à la production, la sécurité ou la conservation n’est promis ici sans preuve actuelle du fournisseur et du déploiement."
+            "body": "La configuration publiée de notre proxy web prend en charge TLS 1.2 et TLS 1.3 en transit. Aucun autre détail sur les données au repos, l’accès à la production, la sécurité ou la conservation n’est promis ici sans preuve actuelle du fournisseur et du déploiement."
           },
           {
             "title": "Modifications",

@@ -59,7 +59,7 @@ vi.mock("jose", () => ({
 
 import {
   appleMobileSignIn, appleWebCallback, githubCallback, githubMobileSignIn,
-  googleCallback, googleMobileSignIn, googleMobileCodeSignIn, refreshTokens, resetPassword,
+  googleCallback, googleMobileSignIn, googleMobileCodeSignIn, refreshTokens, resetPassword, redeemOAuthExchange,
 } from "../auth.service";
 
 type UserRow = {
@@ -639,4 +639,27 @@ it("sends an explicit empty native redirect using actual installed Google librar
  await client.getToken({code:"native-code",redirect_uri:""});
  const body=transport.mock.calls[0][0].data as URLSearchParams;
  expect(body.get("redirect_uri")).toBe("");expect(body.get("code")).toBe("native-code");
+});
+
+
+describe("OAuth exchange atomic consumption", () => {
+  it("allows exactly one concurrent redemption", async () => {
+    keys.set("oauth:exchange:synthetic-code", JSON.stringify({ token: "synthetic-bundle" }));
+    const outcomes = await Promise.allSettled([
+      redeemOAuthExchange("synthetic-code"), redeemOAuthExchange("synthetic-code"),
+    ]);
+    expect(outcomes.filter(o => o.status === "fulfilled")).toHaveLength(1);
+    expect(outcomes.filter(o => o.status === "rejected")).toHaveLength(1);
+    expect(redisMock.get).not.toHaveBeenCalled();
+    expect(redisMock.del).not.toHaveBeenCalled();
+  });
+
+  it.each(["unknown command GETDEL", "connection lost"])("fails closed on %s without non-atomic fallback", async error => {
+    keys.set("oauth:exchange:synthetic-code", JSON.stringify({ token: "synthetic-bundle" }));
+    redisMock.call.mockRejectedValueOnce(new Error(error));
+    await expect(redeemOAuthExchange("synthetic-code")).rejects.toMatchObject({ statusCode: 503 });
+    expect(redisMock.get).not.toHaveBeenCalled();
+    expect(redisMock.del).not.toHaveBeenCalled();
+    expect(keys.has("oauth:exchange:synthetic-code")).toBe(true);
+  });
 });

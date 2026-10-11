@@ -1,42 +1,107 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { api, apiFetch } from "../../../lib/api";
+import { api, apiFetch, SessionChangedError } from "../../../lib/api";
 import { useAuthGuard } from "../../../lib/useAuthGuard";
 import { useToast } from "../../../components/Toast";
 import { useTranslations } from "next-intl";
+import ComparePanel from "../../../components/ComparePanel";
+import { captureAuthSession, isAuthSessionCurrent, useAppStore } from "../../../lib/store";
 
-type Tab = "overview" | "pipelines" | "agents" | "runs" | "contacts" | "memory";
+type Tab = "overview" | "pipelines" | "agents" | "runs" | "contacts" | "memory" | "compare";
+type CompanyScope = {
+  revision: number; tenantId: string | null; companyId: string; active: boolean;
+  modelRequest?: object; autonomyRequest?: object; composerRequest?: object;
+};
+type ActionState = {
+  scope: CompanyScope;
+  modelSaving: boolean; modelError: string | null;
+  composerLoading: boolean; composerError: string | null;
+  composerResult: { name: string; droppedTools: string[]; provider: string; model: string } | null;
+  savingAutonomyId: string | null;
+};
+const blankActions = (scope: CompanyScope): ActionState => ({
+  scope, modelSaving: false, modelError: null, composerLoading: false,
+  composerError: null, composerResult: null, savingAutonomyId: null,
+});
 
 export default function CompanyDetailPage() {
   const params = useParams();
   const { token, hydrated } = useAuthGuard();
+  const revision = useAppStore(s => s.sessionRevision);
+  const tenantId = useAppStore(s => s.tenantId);
+  const companyId = params.id as string;
   const { toast } = useToast();
   const t = useTranslations();
-  const [company, setCompany] = useState<any>(null);
+  // Token rotation keeps this identity; a new login, tenant or route retires it
+  // during render, before effect cleanup can run.
+  const scope = useMemo<CompanyScope>(() => ({ revision, tenantId, companyId, active: false }), [revision, tenantId, companyId]);
+  const latestScope = useRef(scope);
+  latestScope.current = scope;
+  const [loadedCompany, setLoadedCompany] = useState<{ scope: typeof scope; data: any } | null>(null);
   const [tab, setTab] = useState<Tab>("agents");
   const [runs, setRuns] = useState<any[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [loadedError, setLoadedError] = useState<{ scope: typeof scope; message: string } | null>(null);
+  const company = loadedCompany?.scope === scope ? loadedCompany.data : null;
+  const error = loadedError?.scope === scope ? loadedError.message : null;
+
+  function ownsScope() {
+    const auth = useAppStore.getState();
+    return scope.active && latestScope.current === scope && auth.sessionRevision === scope.revision && auth.tenantId === scope.tenantId;
+  }
+  // All existing company writes retain the initiating render's scope. Late
+  // refreshes/optimistic rollbacks cannot replace data belonging to a new owner.
+  function setCompany(update: any) {
+    if (!ownsScope()) return;
+    setLoadedCompany(previous => {
+      if (!ownsScope()) return previous;
+      const data = typeof update === "function" ? update(previous?.scope === scope ? previous.data : null) : update;
+      return data ? { scope, data } : null;
+    });
+  }
+  function setError(message: string | null) {
+    if (!ownsScope()) return;
+    setLoadedError(previous => ownsScope() ? (message === null ? null : { scope, message }) : previous);
+  }
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerInput, setComposerInput] = useState("");
-  const [composerLoading, setComposerLoading] = useState(false);
-  const [composerError, setComposerError] = useState<string | null>(null);
-  const [composerResult, setComposerResult] = useState<{ name: string; droppedTools: string[]; provider: string; model: string } | null>(null);
   const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
   const [modelDraft, setModelDraft] = useState("");
-  const [modelSaving, setModelSaving] = useState(false);
-  const [modelError, setModelError] = useState<string | null>(null);
+  // Only action feedback/latches are scoped here. Existing drafts, modal/tab
+  // choices and runs state are separate from this callback/toast boundary.
+  const [storedActions, setStoredActions] = useState(() => blankActions(scope));
+  const actions = storedActions.scope === scope ? storedActions : blankActions(scope);
+  const { composerLoading, composerError, composerResult, modelSaving, modelError, savingAutonomyId } = actions;
+  function changeActions(update: (previous: ActionState) => ActionState) {
+    if (!ownsScope()) return;
+    setStoredActions(previous => ownsScope() ? update(previous.scope === scope ? previous : blankActions(scope)) : previous);
+  }
+  const setComposerError = (composerError: string | null) => changeActions(previous => ({ ...previous, composerError }));
+  const setComposerResult = (composerResult: ActionState["composerResult"]) => changeActions(previous => ({ ...previous, composerResult }));
+  const setModelError = (modelError: string | null) => changeActions(previous => ({ ...previous, modelError }));
   // D6 — per-agent autonomy is saved immediately on selection (no separate
   // edit/save dance). `savingAutonomyId` tracks the in-flight write.
-  const [savingAutonomyId, setSavingAutonomyId] = useState<string | null>(null);
+  useEffect(() => {
+    scope.active = true;
+    return () => { scope.active = false; };
+  }, [scope]);
 
   useEffect(() => {
-    if (!token || !params.id) return;
-    api.getCompany(token, params.id as string).then(setCompany).catch((e) => setError(e.message));
-  }, [token, params.id]);
+    setCompany(null);
+    setError(null);
+    const owner = captureAuthSession();
+    if (!hydrated || !owner.token || !companyId) return;
+    let active = true;
+    api.getCompany(owner.token, companyId).then(data => {
+      if (active && isAuthSessionCurrent(owner) && data.id === companyId) setCompany(data);
+    }).catch(e => {
+      if (active && isAuthSessionCurrent(owner)) setError(e.message);
+    });
+    return () => { active = false; };
+  }, [revision, tenantId, companyId, hydrated]);
 
   useEffect(() => {
     if (!token || !company || tab !== "runs") return;
@@ -46,23 +111,32 @@ export default function CompanyDetailPage() {
   }, [token, company, tab]);
 
   const handleSaveModel = async (agentId: string) => {
-    if (!token || !company) return;
-    setModelSaving(true);
-    setModelError(null);
+    const accessToken = useAppStore.getState().token;
+    if (!accessToken || !company || !ownsScope() || scope.modelRequest) return;
+    const request = {};
+    scope.modelRequest = request;
+    const ownsRequest = () => ownsScope() && scope.modelRequest === request;
+    const newModel = modelDraft.trim();
+    changeActions(previous => ({ ...previous, modelSaving: true, modelError: null }));
     try {
-      await api.updateAgent(token, company.id, agentId, { model: modelDraft.trim() });
-      const updated = await api.getCompany(token, company.id);
+      await api.updateAgent(accessToken, company.id, agentId, { model: newModel });
+      if (!ownsRequest()) return;
+      const updated = await api.getCompany(useAppStore.getState().token!, company.id);
+      if (!ownsRequest()) return;
       setCompany(updated);
-      setEditingAgentId(null);
-      const newModel = modelDraft.trim();
-      setModelDraft("");
+      setEditingAgentId(previous => ownsScope() ? null : previous);
+      setModelDraft(previous => ownsScope() ? "" : previous);
       toast(t("app.companyDetail.modelUpdated", { model: newModel }), "success");
     } catch (e: any) {
+      if (!ownsRequest() || e instanceof SessionChangedError) return;
       const msg = e?.message ?? t("app.companyDetail.updateModelFailed");
       setModelError(msg);
       toast(msg, "error");
     } finally {
-      setModelSaving(false);
+      if (ownsRequest()) {
+        scope.modelRequest = undefined;
+        changeActions(previous => ({ ...previous, modelSaving: Boolean(scope.modelRequest) }));
+      }
     }
   };
 
@@ -70,8 +144,12 @@ export default function CompanyDetailPage() {
     agentId: string,
     autonomy: "SUPERVISED" | "BALANCED" | "AUTONOMOUS",
   ) => {
-    if (!token || !company) return;
-    setSavingAutonomyId(agentId);
+    const accessToken = useAppStore.getState().token;
+    if (!accessToken || !company || !ownsScope() || scope.autonomyRequest) return;
+    const request = {};
+    scope.autonomyRequest = request;
+    const ownsRequest = () => ownsScope() && scope.autonomyRequest === request;
+    changeActions(previous => ({ ...previous, savingAutonomyId: agentId }));
     // Optimistic: reflect the choice immediately, roll back on failure.
     const prev = company;
     setCompany((c: any) =>
@@ -80,39 +158,52 @@ export default function CompanyDetailPage() {
         : c,
     );
     try {
-      await api.updateAgent(token, company.id, agentId, { autonomy });
+      await api.updateAgent(accessToken, company.id, agentId, { autonomy });
+      if (!ownsRequest()) return;
       toast(t("app.autonomy.saved", { level: t(`app.autonomy.level.${autonomy}`) }), "success");
     } catch (e: any) {
+      if (!ownsRequest() || e instanceof SessionChangedError) return;
       setCompany(prev); // roll back
       toast(e?.message ?? t("app.autonomy.saveFailed"), "error");
     } finally {
-      setSavingAutonomyId(null);
+      if (ownsRequest()) {
+        scope.autonomyRequest = undefined;
+        changeActions(previous => ({ ...previous, savingAutonomyId: scope.autonomyRequest ? previous.savingAutonomyId : null }));
+      }
     }
   };
 
   const handleCompose = async () => {
-    if (!token || !company) return;
-    setComposerLoading(true);
-    setComposerError(null);
-    setComposerResult(null);
+    const accessToken = useAppStore.getState().token;
+    if (!accessToken || !company || !ownsScope() || scope.composerRequest) return;
+    const request = {};
+    scope.composerRequest = request;
+    const ownsRequest = () => ownsScope() && scope.composerRequest === request;
+    changeActions(previous => ({ ...previous, composerLoading: true, composerError: null, composerResult: null }));
     try {
-      const res = await api.composeAgent(token, company.id, composerInput);
+      const res = await api.composeAgent(accessToken, company.id, composerInput);
+      if (!ownsRequest()) return;
       setComposerResult({
         name: res.agent.name,
         droppedTools: res.droppedTools,
         provider: res.provider,
         model: res.model,
       });
-      const updated = await api.getCompany(token, company.id);
+      const updated = await api.getCompany(useAppStore.getState().token!, company.id);
+      if (!ownsRequest()) return;
       setCompany(updated);
-      setComposerInput("");
+      setComposerInput(previous => ownsScope() ? "" : previous);
       toast(t("app.companyDetail.agentAdded", { name: res.agent.name }), "success");
     } catch (e: any) {
+      if (!ownsRequest() || e instanceof SessionChangedError) return;
       const msg = e?.message ?? t("app.companyDetail.composerFailed");
       setComposerError(msg);
       toast(msg, "error", 6000);
     } finally {
-      setComposerLoading(false);
+      if (ownsRequest()) {
+        scope.composerRequest = undefined;
+        changeActions(previous => ({ ...previous, composerLoading: Boolean(scope.composerRequest) }));
+      }
     }
   };
 
@@ -126,7 +217,7 @@ export default function CompanyDetailPage() {
       <div className="bv-glass p-4 text-sm" style={{ borderColor: "rgba(255,77,77,0.25)", color: "var(--bv-status-failed)" }}>{error}</div>
     </div>
   );
-  if (!company) return (
+  if (!company || company.id !== companyId) return (
     <div className="max-w-4xl mx-auto px-6 py-8">
       <div className="animate-shimmer" style={{ height: 32, width: 192, borderRadius: 8 }} />
     </div>
@@ -150,6 +241,7 @@ export default function CompanyDetailPage() {
     { key: "agents",    label: t("app.companyDetail.tabAgents"),    count: company.agents?.length },
     { key: "pipelines", label: t("app.companyDetail.tabPipelines"), count: company.pipelines?.length },
     { key: "runs",      label: t("app.companyDetail.tabRuns") },
+    { key: "compare",   label: t("app.compare.title") },
     { key: "contacts",  label: t("app.companyDetail.tabCrm") },
     { key: "memory",    label: t("app.companyDetail.tabMemory") },
     { key: "overview",  label: "Export" },
@@ -264,6 +356,8 @@ export default function CompanyDetailPage() {
       </div>
 
       {/* ── Agents tab ── */}
+      {tab === "compare" && <ComparePanel key={`${revision}:${tenantId}:${companyId}`} companyId={companyId} />}
+
       {tab === "agents" && (
         <>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
@@ -440,7 +534,7 @@ export default function CompanyDetailPage() {
                         <p className="bv-micro" style={{ marginBottom: 6 }}>{t("app.autonomy.label")}</p>
                         <AutonomySegmented
                           value={(a.autonomy ?? "BALANCED") as "SUPERVISED" | "BALANCED" | "AUTONOMOUS"}
-                          disabled={savingAutonomyId === a.id}
+                          disabled={savingAutonomyId !== null}
                           onChange={(level) => handleSetAutonomy(a.id, level)}
                           t={t}
                         />

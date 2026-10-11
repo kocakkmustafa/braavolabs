@@ -137,7 +137,7 @@ beforeAll(async () => {
   });
 
   server = http.createServer(app);
-  await new Promise<void>((resolveListen) => server.listen(0, resolveListen));
+  await new Promise<void>((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
 

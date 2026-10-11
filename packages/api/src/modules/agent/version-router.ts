@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
-import { prisma } from "../../lib/db";
+import { prisma, tenantTx } from "../../lib/db";
+import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import {
   createVersion,
@@ -9,6 +10,7 @@ import {
   getVersion,
   diffVersions,
   rollbackToVersion,
+  lockAgentHistory,
 } from "./version-control";
 
 export const agentVersionRouter = Router();
@@ -58,25 +60,22 @@ const createVersionSchema = z.object({
 
 agentVersionRouter.post("/:id/versions", async (req, res, next) => {
   try {
-    await verifyAgentAccess(req.params.id, req.auth!.tenantId);
-    const data = createVersionSchema.parse(req.body);
-
-    const version = await createVersion(req.params.id, {
-      label: data.label,
-      changeSummary: data.changeSummary,
-      createdBy: req.auth!.userId,
+    const version = await tenantTx(async (tx) => {
+      await lockAgentHistory(tx, req.params.id, req.auth!.tenantId);
+      const data = createVersionSchema.parse(req.body);
+      const created = await createVersion(req.params.id, {
+        label: data.label, changeSummary: data.changeSummary, createdBy: req.auth!.userId,
+      }, tx);
+      await tx.activityLog.create({
+        data: {
+          tenantId: req.auth!.tenantId, actor: req.auth!.userId,
+          action: "agent_version.create", resource: "agent_version", resourceId: created.id,
+          details: { agentId: req.params.id, version: created.version },
+        },
+      });
+      return created;
     });
-
-    await prisma.activityLog.create({
-      data: {
-        tenantId: req.auth!.tenantId,
-        actor: req.auth!.userId,
-        action: "agent_version.create",
-        resource: "agent_version",
-        resourceId: version.id,
-        details: { agentId: req.params.id, version: version.version },
-      },
-    });
+    logger.info({ agentId: req.params.id, version: version.version }, "Agent version created");
 
     res.status(201).json(version);
   } catch (err) {
@@ -135,30 +134,25 @@ const rollbackSchema = z.object({
 
 agentVersionRouter.post("/:id/rollback", async (req, res, next) => {
   try {
-    await verifyAgentAccess(req.params.id, req.auth!.tenantId);
-    const { targetVersion } = rollbackSchema.parse(req.body);
-
-    const result = await rollbackToVersion(
-      req.params.id,
-      targetVersion,
-      req.auth!.userId,
-    );
-
-    await prisma.activityLog.create({
-      data: {
-        tenantId: req.auth!.tenantId,
-        actor: req.auth!.userId,
-        action: "agent_version.rollback",
-        resource: "agent",
-        resourceId: req.params.id,
-        details: { targetVersion, newVersion: result.version.version },
-      },
+    const result = await tenantTx(async (tx) => {
+      await lockAgentHistory(tx, req.params.id, req.auth!.tenantId);
+      const { targetVersion } = rollbackSchema.parse(req.body);
+      const rolledBack = await rollbackToVersion(req.params.id, targetVersion, req.auth!.userId, tx);
+      await tx.activityLog.create({
+        data: {
+          tenantId: req.auth!.tenantId, actor: req.auth!.userId,
+          action: "agent_version.rollback", resource: "agent", resourceId: req.params.id,
+          details: { targetVersion, newVersion: rolledBack.version.version },
+        },
+      });
+      return { ...rolledBack, targetVersion };
     });
+    logger.info({ agentId: req.params.id, newVersion: result.version.version }, "Agent rolled back");
 
     res.json({
       agent: result.agent,
       version: result.version,
-      message: `Rolled back to version ${targetVersion}`,
+      message: `Rolled back to version ${result.targetVersion}`,
     });
   } catch (err) {
     next(err);

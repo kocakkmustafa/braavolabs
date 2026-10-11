@@ -1,31 +1,63 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { useAppStore } from "../lib/store";
+
+type ToastOwner = { revision: number; tenantId: string | null };
 
 interface Toast {
   id: string;
   message: string;
   type: "success" | "error" | "info";
   duration?: number;
+  owner: ToastOwner | null;
 }
 
 interface ToastContextValue {
-  toast: (message: string, type?: Toast["type"], duration?: number) => void;
+  toast: (message: string, type: Toast["type"], duration: number, owner: ToastOwner | null) => void;
 }
 
 const ToastContext = createContext<ToastContextValue>({ toast: () => {} });
 
 export function useToast() {
-  return useContext(ToastContext);
+  const { toast: enqueue } = useContext(ToastContext);
+  const revision = useAppStore(s => s.sessionRevision);
+  const tenantId = useAppStore(s => s.tenantId);
+  const authenticated = useAppStore(s => Boolean(s.token));
+  // Capture the initiating render's owner, never the owner at late delivery.
+  // Public/login callers retain unscoped messages; token refresh keeps ownership.
+  const toast = useCallback((message: string, type: Toast["type"] = "info", duration = 4000) => {
+    enqueue(message, type, duration, authenticated ? { revision, tenantId } : null);
+  }, [enqueue, revision, tenantId, authenticated]);
+  return { toast };
+}
+
+function isVisible(owner: ToastOwner | null, revision: number, tenantId: string | null, authenticated: boolean) {
+  return owner === null || (authenticated && owner.revision === revision && owner.tenantId === tenantId);
+}
+
+function canEnqueue(owner: ToastOwner | null) {
+  const state = useAppStore.getState();
+  return isVisible(owner, state.sessionRevision, state.tenantId, Boolean(state.token));
 }
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const revision = useAppStore(s => s.sessionRevision);
+  const tenantId = useAppStore(s => s.tenantId);
+  const authenticated = useAppStore(s => Boolean(s.token));
+  const visible = (toast: Toast) => isVisible(toast.owner, revision, tenantId, authenticated);
 
-  const addToast = useCallback((message: string, type: Toast["type"] = "info", duration = 4000) => {
+  const addToast = useCallback((message: string, type: Toast["type"], duration: number, owner: ToastOwner | null) => {
+    if (!canEnqueue(owner)) return;
     const id = Math.random().toString(36).slice(2);
-    setToasts((prev) => [...prev, { id, message, type, duration }]);
+    setToasts((prev) => canEnqueue(owner) ? [...prev, { id, message, type, duration, owner }] : prev);
   }, []);
+
+  // Rendering enforces the boundary before passive effects remove retired data.
+  useEffect(() => {
+    setToasts(previous => previous.filter(toast => canEnqueue(toast.owner)));
+  }, [revision, tenantId, authenticated]);
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -51,7 +83,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           width: "90%",
         }}
       >
-        {toasts.map((t) => (
+        {toasts.filter(visible).map((t) => (
           <ToastItem key={t.id} toast={t} onDismiss={() => removeToast(t.id)} />
         ))}
       </div>

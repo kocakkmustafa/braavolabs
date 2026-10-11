@@ -14,3 +14,12 @@ COMPANIES
 !package.json
 !pnpm-workspace.yaml
 !pnpm-lock.yaml
+
+# Local agent and account credential files are not container build inputs.
+**/.mcp.json
+**/.mcp.*.json
+**/.codex/
+**/.agents/
+**/.aws/
+**/.ssh/
+**/.gnupg/

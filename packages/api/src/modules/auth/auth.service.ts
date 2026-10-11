@@ -199,10 +199,9 @@ export async function redeemOAuthExchange(code: string): Promise<OAuthTokenBundl
     // .call("GETDEL", key) to stay compatible across server versions.
     raw = (await redis.call("GETDEL", key)) as string | null;
   } catch {
-    // Older Redis without GETDEL — fall back to GET + DEL. Race window
-    // is one round-trip; downside is bounded.
-    raw = await redis.get(key);
-    if (raw) await redis.del(key);
+    // Redis 7 is the supported deployment. Never reopen a replay window
+    // after an unsupported-command, connection or ambiguous response error.
+    throw new AppError(503, "OAuth exchange unavailable — please retry sign-in");
   }
   if (!raw) {
     throw new AppError(401, "OAuth exchange code is invalid or already used");

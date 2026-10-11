@@ -113,7 +113,7 @@ describe("systemScope does not leak to sibling routers", () => {
     app.use("/hooks", sibling);
 
     const server = http.createServer(app);
-    await new Promise<void>((r) => server.listen(0, r));
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
     const port = (server.address() as any).port;
     await fetch(`http://127.0.0.1:${port}/hooks/other`, { method: "POST" });
     await new Promise<void>((r) => server.close(() => r()));
@@ -139,7 +139,7 @@ describe("systemScope does not leak to sibling routers", () => {
     app.use("/hooks", sibling);
 
     const server = http.createServer(app);
-    await new Promise<void>((r) => server.listen(0, r));
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
     const port = (server.address() as any).port;
     await fetch(`http://127.0.0.1:${port}/hooks/other`, { method: "POST" });
     await new Promise<void>((r) => server.close(() => r()));

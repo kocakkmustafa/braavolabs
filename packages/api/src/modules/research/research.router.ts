@@ -18,6 +18,7 @@ import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { startCompare, startResearch } from "./research.service";
 import { runTenantCascade } from "./cascade.service";
+import { listCompareSelectionOptions } from "../../services/compare-options";
 
 export const researchRouter = Router();
 researchRouter.use(authMiddleware);
@@ -76,6 +77,10 @@ const compareLimiter = rateLimit({
 });
 
 const compareSchema = z.object({
+  selections: z.array(z.object({
+    provider: z.string().min(1), model: z.string().min(1),
+    reasoningEffort: z.enum(["low", "medium", "high"]).optional(),
+  }).strict()).min(1).max(3).optional(),
   companyId: z.string().min(1),
   query: z.string().min(5).max(1000),
   maxCandidates: z.number().int().min(1).max(3).optional(),
@@ -83,11 +88,27 @@ const compareSchema = z.object({
   maxCostUsd: z.number().min(0.1).max(10).optional(),
   // Optional debate rounds (0 = classic compare). Budget-gated server-side.
   debateRounds: z.number().int().min(0).max(3).optional(),
+}).strict();
+
+const compareOptionsQuery = z.object({ companyId: z.string().min(1) }).strict();
+
+researchRouter.get("/compare/options", async (req, res, next) => {
+  try {
+    const { companyId } = compareOptionsQuery.parse(req.query);
+    const company = await prisma.company.findFirst({
+      where: { id: companyId, tenantId: req.auth!.tenantId },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+    const selections = await listCompareSelectionOptions(req.auth!.tenantId);
+    res.set("Cache-Control", "private, no-store");
+    res.json({ companyId, maxCandidates: 3, selections });
+  } catch (err) { next(err); }
 });
 
-researchRouter.post("/compare", compareLimiter, async (req, res, next) => {
+researchRouter.post(["/compare", "/compare/selected"], compareLimiter, async (req, res, next) => {
   try {
     const body = compareSchema.parse(req.body);
+    if (req.path === "/compare/selected" && body.selections === undefined) throw new AppError(400, "Explicit model selections required");
     const company = await prisma.company.findFirst({
       where: { id: body.companyId, tenantId: req.auth!.tenantId },
     });
@@ -96,6 +117,7 @@ researchRouter.post("/compare", compareLimiter, async (req, res, next) => {
       tenantId: req.auth!.tenantId,
       companyId: body.companyId,
       query: body.query,
+      selections: body.selections,
       maxCandidates: body.maxCandidates,
       maxTokensPerCandidate: body.maxTokensPerCandidate,
       maxCostUsd: body.maxCostUsd,

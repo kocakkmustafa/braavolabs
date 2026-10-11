@@ -19,6 +19,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { assertReasoningEffortSupported, type ReasoningEffort } from "./reasoning-effort";
 import type { MessageParam, Tool } from "@anthropic-ai/sdk/resources/messages";
 import { logger } from "../lib/logger";
 import { encryptForTenant, decryptForTenant } from "../lib/encryption";
@@ -111,6 +112,7 @@ export interface ChatCompletionResult {
 }
 
 export interface ChatCompletionOptions {
+  reasoningEffort?: ReasoningEffort;
   /** Normalized tool definitions. When the provider/model cannot do native
    * function-calling, chatCompletion throws ToolsUnsupportedError — the
    * agent loop catches it and downgrades to prompt-embedding (T4). */
@@ -706,6 +708,7 @@ async function callOpenAICompatible(
   messages: ChatMessage[],
   maxTokens: number,
   tools?: ChatToolDef[],
+  reasoningEffort?: ReasoningEffort,
 ): Promise<ChatCompletionResult> {
   // Resolve base URL: tenant-supplied override (Settings → AI Provider →
   // Custom base URL) wins over the per-provider hardcoded default. This
@@ -760,6 +763,7 @@ async function callOpenAICompatible(
       ? { max_completion_tokens: maxTokens }
       : { max_tokens: maxTokens }),
   };
+  if (reasoningEffort !== undefined) requestBody.reasoning_effort = reasoningEffort;
   if (tools?.length) {
     requestBody.tools = toOpenAITools(tools);
     requestBody.tool_choice = "auto";
@@ -984,6 +988,8 @@ export async function chatCompletion(
   maxTokens = 4096,
   options: ChatCompletionOptions = {},
 ): Promise<ChatCompletionResult> {
+  // Before credentials, DNS, retries or any transport; unsupported explicit controls fail closed.
+  assertReasoningEffortSupported(config, options.reasoningEffort);
   const tools = options.tools?.length ? options.tools : undefined;
   logger.debug(
     { provider: config.provider, model: config.model, toolCount: tools?.length ?? 0 },
@@ -1035,7 +1041,7 @@ export async function chatCompletion(
     case "OLLAMA":
     case "LMSTUDIO":
     case "CUSTOM":
-      return callOpenAICompatible(config, systemPrompt, messages.filter((m) => m.role !== "system"), maxTokens, tools);
+      return callOpenAICompatible(config, systemPrompt, messages.filter((m) => m.role !== "system"), maxTokens, tools, options.reasoningEffort);
 
     default:
       throw new Error(`Unsupported AI provider: ${config.provider}`);

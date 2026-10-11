@@ -90,6 +90,9 @@ approvalRouter.get("/", async (req, res, next) => {
 
 const decideSchema = z.object({
   decision: z.enum(["APPROVED", "REJECTED"]),
+  // CLI/operator rationale is audit-only. Keep it separate from an INPUT
+  // answer so approving with a reason never sends that text to the agent.
+  reason: z.string().max(4000).optional(),
   // Optional operator note. For INPUT approvals (agent ask_user), an APPROVED
   // note is the answer — stored as a SteeringMessage the agent loop injects
   // on resume. For SPEND it's just an audit note ("approve-with-note").
@@ -107,7 +110,8 @@ const decideSchema = z.object({
 // leave an APPROVED approval pointing at a still-CANCELLED run.
 approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (req, res, next) => {
   try {
-    const { decision, note } = decideSchema.parse(req.body);
+    const { decision, note, reason } = decideSchema.parse(req.body);
+    const auditReason = reason?.trim();
 
     const approval = await prisma.approval.findUnique({
       where: { id: req.params.id },
@@ -171,7 +175,11 @@ approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (
           action: `approval.${decision.toLowerCase()}`,
           resource: "approval",
           resourceId: approval.id,
-          details: { runId: approval.runId, amountUsd: approval.amountUsd },
+          details: {
+            runId: approval.runId,
+            amountUsd: approval.amountUsd,
+            ...(auditReason ? { reason: auditReason } : {}),
+          },
         },
       });
 

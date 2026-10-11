@@ -136,8 +136,22 @@ function consumeOAuthStateCookie(
   const name = `${OAUTH_STATE_COOKIE_PREFIX}${provider}`;
   const cookieState = readCookie(req, name);
   res.clearCookie(name, { path: OAUTH_STATE_COOKIE_PATH });
-  if (!cookieState || cookieState.length !== state.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(cookieState), Buffer.from(state));
+  if (!cookieState) return false;
+  const cookieBytes = Buffer.from(cookieState);
+  const stateBytes = Buffer.from(state);
+  if (cookieBytes.length !== stateBytes.length) return false;
+  return crypto.timingSafeEqual(cookieBytes, stateBytes);
+}
+
+// Check the browser binding before consuming the single-use server value.
+// GETDEL is atomic even when two valid callbacks reach Redis concurrently.
+async function consumeOAuthState(req: Request, res: Response, provider: OAuthProvider, state: string): Promise<boolean> {
+  if (!consumeOAuthStateCookie(req, res, provider, state)) return false;
+  try {
+    return (await redis.call("GETDEL", `oauth:state:${state}`)) === "1";
+  } catch {
+    throw new AppError(503, "OAuth state validation unavailable — please retry sign-in");
+  }
 }
 
 // Exported so __tests__/auth.test.ts can validate them in isolation.
@@ -354,19 +368,7 @@ authRouter.get("/google/callback", systemScope("route:auth"), async (req, res, n
   try {
     const { code, state, ref } = googleCallbackSchema.parse(req.query);
 
-    // Validate OAuth state to prevent CSRF
-    const stateKey = `oauth:state:${state}`;
-    const stateValid = await redis.get(stateKey);
-    if (!stateValid) {
-      res.status(400).json({ error: "Invalid or expired OAuth state" });
-      return;
-    }
-    await redis.del(stateKey); // One-time use
-
-    // Double-submit: the state must come back from the SAME browser
-    // that initiated the flow (see cookie helpers above). Redis alone
-    // only proves we issued the state, not who we issued it to.
-    if (!consumeOAuthStateCookie(req, res, "google", state)) {
+    if (!await consumeOAuthState(req, res, "google", state)) {
       res.status(400).json({ error: "Invalid or expired OAuth state" });
       return;
     }
@@ -405,16 +407,7 @@ const githubCallbackSchema = z.object({
 authRouter.get("/github/callback", systemScope("route:auth"), async (req, res, next) => {
   try {
     const { code, state, ref } = githubCallbackSchema.parse(req.query);
-    const stateKey = `oauth:state:${state}`;
-    const stateValid = await redis.get(stateKey);
-    if (!stateValid) {
-      res.status(400).json({ error: "Invalid or expired OAuth state" });
-      return;
-    }
-    await redis.del(stateKey);
-
-    // Double-submit browser binding — same rationale as Google above.
-    if (!consumeOAuthStateCookie(req, res, "github", state)) {
+    if (!await consumeOAuthState(req, res, "github", state)) {
       res.status(400).json({ error: "Invalid or expired OAuth state" });
       return;
     }
@@ -602,18 +595,7 @@ authRouter.post(
         return;
       }
 
-      // CSRF — same one-time state token machinery as Google/GitHub.
-      const stateKey = `oauth:state:${body.state}`;
-      const stateValid = await redis.get(stateKey);
-      if (!stateValid) {
-        res.status(400).json({ error: "Invalid or expired OAuth state" });
-        return;
-      }
-      await redis.del(stateKey);
-
-      // Double-submit browser binding (None+Secure cookie — Apple POSTs
-      // cross-site, so Lax would never arrive; see helpers above).
-      if (!consumeOAuthStateCookie(req, res, "apple", body.state)) {
+      if (!await consumeOAuthState(req, res, "apple", body.state)) {
         res.status(400).json({ error: "Invalid or expired OAuth state" });
         return;
       }

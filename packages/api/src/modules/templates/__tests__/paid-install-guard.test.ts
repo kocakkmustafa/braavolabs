@@ -33,7 +33,7 @@ beforeAll(async () => {
   app.use((err: any, _req: any, res: any, _next: any) =>
     res.status(err?.statusCode ?? err?.status ?? 500).json({ error: err?.message ?? "error" }));
   server = http.createServer(app);
-  await new Promise<void>((resolve) => server.listen(0, resolve));
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
 

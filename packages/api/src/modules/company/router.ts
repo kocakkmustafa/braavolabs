@@ -14,7 +14,7 @@ import {
   confirmBuild,
   getSession,
 } from "./builder";
-import { createVersion } from "../agent/version-control";
+import { updateAgentWithHistory } from "./agent-update";
 import { composeAgent } from "../agent/composer";
 import { assertCompanyCapacity } from "./company-capacity";
 import { getEffectivePlan } from "../billing/entitlement-ledger.service";
@@ -541,37 +541,14 @@ companyRouter.post("/:id/agents/compose", agentComposeLimiter, async (req, res, 
 // PATCH /api/v1/companies/:companyId/agents/:agentId — update agent
 companyRouter.patch("/:companyId/agents/:agentId", async (req, res, next) => {
   try {
-    const company = await prisma.company.findFirst({
-      where: { id: req.params.companyId, tenantId: req.auth!.tenantId },
-    });
-    if (!company) throw new AppError(404, "Company not found");
-
-    const agent = await prisma.agent.findFirst({
-      where: { id: req.params.agentId, companyId: company.id },
-    });
-    if (!agent) throw new AppError(404, "Agent not found");
-
     const updateData = agentUpdateSchema.parse(req.body);
-
-    // Snapshot current state before applying the update
-    await createVersion(agent.id, {
-      changeSummary: `Auto-snapshot before update`,
-      createdBy: req.auth!.userId,
-    });
-
-    const updated = await prisma.agent.update({
-      where: { id: agent.id },
+    const { agent: updated } = await updateAgentWithHistory({
+      tenantId: req.auth!.tenantId,
+      companyId: req.params.companyId,
+      agentId: req.params.agentId,
+      actor: req.auth!.userId,
       data: { ...updateData, tools: updateData.tools as any },
-    });
-
-    await prisma.activityLog.create({
-      data: {
-        tenantId: req.auth!.tenantId,
-        actor: req.auth!.userId,
-        action: "agent.update",
-        resource: "agent",
-        resourceId: agent.id,
-      },
+      kind: "update",
     });
 
     res.json(updated);
@@ -677,46 +654,13 @@ companyRouter.post("/:companyId/agents/:agentId/nl-edit", async (req, res, next)
 // POST /api/v1/companies/:companyId/agents/:agentId/nl-edit/apply — Apply previewed edit
 companyRouter.post("/:companyId/agents/:agentId/nl-edit/apply", async (req, res, next) => {
   try {
-    const company = await prisma.company.findFirst({
-      where: { id: req.params.companyId, tenantId: req.auth!.tenantId },
-    });
-    if (!company) throw new AppError(404, "Company not found");
-
-    const agent = await prisma.agent.findFirst({
-      where: { id: req.params.agentId, companyId: company.id },
-    });
-    if (!agent) throw new AppError(404, "Agent not found");
-
     const { updatedConfig } = nlEditApplySchema.parse(req.body);
-
-    // Create a version snapshot before applying changes
-    const latestVersion = await prisma.agentVersion.findFirst({
-      where: { agentId: agent.id },
-      orderBy: { version: "desc" },
-    });
-    const nextVersion = (latestVersion?.version ?? 0) + 1;
-
-    await prisma.agentVersion.create({
-      data: {
-        agentId: agent.id,
-        version: nextVersion,
-        label: `NL edit v${nextVersion}`,
-        snapshot: {
-          name: agent.name,
-          role: agent.role,
-          systemPrompt: agent.systemPrompt,
-          model: agent.model,
-          maxTokens: agent.maxTokens,
-          tools: agent.tools,
-        },
-        changeSummary: `Applied NL edit: name=${updatedConfig.name}, role=${updatedConfig.role}, model=${updatedConfig.model}`,
-        createdBy: req.auth!.userId,
-      },
-    });
-
-    // Apply the update (temperature is not stored in DB — only DB-persisted fields)
-    const updated = await prisma.agent.update({
-      where: { id: agent.id },
+    const { agent: updated, version: nextVersion } = await updateAgentWithHistory({
+      tenantId: req.auth!.tenantId,
+      companyId: req.params.companyId,
+      agentId: req.params.agentId,
+      actor: req.auth!.userId,
+      // Temperature is not persisted in the Agent schema.
       data: {
         name: updatedConfig.name,
         role: updatedConfig.role,
@@ -725,23 +669,11 @@ companyRouter.post("/:companyId/agents/:agentId/nl-edit/apply", async (req, res,
         maxTokens: updatedConfig.maxTokens,
         tools: updatedConfig.tools as any,
       },
+      kind: "nl-edit",
+      updatedFields: Object.keys(updatedConfig),
     });
 
-    await prisma.activityLog.create({
-      data: {
-        tenantId: req.auth!.tenantId,
-        actor: req.auth!.userId,
-        action: "agent.nl-edit.apply",
-        resource: "agent",
-        resourceId: agent.id,
-        details: {
-          version: nextVersion,
-          updatedFields: Object.keys(updatedConfig),
-        },
-      },
-    });
-
-    logger.info({ agentId: agent.id, version: nextVersion }, "NL edit applied to agent");
+    logger.info({ agentId: updated.id, version: nextVersion }, "NL edit applied to agent");
 
     res.json({
       success: true,

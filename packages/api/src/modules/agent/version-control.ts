@@ -1,6 +1,17 @@
 import { prisma } from "../../lib/db";
+import type { Prisma } from "@prisma/client";
+import { AppError } from "../../middleware/error";
 import { logger } from "../../lib/logger";
 import type { AgentDiff } from "@ai-company-os/core";
+
+/** Serialize every authenticated history writer on the same tenant-owned agent. */
+export async function lockAgentHistory(tx: Prisma.TransactionClient, agentId: string, tenantId: string) {
+  const rows = await tx.$queryRaw<Array<{ id: string }>>`
+    SELECT a.id FROM agents a JOIN companies c ON c.id = a.company_id
+    WHERE a.id = ${agentId} AND c.tenant_id = ${tenantId} FOR UPDATE OF a
+  `;
+  if (rows.length === 0) throw new AppError(404, "Agent not found");
+}
 
 /**
  * Take a snapshot of the current agent config and store it as a new version.
@@ -9,12 +20,14 @@ import type { AgentDiff } from "@ai-company-os/core";
 export async function createVersion(
   agentId: string,
   opts?: { label?: string; changeSummary?: string; createdBy?: string },
+  tx?: Prisma.TransactionClient,
 ) {
-  const agent = await prisma.agent.findUnique({ where: { id: agentId } });
+  const db = tx ?? prisma;
+  const agent = await db.agent.findUnique({ where: { id: agentId } });
   if (!agent) throw new Error(`Agent ${agentId} not found`);
 
   // Determine next version number
-  const latest = await prisma.agentVersion.findFirst({
+  const latest = await db.agentVersion.findFirst({
     where: { agentId },
     orderBy: { version: "desc" },
   });
@@ -28,9 +41,10 @@ export async function createVersion(
     tools: agent.tools,
     model: agent.model,
     maxTokens: agent.maxTokens,
+    autonomy: agent.autonomy,
   };
 
-  const version = await prisma.agentVersion.create({
+  const version = await db.agentVersion.create({
     data: {
       agentId,
       version: nextVersion,
@@ -41,7 +55,7 @@ export async function createVersion(
     },
   });
 
-  logger.info({ agentId, version: nextVersion }, "Agent version created");
+  if (!tx) logger.info({ agentId, version: nextVersion }, "Agent version created");
   return version;
 }
 
@@ -66,8 +80,8 @@ export async function listVersions(agentId: string) {
 /**
  * Get a specific version's full detail including snapshot.
  */
-export async function getVersion(agentId: string, version: number) {
-  return prisma.agentVersion.findUnique({
+export async function getVersion(agentId: string, version: number, tx?: Prisma.TransactionClient) {
+  return (tx ?? prisma).agentVersion.findUnique({
     where: { agentId_version: { agentId, version } },
   });
 }
@@ -114,14 +128,16 @@ export async function rollbackToVersion(
   agentId: string,
   targetVersion: number,
   userId?: string,
+  tx?: Prisma.TransactionClient,
 ) {
-  const target = await getVersion(agentId, targetVersion);
+  const db = tx ?? prisma;
+  const target = await getVersion(agentId, targetVersion, tx);
   if (!target) throw new Error(`Version ${targetVersion} not found for agent ${agentId}`);
 
   const snap = target.snapshot as Record<string, any>;
 
   // Update agent to the target snapshot's values
-  const updated = await prisma.agent.update({
+  const updated = await db.agent.update({
     where: { id: agentId },
     data: {
       name: snap.name,
@@ -130,6 +146,8 @@ export async function rollbackToVersion(
       tools: snap.tools,
       model: snap.model,
       maxTokens: snap.maxTokens,
+      // Old snapshots predate this field; preserve autonomy when absent.
+      autonomy: snap.autonomy,
     },
   });
 
@@ -138,9 +156,9 @@ export async function rollbackToVersion(
     label: `Rollback to v${targetVersion}`,
     changeSummary: `Rolled back to version ${targetVersion}`,
     createdBy: userId,
-  });
+  }, tx);
 
-  logger.info(
+  if (!tx) logger.info(
     { agentId, targetVersion, newVersion: rollbackVersion.version },
     "Agent rolled back",
   );

@@ -5,6 +5,7 @@ import { logger } from "../../lib/logger";
 import { getTool, type ToolDefinition } from "./registry";
 import { executeTool, type ToolExecResult } from "./tool-executor";
 import { runLocalAgentLoop } from "./claude-local";
+import { assertReasoningEffortSupported, UnsupportedReasoningEffortError, type ReasoningEffort } from "../../services/reasoning-effort";
 import {
   chatCompletion,
   resolveModelForProvider,
@@ -709,9 +710,13 @@ async function callProvider(
   messages: ChatMessage[],
   maxTokens: number,
   tools?: ChatToolDef[],
+  reasoningEffort?: ReasoningEffort,
 ): Promise<ChatCompletionResult> {
   const invoke = () =>
-    chatCompletion(config, systemPrompt, messages, maxTokens, tools?.length ? { tools } : {});
+    chatCompletion(config, systemPrompt, messages, maxTokens, {
+      ...(tools?.length ? {tools} : {}),
+      ...(reasoningEffort !== undefined ? {reasoningEffort} : {}),
+    });
   if (config.provider === "ANTHROPIC" || config.provider === "GOOGLE") {
     return withRetry(invoke);
   }
@@ -725,6 +730,7 @@ async function callProvider(
 const TRIAL_MAX_TURNS = 4;
 
 export interface ProviderAgentLoopConfig {
+  reasoningEffort?: ReasoningEffort;
   systemPrompt: string;
   userMessage: string;
   toolNames: string[];
@@ -818,16 +824,20 @@ export async function runProviderAgentLoop(
   // (the old non-Anthropic path hardcoded 4096).
   const maxTokens = config.maxTokens ?? 4096;
 
+  // Model hierarchy (plan §2.4 / F-020): Agent.model when catalogue-
+  // compatible with the resolved provider > tenant model > provider default.
+  const model = resolveModelForProvider(aiConfig.provider, config.model, aiConfig.model);
+  let callConfig: AIClientConfig = { ...aiConfig, model };
+  assertReasoningEffortSupported(callConfig, config.reasoningEffort);
+  if (config.reasoningEffort !== undefined && failover) {
+    throw new UnsupportedReasoningEffortError("Explicit reasoning effort requires an exact provider without failover");
+  }
+
   if (aiConfig.provider === "ANTHROPIC" && !aiConfig.apiKey) {
     throw new Error(
       "Anthropic API client not initialized. Configure an API key in Settings → AI Provider.",
     );
   }
-
-  // Model hierarchy (plan §2.4 / F-020): Agent.model when catalogue-
-  // compatible with the resolved provider > tenant model > provider default.
-  const model = resolveModelForProvider(aiConfig.provider, config.model, aiConfig.model);
-  let callConfig: AIClientConfig = { ...aiConfig, model };
 
   // ── Turn-boundary failover state (E2/T7, plan §2.2 Karar B) ──
   // The chain is consumed left to right; each switch re-projects the SAME
@@ -975,6 +985,7 @@ export async function runProviderAgentLoop(
           messages,
           maxTokens,
           wantNativeTools ? toolDefs : undefined,
+          config.reasoningEffort,
         );
       } catch (err) {
         if (err instanceof ToolsUnsupportedError && wantNativeTools) {
@@ -989,7 +1000,7 @@ export async function runProviderAgentLoop(
             { provider: callConfig.provider, model: callConfig.model, detail: err.message },
             "Native tool-use unsupported — downgrading to prompt-embedded tools",
           );
-          return await callProvider(callConfig, effectiveSystemPrompt, messages, maxTokens);
+          return await callProvider(callConfig, effectiveSystemPrompt, messages, maxTokens, undefined, config.reasoningEffort);
         }
         throw err;
       }
@@ -1138,6 +1149,7 @@ export async function runProviderAgentLoop(
  * 3. Repeat until it produces a final text response or budget is exhausted
  */
 export async function runAgentLoop(config: {
+  reasoningEffort?: ReasoningEffort;
   systemPrompt: string;
   userMessage: string;
   toolNames: string[];
@@ -1179,6 +1191,9 @@ export async function runAgentLoop(config: {
    */
   extraTools?: Map<string, ToolDefinition>;
 }): Promise<AgentLoopResult> {
+  if (config.reasoningEffort !== undefined && !config.aiConfigOverride) {
+    throw new UnsupportedReasoningEffortError("Explicit reasoning effort requires aiConfigOverride");
+  }
   // Forced provider config wins over everything, local-CLI mode included —
   // an override is an explicit "go to this wire" order (bench previously
   // ran tenant-less and always landed on system Anthropic while the

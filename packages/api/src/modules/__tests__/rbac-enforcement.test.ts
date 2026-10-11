@@ -99,7 +99,7 @@ beforeAll(async () => {
   app.use((err: any, _q: any, res: any, _n: any) =>
     res.status(err?.statusCode ?? err?.status ?? 500).json({ error: err?.message ?? "error" }));
   server = http.createServer(app);
-  await new Promise<void>((r) => server.listen(0, r));
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 }, 30_000);
 

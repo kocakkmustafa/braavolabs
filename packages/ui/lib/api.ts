@@ -1,3 +1,5 @@
+import { parseCompareOptions, parseCompareSession, type CompareRequest } from "./compare";
+import { parseApprovalDecision } from "./approvalDecision";
 import {
   captureAuthSession, isAuthSessionCurrent, refreshAuthSession,
   useAppStore, type AuthSessionSnapshot,
@@ -189,6 +191,16 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
 
 // Typed API helpers
 export const api = {
+  compareOptions: async (token: string, companyId: string, signal?: AbortSignal) =>
+    parseCompareOptions(await apiFetch<unknown>(`/research/compare/options?companyId=${encodeURIComponent(companyId)}`, {token, signal}), companyId),
+  startSelectedCompare: async (token: string, body: CompareRequest, signal?: AbortSignal) => {
+    const result = await apiFetch<{id: string; status: string}>("/research/compare/selected", {token, signal, method: "POST", body: JSON.stringify(body)});
+    if (!result || typeof result.id !== "string" || !result.id || result.status !== "PENDING") throw new Error("Invalid compare start response");
+    return result;
+  },
+  compareSession: async (token: string, id: string, companyId: string, signal?: AbortSignal) =>
+    parseCompareSession(await apiFetch<unknown>(`/research/${encodeURIComponent(id)}`, {token, signal}), id, companyId),
+
   // Auth
   login: (email: string, password: string) =>
     apiFetch<{ token: string; user: any; tenant: any }>("/auth/login", {
@@ -348,7 +360,8 @@ export const api = {
   // `note` is optional: for an INPUT approval (agent ask_user) an APPROVED note
   // is the answer delivered back to the agent; for SPEND it's an audit note.
   decideApproval: (token: string, id: string, decision: "APPROVED" | "REJECTED", note?: string) =>
-    apiFetch<any>(`/approvals/${id}/decide`, { method: "POST", body: JSON.stringify({ decision, note }), token }),
+    apiFetch<unknown>(`/approvals/${id}/decide`, { method: "POST", body: JSON.stringify({ decision, note }), token })
+      .then((result) => parseApprovalDecision(result, decision)),
 
   // Drafts
   listDrafts: (token: string, companyId: string) =>
