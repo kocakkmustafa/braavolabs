@@ -53,6 +53,25 @@ export const relayEventChannel = EVENTS_CHANNEL;
 export const relayCommandChannel = CMDS_CHANNEL;
 
 /**
+ * A session has no idle/age timeout, so its cursor must outlive the replay
+ * buffer. Keep only the numeric counter until session lifecycle cleanup is
+ * available; payloads still expire. PERSIST also removes an unexpired TTL
+ * left by the old publisher. Pair it with INCR atomically so expiration
+ * cannot reset the counter between allocation and removing that TTL.
+ */
+async function nextSequence(key: string): Promise<number> {
+  const result = await redis.multi().incr(key).persist(key).exec();
+  if (!result || result.length !== 2 || result.some(([err]) => err)) {
+    throw new Error("Relay sequence allocation failed");
+  }
+  const seq = result[0]![1];
+  if (typeof seq !== "number" || !Number.isSafeInteger(seq) || seq <= 0) {
+    throw new Error("Invalid relay sequence");
+  }
+  return seq;
+}
+
+/**
  * Redact, assign envelope (sessionId + monotonic seq + ts), buffer, and
  * publish a session event. Never throws — losing a mirrored observability
  * event is lower severity than losing a control command (see
@@ -61,8 +80,7 @@ export const relayCommandChannel = CMDS_CHANNEL;
 export async function publishSessionEvent(sessionId: string, tenantId: string, input: SessionEventInput): Promise<void> {
   try {
     const redacted = redactSessionEventInput(input);
-    const seq = await redis.incr(EVENTS_SEQ_KEY(tenantId, sessionId));
-    if (seq === 1) await redis.expire(EVENTS_SEQ_KEY(tenantId, sessionId), TTL_SECONDS);
+    const seq = await nextSequence(EVENTS_SEQ_KEY(tenantId, sessionId));
     const full = { ...redacted, sessionId, seq, ts: new Date().toISOString() } as SessionEvent;
     const payload = JSON.stringify(full);
     const buf = EVENTS_BUFFER_KEY(tenantId, sessionId);
@@ -107,8 +125,7 @@ export async function getBufferedSessionEvents(sessionId: string, tenantId: stri
 export async function publishControlCommand(sessionId: string, tenantId: string, cmd: ControlCommand): Promise<boolean> {
   try {
     const redacted = redactControlCommand(cmd);
-    const seq = await redis.incr(CMDS_SEQ_KEY(tenantId, sessionId));
-    if (seq === 1) await redis.expire(CMDS_SEQ_KEY(tenantId, sessionId), TTL_SECONDS);
+    const seq = await nextSequence(CMDS_SEQ_KEY(tenantId, sessionId));
     const full = { ...redacted, sessionId, seq, ts: new Date().toISOString() } as ControlCommandMessage;
     const payload = JSON.stringify(full);
     const buf = CMDS_BUFFER_KEY(tenantId, sessionId);

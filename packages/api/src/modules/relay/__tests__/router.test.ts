@@ -9,7 +9,7 @@
  * Handlers are extracted directly from the Router stack and invoked with a
  * mock req/res/next — same harness convention as webhook/router.test.ts and
  * run/__tests__/explain-router.test.ts. The fake Redis client below
- * implements just enough of the ioredis surface (incr/expire/lrange/multi/
+ * implements just enough of the ioredis surface (incr/persist/expire/lrange/multi/
  * duplicate/subscribe/unsubscribe/quit/on) for bus.ts's runEvents-mirrored
  * idiom to work, with `.duplicate()` sharing the same in-memory store/bus so
  * a "companion" subscriber connection sees what a "local session" publish
@@ -35,6 +35,18 @@ vi.mock("../../../lib/redis", () => {
     counters: Map<string, number>;
     channels: Map<string, Set<(msg: string) => void>>;
     forceExecError: boolean;
+    now: number;
+    expires: Map<string, number>;
+    sequenceFailure?: "incr" | "persist" | "abort";
+  }
+
+  function expireIfNeeded(shared: Shared, key: string) {
+    const deadline = shared.expires.get(key);
+    if (deadline !== undefined && deadline <= shared.now) {
+      shared.expires.delete(key);
+      shared.counters.delete(key);
+      shared.lists.delete(key);
+    }
   }
 
   function createClient(shared: Shared) {
@@ -43,17 +55,46 @@ vi.mock("../../../lib/redis", () => {
 
     const client: any = {
       incr: async (key: string) => {
+        expireIfNeeded(shared, key);
         const v = (shared.counters.get(key) ?? 0) + 1;
         shared.counters.set(key, v);
         return v;
       },
-      expire: async () => 1,
-      lrange: async (key: string) => shared.lists.get(key) ?? [],
+      expire: async (key: string, seconds: number) => {
+        expireIfNeeded(shared, key);
+        shared.expires.set(key, shared.now + seconds);
+        return 1;
+      },
+      lrange: async (key: string) => {
+        expireIfNeeded(shared, key);
+        return shared.lists.get(key) ?? [];
+      },
       multi: () => {
-        const ops: Array<() => void> = [];
+        const ops: Array<() => unknown> = [];
+        let sequenceTransaction = false;
         const m: any = {
+          incr: (key: string) => {
+            sequenceTransaction = true;
+            ops.push(() => {
+              if (shared.sequenceFailure === "incr") throw new Error("simulated INCR error");
+              expireIfNeeded(shared, key);
+              const v = (shared.counters.get(key) ?? 0) + 1;
+              shared.counters.set(key, v);
+              return v;
+            });
+            return m;
+          },
+          persist: (key: string) => {
+            ops.push(() => {
+              if (shared.sequenceFailure === "persist") throw new Error("simulated PERSIST error");
+              expireIfNeeded(shared, key);
+              return shared.expires.delete(key) ? 1 : 0;
+            });
+            return m;
+          },
           rpush: (key: string, val: string) => {
             ops.push(() => {
+              expireIfNeeded(shared, key);
               const arr = shared.lists.get(key) ?? [];
               arr.push(val);
               shared.lists.set(key, arr);
@@ -62,13 +103,17 @@ vi.mock("../../../lib/redis", () => {
           },
           ltrim: (key: string, start: number, end: number) => {
             ops.push(() => {
+              expireIfNeeded(shared, key);
               const arr = shared.lists.get(key) ?? [];
               const trimmed = start < 0 && end === -1 ? arr.slice(start) : arr.slice(start, end + 1);
               shared.lists.set(key, trimmed);
             });
             return m;
           },
-          expire: () => m, // TTL is a no-op in-memory — buffer already lives only for the test's duration
+          expire: (key: string, seconds: number) => {
+            ops.push(() => { shared.expires.set(key, shared.now + seconds); return 1; });
+            return m;
+          },
           publish: (channel: string, msg: string) => {
             ops.push(() => {
               shared.channels.get(channel)?.forEach((cb) => cb(msg));
@@ -77,8 +122,10 @@ vi.mock("../../../lib/redis", () => {
           },
           exec: async () => {
             if (shared.forceExecError) throw new Error("simulated Redis blip (test-forced)");
-            ops.forEach((op) => op());
-            return [];
+            if (sequenceTransaction && shared.sequenceFailure === "abort") return null;
+            return ops.map((op) => {
+              try { return [null, op()]; } catch (err) { return [err, null]; }
+            });
           },
         };
         return m;
@@ -108,11 +155,14 @@ vi.mock("../../../lib/redis", () => {
     return client;
   }
 
-  const shared: Shared = { lists: new Map(), counters: new Map(), channels: new Map(), forceExecError: false };
+  const shared: Shared = { lists: new Map(), counters: new Map(), channels: new Map(), forceExecError: false, now: 0, expires: new Map() };
   return {
     redis: createClient(shared),
     __relayTestControls: {
       setForceExecError: (v: boolean) => { shared.forceExecError = v; },
+      setClock: (seconds: number) => { shared.now = seconds; },
+      setSequenceFailure: (failure?: Shared["sequenceFailure"]) => { shared.sequenceFailure = failure; },
+      seedLegacyExpiry: (key: string) => { shared.expires.set(key, shared.now + 3600); },
     },
   };
 });
@@ -190,6 +240,8 @@ describe("relay router — transport smoke (mocked Redis)", () => {
   beforeEach(() => {
     relayState.sessions.clear();
     __relayTestControls.setForceExecError(false);
+    __relayTestControls.setClock(0);
+    __relayTestControls.setSequenceFailure();
     // Deliberately NOT resetting relayState.counter: the fake Redis store
     // (buffers/seq counters, keyed by tenantId+sessionId) is a module-level
     // singleton that lives for the whole test FILE, not per test. Session
@@ -504,6 +556,76 @@ describe("relay router — transport smoke (mocked Redis)", () => {
     const received = resumedRes.chunks.join("");
     expect(received).not.toContain("\"type\":\"status\"");
     expect(received).toContain("second event");
+  });
+
+  describe("sequence lifetime (mock Redis clock, actual bus and router)", () => {
+    const frames = (res: any) => res.chunks.filter((chunk: string) => chunk.startsWith("id: "))
+      .map((chunk: string) => JSON.parse(chunk.split("data: ")[1]!.trim()));
+
+    for (const direction of ["commands", "events"] as const) {
+      const publish = direction === "commands" ? postCommandHandler : postEventHandler;
+      const stream = direction === "commands" ? getCommandsSSE : getEventsSSE;
+      const body = direction === "commands"
+        ? { type: "steer", message: "same text is a separate command" }
+        : { type: "agent-turn", summary: "same text is a separate event" };
+
+      it(`${direction}: live delivery and cursor replay survive the original one-hour counter deadline`, async () => {
+        const sessionId = await httpRegisterSession("tenant-a", "u", "cli");
+        const req = mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId } });
+        const live = mockRes();
+        liveReqs.push(req);
+        await stream(req, live);
+        for (const seconds of [0, 3599, 3601]) {
+          __relayTestControls.setClock(seconds);
+          const result = await invoke(publish, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, body }));
+          expect(result.nextErr).toBeUndefined();
+          expect(result.res.statusCode).toBe(202);
+        }
+        expect(frames(live).map((frame: any) => frame.seq)).toEqual([1, 2, 3]);
+        const resumedReq = mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, query: { lastEventId: "2" } });
+        const resumed = mockRes();
+        liveReqs.push(resumedReq);
+        await stream(resumedReq, resumed);
+        expect(frames(resumed).map((frame: any) => frame.seq)).toEqual([3]);
+      });
+
+      it(`${direction}: a session idle longer than the buffer TTL keeps its cursor`, async () => {
+        const sessionId = await httpRegisterSession("tenant-a", "u", "cli");
+        await invoke(publish, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, body }));
+        __relayTestControls.setClock(7201);
+        await invoke(publish, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, body }));
+        const req = mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, headers: { "last-event-id": "1" } });
+        const res = mockRes();
+        liveReqs.push(req);
+        await stream(req, res);
+        expect(frames(res).map((frame: any) => frame.seq)).toEqual([2]);
+      });
+
+      it(`${direction}: publishing removes an unexpired counter TTL from the old implementation`, async () => {
+        const sessionId = await httpRegisterSession("tenant-a", "u", "cli");
+        await invoke(publish, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, body }));
+        __relayTestControls.seedLegacyExpiry(`relay:sess:${direction === "commands" ? "cmds" : "events"}:seq:tenant-a:${sessionId}`);
+        __relayTestControls.setClock(3599);
+        await invoke(publish, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, body }));
+        __relayTestControls.setClock(7201);
+        await invoke(publish, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, body }));
+        const req = mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, query: { lastEventId: "2" } });
+        const res = mockRes();
+        liveReqs.push(req);
+        await stream(req, res);
+        expect(frames(res).map((frame: any) => frame.seq)).toEqual([3]);
+      });
+    }
+
+    it.each(["incr", "persist", "abort"] as const)("%s sequence failure returns 503 and keeps kill authorizable", async failure => {
+      const sessionId = await httpRegisterSession("tenant-a", "u", "cli");
+      const local = await openCommandsSSE("tenant-a", "u", sessionId);
+      __relayTestControls.setSequenceFailure(failure);
+      const result = await invoke(postCommandHandler, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, body: { type: "kill" } }));
+      expect(result.nextErr?.statusCode).toBe(503);
+      expect(frames(local.res)).toEqual([]);
+      expect(authorizeCommand(relayState, "tenant-a", "u", sessionId, { type: "kill" })).toEqual({ ok: true });
+    });
   });
 
   it("production session ids are crypto-random — not sequential, not guessable from a prior id", async () => {
