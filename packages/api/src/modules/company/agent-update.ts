@@ -31,11 +31,11 @@ export function updateAgentWithHistory(input: {
     `;
     if (locked.length === 0) throw new AppError(404, "Agent not found");
     const agent = await tx.agent.findFirst({
-      where: { id: input.agentId, companyId: company.id },
+      where: { id: input.agentId, companyId: company.id, company: { tenantId: input.tenantId } },
     });
     if (!agent) throw new AppError(404, "Agent not found");
     const latest = await tx.agentVersion.findFirst({
-      where: { agentId: agent.id }, orderBy: { version: "desc" },
+      where: { agentId: agent.id, agent: { company: { tenantId: input.tenantId } } }, orderBy: { version: "desc" },
     });
     const version = (latest?.version ?? 0) + 1;
     await tx.agentVersion.create({
@@ -54,7 +54,7 @@ export function updateAgentWithHistory(input: {
         createdBy: input.actor,
       },
     });
-    const updated = await tx.agent.update({ where: { id: agent.id }, data: input.data });
+    const updated = await tx.agent.update({ where: { id: agent.id, company: { tenantId: input.tenantId } }, data: input.data });
     await tx.activityLog.create({
       data: {
         tenantId: input.tenantId, actor: input.actor,
