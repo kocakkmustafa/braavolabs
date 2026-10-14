@@ -223,3 +223,14 @@ m.bounded_digest=mutate`);
   assert.equal(result.status,0,result.stderr);const proof=JSON.parse(result.stdout);
   assert.equal(proof.rejected,true);assert.equal(proof.published,false);
 }));
+
+// build-push-action has an implicit artifact upload outside upload-artifact.
+test("workflows disable optional unbounded Docker record uploads while retaining required proofs", () => {
+  for (const name of ["ci", "deploy"]) {
+    const workflow = readFileSync(join(ROOT, `.github/workflows/${name}.yml`), "utf8");
+    assert.match(workflow, /DOCKER_BUILD_RECORD_UPLOAD: "false"/);
+    assert.match(workflow, /actions\/upload-artifact@v4/);
+    if (name === "ci") assert.match(workflow, /pack-bounded-evidence\.py/);
+    else assert.match(workflow, /wc -c[^\n]+-eq 72/);
+  }
+});

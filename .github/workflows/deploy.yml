@@ -24,6 +24,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  # Required proof uploads remain bounded; this optional Docker Desktop record is not.
+  DOCKER_BUILD_RECORD_UPLOAD: "false"
   REGISTRY: ghcr.io
   IMAGE_PREFIX_RAW: ${{ github.repository }}
 

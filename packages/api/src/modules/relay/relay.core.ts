@@ -34,6 +34,8 @@ export interface SessionRecord {
   cwd?: string;
   status: SessionStatus;
   createdAt: string;
+  /** Internal cursors live and are reclaimed with this bounded registry record. */
+  sequence: { events: number; commands: number };
 }
 
 export interface RelayState {
@@ -168,6 +170,7 @@ export function registerSession(
     cwd: reg.cwd !== undefined ? redact(reg.cwd) : undefined,
     status: "active",
     createdAt: now(),
+    sequence: { events: 0, commands: 0 },
   };
   state.sessions.set(sessionId, record);
   return { ok: true, sessionId, record };

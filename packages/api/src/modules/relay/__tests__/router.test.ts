@@ -37,7 +37,8 @@ vi.mock("../../../lib/redis", () => {
     forceExecError: boolean;
     now: number;
     expires: Map<string, number>;
-    sequenceFailure?: "incr" | "persist" | "abort";
+    publishFailure?: "abort" | "error";
+    pauseExec?: Promise<void>;
   }
 
   function expireIfNeeded(shared: Shared, key: string) {
@@ -71,12 +72,9 @@ vi.mock("../../../lib/redis", () => {
       },
       multi: () => {
         const ops: Array<() => unknown> = [];
-        let sequenceTransaction = false;
         const m: any = {
           incr: (key: string) => {
-            sequenceTransaction = true;
             ops.push(() => {
-              if (shared.sequenceFailure === "incr") throw new Error("simulated INCR error");
               expireIfNeeded(shared, key);
               const v = (shared.counters.get(key) ?? 0) + 1;
               shared.counters.set(key, v);
@@ -86,7 +84,6 @@ vi.mock("../../../lib/redis", () => {
           },
           persist: (key: string) => {
             ops.push(() => {
-              if (shared.sequenceFailure === "persist") throw new Error("simulated PERSIST error");
               expireIfNeeded(shared, key);
               return shared.expires.delete(key) ? 1 : 0;
             });
@@ -116,13 +113,17 @@ vi.mock("../../../lib/redis", () => {
           },
           publish: (channel: string, msg: string) => {
             ops.push(() => {
+              if (shared.publishFailure === "error") throw new Error("simulated PUBLISH error");
               shared.channels.get(channel)?.forEach((cb) => cb(msg));
             });
             return m;
           },
           exec: async () => {
             if (shared.forceExecError) throw new Error("simulated Redis blip (test-forced)");
-            if (sequenceTransaction && shared.sequenceFailure === "abort") return null;
+            const pause = shared.pauseExec;
+            shared.pauseExec = undefined;
+            if (pause) await pause;
+            if (shared.publishFailure === "abort") return null;
             return ops.map((op) => {
               try { return [null, op()]; } catch (err) { return [err, null]; }
             });
@@ -161,8 +162,18 @@ vi.mock("../../../lib/redis", () => {
     __relayTestControls: {
       setForceExecError: (v: boolean) => { shared.forceExecError = v; },
       setClock: (seconds: number) => { shared.now = seconds; },
-      setSequenceFailure: (failure?: Shared["sequenceFailure"]) => { shared.sequenceFailure = failure; },
-      seedLegacyExpiry: (key: string) => { shared.expires.set(key, shared.now + 3600); },
+      setPublishFailure: (failure?: Shared["publishFailure"]) => { shared.publishFailure = failure; },
+      seedLegacyExpiry: (key: string) => { shared.counters.set(key, 1); shared.expires.set(key, shared.now + 3600); },
+      keys: (tenantId: string) => {
+        for (const key of shared.expires.keys()) expireIfNeeded(shared, key);
+        return [...new Set([...shared.counters.keys(), ...shared.lists.keys()])].filter(key => key.includes(`:${tenantId}:`));
+      },
+      ttl: (key: string) => { expireIfNeeded(shared, key); return shared.expires.get(key); },
+      pauseNextExec: () => {
+        let resume!: () => void;
+        shared.pauseExec = new Promise<void>(resolve => { resume = resolve; });
+        return resume;
+      },
     },
   };
 });
@@ -241,7 +252,7 @@ describe("relay router — transport smoke (mocked Redis)", () => {
     relayState.sessions.clear();
     __relayTestControls.setForceExecError(false);
     __relayTestControls.setClock(0);
-    __relayTestControls.setSequenceFailure();
+    __relayTestControls.setPublishFailure();
     // Deliberately NOT resetting relayState.counter: the fake Redis store
     // (buffers/seq counters, keyed by tenantId+sessionId) is a module-level
     // singleton that lives for the whole test FILE, not per test. Session
@@ -601,14 +612,17 @@ describe("relay router — transport smoke (mocked Redis)", () => {
         expect(frames(res).map((frame: any) => frame.seq)).toEqual([2]);
       });
 
-      it(`${direction}: publishing removes an unexpired counter TTL from the old implementation`, async () => {
+      it(`${direction}: legacy counter expiry is left intact and cannot reset the session cursor`, async () => {
         const sessionId = await httpRegisterSession("tenant-a", "u", "cli");
         await invoke(publish, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, body }));
-        __relayTestControls.seedLegacyExpiry(`relay:sess:${direction === "commands" ? "cmds" : "events"}:seq:tenant-a:${sessionId}`);
+        const key = `relay:sess:${direction === "commands" ? "cmds" : "events"}:seq:tenant-a:${sessionId}`;
+        __relayTestControls.seedLegacyExpiry(key);
         __relayTestControls.setClock(3599);
         await invoke(publish, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, body }));
+        expect(__relayTestControls.ttl(key)).toBe(3600);
         __relayTestControls.setClock(7201);
         await invoke(publish, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, body }));
+        expect(__relayTestControls.ttl(key)).toBeUndefined();
         const req = mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, query: { lastEventId: "2" } });
         const res = mockRes();
         liveReqs.push(req);
@@ -617,14 +631,99 @@ describe("relay router — transport smoke (mocked Redis)", () => {
       });
     }
 
-    it.each(["incr", "persist", "abort"] as const)("%s sequence failure returns 503 and keeps kill authorizable", async failure => {
+    it.each([-1, 0.5, NaN, Number.MAX_SAFE_INTEGER, undefined])("invalid/exhausted cursor %s fails closed and keeps kill authorizable", async previous => {
       const sessionId = await httpRegisterSession("tenant-a", "u", "cli");
       const local = await openCommandsSSE("tenant-a", "u", sessionId);
-      __relayTestControls.setSequenceFailure(failure);
+      relayState.sessions.get(sessionId)!.sequence.commands = previous as number;
       const result = await invoke(postCommandHandler, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, body: { type: "kill" } }));
       expect(result.nextErr?.statusCode).toBe(503);
       expect(frames(local.res)).toEqual([]);
       expect(authorizeCommand(relayState, "tenant-a", "u", sessionId, { type: "kill" })).toEqual({ ok: true });
+    });
+
+    it.each(["abort", "error"] as const)("%s publish transaction returns 503 without ending the session; retry keeps its reserved cursor", async failure => {
+      const sessionId = await httpRegisterSession("tenant-a", "u", "cli");
+      const local = await openCommandsSSE("tenant-a", "u", sessionId);
+      __relayTestControls.setPublishFailure(failure);
+      const failed = await invoke(postCommandHandler, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, body: { type: "kill" } }));
+      expect(failed.nextErr?.statusCode).toBe(503);
+      expect(frames(local.res)).toEqual([]);
+      expect(authorizeCommand(relayState, "tenant-a", "u", sessionId, { type: "kill" })).toEqual({ ok: true });
+      __relayTestControls.setPublishFailure();
+      const retry = await invoke(postCommandHandler, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, body: { type: "steer", message: "retry" } }));
+      expect(retry.res.statusCode).toBe(202);
+      expect(frames(local.res).map((frame: any) => frame.seq)).toEqual([2]);
+    });
+
+    it("concurrent publishes reserve distinct ordered cursors with independent directions", async () => {
+      const sessionId = await httpRegisterSession("tenant-concurrent", "u", "cli");
+      const local = await openCommandsSSE("tenant-concurrent", "u", sessionId);
+      const companion = await openEventsSSE("tenant-concurrent", "u", sessionId);
+      const results = await Promise.all(Array.from({ length: 40 }, () => invoke(postCommandHandler, mockReq({ auth: auth("tenant-concurrent", "u"), params: { id: sessionId }, body: { type: "steer", message: "parallel" } }))));
+      expect(results.every(result => result.res.statusCode === 202)).toBe(true);
+      expect(frames(local.res).map((frame: any) => frame.seq)).toEqual(Array.from({ length: 40 }, (_, i) => i + 1));
+      await invoke(postEventHandler, mockReq({ auth: auth("tenant-concurrent", "u"), params: { id: sessionId }, body: { type: "status", state: "running" } }));
+      expect(frames(companion.res).map((frame: any) => frame.seq)).toEqual([1]);
+      expect(__relayTestControls.keys("tenant-concurrent").every((key: string) => !key.includes(":seq:") && __relayTestControls.ttl(key) !== undefined)).toBe(true);
+    });
+
+    it("80 register/command/end cycles retain only 50 records and no permanent Redis keys", async () => {
+      for (let i = 0; i < 80; i++) {
+        const sessionId = await httpRegisterSession("tenant-churn", "u", "cli");
+        const command = await invoke(postCommandHandler, mockReq({ auth: auth("tenant-churn", "u"), params: { id: sessionId }, body: { type: "steer", message: "fixture" } }));
+        const ended = await invoke(postEventHandler, mockReq({ auth: auth("tenant-churn", "u"), params: { id: sessionId }, body: { type: "status", state: "ended" } }));
+        expect(command.res.statusCode).toBe(202);
+        expect(ended.res.statusCode).toBe(202);
+      }
+      expect(relayState.sessions.size).toBe(50);
+      expect(__relayTestControls.keys("tenant-churn").length).toBe(160);
+      expect(__relayTestControls.keys("tenant-churn").every((key: string) => !key.includes(":seq:") && __relayTestControls.ttl(key) === 3600)).toBe(true);
+      __relayTestControls.setClock(86401);
+      expect(__relayTestControls.keys("tenant-churn")).toEqual([]);
+    });
+
+    it("ended owner repost preserves status and cursor but creates only expiring payloads", async () => {
+      const sessionId = await httpRegisterSession("tenant-ended", "u", "cli");
+      for (const state of ["ended", "idle"]) {
+        const posted = await invoke(postEventHandler, mockReq({ auth: auth("tenant-ended", "u"), params: { id: sessionId }, body: { type: "status", state } }));
+        expect(posted.res.statusCode).toBe(202);
+      }
+      expect(relayState.sessions.get(sessionId)!.status).toBe("ended");
+      const polled = await invoke(getEventsPoll, mockReq({ auth: auth("tenant-ended", "u"), params: { id: sessionId } }));
+      expect(polled.res.body.events.map((event: any) => event.seq)).toEqual([1, 2]);
+      expect(polled.res.body.ended).toBe(true);
+      __relayTestControls.setClock(86401);
+      expect(__relayTestControls.keys("tenant-ended")).toEqual([]);
+    });
+
+    it("restart invalidates old access and old payloads expire; a fresh session starts at one", async () => {
+      const oldId = await httpRegisterSession("tenant-restart", "u", "cli");
+      await invoke(postCommandHandler, mockReq({ auth: auth("tenant-restart", "u"), params: { id: oldId }, body: { type: "steer", message: "before restart" } }));
+      relayState.sessions.clear();
+      const denied = await invoke(postCommandHandler, mockReq({ auth: auth("tenant-restart", "u"), params: { id: oldId }, body: { type: "kill" } }));
+      expect(denied.nextErr?.statusCode).toBe(404);
+      __relayTestControls.setClock(86401);
+      expect(__relayTestControls.keys("tenant-restart")).toEqual([]);
+      const newId = await httpRegisterSession("tenant-restart", "u", "cli");
+      expect(newId).not.toBe(oldId);
+      const local = await openCommandsSSE("tenant-restart", "u", newId);
+      await invoke(postCommandHandler, mockReq({ auth: auth("tenant-restart", "u"), params: { id: newId }, body: { type: "steer", message: "after restart" } }));
+      expect(frames(local.res).map((frame: any) => frame.seq)).toEqual([1]);
+    });
+
+    it("an authorized in-flight event completing after kill and eviction leaves no permanent state", async () => {
+      const firstId = await httpRegisterSession("tenant-inflight", "u", "cli");
+      const resume = __relayTestControls.pauseNextExec();
+      const pending = invoke(postEventHandler, mockReq({ auth: auth("tenant-inflight", "u"), params: { id: firstId }, body: { type: "agent-turn", summary: "in flight" } }));
+      await invoke(postCommandHandler, mockReq({ auth: auth("tenant-inflight", "u"), params: { id: firstId }, body: { type: "kill" } }));
+      for (let i = 0; i < 50; i++) await httpRegisterSession("tenant-inflight", "u", "cli");
+      expect(relayState.sessions.has(firstId)).toBe(false);
+      __relayTestControls.setClock(7201);
+      resume();
+      expect((await pending).res.statusCode).toBe(202);
+      expect(__relayTestControls.keys("tenant-inflight").every((key: string) => !key.includes(":seq:") && __relayTestControls.ttl(key) !== undefined)).toBe(true);
+      __relayTestControls.setClock(86401);
+      expect(__relayTestControls.keys("tenant-inflight")).toEqual([]);
     });
   });
 

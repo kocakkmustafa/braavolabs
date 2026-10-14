@@ -7,6 +7,8 @@ on:
     branches: [main]
 
 env:
+  # Required proof uploads remain bounded; this optional Docker Desktop record is not.
+  DOCKER_BUILD_RECORD_UPLOAD: "false"
   NODE_VERSION: "20"
 
 permissions:
