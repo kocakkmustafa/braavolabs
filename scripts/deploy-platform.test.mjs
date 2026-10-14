@@ -592,6 +592,7 @@ test("health readiness requires healthy API/UI and exact HTTPS 200 on all three 
     assert.match(call, /--proto =https/);
     assert.match(call, /--max-redirs 0/);
     assert.match(call, /--max-time 15/);
+    assert.match(call, /--limit-rate 64K/);
     assert.match(call, /--output \/dev\/null --write-out %\{http_code\}/);
     assert.doesNotMatch(call, /--location|--insecure| -L\b| -k\b/);
   }

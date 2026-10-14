@@ -201,7 +201,7 @@ health_https_200() {
   local budget status
   budget="$(health_command_budget "$2" 15)" || return 1
   status="$(curl --disable --proto '=https' --max-redirs 0 --fail --silent --show-error \
-    --connect-timeout 5 --max-time "$budget" --output /dev/null --write-out '%{http_code}' "$1")" || return 1
+    --connect-timeout 5 --max-time "$budget" --limit-rate 64K --output /dev/null --write-out '%{http_code}' "$1")" || return 1
   test "$status" = 200
 }
 
