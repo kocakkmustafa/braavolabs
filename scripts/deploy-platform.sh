@@ -16,6 +16,10 @@ readonly REVIEWED_IAP_DELIVERY_SHA256='c7aca6cbe9ffecb0bf7b9dae02412318ad4086860
 readonly REVIEWED_GOOGLE_ALIAS_PATH='packages/db/prisma/migrations/20260828_google_purchase_alias_ownership/migration.sql'
 readonly REVIEWED_GOOGLE_ALIAS_SHA256='a12c727a77bc30a70b86048ac959c986d031e4e20530eb0f09ae10b3306d44ee'
 readonly REVIEWED_PLAN_MIGRATION_TREE_SHA256='666ee6e523d92276eea4d48a1c1976863e6faddba700d26ecc04d723d4c39ea9'
+readonly REVIEWED_LINEAGE_PREVIOUS_RELEASE='f92626f77bd2e94ece64de29031a2b481b881119'
+readonly REVIEWED_LINEAGE_PATH='packages/db/prisma/migrations/20261003000000_google_verified_lineage/migration.sql'
+readonly REVIEWED_LINEAGE_SHA256='8410ea3d5e951574813cbd366b0f6940105542a90d642280f355dc56e3a63b7d'
+readonly REVIEWED_LINEAGE_MIGRATION_TREE_SHA256='95a0f0191b3d370afff5c20a7f0cc33124f858e8b2eae9ecabf5823b15c2b02a'
 
 die() { local code="$1"; shift; printf 'deploy-platform: %s\n' "$*" >&2; exit "$code"; }
 require_value() { test -n "${!1:-}" || die "$EXIT_INPUT" "missing required input: $1"; }
@@ -322,6 +326,39 @@ reviewed_subscription_plan_bundle() {
   test "$tree_hash" = "$REVIEWED_PLAN_MIGRATION_TREE_SHA256"
 }
 
+# Reviewed source admission only: production migration execution still needs
+# separate authorization. No ledger repair, historical checksum change or backfill.
+reviewed_google_lineage_delta() {
+  local staged="$1" delta_manifest="$2" path tree_hash
+  local discovery="$staged/migration-delta.name-status" meta="$staged/migration-delta.meta"
+  local reviewed_previous="${delta_previous_release:-${PREVIOUS_RELEASE_COMMIT:-}}"
+  local reviewed_candidate="${release_commit:-${RELEASE_COMMIT:-}}"
+  local reviewed_api="${api_ref:-${API_IMAGE_REF:-}}" reviewed_ui="${ui_ref:-${UI_IMAGE_REF:-}}"
+  test "$reviewed_previous" = "$REVIEWED_LINEAGE_PREVIOUS_RELEASE" || return 1
+  [[ "$reviewed_candidate" =~ ^[0-9a-f]{40}$ ]] || return 1
+  [[ "$reviewed_api" =~ ^ghcr[.]io/kocakkmustafa/braavolabs/api@sha256:[0-9a-f]{64}$ ]] || return 1
+  [[ "$reviewed_ui" =~ ^ghcr[.]io/kocakkmustafa/braavolabs/ui@sha256:[0-9a-f]{64}$ ]] || return 1
+  for path in "$delta_manifest" "$discovery" "$meta" "$staged/$REVIEWED_LINEAGE_PATH"; do
+    test -f "$path" && test ! -L "$path" || return 1
+  done
+  for path in packages packages/db packages/db/prisma packages/db/prisma/migrations; do
+    test -d "$staged/$path" && test ! -L "$staged/$path" || return 1
+  done
+  test -z "$(find "$staged/packages/db/prisma/migrations" -type l -print -quit)" || return 1
+  # Byte-exact comparisons reject duplicates, omitted paths, NULs and suffixes;
+  # self-consistent metadata hashes alone do not confer review eligibility.
+  cmp -s "$delta_manifest" <(printf '%s  %s\n' "$REVIEWED_LINEAGE_SHA256" "$REVIEWED_LINEAGE_PATH") || return 1
+  cmp -s "$discovery" <(printf 'A\t%s\n' "$REVIEWED_LINEAGE_PATH") || return 1
+  cmp -s "$meta" <(printf 'previousRelease=%s\ncandidateRelease=%s\napi=%s\nui=%s\ndiscoverySha256=%s\ndeltaSha256=%s\n' \
+    "$reviewed_previous" "$reviewed_candidate" "$reviewed_api" "$reviewed_ui" \
+    "$(sha256sum "$discovery" | awk '{print $1}')" \
+    "$(sha256sum "$delta_manifest" | awk '{print $1}')") || return 1
+  tree_hash="$(cd "$staged" &&
+    find packages/db/prisma/migrations -type f -name migration.sql -print0 |
+      LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')" || return 1
+  test "$tree_hash" = "$REVIEWED_LINEAGE_MIGRATION_TREE_SHA256"
+}
+
 delta_discovery_matches_manifest() {
   local discovery="$1" manifest="$2" discovered manifested status
   discovered="$(mktemp)"; manifested="$(mktemp)"
@@ -346,6 +383,14 @@ migration_is_eligible() {
   test -f "$delta_manifest" || return 1
   if reviewed_subscription_plan_bundle "$staged" "$delta_manifest"; then
     return 0
+  fi
+  # The verified baseline admits exactly its reviewed lineage delta. A changed
+  # lineage file/base must never fall through to the generic nullable-ADD rule.
+  if test "${delta_previous_release:-${PREVIOUS_RELEASE_COMMIT:-}}" = "$REVIEWED_LINEAGE_PREVIOUS_RELEASE" ||
+     grep -Fq -- "$REVIEWED_LINEAGE_PATH" "$delta_manifest" ||
+     grep -Fq -- "$REVIEWED_LINEAGE_PATH" "$staged/migration-delta.name-status"; then
+    reviewed_google_lineage_delta "$staged" "$delta_manifest"
+    return "$?"
   fi
   while IFS= read -r relative; do
     test -n "$relative" || continue

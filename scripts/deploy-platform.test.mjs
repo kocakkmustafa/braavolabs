@@ -1441,3 +1441,156 @@ test("current Google lineage migration still requires manual review before trans
   assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
   assertNoExternalNetwork(h);
 }));
+
+
+// The exception is reviewed against this complete SQL tree and previous-good;
+// synthetic immutable images keep every execution inside the existing harness.
+const LINEAGE_PREVIOUS_RELEASE = "f92626f77bd2e94ece64de29031a2b481b881119";
+const LINEAGE_CANDIDATE = "bdf311692241911d1f91ed51beea42c4bacfc7ab";
+const LINEAGE_PATH = "packages/db/prisma/migrations/20261003000000_google_verified_lineage/migration.sql";
+function sealLineageDelta(input, { previous = LINEAGE_PREVIOUS_RELEASE, candidate = RELEASE,
+  api = API, ui = UI } = {}) {
+  writeFileSync(join(input, "migration-delta.meta"), [
+    `previousRelease=${previous}`, `candidateRelease=${candidate}`, `api=${api}`, `ui=${ui}`,
+    `discoverySha256=${sha256File(join(input, "migration-delta.name-status"))}`,
+    `deltaSha256=${sha256File(join(input, "migration-delta.sha256"))}`, "",
+  ].join("\n"));
+}
+function buildLineageInput(h) {
+  const input = join(h.root, "lineage-input");
+  mkdirSync(join(input, "packages/db/prisma"), { recursive: true });
+  cpSync(join(ROOT, "packages/db/prisma/migrations"),
+    join(input, "packages/db/prisma/migrations"), { recursive: true });
+  writeFileSync(join(input, "migration-delta.name-status"), `A\t${LINEAGE_PATH}\n`);
+  writeFileSync(join(input, "migration-delta.sha256"),
+    `${sha256File(join(input, LINEAGE_PATH))}  ${LINEAGE_PATH}\n`);
+  sealLineageDelta(input);
+  return input;
+}
+function runLineageGuard(h, input, { remote = false, ...overrides } = {}) {
+  const source = readFileSync(SCRIPT, "utf8");
+  const entrypoint = source.lastIndexOf('\nif test "${1:-}" = --remote;');
+  assert.ok(entrypoint > 0, "isolate definitions without invoking a deployment entrypoint");
+  const context = remote ? {
+    delta_previous_release: LINEAGE_PREVIOUS_RELEASE, release_commit: RELEASE,
+    api_ref: API, ui_ref: UI,
+  } : { PREVIOUS_RELEASE_COMMIT: LINEAGE_PREVIOUS_RELEASE };
+  const result = spawnSync("bash", ["-c", `${source.slice(0, entrypoint)}\n` +
+    'migration_is_eligible "$LINEAGE_INPUT" "$LINEAGE_INPUT/migration-delta.sha256"'], {
+    cwd: ROOT, encoding: "utf8", timeout: 10_000,
+    env: remoteEnvironment(h, { ...context, LINEAGE_INPUT: input, ...overrides }),
+  });
+  assertNoExternalNetwork(h);
+  return result;
+}
+for (const remote of [false, true]) {
+  test(`lineage exact reviewed tuple passes ${remote ? "remote" : "local"} admission`, () =>
+    withHarness((h) => {
+      assert.equal(runLineageGuard(h, buildLineageInput(h), { remote }).status, 0);
+    }));
+}
+test("lineage real previous-to-candidate discovery reaches only the mocked migration sink", () =>
+  withHarness((h) => {
+    seedComposeIdentity(h, { release: LINEAGE_PREVIOUS_RELEASE });
+    writeFileSync(join(h.appRoot, "releases/previous-good.json"), JSON.stringify({
+      release: LINEAGE_PREVIOUS_RELEASE, previousRelease: LINEAGE_PREVIOUS_RELEASE,
+      tuple: "previous-tuple", api: PREVIOUS_API, ui: PREVIOUS_UI,
+      migrationDeltaSha256: "e".repeat(64), result: "success",
+    }) + "\n");
+    const result = runDeploy(h, {
+      PREVIOUS_RELEASE_COMMIT: LINEAGE_PREVIOUS_RELEASE,
+      RELEASE_COMMIT: LINEAGE_CANDIDATE, USE_REAL_GIT_DIFF: "1",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "1");
+    const committed = JSON.parse(readFileSync(join(h.appRoot, "releases/previous-good.json")));
+    assert.equal(committed.release, LINEAGE_CANDIDATE);
+    assert.equal(committed.previousRelease, LINEAGE_PREVIOUS_RELEASE);
+    assert.equal(committed.api, API);
+    assert.equal(committed.ui, UI);
+    assertNoExternalNetwork(h);
+  }));
+
+for (const [name, mutate, overrides = {}] of [
+  ["different previous-good", (input) => sealLineageDelta(input, { previous: PREVIOUS_RELEASE }),
+    { PREVIOUS_RELEASE_COMMIT: PREVIOUS_RELEASE }],
+  ["candidate tuple mismatch", (input) => sealLineageDelta(input, { candidate: "2".repeat(40) })],
+  ["API tuple mismatch", (input) => sealLineageDelta(input, { api: PREVIOUS_API })],
+  ["UI tuple mismatch", (input) => sealLineageDelta(input, { ui: PREVIOUS_UI })],
+  ["swapped image roles", (input) => sealLineageDelta(input, { api: UI, ui: API }),
+    { API_IMAGE_REF: UI, UI_IMAGE_REF: API }],
+  ["lookalike registry host", (input) => sealLineageDelta(input, { api: API.replace("ghcr.io", "ghcrXio") }),
+    { API_IMAGE_REF: API.replace("ghcr.io", "ghcrXio") }],
+  ["invalid candidate", (input) => sealLineageDelta(input, { candidate: "not-a-sha" }),
+    { RELEASE_COMMIT: "not-a-sha" }],
+  ["safe-looking changed SQL", (input) => {
+    writeFileSync(join(input, LINEAGE_PATH), "ALTER TABLE tenants ADD COLUMN extra TEXT;\n");
+    writeFileSync(join(input, "migration-delta.sha256"), `${sha256File(join(input, LINEAGE_PATH))}  ${LINEAGE_PATH}\n`);
+    sealLineageDelta(input);
+  }],
+  ["SQL whitespace drift", (input) => writeFileSync(join(input, LINEAGE_PATH),
+    readFileSync(join(input, LINEAGE_PATH), "utf8") + "\n")],
+  ["historical SQL drift", (input) => writeFileSync(join(input, REVIEWED_ENUM_MIGRATION),
+    readFileSync(join(input, REVIEWED_ENUM_MIGRATION), "utf8") + "\n")],
+  ["additional unmanifested SQL", (input) => {
+    mkdirSync(join(input, "packages/db/prisma/migrations/20991231000000_extra"));
+    writeFileSync(join(input, "packages/db/prisma/migrations/20991231000000_extra/migration.sql"),
+      "ALTER TABLE tenants ADD COLUMN extra TEXT;\n");
+  }],
+  ["missing historical SQL", (input) => rmSync(join(input, REVIEWED_ENUM_MIGRATION))],
+  ["SQL symlink", (input) => {
+    rmSync(join(input, LINEAGE_PATH)); symlinkSync(join(ROOT, LINEAGE_PATH), join(input, LINEAGE_PATH));
+  }],
+  ["migration-directory symlink", (input) => {
+    rmSync(join(input, "packages/db/prisma/migrations"), { recursive: true });
+    symlinkSync(join(ROOT, "packages/db/prisma/migrations"), join(input, "packages/db/prisma/migrations"));
+  }],
+  ["manifest symlink", (input) => {
+    const content = readFileSync(join(input, "migration-delta.sha256"));
+    writeFileSync(join(input, "linked-manifest"), content); rmSync(join(input, "migration-delta.sha256"));
+    symlinkSync(join(input, "linked-manifest"), join(input, "migration-delta.sha256"));
+  }],
+  ["manifest hash drift", (input) => {
+    writeFileSync(join(input, "migration-delta.sha256"), `${"0".repeat(64)}  ${LINEAGE_PATH}\n`);
+    sealLineageDelta(input);
+  }],
+  ["duplicate manifest path", (input) => {
+    const file = join(input, "migration-delta.sha256"); writeFileSync(file, readFileSync(file, "utf8").repeat(2));
+    sealLineageDelta(input);
+  }],
+  ["blank manifest suffix", (input) => {
+    const file = join(input, "migration-delta.sha256"); writeFileSync(file, readFileSync(file, "utf8") + "\n");
+    sealLineageDelta(input);
+  }],
+  ["NUL manifest byte", (input) => {
+    const file = join(input, "migration-delta.sha256"); writeFileSync(file, readFileSync(file, "utf8").replace("  ", "\0  "));
+    sealLineageDelta(input);
+  }],
+  ["modified discovery status", (input) => {
+    writeFileSync(join(input, "migration-delta.name-status"), `M\t${LINEAGE_PATH}\n`); sealLineageDelta(input);
+  }],
+  ["duplicate discovery path", (input) => {
+    writeFileSync(join(input, "migration-delta.name-status"), `A\t${LINEAGE_PATH}\n`.repeat(2)); sealLineageDelta(input);
+  }],
+  ["omitted delta", (input) => {
+    writeFileSync(join(input, "migration-delta.name-status"), "");
+    writeFileSync(join(input, "migration-delta.sha256"), ""); sealLineageDelta(input);
+  }],
+  ["second manifested path", (input) => {
+    writeFileSync(join(input, "migration-delta.name-status"), `A\t${LINEAGE_PATH}\nA\t${REVIEWED_ENUM_MIGRATION}\n`);
+    writeFileSync(join(input, "migration-delta.sha256"), readFileSync(join(input, "migration-delta.sha256"), "utf8") +
+      `${sha256File(join(input, REVIEWED_ENUM_MIGRATION))}  ${REVIEWED_ENUM_MIGRATION}\n`); sealLineageDelta(input);
+  }],
+  ["conflicting duplicate metadata", (input) => {
+    const file = join(input, "migration-delta.meta"); writeFileSync(file, readFileSync(file, "utf8") + `candidateRelease=${"2".repeat(40)}\n`);
+  }],
+  ["stale metadata seal", (input) => {
+    const file = join(input, "migration-delta.meta"); writeFileSync(file, readFileSync(file, "utf8").replace("discoverySha256=", "discoverySha256=0"));
+  }],
+]) test(`lineage denies ${name} without generic policy fallback`, () => withHarness((h) => {
+  const input = buildLineageInput(h); mutate(input);
+  const result = runLineageGuard(h, input, overrides);
+  assert.equal(result.status, 1, result.stderr);
+  assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
+  assert.equal(readFileSync(join(h.state, "cutover-count"), "utf8"), "0");
+}));
