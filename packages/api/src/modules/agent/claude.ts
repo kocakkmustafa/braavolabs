@@ -730,6 +730,9 @@ async function callProvider(
 const TRIAL_MAX_TURNS = 4;
 
 export interface ProviderAgentLoopConfig {
+  /** Fail before dispatch if a provider returns any tool call. Opt-in so
+   * existing agent/cascade behavior is unchanged. */
+  rejectToolCalls?: boolean;
   reasoningEffort?: ReasoningEffort;
   systemPrompt: string;
   userMessage: string;
@@ -1056,6 +1059,9 @@ export async function runProviderAgentLoop(
     );
 
     const requestedCalls = result.toolCalls ?? [];
+    if (config.rejectToolCalls && requestedCalls.length > 0) {
+      throw new Error("Tool calls are not allowed for this request");
+    }
     const toolCallResults = await executeToolCalls(requestedCalls, govContext, extraTools);
 
     turns.push({
@@ -1149,6 +1155,8 @@ export async function runProviderAgentLoop(
  * 3. Repeat until it produces a final text response or budget is exhausted
  */
 export async function runAgentLoop(config: {
+  /** Exact provider requests can forbid all returned tool calls. */
+  rejectToolCalls?: boolean;
   reasoningEffort?: ReasoningEffort;
   systemPrompt: string;
   userMessage: string;
@@ -1191,6 +1199,9 @@ export async function runAgentLoop(config: {
    */
   extraTools?: Map<string, ToolDefinition>;
 }): Promise<AgentLoopResult> {
+  if (config.rejectToolCalls && !config.aiConfigOverride) {
+    throw new Error("Forbidding tool calls requires aiConfigOverride");
+  }
   if (config.reasoningEffort !== undefined && !config.aiConfigOverride) {
     throw new UnsupportedReasoningEffortError("Explicit reasoning effort requires aiConfigOverride");
   }

@@ -70,6 +70,7 @@ vi.mock("../../../lib/ssrf", () => ({
 }));
 
 // Registry — one known test tool; everything else unregistered.
+const registryToolHandler = vi.hoisted(() => vi.fn(async () => ({time: "now"})));
 vi.mock("../registry", () => ({
   getTool: (name: string) =>
     name === "get_time"
@@ -81,7 +82,7 @@ vi.mock("../registry", () => ({
             properties: { timezone: { type: "string" } },
             required: ["timezone"],
           },
-          handler: async () => ({ time: "now" }),
+          handler: registryToolHandler,
         }
       : undefined,
 }));
@@ -610,5 +611,34 @@ describe("resolveModelForProvider — Agent.model > tenant model > provider defa
       "gemma3:4b",
     );
     expect(resolveModelForProvider("LMSTUDIO", "gpt-4o", undefined)).toBe("google/gemma-3-4b-it");
+  });
+});
+
+
+describe("exact selected requests forbid provider-returned tools before dispatch", () => {
+  it.each([false, true])("rejects an unsolicited registered tool before ungoverned/governed dispatch (governed=%s)", async governed => {
+    chatCompletionMock.mockReset().mockResolvedValue(completion({content: "Synthetic answer", stopReason: "tool_calls",
+      toolCalls: [{id: "unsolicited", name: "get_time", argumentsJson: '{"timezone":"UTC"}'}]}));
+    await expect(runAgentLoop({systemPrompt: "system", userMessage: "question", toolNames: [], maxTurns: 1,
+      aiConfigOverride: GROQ_CONFIG, rejectToolCalls: true, ...(governed ? {govContext: GOV} : {})})).rejects.toThrow("Tool calls are not allowed");
+    expect(chatCompletionMock).toHaveBeenCalledOnce();
+    expect(chatCompletionMock.mock.calls[0][4]?.tools).toBeUndefined();
+    expect(registryToolHandler).not.toHaveBeenCalled(); expect(executeToolMock).not.toHaveBeenCalled();
+  });
+  it("also prevents request-scoped dynamic tool handlers from executing", async () => {
+    const handler = vi.fn();
+    chatCompletionMock.mockReset().mockResolvedValue(completion({stopReason: "tool_calls",
+      toolCalls: [{id: "dynamic", name: "dynamic_tool", argumentsJson: "{}"}]}));
+    await expect(runAgentLoop({systemPrompt: "system", userMessage: "question", toolNames: [], maxTurns: 1,
+      aiConfigOverride: GROQ_CONFIG, rejectToolCalls: true,
+      extraTools: new Map([["dynamic_tool", {name: "dynamic_tool", description: "Synthetic", inputSchema: {type: "object"}, handler}]]),
+    })).rejects.toThrow("Tool calls are not allowed");
+    expect(handler).not.toHaveBeenCalled(); expect(executeToolMock).not.toHaveBeenCalled();
+    expect(chatCompletionMock).toHaveBeenCalledOnce();
+  });
+  it("cannot enter an unguarded local/automatic runner when rejection was requested", async () => {
+    chatCompletionMock.mockReset();
+    await expect(runAgentLoop({systemPrompt: "system", userMessage: "question", toolNames: [], rejectToolCalls: true})).rejects.toThrow("requires aiConfigOverride");
+    expect(aiConfigFindMany).not.toHaveBeenCalled(); expect(chatCompletionMock).not.toHaveBeenCalled();
   });
 });
