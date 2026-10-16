@@ -36,6 +36,8 @@ const steeringUpdateMany = vi.hoisted(() => vi.fn());
 const aiConfigFindMany = vi.hoisted(() => vi.fn());
 const tenantFindUnique = vi.hoisted(() => vi.fn());
 const activityLogCreate = vi.hoisted(() => vi.fn());
+const benchSuiteFindUnique = vi.hoisted(() => vi.fn());
+const benchRunCreate = vi.hoisted(() => vi.fn());
 vi.mock("../../../lib/db", () => ({
   prisma: {
     steeringMessage: {
@@ -50,6 +52,7 @@ vi.mock("../../../lib/db", () => ({
     },
     tenant: { findUnique: (...a: unknown[]) => tenantFindUnique(...a) },
     activityLog: { create: (...a: unknown[]) => activityLogCreate(...a) },
+    benchSuite: {findUnique: benchSuiteFindUnique}, benchRun: {create: benchRunCreate},
   },
 }));
 
@@ -122,6 +125,9 @@ import {
   type AIClientConfig,
 } from "../../../services/ai-client";
 import { resetProviderCircuits } from "../../../services/provider-chain";
+import { runTenantCascade } from "../../research/cascade.service";
+import { compareAcrossModels } from "../../../services/multi-model";
+import { runBenchSuite } from "../../bench/bench.service";
 
 describe("exact effort agent propagation", () => {
   beforeEach(() => chatCompletionMock.mockReset());
@@ -640,5 +646,100 @@ describe("exact selected requests forbid provider-returned tools before dispatch
     chatCompletionMock.mockReset();
     await expect(runAgentLoop({systemPrompt: "system", userMessage: "question", toolNames: [], rejectToolCalls: true})).rejects.toThrow("requires aiConfigOverride");
     expect(aiConfigFindMany).not.toHaveBeenCalled(); expect(chatCompletionMock).not.toHaveBeenCalled();
+  });
+});
+
+
+// These exercise the real shared loop and real caller orchestration. Only the
+// provider response and persistence are synthetic; no external calls are made.
+describe("implicit zero-capability requests", () => {
+  function unsolicited(argumentsJson = '{"timezone":"UTC"}') {
+    return completion({content: "Synthetic provider reply", stopReason: "tool_calls",
+      toolCalls: [{id: "unsolicited", name: "get_time", argumentsJson}]});
+  }
+  it.each([
+    {mode: "override", governed: false, emptyMap: false},
+    {mode: "override", governed: true, emptyMap: true},
+    {mode: "tenant", governed: false, emptyMap: true},
+    {mode: "tenant", governed: true, emptyMap: false},
+    {mode: "system", governed: false, emptyMap: false},
+    {mode: "direct", governed: false, emptyMap: true},
+  ])("rejects unsolicited calls for $mode with governed=$governed / emptyMap=$emptyMap", async ({mode, governed, emptyMap}) => {
+    chatCompletionMock.mockReset().mockResolvedValue(unsolicited());
+    const config = {systemPrompt: "system", userMessage: "question", toolNames: [], maxTurns: 1,
+      rejectToolCalls: false, ...(governed ? {govContext: GOV} : {}), ...(emptyMap ? {extraTools: new Map()} : {})};
+    const pending = mode === "direct" ? runProviderAgentLoop(config, GROQ_CONFIG)
+      : runAgentLoop({...config, ...(mode === "override" ? {aiConfigOverride: GROQ_CONFIG} : mode === "tenant" ? {tenantId: "tenant-1"} : {})});
+    const observed = await pending.then(() => ({rejected: false, message: ""}), error => ({rejected: true, message: error.message}));
+    expect({rejected: observed.rejected, registryCalls: registryToolHandler.mock.calls.length, governedCalls: executeToolMock.mock.calls.length})
+      .toEqual({rejected: true, registryCalls: 0, governedCalls: 0});
+    expect(observed.message).toContain("Tool calls are not allowed");
+    expect(chatCompletionMock).toHaveBeenCalledOnce();
+    expect(registryToolHandler).not.toHaveBeenCalled(); expect(executeToolMock).not.toHaveBeenCalled();
+    expect(activityLogCreate).not.toHaveBeenCalled();
+  });
+  it("rejects multiple calls with malformed/object-like argument encodings before any handler", async () => {
+    chatCompletionMock.mockReset().mockResolvedValue(completion({toolCalls: [
+      {id: "malformed", name: "get_time", argumentsJson: "{"},
+      {id: "array", name: "get_time", argumentsJson: "[]"},
+    ]}));
+    await expect(runAgentLoop({systemPrompt: "system", userMessage: "question", toolNames: [], aiConfigOverride: GROQ_CONFIG})).rejects.toThrow("Tool calls are not allowed");
+    expect(registryToolHandler).not.toHaveBeenCalled(); expect(executeToolMock).not.toHaveBeenCalled();
+  });
+  it("keeps normal text replies working without an explicit flag", async () => {
+    chatCompletionMock.mockReset().mockResolvedValue(completion({content: "Ordinary tools-free answer"}));
+    const result = await runAgentLoop({systemPrompt: "system", userMessage: "question", toolNames: [], tenantId: "tenant-1"});
+    expect(result.finalContent).toBe("Ordinary tools-free answer"); expect(result.totalToolCalls).toBe(0);
+    expect(chatCompletionMock).toHaveBeenCalledOnce(); expect(executeToolMock).not.toHaveBeenCalled();
+  });
+  it("preserves a connector-only governed request with empty static toolNames", async () => {
+    const extraTools = new Map([["connector_read", {name: "connector_read", description: "Synthetic connector", inputSchema: {type: "object"}, handler: vi.fn()}]]);
+    chatCompletionMock.mockReset().mockResolvedValue(completion({toolCalls: [{id: "allowed", name: "connector_read", argumentsJson: "{}"}]}));
+    const result = await runAgentLoop({systemPrompt: "system", userMessage: "question", toolNames: [], extraTools,
+      govContext: GOV, aiConfigOverride: GROQ_CONFIG, maxTurns: 1});
+    expect(result.totalToolCalls).toBe(1);
+    expect(executeToolMock).toHaveBeenCalledWith("connector_read", {}, expect.objectContaining({...GOV, extraTools}));
+    expect(chatCompletionMock.mock.calls[0][4].tools).toEqual([expect.objectContaining({name: "connector_read"})]);
+  });
+  it("rejects an unsolicited call through the actual legacy cascade service", async () => {
+    chatCompletionMock.mockReset().mockResolvedValue(unsolicited());
+    await expect(runTenantCascade("tenant-1", "Synthetic question")).rejects.toThrow("Tool calls are not allowed");
+    expect(chatCompletionMock).toHaveBeenCalledOnce(); expect(registryToolHandler).not.toHaveBeenCalled();
+  });
+  function twoProviders() {
+    aiConfigFindMany.mockResolvedValue([GROQ_CONFIG, {provider: "OPENAI", model: "gpt-4o", apiKey: "synthetic"}].map((config, i) => ({
+      ...config, id: `cfg-${i}`, tenantId: "tenant-1", encryptedApiKey: "not-resolved-by-mocked-provider",
+      baseUrl: null, isDefault: i === 0, fallbackOrder: i, allowSystemFallback: false, createdAt: new Date(2026, 0, i + 1),
+    })));
+  }
+  it("contains actual Compare candidate and synthesis tool replies with existing partial-result semantics", async () => {
+    twoProviders();
+    chatCompletionMock.mockReset().mockResolvedValueOnce(unsolicited())
+      .mockResolvedValueOnce(completion({content: "Clean surviving candidate"})).mockResolvedValueOnce(unsolicited());
+    const result = await compareAcrossModels("tenant-1", "Synthetic question");
+    expect(result.perModel).toHaveLength(1); expect(result.failed).toHaveLength(1);
+    expect(result.synthesisStatus).toBe("unavailable"); expect(result.finalAnswer).toBe("Clean surviving candidate");
+    expect(chatCompletionMock).toHaveBeenCalledTimes(3);
+    expect(registryToolHandler).not.toHaveBeenCalled(); expect(executeToolMock).not.toHaveBeenCalled();
+  });
+  it("contains actual Compare debate tool replies while retaining original clean candidates", async () => {
+    twoProviders();
+    chatCompletionMock.mockReset().mockResolvedValueOnce(completion({content: "Candidate one"}))
+      .mockResolvedValueOnce(completion({content: "Candidate two"})).mockResolvedValueOnce(unsolicited()).mockResolvedValueOnce(unsolicited())
+      .mockResolvedValueOnce(completion({content: '{"synthesis":"ok","consensus":[],"disagreements":[],"finalAnswer":"Merged"}'}));
+    const result = await compareAcrossModels("tenant-1", "Synthetic question", {debateRounds: 1});
+    expect(result.perModel.map(candidate => candidate.answer)).toEqual(["Candidate one", "Candidate two"]);
+    expect(result.finalAnswer).toBe("Merged"); expect(chatCompletionMock).toHaveBeenCalledTimes(5);
+    expect(registryToolHandler).not.toHaveBeenCalled(); expect(executeToolMock).not.toHaveBeenCalled();
+  });
+  it.each(["candidate", "judge"])("rejects unsolicited calls through the actual bench %s", async stage => {
+    benchSuiteFindUnique.mockResolvedValue({id: "synthetic-suite", tasks: [{id: "task", prompt: "Synthetic", rubric: "Synthetic"}], maxScorePerTask: 10});
+    chatCompletionMock.mockReset();
+    if (stage === "judge") chatCompletionMock.mockResolvedValueOnce(completion({content: "Clean candidate"}));
+    chatCompletionMock.mockResolvedValueOnce(unsolicited()).mockResolvedValue(completion({content: '{"score":8,"notes":"Synthetic"}'}));
+    benchRunCreate.mockResolvedValue({id: "synthetic-bench"});
+    await expect(runBenchSuite({suiteSlug: "synthetic-suite", provider: "OLLAMA", model: "synthetic-local-model"})).rejects.toThrow("Tool calls are not allowed");
+    expect(chatCompletionMock).toHaveBeenCalledTimes(stage === "judge" ? 2 : 1);
+    expect(benchRunCreate).not.toHaveBeenCalled(); expect(registryToolHandler).not.toHaveBeenCalled(); expect(executeToolMock).not.toHaveBeenCalled();
   });
 });

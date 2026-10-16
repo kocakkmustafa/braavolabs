@@ -163,6 +163,7 @@ async function executeLocalTurn(
   toolNames: string[],
 ): Promise<AgentTurnResult> {
   const start = Date.now();
+  const toolsForbidden = toolNames.length === 0;
   const toolPrompt = buildToolPrompt(toolNames);
   const fullSystem = systemPrompt + toolPrompt;
 
@@ -170,6 +171,9 @@ async function executeLocalTurn(
 
   // Parse tool calls from response
   const parsedCalls = parseToolCalls(cliResult.result);
+  if (toolsForbidden && parsedCalls.length > 0) {
+    throw new Error("Tool calls are not allowed for this request");
+  }
   const content = stripToolCalls(cliResult.result);
 
   // Execute tool calls

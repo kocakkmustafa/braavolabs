@@ -730,8 +730,8 @@ async function callProvider(
 const TRIAL_MAX_TURNS = 4;
 
 export interface ProviderAgentLoopConfig {
-  /** Fail before dispatch if a provider returns any tool call. Opt-in so
-   * existing agent/cascade behavior is unchanged. */
+  /** Forbid returned tool calls even when tool capabilities are present.
+   * An empty effective tool set always forbids dispatch. */
   rejectToolCalls?: boolean;
   reasoningEffort?: ReasoningEffort;
   systemPrompt: string;
@@ -860,6 +860,9 @@ export async function runProviderAgentLoop(
     extraTools && extraTools.size > 0
       ? [...toolNames, ...[...extraTools.keys()].filter((n) => !toolNames.includes(n))]
       : toolNames;
+  // Snapshot the declared capability boundary before awaiting a provider.
+  // Dynamic connector tools are capabilities even when static names are empty.
+  const toolsForbidden = config.rejectToolCalls === true || effectiveToolNames.length === 0;
   const toolDefs = buildChatToolDefs(effectiveToolNames, extraTools);
   let toolUseMode: "native" | "prompt-fallback" = "native";
   let effectiveSystemPrompt = systemPrompt;
@@ -1059,7 +1062,7 @@ export async function runProviderAgentLoop(
     );
 
     const requestedCalls = result.toolCalls ?? [];
-    if (config.rejectToolCalls && requestedCalls.length > 0) {
+    if (toolsForbidden && requestedCalls.length > 0) {
       throw new Error("Tool calls are not allowed for this request");
     }
     const toolCallResults = await executeToolCalls(requestedCalls, govContext, extraTools);
