@@ -24,6 +24,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  # Required proof uploads remain bounded; this optional Docker Desktop record is not.
+  DOCKER_BUILD_RECORD_UPLOAD: "false"
   REGISTRY: ghcr.io
   IMAGE_PREFIX_RAW: ${{ github.repository }}
 
@@ -129,15 +131,16 @@ jobs:
         run: |
           set -euo pipefail
           digest="${API_DIGEST:-${UI_DIGEST:-}}"
-          test -n "$digest"
-          test "${digest#sha256:}" != "$digest"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           printf '%s\n' "$digest" > "$RUNNER_TEMP/${{ matrix.service }}.digest"
+          test "$(wc -c < "$RUNNER_TEMP/${{ matrix.service }}.digest")" -eq 72
 
       - name: Upload immutable service digest
         uses: actions/upload-artifact@v4
         with:
           name: image-digest-${{ matrix.service }}
           path: ${{ runner.temp }}/${{ matrix.service }}.digest
+          compression-level: 0
           if-no-files-found: error
           retention-days: 1
 

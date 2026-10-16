@@ -730,6 +730,9 @@ async function callProvider(
 const TRIAL_MAX_TURNS = 4;
 
 export interface ProviderAgentLoopConfig {
+  /** Forbid returned tool calls even when tool capabilities are present.
+   * An empty effective tool set always forbids dispatch. */
+  rejectToolCalls?: boolean;
   reasoningEffort?: ReasoningEffort;
   systemPrompt: string;
   userMessage: string;
@@ -857,6 +860,9 @@ export async function runProviderAgentLoop(
     extraTools && extraTools.size > 0
       ? [...toolNames, ...[...extraTools.keys()].filter((n) => !toolNames.includes(n))]
       : toolNames;
+  // Snapshot the declared capability boundary before awaiting a provider.
+  // Dynamic connector tools are capabilities even when static names are empty.
+  const toolsForbidden = config.rejectToolCalls === true || effectiveToolNames.length === 0;
   const toolDefs = buildChatToolDefs(effectiveToolNames, extraTools);
   let toolUseMode: "native" | "prompt-fallback" = "native";
   let effectiveSystemPrompt = systemPrompt;
@@ -1056,6 +1062,9 @@ export async function runProviderAgentLoop(
     );
 
     const requestedCalls = result.toolCalls ?? [];
+    if (toolsForbidden && requestedCalls.length > 0) {
+      throw new Error("Tool calls are not allowed for this request");
+    }
     const toolCallResults = await executeToolCalls(requestedCalls, govContext, extraTools);
 
     turns.push({
@@ -1149,6 +1158,8 @@ export async function runProviderAgentLoop(
  * 3. Repeat until it produces a final text response or budget is exhausted
  */
 export async function runAgentLoop(config: {
+  /** Exact provider requests can forbid all returned tool calls. */
+  rejectToolCalls?: boolean;
   reasoningEffort?: ReasoningEffort;
   systemPrompt: string;
   userMessage: string;
@@ -1191,6 +1202,9 @@ export async function runAgentLoop(config: {
    */
   extraTools?: Map<string, ToolDefinition>;
 }): Promise<AgentLoopResult> {
+  if (config.rejectToolCalls && !config.aiConfigOverride) {
+    throw new Error("Forbidding tool calls requires aiConfigOverride");
+  }
   if (config.reasoningEffort !== undefined && !config.aiConfigOverride) {
     throw new UnsupportedReasoningEffortError("Explicit reasoning effort requires aiConfigOverride");
   }

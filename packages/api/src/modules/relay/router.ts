@@ -150,7 +150,7 @@ relayRouter.post("/sessions/:id/events", async (req, res, next) => {
       throw new AppError(404, "Session not found");
     }
 
-    await publishSessionEvent(sessionId, req.auth!.tenantId, parsed);
+    await publishSessionEvent(getSession(relayState, sessionId)!, parsed);
 
     // The local session reporting its own graceful end is the authoritative
     // lifecycle signal (a `kill` ControlCommand only REQUESTS this — see the
@@ -291,7 +291,7 @@ relayRouter.post("/sessions/:id/commands", async (req, res, next) => {
       throw new AppError(404, "Session not found or not steerable");
     }
 
-    const delivered = await publishControlCommand(sessionId, req.auth!.tenantId, parsed);
+    const delivered = await publishControlCommand(getSession(relayState, sessionId)!, parsed);
     if (!delivered) {
       throw new AppError(503, "Command could not be delivered — try again.");
     }

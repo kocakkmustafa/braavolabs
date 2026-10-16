@@ -60,6 +60,7 @@
 import { runAgentLoop } from "../agent/claude";
 import { AppError } from "../../middleware/error";
 import { listTenantProviderLinks, type ProviderChainLink } from "../../services/provider-chain";
+import { resolveModelSelections, type ModelSelection } from "../../services/multi-model";
 import {
   runCascade,
   type CascadeOptions,
@@ -172,7 +173,7 @@ export interface TenantCascadeOptions {
   confidenceThreshold?: number;
   /** Force at least one escalation past the first answer. */
   secondOpinion?: boolean;
-  /** Hard cap on cumulative USD across every attempt. */
+  /** Stop further escalation after an attempt reaches this cumulative USD threshold. */
   budgetUsdCap?: number;
   /** Per-attempt output-token cap. Default 1024. */
   maxTokensPerAttempt?: number;
@@ -218,7 +219,49 @@ export async function runTenantCascade(
   prompt: string,
   opts: TenantCascadeOptions = {},
 ): Promise<TenantCascadeResult> {
+  return runCascadeWithLinks(prompt, await listTenantProviderLinks(tenantId), opts);
+}
+
+export interface TenantSelectedCascadeResult extends TenantCascadeResult {
+  selection: ModelSelection;
+}
+
+/** Re-resolve one exact tenant-owned pair on every call. No Compare, synthesis,
+ * failover chain or automatic model substitution is used by this path. */
+export async function runTenantSelectedCascade(
+  tenantId: string,
+  prompt: string,
+  selection: ModelSelection,
+  opts: TenantCascadeOptions = {},
+): Promise<TenantSelectedCascadeResult> {
+  if (opts.secondOpinion === true) throw new AppError(400, "Selected cascade does not support a second opinion");
+  // The provider runner trims stored model IDs and defaults an empty ID. Reject
+  // those configurations here, before inference can reinterpret an exact choice.
+  if (!selection.provider || selection.provider.trim() !== selection.provider
+      || !selection.model || selection.model.trim() !== selection.model) {
+    throw new AppError(400, "Invalid exact model selection");
+  }
+  const accepted: ModelSelection = {
+    provider: selection.provider, model: selection.model,
+    ...(selection.reasoningEffort !== undefined ? {reasoningEffort: selection.reasoningEffort} : {}),
+  };
   const links = await listTenantProviderLinks(tenantId);
+  let selected: ProviderChainLink[];
+  try {
+    selected = resolveModelSelections(links, [accepted], 1);
+  } catch {
+    throw new AppError(400, "Model selection is unavailable or unsupported for this tenant");
+  }
+  const result = await runCascadeWithLinks(prompt, selected, opts, accepted);
+  return {...result, selection: accepted};
+}
+
+async function runCascadeWithLinks(
+  prompt: string,
+  links: ProviderChainLink[],
+  opts: TenantCascadeOptions,
+  selection?: ModelSelection,
+): Promise<TenantCascadeResult> {
   if (links.length === 0) {
     throw new AppError(
       400,
@@ -261,7 +304,12 @@ export async function runTenantCascade(
       maxTokens,
       // T5/D-010: force the REAL provider×model this rung claims.
       aiConfigOverride: link.config,
+      ...(selection ? {rejectToolCalls: true} : {}),
+      ...(selection?.reasoningEffort !== undefined ? {reasoningEffort: selection.reasoningEffort} : {}),
     });
+    if (selection && (result.provider !== selection.provider || result.model !== selection.model)) {
+      throw new AppError(502, "Selected model response identity mismatch");
+    }
     const lastTurn = result.turns[result.turns.length - 1];
     const { answer, selfConfidence } = parseCascadeCandidate(result.finalContent);
     // Hybrid confidence (v2): the structural heuristic (empty / truncated /

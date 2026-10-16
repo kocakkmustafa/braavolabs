@@ -17,7 +17,7 @@ import { rateLimit } from "../../middleware/rateLimit";
 import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { startCompare, startResearch } from "./research.service";
-import { runTenantCascade } from "./cascade.service";
+import { runTenantCascade, runTenantSelectedCascade } from "./cascade.service";
 import { listCompareSelectionOptions } from "../../services/compare-options";
 
 export const researchRouter = Router();
@@ -152,6 +152,37 @@ researchRouter.post("/cascade", cascadeLimiter, async (req, res, next) => {
   try {
     const body = cascadeSchema.parse(req.body);
     const result = await runTenantCascade(req.auth!.tenantId, body.prompt, {
+      confidenceThreshold: body.confidenceThreshold,
+      secondOpinion: body.secondOpinion,
+      budgetUsdCap: body.budgetUsdCap,
+    });
+    res.status(200).json(result);
+  } catch (err) { next(err); }
+});
+
+// Additive paths: an older server returns 404 instead of stripping a selection
+// from a legacy cascade request and silently running its automatic model.
+researchRouter.get("/cascade/options", async (req, res, next) => {
+  try {
+    const selections = await listCompareSelectionOptions(req.auth!.tenantId);
+    res.set("Cache-Control", "private, no-store");
+    res.json({ selectionContract: "exact-single-v1", selections });
+  } catch (err) { next(err); }
+});
+
+const selectedCascadeSchema = cascadeSchema.extend({
+  selection: z.object({
+    provider: z.string().min(1),
+    model: z.string().min(1),
+    reasoningEffort: z.enum(["low", "medium", "high"]).optional(),
+  }).strict(),
+  secondOpinion: z.literal(false).optional(),
+}).strict();
+
+researchRouter.post("/cascade/selected", cascadeLimiter, async (req, res, next) => {
+  try {
+    const body = selectedCascadeSchema.parse(req.body);
+    const result = await runTenantSelectedCascade(req.auth!.tenantId, body.prompt, body.selection, {
       confidenceThreshold: body.confidenceThreshold,
       secondOpinion: body.secondOpinion,
       budgetUsdCap: body.budgetUsdCap,
