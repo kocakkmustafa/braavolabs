@@ -1369,11 +1369,17 @@ const COREPACK_ARCHIVE_SHA256 = "d389715b4d2966e8c84103387f83d2ea698d797bf678f56
 const COREPACK_EMBEDDED_SHA512 = "b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0";
 const COREPACK_ORIGIN = "https://registry.npmjs.org/pnpm/-/pnpm-9.15.4.tgz";
 const LOCKFILE_SHA256 = "7c9e73f60bc2bfed4abf091eab49c03d897dc1801afa1c679d242e275a48c4c1";
+const NODE_BASE_IMAGE = "node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f";
 
 function assertOfflineCorepackContract(source, label) {
   assert.match(source, /^# syntax=docker\/dockerfile:1\.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e$/m, `${label}: frontend digest`);
   assert.match(source, /^FROM scratch AS corepack_archive$/m, `${label}: empty named-context fallback`);
-  assert.match(source, /^FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS corepack_(?:online|offline)$/m, `${label}: pinned Node base`);
+  const bootstrapBases = [...source.matchAll(/^FROM (\S+) AS corepack_(online|offline)$/gm)]
+    .map(([, image, stage]) => [stage, image]);
+  assert.deepEqual(bootstrapBases, [
+    ["online", NODE_BASE_IMAGE],
+    ["offline", NODE_BASE_IMAGE],
+  ], `${label}: both bootstrap stages use the exact pinned Node base`);
   assert.match(source, /RUN --network=none --mount=type=bind,from=corepack_archive,source=\/,target=\/run\/corepack-archive,ro/, `${label}: read-only networkless bind`);
   assert.match(source, /find \/run\/corepack-archive -mindepth 1 -maxdepth 1/, `${label}: exact membership`);
   assert.match(source, /test "\$count" -eq 2/, `${label}: two-file context`);
@@ -1412,6 +1418,11 @@ test("API and UI Dockerfiles enforce the exact offline Corepack contract", () =>
 test("offline Corepack security-property mutations are rejected", () => {
   const source = readFileSync(join(ROOT, "ENV/Dockerfile.ui"), "utf8");
   const mutations = [
+    ...["online", "offline"].flatMap((stage) => [
+      source.replace(`${NODE_BASE_IMAGE} AS corepack_${stage}`, `node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS corepack_${stage}`),
+      source.replace(`${NODE_BASE_IMAGE} AS corepack_${stage}`, `node:24-alpine AS corepack_${stage}`),
+    ]),
+    source.replace(`FROM ${NODE_BASE_IMAGE} AS corepack_offline`, `FROM ${NODE_BASE_IMAGE} AS corepack_online`),
     source.replace("FROM scratch AS corepack_archive", "FROM scratch AS missing_context"),
     source.replace("--network=none ", ""),
     source.replace(",ro", ",rw"),

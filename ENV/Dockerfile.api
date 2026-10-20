@@ -2,10 +2,10 @@
 ARG COREPACK_BOOTSTRAP=corepack_online
 FROM scratch AS corepack_archive
 
-FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS corepack_online
+FROM node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS corepack_online
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 
-FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS corepack_offline
+FROM node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS corepack_offline
 RUN --network=none --mount=type=bind,from=corepack_archive,source=/,target=/run/corepack-archive,ro <<'COREPACK'
 set -eu
 archive=/run/corepack-archive/corepack-pnpm-9.15.4.tgz

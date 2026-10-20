@@ -9,7 +9,7 @@ on:
 env:
   # Required proof uploads remain bounded; this optional Docker Desktop record is not.
   DOCKER_BUILD_RECORD_UPLOAD: "false"
-  NODE_VERSION: "20"
+  NODE_VERSION: "24.22.0"
 
 permissions:
   contents: read
@@ -348,7 +348,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # Prisma db push cannot create a table with vector(1536) until the
@@ -417,7 +417,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
@@ -446,7 +446,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
       # These hermetic root suites are not found by pnpm's workspace test task.
       # No install, service, network credential or optional/continue-on-error path.
       - name: Release contract regressions
