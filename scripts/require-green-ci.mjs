@@ -3,7 +3,7 @@ import { pathToFileURL } from "node:url";
 // Display names and useful steps are deliberately explicit: setup-only green
 // jobs, skipped work and an old workflow revision cannot authorize publication.
 export const REQUIRED_JOBS = Object.freeze({
-  "Lint & Type Check": ["Type check API"],
+  "Lint & Type Check": ["Type check API", "Lint"],
   Test: ["Run tests (only packages that define a test script)"],
   Build: ["Build workspaces"],
   "Docker Build": ["Build Docker image", "Test Docker image starts"],

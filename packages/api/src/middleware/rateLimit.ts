@@ -34,7 +34,10 @@ export function rateLimit(options: RateLimitOptions) {
 
       next();
     } catch {
-      // If Redis is down, fail CLOSED on every auth-adjacent path so a Redis
+      // If Redis is down, fail CLOSED on auth and receipt/store-verification
+      // paths. IAP verification and signed notifications consume provider
+      // quota even before a business write; outage must not remove that cap.
+      // On every auth-adjacent path, a Redis
       // outage cannot become an open door for credential stuffing. Earlier
       // the check used exact `===` against `"rl:auth"` but the real keys
       // are `rl:auth:login`, `rl:auth:forgot`, `rl:auth:reset`, `rl:register`,
@@ -42,6 +45,7 @@ export function rateLimit(options: RateLimitOptions) {
       // `next()` (fail-open). The startsWith form catches the entire family.
       if (
         keyPrefix.startsWith("rl:auth") ||
+        keyPrefix === "rl:iap" || keyPrefix.startsWith("rl:iap:") ||
         keyPrefix === "rl:register" ||
         keyPrefix === "rl:refresh"
       ) {

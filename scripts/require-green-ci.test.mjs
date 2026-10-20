@@ -14,7 +14,7 @@ const run = {
   created_at: timestamp, updated_at: timestamp,
 };
 const jobSteps = {
-  "Lint & Type Check": ["Type check API"],
+  "Lint & Type Check": ["Type check API", "Lint"],
   Test: ["Run tests (only packages that define a test script)"],
   Build: ["Build workspaces"],
   "Docker Build": ["Build Docker image", "Test Docker image starts"],
@@ -91,6 +91,21 @@ test("accepts exact completed main-push CI only after attempt-specific jobs and 
       assert.equal(url.searchParams.has("status"), false, "success filtering hides newer failures");
     }
   }
+});
+
+for (const conclusion of ["failure", "skipped", "neutral"]) {
+  test(`lint ${conclusion} cannot hide behind a successful job conclusion`, async () => {
+    const jobs = makeJobs();
+    jobs[0].steps.find((step) => step.name === "Lint").conclusion = conclusion;
+    await assert.rejects(requireGreenCi(fixture({ jobs }).options));
+  });
+}
+test("CI lint has a hard failure policy", () => {
+  const ci = read(".github/workflows/ci.yml");
+  const lint = ci.match(/      - name: Lint\n([\s\S]*?)(?=\n\n|$)/)?.[1];
+  assert.ok(lint, "actual lint step must exist");
+  assert.match(lint, /run: pnpm lint/);
+  assert.doesNotMatch(lint, /continue-on-error:\s*true/);
 });
 
 for (const [label, patch] of Object.entries({

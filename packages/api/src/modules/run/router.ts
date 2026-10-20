@@ -547,8 +547,9 @@ runRouter.post("/:id/steer", async (req, res, next) => {
 // GET /api/v1/runs/:id/stream — real-time SSE stream (Redis pub/sub).
 //
 // Replaces the former 3s Postgres polling. Subscribes to the per-run event
-// channel and replays the buffered backlog after Last-Event-ID so a
-// reconnecting client misses nothing. Events follow the shared RunEvent
+// channel and replays the capped backlog after Last-Event-ID. Long gaps can
+// require a fresh run snapshot; replay is not an unlimited delivery ledger.
+// Events follow the shared RunEvent
 // contract from @ai-company-os/core (same shape mobile + CLI consume).
 //
 // Auth: router-level authMiddleware sets req.auth. Browsers can't set the
@@ -572,38 +573,120 @@ runRouter.get("/:id/stream", async (req, res) => {
 
   const lastEventId = Number(req.headers["last-event-id"] ?? req.query.lastEventId ?? 0) || 0;
   let closed = false;
-  let maxSeqWritten = lastEventId;
+  let maxSeqAccepted = lastEventId;
+  let backpressured = false;
+  let endRequested = false;
+  let drainDeadline: ReturnType<typeof setTimeout> | undefined;
   const sub = redis.duplicate();
+  const MAX_PENDING_EVENTS = 250; // same event-count bound as Redis replay
+  const MAX_PENDING_BYTES = 1024 * 1024;
+  const DRAIN_TIMEOUT_MS = 10_000;
+  const outgoing: string[] = [];
+  let outgoingBytes = 0;
+  const pending: RunEvent[] = [];
+  let pendingBytes = 0;
 
-  function cleanup() {
+  function cleanup(disconnect = false) {
     if (closed) return;
     closed = true;
     clearInterval(heartbeat);
+    clearTimeout(drainDeadline);
+    res.removeListener("drain", onDrain);
+    res.removeListener("close", onClientClose);
+    res.removeListener("error", onClientClose);
+    req.removeListener("close", onClientClose);
+    outgoing.length = 0;
+    pending.length = 0;
+    outgoingBytes = pendingBytes = 0;
     sub.removeAllListeners("message");
     sub.unsubscribe(runEventChannel(runId)).catch(() => {});
     sub.quit().catch(() => {});
-    try { res.end(); } catch { /* already ended */ }
+    try {
+      if (disconnect) res.destroy();
+      else res.end();
+    } catch { /* already ended */ }
   }
 
+  function onClientClose() { cleanup(true); }
+
+  function requestEnd() {
+    endRequested = true;
+    if (!backpressured && outgoing.length === 0) cleanup();
+  }
+
+  function sendFrame(frame: string): boolean {
+    try {
+      // false means this frame was accepted, but later writes must await drain.
+      // It is normal for a healthy frame larger than the writable high-water mark.
+      if (res.write(frame) === false) {
+        backpressured = true;
+        res.once("drain", onDrain);
+        drainDeadline = setTimeout(() => cleanup(true), DRAIN_TIMEOUT_MS);
+      }
+      return true;
+    } catch {
+      cleanup(true);
+      return false;
+    }
+  }
+
+  function onDrain() {
+    if (closed) return;
+    clearTimeout(drainDeadline);
+    drainDeadline = undefined;
+    backpressured = false;
+    while (!closed && !backpressured && outgoing.length > 0) {
+      const frame = outgoing.shift()!;
+      outgoingBytes -= Buffer.byteLength(frame, "utf8");
+      sendFrame(frame);
+    }
+    if (!closed && endRequested && !backpressured && outgoing.length === 0) cleanup();
+  }
+
+  // Keep only a bounded application queue while the response drains. The
+  // response may also retain its one accepted frame; this is not a total RSS
+  // cap. On overflow/deadline, reconnect uses the client's last parsed SSE id.
+  const writeFrame = (frame: string): boolean => {
+    if (closed) return false;
+    if (backpressured) {
+      const bytes = Buffer.byteLength(frame, "utf8");
+      if (outgoing.length >= MAX_PENDING_EVENTS || outgoingBytes + bytes > MAX_PENDING_BYTES) {
+        cleanup(true);
+        return false;
+      }
+      outgoing.push(frame);
+      outgoingBytes += bytes;
+      return true;
+    }
+    return sendFrame(frame);
+  };
   const write = (ev: RunEvent) => {
-    if (closed || ev.seq <= maxSeqWritten) return;
-    maxSeqWritten = ev.seq;
-    res.write(`id: ${ev.seq}\ndata: ${JSON.stringify(ev)}\n\n`);
+    if (closed || endRequested || ev.seq <= maxSeqAccepted) return;
+    if (!writeFrame(`id: ${ev.seq}\ndata: ${JSON.stringify(ev)}\n\n`)) return;
+    maxSeqAccepted = ev.seq;
     if (ev.type === "RUN_COMPLETED" || ev.type === "RUN_FAILED") {
-      res.write("event: done\ndata: {}\n\n");
-      cleanup();
+      writeFrame("event: done\ndata: {}\n\n");
+      requestEnd();
     }
   };
 
   // Subscribe FIRST and buffer live messages until the backlog is flushed —
   // avoids both gaps (events published mid-fetch) and duplicates.
-  const pending: RunEvent[] = [];
   let backlogFlushed = false;
   sub.on("message", (_ch: string, msg: string) => {
+    if (closed || endRequested) return;
     try {
+      if (!backlogFlushed && (pending.length >= MAX_PENDING_EVENTS ||
+        pendingBytes + Buffer.byteLength(msg, "utf8") > MAX_PENDING_BYTES)) {
+        cleanup(true);
+        return;
+      }
       const ev = JSON.parse(msg) as RunEvent;
       if (backlogFlushed) write(ev);
-      else pending.push(ev);
+      else {
+        pending.push(ev);
+        pendingBytes += Buffer.byteLength(msg, "utf8");
+      }
     } catch {
       /* ignore malformed */
     }
@@ -612,22 +695,25 @@ runRouter.get("/:id/stream", async (req, res) => {
   // nginx/CDNs idle-timeout silent connections; a comment line every 25s
   // keeps the socket alive (": " prefix = ignored per the EventSource spec).
   const heartbeat = setInterval(() => {
-    if (closed) return;
-    try { res.write(`: keepalive ${Date.now()}\n\n`); } catch { cleanup(); }
+    if (closed || endRequested || backpressured) return;
+    writeFrame(`: keepalive ${Date.now()}\n\n`);
   }, 25_000);
 
-  req.on("close", cleanup);
+  req.once("close", onClientClose);
+  res.once("close", onClientClose);
+  res.once("error", onClientClose);
 
   try {
     await sub.subscribe(runEventChannel(runId));
     for (const ev of await getBufferedRunEvents(runId, lastEventId)) write(ev);
     backlogFlushed = true;
     for (const ev of pending.splice(0)) write(ev);
+    pendingBytes = 0;
 
     // Already-terminal run with nothing more coming → close after replay.
-    if (!closed && (run.status === "COMPLETED" || run.status === "FAILED" || run.status === "CANCELLED")) {
-      res.write("event: done\ndata: {}\n\n");
-      cleanup();
+    if (!closed && !endRequested && (run.status === "COMPLETED" || run.status === "FAILED" || run.status === "CANCELLED")) {
+      writeFrame("event: done\ndata: {}\n\n");
+      requestEnd();
     }
   } catch (err) {
     logger.warn({ runId, err: (err as Error).message }, "run stream subscribe failed");
