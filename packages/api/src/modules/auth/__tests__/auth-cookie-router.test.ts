@@ -21,6 +21,8 @@ const registerMock = vi.hoisted(() => vi.fn());
 const refreshTokensMock = vi.hoisted(() => vi.fn());
 const revokeAllMock = vi.hoisted(() => vi.fn());
 const userIdFromRefreshMock = vi.hoisted(() => vi.fn());
+const passwordResetMock = vi.hoisted(() => vi.fn());
+const resendVerifyMock = vi.hoisted(() => vi.fn());
 
 // Mock the whole service module — only the functions the tested handlers
 // call need real behavior; the rest are referenced only inside untested
@@ -31,7 +33,12 @@ vi.mock("../auth.service", () => ({
   refreshTokens: (...a: unknown[]) => refreshTokensMock(...a),
   revokeAllRefreshTokens: (...a: unknown[]) => revokeAllMock(...a),
   userIdFromRefreshToken: (...a: unknown[]) => userIdFromRefreshMock(...a),
+  requestPasswordReset: (...a: unknown[]) => passwordResetMock(...a),
+  resendVerifyEmail: (...a: unknown[]) => resendVerifyMock(...a),
 }));
+// Handler fixtures must not instantiate the production Redis client through
+// the router's rate-limit dependency. No socket is needed for cookie contracts.
+vi.mock("../../../lib/redis", () => ({ redis: {} }));
 
 // jwt.verify is the access-token path of the auth-optional logout. Mocking it
 // lets us drive "valid access" vs "expired access → fall back to refresh"
@@ -135,6 +142,32 @@ describe("POST /register", () => {
     expect(res.statusCode).toBe(201);
     expect(setAuthCookiesMock).toHaveBeenCalledWith(res, BUNDLE);
     expect(res.body).toBe(BUNDLE);
+  });
+
+  it("forwards a bounded canonical presentation choice without adding it to account input", async () => {
+    registerMock.mockResolvedValue(BUNDLE);
+    const body = { email: "a@b.com", password: "Strong1Pass", name: "A", tenantName: "Acme" };
+    const { nextErr } = await invoke(handler, { body, headers: { "accept-language": "zh-Hant;q=1,pt-PT;q=0.9" } });
+    expect(nextErr).toBeUndefined();
+    expect(registerMock).toHaveBeenCalledWith(body, "pt-BR");
+  });
+});
+
+describe("transactional auth presentation metadata", () => {
+  it("passes the requested reset language while retaining the enumeration-safe response", async () => {
+    const { res, nextErr } = await invoke(getHandler(authRouter, "post", "/forgot-password"), {
+      body: { email: "unknown@example.invalid" }, headers: { "accept-language": "ar-SA" },
+    });
+    expect(nextErr).toBeUndefined();
+    expect(passwordResetMock).toHaveBeenCalledWith("unknown@example.invalid", "ar");
+    expect(res.body).toEqual({ message: "If that email exists, a reset link has been sent." });
+  });
+  it("binds resend identity to authenticated user rather than caller body or presentation locale", async () => {
+    const { nextErr } = await invoke(getHandler(authRouter, "post", "/verify-email/resend"), {
+      auth: { userId: "owner-A" }, body: { userId: "owner-B", locale: "ar" }, headers: { "accept-language": "tr" },
+    });
+    expect(nextErr).toBeUndefined();
+    expect(resendVerifyMock).toHaveBeenCalledWith("owner-A", "tr");
   });
 });
 

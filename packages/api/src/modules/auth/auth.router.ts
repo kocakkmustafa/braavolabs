@@ -17,6 +17,7 @@ import { rateLimit } from "../../middleware/rateLimit";
 import { redis } from "../../lib/redis";
 import { env } from "../../config/env";
 import { AppError } from "../../middleware/error";
+import { notificationLocaleFromHeader } from "../../lib/notificationLocale";
 
 export const authRouter = Router();
 // BR-P0-004: pre-auth surface — no session exists yet. Marked per-route so a
@@ -178,7 +179,7 @@ export const loginSchema = z.object({
 // POST /api/v1/auth/register
 authRouter.post("/register", systemScope("route:auth"), registerRateLimit, validate(registerSchema), async (req, res, next) => {
   try {
-    const result = await register(req.body);
+    const result = await register(req.body, notificationLocaleFromHeader(req.headers["accept-language"]));
     // Dual-mode: also mint httpOnly auth cookies (no-op unless the flag is
     // on). Response body is unchanged, so existing/mobile clients that read
     // the JSON token bundle keep working.
@@ -209,7 +210,7 @@ export const resetSchema = z.object({
 // POST /api/v1/auth/forgot-password
 authRouter.post("/forgot-password", systemScope("route:auth"), forgotRateLimit, validate(forgotSchema), async (req, res, next) => {
   try {
-    await requestPasswordReset(req.body.email);
+    await requestPasswordReset(req.body.email, notificationLocaleFromHeader(req.headers["accept-language"]));
     res.json({ message: "If that email exists, a reset link has been sent." });
   } catch (err) { next(err); }
 });
@@ -533,7 +534,7 @@ authRouter.post(
   authMiddleware,
   async (req, res, next) => {
     try {
-      await resendVerifyEmail(req.auth!.userId);
+      await resendVerifyEmail(req.auth!.userId, notificationLocaleFromHeader(req.headers["accept-language"]));
       // Always 200 — never reveal whether the account is already
       // verified, which would leak account state to an attacker.
       res.json({ message: "If your email is unverified, a fresh link has been sent." });

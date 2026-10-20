@@ -176,6 +176,7 @@ draftRouter.post("/", async (req, res, next) => {
     notifyTenantUsers(req.auth!.tenantId, "draft", {
       title: "New draft ready",
       body: data.title ?? "An AI draft is awaiting your review",
+      localized: { title: "push.draftReadyTitle", body: data.title == null ? "push.draftReadyFallback" : undefined },
       data: { kind: "draft", id: draft.id, companyId: data.companyId },
     }).catch(() => {});
 

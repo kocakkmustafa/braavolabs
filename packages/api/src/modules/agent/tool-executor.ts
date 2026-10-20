@@ -269,6 +269,7 @@ export async function executeTool(
     notifyTenantUsers(context.tenantId, "approval", {
       title: "Agent needs your input",
       body: question.slice(0, 120),
+      localized: { title: "push.agentInputTitle" },
       data: { kind: "run", id: context.runId },
     }).catch(() => {});
 
@@ -359,6 +360,7 @@ export async function executeTool(
     notifyTenantUsers(context.tenantId, "approval", {
       title: "Automation control needs approval",
       body: description.slice(0, 120),
+      localized: { title: "push.automationApprovalTitle" },
       data: { kind: "approval", id: approval.id, toolName },
     }).catch(() => {});
 
@@ -450,6 +452,7 @@ export async function executeTool(
     notifyTenantUsers(context.tenantId, "approval", {
       title: "Approval needed",
       body: `Tool ${toolName} is waiting for your decision`,
+      localized: { title: "push.toolApprovalTitle", body: "push.toolApprovalBody", parameters: { toolName } },
       data: { kind: "approval", id: approval.id, toolName },
     }).catch(() => {});
 

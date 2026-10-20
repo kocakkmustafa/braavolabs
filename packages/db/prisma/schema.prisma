@@ -197,6 +197,7 @@ model Device {
   platform   String // "ios" | "android" | "web"
   deviceName String?  @map("device_name")
   osVersion  String?  @map("os_version")
+  locale     String   @default("en")
   lastSeenAt DateTime @default(now()) @map("last_seen_at")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")

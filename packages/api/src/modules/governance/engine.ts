@@ -10,6 +10,7 @@ import { logger } from "../../lib/logger";
 import { DEFAULT_GOVERNANCE_CONFIG } from "@ai-company-os/core";
 import type { GovernanceConfig, RiskStopType } from "@ai-company-os/core";
 import { notifyTenantUsers } from "../../services/push";
+import { governanceReasonCopy } from "../../lib/notificationCopy";
 
 export interface GovernanceCheckResult {
   allowed: boolean;
@@ -74,10 +75,16 @@ export async function runGovernanceChecks(
       // Push to mobile companion app — `risks` pref defaults to ON
       // because cost anomalies / runaway loops are exactly what users
       // want to know about while away from their desk.
+      const reasonCopy = governanceReasonCopy(result, config.costAnomalyThreshold);
       notifyTenantUsers(tenantId, "risk", {
         title: `Risk halted a run · ${stopType}`,
         body: result.reason ?? "A safety stop fired",
         data: { kind: "risk", id: runId, stopType },
+        localized: {
+          title: "push.riskTitle",
+          body: reasonCopy?.key ?? (result.reason ? undefined : "push.riskFallback"),
+          parameters: { ...reasonCopy?.parameters, stopType },
+        },
       }).catch(() => {});
 
       return result;

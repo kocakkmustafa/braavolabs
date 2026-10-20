@@ -324,7 +324,7 @@ export async function register(data: {
   name: string;
   tenantName: string;
   ref?: string;
-}): Promise<{ token: string; refreshToken: string; user: any; tenant: any }> {
+}, locale?: string): Promise<{ token: string; refreshToken: string; user: any; tenant: any }> {
   // Canonicalise email at the boundary. A user who pastes " Foo@Bar.com" must
   // resolve to the same row as "foo@bar.com" — otherwise findUnique fails on
   // login and the account is silently inaccessible.
@@ -452,6 +452,7 @@ export async function register(data: {
     to: result.user.email,
     name: result.user.name ?? result.user.email.split("@")[0],
     tenantName: result.tenant.name,
+    locale,
   }).catch(() => { /* non-critical */ });
 
   // Email verification (soft gate). Token is random hex; we store the
@@ -474,7 +475,7 @@ export async function register(data: {
       // redeems the token and redirects to the UI's /auth/verified page.
       // (`${APP_URL}/auth/verify-email` was a 404: the UI has no such route.)
       const verifyUrl = `${env.API_PUBLIC_URL}/api/v1/auth/verify-email?token=${rawToken}`;
-      await sendVerifyEmail({ to: result.user.email, verifyUrl });
+      await sendVerifyEmail({ to: result.user.email, verifyUrl, locale });
     } catch {
       /* non-critical — user can re-request via /auth/verify-email/resend */
     }
@@ -796,7 +797,7 @@ export async function googleCallback(
  * receives no email. They can re-request — reset tokens are single-use
  * anyway. The new internal logger.error makes operator triage easy.
  */
-export async function requestPasswordReset(email: string): Promise<void> {
+export async function requestPasswordReset(email: string, locale?: string): Promise<void> {
   // Match the canonicalisation applied at register/login — otherwise a user
   // who registered with whitespace or different casing never receives a
   // reset link even when entering their email exactly as they remember it.
@@ -823,7 +824,7 @@ export async function requestPasswordReset(email: string): Promise<void> {
   // Fire-and-forget the SendGrid call — the HTTP response now returns in
   // DB-write time regardless of email-existence. SendGrid latency
   // (200-1100ms warm/cold) used to be the timing oracle.
-  void sendPasswordResetEmail({ to: email, resetUrl }).catch(async (err) => {
+  void sendPasswordResetEmail({ to: email, resetUrl, locale }).catch(async (err) => {
     const { logger } = await import("../../lib/logger");
     logger.error(
       { email: email.replace(/(?<=.{2}).+(?=@)/, "***"), error: err instanceof Error ? err.message : String(err) },
@@ -1531,7 +1532,7 @@ export async function verifyEmail(rawToken: string): Promise<{ email: string }> 
  * verified, which would let an attacker probe account state via this
  * endpoint.
  */
-export async function resendVerifyEmail(userId: string): Promise<void> {
+export async function resendVerifyEmail(userId: string, locale?: string): Promise<void> {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return;
   if (user.emailVerifiedAt) return; // Already verified — no-op silently.
@@ -1550,7 +1551,7 @@ export async function resendVerifyEmail(userId: string): Promise<void> {
 
   // API origin route, not APP_URL — see the comment in register() above.
   const verifyUrl = `${env.API_PUBLIC_URL}/api/v1/auth/verify-email?token=${rawToken}`;
-  await sendVerifyEmail({ to: user.email, verifyUrl }).catch(() => {
+  await sendVerifyEmail({ to: user.email, verifyUrl, locale }).catch(() => {
     /* non-critical — user can re-request */
   });
 }

@@ -23,6 +23,7 @@
  */
 import { prisma } from "../lib/db";
 import { logger } from "../lib/logger";
+import { notificationText, type NotificationDescriptor } from "../lib/notificationCopy";
 
 const EXPO_ENDPOINT = "https://exp.host/--/api/v2/push/send";
 const MAX_BATCH = 100;
@@ -36,7 +37,11 @@ export interface NotifyPayload {
   data: { kind: NotifyKind; id?: string; [k: string]: unknown };
   /** iOS only — leaves the app badge as-is when omitted. */
   badge?: number;
+  /** Platform-authored framing; user/model content remains the literal body. */
+  localized?: NotificationDescriptor;
 }
+
+interface NotificationDevice { pushToken: string; id: string; locale?: string | null; }
 
 interface ExpoPushTicket {
   status: "ok" | "error";
@@ -60,7 +65,7 @@ interface ExpoPushResponse {
 async function devicesForUserKind(
   userId: string,
   kind: NotifyKind,
-): Promise<{ pushToken: string; id: string }[]> {
+): Promise<NotificationDevice[]> {
   const prefs = await prisma.notificationPref.findUnique({
     where: { userId },
   });
@@ -83,7 +88,7 @@ async function devicesForUserKind(
 
   return prisma.device.findMany({
     where: { userId },
-    select: { id: true, pushToken: true },
+    select: { id: true, pushToken: true, locale: true },
   });
 }
 
@@ -109,7 +114,7 @@ export async function notifyTenantUsers(
     });
     if (users.length === 0) return;
 
-    const allDevices: { pushToken: string; id: string }[] = [];
+    const allDevices: NotificationDevice[] = [];
     for (const u of users) {
       const ds = await devicesForUserKind(u.id, kind);
       allDevices.push(...ds);
@@ -149,14 +154,14 @@ export async function notifyUser(
 }
 
 async function dispatch(
-  devices: { pushToken: string; id: string }[],
+  devices: NotificationDevice[],
   payload: NotifyPayload,
 ) {
   const messages = devices.map((d) => ({
     to: d.pushToken,
     sound: "default" as const,
-    title: payload.title,
-    body: payload.body,
+    title: payload.localized ? notificationText(d.locale, payload.localized.title, payload.localized.parameters) : payload.title,
+    body: payload.localized?.body ? notificationText(d.locale, payload.localized.body, payload.localized.parameters) : payload.body,
     data: payload.data,
     ...(payload.badge !== undefined ? { badge: payload.badge } : {}),
     // `priority: "high"` makes Android wake the device immediately

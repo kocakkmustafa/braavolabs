@@ -54,13 +54,22 @@ describe("estimatePipelineCostUsd", () => {
     expect(est.highUsd).toBeCloseTo(midpoint * HIGH_MULTIPLIER, 6);
   });
 
-  it("returns $0 for local providers", () => {
+  it("keeps arbitrary endpoint pricing unknown rather than asserting it is free", () => {
     for (const provider of ["OLLAMA", "LMSTUDIO", "CUSTOM"] as const) {
       const est = estimatePipelineCostUsd(8, provider, "gemma3:4b");
       expect(est.lowUsd).toBe(0);
       expect(est.highUsd).toBe(0);
-      expect(est.isFree).toBe(true);
+      expect(est.isFree).toBe(false);
+      expect(est.unknownModel).toBe(true);
     }
+  });
+
+  it("does not apply a public model rate to a paid custom operator's endpoint", () => {
+    const est = estimatePipelineCostUsd(8, "CUSTOM", "gpt-4o");
+    expect(est.unknownModel).toBe(true);
+    expect(est.isFree).toBe(false);
+    expect(est.lowUsd).toBe(0); // unchanged wire placeholder, never a free-price claim
+    expect(est.highUsd).toBe(0);
   });
 
   it("flags unknown cloud models as unknownModel with zero cost", () => {

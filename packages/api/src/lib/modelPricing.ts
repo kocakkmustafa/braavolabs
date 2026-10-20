@@ -7,9 +7,9 @@
  * "typical token use") — never present it as the exact cost. The run's
  * live `costUsd` (metered from real usage) is the source of truth.
  *
- * Prices are USD per 1,000,000 tokens, captured ~2026-06. Local /
- * self-hosted providers (Ollama, LM Studio, Custom) cost $0 — the user
- * runs them on their own hardware.
+ * Prices are USD per 1,000,000 tokens, captured ~2026-06. The price of
+ * a local or custom endpoint is unknown here: its operator, hosting and
+ * hardware costs cannot be inferred from the provider identifier.
  */
 
 import type { AIProviderType } from "../services/ai-client";
@@ -69,14 +69,20 @@ export const MODEL_PRICES: Record<string, ModelPrice> = {
 };
 
 /**
- * Local / self-hosted providers are free — the model runs on the user's
- * own hardware, so there is no per-token charge to estimate.
+ * Endpoint names do not establish their actual pricing. In particular a
+ * CUSTOM endpoint can be a paid remote service, even for a known model ID.
  */
-export const FREE_PROVIDERS: ReadonlySet<AIProviderType> = new Set([
+export const UNPRICED_ENDPOINT_PROVIDERS: ReadonlySet<AIProviderType> = new Set([
   "OLLAMA",
   "LMSTUDIO",
   "CUSTOM",
 ]);
+
+/** Legacy runtime accounting classification. Its consumers still use numeric
+ * usage estimates; this compatibility alias does not establish operator cost.
+ * Pre-run presentation must use the unknown-price flags below instead.
+ */
+export const FREE_PROVIDERS = UNPRICED_ENDPOINT_PROVIDERS;
 
 /**
  * Baseline token assumptions per step. A typical agent turn reads a
@@ -118,16 +124,17 @@ export interface PipelineCostEstimate {
   highUsd: number;
   /** Midpoint per-step cost, USD (for the "× steps" math the UI shows). */
   perStepUsd: number;
-  /** True when the model price is unknown (estimate falls back to 0 / unknown). */
+  /** True when this model/endpoint price is unknown; zero values are placeholders. */
   unknownModel: boolean;
-  /** True for local/self-hosted providers — cost is $0 on own hardware. */
+  /** A positive free-pricing assertion; endpoint type alone never establishes it. */
   isFree: boolean;
 }
 
 /**
  * Estimate the USD cost of running a pipeline with `stepCount` steps on
  * the given provider/model. Returns a {low, high} range derived from a
- * baseline per-step token assumption. Local providers return all-zero.
+ * baseline per-step token assumption. Unpriced endpoints use the existing
+ * unknownModel flag; their zero placeholders must not be displayed as free.
  *
  * The result is intentionally approximate — see the file header.
  */
@@ -140,8 +147,7 @@ export function estimatePipelineCostUsd(
   // pipeline (the manager turn still costs something).
   const steps = Math.max(1, Math.floor(stepCount) || 0);
 
-  const isFree = FREE_PROVIDERS.has(provider);
-  if (isFree) {
+  if (UNPRICED_ENDPOINT_PROVIDERS.has(provider)) {
     return {
       stepCount: steps,
       provider,
@@ -149,8 +155,8 @@ export function estimatePipelineCostUsd(
       lowUsd: 0,
       highUsd: 0,
       perStepUsd: 0,
-      unknownModel: false,
-      isFree: true,
+      unknownModel: true,
+      isFree: false,
     };
   }
 

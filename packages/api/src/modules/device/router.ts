@@ -19,6 +19,7 @@ import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
+import { NOTIFICATION_LOCALES, notificationLocaleFromHeader } from "../../lib/notificationLocale";
 
 export const deviceRouter = Router();
 deviceRouter.use(authMiddleware);
@@ -28,11 +29,13 @@ const registerSchema = z.object({
   platform: z.enum(["ios", "android", "web"]),
   deviceName: z.string().max(120).nullable().optional(),
   osVersion: z.string().max(40).nullable().optional(),
+  locale: z.enum(NOTIFICATION_LOCALES).optional(),
 });
 
 deviceRouter.post("/push-token", async (req, res, next) => {
   try {
-    const { token, platform, deviceName, osVersion } = registerSchema.parse(req.body);
+    const { token, platform, deviceName, osVersion, locale: requestedLocale } = registerSchema.parse(req.body);
+    const locale = requestedLocale ?? notificationLocaleFromHeader(req.headers["accept-language"]);
 
     // Upsert: if this token already exists (same phone, possibly under a
     // different user after an account switch), reassign + refresh
@@ -45,12 +48,15 @@ deviceRouter.post("/push-token", async (req, res, next) => {
         platform,
         deviceName: deviceName ?? null,
         osVersion: osVersion ?? null,
+        locale,
       },
       update: {
         userId: req.auth!.userId,
         platform,
         deviceName: deviceName ?? null,
         osVersion: osVersion ?? null,
+        // A token transferred to another account gets that request's locale.
+        locale,
         lastSeenAt: new Date(),
       },
     });
@@ -65,22 +71,32 @@ deviceRouter.post("/push-token", async (req, res, next) => {
   }
 });
 
+/** Update an already registered device; never prompt/re-register native permissions. */
+deviceRouter.patch("/push-token/locale", async (req, res, next) => {
+  try {
+    const { token, locale } = z.object({
+      token: z.string().min(10).max(512),
+      locale: z.enum(NOTIFICATION_LOCALES),
+    }).parse(req.body);
+    // One atomic ownership predicate; no lookup-then-update account race.
+    const result = await prisma.device.updateMany({
+      where: { pushToken: token, userId: req.auth!.userId },
+      data: { locale },
+    });
+    res.json({ success: result.count > 0 });
+  } catch (err) { next(err); }
+});
+
 const unregisterSchema = z.object({ token: z.string().min(10) });
 
 deviceRouter.delete("/push-token", async (req, res, next) => {
   try {
     const { token } = unregisterSchema.parse(req.body);
 
-    // Tenant-scoped: only allow the owner to delete their own token.
-    // Without this check, anyone with a valid JWT could unregister
-    // someone else's device.
-    const device = await prisma.device.findUnique({ where: { pushToken: token } });
-    if (!device || device.userId !== req.auth!.userId) {
-      // 200, not 404 — leak nothing about whether the token exists.
-      res.json({ success: true });
-      return;
-    }
-    await prisma.device.delete({ where: { pushToken: token } });
+    // Atomic ownership check: an old owner's delayed logout cannot delete a
+    // token that was reassigned to a new account between lookup and deletion.
+    await prisma.device.deleteMany({ where: { pushToken: token, userId: req.auth!.userId } });
+    // Same response whether owned, absent or transferred; no existence oracle.
     res.json({ success: true });
   } catch (err) {
     next(err);
