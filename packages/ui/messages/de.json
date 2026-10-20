@@ -290,7 +290,11 @@
       },
       "fieldName": "Name",
       "memberSince": "Mitglied seit {year}",
-      "saveFailedToast": "Speichern fehlgeschlagen — erneut versuchen."
+      "saveFailedToast": "Speichern fehlgeschlagen — erneut versuchen.",
+      "localPlanRequired": "Wählen Sie einen unterstützten Tarif, um einen lokalen Anbieter zu konfigurieren",
+      "planRequired": "Tarif erforderlich",
+      "localPlanDescription": "Individual und Team unterstützen konfigurierte lokale Endpunkte. Inferenz ist nicht enthalten.",
+      "viewPlans": "Tarife ansehen"
     },
     "onboarding": {
       "primitives": {
@@ -459,7 +463,8 @@
       "creatingButton": "Arbeitsbereich wird erstellt...",
       "launchButton": "Arbeitsbereich starten ✨",
       "blueprintSelectedBadge": "AUSGEWÄHLT",
-      "onboardingProgress": "Onboarding-Fortschritt"
+      "onboardingProgress": "Onboarding-Fortschritt",
+      "reviewInBuilder": "Im Builder prüfen"
     },
     "analytics": {
       "title": "Auswertungen",
@@ -493,7 +498,10 @@
       "runSteps": "Run-Schritte",
       "reasoningPrefix": "Begründung:",
       "toolCallsTemplate": "{count} Tool-Aufruf(e)",
-      "noSteps": "Keine Schritte erfasst."
+      "noSteps": "Keine Schritte erfasst.",
+      "currentPeriod": "Aktueller Kalendermonat (Serverzeit)",
+      "loadFailed": "Einige Analysen konnten nicht geladen werden. Fehlende Daten werden als nicht verfügbar angezeigt.",
+      "unavailable": "Nicht verfügbar"
     },
     "abTests": {
       "title": "A/B-Tests",
@@ -1027,7 +1035,15 @@
       "download": "Herunterladen",
       "skillsTitle": "Skills ({n})",
       "hooksTitle": "Hooks ({n})",
-      "downloadAll": "Vollständiges Bundle herunterladen (JSON)"
+      "downloadAll": "Vollständiges Bundle herunterladen (JSON)",
+      "summary": "Exportübersicht",
+      "plainConfiguration": "Unverschlüsselte Konfigurationsdateien",
+      "plainConfigurationHelp": "Dieser Download enthält unverschlüsselte Konfiguration und Prompts. Bewahren Sie ihn sicher auf; es wird keine Passphrase erzeugt.",
+      "skillsLabel": "Skills",
+      "hooksLabel": "Hooks",
+      "formatLabel": "Dateiformat",
+      "loadFailed": "Der Export konnte nicht geladen werden. Versuchen Sie es erneut im Workspace.",
+      "copyFailed": "Kopieren fehlgeschlagen. Prüfe die Zwischenablageberechtigung oder lade die Datei herunter."
     },
     "cmdk": {
       "searchPlaceholder": "Seiten und Aktionen suchen...",
@@ -1349,7 +1365,18 @@
       "channelPrivacy": "Datenschutz & GDPR",
       "channelKvkk": "KVKK (Türkei)",
       "channelSecurity": "Sicherheitsmeldungen",
-      "responseTime": "Antwortzeit: an Werktagen meist innerhalb von 24 Stunden. KVKK- und GDPR-Anfragen werden innerhalb ihrer gesetzlichen Fristen beantwortet (30 Tage bzw. 1 Monat)."
+      "responseTime": "Antwortzeit: an Werktagen meist innerhalb von 24 Stunden. KVKK- und GDPR-Anfragen werden innerhalb ihrer gesetzlichen Fristen beantwortet (30 Tage bzw. 1 Monat).",
+      "topic": "Thema",
+      "message": "Nachricht",
+      "messagePlaceholder": "Wie können wir helfen?",
+      "compose": "E-Mail vorbereiten",
+      "draftHelp": "Hiermit wird ein E-Mail-Entwurf vorbereitet. Senden Sie ihn über Ihr E-Mail-Programm; die Zustellung wird hier nicht bestätigt.",
+      "prepared": "E-Mail-Entwurf vorbereitet",
+      "salesTopic": "Vertrieb und Preise",
+      "supportTopic": "Technischer Support",
+      "partnershipsTopic": "Partnerschaften",
+      "pressTopic": "Presse",
+      "otherTopic": "Anderes Anliegen"
     },
     "status": {
       "title": "Alle Systeme funktionieren",
@@ -1365,6 +1392,20 @@
       "operational": "Funktioniert",
       "alertTitle": "Ausfall bemerkt?",
       "alertBody": "Schreibe an support@braavolabs.com, was du versucht hast und welchen Fehler du gesehen hast — wir untersuchen es und aktualisieren diese Seite."
+    },
+    "cookieConsent": {
+      "title": "Cookies und Nutzungsanalyse",
+      "body": "Wir speichern deine Auswahl zur Nutzungsanalyse in diesem Browser. Die optionale Nutzungsanalyse wird nur mit deiner Zustimmung geladen. Auf der Seite zur Cookie-Richtlinie kannst du deine Auswahl zurücksetzen.",
+      "privacyLabel": "Datenschutzerklärung",
+      "cookiesLabel": "Cookie-Richtlinie",
+      "acceptAll": "Nutzungsanalyse erlauben",
+      "essentialOnly": "Nur notwendige",
+      "saveFailed": "Deine Auswahl konnte nicht gespeichert werden. Das Laden weiterer Nutzungsanalyse bleibt auf dieser Seite gesperrt. Wurde die Nutzungsanalyse bereits geladen, schließe die Seite und lösche vor deiner Rückkehr die Speicherdaten dieser Website im Browser.",
+      "preferencesTitle": "Einstellungen verwalten",
+      "preferencesBody": "Wenn du deine Auswahl zurücksetzt, widerrufst du die Erlaubnis zur optionalen Nutzungsanalyse und der Hinweis erscheint erneut. Wurde die Nutzungsanalyse bereits geladen, wird die Seite nach dem Löschen der gespeicherten Auswahl neu geladen.",
+      "reset": "Cookie-Einstellungen zurücksetzen",
+      "resetDone": "Die gespeicherte Auswahl wurde gelöscht. Die Seite wird gegebenenfalls neu geladen, um die Änderung anzuwenden.",
+      "resetFailed": "Die gespeicherte Auswahl konnte nicht gelöscht werden. Das Laden weiterer Nutzungsanalyse wurde auf dieser Seite gesperrt. Ein bereits geladener Tracker kann bis zum Schließen der Seite aktiv bleiben. Schließe die Seite und lösche vor deiner Rückkehr die Speicherdaten dieser Website im Browser."
     }
   },
   "auth": {
@@ -1381,7 +1422,8 @@
     "register": {
       "hasAccount": "Du hast bereits ein Konto?",
       "welcome": "Konto erstellen",
-      "subtitle": "Beginne, KI-Agenten & Automatisierungen zu bauen"
+      "subtitle": "Beginne, KI-Agenten & Automatisierungen zu bauen",
+      "inferenceFunding": "Die Inferenz nutzt Ihren eigenen Anbieterschlüssel oder eine konfigurierte lokale Laufzeit"
     },
     "fields": {
       "fullName": "Vollständiger Name",
@@ -1565,6 +1607,63 @@
     "es": "Español",
     "de": "Deutsch",
     "fr": "Français",
-    "ar": "العربية"
+    "ar": "العربية",
+    "es-419": "Español (Latinoamérica)",
+    "pt-BR": "Português (Brasil)",
+    "ja": "日本語"
+  },
+  "publicPreview": {
+    "homeTitle": "Anbieterübergreifende KI, unter Ihrer Kontrolle.",
+    "homeIntro": "Braavolabs ist eine anbieterübergreifende KI-Arbeitsumgebung und Steuerungsplattform für geregelte Abläufe, ausdrückliche Aktionen, Modellwahl und menschliche Freigaben auf Desktop, CLI, Mobilgeräten und in der Cloud.",
+    "previewBadge": "Öffentliche Produktvorschau",
+    "pricingBadge": "Preisvorschau — derzeit nicht erhältlich",
+    "pricingTitle": "Geplante Preise. Klare Grundlagen.",
+    "inferenceFunding": "Inferenz ist nicht enthalten. Nutzen Sie eigene Anbieterschlüssel (BYOK) oder lokale Modelle.",
+    "individualPeriod": "{price}/Monat",
+    "teamPeriod": "{price}/aktivem Nutzer/Monat",
+    "individualSummary": "Ein Nutzer mit derselben Modell- und Datenmoduswahl.",
+    "teamSummary": "Nutzer teilen Workspace-Richtlinien und Freigaben.",
+    "individualAudience": "Eine Person, die geregelte KI-Arbeit auf unterstützten Oberflächen steuert.",
+    "teamAudience": "Nutzer, die Workspace-Richtlinien, Freigaben und betrieblichen Kontext teilen.",
+    "individualItems": [
+      "Ein Nutzer",
+      "BYOK oder Routing zu lokalen Modellen",
+      "Datenmodus-Roadmap mit Reifegradangaben",
+      "Zugeordneter Freigabeumfang"
+    ],
+    "teamItems": [
+      "Abrechnung je Nutzer",
+      "Gemeinsame Workspace-Rollen",
+      "Gemeinsame Richtlinien und Freigaben",
+      "Betrieblicher Teamkontext"
+    ],
+    "dataMode": "Datenmodus",
+    "privateMode": "Private Mode — Vorschau",
+    "privateModeCopy": "Der vollständige Vertrag zur Datenverarbeitung und Sicherheit wird noch entwickelt und nicht als allgemein verfügbar angeboten.",
+    "cloudMode": "Cloud Agent Mode — in Entwicklung",
+    "cloudModeCopy": "Der Vertrag zu Ausführung, Einwilligung und Aufbewahrung wird nicht als allgemein verfügbar angeboten.",
+    "maturity": "Reifegrad",
+    "holding": "Holding — Premium-/private Vorschau",
+    "holdingCopy": "Pakete für persistente Agenten sind nicht Teil der öffentlichen Tarife.",
+    "holdingSubscription": "Holding ist in keinem der beiden öffentlichen Abonnements enthalten.",
+    "verification": "Verifizierung",
+    "signedEvidence": "Signierte Nachweise — in Entwicklung",
+    "signedEvidenceCopy": "Öffentliche Aussagen zur Offline-Verifizierung warten auf anerkannte Nachweise.",
+    "launchApp": "App öffnen",
+    "readDocs": "Dokumentation lesen",
+    "signIn": "Anmelden",
+    "signUp": "Registrieren",
+    "subscription": "Abonnement",
+    "unavailable": "Derzeit nicht erhältlich",
+    "unavailableLabel": "{plan} ist derzeit nicht erhältlich",
+    "links": {
+      "features": "Funktionen",
+      "pricing": "Preise",
+      "security": "Sicherheit",
+      "docs": "Dokumentation",
+      "cli": "CLI-Verfügbarkeit",
+      "status": "Status",
+      "support": "Support"
+    }
   }
 }

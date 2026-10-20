@@ -290,7 +290,11 @@
       },
       "fieldName": "Nom",
       "memberSince": "Membre depuis {year}",
-      "saveFailedToast": "Échec de l'enregistrement — réessayez."
+      "saveFailedToast": "Échec de l'enregistrement — réessayez.",
+      "localPlanRequired": "Choisissez une offre compatible pour configurer un fournisseur local",
+      "planRequired": "Offre requise",
+      "localPlanDescription": "Individual et Team prennent en charge les points de terminaison locaux configurés. L’inférence n’est pas incluse.",
+      "viewPlans": "Voir les offres"
     },
     "onboarding": {
       "primitives": {
@@ -459,7 +463,8 @@
       "creatingButton": "Création de l'espace de travail...",
       "launchButton": "Lancer l'espace de travail ✨",
       "blueprintSelectedBadge": "SÉLECTIONNÉ",
-      "onboardingProgress": "Progression de l'Onboarding"
+      "onboardingProgress": "Progression de l'Onboarding",
+      "reviewInBuilder": "Vérifier dans le créateur"
     },
     "analytics": {
       "title": "Analytique",
@@ -493,7 +498,10 @@
       "runSteps": "Étapes d'Exécution",
       "reasoningPrefix": "Raisonnement :",
       "toolCallsTemplate": "{count} appel(s) d'outil",
-      "noSteps": "Aucune étape enregistrée."
+      "noSteps": "Aucune étape enregistrée.",
+      "currentPeriod": "Mois civil en cours (heure du serveur)",
+      "loadFailed": "Certaines analyses n’ont pas pu être chargées. Les données manquantes sont indiquées comme indisponibles.",
+      "unavailable": "Indisponible"
     },
     "abTests": {
       "title": "Tests A/B",
@@ -1027,7 +1035,15 @@
       "download": "Télécharger",
       "skillsTitle": "Skills ({n})",
       "hooksTitle": "Hooks ({n})",
-      "downloadAll": "Télécharger le bundle complet (JSON)"
+      "downloadAll": "Télécharger le bundle complet (JSON)",
+      "summary": "Résumé de l’exportation",
+      "plainConfiguration": "Fichiers de configuration non chiffrés",
+      "plainConfigurationHelp": "Ce téléchargement contient la configuration et les prompts en clair. Conservez-le en lieu sûr ; aucune phrase secrète n’est générée.",
+      "skillsLabel": "Compétences",
+      "hooksLabel": "Hooks",
+      "formatLabel": "Format du fichier",
+      "loadFailed": "L’exportation n’a pas pu être chargée. Réessayez depuis l’espace de travail.",
+      "copyFailed": "Copie impossible. Vérifiez l’autorisation du presse-papiers ou téléchargez le fichier."
     },
     "cmdk": {
       "searchPlaceholder": "Rechercher pages et actions...",
@@ -1349,7 +1365,18 @@
       "channelPrivacy": "Confidentialité & GDPR",
       "channelKvkk": "KVKK (Turquie)",
       "channelSecurity": "Divulgations de sécurité",
-      "responseTime": "Temps de réponse : généralement dans les 24 heures les jours ouvrés. Les demandes de droits KVKK et GDPR sont traitées dans leurs délais légaux (30 jours et 1 mois respectivement)."
+      "responseTime": "Temps de réponse : généralement dans les 24 heures les jours ouvrés. Les demandes de droits KVKK et GDPR sont traitées dans leurs délais légaux (30 jours et 1 mois respectivement).",
+      "topic": "Sujet",
+      "message": "Message",
+      "messagePlaceholder": "Comment pouvons-nous vous aider ?",
+      "compose": "Préparer l’e-mail",
+      "draftHelp": "Ceci prépare un brouillon d’e-mail. Envoyez-le depuis votre application de messagerie ; la livraison n’est pas confirmée ici.",
+      "prepared": "Brouillon d’e-mail préparé",
+      "salesTopic": "Ventes et tarifs",
+      "supportTopic": "Assistance technique",
+      "partnershipsTopic": "Partenariats",
+      "pressTopic": "Presse",
+      "otherTopic": "Autre sujet"
     },
     "status": {
       "title": "Tous les systèmes opérationnels",
@@ -1365,6 +1392,20 @@
       "operational": "Opérationnel",
       "alertTitle": "Vous avez repéré une panne ?",
       "alertBody": "Envoyez un e-mail à support@braavolabs.com avec ce que vous avez essayé et l'erreur que vous avez vue — nous enquêterons et mettrons à jour cette page."
+    },
+    "cookieConsent": {
+      "title": "Cookies et statistiques",
+      "body": "Nous enregistrons votre choix concernant les statistiques dans ce navigateur. Les statistiques d’utilisation facultatives ne sont chargées qu’avec votre accord. Vous pouvez réinitialiser votre choix sur la page Politique relative aux cookies.",
+      "privacyLabel": "Politique de confidentialité",
+      "cookiesLabel": "Politique relative aux cookies",
+      "acceptAll": "Autoriser les statistiques",
+      "essentialOnly": "Essentiels uniquement",
+      "saveFailed": "Votre choix n’a pas pu être enregistré. Le chargement de nouvelles statistiques reste bloqué sur cette page. Si les statistiques avaient déjà été chargées, fermez la page et effacez les données de stockage de ce site dans votre navigateur avant de revenir.",
+      "preferencesTitle": "Gérer vos préférences",
+      "preferencesBody": "La réinitialisation de votre choix retire l’autorisation des statistiques facultatives et affiche à nouveau le bandeau. Si les statistiques ont déjà été chargées, la page se recharge après l’effacement du choix enregistré.",
+      "reset": "Réinitialiser les préférences de cookies",
+      "resetDone": "Le choix enregistré a été effacé. Cette page peut se recharger pour appliquer la modification.",
+      "resetFailed": "Le choix enregistré n’a pas pu être effacé. Le chargement de nouvelles statistiques est bloqué sur cette page. Un traceur déjà chargé peut rester actif jusqu’à la fermeture de la page. Fermez-la et effacez les données de stockage de ce site dans votre navigateur avant de revenir."
     }
   },
   "auth": {
@@ -1381,7 +1422,8 @@
     "register": {
       "hasAccount": "Vous avez déjà un compte ?",
       "welcome": "Créer un compte",
-      "subtitle": "Commencez à créer des agents & automatisations IA"
+      "subtitle": "Commencez à créer des agents & automatisations IA",
+      "inferenceFunding": "L’inférence utilise votre propre clé fournisseur ou un environnement local configuré"
     },
     "fields": {
       "fullName": "Nom complet",
@@ -1565,6 +1607,63 @@
     "es": "Español",
     "de": "Deutsch",
     "fr": "Français",
-    "ar": "العربية"
+    "ar": "العربية",
+    "es-419": "Español (Latinoamérica)",
+    "pt-BR": "Português (Brasil)",
+    "ja": "日本語"
+  },
+  "publicPreview": {
+    "homeTitle": "Une IA multifournisseur, sous votre contrôle.",
+    "homeIntro": "Braavolabs est un environnement de travail et une plateforme de contrôle d’IA multifournisseur pour les exécutions gouvernées, les actions explicites, le choix des modèles et l’approbation humaine sur ordinateur, CLI, mobile et cloud.",
+    "previewBadge": "Aperçu public du produit",
+    "pricingBadge": "Aperçu des tarifs — achat indisponible actuellement",
+    "pricingTitle": "Tarifs prévus. Conditions claires.",
+    "inferenceFunding": "L’inférence n’est pas incluse. Utilisez vos propres clés fournisseur (BYOK) ou des modèles locaux.",
+    "individualPeriod": "{price}/mois",
+    "teamPeriod": "{price}/utilisateur actif/mois",
+    "individualSummary": "Un utilisateur, avec les mêmes choix de modèle et de mode de données.",
+    "teamSummary": "Les utilisateurs partagent les règles et les approbations de l’espace de travail.",
+    "individualAudience": "Une personne qui gère des tâches d’IA gouvernées sur les interfaces prises en charge.",
+    "teamAudience": "Des utilisateurs partageant les règles, les approbations et le contexte opérationnel de l’espace de travail.",
+    "individualItems": [
+      "Un utilisateur",
+      "BYOK ou routage vers des modèles locaux",
+      "Feuille de route des modes de données avec leur maturité",
+      "Périmètre d’approbation associé"
+    ],
+    "teamItems": [
+      "Facturation par utilisateur",
+      "Rôles partagés dans l’espace de travail",
+      "Règles et approbations partagées",
+      "Contexte opérationnel de l’équipe"
+    ],
+    "dataMode": "Mode de données",
+    "privateMode": "Private Mode — aperçu",
+    "privateModeCopy": "Son contrat complet de traitement des données et de sécurité reste en développement et n’est pas présenté comme disponible pour tous.",
+    "cloudMode": "Cloud Agent Mode — en développement",
+    "cloudModeCopy": "Son contrat d’exécution, de consentement et de conservation n’est pas présenté comme disponible pour tous.",
+    "maturity": "Maturité",
+    "holding": "Holding — aperçu premium/privé",
+    "holdingCopy": "Le conditionnement des agents persistants ne fait pas partie des offres publiques.",
+    "holdingSubscription": "Holding n’est inclus dans aucun des deux abonnements publics.",
+    "verification": "Vérification",
+    "signedEvidence": "Preuves signées — en développement",
+    "signedEvidenceCopy": "Les affirmations publiques de vérification hors ligne attendent des preuves acceptées.",
+    "launchApp": "Ouvrir l’application",
+    "readDocs": "Lire la documentation",
+    "signIn": "Se connecter",
+    "signUp": "S’inscrire",
+    "subscription": "Abonnement",
+    "unavailable": "Achat indisponible actuellement",
+    "unavailableLabel": "{plan} ne peut pas être acheté actuellement",
+    "links": {
+      "features": "Fonctionnalités",
+      "pricing": "Tarifs",
+      "security": "Sécurité",
+      "docs": "Documentation",
+      "cli": "Disponibilité de la CLI",
+      "status": "État",
+      "support": "Assistance"
+    }
   }
 }

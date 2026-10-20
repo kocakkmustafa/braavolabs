@@ -290,7 +290,11 @@
       },
       "fieldName": "Ad Soyad",
       "memberSince": "{year}'den beri üye",
-      "saveFailedToast": "Kaydedilemedi — tekrar dene."
+      "saveFailedToast": "Kaydedilemedi — tekrar dene.",
+      "localPlanRequired": "Yerel sağlayıcı yapılandırmak için desteklenen bir plan seçin",
+      "planRequired": "Plan gerekli",
+      "localPlanDescription": "Individual ve Team, yapılandırılmış yerel uç noktaları destekler. Çıkarım dahil değildir.",
+      "viewPlans": "Planları görüntüle"
     },
     "onboarding": {
       "primitives": {
@@ -459,7 +463,8 @@
       "creatingButton": "Çalışma alanı oluşturuluyor...",
       "launchButton": "Çalışma Alanını Başlat ✨",
       "blueprintSelectedBadge": "SEÇİLİ",
-      "onboardingProgress": "Onboarding İlerlemesi"
+      "onboardingProgress": "Onboarding İlerlemesi",
+      "reviewInBuilder": "Oluşturucuda incele"
     },
     "analytics": {
       "title": "Analitik",
@@ -493,7 +498,10 @@
       "runSteps": "Çalıştırma Adımları",
       "reasoningPrefix": "Gerekçe:",
       "toolCallsTemplate": "{count} tool çağrısı",
-      "noSteps": "Adım kaydı yok."
+      "noSteps": "Adım kaydı yok.",
+      "currentPeriod": "İçinde bulunulan takvim ayı (sunucu saati)",
+      "loadFailed": "Bazı analizler yüklenemedi. Eksik veriler kullanılamıyor olarak gösterilir.",
+      "unavailable": "Kullanılamıyor"
     },
     "abTests": {
       "title": "A/B Testi",
@@ -1027,7 +1035,15 @@
       "download": "İndir",
       "skillsTitle": "Skill'ler ({n})",
       "hooksTitle": "Hook'lar ({n})",
-      "downloadAll": "Tüm Paketi İndir (JSON)"
+      "downloadAll": "Tüm Paketi İndir (JSON)",
+      "summary": "Dışa aktarma özeti",
+      "plainConfiguration": "Şifrelenmemiş yapılandırma dosyaları",
+      "plainConfigurationHelp": "Bu indirme, düz yapılandırma ve istemler içerir. Güvenli biçimde saklayın; parola üretilmez.",
+      "skillsLabel": "Beceriler",
+      "hooksLabel": "Kancalar",
+      "formatLabel": "Dosya biçimi",
+      "loadFailed": "Dışa aktarma yüklenemedi. Çalışma alanından yeniden deneyin.",
+      "copyFailed": "Kopyalanamadı. Pano iznini kontrol edin veya dosyayı indirin."
     },
     "cmdk": {
       "searchPlaceholder": "Sayfa ve işlem ara...",
@@ -1349,7 +1365,18 @@
       "channelPrivacy": "Gizlilik & GDPR",
       "channelKvkk": "KVKK (Türkiye)",
       "channelSecurity": "Güvenlik bildirimleri",
-      "responseTime": "Yanıt süresi: hafta içi genellikle 24 saat içinde. KVKK ve GDPR hakları talepleri yasal süreleri içinde (sırasıyla 30 gün ve 1 ay) yanıtlanır."
+      "responseTime": "Yanıt süresi: hafta içi genellikle 24 saat içinde. KVKK ve GDPR hakları talepleri yasal süreleri içinde (sırasıyla 30 gün ve 1 ay) yanıtlanır.",
+      "topic": "Konu",
+      "message": "Mesaj",
+      "messagePlaceholder": "Nasıl yardımcı olabiliriz?",
+      "compose": "E-posta hazırla",
+      "draftHelp": "Bu işlem bir e-posta taslağı hazırlar. E-posta uygulamanızdan gönderin; teslimat burada doğrulanmaz.",
+      "prepared": "E-posta taslağı hazırlandı",
+      "salesTopic": "Satış ve fiyatlandırma",
+      "supportTopic": "Teknik destek",
+      "partnershipsTopic": "İş ortaklıkları",
+      "pressTopic": "Basın",
+      "otherTopic": "Diğer"
     },
     "status": {
       "title": "Tüm sistemler çalışıyor",
@@ -1365,6 +1392,20 @@
       "operational": "Çalışıyor",
       "alertTitle": "Bir kesinti mi gördün?",
       "alertBody": "support@braavolabs.com adresine ne denediğini ve gördüğün hatayı yaz — araştırıp bu sayfayı güncelleyeceğiz."
+    },
+    "cookieConsent": {
+      "title": "Çerezler ve analitik",
+      "body": "Analitik tercihini bu tarayıcıda saklarız. İsteğe bağlı kullanım analitiği yalnızca izin verirsen yüklenir. Tercihini Çerez Politikası sayfasında sıfırlayabilirsin.",
+      "privacyLabel": "Gizlilik Politikası",
+      "cookiesLabel": "Çerez Politikası",
+      "acceptAll": "Analitiğe izin ver",
+      "essentialOnly": "Yalnızca zorunlu olanlar",
+      "saveFailed": "Tercihin kaydedilemedi. Bu sayfada yeni analitik yüklemesi engelli kalır. Analitik daha önce yüklendiyse sayfayı kapat ve geri dönmeden önce tarayıcında bu sitenin depolama verilerini temizle.",
+      "preferencesTitle": "Tercihlerini yönet",
+      "preferencesBody": "Tercihini sıfırlamak, isteğe bağlı analitik iznini geri çeker ve bandı yeniden gösterir. Analitik daha önce yüklendiyse kayıtlı tercih silindikten sonra sayfa yenilenir.",
+      "reset": "Çerez tercihlerini sıfırla",
+      "resetDone": "Kayıtlı tercih silindi. Değişikliği uygulamak için bu sayfa yenilenebilir.",
+      "resetFailed": "Kayıtlı tercih silinemedi. Bu sayfada yeni analitik yüklemesi engellendi. Daha önce yüklenmiş bir izleyici, sayfayı kapatana kadar etkin kalabilir. Sayfayı kapat ve geri dönmeden önce tarayıcında bu sitenin depolama verilerini temizle."
     }
   },
   "auth": {
@@ -1381,7 +1422,8 @@
     "register": {
       "hasAccount": "Zaten hesabın var mı?",
       "welcome": "Hesap oluştur",
-      "subtitle": "AI ajanları ve otomasyonları kurmaya başla"
+      "subtitle": "AI ajanları ve otomasyonları kurmaya başla",
+      "inferenceFunding": "Çıkarım, kendi sağlayıcı anahtarınızı veya yapılandırılmış yerel çalışma ortamını kullanır"
     },
     "fields": {
       "fullName": "Ad Soyad",
@@ -1565,6 +1607,63 @@
     "es": "Español",
     "de": "Deutsch",
     "fr": "Français",
-    "ar": "العربية"
+    "ar": "العربية",
+    "es-419": "Español (Latinoamérica)",
+    "pt-BR": "Português (Brasil)",
+    "ja": "日本語"
+  },
+  "publicPreview": {
+    "homeTitle": "Farklı sağlayıcılardan yapay zekâ, sizin denetiminizde.",
+    "homeIntro": "Braavolabs; masaüstü, CLI, mobil ve bulut yüzeylerinde yönetilen çalışmalar, belirli eylemler, model seçimi ve insan onayı için sağlayıcılar arası bir yapay zekâ çalışma ve kontrol platformudur.",
+    "previewBadge": "Herkese açık ürün önizlemesi",
+    "pricingBadge": "Fiyat önizlemesi — henüz satın alınamaz",
+    "pricingTitle": "Planlanan fiyatlar. Açık girdiler.",
+    "inferenceFunding": "Çıkarım dahil değildir. Kendi sağlayıcı anahtarlarınızı (BYOK) veya yerel modelleri kullanın.",
+    "individualPeriod": "{price}/ay",
+    "teamPeriod": "{price}/aktif kullanıcı/ay",
+    "individualSummary": "Bir kullanıcı; aynı model ve veri modu seçimi.",
+    "teamSummary": "Kullanıcılar çalışma alanı politikasını ve onayları paylaşır.",
+    "individualAudience": "Desteklenen yüzeylerde denetimli yapay zekâ işlerini yöneten bir kişi.",
+    "teamAudience": "Çalışma alanı politikasını, onayları ve operasyon bağlamını paylaşan kullanıcılar.",
+    "individualItems": [
+      "Bir kullanıcı",
+      "BYOK veya yerel model yönlendirmesi",
+      "Olgunluk düzeyi belirtilmiş veri modu yol haritası",
+      "Eşleştirilmiş onay kapsamı"
+    ],
+    "teamItems": [
+      "Kullanıcı başına faturalama",
+      "Paylaşılan çalışma alanı rolleri",
+      "Paylaşılan politika ve onaylar",
+      "Ekip çalışma bağlamı"
+    ],
+    "dataMode": "Veri modu",
+    "privateMode": "Private Mode — önizleme",
+    "privateModeCopy": "Tam veri işleme ve güvenlik sözleşmesi geliştirme aşamasındadır; genel kullanıma hazır olarak sunulmaz.",
+    "cloudMode": "Cloud Agent Mode — geliştirme aşamasında",
+    "cloudModeCopy": "Yürütme, rıza ve saklama sözleşmesi genel kullanıma hazır olarak sunulmaz.",
+    "maturity": "Olgunluk",
+    "holding": "Holding — premium/özel önizleme",
+    "holdingCopy": "Kalıcı ajan paketlemesi, herkese açık planlara dahil değildir.",
+    "holdingSubscription": "Holding, herkese açık iki aboneliğin hiçbirine dahil değildir.",
+    "verification": "Doğrulama",
+    "signedEvidence": "İmzalı kanıt — geliştirme aşamasında",
+    "signedEvidenceCopy": "Herkese açık çevrimdışı doğrulama iddiaları, kabul edilmiş kanıtları bekler.",
+    "launchApp": "Uygulamayı aç",
+    "readDocs": "Belgeleri oku",
+    "signIn": "Giriş yap",
+    "signUp": "Kaydol",
+    "subscription": "Abonelik",
+    "unavailable": "Henüz satın alınamaz",
+    "unavailableLabel": "{plan} henüz satın alınamaz",
+    "links": {
+      "features": "Özellikler",
+      "pricing": "Fiyatlandırma",
+      "security": "Güvenlik",
+      "docs": "Belgeler",
+      "cli": "CLI kullanılabilirliği",
+      "status": "Durum",
+      "support": "Destek"
+    }
   }
 }

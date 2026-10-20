@@ -18,7 +18,7 @@ describe("actual compare API transport", () => {
     const controller = new AbortController(); fetchSpy.mockResolvedValue(response(options));
     await expect(api.compareOptions("synthetic-token", "company/a?b", controller.signal)).resolves.toEqual(options);
     const [url, request] = fetchSpy.mock.calls[0];
-    expect(url).toContain("/research/compare/options?companyId=company%2Fa%3Fb"); expect(request.signal).toBe(controller.signal);
+    expect(url).toContain("/research/compare/options?companyId=company%2Fa%3Fb"); expect(request.signal).toBeInstanceOf(AbortSignal); expect(request.signal.aborted).toBe(false);
     expect(request.headers.Authorization).toBe("Bearer synthetic-token"); expect(request.credentials).toBe("include");
   });
   it("POSTs once to the selected endpoint, preserving ordered pairs, explicit effort and omission", async () => {
@@ -26,13 +26,27 @@ describe("actual compare API transport", () => {
     const selections = [{provider: "CEREBRAS", model: "gpt-oss-120b", reasoningEffort: "high" as const}, {provider: "OPENAI", model: "gpt-4o"}];
     await api.startSelectedCompare("synthetic-token", {companyId: "company-a", query: "Synthetic question", selections}, controller.signal);
     expect(fetchSpy).toHaveBeenCalledOnce(); const [url, request] = fetchSpy.mock.calls[0];
-    expect(url).toContain("/research/compare/selected"); expect(request.method).toBe("POST"); expect(request.signal).toBe(controller.signal);
+    expect(url).toContain("/research/compare/selected"); expect(request.method).toBe("POST"); expect(request.signal).toBeInstanceOf(AbortSignal); expect(request.signal.aborted).toBe(false);
     expect(JSON.parse(request.body)).toEqual({companyId: "company-a", query: "Synthetic question", selections});
     expect(JSON.parse(request.body).selections[1]).not.toHaveProperty("reasoningEffort");
   });
   it.each([400, 404, 500])("fails closed on old/invalid server HTTP %s without another route or POST", async status => {
     fetchSpy.mockResolvedValue(response({error: "synthetic rejection"}, status));
     await expect(api.startSelectedCompare("synthetic-token", {companyId: "company-a", query: "Synthetic question", selections: [{provider: "OPENAI", model: "gpt-4o"}]})).rejects.toThrow();
+    expect(fetchSpy).toHaveBeenCalledOnce();
+  });
+  it.each(["options", "start"])("propagates caller cancellation through the bounded %s request without replay", async action => {
+    fetchSpy.mockImplementation(() => new Promise(() => {}));
+    const controller = new AbortController();
+    const pending = action === "options"
+      ? api.compareOptions("synthetic-token", "company/a?b", controller.signal)
+      : api.startSelectedCompare("synthetic-token", {companyId: "company-a", query: "Synthetic question", selections: [{provider: "OPENAI", model: "gpt-4o"}]}, controller.signal);
+    const failure = expect(pending).rejects.toMatchObject({name: "AbortError"});
+    const request = fetchSpy.mock.calls[0][1];
+    expect(request.signal.aborted).toBe(false);
+    controller.abort(new DOMException("Synthetic caller cancellation", "AbortError"));
+    await failure;
+    expect(request.signal.aborted).toBe(true);
     expect(fetchSpy).toHaveBeenCalledOnce();
   });
   it("rejects a response that arrives after tenant retirement", async () => {

@@ -290,7 +290,11 @@
       },
       "fieldName": "Name",
       "memberSince": "Member since {year}",
-      "saveFailedToast": "Couldn't save — try again."
+      "saveFailedToast": "Couldn't save — try again.",
+      "localPlanRequired": "Choose a supported plan to configure a local provider",
+      "planRequired": "Plan required",
+      "localPlanDescription": "Individual and Team support configured local endpoints. Inference is not included.",
+      "viewPlans": "View plans"
     },
     "onboarding": {
       "primitives": {
@@ -459,7 +463,8 @@
       "creatingButton": "Creating workspace...",
       "launchButton": "Launch Workspace ✨",
       "blueprintSelectedBadge": "SELECTED",
-      "onboardingProgress": "Onboarding Progress"
+      "onboardingProgress": "Onboarding Progress",
+      "reviewInBuilder": "Review in the builder"
     },
     "analytics": {
       "title": "Analytics",
@@ -493,7 +498,10 @@
       "runSteps": "Run Steps",
       "reasoningPrefix": "Reasoning:",
       "toolCallsTemplate": "{count} tool call(s)",
-      "noSteps": "No steps recorded."
+      "noSteps": "No steps recorded.",
+      "currentPeriod": "Current calendar month (server time)",
+      "loadFailed": "Some analytics could not be loaded. Missing data is shown as unavailable.",
+      "unavailable": "Unavailable"
     },
     "abTests": {
       "title": "A/B Testing",
@@ -1027,7 +1035,15 @@
       "download": "Download",
       "skillsTitle": "Skills ({n})",
       "hooksTitle": "Hooks ({n})",
-      "downloadAll": "Download Full Bundle (JSON)"
+      "downloadAll": "Download Full Bundle (JSON)",
+      "summary": "Export summary",
+      "plainConfiguration": "Unencrypted configuration files",
+      "plainConfigurationHelp": "This download contains plain configuration and prompts. Store it securely; no passphrase is generated.",
+      "skillsLabel": "Skills",
+      "hooksLabel": "Hooks",
+      "formatLabel": "File format",
+      "loadFailed": "The export could not be loaded. Try again from the workspace.",
+      "copyFailed": "Could not copy. Check clipboard permission or download the file."
     },
     "cmdk": {
       "searchPlaceholder": "Search pages and actions...",
@@ -1349,7 +1365,18 @@
       "channelPrivacy": "Privacy & GDPR",
       "channelKvkk": "KVKK (Türkiye)",
       "channelSecurity": "Security disclosures",
-      "responseTime": "Response time: typically within 24 hours on weekdays. KVKK and GDPR rights requests are answered within their statutory windows (30 days and 1 month respectively)."
+      "responseTime": "Response time: typically within 24 hours on weekdays. KVKK and GDPR rights requests are answered within their statutory windows (30 days and 1 month respectively).",
+      "topic": "Topic",
+      "message": "Message",
+      "messagePlaceholder": "How can we help?",
+      "compose": "Prepare email",
+      "draftHelp": "This prepares an email draft. Send it from your mail app; delivery is not confirmed here.",
+      "prepared": "Email draft prepared",
+      "salesTopic": "Sales & pricing",
+      "supportTopic": "Technical support",
+      "partnershipsTopic": "Partnerships",
+      "pressTopic": "Press",
+      "otherTopic": "Something else"
     },
     "status": {
       "title": "All systems operational",
@@ -1365,6 +1392,20 @@
       "operational": "Operational",
       "alertTitle": "Spotted an outage?",
       "alertBody": "Email support@braavolabs.com with what you tried and the error you saw — we'll investigate and update this page."
+    },
+    "cookieConsent": {
+      "title": "Cookies & analytics",
+      "body": "We store your analytics choice in this browser. Optional usage analytics loads only if you accept. You can reset your choice on the Cookie Policy page.",
+      "privacyLabel": "Privacy Policy",
+      "cookiesLabel": "Cookie Policy",
+      "acceptAll": "Allow analytics",
+      "essentialOnly": "Essential only",
+      "saveFailed": "Your choice could not be saved. New analytics loading remains blocked on this page. If analytics was already loaded, close this page and clear this site’s storage in your browser before returning.",
+      "preferencesTitle": "Manage your preferences",
+      "preferencesBody": "Resetting your choice withdraws optional analytics permission and shows the banner again. If analytics has already loaded, the page reloads after the saved choice is cleared.",
+      "reset": "Reset cookie preferences",
+      "resetDone": "The saved choice was cleared. This page may reload to apply your change.",
+      "resetFailed": "The saved choice could not be cleared. New analytics loading is blocked on this page. A previously loaded tracker may remain active until you close the page. Close it and clear this site’s storage in your browser before returning."
     }
   },
   "auth": {
@@ -1381,7 +1422,8 @@
     "register": {
       "hasAccount": "Already have an account?",
       "welcome": "Create account",
-      "subtitle": "Start building AI agents & automations"
+      "subtitle": "Start building AI agents & automations",
+      "inferenceFunding": "Inference uses your own provider key or configured local runtime"
     },
     "fields": {
       "fullName": "Full Name",
@@ -1565,6 +1607,63 @@
     "es": "Español",
     "de": "Deutsch",
     "fr": "Français",
-    "ar": "العربية"
+    "ar": "العربية",
+    "es-419": "Español (Latinoamérica)",
+    "pt-BR": "Português (Brasil)",
+    "ja": "日本語"
+  },
+  "publicPreview": {
+    "homeTitle": "Cross-vendor AI, under your control.",
+    "homeIntro": "Braavolabs is a cross-vendor AI workbench and control plane for governed runs, explicit actions, model choice, and human approval across desktop, CLI, mobile, and cloud surfaces.",
+    "previewBadge": "Public product preview",
+    "pricingBadge": "Pricing preview — not currently purchasable",
+    "pricingTitle": "Planned pricing. Clear inputs.",
+    "inferenceFunding": "Inference is not included. Use your own provider keys (BYOK) or local models.",
+    "individualPeriod": "{price}/month",
+    "teamPeriod": "{price}/active-user/month",
+    "individualSummary": "One user, with the same model and data-mode choice.",
+    "teamSummary": "Users share workspace policy and approvals.",
+    "individualAudience": "One person operating governed AI work across supported surfaces.",
+    "teamAudience": "Users sharing workspace policy, approvals, and operational context.",
+    "individualItems": [
+      "One user",
+      "BYOK or local model routing",
+      "Data-mode roadmap labelled by maturity",
+      "Paired approval scope"
+    ],
+    "teamItems": [
+      "Per-user billing",
+      "Shared workspace roles",
+      "Shared policy and approvals",
+      "Team operating context"
+    ],
+    "dataMode": "Data mode",
+    "privateMode": "Private Mode — preview",
+    "privateModeCopy": "Its complete data-handling and security contract remains in development and is not presented as generally available.",
+    "cloudMode": "Cloud Agent Mode — in development",
+    "cloudModeCopy": "Its execution, consent, and retention contract is not presented as generally available.",
+    "maturity": "Maturity",
+    "holding": "Holding — premium/private preview",
+    "holdingCopy": "Persistent-agent packaging is not part of the public plans.",
+    "holdingSubscription": "Holding is not bundled into either public subscription.",
+    "verification": "Verification",
+    "signedEvidence": "Signed evidence — in development",
+    "signedEvidenceCopy": "Public offline-verification claims wait for accepted evidence.",
+    "launchApp": "Launch app",
+    "readDocs": "Read docs",
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "subscription": "Subscription",
+    "unavailable": "Not currently purchasable",
+    "unavailableLabel": "{plan} is not currently purchasable",
+    "links": {
+      "features": "Features",
+      "pricing": "Pricing",
+      "security": "Security",
+      "docs": "Docs",
+      "cli": "CLI availability",
+      "status": "Status",
+      "support": "Support"
+    }
   }
 }

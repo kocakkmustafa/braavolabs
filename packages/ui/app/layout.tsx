@@ -4,9 +4,10 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import AuthLayout from "./AuthLayout";
 import CookieConsent from "../components/CookieConsent";
+import OptionalAnalytics from "../components/OptionalAnalytics";
 import SkipLink from "../components/SkipLink";
 import { ToastProvider } from "../components/Toast";
-import { surfaceForHost } from "../lib/surface-domain";
+import { APEX_HOST, PUBLIC_HOST, normalizeSurfaceHost, parseSelfHostedSurfaceHosts, surfaceForHost } from "../lib/surface-domain";
 import "./globals.css";
 
 const PUBLIC_ORIGIN = "https://www.braavolabs.com";
@@ -68,7 +69,7 @@ const SCHEMA_LD = {
       contactPoint: {
         "@type": "ContactPoint",
         contactType: "customer support",
-        email: "support@braavolabs.com",
+        email: "support@yulalab.com",
         availableLanguage: ["English", "Turkish"],
       },
     },
@@ -114,7 +115,9 @@ function record(value: unknown): MessageRecord {
 
 function publicMessagesForPath(messages: IntlMessages, pathname: string): IntlMessages {
   const staticMessages = record(record(messages).static);
-  const selected: MessageRecord = { common: staticMessages.common };
+  const selected: MessageRecord = { common: staticMessages.common, cookieConsent: staticMessages.cookieConsent };
+  // The public shell's client-side locale selector needs only these labels.
+  const language = record(record(messages).language);
 
   if (pathname.startsWith("/privacy")) {
     selected.legal = { privacy: record(staticMessages.legal).privacy };
@@ -134,14 +137,27 @@ function publicMessagesForPath(messages: IntlMessages, pathname: string): IntlMe
     selected.changelog = staticMessages.changelog;
   }
 
+  if (pathname === "/contact") {
+    const nav = record(record(messages).nav);
+    const fields = record(record(record(messages).auth).fields);
+    selected.changelog = { title: record(staticMessages.changelog).title };
+    return {
+      static: selected,
+      language,
+      nav: { features: nav.features, pricing: nav.pricing, signIn: nav.signIn, dashboard: nav.dashboard },
+      auth: { fields: { fullName: fields.fullName, fullNamePlaceholder: fields.fullNamePlaceholder, email: fields.email, emailPlaceholder: fields.emailPlaceholder } },
+      footer: record(record(messages).footer),
+    } as IntlMessages;
+  }
+
   if (pathname === "/terms" || pathname === "/legal/account-deletion") {
     const nav = record(record(messages).nav);
     selected.changelog = { title: record(staticMessages.changelog).title };
     selected.contact = { title: record(staticMessages.contact).title };
-    return { static: selected, nav: { features: nav.features, pricing: nav.pricing, signIn: nav.signIn } } as IntlMessages;
+    return { static: selected, language, nav: { features: nav.features, pricing: nav.pricing, signIn: nav.signIn } } as IntlMessages;
   }
 
-  return { static: selected } as IntlMessages;
+  return { static: selected, language } as IntlMessages;
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -151,6 +167,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const requestSurface =
     requestHeaders.get("x-braavolabs-surface") || surfaceForHost(requestHeaders.get("host"));
   const isPublic = requestSurface === "public";
+  const host = normalizeSurfaceHost(requestHeaders.get("host"));
+  const selfHostedHosts = parseSelfHostedSurfaceHosts(process.env.SELF_HOSTED_SURFACE_HOSTS);
+  // A self-hosted document can navigate between public and private routes
+  // without discarding vendor listeners. Hold analytics on those hosts.
+  const analyticsDomain = isPublic && !selfHostedHosts.has(host) && (host === PUBLIC_HOST || host === APEX_HOST)
+    ? process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN
+    : undefined;
   const pathname = requestHeaders.get("x-braavolabs-pathname") || "/";
   const providerMessages = isPublic ? publicMessagesForPath(messages, pathname) : messages;
   const content = isPublic ? children : <AuthLayout>{children}</AuthLayout>;
@@ -176,13 +199,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             dangerouslySetInnerHTML={{ __html: JSON.stringify(SCHEMA_LD) }}
           />
         )}
-        {isPublic && process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN && (
-          <script
-            defer
-            data-domain={process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN}
-            src="https://plausible.io/js/script.outbound-links.js"
-          />
-        )}
       </head>
       <body className="bg-background text-on-surface antialiased">
         <NextIntlClientProvider locale={locale} messages={providerMessages}>
@@ -190,6 +206,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <ToastProvider>
             {content}
             <CookieConsent />
+            {analyticsDomain && (
+              <OptionalAnalytics domain={analyticsDomain} />
+            )}
           </ToastProvider>
         </NextIntlClientProvider>
       </body>

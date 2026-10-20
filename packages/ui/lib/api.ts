@@ -1,5 +1,6 @@
 import { parseCompareOptions, parseCompareSession, type CompareRequest } from "./compare";
 import { parseApprovalDecision } from "./approvalDecision";
+import { requestDeadline } from "./request-deadline";
 import {
   captureAuthSession, isAuthSessionCurrent, refreshAuthSession,
   useAppStore, type AuthSessionSnapshot,
@@ -9,6 +10,8 @@ export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:808
 
 interface FetchOptions extends RequestInit {
   token?: string;
+  /** One total request budget, including body and a single authentication replay. */
+  timeoutMs?: number;
 }
 
 export class ApiRequestError extends Error {
@@ -50,8 +53,11 @@ async function refreshAccessToken(session: AuthSessionSnapshot): Promise<string 
   assertSession(session);
   const { refreshToken } = session;
   if (!refreshToken) return null;
+  // A caller leaving the shared refresh must not cancel its other waiters.
+  const deadline = requestDeadline(30_000);
   try {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
+    const res = await deadline.wait(fetch(`${API_BASE}/auth/refresh`, {
+      signal: deadline.signal,
       method: "POST",
       // credentials: send the httpOnly refresh cookie under AUTH_COOKIE_MODE;
       // the server falls back to it when the body omits refreshToken (which is
@@ -59,7 +65,7 @@ async function refreshAccessToken(session: AuthSessionSnapshot): Promise<string 
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
-    });
+    }));
     assertSession(session);
     if (!res.ok) {
       if (res.status === 401 || res.status === 403) return null;
@@ -69,7 +75,7 @@ async function refreshAccessToken(session: AuthSessionSnapshot): Promise<string 
       token: string;
       refreshToken: string;
       tenant: { id: string };
-    } = await res.json();
+    } = await deadline.wait(res.json());
     assertSession(session);
     if (!refreshAuthSession(session, data.token, data.tenant?.id ?? session.tenantId ?? "", data.refreshToken)) {
       throw new SessionChangedError();
@@ -78,7 +84,7 @@ async function refreshAccessToken(session: AuthSessionSnapshot): Promise<string 
   } catch (error) {
     if (error instanceof ApiRequestError || error instanceof SessionChangedError) throw error;
     throw new ApiRequestError(0, "Authentication service temporarily unavailable.");
-  }
+  } finally { deadline.dispose(); }
 }
 
 function refreshOnce(session: AuthSessionSnapshot): Promise<string | null> {
@@ -110,8 +116,8 @@ function hardLogout(session: AuthSessionSnapshot): void {
 }
 
 
-async function throwApiError(res: Response, session: AuthSessionSnapshot): Promise<never> {
-  const body = await res.json().catch(() => ({}));
+async function throwApiError(res: Response, session: AuthSessionSnapshot, deadline: ReturnType<typeof requestDeadline>): Promise<never> {
+  const body = await deadline.wait(res.json()).catch(error => { deadline.assertActive(); return {}; });
   assertSession(session);
   // Server's zod errors put the actionable text in `message` ("password:
   // Password must contain uppercase, lowercase, and a number"), not in
@@ -126,10 +132,13 @@ async function throwApiError(res: Response, session: AuthSessionSnapshot): Promi
 }
 
 export async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
-  const { token, headers, ...rest } = options;
+  const { token, headers, signal, timeoutMs = 180_000, ...rest } = options;
   const session = captureAuthSession();
   if (token && token !== session.token && !path.startsWith("/auth/")) throw new SessionChangedError();
 
+  const deadline = requestDeadline(timeoutMs, signal);
+  try {
+  deadline.assertActive();
   // `rest.body` is always a string (callers JSON.stringify), so the
   // request can be safely replayed after a token refresh.
   // `credentials: "include"` sends the httpOnly access cookie the API sets
@@ -139,7 +148,9 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
   // it's always applied.
   const doFetch = (bearer?: string) => {
     assertSession(session);
-    return fetch(`${API_BASE}${path}`, {
+    deadline.assertActive();
+    return deadline.wait(fetch(`${API_BASE}${path}`, {
+      signal: deadline.signal,
       ...rest,
       credentials: "include",
       headers: {
@@ -153,7 +164,7 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
         ...(bearer && { Authorization: `Bearer ${bearer}` }),
         ...headers,
       },
-    });
+    }));
   };
 
   let res = await doFetch(token);
@@ -163,7 +174,7 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
   // endpoints are excluded: a 401 there is a real credential failure
   // (bad password, dead refresh token), not an expired access token.
   if (res.status === 401 && token && !path.startsWith("/auth/")) {
-    const newToken = await refreshOnce(session);
+    const newToken = await deadline.wait(refreshOnce(session));
     assertSession(session);
     if (!newToken) {
       hardLogout(session);
@@ -180,13 +191,14 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
   }
 
   if (!res.ok) {
-    await throwApiError(res, session);
+    await throwApiError(res, session, deadline);
   }
 
   if (res.status === 204) return undefined as T;
-  const data = await res.json();
+  const data = await deadline.wait(res.json());
   assertSession(session);
   return data;
+  } finally { deadline.dispose(); }
 }
 
 // Typed API helpers
@@ -348,7 +360,7 @@ export const api = {
   resumeCompany: (token: string, id: string) =>
     apiFetch<any>(`/companies/${id}/resume`, { method: "POST", token }),
   buildCompany: (token: string, description: string) =>
-    apiFetch<any>("/companies/build", { method: "POST", body: JSON.stringify({ description }), token }),
+    apiFetch<any>("/companies/build", { method: "POST", body: JSON.stringify({ description }), token, timeoutMs: 330_000 }),
   buildAnswer: (token: string, sessionId: string, answer: string) =>
     apiFetch<any>(`/companies/build/${sessionId}/answer`, { method: "POST", body: JSON.stringify({ answer }), token }),
   buildConfirm: (token: string, sessionId: string) =>

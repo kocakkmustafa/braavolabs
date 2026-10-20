@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "tsc --noEmit -p tsconfig.json",
-    "clean": "rm -rf .next"
+    "clean": "rm -rf .next",
+    "test": "vitest run"
   },
   "dependencies": {
     "@ai-company-os/core": "workspace:*",
@@ -27,6 +28,7 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.6"
   }
 }

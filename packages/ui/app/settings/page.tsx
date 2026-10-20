@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { api } from "../../lib/api";
-import { useAppStore } from "../../lib/store";
+import { api, apiFetch } from "../../lib/api";
+import { useAppStore, captureAuthSession, isAuthSessionCurrent } from "../../lib/store";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { useToast } from "../../components/Toast";
 
@@ -107,19 +107,43 @@ const PROVIDER_LABELS: Record<string, { label: string; color: string; models: st
 // simple — cloud BYOK only. CREATOR+ unlocks self-hosted endpoints.
 // Pulled into the AI Provider section so the disabled <option>s explain
 // why and the upgrade CTA points to /pricing.
-//
-// IMPORTANT: these MUST match the Plan enum in
-// packages/db/prisma/schema.prisma + LOCAL_LLM_PLANS in
-// packages/api/src/modules/settings/router.ts (any drift between the
-// three breaks the gate logic).
-const LOCAL_LLM_PLANS: ReadonlySet<string> = new Set(["CREATOR", "PRO", "BUSINESS", "ENTERPRISE"]);
+import { planAllowsLocalProvider } from "../../lib/plan-entitlements";
 
 export default function SettingsPage() {
+  const { token, hydrated } = useAuthGuard();
+  const revision = useAppStore(state => state.sessionRevision);
+  return hydrated && token ? <SettingsContent key={revision} /> : null;
+}
+
+function SettingsContent() {
   const t = useTranslations();
   const router = useRouter();
   const { token, hydrated } = useAuthGuard();
   const tenantId = useAppStore((s) => s.tenantId);
   const { toast } = useToast();
+  const owner = useRef(captureAuthSession());
+  const mounted = useRef(true);
+  const ownerAbort = useRef(new AbortController());
+  const feedbackTimers = useRef(new Set<ReturnType<typeof setTimeout>>());
+  const current = () => mounted.current && isAuthSessionCurrent(owner.current);
+  const later = (fn: () => void, ms: number) => {
+    const timer = setTimeout(() => {
+      feedbackTimers.current.delete(timer);
+      if (current()) fn();
+    }, ms);
+    feedbackTimers.current.add(timer);
+  };
+  useEffect(() => {
+    mounted.current = true;
+    // StrictMode can replay the mount effect without recreating refs.
+    if (ownerAbort.current.signal.aborted) ownerAbort.current = new AbortController();
+    return () => {
+      mounted.current = false;
+      ownerAbort.current.abort();
+      feedbackTimers.current.forEach(clearTimeout);
+      feedbackTimers.current.clear();
+    };
+  }, []);
 
   const [active, setActive] = useState("profile");
   const [billingUsage, setBillingUsage] = useState<BillingUsage | null>(null);
@@ -170,14 +194,28 @@ export default function SettingsPage() {
   const [editProvider, setEditProvider] = useState<string | null>(null);
   const [editFields, setEditFields] = useState<Record<string, string>>({});
   const [testResult, setTestResult] = useState<{ provider: string; success: boolean; error?: string } | null>(null);
+  const integrationRequest = useRef(0);
+  const integrationResource = useRef({ companyId: selectedCompanyId, provider: editProvider });
+  integrationResource.current = { companyId: selectedCompanyId, provider: editProvider };
+  const modelRequest = useRef(0);
+  const selectedAIProvider = useRef(aiProvider);
+  selectedAIProvider.current = aiProvider;
+  const aiSaveRequest = useRef(0);
+  const aiTestRequest = useRef(0);
+  const aiDraft = useRef({ aiProvider, aiModel, aiApiKey, aiBaseUrl });
+  aiDraft.current = { aiProvider, aiModel, aiApiKey, aiBaseUrl };
 
   useEffect(() => {
     if (!hydrated || !token) return;
-    api.billingUsage(token).then(setBillingUsage).catch(() => {});
-    api.billingSubscription(token).then(setSubscription).catch(() => {});
-    api.getReferral(token).then(setReferral).catch(() => {});
-    api.listProviders(token).then(setProviders).catch(() => {});
+    let active = true;
+    const initialDraft = { ...aiDraft.current };
+    const publish = () => active && current();
+    api.billingUsage(token).then(value => { if (publish()) setBillingUsage(value); }).catch(() => {});
+    api.billingSubscription(token).then(value => { if (publish()) setSubscription(value); }).catch(() => {});
+    api.getReferral(token).then(value => { if (publish()) setReferral(value); }).catch(() => {});
+    api.listProviders(token).then(value => { if (publish()) setProviders(value); }).catch(() => {});
     api.users.me(token).then((u) => {
+      if (!publish()) return;
       setProfile({
         name: u.name ?? "",
         email: u.email,
@@ -188,34 +226,50 @@ export default function SettingsPage() {
       setProfileName(u.name ?? "");
     }).catch(() => {});
     api.getNotificationPrefs(token).then((p) => {
+      if (!publish()) return;
       setNotifs({ spendApproval: p.approvals, pipelineErrors: p.risks, runCompleted: p.runs });
       setNotifsLoaded(true);
-    }).catch(() => setNotifsLoaded(true));
+    }).catch(() => { if (publish()) setNotifsLoaded(true); });
     api.listCompanies(token).then((c: any[]) => {
+      if (!publish()) return;
       setCompanies(c);
       if (c.length > 0 && !selectedCompanyId) setSelectedCompanyId(c[0].id);
     }).catch(() => {});
     // Load AI config
-    fetch("/api/v1/settings/ai-config", { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
+    apiFetch<any>("/settings/ai-config", { token, signal: ownerAbort.current.signal })
       .then((cfg) => {
+        if (!publish()) return;
         setAiConfig(cfg);
+        // Loading persisted settings must not reassign a newly entered key to
+        // a different provider/model that the user has already changed.
+        if (!Object.keys(initialDraft).every(key => initialDraft[key as keyof typeof initialDraft]
+          === aiDraft.current[key as keyof typeof initialDraft])) return;
         setAiProvider(cfg.provider ?? "ANTHROPIC");
         setAiModel(cfg.model ?? "claude-sonnet-4-20250514");
         setAiBaseUrl(cfg.baseUrl ?? "");
       })
-      .catch(() => {});
-  }, [token, hydrated]);
+      .catch((err) => { if (publish()) setAiSaveMsg(`Error: ${(err as Error).message}`); });
+    return () => { active = false; };
+    // The keyed owner boundary reloads data. A same-owner token rotation must
+    // preserve unsaved form edits rather than reload the persisted AI config.
+  }, []);
 
   // Load integrations when company changes
   useEffect(() => {
     if (!token || !selectedCompanyId) return;
+    let active = true;
+    const request = ++integrationRequest.current;
+    const companyId = selectedCompanyId;
+    const publish = () => active && current() && request === integrationRequest.current
+      && integrationResource.current.companyId === companyId;
+    setIntegrations([]); setEditProvider(null); setEditFields({}); setTestResult(null);
     setIntLoading(true);
     api.listIntegrations(token, selectedCompanyId)
-      .then(setIntegrations)
+      .then(value => { if (publish()) setIntegrations(value); })
       .catch(() => {})
-      .finally(() => setIntLoading(false));
-  }, [token, selectedCompanyId]);
+      .finally(() => { if (publish()) setIntLoading(false); });
+    return () => { active = false; };
+  }, [selectedCompanyId]);
 
   // Refresh the model catalogue for a provider from the API proxy
   // (GET /settings/ai-providers/:provider/models — server caches 5 min).
@@ -224,21 +278,22 @@ export default function SettingsPage() {
   // the static fallback — the selector must never go empty.
   async function loadProviderModels(provider: string) {
     if (!token || !provider) return;
+    const request = ++modelRequest.current;
+    const publish = () => current() && request === modelRequest.current && selectedAIProvider.current === provider;
     setModelsLoading(true);
     try {
-      const res = await fetch(`/api/v1/settings/ai-providers/${encodeURIComponent(provider)}/models`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const data = await apiFetch<unknown>(`/settings/ai-providers/${encodeURIComponent(provider)}/models`, {
+        token, signal: ownerAbort.current.signal,
       });
-      if (!res.ok) return;
-      const data = await res.json();
-      const models: unknown = Array.isArray(data) ? data : data?.models;
+      if (!publish()) return;
+      const models: unknown = Array.isArray(data) ? data : (data as { models?: unknown })?.models;
       if (Array.isArray(models) && models.length > 0 && models.every((m) => typeof m === "string")) {
         setLiveModels((prev) => ({ ...prev, [provider]: models as string[] }));
       }
     } catch {
       // static fallback stays in place
     } finally {
-      setModelsLoading(false);
+      if (publish()) setModelsLoading(false);
     }
   }
 
@@ -248,7 +303,7 @@ export default function SettingsPage() {
     if (active !== "ai_provider" || !token || liveModels[aiProvider]) return;
     loadProviderModels(aiProvider);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, aiProvider, token]);
+  }, [active, aiProvider]);
 
   /** Effective model list: live catalogue if fetched, else static fallback.
    * The currently-selected model is always included so the <select> never
@@ -268,17 +323,18 @@ export default function SettingsPage() {
   );
 
   async function handleUpgrade(plan: "CREATOR" | "PRO" | "BUSINESS" | "ENTERPRISE") {
+    if (!current()) return;
     setUpgradeLoading(true);
     setBillingError(null);
-    try { const { url } = await api.billingCheckout(token!, plan); window.location.href = url; }
-    catch (err) { console.error("Billing checkout failed:", err); setBillingError((err as Error).message); }
-    setUpgradeLoading(false);
+    try { const { url } = await api.billingCheckout(token!, plan); if (current()) window.location.href = url; }
+    catch (err) { if (current()) setBillingError((err as Error).message); }
+    if (current()) setUpgradeLoading(false);
   }
 
   async function handleManageBilling() {
     setBillingError(null);
-    try { const { url } = await api.billingPortal(token!); window.location.href = url; }
-    catch (err) { console.error("Billing portal failed:", err); setBillingError((err as Error).message); }
+    try { const { url } = await api.billingPortal(token!); if (current()) window.location.href = url; }
+    catch (err) { if (current()) setBillingError((err as Error).message); }
   }
 
   async function handleSaveProfile() {
@@ -286,14 +342,15 @@ export default function SettingsPage() {
     setProfileSaving(true);
     try {
       const u = await api.users.updateMe(token, { name: profileName.trim() });
+      if (!current()) return;
       setProfile((p) => (p ? { ...p, name: u.name ?? "" } : p));
       setSaved(true);
       toast(t("app.settings.savedToast"), "success");
-      setTimeout(() => setSaved(false), 2000);
+      later(() => setSaved(false), 2000);
     } catch {
-      toast(t("app.settings.saveFailedToast"), "error");
+      if (current()) toast(t("app.settings.saveFailedToast"), "error");
     } finally {
-      setProfileSaving(false);
+      if (current()) setProfileSaving(false);
     }
   }
 
@@ -305,16 +362,21 @@ export default function SettingsPage() {
         risks: notifs.pipelineErrors,
         runs: notifs.runCompleted,
       });
+      if (!current()) return;
       setSaved(true);
       toast(t("app.settings.savedToast"), "success");
-      setTimeout(() => setSaved(false), 2000);
+      later(() => setSaved(false), 2000);
     } catch {
-      toast(t("app.settings.saveFailedToast"), "error");
+      if (current()) toast(t("app.settings.saveFailedToast"), "error");
     }
   }
 
   async function handleSaveAiConfig() {
-    if (!token) return;
+    if (!token || !current()) return;
+    const request = ++aiSaveRequest.current;
+    const draft = { ...aiDraft.current };
+    const publish = () => current() && request === aiSaveRequest.current;
+    const sameDraft = () => Object.keys(draft).every(key => draft[key as keyof typeof draft] === aiDraft.current[key as keyof typeof draft]);
     setAiSaving(true);
     setAiSaveMsg(null);
     try {
@@ -324,13 +386,12 @@ export default function SettingsPage() {
       // provider proxy override). Empty string = backend will use the
       // built-in default for that provider.
       if (aiBaseUrl.trim()) body.baseUrl = aiBaseUrl.trim();
-      const res = await fetch("/api/v1/settings/ai-config", {
+      await apiFetch("/settings/ai-config", {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        token, signal: ownerAbort.current.signal,
         body: JSON.stringify(body),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? t("app.settings.aiSaveFailed"));
+      if (!publish() || !sameDraft()) return;
       setAiConfig((prev) => ({
         ...prev,
         provider: aiProvider,
@@ -340,31 +401,65 @@ export default function SettingsPage() {
       }));
       setAiApiKey("");
       setAiSaveMsg(t("app.settings.aiSavedToast"));
-      setTimeout(() => setAiSaveMsg(null), 3000);
+      later(() => setAiSaveMsg(null), 3000);
     } catch (err) {
+      if (!publish() || !sameDraft()) return;
       const message = err instanceof Error ? err.message : t("app.settings.aiUnknownError");
       setAiSaveMsg(`Error: ${message}`);
     } finally {
-      setAiSaving(false);
+      if (publish()) setAiSaving(false);
     }
   }
 
   async function handleTestAiConfig() {
-    if (!token) return;
+    if (!token || !current()) return;
+    const request = ++aiTestRequest.current;
+    const draft = { ...aiDraft.current };
+    const publish = () => current() && request === aiTestRequest.current
+      && Object.keys(draft).every(key => draft[key as keyof typeof draft] === aiDraft.current[key as keyof typeof draft]);
     setAiTesting(true);
     setAiTestResult(null);
     try {
-      const res = await fetch("/api/v1/settings/ai-config/test", {
+      const data = await apiFetch<{ success: boolean; response?: string; error?: string }>("/settings/ai-config/test", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        token, signal: ownerAbort.current.signal,
       });
-      const data = await res.json();
-      setAiTestResult(data);
+      if (publish()) setAiTestResult(data);
     } catch (err) {
+      if (!publish()) return;
       const message = err instanceof Error ? err.message : t("app.settings.aiUnknownError");
       setAiTestResult({ success: false, error: message });
     } finally {
-      setAiTesting(false);
+      if (current() && request === aiTestRequest.current) setAiTesting(false);
+    }
+  }
+
+  async function changeIntegration(action: "save" | "test" | "remove", provider: string) {
+    const companyId = selectedCompanyId;
+    if (!token || !companyId || !current()) return;
+    const request = ++integrationRequest.current;
+    const publish = () => current() && request === integrationRequest.current
+      && integrationResource.current.companyId === companyId
+      && integrationResource.current.provider === provider;
+    try {
+      if (action === "save") {
+        const fields = Object.fromEntries(Object.entries(editFields).filter(([, value]) => value.trim() !== ""));
+        if (Object.keys(fields).length === 0) return;
+        await api.saveIntegration(token, companyId, provider, fields);
+      } else if (action === "test") {
+        const result = await api.testIntegration(token, companyId, provider);
+        if (!publish()) return;
+        setTestResult({ provider, success: result.success, error: result.error });
+      } else await api.deleteIntegration(token, companyId, provider);
+      if (!publish()) return;
+      const liveToken = useAppStore.getState().token;
+      if (!liveToken) return;
+      const updated = await api.listIntegrations(liveToken, companyId);
+      if (!publish()) return;
+      setIntegrations(updated);
+      if (action === "save") setEditFields({});
+    } catch (err) {
+      if (publish()) setTestResult({ provider, success: false, error: (err as Error).message });
     }
   }
 
@@ -648,7 +743,12 @@ export default function SettingsPage() {
                   <label className="bv-micro text-outline mb-2 block">Company</label>
                   <select
                     value={selectedCompanyId}
-                    onChange={(e) => setSelectedCompanyId(e.target.value)}
+                    onChange={(e) => {
+                      integrationRequest.current++;
+                      integrationResource.current = { companyId: e.target.value, provider: null };
+                      setSelectedCompanyId(e.target.value);
+                      setIntegrations([]); setEditProvider(null); setEditFields({}); setTestResult(null);
+                    }}
                     className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-surface-container border border-outline-variant/30 text-on-surface outline-none focus:border-primary/50 transition-colors"
                   >
                     {companies.map((c) => (
@@ -676,6 +776,8 @@ export default function SettingsPage() {
                           <div
                             className="flex items-center justify-between px-4 py-3.5 cursor-pointer"
                             onClick={() => {
+                              integrationRequest.current++;
+                              integrationResource.current.provider = isEditing ? null : prov.provider;
                               if (isEditing) {
                                 setEditProvider(null);
                               } else {
@@ -755,41 +857,20 @@ export default function SettingsPage() {
 
                               <div className="flex gap-2 mt-3.5">
                                 <button
-                                  onClick={async () => {
-                                    if (!token || !selectedCompanyId) return;
-                                    const filledFields = Object.fromEntries(
-                                      Object.entries(editFields).filter(([_, v]) => v.trim() !== "")
-                                    );
-                                    if (Object.keys(filledFields).length === 0) return;
-                                    await api.saveIntegration(token, selectedCompanyId, prov.provider, filledFields);
-                                    const updated = await api.listIntegrations(token, selectedCompanyId);
-                                    setIntegrations(updated);
-                                    setEditFields({});
-                                  }}
+                                  onClick={() => changeIntegration("save", prov.provider)}
                                   className="bv-btn bv-btn-primary bv-btn-sm"
                                 >
                                   {t("app.settings.saveCredentials")}
                                 </button>
                                 <button
-                                  onClick={async () => {
-                                    if (!token || !selectedCompanyId) return;
-                                    const result = await api.testIntegration(token, selectedCompanyId, prov.provider);
-                                    setTestResult({ provider: prov.provider, success: result.success, error: result.error });
-                                    const updated = await api.listIntegrations(token, selectedCompanyId);
-                                    setIntegrations(updated);
-                                  }}
+                                  onClick={() => changeIntegration("test", prov.provider)}
                                   className="bv-btn bv-btn-ghost bv-btn-sm"
                                 >
                                   Test Connection
                                 </button>
                                 {existing && (
                                   <button
-                                    onClick={async () => {
-                                      if (!token || !selectedCompanyId) return;
-                                      await api.deleteIntegration(token, selectedCompanyId, prov.provider);
-                                      const updated = await api.listIntegrations(token, selectedCompanyId);
-                                      setIntegrations(updated);
-                                    }}
+                                    onClick={() => changeIntegration("remove", prov.provider)}
                                     className="bv-btn bv-btn-danger bv-btn-sm ml-auto"
                                   >
                                     Remove
@@ -842,13 +923,16 @@ export default function SettingsPage() {
                     <p className="bv-micro text-outline mb-3">Provider</p>
                     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
                       {Object.entries(PROVIDER_LABELS).map(([id, info]) => {
-                        const planAllowsLocal = LOCAL_LLM_PLANS.has(currentPlan);
+                        const planAllowsLocal = planAllowsLocalProvider(currentPlan);
                         const locked = !!info.local && !planAllowsLocal;
                         return (
                           <button
                             key={id}
                             onClick={() => {
                               if (locked) return;
+                                selectedAIProvider.current = id;
+                                modelRequest.current++;
+                                setModelsLoading(false); setAiTestResult(null); setAiSaveMsg(null);
                               setAiProvider(id);
                               setAiModel(modelsFor(id)[0] ?? "");
                             }}
@@ -859,12 +943,14 @@ export default function SettingsPage() {
                               opacity: locked ? 0.5 : 1,
                               cursor: locked ? "not-allowed" : "pointer",
                             }}
-                            title={locked ? "Self-hosted providers are a Creator+ feature — upgrade to unlock" : ""}
+                            title={locked ? t("app.settings.localPlanRequired") : ""}
+                            disabled={locked}
+                            aria-pressed={aiProvider === id}
                           >
                             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: info.color }} />
                             <span className="text-xs font-semibold truncate" style={{ color: aiProvider === id ? "var(--color-on-surface)" : "var(--color-on-surface-variant)" }}>
                               {info.label}
-                              {locked && <span className="ml-1 text-primary"> · PRO</span>}
+                              {locked && <span className="ml-1 text-primary"> · {t("app.settings.planRequired")}</span>}
                             </span>
                           </button>
                         );
@@ -873,19 +959,19 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Plan-gate banner */}
-                  {PROVIDER_LABELS[aiProvider]?.local && !LOCAL_LLM_PLANS.has(currentPlan) && (
+                  {PROVIDER_LABELS[aiProvider]?.local && !planAllowsLocalProvider(currentPlan) && (
                     <div className="rounded-xl px-4 py-3 text-xs flex items-start gap-3 bg-primary/5 border border-primary/20 text-on-surface-variant">
                       <span className="material-symbols-outlined text-primary flex-shrink-0 mt-0.5" style={{ fontSize: 18 }}>workspace_premium</span>
                       <div className="flex-1">
-                        <p className="font-semibold mb-1 text-on-surface">Self-hosted Gemma is a Creator-plan feature</p>
-                        <p>Upgrade to Creator ($19/mo) or higher to point Braavolabs at your own Ollama / LM Studio / vLLM endpoint.</p>
-                        <a href="/pricing" className="bv-btn bv-btn-primary bv-btn-sm mt-2 inline-flex">View plans →</a>
+                        <p className="font-semibold mb-1 text-on-surface">{t("app.settings.localPlanRequired")}</p>
+                        <p>{t("app.settings.localPlanDescription")}</p>
+                        <a href="/pricing" className="bv-btn bv-btn-primary bv-btn-sm mt-2 inline-flex">{t("app.settings.viewPlans")}</a>
                       </div>
                     </div>
                   )}
 
                   {/* Local setup hint */}
-                  {PROVIDER_LABELS[aiProvider]?.local && LOCAL_LLM_PLANS.has(currentPlan) && PROVIDER_LABELS[aiProvider]?.setupHint && (
+                  {PROVIDER_LABELS[aiProvider]?.local && planAllowsLocalProvider(currentPlan) && PROVIDER_LABELS[aiProvider]?.setupHint && (
                     <div className="rounded-xl px-3.5 py-2.5 text-xs bg-primary/5 border border-primary/20">
                       <p className="font-semibold mb-1 text-primary">Self-hosted provider — runs on your hardware</p>
                       <p className="text-on-surface-variant">{PROVIDER_LABELS[aiProvider]?.setupHint}</p>
@@ -1251,8 +1337,9 @@ export default function SettingsPage() {
                             if (!redeemCode.trim()) return;
                             try {
                               const res = await api.redeemReferral(token!, redeemCode.trim());
+                              if (!current()) return;
                               setRedeemResult(res.reward); setRedeemCode("");
-                            } catch (err) { setRedeemResult((err as Error).message); }
+                            } catch (err) { if (current()) setRedeemResult((err as Error).message); }
                           }}
                           className="bv-btn bv-btn-primary"
                         >

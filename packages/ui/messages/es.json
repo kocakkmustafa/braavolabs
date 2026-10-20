@@ -290,7 +290,11 @@
       },
       "fieldName": "Nombre",
       "memberSince": "Miembro desde {year}",
-      "saveFailedToast": "No se pudo guardar — inténtalo de nuevo."
+      "saveFailedToast": "No se pudo guardar — inténtalo de nuevo.",
+      "localPlanRequired": "Elige un plan compatible para configurar un proveedor local",
+      "planRequired": "Se requiere un plan",
+      "localPlanDescription": "Individual y Team admiten puntos de conexión locales configurados. La inferencia no está incluida.",
+      "viewPlans": "Ver planes"
     },
     "onboarding": {
       "primitives": {
@@ -459,7 +463,8 @@
       "creatingButton": "Creando espacio de trabajo...",
       "launchButton": "Lanzar espacio de trabajo ✨",
       "blueprintSelectedBadge": "SELECCIONADO",
-      "onboardingProgress": "Progreso de Onboarding"
+      "onboardingProgress": "Progreso de Onboarding",
+      "reviewInBuilder": "Revisar en el creador"
     },
     "analytics": {
       "title": "Analítica",
@@ -493,7 +498,10 @@
       "runSteps": "Pasos de Ejecución",
       "reasoningPrefix": "Razonamiento:",
       "toolCallsTemplate": "{count} llamada(s) a herramientas",
-      "noSteps": "Sin pasos registrados."
+      "noSteps": "Sin pasos registrados.",
+      "currentPeriod": "Mes calendario actual (hora del servidor)",
+      "loadFailed": "No se pudieron cargar algunos análisis. Los datos faltantes se muestran como no disponibles.",
+      "unavailable": "No disponible"
     },
     "abTests": {
       "title": "Pruebas A/B",
@@ -1027,7 +1035,15 @@
       "download": "Descargar",
       "skillsTitle": "Skills ({n})",
       "hooksTitle": "Hooks ({n})",
-      "downloadAll": "Descargar paquete completo (JSON)"
+      "downloadAll": "Descargar paquete completo (JSON)",
+      "summary": "Resumen de exportación",
+      "plainConfiguration": "Archivos de configuración sin cifrar",
+      "plainConfigurationHelp": "Esta descarga contiene configuración y prompts sin cifrar. Guárdala de forma segura; no se genera una contraseña.",
+      "skillsLabel": "Habilidades",
+      "hooksLabel": "Hooks",
+      "formatLabel": "Formato de archivo",
+      "loadFailed": "No se pudo cargar la exportación. Inténtalo de nuevo desde el espacio de trabajo.",
+      "copyFailed": "No se pudo copiar. Revisa el permiso del portapapeles o descarga el archivo."
     },
     "cmdk": {
       "searchPlaceholder": "Buscar páginas y acciones...",
@@ -1349,7 +1365,18 @@
       "channelPrivacy": "Privacidad & GDPR",
       "channelKvkk": "KVKK (Turquía)",
       "channelSecurity": "Divulgaciones de seguridad",
-      "responseTime": "Tiempo de respuesta: normalmente dentro de 24 horas en días laborables. Las solicitudes de derechos KVKK y GDPR se responden dentro de sus plazos legales (30 días y 1 mes respectivamente)."
+      "responseTime": "Tiempo de respuesta: normalmente dentro de 24 horas en días laborables. Las solicitudes de derechos KVKK y GDPR se responden dentro de sus plazos legales (30 días y 1 mes respectivamente).",
+      "topic": "Tema",
+      "message": "Mensaje",
+      "messagePlaceholder": "¿Cómo podemos ayudarte?",
+      "compose": "Preparar correo",
+      "draftHelp": "Esto prepara un borrador de correo. Envíalo desde tu aplicación de correo; la entrega no se confirma aquí.",
+      "prepared": "Borrador de correo preparado",
+      "salesTopic": "Ventas y precios",
+      "supportTopic": "Soporte técnico",
+      "partnershipsTopic": "Alianzas",
+      "pressTopic": "Prensa",
+      "otherTopic": "Otro tema"
     },
     "status": {
       "title": "Todos los sistemas operativos",
@@ -1365,6 +1392,20 @@
       "operational": "Operativo",
       "alertTitle": "¿Detectaste una caída?",
       "alertBody": "Envía un correo a support@braavolabs.com con lo que intentaste y el error que viste — lo investigaremos y actualizaremos esta página."
+    },
+    "cookieConsent": {
+      "title": "Cookies y analítica",
+      "body": "Guardamos tu preferencia de analítica en este navegador. La analítica de uso opcional solo se carga si la aceptas. Puedes restablecer tu preferencia en la página de Política de cookies.",
+      "privacyLabel": "Política de privacidad",
+      "cookiesLabel": "Política de cookies",
+      "acceptAll": "Permitir analítica",
+      "essentialOnly": "Solo las esenciales",
+      "saveFailed": "No se pudo guardar tu preferencia. La carga de nueva analítica sigue bloqueada en esta página. Si la analítica ya se había cargado, cierra la página y borra los datos de almacenamiento de este sitio en tu navegador antes de volver.",
+      "preferencesTitle": "Administra tus preferencias",
+      "preferencesBody": "Restablecer tu preferencia retira el permiso para la analítica opcional y vuelve a mostrar el aviso. Si la analítica ya se cargó, la página se recarga después de borrar la preferencia guardada.",
+      "reset": "Restablecer preferencias de cookies",
+      "resetDone": "Se borró la preferencia guardada. Esta página puede recargarse para aplicar el cambio.",
+      "resetFailed": "No se pudo borrar la preferencia guardada. Se bloqueó la carga de nueva analítica en esta página. Un rastreador cargado anteriormente podría seguir activo hasta que cierres la página. Ciérrala y borra los datos de almacenamiento de este sitio en tu navegador antes de volver."
     }
   },
   "auth": {
@@ -1381,7 +1422,8 @@
     "register": {
       "hasAccount": "¿Ya tienes una cuenta?",
       "welcome": "Crear cuenta",
-      "subtitle": "Empieza a crear agentes y automatizaciones de IA"
+      "subtitle": "Empieza a crear agentes y automatizaciones de IA",
+      "inferenceFunding": "La inferencia usa tu propia clave de proveedor o un entorno local configurado"
     },
     "fields": {
       "fullName": "Nombre completo",
@@ -1565,6 +1607,63 @@
     "es": "Español",
     "de": "Deutsch",
     "fr": "Français",
-    "ar": "العربية"
+    "ar": "العربية",
+    "es-419": "Español (Latinoamérica)",
+    "pt-BR": "Português (Brasil)",
+    "ja": "日本語"
+  },
+  "publicPreview": {
+    "homeTitle": "IA de varios proveedores, bajo tu control.",
+    "homeIntro": "Braavolabs es un entorno de trabajo y una plataforma de control de IA entre proveedores para ejecuciones gobernadas, acciones explícitas, elección de modelos y aprobación humana en escritorio, CLI, móvil y nube.",
+    "previewBadge": "Vista previa pública del producto",
+    "pricingBadge": "Vista previa de precios — compra aún no disponible",
+    "pricingTitle": "Precios previstos. Condiciones claras.",
+    "inferenceFunding": "La inferencia no está incluida. Usa tus propias claves de proveedor (BYOK) o modelos locales.",
+    "individualPeriod": "{price}/mes",
+    "teamPeriod": "{price}/usuario activo/mes",
+    "individualSummary": "Un usuario, con las mismas opciones de modelo y modo de datos.",
+    "teamSummary": "Los usuarios comparten la política del espacio de trabajo y las aprobaciones.",
+    "individualAudience": "Una persona que opera tareas de IA gobernadas en las interfaces compatibles.",
+    "teamAudience": "Usuarios que comparten políticas, aprobaciones y contexto operativo del espacio de trabajo.",
+    "individualItems": [
+      "Un usuario",
+      "Enrutamiento BYOK o a modelos locales",
+      "Hoja de ruta de modos de datos con nivel de madurez indicado",
+      "Alcance de aprobación vinculado"
+    ],
+    "teamItems": [
+      "Facturación por usuario",
+      "Roles compartidos del espacio de trabajo",
+      "Políticas y aprobaciones compartidas",
+      "Contexto operativo del equipo"
+    ],
+    "dataMode": "Modo de datos",
+    "privateMode": "Private Mode — vista previa",
+    "privateModeCopy": "Su contrato completo de tratamiento de datos y seguridad sigue en desarrollo y no se presenta como disponible para uso general.",
+    "cloudMode": "Cloud Agent Mode — en desarrollo",
+    "cloudModeCopy": "Su contrato de ejecución, consentimiento y retención no se presenta como disponible para uso general.",
+    "maturity": "Madurez",
+    "holding": "Holding — vista previa premium/privada",
+    "holdingCopy": "El empaquetado de agentes persistentes no forma parte de los planes públicos.",
+    "holdingSubscription": "Holding no está incluido en ninguna de las dos suscripciones públicas.",
+    "verification": "Verificación",
+    "signedEvidence": "Evidencia firmada — en desarrollo",
+    "signedEvidenceCopy": "Las afirmaciones públicas de verificación sin conexión esperan evidencia aceptada.",
+    "launchApp": "Abrir aplicación",
+    "readDocs": "Leer documentación",
+    "signIn": "Iniciar sesión",
+    "signUp": "Registrarse",
+    "subscription": "Suscripción",
+    "unavailable": "Compra aún no disponible",
+    "unavailableLabel": "{plan} aún no está disponible para compra",
+    "links": {
+      "features": "Funciones",
+      "pricing": "Precios",
+      "security": "Seguridad",
+      "docs": "Documentación",
+      "cli": "Disponibilidad de CLI",
+      "status": "Estado",
+      "support": "Soporte"
+    }
   }
 }

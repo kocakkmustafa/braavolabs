@@ -178,7 +178,7 @@ export default function RegisterPage() {
 
           <ul className="flex flex-col gap-3 list-none p-0 m-0">
             {[
-              { icon: "bolt", text: "3 full trial runs — no card required" },
+              { icon: "bolt", text: t("auth.register.inferenceFunding") },
               { icon: "key", text: "BYOK across 14 providers" },
               { icon: "smartphone", text: "Steer & approve from your pocket" },
             ].map((item) => (

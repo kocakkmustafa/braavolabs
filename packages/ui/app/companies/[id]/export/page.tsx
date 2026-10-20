@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { api } from "@/lib/api";
 import { useAuthGuard } from "@/lib/useAuthGuard";
+import { useAppStore, captureAuthSession, isAuthSessionCurrent } from "@/lib/store";
 
-export default function ExportPage() {
+function ExportPageContent() {
   const { id } = useParams<{ id: string }>();
   const { token } = useAuthGuard();
   const t = useTranslations();
@@ -14,31 +15,45 @@ export default function ExportPage() {
   const [loading, setLoading] = useState(false);
   const [format, setFormat] = useState("claude-code");
   const [copied, setCopied] = useState("");
+  const [copyFailed, setCopyFailed] = useState(false);
+  const mounted = useRef(true);
+  const owner = useRef(captureAuthSession()).current;
+  const copySequence = useRef(0);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => { mounted.current = true; return () => {
+    mounted.current = false;
+    if (copyTimer.current) clearTimeout(copyTimer.current);
+  }; }, []);
 
-  const loadBundle = async () => {
-    if (!token || !id) return;
-    setLoading(true);
-    try {
-      const data = await api.exportBundle(token, id as string, format);
-      setBundle(data);
-    } catch (err) {
-      console.error("Export failed:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  const [error, setError] = useState(false);
   useEffect(() => {
-    loadBundle();
+    if (!token || !id) return;
+    let active = true;
+    const session = captureAuthSession();
+    const current = () => active && isAuthSessionCurrent(session);
+    setLoading(true); setError(false); setBundle(null);
+    api.exportBundle(token, id, format).then(data => { if (current()) setBundle(data); })
+      .catch(() => { if (current()) setError(true); })
+      .finally(() => { if (current()) setLoading(false); });
+    return () => { active = false; };
   }, [token, id, format]);
 
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(label);
-    setTimeout(() => setCopied(""), 2000);
+  const copyToClipboard = async (text: string, label: string) => {
+    if (!mounted.current || !isAuthSessionCurrent(owner)) return;
+    const sequence = ++copySequence.current;
+    const current = () => mounted.current && isAuthSessionCurrent(owner) && copySequence.current === sequence;
+    setCopied(""); setCopyFailed(false);
+    if (copyTimer.current) clearTimeout(copyTimer.current);
+    try {
+      await navigator.clipboard.writeText(text);
+      if (!current()) return;
+      setCopied(label);
+      copyTimer.current = setTimeout(() => { if (current()) setCopied(""); }, 2000);
+    } catch { if (current()) setCopyFailed(true); }
   };
 
   const downloadFile = (content: string, filename: string) => {
+    if (!mounted.current || !isAuthSessionCurrent(owner)) return;
     const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -61,7 +76,7 @@ export default function ExportPage() {
               {t("app.exportBundle.title")}
             </p>
             <h1 className="bv-headline text-on-surface">
-              Export workspace
+              {t("app.exportBundle.title")}
             </h1>
             <p className="bv-body text-on-surface-variant mt-1">
               {t("app.exportBundle.subtitle")}
@@ -74,7 +89,7 @@ export default function ExportPage() {
           {["claude-code", "n8n", "generic"].map((f) => (
             <button
               key={f}
-              onClick={() => setFormat(f)}
+              onClick={() => { copySequence.current++; setCopied(""); setCopyFailed(false); setBundle(null); setFormat(f); }}
               className={format === f ? "active" : ""}
             >
               {f === "claude-code"
@@ -86,8 +101,11 @@ export default function ExportPage() {
           ))}
         </div>
 
+        {copyFailed && <p role="alert">{t("app.exportBundle.copyFailed")}</p>}
+
         {/* Two-column layout: main + sticky side */}
         <div className="bv-twocol">
+          {error && <p role="alert">{t("app.exportBundle.loadFailed")}</p>}
           {/* ── Left: bundle contents ── */}
           <div className="bv-twocol-main">
 
@@ -240,7 +258,7 @@ export default function ExportPage() {
           <div className="bv-twocol-side">
             <div className="bv-glass bv-panel sticky top-20">
               <div className="bv-panel-head">
-                <p className="bv-micro">Bundle summary</p>
+                <p className="bv-micro">{t("app.exportBundle.summary")}</p>
               </div>
 
               {/* Encryption badge */}
@@ -261,12 +279,12 @@ export default function ExportPage() {
                   }}
                 >
                   <span className="material-symbols-outlined text-primary" style={{ fontSize: 18 }}>
-                    lock
+                    description
                   </span>
                 </div>
                 <div>
-                  <p className="bv-body font-semibold text-on-surface">AES-256 encrypted bundle</p>
-                  <p className="bv-caption">A one-time passphrase is generated on export</p>
+                  <p className="bv-body font-semibold text-on-surface">{t("app.exportBundle.plainConfiguration")}</p>
+                  <p className="bv-caption">{t("app.exportBundle.plainConfigurationHelp")}</p>
                 </div>
               </div>
 
@@ -276,10 +294,10 @@ export default function ExportPage() {
               {bundle && (
                 <div className="flex flex-col gap-0">
                   {[
-                    { label: "Workspace", value: bundle.company?.name || bundle.company?.slug || "—" },
-                    { label: "Skills", value: `${bundle.skills?.length ?? 0}` },
-                    { label: "Hooks", value: `${bundle.hooks?.length ?? 0}` },
-                    { label: "Encryption", value: "AES-256" },
+                    { label: t("nav.workspaces"), value: bundle.company?.name || bundle.company?.slug || "—" },
+                    { label: t("app.exportBundle.skillsLabel"), value: `${bundle.skills?.length ?? 0}` },
+                    { label: t("app.exportBundle.hooksLabel"), value: `${bundle.hooks?.length ?? 0}` },
+                    { label: t("app.exportBundle.formatLabel"), value: "JSON" },
                   ].map(({ label, value }, idx, arr) => (
                     <div
                       key={label}
@@ -301,7 +319,7 @@ export default function ExportPage() {
 
               {!bundle && !loading && (
                 <div className="flex flex-col gap-2.5">
-                  {["Workspace", "Components", "Estimated size", "Encryption"].map((label) => (
+                  {[t("nav.workspaces"), t("app.exportBundle.skillsLabel"), t("app.exportBundle.hooksLabel"), t("app.exportBundle.formatLabel")].map((label) => (
                     <div key={label} className="flex items-center justify-between py-2" style={{ borderBottom: "1px solid var(--bv-glass-border)" }}>
                       <span className="bv-caption">{label}</span>
                       <span className="animate-shimmer rounded w-16 h-3 block" />
@@ -354,4 +372,11 @@ export default function ExportPage() {
       `}</style>
     </div>
   );
+}
+
+export default function ExportPage() {
+  const { id } = useParams<{ id: string }>();
+  const revision = useAppStore(state => state.sessionRevision);
+  const { token, hydrated } = useAuthGuard();
+  return hydrated && token ? <ExportPageContent key={`${revision}:${id}`} /> : null;
 }

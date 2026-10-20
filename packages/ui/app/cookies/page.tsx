@@ -1,30 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useLocale, useTranslations } from "next-intl";
-import { clearCookieConsent, getCookieConsent } from "../../components/CookieConsent";
-
-// Withdrawal copy is intentionally not threaded through next-intl yet —
-// keys would need to ship in all 6 locale files. The bilingual fallback
-// here covers the realistic visitor mix until the localisation pipeline
-// catches up. KVKK Article 11 / GDPR Article 7(3) only requires that
-// withdrawal be no harder than consent, not that copy match exactly.
-const PREFERENCES_COPY: Record<"tr" | "en", { title: string; body: string; button: string; confirmation: string }> = {
-  en: {
-    title: "Manage your preferences",
-    body:
-      "You can withdraw your previous choice at any time. Clicking the button below clears the stored decision and re-shows the consent banner.",
-    button: "Reset cookie preferences",
-    confirmation: "Your preferences have been cleared. The banner will reappear on the next page view.",
-  },
-  tr: {
-    title: "Tercihlerini yönet",
-    body:
-      "Daha önce verdiğin onayı istediğin zaman geri alabilirsin. Aşağıdaki butona tıklayınca kayıtlı tercih silinir ve onay penceresi yeniden görünür.",
-    button: "Çerez tercihlerini sıfırla",
-    confirmation: "Tercihlerin silindi. Bir sonraki sayfa açılışında onay penceresi tekrar görünecek.",
-  },
-};
+import { useTranslations } from "next-intl";
+import { clearCookieConsent } from "../../components/CookieConsent";
 
 function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -32,10 +10,9 @@ function slugify(s: string): string {
 
 export default function CookiesPage() {
   const t = useTranslations();
-  const locale = useLocale();
+  const preferences = useTranslations("static.cookieConsent");
   const sections = t.raw("static.legal.cookies.sections") as Array<{ title: string; body: string }>;
   const [resetMessage, setResetMessage] = useState<string | null>(null);
-  const copy = PREFERENCES_COPY[locale === "tr" ? "tr" : "en"];
 
   const [activeSection, setActiveSection] = useState<string>("");
   const proseRef = useRef<HTMLDivElement>(null);
@@ -56,15 +33,14 @@ export default function CookiesPage() {
   }, []);
 
   function handleReset() {
-    clearCookieConsent();
-    setResetMessage(getCookieConsent() === null ? "ok" : "noop");
+    setResetMessage(clearCookieConsent() ? "ok" : "error");
   }
 
   // TOC includes the preferences section as a virtual entry
-  const prefId = slugify(copy.title);
+  const prefId = "cookie-preferences";
   const allTocSections = [
     ...sections.map((s) => ({ id: slugify(s.title), title: s.title })),
-    { id: prefId, title: copy.title },
+    { id: prefId, title: preferences("preferencesTitle") },
   ];
 
   return (
@@ -390,7 +366,7 @@ export default function CookiesPage() {
               <span className="material-symbols-outlined" style={{ fontSize: 20, color: "var(--color-primary)" }}>
                 tune
               </span>
-              {copy.title}
+              {preferences("preferencesTitle")}
             </h2>
 
             <p
@@ -401,7 +377,7 @@ export default function CookiesPage() {
                 margin: "0 0 16px 0",
               }}
             >
-              {copy.body}
+              {preferences("preferencesBody")}
             </p>
 
             <button
@@ -426,11 +402,12 @@ export default function CookiesPage() {
               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
                 cookie
               </span>
-              {copy.button}
+              {preferences("reset")}
             </button>
 
             {resetMessage === "ok" && (
               <p
+                role="status"
                 style={{
                   marginTop: 12,
                   fontSize: 13,
@@ -441,8 +418,11 @@ export default function CookiesPage() {
                 }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 16 }}>check_circle</span>
-                {copy.confirmation}
+                {preferences("resetDone")}
               </p>
+            )}
+            {resetMessage === "error" && (
+              <p role="alert">{preferences("resetFailed")}</p>
             )}
           </div>
         </article>

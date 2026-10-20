@@ -10,12 +10,12 @@ export default function ContactPage() {
   // resolve at render time so the row copy translates while emails stay
   // the same.
   const channels = [
-    { key: "General", email: "hello@braavolabs.com", icon: "mail" },
-    { key: "Support", email: "founders@braavolabs.com", icon: "person" },
-    { key: "Sales", email: "sales@braavolabs.com", icon: "handshake" },
-    { key: "Privacy", email: "privacy@braavolabs.com", icon: "lock" },
-    { key: "Kvkk", email: "kvkk@braavolabs.com", icon: "gavel" },
-    { key: "Security", email: "security@braavolabs.com", icon: "shield" },
+    { key: "General", email: "support@yulalab.com", icon: "mail" },
+    { key: "Support", email: "support@yulalab.com", icon: "person" },
+    { key: "Sales", email: "support@yulalab.com", icon: "handshake" },
+    { key: "Privacy", email: "support@yulalab.com", icon: "lock" },
+    { key: "Kvkk", email: "support@yulalab.com", icon: "gavel" },
+    { key: "Security", email: "support@yulalab.com", icon: "shield" },
   ];
 
   const [submitted, setSubmitted] = useState(false);
@@ -24,16 +24,16 @@ export default function ContactPage() {
   // No transactional-mail backend yet, so the form composes a real email
   // in the visitor's mail client instead of pretending to send one.
   const TOPIC_TO_EMAIL: Record<string, string> = {
-    "Sales & pricing": "sales@braavolabs.com",
-    "Technical support": "founders@braavolabs.com",
-    "Partnerships": "hello@braavolabs.com",
-    "Press": "hello@braavolabs.com",
-    "Something else": "hello@braavolabs.com",
+    "Sales & pricing": "support@yulalab.com",
+    "Technical support": "support@yulalab.com",
+    "Partnerships": "support@yulalab.com",
+    "Press": "support@yulalab.com",
+    "Something else": "support@yulalab.com",
   };
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const to = TOPIC_TO_EMAIL[form.topic] ?? "hello@braavolabs.com";
+    const to = TOPIC_TO_EMAIL[form.topic] ?? "support@yulalab.com";
     const subject = encodeURIComponent(`[${form.topic}] ${form.name || "Website inquiry"}`);
     const body = encodeURIComponent(
       `${form.message}\n\n—\n${form.name}${form.email ? ` · ${form.email}` : ""}`
@@ -53,13 +53,13 @@ export default function ContactPage() {
           <span className="font-headline font-bold text-sm text-on-surface">Braavolabs</span>
         </a>
         <div className="hidden md:flex items-center gap-6 text-sm text-on-surface-variant">
-          <a href="/features" className="hover:text-on-surface transition-colors">Features</a>
-          <a href="/pricing" className="hover:text-on-surface transition-colors">Pricing</a>
-          <a href="/changelog" className="hover:text-on-surface transition-colors">Changelog</a>
+          <a href="/features" className="hover:text-on-surface transition-colors">{t("nav.features")}</a>
+          <a href="/pricing" className="hover:text-on-surface transition-colors">{t("nav.pricing")}</a>
+          <a href="/changelog" className="hover:text-on-surface transition-colors">{t("static.changelog.title")}</a>
         </div>
         <div className="flex items-center gap-2">
-          <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm">Sign in</a>
-          <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm">Open app</a>
+          <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm">{t("nav.signIn")}</a>
+          <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm">{t("nav.dashboard")}</a>
         </div>
       </nav>
 
@@ -100,8 +100,7 @@ export default function ContactPage() {
               className="font-headline font-semibold uppercase text-on-surface mb-4"
               style={{ fontSize: "clamp(34px, 4.6vw, 52px)", letterSpacing: "-0.02em", lineHeight: 0.98 }}
             >
-              Talk to the<br />
-              <span className="bv-grad-text">operators.</span>
+              {t("static.contact.title")}
             </h1>
 
             <p className="text-on-surface-variant text-sm mb-8 max-w-[42ch] leading-relaxed">
@@ -112,7 +111,7 @@ export default function ContactPage() {
             <div className="flex flex-col gap-3 bv-stagger">
               {channels.map((c) => (
                 <a
-                  key={c.email}
+                  key={c.key}
                   href={`mailto:${c.email}`}
                   className="bv-glass flex items-center gap-3.5 px-4 py-3.5 rounded-2xl hover:no-underline group"
                   style={{ borderRadius: 14 }}
@@ -140,19 +139,23 @@ export default function ContactPage() {
           {/* Right: contact form */}
           <div className="bv-glass p-8 md:p-10" style={{ borderRadius: 20 }}>
             {!submitted ? (
-              <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+              <form aria-describedby="contact-mail-draft" onSubmit={handleSubmit} className="flex flex-col gap-5">
                 <div>
-                  <h2 className="bv-headline text-on-surface uppercase mb-1">Send a message</h2>
-                  <p className="bv-caption">We reply within one business day.</p>
+                  <h2 className="bv-headline text-on-surface uppercase mb-1">{t("static.contact.compose")}</h2>
+                  <p id="contact-mail-draft" className="bv-caption">{t("static.contact.draftHelp")}</p>
                 </div>
 
                 {/* Name + Email row */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div className="flex flex-col gap-1.5">
-                    <label className="bv-micro text-on-surface-variant">Name</label>
+                    <label htmlFor="contact-name" className="bv-micro text-on-surface-variant">{t("auth.fields.fullName")}</label>
                     <input
+                      id="contact-name"
+                      name="name"
+                      autoComplete="name"
+                      required
                       type="text"
-                      placeholder="Jaqen H'ghar"
+                      placeholder={t("auth.fields.fullNamePlaceholder")}
                       value={form.name}
                       onChange={(e) => setForm({ ...form, name: e.target.value })}
                       className="w-full px-3.5 py-2.5 rounded-xl text-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
@@ -163,10 +166,14 @@ export default function ContactPage() {
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="bv-micro text-on-surface-variant">Email</label>
+                    <label htmlFor="contact-email" className="bv-micro text-on-surface-variant">{t("auth.fields.email")}</label>
                     <input
+                      id="contact-email"
+                      name="email"
+                      autoComplete="email"
+                      required
                       type="email"
-                      placeholder="you@company.com"
+                      placeholder={t("auth.fields.emailPlaceholder")}
                       value={form.email}
                       onChange={(e) => setForm({ ...form, email: e.target.value })}
                       className="w-full px-3.5 py-2.5 rounded-xl text-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
@@ -180,8 +187,10 @@ export default function ContactPage() {
 
                 {/* Topic */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="bv-micro text-on-surface-variant">Topic</label>
+                  <label htmlFor="contact-topic" className="bv-micro text-on-surface-variant">{t("static.contact.topic")}</label>
                   <select
+                    id="contact-topic"
+                    name="topic"
                     value={form.topic}
                     onChange={(e) => setForm({ ...form, topic: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all appearance-none"
@@ -190,19 +199,22 @@ export default function ContactPage() {
                       border: "1px solid var(--bv-glass-border)",
                     }}
                   >
-                    <option value="Sales & pricing">Sales &amp; pricing</option>
-                    <option value="Technical support">Technical support</option>
-                    <option value="Partnerships">Partnerships</option>
-                    <option value="Press">Press</option>
-                    <option value="Something else">Something else</option>
+                    <option value="Sales & pricing">{t("static.contact.salesTopic")}</option>
+                    <option value="Technical support">{t("static.contact.supportTopic")}</option>
+                    <option value="Partnerships">{t("static.contact.partnershipsTopic")}</option>
+                    <option value="Press">{t("static.contact.pressTopic")}</option>
+                    <option value="Something else">{t("static.contact.otherTopic")}</option>
                   </select>
                 </div>
 
                 {/* Message */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="bv-micro text-on-surface-variant">Message</label>
+                  <label htmlFor="contact-message" className="bv-micro text-on-surface-variant">{t("static.contact.message")}</label>
                   <textarea
-                    placeholder="What can we help you command?"
+                    id="contact-message"
+                    name="message"
+                    required
+                    placeholder={t("static.contact.messagePlaceholder")}
                     rows={5}
                     value={form.message}
                     onChange={(e) => setForm({ ...form, message: e.target.value })}
@@ -220,7 +232,7 @@ export default function ContactPage() {
                   style={{ borderRadius: 14 }}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: 16 }}>send</span>
-                  Send message
+                  {t("static.contact.compose")}
                 </button>
               </form>
             ) : (
@@ -235,10 +247,9 @@ export default function ContactPage() {
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: 30 }}>check</span>
                 </div>
-                <h3 className="bv-headline text-on-surface uppercase mb-2">Message forged</h3>
+                <h3 className="bv-headline text-on-surface uppercase mb-2">{t("static.contact.prepared")}</h3>
                 <p className="bv-caption max-w-[34ch]">
-                  Your mail app just opened with the message pre-filled — hit send
-                  there and it lands in our inbox. {t("static.contact.responseTime")}
+                  {t("static.contact.draftHelp")}
                 </p>
               </div>
             )}
@@ -258,9 +269,9 @@ export default function ContactPage() {
           </div>
           <div className="flex flex-col gap-2">
             <h5 className="bv-micro mb-1">Product</h5>
-            <a href="/features" className="bv-caption hover:text-on-surface transition-colors">Features</a>
-            <a href="/pricing" className="bv-caption hover:text-on-surface transition-colors">Pricing</a>
-            <a href="/changelog" className="bv-caption hover:text-on-surface transition-colors">Changelog</a>
+            <a href="/features" className="bv-caption hover:text-on-surface transition-colors">{t("nav.features")}</a>
+            <a href="/pricing" className="bv-caption hover:text-on-surface transition-colors">{t("nav.pricing")}</a>
+            <a href="/changelog" className="bv-caption hover:text-on-surface transition-colors">{t("static.changelog.title")}</a>
           </div>
           <div className="flex flex-col gap-2">
             <h5 className="bv-micro mb-1">Company</h5>
@@ -270,8 +281,8 @@ export default function ContactPage() {
           </div>
           <div className="flex flex-col gap-2">
             <h5 className="bv-micro mb-1">Legal</h5>
-            <a href="/privacy" className="bv-caption hover:text-on-surface transition-colors">Privacy</a>
-            <a href="/terms" className="bv-caption hover:text-on-surface transition-colors">Terms</a>
+            <a href="/privacy" className="bv-caption hover:text-on-surface transition-colors">{t("footer.privacy")}</a>
+            <a href="/terms" className="bv-caption hover:text-on-surface transition-colors">{t("footer.terms")}</a>
             <a href="/kvkk" className="bv-caption hover:text-on-surface transition-colors">KVKK</a>
           </div>
         </div>

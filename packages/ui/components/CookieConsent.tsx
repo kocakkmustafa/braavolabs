@@ -1,173 +1,30 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { getCookieConsent, setCookieConsent, subscribeCookieConsent, type CookieConsent as Consent } from "../lib/cookie-consent";
 
-/**
- * Minimal KVKK/GDPR cookie consent banner.
- *
- * Decision is persisted in localStorage and never re-prompts on the same
- * device. Accepted choice surfaces as a `cookie_consent` key with one of
- * the values defined below — analytics integrations downstream can read
- * this to gate their loaders.
- *
- * Locale-aware: shows Turkish copy when the visitor's browser locale starts
- * with "tr" OR Cloudflare's CF-IPCountry cookie reports TR; otherwise
- * English (matching the page's <html lang="en">). The banner element gets
- * a matching `lang` attribute so screen readers pronounce it correctly.
- * Earlier the banner was always Turkish on a lang="en" page — a real
- * WCAG 3.1.2 (Language of Parts) failure plus cognitive-load tax for
- * non-Turkish visitors.
- *
- * No dependency — react-cookie-consent only adds 30 lines on top of this.
- */
-type Consent = "accepted" | "essential-only";
-type Locale = "en" | "tr";
-const STORAGE_KEY = "cookie_consent";
-
-export function getCookieConsent(): Consent | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const v = window.localStorage.getItem(STORAGE_KEY);
-    return v === "accepted" || v === "essential-only" ? v : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Clear the stored consent and re-trigger the banner. Required for KVKK
- * Article 11 / GDPR Article 7(3): withdrawal must be as easy as giving
- * consent. Callers (footer link, /cookies page button, settings panel)
- * should reload the page afterwards or rely on the storage event the
- * banner re-mount listens for.
- */
-export function clearCookieConsent(): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.removeItem(STORAGE_KEY);
-    // Synthesize a storage event so other tabs / mounted banners see the
-    // change without a full reload. localStorage doesn't emit a "storage"
-    // event in the same tab, hence the manual dispatch.
-    window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
-  } catch {
-    /* private mode / disabled storage — caller should fall back to reload */
-  }
-}
-
-function detectLocale(): Locale {
-  if (typeof window === "undefined") return "en";
-  // 1) Cloudflare geo cookie wins — covers Turkish visitors with English
-  // browsers (common: tech-fluent founders running EN UI but in Türkiye).
-  try {
-    const cookies = document.cookie.split(";").map((c) => c.trim());
-    const cf = cookies.find(
-      (c) => c.toLowerCase().startsWith("cf_country=") || c.toLowerCase().startsWith("cf-ipcountry="),
-    );
-    if (cf && cf.toUpperCase().includes("=TR")) return "tr";
-  } catch {
-    /* ignore */
-  }
-  // 2) navigator.language fallback
-  try {
-    const lang = (navigator.language || (navigator as any).userLanguage || "en").toLowerCase();
-    return lang.startsWith("tr") ? "tr" : "en";
-  } catch {
-    return "en";
-  }
-}
-
-const COPY: Record<Locale, {
-  title: string;
-  body: (privacyLabel: string) => React.ReactNode;
-  privacyLabel: string;
-  acceptAll: string;
-  essentialOnly: string;
-  ariaLabel: string;
-}> = {
-  en: {
-    title: "Cookies & privacy",
-    body: (privacyLabel) => (
-      <>
-        Braavolabs uses essential cookies for session and security. Optional
-        anonymous analytics help us improve the product — no personal data is
-        collected, IP addresses are redacted.{" "}
-        <a href="/privacy" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
-          {privacyLabel}
-        </a>
-        {" · "}
-        <a href="/cookies" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
-          Cookie Policy
-        </a>
-        .
-      </>
-    ),
-    privacyLabel: "Privacy Policy",
-    acceptAll: "Accept all",
-    essentialOnly: "Essential only",
-    ariaLabel: "Cookie consent",
-  },
-  tr: {
-    title: "Çerezler hakkında",
-    body: (privacyLabel) => (
-      <>
-        Braavolabs, oturum yönetimi ve servis güvenliği için zorunlu çerezler
-        kullanır. İstersen anonim kullanım analitiğine de izin verebilirsin —
-        kişisel veri toplamayız, IP'ler bile redact'lenir.{" "}
-        <a href="/privacy" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
-          {privacyLabel}
-        </a>
-        {" · "}
-        <a href="/cookies" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
-          Çerez Politikası
-        </a>
-        {" · "}
-        <a href="/kvkk" style={{ color: "#a4e6ff", textDecoration: "underline" }}>
-          KVKK
-        </a>
-        .
-      </>
-    ),
-    privacyLabel: "Gizlilik Politikası",
-    acceptAll: "Hepsini kabul et",
-    essentialOnly: "Sadece zorunlu olanlar",
-    ariaLabel: "Çerez tercihleri",
-  },
-};
+// Preserve the existing caller API while sharing one consent state.
+export { clearCookieConsent, getCookieConsent } from "../lib/cookie-consent";
 
 export default function CookieConsent() {
-  // null = not decided yet → show banner; string = decided → hide.
+  const locale = useLocale();
+  const t = useTranslations("static.cookieConsent");
   const [consent, setConsent] = useState<Consent | null | "loading">("loading");
-  const [locale, setLocale] = useState<Locale>("en");
+  const [saveFailed, setSaveFailed] = useState(false);
 
   useEffect(() => {
-    setConsent(getCookieConsent());
-    setLocale(detectLocale());
-    // Re-evaluate when clearCookieConsent() dispatches the synthetic
-    // storage event — lets the "Cookie Settings" link re-show the banner
-    // without a full page reload.
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === null || e.key === STORAGE_KEY) {
-        setConsent(getCookieConsent());
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    const update = () => setConsent(getCookieConsent());
+    const unsubscribe = subscribeCookieConsent(update);
+    update();
+    return unsubscribe;
   }, []);
 
-  // SSR + first hydrate → render nothing to avoid layout flash. Real
-  // banner only appears once we've checked localStorage on the client.
   if (consent === "loading" || consent !== null) return null;
 
   function decide(choice: Consent) {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, choice);
-    } catch {
-      /* private mode / disabled storage — banner just won't persist */
-    }
-    setConsent(choice);
+    setSaveFailed(!setCookieConsent(choice));
   }
-
-  const copy = COPY[locale];
 
   return (
     <div
@@ -176,6 +33,7 @@ export default function CookieConsent() {
       aria-labelledby="cookie-consent-title"
       aria-live="polite"
       lang={locale}
+      dir={locale === "ar" ? "rtl" : "ltr"}
       style={{
         position: "fixed",
         bottom: 16,
@@ -201,10 +59,14 @@ export default function CookieConsent() {
             id="cookie-consent-title"
             style={{ margin: 0, color: "#e1e2eb", fontWeight: 600, marginBottom: 4 }}
           >
-            {copy.title}
+            {t("title")}
           </p>
-          <p style={{ margin: 0 }}>{copy.body(copy.privacyLabel)}</p>
+          <p style={{ margin: 0 }}>{t("body")} {" "}
+            <a href="/privacy" style={{ color: "#a4e6ff", textDecoration: "underline" }}>{t("privacyLabel")}</a>
+            {" · "}
+            <a href="/cookies" style={{ color: "#a4e6ff", textDecoration: "underline" }}>{t("cookiesLabel")}</a></p>
         </div>
+        {saveFailed && <p role="alert" style={{ margin: 0 }}>{t("saveFailed")}</p>}
         <div
           style={{
             display: "flex",
@@ -216,7 +78,7 @@ export default function CookieConsent() {
           <button
             type="button"
             onClick={() => decide("essential-only")}
-            aria-label={copy.essentialOnly}
+            aria-label={t("essentialOnly")}
             style={{
               padding: "10px 16px",
               minHeight: 44,
@@ -229,12 +91,12 @@ export default function CookieConsent() {
               cursor: "pointer",
             }}
           >
-            {copy.essentialOnly}
+            {t("essentialOnly")}
           </button>
           <button
             type="button"
             onClick={() => decide("accepted")}
-            aria-label={copy.acceptAll}
+            aria-label={t("acceptAll")}
             style={{
               padding: "10px 16px",
               minHeight: 44,
@@ -247,7 +109,7 @@ export default function CookieConsent() {
               cursor: "pointer",
             }}
           >
-            {copy.acceptAll}
+            {t("acceptAll")}
           </button>
         </div>
       </div>

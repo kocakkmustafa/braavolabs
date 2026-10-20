@@ -2,30 +2,34 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { locales, localeCookie, normalizeLocale } from "../i18n/locales";
 
 /**
  * Locale switcher — flips the NEXT_LOCALE cookie and forces a page
- * reload so the server-side getRequestConfig() picks up the new value.
+ * refresh so the server-side getRequestConfig() picks up the new value.
  * Without URL-prefix routing this is the simplest re-render path; the
  * cookie is read on the very next request.
  *
  * If/when we move to URL-prefix routing (app/[locale]/...), swap the
  * cookie write for `router.push(`/${locale}${pathname}`)` and drop the
- * window.location.reload().
+ * router.refresh().
  */
-const LOCALES = ["en", "tr", "es", "de", "fr", "ar"] as const;
-
 export default function LanguageSwitcher() {
-  const current = useLocale();
+  const current = normalizeLocale(useLocale()) ?? "en";
+  const router = useRouter();
   const t = useTranslations("language");
   const [isPending, startTransition] = useTransition();
 
   function setLocale(loc: string) {
-    if (loc === current) return;
-    // 1 year, root path so every route picks it up.
-    document.cookie = `NEXT_LOCALE=${loc}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+    const next = normalizeLocale(loc);
+    if (!next || next === current) return;
+    const cookie = localeCookie(next, window.location.protocol === "https:");
+    if (!cookie) return;
+    document.cookie = cookie;
     startTransition(() => {
-      window.location.reload();
+      // RSC refresh preserves the current URL and unrelated client drafts.
+      router.refresh();
     });
   }
 
@@ -38,6 +42,7 @@ export default function LanguageSwitcher() {
         language
       </span>
       <select
+        aria-label={t("label")}
         value={current}
         onChange={(e) => setLocale(e.target.value)}
         disabled={isPending}
@@ -49,10 +54,10 @@ export default function LanguageSwitcher() {
           color: "#bbc9cf",
           fontSize: 12,
           cursor: isPending ? "wait" : "pointer",
-          outline: "none",
+          maxWidth: "min(32vw, 10rem)",
         }}
       >
-        {LOCALES.map((loc) => (
+        {locales.map((loc) => (
           <option key={loc} value={loc} style={{ background: "#0a0d14", color: "#e1e2eb" }}>
             {t(loc)}
           </option>

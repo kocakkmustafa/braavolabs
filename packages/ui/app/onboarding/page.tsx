@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
+import { onboardingDescription, saveOnboardingHandoff } from "../../lib/onboarding-handoff";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { useAppStore, captureAuthSession, isAuthSessionCurrent } from "../../lib/store";
 
@@ -252,15 +253,13 @@ function OnboardingWizard({ tenantId }: { tenantId: string }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.createHeroCompany(token!, {
-        companyName: companyName.trim() || undefined,
-        niche: niche.trim() || undefined,
-        targetAudience: targetAudience.trim() || undefined,
-      });
+      const prompt = onboardingDescription({ description, companyName, niche, targetAudience,
+        selectedIndustry, selectedUseCases, selectedPrimitives });
       if (!current()) return;
-      setResult(res);
-      clearOnboardingDraft();
-      api.onboardingStatus(token!).then((value) => { if (current()) setStatus(value); }).catch(() => {});
+      saveOnboardingHandoff(window.sessionStorage, session, prompt);
+      // The existing builder clarifies and previews before explicit creation.
+      // Keep the wizard draft until that creation succeeds.
+      router.push("/companies/new");
     } catch (err) {
       if (current()) setError((err as Error).message);
     } finally {
@@ -376,7 +375,7 @@ function OnboardingWizard({ tenantId }: { tenantId: string }) {
   }
 
   return (
-    <div className="bv-mesh min-h-screen flex flex-col" style={{ height: "100vh", overflow: "hidden" }}>
+    <div className="bv-mesh min-h-screen flex flex-col" style={{ minHeight: "100dvh" }}>
       {/* Arc progress bar */}
       <div className="h-[3px] flex-none" style={{ background: "var(--bv-steel-shadow)" }}>
         <div
@@ -401,7 +400,7 @@ function OnboardingWizard({ tenantId }: { tenantId: string }) {
       </div>
 
       {/* Stage */}
-      <div className="flex-1 flex items-center justify-center px-5 overflow-hidden relative">
+      <div className="flex-1 flex items-center justify-center px-5 py-6 overflow-y-auto relative">
         {/* Step 0: Industry & Use Case Selection */}
         {step === 0 && (
           <div className="bv-rise w-full max-w-[640px] text-center">
@@ -872,7 +871,7 @@ function OnboardingWizard({ tenantId }: { tenantId: string }) {
                   </>
                 ) : (
                   <>
-                    {t("app.onboarding.launchButton")}
+                    {t("app.onboarding.reviewInBuilder")}
                     <span className="material-symbols-outlined text-base">rocket_launch</span>
                   </>
                 )}

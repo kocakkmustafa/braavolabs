@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { formatNumber, formatCurrency, formatDateTime } from "../../i18n/locales";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { sounds } from "../../lib/sounds";
+import { useAppStore, captureAuthSession, isAuthSessionCurrent } from "../../lib/store";
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
   COMPLETED:        { bg: "rgba(52,211,153,0.1)",  color: "#34d399", border: "rgba(52,211,153,0.2)" },
@@ -31,8 +33,9 @@ interface FinanceData {
   avgCostPerRun: number;
 }
 
-export default function AnalyticsPage() {
+function AnalyticsContent() {
   const t = useTranslations();
+  const locale = useLocale();
   const { token, hydrated } = useAuthGuard();
   const [runs, setRuns] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -41,37 +44,51 @@ export default function AnalyticsPage() {
   const [page, setPage] = useState(0);
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
   const [runDetail, setRunDetail] = useState<any>(null);
-  const [activeRange, setActiveRange] = useState<"7d" | "30d" | "90d">("7d");
+  const [summaryFailed, setSummaryFailed] = useState(false);
+  const [runsFailed, setRunsFailed] = useState(false);
+  const [runsLoading, setRunsLoading] = useState(true);
+  const detailRequest = useRef(0);
   const PAGE_SIZE = 20;
 
   useEffect(() => {
     if (!token) return;
-    api.usage(token).then(setUsage).catch(() => setUsage({ totalRuns: 0, completedRuns: 0, failedRuns: 0, successRate: 0 }));
-    api.finance(token).then(setFinance).catch(() => setFinance({ totalCostUsd: 0, runCount: 0, avgCostPerRun: 0 }));
+    let active = true;
+    const owner = captureAuthSession();
+    const current = () => active && isAuthSessionCurrent(owner);
+    setUsage(null); setFinance(null); setSummaryFailed(false);
+    api.usage(token).then(value => { if (current()) setUsage(value); })
+      .catch(() => { if (current()) setSummaryFailed(true); });
+    api.finance(token).then(value => { if (current()) setFinance(value); })
+      .catch(() => { if (current()) setSummaryFailed(true); });
+    return () => { active = false; detailRequest.current++; };
   }, [token]);
 
   useEffect(() => {
     if (!token) return;
-    api.listRuns(token, PAGE_SIZE, page * PAGE_SIZE).then((res) => {
-      setRuns(res.runs);
-      setTotal(res.total);
-    }).catch(() => {});
+    let active = true;
+    const owner = captureAuthSession();
+    const current = () => active && isAuthSessionCurrent(owner);
+    setRunsLoading(true); setRunsFailed(false); setRuns([]); setTotal(0);
+    setExpandedRun(null); setRunDetail(null); detailRequest.current++;
+    api.listRuns(token, PAGE_SIZE, page * PAGE_SIZE).then(res => {
+      if (current()) { setRuns(res.runs); setTotal(res.total); }
+    }).catch(() => { if (current()) setRunsFailed(true); })
+      .finally(() => { if (current()) setRunsLoading(false); });
+    return () => { active = false; detailRequest.current++; };
   }, [token, page]);
 
   async function viewRun(id: string) {
     sounds.click();
-    if (expandedRun === id) {
-      setExpandedRun(null);
-      setRunDetail(null);
-      return;
-    }
+    const request = ++detailRequest.current;
+    const owner = captureAuthSession();
+    const current = () => request === detailRequest.current && isAuthSessionCurrent(owner);
+    setRunDetail(null);
+    if (expandedRun === id) { setExpandedRun(null); return; }
     setExpandedRun(id);
     try {
       const detail = await api.getRun(token!, id);
-      setRunDetail(detail);
-    } catch {
-      setRunDetail(null);
-    }
+      if (current()) setRunDetail(detail);
+    } catch { if (current()) setRunDetail(null); }
   }
 
   function exportCSV(data: any[]) {
@@ -115,18 +132,7 @@ export default function AnalyticsPage() {
           <p className="bv-caption mt-1">{t("app.analytics.subtitle")}</p>
         </div>
         <div className="bv-page-head-actions">
-          {/* Time range segmented control */}
-          <div className="bv-segmented">
-            {(["7d", "30d", "90d"] as const).map((r) => (
-              <button
-                key={r}
-                className={activeRange === r ? "active" : ""}
-                onClick={() => { sounds.click(); setActiveRange(r); }}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
+          <p className="bv-caption">{t("app.analytics.currentPeriod")}</p>
           <button
             onClick={() => exportCSV(runs)}
             className="bv-btn bv-btn-ghost bv-btn-sm"
@@ -149,11 +155,7 @@ export default function AnalyticsPage() {
             <span className="bv-micro">{t("app.analytics.statTotalRuns")}</span>
           </div>
           <div className="bv-metric-value">
-            <span className="bv-display">{usage?.totalRuns ?? "—"}</span>
-          </div>
-          <div className="bv-metric-delta good">
-            <span className="material-symbols-outlined">trending_up</span>
-            18% vs prev
+            <span className="bv-display">{formatNumber(usage?.totalRuns, locale)}</span>
           </div>
         </div>
 
@@ -167,12 +169,7 @@ export default function AnalyticsPage() {
             <span className="bv-micro">{t("app.analytics.statSuccessRate")}</span>
           </div>
           <div className="bv-metric-value">
-            <span className="bv-display">{usage ? `${(usage.successRate * 100).toFixed(1)}` : "—"}</span>
-            <span className="bv-metric-suffix">%</span>
-          </div>
-          <div className="bv-metric-delta good">
-            <span className="material-symbols-outlined">trending_up</span>
-            2% vs prev
+            <span className="bv-display">{formatNumber(usage?.successRate, locale, { style: "percent", maximumFractionDigits: 1 })}</span>
           </div>
         </div>
 
@@ -186,12 +183,7 @@ export default function AnalyticsPage() {
             <span className="bv-micro">{t("app.analytics.statTotalCost")}</span>
           </div>
           <div className="bv-metric-value">
-            <span className="bv-metric-suffix">$</span>
-            <span className="bv-display">{finance ? finance.totalCostUsd.toFixed(2) : "—"}</span>
-          </div>
-          <div className="bv-metric-delta good">
-            <span className="material-symbols-outlined">trending_up</span>
-            6% vs prev
+            <span className="bv-display">{formatCurrency(finance?.totalCostUsd, "USD", locale)}</span>
           </div>
         </div>
 
@@ -205,57 +197,12 @@ export default function AnalyticsPage() {
             <span className="bv-micro">{t("app.analytics.statAvgRun")}</span>
           </div>
           <div className="bv-metric-value">
-            <span className="bv-metric-suffix">$</span>
-            <span className="bv-display">{finance ? finance.avgCostPerRun.toFixed(4) : "—"}</span>
-          </div>
-          <div className="bv-metric-delta bad">
-            <span className="material-symbols-outlined">trending_down</span>
-            11% vs prev
+            <span className="bv-display">{formatCurrency(finance?.avgCostPerRun, "USD", locale, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}</span>
           </div>
         </div>
       </div>
 
-      {/* Two-column section: spend trend + agent leaderboard */}
-      <div className="bv-twocol mb-5">
-        {/* Spend trend chart */}
-        <div className="bv-glass bv-panel">
-          <div className="bv-panel-head">
-            <div>
-              <p className="bv-micro mb-0.5">Spend over time</p>
-              <h2 className="bv-title">Spend Trend</h2>
-            </div>
-            <div className="bv-panel-head-actions">
-              <span className="bv-caption" style={{ color: "var(--bv-text-faint)" }}>
-                <span style={{ color: "#60A5FA" }}>—</span> spend &nbsp;
-                <span style={{ color: "#7DD3FC" }}>- - -</span> budget
-              </span>
-            </div>
-          </div>
-          <SpendChart />
-        </div>
-
-        {/* Agent leaderboard */}
-        <div className="bv-glass bv-panel">
-          <div className="bv-panel-head">
-            <div>
-              <p className="bv-micro mb-0.5">By run count</p>
-              <h2 className="bv-title">Agent Leaderboard</h2>
-            </div>
-          </div>
-          <AgentLeaderboard />
-        </div>
-      </div>
-
-      {/* Tool usage */}
-      <div className="bv-glass bv-panel mb-5">
-        <div className="bv-panel-head">
-          <div>
-            <p className="bv-micro mb-0.5">Calls this period</p>
-            <h2 className="bv-title">Tool Usage</h2>
-          </div>
-        </div>
-        <ToolUsagePanel />
-      </div>
+      {summaryFailed && <p role="alert" className="bv-caption mb-5">{t("app.analytics.loadFailed")}</p>}
 
       {/* Run breakdown + cost summary */}
       <div className="bv-twocol mb-5">
@@ -280,13 +227,11 @@ export default function AnalyticsPage() {
               <div className="flex-1 space-y-3">
                 <BarRow label={t("app.analytics.barCompleted")} count={usage.completedRuns} total={usage.totalRuns} color="#3B82F6" />
                 <BarRow label={t("app.analytics.barFailed")} count={usage.failedRuns} total={usage.totalRuns} color="#FF4D4D" />
-                <BarRow label={t("app.analytics.barOther")} count={usage.totalRuns - usage.completedRuns - usage.failedRuns} total={usage.totalRuns} color="#3A4150" />
+                <BarRow label={t("app.analytics.barOther")} count={Math.max(0, usage.totalRuns - usage.completedRuns - usage.failedRuns)} total={usage.totalRuns} color="#3A4150" />
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-center h-32">
-              <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: "rgba(59,130,246,0.3)", borderTopColor: "#60A5FA" }} />
-            </div>
+            <p className="bv-caption">{summaryFailed ? t("app.analytics.unavailable") : t("app.analytics.loading")}</p>
           )}
         </div>
 
@@ -301,19 +246,19 @@ export default function AnalyticsPage() {
             <div className="space-y-3">
               <div className="flex justify-between items-center py-2" style={{ borderBottom: "1px solid var(--bv-glass-border)" }}>
                 <span className="bv-caption">{t("app.analytics.totalSpent")}</span>
-                <span className="bv-numeric text-xl gradient-text">${finance.totalCostUsd.toFixed(2)}</span>
+                <span className="bv-numeric text-xl gradient-text">{formatCurrency(finance.totalCostUsd, "USD", locale)}</span>
               </div>
               <div className="flex justify-between items-center py-2" style={{ borderBottom: "1px solid var(--bv-glass-border)" }}>
                 <span className="bv-caption">{t("app.analytics.billableRuns")}</span>
-                <span className="bv-mono text-on-surface-variant">{finance.runCount}</span>
+                <span className="bv-mono text-on-surface-variant">{formatNumber(finance.runCount, locale)}</span>
               </div>
               <div className="flex justify-between items-center py-2">
                 <span className="bv-caption">{t("app.analytics.averagePerRun")}</span>
-                <span className="bv-mono text-on-surface-variant">${finance.avgCostPerRun.toFixed(4)}</span>
+                <span className="bv-mono text-on-surface-variant">{formatCurrency(finance.avgCostPerRun, "USD", locale, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}</span>
               </div>
             </div>
           ) : (
-            <p className="bv-caption">{t("app.analytics.loading")}</p>
+            <p className="bv-caption">{summaryFailed ? t("app.analytics.unavailable") : t("app.analytics.loading")}</p>
           )}
         </div>
       </div>
@@ -327,14 +272,14 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        {runs.length === 0 ? (
+        {runsLoading || runsFailed ? <p role={runsFailed ? "alert" : "status"} className="p-8 bv-caption">{t(runsFailed ? "app.analytics.loadFailed" : "app.analytics.loading")}</p> : runs.length === 0 ? (
           <div className="p-8 text-center">
             <span className="material-symbols-outlined text-4xl mb-2 block" style={{ color: "var(--color-outline)" }}>history</span>
             <p className="bv-caption">{t("app.analytics.noRuns")}</p>
           </div>
         ) : (
           <div>
-            <div className="bv-runs-table px-5 pb-4 pt-2">
+            <div className="bv-runs-table px-5 pb-4 pt-2 overflow-x-auto">
               {/* Header */}
               <div className="bv-runs-row bv-runs-head">
                 <span>{t("app.analytics.thCompany")} / {t("app.analytics.thPipeline")}</span>
@@ -387,113 +332,6 @@ export default function AnalyticsPage() {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-/* ─── Spend area chart (SVG, FORGE palette) ──────────────────────────── */
-function SpendChart() {
-  const SPEND = [180, 220, 260, 240, 310, 360, 420];
-  const BUD = [300, 300, 360, 360, 400, 400, 460];
-  const W = 580, H = 220, n = SPEND.length, mx = 500;
-
-  function pts(arr: number[]): [number, number][] {
-    return arr.map((v, i) => [
-      (i / (n - 1)) * W,
-      H - (v / mx) * (H - 20) - 10,
-    ]);
-  }
-
-  const sp = pts(SPEND);
-  const bd = pts(BUD);
-
-  function pathD(p: [number, number][]) {
-    return p.map((c, i) => `${i ? "L" : "M"}${c[0].toFixed(1)},${c[1].toFixed(1)}`).join(" ");
-  }
-
-  const areaClose = `L${W},${H} L0,${H} Z`;
-
-  return (
-    <div style={{ height: 220 }}>
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: "100%", height: "100%", display: "block", overflow: "visible" }}>
-        <defs>
-          <linearGradient id="spendGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#3B82F6" stopOpacity={0.35} />
-            <stop offset="1" stopColor="#3B82F6" stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        {[0, 1, 2, 3, 4].map((i) => (
-          <line key={i} x1="0" y1={i * 50 + 10} x2={W} y2={i * 50 + 10} stroke="rgba(58,65,80,0.4)" strokeWidth={1} />
-        ))}
-        {/* Area fill */}
-        <path d={`${pathD(sp)} ${areaClose}`} fill="url(#spendGrad)" />
-        {/* Budget dashed line */}
-        <path d={pathD(bd)} fill="none" stroke="#7DD3FC" strokeWidth={1.5} strokeDasharray="5 5" opacity={0.55} />
-        {/* Spend line */}
-        <path d={pathD(sp)} fill="none" stroke="#60A5FA" strokeWidth={2} />
-        {/* Dots */}
-        {sp.map(([cx, cy], i) => (
-          <circle key={i} cx={cx.toFixed(1)} cy={cy.toFixed(1)} r={3} fill="#0B0D12" stroke="#60A5FA" strokeWidth={1.5} />
-        ))}
-      </svg>
-    </div>
-  );
-}
-
-/* ─── Agent leaderboard (static demo data, bar rows) ────────────────── */
-const LEAD_DATA: [string, number][] = [
-  ["agent:sales", 92],
-  ["agent:acquisition", 84],
-  ["agent:content", 71],
-  ["agent:delivery", 63],
-  ["agent:analytics", 48],
-  ["agent:ops", 35],
-];
-
-function AgentLeaderboard() {
-  return (
-    <div className="flex flex-col gap-3">
-      {LEAD_DATA.map(([name, val]) => (
-        <div key={name} className="flex items-center gap-3">
-          <span className="bv-mono text-on-surface-variant" style={{ width: 128, flexShrink: 0, fontSize: 12 }}>{name}</span>
-          <div className="flex-1 h-2.5 rounded-full" style={{ background: "rgba(20,23,31,0.8)", border: "1px solid var(--bv-glass-border)", overflow: "hidden" }}>
-            <div
-              className="h-full rounded-full"
-              style={{ width: `${val}%`, background: "linear-gradient(90deg, #3B82F6, #60A5FA)", transition: "width 1s cubic-bezier(0.16,1,0.3,1)" }}
-            />
-          </div>
-          <span className="bv-mono" style={{ width: 32, textAlign: "right", fontSize: 12, color: "var(--color-on-surface-variant)" }}>{val}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ─── Tool usage breakdown ───────────────────────────────────────────── */
-const TOOL_DATA: [string, number, string][] = [
-  ["search_market",    82, "#60A5FA"],
-  ["compose_outreach", 68, "#60A5FA"],
-  ["send_batch",       54, "#7DD3FC"],
-  ["rank_leads",       47, "#3B82F6"],
-  ["enrich_leads",     31, "#FF7A1A"],
-  ["request_approval", 22, "#FF7A1A"],
-];
-
-function ToolUsagePanel() {
-  return (
-    <div className="flex flex-col gap-3 mt-1">
-      {TOOL_DATA.map(([name, val, color]) => (
-        <div key={name} className="flex items-center gap-3">
-          <span className="bv-mono" style={{ width: 148, flexShrink: 0, fontSize: 12, color: "var(--color-on-surface-variant)" }}>{name}</span>
-          <div className="flex-1 h-2 rounded-full" style={{ background: "rgba(20,23,31,0.8)", overflow: "hidden" }}>
-            <div
-              className="h-full rounded-full"
-              style={{ width: `${val}%`, background: color, transition: "width 1s cubic-bezier(0.16,1,0.3,1)" }}
-            />
-          </div>
-          <span className="bv-mono" style={{ width: 32, textAlign: "right", fontSize: 11, color: "var(--bv-text-faint)" }}>{val}</span>
-        </div>
-      ))}
     </div>
   );
 }
@@ -564,6 +402,7 @@ function RunRow({ run, expanded, detail, onToggle }: {
   run: any; expanded: boolean; detail: any; onToggle: () => void;
 }) {
   const t = useTranslations();
+  const locale = useLocale();
   const s = STATUS_STYLES[run.status] ?? defaultStatus;
   return (
     <>
@@ -594,7 +433,7 @@ function RunRow({ run, expanded, detail, onToggle }: {
         {/* Cost */}
         <span className="bv-mono" style={{ fontSize: 12, color: "var(--color-outline)" }}>{run.costUsd ? `$${Number(run.costUsd).toFixed(4)}` : "—"}</span>
         {/* Started */}
-        <span className="bv-runs-started">{new Date(run.createdAt).toLocaleString()}</span>
+        <span className="bv-runs-started">{formatDateTime(run.createdAt, locale, { timeZone: "UTC", dateStyle: "medium", timeStyle: "short" })} UTC</span>
       </div>
 
       {expanded && detail && (
@@ -638,4 +477,10 @@ function RunRow({ run, expanded, detail, onToggle }: {
       )}
     </>
   );
+}
+
+export default function AnalyticsPage() {
+  const revision = useAppStore(state => state.sessionRevision);
+  const { token, hydrated } = useAuthGuard();
+  return hydrated && token ? <AnalyticsContent key={revision} /> : null;
 }

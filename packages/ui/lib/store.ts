@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { ONBOARDING_HANDOFF_KEY } from "./onboarding-handoff";
 
 /**
  * Cookie-mode (D-007 / E9 web half). When the API runs with AUTH_COOKIE_MODE on,
@@ -33,6 +34,7 @@ function clearOnboardingSessionDraft() {
   } catch { /* private mode / unavailable browser storage */ }
   try {
     sessionStorage.removeItem("aicos-build-desc");
+    sessionStorage.removeItem(ONBOARDING_HANDOFF_KEY);
   } catch { /* independent storage can remain accessible */ }
 }
 
@@ -115,6 +117,7 @@ export function refreshAuthSession(
   refreshToken: string,
 ): boolean {
   if (!isAuthSessionCurrent(session)) return false;
+  if (tenantId !== session.tenantId) clearOnboardingSessionDraft();
   useAppStore.setState({
     token, tenantId, refreshToken,
     sessionRevision: session.revision + (tenantId === session.tenantId ? 0 : 1),

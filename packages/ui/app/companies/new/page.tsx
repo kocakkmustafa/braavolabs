@@ -4,6 +4,8 @@ import { Suspense, useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { api } from "../../../lib/api";
+import { consumeOnboardingHandoff } from "../../../lib/onboarding-handoff";
+import { useAppStore } from "../../../lib/store";
 import { useAuthGuard } from "../../../lib/useAuthGuard";
 import StarterPicker from "../../../components/StarterPicker";
 import BrandMotion from "../../../components/BrandMotion";
@@ -337,13 +339,14 @@ const IDEA_TEMPLATES: IdeaTemplate[] = [
   },
 ];
 
-function CompanyBuilderWizardInner() {
+function CompanyBuilderWizardInner({ owner }: { owner: { tenantId: string | null; revision: number } }) {
   const router = useRouter();
   const { token, hydrated } = useAuthGuard();
   const t = useTranslations();
   const searchParams = useSearchParams();
   const [step, setStep] = useState<WizardStep>("describe");
   const [description, setDescription] = useState(() => {
+    try { const handoff = consumeOnboardingHandoff(sessionStorage, owner); if (handoff) return handoff; } catch { /* storage unavailable */ }
     const fromUrl = searchParams.get("desc");
     if (fromUrl) return fromUrl;
     try { const fromStorage = sessionStorage.getItem("aicos-build-desc"); if (fromStorage) { sessionStorage.removeItem("aicos-build-desc"); return fromStorage; } } catch {}
@@ -1162,6 +1165,9 @@ function CompanyBuilderWizardInner() {
 
 export default function CompanyBuilderWizard() {
   const t = useTranslations();
+  const { token, hydrated } = useAuthGuard();
+  const tenantId = useAppStore(state => state.tenantId);
+  const revision = useAppStore(state => state.sessionRevision);
   return (
     <Suspense
       fallback={
@@ -1173,7 +1179,7 @@ export default function CompanyBuilderWizard() {
         </div>
       }
     >
-      <CompanyBuilderWizardInner />
+      {hydrated && token && tenantId ? <CompanyBuilderWizardInner key={revision} owner={{ tenantId, revision }} /> : null}
     </Suspense>
   );
 }
