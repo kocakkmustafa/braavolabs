@@ -1,4 +1,14 @@
 "use client";
+import { useLocalizedFailure } from "../../lib/localized-error";
+
+import { useTranslations as useIconTranslations } from "next-intl";
+
+import { useStateLabel } from "../../lib/useStateLabel";
+
+import { useDisplayFormats } from "../../lib/useDisplayFormats";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -36,6 +46,11 @@ interface AbTest {
 }
 
 export default function AbTestsPage() {
+  const describeFailure = useLocalizedFailure();
+  const iconCopy = useIconTranslations("surface.icons");
+  const stateLabel = useStateLabel();
+  const displayFormat = useDisplayFormats();
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
   const { token, hydrated } = useAuthGuard();
   const [tests, setTests] = useState<AbTest[]>([]);
@@ -102,7 +117,7 @@ export default function AbTestsPage() {
       // Refresh
       api.listAbTests(token, statusFilter || undefined).then(setTests).catch(() => {});
     } catch (err) {
-      setCreateError((err as Error).message);
+      setCreateError(describeFailure(err));
     }
     setCreating(false);
   }
@@ -117,7 +132,7 @@ export default function AbTestsPage() {
       setActionError(null);
       api.listAbTests(token, statusFilter || undefined).then(setTests).catch(() => {});
     } catch (err) {
-      setActionError((err as Error).message);
+      setActionError(describeFailure(err));
     }
   }
 
@@ -133,7 +148,7 @@ export default function AbTestsPage() {
       {/* ── Page head ─────────────────────────────────────────── */}
       <div className="bv-page-head mb-6">
         <div>
-          <p className="bv-micro mb-1" style={{ color: "var(--color-outline)" }}>Experiments</p>
+          <p className="bv-micro mb-1" style={{ color: "var(--color-outline)" }}>{uiText("mde4ec47f271d")}</p>
           <h1 className="bv-headline gradient-text">{t("app.abTests.title")}</h1>
           <p className="bv-caption mt-1">{t("app.abTests.subtitle")}</p>
         </div>
@@ -222,10 +237,10 @@ export default function AbTestsPage() {
               borderBottom: "1px solid var(--bv-glass-border)",
             }}
           >
-            <span>Experiment</span>
-            <span>Status</span>
-            <span>Lift</span>
-            <span>Significance</span>
+            <span>{uiText("m920a13b7eddb")}</span>
+            <span>{uiText("m0ce6557e41a4")}</span>
+            <span>{uiText("mb1c437b2623f")}</span>
+            <span>{uiText("me4fac2bbdc43")}</span>
             <span />
           </div>
 
@@ -259,7 +274,7 @@ export default function AbTestsPage() {
                         className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
                         style={{ background: "rgba(59,130,246,0.08)" }}
                       >
-                        <span className="material-symbols-outlined" style={{ fontSize: 16, color: "#60A5FA" }}>science</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-primary)" }}>science</span>
                       </div>
                       <div className="min-w-0">
                         <p className="bv-title truncate">{test.name}</p>
@@ -275,7 +290,7 @@ export default function AbTestsPage() {
                     <div className="flex items-center gap-2">
                       <span className={`bv-dot ${STATUS_DOT[test.status] ?? "bv-paused"}`} />
                       <span className={STATUS_PILL[test.status] ?? "bv-pill bv-pill-muted"}>
-                        {test.status}
+                        {stateLabel(test.status)}
                       </span>
                     </div>
 
@@ -350,13 +365,13 @@ export default function AbTestsPage() {
                       className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
                       style={{ background: "rgba(59,130,246,0.08)" }}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: 16, color: "#60A5FA" }}>science</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-primary)" }}>science</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="bv-title truncate">{test.name}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className={`bv-dot ${STATUS_DOT[test.status] ?? "bv-paused"}`} style={{ width: 6, height: 6 }} />
-                        <span className="bv-caption">{test.status}</span>
+                        <span className="bv-caption">{stateLabel(test.status)}</span>
                       </div>
                     </div>
                     <span
@@ -414,7 +429,7 @@ export default function AbTestsPage() {
                                   <div key={m.metric} className="flex justify-between">
                                     <span className="bv-caption">{m.metric}</span>
                                     <span className="bv-mono" style={{ color: "var(--color-on-surface-variant)", fontSize: 11 }}>
-                                      {m.avgValue?.toFixed(2)} {t("app.abTests.samplesSuffix", { count: m.count })}
+                                      {displayFormat.number(m.avgValue)} {t("app.abTests.samplesSuffix", { count: m.count })}
                                     </span>
                                   </div>
                                 ))}
@@ -431,7 +446,7 @@ export default function AbTestsPage() {
                             <button
                               onClick={() => handleAction(test.id, "start")}
                               className="bv-btn bv-btn-sm bv-btn-ghost"
-                              style={{ color: "#60A5FA", borderColor: "rgba(59,130,246,0.30)" }}
+                              style={{ color: "var(--color-primary)", borderColor: "rgba(59,130,246,0.30)" }}
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: 14 }}>play_arrow</span>
                               {t("app.abTests.startTest")}
@@ -458,7 +473,7 @@ export default function AbTestsPage() {
                             <button
                               onClick={() => handleAction(test.id, "complete")}
                               className="bv-btn bv-btn-sm bv-btn-ghost"
-                              style={{ color: "#60A5FA", borderColor: "rgba(59,130,246,0.30)" }}
+                              style={{ color: "var(--color-primary)", borderColor: "rgba(59,130,246,0.30)" }}
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: 14 }}>check_circle</span>
                               {t("app.abTests.complete")}
@@ -469,7 +484,7 @@ export default function AbTestsPage() {
                           <button
                             onClick={() => handleAction(test.id, "start")}
                             className="bv-btn bv-btn-sm bv-btn-ghost"
-                            style={{ color: "#60A5FA", borderColor: "rgba(59,130,246,0.30)" }}
+                            style={{ color: "var(--color-primary)", borderColor: "rgba(59,130,246,0.30)" }}
                           >
                             <span className="material-symbols-outlined" style={{ fontSize: 14 }}>play_arrow</span>
                             {t("app.abTests.resume")}
@@ -480,9 +495,7 @@ export default function AbTestsPage() {
                           className="bv-btn bv-btn-sm bv-btn-ghost"
                           style={{ textDecoration: "none" }}
                         >
-                          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>open_in_new</span>
-                          View details
-                        </Link>
+                          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>open_in_new</span>{uiText("m4b9aae820c18")}</Link>
                       </div>
                     </div>
                   )}
@@ -501,19 +514,19 @@ export default function AbTestsPage() {
         >
           <div
             className="bv-glass bv-rise w-full max-w-[560px] p-6 max-h-[85vh] overflow-y-auto"
-            style={{ borderRadius: 20, background: "rgba(11,13,18,0.95)" }}
+            style={{ borderRadius: 20, background: "var(--color-surface-container-low)" }}
           >
             {/* Modal header */}
             <div className="flex items-center justify-between mb-5">
               <div>
-                <p className="bv-micro mb-0.5" style={{ color: "var(--color-outline)" }}>New experiment</p>
+                <p className="bv-micro mb-0.5" style={{ color: "var(--color-outline)" }}>{uiText("m6e8b2ac90efc")}</p>
                 <h3 className="bv-title" style={{ fontSize: 16 }}>{t("app.abTests.modalTitle")}</h3>
               </div>
               <button
                 onClick={() => setShowCreate(false)}
                 className="bv-btn bv-btn-icon bv-btn-ghost"
                 style={{ minHeight: 32, minWidth: 32 }}
-              >
+               aria-label={iconCopy("close")} type="button">
                 <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
               </button>
             </div>
@@ -604,7 +617,7 @@ export default function AbTestsPage() {
                       weight: Math.floor(100 / (variants.length + 1)),
                     }])}
                     className="bv-btn bv-btn-sm bv-btn-ghost"
-                    style={{ color: "#60A5FA", borderColor: "rgba(59,130,246,0.25)" }}
+                    style={{ color: "var(--color-primary)", borderColor: "rgba(59,130,246,0.25)" }}
                   >
                     <span className="material-symbols-outlined" style={{ fontSize: 14 }}>add</span>
                     {t("app.abTests.addVariant")}
@@ -653,7 +666,7 @@ export default function AbTestsPage() {
                             onClick={() => setVariants(variants.filter((_, j) => j !== i))}
                             className="bv-btn bv-btn-icon bv-btn-danger"
                             style={{ minHeight: 28, minWidth: 28, padding: 4 }}
-                          >
+                           aria-label={iconCopy("close")} type="button">
                             <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
                           </button>
                         )}

@@ -1,8 +1,11 @@
 "use client";
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useTranslations } from "next-intl";
 
 export default function AboutPage() {
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
 
   const principles = [
@@ -52,18 +55,14 @@ export default function AboutPage() {
               <span className="bv-dot bv-dot bv-running bv-ping" />
               <span className="bv-micro text-primary">{t("static.about.subtitle")}</span>
             </div>
-            <div className="space-y-1 select-none" aria-label="Manifesto">
+            <div className="space-y-1 select-none" aria-label={uiText("m008ca53ea0d6")}>
               <p className="font-headline font-semibold uppercase tracking-tight text-on-surface/30 leading-none"
-                style={{ fontSize: "clamp(34px,6.5vw,82px)", letterSpacing: "-0.02em", lineHeight: 0.96 }}>
-                Anyone can
-              </p>
+                style={{ fontSize: "clamp(34px,6.5vw,82px)", letterSpacing: "-0.02em", lineHeight: 0.96 }}>{uiText("mf6caaee885a1")}</p>
               <p className="font-headline font-semibold uppercase tracking-tight text-on-surface/30 leading-none"
-                style={{ fontSize: "clamp(34px,6.5vw,82px)", letterSpacing: "-0.02em", lineHeight: 0.96 }}>
-                build an agent.
-              </p>
+                style={{ fontSize: "clamp(34px,6.5vw,82px)", letterSpacing: "-0.02em", lineHeight: 0.96 }}>{uiText("md7f19caf7275")}</p>
               <p className="font-headline font-semibold uppercase tracking-tight leading-none"
                 style={{ fontSize: "clamp(34px,6.5vw,82px)", letterSpacing: "-0.02em", lineHeight: 0.96 }}>
-                <span className="bv-grad-text">Few can command one.</span>
+                <span className="bv-grad-text">{uiText("m1bcc79112898")}</span>
               </p>
             </div>
           </div>
@@ -96,22 +95,13 @@ export default function AboutPage() {
 
             {/* copy */}
             <div className="reveal">
-              <div className="bv-micro text-primary mb-4">The emblem</div>
+              <div className="bv-micro text-primary mb-4">{uiText("m154cae3389df")}</div>
               <h2
                 className="font-headline font-semibold uppercase text-on-surface mb-5"
                 style={{ fontSize: "clamp(22px,2.8vw,36px)", letterSpacing: "-0.01em", lineHeight: 1.05 }}
-              >
-                The faceless operator
-              </h2>
-              <p className="text-on-surface-variant text-sm leading-relaxed mb-4 max-w-[52ch]">
-                Our emblem is a forged iron mask — a nod to Braavos, where the most capable operators work unseen.
-                It stands for the way real work gets done with AI: not by the loudest demo, but by the operator
-                who quietly <span className="text-on-surface font-medium">reads, approves and steers</span> a team of agents to a result.
-              </p>
-              <p className="text-on-surface-variant text-sm leading-relaxed max-w-[52ch]">
-                Everything we build has weight, glint and motion — because commanding agents should feel like
-                standing in a war-room, not babysitting a chatbot.
-              </p>
+              >{uiText("mff5d00a78d7e")}</h2>
+              <p className="text-on-surface-variant text-sm leading-relaxed mb-4 max-w-[52ch]">{uiText("m6d6f7b3433d5")}{" "}<span className="text-on-surface font-medium">{uiText("m0fb31a980179")}</span>{" "}{uiText("m2c08fc9adde3")}</p>
+              <p className="text-on-surface-variant text-sm leading-relaxed max-w-[52ch]">{uiText("m8fad8431526d")}</p>
             </div>
           </div>
         </section>
@@ -119,23 +109,20 @@ export default function AboutPage() {
         {/* ── Moat line ── */}
         <section className="py-20 text-center px-6 border-y border-outline-variant bg-surface-container-low/50">
           <div className="max-w-[1100px] mx-auto">
-            <div className="bv-micro text-primary mb-5">The moat, in one line</div>
+            <div className="bv-micro text-primary mb-5">{uiText("mae6893bf1cea")}</div>
             <h2
               className="font-headline font-medium uppercase text-on-surface-variant mx-auto"
               style={{ fontSize: "clamp(20px,3vw,40px)", letterSpacing: "-0.01em", lineHeight: 1.1, maxWidth: "24ch" }}
-            >
-              We compete on{" "}
-              <span className="text-on-surface font-semibold">control</span>,{" "}
-              <span className="text-on-surface font-semibold">mobility</span> and{" "}
-              <span className="text-on-surface font-semibold">privacy</span>{" "}
-              — never on connector count.
-            </h2>
+            >{uiText("ma96d8b4e22d7")}{" "}
+              <span className="text-on-surface font-semibold">{uiText("m79029a3ce6e6")}</span>,{" "}
+              <span className="text-on-surface font-semibold">{uiText("mac2da98d83a1")}</span>{" "}{uiText("m0eab38f1efb0")}{" "}
+              <span className="text-on-surface font-semibold">{uiText("mb899143d5b68")}</span>{" "}{uiText("ma2e990d63ed8")}</h2>
           </div>
         </section>
 
         {/* ── Principles ── */}
         <section className="max-w-[1100px] mx-auto px-6 md:px-10 py-20">
-          <div className="bv-micro text-primary mb-6 reveal">Principles</div>
+          <div className="bv-micro text-primary mb-6 reveal">{uiText("m3bfa80932b8d")}</div>
           <div className="grid md:grid-cols-3 gap-4 bv-stagger">
             {principles.map((p) => (
               <div key={p.n} className="bv-glass p-7 reveal">
@@ -159,13 +146,9 @@ export default function AboutPage() {
               <blockquote
                 className="font-headline font-medium text-on-surface leading-snug mb-6"
                 style={{ fontSize: "clamp(18px,2.2vw,26px)", letterSpacing: "-0.01em" }}
-              >
-                &ldquo;We built Braavolabs because we were tired of agents that could act but couldn&rsquo;t be governed.
-                Power without a hand on the tiller isn&rsquo;t useful &mdash; it&rsquo;s a liability.&rdquo;
-              </blockquote>
+              >{uiText("m35c23cddce05")}</blockquote>
               <div className="bv-mono text-on-surface-variant">
-                &mdash; <span className="text-on-surface font-medium">The Braavolabs team</span> &middot; forged in the open
-              </div>
+                &mdash; <span className="text-on-surface font-medium">{uiText("m00cce1870e41")}</span>{" "}{uiText("m86eac0774080")}</div>
             </div>
           </div>
         </section>
@@ -181,12 +164,8 @@ export default function AboutPage() {
             </h2>
             <div className="flex gap-3.5 justify-center flex-wrap">
               <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-sheen">
-                <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>rocket_launch</span>
-                Open app
-              </a>
-              <a href="/contact" className="bv-btn bv-btn-ghost">
-                Talk to us
-              </a>
+                <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>rocket_launch</span>{uiText("md02e9e25bd65")}</a>
+              <a href="/contact" className="bv-btn bv-btn-ghost">{uiText("m864debf58479")}</a>
             </div>
           </div>
         </section>

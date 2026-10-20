@@ -1,18 +1,28 @@
 "use client";
+import { useTranslations as useRuntimeTranslations } from "next-intl";
+
+import { useLocale, useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { CATEGORY_PILL, POSTS } from "./posts";
+import { CATEGORY_PILL, POSTS, localizePost, blogCategoryLabel } from "./posts";
 
 const CATEGORIES = ["All", "Product", "Engineering", "Governance", "Field notes"] as const;
 type Category = (typeof CATEGORIES)[number];
 
 // Newest post is the featured hero; the rest fill the grid.
-const FEATURED = POSTS[0];
-const GRID_POSTS = POSTS.slice(1);
+
 
 export default function BlogPage() {
+  const runtimeCopy = useRuntimeTranslations("runtime");
+  const uiText = useLegacyTranslations("uiCopy");
+  const contentCopy = useLegacyTranslations("content");
+  const locale = useLocale();
+  const localized = POSTS.map(post => localizePost(post, contentCopy, locale));
+  const FEATURED = localized[0];
+  const GRID_POSTS = localized.slice(1);
   const t = useTranslations();
   const [filter, setFilter] = useState<Category>("All");
 
@@ -26,7 +36,7 @@ export default function BlogPage() {
       <nav
         className="sticky top-0 z-30 flex items-center justify-between px-6 md:px-10 py-4"
         style={{
-          background: "rgba(6,7,10,0.72)",
+          background: "var(--color-surface-container-low)",
           backdropFilter: "blur(20px)",
           borderBottom: "1px solid rgba(255,255,255,0.05)",
         }}
@@ -68,18 +78,12 @@ export default function BlogPage() {
             href="/blog"
             className="text-sm font-semibold no-underline"
             style={{ color: "var(--color-primary)" }}
-          >
-            Blog
-          </a>
+          >{uiText("md72e42595829")}</a>
         </div>
 
         <div className="flex items-center gap-2">
-          <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-sm bv-btn-ghost no-underline">
-            Sign in
-          </a>
-          <a href="https://app.braavolabs.com" className="bv-btn bv-btn-sm bv-btn-primary no-underline">
-            Open app
-          </a>
+          <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-sm bv-btn-ghost no-underline">{uiText("m7c191fd9ab30")}</a>
+          <a href="https://app.braavolabs.com" className="bv-btn bv-btn-sm bv-btn-primary no-underline">{uiText("m723a4ca0b041")}</a>
         </div>
       </nav>
 
@@ -88,9 +92,7 @@ export default function BlogPage() {
         <div
           className="bv-micro mb-3"
           style={{ color: "var(--color-primary)" }}
-        >
-          The Forge Log
-        </div>
+        >{uiText("md37709c384c4")}</div>
         <h1
           className="font-headline font-bold mb-3"
           style={{
@@ -100,9 +102,7 @@ export default function BlogPage() {
             textTransform: "uppercase",
             color: "var(--color-on-surface)",
           }}
-        >
-          Notes from<br />the war-room.
-        </h1>
+        >{uiText("m183ea0c3acf0")}<br />{uiText("m3ec12db3060f")}</h1>
         <p
           className="text-sm leading-relaxed"
           style={{
@@ -110,10 +110,7 @@ export default function BlogPage() {
             maxWidth: "50ch",
             fontSize: "17px",
           }}
-        >
-          On commanding agents — control, mobility, privacy, and the craft of
-          governing autonomy.
-        </p>
+        >{uiText("m727eff92c28d")}</p>
       </header>
 
       <div className="max-w-5xl mx-auto px-6 md:px-10 pb-24">
@@ -122,7 +119,7 @@ export default function BlogPage() {
           href={`/blog/${FEATURED.slug}`}
           className="bv-glass grid rounded-2xl overflow-hidden mb-12 cursor-pointer"
           style={{ gridTemplateColumns: "1.2fr 1fr", textDecoration: "none" }}
-          aria-label={`Read featured post: ${FEATURED.title}`}
+          aria-label={runtimeCopy("m9b917859a22b", { value0: FEATURED.title })}
         >
           {/* cover */}
           <div
@@ -158,14 +155,14 @@ export default function BlogPage() {
             <span
               className="absolute top-4 left-4 bv-mono text-xs px-2 py-1 rounded-lg z-10"
               style={{
-                background: "rgba(6,7,10,0.55)",
+                background: "var(--color-surface-container-low)",
                 border: "1px solid rgba(58,65,80,0.6)",
                 color: "var(--color-on-surface)",
                 letterSpacing: "0.12em",
                 textTransform: "uppercase",
               }}
             >
-              {FEATURED.category}
+              {blogCategoryLabel(FEATURED.category, contentCopy)}
             </span>
             {/* large icon */}
             <span
@@ -183,15 +180,13 @@ export default function BlogPage() {
           <div
             className="flex flex-col justify-center p-9"
             style={{
-              background: "rgba(11,13,18,0.85)",
+              background: "var(--color-surface-container-low)",
             }}
           >
             <span
               className="bv-micro mb-3"
               style={{ color: "var(--color-primary)" }}
-            >
-              Featured
-            </span>
+            >{uiText("mbf6597c4877d")}</span>
             <h2
               className="font-headline font-bold mb-3"
               style={{
@@ -226,8 +221,7 @@ export default function BlogPage() {
               <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>
                 schedule
               </span>
-              {FEATURED.read} read
-            </div>
+              {FEATURED.read}{" "}{uiText("m67a924d25b13")}</div>
           </div>
         </Link>
 
@@ -239,7 +233,7 @@ export default function BlogPage() {
               className={`bv-fpill${filter === cat ? " active" : ""}`}
               onClick={() => setFilter(cat)}
             >
-              {cat}
+              {blogCategoryLabel(cat, contentCopy)}
             </button>
           ))}
         </div>
@@ -248,7 +242,7 @@ export default function BlogPage() {
         <div
           className="grid gap-5 pb-6"
           style={{
-            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 300px), 1fr))",
           }}
         >
           {visible.map((post) => (
@@ -257,7 +251,7 @@ export default function BlogPage() {
               href={`/blog/${post.slug}`}
               className="bv-glass flex flex-col overflow-hidden cursor-pointer group"
               style={{ textDecoration: "none" }}
-              aria-label={`Read post: ${post.title}`}
+              aria-label={runtimeCopy("m5452b7363001", { value0: post.title })}
             >
               {/* cover thumbnail */}
               <div
@@ -292,7 +286,7 @@ export default function BlogPage() {
                   style={{}}
                 >
                   <span className={CATEGORY_PILL[post.category] ?? "bv-pill bv-pill-muted"}>
-                    {post.category}
+                    {blogCategoryLabel(post.category, contentCopy)}
                   </span>
                 </span>
                 <span
@@ -347,8 +341,7 @@ export default function BlogPage() {
                   >
                     schedule
                   </span>
-                  {post.read} read
-                </div>
+                  {post.read}{" "}{uiText("m67a924d25b13")}</div>
               </div>
             </Link>
           ))}
@@ -386,9 +379,7 @@ export default function BlogPage() {
               <p
                 className="text-xs leading-relaxed"
                 style={{ color: "var(--color-on-surface-variant)", maxWidth: "22ch" }}
-              >
-                Command the AI agents &amp; automations you already run.
-              </p>
+              >{uiText("med3811fc0067")}</p>
             </div>
 
             {/* Product */}
@@ -396,9 +387,7 @@ export default function BlogPage() {
               <h5
                 className="bv-micro mb-3"
                 style={{ color: "var(--color-outline)" }}
-              >
-                Product
-              </h5>
+              >{uiText("m09d06a4f3a17")}</h5>
               {["Features", "Pricing", "Integrations", "Changelog"].map(
                 (link) => (
                   <a
@@ -418,9 +407,7 @@ export default function BlogPage() {
               <h5
                 className="bv-micro mb-3"
                 style={{ color: "var(--color-outline)" }}
-              >
-                Company
-              </h5>
+              >{uiText("m621f739bb1af")}</h5>
               {["About", "Blog", "Contact", "Status"].map((link) => (
                 <a
                   key={link}
@@ -443,9 +430,7 @@ export default function BlogPage() {
               <h5
                 className="bv-micro mb-3"
                 style={{ color: "var(--color-outline)" }}
-              >
-                Legal
-              </h5>
+              >{uiText("m2bc5accf38ff")}</h5>
               {["Privacy", "Terms", "KVKK", "GDPR"].map((link) => (
                 <a
                   key={link}
@@ -464,9 +449,7 @@ export default function BlogPage() {
           <p
             className="bv-mono text-center"
             style={{ color: "var(--color-outline)", fontSize: "11px" }}
-          >
-            © 2026 Braavolabs. All rights reserved.
-          </p>
+          >{uiText("m46e01d124058")}</p>
         </div>
       </footer>
     </div>

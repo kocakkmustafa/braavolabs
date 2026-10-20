@@ -22,6 +22,10 @@ export default function CommandPalette() {
   const router = useRouter();
   const t = useTranslations();
   const token = useAppStore((s) => s.token);
+  const revision = useAppStore((s) => s.sessionRevision);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
   const labelOf = (cmd: Command) => (cmd.labelKey ? t(cmd.labelKey) : cmd.label ?? "");
   const [companies, setCompanies] = useState<any[]>([]);
   const companiesFetched = useRef(false);
@@ -49,19 +53,34 @@ export default function CommandPalette() {
     { id: "home", labelKey: "app.cmdk.goHome", icon: "home", href: "/", auth: false, category: "quick" },
   ];
 
-  // ⌘K / Ctrl+K
+  useEffect(() => {
+    setCompanies([]);
+    companiesFetched.current = false;
+    setOpen(false);
+  }, [revision]);
+
+  useEffect(() => {
+    if (!open) return;
+    inputRef.current?.focus();
+    return () => previousFocus.current?.focus();
+  }, [open]);
+
+  // Composition must not turn a character entry into a navigation command.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      if (e.isComposing || e.repeat) return;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setOpen((v) => {
-          const next = !v;
-          if (next && token && !companiesFetched.current) {
-            api.listCompanies(token).then(setCompanies).catch(() => {});
+        if (!open) {
+          previousFocus.current = document.activeElement as HTMLElement | null;
+          if (token && !companiesFetched.current) {
             companiesFetched.current = true;
+            api.listCompanies(token).then(value => {
+              if (useAppStore.getState().sessionRevision === revision) setCompanies(value);
+            }).catch(() => {});
           }
-          return next;
-        });
+        }
+        setOpen(!open);
         setQuery("");
         setSelected(0);
       }
@@ -69,18 +88,19 @@ export default function CommandPalette() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [open, token, revision]);
 
-  // Single-key shortcuts (when palette is NOT open)
+  // Modified shortcuts cannot consume ordinary screen-reader or text input.
   useEffect(() => {
     if (open) return;
     const handler = (e: KeyboardEvent) => {
       // Don't trigger when typing in inputs
-      const tag = (e.target as HTMLElement).tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      if (e.isComposing || e.repeat || target?.isContentEditable ||
+        target?.closest?.('input,textarea,select,[role="textbox"],[contenteditable]:not([contenteditable="false"])')) return;
+      if (e.metaKey || e.ctrlKey || !e.altKey || !e.shiftKey) return;
 
-      const cmd = COMMANDS.find((c) => c.shortcut?.toLowerCase() === e.key.toLowerCase() && (!c.auth || token));
+      const cmd = COMMANDS.find((c) => c.shortcut?.toLowerCase() === (e.code.startsWith("Key") ? e.code.slice(3) : e.key).toLowerCase() && (!c.auth || token));
       if (cmd) {
         e.preventDefault();
         if (cmd.href) router.push(cmd.href);
@@ -141,35 +161,52 @@ export default function CommandPalette() {
       onClick={() => setOpen(false)}
     >
       <div
-        style={{ width: "100%", maxWidth: 560, borderRadius: 16, overflow: "hidden", background: "#191c22", border: "1px solid rgba(0,209,255,0.2)", boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }}
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("app.cmdk.title")}
+        onKeyDown={event => {
+          if (event.key !== "Tab") return;
+          const controls = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled]),a[href],[tabindex]') ?? []).filter(node => node.tabIndex >= 0);
+          const first = controls[0], last = controls[controls.length - 1];
+          if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+          else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+        }}
+        style={{ width: "calc(100% - 24px)", maxWidth: 560, borderRadius: 16, overflow: "hidden", background: "var(--color-surface-container-low)", border: "1px solid rgba(0,209,255,0.2)", boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search input */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          <span className="material-symbols-outlined" style={{ color: "#859399", fontSize: 20 }}>search</span>
+          <span className="material-symbols-outlined" style={{ color: "var(--color-on-surface-variant)", fontSize: 20 }}>search</span>
           <input
-            autoFocus
+            ref={inputRef}
+            aria-label={t("app.cmdk.searchPlaceholder")}
+            role="combobox"
+            aria-expanded="true"
+            aria-autocomplete="list"
+            aria-controls="command-menu-results"
+            aria-activedescendant={filtered[selected] ? `command-option-${filtered[selected].id}` : undefined}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "ArrowDown") { e.preventDefault(); setSelected((s) => Math.min(s + 1, filtered.length - 1)); }
+              if (e.key === "ArrowDown") { e.preventDefault(); setSelected((s) => Math.max(0, Math.min(s + 1, filtered.length - 1))); }
               if (e.key === "ArrowUp") { e.preventDefault(); setSelected((s) => Math.max(s - 1, 0)); }
               if (e.key === "Enter" && filtered[selected]) handleSelect(filtered[selected]);
             }}
             placeholder={t("app.cmdk.searchPlaceholder")}
-            style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 15, color: "#e1e2eb" }}
+            style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 15, color: "var(--color-on-surface)" }}
           />
-          <kbd style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: "rgba(255,255,255,0.06)", color: "#859399", border: "1px solid rgba(255,255,255,0.08)" }}>ESC</kbd>
+          <button type="button" aria-label={t("app.shell.closeMenu")} onClick={() => setOpen(false)} style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: "rgba(255,255,255,0.06)", color: "var(--color-on-surface-variant)", border: "1px solid rgba(255,255,255,0.08)" }}>ESC</button>
         </div>
 
         {/* Results */}
-        <div style={{ maxHeight: 400, overflowY: "auto", padding: "6px 0" }}>
+        <div id="command-menu-results" role="listbox" style={{ maxHeight: "min(400px, 65vh)", overflowY: "auto", padding: "6px 0" }}>
           {filtered.length === 0 ? (
-            <div style={{ padding: "24px 18px", textAlign: "center", color: "#3c494e", fontSize: 13 }}>{t("app.cmdk.noResults")}</div>
+            <div style={{ padding: "24px 18px", textAlign: "center", color: "var(--color-on-surface-variant)", fontSize: 13 }}>{t("app.cmdk.noResults")}</div>
           ) : (
             Object.entries(grouped).map(([category, cmds]) => (
               <div key={category}>
-                <div style={{ padding: "8px 18px 4px", fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", color: "#3c494e" }}>
+                <div style={{ padding: "8px 18px 4px", fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", color: "var(--color-on-surface-variant)" }}>
                   {categoryLabels[category] ?? category.toUpperCase()}
                 </div>
                 {cmds.map((cmd) => {
@@ -177,21 +214,26 @@ export default function CommandPalette() {
                   return (
                     <button
                       key={cmd.id}
+                      id={`command-option-${cmd.id}`}
+                      type="button"
+                      role="option"
+                      aria-selected={idx === selected}
+                      tabIndex={-1}
                       onClick={() => handleSelect(cmd)}
                       style={{
                         width: "100%", display: "flex", alignItems: "center", gap: 12,
-                        padding: "10px 18px", border: "none", cursor: "pointer", textAlign: "left",
+                        padding: "10px 18px", border: "none", cursor: "pointer", textAlign: "start",
                         background: idx === selected ? "rgba(0,209,255,0.08)" : "transparent",
-                        borderLeft: idx === selected ? "2px solid #00d1ff" : "2px solid transparent",
-                        color: idx === selected ? "#e1e2eb" : "#bbc9cf",
+                        borderInlineStart: idx === selected ? "2px solid #00d1ff" : "2px solid transparent",
+                        color: idx === selected ? "var(--color-on-surface)" : "var(--color-on-surface-variant)",
                         transition: "background 0.1s",
                       }}
                       onMouseEnter={() => setSelected(idx)}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: 18, color: idx === selected ? "#00d1ff" : "#859399" }}>{cmd.icon}</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: 18, color: idx === selected ? "var(--color-primary)" : "var(--color-on-surface-variant)" }}>{cmd.icon}</span>
                       <span style={{ fontSize: 14, fontWeight: 500, flex: 1 }}>{labelOf(cmd)}</span>
                       {cmd.shortcut && (
-                        <kbd style={{ fontSize: 10, padding: "1px 5px", borderRadius: 4, background: "rgba(255,255,255,0.06)", color: "#3c494e", border: "1px solid rgba(255,255,255,0.08)" }}>
+                        <kbd style={{ fontSize: 10, padding: "1px 5px", borderRadius: 4, background: "rgba(255,255,255,0.06)", color: "var(--color-on-surface-variant)", border: "1px solid rgba(255,255,255,0.08)" }}>
                           {cmd.shortcut}
                         </kbd>
                       )}
@@ -207,8 +249,8 @@ export default function CommandPalette() {
         <div style={{ padding: "8px 18px", borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", gap: 16 }}>
           {[["↑↓", t("app.cmdk.hintNavigate")], ["↵", t("app.cmdk.hintOpen")], ["esc", t("app.cmdk.hintClose")], ["D", t("app.cmdk.hintDashboard")], ["N", t("app.cmdk.hintNewWorkspace")]].map(([k, l]) => (
             <div key={k} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <kbd style={{ fontSize: 10, padding: "2px 5px", borderRadius: 4, background: "rgba(255,255,255,0.06)", color: "#859399", border: "1px solid rgba(255,255,255,0.08)" }}>{k}</kbd>
-              <span style={{ fontSize: 11, color: "#3c494e" }}>{l}</span>
+              <kbd style={{ fontSize: 10, padding: "2px 5px", borderRadius: 4, background: "rgba(255,255,255,0.06)", color: "var(--color-on-surface-variant)", border: "1px solid rgba(255,255,255,0.08)" }}>{k}</kbd>
+              <span style={{ fontSize: 11, color: "var(--color-on-surface-variant)" }}>{l}</span>
             </div>
           ))}
         </div>

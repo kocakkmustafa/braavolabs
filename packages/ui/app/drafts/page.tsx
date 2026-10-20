@@ -1,4 +1,11 @@
 "use client";
+import { useLocalizedFailure } from "../../lib/localized-error";
+
+import { useLocale as useDisplayLocale } from "next-intl";
+import { formatDateTime as formatDisplayDateTime, currentTimeZone as displayTimeZone } from "../../i18n/locales";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -9,13 +16,13 @@ import { draftActions, previewDraftContent } from "../../lib/draftWorkflow";
 
 const STATUS_STYLES: Record<string, { background: string; color: string; border: string }> = {
   PENDING:   { background: "rgba(255,122,26,0.1)",  color: "#FF7A1A", border: "1px solid rgba(255,122,26,0.2)" },
-  APPROVED:  { background: "rgba(59,130,246,0.1)",  color: "#60A5FA", border: "1px solid rgba(59,130,246,0.2)" },
+  APPROVED:  { background: "rgba(59,130,246,0.1)",  color: "var(--color-primary)", border: "1px solid rgba(59,130,246,0.2)" },
   PUBLISHED: { background: "rgba(59,130,246,0.1)",  color: "#7DD3FC", border: "1px solid rgba(59,130,246,0.2)" },
   REJECTED:  { background: "rgba(255,77,77,0.1)",   color: "#FF4D4D", border: "1px solid rgba(255,77,77,0.2)" },
-  ARCHIVED:  { background: "rgba(133,147,153,0.1)", color: "#859399", border: "1px solid rgba(133,147,153,0.2)" },
+  ARCHIVED:  { background: "rgba(133,147,153,0.1)", color: "var(--color-on-surface-variant)", border: "1px solid rgba(133,147,153,0.2)" },
 };
 
-const DEFAULT_STATUS = { background: "rgba(133,147,153,0.1)", color: "#859399", border: "1px solid rgba(133,147,153,0.2)" };
+const DEFAULT_STATUS = { background: "rgba(133,147,153,0.1)", color: "var(--color-on-surface-variant)", border: "1px solid rgba(133,147,153,0.2)" };
 
 // Localised at render — DB enum values map to i18n keys.
 const TYPE_KEY: Record<string, string> = {
@@ -34,6 +41,9 @@ const STATUS_KEY: Record<string, string> = {
 };
 
 export default function DraftsPage() {
+  const describeFailure = useLocalizedFailure();
+  const displayLocale = useDisplayLocale();
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
   const { token, hydrated } = useAuthGuard();
   const [companies, setCompanies] = useState<any[]>([]);
@@ -102,7 +112,7 @@ export default function DraftsPage() {
       sounds.click();
     } catch (err) {
       console.error("Draft status update failed:", err);
-      setError((err as Error).message);
+      setError(describeFailure(err));
       sounds.error();
     } finally {
       decisionInFlight.current = false;
@@ -126,7 +136,7 @@ export default function DraftsPage() {
       }
     } catch (err) {
       console.error("Draft approval failed:", err);
-      setError((err as Error).message);
+      setError(describeFailure(err));
       sounds.error();
     } finally {
       decisionInFlight.current = false;
@@ -146,9 +156,7 @@ export default function DraftsPage() {
       <div className="bv-page-head" style={{ marginBottom: 24 }}>
         <div>
           <div className="bv-micro" style={{ marginBottom: 4, color: "var(--color-outline)" }}>
-            <span className="material-symbols-outlined" style={{ fontSize: 12, marginRight: 4 }}>edit_note</span>
-            Content review
-          </div>
+            <span className="material-symbols-outlined" style={{ fontSize: 12, marginInlineEnd: 4 }}>edit_note</span>{uiText("m86006890323f")}</div>
           <h1 className="bv-headline gradient-text" style={{ margin: 0 }}>{t("app.drafts.title")}</h1>
           <p className="bv-caption" style={{ marginTop: 4 }}>{t("app.drafts.subtitle")}</p>
         </div>
@@ -163,13 +171,13 @@ export default function DraftsPage() {
               value={selectedCompany}
               onChange={(e) => { sounds.click(); setSelectedCompany(e.target.value); }}
               className="bv-btn bv-btn-ghost bv-btn-sm"
-              style={{ cursor: "pointer", paddingLeft: 10, paddingRight: 10 }}
+              style={{ cursor: "pointer", paddingInlineStart: 10, paddingInlineEnd: 10 }}
             >
               {companies.length === 0 && (
-                <option value="" disabled style={{ background: "#06070A" }}>{t("app.drafts.noCompanies")}</option>
+                <option value="" disabled style={{ background: "var(--color-background)" }}>{t("app.drafts.noCompanies")}</option>
               )}
               {companies.map((c) => (
-                <option key={c.id} value={c.id} style={{ background: "#06070A" }}>{c.name}</option>
+                <option key={c.id} value={c.id} style={{ background: "var(--color-background)" }}>{c.name}</option>
               ))}
             </select>
           </div>
@@ -228,7 +236,7 @@ export default function DraftsPage() {
               border: "1px solid rgba(59,130,246,0.18)",
             }}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 24, color: "#60A5FA" }}>edit_note</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 24, color: "var(--color-primary)" }}>edit_note</span>
           </div>
           <p className="bv-title" style={{ marginBottom: 6 }}>{t("app.drafts.emptyTitle")}</p>
           <p className="bv-caption">{t("app.drafts.emptyBody")}</p>
@@ -255,7 +263,7 @@ export default function DraftsPage() {
                   style={{
                     display: "block",
                     width: "100%",
-                    textAlign: "left",
+                    textAlign: "start",
                     padding: "16px 18px",
                     cursor: "pointer",
                     border: isSel
@@ -293,14 +301,14 @@ export default function DraftsPage() {
                             : "var(--bv-status-failed)",
                       }}
                     />
-                    {d.channel ? d.channel : (d.type ?? "Draft")}
+                    {d.channel ? d.channel : (d.type ??uiText("mfd976ba1eea0"))}
                   </div>
                   <div style={{ marginTop: 9, display: "flex", gap: 6, flexWrap: "wrap" }}>
                     <span
                       className="bv-pill bv-pill-muted"
                       style={{ textTransform: "none", letterSpacing: 0, fontWeight: 500 }}
                     >
-                      {TYPE_KEY[d.type] ? t(`app.drafts.${TYPE_KEY[d.type]}`) : (d.type ?? "Draft")}
+                      {TYPE_KEY[d.type] ? t(`app.drafts.${TYPE_KEY[d.type]}`) : (d.type ??uiText("mfd976ba1eea0"))}
                     </span>
                     <span
                       className="bv-pill"
@@ -334,11 +342,11 @@ export default function DraftsPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="bv-title" style={{ fontSize: 16 }}>{activeDraft.title}</div>
                     <div className="bv-mono" style={{ marginTop: 4, color: "var(--color-outline)" }}>
-                      {activeDraft.channel ?? activeDraft.type ?? "Draft"}
+                      {activeDraft.channel ?? activeDraft.type ??uiText("mfd976ba1eea0")}
                     </div>
                     {activeDraft.scheduledAt && (
                       <div className="bv-mono" style={{ marginTop: 3, color: "var(--color-outline)" }}>
-                        {t("app.drafts.scheduledLabel")} {new Date(activeDraft.scheduledAt).toLocaleString()}
+                        {t("app.drafts.scheduledLabel")} {formatDisplayDateTime(activeDraft.scheduledAt, displayLocale, { timeZone: displayTimeZone(), dateStyle: "medium", timeStyle: "short" })}
                       </div>
                     )}
                   </div>
@@ -346,7 +354,7 @@ export default function DraftsPage() {
                     className="bv-pill"
                     style={{ ...(STATUS_STYLES[activeDraft.status] ?? DEFAULT_STATUS), textTransform: "none", letterSpacing: 0, fontWeight: 500, flexShrink: 0 }}
                   >
-                    {TYPE_KEY[activeDraft.type] ? t(`app.drafts.${TYPE_KEY[activeDraft.type]}`) : (activeDraft.type ?? "Draft")}
+                    {TYPE_KEY[activeDraft.type] ? t(`app.drafts.${TYPE_KEY[activeDraft.type]}`) : (activeDraft.type ??uiText("mfd976ba1eea0"))}
                   </span>
                 </div>
 
@@ -374,7 +382,7 @@ export default function DraftsPage() {
                     fontSize: 11,
                   }}
                 >
-                  {t("app.drafts.createdLabel")} {new Date(activeDraft.createdAt).toLocaleString()}
+                  {t("app.drafts.createdLabel")} {formatDisplayDateTime(activeDraft.createdAt, displayLocale, { timeZone: displayTimeZone(), dateStyle: "medium", timeStyle: "short" })}
                 </div>
 
                 {/* Action footer */}

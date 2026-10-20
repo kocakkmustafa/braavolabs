@@ -47,8 +47,9 @@ export function screenHarness(file: string, surface: "web" | "mobile", screen: "
     const code = ts.transpileModule(readFileSync(path, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText;
     const requireLocal = (name: string): any => {
       if (name === "react") return hooks;
+      if (/\/(localized-error|useDisplayFormats|useStateLabel|i18n\/locales)$/.test(name)) return load(resolve(dirname(path), name + ".ts"));
       if (name === "react/jsx-runtime") return { jsx: element, jsxs: element, Fragment: "Fragment" };
-      if (name === "next-intl") return { useTranslations: () => t };
+      if (name === "next-intl") return { useLocale: () => "en", useTranslations: () => t };
       if (name === "react-native") return new Proxy({ Alert: { alert: (...args: any[]) => h.alerts.push(args) }, useWindowDimensions: () => ({ fontScale: 1 }) }, { get: (obj: any, k: any) => k in obj ? obj[k] : String(k) });
       if (name === "expo-haptics") return { NotificationFeedbackType: { Success: "success", Error: "error" }, notificationAsync: (kind: string) => { h.feedback.push(kind); }, impactAsync() {}, selectionAsync() {} };
       if (name === "expo-router") return { useRouter: () => ({ push() {}, replace() {} }) };

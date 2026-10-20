@@ -36,7 +36,7 @@ for (const [name, relative, surface, screen] of targets) {
     it("validation failure keeps pending row, reports failure, and does not retry automatically", async () => {
       h.reject = new Error("Validation error"); await h.decide();
       expect(h.rows()).toHaveLength(1); expect(h.postCount()).toBe(1);
-      expect(h.feedback).not.toContain("success"); expect(h.text()).toContain("Validation error");
+      expect(h.feedback).not.toContain("success"); expect(h.text()).toContain("generic"); expect(h.text()).not.toContain("Validation error");
     });
     it("malformed successful outcome is never treated as success", async () => {
       h.response = { success: true, decision: "APPROVED", claimFailed: "true" }; await h.decide();

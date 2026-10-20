@@ -1,3 +1,5 @@
+
+import { getTranslations as getLegacyTranslations } from "next-intl/server";
 import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
 import { PLAN_PRICING } from "@ai-company-os/core";
@@ -17,6 +19,7 @@ const PUBLIC_LINKS = [
 ] as const;
 
 export default async function HomePage() {
+  const uiText = await getLegacyTranslations("uiCopy");
   const [t, locale] = await Promise.all([getTranslations("publicPreview"), getLocale()]);
   const modes = [{ name: t("privateMode"), copy: t("privateModeCopy") }, { name: t("cloudMode"), copy: t("cloudModeCopy") }];
   const price = (plan: "INDIVIDUAL" | "TEAM") => t(plan === "INDIVIDUAL" ? "individualPeriod" : "teamPeriod", {
@@ -73,12 +76,12 @@ export default async function HomePage() {
           <div className="grid md:grid-cols-2 gap-5">
             <article className="bv-glass p-7">
               <p className="bv-micro text-primary mb-3">Individual</p>
-              <h2 className="font-headline font-semibold text-3xl">Individual — <bdi>{price("INDIVIDUAL")}</bdi></h2>
+              <h2 className="font-headline font-semibold text-3xl">{uiText("me9694a186010")}{" "}<bdi>{price("INDIVIDUAL")}</bdi></h2>
               <p className="text-on-surface-variant mt-3">{t("individualSummary")}</p>
             </article>
             <article className="bv-glass p-7">
               <p className="bv-micro text-primary mb-3">Team</p>
-              <h2 className="font-headline font-semibold text-3xl">Team — <bdi>{price("TEAM")}</bdi></h2>
+              <h2 className="font-headline font-semibold text-3xl">{uiText("m032b7cca868a")}{" "}<bdi>{price("TEAM")}</bdi></h2>
               <p className="text-on-surface-variant mt-3">{t("teamSummary")}</p>
             </article>
           </div>
@@ -117,7 +120,7 @@ export default async function HomePage() {
 
       <footer className="border-t border-outline-variant">
         <div className="max-w-[1120px] mx-auto px-6 py-10 flex flex-wrap items-center justify-between gap-5 text-sm">
-          <span className="text-on-surface-variant">© 2026 Braavolabs</span>
+          <span className="text-on-surface-variant">{uiText("m37d5c6a2c645")}</span>
           <div className="flex flex-wrap gap-5">
             {PUBLIC_LINKS.slice(5).map(([label, href]) => (
               <a key={href} href={href} className="text-on-surface-variant hover:text-on-surface no-underline">

@@ -1,4 +1,17 @@
 "use client";
+import { useLocalizedFailure } from "../../../lib/localized-error";
+
+import { useTranslations as useIconTranslations } from "next-intl";
+
+import { useStateLabel } from "../../../lib/useStateLabel";
+
+import { useTranslations as useRuntimeTranslations } from "next-intl";
+
+import { useLocale as useDisplayLocale } from "next-intl";
+import { formatDateTime as formatDisplayDateTime, currentTimeZone as displayTimeZone } from "../../../i18n/locales";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
@@ -28,6 +41,12 @@ const blankActions = (scope: CompanyScope): ActionState => ({
 });
 
 export default function CompanyDetailPage() {
+  const describeFailure = useLocalizedFailure();
+  const iconCopy = useIconTranslations("surface.icons");
+  const stateLabel = useStateLabel();
+  const runtimeCopy = useRuntimeTranslations("runtime");
+  const displayLocale = useDisplayLocale();
+  const uiText = useLegacyTranslations("uiCopy");
   const params = useParams();
   const { token, hydrated } = useAuthGuard();
   const revision = useAppStore(s => s.sessionRevision);
@@ -98,7 +117,7 @@ export default function CompanyDetailPage() {
     api.getCompany(owner.token, companyId).then(data => {
       if (active && isAuthSessionCurrent(owner) && data.id === companyId) setCompany(data);
     }).catch(e => {
-      if (active && isAuthSessionCurrent(owner)) setError(e.message);
+      if (active && isAuthSessionCurrent(owner)) setError(describeFailure(e));
     });
     return () => { active = false; };
   }, [revision, tenantId, companyId, hydrated]);
@@ -244,7 +263,7 @@ export default function CompanyDetailPage() {
     { key: "compare",   label: t("app.compare.title") },
     { key: "contacts",  label: t("app.companyDetail.tabCrm") },
     { key: "memory",    label: t("app.companyDetail.tabMemory") },
-    { key: "overview",  label: "Export" },
+    { key: "overview",  label: runtimeCopy("mf7ae3905e563") },
   ];
 
   const runStatusDot: Record<string, string> = {
@@ -276,7 +295,7 @@ export default function CompanyDetailPage() {
               <h1 className="bv-headline" style={{ color: "var(--color-on-surface)", margin: 0 }}>{company.name}</h1>
               <span className={pillCls} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                 <span className={dotCls} />
-                {company.status?.toLowerCase()}
+                {stateLabel(company.status)}
               </span>
             </div>
             <p className="bv-caption" style={{ marginTop: 4, marginBottom: 0 }}>
@@ -297,13 +316,9 @@ export default function CompanyDetailPage() {
             {t("app.companyDetail.back")}
           </Link>
           <button className="bv-btn bv-btn-ghost bv-btn-sm">
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>pause</span>
-            Pause
-          </button>
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>pause</span>{uiText("m33b2dcf5a00e")}</button>
           <button className="bv-btn bv-btn-ghost bv-btn-sm">
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>archive</span>
-            Archive
-          </button>
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>archive</span>{uiText("m4aff80e9ddd2")}</button>
         </div>
       </div>
 
@@ -332,7 +347,7 @@ export default function CompanyDetailPage() {
                 borderBottom: active ? "2px solid #3B82F6" : "2px solid transparent",
                 marginBottom: -1,
                 background: "transparent",
-                color: active ? "#E8EBF0" : "var(--color-on-surface-variant)",
+                color: active ? "var(--color-on-surface)" : "var(--color-on-surface-variant)",
                 cursor: "pointer",
                 transition: "color 0.2s",
                 display: "flex",
@@ -403,8 +418,7 @@ export default function CompanyDetailPage() {
                       {a.name?.charAt(0)?.toUpperCase()}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="bv-mono" style={{ color: "var(--color-on-surface)", fontWeight: 500, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        agent:{a.name?.toLowerCase()}
+                      <div className="bv-mono" style={{ color: "var(--color-on-surface)", fontWeight: 500, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{uiText("mf40b55b5a17f")}{a.name?.toLowerCase()}
                       </div>
                       <div className="bv-micro" style={{ marginTop: 2, textTransform: "none", letterSpacing: 0 }}>{a.role}</div>
                     </div>
@@ -443,7 +457,7 @@ export default function CompanyDetailPage() {
                     <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--color-outline-variant)" }}>
                       {a.systemPrompt && (
                         <div style={{ marginBottom: 12 }}>
-                          <p className="bv-micro" style={{ marginBottom: 6 }}>SYSTEM PROMPT</p>
+                          <p className="bv-micro" style={{ marginBottom: 6 }}>{uiText("ma170cc9e0b0b")}</p>
                           <p className="bv-body" style={{ color: "var(--color-on-surface-variant)", background: "rgba(59,130,246,0.04)", padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(59,130,246,0.1)", whiteSpace: "pre-wrap", margin: 0 }}>
                             {a.systemPrompt.length > 300 ? a.systemPrompt.slice(0, 300) + "..." : a.systemPrompt}
                           </p>
@@ -461,7 +475,7 @@ export default function CompanyDetailPage() {
                                 onClick={(e) => e.stopPropagation()}
                                 disabled={modelSaving}
                                 autoFocus
-                                placeholder="claude-sonnet-4-5-20250929"
+                                placeholder={"claude-sonnet-4-5-20250929"}
                                 className="bv-mono"
                                 style={{
                                   flex: 1, padding: "4px 8px",
@@ -498,13 +512,13 @@ export default function CompanyDetailPage() {
                                 onClick={() => { setEditingAgentId(null); setModelDraft(""); setModelError(null); }}
                                 disabled={modelSaving}
                                 className="bv-btn bv-btn-ghost bv-btn-sm"
-                              >
+                               aria-label={iconCopy("close")} type="button">
                                 <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
                               </button>
                             </div>
                           ) : (
                             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                              <span className="bv-mono" style={{ color: "var(--color-on-surface)" }}>{a.model ?? "default"}</span>
+                              <span className="bv-mono" style={{ color: "var(--color-on-surface)" }}>{a.model ??uiText("m313ead484eac")}</span>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setEditingAgentId(a.id); setModelDraft(a.model ?? ""); setModelError(null); }}
                                 className="bv-btn bv-btn-ghost bv-btn-sm"
@@ -542,7 +556,7 @@ export default function CompanyDetailPage() {
                           className="bv-caption"
                           style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 5 }}
                         >
-                          <span className="material-symbols-outlined" style={{ fontSize: 13, color: "#60A5FA" }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 13, color: "var(--color-primary)" }}>
                             lock
                           </span>
                           {t("app.autonomy.moneyNote")}
@@ -607,8 +621,8 @@ export default function CompanyDetailPage() {
       {tab === "runs" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {runs.map((r: any) => {
-            const dotCl = runStatusDot[r.status] ?? "bv-dot bv-paused";
-            const pillCl = runStatusPill[r.status] ?? "bv-pill bv-pill-muted";
+            const dotCl = runStatusDot[r.status] ??"bv-dot bv-paused";
+            const pillCl = runStatusPill[r.status] ??"bv-pill bv-pill-muted";
             return (
               <Link
                 key={r.id}
@@ -628,7 +642,7 @@ export default function CompanyDetailPage() {
                   <span className={pillCl}>{r.status}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span className="bv-caption">{new Date(r.createdAt).toLocaleString()}</span>
+                  <span className="bv-caption">{formatDisplayDateTime(r.createdAt, displayLocale, { timeZone: displayTimeZone(), dateStyle: "medium", timeStyle: "short" })}</span>
                   <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-outline)" }}>chevron_right</span>
                 </div>
               </Link>
@@ -650,9 +664,7 @@ export default function CompanyDetailPage() {
           <div className="bv-glass bv-panel" style={{ borderRadius: 16 }}>
             <div className="bv-panel-head">
               <h4 className="bv-micro" style={{ display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
-                <span className="bv-dot bv-running bv-ping" />
-                Candidate
-              </h4>
+                <span className="bv-dot bv-running bv-ping" />{uiText("m081fc0171fee")}</h4>
             </div>
             <MemoryChip text={t("app.companyDetail.memoryTitle")} meta={t("app.companyDetail.memoryBody")} variant="candidate" />
           </div>
@@ -660,21 +672,17 @@ export default function CompanyDetailPage() {
           <div className="bv-glass bv-panel" style={{ borderRadius: 16 }}>
             <div className="bv-panel-head">
               <h4 className="bv-micro" style={{ display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
-                <span className="bv-dot bv-completed" />
-                Approved
-              </h4>
+                <span className="bv-dot bv-completed" />{uiText("m1d156cc858d3")}</h4>
             </div>
-            <div className="bv-caption" style={{ textAlign: "center", padding: "24px 0", color: "var(--color-outline)" }}>No approved memory yet</div>
+            <div className="bv-caption" style={{ textAlign: "center", padding: "24px 0", color: "var(--color-outline)" }}>{uiText("mf1cc2bc9a8a0")}</div>
           </div>
           {/* Deprecated */}
           <div className="bv-glass bv-panel" style={{ borderRadius: 16 }}>
             <div className="bv-panel-head">
               <h4 className="bv-micro" style={{ display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
-                <span className="bv-dot bv-cancelled" />
-                Deprecated
-              </h4>
+                <span className="bv-dot bv-cancelled" />{uiText("m564fb4aee15b")}</h4>
             </div>
-            <div className="bv-caption" style={{ textAlign: "center", padding: "24px 0", color: "var(--color-outline)" }}>Nothing deprecated</div>
+            <div className="bv-caption" style={{ textAlign: "center", padding: "24px 0", color: "var(--color-outline)" }}>{uiText("m307ccca51ae0")}</div>
           </div>
         </div>
       )}
@@ -685,38 +693,15 @@ export default function CompanyDetailPage() {
           <div className="bv-glass bv-panel" style={{ borderRadius: 16, padding: 28 }}>
             <div className="bv-panel-head" style={{ marginBottom: 8 }}>
               <div>
-                <h3 className="bv-headline" style={{ textTransform: "uppercase", margin: 0 }}>Encrypted offline bundle</h3>
-                <p className="bv-body" style={{ color: "var(--color-on-surface-variant)", marginTop: 8, marginBottom: 0 }}>
-                  Export this workspace — agents, pipelines, memory and full audit trail — as an encrypted bundle you can run fully offline.
-                </p>
+                <h3 className="bv-headline" style={{ textTransform: "uppercase", margin: 0 }}>{t("app.exportBundle.plainConfiguration")}</h3>
+                <p className="bv-body" style={{ color: "var(--color-on-surface-variant)", marginTop: 8, marginBottom: 0 }}>{t("app.exportBundle.plainConfigurationHelp")}</p>
               </div>
             </div>
 
             <div className="bv-divider" style={{ margin: "16px 0" }} />
 
-            {/* Options */}
-            {[
-              { label: "Agents & pipeline definitions", meta: `${company.agents?.length ?? 9} agents · ${company.pipelines?.length ?? 4} pipelines`, defaultChecked: true },
-              { label: "Approved memory", meta: "candidate memory excluded", defaultChecked: true },
-              { label: "Full run audit trail", meta: "+ 1,204 logged steps", defaultChecked: false },
-            ].map((opt) => (
-              <div key={opt.label} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "1px solid rgba(35,40,51,0.5)" }}>
-                <input
-                  type="checkbox"
-                  defaultChecked={opt.defaultChecked}
-                  style={{ width: 18, height: 18, accentColor: "#3B82F6", flexShrink: 0 }}
-                />
-                <div>
-                  <div className="bv-body" style={{ color: "var(--color-on-surface)" }}>{opt.label}</div>
-                  <div className="bv-mono" style={{ color: "var(--color-outline)", marginTop: 2 }}>{opt.meta}</div>
-                </div>
-              </div>
-            ))}
-
-            <button className="bv-btn bv-btn-primary" style={{ marginTop: 22 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>lock</span>
-              Forge encrypted bundle
-            </button>
+            <Link href={`/companies/${companyId}/export`} className="bv-btn bv-btn-primary" style={{ marginTop: 22 }}>
+              <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 16 }}>download</span>{t("app.exportBundle.title")}</Link>
           </div>
         </div>
       )}
@@ -837,9 +822,9 @@ function MemoryChip({ text, meta, variant }: { text: string; meta: string; varia
       style={{
         padding: "12px 14px",
         borderRadius: 11,
-        background: "rgba(20,23,31,0.6)",
+        background: "var(--color-surface-container-low)",
         border: "1px solid var(--color-outline-variant)",
-        borderLeft: `2px solid ${borderMap[variant]}`,
+        borderInlineStart: `2px solid ${borderMap[variant]}`,
         fontSize: 13,
         color: variant === "deprecated" ? "var(--color-outline)" : "var(--color-on-surface)",
         lineHeight: 1.4,
@@ -1034,7 +1019,7 @@ function AutonomySegmented({
                 borderRadius: 9,
                 border: active ? "1px solid rgba(59,130,246,0.4)" : "1px solid transparent",
                 background: active ? "rgba(59,130,246,0.14)" : "transparent",
-                color: active ? "#60A5FA" : "var(--color-on-surface-variant)",
+                color: active ? "var(--color-primary)" : "var(--color-on-surface-variant)",
                 cursor: disabled ? "default" : active ? "default" : "pointer",
                 opacity: disabled ? 0.6 : 1,
                 transition: "all 0.18s",

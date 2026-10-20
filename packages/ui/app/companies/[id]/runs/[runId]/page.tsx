@@ -1,4 +1,12 @@
 "use client";
+import { useStateLabel } from "../../../../../lib/useStateLabel";
+
+import { useDisplayFormats } from "../../../../../lib/useDisplayFormats";
+
+import { useLocalizedFailure } from "../../../../../lib/localized-error";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
@@ -77,6 +85,10 @@ const STEP_FILAMENT: Record<string, string> = {
 const LIVE_STATUSES = ["RUNNING", "PAUSED", "WAITING_APPROVAL"];
 
 export default function RunDetailPage() {
+  const stateLabel = useStateLabel();
+  const displayFormat = useDisplayFormats();
+  const describeFailure = useLocalizedFailure();
+  const uiText = useLegacyTranslations("uiCopy");
   const params = useParams();
   const t = useTranslations();
   const token = useAppStore((s) => s.token);
@@ -98,7 +110,7 @@ export default function RunDetailPage() {
   // Initial fetch
   useEffect(() => {
     if (!token || !params.runId) return;
-    api.getRun(token, params.runId as string).then(setRun).catch((e) => setError(e.message));
+    api.getRun(token, params.runId as string).then(setRun).catch((e) => setError(describeFailure(e)));
   }, [token, params.runId]);
 
   // Live updates via SSE — replaces the old 2s polling. Each run event
@@ -140,7 +152,7 @@ export default function RunDetailPage() {
       const updated = await api.getRun(token, run.id);
       setRun(updated);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("app.runDetail.actionFailed"));
+      setError(describeFailure(e, t("app.runDetail.actionFailed")));
     } finally {
       setActionLoading(null);
     }
@@ -154,7 +166,7 @@ export default function RunDetailPage() {
       const updated = await api.getRun(token, run!.id);
       setRun(updated);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("app.runDetail.stepActionFailed"));
+      setError(describeFailure(e, t("app.runDetail.stepActionFailed")));
     } finally {
       setActionLoading(null);
     }
@@ -171,7 +183,7 @@ export default function RunDetailPage() {
       setSteerMsg(t("app.runDetail.steerSent"));
     } catch (e) {
       setSteerOk(false);
-      setSteerMsg(e instanceof Error ? e.message : t("app.runDetail.steerFailed"));
+      setSteerMsg(describeFailure(e, t("app.runDetail.steerFailed")));
     } finally {
       setSteerBusy(false);
     }
@@ -190,7 +202,7 @@ export default function RunDetailPage() {
       setRun(updated);
     } catch (e) {
       setAnswerOk(false);
-      setAnswerMsg(e instanceof Error ? e.message : t("app.runDetail.answerFailed"));
+      setAnswerMsg(describeFailure(e, t("app.runDetail.answerFailed")));
     } finally {
       setAnswerBusy(false);
     }
@@ -223,8 +235,6 @@ export default function RunDetailPage() {
   const isLive = LIVE_STATUSES.includes(run.status);
   const pendingInput = (run.approvals ?? []).filter((a) => a.type === "INPUT" && a.status === "PENDING");
   const completedSteps = run.steps.filter((s) => s.status === "COMPLETED").length;
-  const budgetUsd = 50; // display budget cap for the gauge
-  const spendPct = Math.min((Number(run.costUsd ?? 0) / budgetUsd) * 100, 100);
   const statusDotCls = STATUS_DOT[run.status] ?? "bv-paused";
   const statusPillCls = STATUS_PILL[run.status] ?? "bv-pill bv-pill-muted";
 
@@ -247,7 +257,7 @@ export default function RunDetailPage() {
               active={autoRefresh}
             />
             <span className={`bv-dot ${statusDotCls}${isLive ? " bv-ping" : ""}`} />
-            <span className={statusPillCls}>{run.status}</span>
+            <span className={statusPillCls}>{stateLabel(run.status)}</span>
             <span className="bv-caption" style={{ color: "var(--bv-text-faint)" }}>· {run.id}</span>
           </div>
         </div>
@@ -263,7 +273,7 @@ export default function RunDetailPage() {
               <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
                 {autoRefresh ? "pause" : "play_arrow"}
               </span>
-              {autoRefresh ? "Live" : "Paused"}
+              {autoRefresh ?uiText("m50890a43f31f") :uiText("md1e06fe13cd7")}
             </button>
           )}
 
@@ -297,25 +307,6 @@ export default function RunDetailPage() {
         </div>
       </div>
 
-      {/* ── Risk banner — cost-stop armed ───────────────────── */}
-      {isLive && spendPct >= 60 && (
-        <div
-          className="flex items-center gap-3 rounded-xl px-4 py-3 mb-5"
-          style={{
-            border: "1px solid rgba(255,77,77,0.4)",
-            background: "linear-gradient(135deg,rgba(255,77,77,0.10),transparent)",
-          }}
-        >
-          <span className="bv-dot bv-failed bv-ping" />
-          <div>
-            <p className="text-sm font-semibold text-on-surface">Cost-stop armed</p>
-            <p className="bv-caption" style={{ color: "var(--color-on-surface-variant)" }}>
-              budget {Math.round(spendPct)}% consumed — run will halt at ${budgetUsd.toFixed(2)}
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* ── Run-level failure banner ─────────────────────────── */}
       {run.status === "FAILED" && run.error && (
         <div
@@ -337,17 +328,17 @@ export default function RunDetailPage() {
               {run.error}
             </p>
             {run.error.toLowerCase().includes("api") && run.error.toLowerCase().includes("key") && (
-              <a href="/settings#ai_provider" className="inline-block mt-3 bv-micro underline" style={{ color: "#fca5a5" }}>
+              <a href="/settings#ai_provider" className="inline-block mt-3 bv-micro underline" style={{ color: "var(--color-error)" }}>
                 {t("app.runDetail.remSettings")}
               </a>
             )}
             {run.error.toLowerCase().includes("quota") && (
-              <a href="/billing" className="inline-block mt-3 bv-micro underline" style={{ color: "#fca5a5" }}>
+              <a href="/billing" className="inline-block mt-3 bv-micro underline" style={{ color: "var(--color-error)" }}>
                 {t("app.runDetail.remBilling")}
               </a>
             )}
             {run.error.toLowerCase().includes("approval") && (
-              <a href="/approvals" className="inline-block mt-3 bv-micro underline" style={{ color: "#fca5a5" }}>
+              <a href="/approvals" className="inline-block mt-3 bv-micro underline" style={{ color: "var(--color-error)" }}>
                 {t("app.runDetail.remApprovals")}
               </a>
             )}
@@ -372,9 +363,9 @@ export default function RunDetailPage() {
               }}
             >
               <div className="flex items-center gap-2 mb-3">
-                <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#60A5FA" }}>contact_support</span>
-                <h3 className="bv-title" style={{ color: "#60A5FA" }}>{t("app.runDetail.inputTitle")}</h3>
-                <span className="bv-pill bv-pill-cyan ml-auto">awaiting you</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--color-primary)" }}>contact_support</span>
+                <h3 className="bv-title" style={{ color: "var(--color-primary)" }}>{t("app.runDetail.inputTitle")}</h3>
+                <span className="bv-pill bv-pill-cyan ml-auto">{uiText("mee5a1855dffe")}</span>
               </div>
               <p className="text-sm mb-4" style={{ color: "var(--color-on-surface)", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>
                 {pendingInput[0].description}
@@ -387,7 +378,7 @@ export default function RunDetailPage() {
                   placeholder={t("app.runDetail.answerPlaceholder")}
                   className="flex-1 rounded-xl px-4 py-3 text-sm outline-none"
                   style={{
-                    background: "rgba(5,8,16,0.6)",
+                    background: "var(--color-surface-container-low)",
                     border: "1px solid rgba(96,165,250,0.25)",
                     color: "var(--color-on-surface)",
                   }}
@@ -410,11 +401,11 @@ export default function RunDetailPage() {
           {/* Step nodes — arc filament chain */}
           <div className="flex flex-col" style={{ gap: 0 }}>
             {run.steps.map((step, idx) => {
-              const filamentColor = STEP_FILAMENT[step.status] ?? "var(--bv-steel-shadow)";
+              const filamentColor = STEP_FILAMENT[step.status] ??"var(--bv-steel-shadow)";
               const isRunning = step.status === "RUNNING";
               const isExpanded = expandedStep === step.id;
-              const pillCls = STATUS_PILL[step.status] ?? "bv-pill bv-pill-muted";
-              const dotCls = STATUS_DOT[step.status] ?? "bv-paused";
+              const pillCls = STATUS_PILL[step.status] ??"bv-pill bv-pill-muted";
+              const dotCls = STATUS_DOT[step.status] ??"bv-paused";
               const isLast = idx === run.steps.length - 1;
 
               return (
@@ -476,14 +467,14 @@ export default function RunDetailPage() {
                               {step.name}
                             </span>
                             {isRunning && (
-                              <span className="bv-pill bv-pill-amber">streaming</span>
+                              <span className="bv-pill bv-pill-amber">{uiText("m562397da1ad0")}</span>
                             )}
-                            <span className={pillCls}>{step.status}</span>
+                            <span className={pillCls}>{stateLabel(step.status)}</span>
                             <span
                               className="font-mono text-xs ml-auto"
                               style={{ color: "var(--color-on-surface-variant)" }}
                             >
-                              ${Number(step.costUsd ?? 0).toFixed(4)}
+                              {displayFormat.usd(step.costUsd)}
                             </span>
                           </div>
                           {step.reasoning && (
@@ -500,7 +491,7 @@ export default function RunDetailPage() {
                                     height: 14,
                                     background: "var(--bv-status-running)",
                                     verticalAlign: "-2px",
-                                    marginLeft: 2,
+                                    marginInlineStart: 2,
                                     borderRadius: 1,
                                   }}
                                 />
@@ -577,7 +568,7 @@ export default function RunDetailPage() {
                                     key={tc.id}
                                     className="rounded-xl p-3"
                                     style={{
-                                      background: "rgba(5,8,16,0.5)",
+                                      background: "var(--color-surface-container-low)",
                                       border: "1px solid rgba(58,65,80,0.5)",
                                     }}
                                   >
@@ -590,9 +581,9 @@ export default function RunDetailPage() {
                                           className="bv-micro"
                                           style={{ color: tc.status === "COMPLETED" ? "var(--bv-cobalt-glow)" : "var(--bv-status-failed)" }}
                                         >
-                                          {tc.status}
+                                          {stateLabel(tc.status)}
                                         </span>
-                                        <span className="bv-mono" style={{ color: "var(--bv-text-faint)" }}>{tc.durationMs}ms</span>
+                                        <span className="bv-mono" style={{ color: "var(--bv-text-faint)" }}>{tc.durationMs}{uiText("m1d007a5d0353")}</span>
                                       </div>
                                     </div>
                                     {tc.input && (
@@ -665,20 +656,20 @@ export default function RunDetailPage() {
         {/* ── RIGHT rail: run meta + cost gauge + actions ────── */}
         <div className="bv-twocol-side" style={{ position: "sticky", top: 84 }}>
           <div className="bv-glass bv-panel rounded-2xl">
-            <h3 className="bv-micro" style={{ color: "var(--bv-text-faint)", marginBottom: 14 }}>Run meta</h3>
+            <h3 className="bv-micro" style={{ color: "var(--bv-text-faint)", marginBottom: 14 }}>{uiText("m485cb3fc4e18")}</h3>
 
             {/* Meta rows */}
             {[
-              { k: t("app.runDetail.status"),   v: run.status },
+              { k: t("app.runDetail.status"),   v: stateLabel(run.status) },
               { k: "Run ID",                     v: run.id },
               { k: "Pipeline",                   v: run.pipeline.name },
               { k: t("app.runDetail.steps"),     v: `${completedSteps} / ${run.steps.length}` },
               {
                 k: t("app.runDetail.duration"),
                 v: run.completedAt
-                  ? `${(Math.max(0, new Date(run.completedAt).getTime() - new Date(run.createdAt).getTime()) / 1000).toFixed(1)}s`
+                  ? displayFormat.duration(new Date(run.completedAt).getTime() - new Date(run.createdAt).getTime())
                   : isLive
-                    ? `${(Math.max(0, Date.now() - new Date(run.createdAt).getTime()) / 1000).toFixed(0)}s`
+                    ? displayFormat.duration(Date.now() - new Date(run.createdAt).getTime())
                     : "—",
               },
             ].map(({ k, v }) => (
@@ -697,43 +688,16 @@ export default function RunDetailPage() {
               </div>
             ))}
 
-            {/* Cost vs budget gauge */}
-            <div className="mt-5">
-              <h3 className="bv-micro mb-3" style={{ color: "var(--bv-text-faint)" }}>
-                {t("app.runDetail.cost")} vs budget
-              </h3>
-              <div
-                className="rounded-md overflow-hidden mb-2"
-                style={{ height: 10, background: "rgba(5,8,16,0.6)", border: "1px solid rgba(58,65,80,0.5)" }}
-              >
-                <div
-                  style={{
-                    height: "100%",
-                    width: `${spendPct}%`,
-                    background: spendPct > 80
-                      ? "linear-gradient(90deg,var(--bv-cobalt-glow),var(--bv-status-failed))"
-                      : "linear-gradient(90deg,var(--bv-cobalt-glow),var(--bv-status-running))",
-                    borderRadius: 6,
-                    transition: "width 1s cubic-bezier(0.4,0,0.2,1)",
-                  }}
-                />
-              </div>
-              <div className="flex justify-between bv-mono" style={{ fontSize: 11.5, color: "var(--color-on-surface-variant)" }}>
-                <span>${Number(run.costUsd ?? 0).toFixed(2)}</span>
-                <span>budget ${budgetUsd.toFixed(2)}</span>
-              </div>
+            <div className="mt-5 flex justify-between bv-mono" style={{ fontSize: 12, color: "var(--color-on-surface-variant)" }}>
+              <span>{t("app.runDetail.cost")}</span><span>{displayFormat.usd(run.costUsd)}</span>
             </div>
 
             {/* Utility actions */}
             <div className="flex flex-col gap-2 mt-4">
               <button className="bv-btn bv-btn-ghost bv-btn-sm w-full justify-center">
-                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>timeline</span>
-                Timeline scrubber
-              </button>
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>timeline</span>{uiText("mf09738cc6fac")}</button>
               <button className="bv-btn bv-btn-ghost bv-btn-sm w-full justify-center">
-                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>download</span>
-                Export trail
-              </button>
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>download</span>{uiText("md63109311e5c")}</button>
             </div>
           </div>
         </div>
@@ -778,9 +742,7 @@ export default function RunDetailPage() {
                 padding: "0 8px",
                 color: "var(--color-secondary-fixed-dim)",
               }}
-            >
-              Steer · inject guidance
-            </span>
+            >{uiText("mc341c520640c")}</span>
             <textarea
               value={steerText}
               onChange={(e) => setSteerText(e.target.value)}

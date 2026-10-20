@@ -294,7 +294,9 @@
       "localPlanRequired": "Yerel sağlayıcı yapılandırmak için desteklenen bir plan seçin",
       "planRequired": "Plan gerekli",
       "localPlanDescription": "Individual ve Team, yapılandırılmış yerel uç noktaları destekler. Çıkarım dahil değildir.",
-      "viewPlans": "Planları görüntüle"
+      "viewPlans": "Planları görüntüle",
+      "aiStorageDescription": "Sağlayıcı kimlik bilgileri saklanmadan önce şifrelenir. Ağ erişimi ve verilerin işlenmesi, yapılandırılan sağlayıcıya ve uç noktaya bağlıdır.",
+      "localEndpointDescription": "Yerel uç noktalar, yapılandırdığın konumda çalışır. Diğer ürün özellikleri yine ağ erişimi gerektirebilir; bu ayar ürünün tamamının çevrimdışı çalışmasını garanti etmez."
     },
     "onboarding": {
       "primitives": {
@@ -559,7 +561,8 @@
       "improvementSummary": "İyileşme özeti",
       "better": "daha iyi",
       "expand": "Detayları göster",
-      "collapse": "Detayları gizle"
+      "collapse": "Detayları gizle",
+      "noTimeSeries": "Bu görünümde zaman serisi verisi ve güven aralıkları bulunmuyor. Yukarıdaki toplu ölçümleri kullan."
     },
     "dashboard": {
       "title": "Komuta Merkezi",
@@ -608,9 +611,9 @@
         "budget_bar_label": "Aylık bütçenin %{pct}'i öngörülüyor"
       },
       "statusQuiet": "Her şey sakin — aktif çalıştırma yok",
-      "statusStreaming": "{count} çalıştırma canlı akıyor",
-      "approvalsAwaiting": "{count} onay kararını bekliyor",
-      "risksNeedEye": "{count} risk ilgini bekliyor",
+      "statusStreaming": "{count, plural, other {# çalıştırmada akış sürüyor}}",
+      "approvalsAwaiting": "{count, plural, other {# onay kararınızı bekliyor}}",
+      "risksNeedEye": "{count, plural, other {# risk ilginizi bekliyor}}",
       "spentThisCycle": "bu dönem {amount} harcandı",
       "autoRefresh": "{seconds} sn'de bir yenilenir"
     },
@@ -731,14 +734,14 @@
       "remApprovals": "→ Onaylar",
       "inputTitle": "Ajan girdinize ihtiyaç duyuyor",
       "answerPlaceholder": "Ajan için yanıtınızı yazın…",
-      "answerSent": "Yanıt gönderildi — çalıştırma devam ediyor.",
+      "answerSent": "Yanıt gönderildi. Karar ve çalıştırma durumunu kontrol edin.",
       "answerFailed": "Yanıt gönderilemedi",
       "sending": "Gönderiliyor…",
       "sendAnswer": "Yanıt gönder",
       "steerTitle": "Bu çalıştırmayı yönlendir",
       "steerHelp": "Ajanı çalışırken yönlendirmek için bir mesaj gönderin — bir sonraki turunda operatör rehberliği olarak eklenir.",
       "steerPlaceholder": "ör. Yalnızca kurumsal müşterilere odaklan — KOBİ segmentini atla.",
-      "steerSent": "Yönlendirme gönderildi — ajan bir sonraki turunda dikkate alacak.",
+      "steerSent": "Yönlendirme isteği gönderildi. Sonraki çalıştırma durumunu ve çıktıyı kontrol edin.",
       "steerFailed": "Yönlendirme gönderilemedi",
       "sendSteer": "Yönlendirme gönder",
       "timeline": "Adım Zaman Çizelgesi",
@@ -1058,7 +1061,8 @@
       "hintOpen": "aç",
       "hintClose": "kapat",
       "hintDashboard": "pano",
-      "hintNewWorkspace": "yeni çalışma alanı"
+      "hintNewWorkspace": "yeni çalışma alanı",
+      "title": "Komut menüsü"
     },
     "breadcrumb": {
       "onboarding": "Başlangıç",
@@ -1177,6 +1181,17 @@
       "failed": "Karşılaştırma başarısız oldu.",
       "cancelled": "Karşılaştırma iptal edildi.",
       "timeout": "Yoklama sınırına ulaşıldı. Oturum hâlâ çalışıyor olabilir."
+    },
+    "shell": {
+      "openMenu": "Menüyü aç",
+      "closeMenu": "Menüyü kapat"
+    },
+    "notifications": {
+      "title": "Bildirimler",
+      "pending": "{count, plural, other {# onay bekliyor}}",
+      "clear": "Bekleyen onay yok",
+      "spend": "Harcama onayı gerekiyor",
+      "viewAll": "Tüm onayları görüntüle"
     }
   },
   "static": {
@@ -1202,7 +1217,8 @@
         "tagline": "Zaten çalıştırdığınız yapay zekâ ajanlarını ve otomasyonları yönetin.",
         "rights": "Tüm hakları saklıdır.",
         "englishOnly": "Bu belge şu anda İngilizce olarak sunulmaktadır."
-      }
+      },
+      "englishContent": "Bu içerik şu anda İngilizce olarak sunuluyor. Arayüz dilini değiştirmek bu bölümü çevirmez."
     },
     "blog": {
       "title": "Blog yakında",
@@ -1223,10 +1239,6 @@
         "Yasal uyum için Cookie / KVKK / GDPR sayfaları yayında."
       ],
       "githubIntro": "Ayrıntılı sürüm notları GitHub'da:"
-    },
-    "singleLocale": {
-      "kvkkBanner": "Bu sayfa yalnızca Türkçe yayımlanır — 6698 sayılı KVKK aydınlatma metninin yasal geçerlilik için Türkçe olması zorunludur.",
-      "gdprBanner": "Bu sayfa yalnızca İngilizce yayımlanır — sınır ötesi AEA denetim otoritesi çalışma dilidir."
     },
     "legal": {
       "privacy": {
@@ -1406,6 +1418,16 @@
       "reset": "Çerez tercihlerini sıfırla",
       "resetDone": "Kayıtlı tercih silindi. Değişikliği uygulamak için bu sayfa yenilenebilir.",
       "resetFailed": "Kayıtlı tercih silinemedi. Bu sayfada yeni analitik yüklemesi engellendi. Daha önce yüklenmiş bir izleyici, sayfayı kapatana kadar etkin kalabilir. Sayfayı kapat ve geri dönmeden önce tarayıcında bu sitenin depolama verilerini temizle."
+    },
+    "appearance": {
+      "title": "Görünüm",
+      "label": "Tema",
+      "dark": "Koyu",
+      "light": "Açık",
+      "system": "Sistem",
+      "description": "Sistem ayarını kullan veya bu tarayıcı için bir tema seç.",
+      "saveFailed": "Tema bu sayfada değişti ancak bu tarayıcıda kaydedilemedi.",
+      "storageHelp": "Tema tercihin bu tarayıcıda saklanır."
     }
   },
   "auth": {
@@ -1610,7 +1632,13 @@
     "ar": "العربية",
     "es-419": "Español (Latinoamérica)",
     "pt-BR": "Português (Brasil)",
-    "ja": "日本語"
+    "ja": "日本語",
+    "it": "Italiano",
+    "ko": "한국어",
+    "id": "Bahasa Indonesia",
+    "pl": "Polski",
+    "hi": "हिन्दी",
+    "zh-Hans": "简体中文"
   },
   "publicPreview": {
     "homeTitle": "Farklı sağlayıcılardan yapay zekâ, sizin denetiminizde.",
@@ -1665,5 +1693,3186 @@
       "status": "Durum",
       "support": "Destek"
     }
+  },
+  "uiCopy": {
+    "m938c91ff1f31": "braavolabs",
+    "m13855655e90d": "Yapay zekâ",
+    "m690e7a5e1383": "Morghulis.",
+    "m158acce5db4b": "Her görev sona ermeli. Sessizce, kendi makinenizde. Yapay zekâ ajanlarınız için yönetilebilir komuta merkezi.",
+    "mc9be6b254770": "KAYDIR — KAPIYI AÇ ▾",
+    "m68ec9666da44": "her ajan, tek salon",
+    "m4d50f5adff67": "Tek panel.",
+    "m13b0a7147ec5": "Tüm ajanlar.",
+    "md91e25ebff91": "Claude, GPT, Gemini ve yerel modelleriniz; her biri kendi köşesinde çağrılmayı bekliyor. Birine görev verin, işi sıradakine nasıl devrettiğini izleyin.",
+    "m14259aa4f184": "üç yol, tek fatura",
+    "mb6063ec6db48": "Görevi yapabilen",
+    "mff3010307ebd": "en ucuz yola yönlendirin.",
+    "ma02b3af1c791": "Rutin işleri yerel modeller, zor kısımları kendi API anahtarlarınız, kalanı mevcut CLI aboneliğiniz karşılar. Kademeli yönlendirme karar verir, tasarruf size kalır.",
+    "m58cb783ef208": "ortalama çalıştırma maliyetinde tasarruf",
+    "m2f71a8cd452e": "yönlendirme · önbellek · kademeli geçiş",
+    "md68f4d9658a0": "token ek ücreti",
+    "m19837eca8ef7": "BYOK — kendi anahtarlarınız",
+    "m61feb77f0448": "yol",
+    "mc161ee232d16": "yerel · API · kendi CLI'ınız",
+    "m37570a352f9f": "Modelden bağımsız hafıza",
+    "m4790be82e806": "Hangi model çalışırsa çalışsın, bağlamınız sizin kalır.",
+    "md1ab8fe0278c": "Varsayılan olarak yönetişim",
+    "mcf73c270b403": "Riskli her adım bir onay kapısından geçer.",
+    "m760df3439c81": "Modeller arası devir",
+    "m0ef4c869c13b": "Bir ajan işi sıradakine devreder.",
+    "m902a479c1449": "yapay zekâ çalışır. siz yönetirsiniz.",
+    "madfef55cdd3e": "Dohaeris.",
+    "m8917820f4842": "Çalıştırmalar kendi makinenizde gerçekleşir ve siz uzaklaşsanız da sürer. Kule izler; kontrol her yerden sizde kalır.",
+    "m06818bfad7e5": "Cebinizden onaylayın.",
+    "mcd2afb2517c4": "Riskli adımlar telefonunuza bildirilir. Tek dokunuşla izin verin, reddedin veya yönlendirin.",
+    "mc918b71360aa": "Her çalıştırma yeniden izlenebilir.",
+    "mec82da18aef9": "Komutlar, değişiklikler ve araç çağrıları kaydedilir. Her adımı denetleyin veya geriye dönüp inceleyin.",
+    "mb634019207be": "Tek acil durdurma anahtarı.",
+    "m190c6cca4b11": "Desteklenen yürütme yollarında durdurma isteği gönderin. Bir sağlayıcı çağrısı halihazırda devam ediyor olabilir; kaydedilen sonucu doğrulayın.",
+    "me050855b0732": "macOS için indir",
+    "m0699722b6c86": "Windows",
+    "mc7916fde8f18": "Linux",
+    "m4721630f3237": "KOPYALANDI",
+    "m76375004a5c8": "KOPYALA",
+    "mfa1e83c4875c": "Braavolabs parası — ön yüz",
+    "m25dad6b2130d": "Braavolabs parası — arka yüz, devre çizgili BL monogramı",
+    "m25b28440d28a": "çevirmek için üzerine gelin · arka yüz: devre çizgili BL monogramı",
+    "m4fc929a0a62c": "Sahneler arasında gezinme",
+    "m9ee930cb6b09": "Girişi atla",
+    "m154eba8c33b7": "ATLA — boşluk / tıklama",
+    "m227d67016fe0": "braavolabs · valar dohaeris",
+    "m716f677b544d": "belgeler",
+    "md86a34679f43": "GitHub",
+    "mbb0e90463fc8": "önde",
+    "m6a6df1ed4210": "Yayınla",
+    "m1c64caa33ba2": "ile",
+    "mde4ec47f271d": "Deneyler",
+    "m920a13b7eddb": "Deney",
+    "m0ce6557e41a4": "Durum",
+    "mb1c437b2623f": "İyileşme",
+    "me4fac2bbdc43": "Anlamlılık",
+    "m4b9aae820c18": "Ayrıntıları gör",
+    "m6e8b2ac90efc": "Yeni deney",
+    "m008ca53ea0d6": "Manifesto",
+    "mf6caaee885a1": "Herkes",
+    "md7f19caf7275": "bir ajan oluşturabilir.",
+    "m1bcc79112898": "Yönetebilen ise azdır.",
+    "m154cae3389df": "Amblem",
+    "mff5d00a78d7e": "Yüzsüz operatör",
+    "m6d6f7b3433d5": "Amblemimiz dövme demirden bir maske; en yetenekli operatörlerin görünmeden çalıştığı Braavos'a bir selam. Yapay zekâyla gerçek işlerin nasıl yapıldığını anlatır: en gürültülü demoyla değil, bir ajan ekibini sonuca ulaştırmak için sessizce",
+    "m0fb31a980179": "okuyan, onaylayan ve yönlendiren",
+    "m2c08fc9adde3": "operatörle.",
+    "m8fad8431526d": "Ürettiğimiz her şeyde ağırlık, parıltı ve hareket var. Ajanları yönetmek, bir sohbet botuna bakıcılık etmekten çok bir harekât odasında durmak gibi hissettirmeli.",
+    "mae6893bf1cea": "Tek cümlede rekabet üstünlüğü",
+    "ma96d8b4e22d7": "Rekabet ettiğimiz alanlar",
+    "m79029a3ce6e6": "kontrol",
+    "mac2da98d83a1": "hareket özgürlüğü",
+    "m0eab38f1efb0": "ve",
+    "mb899143d5b68": "gizlilik",
+    "ma2e990d63ed8": "; bağlayıcı sayısı değil.",
+    "m3bfa80932b8d": "İlkeler",
+    "m35c23cddce05": "“Braavolabs'ı, eyleme geçebilen ama yönetilemeyen ajanlardan yorulduğumuz için kurduk. Dümeni tutan bir el olmadan güç fayda değil, yük getirir.”",
+    "m00cce1870e41": "Braavolabs ekibi",
+    "m86eac0774080": "· açık biçimde geliştirildi",
+    "md02e9e25bd65": "Uygulamayı aç",
+    "m864debf58479": "Bizimle konuşun",
+    "mdd10bd33331e": "Çalışma Alanı",
+    "m3c5cae9db9ff": "Sonuçlar",
+    "me472804666c8": "Faturalama özeti",
+    "m4176e1045b7d": "Tüm yürütmeler",
+    "m138dacd53320": "çalıştırma",
+    "mb2df3906a88c": "Harcama kuyruğu",
+    "m0e8a6ae38472": "bekliyor",
+    "mc3f685eba544": "acil",
+    "m1b78e46f051f": "Oturumunuz hazırlanıyor",
+    "m22d7829ed6f9": "BL",
+    "me1bb55c0e7b4": "Kayıtlı yöntem ve sonuçlar",
+    "mba85f9df1e3f": "Karşılaştırma testi",
+    "m3ea665b949b5": "Kayıtlı kıyaslama çalıştırmalarını, bunlarda değerlendirilen modelleri ve mevcut yöntem açıklamalarını inceleyin. Kapsam ve güncellik, kayıtlı çalıştırmaya göre değişir.",
+    "madef7e96db5b": "Yöntem ve ham değerlendirme ölçütlerinin konumu:",
+    "m4106b4c7e011": ". Katkı isteklerinizi bekliyoruz.",
+    "mbe9a5bbdd9b6": "Kayıtlı değerlendirmeler mevcut olduğunda yayımlanmış sonuçlar burada görünür.",
+    "m4349735a6625": "Bu görev kümesinde henüz çalıştırma yok.",
+    "m62d2447bfb31": "Sağlayıcı",
+    "m53b77436d18d": "Model",
+    "m6853e500c770": "Puan",
+    "m2dbf116102ae": "Maliyet / çalıştırma",
+    "m41b4f721faf5": "Süre",
+    "m881b035daeb6": "Güncellendi",
+    "mcc7dbaccf493": "Hesap",
+    "m3ed9a01e9231": "Etkin",
+    "m1f1c52f4af63": "İnsan incelemesi",
+    "m10a01ee78fc0": "/ etkin koltuk / ay",
+    "m36319a66e749": "/ ay",
+    "m2abded1f04d2": "· Stripe üzerinden",
+    "m52ef97127549": "kalan çalıştırma, plan:",
+    "m3aacf07b35fc": "Aboneliği yönet",
+    "m480aee3b6717": "Web planları Stripe üzerinden faturalandırılır. Faturalama portalından istediğiniz zaman yönetin, yükseltin veya iptal edin. Mobil abonelikler satın aldığınız mağazadan yönetilir; değişiklikler buraya otomatik eşitlenir.",
+    "mc55a17a9d9c0": "Stripe aboneliği",
+    "mcceb0b8f209d": "Yönet",
+    "m03899b81220f": "Etkin değil",
+    "m659adfa80ad7": "App Store aboneliği",
+    "mcd435f3d6d13": "Mağazadan yönetilir",
+    "mf1b895df0335": "Google Play aboneliği",
+    "m8546b709215e": "Bu dönemin kullanımı",
+    "m809b2c4b9c83": "BL",
+    "m7f0fab417f12": "Blog",
+    "md62a43742980": "Özellikler",
+    "ma5bac859b488": "Fiyatlandırma",
+    "m2fbc11c34f42": "Giriş yap",
+    "m06d5d3008573": "Uygulamayı aç",
+    "m85d560055d11": "Atölye günlüğü",
+    "ma31c879fbf4a": "okuma",
+    "mf4e7ef98e64a": "Zaten çalıştırdığınız ajanları yönetin.",
+    "mb9f5c53ce5bb": "Kendi sağlayıcı anahtarlarınızı veya yapılandırılmış yerel yolu kullanın. Çıkarım dahil değildir.",
+    "mfa5d21d1d88a": "Atölye günlüğünden diğer yazılar",
+    "md72e42595829": "Blog",
+    "m7c191fd9ab30": "Giriş yap",
+    "m723a4ca0b041": "Uygulamayı aç",
+    "md37709c384c4": "Atölye günlüğü",
+    "m183ea0c3acf0": "Notlar,",
+    "m3ec12db3060f": "harekât odasından.",
+    "m727eff92c28d": "Ajanları yönetmek üzerine: kontrol, hareket özgürlüğü, gizlilik ve özerkliği yönetme zanaatı.",
+    "mbf6597c4877d": "Öne çıkan",
+    "m67a924d25b13": "okuma",
+    "med3811fc0067": "Zaten çalıştırdığınız yapay zekâ ajanlarını ve otomasyonları yönetin.",
+    "m09d06a4f3a17": "Ürün",
+    "m621f739bb1af": "Şirket",
+    "m2bc5accf38ff": "Yasal",
+    "m46e01d124058": "© 2026 Braavolabs. Tüm hakları saklıdır.",
+    "m73b582c8d1ab": "BL",
+    "maf32376bdf35": "Özellikler",
+    "m89ea286c8147": "Fiyatlandırma",
+    "mdcad451eaa8b": "Entegrasyonlar",
+    "m000db379830b": "Sürüm Notları",
+    "mf6a8a22d3745": "Blog",
+    "mf0c7cea418fa": "Uygulamayı aç",
+    "mc233f3d5475f": "Her parça,",
+    "m201fb23bec45": "yerine oturdu.",
+    "m7af9fcb2eb00": "Ürettiklerimiz, düzelttiklerimiz ve değiştirdiklerimiz.",
+    "mb029bf94b9cb": "En son",
+    "m33b2dcf5a00e": "Duraklat",
+    "m4aff80e9ddd2": "Arşiv",
+    "mf40b55b5a17f": "ajan:",
+    "ma170cc9e0b0b": "SİSTEM İSTEMİ",
+    "m313ead484eac": "varsayılan",
+    "m081fc0171fee": "Aday",
+    "m1d156cc858d3": "Onaylandı",
+    "mf1cc2bc9a8a0": "Henüz onaylanmış hafıza yok",
+    "m564fb4aee15b": "Kullanımdan kaldırıldı",
+    "m307ccca51ae0": "Kullanımdan kaldırılmış öğe yok",
+    "m50890a43f31f": "Canlı",
+    "md1e06fe13cd7": "Duraklatıldı",
+    "mc46ba3b782c7": "Maliyet durdurma koruması etkin",
+    "md8ec6425984e": "bütçe",
+    "m6a7a58f3cdb0": "% tüketildi — çalıştırmanın duracağı tutar: $",
+    "mee5a1855dffe": "sizi bekliyor",
+    "m562397da1ad0": "akış sürüyor",
+    "m1d007a5d0353": "ms",
+    "m485cb3fc4e18": "Çalıştırma metadatası",
+    "m3c85b69d5453": "bütçeye kıyasla",
+    "m2fb2177fcf22": "bütçe $",
+    "mf09738cc6fac": "Zaman çizelgesi gezgini",
+    "md63109311e5c": "İzi dışa aktar",
+    "mc341c520640c": "Yönlendir · talimat ekle",
+    "m4180d6eb1e87": "Çalışma Alanları",
+    "mf854b0d01bb8": "Yeni",
+    "m2a1f8f8329c8": "Planı yükselt",
+    "m81541c4b81fd": "Bir fikirle başlayın",
+    "m98f5541fecce": "Bir başlangıç noktası seçin. Aşağıdaki özeti dolduralım, yapay zekâ size uyarlasın.",
+    "m84436181ca66": "Şablon kategorileri",
+    "me80b908371e2": "Tümü",
+    "md906ff092286": "Bu fikri kullan",
+    "m23e4368ad8b0": "veya aşağıya kendi fikrinizi yazın ↓",
+    "m6e641f0af509": "oluşturmak için ⌘↵",
+    "mdbc61703dd4c": "braavolabs",
+    "md81c07fc5237": "Çalışma alanı şartnamesi",
+    "mfba9134a6958": "temel",
+    "m335400734ad4": "Amiral şablon",
+    "m1c1ed0d6cba8": "Karşılaştır",
+    "m0e090d020bf6": "Giriş yap",
+    "m2b2ad5e6e9fc": "Uygulamayı aç",
+    "m65d72c621640": "Dürüst konumlandırma",
+    "mba9bd9de37dc": "Nerede uygunuz,",
+    "m50e9a7dcec3d": "nerede değiliz.",
+    "mf93fe81f65ba": "Braavolabs en büyük entegrasyon kataloğu olmaya çalışmaz. Zaten çalıştırdığınız ajanları ve otomasyonları",
+    "m1d1ed4cc0221": "yönetmeniz",
+    "m16c281eec9eb": "için tasarlandı: telefonunuzdan, çalıştırma devam ederken ve kendi anahtarlarınızla. İşte komşu iki kategoriyle, bizden üstün oldukları alanları da içeren dürüst bir karşılaştırma.",
+    "m7acc6a073df0": "Yetenek",
+    "m67969942145e": "Kimler için?",
+    "m8d6c9af2713e": "Kontrol, hareket özgürlüğü ve gizlilik entegrasyon kataloğunun büyüklüğünden önemliyse Braavolabs uygun tercihtir.",
+    "m22f7bc58c61d": "Sabit fiyat hesabını kendiniz görün.",
+    "mbf3573b0a3d0": "Maliyet hesaplayıcımızla öngörülebilir sabit fiyatı görev başına ücretlendirmeyle karşılaştırın.",
+    "m24543c9280b1": "Maliyet hesaplayıcı",
+    "m2b56df60312a": "Kayıtlı adımları, mevcut maliyet verilerini ve bekleyen operatör kararlarını inceleyin.",
+    "m9895a6463bc7": "Zaten çalıştırdığınız yapay zekâ ajanlarını ve otomasyonları yönetin.",
+    "mfb1404813b60": "Ürün",
+    "mca345aad7aa1": "Şirket",
+    "m5bed3a4a7338": "Yasal",
+    "m8e359b1c68e3": "© 2026 Braavolabs. Tüm hakları saklıdır.",
+    "m3e5ecf19f202": "Otomasyon merkezi",
+    "mb9d0451321be": "Kapat",
+    "m8b4a9a98583e": "Yeni otomasyon bağla",
+    "m80ef56a7089f": "Birleşik yürütmeler",
+    "ma9b5c84ca346": "yerleşik + harici · tek zaman çizelgesi",
+    "m8bd444807a52": "olay",
+    "md8e91797972c": "tür",
+    "m826036148049": "harici",
+    "m1a1faaa5e7fc": "Yürütmeleri burada görmek için bir bağlantıyı genişletin.",
+    "m23715cc46e18": "Kapat",
+    "ma6abe31754db": "BL",
+    "m2b4a9f22ba8d": "Zaten çalıştırdığınız yapay zekâ ajanlarını ve otomasyonları yönetin.",
+    "md69e46192627": "Ürün",
+    "m6d80848fe489": "Şirket",
+    "m0fb85ef7ffda": "Hakkımızda",
+    "m260fed5ac47c": "Blog",
+    "m3a006e3e0878": "Durum",
+    "md2c8631b73dd": "Yasal",
+    "mf2c79d7c83e6": "Fiyatlandırma",
+    "m3aaa432f7378": "Uygulamayı aç",
+    "m9680189524a4": "Fiyat önizlemesi — henüz satın alınamaz",
+    "m58ba90a040a3": "Planlanan abonelik fiyatları",
+    "mfdf38497de3a": "Faturalama geçişi hâlâ geliştirme aşamasında. Bu sayfa ödenebilir bir teklif hesaplamaz veya satın alma başlatmaz. Planlanan katalog yalnızca Individual ve Team içerir.",
+    "m0a048a01849e": "Planlanan planlar",
+    "m865128d3e4d4": "Planlanan plan",
+    "m4d17edf4bcc6": "Çıkarım maliyeti bildirimi",
+    "m17a77e8ea42f": "Çıkarım dahil değildir",
+    "m52f120c3db8b": "Model kullanımı, BYOK ile yapılandırdığınız sağlayıcıya ödenir veya kendi yerel model yolunuzda çalışır. Braavolabs şu anda bu planlanan abonelikleri satışa sunmuyor.",
+    "me587bca8ef51": "Etkin çalıştırmalar",
+    "m975cf8ab658e": "Çalıştırma başarı oranı",
+    "m1ca31645c880": "Etkinlik",
+    "m9f12c64beaa6": "braavolabs.com · canlı denetim izi",
+    "maacbbd2ffeb8": "Tümünü gör →",
+    "mef4047de09c7": "Son çalıştırmalar",
+    "m9332d1be8fe2": "İş hattı",
+    "m098593629f8e": "Şirket",
+    "m286c98c9029c": "Durum",
+    "m207013f4c387": "Başlangıç",
+    "md1d31b068fc2": "Adımlar",
+    "m701b95d1d46a": "Harcama",
+    "m4d36fe121a92": "Bu filtrede henüz çalıştırma yok.",
+    "m97fa546fb5a7": "Yakın zamanda etkinlik yok.",
+    "mc9b9115552be": "bekliyor",
+    "m7fd8a8fd26df": "Onay gerekli",
+    "meffd0c9f293a": "Reddet",
+    "m8961771af3a1": "Etkin risk yok",
+    "m11064e50fa7c": "yeni",
+    "m3c3e08c03c30": "Risk olayı",
+    "me5c88f2a2ff0": "şimdi",
+    "mb34c85aff53f": "Özellikler",
+    "m85a856ab28be": "Fiyatlandırma",
+    "mdd91fe0b7fc0": "Blog",
+    "m6179659c73b9": "Belgeler",
+    "m35127686df60": "Giriş yap",
+    "m5b83c05ccb0c": "Uygulamayı aç",
+    "mcb951cf4a4d3": "Belgeler",
+    "m0c14fdc4a1c6": "Kılavuz",
+    "m6c77f98962d7": "Bu sayfada",
+    "m074fdba85cf1": "← ÖNCEKİ",
+    "m1388671ac3bc": "SONRAKİ →",
+    "m90aeded95734": "Zaten çalıştırdığınız ajanları yönetin.",
+    "mf8873bd65493": "Fiyatlar önizleme amaçlıdır ve şu anda satın alınamaz. Çıkarım dahil değildir.",
+    "m906152f47b4f": "Zaten çalıştırdığınız yapay zekâ ajanlarını ve otomasyonları yönetin.",
+    "m1ec39ca165b6": "Ürün",
+    "mbb3043a7f2cf": "Sürüm Notları",
+    "m50200f20c520": "Kaynaklar",
+    "m35fa61443236": "Destek",
+    "m6ea06edad850": "Şirket",
+    "m7f7a851ede21": "Hakkımızda",
+    "mebaef44626be": "İletişim",
+    "m07c7e04fadf1": "Durum",
+    "m7375dacc55cd": "© 2026 Braavolabs. Tüm hakları saklıdır.",
+    "m818b2a78eb90": "Özellikler",
+    "m4cc1f3608ddc": "Fiyatlandırma",
+    "mf6823057de7d": "Blog",
+    "m87eedb771754": "Belgeler",
+    "mda5526776bb1": "Giriş yap",
+    "md725474be468": "Uygulamayı aç",
+    "m5aac6b035a43": "Kılavuz",
+    "mc85715c7a4bb": "Belgeler",
+    "m8f52d8cc2d59": "Özerk bir yapay zekâ şirketi oluşturma, çalıştırma ve yönetme: ilk çalıştırmadan webhook'lara, yapılandırılmış yerel model yollarına ve telefondan ajan yönlendirmeye kadar.",
+    "m20c340bf69ae": "Başlangıç",
+    "m602cdfb50800": "Temel kavramlar",
+    "m9a896a6ca8c2": "Sık sorulan sorular",
+    "md4293b1a891b": "Oku",
+    "mfa2b75fcfa90": "Zaten çalıştırdığınız yapay zekâ ajanlarını ve otomasyonları yönetin.",
+    "mc06c8b9bd590": "Ürün",
+    "m9e4e062300ce": "Sürüm Notları",
+    "mdc663d5d4765": "Kaynaklar",
+    "m698bc6e3f89e": "Destek",
+    "m975952c059f7": "Şirket",
+    "mad1ae8839ed9": "Hakkımızda",
+    "m8d136db7d880": "İletişim",
+    "m2b43eb3b2c10": "Durum",
+    "m22d2dde46b20": "© 2026 Braavolabs. Tüm hakları saklıdır.",
+    "m86006890323f": "İçerik incelemesi",
+    "mfd976ba1eea0": "Taslak",
+    "m76d027d04e32": "Bir şeyler ters gitti",
+    "me06887989706": "Destek için hata referansı",
+    "mc3fca6aef955": "Referans:",
+    "m28a812f120c3": "Yeniden dene",
+    "m795836a1d4b2": "Bu hata sürüyor. Lütfen ana sayfaya dönüp yeniden deneyin.",
+    "meda5eea8ae48": "Ana sayfaya dön",
+    "mccfb38fd1109": "Destekle iletişime geç",
+    "m41749f8a6958": "Yönetişim",
+    "m12cc6cbe8456": "Fiyatlandırma",
+    "md2d886d00f8d": "Giriş yap",
+    "m5622cdb1d573": "Kaydol",
+    "mb92a5ff6a3f6": "Ürün sözleşmesi",
+    "md8d7b7db0cdd": "Çalıştır. Yönet. Kanıtla.",
+    "m5c19d5d0e672": "Braavolabs, sağlayıcılar arası bir yapay zekâ çalışma tezgâhı ve kontrol düzlemidir. Aynı sözleşme; yerel yürütmeyi açık siteye taşımadan masaüstü, CLI, mobil onay ve kimlik doğrulanmış bulut kontrolünü kapsar.",
+    "md530d8e09e2a": "Private Mode — önizleme",
+    "mc015473cee7b": "Tam veri işleme ve güvenlik sözleşmesi geliştirme aşamasındadır; genel kullanıma hazır olarak sunulmaz.",
+    "m99e52a77109d": "Cloud Agent Mode — geliştirme aşamasında",
+    "m4be5a94fd7e3": "Yürütme, rıza ve saklama sözleşmesi genel kullanıma hazır olarak sunulmaz.",
+    "m538495414df0": "İmzalı kanıt — geliştirme aşamasında",
+    "m283b1bddd62f": "Çevrimdışı doğrulanabilir paket iddiaları, ilgili görev kabul edilene kadar kapalı kalır.",
+    "mc7577ef44a73": "Holding — premium/özel önizleme",
+    "mf457eb5a3ed1": "Kalıcı ajan paketlemesi ayrı tutulur ve varsayılan olarak kapalıdır.",
+    "m9f5b1afe44a4": "Uygulamayı aç",
+    "m3129e7d997e9": "Belgeleri oku",
+    "mba4fd1fab967": "İçe aktar",
+    "mf0ec3cddfcdf": "Ara",
+    "m941a8cfd363d": "JH",
+    "mcb7a05a63f11": "Entegrasyonlar",
+    "m63618f411d28": "Adım 1",
+    "m28a453e700bf": "Dışa aktarımınızı yapıştırın",
+    "m6178c5d299b7": "Platformu seçin, ardından iş akışı JSON'unu yapıştırın veya bir dosya bırakın.",
+    "mcb314139cd6e": "veya .json dışa aktarım dosyasını buraya bırakın",
+    "mf22bc005eae8": "Adım 2",
+    "mf59ae985ca8a": "Önizle ve eşleştir",
+    "mb29543f91292": "Ayrıştırılan",
+    "mf481a5ad1169": "adım. Her birini bir Braavolabs adım türüyle eşleştirin.",
+    "m8a14bed991c3": "Tetikle",
+    "mee753e5a87a2": "Araç çağrısı",
+    "m916a2a45d141": "Dal",
+    "meab0461369b0": "Ajan",
+    "m55cf3f3ed970": "Çıktı",
+    "mef364fe09b40": "Geri",
+    "m8e0f9ab16dab": "İçe aktarımdan iş hattı oluşturuluyor…",
+    "mcdc0a303cb6e": "İçe aktarıldı",
+    "m358866c978a7": "Oluşturucuda aç",
+    "mc35120dcdc60": "Başka bir dosya aktar",
+    "m1d31c122563e": "Bağlantılar",
+    "m519d2f226020": "Mevcut otomasyonu içe aktar",
+    "m56994963473b": "n8n, Make veya Zapier dışa aktarımı getirin; bir iş hattına dönüştürelim.",
+    "m48f6463ee542": "İçe aktar",
+    "m760104947f15": "Özellikler",
+    "m69d527a460e7": "Fiyatlandırma",
+    "mb2399da1a08c": "Hakkımızda",
+    "me140e826ba9c": "Giriş yap",
+    "m471494a678dc": "İstekler için iletişim",
+    "md16b7b8e76f6": "KVKK kapsamındaki istekler için iletişim:",
+    "md2e44bfde665": "adresine yazabilirsiniz.",
+    "m8c04ee5bf3f2": "Zaten çalıştırdığınız yapay zekâ ajanlarını ve otomasyonları yönetin.",
+    "ma0eb87bbeb56": "Ürün",
+    "mc051ae69c4ff": "Sürüm Notları",
+    "m3977aafcc314": "Şirket",
+    "mf519587a824a": "Blog",
+    "m46ce898e63fc": "İletişim",
+    "med3b20e61c41": "Braavolabs'tan hesabınızı ve ilişkili kişisel verilerinizi silmesini isteyebilirsiniz. Mevcut açık başvuru kanalı e-postadır. Bu kanal hesap sahipliğini doğrulamamızı ve talebi yazılı olarak teyit etmemizi sağlar.",
+    "m1b2db4796a78": "Hesabınızla ilişkili e-posta adresinden şu adrese mesaj gönderin:",
+    "m442ce29a97e5": "Konu:",
+    "m3142da1ab41a": "“Account deletion request”",
+    "mc804e0a279e5": ". Hesap e-postasını veya kullanıcı adını ekleyin; ancak asla parola, API anahtarı, erişim tokenı veya ödeme kimlik bilgisi göndermeyin.",
+    "m38ad53145e92": "Hesabı kontrol ettiğinizi doğrulamak için ek bilgi isteyebiliriz. Talebi doğrulanmış e-posta kanalı üzerinden teyit eder ve durumunu bildiririz. Geçerli yasal yanıt süreleri uygulanmaya devam eder; bu sayfa otomatik tamamlanma süresi taahhüt etmez.",
+    "m29f4515a2181": "Braavolabs şu anda ayrı bir silme formu yayımlamaz veya bu açık sitede uygulama içi silme kontrolü taahhüt etmez. Talebin kaybolmaması veya ilgisiz bir iletişim konusuna gönderilmemesi için yukarıdaki doğrulanmış e-posta kanalını kullanın.",
+    "mee9120dd9911": "Silme kapsamı, doğrulanmış başvuru sahibiyle ilişkili hesap kayıtlarına bağlıdır. Kapsamı inceler, hukuken silinemeyen kayıtlar dahil sonucu yazılı olarak teyit ederiz.",
+    "m0a13dcea737c": "Doğrulanmış taleple ilişkili hesap kimliği ve profil kayıtları",
+    "m3dd748c0c124": "Geçerli hizmet ve yasal yükümlülükler kapsamında silinmeye uygun, kiracı kapsamındaki içerik",
+    "m67b7fbf8d86d": "Teknik ve hukuki olarak uygun olduğunda hesapla ilişkili etkin kimlik bilgileri ve oturumlar",
+    "m292e9193635f": "Bazı kayıtların vergi, muhasebe, uyuşmazlık, dolandırıcılığı önleme veya diğer yasal yükümlülükler için saklanması gerekebilir. Geçerli kategoriler ve süreler mevcut dağıtıma, sağlayıcı sözleşmelerine ve yargı alanına bağlıdır. Burada sabit bir genel takvim taahhüt etmek yerine doğrulanmış talep için bildirilir.",
+    "m3acb87ce044a": "Geçerli vergi, muhasebe veya düzenleyici mevzuat gereği saklamamız gereken kayıtlar",
+    "m9956d26e8534": "Talebi, doğrulamayı ve kanunen gerekli yanıtı belgelemek için gereken kayıtlar",
+    "m665793086a11": "Geçerli bir hukuki saklama yükümlülüğüne veya sonuçlanmamış uyuşmazlığa konu veriler",
+    "m764489556bb6": "Doğrulanmış talepleri geçerli hukukun gerektirdiği yanıt süreleri içinde işler, doğrulanmış e-posta kanalı üzerinden durum bilgisi veririz. Doğrulama gereksinimleri, hukuki saklama kararları ve yasal saklama yükümlülükleri tamamlanmayı etkileyebilir. Geçerli kısıtlamalar yazılı olarak açıklanır.",
+    "mc3704343f072": "Hesap silme talebi ve abonelik iptali ayrı işlemlerdir. Hesabınızın faturalamasıyla ilgili sorunuz varsa şu adrese yazın:",
+    "m262a258637ac": "; burada mağaza veya uygulama içi bir akış iddia etmeden, şu anda desteklenen kanalı belirleyelim.",
+    "mb2c239031d04": "Süreç, saklama kuralları veya silmenin tamamlandığını doğrulama hakkında sorularınız için:",
+    "mcf0d0c778c1f": ". Daha geniş veri hakları (erişim, taşınabilirlik, düzeltme) için şu belgeye bakın:",
+    "m29492eb1f9b7": "GDPR Bildirimi",
+    "m79a0490687e1": "ve",
+    "mf75327b3ab03": "KVKK gizlilik bilgilendirmesi önizlemesi",
+    "m3b525be54f32": "Hesap ve veri silme",
+    "m22af538371f7": "Hesabınızı silmeye hazır mısınız?",
+    "mb5f06ea86d5e": "Talebi hesabınızla ilişkili e-posta adresinden gönderin.",
+    "m7bc799542df6": "Bize e-posta gönderin",
+    "m50591bb45e1e": "Braavolabs.",
+    "m7801df791ac5": "Apple",
+    "m3e059886391a": "Google",
+    "m75ecaff6a037": "GitHub",
+    "ma642566b6fb9": "(isteğe bağlı)",
+    "mb10483661821": "Sayfa bulunamadı",
+    "m30a00b02a74d": "Aradığınız sayfa yok veya taşınmış.",
+    "md182a885158e": "Ana sayfaya dön",
+    "m2aec28552db3": "Gösterge paneli",
+    "m2e3db7ae4d51": "çalışma alanı oluşturuldu",
+    "mdb69aaf1266a": "Kurulumu atla →",
+    "m0ca91d4cf0f5": "1. adım / toplam",
+    "mf74a68f418e0": "2. adım / toplam",
+    "m38c2aea0c076": "3. adım / toplam",
+    "m4cab4d533f77": "4. adım / toplam",
+    "m6c1c3f135744": "5. adım / toplam",
+    "me9694a186010": "Individual —",
+    "m032b7cca868a": "Team —",
+    "m37d5c6a2c645": "© 2026 Braavolabs",
+    "m4c15cd976fb7": "Adım türleri · sürükleyip ekleyin",
+    "ma71448498846": "Denetçi",
+    "mc0068fffc436": "Adım denetçisi",
+    "m73f2d28a8195": "Yapılandırmak için tuvalde bir adım seçin.",
+    "me279e93feaa2": "Kapat",
+    "md076a8cff280": "Pipeline'lar",
+    "m33a8b197a5dc": "adım",
+    "m6c64bc8fd052": "Yapay zekâ oluşturucu",
+    "m7b2727efa311": "Kapat",
+    "m527dc6c48fc1": "Çalışma alanınızı",
+    "m5d499d7bb383": "oluşturun,",
+    "mc963b2a55c65": "dakikalar içinde",
+    "m0ffcb934d4d3": "Braavolabs. Tüm hakları saklıdır.",
+    "m4c3d039eeb89": "Ücretsiz plan",
+    "mb9d9f6052c15": "Google",
+    "m2d8843cd30de": "GitHub",
+    "m3f79055b06f5": "Güç —",
+    "m42d9b00b4a1c": "Şunları kabul ediyorum:",
+    "m03dd13603177": "Şartlar",
+    "m16a48ada2404": "ve",
+    "med9bdddaf801": "Gizlilik Politikası",
+    "mddad425a8476": "Zaten hesabın var mı?",
+    "m99b3ce884164": "(isteğe bağlı)",
+    "mfac2ec3661ab": "Braavolabs amblemi",
+    "m147a465a4bab": "Yeni bir",
+    "m8f3667a853a6": "anahtar oluşturun",
+    "m5a9acd6bb595": "harekât odanıza.",
+    "m07683a6b25da": "Parola sıfırlama",
+    "m324fa44bdbfe": "E-posta adresinizi girin, sıfırlama bağlantısı gönderelim.",
+    "m1d7390708d7e": "Gönderiliyor…",
+    "mf28e1b2646a8": "Sıfırlama bağlantısı gönder",
+    "m05680974f084": "Yeni parola belirleyin",
+    "ma6ae80e38b9d": "Parolayı doğrulayın",
+    "m39a7ff600af8": "Parola oluşturuldu",
+    "mf83f38e42411": "Giriş yap",
+    "m94c28a73da37": "YÖNETİŞİM",
+    "m9d899093d41e": "Okudum, anladım",
+    "m9ce742313269": "Geri Al",
+    "mc191d4f884e6": "Yeniden çalıştır",
+    "mb9b248228c25": "Maliyet ısı haritası",
+    "md4fdc87efd1b": "Çalıştırma metadatası",
+    "ma3d0dc878de8": "Çalıştırma kimliği",
+    "m83d38e678178": "İş hattı",
+    "m89200cc22850": "Adımlar",
+    "ma8322509bd8f": "Onaylar",
+    "m1eadff0f7d6b": "Süre",
+    "m8905a490325a": "Zaman çizelgesi gezgini",
+    "m1dbbdb0c26b5": "İzi dışa aktar",
+    "mcf98748ad579": "akış sürüyor",
+    "mc3041e2d2f2b": "adım",
+    "m2c81a45dc959": "Yönlendir · talimat ekle",
+    "m6ef14dc92d42": "Ajanın sonraki turuna talimat ekleyin… (ör. “yalnızca 50'den fazla çalışanı olan şirketlerle iletişime geç”)",
+    "m597ddeea5d27": "Yönlendir",
+    "me5d0d8e26c92": "Çalıştırma ara…",
+    "m6519c809652c": "Belgeler",
+    "ma280e8530c88": "Giriş yap",
+    "m0c1bf711335e": "Kaydol",
+    "m0b84272e0b38": "Güvenlik ve güven",
+    "m2708222253e6": "Sınırlar, açıkça.",
+    "mf6cd2e305a08": "Açık güvenlik metni, ürünün test edebildiği sözleşmelerle sınırlıdır. Yol haritası bu şekilde etiketlenir; yayın iddiaları kabul edilmiş kanıtı bekler.",
+    "m87d3344f51c0": "Private Mode — önizleme",
+    "m7ed0edec682e": "Tam veri işleme ve güvenlik sözleşmesi geliştirme aşamasındadır; genel kullanıma hazır olarak sunulmaz.",
+    "me5d088788752": "Cloud Agent Mode — geliştirme aşamasında",
+    "m6e5d8b8e7120": "Yürütme, rıza ve saklama sözleşmesi genel kullanıma hazır olarak sunulmaz.",
+    "m82cfde8eb7cd": "İmzalı kanıt — geliştirme aşamasında",
+    "mc63ed84605c0": "İlgili sözleşme uygulanıp kabul edilene kadar etkinlik kayıtları, çevrimdışı doğrulanabilir imzalı kanıt paketi olarak sunulmaz.",
+    "m16ca86ca2649": "Uygulamayı aç",
+    "m7945cffa32f0": "Güvenlik sorunu bildirin",
+    "m58a52b30df2b": "İçerik yolu",
+    "m17301d36c0f7": "Ayarlar",
+    "m04575c3aa05d": "Sağlayıcı uç noktası",
+    "m4ac81f8d693d": "Yönlendirme ve kapsamlar",
+    "m0980004c67c1": "acme.com, acme-contractors.com",
+    "m3af0642101f2": "Alan adınız için SSO girişi etkin.",
+    "m59f31e9a773e": "SSO girişi duraklatıldı. Kullanıcılar parola doğrulamasına döner.",
+    "m1324795a7aa8": "Kaydediliyor…",
+    "m17cc90014b3e": "Canlı önizleme",
+    "m90bd8874ada5": "OIDC yapılandırması ·",
+    "m1995887ad355": "yapılandırıldı",
+    "mb5610055f059": "ayarlanmadı",
+    "ma388b35eeee6": "✓ ayarlandı",
+    "m1be41d5fc4dd": "SSO etkin. Kullanıcılar kimlik sağlayıcınız üzerinden giriş yapabilir",
+    "m5eb5faa6cbf5": "SSO yapılandırıldı ancak etkin değil",
+    "m9a52affa6218": "SSO sağlayıcısı yapılandırılmadı",
+    "m99463116beca": "Geri dönüş URL'si",
+    "mc5038b20a0d6": "Bu yönlendirme URI'sini kimlik sağlayıcınıza kaydedin:",
+    "m4f8f4a6029d8": "Panoya kopyala",
+    "m5722bcfa7400": "Kurumsal SSO",
+    "m1e939b7b4cbc": "Kurumsal kimlik sağlayıcınızla (Azure AD, Okta, Auth0, Google Workspace) girişi zorunlu kılın. İzinli alan adlarındaki kullanıcılar otomatik olarak kimlik sağlayıcınıza yönlendirilir.",
+    "m239b7819863d": "Ayarlar",
+    "m82be07e8418a": "Yapılandırma",
+    "m4c903bb74ed9": "Profil, çalışma alanı, dil ve bildirimler.",
+    "m2255caa19025": "Tehlikeli işlemler",
+    "m251011545863": "Ayşe Yılmaz",
+    "m7f8ad1ba2dfe": "Kritik",
+    "m5836e3f6f284": "Planı",
+    "m70d993f4aae7": "Tool Çağrıları",
+    "m81a36cd86bb2": "Özel",
+    "m70488646d660": "Sınırsız çalışma alanı",
+    "mc6572473d51f": "Sınırsız çalıştırma",
+    "m18629becb717": "Sınırsız bağlı otomasyon",
+    "m9d2f4b435f53": "Mevcut",
+    "m55b34f1cdcf3": "Satış ekibiyle iletişime geçin",
+    "m245c12189d91": "Yükselt",
+    "mca4ac26863e8": "Şirket",
+    "md734f81167bd": "Entegrasyonlar yükleniyor…",
+    "m0530d4879653": "Kurulum kılavuzu",
+    "m2c575197fbcf": "(kaydedildi)",
+    "m2f159920cfcf": "Bağlantıyı Test Et",
+    "m5d0a3ab02ef8": "Kaldır",
+    "mf1fd0aaf6045": "Sağlayıcı",
+    "m9583131210fc": "Kendi sunucunuzdaki sağlayıcı — donanımınızda çalışır",
+    "m4cb1ce4d7ccb": "Model",
+    "md100640b1368": "(yerel sunucunuzun yüklediği bir etiketi yazın)",
+    "mdfe713d713c5": "gemma3:4b",
+    "ma9ef66d953f7": "(isteğe bağlı proxy adresi)",
+    "m03032587881b": "gerekli",
+    "m59f3ac725629": "Varsayılan:",
+    "m0b1070b5d324": "API Anahtarı",
+    "mdd0a21379699": "(isteğe bağlı)",
+    "m9bf0b94f3d0d": "Uç noktanız için isteğe bağlı kimlik doğrulama tokenı",
+    "m6f1791e21588": "Önce sağlayıcıyı API anahtarıyla kaydedin",
+    "m5ae1c6a8e4c6": "Nasıl çalışır?",
+    "m350c849d3a6f": "API ve Kimlik",
+    "m41c85b6bacc7": "Kimlik bilgileriniz ve erişim tokenlarınız",
+    "m995515c1ae9f": "Kiracı kimliği",
+    "mf516b06d11bf": "Kopyala",
+    "m0e13854c1b01": "Oturum tokenı",
+    "maddc6b1a8edb": "Webhook'lar ve API anahtarları",
+    "m85f417bbfec5": "Şirketlerinizin webhook uç noktalarını ve API erişimini yönetin",
+    "mfee4f2dabe8d": "Gelen webhook'lar",
+    "m684490cc61e5": "Harici servisler webhook uç noktalarınıza POST isteği göndererek iş hattı çalıştırmalarını tetikleyebilir.",
+    "m6665da29a7e3": "Uç nokta biçimi",
+    "mfd15b81d8cf9": "Şunu değiştirin:",
+    "m0a04f470671e": "yerine şirketinizin kısa adını ve",
+    "mfcbffc247eb8": "yerine olay adını yazın.",
+    "m63afb9032824": "API erişimi",
+    "m4b6ee96c2cfc": "Bu tokenı API isteklerinde Bearer kimlik doğrulaması için kullanın. Tokenların süresi oturum sona erdiğinde dolar.",
+    "me55571b3240f": "Yaygın olaylar",
+    "m13a00239ea2d": "URL'yi kopyala",
+    "mef57c1e54f93": "Webhook'unuzu test edin",
+    "m0f7b30dc841a": "Davet programı",
+    "mb7cd3f777bef": "Kodunuzu paylaşın. Siz ve arkadaşınız beşer ek çalıştırma kazanın",
+    "m5c91a47132b9": "Kodunuz",
+    "m724c36053cc8": "Kod kullan",
+    "m0a34e3a598e6": "Kullan",
+    "mc12fbd6e7a20": "Yükleniyor...",
+    "mcde607c76c72": "Geri alınamaz işlemler. Dikkatli ilerleyin.",
+    "m6efdb34e5814": "Her yerden çıkış yap",
+    "m9bb76ca4a794": "Tüm etkin oturumları sonlandır",
+    "m9bdeb5968503": "Çıkış yap",
+    "m7775a95698f6": "Çalışma alanını sil",
+    "me7ec08fd87b4": "Tüm çalıştırmaları ve verileri kalıcı olarak kaldır",
+    "mb3ebf6fede5b": "Sil",
+    "mef4c40cb137f": "Vazgeç",
+    "m25f762b46741": "✓ Kaydedildi",
+    "m8c8adacdb1db": "Değişiklikleri kaydet",
+    "m0ce1f02a34d4": "Değişiklikler kaydedildi!",
+    "m20bb133b046a": "Sistem durumu",
+    "ma8e7dcac27dd": "otomatik yenileme · 60 sn",
+    "m6391d95c11d5": "GET /api/v1/health · tarayıcınızdan canlı kontrol",
+    "m064d3ea1b787": "şu anda bu sayfayı sunuyor",
+    "m8b59895f3ed7": "İlk kontrol yapılıyor…",
+    "m9f956da25b83": "Bu sayfa yalnızca canlı sağlık kontrolünü yansıtır. Henüz çalışma süresi yüzdesi veya olay zaman çizelgesi yayımlamıyoruz. Geçmiş çalışma süresi takibi yol haritasında; uydurma sayılar göstermektense boş bırakmayı tercih ediyoruz.",
+    "m4cb64ff7172c": "Zaten çalıştırdığınız yapay zekâ ajanlarını ve otomasyonları yönetin.",
+    "m8a200d2fa01b": "Ürün",
+    "mf293e311adbd": "Şirket",
+    "me036901f0c5c": "Yasal",
+    "m89dc05ffd2b2": "iletişim formunu",
+    "m083a2705391c": "e-posta uygulamanızda taslak hazırlamak için kullanabilirsiniz. O uygulamadan gönderin; teslimat burada doğrulanmaz.",
+    "m366977224408": "Faturalama ve abonelikler",
+    "m8cb8b49fe281": "Gizlilik ve veri hakları",
+    "m771454b72f87": "Güvenlik bildirimleri",
+    "m97ffe5296db2": "Mobil abonelikler bizim tarafımızdan değil Apple veya Google tarafından faturalandırılır ve iptal edilene kadar otomatik yenilenir. Görüntülemek, değiştirmek veya iptal etmek için iOS'ta şurayı açın:",
+    "m1fc91bf085eb": "Ayarlar → adınız → Abonelikler",
+    "md62504ec7e39": "; Android'de şurayı açın:",
+    "mb71b1e7e1c1e": "Google Play → Profil → Ödemeler ve abonelikler",
+    "m9ad3281dcc2d": ". Mağaza satın alımlarının iadeleri Apple (reportaproblem.apple.com) veya Google Play tarafından kendi politikalarına göre işlenir. Takılırsanız bize e-posta gönderin, yardımcı olalım. Stripe ile faturalandırılan web abonelikleri şu bölümden yönetilebilir:",
+    "m9b8015792921": "Ayarlar → Faturalama",
+    "mfa4b446e8ff6": "uygulama içinde.",
+    "mdb4dc1cc9096": "Braavolabs hangi yapay zekâ sağlayıcılarını kullanır?",
+    "ma6211b5db44c": "Çalıştırma geçmişi, mevcut olduğunda kayıtlı etkinlikleri gösterir. Yardım isterken ilgili çalıştırmanın referansını ekleyin.",
+    "m8e6535637cb8": "İş hattım neden duraklatıldı?",
+    "me8234ddd08d0": "Hesabımı nasıl silerim?",
+    "m301aee668176": "Hesap silme sayfasını kullanarak e-posta ile hesabınızın silinmesini isteyin.",
+    "m981862dbff04": "hesap ve veri silme",
+    "m3cb779dfce49": "Platform çalışıyor mu?",
+    "m652cc7ed28eb": "durum sayfası",
+    "mb29ed7325631": "E-posta",
+    "mc878475dd7ed": "Beklediğiniz sonucu, gerçekte ne olduğunu ve yaklaşık zamanı yazın. Mobilde ekran görüntüsü ve uygulama sürümünü (şu bölümün altında gösterilir:",
+    "m3dbf7d618644": "Ayarlar",
+    "mb142b8b38188": ") eklemek yazışma süresini önemli ölçüde kısaltır.",
+    "ma16f308c1827": "Yazılı tüm taahhütlerimiz:",
+    "mf5be8b9e2a4f": "Gizlilik Politikası",
+    "m337507465f44": "Kullanım Koşulları",
+    "m7ba5c42d05d5": "GDPR Bildirimi",
+    "mc8d0aedb0025": "KVKK gizlilik bilgilendirmesi önizlemesi",
+    "m668b03bf599d": "ve",
+    "m7ec4811747eb": "süreci.",
+    "maf2d75b446d2": "Özellikler",
+    "mf11c295fe6b2": "Fiyatlandırma",
+    "ma046b81f5cad": "Hakkımızda",
+    "ma833a458dc85": "Giriş yap",
+    "mdc1d31161f04": "Uygulamayı aç",
+    "m0a40adc25a52": "Destek",
+    "mefb78ad514f6": "Nasıl yardımcı olabiliriz?",
+    "m0dff0c2e8740": "E-posta desteği",
+    "mdc8b49376a22": "İletişim formu",
+    "m5368a784c155": "Hizmet durumu",
+    "m57cd0c28916e": "Bu sayfada",
+    "m97e6379af81c": "Hâlâ takıldınız mı?",
+    "m4a375a6c78be": "Destek isteklerini belirtilen iletişim kanalı üzerinden gönderin. Burada yanıt süresi garantisi verilmez.",
+    "m69772795df01": "Zaten çalıştırdığınız yapay zekâ ajanlarını ve otomasyonları yönetin.",
+    "m691ce9b2c824": "Ürün",
+    "mb7d1cacaa4dc": "Sürüm Notları",
+    "m43dbdbcb4213": "Şirket",
+    "m0fb5d8aef58c": "Blog",
+    "md17c12c62307": "İletişim",
+    "m29dff0f6e658": "Yasal",
+    "mb8ffce79447d": "Gizlilik",
+    "mb295f0dd3165": "Şartlar",
+    "m61c5cf9b820b": "Braavolabs. Tüm hakları saklıdır.",
+    "mb8b061d2cc6c": "İlgili",
+    "m2c3d4c4c5cf0": "belgenin adresi:",
+    "m640f6714c57b": "braavolabs.com",
+    "m1a9415bc8fe7": "Braavolabs.",
+    "mc03e218a0c3c": "alınıyor",
+    "mc09be1de9eb2": "boşta",
+    "m67487c4d674f": "· henüz teslimat yok",
+    "m8f3eb54aeb83": "Kopyalandı ✓",
+    "m6e80efd48eb4": "Kopyala",
+    "m8e37387d42dc": "HMAC sırrı:",
+    "m33733931aae0": "Gizle",
+    "m313faf245f17": "Göster",
+    "m67501930af73": "Entegrasyonlar",
+    "m032825c952b0": "Webhook'lar",
+    "m8e07c14fe364": "Etkin uç noktalar",
+    "m070d79b59b0a": "Uç noktalarınız yükleniyor…",
+    "m621423f8719e": "Her çalışma alanına imzalı bir ortak alım uç noktası verilir. Adresi:",
+    "mab1707b54d07": ". Olayları almaya başlamak için ilk çalışma alanınızı oluşturun.",
+    "m0e54282c3be1": "Çalışma alanı oluştur",
+    "ma06584ff70f2": "Örnek imzalı istek",
+    "m60e512a99f97": "POST · HMAC-SHA256 imzası",
+    "me0038ce40084": "İçerik yolu",
+    "m0fb6cbe7ed77": "Kurulum ilerlemesi",
+    "m33f7619295f7": "tamamlandı",
+    "m2475c8fc32c3": "Başlangıç",
+    "m048d6635729b": "Kapat",
+    "m33e5e43f1ffc": "/ toplam",
+    "m1b874306cc1d": "tamamlandı",
+    "m04d02f71794f": "çevrimiçi",
+    "md09f1084ca66": "Çalıştırma adımlarının maliyet ısı haritası",
+    "md157b491332a": "Adım ısı haritası ·",
+    "m4f7017581fe7": "adım",
+    "m1bfba96b1e61": "Harcama dağılımı",
+    "m454e25940ea0": "Toplam:",
+    "m926c7bc3cb4e": "Renk ölçütü",
+    "m7962e0ef9564": "Maliyet",
+    "maca226308ff4": "Süre",
+    "m82891b0c7c6e": "tepe",
+    "mcff790642459": "Adım",
+    "m91c4b9a9a975": "Adsız",
+    "m671caa428e4c": "bekliyor",
+    "mdde548bb2e5e": "maliyet:",
+    "ma4f2af79632e": "süre:",
+    "m946e0fce8ef2": "araçlar:",
+    "m42e92aa8ff4c": "ajan:",
+    "m71160bc18aec": "Bu adıma gitmek için tıklayın ↓",
+    "m85e4a839e0c6": "← adım 1",
+    "m8a413bb66127": "düşük",
+    "m66114b892e7f": "yüksek",
+    "ma770817c8ec3": "KURULUM",
+    "maa31d4cc5e14": "Son 14 gündeki günlük harcama",
+    "m0de88f4db3d7": "Hızlı başlangıç",
+    "mf6e156140dd9": "Oluşturuluyor…",
+    "m454ee6911d47": "veya aşağıya kendi fikrinizi yazın ↓",
+    "m71c9ffc415a0": "Bildirimi kapat",
+    "m7b55bcf0daed": "API anahtarı ekle",
+    "m6a6c1557497e": "Kapat"
+  },
+  "content": {
+    "docCategories": {
+      "start": "Buradan başlayın",
+      "concepts": "Kavramlar",
+      "reference": "Başvuru"
+    },
+    "blogCategories": {
+      "all": "Tümü",
+      "product": "Ürün",
+      "engineering": "Mühendislik",
+      "governance": "Yönetişim",
+      "fieldNotes": "Saha notları"
+    },
+    "docs": {
+      "getting-started": {
+        "title": "Başlangıç",
+        "nav": "Başlangıç",
+        "desc": "Bir çalışma alanı oluşturun, iş hattını inceleyin ve model ile veri tercihlerini açıkça belirleyerek yönetilen bir çalıştırmayı takip edin.",
+        "blocks": {
+          "0": {
+            "text": "Braavolabs; model ve ajan çalışmaları için web çalışma alanını, masaüstü ve CLI çalışma tezgâhlarını ve mobil yardımcı uygulamayı bir araya getirir. Çalıştırmayı başlatmadan önce model yolunu ve veri modunu bilinçli seçin."
+          },
+          "1": {
+            "text": "İlk çalıştırmanız"
+          },
+          "2": {
+            "items": [
+              {
+                "title": "Giriş yapın ve işi tarif edin",
+                "body": "Kimlik doğrulamalı uygulamada hesap oluşturun. Şirket oluşturucuda hedefinizi, kitlenizi ve kısıtlarınızı tarif edin. Oluşturucu, plan önermeden önce açıklayıcı sorular sorabilir."
+              },
+              {
+                "title": "Öneriyi inceleyin",
+                "body": "Oluşturulan ajanları, iş hattı adımlarını, yapılandırılmış araçları ve beklenen çıktıları kontrol edin. İstemediğiniz şeyleri değiştirin veya kaldırın. Önerilen plan, harici bir entegrasyonun bağlı olduğuna dair kanıt değildir."
+              },
+              {
+                "title": "Bir yol seçin ve başlatın",
+                "body": "Kullanılabilir bir sağlayıcı anahtarı veya uyumlu yerel uç nokta yapılandırın. Yeteneklerini ve veri işleyişini inceleyin, ardından iş hattını başlatın. İş başladığında sağlayıcı çıkarımı ücret doğurabilir."
+              },
+              {
+                "title": "Durumu ve kararları takip edin",
+                "body": "Kaydedilmiş adımları, mevcut maliyet verilerini, bekleyen onayları ve ask_user sorularını okuyun. Gösterilen somut kararı yanıtlayın. Yönlendirme talimatı gönderebilir veya durdurma isteyebilirsiniz; etkin bir çağrı ya da harici etki zaten sürüyor olabilir."
+              }
+            ]
+          },
+          "3": {
+            "text": "Planlar ve çıkarım"
+          },
+          "4": {
+            "text": "Individual (aylık $19) ve Team (etkin kullanıcı başına aylık $39) önizleme planı açıklamalarıdır ve şu anda satın alınamaz. Çıkarım ayrıdır: sağlayıcı ücretleri, yerel donanım ve işletim maliyetleri dahil değildir."
+          },
+          "5": {
+            "text": "Private Mode bir önizlemedir. Cloud Agent Mode ve imzalı kanıt geliştirme aşamasındadır. Holding, premium/özel önizlemedir. Bu etiketleri eksiksiz güvenlik veya kullanılabilirlik garantisi saymayın."
+          },
+          "6": {
+            "text": "Şirketleri ve iş hatlarını oluşturmak için web'i kullanın. Desteklenen işleri izlemek, yanıtlamak, onaylamak ve yönlendirmek için mobil yardımcı uygulamayı kullanın."
+          }
+        }
+      },
+      "concepts": {
+        "title": "Temel kavramlar",
+        "nav": "Kavramlar",
+        "desc": "Şirketleri, ajanları, iş hatlarını, çalıştırmaları, kararları ve kayıtlı etkinlikleri anlayın.",
+        "blocks": {
+          "0": {
+            "text": "Bir şirket, kimlik doğrulamalı çalışma alanınızda hedefi, ajanları ve iş hatlarını gruplar. Ajan bir rolü üstlenir; iş hattı işleri sıralar; çalıştırma bu iş hattının tek bir yürütmesidir. Aynı hesaba veya kiracıya birden fazla şirket bağlı olabilir."
+          },
+          "1": {
+            "text": "Dokuz yapı taşı"
+          },
+          "2": {
+            "text": "Oluşturucu; müşteri edinimi, satış, teslimat, içerik, operasyon, finans, analitik, hafıza ve yönetişim rollerini birleştirir. Bunlar incelenecek başlangıç yapılarıdır; insanlarla iletişim, harcama veya hesap erişimi için otomatik izin değildir."
+          },
+          "3": {
+            "text": "Kararlar ve yönetişim"
+          },
+          "4": {
+            "text": "Desteklenen eylemler bekleyen onaylar üretebilir. ask_user kararı, harcama izni yerine bilgi ister. İzin vermeden, reddetmeden veya yanıtlamadan önce soruyu ve kapsamını okuyun. Sağlayıcı çıkarımı ayrıca faturalandırılır ve her zaman bir onay satırını beklemez."
+          },
+          "5": {
+            "text": "Yönetişim kontrolleri; kesin durdurma, döngü, maliyet, spam ve marka durdurucularını içerir. Kapsamları yürütme yoluna ve yapılandırmaya bağlıdır. Durdurma, kontrol sınırında sonraki desteklenen işi engeller; gönderilmiş bir isteği geri alamaz."
+          },
+          "6": {
+            "text": "Kayıtlı durumu okuyun"
+          },
+          "7": {
+            "text": "Etkinlik ve adım kayıtları; durumu, çıktıları, mevcut maliyet verilerini ve karar özetlerini anlamaya yardımcı olur. Eksik veri sıfır değil, bilinmeyendir. Kaydedilmiş bir istek, harici etkisinin tamamlandığını kanıtlamaz. Önemli çıktıları koruyun ve sonucu belirsiz işi yinelemeden önce harici sistemlerle mutabakat yapın."
+          },
+          "8": {
+            "text": "Bir şirket adı veya tek başına yerel model uç noktası; ayrı kiracı, işletim sistemi korumalı alanı veya tamamen çevrimdışı veri yolu oluşturmaz."
+          }
+        }
+      },
+      "byok-and-providers": {
+        "title": "BYOK ve sağlayıcılar",
+        "nav": "BYOK ve sağlayıcılar",
+        "desc": "Desteklenen bulut veya yerel model yolunu yapılandırın, maliyet ve veri sınırlarını anlayın.",
+        "blocks": {
+          "0": {
+            "text": "Kendi anahtarını getirme (BYOK), desteklenen bulut çıkarımında kendi sağlayıcı kimlik bilgilerinizi kullanmak demektir. Müşterinin işlettiği uyumlu bir uç nokta ayrı bir yoldur. Kullanılabilir sağlayıcılar ve modeller, kimlik doğrulamalı yapılandırmadan gelir; bu sayfa sabit sağlayıcı sayısı taahhüt etmez."
+          },
+          "1": {
+            "text": "Bir yolu yapılandırın ve kontrol edin"
+          },
+          "2": {
+            "items": [
+              "Amaçlanan sağlayıcı hesabıyla sınırlı bir anahtar kullanın. Sağlayıcı tarafındaki harcama kontrollerini inceleyin; sırları istemlere, paylaşılan günlüklere veya ekran görüntülerine koymayın.",
+              "Yerel uç nokta için açık temel URL'yi, desteklenen modeli ve isteği gönderecek makineden erişilebilirliğini doğrulayın.",
+              "Model yeteneklerini, araç desteğini ve seçilen veri modunu kontrol edin. Sağlayıcı değişimi çıktıyı, fiyatı ve davranışı değiştirebilir; ortak API biçimi modelleri birbirinin yerine kullanılabilir kılmaz."
+            ]
+          },
+          "3": {
+            "text": "Anahtar saklama biçimi yüzeye bağlıdır"
+          },
+          "4": {
+            "text": "Sunucuda saklanan bulut kimlik bilgileri, uygulanmış AES-256-GCM saklama biçimini kullanır. Korunmaları sunucu anahtarına, çalışma zamanı erişimine ve yedeklere de bağlıdır. CLI doğrudan sağlayıcı yapılandırması ile masaüstü kimlik bilgisi saklamasının ayrı sınırları vardır. Bir yüzeyde anahtar kaydetmek, her cihazda kullanılabildiğini veya aynı şekilde korunduğunu kanıtlamaz."
+          },
+          "5": {
+            "text": "Çıkarım ücretleri yapılandırılmış sağlayıcıya gider. Yerel yürütme de donanım ve işletim maliyeti doğurabilir. Raporlanan kullanımı ve sağlayıcı faturasını birlikte inceleyin; maliyet verisinin olmaması ücretsiz kullanım değildir."
+          },
+          "6": {
+            "text": "Yerel çıkarım URL'si; araçları, telemetriyi, hesap hizmetlerini veya tüm iş hattını çevrimdışı yapmaz. Hassas içerik işlemeden önce veri yolunun tamamını inceleyin."
+          }
+        }
+      },
+      "mid-run-steering": {
+        "title": "Çalıştırma sırasında yönlendirme ve ask_user",
+        "nav": "Yönlendirme ve ask_user",
+        "desc": "Kayıtlı çalıştırma durumunu izlerken talimat gönderin, soruyu yanıtlayın veya durdurma isteyin.",
+        "blocks": {
+          "0": {
+            "text": "Yönlendirme, desteklenen bir çalıştırmaya ek operatör talimatı göndermenizi sağlar. Değişikliği açıkça belirtin: hedef müşteri, kısıt veya sonraki adım. İstek, etkin sağlayıcı çağrısının anında kesilmesini garanti etmek yerine, kullanılabilir bir yürütme sınırında ele alınır."
+          },
+          "1": {
+            "text": "Alındı yanıtını dikkatle okuyun"
+          },
+          "2": {
+            "text": "Başarılı istek, sistemin o isteği kabul ettiği anlamına gelir. Tek başına modelin talimatı aldığını, uyguladığını veya izlediğini kanıtlamaz. Sonraki çalıştırma durumunu ve çıktıyı takip edin. İstek başarısız olur veya zaman aşımına uğrarsa yeniden göndermeden önce mevcut durumu inceleyin."
+          },
+          "3": {
+            "text": "ask_user sorusunu yanıtlayın"
+          },
+          "4": {
+            "text": "Ajan bilgi istediğinde eşleşen bekleyen kararı açın, soruyu ve bağlamı okuyun. Yanıtı bir kez gönderin, ardından karar ve çalıştırma durumunun değişip değişmediğini kontrol edin. Bilgi isteğini, ilgisiz bir eylem için yetkilendirmeyle karıştırmayın."
+          },
+          "5": {
+            "text": "Dikkatle sürdürün"
+          },
+          "6": {
+            "text": "İş sürdürülürken kaydedilmiş tamamlanan adımlar yeniden kullanılabilir. Bu; sağlayıcı çağrıları, e-postalar, ödemeler veya başka harici etkiler için tam olarak bir kez teslimat güvencesi oluşturmaz. Bir etki sürerken duraklama, durdurma veya bağlantı hatası oluşabilir. Belirsiz işi elle yinelemeden önce kayıtlı çıktıyı ve harici hizmeti kontrol edin."
+          },
+          "7": {
+            "text": "Duraklatma, sürdürme ve yönlendirme sıfır ek maliyet garantisi vermez veya gerçekleşmiş bir harici etkiyi geri almaz."
+          }
+        }
+      },
+      "webhooks": {
+        "title": "Webhook'lar",
+        "nav": "Webhook'lar",
+        "desc": "Şirket webhook'unu tam zaman damgası, ham gövde ve başlık sözleşmesine göre imzalayın.",
+        "blocks": {
+          "0": {
+            "text": "Yapılandırılmış şirket webhook'u POST /hooks/<company-slug>/<event> kabul eder. İş başlatabilecek bir olay göndermeden önce o şirketin yapılandırılmış webhook sırrını ve bir test şirketini kullanın."
+          },
+          "1": {
+            "text": "Tam baytları imzalayın"
+          },
+          "2": {
+            "text": "X-Webhook-Timestamp değerini milisaniye cinsinden mevcut Unix zamanına ayarlayın. Zaman damgası, bir nokta karakteri ve isteğin tam ham gövdesinin birleşimi üzerinde onaltılık HMAC-SHA256 hesaplayın. Bunu X-Webhook-Signature olarak gönderin. İmzalamadan sonra gövdeyi yeniden serileştirmeyin veya düzenlemeyin."
+          },
+          "3": {
+            "caption": "Örnek imzalı istek; API URL'sini, şirket kısa adını ve olayı değiştirin."
+          },
+          "4": {
+            "text": "Teslimat ve yeniden denemeler"
+          },
+          "5": {
+            "text": "Sunucu beş dakikalık aralığın dışındaki zaman damgalarını reddeder. İmza tabanlı yinelenme tespiti, altı dakikalık kayıt ömrüyle Redis kullanır. Redis kullanılamadığında imza ve zaman damgası kontrolleri sürer, ancak yinelenme kontrolü atlanabilir. Bu, tam olarak bir kez teslimat garantisi değildir."
+          },
+          "6": {
+            "text": "Başarılı webhook yanıtı iş hattının tamamlandığını kanıtlamaz. Çalıştırma durumunu kontrol edin, harici etkiler için uygulama düzeyinde idempotans ve mutabakat kullanın. Zaman aşımını yinelemeden önce ilk isteğin kabul edilip edilmediğini inceleyin."
+          }
+        }
+      },
+      "external-automations": {
+        "title": "Harici otomasyonları bağlama",
+        "nav": "Harici otomasyonlar",
+        "desc": "Yapılandırılmış bir harici otomasyonu bağlayın ve yürütmenin iki tarafını da doğrulayın.",
+        "blocks": {
+          "0": {
+            "text": "Desteklenen harici otomasyon araçlarını bağlamak için yapılandırılmış entegrasyonları veya imzalı webhook'ları kullanın. Entegrasyonun kullanılabilirliği ve eylemleri gerçek bağlantısına ve kimlik bilgilerine bağlıdır. n8n, Make veya Zapier adının geçmesi her iş akışının otomatik bağlı olduğu anlamına gelmez."
+          },
+          "1": {
+            "text": "Bir bağlantıyı gözlemlenebilir yapın"
+          },
+          "2": {
+            "items": [
+              {
+                "title": "Sınırı seçin",
+                "body": "Hangi sistemin işi başlatacağını, hangi olayı göndereceğini ve sonucun hangi sisteme ait olacağını belirleyin. Yalnızca o eylem için gereken hesabı ve izinleri bağlayın."
+              },
+              {
+                "title": "Zararsız veriyle test edin",
+                "body": "Bir test şirketi ve harici test iş akışı kullanın. Olay yükünü, kimlik doğrulamayı, oluşan çalıştırmayı ve harici sonucu doğrulayın."
+              },
+              {
+                "title": "Hata yönetimini planlayın",
+                "body": "Zaman aşımlarını, yinelenme yönetimini ve elle mutabakat adımını tanımlayın. Belirsiz bir yanıttan sonra ödeme, e-posta veya başka bir harici etkiyi körlemesine yeniden göndermeyin."
+              }
+            ]
+          },
+          "3": {
+            "text": "Harici iş akışı durumu ile Braavolabs çalıştırma durumu, işlemin farklı kısımlarını anlatır. İkisini de kontrol edin. Kayıtlı gönderim veya başarılı tetikleme yanıtı, hedeften alınmış teslimat ya da tamamlanma makbuzu değildir."
+          },
+          "4": {
+            "text": "Bağlantı kimlik bilgileri, webhook sırları ve sağlayıcı anahtarlarının saklama ve iptal yolları farklı olabilir. Erişimi kaldırırken ilgili yüzeyi ve harici hizmeti inceleyin."
+          }
+        }
+      },
+      "mobile-app": {
+        "title": "Mobil uygulama",
+        "nav": "Mobil uygulama",
+        "desc": "Desteklenen işleri izlemek, karar vermek ve yönlendirmek için mobil yardımcı uygulamayı kullanın.",
+        "blocks": {
+          "0": {
+            "text": "Mobil uygulama, desteklenen izleme ve kontrol için bir yardımcıdır. Şirketleri ve iş hatlarını web'de oluşturun; ardından telefondan çalıştırma durumunu okuyun, bekleyen kararları işleyin ve yönlendirme talimatı gönderin."
+          },
+          "1": {
+            "text": "İzleyin, onaylayın, yanıtlayın ve yönlendirin"
+          },
+          "2": {
+            "items": [
+              "İzleme: İlgili şirketi ve çalıştırmayı açın. Kullanılamayan veya eski veriyi bilinmiyor kabul edin; karar vermeden önce yeniden bağlanıp yenileyin.",
+              "Onay: Bekleyen somut eylemi okuyun ve izin verin veya reddedin. Bir onay satırı ilgisiz işleri veya her sağlayıcı ücretini kapsamaz.",
+              "Yanıt: ask_user sorusunu özgün bağlamında yanıtlayın. Gönderdikten sonra oluşan karar durumunu kontrol edin.",
+              "Yönlendirme: Açık talimat gönderin ve sonraki çıktıyı izleyin. Kabul edilen istek, talimatın uygulandığını kanıtlamaz."
+            ]
+          },
+          "3": {
+            "text": "Oturumlar ve bildirimler"
+          },
+          "4": {
+            "text": "Bildirimler cihaz iznine, uygun bir oturuma, ağ erişimine ve platformun teslimatına bağlıdır. Anlık bildirimi tam yürütme kaydı saymak yerine uygulamayı açarak son durumu doğrulayın. Cihazda tutulan oturum kimlik bilgileri platformun güvenli saklama alanını kullanır. Koruma ve arka plan davranışı yine de cihaza ve işletim sistemine bağlıdır."
+          },
+          "5": {
+            "text": "Hesap değiştirdikten sonra seçili şirketi ve bekleyen kararı yeniden doğrulayın. Zaman aşımında yeniden denemeden önce mevcut durumu inceleyin. Uygulama, tamamlanmış harici etkiyi geri alamaz."
+          },
+          "6": {
+            "text": "Uygulamada tercih ettiğiniz dili ve açık, koyu veya sistem temasını seçin. Dil veya hesap değiştirince harekete geçmeden önce mevcut çalışma alanını ve karar bağlamını doğrulayın."
+          }
+        }
+      },
+      "faq": {
+        "title": "Sık sorulan sorular",
+        "nav": "Sık sorulan sorular",
+        "desc": "Önizlemeler, maliyetler, yerel modeller, onaylar ve belirsiz çalıştırmalar hakkında yanıtlar.",
+        "blocks": {
+          "0": {
+            "items": [
+              {
+                "q": "Şimdi plan satın alabilir miyim?",
+                "a": "Individual (aylık $19) ve Team (etkin kullanıcı başına aylık $39) önizleme açıklamalarıdır ve şu anda satın alınamaz. Çıkarım, önerilen abonelikten ayrıdır."
+              },
+              {
+                "q": "Her ücret için onay gerekir mi?",
+                "a": "Hayır. Desteklenen eylemler bekleyen karar gerektirebilir, ancak çalıştırma başladığında sağlayıcı çıkarımı ücret doğurabilir. İşi çalıştırmadan önce eylemi ve sağlayıcı harcama kontrollerini okuyun."
+              },
+              {
+                "q": "Yerel model platformu çevrimdışı yapar mı?",
+                "a": "Hayır. Uyumlu yerel uç nokta o çıkarım yolunu kontrol eder. Araçlar, hesap hizmetleri, telemetri ve diğer iş hattı adımlarının veri yolları ayrıca incelenmelidir."
+              },
+              {
+                "q": "Sürdürme harici eylemi tekrarlar mı?",
+                "a": "Kaydedilmiş tamamlanan adımlar yeniden kullanılabilir, ancak tam olarak bir kez harici teslimat güvencesi oluşturulmuş değildir. Belirsiz işi yinelemeden önce çalıştırmayı ve harici hizmeti kontrol edin."
+              },
+              {
+                "q": "Kabul edilen yönlendirme isteği model çıktısını değiştirdi mi?",
+                "a": "Kabul, isteği kaydeder. Talimatın uygulanıp izlenmediğini anlamak için sonraki yürütme sınırını ve çıktıyı takip edin."
+              },
+              {
+                "q": "Şirketin tamamını telefondan oluşturabilir miyim?",
+                "a": "Oluşturma yüzeyi web'dir. Mobil yardımcı uygulama izleme, onaylar, yanıtlar ve yönlendirmeye odaklanır."
+              },
+              {
+                "q": "Private Mode, Cloud Agent Mode ve imzalı kanıt genel kullanıma açık mı?",
+                "a": "Private Mode bir önizlemedir; Cloud Agent Mode ve imzalı kanıt geliştirme aşamasındadır. İsimleri eksiksiz güvenlik veya kullanılabilirlik garantisi değildir."
+              },
+              {
+                "q": "Hesap silmek harici aboneliği iptal eder mi?",
+                "a": "Ettiğini varsaymayın. Abonelik sağlayıcısını ve harici hizmetleri ayrı ayrı kontrol edin; veri silmeden önce gerekli dışa aktarımları koruyun."
+              }
+            ]
+          }
+        }
+      }
+    },
+    "blog": {
+      "steer-agents-mid-run": {
+        "title": "Baştan başlamadan çalıştırmayı yönlendirme",
+        "desc": "Operatör talimatı ve kayıtlı adımların desteklenen işi nasıl yeniden yönlendirdiği ve güvencelerinin nerede bittiği.",
+        "body": "Çalıştırma başladıktan sonra düzeltme gerekebilir: farklı bir müşteri, daha sıkı bir kısıt veya ilk özetin yanıtlamadığı bir soru. Braavolabs, operatörün bağlam içinde yanıt verebilmesi için yönlendirme talimatını ve ask_user kararlarını destekler.\n\n## İsteğin aşamaları vardır\n\nTalimatı göndermek, isteğin kabul edilmesi, yürütme sınırında ele alınması ve çıktıda izlenmesi farklı olaylardır. Etkin sağlayıcı çağrısı bir sonraki sınıra kadar sürebilir. Talimatın etkili olduğu sonucuna varmadan önce sonraki çalıştırma durumunu ve sonucu okuyun.\n\n## Faydalı işi koruyun, belirsiz işi inceleyin\n\nSürdürme, kayıtlı tamamlanan adımları yeniden kullanabilir. Bu, harici etkilerin tam olarak bir kez teslim edildiğini kanıtlamaz ve sıfır ek sağlayıcı maliyetini garanti etmez. Gönderim veya ödeme sırasında bağlantı kesilirse elle yinelemeden önce hedefi kontrol edin.\n\n## İzni varsaymak yerine sorun\n\nask_user kararı bilgi ister. Ayrı bir desteklenen eylem onay isteyebilir. Her kararın kapsamını okuyun: soruyu yanıtlamak ilgisiz işe izin değildir. Bu kontroller çalışma oturumunu incelenebilir kılmaya yardımcı olur; varlıkları, her yolun veya harici aracın aynı davranışı gösterdiğini kanıtlamaz."
+      },
+      "five-risk-stops-explained": {
+        "title": "Beş risk durdurucusu ve sınırları",
+        "desc": "Kesin durdurma, döngü, maliyet, spam ve marka kontrolleri desteklenen yürütme yollarını yönetmeye yardımcı olur.",
+        "body": "Braavolabs beş yönetişim kontrolü tanımlar: kesin durdurma, döngü, maliyet, spam ve marka. Amaçlarını anlamak, ne zaman etkili olabileceklerini de anlamayı gerektirir.\n\n## Beş kontrol\n\nKesin durdurma bir durdurma koşulunu kontrol eder. Döngü kontrolü tekrarlanan davranışı arar. Maliyet kontrolü kayıtlı kullanımı yapılandırılmış sınırlarla karşılaştırır. Spam ve marka kontrolleri, desteklenen iletişim ve içerik yollarına politika uygular. Her aracın aynı kontrollerden geçtiğini varsaymak yerine yapılandırmayı ve yürütme yolunu inceleyin.\n\n## Sınırlar önemlidir\n\nKontrol, yürütme kendisine ulaştığında sonraki desteklenen işi engelleyebilir. Sağlayıcıya gönderilmiş isteği geri çağıramaz veya harici etkiyi tersine çeviremez. Kullanım kayıtları ücret oluştuktan sonra gelebilir; bu nedenle yapılandırılmış bütçe, sağlayıcı faturasının asla aşılmayacağı garantisi değildir.\n\n## Sonucu okuyun\n\nKontrol çalıştırma durumunu değiştirince kayıtlı nedeni ve ilgili adımı inceleyin. Eksik durum veya maliyet verisi bilinmeyendir; çalıştırmanın güvenli veya ücretsiz olduğunun kanıtı değildir. Bildirimler izne ve teslimata bağlıdır; durumu doğrulayacağınız yer mevcut çalıştırma kaydıdır. Sürdürmeden önce yerel sonucu ve ilgili harici hizmeti birlikte inceleyin."
+      },
+      "byok-routing-without-lock-in": {
+        "title": "Bulut ve yerel model yollarını seçme",
+        "desc": "Sağlayıcı seçimini açık tutarken yetenekleri, maliyetleri ve kimlik bilgisi sınırlarını kontrol edin.",
+        "body": "Braavolabs yapılandırılmış bulut kimlik bilgilerini ve müşterinin işlettiği uyumlu uç noktaları destekler. Faydalı taahhüt açık yol seçimidir; her modelin birbiri yerine kullanılabilmesi veya ölçülmemiş bir modelin her zaman en iyi olması değildir.\n\n## Seçtiğiniz yolu kontrol edin\n\nKullanılabilir modeli, araç desteğini, veri modunu ve uç nokta erişilebilirliğini inceleyin. Sağlayıcı değişimi çıktı kalitesini, gecikmeyi, fiyatı ve desteklenen parametreleri değiştirebilir. Seçili yol kullanılamıyorsa başka modelin sessizce işi tamamladığını varsaymak yerine hatayı inceleyin.\n\n## Abonelik ile çıkarımı ayırın\n\nÖnerilen Individual ve Team abonelikleri çıkarımı içermez. Sağlayıcı ücretleri yapılandırılmış hesaba aittir; yerel modeller de donanım ve işletim gerektirir. Raporlanan kullanımı sağlayıcı faturasıyla karşılaştırın. Bilinmeyen maliyet sıfır maliyet değildir.\n\n## İlgili kimlik bilgisi deposunu koruyun\n\nSunucuda saklanan bulut anahtarları uygulanmış AES-256-GCM biçimini kullanır. Sunucu anahtarının korunması, çalışma zamanı erişimi ve yedekler önemini korur. CLI doğrudan sağlayıcı yapılandırması ve masaüstü kimlik bilgisi saklamasının ayrı sınırları vardır. İsteği gerçekten gönderen depoyu inceleyin ve gerektiğinde sağlayıcı tarafında da erişimi iptal edin. Ortak arayüz işleri düzenlemeye yardımcı olur; yollar arasında aynı güvenliği veya maliyet yapısını kanıtlamaz."
+      },
+      "pocket-steering": {
+        "title": "Telefonunuzdan izleyin ve karar verin",
+        "desc": "Mobil yardımcı uygulama desteklenen izlemeye, onaylara, sorulara ve yönlendirmeye odaklanır.",
+        "body": "Mobil yardımcı uygulama, web'de oluşturulan işler için daha küçük bir kontrol yüzeyi sunar. Temel eylemleri çalıştırma durumunu okuma, bekleyen onayı işleme, ask_user yanıtlama ve yönlendirme talimatı gönderimidir.\n\n## Kararı bağlamında tutun\n\nHarekete geçmeden önce ilgili şirketi ve çalıştırmayı açın. Soruyu veya eylemi tam olarak okuyun; bilgi isteği ile harici etki iznini ayırın. Sağlayıcı çıkarımı ayrı onay satırı olmadan da ücret doğurmuş olabilir.\n\n## Teslimat ve durumu ayrı değerlendirin\n\nAnlık bildirimler cihaz iznine, oturum uygunluğuna, ağ erişimine ve platform teslimatına bağlıdır. Bildirim gecikebilir; mevcut kararı doğrulamak için uygulamayı yenileyin. Başarılı yönlendirme yanıtı isteğin kabulünü kaydeder, modelin talimatı izlediğini kanıtlamaz.\n\n## Dikkatle toparlanın\n\nHesap değişiminden veya kesilen bağlantıdan sonra seçili hesabı, şirketi ve bekleyen kararı yeniden doğrulayın. Zaman aşımını yeniden göndermeden önce mevcut durumu inceleyin. Mobil eylem, tamamlanmış harici isteği geri çağıramaz. Platformun güvenli saklama alanı cihazdaki oturum kimlik bilgilerini korumaya yardımcı olur. Bununla birlikte gerçek cihaz, arka plan teslimatı ve hesaplar arası testler gerekli yayın kontrolleri olmaya devam eder."
+      },
+      "local-model-routing-boundaries": {
+        "title": "Yerel model yönlendirmesinin sınırları",
+        "desc": "Yerel çıkarım uç noktası veri yolunun tamamının bir parçasıdır.",
+        "body": "Müşterinin işlettiği uyumlu model sunucusu açık temel URL ile yapılandırılabilir. Braavolabs beraberinde model sunmaz veya yalnızca adresten eksiksiz gizlilik politikası çıkarmaz.\n\n## İşlemin tamamını izleyin\n\nÇıkarım çağrısını hangi makinenin yaptığını, hangi modelin kullanılabildiğini ve uç noktaya o makineden erişilip erişilemediğini kontrol edin. Ardından ağ bağlantısını hâlâ kullanabilecek araçları, hesap hizmetlerini, telemetriyi, günlükleri ve diğer adımları inceleyin. Yerel URL bütün iş hattını çevrimdışı yapmaz.\n\n## Yetenekleri ve maliyeti inceleyin\n\nModel yetenekleri ve araç desteği bulut yollarından farklı olabilir. Yol değişiminden sonra çıktıları inceleyin. Yerel çıkarım o çağrı için sağlayıcının token ücretini kaldırabilir, ancak donanım, elektrik, bakım ve bağlı diğer hizmetlerin maliyeti sürer. Eksik maliyet verisi bilinmiyor kalmalıdır.\n\n## Önizleme etiketlerini doğru kullanın\n\nPrivate Mode bir önizlemedir. Cloud Agent Mode ve imzalı kanıt geliştirme aşamasındadır. Bu etiketler tam veri işleme sözleşmesi, işletim sistemi korumalı alanı veya bağımsız doğrulanmış kanıt oluşturmaz. Hassas kullanım, gerçek yapılandırılmış veri yolunun ve yürütme izinlerinin incelenmesini gerektirir."
+      },
+      "shipping-ask-user": {
+        "title": "ask_user'ı açık bir soru etrafında tasarlama",
+        "desc": "Bilgi isteği bağlamı korumalı, ilgisiz izin ima etmemelidir.",
+        "body": "Bir ajan çalışırken eksik bilgiyle karşılaşabilir. ask_user bu belirsizliği görünür bir karara dönüştürür: ilgili çalıştırmaya bağlı, operatöre yöneltilen bir soru.\n\n## Yanıtlanabilir bir soru sorun\n\nFaydalı soru, eksik bilgiyi ve yanıtlamak için yeterli bağlamı belirtir. Harici bir eylemi bilgi isteği olarak gizlememelidir. Yanıtlamadan önce soruyu okuyun, hassas kimlik bilgilerini serbest metin yanıtlarına koymayın.\n\n## Karar yüzeyini dikkatle yeniden kullanın\n\nBilgi istekleri ve desteklenen onay eylemleri aynı karar akışında görünebilir, ancak anlamları farklıdır. Soru yanıtlamak, ilgisiz işi yetkilendirmek değildir. Onay kuyruğunun bulunması da her sağlayıcı çıkarım ücretinin açık bir evet beklediği anlamına gelmez.\n\n## Sonrasında ne olduğunu kontrol edin\n\nYanıt gönderdikten sonra karar ve çalıştırma durumunu inceleyin. Yanıtın alınması, çalıştırmanın sürmesi ve harici etkinin tamamlanması farklı gözlemlerdir. Bağlantı zaman aşımına uğrarsa yeniden göndermeden önce yanıtın kaydedilip kaydedilmediğini kontrol edin. Kaydedilmiş tamamlanan adımlar yeniden kullanılabilir, ancak harici yeniden denemeler yine de mutabakat gerektirir. Bu, görünür bir operatör kararının tasarım gerekçesidir; ölçülmüş müşteri araştırması veya tam olarak bir kez yürütme iddiası değildir."
+      },
+      "audit-trail-youd-actually-read": {
+        "title": "Bir çalıştırmanın kayıtlı etkinliğini okuma",
+        "desc": "Eksik kanıt uydurmadan kayıtlı durumu, çıktıları, kararları ve mevcut maliyetleri kullanın.",
+        "body": "Operatörün, çalıştırmanın neyi denediğini, hangi kararları istediğini ve hangi sonucu kaydettiğini anlaması gerekir. Braavolabs etkinlik ve adım görünümleri bu kayıtları çalıştırma etrafında düzenler.\n\n## Kayıtlı olgulardan başlayın\n\nAdım durumunu, mevcut çıktıyı, kayıtlı karar özetini ve raporlanan maliyeti okuyun. Kullanılamayan değerleri görünür biçimde bilinmiyor tutun. Gönderim kaydı veya başarılı API alındı yanıtı, harici mesajın, ödemenin veya iş akışının tamamlandığını kanıtlamaz.\n\n## Yinelemeden önce mutabakat yapın\n\nİstemci bağlantısını kaybederken sağlayıcı veya araç tamamlanabilir. Belirsiz harici etkiyi yinelemeden önce çalıştırma kaydını hedef hizmetle karşılaştırın. Kayıtlı adımlar ve geçmiş faydalı kanıtlardır, ancak her eylemin eksiksiz, değişmez veya bağımsız doğrulanmış biçimde kapsandığını kanıtlamaz.\n\n## Kaydı koruyun\n\nİstemler, araç çıktıları ve serbest metin yanıtları hassas veri içerebilir. Erişimi sınırlayın ve yalnızca işleyişiniz için gereken dışa aktarımları koruyun. Görünür etkinlik sayfasını yedek varsaymak yerine saklama, yedekleme ve geri yüklemeyi inceleyin. İmzalı kanıt geliştirme aşamasındadır. Mevcut kayıt bir sertifika, eksiksiz özel düşünce izi veya hukuki uygunluk kanıtı olarak sunulmamalıdır."
+      }
+    }
+  },
+  "surface": {
+    "legal": {
+      "previewNotice": "Gizlilik bilgilendirmesi önizlemesi. Bu sayfa, herkese açık hizmet üzerinden kişisel veri toplanması için henüz eksiksiz bir aydınlatma metni değildir. Herkese açık kayıt başlamadan önce sorumlu işletmecinin bilgileri, fiilî işleme faaliyetleri ve alıcılar, saklama koşulları ve uygulanacak güvenceler tamamlanmalıdır.",
+      "kvkkTitle": "KVKK bilgilendirmesi önizlemesi",
+      "gdprTitle": "GDPR bilgilendirmesi önizlemesi",
+      "kvkk": {
+        "veri-sorumlusu": {
+          "title": "Sorumlu işletmeci",
+          "body": "Braavolabs ürünün adıdır. Herkese açık hizmet üzerinden kişisel veri toplanmadan önce hukuken sorumlu işletmeci, posta yoluyla iletişim bilgileri ve gereken hâllerde temsilci, eksiksiz aydınlatma metninde belirtilmelidir. Mevcut iletişim adresi kvkk@braavolabs.com'dur."
+        },
+        "islenen-kisisel-veriler": {
+          "title": "Veriler ve toplama yöntemleri",
+          "body": "Hesap formları ve hizmet kullanımı; kimlik, iletişim, kuruluş, oturum, kullanım ve çalıştırma kayıtları sağlayabilir. İstemler, çıktılar, dosyalar ve isteğe bağlı bağlantılar ek kişisel veri içerebilir. Eksiksiz aydınlatma metni, etkin dağıtımda fiilen toplanan verileri ve toplama yöntemlerini belirtmelidir."
+        },
+        "isleme-amaclari": {
+          "title": "İşleme amaçları",
+          "body": "Hesabın işletilmesi, istenen model veya ajan işleri, destek ve güvenlik farklı işleme faaliyetleri içerir. Faturalama ve isteğe bağlı pazarlama yalnızca etkinleştirildiklerinde açıklanmalıdır. Bir özelliğin adı, onunla ilgisiz kişisel verileri işleme izni oluşturmaz."
+        },
+        "hukuki-sebepler": {
+          "title": "Hukuki sebepler",
+          "body": "Uygun hukuki sebep, yürürlükteki mevzuata göre her fiilî işleme faaliyeti için değerlendirilmelidir. Bu önizleme; rıza, sözleşmenin ifası için gereklilik, hukuki yükümlülük veya meşru menfaatin hizmetin her kullanımını kapsadığını ortaya koymaz."
+        },
+        "ucuncu-taraf-aktarimlari": {
+          "title": "Alıcılar ve yurt dışı aktarımlar",
+          "body": "Yapılandırılmış model sağlayıcıları, barındırma ve isteğe bağlı entegrasyonlar başka alıcıları veya ülkeleri içerebilir. Son aydınlatma metni etkin alıcıları, amaçları ve güvenceleri belirtmelidir. Mevzuatta standart sözleşme mekanizmasının bulunması, bu hizmet için gereken sözleşmenin imzalandığı veya bildirildiği anlamına gelmez."
+        },
+        "saklama-suresi": {
+          "title": "Saklama ve silme",
+          "body": "Saklama koşulları; günlükler ve yedekler dahil veri kategorisi, amaç ve uygulanacak yasal gerekliliklere göre tanımlanmalıdır. Bu önizleme, tüm veriler için tek bir on yıllık saklama süresi veya her kopyanın hemen silineceği vaadinde bulunmaz. Hesap silme ve harici bir aboneliği iptal etme ayrı işlemlerdir."
+        },
+        "haklariniz": {
+          "title": "KVKK kapsamındaki haklar",
+          "body": "KVKK'nın uygulandığı durumlarda 11. madde; bilgi alma, düzeltme, silme veya yok etme, alıcılara bildirim, aleyhe otomatik analize itiraz ve hukuka aykırı işleme nedeniyle zararın giderilmesine ilişkin haklar sağlar. Bu hakların kullanımı uygulanacak koşullara bağlıdır; belirtilen başvuru kanalı üzerinden sorumlu işletmeciyle iletişime geçin."
+        },
+        "basvuru": {
+          "title": "Başvurular",
+          "body": "Hak başvurularınız için hesap parolanızı veya sağlayıcı anahtarlarınızı eklemeden kvkk@braavolabs.com adresine yazın. KVKK'nın 13. maddesi uyarınca başvurular, uygun olan en kısa sürede ve 30 gün içinde sonuçlandırılmalıdır. Genel kural ücretsiz olmasıdır; ek maliyetler yalnızca Kurul tarifesine göre ücretlendirilebilir. Kimliğin ve başvuru kapsamının netleştirilmesi gerekebilir."
+        }
+      },
+      "gdpr": {
+        "data-controller": {
+          "title": "Sorumlu işletmeci",
+          "body": "Braavolabs ürünün adıdır. Herkese açık hizmet üzerinden kişisel veri toplanmadan önce eksiksiz bilgilendirme metni, hukuken sorumlu işletmeciyi, iletişim bilgilerini ve gereken hâllerde temsilciyi belirtmelidir. Mevcut iletişim adresi gdpr@braavolabs.com'dur."
+        },
+        "personal-data": {
+          "title": "Veriler ve amaçlar",
+          "body": "Hesap bilgileri, oturum ve kullanım kayıtları, istemler, çıktılar, dosyalar ve isteğe bağlı entegrasyonlar kişisel veri içerebilir. Eksiksiz bilgilendirme metni; etkin işleme amaçlarını, veri kaynaklarını, alıcıları ve her veri kategorisinin sağlanmasının zorunlu olup olmadığını açıklamalıdır."
+        },
+        "lawful-bases": {
+          "title": "Hukuki dayanaklar",
+          "body": "Her fiilî faaliyet için bir hukuki dayanak değerlendirilmelidir. Bu önizleme; sözleşmenin ifası için gereklilik, meşru menfaat, hukuki yükümlülük veya rızanın her kullanımı kendiliğinden kapsadığını ortaya koymaz. İsteğe bağlı pazarlama ile hassas veri veya otomatik karar verme içeren kullanımlar ayrıca değerlendirilmelidir."
+        },
+        "cross-border-transfers": {
+          "title": "Alıcılar ve aktarımlar",
+          "body": "Yapılandırılmış sağlayıcılar ve altyapı, verileri başka ülkelerde işleyebilir. Fiilî alıcılar, hedef ülkeler ve uygulanacak aktarım güvenceleri etkin dağıtım için belgelenmelidir. Bu sayfa, doğrulanmamış bir sağlayıcı sözleşmesinin veya güvencenin zaten yürürlükte olduğunu ileri sürmez."
+        },
+        "your-rights": {
+          "title": "Haklar ve başvurular",
+          "body": "Uygulanabilecek haklar; yasal koşullara bağlı olarak erişim, düzeltme, silme, kısıtlama, taşınabilirlik, itiraz ve rızayı geri almayı içerebilir. Parola veya sağlayıcı anahtarı göndermeden gdpr@braavolabs.com adresine yazın. Başvuruların normalde bir ay içinde yanıtlanması gerekir; izin verilen, iki aya kadar ek uzatma ilk ay içinde gerekçesiyle açıklanmalıdır. Kimlik kontrolü ile hukuka uygun ücret veya ret istisnaları uygulanabilir. Yetkili denetim makamına şikâyette bulunabilirsiniz."
+        },
+        "retention": {
+          "title": "Saklama",
+          "body": "Eksiksiz bilgilendirme metni; etkin kayıtları, günlükleri, yedekleri ve harici veri işleyenleri kapsayacak şekilde veri kategorisine göre süreleri veya anlamlı ölçütleri belirtmelidir. Silme başvurusunun yasal istisnaları olabilir. Hesabı silmek, ayrı bir harici aboneliği kendiliğinden iptal etmez."
+        },
+        "security": {
+          "title": "Güvenlik bilgileri",
+          "body": "Kimlik bilgisi saklama ve yürütme sınırları sunucu, masaüstü, CLI ve mobil arasında farklıdır. Hassas veri göndermeden önce ilgili veri yolunu ve izinleri inceleyin. Bu sayfa; sertifikasyon, tam çevrimdışı çalışma garantisi veya her olaya karşı koruma bulunduğunu ortaya koymaz."
+        },
+        "data-protection-contact": {
+          "title": "Veri koruma iletişim adresi",
+          "body": "Gizlilik sorularınız için gdpr@braavolabs.com adresini kullanın. Veri koruma görevlisi veya temsilci gerekip gerekmediği, fiilî işletmeci ve işleme faaliyetlerine göre değerlendirilmelidir. Bu önizleme herhangi bir muafiyet iddiasında bulunmaz."
+        }
+      }
+    },
+    "loading": "Yükleniyor…",
+    "unavailable": "Kullanılamıyor",
+    "close": "Kapat",
+    "loadFailed": "Bazı bilgiler yüklenemedi. Eksik veriler kullanılamıyor; tekrar deneyin.",
+    "progress": "Çalıştırma adımları: {completed} / {total}",
+    "support": {
+      "emailIntro": "Destek için yazın:",
+      "responseTime": "Hesap e-posta adresinizi ve sorunun açıklamasını ekleyin. Sabit bir yanıt süresi garanti edilmez.",
+      "intro": "Ürün, hesap ve abonelik konularında yardım için Braavolabs ekibiyle iletişime geçin."
+    },
+    "starters": {
+      "intro": "Bir başlangıç yapılandırması seçin. Çalıştırmalar için yapılandırılmış bir sağlayıcı veya kullanılabilir hesap denemesi gerekir; başlamadan önce sağlayıcıyı ve bütçeyi inceleyin."
+    },
+    "dashboard": {
+      "operator": "operatör",
+      "morning": "Günaydın",
+      "afternoon": "İyi günler",
+      "evening": "İyi akşamlar",
+      "snapshot": "Bu anlık görüntü sayfa açılırken yüklendi. Güncel veriler için sayfayı yeniden yükleyin.",
+      "activeRisks": "{count, plural, one {# etkin risk} other {# etkin risk}}",
+      "started": "{name} başlatıldı — adımlar kuyruğa alındı",
+      "activityRun": "{name}: {status}",
+      "approval": "{description} inceleme bekliyor",
+      "risk": "Risk olayı",
+      "queued": "Kuyruğa alındı"
+    },
+    "severity": {
+      "high": "Yüksek ciddiyet",
+      "medium": "Orta ciddiyet",
+      "low": "Düşük ciddiyet",
+      "unknown": "Ciddiyet bilgisi kullanılamıyor"
+    },
+    "states": {
+      "running": "Çalışıyor",
+      "completed": "Tamamlandı",
+      "paused": "Duraklatıldı",
+      "failed": "Başarısız",
+      "cancelled": "İptal edildi",
+      "waiting_approval": "Onay bekliyor",
+      "pending": "Bekliyor",
+      "active": "Etkin",
+      "disabled": "Devre dışı",
+      "draft": "Taslak",
+      "queued": "Kuyruğa alındı",
+      "unknown": "Bilinmiyor"
+    },
+    "icons": {
+      "close": "Kapat",
+      "send": "Gönder",
+      "delete": "Sil",
+      "run": "Çalıştır",
+      "pause": "Duraklat",
+      "resume": "Devam ettir",
+      "branch": "Dal ekle",
+      "moveUp": "Yukarı taşı",
+      "moveDown": "Aşağı taşı",
+      "copy": "Kopyala",
+      "dismiss": "Kapat"
+    },
+    "billing": {
+      "cancels": "İptal tarihi: {date}",
+      "renews": "Yenileme tarihi: {date}"
+    },
+    "status": {
+      "checkedAt": "Son kontrol: {time} (yerel saatiniz)",
+      "pageLoaded": "Bu sayfa yüklendi"
+    },
+    "blog": {
+      "readPost": "Oku: {title}",
+      "readTime": "{duration} okuma süresi"
+    },
+    "ideas": {
+      "start": "Fikirden başla: {title}",
+      "estimate": "Örnek tahmin: {agents} ajan, {pipelines} iş akışı. Oluşturucunun önerisi farklı olabilir."
+    },
+    "compare": {
+      "verify": "Güncel desteği doğrulayın",
+      "notice": "Bu kontrol listesi doğrulanmış bir rakip karşılaştırması değildir. Yetenekler ve maliyetler ürüne, plana ve dağıtıma bağlıdır. Seçim yapmadan önce sağlayıcının güncel belgelerini kontrol edin."
+    },
+    "integrations": {
+      "directoryNote": "Bu katalog olası bağlantıları açıklar. Bir kaydın bulunması, bağlayıcının uygulandığı, etkinleştirildiği veya hesabınız için yetkilendirildiği anlamına gelmez. Kimlik bilgilerini paylaşmadan önce desteklenen bağlantıları ve sağlayıcı belgelerini inceleyin.",
+      "entry": "Katalog kaydı",
+      "reviewConnections": "Desteklenen bağlantıları inceleyin",
+      "apiKey": "API anahtarı",
+      "oauth": "OAuth 2.0"
+    },
+    "webhooks": {
+      "anyProvider": "Herhangi bir sağlayıcı",
+      "templateNote": "Bunlar örnek olay şablonlarıdır. Sağlayıcı kurulum yolları ve örnek veriler temsilîdir; bir webhook'u etkinleştirmeden önce sağlayıcının geçerli sözleşmesini ve imzalama gerekliliklerini doğrulayın."
+    },
+    "error": {
+      "session": "Oturumunuz doğrulanamadı. Yeniden giriş yapın; sorun sürerse destekle iletişime geçin.",
+      "signIn": "Giriş yap",
+      "forbidden": "Bunu görüntüleme izniniz yok. Erişimin hatalı olduğunu düşünüyorsanız destekle iletişime geçin.",
+      "network": "Sunucuya ulaşılamadı. Bağlantınızı kontrol edip yeniden deneyin.",
+      "rateLimit": "Çok fazla istek gönderildi. Yeniden denemeden önce bekleyin.",
+      "timeout": "İstek zaman aşımına uğradı. Sonucu belirsiz olabilir; bir işlemi yeniden denemeden önce güncel durumu kontrol edin.",
+      "generic": "Beklenmeyen bir hata oluştu. Tekrar deneyin veya gösterilen referansla destek ekibine başvurun."
+    },
+    "forecast": {
+      "loadFailed": "Tahmin yüklenemedi. Tekrar deneyin.",
+      "saveFailed": "Bütçe kaydedilemedi. Yeniden denemeden önce güncel değeri kontrol edin."
+    },
+    "triggers": {
+      "manual": "Elle",
+      "cron": "Zamanlama",
+      "webhook": "Webhook",
+      "event": "Olay"
+    },
+    "trial": {
+      "funding": "Etkinleştirilmiş bir deneme, işletmecinin sağlayıcısına ve sınırlarına tabidir. Ücretli aboneliklere çıkarım dahil değildir; deneme kullanılamıyorsa desteklenen bir sağlayıcı anahtarı veya yapılandırılmış yerel uç nokta kullanın.",
+      "exhausted": "Hesabın deneme sınırına ({limit, number}) ulaşıldı.",
+      "remaining": "Toplam {limit, number} deneme çalıştırmasından {count, plural, one {# kaldı} other {# kaldı}}"
+    }
+  },
+  "dataCopy": {
+    "comparisonColumns": [
+      {
+        "name": "Braavolabs"
+      },
+      {
+        "name": "İş akışı otomasyonu"
+      },
+      {
+        "name": "Yapay zekâ ajanı oluşturucuları"
+      }
+    ],
+    "comparisonRows": [
+      {
+        "label": "Çalıştırma sürerken yönlendirme",
+        "note": "Yönlendirmenin ne zaman kabul edilip uygulandığını kontrol edin; sürmekte olan çağrı önce tamamlanabilir"
+      },
+      {
+        "label": "Native mobil kontrol",
+        "note": "Cihazınızda desteklenen mobil görevleri ve kullanılabilir sürümleri kontrol edin"
+      },
+      {
+        "label": "Telefondan harcama onayı",
+        "note": "Hangi işlemlerin onay gerektirdiğini ve hangi sağlayıcı çağrılarının zaten maliyet doğurabileceğini inceleyin"
+      },
+      {
+        "label": "BYOK sağlayıcı çeşitliliği",
+        "note": "Birçok model sağlayıcısında kendi anahtarlarınızı kullanın"
+      },
+      {
+        "label": "Yerel sağlayıcı yolu",
+        "note": "Desteklendiği yerlerde yapılandırılmış yerel model uç noktasını kullanın"
+      },
+      {
+        "label": "Harici otomasyonları izleme",
+        "note": "Her harici platform için desteklenen izleme ve kontrol işlemlerini doğrulayın"
+      },
+      {
+        "label": "Fiyatlandırma modeli",
+        "note": "Abonelik, çıkarım, barındırma ve işlem başına ücretleri karşılaştırın"
+      },
+      {
+        "label": "Yönetişim ve risk nedeniyle durdurma",
+        "note": "Desteklenen kontrol sınırlarını ve olayların nasıl ele alındığını inceleyin"
+      },
+      {
+        "label": "Denetim izi",
+        "note": "Kaydedilen işlemleri ve çıktıları inceleyin; eksik kayıtların durumu bilinmiyor olarak kalır"
+      },
+      {
+        "label": "Bağlayıcı sayısı",
+        "note": "Hazır uygulama entegrasyonlarının toplam sayısı"
+      }
+    ],
+    "comparisonAudience": [
+      {
+        "title": "Masasında olmayan operatörler",
+        "body": "Toplantılar arasında onayları, küçük müdahaleleri ve yön düzeltmelerini telefonunuzdan yapıyorsanız native uygulamanın ve cepten yönlendirmenin amacı tam da budur."
+      },
+      {
+        "title": "İşleri baştan çalıştırmak istemeyenler",
+        "body": "Yeniden başlatmak yerine yönlendirmek isteyeceğiniz uzun iş akışları. Çalıştırmanın gidişatını izleyin, sürerken yönünü değiştirin ve tamamladığı yararlı adımları koruyun."
+      },
+      {
+        "title": "Gizlilik açısından hassas işler",
+        "body": "Kendi anahtarlarınızı kullanın veya yapılandırılmış bir yerel uç nokta seçin. Seçilen yolu, araçları, telemetriyi ve ağ sınırını ayrı ayrı doğrulayın."
+      },
+      {
+        "title": "Zaten n8n / Make / Zapier kullanan ekipler",
+        "body": "Durumu izlemek ve desteklenen işlemleri istemek için desteklenen bağlantıları kullanın. Her platformun yetkilendirme ve yürütme sözleşmesini kontrol edin."
+      }
+    ],
+    "capabilities": [
+      {
+        "label": "Çalıştırma",
+        "title": "Sağlayıcılar arası çalışma ortamı",
+        "copy": "Tek bir sağlayıcının çalışma zamanını kontrol düzlemine dönüştürmeden model ve ajan işlerini koordine edin."
+      },
+      {
+        "label": "Kontrol",
+        "title": "Tam işleme bağlı onay — geliştirme aşamasında",
+        "copy": "İşlemi, kapsamı, sona erme zamanını ve yürütme bağlamını birbirine bağlayan daha geniş sözleşme planlanmıştır; genel kullanıma açık olarak sunulmaz."
+      },
+      {
+        "label": "Konuşma",
+        "title": "Devam ettirme ve yönlendirme",
+        "copy": "Sıralı konuşma turlarını, araç işlemlerini, üretilen dosyaları ve uzaktaki operatör girdisini aynı çalıştırma bağlamında tutun."
+      },
+      {
+        "label": "Modeller",
+        "title": "BYOK ve yerel seçenek",
+        "copy": "Model yolunu açıkça seçin; sağlayıcı maliyeti kendi anahtarlarınıza veya yerel çalışma zamanınıza ait olsun."
+      }
+    ],
+    "securityBoundaries": [
+      {
+        "title": "Çıkarım sınırı",
+        "copy": "Çıkarım dahil değildir. Kendi sağlayıcı anahtarlarınızı (BYOK) veya yerel modelleri kullanın."
+      },
+      {
+        "title": "Onay sınırı",
+        "copy": "Desteklenen araç işlemleri açık onay gerektirebilir. Ayrı bir onaydan önce çıkarım nedeniyle sağlayıcı ücreti doğabilir. Tam işlemi, kapsamı ve sona erme zamanını birbirine bağlayan daha geniş sözleşme geliştirme aşamasındadır."
+      },
+      {
+        "title": "Herkese açık site ve kimlik doğrulama sınırı",
+        "copy": "Herkese açık site ürün bilgilerini sunar. Hesaplar, tenant yolları ve operasyonel API'ler kimlik doğrulamalı uygulama ve API sunucularına aittir."
+      },
+      {
+        "title": "Sertifikasyon sınırı",
+        "copy": "Sertifika alınmadan ve bağımsız olarak doğrulanabilir olmadan sertifikasyon rozeti göstermeyiz."
+      }
+    ],
+    "checklist": {
+      "registered": {
+        "label": "Hesap oluşturun",
+        "description": "Braavolabs'a kaydolun"
+      },
+      "heroCompanyCreated": {
+        "label": "İlk şirketinizi oluşturun",
+        "description": "Bir açıklamadan yapay zekâ şirketi oluşturun"
+      },
+      "firstRunCompleted": {
+        "label": "İlk iş akışınızı çalıştırın",
+        "description": "Otomatik bir iş akışını yürütün"
+      },
+      "firstDraftApproved": {
+        "label": "Bir taslağı inceleyin",
+        "description": "Yapay zekânın ürettiği içeriği onaylayın veya düzenleyin"
+      },
+      "profileCompleted": {
+        "label": "Profilinizi tamamlayın",
+        "description": "Adınızı ve tercihlerinizi ekleyin"
+      }
+    },
+    "ideas": {
+      "content-studio": {
+        "title": "İçerik Stüdyosu",
+        "desc": "Trendleri bulun, sosyal medya gönderilerini otomatik taslaklayıp düzenleyin.",
+        "seed": "Küçük bir markam var ve düzenli yayın yapan bir içerik stüdyosu istiyorum. Bir trend araştırmacısı alanımda öne çıkan 2-3 yaklaşım bulsun; bir yazar en güçlü yaklaşım için bir TikTok ve bir LinkedIn gönderisi taslağı hazırlasın; bir editör de dikkat çekici açılışı ve CTA'yı güçlendirsin. Yayımlamadan önce inceleyebilmem için her birini taslak olarak kaydedin. Gelecekteki taslakların daha etkili olması için hangi yaklaşımların iyi sonuç verdiğini hatırlayın."
+      },
+      "content-repurposer": {
+        "title": "İçerik Uyarlayıcı",
+        "desc": "Bir fikri X gönderi dizisine, LinkedIn gönderisine ve kısa bülten metnine dönüştürün.",
+        "seed": "Bir kaynak fikri, gönderiyi veya deşifreyi birden çok platforma uygun bir pakete dönüştürmek istiyorum. Bir stratejist en güçlü üç yaklaşımı seçsin; ardından bir yazar bunları bir X gönderi dizisine, bir LinkedIn gönderisine ve kısa bir bülten metnine uyarlasın. Marka üslubum bellekte kayıtlıysa hepsinde onu kullansın. Paketi taslak olarak kaydedin."
+      },
+      "seo-content-engine": {
+        "title": "SEO İçerik Motoru",
+        "desc": "Anahtar kelimeleri araştırın ve aramaya uygun makale iskeletleri hazırlayın.",
+        "seed": "Bir SEO içerik motoru istiyorum. Bir araştırmacı hedef anahtar kelimenin arama niyetini ve ilgili soruları bulsun; bir planlayıcı iç bağlantı önerileriyle H2/H3 yapısı hazırlasın; bir yazar da buna göre aramaya uygun bir makale taslağı yazsın. Çalışma özetini ve taslağı kaydedin; tekrar etmemek için daha önce ele aldığım konuları hatırlayın."
+      },
+      "newsletter-studio": {
+        "title": "Bülten Stüdyosu",
+        "desc": "Bir tema belirleyin ve haftalık bülten sayısını taslaklayın.",
+        "seed": "Haftalık bir bülten gönderiyorum ve her sayının taslağı için yardım istiyorum. Bir küratör tema seçip kitlemle paylaşmaya değer 3-5 içerik toplasın. Ardından bir yazar güçlü bir konu satırı, giriş, seçilen içerikler için birer cümlelik yorumlar ve kapanış CTA'sı içeren sayı taslağını hazırlasın. Taslak olarak kaydedin ve sayıların çeşitliliğini korumak için geçmiş temaları hatırlayın."
+      },
+      "podcast-repurposer": {
+        "title": "Podcast Uyarlayıcı",
+        "desc": "Bölüm deşifresini bölüm notlarına ve kısa kliplere uygun alıntılara dönüştürün.",
+        "seed": "Bir podcast sunuyorum ve her bölümü başka içeriklere uyarlamak istiyorum. Verilen deşifreden bir yapımcı zaman damgaları ve önemli çıkarımlar içeren düzenli bölüm notları yazsın. Bir klip araştırmacısı da kısa sosyal medya kliplerine dönüştürmeye değer, alıntılanabilecek 5-8 an bulsun. Notları ve alıntı listesini taslak olarak kaydedin."
+      },
+      "brand-voice-builder": {
+        "title": "Marka Üslubu Oluşturucu",
+        "desc": "Üslubunuzu tek sayfalık bir başvuru belgesine dönüştürün.",
+        "seed": "Marka üslubumu tanımlamak istiyorum. Bir marka analisti verdiğim açıklama ve örnek içeriklerden ton özelliklerini, ayırt edici ifadeleri ve kaçınılacak ifadeleri çıkarsın. Ardından bir üslup sorumlusu, bu üslubu gösteren üç örnek gönderiyle birlikte tek sayfalık bir başvuru belgesi yazsın. İçerik ajanlarımın okuyabilmesi için bunu bellekte 'brand voice' anahtarı altında saklayın."
+      },
+      "competitor-watch": {
+        "title": "Rakip Takibi",
+        "desc": "Rakiplerin adımlarını izleyin ve her hafta değişenleri özetleyin.",
+        "seed": "Birkaç rakibi takip etmek istiyorum. Bir web araştırmacısı rakiplerin sitelerini ve web'i tarayarak ürün çıkışları, fiyat değişiklikleri ve iletişimdeki değişimler gibi son gelişmeleri bulsun. Ardından bir analist bu hafta nelerin değiştiğini ve konumlandırmam açısından neden önemli olduğunu özetlesin. Kısa bir rapor kaydedin ve her taramada yalnız yeni gelişmelerin işaretlenmesi için önceki bulguları hatırlayın."
+      },
+      "social-listening": {
+        "title": "Sosyal Dinleme",
+        "desc": "İnsanların bir konu veya marka hakkında neler söylediğini ortaya çıkarın.",
+        "seed": "Bir konu ve markam hakkında sosyal dinleme yapmak istiyorum. Bir araştırmacı web'deki yakın tarihli, herkese açık anılmaları ve tartışmaları toplasın. Ardından bir analist bunları temalara ayırsın, duygu eğilimini işaretlesin ve durumu temsil eden birkaç alıntı seçsin. Bir özet kaydedin ve zamanla trendlerin görülebilmesi için tekrar eden temaları bellekte saklayın."
+      },
+      "webinar-promoter": {
+        "title": "Webinar Tanıtım Planlayıcısı",
+        "desc": "Yaklaşan bir etkinlik için tanıtım dizisi planlayın.",
+        "seed": "Yaklaşan bir webinarım var ve tanıtım planı istiyorum. Bir planlayıcı birden çok temas noktasından oluşan zaman çizelgesini hazırlasın: duyuru, değer önerisinden kısa bir bölüm, hatırlatma ve son çağrı. Ardından bir yazar her temas için marka üslubumda sosyal medya gönderileri ve e-postalar taslaklasın. Elle zamanlayabilmem için hepsini taslak olarak kaydedin."
+      },
+      "ad-creative-tester": {
+        "title": "Reklam İçeriği Deneme Aracı",
+        "desc": "Harcama yapmadan denenecek farklı reklam yaklaşımları üretin.",
+        "seed": "Harcama yapmadan önce reklam içeriklerinin yaklaşımlarını denemek istiyorum. Bir stratejist ürünüm için 4-5 farklı yaklaşım önersin: sorun, sonuç, sosyal kanıt, ters köşe görüş ve merak. Ardından bir reklam yazarı her biri için başlık ve ana metin varyasyonu yazsın. Seçtiklerimi reklam platformuna kendim yapıştırabilmem için bunları taslak olarak kaydedin. Reklam harcaması veya platforma yazma işlemi yapılmasın."
+      },
+      "outreach-strategist": {
+        "title": "İlk İletişim Stratejisti",
+        "desc": "İdeal müşteri profilinizi netleştirin ve ilk iletişim e-posta dizisini taslaklayın.",
+        "seed": "Taslak hazırlayan ama asla göndermeyen bir ilk iletişim motoru istiyorum. Bir ICP araştırmacısı ürünümden ve hedef kitle ipucundan ideal müşteri profilimi netleştirsin. Ardından bir teklif yazarı gelen kutuma kopyalamaya hazır üç mesajlık dizi hazırlasın: tanışma, takip ve son takip mesajı. Diziyi taslak olarak kaydedin."
+      },
+      "cold-outreach-engine": {
+        "title": "İlk İletişim Motoru",
+        "desc": "Hedef listeniz için kişiselleştirilmiş ilk iletişim e-postaları hazırlayın.",
+        "seed": "Hedef şirketlerden oluşan bir listem var ve kişiselleştirilmiş ilk iletişim e-postaları istiyorum. Bir araştırmacı herkese açık bilgilerden her potansiyel müşteri için ilgili bir bağlantı noktası bulsun. Ardından bir yazar buna değinen, tek ve açık bir CTA içeren kısa, somut bir giriş metni taslaklasın. İnceleyip elle gönderebilmem için taslakları kaydedin ve her taslağı kayda geçirin. Otomatik gönderim yapılmasın."
+      },
+      "lead-qualifier": {
+        "title": "Potansiyel Müşteri Değerlendirici",
+        "desc": "Gelen potansiyel müşterileri ICP'nize göre puanlayıp yönlendirin.",
+        "seed": "Gelen potansiyel müşterileri değerlendirmek istiyorum. Verilen müşteri ayrıntılarından bir analist ICP'me uygunluğu puanlasın: sektör, büyüklük, rol ve niyet sinyalleri. Bir yönlendirici de birer cümlelik gerekçeyle hızlandırılmış değerlendirme, ilişkiyi geliştirme veya eleme seçeneklerinden birini önersin. Her kararı kayda geçirin ve değerlendirmenin zamanla daha tutarlı olması için puanlama örüntülerini hatırlayın."
+      },
+      "proposal-writer": {
+        "title": "Teklif Yazarı",
+        "desc": "Proje özetini müşteriye sunulmaya hazır bir teklife dönüştürün.",
+        "seed": "Bir proje özetini müşteri teklifine dönüştürmek istiyorum. Bir kapsam sorumlusu müşterinin bağlamını, sorunu, başarı ölçütlerini ve kapsam sınırlarını netleştirsin. Ardından bir yazar özet, kapsam, teslimatlar, aşamalı zaman çizelgesi ve değere dayalı fiyatlandırma içeren düzenli bir teklif taslağı yazsın. İnceleyip gönderebilmem için taslak olarak kaydedin."
+      },
+      "partnership-outreach": {
+        "title": "İş Ortaklığı İletişimi",
+        "desc": "Uygun iş ortaklarını bulun ve tanışma tekliflerini taslaklayın.",
+        "seed": "İş ortaklığı görüşmeleri hazırlamak istiyorum. Bir araştırmacı ürünümü tamamlayabilecek şirket türlerini belirleyip birkaç somut aday bulsun. Ardından bir yazar karşılıklı kazancı öne çıkaran, her adaya özel bir tanışma teklifi taslaklasın. Elle gönderebilmem için teklifleri taslak olarak kaydedin."
+      },
+      "market-research": {
+        "title": "Pazar Araştırma Ajanı",
+        "desc": "Bir pazarı tarayın ve tek sayfalık bir rapor hazırlayın.",
+        "seed": "Hızlı bir pazar taraması istiyorum. Bir web araştırmacısı pazarım hakkında değerli sinyaller sunan 5-10 kaynaktan bilgi toplasın. Ardından bir analiz sorumlusu pazar büyüklüğüne ilişkin sinyalleri, her biri için bir cümlelik farklılaşma açıklamasıyla en önemli üç rakibi, 12 aylık eğilimleri ve fırsatı içeren tek sayfalık bir rapor hazırlasın. Raporu kaydedin ve sonraki taramalarda kullanılabilmesi için önemli bulguları bellekte saklayın."
+      },
+      "customer-onboarding": {
+        "title": "Müşteri Başlangıç Süreci",
+        "desc": "Yeni müşteriler için yol gösteren bir karşılama dizisi taslaklayın.",
+        "seed": "Yeni müşterilerin sorunsuz başlamasını istiyorum. Bir planlayıcı aşamalara dayalı başlangıç yolculuğunu hazırlasın: karşılama, kurulum, ilk fayda ve durum kontrolü. Ardından bir yazar her aşama için marka üslubumda bir mesaj taslaklasın. Elle gönderebileceğim taslaklar olarak kaydedin ve her yeni müşterinin aynı rehberli başlangıcı yaşaması için bu yolculuğu hatırlayın."
+      },
+      "churn-watch": {
+        "title": "Müşteri Kaybı Takibi",
+        "desc": "Risk altındaki hesapları işaretleyin ve geri kazanım mesajları taslaklayın.",
+        "seed": "Müşteri kaybını erken fark etmek istiyorum. Sağladığım hesap etkinliklerinden bir analist, uyarı işaretleri ve gerekçeleriyle risk altındaki hesapları işaretlesin. Ardından bir yazar işaretlenen her hesap için özel bir geri kazanım mesajı taslaklasın. İncelemem için taslakları kaydedin, her değerlendirmeyi kayda geçirin ve genellikle müşteri kaybından önce görülen sinyalleri hatırlayın."
+      },
+      "product-launch-kit": {
+        "title": "Ürün Lansman Kiti",
+        "desc": "Lansman mesajlarını ve yayına geçiş kontrol listesini hazırlayın.",
+        "seed": "Bir ürün çıkarıyorum ve lansman kiti istiyorum. Bir stratejist temel konumlandırmayı ve ana mesajları taslaklasın. Bir yazar duyuru materyallerini hazırlasın: açılış sayfası metni, sosyal medya gönderileri ve lansman e-postası. Bir operasyon ajanı da yayına geçiş kontrol listesini oluştursun. Her şeyi taslak olarak kaydedin ve hiçbir adımın atlanmaması için kontrol listesini bellekte tutun."
+      },
+      "invoice-chaser": {
+        "title": "Fatura Takipçisi",
+        "desc": "Üslubu kademeli olarak kararlı hâle gelen nazik ödeme hatırlatmaları taslaklayın.",
+        "seed": "Vadesi geçmiş faturaları takip etmek için yardım istiyorum. Sağladığım ödenmemiş fatura listesinden bir ajan, her fatura için tutara ve son ödeme tarihine değinen nazik hatırlatmalar taslaklasın. Bunlar sırasıyla nazik hatırlatma, daha kararlı takip ve son bildirim olsun. Elle gönderebilmem için hatırlatmaları taslak olarak kaydedin ve her taslağı kayda geçirin. Asla otomatik mesaj göndermeyin ve asla para hareketi gerçekleştirmeyin."
+      },
+      "weekly-finance-digest": {
+        "title": "Haftalık Finans Özeti",
+        "desc": "Takip ettiğim sayıları haftalık bir değerlendirmede özetleyin.",
+        "seed": "Haftalık bir finans özeti istiyorum. Sağladığım gelir, harcama, nakdin yeteceği süre ve temel metriklerden bir analist önceki dönemle karşılaştırma yapsın. Nelerin değiştiğini ve neden önemli olduğunu açıklasın; dikkat gerektiren noktaları işaretlesin. Kısa bir değerlendirme kaydedin ve özetin eğilimleri gösterebilmesi için önceki haftaları hatırlayın. Yalnızca okuma yapılacak; finansal işlem yapılmayacak."
+      },
+      "support-triage": {
+        "title": "Destek Talebi Ön Değerlendirmesi",
+        "desc": "Destek taleplerini sınıflandırın ve ilk yanıtları taslaklayın.",
+        "seed": "Gelen destek taleplerini ön değerlendirmeden geçirmek istiyorum. Bir ajan verilen talebi hata, faturalama, kullanım sorusu veya özellik isteği olarak sınıflandırsın; bir öncelik belirlesin ve bilgi bankama dayanan yararlı bir ilk yanıt taslaklasın. Göndermeden önce bir insanın incelemesi için taslağı kaydedin. Her ön değerlendirme kararını kayda geçirin ve yaygın yanıtların gelişmesi için tekrar eden sorunları hatırlayın."
+      },
+      "review-responder": {
+        "title": "Müşteri Yorumu Yanıtlayıcı",
+        "desc": "Müşteri yorumlarına marka üslubunuzda yanıtlar taslaklayın.",
+        "seed": "Müşteri yorumlarına yanıt vermek için yardım istiyorum. Bir ajan verilen yorumun duygu eğilimini değerlendirip düşünülmüş, marka üslubuna uygun bir yanıt taslaklasın. Övgülere nazikçe, şikâyetlere sorumluluk alarak ve çözüm odaklı yaklaşsın. Yayımlayabilmem için yanıtları taslak olarak kaydedin ve örüntüleri görebilmem için tekrar eden övgüleri ve şikâyetleri hatırlayın."
+      },
+      "recruiting-sourcer": {
+        "title": "İşe Alım Aday Araştırmacısı",
+        "desc": "Rol profilini ve kişiselleştirilmiş aday iletişimini taslaklayın.",
+        "seed": "İşe alım yapıyorum ve aday araştırması için yardım istiyorum. Bir işe alım ajanı rolü net bir aday profiline dönüştürsün: olmazsa olmazlar, sinyaller ve adayların bulunduğu ortamlar. Ardından bir yazar umut vadeden adaylara gönderebileceğim sıcak, kişiselleştirilmiş bir ilk iletişim mesajı taslaklasın. Elle gönderebilmem için taslakları kaydedin ve her birini kayda geçirin. Otomatik mesajlaşma yapılmasın."
+      }
+    },
+    "integrations": {
+      "hubspot": {
+        "description": "Kişi, anlaşma ve satış süreci yönetimini bir araya getiren kapsamlı CRM",
+        "features": [
+          "Kişi eşitleme",
+          "Anlaşma takibi",
+          "Satış süreci yönetimi",
+          "Form gönderimleri",
+          "E-posta takibi"
+        ]
+      },
+      "salesforce": {
+        "description": "Satış ve hizmet ekipleri için kurumsal CRM platformu",
+        "features": [
+          "Potansiyel müşteri yönetimi",
+          "Fırsat takibi",
+          "Özel nesneler",
+          "Raporlar",
+          "İş akışı kuralları"
+        ]
+      },
+      "pipedrive": {
+        "description": "Görsel satış süreci sunan, satış odaklı CRM",
+        "features": [
+          "Görsel satış süreci",
+          "Etkinlik takibi",
+          "E-posta entegrasyonu",
+          "Akıllı kişi verileri",
+          "Gelir tahmini"
+        ]
+      },
+      "zoho_crm": {
+        "description": "Büyüyen işletmeler için yapay zekâ destekli CRM",
+        "features": [
+          "Potansiyel müşteri puanlama",
+          "Satış otomasyonu",
+          "Analizler",
+          "Çok kanallı iletişim",
+          "Satış bölgesi yönetimi"
+        ]
+      },
+      "close": {
+        "description": "İç satış ekipleri için geliştirilmiş CRM",
+        "features": [
+          "Yerleşik arama",
+          "E-posta dizileri",
+          "Satış süreci raporları",
+          "Görev yönetimi",
+          "Akıllı görünümler"
+        ]
+      },
+      "freshsales": {
+        "description": "Yapay zekâ tabanlı potansiyel müşteri puanlaması sunan modern CRM",
+        "features": [
+          "Yapay zekâyla potansiyel müşteri puanlama",
+          "Yerleşik telefon",
+          "E-posta takibi",
+          "Anlaşma yönetimi",
+          "Raporlar"
+        ]
+      },
+      "attio": {
+        "description": "Gerçek zamanlı veri zenginleştirme sunan yeni nesil CRM",
+        "features": [
+          "Otomatik zenginleştirme",
+          "Özel nesneler",
+          "Gerçek zamanlı eşitleme",
+          "İlişki analizi",
+          "API öncelikli yapı"
+        ]
+      },
+      "folk": {
+        "description": "İlişkilere odaklanan ekipler için ortak çalışmaya uygun CRM",
+        "features": [
+          "Grup yönetimi",
+          "Adres mektup birleştirme",
+          "Satış süreci görünümleri",
+          "Tarayıcı eklentisi",
+          "Zenginleştirme"
+        ]
+      },
+      "copper": {
+        "description": "Google Workspace için tasarlanmış CRM",
+        "features": [
+          "Gmail entegrasyonu",
+          "Kişi yönetimi",
+          "Satış süreci takibi",
+          "Görev otomasyonu",
+          "Raporlama"
+        ]
+      },
+      "monday_sales": {
+        "description": "Monday.com platformundaki satış CRM'i",
+        "features": [
+          "Görsel satış süreci",
+          "E-posta eşitleme",
+          "Etkinlik takibi",
+          "Özel panolar",
+          "Otomasyonlar"
+        ]
+      },
+      "tiktok": {
+        "description": "Kısa video platformu",
+        "features": [
+          "Video yayımlama",
+          "Analizler",
+          "Yorum yönetimi",
+          "Trend takibi",
+          "İçerik üreticisi araçları"
+        ]
+      },
+      "instagram": {
+        "description": "Fotoğraf ve video paylaşım platformu",
+        "features": [
+          "Gönderi zamanlama",
+          "Hikâye yayımlama",
+          "Reels oluşturma",
+          "İçgörüler",
+          "Yorum yönetimi"
+        ]
+      },
+      "linkedin": {
+        "description": "Profesyonel ağ kurma ve içerik platformu",
+        "features": [
+          "Gönderi yayımlama",
+          "Şirket sayfaları",
+          "Analizler",
+          "Bağlantı yönetimi",
+          "Makale oluşturma"
+        ]
+      },
+      "twitter": {
+        "description": "Gerçek zamanlı sosyal medya platformu",
+        "features": [
+          "Tweet gönderme",
+          "Gönderi dizisi oluşturma",
+          "Analizler",
+          "Doğrudan mesaj yönetimi",
+          "Liste yönetimi"
+        ]
+      },
+      "youtube": {
+        "description": "Video barındırma ve yayın platformu",
+        "features": [
+          "Video yükleme",
+          "Analizler",
+          "Yorum yönetimi",
+          "Oynatma listesi yönetimi",
+          "Canlı yayın"
+        ]
+      },
+      "facebook": {
+        "description": "Sosyal medya ve işletme sayfaları",
+        "features": [
+          "Sayfada gönderi yayımlama",
+          "Reklam yönetimi",
+          "İçgörüler",
+          "Grup yönetimi",
+          "Messenger"
+        ]
+      },
+      "pinterest": {
+        "description": "Görsel keşif ve yer işareti platformu",
+        "features": [
+          "Pin oluşturma",
+          "Pano yönetimi",
+          "Analizler",
+          "Zengin Pinler",
+          "Alışveriş"
+        ]
+      },
+      "reddit": {
+        "description": "Topluluk tartışma platformu",
+        "features": [
+          "Gönderi oluşturma",
+          "Yorum takibi",
+          "Subreddit izleme",
+          "Analizler",
+          "Ödül yönetimi"
+        ]
+      },
+      "threads": {
+        "description": "Meta'nın metin tabanlı sohbet uygulaması",
+        "features": [
+          "Gönderi yayımlama",
+          "Yanıt yönetimi",
+          "Analizler",
+          "Alıntılı gönderiler",
+          "Yeniden paylaşımlar"
+        ]
+      },
+      "snapchat": {
+        "description": "Geçici mesajlaşma ve içerik platformu",
+        "features": [
+          "Hikâye oluşturma",
+          "Snap reklamları",
+          "Analizler",
+          "Lens Studio",
+          "Spotlight"
+        ]
+      },
+      "mailchimp": {
+        "description": "Pazarlama araçlarını bir araya getiren platform",
+        "features": [
+          "E-posta kampanyaları",
+          "Otomasyon",
+          "Hedef kitle yönetimi",
+          "Açılış sayfaları",
+          "Analizler"
+        ]
+      },
+      "sendgrid": {
+        "description": "Bulut tabanlı e-posta teslim hizmeti",
+        "features": [
+          "İşlemsel e-posta",
+          "Pazarlama kampanyaları",
+          "E-posta doğrulama",
+          "Analizler",
+          "Şablonlar"
+        ]
+      },
+      "convertkit": {
+        "description": "İçerik üreticileri için e-posta pazarlaması",
+        "features": [
+          "Görsel otomasyonlar",
+          "Açılış sayfaları",
+          "Abone etiketleme",
+          "Toplu yayınlar",
+          "Ticaret"
+        ]
+      },
+      "activecampaign": {
+        "description": "Müşteri deneyimi otomasyonu",
+        "features": [
+          "E-posta pazarlaması",
+          "Pazarlama otomasyonu",
+          "CRM",
+          "Mesajlaşma",
+          "Makine öğrenmesi"
+        ]
+      },
+      "brevo": {
+        "description": "Dijital pazarlama araçlarını bir araya getiren platform",
+        "features": [
+          "E-posta kampanyaları",
+          "SMS pazarlaması",
+          "Sohbet",
+          "CRM",
+          "Otomasyon"
+        ]
+      },
+      "klaviyo": {
+        "description": "E-ticaret pazarlama otomasyonu",
+        "features": [
+          "E-posta akışları",
+          "SMS pazarlaması",
+          "Segmentasyon",
+          "Öngörüye dayalı analizler",
+          "A/B testi"
+        ]
+      },
+      "constant_contact": {
+        "description": "E-posta ve çevrimiçi pazarlama",
+        "features": [
+          "E-posta şablonları",
+          "Kişi yönetimi",
+          "Otomasyon",
+          "Raporlama",
+          "Sosyal medyada paylaşım"
+        ]
+      },
+      "drip": {
+        "description": "E-ticaret CRM'i ve pazarlama otomasyonu",
+        "features": [
+          "Görsel iş akışları",
+          "Segmentasyon",
+          "Gelir ilişkilendirme",
+          "Formlar",
+          "Entegrasyonlar"
+        ]
+      },
+      "beehiiv": {
+        "description": "İçerik üreticileri için bülten platformu",
+        "features": [
+          "Bülten düzenleyicisi",
+          "Büyüme araçları",
+          "Gelir elde etme",
+          "Analizler",
+          "Özel alan adları"
+        ]
+      },
+      "aweber": {
+        "description": "Küçük işletmeler için e-posta pazarlaması",
+        "features": [
+          "E-posta otomasyonu",
+          "Açılış sayfaları",
+          "Web push bildirimleri",
+          "AMP e-postaları",
+          "Raporlama"
+        ]
+      },
+      "slack": {
+        "description": "İş iletişimi platformu",
+        "features": [
+          "Kanallarda mesajlaşma",
+          "İş akışları",
+          "Dosya paylaşımı",
+          "Entegrasyonlar",
+          "Arama"
+        ]
+      },
+      "discord": {
+        "description": "Topluluk mesajlaşma platformu",
+        "features": [
+          "Sunucu yönetimi",
+          "Bot entegrasyonu",
+          "Ses kanalları",
+          "Mesaj dizisi yönetimi",
+          "Webhook'lar"
+        ]
+      },
+      "whatsapp": {
+        "description": "WhatsApp üzerinden iş iletişimi",
+        "features": [
+          "İş mesajlaşması",
+          "Katalog",
+          "Hızlı yanıtlar",
+          "Etiketler",
+          "Toplu yayın"
+        ]
+      },
+      "telegram": {
+        "description": "Bot API'si sunan bulut tabanlı mesajlaşma",
+        "features": [
+          "Bot oluşturma",
+          "Kanal yönetimi",
+          "Grup yönetimi",
+          "Satır içi mod",
+          "Ödemeler"
+        ]
+      },
+      "microsoft_teams": {
+        "description": "Microsoft'un iş birliği platformu",
+        "features": [
+          "Ekip mesajlaşması",
+          "Toplantılar",
+          "Dosyalar üzerinde ortak çalışma",
+          "Uygulama entegrasyonu",
+          "İş akışları"
+        ]
+      },
+      "intercom": {
+        "description": "Müşteri mesajlaşma platformu",
+        "features": [
+          "Canlı sohbet",
+          "Sohbet botları",
+          "Ürün turları",
+          "Yardım merkezi",
+          "Gelen kutusu"
+        ]
+      },
+      "crisp": {
+        "description": "İş iletişimi ve canlı sohbet",
+        "features": [
+          "Canlı sohbet",
+          "Sohbet botu",
+          "Bilgi bankası",
+          "Durum sayfası",
+          "CRM"
+        ]
+      },
+      "drift": {
+        "description": "Sohbete dayalı pazarlama platformu",
+        "features": [
+          "Canlı sohbet",
+          "Sohbet botları",
+          "Video",
+          "E-posta",
+          "Toplantı zamanlama"
+        ]
+      },
+      "notion": {
+        "description": "Notları ve belgeleri bir araya getiren çalışma alanı",
+        "features": [
+          "Sayfalar",
+          "Veritabanları",
+          "Şablonlar",
+          "API erişimi",
+          "Ekip iş birliği"
+        ]
+      },
+      "airtable": {
+        "description": "Hesap tablosu ve veritabanını birleştiren platform",
+        "features": [
+          "Taban oluşturma",
+          "Görünümler",
+          "Otomasyonlar",
+          "Formlar",
+          "API erişimi"
+        ]
+      },
+      "google_sheets": {
+        "description": "Google'ın bulut hesap tablosu",
+        "features": [
+          "Hesap tablosu düzenleme",
+          "Formüller",
+          "Grafikler",
+          "Ortak çalışma",
+          "Eklentiler"
+        ]
+      },
+      "google_docs": {
+        "description": "Google'ın bulut belge düzenleyicisi",
+        "features": [
+          "Belge oluşturma",
+          "Gerçek zamanlı düzenleme",
+          "Yorumlar",
+          "Şablonlar",
+          "Eklentiler"
+        ]
+      },
+      "clickup": {
+        "description": "Üretkenlik araçlarını bir araya getiren platform",
+        "features": [
+          "Görev yönetimi",
+          "Belgeler",
+          "Hedefler",
+          "Zaman takibi",
+          "Panolar"
+        ]
+      },
+      "asana": {
+        "description": "İş yönetimi platformu",
+        "features": [
+          "Görev takibi",
+          "Proje görünümleri",
+          "Portföyler",
+          "Hedefler",
+          "Otomasyonlar"
+        ]
+      },
+      "trello": {
+        "description": "Kanban tarzı proje yönetimi",
+        "features": [
+          "Pano yönetimi",
+          "Kartlar",
+          "Kontrol listeleri",
+          "Power-Ups",
+          "Otomasyon"
+        ]
+      },
+      "monday": {
+        "description": "Ekipler için çalışma platformu",
+        "features": [
+          "Çalışma panoları",
+          "Otomasyonlar",
+          "Gösterge panoları",
+          "Entegrasyonlar",
+          "Formlar"
+        ]
+      },
+      "linear": {
+        "description": "Modern ekipler için iş kaydı takibi",
+        "features": [
+          "İş kaydı takibi",
+          "Döngüler",
+          "Yol haritası",
+          "Git entegrasyonu",
+          "API öncelikli yapı"
+        ]
+      },
+      "jira": {
+        "description": "Yazılım ekipleri için proje takibi",
+        "features": [
+          "İş kaydı takibi",
+          "Scrum panoları",
+          "Kanban",
+          "Yol haritaları",
+          "Raporlama"
+        ]
+      },
+      "confluence": {
+        "description": "Atlassian'ın ekip bilgi bankası",
+        "features": [
+          "Sayfalar",
+          "Alanlar",
+          "Şablonlar",
+          "Ortak çalışma",
+          "Arama"
+        ]
+      },
+      "coda": {
+        "description": "Ekiplerin çalışma araçlarını bir araya getiren belge",
+        "features": [
+          "Belgeler",
+          "Tablolar",
+          "Otomasyonlar",
+          "Packs",
+          "Yayımlama"
+        ]
+      },
+      "basecamp": {
+        "description": "Proje yönetimi ve ekip iletişimi",
+        "features": [
+          "Yapılacaklar",
+          "Mesaj panoları",
+          "Takvimler",
+          "Durum yoklamaları",
+          "Hill Charts"
+        ]
+      },
+      "shopify": {
+        "description": "Çevrimiçi mağazalar için e-ticaret platformu",
+        "features": [
+          "Ürün yönetimi",
+          "Sipariş takibi",
+          "Müşteri verileri",
+          "Analizler",
+          "Webhook'lar"
+        ]
+      },
+      "wordpress": {
+        "description": "Açık kaynaklı içerik yönetimi ve e-ticaret",
+        "features": [
+          "İçerik yönetimi",
+          "WooCommerce",
+          "Eklentiler",
+          "REST API",
+          "Webhook'lar"
+        ]
+      },
+      "bigcommerce": {
+        "description": "Ölçeklenebilir e-ticaret platformu",
+        "features": [
+          "Çok kanallı satış",
+          "SEO araçları",
+          "Analizler",
+          "B2B özellikleri",
+          "API erişimi"
+        ]
+      },
+      "squarespace": {
+        "description": "Ticaret özellikleri sunan web sitesi oluşturucu",
+        "features": [
+          "Web sitesi oluşturma",
+          "E-ticaret",
+          "Randevu planlama",
+          "Analizler",
+          "Alan adları"
+        ]
+      },
+      "etsy": {
+        "description": "El yapımı ve vintage ürünler için pazar yeri",
+        "features": [
+          "İlan yönetimi",
+          "Sipariş takibi",
+          "Analizler",
+          "Reklam",
+          "Değerlendirmeler"
+        ]
+      },
+      "gumroad": {
+        "description": "Dijital ürünleri doğrudan satma",
+        "features": [
+          "Dijital ürünler",
+          "Abonelikler",
+          "İş akışları",
+          "Analizler",
+          "Satış ortaklığı programı"
+        ]
+      },
+      "lemonsqueezy": {
+        "description": "Dijital ürünler için yasal satıcı hizmeti",
+        "features": [
+          "Ödemeler",
+          "Abonelikler",
+          "Lisans anahtarları",
+          "Ödeme sayfası",
+          "Webhook'lar"
+        ]
+      },
+      "paddle": {
+        "description": "SaaS için gelir yönetimi platformu",
+        "features": [
+          "Ödeme sayfası",
+          "Abonelikler",
+          "Vergi uyumu",
+          "Gelir kurtarma",
+          "Analizler"
+        ]
+      },
+      "github": {
+        "description": "Kod barındırma ve ortak çalışma",
+        "features": [
+          "Depo yönetimi",
+          "İş kayıtları",
+          "Pull request'ler",
+          "Actions",
+          "Webhook'lar"
+        ]
+      },
+      "gitlab": {
+        "description": "DevOps platformu",
+        "features": [
+          "Git depoları",
+          "CI/CD",
+          "İş kayıtları",
+          "Merge request'ler",
+          "Konteyner kayıt deposu"
+        ]
+      },
+      "bitbucket": {
+        "description": "Atlassian'ın Git kod yönetimi",
+        "features": [
+          "Depolar",
+          "Pull request'ler",
+          "İş akışları",
+          "Kod inceleme",
+          "Jira entegrasyonu"
+        ]
+      },
+      "vercel": {
+        "description": "Frontend dağıtım platformu",
+        "features": [
+          "Dağıtımlar",
+          "Sunucusuz fonksiyonlar",
+          "Edge ağı",
+          "Analizler",
+          "Önizleme URL'leri"
+        ]
+      },
+      "netlify": {
+        "description": "Web geliştirme ve barındırma platformu",
+        "features": [
+          "Dağıtımlar",
+          "Formlar",
+          "Fonksiyonlar",
+          "Kimlik",
+          "A/B testi"
+        ]
+      },
+      "supabase": {
+        "description": "Açık kaynaklı Firebase alternatifi",
+        "features": [
+          "Veritabanı",
+          "Kimlik doğrulama",
+          "Depolama",
+          "Edge fonksiyonları",
+          "Gerçek zamanlı veriler"
+        ]
+      },
+      "firebase": {
+        "description": "Google'ın uygulama geliştirme platformu",
+        "features": [
+          "Kimlik doğrulama",
+          "Firestore",
+          "Cloud Functions",
+          "Barındırma",
+          "Analizler"
+        ]
+      },
+      "railway": {
+        "description": "Uygulamaları kolayca dağıtma",
+        "features": [
+          "Otomatik dağıtım",
+          "Veritabanları",
+          "Ortamlar",
+          "Günlükler",
+          "Metrikler"
+        ]
+      },
+      "render": {
+        "description": "Uygulamalar ve siteler için birleşik bulut",
+        "features": [
+          "Web hizmetleri",
+          "Statik siteler",
+          "Veritabanları",
+          "Cron işleri",
+          "Otomatik ölçekleme"
+        ]
+      },
+      "google_analytics": {
+        "description": "Google'ın web analizi aracı",
+        "features": [
+          "Trafik analizi",
+          "Kullanıcı davranışı",
+          "Dönüşüm takibi",
+          "Özel raporlar",
+          "Gerçek zamanlı veriler"
+        ]
+      },
+      "mixpanel": {
+        "description": "Ürün analizi platformu",
+        "features": [
+          "Olay takibi",
+          "Dönüşüm hunileri",
+          "Kullanıcı bağlılığı",
+          "Kullanıcı akışları",
+          "A/B testi"
+        ]
+      },
+      "amplitude": {
+        "description": "Dijital analiz platformu",
+        "features": [
+          "Davranış analizi",
+          "Kohort analizi",
+          "Deneyler",
+          "Tahminler",
+          "Veri yönetişimi"
+        ]
+      },
+      "posthog": {
+        "description": "Açık kaynaklı ürün analizi",
+        "features": [
+          "Olay takibi",
+          "Oturum kaydı",
+          "Özellik bayrakları",
+          "Deneyler",
+          "Anketler"
+        ]
+      },
+      "plausible": {
+        "description": "Gizliliğe odaklanan web analizi",
+        "features": [
+          "Sade gösterge panosu",
+          "Çerez kullanmaz",
+          "Hedef takibi",
+          "Kampanyalar",
+          "API erişimi"
+        ]
+      },
+      "hotjar": {
+        "description": "Isı haritaları ve davranış analizi",
+        "features": [
+          "Isı haritaları",
+          "Kayıtlar",
+          "Anketler",
+          "Geri bildirim",
+          "Dönüşüm hunileri"
+        ]
+      },
+      "segment": {
+        "description": "Müşteri veri platformu",
+        "features": [
+          "Veri toplama",
+          "Veri yönlendirme",
+          "Profiller",
+          "Hedef kitleler",
+          "Protokoller"
+        ]
+      },
+      "google_ads": {
+        "description": "Arama ve görüntülü reklamcılık",
+        "features": [
+          "Arama kampanyaları",
+          "Görüntülü reklamlar",
+          "Alışveriş reklamları",
+          "Video reklamlar",
+          "Raporlama"
+        ]
+      },
+      "meta_ads": {
+        "description": "Facebook ve Instagram'da reklamcılık",
+        "features": [
+          "Kampanya yönetimi",
+          "Hedef kitle seçimi",
+          "Reklam içeriği araçları",
+          "Piksel takibi",
+          "Raporlama"
+        ]
+      },
+      "linkedin_ads": {
+        "description": "LinkedIn'de B2B reklamcılık",
+        "features": [
+          "Sponsorlu içerik",
+          "Mesaj reklamları",
+          "Potansiyel müşteri formları",
+          "Hedef kitle seçimi",
+          "Analizler"
+        ]
+      },
+      "tiktok_ads": {
+        "description": "TikTok'ta reklamcılık",
+        "features": [
+          "Akış içi reklamlar",
+          "TopView",
+          "Markalı efektler",
+          "Piksel takibi",
+          "Raporlama"
+        ]
+      },
+      "twitter_ads": {
+        "description": "Twitter/X'te reklamcılık",
+        "features": [
+          "Öne çıkarılan tweet'ler",
+          "Takipçi reklamları",
+          "Trend Takeover",
+          "Hedefleme",
+          "Analizler"
+        ]
+      },
+      "microsoft_ads": {
+        "description": "Bing'de arama reklamcılığı",
+        "features": [
+          "Arama reklamları",
+          "Alışveriş kampanyaları",
+          "Hedef kitle reklamları",
+          "Google'dan içe aktarma",
+          "Raporlama"
+        ]
+      },
+      "stripe": {
+        "description": "Ödeme işleme platformu",
+        "features": [
+          "Ödemeler",
+          "Abonelikler",
+          "Faturalama",
+          "Connect",
+          "Radar"
+        ]
+      },
+      "paypal": {
+        "description": "Çevrimiçi ödeme platformu",
+        "features": [
+          "Ödemeler",
+          "Ödeme sayfası",
+          "Faturalama",
+          "Abonelikler",
+          "İtirazlar"
+        ]
+      },
+      "square": {
+        "description": "Ödeme ve işletme araçları",
+        "features": [
+          "Ödemeler",
+          "POS",
+          "Faturalama",
+          "Bankacılık",
+          "Sadakat programları"
+        ]
+      },
+      "razorpay": {
+        "description": "Hindistan için ödeme geçidi",
+        "features": [
+          "Ödemeler",
+          "Abonelikler",
+          "Smart Collect",
+          "Route",
+          "RazorpayX"
+        ]
+      },
+      "wise": {
+        "description": "Uluslararası para transferleri",
+        "features": [
+          "Transferler",
+          "Çoklu para birimi hesapları",
+          "Toplu ödemeler",
+          "API erişimi",
+          "Webhook'lar"
+        ]
+      },
+      "aws_s3": {
+        "description": "Amazon'un bulut nesne depolaması",
+        "features": [
+          "Dosya yükleme",
+          "CDN",
+          "Sürümleme",
+          "Erişim denetimi",
+          "Olaylar"
+        ]
+      },
+      "google_cloud_storage": {
+        "description": "Google'ın bulut nesne depolaması",
+        "features": [
+          "Dosya depolama",
+          "CDN",
+          "Yaşam döngüsü ilkeleri",
+          "Erişim denetimi",
+          "İmzalı URL'ler"
+        ]
+      },
+      "cloudflare_r2": {
+        "description": "Veri çıkış ücreti olmayan nesne depolama",
+        "features": [
+          "S3 uyumlu",
+          "Veri çıkış ücreti yok",
+          "Workers entegrasyonu",
+          "Otomatik taşıma",
+          "CDN"
+        ]
+      },
+      "dropbox": {
+        "description": "Dosya barındırma ve ortak çalışma",
+        "features": [
+          "Dosya eşitleme",
+          "Paylaşım",
+          "Ekip alanları",
+          "Paper",
+          "API erişimi"
+        ]
+      },
+      "google_drive": {
+        "description": "Google'ın bulut dosya depolaması",
+        "features": [
+          "Dosya depolama",
+          "Paylaşım",
+          "Ortak çalışma",
+          "Arama",
+          "API erişimi"
+        ]
+      },
+      "openai": {
+        "description": "GPT ve DALL-E yapay zekâ modelleri",
+        "features": [
+          "Sohbet tamamlama",
+          "Görsel üretimi",
+          "Embedding'ler",
+          "İnce ayar",
+          "Assistants"
+        ]
+      },
+      "anthropic": {
+        "description": "Claude yapay zekâ modelleri",
+        "features": [
+          "Sohbet tamamlama",
+          "Araç kullanımı",
+          "Görsel anlama",
+          "Uzun bağlam",
+          "Toplu işlem API'si"
+        ]
+      },
+      "google_gemini": {
+        "description": "Google'ın çok modlu yapay zekâ modeli",
+        "features": [
+          "Metin üretimi",
+          "Görsel anlama",
+          "Kod üretimi",
+          "Kaynakla temellendirme",
+          "Fonksiyon çağırma"
+        ]
+      },
+      "mistral": {
+        "description": "Ağırlıkları açık yapay zekâ modelleri",
+        "features": [
+          "Sohbet tamamlama",
+          "Kod üretimi",
+          "Embedding'ler",
+          "Fonksiyon çağırma",
+          "JSON modu"
+        ]
+      },
+      "groq": {
+        "description": "Çok hızlı çıkarım motoru",
+        "features": [
+          "Hızlı çıkarım",
+          "Sohbet tamamlama",
+          "Araç kullanımı",
+          "JSON modu",
+          "Akış"
+        ]
+      },
+      "replicate": {
+        "description": "Makine öğrenmesi modellerini bulutta çalıştırma",
+        "features": [
+          "Model barındırma",
+          "Tahminler",
+          "İnce ayar",
+          "Webhook'lar",
+          "Akış"
+        ]
+      },
+      "huggingface": {
+        "description": "Makine öğrenmesi model merkezi ve çıkarım",
+        "features": [
+          "Çıkarım API'si",
+          "Model barındırma",
+          "Veri kümeleri",
+          "Spaces",
+          "AutoTrain"
+        ]
+      },
+      "elevenlabs": {
+        "description": "Yapay zekâyla ses üretimi",
+        "features": [
+          "Metinden konuşmaya",
+          "Ses klonlama",
+          "Ses tasarımı",
+          "Akış",
+          "Dublaj"
+        ]
+      },
+      "midjourney": {
+        "description": "Yapay zekâyla görsel üretimi",
+        "features": [
+          "Görsel üretimi",
+          "Varyasyonlar",
+          "Çözünürlük artırma",
+          "Stil denetimi",
+          "Harmanlama"
+        ]
+      },
+      "runway": {
+        "description": "Yapay zekâ video ve yaratıcı içerik araçları",
+        "features": [
+          "Video üretimi",
+          "Görsel düzenleme",
+          "Yeşil ekran",
+          "Hareket takibi",
+          "Görsel içi tamamlama"
+        ]
+      },
+      "stability": {
+        "description": "Stable Diffusion ve daha fazlası",
+        "features": [
+          "Görsel üretimi",
+          "Çözünürlük artırma",
+          "Görsel içi tamamlama",
+          "3D üretimi",
+          "API erişimi"
+        ]
+      },
+      "perplexity": {
+        "description": "Yapay zekâ destekli arama ve yanıtlar",
+        "features": [
+          "Arama API'si",
+          "Sohbet",
+          "Kaynak gösterimleri",
+          "Gerçek zamanlı veriler",
+          "Yapılandırılmış çıktı"
+        ]
+      },
+      "zendesk": {
+        "description": "Müşteri hizmetleri platformu",
+        "features": [
+          "Destek talepleri",
+          "Canlı sohbet",
+          "Bilgi bankası",
+          "Yapay zekâ ajanları",
+          "Analizler"
+        ]
+      },
+      "freshdesk": {
+        "description": "Bulut tabanlı müşteri desteği",
+        "features": [
+          "Destek talepleri",
+          "Otomasyon",
+          "Bilgi bankası",
+          "Topluluk forumları",
+          "Raporlama"
+        ]
+      },
+      "helpscout": {
+        "description": "Büyüyen ekipler için destek masası",
+        "features": [
+          "Paylaşılan gelen kutusu",
+          "Bilgi bankası",
+          "Beacon",
+          "Raporlama",
+          "İş akışları"
+        ]
+      },
+      "front": {
+        "description": "Müşteri operasyonları platformu",
+        "features": [
+          "Paylaşılan gelen kutusu",
+          "İş akışları",
+          "Analizler",
+          "Entegrasyonlar",
+          "Yapay zekâ taslakları"
+        ]
+      },
+      "bamboohr": {
+        "description": "Büyüyen şirketler için insan kaynakları yazılımı",
+        "features": [
+          "Çalışan kayıtları",
+          "İzinler",
+          "İşe uyum süreci",
+          "Performans",
+          "Raporlama"
+        ]
+      },
+      "gusto": {
+        "description": "Bordro ve insan kaynakları platformu",
+        "features": [
+          "Bordro",
+          "Yan haklar",
+          "İnsan kaynakları araçları",
+          "İşe alım",
+          "Uyumluluk"
+        ]
+      },
+      "rippling": {
+        "description": "İş gücü yönetimi platformu",
+        "features": [
+          "İnsan kaynakları bulutu",
+          "BT yönetimi",
+          "Bordro",
+          "Yan haklar",
+          "İş akışı otomasyonu"
+        ]
+      },
+      "deel": {
+        "description": "Küresel işe alım ve bordro",
+        "features": [
+          "Yüklenici yönetimi",
+          "EOR",
+          "Bordro",
+          "Uyumluluk",
+          "HRIS"
+        ]
+      },
+      "remote": {
+        "description": "Küresel istihdam platformu",
+        "features": [
+          "EOR",
+          "Yüklenici yönetimi",
+          "Bordro",
+          "Yan haklar",
+          "Uyumluluk"
+        ]
+      },
+      "figma": {
+        "description": "Ortak çalışmaya uygun tasarım aracı",
+        "features": [
+          "Tasarım dosyaları",
+          "Prototipleme",
+          "Dev mode",
+          "Bileşenler",
+          "Eklentiler"
+        ]
+      },
+      "canva": {
+        "description": "Görsel içerik oluşturma platformu",
+        "features": [
+          "Şablonlar",
+          "Marka kiti",
+          "Video düzenleme",
+          "Ortak çalışma",
+          "API erişimi"
+        ]
+      },
+      "framer": {
+        "description": "Web tasarımı ve yayımlama",
+        "features": [
+          "Görsel düzenleyici",
+          "CMS",
+          "Animasyonlar",
+          "Duyarlı tasarım",
+          "Yayımlama"
+        ]
+      },
+      "webflow": {
+        "description": "Kodsuz web sitesi oluşturucu",
+        "features": [
+          "Görsel tasarım",
+          "CMS",
+          "Barındırma",
+          "E-ticaret",
+          "Etkileşimler"
+        ]
+      },
+      "loom": {
+        "description": "Eş zamansız video mesajlaşma",
+        "features": [
+          "Ekran kaydı",
+          "Video barındırma",
+          "Analizler",
+          "Deşifre",
+          "Yorumlar"
+        ]
+      },
+      "vimeo": {
+        "description": "Profesyonel video barındırma",
+        "features": [
+          "Video barındırma",
+          "Canlı yayın",
+          "Analizler",
+          "Oynatıcı özelleştirme",
+          "Gizlilik"
+        ]
+      },
+      "mux": {
+        "description": "Video altyapısı API'si",
+        "features": [
+          "Video kodlama",
+          "Canlı yayın",
+          "Küçük resimler",
+          "Analizler",
+          "Oynatıcı"
+        ]
+      },
+      "cloudinary": {
+        "description": "Medya yönetimi platformu",
+        "features": [
+          "Görsel optimizasyonu",
+          "Video işleme",
+          "Dönüşümler",
+          "CDN",
+          "Yapay zekâ özellikleri"
+        ]
+      },
+      "typeform": {
+        "description": "Etkileşimli formlar ve anketler",
+        "features": [
+          "Sohbet tarzı formlar",
+          "Mantıksal dallanma",
+          "Entegrasyonlar",
+          "Analizler",
+          "Şablonlar"
+        ]
+      },
+      "tally": {
+        "description": "Form oluşturmanın en sade yolu",
+        "features": [
+          "Form oluşturucu",
+          "Koşullu mantık",
+          "Dosya yükleme",
+          "Ödemeler",
+          "Webhook'lar"
+        ]
+      },
+      "google_forms": {
+        "description": "Google'ın sade form oluşturucusu",
+        "features": [
+          "Form oluşturma",
+          "Yanıt toplama",
+          "Test modu",
+          "Şablonlar",
+          "Sheets entegrasyonu"
+        ]
+      },
+      "jotform": {
+        "description": "Çevrimiçi form oluşturucu",
+        "features": [
+          "Sürükle bırak oluşturucu",
+          "Ödeme formları",
+          "Onaylar",
+          "PDF formları",
+          "Widget'lar"
+        ]
+      },
+      "surveymonkey": {
+        "description": "Anket ve geri bildirim platformu",
+        "features": [
+          "Anketler",
+          "Testler",
+          "Oylamalar",
+          "Analizler",
+          "Şablonlar"
+        ]
+      },
+      "calendly": {
+        "description": "Randevu planlama otomasyonu",
+        "features": [
+          "Rezervasyon sayfaları",
+          "İş akışları",
+          "Entegrasyonlar",
+          "Grup etkinlikleri",
+          "Yönlendirme"
+        ]
+      },
+      "cal_com": {
+        "description": "Açık kaynaklı randevu planlama",
+        "features": [
+          "Rezervasyon sayfaları",
+          "Ekip planlaması",
+          "Özel iş akışları",
+          "Webhook'lar",
+          "API erişimi"
+        ]
+      },
+      "savvycal": {
+        "description": "Yoğun kişiler için randevu planlama",
+        "features": [
+          "Kişiselleştirilmiş bağlantılar",
+          "Takvimleri üst üste gösterme",
+          "Öncelikli planlama",
+          "İş akışları",
+          "Entegrasyonlar"
+        ]
+      },
+      "tidycal": {
+        "description": "Sade randevu planlama aracı",
+        "features": [
+          "Rezervasyon sayfaları",
+          "Takvim eşitleme",
+          "Ödemeler",
+          "Özel sorular",
+          "Entegrasyonlar"
+        ]
+      },
+      "zapier": {
+        "description": "Kodsuz otomasyon platformu",
+        "features": [
+          "Uygulama bağlantıları",
+          "Çok adımlı Zap'ler",
+          "Filtreler",
+          "Formatter",
+          "Webhook'lar"
+        ]
+      },
+      "make": {
+        "description": "Görsel otomasyon platformu",
+        "features": [
+          "Görsel oluşturucu",
+          "Uygulamalar",
+          "Veri depoları",
+          "Webhook'lar",
+          "Zamanlama"
+        ]
+      },
+      "n8n": {
+        "description": "Fair-code iş akışı otomasyonu",
+        "features": [
+          "Kendi sunucunda barındırma",
+          "Entegrasyonlar",
+          "Kod düğümleri",
+          "Webhook'lar",
+          "Yapay zekâ yetenekleri"
+        ]
+      },
+      "activepieces": {
+        "description": "Açık kaynaklı otomasyon aracı",
+        "features": [
+          "Kodsuz oluşturucu",
+          "Kendi sunucunda barındırma",
+          "Pieces",
+          "Webhook'lar",
+          "Kod adımı"
+        ]
+      },
+      "pipedream": {
+        "description": "Geliştirici odaklı otomasyon",
+        "features": [
+          "Kod tabanlı iş akışları",
+          "API'ler",
+          "Olay kaynakları",
+          "Veri depoları",
+          "Cron işleri"
+        ]
+      }
+    },
+    "webhooks": {
+      "shopify_order_created": {
+        "name": "Shopify — Yeni sipariş",
+        "description": "Shopify mağazanızda yeni bir sipariş verildiğinde tetiklenir",
+        "setupInstructions": "Shopify yönetim panelinde Settings > Notifications > Webhooks > Create webhook yolunu izleyin."
+      },
+      "shopify_product_updated": {
+        "name": "Shopify — Ürün güncellendi",
+        "description": "Shopify'da bir ürün değiştirildiğinde tetiklenir",
+        "setupInstructions": "Shopify yönetim panelinde Settings > Notifications > Webhooks yolunu izleyin."
+      },
+      "shopify_checkout_abandoned": {
+        "name": "Shopify — Yarım bırakılan ödeme",
+        "description": "Geri kazanım kampanyaları için yarım bırakılan ödemelerde tetiklenir",
+        "setupInstructions": "Shopify yönetim panelinde Settings > Notifications > Webhooks yolunu izleyin."
+      },
+      "shopify_customer_created": {
+        "name": "Shopify — Yeni müşteri",
+        "description": "Yeni bir müşteri kaydolduğunda tetiklenir",
+        "setupInstructions": "Shopify yönetim panelinde Settings > Notifications > Webhooks yolunu izleyin."
+      },
+      "stripe_payment_succeeded": {
+        "name": "Stripe — Ödeme başarılı",
+        "description": "Başarılı bir ödemede tetiklenir",
+        "setupInstructions": "Stripe panelinde Developers > Webhooks > Add endpoint yolunu izleyin."
+      },
+      "stripe_subscription_created": {
+        "name": "Stripe — Yeni abonelik",
+        "description": "Bir müşteri yeni bir abonelik başlattığında tetiklenir",
+        "setupInstructions": "Stripe panelinde Developers > Webhooks yolunu izleyin."
+      },
+      "stripe_invoice_paid": {
+        "name": "Stripe — Fatura ödendi",
+        "description": "Bir fatura ödendiğinde tetiklenir",
+        "setupInstructions": "Stripe panelinde Developers > Webhooks yolunu izleyin."
+      },
+      "stripe_refund_issued": {
+        "name": "Stripe — İade işlendi",
+        "description": "Bir iade işlendiğinde tetiklenir",
+        "setupInstructions": "Stripe panelinde Developers > Webhooks yolunu izleyin."
+      },
+      "github_push": {
+        "name": "GitHub — Push",
+        "description": "Bir depoya push yapıldığında tetiklenir",
+        "setupInstructions": "Depoda Settings > Webhooks > Add webhook yolunu izleyin."
+      },
+      "github_pr": {
+        "name": "GitHub — Pull Request",
+        "description": "Bir PR açıldığında, birleştirildiğinde veya kapatıldığında tetiklenir",
+        "setupInstructions": "Depoda Settings > Webhooks yolunu izleyin."
+      },
+      "github_issue": {
+        "name": "GitHub — İş kaydı oluşturuldu",
+        "description": "Yeni bir iş kaydı açıldığında tetiklenir",
+        "setupInstructions": "Depoda Settings > Webhooks yolunu izleyin."
+      },
+      "github_release": {
+        "name": "GitHub — Sürüm yayımlandı",
+        "description": "Yeni bir sürüm yayımlandığında tetiklenir",
+        "setupInstructions": "Depoda Settings > Webhooks yolunu izleyin."
+      },
+      "hubspot_contact_created": {
+        "name": "HubSpot — Kişi oluşturuldu",
+        "description": "HubSpot'a yeni bir kişi eklendiğinde tetiklenir",
+        "setupInstructions": "HubSpot'ta Settings > Integrations > Private Apps > Webhooks yolunu izleyin."
+      },
+      "hubspot_deal_stage": {
+        "name": "HubSpot — Anlaşma aşaması değişti",
+        "description": "Bir anlaşma yeni bir aşamaya geçtiğinde tetiklenir",
+        "setupInstructions": "HubSpot'ta Settings > Integrations > Webhooks yolunu izleyin."
+      },
+      "hubspot_form_submitted": {
+        "name": "HubSpot — Form gönderildi",
+        "description": "Bir HubSpot formu gönderildiğinde tetiklenir",
+        "setupInstructions": "HubSpot'ta Settings > Integrations > Webhooks yolunu izleyin."
+      },
+      "tiktok_new_follower": {
+        "name": "TikTok — Yeni takipçi",
+        "description": "Birisi TikTok hesabınızı takip ettiğinde tetiklenir",
+        "setupInstructions": "TikTok Developer Portal > Webhooks üzerinden yapılandırın."
+      },
+      "tiktok_video_published": {
+        "name": "TikTok — Video yayımlandı",
+        "description": "Yeni bir video yayımlandığında tetiklenir",
+        "setupInstructions": "TikTok Developer Portal > Webhooks yolunu izleyin."
+      },
+      "linkedin_post_engagement": {
+        "name": "LinkedIn — Gönderi etkileşimi",
+        "description": "LinkedIn'de beğeni, yorum veya paylaşım olduğunda tetiklenir",
+        "setupInstructions": "LinkedIn Marketing API webhook'ları üzerinden yapılandırın."
+      },
+      "intercom_conversation_started": {
+        "name": "Intercom — Yeni görüşme",
+        "description": "Bir müşteri yeni bir görüşme başlattığında tetiklenir",
+        "setupInstructions": "Intercom'da Settings > Webhooks yolunu izleyin."
+      },
+      "intercom_user_created": {
+        "name": "Intercom — Yeni kullanıcı",
+        "description": "Yeni bir kullanıcı tanımlandığında tetiklenir",
+        "setupInstructions": "Intercom'da Settings > Webhooks yolunu izleyin."
+      },
+      "sendgrid_email_delivered": {
+        "name": "SendGrid — E-posta teslim edildi",
+        "description": "Bir e-posta başarıyla teslim edildiğinde tetiklenir",
+        "setupInstructions": "SendGrid'de Settings > Mail Settings > Event Webhook yolunu izleyin."
+      },
+      "sendgrid_email_opened": {
+        "name": "SendGrid — E-posta açıldı",
+        "description": "Bir alıcı e-postanızı açtığında tetiklenir",
+        "setupInstructions": "SendGrid'de Settings > Mail Settings > Event Webhook yolunu izleyin."
+      },
+      "sendgrid_email_bounced": {
+        "name": "SendGrid — E-posta geri döndü",
+        "description": "Bir e-posta teslim edilemeyip geri döndüğünde tetiklenir",
+        "setupInstructions": "SendGrid'de Settings > Event Webhook yolunu izleyin."
+      },
+      "calendly_booking_created": {
+        "name": "Calendly — Rezervasyon oluşturuldu",
+        "description": "Birisi toplantı rezervasyonu yaptığında tetiklenir",
+        "setupInstructions": "Calendly'de Integrations > Webhooks > Subscribe yolunu izleyin."
+      },
+      "calendly_booking_cancelled": {
+        "name": "Calendly — Rezervasyon iptal edildi",
+        "description": "Bir rezervasyon iptal edildiğinde tetiklenir",
+        "setupInstructions": "Calendly'de Integrations > Webhooks yolunu izleyin."
+      },
+      "typeform_form_submitted": {
+        "name": "Typeform — Form gönderildi",
+        "description": "Bir Typeform yanıtı gönderildiğinde tetiklenir",
+        "setupInstructions": "Typeform'da Connect > Webhooks > Add webhook yolunu izleyin."
+      },
+      "slack_message_posted": {
+        "name": "Slack — Mesaj gönderildi",
+        "description": "Bir kanala mesaj gönderildiğinde tetiklenir",
+        "setupInstructions": "Slack uygulamasında Event Subscriptions bölümünden message.channels olayına abone olun."
+      },
+      "slack_reaction_added": {
+        "name": "Slack — Tepki eklendi",
+        "description": "Birisi bir mesaja tepki verdiğinde tetiklenir",
+        "setupInstructions": "Slack uygulamasında Event Subscriptions yolunu izleyin."
+      },
+      "generic_json": {
+        "name": "Genel JSON webhook'u",
+        "description": "Herhangi bir hizmetten gelen JSON verisini kabul eder",
+        "setupInstructions": "Hizmetinizin webhook URL'sini oluşturulan uç noktaya yönlendirin."
+      },
+      "generic_form_post": {
+        "name": "Form POST webhook'u",
+        "description": "Form kodlamalı POST verisini kabul eder",
+        "setupInstructions": "Formunuzun action URL'sini oluşturulan uç nokta olarak ayarlayın."
+      }
+    }
+  },
+  "seo": {
+    "m7f135831dde4": "Hakkında — Braavolabs",
+    "ma6b9aebb2cf1": "Braavolabs'ı tanıyın: Yapay zekâ şirketi platformunu neden geliştirdik, hangi ilkelere dayanıyoruz ve özerklik, şeffaflık ile sorumlu yapay zekâya nasıl yaklaşıyoruz?",
+    "m933085a63c1d": "Braavolabs hakkında",
+    "me1c1f91ee66e": "Yapay zekâ şirketi platformunu neden geliştirdik, hangi ilkelere dayanıyoruz ve özerklik, şeffaflık ile sorumlu yapay zekâya nasıl yaklaşıyoruz?",
+    "m6bec3a9f230a": "Braavolabs Bench — kayıtlı benchmark çalıştırmaları",
+    "mcbea634da00e": "Yapılandırılmış görev kümeleri için mevcut benchmark kayıtları. Kapsam ve güncellik kayıtlı çalıştırmalara bağlıdır; bu bağımsız bir sertifikasyon değildir.",
+    "md93cc7f7d87e": "Blog — Braavolabs",
+    "m187c2f0813ea": "Braavolabs ekibinden ürün güncellemeleri, mühendislik notları ve ürünün olgunluk düzeyine ilişkin herkese açık sınırlar.",
+    "m3c43895bb6aa": "Braavolabs Blog",
+    "me3020c8ef693": "Braavolabs'tan ürün güncellemeleri, mühendislik notları ve ürünün olgunluk düzeyine ilişkin herkese açık sınırlar.",
+    "m237cecbe666d": "Değişiklik Günlüğü — Braavolabs",
+    "m22bcd4a9abed": "Yayımlanmış ve geliştirilmekte olan işlerin ayrı etiketlendiği, herkese açık Braavolabs değişiklik notları.",
+    "m7cf63d5b37a7": "Braavolabs Değişiklik Günlüğü",
+    "m9b27dd7fb727": "Yayımlanmış ve geliştirilmekte olan işlerin ayrı etiketlendiği, herkese açık değişiklik notları.",
+    "m8ec104ac0b8d": "Braavolabs'ın karşılaştırması",
+    "maafa6a889064": "Farklı sağlayıcılarla çalışan iş akışlarının gereksinimlerini, yönlendirme yapılandırmasını ve operatör denetimlerini inceleyin. Ürünün mevcut yeteneklerini ve ticari koşulları doğrudan doğrulayın.",
+    "md9141b7cff71": "Braavolabs'ın karşılaştırması — Braavolabs",
+    "m5358edf26d92": "Model seçimlerinin açıkça belirtildiği, yerel veya bulut yönlendirmesinin yapılandırılabildiği ve desteklenen operatör denetimlerinin sunulduğu, farklı sağlayıcılarla çalışabilen bir çalışma ortamını keşfedin.",
+    "mc10f93cbb285": "İletişim — Braavolabs",
+    "mac714bedbfdc": "Destek, iş ortaklıkları, güvenlik ve gizlilik soruları için Braavolabs iletişim kanalları.",
+    "m5d4c651fc9a1": "Braavolabs ile iletişim",
+    "m224950150646": "Destek, iş ortaklıkları, güvenlik ve gizlilik soruları için iletişim kanalları.",
+    "m18c6bf133be5": "Maliyet Hesaplayıcı — Braavolabs",
+    "md250d02e7765": "Planlanan Individual ve Team abonelik fiyatlarının statik önizlemesi; çıkarım dahil değildir.",
+    "m63664d2ded81": "Planlanan Individual ve Team fiyatlarının önizlemesi; abonelikler şu anda satın alınamaz.",
+    "m3ca87fbbac15": "Fiyat Önizlemesi — Braavolabs",
+    "m4bd9b811878a": "Planlanan Braavolabs Individual ve Team abonelik fiyatlarını inceleyin. Satın alma şu anda kullanılamıyor ve çıkarım dahil değildir.",
+    "m81acc1f0380d": "Individual ve Team için planlanan fiyatlar. Satın alma şu anda kullanılamıyor ve çıkarım dahil değildir.",
+    "ma9faa242317f": "Belgeler — Braavolabs",
+    "m365f82802c67": "Braavolabs belgeleri: başlangıç, BYOK ve yerel yol kurulumu, çalıştırma sürerken yönlendirme, webhook'lar, harici otomasyon bağlantıları, mobil uygulama ve sık sorulan sorular.",
+    "mee84ba24e941": "Braavolabs Belgeleri",
+    "m50dcefa5f29a": "Ajan iş akışlarını oluşturup inceleyin, ardından desteklenen çalıştırmaları ve kararları izleyin.",
+    "m57cd5295b6d6": "Özellikler — Braavolabs",
+    "m0d5ddd021521": "Model yönlendirme, veri modları, onaylar ve özellik olgunluğu için Braavolabs'ın herkese açık ürün sınırları.",
+    "m076ced19e485": "Model yönlendirme, veri modları, onaylar ve özellik olgunluğu için herkese açık ürün sınırları.",
+    "m804e9858225a": "Özellikler — Braavolabs",
+    "mcb18970cc53a": "Çalıştırma, kontrol, veri modu ve doğrulama yüzeyleri için Braavolabs'ın herkese açık ürün sözleşmesi.",
+    "mac377e08a5eb": "GDPR bilgilendirmesi önizlemesi",
+    "m49fe3634c177": "GDPR kapsamındaki gizlilik bilgilendirmesi taslağı. Herkese açık kayıt başlamadan önce sorumlu işletmeci, işleme, alıcılar, saklama ve güvencelere ilişkin ayrıntıların tamamlanması gerekir.",
+    "m617c9c8f521f": "Braavolabs GDPR bilgilendirmesi önizlemesi",
+    "m5f3c445d83bb": "GDPR kapsamındaki işleme bilgileri ve hakların önizlemesi; bu, herkese açık hizmet üzerinden kişisel veri toplanması için henüz eksiksiz bir bilgilendirme metni değildir.",
+    "m6481ac9863e9": "KVKK bilgilendirmesi önizlemesi",
+    "m6465a09ee4b0": "KVKK kapsamındaki bilgilendirme taslağı. Herkese açık kayıt başlamadan önce fiilî işletmeci, işleme, alıcılar, saklama ve güvencelere ilişkin ayrıntıların tamamlanması gerekir.",
+    "m4a89104ba3fb": "Braavolabs KVKK bilgilendirmesi önizlemesi",
+    "m354a5e2b9623": "KVKK kapsamındaki işleme bilgileri ve hakların önizlemesi; bu henüz eksiksiz bir aydınlatma metni değildir.",
+    "mc60388ffa286": "Hesap Silme",
+    "m265910871d03": "Braavolabs hesabınızı kalıcı olarak nasıl sileceğinizi, hangi verilerin kaldırıldığını ve nasıl yardım isteyebileceğinizi öğrenin.",
+    "m7221097dfb51": "Braavolabs Hesap Silme",
+    "md6e50ceecc93": "Fiyatlandırma — Braavolabs",
+    "m907e61f93ecc": "Planlanan fiyatların önizlemesi: Individual $19/ay ve Team $39/etkin kullanıcı/ay. Şu anda satın alınamaz; çıkarım dahil değildir.",
+    "mae42d1776ea3": "Parolayı sıfırla",
+    "m81bf5e60c133": "Braavolabs hesabınız için yeni bir parola belirleyin.",
+    "m8931468be759": "Güvenlik — Braavolabs",
+    "m4fc24ac37ec4": "Model anahtarları, veri modları, onay ve ürün olgunluğu için Braavolabs güvenlik sınırları.",
+    "m22ccccca604b": "Sistem Durumu — Braavolabs",
+    "m545df19cd499": "Herkese açık Braavolabs API uç noktası için canlı erişilebilirlik kontrolü.",
+    "m5231bbf800e5": "Braavolabs Sistem Durumu",
+    "m371d913a6d14": "Destek — Braavolabs",
+    "m43f347f64d40": "Braavolabs için yardım alın: iletişim kanalları, yanıt süreleri, faturalama ve abonelik desteği, hesap silme ve sık sorulan sorular.",
+    "me4c0f5357766": "Braavolabs Destek",
+    "mee5a52d3051f": "İletişim kanalları, yanıt süreleri, faturalama ve abonelik desteği, hesap silme ve sık sorulan sorular."
+  },
+  "runtime": {
+    "mb39b93c48c24": "Bir başlangıç şablonu kullanmak için giriş yapın.",
+    "m2eb2d91c4f3b": "Başlangıç şablonu oluşturulamadı.",
+    "mcdd1de1ae01a": "Başlangıç şablonunu kullan: {value0}",
+    "m838f9adcc123": "1 deneme çalıştırması",
+    "m9a021a4b3454": "{count, plural, one {# deneme çalıştırması} other {# deneme çalıştırması}}",
+    "ma5a28bb26fde": "{count, plural, one {# ajan} other {# ajan}}",
+    "m014789a56e1d": "{count, plural, one {# iş akışı adımı} other {# iş akışı adımı}}",
+    "ma682e26e6a31": "Tahmin yüklenemedi",
+    "m05d6a641b6be": "Kaydedilemedi",
+    "mab698ba77c6c": "Test yüklenemedi",
+    "m0118f642c901": "{value0} başarısız oldu",
+    "m69c8b86fae03": "Kaydedilemedi",
+    "m78e828adf24c": "Silinemedi",
+    "m1368805fe919": "Düzenleyen (Issuer)",
+    "mb525865201ae": "İstemci kimliği",
+    "ma2a8e033d138": "Yönlendirme URI adresi",
+    "m092455f07cd1": "Yetki kapsamları",
+    "m6dc7542014dc": "Onay istekleri",
+    "m29a34a94a498": "Bir çalıştırma harcama onayı gerektirdiğinde anlık bildirim gönder",
+    "m84ed19090410": "Risk nedeniyle durdurma tetiklendi",
+    "mb195583a6e7f": "Kesin durdurma kuralı bir çalıştırmayı durdurduğunda anlık bildirim gönder",
+    "m13641fc2a8c0": "Çalıştırma tamamlandı",
+    "m6e87b3db013a": "Bir çalıştırma bittiğinde bildir",
+    "m9d5e808eecb2": "${value0}/ay",
+    "m26f640894104": "{count, plural, one {Ayda # çalıştırma} other {Ayda # çalıştırma}}",
+    "m5e369d5a7fd5": "Kendi barındırdığınız yerel sağlayıcı (Ollama / LM Studio)",
+    "mc058d692e6cc": "Harcama onayı gerekli",
+    "me68fc6aed4e7": "Desteklenen harcama işlemleri",
+    "m04508baa9aeb": "Döngü tespit eşiği",
+    "m4021017c235b": "Art arda 5 başarısızlık",
+    "m6774e7b32e15": "Maliyet anomali eşiği",
+    "md2687779b5c7": "Çalıştırma bütçesinin %20 kadarı",
+    "m51e462c03da2": "İstenmeyen ileti koruması",
+    "m10bc771116e0": "3+ yanıtsız ileti = engellenir",
+    "m7ae7fcaafb64": "Bellek kaydını otomatik yükseltme",
+    "me92d7c3eb5e2": "güven ≥ 0.7, sayı ≥ 3",
+    "m74769711684e": "Holding Brain koşulu",
+    "m27e8635ece5f": "Aynı örüntüye sahip 2+ şirket",
+    "m31f4062639ad": "✓ Bağlantı başarılı — modelin yanıtı: \"{value0}\"",
+    "mf0b59374b988": "Yeni potansiyel müşteri geldiğinde müşteri edinme iş akışını tetikle",
+    "mc3af8f5ac774": "İçerik yayımlanmak üzere onaylandı",
+    "m5275b74361ed": "Ödemeyi işle ve CRM kaydını güncelle",
+    "m1cd72a8c1a04": "Müşteri başarısı ajanına yönlendir",
+    "m797c03ac6662": "Yönlendirilenler",
+    "ma571fa84edbc": "Dönüşüm sağlayanlar",
+    "m48fa986d975f": "Ödüller",
+    "me94e85e1777c": "{value0} bölümüne git",
+    "m9b917859a22b": "Öne çıkan yazıyı oku: {value0}",
+    "m5452b7363001": "Yazıyı oku: {value0}",
+    "ma735f1949098": "Belgeleri oku: {value0}",
+    "m47982c49bbdd": "Bu fikirle başla: {value0}",
+    "maabffdc5b99f": "{count, plural, one {# ajan} other {# ajan}}",
+    "m4b89a821f42b": "{value0} iş akışı",
+    "madc0d2e17f7e": "edin.",
+    "mb5d24bc5498c": "satış",
+    "madf7dfd9a03b": "oper.",
+    "mf61fa075a25a": "analiz",
+    "m837fc70634da": "bellek",
+    "m920294cc4569": "içerik",
+    "m42ac3e609710": "yönetişim",
+    "m7034fec532bb": "Destekle iletişime geçin",
+    "m34f6a807aeb9": "Abonelikler, satın alımlar ve iadeler",
+    "m616706013792": "Sık sorulan sorular",
+    "me01516c0ee66": "Hata bildirin",
+    "me4b47da679e8": "Politikalar",
+    "m8e94897c7807": "{value0} bağlantısı",
+    "m6c6656e064e0": "Adım {value0} {value1}, maliyet {value2}, süre {value3}",
+    "m9f9acdbf39bc": "Çalışma alanları",
+    "m3800b6e67ce8": "{value0} planında sınırsız",
+    "mdd0763b9fc75": "/ay",
+    "m8502572a269d": "Tek hesap",
+    "m8779b63b388b": "Çıkarım dahil değildir",
+    "m739f35478664": "Kiracıya ait BYOK anahtarı veya yerel sağlayıcılar",
+    "m4d03ba19634f": "5 çalışma alanı",
+    "m7ab3157462b0": "Planın karşıladığı model kredisi yoktur",
+    "m6c35c098be76": "/etkin kullanıcı/ay",
+    "ma8499c1fc913": "Etkin kullanıcıya göre ücretlendirme",
+    "m5ad4deeaabd5": "20 çalışma alanı",
+    "m3fcd392b558f": "Ekip iş birliği",
+    "m1e3a5507bb67": " +{value0} daha",
+    "ma301be6d35b3": " · son {value0}",
+    "m67cb524a0f61": "Son kontrol: {value0} (yerel saatiniz)",
+    "m45fd9c2d5d48": " · son çalıştırma {value0}",
+    "mfe990aab3694": "{value0} başladı — adımlar sıraya alındı",
+    "m7a54036ca778": "Harcama onay kapısı açıldı — {value0} inceleme bekliyor",
+    "me54aaeee8d00": "Risk olayı tetiklendi",
+    "mf7ae3905e563": "Dışa aktar",
+    "mcb6f0d51a4bc": "Desteklenen bir sağlayıcı için kendi anahtarınızı veya yapılandırılmış bir yerel uç noktayı kullanın.",
+    "me3cc0f802723": "Cebinizden yönlendirin ve onaylayın",
+    "m0bbeaac0b690": "Adım {value0}",
+    "mc9d5631084a5": "Genel bakış",
+    "m596d0616eb4f": "İş akışları",
+    "mc8f971fe29fd": "Çalıştırmalar",
+    "ma865952c238b": "Ajanlar",
+    "m76c4258af622": "Şirketler",
+    "ma4435cd673fd": "Tetikleyici",
+    "m2908b886157a": "Ajan",
+    "meb5355c74849": "Araç çağrısı",
+    "m363f4a3ae095": "Onay kapısı",
+    "m6fd0e25bdccd": "Dal",
+    "m08da7504b591": "Çıktı",
+    "mb912b05f4583": "uzaklaştır",
+    "m550677a88028": "sığdır",
+    "m015ee12489d3": "yakınlaştır",
+    "m0d18e6731423": "Genel bakış",
+    "m99c2fc0bb65c": "E-posta ile silme isteği gönderin",
+    "md2fa5c7e5df0": "Doğrulama ve sonraki adımlar",
+    "me4c98c0271e8": "Mevcut kullanılabilirlik",
+    "m000165a9f23d": "Hangi veriler silinir?",
+    "m4178821e2ee3": "Hangi verileri, neden saklarız?",
+    "m21ce09941e6e": "Zaman çizelgesi",
+    "mc5d1045cc31b": "Etkin abonelikler",
+    "md772994860a6": "Sorular",
+    "localeSaveFailed": "Dil tercihi kaydedilemedi. Tarayıcınızın çerez ayarlarını kontrol edip yeniden deneyin; mevcut dil değişmedi.",
+    "workspaces": "{count, plural, one {# çalışma alanı} other {# çalışma alanı}}",
+    "connectedAutomations": "{count, plural, one {# bağlı otomasyon} other {# bağlı otomasyon}}",
+    "events": "{count, plural, one {# kayıtlı olay} other {# kayıtlı olay}}",
+    "channels": "{count, plural, one {# kanal} other {# kanal}}",
+    "genericRest": "Genel REST bağlantısı",
+    "providerOllama": "Ollama (kendi barındırdığınız)",
+    "providerLmStudio": "LM Studio (kendi barındırdığınız)",
+    "providerCustom": "Özel OpenAI uyumlu sağlayıcı",
+    "ollamaHint": "Ollama uygulamasını ollama.com adresinden yükleyin, `ollama pull gemma3:4b` komutunu çalıştırın ve `ollama serve` sürecini çalışır durumda tutun.",
+    "lmStudioHint": "LM Studio uygulamasını lmstudio.ai adresinden yükleyin, bir model yükleyin ve ardından yerel sunucusunu başlatın.",
+    "customProviderHint": "OpenAI uyumlu bir /v1/chat/completions uç noktası yapılandırın. Uç nokta işletmecisini ve model gereksinimlerini kontrol edin.",
+    "directoryNote": "Bu dizin, entegrasyon örnekleri ve şablonları listeler. Her bağlantının uygulandığını, yapılandırıldığını veya hesabınızda kullanılabildiğini doğrulamaz.",
+    "catalogEntry": "Dizin kaydı",
+    "supportedConnections": "Desteklenen bağlantıları inceleyin",
+    "categoryMarketing": "Pazarlama",
+    "categorySales": "Satış",
+    "categoryContent": "İçerik",
+    "categoryOps": "Operasyon",
+    "categoryResearch": "Araştırma",
+    "categoryFinance": "Finans",
+    "categorySupport": "Destek",
+    "categoryFounder": "Kurucu",
+    "providerKeys": "Desteklenen bir sağlayıcı için kendi anahtarınızı veya yapılandırılmış bir yerel uç noktayı kullanın.",
+    "connectionTestFailed": "Bağlantı testi başarısız oldu. Yapılandırmayı kontrol edip yeniden deneyin.",
+    "pipelineStepCount": "{count, plural, one {# adım} other {# adım}}",
+    "unknownState": "Bilinmeyen durum"
   }
 }

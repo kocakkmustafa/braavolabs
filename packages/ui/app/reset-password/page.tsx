@@ -1,5 +1,9 @@
 "use client";
-import { Suspense, useState, useEffect } from "react";
+import { useLocalizedFailure } from "../../lib/localized-error";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
+import { Suspense, useState, useId, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
@@ -38,12 +42,14 @@ function Field({
   placeholder?: string;
   autoComplete?: string;
 }) {
+  const fieldId = useId();
   return (
     <div>
-      <label className="block text-xs font-semibold mb-1.5 text-on-surface-variant uppercase tracking-wide">
+      <label htmlFor={fieldId} className="block text-xs font-semibold mb-1.5 text-on-surface-variant uppercase tracking-wide">
         {label}
       </label>
       <input
+        id={fieldId}
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -53,7 +59,7 @@ function Field({
         style={{
           background: "rgba(255,255,255,0.04)",
           border: "1px solid rgba(255,255,255,0.08)",
-          color: "#E8EBF0",
+          color: "var(--color-on-surface)",
         }}
         onFocus={(e) => {
           e.currentTarget.style.border = "1px solid rgba(96,165,250,0.5)";
@@ -70,6 +76,8 @@ function Field({
 
 // ── Inner component (needs useSearchParams → must be in Suspense) ─
 function ResetPasswordInner() {
+  const describeFailure = useLocalizedFailure();
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -99,7 +107,7 @@ function ResetPasswordInner() {
       await api.forgotPassword(reqEmail.trim());
       setReqStatus("sent");
     } catch (err) {
-      setReqError(err instanceof Error ? err.message : t("auth.errors.generic"));
+      setReqError(describeFailure(err, t("auth.errors.generic")));
       setReqStatus("error");
     }
   }
@@ -125,7 +133,7 @@ function ResetPasswordInner() {
       // replace — consumed token; back-button shouldn't re-fire reset.
       setTimeout(() => router.replace("/login"), 2500);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("auth.errors.generic"));
+      setError(describeFailure(err, t("auth.errors.generic")));
       setStatus("error");
     }
   }
@@ -136,7 +144,7 @@ function ResetPasswordInner() {
       className="hidden lg:flex flex-col justify-between w-[42%] p-12 relative overflow-hidden"
       style={{
         background: "linear-gradient(160deg, #06070A 0%, #0B0D12 60%, #0B1120 100%)",
-        borderRight: "1px solid rgba(255,255,255,0.06)",
+        borderInlineEnd: "1px solid rgba(255,255,255,0.06)",
       }}
     >
       {/* Background glows */}
@@ -161,7 +169,7 @@ function ResetPasswordInner() {
         <div
           className="w-9 h-9 rounded-xl flex-shrink-0"
           style={{
-            backgroundColor: "#06070A",
+            backgroundColor: "var(--color-background)",
             backgroundImage: "url(/braavolabs-logo.png), linear-gradient(135deg, #3B82F6, #2563EB)",
             backgroundSize: "cover, cover",
             backgroundPosition: "center, center",
@@ -194,7 +202,7 @@ function ResetPasswordInner() {
               mask: "radial-gradient(circle, #000 70%, transparent 80%)",
               filter: "drop-shadow(0 0 26px rgba(59,130,246,0.35))",
             }}
-            aria-label="Braavolabs emblem"
+            aria-label={uiText("mfac2ec3661ab")}
             role="img"
           />
         </div>
@@ -204,12 +212,10 @@ function ResetPasswordInner() {
       <div className="relative z-10">
         <p
           className="font-headline font-extrabold uppercase tracking-tight"
-          style={{ fontSize: "clamp(18px,2vw,28px)", lineHeight: 1.15, maxWidth: "16ch", color: "#E8EBF0" }}
-        >
-          Forge a new{" "}
-          <span className="gradient-text">key</span>
-          {" "}to your war-room.
-        </p>
+          style={{ fontSize: "clamp(18px,2vw,28px)", lineHeight: 1.15, maxWidth: "16ch", color: "var(--color-on-surface)" }}
+        >{uiText("m147a465a4bab")}{" "}
+          <span className="gradient-text">{uiText("m8f3667a853a6")}</span>
+          {" "}{uiText("m5a9acd6bb595")}</p>
         <p className="text-xs mt-2 text-on-surface-variant">{t("auth.brandPanel.footer")}</p>
       </div>
     </div>
@@ -217,13 +223,13 @@ function ResetPasswordInner() {
 
   // ── Render ─────────────────────────────────────────────────────
   return (
-    <div className="flex min-h-screen" style={{ background: "#06070A" }}>
+    <div className="flex min-h-screen" style={{ background: "var(--color-background)" }}>
       {LeftPanel}
 
       {/* Right form panel */}
       <div
         className="flex-1 flex items-center justify-center p-8 overflow-y-auto"
-        style={{ background: "#0B0D12", minHeight: "100vh" }}
+        style={{ background: "var(--color-surface)", minHeight: "100vh" }}
       >
         <div className="w-full max-w-[420px] animate-fade-in">
           {/* Mobile logo */}
@@ -231,7 +237,7 @@ function ResetPasswordInner() {
             <div
               className="w-8 h-8 rounded-lg flex-shrink-0"
               style={{
-                backgroundColor: "#06070A",
+                backgroundColor: "var(--color-background)",
                 backgroundImage: "url(/braavolabs-logo.png), linear-gradient(135deg, #3B82F6, #2563EB)",
                 backgroundSize: "cover, cover",
                 backgroundPosition: "center, center",
@@ -245,15 +251,11 @@ function ResetPasswordInner() {
           {/* ── View: request email ──────────────────────────── */}
           {view === "request" && (
             <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-2">
-                Password Reset
-              </p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-2">{uiText("m07683a6b25da")}</p>
               <h1 className="font-headline font-bold text-2xl text-on-surface mb-2">
                 {t("auth.reset.title")}
               </h1>
-              <p className="text-sm text-on-surface-variant mb-7">
-                Enter your email and we&apos;ll send a reset link.
-              </p>
+              <p className="text-sm text-on-surface-variant mb-7">{uiText("m324fa44bdbfe")}</p>
 
               {reqStatus === "sent" ? (
                 <div className="text-center py-8">
@@ -308,14 +310,10 @@ function ResetPasswordInner() {
                   >
                     {reqStatus === "loading" ? (
                       <>
-                        <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
-                        Sending…
-                      </>
+                        <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>{uiText("m1d7390708d7e")}</>
                     ) : (
                       <>
-                        <span className="material-symbols-outlined text-base">send</span>
-                        Send reset link
-                      </>
+                        <span className="material-symbols-outlined text-base">send</span>{uiText("mf28e1b2646a8")}</>
                     )}
                   </button>
 
@@ -332,12 +330,8 @@ function ResetPasswordInner() {
           {/* ── View: set new password ───────────────────────── */}
           {view === "new-password" && (
             <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-2">
-                Password Reset
-              </p>
-              <h1 className="font-headline font-bold text-2xl text-on-surface mb-2">
-                Set a new password
-              </h1>
+              <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-2">{uiText("m07683a6b25da")}</p>
+              <h1 className="font-headline font-bold text-2xl text-on-surface mb-2">{uiText("m05680974f084")}</h1>
               <p className="text-sm text-on-surface-variant mb-7">
                 {t("auth.reset.subtitle")}
               </p>
@@ -392,7 +386,7 @@ function ResetPasswordInner() {
                 </div>
 
                 <Field
-                  label="Confirm password"
+                  label={uiText("ma6ae80e38b9d")}
                   type="password"
                   value={confirm}
                   onChange={setConfirm}
@@ -433,9 +427,7 @@ function ResetPasswordInner() {
               >
                 <span className="material-symbols-outlined text-4xl text-primary">verified</span>
               </div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-2">
-                Password forged
-              </p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-2">{uiText("m39a7ff600af8")}</p>
               <h2 className="font-headline font-bold text-xl text-on-surface mb-2">
                 {t("auth.reset.successTitle")}
               </h2>
@@ -446,9 +438,7 @@ function ResetPasswordInner() {
                 href="/login"
                 className="btn-primary inline-flex justify-center py-3 px-6 rounded-xl text-sm font-semibold"
               >
-                <span className="material-symbols-outlined text-base">login</span>
-                Sign in
-              </a>
+                <span className="material-symbols-outlined text-base">login</span>{uiText("mf83f38e42411")}</a>
             </div>
           )}
         </div>
@@ -463,7 +453,7 @@ export default function ResetPasswordPage() {
       fallback={
         <div
           className="flex min-h-screen items-center justify-center"
-          style={{ background: "#06070A" }}
+          style={{ background: "var(--color-background)" }}
         />
       }
     >

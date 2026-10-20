@@ -125,7 +125,7 @@ describe("actual compare form handlers", () => {
   });
   it("poll transport failure is visible and never repeats the start request", async () => {
     h.add(); h.pendingPoll = deferred(); const action = h.submit(); await settle(); h.pendingPoll.reject(new Error("synthetic poll failure")); await action;
-    expect(h.view().error).toBe("synthetic poll failure"); expect(h.posts()).toHaveLength(1); expect(h.view().result).toBeUndefined();
+    expect(h.view().error).toBe("requestFailed"); expect(h.posts()).toHaveLength(1); expect(h.view().result).toBeUndefined();
   });
   it("a bounded polling timeout clears the latch without claiming the server work stopped", async () => {
     h.add(); h.result = {...h.result, status: "RUNNING"}; const action = h.submit(); await settle();
@@ -134,12 +134,12 @@ describe("actual compare form handlers", () => {
   });
   it("rejects a cross-company poll response before publishing an answer", async () => {
     h.add(); h.result.companyId = "company-b"; await h.submit();
-    expect(h.view().result).toBeUndefined(); expect(h.view().error).toBe("Invalid compare session response");
+    expect(h.view().result).toBeUndefined(); expect(h.view().error).toBe("requestFailed");
   });
   it("renders partial candidate failures and synthesis failure explicitly", async () => {
     h.add(); h.result.findings.multiModel.failed = [{provider: "OPENAI", model: "gpt-4o", error: "synthetic candidate failure"}];
     h.result.findings.multiModel.synthesisStatus = "unavailable"; h.result.findings.multiModel.synthesizerError = "synthetic synthesis failure";
-    await h.submit(); h.render(); expect(h.text()).toContain("synthetic candidate failure"); expect(h.text()).toContain("synthetic synthesis failure");
+    await h.submit(); h.render(); expect(h.text()).not.toContain("synthetic candidate failure"); expect(h.text()).not.toContain("synthetic synthesis failure"); expect(h.text()).toContain("failed");
   });
 });
 
@@ -175,11 +175,11 @@ describe("loaded company owner scope before effects", () => {
   });
   it.each(["owner", "company"])("hides a loaded error synchronously after a %s change", async kind => {
     const h = page(); h.pendingCompany = deferred(); h.render(); h.pendingCompany.reject(new Error("Synthetic owner A error"));
-    await settle(); h.render(); expect(h.text()).toContain("Synthetic owner A error");
+    await settle(); h.render(); expect(h.text()).toContain("generic"); expect(h.text()).not.toContain("Synthetic owner A error");
     if (kind === "owner") { h.session.revision++; h.session.tenantId = "tenant-b"; h.session.token = "synthetic-b"; }
     else h.companyId = "company-b";
     h.pendingCompany = deferred(); h.writes = []; h.render(false);
-    expect(h.writes).toEqual([]); expect(h.text()).not.toContain("Synthetic owner A error"); expect(h.text()).toContain("animate-shimmer");
+    expect(h.writes).toEqual([]); expect(h.text()).not.toContain("generic"); expect(h.text()).not.toContain("Synthetic owner A error"); expect(h.text()).toContain("animate-shimmer");
     h.flushEffects(); h.pendingCompany.resolve({id: h.companyId, name: "Current company", status: "ACTIVE", agents: [], pipelines: []});
     await settle(); h.render(); expect(h.text()).toContain("Current company");
   });
@@ -192,6 +192,6 @@ describe("loaded company owner scope before effects", () => {
     const h = page(); h.pendingCompany = deferred(); h.render(); h.pendingCompany.reject(new Error("Current owner error"));
     await settle(); h.render(); const calls = h.calls.length;
     h.session.token = "synthetic-refreshed"; h.writes = []; h.render(false);
-    expect(h.text()).toContain("Current owner error"); expect(h.writes).toEqual([]); h.flushEffects(); expect(h.calls.length).toBe(calls);
+    expect(h.text()).toContain("generic"); expect(h.text()).not.toContain("Current owner error"); expect(h.writes).toEqual([]); h.flushEffects(); expect(h.calls.length).toBe(calls);
   });
 });

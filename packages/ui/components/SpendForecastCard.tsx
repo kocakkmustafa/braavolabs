@@ -1,4 +1,10 @@
 "use client";
+import { useLocalizedFailure } from "../lib/localized-error";
+
+import { useTranslations as useRuntimeTranslations } from "next-intl";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 /**
  * SpendForecastCard — month-end spend projection + budget bar.
@@ -24,10 +30,11 @@
  * lives in mobile right now).
  */
 
-import { useCallback, useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useState, useId, useRef } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { formatCurrency, formatDateTime, formatNumber } from "../i18n/locales";
 import { api } from "../lib/api";
-import { useAppStore } from "../lib/store";
+import { useAppStore, captureAuthSession, isAuthSessionCurrent } from "../lib/store";
 
 type Forecast = {
   periodStart: string;
@@ -44,19 +51,20 @@ type Forecast = {
 };
 
 const STATUS_COLOR: Record<Forecast["status"], string> = {
-  no_budget: "#859399",
+  no_budget: "var(--color-on-surface-variant)",
   under_budget: "#34d399",
   nearing_budget: "#fbbf24",
   over_budget: "#f87171",
 };
 
-function fmtUsd(n: number): string {
-  if (n >= 1000) return `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-  if (n >= 10) return `$${n.toFixed(2)}`;
-  return `$${n.toFixed(4)}`;
+function fmtUsd(n: number, locale: string): string {
+  const digits = n >= 1000 ? 0 : n >= 10 ? 2 : 4;
+  return formatCurrency(n, "USD", locale, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
 function Sparkline({ data, color }: { data: Forecast["sparkline"]; color: string }) {
+  const uiText = useLegacyTranslations("uiCopy");
+  const locale = useLocale();
   const max = Math.max(0.0001, ...data.map((d) => d.costUsd));
   const width = 240;
   const height = 48;
@@ -76,7 +84,7 @@ function Sparkline({ data, color }: { data: Forecast["sparkline"]; color: string
   }, "");
 
   return (
-    <svg width={width} height={height} aria-label="Daily spend, last 14 days" role="img">
+    <svg width={width} height={height} aria-label={uiText("maa31d4cc5e14")} role="img">
       <path d={path} stroke={color} strokeWidth={1.5} fill="none" />
       {/* Hover bars — invisible but pickable */}
       {points.map((p, i) => (
@@ -88,7 +96,7 @@ function Sparkline({ data, color }: { data: Forecast["sparkline"]; color: string
           height={height}
           fill="transparent"
         >
-          <title>{`${p.raw.date}: ${fmtUsd(p.raw.costUsd)}`}</title>
+          <title>{`${formatDateTime(p.raw.date, locale, { timeZone: "UTC", dateStyle: "medium" })}: ${fmtUsd(p.raw.costUsd, locale)}`}</title>
         </rect>
       ))}
     </svg>
@@ -96,6 +104,20 @@ function Sparkline({ data, color }: { data: Forecast["sparkline"]; color: string
 }
 
 export default function SpendForecastCard() {
+  const revision = useAppStore(s => s.sessionRevision);
+  return <ForecastContent key={revision} />;
+}
+
+function ForecastContent() {
+  const owner = useRef(captureAuthSession());
+  const mounted = useRef(true);
+  const loadRequest = useRef(0);
+  const current = () => mounted.current && isAuthSessionCurrent(owner.current);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const describeFailure = useLocalizedFailure();
+  const runtimeCopy = useRuntimeTranslations("runtime");
+  const locale = useLocale();
+  const budgetInputId = useId();
   const token = useAppStore((s) => s.token);
   const t = useTranslations("app.dashboard.forecast");
   const [data, setData] = useState<Forecast | null>(null);
@@ -105,16 +127,18 @@ export default function SpendForecastCard() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!token) return;
+    if (!token || !current()) return;
+    const request = ++loadRequest.current;
     try {
       const f = (await api.spendForecast(token)) as Forecast;
+      if (!current() || request !== loadRequest.current) return;
       setData(f);
       setError(null);
       setBudgetInput(f.budgetUsd != null ? String(f.budgetUsd) : "");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load forecast");
+      if (current() && request === loadRequest.current) setError(describeFailure(err, runtimeCopy("ma682e26e6a31")));
     }
-  }, [token]);
+  }, [token, locale]);
 
   useEffect(() => {
     load();
@@ -125,7 +149,7 @@ export default function SpendForecastCard() {
   }, [load]);
 
   async function saveBudget(clear: boolean) {
-    if (!token) return;
+    if (!token || !current()) return;
     setSaving(true);
     try {
       const value = clear ? null : Number(budgetInput);
@@ -135,13 +159,14 @@ export default function SpendForecastCard() {
         return;
       }
       await api.setMonthlyBudget(token, value);
+      if (!current()) return;
       setEditingBudget(false);
       setError(null);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+      if (current()) setError(describeFailure(err, runtimeCopy("m05d6a641b6be")));
     } finally {
-      setSaving(false);
+      if (current()) setSaving(false);
     }
   }
 
@@ -187,10 +212,12 @@ export default function SpendForecastCard() {
         )}
       </div>
 
+      {error && !editingBudget && <p role="alert" style={{ marginTop: 10, color: "var(--color-error)", fontSize: 13 }}>{error}</p>}
+
       {/* Big number — current spend */}
       <div style={{ marginTop: 12 }}>
         <div style={{ fontSize: 28, fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>
-          {fmtUsd(data.currentSpendUsd)}
+          {fmtUsd(data.currentSpendUsd, locale)}
         </div>
         <div style={{ fontSize: 11, color: "var(--color-outline)", marginTop: 4 }}>
           {t("spent_so_far", { days: data.daysElapsed })}
@@ -200,8 +227,8 @@ export default function SpendForecastCard() {
       {/* Projection line */}
       <div style={{ marginTop: 14, fontSize: 12, color: "var(--color-on-surface-variant)" }}>
         {t("projected_to_eom", {
-          amount: fmtUsd(data.projectedMonthEndUsd),
-          daily: fmtUsd(data.dailyAverageUsd),
+          amount: fmtUsd(data.projectedMonthEndUsd, locale),
+          daily: fmtUsd(data.dailyAverageUsd, locale),
         })}
       </div>
 
@@ -216,10 +243,11 @@ export default function SpendForecastCard() {
               overflow: "hidden",
             }}
             role="progressbar"
-            aria-valuenow={projectedPct ?? 0}
+            aria-valuenow={barFill}
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-label={t("budget_bar_label", { pct: projectedPct ?? 0 })}
+            aria-label={t("title")}
+            aria-valuetext={t("budget_bar_label", { pct: projectedPct ?? 0 })}
           >
             <div
               style={{
@@ -234,7 +262,7 @@ export default function SpendForecastCard() {
             <span style={{ color }}>
               {projectedPct}% {t("of_budget")}
             </span>
-            <span style={{ color: "var(--color-outline)" }}>{fmtUsd(data.budgetUsd)}</span>
+            <span style={{ color: "var(--color-outline)" }}>{fmtUsd(data.budgetUsd, locale)}</span>
           </div>
           {data.status === "over_budget" && (
             <div
@@ -246,7 +274,7 @@ export default function SpendForecastCard() {
                 border: "1px solid rgba(248,113,113,0.25)",
                 borderRadius: 8,
                 fontSize: 11,
-                color: "#fca5a5",
+                color: "var(--color-error)",
               }}
             >
               {t("over_budget_warning")}
@@ -258,11 +286,12 @@ export default function SpendForecastCard() {
       {/* Inline budget editor */}
       {editingBudget && (
         <div style={{ marginTop: 14 }}>
-          <label style={{ fontSize: 11, color: "var(--color-outline)", display: "block" }}>
+          <label htmlFor={budgetInputId} style={{ fontSize: 11, color: "var(--color-outline)", display: "block" }}>
             {t("monthly_budget_usd")}
           </label>
           <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
             <input
+              id={budgetInputId}
               type="number"
               inputMode="decimal"
               min={0.01}
@@ -307,7 +336,7 @@ export default function SpendForecastCard() {
                 style={{
                   padding: "6px 12px",
                   background: "transparent",
-                  color: "#f87171",
+                  color: "var(--color-error)",
                   border: "1px solid rgba(248,113,113,0.25)",
                   borderRadius: 8,
                   fontSize: 12,
@@ -336,7 +365,7 @@ export default function SpendForecastCard() {
             </button>
           </div>
           {error && (
-            <div style={{ fontSize: 11, color: "#f87171", marginTop: 6 }}>{error}</div>
+            <div style={{ fontSize: 11, color: "var(--color-error)", marginTop: 6 }}>{error}</div>
           )}
         </div>
       )}
@@ -365,7 +394,7 @@ export default function SpendForecastCard() {
             >
               <span>{row.toolName}</span>
               <span style={{ color: "var(--color-on-surface)" }}>
-                {fmtUsd(row.costUsd)} · {row.callCount}
+                {fmtUsd(row.costUsd, locale)} · {formatNumber(row.callCount, locale)}
               </span>
             </div>
           ))}

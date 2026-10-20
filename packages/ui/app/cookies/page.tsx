@@ -53,7 +53,7 @@ export default function CookiesPage() {
         className="sticky top-0 z-50 flex items-center justify-between px-6 md:px-10"
         style={{
           height: "64px",
-          background: "rgba(6,7,10,0.85)",
+          background: "var(--color-surface-container-low)",
           backdropFilter: "blur(20px) saturate(1.1)",
           WebkitBackdropFilter: "blur(20px) saturate(1.1)",
           borderBottom: "1px solid rgba(255,255,255,0.06)",
@@ -261,7 +261,7 @@ export default function CookiesPage() {
                     textDecoration: "none",
                     fontSize: 13,
                     padding: "7px 0 7px 14px",
-                    borderLeft: isActive
+                    borderInlineStart: isActive
                       ? "2px solid var(--color-primary)"
                       : "2px solid var(--color-outline-variant)",
                     transition: "color 0.25s, border-color 0.25s",

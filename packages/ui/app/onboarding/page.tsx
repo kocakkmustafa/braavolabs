@@ -1,4 +1,8 @@
 "use client";
+import { useLocalizedFailure } from "../../lib/localized-error";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -118,6 +122,8 @@ export default function OnboardingPage() {
 }
 
 function OnboardingWizard({ tenantId }: { tenantId: string }) {
+  const describeFailure = useLocalizedFailure();
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
   // i18n arrays read once via t.raw — useCases, stepLabels, suggestions all
   // ship as ordered lists so per-locale ordering can adjust without code
@@ -261,7 +267,7 @@ function OnboardingWizard({ tenantId }: { tenantId: string }) {
       // Keep the wizard draft until that creation succeeds.
       router.push("/companies/new");
     } catch (err) {
-      if (current()) setError((err as Error).message);
+      if (current()) setError(describeFailure(err));
     } finally {
       if (current()) setLoading(false);
     }
@@ -303,7 +309,7 @@ function OnboardingWizard({ tenantId }: { tenantId: string }) {
               </div>
             </div>
 
-            <p className="bv-micro mb-2" style={{ color: "var(--bv-cobalt-glow)", letterSpacing: "0.12em" }}>workspace forged</p>
+            <p className="bv-micro mb-2" style={{ color: "var(--bv-cobalt-glow)", letterSpacing: "0.12em" }}>{uiText("m2e3db7ae4d51")}</p>
             <h1 className="bv-display mb-3" style={{ fontSize: "clamp(26px,3.8vw,40px)", textTransform: "uppercase", letterSpacing: "-0.02em" }}>
               {result?.company?.name ?? t("app.onboarding.successCompanyFallback")}{t("app.onboarding.successLiveSuffix")}
             </h1>
@@ -394,9 +400,7 @@ function OnboardingWizard({ tenantId }: { tenantId: string }) {
           <div className="bv-avatar w-8 h-8 rounded-lg text-xs font-bold">AI</div>
           <span className="bv-title text-sm font-semibold">Braavolabs</span>
         </Link>
-        <Link href="/dashboard" className="ml-auto bv-mono text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-          Skip setup →
-        </Link>
+        <Link href="/dashboard" className="ml-auto bv-mono text-xs" style={{ color: "var(--color-on-surface-variant)" }}>{uiText("mdb69aaf1266a")}</Link>
       </div>
 
       {/* Stage */}
@@ -415,7 +419,7 @@ function OnboardingWizard({ tenantId }: { tenantId: string }) {
               </div>
             </div>
 
-            <p className="bv-micro mb-2" style={{ color: "var(--bv-cobalt-glow)", letterSpacing: "0.12em" }}>step 1 of {TOTAL_STEPS}</p>
+            <p className="bv-micro mb-2" style={{ color: "var(--bv-cobalt-glow)", letterSpacing: "0.12em" }}>{uiText("m0ca91d4cf0f5")}{" "}{TOTAL_STEPS}</p>
             <h1
               className="font-headline font-semibold mb-3"
               style={{ fontSize: "clamp(28px,4vw,48px)", textTransform: "uppercase", letterSpacing: "-0.02em", lineHeight: 1 }}
@@ -552,7 +556,7 @@ function OnboardingWizard({ tenantId }: { tenantId: string }) {
         {/* Step 1: Company description */}
         {step === 1 && (
           <div className="bv-rise w-full max-w-[640px] text-center">
-            <p className="bv-micro mb-2" style={{ color: "var(--bv-cobalt-glow)", letterSpacing: "0.12em" }}>step 2 of {TOTAL_STEPS}</p>
+            <p className="bv-micro mb-2" style={{ color: "var(--bv-cobalt-glow)", letterSpacing: "0.12em" }}>{uiText("mf74a68f418e0")}{" "}{TOTAL_STEPS}</p>
             <h1
               className="font-headline font-semibold mb-3"
               style={{ fontSize: "clamp(28px,4vw,48px)", textTransform: "uppercase", letterSpacing: "-0.02em", lineHeight: 1 }}
@@ -662,7 +666,7 @@ function OnboardingWizard({ tenantId }: { tenantId: string }) {
         {/* Step 2: Primitives */}
         {step === 2 && (
           <div className="bv-rise w-full max-w-[640px] text-center">
-            <p className="bv-micro mb-2" style={{ color: "var(--bv-cobalt-glow)", letterSpacing: "0.12em" }}>step 3 of {TOTAL_STEPS}</p>
+            <p className="bv-micro mb-2" style={{ color: "var(--bv-cobalt-glow)", letterSpacing: "0.12em" }}>{uiText("m38c2aea0c076")}{" "}{TOTAL_STEPS}</p>
             <h1
               className="font-headline font-semibold mb-3"
               style={{ fontSize: "clamp(28px,4vw,48px)", textTransform: "uppercase", letterSpacing: "-0.02em", lineHeight: 1 }}
@@ -724,7 +728,7 @@ function OnboardingWizard({ tenantId }: { tenantId: string }) {
         {/* Step 3: Channels */}
         {step === 3 && (
           <div className="bv-rise w-full max-w-[640px] text-center">
-            <p className="bv-micro mb-2" style={{ color: "var(--bv-cobalt-glow)", letterSpacing: "0.12em" }}>step 4 of {TOTAL_STEPS}</p>
+            <p className="bv-micro mb-2" style={{ color: "var(--bv-cobalt-glow)", letterSpacing: "0.12em" }}>{uiText("m4cab4d533f77")}{" "}{TOTAL_STEPS}</p>
             <h1
               className="font-headline font-semibold mb-3"
               style={{ fontSize: "clamp(28px,4vw,48px)", textTransform: "uppercase", letterSpacing: "-0.02em", lineHeight: 1 }}
@@ -824,7 +828,7 @@ function OnboardingWizard({ tenantId }: { tenantId: string }) {
         {/* Step 4: Launch */}
         {step === 4 && (
           <div className="bv-rise w-full max-w-[640px] text-center">
-            <p className="bv-micro mb-2" style={{ color: "var(--bv-cobalt-glow)", letterSpacing: "0.12em" }}>step 5 of {TOTAL_STEPS}</p>
+            <p className="bv-micro mb-2" style={{ color: "var(--bv-cobalt-glow)", letterSpacing: "0.12em" }}>{uiText("m6c1c3f135744")}{" "}{TOTAL_STEPS}</p>
             <h1
               className="font-headline font-semibold mb-3"
               style={{ fontSize: "clamp(28px,4vw,48px)", textTransform: "uppercase", letterSpacing: "-0.02em", lineHeight: 1 }}

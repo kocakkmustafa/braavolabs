@@ -1,4 +1,14 @@
 "use client";
+import { useStateLabel } from "../../lib/useStateLabel";
+
+import { useLocale as useRelativeLocale } from "next-intl";
+
+import { useLocalizedFailure } from "../../lib/localized-error";
+
+import { useTranslations as useRuntimeTranslations } from "next-intl";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -73,6 +83,11 @@ function MiniFlow({ steps, active }: { steps: number; active: number }) {
 }
 
 export default function PipelinesPage() {
+  const stateLabel = useStateLabel();
+  const relativeLocale = useRelativeLocale();
+  const describeFailure = useLocalizedFailure();
+  const runtimeCopy = useRuntimeTranslations("runtime");
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
   const { token, hydrated } = useAuthGuard();
   const [pipelines, setPipelines] = useState<any[]>([]);
@@ -129,7 +144,7 @@ export default function PipelinesPage() {
       setShowCreate(false);
       if (res?.pipeline?.id) router.push(`/pipelines/${res.pipeline.id}`);
     } catch (e) {
-      setCreateErr(e instanceof Error ? e.message : "Failed to create pipeline");
+      setCreateErr(describeFailure(e));
     } finally {
       setCreating(false);
     }
@@ -162,7 +177,7 @@ export default function PipelinesPage() {
       {/* ── Page head ── */}
       <div className="bv-page-head mb-6">
         <div>
-          <p className="bv-micro mb-1" style={{ color: "var(--bv-steel-mid)" }}>Pipelines</p>
+          <p className="bv-micro mb-1" style={{ color: "var(--bv-steel-mid)" }}>{uiText("md076a8cff280")}</p>
           <h1 className="bv-headline" style={{ color: "var(--color-on-surface)" }}>
             {t("app.pipelines.title")}
           </h1>
@@ -252,7 +267,7 @@ export default function PipelinesPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 320px), 1fr))",
             gap: 18,
           }}
         >
@@ -285,12 +300,13 @@ export default function PipelinesPage() {
           className="bv-stagger"
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 320px), 1fr))",
             gap: 18,
           }}
         >
           {filtered.map((pipeline) => {
-            const trigger = pipeline.trigger ?? "manual";
+            const trigger = typeof pipeline.trigger === "string" ? pipeline.trigger : "";
+            const triggerLabel = ["manual", "cron", "webhook", "event"].includes(trigger) ? t(`surface.triggers.${trigger}`) : t("surface.unavailable");
             const companyName = companies.find((c) => c.id === pipeline.companyId)?.name ?? "—";
             const lastRun = pipeline.runs?.[0];
             const stepCount = pipeline.steps?.length ?? 0;
@@ -320,7 +336,7 @@ export default function PipelinesPage() {
                   </span>
                   <span
                     className="material-symbols-outlined"
-                    style={{ fontSize: 20, color: "var(--color-on-surface-variant)", marginLeft: "auto" }}
+                    style={{ fontSize: 20, color: "var(--color-on-surface-variant)", marginInlineStart: "auto" }}
                   >
                     more_horiz
                   </span>
@@ -331,8 +347,7 @@ export default function PipelinesPage() {
                   className="bv-mono"
                   style={{ color: "var(--color-on-surface-variant)", marginBottom: 0 }}
                 >
-                  {stepCount} steps
-                  {lastRun ? ` · last run ${timeAgo(lastRun.createdAt)}` : ""}
+                  {stepCount}{" "}{uiText("m33a8b197a5dc")}{lastRun ? runtimeCopy("m45fd9c2d5d48", { value0: timeAgo(lastRun.createdAt, relativeLocale) }) : ""}
                   {" · "}
                   <span style={{ color: "var(--color-outline)" }}>{companyName}</span>
                 </p>
@@ -353,7 +368,7 @@ export default function PipelinesPage() {
                       className="bv-mono truncate"
                       style={{ color: "var(--bv-steel-mid)", fontSize: 11 }}
                     >
-                      {trigger === "cron" && pipeline.schedule ? pipeline.schedule : trigger}
+                      {trigger === "cron" && pipeline.schedule ? <bdi>{pipeline.schedule}</bdi> : triggerLabel}
                     </span>
                     {lastRun && (
                       <>
@@ -362,8 +377,8 @@ export default function PipelinesPage() {
                       </>
                     )}
                     {pipeline.status && (
-                      <span className={statusPillClass(pipeline.status)} style={{ marginLeft: 4 }}>
-                        {pipeline.status}
+                      <span className={statusPillClass(pipeline.status)} style={{ marginInlineStart: 4 }}>
+                        {stateLabel(pipeline.status)}
                       </span>
                     )}
                   </div>
@@ -440,15 +455,15 @@ export default function PipelinesPage() {
                 </span>
               </div>
               <div>
-                <p className="bv-micro" style={{ color: "var(--bv-steel-mid)" }}>AI Builder</p>
+                <p className="bv-micro" style={{ color: "var(--bv-steel-mid)" }}>{uiText("m6c64bc8fd052")}</p>
                 <h2 className="bv-title">{t("app.pipelines.nlTitle")}</h2>
               </div>
               <button
                 onClick={() => setShowCreate(false)}
                 disabled={creating}
                 className="bv-btn bv-btn-ghost bv-btn-icon"
-                style={{ marginLeft: "auto" }}
-                aria-label="Close"
+                style={{ marginInlineStart: "auto" }}
+                aria-label={uiText("m7b2727efa311")}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
               </button>

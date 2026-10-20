@@ -51,7 +51,7 @@
       },
       "billing": {
         "title": "Facturation à l'Usage",
-        "desc": "Comptage propulsé par Stripe. Niveau gratuit inclus. Évoluez de $0 à entreprise à la demande avec une tarification basée sur l'usage."
+        "desc": "Les tarifs prévus sont de $19/mois pour Individual et de $39/utilisateur actif/mois pour Team. L’achat n’est pas disponible actuellement ; l’inférence n’est pas incluse."
       },
       "audit": {
         "title": "Journal d'Audit Complet",
@@ -294,7 +294,9 @@
       "localPlanRequired": "Choisissez une offre compatible pour configurer un fournisseur local",
       "planRequired": "Offre requise",
       "localPlanDescription": "Individual et Team prennent en charge les points de terminaison locaux configurés. L’inférence n’est pas incluse.",
-      "viewPlans": "Voir les offres"
+      "viewPlans": "Voir les offres",
+      "aiStorageDescription": "Les identifiants du fournisseur sont chiffrés avant leur stockage. L’accès réseau et le traitement des données dépendent du fournisseur et du point de terminaison configurés.",
+      "localEndpointDescription": "Les points de terminaison locaux s’exécutent là où vous les configurez. D’autres fonctionnalités peuvent toujours nécessiter un accès réseau ; ce réglage ne garantit pas un fonctionnement entièrement hors ligne."
     },
     "onboarding": {
       "primitives": {
@@ -559,7 +561,8 @@
       "improvementSummary": "Résumé d'amélioration",
       "better": "mieux",
       "expand": "Afficher les détails",
-      "collapse": "Masquer les détails"
+      "collapse": "Masquer les détails",
+      "noTimeSeries": "Les séries temporelles et les bandes de confiance ne sont pas disponibles dans cette vue. Utilisez les indicateurs agrégés ci-dessus."
     },
     "dashboard": {
       "title": "Centre de Commande",
@@ -731,14 +734,14 @@
       "remApprovals": "→ Approbations",
       "inputTitle": "L'agent a besoin de votre réponse",
       "answerPlaceholder": "Saisissez votre réponse pour l'agent…",
-      "answerSent": "Réponse envoyée — l'exécution reprend.",
+      "answerSent": "Réponse envoyée. Vérifiez l’état de la décision et de l’exécution.",
       "answerFailed": "Échec de l'envoi de la réponse",
       "sending": "Envoi…",
       "sendAnswer": "Envoyer la réponse",
       "steerTitle": "Piloter cette exécution",
       "steerHelp": "Envoyez un message pour réorienter l'agent en cours d'exécution — il est injecté comme consigne d'opérateur à son prochain tour.",
       "steerPlaceholder": "ex. Concentre-toi uniquement sur les comptes entreprise — ignore le segment PME.",
-      "steerSent": "Pilotage envoyé — l'agent en tiendra compte à son prochain tour.",
+      "steerSent": "Demande de réorientation envoyée. Vérifiez l’état et les résultats ultérieurs de l’exécution.",
       "steerFailed": "Échec de l'envoi du pilotage",
       "sendSteer": "Envoyer le pilotage",
       "timeline": "Chronologie des étapes",
@@ -956,7 +959,7 @@
       "composerPlaceholder": "ex. Un agent de contenu LinkedIn quotidien pour les fondateurs de SaaS B2B. Choisit 1 sujet tendance via la recherche web, rédige 3 variantes de post sur un ton professionnel, programme la meilleure pour 9h. Journalise toujours son raisonnement.",
       "charCount": "{n} / 4000 caractères (min. 10)",
       "agentAddedResult": "<b>{name}</b> a été ajouté à votre espace de travail.",
-      "droppedNote": "Remarque : {n, plural, one {# outil} other {# outils}} inventé(s) par le modèle ignoré(s) : {tools}",
+      "droppedNote": "{n, plural, one {Remarque : # outil inventé par le modèle a été ignoré} other {Remarque : # outils inventés par le modèle ont été ignorés}} : {tools}",
       "composing": "Composition...",
       "compose": "Composer",
       "dealStageLead": "Prospect",
@@ -1058,7 +1061,8 @@
       "hintOpen": "ouvrir",
       "hintClose": "fermer",
       "hintDashboard": "tableau de bord",
-      "hintNewWorkspace": "nouvel espace"
+      "hintNewWorkspace": "nouvel espace",
+      "title": "Menu de commandes"
     },
     "breadcrumb": {
       "onboarding": "Intégration",
@@ -1177,6 +1181,17 @@
       "failed": "La comparaison a échoué.",
       "cancelled": "La comparaison a été annulée.",
       "timeout": "La limite de consultation est atteinte. La session est peut-être encore en cours."
+    },
+    "shell": {
+      "openMenu": "Ouvrir le menu",
+      "closeMenu": "Fermer le menu"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "pending": "{count, plural, one {# approbation en attente} other {# approbations en attente}}",
+      "clear": "Aucune approbation en attente",
+      "spend": "Approbation de dépense requise",
+      "viewAll": "Voir toutes les approbations"
     }
   },
   "static": {
@@ -1202,7 +1217,8 @@
         "tagline": "Pilotez les agents IA et les automatisations que vous utilisez déjà.",
         "rights": "Tous droits réservés.",
         "englishOnly": "Ce document est actuellement disponible en anglais."
-      }
+      },
+      "englishContent": "Ce contenu est actuellement disponible en anglais. Changer la langue de l’interface ne traduit pas cette section."
     },
     "blog": {
       "title": "Blog bientôt disponible",
@@ -1223,10 +1239,6 @@
         "Pages Cookie / KVKK / GDPR en production pour la conformité légale."
       ],
       "githubIntro": "Notes de version détaillées sur GitHub :"
-    },
-    "singleLocale": {
-      "kvkkBanner": "Cette page est publiée uniquement en turc — la loi turque sur la protection des données (KVKK) exige que l'aydınlatma metni soit en turc pour produire ses effets juridiques.",
-      "gdprBanner": "Cette page est publiée uniquement en anglais — elle correspond à la langue de travail des autorités de contrôle pour les responsables transfrontaliers de l'EEE."
     },
     "legal": {
       "privacy": {
@@ -1406,6 +1418,16 @@
       "reset": "Réinitialiser les préférences de cookies",
       "resetDone": "Le choix enregistré a été effacé. Cette page peut se recharger pour appliquer la modification.",
       "resetFailed": "Le choix enregistré n’a pas pu être effacé. Le chargement de nouvelles statistiques est bloqué sur cette page. Un traceur déjà chargé peut rester actif jusqu’à la fermeture de la page. Fermez-la et effacez les données de stockage de ce site dans votre navigateur avant de revenir."
+    },
+    "appearance": {
+      "title": "Apparence",
+      "label": "Thème",
+      "dark": "Sombre",
+      "light": "Clair",
+      "system": "Système",
+      "description": "Utilisez le réglage du système ou choisissez un thème pour ce navigateur.",
+      "saveFailed": "Le thème a changé sur cette page, mais n’a pas pu être enregistré dans ce navigateur.",
+      "storageHelp": "Votre préférence de thème est enregistrée dans ce navigateur."
     }
   },
   "auth": {
@@ -1610,7 +1632,13 @@
     "ar": "العربية",
     "es-419": "Español (Latinoamérica)",
     "pt-BR": "Português (Brasil)",
-    "ja": "日本語"
+    "ja": "日本語",
+    "it": "Italiano",
+    "ko": "한국어",
+    "id": "Bahasa Indonesia",
+    "pl": "Polski",
+    "hi": "हिन्दी",
+    "zh-Hans": "简体中文"
   },
   "publicPreview": {
     "homeTitle": "Une IA multifournisseur, sous votre contrôle.",
@@ -1665,5 +1693,3186 @@
       "status": "État",
       "support": "Assistance"
     }
+  },
+  "uiCopy": {
+    "m938c91ff1f31": "braavolabs",
+    "m13855655e90d": "Ai",
+    "m690e7a5e1383": "Morghulis.",
+    "m158acce5db4b": "Chaque tâche doit prendre fin. Discrètement, sur votre machine. Le centre de contrôle gouverné de vos agents IA.",
+    "mc9be6b254770": "DÉFILEZ — OUVREZ LA PORTE ▾",
+    "m68ec9666da44": "tous les agents, une seule salle",
+    "m4d50f5adff67": "Un panneau.",
+    "m13b0a7147ec5": "Tous les agents.",
+    "md91e25ebff91": "Claude, GPT, Gemini, vos modèles locaux — encapuchonnés dans leurs alcôves, attendant qu’on les nomme. Confiez une tâche à l’un ; regardez-le passer le fil au suivant.",
+    "m14259aa4f184": "trois voies, une facture",
+    "mb6063ec6db48": "Acheminez vers la voie la moins chère",
+    "mff3010307ebd": "qui fonctionne.",
+    "ma02b3af1c791": "Les modèles locaux gèrent la routine, vos clés API les tâches difficiles et votre abonnement CLI le reste — la cascade décide, vous gardez la différence.",
+    "m58cb783ef208": "exécution moyenne moins chère",
+    "m2f71a8cd452e": "routage · cache · cascade",
+    "md68f4d9658a0": "majoration sur les tokens",
+    "m19837eca8ef7": "BYOK — vos propres clés",
+    "m61feb77f0448": "voies",
+    "mc161ee232d16": "local · API · votre CLI",
+    "m37570a352f9f": "Mémoire indépendante du modèle",
+    "m4790be82e806": "Votre contexte reste le vôtre, quel que soit le modèle utilisé.",
+    "md1ab8fe0278c": "Gouvernance par défaut",
+    "mcf73c270b403": "Chaque étape risquée passe par une approbation.",
+    "m760df3439c81": "Transfert entre modèles",
+    "m0ef4c869c13b": "Un agent passe le fil au suivant.",
+    "m902a479c1449": "l’IA sert. vous commandez.",
+    "madfef55cdd3e": "Dohaeris.",
+    "m8917820f4842": "Les exécutions restent sur votre machine et continuent en votre absence. La tour veille ; vous gardez le contrôle où que vous soyez.",
+    "m06818bfad7e5": "Approuvez depuis votre poche.",
+    "mcd2afb2517c4": "Les étapes risquées vous alertent sur téléphone — autorisez, refusez ou guidez d’un geste.",
+    "mc918b71360aa": "Chaque exécution peut être rejouée.",
+    "mec82da18aef9": "Commandes, différences et appels d’outils enregistrés — auditez ou remontez chaque étape.",
+    "mb634019207be": "Un seul arrêt d’urgence.",
+    "m190c6cca4b11": "Demandez un arrêt sur les chemins d'exécution pris en charge. Un appel fournisseur peut déjà être en cours ; vérifiez le résultat enregistré.",
+    "me050855b0732": "Télécharger pour macOS",
+    "m0699722b6c86": "Windows",
+    "mc7916fde8f18": "Linux",
+    "m4721630f3237": "COPIÉ",
+    "m76375004a5c8": "COPIER",
+    "mfa1e83c4875c": "Pièce Braavolabs — avers",
+    "m25dad6b2130d": "Pièce Braavolabs — revers, monogramme BL en lignes de circuit",
+    "m25b28440d28a": "survolez pour retourner · revers : monogramme BL en circuit",
+    "m4fc929a0a62c": "Navigation entre les scènes",
+    "m9ee930cb6b09": "Passer l’introduction",
+    "m154eba8c33b7": "PASSER — espace / clic",
+    "m227d67016fe0": "braavolabs · valar dohaeris",
+    "m716f677b544d": "documentation",
+    "md86a34679f43": "github",
+    "mbb0e90463fc8": "est en tête",
+    "m6a6df1ed4210": "Publier",
+    "m1c64caa33ba2": "vs",
+    "mde4ec47f271d": "Expériences",
+    "m920a13b7eddb": "Expérience",
+    "m0ce6557e41a4": "État",
+    "mb1c437b2623f": "Gain",
+    "me4fac2bbdc43": "Significativité",
+    "m4b9aae820c18": "Voir les détails",
+    "m6e8b2ac90efc": "Nouvelle expérience",
+    "m008ca53ea0d6": "Manifeste",
+    "mf6caaee885a1": "Tout le monde peut",
+    "md7f19caf7275": "créer un agent.",
+    "m1bcc79112898": "Peu savent le diriger.",
+    "m154cae3389df": "L’emblème",
+    "mff5d00a78d7e": "L’opérateur sans visage",
+    "m6d6f7b3433d5": "Notre emblème est un masque de fer forgé — un clin d’œil à Braavos, où les meilleurs opérateurs travaillent dans l’ombre. Il représente le travail réel avec l’IA : non pas la démonstration la plus bruyante, mais l’opérateur qui, discrètement,",
+    "m0fb31a980179": "lit, approuve et guide",
+    "m2c08fc9adde3": "une équipe d’agents vers un résultat.",
+    "m8fad8431526d": "Tout ce que nous créons a du poids, de l’éclat et du mouvement — diriger des agents doit ressembler à une salle de commandement, pas à la surveillance d’un chatbot.",
+    "mae6893bf1cea": "Notre avantage, en une phrase",
+    "ma96d8b4e22d7": "Nous nous différencions par",
+    "m79029a3ce6e6": "le contrôle",
+    "mac2da98d83a1": "la mobilité",
+    "m0eab38f1efb0": "et",
+    "mb899143d5b68": "la confidentialité",
+    "ma2e990d63ed8": "— jamais par le nombre de connecteurs.",
+    "m3bfa80932b8d": "Principes",
+    "m35c23cddce05": "« Nous avons créé Braavolabs parce que nous en avions assez des agents capables d’agir mais impossibles à gouverner. La puissance sans main sur la barre n’est pas utile — c’est un risque. »",
+    "m00cce1870e41": "L’équipe Braavolabs",
+    "m86eac0774080": "· forgé au grand jour",
+    "md02e9e25bd65": "Ouvrir l’application",
+    "m864debf58479": "Parlez-nous",
+    "mdd10bd33331e": "Espace de travail",
+    "m3c5cae9db9ff": "Résultats",
+    "me472804666c8": "Récapitulatif de facturation",
+    "m4176e1045b7d": "Toutes les exécutions",
+    "m138dacd53320": "exéc.",
+    "mb2df3906a88c": "File des dépenses",
+    "m0e8a6ae38472": "en attente",
+    "mc3f685eba544": "urgent",
+    "m1b78e46f051f": "Préparation de votre session",
+    "m22d7829ed6f9": "BL",
+    "me1bb55c0e7b4": "Méthodologie et résultats enregistrés",
+    "mba85f9df1e3f": "Banc d’essai",
+    "m3ea665b949b5": "Examinez les exécutions de benchmark enregistrées, les modèles évalués et la méthodologie disponible. La couverture et l'actualité varient selon l'exécution enregistrée.",
+    "madef7e96db5b": "La méthodologie et les grilles brutes sont dans",
+    "m4106b4c7e011": ". Les PR sont bienvenues.",
+    "mbe9a5bbdd9b6": "Les résultats publiés apparaissent ici lorsque des évaluations enregistrées sont disponibles.",
+    "m4349735a6625": "Aucune exécution pour cette suite.",
+    "m62d2447bfb31": "Fournisseur",
+    "m53b77436d18d": "Modèle",
+    "m6853e500c770": "Score",
+    "m2dbf116102ae": "Coût / exécution",
+    "m41b4f721faf5": "Durée",
+    "m881b035daeb6": "Mis à jour",
+    "mcc7dbaccf493": "Compte",
+    "m3ed9a01e9231": "Actif",
+    "m1f1c52f4af63": "Vérification manuelle",
+    "m10a01ee78fc0": "/ siège actif / mois",
+    "m36319a66e749": "/ mois",
+    "m2abded1f04d2": "· via Stripe",
+    "m52ef97127549": "exécutions restantes sur",
+    "m3aacf07b35fc": "Gérer l’abonnement",
+    "m480aee3b6717": "Les offres web sont facturées via Stripe : gérez, modifiez ou résiliez votre abonnement à tout moment dans le portail de facturation. Les abonnements mobiles se gèrent dans la boutique où vous les avez souscrits ; les modifications sont automatiquement synchronisées ici.",
+    "mc55a17a9d9c0": "Abonnement Stripe",
+    "mcceb0b8f209d": "Gérer",
+    "m03899b81220f": "Inactif",
+    "m659adfa80ad7": "Abonnement App Store",
+    "mcd435f3d6d13": "Géré dans la boutique",
+    "mf1b895df0335": "Abonnement Google Play",
+    "m8546b709215e": "Utilisation sur cette période",
+    "m809b2c4b9c83": "BL",
+    "m7f0fab417f12": "Blog",
+    "md62a43742980": "Fonctionnalités",
+    "ma5bac859b488": "Tarifs",
+    "m2fbc11c34f42": "Se connecter",
+    "m06d5d3008573": "Ouvrir l’application",
+    "m85d560055d11": "Le journal de la forge",
+    "ma31c879fbf4a": "de lecture",
+    "mf4e7ef98e64a": "Pilotez les agents que vous utilisez déjà.",
+    "mb9f5c53ce5bb": "Utilisez vos propres clés de fournisseur ou une route locale configurée. L’inférence n’est pas incluse.",
+    "mfa5d21d1d88a": "À lire aussi dans le journal de la forge",
+    "md72e42595829": "Blog",
+    "m7c191fd9ab30": "Se connecter",
+    "m723a4ca0b041": "Ouvrir l’application",
+    "md37709c384c4": "Le journal de la forge",
+    "m183ea0c3acf0": "Notes de",
+    "m3ec12db3060f": "la salle de commandement.",
+    "m727eff92c28d": "Sur le pilotage des agents : contrôle, mobilité, confidentialité et art de gouverner l’autonomie.",
+    "mbf6597c4877d": "À la une",
+    "m67a924d25b13": "de lecture",
+    "med3811fc0067": "Pilotez les agents IA et les automatisations que vous utilisez déjà.",
+    "m09d06a4f3a17": "Produit",
+    "m621f739bb1af": "Entreprise",
+    "m2bc5accf38ff": "Informations juridiques",
+    "m46e01d124058": "© 2026 Braavolabs. Tous droits réservés.",
+    "m73b582c8d1ab": "BL",
+    "maf32376bdf35": "Fonctionnalités",
+    "m89ea286c8147": "Tarifs",
+    "mdcad451eaa8b": "Intégrations",
+    "m000db379830b": "Journal des modifications",
+    "mf6a8a22d3745": "Blog",
+    "mf0c7cea418fa": "Ouvrir l’application",
+    "mc233f3d5475f": "Chaque plaque,",
+    "m201fb23bec45": "bien en place.",
+    "m7af9fcb2eb00": "Ce que nous avons forgé, corrigé et changé.",
+    "mb029bf94b9cb": "La plus récente",
+    "m33b2dcf5a00e": "Mettre en pause",
+    "m4aff80e9ddd2": "Archiver",
+    "mf40b55b5a17f": "agent :",
+    "ma170cc9e0b0b": "PROMPT SYSTÈME",
+    "m313ead484eac": "par défaut",
+    "m081fc0171fee": "Candidat",
+    "m1d156cc858d3": "Approuvé",
+    "mf1cc2bc9a8a0": "Aucune mémoire approuvée",
+    "m564fb4aee15b": "Obsolète",
+    "m307ccca51ae0": "Aucun élément obsolète",
+    "m50890a43f31f": "En direct",
+    "md1e06fe13cd7": "En pause",
+    "mc46ba3b782c7": "Arrêt sur coût activé",
+    "md8ec6425984e": "budget",
+    "m6a7a58f3cdb0": "% consommé — l’exécution s’arrêtera à $",
+    "mee5a1855dffe": "vous attend",
+    "m562397da1ad0": "en continu",
+    "m1d007a5d0353": "ms",
+    "m485cb3fc4e18": "Métadonnées de l’exécution",
+    "m3c85b69d5453": "par rapport au budget",
+    "m2fb2177fcf22": "budget $",
+    "mf09738cc6fac": "Curseur de chronologie",
+    "md63109311e5c": "Exporter la trace",
+    "mc341c520640c": "Piloter · ajouter des consignes",
+    "m4180d6eb1e87": "Espaces de travail",
+    "mf854b0d01bb8": "Nouveau",
+    "m2a1f8f8329c8": "Passer à l’offre supérieure",
+    "m81541c4b81fd": "Partir d’une idée",
+    "m98f5541fecce": "Choisissez un point de départ : nous préremplirons le brief ci-dessous et l’IA l’adaptera à vos besoins.",
+    "m84436181ca66": "Catégories de modèles",
+    "me80b908371e2": "Tous",
+    "md906ff092286": "Utiliser cette idée",
+    "m23e4368ad8b0": "ou décrivez la vôtre ci-dessous ↓",
+    "m6e641f0af509": "⌘↵ pour forger",
+    "mdbc61703dd4c": "braavolabs",
+    "md81c07fc5237": "Spécification de l’espace de travail",
+    "mfba9134a6958": "cœur",
+    "m335400734ad4": "Phare",
+    "m1c1ed0d6cba8": "Comparer",
+    "m0e090d020bf6": "Se connecter",
+    "m2b2ad5e6e9fc": "Ouvrir l’application",
+    "m65d72c621640": "Un positionnement honnête",
+    "mba9bd9de37dc": "Notre place —",
+    "m50e9a7dcec3d": "et nos limites.",
+    "mf93fe81f65ba": "Braavolabs ne cherche pas à proposer le plus grand catalogue d’intégrations. Il est conçu pour",
+    "m1d1ed4cc0221": "piloter",
+    "m16c281eec9eb": "les agents et automatisations que vous utilisez déjà, depuis votre téléphone, en cours d’exécution, avec vos propres clés. Voici une comparaison honnête avec deux catégories voisines, y compris leurs avantages sur nous.",
+    "m7acc6a073df0": "Capacité",
+    "m67969942145e": "Pour qui",
+    "m8d6c9af2713e": "Braavolabs convient lorsque le contrôle, la mobilité et la confidentialité comptent plus que la taille d’un catalogue d’intégrations.",
+    "m22f7bc58c61d": "Vérifiez vous-même le calcul du prix fixe.",
+    "mbf3573b0a3d0": "Comparez un tarif fixe prévisible à la facturation par tâche avec notre calculateur de coûts.",
+    "m24543c9280b1": "Calculateur de coûts",
+    "m2b56df60312a": "Examinez les étapes enregistrées, les données de coût disponibles et les décisions opérateur en attente.",
+    "m9895a6463bc7": "Pilotez les agents IA et les automatisations que vous utilisez déjà.",
+    "mfb1404813b60": "Produit",
+    "mca345aad7aa1": "Entreprise",
+    "m5bed3a4a7338": "Informations juridiques",
+    "m8e359b1c68e3": "© 2026 Braavolabs. Tous droits réservés.",
+    "m3e5ecf19f202": "Centre d’automatisation",
+    "mb9d0451321be": "Fermer",
+    "m8b4a9a98583e": "Connecter une automatisation",
+    "m80ef56a7089f": "Exécutions unifiées",
+    "ma9b5c84ca346": "natives + externes · une chronologie",
+    "m8bd444807a52": "événement",
+    "md8e91797972c": "type",
+    "m826036148049": "externe",
+    "m1a1faaa5e7fc": "Développez une connexion pour afficher ses exécutions ici.",
+    "m23715cc46e18": "Fermer",
+    "ma6abe31754db": "BL",
+    "m2b4a9f22ba8d": "Pilotez les agents IA et les automatisations que vous utilisez déjà.",
+    "md69e46192627": "Produit",
+    "m6d80848fe489": "Entreprise",
+    "m0fb85ef7ffda": "À propos",
+    "m260fed5ac47c": "Blog",
+    "m3a006e3e0878": "État",
+    "md2c8631b73dd": "Informations juridiques",
+    "mf2c79d7c83e6": "Tarifs",
+    "m3aaa432f7378": "Ouvrir l’application",
+    "m9680189524a4": "Aperçu des tarifs — achat indisponible actuellement",
+    "m58ba90a040a3": "Tarifs d’abonnement prévus",
+    "mfdf38497de3a": "La migration de la facturation est encore en développement : cette page ne calcule pas de devis payable et ne lance aucun achat. Le catalogue prévu comprend uniquement Individual et Team.",
+    "m0a048a01849e": "Offres prévues",
+    "m865128d3e4d4": "Offre prévue",
+    "m4d17edf4bcc6": "Information sur le coût d’inférence",
+    "m17a77e8ea42f": "L'inférence n'est pas incluse",
+    "m52f120c3db8b": "L’utilisation du modèle est payée au fournisseur configuré via BYOK ou passe par votre propre route de modèle local. Braavolabs ne propose pas actuellement ces abonnements prévus à l’achat.",
+    "me587bca8ef51": "Exécutions actives",
+    "m975cf8ab658e": "Taux de réussite des exécutions",
+    "m1ca31645c880": "Activité",
+    "m9f12c64beaa6": "braavolabs.com · piste d’audit en direct",
+    "maacbbd2ffeb8": "Tout voir →",
+    "mef4047de09c7": "Exécutions récentes",
+    "m9332d1be8fe2": "Pipeline",
+    "m098593629f8e": "Entreprise",
+    "m286c98c9029c": "État",
+    "m207013f4c387": "Démarré",
+    "md1d31b068fc2": "Étapes",
+    "m701b95d1d46a": "Dépense",
+    "m4d36fe121a92": "Aucune exécution pour ce filtre.",
+    "m97fa546fb5a7": "Aucune activité récente.",
+    "mc9b9115552be": "en attente",
+    "m7fd8a8fd26df": "Approbation requise",
+    "meffd0c9f293a": "Refuser",
+    "m8961771af3a1": "Aucun risque actif",
+    "m11064e50fa7c": "nouveau",
+    "m3c3e08c03c30": "Événement de risque",
+    "me5c88f2a2ff0": "maintenant",
+    "mb34c85aff53f": "Fonctionnalités",
+    "m85a856ab28be": "Tarifs",
+    "mdd91fe0b7fc0": "Blog",
+    "m6179659c73b9": "Documentation",
+    "m35127686df60": "Se connecter",
+    "m5b83c05ccb0c": "Ouvrir l’application",
+    "mcb951cf4a4d3": "Documentation",
+    "m0c14fdc4a1c6": "Le manuel",
+    "m6c77f98962d7": "Sur cette page",
+    "m074fdba85cf1": "← PRÉCÉDENT",
+    "m1388671ac3bc": "SUIVANT →",
+    "m90aeded95734": "Pilotez les agents que vous utilisez déjà.",
+    "mf8873bd65493": "Les tarifs sont présentés en aperçu et ne permettent pas d’achat actuellement. L’inférence n’est pas incluse.",
+    "m906152f47b4f": "Pilotez les agents IA et les automatisations que vous utilisez déjà.",
+    "m1ec39ca165b6": "Produit",
+    "mbb3043a7f2cf": "Journal des modifications",
+    "m50200f20c520": "Ressources",
+    "m35fa61443236": "Assistance",
+    "m6ea06edad850": "Entreprise",
+    "m7f7a851ede21": "À propos",
+    "mebaef44626be": "Contact",
+    "m07c7e04fadf1": "État",
+    "m7375dacc55cd": "© 2026 Braavolabs. Tous droits réservés.",
+    "m818b2a78eb90": "Fonctionnalités",
+    "m4cc1f3608ddc": "Tarifs",
+    "mf6823057de7d": "Blog",
+    "m87eedb771754": "Documentation",
+    "mda5526776bb1": "Se connecter",
+    "md725474be468": "Ouvrir l’application",
+    "m5aac6b035a43": "Le manuel",
+    "mc85715c7a4bb": "Documentation",
+    "m8f52d8cc2d59": "Comment composer, exécuter et gouverner une entreprise IA autonome : de votre première exécution aux webhooks, aux routes de modèles locaux configurées et au pilotage des agents depuis votre téléphone.",
+    "m20c340bf69ae": "Premiers pas",
+    "m602cdfb50800": "Concepts clés",
+    "m9a896a6ca8c2": "Questions fréquentes",
+    "md4293b1a891b": "Lire",
+    "mfa2b75fcfa90": "Pilotez les agents IA et les automatisations que vous utilisez déjà.",
+    "mc06c8b9bd590": "Produit",
+    "m9e4e062300ce": "Journal des modifications",
+    "mdc663d5d4765": "Ressources",
+    "m698bc6e3f89e": "Assistance",
+    "m975952c059f7": "Entreprise",
+    "mad1ae8839ed9": "À propos",
+    "m8d136db7d880": "Contact",
+    "m2b43eb3b2c10": "État",
+    "m22d2dde46b20": "© 2026 Braavolabs. Tous droits réservés.",
+    "m86006890323f": "Relecture du contenu",
+    "mfd976ba1eea0": "Brouillon",
+    "m76d027d04e32": "Une erreur est survenue",
+    "me06887989706": "Référence d’erreur pour l’assistance",
+    "mc3fca6aef955": "Référence :",
+    "m28a812f120c3": "Réessayer",
+    "m795836a1d4b2": "Cette erreur persiste. Revenez à l’accueil et réessayez.",
+    "meda5eea8ae48": "Aller à l’accueil",
+    "mccfb38fd1109": "Contacter l’assistance",
+    "m41749f8a6958": "Gouvernance",
+    "m12cc6cbe8456": "Tarifs",
+    "md2d886d00f8d": "Se connecter",
+    "m5622cdb1d573": "S’inscrire",
+    "mb92a5ff6a3f6": "Contrat produit",
+    "md8d7b7db0cdd": "Exécuter. Contrôler. Prouver.",
+    "m5c19d5d0e672": "Braavolabs est un atelier IA multifournisseur et un plan de contrôle. Le même contrat couvre le bureau, la CLI, l’approbation mobile et le contrôle cloud authentifié, sans déplacer l’exécution native vers le site public.",
+    "md530d8e09e2a": "Private Mode — aperçu",
+    "mc015473cee7b": "Son contrat complet de traitement des données et de sécurité reste en développement et n’est pas présenté comme disponible pour tous.",
+    "m99e52a77109d": "Cloud Agent Mode — en développement",
+    "m4be5a94fd7e3": "Son contrat d’exécution, de consentement et de conservation n’est pas présenté comme disponible pour tous.",
+    "m538495414df0": "Preuves signées — en développement",
+    "m283b1bddd62f": "Les affirmations relatives aux bundles vérifiables hors ligne restent bloquées jusqu’à l’acceptation de la tâche correspondante.",
+    "mc7577ef44a73": "Holding — aperçu premium/privé",
+    "mf457eb5a3ed1": "Le packaging des agents persistants reste distinct et désactivé par défaut.",
+    "m9f5b1afe44a4": "Ouvrir l’application",
+    "m3129e7d997e9": "Lire la documentation",
+    "mba4fd1fab967": "Importer",
+    "mf0ec3cddfcdf": "Rechercher",
+    "m941a8cfd363d": "JH",
+    "mcb7a05a63f11": "Intégrations",
+    "m63618f411d28": "Étape 1",
+    "m28a453e700bf": "Coller votre export",
+    "m6178c5d299b7": "Choisissez la plateforme, puis collez le JSON du workflow ou déposez un fichier.",
+    "mcb314139cd6e": "ou déposer un export .json ici",
+    "mf22bc005eae8": "Étape 2",
+    "mf59ae985ca8a": "Aperçu et correspondance",
+    "mb29543f91292": "Nous avons analysé",
+    "mf481a5ad1169": "étapes. Associez chacune à un type d’étape Braavolabs.",
+    "m8a14bed991c3": "Déclencher",
+    "mee753e5a87a2": "Appel d’outil",
+    "m916a2a45d141": "Branche",
+    "meab0461369b0": "Agent",
+    "m55cf3f3ed970": "Sortie",
+    "mef364fe09b40": "Retour",
+    "m8e0f9ab16dab": "Création du pipeline à partir de l’import…",
+    "mcdc0a303cb6e": "Importé",
+    "m358866c978a7": "Ouvrir dans le créateur",
+    "mc35120dcdc60": "Importer un autre",
+    "m1d31c122563e": "Connexions",
+    "m519d2f226020": "Importer une automatisation existante",
+    "m56994963473b": "Importez un export n8n, Make ou Zapier : nous le convertirons en pipeline.",
+    "m48f6463ee542": "Importer",
+    "m760104947f15": "Fonctionnalités",
+    "m69d527a460e7": "Tarifs",
+    "mb2399da1a08c": "À propos",
+    "me140e826ba9c": "Se connecter",
+    "m471494a678dc": "Contact pour les demandes",
+    "md16b7b8e76f6": "Pour les demandes au titre de la KVKK, contactez",
+    "md2e44bfde665": ".",
+    "m8c04ee5bf3f2": "Pilotez les agents IA et les automatisations que vous utilisez déjà.",
+    "ma0eb87bbeb56": "Produit",
+    "mc051ae69c4ff": "Journal des modifications",
+    "m3977aafcc314": "Entreprise",
+    "mf519587a824a": "Blog",
+    "m46ce898e63fc": "Contact",
+    "med3b20e61c41": "Vous pouvez demander à Braavolabs de supprimer votre compte et les données personnelles associées. Le canal public actuel est l’e-mail, qui nous permet de vérifier la propriété du compte et de confirmer la demande par écrit.",
+    "m1b2db4796a78": "Envoyez un message depuis l’adresse e-mail associée à votre compte à",
+    "m442ce29a97e5": "avec pour objet",
+    "m3142da1ab41a": "\"Demande de suppression de compte\"",
+    "mc804e0a279e5": ". Indiquez l’e-mail du compte ou le nom d’utilisateur, mais n’envoyez jamais de mot de passe, clé API, jeton d’accès ou identifiant de paiement.",
+    "m38ad53145e92": "Nous pouvons demander des informations supplémentaires pour vérifier que vous contrôlez le compte. Nous confirmerons la demande et communiquerons son statut par le canal e-mail vérifié. Les délais légaux applicables restent en vigueur ; cette page ne promet pas de délai de traitement automatique.",
+    "m29f4515a2181": "Braavolabs ne publie actuellement aucun formulaire de suppression distinct et ne promet pas de commande de suppression intégrée sur ce site public. Utilisez le canal e-mail vérifié ci-dessus afin que la demande ne soit pas perdue ou envoyée via un sujet de contact sans rapport.",
+    "mee9120dd9911": "Le périmètre de suppression dépend des enregistrements associés au demandeur vérifié. Nous l’examinons et confirmons le résultat par écrit, y compris les enregistrements qui ne peuvent légalement être supprimés.",
+    "m0a13dcea737c": "Données d’identité et de profil du compte associées à la demande vérifiée",
+    "m3dd748c0c124": "Contenus du tenant pouvant être supprimés selon le service et les obligations légales applicables",
+    "m67b7fbf8d86d": "Identifiants et sessions actifs associés au compte, dans la mesure techniquement et légalement possible",
+    "m292e9193635f": "Certains enregistrements peuvent devoir être conservés pour des obligations fiscales, comptables, des litiges, la prévention de la fraude ou d’autres obligations légales. Les catégories et durées dépendent du déploiement, des contrats fournisseurs et de la juridiction ; elles sont communiquées pour la demande vérifiée, sans calendrier public fixe promis ici.",
+    "m3acb87ce044a": "Enregistrements que le droit fiscal, comptable ou réglementaire applicable nous oblige à conserver",
+    "m9956d26e8534": "Enregistrements nécessaires pour documenter la demande, la vérification et la réponse légalement requise",
+    "m665793086a11": "Données soumises à une obligation légale de conservation valide ou à un litige non résolu",
+    "m764489556bb6": "Nous traitons les demandes vérifiées dans les délais imposés par la loi et communiquons leur statut par le canal e-mail vérifié. La vérification, les obligations de préservation et de conservation peuvent affecter la réalisation ; toute limite applicable est expliquée par écrit.",
+    "mc3704343f072": "Une demande de suppression de compte et une résiliation de facturation sont deux actions distinctes. Pour une question de facturation, contactez",
+    "m262a258637ac": "et nous vous indiquerons le canal actuellement pris en charge, sans annoncer ici de parcours en boutique ou dans l’application.",
+    "mb2c239031d04": "Pour toute question sur le processus, les règles de conservation ou la vérification de la suppression :",
+    "mcf0d0c778c1f": ". Pour les demandes plus larges relatives à vos droits (accès, portabilité, rectification), consultez notre",
+    "m29492eb1f9b7": "Déclaration RGPD",
+    "m79a0490687e1": "et",
+    "mf75327b3ab03": "Aperçu des informations de confidentialité au titre de la KVKK",
+    "m3b525be54f32": "Suppression du compte et des données",
+    "m22af538371f7": "Prêt à supprimer votre compte ?",
+    "mb5f06ea86d5e": "Envoyez la demande depuis l’adresse e-mail associée à votre compte.",
+    "m7bc799542df6": "Nous écrire",
+    "m50591bb45e1e": "Braavolabs.",
+    "m7801df791ac5": "Apple",
+    "m3e059886391a": "Google",
+    "m75ecaff6a037": "GitHub",
+    "ma642566b6fb9": "(facultatif)",
+    "mb10483661821": "Page introuvable",
+    "m30a00b02a74d": "La page recherchée n’existe pas ou a été déplacée.",
+    "md182a885158e": "Aller à l’accueil",
+    "m2aec28552db3": "Tableau de bord",
+    "m2e3db7ae4d51": "espace de travail créé",
+    "mdb69aaf1266a": "Ignorer la configuration →",
+    "m0ca91d4cf0f5": "étape 1 sur",
+    "mf74a68f418e0": "étape 2 sur",
+    "m38c2aea0c076": "étape 3 sur",
+    "m4cab4d533f77": "étape 4 sur",
+    "m6c1c3f135744": "étape 5 sur",
+    "me9694a186010": "Individual —",
+    "m032b7cca868a": "Team —",
+    "m37d5c6a2c645": "© 2026 Braavolabs",
+    "m4c15cd976fb7": "Types d’étapes · glisser",
+    "ma71448498846": "Inspecteur",
+    "mc0068fffc436": "Inspecteur d’étape",
+    "m73f2d28a8195": "Sélectionnez une étape sur le canevas pour la configurer.",
+    "me279e93feaa2": "Fermer",
+    "md076a8cff280": "Pipelines",
+    "m33a8b197a5dc": "étapes",
+    "m6c64bc8fd052": "Créateur IA",
+    "m7b2727efa311": "Fermer",
+    "m527dc6c48fc1": "Créez votre",
+    "m5d499d7bb383": "espace de travail en",
+    "mc963b2a55c65": "quelques minutes",
+    "m0ffcb934d4d3": "Braavolabs. Tous droits réservés.",
+    "m4c3d039eeb89": "Offre gratuite",
+    "mb9d9f6052c15": "Google",
+    "m2d8843cd30de": "GitHub",
+    "m3f79055b06f5": "Robustesse —",
+    "m42d9b00b4a1c": "J’accepte",
+    "m03dd13603177": "Conditions",
+    "m16a48ada2404": "et",
+    "med9bdddaf801": "Politique de confidentialité",
+    "mddad425a8476": "Vous avez déjà un compte ?",
+    "m99b3ce884164": "(facultatif)",
+    "mfac2ec3661ab": "Emblème Braavolabs",
+    "m147a465a4bab": "Forgez une nouvelle",
+    "m8f3667a853a6": "clé",
+    "m5a9acd6bb595": "pour votre salle de commandement.",
+    "m07683a6b25da": "Réinitialisation du mot de passe",
+    "m324fa44bdbfe": "Saisissez votre e-mail et nous vous enverrons un lien de réinitialisation.",
+    "m1d7390708d7e": "Envoi…",
+    "mf28e1b2646a8": "Envoyer le lien de réinitialisation",
+    "m05680974f084": "Définir un nouveau mot de passe",
+    "ma6ae80e38b9d": "Confirmer le mot de passe",
+    "m39a7ff600af8": "Mot de passe créé",
+    "mf83f38e42411": "Se connecter",
+    "m94c28a73da37": "GOUVERNANCE",
+    "m9d899093d41e": "Accuser réception",
+    "m9ce742313269": "Annuler",
+    "mc191d4f884e6": "Relancer",
+    "mb9b248228c25": "Carte thermique des coûts",
+    "md4fdc87efd1b": "Métadonnées de l’exécution",
+    "ma3d0dc878de8": "ID d’exécution",
+    "m83d38e678178": "Pipeline",
+    "m89200cc22850": "Étapes",
+    "ma8322509bd8f": "Approbations",
+    "m1eadff0f7d6b": "Durée",
+    "m8905a490325a": "Curseur de chronologie",
+    "m1dbbdb0c26b5": "Exporter la trace",
+    "mcf98748ad579": "en continu",
+    "mc3041e2d2f2b": "étape",
+    "m2c81a45dc959": "Piloter · ajouter des consignes",
+    "m6ef14dc92d42": "Ajoutez des consignes pour le prochain tour de l’agent… (ex. \"ne contacter que les entreprises de >50 salariés\")",
+    "m597ddeea5d27": "Piloter",
+    "me5d0d8e26c92": "Rechercher des exécutions…",
+    "m6519c809652c": "Documentation",
+    "ma280e8530c88": "Se connecter",
+    "m0c1bf711335e": "S’inscrire",
+    "m0b84272e0b38": "Sécurité et confiance",
+    "m2708222253e6": "Des limites énoncées clairement.",
+    "mf6cd2e305a08": "Les textes publics de sécurité se limitent aux contrats testables par le produit. Les orientations de la feuille de route sont identifiées comme telles ; les affirmations de sortie attendent des preuves acceptées.",
+    "m87d3344f51c0": "Private Mode — aperçu",
+    "m7ed0edec682e": "Son contrat complet de traitement des données et de sécurité reste en développement et n’est pas présenté comme disponible pour tous.",
+    "me5d088788752": "Cloud Agent Mode — en développement",
+    "m6e5d8b8e7120": "Son contrat d’exécution, de consentement et de conservation n’est pas présenté comme disponible pour tous.",
+    "m82cfde8eb7cd": "Preuves signées — en développement",
+    "mc63ed84605c0": "Les journaux d’activité ne sont pas présentés comme un bundle de preuves signé et vérifiable hors ligne avant la mise en œuvre et l’acceptation de ce contrat.",
+    "m16ca86ca2649": "Ouvrir l’application",
+    "m7945cffa32f0": "Signaler un problème de sécurité",
+    "m58a52b30df2b": "fil d’Ariane",
+    "m17301d36c0f7": "Paramètres",
+    "m04575c3aa05d": "Endpoint du fournisseur",
+    "m4ac81f8d693d": "Redirection et portées",
+    "m0980004c67c1": "acme.com, acme-contractors.com",
+    "m3af0642101f2": "La connexion SSO est activée pour votre domaine.",
+    "m59f31e9a773e": "La connexion SSO est suspendue : les utilisateurs reviennent à l’authentification par mot de passe.",
+    "m1324795a7aa8": "Enregistrement…",
+    "m17cc90014b3e": "Aperçu en direct",
+    "m90bd8874ada5": "Configuration OIDC ·",
+    "m1995887ad355": "configuré",
+    "mb5610055f059": "non défini",
+    "ma388b35eeee6": "✓ défini",
+    "m1be41d5fc4dd": "SSO actif : les utilisateurs peuvent se connecter via votre IdP",
+    "m5eb5faa6cbf5": "SSO configuré mais inactif",
+    "m9a52affa6218": "Aucun fournisseur SSO configuré",
+    "m99463116beca": "URL de callback",
+    "mc5038b20a0d6": "Enregistrez cet URI de redirection chez votre fournisseur d’identité :",
+    "m4f8f4a6029d8": "Copier dans le presse-papiers",
+    "m5722bcfa7400": "SSO d’entreprise",
+    "m1e939b7b4cbc": "Imposez la connexion via votre IdP d’entreprise (Azure AD, Okta, Auth0, Google Workspace). Les utilisateurs de vos domaines autorisés sont automatiquement redirigés vers votre IdP.",
+    "m239b7819863d": "Paramètres",
+    "m82be07e8418a": "Configuration",
+    "m4c903bb74ed9": "Profil, espace de travail, langue et notifications.",
+    "m2255caa19025": "Zone dangereuse",
+    "m251011545863": "Marie Dupont",
+    "m7f8ad1ba2dfe": "Critique",
+    "m5836e3f6f284": "Forfait",
+    "m70d993f4aae7": "Appels d'Outils",
+    "m81a36cd86bb2": "Personnalisé",
+    "m70488646d660": "Espaces de travail illimités",
+    "mc6572473d51f": "Exécutions illimitées",
+    "m18629becb717": "Automatisations connectées illimitées",
+    "m9d2f4b435f53": "Actuel",
+    "m55b34f1cdcf3": "Contacter le service commercial",
+    "m245c12189d91": "Passer à l’offre supérieure",
+    "mca4ac26863e8": "Entreprise",
+    "md734f81167bd": "Chargement des intégrations...",
+    "m0530d4879653": "Guide de configuration",
+    "m2c575197fbcf": "(enregistré)",
+    "m2f159920cfcf": "Tester la Connexion",
+    "m5d0a3ab02ef8": "Retirer",
+    "mf1fd0aaf6045": "Fournisseur",
+    "m9583131210fc": "Fournisseur auto-hébergé : exécuté sur votre matériel",
+    "m4cb1ce4d7ccb": "Modèle",
+    "md100640b1368": "(saisissez un tag chargé sur votre serveur local)",
+    "mdfe713d713c5": "gemma3:4b",
+    "ma9ef66d953f7": "(remplacement de proxy facultatif)",
+    "m03032587881b": "requis",
+    "m59f3ac725629": "Par défaut :",
+    "m0b1070b5d324": "Clé API",
+    "mdd0a21379699": "(facultatif)",
+    "m9bf0b94f3d0d": "Jeton d’authentification facultatif pour votre endpoint",
+    "m6f1791e21588": "Enregistrez d’abord le fournisseur avec sa clé API",
+    "m5ae1c6a8e4c6": "Fonctionnement",
+    "m350c849d3a6f": "API & Auth",
+    "m41c85b6bacc7": "Vos identifiants et jetons d’accès",
+    "m995515c1ae9f": "ID du tenant",
+    "mf516b06d11bf": "Copier",
+    "m0e13854c1b01": "Jeton de session",
+    "maddc6b1a8edb": "Webhooks et clés API",
+    "m85f417bbfec5": "Gérez les endpoints webhook et l’accès API de vos entreprises",
+    "mfee4f2dabe8d": "Webhooks entrants",
+    "m684490cc61e5": "Les services externes peuvent déclencher des pipelines en envoyant des requêtes POST à vos endpoints webhook.",
+    "m6665da29a7e3": "Format de l’endpoint",
+    "mfd15b81d8cf9": "Remplacez",
+    "m0a04f470671e": "par le slug de votre entreprise et",
+    "mfcbffc247eb8": "par le nom de l’événement.",
+    "m63afb9032824": "Accès API",
+    "m4b6ee96c2cfc": "Utilisez ce jeton pour l’authentification Bearer des requêtes API. Les jetons expirent à la fin de la session.",
+    "me55571b3240f": "Événements courants",
+    "m13a00239ea2d": "Copier l’URL",
+    "mef57c1e54f93": "Tester votre webhook",
+    "m0f7b30dc841a": "Programme de parrainage",
+    "mb7cd3f777bef": "Partagez votre code : vous et votre ami recevez chacun 5 exécutions bonus",
+    "m5c91a47132b9": "Votre code",
+    "m724c36053cc8": "Utiliser un code",
+    "m0a34e3a598e6": "Utiliser",
+    "mc12fbd6e7a20": "Chargement...",
+    "mcde607c76c72": "Actions irréversibles. Soyez prudent.",
+    "m6efdb34e5814": "Déconnecter partout",
+    "m9bb76ca4a794": "Fermer toutes les sessions actives",
+    "m9bdeb5968503": "Se déconnecter",
+    "m7775a95698f6": "Supprimer l’espace de travail",
+    "me7ec08fd87b4": "Supprimer définitivement les exécutions et les données",
+    "mb3ebf6fede5b": "Supprimer",
+    "mef4c40cb137f": "Abandonner",
+    "m25f762b46741": "✓ Enregistré",
+    "m8c8adacdb1db": "Enregistrer les modifications",
+    "m0ce1f02a34d4": "Modifications enregistrées !",
+    "m20bb133b046a": "État du système",
+    "ma8e7dcac27dd": "actualisation automatique · 60 s",
+    "m6391d95c11d5": "GET /api/v1/health · sonde en direct depuis votre navigateur",
+    "m064d3ea1b787": "sert cette page en ce moment",
+    "m8b59895f3ed7": "Première vérification en cours…",
+    "m9f956da25b83": "Cette page reflète uniquement un contrôle de santé en direct. Nous ne publions pas encore de pourcentage de disponibilité ni de chronologie d’incidents : le suivi historique figure sur la feuille de route et nous préférons ne rien afficher plutôt que des chiffres inventés.",
+    "m4cb64ff7172c": "Pilotez les agents IA et les automatisations que vous utilisez déjà.",
+    "m8a200d2fa01b": "Produit",
+    "mf293e311adbd": "Entreprise",
+    "me036901f0c5c": "Informations juridiques",
+    "m89dc05ffd2b2": "formulaire de contact",
+    "m083a2705391c": "pour préparer un brouillon dans votre application de messagerie. Envoyez-le depuis cette application ; la livraison n’est pas confirmée ici.",
+    "m366977224408": "Facturation et abonnements",
+    "m8cb8b49fe281": "Confidentialité et droits sur les données",
+    "m771454b72f87": "Signalements de sécurité",
+    "m97ffe5296db2": "Les abonnements mobiles sont facturés par Apple ou Google, pas par nous, et se renouvellent automatiquement jusqu’à résiliation. Pour les consulter, modifier ou résilier, sur iOS ouvrez",
+    "m1fc91bf085eb": "Réglages → votre nom → Abonnements",
+    "md62504ec7e39": " ; sur Android ouvrez",
+    "mb71b1e7e1c1e": "Google Play → Profil → Paiements et abonnements",
+    "m9ad3281dcc2d": ". Les remboursements des achats en boutique sont gérés par Apple (reportaproblem.apple.com) ou Google Play selon leurs règles. En cas de difficulté, écrivez-nous et nous vous aiderons. Les abonnements web facturés via Stripe se gèrent dans",
+    "m9b8015792921": "Paramètres → Facturation",
+    "mfa4b446e8ff6": "dans l’application.",
+    "mdb4dc1cc9096": "Quels fournisseurs IA Braavolabs utilise-t-il ?",
+    "ma6211b5db44c": "L'historique d'exécution montre les activités enregistrées lorsqu'elles sont disponibles. Indiquez la référence de l'exécution concernée dans vos demandes d'aide.",
+    "m8e6535637cb8": "Pourquoi mon pipeline est-il en pause ?",
+    "me8234ddd08d0": "Comment supprimer mon compte ?",
+    "m301aee668176": "Demandez la suppression du compte par e-mail en utilisant la page de suppression de compte.",
+    "m981862dbff04": "suppression du compte et des données",
+    "m3cb779dfce49": "La plateforme fonctionne-t-elle ?",
+    "m652cc7ed28eb": "page d’état",
+    "mb29ed7325631": "E-mail",
+    "mc878475dd7ed": "en indiquant le résultat attendu, ce qui s’est produit et à peu près quand. Sur mobile, joindre une capture d’écran et la version de l’application (en bas de",
+    "m3dbf7d618644": "Paramètres",
+    "mb142b8b38188": ") réduit considérablement les échanges.",
+    "ma16f308c1827": "Tous nos engagements écrits :",
+    "mf5be8b9e2a4f": "Politique de confidentialité",
+    "m337507465f44": "Conditions d’utilisation",
+    "m7ba5c42d05d5": "Déclaration RGPD",
+    "mc8d0aedb0025": "Aperçu des informations de confidentialité au titre de la KVKK",
+    "m668b03bf599d": "et le",
+    "m7ec4811747eb": "processus.",
+    "maf2d75b446d2": "Fonctionnalités",
+    "mf11c295fe6b2": "Tarifs",
+    "ma046b81f5cad": "À propos",
+    "ma833a458dc85": "Se connecter",
+    "mdc1d31161f04": "Ouvrir l’application",
+    "m0a40adc25a52": "Assistance",
+    "mefb78ad514f6": "Comment pouvons-nous vous aider ?",
+    "m0dff0c2e8740": "Assistance par e-mail",
+    "mdc8b49376a22": "Formulaire de contact",
+    "m5368a784c155": "État du service",
+    "m57cd0c28916e": "Sur cette page",
+    "m97e6379af81c": "Toujours bloqué ?",
+    "m4a375a6c78be": "Envoyez vos demandes d'assistance par le canal de contact indiqué. Aucun délai de réponse n'est garanti ici.",
+    "m69772795df01": "Pilotez les agents IA et les automatisations que vous utilisez déjà.",
+    "m691ce9b2c824": "Produit",
+    "mb7d1cacaa4dc": "Journal des modifications",
+    "m43dbdbcb4213": "Entreprise",
+    "m0fb5d8aef58c": "Blog",
+    "md17c12c62307": "Contact",
+    "m29dff0f6e658": "Informations juridiques",
+    "mb8ffce79447d": "Confidentialité",
+    "mb295f0dd3165": "Conditions",
+    "m61c5cf9b820b": "Braavolabs. Tous droits réservés.",
+    "mb8b061d2cc6c": "Le",
+    "m2c3d4c4c5cf0": "document est disponible sur",
+    "m640f6714c57b": "braavolabs.com",
+    "m1a9415bc8fe7": "Braavolabs.",
+    "mc03e218a0c3c": "réception",
+    "mc09be1de9eb2": "inactif",
+    "m67487c4d674f": "· aucune livraison",
+    "m8f3eb54aeb83": "Copié ✓",
+    "m6e80efd48eb4": "Copier",
+    "m8e37387d42dc": "Secret HMAC :",
+    "m33733931aae0": "Masquer",
+    "m313faf245f17": "Afficher",
+    "m67501930af73": "Intégrations",
+    "m032825c952b0": "Webhooks",
+    "m8e07c14fe364": "Endpoints en direct",
+    "m070d79b59b0a": "Chargement de vos endpoints…",
+    "m621423f8719e": "Chaque espace de travail reçoit un endpoint de collecte signé à",
+    "mab1707b54d07": ". Créez votre premier espace de travail pour recevoir des événements.",
+    "m0e54282c3be1": "Créer un espace de travail",
+    "ma06584ff70f2": "Exemple de requête signée",
+    "m60e512a99f97": "POST · signature HMAC-SHA256",
+    "me0038ce40084": "Fil d’Ariane",
+    "m0fb6cbe7ed77": "Progression de la configuration",
+    "m33f7619295f7": "terminé",
+    "m2475c8fc32c3": "Premiers pas",
+    "m048d6635729b": "Fermer",
+    "m33e5e43f1ffc": "sur",
+    "m1b874306cc1d": "terminé",
+    "m04d02f71794f": "en ligne",
+    "md09f1084ca66": "Carte thermique des coûts par étape",
+    "md157b491332a": "Carte thermique des étapes ·",
+    "m4f7017581fe7": "étape",
+    "m1bfba96b1e61": "Répartition des dépenses",
+    "m454e25940ea0": "Total :",
+    "m926c7bc3cb4e": "Mesure de couleur",
+    "m7962e0ef9564": "Coût",
+    "maca226308ff4": "Durée",
+    "m82891b0c7c6e": "pic",
+    "mcff790642459": "Étape",
+    "m91c4b9a9a975": "Sans nom",
+    "m671caa428e4c": "en attente",
+    "mdde548bb2e5e": "coût :",
+    "ma4f2af79632e": "durée :",
+    "m946e0fce8ef2": "outils :",
+    "m42e92aa8ff4c": "agent :",
+    "m71160bc18aec": "Cliquez pour aller à cette étape ↓",
+    "m85e4a839e0c6": "← étape 1",
+    "m8a413bb66127": "faible",
+    "m66114b892e7f": "élevé",
+    "ma770817c8ec3": "CONFIGURATION",
+    "maa31d4cc5e14": "Dépenses quotidiennes, 14 derniers jours",
+    "m0de88f4db3d7": "Démarrage rapide",
+    "mf6e156140dd9": "Création…",
+    "m454ee6911d47": "ou décrivez la vôtre ci-dessous ↓",
+    "m71c9ffc415a0": "Fermer la notification",
+    "m7b55bcf0daed": "Ajouter une clé API",
+    "m6a6c1557497e": "Fermer"
+  },
+  "content": {
+    "docCategories": {
+      "start": "Commencer ici",
+      "concepts": "Concepts",
+      "reference": "Référence"
+    },
+    "blogCategories": {
+      "all": "Tous",
+      "product": "Produit",
+      "engineering": "Ingénierie",
+      "governance": "Gouvernance",
+      "fieldNotes": "Notes de terrain"
+    },
+    "docs": {
+      "getting-started": {
+        "title": "Premiers pas",
+        "nav": "Premiers pas",
+        "desc": "Créez un espace de travail, examinez un pipeline et suivez une exécution encadrée en choisissant explicitement le modèle et les paramètres de données.",
+        "blocks": {
+          "0": {
+            "text": "Braavolabs réunit un espace de travail web, des environnements de travail sur ordinateur et en CLI, ainsi qu'une application mobile compagnon pour travailler avec des modèles et des agents. Choisissez délibérément la voie d'accès au modèle et le mode de données avant de lancer une exécution."
+          },
+          "1": {
+            "text": "Votre première exécution"
+          },
+          "2": {
+            "items": [
+              {
+                "title": "Se connecter et décrire le travail",
+                "body": "Créez un compte pour accéder à l'application. Dans le générateur d'entreprises, décrivez votre objectif, votre public et vos contraintes. Le générateur peut poser des questions de clarification avant de proposer un plan."
+              },
+              {
+                "title": "Examiner la proposition",
+                "body": "Vérifiez les agents générés, les étapes du pipeline, les outils configurés et les résultats attendus. Modifiez ou retirez tout ce que vous ne souhaitez pas. Un plan proposé ne prouve pas qu'une intégration externe est connectée."
+              },
+              {
+                "title": "Choisir une voie d'accès et démarrer",
+                "body": "Configurez une clé de fournisseur disponible ou un point de terminaison local compatible. Examinez ses capacités et son traitement des données, puis lancez le pipeline. L'inférence peut entraîner des frais auprès du fournisseur dès le début du travail."
+              },
+              {
+                "title": "Suivre l'état et les décisions",
+                "body": "Consultez les étapes enregistrées, les données de coût disponibles, les approbations en attente et les questions ask_user. Répondez à la décision précise affichée. Vous pouvez envoyer des consignes ou demander un arrêt ; un appel actif ou un effet externe peut déjà être en cours."
+              }
+            ]
+          },
+          "3": {
+            "text": "Offres et inférence"
+          },
+          "4": {
+            "text": "Individual (19 $/mois) et Team (39 $/utilisateur actif/mois) sont des descriptions d'offres en aperçu et ne sont pas disponibles à l'achat pour le moment. L'inférence est distincte : les frais des fournisseurs ainsi que les coûts du matériel local et de son exploitation ne sont pas inclus."
+          },
+          "5": {
+            "text": "Private Mode est en aperçu. Cloud Agent Mode et les preuves signées sont encore en développement. Holding est un aperçu premium/privé. Ces intitulés ne constituent pas une garantie complète de sécurité ou de disponibilité."
+          },
+          "6": {
+            "text": "Utilisez le web pour composer les entreprises et les pipelines. Utilisez l'application mobile compagnon pour surveiller les travaux pris en charge, répondre, approuver et donner des consignes."
+          }
+        }
+      },
+      "concepts": {
+        "title": "Concepts fondamentaux",
+        "nav": "Concepts",
+        "desc": "Comprendre les entreprises, les agents, les pipelines, les exécutions, les décisions et l'activité enregistrée.",
+        "blocks": {
+          "0": {
+            "text": "Une entreprise regroupe un objectif, des agents et des pipelines dans l'espace de travail auquel vous êtes connecté. Un agent remplit un rôle ; un pipeline ordonne le travail ; une exécution correspond à un lancement de ce pipeline. Plusieurs entreprises peuvent appartenir au même compte ou au même tenant."
+          },
+          "1": {
+            "text": "Neuf composants de base"
+          },
+          "2": {
+            "text": "Le générateur assemble des rôles d'acquisition, de vente, de prestation, de contenu, d'exploitation, de finance, d'analyse, de mémoire et de gouvernance. Ce sont des structures de départ à examiner, pas une autorisation automatique de contacter des personnes, de dépenser de l'argent ou d'accéder à un compte."
+          },
+          "3": {
+            "text": "Décisions et gouvernance"
+          },
+          "4": {
+            "text": "Les actions prises en charge peuvent produire des approbations en attente. Une décision ask_user demande des informations, pas une autorisation de dépenser. Lisez sa question et sa portée avant d'autoriser, de refuser ou de répondre. L'inférence du fournisseur est facturée séparément et n'attend pas nécessairement une entrée d'approbation."
+          },
+          "5": {
+            "text": "Les contrôles de gouvernance comprennent les arrêts hard, loop, cost, spam et brand. Leur couverture dépend du chemin d'exécution et de la configuration. Un arrêt empêche la poursuite des travaux pris en charge à un point de contrôle ; il ne peut pas retirer une requête déjà envoyée."
+          },
+          "6": {
+            "text": "Lire l'état enregistré"
+          },
+          "7": {
+            "text": "Les enregistrements d'activité et d'étapes aident à comprendre l'état, les résultats, les données de coût disponibles et les résumés de décisions. Une donnée manquante est inconnue, pas égale à zéro. Une requête enregistrée ne prouve pas que son effet externe est terminé. Conservez les résultats importants et vérifiez leur concordance avec les systèmes externes avant de réessayer un travail à l'issue incertaine."
+          },
+          "8": {
+            "text": "Un nom d'entreprise ou un point de terminaison de modèle local ne suffit pas à établir un tenant distinct, un bac à sable du système d'exploitation ou un chemin de données entièrement hors ligne."
+          }
+        }
+      },
+      "byok-and-providers": {
+        "title": "BYOK et fournisseurs",
+        "nav": "BYOK et fournisseurs",
+        "desc": "Configurez une voie d'accès à un modèle cloud ou local pris en charge et comprenez ses limites en matière de coûts et de données.",
+        "blocks": {
+          "0": {
+            "text": "BYOK, ou utilisation de votre propre clé, consiste à employer vos identifiants de fournisseur pour l'inférence cloud prise en charge. Un point de terminaison compatible exploité par le client constitue une voie distincte. Les fournisseurs et modèles disponibles proviennent de la configuration accessible après connexion ; cette page ne promet pas un nombre fixe de fournisseurs."
+          },
+          "1": {
+            "text": "Configurer et vérifier une voie d'accès"
+          },
+          "2": {
+            "items": [
+              "Utilisez une clé dont les droits sont adaptés au compte fournisseur prévu. Examinez les contrôles de dépenses du fournisseur et évitez de placer des secrets dans des prompts, des journaux partagés ou des captures d'écran.",
+              "Pour un point de terminaison local, confirmez son URL de base explicite, le modèle pris en charge et son accessibilité depuis la machine qui émettra la requête.",
+              "Vérifiez les capacités du modèle, la prise en charge des outils et le mode de données sélectionné. Changer de fournisseur peut modifier les résultats, le prix et le comportement ; un même schéma d'API ne rend pas les modèles interchangeables."
+            ]
+          },
+          "3": {
+            "text": "Le stockage des clés dépend de l'interface"
+          },
+          "4": {
+            "text": "Les identifiants cloud conservés sur le serveur utilisent le format de stockage AES-256-GCM implémenté. Leur protection dépend aussi de la clé du serveur, des accès à l'exécution et des sauvegardes. La configuration CLI pour les appels directs aux fournisseurs et le stockage des identifiants sur ordinateur ont leurs propres limites ; enregistrer une clé sur une interface ne prouve pas qu'elle est disponible ou protégée de la même manière sur tous les appareils."
+          },
+          "5": {
+            "text": "Les frais d'inférence sont facturés par le fournisseur configuré. Une exécution locale peut tout de même entraîner des coûts de matériel et d'exploitation. Examinez l'utilisation signalée avec la facturation du fournisseur ; des données de coût indisponibles ne signifient pas une utilisation gratuite."
+          },
+          "6": {
+            "text": "Une URL d'inférence locale ne met pas hors ligne les outils, la télémétrie, les services de compte ou l'ensemble du pipeline. Examinez le chemin complet des données avant de traiter des contenus sensibles."
+          }
+        }
+      },
+      "mid-run-steering": {
+        "title": "Pilotage en cours d'exécution et ask_user",
+        "nav": "Pilotage et ask_user",
+        "desc": "Envoyez des consignes, répondez à une question ou demandez un arrêt tout en suivant l'état enregistré de l'exécution.",
+        "blocks": {
+          "0": {
+            "text": "Le pilotage permet à l'opérateur d'envoyer des consignes supplémentaires à une exécution prise en charge. Décrivez clairement le changement : le client visé, une contrainte ou la prochaine étape. La requête est traitée à un point d'exécution disponible ; elle ne garantit pas l'interruption immédiate d'un appel fournisseur actif."
+          },
+          "1": {
+            "text": "Lire attentivement l'accusé de réception"
+          },
+          "2": {
+            "text": "Une requête réussie signifie que le système a accepté cette requête. Cela ne prouve pas à lui seul que le modèle a reçu, appliqué ou suivi la consigne. Suivez l'état et les résultats ultérieurs de l'exécution. Si une requête échoue ou dépasse son délai, examinez l'état actuel avant de la renvoyer."
+          },
+          "3": {
+            "text": "Répondre à une question ask_user"
+          },
+          "4": {
+            "text": "Lorsqu'un agent demande des informations, ouvrez la décision en attente correspondante et lisez la question et son contexte. Envoyez la réponse une seule fois, puis vérifiez si la décision et l'état de l'exécution ont changé. Ne confondez pas une demande d'informations avec l'autorisation d'une autre action."
+          },
+          "5": {
+            "text": "Reprendre avec précaution"
+          },
+          "6": {
+            "text": "Les étapes terminées et enregistrées peuvent être réutilisées à la reprise. Cela ne garantit pas une livraison exactement une fois pour les appels fournisseurs, les e-mails, les paiements ou d'autres effets externes. Une pause, un arrêt ou une perte de connexion peut survenir pendant qu'un effet est en cours. Vérifiez les résultats enregistrés et le service externe avant de réessayer manuellement un travail à l'issue incertaine."
+          },
+          "7": {
+            "text": "La pause, la reprise et le pilotage ne garantissent ni l'absence de frais supplémentaires ni l'annulation d'un effet externe déjà produit."
+          }
+        }
+      },
+      "webhooks": {
+        "title": "Webhooks",
+        "nav": "Webhooks",
+        "desc": "Signez un webhook d'entreprise en respectant exactement le contrat d'horodatage, de corps brut et d'en-têtes.",
+        "blocks": {
+          "0": {
+            "text": "Un webhook d'entreprise configuré accepte POST /hooks/<company-slug>/<event>. Utilisez le secret de webhook configuré pour cette entreprise et une entreprise de test avant d'envoyer un événement susceptible de démarrer du travail."
+          },
+          "1": {
+            "text": "Signer les octets exacts"
+          },
+          "2": {
+            "text": "Définissez X-Webhook-Timestamp sur l'heure Unix actuelle en millisecondes. Calculez un HMAC-SHA256 hexadécimal sur l'horodatage, un point littéral et le corps brut exact de la requête. Envoyez-le dans X-Webhook-Signature. Ne sérialisez pas à nouveau le corps et ne le modifiez pas après signature."
+          },
+          "3": {
+            "caption": "Exemple de requête signée ; remplacez l'URL de l'API, le slug de l'entreprise et l'événement."
+          },
+          "4": {
+            "text": "Livraison et nouvelles tentatives"
+          },
+          "5": {
+            "text": "Le serveur rejette les horodatages situés hors d'une fenêtre de cinq minutes. La détection des doublons fondée sur la signature utilise Redis avec des entrées d'une durée de vie de six minutes ; lorsque Redis est indisponible, les contrôles de signature et d'horodatage restent actifs, mais ce contrôle des doublons peut être omis. Ce n'est pas une garantie de livraison exactement une fois."
+          },
+          "6": {
+            "text": "Une réponse de webhook réussie ne prouve pas que le pipeline est terminé. Vérifiez l'état de l'exécution et utilisez l'idempotence et le rapprochement au niveau applicatif pour les effets externes. Avant de réessayer après un dépassement de délai, vérifiez si la première requête a été acceptée."
+          }
+        }
+      },
+      "external-automations": {
+        "title": "Connecter des automatisations externes",
+        "nav": "Automatisations externes",
+        "desc": "Connectez une automatisation externe configurée et vérifiez les deux côtés de son exécution.",
+        "blocks": {
+          "0": {
+            "text": "Utilisez des intégrations configurées ou des webhooks signés pour connecter les outils d'automatisation externes pris en charge. La disponibilité et les actions d'une intégration dépendent de sa connexion et de ses identifiants réels ; citer n8n, Make ou Zapier ne signifie pas que chaque workflow est automatiquement connecté."
+          },
+          "1": {
+            "text": "Rendre une connexion observable"
+          },
+          "2": {
+            "items": [
+              {
+                "title": "Choisir la frontière entre systèmes",
+                "body": "Décidez quel système démarre le travail, quel événement il envoie et quel système est responsable du résultat. Connectez uniquement le compte et les permissions nécessaires à cette action."
+              },
+              {
+                "title": "Tester avec des données sans risque",
+                "body": "Utilisez une entreprise de test et un workflow de test externe. Vérifiez les données de l'événement, l'authentification, l'exécution créée et le résultat externe."
+              },
+              {
+                "title": "Prévoir la gestion des échecs",
+                "body": "Définissez les délais, la gestion des doublons et une étape de rapprochement manuel. Ne renvoyez pas aveuglément un paiement, un e-mail ou une autre demande produisant un effet externe après une réponse incertaine."
+              }
+            ]
+          },
+          "3": {
+            "text": "L'état d'un workflow externe et celui d'une exécution Braavolabs décrivent des parties différentes de l'opération. Vérifiez les deux. Un envoi enregistré ou une réponse de déclenchement réussie n'est pas un accusé de livraison ou de fin émis par la destination."
+          },
+          "4": {
+            "text": "Les identifiants de connexion, les secrets de webhook et les clés de fournisseur peuvent avoir des circuits de stockage et de révocation différents. Examinez l'interface concernée et le service externe lorsque vous retirez un accès."
+          }
+        }
+      },
+      "mobile-app": {
+        "title": "Application mobile",
+        "nav": "Application mobile",
+        "desc": "Utilisez l'application mobile compagnon pour surveiller les travaux pris en charge, décider et donner des consignes.",
+        "blocks": {
+          "0": {
+            "text": "L'application mobile accompagne les fonctions de surveillance et de contrôle prises en charge. Composez les entreprises et les pipelines sur le web, puis utilisez le téléphone pour lire l'état des exécutions, traiter les décisions en attente et envoyer des consignes."
+          },
+          "1": {
+            "text": "Surveiller, approuver, répondre et piloter"
+          },
+          "2": {
+            "items": [
+              "Surveiller : ouvrez l'entreprise et l'exécution concernées. Considérez les données indisponibles ou périmées comme inconnues ; reconnectez-vous et actualisez-les avant de prendre une décision.",
+              "Approuver : lisez l'action précise en attente et autorisez-la ou refusez-la. Une entrée d'approbation ne couvre ni d'autres travaux ni tous les frais du fournisseur.",
+              "Répondre : répondez à une question ask_user dans son contexte d'origine. Vérifiez l'état de la décision obtenu après l'envoi.",
+              "Piloter : envoyez une consigne claire et suivez les résultats ultérieurs. Une requête acceptée ne prouve pas que la consigne a été appliquée."
+            ]
+          },
+          "3": {
+            "text": "Sessions et notifications"
+          },
+          "4": {
+            "text": "Les notifications dépendent de l'autorisation de l'appareil, d'une session éligible, de l'accès réseau et de leur livraison par la plateforme. Ouvrez l'application pour vérifier l'état le plus récent plutôt que de considérer une notification push comme un journal complet d'exécution. Les identifiants de session conservés sur l'appareil utilisent le stockage sécurisé de la plateforme ; leur protection et le fonctionnement en arrière-plan dépendent toujours de l'appareil et du système d'exploitation."
+          },
+          "5": {
+            "text": "Après un changement de compte, confirmez à nouveau l'entreprise sélectionnée et la décision en attente. En cas de dépassement de délai, examinez l'état actuel avant de réessayer. L'application ne peut pas annuler un effet externe déjà terminé."
+          },
+          "6": {
+            "text": "Choisissez dans l'application votre langue et un thème clair, sombre ou système. Après un changement de langue ou de compte, confirmez l'espace de travail actuel et le contexte de la décision avant d'agir."
+          }
+        }
+      },
+      "faq": {
+        "title": "Questions fréquentes",
+        "nav": "FAQ",
+        "desc": "Réponses sur les aperçus, les coûts, les modèles locaux, les approbations et les exécutions à l'issue incertaine.",
+        "blocks": {
+          "0": {
+            "items": [
+              {
+                "q": "Puis-je acheter une offre maintenant ?",
+                "a": "Individual (19 $/mois) et Team (39 $/utilisateur actif/mois) sont des descriptions en aperçu et ne sont pas disponibles à l'achat pour le moment. L'inférence est distincte de l'abonnement proposé."
+              },
+              {
+                "q": "Tous les frais nécessitent-ils une approbation ?",
+                "a": "Non. Les actions prises en charge peuvent nécessiter une décision en attente, mais l'inférence du fournisseur peut entraîner des frais dès le lancement d'une exécution. Lisez l'action et les contrôles de dépenses du fournisseur avant de démarrer le travail."
+              },
+              {
+                "q": "Un modèle local rend-il la plateforme hors ligne ?",
+                "a": "Non. Un point de terminaison local compatible contrôle cette voie d'inférence. Les outils, les services de compte, la télémétrie et les autres étapes du pipeline nécessitent chacun un examen de leur propre chemin de données."
+              },
+              {
+                "q": "La reprise répétera-t-elle une action externe ?",
+                "a": "Les étapes terminées et enregistrées peuvent être réutilisées, mais la livraison externe exactement une fois n'est pas établie. Vérifiez l'exécution et le service externe avant de réessayer un travail à l'issue incertaine."
+              },
+              {
+                "q": "Une demande de pilotage acceptée a-t-elle modifié le résultat du modèle ?",
+                "a": "L'acceptation enregistre la requête. Suivez le prochain point d'exécution et les résultats pour déterminer si la consigne a été appliquée et suivie."
+              },
+              {
+                "q": "Puis-je créer une entreprise complète sur mon téléphone ?",
+                "a": "Le web est l'interface de création. L'application mobile compagnon se concentre sur la surveillance, les approbations, les réponses et le pilotage."
+              },
+              {
+                "q": "Private Mode, Cloud Agent Mode et les preuves signées sont-ils accessibles à tous ?",
+                "a": "Private Mode est en aperçu ; Cloud Agent Mode et les preuves signées sont en développement. Leurs noms ne constituent pas une garantie complète de sécurité ou de disponibilité."
+              },
+              {
+                "q": "Supprimer un compte annule-t-il un abonnement externe ?",
+                "a": "Ne le supposez pas. Vérifiez séparément le fournisseur de l'abonnement et tout service externe, et conservez les exports nécessaires avant de supprimer les données."
+              }
+            ]
+          }
+        }
+      }
+    },
+    "blog": {
+      "steer-agents-mid-run": {
+        "title": "Piloter une exécution sans repartir de zéro",
+        "desc": "Comment les consignes de l'opérateur et les étapes enregistrées aident à réorienter les travaux pris en charge, et où s'arrêtent leurs garanties.",
+        "body": "Une exécution peut nécessiter une correction après son lancement : un autre client, une contrainte plus stricte ou une question à laquelle la consigne initiale ne répondait pas. Braavolabs prend en charge les consignes de pilotage et les décisions ask_user afin que l'opérateur puisse répondre dans le contexte.\n\n## Une requête passe par plusieurs étapes\n\nEnvoyer des consignes, accepter la requête, la traiter à un point d'exécution et la suivre dans les résultats sont des événements différents. Un appel fournisseur actif peut continuer jusqu'au prochain point d'exécution. Consultez l'état et le résultat ultérieurs avant de conclure qu'une consigne a pris effet.\n\n## Préserver le travail utile, examiner le travail incertain\n\nLa reprise peut réutiliser les étapes terminées et enregistrées. Elle ne prouve pas une livraison exactement une fois des effets externes et ne garantit pas l'absence de frais supplémentaires du fournisseur. Si une connexion échoue pendant un envoi ou un paiement, vérifiez la destination avant de réessayer manuellement.\n\n## Demander plutôt que déduire une permission\n\nUne décision ask_user demande des informations. Une action distincte prise en charge peut demander une approbation. Lisez la portée de chaque décision : répondre à une question n'autorise pas d'autres travaux. Ces contrôles aident à rendre une session de travail vérifiable ; leur présence n'établit pas que toutes les voies ou tous les outils externes se comportent de la même manière."
+      },
+      "five-risk-stops-explained": {
+        "title": "Les cinq arrêts de risque et leurs limites",
+        "desc": "Les contrôles hard, loop, cost, spam et brand aident à encadrer les chemins d'exécution pris en charge.",
+        "body": "Braavolabs nomme cinq contrôles de gouvernance : hard, loop, cost, spam et brand. Comprendre leur rôle implique aussi de comprendre quand ils peuvent agir.\n\n## Cinq contrôles\n\nL'arrêt hard vérifie une condition d'arrêt. Le contrôle loop recherche des comportements répétés. Le contrôle cost compare l'utilisation enregistrée aux limites configurées. Les contrôles spam et brand appliquent des règles aux chemins de prise de contact et de contenu pris en charge. Examinez la configuration et le chemin d'exécution plutôt que de supposer que chaque outil bénéficie des mêmes contrôles.\n\n## Les limites comptent\n\nUn contrôle peut empêcher la poursuite des travaux pris en charge lorsque l'exécution l'atteint. Il ne peut pas rappeler une requête déjà envoyée à un fournisseur ni annuler un effet externe. Les données d'utilisation peuvent arriver après une facturation : un budget configuré ne garantit donc pas que la facture du fournisseur ne le dépassera jamais.\n\n## Lire le résultat\n\nLorsqu'un contrôle modifie l'état d'une exécution, examinez la raison enregistrée et l'étape concernée. Des données d'état ou de coût manquantes sont inconnues et ne prouvent pas que l'exécution est sûre ou gratuite. Les notifications dépendent de l'autorisation et de leur livraison ; l'enregistrement actuel de l'exécution permet de confirmer l'état. Avant de reprendre, examinez le résultat local et tout service externe concerné."
+      },
+      "byok-routing-without-lock-in": {
+        "title": "Choisir des voies d'accès aux modèles cloud et locaux",
+        "desc": "Choisir explicitement un fournisseur tout en vérifiant les capacités, les coûts et les limites de stockage des identifiants.",
+        "body": "Braavolabs prend en charge les identifiants cloud configurés et les points de terminaison compatibles exploités par le client. L'engagement utile est un choix explicite de voie d'accès, pas que tous les modèles soient interchangeables ou qu'un modèle non évalué soit toujours le meilleur.\n\n## Vérifier la voie choisie\n\nExaminez le modèle disponible, la prise en charge des outils, le mode de données et l'accessibilité du point de terminaison. Un changement de fournisseur peut modifier la qualité des résultats, la latence, le prix et les paramètres pris en charge. Si la voie choisie est indisponible, examinez l'erreur plutôt que de supposer qu'un autre modèle a terminé le travail en silence.\n\n## Séparer abonnement et inférence\n\nLes abonnements Individual et Team proposés n'incluent pas l'inférence. Les frais des fournisseurs concernent le compte configuré ; les modèles locaux nécessitent toujours du matériel et de l'exploitation. Comparez l'utilisation signalée avec la facturation du fournisseur. Un coût inconnu n'est pas un coût nul.\n\n## Protéger le stockage d'identifiants concerné\n\nLes clés cloud conservées sur le serveur utilisent le format AES-256-GCM implémenté. La protection de la clé du serveur, les accès à l'exécution et les sauvegardes restent importants. La configuration CLI pour les appels directs aux fournisseurs et le stockage des identifiants sur ordinateur ont des limites distinctes. Examinez le stockage réellement utilisé pour la requête et révoquez aussi l'accès chez le fournisseur si nécessaire. Une interface commune aide à organiser le travail ; elle n'établit pas une sécurité ou une économie identique pour toutes les voies."
+      },
+      "pocket-steering": {
+        "title": "Surveiller et décider depuis son téléphone",
+        "desc": "L'application mobile compagnon se concentre sur la surveillance prise en charge, les approbations, les questions et le pilotage.",
+        "body": "L'application mobile compagnon offre une interface de contrôle plus compacte pour les travaux composés sur le web. Ses actions principales sont la lecture de l'état d'exécution, le traitement d'une approbation en attente, la réponse à ask_user et l'envoi de consignes de pilotage.\n\n## Garder la décision dans son contexte\n\nOuvrez l'entreprise et l'exécution concernées avant d'agir. Lisez la question ou l'action exacte et distinguez une demande d'informations d'une permission de produire un effet externe. L'inférence du fournisseur peut déjà entraîner des frais sans entrée d'approbation distincte.\n\n## Séparer livraison et état\n\nLes notifications push dépendent de l'autorisation de l'appareil, de l'éligibilité de la session, de l'accès réseau et de la livraison par la plateforme. Une notification peut être retardée ; actualisez l'application pour confirmer la décision actuelle. Une réponse de pilotage réussie enregistre l'acceptation de la requête, pas la preuve que le modèle l'a suivie.\n\n## Récupérer avec précaution\n\nAprès un changement de compte ou une connexion interrompue, confirmez à nouveau le compte, l'entreprise et la décision en attente. Examinez l'état actuel avant de renvoyer une requête ayant dépassé son délai. Une action mobile ne peut pas retirer une requête externe déjà terminée. Le stockage sécurisé de la plateforme aide à protéger les identifiants de session conservés sur l'appareil ; les tests sur appareil physique, de livraison en arrière-plan et entre comptes restent nécessaires avant publication."
+      },
+      "local-model-routing-boundaries": {
+        "title": "Les limites des voies d'accès aux modèles locaux",
+        "desc": "Un point de terminaison d'inférence local est une partie du chemin complet des données.",
+        "body": "Un serveur de modèle compatible exploité par le client peut être configuré avec une URL de base explicite. Braavolabs ne fournit pas de modèle intégré et ne déduit pas une politique de confidentialité complète de cette seule adresse.\n\n## Suivre toute l'opération\n\nVérifiez quelle machine émet l'appel d'inférence, quel modèle est disponible et si le point de terminaison est accessible depuis cette machine. Examinez ensuite les outils, les services de compte, la télémétrie, les journaux et les autres étapes qui peuvent encore utiliser une connexion réseau. Une URL locale ne met pas tout le pipeline hors ligne.\n\n## Examiner les capacités et les coûts\n\nLes capacités du modèle et la prise en charge des outils peuvent différer des voies cloud. Examinez les résultats après un changement de voie. L'inférence locale peut supprimer les frais de jetons du fournisseur pour cet appel, mais le matériel, l'électricité, la maintenance et les autres services connectés ont toujours un coût. Les données de coût manquantes doivent rester inconnues.\n\n## Garder des intitulés d'aperçu précis\n\nPrivate Mode est en aperçu. Cloud Agent Mode et les preuves signées sont encore en développement. Ces intitulés n'établissent ni un contrat complet de traitement des données, ni un bac à sable du système d'exploitation, ni des preuves vérifiées indépendamment. Un usage sensible exige de vérifier le chemin de données réellement configuré et les permissions d'exécution."
+      },
+      "shipping-ask-user": {
+        "title": "Concevoir ask_user autour d'une question claire",
+        "desc": "Une demande d'informations doit préserver le contexte et éviter de suggérer une autre permission.",
+        "body": "Un agent peut manquer d'informations pendant son travail. ask_user rend cette incertitude visible sous forme de décision : une question destinée à l'opérateur et associée à l'exécution concernée.\n\n## Poser une question à laquelle on peut répondre\n\nUne question utile identifie l'information manquante et fournit assez de contexte pour y répondre. Elle ne doit pas déguiser une action externe en demande d'informations. Lisez la question avant de répondre et n'insérez pas d'identifiants sensibles dans les réponses libres.\n\n## Réutiliser l'interface de décision avec précaution\n\nLes demandes d'informations et les actions d'approbation prises en charge peuvent apparaître dans le même processus de décision, mais elles n'ont pas le même sens. Répondre à une question n'autorise pas d'autres travaux. La présence d'une file d'approbation ne signifie pas non plus que chaque coût d'inférence du fournisseur attend un oui explicite.\n\n## Vérifier la suite\n\nAprès l'envoi d'une réponse, examinez l'état de la décision et de l'exécution. Une réponse reçue, une exécution reprise et un effet externe terminé sont des observations distinctes. Si la connexion dépasse son délai, vérifiez si la réponse a été enregistrée avant de la renvoyer. Les étapes terminées et enregistrées peuvent être réutilisées, mais les nouvelles tentatives externes nécessitent toujours un rapprochement. Il s'agit d'une justification de conception pour une décision visible de l'opérateur, pas d'une étude client mesurée ni d'une promesse d'exécution exactement une fois."
+      },
+      "audit-trail-youd-actually-read": {
+        "title": "Lire l'activité enregistrée d'une exécution",
+        "desc": "Utilisez l'état, les résultats, les décisions et les coûts disponibles enregistrés sans inventer les preuves manquantes.",
+        "body": "L'opérateur doit comprendre ce qu'une exécution a tenté, quelles décisions ont été demandées et quel résultat a été enregistré. Les vues d'activité et d'étapes de Braavolabs organisent ces enregistrements autour de l'exécution.\n\n## Commencer par les faits enregistrés\n\nLisez l'état de l'étape, les résultats disponibles, le résumé de décision enregistré et les coûts signalés. Laissez visiblement inconnues les valeurs indisponibles. Un enregistrement d'envoi ou un accusé de réception API réussi ne prouve pas qu'un message, un paiement ou un workflow externe est terminé.\n\n## Rapprocher avant de réessayer\n\nUn fournisseur ou un outil peut terminer alors que le client perd sa connexion. Comparez l'enregistrement de l'exécution avec le service de destination avant de répéter un effet externe à l'issue incertaine. Les étapes enregistrées et l'historique sont des éléments utiles, mais n'établissent pas une couverture complète, immuable ou vérifiée indépendamment de chaque action.\n\n## Protéger l'enregistrement\n\nLes prompts, les résultats d'outils et les réponses libres peuvent contenir des données sensibles. Limitez l'accès et ne conservez que les exports nécessaires à votre activité. Examinez la conservation, les sauvegardes et la restauration plutôt que de supposer qu'une page d'activité visible constitue une sauvegarde. Les preuves signées sont encore en développement ; l'enregistrement actuel ne doit pas être présenté comme une certification, une trace complète du raisonnement privé ou une preuve de conformité juridique."
+      }
+    }
+  },
+  "surface": {
+    "legal": {
+      "previewNotice": "Aperçu des informations de confidentialité. Cette page ne constitue pas encore la notice complète pour la collecte publique de données personnelles. Les informations sur l'entité responsable, les traitements et destinataires réels, la conservation et les garanties applicables doivent être finalisées avant l'ouverture des inscriptions au public.",
+      "kvkkTitle": "Aperçu des informations au titre de la KVKK",
+      "gdprTitle": "Aperçu des informations au titre du RGPD (GDPR)",
+      "kvkk": {
+        "veri-sorumlusu": {
+          "title": "Entité responsable du service",
+          "body": "Braavolabs est le nom du produit. L'entité juridique responsable du service, ses coordonnées postales et tout représentant requis doivent être identifiés dans la notice de confidentialité complète avant la collecte publique de données personnelles. Le contact actuel est kvkk@braavolabs.com."
+        },
+        "islenen-kisisel-veriler": {
+          "title": "Données et méthodes de collecte",
+          "body": "Les formulaires de compte et l'utilisation du service peuvent fournir des données d'identité, de contact, d'organisation, de session, d'utilisation et d'exécution. Les prompts, résultats, fichiers et connexions facultatives peuvent contenir d'autres données personnelles. La notice complète doit identifier les données réellement collectées et les méthodes utilisées dans le déploiement actif."
+        },
+        "isleme-amaclari": {
+          "title": "Finalités du traitement",
+          "body": "Le fonctionnement du compte, les travaux demandés aux modèles ou agents, l'assistance et la sécurité impliquent des traitements différents. La facturation et le marketing facultatif ne doivent être décrits que lorsqu'ils sont activés. Le nom d'une fonctionnalité n'autorise pas à traiter d'autres données personnelles sans rapport avec elle."
+        },
+        "hukuki-sebepler": {
+          "title": "Fondements juridiques",
+          "body": "Le fondement juridique approprié doit être évalué pour chaque traitement réel au regard du droit applicable. Cet aperçu n'établit pas que le consentement, la nécessité contractuelle, une obligation légale ou l'intérêt légitime couvre tous les usages du service."
+        },
+        "ucuncu-taraf-aktarimlari": {
+          "title": "Destinataires et transferts internationaux",
+          "body": "Les fournisseurs de modèles configurés, l'hébergement et les intégrations facultatives peuvent faire intervenir d'autres destinataires ou pays. La notice finale doit identifier les destinataires actifs, les finalités et les garanties. L'existence légale d'un mécanisme de contrat type ne signifie pas que le contrat requis a été conclu ou notifié pour ce service."
+        },
+        "saklama-suresi": {
+          "title": "Conservation et suppression",
+          "body": "La conservation doit être définie par catégorie de données, finalité et exigences légales applicables, y compris pour les journaux et sauvegardes. Cet aperçu ne promet ni une durée universelle de dix ans ni la suppression immédiate de toutes les copies. Supprimer un compte et annuler un abonnement externe sont deux actions distinctes."
+        },
+        "haklariniz": {
+          "title": "Droits au titre de la KVKK",
+          "body": "Lorsque la KVKK s'applique, l'article 11 prévoit des droits à l'information, à la rectification, à l'effacement ou à la destruction, à la notification des destinataires, à l'opposition à une analyse automatisée défavorable et à une indemnisation en cas de traitement illicite. Leur exercice dépend des conditions applicables ; contactez l'entité responsable par le canal de demande indiqué."
+        },
+        "basvuru": {
+          "title": "Demandes",
+          "body": "Pour exercer un droit, contactez kvkk@braavolabs.com sans inclure de mot de passe de compte ni de clé de fournisseur. Selon l'article 13 de la KVKK, les demandes doivent être traitées dans les meilleurs délais appropriés et dans un délai de 30 jours. La gratuité est la règle générale ; les frais supplémentaires ne peuvent être facturés que selon le tarif du Conseil. L'identité et la portée de la demande peuvent nécessiter des précisions."
+        }
+      },
+      "gdpr": {
+        "data-controller": {
+          "title": "Entité responsable du service",
+          "body": "Braavolabs est le nom du produit. Avant la collecte publique de données personnelles, la notice complète doit identifier l'entité juridique responsable du service, ses coordonnées et tout représentant requis. Le contact actuel est gdpr@braavolabs.com."
+        },
+        "personal-data": {
+          "title": "Données et finalités",
+          "body": "Les informations de compte, les données de session et d'utilisation, les prompts, résultats, fichiers et intégrations facultatives peuvent impliquer des données personnelles. La notice complète doit décrire les finalités actives, les sources des données, les destinataires et le caractère obligatoire ou non de chaque catégorie de données."
+        },
+        "lawful-bases": {
+          "title": "Bases légales",
+          "body": "Une base légale doit être évaluée pour chaque activité réelle. Cet aperçu n'établit pas que la nécessité contractuelle, les intérêts légitimes, une obligation légale ou le consentement couvre automatiquement tous les usages. Le marketing facultatif et les usages sensibles ou de prise de décision automatisée nécessitent une évaluation distincte."
+        },
+        "cross-border-transfers": {
+          "title": "Destinataires et transferts",
+          "body": "Les fournisseurs et infrastructures configurés peuvent traiter des données dans d'autres pays. Les destinataires réels, les destinations et les garanties de transfert applicables doivent être documentés pour le déploiement actif. Cette page n'affirme pas qu'un accord fournisseur ou une garantie non vérifiés sont déjà en place."
+        },
+        "your-rights": {
+          "title": "Droits et demandes",
+          "body": "Les droits applicables peuvent inclure l'accès, la rectification, l'effacement, la limitation, la portabilité, l'opposition et le retrait du consentement, sous réserve des conditions légales. Contactez gdpr@braavolabs.com sans envoyer de mot de passe ni de clé de fournisseur. Les demandes nécessitent normalement une réponse sous un mois ; une prolongation autorisée de deux mois supplémentaires au maximum doit être expliquée au cours du premier mois. Des vérifications d'identité et des exceptions légales permettant des frais ou un refus peuvent s'appliquer. Vous pouvez déposer une plainte auprès de l'autorité de contrôle compétente."
+        },
+        "retention": {
+          "title": "Conservation",
+          "body": "La notice complète doit indiquer des durées ou des critères pertinents par catégorie de données, couvrant les enregistrements actifs, les journaux, les sauvegardes et les sous-traitants externes. Une demande d'effacement peut être soumise à des exceptions légales. Supprimer un compte n'annule pas, à lui seul, un abonnement externe distinct."
+        },
+        "security": {
+          "title": "Informations de sécurité",
+          "body": "Le stockage des identifiants et les limites d'exécution diffèrent entre serveur, ordinateur, CLI et mobile. Examinez le chemin de données et les permissions concernés avant d'envoyer des données sensibles. Cette page n'établit ni une certification, ni une garantie complète de fonctionnement hors ligne, ni une protection contre tous les incidents."
+        },
+        "data-protection-contact": {
+          "title": "Contact pour la protection des données",
+          "body": "Utilisez gdpr@braavolabs.com pour les questions de confidentialité. La nécessité d'un délégué à la protection des données ou d'un représentant doit être évaluée pour l'entité réellement responsable et ses traitements. Cet aperçu ne revendique aucune exemption."
+        }
+      }
+    },
+    "loading": "Chargement…",
+    "unavailable": "Indisponible",
+    "close": "Fermer",
+    "loadFailed": "Certaines informations n'ont pas pu être chargées. Les données manquantes sont indisponibles ; réessayez.",
+    "progress": "Étapes de l'exécution : {completed} / {total}",
+    "support": {
+      "emailIntro": "Pour obtenir de l'aide, écrivez à",
+      "responseTime": "Indiquez l'adresse e-mail du compte et une description du problème. Aucun délai de réponse fixe n'est garanti.",
+      "intro": "Contactez l'équipe Braavolabs pour obtenir de l'aide sur le produit, votre compte et votre abonnement."
+    },
+    "starters": {
+      "intro": "Choisissez une configuration de départ. Les exécutions nécessitent un fournisseur configuré ou un essai disponible sur le compte ; examinez le fournisseur et le budget avant de commencer."
+    },
+    "dashboard": {
+      "operator": "opérateur",
+      "morning": "Bonjour",
+      "afternoon": "Bon après-midi",
+      "evening": "Bonsoir",
+      "snapshot": "Instantané chargé à l'ouverture de la page. Rechargez la page pour obtenir les données actuelles.",
+      "activeRisks": "{count, plural, one {# risque actif} other {# risques actifs}}",
+      "started": "{name} a démarré — étapes mises en file",
+      "activityRun": "{name} : {status}",
+      "approval": "{description} attend une vérification",
+      "risk": "Événement de risque",
+      "queued": "En file d'attente"
+    },
+    "severity": {
+      "high": "Gravité élevée",
+      "medium": "Gravité moyenne",
+      "low": "Gravité faible",
+      "unknown": "Gravité indisponible"
+    },
+    "states": {
+      "running": "En cours",
+      "completed": "Terminée",
+      "paused": "En pause",
+      "failed": "Échouée",
+      "cancelled": "Annulée",
+      "waiting_approval": "En attente d'approbation",
+      "pending": "En attente",
+      "active": "Active",
+      "disabled": "Désactivée",
+      "draft": "Brouillon",
+      "queued": "En file d'attente",
+      "unknown": "Inconnue"
+    },
+    "icons": {
+      "close": "Fermer",
+      "send": "Envoyer",
+      "delete": "Supprimer",
+      "run": "Exécuter",
+      "pause": "Mettre en pause",
+      "resume": "Reprendre",
+      "branch": "Ajouter une branche",
+      "moveUp": "Monter",
+      "moveDown": "Descendre",
+      "copy": "Copier",
+      "dismiss": "Masquer"
+    },
+    "billing": {
+      "cancels": "Annulation le {date}",
+      "renews": "Renouvellement le {date}"
+    },
+    "status": {
+      "checkedAt": "Dernière vérification : {time} (votre heure locale)",
+      "pageLoaded": "Cette page a été chargée"
+    },
+    "blog": {
+      "readPost": "Lire : {title}",
+      "readTime": "{duration} de lecture"
+    },
+    "ideas": {
+      "start": "Partir de l'idée : {title}",
+      "estimate": "Estimation illustrative : {agents} agents, {pipelines} pipelines. La proposition du générateur peut différer."
+    },
+    "compare": {
+      "verify": "Vérifier la prise en charge actuelle",
+      "notice": "Cette liste de contrôle n'est pas un comparatif vérifié des concurrents. Les capacités et les coûts dépendent du produit, de l'offre et du déploiement. Consultez la documentation actuelle du fournisseur avant de choisir."
+    },
+    "integrations": {
+      "directoryNote": "Ce catalogue décrit des connexions possibles. Une entrée ne signifie pas qu'un connecteur est implémenté, activé ou autorisé pour votre compte. Examinez les connexions prises en charge et la documentation du fournisseur avant de partager des identifiants.",
+      "entry": "Entrée du catalogue",
+      "reviewConnections": "Examiner les connexions prises en charge",
+      "apiKey": "Clé API",
+      "oauth": "OAuth 2.0"
+    },
+    "webhooks": {
+      "anyProvider": "N'importe quel fournisseur",
+      "templateNote": "Ces modèles d'événements sont des exemples. Les chemins de configuration du fournisseur et les données d'exemple sont illustratifs ; vérifiez le contrat actif du fournisseur et les exigences de signature avant d'activer un hook."
+    },
+    "error": {
+      "session": "Votre connexion n'a pas pu être vérifiée. Reconnectez-vous ou contactez l'assistance si le problème persiste.",
+      "signIn": "Se connecter",
+      "forbidden": "Vous n'avez pas la permission de consulter ceci. Contactez l'assistance si cette restriction semble incorrecte.",
+      "network": "Le serveur est injoignable. Vérifiez la connexion et réessayez.",
+      "rateLimit": "Trop de requêtes. Attendez avant de réessayer.",
+      "timeout": "La requête a dépassé son délai. Son résultat peut être incertain ; vérifiez l'état actuel avant de réessayer une action.",
+      "generic": "Une erreur inattendue s'est produite. Réessayez ou contactez l'assistance avec la référence affichée."
+    },
+    "forecast": {
+      "loadFailed": "La prévision n'a pas pu être chargée. Réessayez.",
+      "saveFailed": "Le budget n'a pas pu être enregistré. Vérifiez la valeur actuelle avant de réessayer."
+    },
+    "triggers": {
+      "manual": "Manuel",
+      "cron": "Planification",
+      "webhook": "Webhook",
+      "event": "Événement"
+    },
+    "trial": {
+      "funding": "Un essai activé suit le fournisseur et les limites de l'exploitant. Les abonnements payants n'incluent pas l'inférence ; utilisez une clé de fournisseur prise en charge ou un point de terminaison local configuré lorsque l'essai est indisponible.",
+      "exhausted": "La limite d'essai du compte ({limit, number}) a été atteinte.",
+      "remaining": "{count, plural, one {# exécution d'essai restante} other {# exécutions d'essai restantes}} sur {limit, number}"
+    }
+  },
+  "dataCopy": {
+    "integrations": {
+      "hubspot": {
+        "description": "CRM complet avec gestion des contacts, des affaires et des pipelines",
+        "features": [
+          "Synchronisation des contacts",
+          "Suivi des affaires",
+          "Gestion des pipelines",
+          "Envois de formulaires",
+          "Suivi des e-mails"
+        ]
+      },
+      "salesforce": {
+        "description": "Plateforme CRM d'entreprise pour la vente et le service",
+        "features": [
+          "Gestion des prospects",
+          "Suivi des opportunités",
+          "Objets personnalisés",
+          "Rapports",
+          "Règles de workflow"
+        ]
+      },
+      "pipedrive": {
+        "description": "CRM axé sur la vente avec pipeline visuel",
+        "features": [
+          "Pipeline visuel",
+          "Suivi des activités",
+          "Intégration des e-mails",
+          "Données de contact intelligentes",
+          "Prévision du chiffre d'affaires"
+        ]
+      },
+      "zoho_crm": {
+        "description": "CRM assisté par l'IA pour les entreprises en croissance",
+        "features": [
+          "Évaluation des prospects",
+          "Automatisation des ventes",
+          "Analyses",
+          "Multicanal",
+          "Gestion des territoires commerciaux"
+        ]
+      },
+      "close": {
+        "description": "CRM conçu pour les équipes de vente à distance",
+        "features": [
+          "Appels intégrés",
+          "Séquences d'e-mails",
+          "Rapports sur les pipelines",
+          "Gestion des tâches",
+          "Vues intelligentes"
+        ]
+      },
+      "freshsales": {
+        "description": "CRM moderne avec évaluation des prospects par l'IA",
+        "features": [
+          "Évaluation des prospects par l'IA",
+          "Téléphonie intégrée",
+          "Suivi des e-mails",
+          "Gestion des affaires",
+          "Rapports"
+        ]
+      },
+      "attio": {
+        "description": "CRM nouvelle génération avec enrichissement des données en temps réel",
+        "features": [
+          "Enrichissement automatique",
+          "Objets personnalisés",
+          "Synchronisation en temps réel",
+          "Analyse des relations",
+          "Conçu autour de l'API"
+        ]
+      },
+      "folk": {
+        "description": "CRM collaboratif pour les équipes axées sur les relations",
+        "features": [
+          "Gestion des groupes",
+          "Publipostage",
+          "Vues des pipelines",
+          "Extension de navigateur",
+          "Enrichissement des données"
+        ]
+      },
+      "copper": {
+        "description": "CRM conçu pour Google Workspace",
+        "features": [
+          "Intégration Gmail",
+          "Gestion des contacts",
+          "Suivi des pipelines",
+          "Automatisation des tâches",
+          "Création de rapports"
+        ]
+      },
+      "monday_sales": {
+        "description": "CRM de vente sur la plateforme Monday.com",
+        "features": [
+          "Pipeline visuel",
+          "Synchronisation des e-mails",
+          "Suivi des activités",
+          "Tableaux de bord personnalisés",
+          "Automatisations"
+        ]
+      },
+      "tiktok": {
+        "description": "Plateforme de vidéos courtes",
+        "features": [
+          "Publication de vidéos",
+          "Analyses",
+          "Gestion des commentaires",
+          "Suivi des tendances",
+          "Outils pour les créateurs"
+        ]
+      },
+      "instagram": {
+        "description": "Plateforme de partage de photos et de vidéos",
+        "features": [
+          "Planification des publications",
+          "Publication de stories",
+          "Création de reels",
+          "Statistiques",
+          "Gestion des commentaires"
+        ]
+      },
+      "linkedin": {
+        "description": "Réseau professionnel et contenu",
+        "features": [
+          "Publication de posts",
+          "Pages d'entreprise",
+          "Analyses",
+          "Gestion des relations",
+          "Création d'articles"
+        ]
+      },
+      "twitter": {
+        "description": "Plateforme de réseaux sociaux en temps réel",
+        "features": [
+          "Publication de tweets",
+          "Création de fils de discussion",
+          "Analyses",
+          "Gestion des messages privés",
+          "Gestion des listes"
+        ]
+      },
+      "youtube": {
+        "description": "Plateforme d'hébergement et de diffusion vidéo",
+        "features": [
+          "Mise en ligne de vidéos",
+          "Analyses",
+          "Gestion des commentaires",
+          "Gestion des playlists",
+          "Diffusion en direct"
+        ]
+      },
+      "facebook": {
+        "description": "Réseaux sociaux et pages professionnelles",
+        "features": [
+          "Publication sur les pages",
+          "Gestion des publicités",
+          "Statistiques",
+          "Gestion des groupes",
+          "Messenger"
+        ]
+      },
+      "pinterest": {
+        "description": "Plateforme de découverte visuelle et de favoris",
+        "features": [
+          "Création d'épingles",
+          "Gestion des tableaux",
+          "Analyses",
+          "Épingles enrichies",
+          "Achats"
+        ]
+      },
+      "reddit": {
+        "description": "Plateforme de discussion communautaire",
+        "features": [
+          "Création de publications",
+          "Suivi des commentaires",
+          "Suivi des subreddits",
+          "Analyses",
+          "Gestion des récompenses"
+        ]
+      },
+      "threads": {
+        "description": "Application de conversation textuelle de Meta",
+        "features": [
+          "Publication de posts",
+          "Gestion des réponses",
+          "Analyses",
+          "Publications avec citation",
+          "Republications"
+        ]
+      },
+      "snapchat": {
+        "description": "Messages et contenus éphémères",
+        "features": [
+          "Création de stories",
+          "Publicités Snap",
+          "Analyses",
+          "Lens studio",
+          "Spotlight"
+        ]
+      },
+      "mailchimp": {
+        "description": "Plateforme marketing tout-en-un",
+        "features": [
+          "Campagnes d'e-mails",
+          "Automatisation",
+          "Gestion des audiences",
+          "Pages de destination",
+          "Analyses"
+        ]
+      },
+      "sendgrid": {
+        "description": "Service cloud d'envoi d'e-mails",
+        "features": [
+          "E-mails transactionnels",
+          "Campagnes marketing",
+          "Validation des e-mails",
+          "Analyses",
+          "Modèles"
+        ]
+      },
+      "convertkit": {
+        "description": "Marketing par e-mail pour les créateurs",
+        "features": [
+          "Automatisations visuelles",
+          "Pages de destination",
+          "Étiquetage des abonnés",
+          "Envois groupés",
+          "Commerce"
+        ]
+      },
+      "activecampaign": {
+        "description": "Automatisation de l'expérience client",
+        "features": [
+          "Marketing par e-mail",
+          "Automatisation marketing",
+          "CRM",
+          "Messagerie",
+          "Apprentissage automatique"
+        ]
+      },
+      "brevo": {
+        "description": "Plateforme de marketing numérique tout-en-un",
+        "features": [
+          "Campagnes d'e-mails",
+          "Marketing par SMS",
+          "Chat",
+          "CRM",
+          "Automatisation"
+        ]
+      },
+      "klaviyo": {
+        "description": "Automatisation marketing pour le commerce en ligne",
+        "features": [
+          "Parcours d'e-mails",
+          "Marketing par SMS",
+          "Segmentation",
+          "Analyse prédictive",
+          "Tests A/B"
+        ]
+      },
+      "constant_contact": {
+        "description": "Marketing par e-mail et en ligne",
+        "features": [
+          "Modèles d'e-mails",
+          "Gestion des contacts",
+          "Automatisation",
+          "Création de rapports",
+          "Publication sur les réseaux sociaux"
+        ]
+      },
+      "drip": {
+        "description": "CRM de commerce en ligne et automatisation marketing",
+        "features": [
+          "Workflows visuels",
+          "Segmentation",
+          "Attribution du chiffre d'affaires",
+          "Formulaires",
+          "Intégrations"
+        ]
+      },
+      "beehiiv": {
+        "description": "Plateforme de newsletters pour les créateurs",
+        "features": [
+          "Éditeur de newsletters",
+          "Outils de croissance",
+          "Monétisation",
+          "Analyses",
+          "Domaines personnalisés"
+        ]
+      },
+      "aweber": {
+        "description": "Marketing par e-mail pour les petites entreprises",
+        "features": [
+          "Automatisation des e-mails",
+          "Pages de destination",
+          "Notifications push web",
+          "E-mails AMP",
+          "Création de rapports"
+        ]
+      },
+      "slack": {
+        "description": "Plateforme de messagerie professionnelle",
+        "features": [
+          "Messages dans les canaux",
+          "Workflows",
+          "Partage de fichiers",
+          "Intégrations",
+          "Recherche"
+        ]
+      },
+      "discord": {
+        "description": "Plateforme de messagerie communautaire",
+        "features": [
+          "Gestion des serveurs",
+          "Intégration de bots",
+          "Salons vocaux",
+          "Gestion des fils de discussion",
+          "Webhooks"
+        ]
+      },
+      "whatsapp": {
+        "description": "Messagerie professionnelle sur WhatsApp",
+        "features": [
+          "Messagerie professionnelle",
+          "Catalogue",
+          "Réponses rapides",
+          "Étiquettes",
+          "Envoi groupé"
+        ]
+      },
+      "telegram": {
+        "description": "Messagerie cloud avec API de bots",
+        "features": [
+          "Création de bots",
+          "Gestion des canaux",
+          "Gestion des groupes",
+          "Mode inline",
+          "Paiements"
+        ]
+      },
+      "microsoft_teams": {
+        "description": "Plateforme collaborative de Microsoft",
+        "features": [
+          "Messagerie d'équipe",
+          "Réunions",
+          "Collaboration sur les fichiers",
+          "Intégration d'applications",
+          "Workflows"
+        ]
+      },
+      "intercom": {
+        "description": "Plateforme de messagerie client",
+        "features": [
+          "Chat en direct",
+          "Chatbots",
+          "Visites guidées du produit",
+          "Centre d'aide",
+          "Boîte de réception"
+        ]
+      },
+      "crisp": {
+        "description": "Messagerie professionnelle et chat en direct",
+        "features": [
+          "Chat en direct",
+          "Chatbot",
+          "Base de connaissances",
+          "Page de statut",
+          "CRM"
+        ]
+      },
+      "drift": {
+        "description": "Plateforme de marketing conversationnel",
+        "features": [
+          "Chat en direct",
+          "Chatbots",
+          "Vidéo",
+          "E-mail",
+          "Planification des réunions"
+        ]
+      },
+      "notion": {
+        "description": "Espace de travail tout-en-un pour notes et documents",
+        "features": [
+          "Pages",
+          "Bases de données",
+          "Modèles",
+          "Accès à l'API",
+          "Collaboration en équipe"
+        ]
+      },
+      "airtable": {
+        "description": "Solution hybride tableur et base de données",
+        "features": [
+          "Création de bases",
+          "Vues",
+          "Automatisations",
+          "Formulaires",
+          "Accès à l'API"
+        ]
+      },
+      "google_sheets": {
+        "description": "Tableur cloud de Google",
+        "features": [
+          "Édition de feuilles de calcul",
+          "Formules",
+          "Graphiques",
+          "Collaboration",
+          "Modules complémentaires"
+        ]
+      },
+      "google_docs": {
+        "description": "Éditeur de documents cloud de Google",
+        "features": [
+          "Création de documents",
+          "Édition en temps réel",
+          "Commentaires",
+          "Modèles",
+          "Modules complémentaires"
+        ]
+      },
+      "clickup": {
+        "description": "Plateforme de productivité tout-en-un",
+        "features": [
+          "Gestion des tâches",
+          "Documents",
+          "Objectifs",
+          "Suivi du temps",
+          "Tableaux de bord"
+        ]
+      },
+      "asana": {
+        "description": "Plateforme de gestion du travail",
+        "features": [
+          "Suivi des tâches",
+          "Vues des projets",
+          "Portefeuilles",
+          "Objectifs",
+          "Automatisations"
+        ]
+      },
+      "trello": {
+        "description": "Gestion de projet de type Kanban",
+        "features": [
+          "Gestion des tableaux",
+          "Cartes",
+          "Listes de contrôle",
+          "Power-Ups",
+          "Automatisation"
+        ]
+      },
+      "monday": {
+        "description": "Système de travail pour les équipes",
+        "features": [
+          "Tableaux",
+          "Automatisations",
+          "Tableaux de bord",
+          "Intégrations",
+          "Formulaires"
+        ]
+      },
+      "linear": {
+        "description": "Suivi des tickets pour les équipes modernes",
+        "features": [
+          "Suivi des tickets",
+          "Cycles",
+          "Feuille de route",
+          "Intégration Git",
+          "Conçu autour de l'API"
+        ]
+      },
+      "jira": {
+        "description": "Suivi de projets pour les équipes logicielles",
+        "features": [
+          "Suivi des tickets",
+          "Tableaux Scrum",
+          "Kanban",
+          "Feuilles de route",
+          "Création de rapports"
+        ]
+      },
+      "confluence": {
+        "description": "Base de connaissances d'équipe d'Atlassian",
+        "features": [
+          "Pages",
+          "Espaces",
+          "Modèles",
+          "Collaboration",
+          "Recherche"
+        ]
+      },
+      "coda": {
+        "description": "Document tout-en-un pour les équipes",
+        "features": [
+          "Documents",
+          "Tableaux de données",
+          "Automatisations",
+          "Packs",
+          "Publication"
+        ]
+      },
+      "basecamp": {
+        "description": "Gestion de projet et communication d'équipe",
+        "features": [
+          "Tâches à faire",
+          "Tableaux de messages",
+          "Calendriers",
+          "Points de suivi",
+          "Hill charts"
+        ]
+      },
+      "shopify": {
+        "description": "Plateforme de commerce en ligne pour les boutiques",
+        "features": [
+          "Gestion des produits",
+          "Suivi des commandes",
+          "Données clients",
+          "Analyses",
+          "Webhooks"
+        ]
+      },
+      "wordpress": {
+        "description": "CMS open source et commerce en ligne",
+        "features": [
+          "Gestion de contenu",
+          "WooCommerce",
+          "Extensions",
+          "REST API",
+          "Webhooks"
+        ]
+      },
+      "bigcommerce": {
+        "description": "Plateforme de commerce en ligne évolutive",
+        "features": [
+          "Vente multicanale",
+          "Outils SEO",
+          "Analyses",
+          "Fonctionnalités B2B",
+          "Accès à l'API"
+        ]
+      },
+      "squarespace": {
+        "description": "Créateur de sites avec commerce en ligne",
+        "features": [
+          "Création de sites web",
+          "Commerce en ligne",
+          "Planification",
+          "Analyses",
+          "Domaines"
+        ]
+      },
+      "etsy": {
+        "description": "Place de marché pour les créations artisanales et le vintage",
+        "features": [
+          "Gestion des annonces",
+          "Suivi des commandes",
+          "Analyses",
+          "Publicité",
+          "Avis"
+        ]
+      },
+      "gumroad": {
+        "description": "Vendre directement des produits numériques",
+        "features": [
+          "Produits numériques",
+          "Abonnements",
+          "Workflows",
+          "Analyses",
+          "Programme d'affiliation"
+        ]
+      },
+      "lemonsqueezy": {
+        "description": "Vendeur contractuel de produits numériques (Merchant of Record)",
+        "features": [
+          "Paiements",
+          "Abonnements",
+          "Clés de licence",
+          "Paiement en caisse",
+          "Webhooks"
+        ]
+      },
+      "paddle": {
+        "description": "Plateforme de gestion des revenus SaaS",
+        "features": [
+          "Paiement en caisse",
+          "Abonnements",
+          "Conformité fiscale",
+          "Récupération des revenus",
+          "Analyses"
+        ]
+      },
+      "github": {
+        "description": "Hébergement de code et collaboration",
+        "features": [
+          "Gestion des dépôts",
+          "Tickets",
+          "Demandes de pull",
+          "Actions",
+          "Webhooks"
+        ]
+      },
+      "gitlab": {
+        "description": "Plateforme DevOps",
+        "features": [
+          "Dépôts Git",
+          "CI/CD",
+          "Tickets",
+          "Demandes de fusion",
+          "Registre de conteneurs"
+        ]
+      },
+      "bitbucket": {
+        "description": "Gestion de code Git d'Atlassian",
+        "features": [
+          "Dépôts",
+          "Demandes de pull",
+          "Pipelines",
+          "Revue de code",
+          "Intégration Jira"
+        ]
+      },
+      "vercel": {
+        "description": "Plateforme de déploiement frontend",
+        "features": [
+          "Déploiements",
+          "Fonctions sans serveur",
+          "Réseau edge",
+          "Analyses",
+          "URL d'aperçu"
+        ]
+      },
+      "netlify": {
+        "description": "Plateforme de développement et d'hébergement web",
+        "features": [
+          "Déploiements",
+          "Formulaires",
+          "Fonctions",
+          "Identité",
+          "Tests comparatifs"
+        ]
+      },
+      "supabase": {
+        "description": "Alternative open source à Firebase",
+        "features": [
+          "Base de données",
+          "Authentification",
+          "Stockage",
+          "Fonctions edge",
+          "Temps réel"
+        ]
+      },
+      "firebase": {
+        "description": "Plateforme de développement d'applications de Google",
+        "features": [
+          "Authentification",
+          "Firestore",
+          "Fonctions cloud",
+          "Hébergement",
+          "Analyses"
+        ]
+      },
+      "railway": {
+        "description": "Déployer des applications facilement",
+        "features": [
+          "Déploiement automatique",
+          "Bases de données",
+          "Environnements",
+          "Journaux",
+          "Métriques"
+        ]
+      },
+      "render": {
+        "description": "Cloud unifié pour les applications et les sites",
+        "features": [
+          "Services web",
+          "Sites statiques",
+          "Bases de données",
+          "Tâches cron",
+          "Mise à l'échelle automatique"
+        ]
+      },
+      "google_analytics": {
+        "description": "Analyse web de Google",
+        "features": [
+          "Analyse du trafic",
+          "Comportement des utilisateurs",
+          "Suivi des conversions",
+          "Rapports personnalisés",
+          "Données en temps réel"
+        ]
+      },
+      "mixpanel": {
+        "description": "Plateforme d'analyse produit",
+        "features": [
+          "Suivi des événements",
+          "Entonnoirs de conversion",
+          "Rétention des utilisateurs",
+          "Parcours utilisateurs",
+          "Tests A/B"
+        ]
+      },
+      "amplitude": {
+        "description": "Plateforme d'analyse numérique",
+        "features": [
+          "Analyse comportementale",
+          "Analyse de cohortes",
+          "Expérimentation",
+          "Prédictions",
+          "Gouvernance des données"
+        ]
+      },
+      "posthog": {
+        "description": "Analyse produit open source",
+        "features": [
+          "Suivi des événements",
+          "Enregistrement des sessions",
+          "Indicateurs de fonctionnalités",
+          "Expériences",
+          "Enquêtes"
+        ]
+      },
+      "plausible": {
+        "description": "Analyse web respectueuse de la vie privée",
+        "features": [
+          "Tableau de bord simple",
+          "Sans cookies",
+          "Suivi des objectifs",
+          "Campagnes",
+          "Accès à l'API"
+        ]
+      },
+      "hotjar": {
+        "description": "Cartes de chaleur et analyse comportementale",
+        "features": [
+          "Cartes de chaleur",
+          "Enregistrements",
+          "Enquêtes",
+          "Retours",
+          "Entonnoirs de conversion"
+        ]
+      },
+      "segment": {
+        "description": "Plateforme de données clients",
+        "features": [
+          "Collecte de données",
+          "Routage des données",
+          "Profils",
+          "Audiences",
+          "Protocoles"
+        ]
+      },
+      "google_ads": {
+        "description": "Publicité sur les moteurs de recherche et display",
+        "features": [
+          "Campagnes de recherche",
+          "Annonces display",
+          "Annonces Shopping",
+          "Annonces vidéo",
+          "Création de rapports"
+        ]
+      },
+      "meta_ads": {
+        "description": "Publicité sur Facebook et Instagram",
+        "features": [
+          "Gestion des campagnes",
+          "Ciblage des audiences",
+          "Outils créatifs",
+          "Suivi par pixel",
+          "Création de rapports"
+        ]
+      },
+      "linkedin_ads": {
+        "description": "Publicité B2B sur LinkedIn",
+        "features": [
+          "Contenus sponsorisés",
+          "Annonces par message",
+          "Formulaires de génération de prospects",
+          "Ciblage des audiences",
+          "Analyses"
+        ]
+      },
+      "tiktok_ads": {
+        "description": "Publicité sur TikTok",
+        "features": [
+          "Annonces dans le fil",
+          "TopView",
+          "Effets de marque",
+          "Suivi par pixel",
+          "Création de rapports"
+        ]
+      },
+      "twitter_ads": {
+        "description": "Publicité sur Twitter/X",
+        "features": [
+          "Tweets sponsorisés",
+          "Annonces pour gagner des abonnés",
+          "Mise en avant dans les tendances",
+          "Ciblage",
+          "Analyses"
+        ]
+      },
+      "microsoft_ads": {
+        "description": "Publicité sur le moteur de recherche Bing",
+        "features": [
+          "Annonces de recherche",
+          "Campagnes Shopping",
+          "Annonces ciblées par audience",
+          "Import depuis Google",
+          "Création de rapports"
+        ]
+      },
+      "stripe": {
+        "description": "Plateforme de traitement des paiements",
+        "features": [
+          "Paiements",
+          "Abonnements",
+          "Facturation",
+          "Connect",
+          "Radar"
+        ]
+      },
+      "paypal": {
+        "description": "Plateforme de paiement en ligne",
+        "features": [
+          "Paiements",
+          "Paiement en caisse",
+          "Facturation",
+          "Abonnements",
+          "Litiges"
+        ]
+      },
+      "square": {
+        "description": "Paiements et outils professionnels",
+        "features": [
+          "Paiements",
+          "POS",
+          "Facturation",
+          "Services bancaires",
+          "Fidélisation"
+        ]
+      },
+      "razorpay": {
+        "description": "Passerelle de paiement pour l'Inde",
+        "features": [
+          "Paiements",
+          "Abonnements",
+          "Smart Collect",
+          "Route",
+          "RazorpayX"
+        ]
+      },
+      "wise": {
+        "description": "Transferts d'argent internationaux",
+        "features": [
+          "Transferts",
+          "Comptes multidevises",
+          "Paiements groupés",
+          "Accès à l'API",
+          "Webhooks"
+        ]
+      },
+      "aws_s3": {
+        "description": "Stockage d'objets cloud d'Amazon",
+        "features": [
+          "Téléversement de fichiers",
+          "CDN",
+          "Gestion des versions",
+          "Contrôle d'accès",
+          "Événements"
+        ]
+      },
+      "google_cloud_storage": {
+        "description": "Stockage d'objets cloud de Google",
+        "features": [
+          "Stockage de fichiers",
+          "CDN",
+          "Politiques de cycle de vie",
+          "Contrôle d'accès",
+          "URL signées"
+        ]
+      },
+      "cloudflare_r2": {
+        "description": "Stockage d'objets sans frais de sortie de données",
+        "features": [
+          "Compatible S3",
+          "Sans frais de sortie de données",
+          "Intégration Workers",
+          "Migration automatique",
+          "CDN"
+        ]
+      },
+      "dropbox": {
+        "description": "Hébergement de fichiers et collaboration",
+        "features": [
+          "Synchronisation des fichiers",
+          "Partage",
+          "Espaces d'équipe",
+          "Paper",
+          "Accès à l'API"
+        ]
+      },
+      "google_drive": {
+        "description": "Stockage de fichiers cloud de Google",
+        "features": [
+          "Stockage de fichiers",
+          "Partage",
+          "Collaboration",
+          "Recherche",
+          "Accès à l'API"
+        ]
+      },
+      "openai": {
+        "description": "Modèles d'IA GPT et DALL-E",
+        "features": [
+          "Génération de réponses de chat",
+          "Génération d'images",
+          "Embeddings",
+          "Ajustement fin",
+          "Assistants"
+        ]
+      },
+      "anthropic": {
+        "description": "Modèles d'IA Claude",
+        "features": [
+          "Génération de réponses de chat",
+          "Utilisation d'outils",
+          "Vision",
+          "Contexte étendu",
+          "Batch API"
+        ]
+      },
+      "google_gemini": {
+        "description": "Modèle d'IA multimodal de Google",
+        "features": [
+          "Génération de texte",
+          "Vision",
+          "Génération de code",
+          "Ancrage dans des sources",
+          "Appels de fonctions"
+        ]
+      },
+      "mistral": {
+        "description": "Modèles d'IA à poids ouverts",
+        "features": [
+          "Génération de réponses de chat",
+          "Génération de code",
+          "Embeddings",
+          "Appels de fonctions",
+          "Mode JSON"
+        ]
+      },
+      "groq": {
+        "description": "Moteur d'inférence ultrarapide",
+        "features": [
+          "Inférence rapide",
+          "Génération de réponses de chat",
+          "Utilisation d'outils",
+          "Mode JSON",
+          "Diffusion en continu"
+        ]
+      },
+      "replicate": {
+        "description": "Exécuter des modèles de ML dans le cloud",
+        "features": [
+          "Hébergement de modèles",
+          "Prédictions",
+          "Ajustement fin",
+          "Webhooks",
+          "Diffusion en continu"
+        ]
+      },
+      "huggingface": {
+        "description": "Catalogue de modèles de ML et inférence",
+        "features": [
+          "API d'inférence",
+          "Hébergement de modèles",
+          "Jeux de données",
+          "Spaces",
+          "AutoTrain"
+        ]
+      },
+      "elevenlabs": {
+        "description": "Génération de voix par IA",
+        "features": [
+          "Synthèse vocale à partir de texte",
+          "Clonage de voix",
+          "Création de voix",
+          "Diffusion en continu",
+          "Doublage"
+        ]
+      },
+      "midjourney": {
+        "description": "Génération d'images par IA",
+        "features": [
+          "Génération d'images",
+          "Variations",
+          "Augmentation de la résolution",
+          "Contrôle du style",
+          "Fusion d'images"
+        ]
+      },
+      "runway": {
+        "description": "Outils vidéo et créatifs par IA",
+        "features": [
+          "Génération de vidéos",
+          "Retouche d'images",
+          "Fond vert",
+          "Suivi de mouvement",
+          "Retouche de zones (Inpainting)"
+        ]
+      },
+      "stability": {
+        "description": "Stable Diffusion et plus encore",
+        "features": [
+          "Génération d'images",
+          "Augmentation de la résolution",
+          "Retouche de zones (Inpainting)",
+          "Génération 3D",
+          "Accès à l'API"
+        ]
+      },
+      "perplexity": {
+        "description": "Recherche et réponses assistées par l'IA",
+        "features": [
+          "API de recherche",
+          "Chat",
+          "Citations des sources",
+          "Données en temps réel",
+          "Sortie structurée"
+        ]
+      },
+      "zendesk": {
+        "description": "Plateforme de service client",
+        "features": [
+          "Gestion des tickets",
+          "Chat en direct",
+          "Base de connaissances",
+          "Agents d'IA",
+          "Analyses"
+        ]
+      },
+      "freshdesk": {
+        "description": "Assistance client dans le cloud",
+        "features": [
+          "Gestion des tickets",
+          "Automatisation",
+          "Base de connaissances",
+          "Forums communautaires",
+          "Création de rapports"
+        ]
+      },
+      "helpscout": {
+        "description": "Service d'assistance pour les équipes en croissance",
+        "features": [
+          "Boîte de réception partagée",
+          "Base de connaissances",
+          "Beacon",
+          "Création de rapports",
+          "Workflows"
+        ]
+      },
+      "front": {
+        "description": "Plateforme de gestion des opérations clients",
+        "features": [
+          "Boîte de réception partagée",
+          "Workflows",
+          "Analyses",
+          "Intégrations",
+          "Brouillons par IA"
+        ]
+      },
+      "bamboohr": {
+        "description": "Logiciel RH pour les entreprises en croissance",
+        "features": [
+          "Dossiers du personnel",
+          "Congés",
+          "Intégration des employés",
+          "Évaluation des performances",
+          "Création de rapports"
+        ]
+      },
+      "gusto": {
+        "description": "Plateforme de paie et de ressources humaines",
+        "features": [
+          "Paie",
+          "Avantages sociaux",
+          "Outils RH",
+          "Recrutement",
+          "Conformité"
+        ]
+      },
+      "rippling": {
+        "description": "Plateforme de gestion des effectifs",
+        "features": [
+          "Cloud RH",
+          "Gestion informatique",
+          "Paie",
+          "Avantages sociaux",
+          "Automatisation des workflows"
+        ]
+      },
+      "deel": {
+        "description": "Recrutement et paie à l'international",
+        "features": [
+          "Gestion des prestataires indépendants",
+          "EOR",
+          "Paie",
+          "Conformité",
+          "HRIS"
+        ]
+      },
+      "remote": {
+        "description": "Plateforme d'emploi à l'international",
+        "features": [
+          "EOR",
+          "Gestion des prestataires indépendants",
+          "Paie",
+          "Avantages sociaux",
+          "Conformité"
+        ]
+      },
+      "figma": {
+        "description": "Outil de conception collaborative",
+        "features": [
+          "Fichiers de conception",
+          "Prototypage",
+          "Dev mode",
+          "Composants",
+          "Extensions"
+        ]
+      },
+      "canva": {
+        "description": "Plateforme de création de contenu visuel",
+        "features": [
+          "Modèles",
+          "Kit de marque",
+          "Montage vidéo",
+          "Collaboration",
+          "Accès à l'API"
+        ]
+      },
+      "framer": {
+        "description": "Conception et publication web",
+        "features": [
+          "Éditeur visuel",
+          "CMS",
+          "Animations",
+          "Conception adaptative",
+          "Publication"
+        ]
+      },
+      "webflow": {
+        "description": "Créateur de sites web sans code",
+        "features": [
+          "Conception visuelle",
+          "CMS",
+          "Hébergement",
+          "Commerce en ligne",
+          "Interactions"
+        ]
+      },
+      "loom": {
+        "description": "Messagerie vidéo asynchrone",
+        "features": [
+          "Enregistrement d'écran",
+          "Hébergement vidéo",
+          "Analyses",
+          "Transcription",
+          "Commentaires"
+        ]
+      },
+      "vimeo": {
+        "description": "Hébergement vidéo professionnel",
+        "features": [
+          "Hébergement vidéo",
+          "Diffusion en direct",
+          "Analyses",
+          "Personnalisation du lecteur",
+          "Confidentialité"
+        ]
+      },
+      "mux": {
+        "description": "API d'infrastructure vidéo",
+        "features": [
+          "Encodage vidéo",
+          "Diffusion en direct",
+          "Miniatures",
+          "Analyses",
+          "Lecteur"
+        ]
+      },
+      "cloudinary": {
+        "description": "Plateforme de gestion des médias",
+        "features": [
+          "Optimisation des images",
+          "Traitement vidéo",
+          "Transformations",
+          "CDN",
+          "Fonctionnalités d'IA"
+        ]
+      },
+      "typeform": {
+        "description": "Formulaires interactifs et enquêtes",
+        "features": [
+          "Formulaires conversationnels",
+          "Branchements logiques",
+          "Intégrations",
+          "Analyses",
+          "Modèles"
+        ]
+      },
+      "tally": {
+        "description": "La façon la plus simple de créer des formulaires",
+        "features": [
+          "Créateur de formulaires",
+          "Logique conditionnelle",
+          "Téléversements de fichiers",
+          "Paiements",
+          "Webhooks"
+        ]
+      },
+      "google_forms": {
+        "description": "Créateur de formulaires simple de Google",
+        "features": [
+          "Création de formulaires",
+          "Collecte des réponses",
+          "Mode quiz",
+          "Modèles",
+          "Intégration Sheets"
+        ]
+      },
+      "jotform": {
+        "description": "Créateur de formulaires en ligne",
+        "features": [
+          "Créateur par glisser-déposer",
+          "Formulaires de paiement",
+          "Approbations",
+          "Formulaires PDF",
+          "Widgets"
+        ]
+      },
+      "surveymonkey": {
+        "description": "Plateforme d'enquêtes et de retours",
+        "features": [
+          "Enquêtes",
+          "Questionnaires de connaissances",
+          "Sondages",
+          "Analyses",
+          "Modèles"
+        ]
+      },
+      "calendly": {
+        "description": "Automatisation de la planification",
+        "features": [
+          "Pages de réservation",
+          "Workflows",
+          "Intégrations",
+          "Événements de groupe",
+          "Routage"
+        ]
+      },
+      "cal_com": {
+        "description": "Planification open source",
+        "features": [
+          "Pages de réservation",
+          "Planification d'équipe",
+          "Workflows personnalisés",
+          "Webhooks",
+          "Accès à l'API"
+        ]
+      },
+      "savvycal": {
+        "description": "Planification pour les personnes très occupées",
+        "features": [
+          "Liens personnalisés",
+          "Superposition de calendriers",
+          "Planification prioritaire",
+          "Workflows",
+          "Intégrations"
+        ]
+      },
+      "tidycal": {
+        "description": "Outil de planification simple",
+        "features": [
+          "Pages de réservation",
+          "Synchronisation des calendriers",
+          "Paiements",
+          "Questions personnalisées",
+          "Intégrations"
+        ]
+      },
+      "zapier": {
+        "description": "Plateforme d'automatisation sans code",
+        "features": [
+          "Connexions d'applications",
+          "Zaps à plusieurs étapes",
+          "Filtres",
+          "Formatter",
+          "Webhooks"
+        ]
+      },
+      "make": {
+        "description": "Plateforme d'automatisation visuelle",
+        "features": [
+          "Créateur visuel",
+          "Applications",
+          "Stockages de données",
+          "Webhooks",
+          "Planification"
+        ]
+      },
+      "n8n": {
+        "description": "Automatisation de workflows sous licence fair-code",
+        "features": [
+          "Hébergeable par vos soins",
+          "Intégrations",
+          "Nœuds de code",
+          "Webhooks",
+          "Capacités d'IA"
+        ]
+      },
+      "activepieces": {
+        "description": "Outil d'automatisation open source",
+        "features": [
+          "Créateur sans code",
+          "Hébergeable par vos soins",
+          "Pieces",
+          "Webhooks",
+          "Étape de code"
+        ]
+      },
+      "pipedream": {
+        "description": "Automatisation pensée pour les développeurs",
+        "features": [
+          "Workflows fondés sur du code",
+          "API",
+          "Sources d'événements",
+          "Stockages de données",
+          "Tâches cron"
+        ]
+      }
+    },
+    "webhooks": {
+      "shopify_order_created": {
+        "name": "Shopify — Nouvelle commande",
+        "description": "Déclencher lorsqu'une nouvelle commande est passée dans votre boutique Shopify",
+        "setupInstructions": "Ouvrez Shopify Admin > Settings > Notifications > Webhooks > Create webhook"
+      },
+      "shopify_product_updated": {
+        "name": "Shopify — Produit mis à jour",
+        "description": "Déclencher lorsqu'un produit est modifié dans Shopify",
+        "setupInstructions": "Ouvrez Shopify Admin > Settings > Notifications > Webhooks"
+      },
+      "shopify_checkout_abandoned": {
+        "name": "Shopify — Paiement abandonné",
+        "description": "Déclencher lors de paiements abandonnés pour les campagnes de relance",
+        "setupInstructions": "Ouvrez Shopify Admin > Settings > Notifications > Webhooks"
+      },
+      "shopify_customer_created": {
+        "name": "Shopify — Nouveau client",
+        "description": "Déclencher lorsqu'un nouveau client s'inscrit",
+        "setupInstructions": "Ouvrez Shopify Admin > Settings > Notifications > Webhooks"
+      },
+      "stripe_payment_succeeded": {
+        "name": "Stripe — Paiement réussi",
+        "description": "Déclencher lors d'un paiement réussi",
+        "setupInstructions": "Ouvrez Stripe Dashboard > Developers > Webhooks > Add endpoint"
+      },
+      "stripe_subscription_created": {
+        "name": "Stripe — Nouvel abonnement",
+        "description": "Déclencher lorsqu'un client démarre un nouvel abonnement",
+        "setupInstructions": "Stripe Dashboard > Developers > Webhooks"
+      },
+      "stripe_invoice_paid": {
+        "name": "Stripe — Facture payée",
+        "description": "Déclencher lorsqu'une facture est payée",
+        "setupInstructions": "Stripe Dashboard > Developers > Webhooks"
+      },
+      "stripe_refund_issued": {
+        "name": "Stripe — Remboursement émis",
+        "description": "Déclencher lorsqu'un remboursement est traité",
+        "setupInstructions": "Stripe Dashboard > Developers > Webhooks"
+      },
+      "github_push": {
+        "name": "GitHub — Push",
+        "description": "Déclencher lors d'un push de code vers un dépôt",
+        "setupInstructions": "Accédez au dépôt > Settings > Webhooks > Add webhook"
+      },
+      "github_pr": {
+        "name": "GitHub — Demande de pull",
+        "description": "Déclencher lorsqu'une demande de pull est ouverte, fusionnée ou fermée",
+        "setupInstructions": "Accédez au dépôt > Settings > Webhooks"
+      },
+      "github_issue": {
+        "name": "GitHub — Ticket créé",
+        "description": "Déclencher lorsqu'un nouveau ticket est ouvert",
+        "setupInstructions": "Accédez au dépôt > Settings > Webhooks"
+      },
+      "github_release": {
+        "name": "GitHub — Version publiée",
+        "description": "Déclencher lorsqu'une nouvelle version est publiée",
+        "setupInstructions": "Accédez au dépôt > Settings > Webhooks"
+      },
+      "hubspot_contact_created": {
+        "name": "HubSpot — Contact créé",
+        "description": "Déclencher lorsqu'un nouveau contact est ajouté à HubSpot",
+        "setupInstructions": "Ouvrez HubSpot > Settings > Integrations > Private Apps > Webhooks"
+      },
+      "hubspot_deal_stage": {
+        "name": "HubSpot — Étape d'affaire modifiée",
+        "description": "Déclencher lorsqu'une affaire passe à une nouvelle étape",
+        "setupInstructions": "HubSpot > Settings > Integrations > Webhooks"
+      },
+      "hubspot_form_submitted": {
+        "name": "HubSpot — Formulaire envoyé",
+        "description": "Déclencher lorsqu'un formulaire HubSpot est envoyé",
+        "setupInstructions": "HubSpot > Settings > Integrations > Webhooks"
+      },
+      "tiktok_new_follower": {
+        "name": "TikTok — Nouvel abonné",
+        "description": "Déclencher lorsqu'une personne s'abonne à votre compte TikTok",
+        "setupInstructions": "Configurez via TikTok Developer Portal > Webhooks"
+      },
+      "tiktok_video_published": {
+        "name": "TikTok — Vidéo publiée",
+        "description": "Déclencher lorsqu'une nouvelle vidéo est publiée",
+        "setupInstructions": "TikTok Developer Portal > Webhooks"
+      },
+      "linkedin_post_engagement": {
+        "name": "LinkedIn — Interaction avec une publication",
+        "description": "Déclencher lors de mentions J'aime, de commentaires ou de partages sur LinkedIn",
+        "setupInstructions": "Configurez via les webhooks de LinkedIn Marketing API"
+      },
+      "intercom_conversation_started": {
+        "name": "Intercom — Nouvelle conversation",
+        "description": "Déclencher lorsqu'un client démarre une nouvelle conversation",
+        "setupInstructions": "Intercom > Settings > Webhooks"
+      },
+      "intercom_user_created": {
+        "name": "Intercom — Nouvel utilisateur",
+        "description": "Déclencher lorsqu'un nouvel utilisateur est identifié",
+        "setupInstructions": "Intercom > Settings > Webhooks"
+      },
+      "sendgrid_email_delivered": {
+        "name": "SendGrid — E-mail livré",
+        "description": "Déclencher lorsqu'un e-mail est livré avec succès",
+        "setupInstructions": "SendGrid > Settings > Mail Settings > Event Webhook"
+      },
+      "sendgrid_email_opened": {
+        "name": "SendGrid — E-mail ouvert",
+        "description": "Déclencher lorsqu'un destinataire ouvre votre e-mail",
+        "setupInstructions": "SendGrid > Settings > Mail Settings > Event Webhook"
+      },
+      "sendgrid_email_bounced": {
+        "name": "SendGrid — E-mail rejeté",
+        "description": "Déclencher lorsqu'un e-mail est rejeté",
+        "setupInstructions": "SendGrid > Settings > Event Webhook"
+      },
+      "calendly_booking_created": {
+        "name": "Calendly — Réservation créée",
+        "description": "Déclencher lorsqu'une personne réserve une réunion",
+        "setupInstructions": "Calendly > Integrations > Webhooks > Subscribe"
+      },
+      "calendly_booking_cancelled": {
+        "name": "Calendly — Réservation annulée",
+        "description": "Déclencher lorsqu'une réservation est annulée",
+        "setupInstructions": "Calendly > Integrations > Webhooks"
+      },
+      "typeform_form_submitted": {
+        "name": "Typeform — Formulaire envoyé",
+        "description": "Déclencher lorsqu'une réponse Typeform est envoyée",
+        "setupInstructions": "Typeform > Connect > Webhooks > Add webhook"
+      },
+      "slack_message_posted": {
+        "name": "Slack — Message publié",
+        "description": "Déclencher lorsqu'un message est publié dans un canal",
+        "setupInstructions": "Slack App > Event Subscriptions > Subscribe to message.channels"
+      },
+      "slack_reaction_added": {
+        "name": "Slack — Réaction ajoutée",
+        "description": "Déclencher lorsqu'une personne réagit à un message",
+        "setupInstructions": "Slack App > Event Subscriptions"
+      },
+      "generic_json": {
+        "name": "Webhook JSON générique",
+        "description": "Accepter toute charge utile JSON provenant de n'importe quel service",
+        "setupInstructions": "Faites pointer l'URL de webhook de votre service vers le point de terminaison généré"
+      },
+      "generic_form_post": {
+        "name": "Webhook de formulaire POST",
+        "description": "Accepter les données POST encodées en formulaire",
+        "setupInstructions": "Définissez l'URL action de votre formulaire sur le point de terminaison généré"
+      }
+    },
+    "ideas": {
+      "content-studio": {
+        "title": "Studio de contenu",
+        "desc": "Repérez les tendances, rédigez et peaufinez automatiquement des publications sociales.",
+        "seed": "Je dirige une petite marque et souhaite un studio de contenu qui publie régulièrement. Un veilleur de tendances doit trouver 2-3 angles actuels dans mon créneau, un rédacteur doit préparer une publication TikTok et une publication LinkedIn sur le meilleur angle, puis un éditeur doit renforcer l'accroche et le CTA. Enregistre chaque contenu en brouillon pour que je le vérifie avant publication, et mémorise les angles qui ont fonctionné afin d'affiner les prochains brouillons."
+      },
+      "content-repurposer": {
+        "title": "Réutilisation de contenu",
+        "desc": "Transformez une idée en fil sur X, en publication LinkedIn et en court texte de newsletter.",
+        "seed": "Je souhaite réutiliser une idée, une publication ou une transcription source dans un ensemble multiplateforme. Un stratège doit choisir les trois meilleurs angles, puis un rédacteur doit les décliner en un fil sur X, une publication LinkedIn et un court texte de newsletter, avec la voix de ma marque si elle est enregistrée en mémoire. Enregistre l'ensemble en brouillon."
+      },
+      "seo-content-engine": {
+        "title": "Moteur de contenu SEO",
+        "desc": "Recherchez des mots-clés et structurez des articles optimisés pour la recherche.",
+        "seed": "Je souhaite un moteur de contenu SEO. Un chercheur doit identifier l'intention de recherche et les questions liées à un mot-clé cible, un responsable du plan doit produire une structure H2/H3 avec des suggestions de liens internes, puis un rédacteur doit préparer un article optimisé pour la recherche. Enregistre le brief et le brouillon, et mémorise les sujets déjà traités pour éviter les répétitions."
+      },
+      "newsletter-studio": {
+        "title": "Studio de newsletters",
+        "desc": "Choisissez un thème et préparez une édition hebdomadaire de newsletter.",
+        "seed": "J'envoie une newsletter hebdomadaire et souhaite de l'aide pour rédiger chaque numéro. Un curateur doit choisir un thème et réunir 3-5 éléments à partager avec mon public, puis un rédacteur doit préparer le numéro avec un objet accrocheur, une introduction, les éléments sélectionnés accompagnés d'un commentaire d'une ligne et un CTA final. Enregistre-le en brouillon et mémorise les thèmes précédents pour varier les numéros."
+      },
+      "podcast-repurposer": {
+        "title": "Réutilisation de podcasts",
+        "desc": "Transformez la transcription d'un épisode en notes et en citations adaptées à de courts extraits.",
+        "seed": "J'anime un podcast et souhaite réutiliser chaque épisode. À partir d'une transcription, un producteur doit rédiger des notes structurées avec horodatages et points clés, et un chercheur d'extraits doit repérer 5-8 moments à citer qui méritent de devenir de courtes vidéos sociales. Enregistre les notes et la liste de citations en brouillons."
+      },
+      "brand-voice-builder": {
+        "title": "Définition de la voix de marque",
+        "desc": "Formalisez votre ton dans un document de référence d'une page.",
+        "seed": "Je souhaite formaliser la voix de ma marque. Un analyste de marque doit extraire les caractéristiques du ton, les formulations distinctives et celles à éviter à partir d'une description et des exemples de contenu fournis. Un responsable du style doit ensuite rédiger une référence d'une page avec trois exemples de publications illustrant cette voix. Enregistre-la en mémoire sous 'brand voice' pour que mes agents de contenu puissent la lire."
+      },
+      "competitor-watch": {
+        "title": "Veille concurrentielle",
+        "desc": "Suivez les initiatives des concurrents et résumez les changements chaque semaine.",
+        "seed": "Je souhaite suivre quelques concurrents. Un chercheur web doit repérer les initiatives récentes — lancements, changements de prix et de communication — sur leurs sites et sur le web. Un analyste doit résumer les changements de la semaine et leur importance pour mon positionnement. Enregistre un bref rapport et mémorise les résultats précédents pour que chaque recherche ne signale que les nouveautés."
+      },
+      "social-listening": {
+        "title": "Écoute sociale",
+        "desc": "Découvrez ce qui se dit sur un sujet ou une marque.",
+        "seed": "Je souhaite une veille sociale sur un sujet et ma marque. Un chercheur doit recueillir les mentions et discussions publiques récentes sur le web, puis un analyste doit les regrouper par thèmes, indiquer le sentiment et sélectionner quelques citations représentatives. Enregistre une synthèse et mémorise les thèmes récurrents afin de faire apparaître les tendances au fil du temps."
+      },
+      "webinar-promoter": {
+        "title": "Promotion de webinaire",
+        "desc": "Planifiez une séquence promotionnelle pour un événement à venir.",
+        "seed": "J'organise bientôt un webinaire et souhaite un plan de promotion. Un planificateur doit établir un calendrier avec plusieurs prises de contact : annonce, aperçu de la valeur, rappel et dernier appel. Un rédacteur doit préparer les publications sociales et les e-mails de chaque étape avec la voix de ma marque. Enregistre le tout en brouillons pour que je les programme manuellement."
+      },
+      "ad-creative-tester": {
+        "title": "Test de créations publicitaires",
+        "desc": "Générez des variantes d'angles publicitaires à tester, sans dépenses publicitaires.",
+        "seed": "Je souhaite tester des angles créatifs avant de dépenser. Un stratège doit proposer 4-5 angles distincts pour mon produit : problème, résultat, preuve sociale, contre-pied et curiosité. Un rédacteur publicitaire doit écrire un titre et une variante de texte principal pour chacun. Enregistre-les en brouillons pour que je copie moi-même les meilleurs dans ma plateforme publicitaire. Aucune dépense publicitaire ni écriture sur la plateforme."
+      },
+      "outreach-strategist": {
+        "title": "Stratégie de prospection",
+        "desc": "Affinez votre ICP et préparez une séquence d'e-mails de prospection.",
+        "seed": "Je souhaite un système de prospection à froid qui rédige sans jamais envoyer. Un chercheur ICP doit préciser mon profil client idéal à partir de mon produit et d'une indication de cible. Un rédacteur doit ensuite produire une séquence de trois messages — présentation, relance et dernier message de clôture — prête à copier dans ma messagerie. Enregistre la séquence en brouillon."
+      },
+      "cold-outreach-engine": {
+        "title": "Moteur de prospection à froid",
+        "desc": "Personnalisez les premiers e-mails pour une liste de cibles.",
+        "seed": "J'ai une liste de comptes cibles et souhaite des premiers e-mails personnalisés. Un chercheur doit trouver dans les informations publiques une accroche pertinente pour chaque prospect, puis un rédacteur doit préparer une introduction brève et précise qui reprend cette accroche avec un CTA clair. Enregistre les brouillons pour que je les vérifie et les envoie manuellement, et consigne chaque brouillon. Aucun envoi automatique."
+      },
+      "lead-qualifier": {
+        "title": "Qualification des prospects",
+        "desc": "Évaluez les prospects entrants selon votre ICP et orientez-les.",
+        "seed": "Je souhaite qualifier les prospects entrants. À partir des informations d'un prospect, un analyste doit évaluer sa correspondance avec mon ICP — secteur, taille, rôle et signaux d'intention — puis un agent d'orientation doit recommander une action : traitement prioritaire, maturation ou disqualification, avec une justification d'une ligne. Consigne chaque décision et mémorise les critères récurrents pour rendre la qualification plus cohérente au fil du temps."
+      },
+      "proposal-writer": {
+        "title": "Rédaction de propositions",
+        "desc": "Transformez un brief de projet en proposition prête pour le client.",
+        "seed": "Je souhaite transformer un brief de projet en proposition client. Un responsable du cadrage doit préciser le contexte du client, le problème, les indicateurs de réussite et les limites du périmètre. Un rédacteur doit ensuite préparer une proposition structurée : synthèse, périmètre, livrables, calendrier par phases et tarification fondée sur la valeur. Enregistre-la en brouillon pour que je la vérifie et l'envoie."
+      },
+      "partnership-outreach": {
+        "title": "Prospection de partenaires",
+        "desc": "Trouvez des partenaires adaptés et préparez des messages de présentation.",
+        "seed": "Je souhaite préparer des échanges de partenariat. Un chercheur doit identifier les types d'entreprises complémentaires à mon produit et trouver quelques candidats concrets. Un rédacteur doit ensuite préparer pour chacun une présentation personnalisée qui met d'abord en avant le bénéfice mutuel. Enregistre ces messages en brouillons pour que je les envoie manuellement."
+      },
+      "market-research": {
+        "title": "Agent d'étude de marché",
+        "desc": "Explorez un marché et synthétisez un rapport d'une page.",
+        "seed": "Je souhaite un aperçu rapide du marché. Un chercheur web doit recueillir des signaux sur mon marché auprès de 5-10 sources pertinentes. Un analyste de synthèse doit ensuite produire un rapport d'une page : indices sur la taille du marché, les trois principaux concurrents avec une différence résumée en une ligne chacun, les tendances sur 12 mois et l'opportunité. Enregistre le rapport et mémorise les principaux résultats pour que les prochaines recherches s'appuient dessus."
+      },
+      "customer-onboarding": {
+        "title": "Intégration des clients",
+        "desc": "Préparez une séquence d'accueil guidée pour les nouveaux clients.",
+        "seed": "Je souhaite accueillir les nouveaux clients sans difficulté. Un planificateur doit définir un parcours par étapes : bienvenue, configuration, première valeur obtenue et point de suivi. Un rédacteur doit ensuite préparer le message de chaque étape avec la voix de ma marque. Enregistre la séquence en brouillons que je pourrai envoyer manuellement, et mémorise le parcours pour offrir le même démarrage guidé à chaque nouveau client."
+      },
+      "churn-watch": {
+        "title": "Veille sur l'attrition",
+        "desc": "Repérez les comptes à risque et préparez des messages de reconquête.",
+        "seed": "Je souhaite détecter rapidement les risques de départ des clients. À partir de l'activité des comptes que je fournis, un analyste doit signaler les comptes à risque avec les signes d'alerte et une raison. Un rédacteur doit ensuite préparer un message de reconquête adapté à chacun. Enregistre les brouillons pour que je les vérifie, consigne chaque évaluation et mémorise les signaux qui précèdent souvent un départ."
+      },
+      "product-launch-kit": {
+        "title": "Kit de lancement produit",
+        "desc": "Préparez les messages de lancement et une liste de contrôle de mise en ligne.",
+        "seed": "Je lance un produit et souhaite un kit de lancement. Un stratège doit préparer le positionnement central et les messages clés, un rédacteur doit produire les éléments d'annonce — texte de page de destination, publications sociales et e-mail de lancement — puis un agent opérationnel doit établir une liste de contrôle de mise en ligne. Enregistre le tout en brouillons et garde la liste en mémoire pour ne rien oublier."
+      },
+      "invoice-chaser": {
+        "title": "Relance des factures",
+        "desc": "Préparez des rappels de paiement polis et progressivement plus fermes.",
+        "seed": "Je souhaite de l'aide pour relancer les factures en retard. À partir d'une liste de factures impayées que je fournis, un agent doit préparer pour chacune un rappel poli et progressivement plus ferme — rappel léger, relance ferme, dernier avis — en indiquant le montant et l'échéance. Enregistre les rappels en brouillons pour que je les envoie manuellement, et consigne chaque brouillon. N'envoie jamais rien automatiquement et ne déplace jamais d'argent."
+      },
+      "weekly-finance-digest": {
+        "title": "Synthèse financière hebdomadaire",
+        "desc": "Résumez chaque semaine les chiffres que je suis.",
+        "seed": "Je souhaite une synthèse financière hebdomadaire. À partir des chiffres que je fournis — revenus, dépenses, durée de trésorerie disponible et indicateurs clés — un analyste doit les comparer à la période précédente, relever les variations et leur importance, puis signaler les points à surveiller. Enregistre une courte synthèse et mémorise les semaines précédentes pour montrer les tendances. Lecture seule — aucune transaction."
+      },
+      "support-triage": {
+        "title": "Triage de l'assistance",
+        "desc": "Classez les tickets et préparez les premières réponses.",
+        "seed": "Je souhaite trier les tickets d'assistance entrants. Pour chaque ticket, un agent doit le classer — bug, facturation, mode d'emploi ou demande de fonctionnalité —, définir une priorité et préparer une première réponse utile fondée sur ma base de connaissances. Enregistre le brouillon pour une vérification humaine avant envoi, consigne chaque décision de triage et mémorise les problèmes récurrents afin d'améliorer les réponses courantes."
+      },
+      "review-responder": {
+        "title": "Réponses aux avis",
+        "desc": "Préparez des réponses aux avis clients dans le ton de votre marque.",
+        "seed": "Je souhaite de l'aide pour répondre aux avis clients. À partir d'un avis, un agent doit évaluer le sentiment et préparer une réponse réfléchie dans le ton de ma marque : reconnaissante pour les compliments, responsable et orientée vers les solutions pour les réclamations. Enregistre les réponses en brouillons pour que je les publie, et mémorise les compliments et plaintes récurrents pour repérer des tendances."
+      },
+      "recruiting-sourcer": {
+        "title": "Recherche de candidats",
+        "desc": "Préparez un profil de poste et des messages personnalisés aux candidats.",
+        "seed": "Je recrute et souhaite de l'aide pour trouver des candidats. Un agent recruteur doit transformer un rôle en profil précis : critères indispensables, signes pertinents et lieux où se trouvent les candidats. Un rédacteur doit ensuite préparer un message chaleureux et personnalisé que je pourrai envoyer aux candidats prometteurs. Enregistre les brouillons pour que je les envoie manuellement, et consigne chacun. Aucune messagerie automatique."
+      }
+    },
+    "comparisonColumns": [
+      {
+        "name": "Braavolabs"
+      },
+      {
+        "name": "Automatisation de workflows"
+      },
+      {
+        "name": "Créateurs d'agents d'IA"
+      }
+    ],
+    "comparisonRows": [
+      {
+        "label": "Pilotage en cours d'exécution",
+        "note": "Vérifiez quand les consignes sont acceptées et appliquées ; un appel actif peut se terminer avant"
+      },
+      {
+        "label": "Contrôle mobile natif",
+        "note": "Vérifiez les tâches mobiles prises en charge et la disponibilité de l'application pour votre appareil"
+      },
+      {
+        "label": "Approuver les dépenses depuis son téléphone",
+        "note": "Examinez les actions nécessitant une approbation et les appels fournisseurs pouvant déjà entraîner des coûts"
+      },
+      {
+        "label": "Choix de fournisseurs BYOK",
+        "note": "Utilisez vos propres clés auprès de nombreux fournisseurs de modèles"
+      },
+      {
+        "label": "Voie d'accès à un fournisseur local",
+        "note": "Utilisez un point de terminaison de modèle local configuré lorsqu'il est pris en charge"
+      },
+      {
+        "label": "Surveillance d'automatisations externes",
+        "note": "Confirmez les actions de surveillance et de contrôle prises en charge pour chaque plateforme externe"
+      },
+      {
+        "label": "Modèle tarifaire",
+        "note": "Comparez les frais d'abonnement, d'inférence, d'hébergement et par opération"
+      },
+      {
+        "label": "Gouvernance et arrêts liés aux risques",
+        "note": "Examinez les limites des contrôles pris en charge et la gestion des incidents"
+      },
+      {
+        "label": "Traçabilité",
+        "note": "Examinez les actions et résultats enregistrés ; les enregistrements manquants restent inconnus"
+      },
+      {
+        "label": "Nombre de connecteurs",
+        "note": "Nombre brut d'intégrations d'applications prêtes à l'emploi"
+      }
+    ],
+    "comparisonAudience": [
+      {
+        "title": "Opérateurs loin de leur bureau",
+        "body": "Si vous approuvez, donnez des indications et corrigez le cap depuis votre téléphone entre deux réunions, l'application native et le pilotage mobile répondent précisément à ce besoin."
+      },
+      {
+        "title": "Personnes qui détestent tout relancer",
+        "body": "Pour les longs pipelines que vous préférez guider plutôt que relancer. Suivez l'exécution, réorientez-la en cours de route et conservez les étapes déjà réussies."
+      },
+      {
+        "title": "Travaux sensibles en matière de confidentialité",
+        "body": "Utilisez vos propres clés ou sélectionnez un point de terminaison local configuré. Vérifiez séparément la voie choisie, les outils, la télémétrie et la limite réseau."
+      },
+      {
+        "title": "Équipes déjà habituées à n8n / Make / Zapier",
+        "body": "Utilisez les connexions prises en charge pour surveiller l'état et demander les actions compatibles. Vérifiez le contrat d'autorisation et d'exécution de chaque plateforme."
+      }
+    ],
+    "capabilities": [
+      {
+        "label": "Exécution",
+        "title": "Environnement de travail multifournisseur",
+        "copy": "Coordonnez le travail des modèles et agents sans transformer l'environnement d'exécution d'un fournisseur en plan de contrôle."
+      },
+      {
+        "label": "Contrôle",
+        "title": "Approbation d'une action précise — en développement",
+        "copy": "Le contrat plus large liant action, périmètre, expiration et contexte d'exécution est prévu et n'est pas présenté comme généralement disponible."
+      },
+      {
+        "label": "Conversation",
+        "title": "Reprendre et piloter",
+        "copy": "Conservez les tours ordonnés, les actions d'outils, les artefacts et les interventions d'opérateurs distants dans le même contexte d'exécution."
+      },
+      {
+        "label": "Modèles",
+        "title": "BYOK et choix local",
+        "copy": "Sélectionnez explicitement une voie d'accès au modèle et gardez les coûts liés à vos propres clés fournisseur ou à votre environnement local."
+      }
+    ],
+    "securityBoundaries": [
+      {
+        "title": "Limite de l'inférence",
+        "copy": "L'inférence n'est pas incluse. Utilisez vos propres clés fournisseur (BYOK) ou des modèles locaux."
+      },
+      {
+        "title": "Limite des approbations",
+        "copy": "Les actions d'outils prises en charge peuvent nécessiter une approbation explicite. L'inférence peut entraîner des frais fournisseur avant une approbation distincte. Le contrat plus large liant action précise, périmètre et expiration reste en développement."
+      },
+      {
+        "title": "Limite entre site public et accès connecté",
+        "copy": "Le site public fournit des informations sur le produit. Les comptes, les routes des tenants et les API opérationnelles relèvent des hôtes de l'application nécessitant une connexion et de l'API."
+      },
+      {
+        "title": "Limite de certification",
+        "copy": "Nous n'affichons pas de badge de certification tant que la certification n'est pas obtenue et vérifiable indépendamment."
+      }
+    ],
+    "checklist": {
+      "registered": {
+        "label": "Créer un compte",
+        "description": "S'inscrire à Braavolabs"
+      },
+      "heroCompanyCreated": {
+        "label": "Créer votre première entreprise",
+        "description": "Créer une entreprise d'IA à partir d'une description"
+      },
+      "firstRunCompleted": {
+        "label": "Exécuter votre premier pipeline",
+        "description": "Exécuter un workflow automatisé"
+      },
+      "firstDraftApproved": {
+        "label": "Vérifier un brouillon",
+        "description": "Approuver ou modifier du contenu généré par l'IA"
+      },
+      "profileCompleted": {
+        "label": "Compléter votre profil",
+        "description": "Ajouter votre nom et vos préférences"
+      }
+    }
+  },
+  "seo": {
+    "m7f135831dde4": "À propos — Braavolabs",
+    "ma6b9aebb2cf1": "Découvrez Braavolabs : pourquoi nous avons créé une plateforme d'entreprises d'IA, les principes qui la guident et notre approche de l'autonomie, de la transparence et de l'IA responsable.",
+    "m933085a63c1d": "À propos de Braavolabs",
+    "me1c1f91ee66e": "Pourquoi nous avons créé une plateforme d'entreprises d'IA, les principes qui la guident et notre approche de l'autonomie, de la transparence et de l'IA responsable.",
+    "m6bec3a9f230a": "Braavolabs Bench — exécutions de benchmark enregistrées",
+    "mcbea634da00e": "Enregistrements de benchmark disponibles pour les suites de tâches configurées. La couverture et l'actualité dépendent des exécutions enregistrées ; ce n'est pas une certification indépendante.",
+    "md93cc7f7d87e": "Blog — Braavolabs",
+    "m187c2f0813ea": "Actualités produit, notes d'ingénierie et limites publiques de maturité présentées par l'équipe Braavolabs.",
+    "m3c43895bb6aa": "Blog Braavolabs",
+    "me3020c8ef693": "Actualités produit, notes d'ingénierie et limites publiques de maturité de Braavolabs.",
+    "m237cecbe666d": "Journal des modifications — Braavolabs",
+    "m22bcd4a9abed": "Notes de modification publiques de Braavolabs distinguant les travaux livrés de ceux en développement.",
+    "m7cf63d5b37a7": "Journal des modifications Braavolabs",
+    "m9b27dd7fb727": "Notes de modification publiques distinguant les travaux livrés de ceux en développement.",
+    "m8ec104ac0b8d": "Braavolabs en comparaison",
+    "maafa6a889064": "Examinez les exigences des workflows multifournisseurs, la configuration des voies et les contrôles opérateur. Vérifiez directement les capacités actuelles des produits et leurs conditions commerciales.",
+    "md9141b7cff71": "Braavolabs en comparaison — Braavolabs",
+    "m5358edf26d92": "Découvrez un environnement multifournisseur avec choix explicites de modèles, configuration de voies locales ou cloud et contrôles opérateur pris en charge.",
+    "mc10f93cbb285": "Contact — Braavolabs",
+    "mac714bedbfdc": "Canaux de contact Braavolabs pour l'assistance, les partenariats, la sécurité et la confidentialité.",
+    "m5d4c651fc9a1": "Contacter Braavolabs",
+    "m224950150646": "Canaux de contact pour l'assistance, les partenariats, la sécurité et la confidentialité.",
+    "m18c6bf133be5": "Calculateur de coûts — Braavolabs",
+    "md250d02e7765": "Aperçu statique des tarifs d'abonnement Individual et Team prévus ; l'inférence n'est pas incluse.",
+    "m63664d2ded81": "Aperçu des tarifs prévus pour Individual et Team ; les abonnements ne sont pas disponibles à l'achat actuellement.",
+    "m3ca87fbbac15": "Aperçu des tarifs — Braavolabs",
+    "m4bd9b811878a": "Consultez les tarifs d'abonnement Braavolabs Individual et Team prévus. L'achat n'est pas disponible actuellement et l'inférence n'est pas incluse.",
+    "m81acc1f0380d": "Tarifs prévus pour Individual et Team. L'achat n'est pas disponible actuellement et l'inférence n'est pas incluse.",
+    "ma9faa242317f": "Documentation — Braavolabs",
+    "m365f82802c67": "Documentation Braavolabs : premiers pas, configuration BYOK et des voies locales, pilotage en cours d'exécution, webhooks, connexions d'automatisations externes, application mobile et FAQ.",
+    "mee84ba24e941": "Documentation Braavolabs",
+    "m50dcefa5f29a": "Composez et examinez des workflows d'agents, puis surveillez les exécutions et décisions prises en charge.",
+    "m57cd5295b6d6": "Fonctionnalités — Braavolabs",
+    "m0d5ddd021521": "Limites publiques du produit Braavolabs en matière de routage des modèles, de modes de données, d'approbations et de maturité des fonctionnalités.",
+    "m076ced19e485": "Limites publiques du produit en matière de routage des modèles, de modes de données, d'approbations et de maturité des fonctionnalités.",
+    "m804e9858225a": "Fonctionnalités — Braavolabs",
+    "mcb18970cc53a": "Le contrat public du produit Braavolabs pour les interfaces d'exécution, de contrôle, de mode de données et de vérification.",
+    "mac377e08a5eb": "Aperçu des informations au titre du RGPD (GDPR)",
+    "m49fe3634c177": "Projet d'informations de confidentialité au titre du RGPD (GDPR). Les précisions sur l'entité responsable, les traitements, les destinataires, la conservation et les garanties doivent encore être complétées avant l'ouverture des inscriptions au public.",
+    "m617c9c8f521f": "Braavolabs — aperçu des informations au titre du RGPD (GDPR)",
+    "m5f3c445d83bb": "Aperçu des informations sur les traitements et les droits au titre du RGPD (GDPR) ; ce n'est pas encore la notice complète pour la collecte publique de données personnelles.",
+    "m6481ac9863e9": "Aperçu des informations au titre de la KVKK",
+    "m6465a09ee4b0": "Projet d'informations au titre de la KVKK. L'entité réelle, les traitements, les destinataires, la conservation et les garanties doivent encore être précisés avant l'ouverture des inscriptions au public.",
+    "m4a89104ba3fb": "Braavolabs — aperçu des informations au titre de la KVKK",
+    "m354a5e2b9623": "Aperçu des informations sur les traitements et les droits au titre de la KVKK ; ce n'est pas encore une notice de confidentialité complète.",
+    "mc60388ffa286": "Suppression de compte",
+    "m265910871d03": "Comment supprimer définitivement votre compte Braavolabs, quelles données sont retirées et comment demander de l'aide.",
+    "m7221097dfb51": "Suppression de compte Braavolabs",
+    "md6e50ceecc93": "Tarifs — Braavolabs",
+    "m907e61f93ecc": "Aperçu des tarifs prévus : Individual à 19 $/mois et Team à 39 $/utilisateur actif/mois. Non disponibles à l'achat actuellement ; l'inférence n'est pas incluse.",
+    "mae42d1776ea3": "Réinitialiser le mot de passe",
+    "m81bf5e60c133": "Définissez un nouveau mot de passe pour votre compte Braavolabs.",
+    "m8931468be759": "Sécurité — Braavolabs",
+    "m4fc24ac37ec4": "Limites de sécurité Braavolabs pour les clés de modèles, les modes de données, les approbations et la maturité du produit.",
+    "m22ccccca604b": "État du système — Braavolabs",
+    "m545df19cd499": "Sonde de disponibilité en direct du point de terminaison API public de Braavolabs.",
+    "m5231bbf800e5": "État du système Braavolabs",
+    "m371d913a6d14": "Assistance — Braavolabs",
+    "m43f347f64d40": "Obtenez de l'aide sur Braavolabs : canaux de contact, délais de réponse, facturation et abonnements, suppression de compte et questions fréquentes.",
+    "me4c0f5357766": "Assistance Braavolabs",
+    "mee5a52d3051f": "Canaux de contact, délais de réponse, aide sur la facturation et les abonnements, suppression de compte et questions fréquentes."
+  },
+  "runtime": {
+    "mb39b93c48c24": "Connectez-vous pour utiliser une configuration de départ.",
+    "m2eb2d91c4f3b": "Impossible de créer la configuration de départ.",
+    "mcdd1de1ae01a": "Utiliser la configuration de départ : {value0}",
+    "m838f9adcc123": "1 exécution d'essai",
+    "m9a021a4b3454": "{count, plural, one {# exécution d'essai} other {# exécutions d'essai}}",
+    "ma5a28bb26fde": "{count, plural, one {# agent} other {# agents}}",
+    "m014789a56e1d": "{count, plural, one {# étape de pipeline} other {# étapes de pipeline}}",
+    "ma682e26e6a31": "Impossible de charger la prévision",
+    "m05d6a641b6be": "Échec de l'enregistrement",
+    "mab698ba77c6c": "Impossible de charger le test",
+    "m0118f642c901": "Échec de {value0}",
+    "m69c8b86fae03": "Échec de l'enregistrement",
+    "m78e828adf24c": "Échec de la suppression",
+    "m1368805fe919": "Émetteur",
+    "mb525865201ae": "ID client",
+    "ma2a8e033d138": "URI de redirection",
+    "m092455f07cd1": "Portées",
+    "m6dc7542014dc": "Demandes d'approbation",
+    "m29a34a94a498": "Notification push lorsqu'une exécution nécessite une approbation de dépense",
+    "m84ed19090410": "Arrêt lié au risque déclenché",
+    "mb195583a6e7f": "Notification push lorsqu'un arrêt impératif interrompt une exécution",
+    "m13641fc2a8c0": "Exécution terminée",
+    "m6e87b3db013a": "Notifier lorsqu'une exécution se termine",
+    "m9d5e808eecb2": "{value0} $/mois",
+    "m26f640894104": "{count, plural, one {# exécution/mois} other {# exécutions/mois}}",
+    "m5e369d5a7fd5": "Fournisseur local auto-hébergé (Ollama / LM Studio)",
+    "mc058d692e6cc": "Approbation de dépense requise",
+    "me68fc6aed4e7": "Actions de dépense prises en charge",
+    "m04508baa9aeb": "Seuil de détection des boucles",
+    "m4021017c235b": "5 échecs consécutifs",
+    "m6774e7b32e15": "Seuil d'anomalie de coût",
+    "md2687779b5c7": "20 % du budget de l'exécution",
+    "m51e462c03da2": "Protection contre le spam",
+    "m10bc771116e0": "3+ sans réponse = bloqué",
+    "m7ae7fcaafb64": "Promotion automatique en mémoire",
+    "me92d7c3eb5e2": "confiance ≥ 0,7 ; nombre ≥ 3",
+    "m74769711684e": "Exigence du Holding Brain",
+    "m27e8635ece5f": "2+ entreprises avec le même schéma",
+    "m31f4062639ad": "✓ Connexion réussie — réponse du modèle : « {value0} »",
+    "mf0b59374b988": "Déclencher le pipeline d'acquisition sur un nouveau prospect",
+    "mc3af8f5ac774": "Contenu approuvé pour publication",
+    "m5275b74361ed": "Traiter le paiement et mettre à jour le CRM",
+    "m1cd72a8c1a04": "Orienter vers un agent de réussite client",
+    "m797c03ac6662": "Recommandé",
+    "ma571fa84edbc": "Converti",
+    "m48fa986d975f": "Récompenses",
+    "me94e85e1777c": "Aller à {value0}",
+    "m9b917859a22b": "Lire l'article à la une : {value0}",
+    "m5452b7363001": "Lire l'article : {value0}",
+    "ma735f1949098": "Lire la documentation : {value0}",
+    "m47982c49bbdd": "Partir de l'idée : {value0}",
+    "maabffdc5b99f": "{count, plural, one {# agent} other {# agents}}",
+    "m4b89a821f42b": "Nombre de pipelines : {value0}",
+    "madc0d2e17f7e": "Acq.",
+    "mb5d24bc5498c": "Ventes",
+    "madf7dfd9a03b": "Ops",
+    "mf61fa075a25a": "Anal.",
+    "m837fc70634da": "Mém.",
+    "m920294cc4569": "Cont.",
+    "m42ac3e609710": "Gouv.",
+    "m7034fec532bb": "Contacter l'assistance",
+    "m34f6a807aeb9": "Abonnements, achats et remboursements",
+    "m616706013792": "Questions fréquentes",
+    "me01516c0ee66": "Signaler un bug",
+    "me4b47da679e8": "Politiques",
+    "m8e94897c7807": "Lien vers {value0}",
+    "m6c6656e064e0": "Étape {value0} {value1}, coût {value2}, durée {value3}",
+    "m9f9acdbf39bc": "Espaces de travail",
+    "m3800b6e67ce8": "illimité sur {value0}",
+    "mdd0763b9fc75": "/mois",
+    "m8502572a269d": "Compte unique",
+    "m8779b63b388b": "Inférence non incluse",
+    "m739f35478664": "BYOK du tenant ou fournisseurs locaux",
+    "m4d03ba19634f": "5 espaces de travail",
+    "m7ab3157462b0": "Aucun crédit de modèle financé par l'offre",
+    "m6c35c098be76": "/place active/mois",
+    "ma8499c1fc913": "Facturation par place active",
+    "m5ad4deeaabd5": "20 espaces de travail",
+    "m3fcd392b558f": "Collaboration en équipe",
+    "m1e3a5507bb67": " +{value0} de plus",
+    "ma301be6d35b3": " · dernière fois : {value0}",
+    "m67cb524a0f61": "Dernière vérification : {value0} (votre heure locale)",
+    "m45fd9c2d5d48": " · dernière exécution {value0}",
+    "mfe990aab3694": "{value0} a démarré — étapes mises en file",
+    "m7a54036ca778": "Demande d'approbation de dépense ouverte — {value0} en attente de vérification",
+    "me54aaeee8d00": "Événement de risque déclenché",
+    "mf7ae3905e563": "Exporter",
+    "mcb6f0d51a4bc": "Utilisez votre propre clé de fournisseur prise en charge ou un point de terminaison local configuré.",
+    "me3cc0f802723": "Pilotez et approuvez depuis votre téléphone",
+    "m0bbeaac0b690": "Étape {value0}",
+    "mc9d5631084a5": "Tableau de bord",
+    "m596d0616eb4f": "Pipelines",
+    "mc8f971fe29fd": "Exécutions",
+    "ma865952c238b": "Agents",
+    "m76c4258af622": "Entreprises",
+    "ma4435cd673fd": "Déclencheur",
+    "m2908b886157a": "Agent",
+    "meb5355c74849": "Appel d'outil",
+    "m363f4a3ae095": "Point de contrôle d'approbation",
+    "m6fd0e25bdccd": "Branche",
+    "m08da7504b591": "Sortie",
+    "mb912b05f4583": "dézoomer",
+    "m550677a88028": "ajuster",
+    "m015ee12489d3": "zoomer",
+    "m0d18e6731423": "Vue d'ensemble",
+    "m99c2fc0bb65c": "Demander la suppression par e-mail",
+    "md2fa5c7e5df0": "Vérification et prochaines étapes",
+    "me4c98c0271e8": "Disponibilité actuelle",
+    "m000165a9f23d": "Ce qui est supprimé",
+    "m4178821e2ee3": "Ce que nous conservons — et pourquoi",
+    "m21ce09941e6e": "Calendrier",
+    "mc5d1045cc31b": "Abonnements actifs",
+    "md772994860a6": "Questions",
+    "localeSaveFailed": "Impossible d'enregistrer la préférence de langue. Vérifiez les paramètres de cookies du navigateur et réessayez ; la langue actuelle reste inchangée.",
+    "workspaces": "{count, plural, one {# espace de travail} other {# espaces de travail}}",
+    "connectedAutomations": "{count, plural, one {# automatisation connectée} other {# automatisations connectées}}",
+    "events": "{count, plural, one {# événement enregistré} other {# événements enregistrés}}",
+    "channels": "{count, plural, one {# canal} other {# canaux}}",
+    "genericRest": "Connexion REST générique",
+    "providerOllama": "Ollama (auto-hébergé)",
+    "providerLmStudio": "LM Studio (auto-hébergé)",
+    "providerCustom": "Fournisseur personnalisé compatible OpenAI",
+    "ollamaHint": "Installez Ollama depuis ollama.com, exécutez `ollama pull gemma3:4b`, puis laissez `ollama serve` en cours d'exécution.",
+    "lmStudioHint": "Installez LM Studio depuis lmstudio.ai, chargez un modèle, puis démarrez son serveur local.",
+    "customProviderHint": "Configurez un point de terminaison /v1/chat/completions compatible OpenAI. Vérifiez l'exploitant du point de terminaison et les exigences du modèle.",
+    "directoryNote": "Cet annuaire répertorie des exemples et modèles d'intégration. Il ne confirme pas que chaque connexion est implémentée, configurée ou disponible sur votre compte.",
+    "catalogEntry": "Entrée de l'annuaire",
+    "supportedConnections": "Examiner les connexions prises en charge",
+    "categoryMarketing": "Marketing",
+    "categorySales": "Ventes",
+    "categoryContent": "Contenu",
+    "categoryOps": "Opérations",
+    "categoryResearch": "Recherche",
+    "categoryFinance": "Finance",
+    "categorySupport": "Assistance",
+    "categoryFounder": "Fondateur",
+    "providerKeys": "Utilisez votre propre clé de fournisseur prise en charge ou un point de terminaison local configuré.",
+    "connectionTestFailed": "Le test de connexion a échoué. Vérifiez la configuration et réessayez.",
+    "pipelineStepCount": "{count, plural, one {# étape} other {# étapes}}",
+    "unknownState": "État inconnu"
   }
 }

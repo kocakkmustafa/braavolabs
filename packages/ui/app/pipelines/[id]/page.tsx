@@ -1,4 +1,14 @@
 "use client";
+import { useDisplayFormats } from "../../../lib/useDisplayFormats";
+
+import { useLocale as useRelativeLocale } from "next-intl";
+
+import { useLocalizedFailure } from "../../../lib/localized-error";
+
+import { useTranslations as useRuntimeTranslations } from "next-intl";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 /**
  * /pipelines/[id] — single pipeline detail.
@@ -92,11 +102,16 @@ const STEP_TYPE_COLORS: Record<string, string> = {
   agent:   "#3B82F6",
   tool:    "#7DD3FC",
   gate:    "#FF7A1A",
-  branch:  "#9AA3B2",
+  branch:  "var(--color-on-surface-variant)",
   output:  "#60A5FA",
 };
 
 export default function PipelineDetailPage() {
+  const displayFormat = useDisplayFormats();
+  const relativeLocale = useRelativeLocale();
+  const describeFailure = useLocalizedFailure();
+  const runtimeCopy = useRuntimeTranslations("runtime");
+  const uiText = useLegacyTranslations("uiCopy");
   const { token, hydrated } = useAuthGuard();
   const t = useTranslations();
   const router = useRouter();
@@ -142,7 +157,7 @@ export default function PipelineDetailPage() {
     api
       .getPipeline(token, pipelineId)
       .then(setPipeline)
-      .catch((e) => setErr(e instanceof Error ? e.message : t("app.pipelineDetail.loadFailed")))
+      .catch((e) => setErr(describeFailure(e, t("app.pipelineDetail.loadFailed"))))
       .finally(() => setLoaded(true));
   }, [token, pipelineId]);
 
@@ -167,7 +182,7 @@ export default function PipelineDetailPage() {
       const run = await api.triggerRun(token, pipelineId);
       if (run?.id) router.push(`/runs/${run.id}`);
     } catch (e) {
-      setRunErr(e instanceof Error ? e.message : t("app.pipelineDetail.runFailed"));
+      setRunErr(describeFailure(e, t("app.pipelineDetail.runFailed")));
       setRunning(false);
     }
   }
@@ -193,7 +208,7 @@ export default function PipelineDetailPage() {
       setPipeline(fresh);
       setEditing(false);
     } catch (e) {
-      setSettingsErr(e instanceof Error ? e.message : t("app.pipelineDetail.saveFailed"));
+      setSettingsErr(describeFailure(e, t("app.pipelineDetail.saveFailed")));
     } finally {
       setSavingSettings(false);
     }
@@ -254,7 +269,7 @@ export default function PipelineDetailPage() {
       // parallel, else advances to a new stage. This is what lets the editor
       // express the engine's same-order ⇒ concurrent semantics.
       const steps = stepDraft.map((s, i) => ({
-        name: s.name.trim() || `Step ${i + 1}`,
+        name: s.name.trim() || runtimeCopy("m0bbeaac0b690", { value0: i + 1 }),
         agentRole: s.agentRole.trim(),
         order: stageIndexFor(stepDraft, i),
       }));
@@ -263,7 +278,7 @@ export default function PipelineDetailPage() {
       setPipeline(fresh);
       setEditingSteps(false);
     } catch (e) {
-      setStepsErr(e instanceof Error ? e.message : t("app.pipelineDetail.saveStepsFailed"));
+      setStepsErr(describeFailure(e, t("app.pipelineDetail.saveStepsFailed")));
     } finally {
       setSavingSteps(false);
     }
@@ -361,9 +376,9 @@ export default function PipelineDetailPage() {
         {/* ── Rail / Sidebar ── */}
         <nav
           style={{
-            background: "rgba(11,13,18,0.82)",
+            background: "var(--color-surface-container-low)",
             backdropFilter: "blur(20px)",
-            borderRight: "1px solid var(--bv-glass-border)",
+            borderInlineEnd: "1px solid var(--bv-glass-border)",
             display: "flex",
             flexDirection: "column",
             padding: "20px 14px",
@@ -401,11 +416,11 @@ export default function PipelineDetailPage() {
 
           {/* Nav items */}
           {[
-            { href: "/dashboard", icon: "dashboard", label: "Dashboard" },
-            { href: "/pipelines", icon: "account_tree", label: "Pipelines", active: true },
-            { href: "/runs", icon: "play_circle", label: "Runs" },
-            { href: "/agents", icon: "smart_toy", label: "Agents" },
-            { href: "/companies", icon: "business", label: "Companies" },
+            { href: "/dashboard", icon: "dashboard", label: runtimeCopy("mc9d5631084a5") },
+            { href: "/pipelines", icon: "account_tree", label: runtimeCopy("m596d0616eb4f"), active: true },
+            { href: "/runs", icon: "play_circle", label: runtimeCopy("mc8f971fe29fd") },
+            { href: "/agents", icon: "smart_toy", label: runtimeCopy("ma865952c238b") },
+            { href: "/companies", icon: "business", label: runtimeCopy("m76c4258af622") },
           ].map((item) => (
             <Link
               key={item.href}
@@ -419,7 +434,7 @@ export default function PipelineDetailPage() {
                 fontSize: 13,
                 fontWeight: item.active ? 600 : 400,
                 textDecoration: "none",
-                color: item.active ? "#60A5FA" : "var(--color-on-surface-variant)",
+                color: item.active ? "var(--color-primary)" : "var(--color-on-surface-variant)",
                 background: item.active ? "rgba(59,130,246,0.10)" : "transparent",
                 border: item.active ? "1px solid rgba(59,130,246,0.18)" : "1px solid transparent",
                 transition: "all 0.18s",
@@ -434,9 +449,9 @@ export default function PipelineDetailPage() {
         {/* ── Palette — step types to drag in ── */}
         <aside
           style={{
-            background: "rgba(11,13,18,0.70)",
+            background: "var(--color-surface-container-low)",
             backdropFilter: "blur(14px)",
-            borderRight: "1px solid var(--bv-glass-border)",
+            borderInlineEnd: "1px solid var(--bv-glass-border)",
             padding: "18px 14px",
             overflowY: "auto",
             display: "flex",
@@ -446,17 +461,15 @@ export default function PipelineDetailPage() {
           <p
             className="bv-micro"
             style={{ marginBottom: 14 }}
-          >
-            Step types · drag in
-          </p>
+          >{uiText("m4c15cd976fb7")}</p>
 
           {[
-            { type: "trigger", icon: "bolt",         label: "Trigger",       color: "#FF7A1A" },
-            { type: "agent",   icon: "smart_toy",    label: "Agent",         color: "#3B82F6" },
-            { type: "tool",    icon: "construction", label: "Tool call",     color: "#7DD3FC" },
-            { type: "gate",    icon: "approval",     label: "Approval gate", color: "#FF7A1A" },
-            { type: "branch",  icon: "call_split",   label: "Branch",        color: "#9AA3B2" },
-            { type: "output",  icon: "output",       label: "Output",        color: "#60A5FA" },
+            { type: "trigger", icon: "bolt",         label: runtimeCopy("ma4435cd673fd"),       color: "#FF7A1A" },
+            { type: "agent",   icon: "smart_toy",    label: runtimeCopy("m2908b886157a"),         color: "#3B82F6" },
+            { type: "tool",    icon: "construction", label: runtimeCopy("meb5355c74849"),     color: "#7DD3FC" },
+            { type: "gate",    icon: "approval",     label: runtimeCopy("m363f4a3ae095"), color: "#FF7A1A" },
+            { type: "branch",  icon: "call_split",   label: runtimeCopy("m6fd0e25bdccd"),        color: "var(--color-on-surface-variant)" },
+            { type: "output",  icon: "output",       label: runtimeCopy("m08da7504b591"),        color: "var(--color-primary)" },
           ].map((item) => (
             <div
               key={item.type}
@@ -467,7 +480,7 @@ export default function PipelineDetailPage() {
                 padding: "10px 12px",
                 border: "1px solid var(--bv-glass-border)",
                 borderRadius: 11,
-                background: "rgba(15,18,25,0.50)",
+                background: "var(--color-surface-container-low)",
                 marginBottom: 8,
                 cursor: "grab",
                 fontSize: 13,
@@ -543,7 +556,7 @@ export default function PipelineDetailPage() {
             <div
               style={{
                 display: "inline-flex",
-                background: "rgba(15,18,25,0.80)",
+                background: "var(--color-surface-container-low)",
                 backdropFilter: "blur(14px)",
                 border: "1px solid var(--bv-glass-border)",
                 borderRadius: 10,
@@ -589,7 +602,7 @@ export default function PipelineDetailPage() {
                   fontWeight: 600,
                   textTransform: "uppercase",
                   letterSpacing: "0.02em",
-                  marginLeft: 6,
+                  marginInlineStart: 6,
                   color: "var(--color-on-surface)",
                 }}
               >
@@ -597,7 +610,7 @@ export default function PipelineDetailPage() {
               </span>
             ) : null}
 
-            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ marginInlineStart: "auto", display: "flex", alignItems: "center", gap: 8 }}>
               {/* Schedule / cron note */}
               {pipeline?.trigger?.toUpperCase() === "SCHEDULED" && pipeline.schedule && (
                 <span
@@ -609,7 +622,7 @@ export default function PipelineDetailPage() {
                     border: "1px solid var(--bv-glass-border)",
                     borderRadius: 7,
                     padding: "4px 8px",
-                    marginRight: 4,
+                    marginInlineEnd: 4,
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 5,
@@ -671,8 +684,8 @@ export default function PipelineDetailPage() {
               overflowY: "auto",
               paddingTop: 68,
               paddingBottom: 72,
-              paddingLeft: 16,
-              paddingRight: 16,
+              paddingInlineStart: 16,
+              paddingInlineEnd: 16,
               zIndex: 1,
             }}
           >
@@ -719,7 +732,7 @@ export default function PipelineDetailPage() {
                         border: "1px solid var(--bv-glass-border)",
                         borderRadius: 10,
                         background: "rgba(255,255,255,0.02)",
-                        marginLeft: i > 0 && s.parallel ? 20 : 0,
+                        marginInlineStart: i > 0 && s.parallel ? 20 : 0,
                       }}
                     >
                       <span className="bv-pill bv-pill-muted">
@@ -733,13 +746,13 @@ export default function PipelineDetailPage() {
                           background: s.parallel ? "rgba(59,130,246,0.12)" : "transparent",
                           border: s.parallel ? "1px solid rgba(59,130,246,0.3)" : "1px solid rgba(255,255,255,0.08)",
                           borderRadius: 8,
-                          color: s.parallel ? "#60A5FA" : "var(--color-outline)",
+                          color: s.parallel ? "var(--color-primary)" : "var(--color-outline)",
                           cursor: i === 0 ? "default" : "pointer",
                           padding: "4px 6px",
                           opacity: i === 0 ? 0.25 : 1,
                           flexShrink: 0,
                         }}
-                      >
+                       aria-label={t("app.pipelineDetail.parallelToggleTitle")} type="button">
                         <span className="material-symbols-outlined" style={{ fontSize: 16 }}>call_split</span>
                       </button>
                       <input
@@ -786,7 +799,7 @@ export default function PipelineDetailPage() {
                         disabled={i === 0}
                         title={t("app.pipelineDetail.moveUp")}
                         style={{ background: "transparent", border: "none", color: "var(--color-outline)", cursor: "pointer", padding: 2, opacity: i === 0 ? 0.3 : 1 }}
-                      >
+                       aria-label={t("app.pipelineDetail.moveUp")} type="button">
                         <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_upward</span>
                       </button>
                       <button
@@ -794,14 +807,14 @@ export default function PipelineDetailPage() {
                         disabled={i === stepDraft.length - 1}
                         title={t("app.pipelineDetail.moveDown")}
                         style={{ background: "transparent", border: "none", color: "var(--color-outline)", cursor: "pointer", padding: 2, opacity: i === stepDraft.length - 1 ? 0.3 : 1 }}
-                      >
+                       aria-label={t("app.pipelineDetail.moveDown")} type="button">
                         <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_downward</span>
                       </button>
                       <button
                         onClick={() => removeStep(i)}
                         title={t("app.pipelineDetail.remove")}
                         style={{ background: "transparent", border: "none", color: "var(--color-error)", cursor: "pointer", padding: 2 }}
-                      >
+                       aria-label={t("app.pipelineDetail.remove")} type="button">
                         <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
                       </button>
                     </div>
@@ -809,7 +822,7 @@ export default function PipelineDetailPage() {
                 </div>
 
                 <p style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--color-outline)", margin: "4px 0" }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 14, color: "#60A5FA" }}>call_split</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14, color: "var(--color-primary)" }}>call_split</span>
                   {t("app.pipelineDetail.parallelHint")}
                 </p>
                 <button
@@ -911,7 +924,7 @@ export default function PipelineDetailPage() {
                             padding: 14,
                             border: "1px solid var(--bv-glass-border)",
                             borderRadius: 14,
-                            background: "rgba(15,18,25,0.55)",
+                            background: "var(--color-surface-container-low)",
                             backdropFilter: "blur(12px)",
                             position: "relative",
                           }}
@@ -941,7 +954,7 @@ export default function PipelineDetailPage() {
                                   alignItems: "center",
                                   gap: 4,
                                   fontSize: 11,
-                                  color: "#60A5FA",
+                                  color: "var(--color-primary)",
                                   background: "rgba(59,130,246,0.08)",
                                   border: "1px solid rgba(59,130,246,0.18)",
                                   borderRadius: 999,
@@ -996,9 +1009,9 @@ export default function PipelineDetailPage() {
             }}
           >
             {[
-              { icon: "remove", label: "zoom out" },
-              { icon: "fit_screen", label: "fit" },
-              { icon: "add", label: "zoom in" },
+              { icon: "remove", label: runtimeCopy("mb912b05f4583") },
+              { icon: "fit_screen", label: runtimeCopy("m550677a88028") },
+              { icon: "add", label: runtimeCopy("m015ee12489d3") },
             ].map((btn) => (
               <button
                 key={btn.label}
@@ -1007,7 +1020,7 @@ export default function PipelineDetailPage() {
                   width: 36,
                   height: 36,
                   borderRadius: 9,
-                  background: "rgba(15,18,25,0.80)",
+                  background: "var(--color-surface-container-low)",
                   backdropFilter: "blur(10px)",
                   border: "1px solid var(--bv-glass-border)",
                   color: "var(--color-on-surface)",
@@ -1041,7 +1054,7 @@ export default function PipelineDetailPage() {
               zIndex: 20,
               width: 160,
               height: 104,
-              background: "rgba(11,13,18,0.80)",
+              background: "var(--color-surface-container-low)",
               border: "1px solid var(--bv-glass-border)",
               borderRadius: 10,
               overflow: "hidden",
@@ -1069,9 +1082,9 @@ export default function PipelineDetailPage() {
         {/* ── Inspector panel (right) ── */}
         <aside
           style={{
-            background: "rgba(11,13,18,0.70)",
+            background: "var(--color-surface-container-low)",
             backdropFilter: "blur(14px)",
-            borderLeft: "1px solid var(--bv-glass-border)",
+            borderInlineStart: "1px solid var(--bv-glass-border)",
             padding: "20px 18px",
             overflowY: "auto",
             display: "flex",
@@ -1079,7 +1092,7 @@ export default function PipelineDetailPage() {
             gap: 18,
           }}
         >
-          <p className="bv-micro">Inspector</p>
+          <p className="bv-micro">{uiText("ma71448498846")}</p>
 
           {/* Pipeline metadata card */}
           {!loaded ? (
@@ -1250,10 +1263,8 @@ export default function PipelineDetailPage() {
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <p className="bv-micro">Step inspector</p>
-                  <p style={{ fontSize: 13, color: "var(--color-outline)", margin: 0 }}>
-                    Select a step in the canvas to configure it.
-                  </p>
+                  <p className="bv-micro">{uiText("mc0068fffc436")}</p>
+                  <p style={{ fontSize: 13, color: "var(--color-outline)", margin: 0 }}>{uiText("m73f2d28a8195")}</p>
                 </div>
               )}
 
@@ -1330,11 +1341,11 @@ export default function PipelineDetailPage() {
                             <span style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                               {cost != null && (
                                 <span className="bv-mono" style={{ fontSize: 10, color: "var(--color-outline)" }}>
-                                  ${cost.toFixed(2)}
+                                  {displayFormat.usd(cost)}
                                 </span>
                               )}
                               <span className="bv-caption" style={{ fontSize: 10 }}>
-                                {timeAgo(r.createdAt ?? r.startedAt ?? "")}
+                                {timeAgo(r.createdAt ?? r.startedAt ?? "", relativeLocale)}
                               </span>
                               <span className="material-symbols-outlined" style={{ fontSize: 14, color: "var(--color-outline)" }}>
                                 chevron_right
@@ -1386,6 +1397,8 @@ function RevisionHistoryModal({
   onClose: () => void;
   t: ReturnType<typeof useTranslations>;
 }) {
+  const relativeLocale = useRelativeLocale();
+  const uiText = useLegacyTranslations("uiCopy");
   return (
     <div
       onClick={onClose}
@@ -1411,12 +1424,12 @@ function RevisionHistoryModal({
           className="flex items-center gap-3"
           style={{ padding: "18px 22px", borderBottom: "1px solid var(--bv-glass-border)" }}
         >
-          <span className="material-symbols-outlined" style={{ fontSize: 19, color: "#60A5FA" }}>history</span>
+          <span className="material-symbols-outlined" style={{ fontSize: 19, color: "var(--color-primary)" }}>history</span>
           <div style={{ flex: 1 }}>
             <h3 className="bv-title" style={{ margin: 0 }}>{t("app.revisions.title")}</h3>
             <p className="bv-caption" style={{ margin: 0 }}>{t("app.revisions.subtitle")}</p>
           </div>
-          <button onClick={onClose} className="bv-btn bv-btn-ghost bv-btn-icon" aria-label="Close">
+          <button onClick={onClose} className="bv-btn bv-btn-ghost bv-btn-icon" aria-label={uiText("me279e93feaa2")}>
             <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
           </button>
         </div>
@@ -1454,7 +1467,7 @@ function RevisionHistoryModal({
                       </span>
                     </div>
                     <p className="bv-caption" style={{ margin: "4px 0 0" }}>
-                      {timeAgo(rev.createdAt)}
+                      {timeAgo(rev.createdAt, relativeLocale)}
                     </p>
                   </div>
                   <button
@@ -1499,7 +1512,7 @@ function StepRow({ step }: { step: PipelineStep }) {
           border: "1px solid rgba(59,130,246,0.18)",
         }}
       >
-        <span className="material-symbols-outlined" style={{ fontSize: 15, color: "#60A5FA" }}>smart_toy</span>
+        <span className="material-symbols-outlined" style={{ fontSize: 15, color: "var(--color-primary)" }}>smart_toy</span>
       </span>
       <div style={{ minWidth: 0 }}>
         <div style={{ fontWeight: 600, color: "var(--color-on-surface)", fontSize: 13 }}>{step.name}</div>
@@ -1533,13 +1546,6 @@ function PipelineRunStatus({ status }: { status: string }) {
 
 /** Format a USD estimate with precision that suits the magnitude — sub-cent
  *  numbers need more decimals to read as anything other than "$0.00". */
-function fmtEstimateUsd(n: number): string {
-  if (n <= 0) return "$0";
-  if (n < 0.01) return `$${n.toFixed(4)}`;
-  if (n < 1) return `$${n.toFixed(3)}`;
-  if (n < 100) return `$${n.toFixed(2)}`;
-  return `$${Math.round(n)}`;
-}
 
 /* ── Pre-run cost estimate chip (D3) ──────────────────────────────────────
  * Differentiator: a per-run cost ESTIMATE before you press Run. Honest by
@@ -1557,6 +1563,7 @@ function CostEstimateChip({
   failed: boolean;
   t: ReturnType<typeof useTranslations>;
 }) {
+  const displayFormat = useDisplayFormats();
   // Nothing to show yet (loading) — stay quiet rather than flashing.
   if (!estimate && !failed) return null;
 
@@ -1567,9 +1574,6 @@ function CostEstimateChip({
   if (failed) {
     text = t("app.cost.estimateFailed");
     showBadge = false;
-  } else if (estimate!.isFree) {
-    text = t("app.cost.estimateFree");
-    showBadge = false;
   } else if (!estimate!.configured) {
     text = t("app.cost.estimateNotConfigured");
     showBadge = false;
@@ -1579,8 +1583,8 @@ function CostEstimateChip({
   } else {
     text =
       t("app.cost.estimateLabel", {
-        low: fmtEstimateUsd(estimate!.lowUsd),
-        high: fmtEstimateUsd(estimate!.highUsd),
+        low: displayFormat.usd(estimate!.lowUsd),
+        high: displayFormat.usd(estimate!.highUsd),
       }) + t("app.cost.estimateModelSuffix", { model: estimate!.model });
   }
 
@@ -1601,7 +1605,7 @@ function CostEstimateChip({
         cursor: "help",
       }}
     >
-      <span className="material-symbols-outlined" style={{ fontSize: 14, color: "#60A5FA" }}>
+      <span className="material-symbols-outlined" style={{ fontSize: 14, color: "var(--color-primary)" }}>
         payments
       </span>
       <span className="bv-mono">{text}</span>
@@ -1612,7 +1616,7 @@ function CostEstimateChip({
             fontSize: 9,
             textTransform: "uppercase",
             letterSpacing: "0.08em",
-            color: "#60A5FA",
+            color: "var(--color-primary)",
             opacity: 0.8,
           }}
         >

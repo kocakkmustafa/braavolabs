@@ -1,4 +1,6 @@
 "use client";
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -8,6 +10,7 @@ import { useAuthGuard } from "@/lib/useAuthGuard";
 import { useAppStore, captureAuthSession, isAuthSessionCurrent } from "@/lib/store";
 
 function ExportPageContent() {
+  const uiText = useLegacyTranslations("uiCopy");
   const { id } = useParams<{ id: string }>();
   const { token } = useAuthGuard();
   const t = useTranslations();
@@ -132,7 +135,7 @@ function ExportPageContent() {
                       <span className="material-symbols-outlined text-primary" style={{ fontSize: 18 }}>
                         description
                       </span>
-                      <span className="bv-title text-sm font-semibold">CLAUDE.md</span>
+                      <span className="bv-title text-sm font-semibold">{"CLAUDE.md"}</span>
                     </div>
                     <div className="flex gap-2">
                       <button

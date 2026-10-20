@@ -1,4 +1,6 @@
 "use client";
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -28,6 +30,7 @@ const ROUTE_LABEL_KEYS: Record<string, string> = {
 const nameCache: Record<string, string> = {};
 
 export default function Breadcrumb() {
+  const uiText = useLegacyTranslations("uiCopy");
   const pathname = usePathname();
   const t = useTranslations();
   const token = useAppStore((s) => s.token);
@@ -77,21 +80,21 @@ export default function Breadcrumb() {
   });
 
   return (
-    <nav className="flex items-center gap-1.5 px-4 sm:px-6 pt-4 pb-0 text-xs" aria-label="Breadcrumb">
-      <Link href="/" className="flex items-center" style={{ color: "#3c494e", textDecoration: "none" }}>
+    <nav className="flex items-center gap-1.5 px-4 sm:px-6 pt-4 pb-0 text-xs" aria-label={uiText("me0038ce40084")}>
+      <Link href="/" className="flex items-center" style={{ color: "var(--color-on-surface-variant)", textDecoration: "none" }}>
         <span className="material-symbols-outlined" style={{ fontSize: 14 }}>home</span>
       </Link>
       {crumbs.map((crumb) => (
         <span key={crumb.href} className="flex items-center gap-1.5">
-          <span style={{ color: "#3c494e" }}>/</span>
+          <span style={{ color: "var(--color-on-surface-variant)" }}>/</span>
           {crumb.isLast ? (
-            <span style={{ color: "#859399", fontWeight: 500 }}>{crumb.label}</span>
+            <span style={{ color: "var(--color-on-surface-variant)", fontWeight: 500 }}>{crumb.label}</span>
           ) : (
             <Link
               href={crumb.href}
-              style={{ color: "#3c494e", textDecoration: "none" }}
+              style={{ color: "var(--color-on-surface-variant)", textDecoration: "none" }}
               onMouseEnter={(e) => { e.currentTarget.style.color = "#00d1ff"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "#3c494e"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--color-on-surface-variant)"; }}
             >
               {crumb.label}
             </Link>

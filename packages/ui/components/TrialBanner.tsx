@@ -1,4 +1,6 @@
 "use client";
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 /**
  * Trial LLM banner — surfaced on the dashboard when a FREE-plan tenant
@@ -33,7 +35,11 @@ interface TrialBannerProps {
 }
 
 export default function TrialBanner({ token }: TrialBannerProps) {
-  const [trial, setTrial] = useState<TrialState | null>(null);
+  const uiText = useLegacyTranslations("uiCopy");
+  const copy = useLegacyTranslations("surface.trial");
+  const common = useLegacyTranslations("app.settings");
+  const [loadedTrial, setTrial] = useState<{ token: string; data: TrialState } | null>(null);
+  const trial = loadedTrial && loadedTrial.token === token ? loadedTrial.data : null;
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
@@ -46,7 +52,7 @@ export default function TrialBanner({ token }: TrialBannerProps) {
         // we never want a transient API blip to scare users with a
         // "trial exhausted" message that wasn't true.
         const me = await api.users.me(token);
-        if (alive && me?.trial) setTrial(me.trial as TrialState);
+        if (alive && me?.trial) setTrial({ token, data: me.trial as TrialState });
       } catch {
         // Ignore — banner is non-critical.
       }
@@ -75,27 +81,17 @@ export default function TrialBanner({ token }: TrialBannerProps) {
             local_fire_department
           </span>
           <div className="flex-1">
-            <p className="font-semibold text-amber-200">
-              Your {trial.limit} free trial runs are used up.
-            </p>
-            <p className="mt-1 text-amber-100/80">
-              To keep running pipelines, add your own AI provider API key in
-              Settings (BYOK — works with Anthropic, OpenAI, Google, Groq, and 8
-              more) or upgrade to a paid plan.
-            </p>
+            <p className="font-semibold text-on-surface">{copy("exhausted", { limit: trial.limit })}</p>
+            <p className="mt-1 text-on-surface-variant">{copy("funding")}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Link
                 href="/settings"
                 className="rounded-full bg-amber-300 px-4 py-1.5 text-xs font-semibold text-amber-950 transition hover:bg-amber-200"
-              >
-                Add API key
-              </Link>
+              >{uiText("m7b55bcf0daed")}</Link>
               <Link
                 href="/pricing"
-                className="rounded-full border border-amber-300/50 px-4 py-1.5 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/15"
-              >
-                See pricing
-              </Link>
+                className="rounded-full border border-amber-300/50 px-4 py-1.5 text-xs font-semibold text-on-surface transition hover:bg-amber-500/15"
+              >{common("viewPlans")}</Link>
             </div>
           </div>
         </div>
@@ -116,21 +112,15 @@ export default function TrialBanner({ token }: TrialBannerProps) {
           rocket_launch
         </span>
         <div className="flex-1">
-          <p className="font-semibold text-emerald-200">
-            {trial.remaining} of {trial.limit} free trial runs left
-          </p>
-          <p className="mt-1 text-emerald-100/80">
-            We'll route the next {trial.remaining}{" "}
-            {trial.remaining === 1 ? "pipeline run" : "pipeline runs"} through
-            our Groq trial pool — no API key required. After that, add your own
-            key (BYOK) to keep running.
-          </p>
+          <p className="font-semibold text-on-surface">
+            {copy("remaining", { count: trial.remaining, limit: trial.limit })}</p>
+          <p className="mt-1 text-on-surface-variant">{copy("funding")}</p>
         </div>
         <button
           type="button"
           onClick={() => setDismissed(true)}
-          className="text-emerald-200/70 transition hover:text-emerald-100"
-          aria-label="Dismiss"
+          className="text-on-surface-variant transition hover:text-on-surface p-2 min-w-11 min-h-11"
+          aria-label={uiText("m6a6c1557497e")}
         >
           <span className="material-symbols-outlined text-base">close</span>
         </button>

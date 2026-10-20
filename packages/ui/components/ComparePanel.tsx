@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedUiError, useLocalizedFailure } from "../lib/localized-error";
+
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
@@ -23,6 +25,7 @@ function waitForPoll(signal: AbortSignal): Promise<void> {
 /** Each mounted company/auth owner owns its metadata, submit latch and poll.
  * Retired requests can neither publish results nor unlock a newer submission. */
 export default function ComparePanel({ companyId }: { companyId: string }) {
+  const describeFailure = useLocalizedFailure();
   const t = useTranslations("app.compare");
   const revision = useAppStore(s => s.sessionRevision);
   const tenantId = useAppStore(s => s.tenantId);
@@ -41,7 +44,7 @@ export default function ComparePanel({ companyId }: { companyId: string }) {
     setStored(next);
   };
   const token = () => current() ? useAppStore.getState().token : null;
-  const message = (error: unknown) => error instanceof Error ? error.message : t("requestFailed");
+  const message = (error: unknown) => describeFailure(error, t("requestFailed"));
 
   async function loadOptions() {
     const accessToken = token();
@@ -129,15 +132,15 @@ export default function ComparePanel({ companyId }: { companyId: string }) {
         if (!pollToken || !ownsRun()) return;
         const session = await api.compareSession(pollToken, started.id, companyId, run.controller.signal);
         if (!ownsRun()) return;
-        if (session.status === "FAILED") throw new Error(t("failed"));
-        if (session.status === "CANCELLED") throw new Error(t("cancelled"));
+        if (session.status === "FAILED") throw new LocalizedUiError(t("failed"));
+        if (session.status === "CANCELLED") throw new LocalizedUiError(t("cancelled"));
         if (session.status === "COMPLETED") {
           change(v => ({...v, result: session.findings!.multiModel!}));
           return;
         }
         if (attempt < 149) await waitForPoll(run.controller.signal);
       }
-      throw new Error(t("timeout"));
+      throw new LocalizedUiError(t("timeout"));
     } catch (error) {
       if (ownsRun()) change(v => ({...v, error: message(error)}));
     } finally {
@@ -199,7 +202,7 @@ export default function ComparePanel({ companyId }: { companyId: string }) {
       {view.busy && <p role="status">{t("running")}</p>}
     </form>
     {view.result && <div className="space-y-4">
-      {view.result.failed.map(row => <p key={selectionKey(row)} role="alert">{row.provider} / {row.model}: {row.error}</p>)}
+      {view.result.failed.map(row => <p key={selectionKey(row)} role="alert">{row.provider} / {row.model}: {t("failed")}</p>)}
       {view.result.perModel.map(row => <article key={selectionKey(row)} className="bv-glass p-4">
         <h3>{row.provider} / {row.model}</h3>
         <p className="text-sm bv-text-muted">{t("requestedEffort")}: {row.reasoningEffort ? t(row.reasoningEffort) : t("providerDefault")}</p>
@@ -209,7 +212,7 @@ export default function ComparePanel({ companyId }: { companyId: string }) {
         <h3>{t("finalAnswer")}</h3>
         <p className="text-sm bv-text-muted">{t("synthesisOutcome")}: {view.result.synthesisStatus}
           {view.result.synthesizer?.provider && ` — ${view.result.synthesizer.provider} / ${view.result.synthesizer.model ?? ""}`}</p>
-        {view.result.synthesizerError && <p role="alert">{view.result.synthesizerError}</p>}
+        {view.result.synthesizerError && <p role="alert">{t("failed")}</p>}
         <p className="whitespace-pre-wrap mt-2">{view.result.finalAnswer}</p>
       </article>
     </div>}

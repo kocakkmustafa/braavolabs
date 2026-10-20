@@ -1,4 +1,14 @@
 "use client";
+import { useDisplayFormats } from "../../../lib/useDisplayFormats";
+
+import { useLocale as useRelativeLocale } from "next-intl";
+
+import { useLocalizedFailure } from "../../../lib/localized-error";
+
+import { useTranslations as useRuntimeTranslations } from "next-intl";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 /**
  * /runs/[id] — single run detail with audit trail.
@@ -47,6 +57,9 @@ interface RunDetail {
 }
 
 export default function RunDetailPage() {
+  const relativeLocale = useRelativeLocale();
+  const describeFailure = useLocalizedFailure();
+  const uiText = useLegacyTranslations("uiCopy");
   const { token, hydrated } = useAuthGuard();
   const t = useTranslations();
   const params = useParams<{ id: string }>();
@@ -68,7 +81,7 @@ export default function RunDetailPage() {
       const res = await api.explainRun(token, runId);
       setExplain({ explanation: res.explanation, suggestedFix: res.suggestedFix, model: res.model });
     } catch (e) {
-      setExplainErr(e instanceof Error ? e.message : t("app.runExplain.error"));
+      setExplainErr(describeFailure(e, t("app.runExplain.error")));
     } finally {
       setExplainLoading(false);
     }
@@ -95,7 +108,7 @@ export default function RunDetailPage() {
     const load = () =>
       api.getRun(token, runId)
         .then((r) => { if (!cancelled) setRun(r); return r; })
-        .catch((e) => { if (!cancelled) setErr(e instanceof Error ? e.message : t("app.runAudit.loadFailed")); return null; });
+        .catch((e) => { if (!cancelled) setErr(describeFailure(e, t("app.runAudit.loadFailed"))); return null; });
 
     setLoaded(false);
     void load().then((r) => {
@@ -197,7 +210,7 @@ export default function RunDetailPage() {
                   {run.startedAt && (
                     <>
                       <span className="bv-divider-dot" aria-hidden />
-                      <span>{t("app.runAudit.startedAt", { time: timeAgo(run.startedAt) })}</span>
+                      <span>{t("app.runAudit.startedAt", { time: timeAgo(run.startedAt, relativeLocale) })}</span>
                     </>
                   )}
                   <span className="bv-divider-dot" aria-hidden />
@@ -207,13 +220,9 @@ export default function RunDetailPage() {
 
               <div className="bv-page-head-actions">
                 <button className="bv-btn bv-btn-ghost bv-btn-sm">
-                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>history</span>
-                  Rollback
-                </button>
+                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>history</span>{uiText("m9ce742313269")}</button>
                 <button className="bv-btn bv-btn-ghost bv-btn-sm">
-                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>replay</span>
-                  Rerun
-                </button>
+                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>replay</span>{uiText("mc191d4f884e6")}</button>
               </div>
             </div>
 
@@ -288,10 +297,10 @@ export default function RunDetailPage() {
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 15, color: "#60A5FA" }}>auto_awesome</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: 15, color: "var(--color-primary)" }}>auto_awesome</span>
                       <span
                         className="bv-mono"
-                        style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.08em", color: "#60A5FA" }}
+                        style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-primary)" }}
                       >
                         {t("app.runExplain.title")}
                       </span>
@@ -306,7 +315,7 @@ export default function RunDetailPage() {
                     </p>
                     {explain.suggestedFix && (
                       <div style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "flex-start" }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 15, color: "#60A5FA", marginTop: 1 }}>build</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: 15, color: "var(--color-primary)", marginTop: 1 }}>build</span>
                         <div>
                           <div
                             className="bv-mono"
@@ -345,7 +354,7 @@ export default function RunDetailPage() {
                   <div className="bv-glass bv-panel" style={{ gap: 10 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-outline)" }}>bar_chart</span>
-                      <span className="bv-micro">Cost heatmap</span>
+                      <span className="bv-micro">{uiText("mb9b248228c25")}</span>
                     </div>
                     <RunStepHeatmap
                       steps={run.steps}
@@ -439,22 +448,22 @@ export default function RunDetailPage() {
               <div style={{ position: "sticky", top: 84 }}>
                 <div className="bv-glass bv-panel" style={{ gap: 0 }}>
                   {/* Run meta section */}
-                  <div className="bv-micro" style={{ marginBottom: 14 }}>Run meta</div>
+                  <div className="bv-micro" style={{ marginBottom: 14 }}>{uiText("md4fdc87efd1b")}</div>
 
-                  <MetaRow label="Run ID" value={run.id} mono />
-                  <MetaRow label="Pipeline" value={run.pipeline?.name ?? "—"} mono />
+                  <MetaRow label={uiText("ma3d0dc878de8")} value={run.id} mono />
+                  <MetaRow label={uiText("m83d38e678178")} value={run.pipeline?.name ?? "—"} mono />
                   <MetaRow
-                    label="Steps"
+                    label={uiText("m89200cc22850")}
                     value={`${run.steps?.filter(s => ["completed","failed","cancelled"].includes(s.status.toLowerCase())).length ?? 0} / ${run.steps?.length ?? 0}`}
                     mono
                   />
                   <MetaRow
-                    label="Approvals"
+                    label={uiText("ma8322509bd8f")}
                     value={String(run.approvals?.length ?? 0)}
                     mono
                   />
                   {run.startedAt && (
-                    <MetaRow label="Duration" value={timeAgo(run.startedAt)} />
+                    <MetaRow label={uiText("m1eadff0f7d6b")} value={timeAgo(run.startedAt, relativeLocale)} />
                   )}
 
                   {/* Burn meter (D3) — live spend, honestly labelled. Budget
@@ -493,16 +502,12 @@ export default function RunDetailPage() {
                       className="bv-btn bv-btn-ghost bv-btn-sm"
                       style={{ width: "100%", justifyContent: "center" }}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: 15 }}>timeline</span>
-                      Timeline scrubber
-                    </button>
+                      <span className="material-symbols-outlined" style={{ fontSize: 15 }}>timeline</span>{uiText("m8905a490325a")}</button>
                     <button
                       className="bv-btn bv-btn-ghost bv-btn-sm"
                       style={{ width: "100%", justifyContent: "center" }}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: 15 }}>download</span>
-                      Export trail
-                    </button>
+                      <span className="material-symbols-outlined" style={{ fontSize: 15 }}>download</span>{uiText("m1dbbdb0c26b5")}</button>
                   </div>
                 </div>
               </div>
@@ -546,6 +551,9 @@ interface StepNodeProps {
 }
 
 const StepNode = forwardRef<HTMLLIElement, StepNodeProps>(function StepNode({ s, idx, isLast, t }, ref) {
+  const displayFormat = useDisplayFormats();
+  const runtimeCopy = useRuntimeTranslations("runtime");
+  const uiText = useLegacyTranslations("uiCopy");
   const [open, setOpen] = useState(false);
   const isRunning = s.status.toLowerCase() === "running";
   const isFailed  = s.status.toLowerCase() === "failed";
@@ -621,25 +629,25 @@ const StepNode = forwardRef<HTMLLIElement, StepNodeProps>(function StepNode({ s,
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
           <span
             className="bv-mono"
-            style={{ fontSize: 11.5, letterSpacing: "0.05em", color: "#60A5FA" }}
+            style={{ fontSize: 11.5, letterSpacing: "0.05em", color: "var(--color-primary)" }}
           >
             {s.agentRole ?? t("app.runAudit.agentFallback")}
           </span>
 
           {isRunning && (
-            <span className="bv-pill bv-pill-cyan">streaming</span>
+            <span className="bv-pill bv-pill-cyan">{uiText("mcf98748ad579")}</span>
           )}
 
-          <span className="bv-pill bv-pill-muted">step {idx + 1}</span>
+          <span className="bv-pill bv-pill-muted">{uiText("mc3041e2d2f2b")}{" "}{idx + 1}</span>
 
           <StatusLabel status={s.status.toLowerCase()} />
 
           {(s.costUsd != null && s.costUsd !== "") && (
             <span
               className="bv-mono"
-              style={{ marginLeft: "auto", fontSize: 11.5, color: "var(--color-outline)" }}
+              style={{ marginInlineStart: "auto", fontSize: 11.5, color: "var(--color-outline)" }}
             >
-              ${typeof s.costUsd === "number" ? s.costUsd.toFixed(4) : s.costUsd}
+              {displayFormat.usd(s.costUsd)}
             </span>
           )}
         </div>
@@ -669,7 +677,7 @@ const StepNode = forwardRef<HTMLLIElement, StepNodeProps>(function StepNode({ s,
                 alignItems: "center",
                 gap: 8,
                 width: "100%",
-                background: "rgba(5,6,10,0.6)",
+                background: "var(--color-surface-container-low)",
                 border: "1px solid var(--bv-glass-border)",
                 borderRadius: 10,
                 padding: "8px 12px",
@@ -687,9 +695,9 @@ const StepNode = forwardRef<HTMLLIElement, StepNodeProps>(function StepNode({ s,
                 terminal
               </span>
               <span style={{ color: "#7DD3FC" }}>⌖</span>
-              <span style={{ flex: 1, textAlign: "left" }}>
+              <span style={{ flex: 1, textAlign: "start" }}>
                 {s.toolCalls[0].toolName}
-                {s.toolCalls.length > 1 ? ` +${s.toolCalls.length - 1} more` : ""}
+                {s.toolCalls.length > 1 ? runtimeCopy("m1e3a5507bb67", { value0: s.toolCalls.length - 1 }) : ""}
               </span>
               <span
                 className="material-symbols-outlined"
@@ -710,7 +718,7 @@ const StepNode = forwardRef<HTMLLIElement, StepNodeProps>(function StepNode({ s,
                   listStyle: "none",
                   padding: "10px 12px",
                   margin: 0,
-                  background: "rgba(5,6,10,0.9)",
+                  background: "var(--color-surface-container-low)",
                   border: "1px solid var(--bv-glass-border)",
                   borderTop: 0,
                   borderRadius: "0 0 10px 10px",
@@ -743,13 +751,13 @@ const StepNode = forwardRef<HTMLLIElement, StepNodeProps>(function StepNode({ s,
                     {tc.durationMs != null && (
                       <span
                         className="bv-mono"
-                        style={{ color: "var(--color-outline)", marginLeft: "auto" }}
+                        style={{ color: "var(--color-outline)", marginInlineStart: "auto" }}
                       >
-                        {(tc.durationMs / 1000).toFixed(2)}s
+                        {displayFormat.duration(tc.durationMs)}
                       </span>
                     )}
                     {tc.error && (
-                      <span style={{ color: "#FF4D4D", fontSize: 11, marginLeft: 6 }}>
+                      <span style={{ color: "#FF4D4D", fontSize: 11, marginInlineStart: 6 }}>
                         {tc.error}
                       </span>
                     )}
@@ -766,7 +774,7 @@ const StepNode = forwardRef<HTMLLIElement, StepNodeProps>(function StepNode({ s,
             className="bv-mono"
             style={{ fontSize: 11, color: "var(--color-outline)", marginTop: 8 }}
           >
-            {(s.durationMs / 1000).toFixed(2)}s
+            {displayFormat.duration(s.durationMs)}
           </div>
         )}
       </div>
@@ -791,7 +799,7 @@ function MetaRow({ label, value, mono }: { label: string; value: string; mono?: 
       <span style={{ color: "var(--color-on-surface-variant)" }}>{label}</span>
       <span
         className={mono ? "bv-mono" : undefined}
-        style={{ color: "var(--color-on-surface)", fontSize: mono ? 12 : 13, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "60%" }}
+        style={{ color: "var(--color-on-surface)", fontSize: mono ? 12 : 13, textAlign: "end", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "60%" }}
       >
         {value}
       </span>
@@ -813,7 +821,9 @@ function BurnMeter({
   budgetUsd: number | null;
   t: ReturnType<typeof useTranslations>;
 }) {
-  const usd = (n: number) => (n < 1 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}`);
+  const displayFormat = useDisplayFormats();
+  const runtimeCopy = useRuntimeTranslations("runtime");
+  const usd = (n: number) => displayFormat.usd(n);
 
   // No budget set → live spend only, clearly labelled as metered.
   if (budgetUsd == null || budgetUsd <= 0) {
@@ -848,7 +858,7 @@ function BurnMeter({
         style={{
           height: 10,
           borderRadius: 6,
-          background: "rgba(5,6,10,0.8)",
+          background: "var(--color-surface-container-low)",
           border: "1px solid var(--bv-glass-border)",
           overflow: "hidden",
           position: "relative",
@@ -941,6 +951,8 @@ function HandoffPanel({
   token: string;
   t: ReturnType<typeof useTranslations>;
 }) {
+  const relativeLocale = useRelativeLocale();
+  const describeFailure = useLocalizedFailure();
   const [ledgers, setLedgers] = useState<HandoffRow[]>([]);
   const [links, setLinks] = useState<ProviderLink[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -996,7 +1008,7 @@ function HandoffPanel({
       });
       await load();
     } catch (e) {
-      setNotice({ kind: "error", text: e instanceof Error ? e.message : t("app.handoff.errorGeneric") });
+      setNotice({ kind: "error", text: describeFailure(e, t("app.handoff.errorGeneric")) });
     } finally {
       setBusy(false);
     }
@@ -1021,7 +1033,7 @@ function HandoffPanel({
       const pending = /checkpoint_pending|freezing|turn boundary/i.test(msg);
       setNotice({
         kind: pending ? "info" : "error",
-        text: pending ? t("app.handoff.pendingRetry") : msg,
+        text: pending ? t("app.handoff.pendingRetry") : describeFailure(e, t("app.handoff.errorGeneric")),
       });
     } finally {
       setBusy(false);
@@ -1086,7 +1098,7 @@ function HandoffPanel({
                 width: "100%",
                 padding: "9px 12px",
                 borderRadius: 10,
-                background: "rgba(5,6,10,0.7)",
+                background: "var(--color-surface-container-low)",
                 border: "1px solid var(--bv-glass-border)",
                 color: "var(--color-on-surface)",
                 fontSize: 13,
@@ -1125,7 +1137,7 @@ function HandoffPanel({
                     width: "100%",
                     padding: "9px 12px",
                     borderRadius: 10,
-                    background: "rgba(5,6,10,0.7)",
+                    background: "var(--color-surface-container-low)",
                     border: "1px solid var(--bv-glass-border)",
                     color: "var(--color-on-surface)",
                     fontSize: 13,
@@ -1228,8 +1240,8 @@ function HandoffPanel({
                   {l.toProvider ?? t("app.handoff.awaiting")}
                 </span>
                 <span className="bv-pill bv-pill-muted">{reasonLabel(l.reason)}</span>
-                <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--color-outline)" }}>
-                  {timeAgo(l.createdAt)}
+                <span style={{ marginInlineStart: "auto", fontSize: 11, color: "var(--color-outline)" }}>
+                  {timeAgo(l.createdAt, relativeLocale)}
                 </span>
               </li>
             ))}
@@ -1271,6 +1283,7 @@ function HandoffStatusBadge({
 
 /* ── Docked steer composer (shown when run is live) ── */
 function SteerDock({ runId, token }: { runId: string; token: string }) {
+  const uiText = useLegacyTranslations("uiCopy");
   const [value, setValue] = useState("");
   const [sending, setSending] = useState(false);
 
@@ -1328,9 +1341,7 @@ function SteerDock({ runId, token }: { runId: string; token: string }) {
             background: "var(--color-background)",
             padding: "0 8px",
           }}
-        >
-          Steer · inject guidance
-        </span>
+        >{uiText("m2c81a45dc959")}</span>
 
         <textarea
           value={value}
@@ -1338,7 +1349,7 @@ function SteerDock({ runId, token }: { runId: string; token: string }) {
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void submit();
           }}
-          placeholder={"Inject guidance into the agent's next turn… (e.g. \"only contact companies with >50 employees\")"}
+          placeholder={uiText("m6ef14dc92d42")}
           rows={1}
           style={{
             flex: 1,
@@ -1360,9 +1371,7 @@ function SteerDock({ runId, token }: { runId: string; token: string }) {
           disabled={sending || !value.trim()}
           style={{ flexShrink: 0 }}
         >
-          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>send</span>
-          Steer
-        </button>
+          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>send</span>{uiText("m597ddeea5d27")}</button>
       </div>
     </div>
   );

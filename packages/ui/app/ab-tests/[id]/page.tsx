@@ -1,4 +1,12 @@
 "use client";
+import { useDisplayFormats } from "../../../lib/useDisplayFormats";
+
+import { useLocalizedFailure } from "../../../lib/localized-error";
+
+import { useTranslations as useRuntimeTranslations } from "next-intl";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 /**
  * A/B Test Studio — single-test deep view.
@@ -86,13 +94,12 @@ const STATUS_PILL: Record<string, { pill: string; dot: string; label: string }> 
   COMPLETED: { pill: "bv-pill bv-pill-cyan",   dot: "bv-dot bv-completed", label: "Completed" },
 };
 
-function fmt(n: number): string {
-  if (Math.abs(n) >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
-  if (Math.abs(n) >= 1) return n.toFixed(2);
-  return n.toFixed(4);
-}
 
 export default function AbTestStudioPage() {
+  const displayFormat = useDisplayFormats();
+  const describeFailure = useLocalizedFailure();
+  const runtimeCopy = useRuntimeTranslations("runtime");
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -120,7 +127,7 @@ export default function AbTestStudioPage() {
           null,
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load test");
+      setError(describeFailure(err, runtimeCopy("mab698ba77c6c")));
     } finally {
       setLoading(false);
     }
@@ -151,14 +158,14 @@ export default function AbTestStudioPage() {
       if (action === "promote") await api.promoteAbTestWinner(token, test.id);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : `${action} failed`);
+      setError(describeFailure(err, runtimeCopy("m0118f642c901", { value0: action })));
     } finally {
       setActionBusy(null);
     }
   }
 
   const status = test?.status ?? "DRAFT";
-  const statusMeta = STATUS_PILL[status];
+  const statusMeta = STATUS_PILL[status] ?? { pill: "bv-pill bv-pill-muted", dot: "bv-dot bv-pending", label: "" };
 
   // For each metric, find the cross-variant max so the bar chart can
   // normalise. Memoised because results can shift on every poll.
@@ -245,7 +252,7 @@ export default function AbTestStudioPage() {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className={statusMeta.pill}>
                   <span className={statusMeta.dot} />
-                  {statusMeta.label}
+                  {t(`surface.states.${Object.hasOwn(STATUS_PILL, status) ? status.toLowerCase() : "unknown"}`)}
                 </span>
                 {test.agentName && (
                   <>
@@ -333,8 +340,7 @@ export default function AbTestStudioPage() {
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="bv-title font-headline uppercase tracking-wide">
-                {winnerVariant.name} is winning
-              </span>
+                {winnerVariant.name}{" "}{uiText("mbb0e90463fc8")}</span>
               {results?.comparison && Object.keys(results.comparison).length > 0 && (
                 <span className="bv-mono text-[var(--color-on-surface-variant)]">
                   {Object.entries(results.comparison)
@@ -352,8 +358,7 @@ export default function AbTestStudioPage() {
                   disabled={!!actionBusy}
                   className="bv-btn bv-btn-primary bv-btn-sm"
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>rocket_launch</span>
-                  Ship {winnerVariant.name}
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>rocket_launch</span>{uiText("m6a6df1ed4210")}{" "}{winnerVariant.name}
                 </button>
               )}
               {status === "COMPLETED" && test.winnerVariantId && (
@@ -407,7 +412,7 @@ export default function AbTestStudioPage() {
                 <div
                   className="rounded-xl p-3.5 font-mono text-[11px] text-[var(--color-on-surface-variant)] whitespace-pre-wrap max-h-44 overflow-y-auto"
                   style={{
-                    background: "rgba(5,6,9,0.6)",
+                    background: "var(--color-surface-container-low)",
                     border: "1px solid var(--bv-glass-border)",
                   }}
                 >
@@ -425,7 +430,7 @@ export default function AbTestStudioPage() {
                     {Object.entries(r.metrics).slice(0, 1).map(([metricName, cell]) => (
                       <div key={`big-${metricName}`} className="flex flex-col gap-1">
                         <div className={`bv-numeric text-5xl leading-none ${isWinner ? "gradient-text" : "text-[var(--color-on-surface)]"}`}>
-                          {fmt(cell.avg)}
+                          {displayFormat.number(cell.avg, 4)}
                         </div>
                         <div className="bv-micro">{metricName}</div>
                       </div>
@@ -436,7 +441,7 @@ export default function AbTestStudioPage() {
                       <div className="flex gap-5">
                         {Object.entries(r.metrics).slice(1, 4).map(([metricName, cell]) => (
                           <div key={`stat-${metricName}`} className="flex flex-col gap-0.5">
-                            <span className="bv-mono text-[var(--color-on-surface)]">{fmt(cell.avg)}</span>
+                            <span className="bv-mono text-[var(--color-on-surface)]">{displayFormat.number(cell.avg, 4)}</span>
                             <span className="bv-micro">{metricName}</span>
                           </div>
                         ))}
@@ -453,8 +458,8 @@ export default function AbTestStudioPage() {
                             <div className="flex justify-between items-baseline">
                               <span className="bv-caption">{metricName}</span>
                               <span className="bv-mono text-[var(--color-on-surface)]">
-                                {fmt(cell.avg)}
-                                <span className="text-[var(--color-outline)] ml-1">±{fmt(cell.stdDev)}</span>
+                                {displayFormat.number(cell.avg, 4)}
+                                <span className="text-[var(--color-outline)] ml-1">±{displayFormat.number(cell.stdDev, 4)}</span>
                                 <span className="text-[var(--color-outline)] ml-1">(n={cell.count})</span>
                               </span>
                             </div>
@@ -489,7 +494,7 @@ export default function AbTestStudioPage() {
                     className={`bv-btn bv-btn-sm w-full justify-center ${isSelectedWinner ? "" : "bv-btn-ghost"}`}
                     style={isSelectedWinner ? {
                       background: "rgba(59,130,246,0.16)",
-                      color: "#60A5FA",
+                      color: "var(--color-primary)",
                       border: "1px solid rgba(59,130,246,0.4)",
                     } : undefined}
                   >
@@ -504,66 +509,11 @@ export default function AbTestStudioPage() {
           })}
         </div>
 
-        {/* ── Conversion chart panel ────────────────────────────── */}
+        {/* The API exposes aggregates, not a measured time series or CI band. */}
         {results && results.variants.length > 0 && (
-          <div className="bv-glass bv-panel">
-            <div className="bv-panel-head">
-              <h2 className="bv-title font-headline uppercase tracking-wide">
-                Metrics over time · with confidence band
-              </h2>
-            </div>
-            {/* SVG chart placeholder — same structure as mock */}
-            <div className="overflow-hidden rounded-xl" style={{ height: 260 }}>
-              <svg
-                viewBox="0 0 640 260"
-                preserveAspectRatio="none"
-                className="w-full h-full block overflow-visible"
-                aria-label="Conversion over time chart"
-              >
-                {/* Grid lines */}
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <line
-                    key={i}
-                    x1={0}
-                    y1={i * 60 + 10}
-                    x2={640}
-                    y2={i * 60 + 10}
-                    stroke="rgba(35,40,51,0.6)"
-                  />
-                ))}
-                {/* Legend */}
-                <text x="8" y="20" fill="rgba(91,100,115,0.8)" fontFamily="monospace" fontSize="11">
-                  A control (dashed) · winning variant (solid) · band = 95% CI
-                </text>
-                {/* Placeholder polylines — real chart driven by results data */}
-                {results.variants.map((vr, vi) => {
-                  const isWin = vr.variantId === (test.winnerVariantId ?? results.winnerVariantId);
-                  const color = isWin ? "#60A5FA" : "#5B6473";
-                  const metricVals = Object.values(vr.metrics);
-                  if (metricVals.length === 0) return null;
-                  const firstMetric = metricVals[0];
-                  const steps = 6;
-                  // generate illustrative polyline from avg ± stdDev
-                  const pts = Array.from({ length: steps }, (_, i) => {
-                    const x = (i / (steps - 1)) * 640;
-                    const noise = (Math.sin(vi * 3 + i * 1.7) * firstMetric.stdDev * 0.5);
-                    const y = 260 - ((firstMetric.avg + noise) / Math.max(firstMetric.max, 1)) * 200 - 20;
-                    return `${x.toFixed(1)},${Math.max(10, Math.min(250, y)).toFixed(1)}`;
-                  });
-                  return (
-                    <polyline
-                      key={vr.variantId}
-                      points={pts.join(" ")}
-                      fill="none"
-                      stroke={color}
-                      strokeWidth={isWin ? 2.5 : 2}
-                      strokeDasharray={isWin ? undefined : "5 5"}
-                    />
-                  );
-                })}
-              </svg>
-            </div>
-          </div>
+          <p className="bv-glass bv-panel text-on-surface-variant" role="note">
+            {t("app.abTests.noTimeSeries")}
+          </p>
         )}
 
         {/* ── Improvement summary panel ─────────────────────────── */}
@@ -591,13 +541,13 @@ export default function AbTestStudioPage() {
                   <span className="bv-caption">
                     <span className="text-[var(--color-on-surface)]">{cmp.bestVariant}</span>
                     {" "}
-                    <span className="bv-mono">{fmt(cmp.bestAvg)}</span>
+                    <span className="bv-mono">{displayFormat.number(cmp.bestAvg, 4)}</span>
                     {" "}
-                    <span className="text-[var(--color-outline)]">vs</span>
+                    <span className="text-[var(--color-outline)]">{uiText("m1c64caa33ba2")}</span>
                     {" "}
                     <span className="text-[var(--color-on-surface-variant)]">{cmp.worstVariant}</span>
                     {" "}
-                    <span className="bv-mono">{fmt(cmp.worstAvg)}</span>
+                    <span className="bv-mono">{displayFormat.number(cmp.worstAvg, 4)}</span>
                   </span>
                 </div>
               ))}

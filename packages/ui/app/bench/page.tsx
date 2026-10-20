@@ -1,3 +1,8 @@
+import { getLocale } from "next-intl/server";
+import { formatCurrency, formatDurationMs, formatNumber } from "../../i18n/locales";
+import { getTranslations as getSeoTranslations } from "next-intl/server";
+
+import { getTranslations as getLegacyTranslations } from "next-intl/server";
 /**
  * Public Braavolabs Bench page.
  *
@@ -51,21 +56,26 @@ async function fetchBench(): Promise<SuiteWithLeaderboard[]> {
 
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Braavolabs Bench — agent-quality leaderboard",
+export async function generateMetadata(): Promise<Metadata> {
+  const seo = await getSeoTranslations("seo");
+  return {
+  title: seo("m6bec3a9f230a"),
   description:
-    "Public benchmark of every supported LLM provider against agent-reasoning, spend-approval, and audit-trace task suites. Updated weekly.",
+    seo("mcbea634da00e"),
   alternates: { canonical: "https://braavolabs.com/bench" },
   openGraph: {
-    title: "Braavolabs Bench — agent-quality leaderboard",
+    title: seo("m6bec3a9f230a"),
     description:
-      "Public benchmark of every supported LLM provider against agent-reasoning, spend-approval, and audit-trace task suites. Updated weekly.",
+      seo("mcbea634da00e"),
     url: "https://braavolabs.com/bench",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }],
   },
 };
+}
 
 export default async function BenchPage() {
+  const locale = await getLocale();
+  const uiText = await getLegacyTranslations("uiCopy");
   // Fetch live data only while serving a request. The hourly data-cache policy
   // below still applies, but building the UI must not probe the deployed API.
   await connection();
@@ -78,31 +88,21 @@ export default async function BenchPage() {
         {/* ── Page head ─────────────────────────────────────── */}
         <div className="bv-page-head mb-10">
           <div>
-            <p className="bv-micro mb-2">Open methodology · updated weekly</p>
+            <p className="bv-micro mb-2">{uiText("me1bb55c0e7b4")}</p>
             <h1
               className="bv-display mb-3"
               style={{ fontSize: 40 }}
             >
               <span className="bv-grad-text">Braavolabs</span>{" "}
-              <span className="text-on-surface">Bench</span>
+              <span className="text-on-surface">{uiText("mba85f9df1e3f")}</span>
             </h1>
-            <p className="bv-body text-on-surface-variant" style={{ maxWidth: 680, lineHeight: 1.7 }}>
-              We grade every supported LLM provider against fixed task suites that mirror what Braavolabs agents
-              actually do: plan, decompose, decide whether to ask for approval, refuse the out-of-scope, and pin
-              claims to the right audit row. The judge is a stable model (Claude Sonnet) so the leaderboard
-              tracks candidate-model improvement, not judge drift.
-            </p>
-            <p className="mt-4" style={{ fontSize: 12, color: "var(--bv-text-faint)" }}>
-              Methodology + raw rubrics live in{" "}
+            <p className="bv-body text-on-surface-variant" style={{ maxWidth: 680, lineHeight: 1.7 }}>{uiText("m3ea665b949b5")}</p>
+            <p className="mt-4" style={{ fontSize: 12, color: "var(--bv-text-faint)" }}>{uiText("madef7e96db5b")}{" "}
               <Link
                 href="https://github.com/kocakkmustafa/braavolabs/tree/main/packages/api/src/modules/bench/suites"
                 className="hover:text-primary transition-colors"
                 style={{ color: "#3B82F6", textDecoration: "underline" }}
-              >
-                packages/api/src/modules/bench/suites
-              </Link>
-              . PRs welcome.
-            </p>
+              >{"packages/api/src/modules/bench/suites"}</Link>{uiText("m4106b4c7e011")}</p>
           </div>
         </div>
 
@@ -113,9 +113,7 @@ export default async function BenchPage() {
             style={{ padding: "18px 22px" }}
           >
             <span className="material-symbols-outlined" style={{ color: "var(--color-outline)", fontSize: 18 }}>info</span>
-            <p className="bv-body" style={{ color: "var(--color-outline)", margin: 0 }}>
-              No published results yet — the first public leaderboard run lands with the next weekly bench cycle.
-            </p>
+            <p className="bv-body" style={{ color: "var(--color-outline)", margin: 0 }}>{uiText("mbe9a5bbdd9b6")}</p>
           </div>
         ) : (
           <div className="mt-8 flex flex-col gap-8">
@@ -131,21 +129,19 @@ export default async function BenchPage() {
                 </div>
 
                 {suite.leaderboard.length === 0 ? (
-                  <p className="bv-body px-5 py-4" style={{ color: "var(--color-outline)" }}>
-                    No runs yet for this suite.
-                  </p>
+                  <p className="bv-body px-5 py-4" style={{ color: "var(--color-outline)" }}>{uiText("m4349735a6625")}</p>
                 ) : (
                   <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                       <thead>
                         <tr style={{ borderBottom: "1px solid rgba(35,40,51,0.6)" }}>
                           <th style={thStyle}>#</th>
-                          <th style={thStyle}>Provider</th>
-                          <th style={thStyle}>Model</th>
-                          <th style={{ ...thStyle, textAlign: "right" }}>Score</th>
-                          <th style={{ ...thStyle, textAlign: "right" }}>Cost / run</th>
-                          <th style={{ ...thStyle, textAlign: "right" }}>Duration</th>
-                          <th style={{ ...thStyle, textAlign: "right" }}>Updated</th>
+                          <th style={thStyle}>{uiText("m62d2447bfb31")}</th>
+                          <th style={thStyle}>{uiText("m53b77436d18d")}</th>
+                          <th style={{ ...thStyle, textAlign: "end" }}>{uiText("m6853e500c770")}</th>
+                          <th style={{ ...thStyle, textAlign: "end" }}>{uiText("m2dbf116102ae")}</th>
+                          <th style={{ ...thStyle, textAlign: "end" }}>{uiText("m41b4f721faf5")}</th>
+                          <th style={{ ...thStyle, textAlign: "end" }}>{uiText("m881b035daeb6")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -167,7 +163,7 @@ export default async function BenchPage() {
                                   fontSize: 11,
                                   fontWeight: 700,
                                   background: idx === 0 ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.04)",
-                                  color: idx === 0 ? "#60A5FA" : "var(--color-outline)",
+                                  color: idx === 0 ? "var(--color-primary)" : "var(--color-outline)",
                                 }}
                               >
                                 {idx + 1}
@@ -177,27 +173,27 @@ export default async function BenchPage() {
                             <td style={{ ...tdStyle, fontFamily: "var(--bv-font-mono)", fontSize: 12 }}>
                               {row.model}
                             </td>
-                            <td style={{ ...tdStyle, textAlign: "right" }}>
+                            <td style={{ ...tdStyle, textAlign: "end" }}>
                               <span
                                 className="bv-numeric"
                                 style={{
                                   fontSize: 14,
-                                  color: idx === 0 ? "#60A5FA" : "var(--color-on-surface)",
+                                  color: idx === 0 ? "var(--color-primary)" : "var(--color-on-surface)",
                                 }}
                               >
-                                {(row.scoreNormalised * 100).toFixed(1)}%
+                                {formatNumber(row.scoreNormalised, locale, { style: "percent", maximumFractionDigits: 1 })}
                               </span>
                             </td>
-                            <td style={{ ...tdStyle, textAlign: "right", color: "var(--color-on-surface-variant)" }}>
-                              ${Number(row.costUsd).toFixed(3)}
+                            <td style={{ ...tdStyle, textAlign: "end", color: "var(--color-on-surface-variant)" }}>
+                              {formatCurrency(row.costUsd, "USD", locale, { maximumFractionDigits: 4 })}
                             </td>
-                            <td style={{ ...tdStyle, textAlign: "right", color: "var(--color-on-surface-variant)" }}>
-                              {Math.round(row.durationMs / 1000)}s
+                            <td style={{ ...tdStyle, textAlign: "end", color: "var(--color-on-surface-variant)" }}>
+                              {formatDurationMs(row.durationMs, locale)}
                             </td>
                             <td
                               style={{
                                 ...tdStyle,
-                                textAlign: "right",
+                                textAlign: "end",
                                 fontFamily: "var(--bv-font-mono)",
                                 fontSize: 12,
                                 color: "var(--color-outline)",
@@ -222,14 +218,14 @@ export default async function BenchPage() {
 
 const thStyle: React.CSSProperties = {
   padding: "12px 18px",
-  textAlign: "left",
+  textAlign: "start",
   fontSize: 11,
   letterSpacing: "0.1em",
   textTransform: "uppercase",
   color: "var(--color-outline)",
   fontFamily: "var(--bv-font-mono)",
   fontWeight: 500,
-  background: "rgba(5,8,16,0.3)",
+  background: "var(--color-surface-container-low)",
 };
 
 const tdStyle: React.CSSProperties = {

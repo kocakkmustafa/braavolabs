@@ -1,58 +1,24 @@
 "use client";
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useLocale, useTranslations } from "next-intl";
 import { useState, useEffect, useRef } from "react";
 
-function slugify(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-}
-
-const sections = [
-  {
-    title: "Data Controller",
-    body: "Braavolabs is the data controller for personal data processed through this platform. Contact: gdpr@braavolabs.com.",
-  },
-  {
-    title: "Personal Data We Process",
-    body: "Identity data (name, email, organization name), account data (subscription status, billing history), usage data (pipeline run records, audit logs, IP, session ID), and payment metadata when billing is enabled. The card-data handling boundary and records depend on the current payment provider and deployment; contact gdpr@braavolabs.com for the current details relevant to a verified request.",
-  },
-  {
-    title: "Lawful Bases",
-    body: "Article 6(1)(b) contract performance for service delivery and billing. Article 6(1)(f) legitimate interest for security, fraud prevention, and product improvement. Article 6(1)(c) legal obligation for tax and accounting. Article 6(1)(a) consent for optional marketing communication.",
-  },
-  {
-    title: "Cross-Border Transfers",
-    body: "Some processing may involve providers or infrastructure outside your jurisdiction. The current providers, destinations, and applicable legal safeguards depend on the active deployment and are not promised here without current provider and legal evidence. Contact gdpr@braavolabs.com for the current position relevant to a verified request.",
-  },
-  {
-    title: "Your Rights",
-    body: "You have the right to access, rectify, erase, restrict processing, port your data, object to processing, withdraw consent at any time, and lodge a complaint with your supervisory authority. To exercise any right, email gdpr@braavolabs.com — we respond within one month per Article 12(3).",
-  },
-  {
-    title: "Retention",
-    body: "Account data is retained while it is needed to provide the account. Other retention periods depend on current provider, deployment, and legal requirements and are communicated for a verified request rather than promised here as a fixed public schedule.",
-  },
-  {
-    title: "Security",
-    body: "Our published web proxy configuration supports TLS 1.2 and TLS 1.3 in transit. Other at-rest, production-access, security, and retention details are not promised here without current provider and deployment evidence.",
-  },
-  {
-    title: "Data Protection Officer",
-    body: "We have not appointed a formal DPO as we do not meet the Article 37 thresholds, but data protection inquiries are handled directly: gdpr@braavolabs.com.",
-  },
-];
+const SECTION_IDS = ["data-controller","personal-data","lawful-bases","cross-border-transfers","your-rights","retention","security","data-protection-contact"] as const;
 
 export default function GdprPage() {
-  // Page body stays English to match the supervisory-authority working
-  // language; chrome localises and a banner notes the single-locale
-  // design when a visitor arrives on a non-EN locale.
+  const copy = useLegacyTranslations("surface");
+  const sections = SECTION_IDS.map(id => ({ id, title: copy(`legal.gdpr.${id}.title`), body: copy(`legal.gdpr.${id}.body`) }));
+  const uiText = useLegacyTranslations("uiCopy");
+  // Every visitor sees the translated preview notice. Legal completion remains open.
   const t = useTranslations();
   const legal = useTranslations("static.common.legalNavigation");
   const locale = useLocale();
   const backLabel = t("static.common.back");
-  const showBanner = locale !== "en";
+  const showBanner = true;
   const updatedMonth = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric", timeZone: "UTC" })
-    .format(new Date("2026-05-01T00:00:00Z"));
+    .format(new Date("2026-10-20T00:00:00Z"));
 
   const [activeSection, setActiveSection] = useState<string>("");
   const proseRef = useRef<HTMLDivElement>(null);
@@ -82,7 +48,7 @@ export default function GdprPage() {
         className="sticky top-0 z-50 flex flex-wrap items-center justify-between gap-3 px-6 md:px-10 py-3"
         style={{
           minHeight: "64px",
-          background: "rgba(6,7,10,0.85)",
+          background: "var(--color-surface-container-low)",
           backdropFilter: "blur(20px) saturate(1.1)",
           WebkitBackdropFilter: "blur(20px) saturate(1.1)",
           borderBottom: "1px solid rgba(255,255,255,0.06)",
@@ -149,7 +115,7 @@ export default function GdprPage() {
               }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 14 }}>info</span>
-              {t("static.singleLocale.gdprBanner")}
+              {copy("legal.previewNotice")}
             </div>
           )}
 
@@ -163,8 +129,8 @@ export default function GdprPage() {
           </div>
 
           <h1
-            lang="en"
-            dir="ltr"
+            lang={locale}
+            dir={locale === "ar" ? "rtl" : "ltr"}
             className="bv-grad-text"
             style={{
               fontFamily: "var(--bv-font-display)",
@@ -174,15 +140,13 @@ export default function GdprPage() {
               letterSpacing: "-0.02em",
               margin: 0,
             }}
-          >
-            GDPR Statement
-          </h1>
+          >{copy("legal.gdprTitle")}</h1>
 
           <p
             className="bv-mono"
             style={{ color: "var(--color-outline)", marginTop: 12 }}
           >
-            {t("static.common.lastUpdated")}{" "}<time dateTime="2026-05">{updatedMonth}</time>
+            {t("static.common.lastUpdated")}{" "}<time dateTime="2026-10-20">{updatedMonth}</time>
           </p>
 
           {/* Doc switcher pills */}
@@ -244,9 +208,9 @@ export default function GdprPage() {
           >
             {legal("onThisPage")}
           </p>
-          <div lang="en" dir="ltr" style={{ display: "flex", flexDirection: "column" }}>
+          <div lang={locale} dir={locale === "ar" ? "rtl" : "ltr"} style={{ display: "flex", flexDirection: "column" }}>
             {sections.map((section) => {
-              const id = slugify(section.title);
+              const id = section.id;
               const isActive = activeSection === id;
               return (
                 <a
@@ -258,7 +222,7 @@ export default function GdprPage() {
                     textDecoration: "none",
                     fontSize: 13,
                     padding: "7px 0 7px 14px",
-                    borderLeft: isActive
+                    borderInlineStart: isActive
                       ? "2px solid var(--color-primary)"
                       : "2px solid var(--bv-steel-shadow)",
                     transition: "color 0.25s, border-color 0.25s",
@@ -274,13 +238,13 @@ export default function GdprPage() {
 
         {/* Prose */}
         <article
-          lang="en"
-          dir="ltr"
+          lang={locale}
+          dir={locale === "ar" ? "rtl" : "ltr"}
           ref={proseRef}
           style={{ maxWidth: "72ch", paddingBottom: 0 }}
         >
           {sections.map((section, i) => {
-            const id = slugify(section.title);
+            const id = section.id;
             return (
               <div key={id} style={{ marginTop: i === 0 ? 0 : 36 }}>
                 <h2

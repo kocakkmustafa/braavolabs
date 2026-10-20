@@ -1,4 +1,12 @@
 "use client";
+import { useDisplayFormats } from "../../lib/useDisplayFormats";
+
+import { useLocale as useRelativeLocale } from "next-intl";
+
+import { useTranslations as useRuntimeTranslations } from "next-intl";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 /**
  * /runs — flat list of recent runs across the tenant.
@@ -35,6 +43,10 @@ interface RunRow {
 const PAGE_SIZE = 25;
 
 export default function RunsPage() {
+  const displayFormat = useDisplayFormats();
+  const relativeLocale = useRelativeLocale();
+  const runtimeCopy = useRuntimeTranslations("runtime");
+  const uiText = useLegacyTranslations("uiCopy");
   const { token, hydrated } = useAuthGuard();
   const t = useTranslations();
   const [runs, setRuns] = useState<RunRow[]>([]);
@@ -132,7 +144,7 @@ export default function RunsPage() {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search runs…"
+              placeholder={uiText("me5d0d8e26c92")}
               style={{
                 width: "100%",
                 background: "var(--color-surface-container-low)",
@@ -201,7 +213,7 @@ export default function RunsPage() {
             {/* Header */}
             <div className="bv-runs-row bv-runs-head" role="row" style={{ padding: "12px 20px" }}>
               <span>
-                <span className="material-symbols-outlined" aria-hidden style={{ fontSize: 12, marginRight: 6 }}>
+                <span className="material-symbols-outlined" aria-hidden style={{ fontSize: 12, marginInlineEnd: 6 }}>
                   play_circle
                 </span>
                 {t("app.runsList.colPipeline")}
@@ -210,7 +222,7 @@ export default function RunsPage() {
               <span>{t("app.runsList.colStatus")}</span>
               <span>{t("app.runsList.colStarted")}</span>
               <span>{t("app.runsList.colSteps")}</span>
-              <span style={{ textAlign: "right" }}>{t("app.runsList.colSpend")}</span>
+              <span style={{ textAlign: "end" }}>{t("app.runsList.colSpend")}</span>
             </div>
 
             {/* Body */}
@@ -303,7 +315,7 @@ export default function RunsPage() {
                     {/* Started */}
                     <span className="bv-runs-started">
                       {r.startedAt ?? r.createdAt
-                        ? timeAgo(r.startedAt ?? r.createdAt!)
+                        ? timeAgo(r.startedAt ?? r.createdAt!, relativeLocale)
                         : t("app.runsList.queued")}
                     </span>
 
@@ -321,14 +333,14 @@ export default function RunsPage() {
                     <span
                       className="bv-mono"
                       style={{
-                        textAlign: "right",
+                        textAlign: "end",
                         color:
                           typeof r.costUsd === "number" && r.costUsd > 0
                             ? "var(--color-on-surface)"
                             : "var(--color-outline)",
                       }}
                     >
-                      {typeof r.costUsd === "number" ? `$${r.costUsd.toFixed(2)}` : "—"}
+                      {displayFormat.usd(r.costUsd)}
                     </span>
                   </Link>
                 ))}

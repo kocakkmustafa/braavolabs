@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getMessages } from "next-intl/server";
+import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import AuthLayout from "./AuthLayout";
 import CookieConsent from "../components/CookieConsent";
 import OptionalAnalytics from "../components/OptionalAnalytics";
+import ThemeProvider from "../components/ThemeProvider";
+import ThemeSelector from "../components/ThemeSelector";
+import LanguageSwitcher from "../components/LanguageSwitcher";
+import { THEME_INIT_SCRIPT } from "../lib/theme-preference";
 import SkipLink from "../components/SkipLink";
 import { ToastProvider } from "../components/Toast";
 import { APEX_HOST, PUBLIC_HOST, normalizeSurfaceHost, parseSelfHostedSurfaceHosts, surfaceForHost } from "../lib/surface-domain";
@@ -14,6 +18,7 @@ const PUBLIC_ORIGIN = "https://www.braavolabs.com";
 const AUTHENTICATED_ORIGIN = "https://app.braavolabs.com";
 
 export async function generateMetadata(): Promise<Metadata> {
+  const copy = await getTranslations("publicPreview");
   const requestHeaders = await headers();
   const surface = requestHeaders.get("x-braavolabs-surface") || surfaceForHost(requestHeaders.get("host"));
   const pathname = requestHeaders.get("x-braavolabs-pathname") || "/";
@@ -22,19 +27,17 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     title: {
-      default: "Braavolabs — Cross-vendor AI control",
+      default: `${copy("homeTitle")} — Braavolabs`,
       template: "%s | Braavolabs",
     },
-    description:
-      "A cross-vendor AI workbench and control plane with customer-supplied inference and explicit data-mode boundaries.",
+    description: copy("homeIntro"),
     keywords: ["Braavolabs", "AI workbench", "AI control plane", "BYOK", "local models"],
     authors: [{ name: "Braavolabs" }],
     metadataBase: new URL(origin),
     alternates: { canonical },
     openGraph: {
-      title: "Braavolabs — Cross-vendor AI control",
-      description:
-        "A cross-vendor AI workbench and control plane with customer-supplied inference and explicit data-mode boundaries.",
+      title: `${copy("homeTitle")} — Braavolabs`,
+      description: copy("homeIntro"),
       type: "website",
       siteName: "Braavolabs",
       url: canonical,
@@ -42,8 +45,8 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      title: "Braavolabs — Cross-vendor AI control",
-      description: "Customer-supplied inference through provider keys or local models.",
+      title: `${copy("homeTitle")} — Braavolabs`,
+      description: copy("inferenceFunding"),
       images: ["/og-image.png"],
     },
     verification: {
@@ -70,7 +73,6 @@ const SCHEMA_LD = {
         "@type": "ContactPoint",
         contactType: "customer support",
         email: "support@yulalab.com",
-        availableLanguage: ["English", "Turkish"],
       },
     },
     {
@@ -115,9 +117,12 @@ function record(value: unknown): MessageRecord {
 
 function publicMessagesForPath(messages: IntlMessages, pathname: string): IntlMessages {
   const staticMessages = record(record(messages).static);
-  const selected: MessageRecord = { common: staticMessages.common, cookieConsent: staticMessages.cookieConsent };
+  const selected: MessageRecord = { common: staticMessages.common, cookieConsent: staticMessages.cookieConsent, appearance: staticMessages.appearance };
   // The public shell's client-side locale selector needs only these labels.
   const language = record(record(messages).language);
+  const uiCopy = record(record(messages).uiCopy);
+  const surface = record(record(messages).surface);
+  const runtime = record(record(messages).runtime);
 
   if (pathname.startsWith("/privacy")) {
     selected.legal = { privacy: record(staticMessages.legal).privacy };
@@ -143,6 +148,9 @@ function publicMessagesForPath(messages: IntlMessages, pathname: string): IntlMe
     selected.changelog = { title: record(staticMessages.changelog).title };
     return {
       static: selected,
+      uiCopy,
+      surface,
+      runtime,
       language,
       nav: { features: nav.features, pricing: nav.pricing, signIn: nav.signIn, dashboard: nav.dashboard },
       auth: { fields: { fullName: fields.fullName, fullNamePlaceholder: fields.fullNamePlaceholder, email: fields.email, emailPlaceholder: fields.emailPlaceholder } },
@@ -154,16 +162,18 @@ function publicMessagesForPath(messages: IntlMessages, pathname: string): IntlMe
     const nav = record(record(messages).nav);
     selected.changelog = { title: record(staticMessages.changelog).title };
     selected.contact = { title: record(staticMessages.contact).title };
-    return { static: selected, language, nav: { features: nav.features, pricing: nav.pricing, signIn: nav.signIn } } as IntlMessages;
+    return { static: selected, language, uiCopy, surface, runtime, nav: { features: nav.features, pricing: nav.pricing, signIn: nav.signIn } } as IntlMessages;
   }
 
-  return { static: selected, language } as IntlMessages;
+  return { static: selected, language, uiCopy, surface, runtime, ...(pathname === "/blog" ? { content: record(record(messages).content) } : {}) } as IntlMessages;
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const requestHeaders = await headers();
   const locale = await getLocale();
   const messages = await getMessages();
+  const publicCopy = await getTranslations("publicPreview");
+  const localizedSchema = { ...SCHEMA_LD, "@graph": SCHEMA_LD["@graph"].map(entry => entry["@type"] === "WebSite" ? { ...entry, description: publicCopy("homeIntro"), inLanguage: locale } : entry["@type"] === "SoftwareApplication" ? { ...entry, applicationSubCategory: publicCopy("homeTitle"), description: publicCopy("inferenceFunding"), featureList: [publicCopy("pricingBadge"), publicCopy("privateMode"), publicCopy("privateModeCopy"), publicCopy("cloudMode"), publicCopy("cloudModeCopy"), publicCopy("holding"), publicCopy("signedEvidence")] } : entry) };
   const requestSurface =
     requestHeaders.get("x-braavolabs-surface") || surfaceForHost(requestHeaders.get("host"));
   const isPublic = requestSurface === "public";
@@ -187,6 +197,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       data-scroll-behavior="smooth"
     >
       <head>
+        <script id="braavo-theme-init" dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -196,12 +207,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {isPublic && (
           <script
             type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(SCHEMA_LD) }}
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(localizedSchema).replace(/</g, "\\u003c") }}
           />
         )}
       </head>
       <body className="bg-background text-on-surface antialiased">
         <NextIntlClientProvider locale={locale} messages={providerMessages}>
+          <ThemeProvider>
           <SkipLink />
           <ToastProvider>
             {content}
@@ -210,6 +222,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <OptionalAnalytics domain={analyticsDomain} />
             )}
           </ToastProvider>
+          <footer className="bv-appearance-bar"><LanguageSwitcher /><ThemeSelector /></footer>
+          </ThemeProvider>
         </NextIntlClientProvider>
       </body>
     </html>

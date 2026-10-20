@@ -2,7 +2,7 @@
  * Store actions/session helpers and api/apiFetch are real; only fetch is mocked
  * by the regression fixture. No provider, API server or credential is needed. */
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as transport from "./api";
@@ -59,8 +59,9 @@ export function privateToastHarness() {
     }).outputText;
     const local = (name: string): any => {
       if (name === "react") return hooks;
+      if (/\/(localized-error|useDisplayFormats|useStateLabel|i18n\/locales)$/.test(name)) return load(resolve(dirname(path), name + ".ts"));
       if (name === "react/jsx-runtime") return { jsx: element, jsxs: element, Fragment: "Fragment" };
-      if (name === "next-intl") return { useTranslations: () => Object.assign(
+      if (name === "next-intl") return { useLocale: () => "en", useTranslations: () => Object.assign(
         (key: string, values?: any) => values ? key + " " + JSON.stringify(values) : key,
         { rich: (key: string) => key },
       ) };

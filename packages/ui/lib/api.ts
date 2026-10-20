@@ -1,12 +1,27 @@
 import { parseCompareOptions, parseCompareSession, type CompareRequest } from "./compare";
 import { parseApprovalDecision } from "./approvalDecision";
 import { requestDeadline } from "./request-deadline";
+import { defaultLocale, localeFromCookieHeader } from "../i18n/locales";
 import {
   captureAuthSession, isAuthSessionCurrent, refreshAuthSession,
   useAppStore, type AuthSessionSnapshot,
 } from "./store";
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
+
+function activeRequestLocale(): string {
+  try { return localeFromCookieHeader(typeof document === "undefined" ? "" : document.cookie); }
+  catch { return defaultLocale; }
+}
+
+function localizedHeaders(defaults: Record<string, string>, supplied: HeadersInit | undefined, locale: string): Record<string, string> {
+  const merged = new Headers(defaults);
+  new Headers(supplied).forEach((value, key) => merged.set(key, value));
+  // Header names are case-insensitive; a caller/OS hint cannot append a
+  // second value which overrides the explicit application preference.
+  merged.set("Accept-Language", locale);
+  return Object.fromEntries(merged.entries());
+}
 
 interface FetchOptions extends RequestInit {
   token?: string;
@@ -63,7 +78,7 @@ async function refreshAccessToken(session: AuthSessionSnapshot): Promise<string 
       // the server falls back to it when the body omits refreshToken (which is
       // the case once the store stops persisting tokens in cookie-mode).
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
+      headers: localizedHeaders({ "Content-Type": "application/json" }, undefined, activeRequestLocale()),
       body: JSON.stringify({ refreshToken }),
     }));
     assertSession(session);
@@ -134,6 +149,7 @@ async function throwApiError(res: Response, session: AuthSessionSnapshot, deadli
 export async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
   const { token, headers, signal, timeoutMs = 180_000, ...rest } = options;
   const session = captureAuthSession();
+  const requestLocale = activeRequestLocale();
   if (token && token !== session.token && !path.startsWith("/auth/")) throw new SessionChangedError();
 
   const deadline = requestDeadline(timeoutMs, signal);
@@ -153,7 +169,7 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
       signal: deadline.signal,
       ...rest,
       credentials: "include",
-      headers: {
+      headers: localizedHeaders({
         "Content-Type": "application/json",
         // CSRF companion to credentials:"include". Under AUTH_COOKIE_MODE the
         // server requires this custom header on cookie-authed MUTATIONS
@@ -162,8 +178,7 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
         // Without it, cookie-mode logout + every mutation 403s (audit #3).
         "X-Requested-With": "XMLHttpRequest",
         ...(bearer && { Authorization: `Bearer ${bearer}` }),
-        ...headers,
-      },
+      }, headers, requestLocale),
     }));
   };
 

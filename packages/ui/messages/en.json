@@ -294,7 +294,9 @@
       "localPlanRequired": "Choose a supported plan to configure a local provider",
       "planRequired": "Plan required",
       "localPlanDescription": "Individual and Team support configured local endpoints. Inference is not included.",
-      "viewPlans": "View plans"
+      "viewPlans": "View plans",
+      "aiStorageDescription": "Provider credentials are encrypted before storage. Network access and data handling depend on the configured provider and endpoint.",
+      "localEndpointDescription": "Local endpoints run where you configure them. Other product features may still require network access; this setting does not guarantee full offline operation."
     },
     "onboarding": {
       "primitives": {
@@ -559,7 +561,8 @@
       "improvementSummary": "Improvement summary",
       "better": "better",
       "expand": "Show details",
-      "collapse": "Hide details"
+      "collapse": "Hide details",
+      "noTimeSeries": "Time-series data and confidence bands are not available in this view. Use the aggregate metrics above."
     },
     "dashboard": {
       "title": "Command Center",
@@ -731,14 +734,14 @@
       "remApprovals": "→ Approvals",
       "inputTitle": "The agent needs your input",
       "answerPlaceholder": "Type your answer for the agent…",
-      "answerSent": "Answer sent — the run is resuming.",
+      "answerSent": "Answer submitted. Check the decision and run state.",
       "answerFailed": "Failed to send answer",
       "sending": "Sending…",
       "sendAnswer": "Send answer",
       "steerTitle": "Steer this run",
       "steerHelp": "Send a message to redirect the agent mid-run — injected as operator guidance on its next turn.",
       "steerPlaceholder": "e.g. Focus on large-account leads only — skip the SMB segment.",
-      "steerSent": "Steering sent — the agent will pick it up on its next turn.",
+      "steerSent": "Steering request submitted. Check subsequent run state and output.",
       "steerFailed": "Failed to send steering",
       "sendSteer": "Send steering",
       "timeline": "Step Timeline",
@@ -1058,7 +1061,8 @@
       "hintOpen": "open",
       "hintClose": "close",
       "hintDashboard": "dashboard",
-      "hintNewWorkspace": "new workspace"
+      "hintNewWorkspace": "new workspace",
+      "title": "Command menu"
     },
     "breadcrumb": {
       "onboarding": "Onboarding",
@@ -1177,6 +1181,17 @@
       "failed": "Comparison failed.",
       "cancelled": "Comparison was cancelled.",
       "timeout": "Polling limit reached. The session may still be running."
+    },
+    "shell": {
+      "openMenu": "Open menu",
+      "closeMenu": "Close menu"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "pending": "{count, plural, one {# pending approval} other {# pending approvals}}",
+      "clear": "No pending approvals",
+      "spend": "Spend approval required",
+      "viewAll": "View all approvals"
     }
   },
   "static": {
@@ -1202,7 +1217,8 @@
         "tagline": "Command the AI agents & automations you already run.",
         "rights": "All rights reserved.",
         "englishOnly": "This document is currently available in English."
-      }
+      },
+      "englishContent": "This content is currently available in English. Changing the interface language does not translate this section."
     },
     "blog": {
       "title": "Blog coming soon",
@@ -1223,10 +1239,6 @@
         "Cookie / KVKK / GDPR pages live for legal compliance."
       ],
       "githubIntro": "Detailed release notes live on GitHub:"
-    },
-    "singleLocale": {
-      "kvkkBanner": "This page is published in Turkish only — Türkiye's data-protection law (KVKK) requires the aydınlatma metni to be in Turkish for legal effect.",
-      "gdprBanner": "This page is published in English only — it matches the supervisory-authority working language for cross-EEA controllers."
     },
     "legal": {
       "privacy": {
@@ -1406,6 +1418,16 @@
       "reset": "Reset cookie preferences",
       "resetDone": "The saved choice was cleared. This page may reload to apply your change.",
       "resetFailed": "The saved choice could not be cleared. New analytics loading is blocked on this page. A previously loaded tracker may remain active until you close the page. Close it and clear this site’s storage in your browser before returning."
+    },
+    "appearance": {
+      "title": "Appearance",
+      "label": "Theme",
+      "dark": "Dark",
+      "light": "Light",
+      "system": "System",
+      "description": "Use the system setting or choose a theme for this browser.",
+      "saveFailed": "The theme changed on this page, but could not be saved in this browser.",
+      "storageHelp": "Your theme preference is stored in this browser."
     }
   },
   "auth": {
@@ -1610,7 +1632,13 @@
     "ar": "العربية",
     "es-419": "Español (Latinoamérica)",
     "pt-BR": "Português (Brasil)",
-    "ja": "日本語"
+    "ja": "日本語",
+    "it": "Italiano",
+    "ko": "한국어",
+    "id": "Bahasa Indonesia",
+    "pl": "Polski",
+    "hi": "हिन्दी",
+    "zh-Hans": "简体中文"
   },
   "publicPreview": {
     "homeTitle": "Cross-vendor AI, under your control.",
@@ -1665,5 +1693,3186 @@
       "status": "Status",
       "support": "Support"
     }
+  },
+  "uiCopy": {
+    "m938c91ff1f31": "braavolabs",
+    "m13855655e90d": "Ai",
+    "m690e7a5e1383": "Morghulis.",
+    "m158acce5db4b": "Every task must die. Quietly, on your machine. The governed command center for your AI agents.",
+    "mc9be6b254770": "SCROLL — OPEN THE DOOR ▾",
+    "m68ec9666da44": "every agent, one hall",
+    "m4d50f5adff67": "One panel.",
+    "m13b0a7147ec5": "Every agent.",
+    "md91e25ebff91": "Claude, GPT, Gemini, your local models — hooded in their alcoves, waiting for a name. Hand a task to one; watch it pass the thread to the next.",
+    "m14259aa4f184": "three lanes, one bill",
+    "mb6063ec6db48": "Route it to the cheapest",
+    "mff3010307ebd": "lane that works.",
+    "ma02b3af1c791": "Local models handle the routine, your API keys take the hard parts, your own CLI subscription covers the rest — the cascade decides, you keep the difference.",
+    "m58cb783ef208": "cheaper avg. run",
+    "m2f71a8cd452e": "routing · caching · cascade",
+    "md68f4d9658a0": "token markup",
+    "m19837eca8ef7": "BYOK — your own keys",
+    "m61feb77f0448": "lanes",
+    "mc161ee232d16": "local · API · your CLI",
+    "m37570a352f9f": "Model-agnostic memory",
+    "m4790be82e806": "Your context stays yours, whichever model runs.",
+    "md1ab8fe0278c": "Governance by default",
+    "mcf73c270b403": "Every risky step passes an approval gate.",
+    "m760df3439c81": "Multi-model handoff",
+    "m0ef4c869c13b": "One agent hands the thread to the next.",
+    "m902a479c1449": "ai serves. you command.",
+    "madfef55cdd3e": "Dohaeris.",
+    "m8917820f4842": "Runs live on your machine and keep going while you walk away. The tower watches; you stay in command from anywhere.",
+    "m06818bfad7e5": "Approve from your pocket.",
+    "mcd2afb2517c4": "Risky steps ping your phone — allow, deny or steer in one tap.",
+    "mc918b71360aa": "Every run is replayable.",
+    "mec82da18aef9": "Commands, diffs and tool calls recorded — audit or rewind any step.",
+    "mb634019207be": "One kill switch.",
+    "m190c6cca4b11": "Request a stop on supported execution paths. A running provider call may already be in progress; verify the recorded outcome.",
+    "me050855b0732": "Download for macOS",
+    "m0699722b6c86": "Windows",
+    "mc7916fde8f18": "Linux",
+    "m4721630f3237": "COPIED",
+    "m76375004a5c8": "COPY",
+    "mfa1e83c4875c": "Braavolabs coin — obverse",
+    "m25dad6b2130d": "Braavolabs coin — reverse, circuit-line BL monogram",
+    "m25b28440d28a": "hover to flip · reverse: circuit-line BL monogram",
+    "m4fc929a0a62c": "Scene navigation",
+    "m9ee930cb6b09": "Skip intro",
+    "m154eba8c33b7": "SKIP — space / click",
+    "m227d67016fe0": "braavolabs · valar dohaeris",
+    "m716f677b544d": "docs",
+    "md86a34679f43": "github",
+    "mbb0e90463fc8": "is winning",
+    "m6a6df1ed4210": "Ship",
+    "m1c64caa33ba2": "vs",
+    "mde4ec47f271d": "Experiments",
+    "m920a13b7eddb": "Experiment",
+    "m0ce6557e41a4": "Status",
+    "mb1c437b2623f": "Lift",
+    "me4fac2bbdc43": "Significance",
+    "m4b9aae820c18": "View details",
+    "m6e8b2ac90efc": "New experiment",
+    "m008ca53ea0d6": "Manifesto",
+    "mf6caaee885a1": "Anyone can",
+    "md7f19caf7275": "build an agent.",
+    "m1bcc79112898": "Few can command one.",
+    "m154cae3389df": "The emblem",
+    "mff5d00a78d7e": "The faceless operator",
+    "m6d6f7b3433d5": "Our emblem is a forged iron mask — a nod to Braavos, where the most capable operators work unseen. It stands for the way real work gets done with AI: not by the loudest demo, but by the operator who quietly",
+    "m0fb31a980179": "reads, approves and steers",
+    "m2c08fc9adde3": "a team of agents to a result.",
+    "m8fad8431526d": "Everything we build has weight, glint and motion — because commanding agents should feel like standing in a war-room, not babysitting a chatbot.",
+    "mae6893bf1cea": "The moat, in one line",
+    "ma96d8b4e22d7": "We compete on",
+    "m79029a3ce6e6": "control",
+    "mac2da98d83a1": "mobility",
+    "m0eab38f1efb0": "and",
+    "mb899143d5b68": "privacy",
+    "ma2e990d63ed8": "— never on connector count.",
+    "m3bfa80932b8d": "Principles",
+    "m35c23cddce05": "“We built Braavolabs because we were tired of agents that could act but couldn’t be governed. Power without a hand on the tiller isn’t useful — it’s a liability.”",
+    "m00cce1870e41": "The Braavolabs team",
+    "m86eac0774080": "· forged in the open",
+    "md02e9e25bd65": "Open app",
+    "m864debf58479": "Talk to us",
+    "mdd10bd33331e": "Workspace",
+    "m3c5cae9db9ff": "Outcomes",
+    "me472804666c8": "Billing summary",
+    "m4176e1045b7d": "All executions",
+    "m138dacd53320": "runs",
+    "mb2df3906a88c": "Spend queue",
+    "m0e8a6ae38472": "pending",
+    "mc3f685eba544": "urgent",
+    "m1b78e46f051f": "Forging your session",
+    "m22d7829ed6f9": "BL",
+    "me1bb55c0e7b4": "Recorded methodology and results",
+    "mba85f9df1e3f": "Bench",
+    "m3ea665b949b5": "Review recorded benchmark runs, their evaluated models and their available methodology. Coverage and freshness vary by recorded run.",
+    "madef7e96db5b": "Methodology + raw rubrics live in",
+    "m4106b4c7e011": ". PRs welcome.",
+    "mbe9a5bbdd9b6": "Published results appear here when recorded evaluations are available.",
+    "m4349735a6625": "No runs yet for this suite.",
+    "m62d2447bfb31": "Provider",
+    "m53b77436d18d": "Model",
+    "m6853e500c770": "Score",
+    "m2dbf116102ae": "Cost / run",
+    "m41b4f721faf5": "Duration",
+    "m881b035daeb6": "Updated",
+    "mcc7dbaccf493": "Account",
+    "m3ed9a01e9231": "Active",
+    "m1f1c52f4af63": "Manual review",
+    "m10a01ee78fc0": "/ active seat / month",
+    "m36319a66e749": "/ month",
+    "m2abded1f04d2": "· via Stripe",
+    "m52ef97127549": "runs remaining on",
+    "m3aacf07b35fc": "Manage subscription",
+    "m480aee3b6717": "Web plans bill through Stripe — manage, upgrade or cancel anytime in the billing portal. Mobile subscriptions are managed in the store you subscribed through; changes sync here automatically.",
+    "mc55a17a9d9c0": "Stripe subscription",
+    "mcceb0b8f209d": "Manage",
+    "m03899b81220f": "Not active",
+    "m659adfa80ad7": "App Store subscription",
+    "mcd435f3d6d13": "Managed in store",
+    "mf1b895df0335": "Google Play subscription",
+    "m8546b709215e": "Usage this cycle",
+    "m809b2c4b9c83": "BL",
+    "m7f0fab417f12": "Blog",
+    "md62a43742980": "Features",
+    "ma5bac859b488": "Pricing",
+    "m2fbc11c34f42": "Sign in",
+    "m06d5d3008573": "Open app",
+    "m85d560055d11": "The Forge Log",
+    "ma31c879fbf4a": "read",
+    "mf4e7ef98e64a": "Command the agents you already run.",
+    "mb9f5c53ce5bb": "Use your own provider keys or a configured local route. Inference is not included.",
+    "mfa5d21d1d88a": "More from the Forge Log",
+    "md72e42595829": "Blog",
+    "m7c191fd9ab30": "Sign in",
+    "m723a4ca0b041": "Open app",
+    "md37709c384c4": "The Forge Log",
+    "m183ea0c3acf0": "Notes from",
+    "m3ec12db3060f": "the war-room.",
+    "m727eff92c28d": "On commanding agents — control, mobility, privacy, and the craft of governing autonomy.",
+    "mbf6597c4877d": "Featured",
+    "m67a924d25b13": "read",
+    "med3811fc0067": "Command the AI agents & automations you already run.",
+    "m09d06a4f3a17": "Product",
+    "m621f739bb1af": "Company",
+    "m2bc5accf38ff": "Legal",
+    "m46e01d124058": "© 2026 Braavolabs. All rights reserved.",
+    "m73b582c8d1ab": "BL",
+    "maf32376bdf35": "Features",
+    "m89ea286c8147": "Pricing",
+    "mdcad451eaa8b": "Integrations",
+    "m000db379830b": "Changelog",
+    "mf6a8a22d3745": "Blog",
+    "mf0c7cea418fa": "Open app",
+    "mc233f3d5475f": "Every plate,",
+    "m201fb23bec45": "locked into place.",
+    "m7af9fcb2eb00": "What we've forged, fixed and changed.",
+    "mb029bf94b9cb": "Latest",
+    "m33b2dcf5a00e": "Pause",
+    "m4aff80e9ddd2": "Archive",
+    "mf40b55b5a17f": "agent:",
+    "ma170cc9e0b0b": "SYSTEM PROMPT",
+    "m313ead484eac": "default",
+    "m081fc0171fee": "Candidate",
+    "m1d156cc858d3": "Approved",
+    "mf1cc2bc9a8a0": "No approved memory yet",
+    "m564fb4aee15b": "Deprecated",
+    "m307ccca51ae0": "Nothing deprecated",
+    "m50890a43f31f": "Live",
+    "md1e06fe13cd7": "Paused",
+    "mc46ba3b782c7": "Cost-stop armed",
+    "md8ec6425984e": "budget",
+    "m6a7a58f3cdb0": "% consumed — run will halt at $",
+    "mee5a1855dffe": "awaiting you",
+    "m562397da1ad0": "streaming",
+    "m1d007a5d0353": "ms",
+    "m485cb3fc4e18": "Run meta",
+    "m3c85b69d5453": "vs budget",
+    "m2fb2177fcf22": "budget $",
+    "mf09738cc6fac": "Timeline scrubber",
+    "md63109311e5c": "Export trail",
+    "mc341c520640c": "Steer · inject guidance",
+    "m4180d6eb1e87": "Workspaces",
+    "mf854b0d01bb8": "New",
+    "m2a1f8f8329c8": "Upgrade plan",
+    "m81541c4b81fd": "Start from an idea",
+    "m98f5541fecce": "Pick a starting point — we'll pre-fill the brief below and the AI will tailor it to you.",
+    "m84436181ca66": "Template categories",
+    "me80b908371e2": "All",
+    "md906ff092286": "Use this idea",
+    "m23e4368ad8b0": "or describe your own below ↓",
+    "m6e641f0af509": "⌘↵ to forge",
+    "mdbc61703dd4c": "braavolabs",
+    "md81c07fc5237": "Workspace spec",
+    "mfba9134a6958": "core",
+    "m335400734ad4": "Flagship",
+    "m1c1ed0d6cba8": "Compare",
+    "m0e090d020bf6": "Sign in",
+    "m2b2ad5e6e9fc": "Open app",
+    "m65d72c621640": "Honest positioning",
+    "mba9bd9de37dc": "Where we fit —",
+    "m50e9a7dcec3d": "and where we don't.",
+    "mf93fe81f65ba": "Braavolabs isn't trying to be the biggest integration catalog. It's built to",
+    "m1d1ed4cc0221": "command",
+    "m16c281eec9eb": "the agents and automations you already run — from your phone, mid-run, on your own keys. Here's an honest read on how that compares to two neighbouring categories, including where they beat us.",
+    "m7acc6a073df0": "Capability",
+    "m67969942145e": "Who it's for",
+    "m8d6c9af2713e": "Braavolabs is the right call when control, mobility, and privacy matter more than the raw size of an integration catalog.",
+    "m22f7bc58c61d": "See the flat-price math for yourself.",
+    "mbf3573b0a3d0": "Compare predictable flat pricing against per-task metering with our cost calculator.",
+    "m24543c9280b1": "Cost calculator",
+    "m2b56df60312a": "Review recorded steps, available cost data and pending operator decisions.",
+    "m9895a6463bc7": "Command the AI agents & automations you already run.",
+    "mfb1404813b60": "Product",
+    "mca345aad7aa1": "Company",
+    "m5bed3a4a7338": "Legal",
+    "m8e359b1c68e3": "© 2026 Braavolabs. All rights reserved.",
+    "m3e5ecf19f202": "Automation Hub",
+    "mb9d0451321be": "Dismiss",
+    "m8b4a9a98583e": "Connect a new automation",
+    "m80ef56a7089f": "Unified executions",
+    "ma9b5c84ca346": "native + external · one timeline",
+    "m8bd444807a52": "event",
+    "md8e91797972c": "type",
+    "m826036148049": "external",
+    "m1a1faaa5e7fc": "Expand a connection to mirror its executions here.",
+    "m23715cc46e18": "Close",
+    "ma6abe31754db": "BL",
+    "m2b4a9f22ba8d": "Command the AI agents & automations you already run.",
+    "md69e46192627": "Product",
+    "m6d80848fe489": "Company",
+    "m0fb85ef7ffda": "About",
+    "m260fed5ac47c": "Blog",
+    "m3a006e3e0878": "Status",
+    "md2c8631b73dd": "Legal",
+    "mf2c79d7c83e6": "Pricing",
+    "m3aaa432f7378": "Open app",
+    "m9680189524a4": "Pricing preview — not currently purchasable",
+    "m58ba90a040a3": "Planned subscription pricing",
+    "mfdf38497de3a": "Billing migration is still in development, so this page does not calculate a payable quote or begin a purchase. The planned catalog contains only Individual and Team.",
+    "m0a048a01849e": "Planned plans",
+    "m865128d3e4d4": "Planned plan",
+    "m4d17edf4bcc6": "Inference cost notice",
+    "m17a77e8ea42f": "Inference is not included",
+    "m52f120c3db8b": "Model usage is paid to the provider you configure through BYOK, or runs through your own local model route. Braavolabs does not currently offer these planned subscriptions for purchase.",
+    "me587bca8ef51": "Active runs",
+    "m975cf8ab658e": "Run success rate",
+    "m1ca31645c880": "Activity",
+    "m9f12c64beaa6": "braavolabs.com · live audit trail",
+    "maacbbd2ffeb8": "View all →",
+    "mef4047de09c7": "Recent runs",
+    "m9332d1be8fe2": "Pipeline",
+    "m098593629f8e": "Company",
+    "m286c98c9029c": "Status",
+    "m207013f4c387": "Started",
+    "md1d31b068fc2": "Steps",
+    "m701b95d1d46a": "Spend",
+    "m4d36fe121a92": "No runs in this filter yet.",
+    "m97fa546fb5a7": "No recent activity.",
+    "mc9b9115552be": "waiting",
+    "m7fd8a8fd26df": "Approval needed",
+    "meffd0c9f293a": "Deny",
+    "m8961771af3a1": "No active risks",
+    "m11064e50fa7c": "new",
+    "m3c3e08c03c30": "Risk event",
+    "me5c88f2a2ff0": "now",
+    "mb34c85aff53f": "Features",
+    "m85a856ab28be": "Pricing",
+    "mdd91fe0b7fc0": "Blog",
+    "m6179659c73b9": "Docs",
+    "m35127686df60": "Sign in",
+    "m5b83c05ccb0c": "Open app",
+    "mcb951cf4a4d3": "Documentation",
+    "m0c14fdc4a1c6": "The Manual",
+    "m6c77f98962d7": "On this page",
+    "m074fdba85cf1": "← PREVIOUS",
+    "m1388671ac3bc": "NEXT →",
+    "m90aeded95734": "Command the agents you already run.",
+    "mf8873bd65493": "Pricing is a preview and is not currently purchasable. Inference is not included.",
+    "m906152f47b4f": "Command the AI agents & automations you already run.",
+    "m1ec39ca165b6": "Product",
+    "mbb3043a7f2cf": "Changelog",
+    "m50200f20c520": "Resources",
+    "m35fa61443236": "Support",
+    "m6ea06edad850": "Company",
+    "m7f7a851ede21": "About",
+    "mebaef44626be": "Contact",
+    "m07c7e04fadf1": "Status",
+    "m7375dacc55cd": "© 2026 Braavolabs. All rights reserved.",
+    "m818b2a78eb90": "Features",
+    "m4cc1f3608ddc": "Pricing",
+    "mf6823057de7d": "Blog",
+    "m87eedb771754": "Docs",
+    "mda5526776bb1": "Sign in",
+    "md725474be468": "Open app",
+    "m5aac6b035a43": "The Manual",
+    "mc85715c7a4bb": "Documentation",
+    "m8f52d8cc2d59": "How to compose, run, and govern an autonomous AI company — from your first run to webhooks, configured local model routes, and steering agents from your phone.",
+    "m20c340bf69ae": "Getting started",
+    "m602cdfb50800": "Core concepts",
+    "m9a896a6ca8c2": "FAQ",
+    "md4293b1a891b": "Read",
+    "mfa2b75fcfa90": "Command the AI agents & automations you already run.",
+    "mc06c8b9bd590": "Product",
+    "m9e4e062300ce": "Changelog",
+    "mdc663d5d4765": "Resources",
+    "m698bc6e3f89e": "Support",
+    "m975952c059f7": "Company",
+    "mad1ae8839ed9": "About",
+    "m8d136db7d880": "Contact",
+    "m2b43eb3b2c10": "Status",
+    "m22d2dde46b20": "© 2026 Braavolabs. All rights reserved.",
+    "m86006890323f": "Content review",
+    "mfd976ba1eea0": "Draft",
+    "m76d027d04e32": "Something went wrong",
+    "me06887989706": "Error reference for support",
+    "mc3fca6aef955": "Reference:",
+    "m28a812f120c3": "Try Again",
+    "m795836a1d4b2": "This error persists. Please go home and try again.",
+    "meda5eea8ae48": "Go Home",
+    "mccfb38fd1109": "Contact support",
+    "m41749f8a6958": "Governance",
+    "m12cc6cbe8456": "Pricing",
+    "md2d886d00f8d": "Sign in",
+    "m5622cdb1d573": "Sign up",
+    "mb92a5ff6a3f6": "Product contract",
+    "md8d7b7db0cdd": "Run. Control. Prove.",
+    "m5c19d5d0e672": "Braavolabs is a cross-vendor AI workbench and control plane. The same contract spans desktop, CLI, mobile approval, and authenticated cloud control without moving native execution into the public site.",
+    "md530d8e09e2a": "Private Mode — preview",
+    "mc015473cee7b": "Its complete data-handling and security contract remains in development and is not presented as generally available.",
+    "m99e52a77109d": "Cloud Agent Mode — in development",
+    "m4be5a94fd7e3": "Its execution, consent, and retention contract is not presented as generally available.",
+    "m538495414df0": "Signed evidence — in development",
+    "m283b1bddd62f": "Offline-verifiable bundle claims remain closed until their task is accepted.",
+    "mc7577ef44a73": "Holding — premium/private preview",
+    "mf457eb5a3ed1": "Persistent-agent packaging remains separate and default-off.",
+    "m9f5b1afe44a4": "Launch app",
+    "m3129e7d997e9": "Read docs",
+    "mba4fd1fab967": "Import",
+    "mf0ec3cddfcdf": "Search",
+    "m941a8cfd363d": "JH",
+    "mcb7a05a63f11": "Integrations",
+    "m63618f411d28": "Step 1",
+    "m28a453e700bf": "Paste your export",
+    "m6178c5d299b7": "Pick the platform, then paste the workflow JSON or drop a file.",
+    "mcb314139cd6e": "or drop a .json export here",
+    "mf22bc005eae8": "Step 2",
+    "mf59ae985ca8a": "Preview & map",
+    "mb29543f91292": "We parsed",
+    "mf481a5ad1169": "steps. Map each to a Braavolabs step type.",
+    "m8a14bed991c3": "Trigger",
+    "mee753e5a87a2": "Tool call",
+    "m916a2a45d141": "Branch",
+    "meab0461369b0": "Agent",
+    "m55cf3f3ed970": "Output",
+    "mef364fe09b40": "Back",
+    "m8e0f9ab16dab": "Forging pipeline from import…",
+    "mcdc0a303cb6e": "Imported",
+    "m358866c978a7": "Open in builder",
+    "mc35120dcdc60": "Import another",
+    "m1d31c122563e": "Connections",
+    "m519d2f226020": "Import an existing automation",
+    "m56994963473b": "Bring an n8n, Make or Zapier export — we'll parse it into a pipeline.",
+    "m48f6463ee542": "Import",
+    "m760104947f15": "Features",
+    "m69d527a460e7": "Pricing",
+    "mb2399da1a08c": "About",
+    "me140e826ba9c": "Sign in",
+    "m471494a678dc": "Contact for requests",
+    "md16b7b8e76f6": "For requests under KVKK, contact",
+    "md2e44bfde665": "adresine yazabilirsiniz.",
+    "m8c04ee5bf3f2": "Command the AI agents & automations you already run.",
+    "ma0eb87bbeb56": "Product",
+    "mc051ae69c4ff": "Changelog",
+    "m3977aafcc314": "Company",
+    "mf519587a824a": "Blog",
+    "m46ce898e63fc": "Contact",
+    "med3b20e61c41": "You can ask Braavolabs to delete your account and associated personal data. The current public request channel is email, which lets us verify account ownership and confirm the request in writing.",
+    "m1b2db4796a78": "Send a message from the email address associated with your account to",
+    "m442ce29a97e5": "with the subject",
+    "m3142da1ab41a": "\"Account deletion request\"",
+    "mc804e0a279e5": ". Include the account email or username, but never send a password, API key, access token, or payment credential.",
+    "m38ad53145e92": "We may ask for additional information needed to verify that you control the account. We will confirm the request and communicate its status through the verified email channel. Applicable statutory response periods continue to apply; this page does not promise an automated completion time.",
+    "m29f4515a2181": "Braavolabs does not currently publish a separate deletion form or promise an in-app deletion control on this public site. Use the verified email channel above so the request is not lost or sent through an unrelated contact topic.",
+    "mee9120dd9911": "The deletion scope depends on the account records associated with the verified requester. We review that scope and confirm the outcome in writing, including any record that cannot lawfully be deleted.",
+    "m0a13dcea737c": "Account identity and profile records associated with the verified request",
+    "m3dd748c0c124": "Tenant-scoped content eligible for deletion under the applicable service and legal obligations",
+    "m67b7fbf8d86d": "Active credentials and sessions associated with the account, where technically and legally eligible",
+    "m292e9193635f": "Some records may need to be retained for tax, accounting, dispute, fraud-prevention, or other legal obligations. The applicable categories and periods depend on the current deployment, provider contracts, and jurisdiction; they are communicated for the verified request rather than promised here as a fixed public schedule.",
+    "m3acb87ce044a": "Records that applicable tax, accounting, or regulatory law requires us to keep",
+    "m9956d26e8534": "Records needed to document the request, verification, and legally required response",
+    "m665793086a11": "Data subject to a valid legal hold or an unresolved dispute",
+    "m764489556bb6": "We process verified requests under the response periods required by applicable law and provide status updates through the verified email channel. Verification needs, legal holds, and lawful retention obligations can affect completion; any applicable limitation is explained in writing.",
+    "mc3704343f072": "An account-deletion request and a billing cancellation are separate actions. If your account has a billing question, contact",
+    "m262a258637ac": "and we will identify the currently supported channel without claiming a store or in-app flow here.",
+    "mb2c239031d04": "Any question about the process, the retention rules, or how to verify the deletion completed:",
+    "mcf0d0c778c1f": ". For broader data-rights inquiries (access, portability, rectification) see our",
+    "m29492eb1f9b7": "GDPR Statement",
+    "m79a0490687e1": "and",
+    "mf75327b3ab03": "KVKK privacy information preview",
+    "m3b525be54f32": "Account & Data Deletion",
+    "m22af538371f7": "Ready to delete your account?",
+    "mb5f06ea86d5e": "Send the request from the email address associated with your account.",
+    "m7bc799542df6": "Email us",
+    "m50591bb45e1e": "Braavolabs.",
+    "m7801df791ac5": "Apple",
+    "m3e059886391a": "Google",
+    "m75ecaff6a037": "GitHub",
+    "ma642566b6fb9": "(optional)",
+    "mb10483661821": "Page not found",
+    "m30a00b02a74d": "The page you are looking for does not exist or has been moved.",
+    "md182a885158e": "Go Home",
+    "m2aec28552db3": "Dashboard",
+    "m2e3db7ae4d51": "workspace forged",
+    "mdb69aaf1266a": "Skip setup →",
+    "m0ca91d4cf0f5": "step 1 of",
+    "mf74a68f418e0": "step 2 of",
+    "m38c2aea0c076": "step 3 of",
+    "m4cab4d533f77": "step 4 of",
+    "m6c1c3f135744": "step 5 of",
+    "me9694a186010": "Individual —",
+    "m032b7cca868a": "Team —",
+    "m37d5c6a2c645": "© 2026 Braavolabs",
+    "m4c15cd976fb7": "Step types · drag in",
+    "ma71448498846": "Inspector",
+    "mc0068fffc436": "Step inspector",
+    "m73f2d28a8195": "Select a step in the canvas to configure it.",
+    "me279e93feaa2": "Close",
+    "md076a8cff280": "Pipelines",
+    "m33a8b197a5dc": "steps",
+    "m6c64bc8fd052": "AI Builder",
+    "m7b2727efa311": "Close",
+    "m527dc6c48fc1": "Forge your",
+    "m5d499d7bb383": "workspace in",
+    "mc963b2a55c65": "minutes",
+    "m0ffcb934d4d3": "Braavolabs. All rights reserved.",
+    "m4c3d039eeb89": "Free plan",
+    "mb9d9f6052c15": "Google",
+    "m2d8843cd30de": "GitHub",
+    "m3f79055b06f5": "Strength —",
+    "m42d9b00b4a1c": "I agree to the",
+    "m03dd13603177": "Terms",
+    "m16a48ada2404": "and",
+    "med9bdddaf801": "Privacy Policy",
+    "mddad425a8476": "Already have an account?",
+    "m99b3ce884164": "(optional)",
+    "mfac2ec3661ab": "Braavolabs emblem",
+    "m147a465a4bab": "Forge a new",
+    "m8f3667a853a6": "key",
+    "m5a9acd6bb595": "to your war-room.",
+    "m07683a6b25da": "Password Reset",
+    "m324fa44bdbfe": "Enter your email and we'll send a reset link.",
+    "m1d7390708d7e": "Sending…",
+    "mf28e1b2646a8": "Send reset link",
+    "m05680974f084": "Set a new password",
+    "ma6ae80e38b9d": "Confirm password",
+    "m39a7ff600af8": "Password forged",
+    "mf83f38e42411": "Sign in",
+    "m94c28a73da37": "GOVERNANCE",
+    "m9d899093d41e": "Acknowledge",
+    "m9ce742313269": "Rollback",
+    "mc191d4f884e6": "Rerun",
+    "mb9b248228c25": "Cost heatmap",
+    "md4fdc87efd1b": "Run meta",
+    "ma3d0dc878de8": "Run ID",
+    "m83d38e678178": "Pipeline",
+    "m89200cc22850": "Steps",
+    "ma8322509bd8f": "Approvals",
+    "m1eadff0f7d6b": "Duration",
+    "m8905a490325a": "Timeline scrubber",
+    "m1dbbdb0c26b5": "Export trail",
+    "mcf98748ad579": "streaming",
+    "mc3041e2d2f2b": "step",
+    "m2c81a45dc959": "Steer · inject guidance",
+    "m6ef14dc92d42": "Inject guidance into the agent's next turn… (e.g. \"only contact companies with >50 employees\")",
+    "m597ddeea5d27": "Steer",
+    "me5d0d8e26c92": "Search runs…",
+    "m6519c809652c": "Docs",
+    "ma280e8530c88": "Sign in",
+    "m0c1bf711335e": "Sign up",
+    "m0b84272e0b38": "Security and trust",
+    "m2708222253e6": "Boundaries, stated plainly.",
+    "mf6cd2e305a08": "Public security copy is limited to contracts the product can test. Roadmap direction is labelled as such, and release claims wait for accepted evidence.",
+    "m87d3344f51c0": "Private Mode — preview",
+    "m7ed0edec682e": "Its complete data-handling and security contract remains in development and is not presented as generally available.",
+    "me5d088788752": "Cloud Agent Mode — in development",
+    "m6e5d8b8e7120": "Its execution, consent, and retention contract is not presented as generally available.",
+    "m82cfde8eb7cd": "Signed evidence — in development",
+    "mc63ed84605c0": "Activity records are not presented as an offline-verifiable signed evidence bundle until that contract is implemented and accepted.",
+    "m16ca86ca2649": "Launch app",
+    "m7945cffa32f0": "Report a security issue",
+    "m58a52b30df2b": "breadcrumb",
+    "m17301d36c0f7": "Settings",
+    "m04575c3aa05d": "Provider endpoint",
+    "m4ac81f8d693d": "Redirect & scopes",
+    "m0980004c67c1": "acme.com, acme-contractors.com",
+    "m3af0642101f2": "SSO sign-in is enabled for your domain.",
+    "m59f31e9a773e": "SSO sign-in is paused — users fall back to password auth.",
+    "m1324795a7aa8": "Saving…",
+    "m17cc90014b3e": "Live preview",
+    "m90bd8874ada5": "OIDC configuration ·",
+    "m1995887ad355": "configured",
+    "mb5610055f059": "not set",
+    "ma388b35eeee6": "✓ set",
+    "m1be41d5fc4dd": "SSO active — users can sign in via your IdP",
+    "m5eb5faa6cbf5": "SSO configured but inactive",
+    "m9a52affa6218": "No SSO provider configured",
+    "m99463116beca": "Callback URL",
+    "mc5038b20a0d6": "Register this redirect URI in your identity provider:",
+    "m4f8f4a6029d8": "Copy to clipboard",
+    "m5722bcfa7400": "Enterprise SSO",
+    "m1e939b7b4cbc": "Enforce sign-in through your corporate IdP (Azure AD, Okta, Auth0, Google Workspace). Users on your allowed domains are redirected to your IdP automatically.",
+    "m239b7819863d": "Settings",
+    "m82be07e8418a": "Configuration",
+    "m4c903bb74ed9": "Profile, workspace, locale and notifications.",
+    "m2255caa19025": "Danger zone",
+    "m251011545863": "Jane Smith",
+    "m7f8ad1ba2dfe": "Critical",
+    "m5836e3f6f284": "Plan",
+    "m70d993f4aae7": "Tool Calls",
+    "m81a36cd86bb2": "Custom",
+    "m70488646d660": "Unlimited workspaces",
+    "mc6572473d51f": "Unlimited runs",
+    "m18629becb717": "Unlimited connected automations",
+    "m9d2f4b435f53": "Current",
+    "m55b34f1cdcf3": "Contact sales",
+    "m245c12189d91": "Upgrade",
+    "mca4ac26863e8": "Company",
+    "md734f81167bd": "Loading integrations...",
+    "m0530d4879653": "Setup Guide",
+    "m2c575197fbcf": "(saved)",
+    "m2f159920cfcf": "Test Connection",
+    "m5d0a3ab02ef8": "Remove",
+    "mf1fd0aaf6045": "Provider",
+    "m9583131210fc": "Self-hosted provider — runs on your hardware",
+    "m4cb1ce4d7ccb": "Model",
+    "md100640b1368": "(type any tag your local server has loaded)",
+    "mdfe713d713c5": "gemma3:4b",
+    "ma9ef66d953f7": "(optional proxy override)",
+    "m03032587881b": "required",
+    "m59f3ac725629": "Default:",
+    "m0b1070b5d324": "API Key",
+    "mdd0a21379699": "(optional)",
+    "m9bf0b94f3d0d": "Optional auth token for your endpoint",
+    "m6f1791e21588": "Save provider with API key first",
+    "m5ae1c6a8e4c6": "How it works",
+    "m350c849d3a6f": "API & Auth",
+    "m41c85b6bacc7": "Your credentials and access tokens",
+    "m995515c1ae9f": "Tenant ID",
+    "mf516b06d11bf": "Copy",
+    "m0e13854c1b01": "Session Token",
+    "maddc6b1a8edb": "Webhooks & API Keys",
+    "m85f417bbfec5": "Manage webhook endpoints and API access for your companies",
+    "mfee4f2dabe8d": "Incoming Webhooks",
+    "m684490cc61e5": "External services can trigger pipeline runs by sending POST requests to your webhook endpoints.",
+    "m6665da29a7e3": "Endpoint Format",
+    "mfd15b81d8cf9": "Replace",
+    "m0a04f470671e": "with your company slug and",
+    "mfcbffc247eb8": "with the event name.",
+    "m63afb9032824": "API Access",
+    "m4b6ee96c2cfc": "Use this token as Bearer auth in API requests. Tokens expire after session ends.",
+    "me55571b3240f": "Common Events",
+    "m13a00239ea2d": "Copy URL",
+    "mef57c1e54f93": "Test Your Webhook",
+    "m0f7b30dc841a": "Referral Program",
+    "mb7cd3f777bef": "Share your code — both you and your friend get 5 bonus runs",
+    "m5c91a47132b9": "Your Code",
+    "m724c36053cc8": "Redeem a Code",
+    "m0a34e3a598e6": "Redeem",
+    "mc12fbd6e7a20": "Loading...",
+    "mcde607c76c72": "Irreversible actions. Tread carefully.",
+    "m6efdb34e5814": "Sign out everywhere",
+    "m9bb76ca4a794": "End all active sessions",
+    "m9bdeb5968503": "Sign out",
+    "m7775a95698f6": "Delete workspace",
+    "me7ec08fd87b4": "Permanently remove all runs and data",
+    "mb3ebf6fede5b": "Delete",
+    "mef4c40cb137f": "Discard",
+    "m25f762b46741": "✓ Saved",
+    "m8c8adacdb1db": "Save Changes",
+    "m0ce1f02a34d4": "Changes saved successfully!",
+    "m20bb133b046a": "System status",
+    "ma8e7dcac27dd": "auto-refresh · 60s",
+    "m6391d95c11d5": "GET /api/v1/health · live probe from your browser",
+    "m064d3ea1b787": "serving this page right now",
+    "m8b59895f3ed7": "Running first check…",
+    "m9f956da25b83": "This page reflects a live health check only. We don't publish uptime percentages or an incident timeline yet — historical uptime tracking is on the roadmap, and we'd rather show nothing than made-up numbers.",
+    "m4cb64ff7172c": "Command the AI agents & automations you already run.",
+    "m8a200d2fa01b": "Product",
+    "mf293e311adbd": "Company",
+    "me036901f0c5c": "Legal",
+    "m89dc05ffd2b2": "contact form",
+    "m083a2705391c": "to prepare a draft in your mail app. Send it from that app; delivery is not confirmed here.",
+    "m366977224408": "Billing & subscriptions",
+    "m8cb8b49fe281": "Privacy & data rights",
+    "m771454b72f87": "Security reports",
+    "m97ffe5296db2": "Mobile subscriptions are billed by Apple or Google, not by us, and renew automatically until cancelled. To view, change, or cancel: on iOS open",
+    "m1fc91bf085eb": "Settings → your name → Subscriptions",
+    "md62504ec7e39": "; on Android open",
+    "mb71b1e7e1c1e": "Google Play → Profile → Payments & subscriptions",
+    "m9ad3281dcc2d": ". Refunds for store purchases are handled by Apple (reportaproblem.apple.com) or Google Play according to their policies — if you get stuck, email us and we will help you through it. Web subscriptions billed via Stripe can be managed from",
+    "m9b8015792921": "Settings → Billing",
+    "mfa4b446e8ff6": "inside the app.",
+    "mdb4dc1cc9096": "Which AI providers does Braavolabs use?",
+    "ma6211b5db44c": "Run history shows recorded activity when it is available. Include the relevant run reference when asking for help.",
+    "m8e6535637cb8": "Why is my pipeline paused?",
+    "me8234ddd08d0": "How do I delete my account?",
+    "m301aee668176": "Request account deletion by email using the account deletion page.",
+    "m981862dbff04": "account & data deletion",
+    "m3cb779dfce49": "Is the platform up?",
+    "m652cc7ed28eb": "status page",
+    "mb29ed7325631": "Email",
+    "mc878475dd7ed": "with what you expected, what happened instead, and roughly when it happened. On mobile, attaching a screenshot and your app version (shown at the bottom of",
+    "m3dbf7d618644": "Settings",
+    "mb142b8b38188": ") shortens the round-trip considerably.",
+    "ma16f308c1827": "Everything we promise in writing:",
+    "mf5be8b9e2a4f": "Privacy Policy",
+    "m337507465f44": "Terms of Use",
+    "m7ba5c42d05d5": "GDPR Statement",
+    "mc8d0aedb0025": "KVKK privacy information preview",
+    "m668b03bf599d": "and the",
+    "m7ec4811747eb": "process.",
+    "maf2d75b446d2": "Features",
+    "mf11c295fe6b2": "Pricing",
+    "ma046b81f5cad": "About",
+    "ma833a458dc85": "Sign in",
+    "mdc1d31161f04": "Open app",
+    "m0a40adc25a52": "Support",
+    "mefb78ad514f6": "How can we help?",
+    "m0dff0c2e8740": "Email support",
+    "mdc8b49376a22": "Contact form",
+    "m5368a784c155": "Service status",
+    "m57cd0c28916e": "On this page",
+    "m97e6379af81c": "Still stuck?",
+    "m4a375a6c78be": "Send support requests through the listed contact channel. Response times are not guaranteed here.",
+    "m69772795df01": "Command the AI agents & automations you already run.",
+    "m691ce9b2c824": "Product",
+    "mb7d1cacaa4dc": "Changelog",
+    "m43dbdbcb4213": "Company",
+    "m0fb5d8aef58c": "Blog",
+    "md17c12c62307": "Contact",
+    "m29dff0f6e658": "Legal",
+    "mb8ffce79447d": "Privacy",
+    "mb295f0dd3165": "Terms",
+    "m61c5cf9b820b": "Braavolabs. All rights reserved.",
+    "mb8b061d2cc6c": "The",
+    "m2c3d4c4c5cf0": "document is available at",
+    "m640f6714c57b": "braavolabs.com",
+    "m1a9415bc8fe7": "Braavolabs.",
+    "mc03e218a0c3c": "receiving",
+    "mc09be1de9eb2": "idle",
+    "m67487c4d674f": "· no deliveries yet",
+    "m8f3eb54aeb83": "Copied ✓",
+    "m6e80efd48eb4": "Copy",
+    "m8e37387d42dc": "HMAC secret:",
+    "m33733931aae0": "Hide",
+    "m313faf245f17": "Reveal",
+    "m67501930af73": "Integrations",
+    "m032825c952b0": "Webhooks",
+    "m8e07c14fe364": "Live Endpoints",
+    "m070d79b59b0a": "Loading your endpoints…",
+    "m621423f8719e": "Each workspace gets a signed fan-in endpoint at",
+    "mab1707b54d07": ". Create your first workspace to start receiving events.",
+    "m0e54282c3be1": "Create a workspace",
+    "ma06584ff70f2": "Sample signed request",
+    "m60e512a99f97": "POST · HMAC-SHA256 signature",
+    "me0038ce40084": "Breadcrumb",
+    "m0fb6cbe7ed77": "Setup Progress",
+    "m33f7619295f7": "completed",
+    "m2475c8fc32c3": "Getting Started",
+    "m048d6635729b": "Dismiss",
+    "m33e5e43f1ffc": "of",
+    "m1b874306cc1d": "complete",
+    "m04d02f71794f": "online",
+    "md09f1084ca66": "Run step cost heatmap",
+    "md157b491332a": "Step heatmap ·",
+    "m4f7017581fe7": "step",
+    "m1bfba96b1e61": "Where the spend went",
+    "m454e25940ea0": "Total:",
+    "m926c7bc3cb4e": "Color metric",
+    "m7962e0ef9564": "Cost",
+    "maca226308ff4": "Duration",
+    "m82891b0c7c6e": "peak",
+    "mcff790642459": "Step",
+    "m91c4b9a9a975": "Unnamed",
+    "m671caa428e4c": "pending",
+    "mdde548bb2e5e": "cost:",
+    "ma4f2af79632e": "duration:",
+    "m946e0fce8ef2": "tools:",
+    "m42e92aa8ff4c": "agent:",
+    "m71160bc18aec": "Click to jump to this step ↓",
+    "m85e4a839e0c6": "← step 1",
+    "m8a413bb66127": "low",
+    "m66114b892e7f": "high",
+    "ma770817c8ec3": "SETUP",
+    "maa31d4cc5e14": "Daily spend, last 14 days",
+    "m0de88f4db3d7": "Quick start",
+    "mf6e156140dd9": "Creating…",
+    "m454ee6911d47": "or describe your own below ↓",
+    "m71c9ffc415a0": "Dismiss notification",
+    "m7b55bcf0daed": "Add API key",
+    "m6a6c1557497e": "Dismiss"
+  },
+  "content": {
+    "docCategories": {
+      "start": "Start here",
+      "concepts": "Concepts",
+      "reference": "Reference"
+    },
+    "blogCategories": {
+      "all": "All",
+      "product": "Product",
+      "engineering": "Engineering",
+      "governance": "Governance",
+      "fieldNotes": "Field notes"
+    },
+    "docs": {
+      "getting-started": {
+        "title": "Getting started",
+        "nav": "Getting started",
+        "desc": "Create a workspace, review a pipeline, and follow a governed run with explicit model and data choices.",
+        "blocks": {
+          "0": {
+            "text": "Braavolabs combines a web workspace, desktop and CLI workbenches, and a mobile companion for model and agent work. Choose the model route and data mode deliberately before starting a run."
+          },
+          "1": {
+            "text": "Your first run"
+          },
+          "2": {
+            "items": [
+              {
+                "title": "Sign in and describe the work",
+                "body": "Create an account on the authenticated app. In the company builder, describe your goal, audience and constraints. The builder may ask clarifying questions before proposing a plan."
+              },
+              {
+                "title": "Review the proposal",
+                "body": "Check the generated agents, pipeline steps, configured tools and expected outputs. Edit or remove anything you do not want. A proposed plan is not evidence that an external integration is connected."
+              },
+              {
+                "title": "Choose a route and start",
+                "body": "Configure an available provider key or compatible local endpoint. Review its capabilities and data handling, then start the pipeline. Provider inference can incur charges when work begins."
+              },
+              {
+                "title": "Follow status and decisions",
+                "body": "Read the recorded steps, available cost data, pending approvals and ask_user questions. Respond to the specific decision shown. You can send steering guidance or request a stop; an active call or external effect may already be in progress."
+              }
+            ]
+          },
+          "3": {
+            "text": "Plans and inference"
+          },
+          "4": {
+            "text": "Individual ($19/month) and Team ($39/active user/month) are preview plan descriptions and are not currently available to purchase. Inference is separate: provider charges, local hardware and operation costs are not included."
+          },
+          "5": {
+            "text": "Private Mode is a preview. Cloud Agent Mode and signed evidence remain in development. Holding is a premium/private preview. Do not treat these labels as a complete security or availability guarantee."
+          },
+          "6": {
+            "text": "Use the web for composing companies and pipelines. Use the mobile companion to monitor, answer, approve and steer supported work."
+          }
+        }
+      },
+      "concepts": {
+        "title": "Core concepts",
+        "nav": "Concepts",
+        "desc": "Understand companies, agents, pipelines, runs, decisions and recorded activity.",
+        "blocks": {
+          "0": {
+            "text": "A company groups a goal, agents and pipelines inside your authenticated workspace. An agent performs a role; a pipeline orders work; a run is one execution of that pipeline. Multiple companies can belong to the same account or tenant."
+          },
+          "1": {
+            "text": "Nine building blocks"
+          },
+          "2": {
+            "text": "The builder composes acquisition, sales, delivery, content, operations, finance, analytics, memory and governance roles. These are starting structures to review, not automatic permission to contact people, spend money or access an account."
+          },
+          "3": {
+            "text": "Decisions and governance"
+          },
+          "4": {
+            "text": "Supported actions can produce pending approvals. An ask_user decision requests information rather than permission to spend. Read its question and scope before allowing, rejecting or answering. Provider inference is billed separately and does not necessarily wait for an approval row."
+          },
+          "5": {
+            "text": "Governance checks include hard, loop, cost, spam and brand stops. Their coverage depends on the execution path and configuration. A stop prevents further supported work at a check boundary; it cannot retract an already sent request."
+          },
+          "6": {
+            "text": "Read the recorded state"
+          },
+          "7": {
+            "text": "Activity and step records help explain status, outputs, available cost data and decision summaries. Missing data is unknown, not zero. A recorded request is not proof that its external effect completed. Retain important outputs and reconcile external systems before retrying uncertain work."
+          },
+          "8": {
+            "text": "A company name or a local model endpoint alone does not establish a separate tenant, an operating-system sandbox or a fully offline data path."
+          }
+        }
+      },
+      "byok-and-providers": {
+        "title": "BYOK & providers",
+        "nav": "BYOK & providers",
+        "desc": "Configure a supported cloud or local model route and understand its cost and data boundaries.",
+        "blocks": {
+          "0": {
+            "text": "Bring your own key (BYOK) means using your provider credentials for supported cloud inference. A compatible customer-operated endpoint is a separate route. Available providers and models come from the authenticated configuration; this page does not promise a fixed provider count."
+          },
+          "1": {
+            "text": "Configure and check a route"
+          },
+          "2": {
+            "items": [
+              "Use a key scoped to the intended provider account. Review its provider-side spending controls and avoid putting secrets into prompts, shared logs or screenshots.",
+              "For a local endpoint, confirm its explicit base URL, supported model and reachability from the machine that will make the request.",
+              "Check model capabilities, tool support and the selected data mode. Changing providers can change output, price and behavior; a common API shape does not make models interchangeable."
+            ]
+          },
+          "3": {
+            "text": "Key storage depends on the surface"
+          },
+          "4": {
+            "text": "Server-stored cloud credentials use the implemented AES-256-GCM storage format. Protecting them also depends on the server key, runtime access and backups. CLI direct-provider configuration and desktop credential storage have their own boundaries; saving a key on one surface does not prove it is available or protected identically on every device."
+          },
+          "5": {
+            "text": "Inference charges go to the configured provider. Local execution can still incur hardware and operation costs. Review reported usage and provider billing together; unavailable cost data is not free usage."
+          },
+          "6": {
+            "text": "A local inference URL does not make tools, telemetry, account services or the complete pipeline offline. Review the complete data path before processing sensitive material."
+          }
+        }
+      },
+      "mid-run-steering": {
+        "title": "Mid-run steering & ask_user",
+        "nav": "Steering & ask_user",
+        "desc": "Send guidance, answer a question, or request a stop while following the recorded run state.",
+        "blocks": {
+          "0": {
+            "text": "Steering lets you send additional operator guidance to a supported run. State the change clearly: the intended customer, constraint or next step. The request is consumed at an available execution boundary, rather than guaranteeing an immediate interruption of an active provider call."
+          },
+          "1": {
+            "text": "Read the acknowledgement carefully"
+          },
+          "2": {
+            "text": "A successful request means the system accepted that request. It does not by itself prove the model received, applied or followed the instruction. Follow the subsequent run state and output. If a request fails or times out, inspect the current state before resubmitting."
+          },
+          "3": {
+            "text": "Answer an ask_user question"
+          },
+          "4": {
+            "text": "When an agent requests information, open the matching pending decision and read the question and context. Submit the answer once, then check whether the decision and run state changed. Do not confuse an information request with authorization for an unrelated action."
+          },
+          "5": {
+            "text": "Resume with care"
+          },
+          "6": {
+            "text": "Saved completed steps can be reused when work resumes. This does not establish exactly-once delivery for provider calls, emails, payments or other external effects. A pause, stop or failed connection can occur while an effect is in progress. Check recorded output and the external service before manually retrying uncertain work."
+          },
+          "7": {
+            "text": "Pause, resume and steering do not guarantee zero additional cost or reverse an external effect that already happened."
+          }
+        }
+      },
+      "webhooks": {
+        "title": "Webhooks",
+        "nav": "Webhooks",
+        "desc": "Sign a company webhook with the exact timestamp, raw body and header contract.",
+        "blocks": {
+          "0": {
+            "text": "A configured company webhook accepts POST /hooks/<company-slug>/<event>. Use that company's configured webhook secret and a test company before sending an event that can start work."
+          },
+          "1": {
+            "text": "Sign the exact bytes"
+          },
+          "2": {
+            "text": "Set X-Webhook-Timestamp to the current Unix time in milliseconds. Compute a hexadecimal HMAC-SHA256 over the timestamp, a literal dot, and the exact raw request body. Send it as X-Webhook-Signature. Do not reserialize or edit the body after signing."
+          },
+          "3": {
+            "caption": "Example signed request; replace the API URL, company slug and event."
+          },
+          "4": {
+            "text": "Delivery and retries"
+          },
+          "5": {
+            "text": "The server rejects timestamps outside a five-minute window. Signature-based duplicate detection uses Redis with a six-minute entry lifetime; when Redis is unavailable, signature and timestamp checks remain but that duplicate check can be skipped. This is not an exactly-once delivery guarantee."
+          },
+          "6": {
+            "text": "A successful webhook response is not proof that the pipeline completed. Check run status and use application-level idempotency and reconciliation for external effects. Before retrying a timeout, inspect whether the first request was accepted."
+          }
+        }
+      },
+      "external-automations": {
+        "title": "Connecting external automations",
+        "nav": "External automations",
+        "desc": "Connect a configured external automation and verify both sides of its execution.",
+        "blocks": {
+          "0": {
+            "text": "Use configured integrations or signed webhooks to connect supported external automation tools. The availability and actions of an integration depend on its actual connection and credentials; naming n8n, Make or Zapier does not mean every workflow is automatically connected."
+          },
+          "1": {
+            "text": "Make one connection observable"
+          },
+          "2": {
+            "items": [
+              {
+                "title": "Choose the boundary",
+                "body": "Decide which system starts work, which event it sends and which system owns the result. Connect only the account and permissions needed for that action."
+              },
+              {
+                "title": "Test with harmless data",
+                "body": "Use a test company and an external test workflow. Verify the event payload, authentication, resulting run and external result."
+              },
+              {
+                "title": "Plan failure handling",
+                "body": "Define timeouts, duplicate handling and a manual reconciliation step. Do not blindly resend a payment, email or other external effect after an uncertain response."
+              }
+            ]
+          },
+          "3": {
+            "text": "An external workflow status and a Braavolabs run status describe different parts of the operation. Check both. Recorded dispatch or a successful trigger response is not a delivery or completion receipt from the destination."
+          },
+          "4": {
+            "text": "Connection credentials, webhook secrets and provider keys may have different storage and revocation paths. Review the relevant surface and external service when removing access."
+          }
+        }
+      },
+      "mobile-app": {
+        "title": "Mobile app",
+        "nav": "Mobile app",
+        "desc": "Use the mobile companion to monitor, decide and steer supported work.",
+        "blocks": {
+          "0": {
+            "text": "The mobile app is a companion for supported monitoring and control. Compose companies and pipelines on the web, then use the phone to read run status, handle pending decisions and send steering guidance."
+          },
+          "1": {
+            "text": "Monitor, approve, answer and steer"
+          },
+          "2": {
+            "items": [
+              "Monitor: open the relevant company and run. Treat unavailable or stale data as unknown; reconnect and refresh before making a decision.",
+              "Approve: read the specific pending action and allow or reject it. An approval row does not cover unrelated work or every provider charge.",
+              "Answer: respond to an ask_user question in its original context. Check the resulting decision state after submitting.",
+              "Steer: send a clear instruction and follow subsequent output. An accepted request is not proof that the instruction was applied."
+            ]
+          },
+          "3": {
+            "text": "Sessions and notifications"
+          },
+          "4": {
+            "text": "Notifications depend on device permission, an eligible session, network access and delivery by the platform. Open the app to verify the latest state rather than treating a push notification as a complete execution record. Device-held session credentials use platform secure storage; protection and background behavior still depend on the device and operating system."
+          },
+          "5": {
+            "text": "After switching accounts, confirm the selected company and pending decision again. On a timeout, inspect current state before retrying. The app cannot undo an external effect that already completed."
+          },
+          "6": {
+            "text": "Choose your preferred language and light, dark or system theme in the app. After changing language or account, confirm the current workspace and decision context before acting."
+          }
+        }
+      },
+      "faq": {
+        "title": "Frequently asked questions",
+        "nav": "FAQ",
+        "desc": "Answers about previews, costs, local models, approvals and uncertain runs.",
+        "blocks": {
+          "0": {
+            "items": [
+              {
+                "q": "Can I buy a plan now?",
+                "a": "Individual ($19/month) and Team ($39/active user/month) are preview descriptions and are not currently available to purchase. Inference is separate from the proposed subscription."
+              },
+              {
+                "q": "Does every charge require an approval?",
+                "a": "No. Supported actions can require a pending decision, but provider inference can incur charges when a run starts. Read the action and provider spending controls before running work."
+              },
+              {
+                "q": "Does a local model make the platform offline?",
+                "a": "No. A compatible local endpoint controls that inference route. Tools, account services, telemetry and other pipeline steps require their own data-path review."
+              },
+              {
+                "q": "Will resume repeat an external action?",
+                "a": "Saved completed steps can be reused, but exactly-once external delivery is not established. Check the run and external service before retrying uncertain work."
+              },
+              {
+                "q": "Did an accepted steering request change the model output?",
+                "a": "Acceptance records the request. Follow the next execution boundary and output to determine whether the instruction was applied and followed."
+              },
+              {
+                "q": "Can I build a complete company on my phone?",
+                "a": "The web is the authoring surface. The mobile companion focuses on monitoring, approvals, answers and steering."
+              },
+              {
+                "q": "Are Private Mode, Cloud Agent Mode and signed evidence generally available?",
+                "a": "Private Mode is a preview; Cloud Agent Mode and signed evidence are in development. Their names are not a complete security or availability guarantee."
+              },
+              {
+                "q": "Does deleting an account cancel an external subscription?",
+                "a": "Do not assume it does. Check the subscription provider and any external service separately, and preserve required exports before deleting data."
+              }
+            ]
+          }
+        }
+      }
+    },
+    "blog": {
+      "steer-agents-mid-run": {
+        "title": "Steering a run without starting over",
+        "desc": "How operator guidance and saved steps help redirect supported work, and where their guarantees end.",
+        "body": "A run can need a correction after it has started: a different customer, a tighter constraint, or a question the original brief did not answer. Braavolabs supports steering guidance and ask_user decisions so the operator can respond in context.\n\n## A request has stages\n\nSubmitting guidance, accepting the request, consuming it at an execution boundary and following it in the output are different events. An active provider call can continue before the next boundary. Read the later run state and result before concluding that an instruction took effect.\n\n## Preserve useful work, inspect uncertain work\n\nResuming can reuse saved completed steps. It does not prove exactly-once delivery for external effects, and it does not guarantee zero additional provider cost. If a connection fails during a send or payment, check the destination before manually retrying.\n\n## Ask rather than infer permission\n\nAn ask_user decision requests information. A separate supported action can request approval. Read the scope of each decision: an answer to a question is not permission for unrelated work. These controls help make a working session inspectable; their presence does not establish that every route or external tool has identical behavior."
+      },
+      "five-risk-stops-explained": {
+        "title": "The five risk stops and their boundaries",
+        "desc": "Hard, loop, cost, spam and brand checks help govern supported execution paths.",
+        "body": "Braavolabs names five governance checks: hard, loop, cost, spam and brand. Understanding their purpose also means understanding when they can act.\n\n## Five checks\n\nThe hard stop checks a stop condition. The loop check looks for repeated behavior. The cost check compares recorded usage with configured limits. Spam and brand checks apply policy to supported outreach and content paths. Review the configuration and execution path rather than assuming every tool receives the same checks.\n\n## Boundaries matter\n\nA check can prevent further supported work when the execution reaches it. It cannot recall a request already sent to a provider or reverse an external effect. Usage records can arrive after a charge, so a configured budget is not a guarantee that the provider bill can never exceed it.\n\n## Read the result\n\nWhen a check changes run state, inspect the recorded reason and relevant step. Missing status or cost data is unknown, not evidence that the run is safe or free. Notifications depend on permission and delivery; the current run record is the place to confirm state. Before resuming, review both the local result and any external service involved."
+      },
+      "byok-routing-without-lock-in": {
+        "title": "Choosing cloud and local model routes",
+        "desc": "Keep provider choice explicit while checking capabilities, costs and credential boundaries.",
+        "body": "Braavolabs supports configured cloud credentials and compatible customer-operated endpoints. The useful promise is an explicit route choice, not that every model is interchangeable or that an unmeasured model is always best.\n\n## Check the route you choose\n\nReview the available model, tool support, data mode and endpoint reachability. A provider change can change output quality, latency, price and supported parameters. If a selected route is unavailable, inspect the error rather than assuming a different model silently completed the work.\n\n## Separate subscription and inference\n\nThe proposed Individual and Team subscriptions do not include inference. Provider charges belong to the configured account; local models still require hardware and operation. Compare reported usage with provider billing. Unknown cost is not zero cost.\n\n## Protect the relevant credential store\n\nServer-stored cloud keys use the implemented AES-256-GCM format. Server key protection, runtime access and backups still matter. CLI direct-provider configuration and desktop credential storage have separate boundaries. Review the store that actually makes the request, and revoke access in the provider as well when necessary. A common interface helps organize work; it does not establish identical security or economics across routes."
+      },
+      "pocket-steering": {
+        "title": "Monitor and decide from your phone",
+        "desc": "The mobile companion focuses on supported monitoring, approvals, questions and steering.",
+        "body": "The mobile companion provides a smaller control surface for work composed on the web. Its core actions are reading run state, handling a pending approval, answering ask_user and sending steering guidance.\n\n## Keep the decision in context\n\nOpen the relevant company and run before acting. Read the exact question or action, and distinguish an information request from permission for an external effect. Provider inference can already incur charges without a separate approval row.\n\n## Treat delivery and state separately\n\nPush notifications depend on device permission, session eligibility, network access and platform delivery. A notification can be delayed; refresh the app to confirm the current decision. A successful steering response records acceptance of the request, not proof that the model followed it.\n\n## Recover carefully\n\nAfter an account switch or interrupted connection, confirm the selected account, company and pending decision again. Inspect current state before resubmitting a timeout. A mobile action cannot retract an external request that already completed. Platform secure storage helps protect device-held session credentials, while physical-device, background-delivery and cross-account tests remain necessary release checks."
+      },
+      "local-model-routing-boundaries": {
+        "title": "Local model routing boundaries",
+        "desc": "A local inference endpoint is one part of the complete data path.",
+        "body": "A compatible customer-operated model server can be configured with an explicit base URL. Braavolabs does not bundle a model or infer a complete privacy policy from the address alone.\n\n## Trace the whole operation\n\nCheck which machine makes the inference call, which model is available and whether the endpoint is reachable from that machine. Then inspect the tools, account services, telemetry, logs and other steps that can still use a network connection. A local URL does not make the complete pipeline offline.\n\n## Review capabilities and cost\n\nModel capabilities and tool support can differ from cloud routes. Review outputs after changing a route. Local inference may remove a provider token charge for that call, but hardware, electricity, maintenance and other connected services still have costs. Missing cost data should remain unknown.\n\n## Keep preview labels precise\n\nPrivate Mode is a preview. Cloud Agent Mode and signed evidence remain in development. Those labels do not establish a complete data-handling contract, an operating-system sandbox or independently verified evidence. Sensitive use requires checking the actual configured data path and execution permissions."
+      },
+      "shipping-ask-user": {
+        "title": "Designing ask_user around a clear question",
+        "desc": "An information request should preserve context and avoid implying unrelated permission.",
+        "body": "An agent can encounter missing information while working. ask_user gives that uncertainty a visible decision: a question for the operator, associated with the relevant run.\n\n## Ask one answerable question\n\nA useful question identifies the missing fact and enough context to answer it. It should not disguise an external action as a request for information. Read the question before responding, and keep sensitive credentials out of free-text answers.\n\n## Reuse the decision surface carefully\n\nInformation requests and supported approval actions can appear in the same decision workflow, but they have different meanings. Answering a question is not authorization for unrelated work. Nor does the presence of an approval queue mean every provider inference charge waits for an explicit yes.\n\n## Check what happens next\n\nAfter sending an answer, inspect the decision and run state. A received answer, a resumed run and a completed external effect are separate observations. If the connection times out, check whether the answer was recorded before resubmitting. Saved completed steps can be reused, but external retries still require reconciliation. This is a design rationale for a visible operator decision, not a measured customer study or a claim of exactly-once execution."
+      },
+      "audit-trail-youd-actually-read": {
+        "title": "Reading the recorded activity of a run",
+        "desc": "Use recorded status, outputs, decisions and available costs without inventing missing evidence.",
+        "body": "An operator needs to understand what a run attempted, which decisions were requested and what result was recorded. Braavolabs activity and step views organize those records around the run.\n\n## Start with the recorded facts\n\nRead the step status, available output, recorded decision summary and any reported cost. Keep unavailable values visibly unknown. A dispatch record or successful API acknowledgement does not prove that an external message, payment or workflow completed.\n\n## Reconcile before retrying\n\nA provider or tool can finish while a client loses its connection. Compare the run record with the destination service before repeating an uncertain external effect. Saved steps and history are useful evidence, but they do not establish complete, immutable or independently verified coverage of every action.\n\n## Protect the record\n\nPrompts, tool outputs and free-text answers can contain sensitive data. Limit access and preserve only the exports needed for your operation. Review retention, backups and restoration rather than assuming a visible activity page is a backup. Signed evidence remains in development; the current record should not be presented as a certification, a complete private reasoning trace or proof of legal compliance."
+      }
+    }
+  },
+  "surface": {
+    "legal": {
+      "previewNotice": "Privacy information preview. This page is not yet the complete notice for public personal-data collection. Responsible-operator details, actual processing and recipients, retention and applicable safeguards must be finalized before public registration.",
+      "kvkkTitle": "KVKK information preview",
+      "gdprTitle": "GDPR information preview",
+      "kvkk": {
+        "veri-sorumlusu": {
+          "title": "Responsible operator",
+          "body": "Braavolabs is the product name. The responsible legal operator, postal contact and applicable representative must be identified in the complete privacy notice before public personal-data collection. The current contact route is kvkk@braavolabs.com."
+        },
+        "islenen-kisisel-veriler": {
+          "title": "Data and collection methods",
+          "body": "Account forms and service use can provide identity, contact, organization, session, usage and run records. Prompts, outputs, files and optional connections can contain additional personal data. The complete notice must identify the actual collected data and methods for the active deployment."
+        },
+        "isleme-amaclari": {
+          "title": "Processing purposes",
+          "body": "Account operation, requested model or agent work, support and security involve different processing activities. Billing and optional marketing must be described only when enabled. A feature name does not establish permission to process unrelated personal data."
+        },
+        "hukuki-sebepler": {
+          "title": "Legal grounds",
+          "body": "The appropriate legal ground must be assessed for each actual processing activity under applicable law. This preview does not establish that consent, contract necessity, legal obligation or legitimate interest covers every use of the service."
+        },
+        "ucuncu-taraf-aktarimlari": {
+          "title": "Recipients and international transfers",
+          "body": "Configured model providers, hosting and optional integrations can involve other recipients or countries. The final notice must identify the active recipients, purposes and safeguards. A standard-contract mechanism being available in law does not mean the required contract has been executed or notified for this service."
+        },
+        "saklama-suresi": {
+          "title": "Retention and deletion",
+          "body": "Retention must be defined by data category, purpose and applicable legal requirements, including logs and backups. This preview does not promise one universal ten-year period or immediate removal of every copy. Account deletion and cancellation of an external subscription are separate actions."
+        },
+        "haklariniz": {
+          "title": "Rights under KVKK",
+          "body": "Where KVKK applies, Article 11 provides rights concerning information, correction, erasure or destruction, notifications to recipients, objections to adverse automated analysis and compensation for unlawful processing. Their exercise depends on the applicable conditions; contact the responsible operator through the stated request channel."
+        },
+        "basvuru": {
+          "title": "Requests",
+          "body": "Contact kvkk@braavolabs.com about a rights request without including account passwords or provider keys. Under KVKK Article 13, requests must be resolved as soon as appropriate and within 30 days. The general rule is no fee; additional costs can be charged only under the Board tariff. Identity and request scope may need clarification."
+        }
+      },
+      "gdpr": {
+        "data-controller": {
+          "title": "Responsible operator",
+          "body": "Braavolabs is the product name. The complete notice must identify the responsible legal operator, contact details and any applicable representative before public personal-data collection. The current contact route is gdpr@braavolabs.com."
+        },
+        "personal-data": {
+          "title": "Data and purposes",
+          "body": "Account information, session and usage records, prompts, outputs, files and optional integrations can involve personal data. The complete notice must describe the active processing purposes, data sources, recipients and whether providing each category is required."
+        },
+        "lawful-bases": {
+          "title": "Lawful bases",
+          "body": "A lawful basis must be assessed for each actual activity. This preview does not establish that contract necessity, legitimate interests, legal obligation or consent automatically covers every use. Optional marketing and sensitive or automated decision-making uses require separate assessment."
+        },
+        "cross-border-transfers": {
+          "title": "Recipients and transfers",
+          "body": "Configured providers and infrastructure can process data in other countries. Actual recipients, destinations and applicable transfer safeguards must be documented for the active deployment. This page does not claim that an unverified provider agreement or safeguard is already in place."
+        },
+        "your-rights": {
+          "title": "Rights and requests",
+          "body": "Applicable rights can include access, correction, erasure, restriction, portability, objection and withdrawal of consent, subject to legal conditions. Contact gdpr@braavolabs.com without sending passwords or provider keys. Requests normally require a response within one month; a permitted extension of up to two further months must be explained within the first month. Identity checks and lawful fee or refusal exceptions can apply. You may complain to the competent supervisory authority."
+        },
+        "retention": {
+          "title": "Retention",
+          "body": "The complete notice must state periods or meaningful criteria by data category, covering active records, logs, backups and external processors. A deletion request can have legal exceptions. Deleting an account does not itself cancel a separate external subscription."
+        },
+        "security": {
+          "title": "Security information",
+          "body": "Credential storage and execution boundaries differ across server, desktop, CLI and mobile. Review the relevant data path and permissions before sending sensitive data. This page does not establish certification, a complete offline guarantee or protection against every incident."
+        },
+        "data-protection-contact": {
+          "title": "Data protection contact",
+          "body": "Use gdpr@braavolabs.com for privacy inquiries. Whether a data protection officer or representative is required must be assessed for the actual operator and processing activities. This preview makes no exemption claim."
+        }
+      }
+    },
+    "loading": "Loading…",
+    "unavailable": "Unavailable",
+    "close": "Close",
+    "loadFailed": "Some information could not be loaded. Missing data is unavailable; try again.",
+    "progress": "Run steps: {completed} / {total}",
+    "support": {
+      "emailIntro": "For support, write to",
+      "responseTime": "Include the account email and a description of the issue. A fixed response time is not guaranteed.",
+      "intro": "Contact the Braavolabs team for product, account and subscription help."
+    },
+    "starters": {
+      "intro": "Choose a starting configuration. Runs need a configured provider or an available account trial; review the provider and budget before starting."
+    },
+    "dashboard": {
+      "operator": "operator",
+      "morning": "Good morning",
+      "afternoon": "Good afternoon",
+      "evening": "Good evening",
+      "snapshot": "Snapshot loaded on page open. Reload the page for current data.",
+      "activeRisks": "{count, plural, one {# active risk} other {# active risks}}",
+      "started": "{name} started — steps queued",
+      "activityRun": "{name}: {status}",
+      "approval": "{description} is awaiting review",
+      "risk": "Risk event",
+      "queued": "Queued"
+    },
+    "severity": {
+      "high": "High severity",
+      "medium": "Medium severity",
+      "low": "Low severity",
+      "unknown": "Severity unavailable"
+    },
+    "states": {
+      "running": "Running",
+      "completed": "Completed",
+      "paused": "Paused",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "waiting_approval": "Waiting for approval",
+      "pending": "Pending",
+      "active": "Active",
+      "disabled": "Disabled",
+      "draft": "Draft",
+      "queued": "Queued",
+      "unknown": "Unknown"
+    },
+    "icons": {
+      "close": "Close",
+      "send": "Send",
+      "delete": "Delete",
+      "run": "Run",
+      "pause": "Pause",
+      "resume": "Resume",
+      "branch": "Add a branch",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "copy": "Copy",
+      "dismiss": "Dismiss"
+    },
+    "billing": {
+      "cancels": "Cancels {date}",
+      "renews": "Renews {date}"
+    },
+    "status": {
+      "checkedAt": "Last checked {time} (your local time)",
+      "pageLoaded": "This page loaded"
+    },
+    "blog": {
+      "readPost": "Read: {title}",
+      "readTime": "{duration} read"
+    },
+    "ideas": {
+      "start": "Start from idea: {title}",
+      "estimate": "Illustrative estimate: {agents} agents, {pipelines} pipelines. The builder proposal can differ."
+    },
+    "compare": {
+      "verify": "Verify current support",
+      "notice": "This checklist is not a verified competitor benchmark. Capabilities and costs depend on the product, plan and deployment. Check current provider documentation before choosing."
+    },
+    "integrations": {
+      "directoryNote": "This catalogue describes candidate connections. An entry does not mean a connector is implemented, enabled or authorized for your account. Review supported connections and provider documentation before sharing credentials.",
+      "entry": "Catalogue entry",
+      "reviewConnections": "Review supported connections",
+      "apiKey": "API key",
+      "oauth": "OAuth 2.0"
+    },
+    "webhooks": {
+      "anyProvider": "Any provider",
+      "templateNote": "These are example event templates. Provider setup paths and sample data are illustrative; verify the active provider contract and signing requirements before enabling a hook."
+    },
+    "error": {
+      "session": "Your sign-in could not be verified. Sign in again, or contact support if it continues.",
+      "signIn": "Sign in",
+      "forbidden": "You do not have permission to view this. Contact support if the access seems incorrect.",
+      "network": "The server could not be reached. Check the connection and retry.",
+      "rateLimit": "Too many requests. Wait before trying again.",
+      "timeout": "The request timed out. Its outcome may be uncertain; check current state before retrying an action.",
+      "generic": "An unexpected error occurred. Try again or contact support with the reference shown."
+    },
+    "forecast": {
+      "loadFailed": "The forecast could not be loaded. Try again.",
+      "saveFailed": "The budget could not be saved. Check the current value before retrying."
+    },
+    "triggers": {
+      "manual": "Manual",
+      "cron": "Schedule",
+      "webhook": "Webhook",
+      "event": "Event"
+    },
+    "trial": {
+      "funding": "An enabled trial follows the operator’s provider and limits. Paid subscriptions do not include inference; use a supported provider key or configured local endpoint when the trial is unavailable.",
+      "exhausted": "The account trial limit ({limit, number}) has been reached.",
+      "remaining": "{count, plural, one {# trial run remaining} other {# trial runs remaining}} of {limit, number}"
+    }
+  },
+  "dataCopy": {
+    "integrations": {
+      "hubspot": {
+        "description": "Full CRM with contacts, deals, and pipeline management",
+        "features": [
+          "Contact sync",
+          "Deal tracking",
+          "Pipeline management",
+          "Form submissions",
+          "Email tracking"
+        ]
+      },
+      "salesforce": {
+        "description": "Enterprise CRM platform for sales and service",
+        "features": [
+          "Lead management",
+          "Opportunity tracking",
+          "Custom objects",
+          "Reports",
+          "Workflow rules"
+        ]
+      },
+      "pipedrive": {
+        "description": "Sales-focused CRM with visual pipeline",
+        "features": [
+          "Visual pipeline",
+          "Activity tracking",
+          "Email integration",
+          "Smart contact data",
+          "Revenue forecasting"
+        ]
+      },
+      "zoho_crm": {
+        "description": "AI-powered CRM for growing businesses",
+        "features": [
+          "Lead scoring",
+          "Sales automation",
+          "Analytics",
+          "Multichannel",
+          "Territory management"
+        ]
+      },
+      "close": {
+        "description": "CRM built for inside sales teams",
+        "features": [
+          "Built-in calling",
+          "Email sequences",
+          "Pipeline reporting",
+          "Task management",
+          "Smart views"
+        ]
+      },
+      "freshsales": {
+        "description": "Modern CRM with AI-based lead scoring",
+        "features": [
+          "AI lead scoring",
+          "Built-in phone",
+          "Email tracking",
+          "Deal management",
+          "Reports"
+        ]
+      },
+      "attio": {
+        "description": "Next-gen CRM with real-time data enrichment",
+        "features": [
+          "Auto-enrichment",
+          "Custom objects",
+          "Real-time sync",
+          "Relationship intelligence",
+          "API-first"
+        ]
+      },
+      "folk": {
+        "description": "Collaborative CRM for relationship-driven teams",
+        "features": [
+          "Group management",
+          "Mail merge",
+          "Pipeline views",
+          "Browser extension",
+          "Enrichment"
+        ]
+      },
+      "copper": {
+        "description": "CRM designed for Google Workspace",
+        "features": [
+          "Gmail integration",
+          "Contact management",
+          "Pipeline tracking",
+          "Task automation",
+          "Reporting"
+        ]
+      },
+      "monday_sales": {
+        "description": "Sales CRM on the Monday.com platform",
+        "features": [
+          "Visual pipeline",
+          "Email sync",
+          "Activity tracking",
+          "Custom dashboards",
+          "Automations"
+        ]
+      },
+      "tiktok": {
+        "description": "Short-form video platform",
+        "features": [
+          "Video publishing",
+          "Analytics",
+          "Comment management",
+          "Trend tracking",
+          "Creator tools"
+        ]
+      },
+      "instagram": {
+        "description": "Photo and video sharing platform",
+        "features": [
+          "Post scheduling",
+          "Story publishing",
+          "Reel creation",
+          "Insights",
+          "Comment management"
+        ]
+      },
+      "linkedin": {
+        "description": "Professional networking and content",
+        "features": [
+          "Post publishing",
+          "Company pages",
+          "Analytics",
+          "Connection management",
+          "Article creation"
+        ]
+      },
+      "twitter": {
+        "description": "Real-time social media platform",
+        "features": [
+          "Tweet posting",
+          "Thread creation",
+          "Analytics",
+          "DM management",
+          "List management"
+        ]
+      },
+      "youtube": {
+        "description": "Video hosting and streaming platform",
+        "features": [
+          "Video upload",
+          "Analytics",
+          "Comment management",
+          "Playlist management",
+          "Live streaming"
+        ]
+      },
+      "facebook": {
+        "description": "Social media and business pages",
+        "features": [
+          "Page posting",
+          "Ad management",
+          "Insights",
+          "Group management",
+          "Messenger"
+        ]
+      },
+      "pinterest": {
+        "description": "Visual discovery and bookmarking platform",
+        "features": [
+          "Pin creation",
+          "Board management",
+          "Analytics",
+          "Rich pins",
+          "Shopping"
+        ]
+      },
+      "reddit": {
+        "description": "Community discussion platform",
+        "features": [
+          "Post creation",
+          "Comment tracking",
+          "Subreddit monitoring",
+          "Analytics",
+          "Award management"
+        ]
+      },
+      "threads": {
+        "description": "Text-based conversation app by Meta",
+        "features": [
+          "Post publishing",
+          "Reply management",
+          "Analytics",
+          "Quote posts",
+          "Reposts"
+        ]
+      },
+      "snapchat": {
+        "description": "Ephemeral messaging and content",
+        "features": [
+          "Story creation",
+          "Snap ads",
+          "Analytics",
+          "Lens studio",
+          "Spotlight"
+        ]
+      },
+      "mailchimp": {
+        "description": "All-in-one marketing platform",
+        "features": [
+          "Email campaigns",
+          "Automation",
+          "Audience management",
+          "Landing pages",
+          "Analytics"
+        ]
+      },
+      "sendgrid": {
+        "description": "Cloud-based email delivery service",
+        "features": [
+          "Transactional email",
+          "Marketing campaigns",
+          "Email validation",
+          "Analytics",
+          "Templates"
+        ]
+      },
+      "convertkit": {
+        "description": "Email marketing for creators",
+        "features": [
+          "Visual automations",
+          "Landing pages",
+          "Subscriber tagging",
+          "Broadcasts",
+          "Commerce"
+        ]
+      },
+      "activecampaign": {
+        "description": "Customer experience automation",
+        "features": [
+          "Email marketing",
+          "Marketing automation",
+          "CRM",
+          "Messaging",
+          "Machine learning"
+        ]
+      },
+      "brevo": {
+        "description": "All-in-one digital marketing platform",
+        "features": [
+          "Email campaigns",
+          "SMS marketing",
+          "Chat",
+          "CRM",
+          "Automation"
+        ]
+      },
+      "klaviyo": {
+        "description": "E-commerce marketing automation",
+        "features": [
+          "Email flows",
+          "SMS marketing",
+          "Segmentation",
+          "Predictive analytics",
+          "A/B testing"
+        ]
+      },
+      "constant_contact": {
+        "description": "Email marketing and online marketing",
+        "features": [
+          "Email templates",
+          "Contact management",
+          "Automation",
+          "Reporting",
+          "Social posting"
+        ]
+      },
+      "drip": {
+        "description": "E-commerce CRM and marketing automation",
+        "features": [
+          "Visual workflows",
+          "Segmentation",
+          "Revenue attribution",
+          "Forms",
+          "Integrations"
+        ]
+      },
+      "beehiiv": {
+        "description": "Newsletter platform for creators",
+        "features": [
+          "Newsletter editor",
+          "Growth tools",
+          "Monetization",
+          "Analytics",
+          "Custom domains"
+        ]
+      },
+      "aweber": {
+        "description": "Email marketing for small businesses",
+        "features": [
+          "Email automation",
+          "Landing pages",
+          "Web push notifications",
+          "AMP emails",
+          "Reporting"
+        ]
+      },
+      "slack": {
+        "description": "Business messaging platform",
+        "features": [
+          "Channel messaging",
+          "Workflows",
+          "File sharing",
+          "Integrations",
+          "Search"
+        ]
+      },
+      "discord": {
+        "description": "Community messaging platform",
+        "features": [
+          "Server management",
+          "Bot integration",
+          "Voice channels",
+          "Thread management",
+          "Webhooks"
+        ]
+      },
+      "whatsapp": {
+        "description": "Business messaging on WhatsApp",
+        "features": [
+          "Business messaging",
+          "Catalog",
+          "Quick replies",
+          "Labels",
+          "Broadcast"
+        ]
+      },
+      "telegram": {
+        "description": "Cloud-based messaging with bot API",
+        "features": [
+          "Bot creation",
+          "Channel management",
+          "Group management",
+          "Inline mode",
+          "Payments"
+        ]
+      },
+      "microsoft_teams": {
+        "description": "Collaboration platform by Microsoft",
+        "features": [
+          "Team messaging",
+          "Meetings",
+          "File collaboration",
+          "App integration",
+          "Workflows"
+        ]
+      },
+      "intercom": {
+        "description": "Customer messaging platform",
+        "features": [
+          "Live chat",
+          "Chatbots",
+          "Product tours",
+          "Help center",
+          "Inbox"
+        ]
+      },
+      "crisp": {
+        "description": "Business messaging and live chat",
+        "features": [
+          "Live chat",
+          "Chatbot",
+          "Knowledge base",
+          "Status page",
+          "CRM"
+        ]
+      },
+      "drift": {
+        "description": "Conversational marketing platform",
+        "features": [
+          "Live chat",
+          "Chatbots",
+          "Video",
+          "Email",
+          "Meeting scheduling"
+        ]
+      },
+      "notion": {
+        "description": "All-in-one workspace for notes and docs",
+        "features": [
+          "Pages",
+          "Databases",
+          "Templates",
+          "API access",
+          "Team collaboration"
+        ]
+      },
+      "airtable": {
+        "description": "Spreadsheet-database hybrid",
+        "features": [
+          "Base creation",
+          "Views",
+          "Automations",
+          "Forms",
+          "API access"
+        ]
+      },
+      "google_sheets": {
+        "description": "Cloud spreadsheet by Google",
+        "features": [
+          "Spreadsheet editing",
+          "Formulas",
+          "Charts",
+          "Collaboration",
+          "Add-ons"
+        ]
+      },
+      "google_docs": {
+        "description": "Cloud document editor by Google",
+        "features": [
+          "Document creation",
+          "Real-time editing",
+          "Comments",
+          "Templates",
+          "Add-ons"
+        ]
+      },
+      "clickup": {
+        "description": "All-in-one productivity platform",
+        "features": [
+          "Task management",
+          "Docs",
+          "Goals",
+          "Time tracking",
+          "Dashboards"
+        ]
+      },
+      "asana": {
+        "description": "Work management platform",
+        "features": [
+          "Task tracking",
+          "Project views",
+          "Portfolios",
+          "Goals",
+          "Automations"
+        ]
+      },
+      "trello": {
+        "description": "Kanban-style project management",
+        "features": [
+          "Board management",
+          "Cards",
+          "Checklists",
+          "Power-Ups",
+          "Automation"
+        ]
+      },
+      "monday": {
+        "description": "Work OS for teams",
+        "features": [
+          "Boards",
+          "Automations",
+          "Dashboards",
+          "Integrations",
+          "Forms"
+        ]
+      },
+      "linear": {
+        "description": "Issue tracking for modern teams",
+        "features": [
+          "Issue tracking",
+          "Cycles",
+          "Roadmap",
+          "Git integration",
+          "API-first"
+        ]
+      },
+      "jira": {
+        "description": "Project tracking for software teams",
+        "features": [
+          "Issue tracking",
+          "Scrum boards",
+          "Kanban",
+          "Roadmaps",
+          "Reporting"
+        ]
+      },
+      "confluence": {
+        "description": "Team knowledge base by Atlassian",
+        "features": [
+          "Pages",
+          "Spaces",
+          "Templates",
+          "Collaboration",
+          "Search"
+        ]
+      },
+      "coda": {
+        "description": "All-in-one doc for teams",
+        "features": [
+          "Docs",
+          "Tables",
+          "Automations",
+          "Packs",
+          "Publishing"
+        ]
+      },
+      "basecamp": {
+        "description": "Project management and team communication",
+        "features": [
+          "To-dos",
+          "Message boards",
+          "Schedules",
+          "Check-ins",
+          "Hill charts"
+        ]
+      },
+      "shopify": {
+        "description": "E-commerce platform for online stores",
+        "features": [
+          "Product management",
+          "Order tracking",
+          "Customer data",
+          "Analytics",
+          "Webhooks"
+        ]
+      },
+      "wordpress": {
+        "description": "Open-source CMS and e-commerce",
+        "features": [
+          "Content management",
+          "WooCommerce",
+          "Plugins",
+          "REST API",
+          "Webhooks"
+        ]
+      },
+      "bigcommerce": {
+        "description": "Scalable e-commerce platform",
+        "features": [
+          "Multi-channel selling",
+          "SEO tools",
+          "Analytics",
+          "B2B features",
+          "API access"
+        ]
+      },
+      "squarespace": {
+        "description": "Website builder with commerce",
+        "features": [
+          "Website building",
+          "E-commerce",
+          "Scheduling",
+          "Analytics",
+          "Domains"
+        ]
+      },
+      "etsy": {
+        "description": "Marketplace for handmade and vintage",
+        "features": [
+          "Listing management",
+          "Order tracking",
+          "Analytics",
+          "Advertising",
+          "Reviews"
+        ]
+      },
+      "gumroad": {
+        "description": "Sell digital products directly",
+        "features": [
+          "Digital products",
+          "Subscriptions",
+          "Workflows",
+          "Analytics",
+          "Affiliate program"
+        ]
+      },
+      "lemonsqueezy": {
+        "description": "Merchant of record for digital products",
+        "features": [
+          "Payments",
+          "Subscriptions",
+          "License keys",
+          "Checkout",
+          "Webhooks"
+        ]
+      },
+      "paddle": {
+        "description": "Revenue delivery platform for SaaS",
+        "features": [
+          "Checkout",
+          "Subscriptions",
+          "Tax compliance",
+          "Revenue recovery",
+          "Analytics"
+        ]
+      },
+      "github": {
+        "description": "Code hosting and collaboration",
+        "features": [
+          "Repository management",
+          "Issues",
+          "Pull requests",
+          "Actions",
+          "Webhooks"
+        ]
+      },
+      "gitlab": {
+        "description": "DevOps platform",
+        "features": [
+          "Git repos",
+          "CI/CD",
+          "Issues",
+          "Merge requests",
+          "Container registry"
+        ]
+      },
+      "bitbucket": {
+        "description": "Git code management by Atlassian",
+        "features": [
+          "Repositories",
+          "Pull requests",
+          "Pipelines",
+          "Code review",
+          "Jira integration"
+        ]
+      },
+      "vercel": {
+        "description": "Frontend deployment platform",
+        "features": [
+          "Deployments",
+          "Serverless functions",
+          "Edge network",
+          "Analytics",
+          "Preview URLs"
+        ]
+      },
+      "netlify": {
+        "description": "Web development and hosting platform",
+        "features": [
+          "Deployments",
+          "Forms",
+          "Functions",
+          "Identity",
+          "Split testing"
+        ]
+      },
+      "supabase": {
+        "description": "Open-source Firebase alternative",
+        "features": [
+          "Database",
+          "Auth",
+          "Storage",
+          "Edge functions",
+          "Realtime"
+        ]
+      },
+      "firebase": {
+        "description": "App development platform by Google",
+        "features": [
+          "Auth",
+          "Firestore",
+          "Cloud functions",
+          "Hosting",
+          "Analytics"
+        ]
+      },
+      "railway": {
+        "description": "Deploy apps with ease",
+        "features": [
+          "Auto deploy",
+          "Databases",
+          "Environments",
+          "Logs",
+          "Metrics"
+        ]
+      },
+      "render": {
+        "description": "Unified cloud for apps and sites",
+        "features": [
+          "Web services",
+          "Static sites",
+          "Databases",
+          "Cron jobs",
+          "Auto scaling"
+        ]
+      },
+      "google_analytics": {
+        "description": "Web analytics by Google",
+        "features": [
+          "Traffic analysis",
+          "User behavior",
+          "Conversion tracking",
+          "Custom reports",
+          "Real-time data"
+        ]
+      },
+      "mixpanel": {
+        "description": "Product analytics platform",
+        "features": [
+          "Event tracking",
+          "Funnels",
+          "Retention",
+          "User flows",
+          "A/B testing"
+        ]
+      },
+      "amplitude": {
+        "description": "Digital analytics platform",
+        "features": [
+          "Behavioral analytics",
+          "Cohort analysis",
+          "Experimentation",
+          "Predictions",
+          "Data governance"
+        ]
+      },
+      "posthog": {
+        "description": "Open-source product analytics",
+        "features": [
+          "Event tracking",
+          "Session recording",
+          "Feature flags",
+          "Experiments",
+          "Surveys"
+        ]
+      },
+      "plausible": {
+        "description": "Privacy-friendly web analytics",
+        "features": [
+          "Simple dashboard",
+          "No cookies",
+          "Goal tracking",
+          "Campaigns",
+          "API access"
+        ]
+      },
+      "hotjar": {
+        "description": "Heatmaps and behavior analytics",
+        "features": [
+          "Heatmaps",
+          "Recordings",
+          "Surveys",
+          "Feedback",
+          "Funnels"
+        ]
+      },
+      "segment": {
+        "description": "Customer data platform",
+        "features": [
+          "Data collection",
+          "Data routing",
+          "Profiles",
+          "Audiences",
+          "Protocols"
+        ]
+      },
+      "google_ads": {
+        "description": "Search and display advertising",
+        "features": [
+          "Search campaigns",
+          "Display ads",
+          "Shopping ads",
+          "Video ads",
+          "Reporting"
+        ]
+      },
+      "meta_ads": {
+        "description": "Advertising on Facebook and Instagram",
+        "features": [
+          "Campaign management",
+          "Audience targeting",
+          "Creative tools",
+          "Pixel tracking",
+          "Reporting"
+        ]
+      },
+      "linkedin_ads": {
+        "description": "B2B advertising on LinkedIn",
+        "features": [
+          "Sponsored content",
+          "Message ads",
+          "Lead gen forms",
+          "Audience targeting",
+          "Analytics"
+        ]
+      },
+      "tiktok_ads": {
+        "description": "Advertising on TikTok",
+        "features": [
+          "In-feed ads",
+          "TopView",
+          "Branded effects",
+          "Pixel tracking",
+          "Reporting"
+        ]
+      },
+      "twitter_ads": {
+        "description": "Advertising on Twitter/X",
+        "features": [
+          "Promoted tweets",
+          "Follower ads",
+          "Trend takeovers",
+          "Targeting",
+          "Analytics"
+        ]
+      },
+      "microsoft_ads": {
+        "description": "Search advertising on Bing",
+        "features": [
+          "Search ads",
+          "Shopping campaigns",
+          "Audience ads",
+          "Import from Google",
+          "Reporting"
+        ]
+      },
+      "stripe": {
+        "description": "Payment processing platform",
+        "features": [
+          "Payments",
+          "Subscriptions",
+          "Invoicing",
+          "Connect",
+          "Radar"
+        ]
+      },
+      "paypal": {
+        "description": "Online payment platform",
+        "features": [
+          "Payments",
+          "Checkout",
+          "Invoicing",
+          "Subscriptions",
+          "Disputes"
+        ]
+      },
+      "square": {
+        "description": "Payments and business tools",
+        "features": [
+          "Payments",
+          "POS",
+          "Invoicing",
+          "Banking",
+          "Loyalty"
+        ]
+      },
+      "razorpay": {
+        "description": "Payment gateway for India",
+        "features": [
+          "Payments",
+          "Subscriptions",
+          "Smart Collect",
+          "Route",
+          "RazorpayX"
+        ]
+      },
+      "wise": {
+        "description": "International money transfers",
+        "features": [
+          "Transfers",
+          "Multi-currency accounts",
+          "Batch payments",
+          "API access",
+          "Webhooks"
+        ]
+      },
+      "aws_s3": {
+        "description": "Amazon cloud object storage",
+        "features": [
+          "File upload",
+          "CDN",
+          "Versioning",
+          "Access control",
+          "Events"
+        ]
+      },
+      "google_cloud_storage": {
+        "description": "Google cloud object storage",
+        "features": [
+          "File storage",
+          "CDN",
+          "Lifecycle policies",
+          "Access control",
+          "Signed URLs"
+        ]
+      },
+      "cloudflare_r2": {
+        "description": "Zero egress cost object storage",
+        "features": [
+          "S3-compatible",
+          "No egress fees",
+          "Workers integration",
+          "Auto-migration",
+          "CDN"
+        ]
+      },
+      "dropbox": {
+        "description": "File hosting and collaboration",
+        "features": [
+          "File sync",
+          "Sharing",
+          "Team spaces",
+          "Paper",
+          "API access"
+        ]
+      },
+      "google_drive": {
+        "description": "Cloud file storage by Google",
+        "features": [
+          "File storage",
+          "Sharing",
+          "Collaboration",
+          "Search",
+          "API access"
+        ]
+      },
+      "openai": {
+        "description": "GPT and DALL-E AI models",
+        "features": [
+          "Chat completions",
+          "Image generation",
+          "Embeddings",
+          "Fine-tuning",
+          "Assistants"
+        ]
+      },
+      "anthropic": {
+        "description": "Claude AI models",
+        "features": [
+          "Chat completions",
+          "Tool use",
+          "Vision",
+          "Long context",
+          "Batch API"
+        ]
+      },
+      "google_gemini": {
+        "description": "Google's multimodal AI model",
+        "features": [
+          "Text generation",
+          "Vision",
+          "Code generation",
+          "Grounding",
+          "Function calling"
+        ]
+      },
+      "mistral": {
+        "description": "Open-weight AI models",
+        "features": [
+          "Chat completions",
+          "Code generation",
+          "Embeddings",
+          "Function calling",
+          "JSON mode"
+        ]
+      },
+      "groq": {
+        "description": "Ultra-fast inference engine",
+        "features": [
+          "Fast inference",
+          "Chat completions",
+          "Tool use",
+          "JSON mode",
+          "Streaming"
+        ]
+      },
+      "replicate": {
+        "description": "Run ML models in the cloud",
+        "features": [
+          "Model hosting",
+          "Predictions",
+          "Fine-tuning",
+          "Webhooks",
+          "Streaming"
+        ]
+      },
+      "huggingface": {
+        "description": "ML model hub and inference",
+        "features": [
+          "Inference API",
+          "Model hosting",
+          "Datasets",
+          "Spaces",
+          "AutoTrain"
+        ]
+      },
+      "elevenlabs": {
+        "description": "AI voice generation",
+        "features": [
+          "Text-to-speech",
+          "Voice cloning",
+          "Voice design",
+          "Streaming",
+          "Dubbing"
+        ]
+      },
+      "midjourney": {
+        "description": "AI image generation",
+        "features": [
+          "Image generation",
+          "Variations",
+          "Upscaling",
+          "Style control",
+          "Blending"
+        ]
+      },
+      "runway": {
+        "description": "AI video and creative tools",
+        "features": [
+          "Video generation",
+          "Image editing",
+          "Green screen",
+          "Motion tracking",
+          "Inpainting"
+        ]
+      },
+      "stability": {
+        "description": "Stable Diffusion and more",
+        "features": [
+          "Image generation",
+          "Upscaling",
+          "Inpainting",
+          "3D generation",
+          "API access"
+        ]
+      },
+      "perplexity": {
+        "description": "AI-powered search and answers",
+        "features": [
+          "Search API",
+          "Chat",
+          "Citations",
+          "Real-time data",
+          "Structured output"
+        ]
+      },
+      "zendesk": {
+        "description": "Customer service platform",
+        "features": [
+          "Ticketing",
+          "Live chat",
+          "Knowledge base",
+          "AI agents",
+          "Analytics"
+        ]
+      },
+      "freshdesk": {
+        "description": "Cloud-based customer support",
+        "features": [
+          "Ticketing",
+          "Automation",
+          "Knowledge base",
+          "Community forums",
+          "Reporting"
+        ]
+      },
+      "helpscout": {
+        "description": "Help desk for growing teams",
+        "features": [
+          "Shared inbox",
+          "Knowledge base",
+          "Beacon",
+          "Reporting",
+          "Workflows"
+        ]
+      },
+      "front": {
+        "description": "Customer operations platform",
+        "features": [
+          "Shared inbox",
+          "Workflows",
+          "Analytics",
+          "Integrations",
+          "AI drafts"
+        ]
+      },
+      "bamboohr": {
+        "description": "HR software for growing companies",
+        "features": [
+          "Employee records",
+          "Time off",
+          "Onboarding",
+          "Performance",
+          "Reporting"
+        ]
+      },
+      "gusto": {
+        "description": "Payroll and HR platform",
+        "features": [
+          "Payroll",
+          "Benefits",
+          "HR tools",
+          "Hiring",
+          "Compliance"
+        ]
+      },
+      "rippling": {
+        "description": "Workforce management platform",
+        "features": [
+          "HR cloud",
+          "IT management",
+          "Payroll",
+          "Benefits",
+          "Workflow automation"
+        ]
+      },
+      "deel": {
+        "description": "Global hiring and payroll",
+        "features": [
+          "Contractor management",
+          "EOR",
+          "Payroll",
+          "Compliance",
+          "HRIS"
+        ]
+      },
+      "remote": {
+        "description": "Global employment platform",
+        "features": [
+          "EOR",
+          "Contractor management",
+          "Payroll",
+          "Benefits",
+          "Compliance"
+        ]
+      },
+      "figma": {
+        "description": "Collaborative design tool",
+        "features": [
+          "Design files",
+          "Prototyping",
+          "Dev mode",
+          "Components",
+          "Plugins"
+        ]
+      },
+      "canva": {
+        "description": "Visual content creation platform",
+        "features": [
+          "Templates",
+          "Brand kit",
+          "Video editing",
+          "Collaboration",
+          "API access"
+        ]
+      },
+      "framer": {
+        "description": "Web design and publishing",
+        "features": [
+          "Visual editor",
+          "CMS",
+          "Animations",
+          "Responsive design",
+          "Publishing"
+        ]
+      },
+      "webflow": {
+        "description": "No-code website builder",
+        "features": [
+          "Visual design",
+          "CMS",
+          "Hosting",
+          "E-commerce",
+          "Interactions"
+        ]
+      },
+      "loom": {
+        "description": "Async video messaging",
+        "features": [
+          "Screen recording",
+          "Video hosting",
+          "Analytics",
+          "Transcription",
+          "Comments"
+        ]
+      },
+      "vimeo": {
+        "description": "Professional video hosting",
+        "features": [
+          "Video hosting",
+          "Live streaming",
+          "Analytics",
+          "Player customization",
+          "Privacy"
+        ]
+      },
+      "mux": {
+        "description": "Video infrastructure API",
+        "features": [
+          "Video encoding",
+          "Live streaming",
+          "Thumbnails",
+          "Analytics",
+          "Player"
+        ]
+      },
+      "cloudinary": {
+        "description": "Media management platform",
+        "features": [
+          "Image optimization",
+          "Video processing",
+          "Transformations",
+          "CDN",
+          "AI features"
+        ]
+      },
+      "typeform": {
+        "description": "Interactive forms and surveys",
+        "features": [
+          "Conversational forms",
+          "Logic jumps",
+          "Integrations",
+          "Analytics",
+          "Templates"
+        ]
+      },
+      "tally": {
+        "description": "Simplest way to create forms",
+        "features": [
+          "Form builder",
+          "Conditional logic",
+          "File uploads",
+          "Payments",
+          "Webhooks"
+        ]
+      },
+      "google_forms": {
+        "description": "Simple form builder by Google",
+        "features": [
+          "Form creation",
+          "Response collection",
+          "Quiz mode",
+          "Templates",
+          "Sheets integration"
+        ]
+      },
+      "jotform": {
+        "description": "Online form builder",
+        "features": [
+          "Drag-and-drop builder",
+          "Payment forms",
+          "Approvals",
+          "PDF forms",
+          "Widgets"
+        ]
+      },
+      "surveymonkey": {
+        "description": "Survey and feedback platform",
+        "features": [
+          "Surveys",
+          "Quizzes",
+          "Polls",
+          "Analytics",
+          "Templates"
+        ]
+      },
+      "calendly": {
+        "description": "Scheduling automation",
+        "features": [
+          "Booking pages",
+          "Workflows",
+          "Integrations",
+          "Group events",
+          "Routing"
+        ]
+      },
+      "cal_com": {
+        "description": "Open-source scheduling",
+        "features": [
+          "Booking pages",
+          "Team scheduling",
+          "Custom workflows",
+          "Webhooks",
+          "API access"
+        ]
+      },
+      "savvycal": {
+        "description": "Scheduling for busy people",
+        "features": [
+          "Personalized links",
+          "Overlay calendars",
+          "Priority scheduling",
+          "Workflows",
+          "Integrations"
+        ]
+      },
+      "tidycal": {
+        "description": "Simple scheduling tool",
+        "features": [
+          "Booking pages",
+          "Calendar sync",
+          "Payments",
+          "Custom questions",
+          "Integrations"
+        ]
+      },
+      "zapier": {
+        "description": "No-code automation platform",
+        "features": [
+          "App connections",
+          "Multi-step zaps",
+          "Filters",
+          "Formatter",
+          "Webhooks"
+        ]
+      },
+      "make": {
+        "description": "Visual automation platform",
+        "features": [
+          "Visual builder",
+          "Apps",
+          "Data stores",
+          "Webhooks",
+          "Scheduling"
+        ]
+      },
+      "n8n": {
+        "description": "Fair-code workflow automation",
+        "features": [
+          "Self-hostable",
+          "Integrations",
+          "Code nodes",
+          "Webhooks",
+          "AI capabilities"
+        ]
+      },
+      "activepieces": {
+        "description": "Open-source automation tool",
+        "features": [
+          "No-code builder",
+          "Self-hostable",
+          "Pieces",
+          "Webhooks",
+          "Code step"
+        ]
+      },
+      "pipedream": {
+        "description": "Developer-first automation",
+        "features": [
+          "Code-based workflows",
+          "APIs",
+          "Event sources",
+          "Data stores",
+          "Cron jobs"
+        ]
+      }
+    },
+    "webhooks": {
+      "shopify_order_created": {
+        "name": "Shopify — New Order",
+        "description": "Trigger when a new order is placed in your Shopify store",
+        "setupInstructions": "Go to Shopify Admin > Settings > Notifications > Webhooks > Create webhook"
+      },
+      "shopify_product_updated": {
+        "name": "Shopify — Product Updated",
+        "description": "Trigger when a product is modified in Shopify",
+        "setupInstructions": "Go to Shopify Admin > Settings > Notifications > Webhooks"
+      },
+      "shopify_checkout_abandoned": {
+        "name": "Shopify — Abandoned Checkout",
+        "description": "Trigger on abandoned checkouts for recovery campaigns",
+        "setupInstructions": "Go to Shopify Admin > Settings > Notifications > Webhooks"
+      },
+      "shopify_customer_created": {
+        "name": "Shopify — New Customer",
+        "description": "Trigger when a new customer signs up",
+        "setupInstructions": "Go to Shopify Admin > Settings > Notifications > Webhooks"
+      },
+      "stripe_payment_succeeded": {
+        "name": "Stripe — Payment Succeeded",
+        "description": "Trigger on successful payment",
+        "setupInstructions": "Go to Stripe Dashboard > Developers > Webhooks > Add endpoint"
+      },
+      "stripe_subscription_created": {
+        "name": "Stripe — New Subscription",
+        "description": "Trigger when a customer starts a new subscription",
+        "setupInstructions": "Stripe Dashboard > Developers > Webhooks"
+      },
+      "stripe_invoice_paid": {
+        "name": "Stripe — Invoice Paid",
+        "description": "Trigger when an invoice is paid",
+        "setupInstructions": "Stripe Dashboard > Developers > Webhooks"
+      },
+      "stripe_refund_issued": {
+        "name": "Stripe — Refund Issued",
+        "description": "Trigger when a refund is processed",
+        "setupInstructions": "Stripe Dashboard > Developers > Webhooks"
+      },
+      "github_push": {
+        "name": "GitHub — Push",
+        "description": "Trigger on code push to a repository",
+        "setupInstructions": "Go to repo > Settings > Webhooks > Add webhook"
+      },
+      "github_pr": {
+        "name": "GitHub — Pull Request",
+        "description": "Trigger on PR opened, merged, or closed",
+        "setupInstructions": "Go to repo > Settings > Webhooks"
+      },
+      "github_issue": {
+        "name": "GitHub — Issue Created",
+        "description": "Trigger when a new issue is opened",
+        "setupInstructions": "Go to repo > Settings > Webhooks"
+      },
+      "github_release": {
+        "name": "GitHub — Release Published",
+        "description": "Trigger when a new release is published",
+        "setupInstructions": "Go to repo > Settings > Webhooks"
+      },
+      "hubspot_contact_created": {
+        "name": "HubSpot — Contact Created",
+        "description": "Trigger when a new contact is added to HubSpot",
+        "setupInstructions": "Go to HubSpot > Settings > Integrations > Private Apps > Webhooks"
+      },
+      "hubspot_deal_stage": {
+        "name": "HubSpot — Deal Stage Changed",
+        "description": "Trigger when a deal moves to a new stage",
+        "setupInstructions": "HubSpot > Settings > Integrations > Webhooks"
+      },
+      "hubspot_form_submitted": {
+        "name": "HubSpot — Form Submitted",
+        "description": "Trigger when a HubSpot form is submitted",
+        "setupInstructions": "HubSpot > Settings > Integrations > Webhooks"
+      },
+      "tiktok_new_follower": {
+        "name": "TikTok — New Follower",
+        "description": "Trigger when someone follows your TikTok account",
+        "setupInstructions": "Configure via TikTok Developer Portal > Webhooks"
+      },
+      "tiktok_video_published": {
+        "name": "TikTok — Video Published",
+        "description": "Trigger when a new video is published",
+        "setupInstructions": "TikTok Developer Portal > Webhooks"
+      },
+      "linkedin_post_engagement": {
+        "name": "LinkedIn — Post Engagement",
+        "description": "Trigger on likes, comments, or shares on LinkedIn",
+        "setupInstructions": "Configure via LinkedIn Marketing API webhooks"
+      },
+      "intercom_conversation_started": {
+        "name": "Intercom — New Conversation",
+        "description": "Trigger when a customer starts a new conversation",
+        "setupInstructions": "Intercom > Settings > Webhooks"
+      },
+      "intercom_user_created": {
+        "name": "Intercom — New User",
+        "description": "Trigger when a new user is identified",
+        "setupInstructions": "Intercom > Settings > Webhooks"
+      },
+      "sendgrid_email_delivered": {
+        "name": "SendGrid — Email Delivered",
+        "description": "Trigger when an email is successfully delivered",
+        "setupInstructions": "SendGrid > Settings > Mail Settings > Event Webhook"
+      },
+      "sendgrid_email_opened": {
+        "name": "SendGrid — Email Opened",
+        "description": "Trigger when a recipient opens your email",
+        "setupInstructions": "SendGrid > Settings > Mail Settings > Event Webhook"
+      },
+      "sendgrid_email_bounced": {
+        "name": "SendGrid — Email Bounced",
+        "description": "Trigger when an email bounces",
+        "setupInstructions": "SendGrid > Settings > Event Webhook"
+      },
+      "calendly_booking_created": {
+        "name": "Calendly — Booking Created",
+        "description": "Trigger when someone books a meeting",
+        "setupInstructions": "Calendly > Integrations > Webhooks > Subscribe"
+      },
+      "calendly_booking_cancelled": {
+        "name": "Calendly — Booking Cancelled",
+        "description": "Trigger when a booking is cancelled",
+        "setupInstructions": "Calendly > Integrations > Webhooks"
+      },
+      "typeform_form_submitted": {
+        "name": "Typeform — Form Submitted",
+        "description": "Trigger when a Typeform response is submitted",
+        "setupInstructions": "Typeform > Connect > Webhooks > Add webhook"
+      },
+      "slack_message_posted": {
+        "name": "Slack — Message Posted",
+        "description": "Trigger when a message is posted in a channel",
+        "setupInstructions": "Slack App > Event Subscriptions > Subscribe to message.channels"
+      },
+      "slack_reaction_added": {
+        "name": "Slack — Reaction Added",
+        "description": "Trigger when someone reacts to a message",
+        "setupInstructions": "Slack App > Event Subscriptions"
+      },
+      "generic_json": {
+        "name": "Generic JSON Webhook",
+        "description": "Accept any JSON payload from any service",
+        "setupInstructions": "Point your service webhook URL to the generated endpoint"
+      },
+      "generic_form_post": {
+        "name": "Form POST Webhook",
+        "description": "Accept form-encoded POST data",
+        "setupInstructions": "Set your form action URL to the generated endpoint"
+      }
+    },
+    "ideas": {
+      "content-studio": {
+        "title": "Content Studio",
+        "desc": "Spot trends, draft, and polish social posts on autopilot.",
+        "seed": "I run a small brand and want a content studio that publishes consistently. A trend scout should find 2-3 angles trending in my niche, a writer should draft a TikTok and a LinkedIn post for the strongest angle, and an editor should tighten the hook and CTA. Save each as a draft for me to review before posting, and remember which angles performed so future drafts get sharper."
+      },
+      "content-repurposer": {
+        "title": "Content Repurposer",
+        "desc": "Turn one idea into an X thread, a LinkedIn post, and a newsletter blurb.",
+        "seed": "I want to repurpose one source idea, post, or transcript into a multi-platform pack. A strategist should pick the three strongest angles, then a writer should spin them into an X thread, a LinkedIn post, and a short newsletter blurb — all in my brand voice if it's stored in memory. Save the pack as a draft."
+      },
+      "seo-content-engine": {
+        "title": "SEO Content Engine",
+        "desc": "Research keywords and outline search-optimized articles.",
+        "seed": "I want an SEO content engine. A researcher should find the search intent and related questions for a target keyword, an outliner should produce an H2/H3 structure with internal-link suggestions, and a writer should draft a search-optimized article around it. Save the brief and draft, and remember which topics I've already covered so we don't repeat ourselves."
+      },
+      "newsletter-studio": {
+        "title": "Newsletter Studio",
+        "desc": "Curate a theme and draft a weekly newsletter issue.",
+        "seed": "I send a weekly newsletter and want help drafting each issue. A curator should pick a theme and gather 3-5 worth-sharing items for my audience, then a writer should draft the issue with a strong subject line, intro, the curated items with one-line takes, and a closing CTA. Save it as a draft and remember past themes so issues stay varied."
+      },
+      "podcast-repurposer": {
+        "title": "Podcast Repurposer",
+        "desc": "Turn an episode transcript into show notes and clip-worthy quotes.",
+        "seed": "I host a podcast and want to repurpose each episode. Given a transcript, a producer should write structured show notes with timestamps and key takeaways, and a clip-finder should surface 5-8 quotable moments worth turning into short social clips. Save the notes and the quote list as drafts."
+      },
+      "brand-voice-builder": {
+        "title": "Brand Voice Builder",
+        "desc": "Codify your tone into a one-page reference doc.",
+        "seed": "I want to codify my brand voice. A brand analyst should extract tone attributes, signature phrases, and phrases to avoid from a description and any sample content I provide, then a style codifier should write a one-page reference with three example posts that demonstrate the voice. Store it in memory under 'brand voice' so my content agents can read it."
+      },
+      "competitor-watch": {
+        "title": "Competitor Watch",
+        "desc": "Track rival moves and summarize what changed each week.",
+        "seed": "I want to keep an eye on a handful of competitors. A web researcher should scan for recent moves — launches, pricing changes, messaging shifts — across their sites and the web, then an analyst should summarize what changed this week and why it matters for my positioning. Save a short report and remember prior findings so each scan only flags what's new."
+      },
+      "social-listening": {
+        "title": "Social Listening",
+        "desc": "Surface what people are saying about a topic or brand.",
+        "seed": "I want social listening on a topic and my brand. A researcher should gather recent public mentions and discussions across the web, then an analyst should cluster them into themes, flag the sentiment, and pull a few representative quotes. Save a digest and store recurring themes in memory so trends become visible over time."
+      },
+      "webinar-promoter": {
+        "title": "Webinar Promoter",
+        "desc": "Plan a promo sequence for an upcoming event.",
+        "seed": "I have a webinar coming up and want a promotion plan. A planner should map a multi-touch promo timeline (announce, value teaser, reminder, last-call), then a writer should draft the social posts and emails for each touch in my brand voice. Save everything as drafts for me to schedule manually."
+      },
+      "ad-creative-tester": {
+        "title": "Ad Creative Tester",
+        "desc": "Generate ad angle variations to test, no spend.",
+        "seed": "I want to test ad creative angles before spending. A strategist should propose 4-5 distinct angles (pain, outcome, social-proof, contrarian, curiosity) for my product, then a copywriter should write a headline and primary text variant for each. Save them as drafts so I can paste the winners into my ad platform myself. No ad spend or platform writes."
+      },
+      "outreach-strategist": {
+        "title": "Outreach Strategist",
+        "desc": "Sharpen your ICP and draft a cold-email sequence.",
+        "seed": "I want a cold-outreach engine that drafts but never sends. An ICP researcher should sharpen my ideal customer profile from my product and a target hint, then a pitch writer should produce a three-message sequence — intro, follow-up, and breakup — ready to copy into my inbox. Save the sequence as a draft."
+      },
+      "cold-outreach-engine": {
+        "title": "Cold Outreach Engine",
+        "desc": "Personalize first-touch emails for a target list.",
+        "seed": "I have a list of target accounts and want personalized first-touch emails. A researcher should pull a relevant hook for each prospect from public info, then a writer should draft a short, specific opener referencing that hook with one clear CTA. Save drafts for me to review and send manually, and log every draft. No automatic sending."
+      },
+      "lead-qualifier": {
+        "title": "Lead Qualifier",
+        "desc": "Score inbound leads against your ICP and route them.",
+        "seed": "I want to qualify inbound leads. Given a lead's details, an analyst should score fit against my ICP (industry, size, role, intent signals) and a router should recommend an action — fast-track, nurture, or disqualify — with a one-line reason. Log every decision and remember scoring patterns so qualification gets more consistent over time."
+      },
+      "proposal-writer": {
+        "title": "Proposal Writer",
+        "desc": "Turn a project brief into a client-ready proposal.",
+        "seed": "I want to turn a project brief into a client proposal. A scoper should sharpen the client context, problem, success metrics, and scope boundaries, then a writer should draft a structured proposal — summary, scope, deliverables, phased timeline, and value-framed pricing. Save it as a draft for me to review and send."
+      },
+      "partnership-outreach": {
+        "title": "Partnership Outreach",
+        "desc": "Find fitting partners and draft intro pitches.",
+        "seed": "I want to line up partnership conversations. A researcher should identify the kinds of companies that complement my product and find a few concrete candidates, then a writer should draft a tailored intro pitch for each that leads with the mutual win. Save the pitches as drafts for me to send manually."
+      },
+      "market-research": {
+        "title": "Market Research Agent",
+        "desc": "Scan a market and synthesize a one-page report.",
+        "seed": "I want a fast market scan. A web researcher should gather signals across 5-10 high-signal sources about my market, then a synthesizer should produce a one-page report covering market size signals, the top three competitors with a one-line distinction each, 12-month trends, and the opportunity. Save the report and store key findings in memory so future scans build on them."
+      },
+      "customer-onboarding": {
+        "title": "Customer Onboarding",
+        "desc": "Draft a guided welcome sequence for new customers.",
+        "seed": "I want to onboard new customers smoothly. A planner should map a milestone-based onboarding journey (welcome, setup, first value, check-in), then a writer should draft the message for each milestone in my brand voice. Save the sequence as drafts I can send manually, and remember the journey so every new customer gets the same guided start."
+      },
+      "churn-watch": {
+        "title": "Churn Watch",
+        "desc": "Flag at-risk accounts and draft win-back outreach.",
+        "seed": "I want to catch churn early. Given account activity I provide, an analyst should flag at-risk accounts with the warning signs and a reason, then a writer should draft a tailored win-back message for each flagged account. Save drafts for me to review, log every assessment, and remember which signals tend to precede churn."
+      },
+      "product-launch-kit": {
+        "title": "Product Launch Kit",
+        "desc": "Assemble launch messaging and a go-live checklist.",
+        "seed": "I'm launching a product and want a launch kit. A strategist should draft the core positioning and key messages, a writer should produce the announcement assets (landing copy, social posts, launch email), and an ops agent should assemble a go-live checklist. Save everything as drafts and keep the checklist in memory so nothing slips."
+      },
+      "invoice-chaser": {
+        "title": "Invoice Chaser",
+        "desc": "Draft polite, escalating payment reminders.",
+        "seed": "I want help chasing overdue invoices. Given a list of outstanding invoices I provide, an agent should draft a polite, escalating reminder for each (gentle nudge, firm follow-up, final notice) referencing the amount and due date. Save the reminders as drafts for me to send manually, and log every draft. Never send anything automatically and never move money."
+      },
+      "weekly-finance-digest": {
+        "title": "Weekly Finance Digest",
+        "desc": "Summarize the numbers I track into a weekly readout.",
+        "seed": "I want a weekly finance digest. Given the figures I provide (revenue, spend, runway, key metrics), an analyst should compare them to the prior period, call out what moved and why it matters, and flag anything that needs attention. Save a short readout and remember prior weeks so the digest shows trends. Read-only — no transactions."
+      },
+      "support-triage": {
+        "title": "Support Triage",
+        "desc": "Categorize tickets and draft first replies.",
+        "seed": "I want to triage incoming support tickets. Given a ticket, an agent should categorize it (bug, billing, how-to, feature request), set a priority, and draft a helpful first reply grounded in my knowledge base. Save the draft for a human to review before sending, log every triage decision, and remember recurring issues so common answers improve."
+      },
+      "review-responder": {
+        "title": "Review Responder",
+        "desc": "Draft on-brand replies to customer reviews.",
+        "seed": "I want help responding to customer reviews. Given a review, an agent should gauge the sentiment and draft a thoughtful, on-brand reply — gracious for praise, accountable and solution-oriented for complaints. Save replies as drafts for me to post, and remember recurring praise and complaints so I can spot patterns."
+      },
+      "recruiting-sourcer": {
+        "title": "Recruiting Sourcer",
+        "desc": "Draft a role profile and personalized candidate outreach.",
+        "seed": "I'm hiring and want sourcing help. A recruiter agent should turn a role into a sharp candidate profile (must-haves, signals, where they hang out), then a writer should draft a warm, personalized outreach message I can send to promising candidates. Save drafts for me to send manually and log every one. No automatic messaging."
+      }
+    },
+    "comparisonColumns": [
+      {
+        "name": "Braavolabs"
+      },
+      {
+        "name": "Workflow automation"
+      },
+      {
+        "name": "AI agent builders"
+      }
+    ],
+    "comparisonRows": [
+      {
+        "label": "Mid-run steering",
+        "note": "Check when guidance is accepted and applied; an active call may finish first"
+      },
+      {
+        "label": "Native mobile control",
+        "note": "Check supported mobile tasks and release availability for your device"
+      },
+      {
+        "label": "Approve spend from your phone",
+        "note": "Review which actions need approval and which provider calls can already incur cost"
+      },
+      {
+        "label": "BYOK provider breadth",
+        "note": "Bring your own keys across many model vendors"
+      },
+      {
+        "label": "Local provider route",
+        "note": "Use a configured local model endpoint where supported"
+      },
+      {
+        "label": "External-automation monitoring",
+        "note": "Confirm supported monitoring and control actions for each external platform"
+      },
+      {
+        "label": "Pricing model",
+        "note": "Compare subscription, inference, hosting and per-operation charges"
+      },
+      {
+        "label": "Governance & risk-stops",
+        "note": "Review supported check boundaries and incident handling"
+      },
+      {
+        "label": "Audit trail",
+        "note": "Inspect the recorded actions and outputs; missing records remain unknown"
+      },
+      {
+        "label": "Connector count",
+        "note": "Sheer number of pre-built app integrations"
+      }
+    ],
+    "comparisonAudience": [
+      {
+        "title": "Operators who aren't at a desk",
+        "body": "If approvals, nudges, and course-corrections happen from your phone between meetings, the native app and pocket-steering are the whole point."
+      },
+      {
+        "title": "People who hate re-running things",
+        "body": "Long pipelines that you'd rather steer than restart. Lean over the run's shoulder, redirect it mid-flight, and keep the good steps it already did."
+      },
+      {
+        "title": "Privacy-sensitive work",
+        "body": "Bring your own keys or select a configured local endpoint. Verify the selected route, tools, telemetry, and network boundary separately."
+      },
+      {
+        "title": "Teams already living in n8n / Make / Zapier",
+        "body": "Use supported connections to monitor status and request supported actions. Check each platform's authorization and execution contract."
+      }
+    ],
+    "capabilities": [
+      {
+        "label": "Run",
+        "title": "Cross-vendor workbench",
+        "copy": "Coordinate model and agent work without turning one vendor runtime into the control plane."
+      },
+      {
+        "label": "Control",
+        "title": "Exact-action approval — in development",
+        "copy": "The broader action, scope, expiry, and execution-context binding contract is planned and is not presented as generally available."
+      },
+      {
+        "label": "Conversation",
+        "title": "Resume and steer",
+        "copy": "Keep ordered turns, tool actions, artifacts, and remote operator input in the same run context."
+      },
+      {
+        "label": "Models",
+        "title": "BYOK and local choice",
+        "copy": "Select a model route explicitly and keep provider cost on your own keys or local runtime."
+      }
+    ],
+    "securityBoundaries": [
+      {
+        "title": "Inference boundary",
+        "copy": "Inference is not included. Use your own provider keys (BYOK) or local models."
+      },
+      {
+        "title": "Approval boundary",
+        "copy": "Supported tool actions may require explicit approval. Inference can incur provider charges before a separate approval. The broader exact-action, scope and expiry binding contract remains in development."
+      },
+      {
+        "title": "Public/auth boundary",
+        "copy": "The public site serves product information. Accounts, tenant routes, and operational APIs belong to the authenticated app and API hosts."
+      },
+      {
+        "title": "Certification boundary",
+        "copy": "We do not display a certification badge until the certification is held and independently verifiable."
+      }
+    ],
+    "checklist": {
+      "registered": {
+        "label": "Create an account",
+        "description": "Sign up for Braavolabs"
+      },
+      "heroCompanyCreated": {
+        "label": "Create your first company",
+        "description": "Build an AI company from a description"
+      },
+      "firstRunCompleted": {
+        "label": "Run your first pipeline",
+        "description": "Execute an automated workflow"
+      },
+      "firstDraftApproved": {
+        "label": "Review a draft",
+        "description": "Approve or edit AI-generated content"
+      },
+      "profileCompleted": {
+        "label": "Complete your profile",
+        "description": "Add your name and preferences"
+      }
+    }
+  },
+  "seo": {
+    "m7f135831dde4": "About — Braavolabs",
+    "ma6b9aebb2cf1": "Learn about Braavolabs: why we built an AI company platform, the principles behind it, and how we think about autonomy, transparency, and responsible AI.",
+    "m933085a63c1d": "About Braavolabs",
+    "me1c1f91ee66e": "Why we built an AI company platform, the principles behind it, and how we think about autonomy, transparency, and responsible AI.",
+    "m6bec3a9f230a": "Braavolabs Bench — recorded benchmark runs",
+    "mcbea634da00e": "Available benchmark records for configured task suites. Coverage and freshness depend on recorded runs; this is not an independent certification.",
+    "md93cc7f7d87e": "Blog — Braavolabs",
+    "m187c2f0813ea": "Product updates, engineering notes, and public maturity boundaries from the Braavolabs team.",
+    "m3c43895bb6aa": "Braavolabs Blog",
+    "me3020c8ef693": "Product updates, engineering notes, and public maturity boundaries from Braavolabs.",
+    "m237cecbe666d": "Changelog — Braavolabs",
+    "m22bcd4a9abed": "Public Braavolabs change notes with shipped and in-development work labelled separately.",
+    "m7cf63d5b37a7": "Braavolabs Changelog",
+    "m9b27dd7fb727": "Public change notes with shipped and in-development work labelled separately.",
+    "m8ec104ac0b8d": "How Braavolabs compares",
+    "maafa6a889064": "Review cross-vendor workflow requirements, route configuration and operator controls. Verify current product capabilities and commercial terms directly.",
+    "md9141b7cff71": "How Braavolabs compares — Braavolabs",
+    "m5358edf26d92": "Explore a cross-vendor workbench with explicit model choices, local or cloud route configuration and supported operator controls.",
+    "mc10f93cbb285": "Contact — Braavolabs",
+    "mac714bedbfdc": "Braavolabs contact routes for support, partnerships, security, and privacy inquiries.",
+    "m5d4c651fc9a1": "Contact Braavolabs",
+    "m224950150646": "Contact routes for support, partnerships, security, and privacy inquiries.",
+    "m18c6bf133be5": "Cost Calculator — Braavolabs",
+    "md250d02e7765": "A static preview of planned Individual and Team subscription pricing; inference is not included.",
+    "m63664d2ded81": "Planned Individual and Team pricing preview; subscriptions are not currently purchasable.",
+    "m3ca87fbbac15": "Pricing Preview — Braavolabs",
+    "m4bd9b811878a": "Preview the planned Braavolabs Individual and Team subscription prices. Purchasing is not currently available and inference is not included.",
+    "m81acc1f0380d": "Planned pricing for Individual and Team. Purchasing is not currently available and inference is not included.",
+    "ma9faa242317f": "Docs — Braavolabs",
+    "m365f82802c67": "Braavolabs documentation: getting started, BYOK and local-route setup, mid-run steering, webhooks, external automation connections, the mobile app, and FAQ.",
+    "mee84ba24e941": "Braavolabs Docs",
+    "m50dcefa5f29a": "Compose and review agent workflows, then monitor supported runs and decisions.",
+    "m57cd5295b6d6": "Features — Braavolabs",
+    "m0d5ddd021521": "Braavolabs public product boundaries across model routing, data modes, approvals, and feature maturity.",
+    "m076ced19e485": "Public product boundaries across model routing, data modes, approvals, and feature maturity.",
+    "m804e9858225a": "Features — Braavolabs",
+    "mcb18970cc53a": "The public Braavolabs product contract across run, control, data mode, and verification surfaces.",
+    "mac377e08a5eb": "GDPR information preview",
+    "m49fe3634c177": "Draft privacy information under GDPR. Responsible-operator, processing, recipient, retention and safeguard details still require completion before public registration.",
+    "m617c9c8f521f": "Braavolabs GDPR information preview",
+    "m5f3c445d83bb": "A preview of GDPR processing information and rights; this is not yet the complete notice for public personal-data collection.",
+    "m6481ac9863e9": "KVKK information preview",
+    "m6465a09ee4b0": "Draft information under KVKK. Actual operator, processing, recipients, retention and safeguards still require completion before public registration.",
+    "m4a89104ba3fb": "Braavolabs KVKK information preview",
+    "m354a5e2b9623": "A preview of KVKK processing information and rights; this is not yet a complete privacy notice.",
+    "mc60388ffa286": "Account Deletion",
+    "m265910871d03": "How to permanently delete your Braavolabs account, what data is removed, and how to request assistance.",
+    "m7221097dfb51": "Braavolabs Account Deletion",
+    "md6e50ceecc93": "Pricing — Braavolabs",
+    "m907e61f93ecc": "Planned pricing preview: Individual $19/month and Team $39/active-user/month. Not currently purchasable; inference is not included.",
+    "mae42d1776ea3": "Reset password",
+    "m81bf5e60c133": "Set a new password for your Braavolabs account.",
+    "m8931468be759": "Security — Braavolabs",
+    "m4fc24ac37ec4": "Braavolabs security boundaries for model keys, data modes, approval, and product maturity.",
+    "m22ccccca604b": "System Status — Braavolabs",
+    "m545df19cd499": "A live availability probe for the public Braavolabs API endpoint.",
+    "m5231bbf800e5": "Braavolabs System Status",
+    "m371d913a6d14": "Support — Braavolabs",
+    "m43f347f64d40": "Get help with Braavolabs: contact channels, response times, billing and subscription help, account deletion, and frequently asked questions.",
+    "me4c0f5357766": "Braavolabs Support",
+    "mee5a52d3051f": "Contact channels, response times, billing and subscription help, account deletion, and frequently asked questions."
+  },
+  "runtime": {
+    "mb39b93c48c24": "Sign in to use a starter.",
+    "m2eb2d91c4f3b": "Failed to create starter.",
+    "mcdd1de1ae01a": "Use starter: {value0}",
+    "m838f9adcc123": "1 trial run",
+    "m9a021a4b3454": "{count, plural, one {# trial run} other {# trial runs}}",
+    "ma5a28bb26fde": "{count, plural, one {# agent} other {# agents}}",
+    "m014789a56e1d": "{count, plural, one {# pipeline step} other {# pipeline steps}}",
+    "ma682e26e6a31": "Failed to load forecast",
+    "m05d6a641b6be": "Save failed",
+    "mab698ba77c6c": "Failed to load test",
+    "m0118f642c901": "{value0} failed",
+    "m69c8b86fae03": "Save failed",
+    "m78e828adf24c": "Delete failed",
+    "m1368805fe919": "Issuer",
+    "mb525865201ae": "Client ID",
+    "ma2a8e033d138": "Redirect URI",
+    "m092455f07cd1": "Scopes",
+    "m6dc7542014dc": "Approval requests",
+    "m29a34a94a498": "Push when a run needs a spend approval",
+    "m84ed19090410": "Risk-stop triggered",
+    "mb195583a6e7f": "Push when a hard-stop halts a run",
+    "m13641fc2a8c0": "Run completed",
+    "m6e87b3db013a": "Notify when a run finishes",
+    "m9d5e808eecb2": "${value0}/mo",
+    "m26f640894104": "{count, plural, one {# run/month} other {# runs/month}}",
+    "m5e369d5a7fd5": "Self-hosted local provider (Ollama / LM Studio)",
+    "mc058d692e6cc": "Spend Approval Required",
+    "me68fc6aed4e7": "Supported spend actions",
+    "m04508baa9aeb": "Loop Detection Threshold",
+    "m4021017c235b": "5 consecutive failures",
+    "m6774e7b32e15": "Cost Anomaly Threshold",
+    "md2687779b5c7": "20% of run budget",
+    "m51e462c03da2": "Spam Protection",
+    "m10bc771116e0": "3+ unanswered = blocked",
+    "m7ae7fcaafb64": "Memory Auto-Promote",
+    "me92d7c3eb5e2": "confidence ≥ 0.7, count ≥ 3",
+    "m74769711684e": "Holding Brain Requirement",
+    "m27e8635ece5f": "2+ companies with pattern",
+    "m31f4062639ad": "✓ Connection successful — model responded: \"{value0}\"",
+    "mf0b59374b988": "Trigger acquisition pipeline on new lead",
+    "mc3af8f5ac774": "Content approved for publishing",
+    "m5275b74361ed": "Process payment and update CRM",
+    "m1cd72a8c1a04": "Route to customer success agent",
+    "m797c03ac6662": "Referred",
+    "ma571fa84edbc": "Converted",
+    "m48fa986d975f": "Rewards",
+    "me94e85e1777c": "Jump to {value0}",
+    "m9b917859a22b": "Read featured post: {value0}",
+    "m5452b7363001": "Read post: {value0}",
+    "ma735f1949098": "Read docs: {value0}",
+    "m47982c49bbdd": "Start from idea: {value0}",
+    "maabffdc5b99f": "{count, plural, one {# agent} other {# agents}}",
+    "m4b89a821f42b": "{value0} pipeline",
+    "madc0d2e17f7e": "acq.",
+    "mb5d24bc5498c": "sales",
+    "madf7dfd9a03b": "ops",
+    "mf61fa075a25a": "anlyt",
+    "m837fc70634da": "mem",
+    "m920294cc4569": "cont.",
+    "m42ac3e609710": "gov",
+    "m7034fec532bb": "Contact support",
+    "m34f6a807aeb9": "Subscriptions, purchases & refunds",
+    "m616706013792": "Frequent questions",
+    "me01516c0ee66": "Report a bug",
+    "me4b47da679e8": "Policies",
+    "m8e94897c7807": "Link to {value0}",
+    "m6c6656e064e0": "Step {value0} {value1} cost {value2} duration {value3}",
+    "m9f9acdbf39bc": "Workspaces",
+    "m3800b6e67ce8": "unlimited on {value0}",
+    "mdd0763b9fc75": "/month",
+    "m8502572a269d": "Single account",
+    "m8779b63b388b": "Inference not included",
+    "m739f35478664": "Tenant BYOK or local providers",
+    "m4d03ba19634f": "5 workspaces",
+    "m7ab3157462b0": "No plan-funded model credits",
+    "m6c35c098be76": "/active seat/month",
+    "ma8499c1fc913": "Active-seat billing",
+    "m5ad4deeaabd5": "20 workspaces",
+    "m3fcd392b558f": "Team collaboration",
+    "m1e3a5507bb67": " +{value0} more",
+    "ma301be6d35b3": " · last {value0}",
+    "m67cb524a0f61": "Last checked {value0} (your local time)",
+    "m45fd9c2d5d48": " · last run {value0}",
+    "mfe990aab3694": "{value0} started — steps queued",
+    "m7a54036ca778": "Spend gate opened — {value0} awaiting review",
+    "me54aaeee8d00": "Risk event triggered",
+    "mf7ae3905e563": "Export",
+    "mcb6f0d51a4bc": "Use your own supported provider key or a configured local endpoint.",
+    "me3cc0f802723": "Steer & approve from your pocket",
+    "m0bbeaac0b690": "Step {value0}",
+    "mc9d5631084a5": "Dashboard",
+    "m596d0616eb4f": "Pipelines",
+    "mc8f971fe29fd": "Runs",
+    "ma865952c238b": "Agents",
+    "m76c4258af622": "Companies",
+    "ma4435cd673fd": "Trigger",
+    "m2908b886157a": "Agent",
+    "meb5355c74849": "Tool call",
+    "m363f4a3ae095": "Approval gate",
+    "m6fd0e25bdccd": "Branch",
+    "m08da7504b591": "Output",
+    "mb912b05f4583": "zoom out",
+    "m550677a88028": "fit",
+    "m015ee12489d3": "zoom in",
+    "m0d18e6731423": "Overview",
+    "m99c2fc0bb65c": "Request deletion by email",
+    "md2fa5c7e5df0": "Verification and next steps",
+    "me4c98c0271e8": "Current availability",
+    "m000165a9f23d": "What gets deleted",
+    "m4178821e2ee3": "What we retain — and why",
+    "m21ce09941e6e": "Timeline",
+    "mc5d1045cc31b": "Active subscriptions",
+    "md772994860a6": "Questions",
+    "localeSaveFailed": "Could not save the language preference. Check browser cookie settings and try again; the current language is unchanged.",
+    "workspaces": "{count, plural, one {# workspace} other {# workspaces}}",
+    "connectedAutomations": "{count, plural, one {# connected automation} other {# connected automations}}",
+    "events": "{count, plural, one {# recorded event} other {# recorded events}}",
+    "channels": "{count, plural, one {# channel} other {# channels}}",
+    "genericRest": "Generic REST connection",
+    "providerOllama": "Ollama (self-hosted)",
+    "providerLmStudio": "LM Studio (self-hosted)",
+    "providerCustom": "Custom OpenAI-compatible provider",
+    "ollamaHint": "Install Ollama from ollama.com, run `ollama pull gemma3:4b`, then keep `ollama serve` running.",
+    "lmStudioHint": "Install LM Studio from lmstudio.ai, load a model, then start its local server.",
+    "customProviderHint": "Configure an OpenAI-compatible /v1/chat/completions endpoint. Check the endpoint operator and model requirements.",
+    "directoryNote": "This directory lists integration examples and templates. It does not confirm that every connection is implemented, configured or available on your account.",
+    "catalogEntry": "Directory entry",
+    "supportedConnections": "Review supported connections",
+    "categoryMarketing": "Marketing",
+    "categorySales": "Sales",
+    "categoryContent": "Content",
+    "categoryOps": "Operations",
+    "categoryResearch": "Research",
+    "categoryFinance": "Finance",
+    "categorySupport": "Support",
+    "categoryFounder": "Founder",
+    "providerKeys": "Use your own supported provider key or a configured local endpoint.",
+    "connectionTestFailed": "The connection test failed. Check the configuration and try again.",
+    "pipelineStepCount": "{count, plural, one {# step} other {# steps}}",
+    "unknownState": "Unknown state"
   }
 }

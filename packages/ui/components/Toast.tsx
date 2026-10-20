@@ -1,4 +1,6 @@
 "use client";
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { useAppStore } from "../lib/store";
@@ -92,15 +94,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 }
 
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }) {
+  const uiText = useLegacyTranslations("uiCopy");
   useEffect(() => {
     const timer = setTimeout(onDismiss, toast.duration ?? 4000);
     return () => clearTimeout(timer);
   }, [toast.duration, onDismiss]);
 
   const styles: Record<Toast["type"], { bg: string; border: string; icon: string; color: string }> = {
-    success: { bg: "rgba(52,211,153,0.12)", border: "rgba(52,211,153,0.25)", icon: "check_circle", color: "#34d399" },
-    error: { bg: "rgba(239,68,68,0.12)", border: "rgba(239,68,68,0.25)", icon: "error", color: "#f87171" },
-    info: { bg: "rgba(0,209,255,0.1)", border: "rgba(0,209,255,0.2)", icon: "info", color: "#00d1ff" },
+    success: { bg: "rgba(52,211,153,0.12)", border: "rgba(52,211,153,0.25)", icon: "check_circle", color: "var(--color-success)" },
+    error: { bg: "rgba(239,68,68,0.12)", border: "rgba(239,68,68,0.25)", icon: "error", color: "var(--color-error)" },
+    info: { bg: "rgba(0,209,255,0.1)", border: "rgba(0,209,255,0.2)", icon: "info", color: "var(--color-primary)" },
   };
 
   const s = styles[toast.type];
@@ -108,6 +111,9 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
   return (
     <div
       className="animate-slide-up"
+      role={toast.type === "error" ? "alert" : "status"}
+      aria-live={toast.type === "error" ? "assertive" : "polite"}
+      aria-atomic="true"
       style={{
         pointerEvents: "auto",
         display: "flex",
@@ -115,19 +121,21 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
         gap: 10,
         padding: "12px 16px",
         borderRadius: 14,
-        background: "rgba(16,19,26,0.95)",
+        background: "var(--color-surface-container-low)",
         backdropFilter: "blur(20px)",
         border: `1px solid ${s.border}`,
         boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
       }}
     >
       <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: 18, color: s.color }}>{s.icon}</span>
-      <p className="text-sm flex-1" style={{ color: "#e1e2eb", margin: 0 }}>{toast.message}</p>
+      <p className="text-sm flex-1" style={{ color: "var(--color-on-surface)", margin: 0 }}>{toast.message}</p>
       <button
+        type="button"
+        aria-label={uiText("m71c9ffc415a0")}
         onClick={onDismiss}
-        style={{ background: "none", border: "none", cursor: "pointer", color: "#3c494e", flexShrink: 0, padding: 2 }}
+        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-on-surface-variant)", flexShrink: 0, padding: 8, minWidth: 32, minHeight: 32 }}
       >
-        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+        <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 16 }}>close</span>
       </button>
     </div>
   );

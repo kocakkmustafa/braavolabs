@@ -1,99 +1,83 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { useAppStore } from "../lib/store";
 import { api } from "../lib/api";
+import { formatCurrency, formatNumber } from "../i18n/locales";
 
+type Approval = { id: string; description?: string; action?: string; amountUsd?: number | string | null };
 export default function NotificationBell() {
-  const token = useAppStore((s) => s.token);
-  const [count, setCount] = useState(0);
+  const t = useTranslations("app.notifications");
+  const copy = useTranslations("surface");
+  const locale = useLocale();
+  const token = useAppStore(s => s.token);
+  const revision = useAppStore(s => s.sessionRevision);
+  const tenantId = useAppStore(s => s.tenantId);
+  const scope = useMemo(() => ({ revision, tenantId, locale }), [revision, tenantId, locale]);
+  const currentScope = useRef(scope);
+  currentScope.current = scope;
+  const [loaded, setLoaded] = useState<{ scope: typeof scope; items: Approval[] | null; failed: boolean } | null>(null);
   const [open, setOpen] = useState(false);
-  const [approvals, setApprovals] = useState<any[]>([]);
+  const button = useRef<HTMLButtonElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
+  const titleId = useId();
+  const data = loaded?.scope === scope ? loaded : null;
+  const count = data?.items?.length ?? null;
 
   useEffect(() => {
+    let active = true;
+    setOpen(false);
     if (!token) return;
-    const fetchData = () => {
-      api.listApprovals(token, "PENDING")
-        .then((data) => {
-          setCount(Array.isArray(data) ? data.length : 0);
-          setApprovals(Array.isArray(data) ? data.slice(0, 5) : []);
-        })
-        .catch(() => {});
-    };
-    fetchData();
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
-  }, [token]);
+    function ownsScope() {
+      const auth = useAppStore.getState();
+      return active && currentScope.current === scope && auth.sessionRevision === revision && auth.tenantId === tenantId;
+    }
+    async function refresh() {
+      try {
+        const items = await api.listApprovals(token!, "PENDING");
+        if (!Array.isArray(items)) throw Error("Invalid approval response");
+        if (ownsScope()) setLoaded({ scope, items, failed: false });
+      } catch {
+        if (ownsScope()) setLoaded(previous => ({ scope, items: previous?.scope === scope ? previous.items : null, failed: true }));
+      }
+    }
+    void refresh();
+    const interval = setInterval(refresh, 30_000);
+    return () => { active = false; clearInterval(interval); };
+  }, [token, scope, revision, tenantId]);
 
+  useEffect(() => { if (open) closeButton.current?.focus(); }, [open]);
+  function dismiss() { setOpen(false); button.current?.focus(); }
   if (!token) return null;
 
-  const btnStyle = {
-    width: 36, height: 36, borderRadius: 10,
-    background: "rgba(29,32,38,0.9)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    cursor: "pointer" as const, display: "flex", alignItems: "center", justifyContent: "center",
-    color: "#859399",
-  };
-
   return (
-    <div style={{ position: "fixed", top: 16, right: 20, zIndex: 100, display: "flex", gap: 8 }}>
-      {/* Bell */}
-      <div style={{ position: "relative" }}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        style={{ ...btnStyle, position: "relative" }}
-      >
-        <span className="material-symbols-outlined" style={{ fontSize: 18 }}>notifications</span>
-        {count > 0 && (
-          <span style={{ position: "absolute", top: -4, right: -4, width: 16, height: 16, borderRadius: "50%", background: "#ef4444", fontSize: 9, fontWeight: 700, color: "white", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #0a0d14" }}>
-            {count > 9 ? "9+" : count}
-          </span>
-        )}
+    <div style={{ position: "fixed", top: 16, insetInlineEnd: 20, zIndex: 100 }} onKeyDown={event => { if (event.key === "Escape" && open) { event.stopPropagation(); dismiss(); } }}>
+      <button ref={button} type="button" onClick={() => setOpen(value => !value)}
+        aria-label={t("title")} aria-expanded={open} aria-controls={open ? panelId : undefined}
+        style={{ width: 44, height: 44, borderRadius: 10, background: "var(--color-surface)", border: "1px solid var(--color-outline)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-on-surface)", position: "relative" }}>
+        <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 18 }}>notifications</span>
+        {count !== null && count > 0 && <span aria-hidden="true" className="bv-pill bv-pill-red" style={{ position: "absolute", top: -5, insetInlineEnd: -5, fontSize: 10 }}>{count > 9 ? `${formatNumber(9, locale)}+` : formatNumber(count, locale)}</span>}
       </button>
-
-      {open && (
-        <>
-          <div style={{ position: "fixed", inset: 0 }} onClick={() => setOpen(false)} />
-          <div style={{ position: "absolute", top: 44, right: 0, width: 300, borderRadius: 14, background: "#191c22", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 8px 32px rgba(0,0,0,0.4)", overflow: "hidden", zIndex: 101 }}>
-            <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: "#e1e2eb" }}>Notifications</span>
-              {count > 0 && (
-                <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 999, background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}>
-                  {count} pending
-                </span>
-              )}
-            </div>
-            {approvals.length === 0 ? (
-              <div style={{ padding: "24px 16px", textAlign: "center" }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 28, color: "#3c494e", display: "block", marginBottom: 6 }}>notifications_off</span>
-                <p style={{ fontSize: 12, color: "#859399" }}>All clear — no pending approvals</p>
-              </div>
-            ) : (
-              approvals.map((a: any) => (
-                <a
-                  key={a.id}
-                  href="/approvals"
-                  style={{ display: "block", padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)", textDecoration: "none" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-                >
-                  <p style={{ fontSize: 12, fontWeight: 600, color: "#fbbf24", margin: "0 0 2px" }}>Spend Approval Required</p>
-                  <p style={{ fontSize: 11, color: "#859399", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.description ?? a.action}</p>
-                  {a.amountUsd && <p style={{ fontSize: 11, color: "#34d399", margin: "2px 0 0" }}>${Number(a.amountUsd).toFixed(2)}</p>}
-                </a>
-              ))
-            )}
-            <div style={{ padding: "8px 12px" }}>
-              <a
-                href="/approvals"
-                style={{ display: "block", textAlign: "center", padding: "7px", borderRadius: 8, fontSize: 12, fontWeight: 600, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", color: "#bbc9cf", textDecoration: "none" }}
-              >
-                View All Approvals
-              </a>
-            </div>
+      {open && <>
+        <div style={{ position: "fixed", inset: 0 }} onClick={dismiss} aria-hidden="true" />
+        <section id={panelId} aria-labelledby={titleId} style={{ position: "absolute", top: 52, insetInlineEnd: 0, width: "min(300px, calc(100vw - 40px))", maxHeight: "calc(100dvh - 88px)", overflowY: "auto", borderRadius: 14, background: "var(--color-surface)", border: "1px solid var(--color-outline)", boxShadow: "0 8px 32px rgba(0,0,0,0.25)", zIndex: 101 }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--color-outline-variant)", display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+            <h2 id={titleId} style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>{t("title")}</h2>
+            <button ref={closeButton} type="button" aria-label={copy("close")} onClick={dismiss} className="bv-btn bv-btn-ghost" style={{ width: 44, height: 44, padding: 0 }}><span aria-hidden="true" className="material-symbols-outlined">close</span></button>
           </div>
-        </>
-      )}
-      </div>
+          <p role="status" style={{ padding: "12px 16px", margin: 0, color: "var(--color-on-surface-variant)", fontSize: 12 }}>
+            {data?.failed ? copy("loadFailed") : count === null ? copy("loading") : count === 0 ? t("clear") : t("pending", { count })}
+          </p>
+          {data?.items?.slice(0, 5).map(item => <a key={item.id} href="/approvals" style={{ display: "block", padding: "12px 16px", borderTop: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface)", textDecoration: "none", overflowWrap: "anywhere" }}>
+            <p style={{ fontSize: 12, fontWeight: 600, margin: "0 0 4px" }}>{t("spend")}</p>
+            <p style={{ fontSize: 12, margin: 0, color: "var(--color-on-surface-variant)" }}>{item.description ?? item.action}</p>
+            {item.amountUsd != null && item.amountUsd !== "" && <p style={{ fontSize: 12, margin: "4px 0 0" }}>{formatCurrency(item.amountUsd, "USD", locale)}</p>}
+          </a>)}
+          <div style={{ padding: 12 }}><a href="/approvals" className="bv-btn bv-btn-ghost" style={{ display: "flex", justifyContent: "center" }}>{t("viewAll")}</a></div>
+        </section>
+      </>}
     </div>
   );
 }

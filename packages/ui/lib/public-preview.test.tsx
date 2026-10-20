@@ -15,7 +15,7 @@ vi.mock("next-intl/server", () => ({
 }));
 vi.mock("../components/LanguageSwitcher", () => ({ default: () => <select aria-label="fixture-language" /> }));
 
-describe("actual public async pages with all eight message catalogs", () => {
+describe("actual public async pages with all fourteen message catalogs", () => {
   it.each(locales)("renders localized truthful preview and USD plans for %s", async locale => {
     context.locale = locale;
     const t = createTranslator({ locale, messages: messages(locale), namespace: "publicPreview" });

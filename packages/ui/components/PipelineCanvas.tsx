@@ -75,10 +75,10 @@ export function PipelineCanvas({
           position: { x: si * COL, y: colY0 + ri * ROW },
           data: {
             label: (
-              <div style={{ textAlign: "left", lineHeight: 1.25 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#e1e2eb" }}>{s.name}</div>
-                <div style={{ fontSize: 10, color: "#a4e6ff", fontFamily: "monospace" }}>{s.agentRole}</div>
-                <div style={{ fontSize: 9, color: "#3c494e", marginTop: 2 }}>
+              <div style={{ textAlign: "start", lineHeight: 1.25 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-on-surface)" }}>{s.name}</div>
+                <div style={{ fontSize: 10, color: "var(--color-info)", fontFamily: "monospace" }}>{s.agentRole}</div>
+                <div style={{ fontSize: 9, color: "var(--color-on-surface-variant)", marginTop: 2 }}>
                   {t("app.pipelineDetail.stagePill", { n: si + 1 })}
                 </div>
               </div>
@@ -131,7 +131,7 @@ export function PipelineCanvas({
       >
         <Background color="rgba(255,255,255,0.06)" gap={20} />
         <Controls showInteractive={false} />
-        <MiniMap pannable zoomable style={{ background: "rgba(15,18,25,0.9)" }} maskColor="rgba(0,0,0,0.5)" nodeColor="#00d1ff" />
+        <MiniMap pannable zoomable style={{ background: "var(--color-surface-container-low)" }} maskColor="rgba(0,0,0,0.5)" nodeColor="#00d1ff" />
       </ReactFlow>
       {isHierarchical && (
         <p style={{ fontSize: 11, color: "var(--color-on-surface-variant)", padding: "8px 12px", margin: 0 }}>
@@ -146,7 +146,7 @@ export function PipelineCanvas({
 }
 
 const nodeStyle = {
-  background: "rgba(29,32,38,0.95)",
+  background: "var(--color-surface-container-low)",
   border: "1px solid rgba(0,209,255,0.25)",
   borderRadius: 12,
   padding: "8px 12px",
@@ -158,6 +158,6 @@ const managerStyle = {
   border: "1px solid rgba(224,182,255,0.35)",
   borderRadius: 12,
   padding: "10px 14px",
-  color: "#e0b6ff",
+  color: "var(--color-accent)",
   fontWeight: 700,
 } as const;

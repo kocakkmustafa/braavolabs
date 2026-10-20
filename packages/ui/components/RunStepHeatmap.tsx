@@ -1,4 +1,8 @@
 "use client";
+import { useTranslations as useRuntimeTranslations } from "next-intl";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 /**
  * RunStepHeatmap — extends the cost panel with a live per-step heatmap.
@@ -17,6 +21,7 @@
  * detail page) and an `onSelectStep` callback. No additional fetch.
  */
 import { useMemo, useState } from "react";
+import { useDisplayFormats } from "../lib/useDisplayFormats";
 
 export interface HeatmapStep {
   id: string;
@@ -52,35 +57,20 @@ const STATUS_BORDER: Record<string, string> = {
   rolled_back: "rgba(168,85,247,0.45)",
 };
 
-function parseCost(value: number | string | null | undefined): number {
-  if (value === null || value === undefined) return 0;
-  const n = typeof value === "string" ? parseFloat(value) : value;
-  return Number.isFinite(n) ? n : 0;
+function knownCost(value: number | string | null | undefined): number | null {
+  if (typeof value !== "number" && typeof value !== "string") return null;
+  if (value === null || value === undefined || value === "" || (typeof value === "string" && !value.trim())) return null;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : null;
 }
 
-function deriveDurationMs(s: HeatmapStep): number {
-  if (typeof s.durationMs === "number") return s.durationMs;
+function knownDuration(s: HeatmapStep): number | null {
+  if (typeof s.durationMs === "number") return Number.isFinite(s.durationMs) && s.durationMs >= 0 ? s.durationMs : null;
   if (s.startedAt && s.completedAt) {
     const ms = new Date(s.completedAt).getTime() - new Date(s.startedAt).getTime();
-    return ms > 0 ? ms : 0;
+    return Number.isFinite(ms) && ms >= 0 ? ms : null;
   }
-  return 0;
-}
-
-function formatCost(usd: number): string {
-  if (usd === 0) return "$0";
-  if (usd < 0.01) return `$${usd.toFixed(4)}`;
-  if (usd < 1) return `$${usd.toFixed(3)}`;
-  return `$${usd.toFixed(2)}`;
-}
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms} ms`;
-  const s = ms / 1000;
-  if (s < 60) return `${s.toFixed(1)} s`;
-  const m = Math.floor(s / 60);
-  const rem = (s - m * 60).toFixed(0);
-  return `${m}m ${rem}s`;
+  return null;
 }
 
 /**
@@ -100,6 +90,11 @@ export function RunStepHeatmap({
   onSelectStep,
   className = "",
 }: RunStepHeatmapProps) {
+  const displayFormat = useDisplayFormats();
+  const stateCopy = useLegacyTranslations("surface.states");
+  const stateLabel = (value?: string) => { const state = value?.toLowerCase() === "succeeded" ? "completed" : value?.toLowerCase(); return stateCopy(["running", "completed", "paused", "failed", "cancelled", "waiting_approval", "pending", "queued"].includes(state ?? "") ? state! : "unknown"); };
+  const runtimeCopy = useRuntimeTranslations("runtime");
+  const uiText = useLegacyTranslations("uiCopy");
   const [metric, setMetric] = useState<Metric>("cost");
   const [hoverId, setHoverId] = useState<string | null>(null);
 
@@ -111,8 +106,8 @@ export function RunStepHeatmap({
     let maxDuration = 0;
 
     for (const s of ordered) {
-      const cost = parseCost(s.costUsd);
-      const duration = deriveDurationMs(s);
+      const cost = (knownCost(s.costUsd) ?? 0);
+      const duration = (knownDuration(s) ?? 0);
       totalCostFromSteps += cost;
       totalDuration += duration;
       if (cost > maxCost) maxCost = cost;
@@ -120,12 +115,14 @@ export function RunStepHeatmap({
     }
 
     const enrichedSteps = ordered.map((s) => {
-      const cost = parseCost(s.costUsd);
-      const duration = deriveDurationMs(s);
+      const cost = (knownCost(s.costUsd) ?? 0);
+      const duration = (knownDuration(s) ?? 0);
       return {
         ...s,
         cost,
         duration,
+        costKnown: knownCost(s.costUsd) !== null,
+        durationKnown: knownDuration(s) !== null,
         costIntensity: maxCost > 0 ? cost / maxCost : 0,
         durationIntensity: maxDuration > 0 ? duration / maxDuration : 0,
       };
@@ -134,6 +131,8 @@ export function RunStepHeatmap({
     return {
       steps: enrichedSteps,
       totalCostFromSteps,
+      allCostKnown: ordered.every(s => knownCost(s.costUsd) !== null),
+      allDurationKnown: ordered.every(s => knownDuration(s) !== null),
       totalDuration,
       maxCost,
       maxDuration,
@@ -144,35 +143,32 @@ export function RunStepHeatmap({
     return null;
   }
 
-  const headerCost = totalCostUsd ?? enriched.totalCostFromSteps;
-  const peak = enriched.steps.reduce((acc, s) =>
+  const headerCost = knownCost(totalCostUsd) ?? (enriched.allCostKnown ? enriched.totalCostFromSteps : null);
+  const measuredSteps = enriched.steps.filter(s => metric === "cost" ? s.costKnown : s.durationKnown);
+  const peak = measuredSteps.length ? measuredSteps.reduce((acc, s) =>
     (metric === "cost" ? s.cost : s.duration) >
     (metric === "cost" ? acc.cost : acc.duration)
       ? s
       : acc,
-  );
+  ) : null;
 
   return (
     <section
       className={`bv-glass bv-panel ${className}`}
-      aria-label="Run step cost heatmap"
+      aria-label={uiText("md09f1084ca66")}
     >
       <header className="flex items-start justify-between gap-3 flex-wrap mb-3">
         <div>
-          <div className="bv-micro" style={{ marginBottom: 4 }}>
-            Step heatmap · {enriched.steps.length} step{enriched.steps.length === 1 ? "" : "s"}
+          <div className="bv-micro" style={{ marginBottom: 4 }}>{uiText("md157b491332a")}{" "}{enriched.steps.length}{" "}{uiText("m4f7017581fe7")}{enriched.steps.length === 1 ? "" : "s"}
           </div>
-          <h3 className="text-base font-semibold" style={{ color: "#e1e2eb", margin: 0 }}>
-            Where the spend went
-          </h3>
+          <h3 className="text-base font-semibold" style={{ color: "var(--color-on-surface)", margin: 0 }}>{uiText("m1bfba96b1e61")}</h3>
         </div>
         <div className="flex items-center gap-2">
-          <span className="bv-micro" style={{ opacity: 0.7 }}>
-            Total: <span className="bv-mono">{formatCost(headerCost)}</span> · {formatDuration(enriched.totalDuration)}
+          <span className="bv-micro" style={{ opacity: 0.7 }}>{uiText("m454e25940ea0")}{" "}<span className="bv-mono">{displayFormat.usd(headerCost)}</span> · {displayFormat.duration(enriched.allDurationKnown ? enriched.totalDuration : null)}
           </span>
           <div
             role="group"
-            aria-label="Color metric"
+            aria-label={uiText("m926c7bc3cb4e")}
             className="inline-flex rounded-full border"
             style={{
               borderColor: "rgba(255,255,255,0.10)",
@@ -184,25 +180,21 @@ export function RunStepHeatmap({
               onClick={() => setMetric("cost")}
               className="px-2.5 py-1 text-[11px] font-medium transition-colors"
               style={{
-                color: metric === "cost" ? "#080810" : "#a4e6ff",
+                color: metric === "cost" ? "#080810" : "var(--color-info)",
                 background: metric === "cost" ? "#00d1ff" : "transparent",
                 borderRadius: 999,
               }}
-            >
-              Cost
-            </button>
+            >{uiText("m7962e0ef9564")}</button>
             <button
               type="button"
               onClick={() => setMetric("duration")}
               className="px-2.5 py-1 text-[11px] font-medium transition-colors"
               style={{
-                color: metric === "duration" ? "#080810" : "#a4e6ff",
+                color: metric === "duration" ? "#080810" : "var(--color-info)",
                 background: metric === "duration" ? "#00d1ff" : "transparent",
                 borderRadius: 999,
               }}
-            >
-              Duration
-            </button>
+            >{uiText("maca226308ff4")}</button>
           </div>
         </div>
       </header>
@@ -217,13 +209,13 @@ export function RunStepHeatmap({
           {enriched.steps.map((s) => {
             const intensity = metric === "cost" ? s.costIntensity : s.durationIntensity;
             const flexBasis = Math.max(1, s.duration);
-            const isPeak = s.id === peak.id;
+            const isPeak = s.id === peak?.id;
             return (
               <button
                 type="button"
                 key={s.id}
                 role="listitem"
-                aria-label={`Step ${s.stepIndex + 1} ${s.name ?? s.agentRole ?? ""} cost ${formatCost(s.cost)} duration ${formatDuration(s.duration)}`}
+                aria-label={runtimeCopy("m6c6656e064e0", { value0: s.stepIndex + 1, value1: s.name ?? s.agentRole ?? "", value2: displayFormat.usd(s.costKnown ? s.cost : null), value3: displayFormat.duration(s.durationKnown ? s.duration : null) })}
                 onMouseEnter={() => setHoverId(s.id)}
                 onMouseLeave={() => setHoverId(null)}
                 onFocus={() => setHoverId(s.id)}
@@ -246,10 +238,8 @@ export function RunStepHeatmap({
                 {isPeak && (
                   <span
                     className="absolute inset-x-0 bottom-1 text-center font-mono"
-                    style={{ fontSize: 9, color: "#a4e6ff" }}
-                  >
-                    peak
-                  </span>
+                    style={{ fontSize: 9, color: "var(--color-info)" }}
+                  >{uiText("m82891b0c7c6e")}</span>
                 )}
               </button>
             );
@@ -267,35 +257,31 @@ export function RunStepHeatmap({
                 style={{
                   borderColor: "rgba(0,209,255,0.20)",
                   background: "rgba(0,209,255,0.05)",
-                  color: "#e1e2eb",
+                  color: "var(--color-on-surface)",
                 }}
               >
                 <div className="flex items-center justify-between gap-3 mb-1">
-                  <span className="font-semibold">
-                    Step {s.stepIndex + 1}: {s.name ?? s.agentRole ?? "Unnamed"}
+                  <span className="font-semibold">{uiText("mcff790642459")}{" "}{s.stepIndex + 1}: {s.name ?? s.agentRole ??uiText("m91c4b9a9a975")}
                   </span>
                   <span
                     className="font-mono"
-                    style={{ color: "#a4e6ff", fontSize: 11 }}
+                    style={{ color: "var(--color-info)", fontSize: 11 }}
                   >
-                    {(s.status ?? "pending").toLowerCase()}
+                    {stateLabel(s.status)}
                   </span>
                 </div>
                 <div
                   className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono"
-                  style={{ fontSize: 11, color: "rgba(225,226,235,0.78)" }}
+                  style={{ fontSize: 11, color: "var(--color-on-surface-variant)" }}
                 >
-                  <span>cost: {formatCost(s.cost)}</span>
-                  <span>duration: {formatDuration(s.duration)}</span>
-                  <span>
-                    tools: {s.toolCalls?.length ?? 0}
+                  <span>{uiText("mdde548bb2e5e")}{" "}{displayFormat.usd(s.costKnown ? s.cost : null)}</span>
+                  <span>{uiText("ma4f2af79632e")}{" "}{displayFormat.duration(s.durationKnown ? s.duration : null)}</span>
+                  <span>{uiText("m946e0fce8ef2")}{" "}{displayFormat.number(s.toolCalls?.length)}
                   </span>
-                  {s.agentRole && <span>agent: {s.agentRole}</span>}
+                  {s.agentRole && <span>{uiText("m42e92aa8ff4c")}{" "}{s.agentRole}</span>}
                 </div>
                 {onSelectStep && (
-                  <div className="mt-1 text-[10.5px]" style={{ color: "rgba(164,230,255,0.75)" }}>
-                    Click to jump to this step ↓
-                  </div>
+                  <div className="mt-1 text-[10.5px]" style={{ color: "var(--color-info)" }}>{uiText("m71160bc18aec")}</div>
                 )}
               </div>
             );
@@ -305,11 +291,11 @@ export function RunStepHeatmap({
       {/* Legend */}
       <div
         className="mt-3 flex items-center justify-between text-[10.5px]"
-        style={{ color: "rgba(225,226,235,0.55)" }}
+        style={{ color: "var(--color-outline)" }}
       >
-        <span>← step 1</span>
+        <span>{uiText("m85e4a839e0c6")}</span>
         <div className="flex items-center gap-2">
-          <span>low</span>
+          <span>{uiText("m8a413bb66127")}</span>
           <div
             className="h-1.5 w-32 rounded-full"
             style={{
@@ -317,9 +303,9 @@ export function RunStepHeatmap({
                 "linear-gradient(90deg, rgba(0,209,255,0.10) 0%, rgba(0,209,255,0.65) 100%)",
             }}
           />
-          <span>high {metric}</span>
+          <span>{uiText("m66114b892e7f")}{" "}{metric}</span>
         </div>
-        <span>step {enriched.steps.length} →</span>
+        <span>{uiText("m4f7017581fe7")}{" "}{enriched.steps.length} →</span>
       </div>
     </section>
   );

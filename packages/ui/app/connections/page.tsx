@@ -1,4 +1,10 @@
 "use client";
+import { useLocale as useRelativeLocale } from "next-intl";
+
+import { useLocalizedFailure } from "../../lib/localized-error";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 /**
  * /connections — connect & monitor external automations (n8n / Make / Zapier).
@@ -18,7 +24,7 @@ import { useAuthGuard } from "../../lib/useAuthGuard";
 import { timeAgo } from "../../lib/timeAgo";
 import { useTranslations } from "next-intl";
 
-const PLATFORMS = [
+const RAW_PLATFORMS = [
   { value: "N8N", label: "n8n" },
   { value: "MAKE", label: "Make" },
   { value: "ZAPIER", label: "Zapier" },
@@ -72,6 +78,11 @@ function hostOf(url: string): string {
 }
 
 export default function ConnectionsPage() {
+  const connectionCopy = useLegacyTranslations("runtime");
+  const PLATFORMS = RAW_PLATFORMS.map(p => ({ ...p, label: p.value === "GENERIC" ? connectionCopy("genericRest") : p.label }));
+  const relativeLocale = useRelativeLocale();
+  const describeFailure = useLocalizedFailure();
+  const uiText = useLegacyTranslations("uiCopy");
   const { token, hydrated } = useAuthGuard();
   const t = useTranslations();
   const [conns, setConns] = useState<any[]>([]);
@@ -140,7 +151,7 @@ export default function ConnectionsPage() {
     } catch (e) {
       setCtlMsg((p) => ({
         ...p,
-        [id]: { ok: false, text: e instanceof Error ? e.message : t("app.connections.controlFailed") },
+        [id]: { ok: false, text: describeFailure(e, t("app.connections.controlFailed")) },
       }));
     } finally {
       setCtlBusy(null);
@@ -182,7 +193,7 @@ export default function ConnectionsPage() {
       setFApiKey("");
       load();
     } catch (e) {
-      setFormErr(e instanceof Error ? e.message : t("app.connections.connectFailed"));
+      setFormErr(describeFailure(e, t("app.connections.connectFailed")));
     } finally {
       setCreating(false);
     }
@@ -224,7 +235,7 @@ export default function ConnectionsPage() {
         {/* ── Page head ── */}
         <div className="bv-page-head mb-8">
           <div>
-            <p className="bv-micro text-on-surface-variant mb-1">Automation Hub</p>
+            <p className="bv-micro text-on-surface-variant mb-1">{uiText("m3e5ecf19f202")}</p>
             <h1 className="bv-headline text-on-surface">{t("app.connections.title")}</h1>
             <p className="bv-body text-on-surface-variant mt-1">{t("app.connections.subtitle")}</p>
           </div>
@@ -256,7 +267,7 @@ export default function ConnectionsPage() {
               className="material-symbols-outlined"
               style={{
                 fontSize: 18,
-                color: validationResult.validated ? "#60A5FA" : "#FF7A1A",
+                color: validationResult.validated ? "var(--color-primary)" : "#FF7A1A",
                 marginTop: 1,
               }}
             >
@@ -266,7 +277,7 @@ export default function ConnectionsPage() {
               <p
                 className="bv-body"
                 style={{
-                  color: validationResult.validated ? "#60A5FA" : "#FF7A1A",
+                  color: validationResult.validated ? "var(--color-primary)" : "#FF7A1A",
                   fontWeight: 500,
                   margin: 0,
                 }}
@@ -286,7 +297,7 @@ export default function ConnectionsPage() {
             <button
               onClick={() => setValidationResult(null)}
               className="bv-btn bv-btn-ghost bv-btn-icon"
-              aria-label="Dismiss"
+              aria-label={uiText("mb9d0451321be")}
               style={{ flexShrink: 0 }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
@@ -311,15 +322,13 @@ export default function ConnectionsPage() {
               onClick={() => { setFormErr(null); setShowForm(true); }}
               className="bv-btn bv-btn-ghost mt-6"
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add_circle</span>
-              Connect a new automation
-            </button>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add_circle</span>{uiText("m8b4a9a98583e")}</button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 bv-stagger">
             {conns.map((c) => {
-              const dotCls = STATUS_DOT[c.status] ?? "bv-cancelled";
-              const pillCls = STATUS_PILL[c.status] ?? "bv-pill-muted";
+              const dotCls = STATUS_DOT[c.status] ??"bv-cancelled";
+              const pillCls = STATUS_PILL[c.status] ??"bv-pill-muted";
               const platGlyph = PLATFORM_GLYPH[c.platform] ?? "{ }";
               const platGrad = PLATFORM_GRADIENT[c.platform] ?? PLATFORM_GRADIENT.GENERIC;
               const isOpen = expanded === c.id;
@@ -359,7 +368,7 @@ export default function ConnectionsPage() {
                     <div className="flex items-center justify-between">
                       <span className="bv-caption">
                         {c.lastPolledAt
-                          ? t("app.connections.polledAgo", { time: timeAgo(c.lastPolledAt) })
+                          ? t("app.connections.polledAgo", { time: timeAgo(c.lastPolledAt, relativeLocale) })
                           : t("app.connections.notPolled")}
                       </span>
                     </div>
@@ -397,7 +406,7 @@ export default function ConnectionsPage() {
                       disabled={busy === c.id}
                       className="bv-btn bv-btn-danger bv-btn-sm bv-btn-icon disabled:opacity-50"
                       title={t("app.connections.disconnect")}
-                    >
+                     aria-label={t("app.connections.disconnect")} type="button">
                       <span className="material-symbols-outlined" style={{ fontSize: 14 }}>delete</span>
                     </button>
                   </div>
@@ -436,7 +445,7 @@ export default function ConnectionsPage() {
                                       disabled={ctlBusy === c.id}
                                       className="bv-btn bv-btn-ghost bv-btn-sm bv-btn-icon disabled:opacity-50"
                                       title={t("app.connections.trigger")}
-                                    >
+                                     aria-label={t("app.connections.trigger")} type="button">
                                       <span className="material-symbols-outlined" style={{ fontSize: 14 }}>play_arrow</span>
                                     </button>
                                   )}
@@ -480,7 +489,7 @@ export default function ConnectionsPage() {
                         {ctlMsg[c.id] && (
                           <p
                             className="bv-caption mt-2"
-                            style={{ color: ctlMsg[c.id].ok ? "#60A5FA" : "var(--bv-status-failed)" }}
+                            style={{ color: ctlMsg[c.id].ok ? "var(--color-primary)" : "var(--bv-status-failed)" }}
                           >
                             {ctlMsg[c.id].text}
                           </p>
@@ -503,7 +512,7 @@ export default function ConnectionsPage() {
                                 <span className={`bv-dot ${RUN_DOT[r.status] ?? "bv-cancelled"}`} />
                                 <span className="bv-body font-medium truncate text-on-surface flex-1">{r.workflowName ?? r.externalId}</span>
                                 <span className="bv-pill bv-pill-muted">{r.status}</span>
-                                <span className="bv-mono text-outline">{r.startedAt ? timeAgo(r.startedAt) : ""}</span>
+                                <span className="bv-mono text-outline">{r.startedAt ? timeAgo(r.startedAt, relativeLocale) : ""}</span>
                               </li>
                             ))}
                           </ul>
@@ -527,7 +536,7 @@ export default function ConnectionsPage() {
               >
                 +
               </span>
-              <span className="bv-body">Connect a new automation</span>
+              <span className="bv-body">{uiText("m8b4a9a98583e")}</span>
             </button>
           </div>
         )}
@@ -536,23 +545,23 @@ export default function ConnectionsPage() {
         {!loading && conns.length > 0 && (
           <section>
             <div className="flex items-center gap-3 mb-5">
-              <h2 className="bv-title font-headline uppercase tracking-widest text-on-surface">Unified executions</h2>
-              <span className="bv-caption">native + external · one timeline</span>
+              <h2 className="bv-title font-headline uppercase tracking-widest text-on-surface">{uiText("m80ef56a7089f")}</h2>
+              <span className="bv-caption">{uiText("ma9b5c84ca346")}</span>
             </div>
 
             <div className="bv-glass bv-panel">
               {/* Feed header row */}
               <div className="bv-runs-row bv-runs-head" style={{ gridTemplateColumns: "24px 1fr auto" }}>
                 <span />
-                <span>event</span>
-                <span>type</span>
+                <span>{uiText("m8bd444807a52")}</span>
+                <span>{uiText("md8e91797972c")}</span>
               </div>
 
               {/* Feed rows — populated from expanded conn runs or a merged list when available */}
               {Object.entries(runs).flatMap(([connId, connRuns]) =>
                 connRuns.map((r) => {
                   const conn = conns.find((c) => c.id === connId);
-                  const dotCls = RUN_DOT[r.status] ?? "bv-cancelled";
+                  const dotCls = RUN_DOT[r.status] ??"bv-cancelled";
                   return (
                     <div
                       key={r.id}
@@ -569,18 +578,18 @@ export default function ConnectionsPage() {
                       <div>
                         <p className="bv-body text-on-surface">{r.workflowName ?? r.externalId}</p>
                         <p className="bv-mono text-outline mt-0.5">
-                          {conn?.platform ?? "external"} · {r.startedAt ? timeAgo(r.startedAt) : ""}
+                          {conn?.platform ??uiText("m826036148049")} · {r.startedAt ? timeAgo(r.startedAt, relativeLocale) : ""}
                         </p>
                       </div>
 
                       {/* Tag */}
-                      <span className="bv-pill bv-pill-amber">external</span>
+                      <span className="bv-pill bv-pill-amber">{uiText("m826036148049")}</span>
                     </div>
                   );
                 })
               )}
               {Object.keys(runs).length === 0 && (
-                <p className="bv-caption py-4 text-center">Expand a connection to mirror its executions here.</p>
+                <p className="bv-caption py-4 text-center">{uiText("m1a1faaa5e7fc")}</p>
               )}
             </div>
           </section>
@@ -614,7 +623,7 @@ export default function ConnectionsPage() {
               <button
                 onClick={() => setShowForm(false)}
                 className="bv-btn bv-btn-ghost bv-btn-icon"
-                aria-label="Close"
+                aria-label={uiText("m23715cc46e18")}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
               </button>

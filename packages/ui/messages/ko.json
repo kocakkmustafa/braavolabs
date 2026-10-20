@@ -1,0 +1,4878 @@
+{
+  "nav": {
+    "features": "기능",
+    "pricing": "요금",
+    "docs": "문서",
+    "signIn": "로그인",
+    "getStarted": "시작하기",
+    "dashboard": "대시보드",
+    "home": "홈",
+    "commandCenter": "명령 센터",
+    "workspaces": "워크스페이스",
+    "workflows": "AI 워크플로",
+    "approvals": "승인",
+    "drafts": "초안",
+    "analytics": "분석",
+    "risks": "위험 보호",
+    "integrations": "통합",
+    "connections": "연결",
+    "abTests": "A/B 테스트",
+    "webhooks": "웹훅",
+    "billing": "결제",
+    "settings": "설정",
+    "newWorkspace": "새 워크스페이스",
+    "quickStart": "빠른 시작"
+  },
+  "features": {
+    "badge": "플랫폼 기능",
+    "title": "AI 워크스페이스에 필요한 모든 것",
+    "subtitle": "에이전트 오케스트레이션부터 메모리, 결제, 거버넌스까지 하나의 플랫폼에서 이용하세요.",
+    "ctaPrimary": "무료로 구축 시작",
+    "items": {
+      "agents": {
+        "title": "자율 에이전트",
+        "desc": "도구 사용, 재시도 로직, 추론 로그, 예산 제어를 갖춘 Claude 기반 에이전트입니다. 모든 결정에는 이유가 기록됩니다."
+      },
+      "memory": {
+        "title": "메모리 엔진",
+        "desc": "에피소드·의미·그래프 메모리를 제공합니다. 에이전트는 실행할 때마다 학습합니다. 메모리는 후보 → 승인 → 사용 중단의 수명 주기를 거칩니다."
+      },
+      "pipeline": {
+        "title": "파이프라인 실행기",
+        "desc": "cron 예약, BullMQ 기반 대기열, 단계별 롤백 기능을 갖춘 다단계 워크플로입니다."
+      },
+      "governance": {
+        "title": "거버넌스 엔진",
+        "desc": "비용 이상 탐지, 반복 루프 방지, 스팸 보호, 브랜드 안전 필터를 제공합니다. 예산을 초과하면 강제로 중지합니다."
+      },
+      "analytics": {
+        "title": "분석 및 CRM",
+        "desc": "HubSpot 통합, 거래 추적, 전체 실행 기록, 비용 내역, 성공률 지표를 제공합니다."
+      },
+      "billing": {
+        "title": "사용량 기반 결제",
+        "desc": "예정 요금은 Individual 월 $19, Team 활성 사용자당 월 $39입니다. 현재 구매할 수 없으며 추론 비용은 포함되지 않습니다."
+      },
+      "audit": {
+        "title": "전체 감사 로그",
+        "desc": "모든 작업, 도구 호출, 결정이 수행자, 타임스탬프, 비용과 함께 영구적으로 기록됩니다."
+      },
+      "primitives": {
+        "title": "9가지 기본 구성 요소",
+        "desc": "고객 확보, 영업, 제공, 콘텐츠, 운영, 재무, 분석, 메모리, 거버넌스를 조합하여 AI 회사나 자동화를 구축하세요."
+      },
+      "approval": {
+        "title": "지출 승인 단계",
+        "desc": "금전 지출이 발생하는 작업에만 사람의 승인이 필요합니다. 그 외 작업은 자율적으로 실행되어 운영 속도를 유지하면서도 통제권을 제공합니다."
+      }
+    }
+  },
+  "app": {
+    "approvals": {
+      "handoffIncomplete": "승인이 기록되었지만 작업 인계를 완료하지 못했습니다: {reason}. 실행을 확인하세요.",
+      "handoffNeedsAttention": "확인이 필요합니다",
+      "title": "대기 중인 승인",
+      "subtitle": "AI 에이전트의 지출 작업을 검토하고 승인하세요",
+      "emptyTitle": "모두 처리했습니다!",
+      "emptyBody": "대기 중인 승인이 없습니다. 지출 작업에만 승인이 필요합니다.",
+      "unknownCompany": "알 수 없는 워크스페이스",
+      "runLabel": "실행:",
+      "approve": "승인",
+      "reject": "거부",
+      "artifactKind": {
+        "email": "이메일 초안",
+        "social_post": "게시물 초안",
+        "message": "메시지 초안",
+        "content": "생성된 콘텐츠"
+      },
+      "artifactAiLabel": "AI 생성"
+    },
+    "companies": {
+      "title": "워크스페이스",
+      "countSingular": "워크스페이스 {count}개",
+      "countPlural": "워크스페이스 {count}개",
+      "newCompany": "새 워크스페이스",
+      "emptyTitle": "아직 워크스페이스가 없습니다",
+      "emptyBody": "사업 아이디어를 설명하면 AI가 모든 구성을 설정합니다",
+      "createFirst": "첫 워크스페이스 만들기",
+      "noDescription": "설명 없음",
+      "agentsLabel": "에이전트",
+      "pipelinesLabel": "파이프라인",
+      "warRoom": "상황실",
+      "searchPlaceholder": "워크스페이스 검색…",
+      "filterAll": "전체",
+      "statusRunning": "실행 중",
+      "statusPaused": "일시 중지됨",
+      "statusDraft": "초안",
+      "statusArchived": "보관됨",
+      "open": "열기",
+      "pause": "일시 중지",
+      "resume": "계속",
+      "flagship": "플래그십",
+      "flagshipPill": "AI 회사 플래그십 템플릿 사용해 보기",
+      "noMatchTitle": "일치하는 워크스페이스가 없습니다",
+      "noMatchBody": "다른 검색어나 필터를 사용해 보세요.",
+      "actionFailed": "작업에 실패했습니다. 다시 시도하세요."
+    },
+    "risks": {
+      "title": "위험 모니터",
+      "subtitle": "거버넌스 알림 및 시스템 활동",
+      "statsTotalRisk": "전체 위험 이벤트",
+      "statsLoopStops": "루프 중지",
+      "statsCostAnomalies": "비용 이상",
+      "statsFailedRuns": "실패한 실행",
+      "tabRisks": "위험 이벤트",
+      "tabActivity": "활동 로그",
+      "labelHardStop": "강제 중지",
+      "labelLoopDetected": "루프 감지",
+      "labelCostAnomaly": "비용 이상",
+      "labelSpamProtection": "스팸 보호",
+      "labelBrandViolation": "브랜드 규칙 위반",
+      "labelRunFailed": "실행 실패",
+      "labelRunStopped": "실행 중지됨",
+      "emptyRisksTitle": "모든 시스템 정상",
+      "emptyRisksBody": "감지된 위험 이벤트가 없습니다.",
+      "emptyActivity": "아직 기록된 활동이 없습니다.",
+      "thAction": "작업",
+      "thResource": "리소스",
+      "thActor": "수행자",
+      "thTime": "시간",
+      "actorSystem": "시스템"
+    },
+    "webhooks": {
+      "title": "웹훅 템플릿",
+      "subtitleTemplate": "외부 이벤트를 파이프라인에 연결하는 사전 구성 트리거 {count}개",
+      "footer": "설치 후 워크스페이스 설정에서 웹훅 URL을 복사하세요.",
+      "searchPlaceholder": "웹훅 템플릿 검색…",
+      "catAll": "전체",
+      "catEcommerce": "전자상거래",
+      "catPayment": "결제",
+      "catCrm": "CRM",
+      "catDev": "개발 도구",
+      "catSocial": "소셜",
+      "catSupport": "지원",
+      "catMarketing": "마케팅",
+      "catCustom": "사용자 지정",
+      "setup": "설정",
+      "samplePayload": "예시 페이로드",
+      "providerLabel": "프로바이더:",
+      "install": "템플릿 설치",
+      "installed": "설치됨 ✓",
+      "webhookUrlPrefix": "웹훅 URL:",
+      "noResults": "검색 조건에 맞는 웹훅 템플릿이 없습니다."
+    },
+    "errors": {
+      "title": "오류 및 위험 이벤트",
+      "subtitle": "AI 에이전트의 실패한 실행과 거버넌스 위험 이벤트",
+      "failedSectionTemplate": "실패 및 취소된 실행 ({count})",
+      "riskSectionTemplate": "위험 이벤트 ({count})",
+      "stepsLabel": "단계",
+      "noFailedTitle": "실패한 실행이 없습니다",
+      "noFailedBody": "모든 작업이 순조롭게 실행되고 있습니다!",
+      "noRiskTitle": "감지된 위험 이벤트가 없습니다",
+      "noRiskBody": "에이전트가 모든 거버넌스 정책 범위 안에서 작동하고 있습니다.",
+      "unknown": "알 수 없음"
+    },
+    "pipelines": {
+      "title": "AI 워크플로",
+      "subtitle": "모든 워크스페이스의 파이프라인을 관리하세요",
+      "newCompany": "새 워크스페이스",
+      "statTotal": "전체 파이프라인",
+      "statActive": "활성",
+      "statScheduled": "예약됨",
+      "searchPlaceholder": "파이프라인 검색…",
+      "allCompanies": "모든 워크스페이스",
+      "emptyTitle": "아직 워크플로가 없습니다",
+      "emptyMatchTitle": "일치하는 워크플로가 없습니다",
+      "emptyBody": "워크스페이스를 만들어 AI 워크플로를 자동으로 생성하세요.",
+      "emptyMatchBody": "필터를 조정해 보세요.",
+      "createCompany": "워크스페이스 만들기",
+      "stepsLabel": "단계",
+      "runButton": "실행",
+      "detailButton": "상세 정보",
+      "nlButton": "새 파이프라인",
+      "nlTitle": "설명으로 새 파이프라인 만들기",
+      "nlCompanyLabel": "워크스페이스",
+      "nlDescLabel": "워크플로 설명",
+      "nlDescPlaceholder": "예: 매일 아침 새로운 잠재 고객을 찾고 영업 이메일 초안을 작성합니다.",
+      "nlCreate": "만들기",
+      "nlCreating": "생성 중…",
+      "nlNeedCompany": "파이프라인을 추가하려면 먼저 워크스페이스를 만드세요.",
+      "nlCancel": "취소"
+    },
+    "settings": {
+      "navProfile": "프로필",
+      "navNotifications": "알림",
+      "navBilling": "요금제 및 사용량",
+      "navAi": "AI 프로바이더",
+      "navIntegrations": "통합",
+      "navGovernance": "거버넌스",
+      "navApi": "API 및 인증",
+      "navWebhooks": "웹훅",
+      "navReferral": "추천",
+      "signOut": "로그아웃",
+      "savedToast": "설정을 저장했습니다",
+      "profileTitle": "프로필",
+      "profileSubtitle": "개인 정보와 기본 설정을 관리하세요",
+      "fieldFirstName": "이름",
+      "fieldLastName": "성",
+      "fieldEmail": "이메일",
+      "fieldPhone": "전화번호",
+      "verifiedBadge": "인증됨",
+      "bioPlaceholder": "자기소개를 작성하세요…",
+      "notificationsTitle": "알림",
+      "notificationsSubtitle": "알림을 받는 시점과 방식을 설정하세요",
+      "criticalBadge": "중요",
+      "billingTitle": "요금제 및 사용량",
+      "billingSubtitle": "구독을 관리하고 사용량 지표를 확인하세요",
+      "manageBilling": "결제 관리 →",
+      "runsThisMonth": "이번 달 실행 수",
+      "mostPopular": "가장 인기 있는 요금제",
+      "integrationsTitle": "통합",
+      "integrationsSubtitle": "워크스페이스에 외부 서비스를 연결하세요",
+      "notConnected": "연결되지 않음",
+      "viewDocumentation": "문서 보기 →",
+      "saveCredentials": "인증 정보 저장",
+      "testConnection": "연결 테스트",
+      "connectionSuccessful": "연결에 성공했습니다!",
+      "governanceTitle": "거버넌스 구성",
+      "governanceSubtitle": "위험 제어와 자율 동작의 경계",
+      "aiTitle": "AI 프로바이더",
+      "aiSubtitle": "워크스페이스와 에이전트에서 사용할 AI 모델을 설정하세요",
+      "aiSavedToast": "AI 프로바이더를 저장했습니다",
+      "aiSaving": "저장 중…",
+      "aiSaveButton": "프로바이더 저장",
+      "aiTesting": "테스트 중…",
+      "aiBaseUrl": "기본 URL",
+      "aiApiKey": "API 키",
+      "aiKeyConfiguredPrefix": "✓ 키 구성됨",
+      "aiLeavePlaceholder": "기존 키를 유지하려면 비워 두세요",
+      "aiModelsRefresh": "모델 새로고침",
+      "aiModelsRefreshing": "새로고침 중…",
+      "aiModelsLive": "프로바이더의 실시간 모델 목록",
+      "aiModelsStatic": "기본 제공 카탈로그 (대체 목록)",
+      "aiUnknownError": "알 수 없는 오류",
+      "aiSaveFailed": "저장하지 못했습니다",
+      "noCompaniesFound": "워크스페이스를 찾을 수 없습니다",
+      "saveButton": "저장",
+      "identity": {
+        "title": "조직 SSO (OIDC) — 개발 중",
+        "subtitle": "워크스페이스를 Microsoft Entra, Okta, Google Workspace, Auth0, JumpCloud 또는 규격을 준수하는 다른 ID 프로바이더에 연결하세요.",
+        "back": "설정으로 돌아가기",
+        "loading": "SSO 구성 불러오는 중…",
+        "status_active": "활성",
+        "status_inactive": "구성됨 · 비활성",
+        "last_discovered": "검색 구성이 {when}에 새로고침됨",
+        "issuer": "발급자 URL",
+        "issuer_hint": "OpenID 프로바이더의 발급자입니다. 발급된 토큰의 `iss` 클레임과 일치해야 합니다.",
+        "client_id": "클라이언트 ID",
+        "client_secret": "클라이언트 시크릿",
+        "client_secret_rotate": "클라이언트 시크릿 교체",
+        "client_secret_hint_new": "테넌트에 연결된 AAD를 사용해 저장 시 AES-256-GCM으로 암호화됩니다.",
+        "client_secret_hint_rotate": "기존 시크릿을 유지하려면 비워 두세요. 교체하려면 새 값을 붙여넣으세요.",
+        "redirect_uri": "리디렉션 URI",
+        "redirect_uri_hint": "ID 프로바이더에 다음 URL을 등록하세요: {url}",
+        "redirect_uri_hint_generic": "이 URL을 ID 프로바이더에서 허용된 리디렉션 대상으로 등록하세요.",
+        "scopes": "범위",
+        "scopes_hint": "공백으로 구분합니다. 대부분의 ID 프로바이더에는 최소한 `openid email profile`이 필요합니다.",
+        "domains": "이메일 도메인 허용 목록",
+        "domains_hint": "쉼표로 구분합니다. 비워 두면 도메인을 확인하지 않습니다. 멀티테넌트 ID 프로바이더에는 사용을 권장합니다.",
+        "discovery_url_optional": "검색 URL (선택 사항)",
+        "discovery_url_hint": "기본 `{issuer}/.well-known/openid-configuration` 조회 주소를 덮어씁니다.",
+        "active_toggle": "이 워크스페이스에서 SSO 로그인 사용",
+        "save": "구성 저장",
+        "saved": "구성을 저장했습니다.",
+        "disconnect": "SSO 연결 해제",
+        "confirm_disconnect": "SSO 연결을 제거할까요? 기존 SSO 사용자는 이메일과 비밀번호 로그인으로 전환됩니다.",
+        "test_sign_in": "로그인 테스트 →",
+        "plan_gate_body": "조직 SSO는 개발 중이며 현재 구매할 수 없습니다.",
+        "plan_gate_cta": "요금제 보기 →"
+      },
+      "fieldName": "이름",
+      "memberSince": "{year}년 가입",
+      "saveFailedToast": "저장하지 못했습니다. 다시 시도하세요.",
+      "localPlanRequired": "로컬 프로바이더를 설정하려면 지원되는 요금제를 선택하세요",
+      "planRequired": "요금제가 필요합니다",
+      "localPlanDescription": "Individual과 Team은 구성된 로컬 엔드포인트를 지원합니다. 추론 비용은 포함되지 않습니다.",
+      "viewPlans": "요금제 보기",
+      "aiStorageDescription": "프로바이더 인증 정보는 저장하기 전에 암호화됩니다. 네트워크 접근과 데이터 처리는 설정한 프로바이더 및 엔드포인트에 따라 달라집니다.",
+      "localEndpointDescription": "로컬 엔드포인트는 설정한 환경에서 실행됩니다. 다른 제품 기능에는 네트워크 접근이 필요할 수 있으며, 이 설정만으로 완전한 오프라인 작동이 보장되지는 않습니다."
+    },
+    "onboarding": {
+      "primitives": {
+        "acquisition": {
+          "label": "고객 확보",
+          "desc": "잠재 고객 발굴 및 성장"
+        },
+        "sales": {
+          "label": "영업",
+          "desc": "영업 파이프라인 및 거래"
+        },
+        "delivery": {
+          "label": "제공",
+          "desc": "이행 운영"
+        },
+        "content": {
+          "label": "콘텐츠",
+          "desc": "AI 생성 콘텐츠"
+        },
+        "operations": {
+          "label": "운영",
+          "desc": "내부 워크플로"
+        },
+        "finance": {
+          "label": "재무",
+          "desc": "매출 및 결제"
+        },
+        "analytics": {
+          "label": "분석",
+          "desc": "인사이트 및 보고서"
+        },
+        "memory": {
+          "label": "메모리",
+          "desc": "에이전트 학습"
+        },
+        "governance": {
+          "label": "거버넌스",
+          "desc": "위험 및 규정 준수"
+        }
+      },
+      "industries": {
+        "saas": {
+          "label": "SaaS / 소프트웨어",
+          "desc": "구독 및 제품 주도 성장"
+        },
+        "agency": {
+          "label": "에이전시",
+          "desc": "고객 서비스 및 제공"
+        },
+        "ecommerce": {
+          "label": "전자상거래",
+          "desc": "온라인 스토어 및 DTC"
+        },
+        "consulting": {
+          "label": "컨설팅",
+          "desc": "전문 서비스"
+        },
+        "creator": {
+          "label": "독립 사업 / 개인 브랜드",
+          "desc": "콘텐츠 및 구독자 기반 구축"
+        },
+        "b2b_sales": {
+          "label": "B2B 영업",
+          "desc": "잠재 고객 발굴 및 영업 연락"
+        },
+        "real_estate": {
+          "label": "부동산",
+          "desc": "매물 및 고객 관리"
+        },
+        "marketing": {
+          "label": "마케팅 에이전시",
+          "desc": "디지털 마케팅 및 광고"
+        },
+        "automation": {
+          "label": "AI / 자동화",
+          "desc": "워크플로 자동화 서비스"
+        },
+        "support": {
+          "label": "고객 지원",
+          "desc": "헬프데스크 및 티켓 관리"
+        }
+      },
+      "useCases": [
+        "콘텐츠 제작 확대",
+        "잠재 고객 발굴 자동화",
+        "고객 관계 관리",
+        "매출 시스템 구축",
+        "운영 부담 감소",
+        "소셜 미디어 영향력 확대",
+        "고객 지원 속도 향상",
+        "재무 보고 자동화"
+      ],
+      "stepLabels": [
+        "업종",
+        "워크스페이스",
+        "기본 구성 요소",
+        "채널",
+        "시작"
+      ],
+      "suggestions": [
+        "SaaS 스타트업",
+        "에이전시",
+        "전자상거래",
+        "컨설팅",
+        "독립 사업"
+      ],
+      "suggestionTemplate": "저는 {kind} 사업을 운영합니다. 고객 확보, 콘텐츠 제작, 운영을 담당할 AI 에이전트가 필요합니다.",
+      "successCompanyFallback": "내 워크스페이스",
+      "successLiveSuffix": " 준비 완료!",
+      "successFromBlueprint": "블루프린트를 복제하고 설정했습니다. 자율 AI 회사가 준비되었습니다.",
+      "successDefault": "자율 AI 회사가 실행할 준비를 마쳤습니다.",
+      "agents": "에이전트",
+      "pipeline": "파이프라인",
+      "byokTitle": "마지막 단계: 에이전트가 LLM에 접근하는 방식을 선택하세요",
+      "byokSubtitle": "두 가지 방법이 있습니다. 두 방법 모두 데이터를 테넌트별로 분리하고 감사 로그를 기록합니다.",
+      "byokCloudTitle": "☁ 클라우드 BYOK (모든 요금제)",
+      "byokCloudDesc": "Anthropic, OpenAI, Gemini, Mistral, Groq, OpenRouter",
+      "byokSelfTitle": "⚡ 자체 호스팅 로컬 모델 — 구성 필요",
+      "byokSelfDesc": "Ollama / LM Studio · 토큰별 비용 없음 · KVKK",
+      "addApiKey": "API 키 추가",
+      "viewCompanies": "워크스페이스 보기",
+      "dashboard": "대시보드",
+      "step0Title": "어떤 업종인가요?",
+      "step0Subtitle": "비즈니스에 적합한 블루프린트를 제안하여 더 빠르게 시작하도록 돕겠습니다.",
+      "automateQuestion": "어떤 작업을 자동화하고 싶으신가요?",
+      "automateHint": "(해당 항목 모두 선택)",
+      "recommendedBlueprints": "추천 블루프린트",
+      "blueprintsHint": "— 클릭하여 시작 템플릿으로 사용",
+      "noBlueprints": "이 업종의 템플릿을 찾을 수 없습니다.",
+      "selectIndustryHint": "계속하려면 업종을 선택하세요",
+      "continueButton": "계속 →",
+      "step1Title": "워크스페이스를 소개해 주세요",
+      "step1Subtitle": "일상적인 표현으로 설명하면 Claude가 이해하고 에이전트 구성을 자동으로 만듭니다.",
+      "fieldCompanyName": "워크스페이스 이름",
+      "companyNamePlaceholder": "나의 AI 소셜 에이전시",
+      "fieldDescribeBusiness": "비즈니스 설명",
+      "descriptionPlaceholder": "예: 전자상거래 브랜드를 위한 소셜 미디어 관리 에이전시를 운영합니다. 콘텐츠 제작, 고객 보고, 잠재 고객 발굴이 필요합니다…",
+      "needInspiration": "아이디어가 필요하신가요?",
+      "blueprintSelected": "블루프린트 선택됨 — 템플릿의 기본 구성 요소와 에이전트를 사전 설정했습니다",
+      "removeBlueprint": "× 제거",
+      "describeOrSelectError": "계속하려면 비즈니스를 설명하거나 위에서 블루프린트를 선택하세요.",
+      "describeError": "계속하기 전에 비즈니스를 설명하세요.",
+      "backButton": "← 뒤로",
+      "step2Title": "AI 기본 구성 요소 선택",
+      "step2SubtitleBlueprint": "선택한 블루프린트로 사전 설정되었습니다. 추가로 변경할 수 있습니다.",
+      "step2SubtitleDefault": "포함할 기능을 선택하세요. 나중에 변경할 수 있습니다.",
+      "step3Title": "채널 구성",
+      "step3Subtitle": "에이전트 출력을 맞춤화하려면 대상 고객과 전문 분야를 정하세요.",
+      "fieldNiche": "전문 분야",
+      "nichePlaceholder": "예: B2B SaaS, 피트니스, 전자상거래…",
+      "fieldTargetAudience": "대상 고객",
+      "audiencePlaceholder": "예: 스타트업 창업자, 마케터, 개발자…",
+      "optional": "(선택 사항)",
+      "activeChannelsTitle": "활성 채널",
+      "upgradeToProForChannels": "워크스페이스 설정에서 채널 구성",
+      "step4Title": "시작 준비 완료",
+      "step4Subtitle": "구성을 검토하고 첫 자율 AI 회사를 만드세요.",
+      "summaryCompanyName": "워크스페이스 이름",
+      "summaryIndustry": "업종",
+      "summaryBlueprint": "블루프린트",
+      "summaryPrimitives": "기본 구성 요소",
+      "summaryPrimitivesValueTemplate": "{count}개 선택됨",
+      "summaryChannels": "채널",
+      "summaryNiche": "전문 분야",
+      "summaryAudience": "대상 고객",
+      "creatingButton": "워크스페이스 생성 중…",
+      "launchButton": "워크스페이스 시작 ✨",
+      "blueprintSelectedBadge": "선택됨",
+      "onboardingProgress": "시작 설정 진행률",
+      "reviewInBuilder": "빌더에서 검토"
+    },
+    "analytics": {
+      "title": "분석",
+      "subtitle": "파이프라인 실행 성과 및 비용 내역",
+      "exportCsv": "CSV 내보내기",
+      "statTotalRuns": "전체 실행",
+      "statSuccessRate": "성공률",
+      "statTotalCost": "총비용",
+      "statAvgRun": "실행당 평균",
+      "runBreakdown": "실행 내역 (이번 달)",
+      "barCompleted": "완료",
+      "barFailed": "실패",
+      "barOther": "기타",
+      "donutLabel": "회 실행",
+      "costSummary": "비용 요약 (이번 달)",
+      "totalSpent": "총지출",
+      "billableRuns": "과금 대상 실행",
+      "averagePerRun": "실행당 평균",
+      "loading": "불러오는 중…",
+      "runHistory": "실행 기록",
+      "noRuns": "실행을 찾을 수 없습니다.",
+      "thCompany": "워크스페이스",
+      "thPipeline": "파이프라인",
+      "thStatus": "상태",
+      "thSteps": "단계",
+      "thCost": "비용",
+      "thStarted": "시작 시각",
+      "showingRange": "전체 {total}개 중 {from}–{to} 표시",
+      "prev": "이전",
+      "next": "다음",
+      "runSteps": "실행 단계",
+      "reasoningPrefix": "추론:",
+      "toolCallsTemplate": "도구 호출 {count}회",
+      "noSteps": "기록된 단계가 없습니다.",
+      "currentPeriod": "현재 달력 기준 월 (서버 시간)",
+      "loadFailed": "일부 분석 데이터를 불러오지 못했습니다. 누락된 데이터는 사용할 수 없음으로 표시됩니다.",
+      "unavailable": "사용할 수 없음"
+    },
+    "abTests": {
+      "title": "A/B 테스트",
+      "subtitle": "에이전트 변형을 테스트하고 가장 성능이 좋은 구성을 찾으세요",
+      "newTest": "새 A/B 테스트",
+      "dismiss": "닫기",
+      "filterAll": "전체",
+      "filterDraft": "초안",
+      "filterRunning": "실행 중",
+      "filterPaused": "일시 중지됨",
+      "filterCompleted": "완료",
+      "emptyTitle": "아직 A/B 테스트가 없습니다",
+      "emptyBody": "첫 실험을 만들어 에이전트 성능을 최적화하세요.",
+      "emptyCta": "A/B 테스트 만들기",
+      "variantsCountTemplate": "변형 {count}개",
+      "runsCountTemplate": "실행 {count}회",
+      "winner": "최우수 변형",
+      "trafficSuffix": "트래픽 {percent}%",
+      "samplesSuffix": "(샘플 {count}개)",
+      "startTest": "테스트 시작",
+      "delete": "삭제",
+      "pause": "일시 중지",
+      "complete": "완료",
+      "resume": "계속",
+      "modalTitle": "A/B 테스트 만들기",
+      "fieldName": "테스트 이름",
+      "fieldNamePlaceholder": "예: 영업 연락 에이전트의 어조 비교",
+      "fieldDescription": "설명 (선택 사항)",
+      "fieldDescriptionPlaceholder": "어떤 항목을 테스트하나요?",
+      "fieldCompany": "워크스페이스",
+      "selectCompany": "워크스페이스 선택",
+      "fieldAgent": "에이전트",
+      "selectAgent": "에이전트 선택",
+      "variants": "변형",
+      "addVariant": "+ 변형 추가",
+      "systemPromptPlaceholder": "시스템 프롬프트 덮어쓰기…",
+      "temperature": "온도:",
+      "cancel": "취소",
+      "createTest": "테스트 만들기",
+      "creating": "생성 중…",
+      "errNameRequired": "테스트 이름이 필요합니다.",
+      "errSelectCompany": "워크스페이스를 선택하세요.",
+      "errSelectAgent": "에이전트를 선택하세요.",
+      "loading": "테스트 불러오는 중…",
+      "notFound": "테스트를 찾을 수 없습니다.",
+      "backToList": "모든 테스트로 돌아가기",
+      "actStart": "테스트 시작",
+      "actPause": "일시 중지",
+      "actComplete": "선택한 최우수 변형으로 완료",
+      "actPromote": "최우수 변형을 에이전트에 적용",
+      "traffic": "트래픽",
+      "metricsHeader": "지표 · 기록 {count}개",
+      "selectAsWinner": "최우수 변형으로 선택",
+      "selectedAsWinner": "최우수 변형으로 선택됨 ✓",
+      "improvementSummary": "개선 요약",
+      "better": "개선",
+      "expand": "상세 정보 표시",
+      "collapse": "상세 정보 숨기기",
+      "noTimeSeries": "이 화면에서는 시계열 데이터와 신뢰 구간을 제공하지 않습니다. 위의 집계 지표를 이용하세요."
+    },
+    "dashboard": {
+      "title": "명령 센터",
+      "subtitle": "AI 워크스페이스를 실시간으로 확인하세요",
+      "newCompany": "새 워크스페이스",
+      "metricActiveCompanies": "활성 워크스페이스",
+      "metricRunningPipelines": "실행 중인 파이프라인",
+      "metricPendingApprovals": "대기 중인 승인",
+      "metricTotalRuns": "전체 실행",
+      "metricTotalCost": "총비용",
+      "successSuffix": "성공률 {percent}%",
+      "perRunSuffix": "실행당 ${cost}",
+      "actionNeeded": "조치 필요",
+      "yourCompanies": "내 워크스페이스",
+      "viewAll": "모두 보기",
+      "emptyTitle": "아직 워크스페이스가 없습니다",
+      "emptyDescription": "첫 워크스페이스를 만들어 자동화를 시작하세요",
+      "emptyAction": "워크스페이스 만들기",
+      "activity": "활동",
+      "noActivity": "최근 활동 없음",
+      "pendingApprovalsBanner": "대기 중인 승인",
+      "pendingActionsLabel": "검토를 기다리는 작업",
+      "review": "검토",
+      "noDescription": "설명 없음",
+      "recentRuns": "최근 실행",
+      "riskEvents": "위험 이벤트",
+      "runHealth": "실행 상태",
+      "openRiskInbox": "위험 알림함 열기",
+      "inboxZero": "대기 중인 승인이 없습니다",
+      "noRisksRaised": "감사 기록 정상 — 발생한 위험 없음",
+      "forecast": {
+        "title": "지출 예측",
+        "loading": "예측 불러오는 중…",
+        "edit_budget": "예산 수정",
+        "set_budget": "예산 설정",
+        "spent_so_far": "이번 달 {days}일간 지출",
+        "projected_to_eom": "예상 월말 지출: {amount} (하루 평균 {daily})",
+        "of_budget": "예상 예산 사용률",
+        "over_budget_warning": "예산을 초과했습니다. 한도를 늘리거나 새달이 시작될 때까지 지출 승인의 자동 허가가 차단됩니다.",
+        "monthly_budget_usd": "월 예산 (USD)",
+        "save": "저장",
+        "clear": "지우기",
+        "cancel": "취소",
+        "invalid": "양수를 입력하세요",
+        "top_cost_tools": "주요 비용 항목",
+        "budget_bar_label": "예상 월 예산 사용률 {pct}%"
+      },
+      "statusQuiet": "실행 중인 작업이 없습니다",
+      "statusStreaming": "{count, plural, other {#개 실행 스트리밍 중}}",
+      "approvalsAwaiting": "{count, plural, other {#개 승인이 결정을 기다리는 중}}",
+      "risksNeedEye": "{count, plural, other {#개 위험을 확인해야 함}}",
+      "spentThisCycle": "이번 주기 지출 {amount}",
+      "autoRefresh": "{seconds}초마다 자동 새로고침"
+    },
+    "integrations": {
+      "title": "통합 라이브러리",
+      "subtitleTemplate": "커넥터 {total}개 — 사용 가능 {available}개, 베타 {beta}개, 출시 예정 {comingSoon}개",
+      "searchPlaceholder": "통합 검색…",
+      "catAll": "전체",
+      "catCrm": "CRM",
+      "catSocial": "소셜 미디어",
+      "catEmail": "이메일",
+      "catMessaging": "메시징",
+      "catProductivity": "생산성",
+      "catEcommerce": "전자상거래",
+      "catDev": "개발 도구",
+      "catAnalytics": "분석",
+      "catAds": "광고",
+      "catPayment": "결제",
+      "catStorage": "저장소",
+      "catAi": "AI / ML",
+      "catSupport": "지원",
+      "catHr": "인사",
+      "catDesign": "디자인",
+      "catVideo": "동영상",
+      "catForms": "양식",
+      "catScheduling": "예약",
+      "catAutomation": "자동화",
+      "statusAvailable": "사용 가능",
+      "statusBeta": "베타",
+      "statusComingSoon": "출시 예정",
+      "resultCountTemplate": "통합 {count}개 찾음",
+      "features": "기능",
+      "authPrefix": "인증:",
+      "configure": "구성",
+      "joinBeta": "베타 참여",
+      "comingSoonBtn": "출시 예정",
+      "noResults": "검색 조건에 맞는 통합이 없습니다."
+    },
+    "billing": {
+      "title": "결제 및 사용량",
+      "subtitle": "요금제를 관리하고 사용량을 확인하며 필요할 때 업그레이드하세요.",
+      "dismiss": "닫기",
+      "planSuffix": "요금제",
+      "active": "활성",
+      "renews": "갱신일",
+      "cancels": "취소일",
+      "manageBilling": "결제 관리",
+      "meterRuns": "이번 달 실행 수",
+      "meterToolCalls": "도구 호출",
+      "meterCompanies": "워크스페이스",
+      "meterChannels": "채널",
+      "comparePlans": "요금제 비교",
+      "popular": "인기",
+      "currentPlan": "현재 요금제",
+      "upgradeTo": "{name}(으)로 업그레이드",
+      "processing": "처리 중…",
+      "usageHistory": "사용량 기록",
+      "thMetric": "지표",
+      "thValue": "값",
+      "planFreeName": "요금 미리보기",
+      "planFreeNote": "현재 구매할 수 없음",
+      "planProName": "Team",
+      "planProNote": "/월",
+      "planEnterpriseName": "이전 요금제 — 수동 검토",
+      "planEnterprisePrice": "사용자 지정",
+      "planEnterpriseNote": "문의하기",
+      "planCreatorName": "Individual",
+      "planBusinessName": "추가 제어 기능 — 개발 중",
+      "planMonthlyNote": "/월",
+      "meterConnections": "연결된 자동화"
+    },
+    "drafts": {
+      "title": "초안",
+      "subtitle": "AI 에이전트가 만든 콘텐츠",
+      "filterLabel": "워크스페이스별 필터",
+      "noCompanies": "워크스페이스 없음",
+      "emptyTitle": "아직 초안이 없습니다",
+      "emptyBody": "에이전트가 콘텐츠를 만들면 이곳에 초안이 표시됩니다.",
+      "channelLabel": "채널:",
+      "createdLabel": "생성일:",
+      "scheduledLabel": "예약일:",
+      "approve": "승인",
+      "approveAndSend": "승인 후 보내기",
+      "pendingCount": "대기 중 {count}개",
+      "inactiveCompany": "초안을 승인하려면 먼저 이 워크스페이스를 활성화하세요.",
+      "sendNotCompleted": "이메일 전송을 확인할 수 없습니다. 초안은 승인 상태로 유지됩니다. 다시 시도하기 전에 전송 여부를 확인하세요.",
+      "selectPreview": "미리 볼 초안을 선택하세요.",
+      "noPreview": "미리 볼 작성된 텍스트가 없습니다.",
+      "statusPending": "대기 중",
+      "statusApproved": "승인됨",
+      "statusPublished": "전송 또는 게시됨",
+      "statusRejected": "거부됨",
+      "statusArchived": "보관됨",
+      "reject": "거부",
+      "publish": "게시",
+      "typeSocial": "소셜 게시물",
+      "typeEmail": "이메일",
+      "typeBlog": "블로그 게시물",
+      "typeAd": "광고 문구",
+      "typeVideo": "동영상 대본"
+    },
+    "runDetail": {
+      "title": "실행 상세 정보",
+      "live": "실시간",
+      "pauseRefresh": "자동 새로고침 일시 중지",
+      "resumeRefresh": "자동 새로고침 재개",
+      "pause": "일시 중지",
+      "hardStop": "강제 중지",
+      "resume": "계속",
+      "stepProgress": "단계 {done}/{total}",
+      "status": "상태",
+      "steps": "단계",
+      "cost": "비용",
+      "duration": "소요 시간",
+      "runFailed": "실행 실패",
+      "remSettings": "→ 설정 → AI 프로바이더",
+      "remBilling": "→ 결제 및 요금제",
+      "remApprovals": "→ 승인",
+      "inputTitle": "에이전트에 입력이 필요합니다",
+      "answerPlaceholder": "에이전트에 보낼 답변을 입력하세요…",
+      "answerSent": "답변을 제출했습니다. 결정 및 실행 상태를 확인하세요.",
+      "answerFailed": "답변을 보내지 못했습니다",
+      "sending": "보내는 중…",
+      "sendAnswer": "답변 보내기",
+      "steerTitle": "실행 방향 조정",
+      "steerHelp": "실행 도중 에이전트의 방향을 조정할 메시지를 보내세요. 다음 턴에 운영자 지침으로 전달됩니다.",
+      "steerPlaceholder": "예: 대기업 잠재 고객에만 집중하고 중소기업은 제외하세요.",
+      "steerSent": "실행 방향 변경 요청을 제출했습니다. 이후 실행 상태와 출력을 확인하세요.",
+      "steerFailed": "방향 조정 메시지를 보내지 못했습니다",
+      "sendSteer": "방향 조정 보내기",
+      "timeline": "단계 타임라인",
+      "toolCallCount": "도구 호출 {n}회",
+      "reasoning": "추론",
+      "errorLabel": "오류",
+      "toolCalls": "도구 호출",
+      "inputLabel": "입력",
+      "outputLabel": "출력",
+      "rollback": "롤백",
+      "rerunStep": "단계 다시 실행",
+      "loginFirst": "먼저 로그인하세요.",
+      "actionFailed": "작업에 실패했습니다",
+      "stepActionFailed": "단계 작업에 실패했습니다"
+    },
+    "runAudit": {
+      "runsLink": "실행",
+      "loadFailed": "실행을 불러오지 못했습니다",
+      "notFound": "실행을 찾을 수 없습니다.",
+      "auditTrail": "실행 감사 기록",
+      "pipelineFallback": "파이프라인",
+      "startedAt": "{time}에 시작",
+      "runError": "실행 오류",
+      "stepsTitle": "단계",
+      "stepCount": "{n, plural, other {#개 단계}}",
+      "noSteps": "아직 기록된 단계가 없습니다.",
+      "stepPill": "단계 {n}",
+      "agentFallback": "에이전트",
+      "approvalsTitle": "이 실행의 승인",
+      "approvalCount": "{n, plural, other {#개 기록}}",
+      "approvalFallback": "승인",
+      "statusRunning": "실행 중",
+      "statusCompleted": "완료",
+      "statusPaused": "일시 중지됨",
+      "statusFailed": "실패",
+      "statusCancelled": "취소됨",
+      "statusWaiting": "승인 대기 중",
+      "statusPending": "대기 중",
+      "fixInEditor": "파이프라인 편집기에서 수정"
+    },
+    "pipelineDetail": {
+      "loadFailed": "파이프라인을 불러오지 못했습니다",
+      "runFailed": "실행을 시작하지 못했습니다",
+      "saveFailed": "저장하지 못했습니다",
+      "saveStepsFailed": "단계를 저장하지 못했습니다",
+      "newStep": "새 단계",
+      "backLink": "파이프라인",
+      "notFound": "파이프라인을 찾을 수 없습니다.",
+      "pipelineLabel": "파이프라인",
+      "enabled": "활성화됨",
+      "disabled": "비활성화됨",
+      "triggerManual": "수동",
+      "triggerScheduled": "예약",
+      "triggerWebhook": "웹훅",
+      "triggerEvent": "이벤트",
+      "typeHierarchical": "계층형",
+      "typeSequential": "순차형",
+      "edit": "편집",
+      "runNow": "지금 실행",
+      "settingsTitle": "파이프라인 설정",
+      "nameLabel": "이름",
+      "enabledToggle": "활성화 (예약 / 웹훅 트리거 작동)",
+      "scheduleLabel": "예약 (cron)",
+      "saving": "저장 중…",
+      "save": "저장",
+      "stepsTitle": "단계",
+      "managerDelegated": "관리자가 위임하며 실행 시 작업 에이전트를 선택합니다",
+      "stageStepCount": "{stages, plural, other {#개 스테이지}} · {steps, plural, other {#개 단계}}",
+      "editSteps": "단계 편집",
+      "stepNamePlaceholder": "단계 이름",
+      "noAgentsOption": "— 에이전트 없음 —",
+      "moveUp": "위로 이동",
+      "moveDown": "아래로 이동",
+      "remove": "제거",
+      "addStep": "단계 추가",
+      "noAgentsWarning": "아직 워크스페이스에 에이전트가 없습니다. 단계에서 지정할 수 있도록 워크스페이스 페이지에서 에이전트를 추가하세요.",
+      "saveSteps": "단계 저장",
+      "hierarchicalNote": "이 파이프라인은 실행 시 작업을 계획하고 작업 에이전트에 위임하는 <b>관리 에이전트</b>를 사용합니다 (최대 위임 깊이 {depth}). 표시할 고정 단계 목록이 없습니다.",
+      "noSteps": "아직 정의된 단계가 없습니다.",
+      "stagePill": "스테이지 {n}",
+      "parallelCount": "{n}개 병렬",
+      "recentRuns": "최근 실행",
+      "runsShown": "{n}개 표시",
+      "noRuns": "아직 실행이 없습니다. “지금 실행”을 눌러 첫 실행을 시작하세요.",
+      "parallelHint": "같은 스테이지의 단계는 병렬로 실행됩니다. ∥를 사용하여 단계를 위 스테이지에 병합하세요.",
+      "parallelToggleTitle": "위 단계와 병렬 실행 전환",
+      "viewList": "목록",
+      "viewGraph": "그래프"
+    },
+    "connections": {
+      "connectFailed": "연결하지 못했습니다",
+      "title": "연결",
+      "subtitle": "n8n, Make, Zapier 자동화를 한곳에서 확인하세요.",
+      "connect": "연결",
+      "emptyTitle": "아직 연결이 없습니다",
+      "emptyBody": "n8n, Make 또는 Zapier 인스턴스를 연결하여 실행을 확인하세요.",
+      "polledAgo": "{time}에 조회됨",
+      "notPolled": "아직 조회하지 않음",
+      "pollNow": "지금 조회",
+      "runsToggle": "실행",
+      "disconnect": "연결 해제",
+      "loadingRuns": "실행 불러오는 중…",
+      "noRuns": "아직 동기화된 실행이 없습니다. “지금 조회”를 눌러 최근 실행을 가져오세요.",
+      "formTitle": "자동화 연결",
+      "formSubtitle": "실행 기록을 주기적으로 조회합니다. API 키는 암호화되어 이후 다시 표시되지 않습니다.",
+      "platformLabel": "플랫폼",
+      "labelLabel": "라벨",
+      "labelPlaceholder": "프로덕션 n8n",
+      "baseUrlLabel": "기본 URL",
+      "apiKeyLabel": "API 키",
+      "connecting": "연결 중…",
+      "validatedOk": "연결됨 ✓ — 최근 실행 {n}개 찾음",
+      "validatedFail": "접근할 수 없습니다: {error}",
+      "validatedFailHint": "연결을 저장했습니다. 예약에 따라 계속 재시도합니다. URL과 API 키를 확인하세요.",
+      "controlTitle": "제어",
+      "automations": "자동화",
+      "discovering": "자동화 불러오는 중…",
+      "noAutomations": "자동화를 찾을 수 없습니다",
+      "trigger": "트리거",
+      "pause": "일시 중지",
+      "resume": "계속",
+      "activeTag": "활성",
+      "pausedTag": "일시 중지됨",
+      "monitorOnly": "모니터링 전용 — 이 플랫폼은 제어 API를 제공하지 않습니다.",
+      "triggerWebhook": "웹훅 트리거",
+      "webhookUrlPlaceholder": "https://hooks.zapier.com/…",
+      "controlOk": "완료",
+      "controlFailed": "작업에 실패했습니다"
+    },
+    "runsList": {
+      "activity": "활동",
+      "title": "실행",
+      "totalCount": "총 {n}개",
+      "noneYet": "아직 실행이 없습니다",
+      "filterAll": "전체",
+      "colPipeline": "파이프라인",
+      "colCompany": "워크스페이스",
+      "colStatus": "상태",
+      "colStarted": "시작 시각",
+      "colSteps": "단계",
+      "colSpend": "지출",
+      "noneInFilter": "이 필터에 해당하는 실행이 없습니다.",
+      "queued": "대기열에 있음",
+      "pagination": "전체 {total}개 중 {from}–{to} 표시",
+      "previous": "이전",
+      "next": "다음"
+    },
+    "importAutomation": {
+      "back": "통합으로 돌아가기",
+      "title": "자동화 가져오기",
+      "intro": "다른 도구의 워크플로를 Braavolabs의 실행 가능한 파이프라인으로 가져오세요. 원본 페이로드를 붙여넣고 변환을 미리 본 후 확정합니다. 원본 페이로드는 파이프라인에 보존되어 변환기 개선 후 다시 가져올 수 있습니다.",
+      "sourceFormat": "원본 형식",
+      "pipelineName": "파이프라인 이름",
+      "optional": "(선택 사항)",
+      "namePlaceholder": "가져온 워크플로",
+      "sourcePayload": "원본 페이로드",
+      "previewing": "미리보기 생성 중…",
+      "preview": "미리보기",
+      "importing": "가져오는 중…",
+      "importBtn": "파이프라인으로 가져오기",
+      "previewFailed": "미리보기 실패",
+      "importFailed": "가져오기 실패",
+      "created": "파이프라인을 만들었습니다.",
+      "openIt": "열기 →",
+      "stepsCount": "단계 ({n})",
+      "droppedCount": "제외됨 ({n})",
+      "srcN8nLabel": "n8n 워크플로",
+      "srcN8nHint": "워크플로를 JSON으로 내보낸 후 (n8n → Workflows → … → Export) 파일 내용을 여기에 붙여넣으세요.",
+      "srcClaudeAutomationLabel": "Claude Automation 루틴",
+      "srcClaudeAutomationHint": "루틴을 설명하는 Markdown 본문 (YAML 머리말 선택 사항)입니다. h2 섹션이 단계가 됩니다.",
+      "srcClaudeCodeRoutineLabel": "Claude Code 자동 개발 루틴",
+      "srcClaudeCodeRoutineHint": "Claude Automation과 같은 Markdown 구조로, .claude/routines/*.md 실행 지침에 사용됩니다.",
+      "srcOpenclawLabel": "OpenClaw 스킬 번들",
+      "srcOpenclawHint": "OpenClaw 내보내기의 manifest.json입니다. 도구와 프롬프트를 모두 변환합니다.",
+      "srcNemoclawLabel": "NemoClaw 스킬 번들",
+      "srcNemoclawHint": "OpenClaw와 같은 manifest 구조입니다.",
+      "srcMcpLabel": "MCP server.json",
+      "srcMcpHint": "tools[]와 resources[]가 있는 서버 설명입니다. 도구는 mcp.invoke 단계에 매핑됩니다.",
+      "srcGenericLabel": "일반 그래프 (nodes + edges JSON)",
+      "srcGenericHint": "최종 대체 스키마: name, nodes (id, type, config), edges (from, to)를 포함하는 객체입니다."
+    },
+    "companyDetail": {
+      "updateModelFailed": "모델을 업데이트하지 못했습니다",
+      "modelUpdated": "모델 업데이트 완료: {model}",
+      "composerFailed": "에이전트 생성에 실패했습니다. 설정 → AI 프로바이더에서 유효한 키를 확인하세요.",
+      "agentAdded": "워크스페이스에 {name} 추가됨",
+      "tabOverview": "개요",
+      "tabAgents": "에이전트",
+      "tabPipelines": "파이프라인",
+      "tabRuns": "실행",
+      "tabCrm": "CRM",
+      "tabMemory": "메모리",
+      "statAgents": "에이전트",
+      "statPipelines": "파이프라인",
+      "statCreated": "생성일",
+      "agentsConfigured": "{n, plural, other {에이전트 #개 구성됨}}",
+      "composeWithAi": "AI로 만들기",
+      "save": "저장",
+      "editLabel": "편집",
+      "colModel": "모델",
+      "colTools": "도구",
+      "colStatus": "상태",
+      "statusActive": "활성",
+      "noAgents": "아직 에이전트가 없습니다. 위의 <b>AI로 만들기</b>를 클릭하여 간단한 영어 설명으로 생성하세요.",
+      "run": "실행",
+      "stepCount": "{n, plural, other {#개 단계}}",
+      "noPipelines": "구성된 파이프라인이 없습니다.",
+      "unknownPipeline": "알 수 없는 파이프라인",
+      "noRuns": "아직 실행이 없습니다. 파이프라인을 트리거하여 시작하세요.",
+      "memoryTitle": "워크스페이스 메모리",
+      "memoryBody": "워크스페이스가 작동하면서 학습한 패턴과 인사이트가 표시됩니다.",
+      "composerTitle": "AI로 에이전트 만들기",
+      "close": "닫기",
+      "composerDesc": "에이전트가 수행할 작업을 설명하세요. 구성된 AI 프로바이더 (설정 → AI 프로바이더)가 BYOK 키로 이름, 역할, 시스템 프롬프트, 도구 선택을 포함한 전체 사양을 작성합니다.",
+      "composerPlaceholder": "예: B2B SaaS 창업자를 위한 일일 LinkedIn 콘텐츠 에이전트입니다. 웹 검색에서 인기 주제 하나를 선택하고, 전문적인 어조로 게시물 3개를 작성한 후 가장 좋은 게시물을 오전 9시에 예약합니다. 추론을 항상 기록합니다.",
+      "charCount": "{n} / 4000자 (최소 10자)",
+      "agentAddedResult": "워크스페이스에 <b>{name}</b> 추가됨",
+      "droppedNote": "참고: 모델이 만들어 낸 {n, plural, other {도구 #개}}를 제외했습니다: {tools}",
+      "composing": "생성 중…",
+      "compose": "만들기",
+      "dealStageLead": "잠재 고객",
+      "dealStageQualified": "자격 확인됨",
+      "dealStageProposal": "제안",
+      "dealStageNegotiation": "협상",
+      "dealStageWon": "성사",
+      "dealStageLost": "실패",
+      "contactsTitle": "연락처 ({n})",
+      "noContacts": "아직 연락처가 없습니다.",
+      "dealPipeline": "영업 파이프라인",
+      "back": "뒤로"
+    },
+    "companyNew": {
+      "errDescribe": "계속하기 전에 회사 아이디어를 설명하세요.",
+      "specReady": "회사 사양이 준비되었습니다! 아래에서 검토하세요.",
+      "failStart": "구축을 시작하지 못했습니다",
+      "haveEverything": "필요한 정보가 모두 모였습니다. 회사 미리보기를 확인하세요!",
+      "failContinue": "계속하지 못했습니다",
+      "failCreate": "회사를 만들지 못했습니다",
+      "title": "AI 회사 만들기",
+      "subtitle": "회사 아이디어를 설명하면 AI가 구축합니다.",
+      "describeTitle": "회사 설명",
+      "describeBody": "어떤 AI 회사를 만들고 싶은지 최대한 자세히 알려주세요.",
+      "descPlaceholder": "예: Instagram과 TikTok을 위한 콘텐츠 에이전시를 만들고 싶습니다. 대상 시장은 소규모 사업자입니다…",
+      "minChars": "회사 아이디어를 최소 10자로 설명하세요 ({n}자 더 필요).",
+      "enterDesc": "계속하려면 AI 회사에 대한 설명을 입력하세요.",
+      "analyzing": "AI가 아이디어를 분석하고 있습니다…",
+      "continueBtn": "계속",
+      "mayTake": "15–30초가 걸릴 수 있습니다",
+      "builderTitle": "AI 회사 빌더",
+      "round": "라운드 {turn}/3",
+      "answerPlaceholder": "답변을 입력하세요… (Enter로 전송, Shift+Enter로 줄바꿈)",
+      "previewTitle": "회사 미리보기",
+      "colName": "이름",
+      "colDescription": "설명",
+      "colPrimitives": "기본 구성 요소",
+      "colAgents": "에이전트 ({n})",
+      "colPipelines": "파이프라인 ({n})",
+      "toolsLabel": "도구: {tools}",
+      "stepsLabel": "{n, plural, other {#개 단계}}",
+      "confirmReset": "다시 시작할까요? 모든 진행 상황이 사라집니다.",
+      "startOver": "다시 시작",
+      "creating": "생성 중…",
+      "createCompany": "회사 만들기",
+      "buildingTitle": "AI 회사 구축 중…",
+      "buildingBody": "에이전트, 파이프라인, 도구를 설정하고 있습니다.",
+      "doneTitle": "회사를 만들었습니다!",
+      "doneBody": "{name} 준비 완료.",
+      "goToCompanies": "워크스페이스로 이동",
+      "loading": "불러오는 중…"
+    },
+    "authVerified": {
+      "okTitle": "이메일 인증 완료 ✓",
+      "okBody": "감사합니다{suffix}. 이메일이 Braavolabs 계정에 연결되었습니다. 승인, 위험 알림, 계정 복구에 사용됩니다.",
+      "okCta": "대시보드로 이동 →",
+      "invalidTitle": "더 이상 유효하지 않은 링크입니다",
+      "invalidBody": "인증 링크는 7일 후 만료됩니다. 로그인하면 <s>설정 → 계정</s>에서 새 링크를 보내드립니다.",
+      "invalidCta": "로그인 →",
+      "errorTitle": "문제가 발생했습니다",
+      "errorBody": "지금은 이메일을 인증하지 못했습니다. 잠시 후 다시 시도하거나 <a>founder@braavolabs.com</a>에 문의하세요.",
+      "errorCta": "로그인으로 돌아가기",
+      "verifying": "인증 중…",
+      "verifyingBody": "잠시만 기다려 주세요.",
+      "signingIn": "로그인 중…",
+      "loading": "불러오는 중…"
+    },
+    "exportBundle": {
+      "title": "워크스페이스 내보내기",
+      "subtitle": "워크스페이스를 Claude Code 스킬, 훅, 구성 파일로 내보냅니다.",
+      "fmtClaudeCode": "Claude Code",
+      "fmtGeneric": "일반 JSON",
+      "generating": "내보내기 번들 생성 중…",
+      "copy": "복사",
+      "copied": "복사했습니다!",
+      "download": "다운로드",
+      "skillsTitle": "스킬 ({n})",
+      "hooksTitle": "훅 ({n})",
+      "downloadAll": "전체 번들 다운로드 (JSON)",
+      "summary": "내보내기 요약",
+      "plainConfiguration": "암호화되지 않은 구성 파일",
+      "plainConfigurationHelp": "이 다운로드에는 일반 구성과 프롬프트가 포함됩니다. 안전하게 보관하세요. 암호는 생성되지 않습니다.",
+      "skillsLabel": "스킬",
+      "hooksLabel": "훅",
+      "formatLabel": "파일 형식",
+      "loadFailed": "내보내기를 불러오지 못했습니다. 워크스페이스에서 다시 시도하세요.",
+      "copyFailed": "복사하지 못했습니다. 클립보드 권한을 확인하거나 파일을 다운로드하세요."
+    },
+    "cmdk": {
+      "searchPlaceholder": "페이지 및 작업 검색…",
+      "noResults": "검색 결과가 없습니다",
+      "signOut": "로그아웃",
+      "goHome": "홈으로 이동",
+      "catPages": "페이지",
+      "catActions": "작업",
+      "catQuick": "빠른 접근",
+      "catWorkspaces": "내 워크스페이스",
+      "hintNavigate": "이동",
+      "hintOpen": "열기",
+      "hintClose": "닫기",
+      "hintDashboard": "대시보드",
+      "hintNewWorkspace": "새 워크스페이스",
+      "title": "명령 메뉴"
+    },
+    "breadcrumb": {
+      "onboarding": "시작 안내",
+      "runs": "실행"
+    },
+    "cost": {
+      "estimateLabel": "이 실행 예상 비용 {low}–{high}",
+      "estimateModelSuffix": " · {model}",
+      "estimateTooltip": "일반적인 토큰 사용량에 기반한 추정입니다. 실제 비용은 실시간으로 표시됩니다.",
+      "estimateFree": "이번 실행 무료 · 사용자 하드웨어에서 실행",
+      "estimateUnknown": "이 모델의 예상 비용을 알 수 없습니다",
+      "estimateNotConfigured": "예상 비용을 보려면 설정에서 AI 프로바이더를 추가하세요",
+      "estimateFailed": "예상 비용을 불러오지 못했습니다",
+      "estimateBadge": "예상",
+      "burnTitle": "실시간 지출",
+      "burnLiveBadge": "실시간",
+      "budgetLabel": "예산 {amount}",
+      "ofBudget": "예산의 {pct}%",
+      "statusUnder": "예산 이내",
+      "statusNear": "예산에 근접",
+      "statusOver": "예산 초과",
+      "liveNote": "실제 사용량을 기준으로 측정"
+    },
+    "runExplain": {
+      "button": "이 실패 설명하기",
+      "loading": "AI에 질문 중…",
+      "title": "AI 설명",
+      "fixLabel": "제안된 수정 방법",
+      "error": "설명을 생성하지 못했습니다. 잠시 후 다시 시도하세요.",
+      "disclaimer": "AI 생성 내용입니다. 실행하기 전에 확인하세요.",
+      "poweredBy": "{model} 사용"
+    },
+    "handoff": {
+      "title": "모델 간 작업 인계",
+      "subtitle": "이 실행을 다른 프로바이더에 인계하면 중단한 지점부터 재개합니다.",
+      "requestBlurb": "다른 프로바이더가 마지막으로 완료된 턴부터 이어갈 수 있도록 실행 대화 기록을 고정합니다.",
+      "requestButton": "이 작업 인계",
+      "openBanner": "{from}이 이 작업을 미완료 상태로 남겼습니다. 계속할 프로바이더를 선택하세요.",
+      "pickProvider": "계속할 프로바이더",
+      "pickPlaceholder": "프로바이더 선택…",
+      "defaultTag": "기본값",
+      "localTag": "엔드포인트 URL 입력",
+      "baseUrlLabel": "기본 URL",
+      "baseUrlHint": "Braavolabs 서버에서 접근할 수 있는 URL을 입력하세요. 호스팅 서비스에는 공개 HTTPS가 필요합니다. localhost와 사설 주소는 오프라인 자체 호스팅 배포에서만 사용할 수 있습니다. 엔드포인트 운영자가 실행 내용을 받을 수 있습니다.",
+      "continueButton": "계속",
+      "continueWith": "{provider}에서 계속",
+      "freezingNote": "다음 턴 경계에서 체크포인트를 고정하고 있습니다. 고정이 완료되면 계속할 수 있습니다.",
+      "frozenNote": "체크포인트를 고정했습니다. 계속할 프로바이더를 선택하세요.",
+      "continuedNote": "{provider}에 인계했습니다. 실행을 재개하고 있습니다.",
+      "pendingRetry": "아직 체크포인트를 고정 중입니다. 잠시 후 계속하기를 다시 시도하세요.",
+      "errorGeneric": "인계를 완료하지 못했습니다. 잠시 후 다시 시도하세요.",
+      "historyTitle": "인계 기록",
+      "awaiting": "프로바이더 대기 중",
+      "reasonManual": "수동",
+      "reasonFailover": "프로바이더 장애 조치",
+      "reasonExhausted": "프로바이더 자원 소진",
+      "reasonSessionLost": "세션 손실",
+      "statusOpen": "열림",
+      "statusClaimed": "인수됨",
+      "statusCompleted": "완료",
+      "statusFailed": "실패",
+      "statusCancelled": "취소됨"
+    },
+    "autonomy": {
+      "label": "자율성",
+      "moneyNote": "금전 관련 작업은 항상 승인이 필요합니다. 자율성은 비금전 작업의 일시 중지만 변경합니다.",
+      "saved": "자율성을 {level}로 설정했습니다",
+      "saveFailed": "자율성을 업데이트하지 못했습니다",
+      "level": {
+        "SUPERVISED": "감독형",
+        "BALANCED": "균형형",
+        "AUTONOMOUS": "자율형"
+      },
+      "desc": {
+        "SUPERVISED": "외부 영향을 주는 모든 작업에서 승인을 기다리며 일시 중지합니다.",
+        "BALANCED": "지출 및 위험한 작업에서 일시 중지하며, 일상 작업은 자체 실행합니다.",
+        "AUTONOMOUS": "자유롭게 실행하며, 금전 작업과 다섯 가지 위험 중지만 실행을 멈출 수 있습니다."
+      }
+    },
+    "revisions": {
+      "title": "수정 기록",
+      "subtitle": "파이프라인 단계를 이전 버전으로 복원하세요",
+      "history": "기록",
+      "empty": "아직 단계 수정 내역이 없습니다. 단계를 수정하면 복원 지점으로 표시됩니다.",
+      "restore": "복원",
+      "confirmRestore": "이 버전으로 단계를 복원할까요? 현재 단계는 먼저 새 수정 버전으로 저장됩니다.",
+      "latest": "최신",
+      "versionN": "버전 {n}",
+      "stepCount": "단계 {n}개"
+    },
+    "compare": {
+      "title": "모델 비교",
+      "synthesisNote": "구성된 모델을 순서대로 최대 3개 선택하세요. 종합 답변은 테넌트 기본 프로바이더와 기본 추론 강도를 사용합니다.",
+      "query": "질문",
+      "addModel": "모델 추가",
+      "chooseModel": "구성된 모델 선택",
+      "effort": "추론 강도",
+      "providerDefault": "프로바이더 기본값",
+      "low": "낮음",
+      "medium": "보통",
+      "high": "높음",
+      "unavailable": "선택 항목을 사용할 수 없습니다. 새로고침하거나 변경하세요.",
+      "up": "위로 이동",
+      "down": "아래로 이동",
+      "remove": "제거",
+      "loading": "구성된 모델 불러오는 중…",
+      "noModels": "선택 가능한 모델이 구성되어 있지 않습니다.",
+      "refresh": "모델 새로고침",
+      "start": "비교 시작",
+      "running": "비교 진행 중…",
+      "requestedEffort": "요청한 추론 강도",
+      "finalAnswer": "최종 답변",
+      "synthesisOutcome": "종합 결과",
+      "requestFailed": "비교 요청에 실패했습니다.",
+      "invalidSelection": "사용 가능한 모델 1–3개와 5–1000자의 질문을 입력하세요.",
+      "failed": "비교에 실패했습니다.",
+      "cancelled": "비교가 취소되었습니다.",
+      "timeout": "조회 한도에 도달했습니다. 세션은 아직 실행 중일 수 있습니다."
+    },
+    "shell": {
+      "openMenu": "메뉴 열기",
+      "closeMenu": "메뉴 닫기"
+    },
+    "notifications": {
+      "title": "알림",
+      "pending": "{count, plural, other {대기 중인 승인 #개}}",
+      "clear": "대기 중인 승인이 없습니다",
+      "spend": "지출 승인이 필요합니다",
+      "viewAll": "모든 승인 보기"
+    }
+  },
+  "static": {
+    "common": {
+      "back": "← 뒤로",
+      "lastUpdated": "마지막 업데이트:",
+      "skipToMainContent": "본문으로 건너뛰기",
+      "legalNavigation": {
+        "legal": "법률",
+        "openApp": "앱 열기",
+        "privacy": "개인정보 보호",
+        "terms": "이용약관",
+        "cookies": "쿠키",
+        "accountDeletion": "계정 삭제",
+        "onThisPage": "이 페이지에서",
+        "permalinkTo": "{title} 고정 링크"
+      },
+      "legalPage": {
+        "about": "소개",
+        "blog": "블로그",
+        "product": "제품",
+        "company": "회사",
+        "tagline": "이미 사용 중인 AI 에이전트와 자동화를 제어하세요.",
+        "rights": "모든 권리 보유.",
+        "englishOnly": "이 문서는 현재 영어로만 제공됩니다."
+      },
+      "englishContent": "이 콘텐츠는 현재 영어로 제공됩니다. 인터페이스 언어를 변경해도 이 섹션은 번역되지 않습니다."
+    },
+    "blog": {
+      "title": "블로그를 준비하고 있습니다",
+      "body": "개발 과정과 효과가 있었던 방법, 그렇지 않았던 방법을 기록하고 있습니다. 첫 게시물이 곧 공개됩니다. 그동안 소셜 미디어에서 공개 개발 과정을 확인하세요.",
+      "backToHome": "홈으로 돌아가기"
+    },
+    "changelog": {
+      "title": "변경 내역",
+      "subtitle": "무엇을 언제 출시했는지 확인하세요.",
+      "releaseTitle": "v0.1.0 — 공개 미리보기",
+      "releaseDate": "2026년 5월",
+      "items": [
+        "테넌트 소유 BYOK와 구성된 로컬 라우팅은 사용 가능한 적합한 경로가 없으면 실행을 차단합니다.",
+        "오프라인 JWT 라이선스를 사용한 파이프라인 내보내기 DRM.",
+        "Google 및 GitHub OAuth 로그인.",
+        "보안 강화 배포: HMAC 웹훅, 계정 잠금, CSP, HSTS.",
+        "SSE를 통한 실시간 실행 스트리밍.",
+        "법률 준수를 위한 쿠키 / KVKK / GDPR 페이지 공개."
+      ],
+      "githubIntro": "자세한 릴리스 노트는 GitHub에서 확인하세요:"
+    },
+    "legal": {
+      "privacy": {
+        "title": "개인정보 처리방침",
+        "date": "2026년 3월",
+        "sections": [
+          {
+            "title": "수집하는 데이터",
+            "body": "계정 정보 (이름, 이메일, 조직명), 테넌트에 연결된 워크스페이스 콘텐츠 (프롬프트, 에이전트 및 파이프라인 입출력, 실행 기록, 방향 조정 메시지, 보고서, 사용 활동 포함), 알림에 사용되는 기기 정보 (푸시 토큰, 플랫폼, 기기명, OS 버전)를 수집합니다. Apple App Store 또는 Google Play 구독의 경우 상품, 거래 또는 구매 토큰, 영수증, 상태, 구독 날짜를 보관합니다. 카드 원본 정보는 받지 않으며 웹 결제는 Stripe가 처리합니다."
+          },
+          {
+            "title": "데이터 이용 방식",
+            "body": "요청한 플랫폼 기능 제공, 워크플로 실행, 워크스페이스 및 실행 기록 보존, 사용량 측정, 이용 권한 관리, 계정 운영 지원을 위해 계정 및 테넌트 워크스페이스 데이터를 처리합니다. 콘텐츠는 요청한 워크플로에 선택되거나 연결된 AI 프로바이더로 전송될 수 있으며, 해당 프로바이더의 약관과 설정에 따라 처리됩니다."
+          },
+          {
+            "title": "데이터 저장",
+            "body": "계정과 기기 기록은 사용자에, 워크스페이스·활동·구독 기록은 테넌트에 연결되며 고정 보관 기간은 공개되어 있지 않습니다. 사용자 계정을 삭제하면 사용자 기록이 제거됩니다. 테넌트의 마지막 구성원이면 계정 관계를 통해 테넌트 워크스페이스 기록이 삭제됩니다. 다른 구성원이 남아 있으면 워크스페이스 콘텐츠, 활동, 스토어 구독 기록은 해당 테넌트에 남습니다. 로그아웃 시 알림 토큰 제거는 최선을 다해 수행하며, 계정 삭제 시 사용자에게 연결된 나머지 기기를 제거합니다."
+          },
+          {
+            "title": "제3자 서비스",
+            "body": "웹 결제에는 Stripe, 스토어 결제에는 Apple App Store와 Google Play, 푸시 전송에는 Expo, 거래 관련 이메일에는 SendGrid, 선택적 인증에는 Google OAuth, 동의 기반 CRM 통합에는 HubSpot을 사용합니다. Sentry는 충돌, 추적, 세션 진단 이벤트를 받을 수 있습니다. 각 프로바이더는 자체 약관과 설정에 따라 데이터를 처리합니다."
+          },
+          {
+            "title": "사용자의 권리",
+            "body": "privacy@braavolabs.com으로 연락하여 접근, 내보내기, 정정, 삭제를 요청할 수 있습니다. 계정 삭제는 위에서 설명한 테넌트 구성원 관계에 따릅니다. Stripe, Apple App Store 또는 Google Play 구독 취소는 별도 작업입니다. 30일 이내에 답변합니다."
+          },
+          {
+            "title": "보안",
+            "body": "공개된 웹 프록시 구성은 전송 중 TLS 1.2와 TLS 1.3을 지원합니다. 최신 프로바이더 및 배포 증거 없이 다른 저장 시 보호, 프로덕션 접근, 보안, 보관 세부 사항을 여기서 약속하지 않습니다."
+          },
+          {
+            "title": "변경",
+            "body": "이 방침은 수시로 업데이트될 수 있습니다. 중요한 변경은 이메일로 알려드립니다. 변경 후에도 플랫폼을 계속 사용하면 업데이트된 방침에 동의한 것으로 간주합니다."
+          },
+          {
+            "title": "연락처",
+            "body": "이 방침에 대한 질문이 있나요? privacy@braavolabs.com으로 이메일을 보내세요."
+          }
+        ]
+      },
+      "terms": {
+        "title": "서비스 이용약관",
+        "date": "2026년 9월",
+        "sections": [
+          {
+            "title": "1. 동의",
+            "body": "계정을 만들거나 Braavolabs를 사용하면 이 서비스 이용약관에 동의하게 됩니다. 조직을 대신하여 플랫폼을 사용하는 경우 해당 조직을 이 약관에 구속할 권한이 있음을 진술합니다."
+          },
+          {
+            "title": "2. 서비스 설명",
+            "body": "Braavolabs는 자율 비즈니스 워크플로를 만들고 운영하는 AI 기반 플랫폼을 제공합니다. AI 작업을 요청하면 Braavolabs가 관련 워크스페이스 및 실행 콘텐츠를 해당 작업에 구성된 프로바이더나 엔드포인트로 보낼 수 있습니다. 원격 엔드포인트를 선택하면 운영자가 해당 약관과 설정에 따라 그 콘텐츠를 처리할 수 있습니다."
+          },
+          {
+            "title": "3. 허용되는 이용",
+            "body": "플랫폼을 사용하여 스팸을 생성하거나 불법 활동을 수행하거나 제3자 권리를 침해하거나 플랫폼 거버넌스 및 위험 제어를 우회해서는 안 됩니다. 자동 영업 연락에는 플랫폼에 내장된 스팸 방지 제한이 적용됩니다."
+          },
+          {
+            "title": "4. 예정 구독",
+            "body": "Individual은 월 $19, Team은 활성 사용자당 월 $39로 예정되어 있습니다. 현재 웹 결제를 이용할 수 없고 추론 비용은 포함되지 않습니다. 앱 내 제안은 해당 Apple App Store 또는 Google Play 상품 페이지를 통해 표시되고 판매됩니다."
+          },
+          {
+            "title": "5. 유료 요금제",
+            "body": "웹 구독은 Stripe를 통해 청구됩니다. 앱 내 구독은 Apple이 App Store를 통해, 또는 Google이 Google Play를 통해 청구하며 해당 스토어의 결제, 취소, 환불 규칙이 적용됩니다. 구독한 채널에서 관리하거나 취소하세요. 취소 자체가 계정이나 테넌트 워크스페이스 데이터를 삭제하지는 않습니다."
+          },
+          {
+            "title": "6. 데이터 소유권",
+            "body": "회사 설명, 에이전트 구성, 출력 등 플랫폼에 입력한 모든 데이터의 소유권은 사용자에게 있습니다. 서비스 제공만을 목적으로 이 데이터를 처리할 제한적 사용권을 당사에 부여합니다."
+          },
+          {
+            "title": "7. AI 출력",
+            "body": "AI가 생성한 콘텐츠 (에이전트 출력, 초안, 영업 연락 메시지)는 전송 전에 검토해야 합니다. 계정에 연결된 통합을 통해 전송되는 모든 콘텐츠에 대한 책임은 사용자에게 있습니다."
+          },
+          {
+            "title": "8. 책임 제한",
+            "body": "플랫폼은 있는 그대로 제공됩니다. 플랫폼 또는 AI 생성 콘텐츠의 사용으로 발생한 간접적, 부수적, 결과적 손해에 대해 책임지지 않습니다."
+          },
+          {
+            "title": "9. 종료",
+            "body": "이 약관을 위반한 계정을 정지하거나 해지할 수 있습니다. 사용자는 언제든 설정 페이지에서 계정을 삭제할 수 있습니다."
+          },
+          {
+            "title": "10. 연락처",
+            "body": "이 약관에 대한 질문이 있나요? legal@braavolabs.com으로 이메일을 보내세요."
+          }
+        ]
+      },
+      "cookies": {
+        "title": "쿠키 정책",
+        "date": "2026년 5월",
+        "sections": [
+          {
+            "title": "쿠키란",
+            "body": "쿠키는 웹사이트를 방문할 때 기기에 저장되는 작은 텍스트 파일입니다. 로그인 상태 유지, 언어 기본 설정 기억, 경험 개선을 위해 쿠키 및 유사한 로컬 저장 기술을 사용합니다."
+          },
+          {
+            "title": "사용하는 쿠키",
+            "body": "필수: 인증을 위한 JWT 세션 토큰. 기본 설정: 언어를 기억하는 NEXT_LOCALE. 광고 타기팅 쿠키는 사용하지 않습니다. 분석은 사용자가 동의할 때 활성화됩니다 (Plausible은 기본적으로 쿠키를 사용하지 않음)."
+          },
+          {
+            "title": "제3자 쿠키",
+            "body": "Stripe Checkout은 결제 과정에서 사기 방지를 위한 쿠키를 설정합니다. HubSpot 추적 픽셀은 동의한 경우에만 실행됩니다. Google 또는 GitHub OAuth는 로그인 중 자체 쿠키를 설정하며 각각의 정책이 적용됩니다."
+          },
+          {
+            "title": "쿠키 관리 방법",
+            "body": "대부분의 브라우저는 설정에서 쿠키 거부 또는 삭제를 지원합니다. 필수 쿠키를 비활성화하면 로그인할 수 없습니다. 필요한 경우 쿠키 배너에서 비필수 쿠키를 허용하거나 거부할 수 있습니다."
+          },
+          {
+            "title": "법적 근거",
+            "body": "필수 쿠키에는 정당한 이익 (KVKK 제5/2-f조, GDPR 제6(1)(f)조), 비필수 쿠키에는 사용자 동의 (KVKK 제5/1조, GDPR 제6(1)(a)조)를 근거로 합니다."
+          },
+          {
+            "title": "연락처",
+            "body": "쿠키에 대한 질문이 있나요? privacy@braavolabs.com으로 이메일을 보내세요."
+          }
+        ]
+      }
+    },
+    "about": {
+      "title": "Braavolabs 소개",
+      "subtitle": "에이전시 운영 부담 없이 자율 AI 에이전트와 자동화를 구축합니다.",
+      "section1Title": "만든 이유",
+      "section1Body": "대부분의 창업자에게는 에이전시, 영업 개발 담당자, 콘텐츠 팀, 운영 관리자 등이 필요하지만 다섯 명을 고용하기는 어렵습니다. Braavolabs는 사용자가 쉬운 영어로 설명한 파이프라인을 실행하는 AI 에이전트로 그 팀을 대체합니다. 지출 승인, 감사 로그, 위험 중지가 내장되어 통제권을 유지할 수 있습니다.",
+      "section2Title": "만드는 제품",
+      "section2Body": "원하는 에이전트, 파이프라인, 통합을 일상적인 말로 설명하면 AI 빌더가 처음부터 작성하거나 이미 실행 중인 자동화를 연결합니다. 모든 작업이 기록되고 모든 지출이 승인 절차를 거치며 전체 시스템이 연중무휴로 실행됩니다.",
+      "section3Title": "프로젝트 소개",
+      "section3Body": "Braavolabs는 2026년에 설립된 독립 프로젝트입니다. 모든 커밋, 결정, 로드맵 업데이트를 공개하며 개발합니다. 언제든 hello@braavolabs.com으로 연락하세요.",
+      "section4Title": "앞으로의 계획",
+      "section4Body": "추상적으로 만든 12개월 계획 대신 사용자가 실제로 겪는 문제를 바탕으로 로드맵을 정합니다. hello@braavolabs.com으로 의견을 보내거나 소셜 미디어에서 공개 개발 소식을 확인하세요."
+    },
+    "contact": {
+      "title": "문의",
+      "subtitle": "적절한 채널을 선택하세요. 모든 메시지를 읽습니다.",
+      "channelGeneral": "일반 문의",
+      "channelSupport": "고객 지원",
+      "channelSales": "영업 / 제휴",
+      "channelPrivacy": "개인정보 및 GDPR",
+      "channelKvkk": "KVKK (튀르키예)",
+      "channelSecurity": "보안 제보",
+      "responseTime": "응답 시간: 평일에는 보통 24시간 이내입니다. KVKK 및 GDPR 권리 요청에는 각각 법정 기간인 30일과 1개월 이내에 답변합니다.",
+      "topic": "주제",
+      "message": "메시지",
+      "messagePlaceholder": "무엇을 도와드릴까요?",
+      "compose": "이메일 작성 준비",
+      "draftHelp": "이메일 초안을 준비합니다. 메일 앱에서 직접 보내세요. 여기서는 전달 여부를 확인하지 않습니다.",
+      "prepared": "이메일 초안 준비 완료",
+      "salesTopic": "영업 및 요금",
+      "supportTopic": "기술 지원",
+      "partnershipsTopic": "제휴",
+      "pressTopic": "언론",
+      "otherTopic": "기타 문의"
+    },
+    "status": {
+      "title": "모든 시스템 정상 작동",
+      "subtitle": "수동으로 확인한 상태입니다. 별도 하위 도메인의 실시간 공개 상태 페이지는 로드맵에 있습니다.",
+      "services": {
+        "website": "공개 웹사이트",
+        "auth": "인증",
+        "api": "API",
+        "runs": "파이프라인 실행",
+        "database": "데이터베이스",
+        "email": "이메일 전송"
+      },
+      "operational": "정상 작동",
+      "alertTitle": "장애를 발견했나요?",
+      "alertBody": "support@braavolabs.com으로 시도한 작업과 표시된 오류를 알려주세요. 조사한 후 이 페이지를 업데이트하겠습니다."
+    },
+    "cookieConsent": {
+      "title": "쿠키 및 분석",
+      "body": "분석 기본 설정은 이 브라우저에 저장합니다. 선택적 사용 분석은 허용한 경우에만 불러옵니다. 쿠키 정책 페이지에서 선택을 초기화할 수 있습니다.",
+      "privacyLabel": "개인정보 처리방침",
+      "cookiesLabel": "쿠키 정책",
+      "acceptAll": "분석 허용",
+      "essentialOnly": "필수 항목만",
+      "saveFailed": "선택을 저장하지 못했습니다. 이 페이지에서 새로운 분석 로드는 계속 차단됩니다. 분석이 이미 로드되었다면 페이지를 닫고 브라우저에서 이 사이트의 저장 데이터를 지운 다음 다시 방문하세요.",
+      "preferencesTitle": "기본 설정 관리",
+      "preferencesBody": "선택을 초기화하면 선택적 분석 허용을 철회하고 배너를 다시 표시합니다. 분석이 이미 로드되었다면 저장된 선택을 지운 후 페이지를 새로고침합니다.",
+      "reset": "쿠키 기본 설정 초기화",
+      "resetDone": "저장된 선택을 지웠습니다. 변경을 적용하기 위해 페이지가 새로고침될 수 있습니다.",
+      "resetFailed": "저장된 선택을 지우지 못했습니다. 이 페이지에서 새로운 분석 로드는 차단됩니다. 이미 로드된 추적기는 페이지를 닫을 때까지 작동할 수 있습니다. 페이지를 닫고 브라우저에서 이 사이트의 저장 데이터를 지운 다음 다시 방문하세요."
+    },
+    "appearance": {
+      "title": "화면 설정",
+      "label": "테마",
+      "dark": "다크",
+      "light": "라이트",
+      "system": "시스템 설정",
+      "description": "시스템 설정을 따르거나 이 브라우저의 테마를 선택하세요.",
+      "saveFailed": "이 페이지의 테마는 바뀌었지만 브라우저에 저장하지 못했습니다.",
+      "storageHelp": "테마 기본 설정은 이 브라우저에 저장됩니다."
+    }
+  },
+  "auth": {
+    "hero": {
+      "title": "내 Braavolabs 워크스페이스."
+    },
+    "login": {
+      "newHere": "처음 방문하셨나요?",
+      "welcome": "다시 오신 것을 환영합니다",
+      "subtitle": "Braavolabs 계정에 로그인하세요",
+      "tabSignIn": "로그인",
+      "tabRegister": "가입"
+    },
+    "register": {
+      "hasAccount": "이미 계정이 있나요?",
+      "welcome": "계정 만들기",
+      "subtitle": "AI 에이전트와 자동화 구축을 시작하세요",
+      "inferenceFunding": "추론에는 자신의 프로바이더 키 또는 구성한 로컬 런타임을 사용합니다"
+    },
+    "fields": {
+      "fullName": "이름",
+      "fullNamePlaceholder": "김민수",
+      "organization": "조직",
+      "organizationPlaceholder": "회사 또는 팀",
+      "email": "이메일",
+      "emailPlaceholder": "you@example.com",
+      "password": "비밀번호",
+      "passwordLoginPlaceholder": "최소 8자",
+      "passwordRegisterPlaceholder": "8자 이상, 대문자·소문자·숫자 포함",
+      "referralCode": "추천 코드",
+      "referralCodePlaceholder": "선택 사항",
+      "optional": "(선택 사항)"
+    },
+    "validation": {
+      "emailRequired": "이메일이 필요합니다.",
+      "emailInvalid": "유효한 이메일 주소를 입력하세요.",
+      "passwordRequired": "비밀번호가 필요합니다.",
+      "passwordMin": "비밀번호는 최소 8자여야 합니다.",
+      "passwordRegex": "비밀번호에는 대문자, 소문자, 숫자가 포함되어야 합니다.",
+      "nameRequired": "이름이 필요합니다.",
+      "orgRequired": "조직 이름이 필요합니다.",
+      "passwordsMismatch": "비밀번호가 일치하지 않습니다.",
+      "invalidResetLink": "유효하지 않은 재설정 링크입니다."
+    },
+    "strength": {
+      "label": "비밀번호 강도:",
+      "weak": "약함",
+      "fair": "보통",
+      "good": "좋음",
+      "strong": "강함"
+    },
+    "submit": {
+      "loading": "불러오는 중…",
+      "signIn": "로그인",
+      "createAccount": "계정 만들기"
+    },
+    "oauth": {
+      "divider": "또는 다음으로 계속",
+      "googleNotConfigured": "이 서버에 Google OAuth가 구성되지 않았습니다. 이메일/비밀번호 또는 GitHub를 사용하세요.",
+      "githubNotConfigured": "이 서버에 GitHub OAuth가 구성되지 않았습니다. 이메일/비밀번호 또는 Google을 사용하세요.",
+      "cannotConnect": "API 서버에 연결할 수 없습니다. 백엔드가 실행 중인지 확인하세요.",
+      "googleFailed": "Google 로그인에 실패했습니다. 이메일/비밀번호를 사용해 보세요.",
+      "githubFailed": "GitHub 로그인에 실패했습니다. 이메일/비밀번호를 사용해 보세요.",
+      "appleNotConfigured": "이 서버에 Apple 로그인이 구성되지 않았습니다. 이메일/비밀번호를 사용하세요.",
+      "appleFailed": "Apple 로그인에 실패했습니다. 이메일/비밀번호를 사용해 보세요.",
+      "ssoToggle": "조직 SSO — 개발 중 →",
+      "ssoSlugPlaceholder": "워크스페이스 식별자",
+      "ssoSubmit": "계속"
+    },
+    "forgot": {
+      "link": "비밀번호를 잊으셨나요?",
+      "modalTitle": "비밀번호 재설정",
+      "modalDesc": "이메일을 입력하면 재설정 링크를 보내드립니다.",
+      "submit": "재설정 링크 보내기",
+      "loading": "보내는 중…",
+      "successTitle": "이메일을 확인하세요",
+      "successDesc": "등록된 주소라면 재설정 링크를 보냈습니다. 스팸 폴더도 확인하세요.",
+      "backToLogin": "로그인으로 돌아가기"
+    },
+    "reset": {
+      "title": "새 비밀번호 설정",
+      "subtitle": "계정에 사용할 강력한 비밀번호를 선택하세요.",
+      "newPasswordPlaceholder": "새 비밀번호 (최소 8자)",
+      "confirmPasswordPlaceholder": "새 비밀번호 확인",
+      "submit": "비밀번호 업데이트",
+      "loading": "업데이트 중…",
+      "successTitle": "비밀번호를 변경했습니다!",
+      "successDesc": "로그인 화면으로 이동 중…",
+      "back": "← 로그인으로 돌아가기"
+    },
+    "brandPanel": {
+      "footer": "© 2026 Braavolabs. Claude로 제작했습니다."
+    },
+    "errors": {
+      "generic": "문제가 발생했습니다",
+      "invalidCredentials": "이메일 또는 비밀번호가 올바르지 않습니다.",
+      "rateLimited": "시도 횟수가 너무 많습니다. 나중에 다시 시도하세요.",
+      "unavailable": "일시적으로 로그인할 수 없습니다. 나중에 다시 시도하세요."
+    }
+  },
+  "pricing": {
+    "badge": "예정 요금 · 현재 구매 불가",
+    "title": "간단하고 투명한 요금",
+    "subtitle": "Individual은 월 $19, Team은 활성 사용자당 월 $39로 예정되어 있습니다. 추론 비용은 포함되지 않으며 현재 구독을 구매할 수 없습니다.",
+    "cycle": {
+      "monthly": "월간",
+      "yearly": "연간",
+      "save": "−20%"
+    },
+    "period": {
+      "forever": "영구",
+      "monthBilledYearly": "/월 · 연간 결제",
+      "month": "/월"
+    },
+    "mostPopular": "가장 인기 있는 요금제",
+    "plans": {
+      "free": {
+        "name": "요금 미리보기",
+        "desc": "요금 정보만 제공합니다. 현재 구독을 구매할 수 없습니다.",
+        "features": [
+          "Individual — 월 $19 예정",
+          "Team — 활성 사용자당 월 $39 예정",
+          "추론 비용은 포함되지 않음"
+        ],
+        "cta": "요금 미리보기"
+      },
+      "creator": {
+        "name": "Individual",
+        "desc": "개인 운영자를 위한 예정 구독입니다. 현재 구매할 수 없습니다.",
+        "features": [
+          "월 $19 — 예정 요금",
+          "테넌트 소유 BYOK 또는 구성된 로컬 런타임",
+          "추론 비용은 포함되지 않음"
+        ],
+        "cta": "Individual 미리보기"
+      },
+      "pro": {
+        "name": "Team",
+        "desc": "활성 사용자별로 과금되는 예정 구독입니다. 현재 구매할 수 없습니다.",
+        "features": [
+          "활성 사용자당 월 $39 — 예정 요금",
+          "테넌트 소유 BYOK 또는 구성된 로컬 런타임",
+          "추론 비용은 포함되지 않음"
+        ],
+        "cta": "Team 미리보기"
+      },
+      "business": {
+        "name": "추가 제어 기능 — 개발 중",
+        "desc": "두 가지 예정 구독 이외의 조직 제어 기능은 개발 중입니다.",
+        "features": [
+          "Private Mode — 미리보기",
+          "Cloud Agent Mode — 개발 중",
+          "정확한 작업 범위 승인 — 개발 중"
+        ],
+        "cta": "로드맵 보기"
+      }
+    },
+    "enterprise": {
+      "title": "더 많은 기능이 필요한가요?",
+      "desc": "추가 조직 제어 기능은 개발 중이며 현재 구독을 구매할 수 없습니다.",
+      "cta": "창업자에게 문의"
+    },
+    "faq": [
+      {
+        "q": "지금 구독을 구매할 수 있나요?",
+        "a": "아니요. Individual 및 Team 요금은 미리보기이며 현재 구매할 수 없습니다. 추론 비용은 포함되지 않습니다."
+      },
+      {
+        "q": "어떤 작업이 한 번의 '실행'인가요?",
+        "a": "각 파이프라인 실행을 한 번으로 계산합니다. 예: TikTok 게시물 1개 생성 = 실행 1회, 이메일 영업 시퀀스 1개 = 실행 1회입니다."
+      },
+      {
+        "q": "추론 비용은 누가 지불하나요?",
+        "a": "고객이 지불합니다. 테넌트 소유 프로바이더 키나 구성된 로컬 런타임을 사용하세요. 추론 비용은 포함되지 않습니다."
+      },
+      {
+        "q": "실행 한도를 초과하면 어떻게 되나요?",
+        "a": "다음 달 또는 업그레이드할 때까지 파이프라인이 일시 중지됩니다. 예상치 못한 요금은 없습니다."
+      },
+      {
+        "q": "언제든 취소할 수 있나요?",
+        "a": "Stripe 웹 구독은 웹 결제 설정에서 관리하세요. Apple App Store 또는 Google Play 구독은 해당 스토어에서 관리합니다. 결제, 취소, 접근 권한, 환불에는 해당 채널의 규칙이 적용됩니다."
+      },
+      {
+        "q": "내 데이터는 비공개인가요?",
+        "a": "Braavolabs의 워크스페이스 콘텐츠는 테넌트에 연결됩니다. 요청한 워크플로를 위해 선택하거나 연결한 AI 프로바이더로 콘텐츠가 전송될 수 있습니다. 해당 프로바이더의 약관과 설정에 따라 처리됩니다."
+      }
+    ]
+  },
+  "footer": {
+    "rights": "© 2026 Braavolabs. Claude로 제작했습니다.",
+    "privacy": "개인정보 보호",
+    "terms": "이용약관"
+  },
+  "language": {
+    "label": "언어",
+    "en": "English",
+    "tr": "Türkçe",
+    "es": "Español",
+    "de": "Deutsch",
+    "fr": "Français",
+    "ar": "العربية",
+    "es-419": "Español (Latinoamérica)",
+    "pt-BR": "Português (Brasil)",
+    "ja": "日本語",
+    "it": "Italiano",
+    "ko": "한국어",
+    "id": "Bahasa Indonesia",
+    "pl": "Polski",
+    "hi": "हिन्दी",
+    "zh-Hans": "简体中文"
+  },
+  "publicPreview": {
+    "homeTitle": "여러 프로바이더의 AI를 직접 제어하세요.",
+    "homeIntro": "Braavolabs는 데스크톱, CLI, 모바일, 클라우드에서 관리되는 실행, 명시적 작업, 모델 선택, 사람의 승인을 제공하는 다중 프로바이더 AI 워크벤치이자 제어 플랫폼입니다.",
+    "previewBadge": "공개 제품 미리보기",
+    "pricingBadge": "요금 미리보기 — 현재 구매 불가",
+    "pricingTitle": "예정 요금. 명확한 비용 조건.",
+    "inferenceFunding": "추론 비용은 포함되지 않습니다. 자신의 프로바이더 키 (BYOK) 또는 로컬 모델을 사용하세요.",
+    "individualPeriod": "{price}/월",
+    "teamPeriod": "{price}/활성 사용자/월",
+    "individualSummary": "사용자 1명에게 동일한 모델 및 데이터 모드 선택을 제공합니다.",
+    "teamSummary": "사용자가 워크스페이스 정책과 승인을 공유합니다.",
+    "individualAudience": "지원되는 환경에서 제어되는 AI 작업을 수행하는 개인을 위한 요금제입니다.",
+    "teamAudience": "워크스페이스 정책, 승인, 운영 맥락을 공유하는 사용자를 위한 요금제입니다.",
+    "individualItems": [
+      "사용자 1명",
+      "BYOK 또는 로컬 모델 라우팅",
+      "성숙도가 표시된 데이터 모드 로드맵",
+      "페어링된 승인 범위"
+    ],
+    "teamItems": [
+      "사용자별 과금",
+      "공유 워크스페이스 역할",
+      "공유 정책 및 승인",
+      "팀 운영 맥락"
+    ],
+    "dataMode": "데이터 모드",
+    "privateMode": "Private Mode — 미리보기",
+    "privateModeCopy": "전체 데이터 처리 및 보안 계약은 개발 중이며 정식 제공되는 것으로 안내하지 않습니다.",
+    "cloudMode": "Cloud Agent Mode — 개발 중",
+    "cloudModeCopy": "실행, 동의, 보관 계약은 정식 제공되는 것으로 안내하지 않습니다.",
+    "maturity": "성숙도",
+    "holding": "Holding — 프리미엄/비공개 미리보기",
+    "holdingCopy": "지속 실행 에이전트 패키지는 공개 요금제에 포함되지 않습니다.",
+    "holdingSubscription": "Holding은 두 공개 구독 중 어느 것에도 포함되지 않습니다.",
+    "verification": "검증",
+    "signedEvidence": "서명된 증거 — 개발 중",
+    "signedEvidenceCopy": "공개 오프라인 검증 주장은 승인된 증거를 기다립니다.",
+    "launchApp": "앱 실행",
+    "readDocs": "문서 읽기",
+    "signIn": "로그인",
+    "signUp": "가입",
+    "subscription": "구독",
+    "unavailable": "현재 구매할 수 없음",
+    "unavailableLabel": "{plan}은 현재 구매할 수 없습니다",
+    "links": {
+      "features": "기능",
+      "pricing": "요금",
+      "security": "보안",
+      "docs": "문서",
+      "cli": "CLI 이용 가능 여부",
+      "status": "상태",
+      "support": "지원"
+    }
+  },
+  "uiCopy": {
+    "m938c91ff1f31": "braavolabs",
+    "m13855655e90d": "AI",
+    "m690e7a5e1383": "Morghulis.",
+    "m158acce5db4b": "모든 작업에는 끝이 있어야 합니다. 조용히, 내 컴퓨터에서. AI 에이전트를 통제하는 지휘 센터입니다.",
+    "mc9be6b254770": "스크롤 — 문 열기 ▾",
+    "m68ec9666da44": "모든 에이전트를 하나의 공간에",
+    "m4d50f5adff67": "하나의 패널.",
+    "m13b0a7147ec5": "모든 에이전트.",
+    "md91e25ebff91": "Claude, GPT, Gemini, 로컬 모델까지 각자의 공간에서 호출을 기다립니다. 하나에게 작업을 맡기고 다음 에이전트로 이어지는 과정을 지켜보세요.",
+    "m14259aa4f184": "세 가지 경로, 하나의 청구서",
+    "mb6063ec6db48": "가장 저렴하면서도",
+    "mff3010307ebd": "작업 가능한 경로로 보내세요.",
+    "ma02b3af1c791": "일상 작업은 로컬 모델이, 어려운 부분은 내 API 키가, 나머지는 기존 CLI 구독이 담당합니다. 캐스케이드가 경로를 정하고 절약한 비용은 내 몫으로 남습니다.",
+    "m58cb783ef208": "평균 실행 비용 절감",
+    "m2f71a8cd452e": "라우팅 · 캐싱 · 캐스케이드",
+    "md68f4d9658a0": "토큰 가산 요금",
+    "m19837eca8ef7": "BYOK — 내 키 사용",
+    "m61feb77f0448": "경로",
+    "mc161ee232d16": "로컬 · API · 내 CLI",
+    "m37570a352f9f": "모델에 종속되지 않는 메모리",
+    "m4790be82e806": "어떤 모델을 실행하든 컨텍스트는 내 것으로 유지됩니다.",
+    "md1ab8fe0278c": "기본으로 갖춘 거버넌스",
+    "mcf73c270b403": "위험한 단계마다 승인 절차를 거칩니다.",
+    "m760df3439c81": "다중 모델 인계",
+    "m0ef4c869c13b": "한 에이전트가 다음 에이전트로 작업을 이어 줍니다.",
+    "m902a479c1449": "AI가 수행하고, 내가 지휘합니다.",
+    "madfef55cdd3e": "Dohaeris.",
+    "m8917820f4842": "실행은 내 컴퓨터에서 진행되며 자리를 비워도 계속됩니다. 관제탑이 지켜보고, 어디서든 내가 통제합니다.",
+    "m06818bfad7e5": "주머니 속에서 승인하세요.",
+    "mcd2afb2517c4": "위험한 단계는 휴대폰으로 알림을 보냅니다. 한 번 눌러 허용하거나 거부하고 방향을 바꾸세요.",
+    "mc918b71360aa": "모든 실행을 다시 재생할 수 있습니다.",
+    "mec82da18aef9": "명령, 변경 사항, 도구 호출이 기록됩니다. 어떤 단계든 감사하거나 되짚어 보세요.",
+    "mb634019207be": "하나의 긴급 중지 스위치.",
+    "m190c6cca4b11": "지원되는 실행 경로에 중지를 요청하세요. 공급업체 호출이 이미 진행 중일 수 있으니 기록된 결과를 확인하세요.",
+    "me050855b0732": "macOS용 다운로드",
+    "m0699722b6c86": "Windows",
+    "mc7916fde8f18": "Linux",
+    "m4721630f3237": "복사됨",
+    "m76375004a5c8": "복사",
+    "mfa1e83c4875c": "Braavolabs 코인 — 앞면",
+    "m25dad6b2130d": "Braavolabs 코인 — 뒷면, 회로선 BL 모노그램",
+    "m25b28440d28a": "마우스를 올려 뒤집기 · 뒷면: 회로선 BL 모노그램",
+    "m4fc929a0a62c": "장면 탐색",
+    "m9ee930cb6b09": "인트로 건너뛰기",
+    "m154eba8c33b7": "건너뛰기 — 스페이스 / 클릭",
+    "m227d67016fe0": "braavolabs · valar dohaeris",
+    "m716f677b544d": "문서",
+    "md86a34679f43": "GitHub",
+    "mbb0e90463fc8": "우세함",
+    "m6a6df1ed4210": "출시",
+    "m1c64caa33ba2": "대",
+    "mde4ec47f271d": "실험",
+    "m920a13b7eddb": "실험",
+    "m0ce6557e41a4": "상태",
+    "mb1c437b2623f": "개선율",
+    "me4fac2bbdc43": "유의성",
+    "m4b9aae820c18": "상세 보기",
+    "m6e8b2ac90efc": "새 실험",
+    "m008ca53ea0d6": "선언문",
+    "mf6caaee885a1": "누구나",
+    "md7f19caf7275": "에이전트를 만들 수 있습니다.",
+    "m1bcc79112898": "제대로 지휘하는 사람은 드뭅니다.",
+    "m154cae3389df": "상징",
+    "mff5d00a78d7e": "얼굴 없는 운영자",
+    "m6d6f7b3433d5": "우리의 상징은 단철 가면입니다. 뛰어난 운영자들이 보이지 않는 곳에서 일하는 Braavos에 대한 오마주입니다. AI로 진짜 일을 해내는 방식도 같습니다. 요란한 데모가 아니라 운영자가 조용히",
+    "m0fb31a980179": "읽고, 승인하고, 방향을 잡아",
+    "m2c08fc9adde3": "에이전트 팀이 결과를 내도록 하는 것입니다.",
+    "m8fad8431526d": "우리가 만드는 모든 것에는 무게감과 빛, 움직임이 있습니다. 에이전트를 지휘하는 경험은 챗봇을 돌보는 일이 아니라 상황실에 서 있는 느낌이어야 하니까요.",
+    "mae6893bf1cea": "한 줄로 보는 경쟁력",
+    "ma96d8b4e22d7": "우리는",
+    "m79029a3ce6e6": "통제력",
+    "mac2da98d83a1": "이동성",
+    "m0eab38f1efb0": "및",
+    "mb899143d5b68": "개인정보 보호",
+    "ma2e990d63ed8": "로 경쟁하며, 커넥터 수로 경쟁하지 않습니다.",
+    "m3bfa80932b8d": "원칙",
+    "m35c23cddce05": "“행동은 할 수 있지만 통제할 수 없는 에이전트에 지쳐 Braavolabs를 만들었습니다. 방향을 잡아 줄 손이 없는 힘은 쓸모가 아니라 부담입니다.”",
+    "m00cce1870e41": "Braavolabs 팀",
+    "m86eac0774080": "· 공개적으로 만들어갑니다",
+    "md02e9e25bd65": "앱 열기",
+    "m864debf58479": "문의하기",
+    "mdd10bd33331e": "워크스페이스",
+    "m3c5cae9db9ff": "결과",
+    "me472804666c8": "결제 요약",
+    "m4176e1045b7d": "모든 실행",
+    "m138dacd53320": "회 실행",
+    "mb2df3906a88c": "지출 대기열",
+    "m0e8a6ae38472": "대기 중",
+    "mc3f685eba544": "긴급",
+    "m1b78e46f051f": "세션을 준비하고 있습니다",
+    "m22d7829ed6f9": "BL",
+    "me1bb55c0e7b4": "기록된 방법론과 결과",
+    "mba85f9df1e3f": "벤치마크",
+    "m3ea665b949b5": "기록된 벤치마크 실행, 평가된 모델, 제공되는 방법론을 검토하세요. 범위와 최신성은 기록된 실행마다 다릅니다.",
+    "madef7e96db5b": "방법론과 원본 평가 기준 위치:",
+    "m4106b4c7e011": ". PR을 환영합니다.",
+    "mbe9a5bbdd9b6": "기록된 평가 결과가 제공되면 여기에 표시됩니다.",
+    "m4349735a6625": "이 모음에는 아직 실행 기록이 없습니다.",
+    "m62d2447bfb31": "공급업체",
+    "m53b77436d18d": "모델",
+    "m6853e500c770": "점수",
+    "m2dbf116102ae": "실행당 비용",
+    "m41b4f721faf5": "소요 시간",
+    "m881b035daeb6": "업데이트됨",
+    "mcc7dbaccf493": "계정",
+    "m3ed9a01e9231": "활성",
+    "m1f1c52f4af63": "수동 검토",
+    "m10a01ee78fc0": "/ 활성 좌석 / 월",
+    "m36319a66e749": "/월",
+    "m2abded1f04d2": "· Stripe 결제",
+    "m52ef97127549": "남은 실행 횟수 · 요금제:",
+    "m3aacf07b35fc": "구독 관리",
+    "m480aee3b6717": "웹 요금제는 Stripe로 결제되며 결제 포털에서 언제든 관리, 업그레이드, 취소할 수 있습니다. 모바일 구독은 구독한 스토어에서 관리하며 변경 사항은 여기에 자동으로 동기화됩니다.",
+    "mc55a17a9d9c0": "Stripe 구독",
+    "mcceb0b8f209d": "관리",
+    "m03899b81220f": "비활성",
+    "m659adfa80ad7": "App Store 구독",
+    "mcd435f3d6d13": "스토어에서 관리",
+    "mf1b895df0335": "Google Play 구독",
+    "m8546b709215e": "이번 주기 사용량",
+    "m809b2c4b9c83": "BL",
+    "m7f0fab417f12": "블로그",
+    "md62a43742980": "기능",
+    "ma5bac859b488": "요금",
+    "m2fbc11c34f42": "로그인",
+    "m06d5d3008573": "앱 열기",
+    "m85d560055d11": "포지 로그",
+    "ma31c879fbf4a": "읽기",
+    "mf4e7ef98e64a": "이미 실행 중인 에이전트를 지휘하세요.",
+    "mb9f5c53ce5bb": "내 공급업체 키나 구성된 로컬 경로를 사용하세요. 추론은 포함되지 않습니다.",
+    "mfa5d21d1d88a": "포지 로그 더 보기",
+    "md72e42595829": "블로그",
+    "m7c191fd9ab30": "로그인",
+    "m723a4ca0b041": "앱 열기",
+    "md37709c384c4": "포지 로그",
+    "m183ea0c3acf0": "이곳의 기록:",
+    "m3ec12db3060f": "상황실.",
+    "m727eff92c28d": "에이전트 지휘에 관한 이야기. 통제력, 이동성, 개인정보 보호, 자율성을 다스리는 기술을 다룹니다.",
+    "mbf6597c4877d": "추천",
+    "m67a924d25b13": "읽기",
+    "med3811fc0067": "이미 사용 중인 AI 에이전트와 자동화를 제어하세요.",
+    "m09d06a4f3a17": "제품",
+    "m621f739bb1af": "회사",
+    "m2bc5accf38ff": "법률",
+    "m46e01d124058": "© 2026 Braavolabs. 모든 권리 보유.",
+    "m73b582c8d1ab": "BL",
+    "maf32376bdf35": "기능",
+    "m89ea286c8147": "요금",
+    "mdcad451eaa8b": "통합",
+    "m000db379830b": "변경 내역",
+    "mf6a8a22d3745": "블로그",
+    "mf0c7cea418fa": "앱 열기",
+    "mc233f3d5475f": "모든 판을,",
+    "m201fb23bec45": "제자리에 단단히.",
+    "m7af9fcb2eb00": "우리가 만들고, 고치고, 바꾼 것들.",
+    "mb029bf94b9cb": "최신",
+    "m33b2dcf5a00e": "일시 중지",
+    "m4aff80e9ddd2": "보관함",
+    "mf40b55b5a17f": "에이전트:",
+    "ma170cc9e0b0b": "시스템 프롬프트",
+    "m313ead484eac": "기본값",
+    "m081fc0171fee": "후보",
+    "m1d156cc858d3": "승인됨",
+    "mf1cc2bc9a8a0": "아직 승인된 메모리가 없습니다",
+    "m564fb4aee15b": "더 이상 사용하지 않음",
+    "m307ccca51ae0": "폐기된 항목이 없습니다",
+    "m50890a43f31f": "실시간",
+    "md1e06fe13cd7": "일시 중지됨",
+    "mc46ba3b782c7": "비용 중지 보호 활성화",
+    "md8ec6425984e": "예산",
+    "m6a7a58f3cdb0": "% 사용 — 실행 중지 금액: $",
+    "mee5a1855dffe": "내 응답 대기 중",
+    "m562397da1ad0": "스트리밍 중",
+    "m1d007a5d0353": "ms",
+    "m485cb3fc4e18": "실행 메타데이터",
+    "m3c85b69d5453": "예산 대비",
+    "m2fb2177fcf22": "예산 $",
+    "mf09738cc6fac": "타임라인 탐색 막대",
+    "md63109311e5c": "추적 내보내기",
+    "mc341c520640c": "방향 조정 · 지침 전달",
+    "m4180d6eb1e87": "워크스페이스",
+    "mf854b0d01bb8": "새로 만들기",
+    "m2a1f8f8329c8": "요금제 업그레이드",
+    "m81541c4b81fd": "아이디어로 시작하기",
+    "m98f5541fecce": "시작점을 고르면 아래 개요가 미리 채워지고 AI가 나에게 맞게 다듬습니다.",
+    "m84436181ca66": "템플릿 카테고리",
+    "me80b908371e2": "전체",
+    "md906ff092286": "이 아이디어 사용",
+    "m23e4368ad8b0": "또는 아래에 직접 설명하세요 ↓",
+    "m6e641f0af509": "⌘↵로 생성",
+    "mdbc61703dd4c": "braavolabs",
+    "md81c07fc5237": "워크스페이스 사양",
+    "mfba9134a6958": "핵심",
+    "m335400734ad4": "플래그십",
+    "m1c1ed0d6cba8": "비교",
+    "m0e090d020bf6": "로그인",
+    "m2b2ad5e6e9fc": "앱 열기",
+    "m65d72c621640": "솔직한 포지셔닝",
+    "mba9bd9de37dc": "우리가 맞는 곳,",
+    "m50e9a7dcec3d": "그리고 맞지 않는 곳.",
+    "mf93fe81f65ba": "Braavolabs는 가장 큰 연동 목록을 목표로 하지 않습니다. 이미 사용 중인 에이전트와 자동화를",
+    "m1d1ed4cc0221": "지휘",
+    "m16c281eec9eb": "할 수 있도록 만들어졌습니다. 휴대폰에서, 실행 도중에, 내 키로 통제합니다. 비슷한 두 범주와 비교해 상대가 더 나은 점까지 솔직히 살펴봅니다.",
+    "m7acc6a073df0": "기능",
+    "m67969942145e": "누구를 위한 도구인가",
+    "m8d6c9af2713e": "연동 목록의 크기보다 통제력, 이동성, 개인정보 보호가 중요하다면 Braavolabs가 적합합니다.",
+    "m22f7bc58c61d": "정액 요금을 직접 계산해 보세요.",
+    "mbf3573b0a3d0": "비용 계산기로 예측 가능한 정액 요금과 작업당 과금을 비교하세요.",
+    "m24543c9280b1": "비용 계산기",
+    "m2b56df60312a": "기록된 단계, 제공되는 비용 데이터, 대기 중인 운영자 결정을 검토하세요.",
+    "m9895a6463bc7": "이미 사용 중인 AI 에이전트와 자동화를 제어하세요.",
+    "mfb1404813b60": "제품",
+    "mca345aad7aa1": "회사",
+    "m5bed3a4a7338": "법률",
+    "m8e359b1c68e3": "© 2026 Braavolabs. 모든 권리 보유.",
+    "m3e5ecf19f202": "자동화 허브",
+    "mb9d0451321be": "닫기",
+    "m8b4a9a98583e": "새 자동화 연결",
+    "m80ef56a7089f": "통합 실행",
+    "ma9b5c84ca346": "기본 + 외부 · 하나의 타임라인",
+    "m8bd444807a52": "이벤트",
+    "md8e91797972c": "유형",
+    "m826036148049": "외부",
+    "m1a1faaa5e7fc": "연결을 펼치면 실행 기록이 여기에 표시됩니다.",
+    "m23715cc46e18": "닫기",
+    "ma6abe31754db": "BL",
+    "m2b4a9f22ba8d": "이미 사용 중인 AI 에이전트와 자동화를 제어하세요.",
+    "md69e46192627": "제품",
+    "m6d80848fe489": "회사",
+    "m0fb85ef7ffda": "소개",
+    "m260fed5ac47c": "블로그",
+    "m3a006e3e0878": "상태",
+    "md2c8631b73dd": "법률",
+    "mf2c79d7c83e6": "요금",
+    "m3aaa432f7378": "앱 열기",
+    "m9680189524a4": "요금 미리보기 — 현재 구매 불가",
+    "m58ba90a040a3": "예정된 구독 요금",
+    "mfdf38497de3a": "결제 이전 기능은 아직 개발 중이므로 이 페이지에서는 결제 가능한 견적을 계산하거나 구매를 시작하지 않습니다. 예정된 목록에는 Individual과 Team만 포함됩니다.",
+    "m0a048a01849e": "예정된 요금제",
+    "m865128d3e4d4": "예정된 요금제",
+    "m4d17edf4bcc6": "추론 비용 안내",
+    "m17a77e8ea42f": "추론 비용은 포함되지 않음",
+    "m52f120c3db8b": "모델 사용료는 BYOK로 구성한 공급업체에 지불하거나 내 로컬 모델 경로를 통해 실행합니다. Braavolabs는 현재 이 예정된 구독을 판매하지 않습니다.",
+    "me587bca8ef51": "진행 중인 실행",
+    "m975cf8ab658e": "실행 성공률",
+    "m1ca31645c880": "활동",
+    "m9f12c64beaa6": "braavolabs.com · 실시간 감사 추적",
+    "maacbbd2ffeb8": "모두 보기 →",
+    "mef4047de09c7": "최근 실행",
+    "m9332d1be8fe2": "파이프라인",
+    "m098593629f8e": "회사",
+    "m286c98c9029c": "상태",
+    "m207013f4c387": "시작 시각",
+    "md1d31b068fc2": "단계",
+    "m701b95d1d46a": "지출",
+    "m4d36fe121a92": "이 필터에 해당하는 실행이 아직 없습니다.",
+    "m97fa546fb5a7": "최근 활동이 없습니다.",
+    "mc9b9115552be": "대기 중",
+    "m7fd8a8fd26df": "승인 필요",
+    "meffd0c9f293a": "거부",
+    "m8961771af3a1": "활성 위험 없음",
+    "m11064e50fa7c": "새 항목",
+    "m3c3e08c03c30": "위험 이벤트",
+    "me5c88f2a2ff0": "지금",
+    "mb34c85aff53f": "기능",
+    "m85a856ab28be": "요금",
+    "mdd91fe0b7fc0": "블로그",
+    "m6179659c73b9": "문서",
+    "m35127686df60": "로그인",
+    "m5b83c05ccb0c": "앱 열기",
+    "mcb951cf4a4d3": "문서",
+    "m0c14fdc4a1c6": "매뉴얼",
+    "m6c77f98962d7": "이 페이지에서",
+    "m074fdba85cf1": "← 이전",
+    "m1388671ac3bc": "다음 →",
+    "m90aeded95734": "이미 실행 중인 에이전트를 지휘하세요.",
+    "mf8873bd65493": "요금은 미리보기이며 현재 구매할 수 없습니다. 추론은 포함되지 않습니다.",
+    "m906152f47b4f": "이미 사용 중인 AI 에이전트와 자동화를 제어하세요.",
+    "m1ec39ca165b6": "제품",
+    "mbb3043a7f2cf": "변경 내역",
+    "m50200f20c520": "자료",
+    "m35fa61443236": "지원",
+    "m6ea06edad850": "회사",
+    "m7f7a851ede21": "소개",
+    "mebaef44626be": "연락처",
+    "m07c7e04fadf1": "상태",
+    "m7375dacc55cd": "© 2026 Braavolabs. 모든 권리 보유.",
+    "m818b2a78eb90": "기능",
+    "m4cc1f3608ddc": "요금",
+    "mf6823057de7d": "블로그",
+    "m87eedb771754": "문서",
+    "mda5526776bb1": "로그인",
+    "md725474be468": "앱 열기",
+    "m5aac6b035a43": "매뉴얼",
+    "mc85715c7a4bb": "문서",
+    "m8f52d8cc2d59": "첫 실행부터 웹훅, 구성된 로컬 모델 경로, 휴대폰에서 에이전트 방향 조정까지 자율 AI 회사를 구성하고 실행하고 통제하는 방법입니다.",
+    "m20c340bf69ae": "시작하기",
+    "m602cdfb50800": "핵심 개념",
+    "m9a896a6ca8c2": "자주 묻는 질문",
+    "md4293b1a891b": "읽기",
+    "mfa2b75fcfa90": "이미 사용 중인 AI 에이전트와 자동화를 제어하세요.",
+    "mc06c8b9bd590": "제품",
+    "m9e4e062300ce": "변경 내역",
+    "mdc663d5d4765": "자료",
+    "m698bc6e3f89e": "지원",
+    "m975952c059f7": "회사",
+    "mad1ae8839ed9": "소개",
+    "m8d136db7d880": "연락처",
+    "m2b43eb3b2c10": "상태",
+    "m22d2dde46b20": "© 2026 Braavolabs. 모든 권리 보유.",
+    "m86006890323f": "콘텐츠 검토",
+    "mfd976ba1eea0": "초안",
+    "m76d027d04e32": "문제가 발생했습니다",
+    "me06887989706": "지원용 오류 참조",
+    "mc3fca6aef955": "참조:",
+    "m28a812f120c3": "다시 시도",
+    "m795836a1d4b2": "오류가 계속됩니다. 홈으로 이동해 다시 시도하세요.",
+    "meda5eea8ae48": "홈으로 이동",
+    "mccfb38fd1109": "지원팀에 문의",
+    "m41749f8a6958": "거버넌스",
+    "m12cc6cbe8456": "요금",
+    "md2d886d00f8d": "로그인",
+    "m5622cdb1d573": "가입",
+    "mb92a5ff6a3f6": "제품 계약",
+    "md8d7b7db0cdd": "실행. 통제. 입증.",
+    "m5c19d5d0e672": "Braavolabs는 여러 공급업체를 아우르는 AI 워크벤치이자 제어 영역입니다. 데스크톱, CLI, 모바일 승인, 인증된 클라우드 제어에 동일한 계약이 적용되며, 기본 실행을 공개 사이트로 옮기지 않습니다.",
+    "md530d8e09e2a": "Private Mode — 미리보기",
+    "mc015473cee7b": "전체 데이터 처리 및 보안 계약은 개발 중이며 정식 제공되는 것으로 안내하지 않습니다.",
+    "m99e52a77109d": "Cloud Agent Mode — 개발 중",
+    "m4be5a94fd7e3": "실행, 동의, 보관 계약은 정식 제공되는 것으로 안내하지 않습니다.",
+    "m538495414df0": "서명된 증거 — 개발 중",
+    "m283b1bddd62f": "오프라인 검증 가능한 번들에 대한 주장은 해당 작업이 승인될 때까지 공개하지 않습니다.",
+    "mc7577ef44a73": "Holding — 프리미엄/비공개 미리보기",
+    "mf457eb5a3ed1": "지속형 에이전트 패키징은 별도로 유지되며 기본적으로 꺼져 있습니다.",
+    "m9f5b1afe44a4": "앱 실행",
+    "m3129e7d997e9": "문서 읽기",
+    "mba4fd1fab967": "가져오기",
+    "mf0ec3cddfcdf": "검색",
+    "m941a8cfd363d": "JH",
+    "mcb7a05a63f11": "통합",
+    "m63618f411d28": "1단계",
+    "m28a453e700bf": "내보내기 내용 붙여넣기",
+    "m6178c5d299b7": "플랫폼을 선택한 다음 워크플로 JSON을 붙여넣거나 파일을 놓으세요.",
+    "mcb314139cd6e": "또는 .json 내보내기 파일을 여기에 놓으세요",
+    "mf22bc005eae8": "2단계",
+    "mf59ae985ca8a": "미리보기 및 매핑",
+    "mb29543f91292": "분석한 단계 수:",
+    "mf481a5ad1169": "개 단계. 각 단계를 Braavolabs 단계 유형에 연결하세요.",
+    "m8a14bed991c3": "트리거",
+    "mee753e5a87a2": "도구 호출",
+    "m916a2a45d141": "분기",
+    "meab0461369b0": "에이전트",
+    "m55cf3f3ed970": "출력",
+    "mef364fe09b40": "뒤로",
+    "m8e0f9ab16dab": "가져온 내용으로 파이프라인 생성 중…",
+    "mcdc0a303cb6e": "가져옴",
+    "m358866c978a7": "빌더에서 열기",
+    "mc35120dcdc60": "다른 항목 가져오기",
+    "m1d31c122563e": "연결",
+    "m519d2f226020": "기존 자동화 가져오기",
+    "m56994963473b": "n8n, Make, Zapier 내보내기 파일을 가져오면 파이프라인으로 분석합니다.",
+    "m48f6463ee542": "가져오기",
+    "m760104947f15": "기능",
+    "m69d527a460e7": "요금",
+    "mb2399da1a08c": "소개",
+    "me140e826ba9c": "로그인",
+    "m471494a678dc": "요청 관련 연락처",
+    "md16b7b8e76f6": "KVKK에 따른 요청은 다음으로 문의하세요:",
+    "md2e44bfde665": "이메일로 문의하실 수 있습니다.",
+    "m8c04ee5bf3f2": "이미 사용 중인 AI 에이전트와 자동화를 제어하세요.",
+    "ma0eb87bbeb56": "제품",
+    "mc051ae69c4ff": "변경 내역",
+    "m3977aafcc314": "회사",
+    "mf519587a824a": "블로그",
+    "m46ce898e63fc": "연락처",
+    "med3b20e61c41": "Braavolabs에 계정 및 관련 개인정보 삭제를 요청할 수 있습니다. 현재 공개된 요청 채널은 이메일이며, 계정 소유권을 확인하고 요청을 서면으로 확인하는 데 사용합니다.",
+    "m1b2db4796a78": "계정에 연결된 이메일 주소로 다음 주소에 메시지를 보내세요:",
+    "m442ce29a97e5": "제목:",
+    "m3142da1ab41a": "“Account deletion request”",
+    "mc804e0a279e5": ". 계정 이메일이나 사용자 이름을 포함하되 비밀번호, API 키, 액세스 토큰, 결제 자격 증명은 절대 보내지 마세요.",
+    "m38ad53145e92": "계정 통제 권한을 확인하는 데 필요한 추가 정보를 요청할 수 있습니다. 확인된 이메일 채널로 요청을 확인하고 상태를 안내합니다. 관련 법정 응답 기간은 계속 적용되며, 이 페이지는 자동 완료 시간을 약속하지 않습니다.",
+    "m29f4515a2181": "Braavolabs는 현재 별도 삭제 양식을 공개하지 않으며 이 공개 사이트에서 앱 내 삭제 기능을 약속하지 않습니다. 요청이 누락되거나 관련 없는 문의 주제로 전달되지 않도록 위의 확인된 이메일 채널을 이용하세요.",
+    "mee9120dd9911": "삭제 범위는 확인된 요청자와 연결된 계정 기록에 따라 달라집니다. 해당 범위를 검토하고 법적으로 삭제할 수 없는 기록을 포함해 결과를 서면으로 확인합니다.",
+    "m0a13dcea737c": "확인된 요청과 관련된 계정 신원 및 프로필 기록",
+    "m3dd748c0c124": "해당 서비스 및 법적 의무에 따라 삭제 가능한 테넌트 범위의 콘텐츠",
+    "m67b7fbf8d86d": "기술적·법적으로 가능한 경우 계정과 관련된 활성 자격 증명 및 세션",
+    "m292e9193635f": "일부 기록은 세무, 회계, 분쟁, 사기 방지 또는 기타 법적 의무로 보관해야 할 수 있습니다. 해당 범주와 기간은 현재 배포 환경, 공급업체 계약, 관할 지역에 따라 달라지며, 여기서 고정된 공개 일정을 약속하는 대신 확인된 요청에 대해 안내합니다.",
+    "m3acb87ce044a": "해당 세법, 회계법 또는 규제 법률에 따라 보관해야 하는 기록",
+    "m9956d26e8534": "요청, 확인 과정, 법적으로 요구되는 응답을 문서화하는 데 필요한 기록",
+    "m665793086a11": "유효한 법적 보존 명령이나 미해결 분쟁의 대상인 데이터",
+    "m764489556bb6": "확인된 요청은 관련 법률이 정한 응답 기간에 따라 처리하고 확인된 이메일 채널로 진행 상황을 안내합니다. 확인 요건, 법적 보존 명령, 적법한 보관 의무가 완료에 영향을 줄 수 있으며, 적용되는 제한은 서면으로 설명합니다.",
+    "mc3704343f072": "계정 삭제 요청과 결제 해지는 별개의 작업입니다. 계정의 결제 관련 문의는",
+    "m262a258637ac": "으로 연락해 주세요. 여기서 스토어나 앱 내 절차를 주장하지 않고 현재 지원되는 채널을 안내합니다.",
+    "mb2c239031d04": "절차, 보관 규칙, 삭제 완료 확인에 관한 질문:",
+    "mcf0d0c778c1f": ". 접근, 이동성, 정정 등 더 넓은 데이터 권리 문의는 다음을 참고하세요:",
+    "m29492eb1f9b7": "GDPR 안내문",
+    "m79a0490687e1": "및",
+    "mf75327b3ab03": "KVKK 개인정보 안내 미리보기",
+    "m3b525be54f32": "계정 및 데이터 삭제",
+    "m22af538371f7": "계정을 삭제하시겠습니까?",
+    "mb5f06ea86d5e": "계정에 연결된 이메일 주소로 요청을 보내세요.",
+    "m7bc799542df6": "이메일 보내기",
+    "m50591bb45e1e": "Braavolabs.",
+    "m7801df791ac5": "Apple",
+    "m3e059886391a": "Google",
+    "m75ecaff6a037": "GitHub",
+    "ma642566b6fb9": "(선택 사항)",
+    "mb10483661821": "페이지를 찾을 수 없습니다",
+    "m30a00b02a74d": "찾는 페이지가 없거나 이동되었습니다.",
+    "md182a885158e": "홈으로 이동",
+    "m2aec28552db3": "대시보드",
+    "m2e3db7ae4d51": "워크스페이스 생성 완료",
+    "mdb69aaf1266a": "설정 건너뛰기 →",
+    "m0ca91d4cf0f5": "1단계 / 총",
+    "mf74a68f418e0": "2단계 / 총",
+    "m38c2aea0c076": "3단계 / 총",
+    "m4cab4d533f77": "4단계 / 총",
+    "m6c1c3f135744": "5단계 / 총",
+    "me9694a186010": "Individual —",
+    "m032b7cca868a": "Team —",
+    "m37d5c6a2c645": "© 2026 Braavolabs",
+    "m4c15cd976fb7": "단계 유형 · 끌어 놓기",
+    "ma71448498846": "검사기",
+    "mc0068fffc436": "단계 검사기",
+    "m73f2d28a8195": "캔버스에서 단계를 선택해 구성하세요.",
+    "me279e93feaa2": "닫기",
+    "md076a8cff280": "파이프라인",
+    "m33a8b197a5dc": "단계",
+    "m6c64bc8fd052": "AI 빌더",
+    "m7b2727efa311": "닫기",
+    "m527dc6c48fc1": "나만의",
+    "m5d499d7bb383": "워크스페이스를 단",
+    "mc963b2a55c65": "몇 분 만에 만드세요",
+    "m0ffcb934d4d3": "Braavolabs. 모든 권리 보유.",
+    "m4c3d039eeb89": "무료 요금제",
+    "mb9d9f6052c15": "Google",
+    "m2d8843cd30de": "GitHub",
+    "m3f79055b06f5": "강도 —",
+    "m42d9b00b4a1c": "다음에 동의합니다:",
+    "m03dd13603177": "이용약관",
+    "m16a48ada2404": "및",
+    "med9bdddaf801": "개인정보 처리방침",
+    "mddad425a8476": "이미 계정이 있나요?",
+    "m99b3ce884164": "(선택 사항)",
+    "mfac2ec3661ab": "Braavolabs 상징",
+    "m147a465a4bab": "새로운",
+    "m8f3667a853a6": "열쇠를",
+    "m5a9acd6bb595": "내 상황실에 맞게 만드세요.",
+    "m07683a6b25da": "비밀번호 재설정",
+    "m324fa44bdbfe": "이메일을 입력하면 재설정 링크를 보내드립니다.",
+    "m1d7390708d7e": "보내는 중…",
+    "mf28e1b2646a8": "재설정 링크 보내기",
+    "m05680974f084": "새 비밀번호 설정",
+    "ma6ae80e38b9d": "비밀번호 확인",
+    "m39a7ff600af8": "비밀번호 생성 완료",
+    "mf83f38e42411": "로그인",
+    "m94c28a73da37": "거버넌스",
+    "m9d899093d41e": "확인",
+    "m9ce742313269": "롤백",
+    "mc191d4f884e6": "다시 실행",
+    "mb9b248228c25": "비용 히트맵",
+    "md4fdc87efd1b": "실행 메타데이터",
+    "ma3d0dc878de8": "실행 ID",
+    "m83d38e678178": "파이프라인",
+    "m89200cc22850": "단계",
+    "ma8322509bd8f": "승인",
+    "m1eadff0f7d6b": "소요 시간",
+    "m8905a490325a": "타임라인 탐색 막대",
+    "m1dbbdb0c26b5": "추적 내보내기",
+    "mcf98748ad579": "스트리밍 중",
+    "mc3041e2d2f2b": "단계",
+    "m2c81a45dc959": "방향 조정 · 지침 전달",
+    "m6ef14dc92d42": "에이전트의 다음 턴에 지침을 전달하세요… (예: “직원 수가 50명 이상인 회사에만 연락하세요”)",
+    "m597ddeea5d27": "방향 조정",
+    "me5d0d8e26c92": "실행 검색…",
+    "m6519c809652c": "문서",
+    "ma280e8530c88": "로그인",
+    "m0c1bf711335e": "가입",
+    "m0b84272e0b38": "보안과 신뢰",
+    "m2708222253e6": "경계를 명확하게.",
+    "mf6cd2e305a08": "공개 보안 설명은 제품에서 테스트할 수 있는 계약으로 한정합니다. 로드맵 방향은 명시하고, 출시 주장은 증거가 승인된 후에 공개합니다.",
+    "m87d3344f51c0": "Private Mode — 미리보기",
+    "m7ed0edec682e": "전체 데이터 처리 및 보안 계약은 개발 중이며 정식 제공되는 것으로 안내하지 않습니다.",
+    "me5d088788752": "Cloud Agent Mode — 개발 중",
+    "m6e5d8b8e7120": "실행, 동의, 보관 계약은 정식 제공되는 것으로 안내하지 않습니다.",
+    "m82cfde8eb7cd": "서명된 증거 — 개발 중",
+    "mc63ed84605c0": "해당 계약이 구현되고 승인되기 전까지 활동 기록을 오프라인 검증 가능한 서명 증거 번들로 제시하지 않습니다.",
+    "m16ca86ca2649": "앱 실행",
+    "m7945cffa32f0": "보안 문제 신고",
+    "m58a52b30df2b": "현재 위치 탐색",
+    "m17301d36c0f7": "설정",
+    "m04575c3aa05d": "공급업체 엔드포인트",
+    "m4ac81f8d693d": "리디렉션 및 범위",
+    "m0980004c67c1": "acme.com, acme-contractors.com",
+    "m3af0642101f2": "내 도메인에 SSO 로그인이 활성화되어 있습니다.",
+    "m59f31e9a773e": "SSO 로그인이 일시 중지되어 사용자는 비밀번호 인증을 이용합니다.",
+    "m1324795a7aa8": "저장 중…",
+    "m17cc90014b3e": "실시간 미리보기",
+    "m90bd8874ada5": "OIDC 구성 ·",
+    "m1995887ad355": "구성됨",
+    "mb5610055f059": "미설정",
+    "ma388b35eeee6": "✓ 설정됨",
+    "m1be41d5fc4dd": "SSO 활성화 — 사용자가 내 IdP로 로그인할 수 있습니다",
+    "m5eb5faa6cbf5": "SSO가 구성되었지만 비활성 상태입니다",
+    "m9a52affa6218": "SSO 공급업체가 구성되지 않았습니다",
+    "m99463116beca": "콜백 URL",
+    "mc5038b20a0d6": "ID 공급업체에 이 리디렉션 URI를 등록하세요:",
+    "m4f8f4a6029d8": "클립보드에 복사",
+    "m5722bcfa7400": "기업 SSO",
+    "m1e939b7b4cbc": "기업 IdP(Azure AD, Okta, Auth0, Google Workspace)를 통한 로그인을 적용합니다. 허용된 도메인의 사용자는 자동으로 내 IdP로 리디렉션됩니다.",
+    "m239b7819863d": "설정",
+    "m82be07e8418a": "구성",
+    "m4c903bb74ed9": "프로필, 워크스페이스, 언어 및 알림.",
+    "m2255caa19025": "위험 영역",
+    "m251011545863": "김민수",
+    "m7f8ad1ba2dfe": "심각",
+    "m5836e3f6f284": "요금제",
+    "m70d993f4aae7": "도구 호출",
+    "m81a36cd86bb2": "사용자 지정",
+    "m70488646d660": "워크스페이스 무제한",
+    "mc6572473d51f": "실행 무제한",
+    "m18629becb717": "연결된 자동화 무제한",
+    "m9d2f4b435f53": "현재",
+    "m55b34f1cdcf3": "영업팀에 문의",
+    "m245c12189d91": "업그레이드",
+    "mca4ac26863e8": "회사",
+    "md734f81167bd": "연동 불러오는 중…",
+    "m0530d4879653": "설정 가이드",
+    "m2c575197fbcf": "(저장됨)",
+    "m2f159920cfcf": "연결 테스트",
+    "m5d0a3ab02ef8": "제거",
+    "mf1fd0aaf6045": "공급업체",
+    "m9583131210fc": "자체 호스팅 공급업체 — 내 하드웨어에서 실행",
+    "m4cb1ce4d7ccb": "모델",
+    "md100640b1368": "(로컬 서버에 로드된 태그를 입력하세요)",
+    "mdfe713d713c5": "gemma3:4b",
+    "ma9ef66d953f7": "(선택 사항: 프록시 재정의)",
+    "m03032587881b": "필수",
+    "m59f3ac725629": "기본값:",
+    "m0b1070b5d324": "API 키",
+    "mdd0a21379699": "(선택 사항)",
+    "m9bf0b94f3d0d": "엔드포인트용 인증 토큰(선택 사항)",
+    "m6f1791e21588": "먼저 API 키와 함께 공급업체를 저장하세요",
+    "m5ae1c6a8e4c6": "작동 방식",
+    "m350c849d3a6f": "API 및 인증",
+    "m41c85b6bacc7": "내 자격 증명 및 액세스 토큰",
+    "m995515c1ae9f": "테넌트 ID",
+    "mf516b06d11bf": "복사",
+    "m0e13854c1b01": "세션 토큰",
+    "maddc6b1a8edb": "웹훅 및 API 키",
+    "m85f417bbfec5": "회사별 웹훅 엔드포인트 및 API 접근 관리",
+    "mfee4f2dabe8d": "수신 웹훅",
+    "m684490cc61e5": "외부 서비스는 웹훅 엔드포인트로 POST 요청을 보내 파이프라인 실행을 트리거할 수 있습니다.",
+    "m6665da29a7e3": "엔드포인트 형식",
+    "mfd15b81d8cf9": "다음을 바꾸세요:",
+    "m0a04f470671e": "내 회사 슬러그로 바꾸고",
+    "mfcbffc247eb8": "이벤트 이름으로 바꾸세요.",
+    "m63afb9032824": "API 접근",
+    "m4b6ee96c2cfc": "API 요청에서 이 토큰을 Bearer 인증에 사용하세요. 토큰은 세션이 끝나면 만료됩니다.",
+    "me55571b3240f": "일반 이벤트",
+    "m13a00239ea2d": "URL 복사",
+    "mef57c1e54f93": "웹훅 테스트",
+    "m0f7b30dc841a": "추천 프로그램",
+    "mb7cd3f777bef": "코드를 공유하면 나와 친구 모두 보너스 실행 5회를 받습니다",
+    "m5c91a47132b9": "내 코드",
+    "m724c36053cc8": "코드 사용",
+    "m0a34e3a598e6": "사용",
+    "mc12fbd6e7a20": "불러오는 중…",
+    "mcde607c76c72": "되돌릴 수 없는 작업입니다. 신중히 진행하세요.",
+    "m6efdb34e5814": "모든 기기에서 로그아웃",
+    "m9bb76ca4a794": "모든 활성 세션 종료",
+    "m9bdeb5968503": "로그아웃",
+    "m7775a95698f6": "워크스페이스 삭제",
+    "me7ec08fd87b4": "모든 실행 및 데이터 영구 삭제",
+    "mb3ebf6fede5b": "삭제",
+    "mef4c40cb137f": "취소",
+    "m25f762b46741": "✓ 저장됨",
+    "m8c8adacdb1db": "변경 사항 저장",
+    "m0ce1f02a34d4": "변경 사항을 저장했습니다!",
+    "m20bb133b046a": "시스템 상태",
+    "ma8e7dcac27dd": "자동 새로고침 · 60초",
+    "m6391d95c11d5": "GET /api/v1/health · 브라우저의 실시간 확인",
+    "m064d3ea1b787": "현재 이 페이지 제공 중",
+    "m8b59895f3ed7": "첫 확인 진행 중…",
+    "m9f956da25b83": "이 페이지는 실시간 상태 확인만 반영합니다. 아직 가동률이나 사고 타임라인을 공개하지 않습니다. 과거 가동률 추적은 로드맵에 있으며, 지어낸 숫자를 보여주기보다 비워 두겠습니다.",
+    "m4cb64ff7172c": "이미 사용 중인 AI 에이전트와 자동화를 제어하세요.",
+    "m8a200d2fa01b": "제품",
+    "mf293e311adbd": "회사",
+    "me036901f0c5c": "법률",
+    "m89dc05ffd2b2": "문의 양식",
+    "m083a2705391c": "메일 앱에서 초안을 준비하세요. 해당 앱에서 직접 보내야 하며, 여기서는 전송 여부를 확인하지 않습니다.",
+    "m366977224408": "결제 및 구독",
+    "m8cb8b49fe281": "개인정보 보호 및 데이터 권리",
+    "m771454b72f87": "보안 제보",
+    "m97ffe5296db2": "모바일 구독은 당사가 아닌 Apple 또는 Google에서 청구하며 취소할 때까지 자동 갱신됩니다. 확인, 변경, 취소하려면 iOS에서 다음을 여세요:",
+    "m1fc91bf085eb": "설정 → 내 이름 → 구독",
+    "md62504ec7e39": ". Android에서는 다음을 여세요:",
+    "mb71b1e7e1c1e": "Google Play → 프로필 → 결제 및 정기 결제",
+    "m9ad3281dcc2d": ". 스토어 구매 환불은 Apple(reportaproblem.apple.com) 또는 Google Play 정책에 따라 처리됩니다. 어려움이 있으면 이메일로 문의하시면 도와드립니다. Stripe로 청구되는 웹 구독은 다음에서 관리할 수 있습니다:",
+    "m9b8015792921": "설정 → 결제",
+    "mfa4b446e8ff6": "앱 안에서 관리하세요.",
+    "mdb4dc1cc9096": "Braavolabs는 어떤 AI 공급업체를 사용하나요?",
+    "ma6211b5db44c": "기록된 활동이 있을 때 실행 기록에 표시됩니다. 도움을 요청할 때 관련 실행 참조를 포함하세요.",
+    "m8e6535637cb8": "파이프라인이 왜 일시 중지되었나요?",
+    "me8234ddd08d0": "계정을 어떻게 삭제하나요?",
+    "m301aee668176": "계정 삭제 페이지를 이용해 이메일로 계정 삭제를 요청하세요.",
+    "m981862dbff04": "계정 및 데이터 삭제",
+    "m3cb779dfce49": "플랫폼이 정상 작동하나요?",
+    "m652cc7ed28eb": "상태 페이지",
+    "mb29ed7325631": "이메일",
+    "mc878475dd7ed": "에 예상한 결과, 실제 발생한 상황, 대략적인 시간을 알려주세요. 모바일에서는 스크린샷과 앱 버전(다음 화면의 하단에 표시:",
+    "m3dbf7d618644": "설정",
+    "mb142b8b38188": ")을 첨부하면 문의 왕복을 크게 줄일 수 있습니다.",
+    "ma16f308c1827": "서면으로 명시한 모든 약속:",
+    "mf5be8b9e2a4f": "개인정보 처리방침",
+    "m337507465f44": "이용 약관",
+    "m7ba5c42d05d5": "GDPR 안내문",
+    "mc8d0aedb0025": "KVKK 개인정보 안내 미리보기",
+    "m668b03bf599d": "및",
+    "m7ec4811747eb": "절차.",
+    "maf2d75b446d2": "기능",
+    "mf11c295fe6b2": "요금",
+    "ma046b81f5cad": "소개",
+    "ma833a458dc85": "로그인",
+    "mdc1d31161f04": "앱 열기",
+    "m0a40adc25a52": "지원",
+    "mefb78ad514f6": "무엇을 도와드릴까요?",
+    "m0dff0c2e8740": "이메일 지원",
+    "mdc8b49376a22": "문의 양식",
+    "m5368a784c155": "서비스 상태",
+    "m57cd0c28916e": "이 페이지에서",
+    "m97e6379af81c": "아직 해결되지 않았나요?",
+    "m4a375a6c78be": "명시된 연락 창구로 지원 요청을 보내세요. 여기서는 응답 시간을 보장하지 않습니다.",
+    "m69772795df01": "이미 사용 중인 AI 에이전트와 자동화를 제어하세요.",
+    "m691ce9b2c824": "제품",
+    "mb7d1cacaa4dc": "변경 내역",
+    "m43dbdbcb4213": "회사",
+    "m0fb5d8aef58c": "블로그",
+    "md17c12c62307": "연락처",
+    "m29dff0f6e658": "법률",
+    "mb8ffce79447d": "개인정보 보호",
+    "mb295f0dd3165": "이용약관",
+    "m61c5cf9b820b": "Braavolabs. 모든 권리 보유.",
+    "mb8b061d2cc6c": "다음",
+    "m2c3d4c4c5cf0": "문서는 다음에서 확인할 수 있습니다:",
+    "m640f6714c57b": "braavolabs.com",
+    "m1a9415bc8fe7": "Braavolabs.",
+    "mc03e218a0c3c": "수신 중",
+    "mc09be1de9eb2": "유휴",
+    "m67487c4d674f": "· 아직 전달 내역 없음",
+    "m8f3eb54aeb83": "복사됨 ✓",
+    "m6e80efd48eb4": "복사",
+    "m8e37387d42dc": "HMAC 비밀 키:",
+    "m33733931aae0": "숨기기",
+    "m313faf245f17": "표시",
+    "m67501930af73": "통합",
+    "m032825c952b0": "웹훅",
+    "m8e07c14fe364": "활성 엔드포인트",
+    "m070d79b59b0a": "엔드포인트 불러오는 중…",
+    "m621423f8719e": "각 워크스페이스에는 서명된 통합 수신 엔드포인트가 제공됩니다. 위치:",
+    "mab1707b54d07": ". 첫 워크스페이스를 만들어 이벤트 수신을 시작하세요.",
+    "m0e54282c3be1": "워크스페이스 만들기",
+    "ma06584ff70f2": "서명된 요청 예시",
+    "m60e512a99f97": "POST · HMAC-SHA256 서명",
+    "me0038ce40084": "현재 위치 탐색",
+    "m0fb6cbe7ed77": "설정 진행 상황",
+    "m33f7619295f7": "완료됨",
+    "m2475c8fc32c3": "시작하기",
+    "m048d6635729b": "닫기",
+    "m33e5e43f1ffc": "/ 총",
+    "m1b874306cc1d": "완료",
+    "m04d02f71794f": "온라인",
+    "md09f1084ca66": "실행 단계 비용 히트맵",
+    "md157b491332a": "단계 히트맵 ·",
+    "m4f7017581fe7": "단계",
+    "m1bfba96b1e61": "비용 사용 내역",
+    "m454e25940ea0": "합계:",
+    "m926c7bc3cb4e": "색상 지표",
+    "m7962e0ef9564": "비용",
+    "maca226308ff4": "소요 시간",
+    "m82891b0c7c6e": "최고",
+    "mcff790642459": "단계",
+    "m91c4b9a9a975": "이름 없음",
+    "m671caa428e4c": "대기 중",
+    "mdde548bb2e5e": "비용:",
+    "ma4f2af79632e": "소요 시간:",
+    "m946e0fce8ef2": "도구:",
+    "m42e92aa8ff4c": "에이전트:",
+    "m71160bc18aec": "클릭해 이 단계로 이동 ↓",
+    "m85e4a839e0c6": "← 1단계",
+    "m8a413bb66127": "낮음",
+    "m66114b892e7f": "높음",
+    "ma770817c8ec3": "설정",
+    "maa31d4cc5e14": "최근 14일 일별 지출",
+    "m0de88f4db3d7": "빠른 시작",
+    "mf6e156140dd9": "생성 중…",
+    "m454ee6911d47": "또는 아래에 직접 설명하세요 ↓",
+    "m71c9ffc415a0": "알림 닫기",
+    "m7b55bcf0daed": "API 키 추가",
+    "m6a6c1557497e": "닫기"
+  },
+  "content": {
+    "docCategories": {
+      "start": "여기서 시작",
+      "concepts": "개념",
+      "reference": "참조"
+    },
+    "blogCategories": {
+      "all": "전체",
+      "product": "제품",
+      "engineering": "엔지니어링",
+      "governance": "거버넌스",
+      "fieldNotes": "현장 기록"
+    },
+    "docs": {
+      "getting-started": {
+        "title": "시작하기",
+        "nav": "시작하기",
+        "desc": "워크스페이스를 만들고 파이프라인을 검토한 뒤, 모델과 데이터 처리 방식을 명시적으로 선택하고 통제된 실행을 확인하세요.",
+        "blocks": {
+          "0": {
+            "text": "Braavolabs는 모델 및 에이전트 작업을 위한 웹 워크스페이스, 데스크톱·CLI 워크벤치, 모바일 동반 앱을 함께 제공합니다. 실행을 시작하기 전에 모델 경로와 데이터 모드를 신중히 선택하세요."
+          },
+          "1": {
+            "text": "첫 실행"
+          },
+          "2": {
+            "items": [
+              {
+                "title": "로그인하고 작업 설명하기",
+                "body": "인증된 앱에서 계정을 만드세요. 회사 빌더에서 목표, 대상, 제약 조건을 설명하세요. 빌더는 계획을 제안하기 전에 추가 질문을 할 수 있습니다."
+              },
+              {
+                "title": "제안 검토하기",
+                "body": "생성된 에이전트, 파이프라인 단계, 구성된 도구, 예상 출력을 확인하세요. 원하지 않는 항목은 수정하거나 제거하세요. 제안된 계획만으로 외부 연동이 연결되었다고 볼 수는 없습니다."
+              },
+              {
+                "title": "경로를 선택하고 시작하기",
+                "body": "사용 가능한 공급업체 키 또는 호환되는 로컬 엔드포인트를 구성하세요. 기능과 데이터 처리 방식을 검토한 다음 파이프라인을 시작하세요. 작업이 시작되면 공급업체 추론 요금이 발생할 수 있습니다."
+              },
+              {
+                "title": "상태와 의사 결정 확인하기",
+                "body": "기록된 단계, 제공되는 비용 데이터, 승인 대기 항목, ask_user 질문을 읽으세요. 표시된 구체적인 결정에 응답하세요. 방향 조정 지침을 보내거나 중지를 요청할 수 있지만, 진행 중인 호출이나 외부 작업은 이미 실행되고 있을 수 있습니다."
+              }
+            ]
+          },
+          "3": {
+            "text": "요금제와 추론"
+          },
+          "4": {
+            "text": "Individual(월 $19)과 Team(활성 사용자당 월 $39)은 미리보기 요금제 설명이며 현재 구매할 수 없습니다. 추론은 별도이며 공급업체 요금, 로컬 하드웨어 및 운영 비용은 포함되지 않습니다."
+          },
+          "5": {
+            "text": "Private Mode는 미리보기입니다. Cloud Agent Mode와 서명된 증거는 개발 중입니다. Holding은 프리미엄/비공개 미리보기입니다. 이 이름을 완전한 보안 또는 가용성 보장으로 받아들이지 마세요."
+          },
+          "6": {
+            "text": "회사와 파이프라인 구성은 웹에서 하세요. 모바일 동반 앱으로 지원되는 작업을 모니터링하고, 답변하고, 승인하고, 방향을 조정하세요."
+          }
+        }
+      },
+      "concepts": {
+        "title": "핵심 개념",
+        "nav": "개념",
+        "desc": "회사, 에이전트, 파이프라인, 실행, 결정, 기록된 활동을 이해하세요.",
+        "blocks": {
+          "0": {
+            "text": "회사는 인증된 워크스페이스 안에서 목표, 에이전트, 파이프라인을 묶습니다. 에이전트는 역할을 수행하고, 파이프라인은 작업 순서를 정하며, 실행은 해당 파이프라인을 한 번 수행하는 것입니다. 하나의 계정이나 테넌트에 여러 회사가 속할 수 있습니다."
+          },
+          "1": {
+            "text": "아홉 가지 구성 요소"
+          },
+          "2": {
+            "text": "빌더는 고객 확보, 영업, 납품, 콘텐츠, 운영, 재무, 분석, 메모리, 거버넌스 역할을 구성합니다. 이는 검토할 초기 구조이며 사람에게 연락하거나, 비용을 지출하거나, 계정에 접근할 권한을 자동으로 부여하지 않습니다."
+          },
+          "3": {
+            "text": "결정과 거버넌스"
+          },
+          "4": {
+            "text": "지원되는 작업은 승인 대기 항목을 만들 수 있습니다. ask_user 결정은 지출 권한이 아니라 정보를 요청합니다. 허용하거나 거부하거나 답변하기 전에 질문과 범위를 읽으세요. 공급업체 추론은 별도로 청구되며 승인 항목을 반드시 기다리는 것은 아닙니다."
+          },
+          "5": {
+            "text": "거버넌스 검사에는 하드, 반복, 비용, 스팸, 브랜드 중지가 포함됩니다. 적용 범위는 실행 경로와 구성에 따라 달라집니다. 중지는 검사 경계에서 이후 지원 작업을 막지만 이미 보낸 요청을 회수할 수는 없습니다."
+          },
+          "6": {
+            "text": "기록된 상태 읽기"
+          },
+          "7": {
+            "text": "활동 및 단계 기록은 상태, 출력, 제공되는 비용 데이터, 결정 요약을 이해하는 데 도움을 줍니다. 누락된 데이터는 0이 아니라 알 수 없음입니다. 요청 기록이 외부 작업 완료의 증거는 아닙니다. 중요한 출력을 보관하고 결과가 불확실한 작업을 재시도하기 전에 외부 시스템과 대조하세요."
+          },
+          "8": {
+            "text": "회사 이름이나 로컬 모델 엔드포인트만으로 별도 테넌트, 운영체제 샌드박스 또는 완전히 오프라인인 데이터 경로가 성립하지는 않습니다."
+          }
+        }
+      },
+      "byok-and-providers": {
+        "title": "BYOK 및 공급업체",
+        "nav": "BYOK 및 공급업체",
+        "desc": "지원되는 클라우드 또는 로컬 모델 경로를 구성하고 비용과 데이터 경계를 이해하세요.",
+        "blocks": {
+          "0": {
+            "text": "BYOK는 지원되는 클라우드 추론에 내 공급업체 자격 증명을 사용하는 방식입니다. 고객이 운영하는 호환 엔드포인트는 별도 경로입니다. 사용 가능한 공급업체와 모델은 인증된 구성에 따르며, 이 페이지는 고정된 공급업체 수를 약속하지 않습니다."
+          },
+          "1": {
+            "text": "경로 구성 및 확인"
+          },
+          "2": {
+            "items": [
+              "의도한 공급업체 계정에 범위를 한정한 키를 사용하세요. 공급업체 측 지출 제어를 검토하고 비밀 정보를 프롬프트, 공유 로그, 스크린샷에 넣지 마세요.",
+              "로컬 엔드포인트는 명시적인 기본 URL, 지원 모델, 실제로 요청할 컴퓨터에서의 연결 가능 여부를 확인하세요.",
+              "모델 기능, 도구 지원, 선택한 데이터 모드를 확인하세요. 공급업체를 바꾸면 출력, 가격, 동작이 달라질 수 있습니다. API 형태가 같다고 모델을 서로 바꿔 쓸 수 있는 것은 아닙니다."
+            ]
+          },
+          "3": {
+            "text": "사용 환경에 따라 다른 키 저장 방식"
+          },
+          "4": {
+            "text": "서버에 저장되는 클라우드 자격 증명은 구현된 AES-256-GCM 저장 형식을 사용합니다. 보호 수준은 서버 키, 런타임 접근 권한, 백업에도 달려 있습니다. CLI의 공급업체 직접 연결 구성과 데스크톱 자격 증명 저장은 각각 별도 경계를 가집니다. 한 환경에서 키를 저장했다고 모든 기기에서 동일하게 사용하거나 보호할 수 있다는 뜻은 아닙니다."
+          },
+          "5": {
+            "text": "추론 요금은 구성한 공급업체에 지불합니다. 로컬 실행에도 하드웨어 및 운영 비용이 발생할 수 있습니다. 보고된 사용량과 공급업체 청구를 함께 확인하세요. 비용 데이터가 없다고 무료 사용은 아닙니다."
+          },
+          "6": {
+            "text": "로컬 추론 URL만으로 도구, 텔레메트리, 계정 서비스 또는 전체 파이프라인이 오프라인이 되지는 않습니다. 민감한 자료를 처리하기 전에 전체 데이터 경로를 검토하세요."
+          }
+        }
+      },
+      "mid-run-steering": {
+        "title": "실행 중 방향 조정 및 ask_user",
+        "nav": "방향 조정 및 ask_user",
+        "desc": "기록된 실행 상태를 확인하면서 지침을 보내고, 질문에 답하거나, 중지를 요청하세요.",
+        "blocks": {
+          "0": {
+            "text": "방향 조정은 지원되는 실행에 운영자의 추가 지침을 보내는 기능입니다. 대상 고객, 제약 조건, 다음 단계 등 변경 사항을 분명히 적으세요. 요청은 사용 가능한 실행 경계에서 반영 대상으로 처리되며, 진행 중인 공급업체 호출을 즉시 중단한다고 보장하지 않습니다."
+          },
+          "1": {
+            "text": "요청 수락 응답을 주의해서 읽기"
+          },
+          "2": {
+            "text": "요청 성공은 시스템이 해당 요청을 수락했다는 뜻입니다. 모델이 지침을 받거나 적용하거나 따랐다는 증거는 아닙니다. 이후 실행 상태와 출력을 확인하세요. 요청이 실패하거나 시간 초과되면 다시 제출하기 전에 현재 상태를 살펴보세요."
+          },
+          "3": {
+            "text": "ask_user 질문에 답하기"
+          },
+          "4": {
+            "text": "에이전트가 정보를 요청하면 해당 대기 중인 결정을 열고 질문과 맥락을 읽으세요. 답변을 한 번 제출한 뒤 결정과 실행 상태가 바뀌었는지 확인하세요. 정보 요청을 관련 없는 작업에 대한 허가와 혼동하지 마세요."
+          },
+          "5": {
+            "text": "신중하게 재개하기"
+          },
+          "6": {
+            "text": "작업을 재개할 때 저장된 완료 단계를 재사용할 수 있습니다. 그렇다고 공급업체 호출, 이메일, 결제, 기타 외부 작업에 정확히 한 번 전달이 보장되는 것은 아닙니다. 외부 작업이 진행 중일 때 일시 중지, 중지, 연결 실패가 발생할 수 있습니다. 불확실한 작업을 수동으로 재시도하기 전에 기록된 출력과 외부 서비스를 확인하세요."
+          },
+          "7": {
+            "text": "일시 중지, 재개, 방향 조정은 추가 비용이 전혀 없음을 보장하지 않으며 이미 발생한 외부 작업을 되돌리지도 않습니다."
+          }
+        }
+      },
+      "webhooks": {
+        "title": "웹훅",
+        "nav": "웹훅",
+        "desc": "정확한 타임스탬프, 원본 본문, 헤더 규약에 따라 회사 웹훅에 서명하세요.",
+        "blocks": {
+          "0": {
+            "text": "구성된 회사 웹훅은 POST /hooks/<company-slug>/<event>를 받습니다. 작업을 시작할 수 있는 이벤트를 보내기 전에 해당 회사에 구성된 웹훅 비밀 키와 테스트 회사를 사용하세요."
+          },
+          "1": {
+            "text": "정확한 바이트에 서명하기"
+          },
+          "2": {
+            "text": "X-Webhook-Timestamp를 현재 Unix 시간(밀리초)으로 설정하세요. 타임스탬프, 마침표 한 글자, 정확한 원본 요청 본문을 이어 붙인 값에 대해 16진수 HMAC-SHA256을 계산하세요. 이를 X-Webhook-Signature로 보내세요. 서명 후 본문을 다시 직렬화하거나 수정하지 마세요."
+          },
+          "3": {
+            "caption": "서명된 요청 예시입니다. API URL, 회사 슬러그, 이벤트를 바꾸세요."
+          },
+          "4": {
+            "text": "전달 및 재시도"
+          },
+          "5": {
+            "text": "서버는 5분 범위를 벗어난 타임스탬프를 거부합니다. 서명 기반 중복 검사는 항목 유효 기간이 6분인 Redis를 사용합니다. Redis를 사용할 수 없으면 서명 및 타임스탬프 검사는 유지되지만 중복 검사는 생략될 수 있습니다. 정확히 한 번 전달을 보장하는 것은 아닙니다."
+          },
+          "6": {
+            "text": "웹훅 응답이 성공했다고 파이프라인이 완료된 것은 아닙니다. 실행 상태를 확인하고 외부 작업에는 애플리케이션 수준의 멱등성과 대조 절차를 사용하세요. 시간 초과를 재시도하기 전에 첫 요청이 수락되었는지 확인하세요."
+          }
+        }
+      },
+      "external-automations": {
+        "title": "외부 자동화 연결하기",
+        "nav": "외부 자동화",
+        "desc": "구성된 외부 자동화를 연결하고 실행의 양쪽을 검증하세요.",
+        "blocks": {
+          "0": {
+            "text": "구성된 연동이나 서명된 웹훅으로 지원되는 외부 자동화 도구를 연결하세요. 연동의 가용성과 동작은 실제 연결 및 자격 증명에 달려 있습니다. n8n, Make, Zapier라는 이름만으로 모든 워크플로가 자동 연결되는 것은 아닙니다."
+          },
+          "1": {
+            "text": "하나의 연결을 관측 가능하게 만들기"
+          },
+          "2": {
+            "items": [
+              {
+                "title": "경계 선택하기",
+                "body": "어느 시스템이 작업을 시작하고 어떤 이벤트를 보내며 어느 시스템이 결과를 책임질지 정하세요. 해당 작업에 필요한 계정과 권한만 연결하세요."
+              },
+              {
+                "title": "무해한 데이터로 테스트하기",
+                "body": "테스트 회사와 외부 테스트 워크플로를 사용하세요. 이벤트 페이로드, 인증, 생성된 실행, 외부 결과를 확인하세요."
+              },
+              {
+                "title": "실패 처리 계획하기",
+                "body": "시간 초과, 중복 처리, 수동 대조 단계를 정하세요. 불확실한 응답 뒤에 결제, 이메일 또는 기타 외부 작업을 무턱대고 다시 보내지 마세요."
+              }
+            ]
+          },
+          "3": {
+            "text": "외부 워크플로 상태와 Braavolabs 실행 상태는 작업의 서로 다른 부분을 설명합니다. 둘 다 확인하세요. 발송 기록이나 성공한 트리거 응답이 목적지의 전달 또는 완료 확인서는 아닙니다."
+          },
+          "4": {
+            "text": "연결 자격 증명, 웹훅 비밀 키, 공급업체 키는 저장 및 접근 해제 경로가 서로 다를 수 있습니다. 접근 권한을 없앨 때 해당 환경과 외부 서비스를 함께 검토하세요."
+          }
+        }
+      },
+      "mobile-app": {
+        "title": "모바일 앱",
+        "nav": "모바일 앱",
+        "desc": "모바일 동반 앱으로 지원되는 작업을 모니터링하고 결정하며 방향을 조정하세요.",
+        "blocks": {
+          "0": {
+            "text": "모바일 앱은 지원되는 모니터링과 제어를 돕는 동반 앱입니다. 웹에서 회사와 파이프라인을 구성한 뒤 휴대폰으로 실행 상태를 읽고, 대기 중인 결정을 처리하고, 방향 조정 지침을 보내세요."
+          },
+          "1": {
+            "text": "모니터링, 승인, 답변, 방향 조정"
+          },
+          "2": {
+            "items": [
+              "모니터링: 해당 회사와 실행을 여세요. 제공되지 않거나 오래된 데이터는 알 수 없음으로 취급하고, 결정 전에 다시 연결하고 새로고침하세요.",
+              "승인: 대기 중인 구체적 작업을 읽고 허용하거나 거부하세요. 승인 항목 하나가 관련 없는 작업이나 모든 공급업체 요금을 포함하지는 않습니다.",
+              "답변: 원래 맥락에서 ask_user 질문에 답하세요. 제출 후 결정 상태를 확인하세요.",
+              "방향 조정: 명확한 지시를 보내고 이후 출력을 확인하세요. 요청 수락이 지침 적용의 증거는 아닙니다."
+            ]
+          },
+          "3": {
+            "text": "세션과 알림"
+          },
+          "4": {
+            "text": "알림은 기기 권한, 적격 세션, 네트워크 접근, 플랫폼 전달에 달려 있습니다. 푸시 알림을 완전한 실행 기록으로 간주하지 말고 앱을 열어 최신 상태를 확인하세요. 기기에 보관되는 세션 자격 증명은 플랫폼 보안 저장소를 사용합니다. 보호와 백그라운드 동작은 여전히 기기와 운영체제에 따라 달라집니다."
+          },
+          "5": {
+            "text": "계정을 바꾼 뒤 선택한 회사와 대기 중인 결정을 다시 확인하세요. 시간 초과가 나면 재시도 전에 현재 상태를 살펴보세요. 앱은 이미 완료된 외부 작업을 되돌릴 수 없습니다."
+          },
+          "6": {
+            "text": "앱에서 원하는 언어와 라이트, 다크, 시스템 테마를 선택하세요. 언어나 계정을 바꾼 후에는 작업 전에 현재 워크스페이스와 결정 맥락을 확인하세요."
+          }
+        }
+      },
+      "faq": {
+        "title": "자주 묻는 질문",
+        "nav": "자주 묻는 질문",
+        "desc": "미리보기, 비용, 로컬 모델, 승인, 결과가 불확실한 실행에 대한 답변입니다.",
+        "blocks": {
+          "0": {
+            "items": [
+              {
+                "q": "지금 요금제를 구매할 수 있나요?",
+                "a": "Individual(월 $19)과 Team(활성 사용자당 월 $39)은 미리보기 설명이며 현재 구매할 수 없습니다. 추론은 예정된 구독과 별도입니다."
+              },
+              {
+                "q": "모든 요금에 승인이 필요한가요?",
+                "a": "아니요. 지원되는 작업에는 대기 중인 결정이 필요할 수 있지만 공급업체 추론은 실행이 시작되면 요금이 발생할 수 있습니다. 작업을 실행하기 전에 동작과 공급업체의 지출 제어를 읽으세요."
+              },
+              {
+                "q": "로컬 모델을 쓰면 플랫폼이 오프라인이 되나요?",
+                "a": "아니요. 호환되는 로컬 엔드포인트는 해당 추론 경로를 제어합니다. 도구, 계정 서비스, 텔레메트리, 다른 파이프라인 단계의 데이터 경로는 각각 검토해야 합니다."
+              },
+              {
+                "q": "재개하면 외부 작업이 반복되나요?",
+                "a": "저장된 완료 단계는 재사용할 수 있지만 정확히 한 번 외부 전달은 입증되지 않았습니다. 불확실한 작업을 재시도하기 전에 실행과 외부 서비스를 확인하세요."
+              },
+              {
+                "q": "수락된 방향 조정 요청이 모델 출력을 바꿨나요?",
+                "a": "수락은 요청을 기록합니다. 다음 실행 경계와 출력을 확인해 지침이 적용되고 준수되었는지 판단하세요."
+              },
+              {
+                "q": "휴대폰에서 회사를 완전히 구성할 수 있나요?",
+                "a": "작성은 웹에서 합니다. 모바일 동반 앱은 모니터링, 승인, 답변, 방향 조정에 집중합니다."
+              },
+              {
+                "q": "Private Mode, Cloud Agent Mode, 서명된 증거는 정식 제공되나요?",
+                "a": "Private Mode는 미리보기이며 Cloud Agent Mode와 서명된 증거는 개발 중입니다. 이름 자체가 완전한 보안이나 가용성을 보장하지는 않습니다."
+              },
+              {
+                "q": "계정을 삭제하면 외부 구독도 취소되나요?",
+                "a": "그렇다고 가정하지 마세요. 구독 공급업체와 외부 서비스를 각각 확인하고, 데이터를 삭제하기 전에 필요한 내보내기 파일을 보관하세요."
+              }
+            ]
+          }
+        }
+      }
+    },
+    "blog": {
+      "steer-agents-mid-run": {
+        "title": "처음부터 다시 하지 않고 실행 방향 바꾸기",
+        "desc": "운영자 지침과 저장된 단계가 지원되는 작업의 방향을 바꾸는 방법과 보장의 한계를 알아봅니다.",
+        "body": "실행이 시작된 뒤에도 다른 고객, 더 엄격한 제약, 원래 개요에서 답하지 않은 질문 등으로 수정이 필요할 수 있습니다. Braavolabs는 방향 조정 지침과 ask_user 결정을 지원해 운영자가 맥락에 맞게 응답할 수 있도록 합니다.\n\n## 요청에는 단계가 있습니다\n\n지침 제출, 요청 수락, 실행 경계에서의 처리, 출력에서 지침을 따르는 것은 서로 다른 사건입니다. 진행 중인 공급업체 호출은 다음 경계 전까지 계속될 수 있습니다. 지침이 효과를 냈다고 결론짓기 전에 이후 실행 상태와 결과를 읽으세요.\n\n## 유용한 작업은 보존하고 불확실한 작업은 확인하세요\n\n재개할 때 저장된 완료 단계를 재사용할 수 있습니다. 이는 외부 작업의 정확히 한 번 전달을 입증하지 않으며 추가 공급업체 비용이 없다는 보장도 아닙니다. 발송이나 결제 도중 연결이 끊기면 수동 재시도 전에 목적지를 확인하세요.\n\n## 권한을 추측하지 말고 질문하세요\n\nask_user 결정은 정보를 요청합니다. 별도의 지원 작업은 승인을 요청할 수 있습니다. 각 결정의 범위를 읽으세요. 질문에 답하는 것이 관련 없는 작업에 대한 허가는 아닙니다. 이런 제어는 작업 세션을 검토하는 데 도움을 주지만 모든 경로나 외부 도구가 동일하게 동작함을 입증하지는 않습니다."
+      },
+      "five-risk-stops-explained": {
+        "title": "다섯 가지 위험 중지와 그 경계",
+        "desc": "하드, 반복, 비용, 스팸, 브랜드 검사는 지원되는 실행 경로를 통제하는 데 도움을 줍니다.",
+        "body": "Braavolabs는 하드, 반복, 비용, 스팸, 브랜드라는 다섯 가지 거버넌스 검사를 정의합니다. 목적을 이해하려면 언제 작동할 수 있는지도 알아야 합니다.\n\n## 다섯 가지 검사\n\n하드 중지는 중지 조건을 확인합니다. 반복 검사는 반복되는 동작을 찾습니다. 비용 검사는 기록된 사용량을 설정된 한도와 비교합니다. 스팸 및 브랜드 검사는 지원되는 연락 및 콘텐츠 경로에 정책을 적용합니다. 모든 도구에 같은 검사가 적용된다고 가정하지 말고 구성과 실행 경로를 검토하세요.\n\n## 경계가 중요합니다\n\n실행이 검사에 도달하면 이후의 지원 작업을 막을 수 있습니다. 이미 공급업체로 보낸 요청을 회수하거나 외부 작업을 되돌릴 수는 없습니다. 요금 발생 후에 사용량 기록이 도착할 수 있으므로 예산 설정이 공급업체 청구 금액의 초과를 완전히 막는 보장은 아닙니다.\n\n## 결과를 읽으세요\n\n검사가 실행 상태를 바꾸면 기록된 이유와 해당 단계를 확인하세요. 상태나 비용 데이터가 없으면 알 수 없음이지, 안전하거나 무료라는 증거가 아닙니다. 알림은 권한과 전달에 달려 있으며 현재 실행 기록에서 상태를 확인해야 합니다. 재개 전에 로컬 결과와 관련 외부 서비스를 모두 검토하세요."
+      },
+      "byok-routing-without-lock-in": {
+        "title": "클라우드 및 로컬 모델 경로 선택하기",
+        "desc": "공급업체 선택을 명시적으로 유지하고 기능, 비용, 자격 증명의 경계를 확인하세요.",
+        "body": "Braavolabs는 구성된 클라우드 자격 증명과 고객이 운영하는 호환 엔드포인트를 지원합니다. 유용한 약속은 경로를 명시적으로 선택한다는 것이며, 모든 모델이 대체 가능하거나 측정하지 않은 모델이 언제나 최선이라는 뜻이 아닙니다.\n\n## 선택한 경로를 확인하세요\n\n사용 가능한 모델, 도구 지원, 데이터 모드, 엔드포인트 연결 가능 여부를 검토하세요. 공급업체 변경은 출력 품질, 지연 시간, 가격, 지원 매개변수를 바꿀 수 있습니다. 선택한 경로를 사용할 수 없다면 다른 모델이 몰래 작업을 마쳤다고 가정하지 말고 오류를 확인하세요.\n\n## 구독과 추론을 구분하세요\n\n예정된 Individual 및 Team 구독에는 추론이 포함되지 않습니다. 공급업체 요금은 구성된 계정에 청구되며 로컬 모델에도 하드웨어와 운영이 필요합니다. 보고된 사용량과 공급업체 청구를 비교하세요. 알 수 없는 비용은 0원이 아닙니다.\n\n## 관련 자격 증명 저장소를 보호하세요\n\n서버에 저장되는 클라우드 키는 구현된 AES-256-GCM 형식을 사용합니다. 서버 키 보호, 런타임 접근 권한, 백업은 여전히 중요합니다. CLI 직접 연결 구성과 데스크톱 자격 증명 저장은 별도 경계를 가집니다. 실제로 요청을 수행하는 저장소를 검토하고 필요하면 공급업체에서도 접근을 해제하세요. 공통 인터페이스는 작업 정리에 도움을 주지만 경로마다 같은 보안과 비용 구조가 성립하는 것은 아닙니다."
+      },
+      "pocket-steering": {
+        "title": "휴대폰에서 모니터링하고 결정하기",
+        "desc": "모바일 동반 앱은 지원되는 모니터링, 승인, 질문, 방향 조정에 집중합니다.",
+        "body": "모바일 동반 앱은 웹에서 구성한 작업을 위한 작은 제어 화면을 제공합니다. 핵심 동작은 실행 상태 읽기, 대기 중인 승인 처리, ask_user 답변, 방향 조정 지침 전송입니다.\n\n## 결정의 맥락을 유지하세요\n\n작업 전에 관련 회사와 실행을 여세요. 정확한 질문이나 작업을 읽고, 정보 요청과 외부 작업 권한을 구별하세요. 별도의 승인 항목이 없어도 공급업체 추론 요금은 이미 발생할 수 있습니다.\n\n## 전달과 상태를 구분하세요\n\n푸시 알림은 기기 권한, 세션 자격, 네트워크 접근, 플랫폼 전달에 달려 있습니다. 알림은 늦을 수 있으므로 앱을 새로고침해 현재 결정을 확인하세요. 방향 조정 응답의 성공은 요청 수락을 기록할 뿐 모델이 지침을 따랐다는 증거는 아닙니다.\n\n## 신중하게 복구하세요\n\n계정을 바꾸거나 연결이 끊긴 뒤에는 선택한 계정, 회사, 대기 중인 결정을 다시 확인하세요. 시간 초과를 다시 제출하기 전에 현재 상태를 살펴보세요. 모바일 동작은 이미 완료된 외부 요청을 회수할 수 없습니다. 플랫폼 보안 저장소는 기기에 보관된 세션 자격 증명 보호에 도움을 주지만 실제 기기, 백그라운드 전달, 계정 간 테스트는 여전히 필요한 출시 검사입니다."
+      },
+      "local-model-routing-boundaries": {
+        "title": "로컬 모델 경로의 경계",
+        "desc": "로컬 추론 엔드포인트는 전체 데이터 경로의 한 부분입니다.",
+        "body": "고객이 운영하는 호환 모델 서버를 명시적인 기본 URL로 구성할 수 있습니다. Braavolabs는 모델을 함께 제공하거나 주소만으로 완전한 개인정보 처리 방침을 추론하지 않습니다.\n\n## 전체 작업을 추적하세요\n\n어느 컴퓨터가 추론을 호출하는지, 어떤 모델을 사용할 수 있는지, 그 컴퓨터에서 엔드포인트에 연결할 수 있는지 확인하세요. 이어서 여전히 네트워크를 쓸 수 있는 도구, 계정 서비스, 텔레메트리, 로그, 기타 단계를 살펴보세요. 로컬 URL이 전체 파이프라인을 오프라인으로 만들지는 않습니다.\n\n## 기능과 비용을 검토하세요\n\n모델 기능과 도구 지원은 클라우드 경로와 다를 수 있습니다. 경로를 바꾼 뒤 출력을 검토하세요. 로컬 추론은 해당 호출의 공급업체 토큰 요금을 없앨 수 있지만 하드웨어, 전기, 유지 관리, 기타 연결 서비스에는 여전히 비용이 듭니다. 누락된 비용 데이터는 알 수 없음으로 남겨야 합니다.\n\n## 미리보기 표기를 정확히 유지하세요\n\nPrivate Mode는 미리보기입니다. Cloud Agent Mode와 서명된 증거는 개발 중입니다. 이 이름이 완전한 데이터 처리 계약, 운영체제 샌드박스, 독립 검증된 증거를 의미하지는 않습니다. 민감한 용도에는 실제로 구성된 데이터 경로와 실행 권한을 확인해야 합니다."
+      },
+      "shipping-ask-user": {
+        "title": "명확한 질문을 중심으로 ask_user 설계하기",
+        "desc": "정보 요청은 맥락을 유지하고 관련 없는 권한을 암시하지 않아야 합니다.",
+        "body": "에이전트는 작업 중 정보가 부족한 상황에 부딪힐 수 있습니다. ask_user는 이 불확실성을 해당 실행과 연결된 운영자 질문이라는 눈에 보이는 결정으로 바꿉니다.\n\n## 답할 수 있는 질문을 하세요\n\n유용한 질문은 부족한 사실과 답변에 필요한 맥락을 제시합니다. 외부 작업을 정보 요청으로 위장해서는 안 됩니다. 응답 전에 질문을 읽고 민감한 자격 증명을 자유 입력 답변에 넣지 마세요.\n\n## 결정 화면을 신중히 재사용하세요\n\n정보 요청과 지원되는 승인 작업은 같은 결정 흐름에 나타날 수 있지만 의미는 다릅니다. 질문에 답하는 것은 관련 없는 작업에 대한 허가가 아닙니다. 승인 대기열이 있다고 모든 공급업체 추론 요금이 명시적 동의를 기다리는 것도 아닙니다.\n\n## 이후 상황을 확인하세요\n\n답변을 보낸 뒤 결정과 실행 상태를 살펴보세요. 답변 수신, 실행 재개, 외부 작업 완료는 별개의 관측 결과입니다. 연결이 시간 초과되면 다시 제출하기 전에 답변이 기록되었는지 확인하세요. 저장된 완료 단계는 재사용할 수 있지만 외부 재시도에는 여전히 대조 절차가 필요합니다. 이는 운영자의 결정을 명확히 보여주는 설계 근거이며, 측정된 고객 연구나 정확히 한 번 실행에 대한 주장이 아닙니다."
+      },
+      "audit-trail-youd-actually-read": {
+        "title": "실행에 기록된 활동 읽기",
+        "desc": "기록된 상태, 출력, 결정, 제공되는 비용을 사용하고 누락된 증거를 지어내지 마세요.",
+        "body": "운영자는 실행이 무엇을 시도했고, 어떤 결정을 요청했으며, 어떤 결과를 기록했는지 알아야 합니다. Braavolabs의 활동 및 단계 화면은 이 기록을 실행별로 정리합니다.\n\n## 기록된 사실부터 확인하세요\n\n단계 상태, 제공되는 출력, 기록된 결정 요약, 보고된 비용을 읽으세요. 제공되지 않는 값은 알 수 없음으로 명확히 표시해야 합니다. 발송 기록이나 API 수락 응답의 성공이 외부 메시지, 결제, 워크플로 완료를 입증하지는 않습니다.\n\n## 재시도 전에 대조하세요\n\n클라이언트 연결이 끊긴 동안 공급업체나 도구는 작업을 마칠 수 있습니다. 불확실한 외부 작업을 반복하기 전에 실행 기록을 목적지 서비스와 비교하세요. 저장된 단계와 이력은 유용한 증거이지만 모든 동작에 대한 완전하고 변경 불가능하며 독립 검증된 기록을 입증하지는 않습니다.\n\n## 기록을 보호하세요\n\n프롬프트, 도구 출력, 자유 입력 답변에는 민감한 데이터가 포함될 수 있습니다. 접근을 제한하고 운영에 필요한 내보내기 파일만 보존하세요. 활동 페이지가 보인다고 백업이라고 가정하지 말고 보관, 백업, 복원을 검토하세요. 서명된 증거는 개발 중입니다. 현재 기록을 인증, 완전한 비공개 추론 과정, 법률 준수의 증거로 제시해서는 안 됩니다."
+      }
+    }
+  },
+  "surface": {
+    "legal": {
+      "previewNotice": "개인정보 안내 미리보기입니다. 이 페이지는 공개적인 개인정보 수집에 필요한 완전한 고지가 아직 아닙니다. 공개 회원가입 전에 책임 운영자 정보, 실제 처리 및 수신자, 보관, 관련 보호 조치를 확정해야 합니다.",
+      "kvkkTitle": "KVKK 정보 미리보기",
+      "gdprTitle": "GDPR 정보 미리보기",
+      "kvkk": {
+        "veri-sorumlusu": {
+          "title": "책임 운영자",
+          "body": "Braavolabs는 제품명입니다. 공개적인 개인정보 수집 전에 완전한 개인정보 고지에서 책임 법적 운영자, 우편 연락처, 해당 대리인을 밝혀야 합니다. 현재 연락 창구는 kvkk@braavolabs.com입니다."
+        },
+        "islenen-kisisel-veriler": {
+          "title": "데이터와 수집 방법",
+          "body": "계정 양식과 서비스 사용을 통해 신원, 연락처, 조직, 세션, 사용량, 실행 기록이 제공될 수 있습니다. 프롬프트, 출력, 파일, 선택적 연결에는 추가 개인정보가 포함될 수 있습니다. 완전한 고지에는 실제 운영 배포에서 수집하는 데이터와 방법을 명시해야 합니다."
+        },
+        "isleme-amaclari": {
+          "title": "처리 목적",
+          "body": "계정 운영, 요청한 모델·에이전트 작업, 지원, 보안은 서로 다른 처리 활동입니다. 결제와 선택적 마케팅은 실제 활성화된 경우에만 설명해야 합니다. 기능명만으로 관련 없는 개인정보 처리 권한이 성립하지 않습니다."
+        },
+        "hukuki-sebepler": {
+          "title": "법적 근거",
+          "body": "실제 처리 활동마다 관련 법률에 따라 적절한 법적 근거를 평가해야 합니다. 이 미리보기는 동의, 계약 이행의 필요성, 법적 의무, 정당한 이익이 서비스의 모든 사용을 포괄한다고 확정하지 않습니다."
+        },
+        "ucuncu-taraf-aktarimlari": {
+          "title": "수신자와 국외 이전",
+          "body": "구성된 모델 공급업체, 호스팅, 선택적 연동에는 다른 수신자나 국가가 관여할 수 있습니다. 최종 고지에는 실제 수신자, 목적, 보호 조치를 밝혀야 합니다. 법률에 표준계약 제도가 있다고 이 서비스에 필요한 계약이 체결되거나 신고되었다는 뜻은 아닙니다."
+        },
+        "saklama-suresi": {
+          "title": "보관 및 삭제",
+          "body": "로그와 백업을 포함해 데이터 범주, 목적, 관련 법적 요건별로 보관을 정해야 합니다. 이 미리보기는 모든 데이터에 공통인 10년 기간이나 모든 사본의 즉시 삭제를 약속하지 않습니다. 계정 삭제와 외부 구독 해지는 별개 작업입니다."
+        },
+        "haklariniz": {
+          "title": "KVKK에 따른 권리",
+          "body": "KVKK가 적용되는 경우 제11조는 정보, 정정, 삭제·파기, 수신자 통지, 불리한 자동 분석에 대한 이의, 위법 처리에 대한 배상 관련 권리를 규정합니다. 행사에는 관련 조건이 적용되며 명시된 요청 채널로 책임 운영자에게 문의하세요."
+        },
+        "basvuru": {
+          "title": "요청",
+          "body": "권리 행사 요청은 계정 비밀번호나 공급업체 키를 포함하지 말고 kvkk@braavolabs.com으로 문의하세요. KVKK 제13조에 따라 가능한 한 신속히, 30일 이내에 요청을 처리해야 합니다. 원칙은 무료이며 추가 비용은 위원회 요율표에 따른 경우에만 부과할 수 있습니다. 신원과 요청 범위를 명확히 해야 할 수 있습니다."
+        }
+      },
+      "gdpr": {
+        "data-controller": {
+          "title": "책임 운영자",
+          "body": "Braavolabs는 제품명입니다. 공개적인 개인정보 수집 전에 완전한 고지에서 책임 법적 운영자, 연락처, 해당 대리인을 밝혀야 합니다. 현재 연락 창구는 gdpr@braavolabs.com입니다."
+        },
+        "personal-data": {
+          "title": "데이터와 목적",
+          "body": "계정 정보, 세션 및 사용 기록, 프롬프트, 출력, 파일, 선택적 연동에는 개인정보가 포함될 수 있습니다. 완전한 고지에는 실제 처리 목적, 데이터 출처, 수신자, 각 범주의 제공이 필수인지 여부를 설명해야 합니다."
+        },
+        "lawful-bases": {
+          "title": "적법한 처리 근거",
+          "body": "실제 활동마다 적법한 근거를 평가해야 합니다. 이 미리보기는 계약 이행의 필요성, 정당한 이익, 법적 의무, 동의가 모든 사용에 자동 적용된다고 확정하지 않습니다. 선택적 마케팅과 민감한 용도 또는 자동 의사 결정 용도는 별도 평가가 필요합니다."
+        },
+        "cross-border-transfers": {
+          "title": "수신자와 이전",
+          "body": "구성된 공급업체와 인프라는 다른 국가에서 데이터를 처리할 수 있습니다. 실제 수신자, 목적지, 관련 이전 보호 조치를 실제 운영 배포에 맞게 문서화해야 합니다. 이 페이지는 확인되지 않은 공급업체 계약이나 보호 조치가 이미 마련되었다고 주장하지 않습니다."
+        },
+        "your-rights": {
+          "title": "권리와 요청",
+          "body": "법적 조건에 따라 접근, 정정, 삭제, 제한, 이동성, 이의, 동의 철회 등의 권리가 적용될 수 있습니다. 비밀번호나 공급업체 키를 보내지 말고 gdpr@braavolabs.com으로 문의하세요. 요청은 통상 1개월 이내 답변이 필요하며, 허용되는 최대 2개월 추가 연장은 첫 달 안에 설명해야 합니다. 신원 확인과 적법한 수수료·거절 예외가 적용될 수 있습니다. 관할 감독 당국에 민원을 제기할 수 있습니다."
+        },
+        "retention": {
+          "title": "보관",
+          "body": "완전한 고지에는 실제 기록, 로그, 백업, 외부 처리자를 포함해 데이터 범주별 기간이나 의미 있는 기준을 명시해야 합니다. 삭제 요청에는 법적 예외가 있을 수 있습니다. 계정 삭제만으로 별도 외부 구독이 취소되지는 않습니다."
+        },
+        "security": {
+          "title": "보안 정보",
+          "body": "자격 증명 저장과 실행 경계는 서버, 데스크톱, CLI, 모바일마다 다릅니다. 민감한 데이터를 보내기 전에 해당 데이터 경로와 권한을 검토하세요. 이 페이지는 인증, 완전한 오프라인 보장, 모든 사고에 대한 보호를 입증하지 않습니다."
+        },
+        "data-protection-contact": {
+          "title": "데이터 보호 문의",
+          "body": "개인정보 문의는 gdpr@braavolabs.com을 이용하세요. 개인정보 보호 책임자나 대리인이 필요한지는 실제 운영자와 처리 활동을 기준으로 평가해야 합니다. 이 미리보기는 면제를 주장하지 않습니다."
+        }
+      }
+    },
+    "loading": "불러오는 중…",
+    "unavailable": "사용 불가",
+    "close": "닫기",
+    "loadFailed": "일부 정보를 불러오지 못했습니다. 누락된 데이터는 사용할 수 없습니다. 다시 시도하세요.",
+    "progress": "실행 단계: {completed} / {total}",
+    "support": {
+      "emailIntro": "지원이 필요하면 다음 주소로 보내세요:",
+      "responseTime": "계정 이메일과 문제 설명을 포함하세요. 정해진 응답 시간은 보장하지 않습니다.",
+      "intro": "제품, 계정, 구독 관련 도움은 Braavolabs 팀에 문의하세요."
+    },
+    "starters": {
+      "intro": "시작 구성을 선택하세요. 실행에는 구성된 공급업체나 사용 가능한 계정 체험이 필요합니다. 시작 전에 공급업체와 예산을 검토하세요."
+    },
+    "dashboard": {
+      "operator": "운영자",
+      "morning": "좋은 아침입니다",
+      "afternoon": "좋은 오후입니다",
+      "evening": "좋은 저녁입니다",
+      "snapshot": "페이지를 열 때 불러온 상태입니다. 최신 데이터는 페이지를 다시 불러오세요.",
+      "activeRisks": "{count, plural, other {활성 위험 #개}}",
+      "started": "{name} 시작됨 — 단계 대기 중",
+      "activityRun": "{name}: {status}",
+      "approval": "{description} 검토 대기 중",
+      "risk": "위험 이벤트",
+      "queued": "대기열에 추가됨"
+    },
+    "severity": {
+      "high": "높은 심각도",
+      "medium": "중간 심각도",
+      "low": "낮은 심각도",
+      "unknown": "심각도 정보 없음"
+    },
+    "states": {
+      "running": "실행 중",
+      "completed": "완료됨",
+      "paused": "일시 중지됨",
+      "failed": "실패",
+      "cancelled": "취소됨",
+      "waiting_approval": "승인 대기 중",
+      "pending": "대기 중",
+      "active": "활성",
+      "disabled": "비활성화됨",
+      "draft": "초안",
+      "queued": "대기열에 추가됨",
+      "unknown": "알 수 없음"
+    },
+    "icons": {
+      "close": "닫기",
+      "send": "보내기",
+      "delete": "삭제",
+      "run": "실행",
+      "pause": "일시 중지",
+      "resume": "재개",
+      "branch": "분기 추가",
+      "moveUp": "위로 이동",
+      "moveDown": "아래로 이동",
+      "copy": "복사",
+      "dismiss": "닫기"
+    },
+    "billing": {
+      "cancels": "{date}에 해지",
+      "renews": "{date}에 갱신"
+    },
+    "status": {
+      "checkedAt": "마지막 확인: {time} (내 현지 시간)",
+      "pageLoaded": "이 페이지가 로드되었습니다"
+    },
+    "blog": {
+      "readPost": "읽기: {title}",
+      "readTime": "읽는 데 {duration}"
+    },
+    "ideas": {
+      "start": "아이디어로 시작: {title}",
+      "estimate": "예시 추정: 에이전트 {agents}개, 파이프라인 {pipelines}개. 빌더의 제안은 다를 수 있습니다."
+    },
+    "compare": {
+      "verify": "현재 지원 여부 확인",
+      "notice": "이 목록은 검증된 경쟁 제품 벤치마크가 아닙니다. 기능과 비용은 제품, 요금제, 배포 환경에 따라 달라집니다. 선택 전에 공급업체의 최신 문서를 확인하세요."
+    },
+    "integrations": {
+      "directoryNote": "이 목록은 연결 후보를 설명합니다. 항목이 있다고 계정에 커넥터가 구현·활성화·승인되었다는 뜻은 아닙니다. 자격 증명을 공유하기 전에 지원되는 연결과 공급업체 문서를 검토하세요.",
+      "entry": "목록 항목",
+      "reviewConnections": "지원되는 연결 검토",
+      "apiKey": "API 키",
+      "oauth": "OAuth 2.0"
+    },
+    "webhooks": {
+      "anyProvider": "모든 공급업체",
+      "templateNote": "이벤트 템플릿 예시입니다. 공급업체 설정 경로와 샘플 데이터는 설명용입니다. 훅을 활성화하기 전에 실제 공급업체 계약과 서명 요건을 확인하세요."
+    },
+    "error": {
+      "session": "로그인을 확인하지 못했습니다. 다시 로그인하거나 문제가 계속되면 지원팀에 문의하세요.",
+      "signIn": "로그인",
+      "forbidden": "이 내용을 볼 권한이 없습니다. 접근 권한에 문제가 있다고 생각되면 지원팀에 문의하세요.",
+      "network": "서버에 연결하지 못했습니다. 연결을 확인한 뒤 다시 시도하세요.",
+      "rateLimit": "요청이 너무 많습니다. 잠시 기다린 뒤 다시 시도하세요.",
+      "timeout": "요청 시간이 초과되었습니다. 결과가 불확실할 수 있으니 작업을 다시 시도하기 전에 현재 상태를 확인하세요.",
+      "generic": "예상하지 못한 오류가 발생했습니다. 다시 시도하거나 표시된 참조 정보를 지원팀에 알려주세요."
+    },
+    "forecast": {
+      "loadFailed": "예측을 불러오지 못했습니다. 다시 시도하세요.",
+      "saveFailed": "예산을 저장하지 못했습니다. 다시 시도하기 전에 현재 값을 확인하세요."
+    },
+    "triggers": {
+      "manual": "수동",
+      "cron": "일정",
+      "webhook": "웹훅",
+      "event": "이벤트"
+    },
+    "trial": {
+      "funding": "활성화된 체험에는 운영자의 공급업체와 한도가 적용됩니다. 유료 구독에는 추론이 포함되지 않습니다. 체험을 사용할 수 없으면 지원되는 공급업체 키나 구성된 로컬 엔드포인트를 사용하세요.",
+      "exhausted": "계정 체험 한도({limit, number})에 도달했습니다.",
+      "remaining": "전체 {limit, number}회 중 {count, plural, other {체험 실행 #회 남음}}"
+    }
+  },
+  "dataCopy": {
+    "integrations": {
+      "hubspot": {
+        "description": "연락처, 거래, 파이프라인 관리를 갖춘 종합 CRM",
+        "features": [
+          "연락처 동기화",
+          "거래 추적",
+          "파이프라인 관리",
+          "양식 제출",
+          "이메일 추적"
+        ]
+      },
+      "salesforce": {
+        "description": "영업 및 서비스를 위한 기업용 CRM 플랫폼",
+        "features": [
+          "잠재 고객 관리",
+          "영업 기회 추적",
+          "사용자 지정 개체",
+          "보고서",
+          "워크플로 규칙"
+        ]
+      },
+      "pipedrive": {
+        "description": "시각적 파이프라인을 갖춘 영업 중심 CRM",
+        "features": [
+          "시각적 파이프라인",
+          "활동 추적",
+          "이메일 연동",
+          "스마트 연락처 데이터",
+          "매출 예측"
+        ]
+      },
+      "zoho_crm": {
+        "description": "성장하는 기업을 위한 AI 기반 CRM",
+        "features": [
+          "잠재 고객 점수화",
+          "영업 자동화",
+          "분석",
+          "다중 채널",
+          "영업 지역 관리"
+        ]
+      },
+      "close": {
+        "description": "내근 영업팀을 위한 CRM",
+        "features": [
+          "내장 통화 기능",
+          "이메일 시퀀스",
+          "파이프라인 보고",
+          "작업 관리",
+          "스마트 보기"
+        ]
+      },
+      "freshsales": {
+        "description": "AI 기반 잠재 고객 점수화를 갖춘 현대적 CRM",
+        "features": [
+          "AI 잠재 고객 점수화",
+          "내장 전화",
+          "이메일 추적",
+          "거래 관리",
+          "보고서"
+        ]
+      },
+      "attio": {
+        "description": "실시간 데이터 보강을 갖춘 차세대 CRM",
+        "features": [
+          "자동 데이터 보강",
+          "사용자 지정 개체",
+          "실시간 동기화",
+          "관계 인텔리전스",
+          "API 우선"
+        ]
+      },
+      "folk": {
+        "description": "관계 중심 팀을 위한 협업 CRM",
+        "features": [
+          "그룹 관리",
+          "메일 병합",
+          "파이프라인 보기",
+          "브라우저 확장 프로그램",
+          "데이터 보강"
+        ]
+      },
+      "copper": {
+        "description": "Google Workspace를 위한 CRM",
+        "features": [
+          "Gmail 연동",
+          "연락처 관리",
+          "파이프라인 추적",
+          "작업 자동화",
+          "보고"
+        ]
+      },
+      "monday_sales": {
+        "description": "Monday.com 플랫폼의 영업 CRM",
+        "features": [
+          "시각적 파이프라인",
+          "이메일 동기화",
+          "활동 추적",
+          "사용자 지정 대시보드",
+          "자동화"
+        ]
+      },
+      "tiktok": {
+        "description": "짧은 동영상 플랫폼",
+        "features": [
+          "동영상 게시",
+          "분석",
+          "댓글 관리",
+          "트렌드 추적",
+          "크리에이터 도구"
+        ]
+      },
+      "instagram": {
+        "description": "사진 및 동영상 공유 플랫폼",
+        "features": [
+          "게시물 예약",
+          "스토리 게시",
+          "릴스 만들기",
+          "인사이트",
+          "댓글 관리"
+        ]
+      },
+      "linkedin": {
+        "description": "전문가 네트워킹과 콘텐츠",
+        "features": [
+          "게시물 게시",
+          "회사 페이지",
+          "분석",
+          "인맥 관리",
+          "아티클 작성"
+        ]
+      },
+      "twitter": {
+        "description": "실시간 소셜 미디어 플랫폼",
+        "features": [
+          "트윗 게시",
+          "스레드 만들기",
+          "분석",
+          "다이렉트 메시지 관리",
+          "목록 관리"
+        ]
+      },
+      "youtube": {
+        "description": "동영상 호스팅 및 스트리밍 플랫폼",
+        "features": [
+          "동영상 업로드",
+          "분석",
+          "댓글 관리",
+          "재생목록 관리",
+          "라이브 스트리밍"
+        ]
+      },
+      "facebook": {
+        "description": "소셜 미디어와 비즈니스 페이지",
+        "features": [
+          "페이지 게시",
+          "광고 관리",
+          "인사이트",
+          "그룹 관리",
+          "Messenger"
+        ]
+      },
+      "pinterest": {
+        "description": "시각적 발견 및 북마크 플랫폼",
+        "features": [
+          "핀 만들기",
+          "보드 관리",
+          "분석",
+          "리치 핀",
+          "쇼핑"
+        ]
+      },
+      "reddit": {
+        "description": "커뮤니티 토론 플랫폼",
+        "features": [
+          "게시물 만들기",
+          "댓글 추적",
+          "서브레딧 모니터링",
+          "분석",
+          "어워드 관리"
+        ]
+      },
+      "threads": {
+        "description": "Meta의 텍스트 기반 대화 앱",
+        "features": [
+          "게시물 게시",
+          "답글 관리",
+          "분석",
+          "인용 게시물",
+          "재게시"
+        ]
+      },
+      "snapchat": {
+        "description": "일시적으로 표시되는 메시지와 콘텐츠",
+        "features": [
+          "스토리 만들기",
+          "Snap 광고",
+          "분석",
+          "Lens Studio",
+          "Spotlight"
+        ]
+      },
+      "mailchimp": {
+        "description": "올인원 마케팅 플랫폼",
+        "features": [
+          "이메일 캠페인",
+          "자동화",
+          "대상 고객 관리",
+          "랜딩 페이지",
+          "분석"
+        ]
+      },
+      "sendgrid": {
+        "description": "클라우드 기반 이메일 전달 서비스",
+        "features": [
+          "거래 이메일",
+          "마케팅 캠페인",
+          "이메일 유효성 검사",
+          "분석",
+          "템플릿"
+        ]
+      },
+      "convertkit": {
+        "description": "크리에이터를 위한 이메일 마케팅",
+        "features": [
+          "시각적 자동화",
+          "랜딩 페이지",
+          "구독자 태그 지정",
+          "일괄 발송",
+          "커머스"
+        ]
+      },
+      "activecampaign": {
+        "description": "고객 경험 자동화",
+        "features": [
+          "이메일 마케팅",
+          "마케팅 자동화",
+          "CRM",
+          "메시징",
+          "머신 러닝"
+        ]
+      },
+      "brevo": {
+        "description": "올인원 디지털 마케팅 플랫폼",
+        "features": [
+          "이메일 캠페인",
+          "SMS 마케팅",
+          "채팅",
+          "CRM",
+          "자동화"
+        ]
+      },
+      "klaviyo": {
+        "description": "전자상거래 마케팅 자동화",
+        "features": [
+          "이메일 흐름",
+          "SMS 마케팅",
+          "세분화",
+          "예측 분석",
+          "A/B 테스트"
+        ]
+      },
+      "constant_contact": {
+        "description": "이메일 및 온라인 마케팅",
+        "features": [
+          "이메일 템플릿",
+          "연락처 관리",
+          "자동화",
+          "보고",
+          "소셜 게시"
+        ]
+      },
+      "drip": {
+        "description": "전자상거래 CRM 및 마케팅 자동화",
+        "features": [
+          "시각적 워크플로",
+          "세분화",
+          "매출 기여도 분석",
+          "양식",
+          "통합"
+        ]
+      },
+      "beehiiv": {
+        "description": "크리에이터를 위한 뉴스레터 플랫폼",
+        "features": [
+          "뉴스레터 편집기",
+          "성장 도구",
+          "수익화",
+          "분석",
+          "사용자 지정 도메인"
+        ]
+      },
+      "aweber": {
+        "description": "소규모 기업을 위한 이메일 마케팅",
+        "features": [
+          "이메일 자동화",
+          "랜딩 페이지",
+          "웹 푸시 알림",
+          "AMP 이메일",
+          "보고"
+        ]
+      },
+      "slack": {
+        "description": "비즈니스 메시징 플랫폼",
+        "features": [
+          "채널 메시징",
+          "워크플로",
+          "파일 공유",
+          "통합",
+          "검색"
+        ]
+      },
+      "discord": {
+        "description": "커뮤니티 메시징 플랫폼",
+        "features": [
+          "서버 관리",
+          "봇 연동",
+          "음성 채널",
+          "스레드 관리",
+          "웹훅"
+        ]
+      },
+      "whatsapp": {
+        "description": "WhatsApp 비즈니스 메시징",
+        "features": [
+          "비즈니스 메시징",
+          "카탈로그",
+          "빠른 답장",
+          "라벨",
+          "일괄 발송"
+        ]
+      },
+      "telegram": {
+        "description": "봇 API를 갖춘 클라우드 메시징",
+        "features": [
+          "봇 만들기",
+          "채널 관리",
+          "그룹 관리",
+          "인라인 모드",
+          "결제"
+        ]
+      },
+      "microsoft_teams": {
+        "description": "Microsoft의 협업 플랫폼",
+        "features": [
+          "팀 메시징",
+          "회의",
+          "파일 협업",
+          "앱 연동",
+          "워크플로"
+        ]
+      },
+      "intercom": {
+        "description": "고객 메시징 플랫폼",
+        "features": [
+          "실시간 채팅",
+          "챗봇",
+          "제품 둘러보기",
+          "도움말 센터",
+          "받은편지함"
+        ]
+      },
+      "crisp": {
+        "description": "비즈니스 메시징 및 실시간 채팅",
+        "features": [
+          "실시간 채팅",
+          "챗봇",
+          "지식 베이스",
+          "상태 페이지",
+          "CRM"
+        ]
+      },
+      "drift": {
+        "description": "대화형 마케팅 플랫폼",
+        "features": [
+          "실시간 채팅",
+          "챗봇",
+          "동영상",
+          "이메일",
+          "회의 일정 잡기"
+        ]
+      },
+      "notion": {
+        "description": "메모와 문서를 위한 올인원 워크스페이스",
+        "features": [
+          "페이지",
+          "데이터베이스",
+          "템플릿",
+          "API 접근",
+          "팀 협업"
+        ]
+      },
+      "airtable": {
+        "description": "스프레드시트와 데이터베이스의 결합",
+        "features": [
+          "베이스 만들기",
+          "보기",
+          "자동화",
+          "양식",
+          "API 접근"
+        ]
+      },
+      "google_sheets": {
+        "description": "Google의 클라우드 스프레드시트",
+        "features": [
+          "스프레드시트 편집",
+          "수식",
+          "차트",
+          "협업",
+          "부가기능"
+        ]
+      },
+      "google_docs": {
+        "description": "Google의 클라우드 문서 편집기",
+        "features": [
+          "문서 만들기",
+          "실시간 편집",
+          "댓글",
+          "템플릿",
+          "부가기능"
+        ]
+      },
+      "clickup": {
+        "description": "올인원 생산성 플랫폼",
+        "features": [
+          "작업 관리",
+          "문서",
+          "목표",
+          "시간 추적",
+          "대시보드"
+        ]
+      },
+      "asana": {
+        "description": "업무 관리 플랫폼",
+        "features": [
+          "작업 추적",
+          "프로젝트 보기",
+          "포트폴리오",
+          "목표",
+          "자동화"
+        ]
+      },
+      "trello": {
+        "description": "칸반 방식 프로젝트 관리",
+        "features": [
+          "보드 관리",
+          "카드",
+          "체크리스트",
+          "Power-Ups",
+          "자동화"
+        ]
+      },
+      "monday": {
+        "description": "팀을 위한 업무 OS",
+        "features": [
+          "보드",
+          "자동화",
+          "대시보드",
+          "통합",
+          "양식"
+        ]
+      },
+      "linear": {
+        "description": "현대적인 팀을 위한 이슈 추적",
+        "features": [
+          "이슈 추적",
+          "주기",
+          "로드맵",
+          "Git 연동",
+          "API 우선"
+        ]
+      },
+      "jira": {
+        "description": "소프트웨어 팀을 위한 프로젝트 추적",
+        "features": [
+          "이슈 추적",
+          "스크럼 보드",
+          "칸반",
+          "로드맵",
+          "보고"
+        ]
+      },
+      "confluence": {
+        "description": "Atlassian의 팀 지식 베이스",
+        "features": [
+          "페이지",
+          "스페이스",
+          "템플릿",
+          "협업",
+          "검색"
+        ]
+      },
+      "coda": {
+        "description": "팀을 위한 올인원 문서",
+        "features": [
+          "문서",
+          "표",
+          "자동화",
+          "Packs",
+          "게시"
+        ]
+      },
+      "basecamp": {
+        "description": "프로젝트 관리 및 팀 커뮤니케이션",
+        "features": [
+          "할 일",
+          "메시지 게시판",
+          "일정",
+          "체크인",
+          "힐 차트"
+        ]
+      },
+      "shopify": {
+        "description": "온라인 스토어를 위한 전자상거래 플랫폼",
+        "features": [
+          "상품 관리",
+          "주문 추적",
+          "고객 데이터",
+          "분석",
+          "웹훅"
+        ]
+      },
+      "wordpress": {
+        "description": "오픈소스 CMS 및 전자상거래",
+        "features": [
+          "콘텐츠 관리",
+          "WooCommerce",
+          "플러그인",
+          "REST API",
+          "웹훅"
+        ]
+      },
+      "bigcommerce": {
+        "description": "확장 가능한 전자상거래 플랫폼",
+        "features": [
+          "다중 채널 판매",
+          "SEO 도구",
+          "분석",
+          "B2B 기능",
+          "API 접근"
+        ]
+      },
+      "squarespace": {
+        "description": "커머스를 갖춘 웹사이트 빌더",
+        "features": [
+          "웹사이트 만들기",
+          "전자상거래",
+          "예약",
+          "분석",
+          "도메인"
+        ]
+      },
+      "etsy": {
+        "description": "수공예 및 빈티지 마켓플레이스",
+        "features": [
+          "상품 등록 관리",
+          "주문 추적",
+          "분석",
+          "광고",
+          "리뷰"
+        ]
+      },
+      "gumroad": {
+        "description": "디지털 상품 직접 판매",
+        "features": [
+          "디지털 상품",
+          "구독",
+          "워크플로",
+          "분석",
+          "제휴 프로그램"
+        ]
+      },
+      "lemonsqueezy": {
+        "description": "디지털 상품의 법적 판매 주체",
+        "features": [
+          "결제",
+          "구독",
+          "라이선스 키",
+          "결제 화면",
+          "웹훅"
+        ]
+      },
+      "paddle": {
+        "description": "SaaS 매출 처리 플랫폼",
+        "features": [
+          "결제 화면",
+          "구독",
+          "세금 준수",
+          "매출 회수",
+          "분석"
+        ]
+      },
+      "github": {
+        "description": "코드 호스팅 및 협업",
+        "features": [
+          "저장소 관리",
+          "이슈",
+          "풀 리퀘스트",
+          "Actions",
+          "웹훅"
+        ]
+      },
+      "gitlab": {
+        "description": "DevOps 플랫폼",
+        "features": [
+          "Git 저장소",
+          "CI/CD",
+          "이슈",
+          "병합 요청",
+          "컨테이너 레지스트리"
+        ]
+      },
+      "bitbucket": {
+        "description": "Atlassian의 Git 코드 관리",
+        "features": [
+          "저장소",
+          "풀 리퀘스트",
+          "파이프라인",
+          "코드 검토",
+          "Jira 연동"
+        ]
+      },
+      "vercel": {
+        "description": "프런트엔드 배포 플랫폼",
+        "features": [
+          "배포",
+          "서버리스 함수",
+          "에지 네트워크",
+          "분석",
+          "미리보기 URL"
+        ]
+      },
+      "netlify": {
+        "description": "웹 개발 및 호스팅 플랫폼",
+        "features": [
+          "배포",
+          "양식",
+          "함수",
+          "신원 관리",
+          "분할 테스트"
+        ]
+      },
+      "supabase": {
+        "description": "오픈소스 Firebase 대안",
+        "features": [
+          "데이터베이스",
+          "인증",
+          "저장소",
+          "에지 함수",
+          "실시간"
+        ]
+      },
+      "firebase": {
+        "description": "Google의 앱 개발 플랫폼",
+        "features": [
+          "인증",
+          "Firestore",
+          "클라우드 함수",
+          "호스팅",
+          "분석"
+        ]
+      },
+      "railway": {
+        "description": "간편한 앱 배포",
+        "features": [
+          "자동 배포",
+          "데이터베이스",
+          "환경",
+          "로그",
+          "지표"
+        ]
+      },
+      "render": {
+        "description": "앱과 사이트를 위한 통합 클라우드",
+        "features": [
+          "웹 서비스",
+          "정적 사이트",
+          "데이터베이스",
+          "Cron 작업",
+          "자동 확장"
+        ]
+      },
+      "google_analytics": {
+        "description": "Google의 웹 분석",
+        "features": [
+          "트래픽 분석",
+          "사용자 행동",
+          "전환 추적",
+          "사용자 지정 보고서",
+          "실시간 데이터"
+        ]
+      },
+      "mixpanel": {
+        "description": "제품 분석 플랫폼",
+        "features": [
+          "이벤트 추적",
+          "퍼널",
+          "보관",
+          "사용자 흐름",
+          "A/B 테스트"
+        ]
+      },
+      "amplitude": {
+        "description": "디지털 분석 플랫폼",
+        "features": [
+          "행동 분석",
+          "코호트 분석",
+          "실험",
+          "예측",
+          "데이터 거버넌스"
+        ]
+      },
+      "posthog": {
+        "description": "오픈소스 제품 분석",
+        "features": [
+          "이벤트 추적",
+          "세션 녹화",
+          "기능 플래그",
+          "실험",
+          "설문조사"
+        ]
+      },
+      "plausible": {
+        "description": "개인정보를 고려한 웹 분석",
+        "features": [
+          "간단한 대시보드",
+          "쿠키 미사용",
+          "목표 추적",
+          "캠페인",
+          "API 접근"
+        ]
+      },
+      "hotjar": {
+        "description": "히트맵 및 행동 분석",
+        "features": [
+          "히트맵",
+          "녹화",
+          "설문조사",
+          "피드백",
+          "퍼널"
+        ]
+      },
+      "segment": {
+        "description": "고객 데이터 플랫폼",
+        "features": [
+          "데이터 수집",
+          "데이터 라우팅",
+          "프로필",
+          "대상 고객군",
+          "프로토콜"
+        ]
+      },
+      "google_ads": {
+        "description": "검색 및 디스플레이 광고",
+        "features": [
+          "검색 캠페인",
+          "디스플레이 광고",
+          "쇼핑 광고",
+          "동영상 광고",
+          "보고"
+        ]
+      },
+      "meta_ads": {
+        "description": "Facebook 및 Instagram 광고",
+        "features": [
+          "캠페인 관리",
+          "고객군 타기팅",
+          "광고 소재 도구",
+          "픽셀 추적",
+          "보고"
+        ]
+      },
+      "linkedin_ads": {
+        "description": "LinkedIn의 B2B 광고",
+        "features": [
+          "스폰서 콘텐츠",
+          "메시지 광고",
+          "잠재 고객 확보 양식",
+          "고객군 타기팅",
+          "분석"
+        ]
+      },
+      "tiktok_ads": {
+        "description": "TikTok 광고",
+        "features": [
+          "인피드 광고",
+          "TopView",
+          "브랜드 효과",
+          "픽셀 추적",
+          "보고"
+        ]
+      },
+      "twitter_ads": {
+        "description": "Twitter/X 광고",
+        "features": [
+          "프로모션 트윗",
+          "팔로워 광고",
+          "트렌드 테이크오버",
+          "타기팅",
+          "분석"
+        ]
+      },
+      "microsoft_ads": {
+        "description": "Bing 검색 광고",
+        "features": [
+          "검색 광고",
+          "쇼핑 캠페인",
+          "고객군 광고",
+          "Google에서 가져오기",
+          "보고"
+        ]
+      },
+      "stripe": {
+        "description": "결제 처리 플랫폼",
+        "features": [
+          "결제",
+          "구독",
+          "청구서 발행",
+          "연결",
+          "Radar"
+        ]
+      },
+      "paypal": {
+        "description": "온라인 결제 플랫폼",
+        "features": [
+          "결제",
+          "결제 화면",
+          "청구서 발행",
+          "구독",
+          "분쟁"
+        ]
+      },
+      "square": {
+        "description": "결제 및 비즈니스 도구",
+        "features": [
+          "결제",
+          "POS",
+          "청구서 발행",
+          "뱅킹",
+          "고객 충성도"
+        ]
+      },
+      "razorpay": {
+        "description": "인도용 결제 게이트웨이",
+        "features": [
+          "결제",
+          "구독",
+          "Smart Collect",
+          "Route",
+          "RazorpayX"
+        ]
+      },
+      "wise": {
+        "description": "국제 송금",
+        "features": [
+          "송금",
+          "다중 통화 계정",
+          "일괄 결제",
+          "API 접근",
+          "웹훅"
+        ]
+      },
+      "aws_s3": {
+        "description": "Amazon 클라우드 객체 스토리지",
+        "features": [
+          "파일 업로드",
+          "CDN",
+          "버전 관리",
+          "접근 제어",
+          "이벤트"
+        ]
+      },
+      "google_cloud_storage": {
+        "description": "Google 클라우드 객체 스토리지",
+        "features": [
+          "파일 저장",
+          "CDN",
+          "수명 주기 정책",
+          "접근 제어",
+          "서명된 URL"
+        ]
+      },
+      "cloudflare_r2": {
+        "description": "반출 비용 없는 객체 스토리지",
+        "features": [
+          "S3 호환",
+          "반출 요금 없음",
+          "Workers 연동",
+          "자동 마이그레이션",
+          "CDN"
+        ]
+      },
+      "dropbox": {
+        "description": "파일 호스팅 및 협업",
+        "features": [
+          "파일 동기화",
+          "공유",
+          "팀 스페이스",
+          "Paper",
+          "API 접근"
+        ]
+      },
+      "google_drive": {
+        "description": "Google의 클라우드 파일 스토리지",
+        "features": [
+          "파일 저장",
+          "공유",
+          "협업",
+          "검색",
+          "API 접근"
+        ]
+      },
+      "openai": {
+        "description": "GPT 및 DALL-E AI 모델",
+        "features": [
+          "채팅 완성",
+          "이미지 생성",
+          "임베딩",
+          "파인 튜닝",
+          "어시스턴트"
+        ]
+      },
+      "anthropic": {
+        "description": "Claude AI 모델",
+        "features": [
+          "채팅 완성",
+          "도구 사용",
+          "시각 이해",
+          "긴 컨텍스트",
+          "Batch API"
+        ]
+      },
+      "google_gemini": {
+        "description": "Google의 멀티모달 AI 모델",
+        "features": [
+          "텍스트 생성",
+          "시각 이해",
+          "코드 생성",
+          "근거 연결",
+          "함수 호출"
+        ]
+      },
+      "mistral": {
+        "description": "공개 가중치 AI 모델",
+        "features": [
+          "채팅 완성",
+          "코드 생성",
+          "임베딩",
+          "함수 호출",
+          "JSON 모드"
+        ]
+      },
+      "groq": {
+        "description": "초고속 추론 엔진",
+        "features": [
+          "빠른 추론",
+          "채팅 완성",
+          "도구 사용",
+          "JSON 모드",
+          "스트리밍"
+        ]
+      },
+      "replicate": {
+        "description": "클라우드에서 ML 모델 실행",
+        "features": [
+          "모델 호스팅",
+          "예측",
+          "파인 튜닝",
+          "웹훅",
+          "스트리밍"
+        ]
+      },
+      "huggingface": {
+        "description": "ML 모델 허브 및 추론",
+        "features": [
+          "추론 API",
+          "모델 호스팅",
+          "데이터셋",
+          "스페이스",
+          "AutoTrain"
+        ]
+      },
+      "elevenlabs": {
+        "description": "AI 음성 생성",
+        "features": [
+          "텍스트 음성 변환",
+          "음성 복제",
+          "음성 디자인",
+          "스트리밍",
+          "더빙"
+        ]
+      },
+      "midjourney": {
+        "description": "AI 이미지 생성",
+        "features": [
+          "이미지 생성",
+          "변형",
+          "해상도 향상",
+          "스타일 제어",
+          "혼합"
+        ]
+      },
+      "runway": {
+        "description": "AI 동영상 및 창작 도구",
+        "features": [
+          "동영상 생성",
+          "이미지 편집",
+          "그린 스크린",
+          "모션 추적",
+          "인페인팅"
+        ]
+      },
+      "stability": {
+        "description": "Stable Diffusion 등",
+        "features": [
+          "이미지 생성",
+          "해상도 향상",
+          "인페인팅",
+          "3D 생성",
+          "API 접근"
+        ]
+      },
+      "perplexity": {
+        "description": "AI 기반 검색 및 답변",
+        "features": [
+          "검색 API",
+          "채팅",
+          "출처 인용",
+          "실시간 데이터",
+          "구조화된 출력"
+        ]
+      },
+      "zendesk": {
+        "description": "고객 서비스 플랫폼",
+        "features": [
+          "티켓 관리",
+          "실시간 채팅",
+          "지식 베이스",
+          "AI 에이전트",
+          "분석"
+        ]
+      },
+      "freshdesk": {
+        "description": "클라우드 기반 고객 지원",
+        "features": [
+          "티켓 관리",
+          "자동화",
+          "지식 베이스",
+          "커뮤니티 포럼",
+          "보고"
+        ]
+      },
+      "helpscout": {
+        "description": "성장하는 팀을 위한 헬프 데스크",
+        "features": [
+          "공유 받은편지함",
+          "지식 베이스",
+          "Beacon",
+          "보고",
+          "워크플로"
+        ]
+      },
+      "front": {
+        "description": "고객 운영 플랫폼",
+        "features": [
+          "공유 받은편지함",
+          "워크플로",
+          "분석",
+          "통합",
+          "AI 초안"
+        ]
+      },
+      "bamboohr": {
+        "description": "성장하는 기업을 위한 HR 소프트웨어",
+        "features": [
+          "직원 기록",
+          "휴가",
+          "시작 안내",
+          "성과",
+          "보고"
+        ]
+      },
+      "gusto": {
+        "description": "급여 및 HR 플랫폼",
+        "features": [
+          "급여",
+          "복리후생",
+          "HR 도구",
+          "채용",
+          "규정 준수"
+        ]
+      },
+      "rippling": {
+        "description": "인력 관리 플랫폼",
+        "features": [
+          "HR 클라우드",
+          "IT 관리",
+          "급여",
+          "복리후생",
+          "워크플로 자동화"
+        ]
+      },
+      "deel": {
+        "description": "글로벌 채용 및 급여",
+        "features": [
+          "계약직 관리",
+          "EOR",
+          "급여",
+          "규정 준수",
+          "HRIS"
+        ]
+      },
+      "remote": {
+        "description": "글로벌 고용 플랫폼",
+        "features": [
+          "EOR",
+          "계약직 관리",
+          "급여",
+          "복리후생",
+          "규정 준수"
+        ]
+      },
+      "figma": {
+        "description": "협업 디자인 도구",
+        "features": [
+          "디자인 파일",
+          "프로토타이핑",
+          "개발 모드",
+          "컴포넌트",
+          "플러그인"
+        ]
+      },
+      "canva": {
+        "description": "시각 콘텐츠 제작 플랫폼",
+        "features": [
+          "템플릿",
+          "브랜드 키트",
+          "동영상 편집",
+          "협업",
+          "API 접근"
+        ]
+      },
+      "framer": {
+        "description": "웹 디자인 및 게시",
+        "features": [
+          "시각적 편집기",
+          "CMS",
+          "애니메이션",
+          "반응형 디자인",
+          "게시"
+        ]
+      },
+      "webflow": {
+        "description": "노코드 웹사이트 빌더",
+        "features": [
+          "시각적 디자인",
+          "CMS",
+          "호스팅",
+          "전자상거래",
+          "인터랙션"
+        ]
+      },
+      "loom": {
+        "description": "비동기 동영상 메시징",
+        "features": [
+          "화면 녹화",
+          "동영상 호스팅",
+          "분석",
+          "음성 전사",
+          "댓글"
+        ]
+      },
+      "vimeo": {
+        "description": "전문 동영상 호스팅",
+        "features": [
+          "동영상 호스팅",
+          "라이브 스트리밍",
+          "분석",
+          "플레이어 사용자 지정",
+          "개인정보 보호"
+        ]
+      },
+      "mux": {
+        "description": "동영상 인프라 API",
+        "features": [
+          "동영상 인코딩",
+          "라이브 스트리밍",
+          "썸네일",
+          "분석",
+          "플레이어"
+        ]
+      },
+      "cloudinary": {
+        "description": "미디어 관리 플랫폼",
+        "features": [
+          "이미지 최적화",
+          "동영상 처리",
+          "변환",
+          "CDN",
+          "AI 기능"
+        ]
+      },
+      "typeform": {
+        "description": "대화형 양식 및 설문조사",
+        "features": [
+          "대화형 양식",
+          "조건 분기",
+          "통합",
+          "분석",
+          "템플릿"
+        ]
+      },
+      "tally": {
+        "description": "가장 간편한 양식 만들기",
+        "features": [
+          "양식 빌더",
+          "조건 논리",
+          "파일 업로드",
+          "결제",
+          "웹훅"
+        ]
+      },
+      "google_forms": {
+        "description": "Google의 간단한 양식 빌더",
+        "features": [
+          "양식 만들기",
+          "응답 수집",
+          "퀴즈 모드",
+          "템플릿",
+          "Sheets 연동"
+        ]
+      },
+      "jotform": {
+        "description": "온라인 양식 빌더",
+        "features": [
+          "드래그 앤 드롭 빌더",
+          "결제 양식",
+          "승인",
+          "PDF 양식",
+          "위젯"
+        ]
+      },
+      "surveymonkey": {
+        "description": "설문 및 피드백 플랫폼",
+        "features": [
+          "설문조사",
+          "퀴즈",
+          "투표",
+          "분석",
+          "템플릿"
+        ]
+      },
+      "calendly": {
+        "description": "일정 자동화",
+        "features": [
+          "예약 페이지",
+          "워크플로",
+          "통합",
+          "그룹 이벤트",
+          "라우팅"
+        ]
+      },
+      "cal_com": {
+        "description": "오픈소스 일정 도구",
+        "features": [
+          "예약 페이지",
+          "팀 일정 잡기",
+          "사용자 지정 워크플로",
+          "웹훅",
+          "API 접근"
+        ]
+      },
+      "savvycal": {
+        "description": "바쁜 사람을 위한 일정 잡기",
+        "features": [
+          "맞춤 링크",
+          "일정 겹쳐 보기",
+          "우선순위 일정 잡기",
+          "워크플로",
+          "통합"
+        ]
+      },
+      "tidycal": {
+        "description": "간단한 일정 도구",
+        "features": [
+          "예약 페이지",
+          "캘린더 동기화",
+          "결제",
+          "사용자 지정 질문",
+          "통합"
+        ]
+      },
+      "zapier": {
+        "description": "노코드 자동화 플랫폼",
+        "features": [
+          "앱 연결",
+          "다단계 Zap",
+          "필터",
+          "형식 변환기",
+          "웹훅"
+        ]
+      },
+      "make": {
+        "description": "시각적 자동화 플랫폼",
+        "features": [
+          "시각적 빌더",
+          "앱",
+          "데이터 저장소",
+          "웹훅",
+          "예약"
+        ]
+      },
+      "n8n": {
+        "description": "Fair-code 워크플로 자동화",
+        "features": [
+          "자체 호스팅 가능",
+          "통합",
+          "코드 노드",
+          "웹훅",
+          "AI 기능"
+        ]
+      },
+      "activepieces": {
+        "description": "오픈소스 자동화 도구",
+        "features": [
+          "노코드 빌더",
+          "자체 호스팅 가능",
+          "Pieces",
+          "웹훅",
+          "코드 단계"
+        ]
+      },
+      "pipedream": {
+        "description": "개발자 우선 자동화",
+        "features": [
+          "코드 기반 워크플로",
+          "API",
+          "이벤트 소스",
+          "데이터 저장소",
+          "Cron 작업"
+        ]
+      }
+    },
+    "webhooks": {
+      "shopify_order_created": {
+        "name": "Shopify — 새 주문",
+        "description": "Shopify 스토어에 새 주문이 접수되면 트리거",
+        "setupInstructions": "Shopify Admin > Settings > Notifications > Webhooks > Create webhook으로 이동하세요"
+      },
+      "shopify_product_updated": {
+        "name": "Shopify — 상품 업데이트",
+        "description": "Shopify에서 상품이 수정되면 트리거",
+        "setupInstructions": "Shopify Admin > Settings > Notifications > Webhooks로 이동하세요"
+      },
+      "shopify_checkout_abandoned": {
+        "name": "Shopify — 결제 이탈",
+        "description": "결제 이탈 시 복구 캠페인을 위해 트리거",
+        "setupInstructions": "Shopify Admin > Settings > Notifications > Webhooks로 이동하세요"
+      },
+      "shopify_customer_created": {
+        "name": "Shopify — 신규 고객",
+        "description": "새 고객이 가입하면 트리거",
+        "setupInstructions": "Shopify Admin > Settings > Notifications > Webhooks로 이동하세요"
+      },
+      "stripe_payment_succeeded": {
+        "name": "Stripe — 결제 성공",
+        "description": "결제 성공 시 트리거",
+        "setupInstructions": "Stripe Dashboard > Developers > Webhooks > Add endpoint로 이동하세요"
+      },
+      "stripe_subscription_created": {
+        "name": "Stripe — 새 구독",
+        "description": "고객이 새 구독을 시작하면 트리거",
+        "setupInstructions": "Stripe Dashboard > Developers > Webhooks"
+      },
+      "stripe_invoice_paid": {
+        "name": "Stripe — 청구서 결제 완료",
+        "description": "청구서가 결제되면 트리거",
+        "setupInstructions": "Stripe Dashboard > Developers > Webhooks"
+      },
+      "stripe_refund_issued": {
+        "name": "Stripe — 환불 처리",
+        "description": "환불이 처리되면 트리거",
+        "setupInstructions": "Stripe Dashboard > Developers > Webhooks"
+      },
+      "github_push": {
+        "name": "GitHub — 푸시",
+        "description": "저장소에 코드를 푸시하면 트리거",
+        "setupInstructions": "저장소 > Settings > Webhooks > Add webhook으로 이동하세요"
+      },
+      "github_pr": {
+        "name": "GitHub — 풀 리퀘스트",
+        "description": "PR 생성, 병합, 종료 시 트리거",
+        "setupInstructions": "저장소 > Settings > Webhooks로 이동하세요"
+      },
+      "github_issue": {
+        "name": "GitHub — 이슈 생성",
+        "description": "새 이슈가 열리면 트리거",
+        "setupInstructions": "저장소 > Settings > Webhooks로 이동하세요"
+      },
+      "github_release": {
+        "name": "GitHub — 릴리스 게시",
+        "description": "새 릴리스가 게시되면 트리거",
+        "setupInstructions": "저장소 > Settings > Webhooks로 이동하세요"
+      },
+      "hubspot_contact_created": {
+        "name": "HubSpot — 연락처 생성",
+        "description": "HubSpot에 새 연락처가 추가되면 트리거",
+        "setupInstructions": "HubSpot > Settings > Integrations > Private Apps > Webhooks로 이동하세요"
+      },
+      "hubspot_deal_stage": {
+        "name": "HubSpot — 거래 단계 변경",
+        "description": "거래가 새 단계로 이동하면 트리거",
+        "setupInstructions": "HubSpot > Settings > Integrations > Webhooks"
+      },
+      "hubspot_form_submitted": {
+        "name": "HubSpot — 양식 제출",
+        "description": "HubSpot 양식이 제출되면 트리거",
+        "setupInstructions": "HubSpot > Settings > Integrations > Webhooks"
+      },
+      "tiktok_new_follower": {
+        "name": "TikTok — 새 팔로워",
+        "description": "누군가 내 TikTok 계정을 팔로우하면 트리거",
+        "setupInstructions": "TikTok Developer Portal > Webhooks에서 구성하세요"
+      },
+      "tiktok_video_published": {
+        "name": "TikTok — 동영상 게시",
+        "description": "새 동영상이 게시되면 트리거",
+        "setupInstructions": "TikTok Developer Portal > Webhooks"
+      },
+      "linkedin_post_engagement": {
+        "name": "LinkedIn — 게시물 반응",
+        "description": "LinkedIn에서 좋아요, 댓글, 공유가 발생하면 트리거",
+        "setupInstructions": "LinkedIn Marketing API 웹훅으로 구성하세요"
+      },
+      "intercom_conversation_started": {
+        "name": "Intercom — 새 대화",
+        "description": "고객이 새 대화를 시작하면 트리거",
+        "setupInstructions": "Intercom > Settings > Webhooks"
+      },
+      "intercom_user_created": {
+        "name": "Intercom — 새 사용자",
+        "description": "새 사용자가 식별되면 트리거",
+        "setupInstructions": "Intercom > Settings > Webhooks"
+      },
+      "sendgrid_email_delivered": {
+        "name": "SendGrid — 이메일 전달 완료",
+        "description": "이메일이 성공적으로 전달되면 트리거",
+        "setupInstructions": "SendGrid > Settings > Mail Settings > Event Webhook"
+      },
+      "sendgrid_email_opened": {
+        "name": "SendGrid — 이메일 열람",
+        "description": "수신자가 이메일을 열면 트리거",
+        "setupInstructions": "SendGrid > Settings > Mail Settings > Event Webhook"
+      },
+      "sendgrid_email_bounced": {
+        "name": "SendGrid — 이메일 반송",
+        "description": "이메일이 반송되면 트리거",
+        "setupInstructions": "SendGrid > Settings > Event Webhook"
+      },
+      "calendly_booking_created": {
+        "name": "Calendly — 예약 생성",
+        "description": "누군가 회의를 예약하면 트리거",
+        "setupInstructions": "Calendly > Integrations > Webhooks > Subscribe"
+      },
+      "calendly_booking_cancelled": {
+        "name": "Calendly — 예약 취소",
+        "description": "예약이 취소되면 트리거",
+        "setupInstructions": "Calendly > Integrations > Webhooks"
+      },
+      "typeform_form_submitted": {
+        "name": "Typeform — 양식 제출",
+        "description": "Typeform 응답이 제출되면 트리거",
+        "setupInstructions": "Typeform > Connect > Webhooks > Add webhook"
+      },
+      "slack_message_posted": {
+        "name": "Slack — 메시지 게시",
+        "description": "채널에 메시지가 게시되면 트리거",
+        "setupInstructions": "Slack App > Event Subscriptions에서 message.channels를 구독하세요"
+      },
+      "slack_reaction_added": {
+        "name": "Slack — 반응 추가",
+        "description": "누군가 메시지에 반응하면 트리거",
+        "setupInstructions": "Slack App > Event Subscriptions"
+      },
+      "generic_json": {
+        "name": "범용 JSON 웹훅",
+        "description": "모든 서비스의 JSON 페이로드 수신",
+        "setupInstructions": "서비스의 웹훅 URL을 생성된 엔드포인트로 지정하세요"
+      },
+      "generic_form_post": {
+        "name": "양식 POST 웹훅",
+        "description": "양식 인코딩된 POST 데이터 수신",
+        "setupInstructions": "양식의 action URL을 생성된 엔드포인트로 설정하세요"
+      }
+    },
+    "ideas": {
+      "content-studio": {
+        "title": "콘텐츠 스튜디오",
+        "desc": "트렌드를 찾고 소셜 게시물의 초안 작성과 다듬기를 자동화하세요.",
+        "seed": "작은 브랜드를 운영하며 꾸준히 게시하는 콘텐츠 스튜디오를 원합니다. 트렌드 조사자는 제 분야에서 유행하는 관점 2-3개를 찾고, 작가는 가장 유망한 관점으로 TikTok과 LinkedIn 게시물의 초안을 쓰며, 편집자는 도입부와 CTA를 다듬어야 합니다. 게시 전에 검토할 수 있도록 각각 초안으로 저장하고, 어떤 관점이 성과를 냈는지 기억해 이후 초안을 개선하세요."
+      },
+      "content-repurposer": {
+        "title": "콘텐츠 재활용 도구",
+        "desc": "하나의 아이디어를 X 스레드, LinkedIn 게시물, 뉴스레터 짧은 글로 바꾸세요.",
+        "seed": "하나의 원본 아이디어, 게시물, 대화록을 여러 플랫폼용 묶음으로 재활용하고 싶습니다. 전략가는 가장 강한 관점 세 가지를 고르고, 작가는 이를 X 스레드, LinkedIn 게시물, 짧은 뉴스레터 글로 작성하세요. 메모리에 브랜드 말투가 있다면 모든 글에 적용하세요. 묶음을 초안으로 저장하세요."
+      },
+      "seo-content-engine": {
+        "title": "SEO 콘텐츠 엔진",
+        "desc": "키워드를 조사하고 검색에 최적화된 글의 개요를 작성하세요.",
+        "seed": "SEO 콘텐츠 엔진을 원합니다. 조사자는 목표 키워드의 검색 의도와 관련 질문을 찾고, 개요 작성자는 내부 링크 제안을 포함한 H2/H3 구조를 만들고, 작가는 이를 중심으로 검색에 최적화된 글의 초안을 작성하세요. 개요 설명과 초안을 저장하고, 이미 다룬 주제를 기억해 중복을 피하세요."
+      },
+      "newsletter-studio": {
+        "title": "뉴스레터 스튜디오",
+        "desc": "주제를 선정하고 주간 뉴스레터 초안을 작성하세요.",
+        "seed": "매주 뉴스레터를 보내며 매 호의 초안 작성을 돕고 싶습니다. 큐레이터는 주제를 고르고 독자에게 공유할 만한 항목 3-5개를 모으세요. 작가는 강한 제목, 도입부, 한 줄 평을 붙인 선정 항목, 마무리 CTA를 포함해 초안을 작성하세요. 초안으로 저장하고 이전 주제를 기억해 다양성을 유지하세요."
+      },
+      "podcast-repurposer": {
+        "title": "팟캐스트 재활용 도구",
+        "desc": "에피소드 대화록을 방송 노트와 클립용 인용문으로 바꾸세요.",
+        "seed": "팟캐스트를 진행하며 각 에피소드를 재활용하고 싶습니다. 대화록을 바탕으로 프로듀서는 타임스탬프와 핵심 요점을 담은 구조화된 방송 노트를 쓰고, 클립 조사자는 짧은 소셜 클립으로 만들 만한 인용 장면 5-8개를 찾아야 합니다. 노트와 인용 목록을 초안으로 저장하세요."
+      },
+      "brand-voice-builder": {
+        "title": "브랜드 말투 빌더",
+        "desc": "말투를 한 페이지 참고 문서로 정리하세요.",
+        "seed": "브랜드 말투를 문서화하고 싶습니다. 브랜드 분석가는 제가 제공하는 설명과 예시 콘텐츠에서 어조 특성, 대표 표현, 피할 표현을 추출하세요. 스타일 정리 담당자는 해당 말투를 보여주는 게시물 예시 세 개와 함께 한 페이지 참고 문서를 작성하세요. 콘텐츠 에이전트가 읽을 수 있도록 메모리의 'brand voice'에 저장하세요."
+      },
+      "competitor-watch": {
+        "title": "경쟁사 동향 추적",
+        "desc": "경쟁사의 움직임을 추적하고 매주 바뀐 점을 요약하세요.",
+        "seed": "몇몇 경쟁사를 살펴보고 싶습니다. 웹 조사자는 각 사이트와 웹에서 출시, 가격 변경, 메시지 변화 등 최근 움직임을 찾고, 분석가는 이번 주 변화와 제 포지셔닝에 중요한 이유를 요약하세요. 짧은 보고서를 저장하고 이전 결과를 기억해 새로 생긴 것만 표시하세요."
+      },
+      "social-listening": {
+        "title": "소셜 리스닝",
+        "desc": "사람들이 주제나 브랜드에 관해 하는 말을 찾아보세요.",
+        "seed": "주제와 제 브랜드에 대한 소셜 리스닝을 원합니다. 조사자는 웹의 최근 공개 언급과 토론을 모으고, 분석가는 주제별로 묶어 감정을 표시하고 대표 인용문 몇 개를 뽑으세요. 요약본을 저장하고 반복되는 주제를 메모리에 보관해 시간이 지남에 따라 흐름을 볼 수 있게 하세요."
+      },
+      "webinar-promoter": {
+        "title": "웨비나 홍보 도구",
+        "desc": "다가오는 행사의 홍보 순서를 계획하세요.",
+        "seed": "곧 웨비나를 열며 홍보 계획이 필요합니다. 기획자는 공지, 가치 예고, 알림, 마지막 안내를 포함한 여러 접점의 홍보 일정을 짜고, 작가는 각 접점의 소셜 게시물과 이메일을 제 브랜드 말투로 작성하세요. 직접 일정을 잡을 수 있도록 모두 초안으로 저장하세요."
+      },
+      "ad-creative-tester": {
+        "title": "광고 소재 테스트 도구",
+        "desc": "비용 지출 없이 테스트할 광고 관점을 만드세요.",
+        "seed": "지출하기 전에 광고 관점을 테스트하고 싶습니다. 전략가는 제품에 대한 4-5가지 관점(고충, 성과, 사회적 증거, 반론, 호기심)을 제안하고, 카피라이터는 각각 제목과 본문 변형을 쓰세요. 제가 우수한 문구를 광고 플랫폼에 직접 붙여 넣도록 초안으로 저장하세요. 광고 비용을 지출하거나 플랫폼에 쓰지 마세요."
+      },
+      "outreach-strategist": {
+        "title": "아웃리치 전략가",
+        "desc": "ICP를 다듬고 콜드 이메일 시퀀스 초안을 작성하세요.",
+        "seed": "초안만 작성하고 절대 보내지 않는 콜드 아웃리치 엔진을 원합니다. ICP 조사자는 제 제품과 목표 힌트로 이상적 고객 프로필을 다듬고, 제안 작가는 도입, 후속 안내, 마무리의 세 메시지 시퀀스를 작성하세요. 받은편지함에 복사할 수 있게 준비하고 초안으로 저장하세요."
+      },
+      "cold-outreach-engine": {
+        "title": "콜드 아웃리치 엔진",
+        "desc": "목표 목록에 맞춘 첫 연락 이메일을 작성하세요.",
+        "seed": "목표 계정 목록이 있으며 맞춤 첫 연락 이메일을 원합니다. 조사자는 공개 정보에서 각 잠재 고객과 관련된 계기를 찾고, 작가는 이를 언급하며 명확한 CTA 하나를 담은 짧고 구체적인 첫 메일 초안을 쓰세요. 제가 검토해 직접 보내도록 초안을 저장하고 모든 초안을 기록하세요. 자동으로 보내지 마세요."
+      },
+      "lead-qualifier": {
+        "title": "잠재 고객 적합성 평가",
+        "desc": "들어온 잠재 고객을 ICP에 따라 평가하고 분류하세요.",
+        "seed": "들어온 잠재 고객의 적합성을 평가하고 싶습니다. 제공된 정보를 바탕으로 분석가는 ICP(산업, 규모, 역할, 의도 신호)에 대한 적합성을 점수화하고, 분류 담당자는 빠른 처리, 육성, 제외 중 권장 조치와 한 줄 이유를 제시하세요. 모든 결정을 기록하고 점수 패턴을 기억해 평가가 점차 일관되게 하세요."
+      },
+      "proposal-writer": {
+        "title": "제안서 작성 도구",
+        "desc": "프로젝트 개요를 고객용 제안서로 바꾸세요.",
+        "seed": "프로젝트 개요를 고객 제안서로 만들고 싶습니다. 범위 담당자는 고객 맥락, 문제, 성공 지표, 범위 경계를 명확히 하고, 작가는 요약, 범위, 산출물, 단계별 일정, 가치를 중심으로 설명한 가격을 담은 구조화된 제안서 초안을 작성하세요. 제가 검토해 보내도록 초안으로 저장하세요."
+      },
+      "partnership-outreach": {
+        "title": "파트너십 아웃리치",
+        "desc": "적합한 파트너를 찾고 소개 제안 초안을 작성하세요.",
+        "seed": "파트너십 논의를 준비하고 싶습니다. 조사자는 제 제품을 보완하는 회사 유형과 구체적 후보 몇 곳을 찾고, 작가는 상호 이익을 먼저 설명하는 맞춤 소개 제안을 각 후보에 맞게 쓰세요. 제가 직접 보내도록 제안을 초안으로 저장하세요."
+      },
+      "market-research": {
+        "title": "시장 조사 에이전트",
+        "desc": "시장을 살피고 한 페이지 보고서로 정리하세요.",
+        "seed": "빠른 시장 조사를 원합니다. 웹 조사자는 제 시장의 정보 가치가 높은 출처 5-10곳에서 신호를 모으고, 종합 담당자는 시장 규모 신호, 각각 한 줄 차별점을 붙인 주요 경쟁사 세 곳, 12개월 흐름, 기회를 담은 한 페이지 보고서를 작성하세요. 보고서를 저장하고 핵심 결과를 메모리에 보관해 다음 조사가 이를 바탕으로 이어지게 하세요."
+      },
+      "customer-onboarding": {
+        "title": "고객 온보딩",
+        "desc": "신규 고객을 위한 단계별 환영 메시지 초안을 작성하세요.",
+        "seed": "신규 고객의 시작을 원활하게 돕고 싶습니다. 기획자는 환영, 설정, 첫 가치 경험, 점검으로 구성된 단계별 온보딩 여정을 만들고, 작가는 각 단계의 메시지를 제 브랜드 말투로 작성하세요. 직접 보낼 수 있도록 초안으로 저장하고 여정을 기억해 모든 신규 고객이 같은 안내를 받게 하세요."
+      },
+      "churn-watch": {
+        "title": "고객 이탈 감시",
+        "desc": "이탈 위험 계정을 표시하고 재유치 메시지 초안을 작성하세요.",
+        "seed": "고객 이탈을 일찍 파악하고 싶습니다. 제가 제공한 계정 활동을 바탕으로 분석가는 경고 신호와 이유를 들어 위험 계정을 표시하고, 작가는 각 계정에 맞춘 재유치 메시지 초안을 작성하세요. 검토용으로 저장하고 모든 평가를 기록하며 어떤 신호가 이탈 전에 나타나는지 기억하세요."
+      },
+      "product-launch-kit": {
+        "title": "제품 출시 키트",
+        "desc": "출시 메시지와 공개 체크리스트를 준비하세요.",
+        "seed": "제품을 출시하며 출시 키트가 필요합니다. 전략가는 핵심 포지셔닝과 주요 메시지 초안을 쓰고, 작가는 발표 자료(랜딩 페이지 문구, 소셜 게시물, 출시 이메일)를 만들고, 운영 에이전트는 공개 체크리스트를 정리하세요. 모두 초안으로 저장하고 빠뜨리지 않도록 체크리스트를 메모리에 보관하세요."
+      },
+      "invoice-chaser": {
+        "title": "미수금 알림 도구",
+        "desc": "정중하면서 단계적으로 강도를 높이는 결제 알림 초안을 작성하세요.",
+        "seed": "연체 청구서의 결제 요청을 돕고 싶습니다. 제가 제공한 미결제 청구서 목록을 바탕으로 에이전트는 금액과 기한을 명시한 단계별 알림(부드러운 안내, 단호한 후속 안내, 최종 통지)을 작성하세요. 제가 직접 보내도록 초안으로 저장하고 모든 초안을 기록하세요. 어떤 것도 자동 전송하지 말고 자금을 이동하지 마세요."
+      },
+      "weekly-finance-digest": {
+        "title": "주간 재무 요약",
+        "desc": "추적하는 수치를 주간 보고로 요약하세요.",
+        "seed": "주간 재무 요약을 원합니다. 제가 제공한 수치(매출, 지출, 자금 소진까지의 기간, 주요 지표)를 바탕으로 분석가는 이전 기간과 비교하고, 달라진 점과 중요성을 설명하고, 주의가 필요한 항목을 표시하세요. 짧은 보고를 저장하고 이전 주를 기억해 추세를 보여주세요. 읽기 전용이며 거래하지 마세요."
+      },
+      "support-triage": {
+        "title": "지원 티켓 분류",
+        "desc": "티켓을 분류하고 첫 답변 초안을 작성하세요.",
+        "seed": "들어오는 지원 티켓을 분류하고 싶습니다. 에이전트는 티켓을 버그, 결제, 사용법, 기능 요청으로 나누고 우선순위를 정하며 제 지식 베이스에 근거한 유용한 첫 답변 초안을 쓰세요. 전송 전 사람이 검토하도록 저장하고, 모든 분류 결정을 기록하며, 반복 문제를 기억해 일반 답변을 개선하세요."
+      },
+      "review-responder": {
+        "title": "리뷰 답변 도구",
+        "desc": "고객 리뷰에 브랜드 말투로 답변 초안을 작성하세요.",
+        "seed": "고객 리뷰에 답하는 데 도움이 필요합니다. 에이전트는 리뷰의 감정을 파악하고 사려 깊은 브랜드 말투의 답변 초안을 쓰세요. 칭찬에는 감사하고, 불만에는 책임감 있게 해결책을 제시하세요. 제가 게시하도록 초안으로 저장하고 반복되는 칭찬과 불만을 기억해 패턴을 찾게 하세요."
+      },
+      "recruiting-sourcer": {
+        "title": "채용 후보 발굴",
+        "desc": "직무 프로필과 맞춤 후보 연락문 초안을 작성하세요.",
+        "seed": "채용 중이며 후보 발굴에 도움이 필요합니다. 채용 에이전트는 역할을 명확한 후보 프로필(필수 요건, 신호, 활동 장소)로 바꾸고, 작가는 유망 후보에게 제가 보낼 수 있는 친근한 맞춤 연락문 초안을 쓰세요. 직접 전송하도록 저장하고 각각 기록하세요. 자동으로 메시지를 보내지 마세요."
+      }
+    },
+    "comparisonColumns": [
+      {
+        "name": "Braavolabs"
+      },
+      {
+        "name": "워크플로 자동화"
+      },
+      {
+        "name": "AI 에이전트 빌더"
+      }
+    ],
+    "comparisonRows": [
+      {
+        "label": "실행 중 방향 조정",
+        "note": "지침이 언제 수락되고 적용되는지 확인하세요. 진행 중인 호출이 먼저 끝날 수 있습니다"
+      },
+      {
+        "label": "네이티브 모바일 제어",
+        "note": "지원되는 모바일 작업과 내 기기의 출시 여부를 확인하세요"
+      },
+      {
+        "label": "휴대폰에서 지출 승인",
+        "note": "승인이 필요한 작업과 이미 비용이 발생할 수 있는 공급업체 호출을 확인하세요"
+      },
+      {
+        "label": "BYOK 공급업체 범위",
+        "note": "여러 모델 공급업체에서 내 키를 사용하세요"
+      },
+      {
+        "label": "로컬 공급업체 경로",
+        "note": "지원되는 경우 구성된 로컬 모델 엔드포인트를 사용하세요"
+      },
+      {
+        "label": "외부 자동화 모니터링",
+        "note": "각 외부 플랫폼의 지원되는 모니터링 및 제어 작업을 확인하세요"
+      },
+      {
+        "label": "요금 체계",
+        "note": "구독, 추론, 호스팅, 작업당 요금을 비교하세요"
+      },
+      {
+        "label": "거버넌스 및 위험 중지",
+        "note": "지원되는 검사 경계와 사고 대응을 검토하세요"
+      },
+      {
+        "label": "감사 추적",
+        "note": "기록된 작업과 출력을 확인하세요. 누락된 기록은 알 수 없음으로 남습니다"
+      },
+      {
+        "label": "커넥터 수",
+        "note": "사전 구축된 앱 연동의 전체 개수"
+      }
+    ],
+    "comparisonAudience": [
+      {
+        "title": "책상 밖에서 일하는 운영자",
+        "body": "회의 사이에 휴대폰으로 승인하고, 재촉하고, 방향을 바꾼다면 네이티브 앱과 휴대폰 방향 조정이 핵심입니다."
+      },
+      {
+        "title": "다시 실행하기 싫은 사람",
+        "body": "다시 시작하기보다 방향을 바꾸고 싶은 긴 파이프라인을 위한 도구입니다. 실행을 살펴보며 도중에 방향을 바꾸고 잘 완료한 단계를 유지하세요."
+      },
+      {
+        "title": "개인정보에 민감한 작업",
+        "body": "내 키를 사용하거나 구성된 로컬 엔드포인트를 선택하세요. 선택한 경로, 도구, 텔레메트리, 네트워크 경계를 각각 확인하세요."
+      },
+      {
+        "title": "n8n / Make / Zapier를 이미 사용하는 팀",
+        "body": "지원되는 연결로 상태를 모니터링하고 지원되는 작업을 요청하세요. 각 플랫폼의 권한 및 실행 계약을 확인하세요."
+      }
+    ],
+    "capabilities": [
+      {
+        "label": "실행",
+        "title": "공급업체 간 워크벤치",
+        "copy": "한 공급업체의 런타임을 제어 영역으로 삼지 않고 모델과 에이전트 작업을 조율하세요."
+      },
+      {
+        "label": "제어",
+        "title": "정확한 작업 범위 승인 — 개발 중",
+        "copy": "더 넓은 동작, 범위, 만료, 실행 맥락 연결 계약은 예정된 기능이며 정식 제공으로 제시하지 않습니다."
+      },
+      {
+        "label": "대화",
+        "title": "재개 및 방향 조정",
+        "copy": "순서가 있는 턴, 도구 작업, 아티팩트, 원격 운영자 입력을 같은 실행 맥락에 유지하세요."
+      },
+      {
+        "label": "모델",
+        "title": "BYOK 및 로컬 선택",
+        "copy": "모델 경로를 명시적으로 선택하고 공급업체 비용은 내 키나 로컬 런타임에서 부담하세요."
+      }
+    ],
+    "securityBoundaries": [
+      {
+        "title": "추론 경계",
+        "copy": "추론 비용은 포함되지 않습니다. 자신의 프로바이더 키 (BYOK) 또는 로컬 모델을 사용하세요."
+      },
+      {
+        "title": "승인 경계",
+        "copy": "지원되는 도구 작업은 명시적 승인이 필요할 수 있습니다. 별도 승인 전에 추론에서 공급업체 요금이 발생할 수 있습니다. 더 넓은 정확한 동작·범위·만료 연결 계약은 개발 중입니다."
+      },
+      {
+        "title": "공개/인증 영역 경계",
+        "copy": "공개 사이트는 제품 정보를 제공합니다. 계정, 테넌트 경로, 운영 API는 인증된 앱 및 API 호스트에 속합니다."
+      },
+      {
+        "title": "인증 경계",
+        "copy": "인증을 취득하고 독립적으로 확인할 수 있을 때까지 인증 배지를 표시하지 않습니다."
+      }
+    ],
+    "checklist": {
+      "registered": {
+        "label": "계정 만들기",
+        "description": "Braavolabs 가입"
+      },
+      "heroCompanyCreated": {
+        "label": "첫 회사 만들기",
+        "description": "설명으로 AI 회사 구성"
+      },
+      "firstRunCompleted": {
+        "label": "첫 파이프라인 실행",
+        "description": "자동화 워크플로 실행"
+      },
+      "firstDraftApproved": {
+        "label": "초안 검토",
+        "description": "AI 생성 콘텐츠 승인 또는 편집"
+      },
+      "profileCompleted": {
+        "label": "프로필 완성",
+        "description": "이름과 환경설정 추가"
+      }
+    }
+  },
+  "seo": {
+    "m7f135831dde4": "소개 — Braavolabs",
+    "ma6b9aebb2cf1": "Braavolabs를 알아보세요. AI 회사 플랫폼을 만든 이유, 바탕이 되는 원칙, 자율성·투명성·책임 있는 AI에 대한 관점을 소개합니다.",
+    "m933085a63c1d": "Braavolabs 소개",
+    "me1c1f91ee66e": "AI 회사 플랫폼을 만든 이유, 그 원칙, 자율성·투명성·책임 있는 AI에 대한 관점입니다.",
+    "m6bec3a9f230a": "Braavolabs Bench — 기록된 벤치마크 실행",
+    "mcbea634da00e": "구성된 작업 모음의 사용 가능한 벤치마크 기록입니다. 범위와 최신성은 기록된 실행에 달려 있으며 독립 인증이 아닙니다.",
+    "md93cc7f7d87e": "블로그 — Braavolabs",
+    "m187c2f0813ea": "Braavolabs 팀의 제품 업데이트, 엔지니어링 기록, 공개 제품 완성도 경계입니다.",
+    "m3c43895bb6aa": "Braavolabs 블로그",
+    "me3020c8ef693": "Braavolabs의 제품 업데이트, 엔지니어링 기록, 공개 제품 완성도 경계입니다.",
+    "m237cecbe666d": "변경 이력 — Braavolabs",
+    "m22bcd4a9abed": "출시된 작업과 개발 중인 작업을 구분해 표시한 Braavolabs 공개 변경 기록입니다.",
+    "m7cf63d5b37a7": "Braavolabs 변경 이력",
+    "m9b27dd7fb727": "출시된 작업과 개발 중인 작업을 구분해 표시한 공개 변경 기록입니다.",
+    "m8ec104ac0b8d": "Braavolabs 비교",
+    "maafa6a889064": "공급업체 간 워크플로 요구 사항, 경로 구성, 운영자 제어를 검토하세요. 최신 제품 기능과 상업 조건은 직접 확인하세요.",
+    "md9141b7cff71": "Braavolabs 비교 — Braavolabs",
+    "m5358edf26d92": "명시적 모델 선택, 로컬 또는 클라우드 경로 구성, 지원되는 운영자 제어를 갖춘 공급업체 간 워크벤치를 살펴보세요.",
+    "mc10f93cbb285": "문의 — Braavolabs",
+    "mac714bedbfdc": "지원, 파트너십, 보안, 개인정보 문의를 위한 Braavolabs 연락 창구입니다.",
+    "m5d4c651fc9a1": "Braavolabs에 문의",
+    "m224950150646": "지원, 파트너십, 보안, 개인정보 문의 연락 창구입니다.",
+    "m18c6bf133be5": "비용 계산기 — Braavolabs",
+    "md250d02e7765": "예정된 Individual 및 Team 구독 요금의 정적 미리보기입니다. 추론은 포함되지 않습니다.",
+    "m63664d2ded81": "Individual 및 Team의 예정 요금 미리보기입니다. 현재 구독은 구매할 수 없습니다.",
+    "m3ca87fbbac15": "요금 미리보기 — Braavolabs",
+    "m4bd9b811878a": "예정된 Braavolabs Individual 및 Team 구독 요금을 미리 확인하세요. 현재 구매할 수 없으며 추론은 포함되지 않습니다.",
+    "m81acc1f0380d": "Individual 및 Team의 예정 요금입니다. 현재 구매할 수 없으며 추론은 포함되지 않습니다.",
+    "ma9faa242317f": "문서 — Braavolabs",
+    "m365f82802c67": "Braavolabs 문서: 시작하기, BYOK 및 로컬 경로 설정, 실행 중 방향 조정, 웹훅, 외부 자동화 연결, 모바일 앱, 자주 묻는 질문입니다.",
+    "mee84ba24e941": "Braavolabs 문서",
+    "m50dcefa5f29a": "에이전트 워크플로를 구성하고 검토한 뒤 지원되는 실행과 결정을 모니터링하세요.",
+    "m57cd5295b6d6": "기능 — Braavolabs",
+    "m0d5ddd021521": "모델 라우팅, 데이터 모드, 승인, 기능 완성도에 관한 Braavolabs 공개 제품 경계입니다.",
+    "m076ced19e485": "모델 라우팅, 데이터 모드, 승인, 기능 완성도에 관한 공개 제품 경계입니다.",
+    "m804e9858225a": "기능 — Braavolabs",
+    "mcb18970cc53a": "실행, 제어, 데이터 모드, 검증 환경 전반에 걸친 Braavolabs의 공개 제품 계약입니다.",
+    "mac377e08a5eb": "GDPR 정보 미리보기",
+    "m49fe3634c177": "GDPR에 따른 개인정보 안내 초안입니다. 공개 회원가입 전에 책임 운영자, 처리, 수신자, 보관, 보호 조치 정보를 완성해야 합니다.",
+    "m617c9c8f521f": "Braavolabs GDPR 정보 미리보기",
+    "m5f3c445d83bb": "GDPR 처리 정보와 권리의 미리보기입니다. 공개적인 개인정보 수집에 필요한 완전한 고지는 아직 아닙니다.",
+    "m6481ac9863e9": "KVKK 정보 미리보기",
+    "m6465a09ee4b0": "KVKK 안내 초안입니다. 공개 회원가입 전에 실제 운영자, 처리, 수신자, 보관, 보호 조치를 확정해야 합니다.",
+    "m4a89104ba3fb": "Braavolabs KVKK 정보 미리보기",
+    "m354a5e2b9623": "KVKK 처리 정보와 권리의 미리보기입니다. 완전한 개인정보 고지는 아직 아닙니다.",
+    "mc60388ffa286": "계정 삭제",
+    "m265910871d03": "Braavolabs 계정을 영구 삭제하는 방법, 삭제되는 데이터, 도움을 요청하는 방법을 알아보세요.",
+    "m7221097dfb51": "Braavolabs 계정 삭제",
+    "md6e50ceecc93": "요금 — Braavolabs",
+    "m907e61f93ecc": "예정 요금 미리보기: Individual 월 $19, Team 활성 사용자당 월 $39. 현재 구매할 수 없으며 추론은 포함되지 않습니다.",
+    "mae42d1776ea3": "비밀번호 재설정",
+    "m81bf5e60c133": "Braavolabs 계정의 새 비밀번호를 설정하세요.",
+    "m8931468be759": "보안 — Braavolabs",
+    "m4fc24ac37ec4": "모델 키, 데이터 모드, 승인, 제품 완성도에 관한 Braavolabs 보안 경계입니다.",
+    "m22ccccca604b": "시스템 상태 — Braavolabs",
+    "m545df19cd499": "Braavolabs 공개 API 엔드포인트의 실시간 가용성 확인입니다.",
+    "m5231bbf800e5": "Braavolabs 시스템 상태",
+    "m371d913a6d14": "지원 — Braavolabs",
+    "m43f347f64d40": "Braavolabs 도움말: 연락 창구, 응답 시간, 결제·구독 지원, 계정 삭제, 자주 묻는 질문입니다.",
+    "me4c0f5357766": "Braavolabs 지원",
+    "mee5a52d3051f": "연락 창구, 응답 시간, 결제·구독 지원, 계정 삭제, 자주 묻는 질문입니다."
+  },
+  "runtime": {
+    "mb39b93c48c24": "시작 템플릿을 사용하려면 로그인하세요.",
+    "m2eb2d91c4f3b": "시작 템플릿을 만들지 못했습니다.",
+    "mcdd1de1ae01a": "시작 템플릿 사용: {value0}",
+    "m838f9adcc123": "체험 실행 1회",
+    "m9a021a4b3454": "{count, plural, other {체험 실행 #회}}",
+    "ma5a28bb26fde": "{count, plural, other {에이전트 #개}}",
+    "m014789a56e1d": "{count, plural, other {파이프라인 단계 #개}}",
+    "ma682e26e6a31": "예측을 불러오지 못했습니다",
+    "m05d6a641b6be": "저장 실패",
+    "mab698ba77c6c": "테스트를 불러오지 못했습니다",
+    "m0118f642c901": "{value0} 실패",
+    "m69c8b86fae03": "저장 실패",
+    "m78e828adf24c": "삭제 실패",
+    "m1368805fe919": "발급자",
+    "mb525865201ae": "클라이언트 ID",
+    "ma2a8e033d138": "리디렉션 URI",
+    "m092455f07cd1": "권한 범위",
+    "m6dc7542014dc": "승인 요청",
+    "m29a34a94a498": "실행에 지출 승인이 필요하면 푸시 알림",
+    "m84ed19090410": "위험 중지 발생",
+    "mb195583a6e7f": "하드 중지로 실행이 멈추면 푸시 알림",
+    "m13641fc2a8c0": "실행 완료",
+    "m6e87b3db013a": "실행이 끝나면 알림",
+    "m9d5e808eecb2": "월 ${value0}",
+    "m26f640894104": "{count, plural, other {월 #회 실행}}",
+    "m5e369d5a7fd5": "자체 호스팅 로컬 공급업체(Ollama / LM Studio)",
+    "mc058d692e6cc": "지출 승인 필요",
+    "me68fc6aed4e7": "지원되는 지출 작업",
+    "m04508baa9aeb": "반복 감지 임계값",
+    "m4021017c235b": "연속 5회 실패",
+    "m6774e7b32e15": "비용 이상 임계값",
+    "md2687779b5c7": "실행 예산의 20%",
+    "m51e462c03da2": "스팸 방지",
+    "m10bc771116e0": "미응답 3회 이상 = 차단",
+    "m7ae7fcaafb64": "메모리 자동 승격",
+    "me92d7c3eb5e2": "신뢰도 ≥ 0.7, 횟수 ≥ 3",
+    "m74769711684e": "Holding Brain 요건",
+    "m27e8635ece5f": "같은 패턴이 있는 회사 2개 이상",
+    "m31f4062639ad": "✓ 연결 성공 — 모델 응답: \"{value0}\"",
+    "mf0b59374b988": "새 잠재 고객이 생기면 고객 확보 파이프라인 시작",
+    "mc3af8f5ac774": "게시 승인된 콘텐츠",
+    "m5275b74361ed": "결제 처리 및 CRM 업데이트",
+    "m1cd72a8c1a04": "고객 성공 에이전트로 전달",
+    "m797c03ac6662": "추천됨",
+    "ma571fa84edbc": "전환됨",
+    "m48fa986d975f": "보상",
+    "me94e85e1777c": "이동: {value0}",
+    "m9b917859a22b": "추천 글 읽기: {value0}",
+    "m5452b7363001": "글 읽기: {value0}",
+    "ma735f1949098": "문서 읽기: {value0}",
+    "m47982c49bbdd": "아이디어로 시작: {value0}",
+    "maabffdc5b99f": "{count, plural, other {에이전트 #개}}",
+    "m4b89a821f42b": "파이프라인 {value0}개",
+    "madc0d2e17f7e": "고객 확보",
+    "mb5d24bc5498c": "영업",
+    "madf7dfd9a03b": "운영",
+    "mf61fa075a25a": "분석",
+    "m837fc70634da": "메모리",
+    "m920294cc4569": "콘텐츠",
+    "m42ac3e609710": "거버넌스",
+    "m7034fec532bb": "지원팀에 문의",
+    "m34f6a807aeb9": "구독, 구매 및 환불",
+    "m616706013792": "자주 묻는 질문",
+    "me01516c0ee66": "버그 신고",
+    "me4b47da679e8": "정책",
+    "m8e94897c7807": "{value0}에 연결",
+    "m6c6656e064e0": "단계 {value0} {value1} 비용 {value2} 소요 시간 {value3}",
+    "m9f9acdbf39bc": "워크스페이스",
+    "m3800b6e67ce8": "{value0}에서 무제한",
+    "mdd0763b9fc75": "/월",
+    "m8502572a269d": "단일 계정",
+    "m8779b63b388b": "추론 미포함",
+    "m739f35478664": "테넌트 BYOK 또는 로컬 공급업체",
+    "m4d03ba19634f": "워크스페이스 5개",
+    "m7ab3157462b0": "요금제에서 모델 크레딧을 제공하지 않음",
+    "m6c35c098be76": "/활성 좌석/월",
+    "ma8499c1fc913": "활성 좌석 기준 결제",
+    "m5ad4deeaabd5": "워크스페이스 20개",
+    "m3fcd392b558f": "팀 협업",
+    "m1e3a5507bb67": " 외 {value0}개",
+    "ma301be6d35b3": " · 마지막 {value0}",
+    "m67cb524a0f61": "마지막 확인: {value0} (내 현지 시간)",
+    "m45fd9c2d5d48": " · 마지막 실행 {value0}",
+    "mfe990aab3694": "{value0} 시작됨 — 단계 대기 중",
+    "m7a54036ca778": "지출 승인 요청 — {value0} 검토 대기 중",
+    "me54aaeee8d00": "위험 이벤트 발생",
+    "mf7ae3905e563": "내보내기",
+    "mcb6f0d51a4bc": "지원되는 내 공급업체 키나 구성된 로컬 엔드포인트를 사용하세요.",
+    "me3cc0f802723": "휴대폰에서 방향 조정과 승인",
+    "m0bbeaac0b690": "단계 {value0}",
+    "mc9d5631084a5": "대시보드",
+    "m596d0616eb4f": "파이프라인",
+    "mc8f971fe29fd": "실행",
+    "ma865952c238b": "에이전트",
+    "m76c4258af622": "회사",
+    "ma4435cd673fd": "트리거",
+    "m2908b886157a": "에이전트",
+    "meb5355c74849": "도구 호출",
+    "m363f4a3ae095": "승인 관문",
+    "m6fd0e25bdccd": "분기",
+    "m08da7504b591": "출력",
+    "mb912b05f4583": "축소",
+    "m550677a88028": "화면에 맞춤",
+    "m015ee12489d3": "확대",
+    "m0d18e6731423": "개요",
+    "m99c2fc0bb65c": "이메일로 삭제 요청",
+    "md2fa5c7e5df0": "확인 및 다음 단계",
+    "me4c98c0271e8": "현재 제공 여부",
+    "m000165a9f23d": "삭제되는 항목",
+    "m4178821e2ee3": "보관 항목과 이유",
+    "m21ce09941e6e": "일정",
+    "mc5d1045cc31b": "활성 구독",
+    "md772994860a6": "질문",
+    "localeSaveFailed": "언어 설정을 저장하지 못했습니다. 브라우저 쿠키 설정을 확인하고 다시 시도하세요. 현재 언어는 변경되지 않았습니다.",
+    "workspaces": "{count, plural, other {워크스페이스 #개}}",
+    "connectedAutomations": "{count, plural, other {연결된 자동화 #개}}",
+    "events": "{count, plural, other {기록된 이벤트 #개}}",
+    "channels": "{count, plural, other {채널 #개}}",
+    "genericRest": "범용 REST 연결",
+    "providerOllama": "Ollama(자체 호스팅)",
+    "providerLmStudio": "LM Studio(자체 호스팅)",
+    "providerCustom": "사용자 지정 OpenAI 호환 공급업체",
+    "ollamaHint": "ollama.com에서 Ollama를 설치하고 `ollama pull gemma3:4b`를 실행한 다음 `ollama serve`를 실행 상태로 두세요.",
+    "lmStudioHint": "lmstudio.ai에서 LM Studio를 설치하고 모델을 로드한 뒤 로컬 서버를 시작하세요.",
+    "customProviderHint": "OpenAI 호환 /v1/chat/completions 엔드포인트를 구성하세요. 엔드포인트 운영자와 모델 요구 사항을 확인하세요.",
+    "directoryNote": "이 목록은 연동 예시와 템플릿을 소개합니다. 모든 연결이 구현·구성되었거나 내 계정에서 사용 가능함을 확인하는 것은 아닙니다.",
+    "catalogEntry": "목록 항목",
+    "supportedConnections": "지원되는 연결 검토",
+    "categoryMarketing": "마케팅",
+    "categorySales": "영업",
+    "categoryContent": "콘텐츠",
+    "categoryOps": "운영",
+    "categoryResearch": "조사",
+    "categoryFinance": "재무",
+    "categorySupport": "지원",
+    "categoryFounder": "창업자",
+    "providerKeys": "지원되는 내 공급업체 키나 구성된 로컬 엔드포인트를 사용하세요.",
+    "connectionTestFailed": "연결 테스트에 실패했습니다. 구성을 확인하고 다시 시도하세요.",
+    "pipelineStepCount": "{count, plural, other {단계 #개}}",
+    "unknownState": "알 수 없는 상태"
+  }
+}

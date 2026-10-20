@@ -1,9 +1,12 @@
 "use client";
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 export default function ContactPage() {
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
 
   // Stable channel keys + matching email addresses; per-locale labels
@@ -47,9 +50,7 @@ export default function ContactPage() {
       {/* Nav */}
       <nav className="flex items-center justify-between px-6 md:px-10 py-4 max-w-[1200px] mx-auto border-b border-outline-variant/40">
         <a href="/" className="flex items-center gap-2.5">
-          <div className="bv-avatar" style={{ width: 32, height: 32, borderRadius: 10, fontSize: 12 }}>
-            BL
-          </div>
+          <div className="bv-avatar" style={{ width: 32, height: 32, borderRadius: 10, fontSize: 12 }}>{uiText("ma6abe31754db")}</div>
           <span className="font-headline font-bold text-sm text-on-surface">Braavolabs</span>
         </a>
         <div className="hidden md:flex items-center gap-6 text-sm text-on-surface-variant">
@@ -90,9 +91,7 @@ export default function ContactPage() {
                   WebkitMask: "radial-gradient(circle, #000 70%, transparent 80%)",
                   mask: "radial-gradient(circle, #000 70%, transparent 80%)",
                 }}
-              >
-                BL
-              </div>
+              >{uiText("ma6abe31754db")}</div>
             </div>
 
             {/* Headline */}
@@ -262,25 +261,25 @@ export default function ContactPage() {
         <div className="max-w-[1200px] mx-auto px-6 md:px-10 py-10 grid grid-cols-2 md:grid-cols-4 gap-8">
           <div className="col-span-2 md:col-span-1">
             <a href="/" className="flex items-center gap-2.5 mb-3">
-              <div className="bv-avatar" style={{ width: 28, height: 28, borderRadius: 8, fontSize: 11 }}>BL</div>
+              <div className="bv-avatar" style={{ width: 28, height: 28, borderRadius: 8, fontSize: 11 }}>{uiText("ma6abe31754db")}</div>
               <span className="font-headline font-bold text-sm text-on-surface">Braavolabs</span>
             </a>
-            <p className="bv-caption max-w-[28ch]">Command the AI agents &amp; automations you already run.</p>
+            <p className="bv-caption max-w-[28ch]">{uiText("m2b4a9f22ba8d")}</p>
           </div>
           <div className="flex flex-col gap-2">
-            <h5 className="bv-micro mb-1">Product</h5>
+            <h5 className="bv-micro mb-1">{uiText("md69e46192627")}</h5>
             <a href="/features" className="bv-caption hover:text-on-surface transition-colors">{t("nav.features")}</a>
             <a href="/pricing" className="bv-caption hover:text-on-surface transition-colors">{t("nav.pricing")}</a>
             <a href="/changelog" className="bv-caption hover:text-on-surface transition-colors">{t("static.changelog.title")}</a>
           </div>
           <div className="flex flex-col gap-2">
-            <h5 className="bv-micro mb-1">Company</h5>
-            <a href="/about" className="bv-caption hover:text-on-surface transition-colors">About</a>
-            <a href="/blog" className="bv-caption hover:text-on-surface transition-colors">Blog</a>
-            <a href="/status" className="bv-caption hover:text-on-surface transition-colors">Status</a>
+            <h5 className="bv-micro mb-1">{uiText("m6d80848fe489")}</h5>
+            <a href="/about" className="bv-caption hover:text-on-surface transition-colors">{uiText("m0fb85ef7ffda")}</a>
+            <a href="/blog" className="bv-caption hover:text-on-surface transition-colors">{uiText("m260fed5ac47c")}</a>
+            <a href="/status" className="bv-caption hover:text-on-surface transition-colors">{uiText("m3a006e3e0878")}</a>
           </div>
           <div className="flex flex-col gap-2">
-            <h5 className="bv-micro mb-1">Legal</h5>
+            <h5 className="bv-micro mb-1">{uiText("md2c8631b73dd")}</h5>
             <a href="/privacy" className="bv-caption hover:text-on-surface transition-colors">{t("footer.privacy")}</a>
             <a href="/terms" className="bv-caption hover:text-on-surface transition-colors">{t("footer.terms")}</a>
             <a href="/kvkk" className="bv-caption hover:text-on-surface transition-colors">KVKK</a>

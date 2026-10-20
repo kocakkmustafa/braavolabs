@@ -1,4 +1,13 @@
 "use client";
+import { useLocalizedFailure } from "../../../lib/localized-error";
+
+import { useTranslations as useRuntimeTranslations } from "next-intl";
+
+import { useLocale as useDisplayLocale } from "next-intl";
+import { formatDateTime as formatDisplayDateTime, currentTimeZone as displayTimeZone } from "../../../i18n/locales";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 /**
  * Settings → Identity Provider (Enterprise SSO).
@@ -30,6 +39,10 @@ import { useAuthGuard } from "../../../lib/useAuthGuard";
 type ConfigShape = Awaited<ReturnType<typeof api.getOidcConfig>>;
 
 export default function IdentitySettingsPage() {
+  const describeFailure = useLocalizedFailure();
+  const runtimeCopy = useRuntimeTranslations("runtime");
+  const displayLocale = useDisplayLocale();
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations("app.settings.identity");
   const { token, hydrated } = useAuthGuard();
   const [config, setConfig] = useState<ConfigShape | null>(null);
@@ -73,7 +86,7 @@ export default function IdentitySettingsPage() {
       if (/Business or Enterprise/i.test(msg) || /402/.test(msg)) {
         setPlanGate(true);
       } else if (!/404/.test(msg)) {
-        setError(msg);
+        setError(describeFailure(err));
       }
     } finally {
       setLoading(false);
@@ -105,7 +118,7 @@ export default function IdentitySettingsPage() {
       setClientSecret(""); // never echo back, even into local state
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+      setError(describeFailure(err, runtimeCopy("m69c8b86fae03")));
     } finally {
       setSaving(false);
     }
@@ -128,7 +141,7 @@ export default function IdentitySettingsPage() {
       setIsActive(true);
       setSavedAt(Date.now());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+      setError(describeFailure(err, runtimeCopy("m78e828adf24c")));
     } finally {
       setSaving(false);
     }
@@ -150,7 +163,7 @@ export default function IdentitySettingsPage() {
             <div
               key={i}
               className="bv-glass rounded-2xl mb-4 animate-shimmer"
-              style={{ height: h, background: "rgba(15,18,25,0.4)" }}
+              style={{ height: h, background: "var(--color-surface-container-low)" }}
             />
           ))}
         </div>
@@ -164,14 +177,12 @@ export default function IdentitySettingsPage() {
       <div className="bv-dash min-h-screen bv-dash-shell">
         <div className="max-w-4xl mx-auto px-6 py-10 animate-fade-in">
           {/* breadcrumb */}
-          <nav className="flex items-center gap-2 mb-8" aria-label="breadcrumb">
+          <nav className="flex items-center gap-2 mb-8" aria-label={uiText("m58a52b30df2b")}>
             <Link
               href="/settings"
               className="bv-micro text-on-surface-variant hover:text-on-surface transition-colors"
               style={{ textTransform: "none", fontSize: 12, letterSpacing: 0 }}
-            >
-              Settings
-            </Link>
+            >{uiText("m17301d36c0f7")}</Link>
             <span className="material-symbols-outlined text-outline" style={{ fontSize: 14 }}>chevron_right</span>
             <span className="bv-micro text-on-surface" style={{ textTransform: "none", fontSize: 12, letterSpacing: 0 }}>
               {t("title")}
@@ -209,14 +220,12 @@ export default function IdentitySettingsPage() {
       <div className="max-w-4xl mx-auto px-6 py-10 animate-fade-in bv-stagger">
 
         {/* ── Breadcrumb ── */}
-        <nav className="flex items-center gap-2 mb-8" aria-label="breadcrumb">
+        <nav className="flex items-center gap-2 mb-8" aria-label={uiText("m58a52b30df2b")}>
           <Link
             href="/settings"
             className="text-on-surface-variant hover:text-on-surface transition-colors"
             style={{ fontSize: 12 }}
-          >
-            Settings
-          </Link>
+          >{uiText("m17301d36c0f7")}</Link>
           <span className="material-symbols-outlined text-outline" style={{ fontSize: 14 }}>chevron_right</span>
           <span className="text-on-surface font-medium" style={{ fontSize: 12 }}>
             {t("title")}
@@ -251,7 +260,7 @@ export default function IdentitySettingsPage() {
               </span>
               {config.discoveredAt && (
                 <span className="bv-micro" style={{ textTransform: "none", letterSpacing: 0, fontSize: 11 }}>
-                  · {t("last_discovered", { when: new Date(config.discoveredAt).toLocaleString() })}
+                  · {t("last_discovered", { when: formatDisplayDateTime(config.discoveredAt, displayLocale, { timeZone: displayTimeZone(), dateStyle: "medium", timeStyle: "short" }) })}
                 </span>
               )}
             </div>
@@ -268,9 +277,7 @@ export default function IdentitySettingsPage() {
             {/* Issuer + Client ID card */}
             <div className="bv-glass rounded-2xl p-6">
               <p className="bv-micro mb-4" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>dns</span>
-                Provider endpoint
-              </p>
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>dns</span>{uiText("m04575c3aa05d")}</p>
 
               <form
                 id="identity-form"
@@ -308,9 +315,7 @@ export default function IdentitySettingsPage() {
             {/* Callback + Scopes card */}
             <div className="bv-glass rounded-2xl p-6">
               <p className="bv-micro mb-4" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>route</span>
-                Redirect & scopes
-              </p>
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>route</span>{uiText("m4ac81f8d693d")}</p>
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <ForgeField
                   label={t("redirect_uri")}
@@ -334,7 +339,7 @@ export default function IdentitySettingsPage() {
                   hint={t("domains_hint")}
                   value={domains}
                   onChange={setDomains}
-                  placeholder="acme.com, acme-contractors.com"
+                  placeholder={uiText("m0980004c67c1")}
                   icon="alternate_email"
                   form="identity-form"
                 />
@@ -356,7 +361,7 @@ export default function IdentitySettingsPage() {
                 <div>
                   <p className="text-on-surface font-medium" style={{ fontSize: 13 }}>{t("active_toggle")}</p>
                   <p className="bv-caption mt-0.5">
-                    {isActive ? "SSO sign-in is enabled for your domain." : "SSO sign-in is paused — users fall back to password auth."}
+                    {isActive ?uiText("m3af0642101f2") :uiText("m59f31e9a773e")}
                   </p>
                 </div>
                 {/* pill toggle */}
@@ -414,7 +419,7 @@ export default function IdentitySettingsPage() {
                 style={{
                   background: "rgba(59,130,246,0.08)",
                   border: "1px solid rgba(59,130,246,0.20)",
-                  color: "#60A5FA",
+                  color: "var(--color-primary)",
                   fontSize: 13,
                 }}
               >
@@ -434,9 +439,7 @@ export default function IdentitySettingsPage() {
               >
                 {saving ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Saving…
-                  </>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />{uiText("m1324795a7aa8")}</>
                 ) : (
                   <>
                     <span className="material-symbols-outlined" style={{ fontSize: 16 }}>save</span>
@@ -478,26 +481,23 @@ export default function IdentitySettingsPage() {
             {/* Connection status card */}
             <div className="bv-glass rounded-2xl p-5">
               <p className="bv-micro mb-4" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span className={`bv-dot ${config?.isActive ? "bv-completed bv-ping" : "bv-paused"}`} />
-                Live preview
-              </p>
+                <span className={`bv-dot ${config?.isActive ? "bv-completed bv-ping" : "bv-paused"}`} />{uiText("m17cc90014b3e")}</p>
 
               <div
                 className="rounded-xl p-4"
                 style={{
-                  background: "rgba(5,8,16,0.50)",
+                  background: "var(--color-surface-container-low)",
                   border: "1px solid rgba(255,255,255,0.05)",
                 }}
               >
-                <span className="bv-mono block mb-3" style={{ fontSize: 10, color: "var(--color-outline)" }}>
-                  OIDC configuration · {config ? "configured" : "not set"}
+                <span className="bv-mono block mb-3" style={{ fontSize: 10, color: "var(--color-outline)" }}>{uiText("m90bd8874ada5")}{" "}{config ?uiText("m1995887ad355") :uiText("mb5610055f059")}
                 </span>
 
                 {[
-                  { label: "Issuer", val: issuer || "—" },
-                  { label: "Client ID", val: clientId ? `${clientId.slice(0, 8)}…` : "—" },
-                  { label: "Redirect URI", val: redirectUri ? "✓ set" : "—" },
-                  { label: "Scopes", val: scopes || "—" },
+                  { label: runtimeCopy("m1368805fe919"), val: issuer || "—" },
+                  { label: runtimeCopy("mb525865201ae"), val: clientId ? `${clientId.slice(0, 8)}…` : "—" },
+                  { label: runtimeCopy("ma2a8e033d138"), val: redirectUri ?uiText("ma388b35eeee6") : "—" },
+                  { label: runtimeCopy("m092455f07cd1"), val: scopes || "—" },
                 ].map(({ label, val }) => (
                   <div
                     key={label}
@@ -523,10 +523,10 @@ export default function IdentitySettingsPage() {
                 />
                 <span className="bv-caption">
                   {config?.isActive
-                    ? "SSO active — users can sign in via your IdP"
+                    ?uiText("m1be41d5fc4dd")
                     : config
-                    ? "SSO configured but inactive"
-                    : "No SSO provider configured"}
+                    ?uiText("m5eb5faa6cbf5")
+                    :uiText("m9a52affa6218")}
                 </span>
               </div>
             </div>
@@ -535,16 +535,12 @@ export default function IdentitySettingsPage() {
             {callbackHint && (
               <div className="bv-glass rounded-2xl p-5">
                 <p className="bv-micro mb-3" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>info</span>
-                  Callback URL
-                </p>
-                <p className="bv-caption mb-3">
-                  Register this redirect URI in your identity provider:
-                </p>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>info</span>{uiText("m99463116beca")}</p>
+                <p className="bv-caption mb-3">{uiText("mc5038b20a0d6")}</p>
                 <div
                   className="rounded-lg px-3 py-2.5 flex items-center gap-2"
                   style={{
-                    background: "rgba(5,8,16,0.50)",
+                    background: "var(--color-surface-container-low)",
                     border: "1px solid rgba(255,255,255,0.06)",
                   }}
                 >
@@ -558,9 +554,9 @@ export default function IdentitySettingsPage() {
                     type="button"
                     className="bv-btn bv-btn-ghost bv-btn-icon flex-shrink-0"
                     onClick={() => navigator.clipboard.writeText(callbackHint)}
-                    title="Copy to clipboard"
+                    title={uiText("m4f8f4a6029d8")}
                     style={{ minHeight: 28, padding: "4px 6px" }}
-                  >
+                   aria-label={uiText("m4f8f4a6029d8")}>
                     <span className="material-symbols-outlined" style={{ fontSize: 14 }}>content_copy</span>
                   </button>
                 </div>
@@ -579,11 +575,9 @@ export default function IdentitySettingsPage() {
                 <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-primary)" }}>
                   shield
                 </span>
-                <span className="bv-micro" style={{ color: "var(--color-primary)" }}>Enterprise SSO</span>
+                <span className="bv-micro" style={{ color: "var(--color-primary)" }}>{uiText("m5722bcfa7400")}</span>
               </div>
-              <p className="bv-caption">
-                Enforce sign-in through your corporate IdP (Azure AD, Okta, Auth0, Google Workspace). Users on your allowed domains are redirected to your IdP automatically.
-              </p>
+              <p className="bv-caption">{uiText("m1e939b7b4cbc")}</p>
             </div>
           </div>
         </div>
@@ -619,17 +613,17 @@ function ForgeField(props: {
         )}
         {props.label}
         {props.required && (
-          <span style={{ color: "var(--color-error)", marginLeft: 2 }}>*</span>
+          <span style={{ color: "var(--color-error)", marginInlineStart: 2 }}>*</span>
         )}
       </div>
       <div
         className="flex items-center gap-2 rounded-xl transition-all"
         style={{
-          background: "rgba(5,8,16,0.50)",
+          background: "var(--color-surface-container-low)",
           border: `1px solid ${focused ? "rgba(59,130,246,0.45)" : "rgba(255,255,255,0.07)"}`,
           boxShadow: focused ? "0 0 0 3px rgba(59,130,246,0.10)" : "none",
-          paddingLeft: 12,
-          paddingRight: 12,
+          paddingInlineStart: 12,
+          paddingInlineEnd: 12,
         }}
       >
         <input

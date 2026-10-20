@@ -48,7 +48,7 @@ describe("actual web API total deadline", () => {
     let release!: (response: unknown) => void;
     const refreshed = new Promise(resolve => { release = resolve; });
     fixture.fetch.mockImplementation((url: string, init: RequestInit) => url.endsWith("/auth/refresh")
-      ? refreshed : Promise.resolve(response((init.headers as Record<string, string>).Authorization === "Bearer old" ? 401 : 200, { value: "ok" })));
+      ? refreshed : Promise.resolve(response(new Headers(init.headers).get("Authorization") === "Bearer old" ? 401 : 200, { value: "ok" })));
     const first = apiFetch("/fixture", { token: "old", timeoutMs: 10 });
     const firstExpected = expect(first).rejects.toMatchObject({ name: "RequestTimeoutError" });
     const second = apiFetch("/fixture", { token: "old", timeoutMs: 100 });

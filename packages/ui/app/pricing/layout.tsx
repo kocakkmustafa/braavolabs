@@ -1,25 +1,29 @@
+import { getTranslations as getSeoTranslations } from "next-intl/server";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Pricing — Braavolabs",
+export async function generateMetadata(): Promise<Metadata> {
+  const seo = await getSeoTranslations("seo");
+  return {
+  title: seo("md6e50ceecc93"),
   description:
-    "Planned pricing preview: Individual $19/month and Team $39/active-user/month. Not currently purchasable; inference is not included.",
+    seo("m907e61f93ecc"),
   alternates: { canonical: "https://www.braavolabs.com/pricing" },
   openGraph: {
-    title: "Pricing — Braavolabs",
+    title: seo("md6e50ceecc93"),
     description:
-      "Planned pricing preview: Individual $19/month and Team $39/active-user/month. Not currently purchasable; inference is not included.",
+      seo("m907e61f93ecc"),
     url: "https://www.braavolabs.com/pricing",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Pricing — Braavolabs",
+    title: seo("md6e50ceecc93"),
     description:
-      "Planned pricing preview: Individual $19/month and Team $39/active-user/month. Not currently purchasable; inference is not included.",
+      seo("m907e61f93ecc"),
     images: ["/og-image.png"],
   },
 };
+}
 
 export default function PricingLayout({ children }: { children: React.ReactNode }) {
   return children;

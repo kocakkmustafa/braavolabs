@@ -1,4 +1,12 @@
 "use client";
+import { useTranslations as useIconTranslations } from "next-intl";
+
+import { useLocalizedFailure } from "../../../lib/localized-error";
+
+import { useTranslations as useRuntimeTranslations } from "next-intl";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { Suspense, useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -81,7 +89,7 @@ const IDEA_CATEGORIES: IdeaCategory[] = [
   "Founder",
 ];
 
-const IDEA_TEMPLATES: IdeaTemplate[] = [
+const RAW_IDEA_TEMPLATES: IdeaTemplate[] = [
   // ── Content ──────────────────────────────────────────────────
   {
     id: "content-studio",
@@ -340,6 +348,12 @@ const IDEA_TEMPLATES: IdeaTemplate[] = [
 ];
 
 function CompanyBuilderWizardInner({ owner }: { owner: { tenantId: string | null; revision: number } }) {
+  const iconCopy = useIconTranslations("surface.icons");
+  const describeFailure = useLocalizedFailure();
+  const runtimeCopy = useRuntimeTranslations("runtime");
+  const dataCopy = useLegacyTranslations("dataCopy");
+  const IDEA_TEMPLATES = RAW_IDEA_TEMPLATES.map((entry, index) => ({ ...entry, title: dataCopy.raw(`ideas.${entry.id}.title`) as string, desc: dataCopy.raw(`ideas.${entry.id}.desc`) as string, seed: dataCopy.raw(`ideas.${entry.id}.seed`) as string }));
+  const uiText = useLegacyTranslations("uiCopy");
   const router = useRouter();
   const { token, hydrated } = useAuthGuard();
   const t = useTranslations();
@@ -430,7 +444,7 @@ function CompanyBuilderWizardInner({ owner }: { owner: { tenantId: string | null
         setStep("clarify");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("app.companyNew.failStart"));
+      setError(describeFailure(err, t("app.companyNew.failStart")));
     } finally {
       setLoading(false);
     }
@@ -456,7 +470,7 @@ function CompanyBuilderWizardInner({ owner }: { owner: { tenantId: string | null
         setChatHistory((prev) => [...prev, { role: "ai", content: aiMsg, timestamp: new Date() }]);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("app.companyNew.failContinue"));
+      setError(describeFailure(err, t("app.companyNew.failContinue")));
     } finally {
       setLoading(false);
     }
@@ -471,7 +485,7 @@ function CompanyBuilderWizardInner({ owner }: { owner: { tenantId: string | null
       setSession(res);
       setStep("done");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("app.companyNew.failCreate"));
+      setError(describeFailure(err, t("app.companyNew.failCreate")));
       setStep("preview");
     } finally {
       setLoading(false);
@@ -488,11 +502,9 @@ function CompanyBuilderWizardInner({ owner }: { owner: { tenantId: string | null
       <div className="mb-8">
         {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 mb-4">
-          <a href="/companies" className="bv-micro hover:text-on-surface transition-colors" style={{ color: "var(--color-outline)" }}>
-            Workspaces
-          </a>
+          <a href="/companies" className="bv-micro hover:text-on-surface transition-colors" style={{ color: "var(--color-outline)" }}>{uiText("m4180d6eb1e87")}</a>
           <span className="material-symbols-outlined" style={{ fontSize: 14, color: "var(--color-outline)" }}>chevron_right</span>
-          <span className="bv-micro" style={{ color: "var(--color-on-surface-variant)" }}>New</span>
+          <span className="bv-micro" style={{ color: "var(--color-on-surface-variant)" }}>{uiText("mf854b0d01bb8")}</span>
         </div>
 
         {/* Hero title — matches mock h1 + lede */}
@@ -549,7 +561,7 @@ function CompanyBuilderWizardInner({ owner }: { owner: { tenantId: string | null
                 color: step === s
                   ? "#fff"
                   : currentStepIndex > i
-                    ? "#60A5FA"
+                    ? "var(--color-primary)"
                     : "var(--color-outline)",
                 boxShadow: step === s ? "0 0 16px rgba(59,130,246,0.35)" : "none",
               }}
@@ -588,7 +600,7 @@ function CompanyBuilderWizardInner({ owner }: { owner: { tenantId: string | null
           <span>
             {error}
             {(error.toLowerCase().includes("limit") || error.toLowerCase().includes("plan")) && (
-              <a href="/pricing" className="ml-2 underline" style={{ color: "#60A5FA" }}>Upgrade plan</a>
+              <a href="/pricing" className="ml-2 underline" style={{ color: "var(--color-primary)" }}>{uiText("m2a1f8f8329c8")}</a>
             )}
           </span>
         </div>
@@ -610,26 +622,20 @@ function CompanyBuilderWizardInner({ owner }: { owner: { tenantId: string | null
           <div className="mb-6">
             <div className="flex items-end justify-between mb-3 px-1">
               <div>
-                <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: "#a4e6ff" }}>
-                  Start from an idea
-                </h2>
-                <p className="text-xs mt-0.5" style={{ color: "#859399" }}>
-                  Pick a starting point — we&apos;ll pre-fill the brief below and the AI will tailor it to you.
-                </p>
+                <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: "var(--color-info)" }}>{uiText("m81541c4b81fd")}</h2>
+                <p className="text-xs mt-0.5" style={{ color: "var(--color-on-surface-variant)" }}>{uiText("m98f5541fecce")}</p>
               </div>
             </div>
 
             {/* Category filter pills — reuse FORGE .bv-fpill */}
-            <div className="flex flex-wrap gap-2 mb-4 px-1" role="tablist" aria-label="Template categories">
+            <div className="flex flex-wrap gap-2 mb-4 px-1" role="tablist" aria-label={uiText("m84436181ca66")}>
               <button
                 type="button"
                 role="tab"
                 aria-selected={ideaCategory === "All"}
                 className={`bv-fpill${ideaCategory === "All" ? " active" : ""}`}
                 onClick={() => setIdeaCategory("All")}
-              >
-                All
-                <span className="bv-fpill-count">{IDEA_TEMPLATES.length}</span>
+              >{uiText("me80b908371e2")}<span className="bv-fpill-count">{IDEA_TEMPLATES.length}</span>
               </button>
               {IDEA_CATEGORIES.map((cat) => {
                 const count = IDEA_TEMPLATES.filter((tpl) => tpl.category === cat).length;
@@ -643,7 +649,7 @@ function CompanyBuilderWizardInner({ owner }: { owner: { tenantId: string | null
                     className={`bv-fpill${ideaCategory === cat ? " active" : ""}`}
                     onClick={() => setIdeaCategory(cat)}
                   >
-                    {cat}
+                    {runtimeCopy(`category${cat}`)}
                     <span className="bv-fpill-count">{count}</span>
                   </button>
                 );
@@ -663,28 +669,28 @@ function CompanyBuilderWizardInner({ owner }: { owner: { tenantId: string | null
                     background: "rgba(255,255,255,0.04)",
                     border: "1px solid rgba(255,255,255,0.08)",
                   }}
-                  aria-label={`Start from idea: ${idea.title}`}
+                  aria-label={runtimeCopy("m47982c49bbdd", { value0: idea.title })}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="text-2xl leading-none">{idea.emoji}</div>
                     <span className="bv-pill bv-pill-muted">{idea.category}</span>
                   </div>
 
-                  <div className="mt-3 font-semibold text-sm" style={{ color: "#e1e2eb" }}>
+                  <div className="mt-3 font-semibold text-sm" style={{ color: "var(--color-on-surface)" }}>
                     {idea.title}
                   </div>
-                  <div className="mt-1 text-xs leading-relaxed" style={{ color: "#bbc9cf" }}>
+                  <div className="mt-1 text-xs leading-relaxed" style={{ color: "var(--color-on-surface-variant)" }}>
                     {idea.desc}
                   </div>
 
-                  <div className="mt-3 flex items-center gap-3 text-[11px]" style={{ color: "#859399" }}>
-                    <span title={`${idea.agents} agents`}>
+                  <div className="mt-3 flex items-center gap-3 text-[11px]" style={{ color: "var(--color-on-surface-variant)" }}>
+                    <span title={runtimeCopy("maabffdc5b99f", { count: idea.agents })}>
                       <span className="material-symbols-outlined align-middle" style={{ fontSize: 12 }}>
                         person
                       </span>{" "}
                       {idea.agents}
                     </span>
-                    <span title={`${idea.pipelines} pipeline`}>
+                    <span title={runtimeCopy("m4b89a821f42b", { value0: idea.pipelines })}>
                       <span className="material-symbols-outlined align-middle" style={{ fontSize: 12 }}>
                         account_tree
                       </span>{" "}
@@ -692,18 +698,14 @@ function CompanyBuilderWizardInner({ owner }: { owner: { tenantId: string | null
                     </span>
                   </div>
 
-                  <div className="mt-3 text-[11px] flex items-center gap-1" style={{ color: "#60A5FA" }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 13 }}>auto_awesome</span>
-                    Use this idea
-                  </div>
+                  <div className="mt-3 text-[11px] flex items-center gap-1" style={{ color: "var(--color-primary)" }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 13 }}>auto_awesome</span>{uiText("md906ff092286")}</div>
                 </button>
               ))}
             </div>
 
             <div className="text-center mt-4">
-              <span className="text-[11px] uppercase tracking-wide" style={{ color: "#3c494e" }}>
-                or describe your own below ↓
-              </span>
+              <span className="text-[11px] uppercase tracking-wide" style={{ color: "var(--color-on-surface-variant)" }}>{uiText("m23e4368ad8b0")}</span>
             </div>
           </div>
 
@@ -746,9 +748,7 @@ function CompanyBuilderWizardInner({ owner }: { owner: { tenantId: string | null
               className="flex items-center px-4 py-3"
               style={{ borderTop: "1px solid var(--bv-glass-border)" }}
             >
-              <span className="bv-mono" style={{ color: "var(--color-outline)", fontSize: 11 }}>
-                ⌘↵ to forge
-              </span>
+              <span className="bv-mono" style={{ color: "var(--color-outline)", fontSize: 11 }}>{uiText("m6e641f0af509")}</span>
               <div className="ml-auto flex items-center gap-2">
                 <button
                   onClick={(e) => { setTouched(true); if (description.length >= 10) handleDescribe(); }}
@@ -825,9 +825,7 @@ function CompanyBuilderWizardInner({ owner }: { owner: { tenantId: string | null
                 >
                   {msg.role === "ai" && (
                     <div className="flex items-center gap-1.5 mb-2">
-                      <span className="bv-mono" style={{ color: "#60A5FA", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                        braavolabs
-                      </span>
+                      <span className="bv-mono" style={{ color: "var(--color-primary)", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase" }}>{uiText("mdbc61703dd4c")}</span>
                     </div>
                   )}
                   <div className="whitespace-pre-wrap leading-relaxed" style={{ color: msg.role === "ai" ? "var(--color-on-surface-variant)" : "var(--color-on-surface)" }}>
@@ -892,7 +890,7 @@ function CompanyBuilderWizardInner({ owner }: { owner: { tenantId: string | null
                 onClick={handleAnswer}
                 disabled={loading || answer.length < 1}
                 className="bv-btn bv-btn-primary bv-btn-icon disabled:opacity-50"
-              >
+               aria-label={iconCopy("send")} type="button">
                 <span className="material-symbols-outlined" style={{ fontSize: 18 }}>send</span>
               </button>
             </div>
@@ -905,7 +903,7 @@ function CompanyBuilderWizardInner({ owner }: { owner: { tenantId: string | null
         <div className="bv-glass bv-rise" style={{ padding: "24px 28px" }}>
           <div className="bv-panel-head mb-5">
             <div>
-              <p className="bv-micro mb-1" style={{ color: "var(--color-outline)" }}>Workspace spec</p>
+              <p className="bv-micro mb-1" style={{ color: "var(--color-outline)" }}>{uiText("md81c07fc5237")}</p>
               <h2 className="bv-headline" style={{ color: "var(--color-on-surface)" }}>
                 {t("app.companyNew.previewTitle")}
               </h2>
@@ -1085,18 +1083,18 @@ function CompanyBuilderWizardInner({ owner }: { owner: { tenantId: string | null
               }}
             >
               <div className="bv-dot bv-running" style={{ width: 6, height: 6 }} />
-              <span className="bv-mono" style={{ fontSize: 9, color: "#fff", letterSpacing: "0.08em" }}>core</span>
+              <span className="bv-mono" style={{ fontSize: 9, color: "#fff", letterSpacing: "0.08em" }}>{uiText("mfba9134a6958")}</span>
             </div>
 
             {/* Outer agent nodes */}
             {[
-              { label: "acq.", x: 260, y: 30 },
-              { label: "sales", x: 390, y: 70 },
-              { label: "ops", x: 450, y: 180 },
-              { label: "anlyt", x: 370, y: 260 },
-              { label: "mem", x: 150, y: 260 },
-              { label: "cont.", x: 70, y: 180 },
-              { label: "gov", x: 130, y: 70 },
+              { label: runtimeCopy("madc0d2e17f7e"), x: 260, y: 30 },
+              { label: runtimeCopy("mb5d24bc5498c"), x: 390, y: 70 },
+              { label: runtimeCopy("madf7dfd9a03b"), x: 450, y: 180 },
+              { label: runtimeCopy("mf61fa075a25a"), x: 370, y: 260 },
+              { label: runtimeCopy("m837fc70634da"), x: 150, y: 260 },
+              { label: runtimeCopy("m920294cc4569"), x: 70, y: 180 },
+              { label: runtimeCopy("m42ac3e609710"), x: 130, y: 70 },
             ].map(({ label, x, y }) => (
               <div
                 key={label}
@@ -1106,7 +1104,7 @@ function CompanyBuilderWizardInner({ owner }: { owner: { tenantId: string | null
                   transform: "translate(-50%,-50%)",
                   width: 48, height: 48,
                   borderRadius: 12,
-                  background: "rgba(15,18,25,0.85)",
+                  background: "var(--color-surface-container-low)",
                   border: "1px solid rgba(59,130,246,0.25)",
                   backdropFilter: "blur(10px)",
                 }}
@@ -1140,7 +1138,7 @@ function CompanyBuilderWizardInner({ owner }: { owner: { tenantId: string | null
               boxShadow: "0 0 30px rgba(59,130,246,0.2)",
             }}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 32, color: "#60A5FA" }}>check_circle</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 32, color: "var(--color-primary)" }}>check_circle</span>
           </div>
 
           <h2 className="bv-headline mb-2" style={{ color: "var(--color-on-surface)" }}>

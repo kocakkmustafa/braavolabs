@@ -1,4 +1,8 @@
 "use client";
+import { useTranslations as useRuntimeTranslations } from "next-intl";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 /**
  * Public account-deletion landing page.
@@ -15,171 +19,136 @@
 
 import { useLocale, useTranslations } from "next-intl";
 
-const sections = [
-  {
-    id: "overview",
-    title: "Overview",
-    icon: "info",
-    content: (
-      <>
-        <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
-          You can ask Braavolabs to delete your account and associated personal data. The current public
-          request channel is email, which lets us verify account ownership and confirm the request in writing.
-        </p>
-      </>
-    ),
-  },
-  {
-    id: "option-1",
-    title: "Request deletion by email",
-    icon: "mail",
-    content: (
-      <>
-        <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
-          Send a message from the email address associated with your account to{" "}
-          <a
-            href="mailto:privacy@braavolabs.com?subject=Account%20deletion%20request"
-            className="text-primary underline hover:text-primary-fixed transition-colors"
-          >
-            privacy@braavolabs.com
-          </a>{" "}
-          with the subject <em>&quot;Account deletion request&quot;</em>. Include the account email or username,
-          but never send a password, API key, access token, or payment credential.
-        </p>
-      </>
-    ),
-  },
-  {
-    id: "option-2",
-    title: "Verification and next steps",
-    icon: "verified_user",
-    content: (
-      <>
-        <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
-          We may ask for additional information needed to verify that you control the account. We will
-          confirm the request and communicate its status through the verified email channel. Applicable
-          statutory response periods continue to apply; this page does not promise an automated completion time.
-        </p>
-      </>
-    ),
-  },
-  {
-    id: "option-3",
-    title: "Current availability",
-    icon: "info",
-    content: (
-      <>
-        <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
-          Braavolabs does not currently publish a separate deletion form or promise an in-app deletion
-          control on this public site. Use the verified email channel above so the request is not lost or
-          sent through an unrelated contact topic.
-        </p>
-      </>
-    ),
-  },
-  {
-    id: "what-gets-deleted",
-    title: "What gets deleted",
-    icon: "delete_forever",
-    content: (
-      <>
-        <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
-          The deletion scope depends on the account records associated with the verified requester. We
-          review that scope and confirm the outcome in writing, including any record that cannot lawfully
-          be deleted.
-        </p>
-        <ul className="text-[15.5px] leading-[1.8] text-on-surface-variant pl-[22px] list-disc mb-[18px] space-y-2">
-          <li>Account identity and profile records associated with the verified request</li>
-          <li>Tenant-scoped content eligible for deletion under the applicable service and legal obligations</li>
-          <li>Active credentials and sessions associated with the account, where technically and legally eligible</li>
-        </ul>
-      </>
-    ),
-  },
-  {
-    id: "what-we-retain",
-    title: "What we retain — and why",
-    icon: "archive",
-    content: (
-      <>
-        <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
-          Some records may need to be retained for tax, accounting, dispute, fraud-prevention, or other
-          legal obligations. The applicable categories and periods depend on the current deployment,
-          provider contracts, and jurisdiction; they are communicated for the verified request rather
-          than promised here as a fixed public schedule.
-        </p>
-        <ul className="text-[15.5px] leading-[1.8] text-on-surface-variant pl-[22px] list-disc mb-[18px] space-y-2">
-          <li>Records that applicable tax, accounting, or regulatory law requires us to keep</li>
-          <li>Records needed to document the request, verification, and legally required response</li>
-          <li>Data subject to a valid legal hold or an unresolved dispute</li>
-        </ul>
-      </>
-    ),
-  },
-  {
-    id: "timeline",
-    title: "Timeline",
-    icon: "schedule",
-    content: (
-      <>
-        <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
-          We process verified requests under the response periods required by applicable law and provide
-          status updates through the verified email channel. Verification needs, legal holds, and lawful
-          retention obligations can affect completion; any applicable limitation is explained in writing.
-        </p>
-      </>
-    ),
-  },
-  {
-    id: "active-subscriptions",
-    title: "Active subscriptions",
-    icon: "subscriptions",
-    content: (
-      <>
-        <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
-          An account-deletion request and a billing cancellation are separate actions. If your account has
-          a billing question, contact{" "}
-          <a
-            href="mailto:support@braavolabs.com"
-            className="text-primary underline hover:text-primary-fixed transition-colors"
-          >
-            support@braavolabs.com
-          </a>{" "}
-          and we will identify the currently supported channel without claiming a store or in-app flow here.
-        </p>
-      </>
-    ),
-  },
-  {
-    id: "questions",
-    title: "Questions",
-    icon: "help",
-    content: (
-      <>
-        <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
-          Any question about the process, the retention rules, or how to verify the deletion completed:{" "}
-          <a
-            href="mailto:privacy@braavolabs.com"
-            className="text-primary underline hover:text-primary-fixed transition-colors"
-          >
-            privacy@braavolabs.com
-          </a>
-          . For broader data-rights inquiries (access, portability, rectification) see our{" "}
-          <a href="/gdpr" className="text-primary underline hover:text-primary-fixed transition-colors">
-            GDPR Statement
-          </a>{" "}
-          and{" "}
-          <a href="/kvkk" className="text-primary underline hover:text-primary-fixed transition-colors">
-            KVKK Aydınlatma Metni
-          </a>
-          .
-        </p>
-      </>
-    ),
-  },
-];
+
 
 export default function AccountDeletionPage() {
+  const runtimeCopy = useRuntimeTranslations("runtime");
+  const uiText = useLegacyTranslations("uiCopy");
+  const sections = [
+    {
+      id: "overview",
+      title: runtimeCopy("m0d18e6731423"),
+      icon: "info",
+      content: (
+        <>
+          <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">{uiText("med3b20e61c41")}</p>
+        </>
+      ),
+    },
+    {
+      id: "option-1",
+      title: runtimeCopy("m99c2fc0bb65c"),
+      icon: "mail",
+      content: (
+        <>
+          <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">{uiText("m1b2db4796a78")}{" "}
+            <a
+              href="mailto:privacy@braavolabs.com?subject=Account%20deletion%20request"
+              className="text-primary underline hover:text-primary-fixed transition-colors"
+            >
+              privacy@braavolabs.com
+            </a>{" "}{uiText("m442ce29a97e5")}{" "}<em>{uiText("m3142da1ab41a")}</em>{uiText("mc804e0a279e5")}</p>
+        </>
+      ),
+    },
+    {
+      id: "option-2",
+      title: runtimeCopy("md2fa5c7e5df0"),
+      icon: "verified_user",
+      content: (
+        <>
+          <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">{uiText("m38ad53145e92")}</p>
+        </>
+      ),
+    },
+    {
+      id: "option-3",
+      title: runtimeCopy("me4c98c0271e8"),
+      icon: "info",
+      content: (
+        <>
+          <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">{uiText("m29f4515a2181")}</p>
+        </>
+      ),
+    },
+    {
+      id: "what-gets-deleted",
+      title: runtimeCopy("m000165a9f23d"),
+      icon: "delete_forever",
+      content: (
+        <>
+          <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">{uiText("mee9120dd9911")}</p>
+          <ul className="text-[15.5px] leading-[1.8] text-on-surface-variant pl-[22px] list-disc mb-[18px] space-y-2">
+            <li>{uiText("m0a13dcea737c")}</li>
+            <li>{uiText("m3dd748c0c124")}</li>
+            <li>{uiText("m67b7fbf8d86d")}</li>
+          </ul>
+        </>
+      ),
+    },
+    {
+      id: "what-we-retain",
+      title: runtimeCopy("m4178821e2ee3"),
+      icon: "archive",
+      content: (
+        <>
+          <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">{uiText("m292e9193635f")}</p>
+          <ul className="text-[15.5px] leading-[1.8] text-on-surface-variant pl-[22px] list-disc mb-[18px] space-y-2">
+            <li>{uiText("m3acb87ce044a")}</li>
+            <li>{uiText("m9956d26e8534")}</li>
+            <li>{uiText("m665793086a11")}</li>
+          </ul>
+        </>
+      ),
+    },
+    {
+      id: "timeline",
+      title: runtimeCopy("m21ce09941e6e"),
+      icon: "schedule",
+      content: (
+        <>
+          <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">{uiText("m764489556bb6")}</p>
+        </>
+      ),
+    },
+    {
+      id: "active-subscriptions",
+      title: runtimeCopy("mc5d1045cc31b"),
+      icon: "subscriptions",
+      content: (
+        <>
+          <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">{uiText("mc3704343f072")}{" "}
+            <a
+              href="mailto:support@braavolabs.com"
+              className="text-primary underline hover:text-primary-fixed transition-colors"
+            >
+              support@braavolabs.com
+            </a>{" "}{uiText("m262a258637ac")}</p>
+        </>
+      ),
+    },
+    {
+      id: "questions",
+      title: runtimeCopy("md772994860a6"),
+      icon: "help",
+      content: (
+        <>
+          <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">{uiText("mb2c239031d04")}{" "}
+            <a
+              href="mailto:privacy@braavolabs.com"
+              className="text-primary underline hover:text-primary-fixed transition-colors"
+            >
+              privacy@braavolabs.com
+            </a>{uiText("mcf0d0c778c1f")}{" "}
+            <a href="/gdpr" className="text-primary underline hover:text-primary-fixed transition-colors">{uiText("m29492eb1f9b7")}</a>{" "}{uiText("m79a0490687e1")}{" "}
+            <a href="/kvkk" className="text-primary underline hover:text-primary-fixed transition-colors">{uiText("mf75327b3ab03")}</a>
+            .
+          </p>
+        </>
+      ),
+    },
+  ];
+
   const t = useTranslations();
   const legal = useTranslations("static.common.legalNavigation");
   const page = useTranslations("static.common.legalPage");
@@ -235,9 +204,7 @@ export default function AccountDeletionPage() {
             </span>
           </div>
 
-          <h1 lang="en" dir="ltr" className="font-headline font-semibold uppercase tracking-tight text-on-surface text-[clamp(34px,5vw,60px)] leading-[1.05] mb-3">
-            Account &amp; Data Deletion
-          </h1>
+          <h1 lang="en" dir="ltr" className="font-headline font-semibold uppercase tracking-tight text-on-surface text-[clamp(34px,5vw,60px)] leading-[1.05] mb-3">{uiText("m3b525be54f32")}</h1>
           <p className="bv-mono text-outline mt-3">{t("static.common.lastUpdated")}{" "}<time dateTime="2026-05">{updatedMonth}</time></p>
 
           {/* Doc switcher */}
@@ -314,19 +281,15 @@ export default function AccountDeletionPage() {
           {/* CTA card */}
           <div className="mt-10 bv-glass p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="flex-1">
-              <p className="bv-title mb-1">Ready to delete your account?</p>
-              <p className="bv-caption">
-                Send the request from the email address associated with your account.
-              </p>
+              <p className="bv-title mb-1">{uiText("m22af538371f7")}</p>
+              <p className="bv-caption">{uiText("mb5f06ea86d5e")}</p>
             </div>
             <div className="flex gap-3 flex-shrink-0">
               <a
                 href="mailto:privacy@braavolabs.com?subject=Account%20deletion%20request"
                 className="bv-btn bv-btn-ghost bv-btn-sm"
               >
-                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>mail</span>
-                Email us
-              </a>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>mail</span>{uiText("m7bc799542df6")}</a>
             </div>
           </div>
         </article>
@@ -375,7 +338,7 @@ export default function AccountDeletionPage() {
           </div>
           <div className="bv-divider" />
           <p className="text-sm text-outline mt-6 text-center">
-            &copy; {new Date().getFullYear()} Braavolabs. {page("rights")}
+            &copy; {new Date().getFullYear()}{" "}{uiText("m50591bb45e1e")}{" "}{page("rights")}
           </p>
         </div>
       </footer>

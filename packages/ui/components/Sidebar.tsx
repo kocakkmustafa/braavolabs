@@ -1,4 +1,6 @@
 "use client";
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -31,8 +33,10 @@ const PUBLIC_ITEMS = [
   { href: "/pricing", labelKey: "nav.pricing", icon: "sell" },
 ];
 
-export default function Sidebar() {
-  const [expanded, setExpanded] = useState(false);
+export default function Sidebar({ drawer = false }: { drawer?: boolean }) {
+  const uiText = useLegacyTranslations("uiCopy");
+  const [interactiveExpanded, setExpanded] = useState(false);
+  const expanded = drawer || interactiveExpanded;
   const [progress, setProgress] = useState<number | null>(null);
   const pathname = usePathname();
   const token = useAppStore((s) => s.token);
@@ -60,10 +64,12 @@ export default function Sidebar() {
     <aside
       onMouseEnter={() => setExpanded(true)}
       onMouseLeave={() => setExpanded(false)}
+      onFocusCapture={() => setExpanded(true)}
+      onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setExpanded(false); }}
       style={{
-        position: "fixed", left: 0, top: 0, height: "100vh", width: W,
-        background: "linear-gradient(180deg, #080a12 0%, #0a0d16 100%)",
-        borderRight: "1px solid rgba(255,255,255,0.04)",
+        position: "fixed", insetInlineStart: 0, top: 0, height: "100dvh", width: drawer ? "min(260px, calc(100vw - 64px))" : W,
+        background: "var(--color-surface)",
+        borderInlineEnd: "1px solid var(--color-outline-variant)",
         zIndex: 60, display: "flex", flexDirection: "column",
         transition: "width 0.28s cubic-bezier(0.4,0,0.2,1)",
         overflow: "hidden",
@@ -72,7 +78,7 @@ export default function Sidebar() {
     >
       {/* Logo */}
       <div style={{ padding: "20px 0", display: "flex", alignItems: "center", justifyContent: "center", height: 64, flexShrink: 0 }}>
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", paddingLeft: expanded ? 16 : 0, transition: "padding 0.28s", width: "100%", justifyContent: expanded ? "flex-start" : "center" }}>
+        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", paddingInlineStart: expanded ? 16 : 0, transition: "padding 0.28s", width: "100%", justifyContent: expanded ? "flex-start" : "center" }}>
           <div style={{
             width: 30, height: 30, borderRadius: 8, flexShrink: 0,
             background: "linear-gradient(135deg, #00d1ff, #6d11ad)",
@@ -105,6 +111,8 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              aria-label={t(item.labelKey)}
+              aria-current={active ? "page" : undefined}
               title={!expanded ? t(item.labelKey) : undefined}
               onClick={() => sounds.click()}
               style={{
@@ -113,16 +121,16 @@ export default function Sidebar() {
                 textDecoration: "none",
                 justifyContent: expanded ? "flex-start" : "center",
                 background: active ? "rgba(0,209,255,0.08)" : "transparent",
-                color: active ? "#00d1ff" : "rgba(230,227,251,0.45)",
+                color: active ? "var(--color-primary)" : "var(--color-on-surface-variant)",
                 transition: "all 0.2s cubic-bezier(0.4,0,0.2,1)",
-                borderLeft: active ? "2px solid #00d1ff" : "2px solid transparent",
+                borderInlineStart: active ? "2px solid var(--color-primary)" : "2px solid transparent",
                 whiteSpace: "nowrap",
                 position: "relative",
               }}
               onMouseEnter={(e) => {
                 if (!active) {
                   e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-                  e.currentTarget.style.color = "#e1e2eb";
+                  e.currentTarget.style.color = "var(--color-on-surface)";
                 }
               }}
               onMouseLeave={(e) => {
@@ -143,8 +151,8 @@ export default function Sidebar() {
       {token && progress !== null && progress < 100 && (
         <div style={{ padding: "8px 10px", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: expanded ? "space-between" : "center", marginBottom: 4 }}>
-            {expanded && <span style={{ fontSize: 10, color: "#3c494e", letterSpacing: "0.08em" }}>SETUP</span>}
-            {expanded && <span style={{ fontSize: 10, color: "#00d1ff", fontWeight: 600 }}>{progress}%</span>}
+            {expanded && <span style={{ fontSize: 10, color: "var(--color-on-surface-variant)", letterSpacing: "0.08em" }}>{uiText("ma770817c8ec3")}</span>}
+            {expanded && <span style={{ fontSize: 10, color: "var(--color-primary)", fontWeight: 600 }}>{progress}%</span>}
           </div>
           <div style={{ height: 3, borderRadius: 999, background: "rgba(255,255,255,0.04)", overflow: "hidden" }}>
             <div style={{ height: "100%", width: `${progress}%`, background: "linear-gradient(90deg, #00d1ff, #6d11ad)", transition: "width 0.8s cubic-bezier(0.16,1,0.3,1)", borderRadius: 999 }} />
@@ -164,7 +172,7 @@ export default function Sidebar() {
                 gap: 8, padding: "10px", borderRadius: 10, marginBottom: 4,
                 background: "linear-gradient(135deg, rgba(0,209,255,0.1), rgba(109,17,173,0.1))",
                 border: "1px solid rgba(0,209,255,0.15)",
-                color: "#00d1ff", textDecoration: "none", fontSize: 13, fontWeight: 600,
+                color: "var(--color-primary)", textDecoration: "none", fontSize: 13, fontWeight: 600,
                 whiteSpace: "nowrap",
                 transition: "all 0.25s",
               }}

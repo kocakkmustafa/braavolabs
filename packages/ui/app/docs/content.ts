@@ -60,614 +60,391 @@ export const DOC_PILL: Record<DocCategory, string> = {
  * ──────────────────────────────────────────────────────────────────────── */
 
 export const DOCS: DocPage[] = [
-  // 1 ── Getting started ────────────────────────────────────────────────────
   {
-    slug: "getting-started",
-    title: "Getting started",
-    nav: "Getting started",
-    category: "Start here",
-    icon: "rocket_launch",
-    order: 1,
-    desc: "Braavolabs is a cross-vendor AI workbench and control plane for governed runs, approvals, and explicit model and data-mode choice.",
-    blocks: [
+    "slug": "getting-started",
+    "title": "Getting started",
+    "nav": "Getting started",
+    "category": "Start here",
+    "icon": "rocket_launch",
+    "order": 1,
+    "desc": "Create a workspace, review a pipeline, and follow a governed run with explicit model and data choices.",
+    "blocks": [
       {
-        kind: "para",
-        text: "Braavolabs is a cross-vendor AI workbench and control plane. It coordinates governed model and agent work while keeping model choice, approval, and data mode explicit. This page introduces that product contract without promising unfinished release capabilities.",
+        "kind": "para",
+        "text": "Braavolabs combines a web workspace, desktop and CLI workbenches, and a mobile companion for model and agent work. Choose the model route and data mode deliberately before starting a run."
       },
       {
-        kind: "heading",
-        id: "the-first-run",
-        text: "The first run, step by step",
+        "kind": "heading",
+        "id": "the-first-run",
+        "text": "Your first run"
       },
       {
-        kind: "steps",
-        items: [
+        "kind": "steps",
+        "items": [
           {
-            title: "Create an account",
-            body: "Create an account with email, Google, or GitHub on the authenticated app surface.",
+            "title": "Sign in and describe the work",
+            "body": "Create an account on the authenticated app. In the company builder, describe your goal, audience and constraints. The builder may ask clarifying questions before proposing a plan."
           },
           {
-            title: "Describe your business",
-            body: "Type what you want the company to do, in your own words: \"A content studio that drafts and schedules LinkedIn and TikTok posts for ten clients,\" or \"An outbound team that qualifies inbound leads and books demos.\" Plain language is the input — you are not wiring nodes.",
+            "title": "Review the proposal",
+            "body": "Check the generated agents, pipeline steps, configured tools and expected outputs. Edit or remove anything you do not want. A proposed plan is not evidence that an external integration is connected."
           },
           {
-            title: "Answer the clarifying questions",
-            body: "Before composing anything, Braavolabs runs a short two-to-three-turn clarification loop. It asks the few things it genuinely needs — your audience, your tone, the channels you care about — instead of guessing and getting them wrong.",
+            "title": "Choose a route and start",
+            "body": "Configure an available provider key or compatible local endpoint. Review its capabilities and data handling, then start the pipeline. Provider inference can incur charges when work begins."
           },
           {
-            title: "Review the composed agents and pipeline",
-            body: "Braavolabs proposes a set of agents spread across the nine primitives (acquisition, sales, delivery, content, operations, finance, analytics, memory, governance) and a pipeline that orders their work. Read it, rename things, drop steps you do not want. Nothing runs until you say so.",
-          },
-          {
-            title: "Run it",
-            body: "Start the pipeline. Each step records its reasoning before it acts, every tool call is logged, and spend accrues step by step so you always see the running cost.",
-          },
-          {
-            title: "Approve spend and answer ask_user",
-            body: "Any money-touching action pauses for an explicit approval. If an agent hits genuine ambiguity, it can call ask_user and park the run with a question — both land in the same approvals queue, so there is one place to look.",
-          },
-          {
-            title: "Watch the live run",
-            body: "Follow the run as it executes: steps, status, accumulating cost, and the reasoning behind each move. You can steer it mid-flight or stop it at any time.",
-          },
-        ],
+            "title": "Follow status and decisions",
+            "body": "Read the recorded steps, available cost data, pending approvals and ask_user questions. Respond to the specific decision shown. You can send steering guidance or request a stop; an active call or external effect may already be in progress."
+          }
+        ]
       },
       {
-        kind: "heading",
-        id: "plans-and-inference",
-        text: "Plans and inference",
+        "kind": "heading",
+        "id": "plans-and-inference",
+        "text": "Plans and inference"
       },
       {
-        kind: "para",
-        text: "Individual — $19/month. Team — $39/active-user/month.",
+        "kind": "para",
+        "text": "Individual ($19/month) and Team ($39/active user/month) are preview plan descriptions and are not currently available to purchase. Inference is separate: provider charges, local hardware and operation costs are not included."
       },
       {
-        kind: "para",
-        text: "Inference is not included. Use your own provider keys (BYOK) or local models.",
+        "kind": "para",
+        "text": "Private Mode is a preview. Cloud Agent Mode and signed evidence remain in development. Holding is a premium/private preview. Do not treat these labels as a complete security or availability guarantee."
       },
       {
-        kind: "para",
-        text: "Private Mode — preview. Its complete data-handling and security contract remains in development.",
-      },
-      {
-        kind: "para",
-        text: "Cloud Agent Mode — in development. Its execution, consent, and retention contract is not presented as generally available.",
-      },
-      {
-        kind: "note",
-        tone: "info",
-        text: "Holding — premium/private preview. Signed evidence — in development.",
-      },
-      {
-        kind: "note",
-        tone: "info",
-        text: "Authoring — composing agents, designing pipelines, wiring integrations — happens on the web. The companion mobile app is for command: monitor, approve, answer, and steer from anywhere. See the Mobile app page.",
-      },
-      {
-        kind: "heading",
-        id: "where-to-go-next",
-        text: "Where to go next",
-      },
-      {
-        kind: "list",
-        items: [
-          "Concepts — the vocabulary: workspaces, agents, pipelines, runs, the nine primitives, approvals, the five risk-stops, and the audit trail.",
-          "BYOK & providers — add a provider key or select a local runtime.",
-          "Mid-run steering & ask_user — redirect a run in flight without re-running it.",
-          "Webhooks — let external events trigger your pipelines, signed and verified.",
-        ],
-      },
-    ],
+        "kind": "para",
+        "text": "Use the web for composing companies and pipelines. Use the mobile companion to monitor, answer, approve and steer supported work."
+      }
+    ]
   },
-
-  // 2 ── Concepts ─────────────────────────────────────────────────────────────
   {
-    slug: "concepts",
-    title: "Core concepts",
-    nav: "Concepts",
-    category: "Concepts",
-    icon: "schema",
-    order: 2,
-    desc: "The vocabulary: workspaces, agents, pipelines, runs, the nine primitives, approvals, the five risk-stops, and the audit trail.",
-    blocks: [
+    "slug": "concepts",
+    "title": "Core concepts",
+    "nav": "Concepts",
+    "category": "Concepts",
+    "icon": "schema",
+    "order": 2,
+    "desc": "Understand companies, agents, pipelines, runs, decisions and recorded activity.",
+    "blocks": [
       {
-        kind: "para",
-        text: "A handful of nouns explain almost everything in Braavolabs. Learn these and the rest of the product reads cleanly.",
+        "kind": "para",
+        "text": "A company groups a goal, agents and pipelines inside your authenticated workspace. An agent performs a role; a pipeline orders work; a run is one execution of that pipeline. Multiple companies can belong to the same account or tenant."
       },
       {
-        kind: "heading",
-        id: "workspaces",
-        text: "Workspaces (companies)",
+        "kind": "heading",
+        "id": "primitives",
+        "text": "Nine building blocks"
       },
       {
-        kind: "para",
-        text: "A workspace — also called a company — is one autonomous AI company: a named set of agents, the pipelines that orchestrate them, and the memory, contacts, and run history they accumulate. You can run several workspaces side by side, and each can be paused or resumed as a whole. Every workspace is tenant-isolated: its data never bleeds into another.",
+        "kind": "para",
+        "text": "The builder composes acquisition, sales, delivery, content, operations, finance, analytics, memory and governance roles. These are starting structures to review, not automatic permission to contact people, spend money or access an account."
       },
       {
-        kind: "heading",
-        id: "agents",
-        text: "Agents",
+        "kind": "heading",
+        "id": "decisions",
+        "text": "Decisions and governance"
       },
       {
-        kind: "para",
-        text: "An agent is a role with a job — \"acquisition,\" \"sales,\" \"content,\" and so on. Braavolabs staffs your workspace by composing agents across the nine primitives below, each scoped to the tools it needs. Agents do not act on impulse; they act as steps inside a pipeline, and every step they take records its reasoning before the action.",
+        "kind": "para",
+        "text": "Supported actions can produce pending approvals. An ask_user decision requests information rather than permission to spend. Read its question and scope before allowing, rejecting or answering. Provider inference is billed separately and does not necessarily wait for an approval row."
       },
       {
-        kind: "heading",
-        id: "the-nine-primitives",
-        text: "The nine primitives",
+        "kind": "para",
+        "text": "Governance checks include hard, loop, cost, spam and brand stops. Their coverage depends on the execution path and configuration. A stop prevents further supported work at a check boundary; it cannot retract an already sent request."
       },
       {
-        kind: "para",
-        text: "Every agent maps to one of nine primitives — the functional building blocks a company is made of. Composition picks the ones your business needs and leaves the rest out.",
+        "kind": "heading",
+        "id": "records",
+        "text": "Read the recorded state"
       },
       {
-        kind: "list",
-        items: [
-          "Acquisition — finding and qualifying net-new prospects or audiences.",
-          "Sales — outreach, follow-up, and moving deals forward.",
-          "Delivery — producing and shipping the actual work.",
-          "Content — drafting and scheduling posts, copy, and creative.",
-          "Operations — the glue steps that keep a pipeline coherent.",
-          "Finance — invoices, reconciliation, and money-side reporting.",
-          "Analytics — measuring what happened and surfacing it.",
-          "Memory — episodic, semantic, and graph memory the company learns from.",
-          "Governance — the agent that enforces approvals and the risk-stops.",
-        ],
+        "kind": "para",
+        "text": "Activity and step records help explain status, outputs, available cost data and decision summaries. Missing data is unknown, not zero. A recorded request is not proof that its external effect completed. Retain important outputs and reconcile external systems before retrying uncertain work."
       },
       {
-        kind: "heading",
-        id: "pipelines",
-        text: "Pipelines",
-      },
-      {
-        kind: "para",
-        text: "A pipeline is the ordered plan that puts agents to work — the sequence of steps that turns intent into output. You review and edit the composed pipeline before the first run, and you can re-run, roll back, or re-run individual steps afterward. Pipelines are written against the platform, not against any one model vendor, so changing models never means rewriting a pipeline.",
-      },
-      {
-        kind: "heading",
-        id: "runs",
-        text: "Runs",
-      },
-      {
-        kind: "para",
-        text: "A run is one execution of a pipeline. It streams live — steps, status, and accumulating cost update as it goes — and every run is fully reconstructable afterward from its steps. A run can be steered while it executes, paused on a question, resumed safely, or stopped outright. Runs are the unit you watch, govern, and audit.",
-      },
-      {
-        kind: "heading",
-        id: "approvals",
-        text: "Approvals",
-      },
-      {
-        kind: "para",
-        text: "No money-touching action runs without an explicit approval attached to it. Spend requests land in the approvals queue; you approve, edit, or reject them, and the run continues from there. The same queue carries an agent's ask_user questions as an input-type approval — one gate to check instead of two. Every decision, yours or an agent's, is recorded.",
-      },
-      {
-        kind: "heading",
-        id: "the-five-risk-stops",
-        text: "The five risk-stops",
-      },
-      {
-        kind: "para",
-        text: "Five named checks run between the steps of every run and can halt it on the spot. They ship enabled by default — opt-in safety is decorative safety — and when one fires, the run stops, the reason is written to the audit trail in plain language, and you are notified.",
-      },
-      {
-        kind: "list",
-        items: [
-          "Hard stop — an unconditional veto. Flag a run for a hard stop and it takes no further step. There is always one switch that wins.",
-          "Loop guard — five consecutive failed steps halt the pipeline. Five in a row is a pattern, not noise, and retrying just grinds budget into the same wall.",
-          "Cost-anomaly stop — a run tracking more than 20% over its budget halts mid-execution, while there is still something left to save.",
-          "Spam guard — three unanswered sends to the same recipient stop the sequence. Persistence past silence costs reputation and earns nothing.",
-          "Brand-violation stop — generated drafts and posts are scanned against a conservative blocklist (defamation-adjacent framing, get-rich-quick or guaranteed-return claims, hate-speech markers, adult content) before they ship. Coverage is multilingual — English and Turkish today.",
-        ],
-      },
-      {
-        kind: "heading",
-        id: "the-audit-trail",
-        text: "The audit trail",
-      },
-      {
-        kind: "para",
-        text: "Everything an agent does leaves a record designed to be read, not just stored. Four invariants hold across the platform and are enforced in code: every tool call is logged with its inputs, outputs, and timing; every step carries a required reasoning field, written at decision time; every spend has an approval row; and the activity log captures every other create, update, send, and decision — including the governance engine's own interventions. When a risk-stop fires, the entry says which stop, what it observed, and the numbers behind it.",
-      },
-    ],
+        "kind": "note",
+        "tone": "warn",
+        "text": "A company name or a local model endpoint alone does not establish a separate tenant, an operating-system sandbox or a fully offline data path."
+      }
+    ]
   },
-
-  // 3 ── BYOK & providers ──────────────────────────────────────────────────────
   {
-    slug: "byok-and-providers",
-    title: "BYOK & providers",
-    nav: "BYOK & providers",
-    category: "Reference",
-    icon: "vpn_key",
-    order: 3,
-    desc: "Bring your own keys or select a local runtime, and understand how provider routing and data-mode consent work.",
-    blocks: [
+    "slug": "byok-and-providers",
+    "title": "BYOK & providers",
+    "nav": "BYOK & providers",
+    "category": "Reference",
+    "icon": "vpn_key",
+    "order": 3,
+    "desc": "Configure a supported cloud or local model route and understand its cost and data boundaries.",
+    "blocks": [
       {
-        kind: "para",
-        text: "Braavolabs is bring-your-own-key. You connect the model providers you want, and the platform routes each step through them. Your pipelines are written against the router, not a vendor SDK, so swapping providers is a settings change — no pipeline definitions touched, no prompts rewritten.",
+        "kind": "para",
+        "text": "Bring your own key (BYOK) means using your provider credentials for supported cloud inference. A compatible customer-operated endpoint is a separate route. Available providers and models come from the authenticated configuration; this page does not promise a fixed provider count."
       },
       {
-        kind: "heading",
-        id: "fourteen-providers",
-        text: "Provider routes",
+        "kind": "heading",
+        "id": "configure",
+        "text": "Configure and check a route"
       },
       {
-        kind: "para",
-        text: "The router resolves the cloud-provider or local-model route the operator configured:",
+        "kind": "list",
+        "items": [
+          "Use a key scoped to the intended provider account. Review its provider-side spending controls and avoid putting secrets into prompts, shared logs or screenshots.",
+          "For a local endpoint, confirm its explicit base URL, supported model and reachability from the machine that will make the request.",
+          "Check model capabilities, tool support and the selected data mode. Changing providers can change output, price and behavior; a common API shape does not make models interchangeable."
+        ]
       },
       {
-        kind: "list",
-        items: [
-          "Cloud routes use provider credentials supplied by the operator.",
-          "Local routes can use Ollama, LM Studio, or a custom OpenAI-compatible endpoint.",
-        ],
+        "kind": "heading",
+        "id": "key-storage",
+        "text": "Key storage depends on the surface"
       },
       {
-        kind: "heading",
-        id: "add-a-key",
-        text: "Adding a key",
+        "kind": "para",
+        "text": "Server-stored cloud credentials use the implemented AES-256-GCM storage format. Protecting them also depends on the server key, runtime access and backups. CLI direct-provider configuration and desktop credential storage have their own boundaries; saving a key on one surface does not prove it is available or protected identically on every device."
       },
       {
-        kind: "steps",
-        items: [
-          {
-            title: "Open Settings → AI Provider",
-            body: "Find the provider you want to connect in the AI Provider settings.",
-          },
-          {
-            title: "Paste your API key",
-            body: "Enter the key from that provider's own dashboard. The platform resolves the provider you explicitly selected for the run.",
-          },
-          {
-            title: "Pick models per step",
-            body: "Mix freely: a strong reasoning model where judgment matters, a fast cheap model for extraction and glue steps, a local model where data is sensitive. The router makes the mix a per-workspace configuration choice, and every choice is reversible.",
-          },
-        ],
+        "kind": "para",
+        "text": "Inference charges go to the configured provider. Local execution can still incur hardware and operation costs. Review reported usage and provider billing together; unavailable cost data is not free usage."
       },
       {
-        kind: "note",
-        tone: "warn",
-        text: "If no key or local runtime resolves, a run must fail loudly with a clear configuration error rather than silently switching to a model you did not choose.",
-      },
-      {
-        kind: "heading",
-        id: "how-keys-are-stored",
-        text: "How your keys are stored",
-      },
-      {
-        kind: "para",
-        text: "A provider key is among the most sensitive things you can hand a platform, so it is encrypted with AES-256-GCM — authenticated encryption, with a per-row derived key — before it is stored. The plaintext is never returned by the API afterward: the dashboard can tell you a key exists, but it cannot show it back to you, and neither can anyone who gets a copy of a database dump.",
-      },
-      {
-        kind: "heading",
-        id: "local-runtime",
-        text: "Running locally",
-      },
-      {
-        kind: "para",
-        text: "Ollama, LM Studio, and custom OpenAI-compatible endpoints can provide a local model route. Availability, model download, hardware fit, and quality remain the operator's responsibility; the public contract does not promise a bundled local model.",
-      },
-      {
-        kind: "para",
-        text: "Switching to local inference changes nothing else: the agent loop is identical, tool calls are still logged, every step still records its reasoning, spends still wait for approvals, and all five risk-stops still run between steps. Governance lives in the pipeline layer, not in any model vendor's cloud, so it travels with you to the edge.",
-      },
-      {
-        kind: "heading",
-        id: "data-sharing-consent",
-        text: "AI data-sharing consent",
-      },
-      {
-        kind: "para",
-        text: "Sending data to a model provider is a choice you make explicitly. When you connect a cloud provider, you consent to your run inputs being sent to that provider for inference under their terms — which is what BYOK means in practice. If your work cannot leave the building, route the sensitive steps to a local provider instead; consent and routing are per-workspace, and you can keep judgment-heavy steps local and everything else wherever you like.",
-      },
-    ],
+        "kind": "note",
+        "tone": "warn",
+        "text": "A local inference URL does not make tools, telemetry, account services or the complete pipeline offline. Review the complete data path before processing sensitive material."
+      }
+    ]
   },
-
-  // 4 ── Mid-run steering & ask_user ───────────────────────────────────────────
   {
-    slug: "mid-run-steering",
-    title: "Mid-run steering & ask_user",
-    nav: "Steering & ask_user",
-    category: "Concepts",
-    icon: "alt_route",
-    order: 4,
-    desc: "Redirect a running pipeline without re-running it, and let agents pause to ask you a question — with resume that never double-bills.",
-    blocks: [
+    "slug": "mid-run-steering",
+    "title": "Mid-run steering & ask_user",
+    "nav": "Steering & ask_user",
+    "category": "Concepts",
+    "icon": "alt_route",
+    "order": 4,
+    "desc": "Send guidance, answer a question, or request a stop while following the recorded run state.",
+    "blocks": [
       {
-        kind: "para",
-        text: "A multi-step run is a working session, not a cassette tape. Most platforms give you two buttons for a run that has gone off course: let it finish, or kill it and start over. Braavolabs gives you a third option — lean over its shoulder and redirect it, mid-flight, without burning everything it already did.",
+        "kind": "para",
+        "text": "Steering lets you send additional operator guidance to a supported run. State the change clearly: the intended customer, constraint or next step. The request is consumed at an available execution boundary, rather than guaranteeing an immediate interruption of an active provider call."
       },
       {
-        kind: "heading",
-        id: "steering-a-run",
-        text: "Steering a running pipeline",
+        "kind": "heading",
+        "id": "states",
+        "text": "Read the acknowledgement carefully"
       },
       {
-        kind: "para",
-        text: "A live run accepts instructions. Type into the steer box — on the web dashboard or the phone app — and your instruction is persisted as a steering message attached to the run. At each turn boundary, before the agent takes its next action, the loop drains the queued steering messages, marks them consumed, and injects them into the working context as explicit operator guidance. The model sees your words for what they are: a human redirecting the work. The live event stream then confirms the steering was applied, so you are never left wondering whether your message landed.",
+        "kind": "para",
+        "text": "A successful request means the system accepted that request. It does not by itself prove the model received, applied or followed the instruction. Follow the subsequent run state and output. If a request fails or times out, inspect the current state before resubmitting."
       },
       {
-        kind: "heading",
-        id: "why-turn-boundaries",
-        text: "Why turn boundaries",
+        "kind": "heading",
+        "id": "ask-user",
+        "text": "Answer an ask_user question"
       },
       {
-        kind: "para",
-        text: "Braavolabs deliberately does not interrupt the model mid-step. A turn boundary is the one point where the world is consistent: the previous tool call has fully resolved and been logged, cost accounting is up to date, and the conversation state is valid. Injecting guidance there means the agent always reacts to your instruction with a clean picture of what it has already done — and because agent turns are short, the next boundary is never far away.",
+        "kind": "para",
+        "text": "When an agent requests information, open the matching pending decision and read the question and context. Submit the answer once, then check whether the decision and run state changed. Do not confuse an information request with authorization for an unrelated action."
       },
       {
-        kind: "heading",
-        id: "ask-user",
-        text: "ask_user: steering in reverse",
+        "kind": "heading",
+        "id": "resume",
+        "text": "Resume with care"
       },
       {
-        kind: "para",
-        text: "Steering handles the case where you spot the problem. The ask_user tool handles the case where the agent does. When a run hits genuine ambiguity — two plausible readings of a brief, a missing detail that should not be guessed — the agent can stop and ask. The run parks in a waiting state, the question lands as an input approval in the same queue that gates spending, and a push notification routes you straight to the answer form. Your answer comes back into the run through the same channel steering uses, tagged as a human-in-the-loop answer. One pause primitive, two directions: operator interrupts agent, agent interrupts operator.",
+        "kind": "para",
+        "text": "Saved completed steps can be reused when work resumes. This does not establish exactly-once delivery for provider calls, emails, payments or other external effects. A pause, stop or failed connection can occur while an effect is in progress. Check recorded output and the external service before manually retrying uncertain work."
       },
       {
-        kind: "heading",
-        id: "idempotent-resume",
-        text: "Resuming without double-billing",
-      },
-      {
-        kind: "para",
-        text: "Pausing is only useful if resuming is safe, and resuming is only safe if it is idempotent. When a paused run resumes, the runner walks the plan from the top but skips every step that already completed — restoring each one's persisted output instead of executing it again. Emails do not send twice. Approved spends do not repeat. And the cost already incurred is seeded into the resumed run's accounting, so budget governance sees true cumulative spend rather than a fresh zero. Nothing double-bills, and no risk-stop gets blindsided by a counter reset.",
-      },
-      {
-        kind: "note",
-        tone: "info",
-        text: "Because resume is idempotent, the cost-anomaly stop cannot be gamed by pausing — a resumed run keeps counting from where it left off.",
-      },
-    ],
+        "kind": "note",
+        "tone": "warn",
+        "text": "Pause, resume and steering do not guarantee zero additional cost or reverse an external effect that already happened."
+      }
+    ]
   },
-
-  // 5 ── Webhooks ─────────────────────────────────────────────────────────────
   {
-    slug: "webhooks",
-    title: "Webhooks",
-    nav: "Webhooks",
-    category: "Reference",
-    icon: "webhook",
-    order: 5,
-    desc: "Trigger your pipelines from external events with signed, verified, replay-protected webhooks.",
-    blocks: [
+    "slug": "webhooks",
+    "title": "Webhooks",
+    "nav": "Webhooks",
+    "category": "Reference",
+    "icon": "webhook",
+    "order": 5,
+    "desc": "Sign a company webhook with the exact timestamp, raw body and header contract.",
+    "blocks": [
       {
-        kind: "para",
-        text: "Webhooks let external systems trigger work inside a Braavolabs workspace. An inbound event — a new order, a form submission, a CRM change — fans in to your workspace and can kick off a pipeline. Because anything that can trigger autonomous work is security-sensitive, every webhook is signed, timestamped, and replay-protected.",
+        "kind": "para",
+        "text": "A configured company webhook accepts POST /hooks/<company-slug>/<event>. Use that company's configured webhook secret and a test company before sending an event that can start work."
       },
       {
-        kind: "heading",
-        id: "the-endpoint",
-        text: "The endpoint",
+        "kind": "heading",
+        "id": "signature",
+        "text": "Sign the exact bytes"
       },
       {
-        kind: "para",
-        text: "Inbound webhooks are addressed per workspace and per event type:",
+        "kind": "para",
+        "text": "Set X-Webhook-Timestamp to the current Unix time in milliseconds. Compute a hexadecimal HMAC-SHA256 over the timestamp, a literal dot, and the exact raw request body. Send it as X-Webhook-Signature. Do not reserialize or edit the body after signing."
       },
       {
-        kind: "code",
-        lang: "text",
-        caption: "Endpoint shape",
-        code: "POST /hooks/<workspace>/<event>",
+        "kind": "code",
+        "lang": "javascript",
+        "caption": "Example signed request; replace the API URL, company slug and event.",
+        "code": "import { createHmac } from \"node:crypto\";\n\n// Use the configured company webhook secret; keep it out of source control.\nconst secret = process.env.BRAAVO_WEBHOOK_SECRET;\nif (!secret) throw new Error(\"Set BRAAVO_WEBHOOK_SECRET\");\nconst timestamp = String(Date.now()); // milliseconds, not Unix seconds\nconst body = JSON.stringify({ message: \"Example event\" });\nconst signature = createHmac(\"sha256\", secret)\n  .update(timestamp + \".\")\n  .update(body)\n  .digest(\"hex\");\n\n// Sending this request can start configured work. Use a test company.\nconst response = await fetch(\"https://YOUR_API/hooks/COMPANY_SLUG/EVENT\", {\n  method: \"POST\",\n  headers: {\n    \"Content-Type\": \"application/json\",\n    \"X-Webhook-Timestamp\": timestamp,\n    \"X-Webhook-Signature\": signature,\n  },\n  body,\n});\nif (!response.ok) throw new Error(`Webhook rejected: ${response.status}`);"
       },
       {
-        kind: "para",
-        text: "<workspace> is your workspace (company) slug; <event> is the event name your pipeline listens for. The path tells Braavolabs both who the event belongs to and what it is.",
+        "kind": "heading",
+        "id": "delivery",
+        "text": "Delivery and retries"
       },
       {
-        kind: "heading",
-        id: "signing",
-        text: "Signing and verification",
+        "kind": "para",
+        "text": "The server rejects timestamps outside a five-minute window. Signature-based duplicate detection uses Redis with a six-minute entry lifetime; when Redis is unavailable, signature and timestamp checks remain but that duplicate check can be skipped. This is not an exactly-once delivery guarantee."
       },
       {
-        kind: "para",
-        text: "Each request is authenticated with an HMAC-SHA256 signature over the payload, computed with your workspace's webhook secret. A timestamp is required on every request, and Braavolabs enforces a 5-minute replay window: a request whose timestamp is older than five minutes is rejected, so a captured request cannot be replayed later.",
-      },
-      {
-        kind: "list",
-        items: [
-          "Compute the HMAC-SHA256 of the request body using your webhook signing secret.",
-          "Send the hex digest in the signature header, and the request time in the timestamp header.",
-          "Requests with a missing, malformed, or stale timestamp — or a signature that does not match — are rejected before any pipeline runs.",
-        ],
-      },
-      {
-        kind: "heading",
-        id: "sample-request",
-        text: "A sample signed request",
-      },
-      {
-        kind: "code",
-        lang: "bash",
-        caption: "Signing and sending a webhook with curl",
-        code: `# Your workspace webhook secret (from Settings) and the event payload.
-SECRET="whsec_your_workspace_secret"
-BODY='{"order_id":"1042","total":"149.99"}'
-TS=$(date +%s)
-
-# HMAC-SHA256 of the raw body, hex-encoded.
-SIG=$(printf '%s' "$BODY" \\
-  | openssl dgst -sha256 -hmac "$SECRET" \\
-  | sed 's/^.* //')
-
-curl -X POST https://api.braavolabs.com/hooks/acme-content/order_created \\
-  -H "Content-Type: application/json" \\
-  -H "X-Braavo-Timestamp: $TS" \\
-  -H "X-Braavo-Signature: $SIG" \\
-  -d "$BODY"`,
-      },
-      {
-        kind: "note",
-        tone: "warn",
-        text: "Sign the exact raw bytes you send, not a re-serialized copy — any whitespace or key-ordering difference changes the HMAC and the request will be rejected. Send the timestamp you signed with, and send it promptly: outside the 5-minute window the request is treated as a replay.",
-      },
-    ],
+        "kind": "note",
+        "tone": "warn",
+        "text": "A successful webhook response is not proof that the pipeline completed. Check run status and use application-level idempotency and reconciliation for external effects. Before retrying a timeout, inspect whether the first request was accepted."
+      }
+    ]
   },
-
-  // 6 ── Connecting external automations ───────────────────────────────────────
   {
-    slug: "external-automations",
-    title: "Connecting external automations",
-    nav: "External automations",
-    category: "Reference",
-    icon: "hub",
-    order: 6,
-    desc: "Monitor the n8n, Make, and Zapier automations you already run, alongside your Braavolabs pipelines.",
-    blocks: [
+    "slug": "external-automations",
+    "title": "Connecting external automations",
+    "nav": "External automations",
+    "category": "Reference",
+    "icon": "hub",
+    "order": 6,
+    "desc": "Connect a configured external automation and verify both sides of its execution.",
+    "blocks": [
       {
-        kind: "para",
-        text: "You almost certainly already run automations elsewhere. Braavolabs is built to be the command center for the agents and automations you already have — not a walled garden that demands you rebuild them. The Connections surface lets you bring those external automations into view next to your Braavolabs pipelines.",
+        "kind": "para",
+        "text": "Use configured integrations or signed webhooks to connect supported external automation tools. The availability and actions of an integration depend on its actual connection and credentials; naming n8n, Make or Zapier does not mean every workflow is automatically connected."
       },
       {
-        kind: "heading",
-        id: "what-you-connect",
-        text: "What you connect",
+        "kind": "heading",
+        "id": "connect",
+        "text": "Make one connection observable"
       },
       {
-        kind: "para",
-        text: "Connect the automation tools you run today — n8n, Make, and Zapier — so their activity shows up in one place. The point is unification: a single pane where your owned automations and your Braavolabs workspaces sit side by side, rather than scattered across browser tabs.",
+        "kind": "steps",
+        "items": [
+          {
+            "title": "Choose the boundary",
+            "body": "Decide which system starts work, which event it sends and which system owns the result. Connect only the account and permissions needed for that action."
+          },
+          {
+            "title": "Test with harmless data",
+            "body": "Use a test company and an external test workflow. Verify the event payload, authentication, resulting run and external result."
+          },
+          {
+            "title": "Plan failure handling",
+            "body": "Define timeouts, duplicate handling and a manual reconciliation step. Do not blindly resend a payment, email or other external effect after an uncertain response."
+          }
+        ]
       },
       {
-        kind: "heading",
-        id: "what-is-shown",
-        text: "What's shown",
+        "kind": "para",
+        "text": "An external workflow status and a Braavolabs run status describe different parts of the operation. Check both. Recorded dispatch or a successful trigger response is not a delivery or completion receipt from the destination."
       },
       {
-        kind: "list",
-        items: [
-          "The connection itself — which external tool is linked and its status.",
-          "Activity from those automations surfaced in your Connections view, so you can monitor what they are doing without leaving Braavolabs.",
-          "Your Braavolabs pipelines alongside them, so monitoring is genuinely one screen.",
-        ],
-      },
-      {
-        kind: "note",
-        tone: "info",
-        text: "Braavolabs competes on control, mobility, privacy, and price — not on connector count. Connections are about giving you one place to watch and steer what you already run, not about replacing the tools you like.",
-      },
-    ],
+        "kind": "para",
+        "text": "Connection credentials, webhook secrets and provider keys may have different storage and revocation paths. Review the relevant surface and external service when removing access."
+      }
+    ]
   },
-
-  // 7 ── Mobile app ───────────────────────────────────────────────────────────
   {
-    slug: "mobile-app",
-    title: "Mobile app",
-    nav: "Mobile app",
-    category: "Reference",
-    icon: "smartphone",
-    order: 7,
-    desc: "The companion app puts the command seat in your pocket — monitor, approve, answer, and steer — while authoring stays on the web.",
-    blocks: [
+    "slug": "mobile-app",
+    "title": "Mobile app",
+    "nav": "Mobile app",
+    "category": "Reference",
+    "icon": "smartphone",
+    "order": 7,
+    "desc": "Use the mobile companion to monitor, decide and steer supported work.",
+    "blocks": [
       {
-        kind: "para",
-        text: "Agents do not keep office hours. The run that needs a decision can fire at 21:40, when you are nowhere near a desk — and if the only place you can act is a desktop dashboard, \"human in the loop\" degrades into \"human who finds out tomorrow.\" So Braavolabs splits the product along the line where your attention actually splits: authoring on the web, command in your pocket.",
+        "kind": "para",
+        "text": "The mobile app is a companion for supported monitoring and control. Compose companies and pipelines on the web, then use the phone to read run status, handle pending decisions and send steering guidance."
       },
       {
-        kind: "heading",
-        id: "four-verbs",
-        text: "Four verbs, not a shrunken dashboard",
+        "kind": "heading",
+        "id": "four-actions",
+        "text": "Monitor, approve, answer and steer"
       },
       {
-        kind: "para",
-        text: "The companion app is built around the four things that genuinely cannot wait — each a two-minute interaction:",
+        "kind": "list",
+        "items": [
+          "Monitor: open the relevant company and run. Treat unavailable or stale data as unknown; reconnect and refresh before making a decision.",
+          "Approve: read the specific pending action and allow or reject it. An approval row does not cover unrelated work or every provider charge.",
+          "Answer: respond to an ask_user question in its original context. Check the resulting decision state after submitting.",
+          "Steer: send a clear instruction and follow subsequent output. An accepted request is not proof that the instruction was applied."
+        ]
       },
       {
-        kind: "steps",
-        items: [
-          {
-            title: "Monitor",
-            body: "Watch live runs with their steps, status, and accumulating cost, polled while you watch.",
-          },
-          {
-            title: "Approve",
-            body: "Clear the spend-approval queue, because money-touching actions in Braavolabs always wait for an explicit yes.",
-          },
-          {
-            title: "Answer",
-            body: "When an agent calls ask_user, the question arrives as a form you can fill on the spot, and the run resumes with your answer injected.",
-          },
-          {
-            title: "Steer",
-            body: "Type a correction into the steer box on the live run view; the agent picks it up at its next turn boundary, mid-run, no restart.",
-          },
-        ],
+        "kind": "heading",
+        "id": "access",
+        "text": "Sessions and notifications"
       },
       {
-        kind: "heading",
-        id: "notifications",
-        text: "Notifications that land where the decision is",
+        "kind": "para",
+        "text": "Notifications depend on device permission, an eligible session, network access and delivery by the platform. Open the app to verify the latest state rather than treating a push notification as a complete execution record. Device-held session credentials use platform secure storage; protection and background behavior still depend on the device and operating system."
       },
       {
-        kind: "para",
-        text: "Push notifications carry the moments that matter — an approval waiting, an agent asking a question, a risk-stop halting a run — and each deep-links to the exact surface where you act. An ask_user notification opens the run detail where the answer form lives, not a generic list you have to dig through. Risk alerts default to on, because a cost anomaly or a runaway loop is precisely what you want to know about while away from your desk.",
+        "kind": "para",
+        "text": "After switching accounts, confirm the selected company and pending decision again. On a timeout, inspect current state before retrying. The app cannot undo an external effect that already completed."
       },
       {
-        kind: "heading",
-        id: "security",
-        text: "Security without ceremony",
-      },
-      {
-        kind: "para",
-        text: "A phone that can approve spending and redirect agents is a credential. The current client uses hardware-backed secure storage for auth tokens and the authenticated session contract used by the app. Supported mobile actions are intended to write into the shared activity model; signed, independently verifiable evidence remains in development.",
-      },
-      {
-        kind: "note",
-        tone: "info",
-        text: "Authoring — composing agents, designing pipelines, wiring integrations — stays on the web, where big screens and keyboards earn their keep. The pocket is where you keep your hand on the wheel.",
-      },
-    ],
+        "kind": "para",
+        "text": "Choose your preferred language and light, dark or system theme in the app. After changing language or account, confirm the current workspace and decision context before acting."
+      }
+    ]
   },
-
-  // 8 ── FAQ ──────────────────────────────────────────────────────────────────
   {
-    slug: "faq",
-    title: "Frequently asked questions",
-    nav: "FAQ",
-    category: "Start here",
-    icon: "quiz",
-    order: 8,
-    desc: "Honest, direct answers to the questions people — and AI assistants — ask most about Braavolabs.",
-    blocks: [
+    "slug": "faq",
+    "title": "Frequently asked questions",
+    "nav": "FAQ",
+    "category": "Start here",
+    "icon": "quiz",
+    "order": 8,
+    "desc": "Answers about previews, costs, local models, approvals and uncertain runs.",
+    "blocks": [
       {
-        kind: "para",
-        text: "Short, honest answers to the questions we hear most. If yours is not here, the support page has a human on the other end.",
-      },
-      {
-        kind: "faq",
-        items: [
+        "kind": "faq",
+        "items": [
           {
-            q: "Is Braavolabs an alternative to Zapier or n8n?",
-            a: "Not exactly — it is a different shape of tool. Zapier and n8n wire deterministic triggers to actions; Braavolabs composes and runs autonomous AI agents that reason through multi-step work. In fact Braavolabs is designed to sit alongside them: you can connect your existing n8n, Make, and Zapier automations and monitor them from one place rather than replace them.",
+            "q": "Can I buy a plan now?",
+            "a": "Individual ($19/month) and Team ($39/active user/month) are preview descriptions and are not currently available to purchase. Inference is separate from the proposed subscription."
           },
           {
-            q: "Can I run my AI agents from my phone?",
-            a: "Yes. The companion mobile app lets you monitor live runs, approve spending, answer an agent's ask_user question, and steer a run mid-flight — from anywhere. Authoring (composing agents and designing pipelines) stays on the web where the screen space helps, but command fits in your pocket.",
+            "q": "Does every charge require an approval?",
+            "a": "No. Supported actions can require a pending decision, but provider inference can incur charges when a run starts. Read the action and provider spending controls before running work."
           },
           {
-            q: "Do I pay per task?",
-            a: "No per-task inference is bundled. Individual is $19/month and Team is $39/active-user/month. Inference is not included; use your own provider keys or local models.",
+            "q": "Does a local model make the platform offline?",
+            "a": "No. A compatible local endpoint controls that inference route. Tools, account services, telemetry and other pipeline steps require their own data-path review."
           },
           {
-            q: "What models can I use?",
-            a: "Use a supported cloud route with credentials you supply, or a configured local route such as Ollama, LM Studio, or a custom OpenAI-compatible endpoint. Available routes are shown in settings and are not represented here as a fixed provider count.",
+            "q": "Will resume repeat an external action?",
+            "a": "Saved completed steps can be reused, but exactly-once external delivery is not established. Check the run and external service before retrying uncertain work."
           },
           {
-            q: "Is my data private?",
-            a: "Your provider keys are encrypted with AES-256-GCM and never shown back to you after you save them. Because Braavolabs is bring-your-own-key, your run data goes to the providers you choose, under their terms — and you consent to that explicitly. A local model route changes the inference endpoint; verify the selected data mode, tools, telemetry, and network boundary separately.",
+            "q": "Did an accepted steering request change the model output?",
+            "a": "Acceptance records the request. Follow the next execution boundary and output to determine whether the instruction was applied and followed."
           },
           {
-            q: "Can it run offline?",
-            a: "A configured local runtime can serve supported models without using a cloud-provider key. Availability and data handling depend on the runtime and route you select; no offline bundle capability is claimed here.",
+            "q": "Can I build a complete company on my phone?",
+            "a": "The web is the authoring surface. The mobile companion focuses on monitoring, approvals, answers and steering."
           },
           {
-            q: "How is this different from a generic automation tool?",
-            a: "Generic tools automate fixed steps; Braavolabs runs reasoning agents you can govern. Every step records why it acted, every spend waits for your approval, and five risk-stops (hard, loop, cost, spam, brand) halt runaway behavior by default. You can steer a run mid-flight, an agent can pause to ask you a question, and everything is captured in an audit trail built to be read. The difference is governed autonomy, not just more connectors.",
+            "q": "Are Private Mode, Cloud Agent Mode and signed evidence generally available?",
+            "a": "Private Mode is a preview; Cloud Agent Mode and signed evidence are in development. Their names are not a complete security or availability guarantee."
           },
-        ],
-      },
-    ],
-  },
+          {
+            "q": "Does deleting an account cancel an external subscription?",
+            "a": "Do not assume it does. Check the subscription provider and any external service separately, and preserve required exports before deleting data."
+          }
+        ]
+      }
+    ]
+  }
 ];
 
 export function getDoc(slug: string): DocPage | undefined {
@@ -676,6 +453,36 @@ export function getDoc(slug: string): DocPage | undefined {
 
 /** Ordered list used by the index, the side nav, and prev/next links. */
 export const DOCS_ORDERED: DocPage[] = [...DOCS].sort((a, b) => a.order - b.order);
+
+export type ContentCopy = { raw(key: string): unknown };
+function translatedText(copy: ContentCopy, key: string): string {
+  const value = copy.raw(key);
+  if (typeof value !== "string") throw new Error(`Invalid content message: ${key}`);
+  return value;
+}
+
+/** Translate human prose while preserving route anchors, code and block kinds. */
+export function localizeDoc(doc: DocPage, copy: ContentCopy): DocPage {
+  const prefix = `docs.${doc.slug}`;
+  const text = (path: string) => translatedText(copy, `${prefix}.${path}`);
+  return { ...doc, title: text("title"), nav: text("nav"), desc: text("desc"),
+    blocks: doc.blocks.map((block, index): DocBlock => {
+      const base = `blocks.${index}`;
+      switch (block.kind) {
+        case "heading": case "para": case "note": return { ...block, text: text(`${base}.text`) };
+        case "list": return { ...block, items: block.items.map((_, item) => text(`${base}.items.${item}`)) };
+        case "steps": return { ...block, items: block.items.map((_, item) => ({ title: text(`${base}.items.${item}.title`), body: text(`${base}.items.${item}.body`) })) };
+        case "faq": return { ...block, items: block.items.map((_, item) => ({ q: text(`${base}.items.${item}.q`), a: text(`${base}.items.${item}.a`) })) };
+        case "code": return { ...block, ...(block.caption ? { caption: text(`${base}.caption`) } : {}) };
+      }
+    }),
+  };
+}
+
+export function docCategoryLabel(category: DocCategory, copy: ContentCopy): string {
+  const key = { "Start here": "start", Concepts: "concepts", Reference: "reference" }[category];
+  return translatedText(copy, `docCategories.${key}`);
+}
 
 /** Extract every FAQ item on a page (for FAQPage JSON-LD). */
 export function faqItemsOf(page: DocPage): FaqItem[] {

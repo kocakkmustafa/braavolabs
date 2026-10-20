@@ -1,4 +1,8 @@
 "use client";
+import { useTranslations as useRuntimeTranslations } from "next-intl";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 /**
  * Braavolabs marketing scrollytelling — "forge-home", v2.
@@ -76,6 +80,8 @@ function scrubbable(v: HTMLVideoElement | null): v is HTMLVideoElement {
 }
 
 export default function ForgeHomeScroll() {
+  const runtimeCopy = useRuntimeTranslations("runtime");
+  const uiText = useLegacyTranslations("uiCopy");
   const scrollRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const actRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -509,19 +515,12 @@ export default function ForgeHomeScroll() {
             <div className={styles.shadeLeft} />
             <div className={styles.copy}>
               <span className={styles.kicker} lang="en">
-                <span className={styles.caretMark}>&gt; </span>braavolabs
-              </span>
-              <h1 className={styles.h1}>
-                Ai <span className={styles.accent}>Morghulis.</span>
+                <span className={styles.caretMark}>&gt; </span>{uiText("m938c91ff1f31")}</span>
+              <h1 className={styles.h1}>{uiText("m13855655e90d")}{" "}<span className={styles.accent}>{uiText("m690e7a5e1383")}</span>
               </h1>
-              <p className={styles.lede}>
-                Every task must die. Quietly, on your machine. The governed command center for your
-                AI agents.
-              </p>
+              <p className={styles.lede}>{uiText("m158acce5db4b")}</p>
             </div>
-            <div ref={hintRef} className={styles.hint}>
-              SCROLL — OPEN THE DOOR ▾
-            </div>
+            <div ref={hintRef} className={styles.hint}>{uiText("mc9be6b254770")}</div>
           </div>
 
           {/* ACT 2 — the hall */}
@@ -540,64 +539,36 @@ export default function ForgeHomeScroll() {
             <div className={styles.shadeLeft} />
             <div ref={copyARef} className={`${styles.copy} ${styles.copyHigh}`}>
               <span className={styles.kicker} lang="en">
-                <span className={styles.caretMark}>&gt; </span>every agent, one hall
-              </span>
-              <h2 className={styles.h2}>
-                One panel.
-                <br />
-                Every agent.
-              </h2>
-              <p className={styles.lede}>
-                Claude, GPT, Gemini, your local models — hooded in their alcoves, waiting for a name.
-                Hand a task to one; watch it pass the thread to the next.
-              </p>
+                <span className={styles.caretMark}>&gt; </span>{uiText("m68ec9666da44")}</span>
+              <h2 className={styles.h2}>{uiText("m4d50f5adff67")}<br />{uiText("m13b0a7147ec5")}</h2>
+              <p className={styles.lede}>{uiText("md91e25ebff91")}</p>
             </div>
             <div ref={copyBRef} className={`${styles.copy} ${styles.copyHigh} ${styles.copyHidden}`}>
               <span className={styles.kicker} lang="en">
-                <span className={styles.caretMark}>&gt; </span>three lanes, one bill
-              </span>
-              <h2 className={styles.h2}>
-                Route it to the cheapest
-                <br />
-                lane that works.
-              </h2>
-              <p className={styles.lede}>
-                Local models handle the routine, your API keys take the hard parts, your own CLI
-                subscription covers the rest — the cascade decides, you keep the difference.
-              </p>
+                <span className={styles.caretMark}>&gt; </span>{uiText("m14259aa4f184")}</span>
+              <h2 className={styles.h2}>{uiText("mb6063ec6db48")}<br />{uiText("mff3010307ebd")}</h2>
+              <p className={styles.lede}>{uiText("ma02b3af1c791")}</p>
               <div className={styles.stats}>
                 <div>
-                  <b>38%</b>
-                  cheaper avg. run
-                  <br />
-                  routing · caching · cascade
-                </div>
+                  <b>38%</b>{uiText("m58cb783ef208")}<br />{uiText("m2f71a8cd452e")}</div>
                 <div>
-                  <b>0</b>
-                  token markup
-                  <br />
-                  BYOK — your own keys
-                </div>
+                  <b>0</b>{uiText("md68f4d9658a0")}<br />{uiText("m19837eca8ef7")}</div>
                 <div>
-                  <b>3</b>
-                  lanes
-                  <br />
-                  local · API · your CLI
-                </div>
+                  <b>3</b>{uiText("m61feb77f0448")}<br />{uiText("mc161ee232d16")}</div>
               </div>
             </div>
             <div ref={moatsRef} className={styles.moats}>
               <div className={styles.moat}>
-                <b>Model-agnostic memory</b>
-                <span>Your context stays yours, whichever model runs.</span>
+                <b>{uiText("m37570a352f9f")}</b>
+                <span>{uiText("m4790be82e806")}</span>
               </div>
               <div className={styles.moat}>
-                <b>Governance by default</b>
-                <span>Every risky step passes an approval gate.</span>
+                <b>{uiText("md1ab8fe0278c")}</b>
+                <span>{uiText("mcf73c270b403")}</span>
               </div>
               <div className={styles.moat}>
-                <b>Multi-model handoff</b>
-                <span>One agent hands the thread to the next.</span>
+                <b>{uiText("m760df3439c81")}</b>
+                <span>{uiText("m0ef4c869c13b")}</span>
               </div>
             </div>
           </div>
@@ -623,36 +594,25 @@ export default function ForgeHomeScroll() {
             <div className={`${styles.shadeLeft} ${styles.shadeDeep}`} />
             <div className={`${styles.copy} ${styles.copyWide}`}>
               <span className={styles.kicker} lang="en">
-                <span className={styles.caretMark}>&gt; </span>ai serves. you command.
-              </span>
-              <h2 className={styles.h2Big}>
-                Ai <span className={styles.accent}>Dohaeris.</span>
+                <span className={styles.caretMark}>&gt; </span>{uiText("m902a479c1449")}</span>
+              <h2 className={styles.h2Big}>{uiText("m13855655e90d")}{" "}<span className={styles.accent}>{uiText("madfef55cdd3e")}</span>
               </h2>
-              <p className={styles.lede}>
-                Runs live on your machine and keep going while you walk away. The tower watches; you
-                stay in command from anywhere.
-              </p>
+              <p className={styles.lede}>{uiText("m8917820f4842")}</p>
               <ol className={styles.points}>
                 <li>
                   <span className={styles.num}>01</span>
                   <span>
-                    <b>Approve from your pocket.</b> Risky steps ping your phone — allow, deny or
-                    steer in one tap.
-                  </span>
+                    <b>{uiText("m06818bfad7e5")}</b>{" "}{uiText("mcd2afb2517c4")}</span>
                 </li>
                 <li>
                   <span className={styles.num}>02</span>
                   <span>
-                    <b>Every run is replayable.</b> Commands, diffs and tool calls recorded — audit
-                    or rewind any step.
-                  </span>
+                    <b>{uiText("mc918b71360aa")}</b>{" "}{uiText("mec82da18aef9")}</span>
                 </li>
                 <li>
                   <span className={styles.num}>03</span>
                   <span>
-                    <b>One kill switch.</b> Stop every session, host and vendor CLI at once —
-                    nothing keeps running behind your back.
-                  </span>
+                    <b>{uiText("mb634019207be")}</b>{" "}{uiText("m190c6cca4b11")}</span>
                 </li>
               </ol>
               <div className={styles.ctas}>
@@ -665,27 +625,21 @@ export default function ForgeHomeScroll() {
                   href="https://github.com/kocakkmustafa/braavolabs-releases/releases/latest/download/Braavolabs-macos-universal.dmg"
                   ref={setMagnet(0)}
                   className={styles.btnArc}
-                >
-                  Download for macOS
-                </a>
+                >{uiText("me050855b0732")}</a>
                 <a
                   href="https://github.com/kocakkmustafa/braavolabs-releases/releases/latest/download/Braavolabs-windows-x64-setup.exe"
                   ref={setMagnet(1)}
                   className={styles.btnGhost}
-                >
-                  Windows
-                </a>
+                >{uiText("m0699722b6c86")}</a>
                 <a
                   href="https://github.com/kocakkmustafa/braavolabs-releases/releases/latest"
                   target="_blank"
                   rel="noopener noreferrer"
                   ref={setMagnet(2)}
                   className={styles.btnGhost}
-                >
-                  Linux
-                </a>
+                >{uiText("mc7916fde8f18")}</a>
                 <button type="button" className={styles.install} onClick={copyInstall}>
-                  {INSTALL_CMD} <i>{copied ? "COPIED" : "COPY"}</i>
+                  {INSTALL_CMD} <i>{copied ?uiText("m4721630f3237") :uiText("m76375004a5c8")}</i>
                 </button>
               </div>
               <div className={styles.coinRow}>
@@ -695,16 +649,16 @@ export default function ForgeHomeScroll() {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     {/* The comp ships the "-a" coin artwork, not the earlier
                         .webp pair still sitting beside it in public/hero. */}
-                    <img src="/hero/coin-front-a.png" alt="Braavolabs coin — obverse" />
+                    <img src="/hero/coin-front-a.png" alt={uiText("mfa1e83c4875c")} />
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src="/hero/coin-back-a.png"
-                      alt="Braavolabs coin — reverse, circuit-line BL monogram"
+                      alt={uiText("m25dad6b2130d")}
                       className={styles.coinBack}
                     />
                   </div>
                 </div>
-                <span className={styles.coinNote}>hover to flip · reverse: circuit-line BL monogram</span>
+                <span className={styles.coinNote}>{uiText("m25b28440d28a")}</span>
               </div>
             </div>
           </div>
@@ -718,7 +672,7 @@ export default function ForgeHomeScroll() {
               pricing/sign-in rail would both break the frame and widen that
               offer. Account routes stay reachable from the footer. */}
 
-          <nav className={styles.rail} aria-label="Scene navigation">
+          <nav className={styles.rail} aria-label={uiText("m4fc929a0a62c")}>
             {RAIL.map((label, i) => (
               <button
                 key={label}
@@ -726,7 +680,7 @@ export default function ForgeHomeScroll() {
                 ref={setDot(i)}
                 className={`${styles.dot} ${i === 0 ? styles.dotOn : ""}`}
                 onClick={() => jumpTo(i)}
-                aria-label={`Jump to ${label}`}
+                aria-label={runtimeCopy("me94e85e1777c", { value0: label })}
               />
             ))}
           </nav>
@@ -739,7 +693,7 @@ export default function ForgeHomeScroll() {
               onClick={endCold}
               role="button"
               tabIndex={0}
-              aria-label="Skip intro"
+              aria-label={uiText("m9ee930cb6b09")}
               onKeyDown={(e) => e.key === "Enter" && endCold()}
             >
               <div className={styles.coldLines}>
@@ -751,7 +705,7 @@ export default function ForgeHomeScroll() {
                   <span className={styles.caret} />
                 </div>
               </div>
-              <div className={styles.skip}>SKIP — space / click</div>
+              <div className={styles.skip}>{uiText("m154eba8c33b7")}</div>
             </div>
           )}
         </div>
@@ -759,8 +713,7 @@ export default function ForgeHomeScroll() {
 
       <footer className={styles.footer}>
         <span>
-          <span className={styles.caretMark}>&gt; </span>braavolabs · valar dohaeris
-        </span>
+          <span className={styles.caretMark}>&gt; </span>{uiText("m227d67016fe0")}</span>
         <div>
           {/* The comp's footer reads: "/ask web-lite · docs · github". The
               first one is deliberately NOT wired — founder decision W-0
@@ -769,10 +722,8 @@ export default function ForgeHomeScroll() {
               install command, and the work happens on your own machine. An
               in-browser "/ask" surface is exactly the thing that is out of
               scope, so the link is dropped rather than pointed somewhere. */}
-          <a href="/docs">docs</a>
-          <a href="https://github.com/kocakkmustafa" rel="noreferrer">
-            github
-          </a>
+          <a href="/docs">{uiText("m716f677b544d")}</a>
+          <a href="https://github.com/kocakkmustafa" rel="noreferrer">{uiText("md86a34679f43")}</a>
         </div>
       </footer>
     </div>

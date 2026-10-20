@@ -19,7 +19,7 @@ describe("actual compare API transport", () => {
     await expect(api.compareOptions("synthetic-token", "company/a?b", controller.signal)).resolves.toEqual(options);
     const [url, request] = fetchSpy.mock.calls[0];
     expect(url).toContain("/research/compare/options?companyId=company%2Fa%3Fb"); expect(request.signal).toBeInstanceOf(AbortSignal); expect(request.signal.aborted).toBe(false);
-    expect(request.headers.Authorization).toBe("Bearer synthetic-token"); expect(request.credentials).toBe("include");
+    expect(new Headers(request.headers).get("Authorization")).toBe("Bearer synthetic-token"); expect(request.credentials).toBe("include");
   });
   it("POSTs once to the selected endpoint, preserving ordered pairs, explicit effort and omission", async () => {
     fetchSpy.mockResolvedValue(response({id: "session", status: "PENDING"}, 201)); const controller = new AbortController();

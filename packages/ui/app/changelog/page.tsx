@@ -1,4 +1,6 @@
 "use client";
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useTranslations } from "next-intl";
 
@@ -56,6 +58,7 @@ const KIND_STYLES: Record<string, { pill: string; icon: string }> = {
 };
 
 export default function ChangelogPage() {
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
   // t.raw returns the unprocessed JSON value — required for arrays so we
   // can map over the items list without resorting to indexed key lookups.
@@ -69,18 +72,18 @@ export default function ChangelogPage() {
           {/* Lockup */}
           <a href="/" className="flex items-center gap-2.5 group">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center bv-btn-primary flex-shrink-0">
-              <span className="text-white font-bold text-[10px] font-headline">BL</span>
+              <span className="text-white font-bold text-[10px] font-headline">{uiText("m73b582c8d1ab")}</span>
             </div>
             <span className="font-headline font-bold text-sm text-on-surface">Braavolabs</span>
           </a>
 
           {/* Nav links (hidden on small screens) */}
           <div className="hidden md:flex items-center gap-6 text-sm text-on-surface-variant">
-            <a href="/features" className="hover:text-on-surface transition-colors">Features</a>
-            <a href="/pricing" className="hover:text-on-surface transition-colors">Pricing</a>
-            <a href="/#providers" className="hover:text-on-surface transition-colors">Integrations</a>
-            <a href="/changelog" className="text-primary font-semibold">Changelog</a>
-            <a href="/blog" className="hover:text-on-surface transition-colors">Blog</a>
+            <a href="/features" className="hover:text-on-surface transition-colors">{uiText("maf32376bdf35")}</a>
+            <a href="/pricing" className="hover:text-on-surface transition-colors">{uiText("m89ea286c8147")}</a>
+            <a href="/#providers" className="hover:text-on-surface transition-colors">{uiText("mdcad451eaa8b")}</a>
+            <a href="/changelog" className="text-primary font-semibold">{uiText("m000db379830b")}</a>
+            <a href="/blog" className="hover:text-on-surface transition-colors">{uiText("mf6a8a22d3745")}</a>
           </div>
 
           {/* Actions */}
@@ -88,9 +91,7 @@ export default function ChangelogPage() {
             <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm hidden sm:inline-flex">
               {t("static.common.back")}
             </a>
-            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm bv-sheen">
-              Open app
-            </a>
+            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm bv-sheen">{uiText("mf0c7cea418fa")}</a>
           </div>
         </div>
       </nav>
@@ -98,16 +99,11 @@ export default function ChangelogPage() {
       {/* ── Page header ── */}
       <header className="text-center pt-16 pb-10 px-6">
         <div className="bv-pill bv-pill-cyan inline-flex mx-auto mb-4">
-          <span className="material-symbols-outlined" style={{ fontSize: 12 }}>history</span>
-          Changelog
-        </div>
-        <h1 className="bv-display text-on-surface" style={{ fontSize: "clamp(38px,6vw,64px)", letterSpacing: "-0.02em" }}>
-          Every plate,<br />
-          <span className="bv-grad-text">locked into place.</span>
+          <span className="material-symbols-outlined" style={{ fontSize: 12 }}>history</span>{uiText("m000db379830b")}</div>
+        <h1 className="bv-display text-on-surface" style={{ fontSize: "clamp(38px,6vw,64px)", letterSpacing: "-0.02em" }}>{uiText("mc233f3d5475f")}<br />
+          <span className="bv-grad-text">{uiText("m201fb23bec45")}</span>
         </h1>
-        <p className="text-on-surface-variant mt-4 text-base max-w-sm mx-auto">
-          What we&apos;ve forged, fixed and changed.
-        </p>
+        <p className="text-on-surface-variant mt-4 text-base max-w-sm mx-auto">{uiText("m7af9fcb2eb00")}</p>
       </header>
 
       {/* ── Timeline ── */}
@@ -158,9 +154,7 @@ export default function ChangelogPage() {
                     {entry.v}
                   </span>
                   {entry.latest && (
-                    <span className="bv-pill bv-pill-cyan">
-                      Latest
-                    </span>
+                    <span className="bv-pill bv-pill-cyan">{uiText("mb029bf94b9cb")}</span>
                   )}
                   <time
                     className="ml-auto bv-mono text-outline"
@@ -207,9 +201,7 @@ export default function ChangelogPage() {
             target="_blank"
             rel="noopener noreferrer"
             className="text-primary hover:text-primary-fixed transition-colors inline-flex items-center gap-1"
-          >
-            github.com/kocakkmustafa/braavolabs/releases
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>open_in_new</span>
+          >{"github.com/kocakkmustafa/braavolabs/releases"}<span className="material-symbols-outlined" style={{ fontSize: 14 }}>open_in_new</span>
           </a>
         </p>
       </div>

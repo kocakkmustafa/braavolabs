@@ -1,4 +1,10 @@
 "use client";
+import { useDisplayFormats } from "../../lib/useDisplayFormats";
+
+import { useTranslations as useRuntimeTranslations } from "next-intl";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -64,6 +70,9 @@ function StatusDot({ state, size = 9 }: { state: ProbeState; size?: number }) {
 }
 
 export default function StatusPage() {
+  const displayFormat = useDisplayFormats();
+  const runtimeCopy = useRuntimeTranslations("runtime");
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
   const probe = useApiHealth();
 
@@ -109,9 +118,7 @@ export default function StatusPage() {
       <div className="max-w-[860px] mx-auto px-6 pt-14 pb-4">
         {/* eyebrow */}
         <p className="bv-micro mb-3 flex items-center gap-2">
-          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>monitor_heart</span>
-          System status
-        </p>
+          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>monitor_heart</span>{uiText("m20bb133b046a")}</p>
 
         {/* Banner — live result of the health probe */}
         <div
@@ -138,7 +145,7 @@ export default function StatusPage() {
           </div>
           <div className="flex items-center gap-2 bv-mono" style={{ color: "var(--color-outline)", flexShrink: 0 }}>
             <StatusDot state={probe.state} size={7} />
-            <span>auto-refresh · 60s</span>
+            <span>{uiText("ma8e7dcac27dd")}</span>
           </div>
         </div>
 
@@ -151,9 +158,7 @@ export default function StatusPage() {
           >
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium text-on-surface">API</div>
-              <div className="bv-mono mt-0.5" style={{ color: "var(--color-outline)" }}>
-                GET /api/v1/health · live probe from your browser
-              </div>
+              <div className="bv-mono mt-0.5" style={{ color: "var(--color-outline)" }}>{uiText("m6391d95c11d5")}</div>
             </div>
             <div
               className="flex items-center gap-2 bv-mono"
@@ -170,9 +175,7 @@ export default function StatusPage() {
               <div className="text-sm font-medium text-on-surface">
                 {t("static.status.services.website")}
               </div>
-              <div className="bv-mono mt-0.5" style={{ color: "var(--color-outline)" }}>
-                serving this page right now
-              </div>
+              <div className="bv-mono mt-0.5" style={{ color: "var(--color-outline)" }}>{uiText("m064d3ea1b787")}</div>
             </div>
             <div
               className="flex items-center gap-2 bv-mono"
@@ -187,14 +190,10 @@ export default function StatusPage() {
         {/* checked-at + honesty note */}
         <div className="bv-mono mt-3 px-1" style={{ color: "var(--color-outline)" }}>
           {probe.checkedAt
-            ? `Last checked ${probe.checkedAt.toLocaleTimeString()} (your local time)`
-            : "Running first check…"}
+            ? runtimeCopy("m67cb524a0f61", { value0: displayFormat.time(probe.checkedAt) })
+            :uiText("m8b59895f3ed7")}
         </div>
-        <p className="bv-caption mt-4 mb-14 px-1" style={{ color: "var(--color-on-surface-variant)" }}>
-          This page reflects a live health check only. We don't publish uptime
-          percentages or an incident timeline yet — historical uptime tracking
-          is on the roadmap, and we'd rather show nothing than made-up numbers.
-        </p>
+        <p className="bv-caption mt-4 mb-14 px-1" style={{ color: "var(--color-on-surface-variant)" }}>{uiText("m9f956da25b83")}</p>
 
         {/* ── Alert box ─────────────────────────────────── */}
         <div
@@ -221,12 +220,10 @@ export default function StatusPage() {
               <div className="bv-avatar" style={{ width: 28, height: 28, borderRadius: 8, fontSize: 10 }}>AI</div>
               <span className="font-headline font-bold text-sm text-on-surface">Braavolabs</span>
             </a>
-            <p className="bv-caption" style={{ color: "var(--color-outline)" }}>
-              Command the AI agents &amp; automations you already run.
-            </p>
+            <p className="bv-caption" style={{ color: "var(--color-outline)" }}>{uiText("m4cb64ff7172c")}</p>
           </div>
           <div>
-            <h5 className="bv-micro mb-3">Product</h5>
+            <h5 className="bv-micro mb-3">{uiText("m8a200d2fa01b")}</h5>
             <div className="flex flex-col gap-2">
               {["Features", "Pricing", "Changelog"].map((l) => (
                 <a key={l} href={`/${l.toLowerCase()}`} className="bv-caption text-on-surface-variant hover:text-on-surface transition-colors no-underline">{l}</a>
@@ -234,7 +231,7 @@ export default function StatusPage() {
             </div>
           </div>
           <div>
-            <h5 className="bv-micro mb-3">Company</h5>
+            <h5 className="bv-micro mb-3">{uiText("mf293e311adbd")}</h5>
             <div className="flex flex-col gap-2">
               {["About", "Blog", "Contact"].map((l) => (
                 <a key={l} href={`/${l.toLowerCase()}`} className="bv-caption text-on-surface-variant hover:text-on-surface transition-colors no-underline">{l}</a>
@@ -242,7 +239,7 @@ export default function StatusPage() {
             </div>
           </div>
           <div>
-            <h5 className="bv-micro mb-3">Legal</h5>
+            <h5 className="bv-micro mb-3">{uiText("me036901f0c5c")}</h5>
             <div className="flex flex-col gap-2">
               {["Privacy", "Terms", "KVKK"].map((l) => (
                 <a key={l} href={`/${l.toLowerCase()}`} className="bv-caption text-on-surface-variant hover:text-on-surface transition-colors no-underline">{l}</a>

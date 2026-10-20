@@ -1,4 +1,11 @@
 "use client";
+import { useStateLabel } from "../../lib/useStateLabel";
+
+import { useLocale as useDisplayLocale } from "next-intl";
+import { formatDateTime as formatDisplayDateTime, currentTimeZone as displayTimeZone } from "../../i18n/locales";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -20,16 +27,19 @@ interface FailedRun {
 }
 
 const RISK_BADGE_STYLES: Record<string, { background: string; color: string; border: string }> = {
-  "governance.hard_stop": { background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)" },
-  "governance.loop_stop": { background: "rgba(251,191,36,0.12)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.25)" },
-  "governance.cost_anomaly_stop": { background: "rgba(251,191,36,0.08)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.2)" },
-  "governance.spam_stop": { background: "rgba(109,17,173,0.15)", color: "#e0b6ff", border: "1px solid rgba(109,17,173,0.3)" },
-  "governance.brand_violation_stop": { background: "rgba(239,68,68,0.08)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" },
+  "governance.hard_stop": { background: "rgba(239,68,68,0.12)", color: "var(--color-error)", border: "1px solid rgba(239,68,68,0.25)" },
+  "governance.loop_stop": { background: "rgba(251,191,36,0.12)", color: "var(--color-warning)", border: "1px solid rgba(251,191,36,0.25)" },
+  "governance.cost_anomaly_stop": { background: "rgba(251,191,36,0.08)", color: "var(--color-warning)", border: "1px solid rgba(251,191,36,0.2)" },
+  "governance.spam_stop": { background: "rgba(109,17,173,0.15)", color: "var(--color-accent)", border: "1px solid rgba(109,17,173,0.3)" },
+  "governance.brand_violation_stop": { background: "rgba(239,68,68,0.08)", color: "var(--color-error)", border: "1px solid rgba(239,68,68,0.2)" },
 };
 
-const DEFAULT_BADGE = { background: "rgba(133,147,153,0.12)", color: "#859399", border: "1px solid rgba(133,147,153,0.2)" };
+const DEFAULT_BADGE = { background: "rgba(133,147,153,0.12)", color: "var(--color-on-surface-variant)", border: "1px solid rgba(133,147,153,0.2)" };
 
 export default function ErrorsPage() {
+  const stateLabel = useStateLabel();
+  const displayLocale = useDisplayLocale();
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
   const token = useAppStore((s) => s.token);
   const router = useRouter();
@@ -70,9 +80,7 @@ export default function ErrorsPage() {
 
       {/* ── Page head ─────────────────────────────────────────── */}
       <div className="mb-8">
-        <p className="text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-1">
-          Governance
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-1">{uiText("m41749f8a6958")}</p>
         <div className="flex items-center gap-3">
           <span className="material-symbols-outlined text-error" style={{ fontSize: 28 }}>
             error
@@ -109,7 +117,7 @@ export default function ErrorsPage() {
                     <span
                       className="flex-shrink-0 w-2 h-2 rounded-full"
                       style={{
-                        background: run.status === "FAILED" ? "#f87171" : "#9AA3B2",
+                        background: run.status === "FAILED" ? "#f87171" : "var(--color-on-surface-variant)",
                         boxShadow: run.status === "FAILED" ? "0 0 6px rgba(239,68,68,0.5)" : "none",
                       }}
                     />
@@ -126,17 +134,17 @@ export default function ErrorsPage() {
                       className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full"
                       style={
                         run.status === "FAILED"
-                          ? { background: "rgba(239,68,68,0.1)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }
-                          : { background: "rgba(133,147,153,0.1)", color: "#859399", border: "1px solid rgba(133,147,153,0.2)" }
+                          ? { background: "rgba(239,68,68,0.1)", color: "var(--color-error)", border: "1px solid rgba(239,68,68,0.2)" }
+                          : { background: "rgba(133,147,153,0.1)", color: "var(--color-on-surface-variant)", border: "1px solid rgba(133,147,153,0.2)" }
                       }
                     >
-                      {run.status}
+                      {stateLabel(run.status)}
                     </span>
                   </div>
 
                   <div className="text-right flex-shrink-0 ml-4">
                     <p className="text-xs text-on-surface-variant">
-                      {new Date(run.createdAt).toLocaleString()}
+                      {formatDisplayDateTime(run.createdAt, displayLocale, { timeZone: displayTimeZone(), dateStyle: "medium", timeStyle: "short" })}
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: "var(--color-outline)" }}>
                       {run._count?.steps ?? 0} {t("app.errors.stepsLabel")}
@@ -152,7 +160,7 @@ export default function ErrorsPage() {
               className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
               style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)" }}
             >
-              <span className="material-symbols-outlined" style={{ color: "#34d399", fontSize: 24 }}>
+              <span className="material-symbols-outlined" style={{ color: "var(--color-success)", fontSize: 24 }}>
                 check_circle
               </span>
             </div>
@@ -195,7 +203,7 @@ export default function ErrorsPage() {
                       )}
                     </div>
                     <span className="text-xs text-on-surface-variant flex-shrink-0 ml-4">
-                      {new Date(event.createdAt).toLocaleString()}
+                      {formatDisplayDateTime(event.createdAt, displayLocale, { timeZone: displayTimeZone(), dateStyle: "medium", timeStyle: "short" })}
                     </span>
                   </div>
 

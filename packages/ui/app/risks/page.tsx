@@ -1,4 +1,9 @@
 "use client";
+import { useLocale as useDisplayLocale } from "next-intl";
+import { formatDateTime as formatDisplayDateTime, currentTimeZone as displayTimeZone } from "../../i18n/locales";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -46,6 +51,8 @@ const FILTER_DOT: Record<FilterKey, string> = {
 };
 
 export default function RisksPage() {
+  const displayLocale = useDisplayLocale();
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
   const { token, hydrated } = useAuthGuard();
   const [events, setEvents] = useState<any[]>([]);
@@ -91,7 +98,7 @@ export default function RisksPage() {
 
       {/* Page head */}
       <div className="mb-8">
-        <p className="bv-micro text-[var(--color-outline)] mb-2 tracking-widest">GOVERNANCE</p>
+        <p className="bv-micro text-[var(--color-outline)] mb-2 tracking-widest">{uiText("m94c28a73da37")}</p>
         <h1 className="bv-headline bv-grad-text mb-1">{t("app.risks.title")}</h1>
         <p className="bv-body text-[var(--color-on-surface-variant)]">{t("app.risks.subtitle")}</p>
       </div>
@@ -143,7 +150,7 @@ export default function RisksPage() {
             className="px-4 py-2.5 bv-body font-medium -mb-px transition-all"
             style={{
               borderBottom: tab === tabKey ? "2px solid #60A5FA" : "2px solid transparent",
-              color: tab === tabKey ? "#60A5FA" : "var(--color-on-surface-variant)",
+              color: tab === tabKey ? "var(--color-primary)" : "var(--color-on-surface-variant)",
             }}
           >
             {tabKey === "risks"
@@ -186,13 +193,13 @@ export default function RisksPage() {
                 const label = style ? t(`app.risks.${style.labelKey}`) : e.action;
                 const isOpen = openIds.has(e.id ?? String(i));
                 const borderColor = style?.borderColor ?? "#5B6473";
-                const pillClass = style?.pillClass ?? "bv-pill bv-pill-muted";
-                const dotClass = style?.dotClass ?? "bv-dot bv-cancelled";
+                const pillClass = style?.pillClass ??"bv-pill bv-pill-muted";
+                const dotClass = style?.dotClass ??"bv-dot bv-cancelled";
                 return (
                   <div
                     key={e.id ?? i}
                     className="bv-glass overflow-hidden cursor-pointer"
-                    style={{ borderLeft: `2px solid ${borderColor}`, borderRadius: "16px" }}
+                    style={{ borderInlineStart: `2px solid ${borderColor}`, borderRadius: "16px" }}
                     onClick={() => toggleOpen(e.id ?? String(i))}
                   >
                     {/* Row head */}
@@ -203,7 +210,7 @@ export default function RisksPage() {
                         {e.resource}: {e.resourceId?.slice(0, 8) ?? "—"}
                       </span>
                       <span className="bv-mono text-[var(--color-outline)] whitespace-nowrap">
-                        {new Date(e.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        {formatDisplayDateTime(e.createdAt, displayLocale, { timeZone: displayTimeZone(), hour: "2-digit", minute: "2-digit" })}
                       </span>
                       <span
                         className="material-symbols-outlined text-[var(--color-outline)] text-base transition-transform duration-200"
@@ -226,9 +233,7 @@ export default function RisksPage() {
                         )}
                         <div className="flex items-center gap-3">
                           <button className="bv-btn bv-btn-ghost bv-btn-sm">
-                            <span className="material-symbols-outlined text-sm">check_circle</span>
-                            Acknowledge
-                          </button>
+                            <span className="material-symbols-outlined text-sm">check_circle</span>{uiText("m9d899093d41e")}</button>
                           <Link
                             href={`/runs/${e.resourceId ?? ""}`}
                             className="bv-mono text-[#60A5FA] ml-auto hover:underline text-xs flex items-center gap-1"
@@ -279,7 +284,7 @@ export default function RisksPage() {
                       {log.actor?.slice(0, 8) ?? t("app.risks.actorSystem")}
                     </td>
                     <td className="px-6 py-3 bv-mono text-[var(--bv-text-faint)]">
-                      {new Date(log.createdAt).toLocaleString()}
+                      {formatDisplayDateTime(log.createdAt, displayLocale, { timeZone: displayTimeZone(), dateStyle: "medium", timeStyle: "short" })}
                     </td>
                   </tr>
                 ))}

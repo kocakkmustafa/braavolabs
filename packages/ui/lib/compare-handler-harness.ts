@@ -56,8 +56,9 @@ export function compareHarness(file = resolve(process.cwd(), "components/Compare
     const code = ts.transpileModule(readFileSync(path, "utf8"), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true}}).outputText;
     const local = (name: string): any => {
       if (name === "react") return hooks;
+      if (/\/(localized-error|useDisplayFormats|useStateLabel|i18n\/locales)$/.test(name)) return load(resolve(dirname(path), name + ".ts"));
       if (name === "react/jsx-runtime") return {jsx: element, jsxs: element, Fragment: "Fragment"};
-      if (name === "next-intl") return {useTranslations: () => Object.assign((key: string) => key, {rich: (key: string) => key})};
+      if (name === "next-intl") return {useLocale: () => "en", useTranslations: () => Object.assign((key: string) => key, {rich: (key: string) => key})};
       if (name === "next/navigation") return {useParams: () => ({id: h.companyId})};
       if (name.endsWith("/useAuthGuard")) return {useAuthGuard: () => ({token: h.session.token, hydrated: true})};
       if (name.endsWith("/Toast")) return {useToast: () => ({toast() {}})};

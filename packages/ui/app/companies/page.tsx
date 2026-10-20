@@ -1,4 +1,9 @@
 "use client";
+import { useLocale as useDisplayLocale } from "next-intl";
+import { formatDateTime as formatDisplayDateTime, currentTimeZone as displayTimeZone } from "../../i18n/locales";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -66,6 +71,8 @@ function Spark({ values }: { values?: number[] }) {
 type FilterKey = "all" | "ACTIVE" | "PAUSED" | "DRAFT";
 
 export default function CompaniesPage() {
+  const displayLocale = useDisplayLocale();
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
   const router = useRouter();
   const { token, hydrated } = useAuthGuard();
@@ -271,7 +278,7 @@ export default function CompaniesPage() {
           className="bv-stagger"
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 300px), 1fr))",
             gap: 18,
           }}
         >
@@ -329,7 +336,7 @@ export default function CompaniesPage() {
                         <>
                           <span className="bv-divider-dot" />
                           <span style={{ color: "var(--color-outline)" }}>
-                            {new Date(c.lastRunAt).toLocaleDateString()}
+                            {formatDisplayDateTime(c.lastRunAt, displayLocale, { timeZone: displayTimeZone(), dateStyle: "medium" })}
                           </span>
                         </>
                       )}
@@ -338,10 +345,8 @@ export default function CompaniesPage() {
 
                   {/* "AI Company" flagship flag */}
                   {c.type === "AI_COMPANY" && (
-                    <span className="bv-pill bv-pill-amber" style={{ marginLeft: "auto", flexShrink: 0 }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 10 }}>star</span>
-                      Flagship
-                    </span>
+                    <span className="bv-pill bv-pill-amber" style={{ marginInlineStart: "auto", flexShrink: 0 }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 10 }}>star</span>{uiText("m335400734ad4")}</span>
                   )}
                 </div>
 
@@ -385,8 +390,8 @@ export default function CompaniesPage() {
                     </strong>{" "}
                     {t("app.companies.pipelinesLabel")}
                   </span>
-                  <span style={{ marginLeft: "auto", color: "var(--color-outline)" }}>
-                    {new Date(c.createdAt).toLocaleDateString()}
+                  <span style={{ marginInlineStart: "auto", color: "var(--color-outline)" }}>
+                    {formatDisplayDateTime(c.createdAt, displayLocale, { timeZone: displayTimeZone(), dateStyle: "medium" })}
                   </span>
                 </div>
 

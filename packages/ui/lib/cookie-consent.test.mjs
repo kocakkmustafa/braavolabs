@@ -179,8 +179,8 @@ function elements(node, predicate, result = []) {
   }
   return result;
 }
-const canonical = ["tr", "en", "es-419", "pt-BR", "de", "fr", "ja", "ar"];
-test("actual banner uses next-intl locale and catalog text in eight languages, native controls and RTL", () => {
+const canonical = ["tr", "en", "es-419", "pt-BR", "de", "fr", "ja", "ar", "it", "ko", "id", "pl", "hi", "zh-Hans"];
+test("actual banner uses next-intl locale and catalog text in fourteen languages, native controls and RTL", () => {
   for (const locale of canonical) {
     const f = fixture(), h = hooks();
     const messages = JSON.parse(read(`messages/${locale}.json`));
@@ -240,10 +240,13 @@ test("actual root layout sends consent messages in the public slim payload and h
     const layout = load("app/layout.tsx", { process: { env: { NEXT_PUBLIC_PLAUSIBLE_DOMAIN: "fixture.invalid" } } }, {
       "next/headers": { headers: async () => ({ get: key => ({ host: "www.braavolabs.com", "x-braavolabs-surface": "public", "x-braavolabs-pathname": pathname })[key] ?? null }) },
       "next-intl": { NextIntlClientProvider: Provider },
-      "next-intl/server": { getLocale: async () => locale, getMessages: async () => messages },
+      "next-intl/server": { getLocale: async () => locale, getMessages: async () => messages, getTranslations: async namespace => createTranslator({ locale, messages, namespace }) },
       "./AuthLayout": { default: () => null },
       "../components/CookieConsent": { default: () => null },
       "../components/OptionalAnalytics": { default: Analytics },
+      "../components/LanguageSwitcher": { default: () => null },
+      "../components/ThemeProvider": { default: () => null }, "../components/ThemeSelector": { default: () => null },
+      "../lib/theme-preference": { THEME_INIT_SCRIPT: "fixture" },
       "../components/SkipLink": { default: () => null },
       "../components/Toast": { ToastProvider: () => null },
       "../lib/surface-domain": load("lib/surface-domain.ts", { URL }),
@@ -280,10 +283,13 @@ test("same-host self-hosted public/private surfaces never mount optional analyti
     } } }, {
       "next/headers": { headers: async () => ({ get: key => ({ host, "x-braavolabs-surface": requestSurface, "x-braavolabs-pathname": pathname })[key] ?? null }) },
       "next-intl": { NextIntlClientProvider: () => null },
-      "next-intl/server": { getLocale: async () => "en", getMessages: async () => JSON.parse(read("messages/en.json")) },
+      "next-intl/server": { getLocale: async () => "en", getMessages: async () => JSON.parse(read("messages/en.json")), getTranslations: async namespace => createTranslator({ locale: "en", messages: JSON.parse(read("messages/en.json")), namespace }) },
       "./AuthLayout": { default: () => null },
       "../components/CookieConsent": { default: () => null },
       "../components/OptionalAnalytics": { default: Analytics },
+      "../components/LanguageSwitcher": { default: () => null },
+      "../components/ThemeProvider": { default: () => null }, "../components/ThemeSelector": { default: () => null },
+      "../lib/theme-preference": { THEME_INIT_SCRIPT: "fixture" },
       "../components/SkipLink": { default: () => null },
       "../components/Toast": { ToastProvider: () => null },
       "../lib/surface-domain": surface, "./globals.css": {},

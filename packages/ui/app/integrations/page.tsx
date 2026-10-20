@@ -1,4 +1,6 @@
 "use client";
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useState } from "react";
 import Link from "next/link";
@@ -37,7 +39,7 @@ const STATUS_STYLES: Record<string, { pillClass: string; labelKey: string }> = {
 };
 
 // Hardcoded catalog for frontend-only rendering (no API needed)
-const INTEGRATION_CATALOG = [
+const RAW_INTEGRATION_CATALOG = [
   // CRM
   { id: "hubspot", name: "HubSpot", category: "crm", icon: "🟠", status: "available", description: "Full CRM with contacts, deals, and pipeline management", features: ["Contact sync", "Deal tracking", "Pipeline management", "Form submissions", "Email tracking"], authType: "api_key" },
   { id: "salesforce", name: "Salesforce", category: "crm", icon: "☁️", status: "coming_soon", description: "Enterprise CRM platform for sales and service", features: ["Lead management", "Opportunity tracking", "Custom objects", "Reports", "Workflow rules"], authType: "oauth2" },
@@ -212,6 +214,10 @@ const INTEGRATION_CATALOG = [
 ];
 
 export default function IntegrationsPage() {
+  const directoryCopy = useLegacyTranslations("runtime");
+  const dataCopy = useLegacyTranslations("dataCopy");
+  const INTEGRATION_CATALOG = RAW_INTEGRATION_CATALOG.map((entry, index) => ({ ...entry, description: dataCopy.raw(`integrations.${entry.id}.description`) as string, features: dataCopy.raw(`integrations.${entry.id}.features`) as string[] }));
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
   const { token, hydrated } = useAuthGuard();
   const [search, setSearch] = useState("");
@@ -240,10 +246,10 @@ export default function IntegrationsPage() {
       {/* Page head */}
       <div className="bv-page-head mb-6">
         <div>
-          <p className="bv-micro mb-1 text-outline">Connections</p>
+          <p className="bv-micro mb-1 text-outline">{uiText("m1d31c122563e")}</p>
           <h1 className="bv-headline gradient-text mb-1">{t("app.integrations.title")}</h1>
           <p className="bv-caption">
-            {t("app.integrations.subtitleTemplate", { total: totalCount, available: availableCount, beta: betaCount, comingSoon: totalCount - availableCount - betaCount })}
+            {directoryCopy("directoryNote")}
           </p>
         </div>
       </div>
@@ -257,12 +263,10 @@ export default function IntegrationsPage() {
           <span className="material-symbols-outlined text-primary" style={{ fontSize: 20 }}>upload</span>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="bv-title text-on-surface">Import an existing automation</p>
-          <p className="bv-caption mt-0.5">Bring an n8n, Make or Zapier export — we&apos;ll parse it into a pipeline.</p>
+          <p className="bv-title text-on-surface">{uiText("m519d2f226020")}</p>
+          <p className="bv-caption mt-0.5">{uiText("m56994963473b")}</p>
         </div>
-        <Link href="/integrations/import" className="bv-btn bv-btn-primary bv-btn-sm flex-none" style={{ textDecoration: "none" }}>
-          Import
-          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>arrow_forward</span>
+        <Link href="/integrations/import" className="bv-btn bv-btn-primary bv-btn-sm flex-none" style={{ textDecoration: "none" }}>{uiText("m48f6463ee542")}<span className="material-symbols-outlined" style={{ fontSize: 14 }}>arrow_forward</span>
         </Link>
       </div>
 
@@ -316,13 +320,12 @@ export default function IntegrationsPage() {
           return (
             <div
               key={connector.id}
-              className={`bv-glass cursor-pointer transition-all${isExpanded ? " glow-cyan" : ""}`}
+              className={`bv-glass transition-all${isExpanded ? " glow-cyan" : ""}`}
               style={isExpanded ? { borderColor: "rgba(59,130,246,0.25)" } : {}}
-              onClick={() => setExpandedId(isExpanded ? null : connector.id)}
             >
               <div className="p-4">
                 {/* Card top row */}
-                <div className="flex items-start justify-between mb-2">
+                <button type="button" className="flex items-start justify-between gap-2 mb-2 w-full text-start" aria-expanded={isExpanded} aria-controls={`integration-${connector.id}`} onClick={() => setExpandedId(isExpanded ? null : connector.id)}>
                   <div className="flex items-center gap-2.5">
                     {/* Integration avatar */}
                     <div
@@ -337,21 +340,21 @@ export default function IntegrationsPage() {
                     <div className="min-w-0">
                       <p className="bv-title text-sm truncate">{connector.name}</p>
                       <p className="bv-micro capitalize" style={{ textTransform: "none", letterSpacing: 0, fontSize: 11 }}>
-                        {connector.category.replace("_", " ")}
+                        {t(`app.integrations.${CATEGORIES.find(c => c.id === connector.category)?.labelKey ?? "catAll"}`)}
                       </p>
                     </div>
                   </div>
                   <span className={statusStyle.pillClass}>
-                    {t(`app.integrations.${statusStyle.labelKey}`)}
+                    {directoryCopy("catalogEntry")}
                   </span>
-                </div>
+                </button>
 
                 {/* Description */}
                 <p className="bv-caption line-clamp-2 mt-2">{connector.description}</p>
 
                 {/* Expanded detail */}
                 {isExpanded && (
-                  <div className="mt-3 pt-3 border-t border-outline-variant">
+                  <div id={`integration-${connector.id}`} className="mt-3 pt-3 border-t border-outline-variant">
                     <p className="bv-micro mb-2">{t("app.integrations.features")}</p>
                     <div className="flex flex-wrap gap-1 mb-3">
                       {connector.features.map((f) => (
@@ -370,32 +373,9 @@ export default function IntegrationsPage() {
                         {connector.authType.replace("_", " ").toUpperCase()}
                       </span>
                     </p>
-                    {connector.status === "available" ? (
-                      <Link
-                        href="/connections"
-                        onClick={(e) => e.stopPropagation()}
-                        className="bv-btn bv-btn-primary w-full justify-center"
-                        style={{ minHeight: 36, fontSize: 12, textDecoration: "none" }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>settings</span>
-                        {t("app.integrations.configure")}
-                      </Link>
-                    ) : connector.status === "beta" ? (
-                      <a
-                        href={`mailto:founders@braavolabs.com?subject=${encodeURIComponent(`Beta access: ${connector.name}`)}`}
-                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                        className="bv-btn bv-btn-ghost w-full justify-center"
-                        style={{ minHeight: 36, fontSize: 12, color: "#60A5FA", borderColor: "rgba(59,130,246,0.3)", textDecoration: "none" }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>science</span>
-                        {t("app.integrations.joinBeta")}
-                      </a>
-                    ) : (
-                      <button className="bv-btn bv-btn-ghost w-full justify-center" style={{ minHeight: 36, fontSize: 12 }} disabled>
-                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>schedule</span>
-                        {t("app.integrations.comingSoonBtn")}
-                      </button>
-                    )}
+                    <Link href="/connections" className="bv-btn bv-btn-ghost w-full justify-center" style={{ minHeight: 36, fontSize: 12 }}>
+                      {directoryCopy("supportedConnections")}
+                    </Link>
                   </div>
                 )}
               </div>

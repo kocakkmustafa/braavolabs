@@ -1,50 +1,11 @@
 "use client";
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 
-const SECTIONS = [
-  {
-    id: "veri-sorumlusu",
-    title: "Veri Sorumlusu",
-    body: 'Braavolabs ("Şirket"), 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") kapsamında veri sorumlusu sıfatıyla hareket eder. İletişim: kvkk@braavolabs.com.',
-  },
-  {
-    id: "islenen-kisisel-veriler",
-    title: "İşlenen Kişisel Veriler",
-    body: "Kimlik (ad, soyad), iletişim (e-posta, organizasyon adı), müşteri işlem (abonelik durumu, fatura geçmişi), müşteri davranış (pipeline çalıştırma kayıtları, kullanım metrikleri), log (IP, oturum kimliği, denetim izleri). Ödeme bilgileri Stripe üzerinden işlenir; kart numaranızı tarafımızda saklamayız.",
-  },
-  {
-    id: "isleme-amaclari",
-    title: "İşleme Amaçları",
-    body: "Sözleşmesel yükümlülüklerin yerine getirilmesi (hizmet sunumu, fatura), müşteri desteği, ürün iyileştirme, güvenlik ve dolandırıcılık önleme, yasal yükümlülükler (TTK, vergi mevzuatı) ve onayınız varsa pazarlama iletişimi.",
-  },
-  {
-    id: "hukuki-sebepler",
-    title: "Hukuki Sebepler",
-    body: "KVKK madde 5/2-c (sözleşmenin kurulması/ifası), 5/2-ç (hukuki yükümlülük), 5/2-f (meşru menfaat) ve pazarlama iletişimi için 5/1 kapsamında açık rıza.",
-  },
-  {
-    id: "ucuncu-taraf-aktarimlari",
-    title: "Üçüncü Taraf Aktarımları",
-    body: "Hizmet sağlayıcılarımız: Stripe (ödeme, ABD), SendGrid (e-posta, ABD), HubSpot (CRM, ABD — opsiyonel), Google OAuth (kimlik doğrulama, ABD — opsiyonel), GitHub OAuth (kimlik doğrulama, ABD — opsiyonel), AWS Lightsail (barındırma, AB Frankfurt). Yurt dışı aktarımlar KVKK madde 9 kapsamında standart sözleşme hükümleri ile yapılır.",
-  },
-  {
-    id: "saklama-suresi",
-    title: "Saklama Süresi",
-    body: "Hesabınız aktif olduğu sürece verileriniz işlenir. Hesap kapatıldıktan sonra TTK gereği 10 yıl boyunca finansal kayıtlar saklanır. Pazarlama amaçlı veriler rıza geri çekilince derhal silinir.",
-  },
-  {
-    id: "haklariniz",
-    title: "Haklarınız (KVKK Madde 11)",
-    body: "Kişisel verilerinizin işlenip işlenmediğini öğrenme; işlenmişse bilgi talep etme; işlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme; yurt içinde/yurt dışında aktarıldığı tarafları bilme; eksik/yanlış işlenmişse düzeltilmesini isteme; silinmesini/yok edilmesini isteme; düzeltme/silme/yok etme işlemlerinin aktarılan taraflara bildirilmesini isteme; otomatik sistemlerle analiz edilerek aleyhinize sonuç çıkmasına itiraz etme; hukuka aykırı işleme nedeniyle zarara uğradıysanız tazminat talep etme haklarına sahipsiniz.",
-  },
-  {
-    id: "basvuru",
-    title: "Başvuru",
-    body: "Haklarınızı kullanmak için kvkk@braavolabs.com adresine yazılı başvuruda bulunabilirsiniz. Başvurunuza KVKK madde 13 uyarınca en geç 30 gün içinde ücretsiz olarak yanıt veririz.",
-  },
-];
+const SECTION_IDS = ["veri-sorumlusu","islenen-kisisel-veriler","isleme-amaclari","hukuki-sebepler","ucuncu-taraf-aktarimlari","saklama-suresi","haklariniz","basvuru"] as const;
 
 const DOC_LINKS = [
   { href: "/privacy", labelKey: "privacy" },
@@ -56,13 +17,13 @@ const DOC_LINKS = [
 ];
 
 export default function KvkkPage() {
-  // Page body stays Turkish (legal requirement under 6698 sayılı Kanun);
-  // only the chrome (back link) and a conditional explainer banner
-  // localise. Visitors who arrived in TR see the body without scaffolding,
-  // visitors in any other locale see a one-line note in their language.
+  const copy = useLegacyTranslations("surface");
+  const SECTIONS = SECTION_IDS.map(id => ({ id, title: copy(`legal.kvkk.${id}.title`), body: copy(`legal.kvkk.${id}.body`) }));
+  const uiText = useLegacyTranslations("uiCopy");
+  // Every visitor sees the translated preview notice. Legal completion remains open.
   const t = useTranslations();
   const locale = useLocale();
-  const showBanner = locale !== "tr";
+  const showBanner = true;
 
   return (
     <div className="min-h-screen bg-background mesh-bg">
@@ -76,12 +37,12 @@ export default function KvkkPage() {
             <span className="font-headline font-bold text-sm text-on-surface">Braavolabs</span>
           </Link>
           <div className="hidden md:flex items-center gap-6 text-sm text-on-surface-variant">
-            <Link href="/#features" className="hover:text-on-surface transition-colors">Features</Link>
-            <Link href="/pricing" className="hover:text-on-surface transition-colors">Pricing</Link>
-            <Link href="/about" className="hover:text-on-surface transition-colors">About</Link>
+            <Link href="/#features" className="hover:text-on-surface transition-colors">{uiText("m760104947f15")}</Link>
+            <Link href="/pricing" className="hover:text-on-surface transition-colors">{uiText("m69d527a460e7")}</Link>
+            <Link href="/about" className="hover:text-on-surface transition-colors">{uiText("mb2399da1a08c")}</Link>
           </div>
           <div className="flex items-center gap-2">
-            <Link href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm">Sign in</Link>
+            <Link href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm">{uiText("me140e826ba9c")}</Link>
             <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm bv-legal-cta">{t("static.common.legalNavigation.openApp")}</a>
           </div>
         </div>
@@ -105,7 +66,7 @@ export default function KvkkPage() {
           <h1 className="bv-display text-on-surface" style={{ fontSize: "clamp(2rem, 5vw, 3.75rem)", textTransform: "uppercase", letterSpacing: "-0.02em" }}>
             KVKK
           </h1>
-          <p className="bv-mono text-on-surface-variant mt-3">Son güncelleme: Mayıs 2026</p>
+          <p className="bv-mono text-on-surface-variant mt-3">{t("static.common.lastUpdated")}{" "}{new Intl.DateTimeFormat(locale, { timeZone: "UTC", dateStyle: "long" }).format(new Date("2026-10-20T00:00:00Z"))}</p>
 
           {/* Doc switcher pills */}
           <div className="flex flex-wrap items-center justify-center gap-2 mt-6">
@@ -149,7 +110,7 @@ export default function KvkkPage() {
               <span className="material-symbols-outlined text-primary mr-2" style={{ fontSize: 16, verticalAlign: "middle" }}>
                 language
               </span>
-              {t("static.singleLocale.kvkkBanner")}
+              {copy("legal.previewNotice")}
             </div>
           )}
 
@@ -190,17 +151,14 @@ export default function KvkkPage() {
                 mail
               </span>
               <div>
-                <p className="bv-title mb-1">Başvuru için iletişim</p>
-                <p className="bv-caption">
-                  KVKK kapsamındaki talepleriniz için{" "}
+                <p className="bv-title mb-1">{uiText("m471494a678dc")}</p>
+                <p className="bv-caption">{uiText("md16b7b8e76f6")}{" "}
                   <a
                     href="mailto:kvkk@braavolabs.com"
                     className="text-primary hover:underline transition-colors"
                   >
                     kvkk@braavolabs.com
-                  </a>{" "}
-                  adresine yazabilirsiniz.
-                </p>
+                  </a>{" "}{uiText("md2e44bfde665")}</p>
               </div>
             </div>
           </div>
@@ -215,22 +173,22 @@ export default function KvkkPage() {
             <div className="bv-avatar" style={{ width: 28, height: 28, fontSize: 11 }}>B</div>
             <span className="font-headline font-bold text-sm text-on-surface">Braavolabs</span>
           </Link>
-          <p className="bv-caption">Command the AI agents &amp; automations you already run.</p>
+          <p className="bv-caption">{uiText("m8c04ee5bf3f2")}</p>
         </div>
         <div>
-          <p className="bv-micro mb-3">Product</p>
+          <p className="bv-micro mb-3">{uiText("ma0eb87bbeb56")}</p>
           <div className="space-y-2 text-sm text-on-surface-variant">
-            <Link href="/#features" className="block hover:text-on-surface transition-colors">Features</Link>
-            <Link href="/pricing" className="block hover:text-on-surface transition-colors">Pricing</Link>
-            <Link href="/changelog" className="block hover:text-on-surface transition-colors">Changelog</Link>
+            <Link href="/#features" className="block hover:text-on-surface transition-colors">{uiText("m760104947f15")}</Link>
+            <Link href="/pricing" className="block hover:text-on-surface transition-colors">{uiText("m69d527a460e7")}</Link>
+            <Link href="/changelog" className="block hover:text-on-surface transition-colors">{uiText("mc051ae69c4ff")}</Link>
           </div>
         </div>
         <div>
-          <p className="bv-micro mb-3">Company</p>
+          <p className="bv-micro mb-3">{uiText("m3977aafcc314")}</p>
           <div className="space-y-2 text-sm text-on-surface-variant">
-            <Link href="/about" className="block hover:text-on-surface transition-colors">About</Link>
-            <Link href="/blog" className="block hover:text-on-surface transition-colors">Blog</Link>
-            <Link href="/contact" className="block hover:text-on-surface transition-colors">Contact</Link>
+            <Link href="/about" className="block hover:text-on-surface transition-colors">{uiText("mb2399da1a08c")}</Link>
+            <Link href="/blog" className="block hover:text-on-surface transition-colors">{uiText("mf519587a824a")}</Link>
+            <Link href="/contact" className="block hover:text-on-surface transition-colors">{uiText("m46ce898e63fc")}</Link>
           </div>
         </div>
         <div>

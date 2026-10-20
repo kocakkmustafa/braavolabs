@@ -1,4 +1,6 @@
 "use client";
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { usePathname } from "next/navigation";
@@ -50,13 +52,12 @@ function getInitials(name: string): string {
 }
 
 export default function PresenceBar() {
+  const uiText = useLegacyTranslations("uiCopy");
   const token = useAppStore((s) => s.token);
-  const theme = useAppStore((s) => s.theme);
   const pathname = usePathname();
   const [users, setUsers] = useState<UserPresence[]>([]);
   const [hoveredUser, setHoveredUser] = useState<string | null>(null);
   const currentRoomRef = useRef<string | null>(null);
-  const isDark = theme === "dark";
 
   // Heartbeat: send presence every 30s
   useEffect(() => {
@@ -119,17 +120,15 @@ export default function PresenceBar() {
   const containerStyle: React.CSSProperties = {
     position: "fixed",
     top: 16,
-    right: 112, // offset to leave room for NotificationBell
+    insetInlineEnd: 112, // offset to leave room for NotificationBell
     zIndex: 99,
     display: "flex",
     alignItems: "center",
     gap: 6,
     padding: "4px 10px 4px 12px",
     borderRadius: 12,
-    background: isDark ? "rgba(29,32,38,0.85)" : "rgba(255,255,255,0.85)",
-    border: isDark
-      ? "1px solid rgba(255,255,255,0.08)"
-      : "1px solid rgba(0,0,0,0.1)",
+    background: "var(--color-surface-container-low)",
+    border: "1px solid var(--color-outline-variant)",
     backdropFilter: "blur(12px)",
     boxShadow: "0 2px 12px rgba(0,0,0,0.2)",
   };
@@ -137,22 +136,21 @@ export default function PresenceBar() {
   const labelStyle: React.CSSProperties = {
     fontSize: 11,
     fontWeight: 500,
-    color: isDark ? "#859399" : "#4a5568",
+    color: "var(--color-on-surface-variant)",
     whiteSpace: "nowrap",
-    marginRight: 2,
+    marginInlineEnd: 2,
   };
 
   return (
     <div style={containerStyle}>
       <span style={labelStyle}>
-        {users.length} online
-      </span>
+        {users.length}{" "}{uiText("m04d02f71794f")}</span>
 
       <div style={{ display: "flex", alignItems: "center" }}>
         {users.slice(0, 8).map((user, i) => (
           <div
             key={user.userId}
-            style={{ position: "relative", marginLeft: i === 0 ? 0 : -6 }}
+            style={{ position: "relative", marginInlineStart: i === 0 ? 0 : -6 }}
             onMouseEnter={() => setHoveredUser(user.userId)}
             onMouseLeave={() => setHoveredUser(null)}
           >
@@ -169,7 +167,7 @@ export default function PresenceBar() {
                 fontSize: 10,
                 fontWeight: 700,
                 color: "#fff",
-                border: `2px solid ${isDark ? "#0a0d14" : "#f0f5ff"}`,
+                border: "2px solid var(--color-background)",
                 cursor: "default",
                 position: "relative",
                 zIndex: 8 - i,
@@ -203,7 +201,7 @@ export default function PresenceBar() {
                   borderRadius: "50%",
                   background:
                     user.status === "online" ? "#34d399" : "#f59e0b",
-                  border: `1.5px solid ${isDark ? "#0a0d14" : "#f0f5ff"}`,
+                  border: "1.5px solid var(--color-background)",
                 }}
               />
             </div>
@@ -218,10 +216,8 @@ export default function PresenceBar() {
                   transform: "translateX(-50%)",
                   padding: "8px 12px",
                   borderRadius: 10,
-                  background: isDark ? "#191c22" : "#fff",
-                  border: isDark
-                    ? "1px solid rgba(255,255,255,0.1)"
-                    : "1px solid rgba(0,0,0,0.1)",
+                  background: "var(--color-surface-container-low)",
+                  border: "1px solid var(--color-outline-variant)",
                   boxShadow: "0 6px 20px rgba(0,0,0,0.35)",
                   whiteSpace: "nowrap",
                   zIndex: 200,
@@ -232,7 +228,7 @@ export default function PresenceBar() {
                   style={{
                     fontSize: 12,
                     fontWeight: 600,
-                    color: isDark ? "#e1e2eb" : "#1a202c",
+                    color: "var(--color-on-surface)",
                     marginBottom: 2,
                   }}
                 >
@@ -252,7 +248,7 @@ export default function PresenceBar() {
                 <div
                   style={{
                     fontSize: 10,
-                    color: isDark ? "#859399" : "#718096",
+                    color: "var(--color-on-surface-variant)",
                   }}
                 >
                   {user.currentPage}
@@ -269,17 +265,15 @@ export default function PresenceBar() {
               width: 28,
               height: 28,
               borderRadius: "50%",
-              background: isDark
-                ? "rgba(255,255,255,0.08)"
-                : "rgba(0,0,0,0.06)",
+              background: "var(--color-surface-container-high)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               fontSize: 10,
               fontWeight: 600,
-              color: isDark ? "#859399" : "#4a5568",
-              border: `2px solid ${isDark ? "#0a0d14" : "#f0f5ff"}`,
-              marginLeft: -6,
+              color: "var(--color-on-surface-variant)",
+              border: "2px solid var(--color-background)",
+              marginInlineStart: -6,
             }}
           >
             +{users.length - 8}

@@ -51,7 +51,7 @@
       },
       "billing": {
         "title": "Nutzungsabrechnung",
-        "desc": "Geplante Preise: Individual $19/Monat und Team $39/aktivem Nutzer/Monat. Nicht aktuell kaufbar; Inferenz ist nicht enthalten."
+        "desc": "Geplante Preise: Individual $19/Monat und Team $39/aktivem Nutzer/Monat. Derzeit nicht erhältlich; Inferenz ist nicht enthalten."
       },
       "audit": {
         "title": "Vollständiges Audit-Log",
@@ -257,7 +257,7 @@
       "saveButton": "Speichern",
       "identity": {
         "title": "Unternehmens-SSO (OIDC)",
-        "subtitle": "Verbinden Sie Ihren Workspace mit Microsoft Entra, Okta, Google Workspace, Auth0, JumpCloud oder einem konformen Identity Provider.",
+        "subtitle": "Verbinde deinen Workspace mit Microsoft Entra, Okta, Google Workspace, Auth0, JumpCloud oder einem konformen Identitätsanbieter.",
         "back": "Zurück zu den Einstellungen",
         "loading": "SSO-Konfiguration wird geladen…",
         "status_active": "Aktiv",
@@ -271,8 +271,8 @@
         "client_secret_hint_new": "Verschlüsselt mit AES-256-GCM ruhend gespeichert, mit Tenant-gebundener AAD.",
         "client_secret_hint_rotate": "Leer lassen, um das bestehende Secret zu behalten. Neuen Wert einfügen zum Rotieren.",
         "redirect_uri": "Redirect URI",
-        "redirect_uri_hint": "Registrieren Sie diese URL im IdP: {url}",
-        "redirect_uri_hint_generic": "Registrieren Sie diese URL im IdP als erlaubtes Redirect-Ziel.",
+        "redirect_uri_hint": "Registriere diese URL beim IdP: {url}",
+        "redirect_uri_hint_generic": "Registriere diese URL beim IdP als erlaubtes Weiterleitungsziel.",
         "scopes": "Geltungsbereiche",
         "scopes_hint": "Leerzeichengetrennt. Die meisten IdPs benötigen mindestens `openid email profile`.",
         "domains": "E-Mail-Domain-Allowlist",
@@ -291,10 +291,12 @@
       "fieldName": "Name",
       "memberSince": "Mitglied seit {year}",
       "saveFailedToast": "Speichern fehlgeschlagen — erneut versuchen.",
-      "localPlanRequired": "Wählen Sie einen unterstützten Tarif, um einen lokalen Anbieter zu konfigurieren",
+      "localPlanRequired": "Wähle einen unterstützten Tarif, um einen lokalen Anbieter zu konfigurieren",
       "planRequired": "Tarif erforderlich",
       "localPlanDescription": "Individual und Team unterstützen konfigurierte lokale Endpunkte. Inferenz ist nicht enthalten.",
-      "viewPlans": "Tarife ansehen"
+      "viewPlans": "Tarife ansehen",
+      "aiStorageDescription": "Zugangsdaten des Anbieters werden vor dem Speichern verschlüsselt. Netzwerkzugriff und Datenverarbeitung hängen vom konfigurierten Anbieter und Endpunkt ab.",
+      "localEndpointDescription": "Lokale Endpunkte laufen dort, wo du sie konfigurierst. Andere Produktfunktionen können weiterhin Netzwerkzugriff benötigen; diese Einstellung garantiert keinen vollständigen Offlinebetrieb."
     },
     "onboarding": {
       "primitives": {
@@ -559,7 +561,8 @@
       "improvementSummary": "Verbesserungszusammenfassung",
       "better": "besser",
       "expand": "Details anzeigen",
-      "collapse": "Details ausblenden"
+      "collapse": "Details ausblenden",
+      "noTimeSeries": "Zeitreihendaten und Konfidenzbänder sind in dieser Ansicht nicht verfügbar. Nutze die zusammengefassten Kennzahlen oben."
     },
     "dashboard": {
       "title": "Kommandozentrale",
@@ -598,7 +601,7 @@
         "spent_so_far": "In {days} Tagen diesen Monat ausgegeben",
         "projected_to_eom": "Prognose Monatsende: {amount} (Ø {daily}/Tag)",
         "of_budget": "des prognostizierten Budgets",
-        "over_budget_warning": "Über Budget. Automatische Ausgabengenehmigungen sind gesperrt, bis Sie das Limit erhöhen oder ein neuer Monat beginnt.",
+        "over_budget_warning": "Über dem Budget. Automatische Ausgabenfreigaben sind gesperrt, bis du das Limit erhöhst oder ein neuer Monat beginnt.",
         "monthly_budget_usd": "Monatliches Budget (USD)",
         "save": "Speichern",
         "clear": "Löschen",
@@ -729,16 +732,16 @@
       "remSettings": "→ Einstellungen → KI-Anbieter",
       "remBilling": "→ Abrechnung & Tarif",
       "remApprovals": "→ Freigaben",
-      "inputTitle": "Der Agent benötigt Ihre Eingabe",
-      "answerPlaceholder": "Geben Sie Ihre Antwort für den Agenten ein…",
-      "answerSent": "Antwort gesendet — der Lauf wird fortgesetzt.",
+      "inputTitle": "Der Agent benötigt deine Eingabe",
+      "answerPlaceholder": "Gib deine Antwort für den Agenten ein…",
+      "answerSent": "Antwort übermittelt. Prüfe den Status der Entscheidung und des Laufs.",
       "answerFailed": "Antwort konnte nicht gesendet werden",
       "sending": "Wird gesendet…",
       "sendAnswer": "Antwort senden",
       "steerTitle": "Diesen Lauf steuern",
-      "steerHelp": "Senden Sie eine Nachricht, um den Agenten mitten im Lauf umzulenken — sie wird beim nächsten Schritt als Bediener-Anweisung eingefügt.",
+      "steerHelp": "Sende eine Nachricht, um den Agenten während der Ausführung umzulenken. Sie wird beim nächsten Schritt als Bedienerhinweis eingefügt.",
       "steerPlaceholder": "z. B. Konzentriere dich nur auf Großkunden-Leads — überspringe das KMU-Segment.",
-      "steerSent": "Steuerung gesendet — der Agent berücksichtigt sie beim nächsten Schritt.",
+      "steerSent": "Steuerungsanfrage übermittelt. Prüfe den nachfolgenden Laufstatus und die Ausgabe.",
       "steerFailed": "Steuerung konnte nicht gesendet werden",
       "sendSteer": "Steuerung senden",
       "timeline": "Schritt-Zeitleiste",
@@ -956,7 +959,7 @@
       "composerPlaceholder": "z. B. Ein täglicher LinkedIn-Content-Agent für B2B-SaaS-Gründer. Wählt 1 Trendthema aus der Websuche, verfasst 3 Post-Varianten im professionellen Ton, plant die beste für 9 Uhr. Protokolliert immer die Begründung.",
       "charCount": "{n} / 4000 Zeichen (min. 10)",
       "agentAddedResult": "<b>{name}</b> wurde zu deinem Arbeitsbereich hinzugefügt.",
-      "droppedNote": "Hinweis: {n, plural, one {# Tool} other {# Tools}} verworfen, das das Modell erfunden hat: {tools}",
+      "droppedNote": "{n, plural, one {Hinweis: # vom Modell erfundenes Tool verworfen} other {Hinweis: # vom Modell erfundene Tools verworfen}}: {tools}",
       "composing": "Wird erstellt...",
       "compose": "Erstellen",
       "dealStageLead": "Lead",
@@ -1038,11 +1041,11 @@
       "downloadAll": "Vollständiges Bundle herunterladen (JSON)",
       "summary": "Exportübersicht",
       "plainConfiguration": "Unverschlüsselte Konfigurationsdateien",
-      "plainConfigurationHelp": "Dieser Download enthält unverschlüsselte Konfiguration und Prompts. Bewahren Sie ihn sicher auf; es wird keine Passphrase erzeugt.",
+      "plainConfigurationHelp": "Dieser Download enthält unverschlüsselte Konfiguration und Prompts. Bewahre ihn sicher auf; es wird keine Passphrase erzeugt.",
       "skillsLabel": "Skills",
       "hooksLabel": "Hooks",
       "formatLabel": "Dateiformat",
-      "loadFailed": "Der Export konnte nicht geladen werden. Versuchen Sie es erneut im Workspace.",
+      "loadFailed": "Der Export konnte nicht geladen werden. Versuche es erneut im Workspace.",
       "copyFailed": "Kopieren fehlgeschlagen. Prüfe die Zwischenablageberechtigung oder lade die Datei herunter."
     },
     "cmdk": {
@@ -1058,7 +1061,8 @@
       "hintOpen": "öffnen",
       "hintClose": "schließen",
       "hintDashboard": "Dashboard",
-      "hintNewWorkspace": "neuer Arbeitsbereich"
+      "hintNewWorkspace": "neuer Arbeitsbereich",
+      "title": "Befehlsmenü"
     },
     "breadcrumb": {
       "onboarding": "Onboarding",
@@ -1177,6 +1181,17 @@
       "failed": "Vergleich fehlgeschlagen.",
       "cancelled": "Vergleich abgebrochen.",
       "timeout": "Abfragelimit erreicht. Die Sitzung läuft möglicherweise noch."
+    },
+    "shell": {
+      "openMenu": "Menü öffnen",
+      "closeMenu": "Menü schließen"
+    },
+    "notifications": {
+      "title": "Benachrichtigungen",
+      "pending": "{count, plural, one {# ausstehende Freigabe} other {# ausstehende Freigaben}}",
+      "clear": "Keine ausstehenden Freigaben",
+      "spend": "Ausgabenfreigabe erforderlich",
+      "viewAll": "Alle Freigaben anzeigen"
     }
   },
   "static": {
@@ -1202,7 +1217,8 @@
         "tagline": "Steuere die KI-Agenten und Automatisierungen, die du bereits einsetzt.",
         "rights": "Alle Rechte vorbehalten.",
         "englishOnly": "Dieses Dokument ist derzeit auf Englisch verfügbar."
-      }
+      },
+      "englishContent": "Dieser Inhalt ist derzeit auf Englisch verfügbar. Ein Wechsel der Oberflächensprache übersetzt diesen Abschnitt nicht."
     },
     "blog": {
       "title": "Blog kommt bald",
@@ -1223,10 +1239,6 @@
         "Cookie- / KVKK- / GDPR-Seiten für rechtliche Compliance live."
       ],
       "githubIntro": "Detaillierte Release-Notes auf GitHub:"
-    },
-    "singleLocale": {
-      "kvkkBanner": "Diese Seite wird nur auf Türkisch veröffentlicht — das türkische Datenschutzgesetz (KVKK) verlangt, dass die aydınlatma metni auf Türkisch verfasst ist, um Rechtswirkung zu entfalten.",
-      "gdprBanner": "Diese Seite wird nur auf Englisch veröffentlicht — sie entspricht der Arbeitssprache der Aufsichtsbehörden für grenzüberschreitende EWR-Verantwortliche."
     },
     "legal": {
       "privacy": {
@@ -1370,7 +1382,7 @@
       "message": "Nachricht",
       "messagePlaceholder": "Wie können wir helfen?",
       "compose": "E-Mail vorbereiten",
-      "draftHelp": "Hiermit wird ein E-Mail-Entwurf vorbereitet. Senden Sie ihn über Ihr E-Mail-Programm; die Zustellung wird hier nicht bestätigt.",
+      "draftHelp": "Hiermit wird ein E-Mail-Entwurf vorbereitet. Sende ihn über dein E-Mail-Programm; die Zustellung wird hier nicht bestätigt.",
       "prepared": "E-Mail-Entwurf vorbereitet",
       "salesTopic": "Vertrieb und Preise",
       "supportTopic": "Technischer Support",
@@ -1406,6 +1418,16 @@
       "reset": "Cookie-Einstellungen zurücksetzen",
       "resetDone": "Die gespeicherte Auswahl wurde gelöscht. Die Seite wird gegebenenfalls neu geladen, um die Änderung anzuwenden.",
       "resetFailed": "Die gespeicherte Auswahl konnte nicht gelöscht werden. Das Laden weiterer Nutzungsanalyse wurde auf dieser Seite gesperrt. Ein bereits geladener Tracker kann bis zum Schließen der Seite aktiv bleiben. Schließe die Seite und lösche vor deiner Rückkehr die Speicherdaten dieser Website im Browser."
+    },
+    "appearance": {
+      "title": "Darstellung",
+      "label": "Design",
+      "dark": "Dunkel",
+      "light": "Hell",
+      "system": "System",
+      "description": "Übernimm die Systemeinstellung oder wähle ein Design für diesen Browser.",
+      "saveFailed": "Das Design wurde auf dieser Seite geändert, konnte aber in diesem Browser nicht gespeichert werden.",
+      "storageHelp": "Deine Designauswahl wird in diesem Browser gespeichert."
     }
   },
   "auth": {
@@ -1423,7 +1445,7 @@
       "hasAccount": "Du hast bereits ein Konto?",
       "welcome": "Konto erstellen",
       "subtitle": "Beginne, KI-Agenten & Automatisierungen zu bauen",
-      "inferenceFunding": "Die Inferenz nutzt Ihren eigenen Anbieterschlüssel oder eine konfigurierte lokale Laufzeit"
+      "inferenceFunding": "Die Inferenz nutzt deinen eigenen Anbieterschlüssel oder eine konfigurierte lokale Laufzeit"
     },
     "fields": {
       "fullName": "Vollständiger Name",
@@ -1610,15 +1632,21 @@
     "ar": "العربية",
     "es-419": "Español (Latinoamérica)",
     "pt-BR": "Português (Brasil)",
-    "ja": "日本語"
+    "ja": "日本語",
+    "it": "Italiano",
+    "ko": "한국어",
+    "id": "Bahasa Indonesia",
+    "pl": "Polski",
+    "hi": "हिन्दी",
+    "zh-Hans": "简体中文"
   },
   "publicPreview": {
-    "homeTitle": "Anbieterübergreifende KI, unter Ihrer Kontrolle.",
+    "homeTitle": "Anbieterübergreifende KI, unter deiner Kontrolle.",
     "homeIntro": "Braavolabs ist eine anbieterübergreifende KI-Arbeitsumgebung und Steuerungsplattform für geregelte Abläufe, ausdrückliche Aktionen, Modellwahl und menschliche Freigaben auf Desktop, CLI, Mobilgeräten und in der Cloud.",
     "previewBadge": "Öffentliche Produktvorschau",
     "pricingBadge": "Preisvorschau — derzeit nicht erhältlich",
     "pricingTitle": "Geplante Preise. Klare Grundlagen.",
-    "inferenceFunding": "Inferenz ist nicht enthalten. Nutzen Sie eigene Anbieterschlüssel (BYOK) oder lokale Modelle.",
+    "inferenceFunding": "Inferenz ist nicht enthalten. Nutze eigene Anbieterschlüssel (BYOK) oder lokale Modelle.",
     "individualPeriod": "{price}/Monat",
     "teamPeriod": "{price}/aktivem Nutzer/Monat",
     "individualSummary": "Ein Nutzer mit derselben Modell- und Datenmoduswahl.",
@@ -1665,5 +1693,3186 @@
       "status": "Status",
       "support": "Support"
     }
+  },
+  "uiCopy": {
+    "m938c91ff1f31": "braavolabs",
+    "m13855655e90d": "Ai",
+    "m690e7a5e1383": "Morghulis.",
+    "m158acce5db4b": "Jede Aufgabe muss enden. Leise, auf deinem Rechner. Die gesteuerte Kommandozentrale für deine KI-Agenten.",
+    "mc9be6b254770": "SCROLLEN — ÖFFNE DIE TÜR ▾",
+    "m68ec9666da44": "jeder Agent, eine Halle",
+    "m4d50f5adff67": "Ein Panel.",
+    "m13b0a7147ec5": "Jeder Agent.",
+    "md91e25ebff91": "Claude, GPT, Gemini, deine lokalen Modelle — verhüllt in ihren Nischen, warten auf einen Namen. Gib einem eine Aufgabe und sieh zu, wie es den Faden an das nächste weiterreicht.",
+    "m14259aa4f184": "drei Wege, eine Rechnung",
+    "mb6063ec6db48": "Leite es auf den günstigsten",
+    "mff3010307ebd": "Weg, der funktioniert.",
+    "ma02b3af1c791": "Lokale Modelle übernehmen die Routine, deine API-Schlüssel die schwierigen Teile, dein eigenes CLI-Abo den Rest — die Kaskade entscheidet, du behältst die Ersparnis.",
+    "m58cb783ef208": "günstigerer durchschnittlicher Lauf",
+    "m2f71a8cd452e": "Routing · Caching · Kaskade",
+    "md68f4d9658a0": "Token-Aufschlag",
+    "m19837eca8ef7": "BYOK — deine eigenen Schlüssel",
+    "m61feb77f0448": "Wege",
+    "mc161ee232d16": "lokal · API · deine CLI",
+    "m37570a352f9f": "Modellunabhängiger Speicher",
+    "m4790be82e806": "Dein Kontext bleibt deiner, egal welches Modell läuft.",
+    "md1ab8fe0278c": "Governance als Standard",
+    "mcf73c270b403": "Jeder riskante Schritt durchläuft eine Freigabe.",
+    "m760df3439c81": "Übergabe zwischen Modellen",
+    "m0ef4c869c13b": "Ein Agent reicht den Faden an den nächsten weiter.",
+    "m902a479c1449": "KI dient. du führst.",
+    "madfef55cdd3e": "Dohaeris.",
+    "m8917820f4842": "Läufe bleiben auf deinem Rechner und arbeiten weiter, wenn du weggehst. Der Turm wacht; du behältst von überall das Kommando.",
+    "m06818bfad7e5": "Gib vom Handy aus frei.",
+    "mcd2afb2517c4": "Riskante Schritte melden sich auf deinem Handy — erlauben, ablehnen oder mit einem Tippen steuern.",
+    "mc918b71360aa": "Jeder Lauf lässt sich wiedergeben.",
+    "mec82da18aef9": "Befehle, Diffs und Tool-Aufrufe aufgezeichnet — jeden Schritt prüfen oder zurückspulen.",
+    "mb634019207be": "Ein Notausschalter.",
+    "m190c6cca4b11": "Fordere auf unterstützten Ausführungspfaden einen Stopp an. Ein aktiver Anbieteraufruf kann bereits im Gang sein; prüfe den aufgezeichneten Ausgang.",
+    "me050855b0732": "Für macOS herunterladen",
+    "m0699722b6c86": "Windows",
+    "mc7916fde8f18": "Linux",
+    "m4721630f3237": "KOPIERT",
+    "m76375004a5c8": "KOPIEREN",
+    "mfa1e83c4875c": "Braavolabs-Münze — Vorderseite",
+    "m25dad6b2130d": "Braavolabs-Münze — Rückseite, BL-Monogramm aus Leiterbahnen",
+    "m25b28440d28a": "zum Umdrehen darüberfahren · Rückseite: BL-Leiterbahnmonogramm",
+    "m4fc929a0a62c": "Szenennavigation",
+    "m9ee930cb6b09": "Intro überspringen",
+    "m154eba8c33b7": "ÜBERSPRINGEN — Leertaste / Klick",
+    "m227d67016fe0": "braavolabs · valar dohaeris",
+    "m716f677b544d": "Dokumentation",
+    "md86a34679f43": "github",
+    "mbb0e90463fc8": "liegt vorn",
+    "m6a6df1ed4210": "Veröffentlichen",
+    "m1c64caa33ba2": "vs",
+    "mde4ec47f271d": "Experimente",
+    "m920a13b7eddb": "Experiment",
+    "m0ce6557e41a4": "Status",
+    "mb1c437b2623f": "Steigerung",
+    "me4fac2bbdc43": "Signifikanz",
+    "m4b9aae820c18": "Details anzeigen",
+    "m6e8b2ac90efc": "Neues Experiment",
+    "m008ca53ea0d6": "Manifest",
+    "mf6caaee885a1": "Jeder kann",
+    "md7f19caf7275": "einen Agenten bauen.",
+    "m1bcc79112898": "Wenige können ihn führen.",
+    "m154cae3389df": "Das Emblem",
+    "mff5d00a78d7e": "Der gesichtslose Operator",
+    "m6d6f7b3433d5": "Unser Emblem ist eine geschmiedete Eisenmaske — eine Anspielung auf Braavos, wo die fähigsten Operatoren ungesehen arbeiten. Sie steht dafür, wie echte Arbeit mit KI gelingt: nicht durch die lauteste Demo, sondern durch den Operator, der leise",
+    "m0fb31a980179": "liest, freigibt und",
+    "m2c08fc9adde3": "ein Agententeam zum Ergebnis führt.",
+    "m8fad8431526d": "Alles, was wir bauen, hat Gewicht, Glanz und Bewegung — denn Agenten zu führen soll sich wie eine Kommandozentrale anfühlen, nicht wie die Beaufsichtigung eines Chatbots.",
+    "mae6893bf1cea": "Der Wettbewerbsvorteil in einem Satz",
+    "ma96d8b4e22d7": "Wir konkurrieren bei",
+    "m79029a3ce6e6": "Kontrolle",
+    "mac2da98d83a1": "Mobilität",
+    "m0eab38f1efb0": "und",
+    "mb899143d5b68": "Datenschutz",
+    "ma2e990d63ed8": "— nie bei der Anzahl der Konnektoren.",
+    "m3bfa80932b8d": "Grundsätze",
+    "m35c23cddce05": "„Wir haben Braavolabs gebaut, weil wir genug von Agenten hatten, die handeln, sich aber nicht steuern lassen. Macht ohne Hand am Ruder ist nicht nützlich — sie ist ein Risiko.“",
+    "m00cce1870e41": "Das Braavolabs-Team",
+    "m86eac0774080": "· öffentlich geschmiedet",
+    "md02e9e25bd65": "App öffnen",
+    "m864debf58479": "Sprich mit uns",
+    "mdd10bd33331e": "Arbeitsbereich",
+    "m3c5cae9db9ff": "Ergebnisse",
+    "me472804666c8": "Abrechnungsübersicht",
+    "m4176e1045b7d": "Alle Ausführungen",
+    "m138dacd53320": "Runs",
+    "mb2df3906a88c": "Ausgabenwarteschlange",
+    "m0e8a6ae38472": "ausstehend",
+    "mc3f685eba544": "dringend",
+    "m1b78e46f051f": "Deine Sitzung wird geschmiedet",
+    "m22d7829ed6f9": "BL",
+    "me1bb55c0e7b4": "Aufgezeichnete Methodik und Ergebnisse",
+    "mba85f9df1e3f": "Benchmark",
+    "m3ea665b949b5": "Prüfe aufgezeichnete Benchmark-Läufe, die darin bewerteten Modelle und die verfügbare Methodik. Abdeckung und Aktualität unterscheiden sich je nach aufgezeichnetem Lauf.",
+    "madef7e96db5b": "Methodik und ursprüngliche Bewertungsraster liegen in",
+    "m4106b4c7e011": ". PRs sind willkommen.",
+    "mbe9a5bbdd9b6": "Veröffentlichte Ergebnisse erscheinen hier, wenn aufgezeichnete Auswertungen verfügbar sind.",
+    "m4349735a6625": "Noch keine Ausführungen für diese Suite.",
+    "m62d2447bfb31": "Anbieter",
+    "m53b77436d18d": "Modell",
+    "m6853e500c770": "Bewertung",
+    "m2dbf116102ae": "Kosten / Ausführung",
+    "m41b4f721faf5": "Dauer",
+    "m881b035daeb6": "Aktualisiert",
+    "mcc7dbaccf493": "Konto",
+    "m3ed9a01e9231": "Aktiv",
+    "m1f1c52f4af63": "Manuelle Prüfung",
+    "m10a01ee78fc0": "/ aktivem Platz / Monat",
+    "m36319a66e749": "/ Monat",
+    "m2abded1f04d2": "· über Stripe",
+    "m52ef97127549": "verbleibende Ausführungen für",
+    "m3aacf07b35fc": "Abo verwalten",
+    "m480aee3b6717": "Web-Tarife werden über Stripe abgerechnet. Im Abrechnungsportal kannst du sie jederzeit verwalten, upgraden oder kündigen. Mobile Abos verwaltest du im Store, in dem du sie abgeschlossen hast; Änderungen werden hier automatisch synchronisiert.",
+    "mc55a17a9d9c0": "Stripe-Abo",
+    "mcceb0b8f209d": "Verwalten",
+    "m03899b81220f": "Nicht aktiv",
+    "m659adfa80ad7": "App-Store-Abo",
+    "mcd435f3d6d13": "Im Store verwaltet",
+    "mf1b895df0335": "Google-Play-Abo",
+    "m8546b709215e": "Nutzung im aktuellen Zeitraum",
+    "m809b2c4b9c83": "BL",
+    "m7f0fab417f12": "Blog",
+    "md62a43742980": "Funktionen",
+    "ma5bac859b488": "Preise",
+    "m2fbc11c34f42": "Anmelden",
+    "m06d5d3008573": "App öffnen",
+    "m85d560055d11": "Das Schmiedelogbuch",
+    "ma31c879fbf4a": "Lesezeit",
+    "mf4e7ef98e64a": "Steuere die Agenten, die du bereits nutzt.",
+    "mb9f5c53ce5bb": "Nutze deine eigenen Anbieterschlüssel oder eine konfigurierte lokale Route. Inferenz ist nicht enthalten.",
+    "mfa5d21d1d88a": "Mehr aus dem Schmiedelogbuch",
+    "md72e42595829": "Blog",
+    "m7c191fd9ab30": "Anmelden",
+    "m723a4ca0b041": "App öffnen",
+    "md37709c384c4": "Das Schmiedelogbuch",
+    "m183ea0c3acf0": "Notizen aus der",
+    "m3ec12db3060f": "Einsatzzentrale.",
+    "m727eff92c28d": "Über das Steuern von Agenten: Kontrolle, Mobilität, Datenschutz und die Kunst, Autonomie zu lenken.",
+    "mbf6597c4877d": "Empfohlen",
+    "m67a924d25b13": "Lesezeit",
+    "med3811fc0067": "Steuere die KI-Agenten und Automatisierungen, die du bereits einsetzt.",
+    "m09d06a4f3a17": "Produkt",
+    "m621f739bb1af": "Unternehmen",
+    "m2bc5accf38ff": "Rechtliches",
+    "m46e01d124058": "© 2026 Braavolabs. Alle Rechte vorbehalten.",
+    "m73b582c8d1ab": "BL",
+    "maf32376bdf35": "Funktionen",
+    "m89ea286c8147": "Preise",
+    "mdcad451eaa8b": "Integrationen",
+    "m000db379830b": "Versionshinweise",
+    "mf6a8a22d3745": "Blog",
+    "mf0c7cea418fa": "App öffnen",
+    "mc233f3d5475f": "Jede Platte",
+    "m201fb23bec45": "fest an ihrem Platz.",
+    "m7af9fcb2eb00": "Was wir geschmiedet, behoben und geändert haben.",
+    "mb029bf94b9cb": "Aktuellste",
+    "m33b2dcf5a00e": "Pausieren",
+    "m4aff80e9ddd2": "Archivieren",
+    "mf40b55b5a17f": "Agent:",
+    "ma170cc9e0b0b": "SYSTEM-PROMPT",
+    "m313ead484eac": "Standard",
+    "m081fc0171fee": "Kandidat",
+    "m1d156cc858d3": "Genehmigt",
+    "mf1cc2bc9a8a0": "Noch kein freigegebener Speicher",
+    "m564fb4aee15b": "Veraltet",
+    "m307ccca51ae0": "Keine veralteten Einträge",
+    "m50890a43f31f": "Live",
+    "md1e06fe13cd7": "Pausiert",
+    "mc46ba3b782c7": "Kostenstopp aktiviert",
+    "md8ec6425984e": "Budget",
+    "m6a7a58f3cdb0": "% verbraucht — die Ausführung stoppt bei $",
+    "mee5a1855dffe": "wartet auf dich",
+    "m562397da1ad0": "Streaming",
+    "m1d007a5d0353": "ms",
+    "m485cb3fc4e18": "Ausführungsmetadaten",
+    "m3c85b69d5453": "zum Budget",
+    "m2fb2177fcf22": "Budget $",
+    "mf09738cc6fac": "Zeitleistenregler",
+    "md63109311e5c": "Protokoll exportieren",
+    "mc341c520640c": "Steuern · Hinweise einfügen",
+    "m4180d6eb1e87": "Arbeitsbereiche",
+    "mf854b0d01bb8": "Neu",
+    "m2a1f8f8329c8": "Tarif upgraden",
+    "m81541c4b81fd": "Mit einer Idee starten",
+    "m98f5541fecce": "Wähle einen Ausgangspunkt. Wir füllen die Beschreibung unten vorab aus, und die KI passt sie für dich an.",
+    "m84436181ca66": "Vorlagenkategorien",
+    "me80b908371e2": "Alle",
+    "md906ff092286": "Diese Idee verwenden",
+    "m23e4368ad8b0": "oder beschreibe unten deine eigene ↓",
+    "m6e641f0af509": "⌘↵ zum Schmieden",
+    "mdbc61703dd4c": "braavolabs",
+    "md81c07fc5237": "Workspace-Spezifikation",
+    "mfba9134a6958": "Kern",
+    "m335400734ad4": "Flaggschiff",
+    "m1c1ed0d6cba8": "Vergleichen",
+    "m0e090d020bf6": "Anmelden",
+    "m2b2ad5e6e9fc": "App öffnen",
+    "m65d72c621640": "Ehrliche Einordnung",
+    "mba9bd9de37dc": "Wo wir passen —",
+    "m50e9a7dcec3d": "und wo nicht.",
+    "mf93fe81f65ba": "Braavolabs will nicht den größten Integrationskatalog bieten. Es gibt dir",
+    "m1d1ed4cc0221": "Kontrolle",
+    "m16c281eec9eb": "über die Agenten und Automatisierungen, die du bereits nutzt — vom Handy, während der Ausführung, mit deinen eigenen Schlüsseln. Hier vergleichen wir uns ehrlich mit zwei benachbarten Kategorien, auch dort, wo sie uns übertreffen.",
+    "m7acc6a073df0": "Fähigkeit",
+    "m67969942145e": "Für wen",
+    "m8d6c9af2713e": "Braavolabs passt, wenn Kontrolle, Mobilität und Datenschutz wichtiger sind als die reine Größe des Integrationskatalogs.",
+    "m22f7bc58c61d": "Prüfe die Festpreisrechnung selbst.",
+    "mbf3573b0a3d0": "Vergleiche vorhersehbare Festpreise mit der Abrechnung pro Aufgabe in unserem Kostenrechner.",
+    "m24543c9280b1": "Kostenrechner",
+    "m2b56df60312a": "Prüfe aufgezeichnete Schritte, verfügbare Kostendaten und ausstehende Bedienerentscheidungen.",
+    "m9895a6463bc7": "Steuere die KI-Agenten und Automatisierungen, die du bereits einsetzt.",
+    "mfb1404813b60": "Produkt",
+    "mca345aad7aa1": "Unternehmen",
+    "m5bed3a4a7338": "Rechtliches",
+    "m8e359b1c68e3": "© 2026 Braavolabs. Alle Rechte vorbehalten.",
+    "m3e5ecf19f202": "Automatisierungszentrale",
+    "mb9d0451321be": "Schließen",
+    "m8b4a9a98583e": "Neue Automatisierung verbinden",
+    "m80ef56a7089f": "Vereinte Ausführungen",
+    "ma9b5c84ca346": "nativ + extern · eine Zeitleiste",
+    "m8bd444807a52": "Ereignis",
+    "md8e91797972c": "Typ",
+    "m826036148049": "extern",
+    "m1a1faaa5e7fc": "Klappe eine Verbindung auf, um ihre Ausführungen hier anzuzeigen.",
+    "m23715cc46e18": "Schließen",
+    "ma6abe31754db": "BL",
+    "m2b4a9f22ba8d": "Steuere die KI-Agenten und Automatisierungen, die du bereits einsetzt.",
+    "md69e46192627": "Produkt",
+    "m6d80848fe489": "Unternehmen",
+    "m0fb85ef7ffda": "Über uns",
+    "m260fed5ac47c": "Blog",
+    "m3a006e3e0878": "Status",
+    "md2c8631b73dd": "Rechtliches",
+    "mf2c79d7c83e6": "Preise",
+    "m3aaa432f7378": "App öffnen",
+    "m9680189524a4": "Preisvorschau — derzeit nicht erhältlich",
+    "m58ba90a040a3": "Geplante Abopreise",
+    "mfdf38497de3a": "Die Abrechnungsmigration ist noch in Entwicklung. Diese Seite berechnet daher kein zahlbares Angebot und startet keinen Kauf. Der geplante Katalog enthält nur Individual und Team.",
+    "m0a048a01849e": "Geplante Tarife",
+    "m865128d3e4d4": "Geplanter Tarif",
+    "m4d17edf4bcc6": "Hinweis zu Inferenzkosten",
+    "m17a77e8ea42f": "Inferenz ist nicht enthalten",
+    "m52f120c3db8b": "Modellnutzung bezahlst du an den über BYOK konfigurierten Anbieter oder nutzt deine eigene lokale Modellroute. Braavolabs bietet diese geplanten Abos derzeit nicht zum Kauf an.",
+    "me587bca8ef51": "Aktive Ausführungen",
+    "m975cf8ab658e": "Erfolgsrate der Ausführungen",
+    "m1ca31645c880": "Aktivität",
+    "m9f12c64beaa6": "braavolabs.com · Live-Auditprotokoll",
+    "maacbbd2ffeb8": "Alle anzeigen →",
+    "mef4047de09c7": "Letzte Läufe",
+    "m9332d1be8fe2": "Pipeline",
+    "m098593629f8e": "Unternehmen",
+    "m286c98c9029c": "Status",
+    "m207013f4c387": "Gestartet",
+    "md1d31b068fc2": "Schritte",
+    "m701b95d1d46a": "Ausgaben",
+    "m4d36fe121a92": "Noch keine Ausführungen für diesen Filter.",
+    "m97fa546fb5a7": "Keine aktuellen Aktivitäten.",
+    "mc9b9115552be": "wartet",
+    "m7fd8a8fd26df": "Freigabe erforderlich",
+    "meffd0c9f293a": "Ablehnen",
+    "m8961771af3a1": "Keine aktiven Risiken",
+    "m11064e50fa7c": "neu",
+    "m3c3e08c03c30": "Risikoereignis",
+    "me5c88f2a2ff0": "jetzt",
+    "mb34c85aff53f": "Funktionen",
+    "m85a856ab28be": "Preise",
+    "mdd91fe0b7fc0": "Blog",
+    "m6179659c73b9": "Dokumentation",
+    "m35127686df60": "Anmelden",
+    "m5b83c05ccb0c": "App öffnen",
+    "mcb951cf4a4d3": "Dokumentation",
+    "m0c14fdc4a1c6": "Das Handbuch",
+    "m6c77f98962d7": "Auf dieser Seite",
+    "m074fdba85cf1": "← ZURÜCK",
+    "m1388671ac3bc": "WEITER →",
+    "m90aeded95734": "Steuere die Agenten, die du bereits nutzt.",
+    "mf8873bd65493": "Die Preise sind eine Vorschau; ein Kauf ist derzeit nicht möglich. Inferenz ist nicht enthalten.",
+    "m906152f47b4f": "Steuere die KI-Agenten und Automatisierungen, die du bereits einsetzt.",
+    "m1ec39ca165b6": "Produkt",
+    "mbb3043a7f2cf": "Versionshinweise",
+    "m50200f20c520": "Ressourcen",
+    "m35fa61443236": "Support",
+    "m6ea06edad850": "Unternehmen",
+    "m7f7a851ede21": "Über uns",
+    "mebaef44626be": "Kontakt",
+    "m07c7e04fadf1": "Status",
+    "m7375dacc55cd": "© 2026 Braavolabs. Alle Rechte vorbehalten.",
+    "m818b2a78eb90": "Funktionen",
+    "m4cc1f3608ddc": "Preise",
+    "mf6823057de7d": "Blog",
+    "m87eedb771754": "Dokumentation",
+    "mda5526776bb1": "Anmelden",
+    "md725474be468": "App öffnen",
+    "m5aac6b035a43": "Das Handbuch",
+    "mc85715c7a4bb": "Dokumentation",
+    "m8f52d8cc2d59": "Wie du ein autonomes KI-Unternehmen zusammenstellst, ausführst und steuerst — vom ersten Lauf über Webhooks und konfigurierte lokale Modellrouten bis zur Agentensteuerung am Handy.",
+    "m20c340bf69ae": "Erste Schritte",
+    "m602cdfb50800": "Grundkonzepte",
+    "m9a896a6ca8c2": "Häufige Fragen",
+    "md4293b1a891b": "Lesen",
+    "mfa2b75fcfa90": "Steuere die KI-Agenten und Automatisierungen, die du bereits einsetzt.",
+    "mc06c8b9bd590": "Produkt",
+    "m9e4e062300ce": "Versionshinweise",
+    "mdc663d5d4765": "Ressourcen",
+    "m698bc6e3f89e": "Support",
+    "m975952c059f7": "Unternehmen",
+    "mad1ae8839ed9": "Über uns",
+    "m8d136db7d880": "Kontakt",
+    "m2b43eb3b2c10": "Status",
+    "m22d2dde46b20": "© 2026 Braavolabs. Alle Rechte vorbehalten.",
+    "m86006890323f": "Inhaltsprüfung",
+    "mfd976ba1eea0": "Entwurf",
+    "m76d027d04e32": "Etwas ist schiefgelaufen",
+    "me06887989706": "Fehlerreferenz für den Support",
+    "mc3fca6aef955": "Referenz:",
+    "m28a812f120c3": "Erneut versuchen",
+    "m795836a1d4b2": "Der Fehler besteht weiterhin. Gehe zur Startseite und versuche es erneut.",
+    "meda5eea8ae48": "Zur Startseite",
+    "mccfb38fd1109": "Support kontaktieren",
+    "m41749f8a6958": "Governance",
+    "m12cc6cbe8456": "Preise",
+    "md2d886d00f8d": "Anmelden",
+    "m5622cdb1d573": "Registrieren",
+    "mb92a5ff6a3f6": "Produktvertrag",
+    "md8d7b7db0cdd": "Ausführen. Steuern. Belegen.",
+    "m5c19d5d0e672": "Braavolabs ist eine anbieterübergreifende KI-Werkbank und Steuerungsebene. Derselbe Vertrag gilt für Desktop, CLI, mobile Freigaben und authentifizierte Cloud-Steuerung, ohne native Ausführung auf die öffentliche Website zu verlagern.",
+    "md530d8e09e2a": "Private Mode — Vorschau",
+    "mc015473cee7b": "Der vollständige Vertrag zur Datenverarbeitung und Sicherheit wird noch entwickelt und nicht als allgemein verfügbar angeboten.",
+    "m99e52a77109d": "Cloud Agent Mode — in Entwicklung",
+    "m4be5a94fd7e3": "Der Vertrag zu Ausführung, Einwilligung und Aufbewahrung wird nicht als allgemein verfügbar angeboten.",
+    "m538495414df0": "Signierte Nachweise — in Entwicklung",
+    "m283b1bddd62f": "Aussagen zu offline verifizierbaren Paketen bleiben gesperrt, bis die zugehörige Aufgabe abgenommen ist.",
+    "mc7577ef44a73": "Holding — Premium-/private Vorschau",
+    "mf457eb5a3ed1": "Die Paketierung persistenter Agenten bleibt getrennt und standardmäßig deaktiviert.",
+    "m9f5b1afe44a4": "App öffnen",
+    "m3129e7d997e9": "Dokumentation lesen",
+    "mba4fd1fab967": "Importieren",
+    "mf0ec3cddfcdf": "Suchen",
+    "m941a8cfd363d": "JH",
+    "mcb7a05a63f11": "Integrationen",
+    "m63618f411d28": "Schritt 1",
+    "m28a453e700bf": "Export einfügen",
+    "m6178c5d299b7": "Wähle die Plattform, füge dann das Workflow-JSON ein oder ziehe eine Datei hierher.",
+    "mcb314139cd6e": "oder einen .json-Export hier ablegen",
+    "mf22bc005eae8": "Schritt 2",
+    "mf59ae985ca8a": "Vorschau und Zuordnung",
+    "mb29543f91292": "Analysiert:",
+    "mf481a5ad1169": "Schritte. Ordne jedem einen Braavolabs-Schritttyp zu.",
+    "m8a14bed991c3": "Auslösen",
+    "mee753e5a87a2": "Tool-Aufruf",
+    "m916a2a45d141": "Verzweigung",
+    "meab0461369b0": "Agent",
+    "m55cf3f3ed970": "Ausgabe",
+    "mef364fe09b40": "Zurück",
+    "m8e0f9ab16dab": "Pipeline aus Import erstellen…",
+    "mcdc0a303cb6e": "Importiert",
+    "m358866c978a7": "Im Builder öffnen",
+    "mc35120dcdc60": "Weiteren Import starten",
+    "m1d31c122563e": "Verbindungen",
+    "m519d2f226020": "Bestehende Automatisierung importieren",
+    "m56994963473b": "Bringe einen Export aus n8n, Make oder Zapier mit — wir wandeln ihn in eine Pipeline um.",
+    "m48f6463ee542": "Importieren",
+    "m760104947f15": "Funktionen",
+    "m69d527a460e7": "Preise",
+    "mb2399da1a08c": "Über uns",
+    "me140e826ba9c": "Anmelden",
+    "m471494a678dc": "Kontakt für Anfragen",
+    "md16b7b8e76f6": "Für Anfragen nach KVKK kontaktiere",
+    "md2e44bfde665": "schreiben.",
+    "m8c04ee5bf3f2": "Steuere die KI-Agenten und Automatisierungen, die du bereits einsetzt.",
+    "ma0eb87bbeb56": "Produkt",
+    "mc051ae69c4ff": "Versionshinweise",
+    "m3977aafcc314": "Unternehmen",
+    "mf519587a824a": "Blog",
+    "m46ce898e63fc": "Kontakt",
+    "med3b20e61c41": "Du kannst Braavolabs bitten, dein Konto und zugehörige personenbezogene Daten zu löschen. Der aktuelle öffentliche Anfragekanal ist E-Mail. So können wir die Kontoinhaberschaft prüfen und die Anfrage schriftlich bestätigen.",
+    "m1b2db4796a78": "Sende von der mit deinem Konto verknüpften E-Mail-Adresse eine Nachricht an",
+    "m442ce29a97e5": "mit dem Betreff",
+    "m3142da1ab41a": "\"Anfrage zur Kontolöschung\"",
+    "mc804e0a279e5": ". Gib die Konto-E-Mail-Adresse oder den Benutzernamen an, aber sende niemals ein Passwort, einen API-Schlüssel, ein Zugriffstoken oder Zahlungszugangsdaten.",
+    "m38ad53145e92": "Wir können weitere Angaben anfordern, um deine Kontrolle über das Konto zu prüfen. Wir bestätigen die Anfrage und teilen ihren Status über den verifizierten E-Mail-Kanal mit. Gesetzliche Antwortfristen gelten weiterhin; diese Seite verspricht keinen automatischen Abschlusszeitpunkt.",
+    "m29f4515a2181": "Braavolabs veröffentlicht derzeit kein separates Löschformular und verspricht auf dieser öffentlichen Website keine Löschfunktion in der App. Nutze den oben genannten verifizierten E-Mail-Kanal, damit die Anfrage nicht verloren geht oder unter einem unpassenden Kontaktthema eingeht.",
+    "mee9120dd9911": "Der Löschumfang hängt von den Kontodatensätzen ab, die der verifizierten anfragenden Person zugeordnet sind. Wir prüfen den Umfang und bestätigen das Ergebnis schriftlich, einschließlich der Datensätze, die rechtlich nicht gelöscht werden dürfen.",
+    "m0a13dcea737c": "Kontoidentitäts- und Profildatensätze zur verifizierten Anfrage",
+    "m3dd748c0c124": "Mandantenbezogene Inhalte, die gemäß dem Dienst und geltenden Rechtspflichten gelöscht werden dürfen",
+    "m67b7fbf8d86d": "Aktive Konto-Zugangsdaten und Sitzungen, soweit technisch und rechtlich zulässig",
+    "m292e9193635f": "Einige Datensätze müssen möglicherweise für Steuern, Buchhaltung, Streitfälle, Betrugsprävention oder andere Rechtspflichten aufbewahrt werden. Kategorien und Fristen hängen von der aktuellen Bereitstellung, Anbieterverträgen und Rechtsordnung ab. Sie werden für die verifizierte Anfrage mitgeteilt, hier aber nicht als fester öffentlicher Zeitplan versprochen.",
+    "m3acb87ce044a": "Datensätze, deren Aufbewahrung das geltende Steuer-, Buchführungs- oder Aufsichtsrecht verlangt",
+    "m9956d26e8534": "Datensätze zur Dokumentation der Anfrage, Prüfung und gesetzlich erforderlichen Antwort",
+    "m665793086a11": "Daten mit gültiger rechtlicher Aufbewahrungssperre oder Bezug zu einem ungeklärten Streitfall",
+    "m764489556bb6": "Wir bearbeiten verifizierte Anfragen innerhalb der gesetzlichen Antwortfristen und informieren über den verifizierten E-Mail-Kanal. Prüfbedarf, rechtliche Aufbewahrungssperren und gesetzliche Aufbewahrungspflichten können den Abschluss beeinflussen; Einschränkungen erläutern wir schriftlich.",
+    "mc3704343f072": "Eine Kontolöschung und eine Abrechnungskündigung sind getrennte Aktionen. Bei Fragen zur Abrechnung deines Kontos kontaktiere",
+    "m262a258637ac": "und wir nennen dir den aktuell unterstützten Kanal, ohne hier einen Store- oder In-App-Ablauf zu behaupten.",
+    "mb2c239031d04": "Fragen zum Ablauf, zu Aufbewahrungsregeln oder zur Prüfung der abgeschlossenen Löschung:",
+    "mcf0d0c778c1f": ". Für weitergehende Datenschutzanfragen (Auskunft, Übertragbarkeit, Berichtigung) siehe unsere",
+    "m29492eb1f9b7": "DSGVO-Erklärung",
+    "m79a0490687e1": "und",
+    "mf75327b3ab03": "Vorschau der Datenschutzinformationen nach KVKK",
+    "m3b525be54f32": "Konto- und Datenlöschung",
+    "m22af538371f7": "Möchtest du dein Konto löschen?",
+    "mb5f06ea86d5e": "Sende die Anfrage von der mit deinem Konto verknüpften E-Mail-Adresse.",
+    "m7bc799542df6": "Schreib uns",
+    "m50591bb45e1e": "Braavolabs.",
+    "m7801df791ac5": "Apple",
+    "m3e059886391a": "Google",
+    "m75ecaff6a037": "GitHub",
+    "ma642566b6fb9": "(optional)",
+    "mb10483661821": "Seite nicht gefunden",
+    "m30a00b02a74d": "Die gesuchte Seite existiert nicht oder wurde verschoben.",
+    "md182a885158e": "Zur Startseite",
+    "m2aec28552db3": "Übersicht",
+    "m2e3db7ae4d51": "Workspace geschmiedet",
+    "mdb69aaf1266a": "Einrichtung überspringen →",
+    "m0ca91d4cf0f5": "Schritt 1 von",
+    "mf74a68f418e0": "Schritt 2 von",
+    "m38c2aea0c076": "Schritt 3 von",
+    "m4cab4d533f77": "Schritt 4 von",
+    "m6c1c3f135744": "Schritt 5 von",
+    "me9694a186010": "Individual —",
+    "m032b7cca868a": "Team —",
+    "m37d5c6a2c645": "© 2026 Braavolabs",
+    "m4c15cd976fb7": "Schritttypen · hineinziehen",
+    "ma71448498846": "Inspektor",
+    "mc0068fffc436": "Schrittinspektor",
+    "m73f2d28a8195": "Wähle einen Schritt auf der Arbeitsfläche, um ihn zu konfigurieren.",
+    "me279e93feaa2": "Schließen",
+    "md076a8cff280": "Pipelines",
+    "m33a8b197a5dc": "Schritte",
+    "m6c64bc8fd052": "KI-Builder",
+    "m7b2727efa311": "Schließen",
+    "m527dc6c48fc1": "Schmiede deinen",
+    "m5d499d7bb383": "Workspace in",
+    "mc963b2a55c65": "Minuten",
+    "m0ffcb934d4d3": "Braavolabs. Alle Rechte vorbehalten.",
+    "m4c3d039eeb89": "Kostenloser Tarif",
+    "mb9d9f6052c15": "Google",
+    "m2d8843cd30de": "GitHub",
+    "m3f79055b06f5": "Stärke —",
+    "m42d9b00b4a1c": "Ich akzeptiere",
+    "m03dd13603177": "AGB",
+    "m16a48ada2404": "und",
+    "med9bdddaf801": "Datenschutzerklärung",
+    "mddad425a8476": "Du hast bereits ein Konto?",
+    "m99b3ce884164": "(optional)",
+    "mfac2ec3661ab": "Braavolabs-Emblem",
+    "m147a465a4bab": "Schmiede einen neuen",
+    "m8f3667a853a6": "Schlüssel",
+    "m5a9acd6bb595": "für deine Einsatzzentrale.",
+    "m07683a6b25da": "Passwort zurücksetzen",
+    "m324fa44bdbfe": "Gib deine E-Mail-Adresse ein, und wir senden dir einen Link zum Zurücksetzen.",
+    "m1d7390708d7e": "Wird gesendet…",
+    "mf28e1b2646a8": "Link zum Zurücksetzen senden",
+    "m05680974f084": "Neues Passwort festlegen",
+    "ma6ae80e38b9d": "Passwort bestätigen",
+    "m39a7ff600af8": "Passwort geschmiedet",
+    "mf83f38e42411": "Anmelden",
+    "m94c28a73da37": "GOVERNANCE",
+    "m9d899093d41e": "Zur Kenntnis nehmen",
+    "m9ce742313269": "Zurücksetzen",
+    "mc191d4f884e6": "Erneut ausführen",
+    "mb9b248228c25": "Kosten-Heatmap",
+    "md4fdc87efd1b": "Ausführungsmetadaten",
+    "ma3d0dc878de8": "Ausführungs-ID",
+    "m83d38e678178": "Pipeline",
+    "m89200cc22850": "Schritte",
+    "ma8322509bd8f": "Freigaben",
+    "m1eadff0f7d6b": "Dauer",
+    "m8905a490325a": "Zeitleistenregler",
+    "m1dbbdb0c26b5": "Protokoll exportieren",
+    "mcf98748ad579": "Streaming",
+    "mc3041e2d2f2b": "Schritt",
+    "m2c81a45dc959": "Steuern · Hinweise einfügen",
+    "m6ef14dc92d42": "Füge Hinweise für den nächsten Agentenschritt ein… (z. B. \"kontaktiere nur Firmen mit >50 Beschäftigten\")",
+    "m597ddeea5d27": "Steuern",
+    "me5d0d8e26c92": "Ausführungen suchen…",
+    "m6519c809652c": "Dokumentation",
+    "ma280e8530c88": "Anmelden",
+    "m0c1bf711335e": "Registrieren",
+    "m0b84272e0b38": "Sicherheit und Vertrauen",
+    "m2708222253e6": "Grenzen, klar benannt.",
+    "mf6cd2e305a08": "Öffentliche Sicherheitstexte beschränken sich auf Verträge, die das Produkt testen kann. Roadmap-Ziele sind entsprechend gekennzeichnet; Freigabeaussagen warten auf abgenommene Nachweise.",
+    "m87d3344f51c0": "Private Mode — Vorschau",
+    "m7ed0edec682e": "Der vollständige Vertrag zur Datenverarbeitung und Sicherheit wird noch entwickelt und nicht als allgemein verfügbar angeboten.",
+    "me5d088788752": "Cloud Agent Mode — in Entwicklung",
+    "m6e5d8b8e7120": "Der Vertrag zu Ausführung, Einwilligung und Aufbewahrung wird nicht als allgemein verfügbar angeboten.",
+    "m82cfde8eb7cd": "Signierte Nachweise — in Entwicklung",
+    "mc63ed84605c0": "Aktivitätsprotokolle werden erst dann als offline verifizierbares, signiertes Nachweispaket dargestellt, wenn dieser Vertrag implementiert und abgenommen ist.",
+    "m16ca86ca2649": "App öffnen",
+    "m7945cffa32f0": "Sicherheitsproblem melden",
+    "m58a52b30df2b": "Brotkrumennavigation",
+    "m17301d36c0f7": "Einstellungen",
+    "m04575c3aa05d": "Anbieter-Endpunkt",
+    "m4ac81f8d693d": "Weiterleitung und Bereiche",
+    "m0980004c67c1": "acme.com, acme-contractors.com",
+    "m3af0642101f2": "SSO-Anmeldung ist für deine Domain aktiviert.",
+    "m59f31e9a773e": "SSO-Anmeldung ist pausiert — Nutzer melden sich stattdessen mit Passwort an.",
+    "m1324795a7aa8": "Wird gespeichert…",
+    "m17cc90014b3e": "Live-Vorschau",
+    "m90bd8874ada5": "OIDC-Konfiguration ·",
+    "m1995887ad355": "konfiguriert",
+    "mb5610055f059": "nicht gesetzt",
+    "ma388b35eeee6": "✓ gesetzt",
+    "m1be41d5fc4dd": "SSO aktiv — Nutzer können sich über deinen IdP anmelden",
+    "m5eb5faa6cbf5": "SSO konfiguriert, aber inaktiv",
+    "m9a52affa6218": "Kein SSO-Anbieter konfiguriert",
+    "m99463116beca": "Callback-URL",
+    "mc5038b20a0d6": "Registriere diese Weiterleitungs-URI bei deinem Identitätsanbieter:",
+    "m4f8f4a6029d8": "In Zwischenablage kopieren",
+    "m5722bcfa7400": "Unternehmens-SSO",
+    "m1e939b7b4cbc": "Erzwinge die Anmeldung über deinen Unternehmens-IdP (Azure AD, Okta, Auth0, Google Workspace). Nutzer deiner erlaubten Domains werden automatisch an deinen IdP weitergeleitet.",
+    "m239b7819863d": "Einstellungen",
+    "m82be07e8418a": "Konfiguration",
+    "m4c903bb74ed9": "Profil, Workspace, Sprache und Benachrichtigungen.",
+    "m2255caa19025": "Gefahrenzone",
+    "m251011545863": "Anna Schmidt",
+    "m7f8ad1ba2dfe": "Kritisch",
+    "m5836e3f6f284": "Plan",
+    "m70d993f4aae7": "Tool-Aufrufe",
+    "m81a36cd86bb2": "Individuell",
+    "m70488646d660": "Unbegrenzte Workspaces",
+    "mc6572473d51f": "Unbegrenzte Ausführungen",
+    "m18629becb717": "Unbegrenzte verbundene Automatisierungen",
+    "m9d2f4b435f53": "Aktuell",
+    "m55b34f1cdcf3": "Vertrieb kontaktieren",
+    "m245c12189d91": "Upgraden",
+    "mca4ac26863e8": "Unternehmen",
+    "md734f81167bd": "Integrationen werden geladen...",
+    "m0530d4879653": "Einrichtungsanleitung",
+    "m2c575197fbcf": "(gespeichert)",
+    "m2f159920cfcf": "Verbindung testen",
+    "m5d0a3ab02ef8": "Entfernen",
+    "mf1fd0aaf6045": "Anbieter",
+    "m9583131210fc": "Selbst gehosteter Anbieter — läuft auf deiner Hardware",
+    "m4cb1ce4d7ccb": "Modell",
+    "md100640b1368": "(gib ein auf deinem lokalen Server geladenes Tag ein)",
+    "mdfe713d713c5": "gemma3:4b",
+    "ma9ef66d953f7": "(optionale Proxy-Überschreibung)",
+    "m03032587881b": "erforderlich",
+    "m59f3ac725629": "Standard:",
+    "m0b1070b5d324": "API-Key",
+    "mdd0a21379699": "(optional)",
+    "m9bf0b94f3d0d": "Optionales Authentifizierungstoken für deinen Endpunkt",
+    "m6f1791e21588": "Anbieter zuerst mit API-Schlüssel speichern",
+    "m5ae1c6a8e4c6": "So funktioniert es",
+    "m350c849d3a6f": "API & Auth",
+    "m41c85b6bacc7": "Deine Zugangsdaten und Zugriffstoken",
+    "m995515c1ae9f": "Mandanten-ID",
+    "mf516b06d11bf": "Kopieren",
+    "m0e13854c1b01": "Sitzungstoken",
+    "maddc6b1a8edb": "Webhooks und API-Schlüssel",
+    "m85f417bbfec5": "Verwalte Webhook-Endpunkte und API-Zugriff für deine Unternehmen",
+    "mfee4f2dabe8d": "Eingehende Webhooks",
+    "m684490cc61e5": "Externe Dienste können Pipeline-Ausführungen durch POST-Anfragen an deine Webhook-Endpunkte auslösen.",
+    "m6665da29a7e3": "Endpunktformat",
+    "mfd15b81d8cf9": "Ersetze",
+    "m0a04f470671e": "durch deinen Unternehmens-Slug und",
+    "mfcbffc247eb8": "durch den Ereignisnamen.",
+    "m63afb9032824": "API-Zugriff",
+    "m4b6ee96c2cfc": "Nutze dieses Token als Bearer-Authentifizierung in API-Anfragen. Token laufen nach Sitzungsende ab.",
+    "me55571b3240f": "Häufige Ereignisse",
+    "m13a00239ea2d": "URL kopieren",
+    "mef57c1e54f93": "Webhook testen",
+    "m0f7b30dc841a": "Empfehlungsprogramm",
+    "mb7cd3f777bef": "Teile deinen Code — du und dein Freund erhalten jeweils 5 Bonusausführungen",
+    "m5c91a47132b9": "Dein Code",
+    "m724c36053cc8": "Code einlösen",
+    "m0a34e3a598e6": "Einlösen",
+    "mc12fbd6e7a20": "Wird geladen...",
+    "mcde607c76c72": "Unumkehrbare Aktionen. Gehe vorsichtig vor.",
+    "m6efdb34e5814": "Überall abmelden",
+    "m9bb76ca4a794": "Alle aktiven Sitzungen beenden",
+    "m9bdeb5968503": "Abmelden",
+    "m7775a95698f6": "Workspace löschen",
+    "me7ec08fd87b4": "Alle Ausführungen und Daten dauerhaft entfernen",
+    "mb3ebf6fede5b": "Löschen",
+    "mef4c40cb137f": "Verwerfen",
+    "m25f762b46741": "✓ Gespeichert",
+    "m8c8adacdb1db": "Änderungen speichern",
+    "m0ce1f02a34d4": "Änderungen gespeichert!",
+    "m20bb133b046a": "Systemstatus",
+    "ma8e7dcac27dd": "automatische Aktualisierung · 60 s",
+    "m6391d95c11d5": "GET /api/v1/health · Live-Prüfung aus deinem Browser",
+    "m064d3ea1b787": "liefert diese Seite gerade aus",
+    "m8b59895f3ed7": "Erste Prüfung läuft…",
+    "m9f956da25b83": "Diese Seite zeigt nur eine aktuelle Zustandsprüfung. Wir veröffentlichen noch keine Verfügbarkeitsprozente oder Vorfallzeitleiste. Historische Verfügbarkeit ist geplant; wir zeigen lieber nichts als erfundene Zahlen.",
+    "m4cb64ff7172c": "Steuere die KI-Agenten und Automatisierungen, die du bereits einsetzt.",
+    "m8a200d2fa01b": "Produkt",
+    "mf293e311adbd": "Unternehmen",
+    "me036901f0c5c": "Rechtliches",
+    "m89dc05ffd2b2": "Kontaktformular nutzen, um",
+    "m083a2705391c": "einen Entwurf in deiner Mail-App vorzubereiten. Sende ihn aus dieser App; eine Zustellung wird hier nicht bestätigt.",
+    "m366977224408": "Abrechnung und Abos",
+    "m8cb8b49fe281": "Datenschutz und Datenrechte",
+    "m771454b72f87": "Sicherheitsmeldungen",
+    "m97ffe5296db2": "Mobile Abos werden von Apple oder Google abgerechnet, nicht von uns, und verlängern sich bis zur Kündigung automatisch. Zum Anzeigen, Ändern oder Kündigen öffne unter iOS",
+    "m1fc91bf085eb": "Einstellungen → dein Name → Abonnements",
+    "md62504ec7e39": "; unter Android öffne",
+    "mb71b1e7e1c1e": "Google Play → Profil → Zahlungen und Abos",
+    "m9ad3281dcc2d": ". Erstattungen für Store-Käufe wickeln Apple (reportaproblem.apple.com) oder Google Play nach ihren Richtlinien ab. Falls du nicht weiterkommst, schreibe uns; wir helfen dir dabei. Über Stripe abgerechnete Web-Abos verwaltest du unter",
+    "m9b8015792921": "Einstellungen → Abrechnung",
+    "mfa4b446e8ff6": "in der App.",
+    "mdb4dc1cc9096": "Welche KI-Anbieter nutzt Braavolabs?",
+    "ma6211b5db44c": "Der Laufverlauf zeigt aufgezeichnete Aktivitäten, sofern sie verfügbar sind. Gib bei einer Hilfsanfrage die betreffende Laufreferenz an.",
+    "m8e6535637cb8": "Warum ist meine Pipeline pausiert?",
+    "me8234ddd08d0": "Wie lösche ich mein Konto?",
+    "m301aee668176": "Fordere die Kontolöschung per E-Mail über die Seite zur Kontolöschung an.",
+    "m981862dbff04": "Konto- und Datenlöschung",
+    "m3cb779dfce49": "Ist die Plattform verfügbar?",
+    "m652cc7ed28eb": "Statusseite veröffentlicht",
+    "mb29ed7325631": "E-Mail",
+    "mc878475dd7ed": "mit dem erwarteten und dem tatsächlichen Verhalten sowie dem ungefähren Zeitpunkt. Auf dem Handy verkürzen ein Screenshot und die App-Version (unten in",
+    "m3dbf7d618644": "Einstellungen",
+    "mb142b8b38188": ") den Austausch erheblich.",
+    "ma16f308c1827": "Alle unsere schriftlichen Zusagen:",
+    "mf5be8b9e2a4f": "Datenschutzerklärung",
+    "m337507465f44": "Nutzungsbedingungen",
+    "m7ba5c42d05d5": "DSGVO-Erklärung",
+    "mc8d0aedb0025": "Vorschau der Datenschutzinformationen nach KVKK",
+    "m668b03bf599d": "und der",
+    "m7ec4811747eb": "Ablauf.",
+    "maf2d75b446d2": "Funktionen",
+    "mf11c295fe6b2": "Preise",
+    "ma046b81f5cad": "Über uns",
+    "ma833a458dc85": "Anmelden",
+    "mdc1d31161f04": "App öffnen",
+    "m0a40adc25a52": "Support",
+    "mefb78ad514f6": "Wie können wir helfen?",
+    "m0dff0c2e8740": "E-Mail-Support",
+    "mdc8b49376a22": "Kontaktformular",
+    "m5368a784c155": "Dienststatus",
+    "m57cd0c28916e": "Auf dieser Seite",
+    "m97e6379af81c": "Kommst du noch nicht weiter?",
+    "m4a375a6c78be": "Sende Supportanfragen über den angegebenen Kontaktkanal. Hier werden keine Antwortzeiten garantiert.",
+    "m69772795df01": "Steuere die KI-Agenten und Automatisierungen, die du bereits einsetzt.",
+    "m691ce9b2c824": "Produkt",
+    "mb7d1cacaa4dc": "Versionshinweise",
+    "m43dbdbcb4213": "Unternehmen",
+    "m0fb5d8aef58c": "Blog",
+    "md17c12c62307": "Kontakt",
+    "m29dff0f6e658": "Rechtliches",
+    "mb8ffce79447d": "Datenschutz",
+    "mb295f0dd3165": "AGB",
+    "m61c5cf9b820b": "Braavolabs. Alle Rechte vorbehalten.",
+    "mb8b061d2cc6c": "Das",
+    "m2c3d4c4c5cf0": "Dokument ist verfügbar unter",
+    "m640f6714c57b": "braavolabs.com",
+    "m1a9415bc8fe7": "Braavolabs.",
+    "mc03e218a0c3c": "empfängt",
+    "mc09be1de9eb2": "inaktiv",
+    "m67487c4d674f": "· noch keine Zustellungen",
+    "m8f3eb54aeb83": "Kopiert ✓",
+    "m6e80efd48eb4": "Kopieren",
+    "m8e37387d42dc": "HMAC-Geheimnis:",
+    "m33733931aae0": "Ausblenden",
+    "m313faf245f17": "Anzeigen",
+    "m67501930af73": "Integrationen",
+    "m032825c952b0": "Webhooks",
+    "m8e07c14fe364": "Live-Endpunkte",
+    "m070d79b59b0a": "Deine Endpunkte werden geladen…",
+    "m621423f8719e": "Jeder Workspace erhält einen signierten Fan-in-Endpunkt unter",
+    "mab1707b54d07": ". Erstelle deinen ersten Workspace, um Ereignisse zu empfangen.",
+    "m0e54282c3be1": "Workspace erstellen",
+    "ma06584ff70f2": "Beispiel einer signierten Anfrage",
+    "m60e512a99f97": "POST · HMAC-SHA256-Signatur",
+    "me0038ce40084": "Brotkrumennavigation",
+    "m0fb6cbe7ed77": "Einrichtungsfortschritt",
+    "m33f7619295f7": "abgeschlossen",
+    "m2475c8fc32c3": "Erste Schritte",
+    "m048d6635729b": "Schließen",
+    "m33e5e43f1ffc": "von",
+    "m1b874306cc1d": "abgeschlossen",
+    "m04d02f71794f": "online",
+    "md09f1084ca66": "Kosten-Heatmap der Ausführungsschritte",
+    "md157b491332a": "Schritt-Heatmap ·",
+    "m4f7017581fe7": "Schritt",
+    "m1bfba96b1e61": "Wohin die Ausgaben gingen",
+    "m454e25940ea0": "Gesamt:",
+    "m926c7bc3cb4e": "Farbmetrik",
+    "m7962e0ef9564": "Kosten",
+    "maca226308ff4": "Dauer",
+    "m82891b0c7c6e": "Spitze",
+    "mcff790642459": "Schritt",
+    "m91c4b9a9a975": "Unbenannt",
+    "m671caa428e4c": "ausstehend",
+    "mdde548bb2e5e": "Kosten:",
+    "ma4f2af79632e": "Dauer:",
+    "m946e0fce8ef2": "Tools:",
+    "m42e92aa8ff4c": "Agent:",
+    "m71160bc18aec": "Klicken, um zu diesem Schritt zu springen ↓",
+    "m85e4a839e0c6": "← Schritt 1",
+    "m8a413bb66127": "niedrig",
+    "m66114b892e7f": "hoch",
+    "ma770817c8ec3": "EINRICHTUNG",
+    "maa31d4cc5e14": "Tägliche Ausgaben, letzte 14 Tage",
+    "m0de88f4db3d7": "Schnellstart",
+    "mf6e156140dd9": "Wird erstellt…",
+    "m454ee6911d47": "oder beschreibe unten deine eigene ↓",
+    "m71c9ffc415a0": "Benachrichtigung schließen",
+    "m7b55bcf0daed": "API-Schlüssel hinzufügen",
+    "m6a6c1557497e": "Schließen"
+  },
+  "content": {
+    "docCategories": {
+      "start": "Hier beginnen",
+      "concepts": "Konzepte",
+      "reference": "Referenz"
+    },
+    "blogCategories": {
+      "all": "Alle",
+      "product": "Produkt",
+      "engineering": "Entwicklung",
+      "governance": "Governance",
+      "fieldNotes": "Praxisnotizen"
+    },
+    "docs": {
+      "getting-started": {
+        "title": "Erste Schritte",
+        "nav": "Erste Schritte",
+        "desc": "Erstelle einen Arbeitsbereich, prüfe eine Pipeline und verfolge einen kontrollierten Lauf mit ausdrücklich gewählten Modellen und Dateneinstellungen.",
+        "blocks": {
+          "0": {
+            "text": "Braavolabs verbindet einen Web-Arbeitsbereich, Desktop- und CLI-Arbeitsumgebungen sowie eine mobile Begleit-App für die Arbeit mit Modellen und Agenten. Wähle den Modellzugangsweg und den Datenmodus bewusst, bevor du einen Lauf startest."
+          },
+          "1": {
+            "text": "Dein erster Lauf"
+          },
+          "2": {
+            "items": [
+              {
+                "title": "Anmelden und die Aufgabe beschreiben",
+                "body": "Erstelle ein Konto und melde dich in der App an. Beschreibe im Unternehmens-Builder dein Ziel, deine Zielgruppe und deine Vorgaben. Der Builder kann Rückfragen stellen, bevor er einen Plan vorschlägt."
+              },
+              {
+                "title": "Den Vorschlag prüfen",
+                "body": "Prüfe die erzeugten Agenten, Pipeline-Schritte, konfigurierten Werkzeuge und erwarteten Ergebnisse. Ändere oder entferne alles, was du nicht möchtest. Ein vorgeschlagener Plan ist kein Nachweis dafür, dass eine externe Integration verbunden ist."
+              },
+              {
+                "title": "Einen Zugangsweg wählen und starten",
+                "body": "Konfiguriere einen verfügbaren Anbieterschlüssel oder einen kompatiblen lokalen Endpunkt. Prüfe dessen Fähigkeiten und Datenverarbeitung und starte dann die Pipeline. Sobald die Arbeit beginnt, können für die Inferenz Gebühren beim Anbieter entstehen."
+              },
+              {
+                "title": "Status und Entscheidungen verfolgen",
+                "body": "Lies die aufgezeichneten Schritte, verfügbaren Kostendaten, ausstehenden Freigaben und ask_user-Fragen. Reagiere auf die konkret angezeigte Entscheidung. Du kannst Hinweise zur weiteren Ausführung senden oder einen Stopp anfordern; ein aktiver Aufruf oder eine externe Wirkung kann bereits im Gang sein."
+              }
+            ]
+          },
+          "3": {
+            "text": "Tarife und Inferenz"
+          },
+          "4": {
+            "text": "Individual (19 $/Monat) und Team (39 $/aktivem Nutzer/Monat) sind Tarifbeschreibungen in der Vorschau und derzeit nicht zum Kauf verfügbar. Inferenz wird separat abgerechnet: Anbietergebühren sowie Kosten für lokale Hardware und deren Betrieb sind nicht enthalten."
+          },
+          "5": {
+            "text": "Private Mode ist eine Vorschau. Cloud Agent Mode und signierte Nachweise werden noch entwickelt. Holding ist eine Premium-/private Vorschau. Diese Bezeichnungen sind keine umfassende Sicherheits- oder Verfügbarkeitsgarantie."
+          },
+          "6": {
+            "text": "Verwende die Web-Oberfläche, um Unternehmen und Pipelines zusammenzustellen. Mit der mobilen Begleit-App kannst du unterstützte Abläufe überwachen, Fragen beantworten, Freigaben erteilen und steuernde Hinweise geben."
+          }
+        }
+      },
+      "concepts": {
+        "title": "Grundbegriffe",
+        "nav": "Konzepte",
+        "desc": "Lerne Unternehmen, Agenten, Pipelines, Läufe, Entscheidungen und aufgezeichnete Aktivitäten kennen.",
+        "blocks": {
+          "0": {
+            "text": "Ein Unternehmen bündelt ein Ziel, Agenten und Pipelines im Arbeitsbereich deines angemeldeten Kontos. Ein Agent übernimmt eine Rolle; eine Pipeline legt die Reihenfolge der Arbeit fest; ein Lauf ist eine einzelne Ausführung dieser Pipeline. Mehrere Unternehmen können zu demselben Konto oder Mandanten gehören."
+          },
+          "1": {
+            "text": "Neun Bausteine"
+          },
+          "2": {
+            "text": "Der Builder stellt Rollen für Kundengewinnung, Vertrieb, Leistungserbringung, Inhalte, Betrieb, Finanzen, Analyse, Gedächtnis und Governance zusammen. Diese Ausgangsstrukturen müssen geprüft werden; sie erteilen keine automatische Erlaubnis, Personen zu kontaktieren, Geld auszugeben oder auf ein Konto zuzugreifen."
+          },
+          "3": {
+            "text": "Entscheidungen und Governance"
+          },
+          "4": {
+            "text": "Unterstützte Aktionen können ausstehende Freigaben erzeugen. Eine ask_user-Entscheidung fragt Informationen ab und erteilt keine Ausgabenerlaubnis. Lies die Frage und ihren Umfang, bevor du etwas erlaubst, ablehnst oder beantwortest. Die Inferenz des Anbieters wird separat abgerechnet und wartet nicht zwangsläufig auf einen Eintrag in der Freigabeliste."
+          },
+          "5": {
+            "text": "Zu den Governance-Prüfungen gehören die Stopps hard, loop, cost, spam und brand. Ihre Abdeckung hängt vom Ausführungspfad und der Konfiguration ab. Ein Stopp verhindert an einer Prüfgrenze weitere unterstützte Arbeit; er kann eine bereits gesendete Anfrage nicht zurücknehmen."
+          },
+          "6": {
+            "text": "Den aufgezeichneten Zustand lesen"
+          },
+          "7": {
+            "text": "Aktivitäts- und Schrittaufzeichnungen helfen, Status, Ergebnisse, verfügbare Kostendaten und Entscheidungszusammenfassungen zu verstehen. Fehlende Daten sind unbekannt, nicht null. Eine aufgezeichnete Anfrage beweist nicht, dass ihre externe Wirkung abgeschlossen ist. Bewahre wichtige Ergebnisse auf und gleiche externe Systeme ab, bevor du Arbeit mit ungewissem Ausgang erneut versuchst."
+          },
+          "8": {
+            "text": "Ein Unternehmensname oder ein lokaler Modellendpunkt allein schafft weder einen getrennten Mandanten noch eine Sandbox des Betriebssystems oder einen vollständig netzunabhängigen Datenpfad."
+          }
+        }
+      },
+      "byok-and-providers": {
+        "title": "BYOK und Anbieter",
+        "nav": "BYOK und Anbieter",
+        "desc": "Konfiguriere einen unterstützten Cloud- oder lokalen Modellzugang und verstehe dessen Kosten- und Datengrenzen.",
+        "blocks": {
+          "0": {
+            "text": "Bring your own key (BYOK) bedeutet, für unterstützte Cloud-Inferenz deine eigenen Anbieter-Zugangsdaten zu verwenden. Ein kompatibler, vom Kunden betriebener Endpunkt ist ein separater Zugangsweg. Verfügbare Anbieter und Modelle ergeben sich aus der Konfiguration nach der Anmeldung; diese Seite verspricht keine feste Anzahl von Anbietern."
+          },
+          "1": {
+            "text": "Einen Zugangsweg konfigurieren und prüfen"
+          },
+          "2": {
+            "items": [
+              "Verwende einen Schlüssel mit einem zum vorgesehenen Anbieterkonto passenden Berechtigungsumfang. Prüfe die Ausgabenkontrollen beim Anbieter und füge keine Geheimnisse in Prompts, geteilte Protokolle oder Screenshots ein.",
+              "Bestätige bei einem lokalen Endpunkt die ausdrücklich festgelegte Basis-URL, das unterstützte Modell und die Erreichbarkeit von dem Rechner aus, der die Anfrage sendet.",
+              "Prüfe die Fähigkeiten des Modells, die Werkzeugunterstützung und den gewählten Datenmodus. Ein Anbieterwechsel kann Ergebnis, Preis und Verhalten ändern; ein gleiches API-Schema macht Modelle nicht austauschbar."
+            ]
+          },
+          "3": {
+            "text": "Die Schlüsselspeicherung hängt von der Oberfläche ab"
+          },
+          "4": {
+            "text": "Auf dem Server gespeicherte Cloud-Zugangsdaten verwenden das implementierte Speicherformat AES-256-GCM. Ihr Schutz hängt auch vom Serverschlüssel, dem Laufzeitzugriff und den Sicherungen ab. Die CLI-Konfiguration für direkte Anbieteraufrufe und die Zugangsdatenablage der Desktop-App haben eigene Grenzen; das Speichern eines Schlüssels auf einer Oberfläche beweist nicht, dass er auf jedem Gerät verfügbar oder gleich geschützt ist."
+          },
+          "5": {
+            "text": "Inferenzgebühren fallen beim konfigurierten Anbieter an. Auch lokale Ausführung kann Hardware- und Betriebskosten verursachen. Prüfe die gemeldete Nutzung zusammen mit der Anbieterabrechnung; nicht verfügbare Kostendaten bedeuten keine kostenlose Nutzung."
+          },
+          "6": {
+            "text": "Eine lokale Inferenz-URL macht Werkzeuge, Telemetrie, Kontodienste oder die gesamte Pipeline nicht netzunabhängig. Prüfe den vollständigen Datenpfad, bevor du sensible Inhalte verarbeitest."
+          }
+        }
+      },
+      "mid-run-steering": {
+        "title": "Steuerung während eines Laufs und ask_user",
+        "nav": "Steuerung und ask_user",
+        "desc": "Sende Hinweise, beantworte eine Frage oder fordere einen Stopp an, während du den aufgezeichneten Laufzustand verfolgst.",
+        "blocks": {
+          "0": {
+            "text": "Mit steuernden Hinweisen kannst du einem unterstützten Lauf zusätzliche Anweisungen als Bediener senden. Beschreibe die Änderung klar: den vorgesehenen Kunden, eine Vorgabe oder den nächsten Schritt. Die Anfrage wird an einer verfügbaren Ausführungsgrenze verarbeitet; sie garantiert keine sofortige Unterbrechung eines aktiven Anbieteraufrufs."
+          },
+          "1": {
+            "text": "Die Bestätigung genau lesen"
+          },
+          "2": {
+            "text": "Eine erfolgreiche Anfrage bedeutet, dass das System diese Anfrage angenommen hat. Das allein beweist nicht, dass das Modell die Anweisung erhalten, angewendet oder befolgt hat. Verfolge den nachfolgenden Laufzustand und die Ergebnisse. Wenn eine Anfrage fehlschlägt oder ihr Zeitlimit überschreitet, prüfe den aktuellen Zustand, bevor du sie erneut sendest."
+          },
+          "3": {
+            "text": "Eine ask_user-Frage beantworten"
+          },
+          "4": {
+            "text": "Wenn ein Agent Informationen anfordert, öffne die zugehörige ausstehende Entscheidung und lies Frage und Kontext. Sende die Antwort einmal und prüfe dann, ob sich die Entscheidung und der Laufzustand geändert haben. Verwechsle eine Informationsanfrage nicht mit der Genehmigung einer anderen Aktion."
+          },
+          "5": {
+            "text": "Vorsichtig fortsetzen"
+          },
+          "6": {
+            "text": "Gespeicherte abgeschlossene Schritte können beim Fortsetzen wiederverwendet werden. Das gewährleistet keine genau einmalige Zustellung von Anbieteraufrufen, E-Mails, Zahlungen oder anderen externen Wirkungen. Eine Pause, ein Stopp oder ein Verbindungsfehler kann auftreten, während eine Wirkung im Gang ist. Prüfe aufgezeichnete Ergebnisse und den externen Dienst, bevor du Arbeit mit ungewissem Ausgang manuell wiederholst."
+          },
+          "7": {
+            "text": "Pausieren, Fortsetzen und steuernde Hinweise garantieren weder das Ausbleiben zusätzlicher Kosten noch die Rücknahme einer bereits eingetretenen externen Wirkung."
+          }
+        }
+      },
+      "webhooks": {
+        "title": "Webhooks",
+        "nav": "Webhooks",
+        "desc": "Signiere einen Unternehmens-Webhook unter genauer Einhaltung der Vorgaben für Zeitstempel, unveränderten Body und Header.",
+        "blocks": {
+          "0": {
+            "text": "Ein konfigurierter Unternehmens-Webhook akzeptiert POST /hooks/<company-slug>/<event>. Verwende das konfigurierte Webhook-Geheimnis dieses Unternehmens und ein Testunternehmen, bevor du ein Ereignis sendest, das Arbeit starten kann."
+          },
+          "1": {
+            "text": "Die exakten Bytes signieren"
+          },
+          "2": {
+            "text": "Setze X-Webhook-Timestamp auf die aktuelle Unix-Zeit in Millisekunden. Berechne einen hexadezimalen HMAC-SHA256 über den Zeitstempel, einen wörtlichen Punkt und den exakten unveränderten Anfrage-Body. Sende ihn als X-Webhook-Signature. Serialisiere oder ändere den Body nach dem Signieren nicht erneut."
+          },
+          "3": {
+            "caption": "Beispiel einer signierten Anfrage; ersetze die API-URL, den Unternehmens-Slug und das Ereignis."
+          },
+          "4": {
+            "text": "Zustellung und Wiederholungsversuche"
+          },
+          "5": {
+            "text": "Der Server lehnt Zeitstempel außerhalb eines Fünf-Minuten-Fensters ab. Die signaturbasierte Duplikaterkennung verwendet Redis mit einer Eintragslebensdauer von sechs Minuten; wenn Redis nicht verfügbar ist, bleiben Signatur- und Zeitstempelprüfungen bestehen, diese Duplikatprüfung kann jedoch entfallen. Dies ist keine Garantie einer genau einmaligen Zustellung."
+          },
+          "6": {
+            "text": "Eine erfolgreiche Webhook-Antwort beweist nicht, dass die Pipeline abgeschlossen ist. Prüfe den Laufstatus und nutze Idempotenz und Abgleich auf Anwendungsebene für externe Wirkungen. Bevor du eine Anfrage nach einem Zeitlimit erneut sendest, prüfe, ob die erste Anfrage angenommen wurde."
+          }
+        }
+      },
+      "external-automations": {
+        "title": "Externe Automatisierungen verbinden",
+        "nav": "Externe Automatisierungen",
+        "desc": "Verbinde eine konfigurierte externe Automatisierung und prüfe beide Seiten ihrer Ausführung.",
+        "blocks": {
+          "0": {
+            "text": "Verwende konfigurierte Integrationen oder signierte Webhooks, um unterstützte externe Automatisierungswerkzeuge anzubinden. Verfügbarkeit und Aktionen einer Integration hängen von ihrer tatsächlichen Verbindung und ihren Zugangsdaten ab; die Nennung von n8n, Make oder Zapier bedeutet nicht, dass jeder Workflow automatisch verbunden ist."
+          },
+          "1": {
+            "text": "Eine Verbindung beobachtbar machen"
+          },
+          "2": {
+            "items": [
+              {
+                "title": "Die Zuständigkeitsgrenze wählen",
+                "body": "Lege fest, welches System die Arbeit startet, welches Ereignis es sendet und welches System für das Ergebnis zuständig ist. Verbinde nur das Konto und die Berechtigungen, die für diese Aktion benötigt werden."
+              },
+              {
+                "title": "Mit unbedenklichen Daten testen",
+                "body": "Verwende ein Testunternehmen und einen externen Test-Workflow. Prüfe die Ereignisnutzdaten, Authentifizierung, den entstehenden Lauf und das externe Ergebnis."
+              },
+              {
+                "title": "Die Fehlerbehandlung planen",
+                "body": "Lege Zeitlimits, den Umgang mit Duplikaten und einen manuellen Abgleich fest. Sende nach einer unklaren Antwort nicht blind erneut eine Zahlung, E-Mail oder eine andere Anfrage mit externer Wirkung."
+              }
+            ]
+          },
+          "3": {
+            "text": "Der Status eines externen Workflows und der Status eines Braavolabs-Laufs beschreiben verschiedene Teile des Vorgangs. Prüfe beide. Ein aufgezeichneter Versand oder eine erfolgreiche Trigger-Antwort ist keine Zustell- oder Abschlussbestätigung des Ziels."
+          },
+          "4": {
+            "text": "Verbindungszugangsdaten, Webhook-Geheimnisse und Anbieterschlüssel können unterschiedliche Speicher- und Widerrufswege haben. Prüfe beim Entziehen von Zugriff die betreffende Oberfläche und den externen Dienst."
+          }
+        }
+      },
+      "mobile-app": {
+        "title": "Mobile App",
+        "nav": "Mobile App",
+        "desc": "Mit der mobilen Begleit-App kannst du unterstützte Abläufe überwachen, Entscheidungen treffen und steuernde Hinweise geben.",
+        "blocks": {
+          "0": {
+            "text": "Die mobile App begleitet unterstützte Überwachung und Steuerung. Stelle Unternehmen und Pipelines im Web zusammen und nutze dann das Telefon, um den Laufstatus zu lesen, ausstehende Entscheidungen zu bearbeiten und steuernde Hinweise zu senden."
+          },
+          "1": {
+            "text": "Überwachen, freigeben, antworten und steuern"
+          },
+          "2": {
+            "items": [
+              "Überwachen: Öffne das betreffende Unternehmen und den Lauf. Behandle nicht verfügbare oder veraltete Daten als unbekannt; verbinde dich erneut und aktualisiere sie, bevor du eine Entscheidung triffst.",
+              "Freigeben: Lies die konkrete ausstehende Aktion und erlaube oder lehne sie ab. Ein Freigabeeintrag deckt weder andere Arbeit noch sämtliche Anbietergebühren ab.",
+              "Antworten: Beantworte eine ask_user-Frage in ihrem ursprünglichen Kontext. Prüfe nach dem Senden den daraus entstandenen Entscheidungszustand.",
+              "Steuern: Sende eine klare Anweisung und verfolge die nachfolgenden Ergebnisse. Eine angenommene Anfrage beweist nicht, dass die Anweisung angewendet wurde."
+            ]
+          },
+          "3": {
+            "text": "Sitzungen und Benachrichtigungen"
+          },
+          "4": {
+            "text": "Benachrichtigungen hängen von der Geräteberechtigung, einer berechtigten Sitzung, Netzwerkzugriff und der Zustellung durch die Plattform ab. Öffne die App, um den neuesten Zustand zu prüfen, statt eine Push-Benachrichtigung als vollständige Ausführungsaufzeichnung zu betrachten. Auf dem Gerät gehaltene Sitzungszugangsdaten verwenden den sicheren Speicher der Plattform; Schutz und Hintergrundverhalten hängen weiterhin vom Gerät und Betriebssystem ab."
+          },
+          "5": {
+            "text": "Bestätige nach einem Kontowechsel erneut das ausgewählte Unternehmen und die ausstehende Entscheidung. Prüfe bei einem Zeitlimit den aktuellen Zustand, bevor du es erneut versuchst. Die App kann eine bereits abgeschlossene externe Wirkung nicht rückgängig machen."
+          },
+          "6": {
+            "text": "Wähle in der App deine bevorzugte Sprache und ein helles, dunkles oder vom System bestimmtes Design. Bestätige nach einem Sprach- oder Kontowechsel den aktuellen Arbeitsbereich und Entscheidungskontext, bevor du handelst."
+          }
+        }
+      },
+      "faq": {
+        "title": "Häufig gestellte Fragen",
+        "nav": "FAQ",
+        "desc": "Antworten zu Vorschauen, Kosten, lokalen Modellen, Freigaben und Läufen mit ungewissem Ausgang.",
+        "blocks": {
+          "0": {
+            "items": [
+              {
+                "q": "Kann ich jetzt einen Tarif kaufen?",
+                "a": "Individual (19 $/Monat) und Team (39 $/aktivem Nutzer/Monat) sind Beschreibungen in der Vorschau und derzeit nicht zum Kauf verfügbar. Inferenz ist vom vorgeschlagenen Abonnement getrennt."
+              },
+              {
+                "q": "Erfordert jede Gebühr eine Freigabe?",
+                "a": "Nein. Unterstützte Aktionen können eine ausstehende Entscheidung erfordern, aber die Inferenz des Anbieters kann bereits beim Start eines Laufs Gebühren verursachen. Lies vor der Ausführung die Aktion und die Ausgabenkontrollen des Anbieters."
+              },
+              {
+                "q": "Macht ein lokales Modell die Plattform netzunabhängig?",
+                "a": "Nein. Ein kompatibler lokaler Endpunkt bestimmt diesen Inferenzweg. Werkzeuge, Kontodienste, Telemetrie und andere Pipeline-Schritte müssen jeweils hinsichtlich ihres eigenen Datenpfads geprüft werden."
+              },
+              {
+                "q": "Wird beim Fortsetzen eine externe Aktion wiederholt?",
+                "a": "Gespeicherte abgeschlossene Schritte können wiederverwendet werden, doch eine genau einmalige externe Zustellung ist nicht gewährleistet. Prüfe vor einem erneuten Versuch bei ungewissem Ausgang den Lauf und den externen Dienst."
+              },
+              {
+                "q": "Hat eine angenommene Steuerungsanfrage die Modellausgabe verändert?",
+                "a": "Die Annahme zeichnet die Anfrage auf. Verfolge die nächste Ausführungsgrenze und die Ergebnisse, um festzustellen, ob die Anweisung angewendet und befolgt wurde."
+              },
+              {
+                "q": "Kann ich ein vollständiges Unternehmen auf dem Telefon erstellen?",
+                "a": "Die Web-Oberfläche dient der Erstellung. Die mobile Begleit-App konzentriert sich auf Überwachung, Freigaben, Antworten und steuernde Hinweise."
+              },
+              {
+                "q": "Sind Private Mode, Cloud Agent Mode und signierte Nachweise allgemein verfügbar?",
+                "a": "Private Mode ist eine Vorschau; Cloud Agent Mode und signierte Nachweise werden noch entwickelt. Ihre Namen sind keine umfassende Sicherheits- oder Verfügbarkeitsgarantie."
+              },
+              {
+                "q": "Kündigt das Löschen eines Kontos ein externes Abonnement?",
+                "a": "Gehe nicht davon aus. Prüfe den Abonnementanbieter und alle externen Dienste separat und sichere erforderliche Exporte, bevor du Daten löschst."
+              }
+            ]
+          }
+        }
+      }
+    },
+    "blog": {
+      "steer-agents-mid-run": {
+        "title": "Einen Lauf steuern, ohne neu anzufangen",
+        "desc": "Wie Hinweise des Bedieners und gespeicherte Schritte unterstützte Arbeit umlenken können und wo ihre Zusagen enden.",
+        "body": "Ein Lauf kann nach seinem Start eine Korrektur benötigen: einen anderen Kunden, eine strengere Vorgabe oder eine Frage, die der ursprüngliche Auftrag nicht beantwortet hat. Braavolabs unterstützt steuernde Hinweise und ask_user-Entscheidungen, damit der Bediener im jeweiligen Kontext reagieren kann.\n\n## Eine Anfrage hat mehrere Phasen\n\nDas Senden von Hinweisen, die Annahme der Anfrage, ihre Verarbeitung an einer Ausführungsgrenze und ihre Befolgung im Ergebnis sind unterschiedliche Ereignisse. Ein aktiver Anbieteraufruf kann bis zur nächsten Grenze weiterlaufen. Lies den späteren Laufzustand und das Ergebnis, bevor du daraus schließt, dass eine Anweisung wirksam wurde.\n\n## Nützliche Arbeit bewahren, ungewisse Arbeit prüfen\n\nBeim Fortsetzen können gespeicherte abgeschlossene Schritte wiederverwendet werden. Das beweist keine genau einmalige Zustellung externer Wirkungen und garantiert nicht, dass keine zusätzlichen Anbietergebühren anfallen. Wenn eine Verbindung während eines Versands oder einer Zahlung abbricht, prüfe das Ziel vor einem manuellen Wiederholungsversuch.\n\n## Fragen statt Erlaubnis voraussetzen\n\nEine ask_user-Entscheidung fordert Informationen an. Eine separate unterstützte Aktion kann eine Freigabe anfordern. Lies den Umfang jeder Entscheidung: Die Antwort auf eine Frage erlaubt keine andere Arbeit. Diese Kontrollen machen eine Arbeitssitzung nachvollziehbarer; ihre Existenz belegt nicht, dass jeder Zugangsweg oder jedes externe Werkzeug dasselbe Verhalten aufweist."
+      },
+      "five-risk-stops-explained": {
+        "title": "Die fünf Risiko-Stopps und ihre Grenzen",
+        "desc": "Prüfungen für hard, loop, cost, spam und brand helfen, unterstützte Ausführungspfade zu kontrollieren.",
+        "body": "Braavolabs benennt fünf Governance-Prüfungen: hard, loop, cost, spam und brand. Um ihren Zweck zu verstehen, muss man auch wissen, wann sie eingreifen können.\n\n## Fünf Prüfungen\n\nDer hard-Stopp prüft eine Stoppbedingung. Die loop-Prüfung sucht nach wiederholtem Verhalten. Die cost-Prüfung vergleicht aufgezeichnete Nutzung mit konfigurierten Grenzwerten. Spam- und brand-Prüfungen wenden Richtlinien auf unterstützte Kontaktaufnahme- und Inhaltspfade an. Prüfe die Konfiguration und den Ausführungspfad, statt anzunehmen, dass jedes Werkzeug dieselben Prüfungen durchläuft.\n\n## Grenzen sind entscheidend\n\nEine Prüfung kann weitere unterstützte Arbeit verhindern, sobald die Ausführung sie erreicht. Sie kann weder eine bereits an einen Anbieter gesendete Anfrage zurückrufen noch eine externe Wirkung rückgängig machen. Nutzungsdaten können erst nach einer Belastung eintreffen; ein konfiguriertes Budget garantiert daher nicht, dass die Anbieterrechnung es niemals übersteigt.\n\n## Das Ergebnis lesen\n\nWenn eine Prüfung den Laufzustand ändert, untersuche den aufgezeichneten Grund und den betreffenden Schritt. Fehlende Status- oder Kostendaten sind unbekannt und kein Beleg dafür, dass der Lauf sicher oder kostenlos ist. Benachrichtigungen hängen von Berechtigung und Zustellung ab; bestätige den Zustand im aktuellen Laufdatensatz. Prüfe vor dem Fortsetzen sowohl das lokale Ergebnis als auch jeden beteiligten externen Dienst."
+      },
+      "byok-routing-without-lock-in": {
+        "title": "Cloud- und lokale Modellzugänge wählen",
+        "desc": "Wähle Anbieter ausdrücklich und prüfe dabei Fähigkeiten, Kosten und die Grenzen der Zugangsdatenablage.",
+        "body": "Braavolabs unterstützt konfigurierte Cloud-Zugangsdaten und kompatible, vom Kunden betriebene Endpunkte. Die nützliche Zusage ist eine ausdrückliche Wahl des Zugangswegs, nicht die Austauschbarkeit aller Modelle oder die Überlegenheit eines nicht gemessenen Modells.\n\n## Den gewählten Zugangsweg prüfen\n\nPrüfe das verfügbare Modell, die Werkzeugunterstützung, den Datenmodus und die Erreichbarkeit des Endpunkts. Ein Anbieterwechsel kann Ergebnisqualität, Latenz, Preis und unterstützte Parameter ändern. Wenn ein gewählter Zugang nicht verfügbar ist, prüfe den Fehler, statt anzunehmen, dass ein anderes Modell die Arbeit unbemerkt erledigt hat.\n\n## Abonnement und Inferenz trennen\n\nDie vorgeschlagenen Abonnements Individual und Team enthalten keine Inferenz. Anbietergebühren fallen für das konfigurierte Konto an; lokale Modelle benötigen weiterhin Hardware und Betrieb. Vergleiche die gemeldete Nutzung mit der Anbieterabrechnung. Unbekannte Kosten sind nicht gleich null.\n\n## Die betreffende Zugangsdatenablage schützen\n\nAuf dem Server gespeicherte Cloud-Schlüssel verwenden das implementierte Format AES-256-GCM. Der Schutz des Serverschlüssels, Laufzeitzugriff und Sicherungen bleiben wichtig. Die CLI-Konfiguration für direkte Anbieteraufrufe und die Zugangsdatenablage der Desktop-App haben getrennte Grenzen. Prüfe die Ablage, die tatsächlich für die Anfrage verwendet wird, und entziehe bei Bedarf auch beim Anbieter den Zugriff. Eine gemeinsame Oberfläche hilft, Arbeit zu organisieren; sie gewährleistet keine identische Sicherheit oder Wirtschaftlichkeit über alle Zugangswege hinweg."
+      },
+      "pocket-steering": {
+        "title": "Vom Telefon aus überwachen und entscheiden",
+        "desc": "Die mobile Begleit-App konzentriert sich auf unterstützte Überwachung, Freigaben, Fragen und steuernde Hinweise.",
+        "body": "Die mobile Begleit-App bietet eine kompaktere Steuerungsoberfläche für im Web zusammengestellte Arbeit. Ihre Kernaktionen sind das Lesen des Laufzustands, das Bearbeiten einer ausstehenden Freigabe, das Beantworten von ask_user und das Senden steuernder Hinweise.\n\n## Entscheidungen im Kontext halten\n\nÖffne vor einer Aktion das betreffende Unternehmen und den Lauf. Lies die genaue Frage oder Aktion und unterscheide eine Informationsanfrage von einer Erlaubnis für eine externe Wirkung. Für die Inferenz des Anbieters können bereits ohne separaten Freigabeeintrag Kosten anfallen.\n\n## Zustellung und Zustand getrennt betrachten\n\nPush-Benachrichtigungen hängen von Geräteberechtigung, Sitzungsberechtigung, Netzwerkzugriff und Plattformzustellung ab. Eine Benachrichtigung kann verspätet sein; aktualisiere die App, um die aktuelle Entscheidung zu bestätigen. Eine erfolgreiche Antwort auf steuernde Hinweise zeichnet die Annahme der Anfrage auf und beweist nicht, dass das Modell sie befolgt hat.\n\n## Vorsichtig wiederherstellen\n\nBestätige nach einem Kontowechsel oder einer unterbrochenen Verbindung erneut Konto, Unternehmen und ausstehende Entscheidung. Prüfe bei einem Zeitlimit den aktuellen Zustand, bevor du die Anfrage erneut sendest. Eine mobile Aktion kann eine bereits abgeschlossene externe Anfrage nicht zurücknehmen. Sicherer Plattformspeicher hilft, auf dem Gerät gehaltene Sitzungszugangsdaten zu schützen; Tests auf physischen Geräten, zur Hintergrundzustellung und zu Kontowechseln bleiben notwendige Freigabeprüfungen."
+      },
+      "local-model-routing-boundaries": {
+        "title": "Grenzen lokaler Modellzugänge",
+        "desc": "Ein lokaler Inferenzendpunkt ist ein Teil des vollständigen Datenpfads.",
+        "body": "Ein kompatibler, vom Kunden betriebener Modellserver lässt sich mit einer ausdrücklich festgelegten Basis-URL konfigurieren. Braavolabs liefert kein Modell mit und leitet aus der Adresse allein keine vollständige Datenschutzrichtlinie ab.\n\n## Den gesamten Vorgang nachvollziehen\n\nPrüfe, welcher Rechner den Inferenzaufruf sendet, welches Modell verfügbar ist und ob der Endpunkt von diesem Rechner aus erreichbar ist. Prüfe anschließend Werkzeuge, Kontodienste, Telemetrie, Protokolle und weitere Schritte, die weiterhin eine Netzwerkverbindung nutzen können. Eine lokale URL macht die gesamte Pipeline nicht netzunabhängig.\n\n## Fähigkeiten und Kosten prüfen\n\nModellfähigkeiten und Werkzeugunterstützung können sich von Cloud-Zugängen unterscheiden. Prüfe die Ergebnisse nach einem Wechsel. Lokale Inferenz kann die Anbietergebühr pro Token für diesen Aufruf entfallen lassen, aber Hardware, Strom, Wartung und weitere verbundene Dienste verursachen weiterhin Kosten. Fehlende Kostendaten sollten unbekannt bleiben.\n\n## Vorschau-Bezeichnungen präzise halten\n\nPrivate Mode ist eine Vorschau. Cloud Agent Mode und signierte Nachweise werden noch entwickelt. Diese Bezeichnungen begründen weder einen vollständigen Datenverarbeitungsvertrag noch eine Sandbox des Betriebssystems oder unabhängig verifizierte Nachweise. Für sensible Nutzung müssen der tatsächlich konfigurierte Datenpfad und die Ausführungsberechtigungen geprüft werden."
+      },
+      "shipping-ask-user": {
+        "title": "ask_user mit einer klaren Frage gestalten",
+        "desc": "Eine Informationsanfrage sollte den Kontext bewahren und keine andere Erlaubnis nahelegen.",
+        "body": "Während der Arbeit können einem Agenten Informationen fehlen. ask_user macht diese Unsicherheit zu einer sichtbaren Entscheidung: einer Frage an den Bediener, die zum jeweiligen Lauf gehört.\n\n## Eine beantwortbare Frage stellen\n\nEine hilfreiche Frage benennt die fehlende Information und genügend Kontext für eine Antwort. Sie sollte eine externe Aktion nicht als Informationsanfrage tarnen. Lies die Frage vor dem Antworten und füge keine sensiblen Zugangsdaten in Freitextantworten ein.\n\n## Die Entscheidungsoberfläche sorgsam wiederverwenden\n\nInformationsanfragen und unterstützte Freigabeaktionen können im selben Entscheidungsablauf erscheinen, haben aber unterschiedliche Bedeutungen. Eine Frage zu beantworten ist keine Erlaubnis für andere Arbeit. Ebenso bedeutet eine Freigabewarteschlange nicht, dass jede Inferenzgebühr des Anbieters auf ein ausdrückliches Ja wartet.\n\n## Den nächsten Schritt prüfen\n\nPrüfe nach dem Senden einer Antwort den Entscheidungs- und Laufzustand. Eine empfangene Antwort, ein fortgesetzter Lauf und eine abgeschlossene externe Wirkung sind getrennte Beobachtungen. Wenn die Verbindung ihr Zeitlimit überschreitet, prüfe vor dem erneuten Senden, ob die Antwort aufgezeichnet wurde. Gespeicherte abgeschlossene Schritte können wiederverwendet werden, externe Wiederholungsversuche erfordern aber weiterhin einen Abgleich. Dies beschreibt den Entwurf einer sichtbaren Bedienerentscheidung und ist weder eine gemessene Kundenstudie noch eine Zusage genau einmaliger Ausführung."
+      },
+      "audit-trail-youd-actually-read": {
+        "title": "Die aufgezeichnete Aktivität eines Laufs lesen",
+        "desc": "Nutze aufgezeichneten Status, Ergebnisse, Entscheidungen und verfügbare Kosten, ohne fehlende Nachweise zu erfinden.",
+        "body": "Ein Bediener muss verstehen, was ein Lauf versucht hat, welche Entscheidungen angefordert wurden und welches Ergebnis aufgezeichnet wurde. Die Aktivitäts- und Schrittansichten von Braavolabs ordnen diese Aufzeichnungen dem Lauf zu.\n\n## Mit den aufgezeichneten Fakten beginnen\n\nLies den Schrittstatus, verfügbare Ergebnisse, die aufgezeichnete Entscheidungszusammenfassung und gemeldete Kosten. Nicht verfügbare Werte müssen sichtbar unbekannt bleiben. Ein Versanddatensatz oder eine erfolgreiche API-Bestätigung beweist nicht, dass eine externe Nachricht, Zahlung oder ein Workflow abgeschlossen wurde.\n\n## Vor einem erneuten Versuch abgleichen\n\nEin Anbieter oder Werkzeug kann fertig werden, während ein Client seine Verbindung verliert. Vergleiche den Laufdatensatz mit dem Zieldienst, bevor du eine externe Wirkung mit ungewissem Ausgang wiederholst. Gespeicherte Schritte und Verlauf sind nützliche Nachweise, gewährleisten jedoch keine vollständige, unveränderliche oder unabhängig geprüfte Erfassung jeder Aktion.\n\n## Die Aufzeichnung schützen\n\nPrompts, Werkzeugausgaben und Freitextantworten können sensible Daten enthalten. Begrenze den Zugriff und bewahre nur die für deinen Betrieb benötigten Exporte auf. Prüfe Aufbewahrung, Sicherungen und Wiederherstellung, statt eine sichtbare Aktivitätsseite als Sicherung anzusehen. Signierte Nachweise werden noch entwickelt; die aktuelle Aufzeichnung darf nicht als Zertifizierung, vollständige private Gedankenspur oder Nachweis der Rechtskonformität dargestellt werden."
+      }
+    }
+  },
+  "surface": {
+    "legal": {
+      "previewNotice": "Vorschau der Datenschutzinformationen. Diese Seite ist noch nicht die vollständige Information für die öffentliche Erhebung personenbezogener Daten. Angaben zum verantwortlichen Betreiber, zur tatsächlichen Verarbeitung und zu den Empfängern, zur Aufbewahrung und zu den anwendbaren Schutzmaßnahmen müssen vor der öffentlichen Registrierung vervollständigt werden.",
+      "kvkkTitle": "Vorschau der Informationen nach KVKK",
+      "gdprTitle": "Vorschau der Informationen nach der DSGVO (GDPR)",
+      "kvkk": {
+        "veri-sorumlusu": {
+          "title": "Verantwortlicher Betreiber",
+          "body": "Braavolabs ist der Produktname. Der verantwortliche rechtliche Betreiber, eine Postanschrift und ein gegebenenfalls erforderlicher Vertreter müssen vor der öffentlichen Erhebung personenbezogener Daten in der vollständigen Datenschutzinformation benannt werden. Der aktuelle Kontaktweg ist kvkk@braavolabs.com."
+        },
+        "islenen-kisisel-veriler": {
+          "title": "Daten und Erhebungsmethoden",
+          "body": "Kontoformulare und die Nutzung des Dienstes können Identitäts-, Kontakt-, Organisations-, Sitzungs-, Nutzungs- und Laufdaten liefern. Prompts, Ergebnisse, Dateien und optionale Verbindungen können weitere personenbezogene Daten enthalten. Die vollständige Information muss die tatsächlich erhobenen Daten und Erhebungsmethoden der aktiven Bereitstellung benennen."
+        },
+        "isleme-amaclari": {
+          "title": "Verarbeitungszwecke",
+          "body": "Kontobetrieb, angeforderte Modell- oder Agentenarbeit, Support und Sicherheit umfassen unterschiedliche Verarbeitungstätigkeiten. Abrechnung und optionales Marketing dürfen nur beschrieben werden, wenn sie aktiviert sind. Ein Funktionsname begründet keine Erlaubnis, andere personenbezogene Daten zu verarbeiten."
+        },
+        "hukuki-sebepler": {
+          "title": "Rechtsgrundlagen",
+          "body": "Die geeignete Rechtsgrundlage muss für jede tatsächliche Verarbeitungstätigkeit nach dem anwendbaren Recht geprüft werden. Diese Vorschau stellt nicht fest, dass Einwilligung, Vertragserforderlichkeit, rechtliche Verpflichtung oder berechtigtes Interesse jede Nutzung des Dienstes abdecken."
+        },
+        "ucuncu-taraf-aktarimlari": {
+          "title": "Empfänger und internationale Übermittlungen",
+          "body": "Konfigurierte Modellanbieter, Hosting und optionale Integrationen können weitere Empfänger oder Länder einbeziehen. Die endgültige Information muss die aktiven Empfänger, Zwecke und Schutzmaßnahmen benennen. Dass das Recht einen Standardvertragsmechanismus vorsieht, bedeutet nicht, dass der erforderliche Vertrag für diesen Dienst bereits geschlossen oder gemeldet wurde."
+        },
+        "saklama-suresi": {
+          "title": "Aufbewahrung und Löschung",
+          "body": "Die Aufbewahrung muss nach Datenkategorie, Zweck und anwendbaren rechtlichen Anforderungen festgelegt werden, einschließlich Protokollen und Sicherungen. Diese Vorschau verspricht weder eine einheitliche zehnjährige Frist noch die sofortige Entfernung jeder Kopie. Das Löschen eines Kontos und das Kündigen eines externen Abonnements sind getrennte Aktionen."
+        },
+        "haklariniz": {
+          "title": "Rechte nach KVKK",
+          "body": "Soweit KVKK anwendbar ist, sieht Artikel 11 Rechte auf Auskunft, Berichtigung, Löschung oder Vernichtung, Benachrichtigung von Empfängern, Widerspruch gegen nachteilige automatisierte Analysen und Schadensersatz bei rechtswidriger Verarbeitung vor. Ihre Ausübung hängt von den anwendbaren Voraussetzungen ab; wende dich über den angegebenen Anfragekanal an den verantwortlichen Betreiber."
+        },
+        "basvuru": {
+          "title": "Anfragen",
+          "body": "Wende dich mit einer Rechtsausübungsanfrage an kvkk@braavolabs.com und füge weder Kontopasswörter noch Anbieterschlüssel bei. Nach Artikel 13 KVKK sind Anfragen so schnell wie angemessen und innerhalb von 30 Tagen zu erledigen. Grundsätzlich fällt keine Gebühr an; zusätzliche Kosten dürfen nur nach dem Tarif des Datenschutzrats berechnet werden. Identität und Umfang der Anfrage müssen gegebenenfalls geklärt werden."
+        }
+      },
+      "gdpr": {
+        "data-controller": {
+          "title": "Verantwortlicher Betreiber",
+          "body": "Braavolabs ist der Produktname. Die vollständige Information muss vor der öffentlichen Erhebung personenbezogener Daten den verantwortlichen rechtlichen Betreiber, Kontaktdaten und einen gegebenenfalls erforderlichen Vertreter benennen. Der aktuelle Kontaktweg ist gdpr@braavolabs.com."
+        },
+        "personal-data": {
+          "title": "Daten und Zwecke",
+          "body": "Kontoinformationen, Sitzungs- und Nutzungsdaten, Prompts, Ergebnisse, Dateien und optionale Integrationen können personenbezogene Daten betreffen. Die vollständige Information muss die aktiven Verarbeitungszwecke, Datenquellen und Empfänger beschreiben und angeben, ob die Bereitstellung jeder Kategorie erforderlich ist."
+        },
+        "lawful-bases": {
+          "title": "Rechtsgrundlagen",
+          "body": "Für jede tatsächliche Tätigkeit muss eine Rechtsgrundlage geprüft werden. Diese Vorschau stellt nicht fest, dass Vertragserforderlichkeit, berechtigte Interessen, rechtliche Verpflichtung oder Einwilligung automatisch jede Nutzung abdecken. Optionales Marketing sowie sensible Verwendungen oder automatisierte Entscheidungen erfordern eine gesonderte Prüfung."
+        },
+        "cross-border-transfers": {
+          "title": "Empfänger und Übermittlungen",
+          "body": "Konfigurierte Anbieter und Infrastruktur können Daten in anderen Ländern verarbeiten. Tatsächliche Empfänger, Zielländer und anwendbare Übermittlungsschutzmaßnahmen müssen für die aktive Bereitstellung dokumentiert werden. Diese Seite behauptet nicht, dass eine ungeprüfte Anbietervereinbarung oder Schutzmaßnahme bereits besteht."
+        },
+        "your-rights": {
+          "title": "Rechte und Anfragen",
+          "body": "Anwendbare Rechte können unter den gesetzlichen Voraussetzungen Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit, Widerspruch und Widerruf einer Einwilligung umfassen. Wende dich an gdpr@braavolabs.com, ohne Passwörter oder Anbieterschlüssel zu senden. Anfragen erfordern normalerweise eine Antwort innerhalb eines Monats; eine zulässige Verlängerung um bis zu zwei weitere Monate muss im ersten Monat erläutert werden. Identitätsprüfungen und rechtmäßige Ausnahmen für Gebühren oder Ablehnung können anwendbar sein. Du kannst dich bei der zuständigen Aufsichtsbehörde beschweren."
+        },
+        "retention": {
+          "title": "Aufbewahrung",
+          "body": "Die vollständige Information muss Zeiträume oder aussagekräftige Kriterien nach Datenkategorie angeben und aktive Datensätze, Protokolle, Sicherungen und externe Auftragsverarbeiter abdecken. Für eine Löschanfrage können gesetzliche Ausnahmen gelten. Das Löschen eines Kontos kündigt für sich allein kein separates externes Abonnement."
+        },
+        "security": {
+          "title": "Sicherheitsinformationen",
+          "body": "Zugangsdatenablage und Ausführungsgrenzen unterscheiden sich zwischen Server, Desktop, CLI und Mobilgerät. Prüfe den betreffenden Datenpfad und die Berechtigungen, bevor du sensible Daten sendest. Diese Seite begründet weder eine Zertifizierung noch eine vollständige Offline-Garantie oder Schutz gegen jeden Vorfall."
+        },
+        "data-protection-contact": {
+          "title": "Datenschutzkontakt",
+          "body": "Nutze gdpr@braavolabs.com für Datenschutzanfragen. Ob ein Datenschutzbeauftragter oder Vertreter erforderlich ist, muss für den tatsächlichen Betreiber und die Verarbeitungstätigkeiten geprüft werden. Diese Vorschau behauptet keine Ausnahme von solchen Pflichten."
+        }
+      }
+    },
+    "loading": "Wird geladen…",
+    "unavailable": "Nicht verfügbar",
+    "close": "Schließen",
+    "loadFailed": "Einige Informationen konnten nicht geladen werden. Fehlende Daten sind nicht verfügbar; versuche es erneut.",
+    "progress": "Laufschritte: {completed} / {total}",
+    "support": {
+      "emailIntro": "Für Support schreibe an",
+      "responseTime": "Gib die E-Mail-Adresse des Kontos und eine Beschreibung des Problems an. Eine feste Antwortzeit ist nicht garantiert.",
+      "intro": "Wende dich für Hilfe zu Produkt, Konto und Abonnement an das Braavolabs-Team."
+    },
+    "starters": {
+      "intro": "Wähle eine Ausgangskonfiguration. Läufe benötigen einen konfigurierten Anbieter oder eine verfügbare Testnutzung des Kontos; prüfe vor dem Start Anbieter und Budget."
+    },
+    "dashboard": {
+      "operator": "Bediener",
+      "morning": "Guten Morgen",
+      "afternoon": "Guten Tag",
+      "evening": "Guten Abend",
+      "snapshot": "Momentaufnahme beim Öffnen der Seite geladen. Lade die Seite für aktuelle Daten neu.",
+      "activeRisks": "{count, plural, one {# aktives Risiko} other {# aktive Risiken}}",
+      "started": "{name} gestartet — Schritte eingereiht",
+      "activityRun": "{name}: {status}",
+      "approval": "{description} wartet auf Prüfung",
+      "risk": "Risikoereignis",
+      "queued": "In Warteschlange"
+    },
+    "severity": {
+      "high": "Hoher Schweregrad",
+      "medium": "Mittlerer Schweregrad",
+      "low": "Niedriger Schweregrad",
+      "unknown": "Schweregrad nicht verfügbar"
+    },
+    "states": {
+      "running": "Läuft",
+      "completed": "Abgeschlossen",
+      "paused": "Pausiert",
+      "failed": "Fehlgeschlagen",
+      "cancelled": "Abgebrochen",
+      "waiting_approval": "Wartet auf Freigabe",
+      "pending": "Ausstehend",
+      "active": "Aktiv",
+      "disabled": "Deaktiviert",
+      "draft": "Entwurf",
+      "queued": "In Warteschlange",
+      "unknown": "Unbekannt"
+    },
+    "icons": {
+      "close": "Schließen",
+      "send": "Senden",
+      "delete": "Löschen",
+      "run": "Starten",
+      "pause": "Pausieren",
+      "resume": "Fortsetzen",
+      "branch": "Zweig hinzufügen",
+      "moveUp": "Nach oben verschieben",
+      "moveDown": "Nach unten verschieben",
+      "copy": "Kopieren",
+      "dismiss": "Ausblenden"
+    },
+    "billing": {
+      "cancels": "Endet am {date}",
+      "renews": "Verlängert sich am {date}"
+    },
+    "status": {
+      "checkedAt": "Zuletzt geprüft: {time} (deine Ortszeit)",
+      "pageLoaded": "Diese Seite wurde geladen"
+    },
+    "blog": {
+      "readPost": "Lesen: {title}",
+      "readTime": "Lesezeit: {duration}"
+    },
+    "ideas": {
+      "start": "Mit Idee starten: {title}",
+      "estimate": "Beispielhafte Schätzung: {agents} Agenten, {pipelines} Pipelines. Der Builder-Vorschlag kann abweichen."
+    },
+    "compare": {
+      "verify": "Aktuelle Unterstützung prüfen",
+      "notice": "Diese Checkliste ist kein verifizierter Wettbewerbsvergleich. Fähigkeiten und Kosten hängen vom Produkt, Tarif und der Bereitstellung ab. Prüfe vor der Auswahl die aktuelle Dokumentation des Anbieters."
+    },
+    "integrations": {
+      "directoryNote": "Dieser Katalog beschreibt mögliche Verbindungen. Ein Eintrag bedeutet nicht, dass ein Konnektor für dein Konto implementiert, aktiviert oder autorisiert ist. Prüfe unterstützte Verbindungen und die Anbieterdokumentation, bevor du Zugangsdaten teilst.",
+      "entry": "Katalogeintrag",
+      "reviewConnections": "Unterstützte Verbindungen prüfen",
+      "apiKey": "API-Schlüssel",
+      "oauth": "OAuth 2.0"
+    },
+    "webhooks": {
+      "anyProvider": "Beliebiger Anbieter",
+      "templateNote": "Dies sind beispielhafte Ereignisvorlagen. Einrichtungspfade beim Anbieter und Beispieldaten dienen der Veranschaulichung; prüfe den aktiven Anbietervertrag und die Signaturanforderungen, bevor du einen Hook aktivierst."
+    },
+    "error": {
+      "session": "Deine Anmeldung konnte nicht verifiziert werden. Melde dich erneut an oder kontaktiere den Support, wenn das Problem bestehen bleibt.",
+      "signIn": "Anmelden",
+      "forbidden": "Du hast keine Berechtigung, dies anzuzeigen. Kontaktiere den Support, wenn der Zugriff falsch eingeschränkt erscheint.",
+      "network": "Der Server war nicht erreichbar. Prüfe die Verbindung und versuche es erneut.",
+      "rateLimit": "Zu viele Anfragen. Warte, bevor du es erneut versuchst.",
+      "timeout": "Das Zeitlimit der Anfrage wurde überschritten. Ihr Ausgang kann ungewiss sein; prüfe den aktuellen Zustand, bevor du eine Aktion erneut versuchst.",
+      "generic": "Ein unerwarteter Fehler ist aufgetreten. Versuche es erneut oder kontaktiere den Support mit der angezeigten Referenz."
+    },
+    "forecast": {
+      "loadFailed": "Die Prognose konnte nicht geladen werden. Versuche es erneut.",
+      "saveFailed": "Das Budget konnte nicht gespeichert werden. Prüfe den aktuellen Wert, bevor du es erneut versuchst."
+    },
+    "triggers": {
+      "manual": "Manuell",
+      "cron": "Zeitplan",
+      "webhook": "Webhook",
+      "event": "Ereignis"
+    },
+    "trial": {
+      "funding": "Eine aktivierte Testnutzung richtet sich nach Anbieter und Grenzen des Betreibers. Bezahlte Abonnements enthalten keine Inferenz; nutze einen unterstützten Anbieterschlüssel oder einen konfigurierten lokalen Endpunkt, wenn die Testnutzung nicht verfügbar ist.",
+      "exhausted": "Das Testlimit des Kontos ({limit, number}) wurde erreicht.",
+      "remaining": "{count, plural, one {# Testlauf verbleibend} other {# Testläufe verbleibend}} von {limit, number}"
+    }
+  },
+  "dataCopy": {
+    "integrations": {
+      "hubspot": {
+        "description": "Vollständiges CRM mit Kontakt-, Deal- und Pipeline-Verwaltung",
+        "features": [
+          "Kontaktsynchronisierung",
+          "Deal-Verfolgung",
+          "Pipeline-Verwaltung",
+          "Formulareingänge",
+          "E-Mail-Verfolgung"
+        ]
+      },
+      "salesforce": {
+        "description": "CRM-Plattform für Vertrieb und Service in Unternehmen",
+        "features": [
+          "Lead-Verwaltung",
+          "Verkaufschancen verfolgen",
+          "Benutzerdefinierte Objekte",
+          "Berichte",
+          "Workflow-Regeln"
+        ]
+      },
+      "pipedrive": {
+        "description": "Vertriebsorientiertes CRM mit visueller Pipeline",
+        "features": [
+          "Visuelle Pipeline",
+          "Aktivitätsverfolgung",
+          "E-Mail-Integration",
+          "Intelligente Kontaktdaten",
+          "Umsatzprognose"
+        ]
+      },
+      "zoho_crm": {
+        "description": "KI-gestütztes CRM für wachsende Unternehmen",
+        "features": [
+          "Lead-Bewertung",
+          "Vertriebsautomatisierung",
+          "Analysen",
+          "Mehrere Kanäle",
+          "Vertriebsgebietsverwaltung"
+        ]
+      },
+      "close": {
+        "description": "CRM für Inside-Sales-Teams",
+        "features": [
+          "Integrierte Anrufe",
+          "E-Mail-Sequenzen",
+          "Pipeline-Berichte",
+          "Aufgabenverwaltung",
+          "Intelligente Ansichten"
+        ]
+      },
+      "freshsales": {
+        "description": "Modernes CRM mit KI-basierter Lead-Bewertung",
+        "features": [
+          "KI-basierte Lead-Bewertung",
+          "Integriertes Telefon",
+          "E-Mail-Verfolgung",
+          "Deal-Verwaltung",
+          "Berichte"
+        ]
+      },
+      "attio": {
+        "description": "CRM der nächsten Generation mit Datenanreicherung in Echtzeit",
+        "features": [
+          "Automatische Datenanreicherung",
+          "Benutzerdefinierte Objekte",
+          "Echtzeitsynchronisierung",
+          "Beziehungsanalyse",
+          "API-zentriert"
+        ]
+      },
+      "folk": {
+        "description": "Kollaboratives CRM für beziehungsorientierte Teams",
+        "features": [
+          "Gruppenverwaltung",
+          "Serienmails",
+          "Pipeline-Ansichten",
+          "Browser-Erweiterung",
+          "Datenanreicherung"
+        ]
+      },
+      "copper": {
+        "description": "Für Google Workspace entwickeltes CRM",
+        "features": [
+          "Gmail-Integration",
+          "Kontaktverwaltung",
+          "Pipeline-Verfolgung",
+          "Aufgabenautomatisierung",
+          "Berichtswesen"
+        ]
+      },
+      "monday_sales": {
+        "description": "Vertriebs-CRM auf der Plattform Monday.com",
+        "features": [
+          "Visuelle Pipeline",
+          "E-Mail-Synchronisierung",
+          "Aktivitätsverfolgung",
+          "Benutzerdefinierte Dashboards",
+          "Automatisierungen"
+        ]
+      },
+      "tiktok": {
+        "description": "Plattform für Kurzvideos",
+        "features": [
+          "Videos veröffentlichen",
+          "Analysen",
+          "Kommentarverwaltung",
+          "Trendverfolgung",
+          "Werkzeuge für Kreative"
+        ]
+      },
+      "instagram": {
+        "description": "Plattform zum Teilen von Fotos und Videos",
+        "features": [
+          "Beiträge planen",
+          "Stories veröffentlichen",
+          "Reels erstellen",
+          "Einblicke",
+          "Kommentarverwaltung"
+        ]
+      },
+      "linkedin": {
+        "description": "Berufliches Netzwerken und Inhalte",
+        "features": [
+          "Beiträge veröffentlichen",
+          "Unternehmensseiten",
+          "Analysen",
+          "Kontaktverbindungen verwalten",
+          "Artikel erstellen"
+        ]
+      },
+      "twitter": {
+        "description": "Social-Media-Plattform in Echtzeit",
+        "features": [
+          "Tweets veröffentlichen",
+          "Threads erstellen",
+          "Analysen",
+          "Direktnachrichten verwalten",
+          "Listenverwaltung"
+        ]
+      },
+      "youtube": {
+        "description": "Plattform für Videohosting und Streaming",
+        "features": [
+          "Videos hochladen",
+          "Analysen",
+          "Kommentarverwaltung",
+          "Playlist-Verwaltung",
+          "Livestreaming"
+        ]
+      },
+      "facebook": {
+        "description": "Soziale Medien und Unternehmensseiten",
+        "features": [
+          "Auf Seiten veröffentlichen",
+          "Anzeigenverwaltung",
+          "Einblicke",
+          "Gruppenverwaltung",
+          "Messenger"
+        ]
+      },
+      "pinterest": {
+        "description": "Plattform für visuelle Entdeckungen und Lesezeichen",
+        "features": [
+          "Pins erstellen",
+          "Pinnwände verwalten",
+          "Analysen",
+          "Rich Pins",
+          "Einkaufen"
+        ]
+      },
+      "reddit": {
+        "description": "Diskussionsplattform für Communitys",
+        "features": [
+          "Beiträge erstellen",
+          "Kommentare verfolgen",
+          "Subreddits überwachen",
+          "Analysen",
+          "Auszeichnungen verwalten"
+        ]
+      },
+      "threads": {
+        "description": "Textbasierte Unterhaltungs-App von Meta",
+        "features": [
+          "Beiträge veröffentlichen",
+          "Antworten verwalten",
+          "Analysen",
+          "Zitierte Beiträge",
+          "Erneut geteilte Beiträge"
+        ]
+      },
+      "snapchat": {
+        "description": "Nachrichten und Inhalte mit begrenzter Sichtbarkeit",
+        "features": [
+          "Stories erstellen",
+          "Snap-Anzeigen",
+          "Analysen",
+          "Lens studio",
+          "Spotlight"
+        ]
+      },
+      "mailchimp": {
+        "description": "Marketingplattform aus einer Hand",
+        "features": [
+          "E-Mail-Kampagnen",
+          "Automatisierung",
+          "Zielgruppenverwaltung",
+          "Landingpages",
+          "Analysen"
+        ]
+      },
+      "sendgrid": {
+        "description": "Cloudbasierter E-Mail-Zustelldienst",
+        "features": [
+          "Transaktions-E-Mails",
+          "Marketingkampagnen",
+          "E-Mail-Validierung",
+          "Analysen",
+          "Vorlagen"
+        ]
+      },
+      "convertkit": {
+        "description": "E-Mail-Marketing für Kreative",
+        "features": [
+          "Visuelle Automatisierungen",
+          "Landingpages",
+          "Abonnenten markieren",
+          "Rundmails",
+          "Handel"
+        ]
+      },
+      "activecampaign": {
+        "description": "Automatisierung des Kundenerlebnisses",
+        "features": [
+          "E-Mail-Marketing",
+          "Marketingautomatisierung",
+          "CRM",
+          "Nachrichten",
+          "Maschinelles Lernen"
+        ]
+      },
+      "brevo": {
+        "description": "Digitale Marketingplattform aus einer Hand",
+        "features": [
+          "E-Mail-Kampagnen",
+          "SMS-Marketing",
+          "Chat",
+          "CRM",
+          "Automatisierung"
+        ]
+      },
+      "klaviyo": {
+        "description": "Marketingautomatisierung für E-Commerce",
+        "features": [
+          "E-Mail-Abläufe",
+          "SMS-Marketing",
+          "Segmentierung",
+          "Vorausschauende Analysen",
+          "A/B-Tests"
+        ]
+      },
+      "constant_contact": {
+        "description": "E-Mail- und Online-Marketing",
+        "features": [
+          "E-Mail-Vorlagen",
+          "Kontaktverwaltung",
+          "Automatisierung",
+          "Berichtswesen",
+          "In sozialen Medien veröffentlichen"
+        ]
+      },
+      "drip": {
+        "description": "E-Commerce-CRM und Marketingautomatisierung",
+        "features": [
+          "Visuelle Workflows",
+          "Segmentierung",
+          "Umsatzattribution",
+          "Formulare",
+          "Integrationen"
+        ]
+      },
+      "beehiiv": {
+        "description": "Newsletter-Plattform für Kreative",
+        "features": [
+          "Newsletter-Editor",
+          "Wachstumswerkzeuge",
+          "Monetarisierung",
+          "Analysen",
+          "Eigene Domains"
+        ]
+      },
+      "aweber": {
+        "description": "E-Mail-Marketing für kleine Unternehmen",
+        "features": [
+          "E-Mail-Automatisierung",
+          "Landingpages",
+          "Web-Push-Benachrichtigungen",
+          "AMP-E-Mails",
+          "Berichtswesen"
+        ]
+      },
+      "slack": {
+        "description": "Nachrichtenplattform für Unternehmen",
+        "features": [
+          "Kanalnachrichten",
+          "Workflows",
+          "Dateifreigabe",
+          "Integrationen",
+          "Suche"
+        ]
+      },
+      "discord": {
+        "description": "Nachrichtenplattform für Communitys",
+        "features": [
+          "Serververwaltung",
+          "Bot-Integration",
+          "Sprachkanäle",
+          "Thread-Verwaltung",
+          "Webhooks"
+        ]
+      },
+      "whatsapp": {
+        "description": "Geschäftliche Nachrichten auf WhatsApp",
+        "features": [
+          "Geschäftliche Nachrichten",
+          "Katalog",
+          "Schnellantworten",
+          "Labels",
+          "Rundnachricht"
+        ]
+      },
+      "telegram": {
+        "description": "Cloudbasierte Nachrichten mit Bot-API",
+        "features": [
+          "Bots erstellen",
+          "Kanalverwaltung",
+          "Gruppenverwaltung",
+          "Inline-Modus",
+          "Zahlungen"
+        ]
+      },
+      "microsoft_teams": {
+        "description": "Kollaborationsplattform von Microsoft",
+        "features": [
+          "Teamnachrichten",
+          "Besprechungen",
+          "Zusammenarbeit an Dateien",
+          "App-Integration",
+          "Workflows"
+        ]
+      },
+      "intercom": {
+        "description": "Nachrichtenplattform für Kundenkommunikation",
+        "features": [
+          "Livechat",
+          "Chatbots",
+          "Produktrundgänge",
+          "Hilfecenter",
+          "Posteingang"
+        ]
+      },
+      "crisp": {
+        "description": "Geschäftliche Nachrichten und Livechat",
+        "features": [
+          "Livechat",
+          "Chatbot",
+          "Wissensdatenbank",
+          "Statusseite",
+          "CRM"
+        ]
+      },
+      "drift": {
+        "description": "Plattform für dialogorientiertes Marketing",
+        "features": [
+          "Livechat",
+          "Chatbots",
+          "Video",
+          "E-Mail",
+          "Besprechungsplanung"
+        ]
+      },
+      "notion": {
+        "description": "Arbeitsbereich für Notizen und Dokumente aus einer Hand",
+        "features": [
+          "Seiten",
+          "Datenbanken",
+          "Vorlagen",
+          "API-Zugriff",
+          "Zusammenarbeit im Team"
+        ]
+      },
+      "airtable": {
+        "description": "Kombination aus Tabelle und Datenbank",
+        "features": [
+          "Bases erstellen",
+          "Ansichten",
+          "Automatisierungen",
+          "Formulare",
+          "API-Zugriff"
+        ]
+      },
+      "google_sheets": {
+        "description": "Cloud-Tabellenkalkulation von Google",
+        "features": [
+          "Tabellen bearbeiten",
+          "Formeln",
+          "Diagramme",
+          "Zusammenarbeit",
+          "Erweiterungen"
+        ]
+      },
+      "google_docs": {
+        "description": "Cloud-Dokumenteditor von Google",
+        "features": [
+          "Dokumente erstellen",
+          "Bearbeitung in Echtzeit",
+          "Kommentare",
+          "Vorlagen",
+          "Erweiterungen"
+        ]
+      },
+      "clickup": {
+        "description": "Produktivitätsplattform aus einer Hand",
+        "features": [
+          "Aufgabenverwaltung",
+          "Dokumente",
+          "Ziele",
+          "Zeiterfassung",
+          "Dashboards"
+        ]
+      },
+      "asana": {
+        "description": "Plattform für Arbeitsmanagement",
+        "features": [
+          "Aufgabenverfolgung",
+          "Projektansichten",
+          "Portfolios",
+          "Ziele",
+          "Automatisierungen"
+        ]
+      },
+      "trello": {
+        "description": "Projektmanagement im Kanban-Stil",
+        "features": [
+          "Pinnwände verwalten",
+          "Karten",
+          "Checklisten",
+          "Power-Ups",
+          "Automatisierung"
+        ]
+      },
+      "monday": {
+        "description": "Arbeitsplattform für Teams",
+        "features": [
+          "Boards",
+          "Automatisierungen",
+          "Dashboards",
+          "Integrationen",
+          "Formulare"
+        ]
+      },
+      "linear": {
+        "description": "Issue-Verfolgung für moderne Teams",
+        "features": [
+          "Issue-Verfolgung",
+          "Zyklen",
+          "Roadmap",
+          "Git-Integration",
+          "API-zentriert"
+        ]
+      },
+      "jira": {
+        "description": "Projektverfolgung für Softwareteams",
+        "features": [
+          "Issue-Verfolgung",
+          "Scrum-Boards",
+          "Kanban",
+          "Roadmaps",
+          "Berichtswesen"
+        ]
+      },
+      "confluence": {
+        "description": "Wissensdatenbank für Teams von Atlassian",
+        "features": [
+          "Seiten",
+          "Bereiche",
+          "Vorlagen",
+          "Zusammenarbeit",
+          "Suche"
+        ]
+      },
+      "coda": {
+        "description": "Dokumentlösung für Teams aus einer Hand",
+        "features": [
+          "Dokumente",
+          "Tabellen",
+          "Automatisierungen",
+          "Packs",
+          "Veröffentlichen"
+        ]
+      },
+      "basecamp": {
+        "description": "Projektmanagement und Teamkommunikation",
+        "features": [
+          "Aufgabenlisten",
+          "Nachrichtenboards",
+          "Zeitpläne",
+          "Statusabfragen",
+          "Hill charts"
+        ]
+      },
+      "shopify": {
+        "description": "E-Commerce-Plattform für Onlineshops",
+        "features": [
+          "Produktverwaltung",
+          "Bestellverfolgung",
+          "Kundendaten",
+          "Analysen",
+          "Webhooks"
+        ]
+      },
+      "wordpress": {
+        "description": "Open-Source-CMS und E-Commerce",
+        "features": [
+          "Inhaltsverwaltung",
+          "WooCommerce",
+          "Plugins",
+          "REST API",
+          "Webhooks"
+        ]
+      },
+      "bigcommerce": {
+        "description": "Skalierbare E-Commerce-Plattform",
+        "features": [
+          "Verkauf über mehrere Kanäle",
+          "SEO-Werkzeuge",
+          "Analysen",
+          "B2B-Funktionen",
+          "API-Zugriff"
+        ]
+      },
+      "squarespace": {
+        "description": "Website-Builder mit Handelsfunktionen",
+        "features": [
+          "Websites erstellen",
+          "E-Commerce",
+          "Terminplanung",
+          "Analysen",
+          "Domains"
+        ]
+      },
+      "etsy": {
+        "description": "Marktplatz für Handgemachtes und Vintage",
+        "features": [
+          "Angebote verwalten",
+          "Bestellverfolgung",
+          "Analysen",
+          "Werbung",
+          "Bewertungen"
+        ]
+      },
+      "gumroad": {
+        "description": "Digitale Produkte direkt verkaufen",
+        "features": [
+          "Digitale Produkte",
+          "Abonnements",
+          "Workflows",
+          "Analysen",
+          "Affiliate-Programm"
+        ]
+      },
+      "lemonsqueezy": {
+        "description": "Vertraglicher Verkäufer digitaler Produkte (Merchant of Record)",
+        "features": [
+          "Zahlungen",
+          "Abonnements",
+          "Lizenzschlüssel",
+          "Kassenabwicklung",
+          "Webhooks"
+        ]
+      },
+      "paddle": {
+        "description": "Plattform für die Umsatzabwicklung von SaaS",
+        "features": [
+          "Kassenabwicklung",
+          "Abonnements",
+          "Steuerkonformität",
+          "Umsatzrückgewinnung",
+          "Analysen"
+        ]
+      },
+      "github": {
+        "description": "Codehosting und Zusammenarbeit",
+        "features": [
+          "Repository-Verwaltung",
+          "Issues",
+          "Pull-Requests",
+          "Actions",
+          "Webhooks"
+        ]
+      },
+      "gitlab": {
+        "description": "DevOps-Plattform",
+        "features": [
+          "Git-Repositories",
+          "CI/CD",
+          "Issues",
+          "Merge-Requests",
+          "Container-Registry"
+        ]
+      },
+      "bitbucket": {
+        "description": "Git-Codeverwaltung von Atlassian",
+        "features": [
+          "Repositories",
+          "Pull-Requests",
+          "Pipelines",
+          "Code-Review",
+          "Jira-Integration"
+        ]
+      },
+      "vercel": {
+        "description": "Plattform zur Frontend-Bereitstellung",
+        "features": [
+          "Bereitstellungen",
+          "Serverlose Funktionen",
+          "Edge-Netzwerk",
+          "Analysen",
+          "Vorschau-URLs"
+        ]
+      },
+      "netlify": {
+        "description": "Plattform für Webentwicklung und Hosting",
+        "features": [
+          "Bereitstellungen",
+          "Formulare",
+          "Funktionen",
+          "Identität",
+          "Split-Tests"
+        ]
+      },
+      "supabase": {
+        "description": "Open-Source-Alternative zu Firebase",
+        "features": [
+          "Datenbank",
+          "Authentifizierung",
+          "Speicher",
+          "Edge-Funktionen",
+          "Echtzeit"
+        ]
+      },
+      "firebase": {
+        "description": "App-Entwicklungsplattform von Google",
+        "features": [
+          "Authentifizierung",
+          "Firestore",
+          "Cloud-Funktionen",
+          "Hosting",
+          "Analysen"
+        ]
+      },
+      "railway": {
+        "description": "Apps einfach bereitstellen",
+        "features": [
+          "Automatische Bereitstellung",
+          "Datenbanken",
+          "Umgebungen",
+          "Protokolle",
+          "Metriken"
+        ]
+      },
+      "render": {
+        "description": "Einheitliche Cloud für Apps und Websites",
+        "features": [
+          "Webdienste",
+          "Statische Websites",
+          "Datenbanken",
+          "Cron-Jobs",
+          "Automatische Skalierung"
+        ]
+      },
+      "google_analytics": {
+        "description": "Webanalyse von Google",
+        "features": [
+          "Besucheranalyse",
+          "Nutzerverhalten",
+          "Conversion-Verfolgung",
+          "Benutzerdefinierte Berichte",
+          "Echtzeitdaten"
+        ]
+      },
+      "mixpanel": {
+        "description": "Plattform für Produktanalysen",
+        "features": [
+          "Ereignisverfolgung",
+          "Trichteranalysen",
+          "Nutzerbindung",
+          "Nutzerpfade",
+          "A/B-Tests"
+        ]
+      },
+      "amplitude": {
+        "description": "Plattform für digitale Analysen",
+        "features": [
+          "Verhaltensanalysen",
+          "Kohortenanalyse",
+          "Experimente durchführen",
+          "Vorhersagen",
+          "Daten-Governance"
+        ]
+      },
+      "posthog": {
+        "description": "Open-Source-Produktanalyse",
+        "features": [
+          "Ereignisverfolgung",
+          "Sitzungsaufzeichnung",
+          "Feature-Flags",
+          "Experimente",
+          "Umfragen"
+        ]
+      },
+      "plausible": {
+        "description": "Datenschutzfreundliche Webanalyse",
+        "features": [
+          "Einfaches Dashboard",
+          "Keine Cookies",
+          "Zielverfolgung",
+          "Kampagnen",
+          "API-Zugriff"
+        ]
+      },
+      "hotjar": {
+        "description": "Heatmaps und Verhaltensanalyse",
+        "features": [
+          "Heatmaps",
+          "Aufzeichnungen",
+          "Umfragen",
+          "Feedback",
+          "Trichteranalysen"
+        ]
+      },
+      "segment": {
+        "description": "Kundendatenplattform",
+        "features": [
+          "Datenerhebung",
+          "Datenrouting",
+          "Profile",
+          "Zielgruppen",
+          "Protokolle"
+        ]
+      },
+      "google_ads": {
+        "description": "Such- und Displaywerbung",
+        "features": [
+          "Suchkampagnen",
+          "Displayanzeigen",
+          "Shopping-Anzeigen",
+          "Videoanzeigen",
+          "Berichtswesen"
+        ]
+      },
+      "meta_ads": {
+        "description": "Werbung auf Facebook und Instagram",
+        "features": [
+          "Kampagnenverwaltung",
+          "Zielgruppenausrichtung",
+          "Kreativwerkzeuge",
+          "Pixel-Tracking",
+          "Berichtswesen"
+        ]
+      },
+      "linkedin_ads": {
+        "description": "B2B-Werbung auf LinkedIn",
+        "features": [
+          "Gesponserte Inhalte",
+          "Nachrichtenanzeigen",
+          "Lead-Formulare",
+          "Zielgruppenausrichtung",
+          "Analysen"
+        ]
+      },
+      "tiktok_ads": {
+        "description": "Werbung auf TikTok",
+        "features": [
+          "In-Feed-Anzeigen",
+          "TopView",
+          "Markeneffekte",
+          "Pixel-Tracking",
+          "Berichtswesen"
+        ]
+      },
+      "twitter_ads": {
+        "description": "Werbung auf Twitter/X",
+        "features": [
+          "Beworbene Tweets",
+          "Anzeigen zur Followergewinnung",
+          "Trend-Takeovers",
+          "Ausrichtung",
+          "Analysen"
+        ]
+      },
+      "microsoft_ads": {
+        "description": "Suchwerbung auf Bing",
+        "features": [
+          "Suchanzeigen",
+          "Shopping-Kampagnen",
+          "Zielgruppenanzeigen",
+          "Import aus Google",
+          "Berichtswesen"
+        ]
+      },
+      "stripe": {
+        "description": "Plattform zur Zahlungsabwicklung",
+        "features": [
+          "Zahlungen",
+          "Abonnements",
+          "Rechnungsstellung",
+          "Connect",
+          "Radar"
+        ]
+      },
+      "paypal": {
+        "description": "Online-Zahlungsplattform",
+        "features": [
+          "Zahlungen",
+          "Kassenabwicklung",
+          "Rechnungsstellung",
+          "Abonnements",
+          "Streitfälle"
+        ]
+      },
+      "square": {
+        "description": "Zahlungen und Geschäftswerkzeuge",
+        "features": [
+          "Zahlungen",
+          "POS",
+          "Rechnungsstellung",
+          "Bankdienstleistungen",
+          "Kundenbindung"
+        ]
+      },
+      "razorpay": {
+        "description": "Zahlungsgateway für Indien",
+        "features": [
+          "Zahlungen",
+          "Abonnements",
+          "Smart Collect",
+          "Route",
+          "RazorpayX"
+        ]
+      },
+      "wise": {
+        "description": "Internationale Geldüberweisungen",
+        "features": [
+          "Überweisungen",
+          "Mehrwährungskonten",
+          "Sammelzahlungen",
+          "API-Zugriff",
+          "Webhooks"
+        ]
+      },
+      "aws_s3": {
+        "description": "Cloud-Objektspeicher von Amazon",
+        "features": [
+          "Dateien hochladen",
+          "CDN",
+          "Versionierung",
+          "Zugriffskontrolle",
+          "Ereignisse"
+        ]
+      },
+      "google_cloud_storage": {
+        "description": "Cloud-Objektspeicher von Google",
+        "features": [
+          "Dateispeicher",
+          "CDN",
+          "Lebenszyklusrichtlinien",
+          "Zugriffskontrolle",
+          "Signierte URLs"
+        ]
+      },
+      "cloudflare_r2": {
+        "description": "Objektspeicher ohne Egress-Gebühren",
+        "features": [
+          "S3-kompatibel",
+          "Keine Egress-Gebühren",
+          "Workers-Integration",
+          "Automatische Migration",
+          "CDN"
+        ]
+      },
+      "dropbox": {
+        "description": "Dateihosting und Zusammenarbeit",
+        "features": [
+          "Dateisynchronisierung",
+          "Teilen",
+          "Teambereiche",
+          "Paper",
+          "API-Zugriff"
+        ]
+      },
+      "google_drive": {
+        "description": "Cloud-Dateispeicher von Google",
+        "features": [
+          "Dateispeicher",
+          "Teilen",
+          "Zusammenarbeit",
+          "Suche",
+          "API-Zugriff"
+        ]
+      },
+      "openai": {
+        "description": "KI-Modelle GPT und DALL-E",
+        "features": [
+          "Chat-Vervollständigungen",
+          "Bilderzeugung",
+          "Embeddings",
+          "Feinabstimmung",
+          "Assistants"
+        ]
+      },
+      "anthropic": {
+        "description": "Claude-KI-Modelle",
+        "features": [
+          "Chat-Vervollständigungen",
+          "Werkzeugnutzung",
+          "Bildverarbeitung",
+          "Langer Kontext",
+          "Batch API"
+        ]
+      },
+      "google_gemini": {
+        "description": "Multimodales KI-Modell von Google",
+        "features": [
+          "Texterzeugung",
+          "Bildverarbeitung",
+          "Codeerzeugung",
+          "Quellenbezug",
+          "Funktionsaufrufe"
+        ]
+      },
+      "mistral": {
+        "description": "KI-Modelle mit offenen Gewichten",
+        "features": [
+          "Chat-Vervollständigungen",
+          "Codeerzeugung",
+          "Embeddings",
+          "Funktionsaufrufe",
+          "JSON-Modus"
+        ]
+      },
+      "groq": {
+        "description": "Ultraschnelle Inferenz-Engine",
+        "features": [
+          "Schnelle Inferenz",
+          "Chat-Vervollständigungen",
+          "Werkzeugnutzung",
+          "JSON-Modus",
+          "Streaming"
+        ]
+      },
+      "replicate": {
+        "description": "ML-Modelle in der Cloud ausführen",
+        "features": [
+          "Modellhosting",
+          "Vorhersagen",
+          "Feinabstimmung",
+          "Webhooks",
+          "Streaming"
+        ]
+      },
+      "huggingface": {
+        "description": "Plattform für ML-Modelle und Inferenz",
+        "features": [
+          "Inferenz-API",
+          "Modellhosting",
+          "Datensätze",
+          "Spaces",
+          "AutoTrain"
+        ]
+      },
+      "elevenlabs": {
+        "description": "KI-Spracherzeugung",
+        "features": [
+          "Text-zu-Sprache",
+          "Stimmenklonen",
+          "Stimmendesign",
+          "Streaming",
+          "Synchronisation von Sprache"
+        ]
+      },
+      "midjourney": {
+        "description": "KI-Bilderzeugung",
+        "features": [
+          "Bilderzeugung",
+          "Variationen",
+          "Hochskalierung",
+          "Stilsteuerung",
+          "Bilder mischen"
+        ]
+      },
+      "runway": {
+        "description": "KI-Video- und Kreativwerkzeuge",
+        "features": [
+          "Videoerzeugung",
+          "Bildbearbeitung",
+          "Greenscreen",
+          "Bewegungsverfolgung",
+          "Inpainting"
+        ]
+      },
+      "stability": {
+        "description": "Stable Diffusion und mehr",
+        "features": [
+          "Bilderzeugung",
+          "Hochskalierung",
+          "Inpainting",
+          "3D-Erzeugung",
+          "API-Zugriff"
+        ]
+      },
+      "perplexity": {
+        "description": "KI-gestützte Suche und Antworten",
+        "features": [
+          "Such-API",
+          "Chat",
+          "Quellenangaben",
+          "Echtzeitdaten",
+          "Strukturierte Ausgabe"
+        ]
+      },
+      "zendesk": {
+        "description": "Kundenserviceplattform",
+        "features": [
+          "Ticketsystem",
+          "Livechat",
+          "Wissensdatenbank",
+          "KI-Agenten",
+          "Analysen"
+        ]
+      },
+      "freshdesk": {
+        "description": "Cloudbasierter Kundensupport",
+        "features": [
+          "Ticketsystem",
+          "Automatisierung",
+          "Wissensdatenbank",
+          "Community-Foren",
+          "Berichtswesen"
+        ]
+      },
+      "helpscout": {
+        "description": "Helpdesk für wachsende Teams",
+        "features": [
+          "Gemeinsamer Posteingang",
+          "Wissensdatenbank",
+          "Beacon",
+          "Berichtswesen",
+          "Workflows"
+        ]
+      },
+      "front": {
+        "description": "Plattform für Kundenprozesse",
+        "features": [
+          "Gemeinsamer Posteingang",
+          "Workflows",
+          "Analysen",
+          "Integrationen",
+          "KI-Entwürfe"
+        ]
+      },
+      "bamboohr": {
+        "description": "Personalsoftware für wachsende Unternehmen",
+        "features": [
+          "Mitarbeiterdaten",
+          "Abwesenheiten",
+          "Einarbeitung",
+          "Leistungsbeurteilung",
+          "Berichtswesen"
+        ]
+      },
+      "gusto": {
+        "description": "Plattform für Lohnabrechnung und Personalwesen",
+        "features": [
+          "Lohnabrechnung",
+          "Zusatzleistungen",
+          "Personalwerkzeuge",
+          "Personalgewinnung",
+          "Compliance"
+        ]
+      },
+      "rippling": {
+        "description": "Plattform für Personalmanagement",
+        "features": [
+          "Personal-Cloud",
+          "IT-Verwaltung",
+          "Lohnabrechnung",
+          "Zusatzleistungen",
+          "Workflow-Automatisierung"
+        ]
+      },
+      "deel": {
+        "description": "Weltweite Personalgewinnung und Lohnabrechnung",
+        "features": [
+          "Auftragnehmerverwaltung",
+          "EOR",
+          "Lohnabrechnung",
+          "Compliance",
+          "HRIS"
+        ]
+      },
+      "remote": {
+        "description": "Globale Beschäftigungsplattform",
+        "features": [
+          "EOR",
+          "Auftragnehmerverwaltung",
+          "Lohnabrechnung",
+          "Zusatzleistungen",
+          "Compliance"
+        ]
+      },
+      "figma": {
+        "description": "Kollaboratives Designwerkzeug",
+        "features": [
+          "Designdateien",
+          "Prototyping",
+          "Dev mode",
+          "Komponenten",
+          "Plugins"
+        ]
+      },
+      "canva": {
+        "description": "Plattform zur Erstellung visueller Inhalte",
+        "features": [
+          "Vorlagen",
+          "Markenkit",
+          "Videobearbeitung",
+          "Zusammenarbeit",
+          "API-Zugriff"
+        ]
+      },
+      "framer": {
+        "description": "Webdesign und Veröffentlichung",
+        "features": [
+          "Visueller Editor",
+          "CMS",
+          "Animationen",
+          "Responsives Design",
+          "Veröffentlichen"
+        ]
+      },
+      "webflow": {
+        "description": "Website-Builder ohne Programmierung",
+        "features": [
+          "Visuelles Design",
+          "CMS",
+          "Hosting",
+          "E-Commerce",
+          "Interaktionen"
+        ]
+      },
+      "loom": {
+        "description": "Asynchrone Videonachrichten",
+        "features": [
+          "Bildschirmaufzeichnung",
+          "Videohosting",
+          "Analysen",
+          "Transkription",
+          "Kommentare"
+        ]
+      },
+      "vimeo": {
+        "description": "Professionelles Videohosting",
+        "features": [
+          "Videohosting",
+          "Livestreaming",
+          "Analysen",
+          "Player-Anpassung",
+          "Datenschutz"
+        ]
+      },
+      "mux": {
+        "description": "API für Videoinfrastruktur",
+        "features": [
+          "Videokodierung",
+          "Livestreaming",
+          "Vorschaubilder",
+          "Analysen",
+          "Player"
+        ]
+      },
+      "cloudinary": {
+        "description": "Plattform für Medienverwaltung",
+        "features": [
+          "Bildoptimierung",
+          "Videoverarbeitung",
+          "Transformationen",
+          "CDN",
+          "KI-Funktionen"
+        ]
+      },
+      "typeform": {
+        "description": "Interaktive Formulare und Umfragen",
+        "features": [
+          "Dialogbasierte Formulare",
+          "Logiksprünge",
+          "Integrationen",
+          "Analysen",
+          "Vorlagen"
+        ]
+      },
+      "tally": {
+        "description": "Der einfachste Weg, Formulare zu erstellen",
+        "features": [
+          "Formular-Builder",
+          "Bedingte Logik",
+          "Datei-Uploads",
+          "Zahlungen",
+          "Webhooks"
+        ]
+      },
+      "google_forms": {
+        "description": "Einfacher Formular-Builder von Google",
+        "features": [
+          "Formulare erstellen",
+          "Antworten sammeln",
+          "Quizmodus",
+          "Vorlagen",
+          "Sheets-Integration"
+        ]
+      },
+      "jotform": {
+        "description": "Online-Formular-Builder",
+        "features": [
+          "Drag-and-drop-Builder",
+          "Zahlungsformulare",
+          "Freigaben",
+          "PDF-Formulare",
+          "Widgets"
+        ]
+      },
+      "surveymonkey": {
+        "description": "Plattform für Umfragen und Feedback",
+        "features": [
+          "Umfragen",
+          "Quizfragen",
+          "Abstimmungen",
+          "Analysen",
+          "Vorlagen"
+        ]
+      },
+      "calendly": {
+        "description": "Terminplanungsautomatisierung",
+        "features": [
+          "Buchungsseiten",
+          "Workflows",
+          "Integrationen",
+          "Gruppentermine",
+          "Routing"
+        ]
+      },
+      "cal_com": {
+        "description": "Open-Source-Terminplanung",
+        "features": [
+          "Buchungsseiten",
+          "Team-Terminplanung",
+          "Benutzerdefinierte Workflows",
+          "Webhooks",
+          "API-Zugriff"
+        ]
+      },
+      "savvycal": {
+        "description": "Terminplanung für vielbeschäftigte Menschen",
+        "features": [
+          "Personalisierte Links",
+          "Kalender überlagern",
+          "Priorisierte Terminplanung",
+          "Workflows",
+          "Integrationen"
+        ]
+      },
+      "tidycal": {
+        "description": "Einfaches Terminplanungswerkzeug",
+        "features": [
+          "Buchungsseiten",
+          "Kalendersynchronisierung",
+          "Zahlungen",
+          "Benutzerdefinierte Fragen",
+          "Integrationen"
+        ]
+      },
+      "zapier": {
+        "description": "Automatisierungsplattform ohne Programmierung",
+        "features": [
+          "App-Verbindungen",
+          "Mehrstufige Zaps",
+          "Filter",
+          "Formatter",
+          "Webhooks"
+        ]
+      },
+      "make": {
+        "description": "Visuelle Automatisierungsplattform",
+        "features": [
+          "Visueller Builder",
+          "Apps",
+          "Datenspeicher",
+          "Webhooks",
+          "Terminplanung"
+        ]
+      },
+      "n8n": {
+        "description": "Workflow-Automatisierung mit Fair-Code-Lizenz",
+        "features": [
+          "Selbst hostbar",
+          "Integrationen",
+          "Code-Knoten",
+          "Webhooks",
+          "KI-Fähigkeiten"
+        ]
+      },
+      "activepieces": {
+        "description": "Open-Source-Automatisierungswerkzeug",
+        "features": [
+          "Builder ohne Programmierung",
+          "Selbst hostbar",
+          "Pieces",
+          "Webhooks",
+          "Code-Schritt"
+        ]
+      },
+      "pipedream": {
+        "description": "Automatisierung mit Fokus auf Entwickler",
+        "features": [
+          "Codebasierte Workflows",
+          "APIs",
+          "Ereignisquellen",
+          "Datenspeicher",
+          "Cron-Jobs"
+        ]
+      }
+    },
+    "webhooks": {
+      "shopify_order_created": {
+        "name": "Shopify — Neue Bestellung",
+        "description": "Auslösen, wenn in deinem Shopify-Shop eine neue Bestellung eingeht",
+        "setupInstructions": "Öffne Shopify Admin > Settings > Notifications > Webhooks > Create webhook"
+      },
+      "shopify_product_updated": {
+        "name": "Shopify — Produkt aktualisiert",
+        "description": "Auslösen, wenn ein Produkt in Shopify geändert wird",
+        "setupInstructions": "Öffne Shopify Admin > Settings > Notifications > Webhooks"
+      },
+      "shopify_checkout_abandoned": {
+        "name": "Shopify — Abgebrochener Kaufvorgang",
+        "description": "Bei abgebrochenen Kaufvorgängen für Rückgewinnungskampagnen auslösen",
+        "setupInstructions": "Öffne Shopify Admin > Settings > Notifications > Webhooks"
+      },
+      "shopify_customer_created": {
+        "name": "Shopify — Neuer Kunde",
+        "description": "Auslösen, wenn sich ein neuer Kunde registriert",
+        "setupInstructions": "Öffne Shopify Admin > Settings > Notifications > Webhooks"
+      },
+      "stripe_payment_succeeded": {
+        "name": "Stripe — Zahlung erfolgreich",
+        "description": "Bei einer erfolgreichen Zahlung auslösen",
+        "setupInstructions": "Öffne Stripe Dashboard > Developers > Webhooks > Add endpoint"
+      },
+      "stripe_subscription_created": {
+        "name": "Stripe — Neues Abonnement",
+        "description": "Auslösen, wenn ein Kunde ein neues Abonnement beginnt",
+        "setupInstructions": "Stripe Dashboard > Developers > Webhooks"
+      },
+      "stripe_invoice_paid": {
+        "name": "Stripe — Rechnung bezahlt",
+        "description": "Auslösen, wenn eine Rechnung bezahlt wird",
+        "setupInstructions": "Stripe Dashboard > Developers > Webhooks"
+      },
+      "stripe_refund_issued": {
+        "name": "Stripe — Rückerstattung veranlasst",
+        "description": "Auslösen, wenn eine Rückerstattung verarbeitet wird",
+        "setupInstructions": "Stripe Dashboard > Developers > Webhooks"
+      },
+      "github_push": {
+        "name": "GitHub — Push",
+        "description": "Bei einem Code-Push in ein Repository auslösen",
+        "setupInstructions": "Öffne das Repository > Settings > Webhooks > Add webhook"
+      },
+      "github_pr": {
+        "name": "GitHub — Pull-Request",
+        "description": "Auslösen, wenn ein PR geöffnet, zusammengeführt oder geschlossen wird",
+        "setupInstructions": "Öffne das Repository > Settings > Webhooks"
+      },
+      "github_issue": {
+        "name": "GitHub — Issue erstellt",
+        "description": "Auslösen, wenn ein neues Issue geöffnet wird",
+        "setupInstructions": "Öffne das Repository > Settings > Webhooks"
+      },
+      "github_release": {
+        "name": "GitHub — Release veröffentlicht",
+        "description": "Auslösen, wenn ein neues Release veröffentlicht wird",
+        "setupInstructions": "Öffne das Repository > Settings > Webhooks"
+      },
+      "hubspot_contact_created": {
+        "name": "HubSpot — Kontakt erstellt",
+        "description": "Auslösen, wenn in HubSpot ein neuer Kontakt hinzugefügt wird",
+        "setupInstructions": "Öffne HubSpot > Settings > Integrations > Private Apps > Webhooks"
+      },
+      "hubspot_deal_stage": {
+        "name": "HubSpot — Deal-Phase geändert",
+        "description": "Auslösen, wenn ein Deal in eine neue Phase wechselt",
+        "setupInstructions": "HubSpot > Settings > Integrations > Webhooks"
+      },
+      "hubspot_form_submitted": {
+        "name": "HubSpot — Formular eingereicht",
+        "description": "Auslösen, wenn ein HubSpot-Formular eingereicht wird",
+        "setupInstructions": "HubSpot > Settings > Integrations > Webhooks"
+      },
+      "tiktok_new_follower": {
+        "name": "TikTok — Neuer Follower",
+        "description": "Auslösen, wenn jemand deinem TikTok-Konto folgt",
+        "setupInstructions": "Über TikTok Developer Portal > Webhooks konfigurieren"
+      },
+      "tiktok_video_published": {
+        "name": "TikTok — Video veröffentlicht",
+        "description": "Auslösen, wenn ein neues Video veröffentlicht wird",
+        "setupInstructions": "TikTok Developer Portal > Webhooks"
+      },
+      "linkedin_post_engagement": {
+        "name": "LinkedIn — Beitragsinteraktion",
+        "description": "Bei Likes, Kommentaren oder geteilten Beiträgen auf LinkedIn auslösen",
+        "setupInstructions": "Über Webhooks der LinkedIn Marketing API konfigurieren"
+      },
+      "intercom_conversation_started": {
+        "name": "Intercom — Neue Unterhaltung",
+        "description": "Auslösen, wenn ein Kunde eine neue Unterhaltung beginnt",
+        "setupInstructions": "Intercom > Settings > Webhooks"
+      },
+      "intercom_user_created": {
+        "name": "Intercom — Neuer Nutzer",
+        "description": "Auslösen, wenn ein neuer Nutzer identifiziert wird",
+        "setupInstructions": "Intercom > Settings > Webhooks"
+      },
+      "sendgrid_email_delivered": {
+        "name": "SendGrid — E-Mail zugestellt",
+        "description": "Auslösen, wenn eine E-Mail erfolgreich zugestellt wurde",
+        "setupInstructions": "SendGrid > Settings > Mail Settings > Event Webhook"
+      },
+      "sendgrid_email_opened": {
+        "name": "SendGrid — E-Mail geöffnet",
+        "description": "Auslösen, wenn ein Empfänger deine E-Mail öffnet",
+        "setupInstructions": "SendGrid > Settings > Mail Settings > Event Webhook"
+      },
+      "sendgrid_email_bounced": {
+        "name": "SendGrid — E-Mail unzustellbar",
+        "description": "Auslösen, wenn eine E-Mail als unzustellbar zurückkommt",
+        "setupInstructions": "SendGrid > Settings > Event Webhook"
+      },
+      "calendly_booking_created": {
+        "name": "Calendly — Buchung erstellt",
+        "description": "Auslösen, wenn jemand einen Termin bucht",
+        "setupInstructions": "Calendly > Integrations > Webhooks > Subscribe"
+      },
+      "calendly_booking_cancelled": {
+        "name": "Calendly — Buchung abgesagt",
+        "description": "Auslösen, wenn eine Buchung abgesagt wird",
+        "setupInstructions": "Calendly > Integrations > Webhooks"
+      },
+      "typeform_form_submitted": {
+        "name": "Typeform — Formular eingereicht",
+        "description": "Auslösen, wenn eine Typeform-Antwort eingereicht wird",
+        "setupInstructions": "Typeform > Connect > Webhooks > Add webhook"
+      },
+      "slack_message_posted": {
+        "name": "Slack — Nachricht veröffentlicht",
+        "description": "Auslösen, wenn eine Nachricht in einem Kanal veröffentlicht wird",
+        "setupInstructions": "Slack App > Event Subscriptions > Subscribe to message.channels"
+      },
+      "slack_reaction_added": {
+        "name": "Slack — Reaktion hinzugefügt",
+        "description": "Auslösen, wenn jemand auf eine Nachricht reagiert",
+        "setupInstructions": "Slack App > Event Subscriptions"
+      },
+      "generic_json": {
+        "name": "Allgemeiner JSON-Webhook",
+        "description": "Beliebige JSON-Nutzdaten von einem beliebigen Dienst annehmen",
+        "setupInstructions": "Richte die Webhook-URL deines Dienstes auf den erzeugten Endpunkt"
+      },
+      "generic_form_post": {
+        "name": "Formular-POST-Webhook",
+        "description": "Formularkodierte POST-Daten annehmen",
+        "setupInstructions": "Setze die action-URL deines Formulars auf den erzeugten Endpunkt"
+      }
+    },
+    "ideas": {
+      "content-studio": {
+        "title": "Content-Studio",
+        "desc": "Trends erkennen, Social-Media-Beiträge automatisch entwerfen und verfeinern.",
+        "seed": "Ich führe eine kleine Marke und möchte ein Content-Studio, das regelmäßig veröffentlicht. Ein Trendscout soll 2-3 aktuelle Ansätze in meiner Nische finden, ein Autor soll zum stärksten Ansatz einen TikTok- und einen LinkedIn-Beitrag entwerfen und ein Redakteur soll Einstieg und CTA verbessern. Speichere alles als Entwurf, damit ich es vor der Veröffentlichung prüfen kann, und merke dir, welche Ansätze erfolgreich waren, damit zukünftige Entwürfe gezielter werden."
+      },
+      "content-repurposer": {
+        "title": "Inhalte mehrfach nutzen",
+        "desc": "Eine Idee in einen X-Thread, einen LinkedIn-Beitrag und einen kurzen Newsletter-Text verwandeln.",
+        "seed": "Ich möchte eine Ausgangsidee, einen Beitrag oder ein Transkript als Paket für mehrere Plattformen neu aufbereiten. Ein Stratege soll die drei stärksten Ansätze auswählen, dann soll ein Autor daraus einen X-Thread, einen LinkedIn-Beitrag und einen kurzen Newsletter-Text machen — alles in meiner Markenstimme, sofern sie im Gedächtnis gespeichert ist. Speichere das Paket als Entwurf."
+      },
+      "seo-content-engine": {
+        "title": "SEO-Inhaltswerkstatt",
+        "desc": "Suchbegriffe recherchieren und suchoptimierte Artikel gliedern.",
+        "seed": "Ich möchte eine SEO-Inhaltswerkstatt. Ein Rechercheur soll die Suchabsicht und verwandte Fragen zu einem Ziel-Keyword ermitteln, ein Gliederungsexperte soll eine H2/H3-Struktur mit Vorschlägen für interne Links erstellen und ein Autor soll darauf aufbauend einen suchoptimierten Artikel entwerfen. Speichere Briefing und Entwurf und merke dir bereits behandelte Themen, damit wir uns nicht wiederholen."
+      },
+      "newsletter-studio": {
+        "title": "Newsletter-Studio",
+        "desc": "Ein Thema zusammenstellen und eine wöchentliche Newsletter-Ausgabe entwerfen.",
+        "seed": "Ich versende einen wöchentlichen Newsletter und möchte Hilfe beim Entwurf jeder Ausgabe. Ein Kurator soll ein Thema auswählen und 3-5 für meine Zielgruppe lesenswerte Inhalte sammeln. Ein Autor soll daraus eine Ausgabe mit einer starken Betreffzeile, Einleitung, den ausgewählten Inhalten samt einzeiligen Einordnungen und einem abschließenden CTA entwerfen. Speichere sie als Entwurf und merke dir vergangene Themen, damit die Ausgaben abwechslungsreich bleiben."
+      },
+      "podcast-repurposer": {
+        "title": "Podcast-Inhalte aufbereiten",
+        "desc": "Ein Episodentranskript in Shownotes und zitierfähige Ausschnitte verwandeln.",
+        "seed": "Ich moderiere einen Podcast und möchte jede Episode weiterverwerten. Ausgehend von einem Transkript soll ein Produzent strukturierte Shownotes mit Zeitstempeln und Kernaussagen schreiben. Ein Clip-Rechercheur soll 5-8 zitierfähige Momente finden, die sich für kurze Social-Media-Clips eignen. Speichere die Notizen und die Zitatliste als Entwürfe."
+      },
+      "brand-voice-builder": {
+        "title": "Markenstimme definieren",
+        "desc": "Deinen Ton in einem einseitigen Referenzdokument festhalten.",
+        "seed": "Ich möchte meine Markenstimme festhalten. Ein Markenanalyst soll aus einer Beschreibung und bereitgestellten Beispielinhalten Tonmerkmale, typische Formulierungen und zu vermeidende Wendungen herausarbeiten. Anschließend soll ein Stilexperte eine einseitige Referenz mit drei Beispielbeiträgen schreiben, die diese Stimme zeigen. Speichere sie im Gedächtnis unter 'brand voice', damit meine Content-Agenten sie lesen können."
+      },
+      "competitor-watch": {
+        "title": "Wettbewerbsbeobachtung",
+        "desc": "Schritte der Konkurrenz verfolgen und wöchentlich Änderungen zusammenfassen.",
+        "seed": "Ich möchte einige Wettbewerber im Blick behalten. Ein Web-Rechercheur soll auf deren Websites und im Web nach neuen Entwicklungen suchen — Produkteinführungen, Preisänderungen und Änderungen der Kommunikation. Ein Analyst soll zusammenfassen, was sich diese Woche geändert hat und warum es für meine Positionierung wichtig ist. Speichere einen kurzen Bericht und merke dir bisherige Erkenntnisse, damit jede Recherche nur Neues hervorhebt."
+      },
+      "social-listening": {
+        "title": "Social Listening",
+        "desc": "Sichtbar machen, was Menschen über ein Thema oder eine Marke sagen.",
+        "seed": "Ich möchte Social Listening zu einem Thema und meiner Marke. Ein Rechercheur soll aktuelle öffentliche Erwähnungen und Diskussionen im Web sammeln. Ein Analyst soll sie thematisch gruppieren, die Stimmung kennzeichnen und einige repräsentative Zitate auswählen. Speichere eine Zusammenfassung und wiederkehrende Themen im Gedächtnis, damit Trends mit der Zeit sichtbar werden."
+      },
+      "webinar-promoter": {
+        "title": "Webinar-Bewerbung",
+        "desc": "Eine Werbesequenz für eine bevorstehende Veranstaltung planen.",
+        "seed": "Ich plane ein Webinar und möchte einen Werbeplan. Ein Planer soll einen Zeitplan mit mehreren Kontaktpunkten erstellen: Ankündigung, Nutzenvorschau, Erinnerung und letzter Aufruf. Ein Autor soll für jeden Kontaktpunkt Social-Media-Beiträge und E-Mails in meiner Markenstimme entwerfen. Speichere alles als Entwürfe, damit ich es manuell einplanen kann."
+      },
+      "ad-creative-tester": {
+        "title": "Anzeigenideen testen",
+        "desc": "Verschiedene Anzeigenansätze zum Testen erzeugen, ohne Werbeausgaben.",
+        "seed": "Ich möchte Anzeigenideen testen, bevor ich Geld ausgebe. Ein Stratege soll 4-5 unterschiedliche Ansätze für mein Produkt vorschlagen: Problem, Ergebnis, sozialer Beleg, Gegenposition und Neugier. Ein Werbetexter soll für jeden Ansatz eine Überschrift und eine Variante des Haupttexts schreiben. Speichere sie als Entwürfe, damit ich die besten selbst in meine Anzeigenplattform kopieren kann. Keine Werbeausgaben und keine Schreibzugriffe auf die Plattform."
+      },
+      "outreach-strategist": {
+        "title": "Strategie für Erstkontakte",
+        "desc": "Dein ICP schärfen und eine Kaltakquise-E-Mail-Sequenz entwerfen.",
+        "seed": "Ich möchte eine Kaltakquise-Lösung, die Entwürfe erstellt, aber niemals versendet. Ein ICP-Rechercheur soll aus meinem Produkt und einem Hinweis zur Zielgruppe mein ideales Kundenprofil schärfen. Ein Pitch-Autor soll dann eine Sequenz aus drei Nachrichten schreiben — Vorstellung, Nachfrage und Abschlussnachricht —, die ich in mein Postfach kopieren kann. Speichere die Sequenz als Entwurf."
+      },
+      "cold-outreach-engine": {
+        "title": "Kaltakquise-Werkstatt",
+        "desc": "E-Mails für den Erstkontakt mit einer Zielliste personalisieren.",
+        "seed": "Ich habe eine Liste von Zielunternehmen und möchte personalisierte E-Mails für den Erstkontakt. Ein Rechercheur soll aus öffentlichen Informationen einen passenden Aufhänger für jeden Interessenten finden. Ein Autor soll dann einen kurzen, konkreten Einstieg mit diesem Bezug und einem klaren CTA entwerfen. Speichere Entwürfe, damit ich sie prüfen und manuell versenden kann, und protokolliere jeden Entwurf. Kein automatischer Versand."
+      },
+      "lead-qualifier": {
+        "title": "Leads qualifizieren",
+        "desc": "Eingehende Leads anhand deines ICP bewerten und weiterleiten.",
+        "seed": "Ich möchte eingehende Leads qualifizieren. Anhand der Lead-Daten soll ein Analyst die Eignung für mein ICP bewerten — Branche, Größe, Rolle und Absichtssignale. Ein Routing-Agent soll mit einer einzeiligen Begründung eine Aktion empfehlen: beschleunigt bearbeiten, weiterentwickeln oder ausschließen. Protokolliere jede Entscheidung und merke dir Bewertungsmuster, damit die Qualifizierung mit der Zeit einheitlicher wird."
+      },
+      "proposal-writer": {
+        "title": "Angebote entwerfen",
+        "desc": "Ein Projektbriefing in ein kundenfertiges Angebot verwandeln.",
+        "seed": "Ich möchte ein Projektbriefing in ein Kundenangebot umwandeln. Ein Verantwortlicher für die Abgrenzung soll Kundenkontext, Problem, Erfolgskennzahlen und Umfang präzisieren. Ein Autor soll dann ein strukturiertes Angebot entwerfen: Zusammenfassung, Umfang, Liefergegenstände, Zeitplan in Phasen und wertorientierte Preisgestaltung. Speichere es als Entwurf, damit ich es prüfen und versenden kann."
+      },
+      "partnership-outreach": {
+        "title": "Partneransprache",
+        "desc": "Passende Partner finden und individuelle Erstansprachen entwerfen.",
+        "seed": "Ich möchte Partnerschaftsgespräche anbahnen. Ein Rechercheur soll Unternehmenstypen ermitteln, die mein Produkt ergänzen, und einige konkrete Kandidaten finden. Ein Autor soll dann für jeden eine passende Erstansprache entwerfen, die den gemeinsamen Nutzen hervorhebt. Speichere die Ansprachen als Entwürfe, damit ich sie manuell versenden kann."
+      },
+      "market-research": {
+        "title": "Marktforschungsagent",
+        "desc": "Einen Markt untersuchen und einen einseitigen Bericht erstellen.",
+        "seed": "Ich möchte einen schnellen Marktüberblick. Ein Web-Rechercheur soll aus 5-10 aussagekräftigen Quellen Hinweise zu meinem Markt sammeln. Ein Auswerter soll dann einen einseitigen Bericht erstellen: Hinweise zur Marktgröße, die drei wichtigsten Wettbewerber mit je einer einzeiligen Abgrenzung, Trends über 12 Monate und die Chance. Speichere den Bericht und die wichtigsten Erkenntnisse im Gedächtnis, damit spätere Recherchen darauf aufbauen können."
+      },
+      "customer-onboarding": {
+        "title": "Kundeneinführung",
+        "desc": "Eine geführte Willkommenssequenz für neue Kunden entwerfen.",
+        "seed": "Ich möchte neue Kunden reibungslos einführen. Ein Planer soll eine Einführung mit Meilensteinen erstellen: Begrüßung, Einrichtung, erster Nutzen und Rückfrage. Ein Autor soll für jeden Meilenstein eine Nachricht in meiner Markenstimme entwerfen. Speichere die Sequenz als Entwürfe, die ich manuell versenden kann, und merke dir den Ablauf, damit jeder neue Kunde denselben geführten Start erhält."
+      },
+      "churn-watch": {
+        "title": "Abwanderung beobachten",
+        "desc": "Gefährdete Konten markieren und Rückgewinnungsnachrichten entwerfen.",
+        "seed": "Ich möchte Kundenabwanderung früh erkennen. Anhand der von mir gelieferten Kontoaktivität soll ein Analyst gefährdete Konten mit Warnsignalen und Begründung markieren. Ein Autor soll für jedes markierte Konto eine passende Rückgewinnungsnachricht entwerfen. Speichere die Entwürfe zur Prüfung, protokolliere jede Bewertung und merke dir, welche Signale häufig vor einer Abwanderung auftreten."
+      },
+      "product-launch-kit": {
+        "title": "Produkteinführungs-Paket",
+        "desc": "Einführungsbotschaften und eine Checkliste für den Start zusammenstellen.",
+        "seed": "Ich führe ein Produkt ein und möchte ein Startpaket. Ein Stratege soll die zentrale Positionierung und die Kernbotschaften entwerfen. Ein Autor soll die Ankündigungsinhalte erstellen: Landingpage-Text, Social-Media-Beiträge und Einführungs-E-Mail. Ein Betriebsagent soll eine Checkliste für den Start zusammenstellen. Speichere alles als Entwürfe und die Checkliste im Gedächtnis, damit nichts übersehen wird."
+      },
+      "invoice-chaser": {
+        "title": "Zahlungserinnerungen",
+        "desc": "Höfliche Zahlungserinnerungen mit zunehmender Deutlichkeit entwerfen.",
+        "seed": "Ich möchte Hilfe bei überfälligen Rechnungen. Anhand einer von mir bereitgestellten Liste offener Rechnungen soll ein Agent für jede eine höfliche, zunehmend deutliche Erinnerung entwerfen — freundlicher Hinweis, bestimmte Nachfrage und letzte Mahnung — mit Betrag und Fälligkeitsdatum. Speichere die Erinnerungen als Entwürfe, damit ich sie manuell versenden kann, und protokolliere jeden Entwurf. Versende niemals automatisch etwas und bewege niemals Geld."
+      },
+      "weekly-finance-digest": {
+        "title": "Wöchentlicher Finanzüberblick",
+        "desc": "Die von mir erfassten Zahlen wöchentlich zusammenfassen.",
+        "seed": "Ich möchte einen wöchentlichen Finanzüberblick. Anhand der von mir bereitgestellten Zahlen — Umsatz, Ausgaben, finanzielle Reichweite und wichtige Kennzahlen — soll ein Analyst sie mit der Vorperiode vergleichen, Änderungen und ihre Bedeutung erklären und Punkte markieren, die Aufmerksamkeit brauchen. Speichere einen kurzen Überblick und merke dir frühere Wochen, damit Trends sichtbar werden. Nur lesender Zugriff — keine Transaktionen."
+      },
+      "support-triage": {
+        "title": "Support-Vorsortierung",
+        "desc": "Tickets kategorisieren und erste Antworten entwerfen.",
+        "seed": "Ich möchte eingehende Supporttickets vorsortieren. Ein Agent soll jedes Ticket kategorisieren — Fehler, Abrechnung, Anleitung oder Funktionswunsch —, eine Priorität setzen und eine hilfreiche erste Antwort auf Grundlage meiner Wissensdatenbank entwerfen. Speichere den Entwurf zur menschlichen Prüfung vor dem Versand, protokolliere jede Einordnung und merke dir wiederkehrende Probleme, damit häufige Antworten besser werden."
+      },
+      "review-responder": {
+        "title": "Bewertungen beantworten",
+        "desc": "Antworten auf Kundenbewertungen in deiner Markenstimme entwerfen.",
+        "seed": "Ich möchte Hilfe beim Beantworten von Kundenbewertungen. Anhand einer Bewertung soll ein Agent die Stimmung einschätzen und eine aufmerksame Antwort in meiner Markenstimme entwerfen — dankbar bei Lob, verantwortungsbewusst und lösungsorientiert bei Beschwerden. Speichere die Antworten als Entwürfe, damit ich sie veröffentlichen kann, und merke dir wiederkehrendes Lob und Beschwerden, damit ich Muster erkenne."
+      },
+      "recruiting-sourcer": {
+        "title": "Kandidatenrecherche",
+        "desc": "Ein Rollenprofil und persönliche Kandidatenansprachen entwerfen.",
+        "seed": "Ich stelle Personal ein und möchte Hilfe bei der Kandidatensuche. Ein Recruiting-Agent soll aus einer Rolle ein präzises Kandidatenprofil erstellen: Muss-Kriterien, Hinweise auf Eignung und Orte, an denen passende Kandidaten aktiv sind. Ein Autor soll dann eine freundliche, persönliche Ansprache entwerfen, die ich vielversprechenden Kandidaten senden kann. Speichere Entwürfe, damit ich sie manuell versende, und protokolliere jeden. Keine automatischen Nachrichten."
+      }
+    },
+    "comparisonColumns": [
+      {
+        "name": "Braavolabs"
+      },
+      {
+        "name": "Workflow-Automatisierung"
+      },
+      {
+        "name": "KI-Agenten-Builder"
+      }
+    ],
+    "comparisonRows": [
+      {
+        "label": "Steuerung während eines Laufs",
+        "note": "Prüfe, wann Hinweise angenommen und angewendet werden; ein aktiver Aufruf kann zuerst enden"
+      },
+      {
+        "label": "Native mobile Steuerung",
+        "note": "Prüfe unterstützte mobile Aufgaben und die Verfügbarkeit einer Veröffentlichung für dein Gerät"
+      },
+      {
+        "label": "Ausgaben vom Telefon aus freigeben",
+        "note": "Prüfe, welche Aktionen eine Freigabe benötigen und welche Anbieteraufrufe bereits Kosten verursachen können"
+      },
+      {
+        "label": "Anbieterauswahl mit BYOK",
+        "note": "Eigene Schlüssel für viele Modellanbieter verwenden"
+      },
+      {
+        "label": "Lokaler Anbieterzugang",
+        "note": "Einen konfigurierten lokalen Modellendpunkt nutzen, soweit unterstützt"
+      },
+      {
+        "label": "Externe Automatisierungen überwachen",
+        "note": "Bestätige für jede externe Plattform die unterstützten Überwachungs- und Steuerungsaktionen"
+      },
+      {
+        "label": "Preismodell",
+        "note": "Abonnement-, Inferenz-, Hosting- und Vorgangsgebühren vergleichen"
+      },
+      {
+        "label": "Governance und Risiko-Stopps",
+        "note": "Unterstützte Prüfgrenzen und den Umgang mit Vorfällen prüfen"
+      },
+      {
+        "label": "Prüfpfad",
+        "note": "Aufgezeichnete Aktionen und Ergebnisse prüfen; fehlende Aufzeichnungen bleiben unbekannt"
+      },
+      {
+        "label": "Anzahl der Konnektoren",
+        "note": "Reine Anzahl vorgefertigter App-Integrationen"
+      }
+    ],
+    "comparisonAudience": [
+      {
+        "title": "Bediener, die nicht am Schreibtisch sitzen",
+        "body": "Wenn du zwischen Besprechungen vom Telefon aus Freigaben erteilst, Hinweise gibst und den Kurs korrigierst, sind die native App und die mobile Steuerung genau dafür gedacht."
+      },
+      {
+        "title": "Menschen, die ungern neu starten",
+        "body": "Lange Pipelines, die du lieber steuern als neu starten möchtest. Begleite den Lauf, lenke ihn unterwegs um und behalte die bereits gelungenen Schritte."
+      },
+      {
+        "title": "Datenschutzsensible Arbeit",
+        "body": "Verwende eigene Schlüssel oder wähle einen konfigurierten lokalen Endpunkt. Prüfe den ausgewählten Zugangsweg, Werkzeuge, Telemetrie und Netzwerkgrenzen getrennt."
+      },
+      {
+        "title": "Teams, die bereits n8n / Make / Zapier nutzen",
+        "body": "Nutze unterstützte Verbindungen, um den Status zu überwachen und unterstützte Aktionen anzufordern. Prüfe für jede Plattform die Vorgaben zu Autorisierung und Ausführung."
+      }
+    ],
+    "capabilities": [
+      {
+        "label": "Ausführung",
+        "title": "Anbieterübergreifende Arbeitsumgebung",
+        "copy": "Koordiniere Modell- und Agentenarbeit, ohne die Laufzeit eines einzelnen Anbieters zur Steuerungsebene zu machen."
+      },
+      {
+        "label": "Steuerung",
+        "title": "Freigabe genau bestimmter Aktionen — in Entwicklung",
+        "copy": "Die umfassendere Bindung von Aktion, Umfang, Ablauf und Ausführungskontext ist geplant und wird nicht als allgemein verfügbar dargestellt."
+      },
+      {
+        "label": "Unterhaltung",
+        "title": "Fortsetzen und steuern",
+        "copy": "Geordnete Gesprächsschritte, Werkzeugaktionen, Artefakte und Eingaben entfernter Bediener im selben Laufkontext halten."
+      },
+      {
+        "label": "Modelle",
+        "title": "BYOK und lokale Auswahl",
+        "copy": "Wähle einen Modellzugang ausdrücklich aus und ordne die Kosten deinen eigenen Anbieterschlüsseln oder deiner lokalen Laufzeit zu."
+      }
+    ],
+    "securityBoundaries": [
+      {
+        "title": "Inferenzgrenze",
+        "copy": "Inferenz ist nicht enthalten. Verwende eigene Anbieterschlüssel (BYOK) oder lokale Modelle."
+      },
+      {
+        "title": "Freigabegrenze",
+        "copy": "Unterstützte Werkzeugaktionen können eine ausdrückliche Freigabe erfordern. Inferenz kann bereits vor einer separaten Freigabe Anbietergebühren verursachen. Die umfassendere Bindung an genaue Aktion, Umfang und Ablauf ist noch in Entwicklung."
+      },
+      {
+        "title": "Grenze zwischen öffentlichem und angemeldetem Bereich",
+        "copy": "Die öffentliche Website stellt Produktinformationen bereit. Konten, Mandantenrouten und operative APIs gehören zu den Hosts der App mit Anmeldung und der API."
+      },
+      {
+        "title": "Zertifizierungsgrenze",
+        "copy": "Wir zeigen erst dann ein Zertifizierungsabzeichen, wenn die Zertifizierung vorliegt und unabhängig überprüfbar ist."
+      }
+    ],
+    "checklist": {
+      "registered": {
+        "label": "Konto erstellen",
+        "description": "Bei Braavolabs registrieren"
+      },
+      "heroCompanyCreated": {
+        "label": "Dein erstes Unternehmen erstellen",
+        "description": "Ein KI-Unternehmen aus einer Beschreibung erstellen"
+      },
+      "firstRunCompleted": {
+        "label": "Deine erste Pipeline starten",
+        "description": "Einen automatisierten Workflow ausführen"
+      },
+      "firstDraftApproved": {
+        "label": "Einen Entwurf prüfen",
+        "description": "KI-generierte Inhalte freigeben oder bearbeiten"
+      },
+      "profileCompleted": {
+        "label": "Dein Profil vervollständigen",
+        "description": "Deinen Namen und Präferenzen ergänzen"
+      }
+    }
+  },
+  "seo": {
+    "m7f135831dde4": "Über uns — Braavolabs",
+    "ma6b9aebb2cf1": "Erfahre mehr über Braavolabs: warum wir eine Plattform für KI-Unternehmen entwickelt haben, welche Grundsätze dahinterstehen und wie wir über Autonomie, Transparenz und verantwortungsvolle KI denken.",
+    "m933085a63c1d": "Über Braavolabs",
+    "me1c1f91ee66e": "Warum wir eine Plattform für KI-Unternehmen entwickelt haben, welche Grundsätze dahinterstehen und wie wir über Autonomie, Transparenz und verantwortungsvolle KI denken.",
+    "m6bec3a9f230a": "Braavolabs Bench — aufgezeichnete Benchmark-Läufe",
+    "mcbea634da00e": "Verfügbare Benchmark-Aufzeichnungen für konfigurierte Aufgabenpakete. Abdeckung und Aktualität hängen von den aufgezeichneten Läufen ab; dies ist keine unabhängige Zertifizierung.",
+    "md93cc7f7d87e": "Blog — Braavolabs",
+    "m187c2f0813ea": "Produktneuigkeiten, Entwicklungsnotizen und öffentliche Angaben zum Reifegrad vom Braavolabs-Team.",
+    "m3c43895bb6aa": "Braavolabs-Blog",
+    "me3020c8ef693": "Produktneuigkeiten, Entwicklungsnotizen und öffentliche Angaben zum Reifegrad von Braavolabs.",
+    "m237cecbe666d": "Änderungsprotokoll — Braavolabs",
+    "m22bcd4a9abed": "Öffentliche Braavolabs-Änderungsnotizen mit getrennter Kennzeichnung veröffentlichter und noch in Entwicklung befindlicher Arbeit.",
+    "m7cf63d5b37a7": "Braavolabs-Änderungsprotokoll",
+    "m9b27dd7fb727": "Öffentliche Änderungsnotizen mit getrennter Kennzeichnung veröffentlichter und noch in Entwicklung befindlicher Arbeit.",
+    "m8ec104ac0b8d": "Braavolabs im Vergleich",
+    "maafa6a889064": "Prüfe anbieterübergreifende Workflow-Anforderungen, Zugangskonfiguration und Bedienerkontrollen. Verifiziere aktuelle Produktfähigkeiten und Geschäftsbedingungen direkt.",
+    "md9141b7cff71": "Braavolabs im Vergleich — Braavolabs",
+    "m5358edf26d92": "Entdecke eine anbieterübergreifende Arbeitsumgebung mit ausdrücklicher Modellwahl, Konfiguration lokaler oder Cloud-Zugänge und unterstützten Bedienerkontrollen.",
+    "mc10f93cbb285": "Kontakt — Braavolabs",
+    "mac714bedbfdc": "Kontaktwege von Braavolabs für Support, Partnerschaften, Sicherheit und Datenschutzanfragen.",
+    "m5d4c651fc9a1": "Braavolabs kontaktieren",
+    "m224950150646": "Kontaktwege für Support, Partnerschaften, Sicherheit und Datenschutzanfragen.",
+    "m18c6bf133be5": "Kostenrechner — Braavolabs",
+    "md250d02e7765": "Statische Vorschau der geplanten Abonnementpreise für Individual und Team; Inferenz ist nicht enthalten.",
+    "m63664d2ded81": "Geplante Preisvorschau für Individual und Team; Abonnements sind derzeit nicht kaufbar.",
+    "m3ca87fbbac15": "Preisvorschau — Braavolabs",
+    "m4bd9b811878a": "Vorschau der geplanten Braavolabs-Abonnementpreise für Individual und Team. Ein Kauf ist derzeit nicht verfügbar und Inferenz ist nicht enthalten.",
+    "m81acc1f0380d": "Geplante Preise für Individual und Team. Ein Kauf ist derzeit nicht verfügbar und Inferenz ist nicht enthalten.",
+    "ma9faa242317f": "Dokumentation — Braavolabs",
+    "m365f82802c67": "Braavolabs-Dokumentation: erste Schritte, Einrichtung von BYOK und lokalen Zugangswegen, Steuerung während eines Laufs, Webhooks, externe Automatisierungsverbindungen, mobile App und FAQ.",
+    "mee84ba24e941": "Braavolabs-Dokumentation",
+    "m50dcefa5f29a": "Agenten-Workflows zusammenstellen und prüfen, dann unterstützte Läufe und Entscheidungen überwachen.",
+    "m57cd5295b6d6": "Funktionen — Braavolabs",
+    "m0d5ddd021521": "Öffentliche Produktgrenzen von Braavolabs bei Modellrouting, Datenmodi, Freigaben und Funktionsreife.",
+    "m076ced19e485": "Öffentliche Produktgrenzen bei Modellrouting, Datenmodi, Freigaben und Funktionsreife.",
+    "m804e9858225a": "Funktionen — Braavolabs",
+    "mcb18970cc53a": "Der öffentliche Produktumfang von Braavolabs für Ausführung, Steuerung, Datenmodus und Verifizierung.",
+    "mac377e08a5eb": "Vorschau der Informationen nach der DSGVO (GDPR)",
+    "m49fe3634c177": "Entwurf der Datenschutzinformationen nach der DSGVO (GDPR). Angaben zum verantwortlichen Betreiber, zur Verarbeitung, zu Empfängern, Aufbewahrung und Schutzmaßnahmen müssen vor der öffentlichen Registrierung noch vervollständigt werden.",
+    "m617c9c8f521f": "Braavolabs — Vorschau der Informationen nach der DSGVO (GDPR)",
+    "m5f3c445d83bb": "Vorschau der Informationen zu Verarbeitung und Rechten nach der DSGVO (GDPR); dies ist noch nicht die vollständige Information für die öffentliche Erhebung personenbezogener Daten.",
+    "m6481ac9863e9": "Vorschau der Informationen nach KVKK",
+    "m6465a09ee4b0": "Informationsentwurf nach KVKK. Angaben zum tatsächlichen Betreiber, zur Verarbeitung, zu Empfängern, Aufbewahrung und Schutzmaßnahmen müssen vor der öffentlichen Registrierung noch vervollständigt werden.",
+    "m4a89104ba3fb": "Braavolabs — Vorschau der Informationen nach KVKK",
+    "m354a5e2b9623": "Vorschau der Informationen zu Verarbeitung und Rechten nach KVKK; dies ist noch keine vollständige Datenschutzinformation.",
+    "mc60388ffa286": "Kontolöschung",
+    "m265910871d03": "So löschst du dein Braavolabs-Konto dauerhaft, welche Daten entfernt werden und wie du Unterstützung anforderst.",
+    "m7221097dfb51": "Braavolabs-Kontolöschung",
+    "md6e50ceecc93": "Preise — Braavolabs",
+    "m907e61f93ecc": "Geplante Preisvorschau: Individual 19 $/Monat und Team 39 $/aktivem Nutzer/Monat. Derzeit nicht kaufbar; Inferenz ist nicht enthalten.",
+    "mae42d1776ea3": "Passwort zurücksetzen",
+    "m81bf5e60c133": "Lege ein neues Passwort für dein Braavolabs-Konto fest.",
+    "m8931468be759": "Sicherheit — Braavolabs",
+    "m4fc24ac37ec4": "Sicherheitsgrenzen von Braavolabs für Modellschlüssel, Datenmodi, Freigaben und Produktreife.",
+    "m22ccccca604b": "Systemstatus — Braavolabs",
+    "m545df19cd499": "Live-Verfügbarkeitsprüfung für den öffentlichen API-Endpunkt von Braavolabs.",
+    "m5231bbf800e5": "Braavolabs-Systemstatus",
+    "m371d913a6d14": "Support — Braavolabs",
+    "m43f347f64d40": "Hilfe zu Braavolabs: Kontaktkanäle, Antwortzeiten, Hilfe bei Abrechnung und Abonnement, Kontolöschung und häufig gestellte Fragen.",
+    "me4c0f5357766": "Braavolabs-Support",
+    "mee5a52d3051f": "Kontaktkanäle, Antwortzeiten, Hilfe bei Abrechnung und Abonnement, Kontolöschung und häufig gestellte Fragen."
+  },
+  "runtime": {
+    "mb39b93c48c24": "Melde dich an, um eine Startvorlage zu verwenden.",
+    "m2eb2d91c4f3b": "Startvorlage konnte nicht erstellt werden.",
+    "mcdd1de1ae01a": "Startvorlage verwenden: {value0}",
+    "m838f9adcc123": "1 Testlauf",
+    "m9a021a4b3454": "{count, plural, one {# Testlauf} other {# Testläufe}}",
+    "ma5a28bb26fde": "{count, plural, one {# Agent} other {# Agenten}}",
+    "m014789a56e1d": "{count, plural, one {# Pipeline-Schritt} other {# Pipeline-Schritte}}",
+    "ma682e26e6a31": "Prognose konnte nicht geladen werden",
+    "m05d6a641b6be": "Speichern fehlgeschlagen",
+    "mab698ba77c6c": "Test konnte nicht geladen werden",
+    "m0118f642c901": "{value0} fehlgeschlagen",
+    "m69c8b86fae03": "Speichern fehlgeschlagen",
+    "m78e828adf24c": "Löschen fehlgeschlagen",
+    "m1368805fe919": "Aussteller",
+    "mb525865201ae": "Client-ID",
+    "ma2a8e033d138": "Weiterleitungs-URI",
+    "m092455f07cd1": "Berechtigungsbereiche",
+    "m6dc7542014dc": "Freigabeanfragen",
+    "m29a34a94a498": "Push-Benachrichtigung, wenn ein Lauf eine Ausgabenfreigabe benötigt",
+    "m84ed19090410": "Risiko-Stopp ausgelöst",
+    "mb195583a6e7f": "Push-Benachrichtigung, wenn ein Hard-Stopp einen Lauf anhält",
+    "m13641fc2a8c0": "Lauf abgeschlossen",
+    "m6e87b3db013a": "Benachrichtigen, wenn ein Lauf endet",
+    "m9d5e808eecb2": "{value0} $/Monat",
+    "m26f640894104": "{count, plural, one {# Lauf/Monat} other {# Läufe/Monat}}",
+    "m5e369d5a7fd5": "Selbst gehosteter lokaler Anbieter (Ollama / LM Studio)",
+    "mc058d692e6cc": "Ausgabenfreigabe erforderlich",
+    "me68fc6aed4e7": "Unterstützte Ausgabenaktionen",
+    "m04508baa9aeb": "Schwelle für Schleifenerkennung",
+    "m4021017c235b": "5 aufeinanderfolgende Fehler",
+    "m6774e7b32e15": "Schwelle für Kostenanomalien",
+    "md2687779b5c7": "20 % des Laufbudgets",
+    "m51e462c03da2": "Spamschutz",
+    "m10bc771116e0": "3+ unbeantwortet = blockiert",
+    "m7ae7fcaafb64": "Gedächtniseinträge automatisch hochstufen",
+    "me92d7c3eb5e2": "Konfidenz ≥ 0,7; Anzahl ≥ 3",
+    "m74769711684e": "Holding-Brain-Anforderung",
+    "m27e8635ece5f": "2+ Unternehmen mit demselben Muster",
+    "m31f4062639ad": "✓ Verbindung erfolgreich — Modellantwort: „{value0}“",
+    "mf0b59374b988": "Akquise-Pipeline bei neuem Lead auslösen",
+    "mc3af8f5ac774": "Inhalt zur Veröffentlichung freigegeben",
+    "m5275b74361ed": "Zahlung verarbeiten und CRM aktualisieren",
+    "m1cd72a8c1a04": "An einen Customer-Success-Agenten weiterleiten",
+    "m797c03ac6662": "Geworben",
+    "ma571fa84edbc": "Konvertiert",
+    "m48fa986d975f": "Prämien",
+    "me94e85e1777c": "Zu {value0} springen",
+    "m9b917859a22b": "Hervorgehobenen Beitrag lesen: {value0}",
+    "m5452b7363001": "Beitrag lesen: {value0}",
+    "ma735f1949098": "Dokumentation lesen: {value0}",
+    "m47982c49bbdd": "Mit Idee starten: {value0}",
+    "maabffdc5b99f": "{count, plural, one {# Agent} other {# Agenten}}",
+    "m4b89a821f42b": "Anzahl der Pipelines: {value0}",
+    "madc0d2e17f7e": "Akq.",
+    "mb5d24bc5498c": "Vertrieb",
+    "madf7dfd9a03b": "Betr.",
+    "mf61fa075a25a": "Anal.",
+    "m837fc70634da": "Ged.",
+    "m920294cc4569": "Inh.",
+    "m42ac3e609710": "Gov.",
+    "m7034fec532bb": "Support kontaktieren",
+    "m34f6a807aeb9": "Abonnements, Käufe und Rückerstattungen",
+    "m616706013792": "Häufige Fragen",
+    "me01516c0ee66": "Fehler melden",
+    "me4b47da679e8": "Richtlinien",
+    "m8e94897c7807": "Link zu {value0}",
+    "m6c6656e064e0": "Schritt {value0} {value1}, Kosten {value2}, Dauer {value3}",
+    "m9f9acdbf39bc": "Arbeitsbereiche",
+    "m3800b6e67ce8": "unbegrenzt bei {value0}",
+    "mdd0763b9fc75": "/Monat",
+    "m8502572a269d": "Einzelkonto",
+    "m8779b63b388b": "Inferenz nicht enthalten",
+    "m739f35478664": "BYOK des Mandanten oder lokale Anbieter",
+    "m4d03ba19634f": "5 Arbeitsbereiche",
+    "m7ab3157462b0": "Kein vom Tarif finanziertes Modellguthaben",
+    "m6c35c098be76": "/aktivem Nutzerplatz/Monat",
+    "ma8499c1fc913": "Abrechnung nach aktiven Nutzerplätzen",
+    "m5ad4deeaabd5": "20 Arbeitsbereiche",
+    "m3fcd392b558f": "Zusammenarbeit im Team",
+    "m1e3a5507bb67": " +{value0} mehr",
+    "ma301be6d35b3": " · zuletzt {value0}",
+    "m67cb524a0f61": "Zuletzt geprüft: {value0} (deine Ortszeit)",
+    "m45fd9c2d5d48": " · letzter Lauf {value0}",
+    "mfe990aab3694": "{value0} gestartet — Schritte eingereiht",
+    "m7a54036ca778": "Ausgabenfreigabe angefordert — {value0} wartet auf Prüfung",
+    "me54aaeee8d00": "Risikoereignis ausgelöst",
+    "mf7ae3905e563": "Exportieren",
+    "mcb6f0d51a4bc": "Verwende einen eigenen unterstützten Anbieterschlüssel oder einen konfigurierten lokalen Endpunkt.",
+    "me3cc0f802723": "Vom Telefon aus steuern und freigeben",
+    "m0bbeaac0b690": "Schritt {value0}",
+    "mc9d5631084a5": "Dashboard",
+    "m596d0616eb4f": "Pipelines",
+    "mc8f971fe29fd": "Läufe",
+    "ma865952c238b": "Agenten",
+    "m76c4258af622": "Unternehmen",
+    "ma4435cd673fd": "Auslöser",
+    "m2908b886157a": "Agent",
+    "meb5355c74849": "Werkzeugaufruf",
+    "m363f4a3ae095": "Freigabekontrolle",
+    "m6fd0e25bdccd": "Zweig",
+    "m08da7504b591": "Ausgabe",
+    "mb912b05f4583": "verkleinern",
+    "m550677a88028": "einpassen",
+    "m015ee12489d3": "vergrößern",
+    "m0d18e6731423": "Übersicht",
+    "m99c2fc0bb65c": "Löschung per E-Mail anfordern",
+    "md2fa5c7e5df0": "Verifizierung und nächste Schritte",
+    "me4c98c0271e8": "Aktuelle Verfügbarkeit",
+    "m000165a9f23d": "Was gelöscht wird",
+    "m4178821e2ee3": "Was wir aufbewahren — und warum",
+    "m21ce09941e6e": "Zeitlicher Ablauf",
+    "mc5d1045cc31b": "Aktive Abonnements",
+    "md772994860a6": "Fragen",
+    "localeSaveFailed": "Die Sprachpräferenz konnte nicht gespeichert werden. Prüfe die Cookie-Einstellungen des Browsers und versuche es erneut; die aktuelle Sprache bleibt unverändert.",
+    "workspaces": "{count, plural, one {# Arbeitsbereich} other {# Arbeitsbereiche}}",
+    "connectedAutomations": "{count, plural, one {# verbundene Automatisierung} other {# verbundene Automatisierungen}}",
+    "events": "{count, plural, one {# aufgezeichnetes Ereignis} other {# aufgezeichnete Ereignisse}}",
+    "channels": "{count, plural, one {# Kanal} other {# Kanäle}}",
+    "genericRest": "Allgemeine REST-Verbindung",
+    "providerOllama": "Ollama (selbst gehostet)",
+    "providerLmStudio": "LM Studio (selbst gehostet)",
+    "providerCustom": "Benutzerdefinierter OpenAI-kompatibler Anbieter",
+    "ollamaHint": "Installiere Ollama von ollama.com, führe `ollama pull gemma3:4b` aus und lasse anschließend `ollama serve` weiterlaufen.",
+    "lmStudioHint": "Installiere LM Studio von lmstudio.ai, lade ein Modell und starte dann seinen lokalen Server.",
+    "customProviderHint": "Konfiguriere einen OpenAI-kompatiblen Endpunkt unter /v1/chat/completions. Prüfe den Betreiber des Endpunkts und die Modellanforderungen.",
+    "directoryNote": "Dieses Verzeichnis enthält Integrationsbeispiele und Vorlagen. Es bestätigt nicht, dass jede Verbindung für dein Konto implementiert, konfiguriert oder verfügbar ist.",
+    "catalogEntry": "Verzeichniseintrag",
+    "supportedConnections": "Unterstützte Verbindungen prüfen",
+    "categoryMarketing": "Marketing",
+    "categorySales": "Vertrieb",
+    "categoryContent": "Inhalte",
+    "categoryOps": "Betrieb",
+    "categoryResearch": "Recherche",
+    "categoryFinance": "Finanzen",
+    "categorySupport": "Support",
+    "categoryFounder": "Gründer",
+    "providerKeys": "Verwende einen eigenen unterstützten Anbieterschlüssel oder einen konfigurierten lokalen Endpunkt.",
+    "connectionTestFailed": "Der Verbindungstest ist fehlgeschlagen. Prüfe die Konfiguration und versuche es erneut.",
+    "pipelineStepCount": "{count, plural, one {# Schritt} other {# Schritte}}",
+    "unknownState": "Unbekannter Zustand"
   }
 }

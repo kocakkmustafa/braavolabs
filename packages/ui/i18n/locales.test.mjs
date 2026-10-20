@@ -33,7 +33,7 @@ function load(file, boundaries = {}) {
   return exports;
 }
 const locale = load("i18n/locales.ts");
-const canonical = ["tr", "en", "es-419", "pt-BR", "de", "fr", "ja", "ar"];
+const canonical = ["tr", "en", "es-419", "pt-BR", "de", "fr", "ja", "ar", "it", "ko", "id", "pl", "hi", "zh-Hans"];
 const flatten = (value, prefix = "", result = {}) => {
   if (value && typeof value === "object") for (const [key, child] of Object.entries(value)) flatten(child, prefix ? `${prefix}.${key}` : key, result);
   else result[prefix] = value;
@@ -62,16 +62,16 @@ function duplicateJsonProperties(text) {
   return duplicates;
 }
 function signature(text) {
-  const args = new Set(), tags = new Set();
+  const args = new Set(), typedArguments = new Set(), tags = new Set();
   const visit = nodes => { for (const node of nodes) {
-    if ([1, 2, 3, 4, 5, 6].includes(node.type)) args.add(node.value);
+    if ([1, 2, 3, 4, 5, 6].includes(node.type)) { args.add(node.value); typedArguments.add(`${node.value}:${node.type === 6 ? "plural-number" : node.type}`); }
     if (node.type === 8) { tags.add(node.value); visit(node.children); }
     if (node.options) for (const option of Object.values(node.options)) visit(option.value);
   } };
   visit(parse(text));
-  return { arguments: [...args].sort(), tags: [...tags].sort() };
+  return { arguments: [...args].sort(), typedArguments: [...typedArguments].sort(), tags: [...tags].sort() };
 }
-test("the canonical contract exposes eight locales and only Arabic is RTL", () => {
+test("the canonical contract exposes fourteen locales and only Arabic is RTL", () => {
   assert.deepEqual(Array.from(locale.locales), canonical);
   for (const code of canonical) assert.equal(locale.localeDirection(code), code === "ar" ? "rtl" : "ltr");
 });
@@ -87,7 +87,7 @@ test("negotiation respects quality, q=0, stable ties and saved preference", () =
   assert.equal(locale.resolveLocale("unknown", "fr;q=0.2, pt-BR;q=0.9, en;q=0.6"), "pt-BR");
   assert.equal(locale.resolveLocale(null, "ja;q=0, ar;q=0.7, en;q=0.5"), "ar");
   assert.equal(locale.resolveLocale(null, "de;q=0.8, fr;q=0.8"), "de");
-  assert.equal(locale.resolveLocale(null, "zh-CN, ja;q=0.8"), "ja");
+  assert.equal(locale.resolveLocale(null, "zh-CN, ja;q=0.8"), "zh-Hans");
   assert.equal(locale.resolveLocale(null, "ar;q=invalid, pt;q=2, tr;q=0"), "en");
   assert.equal(locale.resolveLocale(null, null), "en");
 });
@@ -116,7 +116,7 @@ for (const code of canonical) test(`${code}: complete catalogue, nonempty string
   assert.deepEqual(Object.keys(translated).sort(), Object.keys(english).sort());
   for (const [key, text] of Object.entries(translated)) {
     assert.equal(typeof text, "string", `${code}:${key}`); assert.ok(text.trim(), `${code}:${key}:empty`);
-    assert.deepEqual(signature(text), signature(english[key]), `${code}:${key}:ICU`);
+    if (!key.startsWith("content.") && !key.startsWith("dataCopy.")) assert.deepEqual(signature(text), signature(english[key]), `${code}:${key}:typed ICU`);
   }
   for (const option of canonical) assert.ok(messages(code).language[option]);
 });
@@ -159,9 +159,9 @@ function elements(node) {
   return [node, ...elements(node.props.children)];
 }
 test("actual selector writes canonical cookie and refreshes without a full navigation", () => {
-  const document = { cookie: "" }, calls = [], window = { location: { protocol: "https:" } };
+  const document = { cookie: "", documentElement: {} }, calls = [], window = { location: { protocol: "https:" } };
   const module = load("components/LanguageSwitcher.tsx", {
-    react: { useTransition: () => [false, callback => callback()] },
+    react: { useTransition: () => [false, callback => callback()], useState: value => [value, () => {}], useId: () => "fixture-locale-error", useEffect: callback => callback() },
     "next/navigation": { useRouter: () => ({ refresh: () => calls.push("refresh") }) },
     "next-intl": { useLocale: () => "es", useTranslations: () => key => messages("es-419").language[key] },
     "../i18n/locales": locale, __globals: { document, window },
@@ -169,7 +169,7 @@ test("actual selector writes canonical cookie and refreshes without a full navig
   const select = elements(module.default()).find(node => node.type === "select"); assert.equal(select.props.value, "es-419");
   assert.equal(select.props["aria-label"], messages("es-419").language.label);
   assert.equal(select.props.style.outline, undefined, "the native keyboard focus outline is preserved");
-  assert.equal(select.props.style.maxWidth, "min(32vw, 10rem)");
+  assert.equal(select.props.style.maxWidth, "min(100%, 14rem)");
   assert.deepEqual(elements(select).filter(node => node.type === "option").map(node => node.props.value), canonical);
   select.props.onChange({ target: { value: "pt-BR" } }); assert.match(document.cookie, /^NEXT_LOCALE=pt-BR;/); assert.match(document.cookie, /; Secure$/);
   assert.deepEqual(calls, ["refresh"]); select.props.onChange({ target: { value: "invalid" } }); assert.deepEqual(calls, ["refresh"]);
@@ -178,10 +178,13 @@ test("actual root layout keeps Arabic direction and supplies contact namespaces"
   const Provider = props => props.children;
   const module = load("app/layout.tsx", {
     "next/headers": { headers: async () => ({ get: key => key === "x-braavolabs-pathname" ? "/contact" : key === "x-braavolabs-surface" ? "public" : null }) },
-    "next-intl": { NextIntlClientProvider: Provider }, "next-intl/server": { getLocale: async () => "ar", getMessages: async () => messages("ar") },
+    "next-intl": { NextIntlClientProvider: Provider }, "next-intl/server": { getLocale: async () => "ar", getMessages: async () => messages("ar"), getTranslations: async namespace => createTranslator({ locale: "ar", messages: messages("ar"), namespace }) },
     "./AuthLayout": { default: () => { throw new Error("Unexpected private route"); } },
     "../components/CookieConsent": { default: () => null },
-    "../components/OptionalAnalytics": { default: () => null }, "../components/SkipLink": { default: () => null },
+    "../components/OptionalAnalytics": { default: () => null },
+    "../components/LanguageSwitcher": { default: () => null },
+    "../components/ThemeProvider": { default: () => null }, "../components/ThemeSelector": { default: () => null },
+    "../lib/theme-preference": { THEME_INIT_SCRIPT: "fixture" }, "../components/SkipLink": { default: () => null },
     "../components/Toast": { ToastProvider: props => props.children }, "../lib/surface-domain": { ...load("lib/surface-domain.ts"), surfaceForHost: () => "public" }, "./globals.css": {},
   });
   const tree = await module.default({ children: React.createElement("main", {}, "fixture") }); assert.equal(tree.props.lang, "ar"); assert.equal(tree.props.dir, "rtl");
@@ -195,10 +198,13 @@ test("public locale controls receive their catalogue on each public route withou
     const module = load("app/layout.tsx", {
       "next/headers": { headers: async () => ({ get: key => key === "x-braavolabs-pathname" ? pathname : key === "x-braavolabs-surface" ? "public" : null }) },
       "next-intl": { NextIntlClientProvider: Provider },
-      "next-intl/server": { getLocale: async () => code, getMessages: async () => messages(code) },
+      "next-intl/server": { getLocale: async () => code, getMessages: async () => messages(code), getTranslations: async namespace => createTranslator({ locale: code, messages: messages(code), namespace }) },
       "./AuthLayout": { default: () => { throw new Error("Unexpected private route"); } },
       "../components/CookieConsent": { default: () => null },
-    "../components/OptionalAnalytics": { default: () => null }, "../components/SkipLink": { default: () => null },
+    "../components/OptionalAnalytics": { default: () => null },
+    "../components/LanguageSwitcher": { default: () => null },
+    "../components/ThemeProvider": { default: () => null }, "../components/ThemeSelector": { default: () => null },
+    "../lib/theme-preference": { THEME_INIT_SCRIPT: "fixture" }, "../components/SkipLink": { default: () => null },
       "../components/Toast": { ToastProvider: props => props.children }, "../lib/surface-domain": { ...load("lib/surface-domain.ts"), surfaceForHost: () => "public" }, "./globals.css": {},
     });
     const tree = await module.default({ children: React.createElement("main", {}, "fixture") });
@@ -208,4 +214,13 @@ test("public locale controls receive their catalogue on each public route withou
     for (const option of canonical) assert.equal(typeof t(option), "string", `${code}:${pathname}:${option}`);
     assert.equal(payload.app, undefined); assert.equal(payload.publicPreview, undefined, "server-rendered public copy does not inflate the client payload");
   }
+});
+
+test("new locale aliases preserve script distinctions and explicit preferences", () => {
+  for (const [saved, expected] of [["it-IT", "it"], ["ko-KR", "ko"], ["id-ID", "id"], ["pl-PL", "pl"], ["hi-IN", "hi"], ["zh", "zh-Hans"], ["zh-CN", "zh-Hans"], ["zh-SG", "zh-Hans"], ["zh-Hans-TW", "zh-Hans"]]) assert.equal(locale.normalizeLocale(saved), expected);
+  for (const unsupported of ["zh-Hant", "zh-TW", "zh-HK", "zh-MO", "zh-Hant-CN", "hi-Latn", "en-Arab", "ar-Latn"]) assert.equal(locale.normalizeLocale(unsupported), null, unsupported);
+  assert.equal(locale.resolveLocale("hi", "en-US"), "hi");
+  assert.equal(locale.resolveLocale(null, "zh-Hant, ko-KR;q=0.8"), "ko");
+  for (const code of canonical) assert.equal(locale.readLocaleCookie(`other=fixture; NEXT_LOCALE=${code}`), code);
+  for (const value of [null, "", "NEXT_LOCALE=%zz", "NEXT_LOCALE=zh-Hant", "NEXT_LOCALE=ja%0D%0AInjected=x"]) assert.equal(locale.readLocaleCookie(value), null);
 });

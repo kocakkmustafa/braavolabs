@@ -1,8 +1,15 @@
 "use client";
+import { useLocale as useRelativeLocale } from "next-intl";
+
+import { useTranslations as useRuntimeTranslations } from "next-intl";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { timeAgo } from "../../lib/timeAgo";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 
@@ -20,7 +27,7 @@ const CATEGORIES = [
 ];
 
 // Hardcoded webhook templates for frontend-only rendering
-const WEBHOOK_TEMPLATES = [
+const RAW_WEBHOOK_TEMPLATES = [
   // E-commerce
   { id: "shopify_order_created", name: "Shopify — New Order", category: "ecommerce", icon: "🛍️", provider: "Shopify", eventType: "orders/create", description: "Trigger when a new order is placed in your Shopify store", popularity: 95, setupInstructions: "Go to Shopify Admin > Settings > Notifications > Webhooks > Create webhook", samplePayload: { id: 5362491, order_number: "#1042", total_price: "149.99", customer: { email: "john@example.com", first_name: "John" } } },
   { id: "shopify_product_updated", name: "Shopify — Product Updated", category: "ecommerce", icon: "🛍️", provider: "Shopify", eventType: "products/update", description: "Trigger when a product is modified in Shopify", popularity: 72, setupInstructions: "Go to Shopify Admin > Settings > Notifications > Webhooks", samplePayload: { id: 788032119, title: "AI Widget Pro", status: "active", variants: [{ price: "29.99" }] } },
@@ -85,28 +92,24 @@ interface LiveHook {
   lastAt?: string;
 }
 
-function timeAgo(iso?: string): string | null {
-  if (!iso) return null;
-  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return `${Math.round(s)}s ago`;
-  if (s < 3600) return `${Math.round(s / 60)}m ago`;
-  if (s < 86400) return `${Math.round(s / 3600)}h ago`;
-  return `${Math.round(s / 86400)}d ago`;
-}
-
 function HookCard({ hook }: { hook: LiveHook }) {
+  const relativeLocale = useRelativeLocale();
+  const runtimeCopy = useRuntimeTranslations("runtime");
+  const commonCopy = useTranslations();
+  const uiText = useLegacyTranslations("uiCopy");
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
   const [secretVisible, setSecretVisible] = useState(false);
 
   const isDelivering = hook.eventCount > 0;
-  const last = timeAgo(hook.lastAt);
+  const last = timeAgo(hook.lastAt, relativeLocale);
 
-  function handleCopy() {
-    navigator.clipboard
-      .writeText(`https://braavolabs.com/hooks/${hook.slug}/`)
-      .catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1400);
+  async function handleCopy() {
+    setCopied(false); setCopyFailed(false);
+    try {
+      await navigator.clipboard.writeText(`https://braavolabs.com/hooks/${hook.slug}/`);
+      setCopied(true);
+    } catch { setCopyFailed(true); }
   }
 
   return (
@@ -127,8 +130,8 @@ function HookCard({ hook }: { hook: LiveHook }) {
           <span
             className={`bv-dot ${isDelivering ? "bv-completed bv-ping" : "bv-paused"}`}
           />
-          {isDelivering ? "receiving" : "idle"}
-          {last ? ` · last ${last}` : " · no deliveries yet"}
+          {isDelivering ?uiText("mc03e218a0c3c") :uiText("mc09be1de9eb2")}
+          {last ? runtimeCopy("ma301be6d35b3", { value0: last }) :uiText("m67487c4d674f")}
         </span>
       </div>
 
@@ -152,14 +155,14 @@ function HookCard({ hook }: { hook: LiveHook }) {
           className="bv-btn bv-btn-ghost bv-btn-sm flex-none"
           style={copied ? { color: "var(--color-primary)", borderColor: "rgba(59,130,246,0.45)" } : {}}
         >
-          {copied ? "Copied ✓" : "Copy"}
+          {copied ?uiText("m8f3eb54aeb83") :uiText("m6e80efd48eb4")}
         </button>
       </div>
 
       {/* HMAC secret row */}
       {hook.secret && (
         <div className="flex items-center gap-2.5 mt-2.5 bv-mono text-[12.5px] text-on-surface-variant">
-          <span>HMAC secret:</span>
+          <span>{uiText("m8e37387d42dc")}</span>
           <span className="text-on-surface tracking-widest">
             {secretVisible ? hook.secret : "••••••••••••••"}
           </span>
@@ -167,10 +170,12 @@ function HookCard({ hook }: { hook: LiveHook }) {
             onClick={() => setSecretVisible((v) => !v)}
             className="bv-btn bv-btn-ghost bv-btn-sm"
           >
-            {secretVisible ? "Hide" : "Reveal"}
+            {secretVisible ?uiText("m33733931aae0") :uiText("m313faf245f17")}
           </button>
         </div>
       )}
+
+      {copyFailed && <p role="status" className="text-sm text-error">{commonCopy("app.exportBundle.copyFailed")}</p>}
 
       {/* Footer row — real recent-event count */}
       <div className="flex items-center gap-4 mt-4">
@@ -178,7 +183,7 @@ function HookCard({ hook }: { hook: LiveHook }) {
           className="bv-mono text-[11.5px]"
           style={{ color: "var(--color-outline)" }}
         >
-          {hook.eventCount.toLocaleString()} recent event{hook.eventCount === 1 ? "" : "s"}
+          {runtimeCopy("events", { count: hook.eventCount })}
         </span>
       </div>
     </div>
@@ -186,6 +191,9 @@ function HookCard({ hook }: { hook: LiveHook }) {
 }
 
 export default function WebhooksPage() {
+  const dataCopy = useLegacyTranslations("dataCopy");
+  const WEBHOOK_TEMPLATES = RAW_WEBHOOK_TEMPLATES.map((entry, index) => ({ ...entry, name: dataCopy.raw(`webhooks.${entry.id}.name`) as string, description: dataCopy.raw(`webhooks.${entry.id}.description`) as string, setupInstructions: dataCopy.raw(`webhooks.${entry.id}.setupInstructions`) as string }));
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
   const { token, hydrated } = useAuthGuard();
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -235,13 +243,13 @@ export default function WebhooksPage() {
       tmpl.provider.toLowerCase().includes(search.toLowerCase());
     const matchCategory = !selectedCategory || tmpl.category === selectedCategory;
     return matchSearch && matchCategory;
-  }).sort((a, b) => b.popularity - a.popularity);
+  });
 
   if (!hydrated || !token)
     return (
       <div
         className="flex items-center justify-center min-h-screen"
-        style={{ background: "#0a0d14" }}
+        style={{ background: "var(--color-background)" }}
       >
         <div className="loading-dots">
           <span />
@@ -257,10 +265,8 @@ export default function WebhooksPage() {
       {/* ── Page head ── */}
       <div className="bv-page-head mb-7">
         <div>
-          <p className="bv-micro mb-1" style={{ color: "var(--color-outline)" }}>
-            Integrations
-          </p>
-          <h1 className="bv-headline gradient-text">Webhooks</h1>
+          <p className="bv-micro mb-1" style={{ color: "var(--color-outline)" }}>{uiText("m67501930af73")}</p>
+          <h1 className="bv-headline gradient-text">{uiText("m032825c952b0")}</h1>
           <p className="bv-caption mt-1" style={{ color: "var(--color-on-surface-variant)" }}>
             {t("app.webhooks.subtitleTemplate", { count: WEBHOOK_TEMPLATES.length })}
           </p>
@@ -273,23 +279,14 @@ export default function WebhooksPage() {
           className="bv-title mb-4 flex items-center gap-2"
           style={{ fontFamily: "var(--bv-font-display)", textTransform: "uppercase", letterSpacing: "0.06em", fontSize: 12 }}
         >
-          <span className="bv-dot bv-completed bv-ping" />
-          Live Endpoints
-        </h2>
+          <span className="bv-dot bv-completed bv-ping" />{uiText("m8e07c14fe364")}</h2>
         {liveHooks === null ? (
-          <div className="bv-glass rounded-2xl px-5 py-6 mb-6 bv-caption" style={{ color: "var(--color-on-surface-variant)" }}>
-            Loading your endpoints…
-          </div>
+          <div className="bv-glass rounded-2xl px-5 py-6 mb-6 bv-caption" style={{ color: "var(--color-on-surface-variant)" }}>{uiText("m070d79b59b0a")}</div>
         ) : liveHooks.length === 0 ? (
           <div className="bv-glass rounded-2xl px-5 py-6 mb-6">
-            <p className="bv-caption" style={{ color: "var(--color-on-surface-variant)", margin: 0 }}>
-              Each workspace gets a signed fan-in endpoint at{" "}
-              <code className="bv-mono">/hooks/&lt;workspace&gt;/&lt;event&gt;</code>. Create your
-              first workspace to start receiving events.
-            </p>
-            <Link href="/companies/new" className="bv-btn bv-btn-primary bv-btn-sm mt-4" style={{ display: "inline-flex", textDecoration: "none" }}>
-              Create a workspace
-            </Link>
+            <p className="bv-caption" style={{ color: "var(--color-on-surface-variant)", margin: 0 }}>{uiText("m621423f8719e")}{" "}
+              <code className="bv-mono">/hooks/&lt;workspace&gt;/&lt;event&gt;</code>{uiText("mab1707b54d07")}</p>
+            <Link href="/companies/new" className="bv-btn bv-btn-primary bv-btn-sm mt-4" style={{ display: "inline-flex", textDecoration: "none" }}>{uiText("m0e54282c3be1")}</Link>
           </div>
         ) : (
           <div className="flex flex-col gap-3.5 mb-6">
@@ -305,9 +302,7 @@ export default function WebhooksPage() {
         <h2
           className="bv-title mb-4"
           style={{ fontFamily: "var(--bv-font-display)", textTransform: "uppercase", letterSpacing: "0.06em", fontSize: 12, color: "var(--color-on-surface-variant)" }}
-        >
-          Sample signed request
-        </h2>
+        >{uiText("ma06584ff70f2")}</h2>
         <div
           className="rounded-2xl overflow-hidden"
           style={{
@@ -323,9 +318,7 @@ export default function WebhooksPage() {
               color: "var(--color-on-surface-variant)",
             }}
           >
-            <span className="bv-dot bv-completed" />
-            POST · HMAC-SHA256 signature
-          </div>
+            <span className="bv-dot bv-completed" />{uiText("m60e512a99f97")}</div>
           {/* Code body */}
           <pre
             className="m-0 px-5 py-5 bv-mono text-[12.5px] overflow-x-auto"
@@ -456,20 +449,6 @@ export default function WebhooksPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3 flex-shrink-0">
-                  <div className="flex items-center gap-1">
-                    <span
-                      className="material-symbols-outlined"
-                      style={{ fontSize: 12, color: "#FF7A1A" }}
-                    >
-                      star
-                    </span>
-                    <span
-                      className="bv-mono text-[10px]"
-                      style={{ color: "var(--color-outline)" }}
-                    >
-                      {template.popularity}%
-                    </span>
-                  </div>
                   <span
                     className="material-symbols-outlined"
                     style={{

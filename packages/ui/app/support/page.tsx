@@ -1,3 +1,8 @@
+
+import { useTranslations as useRuntimeTranslations } from "next-intl";
+import { getTranslations as getSeoTranslations } from "next-intl/server";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
 /**
  * Public support landing page.
  *
@@ -12,181 +17,130 @@
 
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Support — Braavolabs",
+export async function generateMetadata(): Promise<Metadata> {
+  const seo = await getSeoTranslations("seo");
+  return {
+  title: seo("m371d913a6d14"),
   description:
-    "Get help with Braavolabs: contact channels, response times, billing and subscription help, account deletion, and frequently asked questions.",
+    seo("m43f347f64d40"),
   alternates: { canonical: "https://www.braavolabs.com/support" },
   openGraph: {
-    title: "Braavolabs Support",
+    title: seo("me4c0f5357766"),
     description:
-      "Contact channels, response times, billing and subscription help, account deletion, and frequently asked questions.",
+      seo("mee5a52d3051f"),
     url: "https://www.braavolabs.com/support",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }],
   },
 };
+}
 
-const sections = [
-  {
-    id: "contact",
-    title: "Contact support",
-    icon: "support_agent",
-    content: (
-      <>
-        <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
-          The fastest way to reach a human is email. Write to{" "}
-          <a
-            href="mailto:support@braavolabs.com"
-            className="text-primary underline hover:text-primary-fixed transition-colors"
-          >
-            support@braavolabs.com
-          </a>{" "}
-          from any address — include the email you signed up with so we can locate your account. We
-          answer within <strong className="text-on-surface font-medium">1 business day</strong>, usually much
-          faster. You can also use the{" "}
-          <a href="/contact" className="text-primary underline hover:text-primary-fixed transition-colors">
-            contact form
-          </a>{" "}
-          if you prefer not to open your mail client.
-        </p>
-        <ul className="text-[15.5px] leading-[1.8] text-on-surface-variant pl-[22px] list-disc mb-[18px] space-y-2">
-          <li>
-            <strong className="text-on-surface font-medium">Billing &amp; subscriptions</strong> —{" "}
-            <a href="mailto:support@braavolabs.com" className="text-primary underline hover:text-primary-fixed transition-colors">
-              support@braavolabs.com
-            </a>
-          </li>
-          <li>
-            <strong className="text-on-surface font-medium">Privacy &amp; data rights</strong> —{" "}
-            <a href="mailto:privacy@braavolabs.com" className="text-primary underline hover:text-primary-fixed transition-colors">
-              privacy@braavolabs.com
-            </a>
-          </li>
-          <li>
-            <strong className="text-on-surface font-medium">Security reports</strong> —{" "}
-            <a href="mailto:security@braavolabs.com" className="text-primary underline hover:text-primary-fixed transition-colors">
-              security@braavolabs.com
-            </a>
-          </li>
-        </ul>
-      </>
-    ),
-  },
-  {
-    id: "subscriptions",
-    title: "Subscriptions, purchases & refunds",
-    icon: "subscriptions",
-    content: (
-      <>
-        <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
-          Mobile subscriptions are billed by Apple or Google, not by us, and renew automatically until
-          cancelled. To view, change, or cancel: on iOS open{" "}
-          <strong className="text-on-surface font-medium">Settings → your name → Subscriptions</strong>; on
-          Android open <strong className="text-on-surface font-medium">Google Play → Profile → Payments &amp;
-          subscriptions</strong>. Refunds for store purchases are handled by Apple
-          (reportaproblem.apple.com) or Google Play according to their policies — if you get stuck,
-          email us and we will help you through it. Web subscriptions billed via Stripe can be managed
-          from <strong className="text-on-surface font-medium">Settings → Billing</strong> inside the app.
-        </p>
-      </>
-    ),
-  },
-  {
-    id: "faq",
-    title: "Frequent questions",
-    icon: "quiz",
-    content: (
-      <>
-        <ul className="text-[15.5px] leading-[1.8] text-on-surface-variant pl-[22px] list-disc mb-[18px] space-y-2">
-          <li>
-            <strong className="text-on-surface font-medium">Which AI providers does Braavolabs use?</strong>{" "}
-            Braavolabs is bring-your-own-key: your workspace only talks to the providers you connect
-            in <em>Settings → AI Providers</em> (Anthropic, OpenAI, Google, Mistral, Groq, and others),
-            or to a configured local route. Run history shows every call an agent
-            makes.
-          </li>
-          <li>
-            <strong className="text-on-surface font-medium">Why is my pipeline paused?</strong> Risk stops
-            (budget overruns, repeated failures, spend approvals waiting) pause runs automatically.
-            Check <em>Approvals</em> in the app — approving or editing the pending step resumes the run.
-          </li>
-          <li>
-            <strong className="text-on-surface font-medium">How do I delete my account?</strong> In the app:{" "}
-            <em>Settings → Delete account</em>. Without the app, follow the steps on the{" "}
-            <a href="/legal/account-deletion" className="text-primary underline hover:text-primary-fixed transition-colors">
-              account &amp; data deletion
-            </a>{" "}
-            page.
-          </li>
-          <li>
-            <strong className="text-on-surface font-medium">Is the platform up?</strong> Live service health is
-            published on the{" "}
-            <a href="/status" className="text-primary underline hover:text-primary-fixed transition-colors">
-              status page
-            </a>
-            .
-          </li>
-        </ul>
-      </>
-    ),
-  },
-  {
-    id: "report-a-problem",
-    title: "Report a bug",
-    icon: "bug_report",
-    content: (
-      <>
-        <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
-          Email{" "}
-          <a
-            href="mailto:support@braavolabs.com?subject=Bug%20report"
-            className="text-primary underline hover:text-primary-fixed transition-colors"
-          >
-            support@braavolabs.com
-          </a>{" "}
-          with what you expected, what happened instead, and roughly when it happened. On mobile,
-          attaching a screenshot and your app version (shown at the bottom of{" "}
-          <strong className="text-on-surface font-medium">Settings</strong>) shortens the round-trip
-          considerably.
-        </p>
-      </>
-    ),
-  },
-  {
-    id: "legal",
-    title: "Policies",
-    icon: "gavel",
-    content: (
-      <>
-        <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">
-          Everything we promise in writing:{" "}
-          <a href="/privacy" className="text-primary underline hover:text-primary-fixed transition-colors">
-            Privacy Policy
-          </a>
-          ,{" "}
-          <a href="/terms" className="text-primary underline hover:text-primary-fixed transition-colors">
-            Terms of Use
-          </a>
-          ,{" "}
-          <a href="/gdpr" className="text-primary underline hover:text-primary-fixed transition-colors">
-            GDPR Statement
-          </a>
-          ,{" "}
-          <a href="/kvkk" className="text-primary underline hover:text-primary-fixed transition-colors">
-            KVKK Aydınlatma Metni
-          </a>{" "}
-          and the{" "}
-          <a href="/legal/account-deletion" className="text-primary underline hover:text-primary-fixed transition-colors">
-            account &amp; data deletion
-          </a>{" "}
-          process.
-        </p>
-      </>
-    ),
-  },
-];
+
 
 export default function SupportPage() {
+  const runtimeCopy = useRuntimeTranslations("runtime");
+  const uiText = useLegacyTranslations("uiCopy");
+  const copy = useLegacyTranslations("surface.support");
+  const sections = [
+    {
+      id: "contact",
+      title: runtimeCopy("m7034fec532bb"),
+      icon: "support_agent",
+      content: (
+        <>
+          <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">{copy("emailIntro")}{" "}
+            <a
+              href="mailto:support@braavolabs.com"
+              className="text-primary underline hover:text-primary-fixed transition-colors"
+            >
+              support@braavolabs.com
+            </a>{" "}{copy("responseTime")}{" "}
+            <a href="/contact" className="text-primary underline hover:text-primary-fixed transition-colors">{uiText("m89dc05ffd2b2")}</a>{" "}{uiText("m083a2705391c")}</p>
+          <ul className="text-[15.5px] leading-[1.8] text-on-surface-variant pl-[22px] list-disc mb-[18px] space-y-2">
+            <li>
+              <strong className="text-on-surface font-medium">{uiText("m366977224408")}</strong> —{" "}
+              <a href="mailto:support@braavolabs.com" className="text-primary underline hover:text-primary-fixed transition-colors">
+                support@braavolabs.com
+              </a>
+            </li>
+            <li>
+              <strong className="text-on-surface font-medium">{uiText("m8cb8b49fe281")}</strong> —{" "}
+              <a href="mailto:privacy@braavolabs.com" className="text-primary underline hover:text-primary-fixed transition-colors">
+                privacy@braavolabs.com
+              </a>
+            </li>
+            <li>
+              <strong className="text-on-surface font-medium">{uiText("m771454b72f87")}</strong> —{" "}
+              <a href="mailto:security@braavolabs.com" className="text-primary underline hover:text-primary-fixed transition-colors">
+                security@braavolabs.com
+              </a>
+            </li>
+          </ul>
+        </>
+      ),
+    },
+    {
+      id: "subscriptions",
+      title: runtimeCopy("m34f6a807aeb9"),
+      icon: "subscriptions",
+      content: (
+        <>
+          <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">{uiText("m97ffe5296db2")}{" "}
+            <strong className="text-on-surface font-medium">{uiText("m1fc91bf085eb")}</strong>{uiText("md62504ec7e39")}{" "}<strong className="text-on-surface font-medium">{uiText("mb71b1e7e1c1e")}</strong>{uiText("m9ad3281dcc2d")}{" "}<strong className="text-on-surface font-medium">{uiText("m9b8015792921")}</strong>{" "}{uiText("mfa4b446e8ff6")}</p>
+        </>
+      ),
+    },
+    {
+      id: "faq",
+      title: runtimeCopy("m616706013792"),
+      icon: "quiz",
+      content: (
+        <>
+          <ul className="text-[15.5px] leading-[1.8] text-on-surface-variant pl-[22px] list-disc mb-[18px] space-y-2">
+            <li><strong className="text-on-surface font-medium">{uiText("mdb4dc1cc9096")}</strong>{" "}{uiText("ma6211b5db44c")}</li>
+            <li><strong className="text-on-surface font-medium">{uiText("m8e6535637cb8")}</strong>{" "}{runtimeCopy("providerKeys")}</li>
+            <li><strong className="text-on-surface font-medium">{uiText("me8234ddd08d0")}</strong>{" "}<a href="/legal/account-deletion" className="text-primary underline hover:text-primary-fixed transition-colors">{uiText("m301aee668176")}</a></li>
+            <li><strong className="text-on-surface font-medium">{uiText("m3cb779dfce49")}</strong>{" "}<a href="/status" className="text-primary underline hover:text-primary-fixed transition-colors">{uiText("m652cc7ed28eb")}</a></li>
+          </ul>
+        </>
+      ),
+    },
+    {
+      id: "report-a-problem",
+      title: runtimeCopy("me01516c0ee66"),
+      icon: "bug_report",
+      content: (
+        <>
+          <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">{uiText("mb29ed7325631")}{" "}
+            <a
+              href="mailto:support@braavolabs.com?subject=Bug%20report"
+              className="text-primary underline hover:text-primary-fixed transition-colors"
+            >
+              support@braavolabs.com
+            </a>{" "}{uiText("mc878475dd7ed")}{" "}
+            <strong className="text-on-surface font-medium">{uiText("m3dbf7d618644")}</strong>{uiText("mb142b8b38188")}</p>
+        </>
+      ),
+    },
+    {
+      id: "legal",
+      title: runtimeCopy("me4b47da679e8"),
+      icon: "gavel",
+      content: (
+        <>
+          <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">{uiText("ma16f308c1827")}{" "}
+            <a href="/privacy" className="text-primary underline hover:text-primary-fixed transition-colors">{uiText("mf5be8b9e2a4f")}</a>
+            ,{" "}
+            <a href="/terms" className="text-primary underline hover:text-primary-fixed transition-colors">{uiText("m337507465f44")}</a>
+            ,{" "}
+            <a href="/gdpr" className="text-primary underline hover:text-primary-fixed transition-colors">{uiText("m7ba5c42d05d5")}</a>
+            ,{" "}
+            <a href="/kvkk" className="text-primary underline hover:text-primary-fixed transition-colors">{uiText("mc8d0aedb0025")}</a>{" "}{uiText("m668b03bf599d")}{" "}
+            <a href="/legal/account-deletion" className="text-primary underline hover:text-primary-fixed transition-colors">{uiText("m981862dbff04")}</a>{" "}{uiText("m7ec4811747eb")}</p>
+        </>
+      ),
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-background bv-mesh">
       {/* ── Nav ── */}
@@ -199,13 +153,13 @@ export default function SupportPage() {
             <span className="font-headline font-bold text-sm text-on-surface">Braavolabs</span>
           </a>
           <div className="hidden md:flex items-center gap-6">
-            <a href="/features" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">Features</a>
-            <a href="/pricing" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">Pricing</a>
-            <a href="/about" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">About</a>
+            <a href="/features" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{uiText("maf2d75b446d2")}</a>
+            <a href="/pricing" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{uiText("mf11c295fe6b2")}</a>
+            <a href="/about" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{uiText("ma046b81f5cad")}</a>
           </div>
           <div className="flex items-center gap-3">
-            <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm text-sm">Sign in</a>
-            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm text-sm">Open app</a>
+            <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm text-sm">{uiText("ma833a458dc85")}</a>
+            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm text-sm">{uiText("mdc1d31161f04")}</a>
           </div>
         </div>
       </nav>
@@ -215,31 +169,19 @@ export default function SupportPage() {
         <div className="relative max-w-[1100px] mx-auto px-6">
           <div className="flex items-center justify-center gap-2 mb-4">
             <span className="bv-pill bv-pill-cyan">
-              <span className="material-symbols-outlined" style={{ fontSize: 12 }}>support_agent</span>
-              Support
-            </span>
+              <span className="material-symbols-outlined" style={{ fontSize: 12 }}>support_agent</span>{uiText("m0a40adc25a52")}</span>
           </div>
 
-          <h1 className="font-headline font-semibold uppercase tracking-tight text-on-surface text-[clamp(34px,5vw,60px)] leading-[1.05] mb-3">
-            How can we help?
-          </h1>
-          <p className="text-on-surface-variant max-w-[60ch] mx-auto">
-            Real answers from the people who build Braavolabs — typically within one business day.
-          </p>
+          <h1 className="font-headline font-semibold uppercase tracking-tight text-on-surface text-[clamp(34px,5vw,60px)] leading-[1.05] mb-3">{uiText("mefb78ad514f6")}</h1>
+          <p className="text-on-surface-variant max-w-[60ch] mx-auto">{copy("intro")}</p>
 
           <div className="flex flex-wrap justify-center gap-3 mt-8">
             <a href="mailto:support@braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm">
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>mail</span>
-              Email support
-            </a>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>mail</span>{uiText("m0dff0c2e8740")}</a>
             <a href="/contact" className="bv-btn bv-btn-ghost bv-btn-sm">
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>edit_note</span>
-              Contact form
-            </a>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>edit_note</span>{uiText("mdc8b49376a22")}</a>
             <a href="/status" className="bv-btn bv-btn-ghost bv-btn-sm">
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>monitor_heart</span>
-              Service status
-            </a>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>monitor_heart</span>{uiText("m5368a784c155")}</a>
           </div>
         </div>
       </header>
@@ -247,8 +189,8 @@ export default function SupportPage() {
       {/* ── Article grid (TOC + prose) ── */}
       <div className="max-w-[1040px] mx-auto px-6 md:px-8 mt-10 mb-24 grid grid-cols-1 md:grid-cols-[230px_1fr] gap-12">
         {/* Sticky TOC (desktop) */}
-        <nav className="hidden md:block sticky top-[72px] self-start" aria-label="On this page">
-          <p className="bv-micro mb-[14px]">On this page</p>
+        <nav className="hidden md:block sticky top-[72px] self-start" aria-label={uiText("m57cd0c28916e")}>
+          <p className="bv-micro mb-[14px]">{uiText("m57cd0c28916e")}</p>
           <div className="flex flex-col">
             {sections.map((s) => (
               <a
@@ -279,7 +221,7 @@ export default function SupportPage() {
                 <a
                   href={`#${s.id}`}
                   className="opacity-0 group-hover:opacity-100 text-[15px] text-primary no-underline transition-opacity"
-                  aria-label={`Link to ${s.title}`}
+                  aria-label={runtimeCopy("m8e94897c7807", { value0: s.title })}
                 >
                   ¶
                 </a>
@@ -292,10 +234,8 @@ export default function SupportPage() {
           {/* CTA card */}
           <div className="mt-10 bv-glass p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="flex-1">
-              <p className="bv-title mb-1">Still stuck?</p>
-              <p className="bv-caption">
-                Write to us — a founder reads every message, in English or Turkish.
-              </p>
+              <p className="bv-title mb-1">{uiText("m97e6379af81c")}</p>
+              <p className="bv-caption">{uiText("m4a375a6c78be")}</p>
             </div>
             <div className="flex gap-3 flex-shrink-0">
               <a href="mailto:support@braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm">
@@ -318,31 +258,29 @@ export default function SupportPage() {
                 </div>
                 <span className="font-headline font-bold text-sm text-on-surface">Braavolabs</span>
               </a>
-              <p className="text-sm text-on-surface-variant leading-relaxed">
-                Command the AI agents &amp; automations you already run.
-              </p>
+              <p className="text-sm text-on-surface-variant leading-relaxed">{uiText("m69772795df01")}</p>
             </div>
             <div>
-              <h5 className="bv-micro mb-3">Product</h5>
+              <h5 className="bv-micro mb-3">{uiText("m691ce9b2c824")}</h5>
               <div className="flex flex-col gap-2">
-                <a href="/features" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">Features</a>
-                <a href="/pricing" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">Pricing</a>
-                <a href="/changelog" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">Changelog</a>
+                <a href="/features" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{uiText("maf2d75b446d2")}</a>
+                <a href="/pricing" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{uiText("mf11c295fe6b2")}</a>
+                <a href="/changelog" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{uiText("mb7d1cacaa4dc")}</a>
               </div>
             </div>
             <div>
-              <h5 className="bv-micro mb-3">Company</h5>
+              <h5 className="bv-micro mb-3">{uiText("m43dbdbcb4213")}</h5>
               <div className="flex flex-col gap-2">
-                <a href="/about" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">About</a>
-                <a href="/blog" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">Blog</a>
-                <a href="/contact" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">Contact</a>
+                <a href="/about" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{uiText("ma046b81f5cad")}</a>
+                <a href="/blog" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{uiText("m0fb5d8aef58c")}</a>
+                <a href="/contact" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{uiText("md17c12c62307")}</a>
               </div>
             </div>
             <div>
-              <h5 className="bv-micro mb-3">Legal</h5>
+              <h5 className="bv-micro mb-3">{uiText("m29dff0f6e658")}</h5>
               <div className="flex flex-col gap-2">
-                <a href="/privacy" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">Privacy</a>
-                <a href="/terms" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">Terms</a>
+                <a href="/privacy" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{uiText("mb8ffce79447d")}</a>
+                <a href="/terms" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">{uiText("mb295f0dd3165")}</a>
                 <a href="/kvkk" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">KVKK</a>
                 <a href="/gdpr" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors">GDPR</a>
               </div>
@@ -350,8 +288,7 @@ export default function SupportPage() {
           </div>
           <div className="bv-divider" />
           <p className="text-sm text-outline mt-6 text-center">
-            &copy; {new Date().getFullYear()} Braavolabs. All rights reserved.
-          </p>
+            &copy; {new Date().getFullYear()}{" "}{uiText("m61c5cf9b820b")}</p>
         </div>
       </footer>
     </div>

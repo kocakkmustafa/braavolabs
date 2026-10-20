@@ -1,4 +1,13 @@
 "use client";
+import { useLocalizedFailure } from "../../lib/localized-error";
+
+import { useDisplayFormats } from "../../lib/useDisplayFormats";
+
+import { useLocale as useDisplayLocale } from "next-intl";
+import { formatDateTime as formatDisplayDateTime, currentTimeZone as displayTimeZone } from "../../i18n/locales";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -11,6 +20,10 @@ import BrandMotion from "../../components/BrandMotion";
 import { approvalMotion } from "../../lib/brandMotion";
 
 export default function ApprovalsPage() {
+  const describeFailure = useLocalizedFailure();
+  const displayFormat = useDisplayFormats();
+  const displayLocale = useDisplayLocale();
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
   const { token, hydrated } = useAuthGuard();
   const sessionRevision = useAppStore((s) => s.sessionRevision);
@@ -35,7 +48,7 @@ export default function ApprovalsPage() {
       setError(t("app.approvals.handoffIncomplete", { reason: reason ?? t("app.approvals.handoffNeedsAttention") }));
       sounds.error();
     },
-    onError: (err) => { setError((err as Error).message); sounds.error(); },
+    onError: (err) => { setError(describeFailure(err)); sounds.error(); },
   });
 
   if (!hydrated || !token) return (
@@ -53,9 +66,7 @@ export default function ApprovalsPage() {
       {/* Page head */}
       <div className="bv-page-head mb-8">
         <div>
-          <p className="bv-micro mb-1" style={{ color: "var(--bv-status-running)" }}>
-            Spend queue
-          </p>
+          <p className="bv-micro mb-1" style={{ color: "var(--bv-status-running)" }}>{uiText("mb2df3906a88c")}</p>
           <h1 className="bv-headline text-on-surface">
             {t("app.approvals.title")}
           </h1>
@@ -72,8 +83,7 @@ export default function ApprovalsPage() {
                 className="bv-dot bv-running bv-ping"
                 style={{ width: 6, height: 6 }}
               />
-              {approvals.length} pending
-            </div>
+              {approvals.length}{" "}{uiText("m0e8a6ae38472")}</div>
           )}
         </div>
       </div>
@@ -107,7 +117,7 @@ export default function ApprovalsPage() {
           >
             <span
               className="material-symbols-outlined"
-              style={{ fontSize: 26, color: "#60A5FA" }}
+              style={{ fontSize: 26, color: "var(--color-primary)" }}
             >
               check_circle
             </span>
@@ -140,9 +150,7 @@ export default function ApprovalsPage() {
                 <span
                   className="bv-pill bv-pill-amber ml-auto"
                   style={{ fontSize: 10 }}
-                >
-                  urgent
-                </span>
+                >{uiText("mc3f685eba544")}</span>
               </div>
 
               {/* What / why */}
@@ -155,7 +163,7 @@ export default function ApprovalsPage() {
 
               {/* Details row: amount + run link */}
               <div className="flex items-baseline gap-4 my-3">
-                {a.amountUsd && (
+                {a.amountUsd != null && (
                   <span
                     className="bv-numeric"
                     style={{
@@ -164,22 +172,22 @@ export default function ApprovalsPage() {
                       lineHeight: 1,
                     }}
                   >
-                    ${Number(a.amountUsd).toFixed(2)}
+                    {displayFormat.usd(a.amountUsd)}
                   </span>
                 )}
                 <a
                   href={`/runs/${a.runId}`}
                   className="bv-mono"
                   style={{
-                    color: "#60A5FA",
+                    color: "var(--color-primary)",
                     textDecoration: "none",
                     fontSize: 12,
                   }}
                 >
                   ↗ {a.runId?.slice(0, 8)}
                 </a>
-                <span className="bv-caption" style={{ marginLeft: "auto" }}>
-                  {new Date(a.createdAt).toLocaleString()}
+                <span className="bv-caption" style={{ marginInlineStart: "auto" }}>
+                  {formatDisplayDateTime(a.createdAt, displayLocale, { timeZone: displayTimeZone(), dateStyle: "medium", timeStyle: "short" })}
                 </span>
               </div>
 
@@ -202,9 +210,9 @@ export default function ApprovalsPage() {
                     check
                   </span>
                   {t("app.approvals.approve")}
-                  {a.amountUsd && (
+                  {a.amountUsd != null && (
                     <span style={{ opacity: 0.85 }}>
-                      &nbsp;${Number(a.amountUsd).toFixed(2)}
+                      &nbsp;{displayFormat.usd(a.amountUsd)}
                     </span>
                   )}
                 </button>
@@ -269,10 +277,10 @@ function ArtifactCard({
         className="flex items-center gap-2 px-3.5 py-2.5"
         style={{ borderBottom: "1px solid rgba(96,165,250,0.12)" }}
       >
-        <span className="material-symbols-outlined" style={{ fontSize: 16, color: "#60A5FA" }}>
+        <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-primary)" }}>
           {ARTIFACT_ICON[artifact.kind]}
         </span>
-        <span className="bv-micro" style={{ color: "#60A5FA", letterSpacing: 0 }}>
+        <span className="bv-micro" style={{ color: "var(--color-primary)", letterSpacing: 0 }}>
           {kindLabel}
         </span>
         <span

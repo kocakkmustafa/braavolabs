@@ -1,4 +1,6 @@
 "use client";
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -14,6 +16,7 @@ const FORGE_MSGS = [
 ];
 
 function ForgeLoader({ msg }: { msg: string }) {
+  const uiText = useLegacyTranslations("uiCopy");
   return (
     <div className="mesh-bg min-h-screen flex flex-col items-center justify-center bg-background overflow-hidden">
       {/* ambient glow backdrop */}
@@ -68,9 +71,7 @@ function ForgeLoader({ msg }: { msg: string }) {
         <div className="flex flex-col items-center gap-1.5">
           <p
             className="font-headline text-xl font-semibold tracking-tight uppercase gradient-text"
-          >
-            Forging your session
-          </p>
+          >{uiText("m1b78e46f051f")}</p>
           {/* cycling status message */}
           <p
             className="font-mono text-xs tracking-widest text-on-surface-variant transition-opacity duration-300"

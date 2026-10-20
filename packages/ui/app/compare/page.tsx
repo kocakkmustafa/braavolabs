@@ -1,151 +1,86 @@
+import { getTranslations as getSeoTranslations } from "next-intl/server";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = {
-  title: "How Braavolabs compares",
+export async function generateMetadata(): Promise<Metadata> {
+  const seo = await getSeoTranslations("seo");
+  return {
+  title: seo("m8ec104ac0b8d"),
   description:
-    "How Braavolabs compares to Zapier, Make, n8n, Lindy, and Gumloop — mid-run steering, mobile control, flat pricing, governance, and where each tool wins.",
+    seo("maafa6a889064"),
   alternates: { canonical: "https://www.braavolabs.com/compare" },
   openGraph: {
-    title: "How Braavolabs compares — Braavolabs",
+    title: seo("md9141b7cff71"),
     description:
-      "Where Braavolabs is strong (mobile control, mid-run steering, flat price, offline) and where workflow tools and agent builders win. Qualitative, defensible claims only.",
+      seo("m5358edf26d92"),
     url: "https://www.braavolabs.com/compare",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }],
   },
 };
+}
 
 // ── Comparison matrix ──────────────────────────────────────────────
 // Cells are qualitative on purpose: ✓ (strong / first-class), "~" (partial /
 // possible-with-effort), "—" (not a focus). No fabricated stats — every claim
 // below is a defensible positioning statement, not a benchmark.
-type Cell = "yes" | "partial" | "no";
 
 interface Row {
   label: string;
   note: string;
-  braavolabs: Cell;
-  workflow: Cell;
-  agents: Cell;
 }
 
-const COLS = [
+const RAW_COLS = [
   { key: "braavolabs", name: "Braavolabs", highlight: true },
   { key: "workflow", name: "Workflow automation", sub: "Zapier · Make · n8n", highlight: false },
   { key: "agents", name: "AI agent builders", sub: "Lindy · Gumloop · Relevance", highlight: false },
 ] as const;
 
-const ROWS: Row[] = [
+const RAW_ROWS: Row[] = [
   {
     label: "Mid-run steering",
-    note: "Redirect a run in flight without restarting it",
-    braavolabs: "yes",
-    workflow: "no",
-    agents: "partial",
+    note: "Check when guidance is accepted and applied; an active call may finish first",
   },
   {
     label: "Native mobile control",
-    note: "A real iOS / Android app, not a responsive dashboard",
-    braavolabs: "yes",
-    workflow: "partial",
-    agents: "no",
+    note: "Check supported mobile tasks and release availability for your device",
   },
   {
     label: "Approve spend from your phone",
-    note: "Money-touching steps wait for a tap before they run",
-    braavolabs: "yes",
-    workflow: "no",
-    agents: "partial",
+    note: "Review which actions need approval and which provider calls can already incur cost",
   },
   {
     label: "BYOK provider breadth",
     note: "Bring your own keys across many model vendors",
-    braavolabs: "yes",
-    workflow: "partial",
-    agents: "partial",
   },
   {
     label: "Local provider route",
     note: "Use a configured local model endpoint where supported",
-    braavolabs: "yes",
-    workflow: "no",
-    agents: "no",
   },
   {
     label: "External-automation monitoring",
-    note: "Watch the n8n / Make / Zapier flows you already run",
-    braavolabs: "yes",
-    workflow: "partial",
-    agents: "no",
+    note: "Confirm supported monitoring and control actions for each external platform",
   },
   {
     label: "Pricing model",
-    note: "How the bill grows as you do more",
-    braavolabs: "yes", // flat
-    workflow: "no", // per-task metering
-    agents: "no", // credits / per-run
+    note: "Compare subscription, inference, hosting and per-operation charges",
   },
   {
     label: "Governance & risk-stops",
-    note: "Built-in guards that halt runaway behaviour",
-    braavolabs: "yes",
-    workflow: "partial",
-    agents: "partial",
+    note: "Review supported check boundaries and incident handling",
   },
   {
     label: "Audit trail",
-    note: "Every tool call logged, every step reasoned",
-    braavolabs: "yes",
-    workflow: "partial",
-    agents: "partial",
+    note: "Inspect the recorded actions and outputs; missing records remain unknown",
   },
   {
     label: "Connector count",
     note: "Sheer number of pre-built app integrations",
-    braavolabs: "partial",
-    workflow: "yes",
-    agents: "partial",
   },
 ];
 
-// Pricing row gets word labels instead of a glyph, since the distinction is
-// the model itself rather than presence/absence of a feature.
-const PRICING_LABELS: Record<string, string> = {
-  braavolabs: "Flat",
-  workflow: "Per-task",
-  agents: "Credits",
-};
-
-function CellGlyph({ value, highlight }: { value: Cell; highlight: boolean }) {
-  if (value === "yes") {
-    return (
-      <span
-        className="material-symbols-outlined"
-        style={{ color: highlight ? "#60A5FA" : "#3B82F6", fontSize: 20 }}
-        aria-label="First-class"
-      >
-        check_circle
-      </span>
-    );
-  }
-  if (value === "partial") {
-    return (
-      <span
-        style={{ color: "#FF7A1A", fontFamily: "var(--bv-font-mono)", fontSize: 13, letterSpacing: "0.02em" }}
-        aria-label="Partial"
-      >
-        partial
-      </span>
-    );
-  }
-  return (
-    <span style={{ color: "var(--color-outline)" }} aria-label="Not a focus">
-      —
-    </span>
-  );
-}
-
-const AUDIENCE = [
+const RAW_AUDIENCE = [
   {
     icon: "smartphone",
     title: "Operators who aren't at a desk",
@@ -164,18 +99,24 @@ const AUDIENCE = [
   {
     icon: "hub",
     title: "Teams already living in n8n / Make / Zapier",
-    body: "Keep the flows you've built. Braavolabs sits on top to monitor, govern, and steer them — it doesn't ask you to migrate.",
+    body: "Use supported connections to monitor status and request supported actions. Check each platform's authorization and execution contract.",
   },
 ];
 
 export default function ComparePage() {
+  const surfaceCopy = useLegacyTranslations("surface");
+  const dataCopy = useLegacyTranslations("dataCopy");
+  const COLS = RAW_COLS.map((entry, index) => ({ ...entry, name: dataCopy.raw(`comparisonColumns.${index}.name`) as string }));
+  const ROWS = RAW_ROWS.map((entry, index) => ({ ...entry, label: dataCopy.raw(`comparisonRows.${index}.label`) as string, note: dataCopy.raw(`comparisonRows.${index}.note`) as string }));
+  const AUDIENCE = RAW_AUDIENCE.map((entry, index) => ({ ...entry, title: dataCopy.raw(`comparisonAudience.${index}.title`) as string, body: dataCopy.raw(`comparisonAudience.${index}.body`) as string }));
+  const uiText = useLegacyTranslations("uiCopy");
   return (
     <div className="min-h-screen bv-mesh">
       {/* ── Nav ── */}
       <nav
         className="sticky top-0 z-30 flex items-center justify-between px-6 md:px-10 py-4"
         style={{
-          background: "rgba(6,7,10,0.72)",
+          background: "var(--color-surface-container-low)",
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
           borderBottom: "1px solid rgba(255,255,255,0.05)",
@@ -206,27 +147,19 @@ export default function ComparePage() {
               {label}
             </a>
           ))}
-          <a href="/compare" className="text-sm font-semibold no-underline" style={{ color: "var(--color-primary)" }}>
-            Compare
-          </a>
+          <a href="/compare" className="text-sm font-semibold no-underline" style={{ color: "var(--color-primary)" }}>{uiText("m1c1ed0d6cba8")}</a>
         </div>
 
         <div className="flex items-center gap-2">
-          <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-sm bv-btn-ghost no-underline">
-            Sign in
-          </a>
-          <a href="https://app.braavolabs.com" className="bv-btn bv-btn-sm bv-btn-primary no-underline">
-            Open app
-          </a>
+          <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-sm bv-btn-ghost no-underline">{uiText("m0e090d020bf6")}</a>
+          <a href="https://app.braavolabs.com" className="bv-btn bv-btn-sm bv-btn-primary no-underline">{uiText("m2b2ad5e6e9fc")}</a>
         </div>
       </nav>
 
       <main>
         {/* ── Page head ── */}
         <header className="max-w-5xl mx-auto px-6 md:px-10 pt-16 pb-10">
-          <div className="bv-micro mb-3" style={{ color: "var(--color-primary)" }}>
-            Honest positioning
-          </div>
+          <div className="bv-micro mb-3" style={{ color: "var(--color-primary)" }}>{uiText("m65d72c621640")}</div>
           <h1
             className="font-headline font-bold mb-4"
             style={{
@@ -236,18 +169,12 @@ export default function ComparePage() {
               textTransform: "uppercase",
               color: "var(--color-on-surface)",
             }}
-          >
-            Where we fit —<br />and where we don&apos;t.
-          </h1>
+          >{uiText("mba9bd9de37dc")}<br />{uiText("m50e9a7dcec3d")}</h1>
           <p
             className="leading-relaxed"
             style={{ color: "var(--color-on-surface-variant)", maxWidth: "60ch", fontSize: "17px" }}
-          >
-            Braavolabs isn&apos;t trying to be the biggest integration catalog. It&apos;s built to{" "}
-            <span style={{ color: "var(--color-on-surface)" }}>command</span> the agents and automations you
-            already run — from your phone, mid-run, on your own keys. Here&apos;s an honest read on how that
-            compares to two neighbouring categories, including where they beat us.
-          </p>
+          >{uiText("mf93fe81f65ba")}{" "}
+            <span style={{ color: "var(--color-on-surface)" }}>{uiText("m1d1ed4cc0221")}</span>{" "}{uiText("m16c281eec9eb")}</p>
         </header>
 
         {/* ── Comparison table ── */}
@@ -261,7 +188,7 @@ export default function ComparePage() {
                       <th
                         style={{
                           padding: "18px 22px",
-                          textAlign: "left",
+                          textAlign: "start",
                           borderBottom: "1px solid var(--bv-glass-border)",
                           fontFamily: "var(--bv-font-mono)",
                           fontSize: 11,
@@ -271,9 +198,7 @@ export default function ComparePage() {
                           textTransform: "uppercase",
                           minWidth: 240,
                         }}
-                      >
-                        Capability
-                      </th>
+                      >{uiText("m7acc6a073df0")}</th>
                       {COLS.map((col) => (
                         <th
                           key={col.key}
@@ -290,7 +215,7 @@ export default function ComparePage() {
                             style={{
                               fontSize: 16,
                               textTransform: "uppercase",
-                              color: col.highlight ? "#60A5FA" : "var(--color-on-surface)",
+                              color: col.highlight ? "var(--color-primary)" : "var(--color-on-surface)",
                               letterSpacing: "-0.02em",
                             }}
                           >
@@ -314,7 +239,6 @@ export default function ComparePage() {
                   </thead>
                   <tbody>
                     {ROWS.map((row, i) => {
-                      const isPricing = row.label === "Pricing model";
                       const last = i === ROWS.length - 1;
                       return (
                         <tr key={row.label}>
@@ -332,7 +256,6 @@ export default function ComparePage() {
                             </div>
                           </td>
                           {COLS.map((col) => {
-                            const value = row[col.key as keyof Row] as Cell;
                             return (
                               <td
                                 key={col.key}
@@ -343,23 +266,7 @@ export default function ComparePage() {
                                   background: col.highlight ? "rgba(59,130,246,0.05)" : undefined,
                                 }}
                               >
-                                {isPricing ? (
-                                  <span
-                                    style={{
-                                      fontFamily: "var(--bv-font-mono)",
-                                      fontSize: 12.5,
-                                      color:
-                                        col.key === "braavolabs"
-                                          ? "#60A5FA"
-                                          : "var(--color-on-surface-variant)",
-                                      fontWeight: col.key === "braavolabs" ? 600 : 400,
-                                    }}
-                                  >
-                                    {PRICING_LABELS[col.key]}
-                                  </span>
-                                ) : (
-                                  <CellGlyph value={value} highlight={col.highlight} />
-                                )}
+                                <span className="bv-caption">{surfaceCopy("compare.verify")}</span>
                               </td>
                             );
                           })}
@@ -371,65 +278,7 @@ export default function ComparePage() {
               </div>
             </div>
 
-            {/* Legend + honesty note */}
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-5 px-1">
-              <span className="flex items-center gap-1.5" style={{ fontSize: 12.5, color: "var(--color-on-surface-variant)" }}>
-                <span className="material-symbols-outlined" style={{ color: "#3B82F6", fontSize: 16 }}>
-                  check_circle
-                </span>
-                First-class
-              </span>
-              <span className="flex items-center gap-1.5" style={{ fontSize: 12.5, color: "var(--color-on-surface-variant)" }}>
-                <span style={{ color: "#FF7A1A", fontFamily: "var(--bv-font-mono)", fontSize: 12 }}>partial</span>
-                Possible, but not the focus
-              </span>
-              <span className="flex items-center gap-1.5" style={{ fontSize: 12.5, color: "var(--color-on-surface-variant)" }}>
-                <span style={{ color: "var(--color-outline)" }}>—</span>
-                Not a focus
-              </span>
-            </div>
-            <p className="bv-caption mt-3 px-1" style={{ color: "var(--color-outline)", maxWidth: "70ch" }}>
-              This table is a qualitative positioning read, not a benchmark. Categories are broad — individual
-              products in each column vary, and several are excellent at what they do. We&apos;ve marked the
-              connector-count row honestly: the big workflow tools win it, and that&apos;s fine.
-            </p>
-          </div>
-        </section>
-
-        {/* ── The two neighbours, explained ── */}
-        <section className="px-6 md:px-10 pt-12">
-          <div className="max-w-5xl mx-auto grid gap-5 md:grid-cols-2">
-            <div className="bv-glass" style={{ padding: "26px 28px" }}>
-              <div className="bv-micro mb-2" style={{ color: "var(--color-outline)" }}>
-                vs. Workflow automation
-              </div>
-              <h3 className="font-headline font-semibold mb-3" style={{ fontSize: 19, color: "var(--color-on-surface)" }}>
-                Zapier · Make · n8n
-              </h3>
-              <p className="bv-body" style={{ color: "var(--color-on-surface-variant)", lineHeight: 1.6 }}>
-                These are deterministic plumbing — trigger, step, step, done — with enormous connector
-                catalogs. They&apos;re great at moving data between apps. Where they&apos;re a different
-                tool: there&apos;s no agent to <em>steer</em> mid-run, and the meter typically ticks on{" "}
-                <span style={{ color: "var(--color-on-surface)" }}>every task you run</span>, so the bill grows
-                with every step. Braavolabs doesn&apos;t replace them — it sits on top to monitor and govern
-                the flows you already built.
-              </p>
-            </div>
-
-            <div className="bv-glass" style={{ padding: "26px 28px" }}>
-              <div className="bv-micro mb-2" style={{ color: "var(--color-outline)" }}>
-                vs. AI agent builders
-              </div>
-              <h3 className="font-headline font-semibold mb-3" style={{ fontSize: 19, color: "var(--color-on-surface)" }}>
-                Lindy · Gumloop · Relevance
-              </h3>
-              <p className="bv-body" style={{ color: "var(--color-on-surface-variant)", lineHeight: 1.6 }}>
-                The closest neighbours — they also compose agents from steps. The difference is the operating
-                surface: Braavolabs is built phone-first, with mid-run steering, approve-from-phone spend
-                gates, customer-supplied provider credentials, configured local routes, and five built-in risk-stops.
-                Most builders are web-first and priced on credits or per-run, which can be hard to predict.
-              </p>
-            </div>
+            <p role="note" className="bv-caption mt-5">{surfaceCopy("compare.notice")}</p>
           </div>
         </section>
 
@@ -439,13 +288,8 @@ export default function ComparePage() {
             <h2
               className="font-headline font-semibold mb-2"
               style={{ fontSize: "clamp(24px, 4vw, 34px)", color: "var(--color-on-surface)", letterSpacing: "-0.02em", textTransform: "uppercase" }}
-            >
-              Who it&apos;s for
-            </h2>
-            <p className="bv-body mb-8" style={{ color: "var(--color-on-surface-variant)", maxWidth: "56ch" }}>
-              Braavolabs is the right call when control, mobility, and privacy matter more than the raw size of
-              an integration catalog.
-            </p>
+            >{uiText("m67969942145e")}</h2>
+            <p className="bv-body mb-8" style={{ color: "var(--color-on-surface-variant)", maxWidth: "56ch" }}>{uiText("m8d6c9af2713e")}</p>
             <div className="grid gap-4 md:grid-cols-2">
               {AUDIENCE.map((a) => (
                 <div key={a.title} className="bv-glass flex gap-4" style={{ padding: "22px 24px" }}>
@@ -453,7 +297,7 @@ export default function ComparePage() {
                     className="w-10 h-10 rounded-xl flex items-center justify-center flex-none"
                     style={{ background: "rgba(59,130,246,0.10)", border: "1px solid rgba(59,130,246,0.20)" }}
                   >
-                    <span className="material-symbols-outlined" style={{ color: "#60A5FA", fontSize: 20 }}>
+                    <span className="material-symbols-outlined" style={{ color: "var(--color-primary)", fontSize: 20 }}>
                       {a.icon}
                     </span>
                   </div>
@@ -479,23 +323,15 @@ export default function ComparePage() {
               style={{ padding: "30px 32px", border: "1px solid rgba(37,99,235,0.25)", background: "rgba(37,99,235,0.04)" }}
             >
               <div>
-                <p className="font-headline font-semibold mb-1" style={{ fontSize: 19, color: "var(--color-on-surface)" }}>
-                  See the flat-price math for yourself.
-                </p>
-                <p className="bv-body" style={{ color: "var(--color-on-surface-variant)" }}>
-                  Compare predictable flat pricing against per-task metering with our cost calculator.
-                </p>
+                <p className="font-headline font-semibold mb-1" style={{ fontSize: 19, color: "var(--color-on-surface)" }}>{uiText("m22f7bc58c61d")}</p>
+                <p className="bv-body" style={{ color: "var(--color-on-surface-variant)" }}>{uiText("mbf3573b0a3d0")}</p>
               </div>
               <div className="flex items-center gap-3 flex-none">
                 <Link href="/cost-calculator" className="bv-btn bv-btn-ghost whitespace-nowrap no-underline">
                   <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
                     calculate
-                  </span>
-                  Cost calculator
-                </Link>
-                <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-sheen whitespace-nowrap no-underline">
-                  Open app
-                </a>
+                  </span>{uiText("m24543c9280b1")}</Link>
+                <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-sheen whitespace-nowrap no-underline">{uiText("m2b2ad5e6e9fc")}</a>
               </div>
             </div>
           </div>
@@ -505,9 +341,7 @@ export default function ComparePage() {
         <section className="px-6 md:px-10 pt-14 pb-4 text-center">
           <div className="max-w-5xl mx-auto">
             <div className="bv-divider mb-8" />
-            <p className="bv-mono" style={{ color: "var(--color-on-surface-variant)", letterSpacing: "0.04em", fontSize: 13 }}>
-              Every tool call logged · every spend approved · every run audited
-            </p>
+            <p className="bv-mono" style={{ color: "var(--color-on-surface-variant)", letterSpacing: "0.04em", fontSize: 13 }}>{uiText("m2b56df60312a")}</p>
           </div>
         </section>
       </main>
@@ -519,6 +353,7 @@ export default function ComparePage() {
 }
 
 function Footer() {
+  const uiText = useLegacyTranslations("uiCopy");
   return (
     <footer className="border-t" style={{ borderColor: "rgba(58,65,80,0.18)" }}>
       <div className="max-w-5xl mx-auto px-6 md:px-10 py-12">
@@ -537,15 +372,11 @@ function Footer() {
                 Braavolabs
               </span>
             </a>
-            <p className="text-xs leading-relaxed" style={{ color: "var(--color-on-surface-variant)", maxWidth: "22ch" }}>
-              Command the AI agents &amp; automations you already run.
-            </p>
+            <p className="text-xs leading-relaxed" style={{ color: "var(--color-on-surface-variant)", maxWidth: "22ch" }}>{uiText("m9895a6463bc7")}</p>
           </div>
 
           <div>
-            <h5 className="bv-micro mb-3" style={{ color: "var(--color-outline)" }}>
-              Product
-            </h5>
+            <h5 className="bv-micro mb-3" style={{ color: "var(--color-outline)" }}>{uiText("mfb1404813b60")}</h5>
             {["Features", "Pricing", "Integrations", "Changelog"].map((link) => (
               <a
                 key={link}
@@ -559,9 +390,7 @@ function Footer() {
           </div>
 
           <div>
-            <h5 className="bv-micro mb-3" style={{ color: "var(--color-outline)" }}>
-              Company
-            </h5>
+            <h5 className="bv-micro mb-3" style={{ color: "var(--color-outline)" }}>{uiText("mca345aad7aa1")}</h5>
             {["About", "Blog", "Contact", "Status"].map((link) => (
               <a
                 key={link}
@@ -575,9 +404,7 @@ function Footer() {
           </div>
 
           <div>
-            <h5 className="bv-micro mb-3" style={{ color: "var(--color-outline)" }}>
-              Legal
-            </h5>
+            <h5 className="bv-micro mb-3" style={{ color: "var(--color-outline)" }}>{uiText("m5bed3a4a7338")}</h5>
             {[
               { label: "Privacy", href: "/privacy" },
               { label: "Terms", href: "/terms" },
@@ -598,9 +425,7 @@ function Footer() {
 
         <div className="bv-divider my-8" />
 
-        <p className="bv-mono text-center" style={{ color: "var(--color-outline)", fontSize: "11px" }}>
-          © 2026 Braavolabs. All rights reserved.
-        </p>
+        <p className="bv-mono text-center" style={{ color: "var(--color-outline)", fontSize: "11px" }}>{uiText("m8e359b1c68e3")}</p>
       </div>
     </footer>
   );

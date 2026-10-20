@@ -1,6 +1,9 @@
 "use client";
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useEffect, useState } from "react";
+import { classifyFailure, useLocalizedFailure } from "../lib/localized-error";
 
 /**
  * Global error boundary.
@@ -14,43 +17,8 @@ import { useEffect, useState } from "react";
  * Fix: whitelist a small set of safe, user-actionable phrases (auth errors,
  * network errors, etc.) and otherwise show a digest reference users can
  * email support with. Everything else falls back to a generic message.
- * Real error details still go to console.error → Sentry.
+ * Diagnostics remain in the local console; delivery to an external service is not asserted.
  */
-
-const SAFE_USER_MESSAGES: Array<{ pattern: RegExp; copy: string; cta?: { label: string; href: string } }> = [
-  {
-    pattern: /unauthorized|unauthenticated|jwt|token expired/i,
-    copy: "Your session expired. Please sign in again.",
-    cta: { label: "Sign in", href: "/login" },
-  },
-  {
-    pattern: /forbidden|access denied/i,
-    copy: "You don't have permission to view this. If this seems wrong, contact support.",
-  },
-  {
-    pattern: /network|fetch|failed to fetch|connection refused/i,
-    copy: "We couldn't reach the server. Check your connection and retry.",
-  },
-  {
-    pattern: /rate.?limit|too many requests/i,
-    copy: "You're making requests too fast. Please wait a moment and retry.",
-  },
-  {
-    pattern: /timeout|timed out/i,
-    copy: "This request took too long to complete. Try again, or check the status page.",
-  },
-];
-
-function deriveUserMessage(error: Error & { digest?: string }): {
-  copy: string;
-  cta?: { label: string; href: string };
-} {
-  const msg = error?.message ?? "";
-  for (const { pattern, copy, cta } of SAFE_USER_MESSAGES) {
-    if (pattern.test(msg)) return { copy, cta };
-  }
-  return { copy: "An unexpected error occurred. Our team has been notified." };
-}
 
 export default function GlobalError({
   error,
@@ -59,6 +27,9 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const uiText = useLegacyTranslations("uiCopy");
+  const errorCopy = useLegacyTranslations("surface.error");
+  const describeFailure = useLocalizedFailure();
   const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
@@ -72,36 +43,34 @@ export default function GlobalError({
     reset();
   };
 
-  const { copy, cta } = deriveUserMessage(error);
+  const copy = describeFailure(error);
+  const cta = classifyFailure(error) === "session" ? { href: "/login", label: errorCopy("signIn") } : null;
   const reference = error.digest ?? null;
 
   return (
     <div
       className="min-h-screen flex items-center justify-center px-6"
-      style={{ background: "#0a0d14" }}
+      style={{ background: "var(--color-background)" }}
     >
       <div className="text-center max-w-md">
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5"
           style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}
         >
-          <span className="material-symbols-outlined text-3xl" style={{ color: "#f87171" }}>error</span>
+          <span className="material-symbols-outlined text-3xl" style={{ color: "var(--color-error)" }}>error</span>
         </div>
 
-        <h2 className="font-headline font-bold text-xl mb-2" style={{ color: "#e1e2eb" }}>
-          Something went wrong
-        </h2>
-        <p className="text-sm mb-4" style={{ color: "#859399" }}>
+        <h2 className="font-headline font-bold text-xl mb-2" style={{ color: "var(--color-on-surface)" }}>{uiText("m76d027d04e32")}</h2>
+        <p className="text-sm mb-4" style={{ color: "var(--color-on-surface-variant)" }}>
           {copy}
         </p>
 
         {reference && (
           <p
             className="text-xs mb-6 px-4 py-2 rounded-lg font-mono inline-block"
-            style={{ background: "rgba(255,255,255,0.04)", color: "#859399", border: "1px solid rgba(255,255,255,0.08)" }}
-            aria-label="Error reference for support"
-          >
-            Reference: {reference}
+            style={{ background: "rgba(255,255,255,0.04)", color: "var(--color-on-surface-variant)", border: "1px solid rgba(255,255,255,0.08)" }}
+            aria-label={uiText("me06887989706")}
+          >{uiText("mc3fca6aef955")}{" "}{reference}
           </p>
         )}
 
@@ -120,13 +89,9 @@ export default function GlobalError({
               className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110"
               style={{ background: "linear-gradient(135deg, #00d1ff, #6d11ad)" }}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>refresh</span>
-              Try Again
-            </button>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>refresh</span>{uiText("m28a812f120c3")}</button>
           ) : (
-            <p className="text-xs" style={{ color: "#859399" }}>
-              This error persists. Please go home and try again.
-            </p>
+            <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>{uiText("m795836a1d4b2")}</p>
           )}
           <a
             href="/"
@@ -134,12 +99,10 @@ export default function GlobalError({
             style={{
               background: "rgba(255,255,255,0.04)",
               border: "1px solid rgba(255,255,255,0.08)",
-              color: "#bbc9cf",
+              color: "var(--color-on-surface-variant)",
               textDecoration: "none",
             }}
-          >
-            Go Home
-          </a>
+          >{uiText("meda5eea8ae48")}</a>
           {reference && (
             <a
               href={`mailto:support@braavolabs.com?subject=Error%20${encodeURIComponent(reference)}`}
@@ -147,12 +110,10 @@ export default function GlobalError({
               style={{
                 background: "rgba(255,255,255,0.04)",
                 border: "1px solid rgba(255,255,255,0.08)",
-                color: "#bbc9cf",
+                color: "var(--color-on-surface-variant)",
                 textDecoration: "none",
               }}
-            >
-              Contact support
-            </a>
+            >{uiText("mccfb38fd1109")}</a>
           )}
         </div>
       </div>

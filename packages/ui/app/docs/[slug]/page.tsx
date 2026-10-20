@@ -1,3 +1,6 @@
+
+import { getTranslations as getLegacyTranslations } from "next-intl/server";
+import { useTranslations as useLegacyTranslations } from "next-intl";
 /**
  * Docs article page — The Manual.
  *
@@ -20,6 +23,8 @@ import {
   DOC_PILL,
   faqItemsOf,
   getDoc,
+  localizeDoc,
+  docCategoryLabel,
   type DocBlock,
   type DocPage,
 } from "../content";
@@ -34,8 +39,10 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const doc = getDoc(slug);
-  if (!doc) return { title: "Not found — Braavolabs Docs" };
+  const contentCopy = await getLegacyTranslations("content");
+  const baseDoc = getDoc(slug);
+  if (!baseDoc) return { title: "Braavolabs" };
+  const doc = localizeDoc(baseDoc, contentCopy);
   return {
     title: `${doc.title} — Braavolabs Docs`,
     description: doc.desc,
@@ -53,6 +60,7 @@ export async function generateMetadata({
 /* ── Block renderer (exhaustive over DocBlock["kind"]) ───────────────────── */
 
 function Block({ block }: { block: DocBlock }) {
+  const legal = useLegacyTranslations("static.common.legalNavigation");
   switch (block.kind) {
     case "heading":
       return (
@@ -65,7 +73,7 @@ function Block({ block }: { block: DocBlock }) {
           <a
             href={`#${block.id}`}
             className="opacity-0 group-hover:opacity-100 text-[15px] text-primary no-underline transition-opacity"
-            aria-label={`Link to ${block.text}`}
+            aria-label={legal("permalinkTo", { title: block.text })}
           >
             ¶
           </a>
@@ -74,16 +82,16 @@ function Block({ block }: { block: DocBlock }) {
 
     case "para":
       return (
-        <p style={{ color: "#9AA3B2", fontSize: 16, lineHeight: 1.8, margin: "0 0 18px" }}>
+        <p style={{ color: "var(--color-on-surface-variant)", fontSize: 16, lineHeight: 1.8, margin: "0 0 18px" }}>
           {block.text}
         </p>
       );
 
     case "list":
       return (
-        <ul style={{ margin: "0 0 18px", paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 10 }}>
+        <ul style={{ margin: "0 0 18px", paddingInlineStart: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 10 }}>
           {block.items.map((it, j) => (
-            <li key={j} style={{ display: "flex", gap: 10, alignItems: "flex-start", color: "#9AA3B2", fontSize: 16, lineHeight: 1.75 }}>
+            <li key={j} style={{ display: "flex", gap: 10, alignItems: "flex-start", color: "var(--color-on-surface-variant)", fontSize: 16, lineHeight: 1.75 }}>
               <span style={{ width: 7, height: 7, borderRadius: 2, background: "#3B82F6", marginTop: 9, flexShrink: 0, boxShadow: "0 0 8px #3B82F6", display: "inline-block" }} />
               <span>{it}</span>
             </li>
@@ -114,10 +122,10 @@ function Block({ block }: { block: DocBlock }) {
                 {j + 1}
               </span>
               <div>
-                <p className="bv-title" style={{ color: "#E8EBF0", marginBottom: 4, fontSize: 15.5 }}>
+                <p className="bv-title" style={{ color: "var(--color-on-surface)", marginBottom: 4, fontSize: 15.5 }}>
                   {it.title}
                 </p>
-                <p style={{ color: "#9AA3B2", fontSize: 14.5, lineHeight: 1.7, margin: 0 }}>
+                <p style={{ color: "var(--color-on-surface-variant)", fontSize: 14.5, lineHeight: 1.7, margin: 0 }}>
                   {it.body}
                 </p>
               </div>
@@ -148,7 +156,7 @@ function Block({ block }: { block: DocBlock }) {
               margin: 0,
               padding: "16px 18px",
               borderRadius: 14,
-              background: "rgba(6,7,10,0.6)",
+              background: "var(--color-surface-container-low)",
               border: "1px solid rgba(58,65,80,0.5)",
               overflowX: "auto",
             }}
@@ -180,12 +188,12 @@ function Block({ block }: { block: DocBlock }) {
         >
           <span
             className="material-symbols-outlined flex-shrink-0"
-            style={{ fontSize: 18, color: warn ? "#FF7A1A" : "#60A5FA", marginTop: 1 }}
+            style={{ fontSize: 18, color: warn ? "#FF7A1A" : "var(--color-primary)", marginTop: 1 }}
             aria-hidden="true"
           >
             {warn ? "warning" : "info"}
           </span>
-          <p style={{ color: "#9AA3B2", fontSize: 14.5, lineHeight: 1.7, margin: 0 }}>
+          <p style={{ color: "var(--color-on-surface-variant)", fontSize: 14.5, lineHeight: 1.7, margin: 0 }}>
             {block.text}
           </p>
         </div>
@@ -197,10 +205,10 @@ function Block({ block }: { block: DocBlock }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 14, margin: "8px 0 18px" }}>
           {block.items.map((it, j) => (
             <div key={j} className="bv-glass" style={{ padding: "18px 20px", borderRadius: 14 }}>
-              <p className="bv-title" style={{ color: "#E8EBF0", marginBottom: 8, fontSize: 16 }}>
+              <p className="bv-title" style={{ color: "var(--color-on-surface)", marginBottom: 8, fontSize: 16 }}>
                 {it.q}
               </p>
-              <p style={{ color: "#9AA3B2", fontSize: 15, lineHeight: 1.75, margin: 0 }}>
+              <p style={{ color: "var(--color-on-surface-variant)", fontSize: 15, lineHeight: 1.75, margin: 0 }}>
                 {it.a}
               </p>
             </div>
@@ -220,17 +228,21 @@ export default async function DocsArticlePage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  const uiText = await getLegacyTranslations("uiCopy");
   const { slug } = await params;
-  const doc = getDoc(slug);
-  if (!doc) notFound();
+  const contentCopy = await getLegacyTranslations("content");
+  const baseDoc = getDoc(slug);
+  if (!baseDoc) notFound();
+  const doc = localizeDoc(baseDoc, contentCopy);
+  const docs = DOCS_ORDERED.map(page => localizeDoc(page, contentCopy));
 
   const headings = headingsOf(doc);
   const faqItems = faqItemsOf(doc);
 
   // Prev / next in reading order.
-  const idx = DOCS_ORDERED.findIndex((d) => d.slug === doc.slug);
-  const prev = idx > 0 ? DOCS_ORDERED[idx - 1] : undefined;
-  const next = idx < DOCS_ORDERED.length - 1 ? DOCS_ORDERED[idx + 1] : undefined;
+  const idx = docs.findIndex((d) => d.slug === doc.slug);
+  const prev = idx > 0 ? docs[idx - 1] : undefined;
+  const next = idx < docs.length - 1 ? docs[idx + 1] : undefined;
 
   // FAQPage structured data — built from the same typed items the page renders.
   const faqJsonLd =
@@ -252,7 +264,7 @@ export default async function DocsArticlePage({
         // Static, build-time JSON-LD from trusted in-repo content (no user input).
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd).replace(/</g, "\\u003c") }}
         />
       )}
 
@@ -266,14 +278,14 @@ export default async function DocsArticlePage({
             <span className="font-headline font-bold text-sm text-on-surface">Braavolabs</span>
           </a>
           <div className="hidden md:flex items-center gap-6">
-            <a href="/features" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">Features</a>
-            <a href="/pricing" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">Pricing</a>
-            <a href="/blog" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">Blog</a>
-            <a href="/docs" className="text-sm font-semibold text-primary no-underline">Docs</a>
+            <a href="/features" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">{uiText("mb34c85aff53f")}</a>
+            <a href="/pricing" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">{uiText("m85a856ab28be")}</a>
+            <a href="/blog" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">{uiText("mdd91fe0b7fc0")}</a>
+            <a href="/docs" className="text-sm font-semibold text-primary no-underline">{uiText("m6179659c73b9")}</a>
           </div>
           <div className="flex items-center gap-3">
-            <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm text-sm no-underline">Sign in</a>
-            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm text-sm no-underline">Open app</a>
+            <a href="https://app.braavolabs.com/login" className="bv-btn bv-btn-ghost bv-btn-sm text-sm no-underline">{uiText("m35127686df60")}</a>
+            <a href="https://app.braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm text-sm no-underline">{uiText("m5b83c05ccb0c")}</a>
           </div>
         </div>
       </nav>
@@ -281,10 +293,10 @@ export default async function DocsArticlePage({
       {/* ── Layout: side nav + prose ── */}
       <div className="max-w-[1100px] mx-auto px-6 md:px-8 pt-12 mb-24 grid grid-cols-1 md:grid-cols-[240px_1fr] gap-12">
         {/* Side nav: all docs (desktop) */}
-        <nav className="hidden md:block sticky top-[72px] self-start" aria-label="Documentation">
-          <p className="bv-micro mb-[14px]">The Manual</p>
+        <nav className="hidden md:block sticky top-[72px] self-start" aria-label={uiText("mcb951cf4a4d3")}>
+          <p className="bv-micro mb-[14px]">{uiText("m0c14fdc4a1c6")}</p>
           <div className="flex flex-col mb-8">
-            {DOCS_ORDERED.map((d) => {
+            {docs.map((d) => {
               const active = d.slug === doc.slug;
               return (
                 <Link
@@ -305,7 +317,7 @@ export default async function DocsArticlePage({
 
           {headings.length > 0 && (
             <>
-              <p className="bv-micro mb-[14px]">On this page</p>
+              <p className="bv-micro mb-[14px]">{uiText("m6c77f98962d7")}</p>
               <div className="flex flex-col">
                 {headings.map((h) => (
                   <a
@@ -326,23 +338,21 @@ export default async function DocsArticlePage({
           <Link
             href="/docs"
             className="bv-mono inline-flex items-center gap-2 mb-6"
-            style={{ fontSize: 12, color: "#60A5FA", textDecoration: "none", letterSpacing: "0.08em" }}
+            style={{ fontSize: 12, color: "var(--color-primary)", textDecoration: "none", letterSpacing: "0.08em" }}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>arrow_back</span>
-            The Manual
-          </Link>
+            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>arrow_back</span>{uiText("m0c14fdc4a1c6")}</Link>
 
           <div className="flex items-center gap-3 mb-4 flex-wrap">
-            <span className={DOC_PILL[doc.category]}>{doc.category}</span>
+            <span className={DOC_PILL[doc.category]}>{docCategoryLabel(doc.category, contentCopy)}</span>
           </div>
 
           <h1
             className="bv-display"
-            style={{ fontSize: "clamp(30px, 4.5vw, 44px)", lineHeight: 1.08, letterSpacing: "-0.015em", color: "#E8EBF0", marginBottom: 14 }}
+            style={{ fontSize: "clamp(30px, 4.5vw, 44px)", lineHeight: 1.08, letterSpacing: "-0.015em", color: "var(--color-on-surface)", marginBottom: 14 }}
           >
             {doc.title}
           </h1>
-          <p style={{ color: "#9AA3B2", fontSize: 18, lineHeight: 1.7, marginBottom: 32 }}>{doc.desc}</p>
+          <p style={{ color: "var(--color-on-surface-variant)", fontSize: 18, lineHeight: 1.7, marginBottom: 32 }}>{doc.desc}</p>
 
           <div className="bv-divider" style={{ marginBottom: 28 }} />
 
@@ -354,16 +364,16 @@ export default async function DocsArticlePage({
           <div className="grid gap-4 mt-14" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
             {prev ? (
               <Link href={`/docs/${prev.slug}`} className="bv-glass rounded-2xl px-5 py-4 no-underline">
-                <span className="bv-mono" style={{ fontSize: 11, color: "var(--color-outline)", letterSpacing: "0.08em" }}>← PREVIOUS</span>
-                <p className="bv-title" style={{ color: "#E8EBF0", margin: "6px 0 0", fontSize: 15 }}>{prev.title}</p>
+                <span className="bv-mono" style={{ fontSize: 11, color: "var(--color-outline)", letterSpacing: "0.08em" }}>{uiText("m074fdba85cf1")}</span>
+                <p className="bv-title" style={{ color: "var(--color-on-surface)", margin: "6px 0 0", fontSize: 15 }}>{prev.title}</p>
               </Link>
             ) : (
               <span />
             )}
             {next && (
-              <Link href={`/docs/${next.slug}`} className="bv-glass rounded-2xl px-5 py-4 no-underline" style={{ textAlign: "right" }}>
-                <span className="bv-mono" style={{ fontSize: 11, color: "var(--color-outline)", letterSpacing: "0.08em" }}>NEXT →</span>
-                <p className="bv-title" style={{ color: "#E8EBF0", margin: "6px 0 0", fontSize: 15 }}>{next.title}</p>
+              <Link href={`/docs/${next.slug}`} className="bv-glass rounded-2xl px-5 py-4 no-underline" style={{ textAlign: "end" }}>
+                <span className="bv-mono" style={{ fontSize: 11, color: "var(--color-outline)", letterSpacing: "0.08em" }}>{uiText("m1388671ac3bc")}</span>
+                <p className="bv-title" style={{ color: "var(--color-on-surface)", margin: "6px 0 0", fontSize: 15 }}>{next.title}</p>
               </Link>
             )}
           </div>
@@ -371,12 +381,10 @@ export default async function DocsArticlePage({
           {/* ── CTA ── */}
           <div className="bv-glass rounded-2xl px-7 py-7 mt-10 flex items-center gap-5 flex-wrap" style={{ border: "1px solid rgba(59,130,246,0.25)" }}>
             <div style={{ flex: 1, minWidth: 240 }}>
-              <p className="bv-title" style={{ color: "#E8EBF0", marginBottom: 4 }}>Command the agents you already run.</p>
-              <p className="bv-caption" style={{ margin: 0 }}>Pricing is a preview and is not currently purchasable. Inference is not included.</p>
+              <p className="bv-title" style={{ color: "var(--color-on-surface)", marginBottom: 4 }}>{uiText("m90aeded95734")}</p>
+              <p className="bv-caption" style={{ margin: 0 }}>{uiText("mf8873bd65493")}</p>
             </div>
-            <Link href="https://app.braavolabs.com" className="bv-btn bv-btn-primary no-underline">
-              Open app
-            </Link>
+            <Link href="https://app.braavolabs.com" className="bv-btn bv-btn-primary no-underline">{uiText("m5b83c05ccb0c")}</Link>
           </div>
         </article>
       </div>
@@ -392,39 +400,35 @@ export default async function DocsArticlePage({
                 </div>
                 <span className="font-headline font-bold text-sm text-on-surface">Braavolabs</span>
               </a>
-              <p className="text-sm text-on-surface-variant leading-relaxed">
-                Command the AI agents &amp; automations you already run.
-              </p>
+              <p className="text-sm text-on-surface-variant leading-relaxed">{uiText("m906152f47b4f")}</p>
             </div>
             <div>
-              <h5 className="bv-micro mb-3">Product</h5>
+              <h5 className="bv-micro mb-3">{uiText("m1ec39ca165b6")}</h5>
               <div className="flex flex-col gap-2">
-                <a href="/features" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">Features</a>
-                <a href="/pricing" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">Pricing</a>
-                <a href="/changelog" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">Changelog</a>
+                <a href="/features" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">{uiText("mb34c85aff53f")}</a>
+                <a href="/pricing" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">{uiText("m85a856ab28be")}</a>
+                <a href="/changelog" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">{uiText("mbb3043a7f2cf")}</a>
               </div>
             </div>
             <div>
-              <h5 className="bv-micro mb-3">Resources</h5>
+              <h5 className="bv-micro mb-3">{uiText("m50200f20c520")}</h5>
               <div className="flex flex-col gap-2">
-                <a href="/docs" className="text-sm text-primary hover:text-on-surface transition-colors no-underline">Docs</a>
-                <a href="/blog" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">Blog</a>
-                <a href="/support" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">Support</a>
+                <a href="/docs" className="text-sm text-primary hover:text-on-surface transition-colors no-underline">{uiText("m6179659c73b9")}</a>
+                <a href="/blog" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">{uiText("mdd91fe0b7fc0")}</a>
+                <a href="/support" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">{uiText("m35fa61443236")}</a>
               </div>
             </div>
             <div>
-              <h5 className="bv-micro mb-3">Company</h5>
+              <h5 className="bv-micro mb-3">{uiText("m6ea06edad850")}</h5>
               <div className="flex flex-col gap-2">
-                <a href="/about" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">About</a>
-                <a href="/contact" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">Contact</a>
-                <a href="/status" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">Status</a>
+                <a href="/about" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">{uiText("m7f7a851ede21")}</a>
+                <a href="/contact" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">{uiText("mebaef44626be")}</a>
+                <a href="/status" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">{uiText("m07c7e04fadf1")}</a>
               </div>
             </div>
           </div>
           <div className="bv-divider" />
-          <p className="text-sm text-outline mt-6 text-center">
-            &copy; 2026 Braavolabs. All rights reserved.
-          </p>
+          <p className="text-sm text-outline mt-6 text-center">{uiText("m7375dacc55cd")}</p>
         </div>
       </footer>
     </div>

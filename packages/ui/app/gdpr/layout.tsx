@@ -1,18 +1,22 @@
+import { getTranslations as getSeoTranslations } from "next-intl/server";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "GDPR Statement",
+export async function generateMetadata(): Promise<Metadata> {
+  const seo = await getSeoTranslations("seo");
+  return {
+  title: seo("mac377e08a5eb"),
   description:
-    "Braavolabs GDPR statement: data controller identity, lawful bases, cross-border transfers, retention periods, and your rights under EU data protection law.",
+    seo("m49fe3634c177"),
   alternates: { canonical: "https://www.braavolabs.com/gdpr" },
   openGraph: {
-    title: "Braavolabs GDPR Statement",
+    title: seo("m617c9c8f521f"),
     description:
-      "Data controller, lawful bases, cross-border transfers, retention, and your rights under the EU General Data Protection Regulation.",
+      seo("m5f3c445d83bb"),
     url: "https://www.braavolabs.com/gdpr",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }],
   },
 };
+}
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;

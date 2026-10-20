@@ -1,4 +1,8 @@
 "use client";
+import { useLocalizedFailure } from "../../../lib/localized-error";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 /**
  * Import an existing automation as a Braavolabs Pipeline.
@@ -72,6 +76,8 @@ const SOURCES: { id: Source; keyBase: string; sample: string }[] = [
 const STEPS = ["Paste export", "Preview & map", "Forge pipeline"];
 
 export default function ImportAutomationPage() {
+  const describeFailure = useLocalizedFailure();
+  const uiText = useLegacyTranslations("uiCopy");
   const { token, hydrated } = useAuthGuard();
   const t = useTranslations();
   const [source, setSource] = useState<Source>("n8n");
@@ -116,7 +122,7 @@ export default function ImportAutomationPage() {
       });
       setPhase(1);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("app.importAutomation.previewFailed"));
+      setError(describeFailure(err, t("app.importAutomation.previewFailed")));
       setPreview(null);
     } finally {
       setLoadingPreview(false);
@@ -136,7 +142,7 @@ export default function ImportAutomationPage() {
       });
       setCommittedId(resp.pipelineId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("app.importAutomation.importFailed"));
+      setError(describeFailure(err, t("app.importAutomation.importFailed")));
       setPhase(1);
     } finally {
       setCommitting(false);
@@ -152,15 +158,15 @@ export default function ImportAutomationPage() {
             {t("app.importAutomation.back")}
           </Link>
           <span className="material-symbols-outlined text-outline" style={{ fontSize: 14 }}>chevron_right</span>
-          <span className="text-on-surface font-medium">Import</span>
+          <span className="text-on-surface font-medium">{uiText("mba4fd1fab967")}</span>
         </div>
         <div className="flex items-center gap-3">
           <button className="bv-btn bv-btn-ghost bv-btn-sm flex items-center gap-1.5">
             <span className="material-symbols-outlined" style={{ fontSize: 16 }}>search</span>
-            <span className="text-on-surface-variant">Search</span>
+            <span className="text-on-surface-variant">{uiText("mf0ec3cddfcdf")}</span>
             <kbd className="ml-1 px-1.5 py-0.5 text-[10px] rounded bg-surface-container border border-outline-variant/50 text-outline font-mono">⌘K</kbd>
           </button>
-          <div className="bv-avatar bv-btn-sm text-xs">JH</div>
+          <div className="bv-avatar bv-btn-sm text-xs">{uiText("m941a8cfd363d")}</div>
         </div>
       </div>
 
@@ -168,7 +174,7 @@ export default function ImportAutomationPage() {
         {/* Page head */}
         <div className="bv-page-head mb-8">
           <div>
-            <p className="bv-micro text-outline mb-2 tracking-widest">Integrations</p>
+            <p className="bv-micro text-outline mb-2 tracking-widest">{uiText("mcb7a05a63f11")}</p>
             <h1 className="bv-display gradient-text mb-2">{t("app.importAutomation.title")}</h1>
             <p className="bv-body text-on-surface-variant">{t("app.importAutomation.intro")}</p>
           </div>
@@ -188,7 +194,7 @@ export default function ImportAutomationPage() {
               />
               <span
                 className="text-[10px] font-semibold tracking-wider uppercase transition-colors duration-300"
-                style={{ color: i <= phase ? "#60A5FA" : "var(--color-outline)" }}
+                style={{ color: i <= phase ? "var(--color-primary)" : "var(--color-outline)" }}
               >
                 {label}
               </span>
@@ -199,11 +205,9 @@ export default function ImportAutomationPage() {
         {/* ── Phase 0: Paste export ── */}
         {phase === 0 && (
           <div className="bv-glass bv-rise p-7 animate-fade-in">
-            <p className="bv-micro text-outline mb-1 tracking-widest">Step 1</p>
-            <h2 className="bv-headline text-on-surface mb-1">Paste your export</h2>
-            <p className="bv-body text-on-surface-variant mb-6">
-              Pick the platform, then paste the workflow JSON or drop a file.
-            </p>
+            <p className="bv-micro text-outline mb-1 tracking-widest">{uiText("m63618f411d28")}</p>
+            <h2 className="bv-headline text-on-surface mb-1">{uiText("m28a453e700bf")}</h2>
+            <p className="bv-body text-on-surface-variant mb-6">{uiText("m6178c5d299b7")}</p>
 
             {/* Platform picker */}
             <div className="flex flex-wrap gap-2 mb-6">
@@ -259,9 +263,7 @@ export default function ImportAutomationPage() {
 
             {/* Drop zone */}
             <div className="mb-6 rounded-xl border border-dashed border-outline-variant/60 px-4 py-5 text-center text-outline bv-mono text-xs hover:border-primary/30 transition-colors cursor-pointer">
-              <span className="material-symbols-outlined text-outline/60 block mb-1" style={{ fontSize: 22 }}>upload_file</span>
-              or drop a .json export here
-            </div>
+              <span className="material-symbols-outlined text-outline/60 block mb-1" style={{ fontSize: 22 }}>upload_file</span>{uiText("mcb314139cd6e")}</div>
 
             {error && (
               <div className="mb-5 flex items-start gap-3 px-4 py-3 rounded-xl border border-error/30 bg-error/10 text-error text-sm">
@@ -295,11 +297,9 @@ export default function ImportAutomationPage() {
         {/* ── Phase 1: Preview & map ── */}
         {phase === 1 && preview && (
           <div className="bv-glass bv-rise p-7 animate-fade-in">
-            <p className="bv-micro text-outline mb-1 tracking-widest">Step 2</p>
-            <h2 className="bv-headline text-on-surface mb-1">Preview &amp; map</h2>
-            <p className="bv-body text-on-surface-variant mb-6">
-              We parsed {preview.steps.length} steps. Map each to a Braavolabs step type.
-            </p>
+            <p className="bv-micro text-outline mb-1 tracking-widest">{uiText("mf22bc005eae8")}</p>
+            <h2 className="bv-headline text-on-surface mb-1">{uiText("mf59ae985ca8a")}</h2>
+            <p className="bv-body text-on-surface-variant mb-6">{uiText("mb29543f91292")}{" "}{preview.steps.length}{" "}{uiText("mf481a5ad1169")}</p>
 
             {/* DAG preview */}
             <div className="flex flex-wrap items-center gap-0 p-5 mb-6 rounded-xl bg-surface-container-low border border-outline-variant/40">
@@ -330,11 +330,11 @@ export default function ImportAutomationPage() {
                     defaultValue={step.type}
                   >
                     <option value={step.type}>{step.type}</option>
-                    <option value="trigger">Trigger</option>
-                    <option value="tool">Tool call</option>
-                    <option value="branch">Branch</option>
-                    <option value="agent">Agent</option>
-                    <option value="output">Output</option>
+                    <option value="trigger">{uiText("m8a14bed991c3")}</option>
+                    <option value="tool">{uiText("mee753e5a87a2")}</option>
+                    <option value="branch">{uiText("m916a2a45d141")}</option>
+                    <option value="agent">{uiText("meab0461369b0")}</option>
+                    <option value="output">{uiText("m55cf3f3ed970")}</option>
                   </select>
                 </div>
               ))}
@@ -385,9 +385,7 @@ export default function ImportAutomationPage() {
                 onClick={() => { setPhase(0); setPreview(null); }}
                 className="bv-btn bv-btn-ghost flex items-center gap-2"
               >
-                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_back</span>
-                Back
-              </button>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_back</span>{uiText("mef364fe09b40")}</button>
               <button
                 onClick={onCommit}
                 disabled={committing}
@@ -418,7 +416,7 @@ export default function ImportAutomationPage() {
                 <div
                   className="w-16 h-16 rounded-full border-2 border-outline-variant border-t-primary animate-spin"
                 />
-                <p className="bv-body text-on-surface-variant">Forging pipeline from import…</p>
+                <p className="bv-body text-on-surface-variant">{uiText("m8e0f9ab16dab")}</p>
               </div>
             ) : committedId ? (
               /* Done */
@@ -427,7 +425,7 @@ export default function ImportAutomationPage() {
                   <span className="material-symbols-outlined text-primary" style={{ fontSize: 28 }}>check_circle</span>
                 </div>
                 <div>
-                  <h2 className="bv-headline text-on-surface mb-1">Imported</h2>
+                  <h2 className="bv-headline text-on-surface mb-1">{uiText("mcdc0a303cb6e")}</h2>
                   <p className="bv-body text-on-surface-variant">
                     {t("app.importAutomation.created")}{" "}
                     <Link
@@ -442,16 +440,12 @@ export default function ImportAutomationPage() {
                   <Link
                     href={`/pipelines/${committedId}`}
                     className="bv-btn bv-btn-primary flex items-center gap-2"
-                  >
-                    Open in builder
-                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>open_in_new</span>
+                  >{uiText("m358866c978a7")}<span className="material-symbols-outlined" style={{ fontSize: 16 }}>open_in_new</span>
                   </Link>
                   <button
                     onClick={() => { setPhase(0); setPreview(null); setCommittedId(null); setPayload(""); setName(""); }}
                     className="bv-btn bv-btn-ghost"
-                  >
-                    Import another
-                  </button>
+                  >{uiText("mc35120dcdc60")}</button>
                 </div>
               </div>
             ) : null}

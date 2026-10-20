@@ -23,7 +23,7 @@ const fetchSpy = vi.fn();
 let mutations: Gate[], companyReads: Gate[];
 const requests = () => fetchSpy.mock.calls.map(([url, options]) => ({
   path: new URL(String(url), "https://fixture.invalid").pathname,
-  method: options.method ?? "GET", token: options.headers.Authorization,
+  method: options.method ?? "GET", token: new Headers(options.headers).get("Authorization"),
 }));
 const mutationCount = () => requests().filter(request => request.method === "PATCH" || request.path.endsWith("/agents/compose")).length;
 const newOwner = (kind: "logout" | "tenant" | "login") => {

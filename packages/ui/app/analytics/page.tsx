@@ -1,4 +1,12 @@
 "use client";
+import { useStateLabel } from "../../lib/useStateLabel";
+
+import { useDisplayFormats } from "../../lib/useDisplayFormats";
+
+import { useTranslations as useRuntimeTranslations } from "next-intl";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
@@ -10,15 +18,15 @@ import { sounds } from "../../lib/sounds";
 import { useAppStore, captureAuthSession, isAuthSessionCurrent } from "../../lib/store";
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
-  COMPLETED:        { bg: "rgba(52,211,153,0.1)",  color: "#34d399", border: "rgba(52,211,153,0.2)" },
-  RUNNING:          { bg: "rgba(0,209,255,0.1)",   color: "#a4e6ff", border: "rgba(0,209,255,0.2)" },
-  FAILED:           { bg: "rgba(239,68,68,0.1)",   color: "#f87171", border: "rgba(239,68,68,0.2)" },
-  CANCELLED:        { bg: "rgba(133,147,153,0.1)", color: "#859399", border: "rgba(133,147,153,0.2)" },
-  PAUSED:           { bg: "rgba(251,191,36,0.1)",  color: "#fbbf24", border: "rgba(251,191,36,0.2)" },
-  WAITING_APPROVAL: { bg: "rgba(251,146,60,0.1)",  color: "#fb923c", border: "rgba(251,146,60,0.2)" },
-  QUEUED:           { bg: "rgba(109,17,173,0.15)", color: "#e0b6ff", border: "rgba(109,17,173,0.3)" },
+  COMPLETED:        { bg: "rgba(52,211,153,0.1)",  color: "var(--color-success)", border: "rgba(52,211,153,0.2)" },
+  RUNNING:          { bg: "rgba(0,209,255,0.1)",   color: "var(--color-info)", border: "rgba(0,209,255,0.2)" },
+  FAILED:           { bg: "rgba(239,68,68,0.1)",   color: "var(--color-error)", border: "rgba(239,68,68,0.2)" },
+  CANCELLED:        { bg: "rgba(133,147,153,0.1)", color: "var(--color-on-surface-variant)", border: "rgba(133,147,153,0.2)" },
+  PAUSED:           { bg: "rgba(251,191,36,0.1)",  color: "var(--color-warning)", border: "rgba(251,191,36,0.2)" },
+  WAITING_APPROVAL: { bg: "rgba(251,146,60,0.1)",  color: "var(--color-warning)", border: "rgba(251,146,60,0.2)" },
+  QUEUED:           { bg: "rgba(109,17,173,0.15)", color: "var(--color-accent)", border: "rgba(109,17,173,0.3)" },
 };
-const defaultStatus = { bg: "rgba(133,147,153,0.1)", color: "#859399", border: "rgba(133,147,153,0.2)" };
+const defaultStatus = { bg: "rgba(133,147,153,0.1)", color: "var(--color-on-surface-variant)", border: "rgba(133,147,153,0.2)" };
 
 interface UsageData {
   totalRuns: number;
@@ -34,6 +42,7 @@ interface FinanceData {
 }
 
 function AnalyticsContent() {
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
   const locale = useLocale();
   const { token, hydrated } = useAuthGuard();
@@ -127,7 +136,7 @@ function AnalyticsContent() {
       {/* Page head */}
       <div className="bv-page-head mb-6">
         <div>
-          <p className="bv-micro mb-1" style={{ color: "var(--bv-text-faint)" }}>Workspace</p>
+          <p className="bv-micro mb-1" style={{ color: "var(--bv-text-faint)" }}>{uiText("mdd10bd33331e")}</p>
           <h1 className="bv-display gradient-text">{t("app.analytics.title")}</h1>
           <p className="bv-caption mt-1">{t("app.analytics.subtitle")}</p>
         </div>
@@ -209,7 +218,7 @@ function AnalyticsContent() {
         <div className="bv-glass bv-panel">
           <div className="bv-panel-head">
             <div>
-              <p className="bv-micro mb-0.5">Outcomes</p>
+              <p className="bv-micro mb-0.5">{uiText("m3c5cae9db9ff")}</p>
               <h2 className="bv-title">{t("app.analytics.runBreakdown")}</h2>
             </div>
           </div>
@@ -238,7 +247,7 @@ function AnalyticsContent() {
         <div className="bv-glass bv-panel">
           <div className="bv-panel-head">
             <div>
-              <p className="bv-micro mb-0.5">Billing summary</p>
+              <p className="bv-micro mb-0.5">{uiText("me472804666c8")}</p>
               <h2 className="bv-title">{t("app.analytics.costSummary")}</h2>
             </div>
           </div>
@@ -267,12 +276,12 @@ function AnalyticsContent() {
       <div className="bv-glass overflow-hidden">
         <div className="bv-panel-head px-5 py-4" style={{ borderBottom: "1px solid var(--bv-glass-border)" }}>
           <div>
-            <p className="bv-micro mb-0.5">All executions</p>
+            <p className="bv-micro mb-0.5">{uiText("m4176e1045b7d")}</p>
             <h2 className="bv-title">{t("app.analytics.runHistory")}</h2>
           </div>
         </div>
 
-        {runsLoading || runsFailed ? <p role={runsFailed ? "alert" : "status"} className="p-8 bv-caption">{t(runsFailed ? "app.analytics.loadFailed" : "app.analytics.loading")}</p> : runs.length === 0 ? (
+        {runsLoading || runsFailed ? <p role={runsFailed ? "alert" : "status"} className="p-8 bv-caption">{t(runsFailed ?"app.analytics.loadFailed" :"app.analytics.loading")}</p> : runs.length === 0 ? (
           <div className="p-8 text-center">
             <span className="material-symbols-outlined text-4xl mb-2 block" style={{ color: "var(--color-outline)" }}>history</span>
             <p className="bv-caption">{t("app.analytics.noRuns")}</p>
@@ -354,6 +363,7 @@ function BarRow({ label, count, total, color }: { label: string; count: number; 
 
 /* ─── Donut chart (FORGE palette) ────────────────────────────────────── */
 function DonutChart({ segments, total, runsLabel }: { segments: { value: number; color: string; label: string }[]; total: number; runsLabel?: string }) {
+  const uiText = useLegacyTranslations("uiCopy");
   const size = 100;
   const strokeWidth = 12;
   const radius = (size - strokeWidth) / 2;
@@ -391,7 +401,7 @@ function DonutChart({ segments, total, runsLabel }: { segments: { value: number;
       </svg>
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
         <span className="bv-numeric" style={{ fontSize: 18, color: "var(--color-on-surface)", lineHeight: 1 }}>{total}</span>
-        <span style={{ fontSize: 9, color: "var(--bv-text-faint)", letterSpacing: "0.06em", textTransform: "uppercase" }}>{runsLabel ?? "runs"}</span>
+        <span style={{ fontSize: 9, color: "var(--bv-text-faint)", letterSpacing: "0.06em", textTransform: "uppercase" }}>{runsLabel ??uiText("m138dacd53320")}</span>
       </div>
     </div>
   );
@@ -401,6 +411,9 @@ function DonutChart({ segments, total, runsLabel }: { segments: { value: number;
 function RunRow({ run, expanded, detail, onToggle }: {
   run: any; expanded: boolean; detail: any; onToggle: () => void;
 }) {
+  const stateLabel = useStateLabel();
+  const displayFormat = useDisplayFormats();
+  const runtimeCopy = useRuntimeTranslations("runtime");
   const t = useTranslations();
   const locale = useLocale();
   const s = STATUS_STYLES[run.status] ?? defaultStatus;
@@ -425,13 +438,13 @@ function RunRow({ run, expanded, detail, onToggle }: {
         <span>
           <span className="bv-pill" style={{ background: s.bg, color: s.color, borderColor: s.border }}>
             <span className="bv-dot" style={{ background: s.color, width: 5, height: 5 }} />
-            {run.status}
+            {stateLabel(run.status)}
           </span>
         </span>
         {/* Steps */}
         <span className="bv-mono" style={{ fontSize: 12, color: "var(--color-outline)" }}>{run._count?.steps ?? 0}</span>
         {/* Cost */}
-        <span className="bv-mono" style={{ fontSize: 12, color: "var(--color-outline)" }}>{run.costUsd ? `$${Number(run.costUsd).toFixed(4)}` : "—"}</span>
+        <span className="bv-mono" style={{ fontSize: 12, color: "var(--color-outline)" }}>{displayFormat.usd(run.costUsd)}</span>
         {/* Started */}
         <span className="bv-runs-started">{formatDateTime(run.createdAt, locale, { timeZone: "UTC", dateStyle: "medium", timeStyle: "short" })} UTC</span>
       </div>
@@ -456,7 +469,7 @@ function RunRow({ run, expanded, detail, onToggle }: {
                       const ss = STATUS_STYLES[step.status] ?? defaultStatus;
                       return (
                         <span className="bv-pill" style={{ background: ss.bg, color: ss.color, borderColor: ss.border }}>
-                          {step.status}
+                          {stateLabel(step.status)}
                         </span>
                       );
                     })()}

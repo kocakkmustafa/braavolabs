@@ -1,4 +1,6 @@
 "use client";
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 /**
  * Email verification result page.
@@ -102,6 +104,7 @@ function Scene({
   body: React.ReactNode;
   cta?: { href: string; label: string };
 }) {
+  const uiText = useLegacyTranslations("uiCopy");
   return (
     <div className="mesh-bg min-h-screen bg-background flex flex-col items-center justify-center text-center px-6 overflow-hidden">
       {/* ambient arc glow */}
@@ -137,9 +140,7 @@ function Scene({
             <span
               className="font-headline font-bold text-4xl tracking-tight gradient-text select-none"
               style={{ letterSpacing: "-0.04em" }}
-            >
-              BL
-            </span>
+            >{uiText("m22d7829ed6f9")}</span>
           </span>
 
           {/* check badge */}

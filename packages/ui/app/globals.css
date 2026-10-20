@@ -47,10 +47,14 @@
   --color-on-tertiary-fixed:       #14171F;
   --color-on-tertiary-fixed-variant: #3A4150;
 
-  --color-outline:                 #5B6473;
+  --color-outline:                 #8C96A5;
   --color-outline-variant:         #232833;
 
   --color-error:                   #FF8A8A;
+  --color-success:                 #6EE7B7;
+  --color-warning:                 #FBBF24;
+  --color-info:                    #A4E6FF;
+  --color-accent:                  #E0B6FF;
   --color-error-container:         #7F1D1D;
   --color-on-error:                #450A0A;
   --color-on-error-container:      #FECACA;
@@ -93,10 +97,14 @@ html.light {
   --color-on-secondary:            #ffffff;
   --color-on-secondary-container:  #2e004e;
 
-  --color-outline:                 #73777f;
+  --color-outline:                 #60656f;
   --color-outline-variant:         #c4c7cc;
 
   --color-error:                   #ba1a1a;
+  --color-success:                 #146A3F;
+  --color-warning:                 #855500;
+  --color-info:                    #006880;
+  --color-accent:                  #6B21A8;
   --color-error-container:         #ffdad6;
   --color-on-error:                #ffffff;
   --color-on-error-container:      #410002;
@@ -706,7 +714,7 @@ html.light ::selection {
    *    `:focus-visible` only fires on keyboard focus (not mouse
    *    click) so we don't add visual noise for pointer users. */
   *:focus-visible {
-    outline: 2px solid #3B82F6;
+    outline: 2px solid var(--color-primary) !important;
     outline-offset: 2px;
     border-radius: 6px;
   }
@@ -714,14 +722,14 @@ html.light ::selection {
   a:focus-visible,
   [role="button"]:focus-visible,
   [tabindex]:focus-visible {
-    outline: 2px solid #3B82F6;
+    outline: 2px solid var(--color-primary) !important;
     outline-offset: 2px;
     box-shadow: 0 0 0 4px rgba(59,130,246, 0.25);
   }
   input:focus-visible,
   textarea:focus-visible,
   select:focus-visible {
-    outline: 2px solid #3B82F6;
+    outline: 2px solid var(--color-primary) !important;
     outline-offset: 0;
   }
 
@@ -796,6 +804,7 @@ html.light ::selection {
   /* 3-stop brand gradient (cyan → cobalt → purple) — wider arc than the
      2-stop legacy `.gradient-brand` so it reads as more dimensional */
   --bv-gradient-brand: linear-gradient(135deg, #3B82F6 0%, #3B82F6 50%, #2563EB 100%);
+  --bv-gradient-button: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
 
   --bv-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
@@ -807,7 +816,7 @@ html.light ::selection {
   --bv-status-failed: #FF4D4D;
   --bv-status-cancelled: #5B6473;
 
-  --bv-text-faint: #3c494e;
+  --bv-text-faint: #8C96A5;
 
   /* Type stack */
   --bv-font-display: "Space Grotesk", -apple-system, BlinkMacSystemFont, sans-serif;
@@ -838,7 +847,13 @@ html.light {
     radial-gradient(ellipse 40% 40% at 50% 50%, rgba(0, 104, 128, 0.03) 0%, transparent 50%);
 
   --bv-gradient-brand: linear-gradient(135deg, #006880 0%, #2148b5 50%, #5a0e90 100%);
-  --bv-text-faint: #8995a8;
+  --bv-gradient-button: linear-gradient(135deg, #006880 0%, #2148b5 50%, #5a0e90 100%);
+  --bv-status-running: #9A3412;
+  --bv-status-completed: #1D4ED8;
+  --bv-status-paused: #60656F;
+  --bv-status-failed: #B91C1C;
+  --bv-status-cancelled: #60656F;
+  --bv-text-faint: #596477;
 }
 
 /* ───── Atmospheric mesh — 20s drift loop ───── */
@@ -1013,7 +1028,10 @@ html.light .bv-divider { background: linear-gradient(90deg, transparent, rgba(15
   transition: transform 150ms var(--bv-ease-out), box-shadow 240ms var(--bv-ease-out), background 240ms var(--bv-ease-out);
   min-height: 36px;
   user-select: none;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+  max-width: 100%;
   text-decoration: none;
   color: var(--color-on-surface);
 }
@@ -1021,14 +1039,14 @@ html.light .bv-divider { background: linear-gradient(90deg, transparent, rgba(15
 .bv-btn:focus-visible { outline: 2px solid var(--color-primary-container, #3B82F6); outline-offset: 2px; }
 .bv-btn-primary {
   color: #FFFFFF;
-  background: var(--bv-gradient-brand);
+  background: var(--bv-gradient-button);
   background-size: 200% 200%;
   box-shadow: 0 4px 20px rgba(59,130,246, 0.30), inset 0 1px 0 rgba(255,255,255,0.25);
   animation: bv-gradient-shift 6s ease-in-out infinite;
   overflow: hidden;
 }
 .bv-btn-primary::before {
-  content: "";
+  content: none;
   position: absolute; inset: 0;
   background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.30) 50%, transparent 70%);
   transform: translateX(-100%);
@@ -1073,6 +1091,10 @@ html.light .bv-btn-ghost:hover { border-color: rgba(0, 104, 128, 0.30); backgrou
 .bv-pill-red    { color: #FF4D4D;   background: rgba(255,77,77, 0.10); border-color: rgba(255,77,77, 0.25); }
 .bv-pill-muted  { color: var(--color-outline); background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08); }
 html.light .bv-pill-muted { background: rgba(15,23,42,0.04); border-color: rgba(15,23,42,0.10); }
+html.light .bv-pill-cyan { color: #1D4ED8; background: #EFF6FF; border-color: #93C5FD; }
+html.light .bv-pill-purple { color: #6B21A8; background: #FAF5FF; border-color: #D8B4FE; }
+html.light .bv-pill-amber { color: #9A3412; background: #FFF7ED; border-color: #FDBA74; }
+html.light .bv-pill-red { color: #B91C1C; background: #FEF2F2; border-color: #FCA5A5; }
 
 /* ───── Filter pill ───── */
 .bv-fpill {
@@ -1403,4 +1425,34 @@ html.light .bv-approval-item { background: rgba(15,23,42,0.02); }
     animation: none;
     transform: none;
   }
+}
+
+
+/* Shared appearance control stays in document flow, never over a modal/form. */
+.bv-appearance-bar {
+  display: flex; justify-content: flex-end; flex-wrap: wrap;
+  padding: 16px 24px; border-top: 1px solid var(--color-outline-variant);
+  color: var(--color-on-surface); background: var(--color-background);
+}
+.bv-theme-control { max-width: 100%; font-size: 13px; }
+.bv-theme-control label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.bv-theme-control select {
+  min-height: 44px; max-width: 100%; padding: 8px 12px; border-radius: 8px;
+  color: var(--color-on-surface); background: var(--color-surface);
+  border: 1px solid var(--color-outline);
+}
+.bv-theme-control p { max-width: 44ch; margin-top: 8px; color: var(--color-error); }
+button:disabled { cursor: not-allowed; }
+[aria-invalid="true"] { border-color: var(--color-error); }
+h1, h2, h3, p, label { overflow-wrap: anywhere; }
+:lang(ko) { word-break: keep-all; overflow-wrap: anywhere; }
+:lang(hi) { font-family: "Noto Sans Devanagari", "Kohinoor Devanagari", "Nirmala UI", var(--font-body); line-height: 1.6; }
+:lang(zh-Hans) { font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", var(--font-body); }
+@media (prefers-reduced-motion: reduce) {
+  html, html:focus-within { scroll-behavior: auto !important; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important; scroll-behavior: auto !important;
+  }
+  .bv-rise, .reveal { opacity: 1 !important; transform: none !important; }
 }

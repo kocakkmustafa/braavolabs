@@ -1,6 +1,15 @@
 "use client";
+import { useLocalizedFailure } from "../../lib/localized-error";
 
-import { useEffect, useRef, useState } from "react";
+import { useTranslations as useRuntimeTranslations } from "next-intl";
+
+import { useLocale as useDisplayLocale } from "next-intl";
+import { formatDateTime as formatDisplayDateTime, currentTimeZone as displayTimeZone } from "../../i18n/locales";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
+
+import { useEffect, useRef, useState, useId } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { api, apiFetch } from "../../lib/api";
@@ -65,7 +74,7 @@ const NAV_ITEMS = [
 // Forge palette rule: NO GREEN anywhere (ok/success = arc-blue #3B82F6
 // family). D-012: OPENAI/OLLAMA/LMSTUDIO chips used to be green/emerald
 // (#10a37f/#34d399/#10b981) — remapped to the blue family below.
-const PROVIDER_LABELS: Record<string, { label: string; color: string; models: string[]; local?: boolean; defaultBaseUrl?: string; setupHint?: string }> = {
+const RAW_PROVIDER_LABELS: Record<string, { label: string; color: string; models: string[]; local?: boolean; defaultBaseUrl?: string; setupHint?: string }> = {
   ANTHROPIC:  { label: "Anthropic Claude",   color: "#d97706", models: ["claude-opus-4-20250514", "claude-sonnet-4-5-20250929", "claude-sonnet-4-20250514", "claude-haiku-4-5-20251001"] },
   OPENAI:     { label: "OpenAI",             color: "#38bdf8", models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "o1-mini"] },
   GOOGLE:     { label: "Google Gemini",      color: "#4285f4", models: ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"] },
@@ -84,7 +93,7 @@ const PROVIDER_LABELS: Record<string, { label: string; color: string; models: st
   // CREATOR and above (FREE plan keeps it simple with cloud-only BYOK).
   // setupHint is rendered in the settings UI for clarity.
   OLLAMA:     {
-    label: "Ollama (self-hosted · Gemma 3)", color: "#60a5fa", local: true,
+    label: "Ollama (self-hosted · Gemma 3)", color: "var(--color-primary)", local: true,
     defaultBaseUrl: "http://localhost:11434/v1",
     models: ["gemma3:4b", "gemma3:12b", "gemma3:27b", "llama3.2:3b", "llama3.3:70b", "qwen2.5:14b", "qwen2.5-coder:14b", "deepseek-r1:8b", "phi3:14b"],
     setupHint: "Install ollama.com → run `ollama pull gemma3:4b` → keep terminal open with `ollama serve`",
@@ -116,6 +125,15 @@ export default function SettingsPage() {
 }
 
 function SettingsContent() {
+  const describeFailure = useLocalizedFailure();
+  const runtimeCopy = useRuntimeTranslations("runtime");
+  const PROVIDER_LABELS = Object.fromEntries(Object.entries(RAW_PROVIDER_LABELS).map(([id, info]) => [id, {
+    ...info,
+    label: id === "CEREBRAS" ? "Cerebras" : id === "ZHIPU" ? "Zhipu GLM" : id === "OLLAMA" ? runtimeCopy("providerOllama") : id === "LMSTUDIO" ? runtimeCopy("providerLmStudio") : id === "CUSTOM" ? runtimeCopy("providerCustom") : info.label,
+    setupHint: id === "OLLAMA" ? runtimeCopy("ollamaHint") : id === "LMSTUDIO" ? runtimeCopy("lmStudioHint") : id === "CUSTOM" ? runtimeCopy("customProviderHint") : undefined,
+  }]));
+  const displayLocale = useDisplayLocale();
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
   const router = useRouter();
   const { token, hydrated } = useAuthGuard();
@@ -179,6 +197,7 @@ function SettingsContent() {
   const [aiTesting, setAiTesting] = useState(false);
   const [aiTestResult, setAiTestResult] = useState<{ success: boolean; response?: string; error?: string } | null>(null);
   const [aiSaveMsg, setAiSaveMsg] = useState<string | null>(null);
+  const [aiSaveFailed, setAiSaveFailed] = useState(false);
   // Live model catalogue per provider, fetched from the API JIT-proxy
   // endpoint. Missing entry = fall back to the static PROVIDER_LABELS list
   // (endpoint absent, no key stored, or provider unreachable).
@@ -248,7 +267,7 @@ function SettingsContent() {
         setAiModel(cfg.model ?? "claude-sonnet-4-20250514");
         setAiBaseUrl(cfg.baseUrl ?? "");
       })
-      .catch((err) => { if (publish()) setAiSaveMsg(`Error: ${(err as Error).message}`); });
+      .catch((err) => { if (publish()) { setAiSaveFailed(true); setAiSaveMsg(describeFailure(err, t("app.settings.aiUnknownError"))); } });
     return () => { active = false; };
     // The keyed owner boundary reloads data. A same-owner token rotation must
     // preserve unsaved form edits rather than reload the persisted AI config.
@@ -327,14 +346,14 @@ function SettingsContent() {
     setUpgradeLoading(true);
     setBillingError(null);
     try { const { url } = await api.billingCheckout(token!, plan); if (current()) window.location.href = url; }
-    catch (err) { if (current()) setBillingError((err as Error).message); }
+    catch (err) { if (current()) setBillingError(describeFailure(err)); }
     if (current()) setUpgradeLoading(false);
   }
 
   async function handleManageBilling() {
     setBillingError(null);
     try { const { url } = await api.billingPortal(token!); if (current()) window.location.href = url; }
-    catch (err) { if (current()) setBillingError((err as Error).message); }
+    catch (err) { if (current()) setBillingError(describeFailure(err)); }
   }
 
   async function handleSaveProfile() {
@@ -400,12 +419,14 @@ function SettingsContent() {
         baseUrl: aiBaseUrl.trim() || null,
       }));
       setAiApiKey("");
+      setAiSaveFailed(false);
       setAiSaveMsg(t("app.settings.aiSavedToast"));
       later(() => setAiSaveMsg(null), 3000);
     } catch (err) {
       if (!publish() || !sameDraft()) return;
-      const message = err instanceof Error ? err.message : t("app.settings.aiUnknownError");
-      setAiSaveMsg(`Error: ${message}`);
+      const message = describeFailure(err, t("app.settings.aiUnknownError"));
+      setAiSaveFailed(true);
+      setAiSaveMsg(message);
     } finally {
       if (publish()) setAiSaving(false);
     }
@@ -424,10 +445,10 @@ function SettingsContent() {
         method: "POST",
         token, signal: ownerAbort.current.signal,
       });
-      if (publish()) setAiTestResult(data);
+      if (publish()) setAiTestResult({ ...data, error: data.success ? undefined : describeFailure(data, t("app.settings.aiUnknownError")) });
     } catch (err) {
       if (!publish()) return;
-      const message = err instanceof Error ? err.message : t("app.settings.aiUnknownError");
+      const message = describeFailure(err, t("app.settings.aiUnknownError"));
       setAiTestResult({ success: false, error: message });
     } finally {
       if (current() && request === aiTestRequest.current) setAiTesting(false);
@@ -449,7 +470,7 @@ function SettingsContent() {
       } else if (action === "test") {
         const result = await api.testIntegration(token, companyId, provider);
         if (!publish()) return;
-        setTestResult({ provider, success: result.success, error: result.error });
+        setTestResult({ provider, success: result.success, error: result.success ? undefined : describeFailure(result, t("app.settings.aiUnknownError")) });
       } else await api.deleteIntegration(token, companyId, provider);
       if (!publish()) return;
       const liveToken = useAppStore.getState().token;
@@ -459,7 +480,7 @@ function SettingsContent() {
       setIntegrations(updated);
       if (action === "save") setEditFields({});
     } catch (err) {
-      if (publish()) setTestResult({ provider, success: false, error: (err as Error).message });
+      if (publish()) setTestResult({ provider, success: false, error: describeFailure(err, t("app.settings.aiUnknownError")) });
     }
   }
 
@@ -474,7 +495,7 @@ function SettingsContent() {
           {/* breadcrumb */}
           <div className="flex items-center gap-2 text-xs font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
             <span className="material-symbols-outlined" style={{ fontSize: 14 }}>settings</span>
-            <span>Settings</span>
+            <span>{uiText("m239b7819863d")}</span>
           </div>
         </div>
         <button
@@ -492,9 +513,9 @@ function SettingsContent() {
         {/* Page head */}
         <div className="bv-page-head mb-7">
           <div>
-            <p className="bv-micro text-outline mb-1">Configuration</p>
-            <h1 className="bv-headline text-on-surface">Settings</h1>
-            <p className="bv-caption mt-1">Profile, workspace, locale and notifications.</p>
+            <p className="bv-micro text-outline mb-1">{uiText("m82be07e8418a")}</p>
+            <h1 className="bv-headline text-on-surface">{uiText("m239b7819863d")}</h1>
+            <p className="bv-caption mt-1">{uiText("m4c903bb74ed9")}</p>
           </div>
         </div>
 
@@ -511,7 +532,7 @@ function SettingsContent() {
                 style={{
                   color: active === item.id ? "var(--color-on-surface)" : "var(--color-on-surface-variant)",
                   background: active === item.id ? "rgba(59,130,246,0.08)" : "transparent",
-                  borderLeft: `2px solid ${active === item.id ? "var(--color-primary)" : "transparent"}`,
+                  borderInlineStart: `2px solid ${active === item.id ? "var(--color-primary)" : "transparent"}`,
                 }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 16, opacity: active === item.id ? 1 : 0.6 }}>{item.icon}</span>
@@ -525,12 +546,10 @@ function SettingsContent() {
               style={{
                 color: active === "danger" ? "var(--color-error)" : "var(--color-on-surface-variant)",
                 background: active === "danger" ? "rgba(255,77,77,0.08)" : "transparent",
-                borderLeft: `2px solid ${active === "danger" ? "var(--color-error)" : "transparent"}`,
+                borderInlineStart: `2px solid ${active === "danger" ? "var(--color-error)" : "transparent"}`,
               }}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-error)", opacity: active === "danger" ? 1 : 0.6 }}>warning</span>
-              Danger zone
-            </button>
+              <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-error)", opacity: active === "danger" ? 1 : 0.6 }}>warning</span>{uiText("m2255caa19025")}</button>
           </nav>
 
           {/* Section panels */}
@@ -557,7 +576,7 @@ function SettingsContent() {
                 <div className="mb-3.5">
                   <ForgeField
                     label={t("app.settings.fieldName")}
-                    placeholder="Jane Smith"
+                    placeholder={uiText("m251011545863")}
                     value={profileName}
                     onChange={setProfileName}
                   />
@@ -578,9 +597,9 @@ function SettingsContent() {
               <ForgeSection title={t("app.settings.notificationsTitle")} subtitle={t("app.settings.notificationsSubtitle")} icon="notifications">
                 <div>
                   {([
-                    { key: "spendApproval" as const, label: "Approval requests", desc: "Push when a run needs a spend approval", critical: true },
-                    { key: "pipelineErrors" as const, label: "Risk-stop triggered", desc: "Push when a hard-stop halts a run", critical: true },
-                    { key: "runCompleted" as const, label: "Run completed", desc: "Notify when a run finishes" },
+                    { key: "spendApproval" as const, label: runtimeCopy("m6dc7542014dc"), desc: runtimeCopy("m29a34a94a498"), critical: true },
+                    { key: "pipelineErrors" as const, label: runtimeCopy("m84ed19090410"), desc: runtimeCopy("mb195583a6e7f"), critical: true },
+                    { key: "runCompleted" as const, label: runtimeCopy("m13641fc2a8c0"), desc: runtimeCopy("m6e87b3db013a") },
                   ]).map((item) => (
                     <div
                       key={item.key}
@@ -588,7 +607,7 @@ function SettingsContent() {
                     >
                       <div className="flex items-start gap-2.5">
                         {item.critical && (
-                          <span className="bv-pill bv-pill-amber mt-0.5 flex-shrink-0">Critical</span>
+                          <span className="bv-pill bv-pill-amber mt-0.5 flex-shrink-0">{uiText("m7f8ad1ba2dfe")}</span>
                         )}
                         <div>
                           <p className="text-sm font-medium text-on-surface">{item.label}</p>
@@ -634,12 +653,12 @@ function SettingsContent() {
 
                 <div className="flex items-center justify-between mb-5 pb-5 border-b border-outline-variant/15">
                   <div className="flex items-center gap-3">
-                    <span className="bv-pill bv-pill-cyan">{currentPlan} Plan</span>
+                    <span className="bv-pill bv-pill-cyan">{currentPlan}{" "}{uiText("m5836e3f6f284")}</span>
                     {subscription?.subscription && (
                       <span className="bv-caption">
                         {subscription.subscription.cancelAtPeriodEnd
-                          ? `Cancels ${new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()}`
-                          : `Renews ${new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()}`}
+                          ? t("surface.billing.cancels", { date: formatDisplayDateTime(subscription.subscription.currentPeriodEnd, displayLocale, { timeZone: displayTimeZone(), dateStyle: "medium" }) })
+                          : t("surface.billing.renews", { date: formatDisplayDateTime(subscription.subscription.currentPeriodEnd, displayLocale, { timeZone: displayTimeZone(), dateStyle: "medium" }) })}
                       </span>
                     )}
                   </div>
@@ -657,7 +676,7 @@ function SettingsContent() {
                   <div className="space-y-3.5 mb-7">
                     <ForgeUsageBar label={t("app.settings.runsThisMonth")} current={billingUsage.live.runs} limit={limits.runs} />
                     <div className="flex justify-between text-sm">
-                      <span className="text-on-surface-variant">Tool Calls</span>
+                      <span className="text-on-surface-variant">{uiText("m70d993f4aae7")}</span>
                       <span className="font-semibold text-on-surface">{billingUsage.live.toolCalls}</span>
                     </div>
                   </div>
@@ -669,12 +688,12 @@ function SettingsContent() {
                     const pricing = PLAN_PRICING[id];
                     const isFree = id === "FREE";
                     const isEnt = id === "ENTERPRISE";
-                    const price = isFree ? "$0" : isEnt ? "Custom" : `$${pricing.monthlyUsd}/mo`;
+                    const price = isFree ? "$0" : isEnt ?uiText("m81a36cd86bb2") : runtimeCopy("m9d5e808eecb2", { value0: pricing.monthlyUsd });
                     const features: string[] = [
-                      planLimits.maxCompanies === -1 ? "Unlimited workspaces" : `${planLimits.maxCompanies} workspace${planLimits.maxCompanies === 1 ? "" : "s"}`,
-                      planLimits.maxRunsPerMonth === -1 ? "Unlimited runs" : `${planLimits.maxRunsPerMonth} runs/mo`,
-                      planLimits.maxConnectedAutomations === -1 ? "Unlimited connected automations" : `${planLimits.maxConnectedAutomations} connected automation${planLimits.maxConnectedAutomations === 1 ? "" : "s"}`,
-                      ...(planLimits.localProvider ? ["Self-hosted local provider (Ollama / LM Studio)"] : []),
+                      planLimits.maxCompanies === -1 ?uiText("m70488646d660") : runtimeCopy("workspaces", { count: planLimits.maxCompanies }),
+                      planLimits.maxRunsPerMonth === -1 ?uiText("mc6572473d51f") : runtimeCopy("m26f640894104", { count: planLimits.maxRunsPerMonth }),
+                      planLimits.maxConnectedAutomations === -1 ?uiText("m18629becb717") : runtimeCopy("connectedAutomations", { count: planLimits.maxConnectedAutomations }),
+                      ...(planLimits.localProvider ? [runtimeCopy("m5e369d5a7fd5")] : []),
                       ...planLimits.features.includes("crm_sync") ? ["CRM sync"] : [],
                       ...planLimits.features.includes("sso") ? ["SSO"] : [],
                       ...planLimits.features.includes("sla") ? ["SLA"] : [],
@@ -702,7 +721,7 @@ function SettingsContent() {
                       <p className="font-headline font-semibold text-sm text-on-surface mb-0.5">{plan.name}</p>
                       <p className="bv-numeric text-lg text-primary mb-2">{plan.price}</p>
                       {currentPlan === plan.id && (
-                        <span className="bv-pill bv-pill-cyan mb-2 self-start">Current</span>
+                        <span className="bv-pill bv-pill-cyan mb-2 self-start">{uiText("m9d2f4b435f53")}</span>
                       )}
                       <ul className="text-xs space-y-1 mb-3.5 flex-1 text-on-surface-variant">
                         {plan.features.map((f) => (
@@ -717,17 +736,13 @@ function SettingsContent() {
                           <a
                             href="mailto:founder@braavolabs.com?subject=Enterprise%20plan%20inquiry"
                             className="bv-btn bv-btn-primary bv-btn-sm w-full justify-center"
-                          >
-                            Contact sales
-                          </a>
+                          >{uiText("m55b34f1cdcf3")}</a>
                         ) : (
                           <button
                             onClick={() => handleUpgrade(plan.id as "CREATOR" | "PRO" | "BUSINESS")}
                             disabled={upgradeLoading}
                             className="bv-btn bv-btn-primary bv-btn-sm w-full justify-center disabled:opacity-50"
-                          >
-                            Upgrade
-                          </button>
+                          >{uiText("m245c12189d91")}</button>
                         )
                       )}
                     </div>
@@ -740,7 +755,7 @@ function SettingsContent() {
             {active === "integrations" && (
               <ForgeSection title={t("app.settings.integrationsTitle")} subtitle={t("app.settings.integrationsSubtitle")} icon="hub">
                 <div className="mb-5">
-                  <label className="bv-micro text-outline mb-2 block">Company</label>
+                  <label className="bv-micro text-outline mb-2 block">{uiText("mca4ac26863e8")}</label>
                   <select
                     value={selectedCompanyId}
                     onChange={(e) => {
@@ -761,14 +776,14 @@ function SettingsContent() {
                 {intLoading ? (
                   <div className="text-center py-10">
                     <div className="w-5 h-5 border-2 rounded-full animate-spin mx-auto mb-2 border-outline border-t-primary" />
-                    <p className="bv-caption">Loading integrations...</p>
+                    <p className="bv-caption">{uiText("md734f81167bd")}</p>
                   </div>
                 ) : (
                   <div className="space-y-2.5">
                     {providers.map((prov) => {
                       const existing = integrations.find((i: any) => i.provider === prov.provider);
                       const isEditing = editProvider === prov.provider;
-                      const statusColor = existing?.status === "ACTIVE" ? "var(--bv-status-completed)" : existing?.status === "ERROR" ? "var(--bv-status-failed)" : existing?.status === "PENDING" ? "var(--bv-status-running)" : "var(--color-outline)";
+                      const statusColor = existing?.status === "ACTIVE" ?"var(--bv-status-completed)" : existing?.status === "ERROR" ?"var(--bv-status-failed)" : existing?.status === "PENDING" ?"var(--bv-status-running)" :"var(--color-outline)";
                       const statusLabel = existing?.status ?? t("app.settings.notConnected");
 
                       return (
@@ -813,7 +828,7 @@ function SettingsContent() {
                           {isEditing && (
                             <div className="px-4 pb-4 pt-1 border-t border-outline-variant/15">
                               <div className="mb-3.5 p-3 rounded-xl bg-primary/5 border border-primary/15">
-                                <p className="bv-micro text-primary mb-1.5">Setup Guide</p>
+                                <p className="bv-micro text-primary mb-1.5">{uiText("m0530d4879653")}</p>
                                 <pre className="text-xs whitespace-pre-wrap text-on-surface-variant">{prov.setupGuide}</pre>
                                 {prov.docsUrl && (
                                   <a href={prov.docsUrl} target="_blank" rel="noopener noreferrer" className="text-xs mt-2 inline-block text-primary">
@@ -828,7 +843,7 @@ function SettingsContent() {
                                     <label className="bv-caption font-semibold mb-1 block text-on-surface-variant">
                                       {field.label}
                                       {existing?.fieldsSet?.includes(field.key) && (
-                                        <span className="ml-2 text-[10px] text-primary">(saved)</span>
+                                        <span className="ml-2 text-[10px] text-primary">{uiText("m2c575197fbcf")}</span>
                                       )}
                                     </label>
                                     <input
@@ -851,7 +866,7 @@ function SettingsContent() {
                                     color: testResult.success ? "var(--color-primary)" : "var(--color-error)",
                                   }}
                                 >
-                                  {testResult.success ? t("app.settings.connectionSuccessful") : `Error: ${testResult.error}`}
+                                  {testResult.success ? t("app.settings.connectionSuccessful") : testResult.error ?? t("app.settings.aiUnknownError")}
                                 </div>
                               )}
 
@@ -865,16 +880,12 @@ function SettingsContent() {
                                 <button
                                   onClick={() => changeIntegration("test", prov.provider)}
                                   className="bv-btn bv-btn-ghost bv-btn-sm"
-                                >
-                                  Test Connection
-                                </button>
+                                >{uiText("m2f159920cfcf")}</button>
                                 {existing && (
                                   <button
                                     onClick={() => changeIntegration("remove", prov.provider)}
                                     className="bv-btn bv-btn-danger bv-btn-sm ml-auto"
-                                  >
-                                    Remove
-                                  </button>
+                                  >{uiText("m5d0a3ab02ef8")}</button>
                                 )}
                               </div>
                             </div>
@@ -892,12 +903,12 @@ function SettingsContent() {
               <ForgeSection title={t("app.settings.governanceTitle")} subtitle={t("app.settings.governanceSubtitle")} icon="security">
                 <div>
                   {[
-                    { label: "Spend Approval Required", value: "All spend actions" },
-                    { label: "Loop Detection Threshold", value: "5 consecutive failures" },
-                    { label: "Cost Anomaly Threshold", value: "20% of run budget" },
-                    { label: "Spam Protection", value: "3+ unanswered = blocked" },
-                    { label: "Memory Auto-Promote", value: "confidence ≥ 0.7, count ≥ 3" },
-                    { label: "Holding Brain Requirement", value: "2+ companies with pattern" },
+                    { label: runtimeCopy("mc058d692e6cc"), value: runtimeCopy("me68fc6aed4e7") },
+                    { label: runtimeCopy("m04508baa9aeb"), value: runtimeCopy("m4021017c235b") },
+                    { label: runtimeCopy("m6774e7b32e15"), value: runtimeCopy("md2687779b5c7") },
+                    { label: runtimeCopy("m51e462c03da2"), value: runtimeCopy("m10bc771116e0") },
+                    { label: runtimeCopy("m7ae7fcaafb64"), value: runtimeCopy("me92d7c3eb5e2") },
+                    { label: runtimeCopy("m74769711684e"), value: runtimeCopy("m27e8635ece5f") },
                   ].map((item) => (
                     <div
                       key={item.label}
@@ -920,7 +931,7 @@ function SettingsContent() {
 
                   {/* Provider selector */}
                   <div>
-                    <p className="bv-micro text-outline mb-3">Provider</p>
+                    <p className="bv-micro text-outline mb-3">{uiText("mf1fd0aaf6045")}</p>
                     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
                       {Object.entries(PROVIDER_LABELS).map(([id, info]) => {
                         const planAllowsLocal = planAllowsLocalProvider(currentPlan);
@@ -973,7 +984,7 @@ function SettingsContent() {
                   {/* Local setup hint */}
                   {PROVIDER_LABELS[aiProvider]?.local && planAllowsLocalProvider(currentPlan) && PROVIDER_LABELS[aiProvider]?.setupHint && (
                     <div className="rounded-xl px-3.5 py-2.5 text-xs bg-primary/5 border border-primary/20">
-                      <p className="font-semibold mb-1 text-primary">Self-hosted provider — runs on your hardware</p>
+                      <p className="font-semibold mb-1 text-primary">{uiText("m9583131210fc")}</p>
                       <p className="text-on-surface-variant">{PROVIDER_LABELS[aiProvider]?.setupHint}</p>
                     </div>
                   )}
@@ -981,10 +992,8 @@ function SettingsContent() {
                   {/* Model selector */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <p className="bv-micro text-outline">
-                        Model
-                        {PROVIDER_LABELS[aiProvider]?.local && aiProvider !== "CUSTOM" && (
-                          <span className="ml-2 font-normal normal-case text-[10px] text-outline opacity-60">(type any tag your local server has loaded)</span>
+                      <p className="bv-micro text-outline">{uiText("m4cb1ce4d7ccb")}{PROVIDER_LABELS[aiProvider]?.local && aiProvider !== "CUSTOM" && (
+                          <span className="ml-2 font-normal normal-case text-[10px] text-outline opacity-60">{uiText("md100640b1368")}</span>
                         )}
                       </p>
                       <button
@@ -1003,7 +1012,7 @@ function SettingsContent() {
                         list={`${aiProvider}-models`}
                         value={aiModel}
                         onChange={(e) => setAiModel(e.target.value)}
-                        placeholder={aiProvider === "OLLAMA" ? "gemma3:4b" : aiProvider === "LMSTUDIO" ? "google/gemma-3-4b-it" : "model-name"}
+                        placeholder={aiProvider === "OLLAMA" ?uiText("mdfe713d713c5") : aiProvider === "LMSTUDIO" ?"google/gemma-3-4b-it" :"model-name"}
                         className="w-full px-3.5 py-2.5 rounded-xl text-sm font-mono bg-surface-container border border-outline-variant/30 text-on-surface outline-none focus:border-primary/50 transition-colors"
                       />
                     ) : (
@@ -1034,10 +1043,10 @@ function SettingsContent() {
                       <p className="bv-micro text-outline mb-1">
                         {t("app.settings.aiBaseUrl")}
                         {!PROVIDER_LABELS[aiProvider]?.local && (
-                          <span className="ml-2 font-normal normal-case text-[10px] opacity-60">(optional proxy override)</span>
+                          <span className="ml-2 font-normal normal-case text-[10px] opacity-60">{uiText("ma9ef66d953f7")}</span>
                         )}
                         {aiProvider === "CUSTOM" && (
-                          <span className="ml-2 font-normal normal-case text-[10px] text-error">required</span>
+                          <span className="ml-2 font-normal normal-case text-[10px] text-error">{uiText("m03032587881b")}</span>
                         )}
                       </p>
                       <input
@@ -1048,8 +1057,7 @@ function SettingsContent() {
                         className="w-full px-3.5 py-2.5 rounded-xl text-sm font-mono bg-surface-container border border-outline-variant/30 text-on-surface outline-none focus:border-primary/50 transition-colors"
                       />
                       {PROVIDER_LABELS[aiProvider]?.defaultBaseUrl && !aiBaseUrl && (
-                        <p className="text-[10px] mt-1 text-outline opacity-60">
-                          Default: <code>{PROVIDER_LABELS[aiProvider].defaultBaseUrl}</code>
+                        <p className="text-[10px] mt-1 text-outline opacity-60">{uiText("m59f3ac725629")}{" "}<code>{PROVIDER_LABELS[aiProvider].defaultBaseUrl}</code>
                         </p>
                       )}
                     </div>
@@ -1058,9 +1066,7 @@ function SettingsContent() {
                   {/* API Key */}
                   {!PROVIDER_LABELS[aiProvider]?.local && (
                     <div>
-                      <p className="bv-micro text-outline mb-1">
-                        API Key
-                        {aiConfig?.hasApiKey && (
+                      <p className="bv-micro text-outline mb-1">{uiText("m0b1070b5d324")}{aiConfig?.hasApiKey && (
                           <span className="ml-2 font-normal normal-case text-[10px] text-primary">
                             {t("app.settings.aiKeyConfiguredPrefix")} ({aiConfig.maskedApiKey})
                           </span>
@@ -1079,7 +1085,7 @@ function SettingsContent() {
                       </p>
                       <input
                         type="password"
-                        placeholder={aiConfig?.hasApiKey ? t("app.settings.aiLeavePlaceholder") : "sk-..."}
+                        placeholder={aiConfig?.hasApiKey ? t("app.settings.aiLeavePlaceholder") :"sk-..."}
                         value={aiApiKey}
                         onChange={(e) => setAiApiKey(e.target.value)}
                         className="w-full px-3.5 py-2.5 rounded-xl text-sm font-mono bg-surface-container border border-outline-variant/30 text-on-surface outline-none focus:border-primary/50 transition-colors"
@@ -1088,12 +1094,11 @@ function SettingsContent() {
                   )}
                   {PROVIDER_LABELS[aiProvider]?.local && aiProvider === "CUSTOM" && (
                     <div>
-                      <p className="bv-micro text-outline mb-1">
-                        API Key <span className="font-normal normal-case opacity-60">(optional)</span>
+                      <p className="bv-micro text-outline mb-1">{uiText("m0b1070b5d324")}{" "}<span className="font-normal normal-case opacity-60">{uiText("mdd0a21379699")}</span>
                       </p>
                       <input
                         type="password"
-                        placeholder="Optional auth token for your endpoint"
+                        placeholder={uiText("m9bf0b94f3d0d")}
                         value={aiApiKey}
                         onChange={(e) => setAiApiKey(e.target.value)}
                         className="w-full px-3.5 py-2.5 rounded-xl text-sm font-mono bg-surface-container border border-outline-variant/30 text-on-surface outline-none focus:border-primary/50 transition-colors"
@@ -1106,9 +1111,9 @@ function SettingsContent() {
                     <div
                       className="px-4 py-3 rounded-xl text-xs font-semibold"
                       style={{
-                        background: aiSaveMsg.startsWith("Error") ? "rgba(255,77,77,0.08)" : "rgba(59,130,246,0.08)",
-                        color: aiSaveMsg.startsWith("Error") ? "var(--color-error)" : "var(--color-primary)",
-                        border: `1px solid ${aiSaveMsg.startsWith("Error") ? "rgba(255,77,77,0.2)" : "rgba(59,130,246,0.2)"}`,
+                        background: aiSaveFailed ? "rgba(255,77,77,0.08)" : "rgba(59,130,246,0.08)",
+                        color: aiSaveFailed ? "var(--color-error)" : "var(--color-primary)",
+                        border: `1px solid ${aiSaveFailed ? "rgba(255,77,77,0.2)" : "rgba(59,130,246,0.2)"}`,
                       }}
                     >
                       {aiSaveMsg}
@@ -1126,8 +1131,8 @@ function SettingsContent() {
                       }}
                     >
                       {aiTestResult.success
-                        ? `✓ Connection successful — model responded: "${aiTestResult.response}"`
-                        : `✗ Connection failed: ${aiTestResult.error}`}
+                        ? runtimeCopy("m31f4062639ad", { value0: aiTestResult.response ?? "—" })
+                        : aiTestResult.error ?? t("app.settings.aiUnknownError")}
                     </div>
                   )}
 
@@ -1148,7 +1153,7 @@ function SettingsContent() {
                         <button
                           onClick={handleTestAiConfig}
                           disabled={aiTesting || !canTest}
-                          title={canTest ? "" : "Save provider with API key first"}
+                          title={canTest ? "" :uiText("m6f1791e21588")}
                           className="bv-btn bv-btn-ghost disabled:opacity-40"
                         >
                           {aiTesting ? t("app.settings.aiTesting") : t("app.settings.testConnection")}
@@ -1159,15 +1164,9 @@ function SettingsContent() {
 
                   {/* Info box */}
                   <div className="p-4 rounded-xl bg-surface-container border border-outline-variant/20 text-xs text-on-surface-variant">
-                    <p className="font-semibold mb-1 text-on-surface">How it works</p>
-                    <p>
-                      Your API key is encrypted with AES-256-GCM before storage. When running pipelines and building companies, agents will use your configured provider.{" "}
-                      <strong className="text-primary">An API key is required</strong> — without one, the company builder will fall back to a placeholder spec and pipeline runs will fail with &ldquo;Anthropic API client not initialized&rdquo;. Get your key from{" "}
-                      <a href="https://console.anthropic.com" target="_blank" rel="noopener" className="text-primary underline">console.anthropic.com</a> (or pick another provider above).
-                    </p>
-                    <p className="mt-2">
-                      <strong className="text-primary">Self-hosted option (Creator+):</strong> point Braavolabs at <code>Ollama</code> or <code>LM Studio</code> running on your own machine — Gemma 3 4B is a good starting point. Prompts stay on your hardware, no per-token LLM costs, works offline.
-                    </p>
+                    <p className="font-semibold mb-1 text-on-surface">{uiText("m5ae1c6a8e4c6")}</p>
+                    <p>{t("app.settings.aiStorageDescription")}</p>
+                    <p className="mt-2">{t("app.settings.localEndpointDescription")}</p>
                   </div>
                 </div>
               </ForgeSection>
@@ -1175,10 +1174,10 @@ function SettingsContent() {
 
             {/* ── API & Auth ── */}
             {active === "api" && (
-              <ForgeSection title="API & Auth" subtitle="Your credentials and access tokens" icon="terminal">
+              <ForgeSection title={uiText("m350c849d3a6f")} subtitle={uiText("m41c85b6bacc7")} icon="terminal">
                 <div className="space-y-3.5">
                   <div className="p-4 rounded-xl bg-surface-container border border-outline-variant/20">
-                    <p className="bv-micro text-outline mb-1.5">Tenant ID</p>
+                    <p className="bv-micro text-outline mb-1.5">{uiText("m995515c1ae9f")}</p>
                     <div className="flex items-center gap-3">
                       <code className="text-sm flex-1 truncate bv-mono text-on-surface-variant">
                         {tenantId ? `${tenantId.slice(0, 4)}...${tenantId.slice(-4)}` : "—"}
@@ -1187,13 +1186,11 @@ function SettingsContent() {
                         className="bv-btn bv-btn-ghost bv-btn-sm"
                         onClick={() => tenantId && navigator.clipboard.writeText(tenantId)}
                       >
-                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>content_copy</span>
-                        Copy
-                      </button>
+                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>content_copy</span>{uiText("mf516b06d11bf")}</button>
                     </div>
                   </div>
                   <div className="p-4 rounded-xl bg-surface-container border border-outline-variant/20">
-                    <p className="bv-micro text-outline mb-1.5">Session Token</p>
+                    <p className="bv-micro text-outline mb-1.5">{uiText("m0e13854c1b01")}</p>
                     <code className="text-sm bv-mono text-on-surface-variant">
                       {token ? `${token.slice(0, 24)}...` : "—"}
                     </code>
@@ -1204,29 +1201,25 @@ function SettingsContent() {
 
             {/* ── Webhooks ── */}
             {active === "webhooks" && (
-              <ForgeSection title="Webhooks & API Keys" subtitle="Manage webhook endpoints and API access for your companies" icon="webhook">
+              <ForgeSection title={uiText("maddc6b1a8edb")} subtitle={uiText("m85f417bbfec5")} icon="webhook">
                 <div className="space-y-4">
                   <div className="p-4 rounded-xl bg-surface-container border border-outline-variant/20">
                     <div className="flex items-center gap-2 mb-2.5">
                       <span className="material-symbols-outlined text-primary" style={{ fontSize: 18 }}>webhook</span>
-                      <p className="text-sm font-semibold text-on-surface">Incoming Webhooks</p>
+                      <p className="text-sm font-semibold text-on-surface">{uiText("mfee4f2dabe8d")}</p>
                     </div>
-                    <p className="bv-caption mb-3">
-                      External services can trigger pipeline runs by sending POST requests to your webhook endpoints.
-                    </p>
+                    <p className="bv-caption mb-3">{uiText("m684490cc61e5")}</p>
                     <div className="rounded-xl p-3 bg-background/60 border border-outline-variant/15">
-                      <p className="bv-micro text-outline mb-1.5">Endpoint Format</p>
+                      <p className="bv-micro text-outline mb-1.5">{uiText("m6665da29a7e3")}</p>
                       <code className="bv-mono text-primary">POST /hooks/:company_slug/:event</code>
                     </div>
-                    <p className="bv-caption mt-2 text-outline opacity-70">
-                      Replace <code className="text-primary">:company_slug</code> with your company slug and <code className="text-primary">:event</code> with the event name.
-                    </p>
+                    <p className="bv-caption mt-2 text-outline opacity-70">{uiText("mfd15b81d8cf9")}{" "}<code className="text-primary">:company_slug</code>{" "}{uiText("m0a04f470671e")}{" "}<code className="text-primary">:event</code>{" "}{uiText("mfcbffc247eb8")}</p>
                   </div>
 
                   <div className="p-4 rounded-xl bg-surface-container border border-outline-variant/20">
                     <div className="flex items-center gap-2 mb-2.5">
                       <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#f59e0b" }}>key</span>
-                      <p className="text-sm font-semibold text-on-surface">API Access</p>
+                      <p className="text-sm font-semibold text-on-surface">{uiText("m63afb9032824")}</p>
                     </div>
                     <div className="flex items-center gap-3 mb-2">
                       <code className="text-sm flex-1 truncate bv-mono text-on-surface-variant">
@@ -1236,21 +1229,19 @@ function SettingsContent() {
                         className="bv-btn bv-btn-ghost bv-btn-sm"
                         onClick={() => token && navigator.clipboard.writeText(token)}
                       >
-                        <span className="material-symbols-outlined" style={{ fontSize: 13 }}>content_copy</span>
-                        Copy
-                      </button>
+                        <span className="material-symbols-outlined" style={{ fontSize: 13 }}>content_copy</span>{uiText("mf516b06d11bf")}</button>
                     </div>
-                    <p className="bv-caption text-outline opacity-70">Use this token as Bearer auth in API requests. Tokens expire after session ends.</p>
+                    <p className="bv-caption text-outline opacity-70">{uiText("m4b6ee96c2cfc")}</p>
                   </div>
 
                   <div>
-                    <p className="text-xs font-semibold mb-3 text-on-surface-variant">Common Events</p>
+                    <p className="text-xs font-semibold mb-3 text-on-surface-variant">{uiText("me55571b3240f")}</p>
                     <div>
                       {[
-                        { event: "new_lead", desc: "Trigger acquisition pipeline on new lead", icon: "person_add" },
-                        { event: "content_ready", desc: "Content approved for publishing", icon: "check_circle" },
-                        { event: "payment_received", desc: "Process payment and update CRM", icon: "payments" },
-                        { event: "support_ticket", desc: "Route to customer success agent", icon: "support_agent" },
+                        { event: "new_lead", desc: runtimeCopy("mf0b59374b988"), icon: "person_add" },
+                        { event: "content_ready", desc: runtimeCopy("mc3af8f5ac774"), icon: "check_circle" },
+                        { event: "payment_received", desc: runtimeCopy("m5275b74361ed"), icon: "payments" },
+                        { event: "support_ticket", desc: runtimeCopy("m1cd72a8c1a04"), icon: "support_agent" },
                       ].map((ev) => (
                         <div
                           key={ev.event}
@@ -1266,16 +1257,14 @@ function SettingsContent() {
                           <button
                             className="bv-btn bv-btn-ghost bv-btn-sm"
                             onClick={() => navigator.clipboard.writeText(`/hooks/YOUR_COMPANY/${ev.event}`)}
-                          >
-                            Copy URL
-                          </button>
+                          >{uiText("m13a00239ea2d")}</button>
                         </div>
                       ))}
                     </div>
                   </div>
 
                   <div className="p-4 rounded-xl bg-primary/4 border border-primary/15">
-                    <p className="text-xs font-semibold mb-2 text-primary">Test Your Webhook</p>
+                    <p className="text-xs font-semibold mb-2 text-primary">{uiText("mef57c1e54f93")}</p>
                     <code className="bv-mono block text-on-surface-variant">
                       curl -X POST {typeof window !== "undefined" ? window.location.origin : ""}/api/v1/hooks/YOUR_COMPANY/test \
                     </code>
@@ -1295,26 +1284,24 @@ function SettingsContent() {
 
             {/* ── Referral ── */}
             {active === "referral" && (
-              <ForgeSection title="Referral Program" subtitle="Share your code — both you and your friend get 5 bonus runs" icon="redeem">
+              <ForgeSection title={uiText("m0f7b30dc841a")} subtitle={uiText("mb7cd3f777bef")} icon="redeem">
                 {referral ? (
                   <div className="space-y-5">
                     <div className="p-4 rounded-xl bg-primary/6 border border-primary/25">
-                      <p className="bv-micro text-primary mb-2">Your Code</p>
+                      <p className="bv-micro text-primary mb-2">{uiText("m5c91a47132b9")}</p>
                       <div className="flex items-center gap-3">
                         <code className="bv-numeric text-xl text-on-surface">{referral.code}</code>
                         <button
                           onClick={() => navigator.clipboard.writeText(referral.code)}
                           className="bv-btn bv-btn-primary bv-btn-sm"
-                        >
-                          Copy
-                        </button>
+                        >{uiText("mf516b06d11bf")}</button>
                       </div>
                     </div>
                     <div className="grid grid-cols-3 gap-3">
                       {[
-                        { label: "Referred", value: referral.stats.totalReferred },
-                        { label: "Converted", value: referral.stats.converted },
-                        { label: "Rewards", value: referral.stats.rewardsApplied },
+                        { label: runtimeCopy("m797c03ac6662"), value: referral.stats.totalReferred },
+                        { label: runtimeCopy("ma571fa84edbc"), value: referral.stats.converted },
+                        { label: runtimeCopy("m48fa986d975f"), value: referral.stats.rewardsApplied },
                       ].map((s) => (
                         <div key={s.label} className="text-center p-4 rounded-xl bv-glass">
                           <p className="bv-numeric text-2xl text-primary">{s.value}</p>
@@ -1323,13 +1310,13 @@ function SettingsContent() {
                       ))}
                     </div>
                     <div>
-                      <p className="text-sm font-medium mb-2 text-on-surface-variant">Redeem a Code</p>
+                      <p className="text-sm font-medium mb-2 text-on-surface-variant">{uiText("m724c36053cc8")}</p>
                       <div className="flex gap-2">
                         <input
                           type="text"
                           value={redeemCode}
                           onChange={(e) => setRedeemCode(e.target.value)}
-                          placeholder="AICOS-XXXXXXXX"
+                          placeholder={"AICOS-XXXXXXXX"}
                           className="flex-1 px-3.5 py-2.5 rounded-xl text-sm font-mono bg-surface-container border border-outline-variant/30 text-on-surface outline-none focus:border-primary/50 transition-colors"
                         />
                         <button
@@ -1339,18 +1326,16 @@ function SettingsContent() {
                               const res = await api.redeemReferral(token!, redeemCode.trim());
                               if (!current()) return;
                               setRedeemResult(res.reward); setRedeemCode("");
-                            } catch (err) { if (current()) setRedeemResult((err as Error).message); }
+                            } catch (err) { if (current()) setRedeemResult(describeFailure(err)); }
                           }}
                           className="bv-btn bv-btn-primary"
-                        >
-                          Redeem
-                        </button>
+                        >{uiText("m0a34e3a598e6")}</button>
                       </div>
                       {redeemResult && <p className="text-sm mt-2 text-primary">{redeemResult}</p>}
                     </div>
                   </div>
                 ) : (
-                  <p className="text-on-surface-variant bv-caption">Loading...</p>
+                  <p className="text-on-surface-variant bv-caption">{uiText("mc12fbd6e7a20")}</p>
                 )}
               </ForgeSection>
             )}
@@ -1360,29 +1345,27 @@ function SettingsContent() {
               <div className="bv-glass rounded-2xl p-6" style={{ borderColor: "rgba(255,77,77,0.3)", background: "rgba(255,77,77,0.03)" }}>
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="material-symbols-outlined text-error" style={{ fontSize: 20 }}>warning</span>
-                  <h2 className="bv-title font-headline font-bold uppercase text-error" style={{ fontSize: 16, letterSpacing: "0.04em" }}>Danger zone</h2>
+                  <h2 className="bv-title font-headline font-bold uppercase text-error" style={{ fontSize: 16, letterSpacing: "0.04em" }}>{uiText("m2255caa19025")}</h2>
                 </div>
-                <p className="bv-caption mb-5">Irreversible actions. Tread carefully.</p>
+                <p className="bv-caption mb-5">{uiText("mcde607c76c72")}</p>
 
                 <div>
                   <div className="flex items-center justify-between py-3.5 border-b border-error/10">
                     <div>
-                      <p className="text-sm font-medium text-on-surface">Sign out everywhere</p>
-                      <p className="bv-caption mt-0.5">End all active sessions</p>
+                      <p className="text-sm font-medium text-on-surface">{uiText("m6efdb34e5814")}</p>
+                      <p className="bv-caption mt-0.5">{uiText("m9bb76ca4a794")}</p>
                     </div>
                     <button
                       onClick={() => { void api.signOut(); router.replace("/login"); }}
                       className="bv-btn bv-btn-ghost bv-btn-sm"
-                    >
-                      Sign out
-                    </button>
+                    >{uiText("m9bdeb5968503")}</button>
                   </div>
                   <div className="flex items-center justify-between py-3.5">
                     <div>
-                      <p className="text-sm font-medium text-on-surface">Delete workspace</p>
-                      <p className="bv-caption mt-0.5">Permanently remove all runs and data</p>
+                      <p className="text-sm font-medium text-on-surface">{uiText("m7775a95698f6")}</p>
+                      <p className="bv-caption mt-0.5">{uiText("me7ec08fd87b4")}</p>
                     </div>
-                    <button className="bv-btn bv-btn-danger bv-btn-sm">Delete</button>
+                    <button className="bv-btn bv-btn-danger bv-btn-sm">{uiText("mb3ebf6fede5b")}</button>
                   </div>
                 </div>
               </div>
@@ -1418,11 +1401,13 @@ function ForgeField({
   label: string; type?: string; placeholder: string; badge?: string;
   value?: string; onChange?: (v: string) => void; readOnly?: boolean;
 }) {
+  const fieldId = useId();
   return (
     <div>
-      <label className="bv-micro text-outline mb-1.5 block">{label}</label>
+      <label htmlFor={fieldId} className="bv-micro text-outline mb-1.5 block">{label}</label>
       <div className="relative">
         <input
+          id={fieldId}
           type={type}
           placeholder={placeholder}
           value={value}
@@ -1469,20 +1454,19 @@ function ForgeUsageBar({ label, current, limit }: { label: string; current: numb
 }
 
 function ForgeSaveBar({ onSave, saved }: { onSave: () => void; saved: boolean }) {
+  const uiText = useLegacyTranslations("uiCopy");
   return (
     <div className="flex items-center justify-end gap-3 mt-7 pt-5 border-t border-outline-variant/15">
-      <button className="bv-btn bv-btn-ghost">Discard</button>
+      <button className="bv-btn bv-btn-ghost">{uiText("mef4c40cb137f")}</button>
       <button
         onClick={onSave}
         className="bv-btn bv-btn-primary"
         style={saved ? { background: "rgba(59,130,246,0.15)", boxShadow: "none", color: "var(--color-primary)" } : {}}
       >
-        {saved ? "✓ Saved" : "Save Changes"}
+        {saved ?uiText("m25f762b46741") :uiText("m8c8adacdb1db")}
       </button>
       {saved && (
-        <span className="text-xs font-medium animate-fade-in text-primary">
-          Changes saved successfully!
-        </span>
+        <span className="text-xs font-medium animate-fade-in text-primary">{uiText("m0ce1f02a34d4")}</span>
       )}
     </div>
   );

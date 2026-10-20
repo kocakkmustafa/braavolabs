@@ -1,4 +1,6 @@
 "use client";
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useTranslations } from "next-intl";
 import { useState, useEffect, useRef } from "react";
@@ -20,6 +22,7 @@ const DOC_HREFS: Record<DocKey, string> = {
 };
 
 export default function TermsPage() {
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
   const legal = useTranslations("static.common.legalNavigation");
   const page = useTranslations("static.common.legalPage");
@@ -176,8 +179,8 @@ export default function TermsPage() {
                   href={`#${id}`}
                   className="text-sm py-2 px-3 transition-colors"
                   style={{
-                    borderLeft: `2px solid ${isActive ? "#60A5FA" : "rgba(58,65,80,0.6)"}`,
-                    color: isActive ? "#E8EBF0" : "#9AA3B2",
+                    borderInlineStart: `2px solid ${isActive ? "#60A5FA" : "rgba(58,65,80,0.6)"}`,
+                    color: isActive ? "var(--color-on-surface)" : "var(--color-on-surface-variant)",
                     lineHeight: 1.3,
                     textDecoration: "none",
                   }}
@@ -229,10 +232,8 @@ export default function TermsPage() {
               <span className="material-symbols-outlined mb-4 block text-on-surface-variant" style={{ fontSize: 40 }}>
                 description
               </span>
-              <p className="bv-body">
-                The <strong className="text-on-surface">{DOC_LABELS[activeDoc]}</strong> document is available at{" "}
-                <a href={DOC_HREFS[activeDoc]} className="text-primary hover:underline">
-                  braavolabs.com{DOC_HREFS[activeDoc]}
+              <p className="bv-body">{uiText("mb8b061d2cc6c")}{" "}<strong className="text-on-surface">{DOC_LABELS[activeDoc]}</strong>{" "}{uiText("m2c3d4c4c5cf0")}{" "}
+                <a href={DOC_HREFS[activeDoc]} className="text-primary hover:underline">{uiText("m640f6714c57b")}{DOC_HREFS[activeDoc]}
                 </a>
                 .
               </p>
@@ -286,7 +287,7 @@ export default function TermsPage() {
 
           <div className="bv-divider mb-6" />
           <p className="text-sm text-on-surface-variant text-center">
-            &copy; {new Date().getFullYear()} Braavolabs. {page("rights")}
+            &copy; {new Date().getFullYear()}{" "}{uiText("m1a9415bc8fe7")}{" "}{page("rights")}
           </p>
         </div>
       </footer>

@@ -1,0 +1,4878 @@
+{
+  "nav": {
+    "features": "功能",
+    "pricing": "价格",
+    "docs": "文档",
+    "signIn": "登录",
+    "getStarted": "开始使用",
+    "dashboard": "仪表盘",
+    "home": "首页",
+    "commandCenter": "控制中心",
+    "workspaces": "工作区",
+    "workflows": "AI 工作流",
+    "approvals": "审批",
+    "drafts": "草稿",
+    "analytics": "分析",
+    "risks": "风险防护",
+    "integrations": "集成",
+    "connections": "连接",
+    "abTests": "A/B 测试",
+    "webhooks": "Webhook",
+    "billing": "账单",
+    "settings": "设置",
+    "newWorkspace": "新建工作区",
+    "quickStart": "快速入门"
+  },
+  "features": {
+    "badge": "平台能力",
+    "title": "AI 工作区所需的一切",
+    "subtitle": "从智能体编排到记忆、账单和治理，在一个平台上提供完整能力。",
+    "ctaPrimary": "免费开始构建",
+    "items": {
+      "agents": {
+        "title": "自主智能体",
+        "desc": "基于 Claude 的智能体，支持工具调用、重试逻辑、推理日志和预算控制。每个决策都会记录原因。"
+      },
+      "memory": {
+        "title": "记忆引擎",
+        "desc": "提供情景记忆、语义记忆和图记忆。智能体从每次运行中学习。记忆经历候选 → 已批准 → 已弃用的生命周期。"
+      },
+      "pipeline": {
+        "title": "流水线运行器",
+        "desc": "多步骤工作流，支持 cron 调度、基于 BullMQ 的队列以及步骤级回滚。"
+      },
+      "governance": {
+        "title": "治理引擎",
+        "desc": "检测成本异常、防止循环、提供垃圾信息防护和品牌安全过滤。预算超支时强制停止。"
+      },
+      "analytics": {
+        "title": "分析与 CRM",
+        "desc": "支持 HubSpot 集成、交易跟踪、完整运行历史、成本明细和成功率指标。"
+      },
+      "billing": {
+        "title": "用量计费",
+        "desc": "计划价格为 Individual 每月 $19，Team 每位活跃用户每月 $39。目前不可购买，且不包含推理费用。"
+      },
+      "audit": {
+        "title": "完整审计日志",
+        "desc": "每项操作、每次工具调用和每个决策都会永久记录执行者、时间戳和成本。"
+      },
+      "primitives": {
+        "title": "9 类基础能力",
+        "desc": "组合客户获取、销售、交付、内容、运营、财务、分析、记忆和治理，构建 AI 公司或自动化流程。"
+      },
+      "approval": {
+        "title": "支出审批关卡",
+        "desc": "只有涉及花费资金的操作需要人工批准。其余操作自主运行，让您保持控制，同时不拖慢运营。"
+      }
+    }
+  },
+  "app": {
+    "approvals": {
+      "handoffIncomplete": "审批已记录，但任务交接未能完成：{reason}。请检查运行情况。",
+      "handoffNeedsAttention": "需要处理",
+      "title": "待审批事项",
+      "subtitle": "审核并批准 AI 智能体的支出操作",
+      "emptyTitle": "已全部处理！",
+      "emptyBody": "没有待审批事项。只有支出操作需要审批。",
+      "unknownCompany": "未知工作区",
+      "runLabel": "运行：",
+      "approve": "批准",
+      "reject": "拒绝",
+      "artifactKind": {
+        "email": "邮件草稿",
+        "social_post": "帖子草稿",
+        "message": "消息草稿",
+        "content": "生成的内容"
+      },
+      "artifactAiLabel": "AI 生成"
+    },
+    "companies": {
+      "title": "工作区",
+      "countSingular": "{count} 个工作区",
+      "countPlural": "{count} 个工作区",
+      "newCompany": "新建工作区",
+      "emptyTitle": "暂无工作区",
+      "emptyBody": "描述您的业务构想，AI 将完成配置",
+      "createFirst": "创建第一个工作区",
+      "noDescription": "暂无描述",
+      "agentsLabel": "智能体",
+      "pipelinesLabel": "流水线",
+      "warRoom": "指挥室",
+      "searchPlaceholder": "搜索工作区…",
+      "filterAll": "全部",
+      "statusRunning": "运行中",
+      "statusPaused": "已暂停",
+      "statusDraft": "草稿",
+      "statusArchived": "已归档",
+      "open": "打开",
+      "pause": "暂停",
+      "resume": "继续",
+      "flagship": "旗舰",
+      "flagshipPill": "试用 AI 公司旗舰模板",
+      "noMatchTitle": "没有匹配的工作区",
+      "noMatchBody": "请尝试其他搜索词或筛选条件。",
+      "actionFailed": "操作失败，请重试。"
+    },
+    "risks": {
+      "title": "风险监控",
+      "subtitle": "治理提醒与系统活动",
+      "statsTotalRisk": "风险事件总数",
+      "statsLoopStops": "循环拦截次数",
+      "statsCostAnomalies": "成本异常",
+      "statsFailedRuns": "失败运行",
+      "tabRisks": "风险事件",
+      "tabActivity": "活动日志",
+      "labelHardStop": "强制停止",
+      "labelLoopDetected": "检测到循环",
+      "labelCostAnomaly": "成本异常",
+      "labelSpamProtection": "垃圾信息防护",
+      "labelBrandViolation": "品牌违规",
+      "labelRunFailed": "运行失败",
+      "labelRunStopped": "运行已停止",
+      "emptyRisksTitle": "所有系统正常",
+      "emptyRisksBody": "未检测到风险事件。",
+      "emptyActivity": "尚无活动记录。",
+      "thAction": "操作",
+      "thResource": "资源",
+      "thActor": "执行者",
+      "thTime": "时间",
+      "actorSystem": "系统"
+    },
+    "webhooks": {
+      "title": "Webhook 模板",
+      "subtitleTemplate": "{count} 个预设触发器，用于将外部事件连接到您的流水线",
+      "footer": "安装后，可在工作区设置中复制 Webhook URL。",
+      "searchPlaceholder": "搜索 Webhook 模板…",
+      "catAll": "全部",
+      "catEcommerce": "电子商务",
+      "catPayment": "支付",
+      "catCrm": "CRM",
+      "catDev": "开发工具",
+      "catSocial": "社交",
+      "catSupport": "支持",
+      "catMarketing": "营销",
+      "catCustom": "自定义",
+      "setup": "设置",
+      "samplePayload": "示例负载",
+      "providerLabel": "提供商：",
+      "install": "安装模板",
+      "installed": "已安装 ✓",
+      "webhookUrlPrefix": "Webhook URL：",
+      "noResults": "没有与搜索条件匹配的 Webhook 模板。"
+    },
+    "errors": {
+      "title": "错误与风险事件",
+      "subtitle": "AI 智能体的失败运行与治理风险事件",
+      "failedSectionTemplate": "失败及已取消的运行（{count}）",
+      "riskSectionTemplate": "风险事件（{count}）",
+      "stepsLabel": "步骤",
+      "noFailedTitle": "没有失败的运行",
+      "noFailedBody": "一切运行顺利！",
+      "noRiskTitle": "未检测到风险事件",
+      "noRiskBody": "您的智能体均在治理策略范围内运行。",
+      "unknown": "未知"
+    },
+    "pipelines": {
+      "title": "AI 工作流",
+      "subtitle": "管理所有工作区中的流水线",
+      "newCompany": "新建工作区",
+      "statTotal": "流水线总数",
+      "statActive": "活跃",
+      "statScheduled": "已调度",
+      "searchPlaceholder": "搜索流水线…",
+      "allCompanies": "所有工作区",
+      "emptyTitle": "暂无工作流",
+      "emptyMatchTitle": "没有匹配的工作流",
+      "emptyBody": "创建工作区以自动生成 AI 工作流。",
+      "emptyMatchBody": "请尝试调整筛选条件。",
+      "createCompany": "创建工作区",
+      "stepsLabel": "步骤",
+      "runButton": "运行",
+      "detailButton": "详情",
+      "nlButton": "新建流水线",
+      "nlTitle": "通过描述创建流水线",
+      "nlCompanyLabel": "工作区",
+      "nlDescLabel": "描述工作流",
+      "nlDescPlaceholder": "例如：每天早上寻找新潜在客户，并起草外联邮件。",
+      "nlCreate": "创建",
+      "nlCreating": "正在创建…",
+      "nlNeedCompany": "请先创建工作区，再添加流水线。",
+      "nlCancel": "取消"
+    },
+    "settings": {
+      "navProfile": "个人资料",
+      "navNotifications": "通知",
+      "navBilling": "套餐与用量",
+      "navAi": "AI 提供商",
+      "navIntegrations": "集成",
+      "navGovernance": "治理",
+      "navApi": "API 与认证",
+      "navWebhooks": "Webhook",
+      "navReferral": "推荐",
+      "signOut": "退出登录",
+      "savedToast": "设置已保存",
+      "profileTitle": "个人资料",
+      "profileSubtitle": "管理您的个人信息和偏好设置",
+      "fieldFirstName": "名字",
+      "fieldLastName": "姓氏",
+      "fieldEmail": "电子邮箱",
+      "fieldPhone": "电话",
+      "verifiedBadge": "已验证",
+      "bioPlaceholder": "介绍一下您自己…",
+      "notificationsTitle": "通知",
+      "notificationsSubtitle": "控制接收通知的时间与方式",
+      "criticalBadge": "关键",
+      "billingTitle": "套餐与用量",
+      "billingSubtitle": "管理订阅并查看用量指标",
+      "manageBilling": "管理账单 →",
+      "runsThisMonth": "本月运行次数",
+      "mostPopular": "最受欢迎",
+      "integrationsTitle": "集成",
+      "integrationsSubtitle": "将外部服务连接到工作区",
+      "notConnected": "未连接",
+      "viewDocumentation": "查看文档 →",
+      "saveCredentials": "保存凭据",
+      "testConnection": "测试连接",
+      "connectionSuccessful": "连接成功！",
+      "governanceTitle": "治理配置",
+      "governanceSubtitle": "风险控制与自主行为边界",
+      "aiTitle": "AI 提供商",
+      "aiSubtitle": "配置工作区和智能体使用的 AI 模型",
+      "aiSavedToast": "AI 提供商已保存",
+      "aiSaving": "正在保存…",
+      "aiSaveButton": "保存提供商",
+      "aiTesting": "正在测试…",
+      "aiBaseUrl": "基础 URL",
+      "aiApiKey": "API 密钥",
+      "aiKeyConfiguredPrefix": "✓ 已配置密钥",
+      "aiLeavePlaceholder": "留空以保留现有密钥",
+      "aiModelsRefresh": "刷新模型",
+      "aiModelsRefreshing": "正在刷新…",
+      "aiModelsLive": "提供商的实时模型列表",
+      "aiModelsStatic": "内置目录（备用）",
+      "aiUnknownError": "未知错误",
+      "aiSaveFailed": "保存失败",
+      "noCompaniesFound": "未找到工作区",
+      "saveButton": "保存",
+      "identity": {
+        "title": "组织 SSO（OIDC）— 开发中",
+        "subtitle": "将工作区连接到 Microsoft Entra、Okta、Google Workspace、Auth0、JumpCloud 或其他符合规范的身份提供商。",
+        "back": "返回设置",
+        "loading": "正在加载 SSO 配置…",
+        "status_active": "活跃",
+        "status_inactive": "已配置 · 已禁用",
+        "last_discovered": "发现配置已于 {when} 刷新",
+        "issuer": "签发者 URL",
+        "issuer_hint": "OpenID 提供商的签发者地址，必须与所签发令牌中的 `iss` 声明一致。",
+        "client_id": "客户端 ID",
+        "client_secret": "客户端密钥",
+        "client_secret_rotate": "轮换客户端密钥",
+        "client_secret_hint_new": "静态存储时使用 AES-256-GCM 加密，并绑定租户 AAD。",
+        "client_secret_hint_rotate": "留空以保留现有密钥。粘贴新值以轮换密钥。",
+        "redirect_uri": "重定向 URI",
+        "redirect_uri_hint": "请在身份提供商中注册此 URL：{url}",
+        "redirect_uri_hint_generic": "请在身份提供商中将此 URL 注册为允许的重定向目标。",
+        "scopes": "权限范围",
+        "scopes_hint": "以空格分隔。多数身份提供商至少需要 `openid email profile`。",
+        "domains": "电子邮箱域名白名单",
+        "domains_hint": "以逗号分隔。留空表示不检查域名。建议用于多租户身份提供商。",
+        "discovery_url_optional": "发现 URL（可选）",
+        "discovery_url_hint": "覆盖默认的 `{issuer}/.well-known/openid-configuration` 查询地址。",
+        "active_toggle": "为此工作区启用 SSO 登录",
+        "save": "保存配置",
+        "saved": "配置已保存。",
+        "disconnect": "断开 SSO",
+        "confirm_disconnect": "是否移除 SSO 连接？现有 SSO 用户将改为通过电子邮箱和密码登录。",
+        "test_sign_in": "测试登录 →",
+        "plan_gate_body": "组织 SSO 正在开发中，目前不可购买。",
+        "plan_gate_cta": "查看套餐 →"
+      },
+      "fieldName": "姓名",
+      "memberSince": "于 {year} 年加入",
+      "saveFailedToast": "无法保存，请重试。",
+      "localPlanRequired": "请选择支持的套餐以配置本地提供商",
+      "planRequired": "需要套餐",
+      "localPlanDescription": "Individual 和 Team 支持已配置的本地端点。不包含推理费用。",
+      "viewPlans": "查看套餐",
+      "aiStorageDescription": "提供商凭据在存储前会进行加密。网络访问和数据处理取决于所配置的提供商与端点。",
+      "localEndpointDescription": "本地端点在您配置的环境中运行。其他产品功能可能仍需访问网络；此设置不保证完全离线运行。"
+    },
+    "onboarding": {
+      "primitives": {
+        "acquisition": {
+          "label": "客户获取",
+          "desc": "潜在客户开发与增长"
+        },
+        "sales": {
+          "label": "销售",
+          "desc": "销售管道与交易"
+        },
+        "delivery": {
+          "label": "交付",
+          "desc": "履约运营"
+        },
+        "content": {
+          "label": "内容",
+          "desc": "AI 生成的内容"
+        },
+        "operations": {
+          "label": "运营",
+          "desc": "内部工作流"
+        },
+        "finance": {
+          "label": "财务",
+          "desc": "收入与账单"
+        },
+        "analytics": {
+          "label": "分析",
+          "desc": "洞察与报告"
+        },
+        "memory": {
+          "label": "记忆",
+          "desc": "智能体学习"
+        },
+        "governance": {
+          "label": "治理",
+          "desc": "风险与合规"
+        }
+      },
+      "industries": {
+        "saas": {
+          "label": "SaaS / 软件",
+          "desc": "订阅与产品驱动增长"
+        },
+        "agency": {
+          "label": "代理服务",
+          "desc": "客户服务与交付"
+        },
+        "ecommerce": {
+          "label": "电子商务",
+          "desc": "在线商店与 DTC"
+        },
+        "consulting": {
+          "label": "咨询",
+          "desc": "专业服务"
+        },
+        "creator": {
+          "label": "独立经营 / 个人品牌",
+          "desc": "内容与受众建设"
+        },
+        "b2b_sales": {
+          "label": "B2B 销售",
+          "desc": "潜在客户开发与外联"
+        },
+        "real_estate": {
+          "label": "房地产",
+          "desc": "房源与客户管理"
+        },
+        "marketing": {
+          "label": "营销代理",
+          "desc": "数字营销与广告"
+        },
+        "automation": {
+          "label": "AI / 自动化",
+          "desc": "工作流自动化服务"
+        },
+        "support": {
+          "label": "客户支持",
+          "desc": "帮助台与工单"
+        }
+      },
+      "useCases": [
+        "扩大内容生产规模",
+        "自动开发潜在客户",
+        "管理客户关系",
+        "建立营收体系",
+        "降低运营开销",
+        "扩大社交媒体影响力",
+        "提高客户支持速度",
+        "自动生成财务报告"
+      ],
+      "stepLabels": [
+        "行业",
+        "工作区",
+        "基础能力",
+        "渠道",
+        "启动"
+      ],
+      "suggestions": [
+        "SaaS 初创公司",
+        "代理服务",
+        "电子商务",
+        "咨询",
+        "独立业务"
+      ],
+      "suggestionTemplate": "我经营一家{kind}企业，需要 AI 智能体处理客户获取、内容创作和运营工作。",
+      "successCompanyFallback": "您的工作区",
+      "successLiveSuffix": "已上线！",
+      "successFromBlueprint": "蓝图已克隆并完成配置。您的自主 AI 公司已准备就绪。",
+      "successDefault": "您的自主 AI 公司已准备好运行。",
+      "agents": "智能体",
+      "pipeline": "流水线",
+      "byokTitle": "最后一步：选择智能体访问大语言模型的方式",
+      "byokSubtitle": "有两种选择，两者都对数据进行租户隔离并记录审计日志。",
+      "byokCloudTitle": "☁ 云端 BYOK（所有套餐）",
+      "byokCloudDesc": "Anthropic、OpenAI、Gemini、Mistral、Groq、OpenRouter",
+      "byokSelfTitle": "⚡ 自托管本地模型 — 需要配置",
+      "byokSelfDesc": "Ollama / LM Studio · 无按令牌计费成本 · KVKK",
+      "addApiKey": "添加 API 密钥",
+      "viewCompanies": "查看工作区",
+      "dashboard": "仪表盘",
+      "step0Title": "您所在的行业是什么？",
+      "step0Subtitle": "我们会为您的业务推荐合适的蓝图，帮助您更快启动。",
+      "automateQuestion": "您想自动化哪些工作？",
+      "automateHint": "（可多选）",
+      "recommendedBlueprints": "推荐蓝图",
+      "blueprintsHint": "— 点击用作起点",
+      "noBlueprints": "未找到此行业的模板。",
+      "selectIndustryHint": "请选择一个行业以继续",
+      "continueButton": "继续 →",
+      "step1Title": "介绍一下您的工作区",
+      "step1Subtitle": "用日常语言描述即可，Claude 会理解并自动构建您的智能体配置。",
+      "fieldCompanyName": "工作区名称",
+      "companyNamePlaceholder": "我的 AI 社交媒体代理",
+      "fieldDescribeBusiness": "描述您的业务",
+      "descriptionPlaceholder": "例如：我经营一家为电商品牌管理社交媒体的代理机构，需要内容创作、客户报告和潜在客户开发…",
+      "needInspiration": "需要灵感？",
+      "blueprintSelected": "已选择蓝图，基础能力和智能体已根据模板预先配置",
+      "removeBlueprint": "× 移除",
+      "describeOrSelectError": "请描述您的业务或选择上方的蓝图以继续。",
+      "describeError": "请先描述您的业务再继续。",
+      "backButton": "← 返回",
+      "step2Title": "选择 AI 基础能力",
+      "step2SubtitleBlueprint": "已根据所选蓝图预先配置，您可以进一步自定义。",
+      "step2SubtitleDefault": "选择需要的能力，之后仍可更改。",
+      "step3Title": "配置渠道",
+      "step3Subtitle": "定义目标受众和细分领域，以便个性化智能体的输出。",
+      "fieldNiche": "细分领域",
+      "nichePlaceholder": "例如：B2B SaaS、健身、电子商务…",
+      "fieldTargetAudience": "目标受众",
+      "audiencePlaceholder": "例如：初创公司创始人、营销人员、开发者…",
+      "optional": "（可选）",
+      "activeChannelsTitle": "启用的渠道",
+      "upgradeToProForChannels": "在工作区设置中配置渠道",
+      "step4Title": "准备启动",
+      "step4Subtitle": "检查配置并创建您的第一家自主 AI 公司。",
+      "summaryCompanyName": "工作区名称",
+      "summaryIndustry": "行业",
+      "summaryBlueprint": "蓝图",
+      "summaryPrimitives": "基础能力",
+      "summaryPrimitivesValueTemplate": "已选择 {count} 项",
+      "summaryChannels": "渠道",
+      "summaryNiche": "细分领域",
+      "summaryAudience": "受众",
+      "creatingButton": "正在创建工作区…",
+      "launchButton": "启动工作区 ✨",
+      "blueprintSelectedBadge": "已选择",
+      "onboardingProgress": "入门进度",
+      "reviewInBuilder": "在构建器中检查"
+    },
+    "analytics": {
+      "title": "分析",
+      "subtitle": "流水线运行表现与成本明细",
+      "exportCsv": "导出 CSV",
+      "statTotalRuns": "运行总数",
+      "statSuccessRate": "成功率",
+      "statTotalCost": "总成本",
+      "statAvgRun": "每次运行平均成本",
+      "runBreakdown": "运行构成（本月）",
+      "barCompleted": "已完成",
+      "barFailed": "失败",
+      "barOther": "其他",
+      "donutLabel": "次运行",
+      "costSummary": "成本汇总（本月）",
+      "totalSpent": "总支出",
+      "billableRuns": "计费运行次数",
+      "averagePerRun": "每次运行平均成本",
+      "loading": "正在加载…",
+      "runHistory": "运行历史",
+      "noRuns": "未找到运行记录。",
+      "thCompany": "工作区",
+      "thPipeline": "流水线",
+      "thStatus": "状态",
+      "thSteps": "步骤",
+      "thCost": "成本",
+      "thStarted": "开始时间",
+      "showingRange": "显示 {from}–{to}，共 {total} 条",
+      "prev": "上一页",
+      "next": "下一页",
+      "runSteps": "运行步骤",
+      "reasoningPrefix": "推理：",
+      "toolCallsTemplate": "{count} 次工具调用",
+      "noSteps": "暂无步骤记录。",
+      "currentPeriod": "当前自然月（服务器时间）",
+      "loadFailed": "部分分析数据无法加载。缺失的数据会显示为不可用。",
+      "unavailable": "不可用"
+    },
+    "abTests": {
+      "title": "A/B 测试",
+      "subtitle": "测试智能体变体，找出表现最佳的配置",
+      "newTest": "新建 A/B 测试",
+      "dismiss": "关闭",
+      "filterAll": "全部",
+      "filterDraft": "草稿",
+      "filterRunning": "运行中",
+      "filterPaused": "已暂停",
+      "filterCompleted": "已完成",
+      "emptyTitle": "暂无 A/B 测试",
+      "emptyBody": "创建第一个实验，优化智能体的表现。",
+      "emptyCta": "创建 A/B 测试",
+      "variantsCountTemplate": "{count} 个变体",
+      "runsCountTemplate": "{count} 次运行",
+      "winner": "优胜者",
+      "trafficSuffix": "{percent}% 流量",
+      "samplesSuffix": "（{count} 个样本）",
+      "startTest": "开始测试",
+      "delete": "删除",
+      "pause": "暂停",
+      "complete": "完成",
+      "resume": "继续",
+      "modalTitle": "创建 A/B 测试",
+      "fieldName": "测试名称",
+      "fieldNamePlaceholder": "例如：外联智能体的语气对比",
+      "fieldDescription": "描述（可选）",
+      "fieldDescriptionPlaceholder": "您想测试什么？",
+      "fieldCompany": "工作区",
+      "selectCompany": "选择工作区",
+      "fieldAgent": "智能体",
+      "selectAgent": "选择智能体",
+      "variants": "变体",
+      "addVariant": "+ 添加变体",
+      "systemPromptPlaceholder": "覆盖系统提示词…",
+      "temperature": "温度：",
+      "cancel": "取消",
+      "createTest": "创建测试",
+      "creating": "正在创建…",
+      "errNameRequired": "请输入测试名称。",
+      "errSelectCompany": "请选择工作区。",
+      "errSelectAgent": "请选择智能体。",
+      "loading": "正在加载测试…",
+      "notFound": "未找到测试。",
+      "backToList": "返回所有测试",
+      "actStart": "开始测试",
+      "actPause": "暂停",
+      "actComplete": "使用选定的优胜者完成测试",
+      "actPromote": "将优胜配置应用到智能体",
+      "traffic": "流量",
+      "metricsHeader": "指标 · {count} 条记录",
+      "selectAsWinner": "选为优胜者",
+      "selectedAsWinner": "已选为优胜者 ✓",
+      "improvementSummary": "改进摘要",
+      "better": "更优",
+      "expand": "显示详情",
+      "collapse": "隐藏详情",
+      "noTimeSeries": "此视图不提供时序数据和置信区间。请使用上方的汇总指标。"
+    },
+    "dashboard": {
+      "title": "控制中心",
+      "subtitle": "实时监控您的 AI 工作区",
+      "newCompany": "新建工作区",
+      "metricActiveCompanies": "活跃工作区",
+      "metricRunningPipelines": "运行中的流水线",
+      "metricPendingApprovals": "待审批事项",
+      "metricTotalRuns": "运行总数",
+      "metricTotalCost": "总成本",
+      "successSuffix": "成功率 {percent}%",
+      "perRunSuffix": "每次运行 ${cost}",
+      "actionNeeded": "需要操作",
+      "yourCompanies": "您的工作区",
+      "viewAll": "查看全部",
+      "emptyTitle": "暂无工作区",
+      "emptyDescription": "创建第一个工作区，开始自动化工作",
+      "emptyAction": "创建工作区",
+      "activity": "活动",
+      "noActivity": "近期无活动",
+      "pendingApprovalsBanner": "待审批事项",
+      "pendingActionsLabel": "等待您审核的操作",
+      "review": "审核",
+      "noDescription": "暂无描述",
+      "recentRuns": "最近运行",
+      "riskEvents": "风险事件",
+      "runHealth": "运行健康状况",
+      "openRiskInbox": "打开风险收件箱",
+      "inboxZero": "收件箱已清空，没有待审批事项",
+      "noRisksRaised": "审计记录正常，未发现风险",
+      "forecast": {
+        "title": "支出预测",
+        "loading": "正在加载预测…",
+        "edit_budget": "编辑预算",
+        "set_budget": "设置预算",
+        "spent_so_far": "本月 {days} 天内的支出",
+        "projected_to_eom": "预计月末支出：{amount}（日均 {daily}）",
+        "of_budget": "预计占预算比例",
+        "over_budget_warning": "已超出预算。在提高额度或进入下个月之前，自动批准支出审批的功能将被阻止。",
+        "monthly_budget_usd": "月度预算（USD）",
+        "save": "保存",
+        "clear": "清除",
+        "cancel": "取消",
+        "invalid": "请输入正数",
+        "top_cost_tools": "主要成本来源",
+        "budget_bar_label": "预计达到月度预算的 {pct}%"
+      },
+      "statusQuiet": "当前没有活跃运行",
+      "statusStreaming": "{count, plural, other {# 次运行正在流式更新}}",
+      "approvalsAwaiting": "{count, plural, other {# 项审批等待您决定}}",
+      "risksNeedEye": "{count, plural, other {# 个风险需要您关注}}",
+      "spentThisCycle": "本周期已支出 {amount}",
+      "autoRefresh": "每 {seconds} 秒自动刷新"
+    },
+    "integrations": {
+      "title": "集成库",
+      "subtitleTemplate": "{total} 个连接器：{available} 个可用、{beta} 个测试版、{comingSoon} 个即将推出",
+      "searchPlaceholder": "搜索集成…",
+      "catAll": "全部",
+      "catCrm": "CRM",
+      "catSocial": "社交媒体",
+      "catEmail": "电子邮箱",
+      "catMessaging": "消息",
+      "catProductivity": "生产力",
+      "catEcommerce": "电子商务",
+      "catDev": "开发工具",
+      "catAnalytics": "分析",
+      "catAds": "广告",
+      "catPayment": "支付",
+      "catStorage": "存储",
+      "catAi": "AI / 机器学习",
+      "catSupport": "支持",
+      "catHr": "人力资源",
+      "catDesign": "设计",
+      "catVideo": "视频",
+      "catForms": "表单",
+      "catScheduling": "调度",
+      "catAutomation": "自动化",
+      "statusAvailable": "可用",
+      "statusBeta": "测试版",
+      "statusComingSoon": "即将推出",
+      "resultCountTemplate": "找到 {count} 个集成",
+      "features": "功能",
+      "authPrefix": "认证：",
+      "configure": "配置",
+      "joinBeta": "加入测试",
+      "comingSoonBtn": "即将推出",
+      "noResults": "没有与搜索条件匹配的集成。"
+    },
+    "billing": {
+      "title": "账单与用量",
+      "subtitle": "管理套餐、监控用量，并在准备好后升级。",
+      "dismiss": "关闭",
+      "planSuffix": "套餐",
+      "active": "活跃",
+      "renews": "续订日期",
+      "cancels": "取消日期",
+      "manageBilling": "管理账单",
+      "meterRuns": "本月运行次数",
+      "meterToolCalls": "工具调用",
+      "meterCompanies": "工作区",
+      "meterChannels": "渠道",
+      "comparePlans": "对比套餐",
+      "popular": "热门",
+      "currentPlan": "当前套餐",
+      "upgradeTo": "升级到 {name}",
+      "processing": "正在处理…",
+      "usageHistory": "用量历史",
+      "thMetric": "指标",
+      "thValue": "数值",
+      "planFreeName": "价格预览",
+      "planFreeNote": "目前不可购买",
+      "planProName": "Team",
+      "planProNote": "/月",
+      "planEnterpriseName": "历史套餐 — 需人工审核",
+      "planEnterprisePrice": "自定义",
+      "planEnterpriseNote": "联系我们",
+      "planCreatorName": "Individual",
+      "planBusinessName": "额外控制功能 — 开发中",
+      "planMonthlyNote": "/月",
+      "meterConnections": "已连接的自动化"
+    },
+    "drafts": {
+      "title": "草稿",
+      "subtitle": "AI 智能体创建的内容",
+      "filterLabel": "按工作区筛选",
+      "noCompanies": "没有工作区",
+      "emptyTitle": "暂无草稿",
+      "emptyBody": "智能体创建内容后，草稿会显示在这里。",
+      "channelLabel": "渠道：",
+      "createdLabel": "创建时间：",
+      "scheduledLabel": "计划时间：",
+      "approve": "批准",
+      "approveAndSend": "批准并发送",
+      "pendingCount": "{count} 项待处理",
+      "inactiveCompany": "请先激活此工作区，再批准草稿。",
+      "sendNotCompleted": "无法确认邮件是否送达。草稿仍保持已批准状态，请先检查投递情况再重试。",
+      "selectPreview": "选择草稿以预览。",
+      "noPreview": "没有可预览的撰写内容。",
+      "statusPending": "待处理",
+      "statusApproved": "已批准",
+      "statusPublished": "已发送或发布",
+      "statusRejected": "已拒绝",
+      "statusArchived": "已归档",
+      "reject": "拒绝",
+      "publish": "发布",
+      "typeSocial": "社交帖子",
+      "typeEmail": "电子邮件",
+      "typeBlog": "博客文章",
+      "typeAd": "广告文案",
+      "typeVideo": "视频脚本"
+    },
+    "runDetail": {
+      "title": "运行详情",
+      "live": "实时",
+      "pauseRefresh": "暂停自动刷新",
+      "resumeRefresh": "恢复自动刷新",
+      "pause": "暂停",
+      "hardStop": "强制停止",
+      "resume": "继续",
+      "stepProgress": "步骤 {done}/{total}",
+      "status": "状态",
+      "steps": "步骤",
+      "cost": "成本",
+      "duration": "时长",
+      "runFailed": "运行失败",
+      "remSettings": "→ 设置 → AI 提供商",
+      "remBilling": "→ 账单与套餐",
+      "remApprovals": "→ 审批",
+      "inputTitle": "智能体需要您的输入",
+      "answerPlaceholder": "请输入给智能体的回答…",
+      "answerSent": "回答已提交。请检查决策和运行状态。",
+      "answerFailed": "发送回答失败",
+      "sending": "正在发送…",
+      "sendAnswer": "发送回答",
+      "steerTitle": "引导此次运行",
+      "steerHelp": "在运行过程中发送消息以调整智能体的方向，消息将在下一轮作为操作者指导注入。",
+      "steerPlaceholder": "例如：只关注大型客户的潜在商机，跳过中小企业客户。",
+      "steerSent": "引导请求已提交。请检查后续运行状态和输出。",
+      "steerFailed": "发送指导失败",
+      "sendSteer": "发送指导",
+      "timeline": "步骤时间线",
+      "toolCallCount": "{n} 次工具调用",
+      "reasoning": "推理",
+      "errorLabel": "错误",
+      "toolCalls": "工具调用",
+      "inputLabel": "输入",
+      "outputLabel": "输出",
+      "rollback": "回滚",
+      "rerunStep": "重新运行步骤",
+      "loginFirst": "请先登录。",
+      "actionFailed": "操作失败",
+      "stepActionFailed": "步骤操作失败"
+    },
+    "runAudit": {
+      "runsLink": "运行",
+      "loadFailed": "加载运行失败",
+      "notFound": "未找到运行记录。",
+      "auditTrail": "运行审计轨迹",
+      "pipelineFallback": "流水线",
+      "startedAt": "开始于 {time}",
+      "runError": "运行错误",
+      "stepsTitle": "步骤",
+      "stepCount": "{n, plural, other {# 个步骤}}",
+      "noSteps": "暂无步骤记录。",
+      "stepPill": "步骤 {n}",
+      "agentFallback": "智能体",
+      "approvalsTitle": "此次运行的审批",
+      "approvalCount": "{n, plural, other {# 条记录}}",
+      "approvalFallback": "审批",
+      "statusRunning": "运行中",
+      "statusCompleted": "已完成",
+      "statusPaused": "已暂停",
+      "statusFailed": "失败",
+      "statusCancelled": "已取消",
+      "statusWaiting": "等待审批",
+      "statusPending": "待处理",
+      "fixInEditor": "在流水线编辑器中修复"
+    },
+    "pipelineDetail": {
+      "loadFailed": "加载流水线失败",
+      "runFailed": "启动运行失败",
+      "saveFailed": "保存失败",
+      "saveStepsFailed": "保存步骤失败",
+      "newStep": "新步骤",
+      "backLink": "流水线",
+      "notFound": "未找到流水线。",
+      "pipelineLabel": "流水线",
+      "enabled": "已启用",
+      "disabled": "已禁用",
+      "triggerManual": "手动",
+      "triggerScheduled": "定时",
+      "triggerWebhook": "Webhook",
+      "triggerEvent": "事件",
+      "typeHierarchical": "分层",
+      "typeSequential": "顺序",
+      "edit": "编辑",
+      "runNow": "立即运行",
+      "settingsTitle": "流水线设置",
+      "nameLabel": "名称",
+      "enabledToggle": "已启用（定时 / Webhook 触发器会生效）",
+      "scheduleLabel": "调度（cron）",
+      "saving": "正在保存…",
+      "save": "保存",
+      "stepsTitle": "步骤",
+      "managerDelegated": "由管理智能体委派，工作智能体在运行时选择",
+      "stageStepCount": "{stages, plural, other {# 个阶段}} · {steps, plural, other {# 个步骤}}",
+      "editSteps": "编辑步骤",
+      "stepNamePlaceholder": "步骤名称",
+      "noAgentsOption": "— 无智能体 —",
+      "moveUp": "上移",
+      "moveDown": "下移",
+      "remove": "移除",
+      "addStep": "添加步骤",
+      "noAgentsWarning": "此工作区尚无智能体，请在工作区页面添加，以便为步骤指定执行者。",
+      "saveSteps": "保存步骤",
+      "hierarchicalNote": "此流水线使用<b>管理智能体</b>，在运行时规划任务并委派给工作智能体（最大委派深度 {depth}）。没有可供显示的固定步骤列表。",
+      "noSteps": "尚未定义步骤。",
+      "stagePill": "阶段 {n}",
+      "parallelCount": "{n} 项并行",
+      "recentRuns": "最近运行",
+      "runsShown": "显示 {n} 条",
+      "noRuns": "暂无运行记录。点击“立即运行”以启动第一次运行。",
+      "parallelHint": "同一阶段的步骤会并行运行。使用 ∥ 将步骤合并到上一阶段。",
+      "parallelToggleTitle": "切换与上一步并行运行",
+      "viewList": "列表",
+      "viewGraph": "图表"
+    },
+    "connections": {
+      "connectFailed": "连接失败",
+      "title": "连接",
+      "subtitle": "在一个地方监控 n8n、Make 和 Zapier 自动化。",
+      "connect": "连接",
+      "emptyTitle": "暂无连接",
+      "emptyBody": "连接 n8n、Make 或 Zapier 实例，在此查看其运行情况。",
+      "polledAgo": "已于 {time} 轮询",
+      "notPolled": "尚未轮询",
+      "pollNow": "立即轮询",
+      "runsToggle": "运行",
+      "disconnect": "断开连接",
+      "loadingRuns": "正在加载运行…",
+      "noRuns": "尚无同步的运行记录。点击“立即轮询”获取最新执行记录。",
+      "formTitle": "连接自动化",
+      "formSubtitle": "我们会轮询其执行历史；您的 API 密钥会加密存储，之后不再显示。",
+      "platformLabel": "平台",
+      "labelLabel": "标签",
+      "labelPlaceholder": "我的生产环境 n8n",
+      "baseUrlLabel": "基础 URL",
+      "apiKeyLabel": "API 密钥",
+      "connecting": "正在连接…",
+      "validatedOk": "已连接 ✓ — 找到 {n} 条最近运行记录",
+      "validatedFail": "无法访问：{error}",
+      "validatedFailHint": "连接已保存，我们会继续按计划重试。请检查 URL 和 API 密钥。",
+      "controlTitle": "控制",
+      "automations": "自动化",
+      "discovering": "正在加载自动化…",
+      "noAutomations": "未找到自动化",
+      "trigger": "触发",
+      "pause": "暂停",
+      "resume": "继续",
+      "activeTag": "活跃",
+      "pausedTag": "已暂停",
+      "monitorOnly": "仅监控：此平台不提供控制 API。",
+      "triggerWebhook": "触发 Webhook",
+      "webhookUrlPlaceholder": "https://hooks.zapier.com/…",
+      "controlOk": "完成",
+      "controlFailed": "操作失败"
+    },
+    "runsList": {
+      "activity": "活动",
+      "title": "运行",
+      "totalCount": "共 {n} 条",
+      "noneYet": "暂无运行记录",
+      "filterAll": "全部",
+      "colPipeline": "流水线",
+      "colCompany": "工作区",
+      "colStatus": "状态",
+      "colStarted": "开始时间",
+      "colSteps": "步骤",
+      "colSpend": "支出",
+      "noneInFilter": "此筛选条件下没有运行记录。",
+      "queued": "排队中",
+      "pagination": "显示 {from}–{to}，共 {total} 条",
+      "previous": "上一页",
+      "next": "下一页"
+    },
+    "importAutomation": {
+      "back": "返回集成",
+      "title": "导入自动化",
+      "intro": "将其他工具中的工作流导入 Braavolabs，转换为可运行的流水线。粘贴源数据、预览转换结果，然后确认导入。原始数据会保存在流水线中，便于转换器改进后重新导入。",
+      "sourceFormat": "源格式",
+      "pipelineName": "流水线名称",
+      "optional": "（可选）",
+      "namePlaceholder": "导入的工作流",
+      "sourcePayload": "源数据",
+      "previewing": "正在预览…",
+      "preview": "预览",
+      "importing": "正在导入…",
+      "importBtn": "导入为流水线",
+      "previewFailed": "预览失败",
+      "importFailed": "导入失败",
+      "created": "流水线已创建。",
+      "openIt": "打开 →",
+      "stepsCount": "步骤（{n}）",
+      "droppedCount": "已丢弃（{n}）",
+      "srcN8nLabel": "n8n 工作流",
+      "srcN8nHint": "将工作流导出为 JSON（n8n → Workflows → … → Export），然后在此粘贴文件内容。",
+      "srcClaudeAutomationLabel": "Claude Automation 例程",
+      "srcClaudeAutomationHint": "描述例程的 Markdown 正文（可包含 YAML 前置元数据）。h2 章节会转换为步骤。",
+      "srcClaudeCodeRoutineLabel": "Claude Code 自动开发例程",
+      "srcClaudeCodeRoutineHint": "与 Claude Automation 使用相同的 Markdown 结构，适用于 .claude/routines/*.md 操作手册。",
+      "srcOpenclawLabel": "OpenClaw 技能包",
+      "srcOpenclawHint": "OpenClaw 导出内容中的 manifest.json。工具和提示词都会转换。",
+      "srcNemoclawLabel": "NemoClaw 技能包",
+      "srcNemoclawHint": "与 OpenClaw 使用相同的 manifest 结构。",
+      "srcMcpLabel": "MCP server.json",
+      "srcMcpHint": "包含 tools[] 和 resources[] 的服务器描述文件。工具映射为 mcp.invoke 步骤。",
+      "srcGenericLabel": "通用图（nodes + edges JSON）",
+      "srcGenericHint": "备用格式：包含 name、nodes（id、type、config）和 edges（from、to）的对象。"
+    },
+    "companyDetail": {
+      "updateModelFailed": "更新模型失败",
+      "modelUpdated": "模型已更新为 {model}",
+      "composerFailed": "生成失败。请在“设置 → AI 提供商”中检查有效密钥。",
+      "agentAdded": "已将 {name} 添加到工作区",
+      "tabOverview": "概览",
+      "tabAgents": "智能体",
+      "tabPipelines": "流水线",
+      "tabRuns": "运行",
+      "tabCrm": "CRM",
+      "tabMemory": "记忆",
+      "statAgents": "智能体",
+      "statPipelines": "流水线",
+      "statCreated": "创建时间",
+      "agentsConfigured": "{n, plural, other {已配置 # 个智能体}}",
+      "composeWithAi": "使用 AI 创建",
+      "save": "保存",
+      "editLabel": "编辑",
+      "colModel": "模型",
+      "colTools": "工具",
+      "colStatus": "状态",
+      "statusActive": "活跃",
+      "noAgents": "暂无智能体。点击上方<b>使用 AI 创建</b>，通过简单的英文描述生成一个。",
+      "run": "运行",
+      "stepCount": "{n, plural, other {# 个步骤}}",
+      "noPipelines": "尚未配置流水线。",
+      "unknownPipeline": "未知流水线",
+      "noRuns": "暂无运行记录。触发流水线以开始。",
+      "memoryTitle": "工作区记忆",
+      "memoryBody": "工作区运行过程中学到的模式与洞察会显示在这里。",
+      "composerTitle": "使用 AI 创建智能体",
+      "close": "关闭",
+      "composerDesc": "描述此智能体应执行的工作。您配置的 AI 提供商（设置 → AI 提供商）将使用您的 BYOK 密钥编写完整规格，包括名称、角色、系统提示词和工具选择。",
+      "composerPlaceholder": "例如：为 B2B SaaS 创始人创建每日 LinkedIn 内容智能体。从网络搜索中选择一个热门话题，以专业语气起草三个帖子版本，并将最佳版本安排在上午9点发布。始终记录推理过程。",
+      "charCount": "{n} / 4000 字符（至少10个）",
+      "agentAddedResult": "已将 <b>{name}</b> 添加到工作区。",
+      "droppedNote": "注意：已丢弃模型虚构的 {n, plural, other {# 个工具}}：{tools}",
+      "composing": "正在生成…",
+      "compose": "创建",
+      "dealStageLead": "潜在客户",
+      "dealStageQualified": "已确认意向",
+      "dealStageProposal": "提案",
+      "dealStageNegotiation": "谈判",
+      "dealStageWon": "成交",
+      "dealStageLost": "流失",
+      "contactsTitle": "联系人（{n}）",
+      "noContacts": "暂无联系人。",
+      "dealPipeline": "交易管道",
+      "back": "返回"
+    },
+    "companyNew": {
+      "errDescribe": "请先描述您的公司构想再继续。",
+      "specReady": "公司规格已准备好，请在下方审核！",
+      "failStart": "无法开始构建",
+      "haveEverything": "所需信息已齐全，以下是您的公司预览！",
+      "failContinue": "无法继续",
+      "failCreate": "创建公司失败",
+      "title": "创建 AI 公司",
+      "subtitle": "描述您的公司构想，让 AI 帮您构建。",
+      "describeTitle": "描述您的公司",
+      "describeBody": "告诉我们您想构建哪类 AI 公司，尽可能详细地描述。",
+      "descPlaceholder": "例如：我想为 Instagram 和 TikTok 建立一家内容代理公司，目标市场是小型企业…",
+      "minChars": "请使用至少10个字符描述您的公司构想（还需 {n} 个）。",
+      "enterDesc": "请输入 AI 公司的描述以继续。",
+      "analyzing": "AI 正在分析您的构想…",
+      "continueBtn": "继续",
+      "mayTake": "可能需要15–30秒",
+      "builderTitle": "AI 公司构建器",
+      "round": "第 {turn}/3 轮",
+      "answerPlaceholder": "请输入回答…（Enter 发送，Shift+Enter 换行）",
+      "previewTitle": "公司预览",
+      "colName": "名称",
+      "colDescription": "描述",
+      "colPrimitives": "基础能力",
+      "colAgents": "智能体（{n}）",
+      "colPipelines": "流水线（{n}）",
+      "toolsLabel": "工具：{tools}",
+      "stepsLabel": "{n, plural, other {# 个步骤}}",
+      "confirmReset": "确定要重新开始吗？所有进度都会丢失。",
+      "startOver": "重新开始",
+      "creating": "正在创建…",
+      "createCompany": "创建公司",
+      "buildingTitle": "正在构建您的 AI 公司…",
+      "buildingBody": "正在配置智能体、流水线和工具。",
+      "doneTitle": "公司已创建！",
+      "doneBody": "{name} 已准备就绪。",
+      "goToCompanies": "前往工作区",
+      "loading": "正在加载…"
+    },
+    "authVerified": {
+      "okTitle": "邮箱已验证 ✓",
+      "okBody": "感谢您{suffix}。此邮箱已关联到您的 Braavolabs 账户，我们将用它发送审批通知、风险提醒以及恢复账户。",
+      "okCta": "前往仪表盘 →",
+      "invalidTitle": "链接已失效",
+      "invalidBody": "验证链接会在7天后过期。请登录，我们会从<s>设置 → 账户</s>向您发送新链接。",
+      "invalidCta": "登录 →",
+      "errorTitle": "出现问题",
+      "errorBody": "暂时无法验证您的邮箱。请稍后重试，或联系 <a>founder@braavolabs.com</a>。",
+      "errorCta": "返回登录",
+      "verifying": "正在验证…",
+      "verifyingBody": "请稍候。",
+      "signingIn": "正在登录…",
+      "loading": "正在加载…"
+    },
+    "exportBundle": {
+      "title": "导出工作区",
+      "subtitle": "将工作区导出为 Claude Code 技能、钩子和配置文件。",
+      "fmtClaudeCode": "Claude Code",
+      "fmtGeneric": "通用 JSON",
+      "generating": "正在生成导出包…",
+      "copy": "复制",
+      "copied": "已复制！",
+      "download": "下载",
+      "skillsTitle": "技能（{n}）",
+      "hooksTitle": "钩子（{n}）",
+      "downloadAll": "下载完整包（JSON）",
+      "summary": "导出摘要",
+      "plainConfiguration": "未加密的配置文件",
+      "plainConfigurationHelp": "下载内容包含明文配置和提示词。请妥善保管，不会生成口令。",
+      "skillsLabel": "技能",
+      "hooksLabel": "钩子",
+      "formatLabel": "文件格式",
+      "loadFailed": "无法加载导出内容。请返回工作区重试。",
+      "copyFailed": "无法复制。请检查剪贴板权限，或下载文件。"
+    },
+    "cmdk": {
+      "searchPlaceholder": "搜索页面与操作…",
+      "noResults": "未找到结果",
+      "signOut": "退出登录",
+      "goHome": "前往首页",
+      "catPages": "页面",
+      "catActions": "操作",
+      "catQuick": "快捷访问",
+      "catWorkspaces": "您的工作区",
+      "hintNavigate": "导航",
+      "hintOpen": "打开",
+      "hintClose": "关闭",
+      "hintDashboard": "仪表盘",
+      "hintNewWorkspace": "新建工作区",
+      "title": "命令菜单"
+    },
+    "breadcrumb": {
+      "onboarding": "入门引导",
+      "runs": "运行"
+    },
+    "cost": {
+      "estimateLabel": "此次运行预计 {low}–{high}",
+      "estimateModelSuffix": " · {model}",
+      "estimateTooltip": "根据典型令牌用量估算，实际成本会实时显示。",
+      "estimateFree": "此次运行免费 · 在您自己的硬件上运行",
+      "estimateUnknown": "此模型的成本估算不可用",
+      "estimateNotConfigured": "请在设置中添加 AI 提供商以查看成本估算",
+      "estimateFailed": "无法加载估算",
+      "estimateBadge": "估算",
+      "burnTitle": "实时支出",
+      "burnLiveBadge": "实时",
+      "budgetLabel": "预算 {amount}",
+      "ofBudget": "预算的 {pct}%",
+      "statusUnder": "未超预算",
+      "statusNear": "接近预算",
+      "statusOver": "超出预算",
+      "liveNote": "根据实际用量计量"
+    },
+    "runExplain": {
+      "button": "解释此次失败",
+      "loading": "正在询问 AI…",
+      "title": "AI 解释",
+      "fixLabel": "建议的修复方法",
+      "error": "无法生成解释，请稍后重试。",
+      "disclaimer": "AI 生成，请在采取行动前核实。",
+      "poweredBy": "由 {model} 提供"
+    },
+    "handoff": {
+      "title": "跨模型交接",
+      "subtitle": "将此次运行交给其他提供商，从中断处继续。",
+      "requestBlurb": "冻结此次运行的对话记录，以便其他提供商从最后一个已完成的轮次接手。",
+      "requestButton": "交接此任务",
+      "openBanner": "{from} 留下此任务尚未完成。请选择提供商以继续。",
+      "pickProvider": "继续使用",
+      "pickPlaceholder": "选择提供商…",
+      "defaultTag": "默认",
+      "localTag": "输入端点 URL",
+      "baseUrlLabel": "基础 URL",
+      "baseUrlHint": "请输入 Braavolabs 服务器可以访问的 URL。托管服务需要公共 HTTPS；localhost 和私有地址仅适用于离线自托管部署。端点运营方可能会接收到运行内容。",
+      "continueButton": "继续",
+      "continueWith": "使用 {provider} 继续",
+      "freezingNote": "正在下一个轮次边界冻结检查点，冻结后即可继续。",
+      "frozenNote": "检查点已冻结，请选择提供商以继续。",
+      "continuedNote": "已交接给 {provider}，运行正在恢复。",
+      "pendingRetry": "检查点仍在冻结中，请稍后再次尝试继续。",
+      "errorGeneric": "无法完成交接，请稍后重试。",
+      "historyTitle": "交接历史",
+      "awaiting": "等待提供商",
+      "reasonManual": "手动",
+      "reasonFailover": "提供商故障转移",
+      "reasonExhausted": "提供商额度耗尽",
+      "reasonSessionLost": "会话丢失",
+      "statusOpen": "未完成",
+      "statusClaimed": "已接手",
+      "statusCompleted": "已完成",
+      "statusFailed": "失败",
+      "statusCancelled": "已取消"
+    },
+    "autonomy": {
+      "label": "自主程度",
+      "moneyNote": "涉及资金的操作始终需要您批准，自主程度只改变不涉及资金的暂停行为。",
+      "saved": "自主程度已设为 {level}",
+      "saveFailed": "无法更新自主程度",
+      "level": {
+        "SUPERVISED": "受监督",
+        "BALANCED": "均衡",
+        "AUTONOMOUS": "自主"
+      },
+      "desc": {
+        "SUPERVISED": "每项产生副作用的操作都会暂停并等待您批准。",
+        "BALANCED": "支出和高风险操作会暂停，常规工作自行运行。",
+        "AUTONOMOUS": "自主运行，只有资金操作和五类风险拦截可以使其暂停。"
+      }
+    },
+    "revisions": {
+      "title": "修订历史",
+      "subtitle": "将流水线步骤恢复到早期版本",
+      "history": "历史",
+      "empty": "尚未编辑步骤。编辑后的版本会在此显示为还原点。",
+      "restore": "恢复",
+      "confirmRestore": "是否将步骤恢复到此版本？当前步骤会先保存为新的修订版本。",
+      "latest": "最新",
+      "versionN": "版本 {n}",
+      "stepCount": "{n} 个步骤"
+    },
+    "compare": {
+      "title": "对比模型",
+      "synthesisNote": "按顺序选择最多三个已配置的模型。综合答案使用租户默认提供商及其默认推理强度。",
+      "query": "问题",
+      "addModel": "添加模型",
+      "chooseModel": "选择已配置的模型",
+      "effort": "推理强度",
+      "providerDefault": "提供商默认",
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "unavailable": "所选项不可用，请刷新或更改选择。",
+      "up": "上移",
+      "down": "下移",
+      "remove": "移除",
+      "loading": "正在加载已配置的模型…",
+      "noModels": "尚未配置可选择的模型。",
+      "refresh": "刷新模型",
+      "start": "开始对比",
+      "running": "正在对比…",
+      "requestedEffort": "请求的推理强度",
+      "finalAnswer": "最终答案",
+      "synthesisOutcome": "综合结果",
+      "requestFailed": "对比请求失败。",
+      "invalidSelection": "请选择一到三个可用模型，并输入5–1000个字符的问题。",
+      "failed": "对比失败。",
+      "cancelled": "对比已取消。",
+      "timeout": "已达到轮询上限，会话可能仍在运行。"
+    },
+    "shell": {
+      "openMenu": "打开菜单",
+      "closeMenu": "关闭菜单"
+    },
+    "notifications": {
+      "title": "通知",
+      "pending": "{count, plural, other {# 项待审批}}",
+      "clear": "没有待审批事项",
+      "spend": "需要支出审批",
+      "viewAll": "查看所有审批"
+    }
+  },
+  "static": {
+    "common": {
+      "back": "← 返回",
+      "lastUpdated": "最后更新：",
+      "skipToMainContent": "跳转到主要内容",
+      "legalNavigation": {
+        "legal": "法律",
+        "openApp": "打开应用",
+        "privacy": "隐私",
+        "terms": "条款",
+        "cookies": "Cookie",
+        "accountDeletion": "删除账户",
+        "onThisPage": "本页内容",
+        "permalinkTo": "{title}的固定链接"
+      },
+      "legalPage": {
+        "about": "关于",
+        "blog": "博客",
+        "product": "产品",
+        "company": "公司",
+        "tagline": "掌控您正在使用的 AI 智能体和自动化。",
+        "rights": "保留所有权利。",
+        "englishOnly": "此文档目前仅提供英文版本。"
+      },
+      "englishContent": "此内容目前仅提供英文版本。更改界面语言不会翻译此部分。"
+    },
+    "blog": {
+      "title": "博客即将上线",
+      "body": "我们正在撰写有关构建过程、有效方法和失败经验的文章。首批文章即将发布，在此之前，欢迎通过社交媒体关注我们的公开开发进展。",
+      "backToHome": "返回首页"
+    },
+    "changelog": {
+      "title": "更新日志",
+      "subtitle": "我们发布了什么，以及发布时间。",
+      "releaseTitle": "v0.1.0 — 公开预览",
+      "releaseDate": "2026年5月",
+      "items": [
+        "租户自有 BYOK 和已配置的本地路由在没有合格路由时会拒绝执行。",
+        "通过离线 JWT 许可证实现流水线导出 DRM。",
+        "支持 Google 和 GitHub OAuth 登录。",
+        "部署安全加固：HMAC Webhook、账户锁定、CSP、HSTS。",
+        "通过 SSE 实时流式传输运行信息。",
+        "Cookie / KVKK / GDPR 页面已上线，用于法律合规。"
+      ],
+      "githubIntro": "详细发布说明见 GitHub："
+    },
+    "legal": {
+      "privacy": {
+        "title": "隐私政策",
+        "date": "2026年3月",
+        "sections": [
+          {
+            "title": "我们收集的数据",
+            "body": "我们收集账户信息（姓名、电子邮箱、组织名称）、绑定租户的工作区内容（包括提示词、智能体和流水线的输入输出、运行记录、引导消息、报告和使用活动），以及用于通知的设备信息（推送令牌、平台、设备名称和操作系统版本）。对于 Apple App Store 或 Google Play 订阅，我们保留产品、交易或购买令牌、收据、状态和订阅日期。我们不接收原始银行卡信息，网页支付由 Stripe 处理。"
+          },
+          {
+            "title": "我们如何使用您的数据",
+            "body": "我们处理账户及租户工作区数据，以提供所请求的平台功能、运行工作流、保存工作区和运行历史、计量用量、管理权益并支持账户操作。内容可能会发送至为所请求工作流选择或连接的 AI 提供商；其处理方式受适用的提供商条款和设置约束。"
+          },
+          {
+            "title": "数据存储",
+            "body": "账户和设备记录关联用户，工作区、活动和订阅记录关联租户，目前未公布固定保存期限。删除用户账户会移除用户记录。如果您是租户的最后一位成员，租户工作区记录会通过账户关联关系删除；如果仍有其他成员，工作区内容、活动和商店订阅记录会保留在该租户中。退出登录时会尽力移除通知令牌，删除账户会移除其余关联用户的设备。"
+          },
+          {
+            "title": "第三方服务",
+            "body": "我们使用 Stripe 处理网页支付，使用 Apple App Store 和 Google Play 处理商店支付，使用 Expo 发送推送通知，使用 SendGrid 发送事务性邮件，使用 Google OAuth 提供可选身份认证，并使用 HubSpot 提供自愿启用的 CRM 集成。Sentry 可能接收崩溃、追踪和会话诊断事件。各提供商按照自身条款和设置处理数据。"
+          },
+          {
+            "title": "您的权利",
+            "body": "您可以联系 privacy@braavolabs.com，申请访问、导出、更正或删除数据。账户删除遵循上文所述的租户成员关系规则；取消 Stripe、Apple App Store 或 Google Play 订阅是独立操作。我们将在30天内回复。"
+          },
+          {
+            "title": "安全",
+            "body": "我们公布的网页代理配置支持传输中的 TLS 1.2 和 TLS 1.3。在缺少最新提供商及部署证据时，此处不承诺其他静态存储、生产环境访问、安全和保存期限细节。"
+          },
+          {
+            "title": "变更",
+            "body": "我们可能不时更新此政策。重大变更会通过电子邮件通知您。在变更后继续使用平台，即表示接受更新后的政策。"
+          },
+          {
+            "title": "联系",
+            "body": "对本政策有疑问？请发送邮件至 privacy@braavolabs.com。"
+          }
+        ]
+      },
+      "terms": {
+        "title": "服务条款",
+        "date": "2026年9月",
+        "sections": [
+          {
+            "title": "1. 接受条款",
+            "body": "创建账户或使用 Braavolabs，即表示您同意本服务条款。如果您代表组织使用平台，则您声明有权使该组织受本条款约束。"
+          },
+          {
+            "title": "2. 服务说明",
+            "body": "Braavolabs 提供 AI 驱动的平台，用于创建和运行自主业务工作流。当您请求 AI 执行工作时，Braavolabs 可能将相关工作区和运行内容发送至为该工作配置的提供商或端点。如果选择远程端点，其运营方可能按照适用条款和设置处理这些内容。"
+          },
+          {
+            "title": "3. 可接受的使用方式",
+            "body": "您不得使用平台生成垃圾信息、从事违法活动、侵犯第三方权利，或绕过平台治理和风险控制。自动外联受平台内置的反垃圾信息限制约束。"
+          },
+          {
+            "title": "4. 计划中的订阅",
+            "body": "Individual 计划为每月 $19，Team 计划为每位活跃用户每月 $39。目前尚不提供网页结账，且不包含推理费用。任何应用内优惠均通过相应 Apple App Store 或 Google Play 商品页面展示和销售。"
+          },
+          {
+            "title": "5. 付费套餐",
+            "body": "网页订阅由 Stripe 计费。应用内订阅由 Apple 通过 App Store 或 Google 通过 Google Play 计费，并受相应商店的计费、取消和退款规则约束。请在订阅时使用的渠道管理或取消订阅。取消订阅本身不会删除账户或租户工作区数据。"
+          },
+          {
+            "title": "6. 数据所有权",
+            "body": "您拥有输入平台的所有数据，包括公司描述、智能体配置和输出。您授予我们有限许可，仅为提供服务而处理这些数据。"
+          },
+          {
+            "title": "7. AI 输出",
+            "body": "AI 生成的内容（智能体输出、草稿、外联消息）必须在发送前审核。您对通过账户所连接集成发送的所有内容负责。"
+          },
+          {
+            "title": "8. 责任限制",
+            "body": "本平台按“现状”提供。对于因使用平台或 AI 生成内容而导致的间接、附带或后果性损害，我们不承担责任。"
+          },
+          {
+            "title": "9. 终止",
+            "body": "我们可能暂停或终止违反本条款的账户。您可以随时在设置页面删除账户。"
+          },
+          {
+            "title": "10. 联系",
+            "body": "对本条款有疑问？请发送邮件至 legal@braavolabs.com。"
+          }
+        ]
+      },
+      "cookies": {
+        "title": "Cookie 政策",
+        "date": "2026年5月",
+        "sections": [
+          {
+            "title": "什么是 Cookie",
+            "body": "Cookie 是您访问网站时存储在设备上的小型文本文件。我们使用 Cookie 和类似的本地存储技术，保持登录、记住语言偏好并改善体验。"
+          },
+          {
+            "title": "我们使用的 Cookie",
+            "body": "严格必要：用于身份认证的 JWT 会话令牌。偏好设置：用于记住语言的 NEXT_LOCALE。我们不使用广告定向 Cookie。分析功能需主动同意后启用（Plausible 默认不使用 Cookie）。"
+          },
+          {
+            "title": "第三方 Cookie",
+            "body": "Stripe Checkout 在付款流程中设置 Cookie，以防范欺诈。HubSpot 跟踪像素只在您选择同意后运行。Google 或 GitHub OAuth 会在登录过程中设置各自的 Cookie，受其各自政策约束。"
+          },
+          {
+            "title": "如何管理 Cookie",
+            "body": "大多数浏览器允许通过设置拒绝或删除 Cookie。禁用严格必要的 Cookie 将导致无法登录。在需要时，我们的 Cookie 横幅允许您接受或拒绝非必要 Cookie。"
+          },
+          {
+            "title": "法律依据",
+            "body": "对于严格必要的 Cookie，我们依据合法利益（KVKK 第5/2-f条和 GDPR 第6(1)(f)条）；对于非必要 Cookie，我们依据您的同意（KVKK 第5/1条和 GDPR 第6(1)(a)条）。"
+          },
+          {
+            "title": "联系",
+            "body": "对 Cookie 有疑问？请发送邮件至 privacy@braavolabs.com。"
+          }
+        ]
+      }
+    },
+    "about": {
+      "title": "关于 Braavolabs",
+      "subtitle": "构建自主 AI 智能体和自动化，无需承担代理机构的额外开销。",
+      "section1Title": "我们为何存在",
+      "section1Body": "多数创始人需要代理机构、销售开发人员、内容团队和运营经理，却无力聘请五位员工。Braavolabs 用 AI 智能体替代这支团队，执行您用简单英文描述的流水线。内置支出审批、审计日志和风险拦截，让您保持控制。",
+      "section2Title": "我们正在构建什么",
+      "section2Body": "您可以用日常语言描述所需的智能体、流水线和集成，AI 构建器将从头编写，或连接您已在运行的自动化。每个操作都会记录，每笔支出都经过审批，整套系统全天候运行。",
+      "section3Title": "背后的团队",
+      "section3Body": "Braavolabs 是成立于2026年的独立项目。我们公开开发，每次提交、每项决策和路线图更新都可见。欢迎随时联系 hello@braavolabs.com。",
+      "section4Title": "下一步",
+      "section4Body": "我们的路线图由用户实际遇到的问题决定，而非凭空制定的12个月计划。欢迎通过 hello@braavolabs.com 提交反馈，或在社交媒体关注公开开发进展。"
+    },
+    "contact": {
+      "title": "联系",
+      "subtitle": "选择合适的沟通渠道，我们会阅读每条消息。",
+      "channelGeneral": "一般问题",
+      "channelSupport": "客户支持",
+      "channelSales": "销售 / 合作",
+      "channelPrivacy": "隐私与 GDPR",
+      "channelKvkk": "KVKK（土耳其）",
+      "channelSecurity": "安全漏洞披露",
+      "responseTime": "回复时间：工作日通常在24小时内。KVKK 和 GDPR 权利请求会在各自法定期限内回复（分别为30天和1个月）。",
+      "topic": "主题",
+      "message": "消息",
+      "messagePlaceholder": "有什么可以帮您？",
+      "compose": "准备邮件",
+      "draftHelp": "此操作会准备邮件草稿。请通过您的邮件应用发送，此处不会确认投递成功。",
+      "prepared": "邮件草稿已准备好",
+      "salesTopic": "销售与价格",
+      "supportTopic": "技术支持",
+      "partnershipsTopic": "合作",
+      "pressTopic": "媒体",
+      "otherTopic": "其他事项"
+    },
+    "status": {
+      "title": "所有系统运行正常",
+      "subtitle": "状态经过人工核查。实时公共状态页（独立子域名）已列入路线图。",
+      "services": {
+        "website": "公共网站",
+        "auth": "身份认证",
+        "api": "API",
+        "runs": "流水线运行",
+        "database": "数据库",
+        "email": "邮件投递"
+      },
+      "operational": "运行正常",
+      "alertTitle": "发现服务中断？",
+      "alertBody": "请发送邮件至 support@braavolabs.com，说明尝试的操作和看到的错误，我们会调查并更新此页面。"
+    },
+    "cookieConsent": {
+      "title": "Cookie 与分析",
+      "body": "我们在此浏览器中保存您的分析偏好。可选的使用分析只在您同意后加载。您可以在 Cookie 政策页面重置选择。",
+      "privacyLabel": "隐私政策",
+      "cookiesLabel": "Cookie 政策",
+      "acceptAll": "允许分析",
+      "essentialOnly": "仅必要项",
+      "saveFailed": "无法保存您的选择。此页面会继续阻止新的分析加载。如果分析功能之前已经加载，请关闭此页面，并在浏览器中清除此网站的存储数据后再返回。",
+      "preferencesTitle": "管理偏好",
+      "preferencesBody": "重置选择会撤回可选分析的许可，并再次显示横幅。如果分析已经加载，清除已保存的选择后会重新加载页面。",
+      "reset": "重置 Cookie 偏好",
+      "resetDone": "已清除保存的选择。页面可能会重新加载以应用更改。",
+      "resetFailed": "无法清除保存的选择。此页面已阻止新的分析加载。先前加载的跟踪程序可能在关闭页面前继续运行。请关闭页面，并在浏览器中清除此网站的存储数据后再返回。"
+    },
+    "appearance": {
+      "title": "外观",
+      "label": "主题",
+      "dark": "深色",
+      "light": "浅色",
+      "system": "跟随系统",
+      "description": "使用系统设置，或选择此浏览器的主题。",
+      "saveFailed": "本页主题已更改，但无法保存到此浏览器。",
+      "storageHelp": "您的主题偏好保存在此浏览器中。"
+    }
+  },
+  "auth": {
+    "hero": {
+      "title": "您的 Braavolabs 工作区。"
+    },
+    "login": {
+      "newHere": "首次使用？",
+      "welcome": "欢迎回来",
+      "subtitle": "登录您的 Braavolabs 账户",
+      "tabSignIn": "登录",
+      "tabRegister": "注册"
+    },
+    "register": {
+      "hasAccount": "已有账户？",
+      "welcome": "创建账户",
+      "subtitle": "开始构建 AI 智能体与自动化",
+      "inferenceFunding": "推理使用您自己的提供商密钥或已配置的本地运行环境"
+    },
+    "fields": {
+      "fullName": "姓名",
+      "fullNamePlaceholder": "张三",
+      "organization": "组织",
+      "organizationPlaceholder": "您的公司或团队",
+      "email": "电子邮箱",
+      "emailPlaceholder": "you@example.com",
+      "password": "密码",
+      "passwordLoginPlaceholder": "至少8个字符",
+      "passwordRegisterPlaceholder": "至少8个字符，包含大写字母、小写字母和数字",
+      "referralCode": "推荐码",
+      "referralCodePlaceholder": "可选",
+      "optional": "（可选）"
+    },
+    "validation": {
+      "emailRequired": "请输入电子邮箱。",
+      "emailInvalid": "请输入有效的电子邮箱地址。",
+      "passwordRequired": "请输入密码。",
+      "passwordMin": "密码至少需要8个字符。",
+      "passwordRegex": "密码必须包含大写字母、小写字母和数字。",
+      "nameRequired": "请输入姓名。",
+      "orgRequired": "请输入组织名称。",
+      "passwordsMismatch": "两次输入的密码不一致。",
+      "invalidResetLink": "重置链接无效。"
+    },
+    "strength": {
+      "label": "密码强度：",
+      "weak": "弱",
+      "fair": "一般",
+      "good": "良好",
+      "strong": "强"
+    },
+    "submit": {
+      "loading": "正在加载…",
+      "signIn": "登录",
+      "createAccount": "创建账户"
+    },
+    "oauth": {
+      "divider": "或使用以下方式继续",
+      "googleNotConfigured": "此服务器尚未配置 Google OAuth。请使用电子邮箱和密码，或 GitHub 登录。",
+      "githubNotConfigured": "此服务器尚未配置 GitHub OAuth。请使用电子邮箱和密码，或 Google 登录。",
+      "cannotConnect": "无法连接 API 服务器，请确认后端正在运行。",
+      "googleFailed": "Google 登录失败，请尝试电子邮箱和密码登录。",
+      "githubFailed": "GitHub 登录失败，请尝试电子邮箱和密码登录。",
+      "appleNotConfigured": "此服务器尚未配置 Apple 登录。请使用电子邮箱和密码登录。",
+      "appleFailed": "Apple 登录失败，请尝试电子邮箱和密码登录。",
+      "ssoToggle": "组织 SSO — 开发中 →",
+      "ssoSlugPlaceholder": "工作区标识",
+      "ssoSubmit": "继续"
+    },
+    "forgot": {
+      "link": "忘记密码？",
+      "modalTitle": "重置密码",
+      "modalDesc": "输入您的电子邮箱，我们会发送重置链接。",
+      "submit": "发送重置链接",
+      "loading": "正在发送…",
+      "successTitle": "请检查邮箱",
+      "successDesc": "如果该地址已注册，我们已发送重置链接。也请检查垃圾邮件文件夹。",
+      "backToLogin": "返回登录"
+    },
+    "reset": {
+      "title": "设置新密码",
+      "subtitle": "为您的账户选择一个强密码。",
+      "newPasswordPlaceholder": "新密码（至少8个字符）",
+      "confirmPasswordPlaceholder": "确认新密码",
+      "submit": "更新密码",
+      "loading": "正在更新…",
+      "successTitle": "密码已更新！",
+      "successDesc": "正在跳转至登录页面…",
+      "back": "← 返回登录"
+    },
+    "brandPanel": {
+      "footer": "© 2026 Braavolabs。使用 Claude 构建。"
+    },
+    "errors": {
+      "generic": "出现问题",
+      "invalidCredentials": "电子邮箱或密码无效。",
+      "rateLimited": "尝试次数过多，请稍后重试。",
+      "unavailable": "暂时无法登录，请稍后重试。"
+    }
+  },
+  "pricing": {
+    "badge": "计划价格 · 目前不可购买",
+    "title": "简单透明的价格",
+    "subtitle": "Individual 计划为每月 $19，Team 计划为每位活跃用户每月 $39。不包含推理费用，目前不可购买订阅。",
+    "cycle": {
+      "monthly": "按月",
+      "yearly": "按年",
+      "save": "−20%"
+    },
+    "period": {
+      "forever": "永久",
+      "monthBilledYearly": "/ 月 · 按年计费",
+      "month": "/ 月"
+    },
+    "mostPopular": "最受欢迎",
+    "plans": {
+      "free": {
+        "name": "价格预览",
+        "desc": "仅供查看价格信息，目前不可购买订阅。",
+        "features": [
+          "Individual — 计划每月 $19",
+          "Team — 计划每位活跃用户每月 $39",
+          "不包含推理费用"
+        ],
+        "cta": "查看价格预览"
+      },
+      "creator": {
+        "name": "Individual",
+        "desc": "面向个人操作者的计划订阅，目前不可购买。",
+        "features": [
+          "每月 $19 — 计划价格",
+          "租户自有 BYOK 或已配置的本地运行环境",
+          "不包含推理费用"
+        ],
+        "cta": "预览 Individual"
+      },
+      "pro": {
+        "name": "Team",
+        "desc": "按活跃用户计费的计划订阅，目前不可购买。",
+        "features": [
+          "每位活跃用户每月 $39 — 计划价格",
+          "租户自有 BYOK 或已配置的本地运行环境",
+          "不包含推理费用"
+        ],
+        "cta": "预览 Team"
+      },
+      "business": {
+        "name": "额外控制功能 — 开发中",
+        "desc": "超出两项计划订阅的组织控制功能仍在开发中。",
+        "features": [
+          "Private Mode — 预览",
+          "Cloud Agent Mode — 开发中",
+          "精确操作审批 — 开发中"
+        ],
+        "cta": "查看路线图"
+      }
+    },
+    "enterprise": {
+      "title": "需要更多？",
+      "desc": "额外的组织控制功能正在开发中，目前不可购买订阅。",
+      "cta": "与创始人交流"
+    },
+    "faq": [
+      {
+        "q": "今天可以购买订阅吗？",
+        "a": "不可以。Individual 和 Team 的价格属于预览，目前不可购买。不包含推理费用。"
+      },
+      {
+        "q": "什么算一次“运行”？",
+        "a": "每次流水线执行算一次运行。例如：生成1篇 TikTok 帖子 = 1次运行；执行1个邮件外联序列 = 1次运行。"
+      },
+      {
+        "q": "谁支付推理费用？",
+        "a": "由客户支付。请使用租户自有的提供商密钥或已配置的本地运行环境，订阅不包含推理费用。"
+      },
+      {
+        "q": "超过运行配额会怎样？",
+        "a": "流水线将暂停，直到下个月或升级套餐。不会产生意外费用。"
+      },
+      {
+        "q": "可以随时取消吗？",
+        "a": "请在网页账单设置中管理 Stripe 网页订阅。在对应商店中管理 Apple App Store 或 Google Play 订阅；计费、取消、访问权限和退款遵循相应渠道的规则。"
+      },
+      {
+        "q": "我的数据是私密的吗？",
+        "a": "工作区内容在 Braavolabs 中绑定租户。为执行所请求工作流，内容可能发送至您选择或连接的 AI 提供商，其处理方式遵循相应提供商的条款和设置。"
+      }
+    ]
+  },
+  "footer": {
+    "rights": "© 2026 Braavolabs。使用 Claude 构建。",
+    "privacy": "隐私",
+    "terms": "条款"
+  },
+  "language": {
+    "label": "语言",
+    "en": "English",
+    "tr": "Türkçe",
+    "es": "Español",
+    "de": "Deutsch",
+    "fr": "Français",
+    "ar": "العربية",
+    "es-419": "Español (Latinoamérica)",
+    "pt-BR": "Português (Brasil)",
+    "ja": "日本語",
+    "it": "Italiano",
+    "ko": "한국어",
+    "id": "Bahasa Indonesia",
+    "pl": "Polski",
+    "hi": "हिन्दी",
+    "zh-Hans": "简体中文"
+  },
+  "publicPreview": {
+    "homeTitle": "跨提供商 AI，由您掌控。",
+    "homeIntro": "Braavolabs 是跨提供商的 AI 工作台与控制平台，支持桌面、CLI、移动和云端界面上的受控运行、明确操作、模型选择和人工审批。",
+    "previewBadge": "产品公开预览",
+    "pricingBadge": "价格预览 — 目前不可购买",
+    "pricingTitle": "计划价格，明确投入。",
+    "inferenceFunding": "不包含推理费用。请使用您自己的提供商密钥（BYOK）或本地模型。",
+    "individualPeriod": "{price}/月",
+    "teamPeriod": "{price}/活跃用户/月",
+    "individualSummary": "一位用户，同样可以选择模型与数据模式。",
+    "teamSummary": "用户共享工作区策略与审批。",
+    "individualAudience": "面向在受支持界面上执行受控 AI 工作的个人。",
+    "teamAudience": "面向共享工作区策略、审批和运营上下文的用户。",
+    "individualItems": [
+      "一位用户",
+      "BYOK 或本地模型路由",
+      "按成熟度标注的数据模式路线图",
+      "配对审批范围"
+    ],
+    "teamItems": [
+      "按用户计费",
+      "共享工作区角色",
+      "共享策略与审批",
+      "团队运营上下文"
+    ],
+    "dataMode": "数据模式",
+    "privateMode": "Private Mode — 预览",
+    "privateModeCopy": "完整的数据处理和安全约定仍在开发中，尚未作为正式可用功能提供。",
+    "cloudMode": "Cloud Agent Mode — 开发中",
+    "cloudModeCopy": "其执行、同意和数据保存约定尚未作为正式可用功能提供。",
+    "maturity": "成熟度",
+    "holding": "Holding — 高级 / 私人预览",
+    "holdingCopy": "常驻智能体产品包不包含在公开套餐中。",
+    "holdingSubscription": "两项公开订阅均不包含 Holding。",
+    "verification": "验证",
+    "signedEvidence": "签名证据 — 开发中",
+    "signedEvidenceCopy": "公开的离线验证声明需等待通过验收的证据。",
+    "launchApp": "启动应用",
+    "readDocs": "阅读文档",
+    "signIn": "登录",
+    "signUp": "注册",
+    "subscription": "订阅",
+    "unavailable": "目前不可购买",
+    "unavailableLabel": "{plan} 目前不可购买",
+    "links": {
+      "features": "功能",
+      "pricing": "价格",
+      "security": "安全",
+      "docs": "文档",
+      "cli": "CLI 可用情况",
+      "status": "状态",
+      "support": "支持"
+    }
+  },
+  "uiCopy": {
+    "m938c91ff1f31": "braavolabs",
+    "m13855655e90d": "AI",
+    "m690e7a5e1383": "Morghulis.",
+    "m158acce5db4b": "每项任务都应结束。安静地，在你的设备上完成。为 AI 智能体提供受控的指挥中心。",
+    "mc9be6b254770": "滚动 — 推门而入 ▾",
+    "m68ec9666da44": "所有智能体，同处一厅",
+    "m4d50f5adff67": "一个面板。",
+    "m13b0a7147ec5": "所有智能体。",
+    "md91e25ebff91": "Claude、GPT、Gemini，以及你的本地模型——各自在壁龛中静候召唤。将任务交给其中一个，看它将工作线索传给下一个。",
+    "m14259aa4f184": "三条路径，一张账单",
+    "mb6063ec6db48": "将任务路由到成本最低的",
+    "mff3010307ebd": "可用路径。",
+    "ma02b3af1c791": "本地模型处理常规工作，你的 API 密钥负责难题，自己的 CLI 订阅覆盖其余部分——由级联机制选择路径，节省下来的费用归你。",
+    "m58cb783ef208": "平均运行成本更低",
+    "m2f71a8cd452e": "路由 · 缓存 · 级联",
+    "md68f4d9658a0": "词元加价",
+    "m19837eca8ef7": "BYOK — 使用自己的密钥",
+    "m61feb77f0448": "路径",
+    "mc161ee232d16": "本地 · API · 你的 CLI",
+    "m37570a352f9f": "不受模型限制的记忆",
+    "m4790be82e806": "无论使用哪个模型，你的上下文始终属于你。",
+    "md1ab8fe0278c": "默认启用治理",
+    "mcf73c270b403": "每个有风险的步骤都需经过审批关卡。",
+    "m760df3439c81": "多模型交接",
+    "m0ef4c869c13b": "一个智能体将工作线索传给下一个。",
+    "m902a479c1449": "AI 执行，你来指挥。",
+    "madfef55cdd3e": "Dohaeris.",
+    "m8917820f4842": "运行在你的设备上进行，即使你离开也会继续。瞭望塔持续关注，你可以随时随地掌控。",
+    "m06818bfad7e5": "随身审批。",
+    "mcd2afb2517c4": "有风险的步骤会提醒你的手机——轻点即可允许、拒绝或调整方向。",
+    "mc918b71360aa": "每次运行都可回放。",
+    "mec82da18aef9": "命令、差异和工具调用均有记录——可审计或回看任意步骤。",
+    "mb634019207be": "一个紧急停止开关。",
+    "m190c6cca4b11": "请求停止受支持的执行路径。提供商调用可能已经在进行中，请验证已记录结果。",
+    "me050855b0732": "下载 macOS 版",
+    "m0699722b6c86": "Windows",
+    "mc7916fde8f18": "Linux",
+    "m4721630f3237": "已复制",
+    "m76375004a5c8": "复制",
+    "mfa1e83c4875c": "Braavolabs 硬币 — 正面",
+    "m25dad6b2130d": "Braavolabs 硬币 — 背面，电路线条 BL 字母标志",
+    "m25b28440d28a": "悬停翻转 · 背面：电路线条 BL 字母标志",
+    "m4fc929a0a62c": "场景导航",
+    "m9ee930cb6b09": "跳过开场",
+    "m154eba8c33b7": "跳过 — 空格键 / 点击",
+    "m227d67016fe0": "braavolabs · valar dohaeris",
+    "m716f677b544d": "文档",
+    "md86a34679f43": "GitHub",
+    "mbb0e90463fc8": "领先中",
+    "m6a6df1ed4210": "发布",
+    "m1c64caa33ba2": "对比",
+    "mde4ec47f271d": "实验",
+    "m920a13b7eddb": "实验",
+    "m0ce6557e41a4": "状态",
+    "mb1c437b2623f": "提升幅度",
+    "me4fac2bbdc43": "显著性",
+    "m4b9aae820c18": "查看详情",
+    "m6e8b2ac90efc": "新建实验",
+    "m008ca53ea0d6": "宣言",
+    "mf6caaee885a1": "任何人都能",
+    "md7f19caf7275": "构建智能体。",
+    "m1bcc79112898": "但能指挥它的人寥寥无几。",
+    "m154cae3389df": "标志",
+    "mff5d00a78d7e": "无面操作者",
+    "m6d6f7b3433d5": "我们的标志是一副锻铁面具，致意 Braavos 那些不露面却能力出众的操作者。它代表着 AI 真正完成工作的方式：不是靠最喧闹的演示，而是靠操作者默默地",
+    "m0fb31a980179": "审阅、批准并引导",
+    "m2c08fc9adde3": "一组智能体达成结果。",
+    "m8fad8431526d": "我们打造的一切都有分量、光泽和动感——指挥智能体应像置身作战室，而不是照看聊天机器人。",
+    "mae6893bf1cea": "一句话说清竞争壁垒",
+    "ma96d8b4e22d7": "我们的竞争力在于",
+    "m79029a3ce6e6": "控制力",
+    "mac2da98d83a1": "移动能力",
+    "m0eab38f1efb0": "以及",
+    "mb899143d5b68": "隐私",
+    "ma2e990d63ed8": "——而非连接器数量。",
+    "m3bfa80932b8d": "原则",
+    "m35c23cddce05": "“我们打造 Braavolabs，是因为受够了那些能行动却无法被治理的智能体。没有掌舵者的力量并不实用，而是一种隐患。”",
+    "m00cce1870e41": "Braavolabs 团队",
+    "m86eac0774080": "· 开放锻造",
+    "md02e9e25bd65": "打开应用",
+    "m864debf58479": "联系我们",
+    "mdd10bd33331e": "工作区",
+    "m3c5cae9db9ff": "结果",
+    "me472804666c8": "账单摘要",
+    "m4176e1045b7d": "全部执行",
+    "m138dacd53320": "次运行",
+    "mb2df3906a88c": "支出队列",
+    "m0e8a6ae38472": "待处理",
+    "mc3f685eba544": "紧急",
+    "m1b78e46f051f": "正在准备你的会话",
+    "m22d7829ed6f9": "BL",
+    "me1bb55c0e7b4": "已记录的方法与结果",
+    "mba85f9df1e3f": "基准测试",
+    "m3ea665b949b5": "审查已记录的基准测试运行、评估模型及可用方法。覆盖范围与新近程度因运行记录而异。",
+    "madef7e96db5b": "方法与原始评分规则位于",
+    "m4106b4c7e011": "。欢迎提交 PR。",
+    "mbe9a5bbdd9b6": "有可用的已记录评估时，发布结果会显示在此。",
+    "m4349735a6625": "此套件尚无运行记录。",
+    "m62d2447bfb31": "提供商",
+    "m53b77436d18d": "模型",
+    "m6853e500c770": "得分",
+    "m2dbf116102ae": "每次运行成本",
+    "m41b4f721faf5": "时长",
+    "m881b035daeb6": "已更新",
+    "mcc7dbaccf493": "账户",
+    "m3ed9a01e9231": "活跃",
+    "m1f1c52f4af63": "人工审核",
+    "m10a01ee78fc0": "/ 活跃席位 / 月",
+    "m36319a66e749": "/ 月",
+    "m2abded1f04d2": "· 通过 Stripe",
+    "m52ef97127549": "剩余运行次数，适用方案：",
+    "m3aacf07b35fc": "管理订阅",
+    "m480aee3b6717": "网页版方案通过 Stripe 计费，可随时在账单门户中管理、升级或取消。移动端订阅在购买时使用的应用商店中管理；更改会自动同步到此处。",
+    "mc55a17a9d9c0": "Stripe 订阅",
+    "mcceb0b8f209d": "管理",
+    "m03899b81220f": "未激活",
+    "m659adfa80ad7": "App Store 订阅",
+    "mcd435f3d6d13": "在商店中管理",
+    "mf1b895df0335": "Google Play 订阅",
+    "m8546b709215e": "本周期用量",
+    "m809b2c4b9c83": "BL",
+    "m7f0fab417f12": "博客",
+    "md62a43742980": "功能",
+    "ma5bac859b488": "价格",
+    "m2fbc11c34f42": "登录",
+    "m06d5d3008573": "打开应用",
+    "m85d560055d11": "锻造日志",
+    "ma31c879fbf4a": "阅读",
+    "mf4e7ef98e64a": "指挥你已在运行的智能体。",
+    "mb9f5c53ce5bb": "使用你自己的提供商密钥或已配置的本地路径。不包含推理服务。",
+    "mfa5d21d1d88a": "更多锻造日志",
+    "md72e42595829": "博客",
+    "m7c191fd9ab30": "登录",
+    "m723a4ca0b041": "打开应用",
+    "md37709c384c4": "锻造日志",
+    "m183ea0c3acf0": "来自",
+    "m3ec12db3060f": "作战室的札记。",
+    "m727eff92c28d": "关于智能体的指挥——控制力、移动能力、隐私，以及治理自主性的技艺。",
+    "mbf6597c4877d": "精选",
+    "m67a924d25b13": "阅读",
+    "med3811fc0067": "掌控您正在使用的 AI 智能体和自动化。",
+    "m09d06a4f3a17": "产品",
+    "m621f739bb1af": "公司",
+    "m2bc5accf38ff": "法律",
+    "m46e01d124058": "© 2026 Braavolabs。保留所有权利。",
+    "m73b582c8d1ab": "BL",
+    "maf32376bdf35": "功能",
+    "m89ea286c8147": "价格",
+    "mdcad451eaa8b": "集成",
+    "m000db379830b": "更新日志",
+    "mf6a8a22d3745": "博客",
+    "mf0c7cea418fa": "打开应用",
+    "mc233f3d5475f": "每块板件，",
+    "m201fb23bec45": "都已牢牢就位。",
+    "m7af9fcb2eb00": "我们打造、修复与更改的内容。",
+    "mb029bf94b9cb": "最新",
+    "m33b2dcf5a00e": "暂停",
+    "m4aff80e9ddd2": "归档",
+    "mf40b55b5a17f": "智能体：",
+    "ma170cc9e0b0b": "系统提示词",
+    "m313ead484eac": "默认",
+    "m081fc0171fee": "候选",
+    "m1d156cc858d3": "已批准",
+    "mf1cc2bc9a8a0": "暂无已批准的记忆",
+    "m564fb4aee15b": "已弃用",
+    "m307ccca51ae0": "无已弃用内容",
+    "m50890a43f31f": "实时",
+    "md1e06fe13cd7": "已暂停",
+    "mc46ba3b782c7": "成本停止保护已就绪",
+    "md8ec6425984e": "预算",
+    "m6a7a58f3cdb0": "% 已用 — 运行将在 $ 金额达到时停止：",
+    "mee5a1855dffe": "等待你处理",
+    "m562397da1ad0": "流式传输中",
+    "m1d007a5d0353": "毫秒",
+    "m485cb3fc4e18": "运行元数据",
+    "m3c85b69d5453": "对比预算",
+    "m2fb2177fcf22": "预算 $",
+    "mf09738cc6fac": "时间线定位控件",
+    "md63109311e5c": "导出轨迹",
+    "mc341c520640c": "引导 · 注入指导",
+    "m4180d6eb1e87": "工作区",
+    "mf854b0d01bb8": "新建",
+    "m2a1f8f8329c8": "升级方案",
+    "m81541c4b81fd": "从想法开始",
+    "m98f5541fecce": "选择一个起点——我们会预填下方简要说明，AI 会为你量身调整。",
+    "m84436181ca66": "模板类别",
+    "me80b908371e2": "全部",
+    "md906ff092286": "使用此想法",
+    "m23e4368ad8b0": "或在下方描述你自己的想法 ↓",
+    "m6e641f0af509": "⌘↵ 开始构建",
+    "mdbc61703dd4c": "braavolabs",
+    "md81c07fc5237": "工作区规格",
+    "mfba9134a6958": "核心",
+    "m335400734ad4": "旗舰",
+    "m1c1ed0d6cba8": "对比",
+    "m0e090d020bf6": "登录",
+    "m2b2ad5e6e9fc": "打开应用",
+    "m65d72c621640": "坦诚定位",
+    "mba9bd9de37dc": "我们的适用场景——",
+    "m50e9a7dcec3d": "以及不适用的场景。",
+    "mf93fe81f65ba": "Braavolabs 并不追求最大的集成目录。它旨在帮助你",
+    "m1d1ed4cc0221": "指挥",
+    "m16c281eec9eb": "你已在运行的智能体和自动化——从手机上，在运行过程中，使用自己的密钥。下面坦诚比较两个相近类别，也包括它们优于我们的地方。",
+    "m7acc6a073df0": "能力",
+    "m67969942145e": "适合谁",
+    "m8d6c9af2713e": "当控制力、移动能力和隐私比集成目录的规模更重要时，Braavolabs 是合适的选择。",
+    "m22f7bc58c61d": "亲自看看固定定价的计算结果。",
+    "mbf3573b0a3d0": "使用成本计算器，比较可预测的固定定价与按任务计费。",
+    "m24543c9280b1": "成本计算器",
+    "m2b56df60312a": "审查已记录步骤、可用成本数据及待处理的操作者决策。",
+    "m9895a6463bc7": "掌控您正在使用的 AI 智能体和自动化。",
+    "mfb1404813b60": "产品",
+    "mca345aad7aa1": "公司",
+    "m5bed3a4a7338": "法律",
+    "m8e359b1c68e3": "© 2026 Braavolabs。保留所有权利。",
+    "m3e5ecf19f202": "自动化中心",
+    "mb9d0451321be": "关闭",
+    "m8b4a9a98583e": "连接新的自动化",
+    "m80ef56a7089f": "统一执行记录",
+    "ma9b5c84ca346": "原生 + 外部 · 同一时间线",
+    "m8bd444807a52": "事件",
+    "md8e91797972c": "类型",
+    "m826036148049": "外部",
+    "m1a1faaa5e7fc": "展开连接，即可在此显示其执行记录。",
+    "m23715cc46e18": "关闭",
+    "ma6abe31754db": "BL",
+    "m2b4a9f22ba8d": "掌控您正在使用的 AI 智能体和自动化。",
+    "md69e46192627": "产品",
+    "m6d80848fe489": "公司",
+    "m0fb85ef7ffda": "关于",
+    "m260fed5ac47c": "博客",
+    "m3a006e3e0878": "状态",
+    "md2c8631b73dd": "法律",
+    "mf2c79d7c83e6": "价格",
+    "m3aaa432f7378": "打开应用",
+    "m9680189524a4": "价格预览 — 目前不可购买",
+    "m58ba90a040a3": "计划中的订阅定价",
+    "mfdf38497de3a": "账单迁移仍在开发中，因此本页不会计算可支付报价或发起购买。计划中的目录仅包含 Individual 和 Team。",
+    "m0a048a01849e": "计划中的方案",
+    "m865128d3e4d4": "计划中的方案",
+    "m4d17edf4bcc6": "推理成本说明",
+    "m17a77e8ea42f": "不包含推理费用",
+    "m52f120c3db8b": "模型用量由你通过 BYOK 配置的提供商计费，或通过你自己的本地模型路径运行。Braavolabs 目前不提供这些计划中订阅的购买。",
+    "me587bca8ef51": "活跃运行",
+    "m975cf8ab658e": "运行成功率",
+    "m1ca31645c880": "活动",
+    "m9f12c64beaa6": "braavolabs.com · 实时审计轨迹",
+    "maacbbd2ffeb8": "查看全部 →",
+    "mef4047de09c7": "最近运行",
+    "m9332d1be8fe2": "流水线",
+    "m098593629f8e": "公司",
+    "m286c98c9029c": "状态",
+    "m207013f4c387": "开始时间",
+    "md1d31b068fc2": "步骤",
+    "m701b95d1d46a": "支出",
+    "m4d36fe121a92": "此筛选条件下暂无运行记录。",
+    "m97fa546fb5a7": "暂无近期活动。",
+    "mc9b9115552be": "等待中",
+    "m7fd8a8fd26df": "需要审批",
+    "meffd0c9f293a": "拒绝",
+    "m8961771af3a1": "无活跃风险",
+    "m11064e50fa7c": "新",
+    "m3c3e08c03c30": "风险事件",
+    "me5c88f2a2ff0": "刚刚",
+    "mb34c85aff53f": "功能",
+    "m85a856ab28be": "价格",
+    "mdd91fe0b7fc0": "博客",
+    "m6179659c73b9": "文档",
+    "m35127686df60": "登录",
+    "m5b83c05ccb0c": "打开应用",
+    "mcb951cf4a4d3": "文档",
+    "m0c14fdc4a1c6": "使用手册",
+    "m6c77f98962d7": "本页内容",
+    "m074fdba85cf1": "← 上一页",
+    "m1388671ac3bc": "下一页 →",
+    "m90aeded95734": "指挥你已在运行的智能体。",
+    "mf8873bd65493": "定价仅供预览，目前无法购买。不包含推理服务。",
+    "m906152f47b4f": "掌控您正在使用的 AI 智能体和自动化。",
+    "m1ec39ca165b6": "产品",
+    "mbb3043a7f2cf": "更新日志",
+    "m50200f20c520": "资源",
+    "m35fa61443236": "支持",
+    "m6ea06edad850": "公司",
+    "m7f7a851ede21": "关于",
+    "mebaef44626be": "联系",
+    "m07c7e04fadf1": "状态",
+    "m7375dacc55cd": "© 2026 Braavolabs。保留所有权利。",
+    "m818b2a78eb90": "功能",
+    "m4cc1f3608ddc": "价格",
+    "mf6823057de7d": "博客",
+    "m87eedb771754": "文档",
+    "mda5526776bb1": "登录",
+    "md725474be468": "打开应用",
+    "m5aac6b035a43": "使用手册",
+    "mc85715c7a4bb": "文档",
+    "m8f52d8cc2d59": "如何组建、运行和治理一家自主 AI 公司——从首次运行，到 Webhook、已配置的本地模型路径，再到通过手机引导智能体。",
+    "m20c340bf69ae": "快速开始",
+    "m602cdfb50800": "核心概念",
+    "m9a896a6ca8c2": "常见问题",
+    "md4293b1a891b": "阅读",
+    "mfa2b75fcfa90": "掌控您正在使用的 AI 智能体和自动化。",
+    "mc06c8b9bd590": "产品",
+    "m9e4e062300ce": "更新日志",
+    "mdc663d5d4765": "资源",
+    "m698bc6e3f89e": "支持",
+    "m975952c059f7": "公司",
+    "mad1ae8839ed9": "关于",
+    "m8d136db7d880": "联系",
+    "m2b43eb3b2c10": "状态",
+    "m22d2dde46b20": "© 2026 Braavolabs。保留所有权利。",
+    "m86006890323f": "内容审核",
+    "mfd976ba1eea0": "草稿",
+    "m76d027d04e32": "出现问题",
+    "me06887989706": "提供给支持团队的错误编号",
+    "mc3fca6aef955": "参考编号：",
+    "m28a812f120c3": "重试",
+    "m795836a1d4b2": "错误仍然存在。请返回首页后重试。",
+    "meda5eea8ae48": "返回首页",
+    "mccfb38fd1109": "联系支持",
+    "m41749f8a6958": "治理",
+    "m12cc6cbe8456": "价格",
+    "md2d886d00f8d": "登录",
+    "m5622cdb1d573": "注册",
+    "mb92a5ff6a3f6": "产品约定",
+    "md8d7b7db0cdd": "运行。控制。举证。",
+    "m5c19d5d0e672": "Braavolabs 是跨供应商的 AI 工作台和控制平面。同一约定涵盖桌面端、CLI、移动审批和经过身份验证的云端控制，而不将原生执行移到公开网站中。",
+    "md530d8e09e2a": "Private Mode — 预览",
+    "mc015473cee7b": "完整的数据处理和安全约定仍在开发中，尚未作为正式可用功能提供。",
+    "m99e52a77109d": "Cloud Agent Mode — 开发中",
+    "m4be5a94fd7e3": "其执行、同意和数据保存约定尚未作为正式可用功能提供。",
+    "m538495414df0": "签名证据 — 开发中",
+    "m283b1bddd62f": "在相关任务通过验收之前，可离线验证包的相关声明仍不启用。",
+    "mc7577ef44a73": "Holding — 高级 / 私人预览",
+    "mf457eb5a3ed1": "持久智能体的打包保持独立，默认关闭。",
+    "m9f5b1afe44a4": "启动应用",
+    "m3129e7d997e9": "阅读文档",
+    "mba4fd1fab967": "导入",
+    "mf0ec3cddfcdf": "搜索",
+    "m941a8cfd363d": "JH",
+    "mcb7a05a63f11": "集成",
+    "m63618f411d28": "第 1 步",
+    "m28a453e700bf": "粘贴导出内容",
+    "m6178c5d299b7": "选择平台，然后粘贴工作流 JSON 或拖入文件。",
+    "mcb314139cd6e": "或将 .json 导出文件拖到此处",
+    "mf22bc005eae8": "第 2 步",
+    "mf59ae985ca8a": "预览与映射",
+    "mb29543f91292": "已解析",
+    "mf481a5ad1169": "个步骤。请将各步骤映射到 Braavolabs 步骤类型。",
+    "m8a14bed991c3": "触发",
+    "mee753e5a87a2": "工具调用",
+    "m916a2a45d141": "分支",
+    "meab0461369b0": "智能体",
+    "m55cf3f3ed970": "输出",
+    "mef364fe09b40": "返回",
+    "m8e0f9ab16dab": "正在根据导入内容构建流水线…",
+    "mcdc0a303cb6e": "已导入",
+    "m358866c978a7": "在构建器中打开",
+    "mc35120dcdc60": "导入另一个",
+    "m1d31c122563e": "连接",
+    "m519d2f226020": "导入现有自动化",
+    "m56994963473b": "导入 n8n、Make 或 Zapier 的导出文件——我们将其解析为流水线。",
+    "m48f6463ee542": "导入",
+    "m760104947f15": "功能",
+    "m69d527a460e7": "价格",
+    "mb2399da1a08c": "关于",
+    "me140e826ba9c": "登录",
+    "m471494a678dc": "请求联系方式",
+    "md16b7b8e76f6": "有关 KVKK 请求，请联系",
+    "md2e44bfde665": "发送邮件。",
+    "m8c04ee5bf3f2": "掌控您正在使用的 AI 智能体和自动化。",
+    "ma0eb87bbeb56": "产品",
+    "mc051ae69c4ff": "更新日志",
+    "m3977aafcc314": "公司",
+    "mf519587a824a": "博客",
+    "m46ce898e63fc": "联系",
+    "med3b20e61c41": "你可以要求 Braavolabs 删除你的账户及相关个人数据。目前公开的请求渠道为电子邮件，便于我们验证账户所有权并书面确认请求。",
+    "m1b2db4796a78": "请使用与你账户关联的邮箱发送邮件至",
+    "m442ce29a97e5": "邮件主题为",
+    "m3142da1ab41a": "“Account deletion request”",
+    "mc804e0a279e5": "。请注明账户邮箱或用户名，但切勿发送密码、API 密钥、访问令牌或支付凭证。",
+    "m38ad53145e92": "我们可能会要求补充信息，以验证你对账户的控制权。我们会通过已验证的邮件渠道确认请求并告知处理状态。适用的法定答复期限仍然有效；本页不承诺自动完成时间。",
+    "m29f4515a2181": "Braavolabs 目前未发布独立的删除表单，也未承诺在此公开网站提供应用内删除控件。请使用上述已验证邮件渠道，避免请求遗失或被发送到无关的联系主题。",
+    "mee9120dd9911": "删除范围取决于与已验证请求者关联的账户记录。我们会审查该范围并书面确认结果，包括任何依法不能删除的记录。",
+    "m0a13dcea737c": "与已验证请求相关的账户身份和个人资料记录",
+    "m3dd748c0c124": "依适用服务及法律义务可删除的租户范围内容",
+    "m67b7fbf8d86d": "与账户关联且在技术和法律上可删除的有效凭证与会话",
+    "m292e9193635f": "部分记录可能因税务、会计、争议、防欺诈或其他法律义务而需要保留。适用类别和期限取决于当前部署、提供商合同及司法辖区；我们会针对已验证请求说明，而非在此承诺固定的公开保留计划。",
+    "m3acb87ce044a": "适用税务、会计或监管法律要求我们保留的记录",
+    "m9956d26e8534": "用于记录请求、验证过程及法定答复所需的记录",
+    "m665793086a11": "受有效法律保全要求或尚未解决争议约束的数据",
+    "m764489556bb6": "我们按适用法律要求的答复期限处理已验证请求，并通过已验证的邮件渠道提供状态更新。验证需要、法律保全和合法保留义务可能影响完成时间；任何适用限制都会以书面方式说明。",
+    "mc3704343f072": "账户删除请求与账单取消是两项独立操作。如有账户账单问题，请联系",
+    "m262a258637ac": "，我们将告知当前支持的渠道，不在此声称存在商店或应用内流程。",
+    "mb2c239031d04": "有关流程、保留规则或如何确认删除已完成的问题：",
+    "mcf0d0c778c1f": "。有关更广泛的数据权利请求（访问、可携带性、更正），请参阅我们的",
+    "m29492eb1f9b7": "GDPR 声明",
+    "m79a0490687e1": "以及",
+    "mf75327b3ab03": "KVKK 隐私信息预览",
+    "m3b525be54f32": "账户与数据删除",
+    "m22af538371f7": "准备删除账户？",
+    "mb5f06ea86d5e": "请使用与你账户关联的邮箱发送请求。",
+    "m7bc799542df6": "给我们发邮件",
+    "m50591bb45e1e": "Braavolabs.",
+    "m7801df791ac5": "Apple",
+    "m3e059886391a": "Google",
+    "m75ecaff6a037": "GitHub",
+    "ma642566b6fb9": "（可选）",
+    "mb10483661821": "找不到页面",
+    "m30a00b02a74d": "你要查找的页面不存在或已被移动。",
+    "md182a885158e": "返回首页",
+    "m2aec28552db3": "仪表盘",
+    "m2e3db7ae4d51": "工作区已构建",
+    "mdb69aaf1266a": "跳过设置 →",
+    "m0ca91d4cf0f5": "第 1 步，共",
+    "mf74a68f418e0": "第 2 步，共",
+    "m38c2aea0c076": "第 3 步，共",
+    "m4cab4d533f77": "第 4 步，共",
+    "m6c1c3f135744": "第 5 步，共",
+    "me9694a186010": "Individual —",
+    "m032b7cca868a": "Team —",
+    "m37d5c6a2c645": "© 2026 Braavolabs",
+    "m4c15cd976fb7": "步骤类型 · 拖入",
+    "ma71448498846": "检查器",
+    "mc0068fffc436": "步骤检查器",
+    "m73f2d28a8195": "在画布中选择步骤进行配置。",
+    "me279e93feaa2": "关闭",
+    "md076a8cff280": "流水线",
+    "m33a8b197a5dc": "步骤",
+    "m6c64bc8fd052": "AI 构建器",
+    "m7b2727efa311": "关闭",
+    "m527dc6c48fc1": "打造你的",
+    "m5d499d7bb383": "工作区，仅需",
+    "mc963b2a55c65": "几分钟",
+    "m0ffcb934d4d3": "Braavolabs。保留所有权利。",
+    "m4c3d039eeb89": "免费方案",
+    "mb9d9f6052c15": "Google",
+    "m2d8843cd30de": "GitHub",
+    "m3f79055b06f5": "强度 —",
+    "m42d9b00b4a1c": "我同意",
+    "m03dd13603177": "条款",
+    "m16a48ada2404": "以及",
+    "med9bdddaf801": "隐私政策",
+    "mddad425a8476": "已有账户？",
+    "m99b3ce884164": "（可选）",
+    "mfac2ec3661ab": "Braavolabs 标志",
+    "m147a465a4bab": "打造一把全新的",
+    "m8f3667a853a6": "钥匙",
+    "m5a9acd6bb595": "通向你的作战室。",
+    "m07683a6b25da": "重置密码",
+    "m324fa44bdbfe": "输入邮箱，我们将发送重置链接。",
+    "m1d7390708d7e": "正在发送…",
+    "mf28e1b2646a8": "发送重置链接",
+    "m05680974f084": "设置新密码",
+    "ma6ae80e38b9d": "确认密码",
+    "m39a7ff600af8": "密码已创建",
+    "mf83f38e42411": "登录",
+    "m94c28a73da37": "治理",
+    "m9d899093d41e": "确认已知悉",
+    "m9ce742313269": "回滚",
+    "mc191d4f884e6": "重新运行",
+    "mb9b248228c25": "成本热力图",
+    "md4fdc87efd1b": "运行元数据",
+    "ma3d0dc878de8": "运行 ID",
+    "m83d38e678178": "流水线",
+    "m89200cc22850": "步骤",
+    "ma8322509bd8f": "审批",
+    "m1eadff0f7d6b": "时长",
+    "m8905a490325a": "时间线定位控件",
+    "m1dbbdb0c26b5": "导出轨迹",
+    "mcf98748ad579": "流式传输中",
+    "mc3041e2d2f2b": "步骤",
+    "m2c81a45dc959": "引导 · 注入指导",
+    "m6ef14dc92d42": "向智能体的下一轮添加指导…（例如“仅联系员工超过 50 人的公司”）",
+    "m597ddeea5d27": "引导",
+    "me5d0d8e26c92": "搜索运行…",
+    "m6519c809652c": "文档",
+    "ma280e8530c88": "登录",
+    "m0c1bf711335e": "注册",
+    "m0b84272e0b38": "安全与信任",
+    "m2708222253e6": "明确说明边界。",
+    "mf6cd2e305a08": "公开安全说明仅限于产品可测试的约定。路线图内容会明确标注，发布声明须待证据验收通过后再提出。",
+    "m87d3344f51c0": "Private Mode — 预览",
+    "m7ed0edec682e": "完整的数据处理和安全约定仍在开发中，尚未作为正式可用功能提供。",
+    "me5d088788752": "Cloud Agent Mode — 开发中",
+    "m6e5d8b8e7120": "其执行、同意和数据保存约定尚未作为正式可用功能提供。",
+    "m82cfde8eb7cd": "签名证据 — 开发中",
+    "mc63ed84605c0": "在相关约定实现并通过验收之前，活动记录不会被描述为可离线验证的签名证据包。",
+    "m16ca86ca2649": "启动应用",
+    "m7945cffa32f0": "报告安全问题",
+    "m58a52b30df2b": "面包屑导航",
+    "m17301d36c0f7": "设置",
+    "m04575c3aa05d": "提供商端点",
+    "m4ac81f8d693d": "重定向与权限范围",
+    "m0980004c67c1": "acme.com, acme-contractors.com",
+    "m3af0642101f2": "已为你的域名启用 SSO 登录。",
+    "m59f31e9a773e": "SSO 登录已暂停——用户将改用密码验证。",
+    "m1324795a7aa8": "正在保存…",
+    "m17cc90014b3e": "实时预览",
+    "m90bd8874ada5": "OIDC 配置 ·",
+    "m1995887ad355": "已配置",
+    "mb5610055f059": "未设置",
+    "ma388b35eeee6": "✓ 已设置",
+    "m1be41d5fc4dd": "SSO 已启用——用户可通过你的身份提供商登录",
+    "m5eb5faa6cbf5": "SSO 已配置但未启用",
+    "m9a52affa6218": "未配置 SSO 提供商",
+    "m99463116beca": "回调 URL",
+    "mc5038b20a0d6": "在你的身份提供商中注册此重定向 URI：",
+    "m4f8f4a6029d8": "复制到剪贴板",
+    "m5722bcfa7400": "企业 SSO",
+    "m1e939b7b4cbc": "强制通过企业身份提供商（Azure AD、Okta、Auth0、Google Workspace）登录。允许域名中的用户会自动重定向至你的身份提供商。",
+    "m239b7819863d": "设置",
+    "m82be07e8418a": "配置",
+    "m4c903bb74ed9": "个人资料、工作区、语言区域与通知。",
+    "m2255caa19025": "危险区域",
+    "m251011545863": "张三",
+    "m7f8ad1ba2dfe": "严重",
+    "m5836e3f6f284": "套餐",
+    "m70d993f4aae7": "工具调用",
+    "m81a36cd86bb2": "自定义",
+    "m70488646d660": "不限工作区数量",
+    "mc6572473d51f": "不限运行次数",
+    "m18629becb717": "不限连接的自动化数量",
+    "m9d2f4b435f53": "当前",
+    "m55b34f1cdcf3": "联系销售",
+    "m245c12189d91": "升级",
+    "mca4ac26863e8": "公司",
+    "md734f81167bd": "正在加载集成…",
+    "m0530d4879653": "设置指南",
+    "m2c575197fbcf": "（已保存）",
+    "m2f159920cfcf": "测试连接",
+    "m5d0a3ab02ef8": "移除",
+    "mf1fd0aaf6045": "提供商",
+    "m9583131210fc": "自托管提供商——在你的硬件上运行",
+    "m4cb1ce4d7ccb": "模型",
+    "md100640b1368": "（输入本地服务器已加载的任意标签）",
+    "mdfe713d713c5": "gemma3:4b",
+    "ma9ef66d953f7": "（可选代理覆盖设置）",
+    "m03032587881b": "必填",
+    "m59f3ac725629": "默认：",
+    "m0b1070b5d324": "API 密钥",
+    "mdd0a21379699": "（可选）",
+    "m9bf0b94f3d0d": "端点的可选身份验证令牌",
+    "m6f1791e21588": "请先保存带有 API 密钥的提供商",
+    "m5ae1c6a8e4c6": "工作原理",
+    "m350c849d3a6f": "API 与认证",
+    "m41c85b6bacc7": "你的凭证与访问令牌",
+    "m995515c1ae9f": "租户 ID",
+    "mf516b06d11bf": "复制",
+    "m0e13854c1b01": "会话令牌",
+    "maddc6b1a8edb": "Webhook 与 API 密钥",
+    "m85f417bbfec5": "管理各公司的 Webhook 端点和 API 访问",
+    "mfee4f2dabe8d": "传入 Webhook",
+    "m684490cc61e5": "外部服务可向 Webhook 端点发送 POST 请求，触发流水线运行。",
+    "m6665da29a7e3": "端点格式",
+    "mfd15b81d8cf9": "将",
+    "m0a04f470671e": "替换为公司标识，并将",
+    "mfcbffc247eb8": "替换为事件名称。",
+    "m63afb9032824": "API 访问",
+    "m4b6ee96c2cfc": "在 API 请求中使用此令牌进行 Bearer 身份验证。会话结束后令牌将失效。",
+    "me55571b3240f": "常见事件",
+    "m13a00239ea2d": "复制 URL",
+    "mef57c1e54f93": "测试 Webhook",
+    "m0f7b30dc841a": "推荐计划",
+    "mb7cd3f777bef": "分享你的代码——你和朋友各获赠 5 次运行",
+    "m5c91a47132b9": "你的代码",
+    "m724c36053cc8": "兑换代码",
+    "m0a34e3a598e6": "兑换",
+    "mc12fbd6e7a20": "正在加载…",
+    "mcde607c76c72": "不可逆操作。请谨慎处理。",
+    "m6efdb34e5814": "退出所有设备",
+    "m9bb76ca4a794": "结束所有活跃会话",
+    "m9bdeb5968503": "退出登录",
+    "m7775a95698f6": "删除工作区",
+    "me7ec08fd87b4": "永久移除所有运行记录和数据",
+    "mb3ebf6fede5b": "删除",
+    "mef4c40cb137f": "放弃更改",
+    "m25f762b46741": "✓ 已保存",
+    "m8c8adacdb1db": "保存更改",
+    "m0ce1f02a34d4": "更改已成功保存！",
+    "m20bb133b046a": "系统状态",
+    "ma8e7dcac27dd": "自动刷新 · 60 秒",
+    "m6391d95c11d5": "GET /api/v1/health · 来自浏览器的实时探测",
+    "m064d3ea1b787": "目前正提供此页面",
+    "m8b59895f3ed7": "正在进行首次检查…",
+    "m9f956da25b83": "此页面仅反映实时健康检查。我们尚未发布可用率或事件时间线——历史可用率跟踪已列入路线图，宁可不显示，也不展示编造的数据。",
+    "m4cb64ff7172c": "掌控您正在使用的 AI 智能体和自动化。",
+    "m8a200d2fa01b": "产品",
+    "mf293e311adbd": "公司",
+    "me036901f0c5c": "法律",
+    "m89dc05ffd2b2": "联系表单",
+    "m083a2705391c": "在邮件应用中准备草稿。请从该应用发送，此处不会确认送达。",
+    "m366977224408": "账单与订阅",
+    "m8cb8b49fe281": "隐私与数据权利",
+    "m771454b72f87": "安全报告",
+    "m97ffe5296db2": "移动端订阅由 Apple 或 Google 计费，而非我们，并会在取消前自动续订。查看、更改或取消：在 iOS 上打开",
+    "m1fc91bf085eb": "设置 → 你的姓名 → 订阅",
+    "md62504ec7e39": "；在 Android 上打开",
+    "mb71b1e7e1c1e": "Google Play → 个人资料 → 付款和订阅",
+    "m9ad3281dcc2d": "。商店购买的退款由 Apple（reportaproblem.apple.com）或 Google Play 根据其政策处理；如遇困难，请给我们发邮件，我们会协助。通过 Stripe 计费的网页订阅可在以下位置管理：",
+    "m9b8015792921": "设置 → 账单",
+    "mfa4b446e8ff6": "（应用内）。",
+    "mdb4dc1cc9096": "Braavolabs 使用哪些 AI 提供商？",
+    "ma6211b5db44c": "运行历史在有记录时显示活动。寻求帮助时请附上相关运行参考编号。",
+    "m8e6535637cb8": "为什么我的流水线暂停了？",
+    "me8234ddd08d0": "如何删除账户？",
+    "m301aee668176": "请通过账户删除页面，以邮件请求删除账户。",
+    "m981862dbff04": "账户与数据删除",
+    "m3cb779dfce49": "平台正常运行吗？",
+    "m652cc7ed28eb": "状态页",
+    "mb29ed7325631": "电子邮件",
+    "mc878475dd7ed": "请说明你的预期、实际发生的情况及大致时间。在移动端，附上截图和应用版本（位于以下页面底部：",
+    "m3dbf7d618644": "设置",
+    "mb142b8b38188": "）能显著减少往返沟通。",
+    "ma16f308c1827": "我们的所有书面承诺：",
+    "mf5be8b9e2a4f": "隐私政策",
+    "m337507465f44": "使用条款",
+    "m7ba5c42d05d5": "GDPR 声明",
+    "mc8d0aedb0025": "KVKK 隐私信息预览",
+    "m668b03bf599d": "以及",
+    "m7ec4811747eb": "流程。",
+    "maf2d75b446d2": "功能",
+    "mf11c295fe6b2": "价格",
+    "ma046b81f5cad": "关于",
+    "ma833a458dc85": "登录",
+    "mdc1d31161f04": "打开应用",
+    "m0a40adc25a52": "支持",
+    "mefb78ad514f6": "有什么可以帮您？",
+    "m0dff0c2e8740": "邮件支持",
+    "mdc8b49376a22": "联系表单",
+    "m5368a784c155": "服务状态",
+    "m57cd0c28916e": "本页内容",
+    "m97e6379af81c": "仍有困难？",
+    "m4a375a6c78be": "通过所列联系渠道提交支持请求。此处不保证答复时间。",
+    "m69772795df01": "掌控您正在使用的 AI 智能体和自动化。",
+    "m691ce9b2c824": "产品",
+    "mb7d1cacaa4dc": "更新日志",
+    "m43dbdbcb4213": "公司",
+    "m0fb5d8aef58c": "博客",
+    "md17c12c62307": "联系",
+    "m29dff0f6e658": "法律",
+    "mb8ffce79447d": "隐私",
+    "mb295f0dd3165": "条款",
+    "m61c5cf9b820b": "Braavolabs。保留所有权利。",
+    "mb8b061d2cc6c": "该",
+    "m2c3d4c4c5cf0": "文件可在以下位置查看：",
+    "m640f6714c57b": "braavolabs.com",
+    "m1a9415bc8fe7": "Braavolabs.",
+    "mc03e218a0c3c": "接收中",
+    "mc09be1de9eb2": "空闲",
+    "m67487c4d674f": "· 暂无投递记录",
+    "m8f3eb54aeb83": "已复制 ✓",
+    "m6e80efd48eb4": "复制",
+    "m8e37387d42dc": "HMAC 密钥：",
+    "m33733931aae0": "隐藏",
+    "m313faf245f17": "显示",
+    "m67501930af73": "集成",
+    "m032825c952b0": "Webhook",
+    "m8e07c14fe364": "在线端点",
+    "m070d79b59b0a": "正在加载你的端点…",
+    "m621423f8719e": "每个工作区都会获得一个带签名的汇入端点，地址为",
+    "mab1707b54d07": "。创建首个工作区即可开始接收事件。",
+    "m0e54282c3be1": "创建工作区",
+    "ma06584ff70f2": "签名请求示例",
+    "m60e512a99f97": "POST · HMAC-SHA256 签名",
+    "me0038ce40084": "面包屑导航",
+    "m0fb6cbe7ed77": "设置进度",
+    "m33f7619295f7": "已完成",
+    "m2475c8fc32c3": "快速入门",
+    "m048d6635729b": "关闭",
+    "m33e5e43f1ffc": "/ 共",
+    "m1b874306cc1d": "完成",
+    "m04d02f71794f": "在线",
+    "md09f1084ca66": "运行步骤成本热力图",
+    "md157b491332a": "步骤热力图 ·",
+    "m4f7017581fe7": "步骤",
+    "m1bfba96b1e61": "支出流向",
+    "m454e25940ea0": "总计：",
+    "m926c7bc3cb4e": "颜色指标",
+    "m7962e0ef9564": "成本",
+    "maca226308ff4": "时长",
+    "m82891b0c7c6e": "峰值",
+    "mcff790642459": "步骤",
+    "m91c4b9a9a975": "未命名",
+    "m671caa428e4c": "待处理",
+    "mdde548bb2e5e": "成本：",
+    "ma4f2af79632e": "时长：",
+    "m946e0fce8ef2": "工具：",
+    "m42e92aa8ff4c": "智能体：",
+    "m71160bc18aec": "点击跳转到此步骤 ↓",
+    "m85e4a839e0c6": "← 第 1 步",
+    "m8a413bb66127": "低",
+    "m66114b892e7f": "高",
+    "ma770817c8ec3": "设置",
+    "maa31d4cc5e14": "过去 14 天每日支出",
+    "m0de88f4db3d7": "快速开始",
+    "mf6e156140dd9": "正在创建…",
+    "m454ee6911d47": "或在下方描述你自己的想法 ↓",
+    "m71c9ffc415a0": "关闭通知",
+    "m7b55bcf0daed": "添加 API 密钥",
+    "m6a6c1557497e": "关闭"
+  },
+  "content": {
+    "docCategories": {
+      "start": "从这里开始",
+      "concepts": "概念",
+      "reference": "参考"
+    },
+    "blogCategories": {
+      "all": "全部",
+      "product": "产品",
+      "engineering": "工程",
+      "governance": "治理",
+      "fieldNotes": "实践札记"
+    },
+    "docs": {
+      "getting-started": {
+        "title": "快速开始",
+        "nav": "快速开始",
+        "desc": "创建工作区、审阅流水线，并在明确选择模型和数据处理方式后跟踪受治理的运行。",
+        "blocks": {
+          "0": {
+            "text": "Braavolabs 将网页工作区、桌面和 CLI 工作台，以及移动伴随应用结合起来，用于模型和智能体工作。开始运行前，请有意识地选择模型路径和数据模式。"
+          },
+          "1": {
+            "text": "首次运行"
+          },
+          "2": {
+            "items": [
+              {
+                "title": "登录并描述工作",
+                "body": "在经过身份验证的应用中创建账户。在公司构建器中描述目标、受众和限制条件。构建器可能先提出澄清问题，再给出计划。"
+              },
+              {
+                "title": "审阅提案",
+                "body": "检查生成的智能体、流水线步骤、已配置工具和预期输出。编辑或删除不需要的内容。计划提案并不能证明外部集成已连接。"
+              },
+              {
+                "title": "选择路径并启动",
+                "body": "配置可用的提供商密钥或兼容的本地端点。查看其能力和数据处理方式，再启动流水线。工作开始时，提供商推理可能就会产生费用。"
+              },
+              {
+                "title": "跟踪状态与决策",
+                "body": "阅读已记录的步骤、可用成本数据、待审批项和 ask_user 问题。针对显示的具体决策作答。你可以发送引导指令或请求停止；但活跃调用或外部操作可能已在进行中。"
+              }
+            ]
+          },
+          "3": {
+            "text": "方案与推理"
+          },
+          "4": {
+            "text": "Individual（每月 $19）和 Team（每活跃用户每月 $39）是预览方案说明，目前无法购买。推理单独计算：不包含提供商费用、本地硬件和运维成本。"
+          },
+          "5": {
+            "text": "Private Mode 为预览功能。Cloud Agent Mode 和签名证据仍在开发中。Holding 为高级/私享预览。不要将这些名称视为完整的安全或可用性保证。"
+          },
+          "6": {
+            "text": "使用网页编排公司和流水线。使用移动伴随应用监控、回答、审批和引导受支持的工作。"
+          }
+        }
+      },
+      "concepts": {
+        "title": "核心概念",
+        "nav": "概念",
+        "desc": "理解公司、智能体、流水线、运行、决策和已记录的活动。",
+        "blocks": {
+          "0": {
+            "text": "公司在经过身份验证的工作区中组织目标、智能体和流水线。智能体承担角色，流水线安排工作顺序，运行是该流水线的一次执行。同一账户或租户可包含多家公司。"
+          },
+          "1": {
+            "text": "九种构建模块"
+          },
+          "2": {
+            "text": "构建器组合获客、销售、交付、内容、运营、财务、分析、记忆和治理角色。这些是需要审阅的初始结构，并不自动授予联系他人、花费资金或访问账户的权限。"
+          },
+          "3": {
+            "text": "决策与治理"
+          },
+          "4": {
+            "text": "受支持的操作可产生待审批项。ask_user 决策请求信息，而不是花钱的许可。在允许、拒绝或回答前，请阅读问题及其范围。提供商推理单独计费，不一定会等待审批记录。"
+          },
+          "5": {
+            "text": "治理检查包括硬停止、循环、成本、垃圾信息和品牌停止机制。覆盖范围取决于执行路径与配置。停止机制会在检查边界阻止后续受支持的工作，但无法撤回已经发出的请求。"
+          },
+          "6": {
+            "text": "阅读已记录状态"
+          },
+          "7": {
+            "text": "活动和步骤记录有助于理解状态、输出、可用成本数据和决策摘要。缺失数据表示未知，而不是零。请求记录不能证明外部操作已完成。请保留重要输出，并在重试结果不明的工作前与外部系统核对。"
+          },
+          "8": {
+            "text": "仅有公司名称或本地模型端点，不能证明存在独立租户、操作系统沙箱或完全离线的数据路径。"
+          }
+        }
+      },
+      "byok-and-providers": {
+        "title": "BYOK 与提供商",
+        "nav": "BYOK 与提供商",
+        "desc": "配置受支持的云端或本地模型路径，了解其成本与数据边界。",
+        "blocks": {
+          "0": {
+            "text": "自备密钥（BYOK）是指使用自己的提供商凭证进行受支持的云端推理。由客户运行的兼容端点属于另一条路径。可用提供商和模型以经过身份验证的配置为准；本页不承诺固定的提供商数量。"
+          },
+          "1": {
+            "text": "配置并检查路径"
+          },
+          "2": {
+            "items": [
+              "使用限定到目标提供商账户的密钥。查看提供商侧的支出控制，避免将秘密放入提示词、共享日志或截图。",
+              "对于本地端点，请确认明确的基础 URL、支持的模型，以及实际发出请求的机器能否访问它。",
+              "检查模型能力、工具支持与选定的数据模式。更换提供商可能改变输出、价格和行为；相似的 API 结构不代表模型可互换。"
+            ]
+          },
+          "3": {
+            "text": "密钥存储因使用界面而异"
+          },
+          "4": {
+            "text": "服务器保存的云端凭证采用已实现的 AES-256-GCM 存储格式。其保护也取决于服务器密钥、运行时访问权限和备份。CLI 直连提供商的配置及桌面凭证存储各有边界；在一个界面保存密钥，并不能证明所有设备均可使用它或获得相同保护。"
+          },
+          "5": {
+            "text": "推理费用由所配置的提供商收取。本地执行仍可能产生硬件和运维成本。请同时查看上报用量与提供商账单；成本数据不可用并不代表免费使用。"
+          },
+          "6": {
+            "text": "本地推理 URL 不会使工具、遥测、账户服务或完整流水线变为离线。处理敏感材料前，请审查完整数据路径。"
+          }
+        }
+      },
+      "mid-run-steering": {
+        "title": "运行中引导与 ask_user",
+        "nav": "引导与 ask_user",
+        "desc": "在跟踪已记录运行状态的同时发送指导、回答问题或请求停止。",
+        "blocks": {
+          "0": {
+            "text": "引导功能可向受支持的运行发送额外的操作者指令。请明确说明变更：目标客户、限制条件或下一步。请求会在可用的执行边界被处理，并不保证立即中断活跃的提供商调用。"
+          },
+          "1": {
+            "text": "仔细阅读确认信息"
+          },
+          "2": {
+            "text": "请求成功表示系统接受了该请求。这本身并不能证明模型已收到、应用或遵循指令。请继续跟踪运行状态与输出。如果请求失败或超时，重新提交前先检查当前状态。"
+          },
+          "3": {
+            "text": "回答 ask_user 问题"
+          },
+          "4": {
+            "text": "智能体请求信息时，请打开相应的待处理决策，阅读问题与上下文。提交一次答案后，检查决策和运行状态是否改变。不要将信息请求与不相关操作的授权混为一谈。"
+          },
+          "5": {
+            "text": "谨慎恢复"
+          },
+          "6": {
+            "text": "恢复工作时，可复用已保存的完成步骤。这不意味着提供商调用、邮件、支付或其他外部操作具备恰好一次投递保证。在操作进行期间，可能发生暂停、停止或连接失败。手动重试结果不明的工作前，请检查已记录输出及外部服务。"
+          },
+          "7": {
+            "text": "暂停、恢复和引导并不保证不会增加费用，也不能撤销已经发生的外部操作。"
+          }
+        }
+      },
+      "webhooks": {
+        "title": "Webhook",
+        "nav": "Webhook",
+        "desc": "按照精确的时间戳、原始正文和请求头约定，为公司 Webhook 签名。",
+        "blocks": {
+          "0": {
+            "text": "已配置的公司 Webhook 接受 POST /hooks/<company-slug>/<event>。发送可能启动工作的事件前，请使用该公司配置的 Webhook 密钥和测试公司。"
+          },
+          "1": {
+            "text": "对精确字节签名"
+          },
+          "2": {
+            "text": "将 X-Webhook-Timestamp 设为当前 Unix 时间，单位为毫秒。对时间戳、一个字面点号和精确的原始请求正文计算十六进制 HMAC-SHA256。以 X-Webhook-Signature 发送。签名后不要重新序列化或编辑正文。"
+          },
+          "3": {
+            "caption": "签名请求示例；请替换 API URL、公司标识和事件。"
+          },
+          "4": {
+            "text": "投递与重试"
+          },
+          "5": {
+            "text": "服务器拒绝超出五分钟窗口的时间戳。基于签名的重复检测使用 Redis，记录有效期为六分钟；Redis 不可用时，签名和时间戳检查仍然保留，但可能跳过该重复检测。这不是恰好一次投递保证。"
+          },
+          "6": {
+            "text": "Webhook 成功响应不能证明流水线已完成。请检查运行状态，并对外部操作使用应用层幂等和核对机制。超时重试前，先检查首个请求是否已被接受。"
+          }
+        }
+      },
+      "external-automations": {
+        "title": "连接外部自动化",
+        "nav": "外部自动化",
+        "desc": "连接已配置的外部自动化，并验证执行的两端。",
+        "blocks": {
+          "0": {
+            "text": "使用已配置的集成或签名 Webhook 连接受支持的外部自动化工具。集成的可用性和操作取决于实际连接及凭证；提到 n8n、Make 或 Zapier 并不代表所有工作流都会自动连接。"
+          },
+          "1": {
+            "text": "让一个连接可观测"
+          },
+          "2": {
+            "items": [
+              {
+                "title": "选择边界",
+                "body": "确定哪个系统启动工作、发送什么事件，以及哪个系统负责结果。仅连接该操作所需的账户和权限。"
+              },
+              {
+                "title": "使用无害数据测试",
+                "body": "使用测试公司和外部测试工作流。验证事件载荷、身份验证、产生的运行及外部结果。"
+              },
+              {
+                "title": "规划失败处理",
+                "body": "定义超时、重复处理和手动核对步骤。收到结果不明的响应后，不要盲目重发支付、邮件或其他外部操作。"
+              }
+            ]
+          },
+          "3": {
+            "text": "外部工作流状态和 Braavolabs 运行状态描述操作的不同部分。请同时检查两者。分发记录或成功的触发响应，并不是目标系统的投递或完成回执。"
+          },
+          "4": {
+            "text": "连接凭证、Webhook 密钥和提供商密钥可能具有不同的存储与撤销路径。移除访问权限时，请检查对应界面和外部服务。"
+          }
+        }
+      },
+      "mobile-app": {
+        "title": "移动应用",
+        "nav": "移动应用",
+        "desc": "通过移动伴随应用监控、决策和引导受支持的工作。",
+        "blocks": {
+          "0": {
+            "text": "移动应用为受支持的监控和控制提供辅助。在网页上编排公司和流水线，再用手机阅读运行状态、处理待决事项并发送引导指令。"
+          },
+          "1": {
+            "text": "监控、审批、回答与引导"
+          },
+          "2": {
+            "items": [
+              "监控：打开相关公司和运行。将不可用或过期的数据视为未知；做决策前先重新连接并刷新。",
+              "审批：阅读具体的待处理操作并允许或拒绝。一个审批记录不涵盖不相关的工作，也不涵盖所有提供商费用。",
+              "回答：在原始上下文中回答 ask_user 问题。提交后检查决策状态。",
+              "引导：发送明确指令并跟踪后续输出。请求被接受不能证明指令已应用。"
+            ]
+          },
+          "3": {
+            "text": "会话与通知"
+          },
+          "4": {
+            "text": "通知取决于设备权限、符合条件的会话、网络访问及平台投递。请打开应用验证最新状态，不要将推送视为完整执行记录。设备上的会话凭证使用平台安全存储；保护与后台行为仍取决于设备和操作系统。"
+          },
+          "5": {
+            "text": "切换账户后，再次确认所选公司和待处理决策。超时后请先检查当前状态，再决定是否重试。应用无法撤销已经完成的外部操作。"
+          },
+          "6": {
+            "text": "在应用中选择偏好语言，以及浅色、深色或跟随系统主题。更改语言或账户后，执行操作前请确认当前工作区和决策上下文。"
+          }
+        }
+      },
+      "faq": {
+        "title": "常见问题",
+        "nav": "常见问题",
+        "desc": "关于预览功能、成本、本地模型、审批和结果不明的运行的解答。",
+        "blocks": {
+          "0": {
+            "items": [
+              {
+                "q": "现在可以买方案吗？",
+                "a": "Individual（每月 $19）和 Team（每活跃用户每月 $39）是预览说明，目前无法购买。推理独立于拟议订阅。"
+              },
+              {
+                "q": "每笔费用都需要审批吗？",
+                "a": "不是。受支持的操作可能需要待处理决策，但提供商推理在运行开始时就可能产生费用。运行前请阅读操作内容和提供商支出控制。"
+              },
+              {
+                "q": "本地模型会让平台离线吗？",
+                "a": "不会。兼容的本地端点仅控制该推理路径。工具、账户服务、遥测和其他流水线步骤都需要分别审查数据路径。"
+              },
+              {
+                "q": "恢复会重复外部操作吗？",
+                "a": "可复用已保存的完成步骤，但尚未确立恰好一次外部投递保证。重试结果不明的工作前，请检查运行及外部服务。"
+              },
+              {
+                "q": "已接受的引导请求改变了模型输出吗？",
+                "a": "接受仅记录该请求。请跟踪下一个执行边界及输出，判断指令是否已应用并被遵循。"
+              },
+              {
+                "q": "可以完全在手机上构建公司吗？",
+                "a": "网页是编写界面。移动伴随应用侧重监控、审批、回答和引导。"
+              },
+              {
+                "q": "Private Mode、Cloud Agent Mode 和签名证据已普遍可用吗？",
+                "a": "Private Mode 为预览功能；Cloud Agent Mode 和签名证据仍在开发。它们的名称不是完整的安全或可用性保证。"
+              },
+              {
+                "q": "删除账户会取消外部订阅吗？",
+                "a": "不要作此假设。请分别检查订阅提供商和外部服务，并在删除数据前保留所需导出文件。"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "blog": {
+      "steer-agents-mid-run": {
+        "title": "不必从头开始，调整运行方向",
+        "desc": "操作者指令与已保存步骤如何帮助调整受支持的工作，以及这些机制的保证止于何处。",
+        "body": "运行开始后可能需要调整：更换客户、收紧限制，或回答原始说明未涉及的问题。Braavolabs 支持引导指令和 ask_user 决策，让操作者能够结合上下文响应。\n\n## 请求有多个阶段\n\n提交指令、接受请求、在执行边界处理请求，以及输出遵循指令，是不同的事件。活跃的提供商调用可能会持续到下一个边界。判断指令是否生效前，请阅读后续运行状态和结果。\n\n## 保留有用工作，检查结果不明的工作\n\n恢复时可复用已保存的完成步骤。这不能证明外部操作具备恰好一次投递保证，也不保证不会增加提供商费用。如果发送或支付期间连接失败，手动重试前请先检查目标系统。\n\n## 询问信息，而非推断许可\n\nask_user 决策请求信息。另一个受支持的操作可能会请求审批。请阅读每项决策的范围：回答问题不代表授权不相关的工作。这些控制有助于检查工作会话，但它们的存在不能证明所有路径或外部工具行为一致。"
+      },
+      "five-risk-stops-explained": {
+        "title": "五种风险停止机制及其边界",
+        "desc": "硬停止、循环、成本、垃圾信息和品牌检查帮助治理受支持的执行路径。",
+        "body": "Braavolabs 定义了五种治理检查：硬停止、循环、成本、垃圾信息和品牌。理解它们的目的，也意味着理解它们何时能够起作用。\n\n## 五种检查\n\n硬停止检查停止条件。循环检查查找重复行为。成本检查将已记录用量与已配置限额比较。垃圾信息和品牌检查对受支持的联络及内容路径应用策略。请审查配置与执行路径，而不是假设所有工具都受到相同检查。\n\n## 边界很重要\n\n执行到达检查点时，检查可阻止后续受支持的工作。它无法撤回已发送至提供商的请求，也无法撤销外部操作。用量记录可能在收费后才到达，因此配置预算并不能保证提供商账单绝不超额。\n\n## 阅读结果\n\n检查改变运行状态时，请查看记录的原因及相关步骤。状态或成本数据缺失表示未知，并不证明运行安全或免费。通知取决于权限与投递；应以当前运行记录确认状态。恢复前，请同时检查本地结果及涉及的外部服务。"
+      },
+      "byok-routing-without-lock-in": {
+        "title": "选择云端与本地模型路径",
+        "desc": "明确选择提供商，同时检查能力、成本与凭证边界。",
+        "body": "Braavolabs 支持已配置的云端凭证和客户运行的兼容端点。有用的承诺在于路径选择明确，而不是所有模型都可互换，或未经测量的模型总是最优。\n\n## 检查所选路径\n\n查看可用模型、工具支持、数据模式及端点可达性。更换提供商可能改变输出质量、延迟、价格和支持的参数。所选路径不可用时，请检查错误，不要假设其他模型已悄悄完成工作。\n\n## 区分订阅与推理\n\n拟议的 Individual 和 Team 订阅不包含推理。提供商费用计入所配置的账户；本地模型仍需要硬件和运维。请将上报用量与提供商账单对比。未知成本不等于零成本。\n\n## 保护相关凭证存储\n\n服务器保存的云端密钥采用已实现的 AES-256-GCM 格式。服务器密钥保护、运行时访问与备份仍然重要。CLI 直连提供商的配置和桌面凭证存储有各自的边界。请审查实际发出请求的存储，并在必要时也从提供商处撤销访问。统一界面有助于组织工作，但并不意味着各路径具有相同的安全性或经济性。"
+      },
+      "pocket-steering": {
+        "title": "通过手机监控与决策",
+        "desc": "移动伴随应用侧重受支持的监控、审批、问题与引导。",
+        "body": "移动伴随应用为在网页上编排的工作提供更紧凑的控制界面。其核心操作包括阅读运行状态、处理待审批项、回答 ask_user 和发送引导指令。\n\n## 保持决策上下文\n\n操作前请打开相关公司和运行。阅读准确的问题或操作，区分信息请求与外部操作的授权。即使没有独立审批记录，提供商推理也可能已产生费用。\n\n## 区分投递与状态\n\n推送通知取决于设备权限、会话资格、网络访问及平台投递。通知可能延迟；请刷新应用确认当前决策。成功的引导响应仅记录请求被接受，不能证明模型遵循了指令。\n\n## 谨慎恢复\n\n切换账户或连接中断后，请再次确认选定的账户、公司和待处理决策。超时请求重新提交前，先检查当前状态。移动操作不能撤回已经完成的外部请求。平台安全存储有助于保护设备上的会话凭证，但真实设备、后台投递及跨账户测试仍是必要的发布检查。"
+      },
+      "local-model-routing-boundaries": {
+        "title": "本地模型路径的边界",
+        "desc": "本地推理端点只是完整数据路径的一部分。",
+        "body": "兼容的客户自运行模型服务器可通过明确的基础 URL 配置。Braavolabs 不捆绑模型，也不会仅凭地址推断完整隐私政策。\n\n## 跟踪整个操作\n\n检查由哪台机器发出推理调用、哪个模型可用，以及该机器能否访问端点。接着检查工具、账户服务、遥测、日志及其他仍可能使用网络的步骤。本地 URL 不会让整条流水线离线。\n\n## 审查能力与成本\n\n模型能力和工具支持可能与云端路径不同。更改路径后请检查输出。本地推理可能免去该次调用的提供商词元费用，但硬件、电力、维护及其他已连接服务仍有成本。缺失成本数据应保持为未知。\n\n## 准确使用预览名称\n\nPrivate Mode 为预览功能。Cloud Agent Mode 和签名证据仍在开发。这些名称不能确立完整数据处理约定、操作系统沙箱或独立验证的证据。敏感使用场景需要检查实际配置的数据路径和执行权限。"
+      },
+      "shipping-ask-user": {
+        "title": "围绕明确问题设计 ask_user",
+        "desc": "信息请求应保留上下文，避免暗示不相关的许可。",
+        "body": "智能体在工作时可能遇到信息缺失。ask_user 将这种不确定性转化为可见的决策：一个关联到相关运行、供操作者回答的问题。\n\n## 提出可回答的问题\n\n有用的问题会说明缺失事实，并给出足以回答的上下文。它不应把外部操作伪装成信息请求。回答前请阅读问题，不要在自由文本答案中填写敏感凭证。\n\n## 谨慎复用决策界面\n\n信息请求和受支持的审批操作可出现在同一决策流程中，但含义不同。回答问题不代表授权不相关的工作。审批队列的存在也不代表每笔提供商推理费用都会等待明确同意。\n\n## 查看接下来的情况\n\n发送答案后，请检查决策和运行状态。收到答案、恢复运行和完成外部操作是不同的观察结果。如果连接超时，重新提交前先检查答案是否已记录。已保存的完成步骤可复用，但外部重试仍需核对。这是可见操作者决策的设计理由，不是经测量的客户研究，也不是恰好一次执行的声明。"
+      },
+      "audit-trail-youd-actually-read": {
+        "title": "阅读运行中已记录的活动",
+        "desc": "使用已记录的状态、输出、决策和可用成本，不虚构缺失证据。",
+        "body": "操作者需要理解运行尝试了什么、请求了哪些决策，以及记录了什么结果。Braavolabs 的活动与步骤视图围绕运行组织这些记录。\n\n## 从已记录事实出发\n\n阅读步骤状态、可用输出、已记录的决策摘要及上报成本。将不可用值明确保留为未知。分发记录或成功的 API 确认不能证明外部消息、支付或工作流已完成。\n\n## 重试前核对\n\n客户端断开连接时，提供商或工具可能已完成工作。重复结果不明的外部操作前，请将运行记录与目标服务核对。已保存步骤和历史是有用证据，但不能证明每项操作都获得完整、不可变或独立验证的覆盖。\n\n## 保护记录\n\n提示词、工具输出和自由文本答案可能含有敏感数据。限制访问，并仅保留运营所需的导出内容。请审查保留、备份和恢复，而不是假设可见活动页面就是备份。签名证据仍在开发；当前记录不应被描述为认证、完整私有推理轨迹或法律合规证明。"
+      }
+    }
+  },
+  "surface": {
+    "legal": {
+      "previewNotice": "隐私信息预览。本页尚不是面向公众收集个人数据所需的完整告知。公开注册前，必须确定责任运营方信息、实际处理与接收方、保留安排及适用保护措施。",
+      "kvkkTitle": "KVKK 信息预览",
+      "gdprTitle": "GDPR 信息预览",
+      "kvkk": {
+        "veri-sorumlusu": {
+          "title": "责任运营方",
+          "body": "Braavolabs 是产品名称。公开收集个人数据前，完整隐私告知必须明确负法律责任的运营方、邮寄联系方式及适用代表。目前联系渠道为 kvkk@braavolabs.com。"
+        },
+        "islenen-kisisel-veriler": {
+          "title": "数据与收集方式",
+          "body": "账户表单与服务使用可能提供身份、联系、组织、会话、使用和运行记录。提示词、输出、文件及可选连接可能包含额外个人数据。完整告知必须说明当前部署实际收集的数据及方式。"
+        },
+        "isleme-amaclari": {
+          "title": "处理目的",
+          "body": "账户运营、请求的模型或智能体工作、支持和安全涉及不同处理活动。仅在启用时才应描述账单与可选营销。功能名称并不构成处理无关个人数据的许可。"
+        },
+        "hukuki-sebepler": {
+          "title": "法律依据",
+          "body": "必须依适用法律，逐项评估实际处理活动的适当法律依据。本预览并未确立同意、履行合同所必需、法律义务或合法利益涵盖服务的所有用途。"
+        },
+        "ucuncu-taraf-aktarimlari": {
+          "title": "接收方与跨境传输",
+          "body": "已配置的模型提供商、托管及可选集成可能涉及其他接收方或国家。最终告知必须明确实际接收方、目的及保护措施。法律允许标准合同机制，并不表示本服务已签订或通报所需合同。"
+        },
+        "saklama-suresi": {
+          "title": "保留与删除",
+          "body": "必须按数据类别、目的及适用法律要求定义保留安排，包括日志和备份。本预览不承诺统一的十年期限，也不承诺立即移除每份副本。删除账户与取消外部订阅是独立操作。"
+        },
+        "haklariniz": {
+          "title": "KVKK 下的权利",
+          "body": "在 KVKK 适用时，第 11 条规定了有关知情、更正、删除或销毁、通知接收方、对不利自动分析提出异议，以及违法处理赔偿的权利。行使权利须满足适用条件；请通过所列请求渠道联系责任运营方。"
+        },
+        "basvuru": {
+          "title": "请求",
+          "body": "权利请求请联系 kvkk@braavolabs.com，不要附上账户密码或提供商密钥。依 KVKK 第 13 条，请求必须尽快妥善处理，并在 30 天内解决。原则上免费；仅可按委员会收费标准收取额外成本。可能需要澄清身份及请求范围。"
+        }
+      },
+      "gdpr": {
+        "data-controller": {
+          "title": "责任运营方",
+          "body": "Braavolabs 是产品名称。公开收集个人数据前，完整告知必须明确负法律责任的运营方、联系方式及适用代表。目前联系渠道为 gdpr@braavolabs.com。"
+        },
+        "personal-data": {
+          "title": "数据与目的",
+          "body": "账户信息、会话和使用记录、提示词、输出、文件及可选集成可能涉及个人数据。完整告知必须说明实际处理目的、数据来源、接收方，以及提供每类数据是否为必需。"
+        },
+        "lawful-bases": {
+          "title": "合法性依据",
+          "body": "必须逐项评估实际活动的合法性依据。本预览并未确立合同必要性、合法利益、法律义务或同意自动涵盖所有用途。可选营销、敏感用途或自动决策用途需单独评估。"
+        },
+        "cross-border-transfers": {
+          "title": "接收方与传输",
+          "body": "已配置的提供商与基础设施可能在其他国家处理数据。必须针对当前部署记录实际接收方、目的地及适用传输保护措施。本页不声称未经验证的提供商协议或保护措施已经到位。"
+        },
+        "your-rights": {
+          "title": "权利与请求",
+          "body": "适用权利可能包括访问、更正、删除、限制、可携带性、异议和撤回同意，但须满足法律条件。请联系 gdpr@braavolabs.com，不要发送密码或提供商密钥。请求通常需在一个月内答复；获准延长至多另外两个月的情况，必须在首月内说明。可能适用身份核验以及合法收费或拒绝的例外。你可以向主管监督机构投诉。"
+        },
+        "retention": {
+          "title": "保留",
+          "body": "完整告知必须按数据类别说明期限或有意义的标准，涵盖活跃记录、日志、备份及外部处理者。删除请求可能存在法律例外。删除账户本身不会取消独立的外部订阅。"
+        },
+        "security": {
+          "title": "安全信息",
+          "body": "凭证存储与执行边界因服务器、桌面、CLI 和移动端而异。发送敏感数据前，请审查相关数据路径与权限。本页不构成认证、完全离线保证或对所有事件的防护。"
+        },
+        "data-protection-contact": {
+          "title": "数据保护联系方式",
+          "body": "隐私问题请联系 gdpr@braavolabs.com。是否需要数据保护官或代表，必须根据实际运营方及处理活动评估。本预览不主张享有豁免。"
+        }
+      }
+    },
+    "loading": "加载中…",
+    "unavailable": "不可用",
+    "close": "关闭",
+    "loadFailed": "部分信息未能加载。缺失数据为不可用，请重试。",
+    "progress": "运行步骤：{completed} / {total}",
+    "support": {
+      "emailIntro": "如需支持，请发送邮件至",
+      "responseTime": "请注明账户邮箱并描述问题。不保证固定答复时间。",
+      "intro": "有关产品、账户与订阅的帮助，请联系 Braavolabs 团队。"
+    },
+    "starters": {
+      "intro": "选择初始配置。运行需要已配置的提供商或可用的账户试用；开始前请审查提供商和预算。"
+    },
+    "dashboard": {
+      "operator": "操作者",
+      "morning": "早上好",
+      "afternoon": "下午好",
+      "evening": "晚上好",
+      "snapshot": "这是打开页面时加载的快照。请重新加载页面查看当前数据。",
+      "activeRisks": "{count, plural, other {# 项活跃风险}}",
+      "started": "{name} 已开始 — 步骤已排队",
+      "activityRun": "{name}：{status}",
+      "approval": "{description} 正在等待审核",
+      "risk": "风险事件",
+      "queued": "已排队"
+    },
+    "severity": {
+      "high": "高严重程度",
+      "medium": "中等严重程度",
+      "low": "低严重程度",
+      "unknown": "严重程度不可用"
+    },
+    "states": {
+      "running": "运行中",
+      "completed": "已完成",
+      "paused": "已暂停",
+      "failed": "失败",
+      "cancelled": "已取消",
+      "waiting_approval": "等待审批",
+      "pending": "待处理",
+      "active": "活跃",
+      "disabled": "已禁用",
+      "draft": "草稿",
+      "queued": "已排队",
+      "unknown": "未知"
+    },
+    "icons": {
+      "close": "关闭",
+      "send": "发送",
+      "delete": "删除",
+      "run": "运行",
+      "pause": "暂停",
+      "resume": "恢复",
+      "branch": "添加分支",
+      "moveUp": "上移",
+      "moveDown": "下移",
+      "copy": "复制",
+      "dismiss": "关闭"
+    },
+    "billing": {
+      "cancels": "将于 {date} 取消",
+      "renews": "将于 {date} 续订"
+    },
+    "status": {
+      "checkedAt": "上次检查：{time}（你的当地时间）",
+      "pageLoaded": "本页面已加载"
+    },
+    "blog": {
+      "readPost": "阅读：{title}",
+      "readTime": "阅读需 {duration}"
+    },
+    "ideas": {
+      "start": "从想法开始：{title}",
+      "estimate": "示意估计：{agents} 个智能体、{pipelines} 条流水线。构建器提案可能不同。"
+    },
+    "compare": {
+      "verify": "核实当前支持情况",
+      "notice": "本清单不是经过验证的竞品基准测试。能力和成本取决于产品、方案与部署。选择前请查看提供商最新文档。"
+    },
+    "integrations": {
+      "directoryNote": "本目录描述候选连接。有条目并不表示连接器已实现、启用或获得你账户的授权。共享凭证前请审查受支持的连接和提供商文档。",
+      "entry": "目录条目",
+      "reviewConnections": "审查受支持的连接",
+      "apiKey": "API 密钥",
+      "oauth": "OAuth 2.0"
+    },
+    "webhooks": {
+      "anyProvider": "任意提供商",
+      "templateNote": "这些是事件模板示例。提供商设置路径与样例数据仅供说明；启用钩子前，请核实当前提供商约定和签名要求。"
+    },
+    "error": {
+      "session": "无法验证你的登录。请重新登录；如问题持续，请联系支持。",
+      "signIn": "登录",
+      "forbidden": "你没有查看此内容的权限。如认为权限有误，请联系支持。",
+      "network": "无法连接服务器。请检查连接后重试。",
+      "rateLimit": "请求过多。请稍候再试。",
+      "timeout": "请求超时，结果可能不明确；重试操作前请检查当前状态。",
+      "generic": "发生意外错误。请重试，或向支持提供所示参考编号。"
+    },
+    "forecast": {
+      "loadFailed": "无法加载预测。请重试。",
+      "saveFailed": "无法保存预算。重试前请检查当前值。"
+    },
+    "triggers": {
+      "manual": "手动",
+      "cron": "计划",
+      "webhook": "Webhook",
+      "event": "事件"
+    },
+    "trial": {
+      "funding": "启用的试用遵循运营方的提供商和限额。付费订阅不包含推理；试用不可用时，请使用受支持的提供商密钥或已配置的本地端点。",
+      "exhausted": "已达到账户试用限额（{limit, number}）。",
+      "remaining": "共 {limit, number} 次，{count, plural, other {剩余 # 次试用运行}}"
+    }
+  },
+  "dataCopy": {
+    "integrations": {
+      "hubspot": {
+        "description": "涵盖联系人、交易和流水线管理的完整 CRM",
+        "features": [
+          "联系人同步",
+          "交易跟踪",
+          "流水线管理",
+          "表单提交",
+          "邮件跟踪"
+        ]
+      },
+      "salesforce": {
+        "description": "面向销售和服务的企业 CRM 平台",
+        "features": [
+          "潜在客户管理",
+          "商机跟踪",
+          "自定义对象",
+          "报表",
+          "工作流规则"
+        ]
+      },
+      "pipedrive": {
+        "description": "带可视化流水线的销售型 CRM",
+        "features": [
+          "可视化流水线",
+          "活动跟踪",
+          "邮件集成",
+          "智能联系人数据",
+          "营收预测"
+        ]
+      },
+      "zoho_crm": {
+        "description": "面向成长型企业的 AI 驱动 CRM",
+        "features": [
+          "潜在客户评分",
+          "销售自动化",
+          "分析",
+          "多渠道",
+          "销售区域管理"
+        ]
+      },
+      "close": {
+        "description": "为内勤销售团队打造的 CRM",
+        "features": [
+          "内置通话",
+          "邮件序列",
+          "流水线报表",
+          "任务管理",
+          "智能视图"
+        ]
+      },
+      "freshsales": {
+        "description": "具有 AI 潜在客户评分的现代 CRM",
+        "features": [
+          "AI 潜在客户评分",
+          "内置电话",
+          "邮件跟踪",
+          "交易管理",
+          "报表"
+        ]
+      },
+      "attio": {
+        "description": "具有实时数据丰富功能的新一代 CRM",
+        "features": [
+          "自动数据丰富",
+          "自定义对象",
+          "实时同步",
+          "关系智能分析",
+          "API 优先"
+        ]
+      },
+      "folk": {
+        "description": "面向关系驱动团队的协作 CRM",
+        "features": [
+          "群组管理",
+          "邮件合并",
+          "流水线视图",
+          "浏览器扩展",
+          "数据丰富"
+        ]
+      },
+      "copper": {
+        "description": "为 Google Workspace 设计的 CRM",
+        "features": [
+          "Gmail 集成",
+          "联系人管理",
+          "流水线跟踪",
+          "任务自动化",
+          "报表生成"
+        ]
+      },
+      "monday_sales": {
+        "description": "Monday.com 平台上的销售 CRM",
+        "features": [
+          "可视化流水线",
+          "邮件同步",
+          "活动跟踪",
+          "自定义仪表盘",
+          "自动化"
+        ]
+      },
+      "tiktok": {
+        "description": "短视频平台",
+        "features": [
+          "视频发布",
+          "分析",
+          "评论管理",
+          "趋势跟踪",
+          "创作者工具"
+        ]
+      },
+      "instagram": {
+        "description": "照片和视频分享平台",
+        "features": [
+          "帖子排期",
+          "快拍发布",
+          "Reel 制作",
+          "洞察分析",
+          "评论管理"
+        ]
+      },
+      "linkedin": {
+        "description": "职业社交和内容",
+        "features": [
+          "帖子发布",
+          "公司主页",
+          "分析",
+          "人脉管理",
+          "文章创作"
+        ]
+      },
+      "twitter": {
+        "description": "实时社交媒体平台",
+        "features": [
+          "推文发布",
+          "串帖创建",
+          "分析",
+          "私信管理",
+          "列表管理"
+        ]
+      },
+      "youtube": {
+        "description": "视频托管与流媒体平台",
+        "features": [
+          "视频上传",
+          "分析",
+          "评论管理",
+          "播放列表管理",
+          "直播"
+        ]
+      },
+      "facebook": {
+        "description": "社交媒体与商家主页",
+        "features": [
+          "主页发帖",
+          "广告管理",
+          "洞察分析",
+          "群组管理",
+          "Messenger"
+        ]
+      },
+      "pinterest": {
+        "description": "视觉发现与收藏平台",
+        "features": [
+          "Pin 创建",
+          "看板管理",
+          "分析",
+          "富媒体 Pin",
+          "购物"
+        ]
+      },
+      "reddit": {
+        "description": "社区讨论平台",
+        "features": [
+          "帖子创建",
+          "评论跟踪",
+          "Subreddit 监控",
+          "分析",
+          "奖赏管理"
+        ]
+      },
+      "threads": {
+        "description": "Meta 旗下的文字对话应用",
+        "features": [
+          "帖子发布",
+          "回复管理",
+          "分析",
+          "引用帖",
+          "转发"
+        ]
+      },
+      "snapchat": {
+        "description": "阅后即逝的消息与内容",
+        "features": [
+          "快拍制作",
+          "Snap 广告",
+          "分析",
+          "Lens Studio",
+          "Spotlight"
+        ]
+      },
+      "mailchimp": {
+        "description": "一体化营销平台",
+        "features": [
+          "邮件营销活动",
+          "自动化",
+          "受众管理",
+          "落地页",
+          "分析"
+        ]
+      },
+      "sendgrid": {
+        "description": "云端邮件投递服务",
+        "features": [
+          "事务邮件",
+          "营销活动",
+          "邮件地址验证",
+          "分析",
+          "模板"
+        ]
+      },
+      "convertkit": {
+        "description": "面向创作者的邮件营销",
+        "features": [
+          "可视化自动化",
+          "落地页",
+          "订阅者标签",
+          "群发",
+          "商务交易"
+        ]
+      },
+      "activecampaign": {
+        "description": "客户体验自动化",
+        "features": [
+          "邮件营销",
+          "营销自动化",
+          "CRM",
+          "消息",
+          "机器学习"
+        ]
+      },
+      "brevo": {
+        "description": "一体化数字营销平台",
+        "features": [
+          "邮件营销活动",
+          "短信营销",
+          "聊天",
+          "CRM",
+          "自动化"
+        ]
+      },
+      "klaviyo": {
+        "description": "电商营销自动化",
+        "features": [
+          "邮件流程",
+          "短信营销",
+          "细分",
+          "预测分析",
+          "A/B 测试"
+        ]
+      },
+      "constant_contact": {
+        "description": "邮件营销与在线营销",
+        "features": [
+          "邮件模板",
+          "联系人管理",
+          "自动化",
+          "报表生成",
+          "社交发布"
+        ]
+      },
+      "drip": {
+        "description": "电商 CRM 与营销自动化",
+        "features": [
+          "可视化工作流",
+          "细分",
+          "营收归因",
+          "表单",
+          "集成"
+        ]
+      },
+      "beehiiv": {
+        "description": "面向创作者的电子报平台",
+        "features": [
+          "电子报编辑器",
+          "增长工具",
+          "变现",
+          "分析",
+          "自定义域名"
+        ]
+      },
+      "aweber": {
+        "description": "面向小企业的邮件营销",
+        "features": [
+          "邮件自动化",
+          "落地页",
+          "网页推送通知",
+          "AMP 邮件",
+          "报表生成"
+        ]
+      },
+      "slack": {
+        "description": "商务消息平台",
+        "features": [
+          "频道消息",
+          "工作流",
+          "文件共享",
+          "集成",
+          "搜索"
+        ]
+      },
+      "discord": {
+        "description": "社区消息平台",
+        "features": [
+          "服务器管理",
+          "机器人集成",
+          "语音频道",
+          "讨论串管理",
+          "Webhook"
+        ]
+      },
+      "whatsapp": {
+        "description": "WhatsApp 商务消息",
+        "features": [
+          "商务消息",
+          "目录",
+          "快捷回复",
+          "标签",
+          "群发"
+        ]
+      },
+      "telegram": {
+        "description": "提供机器人 API 的云端消息服务",
+        "features": [
+          "机器人创建",
+          "频道管理",
+          "群组管理",
+          "内联模式",
+          "支付"
+        ]
+      },
+      "microsoft_teams": {
+        "description": "Microsoft 协作平台",
+        "features": [
+          "团队消息",
+          "会议",
+          "文件协作",
+          "应用集成",
+          "工作流"
+        ]
+      },
+      "intercom": {
+        "description": "客户消息平台",
+        "features": [
+          "在线聊天",
+          "聊天机器人",
+          "产品导览",
+          "帮助中心",
+          "收件箱"
+        ]
+      },
+      "crisp": {
+        "description": "商务消息与在线聊天",
+        "features": [
+          "在线聊天",
+          "聊天机器人",
+          "知识库",
+          "状态页",
+          "CRM"
+        ]
+      },
+      "drift": {
+        "description": "对话式营销平台",
+        "features": [
+          "在线聊天",
+          "聊天机器人",
+          "视频",
+          "电子邮件",
+          "会议安排"
+        ]
+      },
+      "notion": {
+        "description": "笔记与文档的一体化工作区",
+        "features": [
+          "页面",
+          "数据库",
+          "模板",
+          "API 访问",
+          "团队协作"
+        ]
+      },
+      "airtable": {
+        "description": "电子表格与数据库的结合",
+        "features": [
+          "数据表集创建",
+          "视图",
+          "自动化",
+          "表单",
+          "API 访问"
+        ]
+      },
+      "google_sheets": {
+        "description": "Google 云端电子表格",
+        "features": [
+          "电子表格编辑",
+          "公式",
+          "图表",
+          "协作",
+          "附加组件"
+        ]
+      },
+      "google_docs": {
+        "description": "Google 云端文档编辑器",
+        "features": [
+          "文档创建",
+          "实时编辑",
+          "评论",
+          "模板",
+          "附加组件"
+        ]
+      },
+      "clickup": {
+        "description": "一体化效率平台",
+        "features": [
+          "任务管理",
+          "文档",
+          "目标",
+          "时间跟踪",
+          "仪表盘"
+        ]
+      },
+      "asana": {
+        "description": "工作管理平台",
+        "features": [
+          "任务跟踪",
+          "项目视图",
+          "项目组合",
+          "目标",
+          "自动化"
+        ]
+      },
+      "trello": {
+        "description": "看板式项目管理",
+        "features": [
+          "看板管理",
+          "卡片",
+          "检查清单",
+          "Power-Ups",
+          "自动化"
+        ]
+      },
+      "monday": {
+        "description": "团队工作 OS",
+        "features": [
+          "看板",
+          "自动化",
+          "仪表盘",
+          "集成",
+          "表单"
+        ]
+      },
+      "linear": {
+        "description": "面向现代团队的问题跟踪",
+        "features": [
+          "问题跟踪",
+          "周期",
+          "路线图",
+          "Git 集成",
+          "API 优先"
+        ]
+      },
+      "jira": {
+        "description": "面向软件团队的项目跟踪",
+        "features": [
+          "问题跟踪",
+          "Scrum 看板",
+          "看板",
+          "路线图",
+          "报表生成"
+        ]
+      },
+      "confluence": {
+        "description": "Atlassian 团队知识库",
+        "features": [
+          "页面",
+          "空间",
+          "模板",
+          "协作",
+          "搜索"
+        ]
+      },
+      "coda": {
+        "description": "团队一体化文档",
+        "features": [
+          "文档",
+          "表格",
+          "自动化",
+          "Packs",
+          "发布"
+        ]
+      },
+      "basecamp": {
+        "description": "项目管理与团队沟通",
+        "features": [
+          "待办事项",
+          "消息板",
+          "日程",
+          "定期汇报",
+          "山形图"
+        ]
+      },
+      "shopify": {
+        "description": "面向网店的电商平台",
+        "features": [
+          "商品管理",
+          "订单跟踪",
+          "客户数据",
+          "分析",
+          "Webhook"
+        ]
+      },
+      "wordpress": {
+        "description": "开源 CMS 与电商",
+        "features": [
+          "内容管理",
+          "WooCommerce",
+          "插件",
+          "REST API",
+          "Webhook"
+        ]
+      },
+      "bigcommerce": {
+        "description": "可扩展电商平台",
+        "features": [
+          "多渠道销售",
+          "SEO 工具",
+          "分析",
+          "B2B 功能",
+          "API 访问"
+        ]
+      },
+      "squarespace": {
+        "description": "具有商务功能的网站构建器",
+        "features": [
+          "网站构建",
+          "电子商务",
+          "调度",
+          "分析",
+          "域名"
+        ]
+      },
+      "etsy": {
+        "description": "手工与复古商品市集",
+        "features": [
+          "商品刊登管理",
+          "订单跟踪",
+          "分析",
+          "广告",
+          "评价"
+        ]
+      },
+      "gumroad": {
+        "description": "直接销售数字商品",
+        "features": [
+          "数字商品",
+          "订阅",
+          "工作流",
+          "分析",
+          "联盟推广计划"
+        ]
+      },
+      "lemonsqueezy": {
+        "description": "数字商品的名义销售商",
+        "features": [
+          "支付",
+          "订阅",
+          "许可证密钥",
+          "结账",
+          "Webhook"
+        ]
+      },
+      "paddle": {
+        "description": "面向 SaaS 的营收交付平台",
+        "features": [
+          "结账",
+          "订阅",
+          "税务合规",
+          "营收挽回",
+          "分析"
+        ]
+      },
+      "github": {
+        "description": "代码托管与协作",
+        "features": [
+          "仓库管理",
+          "问题",
+          "拉取请求",
+          "Actions",
+          "Webhook"
+        ]
+      },
+      "gitlab": {
+        "description": "DevOps 平台",
+        "features": [
+          "Git 仓库",
+          "CI/CD",
+          "问题",
+          "合并请求",
+          "容器镜像库"
+        ]
+      },
+      "bitbucket": {
+        "description": "Atlassian Git 代码管理",
+        "features": [
+          "仓库",
+          "拉取请求",
+          "流水线",
+          "代码审查",
+          "Jira 集成"
+        ]
+      },
+      "vercel": {
+        "description": "前端部署平台",
+        "features": [
+          "部署",
+          "无服务器函数",
+          "边缘网络",
+          "分析",
+          "预览 URL"
+        ]
+      },
+      "netlify": {
+        "description": "网页开发与托管平台",
+        "features": [
+          "部署",
+          "表单",
+          "函数",
+          "身份",
+          "分流测试"
+        ]
+      },
+      "supabase": {
+        "description": "开源 Firebase 替代方案",
+        "features": [
+          "数据库",
+          "身份验证",
+          "存储",
+          "边缘函数",
+          "实时"
+        ]
+      },
+      "firebase": {
+        "description": "Google 应用开发平台",
+        "features": [
+          "身份验证",
+          "Firestore",
+          "云函数",
+          "托管",
+          "分析"
+        ]
+      },
+      "railway": {
+        "description": "轻松部署应用",
+        "features": [
+          "自动部署",
+          "数据库",
+          "环境",
+          "日志",
+          "指标"
+        ]
+      },
+      "render": {
+        "description": "面向应用和网站的统一云平台",
+        "features": [
+          "Web 服务",
+          "静态网站",
+          "数据库",
+          "Cron 定时任务",
+          "自动扩缩"
+        ]
+      },
+      "google_analytics": {
+        "description": "Google 网站分析",
+        "features": [
+          "流量分析",
+          "用户行为",
+          "转化跟踪",
+          "自定义报表",
+          "实时数据"
+        ]
+      },
+      "mixpanel": {
+        "description": "产品分析平台",
+        "features": [
+          "事件跟踪",
+          "漏斗",
+          "保留",
+          "用户流程",
+          "A/B 测试"
+        ]
+      },
+      "amplitude": {
+        "description": "数字分析平台",
+        "features": [
+          "行为分析",
+          "群组分析",
+          "实验",
+          "预测",
+          "数据治理"
+        ]
+      },
+      "posthog": {
+        "description": "开源产品分析",
+        "features": [
+          "事件跟踪",
+          "会话录制",
+          "功能开关",
+          "实验",
+          "问卷调查"
+        ]
+      },
+      "plausible": {
+        "description": "注重隐私的网站分析",
+        "features": [
+          "简洁仪表盘",
+          "不使用 Cookie",
+          "目标跟踪",
+          "营销活动",
+          "API 访问"
+        ]
+      },
+      "hotjar": {
+        "description": "热力图与行为分析",
+        "features": [
+          "热力图",
+          "录制",
+          "问卷调查",
+          "反馈",
+          "漏斗"
+        ]
+      },
+      "segment": {
+        "description": "客户数据平台",
+        "features": [
+          "数据收集",
+          "数据路由",
+          "个人资料",
+          "受众群体",
+          "协议"
+        ]
+      },
+      "google_ads": {
+        "description": "搜索与展示广告",
+        "features": [
+          "搜索广告活动",
+          "展示广告",
+          "购物广告",
+          "视频广告",
+          "报表生成"
+        ]
+      },
+      "meta_ads": {
+        "description": "Facebook 和 Instagram 广告",
+        "features": [
+          "广告活动管理",
+          "受众定位",
+          "创意素材工具",
+          "像素跟踪",
+          "报表生成"
+        ]
+      },
+      "linkedin_ads": {
+        "description": "LinkedIn B2B 广告",
+        "features": [
+          "赞助内容",
+          "消息广告",
+          "潜在客户表单",
+          "受众定位",
+          "分析"
+        ]
+      },
+      "tiktok_ads": {
+        "description": "TikTok 广告",
+        "features": [
+          "信息流广告",
+          "TopView",
+          "品牌特效",
+          "像素跟踪",
+          "报表生成"
+        ]
+      },
+      "twitter_ads": {
+        "description": "Twitter/X 广告",
+        "features": [
+          "推广推文",
+          "粉丝广告",
+          "趋势接管广告",
+          "定向投放",
+          "分析"
+        ]
+      },
+      "microsoft_ads": {
+        "description": "Bing 搜索广告",
+        "features": [
+          "搜索广告",
+          "购物广告活动",
+          "受众广告",
+          "从 Google 导入",
+          "报表生成"
+        ]
+      },
+      "stripe": {
+        "description": "支付处理平台",
+        "features": [
+          "支付",
+          "订阅",
+          "开票",
+          "连接",
+          "Radar"
+        ]
+      },
+      "paypal": {
+        "description": "在线支付平台",
+        "features": [
+          "支付",
+          "结账",
+          "开票",
+          "订阅",
+          "争议"
+        ]
+      },
+      "square": {
+        "description": "支付与商务工具",
+        "features": [
+          "支付",
+          "POS",
+          "开票",
+          "银行服务",
+          "客户忠诚度"
+        ]
+      },
+      "razorpay": {
+        "description": "面向印度的支付网关",
+        "features": [
+          "支付",
+          "订阅",
+          "Smart Collect",
+          "Route",
+          "RazorpayX"
+        ]
+      },
+      "wise": {
+        "description": "国际汇款",
+        "features": [
+          "转账",
+          "多币种账户",
+          "批量支付",
+          "API 访问",
+          "Webhook"
+        ]
+      },
+      "aws_s3": {
+        "description": "Amazon 云对象存储",
+        "features": [
+          "文件上传",
+          "CDN",
+          "版本控制",
+          "访问控制",
+          "事件"
+        ]
+      },
+      "google_cloud_storage": {
+        "description": "Google 云对象存储",
+        "features": [
+          "文件存储",
+          "CDN",
+          "生命周期策略",
+          "访问控制",
+          "签名 URL"
+        ]
+      },
+      "cloudflare_r2": {
+        "description": "零流出费用的对象存储",
+        "features": [
+          "兼容 S3",
+          "无流出费用",
+          "Workers 集成",
+          "自动迁移",
+          "CDN"
+        ]
+      },
+      "dropbox": {
+        "description": "文件托管与协作",
+        "features": [
+          "文件同步",
+          "共享",
+          "团队空间",
+          "Paper",
+          "API 访问"
+        ]
+      },
+      "google_drive": {
+        "description": "Google 云文件存储",
+        "features": [
+          "文件存储",
+          "共享",
+          "协作",
+          "搜索",
+          "API 访问"
+        ]
+      },
+      "openai": {
+        "description": "GPT 和 DALL-E AI 模型",
+        "features": [
+          "对话补全",
+          "图像生成",
+          "嵌入向量",
+          "微调",
+          "助手"
+        ]
+      },
+      "anthropic": {
+        "description": "Claude AI 模型",
+        "features": [
+          "对话补全",
+          "工具使用",
+          "视觉理解",
+          "长上下文",
+          "Batch API"
+        ]
+      },
+      "google_gemini": {
+        "description": "Google 多模态 AI 模型",
+        "features": [
+          "文本生成",
+          "视觉理解",
+          "代码生成",
+          "事实依据关联",
+          "函数调用"
+        ]
+      },
+      "mistral": {
+        "description": "开放权重 AI 模型",
+        "features": [
+          "对话补全",
+          "代码生成",
+          "嵌入向量",
+          "函数调用",
+          "JSON 模式"
+        ]
+      },
+      "groq": {
+        "description": "超高速推理引擎",
+        "features": [
+          "快速推理",
+          "对话补全",
+          "工具使用",
+          "JSON 模式",
+          "流式传输"
+        ]
+      },
+      "replicate": {
+        "description": "在云端运行 ML 模型",
+        "features": [
+          "模型托管",
+          "预测",
+          "微调",
+          "Webhook",
+          "流式传输"
+        ]
+      },
+      "huggingface": {
+        "description": "ML 模型中心与推理",
+        "features": [
+          "推理 API",
+          "模型托管",
+          "数据集",
+          "空间",
+          "AutoTrain"
+        ]
+      },
+      "elevenlabs": {
+        "description": "AI 语音生成",
+        "features": [
+          "文本转语音",
+          "声音克隆",
+          "声音设计",
+          "流式传输",
+          "配音"
+        ]
+      },
+      "midjourney": {
+        "description": "AI 图像生成",
+        "features": [
+          "图像生成",
+          "变体",
+          "超分辨率放大",
+          "风格控制",
+          "混合"
+        ]
+      },
+      "runway": {
+        "description": "AI 视频与创作工具",
+        "features": [
+          "视频生成",
+          "图像编辑",
+          "绿幕",
+          "运动跟踪",
+          "局部重绘"
+        ]
+      },
+      "stability": {
+        "description": "Stable Diffusion 等",
+        "features": [
+          "图像生成",
+          "超分辨率放大",
+          "局部重绘",
+          "3D 生成",
+          "API 访问"
+        ]
+      },
+      "perplexity": {
+        "description": "AI 驱动搜索与问答",
+        "features": [
+          "搜索 API",
+          "聊天",
+          "来源引用",
+          "实时数据",
+          "结构化输出"
+        ]
+      },
+      "zendesk": {
+        "description": "客户服务平台",
+        "features": [
+          "工单管理",
+          "在线聊天",
+          "知识库",
+          "AI 智能体",
+          "分析"
+        ]
+      },
+      "freshdesk": {
+        "description": "云端客户支持",
+        "features": [
+          "工单管理",
+          "自动化",
+          "知识库",
+          "社区论坛",
+          "报表生成"
+        ]
+      },
+      "helpscout": {
+        "description": "面向成长团队的服务台",
+        "features": [
+          "共享收件箱",
+          "知识库",
+          "Beacon",
+          "报表生成",
+          "工作流"
+        ]
+      },
+      "front": {
+        "description": "客户运营平台",
+        "features": [
+          "共享收件箱",
+          "工作流",
+          "分析",
+          "集成",
+          "AI 草稿"
+        ]
+      },
+      "bamboohr": {
+        "description": "面向成长企业的 HR 软件",
+        "features": [
+          "员工记录",
+          "休假",
+          "入门引导",
+          "绩效",
+          "报表生成"
+        ]
+      },
+      "gusto": {
+        "description": "薪资与 HR 平台",
+        "features": [
+          "薪资",
+          "福利",
+          "HR 工具",
+          "招聘",
+          "合规"
+        ]
+      },
+      "rippling": {
+        "description": "劳动力管理平台",
+        "features": [
+          "HR 云平台",
+          "IT 管理",
+          "薪资",
+          "福利",
+          "工作流自动化"
+        ]
+      },
+      "deel": {
+        "description": "全球招聘与薪资",
+        "features": [
+          "合同工管理",
+          "EOR",
+          "薪资",
+          "合规",
+          "HRIS"
+        ]
+      },
+      "remote": {
+        "description": "全球雇佣平台",
+        "features": [
+          "EOR",
+          "合同工管理",
+          "薪资",
+          "福利",
+          "合规"
+        ]
+      },
+      "figma": {
+        "description": "协作设计工具",
+        "features": [
+          "设计文件",
+          "原型制作",
+          "开发模式",
+          "组件",
+          "插件"
+        ]
+      },
+      "canva": {
+        "description": "视觉内容创作平台",
+        "features": [
+          "模板",
+          "品牌套件",
+          "视频编辑",
+          "协作",
+          "API 访问"
+        ]
+      },
+      "framer": {
+        "description": "网页设计与发布",
+        "features": [
+          "可视化编辑器",
+          "CMS",
+          "动画",
+          "响应式设计",
+          "发布"
+        ]
+      },
+      "webflow": {
+        "description": "无代码网站构建器",
+        "features": [
+          "可视化设计",
+          "CMS",
+          "托管",
+          "电子商务",
+          "交互"
+        ]
+      },
+      "loom": {
+        "description": "异步视频消息",
+        "features": [
+          "屏幕录制",
+          "视频托管",
+          "分析",
+          "语音转写",
+          "评论"
+        ]
+      },
+      "vimeo": {
+        "description": "专业视频托管",
+        "features": [
+          "视频托管",
+          "直播",
+          "分析",
+          "播放器自定义",
+          "隐私"
+        ]
+      },
+      "mux": {
+        "description": "视频基础设施 API",
+        "features": [
+          "视频编码",
+          "直播",
+          "缩略图",
+          "分析",
+          "播放器"
+        ]
+      },
+      "cloudinary": {
+        "description": "媒体管理平台",
+        "features": [
+          "图像优化",
+          "视频处理",
+          "转换",
+          "CDN",
+          "AI 功能"
+        ]
+      },
+      "typeform": {
+        "description": "交互式表单与问卷",
+        "features": [
+          "对话式表单",
+          "逻辑跳转",
+          "集成",
+          "分析",
+          "模板"
+        ]
+      },
+      "tally": {
+        "description": "创建表单的简便方式",
+        "features": [
+          "表单构建器",
+          "条件逻辑",
+          "文件上传",
+          "支付",
+          "Webhook"
+        ]
+      },
+      "google_forms": {
+        "description": "Google 简易表单构建器",
+        "features": [
+          "表单创建",
+          "回复收集",
+          "测验模式",
+          "模板",
+          "Sheets 集成"
+        ]
+      },
+      "jotform": {
+        "description": "在线表单构建器",
+        "features": [
+          "拖放式构建器",
+          "支付表单",
+          "审批",
+          "PDF 表单",
+          "小组件"
+        ]
+      },
+      "surveymonkey": {
+        "description": "问卷与反馈平台",
+        "features": [
+          "问卷调查",
+          "测验",
+          "投票",
+          "分析",
+          "模板"
+        ]
+      },
+      "calendly": {
+        "description": "日程自动化",
+        "features": [
+          "预约页面",
+          "工作流",
+          "集成",
+          "群组活动",
+          "路由"
+        ]
+      },
+      "cal_com": {
+        "description": "开源日程安排",
+        "features": [
+          "预约页面",
+          "团队日程安排",
+          "自定义工作流",
+          "Webhook",
+          "API 访问"
+        ]
+      },
+      "savvycal": {
+        "description": "面向忙碌人士的日程安排",
+        "features": [
+          "个性化链接",
+          "叠加日历",
+          "优先级日程安排",
+          "工作流",
+          "集成"
+        ]
+      },
+      "tidycal": {
+        "description": "简易日程工具",
+        "features": [
+          "预约页面",
+          "日历同步",
+          "支付",
+          "自定义问题",
+          "集成"
+        ]
+      },
+      "zapier": {
+        "description": "无代码自动化平台",
+        "features": [
+          "应用连接",
+          "多步骤 Zap",
+          "筛选器",
+          "格式转换器",
+          "Webhook"
+        ]
+      },
+      "make": {
+        "description": "可视化自动化平台",
+        "features": [
+          "可视化构建器",
+          "应用",
+          "数据存储",
+          "Webhook",
+          "调度"
+        ]
+      },
+      "n8n": {
+        "description": "Fair-code 工作流自动化",
+        "features": [
+          "可自行托管",
+          "集成",
+          "代码节点",
+          "Webhook",
+          "AI 能力"
+        ]
+      },
+      "activepieces": {
+        "description": "开源自动化工具",
+        "features": [
+          "无代码构建器",
+          "可自行托管",
+          "Pieces",
+          "Webhook",
+          "代码步骤"
+        ]
+      },
+      "pipedream": {
+        "description": "开发者优先的自动化",
+        "features": [
+          "基于代码的工作流",
+          "API",
+          "事件源",
+          "数据存储",
+          "Cron 定时任务"
+        ]
+      }
+    },
+    "webhooks": {
+      "shopify_order_created": {
+        "name": "Shopify — 新订单",
+        "description": "Shopify 商店收到新订单时触发",
+        "setupInstructions": "前往 Shopify Admin > Settings > Notifications > Webhooks > Create webhook"
+      },
+      "shopify_product_updated": {
+        "name": "Shopify — 商品更新",
+        "description": "Shopify 商品被修改时触发",
+        "setupInstructions": "前往 Shopify Admin > Settings > Notifications > Webhooks"
+      },
+      "shopify_checkout_abandoned": {
+        "name": "Shopify — 放弃结账",
+        "description": "在放弃结账时触发挽回营销活动",
+        "setupInstructions": "前往 Shopify Admin > Settings > Notifications > Webhooks"
+      },
+      "shopify_customer_created": {
+        "name": "Shopify — 新客户",
+        "description": "新客户注册时触发",
+        "setupInstructions": "前往 Shopify Admin > Settings > Notifications > Webhooks"
+      },
+      "stripe_payment_succeeded": {
+        "name": "Stripe — 支付成功",
+        "description": "支付成功时触发",
+        "setupInstructions": "前往 Stripe Dashboard > Developers > Webhooks > Add endpoint"
+      },
+      "stripe_subscription_created": {
+        "name": "Stripe — 新订阅",
+        "description": "客户开始新订阅时触发",
+        "setupInstructions": "Stripe Dashboard > Developers > Webhooks"
+      },
+      "stripe_invoice_paid": {
+        "name": "Stripe — 发票已支付",
+        "description": "发票支付时触发",
+        "setupInstructions": "Stripe Dashboard > Developers > Webhooks"
+      },
+      "stripe_refund_issued": {
+        "name": "Stripe — 已退款",
+        "description": "退款处理时触发",
+        "setupInstructions": "Stripe Dashboard > Developers > Webhooks"
+      },
+      "github_push": {
+        "name": "GitHub — 推送",
+        "description": "向仓库推送代码时触发",
+        "setupInstructions": "前往仓库 > Settings > Webhooks > Add webhook"
+      },
+      "github_pr": {
+        "name": "GitHub — 拉取请求",
+        "description": "PR 打开、合并或关闭时触发",
+        "setupInstructions": "前往仓库 > Settings > Webhooks"
+      },
+      "github_issue": {
+        "name": "GitHub — 问题已创建",
+        "description": "新问题打开时触发",
+        "setupInstructions": "前往仓库 > Settings > Webhooks"
+      },
+      "github_release": {
+        "name": "GitHub — 版本已发布",
+        "description": "新版本发布时触发",
+        "setupInstructions": "前往仓库 > Settings > Webhooks"
+      },
+      "hubspot_contact_created": {
+        "name": "HubSpot — 联系人已创建",
+        "description": "HubSpot 添加新联系人时触发",
+        "setupInstructions": "前往 HubSpot > Settings > Integrations > Private Apps > Webhooks"
+      },
+      "hubspot_deal_stage": {
+        "name": "HubSpot — 交易阶段变更",
+        "description": "交易进入新阶段时触发",
+        "setupInstructions": "HubSpot > Settings > Integrations > Webhooks"
+      },
+      "hubspot_form_submitted": {
+        "name": "HubSpot — 表单已提交",
+        "description": "HubSpot 表单提交时触发",
+        "setupInstructions": "HubSpot > Settings > Integrations > Webhooks"
+      },
+      "tiktok_new_follower": {
+        "name": "TikTok — 新粉丝",
+        "description": "有人关注你的 TikTok 账户时触发",
+        "setupInstructions": "通过 TikTok Developer Portal > Webhooks 配置"
+      },
+      "tiktok_video_published": {
+        "name": "TikTok — 视频已发布",
+        "description": "新视频发布时触发",
+        "setupInstructions": "TikTok Developer Portal > Webhooks"
+      },
+      "linkedin_post_engagement": {
+        "name": "LinkedIn — 帖子互动",
+        "description": "LinkedIn 上有点赞、评论或分享时触发",
+        "setupInstructions": "通过 LinkedIn Marketing API Webhook 配置"
+      },
+      "intercom_conversation_started": {
+        "name": "Intercom — 新对话",
+        "description": "客户开始新对话时触发",
+        "setupInstructions": "Intercom > Settings > Webhooks"
+      },
+      "intercom_user_created": {
+        "name": "Intercom — 新用户",
+        "description": "识别到新用户时触发",
+        "setupInstructions": "Intercom > Settings > Webhooks"
+      },
+      "sendgrid_email_delivered": {
+        "name": "SendGrid — 邮件已送达",
+        "description": "邮件成功送达时触发",
+        "setupInstructions": "SendGrid > Settings > Mail Settings > Event Webhook"
+      },
+      "sendgrid_email_opened": {
+        "name": "SendGrid — 邮件已打开",
+        "description": "收件人打开邮件时触发",
+        "setupInstructions": "SendGrid > Settings > Mail Settings > Event Webhook"
+      },
+      "sendgrid_email_bounced": {
+        "name": "SendGrid — 邮件退回",
+        "description": "邮件退回时触发",
+        "setupInstructions": "SendGrid > Settings > Event Webhook"
+      },
+      "calendly_booking_created": {
+        "name": "Calendly — 预约已创建",
+        "description": "有人预约会议时触发",
+        "setupInstructions": "Calendly > Integrations > Webhooks > Subscribe"
+      },
+      "calendly_booking_cancelled": {
+        "name": "Calendly — 预约已取消",
+        "description": "预约取消时触发",
+        "setupInstructions": "Calendly > Integrations > Webhooks"
+      },
+      "typeform_form_submitted": {
+        "name": "Typeform — 表单已提交",
+        "description": "Typeform 回复提交时触发",
+        "setupInstructions": "Typeform > Connect > Webhooks > Add webhook"
+      },
+      "slack_message_posted": {
+        "name": "Slack — 消息已发布",
+        "description": "频道发布消息时触发",
+        "setupInstructions": "在 Slack App > Event Subscriptions 中订阅 message.channels"
+      },
+      "slack_reaction_added": {
+        "name": "Slack — 已添加回应",
+        "description": "有人对消息作出回应时触发",
+        "setupInstructions": "Slack App > Event Subscriptions"
+      },
+      "generic_json": {
+        "name": "通用 JSON Webhook",
+        "description": "接收任意服务的 JSON 载荷",
+        "setupInstructions": "将服务的 Webhook URL 指向生成的端点"
+      },
+      "generic_form_post": {
+        "name": "表单 POST Webhook",
+        "description": "接收表单编码的 POST 数据",
+        "setupInstructions": "将表单 action URL 设为生成的端点"
+      }
+    },
+    "ideas": {
+      "content-studio": {
+        "title": "内容工作室",
+        "desc": "自动发现趋势、起草并打磨社交帖子。",
+        "seed": "我经营一个小品牌，希望有个持续发布内容的工作室。趋势侦察者应在我的细分领域找到 2-3 个热门角度，作者围绕最有力的角度起草 TikTok 和 LinkedIn 帖子，编辑优化开头和 CTA。每篇都保存为草稿，让我发布前审核，并记住哪些角度有效，以提升后续草稿质量。"
+      },
+      "content-repurposer": {
+        "title": "内容再创作工具",
+        "desc": "把一个想法转为 X 串帖、LinkedIn 帖子和电子报短文。",
+        "seed": "我希望将一个原始想法、帖子或转写稿再创作为多平台内容包。策略师选择三个最有力的角度，作者把它们写成 X 串帖、LinkedIn 帖子和电子报短文；若记忆中保存了我的品牌语气，全部采用该语气。将内容包保存为草稿。"
+      },
+      "seo-content-engine": {
+        "title": "SEO 内容引擎",
+        "desc": "研究关键词并拟定搜索优化文章大纲。",
+        "seed": "我想要一个 SEO 内容引擎。研究者找出目标关键词的搜索意图和相关问题，大纲作者给出含内部链接建议的 H2/H3 结构，作者据此起草搜索优化文章。保存简报和草稿，并记住我已写过的话题，避免重复。"
+      },
+      "newsletter-studio": {
+        "title": "电子报工作室",
+        "desc": "策划主题并起草每周电子报。",
+        "seed": "我发送每周电子报，希望有人协助起草每一期。策划者选定主题并收集 3-5 项值得分享给受众的内容，作者撰写有力的邮件主题、引言、每项一句点评和结尾 CTA。保存为草稿并记住往期主题，让内容保持多样。"
+      },
+      "podcast-repurposer": {
+        "title": "播客再创作工具",
+        "desc": "将单集转写稿转为节目笔记与适合剪辑的金句。",
+        "seed": "我主持播客，想再利用每一期节目。给定转写稿后，制作人撰写含时间戳和要点的结构化节目笔记，片段筛选者找出 5-8 处适合做成社交短片的可引用片段。将笔记和引用清单保存为草稿。"
+      },
+      "brand-voice-builder": {
+        "title": "品牌语气构建器",
+        "desc": "将品牌语气整理为单页参考文档。",
+        "seed": "我想规范品牌语气。品牌分析师从我提供的描述和样例内容中提炼语气特征、标志性表达和应避免的措辞，风格整理者编写单页参考文档，包含三个展示该语气的帖子示例。以 'brand voice' 为名存入记忆，供内容智能体读取。"
+      },
+      "competitor-watch": {
+        "title": "竞品动态监控",
+        "desc": "追踪竞争对手动向，总结每周变化。",
+        "seed": "我想关注几家竞争对手。网页研究者扫描其网站和网络上的近期动作，包括发布、价格变化和传播信息调整；分析师总结本周变化及其对我定位的重要性。保存简报并记住以往发现，让每次扫描仅标出新内容。"
+      },
+      "social-listening": {
+        "title": "社交舆情观察",
+        "desc": "了解人们对话题或品牌的讨论。",
+        "seed": "我想了解某话题及我的品牌的社交讨论。研究者收集全网近期公开提及和讨论，分析师按主题归类、标注情感并摘取一些代表性引用。保存摘要，将反复出现的主题存入记忆，以便逐渐看清趋势。"
+      },
+      "webinar-promoter": {
+        "title": "网络研讨会推广助手",
+        "desc": "为即将举办的活动规划推广序列。",
+        "seed": "我即将举办网络研讨会，需要推广计划。规划者制定多触点推广时间线，包含公告、价值预告、提醒和最后通知，作者用我的品牌语气起草每个触点的社交帖子和邮件。全部保存为草稿，由我手动安排发送。"
+      },
+      "ad-creative-tester": {
+        "title": "广告创意测试器",
+        "desc": "生成待测试的广告角度变体，不产生广告支出。",
+        "seed": "我想在花钱前测试广告创意角度。策略师为产品提出 4-5 个不同角度：痛点、结果、社会证明、逆向观点、好奇心；文案作者分别撰写标题和正文变体。保存为草稿，由我亲自将优胜版本粘贴到广告平台。不得产生广告支出，也不得写入平台。"
+      },
+      "outreach-strategist": {
+        "title": "外联策略师",
+        "desc": "细化 ICP 并起草冷启动邮件序列。",
+        "seed": "我想要一个只起草、绝不发送的冷启动外联引擎。ICP 研究者根据产品和目标提示细化理想客户画像，提案作者编写三封可复制到邮箱的序列：介绍、跟进和结束联系。将序列保存为草稿。"
+      },
+      "cold-outreach-engine": {
+        "title": "冷启动外联引擎",
+        "desc": "为目标名单定制首次联系邮件。",
+        "seed": "我有一份目标账户名单，需要个性化的首次联系邮件。研究者从公开信息中找出每位潜在客户的相关切入点，作者引用该切入点起草简短、具体的开场邮件，包含一个明确 CTA。保存草稿供我审核并手动发送，记录每份草稿。禁止自动发送。"
+      },
+      "lead-qualifier": {
+        "title": "潜在客户评估器",
+        "desc": "按 ICP 为入站潜在客户评分并分流。",
+        "seed": "我想筛选入站潜在客户。根据客户信息，分析师按我的 ICP（行业、规模、角色、意向信号）评估匹配度，分流者推荐快速处理、培育或排除，并附一句理由。记录每项决策，记住评分模式，让筛选逐渐更一致。"
+      },
+      "proposal-writer": {
+        "title": "提案撰写器",
+        "desc": "将项目简报转为面向客户的提案。",
+        "seed": "我想将项目简报转为客户提案。范围规划者明确客户背景、问题、成功指标和范围边界，作者起草结构化提案，包含摘要、范围、交付物、分阶段时间线及以价值为依据的报价。保存为草稿供我审核和发送。"
+      },
+      "partnership-outreach": {
+        "title": "合作伙伴外联",
+        "desc": "寻找合适的合作伙伴并起草介绍提案。",
+        "seed": "我想安排合作洽谈。研究者识别能补充我产品的公司类型，并找到一些具体候选；作者为每家起草定制介绍提案，以双方收益开篇。保存为草稿，由我手动发送。"
+      },
+      "market-research": {
+        "title": "市场研究智能体",
+        "desc": "扫描市场并综合成单页报告。",
+        "seed": "我想快速扫描市场。网页研究者从与市场相关的 5-10 个高价值来源收集信号，综合者撰写单页报告，涵盖市场规模信号、前三个竞争对手及各自一句差异、12 个月趋势和机会。保存报告，将关键发现存入记忆，供后续扫描参考。"
+      },
+      "customer-onboarding": {
+        "title": "客户入门引导",
+        "desc": "为新客户起草引导式欢迎序列。",
+        "seed": "我想让新客户顺利入门。规划者设计按里程碑推进的入门旅程：欢迎、设置、首次获得价值、回访；作者用我的品牌语气起草每个里程碑的消息。保存为草稿供我手动发送，并记住该旅程，让每位新客户获得一致的引导。"
+      },
+      "churn-watch": {
+        "title": "客户流失监控",
+        "desc": "标记有流失风险的账户，起草挽回消息。",
+        "seed": "我想及早发现客户流失。根据我提供的账户活动，分析师标出高风险账户、警示信号及原因，作者为每个标记账户起草定制挽回消息。保存草稿供我审核，记录每次评估，并记住哪些信号通常先于流失出现。"
+      },
+      "product-launch-kit": {
+        "title": "产品发布套件",
+        "desc": "整理发布信息和上线检查清单。",
+        "seed": "我正在发布产品，需要一份发布套件。策略师起草核心定位和关键信息，作者制作公告素材（落地页文案、社交帖子、发布邮件），运营智能体整理上线检查清单。全部保存为草稿，并将清单存入记忆，避免遗漏。"
+      },
+      "invoice-chaser": {
+        "title": "账单催收助手",
+        "desc": "起草礼貌且逐步升级的付款提醒。",
+        "seed": "我希望协助跟进逾期发票。根据我提供的未付款发票名单，智能体为每张起草礼貌且逐步升级的提醒：温和提示、明确跟进、最终通知，注明金额和到期日。保存为草稿供我手动发送，并记录每份草稿。绝不自动发送任何内容，也绝不转移资金。"
+      },
+      "weekly-finance-digest": {
+        "title": "每周财务摘要",
+        "desc": "将我跟踪的数据汇总为每周报告。",
+        "seed": "我想要每周财务摘要。根据我提供的数据（营收、支出、资金可支撑期限、关键指标），分析师与前期比较，指出变化及其重要性，标记需关注事项。保存简报并记住往周信息，展示趋势。只读，不进行交易。"
+      },
+      "support-triage": {
+        "title": "支持工单分诊",
+        "desc": "分类工单并起草首次回复。",
+        "seed": "我想分诊入站支持工单。根据工单，智能体分类为错误、账单、使用方法或功能请求，设定优先级，并依据我的知识库起草有帮助的首次回复。保存草稿，发送前由人工审核；记录每次分诊决策，记住常见问题以改进通用答案。"
+      },
+      "review-responder": {
+        "title": "评价回复助手",
+        "desc": "用品牌语气起草客户评价回复。",
+        "seed": "我需要协助回复客户评价。智能体判断情感，起草体贴且符合品牌语气的回复：对赞扬表达感谢，对投诉体现担当并侧重解决方案。保存回复草稿由我发布，并记住反复出现的赞扬与投诉，让我发现模式。"
+      },
+      "recruiting-sourcer": {
+        "title": "招聘候选人寻源",
+        "desc": "起草岗位画像和个性化候选人联系消息。",
+        "seed": "我正在招聘，需要寻源帮助。招聘智能体将岗位转为明确的候选人画像（必需条件、信号、常活动的地方），作者为有潜力的候选人起草亲切、个性化的联系消息供我发送。保存为草稿让我手动发送，并逐一记录。禁止自动发消息。"
+      }
+    },
+    "comparisonColumns": [
+      {
+        "name": "Braavolabs"
+      },
+      {
+        "name": "工作流自动化"
+      },
+      {
+        "name": "AI 智能体构建工具"
+      }
+    ],
+    "comparisonRows": [
+      {
+        "label": "运行中引导",
+        "note": "检查指令何时被接受和应用；活跃调用可能先完成"
+      },
+      {
+        "label": "原生移动控制",
+        "note": "检查你的设备上支持的移动任务与版本可用性"
+      },
+      {
+        "label": "通过手机审批支出",
+        "note": "审查哪些操作需要审批，哪些提供商调用可能已产生费用"
+      },
+      {
+        "label": "BYOK 提供商广度",
+        "note": "跨多家模型提供商使用自己的密钥"
+      },
+      {
+        "label": "本地提供商路径",
+        "note": "在受支持的情况下使用已配置的本地模型端点"
+      },
+      {
+        "label": "外部自动化监控",
+        "note": "确认每个外部平台支持的监控与控制操作"
+      },
+      {
+        "label": "定价模式",
+        "note": "比较订阅、推理、托管和每次操作费用"
+      },
+      {
+        "label": "治理与风险停止机制",
+        "note": "审查受支持的检查边界与事件处理"
+      },
+      {
+        "label": "审计轨迹",
+        "note": "检查已记录操作与输出；缺失记录仍为未知"
+      },
+      {
+        "label": "连接器数量",
+        "note": "预建应用集成的总数量"
+      }
+    ],
+    "comparisonAudience": [
+      {
+        "title": "不常坐在办公桌前的操作者",
+        "body": "如果你在会议间隙通过手机审批、提醒和调整方向，原生应用与掌上引导正是核心所在。"
+      },
+      {
+        "title": "不愿反复重跑的人",
+        "body": "面对长流水线，你更希望调整方向而非重启。跟随运行、中途转向，并保留已完成的有效步骤。"
+      },
+      {
+        "title": "隐私敏感工作",
+        "body": "使用自己的密钥或选择已配置的本地端点。分别验证所选路径、工具、遥测及网络边界。"
+      },
+      {
+        "title": "已使用 n8n / Make / Zapier 的团队",
+        "body": "通过受支持的连接监控状态并请求受支持的操作。检查每个平台的授权与执行约定。"
+      }
+    ],
+    "capabilities": [
+      {
+        "label": "运行",
+        "title": "跨提供商工作台",
+        "copy": "协调模型与智能体工作，不将某一家提供商运行时变成控制平面。"
+      },
+      {
+        "label": "控制",
+        "title": "精确操作审批 — 开发中",
+        "copy": "更广泛的操作、范围、到期与执行上下文绑定约定仍属计划，不作为普遍可用功能提供。"
+      },
+      {
+        "label": "对话",
+        "title": "恢复与引导",
+        "copy": "将有序轮次、工具操作、产物及远程操作者输入保留在同一运行上下文中。"
+      },
+      {
+        "label": "模型",
+        "title": "BYOK 与本地选择",
+        "copy": "明确选择模型路径，通过自己的密钥或本地运行时承担相应成本。"
+      }
+    ],
+    "securityBoundaries": [
+      {
+        "title": "推理边界",
+        "copy": "不包含推理费用。请使用您自己的提供商密钥（BYOK）或本地模型。"
+      },
+      {
+        "title": "审批边界",
+        "copy": "受支持的工具操作可能需要明确审批。推理可能在单独审批前产生提供商费用。更广泛的精确操作、范围和到期绑定约定仍在开发。"
+      },
+      {
+        "title": "公开与认证界面的边界",
+        "copy": "公开网站提供产品信息。账户、租户路由及运营 API 属于经过身份验证的应用和 API 主机。"
+      },
+      {
+        "title": "认证边界",
+        "copy": "在持有认证且可独立验证之前，我们不展示认证徽章。"
+      }
+    ],
+    "checklist": {
+      "registered": {
+        "label": "创建账户",
+        "description": "注册 Braavolabs"
+      },
+      "heroCompanyCreated": {
+        "label": "创建第一家公司",
+        "description": "根据描述构建 AI 公司"
+      },
+      "firstRunCompleted": {
+        "label": "运行第一条流水线",
+        "description": "执行自动化工作流"
+      },
+      "firstDraftApproved": {
+        "label": "审核草稿",
+        "description": "批准或编辑 AI 生成内容"
+      },
+      "profileCompleted": {
+        "label": "完善个人资料",
+        "description": "添加姓名和偏好"
+      }
+    }
+  },
+  "seo": {
+    "m7f135831dde4": "关于 — Braavolabs",
+    "ma6b9aebb2cf1": "了解 Braavolabs：我们为何构建 AI 公司平台、背后的原则，以及对自主性、透明度和负责任 AI 的看法。",
+    "m933085a63c1d": "关于 Braavolabs",
+    "me1c1f91ee66e": "我们为何构建 AI 公司平台、背后的原则，以及对自主性、透明度和负责任 AI 的看法。",
+    "m6bec3a9f230a": "Braavolabs Bench — 已记录的基准测试运行",
+    "mcbea634da00e": "已配置任务套件的可用基准测试记录。覆盖范围与新近程度取决于已记录运行；这不是独立认证。",
+    "md93cc7f7d87e": "博客 — Braavolabs",
+    "m187c2f0813ea": "Braavolabs 团队的产品更新、工程札记和公开产品成熟度边界。",
+    "m3c43895bb6aa": "Braavolabs 博客",
+    "me3020c8ef693": "来自 Braavolabs 的产品更新、工程札记和公开产品成熟度边界。",
+    "m237cecbe666d": "更新日志 — Braavolabs",
+    "m22bcd4a9abed": "Braavolabs 公开变更说明，分别标注已发布和开发中的工作。",
+    "m7cf63d5b37a7": "Braavolabs 更新日志",
+    "m9b27dd7fb727": "公开变更说明，分别标注已发布和开发中的工作。",
+    "m8ec104ac0b8d": "Braavolabs 对比",
+    "maafa6a889064": "审查跨提供商工作流要求、路径配置与操作者控制。请直接核实当前产品能力及商业条款。",
+    "md9141b7cff71": "Braavolabs 对比 — Braavolabs",
+    "m5358edf26d92": "探索跨提供商工作台，明确选择模型、配置本地或云端路径，并使用受支持的操作者控制。",
+    "mc10f93cbb285": "联系 — Braavolabs",
+    "mac714bedbfdc": "Braavolabs 的支持、合作、安全与隐私咨询渠道。",
+    "m5d4c651fc9a1": "联系 Braavolabs",
+    "m224950150646": "支持、合作、安全与隐私咨询渠道。",
+    "m18c6bf133be5": "成本计算器 — Braavolabs",
+    "md250d02e7765": "拟议 Individual 和 Team 订阅定价的静态预览；不包含推理。",
+    "m63664d2ded81": "Individual 和 Team 拟议定价预览；订阅目前无法购买。",
+    "m3ca87fbbac15": "定价预览 — Braavolabs",
+    "m4bd9b811878a": "预览 Braavolabs Individual 和 Team 拟议订阅价格。目前无法购买，不包含推理。",
+    "m81acc1f0380d": "Individual 和 Team 拟议定价。目前无法购买，不包含推理。",
+    "ma9faa242317f": "文档 — Braavolabs",
+    "m365f82802c67": "Braavolabs 文档：快速开始、BYOK 和本地路径设置、运行中引导、Webhook、外部自动化连接、移动应用及常见问题。",
+    "mee84ba24e941": "Braavolabs 文档",
+    "m50dcefa5f29a": "编排和审查智能体工作流，再监控受支持的运行与决策。",
+    "m57cd5295b6d6": "功能 — Braavolabs",
+    "m0d5ddd021521": "Braavolabs 在模型路由、数据模式、审批与功能成熟度方面的公开产品边界。",
+    "m076ced19e485": "模型路由、数据模式、审批与功能成熟度方面的公开产品边界。",
+    "m804e9858225a": "功能 — Braavolabs",
+    "mcb18970cc53a": "Braavolabs 在运行、控制、数据模式和验证界面上的公开产品约定。",
+    "mac377e08a5eb": "GDPR 信息预览",
+    "m49fe3634c177": "GDPR 隐私信息草案。公开注册前，责任运营方、处理、接收方、保留及保护措施详情仍需补全。",
+    "m617c9c8f521f": "Braavolabs GDPR 信息预览",
+    "m5f3c445d83bb": "GDPR 处理信息与权利预览；尚不是公开收集个人数据所需的完整告知。",
+    "m6481ac9863e9": "KVKK 信息预览",
+    "m6465a09ee4b0": "KVKK 信息草案。公开注册前，实际运营方、处理、接收方、保留及保护措施仍需补全。",
+    "m4a89104ba3fb": "Braavolabs KVKK 信息预览",
+    "m354a5e2b9623": "KVKK 处理信息与权利预览；尚不是完整隐私告知。",
+    "mc60388ffa286": "账户删除",
+    "m265910871d03": "如何永久删除 Braavolabs 账户、会删除哪些数据，以及如何寻求帮助。",
+    "m7221097dfb51": "Braavolabs 账户删除",
+    "md6e50ceecc93": "定价 — Braavolabs",
+    "m907e61f93ecc": "拟议定价预览：Individual 每月 $19，Team 每活跃用户每月 $39。目前无法购买，不包含推理。",
+    "mae42d1776ea3": "重置密码",
+    "m81bf5e60c133": "为你的 Braavolabs 账户设置新密码。",
+    "m8931468be759": "安全 — Braavolabs",
+    "m4fc24ac37ec4": "Braavolabs 在模型密钥、数据模式、审批与产品成熟度方面的安全边界。",
+    "m22ccccca604b": "系统状态 — Braavolabs",
+    "m545df19cd499": "Braavolabs 公开 API 端点的实时可用性探测。",
+    "m5231bbf800e5": "Braavolabs 系统状态",
+    "m371d913a6d14": "支持 — Braavolabs",
+    "m43f347f64d40": "获取 Braavolabs 帮助：联系渠道、答复时间、账单与订阅帮助、账户删除和常见问题。",
+    "me4c0f5357766": "Braavolabs 支持",
+    "mee5a52d3051f": "联系渠道、答复时间、账单与订阅帮助、账户删除及常见问题。"
+  },
+  "runtime": {
+    "mb39b93c48c24": "登录以使用初始模板。",
+    "m2eb2d91c4f3b": "无法创建初始模板。",
+    "mcdd1de1ae01a": "使用初始模板：{value0}",
+    "m838f9adcc123": "1 次试用运行",
+    "m9a021a4b3454": "{count, plural, other {# 次试用运行}}",
+    "ma5a28bb26fde": "{count, plural, other {# 个智能体}}",
+    "m014789a56e1d": "{count, plural, other {# 个流水线步骤}}",
+    "ma682e26e6a31": "无法加载预测",
+    "m05d6a641b6be": "保存失败",
+    "mab698ba77c6c": "无法加载测试",
+    "m0118f642c901": "{value0} 失败",
+    "m69c8b86fae03": "保存失败",
+    "m78e828adf24c": "删除失败",
+    "m1368805fe919": "签发者",
+    "mb525865201ae": "客户端 ID",
+    "ma2a8e033d138": "重定向 URI",
+    "m092455f07cd1": "权限范围",
+    "m6dc7542014dc": "审批请求",
+    "m29a34a94a498": "运行需要支出审批时推送通知",
+    "m84ed19090410": "已触发风险停止机制",
+    "mb195583a6e7f": "硬停止使运行停止时推送通知",
+    "m13641fc2a8c0": "运行已完成",
+    "m6e87b3db013a": "运行结束时通知",
+    "m9d5e808eecb2": "${value0}/月",
+    "m26f640894104": "{count, plural, other {每月 # 次运行}}",
+    "m5e369d5a7fd5": "自托管本地提供商（Ollama / LM Studio）",
+    "mc058d692e6cc": "需要支出审批",
+    "me68fc6aed4e7": "受支持的支出操作",
+    "m04508baa9aeb": "循环检测阈值",
+    "m4021017c235b": "连续 5 次失败",
+    "m6774e7b32e15": "成本异常阈值",
+    "md2687779b5c7": "运行预算的 20%",
+    "m51e462c03da2": "垃圾信息防护",
+    "m10bc771116e0": "3+ 次未回复 = 阻止",
+    "m7ae7fcaafb64": "记忆自动提升",
+    "me92d7c3eb5e2": "置信度 ≥ 0.7，次数 ≥ 3",
+    "m74769711684e": "Holding Brain 要求",
+    "m27e8635ece5f": "有相同模式的 2+ 家公司",
+    "m31f4062639ad": "✓ 连接成功 — 模型回复：“{value0}”",
+    "mf0b59374b988": "有新潜在客户时触发获客流水线",
+    "mc3af8f5ac774": "内容已获准发布",
+    "m5275b74361ed": "处理付款并更新 CRM",
+    "m1cd72a8c1a04": "转交客户成功智能体",
+    "m797c03ac6662": "已推荐",
+    "ma571fa84edbc": "已转化",
+    "m48fa986d975f": "奖励",
+    "me94e85e1777c": "跳转至 {value0}",
+    "m9b917859a22b": "阅读精选帖子：{value0}",
+    "m5452b7363001": "阅读帖子：{value0}",
+    "ma735f1949098": "阅读文档：{value0}",
+    "m47982c49bbdd": "从想法开始：{value0}",
+    "maabffdc5b99f": "{count, plural, other {# 个智能体}}",
+    "m4b89a821f42b": "{value0} 条流水线",
+    "madc0d2e17f7e": "获客",
+    "mb5d24bc5498c": "销售",
+    "madf7dfd9a03b": "运营",
+    "mf61fa075a25a": "分析",
+    "m837fc70634da": "记忆",
+    "m920294cc4569": "内容",
+    "m42ac3e609710": "治理",
+    "m7034fec532bb": "联系支持",
+    "m34f6a807aeb9": "订阅、购买与退款",
+    "m616706013792": "常见问题",
+    "me01516c0ee66": "报告错误",
+    "me4b47da679e8": "政策",
+    "m8e94897c7807": "链接至 {value0}",
+    "m6c6656e064e0": "步骤 {value0} {value1} 成本 {value2} 时长 {value3}",
+    "m9f9acdbf39bc": "工作区",
+    "m3800b6e67ce8": "{value0} 中不限数量",
+    "mdd0763b9fc75": "/月",
+    "m8502572a269d": "单一账户",
+    "m8779b63b388b": "不包含推理",
+    "m739f35478664": "租户 BYOK 或本地提供商",
+    "m4d03ba19634f": "5 个工作区",
+    "m7ab3157462b0": "无方案资助的模型额度",
+    "m6c35c098be76": "/活跃席位/月",
+    "ma8499c1fc913": "按活跃席位计费",
+    "m5ad4deeaabd5": "20 个工作区",
+    "m3fcd392b558f": "团队协作",
+    "m1e3a5507bb67": " 另有 {value0} 项",
+    "ma301be6d35b3": " · 上次 {value0}",
+    "m67cb524a0f61": "上次检查：{value0}（你的当地时间）",
+    "m45fd9c2d5d48": " · 上次运行 {value0}",
+    "mfe990aab3694": "{value0} 已开始 — 步骤已排队",
+    "m7a54036ca778": "支出审批已开启 — {value0} 等待审核",
+    "me54aaeee8d00": "已触发风险事件",
+    "mf7ae3905e563": "导出",
+    "mcb6f0d51a4bc": "使用你自己的受支持提供商密钥或已配置的本地端点。",
+    "me3cc0f802723": "随身引导与审批",
+    "m0bbeaac0b690": "步骤 {value0}",
+    "mc9d5631084a5": "仪表盘",
+    "m596d0616eb4f": "流水线",
+    "mc8f971fe29fd": "运行",
+    "ma865952c238b": "智能体",
+    "m76c4258af622": "公司",
+    "ma4435cd673fd": "触发器",
+    "m2908b886157a": "智能体",
+    "meb5355c74849": "工具调用",
+    "m363f4a3ae095": "审批关卡",
+    "m6fd0e25bdccd": "分支",
+    "m08da7504b591": "输出",
+    "mb912b05f4583": "缩小",
+    "m550677a88028": "适应画布",
+    "m015ee12489d3": "放大",
+    "m0d18e6731423": "概览",
+    "m99c2fc0bb65c": "通过邮件请求删除",
+    "md2fa5c7e5df0": "验证与后续步骤",
+    "me4c98c0271e8": "当前可用性",
+    "m000165a9f23d": "会删除什么",
+    "m4178821e2ee3": "保留内容及原因",
+    "m21ce09941e6e": "时间线",
+    "mc5d1045cc31b": "有效订阅",
+    "md772994860a6": "问题",
+    "localeSaveFailed": "无法保存语言偏好。请检查浏览器 Cookie 设置后重试；当前语言未更改。",
+    "workspaces": "{count, plural, other {# 个工作区}}",
+    "connectedAutomations": "{count, plural, other {# 项已连接的自动化}}",
+    "events": "{count, plural, other {# 条已记录事件}}",
+    "channels": "{count, plural, other {# 个频道}}",
+    "genericRest": "通用 REST 连接",
+    "providerOllama": "Ollama（自托管）",
+    "providerLmStudio": "LM Studio（自托管）",
+    "providerCustom": "自定义 OpenAI 兼容提供商",
+    "ollamaHint": "从 ollama.com 安装 Ollama，运行 `ollama pull gemma3:4b`，然后保持 `ollama serve` 运行。",
+    "lmStudioHint": "从 lmstudio.ai 安装 LM Studio，加载模型后启动本地服务器。",
+    "customProviderHint": "配置兼容 OpenAI 的 /v1/chat/completions 端点。请检查端点运营方和模型要求。",
+    "directoryNote": "本目录列出集成示例和模板，不代表每个连接都已实现、配置或可用于你的账户。",
+    "catalogEntry": "目录条目",
+    "supportedConnections": "审查受支持的连接",
+    "categoryMarketing": "营销",
+    "categorySales": "销售",
+    "categoryContent": "内容",
+    "categoryOps": "运营",
+    "categoryResearch": "研究",
+    "categoryFinance": "财务",
+    "categorySupport": "支持",
+    "categoryFounder": "创始人",
+    "providerKeys": "使用你自己的受支持提供商密钥或已配置的本地端点。",
+    "connectionTestFailed": "连接测试失败。请检查配置后重试。",
+    "pipelineStepCount": "{count, plural, other {# 个步骤}}",
+    "unknownState": "未知状态"
+  }
+}

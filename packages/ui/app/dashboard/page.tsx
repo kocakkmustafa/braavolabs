@@ -1,4 +1,14 @@
 "use client";
+import { useStateLabel } from "../../lib/useStateLabel";
+
+import { useDisplayFormats } from "../../lib/useDisplayFormats";
+
+import { useLocale as useRelativeLocale } from "next-intl";
+
+import { useTranslations as useRuntimeTranslations } from "next-intl";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 /**
  * /dashboard — command center.
@@ -20,11 +30,13 @@
  * to messages/{en,tr,es,de,fr,ar}.json once design lands.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { formatCurrency, formatNumber } from "../../i18n/locales";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
+import { useAppStore } from "../../lib/store";
 import { sounds } from "../../lib/sounds";
 import { timeAgo } from "../../lib/timeAgo";
 import TrialBanner from "../../components/TrialBanner";
@@ -71,32 +83,45 @@ interface RiskEvent {
 }
 
 export default function DashboardPage() {
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
+  const locale = useLocale();
   const { token, hydrated } = useAuthGuard();
 
-  const [health, setHealth] = useState<HealthData | null>(null);
-  const [usage, setUsage] = useState<UsageData | null>(null);
-  const [finance, setFinance] = useState<FinanceData | null>(null);
-  const [runs, setRuns] = useState<RunRow[]>([]);
-  const [approvals, setApprovals] = useState<ApprovalRow[]>([]);
-  const [risks, setRisks] = useState<RiskEvent[]>([]);
-  const [me, setMe] = useState<{ name?: string | null; email?: string } | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const revision = useAppStore(state => state.sessionRevision);
+  const tenantId = useAppStore(state => state.tenantId);
+  const scope = useMemo(() => ({ revision, tenantId }), [revision, tenantId]);
+  const latestScope = useRef(scope);
+  latestScope.current = scope;
+  const [snapshot, setSnapshot] = useState<{ scope: typeof scope; results: PromiseSettledResult<any>[] } | null>(null);
   const [runsFilter, setRunsFilter] = useState<"all" | "running" | "completed" | "pending" | "failed">("all");
-  const [dateRange, setDateRange] = useState<"today" | "7d" | "30d" | "90d">("7d");
+  const results = snapshot?.scope === scope ? snapshot.results : null;
+  const value = (index: number) => { const result = results?.[index]; return result?.status === "fulfilled" ? result.value : null; };
+  const health = value(0) as HealthData | null;
+  const usage = value(1) as UsageData | null;
+  const finance = value(2) as FinanceData | null;
+  const runsAvailable = Array.isArray(value(3)?.runs);
+  const approvalsAvailable = Array.isArray(value(4));
+  const risksAvailable = Array.isArray(value(5));
+  const runs: RunRow[] = runsAvailable ? value(3).runs : [];
+  const approvals: ApprovalRow[] = approvalsAvailable ? value(4) : [];
+  const risks: RiskEvent[] = risksAvailable ? value(5) : [];
+  const me = value(6) as { name?: string | null; email?: string } | null;
+  const loaded = results !== null;
+  const copy = useTranslations("surface");
 
   useEffect(() => {
+    let active = true;
     if (!token) return;
-    Promise.all([
-      api.health(token).then(setHealth).catch(() => {}),
-      api.usage(token).then(setUsage).catch(() => {}),
-      api.finance(token).then(setFinance).catch(() => {}),
-      api.listRuns(token, 12, 0).then((d) => setRuns(d.runs ?? [])).catch(() => {}),
-      api.listApprovals(token, "PENDING").then((arr) => setApprovals(arr ?? [])).catch(() => {}),
-      api.riskEvents(token, 8).then((arr) => setRisks(arr ?? [])).catch(() => {}),
-      api.users.me(token).then((u) => setMe({ name: u?.name, email: u?.email })).catch(() => {}),
-    ]).finally(() => setLoaded(true));
-  }, [token]);
+    Promise.allSettled([
+      api.health(token), api.usage(token), api.finance(token), api.listRuns(token, 12, 0),
+      api.listApprovals(token, "PENDING"), api.riskEvents(token, 8), api.users.me(token),
+    ]).then(results => {
+      const auth = useAppStore.getState();
+      if (active && latestScope.current === scope && auth.sessionRevision === revision && auth.tenantId === tenantId) setSnapshot({ scope, results });
+    });
+    return () => { active = false; };
+  }, [token, scope, revision, tenantId]);
 
   const filteredRuns = useMemo(() => {
     if (runsFilter === "all") return runs;
@@ -114,10 +139,10 @@ export default function DashboardPage() {
     );
   }
 
-  const greetingName = me?.name?.split(" ")[0] ?? me?.email?.split("@")[0] ?? "there";
-  const greeting = greetingFor(new Date());
+  const greetingName = me?.name?.split(" ")[0] ?? me?.email?.split("@")[0] ?? copy("dashboard.operator");
+  const greeting = copy(`dashboard.${greetingFor(new Date())}`);
   const spendLabel = finance
-    ? t("app.dashboard.spentThisCycle", { amount: `$${finance.totalCostUsd.toFixed(0)}` })
+    ? t("app.dashboard.spentThisCycle", { amount: formatCurrency(finance.totalCostUsd, "USD", locale, { maximumFractionDigits: 0 }) })
     : "";
 
   return (
@@ -150,7 +175,7 @@ export default function DashboardPage() {
                 <span className={`bv-dot ${health?.activeRuns ? "bv-running bv-ping" : "bv-paused"}`} aria-hidden />
                 {(health?.activeRuns ?? 0) > 0
                   ? t("app.dashboard.statusStreaming", { count: health!.activeRuns })
-                  : t("app.dashboard.statusQuiet")}
+                  : health?.activeRuns === 0 ? t("app.dashboard.statusQuiet") : t("app.analytics.unavailable")}
               </span>
               {(health?.pendingApprovals ?? 0) > 0 && (
                 <>
@@ -176,20 +201,6 @@ export default function DashboardPage() {
           </div>
 
           <div className="bv-page-head-actions">
-            <div className="bv-segmented" role="tablist" aria-label="Date range">
-              {(["today", "7d", "30d", "90d"] as const).map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  role="tab"
-                  aria-selected={dateRange === r}
-                  className={dateRange === r ? "active" : ""}
-                  onClick={() => setDateRange(r)}
-                >
-                  {r === "today" ? "Today" : r}
-                </button>
-              ))}
-            </div>
             <Link
               href="/companies/new"
               className="bv-btn bv-btn-primary bv-btn-sm"
@@ -204,40 +215,34 @@ export default function DashboardPage() {
         {/* ─── KPI cards (4 cols) with sparklines ──────────────────── */}
         <div className="bv-metrics bv-stagger" style={{ marginBottom: 26 }}>
           <KpiCard
-            label="Active runs"
-            value={health?.activeRuns ?? 0}
+            label={uiText("me587bca8ef51")}
+            value={formatNumber(health?.activeRuns, locale)}
             dot="running"
             loaded={loaded}
-            sparkPoints="0,28 20,24 40,26 60,18 80,20 100,12 120,8"
-            sparkColor="var(--bv-status-running)"
+
           />
           <KpiCard
             label={t("app.dashboard.metricTotalCost")}
-            value={finance ? `$${finance.totalCostUsd.toFixed(0)}` : "—"}
-            valueSuffix={finance ? ` / ${(finance.totalCostUsd * 1.6).toFixed(0)}` : undefined}
+            value={finance ? formatCurrency(finance.totalCostUsd, "USD", locale, { maximumFractionDigits: 0 }) : "—"}
+
             dot="failed"
             warn={!!(finance && finance.totalCostUsd > 0)}
             loaded={loaded}
-            sparkPoints="0,30 20,26 40,28 60,20 80,22 100,14 120,9"
-            sparkColor="var(--bv-status-running)"
-            sparkFill
+
           />
           <KpiCard
             label={t("app.dashboard.metricPendingApprovals")}
-            value={health?.pendingApprovals ?? 0}
+            value={formatNumber(health?.pendingApprovals, locale)}
             dot="completed"
             loaded={loaded}
-            sparkPoints="0,20 20,22 40,18 60,24 80,16 100,18 120,14"
-            sparkColor="var(--bv-cobalt-glow)"
+
           />
           <KpiCard
-            label="Run success rate"
-            value={usage ? `${(usage.successRate * 100).toFixed(1)}%` : "—"}
+            label={uiText("m975cf8ab658e")}
+            value={usage ? formatNumber(usage.successRate, locale, { style: "percent", maximumFractionDigits: 1 }) : "—"}
             dot="completed"
             loaded={loaded}
-            sparkPoints="0,28 20,24 40,26 60,18 80,20 100,12 120,10"
-            sparkColor="var(--bv-cobalt-glow)"
-            sparkFill
+
           />
         </div>
 
@@ -245,7 +250,7 @@ export default function DashboardPage() {
         <div className="bv-twocol">
           {/* MAIN column */}
           <div className="bv-twocol-main">
-            <RecentRunsPanel
+            {loaded && !runsAvailable ? <UnavailablePanel title={t("app.dashboard.recentRuns")} /> : <RecentRunsPanel
               runs={filteredRuns}
               total={runs.length}
               loaded={loaded}
@@ -258,29 +263,27 @@ export default function DashboardPage() {
                 pending: runs.filter((r) => (r.status ?? "").toLowerCase() === "pending").length,
                 failed: runs.filter((r) => (r.status ?? "").toLowerCase() === "failed").length,
               }}
-            />
+            />}
 
             {/* Activity feed */}
             <section className="bv-glass bv-panel">
               <header className="bv-panel-head">
                 <div>
                   <h2 className="bv-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 18 }} aria-hidden>history</span>
-                    Activity
-                  </h2>
-                  <div className="bv-caption">Live audit trail</div>
+                    <span className="material-symbols-outlined" style={{ fontSize: 18 }} aria-hidden>history</span>{uiText("m1ca31645c880")}</h2>
+                  <div className="bv-caption">{copy("dashboard.snapshot")}</div>
                 </div>
               </header>
-              <ActivityFeed runs={runs} approvals={approvals} risks={risks} loaded={loaded} />
+              {loaded && (!runsAvailable || !approvalsAvailable || !risksAvailable) ? <p role="status">{copy("loadFailed")}</p> : <ActivityFeed runs={runs} approvals={approvals} risks={risks} loaded={loaded} />}
             </section>
           </div>
 
           {/* SIDE RAIL */}
           <div className="bv-twocol-side">
             <SpendForecastCard />
-            <ApprovalsPanel approvals={approvals} loaded={loaded} t={t} />
-            <RiskPanel risks={risks} loaded={loaded} />
-            <DraftsPanel runs={runs} loaded={loaded} />
+            {loaded && !approvalsAvailable ? <UnavailablePanel title={t("app.dashboard.pendingApprovalsBanner")} /> : <ApprovalsPanel approvals={approvals} loaded={loaded} t={t} />}
+            {loaded && !risksAvailable ? <UnavailablePanel title={t("app.dashboard.riskEvents")} /> : <RiskPanel risks={risks} loaded={loaded} />}
+            <section className="bv-glass bv-panel"><h2 className="bv-title">{t("nav.drafts")}</h2><Link href="/drafts" className="bv-btn bv-btn-ghost">{t("app.dashboard.viewAll")}</Link></section>
           </div>
         </div>
 
@@ -298,8 +301,7 @@ export default function DashboardPage() {
             borderTop: "1px solid var(--bv-glass-border)",
           }}
         >
-          <span>braavolabs.com · live audit trail</span>
-          <span>SOC 2 Type II · audited</span>
+          <span>{uiText("m9f12c64beaa6")}</span>
         </footer>
       </div>
     </div>
@@ -308,12 +310,12 @@ export default function DashboardPage() {
 
 /* ─────────────────────────────  helpers  ───────────────────────────── */
 
-function greetingFor(now: Date): string {
+function greetingFor(now: Date): "morning" | "afternoon" | "evening" {
   // i18n: hardcoded — follow-up app.dashboard.greeting{Morning,Afternoon,Evening}
   const h = now.getHours();
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
+  if (h < 12) return "morning";
+  if (h < 18) return "afternoon";
+  return "evening";
 }
 
 function pipelineNameOf(r: RunRow): string {
@@ -322,9 +324,9 @@ function pipelineNameOf(r: RunRow): string {
 function companyNameOf(r: RunRow): string {
   return r.companyName ?? r.pipeline?.companyName ?? "—";
 }
-function runStartedRel(r: RunRow): string {
+function runStartedRel(r: RunRow, locale: string): string {
   const at = r.startedAt ?? r.createdAt;
-  return at ? timeAgo(at) : "queued";
+  return at ? timeAgo(at, locale) : "—";
 }
 function runStepsLabel(r: RunRow): string {
   if (typeof r.stepsCompleted === "number" && typeof r.stepsTotal === "number") {
@@ -345,11 +347,8 @@ function KpiCard(props: {
   dot: "running" | "completed" | "paused" | "failed";
   warn?: boolean;
   loaded?: boolean;
-  sparkPoints: string;
-  sparkColor: string;
-  sparkFill?: boolean;
 }) {
-  const { label, value, valueSuffix, dot, warn, loaded, sparkPoints, sparkColor, sparkFill } = props;
+  const { label, value, valueSuffix, dot, warn, loaded } = props;
   return (
     <div className="bv-glass" style={{ padding: "20px 22px", position: "relative" }}>
       {/* label row */}
@@ -400,36 +399,7 @@ function KpiCard(props: {
           </>
         )}
       </div>
-      {/* sparkline */}
-      <div style={{ marginTop: 8, height: 34 }}>
-        <svg
-          viewBox="0 0 120 34"
-          preserveAspectRatio="none"
-          style={{ width: "100%", height: "100%", display: "block" }}
-          aria-hidden
-        >
-          {sparkFill && (
-            <>
-              <defs>
-                <linearGradient id={`sg-${label.replace(/\s+/g, "")}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stopColor={sparkColor} stopOpacity="0.35" />
-                  <stop offset="1" stopColor={sparkColor} stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d={`M${sparkPoints.replace(/(\d+),(\d+)/g, (_, x, y) => `${x},${y}`)} L120,34 L0,34Z`}
-                fill={`url(#sg-${label.replace(/\s+/g, "")})`}
-              />
-            </>
-          )}
-          <polyline
-            points={sparkPoints}
-            fill="none"
-            stroke={sparkColor}
-            strokeWidth="1.6"
-          />
-        </svg>
-      </div>
+
     </div>
   );
 }
@@ -444,6 +414,9 @@ function RecentRunsPanel(props: {
   setFilter: (f: "all" | "running" | "completed" | "pending" | "failed") => void;
   counts: Record<"all" | "running" | "completed" | "pending" | "failed", number>;
 }) {
+  const displayFormat = useDisplayFormats();
+  const relativeLocale = useRelativeLocale();
+  const uiText = useLegacyTranslations("uiCopy");
   const { runs, loaded, filter, setFilter, counts } = props;
   const t = useTranslations();
 
@@ -455,11 +428,11 @@ function RecentRunsPanel(props: {
             <span className={`bv-dot bv-running bv-ping`} aria-hidden />
             {t("app.dashboard.recentRuns")}
           </h2>
-          <div className="bv-caption">{t("app.dashboard.autoRefresh", { seconds: 15 })}</div>
+          <div className="bv-caption">{t("surface.dashboard.snapshot")}</div>
         </div>
         <div className="bv-panel-head-actions">
           <Link href="/runs" className="bv-btn bv-btn-ghost bv-btn-sm">
-            <span>View all →</span>
+            <span>{uiText("maacbbd2ffeb8")}</span>
           </Link>
         </div>
       </header>
@@ -484,15 +457,15 @@ function RecentRunsPanel(props: {
         ))}
       </div>
 
-      <div className="bv-runs-table" role="table" aria-label="Recent runs">
+      <div className="bv-runs-table" role="table" aria-label={uiText("mef4047de09c7")}>
         {/* header row */}
         <div className="bv-runs-row bv-runs-head" role="row">
-          <span>Pipeline</span>
-          <span>Company</span>
-          <span>Status</span>
-          <span>Started</span>
-          <span>Steps</span>
-          <span style={{ textAlign: "right" }}>Spend</span>
+          <span>{uiText("m9332d1be8fe2")}</span>
+          <span>{uiText("m098593629f8e")}</span>
+          <span>{uiText("m286c98c9029c")}</span>
+          <span>{uiText("m207013f4c387")}</span>
+          <span>{uiText("md1d31b068fc2")}</span>
+          <span style={{ textAlign: "end" }}>{uiText("m701b95d1d46a")}</span>
         </div>
 
         {!loaded ? (
@@ -502,13 +475,11 @@ function RecentRunsPanel(props: {
             ))}
           </div>
         ) : runs.length === 0 ? (
-          <div style={{ padding: "32px 8px", textAlign: "center", color: "var(--color-outline)" }}>
-            No runs in this filter yet.
-          </div>
+          <div style={{ padding: "32px 8px", textAlign: "center", color: "var(--color-outline)" }}>{uiText("m4d36fe121a92")}</div>
         ) : (
           <div className="bv-stagger">
             {runs.slice(0, 8).map((r) => {
-              const st = (r.status ?? "running").toLowerCase();
+              const st = (r.status ?? "").toLowerCase();
               return (
                 <Link
                   key={r.id}
@@ -544,14 +515,14 @@ function RecentRunsPanel(props: {
                     <StatusLabel status={st as Lowercase<RunStatus>} />
                   </span>
                   {/* started */}
-                  <span className="bv-runs-started">{runStartedRel(r)}</span>
+                  <span className="bv-runs-started">{runStartedRel(r, relativeLocale)}</span>
                   {/* steps with dot-track */}
                   <span>
-                    <StepDots completed={r.stepsCompleted ?? 0} total={r.stepsTotal ?? 0} status={st} />
+                    <RunProgress completed={r.stepsCompleted} total={r.stepsTotal} />
                   </span>
                   {/* spend */}
-                  <span style={{ textAlign: "right" }} className="bv-mono">
-                    {runSpendLabel(r)}
+                  <span style={{ textAlign: "end" }} className="bv-mono">
+                    {displayFormat.usd(r.costUsd)}
                   </span>
                 </Link>
               );
@@ -563,78 +534,23 @@ function RecentRunsPanel(props: {
   );
 }
 
-/* Step-dot track (matches mock .steps) */
-function StepDots({ completed, total, status }: { completed: number; total: number; status: string }) {
-  if (!total) {
-    return <span className="bv-mono" style={{ color: "var(--color-on-surface-variant)", fontSize: 12 }}>{runStepsLabel({ stepsCompleted: completed, stepsTotal: total } as RunRow)}</span>;
+/** Unknown counts remain unknown; the native progress element has bounded DOM. */
+function RunProgress({ completed, total }: { completed?: number; total?: number }) {
+  const locale = useLocale();
+  const copy = useTranslations("surface");
+  if (!Number.isSafeInteger(completed) || !Number.isSafeInteger(total) || completed! < 0 || total! < 0 || completed! > total!) {
+    return <span className="bv-caption">{copy("unavailable")}</span>;
   }
-  const dots = Array.from({ length: total }, (_, i) => {
-    if (i < completed) return "done";
-    if (i === completed && status === "running") return "now";
-    return "idle";
-  });
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 0 }}>
-      {dots.map((state, i) => (
-        <span key={i} style={{ display: "inline-flex", alignItems: "center" }}>
-          {i > 0 && (
-            <span
-              style={{
-                width: 14,
-                height: 2,
-                background: state === "done" || dots[i - 1] === "done" ? "var(--bv-cobalt-glow)" : "var(--bv-steel-shadow)",
-              }}
-            />
-          )}
-          <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              background:
-                state === "done"
-                  ? "var(--bv-cobalt-glow)"
-                  : state === "now"
-                  ? "var(--bv-status-running)"
-                  : "var(--bv-steel-shadow)",
-              boxShadow:
-                state === "done"
-                  ? "0 0 6px var(--bv-cobalt-glow)"
-                  : state === "now"
-                  ? "0 0 8px var(--bv-status-running)"
-                  : "none",
-              display: "inline-block",
-            }}
-          />
-        </span>
-      ))}
-    </span>
-  );
+  const label = copy("progress", { completed: formatNumber(completed, locale), total: formatNumber(total, locale) });
+  return total === 0 ? <span className="bv-caption">{label}</span> : <progress aria-label={label} max={total} value={completed} style={{ width: 88, maxWidth: "100%", accentColor: "var(--color-primary)" }} />;
 }
 
 function StatusLabel({ status }: { status: string }) {
-  const label =
-    status === "running"
-      ? "Running"
-      : status === "completed"
-      ? "Completed"
-      : status === "paused"
-      ? "Paused"
-      : status === "failed"
-      ? "Failed"
-      : status === "cancelled"
-      ? "Cancelled"
-      : status === "waiting_approval"
-      ? "Awaiting approval"
-      : "Pending";
-  const cls =
-    status === "waiting_approval" || status === "pending" ? "bv-pending" : status;
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-      <span className={`bv-dot bv-${cls} ${status === "running" ? "bv-ping" : ""}`} aria-hidden />
-      <span style={{ fontSize: 12, color: "var(--color-on-surface-variant)" }}>{label}</span>
-    </span>
-  );
+  const copy = useTranslations("surface");
+  const known = ["running", "completed", "paused", "failed", "cancelled", "waiting_approval", "pending"].includes(status);
+  const label = copy(known ? `states.${status}` : "unavailable");
+  const cls = !known ? "bv-cancelled" : status === "waiting_approval" || status === "pending" ? "bv-pending" : `bv-${status}`;
+  return <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span className={`bv-dot ${cls} ${status === "running" ? "bv-ping" : ""}`} aria-hidden /><span className="bv-caption">{label}</span></span>;
 }
 
 /* ─────────────────────────  ActivityFeed  ───────────────────────── */
@@ -650,6 +566,10 @@ function ActivityFeed({
   risks: RiskEvent[];
   loaded: boolean;
 }) {
+  const stateLabel = useStateLabel();
+  const relativeLocale = useRelativeLocale();
+  const runtimeCopy = useRuntimeTranslations("runtime");
+  const uiText = useLegacyTranslations("uiCopy");
   type ActivityItem = { text: string; time: string; icon: string; iconColor?: string };
 
   const items: ActivityItem[] = useMemo(() => {
@@ -659,8 +579,8 @@ function ActivityFeed({
       const nm = pipelineNameOf(r);
       const st = (r.status ?? "").toLowerCase();
       all.push({
-        text: st === "running" ? `${nm} started — steps queued` : `${nm} ${st}`,
-        time: runStartedRel(r),
+        text: st === "running" ? runtimeCopy("mfe990aab3694", { value0: nm }) : `${nm} · ${stateLabel(st)}`,
+        time: runStartedRel(r, relativeLocale),
         icon: st === "running" ? "bolt" : st === "completed" ? "check_circle" : st === "failed" ? "error" : "schedule",
         iconColor: st === "running" ? "var(--bv-status-running)" : st === "completed" ? "var(--bv-cobalt-glow)" : st === "failed" ? "var(--bv-status-failed)" : undefined,
       });
@@ -668,8 +588,8 @@ function ActivityFeed({
 
     approvals.slice(0, 2).forEach((a) => {
       all.push({
-        text: `Spend gate opened — ${a.description ?? "approval"} awaiting review`,
-        time: a.createdAt ? timeAgo(a.createdAt) : "now",
+        text: runtimeCopy("m7a54036ca778", { value0: a.description ?? stateLabel("pending") }),
+        time: timeAgo(a.createdAt, relativeLocale),
         icon: "paid",
         iconColor: "var(--bv-status-running)",
       });
@@ -677,15 +597,15 @@ function ActivityFeed({
 
     risks.slice(0, 2).forEach((r) => {
       all.push({
-        text: r.message ?? r.type ?? "Risk event triggered",
-        time: r.createdAt ? timeAgo(r.createdAt) : "now",
+        text: r.message ?? r.type ?? runtimeCopy("me54aaeee8d00"),
+        time: timeAgo(r.createdAt, relativeLocale),
         icon: "gpp_maybe",
         iconColor: "var(--bv-status-failed)",
       });
     });
 
     return all.slice(0, 7);
-  }, [runs, approvals, risks]);
+  }, [runs, approvals, risks, relativeLocale]);
 
   if (!loaded) {
     return (
@@ -699,9 +619,7 @@ function ActivityFeed({
 
   if (items.length === 0) {
     return (
-      <div style={{ padding: "20px 8px", textAlign: "center", color: "var(--color-outline)", fontSize: 12 }}>
-        No recent activity.
-      </div>
+      <div style={{ padding: "20px 8px", textAlign: "center", color: "var(--color-outline)", fontSize: 12 }}>{uiText("m97fa546fb5a7")}</div>
     );
   }
 
@@ -774,6 +692,9 @@ function ApprovalsPanel({
   loaded: boolean;
   t: ReturnType<typeof useTranslations>;
 }) {
+  const displayFormat = useDisplayFormats();
+  const relativeLocale = useRelativeLocale();
+  const uiText = useLegacyTranslations("uiCopy");
   const list = approvals.slice(0, 4);
 
   return (
@@ -784,12 +705,11 @@ function ApprovalsPanel({
             <span className="material-symbols-outlined" style={{ fontSize: 18 }} aria-hidden>approval</span>
             {t("app.dashboard.pendingApprovalsBanner")}
           </h2>
-          <div className="bv-caption">{t("app.dashboard.autoRefresh", { seconds: 10 })}</div>
+          <div className="bv-caption">{t("surface.dashboard.snapshot")}</div>
         </div>
         {approvals.length > 0 && (
           <span className="bv-pill bv-pill-amber">
-            {approvals.length} waiting
-          </span>
+            {approvals.length}{" "}{uiText("mc9b9115552be")}</span>
         )}
       </header>
 
@@ -820,26 +740,24 @@ function ApprovalsPanel({
               </span>
               <div style={{ minWidth: 0 }}>
                 <div className="bv-approval-title">
-                  {a.description ?? a.metadata?.toolName ?? "Approval needed"}
+                  {a.description ?? a.metadata?.toolName ??uiText("m7fd8a8fd26df")}
                 </div>
                 <div className="bv-approval-meta">
                   {typeof a.amountUsd === "number" ? (
                     <span style={{ color: "var(--bv-status-running)", fontFamily: "var(--bv-font-mono)", fontSize: 15, fontWeight: 500 }}>
-                      ${a.amountUsd.toFixed(2)}
+                      {displayFormat.usd(a.amountUsd)}
                     </span>
                   ) : (
                     a.type ?? "—"
                   )}
-                  {a.createdAt && <> · {timeAgo(a.createdAt)}</>}
+                  {a.createdAt && <> · {timeAgo(a.createdAt, relativeLocale)}</>}
                 </div>
               </div>
               <div className="bv-approval-actions">
                 <Link href={`/approvals?id=${a.id}`} className="bv-btn bv-btn-primary bv-btn-sm">
                   {t("app.dashboard.review")}
                 </Link>
-                <Link href={`/approvals?id=${a.id}&deny=1`} className="bv-btn bv-btn-ghost bv-btn-sm">
-                  Deny
-                </Link>
+                <Link href={`/approvals?id=${a.id}&deny=1`} className="bv-btn bv-btn-ghost bv-btn-sm">{uiText("meffd0c9f293a")}</Link>
               </div>
             </li>
           ))}
@@ -859,6 +777,8 @@ function ApprovalsPanel({
 /* ─────────────────────────  RiskPanel  ───────────────────────── */
 
 function RiskPanel({ risks, loaded }: { risks: RiskEvent[]; loaded: boolean }) {
+  const relativeLocale = useRelativeLocale();
+  const uiText = useLegacyTranslations("uiCopy");
   const list = risks.slice(0, 5);
   const t = useTranslations();
 
@@ -871,11 +791,11 @@ function RiskPanel({ risks, loaded }: { risks: RiskEvent[]; loaded: boolean }) {
             {t("app.dashboard.riskEvents")}
           </h2>
           <div className="bv-caption">
-            {risks.length === 0 ? "No active risks" : `${risks.length} active`}
+            {!loaded ? t("surface.loading") : risks.length === 0 ? uiText("m8961771af3a1") : t("surface.dashboard.activeRisks", { count: risks.length })}
           </div>
         </div>
         {risks.some((r) => r.fresh) && (
-          <span className="bv-pill bv-pill-red">{risks.filter((r) => r.fresh).length} new</span>
+          <span className="bv-pill bv-pill-red">{risks.filter((r) => r.fresh).length}{" "}{uiText("m11064e50fa7c")}</span>
         )}
       </header>
 
@@ -898,15 +818,16 @@ function RiskPanel({ risks, loaded }: { risks: RiskEvent[]; loaded: boolean }) {
       ) : (
         <ul className="bv-risk-list">
           {list.map((r) => {
-            const sev = String(r.severity ?? "low").toLowerCase() as "high" | "medium" | "low";
+            const rawSeverity = String(r.severity ?? "").toLowerCase();
+            const sev = ["high", "medium", "low"].includes(rawSeverity) ? rawSeverity : "unknown";
             return (
               <li key={r.id} className={`bv-risk-item ${r.fresh ? "bv-risk-flash" : ""}`}>
-                <div className={`bv-risk-sev bv-risk-sev-${sev}`} aria-label={sev} />
+                <div role="img" className={`bv-risk-sev ${sev === "unknown" ? "" : `bv-risk-sev-${sev}`}`} aria-label={t(`surface.severity.${sev}`)} />
                 <div>
-                  <div className="bv-risk-title">{r.message ?? r.type ?? "Risk event"}</div>
+                  <div className="bv-risk-title">{r.message ?? r.type ??uiText("m3c3e08c03c30")}</div>
                   {r.reason && <div className="bv-risk-detail">{r.reason}</div>}
                 </div>
-                <div className="bv-risk-when">{r.createdAt ? timeAgo(r.createdAt) : "now"}</div>
+                <div className="bv-risk-when">{r.createdAt ? timeAgo(r.createdAt, relativeLocale) :uiText("me5c88f2a2ff0")}</div>
               </li>
             );
           })}
@@ -925,114 +846,7 @@ function RiskPanel({ risks, loaded }: { risks: RiskEvent[]; loaded: boolean }) {
 
 // Derives a "recent drafts" list from completed run IDs — mirrors the
 // mock's .rcard[recent drafts] rail card. No new API call is needed.
-function DraftsPanel({ runs, loaded }: { runs: RunRow[]; loaded: boolean }) {
-  const drafts = useMemo(
-    () =>
-      runs
-        .filter((r) => (r.status ?? "").toUpperCase() === "COMPLETED")
-        .slice(0, 5)
-        .map((r) => ({
-          id: r.id,
-          title: pipelineNameOf(r),
-          source: `from ${r.id.slice(0, 8)}`,
-        })),
-    [runs]
-  );
-
-  return (
-    <section className="bv-glass bv-panel">
-      <header className="bv-panel-head">
-        <div>
-          <h2 className="bv-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span className="material-symbols-outlined" style={{ fontSize: 18 }} aria-hidden>description</span>
-            Recent drafts
-          </h2>
-        </div>
-        {drafts.length > 0 && (
-          <span
-            className="bv-mono"
-            style={{
-              fontSize: 11,
-              color: "var(--color-on-surface)",
-              background: "var(--bv-steel-shadow)",
-              borderRadius: 6,
-              padding: "1px 8px",
-            }}
-          >
-            {drafts.length}
-          </span>
-        )}
-      </header>
-
-      {!loaded ? (
-        <div>
-          {[1, 2, 3].map((i) => (
-            <div key={i} style={{ display: "flex", gap: 10, alignItems: "center", padding: "9px 0", borderBottom: "1px solid var(--bv-glass-border)" }}>
-              <div className="animate-shimmer" style={{ width: 34, height: 34, borderRadius: 8, flexShrink: 0 }} />
-              <div style={{ flex: 1 }}>
-                <div className="animate-shimmer" style={{ height: 12, width: "60%", borderRadius: 4 }} />
-                <div className="animate-shimmer" style={{ height: 10, width: "35%", marginTop: 5, borderRadius: 4 }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : drafts.length === 0 ? (
-        <div style={{ padding: "20px 8px", textAlign: "center", color: "var(--color-outline)", fontSize: 12 }}>
-          No drafts yet.
-        </div>
-      ) : (
-        <div>
-          {drafts.map((d, idx) => (
-            <Link
-              key={d.id}
-              href={`/runs/${d.id}`}
-              style={{
-                display: "flex",
-                gap: 11,
-                alignItems: "center",
-                padding: "9px 0",
-                borderBottom: idx < drafts.length - 1 ? "1px solid rgba(35,40,51,0.5)" : "none",
-                textDecoration: "none",
-                transition: "opacity 150ms",
-              }}
-            >
-              {/* thumbnail placeholder */}
-              <div
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 8,
-                  background: "var(--color-surface-container-low)",
-                  border: "1px solid var(--bv-glass-border)",
-                  flexShrink: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: 14, color: "var(--color-outline)" }} aria-hidden>
-                  article
-                </span>
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: "var(--color-on-surface)",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {d.title}
-                </div>
-                <div className="bv-mono" style={{ fontSize: 11, color: "var(--color-outline)" }}>{d.source}</div>
-              </div>
-              <span style={{ marginLeft: "auto", color: "var(--color-outline)", fontSize: 18 }} aria-hidden>›</span>
-            </Link>
-          ))}
-        </div>
-      )}
-    </section>
-  );
+function UnavailablePanel({ title }: { title: string }) {
+  const copy = useTranslations("surface");
+  return <section className="bv-glass bv-panel"><h2 className="bv-title">{title}</h2><p role="status" className="bv-caption">{copy("loadFailed")}</p></section>;
 }

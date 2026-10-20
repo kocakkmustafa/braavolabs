@@ -1,4 +1,8 @@
 "use client";
+import { useTranslations as useIconTranslations } from "next-intl";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -13,7 +17,7 @@ interface ChecklistItem {
   icon: string;
 }
 
-const CHECKLIST: ChecklistItem[] = [
+const RAW_CHECKLIST: ChecklistItem[] = [
   { key: "registered", label: "Create an account", description: "Sign up for Braavolabs", href: "/login", icon: "person_add" },
   { key: "heroCompanyCreated", label: "Create your first company", description: "Build an AI company from a description", href: "/onboarding", icon: "business" },
   { key: "firstRunCompleted", label: "Run your first pipeline", description: "Execute an automated workflow", href: "/pipelines", icon: "play_circle" },
@@ -22,21 +26,33 @@ const CHECKLIST: ChecklistItem[] = [
 ];
 
 export default function OnboardingChecklist() {
+  const revision = useAppStore(s => s.sessionRevision);
+  return <ChecklistContent key={revision} />;
+}
+
+function ChecklistContent() {
+  const iconCopy = useIconTranslations("surface.icons");
+  const dataCopy = useLegacyTranslations("dataCopy");
+  const CHECKLIST = RAW_CHECKLIST.map((entry, index) => ({ ...entry, label: dataCopy.raw(`checklist.${entry.key}.label`) as string, description: dataCopy.raw(`checklist.${entry.key}.description`) as string }));
+  const uiText = useLegacyTranslations("uiCopy");
   const token = useAppStore((s) => s.token);
   const [steps, setSteps] = useState<Record<string, boolean>>({});
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     if (!token) return;
+    let current = true;
     api.onboardingStatus(token).then((s) => {
+      if (!current || !s || !s.steps || !Number.isFinite(s.progress)) return;
       setSteps(s.steps);
       setProgress(s.progress);
     }).catch(() => {});
+    return () => { current = false; };
   }, [token]);
 
-  if (!token || dismissed || progress >= 100) return null;
+  if (!token || progress === null || dismissed || progress >= 100) return null;
 
   const completedCount = CHECKLIST.filter((item) => steps[item.key]).length;
   const pct = Math.round((completedCount / CHECKLIST.length) * 100);
@@ -46,9 +62,9 @@ export default function OnboardingChecklist() {
       style={{
         position: "fixed",
         bottom: 20,
-        right: 20,
+        insetInlineEnd: 20,
         zIndex: 55,
-        width: expanded ? 340 : "auto",
+        width: expanded ? "min(340px, calc(100vw - 40px))" : "auto",
         maxHeight: expanded ? "calc(100vh - 100px)" : "auto",
         overflowY: expanded ? "auto" as const : "visible" as const,
         pointerEvents: "auto" as const,
@@ -78,13 +94,13 @@ export default function OnboardingChecklist() {
                 strokeDasharray={`${pct}, 100`} strokeLinecap="round"
               />
             </svg>
-            <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#00d1ff" }}>
+            <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "var(--color-primary)" }}>
               {pct}%
             </span>
           </div>
           <div className="text-left">
-            <p className="text-xs font-semibold" style={{ color: "#e1e2eb" }}>Setup Progress</p>
-            <p className="text-[10px]" style={{ color: "#859399" }}>{completedCount}/{CHECKLIST.length} completed</p>
+            <p className="text-xs font-semibold" style={{ color: "var(--color-on-surface)" }}>{uiText("m0fb6cbe7ed77")}</p>
+            <p className="text-[10px]" style={{ color: "var(--color-on-surface-variant)" }}>{completedCount}/{CHECKLIST.length}{" "}{uiText("m33f7619295f7")}</p>
           </div>
         </button>
       )}
@@ -94,7 +110,7 @@ export default function OnboardingChecklist() {
         <div
           className="rounded-2xl overflow-hidden"
           style={{
-            background: "rgba(16,19,26,0.97)",
+            background: "var(--color-surface-container-low)",
             border: "1px solid rgba(0,209,255,0.15)",
             backdropFilter: "blur(20px)",
             boxShadow: "0 12px 40px rgba(0,0,0,0.5)",
@@ -103,13 +119,13 @@ export default function OnboardingChecklist() {
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined" style={{ fontSize: 16, color: "#00d1ff" }}>rocket_launch</span>
-              <span className="text-sm font-semibold" style={{ color: "#e1e2eb" }}>Getting Started</span>
+              <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-primary)" }}>rocket_launch</span>
+              <span className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>{uiText("m2475c8fc32c3")}</span>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setDismissed(true)} className="text-xs" style={{ color: "#3c494e" }}>Dismiss</button>
-              <button onClick={() => setExpanded(false)}>
-                <span className="material-symbols-outlined" style={{ fontSize: 16, color: "#859399" }}>close</span>
+              <button onClick={() => setDismissed(true)} className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>{uiText("m048d6635729b")}</button>
+              <button onClick={() => setExpanded(false)} aria-label={iconCopy("close")} type="button">
+                <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-on-surface-variant)" }}>close</span>
               </button>
             </div>
           </div>
@@ -117,8 +133,8 @@ export default function OnboardingChecklist() {
           {/* Progress bar */}
           <div className="px-4 pt-3 pb-2">
             <div className="flex justify-between mb-1">
-              <span className="text-[10px]" style={{ color: "#859399" }}>{completedCount} of {CHECKLIST.length} complete</span>
-              <span className="text-[10px] font-bold" style={{ color: "#00d1ff" }}>{pct}%</span>
+              <span className="text-[10px]" style={{ color: "var(--color-on-surface-variant)" }}>{completedCount}{" "}{uiText("m33e5e43f1ffc")}{" "}{CHECKLIST.length}{" "}{uiText("m1b874306cc1d")}</span>
+              <span className="text-[10px] font-bold" style={{ color: "var(--color-primary)" }}>{pct}%</span>
             </div>
             <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
               <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#00d1ff,#6d11ad)" }} />
@@ -147,17 +163,17 @@ export default function OnboardingChecklist() {
                     }}
                   >
                     {done ? (
-                      <span className="material-symbols-outlined" style={{ fontSize: 14, color: "#34d399" }}>check</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: 14, color: "var(--color-success)" }}>check</span>
                     ) : (
-                      <span className="material-symbols-outlined" style={{ fontSize: 14, color: "#859399" }}>{item.icon}</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: 14, color: "var(--color-on-surface-variant)" }}>{item.icon}</span>
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-medium" style={{ color: done ? "#859399" : "#e1e2eb", textDecoration: done ? "line-through" : "none" }}>{item.label}</p>
-                    <p className="text-[10px]" style={{ color: "#3c494e" }}>{item.description}</p>
+                    <p className="text-xs font-medium" style={{ color: done ? "var(--color-on-surface-variant)" : "var(--color-on-surface)", textDecoration: done ? "line-through" : "none" }}>{item.label}</p>
+                    <p className="text-[10px]" style={{ color: "var(--color-on-surface-variant)" }}>{item.description}</p>
                   </div>
                   {!done && (
-                    <span className="material-symbols-outlined flex-shrink-0 ml-auto" style={{ fontSize: 14, color: "#3c494e" }}>chevron_right</span>
+                    <span className="material-symbols-outlined flex-shrink-0 ml-auto" style={{ fontSize: 14, color: "var(--color-on-surface-variant)" }}>chevron_right</span>
                   )}
                 </Link>
               );

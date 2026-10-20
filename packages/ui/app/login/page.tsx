@@ -1,4 +1,6 @@
 "use client";
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useState, useEffect, useId, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -9,6 +11,7 @@ import { captureAuthSession, isAuthSessionCurrent, useAppStore } from "../../lib
 import LanguageSwitcher from "../../components/LanguageSwitcher";
 
 export default function LoginPage() {
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
   const router = useRouter();
   const token = useAppStore((s) => s.token);
@@ -131,7 +134,7 @@ export default function LoginPage() {
       {/* ── Left cinematic panel ─────────────────────────────── */}
       <div
         className="hidden min-w-0 lg:flex flex-col justify-between relative overflow-hidden"
-        style={{ padding: "44px", borderRight: "1px solid var(--bv-steel-shadow)" }}
+        style={{ padding: "44px", borderInlineEnd: "1px solid var(--bv-steel-shadow)" }}
       >
         {/* Halo orb behind emblem */}
         <div
@@ -320,9 +323,7 @@ export default function LoginPage() {
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
-              </svg>
-              Apple
-            </button>
+              </svg>{uiText("m7801df791ac5")}</button>
             {/* Google */}
             <button
               type="button"
@@ -349,9 +350,7 @@ export default function LoginPage() {
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-              </svg>
-              Google
-            </button>
+              </svg>{uiText("m3e059886391a")}</button>
             {/* GitHub */}
             <button
               type="button"
@@ -375,9 +374,7 @@ export default function LoginPage() {
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 .5A11.5 11.5 0 0 0 .5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2.17c-3.2.7-3.87-1.36-3.87-1.36-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.75 1.18 1.75 1.18 1.02 1.74 2.67 1.24 3.32.95.1-.74.4-1.24.72-1.53-2.55-.29-5.24-1.27-5.24-5.66 0-1.25.45-2.27 1.18-3.07-.12-.29-.51-1.46.11-3.04 0 0 .96-.31 3.15 1.17a10.94 10.94 0 0 1 5.74 0c2.19-1.48 3.15-1.17 3.15-1.17.62 1.58.23 2.75.11 3.04.74.8 1.18 1.82 1.18 3.07 0 4.4-2.69 5.36-5.26 5.65.41.36.78 1.06.78 2.13v3.16c0 .31.21.67.8.55A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5z" />
-              </svg>
-              GitHub
-            </button>
+              </svg>{uiText("m75ecaff6a037")}</button>
           </div>
 
           {/* Divider */}
@@ -650,6 +647,7 @@ function ForgeField({
   label: string; type: string; value: string; onChange: (v: string) => void;
   placeholder: string; required?: boolean; optional?: boolean; optionalLabel?: string; minLength?: number;
 }) {
+  const uiText = useLegacyTranslations("uiCopy");
   const id = useId();
   return (
     <div>
@@ -661,7 +659,7 @@ function ForgeField({
         {label}
         {optional && (
           <span className="font-normal ml-1" style={{ color: "var(--color-outline)" }}>
-            {optionalLabel ?? "(optional)"}
+            {optionalLabel ??uiText("ma642566b6fb9")}
           </span>
         )}
       </label>

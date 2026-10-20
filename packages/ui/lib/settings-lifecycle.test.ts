@@ -33,6 +33,7 @@ function settingsHarness() {
         instance.states[index] = typeof value === "function" ? value(instance.states[index]) : value;
       }];
     },
+    useId: () => "fixture-field-id",
     useRef(initial: any) { const index = context.refIndex++; return context.refs[index] ??= { current: initial }; },
     useEffect(fn: any, deps: any[]) {
       const index = context.effectIndex++, previous = context.effects[index];
@@ -77,9 +78,16 @@ function settingsHarness() {
   const module = { exports: {} as any };
   const requireLocal = (name: string): any => {
     if (name === "react") return hooks;
+    if (name.endsWith("/localized-error") || name.endsWith("/i18n/locales")) {
+      const relative = name.endsWith("/localized-error") ? "lib/localized-error.ts" : "i18n/locales.ts";
+      const localModule = { exports: {} as any };
+      const compiled = ts.transpileModule(readFileSync(resolve(process.cwd(), relative), "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+      runInNewContext("(function(require,module,exports){" + compiled + "\n})", { Intl, Date, Error })(requireLocal, localModule, localModule.exports);
+      return localModule.exports;
+    }
     if (name === "react/jsx-runtime") return { jsx: element, jsxs: element };
     if (name === "next/navigation") return { useRouter: () => ({ replace: (path: string) => h.feedback.push(["replace", path]) }) };
-    if (name === "next-intl") return { useTranslations: () => (key: string) => key };
+    if (name === "next-intl") return { useLocale: () => "en", useTranslations: () => (key: string) => key };
     if (name.endsWith("/api")) return { api, apiFetch };
     if (name.endsWith("/store")) return { useAppStore: store, captureAuthSession: () => ({ ...h.session }), isAuthSessionCurrent: current };
     if (name.endsWith("/useAuthGuard")) return { useAuthGuard: () => ({ token: h.session.token, hydrated: true }) };
@@ -206,7 +214,7 @@ it("a retired integration action never follows up against the old company using 
   h.find((node: any) => node.type === "div" && node.props.onClick && JSON.stringify(node.props.children).includes("Fixture")).props.onClick();
   h.render();
   const pending = deferred(); h.pending.testIntegration = pending.promise;
-  const action = h.button("Test Connection").props.onClick();
+  const action = h.button("m2f159920cfcf").props.onClick();
   h.company("company-B"); await settle(); h.render(); h.writes = [];
   const callsBefore = h.calls.filter((call: any[]) => call[0] === "listIntegrations").length;
   pending.resolve({ success: true }); await action;

@@ -1,17 +1,23 @@
+import { getTranslations as getSeoTranslations } from "next-intl/server";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Pricing Preview — Braavolabs",
+export async function generateMetadata(): Promise<Metadata> {
+  const seo = await getSeoTranslations("seo");
+  return {
+  title: seo("m3ca87fbbac15"),
   description:
-    "Preview the planned Braavolabs Individual and Team subscription prices. Purchasing is not currently available and inference is not included.",
+    seo("m4bd9b811878a"),
   alternates: { canonical: "https://www.braavolabs.com/cost-calculator" },
   openGraph: {
-    title: "Pricing Preview — Braavolabs",
+    title: seo("m3ca87fbbac15"),
     description:
-      "Planned pricing for Individual and Team. Purchasing is not currently available and inference is not included.",
+      seo("m81acc1f0380d"),
     url: "https://www.braavolabs.com/cost-calculator",
   },
 };
+}
 
 const PLANNED_PLANS = [
   {
@@ -27,12 +33,13 @@ const PLANNED_PLANS = [
 ] as const;
 
 export default function CostCalculatorPage() {
+  const uiText = useLegacyTranslations("uiCopy");
   return (
     <div className="min-h-screen bv-mesh">
       <nav
         className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 md:px-10"
         style={{
-          background: "rgba(6,7,10,0.72)",
+          background: "var(--color-surface-container-low)",
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
           borderBottom: "1px solid rgba(255,255,255,0.05)",
@@ -53,20 +60,14 @@ export default function CostCalculatorPage() {
           </span>
         </a>
         <div className="flex items-center gap-2">
-          <a href="/pricing" className="bv-btn bv-btn-sm bv-btn-ghost no-underline">
-            Pricing
-          </a>
-          <a href="https://app.braavolabs.com" className="bv-btn bv-btn-sm bv-btn-primary no-underline">
-            Open app
-          </a>
+          <a href="/pricing" className="bv-btn bv-btn-sm bv-btn-ghost no-underline">{uiText("mf2c79d7c83e6")}</a>
+          <a href="https://app.braavolabs.com" className="bv-btn bv-btn-sm bv-btn-primary no-underline">{uiText("m3aaa432f7378")}</a>
         </div>
       </nav>
 
       <main className="mx-auto max-w-5xl px-6 py-16 md:px-10 md:py-24" data-public-surface="cost-calculator">
         <header className="max-w-3xl">
-          <div className="bv-micro mb-3" style={{ color: "var(--color-primary)" }}>
-            Pricing preview — not currently purchasable
-          </div>
+          <div className="bv-micro mb-3" style={{ color: "var(--color-primary)" }}>{uiText("m9680189524a4")}</div>
           <h1
             className="font-headline mb-5 font-bold uppercase"
             style={{
@@ -75,21 +76,14 @@ export default function CostCalculatorPage() {
               letterSpacing: "-0.03em",
               color: "var(--color-on-surface)",
             }}
-          >
-            Planned subscription pricing
-          </h1>
-          <p className="text-lg leading-relaxed" style={{ color: "var(--color-on-surface-variant)" }}>
-            Billing migration is still in development, so this page does not calculate a payable quote or begin a
-            purchase. The planned catalog contains only Individual and Team.
-          </p>
+          >{uiText("m58ba90a040a3")}</h1>
+          <p className="text-lg leading-relaxed" style={{ color: "var(--color-on-surface-variant)" }}>{uiText("mfdf38497de3a")}</p>
         </header>
 
-        <section className="mt-12 grid gap-5 md:grid-cols-2" aria-label="Planned plans">
+        <section className="mt-12 grid gap-5 md:grid-cols-2" aria-label={uiText("m0a048a01849e")}>
           {PLANNED_PLANS.map((plan) => (
             <article key={plan.name} className="bv-glass p-7">
-              <p className="bv-micro mb-3" style={{ color: "var(--color-outline)" }}>
-                Planned plan
-              </p>
+              <p className="bv-micro mb-3" style={{ color: "var(--color-outline)" }}>{uiText("m865128d3e4d4")}</p>
               <h2 className="font-headline text-2xl font-bold" style={{ color: "var(--color-on-surface)" }}>
                 {plan.name}
               </h2>
@@ -103,14 +97,9 @@ export default function CostCalculatorPage() {
           ))}
         </section>
 
-        <aside className="bv-glass mt-8 p-7" aria-label="Inference cost notice">
-          <h2 className="font-headline text-xl font-bold" style={{ color: "var(--color-on-surface)" }}>
-            Inference is not included
-          </h2>
-          <p className="mt-3 leading-relaxed" style={{ color: "var(--color-on-surface-variant)" }}>
-            Model usage is paid to the provider you configure through BYOK, or runs through your own local model
-            route. Braavolabs does not currently offer these planned subscriptions for purchase.
-          </p>
+        <aside className="bv-glass mt-8 p-7" aria-label={uiText("m4d17edf4bcc6")}>
+          <h2 className="font-headline text-xl font-bold" style={{ color: "var(--color-on-surface)" }}>{uiText("m17a77e8ea42f")}</h2>
+          <p className="mt-3 leading-relaxed" style={{ color: "var(--color-on-surface-variant)" }}>{uiText("m52f120c3db8b")}</p>
         </aside>
       </main>
     </div>

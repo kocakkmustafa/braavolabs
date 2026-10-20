@@ -42,13 +42,13 @@ export default function CookieConsent() {
         maxWidth: 720,
         margin: "0 auto",
         zIndex: 9999,
-        background: "rgba(15, 19, 26, 0.96)",
+        background: "var(--color-surface-container-low)",
         backdropFilter: "blur(8px)",
         border: "1px solid rgba(255,255,255,0.08)",
         borderRadius: 16,
         padding: "16px 20px",
         boxShadow: "0 12px 40px rgba(0,0,0,0.4)",
-        color: "#bbc9cf",
+        color: "var(--color-on-surface-variant)",
         fontSize: 13,
         lineHeight: 1.5,
       }}
@@ -57,14 +57,14 @@ export default function CookieConsent() {
         <div>
           <p
             id="cookie-consent-title"
-            style={{ margin: 0, color: "#e1e2eb", fontWeight: 600, marginBottom: 4 }}
+            style={{ margin: 0, color: "var(--color-on-surface)", fontWeight: 600, marginBottom: 4 }}
           >
             {t("title")}
           </p>
           <p style={{ margin: 0 }}>{t("body")} {" "}
-            <a href="/privacy" style={{ color: "#a4e6ff", textDecoration: "underline" }}>{t("privacyLabel")}</a>
+            <a href="/privacy" style={{ color: "var(--color-info)", textDecoration: "underline" }}>{t("privacyLabel")}</a>
             {" · "}
-            <a href="/cookies" style={{ color: "#a4e6ff", textDecoration: "underline" }}>{t("cookiesLabel")}</a></p>
+            <a href="/cookies" style={{ color: "var(--color-info)", textDecoration: "underline" }}>{t("cookiesLabel")}</a></p>
         </div>
         {saveFailed && <p role="alert" style={{ margin: 0 }}>{t("saveFailed")}</p>}
         <div
@@ -85,7 +85,7 @@ export default function CookieConsent() {
               borderRadius: 10,
               border: "1px solid rgba(255,255,255,0.1)",
               background: "rgba(255,255,255,0.04)",
-              color: "#bbc9cf",
+              color: "var(--color-on-surface-variant)",
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",

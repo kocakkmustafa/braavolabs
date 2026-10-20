@@ -1,4 +1,10 @@
 "use client";
+import { useLocalizedFailure } from "../lib/localized-error";
+
+import { useTranslations as useRuntimeTranslations } from "next-intl";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 /**
  * Starter picker — a row of pre-baked company cards above the freeform
@@ -39,6 +45,10 @@ interface StarterPickerProps {
 }
 
 export default function StarterPicker({ token, onCloned }: StarterPickerProps) {
+  const describeFailure = useLocalizedFailure();
+  const runtimeCopy = useRuntimeTranslations("runtime");
+  const uiText = useLegacyTranslations("uiCopy");
+  const copy = useLegacyTranslations("surface.starters");
   const [templates, setTemplates] = useState<StarterTemplateSummary[]>([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +74,7 @@ export default function StarterPicker({ token, onCloned }: StarterPickerProps) {
 
   async function clone(templateId: string) {
     if (!token) {
-      setError("Sign in to use a starter.");
+      setError(runtimeCopy("mb39b93c48c24"));
       return;
     }
     setLoadingId(templateId);
@@ -73,7 +83,7 @@ export default function StarterPicker({ token, onCloned }: StarterPickerProps) {
       const result = await api.starters.clone(token, templateId);
       onCloned(result.company, result.message);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create starter.");
+      setError(describeFailure(err, runtimeCopy("m2eb2d91c4f3b")));
     } finally {
       setLoadingId(null);
     }
@@ -83,12 +93,8 @@ export default function StarterPicker({ token, onCloned }: StarterPickerProps) {
     <div className="mb-6">
       <div className="flex items-end justify-between mb-3 px-1">
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: "#a4e6ff" }}>
-            Quick start
-          </h2>
-          <p className="text-xs mt-0.5" style={{ color: "#859399" }}>
-            Pick a pre-built company — your trial Groq runs make it work in under a minute.
-          </p>
+          <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: "var(--color-info)" }}>{uiText("m0de88f4db3d7")}</h2>
+          <p className="text-xs mt-0.5" style={{ color: "var(--color-on-surface-variant)" }}>{copy("intro")}</p>
         </div>
       </div>
 
@@ -98,7 +104,7 @@ export default function StarterPicker({ token, onCloned }: StarterPickerProps) {
           style={{
             background: "rgba(239,68,68,0.1)",
             border: "1px solid rgba(239,68,68,0.2)",
-            color: "#f87171",
+            color: "var(--color-error)",
           }}
         >
           {error}
@@ -119,7 +125,7 @@ export default function StarterPicker({ token, onCloned }: StarterPickerProps) {
                 background: "rgba(255,255,255,0.04)",
                 border: "1px solid rgba(255,255,255,0.08)",
               }}
-              aria-label={`Use starter: ${t.name}`}
+              aria-label={runtimeCopy("mcdd1de1ae01a", { value0: t.name })}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="text-2xl leading-none">{t.emoji}</div>
@@ -127,29 +133,29 @@ export default function StarterPicker({ token, onCloned }: StarterPickerProps) {
                   className="text-[10px] px-2 py-0.5 rounded-full"
                   style={{
                     background: "rgba(0,209,255,0.08)",
-                    color: "#a4e6ff",
+                    color: "var(--color-info)",
                     border: "1px solid rgba(0,209,255,0.2)",
                   }}
                 >
-                  {t.trialCost === 1 ? "1 trial run" : `${t.trialCost} trial runs`}
+                  {t.trialCost === 1 ? runtimeCopy("m838f9adcc123") : runtimeCopy("m9a021a4b3454", { count: t.trialCost })}
                 </span>
               </div>
 
-              <div className="mt-3 font-semibold text-sm" style={{ color: "#e1e2eb" }}>
+              <div className="mt-3 font-semibold text-sm" style={{ color: "var(--color-on-surface)" }}>
                 {t.name}
               </div>
-              <div className="mt-1 text-xs leading-relaxed" style={{ color: "#bbc9cf" }}>
+              <div className="mt-1 text-xs leading-relaxed" style={{ color: "var(--color-on-surface-variant)" }}>
                 {t.tagline}
               </div>
 
-              <div className="mt-3 flex items-center gap-3 text-[11px]" style={{ color: "#859399" }}>
-                <span title={`${t.agentCount} agents`}>
+              <div className="mt-3 flex items-center gap-3 text-[11px]" style={{ color: "var(--color-on-surface-variant)" }}>
+                <span title={runtimeCopy("ma5a28bb26fde", { count: t.agentCount })}>
                   <span className="material-symbols-outlined align-middle" style={{ fontSize: 12 }}>
                     person
                   </span>{" "}
                   {t.agentCount}
                 </span>
-                <span title={`${t.pipelineSteps} pipeline steps`}>
+                <span title={runtimeCopy("m014789a56e1d", { count: t.pipelineSteps })}>
                   <span className="material-symbols-outlined align-middle" style={{ fontSize: 12 }}>
                     account_tree
                   </span>{" "}
@@ -157,12 +163,10 @@ export default function StarterPicker({ token, onCloned }: StarterPickerProps) {
                 </span>
               </div>
 
-              <div className="mt-3 text-[11px]" style={{ color: "#34d399" }}>
+              <div className="mt-3 text-[11px]" style={{ color: "var(--color-success)" }}>
                 {busy ? (
                   <>
-                    <span className="inline-block w-3 h-3 border-2 border-emerald-300 border-t-transparent rounded-full animate-spin align-middle mr-1" />
-                    Creating…
-                  </>
+                    <span className="inline-block w-3 h-3 border-2 border-emerald-300 border-t-transparent rounded-full animate-spin align-middle mr-1" />{uiText("mf6e156140dd9")}</>
                 ) : (
                   <>→ {t.outcome}</>
                 )}
@@ -173,9 +177,7 @@ export default function StarterPicker({ token, onCloned }: StarterPickerProps) {
       </div>
 
       <div className="text-center mt-4">
-        <span className="text-[11px] uppercase tracking-wide" style={{ color: "#3c494e" }}>
-          or describe your own below ↓
-        </span>
+        <span className="text-[11px] uppercase tracking-wide" style={{ color: "var(--color-on-surface-variant)" }}>{uiText("m454ee6911d47")}</span>
       </div>
     </div>
   );

@@ -1,4 +1,10 @@
 "use client";
+import { useLocalizedFailure } from "../../lib/localized-error";
+
+import { useTranslations as useRuntimeTranslations } from "next-intl";
+
+import { useTranslations as useLegacyTranslations } from "next-intl";
+
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -16,6 +22,9 @@ import { useAppStore } from "../../lib/store";
  * the same behaviour.
  */
 export default function RegisterPage() {
+  const describeFailure = useLocalizedFailure();
+  const runtimeCopy = useRuntimeTranslations("runtime");
+  const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
   const router = useRouter();
   const token = useAppStore((s) => s.token);
@@ -85,7 +94,7 @@ export default function RegisterPage() {
       setAuth(res.token, res.tenant.id, res.refreshToken);
       router.replace("/onboarding");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("auth.errors.generic"));
+      setError(describeFailure(err, t("auth.errors.generic")));
     } finally {
       setLoading(false);
     }
@@ -170,17 +179,15 @@ export default function RegisterPage() {
               textTransform: "uppercase",
               color: "var(--color-on-surface)",
             }}
-          >
-            Forge your<br />
-            workspace in{" "}
-            <span className="bv-grad-text">minutes</span>.
+          >{uiText("m527dc6c48fc1")}<br />{uiText("m5d499d7bb383")}{" "}
+            <span className="bv-grad-text">{uiText("mc963b2a55c65")}</span>.
           </p>
 
           <ul className="flex flex-col gap-3 list-none p-0 m-0">
             {[
               { icon: "bolt", text: t("auth.register.inferenceFunding") },
-              { icon: "key", text: "BYOK across 14 providers" },
-              { icon: "smartphone", text: "Steer & approve from your pocket" },
+              { icon: "key", text: runtimeCopy("mcb6f0d51a4bc") },
+              { icon: "smartphone", text: runtimeCopy("me3cc0f802723") },
             ].map((item) => (
               <li key={item.text} className="flex items-center gap-3">
                 <div
@@ -192,7 +199,7 @@ export default function RegisterPage() {
                 >
                   <span
                     className="material-symbols-outlined"
-                    style={{ fontSize: "15px", color: "#60A5FA" }}
+                    style={{ fontSize: "15px", color: "var(--color-primary)" }}
                   >
                     {item.icon}
                   </span>
@@ -207,8 +214,7 @@ export default function RegisterPage() {
 
         {/* Footer note */}
         <p className="relative z-10 text-xs" style={{ color: "var(--bv-text-faint)" }}>
-          © {new Date().getFullYear()} Braavolabs. All rights reserved.
-        </p>
+          © {new Date().getFullYear()}{" "}{uiText("m0ffcb934d4d3")}</p>
       </div>
 
       {/* ── Right form panel ──────────────────────────────────── */}
@@ -243,9 +249,7 @@ export default function RegisterPage() {
               <span
                 className="bv-dot bv-running bv-ping"
                 style={{ width: 6, height: 6 }}
-              />
-              Free plan
-            </span>
+              />{uiText("m4c3d039eeb89")}</span>
           </div>
 
           <h1
@@ -280,7 +284,7 @@ export default function RegisterPage() {
                   } else if (msg.includes("fetch") || msg.includes("Failed") || msg.includes("ECONNREFUSED")) {
                     setError(t("auth.oauth.cannotConnect"));
                   } else {
-                    setError(msg || t("auth.oauth.googleFailed"));
+                    setError(t("auth.oauth.googleFailed"));
                   }
                 }
               }}
@@ -290,9 +294,7 @@ export default function RegisterPage() {
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-              </svg>
-              Google
-            </button>
+              </svg>{uiText("mb9d9f6052c15")}</button>
             <button
               type="button"
               className="bv-btn bv-btn-ghost justify-center gap-2.5"
@@ -307,16 +309,14 @@ export default function RegisterPage() {
                   } else if (msg.includes("fetch") || msg.includes("Failed") || msg.includes("ECONNREFUSED")) {
                     setError(t("auth.oauth.cannotConnect"));
                   } else {
-                    setError(msg || t("auth.oauth.githubFailed"));
+                    setError(t("auth.oauth.githubFailed"));
                   }
                 }
               }}
             >
               <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M12 .5A11.5 11.5 0 0 0 .5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2.17c-3.2.7-3.87-1.36-3.87-1.36-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.75 1.18 1.75 1.18 1.02 1.74 2.67 1.24 3.32.95.1-.74.4-1.24.72-1.53-2.55-.29-5.24-1.27-5.24-5.66 0-1.25.45-2.27 1.18-3.07-.12-.29-.51-1.46.11-3.04 0 0 .96-.31 3.15 1.17a10.94 10.94 0 0 1 5.74 0c2.19-1.48 3.15-1.17 3.15-1.17.62 1.58.23 2.75.11 3.04.74.8 1.18 1.82 1.18 3.07 0 4.4-2.69 5.36-5.26 5.65.41.36.78 1.06.78 2.13v3.16c0 .31.21.67.8.55A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5z" />
-              </svg>
-              GitHub
-            </button>
+              </svg>{uiText("m2d8843cd30de")}</button>
           </div>
 
           {/* Divider */}
@@ -417,8 +417,7 @@ export default function RegisterPage() {
                     ))}
                   </div>
                   {pwStrength > 0 && (
-                    <p className="bv-mono" style={{ fontSize: "11px", color: "var(--color-outline)" }}>
-                      Strength —{" "}
+                    <p className="bv-mono" style={{ fontSize: "11px", color: "var(--color-outline)" }}>{uiText("m3f79055b06f5")}{" "}
                       <span style={{ color: "var(--color-on-surface-variant)" }}>
                         {t(`auth.strength.${strengthKeys[pwStrength - 1]}`)}
                       </span>
@@ -457,15 +456,9 @@ export default function RegisterPage() {
                   cursor: "pointer",
                 }}
               />
-              <span>
-                I agree to the{" "}
-                <Link href="/terms" className="text-primary hover:underline" style={{ textDecoration: "none" }}>
-                  Terms
-                </Link>{" "}
-                and{" "}
-                <Link href="/privacy" className="text-primary hover:underline" style={{ textDecoration: "none" }}>
-                  Privacy Policy
-                </Link>
+              <span>{uiText("m42d9b00b4a1c")}{" "}
+                <Link href="/terms" className="text-primary hover:underline" style={{ textDecoration: "none" }}>{uiText("m03dd13603177")}</Link>{" "}{uiText("m16a48ada2404")}{" "}
+                <Link href="/privacy" className="text-primary hover:underline" style={{ textDecoration: "none" }}>{uiText("med9bdddaf801")}</Link>
                 .
               </span>
             </label>
@@ -499,8 +492,7 @@ export default function RegisterPage() {
           <p
             className="text-center mt-6 text-sm"
             style={{ color: "var(--color-on-surface-variant)" }}
-          >
-            Already have an account?{" "}
+          >{uiText("mddad425a8476")}{" "}
             <Link
               href="/login"
               className="text-primary font-medium hover:underline"
@@ -539,6 +531,7 @@ function ForgeField({
   minLength?: number;
   icon?: string;
 }) {
+  const uiText = useLegacyTranslations("uiCopy");
   return (
     <div>
       <label
@@ -553,7 +546,7 @@ function ForgeField({
         {label}
         {optional && (
           <span className="font-normal ml-1" style={{ color: "var(--color-outline)" }}>
-            {optionalLabel ?? "(optional)"}
+            {optionalLabel ??uiText("m99b3ce884164")}
           </span>
         )}
       </label>
