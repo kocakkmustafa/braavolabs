@@ -30,6 +30,8 @@ import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { getTrialStatus } from "../../services/trial-llm";
+import { env } from "../../config/env";
+import { appleAccessRemovalRequired, revokeAppleAccess, type AppleRevocationOutcome } from "./apple-revocation";
 
 export const userRouter = Router();
 userRouter.use(authMiddleware);
@@ -164,18 +166,21 @@ const deleteSchema = z.object({
       message: "To confirm erasure, send body: { \"confirm\": \"DELETE\" }",
     }),
   }),
+  // Fresh Sign in with Apple authorization code from the client, used once to
+  // revoke the deleted account's Apple tokens. Never stored or logged.
+  appleAuthorizationCode: z.string().min(1).max(4096).optional(),
 });
 
 userRouter.delete("/me", async (req, res, next) => {
   try {
-    deleteSchema.parse(req.body);
+    const { appleAuthorizationCode } = deleteSchema.parse(req.body);
 
     const userId = req.auth!.userId;
     const tenantId = req.auth!.tenantId;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true, role: true, tenant: { select: { plan: true, stripeSubscriptionId: true } } },
+      select: { email: true, role: true, appleId: true, tenant: { select: { plan: true, stripeSubscriptionId: true } } },
     });
     if (!user) throw new AppError(404, "User not found");
 
@@ -202,6 +207,7 @@ userRouter.delete("/me", async (req, res, next) => {
           lastUserInTenant: lastUser,
           stripeSubscriptionId: user.tenant.stripeSubscriptionId ?? null,
           tenantWillBeDeleted: lastUser,
+          appleLinked: Boolean(user.appleId),
           requestedAt: new Date().toISOString(),
         },
       },
@@ -219,8 +225,24 @@ userRouter.delete("/me", async (req, res, next) => {
       logger.info({ userId, tenantId, email: user.email }, "DSR: user erased (tenant kept)");
     }
 
+    // Erasure is complete; Apple revocation is best effort and never undoes it.
+    // The outcome is reported explicitly instead of being assumed.
+    const appleRevocation: AppleRevocationOutcome = await revokeAppleAccess({
+      appleId: user.appleId,
+      authorizationCode: appleAuthorizationCode,
+      config: {
+        clientId: env.APPLE_SIWA_BUNDLE_ID,
+        teamId: env.APPLE_SIWA_TEAM_ID,
+        keyId: env.APPLE_SIWA_KEY_ID,
+        privateKey: env.APPLE_SIWA_PRIVATE_KEY,
+      },
+    }).catch((): AppleRevocationOutcome => "UNKNOWN");
+    if (user.appleId) logger.info({ userId, appleRevocation }, "DSR: Sign in with Apple revocation outcome");
+
     res.json({
       success: true,
+      appleRevocation,
+      appleAccessRemovalRequired: appleAccessRemovalRequired(appleRevocation),
       message: lastUser
         ? "Account and tenant erased. Stripe subscription (if any) must be cancelled manually."
         : "Account erased. Tenant retained because other members exist.",

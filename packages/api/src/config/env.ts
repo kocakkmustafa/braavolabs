@@ -95,6 +95,13 @@ const envShape = z.object({
   // The iOS bundle identifier registered in App Store Connect. Used
   // as the `aud` claim for Apple Sign-In verification.
   APPLE_SIWA_BUNDLE_ID: z.string().optional(),
+  // Sign in with Apple key (developer.apple.com → Keys, "Sign in with Apple"),
+  // used only to revoke a deleted account's Apple tokens. Optional: without it
+  // account deletion reports APPLE_PENDING and asks the user to remove access.
+  // PEM accepted single-line with literal `\n`, like APPLE_PRIVATE_KEY.
+  APPLE_SIWA_TEAM_ID: z.string().optional(),
+  APPLE_SIWA_KEY_ID: z.string().optional(),
+  APPLE_SIWA_PRIVATE_KEY: z.string().optional().transform((v) => (v ? v.replace(/\\n/g, "\n") : v)),
 
   // Apple Sign-In Web (Service ID) — separate from the iOS bundle
   // because Apple treats web SIWA as a distinct OAuth client. Create
