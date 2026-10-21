@@ -3,12 +3,15 @@ import jwt from "jsonwebtoken";
 import { env } from "../config/env";
 import { prisma } from "../lib/db";
 import { runWithTenant } from "../lib/tenant-context";
+import { isPushSessionId } from "../lib/pushCleanup";
 import { getCookieAccessToken, csrfOkForCookieAuth } from "../lib/authCookies";
 
 export interface AuthPayload {
   userId: string;
   tenantId: string;
   role: string;
+  /** Server-issued stable push authority; optional for ordinary/legacy auth. */
+  pushSessionId?: string;
 }
 
 declare global {
@@ -118,7 +121,9 @@ export const authMiddleware: RequestHandler<any, any, any, any> = async function
 
     // Deleted/moved users cannot keep their old tenant access. Permission
     // middleware must also see current DB roles, rather than stale JWT roles.
-    req.auth = { userId: user.id, tenantId: user.tenantId, role: user.role };
+    req.auth = { userId: user.id, tenantId: user.tenantId, role: user.role,
+      ...(isPushSessionId(payload.pushSessionId) ? { pushSessionId: payload.pushSessionId } : {}),
+    };
     next();
   });
 };

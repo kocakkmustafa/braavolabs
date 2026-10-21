@@ -12,6 +12,9 @@ import { prisma, tenantTx } from "../../lib/db";
 import { redis } from "../../lib/redis";
 import { env } from "../../config/env";
 import { AppError } from "../../middleware/error";
+import { createPushSession, renewPushSession } from "../../lib/pushOwnership";
+import { isPushSessionId } from "../../lib/pushCleanup";
+import { logger } from "../../lib/logger";
 import type { AuthPayload } from "../../middleware/auth";
 
 function getGoogleClient(): OAuth2Client {
@@ -60,18 +63,42 @@ function refreshKey(userId: string, jti: string): string {
   return `refresh:${userId}:${jti}`;
 }
 
-export async function issueTokenPair(payload: AuthPayload): Promise<{ token: string; refreshToken: string }> {
-  const token = signToken(payload);
+export async function issueTokenPair(
+  payload: AuthPayload,
+  options?: { pushSessionId: string | null },
+): Promise<{ token: string; refreshToken: string }> {
+  // New authenticated login creates a SID; refresh explicitly preserves or
+  // omits it. A legacy/retired refresh must never mint fresh push authority.
+  const { pushSessionId: _ignored, ...identity } = payload;
+  const sid = options === undefined ? crypto.randomUUID() : options.pushSessionId;
   const jti = crypto.randomBytes(16).toString("hex");
-  const refreshToken = signRefreshToken({ ...payload, jti });
-
+  const sign = (enabled: boolean) => {
+    const claims = { ...identity, ...(enabled && sid ? { pushSessionId: sid } : {}) };
+    return { token: signToken(claims), refreshToken: signRefreshToken({ ...claims, jti }) };
+  };
+  let tokens = sign(Boolean(sid));
   try {
     await redis.set(refreshKey(payload.userId, jti), "1", "EX", REFRESH_TTL_SECONDS);
   } catch {
     throw new AppError(503, "Authentication service temporarily unavailable");
   }
-
-  return { token, refreshToken };
+  if (sid) {
+    try {
+      const access = jwt.decode(tokens.token) as { exp: number };
+      const refresh = jwt.decode(tokens.refreshToken) as { exp: number };
+      const expiresAt = new Date(Math.max(access.exp, refresh.exp) * 1000);
+      const active = options === undefined
+        ? await createPushSession(payload, sid, expiresAt)
+        : await renewPushSession(payload, sid, expiresAt);
+      if (!active) tokens = sign(false);
+    } catch (error) {
+      // Push-only outage/schema transition must not become a global login
+      // cutoff. The device endpoint rejects these ordinary tokens with 428.
+      logger.warn({ error }, "Push authority unavailable; ordinary authentication remains available");
+      tokens = sign(false);
+    }
+  }
+  return tokens;
 }
 
 type RefreshTokenPayload = AuthPayload & {
@@ -137,7 +164,9 @@ export async function refreshTokens(
     role: user.role,
   };
 
-  const tokens = await issueTokenPair(payload);
+  const tokens = await issueTokenPair(payload, {
+    pushSessionId: isPushSessionId(decoded.pushSessionId) ? decoded.pushSessionId : null,
+  });
   return {
     token: tokens.token,
     refreshToken: tokens.refreshToken,

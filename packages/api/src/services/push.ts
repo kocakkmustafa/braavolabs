@@ -22,6 +22,7 @@
  * scheduled job that polls receipts and prunes accordingly.
  */
 import { prisma } from "../lib/db";
+import { currentPushDevices, withCurrentPushDelivery, type PushDevice } from "../lib/pushOwnership";
 import { logger } from "../lib/logger";
 import { notificationText, type NotificationDescriptor } from "../lib/notificationCopy";
 
@@ -41,7 +42,7 @@ export interface NotifyPayload {
   localized?: NotificationDescriptor;
 }
 
-interface NotificationDevice { pushToken: string; id: string; locale?: string | null; }
+type NotificationDevice = PushDevice;
 
 interface ExpoPushTicket {
   status: "ok" | "error";
@@ -86,10 +87,8 @@ async function devicesForUserKind(
 
   if (!allowed) return [];
 
-  return prisma.device.findMany({
-    where: { userId },
-    select: { id: true, pushToken: true, locale: true },
-  });
+  // Legacy rows and superseded accounts cannot receive new server pushes.
+  return currentPushDevices(userId);
 }
 
 /**
@@ -153,89 +152,32 @@ export async function notifyUser(
   }
 }
 
-async function dispatch(
-  devices: NotificationDevice[],
-  payload: NotifyPayload,
-) {
-  const messages = devices.map((d) => ({
-    to: d.pushToken,
-    sound: "default" as const,
-    title: payload.localized ? notificationText(d.locale, payload.localized.title, payload.localized.parameters) : payload.title,
-    body: payload.localized?.body ? notificationText(d.locale, payload.localized.body, payload.localized.parameters) : payload.body,
-    data: payload.data,
-    ...(payload.badge !== undefined ? { badge: payload.badge } : {}),
-    // `priority: "high"` makes Android wake the device immediately
-    // (otherwise FCM may batch). Critical for approval / risk events.
-    priority:
-      payload.data.kind === "approval" || payload.data.kind === "risk"
-        ? ("high" as const)
-        : ("default" as const),
-    // Map our kinds to per-channel Android channels (must match the
-    // channel IDs created in Apps/Braavo/lib/notifications.ts).
-    channelId:
-      payload.data.kind === "approval"
-        ? "approvals"
-        : payload.data.kind === "risk"
-        ? "risks"
-        : "default",
-  }));
-
-  // Chunk to Expo's per-request limit.
-  for (let i = 0; i < messages.length; i += MAX_BATCH) {
-    const chunk = messages.slice(i, i + MAX_BATCH);
-    const chunkDevices = devices.slice(i, i + MAX_BATCH);
-
-    const res = await fetch(EXPO_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "Accept-Encoding": "gzip, deflate",
-      },
-      body: JSON.stringify(chunk),
-      // 5s — Expo is fast; if it's slower than this something's wrong
-      // and we'd rather drop a notification than hold up an HTTP handler.
-      signal: AbortSignal.timeout(5000),
+async function dispatch(devices: NotificationDevice[], payload: NotifyPayload) {
+  for (let i = 0; i < devices.length; i += MAX_BATCH) {
+    await withCurrentPushDelivery(devices.slice(i, i + MAX_BATCH), async live => {
+      const messages = live.map(d => ({
+        to: d.pushToken, sound: "default" as const,
+        title: payload.localized ? notificationText(d.locale, payload.localized.title, payload.localized.parameters) : payload.title,
+        body: payload.localized?.body ? notificationText(d.locale, payload.localized.body, payload.localized.parameters) : payload.body,
+        data: payload.data, ...(payload.badge !== undefined ? { badge: payload.badge } : {}),
+        priority: payload.data.kind === "approval" || payload.data.kind === "risk" ? "high" as const : "default" as const,
+        channelId: payload.data.kind === "approval" ? "approvals" : payload.data.kind === "risk" ? "risks" : "default",
+      }));
+      const response = await fetch(EXPO_ENDPOINT, {
+        method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json", "Accept-Encoding": "gzip, deflate" },
+        body: JSON.stringify(messages), signal: AbortSignal.timeout(5000),
+      });
+      const json = await response.json().catch(() => ({})) as ExpoPushResponse;
+      if (json.errors?.length) { logger.warn({ errors: json.errors }, "Expo push API returned top-level errors"); return []; }
+      const dead: PushDevice[] = [];
+      (json.data ?? []).forEach((ticket, index) => {
+        if (ticket.status !== "error" || !live[index]) return;
+        if (ticket.details?.error === "DeviceNotRegistered") dead.push(live[index]!);
+        else logger.warn({ ticket, deviceId: live[index]!.id }, "Expo push ticket reported error");
+      });
+      // The adapter prunes these exact session/revision snapshots while the
+      // delivery/ownership locks remain held; opaque high-water fences survive.
+      return dead;
     });
-
-    const json = (await res.json().catch(() => ({}))) as ExpoPushResponse;
-
-    if (json.errors?.length) {
-      logger.warn({ errors: json.errors }, "Expo push API returned top-level errors");
-      continue;
-    }
-
-    const tickets = json.data ?? [];
-    const deadDeviceIds: string[] = [];
-
-    tickets.forEach((ticket, idx) => {
-      if (ticket.status === "error") {
-        const code = ticket.details?.error;
-        // The token is invalid (uninstalled / restored to another phone /
-        // user revoked permission). Drop it from the table so we stop
-        // wasting calls on it. Other errors (rate limits, transient
-        // network issues) we leave alone.
-        if (code === "DeviceNotRegistered") {
-          deadDeviceIds.push(chunkDevices[idx]!.id);
-        } else {
-          logger.warn(
-            { ticket, deviceId: chunkDevices[idx]!.id },
-            "Expo push ticket reported error",
-          );
-        }
-      }
-    });
-
-    if (deadDeviceIds.length > 0) {
-      await prisma.device
-        .deleteMany({ where: { id: { in: deadDeviceIds } } })
-        .catch((err) =>
-          logger.warn({ err, deadDeviceIds }, "Failed to prune dead device tokens"),
-        );
-      logger.info(
-        { count: deadDeviceIds.length },
-        "Pruned unregistered device push tokens",
-      );
-    }
   }
 }

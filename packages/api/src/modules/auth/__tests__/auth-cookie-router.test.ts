@@ -40,7 +40,7 @@ vi.mock("../auth.service", () => ({
 // the router's rate-limit dependency. No socket is needed for cookie contracts.
 vi.mock("../../../lib/redis", () => ({ redis: {} }));
 
-// jwt.verify is the access-token path of the auth-optional logout. Mocking it
+// jwt.verify checks access and push-cleanup refresh proofs on auth-optional logout. Mocking it
 // lets us drive "valid access" vs "expired access → fall back to refresh"
 // without signing real tokens.
 const jwtVerifyMock = vi.hoisted(() => vi.fn());
@@ -254,7 +254,8 @@ describe("POST /logout (auth-optional — audit #1)", () => {
       body: { refreshToken: "r2" },
     });
     expect(nextErr).toBeUndefined();
-    expect(jwtVerifyMock).not.toHaveBeenCalled(); // no bearer, no access cookie
+    // No access proof exists; shared push cleanup still verifies the supplied refresh proof with the pinned algorithm.
+    expect(jwtVerifyMock).toHaveBeenCalledExactlyOnceWith("r2", expect.any(String), { algorithms: ["HS256"] });
     expect(revokeAllMock).toHaveBeenCalledWith("u2");
   });
 

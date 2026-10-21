@@ -181,6 +181,7 @@ model User {
   // tenants' Entra/Okta instances doesn't conflict.
   @@unique([tenantId, oidcSubject], map: "users_tenant_oidc_subject_unique")
   @@map("users")
+  pushSessions PushSession[]
 }
 
 // ─── PUSH NOTIFICATIONS ─────────────────────────────────
@@ -193,7 +194,7 @@ model User {
 model Device {
   id         String   @id @default(cuid())
   userId     String   @map("user_id")
-  pushToken  String   @unique @map("push_token")
+  pushToken  String   @map("push_token")
   platform   String // "ios" | "android" | "web"
   deviceName String?  @map("device_name")
   osVersion  String?  @map("os_version")
@@ -202,10 +203,45 @@ model Device {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
+  pushSessionId String? @map("push_session_id")
+  pushRevision Int? @map("push_revision")
+  pushTokenHash String? @map("push_token_hash")
+  pushPayloadHash String? @map("push_payload_hash")
+  pushSession PushSession? @relation(fields: [pushSessionId], references: [id], onDelete: Cascade)
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([pushTokenHash, pushSessionId])
+  @@index([pushSessionId])
   @@index([userId])
   @@map("devices")
+}
+
+// Server-created login lineage. Missing/expired rows NEVER regain push authority
+// through refresh or registration. Ordinary JWT authentication remains separate.
+model PushSession {
+  id String @id
+  userId String @map("user_id")
+  tenantId String @map("tenant_id")
+  loginOrder BigInt @unique @default(autoincrement()) @map("login_order")
+  revision Int @default(0)
+  tokenHash String? @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  devices Device[]
+  @@index([userId, tenantId])
+  @@index([expiresAt])
+  @@map("push_sessions")
+}
+
+// Cross-tenant coordination only: no raw token, user/tenant or message content.
+// GC requires that no live older PushSession can acquire this token again.
+model PushTokenFence {
+  tokenHash String @id @map("token_hash")
+  loginOrder BigInt @default(0) @map("login_order")
+  sessionId String? @map("session_id")
+  revision Int @default(0)
+  @@map("push_token_fences")
 }
 
 // ─── MOBILE IN-APP PURCHASE ENTITLEMENT ──────────────────

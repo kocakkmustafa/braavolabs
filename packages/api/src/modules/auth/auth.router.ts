@@ -17,6 +17,7 @@ import { rateLimit } from "../../middleware/rateLimit";
 import { redis } from "../../lib/redis";
 import { env } from "../../config/env";
 import { AppError } from "../../middleware/error";
+import { cleanupPushSession } from "../../lib/pushCleanup";
 import { notificationLocaleFromHeader } from "../../lib/notificationLocale";
 
 export const authRouter = Router();
@@ -299,6 +300,8 @@ authRouter.post("/logout", systemScope("route:auth"), logoutRateLimit, async (re
     // 1) Access token — Bearer header first, then the httpOnly access cookie
     //    (null unless AUTH_COOKIE_MODE is on). Verify-only; never 401 here.
     const header = req.headers.authorization;
+    let pushAccessProof = header?.startsWith("Bearer ") ? header : undefined;
+    let pushRefreshProof = typeof req.body?.refreshToken === "string" ? req.body.refreshToken : undefined;
     if (header?.startsWith("Bearer ")) {
       try {
         const p = jwt.verify(header.slice(7), env.JWT_SECRET, { algorithms: ["HS256"] }) as { userId?: string; typ?: string };
@@ -313,6 +316,7 @@ authRouter.post("/logout", systemScope("route:auth"), logoutRateLimit, async (re
           res.status(403).json({ error: "Missing CSRF header for cookie-based auth" });
           return;
         }
+        pushAccessProof = `Bearer ${cookieAccess}`;
         try {
           const p = jwt.verify(cookieAccess, env.JWT_SECRET, { algorithms: ["HS256"] }) as { userId?: string; typ?: string };
           if (p.typ !== "refresh") userId = p.userId ?? null;
@@ -335,12 +339,21 @@ authRouter.post("/logout", systemScope("route:auth"), logoutRateLimit, async (re
           refreshToken = cookieRefresh;
         }
       }
-      if (refreshToken) userId = userIdFromRefreshToken(refreshToken);
+      if (refreshToken) {
+        pushRefreshProof = refreshToken;
+        userId = userIdFromRefreshToken(refreshToken);
+      }
     }
 
     // 3) Revoke everything for the resolved user (no-op if unresolved). Always
     //    clear cookies + 200 — idempotent, and identical for valid/invalid so
     //    the endpoint cannot be used as a token-validity oracle.
+    // Cookie proof reaches the shared revoker only after this route's existing
+    // CSRF gate. The public /devices/push-session endpoint remains cookie-free.
+    await cleanupPushSession({
+      headers: pushAccessProof ? { authorization: pushAccessProof } : {},
+      body: pushRefreshProof ? { refreshToken: pushRefreshProof } : {},
+    });
     if (userId) await revokeAllRefreshTokens(userId);
     clearAuthCookies(res);
     res.json({ message: "Logged out successfully." });
