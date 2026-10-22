@@ -7,6 +7,9 @@ import type { AddressInfo } from "node:net";
 import jwt from "jsonwebtoken";
 import { currentTenantContext } from "../../../lib/tenant-context";
 
+// lib/encryption reads process.env.ENCRYPTION_KEY at call time (not the mocked env module);
+// set the same synthetic key here so the suite does not depend on CI-provided variables.
+vi.hoisted(() => { process.env.ENCRYPTION_KEY = "compare-http-synthetic-encryption-key-at-least-32"; });
 const m = vi.hoisted(() => ({member: vi.fn(), company: vi.fn(), configs: vi.fn(), create: vi.fn(), update: vi.fn(), run: vi.fn(), incr: vi.fn(), expire: vi.fn()}));
 vi.mock("../../../config/env", () => ({env: {
   JWT_SECRET: "compare-http-synthetic-jwt-secret-at-least-32",
