@@ -122,6 +122,12 @@ export default async function HomePage() {
         <div className="max-w-[1120px] mx-auto px-6 py-10 flex flex-wrap items-center justify-between gap-5 text-sm">
           <span className="text-on-surface-variant">{uiText("m37d5c6a2c645")}</span>
           <div className="flex flex-wrap gap-5">
+            {/* Below lg the header hides these links; keep them reachable here. */}
+            {PUBLIC_LINKS.slice(0, 5).map(([label, href]) => (
+              <a key={href} href={href} className="lg:hidden text-on-surface-variant hover:text-on-surface no-underline">
+                {t(`links.${label}`)}
+              </a>
+            ))}
             {PUBLIC_LINKS.slice(5).map(([label, href]) => (
               <a key={href} href={href} className="text-on-surface-variant hover:text-on-surface no-underline">
                 {t(`links.${label}`)}
