@@ -29,14 +29,14 @@ export default function KvkkPage() {
     <div className="min-h-screen bg-background mesh-bg">
       {/* ── Nav ─────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-40 glass-panel">
-        <div className="max-w-[1100px] mx-auto flex items-center justify-between px-6 md:px-10 h-14">
+        <div className="max-w-[1100px] mx-auto flex flex-wrap gap-y-2 items-center justify-between px-6 md:px-10 min-h-14 py-2 md:py-0">
           <Link href="/" className="flex items-center gap-2.5">
             <div className="bv-avatar" style={{ width: 32, height: 32, fontSize: 12 }}>
               B
             </div>
             <span className="font-headline font-bold text-sm text-on-surface">Braavolabs</span>
           </Link>
-          <div className="hidden md:flex items-center gap-6 text-sm text-on-surface-variant">
+          <div className="order-last basis-full flex overflow-x-auto whitespace-nowrap pb-1 md:order-none md:basis-auto md:overflow-visible md:pb-0 items-center gap-6 text-sm text-on-surface-variant">
             <Link href="/#features" className="hover:text-on-surface transition-colors">{uiText("m760104947f15")}</Link>
             <Link href="/pricing" className="hover:text-on-surface transition-colors">{uiText("m69d527a460e7")}</Link>
             <Link href="/about" className="hover:text-on-surface transition-colors">{uiText("mb2399da1a08c")}</Link>

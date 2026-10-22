@@ -100,12 +100,12 @@ export default async function BlogPostPage({
   return (
     <div className="min-h-screen bv-mesh">
       {/* ── Nav ── */}
-      <nav className="flex items-center justify-between px-6 md:px-10 py-4 max-w-[1200px] mx-auto border-b border-outline-variant/40">
+      <nav className="flex flex-wrap gap-y-2 items-center justify-between px-6 md:px-10 py-4 max-w-[1200px] mx-auto border-b border-outline-variant/40">
         <Link href="/" className="flex items-center gap-2.5" style={{ textDecoration: "none" }}>
           <div className="bv-avatar" style={{ width: 32, height: 32, borderRadius: 10, fontSize: 12 }}>{uiText("m809b2c4b9c83")}</div>
           <span className="font-headline font-bold text-sm text-on-surface">Braavolabs</span>
         </Link>
-        <div className="hidden md:flex items-center gap-6 text-sm text-on-surface-variant">
+        <div className="order-last basis-full flex overflow-x-auto whitespace-nowrap pb-1 md:order-none md:basis-auto md:overflow-visible md:pb-0 items-center gap-6 text-sm text-on-surface-variant">
           <Link href="/blog" className="hover:text-on-surface transition-colors" style={{ textDecoration: "none", color: "inherit" }}>{uiText("m7f0fab417f12")}</Link>
           <Link href="/features" className="hover:text-on-surface transition-colors" style={{ textDecoration: "none", color: "inherit" }}>{uiText("md62a43742980")}</Link>
           <Link href="/pricing" className="hover:text-on-surface transition-colors" style={{ textDecoration: "none", color: "inherit" }}>{uiText("ma5bac859b488")}</Link>

@@ -68,7 +68,7 @@ export default function ChangelogPage() {
     <div className="bv-mesh min-h-screen">
       {/* ── Nav ── */}
       <nav className="sticky top-0 z-40 glass-panel border-b border-outline-variant/30">
-        <div className="max-w-[1100px] mx-auto px-6 md:px-10 flex items-center justify-between h-14">
+        <div className="max-w-[1100px] mx-auto px-6 md:px-10 flex flex-wrap gap-y-2 items-center justify-between min-h-14 py-2 md:py-0">
           {/* Lockup */}
           <a href="/" className="flex items-center gap-2.5 group">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center bv-btn-primary flex-shrink-0">
@@ -78,7 +78,7 @@ export default function ChangelogPage() {
           </a>
 
           {/* Nav links (hidden on small screens) */}
-          <div className="hidden md:flex items-center gap-6 text-sm text-on-surface-variant">
+          <div className="order-last basis-full flex overflow-x-auto whitespace-nowrap pb-1 md:order-none md:basis-auto md:overflow-visible md:pb-0 items-center gap-6 text-sm text-on-surface-variant">
             <a href="/features" className="hover:text-on-surface transition-colors">{uiText("maf32376bdf35")}</a>
             <a href="/pricing" className="hover:text-on-surface transition-colors">{uiText("m89ea286c8147")}</a>
             <a href="/#providers" className="hover:text-on-surface transition-colors">{uiText("mdcad451eaa8b")}</a>

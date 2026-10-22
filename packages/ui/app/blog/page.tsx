@@ -34,7 +34,7 @@ export default function BlogPage() {
     <div className="min-h-screen bv-mesh">
       {/* ── Nav ── */}
       <nav
-        className="sticky top-0 z-30 flex items-center justify-between px-6 md:px-10 py-4"
+        className="sticky top-0 z-30 flex flex-wrap gap-y-2 items-center justify-between px-6 md:px-10 py-4"
         style={{
           background: "var(--color-surface-container-low)",
           backdropFilter: "blur(20px)",
@@ -61,7 +61,7 @@ export default function BlogPage() {
           </span>
         </a>
 
-        <div className="hidden md:flex items-center gap-6">
+        <div className="order-last basis-full flex overflow-x-auto whitespace-nowrap pb-1 md:order-none md:basis-auto md:overflow-visible md:pb-0 items-center gap-6">
           {(["Features", "Pricing", "Integrations", "Changelog"] as const).map(
             (label) => (
               <a

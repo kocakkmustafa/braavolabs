@@ -48,12 +48,12 @@ export default function ContactPage() {
   return (
     <div className="min-h-screen bv-mesh">
       {/* Nav */}
-      <nav className="flex items-center justify-between px-6 md:px-10 py-4 max-w-[1200px] mx-auto border-b border-outline-variant/40">
+      <nav className="flex flex-wrap gap-y-2 items-center justify-between px-6 md:px-10 py-4 max-w-[1200px] mx-auto border-b border-outline-variant/40">
         <a href="/" className="flex items-center gap-2.5">
           <div className="bv-avatar" style={{ width: 32, height: 32, borderRadius: 10, fontSize: 12 }}>{uiText("ma6abe31754db")}</div>
           <span className="font-headline font-bold text-sm text-on-surface">Braavolabs</span>
         </a>
-        <div className="hidden md:flex items-center gap-6 text-sm text-on-surface-variant">
+        <div className="order-last basis-full flex overflow-x-auto whitespace-nowrap pb-1 md:order-none md:basis-auto md:overflow-visible md:pb-0 items-center gap-6 text-sm text-on-surface-variant">
           <a href="/features" className="hover:text-on-surface transition-colors">{t("nav.features")}</a>
           <a href="/pricing" className="hover:text-on-surface transition-colors">{t("nav.pricing")}</a>
           <a href="/changelog" className="hover:text-on-surface transition-colors">{t("static.changelog.title")}</a>

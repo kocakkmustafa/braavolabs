@@ -270,14 +270,14 @@ export default async function DocsArticlePage({
 
       {/* ── Nav ── */}
       <nav className="sticky top-0 z-40 border-b border-outline-variant bg-surface/80 backdrop-blur-xl">
-        <div className="max-w-[1100px] mx-auto flex items-center justify-between px-6 md:px-10 h-14">
+        <div className="max-w-[1100px] mx-auto flex flex-wrap gap-y-2 items-center justify-between px-6 md:px-10 min-h-14 py-2 md:py-0">
           <a href="/" className="flex items-center gap-2.5 no-underline">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center bv-btn-primary bv-btn">
               <span className="text-white font-bold text-xs leading-none">AI</span>
             </div>
             <span className="font-headline font-bold text-sm text-on-surface">Braavolabs</span>
           </a>
-          <div className="hidden md:flex items-center gap-6">
+          <div className="order-last basis-full flex overflow-x-auto whitespace-nowrap pb-1 md:order-none md:basis-auto md:overflow-visible md:pb-0 items-center gap-6">
             <a href="/features" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">{uiText("mb34c85aff53f")}</a>
             <a href="/pricing" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">{uiText("m85a856ab28be")}</a>
             <a href="/blog" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors no-underline">{uiText("mdd91fe0b7fc0")}</a>

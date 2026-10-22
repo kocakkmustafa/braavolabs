@@ -73,7 +73,7 @@ export default function TermsPage() {
             <span className="font-headline font-bold text-sm text-on-surface">Braavolabs</span>
           </a>
 
-          <div className="hidden md:flex md:order-3 lg:order-none md:w-full lg:w-auto flex-wrap items-center justify-center gap-x-6 gap-y-2">
+          <div className="flex order-last w-full md:order-3 lg:order-none md:w-full lg:w-auto flex-wrap items-center justify-center gap-x-6 gap-y-2">
             {([
               ["/features", "nav.features"],
               ["/pricing", "nav.pricing"],
