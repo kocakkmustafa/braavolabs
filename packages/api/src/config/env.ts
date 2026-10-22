@@ -99,6 +99,9 @@ const envShape = z.object({
   // used only to revoke a deleted account's Apple tokens. Optional: without it
   // account deletion reports APPLE_PENDING and asks the user to remove access.
   // PEM accepted single-line with literal `\n`, like APPLE_PRIVATE_KEY.
+  // Append-only erasure ledger (JSONL, sha256 ids only) on storage that is NOT
+  // part of the database backup; replayed after a restore. Optional.
+  ERASURE_LEDGER_PATH: z.string().optional(),
   APPLE_SIWA_TEAM_ID: z.string().optional(),
   APPLE_SIWA_KEY_ID: z.string().optional(),
   APPLE_SIWA_PRIVATE_KEY: z.string().optional().transform((v) => (v ? v.replace(/\\n/g, "\n") : v)),

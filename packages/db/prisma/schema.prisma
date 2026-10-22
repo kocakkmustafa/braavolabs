@@ -2027,3 +2027,16 @@ model MediaGeneration {
   @@index([tenantId, createdAt])
   @@map("media_generations")
 }
+
+/// Restore re-application of account erasures (short retention profile).
+/// Holds only sha256(id) of erased users/tenants; no relation, no RLS.
+model ErasureTombstone {
+  subjectKind String   @map("subject_kind")
+  subjectHash String   @map("subject_hash")
+  erasedAt    DateTime @map("erased_at")
+  expiresAt   DateTime @map("expires_at")
+
+  @@id([subjectKind, subjectHash])
+  @@index([expiresAt])
+  @@map("erasure_tombstones")
+}

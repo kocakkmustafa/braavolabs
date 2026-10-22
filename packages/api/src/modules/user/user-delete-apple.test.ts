@@ -15,6 +15,7 @@ const prismaMock = vi.hoisted(() => ({
   activityLog: { create: vi.fn() },
 }));
 const revokeMock = vi.hoisted(() => vi.fn());
+const tombstoneMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../lib/db", () => ({ prisma: prismaMock }));
 vi.mock("../../middleware/auth", () => ({ authMiddleware: (_req: unknown, _res: unknown, next: () => void) => next() }));
@@ -22,12 +23,15 @@ vi.mock("../../lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), err
 vi.mock("../../services/trial-llm", () => ({ getTrialStatus: vi.fn() }));
 vi.mock("../../config/env", () => ({
   env: { APPLE_SIWA_BUNDLE_ID: "com.example.synthetic", APPLE_SIWA_TEAM_ID: "TEAMSYNTH1",
-    APPLE_SIWA_KEY_ID: "KEYSYNTH01", APPLE_SIWA_PRIVATE_KEY: "synthetic-pem" },
+    APPLE_SIWA_KEY_ID: "KEYSYNTH01", APPLE_SIWA_PRIVATE_KEY: "synthetic-pem",
+    ERASURE_LEDGER_PATH: "/synthetic/erasure-ledger.jsonl" },
 }));
 vi.mock("./apple-revocation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./apple-revocation")>()),
   revokeAppleAccess: (...args: unknown[]) => revokeMock(...args),
 }));
+
+vi.mock("./erasure-tombstones", () => ({ recordErasureTombstones: (...args: unknown[]) => tombstoneMock(...args) }));
 
 const { userRouter } = await import("./user.router");
 
@@ -60,6 +64,7 @@ beforeEach(() => {
   prismaMock.user.count.mockResolvedValue(0);
   prismaMock.tenant.delete.mockResolvedValue({});
   prismaMock.activityLog.create.mockResolvedValue({});
+  tombstoneMock.mockResolvedValue([]);
 });
 
 describe("DELETE /users/me Apple revocation outcome", () => {
@@ -112,6 +117,39 @@ describe("DELETE /users/me Apple revocation outcome", () => {
   it("rejects an oversized authorization code before any erasure", async () => {
     prismaMock.user.findUnique.mockResolvedValue(user("apple-sub"));
     const { nextErr } = await invoke({ confirm: "DELETE", appleAuthorizationCode: "x".repeat(4097) });
+    expect(nextErr).toBeDefined();
+    expect(prismaMock.tenant.delete).not.toHaveBeenCalled();
+    expect(prismaMock.user.delete).not.toHaveBeenCalled();
+  });
+
+  it("records user and tenant tombstones before erasing the last user's tenant", async () => {
+    prismaMock.user.findUnique.mockResolvedValue(user(null));
+    revokeMock.mockResolvedValue("NOT_LINKED");
+    tombstoneMock.mockImplementation(async () => {
+      expect(prismaMock.tenant.delete).not.toHaveBeenCalled();
+      return [];
+    });
+    await invoke({ confirm: "DELETE" });
+    expect(tombstoneMock).toHaveBeenCalledExactlyOnceWith(
+      [{ kind: "user", id: "u1" }, { kind: "tenant", id: "t1" }], { ledgerPath: "/synthetic/erasure-ledger.jsonl" });
+    expect(prismaMock.tenant.delete).toHaveBeenCalledTimes(1);
+  });
+
+  it("records only the user tombstone when other members keep the tenant", async () => {
+    prismaMock.user.findUnique.mockResolvedValue(user(null));
+    prismaMock.user.count.mockResolvedValue(2);
+    prismaMock.user.delete.mockResolvedValue({});
+    revokeMock.mockResolvedValue("NOT_LINKED");
+    await invoke({ confirm: "DELETE" });
+    expect(tombstoneMock).toHaveBeenCalledExactlyOnceWith([{ kind: "user", id: "u1" }], expect.anything());
+    expect(prismaMock.user.delete).toHaveBeenCalledTimes(1);
+    expect(prismaMock.tenant.delete).not.toHaveBeenCalled();
+  });
+
+  it("does not erase when the tombstone cannot be recorded", async () => {
+    prismaMock.user.findUnique.mockResolvedValue(user(null));
+    tombstoneMock.mockRejectedValue(new Error("tombstone write failed"));
+    const { nextErr } = await invoke({ confirm: "DELETE" });
     expect(nextErr).toBeDefined();
     expect(prismaMock.tenant.delete).not.toHaveBeenCalled();
     expect(prismaMock.user.delete).not.toHaveBeenCalled();

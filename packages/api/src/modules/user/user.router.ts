@@ -32,6 +32,7 @@ import { AppError } from "../../middleware/error";
 import { getTrialStatus } from "../../services/trial-llm";
 import { env } from "../../config/env";
 import { appleAccessRemovalRequired, revokeAppleAccess, type AppleRevocationOutcome } from "./apple-revocation";
+import { recordErasureTombstones } from "./erasure-tombstones";
 
 export const userRouter = Router();
 userRouter.use(authMiddleware);
@@ -212,6 +213,14 @@ userRouter.delete("/me", async (req, res, next) => {
         },
       },
     });
+
+    // Tombstones (sha256 ids only) let a database restore re-apply this
+    // erasure; written before the delete so a later failure cannot leave an
+    // erased account restorable.
+    await recordErasureTombstones(
+      lastUser ? [{ kind: "user", id: userId }, { kind: "tenant", id: tenantId }] : [{ kind: "user", id: userId }],
+      { ledgerPath: env.ERASURE_LEDGER_PATH },
+    );
 
     if (lastUser) {
       // Tenant cascade — Companies, Agents, Pipelines, Runs, RunSteps,
