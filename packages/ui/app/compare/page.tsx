@@ -3,6 +3,7 @@ import { getTranslations as getSeoTranslations } from "next-intl/server";
 import { useTranslations as useLegacyTranslations } from "next-intl";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PUBLIC_NAV_LABEL_KEYS } from "../../lib/public-nav-labels";
 
 export async function generateMetadata(): Promise<Metadata> {
   const seo = await getSeoTranslations("seo");
@@ -110,6 +111,7 @@ export default function ComparePage() {
   const ROWS = RAW_ROWS.map((entry, index) => ({ ...entry, label: dataCopy.raw(`comparisonRows.${index}.label`) as string, note: dataCopy.raw(`comparisonRows.${index}.note`) as string }));
   const AUDIENCE = RAW_AUDIENCE.map((entry, index) => ({ ...entry, title: dataCopy.raw(`comparisonAudience.${index}.title`) as string, body: dataCopy.raw(`comparisonAudience.${index}.body`) as string }));
   const uiText = useLegacyTranslations("uiCopy");
+  const navText = useLegacyTranslations();
   return (
     <div className="min-h-screen bv-mesh">
       {/* ── Nav ── */}
@@ -144,7 +146,7 @@ export default function ComparePage() {
               className="text-sm transition-colors hover:text-white no-underline"
               style={{ color: "var(--color-on-surface-variant)" }}
             >
-              {label}
+              {navText(PUBLIC_NAV_LABEL_KEYS[label])}
             </a>
           ))}
           <a href="/compare" className="text-sm font-semibold no-underline" style={{ color: "var(--color-primary)" }}>{uiText("m1c1ed0d6cba8")}</a>
@@ -354,6 +356,7 @@ export default function ComparePage() {
 
 function Footer() {
   const uiText = useLegacyTranslations("uiCopy");
+  const navText = useLegacyTranslations();
   return (
     <footer className="border-t" style={{ borderColor: "rgba(58,65,80,0.18)" }}>
       <div className="max-w-5xl mx-auto px-6 md:px-10 py-12">
@@ -377,28 +380,28 @@ function Footer() {
 
           <div>
             <h5 className="bv-micro mb-3" style={{ color: "var(--color-outline)" }}>{uiText("mfb1404813b60")}</h5>
-            {["Features", "Pricing", "Integrations", "Changelog"].map((link) => (
+            {(["Features", "Pricing", "Integrations", "Changelog"] as const).map((link) => (
               <a
                 key={link}
                 href={`/${link.toLowerCase()}`}
                 className="block text-xs mb-2 no-underline hover:text-white transition-colors"
                 style={{ color: "var(--color-on-surface-variant)" }}
               >
-                {link}
+                {navText(PUBLIC_NAV_LABEL_KEYS[link])}
               </a>
             ))}
           </div>
 
           <div>
             <h5 className="bv-micro mb-3" style={{ color: "var(--color-outline)" }}>{uiText("mca345aad7aa1")}</h5>
-            {["About", "Blog", "Contact", "Status"].map((link) => (
+            {(["About", "Blog", "Contact", "Status"] as const).map((link) => (
               <a
                 key={link}
                 href={link === "Blog" ? "/blog" : `/${link.toLowerCase()}`}
                 className="block text-xs mb-2 no-underline hover:text-white transition-colors"
                 style={{ color: "var(--color-on-surface-variant)" }}
               >
-                {link}
+                {navText(PUBLIC_NAV_LABEL_KEYS[link])}
               </a>
             ))}
           </div>

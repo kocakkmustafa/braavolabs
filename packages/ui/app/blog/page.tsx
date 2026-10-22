@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { CATEGORY_PILL, POSTS, localizePost, blogCategoryLabel } from "./posts";
+import { PUBLIC_NAV_LABEL_KEYS } from "../../lib/public-nav-labels";
 
 const CATEGORIES = ["All", "Product", "Engineering", "Governance", "Field notes"] as const;
 type Category = (typeof CATEGORIES)[number];
@@ -70,7 +71,7 @@ export default function BlogPage() {
                 className="text-sm transition-colors hover:text-white no-underline"
                 style={{ color: "var(--color-on-surface-variant)" }}
               >
-                {label}
+                {t(PUBLIC_NAV_LABEL_KEYS[label])}
               </a>
             )
           )}
@@ -388,7 +389,7 @@ export default function BlogPage() {
                 className="bv-micro mb-3"
                 style={{ color: "var(--color-outline)" }}
               >{uiText("m09d06a4f3a17")}</h5>
-              {["Features", "Pricing", "Integrations", "Changelog"].map(
+              {(["Features", "Pricing", "Integrations", "Changelog"] as const).map(
                 (link) => (
                   <a
                     key={link}
@@ -396,7 +397,7 @@ export default function BlogPage() {
                     className="block text-xs mb-2 no-underline hover:text-white transition-colors"
                     style={{ color: "var(--color-on-surface-variant)" }}
                   >
-                    {link}
+                    {t(PUBLIC_NAV_LABEL_KEYS[link])}
                   </a>
                 )
               )}
@@ -408,7 +409,7 @@ export default function BlogPage() {
                 className="bv-micro mb-3"
                 style={{ color: "var(--color-outline)" }}
               >{uiText("m621f739bb1af")}</h5>
-              {["About", "Blog", "Contact", "Status"].map((link) => (
+              {(["About", "Blog", "Contact", "Status"] as const).map((link) => (
                 <a
                   key={link}
                   href={link === "Blog" ? "/blog" : `/${link.toLowerCase()}`}
@@ -420,7 +421,7 @@ export default function BlogPage() {
                         : "var(--color-on-surface-variant)",
                   }}
                 >
-                  {link}
+                  {t(PUBLIC_NAV_LABEL_KEYS[link])}
                 </a>
               ))}
             </div>
@@ -431,14 +432,14 @@ export default function BlogPage() {
                 className="bv-micro mb-3"
                 style={{ color: "var(--color-outline)" }}
               >{uiText("m2bc5accf38ff")}</h5>
-              {["Privacy", "Terms", "KVKK", "GDPR"].map((link) => (
+              {(["Privacy", "Terms", "KVKK", "GDPR"] as const).map((link) => (
                 <a
                   key={link}
-                  href="#"
+                  href={`/${link.toLowerCase()}`}
                   className="block text-xs mb-2 no-underline hover:text-white transition-colors"
                   style={{ color: "var(--color-on-surface-variant)" }}
                 >
-                  {link}
+                  {link === "Privacy" || link === "Terms" ? t(PUBLIC_NAV_LABEL_KEYS[link]) : link}
                 </a>
               ))}
             </div>

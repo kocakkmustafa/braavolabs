@@ -165,7 +165,26 @@ function publicMessagesForPath(messages: IntlMessages, pathname: string): IntlMe
     return { static: selected, language, uiCopy, surface, runtime, nav: { features: nav.features, pricing: nav.pricing, signIn: nav.signIn } } as IntlMessages;
   }
 
-  return { static: selected, language, uiCopy, surface, runtime, ...(pathname === "/blog" ? { content: record(record(messages).content) } : {}) } as IntlMessages;
+  // Client pages with the shared public nav/footer (lib/public-nav-labels) need
+  // only these labels; keep the per-path payload minimal.
+  const publicNavLabels = () => {
+    const nav = record(record(messages).nav);
+    const footer = record(record(messages).footer);
+    const links = record(record(record(messages).publicPreview).links);
+    selected.changelog = { title: record(staticMessages.changelog).title };
+    selected.contact = { title: record(staticMessages.contact).title };
+    return {
+      nav: { features: nav.features, pricing: nav.pricing, integrations: nav.integrations },
+      publicPreview: { links: { status: links.status } },
+      footer: { privacy: footer.privacy, terms: footer.terms },
+    };
+  };
+
+  return {
+    static: selected, language, uiCopy, surface, runtime,
+    ...(pathname === "/blog" ? { content: record(record(messages).content) } : {}),
+    ...(pathname === "/blog" || pathname === "/status" ? publicNavLabels() : {}),
+  } as IntlMessages;
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

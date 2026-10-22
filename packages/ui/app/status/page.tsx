@@ -9,6 +9,7 @@ import { useTranslations as useLegacyTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { API_BASE } from "../../lib/api";
+import { PUBLIC_NAV_LABEL_KEYS } from "../../lib/public-nav-labels";
 
 // ─── Honest status ───────────────────────────────────────────────────
 //
@@ -225,24 +226,24 @@ export default function StatusPage() {
           <div>
             <h5 className="bv-micro mb-3">{uiText("m8a200d2fa01b")}</h5>
             <div className="flex flex-col gap-2">
-              {["Features", "Pricing", "Changelog"].map((l) => (
-                <a key={l} href={`/${l.toLowerCase()}`} className="bv-caption text-on-surface-variant hover:text-on-surface transition-colors no-underline">{l}</a>
+              {(["Features", "Pricing", "Changelog"] as const).map((l) => (
+                <a key={l} href={`/${l.toLowerCase()}`} className="bv-caption text-on-surface-variant hover:text-on-surface transition-colors no-underline">{t(PUBLIC_NAV_LABEL_KEYS[l])}</a>
               ))}
             </div>
           </div>
           <div>
             <h5 className="bv-micro mb-3">{uiText("mf293e311adbd")}</h5>
             <div className="flex flex-col gap-2">
-              {["About", "Blog", "Contact"].map((l) => (
-                <a key={l} href={`/${l.toLowerCase()}`} className="bv-caption text-on-surface-variant hover:text-on-surface transition-colors no-underline">{l}</a>
+              {(["About", "Blog", "Contact"] as const).map((l) => (
+                <a key={l} href={`/${l.toLowerCase()}`} className="bv-caption text-on-surface-variant hover:text-on-surface transition-colors no-underline">{t(PUBLIC_NAV_LABEL_KEYS[l])}</a>
               ))}
             </div>
           </div>
           <div>
             <h5 className="bv-micro mb-3">{uiText("me036901f0c5c")}</h5>
             <div className="flex flex-col gap-2">
-              {["Privacy", "Terms", "KVKK"].map((l) => (
-                <a key={l} href={`/${l.toLowerCase()}`} className="bv-caption text-on-surface-variant hover:text-on-surface transition-colors no-underline">{l}</a>
+              {(["Privacy", "Terms", "KVKK"] as const).map((l) => (
+                <a key={l} href={`/${l.toLowerCase()}`} className="bv-caption text-on-surface-variant hover:text-on-surface transition-colors no-underline">{l === "KVKK" ? l : t(PUBLIC_NAV_LABEL_KEYS[l])}</a>
               ))}
             </div>
           </div>
