@@ -55,6 +55,7 @@ userRouter.get("/me", async (req, res, next) => {
         avatarUrl: true,
         role: true,
         createdAt: true,
+        appleId: true,
         tenant: {
           select: { id: true, name: true, slug: true, plan: true },
         },
@@ -64,7 +65,10 @@ userRouter.get("/me", async (req, res, next) => {
 
     const trial = await getTrialStatus(user.tenant.id);
 
-    res.json({ ...user, trial });
+    // Clients only need to know whether deletion should ask Apple for a fresh
+    // authorization code (F04 token revocation); the Apple subject stays private.
+    const { appleId, ...profile } = user;
+    res.json({ ...profile, appleLinked: appleId !== null, trial });
   } catch (err) { next(err); }
 });
 

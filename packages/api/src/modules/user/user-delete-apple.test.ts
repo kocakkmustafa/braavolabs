@@ -155,3 +155,19 @@ describe("DELETE /users/me Apple revocation outcome", () => {
     expect(prismaMock.user.delete).not.toHaveBeenCalled();
   });
 });
+
+describe("GET /users/me Apple link flag", () => {
+  it.each([["apple-sub", true], [null, false]] as const)("reports appleLinked=%s without exposing the Apple subject", async (appleId, linked) => {
+    prismaMock.user.findUnique.mockResolvedValue({ id: "u1", email: "synthetic@example.invalid", appleId,
+      tenant: { id: "t1", name: "T", slug: "t", plan: "FREE" } });
+    const res: any = { statusCode: 200, body: undefined, status(code: number) { this.statusCode = code; return this; },
+      json(payload: unknown) { this.body = payload; return this; } };
+    let nextErr: any;
+    await getHandler(userRouter, "get", "/me")({ headers: {}, method: "GET", body: {}, query: {}, auth: { userId: "u1", tenantId: "t1" } }, res,
+      (err?: any) => { nextErr = err; });
+    expect(nextErr).toBeUndefined();
+    expect(res.body.appleLinked).toBe(linked);
+    expect(res.body).not.toHaveProperty("appleId");
+    expect(JSON.stringify(res.body)).not.toContain("apple-sub");
+  });
+});
