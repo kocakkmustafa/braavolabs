@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { API_PORT, UI_PORT, UI } from "./e2e/ports";
 
 /**
  * E2E configuration (BR-P0-005).
@@ -12,8 +13,6 @@ import { defineConfig, devices } from "@playwright/test";
  * databases is a footgun the first time somebody runs it with DATABASE_URL
  * pointing at something real.
  */
-const API_PORT = 4310;
-const UI_PORT = 4311;
 const DB =
   process.env.E2E_DATABASE_URL ??
   `postgresql://${process.env.USER ?? "postgres"}@localhost:5432/aicos_e2e`;
@@ -70,7 +69,9 @@ export default defineConfig({
       timeout: 120_000,
       env: {
         ...process.env, ...SECRETS, API_PORT: String(API_PORT),
-        ALLOWED_ORIGINS: "http://operator.example:4311",
+        ALLOWED_ORIGINS: UI,
+        // Loopback only: the suite never needs the API on other interfaces.
+        API_HOST: "127.0.0.1",
       },
     },
     {
@@ -92,7 +93,7 @@ export default defineConfig({
       // standalone entry instead (correct in CI, which has no relocated store).
       command: process.env.E2E_UI_STANDALONE
         ? `node packages/ui/.next/standalone/packages/ui/server.js`
-        : `pnpm --filter @ai-company-os/ui exec next start --port ${UI_PORT}`,
+        : `pnpm --filter @ai-company-os/ui exec next start --hostname 127.0.0.1 --port ${UI_PORT}`,
       port: UI_PORT,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,

@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
+import { UI as OPERATOR_UI } from "./ports";
 
-const UI = process.env.E2E_OAUTH_UI_URL ?? "http://operator.example:4311";
+const UI = process.env.E2E_OAUTH_UI_URL ?? OPERATOR_UI;
 const API = "https://api.operator.example";
 
 for (const status of [200, 401]) {

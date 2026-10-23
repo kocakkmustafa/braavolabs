@@ -13,7 +13,8 @@ pnpm exec playwright test
 `prepare.sh` **drops and recreates** `aicos_e2e`. Point `E2E_DB_NAME` elsewhere
 if that name is taken, and never aim it at a database you care about.
 
-`playwright.config.ts` boots both servers itself (API on 4310, UI on 4311), so
+`playwright.config.ts` boots both servers itself (API on 4310, UI on 4311 —
+override with `E2E_API_PORT` / `E2E_UI_PORT`, see `e2e/ports.ts`), so
 the test command is self-contained — there is no manual step to forget and then
 misdiagnose.
 

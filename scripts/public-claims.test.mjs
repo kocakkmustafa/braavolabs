@@ -429,7 +429,8 @@ test("next config delegates canonical routing to fail-closed middleware", () => 
   // CI must select the production standalone entry. A deliberately local-only
   // next-start fallback handles relocated pnpm stores without weakening Host
   // validation or replacing the real built application with a mock server.
-  assert.match(playwright, /command: process\.env\.E2E_UI_STANDALONE\s*\? `node packages\/ui\/\.next\/standalone\/packages\/ui\/server\.js`\s*:\s*`pnpm --filter @ai-company-os\/ui exec next start --port \$\{UI_PORT\}`/);
+  // The fallback binds loopback only, like the standalone HOSTNAME below.
+  assert.match(playwright, /command: process\.env\.E2E_UI_STANDALONE\s*\? `node packages\/ui\/\.next\/standalone\/packages\/ui\/server\.js`\s*:\s*`pnpm --filter @ai-company-os\/ui exec next start --hostname 127\.0\.0\.1 --port \$\{UI_PORT\}`/);
   const ci = read(".github/workflows/ci.yml");
   const e2e = ci.match(/^  e2e:\n([\s\S]*?)(?=^  [\w-]+:)/m)?.[1];
   assert.ok(e2e, "CI must have its real E2E job");

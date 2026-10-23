@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
+import { UI } from "./ports";
 
-const UI = "http://operator.example:4311";
 const API = /https:\/\/api\.operator\.example\/api\/v1\//;
 const cors = {
   "Access-Control-Allow-Origin": UI,

@@ -10,11 +10,11 @@ import {
   parseSelfHostedApiCspSources,
   parseSelfHostedSurfaceHosts,
 } from "../packages/ui/lib/surface-domain";
+import { UI as OPERATOR_UI } from "./ports";
 
 const WWW = { Host: "www.braavolabs.com", "X-Forwarded-Proto": "https" };
 const APP = { Host: "app.braavolabs.com", "X-Forwarded-Proto": "https" };
 const SELF_HOSTED = { Host: "operator.example", "X-Forwarded-Proto": "https" };
-const OPERATOR_UI = "http://operator.example:4311";
 
 async function expectLegalSkipTarget(page: Page, locale: string) {
   const messages = JSON.parse(readFileSync(join(process.cwd(), "packages/ui/messages", `${locale}.json`), "utf8"));

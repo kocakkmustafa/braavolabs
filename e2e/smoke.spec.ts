@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { UI } from "./helpers";
+import { API_ORIGIN } from "./ports";
 
 /**
  * Harness smoke test.
@@ -10,7 +11,7 @@ import { UI } from "./helpers";
  * started" — the single most common way an E2E suite wastes an afternoon.
  */
 test("the API is reachable and healthy", async ({ request }) => {
-  const res = await request.get("http://127.0.0.1:4310/health");
+  const res = await request.get(`${API_ORIGIN}/health`);
   expect(res.status()).toBe(200);
   expect(await res.json()).toMatchObject({ status: "ok" });
 });

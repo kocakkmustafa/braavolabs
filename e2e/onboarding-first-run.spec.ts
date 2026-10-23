@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { registerViaApi, API, UI } from "./helpers";
+import { API_ORIGIN } from "./ports";
 
 /**
  * Journey 1 (BR-P0-005): signup → authenticated app → first controlled run.
@@ -93,7 +94,7 @@ test("real registration form keeps its onboarding navigation after session hydra
   await page.setExtraHTTPHeaders({ "X-Forwarded-Proto": "https" });
   await context.route("https://api.operator.example/api/v1/**", async (route) => {
     const original = new URL(route.request().url());
-    const response = await route.fetch({ url: `http://127.0.0.1:4310${original.pathname}${original.search}` });
+    const response = await route.fetch({ url: `${API_ORIGIN}${original.pathname}${original.search}` });
     expect(response.headers()["access-control-allow-origin"]).toBe(UI);
     expect(response.headers()["access-control-allow-credentials"]).toBe("true");
     await route.fulfill({ response });

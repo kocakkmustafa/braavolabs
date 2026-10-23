@@ -1,8 +1,9 @@
 import type { APIRequestContext } from "@playwright/test";
 import Redis from "ioredis";
+import { API_ORIGIN } from "./ports";
 
-export const API = "http://127.0.0.1:4310/api/v1";
-export const UI = "http://operator.example:4311";
+export { UI } from "./ports";
+export const API = `${API_ORIGIN}/api/v1`;
 
 /**
  * Clear the per-IP registration rate-limit counter.

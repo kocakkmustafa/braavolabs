@@ -2,10 +2,10 @@ import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { test, expect, type Page } from "@playwright/test";
+import { UI } from "./ports";
 
 // Hosted harness only. Do not call registration helpers or touch its database:
 // every auth endpoint is blocked unless a test provides a synthetic response.
-const UI = "http://operator.example:4311";
 const LOCALES = ["en", "tr", "es", "de", "fr", "ar"];
 // A legacy `es` preference is served as the supported es-419 catalogue.
 const canonicalLocale = (locale: string) => (locale === "es" ? "es-419" : locale);

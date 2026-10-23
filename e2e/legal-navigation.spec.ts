@@ -3,8 +3,8 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { test, expect, type Page, type Locator } from "@playwright/test";
+import { UI } from "./ports";
 
-const UI = "http://operator.example:4311";
 const DELETION = "/legal/account-deletion";
 const LOCALES = ["en", "tr", "es", "de", "fr", "ar"] as const;
 const PATHS = ["/terms", "/gdpr", DELETION];
