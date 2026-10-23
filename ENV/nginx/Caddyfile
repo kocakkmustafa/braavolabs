@@ -20,7 +20,7 @@ braavolabs.com, www.braavolabs.com {
         X-Content-Type-Options nosniff
         Referrer-Policy strict-origin-when-cross-origin
         Permissions-Policy "camera=(), microphone=(), geolocation=()"
-        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://plausible.io; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://cloudflareinsights.com https://plausible.io; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://app.braavolabs.com"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://plausible.io; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://api.braavolabs.com https://cloudflareinsights.com https://plausible.io; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://app.braavolabs.com"
         Cross-Origin-Resource-Policy same-origin
     }
 
@@ -90,7 +90,7 @@ app.braavolabs.com {
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
         X-Frame-Options SAMEORIGIN
         X-Content-Type-Options nosniff
-        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://lh3.googleusercontent.com https://avatars.githubusercontent.com; connect-src 'self' https://api.braavolabs.com wss://api.braavolabs.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://lh3.googleusercontent.com https://avatars.githubusercontent.com; connect-src 'self' https://api.braavolabs.com wss://api.braavolabs.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
         Cross-Origin-Resource-Policy same-origin
     }
 

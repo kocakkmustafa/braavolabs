@@ -585,6 +585,15 @@ test("edge proxy configs isolate cookies, CSP, and CORS", () => {
 
   assert.match(caddy, /header_down -Set-Cookie/, "www must not forward upstream cookies");
   assert.match(caddy, /https:\/\/api\.braavolabs\.com/, "app CSP must name the API origin");
+  // Fonts are self-hosted: no edge or API policy may re-admit Google Fonts, and
+  // public edge pages admit the API's HTTPS origin (the /status health probe), never wss.
+  for (const [name, source] of [["Caddyfile", caddy], ["braavolabs.conf", nginx], ["api", read("packages/api/src/index.ts")]]) {
+    assert.doesNotMatch(source, /fonts\.(?:googleapis|gstatic)\.com/, `${name} still allows Google Fonts`);
+  }
+  for (const [name, source, count] of [["Caddyfile", caddy, 1], ["braavolabs.conf", nginx, 2]]) {
+    const publicPolicies = source.match(/connect-src 'self' https:\/\/api\.braavolabs\.com https:\/\/cloudflareinsights\.com https:\/\/plausible\.io[;"]/g) ?? [];
+    assert.equal(publicPolicies.length, count, `${name} public connect-src`);
+  }
   assert.match(nginx, /proxy_hide_header Set-Cookie/, "www must not forward upstream cookies");
   assert.match(nginx, /proxy_cookie_domain off/, "authenticated cookies must remain host-only");
   assert.doesNotMatch(caddy, /Access-Control-Allow-Origin\s+"https:\/\/app\.braavolabs\.com"/);
