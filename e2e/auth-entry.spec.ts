@@ -243,7 +243,10 @@ for (const [index, locale] of LOCALES.entries()) {
     await pageLanguage(page).selectOption(nextLocale);
     await expect(page.locator("html")).toHaveAttribute("lang", nextLocale);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(messagesFor(nextLocale).auth.login.welcome);
-    await expectKeyboardSkipLink(page, nextLocale);
     expect((await context.cookies()).find((cookie) => cookie.name === "NEXT_LOCALE")?.value).toBe(nextLocale);
+    // The skip-link contract is about a fresh document; only now load one, in the saved locale.
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("lang", nextLocale);
+    await expectKeyboardSkipLink(page, nextLocale);
   });
 }
