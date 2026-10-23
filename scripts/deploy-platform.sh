@@ -20,6 +20,17 @@ readonly REVIEWED_LINEAGE_PREVIOUS_RELEASE='f92626f77bd2e94ece64de29031a2b481b88
 readonly REVIEWED_LINEAGE_PATH='packages/db/prisma/migrations/20261003000000_google_verified_lineage/migration.sql'
 readonly REVIEWED_LINEAGE_SHA256='8410ea3d5e951574813cbd366b0f6940105542a90d642280f355dc56e3a63b7d'
 readonly REVIEWED_LINEAGE_MIGRATION_TREE_SHA256='95a0f0191b3d370afff5c20a7f0cc33124f858e8b2eae9ecabf5823b15c2b02a'
+# F02 push ownership + notification locale + erasure tombstones, reviewed against
+# the 87290e0 production release (forward-compatible: the 87290e0 API stays
+# healthy on the resulting schema).
+readonly REVIEWED_F02_PREVIOUS_RELEASE='87290e0c743b94293b2f23be4f7fda0b84cc780d'
+readonly REVIEWED_F02_LOCALE_PATH='packages/db/prisma/migrations/20261020000000_device_notification_locale/migration.sql'
+readonly REVIEWED_F02_LOCALE_SHA256='5427f3f1dab3b028ca546488d516cebb0f187215f318e0025ced6f71c7c11294'
+readonly REVIEWED_F02_PUSH_PATH='packages/db/prisma/migrations/20261021000000_push_session_ownership/migration.sql'
+readonly REVIEWED_F02_PUSH_SHA256='b4039dd0bb2c8a4afb14845e4a77b56f4ea9c71bbc88d050a479d9d02b55b9d8'
+readonly REVIEWED_F02_TOMBSTONE_PATH='packages/db/prisma/migrations/20261022000000_erasure_tombstones/migration.sql'
+readonly REVIEWED_F02_TOMBSTONE_SHA256='3c9af7e65644ce2ea1c403718a1892cd4482927716861a21e34bfdedc581e2d8'
+readonly REVIEWED_F02_MIGRATION_TREE_SHA256='2a4c3abe20107e1bb00143cf20bb0c0b5caff5f0201bf0c76364a46098bcc3d6'
 
 die() { local code="$1"; shift; printf 'deploy-platform: %s\n' "$*" >&2; exit "$code"; }
 require_value() { test -n "${!1:-}" || die "$EXIT_INPUT" "missing required input: $1"; }
@@ -359,6 +370,41 @@ reviewed_google_lineage_delta() {
   test "$tree_hash" = "$REVIEWED_LINEAGE_MIGRATION_TREE_SHA256"
 }
 
+reviewed_f02_retention_delta() {
+  local staged="$1" delta_manifest="$2" path tree_hash
+  local discovery="$staged/migration-delta.name-status" meta="$staged/migration-delta.meta"
+  local reviewed_previous="${delta_previous_release:-${PREVIOUS_RELEASE_COMMIT:-}}"
+  local reviewed_candidate="${release_commit:-${RELEASE_COMMIT:-}}"
+  local reviewed_api="${api_ref:-${API_IMAGE_REF:-}}" reviewed_ui="${ui_ref:-${UI_IMAGE_REF:-}}"
+  test "$reviewed_previous" = "$REVIEWED_F02_PREVIOUS_RELEASE" || return 1
+  [[ "$reviewed_candidate" =~ ^[0-9a-f]{40}$ ]] || return 1
+  [[ "$reviewed_api" =~ ^ghcr[.]io/kocakkmustafa/braavolabs/api@sha256:[0-9a-f]{64}$ ]] || return 1
+  [[ "$reviewed_ui" =~ ^ghcr[.]io/kocakkmustafa/braavolabs/ui@sha256:[0-9a-f]{64}$ ]] || return 1
+  for path in "$delta_manifest" "$discovery" "$meta" "$staged/$REVIEWED_F02_LOCALE_PATH" \
+    "$staged/$REVIEWED_F02_PUSH_PATH" "$staged/$REVIEWED_F02_TOMBSTONE_PATH"; do
+    test -f "$path" && test ! -L "$path" || return 1
+  done
+  for path in packages packages/db packages/db/prisma packages/db/prisma/migrations; do
+    test -d "$staged/$path" && test ! -L "$staged/$path" || return 1
+  done
+  test -z "$(find "$staged/packages/db/prisma/migrations" -type l -print -quit)" || return 1
+  # Exactly the three reviewed files, in discovery and manifest order, byte for byte.
+  cmp -s "$delta_manifest" <(printf '%s  %s\n%s  %s\n%s  %s\n' \
+    "$REVIEWED_F02_LOCALE_SHA256" "$REVIEWED_F02_LOCALE_PATH" \
+    "$REVIEWED_F02_PUSH_SHA256" "$REVIEWED_F02_PUSH_PATH" \
+    "$REVIEWED_F02_TOMBSTONE_SHA256" "$REVIEWED_F02_TOMBSTONE_PATH") || return 1
+  cmp -s "$discovery" <(printf 'A\t%s\nA\t%s\nA\t%s\n' \
+    "$REVIEWED_F02_LOCALE_PATH" "$REVIEWED_F02_PUSH_PATH" "$REVIEWED_F02_TOMBSTONE_PATH") || return 1
+  cmp -s "$meta" <(printf 'previousRelease=%s\ncandidateRelease=%s\napi=%s\nui=%s\ndiscoverySha256=%s\ndeltaSha256=%s\n' \
+    "$reviewed_previous" "$reviewed_candidate" "$reviewed_api" "$reviewed_ui" \
+    "$(sha256sum "$discovery" | awk '{print $1}')" \
+    "$(sha256sum "$delta_manifest" | awk '{print $1}')") || return 1
+  tree_hash="$(cd "$staged" &&
+    find packages/db/prisma/migrations -type f -name migration.sql -print0 |
+      LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')" || return 1
+  test "$tree_hash" = "$REVIEWED_F02_MIGRATION_TREE_SHA256"
+}
+
 delta_discovery_matches_manifest() {
   local discovery="$1" manifest="$2" discovered manifested status
   discovered="$(mktemp)"; manifested="$(mktemp)"
@@ -390,6 +436,14 @@ migration_is_eligible() {
      grep -Fq -- "$REVIEWED_LINEAGE_PATH" "$delta_manifest" ||
      grep -Fq -- "$REVIEWED_LINEAGE_PATH" "$staged/migration-delta.name-status"; then
     reviewed_google_lineage_delta "$staged" "$delta_manifest"
+    return "$?"
+  fi
+  # The 87290e0 production baseline admits exactly its reviewed F02/retention
+  # delta; any of its files under another baseline is never generic either.
+  if test "${delta_previous_release:-${PREVIOUS_RELEASE_COMMIT:-}}" = "$REVIEWED_F02_PREVIOUS_RELEASE" ||
+     grep -Fq -e "$REVIEWED_F02_LOCALE_PATH" -e "$REVIEWED_F02_PUSH_PATH" -e "$REVIEWED_F02_TOMBSTONE_PATH" "$delta_manifest" ||
+     grep -Fq -e "$REVIEWED_F02_LOCALE_PATH" -e "$REVIEWED_F02_PUSH_PATH" -e "$REVIEWED_F02_TOMBSTONE_PATH" "$staged/migration-delta.name-status"; then
+    reviewed_f02_retention_delta "$staged" "$delta_manifest"
     return "$?"
   fi
   while IFS= read -r relative; do

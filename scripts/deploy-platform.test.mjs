@@ -1612,3 +1612,128 @@ for (const [name, mutate, overrides = {}] of [
   assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
   assert.equal(readFileSync(join(h.state, "cutover-count"), "utf8"), "0");
 }));
+
+// Y6: F02 push ownership + notification locale + erasure tombstones, reviewed
+// against the 87290e0 production release. Bound to the 52-file SQL tree of the
+// first candidate that carries all three (later migrations need a new review).
+const F02_PREVIOUS_RELEASE = "87290e0c743b94293b2f23be4f7fda0b84cc780d";
+const F02_CANDIDATE = "4245fd9ec42415f1bee9cc7862b9596469f4b3e4";
+const F02_CANDIDATE_MIGRATIONS = 52;
+const F02_PATHS = [
+  "packages/db/prisma/migrations/20261020000000_device_notification_locale/migration.sql",
+  "packages/db/prisma/migrations/20261021000000_push_session_ownership/migration.sql",
+  "packages/db/prisma/migrations/20261022000000_erasure_tombstones/migration.sql",
+];
+const f02Manifest = (input, paths = F02_PATHS) => paths.map((path) => `${sha256File(join(input, path))}  ${path}\n`).join("");
+function sealF02Delta(input, { previous = F02_PREVIOUS_RELEASE, candidate = RELEASE, api = API, ui = UI } = {}) {
+  writeFileSync(join(input, "migration-delta.meta"), [
+    `previousRelease=${previous}`, `candidateRelease=${candidate}`, `api=${api}`, `ui=${ui}`,
+    `discoverySha256=${sha256File(join(input, "migration-delta.name-status"))}`,
+    `deltaSha256=${sha256File(join(input, "migration-delta.sha256"))}`, "",
+  ].join("\n"));
+}
+function buildF02Input(h) {
+  const input = join(h.root, "f02-input");
+  useReviewedMigrationSnapshot(h, F02_CANDIDATE, F02_CANDIDATE_MIGRATIONS);
+  mkdirSync(join(input, "packages/db/prisma"), { recursive: true });
+  cpSync(join(h.sourceRoot, "packages/db/prisma/migrations"),
+    join(input, "packages/db/prisma/migrations"), { recursive: true });
+  delete h.sourceRoot;
+  writeFileSync(join(input, "migration-delta.name-status"), F02_PATHS.map((path) => `A\t${path}\n`).join(""));
+  writeFileSync(join(input, "migration-delta.sha256"), f02Manifest(input));
+  sealF02Delta(input);
+  return input;
+}
+function runF02Guard(h, input, { remote = false, ...overrides } = {}) {
+  const source = readFileSync(SCRIPT, "utf8");
+  const entrypoint = source.lastIndexOf('\nif test "${1:-}" = --remote;');
+  assert.ok(entrypoint > 0, "isolate definitions without invoking a deployment entrypoint");
+  const context = remote ? {
+    delta_previous_release: F02_PREVIOUS_RELEASE, release_commit: RELEASE, api_ref: API, ui_ref: UI,
+  } : { PREVIOUS_RELEASE_COMMIT: F02_PREVIOUS_RELEASE };
+  const result = spawnSync("bash", ["-c", `${source.slice(0, entrypoint)}\n` +
+    'migration_is_eligible "$F02_INPUT" "$F02_INPUT/migration-delta.sha256"'], {
+    cwd: ROOT, encoding: "utf8", timeout: 10_000,
+    env: remoteEnvironment(h, { ...context, F02_INPUT: input, ...overrides }),
+  });
+  assertNoExternalNetwork(h);
+  return result;
+}
+
+test("F02/retention SQL is the reviewed bytes and tree the deploy script pins", () => {
+  const script = readFileSync(SCRIPT, "utf8");
+  for (const path of F02_PATHS) {
+    assert.ok(script.includes(`${sha256File(join(ROOT, path))}'`), `${path} hash pinned`);
+  }
+});
+for (const remote of [false, true]) {
+  test(`F02/retention exact reviewed tuple passes ${remote ? "remote" : "local"} admission`, () =>
+    withHarness((h) => {
+      const result = runF02Guard(h, buildF02Input(h), { remote });
+      assert.equal(result.status, 0, result.stderr);
+    }));
+}
+test("F02/retention real 87290e0-to-candidate discovery reaches only the mocked migration sink", () =>
+  withHarness((h) => {
+    seedComposeIdentity(h, { release: F02_PREVIOUS_RELEASE });
+    useReviewedMigrationSnapshot(h, F02_CANDIDATE, F02_CANDIDATE_MIGRATIONS);
+    writeFileSync(join(h.appRoot, "releases/previous-good.json"), JSON.stringify({
+      release: F02_PREVIOUS_RELEASE, previousRelease: F02_PREVIOUS_RELEASE,
+      tuple: "previous-tuple", api: PREVIOUS_API, ui: PREVIOUS_UI,
+      migrationDeltaSha256: "e".repeat(64), result: "success",
+    }) + "\n");
+    const result = runDeploy(h, {
+      PREVIOUS_RELEASE_COMMIT: F02_PREVIOUS_RELEASE, RELEASE_COMMIT: F02_CANDIDATE, USE_REAL_GIT_DIFF: "1",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "1");
+    const committed = JSON.parse(readFileSync(join(h.appRoot, "releases/previous-good.json")));
+    assert.equal(committed.release, F02_CANDIDATE);
+    assert.equal(committed.previousRelease, F02_PREVIOUS_RELEASE);
+    assertNoExternalNetwork(h);
+  }));
+for (const [name, mutate, overrides = {}] of [
+  ["different previous-good", (input) => sealF02Delta(input, { previous: PREVIOUS_RELEASE }),
+    { PREVIOUS_RELEASE_COMMIT: PREVIOUS_RELEASE }],
+  ["candidate tuple mismatch", (input) => sealF02Delta(input, { candidate: "2".repeat(40) })],
+  ["single appended byte in reviewed SQL", (input) => writeFileSync(join(input, F02_PATHS[1]),
+    readFileSync(join(input, F02_PATHS[1]), "utf8") + "\n")],
+  ["resealed safe-looking replacement SQL", (input) => {
+    writeFileSync(join(input, F02_PATHS[2]), "CREATE TABLE IF NOT EXISTS erasure_tombstones (id TEXT);\n");
+    writeFileSync(join(input, "migration-delta.sha256"), f02Manifest(input)); sealF02Delta(input);
+  }],
+  ["additional unmanifested SQL", (input) => {
+    mkdirSync(join(input, "packages/db/prisma/migrations/20991231000000_extra"));
+    writeFileSync(join(input, "packages/db/prisma/migrations/20991231000000_extra/migration.sql"),
+      "ALTER TABLE tenants ADD COLUMN extra TEXT;\n");
+  }],
+  ["additional manifested SQL", (input) => {
+    const extra = "packages/db/prisma/migrations/20991231000000_extra/migration.sql";
+    mkdirSync(dirname(join(input, extra)));
+    writeFileSync(join(input, extra), "ALTER TABLE tenants ADD COLUMN extra TEXT;\n");
+    writeFileSync(join(input, "migration-delta.name-status"), [...F02_PATHS, extra].map((p) => `A\t${p}\n`).join(""));
+    writeFileSync(join(input, "migration-delta.sha256"), f02Manifest(input, [...F02_PATHS, extra])); sealF02Delta(input);
+  }],
+  ["missing reviewed SQL", (input) => rmSync(join(input, F02_PATHS[0]))],
+  ["manifest omits a reviewed path", (input) => {
+    writeFileSync(join(input, "migration-delta.name-status"), F02_PATHS.slice(1).map((p) => `A\t${p}\n`).join(""));
+    writeFileSync(join(input, "migration-delta.sha256"), f02Manifest(input, F02_PATHS.slice(1))); sealF02Delta(input);
+  }],
+  ["modified discovery status", (input) => {
+    writeFileSync(join(input, "migration-delta.name-status"), F02_PATHS.map((p) => `M\t${p}\n`).join("")); sealF02Delta(input);
+  }],
+  ["historical SQL drift", (input) => writeFileSync(join(input, REVIEWED_ENUM_MIGRATION),
+    readFileSync(join(input, REVIEWED_ENUM_MIGRATION), "utf8") + "\n")],
+  ["SQL symlink", (input) => {
+    rmSync(join(input, F02_PATHS[2])); symlinkSync(join(ROOT, F02_PATHS[2]), join(input, F02_PATHS[2]));
+  }],
+  ["stale metadata seal", (input) => {
+    const file = join(input, "migration-delta.meta"); writeFileSync(file, readFileSync(file, "utf8").replace("deltaSha256=", "deltaSha256=0"));
+  }],
+]) test(`F02/retention denies ${name} without generic policy fallback`, () => withHarness((h) => {
+  const input = buildF02Input(h); mutate(input);
+  const result = runF02Guard(h, input, overrides);
+  assert.equal(result.status, 1, result.stderr);
+  assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
+  assert.equal(readFileSync(join(h.state, "cutover-count"), "utf8"), "0");
+}));
