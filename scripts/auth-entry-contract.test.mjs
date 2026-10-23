@@ -244,8 +244,11 @@ for (const locale of LOCALES) {
         assert.ok(html.includes(expectedText(lookup(messages, key))), `${locale}: ${key} not rendered`);
       }
       assert.doesNotMatch(html, /3 free runs|Run fully|Remember me|Command the agents you already/);
-      assert.match(html, /<select/);
-      for (const language of SUPPORTED_LOCALES) assert.ok(html.includes(`value="${language}"`), `${language} offered`);
+      // Language choice is the root layout's appearance bar (one per page); the form
+      // card no longer repeats it.
+      assert.doesNotMatch(html, /<select/, `${locale} ${mode}: no page-owned language selector`);
+      const switcher = renderToStaticMarkup(React.createElement(load("packages/ui/components/LanguageSwitcher.tsx").default));
+      for (const language of SUPPORTED_LOCALES) assert.ok(switcher.includes(`value="${language}"`), `${language} offered`);
       assert.doesNotMatch(html, /type="checkbox"/);
       const ids = [...html.matchAll(/<input[^>]*id="([^"]+)"/g)].map((match) => match[1]);
       assert.equal(new Set(ids).size, mode === "login" ? 2 : 5);

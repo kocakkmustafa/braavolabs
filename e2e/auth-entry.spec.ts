@@ -10,7 +10,8 @@ const LOCALES = ["en", "tr", "es", "de", "fr", "ar"];
 // A legacy `es` preference is served as the supported es-419 catalogue.
 const canonicalLocale = (locale: string) => (locale === "es" ? "es-419" : locale);
 // The page's own selector, not the root appearance bar's language/theme selects.
-const pageLanguage = (page: Page) => page.locator("#main-content").getByRole("combobox");
+// The only language selector on auth pages is the root appearance bar's (theme is the other select there).
+const pageLanguage = (page: Page) => page.locator("footer.bv-appearance-bar select").filter({ has: page.locator('option[value="ar"]') });
 const messagesFor = (locale: string) => JSON.parse(readFileSync(
   join(process.cwd(), "packages/ui/messages", `${locale}.json`), "utf8",
 ));

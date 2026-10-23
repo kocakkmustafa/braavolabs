@@ -8,7 +8,6 @@ import { useTranslations } from "next-intl";
 import { apiFetch, api, ApiRequestError } from "../../lib/api";
 import { authErrorKey } from "../../lib/auth-errors";
 import { captureAuthSession, isAuthSessionCurrent, useAppStore } from "../../lib/store";
-import LanguageSwitcher from "../../components/LanguageSwitcher";
 
 export default function LoginPage() {
   const uiText = useLegacyTranslations("uiCopy");
@@ -224,9 +223,6 @@ export default function LoginPage() {
         style={{ padding: "clamp(16px, 3vw, 44px)", minHeight: "100dvh" }}
       >
         <div className="bv-glass bv-rise" style={{ width: "100%", maxWidth: 420, minWidth: 0, padding: "clamp(20px, 3vw, 36px)" }}>
-          <div className="flex justify-end mb-4">
-            <LanguageSwitcher />
-          </div>
           {/* Mobile logo */}
           <a
             href="/"
