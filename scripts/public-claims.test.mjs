@@ -598,6 +598,13 @@ test("edge proxy configs isolate cookies, CSP, and CORS", () => {
   assert.match(nginx, /proxy_cookie_domain off/, "authenticated cookies must remain host-only");
   assert.doesNotMatch(caddy, /Access-Control-Allow-Origin\s+"https:\/\/app\.braavolabs\.com"/);
   assert.doesNotMatch(nginx, /add_header Access-Control-Allow-Origin/);
+  // nginx has no off switch for limit_req (nginx -t fails); /health is exempt by omission.
+  assert.doesNotMatch(nginx, /limit_req\s+off/);
+  const health = nginx.match(/location = \/health \{([\s\S]*?)\n {4}\}/)?.[1] ?? "";
+  assert.ok(health && !/limit_req/.test(health), "API /health has no edge rate limit");
+  const api = nginx.slice(nginx.indexOf("server_name api.braavolabs.com;"));
+  assert.equal((api.slice(0, api.indexOf("\n}\n")).match(/^\s+limit_req zone=edge burst=50 nodelay;$/gm) ?? []).length, 3,
+    "every non-health API location keeps the edge limit");
   const middleware = read("packages/ui/middleware.ts");
   assert.match(middleware, /process\.env\.NODE_ENV\s*===\s*["']development["']/);
   assert.match(middleware, /unsafe-eval/);
