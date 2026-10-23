@@ -19,8 +19,18 @@ const ts = uiRequire("typescript");
 const React = uiRequire("react");
 const { renderToStaticMarkup } = uiRequire("react-dom/server");
 
-function actualPage(fetchImpl) {
-  const filename = resolve(ROOT, "packages/ui/app/bench/page.tsx");
+// The page renders English catalog copy; a stand-in for next-intl's server
+// helpers keeps this harness hermetic while still resolving real messages.
+const ENGLISH = JSON.parse(readFileSync(resolve(ROOT, "packages/ui/messages/en.json"), "utf8"));
+function translator(namespace) {
+  return (key, values = {}) => {
+    const message = `${namespace}.${key}`.split(".").reduce((node, part) => node?.[part], ENGLISH);
+    if (typeof message !== "string") throw new Error(`Missing English message ${namespace}.${key}`);
+    return message.replace(/\{(\w+)\}/g, (match, name) => (name in values ? String(values[name]) : match));
+  };
+}
+
+function loadModule(filename, fetchImpl) {
   const source = readFileSync(filename, "utf8");
   const output = ts.transpileModule(source, {
     fileName: filename,
@@ -34,19 +44,26 @@ function actualPage(fetchImpl) {
   const exports = {};
   const require = (id) => {
     if (id === "next/server") return { connection };
+    if (id === "next-intl/server") return { getLocale: async () => "en", getTranslations: async (namespace) => translator(namespace) };
     if (id === "react/jsx-runtime") return uiRequire(id);
     if (id === "next/link") return {
       __esModule: true,
       default: ({ children, ...props }) => React.createElement("a", props, children),
     };
+    // Only the page's own pure helpers (formatting, title) load from source.
+    if (["../../i18n/locales", "../../lib/brand-title"].includes(id)) return loadModule(resolve(dirname(filename), `${id}.ts`), fetchImpl);
     throw new Error(`Unexpected Bench import: ${id}`);
   };
   vm.runInNewContext(output, {
     exports, require, fetch: fetchImpl,
     process: { env: { NEXT_PUBLIC_API_URL: "https://api.fixture.invalid/api/v1" } },
-    console,
+    console, Intl,
   }, { filename });
-  return exports.default;
+  return exports;
+}
+
+function actualPage(fetchImpl) {
+  return loadModule(resolve(ROOT, "packages/ui/app/bench/page.tsx"), fetchImpl).default;
 }
 
 function inRenderScope(unit, action) {
@@ -108,7 +125,10 @@ test("request transport failure retains the existing empty-state rendering", asy
   const page = actualPage(async () => { calls++; throw new Error("Synthetic offline fixture"); });
   const tree = await inRenderScope({ type: "request", phase: "render" }, page);
   assert.equal(calls, 1);
-  assert.match(renderToStaticMarkup(tree), /No published results yet/);
+  // The empty state names no delivery schedule (the copy no longer promises a weekly cycle).
+  const html = renderToStaticMarkup(tree);
+  assert.ok(html.includes(ENGLISH.uiCopy.mbe9a5bbdd9b6), "existing empty-state copy renders");
+  assert.doesNotMatch(html, /weekly|next .* cycle/i);
 });
 
 test("a missing request scope fails before any API call", async () => {

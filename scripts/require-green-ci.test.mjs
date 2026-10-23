@@ -307,7 +307,7 @@ test("workflow contract gates both image writes and SSH, keeps triggers/pins/dig
   assert.match(deploy, /UI_IMAGE_REF=.*\/ui@\$\{ui_digest\}/);
 });
 
-test("all ten CI jobs are useful-step gated, contracts are hard Node22 jobs, watchdog observes nine siblings", () => {
+test("all ten CI jobs are useful-step gated, contracts are hard pinned-Node jobs, watchdog observes nine siblings", () => {
   const ci = read(".github/workflows/ci.yml");
   const jobs = blocks(ci.slice(ci.indexOf("jobs:\n")));
   assert.equal(Object.keys(jobs).length, 10);
@@ -317,7 +317,10 @@ test("all ten CI jobs are useful-step gated, contracts are hard Node22 jobs, wat
     for (const step of steps) assert.ok(body.includes(`- name: ${step}\n`), `missing ${name}/${step}`);
   }
   const contracts = jobs["release-contracts"];
-  assert.match(contracts, /node-version: 22/);
+  // Every job reads the one exact workflow pin (the same Node as the containers).
+  assert.match(ci, /^  NODE_VERSION: "24\.22\.0"$/m);
+  assert.match(contracts, /node-version: \$\{\{ env\.NODE_VERSION \}\}\n/);
+  assert.doesNotMatch(ci, /node-version: (?!\$\{\{ env\.NODE_VERSION \}\})/);
   assert.doesNotMatch(contracts, /^\s+(?:continue-on-error|if|needs):/m);
   assert.match(contracts, /uses: actions\/checkout@v4\n        with:\n(?:\s*#[^\n]*\n)*          fetch-depth: 0/);
   assert.match(contracts, /node --test scripts\/require-green-ci\.test\.mjs scripts\/public-claims\.test\.mjs scripts\/deploy-platform\.test\.mjs/);

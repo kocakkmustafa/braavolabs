@@ -14,6 +14,13 @@ const MOTIONS = ["reduce", "no-preference"] as const;
 type Copy = Record<"legal" | "openApp" | "privacy" | "terms" | "cookies" | "accountDeletion" | "onThisPage" | "permalinkTo", string>;
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const read = (path: string) => readFileSync(join(process.cwd(), path));
+// A legacy `es` preference is served as the supported es-419 catalogue.
+const canonicalLocale = (locale: string) => (locale === "es" ? "es-419" : locale);
+// GDPR and account deletion are localized documents; their first section titles.
+const firstSection = (messages: any, path: string) => path === "/terms" ? messages.static.legal.terms.sections[0].title
+ : path === "/gdpr" ? messages.surface.legal.gdpr["data-controller"].title : messages.runtime.m0d18e6731423;
+const documentTitle = (messages: any, path: string) => path === "/terms" ? messages.static.legal.terms.title
+ : path === "/gdpr" ? messages.surface.legal.gdprTitle : messages.uiCopy.m3b525be54f32;
 const messagesFor = (locale: string) => JSON.parse(read(`packages/ui/messages/${locale}.json`).toString("utf8"));
 const git = (...args: string[]) => execFileSync("git", args, {encoding: "utf8", timeout: 5000, maxBuffer: 65536}).trim();
 const buildId = () => read("packages/ui/.next/BUILD_ID").toString("utf8").trim();
@@ -54,7 +61,7 @@ function identity(locale: string) {
   buildId: id, sources: sourceHashes(locale)};
 }
 async function localeProof(page: Page, locale: string) {
- await expect(page.locator("html")).toHaveAttribute("lang", locale);
+ await expect(page.locator("html")).toHaveAttribute("lang", canonicalLocale(locale));
  await expect(page.locator("html")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
  expect((await page.context().cookies(UI)).find((cookie) => cookie.name === "NEXT_LOCALE")?.value).toBe(locale);
 }
@@ -104,11 +111,9 @@ async function chrome(page: Page, locale: string, path: string, width: number) {
    const link = top.locator(`a[href="${href}"]`);
    await expect(link).toHaveCount(1);
    await expect(link).toHaveText(label);
-   if (width >= 768) {
-    await expect(link).toBeVisible();
-    await expect(link).toHaveAccessibleName(label);
-   }
-   else await expect(link).toBeHidden();
+   // Primary links stay reachable on narrow screens too (cab13b8).
+   await expect(link).toBeVisible();
+   await expect(link).toHaveAccessibleName(label);
   }
   const signIn = top.locator('a[href="https://app.braavolabs.com/login"]');
   await expect(signIn).toHaveCount(1);
@@ -116,41 +121,46 @@ async function chrome(page: Page, locale: string, path: string, width: number) {
   await expect(signIn).toHaveText(messages.nav.signIn);
   await expect(signIn).toHaveAccessibleName(messages.nav.signIn);
  }
- const title = path === "/terms" ? messages.static.legal.terms.title : path === "/gdpr" ? "GDPR Statement" : "Account & Data Deletion";
+ const title = documentTitle(messages, path);
  await expect(header.locator("h1")).toHaveText(title);
  const date = header.locator("p.bv-mono");
  await expect(date).toHaveText(messages.static.common.lastUpdated + " " + (path === "/terms" ? messages.static.legal.terms.date
-  : new Intl.DateTimeFormat(locale, {month: "long", year: "numeric", timeZone: "UTC"}).format(new Date("2026-05-01T00:00:00Z"))));
+  : new Intl.DateTimeFormat(canonicalLocale(locale), {month: "long", year: "numeric", timeZone: "UTC"})
+   .format(new Date(path === "/gdpr" ? "2026-10-20T00:00:00Z" : "2026-05-01T00:00:00Z"))));
  const toc = page.locator("nav[aria-label]");
  await expect(toc).toHaveCount(1);
  await expect(toc).toHaveAttribute("aria-label", copy.onThisPage);
  await expect(toc.locator("p.bv-micro")).toHaveText(copy.onThisPage);
  if (width === 1110 || (width === 768 && path !== "/gdpr")) await expect(toc).toBeVisible();
  else await expect(toc).toBeHidden();
- const section = path === "/terms" ? messages.static.legal.terms.sections[0].title : path === "/gdpr" ? "Data Controller" : "Overview";
+ const section = firstSection(messages, path);
  const permalink = page.locator("article h2 a").first();
  await expect(permalink).toBeAttached();
  await expect(permalink).toHaveAccessibleName(copy.permalinkTo.replace("{title}", section));
  expect(await permalink.getAttribute("href")).toBe(await toc.locator("a").first().getAttribute("href"));
  await expect(toc.locator("a").first()).toHaveText(section);
  if (path !== "/terms") {
-  for (const owner of [header.locator("h1"), page.locator("article"), toc.locator('div[lang="en"]')]) {
+  // Localized documents mark their own language and direction.
+  const dir = locale === "ar" ? "rtl" : "ltr";
+  for (const owner of [header.locator("h1"), page.locator("article"), toc.locator(`div[lang="${locale}"]`)]) {
    await expect(owner).toHaveCount(1);
-   await expect(owner).toHaveAttribute("lang", "en");
-   await expect(owner).toHaveAttribute("dir", "ltr");
-   await expect(owner).toHaveCSS("direction", "ltr");
+   await expect(owner).toHaveAttribute("lang", locale);
+   await expect(owner).toHaveAttribute("dir", dir);
+   await expect(owner).toHaveCSS("direction", dir);
   }
-  await expect(toc).not.toHaveAttribute("lang", "en");
+  expect(await toc.getAttribute("lang")).toBeNull();
   await expect(permalink).toHaveAttribute("lang", locale);
-  await expect(permalink).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
-  await expect(date.locator("time")).toHaveAttribute("datetime", "2026-05");
-  expect(await header.locator("h1").evaluate((node) => node.textContent?.trim().toLocaleUpperCase(node.getAttribute("lang") ?? "en"))).toBe(title.toUpperCase());
+  await expect(permalink).toHaveAttribute("dir", dir);
+  await expect(date.locator("time")).toHaveAttribute("datetime", path === "/gdpr" ? "2026-10-20" : "2026-05");
+  expect(await header.locator("h1").evaluate((node) => node.textContent?.trim().toLocaleUpperCase(node.getAttribute("lang") ?? "en")))
+   .toBe(title.toLocaleUpperCase(locale));
  }
  if (path === "/gdpr") {
+  // Every visitor sees the translated preview notice.
   const banner = header.locator(".bv-panel");
-  await expect(banner).toHaveCount(locale === "en" ? 0 : 1);
-  if (locale !== "en") {
-   await expect(banner).toContainText(messages.static.singleLocale.gdprBanner);
+  await expect(banner).toHaveCount(1);
+  {
+   await expect(banner).toContainText(messages.surface.legal.previewNotice);
    await expect(banner).toHaveCSS("display", "flex");
    const noticeBox = await banner.boundingBox();
    const badgeBox = await eyebrow.boundingBox();
@@ -166,9 +176,8 @@ async function chrome(page: Page, locale: string, path: string, width: number) {
   }
  }
  if (path === DELETION) {
-  const banner = header.locator(".bv-panel");
-  await expect(banner).toHaveCount(locale === "en" ? 0 : 1);
-  if (locale !== "en") await expect(banner).toHaveText(messages.static.common.legalPage.englishOnly);
+  // A localized notice must not claim to be English-only.
+  await expect(header.locator(".bv-panel")).toHaveCount(0);
  }
  await expect(page.locator("body")).not.toContainText(/static\.common\.legalNavigation\.|\{title\}/);
 }
@@ -308,7 +317,7 @@ async function termsJump(page: Page, locale: string, documents: string[]) {
  expect(response.status()).toBe(200);
  expect(response.headers()["content-type"]).toContain("text/html");
  await expect(page).toHaveURL(UI + DELETION);
- await expect(page.locator("header h1")).toHaveText("Account & Data Deletion");
+ await expect(page.locator("header h1")).toHaveText(documentTitle(messagesFor(locale), DELETION));
  await localeProof(page, locale);
  expect(await page.evaluate(() => localStorage.getItem("cookie_consent"))).toBe("essential-only");
  return {url: page.url(), method: request.method(), status: response.status(),
@@ -353,7 +362,7 @@ for (const locale of LOCALES) for (const path of PATHS) {
     await chrome(page, locale, path, width);
     const controls = page.locator('header .bv-fpill, a[href="https://app.braavolabs.com"]');
     const topControls = page.locator('nav:not([aria-label]) a:visible');
-    const topCount = path === "/gdpr" || width === 390 ? 3 : path === "/terms" ? 7 : 6;
+    const topCount = path === "/gdpr" ? 3 : path === "/terms" ? 7 : 6;
     const cell: {geometry: unknown; topGeometry: unknown; anchors?: unknown; navigation?: unknown} = {
      geometry: await geometry(page, controls), topGeometry: await geometry(page, topControls, topCount),
     };

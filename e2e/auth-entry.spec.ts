@@ -7,6 +7,10 @@ import { test, expect, type Page } from "@playwright/test";
 // every auth endpoint is blocked unless a test provides a synthetic response.
 const UI = "http://operator.example:4311";
 const LOCALES = ["en", "tr", "es", "de", "fr", "ar"];
+// A legacy `es` preference is served as the supported es-419 catalogue.
+const canonicalLocale = (locale: string) => (locale === "es" ? "es-419" : locale);
+// The page's own selector, not the root appearance bar's language/theme selects.
+const pageLanguage = (page: Page) => page.locator("#main-content").getByRole("combobox");
 const messagesFor = (locale: string) => JSON.parse(readFileSync(
   join(process.cwd(), "packages/ui/messages", `${locale}.json`), "utf8",
 ));
@@ -127,12 +131,12 @@ for (const [index, locale] of LOCALES.entries()) {
         await page.goto(url);
         // Removing only a fragment can be a same-document navigation.
         await page.reload();
-        await expect(page.locator("html")).toHaveAttribute("lang", locale);
+        await expect(page.locator("html")).toHaveAttribute("lang", canonicalLocale(locale));
         await expect(page.locator("html")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
         await expect(page.getByRole("heading", { level: 1 })).toHaveText(messages.auth[mode].welcome);
         await expect(page.getByLabel(messages.auth.fields.email, { exact: true })).toBeVisible();
         await expect(page.getByLabel(messages.auth.fields.password, { exact: true })).toBeVisible();
-        await expect(page.getByRole("combobox")).toHaveValue(locale);
+        await expect(pageLanguage(page)).toHaveValue(canonicalLocale(locale));
         const ssoSummary = page.locator("main details summary");
         await expect(ssoSummary).toHaveCount(1);
         await expect(ssoSummary).toHaveText(messages.auth.oauth.ssoToggle);
@@ -237,7 +241,7 @@ for (const [index, locale] of LOCALES.entries()) {
     // with a second test-driven reload or a same-URL wait that resolves early.
     await Promise.all([
       page.waitForEvent("domcontentloaded"),
-      page.getByRole("combobox").selectOption(nextLocale),
+      pageLanguage(page).selectOption(nextLocale),
     ]);
     await expect(page.locator("html")).toHaveAttribute("lang", nextLocale);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(messagesFor(nextLocale).auth.login.welcome);

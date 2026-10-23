@@ -108,15 +108,15 @@ function remoteEnvironment(h, overrides = {}) {
 }
 // Historical deployment acceptance must stage the exact reviewed migration
 // snapshot, not every migration later added to the current source checkout.
-function useReviewedMigrationSnapshot(h) {
+function useReviewedMigrationSnapshot(h, commit = REAL_MIGRATION_CANDIDATE, expected = 48) {
   const snapshot = join(h.root, "reviewed-source");
-  const listed = spawnSync("git", ["-C", ROOT, "ls-tree", "-r", "--name-only", REAL_MIGRATION_CANDIDATE,
+  const listed = spawnSync("git", ["-C", ROOT, "ls-tree", "-r", "--name-only", commit,
     "packages/db/prisma/migrations"], { encoding: "utf8" });
   assert.equal(listed.status, 0, listed.stderr);
   const paths = listed.stdout.trim().split("\n").filter((path) => path.endsWith("/migration.sql"));
-  assert.equal(paths.length, 48);
+  assert.equal(paths.length, expected);
   for (const path of paths) {
-    const blob = spawnSync("git", ["-C", ROOT, "show", `${REAL_MIGRATION_CANDIDATE}:${path}`]);
+    const blob = spawnSync("git", ["-C", ROOT, "show", `${commit}:${path}`]);
     assert.equal(blob.status, 0, blob.stderr.toString());
     mkdirSync(dirname(join(snapshot, path)), { recursive: true });
     writeFileSync(join(snapshot, path), blob.stdout);
@@ -1468,11 +1468,16 @@ function sealLineageDelta(input, { previous = LINEAGE_PREVIOUS_RELEASE, candidat
     `deltaSha256=${sha256File(join(input, "migration-delta.sha256"))}`, "",
   ].join("\n"));
 }
+// The reviewed exception is bound to the candidate's exact SQL tree; later
+// migrations in the current checkout must not change this historical fixture.
+const LINEAGE_CANDIDATE_MIGRATIONS = 49;
 function buildLineageInput(h) {
   const input = join(h.root, "lineage-input");
+  useReviewedMigrationSnapshot(h, LINEAGE_CANDIDATE, LINEAGE_CANDIDATE_MIGRATIONS);
   mkdirSync(join(input, "packages/db/prisma"), { recursive: true });
-  cpSync(join(ROOT, "packages/db/prisma/migrations"),
+  cpSync(join(h.sourceRoot, "packages/db/prisma/migrations"),
     join(input, "packages/db/prisma/migrations"), { recursive: true });
+  delete h.sourceRoot;
   writeFileSync(join(input, "migration-delta.name-status"), `A\t${LINEAGE_PATH}\n`);
   writeFileSync(join(input, "migration-delta.sha256"),
     `${sha256File(join(input, LINEAGE_PATH))}  ${LINEAGE_PATH}\n`);
@@ -1504,6 +1509,7 @@ for (const remote of [false, true]) {
 test("lineage real previous-to-candidate discovery reaches only the mocked migration sink", () =>
   withHarness((h) => {
     seedComposeIdentity(h, { release: LINEAGE_PREVIOUS_RELEASE });
+    useReviewedMigrationSnapshot(h, LINEAGE_CANDIDATE, LINEAGE_CANDIDATE_MIGRATIONS);
     writeFileSync(join(h.appRoot, "releases/previous-good.json"), JSON.stringify({
       release: LINEAGE_PREVIOUS_RELEASE, previousRelease: LINEAGE_PREVIOUS_RELEASE,
       tuple: "previous-tuple", api: PREVIOUS_API, ui: PREVIOUS_UI,

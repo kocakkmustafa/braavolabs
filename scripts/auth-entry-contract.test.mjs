@@ -14,6 +14,9 @@ const React = uiRequire("react");
 const { renderToStaticMarkup } = uiRequire("react-dom/server");
 const { resolveTitle } = uiRequire("next/dist/lib/metadata/resolvers/resolve-title");
 const LOCALES = ["en", "tr", "es", "de", "fr", "ar"];
+// The language selector offers the full supported set from the i18n source.
+const SUPPORTED_LOCALES = JSON.parse(readFileSync(resolve(ROOT, "packages/ui/i18n/locales.ts"), "utf8")
+  .match(/export const locales = (\[[^\]]+\]) as const;/)[1]);
 const read = (path) => readFileSync(resolve(ROOT, path), "utf8");
 const lookup = (messages, key) => key.split(".").reduce((value, part) => value?.[part], messages);
 
@@ -45,7 +48,11 @@ function fixture(locale = "en", mode = "login", fetchImpl = () => { throw new Er
       compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
       fileName: absolute,
     }).outputText;
+    // Root-layout appearance chrome keeps real React state so the interaction
+    // fixture's state indices remain the page's own, as before the bar existed.
+    const layoutChrome = /\/components\/(?:ThemeProvider|ThemeSelector|LanguageSwitcher)\.tsx$/.test(absolute);
     const require = (id) => {
+      if (id === "react" && layoutChrome) return React;
       if (id === "react") return { ...React, useState: (initial) => {
         const index = stateIndex++;
         const [value, setValue] = React.useState(interaction?.initial && Object.hasOwn(interaction.initial, index)
@@ -95,7 +102,11 @@ function fixture(locale = "en", mode = "login", fetchImpl = () => { throw new Er
       }
       throw new Error(`Unexpected import: ${id}`);
     };
-    vm.runInNewContext(output, { exports, require, process: { env: {} }, fetch: fetchImpl, Response, URL, Error, console, window: interaction?.window }, { filename: absolute });
+    vm.runInNewContext(output, {
+      exports, require, process: { env: {} }, fetch: fetchImpl, Response, URL, Error, console, window: interaction?.window,
+      // Request deadlines and locale headers use these platform globals.
+      Headers, AbortController, AbortSignal, DOMException, setTimeout, clearTimeout,
+    }, { filename: absolute });
     return exports;
   }
   return { load, messages };
@@ -121,17 +132,19 @@ const LEGAL_METADATA = {
     ogDescription: "Acceptable use, planned subscriptions, cancellation, intellectual property, and limitation of liability.",
     robots: { index: true, follow: true },
   },
+  // 0f6a05e reframed GDPR as an explicitly incomplete preview (no completed-notice claim).
   gdpr: {
-    title: "GDPR Statement",
-    description: "Braavolabs GDPR statement: data controller identity, lawful bases, cross-border transfers, retention periods, and your rights under EU data protection law.",
-    ogTitle: "Braavolabs GDPR Statement",
-    ogDescription: "Data controller, lawful bases, cross-border transfers, retention, and your rights under the EU General Data Protection Regulation.",
+    title: "GDPR information preview",
+    description: "Draft privacy information under GDPR. Responsible-operator, processing, recipient, retention and safeguard details still require completion before public registration.",
+    ogTitle: "Braavolabs GDPR information preview",
+    ogDescription: "A preview of GDPR processing information and rights; this is not yet the complete notice for public personal-data collection.",
   },
+  // Likewise KVKK: an explicitly incomplete preview, localized like GDPR.
   kvkk: {
-    title: "KVKK Aydınlatma Metni",
-    description: "Braavolabs KVKK aydınlatma metni: kişisel verilerin işlenmesi, hukuki dayanakları, saklama süreleri ve 6698 sayılı KVKK kapsamındaki haklarınız.",
-    ogTitle: "Braavolabs KVKK Aydınlatma Metni",
-    ogDescription: "Kişisel verilerin işlenmesi, hukuki dayanakları, saklama süreleri ve KVKK kapsamındaki haklarınız.",
+    title: "KVKK information preview",
+    description: "Draft information under KVKK. Actual operator, processing, recipients, retention and safeguards still require completion before public registration.",
+    ogTitle: "Braavolabs KVKK information preview",
+    ogDescription: "A preview of KVKK processing information and rights; this is not yet a complete privacy notice.",
   },
   "legal/account-deletion": {
     title: "Account Deletion",
@@ -141,6 +154,16 @@ const LEGAL_METADATA = {
   },
 };
 const TRANSLATED_LEGAL_ROUTES = ["privacy", "cookies", "terms"];
+// These routes' metadata comes from the seo catalog: the English contract above
+// selects the key, and each locale must render that same key's translation.
+const SEO_LEGAL_ROUTES = ["gdpr", "kvkk", "legal/account-deletion"];
+function seoTranslation(messages, english) {
+  const seo = JSON.parse(read("packages/ui/messages/en.json")).seo;
+  const keys = Object.keys(seo).filter((key) => seo[key] === english);
+  assert.equal(keys.length, 1, `one seo key for ${english}`);
+  assert.equal(typeof messages.seo[keys[0]], "string");
+  return messages.seo[keys[0]];
+}
 
 async function actualLegalMetadata(locale, route) {
   const { load, messages } = fixture(locale, "login", undefined, {
@@ -177,9 +200,10 @@ for (const [route, expected] of Object.entries(LEGAL_METADATA)) {
   test(`legal metadata ${route}: actual root template adds the brand exactly once`, async () => {
     for (const locale of LOCALES) {
       const { metadata, messages, template } = await actualLegalMetadata(locale, route);
-      const title = TRANSLATED_LEGAL_ROUTES.includes(route) ? messages.static.legal[route].title : expected.title;
+      const localized = (english) => SEO_LEGAL_ROUTES.includes(route) ? seoTranslation(messages, english) : english;
+      const title = TRANSLATED_LEGAL_ROUTES.includes(route) ? messages.static.legal[route].title : localized(expected.title);
       assertSingleBrandTitle(metadata, template, title);
-      if (expected.ogTitle) assert.equal(metadata.openGraph.title, expected.ogTitle);
+      if (expected.ogTitle) assert.equal(metadata.openGraph.title, localized(expected.ogTitle));
     }
   });
 
@@ -221,7 +245,7 @@ for (const locale of LOCALES) {
       }
       assert.doesNotMatch(html, /3 free runs|Run fully|Remember me|Command the agents you already/);
       assert.match(html, /<select/);
-      for (const language of LOCALES) assert.ok(html.includes(`value="${language}"`));
+      for (const language of SUPPORTED_LOCALES) assert.ok(html.includes(`value="${language}"`), `${language} offered`);
       assert.doesNotMatch(html, /type="checkbox"/);
       const ids = [...html.matchAll(/<input[^>]*id="([^"]+)"/g)].map((match) => match[1]);
       assert.equal(new Set(ids).size, mode === "login" ? 2 : 5);
@@ -483,7 +507,8 @@ for (const locale of LOCALES) {
       const main = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/)?.[1];
       assert.ok(main?.includes(escapedText(copy.onThisPage)), `${locale}/${route}: visible TOC label`);
       if (route !== "kvkk") assert.ok(main.includes(`aria-label="${escapedText(copy.onThisPage)}"`));
-      const title = route === "kvkk" ? "Veri Sorumlusu" : messages.static.legal[route].sections[0].title;
+      // KVKK is now localized from surface.legal.kvkk; its first section is the responsible operator.
+      const title = route === "kvkk" ? messages.surface.legal.kvkk["veri-sorumlusu"].title : messages.static.legal[route].sections[0].title;
       const expectedPermalink = escapedText(copy.permalinkTo.replace("{title}", title));
       assert.ok(main.includes(`aria-label="${expectedPermalink}"`), `${locale}/${route}: real ICU title interpolation`);
       assert.doesNotMatch(html, /static\.common\.legalNavigation\.|\{title\}/);
@@ -523,7 +548,8 @@ test("skip link consumes current real provider values without a wrapper or cache
 test("the existing intl provider owns the first body keyboard stop and retains public common messages", async () => {
   const source = read("packages/ui/app/layout.tsx");
   assert.doesNotMatch(source, /Skip to main content/);
-  assert.match(source, /<NextIntlClientProvider locale=\{locale\} messages=\{providerMessages\}>\s*<SkipLink \/>\s*<ToastProvider>/);
+  // ThemeProvider renders no DOM, so the skip link is still the first body stop.
+  assert.match(source, /<NextIntlClientProvider locale=\{locale\} messages=\{providerMessages\}>\s*<ThemeProvider>\s*<SkipLink \/>\s*<ToastProvider>/);
   for (const locale of LOCALES) {
     for (const pathname of ["/privacy", "/cookies", "/kvkk"]) {
       const { load, messages } = fixture(locale, "login", undefined, {
@@ -541,6 +567,28 @@ test("the existing intl provider owns the first body keyboard stop and retains p
   }
 });
 
+// The public document serializes its client message payload into the HTML.
+// Authenticated-only copy (trial, starters, plan badges) lives under `app`,
+// which never ships publicly; keep every public payload free of retired claims.
+const PUBLIC_PAYLOAD_CLAIMS = [/\bFree\b/i, /\bCreator\b/, /\bPro\b/, /\bBusiness\b/, /\bEnterprise\b/, /\btrial\b/i,
+  /\bon-device\b/i, /\bfully (?:offline|replayable|[- ]audited)\b/i, /\bair[ -]?gapped\b/i, /\b\d+\s+providers?\b/i,
+  /\bend[ -]to[ -]end encrypt(?:ed|ion)\b/i, /\bcloud[ -]blind(?:ness)?\b/i, /\$39\/user\/month\b/];
+test("public client message payloads carry no retired or unsupported claims", async () => {
+  const values = (node) => typeof node === "string" ? [node] : node && typeof node === "object" ? Object.values(node).flatMap(values) : [];
+  for (const pathname of ["/", "/pricing", "/features", "/terms", "/privacy", "/cookies", "/gdpr", "/kvkk",
+    "/legal/account-deletion", "/contact", "/about", "/changelog", "/blog", "/status", "/docs"]) {
+    const { load } = fixture("en", "login", undefined, {
+      realIntl: true, headers: { host: "www.braavolabs.com", "x-braavolabs-surface": "public", "x-braavolabs-pathname": pathname },
+    });
+    const layout = await load("packages/ui/app/layout.tsx").default({ children: null });
+    const provider = navOne(navElements(layout, (n) => n.props.messages !== undefined), `${pathname}: one pruned provider`);
+    assert.equal(provider.props.messages.app, undefined, `${pathname}: authenticated app copy never ships publicly`);
+    const findings = values(provider.props.messages).flatMap((value) =>
+      PUBLIC_PAYLOAD_CLAIMS.filter((claim) => claim.test(value)).map((claim) => `${claim}: ${value.slice(0, 80)}`));
+    assert.deepEqual(findings, [], `${pathname}: public payload claims`);
+  }
+});
+
 for (const route of ["privacy", "cookies", "kvkk"]) {
   test(`${route}: actual legal content has exactly one focusable main in all six locales`, () => {
     for (const locale of LOCALES) {
@@ -554,19 +602,20 @@ for (const route of ["privacy", "cookies", "kvkk"]) {
   });
 }
 
-test("all five consent legal links are ordinary anchors with unchanged destinations, labels and styling", () => {
+test("both consent legal links are ordinary anchors with localized labels and theme-aware styling", () => {
+  // One localized banner for every locale (93614f2): Privacy and Cookie Policy.
   const source = read("packages/ui/components/CookieConsent.tsx");
   assert.doesNotMatch(source, /from "next\/link"/);
-  assert.equal([...source.matchAll(/<a href="\/(privacy|cookies|kvkk)"/g)].length, 5);
-  for (const [locale, expected] of Object.entries({
-    en: [["/privacy", "Privacy Policy"], ["/cookies", "Cookie Policy"]],
-    tr: [["/privacy", "Gizlilik Politikası"], ["/cookies", "Çerez Politikası"], ["/kvkk", "KVKK"]],
-  })) {
-    const { load } = fixture(locale, "login", undefined, { initial: { 0: null, 1: locale }, updates: [] });
+  assert.equal([...source.matchAll(/<a href="\/(privacy|cookies|kvkk)"/g)].length, 2);
+  for (const locale of LOCALES) {
+    const { load, messages } = fixture(locale, "login", undefined, { initial: { 0: null }, updates: [] });
+    const labels = messages.static.cookieConsent;
     const html = renderToStaticMarkup(React.createElement(load("packages/ui/components/CookieConsent.tsx").default));
     const links = [...html.matchAll(/<a href="([^"]+)" style="([^"]+)">([^<]+)<\/a>/g)];
-    assert.deepEqual(links.map(([, href, , text]) => [href, text]), expected);
-    for (const [, , style] of links) assert.equal(style, "color:#a4e6ff;text-decoration:underline");
+    const text = (value) => renderToStaticMarkup(React.createElement("span", null, value)).slice(6, -7);
+    assert.deepEqual(links.map(([, href, , label]) => [href, label]),
+      [["/privacy", text(labels.privacyLabel)], ["/cookies", text(labels.cookiesLabel)]]);
+    for (const [, , style] of links) assert.equal(style, "color:var(--color-info);text-decoration:underline");
     assert.match(html, new RegExp(`role="dialog"[^>]*lang="${locale}"`));
   }
 });
@@ -578,15 +627,24 @@ test("consent visibility and both existing choices remain unchanged", () => {
   }
   for (const locale of ["en", "tr"]) {
     for (const [index, choice] of ["essential-only", "accepted"].entries()) {
-      const writes = [];
-      const interaction = { initial: { 0: null, 1: locale }, updates: [], buttons: [],
-        window: { localStorage: { setItem: (...args) => writes.push(args) } } };
-      const { load } = fixture(locale, "login", undefined, interaction);
-      renderToStaticMarkup(React.createElement(load("packages/ui/components/CookieConsent.tsx").default));
-      assert.equal(interaction.buttons.length, 2);
-      interaction.buttons[index].onClick();
-      assert.deepEqual(writes, [["cookie_consent", choice]]);
-      assert.deepEqual(interaction.updates, [{ index: 0, value: choice }]);
+      for (const persists of [true, false]) {
+        // The choice is verified by read-back; a write that does not persist
+        // reports failure and never grants analytics in this document.
+        const writes = [], stored = new Map();
+        const interaction = { initial: { 0: null }, updates: [], buttons: [],
+          window: { localStorage: {
+            setItem: (...args) => { writes.push(args); if (persists) stored.set(...args); },
+            getItem: (key) => stored.get(key) ?? null,
+          } } };
+        const { load } = fixture(locale, "login", undefined, interaction);
+        const consent = load("packages/ui/components/CookieConsent.tsx");
+        renderToStaticMarkup(React.createElement(consent.default));
+        assert.equal(interaction.buttons.length, 2);
+        interaction.buttons[index].onClick();
+        assert.deepEqual(writes, [["cookie_consent", choice]]);
+        assert.deepEqual(interaction.updates, [{ index: 1, value: !persists }]);
+        assert.equal(consent.getCookieConsent(), persists ? choice : null);
+      }
     }
   }
 });
@@ -647,7 +705,8 @@ test("apiFetch preserves HTTP status, detail and request semantics without refre
       });
       assert.equal(calls.length, 1);
       assert.equal(calls[0].options.credentials, "include");
-      assert.equal(calls[0].options.headers["X-Requested-With"], "XMLHttpRequest");
+      // Header names are case-insensitive; the request carries the CSRF companion.
+      assert.equal(new Headers(calls[0].options.headers).get("X-Requested-With"), "XMLHttpRequest");
       assert.equal(calls[0].options.body, "{}");
     }
   }
@@ -683,20 +742,37 @@ test("real form submission renders localized HTTP categories without storing an 
 // LEGAL_NAV_20260908_BEGIN
 const NAV_DOCS = ["privacy", "terms", "cookies", "gdpr", "kvkk", "deletion"];
 const NAV_HREFS = ["/privacy", "/terms", "/cookies", "/gdpr", "/kvkk", "/legal/account-deletion"];
-const NAV_GDPR_TITLES = ["Data Controller", "Personal Data We Process", "Lawful Bases", "Cross-Border Transfers", "Your Rights", "Retention", "Security", "Data Protection Officer"];
-const NAV_DELETION_TITLES = ["Overview", "Request deletion by email", "Verification and next steps", "Current availability", "What gets deleted", "What we retain — and why", "Timeline", "Active subscriptions", "Questions"];
-// Captured from the clean a895f3c source before this presentation-only change.
-// Hash the complete initializer, including JSX, not a projection of title text.
-for (const [route, digest] of Object.entries({
-  gdpr: "bc1395973011556f54bdc30d84a80bb95ee56f4c685958c1a8a1ef3ca592b64e",
-  "legal/account-deletion": "1e1fdbca14f4a3b97d71316d7bd808891f93f487ac519473ca3c73c251338fdb",
-})) test(`legal English sections remain byte-identical: ${route}`, () => {
+const NAV_GDPR_IDS = ["data-controller", "personal-data", "lawful-bases", "cross-border-transfers", "your-rights", "retention", "security", "data-protection-contact"];
+// The deletion notice is localized: its nine section titles are runtime catalog keys, in order.
+const NAV_DELETION_KEYS = [...read("packages/ui/app/legal/account-deletion/page.tsx").matchAll(/title: runtimeCopy\("(m[0-9a-f]{12})"\)/g)].map((match) => match[1]);
+assert.equal(NAV_DELETION_KEYS.length, 9);
+// The legal copy moved into the locale catalogs (0f6a05e). Freeze both the
+// complete `sections` initializer (structure, ids, keys, JSX) and the exact
+// English catalog text it resolves to, so neither can drift without review.
+function legalSectionsDigest(route) {
   const path = `packages/ui/app/${route}/page.tsx`;
   const ast = ts.createSourceFile(path, read(path), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const declarations = ast.statements.flatMap((node) => ts.isVariableStatement(node) ? [...node.declarationList.declarations] : [])
-    .filter((node) => node.name.getText(ast) === "sections");
+  const declarations = [];
+  (function visit(node) {
+    if (ts.isVariableDeclaration(node) && node.name.getText(ast) === "sections") declarations.push(node);
+    ts.forEachChild(node, visit);
+  })(ast);
   assert.equal(declarations.length, 1);
-  assert.equal(createHash("sha256").update(declarations[0].initializer.getText(ast)).digest("hex"), digest);
+  const initializer = declarations[0].initializer.getText(ast);
+  const english = JSON.parse(read("packages/ui/messages/en.json"));
+  const ids = route === "gdpr" ? NAV_GDPR_IDS : [];
+  const resolved = route === "gdpr"
+    ? ids.map((id) => english.surface.legal.gdpr[id])
+    : [...initializer.matchAll(/\b(runtimeCopy|uiText)\("(m[0-9a-f]{12})"\)/g)]
+      .map(([, fn, key]) => english[fn === "runtimeCopy" ? "runtime" : "uiCopy"][key]);
+  assert.ok(resolved.length > 0 && resolved.every((value) => value !== undefined), `${route}: every section key resolves in English`);
+  return createHash("sha256").update(initializer).update("\0").update(JSON.stringify(resolved)).digest("hex");
+}
+for (const [route, digest] of Object.entries({
+  gdpr: "b98e6a5d1aaaf3be569e31fb8d1c8bca40bedc87a7dbeb65c6c0525623607ec3",
+  "legal/account-deletion": "ca257727006d86fc18d8fe2b426c99fe932cd64fbf5abc47803705ef0b204042",
+})) test(`legal English sections remain byte-identical: ${route}`, () => {
+  assert.equal(legalSectionsDigest(route), digest);
 });
 const LEGAL_PAGE_COPY = {
   en: ["About", "Blog", "Product", "Company", "Command the AI agents & automations you already run.", "All rights reserved.", "This document is currently available in English."],
@@ -750,14 +826,32 @@ async function renderLegalNav(locale, route, options = {}) {
   const layout = await load("packages/ui/app/layout.tsx").default({children: React.createElement(Page)});
   const html = renderToStaticMarkup(React.createElement(uiRequire("next-intl").NextIntlClientProvider,
     {locale, timeZone: "UTC", onError: (error) => { throw error; }}, layout));
+  const provider = navOne(navElements(layout, (n) => n.props.messages !== undefined), "one actual pruned provider");
+  // Captured owners are re-rendered inside the layout's own providers (pruned
+  // intl messages + the actual ThemeProvider): the root appearance footer's
+  // language/theme selectors need both contexts, exactly as in the full tree.
+  const theme = navOne(navElements(layout, (n) => typeof n.type === "function" && n.type.name === "ThemeProvider"),
+    "one actual ThemeProvider inside the pruned provider");
+  const renderOwned = (node) => renderToStaticMarkup(React.createElement(uiRequire("next-intl").NextIntlClientProvider,
+    {locale, timeZone: "UTC", messages: provider.props.messages, onError: (error) => { throw error; }},
+    React.cloneElement(theme, undefined, node)));
   for (const tag of ["header", "nav", "article", "footer"]) {
     const actual = html.match(new RegExp("<" + tag + "\\b[^>]*>[\\s\\S]*?</" + tag + ">", "g")) ?? [];
-    assert.deepEqual(actual, interaction.nodes.filter((n) => n.type === tag)
-      .map((n) => renderToStaticMarkup(n)), `${locale}/${route}: ${tag} owners really rendered`);
+    // Layout-owned chrome is created before the page renders; compare in document order.
+    const owned = interaction.nodes.filter((n) => n.type === tag).map(renderOwned);
+    const position = (markup) => html.indexOf(markup);
+    assert.deepEqual(actual, [...owned].sort((a, b) => position(a) - position(b)),
+      `${locale}/${route}: ${tag} owners really rendered`);
   }
   assert.doesNotMatch(html, /static\.common\.legalNavigation\.|\{title\}/);
-  const provider = navOne(navElements(layout, (n) => n.props.messages !== undefined), "one actual pruned provider");
-  return {interaction, messages, nodes: interaction.nodes, providerMessages: provider.props.messages};
+  // The root layout owns exactly one appearance bar (language + theme). Page
+  // chrome contracts below see only page-owned nodes.
+  const appearance = navOne(interaction.nodes.filter((n) => n.type === "footer" && navClass(n, "bv-appearance-bar")),
+    "one root-owned appearance bar");
+  assert.equal(navElements(appearance, (n) => typeof n.type === "function").map((n) => n.type.name).join(","),
+    "LanguageSwitcher,ThemeSelector");
+  assert.match(html, /<footer class="bv-appearance-bar">[\s\S]*?<select[^>]*aria-label="[^"]+"[\s\S]*?<select aria-label="[^"]+"[\s\S]*?<\/footer>/);
+  return {interaction, messages, nodes: interaction.nodes.filter((n) => n !== appearance), providerMessages: provider.props.messages};
 }
 
 for (const locale of LOCALES) {
@@ -790,16 +884,18 @@ for (const locale of LOCALES) {
 
       const title = navOne(navElements(header, (n) => n.type === "h1"), "one unchanged document title");
       assert.equal(navText(title.props.children).trim(), route === "terms"
-        ? messages.static.legal.terms.title : route === "gdpr" ? "GDPR Statement" : "Account & Data Deletion");
+        ? messages.static.legal.terms.title : route === "gdpr" ? messages.surface.legal.gdprTitle : messages.uiCopy.m3b525be54f32);
       const date = navOne(navElements(header, (n) => n.type === "p" && navClass(n, "bv-mono")), "one unchanged date");
       assert.equal(navText(date.props.children).trim(), route === "terms"
         ? messages.static.common.lastUpdated + " " + messages.static.legal.terms.date
-        : messages.static.common.lastUpdated + " " + new Intl.DateTimeFormat(locale, {month: "long", year: "numeric", timeZone: "UTC"}).format(new Date("2026-05-01T00:00:00Z")));
+        : messages.static.common.lastUpdated + " " + new Intl.DateTimeFormat(locale, {month: "long", year: "numeric", timeZone: "UTC"})
+          .format(new Date(route === "gdpr" ? "2026-10-20T00:00:00Z" : "2026-05-01T00:00:00Z")));
       if (route === "gdpr") {
+        // The localized GDPR preview shows its translated preview notice to every visitor.
         const banners = navElements(header, (n) => navClass(n, "bv-panel"));
-        assert.equal(banners.length, locale === "en" ? 0 : 1);
-        if (locale !== "en") {
-          assert.equal(navOwnText(banners[0]), messages.static.singleLocale.gdprBanner);
+        assert.equal(banners.length, 1);
+        {
+          assert.equal(navOwnText(banners[0]), messages.surface.legal.previewNotice);
           const style = banners[0].props.style;
           assert.equal(style.display, "flex", "notice owns a block row separate from the legal badge");
           assert.equal(style.width, "fit-content");
@@ -814,7 +910,7 @@ for (const locale of LOCALES) {
       const tocLabel = navOne(navElements(toc, (n) => n.type === "p" && navClass(n, "bv-micro")), "one visible TOC label");
       assert.equal(navOwnText(tocLabel), copy.onThisPage);
       const titles = route === "terms" ? messages.static.legal.terms.sections.map((s) => s.title)
-        : route === "gdpr" ? NAV_GDPR_TITLES : NAV_DELETION_TITLES;
+        : route === "gdpr" ? NAV_GDPR_IDS.map((id) => messages.surface.legal.gdpr[id].title) : NAV_DELETION_KEYS.map((key) => messages.runtime[key]);
       const tocLinks = navElements(toc, (n) => n.type === "a");
       assert.deepEqual(tocLinks.map((n) => navText(n.props.children).trim()), titles);
       const article = navOne(nodes.filter((n) => n.type === "article"), "one prose article");
@@ -862,9 +958,14 @@ for (const locale of LOCALES) {
       const common = messages.static.common, copy = common.legalPage;
       const top = navOne(nodes.filter((n) => n.type === "nav" && !n.props["aria-label"]), "one top navigation");
       const header = navOne(nodes.filter((n) => n.type === "header"), "one header");
-      assert.deepEqual(Object.keys(providerMessages).sort(), route === "gdpr" ? ["static"] : ["nav", "static"]);
+      // Public pruning: the shared client chrome namespaces plus per-route static
+      // copy only; authenticated namespaces (auth, app, billing, ...) never ship.
+      const shared = ["language", "runtime", "static", "surface", "uiCopy"];
+      assert.deepEqual(Object.keys(providerMessages).sort(), route === "gdpr" ? shared : ["nav", ...shared].sort());
+      for (const key of ["language", "runtime", "surface", "uiCopy"]) assert.equal(providerMessages[key], messages[key]);
+      const chrome = ["appearance", "common", "cookieConsent"];
       if (route === "gdpr") {
-        assert.deepEqual(Object.keys(providerMessages.static).sort(), ["common", "singleLocale"]);
+        assert.deepEqual(Object.keys(providerMessages.static).sort(), [...chrome, "singleLocale"].sort());
         const back = navOne(navElements(top, (n) => n.type === "a" && n.props.href === "/" && navClass(n, "bv-btn-ghost")), "one translated back link, with no extra icon");
         assert.equal(back.props.href, "/");
         const direction = locale === "ar" ? "→" : "←";
@@ -874,7 +975,7 @@ for (const locale of LOCALES) {
         assert.equal(navElements(back, (n) => navText(n) === "arrow_back").length, 0);
       } else {
         assert.deepEqual(Object.keys(providerMessages.nav).sort(), ["features", "pricing", "signIn"]);
-        assert.deepEqual(Object.keys(providerMessages.static).sort(), route === "terms" ? ["changelog", "common", "contact", "legal"] : ["changelog", "common", "contact"]);
+        assert.deepEqual(Object.keys(providerMessages.static).sort(), [...chrome, "changelog", "contact", ...(route === "terms" ? ["legal"] : [])].sort());
         for (const key of ["changelog", "contact"]) assert.deepEqual(Object.keys(providerMessages.static[key]), ["title"]);
         const links = [["/features", messages.nav.features], ["/pricing", messages.nav.pricing], ["/about", copy.about]];
         if (route === "terms") links.push(["/changelog", messages.static.changelog.title]);
@@ -902,10 +1003,12 @@ for (const locale of LOCALES) {
         const skip = navOne(navChildren(shell).filter((n) => React.isValidElement(n) && n.type === "a" && navClass(n, "skip-link")), "one page-owned skip link");
         assert.equal(navText(skip), common.skipToMainContent);
       } else {
-        const links = navOne(navElements(toc, (n) => n.type === "div" && n.props.lang === "en"), "English TOC link group, not its local label");
+        // GDPR and account deletion are localized documents: language and direction follow the locale.
+        const docLang = locale, docDir = docLang === "ar" ? "rtl" : "ltr";
+        const links = navOne(navElements(toc, (n) => n.type === "div" && n.props.lang === docLang), "document-language TOC link group, not its local label");
         for (const owner of [title, article, links]) {
-          assert.equal(owner.props.lang, "en");
-          assert.equal(owner.props.dir, "ltr");
+          assert.equal(owner.props.lang, docLang);
+          assert.equal(owner.props.dir, docDir);
         }
         assert.equal(toc.props.lang, undefined);
         assert.equal(navElements(links, (n) => n.type === "p").length, 0);
@@ -914,12 +1017,11 @@ for (const locale of LOCALES) {
           assert.equal(link.props.dir, locale === "ar" ? "rtl" : "ltr");
         }
         const time = navOne(navElements(header, (n) => n.type === "time"), "one fixed document month");
-        assert.equal(time.props.dateTime, "2026-05");
+        assert.equal(time.props.dateTime, route === "gdpr" ? "2026-10-20" : "2026-05");
       }
       if (route === "legal/account-deletion") {
-        const banners = navElements(header, (n) => navClass(n, "bv-panel"));
-        assert.equal(banners.length, locale === "en" ? 0 : 1);
-        if (locale !== "en") assert.equal(navText(banners[0]).trim(), copy.englishOnly);
+        // A localized notice must not claim to be available only in English.
+        assert.equal(navElements(header, (n) => navClass(n, "bv-panel")).length, 0);
       }
     });
   }

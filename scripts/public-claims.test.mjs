@@ -143,8 +143,68 @@ function claimViolations(source) {
   });
 }
 
+// Public copy now lives in the locale catalogs. A source file reaches only the
+// subtrees named by its translation namespaces and literal key prefixes, so the
+// claim corpus is that reachable copy, not unrelated authenticated namespaces.
+const catalogs = new Map();
+function catalog(locale) {
+  if (!catalogs.has(locale)) catalogs.set(locale, JSON.parse(read(`packages/ui/messages/${locale}.json`)));
+  return catalogs.get(locale);
+}
+function messageAt(messages, key) {
+  return key.split(".").filter(Boolean).reduce((node, part) => (node && typeof node === "object" ? node[part] : undefined), messages);
+}
+function flattenCopy(node) {
+  if (typeof node === "string") return [node];
+  if (Array.isArray(node)) return node.flatMap(flattenCopy);
+  return node && typeof node === "object" ? Object.values(node).flatMap(flattenCopy) : [];
+}
+function reachableCopy(path, locale = "en", source = read(path)) {
+  const namespaces = [...source.matchAll(/Translations\(\s*"([^"]*)"\s*\)/g)].map((match) => match[1]);
+  if (/Translations\(\s*\)/.test(source)) namespaces.push("");
+  // Namespace arguments are not keys: never let `useTranslations("uiCopy")`
+  // read as a root lookup of the whole uiCopy namespace.
+  const keys = new Set([...source.replace(/Translations\(\s*"[^"]*"\s*\)/g, "Translations()").matchAll(/["'`]([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*\.?)(?=\$\{|["'`])/g)]
+    .map((match) => match[1].replace(/\.$/, "")));
+  const messages = catalog(locale);
+  const copy = [];
+  for (const namespace of new Set(namespaces)) {
+    for (const key of keys) {
+      const node = messageAt(messages, namespace ? `${namespace}.${key}` : key);
+      if (node !== undefined && node !== messages) copy.push(...flattenCopy(node));
+    }
+  }
+  return [...new Set(copy)].join("\n");
+}
+function withCopy(paths, locale = "en") {
+  return paths.map((path) => `\n/* ${path} */\n${read(path)}\n/* ${path} ${locale} copy */\n${reachableCopy(path, locale)}`).join("\n");
+}
+// The localized price is rendered as `<plan> — <bdi>{period}</bdi>` from the core
+// plan table; reproduce the English rendering from those exact inputs.
+function renderedEnglishPricing() {
+  const plans = read("packages/core/src/constants/plans.ts");
+  const usd = (id) => Number(plans.match(new RegExp(`${id}: \\{ monthlyUsd: (\\d+),`))?.[1]);
+  const preview = catalog("en").publicPreview;
+  for (const path of ["packages/ui/app/page.tsx", "packages/ui/app/pricing/page.tsx"]) {
+    const source = read(path);
+    assert.match(source, /PLAN_PRICING\[(?:plan|id)\]\.monthlyUsd, "USD"/, `${path}: price comes from the core plan table`);
+    assert.match(source, /"individualPeriod" : "teamPeriod"/, `${path}: period copy comes from publicPreview`);
+  }
+  // One isolated text run per card: "<plan> — <period>" in the document direction.
+  assert.match(read("packages/ui/app/pricing/page.tsx"), /<bdi dir=\{localeDirection\(locale\)\}>\{`\$\{plan\.name\} — \$\{plan\.price\}`\}<\/bdi>/);
+  for (const id of ["me9694a186010", "m032b7cca868a"]) {
+    assert.match(read("packages/ui/app/page.tsx"), new RegExp(`<bdi dir=\\{localeDirection\\(locale\\)\\}>\\{\`\\$\\{uiText\\("${id}"\\)\\} \\$\\{price\\(`));
+  }
+  assert.equal(catalog("en").uiCopy.me9694a186010, "Individual —");
+  assert.equal(catalog("en").uiCopy.m032b7cca868a, "Team —");
+  return [
+    `Individual — ${preview.individualPeriod.replace("{price}", `$${usd("INDIVIDUAL")}`)}`,
+    `Team — ${preview.teamPeriod.replace("{price}", `$${usd("TEAM")}`)}`,
+  ].join("\n");
+}
+
 test("authorized public sources expose only the frozen contract", () => {
-  const source = bundle(ALLOWED_PUBLIC_SOURCE_PATHS);
+  const source = `${withCopy(ALLOWED_PUBLIC_SOURCE_PATHS)}\n${renderedEnglishPricing()}`;
 
   for (const sentence of APPROVED_TRUTH) {
     assert.ok(source.includes(sentence), `missing canonical truth: ${sentence}`);
@@ -160,7 +220,7 @@ test("authorized public sources expose only the frozen contract", () => {
 });
 
 test("source and structured-data source cannot publish unsupported shipped security guarantees", () => {
-  const source = bundle(ALLOWED_PUBLIC_SOURCE_PATHS);
+  const source = withCopy(ALLOWED_PUBLIC_SOURCE_PATHS);
   assert.match(source, /Private Mode — preview/);
   assert.match(source, /Cloud Agent Mode — in development/);
   assert.match(source, /Exact-action approval — in development/);
@@ -176,10 +236,17 @@ test("source and structured-data source cannot publish unsupported shipped secur
 });
 
 test("planned pricing cannot be presented as currently purchasable", () => {
-  const source = bundle(ALLOWED_PUBLIC_SOURCE_PATHS);
+  const source = `${withCopy(ALLOWED_PUBLIC_SOURCE_PATHS)}\n${renderedEnglishPricing()}`;
   const layout = read("packages/ui/app/layout.tsx");
-  const pricingPage = read("packages/ui/app/pricing/page.tsx");
-  const pricingLayout = read("packages/ui/app/pricing/layout.tsx");
+  // Page metadata replaces layout metadata, so each generateMetadata is checked
+  // with only the English copy its own metadata function reaches.
+  const metadataOf = (path) => {
+    const source = read(path);
+    const chunk = source.slice(0, source.indexOf("export default"));
+    return `${chunk}\n${reachableCopy(path, "en", chunk)}`;
+  };
+  const pricingPage = metadataOf("packages/ui/app/pricing/page.tsx");
+  const pricingLayout = metadataOf("packages/ui/app/pricing/layout.tsx");
   assert.match(source, /Pricing preview — not currently purchasable/);
   assert.match(source, /Individual — \$19\/month/);
   assert.match(source, /Team — \$39\/active-user\/month/);
@@ -204,8 +271,12 @@ test("complete reachable public source corpus has zero retired claims", () => {
   assert.equal(PUBLIC_CORPUS_PATHS.length, 32, "public corpus sentinel changed without review");
 
   const violations = [];
+  const sources = PUBLIC_CORPUS_PATHS.filter((path) => !path.endsWith(".json"));
   for (const path of PUBLIC_CORPUS_PATHS) {
-    for (const violation of claimViolations(read(path))) {
+    const locale = path.match(/messages\/([a-z]+)\.json$/)?.[1];
+    // A locale catalog contributes exactly the copy the public corpus reaches.
+    const text = locale ? sources.map((source) => reachableCopy(source, locale)).join("\n") : read(path);
+    for (const violation of claimViolations(text)) {
       violations.push(`${path}: ${violation}`);
     }
   }
@@ -251,8 +322,24 @@ test("machine-readable public source corpus is www-only and the unpublished inst
 
 test("features copy cannot render unresolved i18n keys", () => {
   const features = read("packages/ui/app/features/page.tsx");
-  assert.doesNotMatch(features, /useTranslations|\bt\s*\(/, "features page still depends on runtime translation lookup");
   assert.doesNotMatch(features, /\bfeatures\.[a-zA-Z0-9_.-]+\b/, "unresolved features.* key remains in source");
+  // Every literal key the page looks up must resolve to copy in every locale.
+  const lookups = [
+    ...[...features.matchAll(/\buiText\("([^"]+)"\)/g)].map((match) => `uiCopy.${match[1]}`),
+    ...[...features.matchAll(/\bseo\("([^"]+)"\)/g)].map((match) => `seo.${match[1]}`),
+  ];
+  assert.ok(lookups.length > 10, "features page lookups were found");
+  const capabilities = (features.match(/^  \{\n    label:/gm) ?? []).length;
+  assert.ok(capabilities > 0, "features page capability source was found");
+  for (const locale of LOCALES) {
+    const messages = catalog(locale);
+    for (const key of lookups) assert.equal(typeof messageAt(messages, key), "string", `${locale}: ${key} unresolved`);
+    const translated = messageAt(messages, "dataCopy.capabilities");
+    assert.ok(Array.isArray(translated) && translated.length === capabilities, `${locale}: capability copy count`);
+    for (const entry of translated) {
+      for (const field of ["label", "title", "copy"]) assert.ok(typeof entry[field] === "string" && entry[field].trim(), `${locale}: capability ${field}`);
+    }
+  }
 });
 
 test("public message pruning retains every namespace used by about and changelog in all locales", () => {
@@ -365,7 +452,7 @@ test("public legal and deletion copy exposes only canonical evidenced channels",
   ];
   const legalSource = bundle(legalPaths);
   const deletion = read("packages/ui/app/legal/account-deletion/page.tsx");
-  const gdpr = read("packages/ui/app/gdpr/page.tsx");
+  const gdpr = withCopy(["packages/ui/app/gdpr/page.tsx"]);
 
   assert.doesNotMatch(legalSource, /href\s*=\s*["']\/account-deletion["']/);
   assert.match(legalSource, /href\s*=\s*["']\/legal\/account-deletion["']/);
@@ -373,8 +460,12 @@ test("public legal and deletion copy exposes only canonical evidenced channels",
   assert.doesNotMatch(deletion, /Settings\s*→\s*(?:Privacy\s*→\s*)?Delete account/i);
   assert.doesNotMatch(deletion, /\/contact\?topic=delete/);
   assert.doesNotMatch(deletion, /hot replica|90 days|synchronous|cascade completes|completes in seconds/i);
-  assert.match(gdpr, /TLS 1\.2 and TLS 1\.3/);
-  assert.doesNotMatch(gdpr, /AES-256 at rest|role-based access control|regular security reviews|kept for 12 months/i);
+  // The GDPR preview makes no transport/at-rest guarantee; privacy keeps the TLS truth.
+  assert.match(gdpr, /does not establish certification, a complete offline guarantee or protection against every incident/);
+  for (const locale of LOCALES) {
+    assert.doesNotMatch(withCopy(["packages/ui/app/gdpr/page.tsx"], locale),
+      /AES-256|role-based access control|RBAC|regular security reviews|kept for 12 months/i, `${locale}: gdpr security claims`);
+  }
 
   for (const locale of LOCALES) {
     const messages = JSON.parse(read(`packages/ui/messages/${locale}.json`));
@@ -450,14 +541,18 @@ test("localized privacy and terms match platform data and billing truth", () => 
 });
 
 test("GDPR transfer copy cannot name unevidenced processors or legal mechanisms", () => {
-  const gdpr = read("packages/ui/app/gdpr/page.tsx");
-  assert.doesNotMatch(
-    gdpr,
-    /\b(?:Stripe|SendGrid|HubSpot|Google|GitHub|Adyen|Braintree|PayPal)\b|Standard Contractual Clauses|\bSCCs?\b/,
-  );
+  for (const locale of LOCALES) {
+    const gdpr = withCopy(["packages/ui/app/gdpr/page.tsx"], locale);
+    assert.doesNotMatch(
+      gdpr,
+      /\b(?:Stripe|SendGrid|HubSpot|Google|GitHub|Adyen|Braintree|PayPal)\b|Standard Contractual Clauses|\bSCCs?\b/,
+      `${locale}: unevidenced processor or mechanism`,
+    );
+  }
+  const gdpr = withCopy(["packages/ui/app/gdpr/page.tsx"]);
   assert.doesNotMatch(gdpr, /card details[^.]{0,120}\bhandles\b|\bhandles\b[^.]{0,120}card details/i);
-  assert.match(gdpr, /current payment provider and deployment/i);
-  assert.match(gdpr, /current provider and deployment evidence/i);
+  assert.match(gdpr, /Actual recipients, destinations and applicable transfer safeguards must be documented for the active deployment/);
+  assert.match(gdpr, /does not claim that an unverified provider agreement or safeguard is already in place/);
 });
 
 test("install and download edge behavior is fail-closed without changing their source routes", () => {

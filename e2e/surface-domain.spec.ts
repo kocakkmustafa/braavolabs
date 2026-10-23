@@ -61,7 +61,8 @@ async function expectLegalChrome(page: Page, locale: string, path: string) {
   }
   await expect(main.getByText(copy.onThisPage, { exact: true })).toBeVisible();
   if (path !== "/kvkk") await expect(main.getByRole("navigation", { name: copy.onThisPage, exact: true })).toBeVisible();
-  const title = path === "/kvkk" ? "Veri Sorumlusu" : messages.static.legal[path.slice(1)].sections[0].title;
+  // KVKK is localized; its first section is the responsible operator.
+  const title = path === "/kvkk" ? messages.surface.legal.kvkk["veri-sorumlusu"].title : messages.static.legal[path.slice(1)].sections[0].title;
   await expect(main.locator("h2 a").first()).toHaveAccessibleName(copy.permalinkTo.replace("{title}", title));
   if (path === "/kvkk") {
     const footer = page.locator("footer + div");
@@ -122,12 +123,13 @@ async function expectLegalChrome(page: Page, locale: string, path: string) {
 
 // These contexts deliberately do NOT inherit auth-entry's stored-consent
 // fixture. Exercise the real mounted anonymous banner, never real accounts.
+// The one localized banner links Privacy and Cookie Policy in every locale.
+const consentCopy = (locale: string) => JSON.parse(readFileSync(join(process.cwd(), "packages/ui/messages", `${locale}.json`), "utf8")).static.cookieConsent;
 for (const { locale, path, label } of [
-  { locale: "en", path: "/privacy", label: "Privacy Policy" },
-  { locale: "en", path: "/cookies", label: "Cookie Policy" },
-  { locale: "tr", path: "/privacy", label: "Gizlilik Politikası" },
-  { locale: "tr", path: "/cookies", label: "Çerez Politikası" },
-  { locale: "tr", path: "/kvkk", label: "KVKK" },
+  { locale: "en", path: "/privacy", label: consentCopy("en").privacyLabel },
+  { locale: "en", path: "/cookies", label: consentCopy("en").cookiesLabel },
+  { locale: "tr", path: "/privacy", label: consentCopy("tr").privacyLabel },
+  { locale: "tr", path: "/cookies", label: consentCopy("tr").cookiesLabel },
 ]) {
   test(`anonymous consent ${locale} ${path}: native document navigation and real skip target`, async ({ browser, request }) => {
     // HTTP redirect identity is independent from the browser's operator host.
@@ -158,7 +160,7 @@ for (const { locale, path, label } of [
       });
       await page.goto(`${OPERATOR_UI}/login`);
       expect(await page.evaluate(() => localStorage.getItem("cookie_consent"))).toBeNull();
-      const banner = page.getByRole("dialog", { name: locale === "tr" ? "Çerezler hakkında" : "Cookies & privacy" });
+      const banner = page.getByRole("dialog", { name: consentCopy(locale).title });
       await expect(banner).toBeVisible();
       await expect(banner).toHaveAttribute("lang", locale);
       const link = banner.getByRole("link", { name: label, exact: true });
@@ -183,12 +185,13 @@ for (const { locale, path, label } of [
   });
 }
 
-// Five EN/TR combinations already reach the same assertions via the actual
-// consent links above. Keep the three Arabic cases and add only ten missing
+// Four EN/TR combinations already reach the same assertions via the actual
+// consent links above. Keep the three Arabic cases and add the eleven missing
 // combinations, yielding all 18 locale/path pairs without runtime skips.
 for (const { locale, path } of [
   ...["/privacy", "/cookies", "/kvkk"].map((path) => ({ locale: "ar", path })),
   { locale: "en", path: "/kvkk" },
+  { locale: "tr", path: "/kvkk" },
   ...["es", "de", "fr"].flatMap((locale) => ["/privacy", "/cookies", "/kvkk"].map((path) => ({ locale, path }))),
 ]) {
   const label = locale === "ar" ? "anonymous Arabic" : `anonymous legal ${locale}`;
@@ -197,7 +200,8 @@ for (const { locale, path } of [
     try {
       const page = await context.newPage();
       await page.goto(`${OPERATOR_UI}${path}`);
-      await expect(page.locator("html")).toHaveAttribute("lang", locale);
+      // A legacy `es` preference is served as the supported es-419 catalogue.
+      await expect(page.locator("html")).toHaveAttribute("lang", locale === "es" ? "es-419" : locale);
       await expect(page.locator("html")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
       await expectLegalSkipTarget(page, locale);
       await expectLegalChrome(page, locale, path);
