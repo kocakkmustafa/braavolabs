@@ -13,8 +13,8 @@ const DEVELOPMENT_SCRIPT_EVAL = process.env.NODE_ENV === "development" ? " 'unsa
 const PUBLIC_CSP = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${DEVELOPMENT_SCRIPT_EVAL} https://static.cloudflareinsights.com https://plausible.io`,
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' https://fonts.gstatic.com",
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self'",
   "img-src 'self' data:",
   "connect-src 'self' https://cloudflareinsights.com https://plausible.io",
   "frame-ancestors 'none'",
@@ -25,8 +25,8 @@ const PUBLIC_CSP = [
 const AUTHENTICATED_CSP = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${DEVELOPMENT_SCRIPT_EVAL}`,
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' https://fonts.gstatic.com",
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self'",
   "img-src 'self' data: https://lh3.googleusercontent.com https://avatars.githubusercontent.com",
   "connect-src 'self' https://api.braavolabs.com wss://api.braavolabs.com",
   "frame-ancestors 'none'",
@@ -37,8 +37,8 @@ const AUTHENTICATED_CSP = [
 const SELF_HOSTED_PUBLIC_CSP = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${DEVELOPMENT_SCRIPT_EVAL} https://static.cloudflareinsights.com https://plausible.io`,
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' https://fonts.gstatic.com",
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self'",
   "img-src 'self' data:",
   "connect-src 'self' https://cloudflareinsights.com https://plausible.io",
   "frame-ancestors 'none'",
@@ -51,8 +51,8 @@ function selfHostedAuthenticatedCsp(apiSources: readonly string[]): string {
   return [
     "default-src 'self'",
     `script-src 'self' 'unsafe-inline'${DEVELOPMENT_SCRIPT_EVAL}`,
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self'",
     "img-src 'self' data: https://lh3.googleusercontent.com https://avatars.githubusercontent.com",
     `connect-src ${connectSources}`,
     "frame-ancestors 'none'",

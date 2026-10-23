@@ -64,10 +64,10 @@ const nextConfig: NextConfig = {
               // CSP needs the host pre-allowed so we don't have to flip
               // CSP at the same time the env var lands.
               `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://static.cloudflareinsights.com https://plausible.io`,
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "font-src 'self' https://fonts.gstatic.com",
+              "style-src 'self' 'unsafe-inline'",
+              "font-src 'self'",
               "img-src 'self' data: https://lh3.googleusercontent.com https://avatars.githubusercontent.com",
-              `connect-src 'self' ${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:*"} https://fonts.googleapis.com https://fonts.gstatic.com https://cloudflareinsights.com https://plausible.io`,
+              `connect-src 'self' ${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:*"} https://cloudflareinsights.com https://plausible.io`,
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

@@ -12,6 +12,11 @@ import { THEME_INIT_SCRIPT } from "../lib/theme-preference";
 import SkipLink from "../components/SkipLink";
 import { ToastProvider } from "../components/Toast";
 import { APEX_HOST, PUBLIC_HOST, normalizeSurfaceHost, parseSelfHostedSurfaceHosts, surfaceForHost } from "../lib/surface-domain";
+// Self-hosted fonts (bundled under /_next/static/media): no client request to
+// Google Fonts, so the CSP allows fonts from 'self' only.
+import "@fontsource-variable/inter/index.css";
+import "@fontsource-variable/space-grotesk/index.css";
+import "@fontsource-variable/material-symbols-outlined/fill.css";
 import "./globals.css";
 
 const PUBLIC_ORIGIN = "https://www.braavolabs.com";
@@ -221,12 +226,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <head>
         <script id="braavo-theme-init" dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
-        />
         {isPublic && (
           <script
             type="application/ld+json"

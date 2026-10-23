@@ -64,8 +64,8 @@
 
   --color-surface-tint:            #3B82F6;
 
-  --font-headline: "Space Grotesk", sans-serif;
-  --font-body: "Inter", sans-serif;
+  --font-headline: "Space Grotesk Variable", "Space Grotesk", sans-serif;
+  --font-body: "Inter Variable", "Inter", sans-serif;
   --font-label: "Inter", sans-serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
@@ -192,7 +192,7 @@ html.light ::selection {
   ::-webkit-scrollbar-thumb:hover { background: var(--color-outline); }
 
   .material-symbols-outlined {
-    font-family: 'Material Symbols Outlined', sans-serif;
+    font-family: 'Material Symbols Outlined Variable', 'Material Symbols Outlined', sans-serif;
     font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
     vertical-align: middle;
     font-size: 1.25rem;
@@ -819,8 +819,8 @@ html.light ::selection {
   --bv-text-faint: #8C96A5;
 
   /* Type stack */
-  --bv-font-display: "Space Grotesk", -apple-system, BlinkMacSystemFont, sans-serif;
-  --bv-font-body: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --bv-font-display: "Space Grotesk Variable", "Space Grotesk", -apple-system, BlinkMacSystemFont, sans-serif;
+  --bv-font-body: "Inter Variable", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   --bv-font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
