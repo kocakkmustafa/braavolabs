@@ -125,7 +125,7 @@ model MediaAsset {
   mime       String
   sizeBytes  Int      @map("size_bytes")
   bytes      Bytes
-  expiresAt  DateTime @default(dbgenerated("(CURRENT_TIMESTAMP + interval '30 days')")) @map("expires_at")
+  expiresAt  DateTime @default(dbgenerated("(CURRENT_TIMESTAMP + '30 days'::interval)")) @map("expires_at")
   createdAt  DateTime @default(now()) @map("created_at")
 
   tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -178,8 +178,10 @@ model User {
   @@index([tenantId])
   // Composite uniqueness: an oidcSubject is only meaningful within
   // its tenant's IdP, so the same subject coming from two different
-  // tenants' Entra/Okta instances doesn't conflict.
-  @@unique([tenantId, oidcSubject], map: "users_tenant_oidc_subject_unique")
+  // tenants' Entra/Okta instances doesn't conflict. Enforced by the
+  // PARTIAL unique index "users_tenant_oidc_subject_unique" (WHERE
+  // oidc_subject IS NOT NULL) in migration 20260512_oidc_connections;
+  // Prisma cannot model partial indexes, so it is not declared here.
   @@map("users")
   pushSessions PushSession[]
 }
@@ -207,7 +209,7 @@ model Device {
   pushRevision Int? @map("push_revision")
   pushTokenHash String? @map("push_token_hash")
   pushPayloadHash String? @map("push_payload_hash")
-  pushSession PushSession? @relation(fields: [pushSessionId], references: [id], onDelete: Cascade)
+  pushSession PushSession? @relation(fields: [pushSessionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -227,7 +229,7 @@ model PushSession {
   revision Int @default(0)
   tokenHash String? @map("token_hash")
   expiresAt DateTime @map("expires_at")
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   devices Device[]
   @@index([userId, tenantId])
   @@index([expiresAt])
@@ -292,7 +294,7 @@ model MobileSubscription {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   googlePurchaseAliases GooglePurchaseAlias[]
 
-  @@unique([id, tenantId, provider, originalTransactionId])
+  @@unique([id, tenantId, provider, originalTransactionId], map: "mobile_subscriptions_alias_owner_key")
   @@index([tenantId, status])
   @@index([expiresAt])
   @@map("mobile_subscriptions")
@@ -315,10 +317,10 @@ model GooglePurchaseAlias {
   provider                 String?
   canonicalRootIdentity    String?  @map("canonical_root_identity")
   createdAt                DateTime @default(now()) @map("created_at")
-  updatedAt                DateTime @updatedAt @map("updated_at")
+  updatedAt                DateTime @default(now()) @updatedAt @map("updated_at")
 
   tenant       Tenant?             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  subscription MobileSubscription? @relation(fields: [mobileSubscriptionId, tenantId, provider, canonicalRootIdentity], references: [id, tenantId, provider, originalTransactionId], onDelete: Cascade)
+  subscription MobileSubscription? @relation(fields: [mobileSubscriptionId, tenantId, provider, canonicalRootIdentity], references: [id, tenantId, provider, originalTransactionId], onDelete: Cascade, map: "google_purchase_aliases_subscription_owner_fkey")
 
   @@index([tenantId])
   @@index([mobileSubscriptionId])
@@ -781,6 +783,10 @@ model MemoryEmbedding {
 
   memoryItem MemoryItem @relation(fields: [memoryItemId], references: [id], onDelete: Cascade)
 
+  // The pgvector HNSW index "memory_embeddings_embedding_hnsw_idx" lives
+  // only in migration 20260423_pgvector_hnsw_index: Prisma has no HNSW index
+  // type, so `migrate diff` always proposes dropping it. Delete that line from
+  // any generated migration.
   @@map("memory_embeddings")
 }
 
@@ -994,9 +1000,9 @@ model BenchRun {
   notes           String?       @db.Text
   ranAt           DateTime      @default(now()) @map("ran_at")
 
-  suite BenchSuite @relation(fields: [suiteId], references: [id], onDelete: Cascade)
+  suite BenchSuite @relation(fields: [suiteId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@index([suiteId, scoreNormalised(sort: Desc)])
+  @@index([suiteId, scoreNormalised(sort: Desc)], map: "bench_runs_suite_id_score_idx")
   @@index([provider, model, ranAt(sort: Desc)])
   @@map("bench_runs")
 }
@@ -1070,9 +1076,9 @@ model TemplateRating {
   review     String?  @db.Text
   createdAt  DateTime @default(now()) @map("created_at")
 
-  template CompanyTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  template CompanyTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@unique([templateId, tenantId])
+  @@unique([templateId, tenantId], map: "template_ratings_template_id_tenant_id_unique")
   @@index([templateId])
   @@map("template_ratings")
 }
@@ -1088,9 +1094,9 @@ model TemplateInstall {
   stripePaymentIntentId String? @map("stripe_payment_intent_id")
   createdAt           DateTime @default(now()) @map("created_at")
 
-  template CompanyTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  template CompanyTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@unique([templateId, tenantId, installedCompanyId])
+  @@unique([templateId, tenantId, installedCompanyId], map: "template_installs_unique_per_company")
   @@index([tenantId])
   @@index([templateId])
   @@map("template_installs")
@@ -1190,9 +1196,9 @@ model TenantConnector {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  connector Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+  connector Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@unique([tenantId, connectorId])
+  @@unique([tenantId, connectorId], map: "tenant_connectors_tenant_id_connector_id_unique")
   @@index([tenantId])
   @@map("tenant_connectors")
 }
@@ -1255,15 +1261,15 @@ model WebResearchSource {
   title       String?  @db.Text
   // Readability-extracted main content (capped at ~50KB at the
   // service layer). Empty when the fetch failed.
-  content     String   @db.Text
+  content     String   @default("") @db.Text
   contentHash String   @map("content_hash") // SHA-256 — de-dups across rounds
   // Relevance score 0..1 from the agent's last evaluation pass.
   relevance   Float    @default(0)
   fetchedAt   DateTime @default(now()) @map("fetched_at")
 
-  session WebResearchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session WebResearchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@unique([sessionId, contentHash])
+  @@unique([sessionId, contentHash], map: "web_research_sources_session_content_hash_unique")
   @@index([sessionId])
   @@map("web_research_sources")
 }
@@ -1323,8 +1329,8 @@ model VoiceAgent {
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
-  company Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  agent   Agent?      @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  company Company     @relation(fields: [companyId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  agent   Agent?      @relation(fields: [agentId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   calls   VoiceCall[]
 
   @@index([companyId])
@@ -1360,7 +1366,7 @@ model VoiceCall {
   createdAt       DateTime           @default(now()) @map("created_at")
   updatedAt       DateTime           @updatedAt @map("updated_at")
 
-  voiceAgent VoiceAgent @relation(fields: [voiceAgentId], references: [id], onDelete: Cascade)
+  voiceAgent VoiceAgent @relation(fields: [voiceAgentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([voiceAgentId, createdAt(sort: Desc)])
   @@index([tenantId, createdAt(sort: Desc)])
@@ -1408,7 +1414,7 @@ model OidcConnection {
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@map("oidc_connections")
 }
@@ -1440,6 +1446,7 @@ model ActivityLog {
   // equality fallback) — indexing it keeps the planner from sequential-
   // scanning activity_log under those queries.
   @@index([tenantId, createdAt(sort: Desc)])
+  @@index([tenantId], map: "activity_log_tenant_id_idx")
   @@index([action])
   @@index([createdAt])
   @@index([resourceId])
@@ -1539,12 +1546,12 @@ model StripeWebhookEvent {
   // When we finished processing this event. NULL means we accepted it
   // but the handler didn't complete (most likely because we crashed
   // mid-handler — useful signal for ops).
-  processedAt     DateTime? @map("processed_at")
+  processedAt     DateTime? @map("processed_at") @db.Timestamp(6)
   // Short summary of what the handler did, e.g.
   //   { tenantId, plan, action: "subscription.upgraded" }
   // Helpful for replay / debugging without re-reading the raw payload.
   resultSummary   Json?     @map("result_summary")
-  createdAt       DateTime  @default(now()) @map("created_at")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
 
   @@index([type])
   @@index([createdAt])
@@ -1581,15 +1588,15 @@ model EntitlementEvent {
   // Apple/Google notification time); a Google replacement-chain event may
   // be raised 1 ms past its root's previous event under the ownership lock
   // so an old-token revoke cannot sort after a newer verified grant.
-  sourceTimestamp DateTime @map("source_timestamp")
+  sourceTimestamp DateTime @map("source_timestamp") @db.Timestamp(6)
   /// "purchase" | "renewal" | "cancel" | "grace" | "refund" | "revoke" | "restore"
   type      String
   // Matches MobileSubscription.planTier's own choice of String over the
   // Plan enum — a new catalog tier shouldn't need a migration here either.
   planTier  String?   @map("plan_tier")
-  expiresAt DateTime? @map("expires_at")
+  expiresAt DateTime? @map("expires_at") @db.Timestamp(6)
   autoRenew Boolean   @default(true) @map("auto_renew")
-  createdAt DateTime  @default(now()) @map("created_at")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
