@@ -286,7 +286,8 @@
         "confirm_disconnect": "Rimuovere la connessione SSO? Gli utenti SSO esistenti torneranno all’accesso con email e password.",
         "test_sign_in": "Prova accesso →",
         "plan_gate_body": "SSO dell’organizzazione è in sviluppo e non è ancora acquistabile.",
-        "plan_gate_cta": "Vedi piani →"
+        "plan_gate_cta": "Vedi piani →",
+        "enterprise_sso": "SSO aziendale"
       },
       "fieldName": "Nome",
       "memberSince": "Membro dal {year}",
@@ -1192,6 +1193,19 @@
       "clear": "Nessuna approvazione in attesa",
       "spend": "Approvazione di spesa richiesta",
       "viewAll": "Vedi tutte le approvazioni"
+    },
+    "trial": {
+      "funding": "Una prova attiva segue il provider e i limiti del gestore. Gli abbonamenti a pagamento non includono l’inferenza; usa una chiave di provider supportata o un endpoint locale configurato quando la prova non è disponibile.",
+      "exhausted": "È stato raggiunto il limite di prova dell’account ({limit, number}).",
+      "remaining": "{count, plural, one {# esecuzione di prova rimanente} other {# esecuzioni di prova rimanenti}} su {limit, number}"
+    },
+    "starters": {
+      "intro": "Scegli una configurazione iniziale. Le esecuzioni richiedono un provider configurato o una prova disponibile per l’account; verifica provider e budget prima di iniziare.",
+      "trialRunOne": "1 esecuzione di prova",
+      "trialRuns": "{count, plural, one {# esecuzione di prova} other {# esecuzioni di prova}}"
+    },
+    "register": {
+      "freePlan": "Piano gratuito"
     }
   },
   "static": {
@@ -2129,7 +2143,6 @@
     "m5d499d7bb383": "spazio di lavoro in",
     "mc963b2a55c65": "pochi minuti",
     "m0ffcb934d4d3": "Braavolabs. Tutti i diritti riservati.",
-    "m4c3d039eeb89": "Piano gratuito",
     "mb9d9f6052c15": "Google",
     "m2d8843cd30de": "GitHub",
     "m3f79055b06f5": "Sicurezza —",
@@ -2203,7 +2216,6 @@
     "m99463116beca": "URL di callback",
     "mc5038b20a0d6": "Registra questo URI di reindirizzamento nel tuo provider di identità:",
     "m4f8f4a6029d8": "Copia negli appunti",
-    "m5722bcfa7400": "SSO aziendale",
     "m1e939b7b4cbc": "Imponi l’accesso tramite il tuo IdP aziendale (Azure AD, Okta, Auth0, Google Workspace). Gli utenti dei domini consentiti vengono reindirizzati automaticamente al tuo IdP.",
     "m239b7819863d": "Impostazioni",
     "m82be07e8418a": "Configurazione",
@@ -2814,9 +2826,6 @@
       "responseTime": "Includi l’email dell’account e una descrizione del problema. Non è garantito un tempo di risposta fisso.",
       "intro": "Contatta il team Braavolabs per assistenza su prodotto, account e abbonamenti."
     },
-    "starters": {
-      "intro": "Scegli una configurazione iniziale. Le esecuzioni richiedono un provider configurato o una prova disponibile per l’account; verifica provider e budget prima di iniziare."
-    },
     "dashboard": {
       "operator": "operatore",
       "morning": "Buongiorno",
@@ -2912,11 +2921,6 @@
       "cron": "Pianificazione",
       "webhook": "Webhook",
       "event": "Evento"
-    },
-    "trial": {
-      "funding": "Una prova attiva segue il provider e i limiti del gestore. Gli abbonamenti a pagamento non includono l’inferenza; usa una chiave di provider supportata o un endpoint locale configurato quando la prova non è disponibile.",
-      "exhausted": "È stato raggiunto il limite di prova dell’account ({limit, number}).",
-      "remaining": "{count, plural, one {# esecuzione di prova rimanente} other {# esecuzioni di prova rimanenti}} su {limit, number}"
     }
   },
   "dataCopy": {
@@ -4737,8 +4741,6 @@
     "mb39b93c48c24": "Accedi per usare una configurazione iniziale.",
     "m2eb2d91c4f3b": "Creazione della configurazione iniziale non riuscita.",
     "mcdd1de1ae01a": "Usa la configurazione iniziale: {value0}",
-    "m838f9adcc123": "1 esecuzione di prova",
-    "m9a021a4b3454": "{count, plural, one {# esecuzione di prova} other {# esecuzioni di prova}}",
     "ma5a28bb26fde": "{count, plural, one {# agente} other {# agenti}}",
     "m014789a56e1d": "{count, plural, one {# passaggio della pipeline} other {# passaggi della pipeline}}",
     "ma682e26e6a31": "Caricamento della previsione non riuscito",

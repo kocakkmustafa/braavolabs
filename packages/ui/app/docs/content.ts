@@ -165,7 +165,7 @@ export const DOCS: DocPage[] = [
       {
         "kind": "note",
         "tone": "warn",
-        "text": "A company name or a local model endpoint alone does not establish a separate tenant, an operating-system sandbox or a fully offline data path."
+        "text": "A company name or a local model endpoint alone does not establish a separate tenant, an operating-system sandbox or an offline-only data path."
       }
     ]
   },
@@ -206,7 +206,7 @@ export const DOCS: DocPage[] = [
       },
       {
         "kind": "para",
-        "text": "Inference charges go to the configured provider. Local execution can still incur hardware and operation costs. Review reported usage and provider billing together; unavailable cost data is not free usage."
+        "text": "Inference charges go to the configured provider. Local execution can still incur hardware and operation costs. Review reported usage and provider billing together; unavailable cost data is not zero-cost usage."
       },
       {
         "kind": "note",

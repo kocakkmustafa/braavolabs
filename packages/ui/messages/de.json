@@ -286,7 +286,8 @@
         "confirm_disconnect": "SSO-Verbindung entfernen? Bestehende SSO-Benutzer fallen auf E-Mail/Passwort-Anmeldung zurück.",
         "test_sign_in": "Anmeldung testen →",
         "plan_gate_body": "Organisations-SSO ist in Entwicklung und derzeit nicht kaufbar.",
-        "plan_gate_cta": "Pläne ansehen →"
+        "plan_gate_cta": "Pläne ansehen →",
+        "enterprise_sso": "Unternehmens-SSO"
       },
       "fieldName": "Name",
       "memberSince": "Mitglied seit {year}",
@@ -1192,6 +1193,19 @@
       "clear": "Keine ausstehenden Freigaben",
       "spend": "Ausgabenfreigabe erforderlich",
       "viewAll": "Alle Freigaben anzeigen"
+    },
+    "trial": {
+      "funding": "Eine aktivierte Testnutzung richtet sich nach Anbieter und Grenzen des Betreibers. Bezahlte Abonnements enthalten keine Inferenz; nutze einen unterstützten Anbieterschlüssel oder einen konfigurierten lokalen Endpunkt, wenn die Testnutzung nicht verfügbar ist.",
+      "exhausted": "Das Testlimit des Kontos ({limit, number}) wurde erreicht.",
+      "remaining": "{count, plural, one {# Testlauf verbleibend} other {# Testläufe verbleibend}} von {limit, number}"
+    },
+    "starters": {
+      "intro": "Wähle eine Ausgangskonfiguration. Läufe benötigen einen konfigurierten Anbieter oder eine verfügbare Testnutzung des Kontos; prüfe vor dem Start Anbieter und Budget.",
+      "trialRunOne": "1 Testlauf",
+      "trialRuns": "{count, plural, one {# Testlauf} other {# Testläufe}}"
+    },
+    "register": {
+      "freePlan": "Kostenloser Tarif"
     }
   },
   "static": {
@@ -2129,7 +2143,6 @@
     "m5d499d7bb383": "Workspace in",
     "mc963b2a55c65": "Minuten",
     "m0ffcb934d4d3": "Braavolabs. Alle Rechte vorbehalten.",
-    "m4c3d039eeb89": "Kostenloser Tarif",
     "mb9d9f6052c15": "Google",
     "m2d8843cd30de": "GitHub",
     "m3f79055b06f5": "Stärke —",
@@ -2203,7 +2216,6 @@
     "m99463116beca": "Callback-URL",
     "mc5038b20a0d6": "Registriere diese Weiterleitungs-URI bei deinem Identitätsanbieter:",
     "m4f8f4a6029d8": "In Zwischenablage kopieren",
-    "m5722bcfa7400": "Unternehmens-SSO",
     "m1e939b7b4cbc": "Erzwinge die Anmeldung über deinen Unternehmens-IdP (Azure AD, Okta, Auth0, Google Workspace). Nutzer deiner erlaubten Domains werden automatisch an deinen IdP weitergeleitet.",
     "m239b7819863d": "Einstellungen",
     "m82be07e8418a": "Konfiguration",
@@ -2814,9 +2826,6 @@
       "responseTime": "Gib die E-Mail-Adresse des Kontos und eine Beschreibung des Problems an. Eine feste Antwortzeit ist nicht garantiert.",
       "intro": "Wende dich für Hilfe zu Produkt, Konto und Abonnement an das Braavolabs-Team."
     },
-    "starters": {
-      "intro": "Wähle eine Ausgangskonfiguration. Läufe benötigen einen konfigurierten Anbieter oder eine verfügbare Testnutzung des Kontos; prüfe vor dem Start Anbieter und Budget."
-    },
     "dashboard": {
       "operator": "Bediener",
       "morning": "Guten Morgen",
@@ -2912,11 +2921,6 @@
       "cron": "Zeitplan",
       "webhook": "Webhook",
       "event": "Ereignis"
-    },
-    "trial": {
-      "funding": "Eine aktivierte Testnutzung richtet sich nach Anbieter und Grenzen des Betreibers. Bezahlte Abonnements enthalten keine Inferenz; nutze einen unterstützten Anbieterschlüssel oder einen konfigurierten lokalen Endpunkt, wenn die Testnutzung nicht verfügbar ist.",
-      "exhausted": "Das Testlimit des Kontos ({limit, number}) wurde erreicht.",
-      "remaining": "{count, plural, one {# Testlauf verbleibend} other {# Testläufe verbleibend}} von {limit, number}"
     }
   },
   "dataCopy": {
@@ -4737,8 +4741,6 @@
     "mb39b93c48c24": "Melde dich an, um eine Startvorlage zu verwenden.",
     "m2eb2d91c4f3b": "Startvorlage konnte nicht erstellt werden.",
     "mcdd1de1ae01a": "Startvorlage verwenden: {value0}",
-    "m838f9adcc123": "1 Testlauf",
-    "m9a021a4b3454": "{count, plural, one {# Testlauf} other {# Testläufe}}",
     "ma5a28bb26fde": "{count, plural, one {# Agent} other {# Agenten}}",
     "m014789a56e1d": "{count, plural, one {# Pipeline-Schritt} other {# Pipeline-Schritte}}",
     "ma682e26e6a31": "Prognose konnte nicht geladen werden",

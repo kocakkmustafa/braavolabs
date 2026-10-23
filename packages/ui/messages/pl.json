@@ -286,7 +286,8 @@
         "confirm_disconnect": "Usunąć połączenie SSO? Obecni użytkownicy SSO wrócą do logowania adresem e-mail i hasłem.",
         "test_sign_in": "Przetestuj logowanie →",
         "plan_gate_body": "SSO organizacji jest w opracowaniu i nie jest obecnie dostępne w sprzedaży.",
-        "plan_gate_cta": "Zobacz plany →"
+        "plan_gate_cta": "Zobacz plany →",
+        "enterprise_sso": "Firmowe SSO"
       },
       "fieldName": "Nazwa",
       "memberSince": "Członek od {year}",
@@ -1192,6 +1193,19 @@
       "clear": "Brak oczekujących zatwierdzeń",
       "spend": "Wymagane zatwierdzenie wydatku",
       "viewAll": "Zobacz wszystkie zatwierdzenia"
+    },
+    "trial": {
+      "funding": "Włączony okres próbny podlega dostawcy i limitom operatora. Płatne subskrypcje nie obejmują inferencji; gdy okres próbny jest niedostępny, użyj klucza obsługiwanego dostawcy lub skonfigurowanego lokalnego endpointu.",
+      "exhausted": "Osiągnięto limit okresu próbnego konta ({limit, number}).",
+      "remaining": "{count, plural, =0 {Brak pozostałych uruchomień próbnych} one {Pozostało # uruchomienie próbne} few {Pozostały # uruchomienia próbne} many {Pozostało # uruchomień próbnych} other {Pozostało # uruchomienia próbnego}} z {limit, number}"
+    },
+    "starters": {
+      "intro": "Wybierz konfigurację początkową. Uruchomienia wymagają skonfigurowanego dostawcy lub dostępnego okresu próbnego konta; przed rozpoczęciem sprawdź dostawcę i budżet.",
+      "trialRunOne": "1 uruchomienie próbne",
+      "trialRuns": "{count, plural, one {# uruchomienie próbne} few {# uruchomienia próbne} many {# uruchomień próbnych} other {# uruchomienia próbnego}}"
+    },
+    "register": {
+      "freePlan": "Plan bezpłatny"
     }
   },
   "static": {
@@ -2129,7 +2143,6 @@
     "m5d499d7bb383": "obszar roboczy w",
     "mc963b2a55c65": "kilka minut",
     "m0ffcb934d4d3": "Braavolabs. Wszelkie prawa zastrzeżone.",
-    "m4c3d039eeb89": "Plan bezpłatny",
     "mb9d9f6052c15": "Google",
     "m2d8843cd30de": "GitHub",
     "m3f79055b06f5": "Siła —",
@@ -2203,7 +2216,6 @@
     "m99463116beca": "URL zwrotny",
     "mc5038b20a0d6": "Zarejestruj ten URI przekierowania u dostawcy tożsamości:",
     "m4f8f4a6029d8": "Kopiuj do schowka",
-    "m5722bcfa7400": "Firmowe SSO",
     "m1e939b7b4cbc": "Wymagaj logowania przez firmowego IdP (Azure AD, Okta, Auth0, Google Workspace). Użytkownicy dozwolonych domen są automatycznie przekierowywani do IdP.",
     "m239b7819863d": "Ustawienia",
     "m82be07e8418a": "Konfiguracja",
@@ -2814,9 +2826,6 @@
       "responseTime": "Podaj e-mail konta i opis problemu. Stały czas odpowiedzi nie jest gwarantowany.",
       "intro": "Skontaktuj się z zespołem Braavolabs w sprawie produktu, konta i subskrypcji."
     },
-    "starters": {
-      "intro": "Wybierz konfigurację początkową. Uruchomienia wymagają skonfigurowanego dostawcy lub dostępnego okresu próbnego konta; przed rozpoczęciem sprawdź dostawcę i budżet."
-    },
     "dashboard": {
       "operator": "operator",
       "morning": "Dzień dobry",
@@ -2912,11 +2921,6 @@
       "cron": "Harmonogram",
       "webhook": "Webhook",
       "event": "Zdarzenie"
-    },
-    "trial": {
-      "funding": "Włączony okres próbny podlega dostawcy i limitom operatora. Płatne subskrypcje nie obejmują inferencji; gdy okres próbny jest niedostępny, użyj klucza obsługiwanego dostawcy lub skonfigurowanego lokalnego endpointu.",
-      "exhausted": "Osiągnięto limit okresu próbnego konta ({limit, number}).",
-      "remaining": "{count, plural, =0 {Brak pozostałych uruchomień próbnych} one {Pozostało # uruchomienie próbne} few {Pozostały # uruchomienia próbne} many {Pozostało # uruchomień próbnych} other {Pozostało # uruchomienia próbnego}} z {limit, number}"
     }
   },
   "dataCopy": {
@@ -4737,8 +4741,6 @@
     "mb39b93c48c24": "Zaloguj się, aby użyć konfiguracji początkowej.",
     "m2eb2d91c4f3b": "Nie udało się utworzyć konfiguracji początkowej.",
     "mcdd1de1ae01a": "Użyj konfiguracji początkowej: {value0}",
-    "m838f9adcc123": "1 uruchomienie próbne",
-    "m9a021a4b3454": "{count, plural, one {# uruchomienie próbne} few {# uruchomienia próbne} many {# uruchomień próbnych} other {# uruchomienia próbnego}}",
     "ma5a28bb26fde": "{count, plural, one {# agent} few {# agenci} many {# agentów} other {# agenta}}",
     "m014789a56e1d": "{count, plural, one {# krok pipeline’u} few {# kroki pipeline’u} many {# kroków pipeline’u} other {# kroku pipeline’u}}",
     "ma682e26e6a31": "Nie udało się wczytać prognozy",

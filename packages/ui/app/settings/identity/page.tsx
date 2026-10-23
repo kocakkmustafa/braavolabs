@@ -575,7 +575,7 @@ export default function IdentitySettingsPage() {
                 <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-primary)" }}>
                   shield
                 </span>
-                <span className="bv-micro" style={{ color: "var(--color-primary)" }}>{uiText("m5722bcfa7400")}</span>
+                <span className="bv-micro" style={{ color: "var(--color-primary)" }}>{t("enterprise_sso")}</span>
               </div>
               <p className="bv-caption">{uiText("m1e939b7b4cbc")}</p>
             </div>

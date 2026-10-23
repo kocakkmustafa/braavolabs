@@ -153,6 +153,8 @@ export default function AccountDeletionPage() {
   const legal = useTranslations("static.common.legalNavigation");
   const page = useTranslations("static.common.legalPage");
   const locale = useLocale();
+  // The deletion notice is localized; mark the document's language and direction to match.
+  const documentDir = locale === "ar" ? "rtl" : "ltr";
   const updatedMonth = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric", timeZone: "UTC" })
     .format(new Date("2026-05-01T00:00:00Z"));
 
@@ -191,11 +193,6 @@ export default function AccountDeletionPage() {
         </div>
 
         <div className="relative max-w-[1100px] mx-auto px-6">
-          {locale !== "en" && (
-            <div className="bv-panel inline-flex mb-5 px-4 py-2.5 text-xs text-on-surface-variant">
-              {page("englishOnly")}
-            </div>
-          )}
           {/* Eyebrow */}
           <div className="flex items-center justify-center gap-2 mb-4">
             <span className="bv-pill bv-pill-cyan">
@@ -204,7 +201,7 @@ export default function AccountDeletionPage() {
             </span>
           </div>
 
-          <h1 lang="en" dir="ltr" className="font-headline font-semibold uppercase tracking-tight text-on-surface text-[clamp(34px,5vw,60px)] leading-[1.05] mb-3">{uiText("m3b525be54f32")}</h1>
+          <h1 lang={locale} dir={documentDir} className="font-headline font-semibold uppercase tracking-tight text-on-surface text-[clamp(34px,5vw,60px)] leading-[1.05] mb-3">{uiText("m3b525be54f32")}</h1>
           <p className="bv-mono text-outline mt-3">{t("static.common.lastUpdated")}{" "}<time dateTime="2026-05">{updatedMonth}</time></p>
 
           {/* Doc switcher */}
@@ -235,7 +232,7 @@ export default function AccountDeletionPage() {
         {/* Sticky TOC (desktop) */}
         <nav className="hidden md:block sticky self-start" style={{ top: "var(--bv-legal-offset)" }} aria-label={legal("onThisPage")}>
           <p className="bv-micro mb-[14px]">{legal("onThisPage")}</p>
-          <div lang="en" dir="ltr" className="flex flex-col">
+          <div lang={locale} dir={documentDir} className="flex flex-col">
             {sections.map((s) => (
               <a
                 key={s.id}
@@ -249,7 +246,7 @@ export default function AccountDeletionPage() {
         </nav>
 
         {/* Prose */}
-        <article lang="en" dir="ltr" className="max-w-[72ch] pb-24 bv-stagger">
+        <article lang={locale} dir={documentDir} className="max-w-[72ch] pb-24 bv-stagger">
           {sections.map((s) => (
             <section key={s.id} id={s.id} className="mb-0" style={{ scrollMarginTop: "var(--bv-legal-offset)" }}>
               {/* Section divider (skip first) */}

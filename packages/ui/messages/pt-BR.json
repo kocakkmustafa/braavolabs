@@ -286,7 +286,8 @@
         "confirm_disconnect": "Remover conexão SSO? Os usuários existentes de SSO passarão a entrar com e-mail e senha.",
         "test_sign_in": "Testar login →",
         "plan_gate_body": "O SSO da organização está em desenvolvimento e ainda não está disponível para compra.",
-        "plan_gate_cta": "Ver planos →"
+        "plan_gate_cta": "Ver planos →",
+        "enterprise_sso": "SSO empresarial"
       },
       "fieldName": "Nome",
       "memberSince": "Membro desde {year}",
@@ -1192,6 +1193,19 @@
       "clear": "Nenhuma aprovação pendente",
       "spend": "Aprovação de gasto necessária",
       "viewAll": "Ver todas as aprovações"
+    },
+    "trial": {
+      "funding": "Uma avaliação habilitada segue o provedor e os limites do operador. Assinaturas pagas não incluem inferência; use uma chave de provedor compatível ou um endpoint local configurado quando a avaliação estiver indisponível.",
+      "exhausted": "O limite de avaliação da conta ({limit, number}) foi atingido.",
+      "remaining": "{count, plural, one {# execução de avaliação restante} other {# execuções de avaliação restantes}} de {limit, number}"
+    },
+    "starters": {
+      "intro": "Escolha uma configuração inicial. As execuções precisam de um provedor configurado ou de uma avaliação disponível para a conta; revise o provedor e o orçamento antes de começar.",
+      "trialRunOne": "1 execução de avaliação",
+      "trialRuns": "{count, plural, one {# execução de avaliação} other {# execuções de avaliação}}"
+    },
+    "register": {
+      "freePlan": "Plano gratuito"
     }
   },
   "static": {
@@ -2129,7 +2143,6 @@
     "m5d499d7bb383": "espaço de trabalho em",
     "mc963b2a55c65": "minutos",
     "m0ffcb934d4d3": "Braavolabs. Todos os direitos reservados.",
-    "m4c3d039eeb89": "Plano gratuito",
     "mb9d9f6052c15": "Google",
     "m2d8843cd30de": "GitHub",
     "m3f79055b06f5": "Força —",
@@ -2203,7 +2216,6 @@
     "m99463116beca": "URL de callback",
     "mc5038b20a0d6": "Registre este URI de redirecionamento no seu provedor de identidade:",
     "m4f8f4a6029d8": "Copiar para a área de transferência",
-    "m5722bcfa7400": "SSO empresarial",
     "m1e939b7b4cbc": "Exija login pelo IdP corporativo (Azure AD, Okta, Auth0, Google Workspace). Usuários dos domínios permitidos são redirecionados automaticamente ao seu IdP.",
     "m239b7819863d": "Configurações",
     "m82be07e8418a": "Configuração",
@@ -2814,9 +2826,6 @@
       "responseTime": "Inclua o e-mail da conta e uma descrição do problema. Não há garantia de prazo fixo de resposta.",
       "intro": "Contate a equipe do Braavolabs para ajuda com produto, conta e assinatura."
     },
-    "starters": {
-      "intro": "Escolha uma configuração inicial. As execuções precisam de um provedor configurado ou de uma avaliação disponível para a conta; revise o provedor e o orçamento antes de começar."
-    },
     "dashboard": {
       "operator": "operador",
       "morning": "Bom dia",
@@ -2912,11 +2921,6 @@
       "cron": "Agendamento",
       "webhook": "Webhook",
       "event": "Evento"
-    },
-    "trial": {
-      "funding": "Uma avaliação habilitada segue o provedor e os limites do operador. Assinaturas pagas não incluem inferência; use uma chave de provedor compatível ou um endpoint local configurado quando a avaliação estiver indisponível.",
-      "exhausted": "O limite de avaliação da conta ({limit, number}) foi atingido.",
-      "remaining": "{count, plural, one {# execução de avaliação restante} other {# execuções de avaliação restantes}} de {limit, number}"
     }
   },
   "dataCopy": {
@@ -4737,8 +4741,6 @@
     "mb39b93c48c24": "Entre para usar uma configuração inicial.",
     "m2eb2d91c4f3b": "Não foi possível criar a configuração inicial.",
     "mcdd1de1ae01a": "Usar configuração inicial: {value0}",
-    "m838f9adcc123": "1 execução de avaliação",
-    "m9a021a4b3454": "{count, plural, one {# execução de avaliação} other {# execuções de avaliação}}",
     "ma5a28bb26fde": "{count, plural, one {# agente} other {# agentes}}",
     "m014789a56e1d": "{count, plural, one {# etapa de pipeline} other {# etapas de pipeline}}",
     "ma682e26e6a31": "Não foi possível carregar a previsão",

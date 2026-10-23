@@ -36,7 +36,7 @@ interface TrialBannerProps {
 
 export default function TrialBanner({ token }: TrialBannerProps) {
   const uiText = useLegacyTranslations("uiCopy");
-  const copy = useLegacyTranslations("surface.trial");
+  const copy = useLegacyTranslations("app.trial");
   const common = useLegacyTranslations("app.settings");
   const [loadedTrial, setTrial] = useState<{ token: string; data: TrialState } | null>(null);
   const trial = loadedTrial && loadedTrial.token === token ? loadedTrial.data : null;

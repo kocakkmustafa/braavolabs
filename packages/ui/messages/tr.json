@@ -286,7 +286,8 @@
         "confirm_disconnect": "SSO bağlantısı kaldırılsın mı? Mevcut SSO kullanıcıları e-posta/şifre girişine düşer.",
         "test_sign_in": "Girişi test et →",
         "plan_gate_body": "Kuruluş SSO'su geliştirme aşamasındadır ve şu anda satın alınamaz.",
-        "plan_gate_cta": "Planları gör →"
+        "plan_gate_cta": "Planları gör →",
+        "enterprise_sso": "Kurumsal SSO"
       },
       "fieldName": "Ad Soyad",
       "memberSince": "{year}'den beri üye",
@@ -1192,6 +1193,19 @@
       "clear": "Bekleyen onay yok",
       "spend": "Harcama onayı gerekiyor",
       "viewAll": "Tüm onayları görüntüle"
+    },
+    "trial": {
+      "funding": "Etkinleştirilmiş bir deneme, işletmecinin sağlayıcısına ve sınırlarına tabidir. Ücretli aboneliklere çıkarım dahil değildir; deneme kullanılamıyorsa desteklenen bir sağlayıcı anahtarı veya yapılandırılmış yerel uç nokta kullanın.",
+      "exhausted": "Hesabın deneme sınırına ({limit, number}) ulaşıldı.",
+      "remaining": "Toplam {limit, number} deneme çalıştırmasından {count, plural, one {# kaldı} other {# kaldı}}"
+    },
+    "starters": {
+      "intro": "Bir başlangıç yapılandırması seçin. Çalıştırmalar için yapılandırılmış bir sağlayıcı veya kullanılabilir hesap denemesi gerekir; başlamadan önce sağlayıcıyı ve bütçeyi inceleyin.",
+      "trialRunOne": "1 deneme çalıştırması",
+      "trialRuns": "{count, plural, one {# deneme çalıştırması} other {# deneme çalıştırması}}"
+    },
+    "register": {
+      "freePlan": "Ücretsiz plan"
     }
   },
   "static": {
@@ -2129,7 +2143,6 @@
     "m5d499d7bb383": "oluşturun,",
     "mc963b2a55c65": "dakikalar içinde",
     "m0ffcb934d4d3": "Braavolabs. Tüm hakları saklıdır.",
-    "m4c3d039eeb89": "Ücretsiz plan",
     "mb9d9f6052c15": "Google",
     "m2d8843cd30de": "GitHub",
     "m3f79055b06f5": "Güç —",
@@ -2203,7 +2216,6 @@
     "m99463116beca": "Geri dönüş URL'si",
     "mc5038b20a0d6": "Bu yönlendirme URI'sini kimlik sağlayıcınıza kaydedin:",
     "m4f8f4a6029d8": "Panoya kopyala",
-    "m5722bcfa7400": "Kurumsal SSO",
     "m1e939b7b4cbc": "Kurumsal kimlik sağlayıcınızla (Azure AD, Okta, Auth0, Google Workspace) girişi zorunlu kılın. İzinli alan adlarındaki kullanıcılar otomatik olarak kimlik sağlayıcınıza yönlendirilir.",
     "m239b7819863d": "Ayarlar",
     "m82be07e8418a": "Yapılandırma",
@@ -2814,9 +2826,6 @@
       "responseTime": "Hesap e-posta adresinizi ve sorunun açıklamasını ekleyin. Sabit bir yanıt süresi garanti edilmez.",
       "intro": "Ürün, hesap ve abonelik konularında yardım için Braavolabs ekibiyle iletişime geçin."
     },
-    "starters": {
-      "intro": "Bir başlangıç yapılandırması seçin. Çalıştırmalar için yapılandırılmış bir sağlayıcı veya kullanılabilir hesap denemesi gerekir; başlamadan önce sağlayıcıyı ve bütçeyi inceleyin."
-    },
     "dashboard": {
       "operator": "operatör",
       "morning": "Günaydın",
@@ -2912,11 +2921,6 @@
       "cron": "Zamanlama",
       "webhook": "Webhook",
       "event": "Olay"
-    },
-    "trial": {
-      "funding": "Etkinleştirilmiş bir deneme, işletmecinin sağlayıcısına ve sınırlarına tabidir. Ücretli aboneliklere çıkarım dahil değildir; deneme kullanılamıyorsa desteklenen bir sağlayıcı anahtarı veya yapılandırılmış yerel uç nokta kullanın.",
-      "exhausted": "Hesabın deneme sınırına ({limit, number}) ulaşıldı.",
-      "remaining": "Toplam {limit, number} deneme çalıştırmasından {count, plural, one {# kaldı} other {# kaldı}}"
     }
   },
   "dataCopy": {
@@ -4737,8 +4741,6 @@
     "mb39b93c48c24": "Bir başlangıç şablonu kullanmak için giriş yapın.",
     "m2eb2d91c4f3b": "Başlangıç şablonu oluşturulamadı.",
     "mcdd1de1ae01a": "Başlangıç şablonunu kullan: {value0}",
-    "m838f9adcc123": "1 deneme çalıştırması",
-    "m9a021a4b3454": "{count, plural, one {# deneme çalıştırması} other {# deneme çalıştırması}}",
     "ma5a28bb26fde": "{count, plural, one {# ajan} other {# ajan}}",
     "m014789a56e1d": "{count, plural, one {# iş akışı adımı} other {# iş akışı adımı}}",
     "ma682e26e6a31": "Tahmin yüklenemedi",

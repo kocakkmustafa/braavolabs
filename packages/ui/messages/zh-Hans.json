@@ -286,7 +286,8 @@
         "confirm_disconnect": "是否移除 SSO 连接？现有 SSO 用户将改为通过电子邮箱和密码登录。",
         "test_sign_in": "测试登录 →",
         "plan_gate_body": "组织 SSO 正在开发中，目前不可购买。",
-        "plan_gate_cta": "查看套餐 →"
+        "plan_gate_cta": "查看套餐 →",
+        "enterprise_sso": "企业 SSO"
       },
       "fieldName": "姓名",
       "memberSince": "于 {year} 年加入",
@@ -1192,6 +1193,19 @@
       "clear": "没有待审批事项",
       "spend": "需要支出审批",
       "viewAll": "查看所有审批"
+    },
+    "trial": {
+      "funding": "启用的试用遵循运营方的提供商和限额。付费订阅不包含推理；试用不可用时，请使用受支持的提供商密钥或已配置的本地端点。",
+      "exhausted": "已达到账户试用限额（{limit, number}）。",
+      "remaining": "共 {limit, number} 次，{count, plural, other {剩余 # 次试用运行}}"
+    },
+    "starters": {
+      "intro": "选择初始配置。运行需要已配置的提供商或可用的账户试用；开始前请审查提供商和预算。",
+      "trialRunOne": "1 次试用运行",
+      "trialRuns": "{count, plural, other {# 次试用运行}}"
+    },
+    "register": {
+      "freePlan": "免费方案"
     }
   },
   "static": {
@@ -2129,7 +2143,6 @@
     "m5d499d7bb383": "工作区，仅需",
     "mc963b2a55c65": "几分钟",
     "m0ffcb934d4d3": "Braavolabs。保留所有权利。",
-    "m4c3d039eeb89": "免费方案",
     "mb9d9f6052c15": "Google",
     "m2d8843cd30de": "GitHub",
     "m3f79055b06f5": "强度 —",
@@ -2203,7 +2216,6 @@
     "m99463116beca": "回调 URL",
     "mc5038b20a0d6": "在你的身份提供商中注册此重定向 URI：",
     "m4f8f4a6029d8": "复制到剪贴板",
-    "m5722bcfa7400": "企业 SSO",
     "m1e939b7b4cbc": "强制通过企业身份提供商（Azure AD、Okta、Auth0、Google Workspace）登录。允许域名中的用户会自动重定向至你的身份提供商。",
     "m239b7819863d": "设置",
     "m82be07e8418a": "配置",
@@ -2814,9 +2826,6 @@
       "responseTime": "请注明账户邮箱并描述问题。不保证固定答复时间。",
       "intro": "有关产品、账户与订阅的帮助，请联系 Braavolabs 团队。"
     },
-    "starters": {
-      "intro": "选择初始配置。运行需要已配置的提供商或可用的账户试用；开始前请审查提供商和预算。"
-    },
     "dashboard": {
       "operator": "操作者",
       "morning": "早上好",
@@ -2912,11 +2921,6 @@
       "cron": "计划",
       "webhook": "Webhook",
       "event": "事件"
-    },
-    "trial": {
-      "funding": "启用的试用遵循运营方的提供商和限额。付费订阅不包含推理；试用不可用时，请使用受支持的提供商密钥或已配置的本地端点。",
-      "exhausted": "已达到账户试用限额（{limit, number}）。",
-      "remaining": "共 {limit, number} 次，{count, plural, other {剩余 # 次试用运行}}"
     }
   },
   "dataCopy": {
@@ -4737,8 +4741,6 @@
     "mb39b93c48c24": "登录以使用初始模板。",
     "m2eb2d91c4f3b": "无法创建初始模板。",
     "mcdd1de1ae01a": "使用初始模板：{value0}",
-    "m838f9adcc123": "1 次试用运行",
-    "m9a021a4b3454": "{count, plural, other {# 次试用运行}}",
     "ma5a28bb26fde": "{count, plural, other {# 个智能体}}",
     "m014789a56e1d": "{count, plural, other {# 个流水线步骤}}",
     "ma682e26e6a31": "无法加载预测",

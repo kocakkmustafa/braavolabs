@@ -286,7 +286,8 @@
         "confirm_disconnect": "Supprimer la connexion SSO ? Les utilisateurs SSO existants reviendront à la connexion par e-mail/mot de passe.",
         "test_sign_in": "Tester la connexion →",
         "plan_gate_body": "Le SSO d'organisation est en développement et n'est pas disponible à l'achat.",
-        "plan_gate_cta": "Voir les plans →"
+        "plan_gate_cta": "Voir les plans →",
+        "enterprise_sso": "SSO d’entreprise"
       },
       "fieldName": "Nom",
       "memberSince": "Membre depuis {year}",
@@ -1192,6 +1193,19 @@
       "clear": "Aucune approbation en attente",
       "spend": "Approbation de dépense requise",
       "viewAll": "Voir toutes les approbations"
+    },
+    "trial": {
+      "funding": "Un essai activé suit le fournisseur et les limites de l'exploitant. Les abonnements payants n'incluent pas l'inférence ; utilisez une clé de fournisseur prise en charge ou un point de terminaison local configuré lorsque l'essai est indisponible.",
+      "exhausted": "La limite d'essai du compte ({limit, number}) a été atteinte.",
+      "remaining": "{count, plural, one {# exécution d'essai restante} other {# exécutions d'essai restantes}} sur {limit, number}"
+    },
+    "starters": {
+      "intro": "Choisissez une configuration de départ. Les exécutions nécessitent un fournisseur configuré ou un essai disponible sur le compte ; examinez le fournisseur et le budget avant de commencer.",
+      "trialRunOne": "1 exécution d'essai",
+      "trialRuns": "{count, plural, one {# exécution d'essai} other {# exécutions d'essai}}"
+    },
+    "register": {
+      "freePlan": "Offre gratuite"
     }
   },
   "static": {
@@ -2129,7 +2143,6 @@
     "m5d499d7bb383": "espace de travail en",
     "mc963b2a55c65": "quelques minutes",
     "m0ffcb934d4d3": "Braavolabs. Tous droits réservés.",
-    "m4c3d039eeb89": "Offre gratuite",
     "mb9d9f6052c15": "Google",
     "m2d8843cd30de": "GitHub",
     "m3f79055b06f5": "Robustesse —",
@@ -2203,7 +2216,6 @@
     "m99463116beca": "URL de callback",
     "mc5038b20a0d6": "Enregistrez cet URI de redirection chez votre fournisseur d’identité :",
     "m4f8f4a6029d8": "Copier dans le presse-papiers",
-    "m5722bcfa7400": "SSO d’entreprise",
     "m1e939b7b4cbc": "Imposez la connexion via votre IdP d’entreprise (Azure AD, Okta, Auth0, Google Workspace). Les utilisateurs de vos domaines autorisés sont automatiquement redirigés vers votre IdP.",
     "m239b7819863d": "Paramètres",
     "m82be07e8418a": "Configuration",
@@ -2814,9 +2826,6 @@
       "responseTime": "Indiquez l'adresse e-mail du compte et une description du problème. Aucun délai de réponse fixe n'est garanti.",
       "intro": "Contactez l'équipe Braavolabs pour obtenir de l'aide sur le produit, votre compte et votre abonnement."
     },
-    "starters": {
-      "intro": "Choisissez une configuration de départ. Les exécutions nécessitent un fournisseur configuré ou un essai disponible sur le compte ; examinez le fournisseur et le budget avant de commencer."
-    },
     "dashboard": {
       "operator": "opérateur",
       "morning": "Bonjour",
@@ -2912,11 +2921,6 @@
       "cron": "Planification",
       "webhook": "Webhook",
       "event": "Événement"
-    },
-    "trial": {
-      "funding": "Un essai activé suit le fournisseur et les limites de l'exploitant. Les abonnements payants n'incluent pas l'inférence ; utilisez une clé de fournisseur prise en charge ou un point de terminaison local configuré lorsque l'essai est indisponible.",
-      "exhausted": "La limite d'essai du compte ({limit, number}) a été atteinte.",
-      "remaining": "{count, plural, one {# exécution d'essai restante} other {# exécutions d'essai restantes}} sur {limit, number}"
     }
   },
   "dataCopy": {
@@ -4737,8 +4741,6 @@
     "mb39b93c48c24": "Connectez-vous pour utiliser une configuration de départ.",
     "m2eb2d91c4f3b": "Impossible de créer la configuration de départ.",
     "mcdd1de1ae01a": "Utiliser la configuration de départ : {value0}",
-    "m838f9adcc123": "1 exécution d'essai",
-    "m9a021a4b3454": "{count, plural, one {# exécution d'essai} other {# exécutions d'essai}}",
     "ma5a28bb26fde": "{count, plural, one {# agent} other {# agents}}",
     "m014789a56e1d": "{count, plural, one {# étape de pipeline} other {# étapes de pipeline}}",
     "ma682e26e6a31": "Impossible de charger la prévision",

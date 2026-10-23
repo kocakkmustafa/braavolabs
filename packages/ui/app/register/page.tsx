@@ -249,7 +249,7 @@ export default function RegisterPage() {
               <span
                 className="bv-dot bv-running bv-ping"
                 style={{ width: 6, height: 6 }}
-              />{uiText("m4c3d039eeb89")}</span>
+              />{t("app.register.freePlan")}</span>
           </div>
 
           <h1

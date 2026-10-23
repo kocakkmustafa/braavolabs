@@ -48,7 +48,7 @@ export default function StarterPicker({ token, onCloned }: StarterPickerProps) {
   const describeFailure = useLocalizedFailure();
   const runtimeCopy = useRuntimeTranslations("runtime");
   const uiText = useLegacyTranslations("uiCopy");
-  const copy = useLegacyTranslations("surface.starters");
+  const copy = useLegacyTranslations("app.starters");
   const [templates, setTemplates] = useState<StarterTemplateSummary[]>([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -137,7 +137,7 @@ export default function StarterPicker({ token, onCloned }: StarterPickerProps) {
                     border: "1px solid rgba(0,209,255,0.2)",
                   }}
                 >
-                  {t.trialCost === 1 ? runtimeCopy("m838f9adcc123") : runtimeCopy("m9a021a4b3454", { count: t.trialCost })}
+                  {t.trialCost === 1 ? copy("trialRunOne") : copy("trialRuns", { count: t.trialCost })}
                 </span>
               </div>
 

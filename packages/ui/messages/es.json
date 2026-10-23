@@ -286,7 +286,8 @@
         "confirm_disconnect": "¿Eliminar la conexión SSO? Los usuarios SSO existentes volverán al inicio de sesión por correo/contraseña.",
         "test_sign_in": "Probar inicio de sesión →",
         "plan_gate_body": "El SSO de organización está en desarrollo y no se puede comprar actualmente.",
-        "plan_gate_cta": "Ver planes →"
+        "plan_gate_cta": "Ver planes →",
+        "enterprise_sso": "SSO empresarial"
       },
       "fieldName": "Nombre",
       "memberSince": "Miembro desde {year}",
@@ -1192,6 +1193,19 @@
       "clear": "No hay aprobaciones pendientes",
       "spend": "Se requiere aprobación de gasto",
       "viewAll": "Ver todas las aprobaciones"
+    },
+    "trial": {
+      "funding": "Una prueba habilitada sigue el proveedor y los límites del operador. Las suscripciones pagadas no incluyen inferencia; usa una clave de proveedor compatible o un endpoint local configurado cuando la prueba no esté disponible.",
+      "exhausted": "Se alcanzó el límite de prueba de la cuenta ({limit, number}).",
+      "remaining": "{count, plural, one {# ejecución de prueba restante} other {# ejecuciones de prueba restantes}} de {limit, number}"
+    },
+    "starters": {
+      "intro": "Elige una configuración inicial. Las ejecuciones necesitan un proveedor configurado o una prueba disponible en la cuenta; revisa el proveedor y el presupuesto antes de iniciar.",
+      "trialRunOne": "1 ejecución de prueba",
+      "trialRuns": "{count, plural, one {# ejecución de prueba} other {# ejecuciones de prueba}}"
+    },
+    "register": {
+      "freePlan": "Plan gratuito"
     }
   },
   "static": {
@@ -2129,7 +2143,6 @@
     "m5d499d7bb383": "espacio de trabajo en",
     "mc963b2a55c65": "minutos",
     "m0ffcb934d4d3": "Braavolabs. Todos los derechos reservados.",
-    "m4c3d039eeb89": "Plan gratuito",
     "mb9d9f6052c15": "Google",
     "m2d8843cd30de": "GitHub",
     "m3f79055b06f5": "Seguridad —",
@@ -2203,7 +2216,6 @@
     "m99463116beca": "URL de callback",
     "mc5038b20a0d6": "Registra este URI de redirección en tu proveedor de identidad:",
     "m4f8f4a6029d8": "Copiar al portapapeles",
-    "m5722bcfa7400": "SSO empresarial",
     "m1e939b7b4cbc": "Exige el inicio de sesión mediante tu IdP corporativo (Azure AD, Okta, Auth0, Google Workspace). Los usuarios de los dominios permitidos se redirigen automáticamente a tu IdP.",
     "m239b7819863d": "Ajustes",
     "m82be07e8418a": "Configuración",
@@ -2814,9 +2826,6 @@
       "responseTime": "Incluye el correo de la cuenta y una descripción del problema. No se garantiza un tiempo fijo de respuesta.",
       "intro": "Contacta al equipo de Braavolabs para recibir ayuda con el producto, tu cuenta y tu suscripción."
     },
-    "starters": {
-      "intro": "Elige una configuración inicial. Las ejecuciones necesitan un proveedor configurado o una prueba disponible en la cuenta; revisa el proveedor y el presupuesto antes de iniciar."
-    },
     "dashboard": {
       "operator": "operador",
       "morning": "Buenos días",
@@ -2912,11 +2921,6 @@
       "cron": "Programación",
       "webhook": "Webhook",
       "event": "Evento"
-    },
-    "trial": {
-      "funding": "Una prueba habilitada sigue el proveedor y los límites del operador. Las suscripciones pagadas no incluyen inferencia; usa una clave de proveedor compatible o un endpoint local configurado cuando la prueba no esté disponible.",
-      "exhausted": "Se alcanzó el límite de prueba de la cuenta ({limit, number}).",
-      "remaining": "{count, plural, one {# ejecución de prueba restante} other {# ejecuciones de prueba restantes}} de {limit, number}"
     }
   },
   "dataCopy": {
@@ -4737,8 +4741,6 @@
     "mb39b93c48c24": "Inicia sesión para usar una plantilla inicial.",
     "m2eb2d91c4f3b": "No se pudo crear la plantilla inicial.",
     "mcdd1de1ae01a": "Usar plantilla inicial: {value0}",
-    "m838f9adcc123": "1 ejecución de prueba",
-    "m9a021a4b3454": "{count, plural, one {# ejecución de prueba} other {# ejecuciones de prueba}}",
     "ma5a28bb26fde": "{count, plural, one {# agente} other {# agentes}}",
     "m014789a56e1d": "{count, plural, one {# paso de pipeline} other {# pasos de pipeline}}",
     "ma682e26e6a31": "No se pudo cargar el pronóstico",

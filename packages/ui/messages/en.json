@@ -286,7 +286,8 @@
         "confirm_disconnect": "Remove SSO connection? Existing SSO users will fall back to email/password sign-in.",
         "test_sign_in": "Test sign-in →",
         "plan_gate_body": "Organization SSO is in development and is not currently purchasable.",
-        "plan_gate_cta": "View plans →"
+        "plan_gate_cta": "View plans →",
+        "enterprise_sso": "Enterprise SSO"
       },
       "fieldName": "Name",
       "memberSince": "Member since {year}",
@@ -1192,6 +1193,19 @@
       "clear": "No pending approvals",
       "spend": "Spend approval required",
       "viewAll": "View all approvals"
+    },
+    "trial": {
+      "funding": "An enabled trial follows the operator’s provider and limits. Paid subscriptions do not include inference; use a supported provider key or configured local endpoint when the trial is unavailable.",
+      "exhausted": "The account trial limit ({limit, number}) has been reached.",
+      "remaining": "{count, plural, one {# trial run remaining} other {# trial runs remaining}} of {limit, number}"
+    },
+    "starters": {
+      "intro": "Choose a starting configuration. Runs need a configured provider or an available account trial; review the provider and budget before starting.",
+      "trialRunOne": "1 trial run",
+      "trialRuns": "{count, plural, one {# trial run} other {# trial runs}}"
+    },
+    "register": {
+      "freePlan": "Free plan"
     }
   },
   "static": {
@@ -2129,7 +2143,6 @@
     "m5d499d7bb383": "workspace in",
     "mc963b2a55c65": "minutes",
     "m0ffcb934d4d3": "Braavolabs. All rights reserved.",
-    "m4c3d039eeb89": "Free plan",
     "mb9d9f6052c15": "Google",
     "m2d8843cd30de": "GitHub",
     "m3f79055b06f5": "Strength —",
@@ -2203,7 +2216,6 @@
     "m99463116beca": "Callback URL",
     "mc5038b20a0d6": "Register this redirect URI in your identity provider:",
     "m4f8f4a6029d8": "Copy to clipboard",
-    "m5722bcfa7400": "Enterprise SSO",
     "m1e939b7b4cbc": "Enforce sign-in through your corporate IdP (Azure AD, Okta, Auth0, Google Workspace). Users on your allowed domains are redirected to your IdP automatically.",
     "m239b7819863d": "Settings",
     "m82be07e8418a": "Configuration",
@@ -2485,7 +2497,7 @@
             "text": "Activity and step records help explain status, outputs, available cost data and decision summaries. Missing data is unknown, not zero. A recorded request is not proof that its external effect completed. Retain important outputs and reconcile external systems before retrying uncertain work."
           },
           "8": {
-            "text": "A company name or a local model endpoint alone does not establish a separate tenant, an operating-system sandbox or a fully offline data path."
+            "text": "A company name or a local model endpoint alone does not establish a separate tenant, an operating-system sandbox or an offline-only data path."
           }
         }
       },
@@ -2514,7 +2526,7 @@
             "text": "Server-stored cloud credentials use the implemented AES-256-GCM storage format. Protecting them also depends on the server key, runtime access and backups. CLI direct-provider configuration and desktop credential storage have their own boundaries; saving a key on one surface does not prove it is available or protected identically on every device."
           },
           "5": {
-            "text": "Inference charges go to the configured provider. Local execution can still incur hardware and operation costs. Review reported usage and provider billing together; unavailable cost data is not free usage."
+            "text": "Inference charges go to the configured provider. Local execution can still incur hardware and operation costs. Review reported usage and provider billing together; unavailable cost data is not zero-cost usage."
           },
           "6": {
             "text": "A local inference URL does not make tools, telemetry, account services or the complete pipeline offline. Review the complete data path before processing sensitive material."
@@ -2701,7 +2713,7 @@
       "five-risk-stops-explained": {
         "title": "The five risk stops and their boundaries",
         "desc": "Hard, loop, cost, spam and brand checks help govern supported execution paths.",
-        "body": "Braavolabs names five governance checks: hard, loop, cost, spam and brand. Understanding their purpose also means understanding when they can act.\n\n## Five checks\n\nThe hard stop checks a stop condition. The loop check looks for repeated behavior. The cost check compares recorded usage with configured limits. Spam and brand checks apply policy to supported outreach and content paths. Review the configuration and execution path rather than assuming every tool receives the same checks.\n\n## Boundaries matter\n\nA check can prevent further supported work when the execution reaches it. It cannot recall a request already sent to a provider or reverse an external effect. Usage records can arrive after a charge, so a configured budget is not a guarantee that the provider bill can never exceed it.\n\n## Read the result\n\nWhen a check changes run state, inspect the recorded reason and relevant step. Missing status or cost data is unknown, not evidence that the run is safe or free. Notifications depend on permission and delivery; the current run record is the place to confirm state. Before resuming, review both the local result and any external service involved."
+        "body": "Braavolabs names five governance checks: hard, loop, cost, spam and brand. Understanding their purpose also means understanding when they can act.\n\n## Five checks\n\nThe hard stop checks a stop condition. The loop check looks for repeated behavior. The cost check compares recorded usage with configured limits. Spam and brand checks apply policy to supported outreach and content paths. Review the configuration and execution path rather than assuming every tool receives the same checks.\n\n## Boundaries matter\n\nA check can prevent further supported work when the execution reaches it. It cannot recall a request already sent to a provider or reverse an external effect. Usage records can arrive after a charge, so a configured budget is not a guarantee that the provider bill can never exceed it.\n\n## Read the result\n\nWhen a check changes run state, inspect the recorded reason and relevant step. Missing status or cost data is unknown, not evidence that the run is safe or without cost. Notifications depend on permission and delivery; the current run record is the place to confirm state. Before resuming, review both the local result and any external service involved."
       },
       "byok-routing-without-lock-in": {
         "title": "Choosing cloud and local model routes",
@@ -2721,12 +2733,12 @@
       "shipping-ask-user": {
         "title": "Designing ask_user around a clear question",
         "desc": "An information request should preserve context and avoid implying unrelated permission.",
-        "body": "An agent can encounter missing information while working. ask_user gives that uncertainty a visible decision: a question for the operator, associated with the relevant run.\n\n## Ask one answerable question\n\nA useful question identifies the missing fact and enough context to answer it. It should not disguise an external action as a request for information. Read the question before responding, and keep sensitive credentials out of free-text answers.\n\n## Reuse the decision surface carefully\n\nInformation requests and supported approval actions can appear in the same decision workflow, but they have different meanings. Answering a question is not authorization for unrelated work. Nor does the presence of an approval queue mean every provider inference charge waits for an explicit yes.\n\n## Check what happens next\n\nAfter sending an answer, inspect the decision and run state. A received answer, a resumed run and a completed external effect are separate observations. If the connection times out, check whether the answer was recorded before resubmitting. Saved completed steps can be reused, but external retries still require reconciliation. This is a design rationale for a visible operator decision, not a measured customer study or a claim of exactly-once execution."
+        "body": "An agent can encounter missing information while working. ask_user gives that uncertainty a visible decision: a question for the operator, associated with the relevant run.\n\n## Ask one answerable question\n\nA useful question identifies the missing fact and enough context to answer it. It should not disguise an external action as a request for information. Read the question before responding, and keep sensitive credentials out of open-text answers.\n\n## Reuse the decision surface carefully\n\nInformation requests and supported approval actions can appear in the same decision workflow, but they have different meanings. Answering a question is not authorization for unrelated work. Nor does the presence of an approval queue mean every provider inference charge waits for an explicit yes.\n\n## Check what happens next\n\nAfter sending an answer, inspect the decision and run state. A received answer, a resumed run and a completed external effect are separate observations. If the connection times out, check whether the answer was recorded before resubmitting. Saved completed steps can be reused, but external retries still require reconciliation. This is a design rationale for a visible operator decision, not a measured customer study or a claim of exactly-once execution."
       },
       "audit-trail-youd-actually-read": {
         "title": "Reading the recorded activity of a run",
         "desc": "Use recorded status, outputs, decisions and available costs without inventing missing evidence.",
-        "body": "An operator needs to understand what a run attempted, which decisions were requested and what result was recorded. Braavolabs activity and step views organize those records around the run.\n\n## Start with the recorded facts\n\nRead the step status, available output, recorded decision summary and any reported cost. Keep unavailable values visibly unknown. A dispatch record or successful API acknowledgement does not prove that an external message, payment or workflow completed.\n\n## Reconcile before retrying\n\nA provider or tool can finish while a client loses its connection. Compare the run record with the destination service before repeating an uncertain external effect. Saved steps and history are useful evidence, but they do not establish complete, immutable or independently verified coverage of every action.\n\n## Protect the record\n\nPrompts, tool outputs and free-text answers can contain sensitive data. Limit access and preserve only the exports needed for your operation. Review retention, backups and restoration rather than assuming a visible activity page is a backup. Signed evidence remains in development; the current record should not be presented as a certification, a complete private reasoning trace or proof of legal compliance."
+        "body": "An operator needs to understand what a run attempted, which decisions were requested and what result was recorded. Braavolabs activity and step views organize those records around the run.\n\n## Start with the recorded facts\n\nRead the step status, available output, recorded decision summary and any reported cost. Keep unavailable values visibly unknown. A dispatch record or successful API acknowledgement does not prove that an external message, payment or workflow completed.\n\n## Reconcile before retrying\n\nA provider or tool can finish while a client loses its connection. Compare the run record with the destination service before repeating an uncertain external effect. Saved steps and history are useful evidence, but they do not establish complete, immutable or independently verified coverage of every action.\n\n## Protect the record\n\nPrompts, tool outputs and open-text answers can contain sensitive data. Limit access and preserve only the exports needed for your operation. Review retention, backups and restoration rather than assuming a visible activity page is a backup. Signed evidence remains in development; the current record should not be presented as a certification, a complete private reasoning trace or proof of legal compliance."
       }
     }
   },
@@ -2813,9 +2825,6 @@
       "emailIntro": "For support, write to",
       "responseTime": "Include the account email and a description of the issue. A fixed response time is not guaranteed.",
       "intro": "Contact the Braavolabs team for product, account and subscription help."
-    },
-    "starters": {
-      "intro": "Choose a starting configuration. Runs need a configured provider or an available account trial; review the provider and budget before starting."
     },
     "dashboard": {
       "operator": "operator",
@@ -2912,11 +2921,6 @@
       "cron": "Schedule",
       "webhook": "Webhook",
       "event": "Event"
-    },
-    "trial": {
-      "funding": "An enabled trial follows the operator’s provider and limits. Paid subscriptions do not include inference; use a supported provider key or configured local endpoint when the trial is unavailable.",
-      "exhausted": "The account trial limit ({limit, number}) has been reached.",
-      "remaining": "{count, plural, one {# trial run remaining} other {# trial runs remaining}} of {limit, number}"
     }
   },
   "dataCopy": {
@@ -4737,8 +4741,6 @@
     "mb39b93c48c24": "Sign in to use a starter.",
     "m2eb2d91c4f3b": "Failed to create starter.",
     "mcdd1de1ae01a": "Use starter: {value0}",
-    "m838f9adcc123": "1 trial run",
-    "m9a021a4b3454": "{count, plural, one {# trial run} other {# trial runs}}",
     "ma5a28bb26fde": "{count, plural, one {# agent} other {# agents}}",
     "m014789a56e1d": "{count, plural, one {# pipeline step} other {# pipeline steps}}",
     "ma682e26e6a31": "Failed to load forecast",

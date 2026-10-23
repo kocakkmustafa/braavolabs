@@ -286,7 +286,8 @@
         "confirm_disconnect": "Hapus koneksi SSO? Pengguna SSO yang sudah ada akan kembali masuk menggunakan email/kata sandi.",
         "test_sign_in": "Uji proses masuk →",
         "plan_gate_body": "SSO organisasi masih dalam pengembangan dan saat ini belum dapat dibeli.",
-        "plan_gate_cta": "Lihat paket →"
+        "plan_gate_cta": "Lihat paket →",
+        "enterprise_sso": "SSO perusahaan"
       },
       "fieldName": "Nama",
       "memberSince": "Anggota sejak {year}",
@@ -1192,6 +1193,19 @@
       "clear": "Tidak ada persetujuan tertunda",
       "spend": "Persetujuan pengeluaran diperlukan",
       "viewAll": "Lihat semua persetujuan"
+    },
+    "trial": {
+      "funding": "Uji coba yang aktif mengikuti penyedia dan batas pengelola. Langganan berbayar tidak mencakup inferensi; gunakan kunci penyedia yang didukung atau endpoint lokal yang dikonfigurasi ketika uji coba tidak tersedia.",
+      "exhausted": "Batas uji coba akun ({limit, number}) telah tercapai.",
+      "remaining": "{count, plural, other {# eksekusi uji coba tersisa}} dari {limit, number}"
+    },
+    "starters": {
+      "intro": "Pilih konfigurasi awal. Eksekusi memerlukan penyedia yang dikonfigurasi atau uji coba akun yang tersedia; tinjau penyedia dan anggaran sebelum memulai.",
+      "trialRunOne": "1 eksekusi uji coba",
+      "trialRuns": "{count, plural, other {# eksekusi uji coba}}"
+    },
+    "register": {
+      "freePlan": "Paket gratis"
     }
   },
   "static": {
@@ -2129,7 +2143,6 @@
     "m5d499d7bb383": "ruang kerja dalam",
     "mc963b2a55c65": "hitungan menit",
     "m0ffcb934d4d3": "Braavolabs. Hak cipta dilindungi.",
-    "m4c3d039eeb89": "Paket gratis",
     "mb9d9f6052c15": "Google",
     "m2d8843cd30de": "GitHub",
     "m3f79055b06f5": "Kekuatan —",
@@ -2203,7 +2216,6 @@
     "m99463116beca": "URL callback",
     "mc5038b20a0d6": "Daftarkan URI pengalihan ini di penyedia identitas Anda:",
     "m4f8f4a6029d8": "Salin ke papan klip",
-    "m5722bcfa7400": "SSO perusahaan",
     "m1e939b7b4cbc": "Wajibkan login melalui IdP perusahaan Anda (Azure AD, Okta, Auth0, Google Workspace). Pengguna pada domain yang diizinkan dialihkan ke IdP Anda secara otomatis.",
     "m239b7819863d": "Pengaturan",
     "m82be07e8418a": "Konfigurasi",
@@ -2814,9 +2826,6 @@
       "responseTime": "Sertakan email akun dan deskripsi masalah. Waktu respons tetap tidak dijamin.",
       "intro": "Hubungi tim Braavolabs untuk bantuan produk, akun, dan langganan."
     },
-    "starters": {
-      "intro": "Pilih konfigurasi awal. Eksekusi memerlukan penyedia yang dikonfigurasi atau uji coba akun yang tersedia; tinjau penyedia dan anggaran sebelum memulai."
-    },
     "dashboard": {
       "operator": "operator",
       "morning": "Selamat pagi",
@@ -2912,11 +2921,6 @@
       "cron": "Jadwal",
       "webhook": "Webhook",
       "event": "Peristiwa"
-    },
-    "trial": {
-      "funding": "Uji coba yang aktif mengikuti penyedia dan batas pengelola. Langganan berbayar tidak mencakup inferensi; gunakan kunci penyedia yang didukung atau endpoint lokal yang dikonfigurasi ketika uji coba tidak tersedia.",
-      "exhausted": "Batas uji coba akun ({limit, number}) telah tercapai.",
-      "remaining": "{count, plural, other {# eksekusi uji coba tersisa}} dari {limit, number}"
     }
   },
   "dataCopy": {
@@ -4737,8 +4741,6 @@
     "mb39b93c48c24": "Masuk untuk menggunakan konfigurasi awal.",
     "m2eb2d91c4f3b": "Gagal membuat konfigurasi awal.",
     "mcdd1de1ae01a": "Gunakan konfigurasi awal: {value0}",
-    "m838f9adcc123": "1 eksekusi uji coba",
-    "m9a021a4b3454": "{count, plural, other {# eksekusi uji coba}}",
     "ma5a28bb26fde": "{count, plural, other {# agen}}",
     "m014789a56e1d": "{count, plural, other {# langkah pipeline}}",
     "ma682e26e6a31": "Gagal memuat prakiraan",

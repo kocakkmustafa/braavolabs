@@ -286,7 +286,8 @@
         "confirm_disconnect": "SSO 연결을 제거할까요? 기존 SSO 사용자는 이메일과 비밀번호 로그인으로 전환됩니다.",
         "test_sign_in": "로그인 테스트 →",
         "plan_gate_body": "조직 SSO는 개발 중이며 현재 구매할 수 없습니다.",
-        "plan_gate_cta": "요금제 보기 →"
+        "plan_gate_cta": "요금제 보기 →",
+        "enterprise_sso": "기업 SSO"
       },
       "fieldName": "이름",
       "memberSince": "{year}년 가입",
@@ -1192,6 +1193,19 @@
       "clear": "대기 중인 승인이 없습니다",
       "spend": "지출 승인이 필요합니다",
       "viewAll": "모든 승인 보기"
+    },
+    "trial": {
+      "funding": "활성화된 체험에는 운영자의 공급업체와 한도가 적용됩니다. 유료 구독에는 추론이 포함되지 않습니다. 체험을 사용할 수 없으면 지원되는 공급업체 키나 구성된 로컬 엔드포인트를 사용하세요.",
+      "exhausted": "계정 체험 한도({limit, number})에 도달했습니다.",
+      "remaining": "전체 {limit, number}회 중 {count, plural, other {체험 실행 #회 남음}}"
+    },
+    "starters": {
+      "intro": "시작 구성을 선택하세요. 실행에는 구성된 공급업체나 사용 가능한 계정 체험이 필요합니다. 시작 전에 공급업체와 예산을 검토하세요.",
+      "trialRunOne": "체험 실행 1회",
+      "trialRuns": "{count, plural, other {체험 실행 #회}}"
+    },
+    "register": {
+      "freePlan": "무료 요금제"
     }
   },
   "static": {
@@ -2129,7 +2143,6 @@
     "m5d499d7bb383": "워크스페이스를 단",
     "mc963b2a55c65": "몇 분 만에 만드세요",
     "m0ffcb934d4d3": "Braavolabs. 모든 권리 보유.",
-    "m4c3d039eeb89": "무료 요금제",
     "mb9d9f6052c15": "Google",
     "m2d8843cd30de": "GitHub",
     "m3f79055b06f5": "강도 —",
@@ -2203,7 +2216,6 @@
     "m99463116beca": "콜백 URL",
     "mc5038b20a0d6": "ID 공급업체에 이 리디렉션 URI를 등록하세요:",
     "m4f8f4a6029d8": "클립보드에 복사",
-    "m5722bcfa7400": "기업 SSO",
     "m1e939b7b4cbc": "기업 IdP(Azure AD, Okta, Auth0, Google Workspace)를 통한 로그인을 적용합니다. 허용된 도메인의 사용자는 자동으로 내 IdP로 리디렉션됩니다.",
     "m239b7819863d": "설정",
     "m82be07e8418a": "구성",
@@ -2814,9 +2826,6 @@
       "responseTime": "계정 이메일과 문제 설명을 포함하세요. 정해진 응답 시간은 보장하지 않습니다.",
       "intro": "제품, 계정, 구독 관련 도움은 Braavolabs 팀에 문의하세요."
     },
-    "starters": {
-      "intro": "시작 구성을 선택하세요. 실행에는 구성된 공급업체나 사용 가능한 계정 체험이 필요합니다. 시작 전에 공급업체와 예산을 검토하세요."
-    },
     "dashboard": {
       "operator": "운영자",
       "morning": "좋은 아침입니다",
@@ -2912,11 +2921,6 @@
       "cron": "일정",
       "webhook": "웹훅",
       "event": "이벤트"
-    },
-    "trial": {
-      "funding": "활성화된 체험에는 운영자의 공급업체와 한도가 적용됩니다. 유료 구독에는 추론이 포함되지 않습니다. 체험을 사용할 수 없으면 지원되는 공급업체 키나 구성된 로컬 엔드포인트를 사용하세요.",
-      "exhausted": "계정 체험 한도({limit, number})에 도달했습니다.",
-      "remaining": "전체 {limit, number}회 중 {count, plural, other {체험 실행 #회 남음}}"
     }
   },
   "dataCopy": {
@@ -4737,8 +4741,6 @@
     "mb39b93c48c24": "시작 템플릿을 사용하려면 로그인하세요.",
     "m2eb2d91c4f3b": "시작 템플릿을 만들지 못했습니다.",
     "mcdd1de1ae01a": "시작 템플릿 사용: {value0}",
-    "m838f9adcc123": "체험 실행 1회",
-    "m9a021a4b3454": "{count, plural, other {체험 실행 #회}}",
     "ma5a28bb26fde": "{count, plural, other {에이전트 #개}}",
     "m014789a56e1d": "{count, plural, other {파이프라인 단계 #개}}",
     "ma682e26e6a31": "예측을 불러오지 못했습니다",
