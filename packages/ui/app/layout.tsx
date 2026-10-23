@@ -18,6 +18,7 @@ import "@fontsource-variable/inter/index.css";
 import "@fontsource-variable/space-grotesk/index.css";
 import "@fontsource-variable/material-symbols-outlined/fill.css";
 import "./globals.css";
+import { PUBLIC_MESSAGE_MANIFEST } from "../lib/public-message-manifest.generated";
 
 const PUBLIC_ORIGIN = "https://www.braavolabs.com";
 const AUTHENTICATED_ORIGIN = "https://app.braavolabs.com";
@@ -120,14 +121,50 @@ function record(value: unknown): MessageRecord {
     : {};
 }
 
+function manifestEntryFor(pathname: string) {
+  const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  if (PUBLIC_MESSAGE_MANIFEST[path]) return PUBLIC_MESSAGE_MANIFEST[path];
+  if (path.startsWith("/docs/")) return PUBLIC_MESSAGE_MANIFEST["/docs/[slug]"];
+  if (path.startsWith("/blog/")) return PUBLIC_MESSAGE_MANIFEST["/blog/[slug]"];
+  return undefined;
+}
+
+/** Copy only the dotted paths (with their subtrees) out of a message catalogue. */
+function pickCatalogue(messages: unknown, paths: readonly string[]): MessageRecord {
+  const out: MessageRecord = {};
+  for (const path of paths) {
+    const keys = path.split(".");
+    let source: unknown = messages;
+    for (const key of keys) source = record(source)[key];
+    if (source === undefined) continue;
+    let target = out;
+    for (const key of keys.slice(0, -1)) {
+      if (!target[key] || typeof target[key] !== "object") target[key] = {};
+      target = target[key] as MessageRecord;
+    }
+    target[keys[keys.length - 1]] = source;
+  }
+  return out;
+}
+
+// Public pages send their client components only the uiCopy ids and
+// surface/runtime subtrees those components can read (scripts/public-message-manifest.mjs).
+function publicClientNamespaces(messages: IntlMessages, pathname: string) {
+  const entry = manifestEntryFor(pathname);
+  if (!entry) return { uiCopy: record(record(messages).uiCopy), surface: record(record(messages).surface), runtime: record(record(messages).runtime) };
+  const picked = {
+    ...pickCatalogue(messages, entry.uiCopy.map((id) => `uiCopy.${id}`)),
+    ...pickCatalogue(messages, [...entry.surface, ...entry.runtime]),
+  };
+  return { uiCopy: record(picked.uiCopy), surface: record(picked.surface), runtime: record(picked.runtime) };
+}
+
 function publicMessagesForPath(messages: IntlMessages, pathname: string): IntlMessages {
   const staticMessages = record(record(messages).static);
   const selected: MessageRecord = { common: staticMessages.common, cookieConsent: staticMessages.cookieConsent, appearance: staticMessages.appearance };
   // The public shell's client-side locale selector needs only these labels.
   const language = record(record(messages).language);
-  const uiCopy = record(record(messages).uiCopy);
-  const surface = record(record(messages).surface);
-  const runtime = record(record(messages).runtime);
+  const { uiCopy, surface, runtime } = publicClientNamespaces(messages, pathname);
 
   if (pathname.startsWith("/privacy")) {
     selected.legal = { privacy: record(staticMessages.legal).privacy };

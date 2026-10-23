@@ -97,7 +97,7 @@ jobs:
           NODE_ENV: "test"
         run: pnpm -r --if-present test
       - name: Public rendering regressions (SSR and HTTP contract)
-        run: node --test scripts/auth-entry-contract.test.mjs scripts/bench-request-boundary.test.mjs
+        run: node --test scripts/auth-entry-contract.test.mjs scripts/bench-request-boundary.test.mjs scripts/public-message-manifest.test.mjs
 
   build:
     name: Build

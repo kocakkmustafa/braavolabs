@@ -428,6 +428,8 @@ test("legal layout hooks belong only to their actual TSX owners", async () => {
 
 // These selectors contain only class names and an optional ::before suffix.
 // Read actual CSS declarations; browser geometry remains a separate hosted gate.
+const PUBLIC_MESSAGE_MANIFEST = JSON.parse(
+  read("packages/ui/lib/public-message-manifest.generated.ts").match(/= (\{[\s\S]*\});\s*$/)[1]);
 const legalCssRule = (css, selector) => {
   const escaped = selector.replaceAll(".", "\\.");
   const match = css.match(new RegExp(escaped + "\\s*\\{([^{}]*)\\}"));
@@ -967,7 +969,20 @@ for (const locale of LOCALES) {
       // copy only; authenticated namespaces (auth, app, billing, ...) never ship.
       const shared = ["language", "runtime", "static", "surface", "uiCopy"];
       assert.deepEqual(Object.keys(providerMessages).sort(), route === "gdpr" ? shared : ["nav", ...shared].sort());
-      for (const key of ["language", "runtime", "surface", "uiCopy"]) assert.equal(providerMessages[key], messages[key]);
+      // BRV-09: the client receives only what the route's client modules can read
+      // (scripts/public-message-manifest.mjs); language/runtime stay whole.
+      const entry = PUBLIC_MESSAGE_MANIFEST["/" + route];
+      assert.ok(entry, `manifest entry for /${route}`);
+      for (const key of ["language", "runtime"]) assert.equal(providerMessages[key], messages[key]);
+      assert.deepEqual(Object.keys(providerMessages.uiCopy).sort(), [...entry.uiCopy].sort());
+      for (const id of entry.uiCopy) assert.equal(providerMessages.uiCopy[id], messages.uiCopy[id]);
+      assert.ok(Object.keys(providerMessages.uiCopy).length * 10 < Object.keys(messages.uiCopy).length, "uiCopy narrowed");
+      if (entry.surface.includes("surface")) assert.equal(providerMessages.surface, messages.surface);
+      else for (const path of entry.surface) {
+        const key = path.split(".").slice(1);
+        const value = (root) => key.reduce((node, part) => node?.[part], root);
+        assert.equal(value(providerMessages.surface), value(messages.surface), path);
+      }
       const chrome = ["appearance", "common", "cookieConsent"];
       if (route === "gdpr") {
         assert.deepEqual(Object.keys(providerMessages.static).sort(), [...chrome, "singleLocale"].sort());
