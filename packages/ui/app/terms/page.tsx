@@ -66,11 +66,11 @@ export default function TermsPage() {
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
       >
         <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-2 md:py-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 md:gap-3">
-          <a href="/" className="flex shrink-0 items-center gap-2.5 group">
+          <a href="/" aria-label="Braavolabs" className="flex shrink-0 items-center gap-2.5 group">
             <div className="bv-avatar" style={{ width: 32, height: 32, borderRadius: 10, fontSize: 12 }}>
               AI
             </div>
-            <span className="font-headline font-bold text-sm text-on-surface max-sm:sr-only">Braavolabs</span>
+            <span className="font-headline font-bold text-sm text-on-surface max-sm:hidden">Braavolabs</span>
           </a>
 
           <div className="flex order-last w-full md:order-3 lg:order-none md:w-full lg:w-auto flex-wrap items-center justify-center gap-x-6 gap-y-1 md:gap-y-2">

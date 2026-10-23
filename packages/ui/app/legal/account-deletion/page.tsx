@@ -163,11 +163,11 @@ export default function AccountDeletionPage() {
       {/* ── Nav ── */}
       <nav className="sticky top-0 z-40 border-b border-outline-variant bg-surface/80 backdrop-blur-xl">
         <div className="max-w-[1100px] mx-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-2 md:gap-3 px-6 md:px-10 min-h-14 py-2 md:py-3">
-          <a href="/" className="flex shrink-0 items-center gap-2.5">
+          <a href="/" aria-label="Braavolabs" className="flex shrink-0 items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center bv-btn-primary bv-btn">
               <span className="text-white font-bold text-xs leading-none">AI</span>
             </div>
-            <span className="font-headline font-bold text-sm text-on-surface max-sm:sr-only">Braavolabs</span>
+            <span className="font-headline font-bold text-sm text-on-surface max-sm:hidden">Braavolabs</span>
           </a>
           <div className="flex order-last w-full md:order-3 lg:order-none md:w-full lg:w-auto flex-wrap items-center justify-center gap-x-6 gap-y-1 md:gap-y-2">
             <a href="/features" className="text-sm text-on-surface-variant hover:text-on-surface transition-colors max-md:inline-flex max-md:items-center max-md:min-h-8">{t("nav.features")}</a>
