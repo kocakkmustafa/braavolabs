@@ -393,6 +393,13 @@ test("surface routing denies www authentication before tenant render", () => {
   assert.match(middleware, /NextResponse\.redirect\([^\n]+308\)/, "wrong-surface redirect must be a canonical 308");
   assert.match(middleware, /x-braavolabs-surface/);
   assert.doesNotMatch(middleware, /request\.cookies\.set|response\.cookies\.set/);
+  // Public /status probes the API health endpoint: HTTPS API origin only, never wss.
+  const publicCsp = middleware.match(/const PUBLIC_CSP = \[([\s\S]*?)\]\.join/)?.[1] ?? "";
+  assert.match(publicCsp, /"connect-src 'self' https:\/\/api\.braavolabs\.com https:\/\/cloudflareinsights\.com https:\/\/plausible\.io"/);
+  assert.doesNotMatch(publicCsp, /wss:/);
+  const selfHostedPublic = middleware.match(/function selfHostedPublicCsp\([^)]*\)[^{]*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+  assert.match(selfHostedPublic, /filter\(\(source\) => source\.startsWith\("https:\/\/"\)\)/, "self-hosted public pages get the HTTPS API origin only");
+  assert.doesNotMatch(middleware, /SELF_HOSTED_PUBLIC_CSP/);
 
   const publicSource = bundle(ALLOWED_PUBLIC_SOURCE_PATHS);
   assert.doesNotMatch(publicSource, /href\s*=\s*["']\/(?:login|register|signup|dashboard|runs)\b/);

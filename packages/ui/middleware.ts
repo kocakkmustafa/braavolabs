@@ -16,7 +16,8 @@ const PUBLIC_CSP = [
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self'",
   "img-src 'self' data:",
-  "connect-src 'self' https://cloudflareinsights.com https://plausible.io",
+  // /status probes the API's public HTTPS health endpoint; no websocket here.
+  "connect-src 'self' https://api.braavolabs.com https://cloudflareinsights.com https://plausible.io",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self' https://app.braavolabs.com",
@@ -34,17 +35,22 @@ const AUTHENTICATED_CSP = [
   "form-action 'self'",
 ].join("; ");
 
-const SELF_HOSTED_PUBLIC_CSP = [
-  "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${DEVELOPMENT_SCRIPT_EVAL} https://static.cloudflareinsights.com https://plausible.io`,
-  "style-src 'self' 'unsafe-inline'",
-  "font-src 'self'",
-  "img-src 'self' data:",
-  "connect-src 'self' https://cloudflareinsights.com https://plausible.io",
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-].join("; ");
+// Self-hosted public pages may reach only the configured API's HTTPS origin
+// (the /status health probe); its websocket origin stays authenticated-only.
+function selfHostedPublicCsp(apiSources: readonly string[] | null): string {
+  const apiOrigin = (apiSources ?? []).filter((source) => source.startsWith("https://"));
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'unsafe-inline'${DEVELOPMENT_SCRIPT_EVAL} https://static.cloudflareinsights.com https://plausible.io`,
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self'",
+    "img-src 'self' data:",
+    `connect-src ${["'self'", ...apiOrigin, "https://cloudflareinsights.com", "https://plausible.io"].join(" ")}`,
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join("; ");
+}
 
 function selfHostedAuthenticatedCsp(apiSources: readonly string[]): string {
   const connectSources = ["'self'", ...apiSources].join(" ");
@@ -115,7 +121,7 @@ export function middleware(request: NextRequest) {
           "Content-Type": "text/plain; charset=utf-8",
           "Cache-Control": "no-store",
           "x-braavolabs-surface": "public",
-          "Content-Security-Policy": selfHostedHost ? SELF_HOSTED_PUBLIC_CSP : PUBLIC_CSP,
+          "Content-Security-Policy": selfHostedHost ? selfHostedPublicCsp(selfHostedApiSources) : PUBLIC_CSP,
           "X-Content-Type-Options": "nosniff",
         },
       },
@@ -129,7 +135,7 @@ export function middleware(request: NextRequest) {
   response.headers.set("x-braavolabs-surface", surface);
   const contentSecurityPolicy = selfHostedHost
     ? surface === "public"
-      ? SELF_HOSTED_PUBLIC_CSP
+      ? selfHostedPublicCsp(selfHostedApiSources)
       : selfHostedAuthenticatedCsp(selfHostedApiSources ?? [])
     : surface === "public"
       ? PUBLIC_CSP
