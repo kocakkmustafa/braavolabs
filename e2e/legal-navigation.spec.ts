@@ -140,16 +140,16 @@ async function chrome(page: Page, locale: string, path: string, width: number) {
  expect(await permalink.getAttribute("href")).toBe(await toc.locator("a").first().getAttribute("href"));
  await expect(toc.locator("a").first()).toHaveText(section);
  if (path !== "/terms") {
-  // Localized documents mark their own language and direction.
-  const dir = locale === "ar" ? "rtl" : "ltr";
-  for (const owner of [header.locator("h1"), page.locator("article"), toc.locator(`div[lang="${locale}"]`)]) {
+  // Localized documents mark their own (canonical) language and direction.
+  const dir = locale === "ar" ? "rtl" : "ltr", lang = canonicalLocale(locale);
+  for (const owner of [header.locator("h1"), page.locator("article"), toc.locator(`div[lang="${lang}"]`)]) {
    await expect(owner).toHaveCount(1);
-   await expect(owner).toHaveAttribute("lang", locale);
+   await expect(owner).toHaveAttribute("lang", lang);
    await expect(owner).toHaveAttribute("dir", dir);
    await expect(owner).toHaveCSS("direction", dir);
   }
   expect(await toc.getAttribute("lang")).toBeNull();
-  await expect(permalink).toHaveAttribute("lang", locale);
+  await expect(permalink).toHaveAttribute("lang", lang);
   await expect(permalink).toHaveAttribute("dir", dir);
   await expect(date.locator("time")).toHaveAttribute("datetime", path === "/gdpr" ? "2026-10-20" : "2026-05");
   expect(await header.locator("h1").evaluate((node) => node.textContent?.trim().toLocaleUpperCase(node.getAttribute("lang") ?? "en")))

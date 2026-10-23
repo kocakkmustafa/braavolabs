@@ -237,12 +237,10 @@ for (const [index, locale] of LOCALES.entries()) {
     await reset.getByRole("button", { name: messages.auth.forgot.backToLogin, exact: true }).click();
     await expect(reset).toHaveCount(0);
     const nextLocale = locale === "tr" ? "ar" : LOCALES[(index + 1) % LOCALES.length];
-    // The existing selector reloads the document; do not mask a stale label
-    // with a second test-driven reload or a same-URL wait that resolves early.
-    await Promise.all([
-      page.waitForEvent("domcontentloaded"),
-      pageLanguage(page).selectOption(nextLocale),
-    ]);
+    // The selector writes the cookie and runs an RSC router.refresh() (no new
+    // document, so client drafts survive). Wait on the re-rendered locale itself;
+    // a test-driven reload would mask a stale label.
+    await pageLanguage(page).selectOption(nextLocale);
     await expect(page.locator("html")).toHaveAttribute("lang", nextLocale);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(messagesFor(nextLocale).auth.login.welcome);
     await expectKeyboardSkipLink(page, nextLocale);
