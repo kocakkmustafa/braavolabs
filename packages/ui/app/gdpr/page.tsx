@@ -80,7 +80,7 @@ export default function GdprPage() {
       </nav>
 
       {/* ── Page header ── */}
-      <header className="relative text-center" style={{ paddingTop: "clamp(56px,8vw,90px)", paddingBottom: 0 }}>
+      <header className="relative text-center" style={{ paddingTop: "clamp(24px,8vw,90px)", paddingBottom: 0 }}>
         {/* Watermark glow */}
         <div
           aria-hidden="true"
@@ -134,7 +134,7 @@ export default function GdprPage() {
             className="bv-grad-text"
             style={{
               fontFamily: "var(--bv-font-display)",
-              fontSize: "clamp(34px,5vw,60px)",
+              fontSize: "clamp(28px,5vw,60px)",
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "-0.02em",
