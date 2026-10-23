@@ -50,9 +50,8 @@ export default function CookiesPage() {
     >
       {/* ── Nav ── */}
       <nav
-        className="sticky top-0 z-50 flex items-center justify-between px-6 md:px-10"
+        className="sticky top-0 z-50 flex items-center justify-between px-6 md:px-10 bv-privacy-nav"
         style={{
-          height: "64px",
           background: "var(--color-surface-container-low)",
           backdropFilter: "blur(20px) saturate(1.1)",
           WebkitBackdropFilter: "blur(20px) saturate(1.1)",
@@ -84,7 +83,7 @@ export default function CookiesPage() {
           </span>
         </a>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 bv-privacy-nav-actions">
           <a
             href="/"
             className="flex items-center gap-1.5 no-underline text-sm transition-colors"

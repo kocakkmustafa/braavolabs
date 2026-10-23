@@ -401,13 +401,15 @@ test("legal layout hooks belong only to their actual TSX owners", async () => {
       assert.equal(appLinks.length, 1, locale + "/" + route + ": exact existing app anchor");
       assert.equal(/\bbv-legal-cta\b/.test(appLinks[0].attributes), route !== "cookies",
         locale + "/" + route + ": legal decoration scope");
-      if (route === "privacy") {
+      if (route === "privacy" || route === "cookies") {
+        // Both pages own a standalone navbar; long translations must reflow on narrow screens.
         const nav = html.match(/<nav\b[^>]*class="[^"]*\bbv-privacy-nav\b[^"]*"[^>]*>/)?.[0];
-        assert.ok(nav, "actual privacy navbar owns the mobile reflow hook");
+        assert.ok(nav, locale + "/" + route + ": actual navbar owns the mobile reflow hook");
         const inlineStyle = nav.match(/\bstyle="([^"]*)"/)?.[1] ?? "";
         assert.doesNotMatch(inlineStyle, /(?:^|;)height:/, "scoped CSS owns desktop/mobile height");
         assert.match(html, /<div\b[^>]*class="[^"]*\bbv-privacy-nav-actions\b/);
-        assert.match(html, /<h1\b[^>]*class="[^"]*\bbv-privacy-title\b/);
+        if (route === "privacy") assert.match(html, /<h1\b[^>]*class="[^"]*\bbv-privacy-title\b/);
+        else assert.doesNotMatch(html, /\bbv-privacy-title\b/);
       } else {
         assert.doesNotMatch(html, /\bbv-privacy-/);
       }
