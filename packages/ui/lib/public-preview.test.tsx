@@ -31,9 +31,14 @@ describe("actual public async pages with all fourteen message catalogs", () => {
     expect(pricing).toContain(t("inferenceFunding"));
     expect(home).not.toContain("publicPreview.");
     expect(pricing).not.toContain("publicPreview.");
-    expect(home.match(/<bdi>/g)).toHaveLength(2);
-    expect(pricing.match(/<bdi>/g)).toHaveLength(2);
+    // Each price card is one isolated run in the document direction, so the
+    // label and localized period keep their reading order (incl. Arabic).
+    const dir = locale === "ar" ? "rtl" : "ltr";
+    expect(home.match(new RegExp(`<bdi dir="${dir}">`, "g"))).toHaveLength(2);
+    expect(pricing.match(new RegExp(`<bdi dir="${dir}">`, "g"))).toHaveLength(2);
     expect((await homeMetadata()).description).toBe(t("homeIntro"));
-    expect((await pricingMetadata()).description).toBe(t("inferenceFunding"));
+    // Page metadata replaces the layout's: it keeps the planned-pricing maturity line.
+    const seo = createTranslator({ locale, messages: messages(locale), namespace: "seo" });
+    expect((await pricingMetadata()).description).toBe(seo("m907e61f93ecc"));
   });
 });

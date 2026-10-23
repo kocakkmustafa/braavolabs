@@ -11,7 +11,7 @@ export default function ThemeSelector() {
     <div className="bv-theme-control">
       <label>
         <span>{t("label")}</span>
-        <select value={preference} onChange={event => {
+        <select aria-label={t("label")} value={preference} onChange={event => {
           const value = event.target.value;
           if (value === "system" || value === "light" || value === "dark") setPreference(value as ThemePreference);
         }}>

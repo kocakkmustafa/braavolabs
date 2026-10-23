@@ -17,6 +17,7 @@ import { useTranslations as useLegacyTranslations } from "next-intl";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { brandTitle } from "../../../lib/brand-title";
 import {
   DOCS,
   DOCS_ORDERED,
@@ -44,7 +45,7 @@ export async function generateMetadata({
   if (!baseDoc) return { title: "Braavolabs" };
   const doc = localizeDoc(baseDoc, contentCopy);
   return {
-    title: `${doc.title} — Braavolabs Docs`,
+    title: brandTitle(`${doc.title} — Braavolabs Docs`),
     description: doc.desc,
     alternates: { canonical: `https://www.braavolabs.com/docs/${slug}` },
     openGraph: {

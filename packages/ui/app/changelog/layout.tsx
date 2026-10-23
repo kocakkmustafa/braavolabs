@@ -1,10 +1,11 @@
 import { getTranslations as getSeoTranslations } from "next-intl/server";
 import type { Metadata } from "next";
+import { brandTitle } from "../../lib/brand-title";
 
 export async function generateMetadata(): Promise<Metadata> {
   const seo = await getSeoTranslations("seo");
   return {
-  title: seo("m237cecbe666d"),
+  title: brandTitle(seo("m237cecbe666d")),
   description: seo("m22bcd4a9abed"),
   alternates: { canonical: "https://www.braavolabs.com/changelog" },
   openGraph: {

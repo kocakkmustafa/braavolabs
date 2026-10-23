@@ -33,7 +33,7 @@ import { useTranslations as useLegacyTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { formatCurrency, formatNumber } from "../../i18n/locales";
+import { bidiIsolate, formatCurrency, formatNumber } from "../../i18n/locales";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { useAppStore } from "../../lib/store";
@@ -142,7 +142,7 @@ export default function DashboardPage() {
   const greetingName = me?.name?.split(" ")[0] ?? me?.email?.split("@")[0] ?? copy("dashboard.operator");
   const greeting = copy(`dashboard.${greetingFor(new Date())}`);
   const spendLabel = finance
-    ? t("app.dashboard.spentThisCycle", { amount: formatCurrency(finance.totalCostUsd, "USD", locale, { maximumFractionDigits: 0 }) })
+    ? t("app.dashboard.spentThisCycle", { amount: bidiIsolate(formatCurrency(finance.totalCostUsd, "USD", locale, { maximumFractionDigits: 0 }), locale) })
     : "";
 
   return (

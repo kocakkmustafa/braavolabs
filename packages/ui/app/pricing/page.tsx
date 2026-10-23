@@ -1,21 +1,24 @@
 import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
 import { PLAN_PRICING } from "@ai-company-os/core";
-import { formatCurrency } from "../../i18n/locales";
+import { bidiIsolate, formatCurrency, localeDirection } from "../../i18n/locales";
 import LanguageSwitcher from "../../components/LanguageSwitcher";
+import { brandTitle } from "../../lib/brand-title";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("publicPreview");
-  return { title: `${t("pricingTitle")} | Braavolabs`, description: t("inferenceFunding"),
+  const [t, seo] = await Promise.all([getTranslations("publicPreview"), getTranslations("seo")]);
+  // Page metadata replaces the layout's: keep the planned-pricing maturity line.
+  const description = seo("m907e61f93ecc");
+  return { title: brandTitle(`${t("pricingTitle")} | Braavolabs`), description,
     alternates: { canonical: "https://www.braavolabs.com/pricing" },
-    openGraph: { title: t("pricingTitle"), description: t("inferenceFunding"), url: "https://www.braavolabs.com/pricing", images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }] } };
+    openGraph: { title: t("pricingTitle"), description, url: "https://www.braavolabs.com/pricing", images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }] } };
 }
 
 export default async function PricingPage() {
   const [t, locale] = await Promise.all([getTranslations("publicPreview"), getLocale()]);
   const plans = (["INDIVIDUAL", "TEAM"] as const).map(id => ({
     name: id === "INDIVIDUAL" ? "Individual" : "Team",
-    price: t(id === "INDIVIDUAL" ? "individualPeriod" : "teamPeriod", { price: formatCurrency(PLAN_PRICING[id].monthlyUsd, "USD", locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }),
+    price: t(id === "INDIVIDUAL" ? "individualPeriod" : "teamPeriod", { price: bidiIsolate(formatCurrency(PLAN_PRICING[id].monthlyUsd, "USD", locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 }), locale) }),
     audience: t(id === "INDIVIDUAL" ? "individualAudience" : "teamAudience"),
     items: t.raw(id === "INDIVIDUAL" ? "individualItems" : "teamItems") as string[],
   }));
@@ -46,7 +49,7 @@ export default async function PricingPage() {
           {plans.map((plan) => (
             <article key={plan.name} className="bv-glass p-8 flex flex-col">
               <p className="bv-micro text-primary mb-3">{t("subscription")}</p>
-              <h2 className="font-headline font-semibold text-3xl">{plan.name} — <bdi>{plan.price}</bdi></h2>
+              <h2 className="font-headline font-semibold text-3xl"><bdi dir={localeDirection(locale)}>{`${plan.name} — ${plan.price}`}</bdi></h2>
               <p className="text-on-surface-variant mt-4 leading-relaxed">{plan.audience}</p>
               <ul className="mt-7 flex-1 space-y-3 text-on-surface-variant">
                 {plan.items.map((item) => (

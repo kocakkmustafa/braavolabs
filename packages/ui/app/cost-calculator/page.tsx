@@ -2,11 +2,12 @@ import { getTranslations as getSeoTranslations } from "next-intl/server";
 
 import { useTranslations as useLegacyTranslations } from "next-intl";
 import type { Metadata } from "next";
+import { brandTitle } from "../../lib/brand-title";
 
 export async function generateMetadata(): Promise<Metadata> {
   const seo = await getSeoTranslations("seo");
   return {
-  title: seo("m3ca87fbbac15"),
+  title: brandTitle(seo("m3ca87fbbac15")),
   description:
     seo("m4bd9b811878a"),
   alternates: { canonical: "https://www.braavolabs.com/cost-calculator" },

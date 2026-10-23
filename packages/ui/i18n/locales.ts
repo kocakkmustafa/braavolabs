@@ -143,3 +143,13 @@ export function formatDurationMs(value: unknown, locale: unknown): string {
     style: "unit", unit: seconds < 60 ? "second" : "minute", maximumFractionDigits: 2,
   });
 }
+
+/**
+ * Wrap a value that is interpolated into translated text in Unicode first-strong
+ * isolates (FSI…PDI) so mixed-direction values such as "US$ 39" keep their own
+ * order inside right-to-left sentences. Left-to-right text is returned unchanged,
+ * so its copy stays byte-identical (and searchable) without invisible marks.
+ */
+export function bidiIsolate(value: string, locale: unknown): string {
+  return localeDirection(locale) === "rtl" ? `\u2068${value}\u2069` : value;
+}

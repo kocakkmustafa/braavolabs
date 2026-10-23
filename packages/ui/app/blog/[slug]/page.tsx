@@ -12,6 +12,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CATEGORY_PILL, POSTS, getPost, localizePost, blogCategoryLabel } from "../posts";
+import { brandTitle } from "../../../lib/brand-title";
 
 export function generateStaticParams() {
   return POSTS.map((p) => ({ slug: p.slug }));
@@ -29,7 +30,7 @@ export async function generateMetadata({
   if (!basePost) return { title: "Braavolabs" };
   const post = localizePost(basePost, contentCopy, locale);
   return {
-    title: `${post.title} — Braavolabs`,
+    title: brandTitle(`${post.title} — Braavolabs`),
     description: post.desc,
     alternates: { canonical: `https://www.braavolabs.com/blog/${slug}` },
     openGraph: {

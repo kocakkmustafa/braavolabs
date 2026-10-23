@@ -14,11 +14,12 @@ import { useTranslations as useLegacyTranslations } from "next-intl";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DOCS_ORDERED, DOC_PILL, docCategoryLabel, localizeDoc, type DocCategory } from "./content";
+import { brandTitle } from "../../lib/brand-title";
 
 export async function generateMetadata(): Promise<Metadata> {
   const seo = await getSeoTranslations("seo");
   return {
-  title: seo("ma9faa242317f"),
+  title: brandTitle(seo("ma9faa242317f")),
   description:
     seo("m365f82802c67"),
   alternates: { canonical: "https://www.braavolabs.com/docs" },

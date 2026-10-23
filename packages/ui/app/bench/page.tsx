@@ -55,11 +55,12 @@ async function fetchBench(): Promise<SuiteWithLeaderboard[]> {
 }
 
 import type { Metadata } from "next";
+import { brandTitle } from "../../lib/brand-title";
 
 export async function generateMetadata(): Promise<Metadata> {
   const seo = await getSeoTranslations("seo");
   return {
-  title: seo("m6bec3a9f230a"),
+  title: brandTitle(seo("m6bec3a9f230a")),
   description:
     seo("mcbea634da00e"),
   alternates: { canonical: "https://braavolabs.com/bench" },

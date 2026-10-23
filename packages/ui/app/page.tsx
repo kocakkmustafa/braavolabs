@@ -3,12 +3,13 @@ import { getTranslations as getLegacyTranslations } from "next-intl/server";
 import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
 import { PLAN_PRICING } from "@ai-company-os/core";
-import { formatCurrency } from "../i18n/locales";
+import { bidiIsolate, formatCurrency, localeDirection } from "../i18n/locales";
 import LanguageSwitcher from "../components/LanguageSwitcher";
+import { brandTitle } from "../lib/brand-title";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("publicPreview");
-  return { title: `${t("homeTitle")} | Braavolabs`, description: t("homeIntro"),
+  return { title: brandTitle(`${t("homeTitle")} | Braavolabs`), description: t("homeIntro"),
     alternates: { canonical: "https://www.braavolabs.com" },
     openGraph: { title: t("homeTitle"), description: t("homeIntro"), url: "https://www.braavolabs.com", images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Braavolabs" }] } };
 }
@@ -23,7 +24,7 @@ export default async function HomePage() {
   const [t, locale] = await Promise.all([getTranslations("publicPreview"), getLocale()]);
   const modes = [{ name: t("privateMode"), copy: t("privateModeCopy") }, { name: t("cloudMode"), copy: t("cloudModeCopy") }];
   const price = (plan: "INDIVIDUAL" | "TEAM") => t(plan === "INDIVIDUAL" ? "individualPeriod" : "teamPeriod", {
-    price: formatCurrency(PLAN_PRICING[plan].monthlyUsd, "USD", locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
+    price: bidiIsolate(formatCurrency(PLAN_PRICING[plan].monthlyUsd, "USD", locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 }), locale),
   });
   return (
     <div className="min-h-screen bv-mesh" data-public-surface="marketing">
@@ -76,12 +77,12 @@ export default async function HomePage() {
           <div className="grid md:grid-cols-2 gap-5">
             <article className="bv-glass p-7">
               <p className="bv-micro text-primary mb-3">Individual</p>
-              <h2 className="font-headline font-semibold text-3xl">{uiText("me9694a186010")}{" "}<bdi>{price("INDIVIDUAL")}</bdi></h2>
+              <h2 className="font-headline font-semibold text-3xl"><bdi dir={localeDirection(locale)}>{`${uiText("me9694a186010")} ${price("INDIVIDUAL")}`}</bdi></h2>
               <p className="text-on-surface-variant mt-3">{t("individualSummary")}</p>
             </article>
             <article className="bv-glass p-7">
               <p className="bv-micro text-primary mb-3">Team</p>
-              <h2 className="font-headline font-semibold text-3xl">{uiText("m032b7cca868a")}{" "}<bdi>{price("TEAM")}</bdi></h2>
+              <h2 className="font-headline font-semibold text-3xl"><bdi dir={localeDirection(locale)}>{`${uiText("m032b7cca868a")} ${price("TEAM")}`}</bdi></h2>
               <p className="text-on-surface-variant mt-3">{t("teamSummary")}</p>
             </article>
           </div>

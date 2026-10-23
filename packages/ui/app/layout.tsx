@@ -192,7 +192,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale = await getLocale();
   const messages = await getMessages();
   const publicCopy = await getTranslations("publicPreview");
-  const localizedSchema = { ...SCHEMA_LD, "@graph": SCHEMA_LD["@graph"].map(entry => entry["@type"] === "WebSite" ? { ...entry, description: publicCopy("homeIntro"), inLanguage: locale } : entry["@type"] === "SoftwareApplication" ? { ...entry, applicationSubCategory: publicCopy("homeTitle"), description: publicCopy("inferenceFunding"), featureList: [publicCopy("pricingBadge"), publicCopy("privateMode"), publicCopy("privateModeCopy"), publicCopy("cloudMode"), publicCopy("cloudModeCopy"), publicCopy("holding"), publicCopy("signedEvidence")] } : entry) };
+  const seoCopy = await getTranslations("seo");
+  // English keeps the frozen machine-readable contract verbatim; other locales
+  // localize the same entries, including the planned (not purchasable) pricing.
+  const localizedFeatures = locale === "en" ? undefined : [publicCopy("pricingBadge"), seoCopy("m907e61f93ecc"), publicCopy("privateMode"), publicCopy("privateModeCopy"), publicCopy("cloudMode"), publicCopy("cloudModeCopy"), publicCopy("holding"), publicCopy("signedEvidence")];
+  const localizedSchema = { ...SCHEMA_LD, "@graph": SCHEMA_LD["@graph"].map(entry => entry["@type"] === "WebSite" ? { ...entry, description: publicCopy("homeIntro"), inLanguage: locale } : entry["@type"] === "SoftwareApplication" ? { ...entry, applicationSubCategory: publicCopy("homeTitle"), description: publicCopy("inferenceFunding"), ...(localizedFeatures ? { featureList: localizedFeatures } : {}) } : entry) };
   const requestSurface =
     requestHeaders.get("x-braavolabs-surface") || surfaceForHost(requestHeaders.get("host"));
   const isPublic = requestSurface === "public";

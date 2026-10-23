@@ -4,11 +4,12 @@ import { useTranslations as useLegacyTranslations } from "next-intl";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PUBLIC_NAV_LABEL_KEYS } from "../../lib/public-nav-labels";
+import { brandTitle } from "../../lib/brand-title";
 
 export async function generateMetadata(): Promise<Metadata> {
   const seo = await getSeoTranslations("seo");
   return {
-  title: seo("m8ec104ac0b8d"),
+  title: brandTitle(seo("m8ec104ac0b8d")),
   description:
     seo("maafa6a889064"),
   alternates: { canonical: "https://www.braavolabs.com/compare" },
