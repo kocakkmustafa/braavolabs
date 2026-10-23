@@ -6,6 +6,15 @@ node_modules
 .next
 dist
 .turbo
+# Workspace packages carry their own install/build output on a dev machine:
+# nested node_modules are symlinks into the host pnpm store and would overwrite
+# the image's installed modules at `COPY . .`; .next alone is ~1 GB.
+**/node_modules
+**/.env
+**/.env.*
+**/.next
+**/dist
+**/.turbo
 .DS_Store
 *.log
 .claude
