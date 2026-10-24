@@ -693,3 +693,40 @@ test("deploy workflow delegates one fail-closed release invocation", () => {
   assert.doesNotMatch(workflow, /prisma migrate deploy\s*\|\|/);
   assert.doesNotMatch(workflow, /migration step skipped|api restart skipped/);
 });
+
+// BRV-21: the published operator record has one source and matches the founder
+// record byte for byte (publisher.json, sha256 below; the raw file is not committed).
+test("legal pages render the single published operator record", async () => {
+  const { createHash } = await import("node:crypto");
+  const LOCALE_FILES = ["tr", "en", "es-419", "pt-BR", "de", "fr", "ja", "ar", "it", "ko", "id", "pl", "hi", "zh-Hans"]
+    .map((locale) => `packages/ui/messages/${locale}.json`);
+  const source = read("packages/ui/lib/legal-operator.ts");
+  const field = (name) => source.match(new RegExp(`\\b${name}: "([^"]+)"`))?.[1];
+  const record = { legalName: field("legalName"), controller: field("controller"), address: field("address"), country: field("country") };
+  for (const [key, value] of Object.entries(record)) assert.ok(value, `LEGAL_OPERATOR.${key}`);
+  const canonical = `{"legalName": ${JSON.stringify(record.legalName)}, "controller": ${JSON.stringify(record.controller)}, ` +
+    `"address": ${JSON.stringify(record.address)}, "country": ${JSON.stringify(record.country)}}\n`;
+  assert.equal(createHash("sha256").update(canonical).digest("hex"),
+    "4404947fbca693a03c9a13ff36e07d3061a1818263f1ab28b48cbdfa2ae6795e", "operator strings differ from the founder record");
+
+  // No page or catalogue repeats the record; every legal page renders the component.
+  const pages = ["privacy", "terms", "kvkk", "gdpr", "legal/account-deletion"].map((route) => `packages/ui/app/${route}/page.tsx`);
+  for (const page of pages) {
+    const tsx = read(page);
+    assert.match(tsx, /import LegalOperator from "(?:\.\.\/)+components\/LegalOperator";/, page);
+    assert.match(tsx, /<LegalOperator \/>/, page);
+  }
+  for (const file of [...pages, ...LOCALE_FILES]) {
+    assert.doesNotMatch(read(file), /Bülbül|Melikgazi|Mustafa Kaan/, `${file} hard-codes the operator record`);
+  }
+  for (const file of LOCALE_FILES) {
+    const messages = JSON.parse(read(file));
+    assert.deepEqual(Object.keys(messages.static.common.legalOperator).sort(), ["address", "controller", "operator"], file);
+    const legal = messages.surface.legal;
+    for (const text of [legal.previewNotice, legal.kvkk["veri-sorumlusu"].body, legal.gdpr["data-controller"].body]) assert.ok(text.trim(), file);
+  }
+  const en = JSON.parse(read("packages/ui/messages/en.json")).surface.legal;
+  assert.doesNotMatch(`${en.previewNotice} ${en.kvkk["veri-sorumlusu"].body} ${en.gdpr["data-controller"].body}`,
+    /responsible legal operator[^.]*must be identified|must identify the responsible legal operator|Responsible-operator details/);
+  assert.match(en.previewNotice, /actual processing and recipients, retention and applicable safeguards must be finalized/, "remaining preview caveats stay");
+});

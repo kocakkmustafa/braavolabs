@@ -135,14 +135,15 @@ const LEGAL_METADATA = {
   // 0f6a05e reframed GDPR as an explicitly incomplete preview (no completed-notice claim).
   gdpr: {
     title: "GDPR information preview",
-    description: "Draft privacy information under GDPR. Responsible-operator, processing, recipient, retention and safeguard details still require completion before public registration.",
+    // BRV-21: the operator is now published on the page; the other preview gaps remain.
+    description: "Draft privacy information under GDPR. Processing, recipient, retention and safeguard details still require completion before public registration.",
     ogTitle: "Braavolabs GDPR information preview",
     ogDescription: "A preview of GDPR processing information and rights; this is not yet the complete notice for public personal-data collection.",
   },
   // Likewise KVKK: an explicitly incomplete preview, localized like GDPR.
   kvkk: {
     title: "KVKK information preview",
-    description: "Draft information under KVKK. Actual operator, processing, recipients, retention and safeguards still require completion before public registration.",
+    description: "Draft information under KVKK. Processing, recipients, retention and safeguards still require completion before public registration.",
     ogTitle: "Braavolabs KVKK information preview",
     ogDescription: "A preview of KVKK processing information and rights; this is not yet a complete privacy notice.",
   },
@@ -776,8 +777,9 @@ function legalSectionsDigest(route) {
   return createHash("sha256").update(initializer).update("\0").update(JSON.stringify(resolved)).digest("hex");
 }
 for (const [route, digest] of Object.entries({
-  gdpr: "b98e6a5d1aaaf3be569e31fb8d1c8bca40bedc87a7dbeb65c6c0525623607ec3",
-  "legal/account-deletion": "ca257727006d86fc18d8fe2b426c99fe932cd64fbf5abc47803705ef0b204042",
+  // BRV-21 (2026-10-24, founder decision): operator record + "identified below" copy.
+  gdpr: "74920ddde5f827cb67664803762c05ebe6b901beb3664ed62c95c207010d9354",
+  "legal/account-deletion": "6488faf2086c0a2454b5c7fb8ad7660c04f294b7a2c26554663bb59768467e00",
 })) test(`legal English sections remain byte-identical: ${route}`, () => {
   assert.equal(legalSectionsDigest(route), digest);
 });

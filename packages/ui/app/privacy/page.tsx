@@ -1,5 +1,6 @@
 "use client";
 
+import LegalOperator from "../../components/LegalOperator";
 import { useTranslations } from "next-intl";
 import { useState, useEffect, useRef } from "react";
 
@@ -261,6 +262,7 @@ export default function PrivacyPage() {
                 >
                   {section.body}
                 </p>
+                {i === sections.length - 1 && <LegalOperator />}
                 {i < sections.length - 1 && (
                   <div
                     className="bv-divider"

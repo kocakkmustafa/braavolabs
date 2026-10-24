@@ -1213,6 +1213,11 @@
       "back": "← Wstecz",
       "lastUpdated": "Ostatnia aktualizacja:",
       "skipToMainContent": "Przejdź do głównej treści",
+      "legalOperator": {
+        "operator": "Operator",
+        "controller": "Administrator danych",
+        "address": "Adres"
+      },
       "legalNavigation": {
         "legal": "Informacje prawne",
         "openApp": "Otwórz aplikację",
@@ -2744,13 +2749,13 @@
   },
   "surface": {
     "legal": {
-      "previewNotice": "Podgląd informacji o prywatności. Ta strona nie jest jeszcze pełną informacją dotyczącą publicznego zbierania danych osobowych. Przed publiczną rejestracją należy ustalić dane odpowiedzialnego operatora, faktyczne przetwarzanie i odbiorców, retencję oraz właściwe zabezpieczenia.",
+      "previewNotice": "Podgląd informacji o prywatności. Ta strona nie jest jeszcze pełną informacją dotyczącą publicznego zbierania danych osobowych. Odpowiedzialny operator jest wskazany poniżej; przed publiczną rejestracją należy ustalić faktyczne przetwarzanie i odbiorców, retencję oraz właściwe zabezpieczenia.",
       "kvkkTitle": "Podgląd informacji KVKK",
       "gdprTitle": "Podgląd informacji GDPR",
       "kvkk": {
         "veri-sorumlusu": {
           "title": "Odpowiedzialny operator",
-          "body": "Braavolabs jest nazwą produktu. Pełna informacja o prywatności musi wskazywać odpowiedzialny podmiot prawny, adres pocztowy i właściwego przedstawiciela przed publicznym zbieraniem danych osobowych. Obecny kontakt to kvkk@braavolabs.com."
+          "body": "Braavolabs jest nazwą produktu. Odpowiedzialny podmiot (administrator danych) i jego adres pocztowy są wskazane poniżej. Właściwego przedstawiciela należy jeszcze wskazać przed publicznym zbieraniem danych osobowych. Obecny kontakt to kvkk@braavolabs.com."
         },
         "islenen-kisisel-veriler": {
           "title": "Dane i sposoby zbierania",
@@ -2784,7 +2789,7 @@
       "gdpr": {
         "data-controller": {
           "title": "Odpowiedzialny operator",
-          "body": "Braavolabs jest nazwą produktu. Pełna informacja musi wskazywać odpowiedzialny podmiot prawny, dane kontaktowe i właściwego przedstawiciela przed publicznym zbieraniem danych osobowych. Obecny kontakt to gdpr@braavolabs.com."
+          "body": "Braavolabs jest nazwą produktu. Odpowiedzialny podmiot (administrator danych) i jego adres pocztowy są wskazane poniżej. Właściwego przedstawiciela należy jeszcze wskazać przed publicznym zbieraniem danych osobowych. Obecny kontakt to gdpr@braavolabs.com."
         },
         "personal-data": {
           "title": "Dane i cele",
@@ -4713,11 +4718,11 @@
     "m804e9858225a": "Funkcje — Braavolabs",
     "mcb18970cc53a": "Publiczny kontrakt produktu Braavolabs obejmujący uruchamianie, sterowanie, tryby danych i interfejsy weryfikacji.",
     "mac377e08a5eb": "Podgląd informacji GDPR",
-    "m49fe3634c177": "Projekt informacji o prywatności zgodnie z GDPR. Dane odpowiedzialnego operatora, przetwarzania, odbiorców, retencji i zabezpieczeń wymagają uzupełnienia przed publiczną rejestracją.",
+    "m49fe3634c177": "Projekt informacji o prywatności zgodnie z GDPR. Dane dotyczące przetwarzania, odbiorców, retencji i zabezpieczeń wymagają uzupełnienia przed publiczną rejestracją.",
     "m617c9c8f521f": "Podgląd informacji GDPR Braavolabs",
     "m5f3c445d83bb": "Podgląd informacji o przetwarzaniu i prawach GDPR; nie jest jeszcze pełną informacją dotyczącą publicznego zbierania danych osobowych.",
     "m6481ac9863e9": "Podgląd informacji KVKK",
-    "m6465a09ee4b0": "Projekt informacji zgodnie z KVKK. Dane faktycznego operatora, przetwarzania, odbiorców, retencji i zabezpieczeń wymagają uzupełnienia przed publiczną rejestracją.",
+    "m6465a09ee4b0": "Projekt informacji zgodnie z KVKK. Dane dotyczące przetwarzania, odbiorców, retencji i zabezpieczeń wymagają uzupełnienia przed publiczną rejestracją.",
     "m4a89104ba3fb": "Podgląd informacji KVKK Braavolabs",
     "m354a5e2b9623": "Podgląd informacji o przetwarzaniu i prawach KVKK; nie jest jeszcze pełną informacją o prywatności.",
     "mc60388ffa286": "Usuwanie konta",

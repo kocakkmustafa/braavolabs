@@ -1213,6 +1213,11 @@
       "back": "← Volver",
       "lastUpdated": "Última actualización:",
       "skipToMainContent": "Ir al contenido principal",
+      "legalOperator": {
+        "operator": "Operador",
+        "controller": "Responsable del tratamiento",
+        "address": "Dirección"
+      },
       "legalNavigation": {
         "legal": "Información legal",
         "openApp": "Abrir la aplicación",
@@ -2744,13 +2749,13 @@
   },
   "surface": {
     "legal": {
-      "previewNotice": "Vista preliminar de la información de privacidad. Esta página aún no es el aviso completo para la recopilación pública de datos personales. Antes de abrir el registro al público, deben finalizarse los datos de la entidad responsable, el tratamiento y los destinatarios reales, la retención y las garantías aplicables.",
+      "previewNotice": "Vista preliminar de la información de privacidad. Esta página aún no es el aviso completo para la recopilación pública de datos personales. La entidad responsable se identifica a continuación; antes de abrir el registro al público, deben finalizarse el tratamiento y los destinatarios reales, la retención y las garantías aplicables.",
       "kvkkTitle": "Vista preliminar de información conforme a la KVKK",
       "gdprTitle": "Vista preliminar de información conforme al RGPD (GDPR)",
       "kvkk": {
         "veri-sorumlusu": {
           "title": "Entidad responsable del servicio",
-          "body": "Braavolabs es el nombre del producto. La entidad jurídica responsable del servicio, el contacto postal y cualquier representante que corresponda deben identificarse en el aviso de privacidad completo antes de recopilar datos personales del público. El canal de contacto actual es kvkk@braavolabs.com."
+          "body": "Braavolabs es el nombre del producto. La entidad responsable (responsable del tratamiento) y su dirección postal se identifican a continuación. Cualquier representante que corresponda aún debe identificarse antes de recopilar datos personales del público. El canal de contacto actual es kvkk@braavolabs.com."
         },
         "islenen-kisisel-veriler": {
           "title": "Datos y métodos de recopilación",
@@ -2784,7 +2789,7 @@
       "gdpr": {
         "data-controller": {
           "title": "Entidad responsable del servicio",
-          "body": "Braavolabs es el nombre del producto. Antes de recopilar datos personales del público, el aviso completo debe identificar a la entidad jurídica responsable del servicio, sus datos de contacto y cualquier representante que corresponda. El canal actual es gdpr@braavolabs.com."
+          "body": "Braavolabs es el nombre del producto. La entidad responsable (responsable del tratamiento) y su dirección postal se identifican a continuación. Cualquier representante que corresponda aún debe identificarse antes de recopilar datos personales del público. El canal de contacto actual es gdpr@braavolabs.com."
         },
         "personal-data": {
           "title": "Datos y fines",
@@ -4713,11 +4718,11 @@
     "m804e9858225a": "Funciones — Braavolabs",
     "mcb18970cc53a": "El contrato público del producto Braavolabs en las interfaces de ejecución, control, modo de datos y verificación.",
     "mac377e08a5eb": "Vista preliminar de información conforme al RGPD (GDPR)",
-    "m49fe3634c177": "Borrador de información de privacidad conforme al RGPD (GDPR). Aún deben completarse los datos de la entidad responsable, el tratamiento, los destinatarios, la retención y las garantías antes de abrir el registro al público.",
+    "m49fe3634c177": "Borrador de información de privacidad conforme al RGPD (GDPR). Aún deben completarse el tratamiento, los destinatarios, la retención y las garantías antes de abrir el registro al público.",
     "m617c9c8f521f": "Braavolabs — vista preliminar de información conforme al RGPD (GDPR)",
     "m5f3c445d83bb": "Vista preliminar de información sobre tratamiento y derechos conforme al RGPD (GDPR); aún no es el aviso completo para recopilar datos personales del público.",
     "m6481ac9863e9": "Vista preliminar de información conforme a la KVKK",
-    "m6465a09ee4b0": "Borrador de información conforme a la KVKK. Aún deben completarse los datos del operador real, el tratamiento, los destinatarios, la retención y las garantías antes de abrir el registro al público.",
+    "m6465a09ee4b0": "Borrador de información conforme a la KVKK. Aún deben completarse el tratamiento, los destinatarios, la retención y las garantías antes de abrir el registro al público.",
     "m4a89104ba3fb": "Braavolabs — vista preliminar de información conforme a la KVKK",
     "m354a5e2b9623": "Vista preliminar de información sobre tratamiento y derechos conforme a la KVKK; aún no es un aviso de privacidad completo.",
     "mc60388ffa286": "Eliminación de cuenta",

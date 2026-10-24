@@ -1,4 +1,5 @@
 "use client";
+import LegalOperator from "../../../components/LegalOperator";
 import { useTranslations as useRuntimeTranslations } from "next-intl";
 
 import { useTranslations as useLegacyTranslations } from "next-intl";
@@ -144,6 +145,7 @@ export default function AccountDeletionPage() {
             <a href="/kvkk" className="text-primary underline hover:text-primary-fixed transition-colors">{uiText("mf75327b3ab03")}</a>
             .
           </p>
+          <LegalOperator />
         </>
       ),
     },

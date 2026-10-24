@@ -1213,6 +1213,11 @@
       "back": "← Zurück",
       "lastUpdated": "Zuletzt aktualisiert:",
       "skipToMainContent": "Zum Hauptinhalt springen",
+      "legalOperator": {
+        "operator": "Betreiber",
+        "controller": "Verantwortlicher",
+        "address": "Anschrift"
+      },
       "legalNavigation": {
         "legal": "Rechtliches",
         "openApp": "App öffnen",
@@ -2744,13 +2749,13 @@
   },
   "surface": {
     "legal": {
-      "previewNotice": "Vorschau der Datenschutzinformationen. Diese Seite ist noch nicht die vollständige Information für die öffentliche Erhebung personenbezogener Daten. Angaben zum verantwortlichen Betreiber, zur tatsächlichen Verarbeitung und zu den Empfängern, zur Aufbewahrung und zu den anwendbaren Schutzmaßnahmen müssen vor der öffentlichen Registrierung vervollständigt werden.",
+      "previewNotice": "Vorschau der Datenschutzinformationen. Diese Seite ist noch nicht die vollständige Information für die öffentliche Erhebung personenbezogener Daten. Der verantwortliche Betreiber ist unten angegeben; Angaben zur tatsächlichen Verarbeitung und zu den Empfängern, zur Aufbewahrung und zu den anwendbaren Schutzmaßnahmen müssen vor der öffentlichen Registrierung vervollständigt werden.",
       "kvkkTitle": "Vorschau der Informationen nach KVKK",
       "gdprTitle": "Vorschau der Informationen nach der DSGVO (GDPR)",
       "kvkk": {
         "veri-sorumlusu": {
           "title": "Verantwortlicher Betreiber",
-          "body": "Braavolabs ist der Produktname. Der verantwortliche rechtliche Betreiber, eine Postanschrift und ein gegebenenfalls erforderlicher Vertreter müssen vor der öffentlichen Erhebung personenbezogener Daten in der vollständigen Datenschutzinformation benannt werden. Der aktuelle Kontaktweg ist kvkk@braavolabs.com."
+          "body": "Braavolabs ist der Produktname. Der verantwortliche Betreiber (Verantwortlicher) und seine Postanschrift sind unten angegeben. Ein gegebenenfalls erforderlicher Vertreter muss vor der öffentlichen Erhebung personenbezogener Daten noch benannt werden. Der aktuelle Kontaktweg ist kvkk@braavolabs.com."
         },
         "islenen-kisisel-veriler": {
           "title": "Daten und Erhebungsmethoden",
@@ -2784,7 +2789,7 @@
       "gdpr": {
         "data-controller": {
           "title": "Verantwortlicher Betreiber",
-          "body": "Braavolabs ist der Produktname. Die vollständige Information muss vor der öffentlichen Erhebung personenbezogener Daten den verantwortlichen rechtlichen Betreiber, Kontaktdaten und einen gegebenenfalls erforderlichen Vertreter benennen. Der aktuelle Kontaktweg ist gdpr@braavolabs.com."
+          "body": "Braavolabs ist der Produktname. Der verantwortliche Betreiber (Verantwortlicher) und seine Postanschrift sind unten angegeben. Ein gegebenenfalls erforderlicher Vertreter muss vor der öffentlichen Erhebung personenbezogener Daten noch benannt werden. Der aktuelle Kontaktweg ist gdpr@braavolabs.com."
         },
         "personal-data": {
           "title": "Daten und Zwecke",
@@ -4713,11 +4718,11 @@
     "m804e9858225a": "Funktionen — Braavolabs",
     "mcb18970cc53a": "Der öffentliche Produktumfang von Braavolabs für Ausführung, Steuerung, Datenmodus und Verifizierung.",
     "mac377e08a5eb": "Vorschau der Informationen nach der DSGVO (GDPR)",
-    "m49fe3634c177": "Entwurf der Datenschutzinformationen nach der DSGVO (GDPR). Angaben zum verantwortlichen Betreiber, zur Verarbeitung, zu Empfängern, Aufbewahrung und Schutzmaßnahmen müssen vor der öffentlichen Registrierung noch vervollständigt werden.",
+    "m49fe3634c177": "Entwurf der Datenschutzinformationen nach der DSGVO (GDPR). Angaben zur Verarbeitung, zu Empfängern, Aufbewahrung und Schutzmaßnahmen müssen vor der öffentlichen Registrierung noch vervollständigt werden.",
     "m617c9c8f521f": "Braavolabs — Vorschau der Informationen nach der DSGVO (GDPR)",
     "m5f3c445d83bb": "Vorschau der Informationen zu Verarbeitung und Rechten nach der DSGVO (GDPR); dies ist noch nicht die vollständige Information für die öffentliche Erhebung personenbezogener Daten.",
     "m6481ac9863e9": "Vorschau der Informationen nach KVKK",
-    "m6465a09ee4b0": "Informationsentwurf nach KVKK. Angaben zum tatsächlichen Betreiber, zur Verarbeitung, zu Empfängern, Aufbewahrung und Schutzmaßnahmen müssen vor der öffentlichen Registrierung noch vervollständigt werden.",
+    "m6465a09ee4b0": "Informationsentwurf nach KVKK. Angaben zur Verarbeitung, zu Empfängern, Aufbewahrung und Schutzmaßnahmen müssen vor der öffentlichen Registrierung noch vervollständigt werden.",
     "m4a89104ba3fb": "Braavolabs — Vorschau der Informationen nach KVKK",
     "m354a5e2b9623": "Vorschau der Informationen zu Verarbeitung und Rechten nach KVKK; dies ist noch keine vollständige Datenschutzinformation.",
     "mc60388ffa286": "Kontolöschung",

@@ -1213,6 +1213,11 @@
       "back": "← Kembali",
       "lastUpdated": "Terakhir diperbarui:",
       "skipToMainContent": "Lewati ke konten utama",
+      "legalOperator": {
+        "operator": "Pengelola",
+        "controller": "Pengendali data",
+        "address": "Alamat"
+      },
       "legalNavigation": {
         "legal": "Hukum",
         "openApp": "Buka aplikasi",
@@ -2744,13 +2749,13 @@
   },
   "surface": {
     "legal": {
-      "previewNotice": "Pratinjau informasi privasi. Halaman ini belum merupakan pemberitahuan lengkap untuk pengumpulan data pribadi publik. Detail pengelola yang bertanggung jawab, pemrosesan dan penerima sebenarnya, retensi, serta perlindungan yang berlaku harus diselesaikan sebelum pendaftaran publik.",
+      "previewNotice": "Pratinjau informasi privasi. Halaman ini belum merupakan pemberitahuan lengkap untuk pengumpulan data pribadi publik. Pengelola yang bertanggung jawab tercantum di bawah; pemrosesan dan penerima sebenarnya, retensi, serta perlindungan yang berlaku harus diselesaikan sebelum pendaftaran publik.",
       "kvkkTitle": "Pratinjau informasi KVKK",
       "gdprTitle": "Pratinjau informasi GDPR",
       "kvkk": {
         "veri-sorumlusu": {
           "title": "Pengelola yang bertanggung jawab",
-          "body": "Braavolabs adalah nama produk. Pengelola hukum yang bertanggung jawab, kontak pos, dan perwakilan yang berlaku harus diidentifikasi dalam pemberitahuan privasi lengkap sebelum pengumpulan data pribadi publik. Kanal kontak saat ini adalah kvkk@braavolabs.com."
+          "body": "Braavolabs adalah nama produk. Pengelola yang bertanggung jawab (pengendali data) dan alamat posnya tercantum di bawah. Perwakilan yang berlaku masih harus diidentifikasi sebelum pengumpulan data pribadi publik. Kanal kontak saat ini adalah kvkk@braavolabs.com."
         },
         "islenen-kisisel-veriler": {
           "title": "Data dan cara pengumpulan",
@@ -2784,7 +2789,7 @@
       "gdpr": {
         "data-controller": {
           "title": "Pengelola yang bertanggung jawab",
-          "body": "Braavolabs adalah nama produk. Pemberitahuan lengkap harus mengidentifikasi pengelola hukum yang bertanggung jawab, detail kontak, dan perwakilan yang berlaku sebelum pengumpulan data pribadi publik. Kanal kontak saat ini adalah gdpr@braavolabs.com."
+          "body": "Braavolabs adalah nama produk. Pengelola yang bertanggung jawab (pengendali data) dan alamat posnya tercantum di bawah. Perwakilan yang berlaku masih harus diidentifikasi sebelum pengumpulan data pribadi publik. Kanal kontak saat ini adalah gdpr@braavolabs.com."
         },
         "personal-data": {
           "title": "Data dan tujuan",
@@ -4713,11 +4718,11 @@
     "m804e9858225a": "Fitur — Braavolabs",
     "mcb18970cc53a": "Kontrak produk publik Braavolabs mencakup eksekusi, kendali, mode data, dan antarmuka verifikasi.",
     "mac377e08a5eb": "Pratinjau informasi GDPR",
-    "m49fe3634c177": "Draf informasi privasi berdasarkan GDPR. Detail pengelola yang bertanggung jawab, pemrosesan, penerima, retensi, dan perlindungan masih harus dilengkapi sebelum pendaftaran publik.",
+    "m49fe3634c177": "Draf informasi privasi berdasarkan GDPR. Detail pemrosesan, penerima, retensi, dan perlindungan masih harus dilengkapi sebelum pendaftaran publik.",
     "m617c9c8f521f": "Pratinjau informasi GDPR Braavolabs",
     "m5f3c445d83bb": "Pratinjau informasi pemrosesan dan hak GDPR; ini belum merupakan pemberitahuan lengkap untuk pengumpulan data pribadi publik.",
     "m6481ac9863e9": "Pratinjau informasi KVKK",
-    "m6465a09ee4b0": "Draf informasi berdasarkan KVKK. Detail pengelola sebenarnya, pemrosesan, penerima, retensi, dan perlindungan masih harus dilengkapi sebelum pendaftaran publik.",
+    "m6465a09ee4b0": "Draf informasi berdasarkan KVKK. Detail pemrosesan, penerima, retensi, dan perlindungan masih harus dilengkapi sebelum pendaftaran publik.",
     "m4a89104ba3fb": "Pratinjau informasi KVKK Braavolabs",
     "m354a5e2b9623": "Pratinjau informasi pemrosesan dan hak KVKK; ini belum merupakan pemberitahuan privasi lengkap.",
     "mc60388ffa286": "Penghapusan akun",

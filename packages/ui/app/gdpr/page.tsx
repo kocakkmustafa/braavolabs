@@ -1,4 +1,5 @@
 "use client";
+import LegalOperator from "../../components/LegalOperator";
 import { useTranslations as useLegacyTranslations } from "next-intl";
 
 
@@ -291,6 +292,7 @@ export default function GdprPage() {
                 >
                   {section.body}
                 </p>
+                {id === "data-controller" && <LegalOperator />}
                 {i < sections.length - 1 && (
                   <div
                     className="bv-divider"

@@ -1,4 +1,5 @@
 "use client";
+import LegalOperator from "../../components/LegalOperator";
 import { useTranslations as useLegacyTranslations } from "next-intl";
 
 
@@ -200,7 +201,7 @@ export default function TermsPage() {
         >
           {activeDoc === "terms" ? (
             /* Render from i18n keys when on the "terms" doc */
-            sections.map(({ title, body }) => {
+            sections.map(({ title, body }, index) => {
               const id = slugify(title);
               return (
                 <section key={id} className="mb-8">
@@ -222,6 +223,7 @@ export default function TermsPage() {
                   <p className="text-on-surface-variant leading-relaxed" style={{ fontSize: 15.5, lineHeight: 1.8 }}>
                     {body}
                   </p>
+                  {index === sections.length - 1 && <LegalOperator />}
                   <div className="bv-divider mt-8" />
                 </section>
               );

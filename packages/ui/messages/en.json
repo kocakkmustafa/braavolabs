@@ -1213,6 +1213,11 @@
       "back": "← Back",
       "lastUpdated": "Last updated:",
       "skipToMainContent": "Skip to main content",
+      "legalOperator": {
+        "operator": "Operator",
+        "controller": "Data controller",
+        "address": "Address"
+      },
       "legalNavigation": {
         "legal": "Legal",
         "openApp": "Open app",
@@ -2744,13 +2749,13 @@
   },
   "surface": {
     "legal": {
-      "previewNotice": "Privacy information preview. This page is not yet the complete notice for public personal-data collection. Responsible-operator details, actual processing and recipients, retention and applicable safeguards must be finalized before public registration.",
+      "previewNotice": "Privacy information preview. This page is not yet the complete notice for public personal-data collection. The responsible operator is identified below; actual processing and recipients, retention and applicable safeguards must be finalized before public registration.",
       "kvkkTitle": "KVKK information preview",
       "gdprTitle": "GDPR information preview",
       "kvkk": {
         "veri-sorumlusu": {
           "title": "Responsible operator",
-          "body": "Braavolabs is the product name. The responsible legal operator, postal contact and applicable representative must be identified in the complete privacy notice before public personal-data collection. The current contact route is kvkk@braavolabs.com."
+          "body": "Braavolabs is the product name. The responsible operator (data controller) and its postal address are identified below. Any applicable representative must still be identified before public personal-data collection. The current contact route is kvkk@braavolabs.com."
         },
         "islenen-kisisel-veriler": {
           "title": "Data and collection methods",
@@ -2784,7 +2789,7 @@
       "gdpr": {
         "data-controller": {
           "title": "Responsible operator",
-          "body": "Braavolabs is the product name. The complete notice must identify the responsible legal operator, contact details and any applicable representative before public personal-data collection. The current contact route is gdpr@braavolabs.com."
+          "body": "Braavolabs is the product name. The responsible operator (data controller) and its postal address are identified below. Any applicable representative must still be identified before public personal-data collection. The current contact route is gdpr@braavolabs.com."
         },
         "personal-data": {
           "title": "Data and purposes",
@@ -4713,11 +4718,11 @@
     "m804e9858225a": "Features — Braavolabs",
     "mcb18970cc53a": "The public Braavolabs product contract across run, control, data mode, and verification surfaces.",
     "mac377e08a5eb": "GDPR information preview",
-    "m49fe3634c177": "Draft privacy information under GDPR. Responsible-operator, processing, recipient, retention and safeguard details still require completion before public registration.",
+    "m49fe3634c177": "Draft privacy information under GDPR. Processing, recipient, retention and safeguard details still require completion before public registration.",
     "m617c9c8f521f": "Braavolabs GDPR information preview",
     "m5f3c445d83bb": "A preview of GDPR processing information and rights; this is not yet the complete notice for public personal-data collection.",
     "m6481ac9863e9": "KVKK information preview",
-    "m6465a09ee4b0": "Draft information under KVKK. Actual operator, processing, recipients, retention and safeguards still require completion before public registration.",
+    "m6465a09ee4b0": "Draft information under KVKK. Processing, recipients, retention and safeguards still require completion before public registration.",
     "m4a89104ba3fb": "Braavolabs KVKK information preview",
     "m354a5e2b9623": "A preview of KVKK processing information and rights; this is not yet a complete privacy notice.",
     "mc60388ffa286": "Account Deletion",

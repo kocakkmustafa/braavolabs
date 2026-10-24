@@ -1213,6 +1213,11 @@
       "back": "← Geri",
       "lastUpdated": "Son güncelleme:",
       "skipToMainContent": "Ana içeriğe geç",
+      "legalOperator": {
+        "operator": "Hizmet sağlayıcı",
+        "controller": "Veri sorumlusu",
+        "address": "Adres"
+      },
       "legalNavigation": {
         "legal": "Yasal",
         "openApp": "Uygulamayı aç",
@@ -2744,13 +2749,13 @@
   },
   "surface": {
     "legal": {
-      "previewNotice": "Gizlilik bilgilendirmesi önizlemesi. Bu sayfa, herkese açık hizmet üzerinden kişisel veri toplanması için henüz eksiksiz bir aydınlatma metni değildir. Herkese açık kayıt başlamadan önce sorumlu işletmecinin bilgileri, fiilî işleme faaliyetleri ve alıcılar, saklama koşulları ve uygulanacak güvenceler tamamlanmalıdır.",
+      "previewNotice": "Gizlilik bilgilendirmesi önizlemesi. Bu sayfa, herkese açık hizmet üzerinden kişisel veri toplanması için henüz eksiksiz bir aydınlatma metni değildir. Sorumlu işletmeci aşağıda belirtilmiştir; herkese açık kayıt başlamadan önce fiilî işleme faaliyetleri ve alıcılar, saklama koşulları ve uygulanacak güvenceler tamamlanmalıdır.",
       "kvkkTitle": "KVKK bilgilendirmesi önizlemesi",
       "gdprTitle": "GDPR bilgilendirmesi önizlemesi",
       "kvkk": {
         "veri-sorumlusu": {
           "title": "Sorumlu işletmeci",
-          "body": "Braavolabs ürünün adıdır. Herkese açık hizmet üzerinden kişisel veri toplanmadan önce hukuken sorumlu işletmeci, posta yoluyla iletişim bilgileri ve gereken hâllerde temsilci, eksiksiz aydınlatma metninde belirtilmelidir. Mevcut iletişim adresi kvkk@braavolabs.com'dur."
+          "body": "Braavolabs ürünün adıdır. Sorumlu işletmeci (veri sorumlusu) ve posta adresi aşağıda belirtilmiştir. Gereken hâllerde temsilci, herkese açık hizmet üzerinden kişisel veri toplanmadan önce ayrıca belirtilmelidir. Mevcut iletişim adresi kvkk@braavolabs.com'dur."
         },
         "islenen-kisisel-veriler": {
           "title": "Veriler ve toplama yöntemleri",
@@ -2784,7 +2789,7 @@
       "gdpr": {
         "data-controller": {
           "title": "Sorumlu işletmeci",
-          "body": "Braavolabs ürünün adıdır. Herkese açık hizmet üzerinden kişisel veri toplanmadan önce eksiksiz bilgilendirme metni, hukuken sorumlu işletmeciyi, iletişim bilgilerini ve gereken hâllerde temsilciyi belirtmelidir. Mevcut iletişim adresi gdpr@braavolabs.com'dur."
+          "body": "Braavolabs ürünün adıdır. Sorumlu işletmeci (veri sorumlusu) ve posta adresi aşağıda belirtilmiştir. Gereken hâllerde temsilci, herkese açık hizmet üzerinden kişisel veri toplanmadan önce ayrıca belirtilmelidir. Mevcut iletişim adresi gdpr@braavolabs.com'dur."
         },
         "personal-data": {
           "title": "Veriler ve amaçlar",
@@ -4713,11 +4718,11 @@
     "m804e9858225a": "Özellikler — Braavolabs",
     "mcb18970cc53a": "Çalıştırma, kontrol, veri modu ve doğrulama yüzeyleri için Braavolabs'ın herkese açık ürün sözleşmesi.",
     "mac377e08a5eb": "GDPR bilgilendirmesi önizlemesi",
-    "m49fe3634c177": "GDPR kapsamındaki gizlilik bilgilendirmesi taslağı. Herkese açık kayıt başlamadan önce sorumlu işletmeci, işleme, alıcılar, saklama ve güvencelere ilişkin ayrıntıların tamamlanması gerekir.",
+    "m49fe3634c177": "GDPR kapsamındaki gizlilik bilgilendirmesi taslağı. Herkese açık kayıt başlamadan önce işleme, alıcılar, saklama ve güvencelere ilişkin ayrıntıların tamamlanması gerekir.",
     "m617c9c8f521f": "Braavolabs GDPR bilgilendirmesi önizlemesi",
     "m5f3c445d83bb": "GDPR kapsamındaki işleme bilgileri ve hakların önizlemesi; bu, herkese açık hizmet üzerinden kişisel veri toplanması için henüz eksiksiz bir bilgilendirme metni değildir.",
     "m6481ac9863e9": "KVKK bilgilendirmesi önizlemesi",
-    "m6465a09ee4b0": "KVKK kapsamındaki bilgilendirme taslağı. Herkese açık kayıt başlamadan önce fiilî işletmeci, işleme, alıcılar, saklama ve güvencelere ilişkin ayrıntıların tamamlanması gerekir.",
+    "m6465a09ee4b0": "KVKK kapsamındaki bilgilendirme taslağı. Herkese açık kayıt başlamadan önce işleme, alıcılar, saklama ve güvencelere ilişkin ayrıntıların tamamlanması gerekir.",
     "m4a89104ba3fb": "Braavolabs KVKK bilgilendirmesi önizlemesi",
     "m354a5e2b9623": "KVKK kapsamındaki işleme bilgileri ve hakların önizlemesi; bu henüz eksiksiz bir aydınlatma metni değildir.",
     "mc60388ffa286": "Hesap Silme",

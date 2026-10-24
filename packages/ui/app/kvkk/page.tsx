@@ -1,4 +1,5 @@
 "use client";
+import LegalOperator from "../../components/LegalOperator";
 import { useTranslations as useLegacyTranslations } from "next-intl";
 
 
@@ -140,6 +141,7 @@ export default function KvkkPage() {
               <p className="text-on-surface-variant leading-relaxed" style={{ fontSize: "0.97rem", lineHeight: 1.8 }}>
                 {section.body}
               </p>
+              {section.id === "veri-sorumlusu" && <LegalOperator />}
               <div className="bv-divider mt-8" />
             </section>
           ))}

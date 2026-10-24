@@ -1213,6 +1213,11 @@
       "back": "← 返回",
       "lastUpdated": "最后更新：",
       "skipToMainContent": "跳转到主要内容",
+      "legalOperator": {
+        "operator": "运营方",
+        "controller": "数据控制者",
+        "address": "地址"
+      },
       "legalNavigation": {
         "legal": "法律",
         "openApp": "打开应用",
@@ -2744,13 +2749,13 @@
   },
   "surface": {
     "legal": {
-      "previewNotice": "隐私信息预览。本页尚不是面向公众收集个人数据所需的完整告知。公开注册前，必须确定责任运营方信息、实际处理与接收方、保留安排及适用保护措施。",
+      "previewNotice": "隐私信息预览。本页尚不是面向公众收集个人数据所需的完整告知。责任运营方见下文；公开注册前，必须确定实际处理与接收方、保留安排及适用保护措施。",
       "kvkkTitle": "KVKK 信息预览",
       "gdprTitle": "GDPR 信息预览",
       "kvkk": {
         "veri-sorumlusu": {
           "title": "责任运营方",
-          "body": "Braavolabs 是产品名称。公开收集个人数据前，完整隐私告知必须明确负法律责任的运营方、邮寄联系方式及适用代表。目前联系渠道为 kvkk@braavolabs.com。"
+          "body": "Braavolabs 是产品名称。负法律责任的运营方（数据控制者）及其邮寄地址见下文。适用代表仍须在公开收集个人数据前明确。目前联系渠道为 kvkk@braavolabs.com。"
         },
         "islenen-kisisel-veriler": {
           "title": "数据与收集方式",
@@ -2784,7 +2789,7 @@
       "gdpr": {
         "data-controller": {
           "title": "责任运营方",
-          "body": "Braavolabs 是产品名称。公开收集个人数据前，完整告知必须明确负法律责任的运营方、联系方式及适用代表。目前联系渠道为 gdpr@braavolabs.com。"
+          "body": "Braavolabs 是产品名称。负法律责任的运营方（数据控制者）及其邮寄地址见下文。适用代表仍须在公开收集个人数据前明确。目前联系渠道为 gdpr@braavolabs.com。"
         },
         "personal-data": {
           "title": "数据与目的",
@@ -4713,11 +4718,11 @@
     "m804e9858225a": "功能 — Braavolabs",
     "mcb18970cc53a": "Braavolabs 在运行、控制、数据模式和验证界面上的公开产品约定。",
     "mac377e08a5eb": "GDPR 信息预览",
-    "m49fe3634c177": "GDPR 隐私信息草案。公开注册前，责任运营方、处理、接收方、保留及保护措施详情仍需补全。",
+    "m49fe3634c177": "GDPR 隐私信息草案。公开注册前，处理、接收方、保留及保护措施详情仍需补全。",
     "m617c9c8f521f": "Braavolabs GDPR 信息预览",
     "m5f3c445d83bb": "GDPR 处理信息与权利预览；尚不是公开收集个人数据所需的完整告知。",
     "m6481ac9863e9": "KVKK 信息预览",
-    "m6465a09ee4b0": "KVKK 信息草案。公开注册前，实际运营方、处理、接收方、保留及保护措施仍需补全。",
+    "m6465a09ee4b0": "KVKK 信息草案。公开注册前，处理、接收方、保留及保护措施仍需补全。",
     "m4a89104ba3fb": "Braavolabs KVKK 信息预览",
     "m354a5e2b9623": "KVKK 处理信息与权利预览；尚不是完整隐私告知。",
     "mc60388ffa286": "账户删除",
