@@ -779,7 +779,8 @@ function legalSectionsDigest(route) {
 for (const [route, digest] of Object.entries({
   // BRV-21 (2026-10-24, founder decision): operator record + "identified below" copy.
   gdpr: "74920ddde5f827cb67664803762c05ebe6b901beb3664ed62c95c207010d9354",
-  "legal/account-deletion": "6488faf2086c0a2454b5c7fb8ad7660c04f294b7a2c26554663bb59768467e00",
+  // Support address unified to support@yulalab.com (2026-10-24, shared support rule).
+  "legal/account-deletion": "b2b23087a1ef743cf349f25a5b8c33bb29ee5f9eaae5506488c5d99476f267dc",
 })) test(`legal English sections remain byte-identical: ${route}`, () => {
   assert.equal(legalSectionsDigest(route), digest);
 });

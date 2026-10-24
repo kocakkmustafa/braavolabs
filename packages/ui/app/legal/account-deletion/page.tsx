@@ -120,10 +120,10 @@ export default function AccountDeletionPage() {
         <>
           <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">{uiText("mc3704343f072")}{" "}
             <a
-              href="mailto:support@braavolabs.com"
+              href="mailto:support@yulalab.com"
               className="text-primary underline hover:text-primary-fixed transition-colors"
             >
-              support@braavolabs.com
+              support@yulalab.com
             </a>{" "}{uiText("m262a258637ac")}</p>
         </>
       ),

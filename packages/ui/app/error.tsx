@@ -105,7 +105,7 @@ export default function GlobalError({
           >{uiText("meda5eea8ae48")}</a>
           {reference && (
             <a
-              href={`mailto:support@braavolabs.com?subject=Error%20${encodeURIComponent(reference)}`}
+              href={`mailto:support@yulalab.com?subject=Error%20${encodeURIComponent(reference)}`}
               className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80"
               style={{
                 background: "rgba(255,255,255,0.04)",

@@ -1422,7 +1422,7 @@
       },
       "operational": "运行正常",
       "alertTitle": "发现服务中断？",
-      "alertBody": "请发送邮件至 support@braavolabs.com，说明尝试的操作和看到的错误，我们会调查并更新此页面。"
+      "alertBody": "请发送邮件至 support@yulalab.com，说明尝试的操作和看到的错误，我们会调查并更新此页面。"
     },
     "cookieConsent": {
       "title": "Cookie 与分析",

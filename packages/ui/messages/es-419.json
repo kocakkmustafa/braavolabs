@@ -1422,7 +1422,7 @@
       },
       "operational": "Operativo",
       "alertTitle": "¿Detectaste una caída?",
-      "alertBody": "Envía un correo a support@braavolabs.com con lo que intentaste y el error que viste — lo investigaremos y actualizaremos esta página."
+      "alertBody": "Envía un correo a support@yulalab.com con lo que intentaste y el error que viste — lo investigaremos y actualizaremos esta página."
     },
     "cookieConsent": {
       "title": "Cookies y analítica",

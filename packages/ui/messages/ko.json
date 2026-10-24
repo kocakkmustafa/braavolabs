@@ -1422,7 +1422,7 @@
       },
       "operational": "정상 작동",
       "alertTitle": "장애를 발견했나요?",
-      "alertBody": "support@braavolabs.com으로 시도한 작업과 표시된 오류를 알려주세요. 조사한 후 이 페이지를 업데이트하겠습니다."
+      "alertBody": "support@yulalab.com으로 시도한 작업과 표시된 오류를 알려주세요. 조사한 후 이 페이지를 업데이트하겠습니다."
     },
     "cookieConsent": {
       "title": "쿠키 및 분석",

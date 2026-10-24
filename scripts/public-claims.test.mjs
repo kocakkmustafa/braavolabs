@@ -730,3 +730,19 @@ test("legal pages render the single published operator record", async () => {
     /responsible legal operator[^.]*must be identified|must identify the responsible legal operator|Responsible-operator details/);
   assert.match(en.previewNotice, /actual processing and recipients, retention and applicable safeguards must be finalized/, "remaining preview caveats stay");
 });
+
+test("every product surface names the one shared support address", async () => {
+  const { execFileSync } = await import("node:child_process");
+  // Founder rule (2026-10-24): all YULA Lab products share support@yulalab.com. The legal
+  // request channels (kvkk@ / gdpr@ / privacy@braavolabs.com) are a separate decision.
+  const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" }).split("\0")
+    .filter((path) => path && !path.startsWith("scripts/public-claims.test.mjs") && existsSync(join(ROOT, path)));
+  const offenders = tracked.filter((path) => /\.(?:tsx?|jsx?|mjs|json|md|html|txt|conf)$/.test(path) && read(path).includes("support@braavolabs.com"));
+  assert.deepEqual(offenders, [], "retired support address");
+  for (const path of ["packages/ui/app/support/page.tsx", "packages/ui/app/error.tsx", "packages/ui/app/legal/account-deletion/page.tsx"]) {
+    assert.match(read(path), /mailto:support@yulalab\.com/, path);
+  }
+  assert.match(read("packages/ui/app/kvkk/page.tsx") + read("packages/ui/messages/tr.json"), /kvkk@braavolabs\.com/, "KVKK channel untouched");
+  assert.match(read("packages/ui/app/gdpr/page.tsx") + read("packages/ui/messages/en.json"), /gdpr@braavolabs\.com/, "GDPR channel untouched");
+  assert.match(read("LICENSE"), /^Copyright \(c\) 2026 YULA Lab$/m, "LICENSE names the published holder");
+});

@@ -50,17 +50,17 @@ export default function SupportPage() {
         <>
           <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">{copy("emailIntro")}{" "}
             <a
-              href="mailto:support@braavolabs.com"
+              href="mailto:support@yulalab.com"
               className="text-primary underline hover:text-primary-fixed transition-colors"
             >
-              support@braavolabs.com
+              support@yulalab.com
             </a>{" "}{copy("responseTime")}{" "}
             <a href="/contact" className="text-primary underline hover:text-primary-fixed transition-colors">{uiText("m89dc05ffd2b2")}</a>{" "}{uiText("m083a2705391c")}</p>
           <ul className="text-[15.5px] leading-[1.8] text-on-surface-variant pl-[22px] list-disc mb-[18px] space-y-2">
             <li>
               <strong className="text-on-surface font-medium">{uiText("m366977224408")}</strong> —{" "}
-              <a href="mailto:support@braavolabs.com" className="text-primary underline hover:text-primary-fixed transition-colors">
-                support@braavolabs.com
+              <a href="mailto:support@yulalab.com" className="text-primary underline hover:text-primary-fixed transition-colors">
+                support@yulalab.com
               </a>
             </li>
             <li>
@@ -113,10 +113,10 @@ export default function SupportPage() {
         <>
           <p className="text-[15.5px] leading-[1.8] text-on-surface-variant mb-[18px]">{uiText("mb29ed7325631")}{" "}
             <a
-              href="mailto:support@braavolabs.com?subject=Bug%20report"
+              href="mailto:support@yulalab.com?subject=Bug%20report"
               className="text-primary underline hover:text-primary-fixed transition-colors"
             >
-              support@braavolabs.com
+              support@yulalab.com
             </a>{" "}{uiText("mc878475dd7ed")}{" "}
             <strong className="text-on-surface font-medium">{uiText("m3dbf7d618644")}</strong>{uiText("mb142b8b38188")}</p>
         </>
@@ -177,7 +177,7 @@ export default function SupportPage() {
           <p className="text-on-surface-variant max-w-[60ch] mx-auto">{copy("intro")}</p>
 
           <div className="flex flex-wrap justify-center gap-3 mt-8">
-            <a href="mailto:support@braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm">
+            <a href="mailto:support@yulalab.com" className="bv-btn bv-btn-primary bv-btn-sm">
               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>mail</span>{uiText("m0dff0c2e8740")}</a>
             <a href="/contact" className="bv-btn bv-btn-ghost bv-btn-sm">
               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>edit_note</span>{uiText("mdc8b49376a22")}</a>
@@ -239,9 +239,9 @@ export default function SupportPage() {
               <p className="bv-caption">{uiText("m4a375a6c78be")}</p>
             </div>
             <div className="flex gap-3 flex-shrink-0">
-              <a href="mailto:support@braavolabs.com" className="bv-btn bv-btn-primary bv-btn-sm">
+              <a href="mailto:support@yulalab.com" className="bv-btn bv-btn-primary bv-btn-sm">
                 <span className="material-symbols-outlined" style={{ fontSize: 16 }}>mail</span>
-                support@braavolabs.com
+                support@yulalab.com
               </a>
             </div>
           </div>
