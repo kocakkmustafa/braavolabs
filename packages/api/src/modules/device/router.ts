@@ -20,6 +20,7 @@ deviceRouter.use(authMiddleware);
 const registerSchema = z.object({
   token: z.string().min(10).max(512),
   platform: z.enum(["ios", "android", "web"]),
+  // Accepted for legacy clients; never stored (lib/pushOwnership.ts).
   deviceName: z.string().max(120).nullable().optional(),
   osVersion: z.string().max(40).nullable().optional(),
   locale: z.enum(NOTIFICATION_LOCALES).optional(),

@@ -49,6 +49,12 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("push ownership adapter — parameterized synthetic SQL model", () => {
+  it("never stores the user-set device name a legacy client still sends", async () => {
+    await login(A);
+    await register(A);
+    const [row] = [...store.devices.values()];
+    expect(row).toMatchObject({ deviceName: null, osVersion: "synthetic-os", platform: "ios" });
+  });
   it("pins the canonical user before the session to match account-erasure FK lock order", async () => {
     await login(A); store.trace.length = 0;
     await register(A);

@@ -140,10 +140,14 @@ export async function registerPushDevice(actor: PushActor, input: PushRegistrati
     await tx.$executeRaw`
       DELETE FROM devices WHERE user_id = ${actor.userId} AND push_session_id = ${session.id}
         AND push_token_hash <> ${hash}`;
+    // The user-set device name ("<Name>'s iPhone") is personal data no server
+    // path reads: never stored (owner decision 2026-10-27). Legacy clients may
+    // still send it, so it stays in the duplicate-ACK digest above.
+    const storedDeviceName = null;
     await tx.$executeRaw`
       INSERT INTO devices (id, user_id, push_token, platform, device_name, os_version, locale,
         push_session_id, push_revision, push_token_hash, push_payload_hash, last_seen_at, created_at, updated_at)
-      VALUES (${crypto.randomUUID()}, ${actor.userId}, ${input.token}, ${input.platform}, ${input.deviceName ?? null},
+      VALUES (${crypto.randomUUID()}, ${actor.userId}, ${input.token}, ${input.platform}, ${storedDeviceName},
         ${input.osVersion ?? null}, ${input.locale}, ${session.id}, ${input.revision}, ${hash}, ${digest},
         clock_timestamp(), clock_timestamp(), clock_timestamp())
       ON CONFLICT (push_token_hash, push_session_id) DO UPDATE SET platform = EXCLUDED.platform,
