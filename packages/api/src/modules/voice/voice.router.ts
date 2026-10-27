@@ -30,7 +30,7 @@ const upsertSchema = z.object({
   name: z.string().min(1).max(120),
   phoneNumber: z.string().regex(phoneRegex, "phoneNumber must be E.164").optional(),
   provider: z.enum(["VAPI", "TWILIO_DEEPGRAM", "RETELL", "CUSTOM"]).default("VAPI"),
-  voiceConfig: z.record(z.unknown()).optional(),
+  voiceConfig: z.record(z.string(), z.unknown()).optional(),
   inboundEnabled: z.boolean().optional(),
   outboundPerHour: z.number().int().min(0).max(10_000).nullable().optional(),
   isActive: z.boolean().optional(),

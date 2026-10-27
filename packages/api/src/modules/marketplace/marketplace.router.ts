@@ -101,7 +101,7 @@ const tenantRouter = Router();
 tenantRouter.use(authMiddleware);
 
 const installSchema = z.object({
-  credentials: z.record(z.string()).default({}),
+  credentials: z.record(z.string(), z.string()).default({}),
   spendCapUsd: z.number().min(0.01).max(10_000).nullable().optional(),
 });
 
@@ -293,7 +293,7 @@ const publishSchema = z.object({
   documentationUrl: z.string().url().max(500).optional(),
   mcpServerUrl: z.string().url().max(500),
   authMethod: z.enum(["NONE", "API_KEY", "OAUTH2", "BASIC", "CUSTOM"]).default("NONE"),
-  authSchema: z.record(z.unknown()).default({}),
+  authSchema: z.record(z.string(), z.unknown()).default({}),
   visibility: z.enum(["PUBLIC", "UNLISTED", "PRIVATE"]).default("PRIVATE"),
   // Publisher-declared tool surface. Optional — when omitted the publish-time
   // MCP probe supplies the tool list. Either way the SERVER signs it (the
@@ -304,7 +304,7 @@ const publishSchema = z.object({
       z.object({
         name: z.string().min(1).max(80),
         description: z.string().max(1000).optional(),
-        inputSchema: z.record(z.unknown()).optional(),
+        inputSchema: z.record(z.string(), z.unknown()).optional(),
         riskHint: z.enum(["low", "medium", "high", "money"]).optional(),
       }),
     )

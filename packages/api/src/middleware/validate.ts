@@ -34,7 +34,7 @@ export function validateQuery(schema: ZodSchema) {
       });
       return;
     }
-    req.query = result.data;
+    req.query = result.data as Request["query"];
     next();
   };
 }

@@ -18,7 +18,7 @@ abTestRouter.use(authMiddleware);
 
 const variantSchema = z.object({
   name: z.string().min(1).max(100),
-  config: z.record(z.any()),
+  config: z.record(z.string(), z.any()),
   weight: z.number().int().min(1).max(100).optional().default(50),
 });
 
@@ -35,7 +35,7 @@ const recordMetricSchema = z.object({
   runId: z.string().optional(),
   metric: z.string().min(1).max(100),
   value: z.number(),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 
 const completeSchema = z.object({

@@ -87,7 +87,7 @@ const createSchema = z.object({
   companyId: z.string(),
   type: z.enum(["EPISODIC", "SEMANTIC", "PROCEDURAL"]),
   content: z.string().min(1),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   source: z.string().optional(),
   confidence: z.coerce.number().min(0).max(1).default(0.5),
 });

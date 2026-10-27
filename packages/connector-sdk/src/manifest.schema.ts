@@ -40,7 +40,7 @@ export const connectorManifestToolSchema = z.object({
     // Remote tool names become `mcp_{slug}_{name}` — keep them identifier-safe.
     .regex(/^[A-Za-z0-9_.-]+$/, "tool name must be alphanumeric with _ . - only"),
   description: z.string().max(1000).default(""),
-  inputSchema: z.record(z.unknown()).default({ type: "object", properties: {} }),
+  inputSchema: z.record(z.string(), z.unknown()).default({ type: "object", properties: {} }),
   riskHint: publisherRiskHintSchema.optional(),
 });
 export type ConnectorManifestTool = z.infer<typeof connectorManifestToolSchema>;

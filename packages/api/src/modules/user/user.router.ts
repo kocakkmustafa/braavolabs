@@ -167,9 +167,7 @@ userRouter.post("/me/report-content", async (req, res, next) => {
 // action; a header-only flag is too easy to fire accidentally from a tool.
 const deleteSchema = z.object({
   confirm: z.literal("DELETE", {
-    errorMap: () => ({
-      message: "To confirm erasure, send body: { \"confirm\": \"DELETE\" }",
-    }),
+    error: "To confirm erasure, send body: { \"confirm\": \"DELETE\" }",
   }),
   // Fresh Sign in with Apple authorization code from the client, used once to
   // revoke the deleted account's Apple tokens. Never stored or logged.
