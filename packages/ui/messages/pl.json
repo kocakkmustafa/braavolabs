@@ -1262,15 +1262,15 @@
     "legal": {
       "privacy": {
         "title": "Polityka prywatności",
-        "date": "Marzec 2026",
+        "date": "Październik 2026",
         "sections": [
           {
             "title": "Zbierane dane",
-            "body": "Zbieramy dane konta (imię i nazwisko, e-mail, nazwę organizacji), treści obszaru roboczego powiązane z tenantem (w tym prompty, dane wejściowe agentów i pipeline’ów, wyniki, zapisy wykonań, wiadomości sterujące, raporty i aktywność użycia) oraz dane urządzeń używane do powiadomień (token push, platformę, nazwę urządzenia i wersję systemu). Dla subskrypcji Apple App Store lub Google Play przechowujemy produkt, transakcję lub token zakupu, potwierdzenie, status i daty subskrypcji. Nie otrzymujemy surowych danych kart; rozliczenia internetowe obsługuje Stripe."
+            "body": "Zbieramy dane konta (imię i nazwisko, e-mail, nazwę organizacji), treści obszaru roboczego powiązane z tenantem (w tym prompty, dane wejściowe agentów i pipeline’ów, wyniki, zapisy wykonań, wiadomości sterujące, raporty i aktywność użycia) oraz dane urządzeń używane do powiadomień (token push, platformę i wersję systemu). Dla subskrypcji Apple App Store lub Google Play przechowujemy produkt, transakcję lub token zakupu, potwierdzenie, status i daty subskrypcji. Nie otrzymujemy surowych danych kart; rozliczenia internetowe obsługuje Stripe."
           },
           {
             "title": "Sposób wykorzystania danych",
-            "body": "Przetwarzamy dane konta i obszaru roboczego powiązane z tenantem, aby udostępniać zamówione funkcje platformy, wykonywać przepływy pracy, zachowywać historię obszaru i wykonań, mierzyć użycie, zarządzać uprawnieniami do usług i obsługiwać konto. Treści mogą być wysyłane do dostawców AI wybranych lub podłączonych dla danego przepływu pracy; ich przetwarzanie podlega właściwym warunkom i ustawieniom dostawcy."
+            "body": "Przetwarzamy dane konta i obszaru roboczego powiązane z tenantem, aby udostępniać zamówione funkcje platformy, wykonywać przepływy pracy, zachowywać historię obszaru i wykonań, mierzyć użycie, zarządzać uprawnieniami do usług i obsługiwać konto. Gdy korzystasz z funkcji AI, odpowiednie prompty i treści trafiają do dostawcy AI na jeden z dwóch sposobów. Z własnym kluczem dostawcy przekazanie następuje na Twoje żądanie do wybranego przez Ciebie dostawcy, który przetwarza treści zgodnie z własnymi warunkami i ustawieniami: klucz dodany do obszaru roboczego jest używany na naszych serwerach i nigdy nie jest przechowywany w aplikacji mobilnej ani z niej wysyłany; w trybie bezpośrednim aplikacji desktopowej klucz pozostaje w pęku kluczy systemu, a żądanie trafia z Twojego komputera bezpośrednio do tego dostawcy. Bez Twojego klucza używamy własnych kluczy, a nasi usługodawcy przetwarzają treści w naszym imieniu: Anthropic oraz Groq w przypadku ograniczonej liczby przebiegów startowych w obszarach roboczych bez subskrypcji."
           },
           {
             "title": "Przechowywanie danych",
@@ -1278,7 +1278,7 @@
           },
           {
             "title": "Usługi podmiotów trzecich",
-            "body": "Używamy Stripe do rozliczeń internetowych; Apple App Store i Google Play do rozliczeń sklepowych; Expo do powiadomień push; SendGrid do e-maili transakcyjnych; Google OAuth do opcjonalnego uwierzytelniania; oraz HubSpot do dobrowolnej integracji CRM. Sentry może otrzymywać zdarzenia diagnostyczne awarii, śladów i sesji. Każdy dostawca przetwarza dane zgodnie z własnymi warunkami i ustawieniami."
+            "body": "Używamy Stripe do rozliczeń internetowych; Apple App Store i Google Play do rozliczeń sklepowych; Expo do powiadomień push; SendGrid do e-maili transakcyjnych; Google OAuth do opcjonalnego uwierzytelniania; oraz HubSpot do dobrowolnej integracji CRM. Sentry może otrzymywać zdarzenia diagnostyczne awarii, śladów i sesji. Każdy dostawca przetwarza dane zgodnie z własnymi warunkami i ustawieniami. Jako nasi usługodawcy Anthropic oraz Groq (w przypadku ograniczonej liczby przebiegów startowych w obszarach roboczych bez subskrypcji) przetwarzają żądania AI wykonywane z użyciem naszych kluczy."
           },
           {
             "title": "Twoje prawa",

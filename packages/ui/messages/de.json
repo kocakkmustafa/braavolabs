@@ -1262,15 +1262,15 @@
     "legal": {
       "privacy": {
         "title": "Datenschutzerklärung",
-        "date": "März 2026",
+        "date": "Oktober 2026",
         "sections": [
           {
             "title": "Daten, die wir erheben",
-            "body": "Wir erfassen Kontodaten (Name, E-Mail, Organisationsname), tenantgebundene Workspace-Inhalte (Prompts, Ein- und Ausgaben von Agenten und Pipelines, Run-Datensätze, Steuerungsnachrichten, Meldungen und Nutzungsaktivität) sowie Gerätedaten für Benachrichtigungen (Push-Token, Plattform, Gerätename und Betriebssystemversion). Für Abonnements im Apple App Store oder bei Google Play speichern wir Produkt, Transaktions- oder Kauf-Token, Beleg, Status und Abonnementdaten. Rohe Kartendaten erhalten wir nicht; die Web-Abrechnung erfolgt über Stripe."
+            "body": "Wir erfassen Kontodaten (Name, E-Mail, Organisationsname), tenantgebundene Workspace-Inhalte (Prompts, Ein- und Ausgaben von Agenten und Pipelines, Run-Datensätze, Steuerungsnachrichten, Meldungen und Nutzungsaktivität) sowie Gerätedaten für Benachrichtigungen (Push-Token, Plattform und Betriebssystemversion). Für Abonnements im Apple App Store oder bei Google Play speichern wir Produkt, Transaktions- oder Kauf-Token, Beleg, Status und Abonnementdaten. Rohe Kartendaten erhalten wir nicht; die Web-Abrechnung erfolgt über Stripe."
           },
           {
             "title": "Wie wir deine Daten nutzen",
-            "body": "Wir verarbeiten Konto- und tenantgebundene Workspace-Daten, um angeforderte Plattformfunktionen bereitzustellen, Workflows auszuführen, Workspace- und Run-Verläufe zu erhalten, Nutzung zu messen, Berechtigungen zu verwalten und Kontovorgänge zu unterstützen. Inhalte können für einen angeforderten Workflow an von dir ausgewählte oder verbundene KI-Anbieter gesendet werden; deren Verarbeitung richtet sich nach den geltenden Anbieterbedingungen und Einstellungen."
+            "body": "Wir verarbeiten Konto- und tenantgebundene Workspace-Daten, um angeforderte Plattformfunktionen bereitzustellen, Workflows auszuführen, Workspace- und Run-Verläufe zu erhalten, Nutzung zu messen, Berechtigungen zu verwalten und Kontovorgänge zu unterstützen. Wenn du KI-Funktionen nutzt, gelangen die betreffenden Prompts und Inhalte auf einem von zwei Wegen zu einem KI-Anbieter. Mit deinem eigenen Anbieterschlüssel erfolgt die Übermittlung auf deine Veranlassung an den von dir gewählten Anbieter, der die Inhalte nach seinen eigenen Bedingungen und Einstellungen verarbeitet: Ein deinem Workspace hinzugefügter Schlüssel wird auf unseren Servern aufgelöst und in der mobilen App weder gespeichert noch von dort gesendet; im Direktmodus der Desktop-App bleibt dein Schlüssel im Schlüsselbund deines Systems, und die Anfrage geht von deinem Computer direkt an diesen Anbieter. Ohne einen eigenen Schlüssel verwenden wir unsere Schlüssel, und unsere Dienstleister verarbeiten die Inhalte in unserem Auftrag: Anthropic sowie Groq für eine begrenzte Zahl von Startläufen in Workspaces ohne Abonnement."
           },
           {
             "title": "Datenspeicherung",
@@ -1278,7 +1278,7 @@
           },
           {
             "title": "Drittanbieter-Dienste",
-            "body": "Wir nutzen Stripe für Web-Abrechnung, Apple App Store und Google Play für Store-Abrechnung, Expo für Push-Zustellung, SendGrid für transaktionale E-Mails, Google OAuth für optionale Authentifizierung und HubSpot für eine Opt-in-CRM-Integration. Sentry kann Absturz-, Trace- und Sitzungsdiagnoseereignisse erhalten. Jeder Anbieter verarbeitet Daten nach seinen eigenen Bedingungen und Einstellungen."
+            "body": "Wir nutzen Stripe für Web-Abrechnung, Apple App Store und Google Play für Store-Abrechnung, Expo für Push-Zustellung, SendGrid für transaktionale E-Mails, Google OAuth für optionale Authentifizierung und HubSpot für eine Opt-in-CRM-Integration. Sentry kann Absturz-, Trace- und Sitzungsdiagnoseereignisse erhalten. Jeder Anbieter verarbeitet Daten nach seinen eigenen Bedingungen und Einstellungen. Als unsere Dienstleister verarbeiten Anthropic sowie Groq (für eine begrenzte Zahl von Startläufen in Workspaces ohne Abonnement) KI-Anfragen, die mit unseren Schlüsseln gestellt werden."
           },
           {
             "title": "Deine Rechte",

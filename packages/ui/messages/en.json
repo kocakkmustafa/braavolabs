@@ -1262,15 +1262,15 @@
     "legal": {
       "privacy": {
         "title": "Privacy Policy",
-        "date": "March 2026",
+        "date": "October 2026",
         "sections": [
           {
             "title": "Data We Collect",
-            "body": "We collect account details (name, email, organization name), tenant-bound workspace content (including prompts, agent and pipeline inputs, outputs, run records, steering messages, reports, and usage activity), and device details used for notifications (push token, platform, device name, and OS version). For Apple App Store or Google Play subscriptions, we retain the product, transaction or purchase token, receipt, status, and subscription dates. We do not receive raw card details; web billing is handled by Stripe."
+            "body": "We collect account details (name, email, organization name), tenant-bound workspace content (including prompts, agent and pipeline inputs, outputs, run records, steering messages, reports, and usage activity), and device details used for notifications (push token, platform, and OS version). For Apple App Store or Google Play subscriptions, we retain the product, transaction or purchase token, receipt, status, and subscription dates. We do not receive raw card details; web billing is handled by Stripe."
           },
           {
             "title": "How We Use Your Data",
-            "body": "We process account and tenant-bound workspace data to provide requested platform features, run workflows, preserve workspace and run history, meter usage, manage entitlements, and support account operations. Content may be sent to AI providers selected or connected for a requested workflow; their handling is governed by the applicable provider terms and settings."
+            "body": "We process account and tenant-bound workspace data to provide requested platform features, run workflows, preserve workspace and run history, meter usage, manage entitlements, and support account operations. When you use AI features, the prompts and content involved reach an AI provider in one of two ways. With your own provider key, the transfer happens at your request to the provider you selected, which handles the content under its own terms and settings: a key added to your workspace is resolved on our servers and is never stored in or sent from the mobile app; in the desktop app's direct mode, your key stays in your system keychain and the request goes from your computer straight to that provider. Without a key of yours, we use our own keys and our service providers process the content on our behalf: Anthropic, and Groq for a limited number of starter runs in workspaces without a subscription."
           },
           {
             "title": "Data Storage",
@@ -1278,7 +1278,7 @@
           },
           {
             "title": "Third-Party Services",
-            "body": "We use Stripe for web billing; Apple App Store and Google Play for store billing; Expo for push delivery; SendGrid for transactional email; Google OAuth for optional authentication; and HubSpot for opt-in CRM integration. Sentry may receive crash, trace, and session diagnostic events. Each provider processes data under its own terms and settings."
+            "body": "We use Stripe for web billing; Apple App Store and Google Play for store billing; Expo for push delivery; SendGrid for transactional email; Google OAuth for optional authentication; and HubSpot for opt-in CRM integration. Sentry may receive crash, trace, and session diagnostic events. Each provider processes data under its own terms and settings. As our service providers, Anthropic and Groq (for a limited number of starter runs in workspaces without a subscription) process AI requests made with our keys."
           },
           {
             "title": "Your Rights",

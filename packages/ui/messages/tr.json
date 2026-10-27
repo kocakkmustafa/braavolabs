@@ -1262,15 +1262,15 @@
     "legal": {
       "privacy": {
         "title": "Gizlilik Politikası",
-        "date": "Mart 2026",
+        "date": "Ekim 2026",
         "sections": [
           {
             "title": "Topladığımız Veriler",
-            "body": "Hesap bilgilerini (ad, e-posta, organizasyon adı), tenant'a bağlı çalışma alanı içeriğini (promptlar, ajan ve pipeline girdileri, çıktılar, çalıştırma kayıtları, yönlendirme mesajları, raporlar ve kullanım etkinliği) ve bildirimler için kullanılan cihaz bilgilerini (push token, platform, cihaz adı ve işletim sistemi sürümü) topluyoruz. Apple App Store veya Google Play abonelikleri için ürün, işlem ya da satın alma tokenı, makbuz, durum ve abonelik tarihlerini saklarız. Ham kart bilgilerini almayız; web faturalaması Stripe tarafından işlenir."
+            "body": "Hesap bilgilerini (ad, e-posta, organizasyon adı), tenant'a bağlı çalışma alanı içeriğini (promptlar, ajan ve pipeline girdileri, çıktılar, çalıştırma kayıtları, yönlendirme mesajları, raporlar ve kullanım etkinliği) ve bildirimler için kullanılan cihaz bilgilerini (push token, platform ve işletim sistemi sürümü) topluyoruz. Apple App Store veya Google Play abonelikleri için ürün, işlem ya da satın alma tokenı, makbuz, durum ve abonelik tarihlerini saklarız. Ham kart bilgilerini almayız; web faturalaması Stripe tarafından işlenir."
           },
           {
             "title": "Verini Nasıl Kullanıyoruz",
-            "body": "Hesap ve tenant'a bağlı çalışma alanı verilerini istenen platform özelliklerini sunmak, iş akışlarını çalıştırmak, çalışma alanı ve çalıştırma geçmişini korumak, kullanımı ölçmek, yetkileri yönetmek ve hesap işlemlerini desteklemek için işleriz. İçerik, istenen bir iş akışı için seçtiğin veya bağladığın AI sağlayıcılarına gönderilebilir; sağlayıcının işlemesi kendi şartlarına ve ayarlarına tabidir."
+            "body": "Hesap ve tenant'a bağlı çalışma alanı verilerini istenen platform özelliklerini sunmak, iş akışlarını çalıştırmak, çalışma alanı ve çalıştırma geçmişini korumak, kullanımı ölçmek, yetkileri yönetmek ve hesap işlemlerini desteklemek için işleriz. AI özelliklerini kullandığında ilgili promptlar ve içerik bir AI sağlayıcısına iki yoldan biriyle ulaşır. Kendi sağlayıcı anahtarınla aktarım, senin isteğinle seçtiğin sağlayıcıya yapılır ve o sağlayıcı içeriği kendi şartları ve ayarlarıyla işler: çalışma alanına eklediğin anahtar sunucularımızda çözülür, mobil uygulamada saklanmaz ve oradan gönderilmez; masaüstü uygulamasının doğrudan modunda anahtarın sistem anahtar zincirinde kalır ve istek bilgisayarından doğrudan o sağlayıcıya gider. Kendi anahtarın kullanılmadığında kendi anahtarlarımızı kullanırız ve içerik adımıza hizmet sağlayıcılarımız tarafından işlenir: Anthropic ve abonelik olmayan çalışma alanlarındaki sınırlı sayıda başlangıç çalıştırması için Groq."
           },
           {
             "title": "Veri Saklama",
@@ -1278,7 +1278,7 @@
           },
           {
             "title": "Üçüncü Taraf Hizmetler",
-            "body": "Web faturalaması için Stripe; mağaza faturalaması için Apple App Store ve Google Play; push iletimi için Expo; işlemsel e-posta için SendGrid; isteğe bağlı kimlik doğrulama için Google OAuth ve opt-in CRM entegrasyonu için HubSpot kullanıyoruz. Sentry çökme, trace ve oturum tanılama olaylarını alabilir. Her sağlayıcı veriyi kendi şartları ve ayarları kapsamında işler."
+            "body": "Web faturalaması için Stripe; mağaza faturalaması için Apple App Store ve Google Play; push iletimi için Expo; işlemsel e-posta için SendGrid; isteğe bağlı kimlik doğrulama için Google OAuth ve opt-in CRM entegrasyonu için HubSpot kullanıyoruz. Sentry çökme, trace ve oturum tanılama olaylarını alabilir. Her sağlayıcı veriyi kendi şartları ve ayarları kapsamında işler. Kendi anahtarlarımızla yapılan AI isteklerini hizmet sağlayıcılarımız olarak Anthropic ve abonelik olmayan çalışma alanlarındaki sınırlı sayıda başlangıç çalıştırması için Groq işler."
           },
           {
             "title": "Hakların",

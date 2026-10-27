@@ -1262,15 +1262,15 @@
     "legal": {
       "privacy": {
         "title": "Política de Privacidade",
-        "date": "Março de 2026",
+        "date": "Outubro de 2026",
         "sections": [
           {
             "title": "Dados que coletamos",
-            "body": "Coletamos dados da conta (nome, e-mail, nome da organização), conteúdo do espaço de trabalho vinculado ao tenant (incluindo prompts, entradas e saídas de agentes e pipelines, registros de execuções, mensagens de orientação, relatórios e atividades de uso) e dados do dispositivo usados para notificações (token de push, plataforma, nome do dispositivo e versão do sistema operacional). Para assinaturas da Apple App Store ou Google Play, mantemos produto, transação ou token de compra, recibo, status e datas da assinatura. Não recebemos dados brutos de cartão; a cobrança web é processada pela Stripe."
+            "body": "Coletamos dados da conta (nome, e-mail, nome da organização), conteúdo do espaço de trabalho vinculado ao tenant (incluindo prompts, entradas e saídas de agentes e pipelines, registros de execuções, mensagens de orientação, relatórios e atividades de uso) e dados do dispositivo usados para notificações (token de push, plataforma e versão do sistema operacional). Para assinaturas da Apple App Store ou Google Play, mantemos produto, transação ou token de compra, recibo, status e datas da assinatura. Não recebemos dados brutos de cartão; a cobrança web é processada pela Stripe."
           },
           {
             "title": "Como usamos seus dados",
-            "body": "Processamos dados da conta e do espaço de trabalho vinculado ao tenant para fornecer os recursos solicitados, executar fluxos de trabalho, preservar o histórico do espaço e das execuções, medir o uso, gerenciar direitos de acesso e dar suporte às operações da conta. O conteúdo pode ser enviado aos provedores de IA selecionados ou conectados para um fluxo solicitado; o tratamento segue os termos e configurações aplicáveis do provedor."
+            "body": "Processamos dados da conta e do espaço de trabalho vinculado ao tenant para fornecer os recursos solicitados, executar fluxos de trabalho, preservar o histórico do espaço e das execuções, medir o uso, gerenciar direitos de acesso e dar suporte às operações da conta. Quando você usa recursos de IA, os prompts e o conteúdo envolvidos chegam a um provedor de IA por um de dois caminhos. Com sua própria chave de provedor, a transferência ocorre a seu pedido para o provedor que você escolheu, que trata o conteúdo conforme seus próprios termos e configurações: uma chave adicionada ao seu espaço de trabalho é resolvida em nossos servidores e nunca é armazenada no app móvel nem enviada a partir dele; no modo direto do app para desktop, sua chave fica no chaveiro do sistema e a solicitação vai do seu computador diretamente para esse provedor. Sem uma chave sua, usamos nossas próprias chaves e nossos prestadores de serviço tratam o conteúdo em nosso nome: Anthropic e, para um número limitado de execuções iniciais em espaços de trabalho sem assinatura, Groq."
           },
           {
             "title": "Armazenamento de dados",
@@ -1278,7 +1278,7 @@
           },
           {
             "title": "Serviços de terceiros",
-            "body": "Usamos Stripe para cobrança web; Apple App Store e Google Play para cobrança nas lojas; Expo para entrega de push; SendGrid para e-mails transacionais; Google OAuth para autenticação opcional; e HubSpot para integração de CRM opcional. A Sentry pode receber eventos de diagnóstico de falhas, rastreamento e sessões. Cada provedor trata os dados conforme seus próprios termos e configurações."
+            "body": "Usamos Stripe para cobrança web; Apple App Store e Google Play para cobrança nas lojas; Expo para entrega de push; SendGrid para e-mails transacionais; Google OAuth para autenticação opcional; e HubSpot para integração de CRM opcional. A Sentry pode receber eventos de diagnóstico de falhas, rastreamento e sessões. Cada provedor trata os dados conforme seus próprios termos e configurações. Como nossos prestadores de serviço, a Anthropic e a Groq (para um número limitado de execuções iniciais em espaços de trabalho sem assinatura) tratam as solicitações de IA feitas com nossas chaves."
           },
           {
             "title": "Seus direitos",

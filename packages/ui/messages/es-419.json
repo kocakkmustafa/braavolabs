@@ -1262,15 +1262,15 @@
     "legal": {
       "privacy": {
         "title": "Política de Privacidad",
-        "date": "Marzo 2026",
+        "date": "Octubre 2026",
         "sections": [
           {
             "title": "Datos que recopilamos",
-            "body": "Recopilamos datos de la cuenta (nombre, correo y organización), contenido del espacio de trabajo vinculado al tenant (prompts, entradas y salidas de agentes y pipelines, registros de ejecución, mensajes de dirección, informes y actividad de uso) y datos del dispositivo para notificaciones (push token, plataforma, nombre del dispositivo y versión del sistema operativo). Para suscripciones de Apple App Store o Google Play conservamos producto, token de transacción o compra, recibo, estado y fechas. No recibimos datos brutos de tarjeta; Stripe procesa la facturación web."
+            "body": "Recopilamos datos de la cuenta (nombre, correo y organización), contenido del espacio de trabajo vinculado al tenant (prompts, entradas y salidas de agentes y pipelines, registros de ejecución, mensajes de dirección, informes y actividad de uso) y datos del dispositivo para notificaciones (push token, plataforma y versión del sistema operativo). Para suscripciones de Apple App Store o Google Play conservamos producto, token de transacción o compra, recibo, estado y fechas. No recibimos datos brutos de tarjeta; Stripe procesa la facturación web."
           },
           {
             "title": "Cómo usamos tus datos",
-            "body": "Procesamos los datos de cuenta y del espacio de trabajo vinculado al tenant para prestar las funciones solicitadas, ejecutar flujos, conservar el historial, medir uso, gestionar derechos de acceso y atender operaciones de cuenta. El contenido puede enviarse a proveedores de IA que selecciones o conectes para un flujo solicitado; su tratamiento se rige por sus términos y ajustes aplicables."
+            "body": "Procesamos los datos de cuenta y del espacio de trabajo vinculado al tenant para prestar las funciones solicitadas, ejecutar flujos, conservar el historial, medir uso, gestionar derechos de acceso y atender operaciones de cuenta. Cuando usas funciones de IA, los prompts y el contenido correspondientes llegan a un proveedor de IA por una de dos vías. Con tu propia clave de proveedor, la transferencia se hace a petición tuya al proveedor que elegiste, que trata el contenido según sus propios términos y ajustes: una clave añadida a tu espacio de trabajo se resuelve en nuestros servidores y nunca se guarda en la app móvil ni se envía desde ella; en el modo directo de la app de escritorio, tu clave queda en el llavero del sistema y la solicitud va desde tu computadora directamente a ese proveedor. Sin una clave tuya, usamos nuestras propias claves y nuestros proveedores de servicios tratan el contenido por cuenta nuestra: Anthropic, y Groq para un número limitado de ejecuciones iniciales en espacios de trabajo sin suscripción."
           },
           {
             "title": "Almacenamiento de datos",
@@ -1278,7 +1278,7 @@
           },
           {
             "title": "Servicios de terceros",
-            "body": "Usamos Stripe para facturación web; Apple App Store y Google Play para facturación de tienda; Expo para entregar notificaciones push; SendGrid para correo transaccional; Google OAuth para autenticación opcional y HubSpot para CRM con opt-in. Sentry puede recibir eventos de fallos, trazas y diagnóstico de sesión. Cada proveedor trata datos según sus propios términos y ajustes."
+            "body": "Usamos Stripe para facturación web; Apple App Store y Google Play para facturación de tienda; Expo para entregar notificaciones push; SendGrid para correo transaccional; Google OAuth para autenticación opcional y HubSpot para CRM con opt-in. Sentry puede recibir eventos de fallos, trazas y diagnóstico de sesión. Cada proveedor trata datos según sus propios términos y ajustes. Como proveedores de servicios nuestros, Anthropic y Groq (para un número limitado de ejecuciones iniciales en espacios de trabajo sin suscripción) tratan las solicitudes de IA hechas con nuestras claves."
           },
           {
             "title": "Tus derechos",

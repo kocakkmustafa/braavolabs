@@ -1262,15 +1262,15 @@
     "legal": {
       "privacy": {
         "title": "Kebijakan Privasi",
-        "date": "Maret 2026",
+        "date": "Oktober 2026",
         "sections": [
           {
             "title": "Data yang kami kumpulkan",
-            "body": "Kami mengumpulkan detail akun (nama, email, nama organisasi), konten ruang kerja yang terikat tenant (termasuk prompt, masukan agen dan pipeline, keluaran, catatan eksekusi, pesan pengarahan, laporan, dan aktivitas penggunaan), serta detail perangkat untuk notifikasi (token push, platform, nama perangkat, dan versi OS). Untuk langganan Apple App Store atau Google Play, kami menyimpan produk, transaksi atau token pembelian, tanda terima, status, dan tanggal langganan. Kami tidak menerima detail kartu mentah; penagihan web ditangani oleh Stripe."
+            "body": "Kami mengumpulkan detail akun (nama, email, nama organisasi), konten ruang kerja yang terikat tenant (termasuk prompt, masukan agen dan pipeline, keluaran, catatan eksekusi, pesan pengarahan, laporan, dan aktivitas penggunaan), serta detail perangkat untuk notifikasi (token push, platform, dan versi OS). Untuk langganan Apple App Store atau Google Play, kami menyimpan produk, transaksi atau token pembelian, tanda terima, status, dan tanggal langganan. Kami tidak menerima detail kartu mentah; penagihan web ditangani oleh Stripe."
           },
           {
             "title": "Cara kami menggunakan data Anda",
-            "body": "Kami memproses data akun dan ruang kerja yang terikat tenant untuk menyediakan fitur platform yang diminta, menjalankan alur kerja, mempertahankan riwayat ruang kerja dan eksekusi, mengukur penggunaan, mengelola hak akses, dan mendukung operasi akun. Konten dapat dikirim ke penyedia AI yang dipilih atau dihubungkan untuk alur kerja yang diminta; penanganannya diatur oleh ketentuan dan pengaturan penyedia yang berlaku."
+            "body": "Kami memproses data akun dan ruang kerja yang terikat tenant untuk menyediakan fitur platform yang diminta, menjalankan alur kerja, mempertahankan riwayat ruang kerja dan eksekusi, mengukur penggunaan, mengelola hak akses, dan mendukung operasi akun. Saat Anda menggunakan fitur AI, prompt dan konten terkait sampai ke penyedia AI melalui salah satu dari dua cara. Dengan kunci penyedia Anda sendiri, transfer dilakukan atas permintaan Anda ke penyedia yang Anda pilih, yang memproses konten berdasarkan ketentuan dan pengaturannya sendiri: kunci yang ditambahkan ke ruang kerja diproses di server kami dan tidak pernah disimpan di atau dikirim dari aplikasi seluler; dalam mode langsung aplikasi desktop, kunci Anda tetap di keychain sistem dan permintaan dikirim dari komputer Anda langsung ke penyedia tersebut. Tanpa kunci Anda sendiri, kami memakai kunci kami dan penyedia layanan kami memproses konten atas nama kami: Anthropic, serta Groq untuk sejumlah terbatas eksekusi awal di ruang kerja tanpa langganan."
           },
           {
             "title": "Penyimpanan data",
@@ -1278,7 +1278,7 @@
           },
           {
             "title": "Layanan pihak ketiga",
-            "body": "Kami menggunakan Stripe untuk penagihan web; Apple App Store dan Google Play untuk penagihan toko; Expo untuk pengiriman push; SendGrid untuk email transaksional; Google OAuth untuk autentikasi opsional; dan HubSpot untuk integrasi CRM berdasarkan persetujuan. Sentry dapat menerima kejadian diagnostik crash, trace, dan sesi. Setiap penyedia memproses data berdasarkan ketentuan dan pengaturannya sendiri."
+            "body": "Kami menggunakan Stripe untuk penagihan web; Apple App Store dan Google Play untuk penagihan toko; Expo untuk pengiriman push; SendGrid untuk email transaksional; Google OAuth untuk autentikasi opsional; dan HubSpot untuk integrasi CRM berdasarkan persetujuan. Sentry dapat menerima kejadian diagnostik crash, trace, dan sesi. Setiap penyedia memproses data berdasarkan ketentuan dan pengaturannya sendiri. Sebagai penyedia layanan kami, Anthropic serta Groq (untuk sejumlah terbatas eksekusi awal di ruang kerja tanpa langganan) memproses permintaan AI yang dibuat dengan kunci kami."
           },
           {
             "title": "Hak Anda",

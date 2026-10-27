@@ -1262,15 +1262,15 @@
     "legal": {
       "privacy": {
         "title": "Informativa sulla privacy",
-        "date": "Marzo 2026",
+        "date": "Ottobre 2026",
         "sections": [
           {
             "title": "Dati che raccogliamo",
-            "body": "Raccogliamo dati dell’account (nome, email, nome dell’organizzazione), contenuti dello spazio di lavoro associati al tenant (inclusi prompt, input di agenti e pipeline, output, registri delle esecuzioni, messaggi di guida, report e attività di utilizzo) e dati del dispositivo usati per le notifiche (token push, piattaforma, nome del dispositivo e versione del sistema operativo). Per gli abbonamenti Apple App Store o Google Play conserviamo prodotto, transazione o token d’acquisto, ricevuta, stato e date dell’abbonamento. Non riceviamo dati grezzi delle carte; la fatturazione web è gestita da Stripe."
+            "body": "Raccogliamo dati dell’account (nome, email, nome dell’organizzazione), contenuti dello spazio di lavoro associati al tenant (inclusi prompt, input di agenti e pipeline, output, registri delle esecuzioni, messaggi di guida, report e attività di utilizzo) e dati del dispositivo usati per le notifiche (token push, piattaforma e versione del sistema operativo). Per gli abbonamenti Apple App Store o Google Play conserviamo prodotto, transazione o token d’acquisto, ricevuta, stato e date dell’abbonamento. Non riceviamo dati grezzi delle carte; la fatturazione web è gestita da Stripe."
           },
           {
             "title": "Come usiamo i tuoi dati",
-            "body": "Trattiamo i dati dell’account e dello spazio di lavoro associati al tenant per fornire le funzionalità richieste, eseguire flussi di lavoro, conservare la cronologia di spazi di lavoro ed esecuzioni, misurare l’utilizzo, gestire i diritti di accesso e supportare le operazioni dell’account. I contenuti possono essere inviati ai provider IA selezionati o collegati per un flusso di lavoro richiesto; il loro trattamento è regolato dai termini e dalle impostazioni del provider applicabile."
+            "body": "Trattiamo i dati dell’account e dello spazio di lavoro associati al tenant per fornire le funzionalità richieste, eseguire flussi di lavoro, conservare la cronologia di spazi di lavoro ed esecuzioni, misurare l’utilizzo, gestire i diritti di accesso e supportare le operazioni dell’account. Quando usi le funzioni IA, i prompt e i contenuti interessati raggiungono un provider IA in uno di due modi. Con una tua chiave del provider, il trasferimento avviene su tua richiesta verso il provider che hai scelto, che tratta i contenuti secondo i propri termini e impostazioni: una chiave aggiunta al tuo spazio di lavoro viene risolta sui nostri server e non viene mai salvata nell’app mobile né inviata da essa; nella modalità diretta dell’app desktop la chiave resta nel portachiavi del sistema e la richiesta parte dal tuo computer direttamente verso quel provider. Senza una tua chiave usiamo le nostre chiavi e i nostri fornitori di servizi trattano i contenuti per nostro conto: Anthropic e, per un numero limitato di esecuzioni iniziali negli spazi di lavoro senza abbonamento, Groq."
           },
           {
             "title": "Archiviazione dei dati",
@@ -1278,7 +1278,7 @@
           },
           {
             "title": "Servizi di terze parti",
-            "body": "Usiamo Stripe per la fatturazione web; Apple App Store e Google Play per la fatturazione negli store; Expo per l’invio delle notifiche push; SendGrid per le email transazionali; Google OAuth per l’autenticazione facoltativa; e HubSpot per l’integrazione CRM su consenso. Sentry può ricevere eventi diagnostici di crash, tracce e sessioni. Ogni provider tratta i dati secondo i propri termini e impostazioni."
+            "body": "Usiamo Stripe per la fatturazione web; Apple App Store e Google Play per la fatturazione negli store; Expo per l’invio delle notifiche push; SendGrid per le email transazionali; Google OAuth per l’autenticazione facoltativa; e HubSpot per l’integrazione CRM su consenso. Sentry può ricevere eventi diagnostici di crash, tracce e sessioni. Ogni provider tratta i dati secondo i propri termini e impostazioni. In qualità di nostri fornitori di servizi, Anthropic e Groq (per un numero limitato di esecuzioni iniziali negli spazi di lavoro senza abbonamento) trattano le richieste IA effettuate con le nostre chiavi."
           },
           {
             "title": "I tuoi diritti",

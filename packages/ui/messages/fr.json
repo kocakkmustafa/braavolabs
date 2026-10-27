@@ -1262,15 +1262,15 @@
     "legal": {
       "privacy": {
         "title": "Politique de Confidentialité",
-        "date": "Mars 2026",
+        "date": "Octobre 2026",
         "sections": [
           {
             "title": "Données que nous collectons",
-            "body": "Nous recueillons les données du compte (nom, email, organisation), le contenu de l'espace de travail lié au tenant (prompts, entrées et sorties d'agents et de pipelines, enregistrements d'exécution, messages de pilotage, signalements et activité d'usage) et les données d'appareil nécessaires aux notifications (push token, plateforme, nom de l'appareil et version du système). Pour les abonnements Apple App Store ou Google Play, nous conservons le produit, le jeton de transaction ou d'achat, le reçu, le statut et les dates. Nous ne recevons pas les données brutes de carte ; Stripe traite la facturation web."
+            "body": "Nous recueillons les données du compte (nom, email, organisation), le contenu de l'espace de travail lié au tenant (prompts, entrées et sorties d'agents et de pipelines, enregistrements d'exécution, messages de pilotage, signalements et activité d'usage) et les données d'appareil nécessaires aux notifications (push token, plateforme et version du système). Pour les abonnements Apple App Store ou Google Play, nous conservons le produit, le jeton de transaction ou d'achat, le reçu, le statut et les dates. Nous ne recevons pas les données brutes de carte ; Stripe traite la facturation web."
           },
           {
             "title": "Comment nous utilisons vos données",
-            "body": "Nous traitons les données du compte et de l'espace de travail lié au tenant pour fournir les fonctions demandées, exécuter les workflows, conserver l'historique, mesurer l'usage, gérer les droits et assurer les opérations du compte. Le contenu peut être envoyé aux fournisseurs d'IA que vous sélectionnez ou connectez pour un workflow demandé ; leur traitement dépend de leurs conditions et réglages applicables."
+            "body": "Nous traitons les données du compte et de l'espace de travail lié au tenant pour fournir les fonctions demandées, exécuter les workflows, conserver l'historique, mesurer l'usage, gérer les droits et assurer les opérations du compte. Lorsque vous utilisez les fonctions d'IA, les prompts et contenus concernés parviennent à un fournisseur d'IA par l'une de deux voies. Avec votre propre clé de fournisseur, le transfert a lieu à votre demande vers le fournisseur que vous avez choisi, qui traite le contenu selon ses propres conditions et réglages : une clé ajoutée à votre espace de travail est résolue sur nos serveurs et n'est jamais stockée dans l'application mobile ni envoyée depuis celle-ci ; en mode direct de l'application de bureau, votre clé reste dans le trousseau de votre système et la requête part de votre ordinateur directement vers ce fournisseur. Sans clé de votre part, nous utilisons nos propres clés et nos prestataires traitent le contenu pour notre compte : Anthropic, ainsi que Groq pour un nombre limité d'exécutions de démarrage dans les espaces de travail sans abonnement."
           },
           {
             "title": "Stockage des données",
@@ -1278,7 +1278,7 @@
           },
           {
             "title": "Services tiers",
-            "body": "Nous utilisons Stripe pour la facturation web, Apple App Store et Google Play pour la facturation en boutique, Expo pour la livraison push, SendGrid pour les e-mails transactionnels, Google OAuth pour l'authentification optionnelle et HubSpot pour le CRM avec opt-in. Sentry peut recevoir des événements de crash, de trace et de diagnostic de session. Chaque fournisseur traite les données selon ses propres conditions et réglages."
+            "body": "Nous utilisons Stripe pour la facturation web, Apple App Store et Google Play pour la facturation en boutique, Expo pour la livraison push, SendGrid pour les e-mails transactionnels, Google OAuth pour l'authentification optionnelle et HubSpot pour le CRM avec opt-in. Sentry peut recevoir des événements de crash, de trace et de diagnostic de session. Chaque fournisseur traite les données selon ses propres conditions et réglages. En tant que prestataires, Anthropic ainsi que Groq (pour un nombre limité d'exécutions de démarrage dans les espaces de travail sans abonnement) traitent les requêtes d'IA effectuées avec nos clés."
           },
           {
             "title": "Vos droits",

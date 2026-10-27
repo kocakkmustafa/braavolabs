@@ -494,6 +494,11 @@ test("localized privacy and terms match platform data and billing truth", () => 
     /(?:all associated data|tüm ilişkili ver|todos los datos asociados|aller zugehörigen Daten|toutes les données associées|جميع البيانات المرتبطة)/i,
   ];
 
+  const deviceNameTerms = {
+    ar: /اسم الجهاز/, de: /Gerätename/, en: /device name/i, es: /nombre del dispositivo/,
+    fr: /nom de l'appareil/, tr: /cihaz adı/,
+  };
+
   const deletionParity = {
     ar: ["أعضاء آخرون", "مساحة العمل"],
     de: ["andere Mitglieder", "Workspace"],
@@ -515,9 +520,11 @@ test("localized privacy and terms match platform data and billing truth", () => 
     const privacyCopy = privacy.sections.map(({ body }) => body).join("\n");
     const termsCopy = terms.sections.map(({ body }) => body).join("\n");
     const faqCopy = pricingFaq.map(({ a }) => a).join("\n");
-    for (const vendor of ["Stripe", "Apple App Store", "Google Play", "Expo", "Sentry"]) {
+    for (const vendor of ["Stripe", "Apple App Store", "Google Play", "Expo", "Sentry", "Anthropic", "Groq"]) {
       assert.match(privacyCopy, new RegExp(vendor), `${locale}: privacy omits ${vendor}`);
     }
+    // The API no longer stores the user-set device name (Y17, 2026-10-27).
+    assert.doesNotMatch(privacyCopy, deviceNameTerms[locale], `${locale}: privacy still lists the device name`);
     for (const vendor of ["Stripe", "Apple App Store", "Google Play"]) {
       assert.match(termsCopy, new RegExp(vendor), `${locale}: terms omit ${vendor} billing`);
       assert.match(faqCopy, new RegExp(vendor), `${locale}: FAQ omits ${vendor} subscription management`);
@@ -536,7 +543,12 @@ test("localized privacy and terms match platform data and billing truth", () => 
   const englishPrivacy = english.static.legal.privacy.sections.map(({ body }) => body).join("\n");
   const englishTerms = english.static.legal.terms.sections.map(({ body }) => body).join("\n");
   const englishFaq = english.pricing.faq.map(({ a }) => a).join("\n");
-  assert.match(englishPrivacy, /push token, platform, device name, and OS version/);
+  assert.match(englishPrivacy, /push token, platform, and OS version/);
+  // Owner decision K-13: AI transfers are either user-initiated (own key) or
+  // processed by our service providers (our keys) — both named in plain words.
+  assert.match(englishPrivacy, /With your own provider key, the transfer happens at your request to the provider you selected/);
+  assert.match(englishPrivacy, /a key added to your workspace is resolved on our servers/);
+  assert.match(englishPrivacy, /our service providers process the content on our behalf: Anthropic, and Groq for a limited number of starter runs in workspaces without a subscription/);
   assert.match(englishPrivacy, /product, transaction or purchase token, receipt, status, and subscription dates/);
   assert.match(englishPrivacy, /Sentry may receive crash, trace, and session diagnostic events/);
   assert.match(englishTerms, /Web subscriptions are billed through Stripe/);
