@@ -1316,7 +1316,7 @@
           },
           {
             "title": "4. Planlanan abonelikler",
-            "body": "Individual $19/ay, Team $39/aktif kullanıcı/ay olarak planlanmıştır. Web checkout şu anda açık değildir ve çıkarım dahil değildir. Uygulama içi bir teklif varsa ilgili Apple App Store veya Google Play listesi üzerinden gösterilir ve satılır."
+            "body": "Individual $19,99/ay, Team $39/aktif kullanıcı/ay olarak planlanmıştır. Web checkout şu anda açık değildir ve çıkarım dahil değildir. Uygulama içi bir teklif varsa ilgili Apple App Store veya Google Play listesi üzerinden gösterilir ve satılır."
           },
           {
             "title": "5. Ücretli Planlar",
@@ -1550,7 +1550,7 @@
   "pricing": {
     "badge": "PLANLANAN FİYATLANDIRMA · ŞU ANDA SATIN ALINAMAZ",
     "title": "Sade ve şeffaf fiyatlandırma",
-    "subtitle": "Individual $19/ay, Team $39/aktif kullanıcı/ay olarak planlanmıştır. Çıkarım dahil değildir.",
+    "subtitle": "Individual $19,99/ay, Team $39/aktif kullanıcı/ay olarak planlanmıştır. Çıkarım dahil değildir.",
     "cycle": {
       "monthly": "Aylık",
       "yearly": "Yıllık",
@@ -1567,7 +1567,7 @@
         "name": "Fiyatlandırma önizlemesi",
         "desc": "Yalnız fiyatlandırma bilgisi; abonelikler şu anda satın alınamaz.",
         "features": [
-          "Individual — $19/ay olarak planlandı",
+          "Individual — $19,99/ay olarak planlandı",
           "Team — $39/aktif kullanıcı/ay olarak planlandı",
           "Çıkarım dahil değildir"
         ],
@@ -1577,7 +1577,7 @@
         "name": "Individual",
         "desc": "Bireysel operatör için planlanan abonelik; şu anda satın alınamaz.",
         "features": [
-          "$19/ay — planlanan fiyat",
+          "$19,99/ay — planlanan fiyat",
           "Tenant'a ait BYOK veya yapılandırılmış yerel çalışma zamanı",
           "Çıkarım dahil değildir"
         ],
@@ -2462,7 +2462,7 @@
             "text": "Planlar ve çıkarım"
           },
           "4": {
-            "text": "Individual (aylık $19) ve Team (etkin kullanıcı başına aylık $39) önizleme planı açıklamalarıdır ve şu anda satın alınamaz. Çıkarım ayrıdır: sağlayıcı ücretleri, yerel donanım ve işletim maliyetleri dahil değildir."
+            "text": "Individual (aylık $19,99) ve Team (etkin kullanıcı başına aylık $39) önizleme planı açıklamalarıdır ve şu anda satın alınamaz. Çıkarım ayrıdır: sağlayıcı ücretleri, yerel donanım ve işletim maliyetleri dahil değildir."
           },
           "5": {
             "text": "Private Mode bir önizlemedir. Cloud Agent Mode ve imzalı kanıt geliştirme aşamasındadır. Holding, premium/özel önizlemedir. Bu etiketleri eksiksiz güvenlik veya kullanılabilirlik garantisi saymayın."
@@ -2674,7 +2674,7 @@
             "items": [
               {
                 "q": "Şimdi plan satın alabilir miyim?",
-                "a": "Individual (aylık $19) ve Team (etkin kullanıcı başına aylık $39) önizleme açıklamalarıdır ve şu anda satın alınamaz. Çıkarım, önerilen abonelikten ayrıdır."
+                "a": "Individual (aylık $19,99) ve Team (etkin kullanıcı başına aylık $39) önizleme açıklamalarıdır ve şu anda satın alınamaz. Çıkarım, önerilen abonelikten ayrıdır."
               },
               {
                 "q": "Her ücret için onay gerekir mi?",
@@ -4729,7 +4729,7 @@
     "m265910871d03": "Braavolabs hesabınızı kalıcı olarak nasıl sileceğinizi, hangi verilerin kaldırıldığını ve nasıl yardım isteyebileceğinizi öğrenin.",
     "m7221097dfb51": "Braavolabs Hesap Silme",
     "md6e50ceecc93": "Fiyatlandırma — Braavolabs",
-    "m907e61f93ecc": "Planlanan fiyatların önizlemesi: Individual $19/ay ve Team $39/etkin kullanıcı/ay. Şu anda satın alınamaz; çıkarım dahil değildir.",
+    "m907e61f93ecc": "Planlanan fiyatların önizlemesi: Individual $19,99/ay ve Team $39/etkin kullanıcı/ay. Şu anda satın alınamaz; çıkarım dahil değildir.",
     "mae42d1776ea3": "Parolayı sıfırla",
     "m81bf5e60c133": "Braavolabs hesabınız için yeni bir parola belirleyin.",
     "m8931468be759": "Güvenlik — Braavolabs",

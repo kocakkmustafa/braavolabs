@@ -261,7 +261,7 @@ const MALFORMED_BRACKETED_AUTHORITIES = [
 ] as const;
 const LOCALES = ["ar", "de", "en", "es", "fr", "tr"] as const;
 const EXPECTED_PRICING_DESCRIPTION =
-  "Planned pricing preview: Individual $19/month and Team $39/active-user/month. Not currently purchasable; inference is not included.";
+  "Planned pricing preview: Individual $19.99/month and Team $39/active-user/month. Not currently purchasable; inference is not included.";
 const FORBIDDEN_RENDERED_CLAIMS = [
   /\bFree\b/i,
   /\bCreator\b/,
@@ -470,7 +470,7 @@ test("www renders public truth without tenant content, auth cookies, or unresolv
 
   const body = await response.text();
   expect(body).toContain("Individual");
-  expect(body).toContain("$19/month");
+  expect(body).toContain("$19.99/month");
   expect(body).toContain("$39/active-user/month");
   expect(body).toContain("Private Mode — preview");
   expect(body).toContain("Cloud Agent Mode — in development");
@@ -578,13 +578,13 @@ test("machine-readable public claims use the same frozen contract", async ({ req
   expect(software).toBeDefined();
   expect(software?.featureList).toEqual([
     "Pricing preview — not currently purchasable",
-    "Planned pricing: Individual $19/month; Team $39/active-user/month; not currently purchasable",
+    "Planned pricing: Individual $19.99/month; Team $39/active-user/month; not currently purchasable",
     "Private Mode — preview; its complete data-handling and security contract remains in development.",
     "Cloud Agent Mode — in development; its execution, consent, and retention contract is not presented as generally available.",
     "Holding — premium/private preview",
     "Signed evidence — in development",
   ]);
-  expect(body).toContain("Individual — $19/month");
+  expect(body).toContain("Individual — $19.99/month");
   expect(body).toContain("Team — $39/active-user/month");
   expect(jsonLd).toContain("Inference is not included");
   expect(jsonLd).toContain("Private Mode — preview");
@@ -605,7 +605,7 @@ test("captures the corrected public home for review evidence", async ({ page, re
       '<head><style>body{margin:0;background:#06070a;color:#e8ebf0;font-family:system-ui,sans-serif}a{color:inherit}.bv-glass{border:1px solid #3a4150;border-radius:16px}.text-on-surface-variant{color:#9aa3b2}</style>',
     );
   await page.setContent(html, { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { name: "Individual — $19/month" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Individual — $19.99/month" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Team — $39/active-user/month" })).toBeVisible();
   await page.screenshot({ path: "test-results/br-p0-000-public-home-after.png", fullPage: true });
 });

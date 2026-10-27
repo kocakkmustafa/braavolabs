@@ -51,7 +51,7 @@
       },
       "billing": {
         "title": "Usage Billing",
-        "desc": "Planned pricing is Individual $19/month and Team $39/active-user/month. It is not currently purchasable; inference is not included."
+        "desc": "Planned pricing is Individual $19.99/month and Team $39/active-user/month. It is not currently purchasable; inference is not included."
       },
       "audit": {
         "title": "Full Audit Log",
@@ -1316,7 +1316,7 @@
           },
           {
             "title": "4. Planned subscriptions",
-            "body": "Individual is planned at $19/month and Team at $39/active-user/month. Web checkout is not currently available and inference is not included. Any in-app offer is shown and sold through the applicable Apple App Store or Google Play listing."
+            "body": "Individual is planned at $19.99/month and Team at $39/active-user/month. Web checkout is not currently available and inference is not included. Any in-app offer is shown and sold through the applicable Apple App Store or Google Play listing."
           },
           {
             "title": "5. Paid Plans",
@@ -1550,7 +1550,7 @@
   "pricing": {
     "badge": "PLANNED PRICING · NOT CURRENTLY PURCHASABLE",
     "title": "Simple, transparent pricing",
-    "subtitle": "Individual is planned at $19/month and Team at $39/active-user/month. Inference is not included; subscriptions are not currently purchasable.",
+    "subtitle": "Individual is planned at $19.99/month and Team at $39/active-user/month. Inference is not included; subscriptions are not currently purchasable.",
     "cycle": {
       "monthly": "Monthly",
       "yearly": "Yearly",
@@ -1567,7 +1567,7 @@
         "name": "Pricing preview",
         "desc": "Pricing information only; subscriptions are not currently purchasable.",
         "features": [
-          "Individual — planned at $19/month",
+          "Individual — planned at $19.99/month",
           "Team — planned at $39/active-user/month",
           "Inference is not included"
         ],
@@ -1577,7 +1577,7 @@
         "name": "Individual",
         "desc": "Planned subscription for an individual operator; not currently purchasable.",
         "features": [
-          "$19/month — planned pricing",
+          "$19.99/month — planned pricing",
           "Tenant-owned BYOK or configured local runtime",
           "Inference is not included"
         ],
@@ -2462,7 +2462,7 @@
             "text": "Plans and inference"
           },
           "4": {
-            "text": "Individual ($19/month) and Team ($39/active user/month) are preview plan descriptions and are not currently available to purchase. Inference is separate: provider charges, local hardware and operation costs are not included."
+            "text": "Individual ($19.99/month) and Team ($39/active user/month) are preview plan descriptions and are not currently available to purchase. Inference is separate: provider charges, local hardware and operation costs are not included."
           },
           "5": {
             "text": "Private Mode is a preview. Cloud Agent Mode and signed evidence remain in development. Holding is a premium/private preview. Do not treat these labels as a complete security or availability guarantee."
@@ -2674,7 +2674,7 @@
             "items": [
               {
                 "q": "Can I buy a plan now?",
-                "a": "Individual ($19/month) and Team ($39/active user/month) are preview descriptions and are not currently available to purchase. Inference is separate from the proposed subscription."
+                "a": "Individual ($19.99/month) and Team ($39/active user/month) are preview descriptions and are not currently available to purchase. Inference is separate from the proposed subscription."
               },
               {
                 "q": "Does every charge require an approval?",
@@ -4729,7 +4729,7 @@
     "m265910871d03": "How to permanently delete your Braavolabs account, what data is removed, and how to request assistance.",
     "m7221097dfb51": "Braavolabs Account Deletion",
     "md6e50ceecc93": "Pricing — Braavolabs",
-    "m907e61f93ecc": "Planned pricing preview: Individual $19/month and Team $39/active-user/month. Not currently purchasable; inference is not included.",
+    "m907e61f93ecc": "Planned pricing preview: Individual $19.99/month and Team $39/active-user/month. Not currently purchasable; inference is not included.",
     "mae42d1776ea3": "Reset password",
     "m81bf5e60c133": "Set a new password for your Braavolabs account.",
     "m8931468be759": "Security — Braavolabs",

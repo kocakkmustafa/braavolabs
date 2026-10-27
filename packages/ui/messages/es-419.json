@@ -51,7 +51,7 @@
       },
       "billing": {
         "title": "Facturación por Uso",
-        "desc": "Los precios previstos son Individual a $19/mes y Team a $39/usuario activo/mes. Actualmente no se pueden comprar; la inferencia no está incluida."
+        "desc": "Los precios previstos son Individual a $19.99/mes y Team a $39/usuario activo/mes. Actualmente no se pueden comprar; la inferencia no está incluida."
       },
       "audit": {
         "title": "Registro de Auditoría Completo",
@@ -1316,7 +1316,7 @@
           },
           {
             "title": "4. Suscripciones planificadas",
-            "body": "Individual está planificado a $19/mes y Team a $39/usuario activo/mes. El checkout web no está disponible actualmente y la inferencia no está incluida. Una oferta dentro de la app se muestra y vende mediante la ficha aplicable de Apple App Store o Google Play."
+            "body": "Individual está planificado a $19.99/mes y Team a $39/usuario activo/mes. El checkout web no está disponible actualmente y la inferencia no está incluida. Una oferta dentro de la app se muestra y vende mediante la ficha aplicable de Apple App Store o Google Play."
           },
           {
             "title": "5. Planes de Pago",
@@ -1550,7 +1550,7 @@
   "pricing": {
     "badge": "PRECIOS PLANIFICADOS · NO DISPONIBLES PARA COMPRA",
     "title": "Precios simples y transparentes",
-    "subtitle": "Individual está planificado a $19/mes y Team a $39/usuario activo/mes. La inferencia no está incluida.",
+    "subtitle": "Individual está planificado a $19.99/mes y Team a $39/usuario activo/mes. La inferencia no está incluida.",
     "cycle": {
       "monthly": "Mensual",
       "yearly": "Anual",
@@ -1567,7 +1567,7 @@
         "name": "Vista previa de precios",
         "desc": "Solo información de precios; las suscripciones no se pueden comprar actualmente.",
         "features": [
-          "Individual — planificado a $19/mes",
+          "Individual — planificado a $19.99/mes",
           "Team — planificado a $39/usuario activo/mes",
           "La inferencia no está incluida"
         ],
@@ -1577,7 +1577,7 @@
         "name": "Individual",
         "desc": "Suscripción planificada para un operador individual; no se puede comprar actualmente.",
         "features": [
-          "$19/mes — precio planificado",
+          "$19.99/mes — precio planificado",
           "BYOK del tenant o runtime local configurado",
           "La inferencia no está incluida"
         ],
@@ -2462,7 +2462,7 @@
             "text": "Planes e inferencia"
           },
           "4": {
-            "text": "Individual ($19/mes) y Team ($39/usuario activo/mes) son descripciones preliminares de planes y actualmente no están disponibles para comprar. La inferencia se cobra por separado: no se incluyen los cargos del proveedor ni los costos de hardware local y operación."
+            "text": "Individual ($19.99/mes) y Team ($39/usuario activo/mes) son descripciones preliminares de planes y actualmente no están disponibles para comprar. La inferencia se cobra por separado: no se incluyen los cargos del proveedor ni los costos de hardware local y operación."
           },
           "5": {
             "text": "Private Mode está en versión preliminar. Cloud Agent Mode y la evidencia firmada siguen en desarrollo. Holding es una versión preliminar premium/privada. No interpretes estas etiquetas como una garantía completa de seguridad o disponibilidad."
@@ -2674,7 +2674,7 @@
             "items": [
               {
                 "q": "¿Puedo comprar un plan ahora?",
-                "a": "Individual ($19/mes) y Team ($39/usuario activo/mes) son descripciones preliminares y actualmente no están disponibles para comprar. La inferencia es independiente de la suscripción propuesta."
+                "a": "Individual ($19.99/mes) y Team ($39/usuario activo/mes) son descripciones preliminares y actualmente no están disponibles para comprar. La inferencia es independiente de la suscripción propuesta."
               },
               {
                 "q": "¿Todos los cargos requieren aprobación?",
@@ -4729,7 +4729,7 @@
     "m265910871d03": "Cómo eliminar permanentemente tu cuenta de Braavolabs, qué datos se eliminan y cómo solicitar asistencia.",
     "m7221097dfb51": "Eliminación de cuenta de Braavolabs",
     "md6e50ceecc93": "Precios — Braavolabs",
-    "m907e61f93ecc": "Vista previa de precios previstos: Individual $19/mes y Team $39/usuario activo/mes. No pueden comprarse actualmente; no incluye inferencia.",
+    "m907e61f93ecc": "Vista previa de precios previstos: Individual $19.99/mes y Team $39/usuario activo/mes. No pueden comprarse actualmente; no incluye inferencia.",
     "mae42d1776ea3": "Restablecer contraseña",
     "m81bf5e60c133": "Establece una contraseña nueva para tu cuenta de Braavolabs.",
     "m8931468be759": "Seguridad — Braavolabs",

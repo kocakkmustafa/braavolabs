@@ -51,7 +51,7 @@
       },
       "billing": {
         "title": "Nutzungsabrechnung",
-        "desc": "Geplante Preise: Individual $19/Monat und Team $39/aktivem Nutzer/Monat. Derzeit nicht erhältlich; Inferenz ist nicht enthalten."
+        "desc": "Geplante Preise: Individual $19,99/Monat und Team $39/aktivem Nutzer/Monat. Derzeit nicht erhältlich; Inferenz ist nicht enthalten."
       },
       "audit": {
         "title": "Vollständiges Audit-Log",
@@ -1316,7 +1316,7 @@
           },
           {
             "title": "4. Geplante Abonnements",
-            "body": "Individual ist mit $19/Monat und Team mit $39/aktivem Nutzer/Monat geplant. Web-Checkout ist derzeit nicht verfügbar und Inferenz ist nicht enthalten. Ein In-App-Angebot wird über den jeweiligen Eintrag im Apple App Store oder bei Google Play angezeigt und verkauft."
+            "body": "Individual ist mit $19,99/Monat und Team mit $39/aktivem Nutzer/Monat geplant. Web-Checkout ist derzeit nicht verfügbar und Inferenz ist nicht enthalten. Ein In-App-Angebot wird über den jeweiligen Eintrag im Apple App Store oder bei Google Play angezeigt und verkauft."
           },
           {
             "title": "5. Bezahlte Pläne",
@@ -1550,7 +1550,7 @@
   "pricing": {
     "badge": "GEPLANTE PREISE · DERZEIT NICHT KAUFBAR",
     "title": "Einfache, transparente Preise",
-    "subtitle": "Individual ist mit $19/Monat und Team mit $39/aktivem Nutzer/Monat geplant. Inferenz ist nicht enthalten.",
+    "subtitle": "Individual ist mit $19,99/Monat und Team mit $39/aktivem Nutzer/Monat geplant. Inferenz ist nicht enthalten.",
     "cycle": {
       "monthly": "Monatlich",
       "yearly": "Jährlich",
@@ -1567,7 +1567,7 @@
         "name": "Preisvorschau",
         "desc": "Nur Preisinformationen; Abonnements sind derzeit nicht kaufbar.",
         "features": [
-          "Individual — geplant mit $19/Monat",
+          "Individual — geplant mit $19,99/Monat",
           "Team — geplant mit $39/aktivem Nutzer/Monat",
           "Inferenz ist nicht enthalten"
         ],
@@ -1577,7 +1577,7 @@
         "name": "Individual",
         "desc": "Geplantes Abonnement für eine einzelne Person; derzeit nicht kaufbar.",
         "features": [
-          "$19/Monat — geplanter Preis",
+          "$19,99/Monat — geplanter Preis",
           "Mandanteneigenes BYOK oder konfigurierte lokale Laufzeit",
           "Inferenz ist nicht enthalten"
         ],
@@ -2462,7 +2462,7 @@
             "text": "Tarife und Inferenz"
           },
           "4": {
-            "text": "Individual (19 $/Monat) und Team (39 $/aktivem Nutzer/Monat) sind Tarifbeschreibungen in der Vorschau und derzeit nicht zum Kauf verfügbar. Inferenz wird separat abgerechnet: Anbietergebühren sowie Kosten für lokale Hardware und deren Betrieb sind nicht enthalten."
+            "text": "Individual (19,99 $/Monat) und Team (39 $/aktivem Nutzer/Monat) sind Tarifbeschreibungen in der Vorschau und derzeit nicht zum Kauf verfügbar. Inferenz wird separat abgerechnet: Anbietergebühren sowie Kosten für lokale Hardware und deren Betrieb sind nicht enthalten."
           },
           "5": {
             "text": "Private Mode ist eine Vorschau. Cloud Agent Mode und signierte Nachweise werden noch entwickelt. Holding ist eine Premium-/private Vorschau. Diese Bezeichnungen sind keine umfassende Sicherheits- oder Verfügbarkeitsgarantie."
@@ -2674,7 +2674,7 @@
             "items": [
               {
                 "q": "Kann ich jetzt einen Tarif kaufen?",
-                "a": "Individual (19 $/Monat) und Team (39 $/aktivem Nutzer/Monat) sind Beschreibungen in der Vorschau und derzeit nicht zum Kauf verfügbar. Inferenz ist vom vorgeschlagenen Abonnement getrennt."
+                "a": "Individual (19,99 $/Monat) und Team (39 $/aktivem Nutzer/Monat) sind Beschreibungen in der Vorschau und derzeit nicht zum Kauf verfügbar. Inferenz ist vom vorgeschlagenen Abonnement getrennt."
               },
               {
                 "q": "Erfordert jede Gebühr eine Freigabe?",
@@ -4729,7 +4729,7 @@
     "m265910871d03": "So löschst du dein Braavolabs-Konto dauerhaft, welche Daten entfernt werden und wie du Unterstützung anforderst.",
     "m7221097dfb51": "Braavolabs-Kontolöschung",
     "md6e50ceecc93": "Preise — Braavolabs",
-    "m907e61f93ecc": "Geplante Preisvorschau: Individual 19 $/Monat und Team 39 $/aktivem Nutzer/Monat. Derzeit nicht kaufbar; Inferenz ist nicht enthalten.",
+    "m907e61f93ecc": "Geplante Preisvorschau: Individual 19,99 $/Monat und Team 39 $/aktivem Nutzer/Monat. Derzeit nicht kaufbar; Inferenz ist nicht enthalten.",
     "mae42d1776ea3": "Passwort zurücksetzen",
     "m81bf5e60c133": "Lege ein neues Passwort für dein Braavolabs-Konto fest.",
     "m8931468be759": "Sicherheit — Braavolabs",

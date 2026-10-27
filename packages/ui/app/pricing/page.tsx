@@ -18,7 +18,7 @@ export default async function PricingPage() {
   const [t, locale] = await Promise.all([getTranslations("publicPreview"), getLocale()]);
   const plans = (["INDIVIDUAL", "TEAM"] as const).map(id => ({
     name: id === "INDIVIDUAL" ? "Individual" : "Team",
-    price: t(id === "INDIVIDUAL" ? "individualPeriod" : "teamPeriod", { price: bidiIsolate(formatCurrency(PLAN_PRICING[id].monthlyUsd, "USD", locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 }), locale) }),
+    price: t(id === "INDIVIDUAL" ? "individualPeriod" : "teamPeriod", { price: bidiIsolate(formatCurrency(PLAN_PRICING[id].monthlyUsd, "USD", locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 }), locale) }),
     audience: t(id === "INDIVIDUAL" ? "individualAudience" : "teamAudience"),
     items: t.raw(id === "INDIVIDUAL" ? "individualItems" : "teamItems") as string[],
   }));

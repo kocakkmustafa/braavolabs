@@ -51,7 +51,7 @@
       },
       "billing": {
         "title": "Penagihan penggunaan",
-        "desc": "Harga yang direncanakan adalah $19/bulan untuk Individual dan $39/pengguna aktif/bulan untuk Team. Saat ini belum dapat dibeli; inferensi tidak termasuk."
+        "desc": "Harga yang direncanakan adalah $19,99/bulan untuk Individual dan $39/pengguna aktif/bulan untuk Team. Saat ini belum dapat dibeli; inferensi tidak termasuk."
       },
       "audit": {
         "title": "Log audit lengkap",
@@ -1316,7 +1316,7 @@
           },
           {
             "title": "4. Langganan terencana",
-            "body": "Individual direncanakan seharga $19/bulan dan Team seharga $39/pengguna aktif/bulan. Checkout web saat ini tidak tersedia dan inferensi tidak termasuk. Setiap penawaran dalam aplikasi ditampilkan dan dijual melalui listing Apple App Store atau Google Play yang berlaku."
+            "body": "Individual direncanakan seharga $19,99/bulan dan Team seharga $39/pengguna aktif/bulan. Checkout web saat ini tidak tersedia dan inferensi tidak termasuk. Setiap penawaran dalam aplikasi ditampilkan dan dijual melalui listing Apple App Store atau Google Play yang berlaku."
           },
           {
             "title": "5. Paket berbayar",
@@ -1550,7 +1550,7 @@
   "pricing": {
     "badge": "HARGA TERENCANA · SAAT INI BELUM DAPAT DIBELI",
     "title": "Harga sederhana dan transparan",
-    "subtitle": "Harga yang direncanakan adalah $19/bulan untuk Individual dan $39/pengguna aktif/bulan untuk Team. Inferensi tidak termasuk; langganan saat ini belum dapat dibeli.",
+    "subtitle": "Harga yang direncanakan adalah $19,99/bulan untuk Individual dan $39/pengguna aktif/bulan untuk Team. Inferensi tidak termasuk; langganan saat ini belum dapat dibeli.",
     "cycle": {
       "monthly": "Bulanan",
       "yearly": "Tahunan",
@@ -1567,7 +1567,7 @@
         "name": "Pratinjau harga",
         "desc": "Hanya informasi harga; langganan saat ini belum dapat dibeli.",
         "features": [
-          "Individual — direncanakan $19/bulan",
+          "Individual — direncanakan $19,99/bulan",
           "Team — direncanakan $39/pengguna aktif/bulan",
           "Inferensi tidak termasuk"
         ],
@@ -1577,7 +1577,7 @@
         "name": "Individual",
         "desc": "Langganan terencana untuk satu operator; saat ini belum dapat dibeli.",
         "features": [
-          "$19/bulan — harga terencana",
+          "$19,99/bulan — harga terencana",
           "BYOK milik tenant atau runtime lokal yang dikonfigurasi",
           "Inferensi tidak termasuk"
         ],
@@ -2462,7 +2462,7 @@
             "text": "Paket dan inferensi"
           },
           "4": {
-            "text": "Individual ($19/bulan) dan Team ($39/pengguna aktif/bulan) adalah deskripsi paket pratinjau dan saat ini belum dapat dibeli. Inferensi terpisah: biaya penyedia, perangkat keras lokal, dan biaya operasional tidak termasuk."
+            "text": "Individual ($19,99/bulan) dan Team ($39/pengguna aktif/bulan) adalah deskripsi paket pratinjau dan saat ini belum dapat dibeli. Inferensi terpisah: biaya penyedia, perangkat keras lokal, dan biaya operasional tidak termasuk."
           },
           "5": {
             "text": "Private Mode adalah pratinjau. Cloud Agent Mode dan bukti bertanda tangan masih dikembangkan. Holding adalah pratinjau premium/privat. Jangan anggap label ini sebagai jaminan keamanan atau ketersediaan yang lengkap."
@@ -2674,7 +2674,7 @@
             "items": [
               {
                 "q": "Apakah saya bisa membeli paket sekarang?",
-                "a": "Individual ($19/bulan) dan Team ($39/pengguna aktif/bulan) adalah deskripsi pratinjau dan saat ini belum dapat dibeli. Inferensi terpisah dari langganan yang diusulkan."
+                "a": "Individual ($19,99/bulan) dan Team ($39/pengguna aktif/bulan) adalah deskripsi pratinjau dan saat ini belum dapat dibeli. Inferensi terpisah dari langganan yang diusulkan."
               },
               {
                 "q": "Apakah setiap biaya memerlukan persetujuan?",
@@ -4729,7 +4729,7 @@
     "m265910871d03": "Cara menghapus akun Braavolabs secara permanen, data yang dihapus, dan cara meminta bantuan.",
     "m7221097dfb51": "Penghapusan akun Braavolabs",
     "md6e50ceecc93": "Harga — Braavolabs",
-    "m907e61f93ecc": "Pratinjau harga yang direncanakan: Individual $19/bulan dan Team $39/pengguna aktif/bulan. Belum dapat dibeli; inferensi tidak termasuk.",
+    "m907e61f93ecc": "Pratinjau harga yang direncanakan: Individual $19,99/bulan dan Team $39/pengguna aktif/bulan. Belum dapat dibeli; inferensi tidak termasuk.",
     "mae42d1776ea3": "Atur ulang kata sandi",
     "m81bf5e60c133": "Tetapkan kata sandi baru untuk akun Braavolabs Anda.",
     "m8931468be759": "Keamanan — Braavolabs",

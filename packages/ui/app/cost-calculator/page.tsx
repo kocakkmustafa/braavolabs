@@ -23,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 const PLANNED_PLANS = [
   {
     name: "Individual",
-    price: "$19/month",
+    price: "$19.99/month",
     audience: "For one person using tenant-owned BYOK or a local model route.",
   },
   {

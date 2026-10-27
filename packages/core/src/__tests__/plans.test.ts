@@ -15,7 +15,7 @@ describe("canonical new-sale catalog", () => {
     expect(PLAN_ORDER).toEqual(["INDIVIDUAL", "TEAM"]);
     expect(NEW_SALE_PLAN_CATALOG).toEqual([
       {
-        id: "INDIVIDUAL", label: "Individual", monthlyUsd: 19,
+        id: "INDIVIDUAL", label: "Individual", monthlyUsd: 19.99,
         billingUnit: "account", inferenceIncluded: false,
         billingCycle: "monthly", providerFunding: "tenant",
       },

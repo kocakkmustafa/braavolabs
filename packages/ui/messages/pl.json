@@ -51,7 +51,7 @@
       },
       "billing": {
         "title": "Rozliczanie użycia",
-        "desc": "Planowane ceny to $19/miesiąc za Individual i $39/aktywnego użytkownika/miesiąc za Team. Obecnie nie można ich kupić; inferencja nie jest wliczona."
+        "desc": "Planowane ceny to $19,99/miesiąc za Individual i $39/aktywnego użytkownika/miesiąc za Team. Obecnie nie można ich kupić; inferencja nie jest wliczona."
       },
       "audit": {
         "title": "Pełny dziennik audytu",
@@ -1316,7 +1316,7 @@
           },
           {
             "title": "4. Planowane subskrypcje",
-            "body": "Planowane ceny to $19/miesiąc za Individual i $39/aktywnego użytkownika/miesiąc za Team. Płatności internetowe nie są obecnie dostępne, a inferencja nie jest wliczona. Wszelkie oferty w aplikacji są prezentowane i sprzedawane przez odpowiednią ofertę Apple App Store lub Google Play."
+            "body": "Planowane ceny to $19,99/miesiąc za Individual i $39/aktywnego użytkownika/miesiąc za Team. Płatności internetowe nie są obecnie dostępne, a inferencja nie jest wliczona. Wszelkie oferty w aplikacji są prezentowane i sprzedawane przez odpowiednią ofertę Apple App Store lub Google Play."
           },
           {
             "title": "5. Plany płatne",
@@ -1550,7 +1550,7 @@
   "pricing": {
     "badge": "PLANOWANE CENY · OBECNIE NIEDOSTĘPNE W SPRZEDAŻY",
     "title": "Proste, przejrzyste ceny",
-    "subtitle": "Planowane ceny to $19/miesiąc za Individual i $39/aktywnego użytkownika/miesiąc za Team. Inferencja nie jest wliczona; subskrypcje nie są obecnie dostępne w sprzedaży.",
+    "subtitle": "Planowane ceny to $19,99/miesiąc za Individual i $39/aktywnego użytkownika/miesiąc za Team. Inferencja nie jest wliczona; subskrypcje nie są obecnie dostępne w sprzedaży.",
     "cycle": {
       "monthly": "Miesięcznie",
       "yearly": "Rocznie",
@@ -1567,7 +1567,7 @@
         "name": "Podgląd cennika",
         "desc": "Wyłącznie informacje o cenach; subskrypcje nie są obecnie dostępne w sprzedaży.",
         "features": [
-          "Individual — planowane $19/miesiąc",
+          "Individual — planowane $19,99/miesiąc",
           "Team — planowane $39/aktywnego użytkownika/miesiąc",
           "Inferencja nie jest wliczona"
         ],
@@ -1577,7 +1577,7 @@
         "name": "Individual",
         "desc": "Planowana subskrypcja dla jednej osoby; obecnie niedostępna w sprzedaży.",
         "features": [
-          "$19/miesiąc — planowana cena",
+          "$19,99/miesiąc — planowana cena",
           "BYOK należący do tenanta lub skonfigurowane lokalne środowisko wykonawcze",
           "Inferencja nie jest wliczona"
         ],
@@ -2462,7 +2462,7 @@
             "text": "Plany i inferencja"
           },
           "4": {
-            "text": "Individual ($19/miesiąc) i Team ($39/aktywnego użytkownika/miesiąc) to opisy planów w wersji podglądowej, których obecnie nie można kupić. Inferencja jest rozliczana oddzielnie: opłaty dostawców, lokalny sprzęt i koszty działania nie są wliczone."
+            "text": "Individual ($19,99/miesiąc) i Team ($39/aktywnego użytkownika/miesiąc) to opisy planów w wersji podglądowej, których obecnie nie można kupić. Inferencja jest rozliczana oddzielnie: opłaty dostawców, lokalny sprzęt i koszty działania nie są wliczone."
           },
           "5": {
             "text": "Private Mode jest wersją podglądową. Cloud Agent Mode i podpisane dowody pozostają w rozwoju. Holding to podgląd premium/prywatny. Nie traktuj tych nazw jako pełnej gwarancji bezpieczeństwa lub dostępności."
@@ -2674,7 +2674,7 @@
             "items": [
               {
                 "q": "Czy mogę teraz kupić plan?",
-                "a": "Individual ($19/miesiąc) i Team ($39/aktywnego użytkownika/miesiąc) to opisy podglądowe, których obecnie nie można kupić. Inferencja jest odrębna od proponowanej subskrypcji."
+                "a": "Individual ($19,99/miesiąc) i Team ($39/aktywnego użytkownika/miesiąc) to opisy podglądowe, których obecnie nie można kupić. Inferencja jest odrębna od proponowanej subskrypcji."
               },
               {
                 "q": "Czy każda opłata wymaga zatwierdzenia?",
@@ -4729,7 +4729,7 @@
     "m265910871d03": "Jak trwale usunąć konto Braavolabs, jakie dane są usuwane i jak poprosić o pomoc.",
     "m7221097dfb51": "Usuwanie konta Braavolabs",
     "md6e50ceecc93": "Ceny — Braavolabs",
-    "m907e61f93ecc": "Podgląd planowanych cen: Individual $19/miesiąc i Team $39/aktywnego użytkownika/miesiąc. Obecnie niedostępne do zakupu; inferencja nie jest wliczona.",
+    "m907e61f93ecc": "Podgląd planowanych cen: Individual $19,99/miesiąc i Team $39/aktywnego użytkownika/miesiąc. Obecnie niedostępne do zakupu; inferencja nie jest wliczona.",
     "mae42d1776ea3": "Zresetuj hasło",
     "m81bf5e60c133": "Ustaw nowe hasło konta Braavolabs.",
     "m8931468be759": "Bezpieczeństwo — Braavolabs",

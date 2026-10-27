@@ -24,7 +24,7 @@ export default async function HomePage() {
   const [t, locale] = await Promise.all([getTranslations("publicPreview"), getLocale()]);
   const modes = [{ name: t("privateMode"), copy: t("privateModeCopy") }, { name: t("cloudMode"), copy: t("cloudModeCopy") }];
   const price = (plan: "INDIVIDUAL" | "TEAM") => t(plan === "INDIVIDUAL" ? "individualPeriod" : "teamPeriod", {
-    price: bidiIsolate(formatCurrency(PLAN_PRICING[plan].monthlyUsd, "USD", locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 }), locale),
+    price: bidiIsolate(formatCurrency(PLAN_PRICING[plan].monthlyUsd, "USD", locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 }), locale),
   });
   return (
     <div className="min-h-screen bv-mesh" data-public-surface="marketing">

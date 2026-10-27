@@ -106,7 +106,7 @@ export const DOCS: DocPage[] = [
       },
       {
         "kind": "para",
-        "text": "Individual ($19/month) and Team ($39/active user/month) are preview plan descriptions and are not currently available to purchase. Inference is separate: provider charges, local hardware and operation costs are not included."
+        "text": "Individual ($19.99/month) and Team ($39/active user/month) are preview plan descriptions and are not currently available to purchase. Inference is separate: provider charges, local hardware and operation costs are not included."
       },
       {
         "kind": "para",
@@ -411,7 +411,7 @@ export const DOCS: DocPage[] = [
         "items": [
           {
             "q": "Can I buy a plan now?",
-            "a": "Individual ($19/month) and Team ($39/active user/month) are preview descriptions and are not currently available to purchase. Inference is separate from the proposed subscription."
+            "a": "Individual ($19.99/month) and Team ($39/active user/month) are preview descriptions and are not currently available to purchase. Inference is separate from the proposed subscription."
           },
           {
             "q": "Does every charge require an approval?",

@@ -16,7 +16,7 @@ const NEW_SALE_PLAN_ORDER = ["INDIVIDUAL", "TEAM"] as const satisfies readonly N
 export const PLAN_ORDER: readonly (NewSalePlan | LegacyPlan)[] = NEW_SALE_PLAN_ORDER;
 
 export const PLAN_PRICING = {
-  INDIVIDUAL: { monthlyUsd: 19, billingUnit: "account", inferenceIncluded: false },
+  INDIVIDUAL: { monthlyUsd: 19.99, billingUnit: "account", inferenceIncluded: false },
   TEAM: { monthlyUsd: 39, billingUnit: "active-seat", inferenceIncluded: false },
 } as Record<NewSalePlan | LegacyPlan, PlanPricing>;
 

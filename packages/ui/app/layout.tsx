@@ -102,7 +102,7 @@ const SCHEMA_LD = {
         "Inference is not included. Use your own provider keys (BYOK) or local models.",
       featureList: [
         "Pricing preview — not currently purchasable",
-        "Planned pricing: Individual $19/month; Team $39/active-user/month; not currently purchasable",
+        "Planned pricing: Individual $19.99/month; Team $39/active-user/month; not currently purchasable",
         "Private Mode — preview; its complete data-handling and security contract remains in development.",
         "Cloud Agent Mode — in development; its execution, consent, and retention contract is not presented as generally available.",
         "Holding — premium/private preview",

@@ -51,7 +51,7 @@
       },
       "billing": {
         "title": "Facturation à l'Usage",
-        "desc": "Les tarifs prévus sont de $19/mois pour Individual et de $39/utilisateur actif/mois pour Team. L’achat n’est pas disponible actuellement ; l’inférence n’est pas incluse."
+        "desc": "Les tarifs prévus sont de $19,99/mois pour Individual et de $39/utilisateur actif/mois pour Team. L’achat n’est pas disponible actuellement ; l’inférence n’est pas incluse."
       },
       "audit": {
         "title": "Journal d'Audit Complet",
@@ -1316,7 +1316,7 @@
           },
           {
             "title": "4. Abonnements prévus",
-            "body": "Individual est prévu à $19/mois et Team à $39/utilisateur actif/mois. Le checkout web n'est pas disponible actuellement et l'inférence n'est pas incluse. Toute offre intégrée à l'app est affichée et vendue via la fiche Apple App Store ou Google Play applicable."
+            "body": "Individual est prévu à $19,99/mois et Team à $39/utilisateur actif/mois. Le checkout web n'est pas disponible actuellement et l'inférence n'est pas incluse. Toute offre intégrée à l'app est affichée et vendue via la fiche Apple App Store ou Google Play applicable."
           },
           {
             "title": "5. Forfaits Payants",
@@ -1550,7 +1550,7 @@
   "pricing": {
     "badge": "TARIFS PRÉVUS · NON DISPONIBLES À L'ACHAT",
     "title": "Tarifs simples et transparents",
-    "subtitle": "Individual est prévu à $19/mois et Team à $39/utilisateur actif/mois. L'inférence n'est pas incluse.",
+    "subtitle": "Individual est prévu à $19,99/mois et Team à $39/utilisateur actif/mois. L'inférence n'est pas incluse.",
     "cycle": {
       "monthly": "Mensuel",
       "yearly": "Annuel",
@@ -1567,7 +1567,7 @@
         "name": "Aperçu des tarifs",
         "desc": "Informations tarifaires uniquement ; les abonnements ne sont pas disponibles à l'achat.",
         "features": [
-          "Individual — prévu à $19/mois",
+          "Individual — prévu à $19,99/mois",
           "Team — prévu à $39/utilisateur actif/mois",
           "L'inférence n'est pas incluse"
         ],
@@ -1577,7 +1577,7 @@
         "name": "Individual",
         "desc": "Abonnement prévu pour un opérateur individuel ; non disponible à l'achat.",
         "features": [
-          "$19/mois — tarif prévu",
+          "$19,99/mois — tarif prévu",
           "BYOK du tenant ou runtime local configuré",
           "L'inférence n'est pas incluse"
         ],
@@ -2462,7 +2462,7 @@
             "text": "Offres et inférence"
           },
           "4": {
-            "text": "Individual (19 $/mois) et Team (39 $/utilisateur actif/mois) sont des descriptions d'offres en aperçu et ne sont pas disponibles à l'achat pour le moment. L'inférence est distincte : les frais des fournisseurs ainsi que les coûts du matériel local et de son exploitation ne sont pas inclus."
+            "text": "Individual (19,99 $/mois) et Team (39 $/utilisateur actif/mois) sont des descriptions d'offres en aperçu et ne sont pas disponibles à l'achat pour le moment. L'inférence est distincte : les frais des fournisseurs ainsi que les coûts du matériel local et de son exploitation ne sont pas inclus."
           },
           "5": {
             "text": "Private Mode est en aperçu. Cloud Agent Mode et les preuves signées sont encore en développement. Holding est un aperçu premium/privé. Ces intitulés ne constituent pas une garantie complète de sécurité ou de disponibilité."
@@ -2674,7 +2674,7 @@
             "items": [
               {
                 "q": "Puis-je acheter une offre maintenant ?",
-                "a": "Individual (19 $/mois) et Team (39 $/utilisateur actif/mois) sont des descriptions en aperçu et ne sont pas disponibles à l'achat pour le moment. L'inférence est distincte de l'abonnement proposé."
+                "a": "Individual (19,99 $/mois) et Team (39 $/utilisateur actif/mois) sont des descriptions en aperçu et ne sont pas disponibles à l'achat pour le moment. L'inférence est distincte de l'abonnement proposé."
               },
               {
                 "q": "Tous les frais nécessitent-ils une approbation ?",
@@ -4729,7 +4729,7 @@
     "m265910871d03": "Comment supprimer définitivement votre compte Braavolabs, quelles données sont retirées et comment demander de l'aide.",
     "m7221097dfb51": "Suppression de compte Braavolabs",
     "md6e50ceecc93": "Tarifs — Braavolabs",
-    "m907e61f93ecc": "Aperçu des tarifs prévus : Individual à 19 $/mois et Team à 39 $/utilisateur actif/mois. Non disponibles à l'achat actuellement ; l'inférence n'est pas incluse.",
+    "m907e61f93ecc": "Aperçu des tarifs prévus : Individual à 19,99 $/mois et Team à 39 $/utilisateur actif/mois. Non disponibles à l'achat actuellement ; l'inférence n'est pas incluse.",
     "mae42d1776ea3": "Réinitialiser le mot de passe",
     "m81bf5e60c133": "Définissez un nouveau mot de passe pour votre compte Braavolabs.",
     "m8931468be759": "Sécurité — Braavolabs",

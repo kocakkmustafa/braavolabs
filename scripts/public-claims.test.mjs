@@ -70,7 +70,7 @@ const PUBLIC_METADATA_LAYOUT_PATHS = [
 ];
 
 const APPROVED_TRUTH = [
-  "Individual — $19/month",
+  "Individual — $19.99/month",
   "Team — $39/active-user/month",
   "Inference is not included",
   "Private Mode — preview",
@@ -183,7 +183,7 @@ function withCopy(paths, locale = "en") {
 // plan table; reproduce the English rendering from those exact inputs.
 function renderedEnglishPricing() {
   const plans = read("packages/core/src/constants/plans.ts");
-  const usd = (id) => Number(plans.match(new RegExp(`${id}: \\{ monthlyUsd: (\\d+),`))?.[1]);
+  const usd = (id) => Number(plans.match(new RegExp(`${id}: \\{ monthlyUsd: (\\d+(?:\\.\\d+)?),`))?.[1]);
   const preview = catalog("en").publicPreview;
   for (const path of ["packages/ui/app/page.tsx", "packages/ui/app/pricing/page.tsx"]) {
     const source = read(path);
@@ -216,7 +216,7 @@ test("authorized public sources expose only the frozen contract", () => {
   const layout = read("packages/ui/app/layout.tsx");
   assert.doesNotMatch(layout, /name:\s*"(?:Free|Creator|Pro|Business|Enterprise)"/);
   assert.doesNotMatch(layout, /"@type":\s*"Offer"/);
-  assert.match(layout, /Planned pricing: Individual \$19\/month; Team \$39\/active-user\/month; not currently purchasable/);
+  assert.match(layout, /Planned pricing: Individual \$19\.99\/month; Team \$39\/active-user\/month; not currently purchasable/);
 });
 
 test("source and structured-data source cannot publish unsupported shipped security guarantees", () => {
@@ -248,12 +248,14 @@ test("planned pricing cannot be presented as currently purchasable", () => {
   const pricingPage = metadataOf("packages/ui/app/pricing/page.tsx");
   const pricingLayout = metadataOf("packages/ui/app/pricing/layout.tsx");
   assert.match(source, /Pricing preview — not currently purchasable/);
-  assert.match(source, /Individual — \$19\/month/);
+  assert.match(source, /Individual — \$19\.99\/month/);
+  // Owner decision 2026-10-27 (Y18): one Individual price, $19.99, on web and in the stores.
+  assert.doesNotMatch(source, /\$19(?![.,]99)\b/);
   assert.match(source, /Team — \$39\/active-user\/month/);
   assert.doesNotMatch(source, /\bChoose (?:Individual|Team)\b/);
   assert.doesNotMatch(source, /Public pricing contract/);
   assert.doesNotMatch(layout, /"@type":\s*"Offer"/);
-  assert.match(layout, /Planned pricing: Individual \$19\/month; Team \$39\/active-user\/month; not currently purchasable/);
+  assert.match(layout, /Planned pricing: Individual \$19\.99\/month; Team \$39\/active-user\/month; not currently purchasable/);
 
   for (const [path, metadata] of [
     ["packages/ui/app/pricing/page.tsx", pricingPage],
