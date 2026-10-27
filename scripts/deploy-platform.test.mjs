@@ -1614,15 +1614,17 @@ for (const [name, mutate, overrides = {}] of [
 }));
 
 // Y6: F02 push ownership + notification locale + erasure tombstones, reviewed
-// against the 87290e0 production release. Bound to the 52-file SQL tree of the
-// first candidate that carries all three (later migrations need a new review).
+// against the 87290e0 production release, plus the data-only device-name
+// erasure (Y17, owner decision 2026-10-27). Bound to the 53-file SQL tree of the
+// first candidate that carries all four (later migrations need a new review).
 const F02_PREVIOUS_RELEASE = "87290e0c743b94293b2f23be4f7fda0b84cc780d";
-const F02_CANDIDATE = "4245fd9ec42415f1bee9cc7862b9596469f4b3e4";
-const F02_CANDIDATE_MIGRATIONS = 52;
+const F02_CANDIDATE = "0b03b5bd7c707732ac775f57cb6d4c1c7e04eb13";
+const F02_CANDIDATE_MIGRATIONS = 53;
 const F02_PATHS = [
   "packages/db/prisma/migrations/20261020000000_device_notification_locale/migration.sql",
   "packages/db/prisma/migrations/20261021000000_push_session_ownership/migration.sql",
   "packages/db/prisma/migrations/20261022000000_erasure_tombstones/migration.sql",
+  "packages/db/prisma/migrations/20261027000000_device_name_erasure/migration.sql",
 ];
 const f02Manifest = (input, paths = F02_PATHS) => paths.map((path) => `${sha256File(join(input, path))}  ${path}\n`).join("");
 function sealF02Delta(input, { previous = F02_PREVIOUS_RELEASE, candidate = RELEASE, api = API, ui = UI } = {}) {
@@ -1715,6 +1717,16 @@ for (const [name, mutate, overrides = {}] of [
     writeFileSync(join(input, "migration-delta.sha256"), f02Manifest(input, [...F02_PATHS, extra])); sealF02Delta(input);
   }],
   ["missing reviewed SQL", (input) => rmSync(join(input, F02_PATHS[0]))],
+  ["pre-Y17 three-file delta without the device-name erasure", (input) => {
+    rmSync(dirname(join(input, F02_PATHS[3])), { recursive: true });
+    writeFileSync(join(input, "migration-delta.name-status"), F02_PATHS.slice(0, 3).map((p) => `A\t${p}\n`).join(""));
+    writeFileSync(join(input, "migration-delta.sha256"), f02Manifest(input, F02_PATHS.slice(0, 3))); sealF02Delta(input);
+  }],
+  ["device-name erasure widened to another column", (input) => {
+    writeFileSync(join(input, F02_PATHS[3]), readFileSync(join(input, F02_PATHS[3]), "utf8")
+      .replace('"device_name" = NULL WHERE', '"device_name" = NULL, "os_version" = NULL WHERE'));
+    writeFileSync(join(input, "migration-delta.sha256"), f02Manifest(input)); sealF02Delta(input);
+  }],
   ["manifest omits a reviewed path", (input) => {
     writeFileSync(join(input, "migration-delta.name-status"), F02_PATHS.slice(1).map((p) => `A\t${p}\n`).join(""));
     writeFileSync(join(input, "migration-delta.sha256"), f02Manifest(input, F02_PATHS.slice(1))); sealF02Delta(input);
