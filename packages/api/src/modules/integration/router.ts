@@ -12,7 +12,7 @@ import { getIntegrationCatalog, getIntegrationById } from "./catalog";
 
 const saveIntegrationSchema = z.object({
   provider: z.string().min(1),
-  credentials: z.record(z.string()),
+  credentials: z.record(z.string(), z.string()),
   label: z.string().optional(),
 });
 

@@ -789,7 +789,7 @@ const CrmCreateContactInput = z.object({
   name: z.string().min(1).max(200),
   email: z.string().email().max(320),
   source: z.string().max(100).optional(),
-  properties: z.record(z.unknown()).optional(),
+  properties: z.record(z.string(), z.unknown()).optional(),
 });
 
 registerZodTool({

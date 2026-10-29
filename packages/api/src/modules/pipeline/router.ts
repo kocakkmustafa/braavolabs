@@ -45,7 +45,7 @@ const createSchema = z.object({
     name: z.string(),
     agentRole: z.string(),
     order: z.number(),
-    config: z.record(z.unknown()).optional(),
+    config: z.record(z.string(), z.unknown()).optional(),
   })),
 }).superRefine((val, ctx) => {
   if (val.pipelineType === "HIERARCHICAL" && !val.managerAgentId) {
@@ -256,7 +256,7 @@ const updatePipelineSchema = z.object({
     name: z.string(),
     agentRole: z.string(),
     order: z.number(),
-    config: z.record(z.unknown()).optional(),
+    config: z.record(z.string(), z.unknown()).optional(),
   })).optional(),
 }).superRefine((val, ctx) => {
   // When a PATCH explicitly sets trigger=SCHEDULED it must carry a valid cron

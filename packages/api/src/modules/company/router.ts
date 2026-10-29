@@ -36,13 +36,13 @@ const createSchema = z.object({
     "ACQUISITION", "SALES", "DELIVERY", "CONTENT",
     "OPERATIONS", "FINANCE", "ANALYTICS", "MEMORY", "GOVERNANCE",
   ])).min(1),
-  config: z.record(z.unknown()).optional(),
+  config: z.record(z.string(), z.unknown()).optional(),
 });
 
 const updateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().optional(),
-  config: z.record(z.unknown()).optional(),
+  config: z.record(z.string(), z.unknown()).optional(),
 });
 
 // GET /api/v1/companies — list companies for tenant
@@ -400,7 +400,7 @@ const agentCreateSchema = z.object({
   role: z.string().min(1),
   systemPrompt: z.string().optional(),
   tools: z.array(z.string()).optional(),
-  config: z.record(z.unknown()).optional(),
+  config: z.record(z.string(), z.unknown()).optional(),
 });
 
 const agentUpdateSchema = z.object({
@@ -409,7 +409,7 @@ const agentUpdateSchema = z.object({
   systemPrompt: z.string().optional(),
   tools: z.array(z.string()).optional(),
   // Agent settings use the supported flat fields below; Agent has no config column.
-  config: z.never({ invalid_type_error: "Agent config is not supported; use the supported agent fields" }).optional(),
+  config: z.never({ error: "Agent config is not supported; use the supported agent fields" }).optional(),
   // Per-agent model override — when set, this agent uses this specific
   // model id instead of the tenant-wide default from Settings → AI
   // Provider. Lets a user run e.g. Memory Curator on cheap Gemma 3 4B

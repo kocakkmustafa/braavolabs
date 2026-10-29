@@ -251,7 +251,9 @@ describe("HTTP validation and shared legacy boundaries", () => {
     expect((await post()).status).toBe(429); expect(m.run).toHaveBeenCalledTimes(20);
     expect(new Set(m.incr.mock.calls.map(([key]) => key))).toEqual(new Set([`rl:research:cascade:${TENANT}`]));
     expect(m.expire).toHaveBeenCalledOnce(); expect(m.expire).toHaveBeenCalledWith(`rl:research:cascade:${TENANT}`, 3600);
-  });
+  // 21 sequential HTTP round trips: ~2.5 s alone, 4.6–5.3 s in the full parallel
+  // suite on a loaded machine (zod 3 and 4 alike), so the 5 s default flakes.
+  }, 15_000);
   it("retains automatic legacy routing, unknown-field stripping and the original result shape", async () => {
     m.configs.mockResolvedValue([row("ZHIPU", "glm-4.7-flash"), row("ANTHROPIC", "claude-sonnet", 1)]);
     const result = await request("/cascade", payload);

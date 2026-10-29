@@ -116,10 +116,10 @@ const createSchema = z.object({
   companyId: z.string(),
   type: z.enum(["SOCIAL_POST", "EMAIL", "BLOG_POST", "AD_COPY", "VIDEO_SCRIPT"]),
   title: z.string().min(1),
-  content: z.record(z.unknown()),
+  content: z.record(z.string(), z.unknown()),
   channel: z.string().optional(),
   scheduledAt: z.string().datetime().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 // GET /api/v1/drafts?companyId=xxx
