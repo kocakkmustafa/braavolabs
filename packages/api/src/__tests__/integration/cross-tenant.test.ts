@@ -487,4 +487,24 @@ d("cross-tenant isolation (real Postgres, real routers)", () => {
     assertNoLeak(r.text, them, "GET /billing/usage");
   });
 
+  it.each([
+    ["A", () => A],
+    ["B", () => B],
+  ])("%s cannot sync CRM through a server-wide HubSpot token", async (_dir, tenant) => {
+    const me = tenant();
+    const saved = { token: process.env.HUBSPOT_ACCESS_TOKEN, portal: process.env.HUBSPOT_PORTAL_ID };
+    process.env.HUBSPOT_ACCESS_TOKEN = "operator-token-must-not-be-used";
+    process.env.HUBSPOT_PORTAL_ID = "operator-portal";
+    try {
+      const r = await req("POST", "/api/v1/crm/sync", me.token, { companyId: me.companyId });
+      expect(r.status).toBe(400);
+      expect(r.text).toContain("HubSpot is not connected for this company");
+    } finally {
+      if (saved.token === undefined) delete process.env.HUBSPOT_ACCESS_TOKEN;
+      else process.env.HUBSPOT_ACCESS_TOKEN = saved.token;
+      if (saved.portal === undefined) delete process.env.HUBSPOT_PORTAL_ID;
+      else process.env.HUBSPOT_PORTAL_ID = saved.portal;
+    }
+  });
+
 });
