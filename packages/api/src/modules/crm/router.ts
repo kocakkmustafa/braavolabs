@@ -5,6 +5,7 @@ import { AppError } from "../../middleware/error";
 import { z } from "zod";
 import { syncContacts, syncDeals } from "@ai-company-os/integrations";
 import { logger } from "../../lib/logger";
+import { getActiveIntegration } from "../integration/checker";
 
 export const crmRouter = Router();
 crmRouter.use(authMiddleware);
@@ -108,10 +109,13 @@ crmRouter.post("/sync", async (req, res, next) => {
     });
     if (!company) throw new AppError(404, "Company not found");
 
-    const accessToken = process.env.HUBSPOT_ACCESS_TOKEN;
-    const portalId = process.env.HUBSPOT_PORTAL_ID;
+    // Only the company's own HubSpot connection may be used. A server-wide
+    // token would let every tenant import the operator's HubSpot portal.
+    const creds = await getActiveIntegration(company.id, "HUBSPOT");
+    const accessToken = creds?.accessToken;
+    const portalId = creds?.portalId;
     if (!accessToken || !portalId) {
-      throw new AppError(400, "HubSpot not configured. Set HUBSPOT_ACCESS_TOKEN and HUBSPOT_PORTAL_ID.");
+      throw new AppError(400, "HubSpot is not connected for this company. Connect it under Integrations.");
     }
 
     const config = { accessToken, portalId };

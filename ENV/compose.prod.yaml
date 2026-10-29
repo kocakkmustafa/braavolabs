@@ -187,9 +187,7 @@ services:
       # Trust proxy hops — 1 (nginx only) or 2 (Cloudflare + nginx).
       # Set in .env so the same image works in different deployment topologies.
       TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
-      # Integrations
-      HUBSPOT_ACCESS_TOKEN: ${HUBSPOT_ACCESS_TOKEN:-}
-      HUBSPOT_PORTAL_ID: ${HUBSPOT_PORTAL_ID:-}
+      # Integrations (HubSpot is per-company, stored encrypted in `integrations`)
       TIKTOK_CLIENT_KEY: ${TIKTOK_CLIENT_KEY:-}
       TIKTOK_CLIENT_SECRET: ${TIKTOK_CLIENT_SECRET:-}
       LINKEDIN_CLIENT_ID: ${LINKEDIN_CLIENT_ID:-}
