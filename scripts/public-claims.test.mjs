@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -516,7 +516,7 @@ test("localized privacy and terms match platform data and billing truth", () => 
     const terms = messages.static?.legal?.terms;
     const pricingFaq = messages.pricing?.faq;
     assert.equal(privacy?.sections?.length, 8, `${locale}: privacy structure drift`);
-    assert.equal(terms?.sections?.length, 10, `${locale}: terms structure drift`);
+    assert.equal(terms?.sections?.length, 11, `${locale}: terms structure drift`);
     assert.ok(Array.isArray(pricingFaq), `${locale}: pricing FAQ structure drift`);
 
     const privacyCopy = privacy.sections.map(({ body }) => body).join("\n");
@@ -556,6 +556,19 @@ test("localized privacy and terms match platform data and billing truth", () => 
   assert.match(englishTerms, /Web subscriptions are billed through Stripe/);
   assert.match(englishTerms, /In-app subscriptions are billed by Apple through the App Store or by Google through Google Play/);
   assert.match(englishTerms, /Cancellation does not itself delete your account or tenant workspace data/);
+  // Apple 3.1.2: the App Store listing links these terms, so every locale
+  // carries Apple's standard EULA clause (lawyer-approved A-18 wording).
+  assert.match(englishTerms, /For the Braavolabs iOS app, Apple's standard Licensed Application End User License Agreement/);
+  assert.match(englishTerms, /between you and YULA Lab, the operator of Braavolabs, only; Apple has no obligation for maintenance, support, warranty or claims/);
+  assert.match(englishTerms, /Apple and its subsidiaries are third-party beneficiaries of these terms/);
+  for (const file of readdirSync(join(ROOT, "packages/ui/messages")).filter((name) => name.endsWith(".json"))) {
+    const terms = JSON.parse(read(`packages/ui/messages/${file}`)).static.legal.terms;
+    const clause = terms.sections.find(({ body }) => body.includes("https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"));
+    assert.ok(clause, `${file}: terms omit Apple's standard EULA`);
+    assert.match(clause.title, /^10\. /, `${file}: EULA clause moved`);
+    for (const name of ["Braavolabs", "YULA Lab", "Apple", "iOS"]) assert.ok(clause.body.includes(name), `${file}: EULA clause omits ${name}`);
+    assert.match(terms.sections.at(-1).title, /^11\. /, `${file}: contact is no longer last`);
+  }
   assert.match(englishFaq, /Manage Stripe web subscriptions in web billing settings/);
   assert.match(englishFaq, /Manage Apple App Store or Google Play subscriptions in that store/);
   assert.match(englishFaq, /Content may be sent to AI providers you select or connect for requested workflows/);

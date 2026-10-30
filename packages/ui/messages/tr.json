@@ -1300,7 +1300,7 @@
       },
       "terms": {
         "title": "Kullanım Şartları",
-        "date": "Eylül 2026",
+        "date": "Ekim 2026",
         "sections": [
           {
             "title": "1. Kabul",
@@ -1339,7 +1339,11 @@
             "body": "Bu şartları ihlal eden hesapları askıya alabilir veya feshedebiliriz. Sen de hesabını istediğin an Ayarlar sayfasından silebilirsin."
           },
           {
-            "title": "10. İletişim",
+            "title": "10. iOS uygulaması ve Apple",
+            "body": "Braavolabs iOS uygulamasında Apple'ın standart Lisanslı Uygulama Son Kullanıcı Lisans Sözleşmesi (https://www.apple.com/legal/internet-services/itunes/dev/stdeula/) geçerlidir; bu şartlar onu tamamlar. Bu sözleşme yalnız seninle Braavolabs'ın hizmet sağlayıcısı YULA Lab arasındadır; Apple'ın uygulamanın bakımı, desteği, garantisi veya uygulamaya ilişkin talepler bakımından bir yükümlülüğü yoktur. Apple ve iştirakleri bu şartların üçüncü taraf lehtarıdır."
+          },
+          {
+            "title": "11. İletişim",
             "body": "Bu şartlarla ilgili sorular için: legal@braavolabs.com."
           }
         ]

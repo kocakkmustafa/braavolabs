@@ -1300,7 +1300,7 @@
       },
       "terms": {
         "title": "Términos del Servicio",
-        "date": "Septiembre 2026",
+        "date": "Octubre 2026",
         "sections": [
           {
             "title": "1. Aceptación",
@@ -1339,7 +1339,11 @@
             "body": "Podemos suspender o terminar cuentas que violen estos términos. Tú puedes eliminar tu cuenta en cualquier momento desde la página de Ajustes."
           },
           {
-            "title": "10. Contacto",
+            "title": "10. App para iOS y Apple",
+            "body": "En la app de Braavolabs para iOS se aplica el Contrato de Licencia de Usuario Final estándar de Apple para Aplicaciones con Licencia (https://www.apple.com/legal/internet-services/itunes/dev/stdeula/), que estos términos complementan. Este acuerdo es solo entre tú y YULA Lab, el operador de Braavolabs; Apple no tiene ninguna obligación de mantenimiento, soporte, garantía ni respecto de reclamaciones relacionadas con la app. Apple y sus filiales son terceros beneficiarios de estos términos."
+          },
+          {
+            "title": "11. Contacto",
             "body": "¿Preguntas sobre estos términos? Escríbenos a legal@braavolabs.com."
           }
         ]

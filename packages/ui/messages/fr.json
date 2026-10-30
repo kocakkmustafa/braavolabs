@@ -1300,7 +1300,7 @@
       },
       "terms": {
         "title": "Conditions d'Utilisation",
-        "date": "Septembre 2026",
+        "date": "Octobre 2026",
         "sections": [
           {
             "title": "1. Acceptation",
@@ -1339,7 +1339,11 @@
             "body": "Nous pouvons suspendre ou résilier les comptes qui violent ces conditions. Vous pouvez supprimer votre compte à tout moment depuis la page Paramètres."
           },
           {
-            "title": "10. Contact",
+            "title": "10. Application iOS et Apple",
+            "body": "Pour l'application iOS Braavolabs, le contrat de licence utilisateur final standard d'Apple pour les applications sous licence (https://www.apple.com/legal/internet-services/itunes/dev/stdeula/) s'applique et les présentes conditions le complètent. Ce contrat est conclu uniquement entre vous et YULA Lab, l'exploitant de Braavolabs ; Apple n'a aucune obligation en matière de maintenance, d'assistance, de garantie ou de réclamations relatives à l'application. Apple et ses filiales sont des tiers bénéficiaires des présentes conditions."
+          },
+          {
+            "title": "11. Contact",
             "body": "Des questions sur ces conditions ? Écrivez-nous à legal@braavolabs.com."
           }
         ]
