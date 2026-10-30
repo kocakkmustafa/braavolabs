@@ -6,6 +6,7 @@ import { AppError } from "../../middleware/error";
 import { z } from "zod";
 import { notifyTenantUsers } from "../../services/push";
 import { getEffectivePlan } from "../billing/entitlement-ledger.service";
+import { assertOutboundFeatureEnabled } from "../../lib/outbound-gates";
 
 export const draftRouter = Router();
 draftRouter.use(authMiddleware);
@@ -253,6 +254,9 @@ draftRouter.post("/:id/approve", async (req, res, next) => {
     }
 
     const { send } = z.object({ send: z.boolean().optional() }).parse(req.body ?? {});
+    // B-06: email to CRM contacts stays off until OUTBOUND_EMAIL_ENABLED=true.
+    // Refuse before any claim, quota or provider call; approve-only still works.
+    if (send) assertOutboundFeatureEnabled("email");
     if (send && draft.type !== "EMAIL") {
       throw new AppError(422, "Publishing non-email drafts is unavailable until delivery is configured.");
     }

@@ -225,6 +225,14 @@ const envShape = z.object({
   IAP_DELIVERY_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(20).default(5),
   // RevenueCat (optional unified path covering both stores):
   REVENUECAT_WEBHOOK_SECRET: z.string().optional(),
+  // ── Outbound-contact gates (legal finding B-06) ──
+  // Email to CRM contacts, outreach sequences and the voice agent are OFF
+  // unless the literal "true" is set. Unset (the production default) = off.
+  // lib/outbound-gates.ts reads process.env at call time; these entries only
+  // document and shape-check the names.
+  OUTBOUND_EMAIL_ENABLED: z.string().optional(),
+  OUTREACH_SEQUENCES_ENABLED: z.string().optional(),
+  VOICE_AGENT_ENABLED: z.string().optional(),
   // Vapi voice webhook HMAC secret — used to verify inbound Vapi callbacks.
   VAPI_WEBHOOK_SECRET: z.string().optional(),
   // ── Air-gap / offline mode ──

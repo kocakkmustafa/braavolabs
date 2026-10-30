@@ -17,6 +17,7 @@ import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { placeOutboundCall, finalizeCall, recordInboundCall } from "./voice.service";
+import { assertOutboundFeatureEnabled } from "../../lib/outbound-gates";
 
 // ─── /voice/* — authenticated ──────────────────────────────
 
@@ -48,6 +49,9 @@ voiceRouter.get("/agents", async (req, res, next) => {
 
 voiceRouter.post("/agents", async (req, res, next) => {
   try {
+    // B-06: no new voice agents (and no dialing) until VOICE_AGENT_ENABLED=true.
+    // List, call history, edit and delete stay available.
+    assertOutboundFeatureEnabled("voice");
     const body = upsertSchema.parse(req.body);
     const company = await prisma.company.findFirst({
       where: { id: body.companyId, tenantId: req.auth!.tenantId },
@@ -145,6 +149,7 @@ const outboundSchema = z.object({
 });
 voiceRouter.post("/agents/:id/dial", async (req, res, next) => {
   try {
+    assertOutboundFeatureEnabled("voice");
     const body = outboundSchema.parse(req.body);
     const result = await placeOutboundCall({
       voiceAgentId: req.params.id,

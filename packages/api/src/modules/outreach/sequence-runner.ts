@@ -12,6 +12,7 @@ import { logger } from "../../lib/logger";
 import { runWithoutTenant } from "../../lib/tenant-context";
 import { env } from "../../config/env";
 import { sendEmail } from "../../integrations/email";
+import { isOutboundFeatureEnabled } from "../../lib/outbound-gates";
 
 const QUEUE_NAME = "outreach-sequence";
 
@@ -51,8 +52,16 @@ export async function scheduleNextStep(
 /**
  * Process an enrollment step.
  */
-async function processSequenceStep(job: Job<SequenceJobData>): Promise<void> {
+export async function processSequenceStep(job: Job<SequenceJobData>): Promise<void> {
   const { enrollmentId } = job.data;
+
+  // B-06: a queued step must never reach a contact while outreach or contact
+  // email is disabled. The job is consumed without touching the enrollment,
+  // so re-enabling later does not replay a backlog of stale sends.
+  if (!isOutboundFeatureEnabled("outreach") || !isOutboundFeatureEnabled("email")) {
+    logger.warn({ enrollmentId }, "Outreach step skipped — outreach/contact email disabled (B-06)");
+    return;
+  }
 
   const enrollment = await prisma.outreachEnrollment.findUnique({
     where: { id: enrollmentId },

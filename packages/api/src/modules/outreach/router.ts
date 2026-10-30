@@ -4,6 +4,7 @@ import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { z } from "zod";
 import { logger } from "../../lib/logger";
+import { assertOutboundFeatureEnabled } from "../../lib/outbound-gates";
 
 export const outreachRouter = Router();
 outreachRouter.use(authMiddleware);
@@ -42,6 +43,9 @@ outreachRouter.get("/sequences", async (req, res, next) => {
 // POST /api/v1/outreach/sequences
 outreachRouter.post("/sequences", async (req, res, next) => {
   try {
+    // B-06: creating or enrolling into sequences is off until
+    // OUTREACH_SEQUENCES_ENABLED=true. Reads, reply and unsubscribe stay open.
+    assertOutboundFeatureEnabled("outreach");
     const data = createSequenceSchema.parse(req.body);
     const company = await prisma.company.findFirst({
       where: { id: data.companyId, tenantId: req.auth!.tenantId },
@@ -74,6 +78,7 @@ outreachRouter.post("/sequences", async (req, res, next) => {
 // POST /api/v1/outreach/sequences/:id/enroll — enroll a contact
 outreachRouter.post("/sequences/:id/enroll", async (req, res, next) => {
   try {
+    assertOutboundFeatureEnabled("outreach");
     const { contactId } = z.object({ contactId: z.string() }).parse(req.body);
 
     const sequence = await prisma.outreachSequence.findUnique({

@@ -20,6 +20,7 @@ import { prisma } from "../../lib/db";
 import { redis } from "../../lib/redis";
 import { AppError } from "../../middleware/error";
 import { logger } from "../../lib/logger";
+import { assertOutboundFeatureEnabled } from "../../lib/outbound-gates";
 
 export interface OutboundCallRequest {
   voiceAgentId: string;
@@ -71,6 +72,9 @@ async function consumeOutboundQuota(voiceAgentId: string, limitPerHour: number):
 }
 
 export async function placeOutboundCall(req: OutboundCallRequest): Promise<OutboundCallResult> {
+  // B-06: every outbound dial (REST and the make_outbound_call tool) stops here
+  // while the voice agent is disabled — before quota, provider or DB writes.
+  assertOutboundFeatureEnabled("voice");
   if (!E164_RE.test(req.calleeNumber)) {
     throw new AppError(400, "calleeNumber must be in E.164 format (e.g. +14155550101)");
   }
