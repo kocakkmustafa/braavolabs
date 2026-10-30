@@ -16,6 +16,7 @@ import {
 } from "./registry";
 import { notifyTenantUsers } from "../../services/push";
 import { publishRunEvent } from "../../lib/runEvents";
+import { disabledFeatureForTool, outboundFeatureDisabledError } from "../../lib/outbound-gates";
 
 export interface ToolExecResult {
   output: unknown;
@@ -180,6 +181,20 @@ export async function executeTool(
       status: "FAILED",
       durationMs: Date.now() - start,
       error: `Tool "${toolName}" not found in registry`,
+    };
+  }
+
+  // B-06: outbound-contact tools (outreach enrollment, voice dialing) are
+  // refused while their feature flag is off — before any approval row is
+  // created, so nothing approvable reaches the approvals queue.
+  const disabledFeature = dynamicTool ? null : disabledFeatureForTool(toolName);
+  if (disabledFeature) {
+    const disabled = outboundFeatureDisabledError(disabledFeature);
+    return {
+      output: null,
+      status: "FAILED",
+      durationMs: Date.now() - start,
+      error: `${disabled.code}: ${disabled.message}`,
     };
   }
 

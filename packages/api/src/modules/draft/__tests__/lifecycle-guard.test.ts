@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Router } from "express";
 import { ZodError } from "zod";
 
@@ -85,6 +85,9 @@ function expectNoDecisionSideEffects() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Existing delivery behavior is asserted with the B-06 gate explicitly
+  // enabled; the disabled default has its own suite at the end of this file.
+  vi.stubEnv("OUTBOUND_EMAIL_ENABLED", "true");
   draftUpdate.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ id: "draft-1", ...data }));
   draftUpdateMany.mockResolvedValue({ count: 1 });
   activityLogCreate.mockResolvedValue({});
@@ -96,6 +99,8 @@ beforeEach(() => {
   tenantTxMock.mockResolvedValue([{ value: 1 }]);
   sendEmail.mockResolvedValue({ messageId: "sg-test-accepted" });
 });
+
+afterEach(() => { vi.unstubAllEnvs(); });
 
 describe("draft decisions respect company lifecycle", () => {
   it.each(["DRAFT", "PAUSED", "ARCHIVED"])(
@@ -468,5 +473,50 @@ describe("draft decisions respect company lifecycle", () => {
     const { error } = await invoke(method, method === "post" ? { send: true } : { status: "REJECTED" });
     expect(error).toMatchObject({ statusCode: 404 });
     expectNoDecisionSideEffects();
+  });
+});
+
+describe("B-06: contact email is disabled unless OUTBOUND_EMAIL_ENABLED=true", () => {
+  it.each([undefined, "", "false", "1", "TRUE"])(
+    "OUTBOUND_EMAIL_ENABLED=%s refuses send with 422 EMAIL_SENDING_DISABLED before any side effect",
+    async (value) => {
+      if (value === undefined) delete process.env.OUTBOUND_EMAIL_ENABLED;
+      else vi.stubEnv("OUTBOUND_EMAIL_ENABLED", value);
+      expect(process.env.OUTBOUND_EMAIL_ENABLED).toBe(value);
+      draftFindUnique.mockResolvedValue(pendingDraft("ACTIVE"));
+      const { error, res } = await invoke("post", { send: true });
+      expect(error).toMatchObject({ statusCode: 422, code: "EMAIL_SENDING_DISABLED" });
+      expect(res.json).not.toHaveBeenCalled();
+      expectNoDecisionSideEffects();
+      expect(enrollmentFindFirst).not.toHaveBeenCalled();
+    },
+  );
+
+  it("still approves without sending while email is disabled", async () => {
+    vi.stubEnv("OUTBOUND_EMAIL_ENABLED", "false");
+    draftFindUnique.mockResolvedValue(pendingDraft("ACTIVE"));
+    const { error, res } = await invoke("post", { send: false });
+    expect(error).toBeUndefined();
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: "APPROVED" }));
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("still edits a pending draft while email is disabled", async () => {
+    vi.stubEnv("OUTBOUND_EMAIL_ENABLED", "false");
+    draftFindUnique.mockResolvedValueOnce(pendingDraft("ACTIVE"))
+      .mockResolvedValueOnce({ ...pendingDraft("ACTIVE"), title: "Edited" });
+    const { error, res } = await invoke("patch", { title: "Edited" });
+    expect(error).toBeUndefined();
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ title: "Edited" }));
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("restores the previous send-and-publish behavior when the flag is \"true\"", async () => {
+    vi.stubEnv("OUTBOUND_EMAIL_ENABLED", "true");
+    draftFindUnique.mockResolvedValue(pendingDraft("ACTIVE"));
+    const { error, res } = await invoke("post", { send: true });
+    expect(error).toBeUndefined();
+    expect(sendEmail).toHaveBeenCalledOnce();
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: "PUBLISHED" }));
   });
 });

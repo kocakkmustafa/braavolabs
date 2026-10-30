@@ -4,6 +4,7 @@
 
 import { logger } from "../lib/logger";
 import { env } from "../config/env";
+import { isOutboundFeatureEnabled } from "../lib/outbound-gates";
 
 // Warn-once latch for the dev/no-key no-op path, so local logs aren't
 // spammed on every send attempt.
@@ -95,11 +96,18 @@ export async function sendEmail(params: SendEmailParams): Promise<{ messageId: s
 
 /**
  * Send a batch of emails (respects daily limit).
+ * Bulk mail is contact outreach, so it honors the B-06 gate: while
+ * OUTBOUND_EMAIL_ENABLED is not "true" nothing is sent.
  */
 export async function sendBatchEmails(
   emails: SendEmailParams[],
   dailyLimit = 50,
 ): Promise<{ sent: number; skipped: number }> {
+  if (!isOutboundFeatureEnabled("email")) {
+    logger.warn({ count: emails.length }, "Batch email skipped — contact email disabled (B-06)");
+    return { sent: 0, skipped: emails.length };
+  }
+
   let sent = 0;
   let skipped = 0;
 

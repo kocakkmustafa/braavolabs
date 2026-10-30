@@ -7,6 +7,8 @@ export class AppError extends Error {
     public statusCode: number,
     message: string,
     public details?: unknown,
+    /** Stable, client-localizable machine code (e.g. EMAIL_SENDING_DISABLED). */
+    public code?: string,
   ) {
     super(message);
     this.name = "AppError";
@@ -54,6 +56,7 @@ export function errorHandler(
     res.status(err.statusCode).json({
       error: err.message,
       details: err.details,
+      ...(err.code ? { code: err.code } : {}),
     });
     return;
   }

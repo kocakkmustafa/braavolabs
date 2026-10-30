@@ -1218,6 +1218,9 @@ registerTool({
   meta: { requiresApproval: false, riskLevel: "medium", rateLimit: 5 },
   handler: async (input) => {
     const { sequenceId, contactId } = input as any;
+    const { assertOutboundFeatureEnabled } = await import("../../lib/outbound-gates");
+    assertOutboundFeatureEnabled("outreach");
+    assertOutboundFeatureEnabled("email");
     const enrollment = await prisma.outreachEnrollment.create({
       data: { sequenceId, contactId, currentStep: 0, status: "ACTIVE" },
     });
