@@ -1300,7 +1300,7 @@
       },
       "terms": {
         "title": "服务条款",
-        "date": "2026年9月",
+        "date": "2026年10月",
         "sections": [
           {
             "title": "1. 接受条款",
@@ -1339,7 +1339,11 @@
             "body": "我们可能暂停或终止违反本条款的账户。您可以随时在设置页面删除账户。"
           },
           {
-            "title": "10. 联系",
+            "title": "10. iOS 应用与 Apple",
+            "body": "Braavolabs iOS 应用适用 Apple 的标准《许可应用程序最终用户许可协议》(https://www.apple.com/legal/internet-services/itunes/dev/stdeula/)，本条款是对其的补充。本协议仅在您与 Braavolabs 的运营方 YULA Lab 之间订立；Apple 不承担应用的维护、支持、保证或与应用相关的索赔方面的任何义务。Apple 及其子公司是本条款的第三方受益人。"
+          },
+          {
+            "title": "11. 联系",
             "body": "对本条款有疑问？请发送邮件至 legal@braavolabs.com。"
           }
         ]

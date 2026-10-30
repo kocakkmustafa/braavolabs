@@ -1300,7 +1300,7 @@
       },
       "terms": {
         "title": "서비스 이용약관",
-        "date": "2026년 9월",
+        "date": "2026년 10월",
         "sections": [
           {
             "title": "1. 동의",
@@ -1339,7 +1339,11 @@
             "body": "이 약관을 위반한 계정을 정지하거나 해지할 수 있습니다. 사용자는 언제든 설정 페이지에서 계정을 삭제할 수 있습니다."
           },
           {
-            "title": "10. 연락처",
+            "title": "10. iOS 앱과 Apple",
+            "body": "Braavolabs iOS 앱에는 Apple의 표준 라이선스 응용 프로그램 최종 사용자 사용권 계약(https://www.apple.com/legal/internet-services/itunes/dev/stdeula/)이 적용되며, 이 약관은 이를 보완합니다. 이 계약은 사용자와 Braavolabs의 운영자인 YULA Lab 사이에서만 체결되며, Apple은 앱의 유지 관리, 지원, 보증 또는 앱 관련 청구에 대해 어떠한 의무도 지지 않습니다. Apple 및 그 자회사는 이 약관의 제3자 수익자입니다."
+          },
+          {
+            "title": "11. 연락처",
             "body": "이 약관에 대한 질문이 있나요? legal@braavolabs.com으로 이메일을 보내세요."
           }
         ]

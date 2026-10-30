@@ -1300,7 +1300,7 @@
       },
       "terms": {
         "title": "Warunki świadczenia usług",
-        "date": "Wrzesień 2026",
+        "date": "Październik 2026",
         "sections": [
           {
             "title": "1. Akceptacja",
@@ -1339,7 +1339,11 @@
             "body": "Możemy zawiesić lub zamknąć konta naruszające te warunki. Możesz w dowolnym momencie usunąć konto ze strony Ustawienia."
           },
           {
-            "title": "10. Kontakt",
+            "title": "10. Aplikacja na iOS i Apple",
+            "body": "W aplikacji Braavolabs na iOS obowiązuje standardowa umowa licencyjna użytkownika końcowego Apple dla licencjonowanych aplikacji (https://www.apple.com/legal/internet-services/itunes/dev/stdeula/), którą niniejsze warunki uzupełniają. Umowa ta wiąże wyłącznie ciebie i YULA Lab, operatora Braavolabs; Apple nie ma żadnych zobowiązań dotyczących utrzymania, wsparcia, gwarancji ani roszczeń związanych z aplikacją. Apple i jej spółki zależne są osobami trzecimi uprawnionymi z niniejszych warunków."
+          },
+          {
+            "title": "11. Kontakt",
             "body": "Masz pytania o te warunki? Napisz na legal@braavolabs.com."
           }
         ]

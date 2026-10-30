@@ -1300,7 +1300,7 @@
       },
       "terms": {
         "title": "利用規約",
-        "date": "2026年9月",
+        "date": "2026年10月",
         "sections": [
           {
             "title": "1. 同意",
@@ -1339,7 +1339,11 @@
             "body": "本規約に違反するアカウントを停止または終了する場合があります。利用者は設定ページからいつでもアカウントを削除できます。"
           },
           {
-            "title": "10. お問い合わせ",
+            "title": "10. iOSアプリとApple",
+            "body": "BraavolabsのiOSアプリには、Appleの標準使用許諾契約（Licensed Application End User License Agreement）(https://www.apple.com/legal/internet-services/itunes/dev/stdeula/)が適用され、本規約はこれを補足します。この契約は利用者とBraavolabsの運営者であるYULA Labの間でのみ締結されるもので、Appleはアプリの保守、サポート、保証、またはアプリに関する請求について一切の義務を負いません。Appleおよびその子会社は本規約の第三者受益者です。"
+          },
+          {
+            "title": "11. お問い合わせ",
             "body": "本規約に関するご質問はlegal@braavolabs.comまでお寄せください。"
           }
         ]

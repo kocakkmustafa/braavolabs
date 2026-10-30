@@ -1300,7 +1300,7 @@
       },
       "terms": {
         "title": "Ketentuan Layanan",
-        "date": "September 2026",
+        "date": "Oktober 2026",
         "sections": [
           {
             "title": "1. Penerimaan",
@@ -1339,7 +1339,11 @@
             "body": "Kami dapat menangguhkan atau mengakhiri akun yang melanggar ketentuan ini. Anda dapat menghapus akun kapan saja melalui halaman Pengaturan."
           },
           {
-            "title": "10. Kontak",
+            "title": "10. Aplikasi iOS dan Apple",
+            "body": "Untuk aplikasi iOS Braavolabs, Perjanjian Lisensi Pengguna Akhir Aplikasi Berlisensi standar Apple (https://www.apple.com/legal/internet-services/itunes/dev/stdeula/) berlaku dan ketentuan ini melengkapinya. Perjanjian ini hanya antara Anda dan YULA Lab, pengelola Braavolabs; Apple tidak memiliki kewajiban atas pemeliharaan, dukungan, garansi, atau klaim yang berkaitan dengan aplikasi. Apple dan anak perusahaannya adalah pihak ketiga penerima manfaat dari ketentuan ini."
+          },
+          {
+            "title": "11. Kontak",
             "body": "Ada pertanyaan tentang ketentuan ini? Kirim email ke legal@braavolabs.com."
           }
         ]
