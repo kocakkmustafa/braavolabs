@@ -165,7 +165,7 @@ Durum `agent.status`'ta tutulur ve SSE ile yayınlanır. "Çalışıyor mu" soru
 
 - Ajan başına `provider` + `model` + `effort`. Sağlayıcı anahtarı yoksa ajan `error` durumuna geçer ve panelde "anahtar eksik" gösterilir (bugünkü "sessizce varsayılana düşme" davranışı yerelde **yapılmaz**).
 - Efor eşlemesi sağlayıcıya göre (PLAN 0.4): Anthropic extended thinking bütçesi/effort, OpenAI `reasoning_effort`, Gemini thinking budget, Groq/Cerebras `reasoning_effort` (destekleyen modellerde); desteklemeyen modelde efor yok sayılır ve panelde işaretlenir.
-- Varsayılan önerisi (K3): yönetici/CEO ajan güçlü model + düşük-orta efor; uzman ajanlar ucuz/yerel model; kodlama ajanı güçlü model + yüksek efor.
+- **Modeller (K3, karar 2026-11-01): hepsi kullanıcının anahtarıyla.** Şirket anahtarıyla deneme yok, Groq denemesi de yok. İlk kurulumda kullanıcı kendi anahtarını (BYOK) ya da yerel modelini (Ollama/LM Studio) girer. Şablon yalnız bir katman söyler (güçlü / orta / hafif / analiz); model, kullanıcının girdiği anahtarlara ve çektiği yerel modellere göre önerilir (`@braavo/core` `suggestModel`). Hiçbir sağlayıcı varsayılan değildir. İzleyici katmanlarında (hafif, analiz) çekili yerel model önce gelir, güçlü işte en sona kalır. Anahtarı olup katman için bilinen modeli olmayan sağlayıcıda kullanıcı modeli seçer (`model-required`). Hiçbiri yoksa ajan `error` / kurulum gerekiyor durumunda açılır (`setup-required`).
 
 ---
 
@@ -358,7 +358,7 @@ Bugün desktop arayüzü framework'süz TypeScript: `src/ui.ts` 2.462 satır, el
 
 ## 11. Uçtan uca örnek: rakip izleme ajanı
 
-1. Kullanıcı panelde "Pazar analisti" şablonunu işe alır (yönetici: CEO ajan; model: yerel Ollama `qwen` veya Groq; efor: düşük).
+1. Kullanıcı panelde "Pazar analisti" şablonunu işe alır (yönetici: Genel Müdür; model: kullanıcının çektiği yerel model ya da girdiği anahtarın hafif modeli; efor: düşük).
 2. "Rakiplerimi izle": üç URL, sıklık "her 6 saatte bir", teslim `silent-unless-change` + push.
 3. Rutin her ateşlemede `web-price` preflight çalıştırır: sayfa çekilir, normalize edilir, fiyatlar çıkarılır. Değişiklik yoksa `no-change` yazılır, model çağrılmaz.
 4. Fiyat 49 $ → 39 $ olunca koşu açılır; ajana fark `<untrusted>` sarmalıyla verilir; ajan kısa özet yazar, `fact` tablosuna yeni değeri kaydeder, kampanya metnini not eder.
@@ -377,7 +377,7 @@ Kurucu kararları `PLAN-ONERISI.tr.md` K1–K13'te. Bu tasarımı doğrudan etki
 |---|---|---|
 | K1 | Bölümün adı | **Karar (2026-11-01): "Şirket / Company"**, her dilde yerel kelimesiyle (§14). Kod adı `company` |
 | K2 | Hazır ajan listesi | **Karar (2026-11-01): önerilen 7 ajan aynen** (§14). Şablonlar `@braavo/core` `templates.ts` içinde |
-| K3 | Varsayılan modeller | Yerel Ollama + BYOK; anahtar yoksa ajan `error` |
+| K3 | Varsayılan modeller | **Karar (2026-11-01): hepsi kullanıcının anahtarıyla** (BYOK ya da yerel model). Şirket anahtarı ve deneme yok; öneri kullanıcının anahtarlarına göre (§5.4); anahtarsız ajan `error` |
 | K4 | Laptop kapalıyken bulut düğüm | **Karar (2026-10-31): bulut düğümü yok.** Yalnız yerel + `catchUp: once` + bildirim. `braavo daemon --headless` kullanıcının kendi makinesinde (ör. kendi Mac mini'si) çalışabilir; Braavolabs bulutu ajan yürütmez |
 | K6 | Paperclip ile ilişki | Kendi şeması, Paperclip kavramlarına yakın (goal ancestry, heartbeat, bütçe, işe alma onayı) |
 | K8 | Daemon dili | **Karar (2026-10-31): Node**, CLI paketinin parçası; desktop sidecar olarak paketler |
@@ -428,7 +428,7 @@ Kullanıcı
 
 - **Şablonlar kodda:** `packages/braavo-core/src/templates.ts` (`feat/braavo-core` dalı). `AGENT_TEMPLATES` alan, görev, yönetici, araç yetenekleri, efor, heartbeat ve rutinleri taşır. `hireFromTemplates()` bunları §4.1 `AgentSpec` ve §4.4 `RoutineSpec` kayıtlarına açar ve şemayla doğrular:
   - Hiçbir şablonda gönderim, yayın ya da ödeme yeteneği yok; promptlar "yalnız taslak, para hareketi yok" der (test bunu sabitler).
-  - Varsayılan modeller tek tabloda, `MODEL_TIERS`: güçlü (Genel Müdür, Teknik Lider), orta (İçerik), hafif ve analiz (izleyiciler: önce yerel Ollama modeli, yoksa Groq). **K3 hâlâ açık**; karar gelince yalnız bu tablo değişir.
-  - Anahtarı olmayan ajan `error` durumunda açılır ve `missingKeys` listesinde döner (§5.4).
+  - Modeller (K3): şablon katman söyler: güçlü (Genel Müdür, Teknik Lider), orta (İçerik), hafif ve analiz (izleyiciler). `MODEL_TIERS` sağlayıcıdan bağımsız bir bilinen-model listesidir; `suggestModel` yalnız kullanıcının anahtarı olan sağlayıcılardan ve çekili yerel modellerden öneri verir (§5.4).
+  - Kullanılabilir modeli olmayan ajan `error` durumunda açılır ve `needsSetup` listesinde döner (`setup-required` ya da `model-required`).
   - İzleme rutinleri (rakip, sürüm) kullanıcı URL verene kadar `needsUrls` ile bekletilir.
   - Yerelleştirilmiş adlar şimdilik `tr` ve `en`; diğer 12 dil arayüz kataloğuyla gelir.
