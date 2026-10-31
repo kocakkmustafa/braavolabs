@@ -387,6 +387,8 @@ Kurucu kararları `PLAN-ONERISI.tr.md` K1–K13'te. Bu tasarımı doğrudan etki
 
 ---
 
+Yüzey paralelliği (kurucu kararı 2026-11-01): desktop ve mobil CLI ile aynı anda ilerler. Sohbetin ortak sözleşmesi CLI `docs/DAEMON-CHAT.md`'de (dal `feat/chat`), şirket panelinin üç yüzeyli planı [SIRKET-PANELI.tr.md](SIRKET-PANELI.tr.md)'de.
+
 ## 13. Mevcut koddan eşleme
 
 | Tasarım parçası | Mevcut kaynak (platform `300e17d`, desktop `f7a8879`, CLI `0fd8f4a`) | İş |
