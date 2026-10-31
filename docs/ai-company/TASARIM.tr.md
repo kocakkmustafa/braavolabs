@@ -388,15 +388,6 @@ Kurucu kararları `PLAN-ONERISI.tr.md` K1–K13'te. Bu tasarımı doğrudan etki
 
 ---
 
-## 14. Ad ve ilk hazır ajan seti (öneri, K1–K2)
-
-Ayrıntı ve çakışma taraması: `scratch/2026-10-31-rakip-analizi/braavolabs/ONERI-AD-VE-AJANLAR.tr.md`. Kurucu tanımı (K7): hazır ajan = belirli alanda tanımlı görevleri olan ajan şablonu.
-
-- **Ad önerisi:** "Kadro" (14 dilde nötr ya da olumlu; "cadre/kadra/Kader" kavramı birçok dilde ekip anlamında). Alternatifler: tanımlayıcı "Şirket/Company", Ekip, Bureau, Atelier.
-- **İlk set (CEO dahil 7):** Genel Müdür (kök) → Pazar Analisti ⭐ (rakip izleme, 6 saatte bir, modelsiz preflight), İçerik ve Sosyal Medya Sorumlusu (→ Müşteri Sesi Analisti), Finans Takipçisi (para hareketi yok), Teknik Lider (→ Sürüm ve Bağımlılık Takipçisi). Her şablon: alan, görev, periyot, araçlar, model/efor, yönetici. Şablonlar §4.1 `agent` + §4.4 `routine` kayıtlarına açılır.
-
----
-
 ## 13. Mevcut koddan eşleme
 
 | Tasarım parçası | Mevcut kaynak (platform `300e17d`, desktop `f7a8879`, CLI `0fd8f4a`) | İş |
@@ -415,3 +406,12 @@ Ayrıntı ve çakışma taraması: `scratch/2026-10-31-rakip-analizi/braavolabs/
 | Bellek | `packages/memory/*`, `modules/memory/consolidation-cron.ts` | Desen alınır, yerel uygulama yeni (§7) |
 | Push | `services/push.ts` | Relay üzerinden kullanılır |
 | Yerel sağlayıcı | CLI `src/forge/local.ts`, `direct.ts`; desktop `src/local.ts`, `direct.ts` | Ortak pakete taşınınca kaldırılır |
+
+---
+
+## 14. Ad ve ilk hazır ajan seti (öneri, K1–K2)
+
+Ayrıntı ve çakışma taraması: `scratch/2026-10-31-rakip-analizi/braavolabs/ONERI-AD-VE-AJANLAR.tr.md`. Kurucu tanımı (K7): hazır ajan = belirli alanda tanımlı görevleri olan ajan şablonu.
+
+- **Ad önerisi:** "Kadro" (14 dilde nötr ya da olumlu; "cadre/kadra/Kader" kavramı birçok dilde ekip anlamında). Alternatifler: tanımlayıcı "Şirket/Company", Ekip, Bureau, Atelier.
+- **İlk set (CEO dahil 7):** Genel Müdür (kök) → Pazar Analisti ⭐ (rakip izleme, 6 saatte bir, modelsiz preflight), İçerik ve Sosyal Medya Sorumlusu (→ Müşteri Sesi Analisti), Finans Takipçisi (para hareketi yok), Teknik Lider (→ Sürüm ve Bağımlılık Takipçisi). Her şablon: alan, görev, periyot, araçlar, model/efor, yönetici. Şablonlar §4.1 `agent` + §4.4 `routine` kayıtlarına açılır.
