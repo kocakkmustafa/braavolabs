@@ -7,7 +7,7 @@ describe("per-agent effort planning", () => {
   it("maps Anthropic efforts to output_config.effort on the first-party endpoint", () => {
     for (const effort of ["low", "medium", "high", "max"] as const) {
       expect(planAgentEffort({ provider: "ANTHROPIC", model: "claude-opus-5-5" }, effort)).toEqual({
-        status: "applied", requested: effort, providerEffort: effort, wire: { output_config: { effort } }, adjusted: false,
+        status: "applied", requested: effort, providerEffort: effort, wire: { output_config: { effort } }, adjusted: false, rounding: "down",
       });
     }
   });
@@ -21,7 +21,7 @@ describe("per-agent effort planning", () => {
 
   it("passes none through where the model documents it", () => {
     expect(planAgentEffort({ provider: "GROQ", model: "qwen/qwen3.8-27b" }, "none")).toEqual({
-      status: "applied", requested: "none", providerEffort: "none", wire: { reasoning_effort: "none" }, adjusted: false,
+      status: "applied", requested: "none", providerEffort: "none", wire: { reasoning_effort: "none" }, adjusted: false, rounding: "down",
     });
   });
 
@@ -29,6 +29,21 @@ describe("per-agent effort planning", () => {
     expect(planAgentEffort({ provider: "GROQ", model: "openai/gpt-oss-20b" }, "max")).toMatchObject({ providerEffort: "high", wire: { reasoning_effort: "high" }, adjusted: true });
     expect(planAgentEffort({ provider: "GROQ", model: "meta-models/muse-spark-open" }, "max")).toMatchObject({ providerEffort: "xhigh", adjusted: true });
     expect(planAgentEffort({ provider: "ANTHROPIC", model: "claude-opus-4-6" }, "max")).toMatchObject({ providerEffort: "max", adjusted: false });
+  });
+
+  it("rounds up per agent when asked, and down by default", () => {
+    const oss = { provider: "GROQ" as const, model: "openai/gpt-oss-120b" };
+    const muse = { provider: "GROQ" as const, model: "meta-models/muse-spark-open" };
+    expect(planAgentEffort(oss, "max")).toMatchObject({ providerEffort: "high", rounding: "down" });
+    // Nothing stronger than high on gpt-oss: "up" falls back to the strongest available.
+    expect(planAgentEffort(oss, "max", { rounding: "up" })).toMatchObject({ providerEffort: "high", adjusted: true, rounding: "up" });
+    expect(planAgentEffort(muse, "max", { rounding: "up" })).toMatchObject({ providerEffort: "xhigh", adjusted: true });
+    // "none" can only move up, whatever the rounding.
+    expect(planAgentEffort(oss, "none", { rounding: "down" })).toMatchObject({ providerEffort: "low" });
+    expect(planAgentEffort(oss, "none", { rounding: "up" })).toMatchObject({ providerEffort: "low" });
+    // Exact matches ignore rounding.
+    expect(planAgentEffort(oss, "medium", { rounding: "up" })).toMatchObject({ providerEffort: "medium", adjusted: false });
+    expect(planAgentEffort(oss, "high", { rounding: "sideways" })).toMatchObject({ status: "unsupported", reason: "unknown-rounding" });
   });
 
   it("refuses unprofiled models, look-alike names and other providers instead of guessing", () => {

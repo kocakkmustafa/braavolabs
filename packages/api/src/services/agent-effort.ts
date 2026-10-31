@@ -28,6 +28,15 @@ import { REASONING_EFFORT_CAPABILITIES } from "./reasoning-effort";
 export type AgentEffort = "none" | "low" | "medium" | "high" | "max";
 export const AGENT_EFFORTS: readonly AgentEffort[] = Object.freeze(["none", "low", "medium", "high", "max"]);
 
+/**
+ * What to do when the model does not accept the requested level. "down" (default)
+ * never spends more than asked, in line with "approve before spending"; "up" never
+ * thinks less than asked. Per-agent setting (`effortRounding`); the default is a
+ * founder decision and can change here.
+ */
+export type EffortRounding = "down" | "up";
+export const DEFAULT_EFFORT_ROUNDING: EffortRounding = "down";
+
 /** Provider-side effort values that appear in at least one profile, ordered weakest → strongest. */
 const PROVIDER_ORDER = ["none", "low", "medium", "high", "xhigh", "max"] as const;
 type ProviderEffort = (typeof PROVIDER_ORDER)[number];
@@ -74,45 +83,50 @@ export type AgentEffortPlan =
       wire: { output_config: { effort: ProviderEffort } } | { reasoning_effort: ProviderEffort };
       /** True when the requested level was mapped to the nearest level the model accepts. */
       adjusted: boolean;
+      rounding: EffortRounding;
     }
-  | { status: "unsupported"; requested: AgentEffort; reason: "unknown-effort" | "no-profile" | "endpoint-mismatch" };
+  | { status: "unsupported"; requested: AgentEffort; reason: "unknown-effort" | "unknown-rounding" | "no-profile" | "endpoint-mismatch" };
 
 const TARGET: Record<AgentEffort, ProviderEffort> = { none: "none", low: "low", medium: "medium", high: "high", max: "max" };
 
-function nearestSupported(target: ProviderEffort, efforts: readonly ProviderEffort[]): ProviderEffort {
+function nearestSupported(target: ProviderEffort, efforts: readonly ProviderEffort[], rounding: EffortRounding): ProviderEffort {
   if (efforts.includes(target)) return target;
   const rank = PROVIDER_ORDER.indexOf(target);
-  // Prefer the closest weaker level (never spend more than asked); fall back to the weakest available.
-  for (let i = rank - 1; i >= 0; i--) if (efforts.includes(PROVIDER_ORDER[i])) return PROVIDER_ORDER[i];
-  return efforts[0];
+  const weaker = PROVIDER_ORDER.slice(0, rank).reverse().find(e => efforts.includes(e));
+  const stronger = PROVIDER_ORDER.slice(rank + 1).find(e => efforts.includes(e));
+  // Preferred direction first; the other direction only when nothing exists that way
+  // (e.g. "none" on a model that always reasons can only go up).
+  return (rounding === "down" ? weaker ?? stronger : stronger ?? weaker)!;
 }
 
 /**
  * Plan the effort field for one exact provider/model/endpoint.
- * "none" on a model that always reasons maps to its weakest level (adjusted: true);
- * "max" on a model without max maps to its strongest level below it.
+ * A level the model does not accept moves to the nearest accepted level in the
+ * agent's rounding direction (default "down"), flagged adjusted. "none" on a model
+ * that always reasons can only move up, to its weakest level.
  */
 export function planAgentEffort(
   config: { provider: AIProviderType; model: string; baseUrl?: string },
   effort: unknown,
+  options: { rounding?: unknown } = {},
 ): AgentEffortPlan {
   if (typeof effort !== "string" || !(AGENT_EFFORTS as readonly string[]).includes(effort)) {
     return { status: "unsupported", requested: effort as AgentEffort, reason: "unknown-effort" };
   }
   const requested = effort as AgentEffort;
+  const rounding = options.rounding ?? DEFAULT_EFFORT_ROUNDING;
+  if (rounding !== "down" && rounding !== "up") return { status: "unsupported", requested, reason: "unknown-rounding" };
   const profile = AGENT_EFFORT_PROFILES.find(p => p.provider === config.provider && p.models.includes(config.model));
   if (!profile) return { status: "unsupported", requested, reason: "no-profile" };
   const baseUrl = (config.baseUrl?.trim() || profile.baseUrl).replace(/\/+$/, "");
   if (baseUrl !== profile.baseUrl) return { status: "unsupported", requested, reason: "endpoint-mismatch" };
 
   const target = TARGET[requested];
-  const providerEffort = target === "none" && !profile.efforts.includes("none")
-    ? profile.efforts[0]
-    : nearestSupported(target, profile.efforts);
+  const providerEffort = nearestSupported(target, profile.efforts, rounding);
   const wire = profile.transport === "anthropic-messages"
     ? { output_config: { effort: providerEffort } }
     : { reasoning_effort: providerEffort };
-  return { status: "applied", requested, providerEffort, wire, adjusted: providerEffort !== target };
+  return { status: "applied", requested, providerEffort, wire, adjusted: providerEffort !== target, rounding };
 }
 
 /** Efforts an agent can meaningfully choose for this model (for pickers); empty when unprofiled. */
