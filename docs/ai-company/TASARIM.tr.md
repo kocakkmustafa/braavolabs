@@ -375,14 +375,13 @@ Kurucu kararları `PLAN-ONERISI.tr.md` K1–K13'te. Bu tasarımı doğrudan etki
 
 | # | Karar | Tasarımdaki varsayılan (karar gelene kadar) |
 |---|---|---|
-| K1 | Bölümün adı | Çalışma adı "AI şirketi" / `company` |
-| K2 | Hazır ajan listesi | Şablon mekanizması tasarlandı, liste boş |
+| K1 | Bölümün adı | **Karar (2026-11-01): "Şirket / Company"**, her dilde yerel kelimesiyle (§14). Kod adı `company` |
+| K2 | Hazır ajan listesi | **Karar (2026-11-01): önerilen 7 ajan aynen** (§14). Şablonlar `@braavo/core` `templates.ts` içinde |
 | K3 | Varsayılan modeller | Yerel Ollama + BYOK; anahtar yoksa ajan `error` |
 | K4 | Laptop kapalıyken bulut düğüm | **Karar (2026-10-31): bulut düğümü yok.** Yalnız yerel + `catchUp: once` + bildirim. `braavo daemon --headless` kullanıcının kendi makinesinde (ör. kendi Mac mini'si) çalışabilir; Braavolabs bulutu ajan yürütmez |
 | K6 | Paperclip ile ilişki | Kendi şeması, Paperclip kavramlarına yakın (goal ancestry, heartbeat, bütçe, işe alma onayı) |
 | K8 | Daemon dili | **Karar (2026-10-31): Node**, CLI paketinin parçası; desktop sidecar olarak paketler |
 | K9 | Desktop arayüz framework'ü | **Teknik seçim: React 19 + Vite + zustand** (§10.1) |
-| K1, K2 | Bölüm adı, ilk hazır ajan seti | Öneri §14 ve `scratch/2026-10-31-rakip-analizi/braavolabs/ONERI-AD-VE-AJANLAR.tr.md`; karar kurucuda |
 | K10 | Bulut ↔ yerel senkron | Yok; `cloudCompanyId` alanı ileriye dönük |
 | K11 | ACP ile dış ajan çıktısını okuma | Kullanıcı izniyle açık |
 
@@ -409,9 +408,27 @@ Kurucu kararları `PLAN-ONERISI.tr.md` K1–K13'te. Bu tasarımı doğrudan etki
 
 ---
 
-## 14. Ad ve ilk hazır ajan seti (öneri, K1–K2)
+## 14. Ad ve ilk hazır ajan seti (karar, K1–K2)
 
-Ayrıntı ve çakışma taraması: `scratch/2026-10-31-rakip-analizi/braavolabs/ONERI-AD-VE-AJANLAR.tr.md`. Kurucu tanımı (K7): hazır ajan = belirli alanda tanımlı görevleri olan ajan şablonu.
+Ayrıntı ve çakışma taraması: `scratch/2026-10-31-rakip-analizi/braavolabs/ONERI-AD-VE-AJANLAR.tr.md`. Kurucu tanımı (K7): hazır ajan, belirli alanda tanımlı görevleri olan ajan şablonudur.
 
-- **Ad önerisi:** "Kadro" (14 dilde nötr ya da olumlu; "cadre/kadra/Kader" kavramı birçok dilde ekip anlamında). Alternatifler: tanımlayıcı "Şirket/Company", Ekip, Bureau, Atelier.
-- **İlk set (CEO dahil 7):** Genel Müdür (kök) → Pazar Analisti ⭐ (rakip izleme, 6 saatte bir, modelsiz preflight), İçerik ve Sosyal Medya Sorumlusu (→ Müşteri Sesi Analisti), Finans Takipçisi (para hareketi yok), Teknik Lider (→ Sürüm ve Bağımlılık Takipçisi). Her şablon: alan, görev, periyot, araçlar, model/efor, yönetici. Şablonlar §4.1 `agent` + §4.4 `routine` kayıtlarına açılır.
+- **Ad (K1, karar 2026-11-01):** bölümün adı **"Şirket / Company"**. TR arayüzde "Şirket", EN arayüzde "Company"; diğer dillerde o dilin "şirket" kelimesi kullanılır (çeviri önerisi: Empresa, Unternehmen, Entreprise, 会社, شركة, Azienda, Perusahaan, 회사, Firma, कंपनी, 公司). Ad yalnız arayüz kataloğunda durur; ajan tanımları, sistem promptları ve kod adları (`company`) adı içermez. Böylece ad değişirse şablon değişmez. Tanımlayıcı ad olduğundan marka taraması gerekmez.
+- **İlk set (K2, karar 2026-11-01): önerilen 7 ajan aynen.**
+
+```
+Kullanıcı
+└── Genel Müdür                         ceo
+    ├── Pazar Analisti ⭐               market-analyst
+    ├── İçerik ve Sosyal Medya Sorumlusu content-social
+    │   └── Müşteri Sesi Analisti       customer-voice
+    ├── Finans Takipçisi                finance-tracker
+    └── Teknik Lider                    tech-lead
+        └── Sürüm ve Bağımlılık Takipçisi release-tracker
+```
+
+- **Şablonlar kodda:** `packages/braavo-core/src/templates.ts` (`feat/braavo-core` dalı). `AGENT_TEMPLATES` alan, görev, yönetici, araç yetenekleri, efor, heartbeat ve rutinleri taşır. `hireFromTemplates()` bunları §4.1 `AgentSpec` ve §4.4 `RoutineSpec` kayıtlarına açar ve şemayla doğrular:
+  - Hiçbir şablonda gönderim, yayın ya da ödeme yeteneği yok; promptlar "yalnız taslak, para hareketi yok" der (test bunu sabitler).
+  - Varsayılan modeller tek tabloda, `MODEL_TIERS`: güçlü (Genel Müdür, Teknik Lider), orta (İçerik), hafif ve analiz (izleyiciler: önce yerel Ollama modeli, yoksa Groq). **K3 hâlâ açık**; karar gelince yalnız bu tablo değişir.
+  - Anahtarı olmayan ajan `error` durumunda açılır ve `missingKeys` listesinde döner (§5.4).
+  - İzleme rutinleri (rakip, sürüm) kullanıcı URL verene kadar `needsUrls` ile bekletilir.
+  - Yerelleştirilmiş adlar şimdilik `tr` ve `en`; diğer 12 dil arayüz kataloğuyla gelir.
