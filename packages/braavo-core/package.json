@@ -1,0 +1,21 @@
+{
+  "name": "@braavo/core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared core for the Braavolabs cloud server and the local daemon: provider types, streaming client, per-agent effort, relay protocol, company/agent schemas.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.6"
+  }
+}

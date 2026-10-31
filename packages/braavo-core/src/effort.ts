@@ -1,23 +1,24 @@
-import type { AIProviderType } from "./ai-client";
-import { REASONING_EFFORT_CAPABILITIES } from "./reasoning-effort";
+import type { AIProviderType } from "./providers";
 
 /**
  * Per-agent effort planning (AI company design, docs/ai-company/TASARIM.tr.md §5.4).
  *
  * An agent carries one provider-neutral effort level. This module turns it into
  * the exact provider wire field for one provider/model/endpoint — or refuses.
- * It is a pure planner: nothing here is wired into chatCompletion yet, so the
- * live request path (and the Cerebras-only `reasoningEffort` option) is
- * unchanged until the agent loop adopts it.
+ * It is a pure planner shared by the cloud server and the local daemon; the API's
+ * live request path (and its Cerebras-only `reasoningEffort` option in
+ * packages/api/src/services/reasoning-effort.ts) is unchanged until the agent
+ * loop adopts it.
  *
- * Same rule as reasoning-effort.ts: exact positive profiles only. A model name
+ * Same rule as the API's reasoning-effort.ts: exact positive profiles only. A model name
  * that merely looks compatible, a proxy base URL, or a provider whose docs do
  * not give a per-model accepted set gets no profile and therefore no effort
  * field (the provider default applies). Sources, read 2026-10-31:
  *   Anthropic: Messages API `output_config.effort` (GA, no beta header) — Claude
  *     API reference, thinking & effort table (cached 2026-10-06).
  *   Groq: https://console.groq.com/docs/reasoning (`reasoning_effort`).
- *   Cerebras: existing REASONING_EFFORT_CAPABILITIES profile.
+ *   Cerebras: same exact profile as the API's REASONING_EFFORT_CAPABILITIES
+ *     (https://inference-docs.cerebras.ai/capabilities/reasoning); a parity test keeps them equal.
  * Not profiled (doğrulanamadı): OpenAI — https://developers.openai.com/api/docs/guides/reasoning
  *   lists values but defers per-model accepted sets to model pages; Google — the
  *   thinking guide documents `thinking_level` for a surface other than the
@@ -67,11 +68,8 @@ export const AGENT_EFFORT_PROFILES: readonly EffortProfile[] = Object.freeze([
   { provider: "GROQ", models: ["openai/gpt-oss-20b", "openai/gpt-oss-120b"], baseUrl: GROQ, transport: "chat-completions", efforts: Object.freeze(["low", "medium", "high"] as const), alwaysReasons: true },
   { provider: "GROQ", models: ["qwen/qwen3.8-27b"], baseUrl: GROQ, transport: "chat-completions", efforts: Object.freeze(["none", "low", "medium", "high"] as const), alwaysReasons: false },
   { provider: "GROQ", models: ["meta-models/muse-spark-open"], baseUrl: GROQ, transport: "chat-completions", efforts: Object.freeze(["low", "medium", "high", "xhigh"] as const), alwaysReasons: true },
-  // Cerebras — mirror the existing exact profile so both planners agree.
-  ...REASONING_EFFORT_CAPABILITIES.map(p => ({
-    provider: p.provider as AIProviderType, models: [p.model], baseUrl: p.baseUrl, transport: "chat-completions" as const,
-    efforts: p.efforts as readonly ProviderEffort[], alwaysReasons: true,
-  })),
+  // Cerebras — same exact profile as the API's live capability check.
+  { provider: "CEREBRAS", models: ["gpt-oss-120b"], baseUrl: "https://api.cerebras.ai/v1", transport: "chat-completions", efforts: Object.freeze(["low", "medium", "high"] as const), alwaysReasons: true },
 ]);
 
 export type AgentEffortPlan =

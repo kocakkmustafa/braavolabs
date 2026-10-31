@@ -1,7 +1,8 @@
 /** Pure planner: no transport, no keys. Exact-profile rule mirrors reasoning-effort.ts. */
 import { describe, expect, it } from "vitest";
-import { AGENT_EFFORTS, AGENT_EFFORT_PROFILES, agentEffortsFor, planAgentEffort } from "../agent-effort";
-import { REASONING_EFFORT_CAPABILITIES, supportedReasoningEfforts } from "../reasoning-effort";
+import { AGENT_EFFORTS, AGENT_EFFORT_PROFILES, agentEffortsFor, planAgentEffort } from "../effort";
+// Parity with the API's live capability check (type-only import chain; no API runtime is loaded).
+import { REASONING_EFFORT_CAPABILITIES, supportedReasoningEfforts } from "../../../api/src/services/reasoning-effort";
 
 describe("per-agent effort planning", () => {
   it("maps Anthropic efforts to output_config.effort on the first-party endpoint", () => {
