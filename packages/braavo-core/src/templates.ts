@@ -10,7 +10,11 @@ import type { AIProviderType } from "./providers";
  *
  * Definitions are name-independent: they never mention the section's display name,
  * which lives in the UI catalogue, so renaming the section touches no template.
- * Default models are a proposal (K3 is open) and live in one table, MODEL_TIERS.
+ *
+ * Models (K3, 2026-11-01: everything runs on the user's own keys): no provider is a
+ * default and there is no company-key or trial path. A template names a tier; the
+ * model is suggested from the keys the user entered and the local models they pulled.
+ * With neither, the agent opens in `error` and is listed in `needsSetup`.
  */
 
 export const TEMPLATE_IDS = [
@@ -22,13 +26,32 @@ export type ModelTier = "strong" | "mid" | "light" | "analysis";
 
 export interface ModelChoice { provider: AIProviderType; model: string }
 
-/** Ordered preferences per tier. `local` = whatever model the user has pulled into Ollama. */
-export const MODEL_TIERS: Readonly<Record<ModelTier, readonly (ModelChoice | "local")[]>> = Object.freeze({
-  strong: [{ provider: "ANTHROPIC", model: "claude-opus-5-5" }],
-  mid: [{ provider: "ANTHROPIC", model: "claude-sonnet-5-5" }],
-  light: ["local", { provider: "GROQ", model: "openai/gpt-oss-20b" }],
-  analysis: ["local", { provider: "GROQ", model: "openai/gpt-oss-120b" }],
+/**
+ * Known-good models per tier, any provider, each with an exact effort profile. The
+ * order only breaks ties when the user holds keys for several providers; a provider
+ * the user has no key for is never suggested.
+ */
+export const MODEL_TIERS: Readonly<Record<ModelTier, readonly ModelChoice[]>> = Object.freeze({
+  strong: [{ provider: "ANTHROPIC", model: "claude-opus-5-5" }, { provider: "GROQ", model: "openai/gpt-oss-120b" }, { provider: "CEREBRAS", model: "gpt-oss-120b" }],
+  mid: [{ provider: "ANTHROPIC", model: "claude-sonnet-5-5" }, { provider: "GROQ", model: "openai/gpt-oss-120b" }, { provider: "CEREBRAS", model: "gpt-oss-120b" }],
+  light: [{ provider: "ANTHROPIC", model: "claude-haiku-5-5" }, { provider: "GROQ", model: "openai/gpt-oss-20b" }, { provider: "CEREBRAS", model: "gpt-oss-120b" }],
+  analysis: [{ provider: "ANTHROPIC", model: "claude-sonnet-5-5" }, { provider: "GROQ", model: "openai/gpt-oss-120b" }, { provider: "CEREBRAS", model: "gpt-oss-120b" }],
 });
+
+/** Tiers whose work suits a local model better than a keyed cloud one (watchers, digests). */
+const LOCAL_FIRST: ReadonlySet<ModelTier> = new Set(["light", "analysis"]);
+
+/** What the user has set up: providers with a stored key, and models pulled into local runtimes. */
+export interface UserModels {
+  keys: ReadonlySet<AIProviderType>;
+  local?: Partial<Record<"OLLAMA" | "LMSTUDIO", readonly string[]>>;
+}
+
+export type ModelSuggestion =
+  | { status: "ok"; provider: AIProviderType; model: string }
+  /** The user has a key for this provider but we know no model for the tier; they pick one. */
+  | { status: "model-required"; provider: AIProviderType }
+  | { status: "setup-required" };
 
 type NotifyKind = (typeof NOTIFY_KINDS)[number];
 
@@ -140,10 +163,7 @@ export interface HireOptions {
   locale?: "en" | "tr";
   /** Templates to hire; defaults to all seven. A manager left out makes its reports roots. */
   templates?: readonly TemplateId[];
-  /** Providers the user has a key for (or that run locally). */
-  availableProviders: ReadonlySet<AIProviderType>;
-  /** A model the user has pulled into Ollama, if any. */
-  localModel?: string;
+  models: UserModels;
   /** Watched URLs per routine, keyed `<templateId>/<routineKey>`. */
   urls?: Readonly<Record<string, readonly string[]>>;
   makeId?: (templateId: TemplateId, routineKey?: string) => string;
@@ -154,38 +174,40 @@ export interface HirePlan {
   routines: RoutineSpec[];
   /** Routines held back until the user gives their URLs. */
   needsUrls: string[];
-  /** Agents whose provider has no key; they are created in `error` (design §5.4: no silent fallback). */
-  missingKeys: { agentId: string; provider: AIProviderType }[];
+  /** Agents created in `error` until the user adds a key, a local model or picks a model (design §5.4). */
+  needsSetup: { agentId: string; reason: "setup-required" | "model-required"; provider?: AIProviderType }[];
 }
 
-/** First available choice of the tier; else the tier's first keyed choice, flagged as missing. */
-export function resolveModel(tier: ModelTier, available: ReadonlySet<AIProviderType>, localModel?: string): ModelChoice & { available: boolean } {
-  const choices = MODEL_TIERS[tier];
-  for (const c of choices) {
-    if (c === "local") { if (localModel) return { provider: "OLLAMA", model: localModel, available: true }; continue; }
-    if (available.has(c.provider)) return { ...c, available: true };
-  }
-  const first = choices.find((c): c is ModelChoice => c !== "local")!;
-  return { ...first, available: false };
+/** Suggest a model for a tier from the user's own keys and local models only. */
+export function suggestModel(tier: ModelTier, user: UserModels): ModelSuggestion {
+  const local = (["OLLAMA", "LMSTUDIO"] as const).map(p => ({ provider: p, model: user.local?.[p]?.[0] })).find(c => c.model);
+  const keyed = MODEL_TIERS[tier].find(c => user.keys.has(c.provider));
+  if (local && (LOCAL_FIRST.has(tier) || !keyed)) return { status: "ok", provider: local.provider, model: local.model! };
+  if (keyed) return { status: "ok", ...keyed };
+  const other = [...user.keys].find(p => p !== "OLLAMA" && p !== "LMSTUDIO");
+  return other ? { status: "model-required", provider: other } : { status: "setup-required" };
 }
 
 export function hireFromTemplates(opts: HireOptions): HirePlan {
   const wanted = new Set(opts.templates ?? TEMPLATE_IDS);
   const makeId = opts.makeId ?? ((t: TemplateId, r?: string) => (r ? `${t}-${r}` : t));
   const locale = opts.locale ?? "en";
-  const plan: HirePlan = { agents: [], routines: [], needsUrls: [], missingKeys: [] };
+  const plan: HirePlan = { agents: [], routines: [], needsUrls: [], needsSetup: [] };
 
   for (const t of AGENT_TEMPLATES) {
     if (!wanted.has(t.id)) continue;
     const agentId = makeId(t.id);
-    const model = resolveModel(t.tier, opts.availableProviders, opts.localModel);
-    if (!model.available) plan.missingKeys.push({ agentId, provider: model.provider });
+    const suggestion = suggestModel(t.tier, opts.models);
+    // The schema needs a provider/model; an agent awaiting setup carries the tier's first known
+    // model as a placeholder, stays in `error` and never runs until the user changes it.
+    const model = suggestion.status === "ok" ? suggestion : MODEL_TIERS[t.tier][0];
+    if (suggestion.status !== "ok") plan.needsSetup.push({ agentId, reason: suggestion.status, ...(suggestion.status === "model-required" ? { provider: suggestion.provider } : {}) });
     plan.agents.push(AgentSpecSchema.parse({
       id: agentId, companyId: opts.companyId, name: t.names[locale], role: t.role, title: t.domain,
       systemPrompt: t.systemPrompt, tools: [...t.tools], autonomy: "SUPERVISED",
       reportsToAgentId: t.reportsTo && wanted.has(t.reportsTo) ? makeId(t.reportsTo) : null,
       provider: model.provider, model: model.model, effort: t.effort,
-      status: model.available ? "idle" : "error", heartbeatRrule: t.heartbeatRrule,
+      status: suggestion.status === "ok" ? "idle" : "error", heartbeatRrule: t.heartbeatRrule,
     }));
 
     for (const r of t.routines) {
