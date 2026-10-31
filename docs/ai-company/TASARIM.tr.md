@@ -45,6 +45,21 @@ Bulut (mevcut platform)
 
 **Dil ve paketleme önerisi (K8):** Node (≥24), CLI paketinin parçası (`braavo daemon start|stop|status|logs`). Desktop daemon'u sidecar olarak paketler ve yoksa başlatır. Gerekçe: platformdaki ajan döngüsü ve sağlayıcı kodu TypeScript; yeniden yazmadan taşınır. Sandbox Rust tarafında kalabilir (desktop `sandbox.rs`), daemon onu yardımcı ikili olarak çağırır; CLI-yalnız kurulumda `sandbox-exec`/`bwrap` doğrudan sarılır.
 
+**K8 karşılaştırması (kurucu kararı için):**
+
+| Ölçüt | A) Node daemon, CLI paketinin içinde; desktop sidecar olarak paketler (öneri) | B) Rust daemon, Tauri host'unun içinde (veya ondan ayrılmış Rust ikilisi) |
+|---|---|---|
+| Mevcut kodun yeniden kullanımı | Yüksek: ajan döngüsü (`claude.ts`), 14 sağlayıcı (`ai-client.ts`), onay/steering, relay protokolü, SSRF koruması zaten TypeScript; `@braavo/core` paketiyle doğrudan taşınır | Düşük: bunların hepsi Rust'a yeniden yazılır veya daemon içinde ayrıca Node gömülür; sandbox (`sandbox.rs`), PTY (`pty.rs`), CDP (`browser.rs`) ve onay token'ı (`action_scope.rs`) zaten Rust |
+| CLI-yalnız kullanıcı | Doğal: `npm i -g @braavolabs/cli` daemon'u da getirir | Ayrı Rust ikilisi dağıtılmalı (npm'de platforma göre ikili paketler) veya CLI desktop'a bağımlı olur |
+| Desktop dağıtımı | Node çalışma zamanı sidecar olarak paketlenir (+~40–60 MB, doğrulanmadı: hedef platformlarda ölçülmeli) veya tek dosyalı Node SEA ikilisi; imza/notary ikili başına | Tek uygulama ikilisi; ek çalışma zamanı yok; imza/notary tek ikili |
+| Bellek / pil | Node süreci boşta tipik olarak onlarca MB (ölçülmeli); 60 sn tik için yeterli | Daha düşük boşta bellek ve CPU |
+| Sandbox ve güvenlik | Rust yardımcı ikilisi (mevcut `sandbox.rs`) çağrılır veya `sandbox-exec`/`bwrap` doğrudan; bir süreç sınırı fazla | Sandbox, onay token'ı ve native dialog aynı süreçte; saldırı yüzeyi daha dar |
+| Uygulama kapalıyken çalışma | launchd/systemd ajanı; desktop kapansa da sürer | Tauri süreci kapanınca durur (bugün PTY çocukları böyle); ayrı Rust servis ikilisi gerekir, yani B de pratikte "ayrı daemon" olur |
+| Geliştirme hızı | Hızlı: mevcut test altyapısı (vitest), platformla aynı dil | Yavaş: Rust'ta yeniden yazım + iki dilde aynı mantık (sunucu TS, yerel Rust) |
+| Sunucu ile tek çekirdek | Evet: aynı paket bulutta (Postgres) ve yerelde (SQLite) | Hayır: iki ayrı uygulama, davranış farkı riski |
+
+Öneri A: ürünün çekirdeği zaten TypeScript ve "bulutta ve yerelde aynı çekirdek" ilkesi (§1.3) yalnız A ile korunur. B'nin güçlü yanları (sandbox, PTY, onay dialogu) A'da Rust yardımcı ikili olarak kullanılmaya devam eder. Karar verilmeden önce ölçülmesi gerekenler: sidecar Node boyutu ve boşta bellek (macOS arm64/x64, Windows, Linux).
+
 **Uyku davranışı:** daemon uykuyu engellemez (pil). Uyanınca kaçırılan rutinler §6.3'e göre ele alınır. "Koşu sürerken uykuyu engelle" kullanıcı ayarı (Cursor, Zed deseni) isteğe bağlı.
 
 ---
