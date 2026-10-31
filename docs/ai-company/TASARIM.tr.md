@@ -12,7 +12,7 @@ Braavolabs'ı kullanıcının kendi bilgisayarında çalışan bir AI çalışma
 
 İlkeler:
 
-1. **Yerel öncelik.** Ajan döngüsü, zamanlayıcı, bellek ve veriler kullanıcının makinesinde. Bulut yalnız (a) mobil kumanda için relay, (b) kullanıcının seçtiği bulut sağlayıcı çağrıları, (c) isteğe bağlı "her zaman açık düğüm" (kurucu kararı K4).
+1. **Yerel öncelik.** Ajan döngüsü, zamanlayıcı, bellek ve veriler kullanıcının makinesinde. Bulut yalnız (a) mobil kumanda için relay ve (b) kullanıcının seçtiği bulut model sağlayıcısı çağrıları içindir. **Braavolabs bulutu ajan yürütmez** (kurucu kararı K4, 2026-10-31): laptop uyurken kaçan koşu uyanınca bir kez telafi edilir ve bildirilir (§6.3).
 2. **Mobil = kumanda.** Mobil yürütmez; izler, onaylar, yön verir, sohbet eder. Yürütme desktop/CLI'nin bağlandığı yerel daemon'da.
 3. **Tek çekirdek, iki depolama.** Ajan döngüsü, sağlayıcı katmanı ve şirket modeli tek bir ortak pakette; bulut sunucu Postgres ile, yerel daemon SQLite ile aynı çekirdeği kullanır. Bugün bu kod üç repoda kopya.
 4. **Model tarafsızlığı.** 14 sağlayıcı (bugün platformda bağlı) + yerel modeller; ajan başına sağlayıcı, model ve efor.
@@ -38,7 +38,7 @@ Kullanıcının bilgisayarı
   istemciler: desktop (Tauri), CLI/TUI (`braavo`), ileride Chrome eklentisi
 Bulut (mevcut platform)
   relay (mevcut modules/relay) ⇄ mobil
-  isteğe bağlı: aynı çekirdekle "her zaman açık düğüm" (K4)
+  (bulutta ajan yürütme YOK — K4)
 ```
 
 **Neden daemon:** zamanlanmış görevler ve uzun koşular arayüz kapalıyken sürmeli; desktop ve CLI aynı durumu görmeli; mobil tek bir uca bağlanmalı. Rakiplerin vardığı desen (Claude Code supervisor daemon, Codex app-server, OpenClaw/Hermes gateway, Paperclip server) bu.
@@ -340,6 +340,20 @@ Relay köprüsü bu olay akışının redaksiyonlu alt kümesini buluta aynalar;
 | Kodlama | gömülü terminal + diff + checkpoint | `braavo code` | izle, diff oku, onayla |
 | Yürütme | daemon (sidecar) | daemon | yok |
 
+### 10.1 Desktop arayüz framework'ü (K9, teknik seçim)
+
+Bugün desktop arayüzü framework'süz TypeScript: `src/ui.ts` 2.462 satır, elle DOM. Şirket paneli (org şeması, ajan kartları, canlı durum, gelen kutusu, rutin geçmişi, sohbet akışı) bu yapıyla sürdürülemez.
+
+**Seçim: React 19 + Vite (mevcut) + zustand.** Gerekçe:
+- **Ortak bilgi ve desen:** platform web arayüzü Next.js 15 + React 19, mobil React Native 0.81 + zustand. Üç yüzeyde aynı bileşen ve durum desenleri kullanılır; i18n (14 dil), tema ve erişilebilirlik kalıpları paylaşılır.
+- **Mevcut çekirdek değişmez:** `governance.ts`, `relay-*.ts`, `keyvault.ts`, `mcp.ts` gibi framework'süz modüller saf TS olarak kalır; React yalnız sunum katmanı olur.
+- **Kademeli geçiş:** yeni yüzeyler (önce Şirket paneli, sonra sohbet) React kökü olarak mevcut kabuğa bağlanır; eski yüzeyler tek tek taşınır. Büyük bir yeniden yazım gerekmez.
+- **Test:** Vitest (mevcut) + Testing Library.
+
+**Değerlendirilen alternatifler:**
+- **Svelte 5 / Solid:** daha küçük paket, ama ekipte ve diğer iki yüzeyde karşılığı yok; masaüstü uygulamasında paket boyutu belirleyici değil.
+- **Framework'süz devam:** canlı akışlı, çok panelli bir arayüzde durum yönetimi ve test maliyeti hızla büyür.
+
 ---
 
 ## 11. Uçtan uca örnek: rakip izleme ajanı
@@ -364,11 +378,22 @@ Kurucu kararları `PLAN-ONERISI.tr.md` K1–K13'te. Bu tasarımı doğrudan etki
 | K1 | Bölümün adı | Çalışma adı "AI şirketi" / `company` |
 | K2 | Hazır ajan listesi | Şablon mekanizması tasarlandı, liste boş |
 | K3 | Varsayılan modeller | Yerel Ollama + BYOK; anahtar yoksa ajan `error` |
-| K4 | Laptop kapalıyken bulut düğüm | Yalnız yerel + `catchUp: once`; headless daemon mümkün kılınır |
+| K4 | Laptop kapalıyken bulut düğüm | **Karar (2026-10-31): bulut düğümü yok.** Yalnız yerel + `catchUp: once` + bildirim. `braavo daemon --headless` kullanıcının kendi makinesinde (ör. kendi Mac mini'si) çalışabilir; Braavolabs bulutu ajan yürütmez |
 | K6 | Paperclip ile ilişki | Kendi şeması, Paperclip kavramlarına yakın (goal ancestry, heartbeat, bütçe, işe alma onayı) |
-| K8 | Daemon dili | Node |
+| K8 | Daemon dili | **Karar (2026-10-31): Node**, CLI paketinin parçası; desktop sidecar olarak paketler |
+| K9 | Desktop arayüz framework'ü | **Teknik seçim: React 19 + Vite + zustand** (§10.1) |
+| K1, K2 | Bölüm adı, ilk hazır ajan seti | Öneri §14 ve `scratch/2026-10-31-rakip-analizi/braavolabs/ONERI-AD-VE-AJANLAR.tr.md`; karar kurucuda |
 | K10 | Bulut ↔ yerel senkron | Yok; `cloudCompanyId` alanı ileriye dönük |
 | K11 | ACP ile dış ajan çıktısını okuma | Kullanıcı izniyle açık |
+
+---
+
+## 14. Ad ve ilk hazır ajan seti (öneri, K1–K2)
+
+Ayrıntı ve çakışma taraması: `scratch/2026-10-31-rakip-analizi/braavolabs/ONERI-AD-VE-AJANLAR.tr.md`. Kurucu tanımı (K7): hazır ajan = belirli alanda tanımlı görevleri olan ajan şablonu.
+
+- **Ad önerisi:** "Kadro" (14 dilde nötr ya da olumlu; "cadre/kadra/Kader" kavramı birçok dilde ekip anlamında). Alternatifler: tanımlayıcı "Şirket/Company", Ekip, Bureau, Atelier.
+- **İlk set (CEO dahil 7):** Genel Müdür (kök) → Pazar Analisti ⭐ (rakip izleme, 6 saatte bir, modelsiz preflight), İçerik ve Sosyal Medya Sorumlusu (→ Müşteri Sesi Analisti), Finans Takipçisi (para hareketi yok), Teknik Lider (→ Sürüm ve Bağımlılık Takipçisi). Her şablon: alan, görev, periyot, araçlar, model/efor, yönetici. Şablonlar §4.1 `agent` + §4.4 `routine` kayıtlarına açılır.
 
 ---
 
