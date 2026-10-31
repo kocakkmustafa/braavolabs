@@ -33,6 +33,9 @@ vi.mock("../../../lib/redis", () => {
   interface Shared {
     lists: Map<string, string[]>;
     counters: Map<string, number>;
+    strings: Map<string, string>;
+    sets: Map<string, Set<string>>;
+    failRegistry: boolean;
     channels: Map<string, Set<(msg: string) => void>>;
     forceExecError: boolean;
     now: number;
@@ -47,7 +50,13 @@ vi.mock("../../../lib/redis", () => {
       shared.expires.delete(key);
       shared.counters.delete(key);
       shared.lists.delete(key);
+      shared.strings.delete(key);
+      shared.sets.delete(key);
     }
+  }
+
+  function registryOp(shared: Shared) {
+    if (shared.failRegistry) throw new Error("simulated registry outage");
   }
 
   function createClient(shared: Shared) {
@@ -55,6 +64,21 @@ vi.mock("../../../lib/redis", () => {
     const localSubs = new Map<string, (msg: string) => void>();
 
     const client: any = {
+      get: async (key: string) => { registryOp(shared); expireIfNeeded(shared, key); return shared.strings.get(key) ?? null; },
+      set: async (key: string, value: string, mode: string, seconds: number) => {
+        registryOp(shared);
+        shared.strings.set(key, value);
+        if (mode === "EX") shared.expires.set(key, shared.now + seconds); else shared.expires.delete(key);
+        return "OK";
+      },
+      del: async (key: string) => { registryOp(shared); shared.expires.delete(key); return shared.strings.delete(key) || shared.sets.delete(key) ? 1 : 0; },
+      sadd: async (key: string, member: string) => {
+        registryOp(shared); expireIfNeeded(shared, key);
+        const set = shared.sets.get(key) ?? new Set<string>();
+        set.add(member); shared.sets.set(key, set); return 1;
+      },
+      srem: async (key: string, member: string) => { registryOp(shared); expireIfNeeded(shared, key); return shared.sets.get(key)?.delete(member) ? 1 : 0; },
+      smembers: async (key: string) => { registryOp(shared); expireIfNeeded(shared, key); return [...(shared.sets.get(key) ?? [])]; },
       incr: async (key: string) => {
         expireIfNeeded(shared, key);
         const v = (shared.counters.get(key) ?? 0) + 1;
@@ -156,7 +180,7 @@ vi.mock("../../../lib/redis", () => {
     return client;
   }
 
-  const shared: Shared = { lists: new Map(), counters: new Map(), channels: new Map(), forceExecError: false, now: 0, expires: new Map() };
+  const shared: Shared = { lists: new Map(), counters: new Map(), strings: new Map(), sets: new Map(), failRegistry: false, channels: new Map(), forceExecError: false, now: 0, expires: new Map() };
   return {
     redis: createClient(shared),
     __relayTestControls: {
@@ -169,6 +193,15 @@ vi.mock("../../../lib/redis", () => {
         return [...new Set([...shared.counters.keys(), ...shared.lists.keys()])].filter(key => key.includes(`:${tenantId}:`));
       },
       ttl: (key: string) => { expireIfNeeded(shared, key); return shared.expires.get(key); },
+      registryKeys: (tenantId: string) => {
+        for (const key of shared.expires.keys()) expireIfNeeded(shared, key);
+        return [...shared.strings.keys(), ...shared.sets.keys()].filter(key => key.startsWith(`relay:registry:${tenantId}:`));
+      },
+      setRegistryFailure: (v: boolean) => { shared.failRegistry = v; },
+      // The registry is now the durable copy of relayState: reset it with the cache between tests.
+      clearRegistry: () => {
+        for (const key of [...shared.strings.keys(), ...shared.sets.keys()]) if (key.startsWith("relay:registry:")) { shared.strings.delete(key); shared.sets.delete(key); shared.expires.delete(key); }
+      },
       pauseNextExec: () => {
         let resume!: () => void;
         shared.pauseExec = new Promise<void>(resolve => { resume = resolve; });
@@ -253,6 +286,8 @@ describe("relay router — transport smoke (mocked Redis)", () => {
     __relayTestControls.setForceExecError(false);
     __relayTestControls.setClock(0);
     __relayTestControls.setPublishFailure();
+    __relayTestControls.setRegistryFailure(false);
+    __relayTestControls.clearRegistry();
     // Deliberately NOT resetting relayState.counter: the fake Redis store
     // (buffers/seq counters, keyed by tenantId+sessionId) is a module-level
     // singleton that lives for the whole test FILE, not per test. Session
@@ -696,19 +731,59 @@ describe("relay router — transport smoke (mocked Redis)", () => {
       expect(__relayTestControls.keys("tenant-ended")).toEqual([]);
     });
 
-    it("restart invalidates old access and old payloads expire; a fresh session starts at one", async () => {
-      const oldId = await httpRegisterSession("tenant-restart", "u", "cli");
-      await invoke(postCommandHandler, mockReq({ auth: auth("tenant-restart", "u"), params: { id: oldId }, body: { type: "steer", message: "before restart" } }));
+    it("restart keeps the owner's session and cursor from the durable registry; others still get 404", async () => {
+      const id = await httpRegisterSession("tenant-restart", "u", "cli");
+      await invoke(postCommandHandler, mockReq({ auth: auth("tenant-restart", "u"), params: { id }, body: { type: "steer", message: "before restart" } }));
+      relayState.sessions.clear(); // simulated process restart / another instance
+      const stranger = await invoke(postCommandHandler, mockReq({ auth: auth("tenant-restart", "intruder"), params: { id }, body: { type: "kill" } }));
+      expect(stranger.nextErr?.statusCode).toBe(404);
+      const otherTenant = await invoke(postCommandHandler, mockReq({ auth: auth("tenant-other", "u"), params: { id }, body: { type: "kill" } }));
+      expect(otherTenant.nextErr?.statusCode).toBe(404);
+      const local = await openCommandsSSE("tenant-restart", "u", id);
+      const after = await invoke(postCommandHandler, mockReq({ auth: auth("tenant-restart", "u"), params: { id }, body: { type: "steer", message: "after restart" } }));
+      expect(after.res.statusCode).toBe(202);
+      // The cursor continues from the persisted record instead of rewinding to 1.
+      expect(frames(local.res).map((frame: any) => frame.seq)).toEqual([1, 2]);
+      const listed = await invoke(listHandler, mockReq({ auth: auth("tenant-restart", "u") }));
+      expect(listed.res.body.sessions.map((s: any) => s.sessionId)).toEqual([id]);
+    });
+
+    it("registry keys always expire: 24h sliding while active, 1h once ended; then access is gone", async () => {
+      const id = await httpRegisterSession("tenant-ttl", "u", "cli");
+      const sessionKey = `relay:registry:tenant-ttl:session:${id}`;
+      expect(__relayTestControls.registryKeys("tenant-ttl").sort()).toEqual([`relay:registry:tenant-ttl:index`, sessionKey].sort());
+      expect(__relayTestControls.ttl(sessionKey)).toBe(86400);
+      __relayTestControls.setClock(80000);
+      await invoke(postEventHandler, mockReq({ auth: auth("tenant-ttl", "u"), params: { id }, body: { type: "status", state: "running" } }));
+      expect(__relayTestControls.ttl(sessionKey)).toBe(80000 + 86400); // refreshed by activity
+      await invoke(postEventHandler, mockReq({ auth: auth("tenant-ttl", "u"), params: { id }, body: { type: "status", state: "ended" } }));
+      expect(__relayTestControls.ttl(sessionKey)).toBe(80000 + 3600);
       relayState.sessions.clear();
-      const denied = await invoke(postCommandHandler, mockReq({ auth: auth("tenant-restart", "u"), params: { id: oldId }, body: { type: "kill" } }));
-      expect(denied.nextErr?.statusCode).toBe(404);
-      __relayTestControls.setClock(86401);
-      expect(__relayTestControls.keys("tenant-restart")).toEqual([]);
-      const newId = await httpRegisterSession("tenant-restart", "u", "cli");
-      expect(newId).not.toBe(oldId);
-      const local = await openCommandsSSE("tenant-restart", "u", newId);
-      await invoke(postCommandHandler, mockReq({ auth: auth("tenant-restart", "u"), params: { id: newId }, body: { type: "steer", message: "after restart" } }));
-      expect(frames(local.res).map((frame: any) => frame.seq)).toEqual([1]);
+      __relayTestControls.setClock(80000 + 86401);
+      expect(__relayTestControls.registryKeys("tenant-ttl")).toEqual([]);
+      const gone = await invoke(getEventsPoll, mockReq({ auth: auth("tenant-ttl", "u"), params: { id } }));
+      expect(gone.res.statusCode).toBe(404);
+    });
+
+    it("a registry outage degrades to the in-memory registry instead of failing requests", async () => {
+      __relayTestControls.setRegistryFailure(true);
+      const id = await httpRegisterSession("tenant-outage", "u", "cli");
+      expect(id).toMatch(/^sess_/);
+      const command = await invoke(postCommandHandler, mockReq({ auth: auth("tenant-outage", "u"), params: { id }, body: { type: "steer", message: "still works" } }));
+      expect(command.res.statusCode).toBe(202);
+      expect(__relayTestControls.registryKeys("tenant-outage")).toEqual([]);
+    });
+
+    it("evicted sessions leave the registry and the cap counts sessions from every instance", async () => {
+      const firstId = await httpRegisterSession("tenant-evict", "u", "cli");
+      await invoke(postEventHandler, mockReq({ auth: auth("tenant-evict", "u"), params: { id: firstId }, body: { type: "status", state: "ended" } }));
+      relayState.sessions.clear(); // a second instance only knows the registry
+      for (let i = 0; i < DEFAULT_MAX_SESSIONS_PER_TENANT; i++) await httpRegisterSession("tenant-evict", "u", "cli");
+      expect(relayState.sessions.has(firstId)).toBe(false);
+      expect(__relayTestControls.registryKeys("tenant-evict")).not.toContain(`relay:registry:tenant-evict:session:${firstId}`);
+      relayState.sessions.clear();
+      const overflow = await invoke(registerHandler, mockReq({ auth: auth("tenant-evict", "u"), body: { surface: "cli" } }));
+      expect(overflow.nextErr?.statusCode).toBe(429);
     });
 
     it("an authorized in-flight event completing after kill and eviction leaves no permanent state", async () => {
