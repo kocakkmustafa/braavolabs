@@ -311,6 +311,52 @@ describe("relay router — transport smoke (mocked Redis)", () => {
     expect(again.res.body.events.length).toBe(0);
   });
 
+  const snapshot = {
+    type: "panel-snapshot",
+    company: { name: "YULA Lab" },
+    agents: [
+      { id: "ag_9f8e7d6c-5b4a-4c3d-9e2f-1a0b9c8d7e6f", name: "General Manager", role: "ceo", managerId: null, model: "OLLAMA/qwen3:8b", effort: "medium", status: "idle", runsThisMonth: 3 },
+      { id: "ag_1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d", name: "Market Analyst sk-live_abcdefghijklmnop", role: "market-analyst", managerId: "ag_9f8e7d6c-5b4a-4c3d-9e2f-1a0b9c8d7e6f", model: null, effort: "low", status: "error", runsThisMonth: 0 },
+    ],
+    routines: [{ id: "rt_0f1e2d3c-4b5a-4968-8776-655443322110", name: "Watch competitors", agentId: "ag_1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d", nextFireAt: "2026-11-01T10:00:00.000Z", lastOutcome: "no-change" }],
+    month: { inputTokens: 120, outputTokens: 30 },
+  };
+
+  it("panel-snapshot is opt-in: older companions never see it but still move past it", async () => {
+    const sessionId = await httpRegisterSession("tenant-a", "u", "cli");
+    for (const ev of [{ type: "status", state: "running" }, snapshot, { type: "agent-turn", summary: "done" }]) {
+      const { res } = await invoke(postEventHandler, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, body: ev }));
+      expect(res.statusCode).toBe(202);
+    }
+    const old = await invoke(getEventsPoll, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, query: {} }));
+    expect(old.res.body.events.map((e: any) => e.type)).toEqual(["status", "agent-turn"]);
+    const fresh = await invoke(getEventsPoll, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, query: { include: "panel-snapshot,unknown-thing" } }));
+    expect(fresh.res.body.events.map((e: any) => e.type)).toEqual(["status", "panel-snapshot", "agent-turn"]);
+    expect(old.res.body.lastSeq).toBe(fresh.res.body.lastSeq);
+    // Ids round-trip intact; free-text names are redacted like any other event text.
+    const snap = fresh.res.body.events[1];
+    expect(snap.agents[1].managerId).toBe("ag_9f8e7d6c-5b4a-4c3d-9e2f-1a0b9c8d7e6f");
+    expect(snap.agents[1].name).toBe("Market Analyst «redacted»");
+    expect(snap.routines[0].id).toBe("rt_0f1e2d3c-4b5a-4968-8776-655443322110");
+    // A snapshot as the last event: the older poller's cursor still advances past it.
+    await invoke(postEventHandler, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, body: snapshot }));
+    const tail = await invoke(getEventsPoll, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, query: { after: String(old.res.body.lastSeq) } }));
+    expect(tail.res.body.events).toEqual([]);
+    expect(tail.res.body.lastSeq).toBe(old.res.body.lastSeq + 1);
+  });
+
+  it("panel-snapshot over SSE is opt-in too, and malformed snapshots are refused", async () => {
+    const sessionId = await httpRegisterSession("tenant-a", "u", "cli");
+    const oldStream = await openEventsSSE("tenant-a", "u", sessionId);
+    const req = mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, query: { include: "panel-snapshot" } });
+    const res = mockRes(); liveReqs.push(req); await getEventsSSE(req, res);
+    await invoke(postEventHandler, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, body: snapshot }));
+    expect(oldStream.res.chunks.join("")).not.toContain("panel-snapshot");
+    expect(res.chunks.join("")).toContain("panel-snapshot");
+    const bad = await invoke(postEventHandler, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, body: { ...snapshot, agents: [{ ...snapshot.agents[0], status: "dancing" }] } }));
+    expect(bad.res.statusCode === 202).toBe(false);
+  });
+
   it("events/poll is owner-bound: another user in the same tenant gets 404, not the events", async () => {
     const sessionId = await httpRegisterSession("tenant-a", "u");
     await invoke(postEventHandler, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, body: { type: "status", state: "running" } }));

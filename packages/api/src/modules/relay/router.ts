@@ -32,6 +32,8 @@ import { redis } from "../../lib/redis";
 import {
   SessionRegistrationSchema,
   SessionEventInputSchema,
+  deliverableTo,
+  parseIncludedEventTypes,
   ControlCommandSchema,
   type SessionEvent,
   type ControlCommandMessage,
@@ -204,8 +206,10 @@ relayRouter.get("/sessions/:id/events", async (req, res) => {
     try { res.end(); } catch { /* already ended */ }
   }
 
+  const included = parseIncludedEventTypes(req.query.include);
   const write = (ev: SessionEvent) => {
     if (closed || ev.seq <= maxSeqWritten) return;
+    if (!deliverableTo(ev, included)) return; // opt-in types never reach older companions
     maxSeqWritten = ev.seq;
     res.write(`id: ${ev.seq}\ndata: ${JSON.stringify(ev)}\n\n`);
     if (ev.type === "status" && ev.state === "ended") {
@@ -268,8 +272,11 @@ relayRouter.get("/sessions/:id/events/poll", async (req, res) => {
     return;
   }
   const after = Number(req.query.after ?? 0) || 0;
-  const events = await getBufferedSessionEvents(sessionId, tenantId, after);
-  const lastSeq = events.length ? events[events.length - 1]!.seq : after;
+  const buffered = await getBufferedSessionEvents(sessionId, tenantId, after);
+  // lastSeq covers filtered events too, so an older companion moves past them instead of re-polling.
+  const lastSeq = buffered.length ? buffered[buffered.length - 1]!.seq : after;
+  const included = parseIncludedEventTypes(req.query.include);
+  const events = buffered.filter(ev => deliverableTo(ev, included));
   const record = getSession(relayState, sessionId);
   res.json({ events, lastSeq, ended: record?.status === "ended" });
 });
