@@ -475,7 +475,7 @@ export default function CompanyDetailPage() {
                                 onClick={(e) => e.stopPropagation()}
                                 disabled={modelSaving}
                                 autoFocus
-                                placeholder={"claude-sonnet-4-5-20250929"}
+                                placeholder={"claude-sonnet-5-5"}
                                 className="bv-mono"
                                 style={{
                                   flex: 1, padding: "4px 8px",
@@ -484,9 +484,9 @@ export default function CompanyDetailPage() {
                                 }}
                               />
                               <datalist id={`model-options-${a.id}`}>
-                                <option value="claude-opus-4-20250514" />
-                                <option value="claude-sonnet-4-5-20250929" />
-                                <option value="claude-haiku-4-5-20251001" />
+                                <option value="claude-opus-5-5" />
+                                <option value="claude-sonnet-5-5" />
+                                <option value="claude-haiku-5-5" />
                                 <option value="gpt-4o" />
                                 <option value="gpt-4o-mini" />
                                 <option value="o1-mini" />
