@@ -318,7 +318,7 @@ describe("relay router — transport smoke (mocked Redis)", () => {
       { id: "ag_9f8e7d6c-5b4a-4c3d-9e2f-1a0b9c8d7e6f", name: "General Manager", role: "ceo", managerId: null, model: "OLLAMA/qwen3:8b", effort: "medium", status: "idle", runsThisMonth: 3 },
       { id: "ag_1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d", name: "Market Analyst sk-live_abcdefghijklmnop", role: "market-analyst", managerId: "ag_9f8e7d6c-5b4a-4c3d-9e2f-1a0b9c8d7e6f", model: null, effort: "low", status: "error", runsThisMonth: 0 },
     ],
-    routines: [{ name: "Watch competitors", agentId: "ag_1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d", nextFireAt: "2026-11-01T10:00:00.000Z", lastOutcome: "no-change" }],
+    routines: [{ id: "rt_0f1e2d3c-4b5a-4968-8776-655443322110", name: "Watch competitors", agentId: "ag_1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d", nextFireAt: "2026-11-01T10:00:00.000Z", lastOutcome: "no-change" }],
     month: { inputTokens: 120, outputTokens: 30 },
   };
 
@@ -337,6 +337,7 @@ describe("relay router — transport smoke (mocked Redis)", () => {
     const snap = fresh.res.body.events[1];
     expect(snap.agents[1].managerId).toBe("ag_9f8e7d6c-5b4a-4c3d-9e2f-1a0b9c8d7e6f");
     expect(snap.agents[1].name).toBe("Market Analyst «redacted»");
+    expect(snap.routines[0].id).toBe("rt_0f1e2d3c-4b5a-4968-8776-655443322110");
     // A snapshot as the last event: the older poller's cursor still advances past it.
     await invoke(postEventHandler, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, body: snapshot }));
     const tail = await invoke(getEventsPoll, mockReq({ auth: auth("tenant-a", "u"), params: { id: sessionId }, query: { after: String(old.res.body.lastSeq) } }));
