@@ -118,9 +118,9 @@ describe("tokensSaved — honest savings vs naive frontier/full-context baseline
 describe("modelSpecFromPricing — built on the real modelPricing.ts table", () => {
   it("derives per-1k costs from the per-1M pricing table (claude-haiku)", () => {
     const m = modelSpecFromPricing("claude-haiku", "cheap", ["summarize"]);
-    // MODEL_PRICES claude-haiku = { inputPerM: 0.8, outputPerM: 4 }
-    expect(m.costPer1kIn).toBeCloseTo(0.0008, 6);
-    expect(m.costPer1kOut).toBeCloseTo(0.004, 6);
+    // MODEL_PRICES claude-haiku (family fallback) = { inputPerM: 1, outputPerM: 5 }
+    expect(m.costPer1kIn).toBeCloseTo(0.001, 6);
+    expect(m.costPer1kOut).toBeCloseTo(0.005, 6);
     expect(m.tier).toBe("cheap");
   });
   it("resolves dated variants via starts-with (claude-opus-4-...) and zero-costs local", () => {

@@ -23,14 +23,28 @@ export interface ModelPrice {
 /**
  * Per-model price map. Keys are matched case-insensitively against the
  * configured model id with a "starts-with" fallback so dated variants
- * (e.g. `claude-sonnet-4-20250514`) resolve to the `claude-sonnet`
- * family entry.
+ * (e.g. `claude-sonnet-4-5-20250929`) resolve to the `claude-sonnet-4`
+ * entry and unknown ids to their family entry.
  */
 export const MODEL_PRICES: Record<string, ModelPrice> = {
-  // ── Anthropic ──
+  // ── Anthropic ── (base rates from platform.claude.com/docs/en/about-claude/pricing, 2026-11-01)
+  "claude-opus-5-5": { inputPerM: 4, outputPerM: 20 },
+  "claude-opus-5": { inputPerM: 5, outputPerM: 25 },
+  "claude-opus-4-8": { inputPerM: 5, outputPerM: 25 },
+  "claude-opus-4-7": { inputPerM: 5, outputPerM: 25 },
+  "claude-opus-4-6": { inputPerM: 5, outputPerM: 25 },
+  "claude-opus-4-5": { inputPerM: 5, outputPerM: 25 },
+  "claude-opus-4": { inputPerM: 15, outputPerM: 75 },
+  "claude-sonnet-5-5": { inputPerM: 2, outputPerM: 10 },
+  "claude-sonnet-5": { inputPerM: 2, outputPerM: 10 },
+  "claude-sonnet-4": { inputPerM: 3, outputPerM: 15 },
+  // Haiku 5.5 is $0.50 / $2.50 above 100K prompt tokens; estimates use the base tier.
+  "claude-haiku-5-5": { inputPerM: 0.1, outputPerM: 0.5 },
+  "claude-haiku-4-5": { inputPerM: 1, outputPerM: 5 },
+  // Unknown future/legacy ids in a family estimate high rather than low.
   "claude-opus": { inputPerM: 15, outputPerM: 75 },
   "claude-sonnet": { inputPerM: 3, outputPerM: 15 },
-  "claude-haiku": { inputPerM: 0.8, outputPerM: 4 },
+  "claude-haiku": { inputPerM: 1, outputPerM: 5 },
   // ── OpenAI ──
   "gpt-4o-mini": { inputPerM: 0.15, outputPerM: 0.6 },
   "gpt-4o": { inputPerM: 2.5, outputPerM: 10 },

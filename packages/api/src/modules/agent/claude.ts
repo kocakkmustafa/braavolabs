@@ -66,11 +66,24 @@ const isLocalMode = env.LLM_PROVIDER === "local";
 // EXPENSIVE on unknown models — better to over-report cost and stop
 // early than the opposite.
 const MODEL_PRICES: Record<string, { input: number; output: number }> = {
+  // Base rates from platform.claude.com/docs/en/about-claude/pricing (2026-11-01).
+  // Most specific ids first: the prefix heuristic below takes the first match.
+  // Claude 5 family
+  "claude-opus-5-5": { input: 4.0, output: 20.0 },
+  "claude-opus-5": { input: 5.0, output: 25.0 },
+  "claude-sonnet-5-5": { input: 2.0, output: 10.0 },
+  "claude-sonnet-5": { input: 2.0, output: 10.0 },
+  "claude-haiku-5-5": { input: 0.1, output: 0.5 }, // prompts ≤100K tokens; see HAIKU_5_5_LONG
   // Claude 4 family
+  "claude-opus-4-8": { input: 5.0, output: 25.0 },
+  "claude-opus-4-7": { input: 5.0, output: 25.0 },
+  "claude-opus-4-6": { input: 5.0, output: 25.0 },
+  "claude-opus-4-5": { input: 5.0, output: 25.0 },
+  "claude-opus-4-1": { input: 15.0, output: 75.0 },
   "claude-opus-4-20250514": { input: 15.0, output: 75.0 },
   "claude-sonnet-4-5-20250929": { input: 3.0, output: 15.0 },
   "claude-sonnet-4": { input: 3.0, output: 15.0 },
-  "claude-haiku-4-5-20251001": { input: 0.8, output: 4.0 },
+  "claude-haiku-4-5-20251001": { input: 1.0, output: 5.0 },
   // Claude 3 family (legacy)
   "claude-3-5-sonnet-20241022": { input: 3.0, output: 15.0 },
   "claude-3-5-haiku-20241022": { input: 0.8, output: 4.0 },
@@ -80,6 +93,8 @@ const MODEL_PRICES: Record<string, { input: number; output: number }> = {
 // Fallback when the model returned by the API isn't in our table —
 // price as if it's Opus so cost_anomaly_stop can still gate cleanly.
 const FALLBACK_PRICE = { input: 15.0, output: 75.0 };
+// Haiku 5.5 bills prompts over 100K tokens at a higher tier.
+const HAIKU_5_5_LONG = { input: 0.5, output: 2.5 };
 
 function priceFor(model: string): { input: number; output: number } {
   if (MODEL_PRICES[model]) return MODEL_PRICES[model]!;
@@ -106,7 +121,7 @@ function costForUsage(
   outputTokens: number,
 ): number {
   if (provider === "ANTHROPIC") {
-    const p = priceFor(model);
+    const p = model.startsWith("claude-haiku-5-5") && inputTokens > 100_000 ? HAIKU_5_5_LONG : priceFor(model);
     return (inputTokens / 1_000_000) * p.input + (outputTokens / 1_000_000) * p.output;
   }
   if (FREE_PROVIDERS.has(provider)) return 0;
