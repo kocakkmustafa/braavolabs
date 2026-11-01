@@ -16,12 +16,13 @@
  * probing caller can't learn which case they hit (cross-tenant/cross-user
  * leak = P1/P2 per the adversarial review).
  *
- * First-slice scope (see module report for the full list): the session
- * REGISTRY (`relayState`) is in-memory per API process — fine for a single
- * instance; horizontally scaling this transport needs either sticky
- * routing or moving `RelayState` into Redis (relay.core's functions don't
- * need to change shape to do that later). The event/command CHANNELS
- * already run over Redis pub/sub, so they already fan out across processes.
+ * The session REGISTRY (`relayState`) is a write-through cache of a
+ * tenant-namespaced, TTL'd Redis registry (registry-store.ts, plan 1.6):
+ * each handler hydrates the records it needs before calling relay.core and
+ * persists what changed afterwards, so sessions, owners, lifecycle and
+ * cursors survive a restart and are visible to every instance. A Redis error
+ * degrades to the in-memory map (the earlier single-process behaviour). The
+ * event/command CHANNELS already run over Redis pub/sub.
  */
 import { randomUUID } from "node:crypto";
 import { Router } from "express";
@@ -32,6 +33,8 @@ import { redis } from "../../lib/redis";
 import {
   SessionRegistrationSchema,
   SessionEventInputSchema,
+  deliverableTo,
+  parseIncludedEventTypes,
   ControlCommandSchema,
   type SessionEvent,
   type ControlCommandMessage,
@@ -55,6 +58,14 @@ import {
   getBufferedControlCommands,
   relayCommandChannel,
 } from "./bus";
+import {
+  createRedisRegistryStore,
+  forgetSessions,
+  hydrateSession,
+  hydrateTenant,
+  persistSession,
+  type RegistryRedis,
+} from "./registry-store";
 
 export const relayRouter = Router();
 relayRouter.use(authMiddleware);
@@ -63,6 +74,8 @@ relayRouter.use(authMiddleware);
 // (and, later, an admin/diagnostics surface) can inspect it directly
 // without reaching through HTTP.
 export const relayState: RelayState = createRelayState();
+const registry = createRedisRegistryStore(redis as unknown as RegistryRedis);
+const warnRegistry = (context: Record<string, unknown>, message: string) => logger.warn(context, message);
 
 // PRODUCTION session-id generator (adversarial review P1, layer 1 of 2):
 // cryptographically random, so a session id can never collide across
@@ -94,15 +107,22 @@ function releaseSseSlot(tenantId: string): void {
 }
 
 // POST /relay/sessions — a LOCAL session (desktop/CLI) registers itself.
-relayRouter.post("/sessions", (req, res, next) => {
+relayRouter.post("/sessions", async (req, res, next) => {
   try {
     const reg = SessionRegistrationSchema.parse(req.body);
-    const result = registerSession(relayState, req.auth!.tenantId, req.auth!.userId, reg, { mintId: cryptoMintId });
+    const tenantId = req.auth!.tenantId;
+    // Cap accounting must see the tenant's sessions from every instance/generation.
+    await hydrateTenant(relayState, registry, tenantId, warnRegistry);
+    const before = new Set([...relayState.sessions.values()].filter(s => s.tenantId === tenantId).map(s => s.sessionId));
+    const result = registerSession(relayState, tenantId, req.auth!.userId, reg, { mintId: cryptoMintId });
+    // registerSession may evict the tenant's oldest ended sessions to make room.
+    await forgetSessions(registry, tenantId, [...before].filter(id => !relayState.sessions.has(id)), warnRegistry);
     if (!result.ok) {
       // P2-4: per-tenant session cap exceeded even after evicting ended
       // sessions — genuinely too many ACTIVE sessions for this tenant.
       throw new AppError(429, "Too many active relay sessions for this workspace. End an existing session first.");
     }
+    await persistSession(relayState, registry, result.record, warnRegistry);
     res.status(201).json({
       sessionId: result.sessionId,
       surface: result.record.surface,
@@ -117,8 +137,9 @@ relayRouter.post("/sessions", (req, res, next) => {
 // the companion to pick one to observe/steer. Owner-scoped (relay.core.ts
 // listSessions doc) — never another tenant's OR another user's rows, even
 // within the same tenant.
-relayRouter.get("/sessions", (req, res, next) => {
+relayRouter.get("/sessions", async (req, res, next) => {
   try {
+    await hydrateTenant(relayState, registry, req.auth!.tenantId, warnRegistry);
     const sessions = listSessions(relayState, req.auth!.tenantId, req.auth!.userId);
     res.json({
       sessions: sessions.map((s) => ({
@@ -146,11 +167,13 @@ relayRouter.post("/sessions/:id/events", async (req, res, next) => {
     const sessionId = req.params.id as string;
     const parsed = SessionEventInputSchema.parse(req.body);
 
+    await hydrateSession(relayState, registry, req.auth!.tenantId, sessionId, warnRegistry);
     if (!canAccessSession(relayState, req.auth!.tenantId, req.auth!.userId, sessionId)) {
       throw new AppError(404, "Session not found");
     }
 
-    await publishSessionEvent(getSession(relayState, sessionId)!, parsed);
+    const record = getSession(relayState, sessionId)!;
+    await publishSessionEvent(record, parsed);
 
     // The local session reporting its own graceful end is the authoritative
     // lifecycle signal (a `kill` ControlCommand only REQUESTS this — see the
@@ -159,6 +182,8 @@ relayRouter.post("/sessions/:id/events", async (req, res, next) => {
     if (parsed.type === "status" && parsed.state === "ended") {
       endSession(relayState, sessionId);
     }
+    // The publish reserved a cursor (and maybe ended the session): persist both.
+    await persistSession(relayState, registry, record, warnRegistry);
 
     res.status(202).json({ success: true });
   } catch (err) { next(err); }
@@ -171,6 +196,7 @@ relayRouter.post("/sessions/:id/events", async (req, res, next) => {
 relayRouter.get("/sessions/:id/events", async (req, res) => {
   const sessionId = req.params.id as string;
   const tenantId = req.auth!.tenantId;
+  await hydrateSession(relayState, registry, tenantId, sessionId, warnRegistry);
   if (!canAccessSession(relayState, tenantId, req.auth!.userId, sessionId)) {
     res.status(404).json({ error: "Session not found" });
     return;
@@ -204,8 +230,10 @@ relayRouter.get("/sessions/:id/events", async (req, res) => {
     try { res.end(); } catch { /* already ended */ }
   }
 
+  const included = parseIncludedEventTypes(req.query.include);
   const write = (ev: SessionEvent) => {
     if (closed || ev.seq <= maxSeqWritten) return;
+    if (!deliverableTo(ev, included)) return; // opt-in types never reach older companions
     maxSeqWritten = ev.seq;
     res.write(`id: ${ev.seq}\ndata: ${JSON.stringify(ev)}\n\n`);
     if (ev.type === "status" && ev.state === "ended") {
@@ -263,13 +291,17 @@ relayRouter.get("/sessions/:id/events", async (req, res) => {
 relayRouter.get("/sessions/:id/events/poll", async (req, res) => {
   const sessionId = req.params.id as string;
   const tenantId = req.auth!.tenantId;
+  await hydrateSession(relayState, registry, tenantId, sessionId, warnRegistry);
   if (!canAccessSession(relayState, tenantId, req.auth!.userId, sessionId)) {
     res.status(404).json({ error: "Session not found" });
     return;
   }
   const after = Number(req.query.after ?? 0) || 0;
-  const events = await getBufferedSessionEvents(sessionId, tenantId, after);
-  const lastSeq = events.length ? events[events.length - 1]!.seq : after;
+  const buffered = await getBufferedSessionEvents(sessionId, tenantId, after);
+  // lastSeq covers filtered events too, so an older companion moves past them instead of re-polling.
+  const lastSeq = buffered.length ? buffered[buffered.length - 1]!.seq : after;
+  const included = parseIncludedEventTypes(req.query.include);
+  const events = buffered.filter(ev => deliverableTo(ev, included));
   const record = getSession(relayState, sessionId);
   res.json({ events, lastSeq, ended: record?.status === "ended" });
 });
@@ -286,12 +318,14 @@ relayRouter.post("/sessions/:id/commands", async (req, res, next) => {
     const sessionId = req.params.id as string;
     const parsed = ControlCommandSchema.parse(req.body);
 
+    await hydrateSession(relayState, registry, req.auth!.tenantId, sessionId, warnRegistry);
     const authz = authorizeCommand(relayState, req.auth!.tenantId, req.auth!.userId, sessionId, parsed);
     if (!authz.ok) {
       throw new AppError(404, "Session not found or not steerable");
     }
 
-    const delivered = await publishControlCommand(getSession(relayState, sessionId)!, parsed);
+    const record = getSession(relayState, sessionId)!;
+    const delivered = await publishControlCommand(record, parsed);
     if (!delivered) {
       throw new AppError(503, "Command could not be delivered — try again.");
     }
@@ -299,6 +333,7 @@ relayRouter.post("/sessions/:id/commands", async (req, res, next) => {
     if (parsed.type === "kill") {
       endSession(relayState, sessionId);
     }
+    await persistSession(relayState, registry, record, warnRegistry);
 
     res.status(202).json({ success: true });
   } catch (err) { next(err); }
@@ -309,6 +344,7 @@ relayRouter.post("/sessions/:id/commands", async (req, res, next) => {
 relayRouter.get("/sessions/:id/commands", async (req, res) => {
   const sessionId = req.params.id as string;
   const tenantId = req.auth!.tenantId;
+  await hydrateSession(relayState, registry, tenantId, sessionId, warnRegistry);
   if (!canAccessSession(relayState, tenantId, req.auth!.userId, sessionId)) {
     res.status(404).json({ error: "Session not found" });
     return;

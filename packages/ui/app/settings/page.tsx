@@ -75,7 +75,7 @@ const NAV_ITEMS = [
 // family). D-012: OPENAI/OLLAMA/LMSTUDIO chips used to be green/emerald
 // (#10a37f/#34d399/#10b981) — remapped to the blue family below.
 const RAW_PROVIDER_LABELS: Record<string, { label: string; color: string; models: string[]; local?: boolean; defaultBaseUrl?: string; setupHint?: string }> = {
-  ANTHROPIC:  { label: "Anthropic Claude",   color: "#d97706", models: ["claude-opus-4-20250514", "claude-sonnet-4-5-20250929", "claude-sonnet-4-20250514", "claude-haiku-4-5-20251001"] },
+  ANTHROPIC:  { label: "Anthropic Claude",   color: "#d97706", models: ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"] },
   OPENAI:     { label: "OpenAI",             color: "#38bdf8", models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "o1-mini"] },
   GOOGLE:     { label: "Google Gemini",      color: "#4285f4", models: ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"] },
   MISTRAL:    { label: "Mistral AI",         color: "#ff6b35", models: ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest", "open-mistral-7b"] },
@@ -190,7 +190,7 @@ function SettingsContent() {
     provider: string; model: string; hasApiKey: boolean; maskedApiKey?: string | null; baseUrl?: string | null;
   } | null>(null);
   const [aiProvider, setAiProvider] = useState("ANTHROPIC");
-  const [aiModel, setAiModel] = useState("claude-sonnet-4-20250514");
+  const [aiModel, setAiModel] = useState("claude-sonnet-5-5");
   const [aiApiKey, setAiApiKey] = useState("");
   const [aiBaseUrl, setAiBaseUrl] = useState("");
   const [aiSaving, setAiSaving] = useState(false);
@@ -264,7 +264,7 @@ function SettingsContent() {
         if (!Object.keys(initialDraft).every(key => initialDraft[key as keyof typeof initialDraft]
           === aiDraft.current[key as keyof typeof initialDraft])) return;
         setAiProvider(cfg.provider ?? "ANTHROPIC");
-        setAiModel(cfg.model ?? "claude-sonnet-4-20250514");
+        setAiModel(cfg.model ?? "claude-sonnet-5-5");
         setAiBaseUrl(cfg.baseUrl ?? "");
       })
       .catch((err) => { if (publish()) { setAiSaveFailed(true); setAiSaveMsg(describeFailure(err, t("app.settings.aiUnknownError"))); } });

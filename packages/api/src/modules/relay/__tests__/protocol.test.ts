@@ -205,3 +205,22 @@ describe("redactControlCommand()", () => {
     expect(redactControlCommand({ type: "approve", actionId: uuid })).toEqual({ type: "approve", actionId: uuid });
   });
 });
+
+describe("panel-snapshot opt-in delivery", () => {
+  it("delivers base types to everyone and panel-snapshot only on opt-in", async () => {
+    const { deliverableTo, parseIncludedEventTypes, PanelSnapshotEventSchema, MAX_SNAPSHOT_AGENTS } = await import("../protocol");
+    const none = parseIncludedEventTypes(undefined);
+    const opted = parseIncludedEventTypes(" panel-snapshot , made-up ");
+    expect([...opted]).toEqual(["panel-snapshot"]);
+    for (const type of ["approval-request", "agent-turn", "output", "audit", "status"]) expect(deliverableTo({ type }, none)).toBe(true);
+    expect(deliverableTo({ type: "panel-snapshot" }, none)).toBe(false);
+    expect(deliverableTo({ type: "panel-snapshot" }, opted)).toBe(true);
+    expect(deliverableTo({ type: "made-up" }, opted)).toBe(false);
+    const agent = { id: "a", name: "A", role: "r", managerId: null, model: null, effort: null, status: "idle", runsThisMonth: 0 };
+    const base = { type: "panel-snapshot", company: { name: "C" }, routines: [], month: { inputTokens: 0, outputTokens: 0 } };
+    expect(PanelSnapshotEventSchema.safeParse({ ...base, agents: Array(MAX_SNAPSHOT_AGENTS).fill(agent) }).success).toBe(true);
+    expect(PanelSnapshotEventSchema.safeParse({ ...base, agents: Array(MAX_SNAPSHOT_AGENTS + 1).fill(agent) }).success).toBe(false);
+    expect(PanelSnapshotEventSchema.safeParse({ ...base, agents: [{ ...agent, prompt: "x" }] }).success).toBe(true); // unknown keys are stripped
+    expect((PanelSnapshotEventSchema.parse({ ...base, agents: [{ ...agent, prompt: "secret prompt" }] }).agents[0] as Record<string, unknown>).prompt).toBeUndefined();
+  });
+});

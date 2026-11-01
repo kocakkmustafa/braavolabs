@@ -210,7 +210,7 @@ export function createTenantApiKeyResolver(
 // ─── Provider model defaults ──────────────────────────────
 
 export const PROVIDER_DEFAULT_MODELS: Record<AIProviderType, string> = {
-  ANTHROPIC:  "claude-sonnet-4-20250514",
+  ANTHROPIC:  "claude-sonnet-5-5",
   OPENAI:     "gpt-4o",
   GOOGLE:     "gemini-1.5-pro",
   MISTRAL:    "mistral-large-latest",
@@ -235,7 +235,7 @@ export const PROVIDER_DEFAULT_MODELS: Record<AIProviderType, string> = {
 // whatever the user has pulled into their Ollama/LM Studio instance. The
 // UI lets them type any tag.
 export const PROVIDER_MODELS: Record<AIProviderType, string[]> = {
-  ANTHROPIC:  ["claude-opus-4-20250514", "claude-sonnet-4-5-20250929", "claude-sonnet-4-20250514", "claude-haiku-4-5-20251001"],
+  ANTHROPIC:  ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"],
   OPENAI:     ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "o1-mini"],
   GOOGLE:     ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"],
   MISTRAL:    ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest", "open-mistral-7b"],
