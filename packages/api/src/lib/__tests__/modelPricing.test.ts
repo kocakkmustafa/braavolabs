@@ -12,9 +12,22 @@ describe("priceForModel", () => {
     expect(priceForModel("gpt-4o")).toEqual(MODEL_PRICES["gpt-4o"]);
   });
 
-  it("resolves a dated Anthropic variant to its family", () => {
+  it("resolves a dated Anthropic variant to its generation", () => {
     const p = priceForModel("claude-sonnet-4-20250514");
-    expect(p).toEqual(MODEL_PRICES["claude-sonnet"]);
+    expect(p).toEqual(MODEL_PRICES["claude-sonnet-4"]);
+  });
+
+  it("prices the Claude 5 family at the published base rates", () => {
+    expect(priceForModel("claude-opus-5-5")).toEqual({ inputPerM: 4, outputPerM: 20 });
+    expect(priceForModel("claude-sonnet-5-5")).toEqual({ inputPerM: 2, outputPerM: 10 });
+    expect(priceForModel("claude-haiku-5-5")).toEqual({ inputPerM: 0.1, outputPerM: 0.5 });
+    // Opus 4.5+ dropped to $5/$25; Opus 4 / 4.1 stay at $15/$75.
+    expect(priceForModel("claude-opus-4-8")).toEqual({ inputPerM: 5, outputPerM: 25 });
+    expect(priceForModel("claude-opus-4-1-20250805")).toEqual({ inputPerM: 15, outputPerM: 75 });
+  });
+
+  it("estimates an unknown id in a known family high", () => {
+    expect(priceForModel("claude-opus-9")).toEqual(MODEL_PRICES["claude-opus"]);
   });
 
   it("prefers the more specific gpt-4o-mini over gpt-4o", () => {
@@ -22,7 +35,7 @@ describe("priceForModel", () => {
   });
 
   it("is case-insensitive", () => {
-    expect(priceForModel("CLAUDE-HAIKU-4-5")).toEqual(MODEL_PRICES["claude-haiku"]);
+    expect(priceForModel("CLAUDE-HAIKU-4-5")).toEqual(MODEL_PRICES["claude-haiku-4-5"]);
   });
 
   it("returns null for an unknown model", () => {

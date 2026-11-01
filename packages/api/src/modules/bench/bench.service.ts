@@ -86,7 +86,7 @@ interface TaskScore {
 
 // Judge stays hard-pinned to Claude Sonnet (see rubric call below) — it
 // needs an Anthropic key even when the CANDIDATE is another provider.
-const JUDGE_MODEL = "claude-sonnet-4-5-20250929";
+const JUDGE_MODEL = "claude-sonnet-5-5";
 
 /** Bench key resolution (E2/T5 — plan §2.5/A3): bench is tenant-less, so
  * keys come from the environment. `BENCH_<PROVIDER>_KEY` wins (lets ops

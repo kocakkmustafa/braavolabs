@@ -45,7 +45,7 @@ const envShape = z.object({
   // Default to Sonnet 4.5 (best price/perf for typical agent workloads). Override
   // via env for callers that need Opus 4 or Haiku 4.5. Validate against the
   // PROVIDER_MODELS list in services/ai-client.ts before changing the default.
-  CLAUDE_MODEL: z.string().default("claude-sonnet-4-5-20250929"),
+  CLAUDE_MODEL: z.string().default("claude-sonnet-5-5"),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_CREATOR_PRICE_ID: z.string().optional(),

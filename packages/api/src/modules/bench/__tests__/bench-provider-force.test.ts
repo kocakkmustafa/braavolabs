@@ -217,7 +217,7 @@ describe("runBenchSuite — provider×model genuinely forced (D-010)", () => {
     const judgeCall = runAgentLoopMock.mock.calls[1][0];
     expect(judgeCall.aiConfigOverride).toEqual({
       provider: "ANTHROPIC",
-      model: "claude-sonnet-4-5-20250929",
+      model: "claude-sonnet-5-5",
       apiKey: "sk-ant-system-key",
     });
 

@@ -136,7 +136,7 @@ onboardingRouter.post("/hero-company", async (req, res, next) => {
             "store_memory",
             "recall_memory",
           ],
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-5-5",
           maxTokens: 4096,
         },
       });
@@ -158,7 +158,7 @@ onboardingRouter.post("/hero-company", async (req, res, next) => {
             "compare_performance",
             "recall_memory",
           ],
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-5-5",
           maxTokens: 4096,
         },
       });

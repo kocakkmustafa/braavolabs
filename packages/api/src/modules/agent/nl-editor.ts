@@ -37,21 +37,27 @@ export interface NLEditResult {
 
 // ─── Known model aliases ──────────────────────────────────
 
+// Every target is a model the Anthropic API serves today. Retired Claude 3 /
+// 4.0 ids resolve to the current model of the same family instead of an id
+// that would fail at run time; the edit summary shows the resolved id.
 const MODEL_ALIASES: Record<string, string> = {
-  "sonnet": "claude-sonnet-4-20250514",
-  "claude-sonnet": "claude-sonnet-4-20250514",
-  "claude-3-sonnet": "claude-3-sonnet-20240229",
-  "claude-3.5-sonnet": "claude-3-5-sonnet-20241022",
-  "claude-4-sonnet": "claude-sonnet-4-20250514",
-  "haiku": "claude-haiku-4-20250414",
-  "claude-haiku": "claude-haiku-4-20250414",
-  "claude-3-haiku": "claude-3-haiku-20240307",
-  "claude-3.5-haiku": "claude-3-5-haiku-20241022",
-  "claude-4-haiku": "claude-haiku-4-20250414",
-  "opus": "claude-opus-4-20250514",
-  "claude-opus": "claude-opus-4-20250514",
-  "claude-3-opus": "claude-3-opus-20240229",
-  "claude-4-opus": "claude-opus-4-20250514",
+  "sonnet": "claude-sonnet-5-5",
+  "claude-sonnet": "claude-sonnet-5-5",
+  "claude-5-sonnet": "claude-sonnet-5-5",
+  "claude-3-sonnet": "claude-sonnet-5-5",
+  "claude-3.5-sonnet": "claude-sonnet-5-5",
+  "claude-4-sonnet": "claude-sonnet-4-6",
+  "haiku": "claude-haiku-5-5",
+  "claude-haiku": "claude-haiku-5-5",
+  "claude-5-haiku": "claude-haiku-5-5",
+  "claude-3-haiku": "claude-haiku-5-5",
+  "claude-3.5-haiku": "claude-haiku-5-5",
+  "claude-4-haiku": "claude-haiku-4-5",
+  "opus": "claude-opus-5-5",
+  "claude-opus": "claude-opus-5-5",
+  "claude-5-opus": "claude-opus-5-5",
+  "claude-3-opus": "claude-opus-5-5",
+  "claude-4-opus": "claude-opus-4-8",
   "gpt-4": "gpt-4",
   "gpt-4o": "gpt-4o",
   "gpt-3.5": "gpt-3.5-turbo",
