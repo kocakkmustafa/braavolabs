@@ -2047,3 +2047,124 @@ model ErasureTombstone {
   @@index([expiresAt])
   @@map("erasure_tombstones")
 }
+
+// ─── Community skill registry (2026-11-02) ─────────────────
+// Signed, immutable skill versions with automatic and human review and a public
+// revocation list. Design: scratch/2026-11-02-braavolabs-kurucu-kararlari/TASARIM-skill-pazari.tr.md
+
+enum SkillTrust {
+  OFFICIAL    // YULA Lab's own
+  VERIFIED    // verified publisher, auto-approved after a clean scan
+  COMMUNITY   // reviewed by a person
+  UNREVIEWED  // never in the catalog; kept for completeness
+}
+
+enum SkillVersionState {
+  NEEDS_REVIEW
+  APPROVED
+  REJECTED
+  REVOKED
+}
+
+enum SkillPublisherStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum SkillReportSeverity {
+  LOW
+  HIGH
+}
+
+enum SkillReportStatus {
+  OPEN
+  DISMISSED
+  ACTIONED
+}
+
+model SkillPublisher {
+  id        String               @id @default(cuid())
+  userId    String               @unique @map("user_id")
+  handle    String               @unique
+  verified  Boolean              @default(false)
+  official  Boolean              @default(false)
+  status    SkillPublisherStatus @default(ACTIVE)
+  strikes   Int                  @default(0)
+  createdAt DateTime             @default(now()) @map("created_at")
+
+  packages SkillPackage[]
+
+  @@map("skill_publishers")
+}
+
+model SkillPackage {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  publisherId String     @map("publisher_id")
+  description String     @db.Text
+  trust       SkillTrust @default(UNREVIEWED)
+  downloads   Int        @default(0)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  publisher SkillPublisher @relation(fields: [publisherId], references: [id], onDelete: Restrict)
+  versions  SkillVersion[]
+
+  @@index([publisherId])
+  @@map("skill_packages")
+}
+
+model SkillVersion {
+  id             String            @id @default(cuid())
+  packageId      String            @map("package_id")
+  version        String
+  sourceRepo     String            @map("source_repo")
+  sourceRef      String            @map("source_ref")
+  bundle         String            @db.Text
+  sha256         String
+  size           Int
+  skillMd        String            @map("skill_md") @db.Text
+  files          Json              @default("[]")
+  findings       Json              @default("[]")
+  state          SkillVersionState @default(NEEDS_REVIEW)
+  signedManifest String?           @map("signed_manifest") @db.Text
+  signature      String?
+  reviewedBy     String?           @map("reviewed_by")
+  reviewedAt     DateTime?         @map("reviewed_at")
+  createdAt      DateTime          @default(now()) @map("created_at")
+
+  package SkillPackage  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  reports SkillReport[]
+
+  @@unique([packageId, version])
+  @@index([state, createdAt])
+  @@map("skill_versions")
+}
+
+model SkillReport {
+  id             String              @id @default(cuid())
+  versionId      String              @map("version_id")
+  reporterUserId String              @map("reporter_user_id")
+  severity       SkillReportSeverity @default(LOW)
+  reason         String
+  details        String              @default("") @db.Text
+  status         SkillReportStatus   @default(OPEN)
+  createdAt      DateTime            @default(now()) @map("created_at")
+
+  version SkillVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@map("skill_reports")
+}
+
+model SkillRevocation {
+  id        String   @id @default(cuid())
+  name      String
+  version   String
+  sha256    String
+  reason    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([name, version])
+  @@map("skill_revocations")
+}

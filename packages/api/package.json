@@ -11,7 +11,8 @@
     "test:xtenant": "vitest run src/__tests__/integration/cross-tenant.test.ts",
     "test:watch": "vitest",
     "start": "node dist/index.js",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "skill-registry:keygen": "tsx src/scripts/skill-registry-keygen.ts"
   },
   "dependencies": {
     "@ai-company-os/connector-sdk": "workspace:*",
