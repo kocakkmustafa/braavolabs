@@ -7,7 +7,17 @@ rather than by version tag. PR numbers refer to `kocakkmustafa/braavolabs`.
 
 ## [Unreleased]
 
-- _(nothing yet)_
+- **Community skill registry** (`/api/v1/skills`, branch `feat/skill-registry`).
+  Publishers release SKILL.md packages from a GitHub tag (proved with a
+  `.braavo-publisher` file); the registry builds a canonical, size-limited text
+  bundle, scans it (hidden Unicode, instruction overrides, secrecy toward the
+  user, encoded blobs, network calls and secret paths in scripts, suspicious
+  URLs), and sends every first release and every finding to admin review.
+  Approved versions are immutable and signed with the registry's ed25519 key;
+  the revocation list is signed too. Reports, a serious report pulling a
+  community skill from the catalog, publisher verify/suspend. Migration
+  `20261102000000_skill_registry` (additive). Needs `SKILL_REGISTRY_PRIVATE_KEY`
+  (`pnpm --filter @ai-company-os/api skill-registry:keygen`) before deploy.
 
 ## 2026-07-18
 

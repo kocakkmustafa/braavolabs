@@ -47,6 +47,7 @@ import { ssoConfigRouter, ssoAuthRouter } from "./modules/sso/sso.router";
 import { voiceRouter, voiceWebhookRouter } from "./modules/voice/voice.router";
 import { researchRouter } from "./modules/research/research.router";
 import { marketplaceRouter } from "./modules/marketplace/marketplace.router";
+import { skillsRegistryRouter } from "./modules/skills-registry/skills.router";
 import { templatesRouter } from "./modules/templates/templates.router";
 import { benchRouter } from "./modules/bench/bench.router";
 import { seedBenchSuites } from "./modules/bench/bench.service";
@@ -283,6 +284,8 @@ api.use("/media", mediaRouter);
 api.use("/marketplace/templates", templatesRouter);
 // Connector marketplace (public catalog + tenant install surface).
 api.use("/marketplace", marketplaceRouter);
+// Community skill registry: signed, reviewed SKILL.md packages and a revocation list.
+api.use("/skills", skillsRegistryRouter);
 // Public Braavolabs Bench leaderboard.
 api.use("/bench", benchRouter);
 api.use("/users", userRouter);
