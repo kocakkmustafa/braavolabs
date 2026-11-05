@@ -19,7 +19,7 @@ Bu dosya Codex ve diğer kod ajanları içindir. Kısa tutulur; ayrıntı `CLAUD
 - Bitirmeden: analiz ve test temiz olmalı; çıktının son 5 satırını rapora koy.
 
 ## Dokunulmaz
-- **main'e push/merge = Lightsail prod deploy** (`v*` etiketi ve manuel deploy de aynı kapı); yalnız kurucu onayıyla. PR aç, merge etme.
+- Prod deploy: `v*` etiketi ya da elle workflow_dispatch — yalnız kurucu onayıyla; etiket itme ve deploy tetikleme yok.
 - Prisma göçleri (`packages/db`) ve RLS politikaları — yalnız açık talimatla.
 - Sır dosyaları (`.env*`, anahtarlar, `~/.secrets`); fiyat/abonelik kimlikleri.
 - Burun Farkı ve Iron Bank.
