@@ -99,7 +99,7 @@ Geri alma: ADR-0002 "Geri alma".
 | 1 | HIERARCHICAL koşuda bütçe/kapsam kapısı hiç çalışmıyor; ADR "runner her grupta çağırır" yanlış olgu (orta-yüksek, bloke) | `runJobBudgetCheck` + `delegate` öncesi kontrol, reddedilen devir koşuyu FAILED yapar (yalnız ret varsa); `hierarchical-budget.test.ts` 6 test; ADR karar 6 düzeltildi |
 | 2 | `hasOpenApproval` HANDOFF onayını da sayıyor; elle `/continue` (farklı sağlayıcı) 409 alıyordu (orta, bloke) | HANDOFF tipi korumadan çıkarıldı (`NON_GATING_APPROVAL_TYPE`), sorgu `type: { not: "HANDOFF" }`; ADR karar 4 + testler güncellendi |
 | 3 | `timeoutMs` toplam süre değil (runner `startedAt`i her alışta yeniler) (orta) | Kodla değil belgeyle: bir koşu bacağıdır; `job-budget.ts` + ADR "bilinen açıklar" |
-| 4 | Kapsam kapısı yeni koşularda boş (yaratıcılar `tenantId`/`workspaceId` yazmıyor) (orta) | ADR "bilinen açıklar" (02c) |
+| 4 | Kapsam kapısı yeni koşularda boş (yaratıcılar `tenantId`/`workspaceId` yazmıyor) (orta) | KAPANDI 02c-1: 3 yaratıcı yazar; eski NULL satırlar ADR "bilinen açıklar" |
 | 5 | `maxRetries` yazarı yok (düşük-orta) | ADR "bilinen açıklar" (02c çökme kurtarma) |
 | 6 | Adım içi aşım denetlenmiyor (düşük) | ADR "bilinen açıklar" |
 | 7, 8 | `take: 5` canlılık kaybı; `decide` süre yarışı dar pencere (düşük) | ADR "bilinen açıklar"; güvenli yönde |
@@ -108,6 +108,7 @@ Geri alma: ADR-0002 "Geri alma".
 | 11 | `approval-bypass` test başlığı yanlış iddia; runner-seviyesi `checkGovernance` testi yok | Başlık düzeltildi; sıralı runner testi **yapılmadı** (`NOT_TESTED`) |
 | 12 | Migration yalnız ekler, backfill güvenli (olumlu); indeksler `CONCURRENTLY` değil | Not edildi, değişmedi |
 | — | `decide` (A onayı, B PENDING iken RUNNING) kapsam dışı açık | ADR "bilinen açıklar", sonraki bilet adayı |
+| 13 | **Önceden var olan, 02c-1 getirmedi (orta):** `GET /runs/:id` (`include: { pipeline: { include: { company: true } } }`), `GET /companies*` ham `Company.config` döndürür; template-kurulumda `config.webhookSecret` açık metin (`webhook/router.ts` ~353-359). Aynı kiracının doğrulanmış her üyesi webhook gizlisini okuyabilir (çapraz kiracı ifşa yok). | **Açık, ayrı bilet adayı:** `company` için `select` ya da `config`ten gizli temizleme; sözleşme testi iç içe `include`ı da kilitlesin. Bu PR'da değişmedi |
 
 Doğrulananlar: CAS skaler tek UPDATE (ilişki filtresi sızması yok); hash/nonce/tenant/run/süre kontrolleri bayrak açıkken atlanamaz; `/resume`+`/continue` korumaları yan etkiden önce, sorgu hatası `next(err)`; `/rerun` koşuyu RUNNING yapmaz. 
 

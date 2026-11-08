@@ -232,6 +232,9 @@ webhookRouter.post(
               status: "PENDING",
               trigger: `webhook:${event}`,
               input: { event, payload: parsedBody } as any,
+              // Owner from the signature-verified company (no extra query).
+              tenantId: company.tenantId,
+              workspaceId: company.id,
             },
           });
 

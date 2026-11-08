@@ -190,6 +190,7 @@ describe("POST /:id/run — company lifecycle guard", () => {
   ])("$status / enabled=$enabled preserves manual Run", async ({ status, enabled }) => {
     pipelineFindUnique.mockResolvedValue({
       id: "pipe-1",
+      companyId: "co-1",
       steps: runnableSteps,
       enabled,
       company: { tenantId: "tenant-1", status },
@@ -202,7 +203,10 @@ describe("POST /:id/run — company lifecycle guard", () => {
     expect(nextErr).toBeUndefined();
     expect(claimQuotaMock).toHaveBeenCalledExactlyOnceWith("tenant-1", "runs");
     expect(runCreate).toHaveBeenCalledExactlyOnceWith({
-      data: { pipelineId: "pipe-1", status: "PENDING", trigger: "manual", input: { brief: "fixture-only" } },
+      data: {
+        pipelineId: "pipe-1", status: "PENDING", trigger: "manual", input: { brief: "fixture-only" },
+        tenantId: "tenant-1", workspaceId: "co-1", // BRA-P0-02c-1
+      },
     });
     expect(activityLogCreate).toHaveBeenCalledOnce();
     expect(enqueueRunMock).toHaveBeenCalledExactlyOnceWith("run-1");
