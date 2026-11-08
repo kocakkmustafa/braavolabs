@@ -123,6 +123,11 @@ approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (
     if (approval.status !== "PENDING") {
       throw new AppError(409, "Approval already decided");
     }
+    // BRA-P0-05: a grant past its expiry cannot be decided late (the expiry cron
+    // may simply not have flipped it yet). NULL expiresAt = legacy row, unchanged.
+    if (approval.expiresAt && approval.expiresAt.getTime() <= Date.now()) {
+      throw new AppError(409, "Approval expired");
+    }
 
     const result = await tenantTx(async (tx) => {
       // Atomic state transition — only the row that's still PENDING wins.

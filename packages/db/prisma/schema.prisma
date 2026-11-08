@@ -590,6 +590,9 @@ model Run {
   // last worker heartbeat.
   retryCount     Int           @default(0) @map("retry_count")
   heartbeatAt    DateTime?     @map("heartbeat_at")
+  // Job budget (BRA-P0-08, ADR-0002): JobBudget JSON (modules/run/job-budget.ts).
+  // NULL = no job-level limit (legacy behaviour).
+  jobBudget      Json?         @map("job_budget")
 
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId, state])
@@ -676,11 +679,24 @@ model Approval {
   expiresAt   DateTime?      @map("expires_at")
   createdAt   DateTime       @default(now()) @map("created_at")
 
+  // ── Exact-action approval (BRA-P0-05, ADR-0002) ──────────────────────
+  // ADDITIVE and nullable. Stamped only while EXACT_ACTION_APPROVAL=true;
+  // legacy rows stay NULL and are never consumable as an exact-action grant.
+  //   tenantId   — owner, denormalised so a grant cannot cross tenants
+  //   nonce      — single-use random id, unique when set
+  //   actionHash — sha256 of the canonical action (modules/approval/exact-action.ts)
+  //   consumedAt — set atomically (CAS) when the grant is spent
+  tenantId    String?        @map("tenant_id")
+  nonce       String?        @unique
+  actionHash  String?        @map("action_hash")
+  consumedAt  DateTime?      @map("consumed_at")
+
   run     Run   @relation(fields: [runId], references: [id], onDelete: Cascade)
   user    User? @relation(fields: [decidedBy], references: [id])
 
   @@index([runId])
   @@index([status])
+  @@index([runId, actionHash])
   @@map("approvals")
 }
 

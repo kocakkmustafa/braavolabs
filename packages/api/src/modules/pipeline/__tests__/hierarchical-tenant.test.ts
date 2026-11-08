@@ -18,11 +18,12 @@ vi.mock("../../../lib/logger", () => ({
 
 const prismaMock = vi.hoisted(() => ({
   agent: { findUnique: vi.fn() },
-  run: { update: vi.fn() },
+  run: { update: vi.fn(), findUnique: vi.fn() },
   runStep: { create: vi.fn(), update: vi.fn(), findFirst: vi.fn() },
   activityLog: { create: vi.fn() },
 }));
 vi.mock("../../../lib/db", () => ({ prisma: prismaMock }));
+vi.mock("../../../services/push", () => ({ notifyTenantUsers: vi.fn().mockResolvedValue(undefined) }));
 
 vi.mock("../hierarchical", () => ({
   buildManagerContext: () => "team context",
@@ -62,6 +63,11 @@ beforeEach(() => {
     model: "claude-sonnet-4-20250514",
   });
   prismaMock.run.update.mockResolvedValue({});
+  // BRA-P0-08: delegate/finish read the run for the job-budget check; no budget = inert.
+  prismaMock.run.findUnique.mockResolvedValue({
+    id: "run-1", jobBudget: null, tenantId: null, workspaceId: null, retryCount: 0, startedAt: null, steps: [],
+    pipeline: { company: { id: "co-1", tenantId: "tenant-1" } },
+  });
   prismaMock.runStep.create.mockResolvedValue({});
   prismaMock.runStep.update.mockResolvedValue({});
   prismaMock.runStep.findFirst.mockResolvedValue({ id: "rs-worker" });

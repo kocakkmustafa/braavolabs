@@ -41,6 +41,8 @@ interface DelegationContext {
   maxDepth: number;
   stepCounter: { value: number };
   totalCost: { value: number };
+  /** Set when a delegation was refused by the job budget (BRA-P0-08). */
+  budgetStop: { reason: string | null };
 }
 
 const DELEGATION_CTX = new AsyncLocalStorage<DelegationContext>();
@@ -77,6 +79,16 @@ function ensureDelegateToolRegistered(): void {
       // LLM that decides to talk to itself recursively.
       if (worker.id === ctx.managerAgentId) {
         return { error: "Cannot delegate back to the manager agent." };
+      }
+      // BRA-P0-08: a delegation is the unit of spend here, so the job budget
+      // (and its tenant/workspace gate) is checked before each one. Refused
+      // delegations return an error to the manager; the final check below
+      // marks the run FAILED. Inert for a run with no job budget.
+      const { runJobBudgetCheck } = await import("../governance/engine");
+      const budget = await runJobBudgetCheck(ctx.runId, ctx.totalCost.value);
+      if (!budget.allowed) {
+        ctx.budgetStop.reason ??= budget.reason ?? "Job budget exhausted";
+        return { error: `Delegation refused: ${budget.reason ?? "job budget exhausted"}` };
       }
       const stepIndex = ++ctx.stepCounter.value;
       const startedAt = new Date();
@@ -205,6 +217,7 @@ export async function processHierarchicalRun(opts: {
     maxDepth: pipeline.maxDelegationDepth,
     stepCounter: { value: 0 },
     totalCost: { value: 0 },
+    budgetStop: { reason: null },
   };
 
   let finalOutput: string;
@@ -249,6 +262,29 @@ export async function processHierarchicalRun(opts: {
     return;
   } finally {
     clearDelegationCounter(runId);
+  }
+
+  // BRA-P0-08: if a delegation was refused by the job budget (or scope gate) the
+  // manager could not finish its plan — never report that as COMPLETED. A run
+  // that merely reached its limit while finishing its last step is a success.
+  // The manager's own cost is only known now (runAgentLoop returns it at the
+  // end), so re-check the FINAL total strictly: a real overshoot also fails the run.
+  if (ctx.budgetStop.reason === null) {
+    const { runJobBudgetCheck } = await import("../governance/engine");
+    const finalBudget = await runJobBudgetCheck(runId, ctx.totalCost.value, undefined, { finalCheck: true });
+    if (!finalBudget.allowed) ctx.budgetStop.reason = finalBudget.reason ?? "Job budget exceeded";
+  }
+  if (ctx.budgetStop.reason !== null) {
+    await prisma.run.update({
+      where: { id: runId },
+      data: {
+        status: "FAILED",
+        error: ctx.budgetStop.reason,
+        costUsd: ctx.totalCost.value,
+        completedAt: new Date(),
+      },
+    });
+    return;
   }
 
   await prisma.run.update({

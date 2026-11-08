@@ -11,6 +11,12 @@ import { DEFAULT_GOVERNANCE_CONFIG } from "@ai-company-os/core";
 import type { GovernanceConfig, RiskStopType } from "@ai-company-os/core";
 import { notifyTenantUsers } from "../../services/push";
 import { governanceReasonCopy } from "../../lib/notificationCopy";
+import {
+  checkJobScope,
+  evaluateJobBudget,
+  parseJobBudget,
+  sumStepTokens,
+} from "../run/job-budget";
 
 export interface GovernanceCheckResult {
   allowed: boolean;
@@ -40,8 +46,11 @@ export async function runGovernanceChecks(
   const tenantId = run.pipeline.company.tenantId;
   const companyId = run.pipeline.company.id;
 
-  // Run each enabled check
-  for (const stopType of config.enabledStops) {
+  // Run each enabled check. The job budget (BRA-P0-08) is checked first and is
+  // not part of config.enabledStops: it is a per-run contract, not a tunable
+  // org-wide stop, and a run with no jobBudget passes it untouched.
+  const orderedChecks: Array<RiskStopType | "job_budget"> = ["job_budget", ...config.enabledStops];
+  for (const stopType of orderedChecks) {
     const result = await runCheck(stopType, {
       run,
       currentCost,
@@ -51,42 +60,7 @@ export async function runGovernanceChecks(
     });
 
     if (!result.allowed) {
-      // Log the risk event
-      await prisma.activityLog.create({
-        data: {
-          tenantId,
-          actor: "governance",
-          action: `governance.${stopType}`,
-          resource: "run",
-          resourceId: runId,
-          details: {
-            reason: result.reason,
-            stopType: result.stopType,
-            ...result.details,
-          },
-        },
-      });
-
-      logger.warn(
-        { runId, stopType, reason: result.reason },
-        "Governance check failed",
-      );
-
-      // Push to mobile companion app — `risks` pref defaults to ON
-      // because cost anomalies / runaway loops are exactly what users
-      // want to know about while away from their desk.
-      const reasonCopy = governanceReasonCopy(result, config.costAnomalyThreshold);
-      notifyTenantUsers(tenantId, "risk", {
-        title: `Risk halted a run · ${stopType}`,
-        body: result.reason ?? "A safety stop fired",
-        data: { kind: "risk", id: runId, stopType },
-        localized: {
-          title: "push.riskTitle",
-          body: reasonCopy?.key ?? (result.reason ? undefined : "push.riskFallback"),
-          parameters: { ...reasonCopy?.parameters, stopType },
-        },
-      }).catch(() => {});
-
+      await reportGovernanceStop(tenantId, runId, stopType, result, config);
       return result;
     }
   }
@@ -94,7 +68,82 @@ export async function runGovernanceChecks(
   return { allowed: true };
 }
 
-interface CheckContext {
+/** Log the risk event, warn, and push to the tenant's devices. */
+async function reportGovernanceStop(
+  tenantId: string,
+  runId: string,
+  stopType: RiskStopType | "job_budget",
+  result: GovernanceCheckResult,
+  config: GovernanceConfig,
+): Promise<void> {
+  // Log the risk event
+  await prisma.activityLog.create({
+    data: {
+      tenantId,
+      actor: "governance",
+      action: `governance.${stopType}`,
+      resource: "run",
+      resourceId: runId,
+      details: {
+        reason: result.reason,
+        stopType: result.stopType,
+        ...result.details,
+      },
+    },
+  });
+
+  logger.warn(
+    { runId, stopType, reason: result.reason },
+    "Governance check failed",
+  );
+
+  // Push to mobile companion app — `risks` pref defaults to ON
+  // because cost anomalies / runaway loops are exactly what users
+  // want to know about while away from their desk.
+  const reasonCopy = governanceReasonCopy(result, config.costAnomalyThreshold);
+  notifyTenantUsers(tenantId, "risk", {
+    title: `Risk halted a run · ${stopType}`,
+    body: result.reason ?? "A safety stop fired",
+    data: { kind: "risk", id: runId, stopType },
+    localized: {
+      title: "push.riskTitle",
+      body: reasonCopy?.key ?? (result.reason ? undefined : "push.riskFallback"),
+      parameters: { ...reasonCopy?.parameters, stopType },
+    },
+  }).catch(() => {});
+}
+
+/**
+ * Job-budget-only check (BRA-P0-08) for runners that do not go through
+ * runGovernanceChecks — the HIERARCHICAL runner never has: widening it to the
+ * five org-wide risk stops would change behaviour for every hierarchical run,
+ * while the job budget is inert (allowed) for a run with no jobBudget and no
+ * scope mismatch. Same fail-closed rules and same audit/push on a stop.
+ */
+export async function runJobBudgetCheck(
+  runId: string,
+  currentCost: number,
+  config: GovernanceConfig = DEFAULT_GOVERNANCE_CONFIG,
+  opts: { finalCheck?: boolean } = {},
+): Promise<GovernanceCheckResult> {
+  const run = await prisma.run.findUnique({
+    where: { id: runId },
+    include: {
+      steps: { orderBy: { stepIndex: "desc" } },
+      pipeline: { include: { company: true } },
+    },
+  });
+  if (!run) return { allowed: false, stopType: "hard_stop", reason: "Run not found" };
+
+  const tenantId = run.pipeline.company.tenantId;
+  const result = checkJobBudget({ run, currentCost, config, tenantId, companyId: run.pipeline.company.id, finalCheck: opts.finalCheck });
+  if (!result.allowed) await reportGovernanceStop(tenantId, runId, "job_budget", result, config);
+  return result;
+}
+
+export interface CheckContext {
+  /** Final check after the work finished: only an OVERSHOOT of the job budget stops (BRA-P0-08). */
+  finalCheck?: boolean;
   run: any;
   currentCost: number;
   config: GovernanceConfig;
@@ -103,10 +152,12 @@ interface CheckContext {
 }
 
 async function runCheck(
-  stopType: RiskStopType,
+  stopType: RiskStopType | "job_budget",
   ctx: CheckContext,
 ): Promise<GovernanceCheckResult> {
   switch (stopType) {
+    case "job_budget":
+      return checkJobBudget(ctx);
     case "cost_anomaly_stop":
       return checkCostAnomaly(ctx);
     case "loop_stop":
@@ -120,6 +171,57 @@ async function runCheck(
     default:
       return { allowed: true };
   }
+}
+
+/**
+ * Job budget (BRA-P0-08): per-run ceilings on USD / tokens / steps / time /
+ * retries plus the tenant+workspace gate. Fail-closed: a malformed stored
+ * budget or a scope mismatch stops the run. No jobBudget and no scope
+ * disagreement → allowed (legacy behaviour).
+ */
+export function checkJobBudget(ctx: CheckContext): GovernanceCheckResult {
+  const run = ctx.run;
+  const scope = checkJobScope({
+    runTenantId: run.tenantId,
+    ownerTenantId: ctx.tenantId,
+    runWorkspaceId: run.workspaceId,
+    ownerWorkspaceId: ctx.companyId,
+  });
+  if (!scope.ok) {
+    return { allowed: false, stopType: "hard_stop", reason: scope.reason, details: { jobBudget: "scope" } };
+  }
+
+  const parsed = parseJobBudget(run.jobBudget);
+  if (!parsed.ok) {
+    return {
+      allowed: false,
+      stopType: "hard_stop",
+      reason: "Job budget is invalid; run stopped (fail-closed)",
+      details: { jobBudget: "invalid", error: parsed.error },
+    };
+  }
+  if (!parsed.budget) return { allowed: true };
+
+  const startedAt = run.startedAt ? new Date(run.startedAt).getTime() : null;
+  const steps: Array<{ status: string; promptTokens?: number | null; completionTokens?: number | null }> = run.steps ?? [];
+  const verdict = evaluateJobBudget(
+    parsed.budget,
+    {
+      usd: ctx.currentCost,
+      tokens: sumStepTokens(steps),
+      steps: steps.filter((s) => s.status === "COMPLETED").length,
+      elapsedMs: startedAt === null ? 0 : Math.max(0, Date.now() - startedAt),
+      retries: run.retryCount ?? 0,
+    },
+    { strict: ctx.finalCheck === true },
+  );
+  if (verdict.action !== "stop") return { allowed: true };
+  return {
+    allowed: false,
+    stopType: "hard_stop",
+    reason: verdict.reason ?? "Job budget exhausted",
+    details: { jobBudget: "exhausted", stopped: verdict.stopped, dimensions: verdict.dimensions },
+  };
 }
 
 /**
