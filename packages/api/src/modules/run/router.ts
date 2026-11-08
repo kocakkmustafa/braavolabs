@@ -554,7 +554,9 @@ runRouter.post("/:id/continue", handoffLimiter, async (req, res, next) => {
         claimedBy: req.auth!.userId,
       });
     } catch (err) {
-      if (err instanceof HandoffClaimError && err.code === "CHECKPOINT_PENDING") {
+      if (err instanceof HandoffClaimError && (err.code === "CHECKPOINT_PENDING" || err.code === "NOT_OPEN")) {
+        // CHECKPOINT_PENDING: client retries. NOT_OPEN: a concurrent /continue
+        // claimed it first (the up-front OPEN lookup passed, the atomic claim lost).
         throw new AppError(409, err.message);
       }
       throw err;
@@ -569,7 +571,7 @@ runRouter.post("/:id/continue", handoffLimiter, async (req, res, next) => {
       } else {
         // The run did not start (lost CAS / finished meanwhile): give the ledger
         // back so the operator can retry /continue instead of "No open handoff".
-        await reopenClaimedHandoff(claimed.id, req.auth!.userId).catch((e) =>
+        await reopenClaimedHandoff(claimed.id, claimed.claimedAt as Date).catch((e) =>
           logger.warn({ runId: run.id, handoffId: claimed.id, err: (e as Error).message }, "handoff reopen after lost /continue failed"));
         throw err;
       }

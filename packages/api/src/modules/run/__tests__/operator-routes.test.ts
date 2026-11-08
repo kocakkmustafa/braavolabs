@@ -29,7 +29,7 @@ const store = vi.hoisted(() => ({
   staleRead: null as null | { status: string; state: string | null },
   /** this tx's own successful writes, for rollback: only fields still holding OUR value are undone. */
   undo: [] as Array<{ prev: Record<string, unknown>; wrote: Record<string, unknown> }>,
-  ledger: { status: "OPEN", claimedBy: null as string | null },
+  ledger: { status: "OPEN", claimedBy: null as string | null, claimedAt: null as Date | null },
   selects: [] as unknown[],
   writes: [] as Array<{ where: Record<string, unknown>; data: Record<string, unknown> }>,
 }));
@@ -83,10 +83,10 @@ vi.mock("../../../lib/db", () => {
       approval: { findFirst: (...a: unknown[]) => approvalFindFirst(...a) },
       handoffLedger: {
         findFirst: (...a: unknown[]) => handoffFindFirst(...a),
-        updateMany: async (args: { where: { status: string; claimedBy: string }; data: { status: string; claimedBy: null } }) => {
+        updateMany: async (args: { where: { status: string; claimedAt: Date }; data: { status: string; claimedBy: null; claimedAt: null } }) => {
           const l = store.ledger;
-          if (l.status !== args.where.status || l.claimedBy !== args.where.claimedBy) return { count: 0 };
-          Object.assign(l, { status: args.data.status, claimedBy: args.data.claimedBy });
+          if (l.status !== args.where.status || l.claimedAt?.getTime() !== args.where.claimedAt.getTime()) return { count: 0 };
+          Object.assign(l, { status: args.data.status, claimedBy: args.data.claimedBy, claimedAt: args.data.claimedAt });
           return { count: 1 };
         },
       },
@@ -138,6 +138,7 @@ vi.mock("../../../config/env", () => ({ env: { NODE_ENV: "development", OFFLINE_
 
 import { runRouter } from "../router";
 import { governanceRouter } from "../../governance/router";
+import { HandoffClaimError } from "../handoff.service";
 
 function getHandler(router: Router, method: string, path: string) {
   const layer = (router as any).stack.find((l: any) => l.route?.path === path && l.route.methods[method.toLowerCase()]);
@@ -165,6 +166,7 @@ const noSideEffects = () => {
   expect(activityLogCreate).not.toHaveBeenCalled();
   expect(enqueueRunMock).not.toHaveBeenCalled();
 };
+let claimSeq = 0;
 const wroteState = () => store.writes.some((w) => "state" in w.data) || store.selects.some((s) => "state" in (s as object));
 
 beforeEach(() => {
@@ -175,16 +177,21 @@ beforeEach(() => {
   store.staleRead = null;
   store.ledger.status = "OPEN";
   store.ledger.claimedBy = null;
+  store.ledger.claimedAt = null;
+  claimSeq = 0;
   store.selects.length = 0;
   store.writes.length = 0;
   activityLogCreate.mockResolvedValue({});
   enqueueRunMock.mockResolvedValue(undefined);
   approvalFindFirst.mockResolvedValue(null);
   handoffFindFirst.mockResolvedValue({ id: "hl-1", status: "OPEN" });
+  // Same contract as the real atomic claim: only an OPEN ledger can be claimed (one winner), claimedAt is the token.
   claimHandoffMock.mockImplementation(async (input: { claimedBy: string }) => {
+    if (store.ledger.status !== "OPEN") throw new HandoffClaimError("NOT_OPEN", "Handoff was claimed by another request");
     store.ledger.status = "CLAIMED";
     store.ledger.claimedBy = input.claimedBy;
-    return { id: "hl-1", status: "CLAIMED" };
+    store.ledger.claimedAt = new Date(1_700_000_000_000 + ++claimSeq); // unique per claim
+    return { id: "hl-1", status: "CLAIMED", claimedAt: store.ledger.claimedAt };
   });
   createHandoffMock.mockResolvedValue({ id: "hl-1", checkpoint: null });
   cancelOpenHandoffForRunMock.mockResolvedValue(true);
@@ -453,6 +460,7 @@ describe("POST /runs/:id/continue", () => {
     setRun("RUNNING");
     expect((await invoke(cont, { body })).nextErr).toBeUndefined();
     expect(enqueueRunMock).toHaveBeenCalledTimes(1);
+    store.ledger.status = "OPEN"; // a fresh OPEN handoff for the second call
     setRun("COMPLETED");
     expect((await invoke(cont, { body })).nextErr).toBeUndefined();
     expect(store.row.status).toBe("RUNNING");
@@ -510,7 +518,7 @@ describe("POST /runs/:id/continue", () => {
     expect(res.body).toBeUndefined();
     expect(store.row.status).toBe("CANCELLED");
     expect(claimHandoffMock).toHaveBeenCalledTimes(1);
-    expect(store.ledger).toEqual({ status: "OPEN", claimedBy: null });
+    expect(store.ledger).toEqual({ status: "OPEN", claimedBy: null, claimedAt: null });
     noSideEffects();
   });
 
@@ -523,6 +531,31 @@ describe("POST /runs/:id/continue", () => {
     expect(store.row).toMatchObject({ status: "PAUSED", state: "CANCELLED" });
     expect(store.ledger.status).toBe("OPEN");
     noSideEffects();
+  });
+
+  it.each([false, true])("flag %s: two concurrent /continue by the SAME user (claim race) → one claim wins and STAYS CLAIMED + one enqueue; loser 409 and never touches the ledger", async (on) => {
+    flag(on);
+    setRun("PAUSED");
+    const [a, b] = await Promise.all([invoke(cont, { body }), invoke(cont, { body })]);
+    const codes = [a.nextErr?.statusCode, b.nextErr?.statusCode];
+    expect(codes.filter((c) => c === undefined)).toHaveLength(1);
+    expect(codes.filter((c) => c === 409)).toHaveLength(1);
+    expect(claimHandoffMock).toHaveBeenCalledTimes(2);
+    expect(store.ledger.status).toBe("CLAIMED"); // winner's claim not reopened by the loser
+    expect(store.ledger.claimedBy).toBe("user-1");
+    expect(enqueueRunMock).toHaveBeenCalledTimes(1);
+    expect(store.row.status).toBe("RUNNING");
+  });
+
+  it("a claim by ANOTHER request is never reopened (token mismatch): reopenClaimedHandoff with a stale token is a no-op", async () => {
+    const { reopenClaimedHandoff } = await import("../handoff.service");
+    store.ledger.status = "CLAIMED";
+    store.ledger.claimedBy = "user-1";
+    store.ledger.claimedAt = new Date(1_700_000_000_999);
+    expect(await reopenClaimedHandoff("hl-1", new Date(1_700_000_000_001))).toBe(false);
+    expect(store.ledger.status).toBe("CLAIMED");
+    expect(await reopenClaimedHandoff("hl-1", new Date(1_700_000_000_999))).toBe(true);
+    expect(store.ledger.status).toBe("OPEN");
   });
 
   it("flag ON staggered: up-front read stale PAUSED but run is already RUNNING → 200 'already', rolled back, NO second enqueue, claim stays (as for 'already' today)", async () => {

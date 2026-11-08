@@ -33,6 +33,7 @@ const handoffFindFirst = vi.hoisted(() => vi.fn());
 const handoffFindUnique = vi.hoisted(() => vi.fn());
 const handoffCreate = vi.hoisted(() => vi.fn());
 const handoffUpdate = vi.hoisted(() => vi.fn());
+const handoffUpdateMany = vi.hoisted(() => vi.fn());
 const approvalCreate = vi.hoisted(() => vi.fn());
 const approvalFindMany = vi.hoisted(() => vi.fn());
 const approvalUpdateMany = vi.hoisted(() => vi.fn());
@@ -55,6 +56,7 @@ vi.mock("../../../lib/db", () => ({
       findUnique: (...a: unknown[]) => handoffFindUnique(...a),
       create: (...a: unknown[]) => handoffCreate(...a),
       update: (...a: unknown[]) => handoffUpdate(...a),
+      updateMany: (...a: unknown[]) => handoffUpdateMany(...a),
     },
     approval: {
       create: (...a: unknown[]) => approvalCreate(...a),
@@ -142,6 +144,8 @@ beforeEach(() => {
     Promise.resolve({ id: "hl-1", tenantId: "tenant-1", runId: "run-1", stepIndex: 0, status: "OPEN", ...args.data }),
   );
   handoffUpdate.mockImplementation((args: any) => Promise.resolve({ id: "hl-1", ...args.data }));
+  // 02c-2: the CLAIMED write is an atomic updateMany(where status OPEN); count 1 = won.
+  handoffUpdateMany.mockResolvedValue({ count: 1 });
   handoffFindUnique.mockResolvedValue(null);
   approvalCreate.mockResolvedValue({ id: "ap-1" });
   activityLogCreate.mockResolvedValue({});
@@ -344,8 +348,9 @@ describe("claimHandoff", () => {
       runStepId: "rs-1",
     });
     const claimed = await claimHandoff({ handoffId: "hl-1", provider: "OLLAMA", model: "gemma3:4b" });
-    // The stale-recovery update AND the CLAIMED update both fire.
-    expect(handoffUpdate).toHaveBeenCalledTimes(2);
+    // The stale-recovery update AND the CLAIMED write both fire.
+    expect(handoffUpdate).toHaveBeenCalledTimes(1);
+    expect(handoffUpdateMany).toHaveBeenCalledTimes(1);
     expect(claimed.status).toBe("CLAIMED");
     expect(claimed.toProvider).toBe("OLLAMA");
   });
@@ -361,8 +366,28 @@ describe("claimHandoff", () => {
       runStepId: "rs-1",
     });
     const claimed = await claimHandoff({ handoffId: "hl-1", provider: "OPENAI", model: "gpt-4o" });
-    expect(handoffUpdate).toHaveBeenCalledTimes(1); // only the CLAIMED update
+    expect(handoffUpdate).not.toHaveBeenCalled();
+    expect(handoffUpdateMany).toHaveBeenCalledTimes(1); // only the CLAIMED write
     expect(claimed.status).toBe("CLAIMED");
+    expect(claimed.claimedAt).toBeInstanceOf(Date); // the claim token reopenClaimedHandoff matches on
+  });
+
+  it("claim is atomic: the write is guarded by status OPEN, and losing it (count 0) is NOT_OPEN, with no audit/event", async () => {
+    handoffFindUnique.mockResolvedValue({
+      id: "hl-1", status: "OPEN", checkpoint: CHECKPOINT, createdAt: new Date(), tenantId: "tenant-1", runId: "run-1", runStepId: "rs-1",
+    });
+    handoffUpdateMany.mockResolvedValue({ count: 0 }); // a concurrent claimer won between our read and write
+    await expect(claimHandoff({ handoffId: "hl-1", provider: "OPENAI", model: "m", claimedBy: "u1" })).rejects.toMatchObject({ code: "NOT_OPEN" });
+    expect(handoffUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "hl-1", status: "OPEN" } }));
+    expect(activityLogCreate).not.toHaveBeenCalled();
+    expect(publishRunEventMock).not.toHaveBeenCalled();
+  });
+
+  it("reopenClaimedHandoff only reopens the claim carrying ITS token (claimedAt)", async () => {
+    const { reopenClaimedHandoff } = await import("../handoff.service");
+    const t = new Date("2026-11-08T10:00:00.000Z");
+    await reopenClaimedHandoff("hl-1", t);
+    expect(handoffUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "hl-1", status: "CLAIMED", claimedAt: t } }));
   });
 
   it("a non-OPEN ledger is not claimable", async () => {
