@@ -2,6 +2,7 @@ import { Router } from "express";
 import { authMiddleware } from "../../middleware/auth";
 import { prisma, tenantTx } from "../../lib/db";
 import { AppError } from "../../middleware/error";
+import { toPublicCompany } from "../company/redact";
 import { rateLimit } from "../../middleware/rateLimit";
 import { z } from "zod";
 import { enqueueRun, registerSchedule, removeSchedule } from "./runner";
@@ -561,7 +562,7 @@ pipelineRouter.get("/:id", async (req, res, next) => {
     if (!pipeline || pipeline.company.tenantId !== req.auth!.tenantId) {
       throw new AppError(404, "Pipeline not found");
     }
-    res.json(pipeline);
+    res.json({ ...pipeline, company: toPublicCompany(pipeline.company) });
   } catch (err) { next(err); }
 });
 

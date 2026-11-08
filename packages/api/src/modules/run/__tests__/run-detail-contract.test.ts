@@ -86,10 +86,21 @@ const RUN_SCALAR_KEYS = [
 ].sort();
 const RELATION_KEYS = ["approvals", "pipeline", "steps"];
 
+/** Prisma Company scalars: the nested `pipeline.company` shape. */
+const COMPANY_SCALAR_KEYS = Object.values(Prisma.CompanyScalarFieldEnum).sort();
+
+function companyRow(tenantId = "tenant-1") {
+  const row: Record<string, unknown> = {};
+  for (const k of Object.values(Prisma.CompanyScalarFieldEnum)) row[k] = null;
+  row.tenantId = tenantId;
+  row.config = { niche: "saas", webhookSecret: "test-secret-value", budget: { apiKey: "test-secret-value" } };
+  return row;
+}
+
 function fullRow(tenantId = "tenant-1") {
   const row: Record<string, unknown> = {};
   for (const k of Object.values(Prisma.RunScalarFieldEnum)) row[k] = null;
-  return { ...row, steps: [], approvals: [], pipeline: { id: "pipe-1", company: { tenantId } } };
+  return { ...row, steps: [], approvals: [], pipeline: { id: "pipe-1", company: companyRow(tenantId) } };
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -123,5 +134,27 @@ describe("GET /runs/:id — response-key contract", () => {
     const { res, nextErr } = await invoke({});
     expect(nextErr?.statusCode).toBe(404);
     expect(res.body).toBeUndefined();
+  });
+});
+
+describe("GET /runs/:id — nested include contract (BRA-SEC-01)", () => {
+  it("pipeline.company keeps exactly the Company scalar keys (no relations) and config is redacted", async () => {
+    runFindUnique.mockResolvedValue(fullRow());
+    const { res } = await invoke({});
+    expect(Object.keys(res.body.pipeline.company).sort()).toEqual(COMPANY_SCALAR_KEYS);
+    expect(res.body.pipeline.company.config).toEqual({
+      niche: "saas",
+      budget: { apiKey: "***" },
+      webhookSecretSet: true,
+    });
+    expect(JSON.stringify(res.body)).not.toContain("test-secret-value");
+  });
+
+  it("pipeline include stays { company: true } only (no nested relation widening)", async () => {
+    runFindUnique.mockResolvedValue(fullRow());
+    await invoke({});
+    const args = runFindUnique.mock.calls[0]![0];
+    expect(args.include.pipeline).toEqual({ include: { company: true } });
+    expect(args.include.steps).toEqual({ include: { toolCalls: true }, orderBy: { stepIndex: "asc" } });
   });
 });

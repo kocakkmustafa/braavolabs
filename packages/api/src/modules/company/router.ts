@@ -18,6 +18,7 @@ import { updateAgentWithHistory } from "./agent-update";
 import { composeAgent } from "../agent/composer";
 import { assertCompanyCapacity } from "./company-capacity";
 import { getEffectivePlan } from "../billing/entitlement-ledger.service";
+import { toPublicCompany } from "./redact";
 
 export const companyRouter = Router();
 companyRouter.use(authMiddleware);
@@ -67,7 +68,7 @@ companyRouter.get("/", async (req, res, next) => {
       },
     });
 
-    res.json(companies);
+    res.json(companies.map((c) => toPublicCompany(c)));
   } catch (err) { next(err); }
 });
 
@@ -79,7 +80,7 @@ companyRouter.get("/:id", async (req, res, next) => {
       include: { agents: true, pipelines: true },
     });
     if (!company) throw new AppError(404, "Company not found");
-    res.json(company);
+    res.json(toPublicCompany(company));
   } catch (err) { next(err); }
 });
 
@@ -108,7 +109,7 @@ companyRouter.post("/", async (req, res, next) => {
     });
 
     logger.info({ companyId: company.id }, "Company created");
-    res.status(201).json(company);
+    res.status(201).json(toPublicCompany(company));
   } catch (err) { next(err); }
 });
 

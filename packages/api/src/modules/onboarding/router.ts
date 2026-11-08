@@ -6,6 +6,7 @@
  */
 
 import { Router } from "express";
+import { toPublicCompany } from "../company/redact";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
 import { rateLimit } from "../../middleware/rateLimit";
@@ -213,7 +214,7 @@ onboardingRouter.post("/hero-company", async (req, res, next) => {
     );
 
     res.status(201).json({
-      company,
+      company: toPublicCompany(company),
       agents: [contentAgent, analyticsAgent],
       pipeline,
       nextStep: "Run your first pipeline to generate content!",
