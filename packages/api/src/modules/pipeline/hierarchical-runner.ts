@@ -265,9 +265,15 @@ export async function processHierarchicalRun(opts: {
   }
 
   // BRA-P0-08: if a delegation was refused by the job budget (or scope gate) the
-  // manager could not finish its plan — never report that as COMPLETED. Only a
-  // refusal fails the run: a run that merely reached its limit while finishing
-  // its last step is still a success.
+  // manager could not finish its plan — never report that as COMPLETED. A run
+  // that merely reached its limit while finishing its last step is a success.
+  // The manager's own cost is only known now (runAgentLoop returns it at the
+  // end), so re-check the FINAL total strictly: a real overshoot also fails the run.
+  if (ctx.budgetStop.reason === null) {
+    const { runJobBudgetCheck } = await import("../governance/engine");
+    const finalBudget = await runJobBudgetCheck(runId, ctx.totalCost.value, undefined, { finalCheck: true });
+    if (!finalBudget.allowed) ctx.budgetStop.reason = finalBudget.reason ?? "Job budget exceeded";
+  }
   if (ctx.budgetStop.reason !== null) {
     await prisma.run.update({
       where: { id: runId },

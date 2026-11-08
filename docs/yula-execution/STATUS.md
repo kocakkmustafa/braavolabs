@@ -12,7 +12,7 @@ Durum kodları: talimat §12.4 (`BACKLOG … IMPLEMENTING, IN_REVIEW, …`). `IM
 | BRA-P0-02a ADR + durum makinesi (bu PR) | IN_REVIEW | Aşağıdaki test kanıtı; `job-state.ts` + `job-state.test.ts`; ADR-0001 | PR denetimi, sonra 02b |
 | BRA-P0-02b migration + `transitionRun` + `JOB_STATE_DUAL_WRITE` (varsayılan kapalı) | IN_REVIEW (bu yığılı PR) | Aşağıdaki "02b" bölümü | PR denetimi |
 | BRA-P0-02c yazıcıları `transitionRun`a taşı, yaratıcılar `tenantId`/`workspaceId` ayarlasın, sözleşme testleri | BACKLOG | — | 02b kabulünden sonra, küçük PR'lar |
-| BRA-P0-02a/02b | MERGED (2026-11-08) | #108 `32bfb05` (CI 9/9 yeşil + 2 atlanmış), #109 yığılı PR ana dala çevrildi | — |
+| BRA-P0-02a/02b | MERGED (2026-11-08) | #108 `32bfb05`, #109 `0318e4c` (CI tamamen yeşil, E2E dahil) | — |
 | BRA-P0-05 exact-action onay + onay atlama kapatma | IMPLEMENTING → bu PR | Aşağıdaki "05 + 08" bölümü; ADR-0002 | PR denetimi, CI |
 | BRA-P0-08 job bütçesi (`runs.job_budget`, governance denetimi) | IMPLEMENTING → bu PR | Aşağıdaki "05 + 08" bölümü; ADR-0002 | PR denetimi, CI; bütçeyi yazan yaratıcı 02c/03 |
 
@@ -73,19 +73,19 @@ Maliyet 0 USD, yeni sır yok. Geri alma: migration eklemelidir, bayrak kapalıyk
 - **`job_receipts`:** "yalnız-ekle" şimdilik yalnız kodla sağlanır (RLS politikası UPDATE/DELETE'e izin verir) ve `tenant_id` için `tenants` FK'si ile run'ın tenant'ıyla tutarlılık denetimi yok; daraltma adımında ele alınır.
 - **Geri dolgu:** `state` bilerek doldurulmadı; `tenant_id`/`workspace_id` tek `UPDATE` ile (prod boyutu bilinmiyor); migration sonrası yaratılan koşularda NULL. Ayrıntı ADR karar 2.
 
-## 05 + 08 — exact-action onay, onay atlama kapatma, job bütçesi (PR `feat/BRA-P0-05-08-exact-action-budget`, #109 `9b4368b` üstüne)
+## 05 + 08 — exact-action onay, onay atlama kapatma, job bütçesi (PR `feat/BRA-P0-05-08-exact-action-budget`; #109 merge edildi `0318e4c`)
 
-Kapsam: `schema.prisma` (+`approvals.{tenant_id,nonce,action_hash,consumed_at}`, +`runs.job_budget`), `migrations/20261108010000_approval_exact_action` (yalnız ekler; **hiçbir ortama uygulanmadı**; `prisma migrate diff` çıktısıyla birebir doğrulandı), `modules/approval/exact-action.ts` (hash, nonce, `evaluateGrant`, `consumeGrant` CAS, `hasOpenApproval`), `modules/run/job-budget.ts` (şema, `evaluateJobBudget`, `checkJobScope`), `governance/engine.ts` (`checkJobBudget` ilk denetim), `agent/tool-executor.ts` (SPEND kapısı, `EXACT_ACTION_APPROVAL` bayrağı), `run/router.ts` (`/resume` + `/continue` 409 koruması), `approval/router.ts` (`decide` süre denetimi). Karar ve davranış değişikliği tablosu: DECISIONS.md ADR-0002.
+Kapsam: `schema.prisma` (+`approvals.{tenant_id,nonce,action_hash,consumed_at}`, +`runs.job_budget`), `migrations/20261108010000_approval_exact_action` (yalnız ekler; **hiçbir ortama uygulanmadı**; `prisma migrate diff` çıktısıyla birebir doğrulandı), `modules/approval/exact-action.ts` (hash, nonce, `evaluateGrant`, `consumeGrant` CAS, `hasOpenApproval`), `modules/run/job-budget.ts` (şema, `evaluateJobBudget`, `checkJobScope`), `governance/engine.ts` (`checkJobBudget` ilk denetim, `runJobBudgetCheck`), `pipeline/hierarchical-runner.ts` (devir öncesi + nihai bütçe denetimi), `agent/tool-executor.ts` (SPEND kapısı, `EXACT_ACTION_APPROVAL` bayrağı), `run/router.ts` (`/resume` + `/continue` 409 koruması), `approval/router.ts` (`decide` süre denetimi). Karar ve davranış değişikliği tablosu: DECISIONS.md ADR-0002.
 
 **Onay atlama açığı kapandı (bayraktan bağımsız):** `approval-bypass.test.ts` + `handoff-router.test.ts` negatif testleri: bekleyen onayla `/resume` ve `/handoff`→`/continue` **409**, claim/ledger/RUNNING/enqueue/audit yok; sorgu hatası resume'a dönüşmez. Mutasyon kontrolü: korumayı kapatınca 5 test kırıldı, geri alındı.
 
 | Komut (packages/api, CI env) | Sonuç |
 |---|---|
 | `npx tsc --noEmit` | **0 hata** |
-| yeni testler (exact-action 41, job-budget 31, exact-action-gate 11, approval-bypass 7, decide-expiry 5, hierarchical-budget 6, handoff-router +2) | **103 yeni test geçti** |
-| `npx vitest run` (tam, denetim düzeltmelerinden sonra) | **171 dosya geçti, 1 atlandı; 2774 test geçti, 48 atlandı**, 0 başarısız (önceki: 165 / 2671) |
+| yeni testler (exact-action 41, job-budget 32, exact-action-gate 11, approval-bypass 7, decide-expiry 5, hierarchical-budget 8, handoff-router +2) | **106 yeni test geçti** |
+| `npx vitest run` (tam, denetim tur 2 düzeltmelerinden sonra) | **171 dosya geçti, 1 atlandı; 2777 test geçti, 48 atlandı**, 0 başarısız (önceki: 165 / 2671) |
 
-`NOT_TESTED`: migration'ın gerçek Postgres'te uygulanması (CI "DB Migration Check" bu PR'ın CI'ında okunacak), veritabanlı CAS yarışı, RLS, E2E Playwright, Docker/Boot Smoke (CI'da), runner'ın gerçek Redis/BullMQ ile bütçe durdurması. `eslint` api paketinde yapılandırılmamış (`pnpm lint` yalnız ui/braavo-core `tsc`).
+`NOT_TESTED`: migration'ın gerçek Postgres'te uygulanması (CI "DB Migration Check" bu PR'ın CI'ında okunacak; #109'da gerçek `pgvector/pgvector:pg16` servisinde yeşil koştu), veritabanlı CAS yarışı, RLS, E2E Playwright, Docker/Boot Smoke (CI'da), runner'ın gerçek Redis/BullMQ ile bütçe durdurması. `eslint` api paketinde yapılandırılmamış (`pnpm lint` yalnız ui/braavo-core `tsc`).
 
 Bilinen açıklar ve etkiler: ADR-0002 "Sonuçlar ve bilinenler" (i)–(vi) ve **bekleyen onayı olan PAUSED koşu `/resume` ile açılamaz** (kasıtlı). `runs.job_budget`ı yazan yaratıcı henüz yok (02c/03); bayrak `EXACT_ACTION_APPROVAL` kapalı: prod'da hiçbir şey damgalanmaz/harcanmaz, yalnız atlama koruması + `decide` süre denetimi + (doluysa) bütçe devrededir. **Dağıtım sırası:** migration yeni imajdan ÖNCE; kurucu onayı gerekir (merge onayı değildir).
 
@@ -109,7 +109,22 @@ Geri alma: ADR-0002 "Geri alma".
 | 12 | Migration yalnız ekler, backfill güvenli (olumlu); indeksler `CONCURRENTLY` değil | Not edildi, değişmedi |
 | — | `decide` (A onayı, B PENDING iken RUNNING) kapsam dışı açık | ADR "bilinen açıklar", sonraki bilet adayı |
 
-Doğrulananlar: CAS skaler tek UPDATE (ilişki filtresi sızması yok); hash/nonce/tenant/run/süre kontrolleri bayrak açıkken atlanamaz; `/resume`+`/continue` korumaları yan etkiden önce, sorgu hatası `next(err)`; `/rerun` koşuyu RUNNING yapmaz. **Tur 2: yapılmadı** (kanca sertleştirme sınırı: iki tur üstü yeni inceleme için kurucuya sorulur); bloke eden iki bulgu kodla kapandı, tsc ve 2774 test yeniden koşuldu.
+Doğrulananlar: CAS skaler tek UPDATE (ilişki filtresi sızması yok); hash/nonce/tenant/run/süre kontrolleri bayrak açıkken atlanamaz; `/resume`+`/continue` korumaları yan etkiden önce, sorgu hatası `next(err)`; `/rerun` koşuyu RUNNING yapmaz. 
+
+**Tur 2 (`cac2c86` deltası): BLOKE EDEN YOK.** Tur 1'in iki bloke bulgusu doğru kapanmış (hiyerarşik FAILED yolu, HANDOFF dışlaması, `canonicalize`); `runGovernanceChecks` davranışı refaktörde değişmedi. Yeni bulgular ve karşılığı:
+
+| # | Bulgu (önem) | Karşılık |
+|---|---|---|
+| 1 | `/continue` bekleyen HANDOFF onayını açık bırakır, sonradan `decide` çalışan koşuyu FAILED yapabilir (orta; önceden var, belgelenmemiş) | ADR "bilinen açıklar" + önerilen sonraki iş; kapsam dışı |
+| 2 | Yöneticinin kendi maliyeti/tokenı hiyerarşik bütçeye geç girer (orta) — güvenlik taraması da aynı noktayı işaretledi | Kodla hafifletildi: döngü sonrası **nihai toplam** `strict` (yalnız aşım) denetlenir, aşıldıysa FAILED (`runJobBudgetCheck(..., { finalCheck: true })`, 2 yeni test); döngü içinde anlık kesme yok, ADR'de açık |
+| 3 | Paralel `delegate` (5'e kadar) aynı sayacı görüp kontrolü geçer (orta) | ADR "bilinen açıklar" |
+| 4 | Hiyerarşik `maxSteps` yalnız COMPLETED devirleri sayar (düşük) | ADR "bilinen açıklar" |
+| 5 | Bütçe FAILED yolunda `run.hierarchical_failed` yok, tekrar eden ret bildirim tekrarı (düşük) | ADR "bilinen açıklar" |
+| 6 | "reaching the limit" testi limite yaklaşmıyordu (düşük, test) | Test yeniden yazıldı (limit = nihai toplam → başarı) + aşım testi + yönetici çöküşü testi |
+| 7 | HANDOFF dışlaması yalnız `findFirst` argüman şekliyle sınanıyor (düşük, test) | Kabul: sorgu şekli tek kanıt (DB'siz); `/continue` + PENDING HANDOFF davranış testi `NOT_TESTED` |
+| 8 | STATUS/ADR kapsam ve "tur 2 yapılmadı" güncel değil (düşük, belge) | Düzeltildi (bu bölüm, kapsam satırı, ADR karar 1) |
+
+Tur 3 yapılmadı (devir notu: reviewer turları iki ile sınırlı); tsc 0 hata, tam paket **171 dosya, 2777 test geçti**, 0 başarısız.
 
 ## Maliyet, veri, izin
 - 05+08: yeni ücretli kaynak **0 USD**, yeni veri akışı yok, yeni izin/sır yok; deploy/migration yok.

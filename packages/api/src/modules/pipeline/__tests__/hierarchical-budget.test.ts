@@ -121,11 +121,34 @@ describe("HIERARCHICAL runner — job budget (BRA-P0-08)", () => {
     expect(lastRunUpdate()).toMatchObject({ status: "FAILED" });
   });
 
-  it("reaching the limit while finishing is still a success (only a refusal fails the run)", async () => {
-    prismaMock.run.findUnique.mockResolvedValue(runRow({ jobBudget: { maxSteps: 5 } }));
-    await runWithDelegations(1);
+  it("reaching the limit exactly while finishing is still a success (final check is overshoot-only)", async () => {
+    // maxUsd 0.6: delegation sees cost 0 → allowed; final total = worker 0.5 + manager 0.5 = 1.0 (> 0.6) would FAIL,
+    // so use a limit equal to the final total instead: 1.0 → used == limit → success.
+    prismaMock.run.findUnique.mockResolvedValue(runRow({ jobBudget: { maxUsd: 1.0 } }));
+    await runWithDelegations(1); // worker loop 0.5 + manager loop 0.5
     expect(workerLoops()).toBe(1);
     expect(lastRunUpdate()).toMatchObject({ status: "COMPLETED" });
+  });
+
+  it("manager's own cost counts at the end: total over maxUsd → run FAILED even though no delegation was refused", async () => {
+    prismaMock.run.findUnique.mockResolvedValue(runRow({ jobBudget: { maxUsd: 0.9 } }));
+    const results = await runWithDelegations(1); // delegation allowed (cost 0), final total 1.0 > 0.9
+    expect(results[0]).not.toMatchObject({ error: expect.anything() });
+    expect(workerLoops()).toBe(1);
+    expect(lastRunUpdate()).toMatchObject({ status: "FAILED", error: expect.stringMatching(/Job budget exhausted \(usd: 1 of 0.9\)/) });
+  });
+
+  it("a refusal's reason is kept (first reason wins) and the run still ends FAILED when the manager loop throws afterwards", async () => {
+    prismaMock.run.findUnique.mockResolvedValue(runRow({ jobBudget: { maxSteps: 0 } }));
+    runAgentLoopMock.mockImplementation(async (cfg: { toolNames: string[] }) => {
+      if (cfg.toolNames.includes("delegate")) {
+        await getTool("delegate")!.handler({ agentId: "worker-1", task: "a" });
+        throw new Error("manager crashed");
+      }
+      return loopResult(0.5);
+    });
+    await processHierarchicalRun({ runId: "run-1", tenantId: "tenant-1", pipeline, input: "go" });
+    expect(lastRunUpdate()).toMatchObject({ status: "FAILED" });
   });
 
   it("malformed stored budget → refused (fail-closed)", async () => {

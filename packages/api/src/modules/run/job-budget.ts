@@ -89,8 +89,12 @@ function ratioOf(used: number, limit: number): number {
   return used > 0 ? Infinity : limit === 0 ? Infinity : 0;
 }
 
-/** Evaluate usage against a budget. Pure. */
-export function evaluateJobBudget(budget: JobBudget, usage: JobUsage): BudgetVerdict {
+/** Evaluate usage against a budget. Pure. `strict` = overshoot only (see below). */
+export function evaluateJobBudget(
+  budget: JobBudget,
+  usage: JobUsage,
+  opts: { strict?: boolean } = {},
+): BudgetVerdict {
   const warnAt = budget.warnRatio ?? JOB_BUDGET_WARN_RATIO;
   const dimensions: DimensionVerdict[] = [];
 
@@ -98,7 +102,9 @@ export function evaluateJobBudget(budget: JobBudget, usage: JobUsage): BudgetVer
     if (limit === undefined) return;
     const ratio = ratioOf(used, limit);
     // Retries are an allowance: only going past the cap stops the run.
-    const stopHere = dimension === "retries" ? used > limit : ratio >= 1;
+    // `strict` (final check after the work is done): only a real OVERSHOOT
+    // counts — a run that merely reached its limit while finishing succeeded.
+    const stopHere = dimension === "retries" || opts.strict ? used > limit : ratio >= 1;
     // A zero retry allowance with nothing used yet is not a warning.
     const warnHere = dimension === "retries" ? limit > 0 && ratio >= warnAt : ratio >= warnAt;
     const level: BudgetLevel = stopHere ? "stop" : warnHere ? "warn" : "ok";

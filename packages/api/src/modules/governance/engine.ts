@@ -124,6 +124,7 @@ export async function runJobBudgetCheck(
   runId: string,
   currentCost: number,
   config: GovernanceConfig = DEFAULT_GOVERNANCE_CONFIG,
+  opts: { finalCheck?: boolean } = {},
 ): Promise<GovernanceCheckResult> {
   const run = await prisma.run.findUnique({
     where: { id: runId },
@@ -135,12 +136,14 @@ export async function runJobBudgetCheck(
   if (!run) return { allowed: false, stopType: "hard_stop", reason: "Run not found" };
 
   const tenantId = run.pipeline.company.tenantId;
-  const result = checkJobBudget({ run, currentCost, config, tenantId, companyId: run.pipeline.company.id });
+  const result = checkJobBudget({ run, currentCost, config, tenantId, companyId: run.pipeline.company.id, finalCheck: opts.finalCheck });
   if (!result.allowed) await reportGovernanceStop(tenantId, runId, "job_budget", result, config);
   return result;
 }
 
 export interface CheckContext {
+  /** Final check after the work finished: only an OVERSHOOT of the job budget stops (BRA-P0-08). */
+  finalCheck?: boolean;
   run: any;
   currentCost: number;
   config: GovernanceConfig;
@@ -201,13 +204,17 @@ export function checkJobBudget(ctx: CheckContext): GovernanceCheckResult {
 
   const startedAt = run.startedAt ? new Date(run.startedAt).getTime() : null;
   const steps: Array<{ status: string; promptTokens?: number | null; completionTokens?: number | null }> = run.steps ?? [];
-  const verdict = evaluateJobBudget(parsed.budget, {
-    usd: ctx.currentCost,
-    tokens: sumStepTokens(steps),
-    steps: steps.filter((s) => s.status === "COMPLETED").length,
-    elapsedMs: startedAt === null ? 0 : Math.max(0, Date.now() - startedAt),
-    retries: run.retryCount ?? 0,
-  });
+  const verdict = evaluateJobBudget(
+    parsed.budget,
+    {
+      usd: ctx.currentCost,
+      tokens: sumStepTokens(steps),
+      steps: steps.filter((s) => s.status === "COMPLETED").length,
+      elapsedMs: startedAt === null ? 0 : Math.max(0, Date.now() - startedAt),
+      retries: run.retryCount ?? 0,
+    },
+    { strict: ctx.finalCheck === true },
+  );
   if (verdict.action !== "stop") return { allowed: true };
   return {
     allowed: false,

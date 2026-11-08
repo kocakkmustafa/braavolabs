@@ -74,6 +74,13 @@ describe("evaluateJobBudget", () => {
     expect(v.action).toBe("stop");
     expect(v.stopped).toEqual([dim]);
   });
+  it("strict (final check): reaching the limit is fine, only an overshoot stops", () => {
+    const b = parseOk({ maxUsd: 10, maxTokens: 100 });
+    expect(evaluateJobBudget(b, { ...zero, usd: 10, tokens: 100 }, { strict: true }).action).toBe("warn");
+    const v = evaluateJobBudget(b, { ...zero, usd: 10.01, tokens: 100 }, { strict: true });
+    expect(v.action).toBe("stop");
+    expect(v.stopped).toEqual(["usd"]);
+  });
   it("a limit of 0 is already used up (CLI parity) — no infinite loop on a zero budget", () => {
     expect(evaluateJobBudget(parseOk({ maxSteps: 0 }), zero).action).toBe("stop");
     expect(evaluateJobBudget(parseOk({ maxUsd: 0 }), zero).action).toBe("stop");
