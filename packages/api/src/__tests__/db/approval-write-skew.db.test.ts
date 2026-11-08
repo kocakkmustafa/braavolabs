@@ -53,7 +53,7 @@ d("A/B concurrent approve (real Postgres, dual write ON)", () => {
           const claim = await tx.approval.updateMany({ where: { id, status: "PENDING" }, data: { status: "APPROVED", decidedAt: new Date() } });
           expect(claim.count).toBe(1);
           await gate(); // both operators have claimed; neither has committed
-          return driveApprovedRun(tx, id, runId, seed.tenantId);
+          return (await driveApprovedRun(tx, id, runId, seed.tenantId)).enqueue;
         }),
       ),
     );

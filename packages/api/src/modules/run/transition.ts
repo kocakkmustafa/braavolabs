@@ -107,6 +107,15 @@ export interface TransitionOptions {
    * the graph is always enforced there.
    */
   legacyUnchecked?: boolean;
+  /**
+   * BRA-P0-02c-3: precondition on the CURRENT legacy status, checked on the
+   * fresh read of this same call and honoured in BOTH flag modes (also with
+   * `legacyUnchecked`). Anything else → `illegal_transition`, nothing written.
+   * The CAS then pins the write to the status that was read, so the write lands
+   * only while the row still has one of these statuses (compensating writes use
+   * this: "undo my own RUNNING only if the run is still RUNNING").
+   */
+  onlyIfStatus?: readonly LegacyRunStatus[];
 }
 
 export type TransitionOutcome =
@@ -144,6 +153,9 @@ export async function transitionRun(
   if (!row) return { ok: false, reason: "not_found" };
 
   const from = currentJobState(row.status, dual ? row.state : null);
+  if (opts.onlyIfStatus && !opts.onlyIfStatus.includes(row.status)) {
+    return { ok: false, reason: "illegal_transition", from, to };
+  }
   if (!(opts.legacyUnchecked && !dual)) {
     const decision = applyTransition(from, to);
     if (!decision.ok) return { ok: false, reason: "illegal_transition", from, to };

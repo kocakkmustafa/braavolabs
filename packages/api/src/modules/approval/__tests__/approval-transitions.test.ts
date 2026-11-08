@@ -264,6 +264,32 @@ describe("decide APPROVED (non-HANDOFF)", () => {
   });
 });
 
+describe("decide APPROVED (non-HANDOFF) — enqueue fails after the commit", () => {
+  it.each([false, true])("flag %s: run put back to WAITING_APPROVAL (retry-able), answer still 200 as before", async (on) => {
+    flag(on);
+    setRun("WAITING_APPROVAL", on ? "NEEDS_APPROVAL" : null);
+    const a = addApproval({ id: "a" }); serve(a);
+    enqueueRunMock.mockRejectedValueOnce(new Error("redis down"));
+    const { res, nextErr } = await decide("a", "APPROVED");
+    expect(nextErr).toBeUndefined();
+    expect(res.body).toEqual({ success: true, decision: "APPROVED" });
+    expect(store.row.status).toBe("WAITING_APPROVAL");
+    if (on) expect(store.row.state).toBe("NEEDS_APPROVAL");
+  });
+
+  it.each([false, true])("flag %s: a /stop, completion or failure in between is never undone (CANCELLED stays CANCELLED)", async (on) => {
+    for (const other of ["CANCELLED", "COMPLETED", "FAILED"]) {
+      flag(on);
+      store.approvals = [];
+      setRun("WAITING_APPROVAL", on ? "NEEDS_APPROVAL" : null);
+      const a = addApproval({ id: "a" }); serve(a);
+      enqueueRunMock.mockImplementationOnce(async () => { store.row.status = other; if (on) store.row.state = other; throw new Error("redis down"); });
+      await decide("a", "APPROVED");
+      expect(store.row.status).toBe(other);
+    }
+  });
+});
+
 describe("decide REJECTED (non-HANDOFF)", () => {
   it("flag OFF: CANCELLED + completedAt, status-only, same body", async () => {
     flag(false);
@@ -367,6 +393,20 @@ describe("decide — HANDOFF proposals (02c-3: do not fail a working run)", () =
     expect(store.row.status).toBe("FAILED");
     if (on) expect(store.row.state).toBe("FAILED");
     expect(reopenMock).toHaveBeenCalledWith("hl-1", CLAIMED_AT);
+  });
+
+  it.each([true, false])("APPROVE, flag %s: a concurrent /stop / completion between commit and a failing enqueue → run NOT revived, ledger NOT reopened (only a revert of our own RUNNING reopens)", async (on) => {
+    for (const other of ["CANCELLED", "COMPLETED"]) {
+      flag(on);
+      reopenMock.mockClear(); store.approvals = [];
+      setRun("FAILED", on ? "FAILED" : null);
+      const h = addApproval({ id: "h", type: "HANDOFF" }); serve(h, meta);
+      enqueueRunMock.mockImplementationOnce(async () => { store.row.status = other; if (on) store.row.state = other; throw new Error("timeout"); });
+      const { res } = await decide("h", "APPROVED");
+      expect(res.body).toMatchObject({ claimFailed: true, error: "timeout" });
+      expect(store.row.status).toBe(other);
+      expect(reopenMock).not.toHaveBeenCalled();
+    }
   });
 
   it("APPROVE while the run is already RUNNING (flag ON): claimed, NO second enqueue, run not failed", async () => {

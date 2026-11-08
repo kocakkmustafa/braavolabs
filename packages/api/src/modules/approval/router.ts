@@ -6,7 +6,7 @@ import { AppError } from "../../middleware/error";
 import { enqueueRun } from "../pipeline/runner";
 import { runControlAction } from "../external/control";
 import { transitionRun, isJobStateDualWriteEnabled, currentJobState, type RunTransitionClient, type TransitionOutcome } from "../run/transition";
-import { decideResume } from "../run/job-state";
+import { decideResume, type JobState } from "../run/job-state";
 import { assertTransitioned, resumeToRunning, AlreadyRunningError, revertRunAfterEnqueueFailure } from "../run/resume";
 import { reopenClaimedHandoff } from "../run/handoff.service";
 import { z } from "zod";
@@ -102,6 +102,9 @@ approvalRouter.get("/", async (req, res, next) => {
 });
 
 
+/** The queue job could not be created after the run was committed RUNNING (compensated by the caller). */
+class EnqueueFailedError extends Error {}
+
 type DecideTx = Parameters<Parameters<typeof tenantTx>[0]>[0];
 
 /** Fresh read of the run's lifecycle state, tenant-scoped (the same scope `transitionRun` reads with). */
@@ -143,10 +146,15 @@ async function failRunAfterHandoffDecision(
  *        is not started — the approval stays decided and the operator resumes a
  *        PAUSED run with /resume (no open approval is left to block it).
  */
-export async function driveApprovedRun(tx: DecideTx, approvalId: string, runId: string, tenantId: string): Promise<boolean> {
+export async function driveApprovedRun(
+  tx: DecideTx,
+  approvalId: string,
+  runId: string,
+  tenantId: string,
+): Promise<{ enqueue: boolean; from: JobState }> {
   if (!isJobStateDualWriteEnabled()) {
-    await resumeToRunning(tx, runId, tenantId, { rejectIfAlreadyRunning: false });
-    return true;
+    const r = await resumeToRunning(tx, runId, tenantId, { rejectIfAlreadyRunning: false });
+    return { enqueue: true, from: r.from };
   }
   // ADR-0002 (g), BRA-P0-02c-6: serialise concurrent decides on the same run.
   // Under READ COMMITTED, A's and B's transactions each claim their own approval
@@ -162,12 +170,12 @@ export async function driveApprovedRun(tx: DecideTx, approvalId: string, runId: 
     where: { runId, id: { not: approvalId }, status: "PENDING", type: { not: "HANDOFF" } },
     select: { id: true },
   });
-  if (otherGate) return false;
+  if (otherGate) return { enqueue: false, from: "NEEDS_APPROVAL" };
   const cur = await readRunState(tx, runId, tenantId);
   if (!cur) throw new AppError(404, "Run not found");
-  if (decideResume(cur, "approve") !== "start") return false;
-  await resumeToRunning(tx, runId, tenantId, { rejectIfAlreadyRunning: false });
-  return true;
+  if (decideResume(cur, "approve") !== "start") return { enqueue: false, from: cur };
+  const r = await resumeToRunning(tx, runId, tenantId, { rejectIfAlreadyRunning: false });
+  return { enqueue: true, from: r.from };
 }
 
 /** Approval REJECTED (non-HANDOFF) → run CANCELLED. On: an illegal edge (finished run) leaves the run alone. */
@@ -231,7 +239,7 @@ approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (
 
       if (claim.count !== 1) {
         // Lost the race — another admin decided this approval first.
-        return { won: false as const, enqueue: false };
+        return { won: false as const, enqueue: false, from: "NEEDS_APPROVAL" as JobState };
       }
 
       // We won — drive the run to its post-approval state.
@@ -247,6 +255,7 @@ approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (
       //     below. Manual handoff can still be re-triggered on a FAILED run.
       const tenantId = req.auth!.tenantId;
       let enqueue = false;
+      let from: JobState = "NEEDS_APPROVAL";
       if (approval.type === "HANDOFF") {
         if (decision === "REJECTED") {
           const o = await failRunAfterHandoffDecision(tx, approval.runId, tenantId);
@@ -256,7 +265,7 @@ approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (
         }
         // APPROVED: leave the run as-is; the post-tx claim block drives it.
       } else if (decision === "APPROVED") {
-        enqueue = await driveApprovedRun(tx, approval.id, approval.runId, tenantId);
+        ({ enqueue, from } = await driveApprovedRun(tx, approval.id, approval.runId, tenantId));
       } else {
         await cancelRunAfterReject(tx, approval.runId, tenantId);
       }
@@ -300,7 +309,7 @@ approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (
         }
       }
 
-      return { won: true as const, enqueue };
+      return { won: true as const, enqueue, from };
     });
 
     if (!result.won) {
@@ -390,10 +399,11 @@ approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (
         // no second enqueue); a run that cannot start (finished meanwhile, lost
         // CAS) gives the ledger back, with our own claim token only (02c-3).
         let alreadyRunning = false;
+        let startedFrom: JobState = "FAILED";
         try {
-          await tenantTx((tx) =>
+          startedFrom = (await tenantTx((tx) =>
             resumeToRunning(tx, approval.runId, tenantId, { rejectIfAlreadyRunning: isJobStateDualWriteEnabled() }),
-          );
+          )).from;
         } catch (e) {
           if (e instanceof AlreadyRunningError) {
             alreadyRunning = true;
@@ -410,13 +420,16 @@ approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (
             await enqueueRun(approval.runId);
           } catch (enqueueErr) {
             // The run is committed RUNNING and the ledger CLAIMED but no job exists:
-            // undo both (run → FAILED as before 02c, ledger by our own claim token).
-            await tenantTx((tx) => revertRunAfterEnqueueFailure(tx, approval.runId, tenantId, "FAILED")).catch(() => undefined);
-            if (claimed?.claimedAt instanceof Date) {
+            // put the run back where this decision found it (only while it is still
+            // RUNNING) and, ONLY then, give the ledger back by our own claim token.
+            const reverted = await tenantTx((tx) =>
+              revertRunAfterEnqueueFailure(tx, approval.runId, tenantId, startedFrom),
+            ).catch(() => false);
+            if (reverted && claimed?.claimedAt instanceof Date) {
               await reopenClaimedHandoff(claimed.id, claimed.claimedAt).catch((re) =>
                 logger.warn({ handoffId, err: (re as Error).message }, "HANDOFF approve: ledger reopen after enqueue failure failed"));
             }
-            throw enqueueErr;
+            throw new EnqueueFailedError((enqueueErr as Error).message);
           }
         }
       } catch (err) {
@@ -427,8 +440,11 @@ approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (
         );
         // Run stays FAILED (it was never flipped to RUNNING for HANDOFF). With
         // dual write on, a working run is never failed here (02c-3).
-        await failRunAfterHandoffDecision(prisma, approval.runId, tenantId)
-          .catch(() => { /* already FAILED */ });
+        // (An enqueue failure was already compensated above; never fail the run again.)
+        if (!(err instanceof EnqueueFailedError)) {
+          await failRunAfterHandoffDecision(prisma, approval.runId, tenantId)
+            .catch(() => { /* already FAILED */ });
+        }
         // Note the failure on the approval for the operator.
         const prevMeta = { ...meta };
         await prisma.approval
@@ -453,9 +469,15 @@ approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (
         // operators can manually re-enqueue via /runs/:id/resume. Surface
         // the error to logs so PagerDuty can pick it up.
         const { logger } = await import("../../lib/logger");
+        // 02c-3: a RUNNING run without a job cannot be resumed (/resume is a 400 on
+        // RUNNING) — put it back where this decision found it, only while it is still
+        // RUNNING (a /stop, completion or failure in the meantime is never undone).
+        const reverted = await tenantTx((tx) =>
+          revertRunAfterEnqueueFailure(tx, approval.runId, req.auth!.tenantId, result.from),
+        ).catch(() => false);
         logger.error(
-          { runId: approval.runId, err: err instanceof Error ? err.message : String(err) },
-          "Failed to re-enqueue run after approval — manual resume required",
+          { runId: approval.runId, reverted, err: err instanceof Error ? err.message : String(err) },
+          "Failed to re-enqueue run after approval — run put back, manual /resume required",
         );
       }
     }
