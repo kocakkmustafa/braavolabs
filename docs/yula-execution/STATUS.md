@@ -12,7 +12,9 @@ Durum kodları: talimat §12.4 (`BACKLOG … IMPLEMENTING, IN_REVIEW, …`). `IM
 | BRA-P0-02a ADR + durum makinesi (bu PR) | IN_REVIEW | Aşağıdaki test kanıtı; `job-state.ts` + `job-state.test.ts`; ADR-0001 | PR denetimi, sonra 02b |
 | BRA-P0-02b migration + `transitionRun` + `JOB_STATE_DUAL_WRITE` (varsayılan kapalı) | IN_REVIEW (bu yığılı PR) | Aşağıdaki "02b" bölümü | PR denetimi |
 | BRA-P0-02c yazıcıları `transitionRun`a taşı, yaratıcılar `tenantId`/`workspaceId` ayarlasın, sözleşme testleri | BACKLOG | — | 02b kabulünden sonra, küçük PR'lar |
-| BRA-P0-05, 08 (nonce, bütçe) | BACKLOG | — | 02b'ye bağlı (şema sütunları) |
+| BRA-P0-02a/02b | MERGED (2026-11-08) | #108 `32bfb05` (CI 9/9 yeşil + 2 atlanmış), #109 yığılı PR ana dala çevrildi | — |
+| BRA-P0-05 exact-action onay + onay atlama kapatma | IMPLEMENTING → bu PR | Aşağıdaki "05 + 08" bölümü; ADR-0002 | PR denetimi, CI |
+| BRA-P0-08 job bütçesi (`runs.job_budget`, governance denetimi) | IMPLEMENTING → bu PR | Aşağıdaki "05 + 08" bölümü; ADR-0002 | PR denetimi, CI; bütçeyi yazan yaratıcı 02c/03 |
 
 ## Bu PR'ın değişiklikleri (02a)
 - `docs/yula-execution/{STATUS,DECISIONS,BRA-P0-02}.md` (yeni).
@@ -71,8 +73,27 @@ Maliyet 0 USD, yeni sır yok. Geri alma: migration eklemelidir, bayrak kapalıyk
 - **`job_receipts`:** "yalnız-ekle" şimdilik yalnız kodla sağlanır (RLS politikası UPDATE/DELETE'e izin verir) ve `tenant_id` için `tenants` FK'si ile run'ın tenant'ıyla tutarlılık denetimi yok; daraltma adımında ele alınır.
 - **Geri dolgu:** `state` bilerek doldurulmadı; `tenant_id`/`workspace_id` tek `UPDATE` ile (prod boyutu bilinmiyor); migration sonrası yaratılan koşularda NULL. Ayrıntı ADR karar 2.
 
+## 05 + 08 — exact-action onay, onay atlama kapatma, job bütçesi (PR `feat/BRA-P0-05-08-exact-action-budget`, #109 `9b4368b` üstüne)
+
+Kapsam: `schema.prisma` (+`approvals.{tenant_id,nonce,action_hash,consumed_at}`, +`runs.job_budget`), `migrations/20261108010000_approval_exact_action` (yalnız ekler; **hiçbir ortama uygulanmadı**; `prisma migrate diff` çıktısıyla birebir doğrulandı), `modules/approval/exact-action.ts` (hash, nonce, `evaluateGrant`, `consumeGrant` CAS, `hasOpenApproval`), `modules/run/job-budget.ts` (şema, `evaluateJobBudget`, `checkJobScope`), `governance/engine.ts` (`checkJobBudget` ilk denetim), `agent/tool-executor.ts` (SPEND kapısı, `EXACT_ACTION_APPROVAL` bayrağı), `run/router.ts` (`/resume` + `/continue` 409 koruması), `approval/router.ts` (`decide` süre denetimi). Karar ve davranış değişikliği tablosu: DECISIONS.md ADR-0002.
+
+**Onay atlama açığı kapandı (bayraktan bağımsız):** `approval-bypass.test.ts` + `handoff-router.test.ts` negatif testleri: bekleyen onayla `/resume` ve `/handoff`→`/continue` **409**, claim/ledger/RUNNING/enqueue/audit yok; sorgu hatası resume'a dönüşmez. Mutasyon kontrolü: korumayı kapatınca 5 test kırıldı, geri alındı.
+
+| Komut (packages/api, CI env) | Sonuç |
+|---|---|
+| `npx tsc --noEmit` | **0 hata** |
+| yeni testler (exact-action 40, job-budget 31, exact-action-gate 11, approval-bypass 7, decide-expiry 5, handoff-router +2) | **96 yeni test geçti** |
+| `npx vitest run` (tam) | **170 dosya geçti, 1 atlandı; 2767 test geçti, 48 atlandı**, 0 başarısız (önceki: 165 / 2671) |
+
+`NOT_TESTED`: migration'ın gerçek Postgres'te uygulanması (CI "DB Migration Check" bu PR'ın CI'ında okunacak), veritabanlı CAS yarışı, RLS, E2E Playwright, Docker/Boot Smoke (CI'da), runner'ın gerçek Redis/BullMQ ile bütçe durdurması. `eslint` api paketinde yapılandırılmamış (`pnpm lint` yalnız ui/braavo-core `tsc`).
+
+Bilinen açıklar ve etkiler: ADR-0002 "Sonuçlar ve bilinenler" (i)–(vi) ve **bekleyen onayı olan PAUSED koşu `/resume` ile açılamaz** (kasıtlı). `runs.job_budget`ı yazan yaratıcı henüz yok (02c/03); bayrak `EXACT_ACTION_APPROVAL` kapalı: prod'da hiçbir şey damgalanmaz/harcanmaz, yalnız atlama koruması + `decide` süre denetimi + (doluysa) bütçe devrededir. **Dağıtım sırası:** migration yeni imajdan ÖNCE; kurucu onayı gerekir (merge onayı değildir).
+
+Geri alma: ADR-0002 "Geri alma".
+
 ## Maliyet, veri, izin
-- Yeni ücretli kaynak: **0 USD**. Yeni veri akışı: yok. Yeni izin/sır: yok.
+- 05+08: yeni ücretli kaynak **0 USD**, yeni veri akışı yok, yeni izin/sır yok; deploy/migration yok.
+- 02a: Yeni ücretli kaynak: **0 USD**. Yeni veri akışı: yok. Yeni izin/sır: yok.
 - Deploy/migration: **yok** (platform `v*` etiketi = prod deploy = kurucu onayı).
 
 ## Geri alma

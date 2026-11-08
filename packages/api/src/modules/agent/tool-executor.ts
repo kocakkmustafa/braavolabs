@@ -17,6 +17,14 @@ import {
 import { notifyTenantUsers } from "../../services/push";
 import { publishRunEvent } from "../../lib/runEvents";
 import { disabledFeatureForTool, outboundFeatureDisabledError } from "../../lib/outbound-gates";
+import {
+  buildApprovalStamp,
+  computeActionHash,
+  consumeGrant,
+  isExactActionApprovalEnabled,
+  type ApprovalStamp,
+  type ExactAction,
+} from "../approval/exact-action";
 
 export interface ToolExecResult {
   output: unknown;
@@ -431,53 +439,104 @@ export async function executeTool(
       ? `Approval required for tool: ${toolName}`
       : `Action needs your approval: ${toolName}`;
 
-    const approval = await prisma.approval.create({
-      data: {
-        runId: context.runId,
-        type: "SPEND",
-        description,
-        amountUsd: amountUsd as any,
-        metadata: { toolName, input: scopedInput, costField, moneyTouching: money, autonomy } as any,
-        status: "PENDING",
-      },
-    });
+    // Exact-action approval (BRA-P0-05, ADR-0002; EXACT_ACTION_APPROVAL, default
+    // OFF). When on, an APPROVED approval is a single-use grant bound to this
+    // tenant + run + the canonical action (tool, input, amount): the call runs
+    // only if it can atomically spend such a grant, otherwise a new PENDING
+    // approval is stamped with nonce + action hash + expiry. A changed input
+    // hashes differently, so an old approval cannot authorise it.
+    let exactStamp: ApprovalStamp | undefined;
+    let grantConsumed = false;
+    if (isExactActionApprovalEnabled()) {
+      try {
+        const action: ExactAction = {
+          tenantId: context.tenantId,
+          runId: context.runId,
+          type: "SPEND",
+          toolName,
+          input: scopedInput,
+          amountUsd,
+        };
+        const actionHash = computeActionHash(action);
+        const grant = await consumeGrant(prisma, { tenantId: context.tenantId, runId: context.runId, actionHash });
+        if (grant.ok) {
+          grantConsumed = true;
+          await prisma.activityLog.create({
+            data: {
+              tenantId: context.tenantId,
+              actor: "system",
+              action: "approval.consumed",
+              resource: "approval",
+              resourceId: grant.approvalId,
+              details: { toolName, runId: context.runId, amountUsd } as any,
+            },
+          });
+          logger.info({ toolName, approvalId: grant.approvalId }, "Exact-action grant consumed — tool may run");
+        } else {
+          exactStamp = buildApprovalStamp(action);
+        }
+      } catch (err) {
+        // Un-hashable input (BigInt, non-finite number, …): never run it unbound.
+        logger.error({ toolName, err: (err as Error).message }, "Exact-action binding failed — blocking");
+        return {
+          output: null,
+          status: "FAILED",
+          durationMs: Date.now() - start,
+          error: `Tool "${toolName}" input cannot be bound to an approval`,
+        };
+      }
+    }
 
-    // Drive the run into WAITING_APPROVAL so the next step-group iteration
-    // in the runner sees a non-RUNNING status and exits cleanly. Without
-    // this the BullMQ job kept iterating and the run completed normally
-    // while the approval row sat orphaned at PENDING — see ISS-022.
-    await prisma.run.update({
-      where: { id: context.runId },
-      data: { status: "WAITING_APPROVAL" },
-    });
+    if (!grantConsumed) {
+      const approval = await prisma.approval.create({
+        data: {
+          runId: context.runId,
+          type: "SPEND",
+          description,
+          amountUsd: amountUsd as any,
+          metadata: { toolName, input: scopedInput, costField, moneyTouching: money, autonomy } as any,
+          status: "PENDING",
+          ...(exactStamp ?? {}),
+        },
+      });
 
-    await prisma.activityLog.create({
-      data: {
-        tenantId: context.tenantId,
-        actor: "system",
-        action: "approval.requested",
-        resource: "tool_call",
-        details: { toolName, approvalId: approval.id, amountUsd } as any,
-      },
-    });
+      // Drive the run into WAITING_APPROVAL so the next step-group iteration
+      // in the runner sees a non-RUNNING status and exits cleanly. Without
+      // this the BullMQ job kept iterating and the run completed normally
+      // while the approval row sat orphaned at PENDING — see ISS-022.
+      await prisma.run.update({
+        where: { id: context.runId },
+        data: { status: "WAITING_APPROVAL" },
+      });
 
-    // Fire push notifications to every device in the tenant whose user
-    // has the `approvals` pref enabled (default ON). Fire-and-forget —
-    // we never want a push hiccup to block the executor.
-    notifyTenantUsers(context.tenantId, "approval", {
-      title: "Approval needed",
-      body: `Tool ${toolName} is waiting for your decision`,
-      localized: { title: "push.toolApprovalTitle", body: "push.toolApprovalBody", parameters: { toolName } },
-      data: { kind: "approval", id: approval.id, toolName },
-    }).catch(() => {});
+      await prisma.activityLog.create({
+        data: {
+          tenantId: context.tenantId,
+          actor: "system",
+          action: "approval.requested",
+          resource: "tool_call",
+          details: { toolName, approvalId: approval.id, amountUsd } as any,
+        },
+      });
 
-    logger.info({ toolName, approvalId: approval.id }, "Tool requires approval — paused");
-    return {
-      output: null,
-      status: "PENDING_APPROVAL",
-      durationMs: Date.now() - start,
-      approvalId: approval.id,
-    };
+      // Fire push notifications to every device in the tenant whose user
+      // has the `approvals` pref enabled (default ON). Fire-and-forget —
+      // we never want a push hiccup to block the executor.
+      notifyTenantUsers(context.tenantId, "approval", {
+        title: "Approval needed",
+        body: `Tool ${toolName} is waiting for your decision`,
+        localized: { title: "push.toolApprovalTitle", body: "push.toolApprovalBody", parameters: { toolName } },
+        data: { kind: "approval", id: approval.id, toolName },
+      }).catch(() => {});
+
+      logger.info({ toolName, approvalId: approval.id }, "Tool requires approval — paused");
+      return {
+        output: null,
+        status: "PENDING_APPROVAL",
+        durationMs: Date.now() - start,
+        approvalId: approval.id,
+      };
+    }
   }
 
   // --- Rate limit check ---

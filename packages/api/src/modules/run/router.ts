@@ -17,6 +17,7 @@ import { chatCompletion, getTenantAIConfig, LOCAL_PROVIDERS, type AIProviderType
 import { listTenantProviderLinks, resolveTenantCompletionLink, commitTrialCompletion, refundTrialCompletion } from "../../services/provider-chain";
 import { assertKeylessLocalBaseUrl } from "../../services/takeover-config";
 import { createHandoff, claimHandoff, HandoffClaimError, cancelOpenHandoffForRun } from "./handoff.service";
+import { hasOpenApproval } from "../approval/exact-action";
 import { env } from "../../config/env";
 import type { RunEvent } from "@ai-company-os/core";
 
@@ -291,6 +292,12 @@ runRouter.post("/:id/resume", async (req, res, next) => {
     if (run.status !== "PAUSED" && run.status !== "WAITING_APPROVAL") {
       throw new AppError(400, "Run is not paused or waiting on approval");
     }
+    // BRA-P0-05 bypass guard: resume must never stand in for the decision. An
+    // undecided approval is answered via POST /approvals/:id/decide, which
+    // needs approval:decide (fail-closed, also for not-yet-expired-by-cron rows).
+    if (await hasOpenApproval(prisma, run.id)) {
+      throw new AppError(409, "Run has an undecided approval; decide it via /approvals/:id/decide");
+    }
 
     await prisma.run.update({
       where: { id: run.id },
@@ -423,6 +430,13 @@ runRouter.post("/:id/continue", handoffLimiter, async (req, res, next) => {
       where: { id: req.params.id as string, pipeline: { company: { tenantId: req.auth!.tenantId } } },
     });
     if (!run) throw new AppError(404, "Run not found");
+
+    // BRA-P0-05 bypass guard: /handoff + /continue must not flip a run to
+    // RUNNING while an approval it is waiting on is still undecided. Checked
+    // BEFORE any claim/ledger write so a refusal has no side effect.
+    if (await hasOpenApproval(prisma, run.id)) {
+      throw new AppError(409, "Run has an undecided approval; decide it via /approvals/:id/decide");
+    }
 
     const ledger = await prisma.handoffLedger.findFirst({
       where: { runId: run.id, status: "OPEN" },

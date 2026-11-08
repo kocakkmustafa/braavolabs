@@ -11,6 +11,12 @@ import { DEFAULT_GOVERNANCE_CONFIG } from "@ai-company-os/core";
 import type { GovernanceConfig, RiskStopType } from "@ai-company-os/core";
 import { notifyTenantUsers } from "../../services/push";
 import { governanceReasonCopy } from "../../lib/notificationCopy";
+import {
+  checkJobScope,
+  evaluateJobBudget,
+  parseJobBudget,
+  sumStepTokens,
+} from "../run/job-budget";
 
 export interface GovernanceCheckResult {
   allowed: boolean;
@@ -40,8 +46,11 @@ export async function runGovernanceChecks(
   const tenantId = run.pipeline.company.tenantId;
   const companyId = run.pipeline.company.id;
 
-  // Run each enabled check
-  for (const stopType of config.enabledStops) {
+  // Run each enabled check. The job budget (BRA-P0-08) is checked first and is
+  // not part of config.enabledStops: it is a per-run contract, not a tunable
+  // org-wide stop, and a run with no jobBudget passes it untouched.
+  const orderedChecks: Array<RiskStopType | "job_budget"> = ["job_budget", ...config.enabledStops];
+  for (const stopType of orderedChecks) {
     const result = await runCheck(stopType, {
       run,
       currentCost,
@@ -94,7 +103,7 @@ export async function runGovernanceChecks(
   return { allowed: true };
 }
 
-interface CheckContext {
+export interface CheckContext {
   run: any;
   currentCost: number;
   config: GovernanceConfig;
@@ -103,10 +112,12 @@ interface CheckContext {
 }
 
 async function runCheck(
-  stopType: RiskStopType,
+  stopType: RiskStopType | "job_budget",
   ctx: CheckContext,
 ): Promise<GovernanceCheckResult> {
   switch (stopType) {
+    case "job_budget":
+      return checkJobBudget(ctx);
     case "cost_anomaly_stop":
       return checkCostAnomaly(ctx);
     case "loop_stop":
@@ -120,6 +131,53 @@ async function runCheck(
     default:
       return { allowed: true };
   }
+}
+
+/**
+ * Job budget (BRA-P0-08): per-run ceilings on USD / tokens / steps / time /
+ * retries plus the tenant+workspace gate. Fail-closed: a malformed stored
+ * budget or a scope mismatch stops the run. No jobBudget and no scope
+ * disagreement → allowed (legacy behaviour).
+ */
+export function checkJobBudget(ctx: CheckContext): GovernanceCheckResult {
+  const run = ctx.run;
+  const scope = checkJobScope({
+    runTenantId: run.tenantId,
+    ownerTenantId: ctx.tenantId,
+    runWorkspaceId: run.workspaceId,
+    ownerWorkspaceId: ctx.companyId,
+  });
+  if (!scope.ok) {
+    return { allowed: false, stopType: "hard_stop", reason: scope.reason, details: { jobBudget: "scope" } };
+  }
+
+  const parsed = parseJobBudget(run.jobBudget);
+  if (!parsed.ok) {
+    return {
+      allowed: false,
+      stopType: "hard_stop",
+      reason: "Job budget is invalid; run stopped (fail-closed)",
+      details: { jobBudget: "invalid", error: parsed.error },
+    };
+  }
+  if (!parsed.budget) return { allowed: true };
+
+  const startedAt = run.startedAt ? new Date(run.startedAt).getTime() : null;
+  const steps: Array<{ status: string; promptTokens?: number | null; completionTokens?: number | null }> = run.steps ?? [];
+  const verdict = evaluateJobBudget(parsed.budget, {
+    usd: ctx.currentCost,
+    tokens: sumStepTokens(steps),
+    steps: steps.filter((s) => s.status === "COMPLETED").length,
+    elapsedMs: startedAt === null ? 0 : Math.max(0, Date.now() - startedAt),
+    retries: run.retryCount ?? 0,
+  });
+  if (verdict.action !== "stop") return { allowed: true };
+  return {
+    allowed: false,
+    stopType: "hard_stop",
+    reason: verdict.reason ?? "Job budget exhausted",
+    details: { jobBudget: "exhausted", stopped: verdict.stopped, dimensions: verdict.dimensions },
+  };
 }
 
 /**

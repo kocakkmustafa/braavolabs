@@ -80,3 +80,49 @@ Bu satırların her biri 02c'nin kendi sözleşme testiyle sabitlenir; hiçbiri 
 - **Yeni ücretli kaynak:** yok (0 USD). **Yeni veri akışı:** yok (aynı veritabanı).
 - **Açık varsayımlar:** workspace = Company; Company-arası izolasyon `BRA-P0-07`ye kadar iddia edilmez; `maxRetries` varsayılanı ve `warnRatio` ADR-0002'de kesinleşir.
 - **02c / BRA-P0-05'te ele alınacak (denetçi tur 2; 02b bunların hiçbirini kapatmaz):** (a) operatör çalışan adımın ortasında duraklatırsa (`runner.ts:282-284` yalnız adım grubu başında bakar) final yazımı `PAUSED→COMPLETED/NEEDS_APPROVAL` kenarı olmadığı için CAS'te reddedilebilir; `transitionRun` bu durumda yeniden okuyup uygun geçişi seçmeli ya da tabloya bilinçli kenar eklenmeli; (b) `RESUMING` bekleme süresi (karar 6 notu). (c) **onay atlama kalıntısı:** `/handoff` + `/continue` yolu `NEEDS_APPROVAL`'ı PENDING onay açıkken RUNNING yapabilir ve iki rotada da `approval:decide` izni aranmaz (`run/router.ts` yalnız `authMiddleware`); 02c/BRA-P0-05'te `/continue` ya `approval:decide` istemeli ya da bekleyen onayı CANCELLED yapmalı, aksi hâlde açık kalıcı olur; (d) `deriveResultStatus` girdisi (`ref` null/eksik) 02c'de JSON doğrulamasından geçmeli, aksi hâlde `trim()` TypeError atar. (e) **02c sıralaması:** `RESUMING`'den `COMPLETED`/`NEEDS_APPROVAL` kenarı yoktur; taşınan yazıcılar onaydan sonra `RESUMING → RUNNING`i açıkça geçmeli, aksi hâlde `status=RUNNING` ile saklı `state=RESUMING` birlikte kalır ve sonraki `transitionRun(COMPLETED)` `illegal_transition` döner.
+
+---
+
+## ADR-0002 — Exact-action onay ve job bütçesi (BRA-P0-05 + BRA-P0-08)
+
+Durum: kabul edildi (2026-11-08, Project orchestration görev emri; uygulama dalı `feat/BRA-P0-05-08-exact-action-budget`). Migration `20261108010000_approval_exact_action` (yalnız ekleyen, **hiçbir ortama uygulanmadı**).
+
+### Bağlam (kodda doğrulanmış)
+- `tool-executor.ts` SPEND kapısı (`requiresApprovalForAutonomy` → `prisma.approval.create`) onayı **eyleme bağlamaz**: onaylandığında `approval/router.ts` koşuyu RUNNING yapıp yeniden kuyruğa alır; yeniden yürütmede kapı onaylı bir hak aramaz, yeniden onay açar. Onay ne tek kullanımlık ne eyleme bağlı ne süreli ne kiracıya bağlı bir "hak"tır; yalnızca koşunun durum bayrağıdır.
+- `approvals` tablosunda `nonce`/hash/tüketim/`tenant_id` yoktu; `expires_at` vardı ama `decide` süresi dolmuş (cron henüz çevirmemiş) onayı da kabul ediyordu.
+- **Onay atlama:** `/runs/:id/resume` ve `/handoff` + `/continue` PENDING onay varken koşuyu RUNNING yapıyordu; iki rotada `approval:decide` aranmıyordu (ADR-0001 madde (c)).
+- Bütçe: koşu başına tavan yoktu; yalnız `budgetUsd` (+%20 sapma `cost_anomaly_stop`) ve CLI daemon'un aylık USD bütçesi (`cli/src/daemon/budget.ts`) vardı.
+
+### Karar
+1. **Hak = (kiracı, koşu, eylem hash'i, nonce, süre).** `computeActionHash` = `v1:` + sha256(kanonik JSON{v, tenantId, runId, type, toolName, input, amountUsd}); anahtar sırası bağımsız, `NaN/∞/BigInt/undefined` dizi öğesi **reddedilir** (aynı hash'e düşmesin). Taslak/alıcı/tutar/araç/koşu/kiracı değişirse hash değişir; eski onay yeni eylemi yetkilendirmez.
+2. **Tüketim atomik:** `consumeGrant` kiracı+koşu+hash+`APPROVED`+tüketilmemiş satırları okur, her satırı `evaluateGrant` ile yeniden doğrular (nonce/hash/tenant/expiry zorunlu, biri eksikse `not_exact_action`), sonra **skaler** `updateMany({id, nonce, status:APPROVED, consumedAt:null})` CAS'iyle harcar; `count===1` kazanır. Yan etki yalnız `ok` ise koşar. Yeniden oynatma/çift tetik → hak harcanmış → yeni onay açılır.
+3. **Bayrak `EXACT_ACTION_APPROVAL` (varsayılan KAPALI, yalnız literal `"true"`).** Kapalıyken SPEND kapısı bugünküyle aynıdır: damga yok, hak araması yok. Açıkken: yeni PENDING onay `tenantId`+`nonce`+`actionHash`+`expiresAt(+24s)` ile damgalanır; hak varsa harcanır ve çağrı koşar (`approval.consumed` activity). Hash üretilemeyen girdi **FAILED** döner (bağlanamayan eylem koşmaz). Eski (damgasız) onaylar asla hak değildir.
+4. **Atlama kapatma (bayrağa bağlı DEĞİL, her zaman açık):** `/resume` ve `/continue` koşuda PENDING onay varsa **409** döner ve yan etkisi yoktur (claim/ledger/RUNNING/enqueue/audit yok); tek kapı `POST /approvals/:id/decide` (`approval:decide`). ADR-0001 (c)'nin üç seçeneğinden "reddet" seçildi: `approval:decide` isteyen `/continue` aynı kapıyı iki yerde tekrarlardı, bekleyen onayı CANCELLED yapmak kararı operatör adına sessizce verirdi. Sorgu hatası resume'a dönüşmez (hata → `next(err)`). Süresi dolmuş ama cron'un çevirmediği PENDING onay da "açık" sayılır (fail-closed). `decide` süresi dolmuş onayı **409 "Approval expired"** ile reddeder (`expiresAt` NULL olan eski satırlar değişmez).
+5. **Job bütçesi:** `runs.job_budget` (JSON, NULL = sınır yok = bugünkü davranış). Şema (`JobBudgetSchema`, strict): `maxUsd`, `maxTokens`, `maxSteps`, `timeoutMs`, `maxRetries`, `warnRatio` (varsayılan 0.8 = CLI `WARN_AT`). Eksik alan = o boyutta sınır yok (ADR-0001'in ertelediği `maxRetries` varsayılanı: **varsayılan yok**, bütçeyi yazan koşu yaratıcısı seçer). Kural CLI ile aynı: oran ≥ 1 durdurur, **limit 0 zaten tükenmiştir**; `maxRetries` bir tahsistir, yalnız **aşılınca** durdurur. USD yalnız fiyatlı harcama (tahmin yok); token = `run_steps.prompt_tokens+completion_tokens` (NULL = ölçülmemiş = 0, uydurulmaz).
+6. **Uygulama noktası:** `governance/engine.ts` `runGovernanceChecks`in **ilk** denetimi (`job_budget`, `config.enabledStops` dışında: örgüt geneli ayar değil, koşu sözleşmesi). Aşımda `hard_stop` + activity `governance.job_budget` + push; runner bunu zaten her adım grubundan önce çağırıp koşuyu FAILED yapar → adım sayısı/zaman/USD/token/retry aşıldığında bir sonraki grup başlamaz (sonsuz döngü yok). Bozuk saklı bütçe **fail-closed** durdurur. **Kiracı/çalışma alanı kapısı:** `runs.tenant_id`/`workspace_id` doluysa Pipeline→Company sahibiyle uyuşmalı, uyuşmazsa durur (NULL = backfill öncesi, fikir yok).
+7. **Paylaşılan sözleşme (CLI):** aynı sözcükler (`maxUsd`, `warnRatio`), aynı eşik (0.8), aynı "tükendi" kuralı. Kapsam farkı: CLI aylık/ajan-şirket, bu job başına; ikisini toplamak sonraki iş. Bu PR CLI deposuna dokunmaz.
+
+### Bilinçli davranış değişiklikleri
+| Rota/yol | Önce | Sonra | Bayrak |
+|---|---|---|---|
+| `POST /runs/:id/resume`, bekleyen onayla | Onayı atlayıp RUNNING | 409, yan etki yok; `decide` kullanılmalı | **Yok (her zaman)** |
+| `POST /runs/:id/continue`, bekleyen onayla | Devri claim edip RUNNING | 409, claim/ledger/enqueue yok | **Yok (her zaman)** |
+| `POST /approvals/:id/decide`, `expiresAt` geçmiş | Kabul | 409 "Approval expired" | **Yok (her zaman)** |
+| SPEND kapısı, onay sonrası yeniden yürütme | Yeni onay açar | Hak harcanır, çağrı koşar (hash eşleşirse) | `EXACT_ACTION_APPROVAL` |
+| Bütçeli koşu limiti aştığında | Sınır yok | Sonraki adım grubundan önce FAILED (`hard_stop`) | Koşuda `job_budget` doluysa |
+
+Yan etki: bekleyen onayı olan PAUSED koşu, operatör onayı karara bağlayana (ya da cron süresini doldurana) kadar `/resume` ile açılamaz. Bu kasıtlıdır.
+
+### Geri alma
+Bayrağı kapat (`EXACT_ACTION_APPROVAL` ayarlama) → kapı eski davranış; `runs.job_budget`i NULL bırak → bütçe denetimi no-op; rota korumaları ve `decide` süre denetimi için commit revert. Migration yalnız ekler (4 + 1 NULLABLE sütun, 1 unique + 1 düz indeks); sütunlar yok sayılabilir. **Uygulama sırası ADR-0001 ile aynı:** migration yeni uygulama imajından ÖNCE (yeni Prisma istemcisi her `approvals`/`runs` sorgusunda yeni sütunları adlandırır).
+
+### Reddedilen seçenekler
+- **Her zaman açık exact-action:** onay sonrası yeniden yürütme semantiğini (runner step-0'dan tekrar) bugünkü canlı akışlara karşı doğrulamadan açmak ödeme yolunu kırabilir; bayrak + kademeli açılış seçildi.
+- **`/continue` içinde `approval:decide` iste / bekleyeni CANCEL et:** karar 4'e bak.
+- **Bütçeyi `enabledStops` içine koymak:** o liste örgüt geneli ayardır; koşu başına sözleşme değildir ve `core` tipini değiştirmeyi gerektirirdi.
+- **Hash'e zaman/nonce katmak:** hash eylemi tanımlar; nonce ve süre satırdadır. Hash'e zaman katmak aynı eylemi iki kez farklı yapardı.
+
+### Sonuçlar ve bilinenler
+- **Maliyet/veri/izin:** yeni ücretli kaynak yok (0 USD); yeni veri akışı yok; yeni izin/sır yok. Yeni dep yok (`node:crypto`, mevcut `zod`).
+- **Bilinen açık / yapılmadı:** (i) `runs.job_budget`ı **kim yazar?** Koşu yaratıcıları hâlâ yazmaz (02c/03 kapsamı); bu PR'da denetim hazır, besleyen yok. (ii) Eski `/resume`in `PAUSED` koşuyu bekleyen onay yokken RUNNING yapması aynen sürer (onay yok → atlanacak şey yok). (iii) Hash yalnız **araç çağrısını** bağlar; `EXTERNAL_CONTROL`, `INPUT`, `HANDOFF` onayları damgalanmadı (INPUT bir cevaptır, eylem değil; EXTERNAL_CONTROL ve HANDOFF kendi `decide` dallarında işleniyor, sonraki bilet). (iv) Gerçek Postgres'te CAS yarışı, RLS ve migration uygulaması bu PR'da **test edilmedi** (CI "DB Migration Check" yalnız migration'ın uygulanabildiğini gösterir). (v) `approvals` tablosuna RLS politikası eklenmedi (tabloda `tenant_id` yoktu; yeni sütun var ama backfill+politika ayrı onaylı adım). (vi) BRA-P0-08'in bağımlılığı BRA-P0-06 (provider metadata) bitmeden bütçe yalnız mevcut `run_steps` maliyet/token alanlarını sayar.
+
