@@ -216,8 +216,9 @@ export function deriveResultStatus(
   const evidence: ReceiptEvidence[] = (Array.isArray(evidenceRaw) ? evidenceRaw : []).flatMap((item: unknown) => {
     if (typeof item !== "object" || item === null) return [];
     const o = item as Record<string, unknown>;
-    if (typeof o.kind !== "string" || !kinds.includes(o.kind)) return [];
-    return [{ kind: o.kind as EvidenceKind, ref: typeof o.ref === "string" ? o.ref : "", ok: o.ok === true ? true : o.ok === false ? false : undefined }];
+    const kind = typeof o.kind === "string" ? o.kind.trim().toLowerCase() : "";
+    if (!kinds.includes(kind)) return [];
+    return [{ kind: kind as EvidenceKind, ref: typeof o.ref === "string" ? o.ref : "", ok: o.ok === true ? true : o.ok === false ? false : undefined }];
   });
   const real = evidence.filter((e) => e.ref.trim().length > 0);
   if (real.length === 0) return "UNVERIFIED";

@@ -20,8 +20,10 @@
  *   - `timeoutMs` is measured from `runs.started_at`, which the runner rewrites
  *     on every queue pickup — so it bounds ONE run leg (start → next pause /
  *     approval wait), not total wall clock. A total deadline is `runs.deadline`
- *     (future work). `maxRetries` has no writer yet: `retry_count` is only
- *     incremented by crash recovery (BRA-P0-02c), so it stays 0 until then.
+ *     (future work). `retry_count` is written by crash recovery
+ *     (`run/crash-recovery.ts`, BRA-P0-02c-4, JOB_STATE_DUAL_WRITE on only),
+ *     which the runner triggers when BullMQ re-delivers a run job; it stays 0
+ *     with the flag off.
  *   - `maxRetries` stops only when retries used EXCEED the cap (a run that used
  *     exactly its allowance may still finish); every other dimension stops at
  *     ratio >= 1, i.e. BEFORE one more step could overshoot.

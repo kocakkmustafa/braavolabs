@@ -335,6 +335,10 @@ describe("BRA-P0-02c-4: deriveResultStatus survives stored-JSON garbage (ADR-000
   it("a malformed test item (no ref, no ok) still vetoes; a valid sibling does not rescue it", () => {
     expect(deriveResultStatus("COMPLETED", [], [{ kind: "diff", ref: "abc" }, { kind: "test" }])).toBe("UNVERIFIED");
   });
+  it("evidence kind is case-insensitive: a failing \"Test\" item still vetoes", () => {
+    expect(deriveResultStatus("COMPLETED", [], [{ kind: "diff", ref: "abc" }, { kind: "Test", ref: "t", ok: false }])).toBe("UNVERIFIED");
+    expect(deriveResultStatus("COMPLETED", ["diff"], [{ kind: "DIFF", ref: "abc" }])).toBe("VERIFIED");
+  });
   it("well-formed evidence still verifies", () => {
     expect(deriveResultStatus("COMPLETED", ["diff"], [{ kind: "diff", ref: "abc" }])).toBe("VERIFIED");
   });

@@ -152,8 +152,25 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
     const parsedBudget = parseJobBudget((run as { jobBudget?: unknown }).jobBudget);
     const maxRetries = !parsedBudget.ok ? 0 : (parsedBudget.budget?.maxRetries ?? Number.MAX_SAFE_INTEGER);
     const rec = await recoverCrashedRun(prisma, runId, { tenantId, maxRetries });
-    if (rec.action === "failed" || rec.action === "lost") {
-      logger.warn({ runId, action: rec.action }, "Crash recovery stopped the run — exiting without side effects");
+    if (rec.action === "lost") {
+      logger.warn({ runId }, "Crash recovery lost the race — exiting without side effects");
+      return;
+    }
+    if (rec.action === "failed") {
+      // This worker moved the run to FAILED: same bookkeeping as a normal failed finish (rule #9).
+      logger.warn({ runId, reason: "retries_exhausted" }, "Crash recovery: retries exhausted — run failed");
+      await prisma.activityLog.create({
+        data: {
+          tenantId,
+          actor: "system",
+          action: "run.failed",
+          resource: "run",
+          resourceId: runId,
+          details: { reason: "retries_exhausted", maxRetries },
+        },
+      });
+      await publishRunEvent(runId, { type: "RUN_FAILED", error: "Run crashed and the retry allowance is exhausted (retries_exhausted).", costUsd: Number(run.costUsd ?? 0) });
+      runFailedCounter.add(1, { runId });
       return;
     }
     if (rec.action === "resumed") logger.info({ runId, retryCount: rec.retryCount }, "Crash recovery: resuming from persisted steps");

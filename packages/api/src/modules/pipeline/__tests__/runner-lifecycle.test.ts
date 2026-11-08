@@ -245,12 +245,42 @@ describe("graph runner — flag ON", () => {
       expect(rec.data).toMatchObject({ state: "RESUMING", status: "RUNNING", retryCount: { increment: 1 } });
     });
 
-    it("retries exhausted: run FAILED, no step executed, no completion events", async () => {
+    it("retries exhausted: run FAILED, no step executed, failed bookkeeping written (activity + RUN_FAILED)", async () => {
       setRow({ status: "RUNNING", state: "RUNNING", retryCount: 2, jobBudget: { maxRetries: 2 } });
       await run({ attemptsMade: 1 });
       expect(h.row).toMatchObject({ status: "FAILED", state: "FAILED", retryCount: 2 });
+      expect(h.row.error).toContain("retries_exhausted");
       expect(h.executeStep).not.toHaveBeenCalled();
-      expect(h.events).toEqual([]);
+      expect(h.events).toEqual(["RUN_FAILED"]);
+      expect(h.activity).toEqual(["run.failed"]);
+    });
+
+    it("attemptsStarted > 1 alone triggers recovery", async () => {
+      setRow({ status: "RUNNING", state: "RUNNING", retryCount: 0 });
+      await run({ attemptsStarted: 2 });
+      expect(h.updateManyCalls[0].data).toMatchObject({ state: "RESUMING", retryCount: { increment: 1 } });
+      expect(h.row.retryCount).toBe(1);
+    });
+
+    it("stalledCounter > 0 alone triggers recovery", async () => {
+      setRow({ status: "RUNNING", state: "RUNNING", retryCount: 0 });
+      await run({ stalledCounter: 1 });
+      expect(h.row.retryCount).toBe(1);
+    });
+
+    it("no budget = no retry ceiling: a high retry_count still resumes", async () => {
+      setRow({ status: "RUNNING", state: "RUNNING", retryCount: 50, jobBudget: null });
+      await run({ attemptsMade: 1 });
+      expect(h.row.retryCount).toBe(51);
+      expect(h.row.state).toBe("COMPLETED");
+    });
+
+    it("malformed budget fails closed (maxRetries 0): run FAILED with bookkeeping", async () => {
+      setRow({ status: "RUNNING", state: "RUNNING", retryCount: 0, jobBudget: { maxRetries: "lots" } });
+      await run({ attemptsMade: 1 });
+      expect(h.row).toMatchObject({ status: "FAILED", state: "FAILED", retryCount: 0 });
+      expect(h.executeStep).not.toHaveBeenCalled();
+      expect(h.events).toEqual(["RUN_FAILED"]);
     });
 
     it("first delivery never consumes a retry", async () => {
