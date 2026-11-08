@@ -118,8 +118,10 @@ export type IntentDecision = "start" | "already" | "reject";
 /**
  * Who is asking to resume. The source matters, not just the state:
  *   approve  the decision on an approval (approval `/decide`) — the only intent
- *            that may leave NEEDS_APPROVAL, so a plain /resume can no longer
- *            skip a PENDING approval (BRA-P0-05 builds on this);
+ *            that may leave NEEDS_APPROVAL WITHOUT an open handoff, so a plain
+ *            /resume can no longer skip a PENDING approval (BRA-P0-05 builds
+ *            on this). Known remaining path: `retry` (handoff + /continue) also
+ *            starts NEEDS_APPROVAL, as it does today — see ADR-0001;
  *   unpause  an operator un-pausing (`/resume`) — PAUSED only;
  *   retry    a takeover backed by an OPEN handoff record (`/continue`,
  *            HANDOFF approval). `/handoff` is allowed from RUNNING, PAUSED,

@@ -48,7 +48,7 @@ Denetçi: `reviewer` alt ajanı (yazan oturumdan ayrı, salt-okur; test koşturm
 | 2 | `decideResume(FAILED)` düz resume ile FAILED'ı başlatıyordu; bugün yalnız devir kaydıyla olur (yüksek) | `decideResume(state, intent)`: `approve`/`unpause`/`retry` niyet ayrımı; FAILED yalnız `retry` |
 | 3 | "Mevcut davranışı bozmaz" iddiası yanlıştı (`/pause` terminalde, `/stop` PENDING, `/resume` RUNNING, runner koşulsuz yazım, RESUMING→PAUSED yok) (orta) | ADR'ye "Bilinçli davranış değişiklikleri" tablosu; RESUMING→PAUSED eklendi; HTTP kodu 400 korunur |
 | 4 | Yorum yanlış: "expiry→FAILED" (süresi dolan HANDOFF-dışı onay koşuyu CANCELLED yapar) (orta) | Tablo yorumu ve ADR düzeltildi; kenar kaynakları listelendi |
-| 5 | Düz `/resume` bekleyen onayı atlayabilir (mevcut açık) (orta) | Niyet ayrımıyla modelde kapandı; uygulama BRA-P0-05 ile birlikte (ADR'de yazılı) |
+| 5 | Düz `/resume` bekleyen onayı atlayabilir (mevcut açık) (orta) | Niyet ayrımıyla yalnız düz `/resume` yolu kapandı; `/handoff`+`/continue` yolu (PENDING onay açıkken RUNNING) bugünkü gibi açık, BRA-P0-05'e/02b'ye kaldı (tur 3 #1); uygulama BRA-P0-05 ile birlikte (ADR'de yazılı) |
 | 6 | `retries`/`heartbeat` kaynağı yok; `resumeCursor` kullanılmıyor, ADR yanlış söylüyordu (orta) | ADR'ye `retryCount`, `heartbeatAt` sütunları; devam noktası `RunStep`/`planResume` olarak düzeltildi |
 | 7 | `deriveResultStatus` boş kanıtta VERIFIED, `ok` eksik testte geçmiş sayıyordu (fail-open) (orta) | Fail-closed: kanıt yok ⇒ UNVERIFIED; test için `ok === true` şart; testler |
 | 8 | Sınır girdileri (negatif/kesirli/∞ sayaç) (düşük) | Bozuk sayaç işi bitirir; testler |
@@ -68,4 +68,15 @@ Denetçi: `reviewer` alt ajanı (yazan oturumdan ayrı, salt-okur; test koşturm
 | 6 | Bilet `IMPLEMENTING`, STATUS `IN_REVIEW` (düşük) | Bilet `IN_REVIEW` |
 | 7 | `PAUSED→COMPLETED/NEEDS_APPROVAL` kenarı yok; adım ortasında duraklatma final yazımı CAS'te reddedilebilir (düşük, olası) | ADR "02b'de ele alınacak" notu |
 
-**Tur 3:** düzeltmeler için bekliyor (aşağıya işlenir).
+**Tur 3 (2026-11-08, `ac2c5bc`): kod doğru, DEĞİŞİKLİK GEREKLİ yalnız yorum/belge.** Tur 2 #1-#7 kapandı (kod/test/ADR doğrulandı; 38 `it(` sayıldı). Yeni bulgular:
+
+| # | Bulgu (önem) | Karşılık |
+|---|---|---|
+| 1 | `NEEDS_APPROVAL + retry` (handoff + `/continue`) bekleyen onayı atlıyor; iki rotada `approval:decide` yok; bugün de var, "kapandı" denemez (orta) | Yorum ve tur 1 #5 satırı dürüstleştirildi; ADR'ye 02b/BRA-P0-05 maddesi (c): `/continue` `approval:decide` istemeli ya da bekleyen onayı CANCELLED yapmalı |
+| 2 | `job-state.ts` yorumu "approve tek niyet" derken retry de NEEDS_APPROVAL'ı başlatıyordu (orta) | Yorum düzeltildi |
+| 3 | ADR tablosunda "yalnız approve" satırı `retry` istisnasını söylemiyordu (orta) | Satıra istisna eklendi |
+| 4 | `/continue` RUNNING'de ikinci kez kuyruğa alıyor, tabloda yok (düşük) | Tabloya satır eklendi |
+| 5 | `ref` null/eksik ise `trim()` TypeError (düşük) | ADR madde (d): 02b'de JSON doğrulaması |
+
+Kod değişmedi (yalnız yorum); bu yüzden dördüncü tur yapılmadı, 38 test ve tsc yeniden koşuldu (aşağıdaki tablo).
+

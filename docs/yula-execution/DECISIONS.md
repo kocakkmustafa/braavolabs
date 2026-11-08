@@ -62,9 +62,10 @@ Bağımsız denetim (BRA-P0-02a) "mevcut davranışı bozmaz" iddiasını yanlı
 | `/pause` durum denetlemez; COMPLETED/FAILED/CANCELLED koşu da PAUSED olabilir | terminal koşuda reddedilir (409) | düzeltme |
 | `/stop` PENDING'i 400 ile reddeder | READY/DRAFT/PLANNED iptal edilebilir | iptal her bitmemiş durumda |
 | `/resume` RUNNING'de 400 | `already` (idempotent) | **HTTP kodu bugünkü gibi 400 kalır** (istemci uyumu); `already` yalnız iç karar |
-| `/resume` WAITING_APPROVAL'ı PENDING onay varken RUNNING yapar (`run/router.ts:291-297`, `approval:decide` izni gerekmeden) | reddedilir; yalnız `approve` niyeti başlatır | mevcut açığı kapatır; BRA-P0-05 ile birlikte indirilir |
+| `/resume` WAITING_APPROVAL'ı PENDING onay varken RUNNING yapar (`run/router.ts:291-297`, `approval:decide` izni gerekmeden) | reddedilir; yalnız `approve` niyeti başlatır (**devir kaydıyla `retry` hariç**, bir alttaki `/continue` satırı) | mevcut açığı kapatır; BRA-P0-05 ile birlikte indirilir |
 | Runner başlangıç (`:106`) ve final (`:521`) yazımları koşulsuz; CANCELLED koşu RUNNING/COMPLETED'a dönebilir | karşılaştır-ve-yaz; CANCELLED kalır | düzeltme |
 | `/continue` durum denetlemez, yalnız OPEN devir kaydı arar; PAUSED / WAITING_APPROVAL / FAILED'dan RUNNING yapar; kayıt bayat kalmışsa CANCELLED/COMPLETED koşuyu da RUNNING yapabilir | PAUSED/NEEDS_APPROVAL/FAILED'dan başlar (`retry`), terminal koşuya reddedilir (409) | akış değişmez; terminal koşuda düzeltme. WAITING_APPROVAL + açık devirde PENDING onay açık kalır (bugünkü davranış): BRA-P0-05'te ele alınır |
+| `/continue` RUNNING koşuda ikinci kez kuyruğa alır (`enqueueRun`) | `already`, ikinci kuyruğa alma yok | idempotency düzeltmesi |
 
 Bu satırların her biri 02b'nin kendi sözleşme testiyle sabitlenir; hiçbiri `status` değer kümesini genişletmez.
 
@@ -78,4 +79,4 @@ Bu satırların her biri 02b'nin kendi sözleşme testiyle sabitlenir; hiçbiri 
 - **Maliyet/risk:** 20+ yazım noktası taşınacak (küçük PR'lara bölünür); geri dolgu büyük tabloda süre alabilir (kümeli koşar); canlı platform sürümü hâlâ doğrulanmadı (AUDIT).
 - **Yeni ücretli kaynak:** yok (0 USD). **Yeni veri akışı:** yok (aynı veritabanı).
 - **Açık varsayımlar:** workspace = Company; Company-arası izolasyon `BRA-P0-07`ye kadar iddia edilmez; `maxRetries` varsayılanı ve `warnRatio` ADR-0002'de kesinleşir.
-- **02b'de ele alınacak (denetçi tur 2):** (a) operatör çalışan adımın ortasında duraklatırsa (`runner.ts:282-284` yalnız adım grubu başında bakar) final yazımı `PAUSED→COMPLETED/NEEDS_APPROVAL` kenarı olmadığı için CAS'te reddedilebilir; `transitionRun` bu durumda yeniden okuyup uygun geçişi seçmeli ya da tabloya bilinçli kenar eklenmeli; (b) `RESUMING` bekleme süresi (karar 6 notu).
+- **02b'de ele alınacak (denetçi tur 2):** (a) operatör çalışan adımın ortasında duraklatırsa (`runner.ts:282-284` yalnız adım grubu başında bakar) final yazımı `PAUSED→COMPLETED/NEEDS_APPROVAL` kenarı olmadığı için CAS'te reddedilebilir; `transitionRun` bu durumda yeniden okuyup uygun geçişi seçmeli ya da tabloya bilinçli kenar eklenmeli; (b) `RESUMING` bekleme süresi (karar 6 notu). (c) **onay atlama kalıntısı:** `/handoff` + `/continue` yolu `NEEDS_APPROVAL`'ı PENDING onay açıkken RUNNING yapabilir ve iki rotada da `approval:decide` izni aranmaz (`run/router.ts` yalnız `authMiddleware`); 02b/BRA-P0-05'te `/continue` ya `approval:decide` istemeli ya da bekleyen onayı CANCELLED yapmalı, aksi hâlde açık kalıcı olur; (d) `deriveResultStatus` girdisi (`ref` null/eksik) 02b'de JSON doğrulamasından geçmeli, aksi hâlde `trim()` TypeError atar.
