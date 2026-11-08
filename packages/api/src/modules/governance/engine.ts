@@ -60,47 +60,84 @@ export async function runGovernanceChecks(
     });
 
     if (!result.allowed) {
-      // Log the risk event
-      await prisma.activityLog.create({
-        data: {
-          tenantId,
-          actor: "governance",
-          action: `governance.${stopType}`,
-          resource: "run",
-          resourceId: runId,
-          details: {
-            reason: result.reason,
-            stopType: result.stopType,
-            ...result.details,
-          },
-        },
-      });
-
-      logger.warn(
-        { runId, stopType, reason: result.reason },
-        "Governance check failed",
-      );
-
-      // Push to mobile companion app — `risks` pref defaults to ON
-      // because cost anomalies / runaway loops are exactly what users
-      // want to know about while away from their desk.
-      const reasonCopy = governanceReasonCopy(result, config.costAnomalyThreshold);
-      notifyTenantUsers(tenantId, "risk", {
-        title: `Risk halted a run · ${stopType}`,
-        body: result.reason ?? "A safety stop fired",
-        data: { kind: "risk", id: runId, stopType },
-        localized: {
-          title: "push.riskTitle",
-          body: reasonCopy?.key ?? (result.reason ? undefined : "push.riskFallback"),
-          parameters: { ...reasonCopy?.parameters, stopType },
-        },
-      }).catch(() => {});
-
+      await reportGovernanceStop(tenantId, runId, stopType, result, config);
       return result;
     }
   }
 
   return { allowed: true };
+}
+
+/** Log the risk event, warn, and push to the tenant's devices. */
+async function reportGovernanceStop(
+  tenantId: string,
+  runId: string,
+  stopType: RiskStopType | "job_budget",
+  result: GovernanceCheckResult,
+  config: GovernanceConfig,
+): Promise<void> {
+  // Log the risk event
+  await prisma.activityLog.create({
+    data: {
+      tenantId,
+      actor: "governance",
+      action: `governance.${stopType}`,
+      resource: "run",
+      resourceId: runId,
+      details: {
+        reason: result.reason,
+        stopType: result.stopType,
+        ...result.details,
+      },
+    },
+  });
+
+  logger.warn(
+    { runId, stopType, reason: result.reason },
+    "Governance check failed",
+  );
+
+  // Push to mobile companion app — `risks` pref defaults to ON
+  // because cost anomalies / runaway loops are exactly what users
+  // want to know about while away from their desk.
+  const reasonCopy = governanceReasonCopy(result, config.costAnomalyThreshold);
+  notifyTenantUsers(tenantId, "risk", {
+    title: `Risk halted a run · ${stopType}`,
+    body: result.reason ?? "A safety stop fired",
+    data: { kind: "risk", id: runId, stopType },
+    localized: {
+      title: "push.riskTitle",
+      body: reasonCopy?.key ?? (result.reason ? undefined : "push.riskFallback"),
+      parameters: { ...reasonCopy?.parameters, stopType },
+    },
+  }).catch(() => {});
+}
+
+/**
+ * Job-budget-only check (BRA-P0-08) for runners that do not go through
+ * runGovernanceChecks — the HIERARCHICAL runner never has: widening it to the
+ * five org-wide risk stops would change behaviour for every hierarchical run,
+ * while the job budget is inert (allowed) for a run with no jobBudget and no
+ * scope mismatch. Same fail-closed rules and same audit/push on a stop.
+ */
+export async function runJobBudgetCheck(
+  runId: string,
+  currentCost: number,
+  config: GovernanceConfig = DEFAULT_GOVERNANCE_CONFIG,
+): Promise<GovernanceCheckResult> {
+  const run = await prisma.run.findUnique({
+    where: { id: runId },
+    include: {
+      steps: { orderBy: { stepIndex: "desc" } },
+      pipeline: { include: { company: true } },
+    },
+  });
+  if (!run) return { allowed: false, stopType: "hard_stop", reason: "Run not found" };
+
+  const tenantId = run.pipeline.company.tenantId;
+  const result = checkJobBudget({ run, currentCost, config, tenantId, companyId: run.pipeline.company.id });
+  if (!result.allowed) await reportGovernanceStop(tenantId, runId, "job_budget", result, config);
+  return result;
 }
 
 export interface CheckContext {

@@ -97,7 +97,7 @@ describe("POST /runs/:id/resume — BRA-P0-05 bypass guard", () => {
       const { nextErr, res } = await invoke(resume, { params: { id: "run-1" } });
       expect(nextErr?.statusCode).toBe(409);
       expect(res.body).toBeUndefined();
-      expect(approvalFindFirst).toHaveBeenCalledWith({ where: { runId: "run-1", status: "PENDING" }, select: { id: true } });
+      expect(approvalFindFirst).toHaveBeenCalledWith({ where: { runId: "run-1", status: "PENDING", type: { not: "HANDOFF" } }, select: { id: true } });
       expect(runUpdate).not.toHaveBeenCalled();
       expect(enqueueRunMock).not.toHaveBeenCalled();
       expect(activityLogCreate).not.toHaveBeenCalled();
@@ -149,7 +149,7 @@ describe("/handoff → /continue — BRA-P0-05 bypass guard", () => {
     expect(enqueueRunMock).not.toHaveBeenCalled();
   });
 
-  it("once the approval is decided via the decide route, the same /continue succeeds", async () => {
+  it("no gating approval left (the guard's lookup returns none) → the same /continue succeeds", async () => {
     runFindFirst.mockResolvedValue({ id: "run-1", status: "WAITING_APPROVAL" });
     approvalFindFirst.mockResolvedValue(null);
     const c = await invoke(cont, { params: { id: "run-1" }, body: { provider: "OPENAI" } });

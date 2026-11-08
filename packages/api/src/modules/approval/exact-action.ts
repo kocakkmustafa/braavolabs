@@ -64,6 +64,12 @@ export function canonicalize(value: unknown): string {
       if (Array.isArray(value)) {
         return `[${value.map((v) => canonicalize(v)).join(",")}]`;
       }
+      const proto = Object.getPrototypeOf(value);
+      if (proto !== Object.prototype && proto !== null) {
+        // Date / Map / Set / class instances would stringify to "{}" and let two
+        // different actions share a hash. Tool input is JSON, so plain objects only.
+        throw new TypeError("canonicalize: only plain objects are hashable");
+      }
       const obj = value as Record<string, unknown>;
       const keys = Object.keys(obj)
         .filter((k) => obj[k] !== undefined)
@@ -220,6 +226,14 @@ export async function consumeGrant(
 export const OPEN_APPROVAL_STATUS = "PENDING" as const;
 
 /**
+ * HANDOFF approvals are a takeover PROPOSAL on a FAILED run, not a gate on an
+ * action: the operator may legitimately choose another provider via
+ * /continue instead of deciding the proposal (expiry-cron.ts says as much).
+ * They therefore do not count as "open" for the bypass guard.
+ */
+export const NON_GATING_APPROVAL_TYPE = "HANDOFF" as const;
+
+/**
  * Bypass guard (BRA-P0-05, "onay atlama açığı"): `/resume`, `/handoff` →
  * `/continue` flip a run to RUNNING without anyone deciding the approval the
  * run is waiting on. True when the run still has an undecided approval —
@@ -236,7 +250,7 @@ export async function hasOpenApproval(
   runId: string,
 ): Promise<boolean> {
   const open = await client.approval.findFirst({
-    where: { runId, status: OPEN_APPROVAL_STATUS },
+    where: { runId, status: OPEN_APPROVAL_STATUS, type: { not: NON_GATING_APPROVAL_TYPE } },
     select: { id: true },
   });
   return open !== null;

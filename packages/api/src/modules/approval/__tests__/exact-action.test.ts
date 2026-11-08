@@ -42,6 +42,14 @@ describe("canonicalize", () => {
   it("is key-order independent at every depth", () => {
     expect(canonicalize({ b: 1, a: { d: 2, c: 3 } })).toBe(canonicalize({ a: { c: 3, d: 2 }, b: 1 }));
   });
+  it("rejects non-plain objects (Date/Map/Set/class) that would all stringify to {} and collide", () => {
+    expect(() => canonicalize({ at: new Date(0) })).toThrow(/plain objects/);
+    expect(() => canonicalize({ m: new Map([[1, 2]]) })).toThrow();
+    expect(() => canonicalize({ s: new Set([1]) })).toThrow();
+    class Box { x = 1; }
+    expect(() => canonicalize(new Box())).toThrow();
+    expect(canonicalize(Object.create(null))).toBe("{}");
+  });
   it("keeps array order significant", () => {
     expect(canonicalize([1, 2])).not.toBe(canonicalize([2, 1]));
   });
@@ -192,6 +200,6 @@ describe("hasOpenApproval", () => {
     const findFirst = vi.fn().mockResolvedValueOnce({ id: "ap-1" }).mockResolvedValueOnce(null);
     expect(await hasOpenApproval({ approval: { findFirst } }, "run-1")).toBe(true);
     expect(await hasOpenApproval({ approval: { findFirst } }, "run-1")).toBe(false);
-    expect(findFirst).toHaveBeenCalledWith({ where: { runId: "run-1", status: "PENDING" }, select: { id: true } });
+    expect(findFirst).toHaveBeenCalledWith({ where: { runId: "run-1", status: "PENDING", type: { not: "HANDOFF" } }, select: { id: true } });
   });
 });

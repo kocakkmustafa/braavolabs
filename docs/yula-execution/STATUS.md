@@ -82,14 +82,34 @@ Kapsam: `schema.prisma` (+`approvals.{tenant_id,nonce,action_hash,consumed_at}`,
 | Komut (packages/api, CI env) | Sonuç |
 |---|---|
 | `npx tsc --noEmit` | **0 hata** |
-| yeni testler (exact-action 40, job-budget 31, exact-action-gate 11, approval-bypass 7, decide-expiry 5, handoff-router +2) | **96 yeni test geçti** |
-| `npx vitest run` (tam) | **170 dosya geçti, 1 atlandı; 2767 test geçti, 48 atlandı**, 0 başarısız (önceki: 165 / 2671) |
+| yeni testler (exact-action 41, job-budget 31, exact-action-gate 11, approval-bypass 7, decide-expiry 5, hierarchical-budget 6, handoff-router +2) | **103 yeni test geçti** |
+| `npx vitest run` (tam, denetim düzeltmelerinden sonra) | **171 dosya geçti, 1 atlandı; 2774 test geçti, 48 atlandı**, 0 başarısız (önceki: 165 / 2671) |
 
 `NOT_TESTED`: migration'ın gerçek Postgres'te uygulanması (CI "DB Migration Check" bu PR'ın CI'ında okunacak), veritabanlı CAS yarışı, RLS, E2E Playwright, Docker/Boot Smoke (CI'da), runner'ın gerçek Redis/BullMQ ile bütçe durdurması. `eslint` api paketinde yapılandırılmamış (`pnpm lint` yalnız ui/braavo-core `tsc`).
 
 Bilinen açıklar ve etkiler: ADR-0002 "Sonuçlar ve bilinenler" (i)–(vi) ve **bekleyen onayı olan PAUSED koşu `/resume` ile açılamaz** (kasıtlı). `runs.job_budget`ı yazan yaratıcı henüz yok (02c/03); bayrak `EXACT_ACTION_APPROVAL` kapalı: prod'da hiçbir şey damgalanmaz/harcanmaz, yalnız atlama koruması + `decide` süre denetimi + (doluysa) bütçe devrededir. **Dağıtım sırası:** migration yeni imajdan ÖNCE; kurucu onayı gerekir (merge onayı değildir).
 
 Geri alma: ADR-0002 "Geri alma".
+
+### 05 + 08 bağımsız denetim (`reviewer` alt ajanı, salt-okur; `cb2abfb`)
+**Tur 1: BLOKE EDEN VAR (2).** Bulgu ve karşılığı:
+
+| # | Bulgu (önem) | Karşılık |
+|---|---|---|
+| 1 | HIERARCHICAL koşuda bütçe/kapsam kapısı hiç çalışmıyor; ADR "runner her grupta çağırır" yanlış olgu (orta-yüksek, bloke) | `runJobBudgetCheck` + `delegate` öncesi kontrol, reddedilen devir koşuyu FAILED yapar (yalnız ret varsa); `hierarchical-budget.test.ts` 6 test; ADR karar 6 düzeltildi |
+| 2 | `hasOpenApproval` HANDOFF onayını da sayıyor; elle `/continue` (farklı sağlayıcı) 409 alıyordu (orta, bloke) | HANDOFF tipi korumadan çıkarıldı (`NON_GATING_APPROVAL_TYPE`), sorgu `type: { not: "HANDOFF" }`; ADR karar 4 + testler güncellendi |
+| 3 | `timeoutMs` toplam süre değil (runner `startedAt`i her alışta yeniler) (orta) | Kodla değil belgeyle: bir koşu bacağıdır; `job-budget.ts` + ADR "bilinen açıklar" |
+| 4 | Kapsam kapısı yeni koşularda boş (yaratıcılar `tenantId`/`workspaceId` yazmıyor) (orta) | ADR "bilinen açıklar" (02c) |
+| 5 | `maxRetries` yazarı yok (düşük-orta) | ADR "bilinen açıklar" (02c çökme kurtarma) |
+| 6 | Adım içi aşım denetlenmiyor (düşük) | ADR "bilinen açıklar" |
+| 7, 8 | `take: 5` canlılık kaybı; `decide` süre yarışı dar pencere (düşük) | ADR "bilinen açıklar"; güvenli yönde |
+| 9 | `canonicalize` Date/Map/Set/sınıfı `{}` yapıp çakıştırır (düşük) | Düz olmayan nesne **reddedilir**; test eklendi |
+| 10 | Bayrak açıkken LLM aynı girdiyi üretmezse yeni onay döngüsü (olası) | ADR "bilinen açıklar": bayrak varsayılan kapalı, kademeli açılış |
+| 11 | `approval-bypass` test başlığı yanlış iddia; runner-seviyesi `checkGovernance` testi yok | Başlık düzeltildi; sıralı runner testi **yapılmadı** (`NOT_TESTED`) |
+| 12 | Migration yalnız ekler, backfill güvenli (olumlu); indeksler `CONCURRENTLY` değil | Not edildi, değişmedi |
+| — | `decide` (A onayı, B PENDING iken RUNNING) kapsam dışı açık | ADR "bilinen açıklar", sonraki bilet adayı |
+
+Doğrulananlar: CAS skaler tek UPDATE (ilişki filtresi sızması yok); hash/nonce/tenant/run/süre kontrolleri bayrak açıkken atlanamaz; `/resume`+`/continue` korumaları yan etkiden önce, sorgu hatası `next(err)`; `/rerun` koşuyu RUNNING yapmaz. **Tur 2: yapılmadı** (kanca sertleştirme sınırı: iki tur üstü yeni inceleme için kurucuya sorulur); bloke eden iki bulgu kodla kapandı, tsc ve 2774 test yeniden koşuldu.
 
 ## Maliyet, veri, izin
 - 05+08: yeni ücretli kaynak **0 USD**, yeni veri akışı yok, yeni izin/sır yok; deploy/migration yok.

@@ -220,7 +220,7 @@ describe("POST /runs/:id/continue", () => {
     approvalFindFirst.mockResolvedValue({ id: "ap-1" });
     const { nextErr } = await invoke(handler, { params: { id: "run-1" }, body: { provider: "OLLAMA", baseUrl: "http://x:11434/v1" } });
     expect(nextErr?.statusCode).toBe(409);
-    expect(approvalFindFirst).toHaveBeenCalledWith({ where: { runId: "run-1", status: "PENDING" }, select: { id: true } });
+    expect(approvalFindFirst).toHaveBeenCalledWith({ where: { runId: "run-1", status: "PENDING", type: { not: "HANDOFF" } }, select: { id: true } });
     expect(handoffFindFirst).not.toHaveBeenCalled();
     expect(claimHandoffMock).not.toHaveBeenCalled();
     expect(runUpdate).not.toHaveBeenCalled();

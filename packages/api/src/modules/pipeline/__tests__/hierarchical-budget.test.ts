@@ -1,0 +1,138 @@
+/**
+ * BRA-P0-08 — the HIERARCHICAL runner enforces the job budget (it never went
+ * through runGovernanceChecks). Real governance engine, synthetic persistence
+ * and agent loops. A delegation is refused once the budget is exhausted, and a
+ * run that had a delegation refused ends FAILED, never COMPLETED. A run with no
+ * job budget behaves exactly as before.
+ * NOT covered: a real manager LLM, a real database, BullMQ.
+ */
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const runAgentLoopMock = vi.hoisted(() => vi.fn());
+vi.mock("../../agent/claude", () => ({ runAgentLoop: (...a: unknown[]) => runAgentLoopMock(...a) }));
+vi.mock("../../../lib/logger", () => ({ logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
+vi.mock("../../../services/push", () => ({ notifyTenantUsers: vi.fn().mockResolvedValue(undefined) }));
+
+const prismaMock = vi.hoisted(() => ({
+  agent: { findUnique: vi.fn() },
+  run: { update: vi.fn(), findUnique: vi.fn() },
+  runStep: { create: vi.fn(), update: vi.fn(), findFirst: vi.fn() },
+  activityLog: { create: vi.fn() },
+}));
+vi.mock("../../../lib/db", () => ({ prisma: prismaMock }));
+
+vi.mock("../hierarchical", () => ({
+  buildManagerContext: () => "team context",
+  loadWorkers: async () => [],
+  recordManagerDispatch: async () => {},
+  resolveWorker: async () => ({ id: "worker-1", name: "Researcher", systemPrompt: "w", tools: [], model: "m", companyId: "co-1" }),
+  trackDelegation: () => {},
+  clearDelegationCounter: () => {},
+}));
+
+import { processHierarchicalRun } from "../hierarchical-runner";
+import { getTool } from "../../agent/registry";
+
+const loopResult = (cost: number) => ({
+  finalContent: "done", turns: [], totalInputTokens: 0, totalOutputTokens: 0, totalCostUsd: cost, totalToolCalls: 0,
+});
+
+function runRow(patch: Record<string, unknown> = {}) {
+  return {
+    id: "run-1", jobBudget: null, tenantId: null, workspaceId: null, retryCount: 0, startedAt: null, steps: [],
+    pipeline: { company: { id: "co-1", tenantId: "tenant-1" } },
+    ...patch,
+  };
+}
+
+const pipeline = { id: "p-1", companyId: "co-1", managerAgentId: "mgr-1", maxDelegationDepth: 3 } as never;
+
+async function runWithDelegations(n: number) {
+  const results: unknown[] = [];
+  runAgentLoopMock.mockImplementation(async (cfg: { toolNames: string[] }) => {
+    if (cfg.toolNames.includes("delegate")) {
+      const delegate = getTool("delegate")!;
+      for (let i = 0; i < n; i++) results.push(await delegate.handler({ agentId: "worker-1", task: `task ${i}` }));
+    }
+    return loopResult(0.5);
+  });
+  await processHierarchicalRun({ runId: "run-1", tenantId: "tenant-1", pipeline, input: "go" });
+  return results;
+}
+
+const lastRunUpdate = () => prismaMock.run.update.mock.calls.at(-1)![0].data;
+const workerLoops = () => runAgentLoopMock.mock.calls.filter((c) => !(c[0] as any).toolNames.includes("delegate")).length;
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  prismaMock.agent.findUnique.mockResolvedValue({ id: "mgr-1", companyId: "co-1", systemPrompt: "m", tools: [], model: "x" });
+  prismaMock.run.update.mockResolvedValue({});
+  prismaMock.runStep.create.mockResolvedValue({});
+  prismaMock.runStep.update.mockResolvedValue({});
+  prismaMock.runStep.findFirst.mockResolvedValue({ id: "rs-worker" });
+  prismaMock.activityLog.create.mockResolvedValue({});
+  prismaMock.run.findUnique.mockResolvedValue(runRow());
+});
+
+describe("HIERARCHICAL runner — job budget (BRA-P0-08)", () => {
+  it("no job budget → unchanged: both delegations run, run COMPLETED", async () => {
+    await runWithDelegations(2);
+    expect(workerLoops()).toBe(2);
+    expect(lastRunUpdate()).toMatchObject({ status: "COMPLETED" });
+  });
+
+  it("exhausted budget → delegation refused (no worker loop, no step row), activity logged, run FAILED", async () => {
+    // A step limit of 0 is already used up (CLI parity), so the very first delegation is refused.
+    prismaMock.run.findUnique.mockResolvedValue(runRow({ jobBudget: { maxSteps: 0 } }));
+    const results = await runWithDelegations(2);
+    expect(workerLoops()).toBe(0);
+    expect(prismaMock.runStep.create).not.toHaveBeenCalled();
+    expect(results[0]).toMatchObject({ error: expect.stringMatching(/^Delegation refused: Job budget exhausted/) });
+    expect(prismaMock.activityLog.create.mock.calls.map((c) => (c[0] as any).data.action)).toContain("governance.job_budget");
+    expect(lastRunUpdate()).toMatchObject({ status: "FAILED", error: expect.stringMatching(/Job budget exhausted/) });
+  });
+
+  it("cost-based stop: the first delegation spends past maxUsd, the second is refused, run FAILED", async () => {
+    let call = 0;
+    prismaMock.run.findUnique.mockImplementation(async () => {
+      call++;
+      return runRow({ jobBudget: { maxUsd: 0.5 } });
+    });
+    runAgentLoopMock.mockImplementation(async (cfg: { toolNames: string[] }) => {
+      if (cfg.toolNames.includes("delegate")) {
+        const delegate = getTool("delegate")!;
+        await delegate.handler({ agentId: "worker-1", task: "a" }); // cost 0 so far → allowed, worker costs 0.6
+        await delegate.handler({ agentId: "worker-1", task: "b" }); // cost 0.6 ≥ 0.5 → refused
+        return loopResult(0);
+      }
+      return loopResult(0.6);
+    });
+    await processHierarchicalRun({ runId: "run-1", tenantId: "tenant-1", pipeline, input: "go" });
+    expect(call).toBe(2);
+    expect(workerLoops()).toBe(1);
+    expect(lastRunUpdate()).toMatchObject({ status: "FAILED" });
+  });
+
+  it("scope mismatch (run.tenant_id differs from its owner) refuses the delegation even with no budget", async () => {
+    prismaMock.run.findUnique.mockResolvedValue(runRow({ tenantId: "other-tenant" }));
+    const results = await runWithDelegations(1);
+    expect(workerLoops()).toBe(0);
+    expect(results[0]).toMatchObject({ error: expect.stringMatching(/Job scope mismatch/) });
+    expect(lastRunUpdate()).toMatchObject({ status: "FAILED" });
+  });
+
+  it("reaching the limit while finishing is still a success (only a refusal fails the run)", async () => {
+    prismaMock.run.findUnique.mockResolvedValue(runRow({ jobBudget: { maxSteps: 5 } }));
+    await runWithDelegations(1);
+    expect(workerLoops()).toBe(1);
+    expect(lastRunUpdate()).toMatchObject({ status: "COMPLETED" });
+  });
+
+  it("malformed stored budget → refused (fail-closed)", async () => {
+    prismaMock.run.findUnique.mockResolvedValue(runRow({ jobBudget: { maxUsd: "lots" } }));
+    const results = await runWithDelegations(1);
+    expect(workerLoops()).toBe(0);
+    expect(results[0]).toMatchObject({ error: expect.stringMatching(/invalid/) });
+    expect(lastRunUpdate()).toMatchObject({ status: "FAILED" });
+  });
+});
