@@ -10,7 +10,8 @@ Durum kodları: talimat §12.4 (`BACKLOG … IMPLEMENTING, IN_REVIEW, …`). `IM
 |---|---|---|---|
 | BRA-P0-01 uçtan uca yetenek tablosu | IN_REVIEW | AUDIT-01 notu, 4 klonda `git fetch` sonrası güncel main (platform `e93cbdc`, desktop `ad6867a`, cli `ed3692e`, mobile `5e60a75`); kod koşulmadı | Orchestration doğrulaması |
 | BRA-P0-02a ADR + durum makinesi (bu PR) | IN_REVIEW | Aşağıdaki test kanıtı; `job-state.ts` + `job-state.test.ts`; ADR-0001 | PR denetimi, sonra 02b |
-| BRA-P0-02b migration + `transitionRun` + çift yazım | BACKLOG | — | 02a kabulünden sonra |
+| BRA-P0-02b migration + `transitionRun` + `JOB_STATE_DUAL_WRITE` (varsayılan kapalı) | IN_REVIEW (bu yığılı PR) | Aşağıdaki "02b" bölümü | PR denetimi |
+| BRA-P0-02c yazıcıları `transitionRun`a taşı, yaratıcılar `tenantId`/`workspaceId` ayarlasın, sözleşme testleri | BACKLOG | — | 02b kabulünden sonra, küçük PR'lar |
 | BRA-P0-05, 08 (nonce, bütçe) | BACKLOG | — | 02b'ye bağlı (şema sütunları) |
 
 ## Bu PR'ın değişiklikleri (02a)
@@ -29,6 +30,21 @@ Ortam: macOS, Node v26.9.0, pnpm 9.15.4, `origin/main` `e93cbdc` üzerine bu dal
 | `npx vitest run` (packages/api, CI env) | **164 dosya geçti, 1 atlandı; 2646 test geçti, 48 atlandı**, 0 başarısız |
 
 `NOT_TESTED`: DB'li entegrasyon (çökmüş koşu devamı, 3× approve yan etki sayısı) 02b kapsamında, burada yok; E2E Playwright ve Docker/Boot Smoke yerelde koşulmadı (CI'da). `pnpm -w lint` api paketinde lint betiği olmadığından uygulanmadı.
+
+## 02b — migration + `transitionRun` + bayrak (yığılı PR, taban: `feat/BRA-P0-02-job-schema-adr`)
+
+Kapsam (PR tek amaçlı): `packages/db/prisma/schema.prisma` (+70 satır: `JobState`, `ResultStatus`, `JobReceipt`, `Run` sütunları), `migrations/20261108000000_job_lifecycle/migration.sql` (yalnız ekleyen; **hiçbir ortama uygulanmadı**), `modules/run/transition.ts` (`transitionRun`, `isJobStateDualWriteEnabled`, `currentJobState`), `modules/run/__tests__/transition.test.ts` (18 test). `transitionRun` hiçbir mevcut yazıcıya bağlı değil (taşıma 02c); `JOB_STATE_DUAL_WRITE` varsayılan kapalı.
+
+Test kanıtı (yerel, 2026-11-08, aynı ortam): `transition.test.ts` **18/18**; `tsc --noEmit` **0 hata** (Prisma istemcisi yeni şemayla üretildi); `vitest run` (packages/api, CI env) **165 dosya geçti, 1 atlandı; 2664 test geçti, 48 atlandı**, 0 başarısız. Şema `prisma validate` geçti; migration SQL `prisma migrate diff` çıktısıdır (eski → yeni şema), üzerine yalnız RLS politikası ve tenant geri dolgusu eklendi.
+
+`NOT_TESTED`: migration'ın gerçek Postgres'te uygulanması (CI "DB Migration Check" koşar; yerelde hiçbir veritabanına uygulanmadı), gerçek Postgres'te CAS yarışı (testler `updateMany` anlamını taklit eden bellek içi depoyla karar mantığını kanıtlar), RLS politikasının davranışı.
+
+Maliyet 0 USD, yeni sır yok. Geri alma: migration eklemelidir, bayrak kapalıyken hiçbir kod yeni sütuna dokunmaz; dal revert + (uygulandıysa) sütunlar yok sayılır.
+
+### Bilinen açıklar ve etkiler (kasıtlı olarak açık yazıldı)
+- **Onay atlama (BRA-P0-05'e kadar açık):** bugünkü `/handoff` + `/continue` yolu PENDING onay varken koşuyu RUNNING yapar ve iki rotada `approval:decide` izni aranmaz; model (`decideResume`) bunu `retry` niyeti olarak bilinçli taşır, **02b bunu kapatmaz ve test etmez**. Kapatma: BRA-P0-05'te `/continue` ya `approval:decide` ister ya da bekleyen onayı CANCELLED yapar (ADR madde (c)). Bu yazıcılar `transitionRun`a taşınmadıkça davranış değişmez.
+- **Yanıt yüzeyi:** `GET /api/v1/runs/:id` ham `Run` satırını döndürür (`run/router.ts:91`); migration uygulanınca yeni alanlar (`state`, `tenantId`, `workspaceId`, `idempotencyKey`, `planVersion`, `resultStatus`, `deadline`, `evidenceRef`, `retryCount`, `heartbeatAt`) bayrak kapalıyken bile yanıta eklenir. Eklemelidir ve çağıranın kendi kiracısının verisidir; mobil/desktop kaynağında `.strict()` şema bulunmadı (CLI'daki tek `.strict()` ayrı bir test şemasında). 02c bir yanıt-anahtarı sözleşme testi ekler.
+- **Geri dolgu:** `state` bilerek doldurulmadı; `tenant_id`/`workspace_id` tek `UPDATE` ile (prod boyutu bilinmiyor); migration sonrası yaratılan koşularda NULL. Ayrıntı ADR karar 2.
 
 ## Maliyet, veri, izin
 - Yeni ücretli kaynak: **0 USD**. Yeni veri akışı: yok. Yeni izin/sır: yok.

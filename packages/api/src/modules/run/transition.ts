@@ -1,0 +1,96 @@
+/**
+ * BRA-P0-02b — `transitionRun`: the single writer of `Run` lifecycle state
+ * (ADR-0001 karar 5). NOT wired into any existing writer yet: moving the 20+
+ * direct `prisma.run.update({ status })` call sites is 02c, in small PRs. This
+ * module adds the writer and the flag; importing it changes no behaviour.
+ *
+ * Compare-and-set: the write only lands if the row still has the `status` (and
+ * `state`) we read, so a replayed webhook / double approve that reads the same
+ * row loses the race instead of firing a second side effect. Callers run side
+ * effects only when `ok && !noop`.
+ *
+ * JOB_STATE_DUAL_WRITE (default OFF, literal "true" only, read at call time —
+ * same convention as `lib/outbound-gates.ts`):
+ *   off  touches ONLY the legacy `status` column. It never selects or writes
+ *        `state`, so it is safe even before the 20261108000000_job_lifecycle
+ *        migration has been applied anywhere.
+ *   on   also writes `state` (+ `resultStatus`), always together with
+ *        `status = toLegacyStatus(state)` in the same UPDATE.
+ *
+ * `status` stays authoritative until every writer goes through this function:
+ * legacy writers still update only `status`, so a stored `state` can be stale.
+ * The current state is therefore `state` only when it still projects onto
+ * `status`; otherwise it is re-derived from `status` (self-healing).
+ */
+import type { Prisma } from "@prisma/client";
+import {
+  applyTransition,
+  fromLegacyStatus,
+  toLegacyStatus,
+  type JobState,
+  type LegacyRunStatus,
+  type ResultStatus,
+} from "./job-state";
+
+/** Only the literal string "true" enables dual write; anything else (or unset) is off. */
+export function isJobStateDualWriteEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.JOB_STATE_DUAL_WRITE === "true";
+}
+
+/** The slice of a Prisma (transaction) client this function needs — also what tests fake. */
+export type RunTransitionClient = Pick<Prisma.TransactionClient, "run">;
+
+export interface TransitionOptions {
+  /** Other columns to write in the same UPDATE (completedAt, error, costUsd …). Never `status`/`state`. */
+  extra?: Prisma.RunUpdateManyMutationInput;
+  /** Written only with dual write on, and only meaningful when `to` is COMPLETED. */
+  resultStatus?: ResultStatus | null;
+  /** Override the env flag (tests, callers that already resolved it). */
+  dualWrite?: boolean;
+}
+
+export type TransitionOutcome =
+  | { ok: true; noop: boolean; from: JobState; to: JobState }
+  | { ok: false; reason: "not_found" }
+  | { ok: false; reason: "illegal_transition"; from: JobState; to: JobState }
+  | { ok: false; reason: "lost_race"; from: JobState; to: JobState };
+
+/** Current state of a row: stored `state` if it still agrees with `status`, else derived from `status`. */
+export function currentJobState(status: LegacyRunStatus, state: JobState | null | undefined): JobState {
+  if (state && toLegacyStatus(state) === status) return state;
+  return fromLegacyStatus(status);
+}
+
+export async function transitionRun(
+  tx: RunTransitionClient,
+  runId: string,
+  to: JobState,
+  opts: TransitionOptions = {},
+): Promise<TransitionOutcome> {
+  const dual = opts.dualWrite ?? isJobStateDualWriteEnabled();
+
+  const row = (await tx.run.findUnique({
+    where: { id: runId },
+    // Flag off must not even name the new column.
+    select: dual ? { status: true, state: true } : { status: true },
+  })) as { status: LegacyRunStatus; state?: JobState | null } | null;
+  if (!row) return { ok: false, reason: "not_found" };
+
+  const from = currentJobState(row.status, dual ? row.state : null);
+  const decision = applyTransition(from, to);
+  if (!decision.ok) return { ok: false, reason: "illegal_transition", from, to };
+  if (decision.noop) return { ok: true, noop: true, from, to };
+
+  const where: Prisma.RunWhereInput = { id: runId, status: row.status };
+  if (dual) where.state = row.state ?? null;
+
+  const data: Prisma.RunUpdateManyMutationInput = {
+    ...(opts.extra ?? {}),
+    status: toLegacyStatus(to),
+    ...(dual ? { state: to, ...(opts.resultStatus !== undefined ? { resultStatus: opts.resultStatus } : {}) } : {}),
+  };
+
+  const res = await tx.run.updateMany({ where, data });
+  if (res.count !== 1) return { ok: false, reason: "lost_race", from, to };
+  return { ok: true, noop: false, from, to };
+}
