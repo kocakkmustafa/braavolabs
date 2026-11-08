@@ -43,20 +43,25 @@ export const PUBLIC_CONFIG_KEYS: ReadonlySet<string> = new Set([
   "postingFrequency",
 ]);
 
-// Key-name classifier. The name is split into lowercase parts (camelCase,
-// ACRONYMCase, snake_case, kebab-case, spaces, dots), so harmless names that
-// merely contain "key"/"token" as a substring (keywords, keyMessages, monkey,
-// tokenizer_model) are NOT matched, while compounds are (apiKey, x-api-key,
-// private_key, accessToken, SESSION_ID). When a name is ambiguous the safe
-// direction is to redact (e.g. maxTokens is masked).
-const SECRET_SUFFIXES = [
-  "secret", "token", "password", "passwd", "credential", "authorization", "bearer", "cookie",
-  "dsn", "apikey", "privatekey", "signingkey", "accesskey", "secretkey", "encryptionkey",
-  "masterkey", "sessionid", "sessiontoken",
+// Key-name classifier, fail-closed. The name is lowercased and stripped of
+// separators; if it contains any secret-ish substring it is a secret, unless
+// the normalized name is one of the few known harmless config fields below.
+// `key` is matched part-wise (camelCase/snake/kebab split): any part that is
+// or ends with "key"/"keys" counts (stripeKey, openaiKey, x-api-key, monkey).
+// When a name is ambiguous the safe direction is to redact (maxTokens,
+// authority, sessions_per_day are masked on purpose).
+const SECRET_SUBSTRINGS = [
+  "secret", "token", "passw", "pwd", "credential", "bearer", "cookie", "jwt", "dsn", "auth", "session",
 ];
-const SECRET_EXACT = new Set(["auth", "oauth", "jwt", "pwd", "key", "session"]);
-const KEY_PREFIXES = new Set([
-  "api", "private", "signing", "access", "secret", "encryption", "master", "client", "auth", "license", "webhook", "x",
+
+// Exact (normalized) names that contain a secret-ish substring but are known
+// harmless. Keep this list SHORT; each entry needs a reason:
+//   keywords / keyword / keymessages  marketing copy fields (icp, brand voice)
+//   tokenizer / tokenizermodel        model metadata, not a credential
+//   author / authors                  content attribution
+//   monkey                            plain word ending in "key"
+const HARMLESS_NAMES: ReadonlySet<string> = new Set([
+  "keywords", "keyword", "keymessages", "tokenizer", "tokenizermodel", "author", "authors", "monkey",
 ]);
 
 function nameParts(name: string): string[] {
@@ -68,22 +73,12 @@ function nameParts(name: string): string[] {
     .map((p) => p.toLowerCase());
 }
 
-const singular = (p: string) => (p.length > 3 && p.endsWith("s") && !p.endsWith("ss") ? p.slice(0, -1) : p);
-
 export function isSecretKeyName(name: string): boolean {
-  const parts = nameParts(name).map(singular);
-  if (parts.length === 0) return false;
-  // Whole name is exactly one of the ambiguous bare words ("key", "session", "auth", ...).
-  if (parts.length === 1 && SECRET_EXACT.has(parts[0]!)) return true;
-  for (let i = 0; i < parts.length; i++) {
-    const p = parts[i]!;
-    if (p === "auth" || p === "oauth" || p === "jwt" || p === "pwd") return true;
-    if (SECRET_SUFFIXES.some((suf) => p.endsWith(suf))) return true;
-    // "<prefix> key" pairs: api key, private key, x api key, ...
-    if (p === "key" && i > 0 && KEY_PREFIXES.has(parts[i - 1]!)) return true;
-    if (p === "session" && (parts[i + 1] === "id" || parts[i + 1] === "token" || parts[i + 1] === "cookie")) return true;
-  }
-  return false;
+  const normalized = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (normalized.length === 0) return false;
+  if (HARMLESS_NAMES.has(normalized)) return false;
+  if (SECRET_SUBSTRINGS.some((sub) => normalized.includes(sub))) return true;
+  return nameParts(name).some((p) => p.endsWith("key") || p.endsWith("keys"));
 }
 
 function redactValue(value: unknown, depth: number): unknown {

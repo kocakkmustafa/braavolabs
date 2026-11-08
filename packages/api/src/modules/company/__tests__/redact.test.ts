@@ -92,21 +92,26 @@ describe("toPublicCompany", () => {
 
 describe("isSecretKeyName", () => {
   it.each([
-    "webhookSecret", "secret", "client_secret", "CLIENT_SECRET", "accessToken", "access_token", "refreshTokens", "token",
-    "password", "passwd", "pwd", "db_password", "credentials", "credential",
+    "webhookSecret", "webhooksecret", "secret", "client_secret", "CLIENT_SECRET", "mySecretValue", "accessToken", "access_token",
+    "refreshTokens", "token", "maxTokens", "password", "passwd", "pwd", "dbpassword", "db_password", "credentials",
     "auth", "oauth", "Authorization", "authorization", "bearer", "bearerToken", "cookie", "Cookies", "session_id", "sessionId",
-    "sessionToken", "dsn", "SENTRY_DSN", "jwt", "apiKey", "api_key", "APIKey", "API_KEY", "x-api-key", "X-Api-Key", "apikey",
-    "privateKey", "private_key", "signingKey", "signing-key", "accessKey", "access_key", "secretKey", "stripeSecretKey",
-    "encryptionKey", "key", "keys", "apiKeys", "webhook_key", "my token",
+    "sessionToken", "session", "dsn", "SENTRY_DSN", "jwt", "apiKey", "api_key", "APIKey", "API_KEY", "x-api-key", "X-Api-Key",
+    "apikey", "privateKey", "private_key", "signingKey", "signing-key", "accessKey", "secretKey", "stripeSecretKey",
+    "stripeKey", "openaiKey", "sendgridKey", "encryptionKey", "key", "keys", "apiKeys", "webhook_key", "my token",
   ])("flags %s", (name) => {
     expect(isSecretKeyName(name)).toBe(true);
   });
 
   it.each([
-    "keywords", "keyMessages", "key_messages", "keyword", "monkey", "tokenizer_model", "tokenizerModel", "author", "authority",
-    "niche", "targetAudience", "brand_voice", "monthly", "channels", "sessions_per_day", "keyboard", "description",
+    "keywords", "keyword", "keymessages", "keyMessages", "key_messages", "tokenizer", "tokenizer_model", "tokenizerModel",
+    "author", "authors", "monkey", "Monkey",
+    "niche", "targetAudience", "brand_voice", "monthly", "channels", "keyboard", "description", "postingFrequency",
   ])("does not flag harmless %s", (name) => {
     expect(isSecretKeyName(name)).toBe(false);
+  });
+
+  it.each(["authority", "sessions_per_day", "authored_by"])("fails closed (accepted false positive) on %s", (name) => {
+    expect(isSecretKeyName(name)).toBe(true);
   });
 
   it("empty name is not flagged", () => {
@@ -115,10 +120,10 @@ describe("isSecretKeyName", () => {
 
   it("nested redaction uses the same classifier (harmless siblings survive)", () => {
     const out = redactCompanyConfig({
-      icp: { keywords: ["a"], keyMessages: "m", tokenizer_model: "t", Authorization: SECRET, "x-api-key": SECRET, cookie: SECRET },
+      icp: { keywords: ["a"], keyMessages: "m", tokenizer_model: "t", Authorization: SECRET, "x-api-key": SECRET, cookie: SECRET, stripeKey: SECRET },
     });
     expect(out).toEqual({
-      icp: { keywords: ["a"], keyMessages: "m", tokenizer_model: "t", Authorization: REDACTED, "x-api-key": REDACTED, cookie: REDACTED },
+      icp: { keywords: ["a"], keyMessages: "m", tokenizer_model: "t", Authorization: REDACTED, "x-api-key": REDACTED, cookie: REDACTED, stripeKey: REDACTED },
     });
   });
 });
