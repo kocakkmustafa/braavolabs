@@ -10,6 +10,7 @@ import { decideResume } from "../run/job-state";
 import { assertTransitioned, resumeToRunning, AlreadyRunningError, revertRunAfterEnqueueFailure } from "../run/resume";
 import { reopenClaimedHandoff } from "../run/handoff.service";
 import { z } from "zod";
+import { toPublicCompany } from "../company/redact";
 import {
   type ApprovalArtifact,
   extractArtifactFromInput,
@@ -88,7 +89,15 @@ approvalRouter.get("/", async (req, res, next) => {
       },
       orderBy: { createdAt: "desc" },
     });
-    res.json(await attachArtifacts(approvals));
+    // BRA-SEC-01: strip Company.config secrets (webhookSecret etc.) from the nested company.
+    const safe = approvals.map((ap) => ({
+      ...ap,
+      run: ap.run && {
+        ...ap.run,
+        pipeline: ap.run.pipeline && { ...ap.run.pipeline, company: toPublicCompany(ap.run.pipeline.company) },
+      },
+    }));
+    res.json(await attachArtifacts(safe));
   } catch (err) { next(err); }
 });
 

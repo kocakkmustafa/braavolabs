@@ -22,6 +22,7 @@ import { transitionRun, isJobStateDualWriteEnabled, currentJobState } from "./tr
 import { assertTransitioned, resumeToRunning, AlreadyRunningError, revertRunAfterEnqueueFailure, priorJobState } from "./resume";
 import { decideResume, type JobState } from "./job-state";
 import { env } from "../../config/env";
+import { toPublicCompany } from "../company/redact";
 import type { RunEvent } from "@ai-company-os/core";
 
 export const runRouter = Router();
@@ -92,7 +93,8 @@ runRouter.get("/:id", async (req, res, next) => {
     if (!run || run.pipeline.company.tenantId !== req.auth!.tenantId) {
       throw new AppError(404, "Run not found");
     }
-    res.json(run);
+    // BRA-SEC-01: tenant check above used the raw row; strip company secrets from the response.
+    res.json({ ...run, pipeline: { ...run.pipeline, company: toPublicCompany(run.pipeline.company) } });
   } catch (err) { next(err); }
 });
 
