@@ -202,10 +202,23 @@ export interface ReceiptEvidence {
  */
 export function deriveResultStatus(
   state: JobState,
-  requiredKinds: readonly EvidenceKind[],
-  evidence: readonly ReceiptEvidence[],
+  requiredKindsRaw: unknown,
+  evidenceRaw: unknown,
 ): ResultStatus | null {
   if (state !== "COMPLETED") return null;
+  // BRA-P0-02c-4 (ADR-0001 (d)): the inputs come from stored JSON, so validate
+  // instead of trusting the type. A missing/non-string `ref` is blank (never
+  // real evidence), a non-object or unknown-kind item is dropped, a malformed
+  // container is empty. Nothing here can throw, and nothing malformed can
+  // produce VERIFIED.
+  const requiredKinds: readonly EvidenceKind[] = Array.isArray(requiredKindsRaw) ? (requiredKindsRaw as EvidenceKind[]) : [];
+  const kinds: readonly string[] = ["diff", "test", "pr", "artifact", "log"];
+  const evidence: ReceiptEvidence[] = (Array.isArray(evidenceRaw) ? evidenceRaw : []).flatMap((item: unknown) => {
+    if (typeof item !== "object" || item === null) return [];
+    const o = item as Record<string, unknown>;
+    if (typeof o.kind !== "string" || !kinds.includes(o.kind)) return [];
+    return [{ kind: o.kind as EvidenceKind, ref: typeof o.ref === "string" ? o.ref : "", ok: o.ok === true ? true : o.ok === false ? false : undefined }];
+  });
   const real = evidence.filter((e) => e.ref.trim().length > 0);
   if (real.length === 0) return "UNVERIFIED";
   const have = new Set(real.map((e) => e.kind));
