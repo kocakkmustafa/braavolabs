@@ -56,7 +56,20 @@ export function isJobStateDualWriteEnabled(env: NodeJS.ProcessEnv = process.env)
 }
 
 /** The slice of a Prisma (transaction) client this function needs — also what tests fake. */
-export type RunTransitionClient = Pick<Prisma.TransactionClient, "run">;
+/**
+ * Structural (not `Pick<TransactionClient>`): the RLS-extended `prisma` client's
+ * `run` delegate is not assignable to the raw transaction client's (02c-3:
+ * tool-executor and the expiry cron call this outside a `tenantTx`), while both
+ * satisfy these two calls.
+ */
+export interface RunTransitionClient {
+  run: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    findFirst(args: any): PromiseLike<any>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    updateMany(args: any): PromiseLike<{ count: number }>;
+  };
+}
 
 /** Columns only `transitionRun` may write (identity, status/state projection and the job-lifecycle columns). */
 export const RESERVED_RUN_COLUMNS = [

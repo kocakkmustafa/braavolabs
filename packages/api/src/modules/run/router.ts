@@ -18,53 +18,11 @@ import { listTenantProviderLinks, resolveTenantCompletionLink, commitTrialComple
 import { assertKeylessLocalBaseUrl } from "../../services/takeover-config";
 import { createHandoff, claimHandoff, HandoffClaimError, cancelOpenHandoffForRun, reopenClaimedHandoff } from "./handoff.service";
 import { hasOpenApproval } from "../approval/exact-action";
-import { transitionRun, isJobStateDualWriteEnabled, currentJobState, type TransitionOutcome } from "./transition";
+import { transitionRun, isJobStateDualWriteEnabled, currentJobState } from "./transition";
+import { assertTransitioned, resumeToRunning, AlreadyRunningError, revertRunAfterEnqueueFailure, priorJobState } from "./resume";
 import { decideResume, type JobState } from "./job-state";
 import { env } from "../../config/env";
 import type { RunEvent } from "@ai-company-os/core";
-
-/**
- * BRA-P0-02c-2: turn a failed `transitionRun` outcome into the route's error.
- * Thrown INSIDE the `tenantTx` callback so the transaction rolls back and no
- * side effect (activity row, ledger, queue job) follows a lost race.
- * `illegal_transition` is a conflict (409) unless the route names its own code.
- */
-function assertTransitioned(o: TransitionOutcome, illegal: { status: number; message: string }): void {
-  if (o.ok) return;
-  if (o.reason === "not_found") throw new AppError(404, "Run not found");
-  if (o.reason === "illegal_transition") throw new AppError(illegal.status, illegal.message);
-  throw new AppError(409, "Run state changed concurrently; retry");
-}
-
-/**
- * →RESUMING, then (dual write on) →RUNNING in the same transaction: RESUMING
- * projects onto status RUNNING, and the runner does not yet advance
- * RESUMING→RUNNING itself (ADR-0001 (e), 02c-4), so the writer does it here.
- * Off, the single write is the legacy `status = RUNNING`.
- */
-/** Thrown inside the tx (so it rolls back) when the FRESH in-tx read shows RUNNING/RESUMING: someone else already resumed. */
-class AlreadyRunningError extends Error {}
-
-async function resumeToRunning(
-  tx: Parameters<Parameters<typeof tenantTx>[0]>[0],
-  runId: string,
-  tenantId: string,
-  opts: { rejectIfAlreadyRunning: boolean },
-): Promise<void> {
-  const illegal = { status: 409, message: "Run cannot be resumed from its current state" };
-  const first = await transitionRun(tx, runId, "RESUMING", { tenantId, legacyUnchecked: true });
-  assertTransitioned(first, illegal);
-  // RUNNING→RESUMING is a legal edge (crash recovery), so the CAS above can WIN
-  // against a request that already resumed the run. The decision must come from
-  // this fresh in-tx read, not from the stale read outside the tx: roll back and
-  // let the caller answer "already" (no second enqueue).
-  if (opts.rejectIfAlreadyRunning && first.ok && (first.from === "RUNNING" || first.from === "RESUMING")) {
-    throw new AlreadyRunningError();
-  }
-  if (isJobStateDualWriteEnabled()) {
-    assertTransitioned(await transitionRun(tx, runId, "RUNNING", { tenantId }), illegal);
-  }
-}
 
 export const runRouter = Router();
 runRouter.use(authMiddleware);
@@ -375,8 +333,15 @@ runRouter.post("/:id/resume", async (req, res, next) => {
       throw err;
     }
 
-    // Only after the CAS won (a lost race threw above): exactly one enqueue.
-    await enqueueRun(run.id);
+    // Only after the CAS won (a lost race threw above): exactly one enqueue. If
+    // it fails the run is already committed RUNNING with no job (and /resume would
+    // answer 400): put it back to PAUSED so the operator can retry (02c-3).
+    try {
+      await enqueueRun(run.id);
+    } catch (err) {
+      await tenantTx((tx) => revertRunAfterEnqueueFailure(tx, run.id, req.auth!.tenantId, "PAUSED")).catch(() => undefined);
+      throw err;
+    }
 
     res.json({ success: true, status: "RUNNING" });
   } catch (err) { next(err); }
@@ -576,7 +541,52 @@ runRouter.post("/:id/continue", handoffLimiter, async (req, res, next) => {
         throw err;
       }
     }
-    if (!alreadyRunning) await enqueueRun(run.id);
+    // BRA-P0-02c-3 (flag on): the takeover is done, so a still-PENDING HANDOFF
+    // proposal for this run is obsolete — close it (REJECTED by "system:continue";
+    // the enum has no CANCELLED and 02c adds no migration). Otherwise a later
+    // `decide` on it would act on a run that is already running. Best-effort:
+    // `decide`'s run-state guard covers the gap if this write fails.
+    if (dual) {
+      await tenantTx(async (tx) => {
+        const open = (await tx.approval.findMany({
+          where: { runId: run.id, type: "HANDOFF", status: "PENDING" },
+          select: { id: true },
+        })) as Array<{ id: string }>;
+        for (const a of open) {
+          const closed = await tx.approval.updateMany({
+            where: { id: a.id, status: "PENDING" },
+            data: { status: "REJECTED", decidedBy: "system:continue", decidedAt: new Date() },
+          });
+          if (closed.count !== 1) continue;
+          // Rule #9: the system decision is logged like approval.rejected / approval.expired.
+          await tx.activityLog.create({
+            data: {
+              tenantId: req.auth!.tenantId,
+              actor: req.auth!.userId,
+              action: "approval.closed_by_continue",
+              resource: "approval",
+              resourceId: a.id,
+              details: { runId: run.id, handoffId: claimed.id },
+            },
+          });
+        }
+      }).catch((e) =>
+        logger.warn({ runId: run.id, err: (e as Error).message }, "close pending HANDOFF approval after /continue failed"));
+    }
+
+    if (!alreadyRunning) {
+      try {
+        await enqueueRun(run.id);
+      } catch (err) {
+        // 02c-3: the run was committed RUNNING and the ledger CLAIMED; without a job
+        // neither can be recovered by /resume or /continue. Put both back (the run
+        // to where it was, the ledger by our own claim token) and surface the error.
+        await tenantTx((tx) => revertRunAfterEnqueueFailure(tx, run.id, req.auth!.tenantId, priorJobState(run.status))).catch(() => undefined);
+        await reopenClaimedHandoff(claimed.id, claimed.claimedAt as Date).catch((e) =>
+          logger.warn({ runId: run.id, handoffId: claimed.id, err: (e as Error).message }, "handoff reopen after enqueue failure failed"));
+        throw err;
+      }
+    }
 
     res.json({
       success: true,

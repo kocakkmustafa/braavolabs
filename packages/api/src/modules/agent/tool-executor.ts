@@ -4,6 +4,7 @@
  */
 
 import { prisma } from "../../lib/db";
+import { transitionRun } from "../run/transition";
 import { logger } from "../../lib/logger";
 import {
   getTool,
@@ -148,6 +149,35 @@ export async function enforceTenantScopedSecondaryIds(
 }
 
 /**
+ * BRA-P0-02c-3: drive the run into WAITING_APPROVAL through `transitionRun`
+ * (graph state NEEDS_APPROVAL). Called right AFTER the gate's approval row is
+ * created; if the transition cannot happen (CAS lost to a concurrent /stop or
+ * /pause, or — with JOB_STATE_DUAL_WRITE on — an illegal edge such as a
+ * finished run) the just-created approval is removed again so a lost race
+ * leaves no orphaned PENDING approval, and the caller returns a FAILED tool
+ * result without any push / event / activity row.
+ */
+async function enterWaitingApproval(runId: string, tenantId: string, approvalId: string): Promise<boolean> {
+  const o = await transitionRun(prisma, runId, "NEEDS_APPROVAL", { tenantId, legacyUnchecked: true });
+  if (o.ok) return true;
+  logger.warn({ runId, approvalId, reason: o.reason }, "Approval gate: run could not enter WAITING_APPROVAL — approval withdrawn");
+  await prisma.approval
+    .deleteMany({ where: { id: approvalId, status: "PENDING" } })
+    .catch((err) => logger.warn({ approvalId, err: (err as Error).message }, "Approval gate: withdrawing approval failed"));
+  return false;
+}
+
+function gateTransitionFailed(start: number): ToolExecResult {
+  return {
+    output: null,
+    status: "FAILED",
+    durationMs: Date.now() - start,
+    error: "Run is no longer active; approval was not requested",
+  };
+}
+
+
+/**
  * Execute a tool call with governance checks.
  */
 export async function executeTool(
@@ -263,10 +293,9 @@ export async function executeTool(
       },
     });
 
-    await prisma.run.update({
-      where: { id: context.runId },
-      data: { status: "WAITING_APPROVAL" },
-    });
+    if (!(await enterWaitingApproval(context.runId, context.tenantId, approval.id))) {
+      return gateTransitionFailed(start);
+    }
 
     await prisma.activityLog.create({
       data: {
@@ -357,10 +386,9 @@ export async function executeTool(
       },
     });
 
-    await prisma.run.update({
-      where: { id: context.runId },
-      data: { status: "WAITING_APPROVAL" },
-    });
+    if (!(await enterWaitingApproval(context.runId, context.tenantId, approval.id))) {
+      return gateTransitionFailed(start);
+    }
 
     await prisma.activityLog.create({
       data: {
@@ -504,10 +532,9 @@ export async function executeTool(
       // in the runner sees a non-RUNNING status and exits cleanly. Without
       // this the BullMQ job kept iterating and the run completed normally
       // while the approval row sat orphaned at PENDING — see ISS-022.
-      await prisma.run.update({
-        where: { id: context.runId },
-        data: { status: "WAITING_APPROVAL" },
-      });
+      if (!(await enterWaitingApproval(context.runId, context.tenantId, approval.id))) {
+        return gateTransitionFailed(start);
+      }
 
       await prisma.activityLog.create({
         data: {

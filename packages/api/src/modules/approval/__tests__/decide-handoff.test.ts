@@ -36,7 +36,12 @@ vi.mock("../../../lib/db", () => {
       updateMany: (...a: unknown[]) => approvalUpdateMany(...a),
       update: (...a: unknown[]) => approvalUpdate(...a),
     },
-    run: { update: (...a: unknown[]) => txRun(...a) },
+    // 02c-3: run writes go through transitionRun (findFirst + updateMany CAS); both are
+    // adapted back onto the spies below with the old `{ where: { id }, data }` shape.
+    run: {
+      findFirst: async () => ({ status: "WAITING_APPROVAL" }),
+      updateMany: async (a: { where: { id: string }; data: unknown }) => { txRun({ where: { id: a.where.id }, data: a.data }); return { count: 1 }; },
+    },
     activityLog: { create: (...a: unknown[]) => activityLogCreate(...a) },
     steeringMessage: { create: (...a: unknown[]) => steeringCreate(...a) },
   };
@@ -49,6 +54,8 @@ vi.mock("../../../lib/db", () => {
       },
       run: {
         update: (...a: unknown[]) => runUpdate(...a),
+        findFirst: async () => ({ status: "FAILED" }),
+        updateMany: async (a: { where: { id: string }; data: unknown }) => { runUpdate({ where: { id: a.where.id }, data: a.data }); return { count: 1 }; },
         findMany: (...a: unknown[]) => runFindMany(...a),
       },
       handoffLedger: { updateMany: (...a: unknown[]) => handoffUpdateMany(...a) },
@@ -140,11 +147,12 @@ describe("approval decide — HANDOFF branch (B4b/B4d)", () => {
     const { res, nextErr } = await invoke(decideHandler, { params: { id: "ap-1" }, body: { decision: "APPROVED" } });
 
     expect(nextErr).toBeUndefined();
-    // Inside the tx the run was NOT flipped to RUNNING for HANDOFF.
-    expect(txRun).not.toHaveBeenCalled();
-    // Claim ran, THEN run → RUNNING (post-tx), THEN enqueue.
+    // The run is NOT flipped to RUNNING in the decision tx for HANDOFF: the claim
+    // comes first, and only then the (single, flag off) RUNNING write.
     expect(claimHandoffMock).toHaveBeenCalledWith(expect.objectContaining({ handoffId: "hl-1", provider: "OPENAI", model: "gpt-4o" }));
-    expect(runUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "RUNNING" } }));
+    expect(txRun).toHaveBeenCalledTimes(1);
+    expect(txRun).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "RUNNING" } }));
+    expect(claimHandoffMock.mock.invocationCallOrder[0]).toBeLessThan(txRun.mock.invocationCallOrder[0]);
     expect(enqueueRunMock).toHaveBeenCalledWith("run-1");
     expect(res.body).toMatchObject({ success: true, decision: "APPROVED" });
   });

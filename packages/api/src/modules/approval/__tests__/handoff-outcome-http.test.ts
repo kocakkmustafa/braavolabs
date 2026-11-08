@@ -25,7 +25,7 @@ vi.mock("../../../config/env", () => ({ env: {
 vi.mock("../../../lib/db", () => ({
   prisma: {
     user: { findFirst: m.member }, approval: { findUnique: m.lookup, update: m.approvalUpdate },
-    handoffLedger: { updateMany: m.handoffCancel }, run: { update: m.runUpdate },
+    handoffLedger: { updateMany: m.handoffCancel }, run: { update: m.runUpdate, findFirst: async () => ({ status: database.run.status }), updateMany: async (a: { where: unknown; data: unknown }) => { await m.runUpdate({ where: a.where, data: a.data }); return { count: 1 }; } },
   },
   tenantTx: m.transaction,
 }));
@@ -164,7 +164,11 @@ beforeEach(() => {
       try {
         return await work({
           approval: { updateMany: m.claim, update: m.approvalUpdate },
-          run: { update: m.runUpdate }, activityLog: { create: m.audit }, steeringMessage: { create: m.steering },
+          run: {
+            // 02c-3: transitionRun reads status and writes via updateMany (CAS); adapted onto the same spy.
+            findFirst: async () => ({ status: database.run.status }),
+            updateMany: async (a: { where: unknown; data: unknown }) => { await m.runUpdate({ where: a.where, data: a.data }); return { count: 1 }; },
+          }, activityLog: { create: m.audit }, steeringMessage: { create: m.steering },
         });
       } catch (err) { database = snapshot; throw err; }
     });

@@ -27,7 +27,11 @@ vi.mock("../../../lib/db", () => ({
   prisma: {
     company: { findFirst: (...a: unknown[]) => companyFindFirst(...a) },
     approval: { create: (...a: unknown[]) => approvalCreate(...a) },
-    run: { update: (...a: unknown[]) => runUpdate(...a) },
+    run: {
+      // 02c-3: transitionRun (findFirst + updateMany CAS), adapted onto the same spy.
+      findFirst: async () => ({ status: "RUNNING" }),
+      updateMany: async (a: { where: unknown; data: unknown }) => { runUpdate({ where: a.where, data: a.data }); return { count: 1 }; },
+    },
     activityLog: { create: (...a: unknown[]) => activityLogCreate(...a) },
     toolCall: { create: (...a: unknown[]) => toolCallCreate(...a) },
   },

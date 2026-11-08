@@ -35,6 +35,8 @@ const store = vi.hoisted(() => ({
 }));
 const activityLogCreate = vi.hoisted(() => vi.fn());
 const approvalFindFirst = vi.hoisted(() => vi.fn());
+const approvalUpdateMany = vi.hoisted(() => vi.fn());
+const approvalFindMany = vi.hoisted(() => vi.fn());
 const handoffFindFirst = vi.hoisted(() => vi.fn());
 const enqueueRunMock = vi.hoisted(() => vi.fn());
 const claimHandoffMock = vi.hoisted(() => vi.fn());
@@ -80,7 +82,10 @@ vi.mock("../../../lib/db", () => {
         findUnique: async () => tenantRun(),
         findFirst: async () => tenantRun(),
       },
-      approval: { findFirst: (...a: unknown[]) => approvalFindFirst(...a) },
+      approval: {
+        findFirst: (...a: unknown[]) => approvalFindFirst(...a),
+        updateMany: (...a: unknown[]) => approvalUpdateMany(...a),
+      },
       handoffLedger: {
         findFirst: (...a: unknown[]) => handoffFindFirst(...a),
         updateMany: async (args: { where: { status: string; claimedAt: Date }; data: { status: string; claimedBy: null; claimedAt: null } }) => {
@@ -97,7 +102,7 @@ vi.mock("../../../lib/db", () => {
       store.undo.length = 0;
       const pendingLogs: unknown[][] = [];
       try {
-        const out = await fn({ run: txRun, activityLog: { create: async (...a: unknown[]) => { pendingLogs.push(a); return {}; } } });
+        const out = await fn({ run: txRun, approval: { findMany: (...a: unknown[]) => approvalFindMany(...a), updateMany: (...a: unknown[]) => approvalUpdateMany(...a) }, activityLog: { create: async (...a: unknown[]) => { pendingLogs.push(a); return {}; } } });
         for (const a of pendingLogs) await activityLogCreate(...a);
         return out;
       } catch (err) {
@@ -184,6 +189,10 @@ beforeEach(() => {
   activityLogCreate.mockResolvedValue({});
   enqueueRunMock.mockResolvedValue(undefined);
   approvalFindFirst.mockResolvedValue(null);
+  approvalFindMany.mockReset();
+  approvalFindMany.mockResolvedValue([{ id: "ap-h" }]);
+  approvalUpdateMany.mockReset();
+  approvalUpdateMany.mockResolvedValue({ count: 1 });
   handoffFindFirst.mockResolvedValue({ id: "hl-1", status: "OPEN" });
   // Same contract as the real atomic claim: only an OPEN ledger can be claimed (one winner), claimedAt is the token.
   claimHandoffMock.mockImplementation(async (input: { claimedBy: string }) => {
@@ -324,6 +333,17 @@ describe("POST /runs/:id/resume", () => {
     expect(wroteState()).toBe(false);
     expect(enqueueRunMock).toHaveBeenCalledTimes(1);
     expect(activityLogCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([false, true])("flag %s: enqueue fails AFTER the commit → run put back to PAUSED (retry-able), error surfaced", async (on) => {
+    flag(on);
+    setRun("PAUSED", on ? "PAUSED" : null);
+    enqueueRunMock.mockRejectedValueOnce(new Error("redis down"));
+    const { nextErr, res } = await invoke(resume, {});
+    expect(nextErr?.message).toBe("redis down");
+    expect(res.body).toBeUndefined();
+    expect(store.row.status).toBe("PAUSED");
+    if (on) expect(store.row.state).toBe("PAUSED");
   });
 
   it.each(["PAUSED", "WAITING_APPROVAL"])("flag ON: %s → RESUMING → RUNNING; final state RUNNING agrees with status (ADR (e))", async (st) => {
@@ -545,6 +565,60 @@ describe("POST /runs/:id/continue", () => {
     expect(store.ledger.claimedBy).toBe("user-1");
     expect(enqueueRunMock).toHaveBeenCalledTimes(1);
     expect(store.row.status).toBe("RUNNING");
+  });
+
+  it("02c-3: flag ON — after a successful claim the run's PENDING HANDOFF approval is closed (REJECTED by system:continue); flag OFF — left alone", async () => {
+    flag(true);
+    setRun("PAUSED", "PAUSED");
+    const on = await invoke(cont, { body });
+    expect(on.nextErr).toBeUndefined();
+    expect(approvalUpdateMany).toHaveBeenCalledTimes(1);
+    expect(approvalFindMany).toHaveBeenCalledWith(expect.objectContaining({ where: { runId: "run-1", type: "HANDOFF", status: "PENDING" } }));
+    expect(approvalUpdateMany).toHaveBeenCalledWith({
+      where: { id: "ap-h", status: "PENDING" },
+      data: expect.objectContaining({ status: "REJECTED", decidedBy: "system:continue" }),
+    });
+    // rule #9: the system decision is audited in the same tx
+    expect(activityLogCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ action: "approval.closed_by_continue", resource: "approval", resourceId: "ap-h", tenantId: "tenant-1", details: expect.objectContaining({ runId: "run-1" }) }),
+    });
+    expect(enqueueRunMock).toHaveBeenCalledTimes(1);
+
+    approvalUpdateMany.mockClear();
+    store.ledger.status = "OPEN"; store.ledger.claimedBy = null; store.ledger.claimedAt = null;
+    flag(false);
+    setRun("PAUSED");
+    await invoke(cont, { body });
+    expect(approvalUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("02c-3: flag ON — 'already RUNNING' /continue also closes the pending HANDOFF approval; a refused (lost-CAS) /continue does NOT", async () => {
+    flag(true);
+    setRun("RUNNING", "RUNNING");
+    store.staleRead = { status: "PAUSED", state: "PAUSED" };
+    await invoke(cont, { body });
+    expect(approvalUpdateMany).toHaveBeenCalledTimes(1);
+    expect(enqueueRunMock).not.toHaveBeenCalled();
+
+    approvalUpdateMany.mockClear();
+    store.staleRead = null;
+    store.ledger.status = "OPEN"; store.ledger.claimedBy = null; store.ledger.claimedAt = null;
+    setRun("PAUSED", "PAUSED");
+    store.beforeWriteAt.set(store.writes.length + 1, () => { store.row.state = "CANCELLED"; });
+    const lost = await invoke(cont, { body });
+    expect(lost.nextErr?.statusCode).toBe(409);
+    expect(approvalUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("flag %s: enqueue fails AFTER the commit → run put back to PAUSED, ledger reopened (own token), error surfaced; no RUNNING-without-job", async (on) => {
+    flag(on);
+    setRun("PAUSED", on ? "PAUSED" : null);
+    enqueueRunMock.mockRejectedValueOnce(new Error("redis down"));
+    const { nextErr, res } = await invoke(cont, { body });
+    expect(nextErr?.message).toBe("redis down");
+    expect(res.body).toBeUndefined();
+    expect(store.row.status).toBe("PAUSED");
+    expect(store.ledger).toEqual({ status: "OPEN", claimedBy: null, claimedAt: null });
   });
 
   it("a claim by ANOTHER request is never reopened (token mismatch): reopenClaimedHandoff with a stale token is a no-op", async () => {
