@@ -44,6 +44,8 @@ interface DelegationContext {
   totalCost: { value: number };
   /** Set when a delegation was refused by the job budget (BRA-P0-08). */
   budgetStop: { reason: string | null };
+  /** Tail of the serialized budget-check chain (02c-5: parallel delegate calls must not race). */
+  budgetGate: { tail: Promise<unknown> };
 }
 
 const DELEGATION_CTX = new AsyncLocalStorage<DelegationContext>();
@@ -85,17 +87,24 @@ function ensureDelegateToolRegistered(): void {
       // (and its tenant/workspace gate) is checked before each one. Refused
       // delegations return an error to the manager; the final check below
       // marks the run FAILED. Inert for a run with no job budget.
-      // 02c-5: once a refusal is recorded for this run, repeat attempts are refused
-      // from memory — no second governance.job_budget row / push for the same run.
-      if (ctx.budgetStop.reason !== null) {
-        return { error: `Delegation refused: ${ctx.budgetStop.reason}` };
-      }
-      const { runJobBudgetCheck } = await import("../governance/engine");
-      const budget = await runJobBudgetCheck(ctx.runId, ctx.totalCost.value);
-      if (!budget.allowed) {
+      // 02c-5: budget decisions are serialized per run (runAgentLoop executes up to 5
+      // `delegate` calls in parallel). The first refusal is recorded; every later call
+      // (waiting on the chain) is refused from memory, so one run yields ONE
+      // governance.job_budget row + ONE push. An allowed check lets the next one run its
+      // own check; if a check throws, only that call rejects (as before) and the
+      // waiting calls run their own check, same as the pre-02c-5 behaviour.
+      const decide = async (): Promise<string | null> => {
+        if (ctx.budgetStop.reason !== null) return ctx.budgetStop.reason;
+        const { runJobBudgetCheck } = await import("../governance/engine");
+        const budget = await runJobBudgetCheck(ctx.runId, ctx.totalCost.value);
+        if (budget.allowed) return null;
         ctx.budgetStop.reason ??= budget.reason ?? "Job budget exhausted";
-        return { error: `Delegation refused: ${budget.reason ?? "job budget exhausted"}` };
-      }
+        return ctx.budgetStop.reason;
+      };
+      const mine = ctx.budgetGate.tail.then(decide, decide);
+      ctx.budgetGate.tail = mine.catch(() => undefined);
+      const refusal = await mine;
+      if (refusal !== null) return { error: `Delegation refused: ${refusal}` };
       const stepIndex = ++ctx.stepCounter.value;
       const startedAt = new Date();
       await prisma.runStep.create({
@@ -216,6 +225,7 @@ export async function processHierarchicalRun(opts: {
     stepCounter: { value: 0 },
     totalCost: { value: 0 },
     budgetStop: { reason: null },
+    budgetGate: { tail: Promise.resolve() },
   };
 
   let finalOutput: string;

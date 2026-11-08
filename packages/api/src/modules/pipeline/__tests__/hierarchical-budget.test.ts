@@ -151,7 +151,9 @@ describe("HIERARCHICAL runner — job budget (BRA-P0-08)", () => {
       return loopResult(0.5);
     });
     await processHierarchicalRun({ runId: "run-1", tenantId: "tenant-1", pipeline, input: "go" });
-    expect(lastRunUpdate()).toMatchObject({ status: "FAILED" });
+    // the exception path wins: error is the manager's message, audited as run.hierarchical_failed
+    expect(lastRunUpdate()).toMatchObject({ status: "FAILED", error: "manager crashed" });
+    expect(prismaMock.activityLog.create.mock.calls.map((c) => (c[0] as any).data.action)).toContain("run.hierarchical_failed");
   });
 
   it("malformed stored budget → refused (fail-closed)", async () => {
@@ -228,7 +230,65 @@ describe.each([["flag off", undefined], ["flag on", "true"]])("HIERARCHICAL runn
     if (flag) {
       expect(prismaMock.run.updateMany).not.toHaveBeenCalled(); // graph: no edge CANCELLED→COMPLETED
       expect(actions()).not.toContain("run.hierarchical_completed");
+    } else {
+      // legacyUnchecked (legacy parity, ADR-0001): no graph check, so a status already CANCELLED at read time is
+      // still written; only the status CAS (here: the status we read, not RUNNING) guards the read-write window.
+      expect(prismaMock.run.updateMany.mock.calls.at(-1)![0].where).toEqual({ id: "run-1", status: "CANCELLED" });
     }
+  });
+
+  it("flag off never names state in the read or the CAS where; flag on does", async () => {
+    await runWithDelegations(1);
+    const sel = prismaMock.run.findFirst.mock.calls.at(-1)![0].select;
+    const where = prismaMock.run.updateMany.mock.calls.at(-1)![0].where;
+    if (flag) { expect(sel).toHaveProperty("state"); expect(where).toHaveProperty("state"); }
+    else { expect(sel).not.toHaveProperty("state"); expect(where).not.toHaveProperty("state"); }
+  });
+
+  it("parallel delegations (Promise.all x5) over budget: exactly one governance.job_budget row + one push, all refused", async () => {
+    prismaMock.run.findUnique.mockResolvedValue(runRow({ jobBudget: { maxSteps: 0 } }));
+    let results: unknown[] = [];
+    runAgentLoopMock.mockImplementation(async (cfg: { toolNames: string[] }) => {
+      if (cfg.toolNames.includes("delegate")) {
+        const delegate = getTool("delegate")!;
+        results = await Promise.all(Array.from({ length: 5 }, (_, i) => delegate.handler({ agentId: "worker-1", task: "t" + i })));
+      }
+      return loopResult(0.5);
+    });
+    await processHierarchicalRun({ runId: "run-1", tenantId: "tenant-1", pipeline, input: "go" });
+    expect(results).toHaveLength(5);
+    expect(results.every((r) => (r as any).error?.startsWith("Delegation refused"))).toBe(true);
+    expect(workerLoops()).toBe(0);
+    expect(actions().filter((a) => a === "governance.job_budget")).toHaveLength(1);
+    expect(notifyTenantUsers).toHaveBeenCalledTimes(1);
+    expect(lastRunUpdate()).toMatchObject({ status: "FAILED" });
+  });
+
+  it("a throwing budget check rejects only that call; waiting calls still run their own check", async () => {
+    let n = 0;
+    prismaMock.run.findUnique.mockImplementation(async () => {
+      if (++n === 1) throw new Error("db down");
+      return runRow();
+    });
+    let statuses: string[] = [];
+    runAgentLoopMock.mockImplementation(async (cfg: { toolNames: string[] }) => {
+      if (cfg.toolNames.includes("delegate")) {
+        const delegate = getTool("delegate")!;
+        const r = await Promise.allSettled([1, 2].map((i) => delegate.handler({ agentId: "worker-1", task: "t" + i })));
+        statuses = r.map((x) => x.status);
+      }
+      return loopResult(0);
+    });
+    await processHierarchicalRun({ runId: "run-1", tenantId: "tenant-1", pipeline, input: "go" });
+    expect(statuses).toEqual(["rejected", "fulfilled"]);
+    expect(workerLoops()).toBe(1);
+  });
+
+  it("manager moved to another company → FAILED via the writer, no activity row", async () => {
+    prismaMock.agent.findUnique.mockResolvedValue({ id: "mgr-1", companyId: "co-OTHER", systemPrompt: "m", tools: [], model: "x" });
+    await processHierarchicalRun({ runId: "run-1", tenantId: "tenant-1", pipeline, input: "go" });
+    expect(lastRunUpdate()).toMatchObject({ status: "FAILED", error: expect.stringMatching(/moved to a different company/) });
+    expect(actions()).toEqual([]);
   });
 
   it("missing manager → FAILED via the writer, no activity row", async () => {
