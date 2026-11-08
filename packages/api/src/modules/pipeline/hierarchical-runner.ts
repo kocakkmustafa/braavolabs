@@ -16,6 +16,7 @@
 import type { Pipeline } from "@prisma/client";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
+import { writeLifecycle } from "../run/write-lifecycle";
 import { runAgentLoop } from "../agent/claude";
 import { registerTool, getTool } from "../agent/registry";
 import {
@@ -84,6 +85,11 @@ function ensureDelegateToolRegistered(): void {
       // (and its tenant/workspace gate) is checked before each one. Refused
       // delegations return an error to the manager; the final check below
       // marks the run FAILED. Inert for a run with no job budget.
+      // 02c-5: once a refusal is recorded for this run, repeat attempts are refused
+      // from memory — no second governance.job_budget row / push for the same run.
+      if (ctx.budgetStop.reason !== null) {
+        return { error: `Delegation refused: ${ctx.budgetStop.reason}` };
+      }
       const { runJobBudgetCheck } = await import("../governance/engine");
       const budget = await runJobBudgetCheck(ctx.runId, ctx.totalCost.value);
       if (!budget.allowed) {
@@ -176,26 +182,18 @@ export async function processHierarchicalRun(opts: {
 
   if (!pipeline.managerAgentId) {
     logger.error({ runId, pipelineId: pipeline.id }, "Hierarchical pipeline missing managerAgentId");
-    await prisma.run.update({
-      where: { id: runId },
-      data: {
-        status: "FAILED",
-        error: "Hierarchical pipeline is missing its manager agent.",
-        completedAt: new Date(),
-      },
+    await writeLifecycle(runId, tenantId, "FAILED", {
+      error: "Hierarchical pipeline is missing its manager agent.",
+      completedAt: new Date(),
     });
     return;
   }
 
   const manager = await prisma.agent.findUnique({ where: { id: pipeline.managerAgentId } });
   if (!manager || manager.companyId !== pipeline.companyId) {
-    await prisma.run.update({
-      where: { id: runId },
-      data: {
-        status: "FAILED",
-        error: "Manager agent not found or moved to a different company.",
-        completedAt: new Date(),
-      },
+    await writeLifecycle(runId, tenantId, "FAILED", {
+      error: "Manager agent not found or moved to a different company.",
+      completedAt: new Date(),
     });
     return;
   }
@@ -240,15 +238,13 @@ export async function processHierarchicalRun(opts: {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await prisma.run.update({
-      where: { id: runId },
-      data: {
-        status: "FAILED",
-        error: message,
-        costUsd: ctx.totalCost.value,
-        completedAt: new Date(),
-      },
+    // 02c-5: CAS lost (run changed from outside) → do not overwrite, no activity row.
+    const landed = await writeLifecycle(runId, tenantId, "FAILED", {
+      error: message,
+      costUsd: ctx.totalCost.value,
+      completedAt: new Date(),
     });
+    if (!landed) return;
     await prisma.activityLog.create({
       data: {
         tenantId,
@@ -275,27 +271,32 @@ export async function processHierarchicalRun(opts: {
     if (!finalBudget.allowed) ctx.budgetStop.reason = finalBudget.reason ?? "Job budget exceeded";
   }
   if (ctx.budgetStop.reason !== null) {
-    await prisma.run.update({
-      where: { id: runId },
+    const landed = await writeLifecycle(runId, tenantId, "FAILED", {
+      error: ctx.budgetStop.reason,
+      costUsd: ctx.totalCost.value,
+      completedAt: new Date(),
+    });
+    if (!landed) return;
+    // 02c-5: same audit row as the exception path (was missing here; ADR-0002).
+    await prisma.activityLog.create({
       data: {
-        status: "FAILED",
-        error: ctx.budgetStop.reason,
-        costUsd: ctx.totalCost.value,
-        completedAt: new Date(),
+        tenantId,
+        actor: "system",
+        action: "run.hierarchical_failed",
+        resource: "run",
+        resourceId: runId,
+        details: { error: ctx.budgetStop.reason.slice(0, 500), cause: "job_budget" },
       },
     });
     return;
   }
 
-  await prisma.run.update({
-    where: { id: runId },
-    data: {
-      status: "COMPLETED",
-      output: { text: finalOutput } as any,
-      costUsd: ctx.totalCost.value,
-      completedAt: new Date(),
-    },
+  const completed = await writeLifecycle(runId, tenantId, "COMPLETED", {
+    output: { text: finalOutput } as any,
+    costUsd: ctx.totalCost.value,
+    completedAt: new Date(),
   });
+  if (!completed) return;
   await prisma.activityLog.create({
     data: {
       tenantId,
