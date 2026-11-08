@@ -6,7 +6,7 @@
  * job budget behaves exactly as before.
  * NOT covered: a real manager LLM, a real database, BullMQ.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const runAgentLoopMock = vi.hoisted(() => vi.fn());
 vi.mock("../../agent/claude", () => ({ runAgentLoop: (...a: unknown[]) => runAgentLoopMock(...a) }));
@@ -15,7 +15,7 @@ vi.mock("../../../services/push", () => ({ notifyTenantUsers: vi.fn().mockResolv
 
 const prismaMock = vi.hoisted(() => ({
   agent: { findUnique: vi.fn() },
-  run: { update: vi.fn(), findUnique: vi.fn() },
+  run: { update: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn(), updateMany: vi.fn() },
   runStep: { create: vi.fn(), update: vi.fn(), findFirst: vi.fn() },
   activityLog: { create: vi.fn() },
 }));
@@ -32,6 +32,7 @@ vi.mock("../hierarchical", () => ({
 
 import { processHierarchicalRun } from "../hierarchical-runner";
 import { getTool } from "../../agent/registry";
+import { notifyTenantUsers } from "../../../services/push";
 
 const loopResult = (cost: number) => ({
   finalContent: "done", turns: [], totalInputTokens: 0, totalOutputTokens: 0, totalCostUsd: cost, totalToolCalls: 0,
@@ -60,13 +61,15 @@ async function runWithDelegations(n: number) {
   return results;
 }
 
-const lastRunUpdate = () => prismaMock.run.update.mock.calls.at(-1)![0].data;
+const lastRunUpdate = () => prismaMock.run.updateMany.mock.calls.at(-1)![0].data;
 const workerLoops = () => runAgentLoopMock.mock.calls.filter((c) => !(c[0] as any).toolNames.includes("delegate")).length;
 
 beforeEach(() => {
   vi.clearAllMocks();
   prismaMock.agent.findUnique.mockResolvedValue({ id: "mgr-1", companyId: "co-1", systemPrompt: "m", tools: [], model: "x" });
   prismaMock.run.update.mockResolvedValue({});
+  prismaMock.run.findFirst.mockResolvedValue({ status: "RUNNING", state: null });
+  prismaMock.run.updateMany.mockResolvedValue({ count: 1 });
   prismaMock.runStep.create.mockResolvedValue({});
   prismaMock.runStep.update.mockResolvedValue({});
   prismaMock.runStep.findFirst.mockResolvedValue({ id: "rs-worker" });
@@ -148,7 +151,9 @@ describe("HIERARCHICAL runner — job budget (BRA-P0-08)", () => {
       return loopResult(0.5);
     });
     await processHierarchicalRun({ runId: "run-1", tenantId: "tenant-1", pipeline, input: "go" });
-    expect(lastRunUpdate()).toMatchObject({ status: "FAILED" });
+    // the exception path wins: error is the manager's message, audited as run.hierarchical_failed
+    expect(lastRunUpdate()).toMatchObject({ status: "FAILED", error: "manager crashed" });
+    expect(prismaMock.activityLog.create.mock.calls.map((c) => (c[0] as any).data.action)).toContain("run.hierarchical_failed");
   });
 
   it("malformed stored budget → refused (fail-closed)", async () => {
@@ -157,5 +162,139 @@ describe("HIERARCHICAL runner — job budget (BRA-P0-08)", () => {
     expect(workerLoops()).toBe(0);
     expect(results[0]).toMatchObject({ error: expect.stringMatching(/invalid/) });
     expect(lastRunUpdate()).toMatchObject({ status: "FAILED" });
+  });
+});
+
+const actions = () => prismaMock.activityLog.create.mock.calls.map((c) => (c[0] as any).data.action as string);
+
+describe.each([["flag off", undefined], ["flag on", "true"]])("HIERARCHICAL runner — BRA-P0-02c-5 lifecycle (%s)", (_n, flag) => {
+  beforeEach(() => {
+    if (flag) process.env.JOB_STATE_DUAL_WRITE = flag;
+    else delete process.env.JOB_STATE_DUAL_WRITE;
+  });
+  afterAll(() => { delete process.env.JOB_STATE_DUAL_WRITE; });
+
+  it("final COMPLETED goes through the CAS writer (+ run.hierarchical_completed)", async () => {
+    await runWithDelegations(1);
+    expect(prismaMock.run.update).not.toHaveBeenCalled();
+    const call = prismaMock.run.updateMany.mock.calls.at(-1)![0];
+    expect(call.where).toMatchObject({ id: "run-1", status: "RUNNING" });
+    expect(call.data).toMatchObject({ status: "COMPLETED", output: { text: "done" } });
+    if (flag) expect(call.data).toMatchObject({ state: "COMPLETED" });
+    else expect(call.data).not.toHaveProperty("state");
+    expect(actions()).toContain("run.hierarchical_completed");
+  });
+
+  it("manager loop throws → FAILED + run.hierarchical_failed", async () => {
+    runAgentLoopMock.mockRejectedValue(new Error("boom"));
+    await processHierarchicalRun({ runId: "run-1", tenantId: "tenant-1", pipeline, input: "go" });
+    expect(lastRunUpdate()).toMatchObject({ status: "FAILED", error: "boom" });
+    expect(actions()).toEqual(["run.hierarchical_failed"]);
+  });
+
+  it("budget FAILED writes run.hierarchical_failed (cause job_budget)", async () => {
+    prismaMock.run.findUnique.mockResolvedValue(runRow({ jobBudget: { maxSteps: 0 } }));
+    await runWithDelegations(1);
+    expect(lastRunUpdate()).toMatchObject({ status: "FAILED" });
+    expect(actions()).toContain("run.hierarchical_failed");
+    const row = prismaMock.activityLog.create.mock.calls.map((c) => (c[0] as any).data).find((d) => d.action === "run.hierarchical_failed");
+    expect(row.details).toMatchObject({ cause: "job_budget" });
+  });
+
+  it("repeated refusal in one run → one governance.job_budget row and one push", async () => {
+    prismaMock.run.findUnique.mockResolvedValue(runRow({ jobBudget: { maxSteps: 0 } }));
+    const results = await runWithDelegations(3);
+    expect(results).toHaveLength(3);
+    expect(results.every((r) => (r as any).error?.startsWith("Delegation refused"))).toBe(true);
+    expect(actions().filter((a) => a === "governance.job_budget")).toHaveLength(1);
+    expect(notifyTenantUsers).toHaveBeenCalledTimes(1);
+  });
+
+  it("CAS lost on final COMPLETED → no activity row, no further writes", async () => {
+    prismaMock.run.updateMany.mockResolvedValue({ count: 0 });
+    await runWithDelegations(1);
+    expect(actions()).not.toContain("run.hierarchical_completed");
+    expect(prismaMock.run.update).not.toHaveBeenCalled();
+  });
+
+  it("CAS lost on budget FAILED → no run.hierarchical_failed", async () => {
+    prismaMock.run.findUnique.mockResolvedValue(runRow({ jobBudget: { maxSteps: 0 } }));
+    prismaMock.run.updateMany.mockResolvedValue({ count: 0 });
+    await runWithDelegations(1);
+    expect(actions()).not.toContain("run.hierarchical_failed");
+  });
+
+  it("run cancelled from outside (status CANCELLED) → runner does not overwrite or log", async () => {
+    prismaMock.run.findFirst.mockResolvedValue({ status: "CANCELLED", state: "CANCELLED" });
+    await runWithDelegations(1);
+    if (flag) {
+      expect(prismaMock.run.updateMany).not.toHaveBeenCalled(); // graph: no edge CANCELLED→COMPLETED
+      expect(actions()).not.toContain("run.hierarchical_completed");
+    } else {
+      // legacyUnchecked (legacy parity, ADR-0001): no graph check, so a status already CANCELLED at read time is
+      // still written; only the status CAS (here: the status we read, not RUNNING) guards the read-write window.
+      expect(prismaMock.run.updateMany.mock.calls.at(-1)![0].where).toEqual({ id: "run-1", status: "CANCELLED" });
+    }
+  });
+
+  it("flag off never names state in the read or the CAS where; flag on does", async () => {
+    await runWithDelegations(1);
+    const sel = prismaMock.run.findFirst.mock.calls.at(-1)![0].select;
+    const where = prismaMock.run.updateMany.mock.calls.at(-1)![0].where;
+    if (flag) { expect(sel).toHaveProperty("state"); expect(where).toHaveProperty("state"); }
+    else { expect(sel).not.toHaveProperty("state"); expect(where).not.toHaveProperty("state"); }
+  });
+
+  it("parallel delegations (Promise.all x5) over budget: exactly one governance.job_budget row + one push, all refused", async () => {
+    prismaMock.run.findUnique.mockResolvedValue(runRow({ jobBudget: { maxSteps: 0 } }));
+    let results: unknown[] = [];
+    runAgentLoopMock.mockImplementation(async (cfg: { toolNames: string[] }) => {
+      if (cfg.toolNames.includes("delegate")) {
+        const delegate = getTool("delegate")!;
+        results = await Promise.all(Array.from({ length: 5 }, (_, i) => delegate.handler({ agentId: "worker-1", task: "t" + i })));
+      }
+      return loopResult(0.5);
+    });
+    await processHierarchicalRun({ runId: "run-1", tenantId: "tenant-1", pipeline, input: "go" });
+    expect(results).toHaveLength(5);
+    expect(results.every((r) => (r as any).error?.startsWith("Delegation refused"))).toBe(true);
+    expect(workerLoops()).toBe(0);
+    expect(actions().filter((a) => a === "governance.job_budget")).toHaveLength(1);
+    expect(notifyTenantUsers).toHaveBeenCalledTimes(1);
+    expect(lastRunUpdate()).toMatchObject({ status: "FAILED" });
+  });
+
+  it("a throwing budget check rejects only that call; waiting calls still run their own check", async () => {
+    let n = 0;
+    prismaMock.run.findUnique.mockImplementation(async () => {
+      if (++n === 1) throw new Error("db down");
+      return runRow();
+    });
+    let statuses: string[] = [];
+    runAgentLoopMock.mockImplementation(async (cfg: { toolNames: string[] }) => {
+      if (cfg.toolNames.includes("delegate")) {
+        const delegate = getTool("delegate")!;
+        const r = await Promise.allSettled([1, 2].map((i) => delegate.handler({ agentId: "worker-1", task: "t" + i })));
+        statuses = r.map((x) => x.status);
+      }
+      return loopResult(0);
+    });
+    await processHierarchicalRun({ runId: "run-1", tenantId: "tenant-1", pipeline, input: "go" });
+    expect(statuses).toEqual(["rejected", "fulfilled"]);
+    expect(workerLoops()).toBe(1);
+  });
+
+  it("manager moved to another company → FAILED via the writer, no activity row", async () => {
+    prismaMock.agent.findUnique.mockResolvedValue({ id: "mgr-1", companyId: "co-OTHER", systemPrompt: "m", tools: [], model: "x" });
+    await processHierarchicalRun({ runId: "run-1", tenantId: "tenant-1", pipeline, input: "go" });
+    expect(lastRunUpdate()).toMatchObject({ status: "FAILED", error: expect.stringMatching(/moved to a different company/) });
+    expect(actions()).toEqual([]);
+  });
+
+  it("missing manager → FAILED via the writer, no activity row", async () => {
+    prismaMock.agent.findUnique.mockResolvedValue(null);
+    await processHierarchicalRun({ runId: "run-1", tenantId: "tenant-1", pipeline, input: "go" });
+    expect(lastRunUpdate()).toMatchObject({ status: "FAILED", error: expect.stringMatching(/Manager agent not found/) });
+    expect(actions()).toEqual([]);
   });
 });

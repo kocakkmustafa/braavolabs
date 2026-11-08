@@ -16,6 +16,7 @@
 import type { Pipeline } from "@prisma/client";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
+import { writeLifecycle } from "../run/write-lifecycle";
 import { runAgentLoop } from "../agent/claude";
 import { registerTool, getTool } from "../agent/registry";
 import {
@@ -43,6 +44,8 @@ interface DelegationContext {
   totalCost: { value: number };
   /** Set when a delegation was refused by the job budget (BRA-P0-08). */
   budgetStop: { reason: string | null };
+  /** Tail of the serialized budget-check chain (02c-5: parallel delegate calls must not race). */
+  budgetGate: { tail: Promise<unknown> };
 }
 
 const DELEGATION_CTX = new AsyncLocalStorage<DelegationContext>();
@@ -84,12 +87,24 @@ function ensureDelegateToolRegistered(): void {
       // (and its tenant/workspace gate) is checked before each one. Refused
       // delegations return an error to the manager; the final check below
       // marks the run FAILED. Inert for a run with no job budget.
-      const { runJobBudgetCheck } = await import("../governance/engine");
-      const budget = await runJobBudgetCheck(ctx.runId, ctx.totalCost.value);
-      if (!budget.allowed) {
+      // 02c-5: budget decisions are serialized per run (runAgentLoop executes up to 5
+      // `delegate` calls in parallel). The first refusal is recorded; every later call
+      // (waiting on the chain) is refused from memory, so one run yields ONE
+      // governance.job_budget row + ONE push. An allowed check lets the next one run its
+      // own check; if a check throws, only that call rejects (as before) and the
+      // waiting calls run their own check, same as the pre-02c-5 behaviour.
+      const decide = async (): Promise<string | null> => {
+        if (ctx.budgetStop.reason !== null) return ctx.budgetStop.reason;
+        const { runJobBudgetCheck } = await import("../governance/engine");
+        const budget = await runJobBudgetCheck(ctx.runId, ctx.totalCost.value);
+        if (budget.allowed) return null;
         ctx.budgetStop.reason ??= budget.reason ?? "Job budget exhausted";
-        return { error: `Delegation refused: ${budget.reason ?? "job budget exhausted"}` };
-      }
+        return ctx.budgetStop.reason;
+      };
+      const mine = ctx.budgetGate.tail.then(decide, decide);
+      ctx.budgetGate.tail = mine.catch(() => undefined);
+      const refusal = await mine;
+      if (refusal !== null) return { error: `Delegation refused: ${refusal}` };
       const stepIndex = ++ctx.stepCounter.value;
       const startedAt = new Date();
       await prisma.runStep.create({
@@ -176,26 +191,18 @@ export async function processHierarchicalRun(opts: {
 
   if (!pipeline.managerAgentId) {
     logger.error({ runId, pipelineId: pipeline.id }, "Hierarchical pipeline missing managerAgentId");
-    await prisma.run.update({
-      where: { id: runId },
-      data: {
-        status: "FAILED",
-        error: "Hierarchical pipeline is missing its manager agent.",
-        completedAt: new Date(),
-      },
+    await writeLifecycle(runId, tenantId, "FAILED", {
+      error: "Hierarchical pipeline is missing its manager agent.",
+      completedAt: new Date(),
     });
     return;
   }
 
   const manager = await prisma.agent.findUnique({ where: { id: pipeline.managerAgentId } });
   if (!manager || manager.companyId !== pipeline.companyId) {
-    await prisma.run.update({
-      where: { id: runId },
-      data: {
-        status: "FAILED",
-        error: "Manager agent not found or moved to a different company.",
-        completedAt: new Date(),
-      },
+    await writeLifecycle(runId, tenantId, "FAILED", {
+      error: "Manager agent not found or moved to a different company.",
+      completedAt: new Date(),
     });
     return;
   }
@@ -218,6 +225,7 @@ export async function processHierarchicalRun(opts: {
     stepCounter: { value: 0 },
     totalCost: { value: 0 },
     budgetStop: { reason: null },
+    budgetGate: { tail: Promise.resolve() },
   };
 
   let finalOutput: string;
@@ -240,15 +248,13 @@ export async function processHierarchicalRun(opts: {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await prisma.run.update({
-      where: { id: runId },
-      data: {
-        status: "FAILED",
-        error: message,
-        costUsd: ctx.totalCost.value,
-        completedAt: new Date(),
-      },
+    // 02c-5: CAS lost (run changed from outside) → do not overwrite, no activity row.
+    const landed = await writeLifecycle(runId, tenantId, "FAILED", {
+      error: message,
+      costUsd: ctx.totalCost.value,
+      completedAt: new Date(),
     });
+    if (!landed) return;
     await prisma.activityLog.create({
       data: {
         tenantId,
@@ -275,27 +281,32 @@ export async function processHierarchicalRun(opts: {
     if (!finalBudget.allowed) ctx.budgetStop.reason = finalBudget.reason ?? "Job budget exceeded";
   }
   if (ctx.budgetStop.reason !== null) {
-    await prisma.run.update({
-      where: { id: runId },
+    const landed = await writeLifecycle(runId, tenantId, "FAILED", {
+      error: ctx.budgetStop.reason,
+      costUsd: ctx.totalCost.value,
+      completedAt: new Date(),
+    });
+    if (!landed) return;
+    // 02c-5: same audit row as the exception path (was missing here; ADR-0002).
+    await prisma.activityLog.create({
       data: {
-        status: "FAILED",
-        error: ctx.budgetStop.reason,
-        costUsd: ctx.totalCost.value,
-        completedAt: new Date(),
+        tenantId,
+        actor: "system",
+        action: "run.hierarchical_failed",
+        resource: "run",
+        resourceId: runId,
+        details: { error: ctx.budgetStop.reason.slice(0, 500), cause: "job_budget" },
       },
     });
     return;
   }
 
-  await prisma.run.update({
-    where: { id: runId },
-    data: {
-      status: "COMPLETED",
-      output: { text: finalOutput } as any,
-      costUsd: ctx.totalCost.value,
-      completedAt: new Date(),
-    },
+  const completed = await writeLifecycle(runId, tenantId, "COMPLETED", {
+    output: { text: finalOutput } as any,
+    costUsd: ctx.totalCost.value,
+    completedAt: new Date(),
   });
+  if (!completed) return;
   await prisma.activityLog.create({
     data: {
       tenantId,
