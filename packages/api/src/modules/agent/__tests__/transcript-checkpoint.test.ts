@@ -68,6 +68,8 @@ vi.mock("../../../lib/db", () => ({
     run: {
       findUnique: (...a: unknown[]) => runFindUnique(...a),
       update: (...a: unknown[]) => runUpdate(...a),
+      findFirst: async () => ({ status: "RUNNING" }),
+      updateMany: async (a: { where: unknown; data: unknown }) => { runUpdate({ where: a.where, data: a.data }); return { count: 1 }; },
     },
     runStep: {
       create: (...a: unknown[]) => runStepCreate(...a),

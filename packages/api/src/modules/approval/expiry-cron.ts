@@ -26,6 +26,7 @@
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { runWithoutTenant } from "../../lib/tenant-context";
+import { transitionRun } from "../run/transition";
 
 const EXPIRY_INTERVAL_MS = 60 * 60 * 1000; // run hourly
 const APPROVAL_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -90,11 +91,20 @@ async function runApprovalExpiryImpl(): Promise<void> {
     // HANDOFF exception (B6.1): the approval is REJECTED but the run is LEFT
     // ALONE (stays FAILED) and the ledger is LEFT OPEN — the operator can still
     // claim the handoff from web/CLI. Only NON-handoff approvals cancel the run.
+    // BRA-P0-02c-3: the cancel goes through transitionRun (CAS on status). A
+    // finished run (illegal edge, dual write on) or a lost race is left as is —
+    // the approval is already REJECTED — and reported in the activity row.
+    let runCancelled = false;
     if (approval.type !== "HANDOFF") {
-      await prisma.run.update({
-        where: { id: approval.runId },
-        data: { status: "CANCELLED", completedAt: new Date() },
+      const o = await transitionRun(prisma, approval.runId, "CANCELLED", {
+        tenantId,
+        extra: { completedAt: new Date() },
+        legacyUnchecked: true,
       });
+      runCancelled = o.ok;
+      if (!o.ok) {
+        logger.warn({ approvalId: approval.id, runId: approval.runId, reason: o.reason }, "Approval expiry: run not cancelled");
+      }
     }
 
     await prisma.activityLog.create({
@@ -109,7 +119,7 @@ async function runApprovalExpiryImpl(): Promise<void> {
           ttlHours: 24,
           type: approval.type,
           // Make the "run untouched, ledger stays OPEN" decision auditable.
-          runCancelled: approval.type !== "HANDOFF",
+          runCancelled,
         },
       },
     });

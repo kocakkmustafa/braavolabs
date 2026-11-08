@@ -22,7 +22,11 @@ vi.mock("../../../lib/db", () => ({
       findMany: (...a: unknown[]) => approvalFindMany(...a),
       updateMany: (...a: unknown[]) => approvalUpdateMany(...a),
     },
-    run: { update: (...a: unknown[]) => runUpdate(...a) },
+    // 02c-3: the cancel is a transitionRun (findFirst + updateMany CAS); adapted onto the same spy.
+    run: {
+      findFirst: async () => ({ status: "WAITING_APPROVAL" }),
+      updateMany: async (a: { where: { id: string }; data: unknown }) => { runUpdate({ where: { id: a.where.id }, data: a.data }); return { count: 1 }; },
+    },
     activityLog: { create: (...a: unknown[]) => activityLogCreate(...a) },
   },
 }));

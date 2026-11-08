@@ -5,6 +5,10 @@ import { prisma, tenantTx } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { enqueueRun } from "../pipeline/runner";
 import { runControlAction } from "../external/control";
+import { transitionRun, isJobStateDualWriteEnabled, currentJobState, type RunTransitionClient, type TransitionOutcome } from "../run/transition";
+import { decideResume, type JobState } from "../run/job-state";
+import { assertTransitioned, resumeToRunning, AlreadyRunningError, revertRunAfterEnqueueFailure } from "../run/resume";
+import { reopenClaimedHandoff } from "../run/handoff.service";
 import { z } from "zod";
 import { toPublicCompany } from "../company/redact";
 import {
@@ -97,6 +101,80 @@ approvalRouter.get("/", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+
+/** The queue job could not be created after the run was committed RUNNING (compensated by the caller). */
+class EnqueueFailedError extends Error {}
+
+type DecideTx = Parameters<Parameters<typeof tenantTx>[0]>[0];
+
+/** Fresh read of the run's lifecycle state, tenant-scoped (the same scope `transitionRun` reads with). */
+async function readRunState(client: RunTransitionClient, runId: string, tenantId: string) {
+  const row = (await client.run.findFirst({
+    where: { id: runId, pipeline: { company: { tenantId } } },
+    select: { status: true, state: true },
+  })) as { status: Parameters<typeof currentJobState>[0]; state: Parameters<typeof currentJobState>[1] } | null;
+  return row ? currentJobState(row.status, row.state) : null;
+}
+
+/**
+ * BRA-P0-02c-3: HANDOFF reject / failed-claim → run FAILED. Off: the legacy
+ * unconditional-status write (CAS only). On: a run that is RUNNING/RESUMING is
+ * working (e.g. an operator /continue took over) and must NOT be failed by a
+ * stale decide — returns null (nothing written). Illegal edges (COMPLETED …)
+ * are left alone by the callers; a lost race is theirs to surface.
+ */
+async function failRunAfterHandoffDecision(
+  client: RunTransitionClient,
+  runId: string,
+  tenantId: string,
+): Promise<TransitionOutcome | null> {
+  if (isJobStateDualWriteEnabled()) {
+    const cur = await readRunState(client, runId, tenantId);
+    if (cur === "RUNNING" || cur === "RESUMING") return null;
+  }
+  return transitionRun(client, runId, "FAILED", { tenantId, extra: { completedAt: new Date() }, legacyUnchecked: true });
+}
+
+/**
+ * BRA-P0-02c-3: approval APPROVED (non-HANDOFF) → drive the run back to RUNNING.
+ * Returns whether the caller must enqueue (exactly once, after the tx commits).
+ *   off  one legacy `status = RUNNING` write, always enqueue (as before).
+ *   on   (1) another PENDING gating approval on the run → leave the run in
+ *        WAITING_APPROVAL (A approved, B still pending); (2) the state machine
+ *        decides: NEEDS_APPROVAL starts (RESUMING→RUNNING), RUNNING/RESUMING is
+ *        `already` (no second enqueue), anything else (PAUSED, FAILED, terminal)
+ *        is not started — the approval stays decided and the operator resumes a
+ *        PAUSED run with /resume (no open approval is left to block it).
+ */
+async function driveApprovedRun(
+  tx: DecideTx,
+  approvalId: string,
+  runId: string,
+  tenantId: string,
+): Promise<{ enqueue: boolean; from: JobState }> {
+  if (!isJobStateDualWriteEnabled()) {
+    const r = await resumeToRunning(tx, runId, tenantId, { rejectIfAlreadyRunning: false });
+    return { enqueue: true, from: r.from };
+  }
+  const otherGate = await tx.approval.findFirst({
+    where: { runId, id: { not: approvalId }, status: "PENDING", type: { not: "HANDOFF" } },
+    select: { id: true },
+  });
+  if (otherGate) return { enqueue: false, from: "NEEDS_APPROVAL" };
+  const cur = await readRunState(tx, runId, tenantId);
+  if (!cur) throw new AppError(404, "Run not found");
+  if (decideResume(cur, "approve") !== "start") return { enqueue: false, from: cur };
+  const r = await resumeToRunning(tx, runId, tenantId, { rejectIfAlreadyRunning: false });
+  return { enqueue: true, from: r.from };
+}
+
+/** Approval REJECTED (non-HANDOFF) → run CANCELLED. On: an illegal edge (finished run) leaves the run alone. */
+async function cancelRunAfterReject(tx: DecideTx, runId: string, tenantId: string): Promise<void> {
+  const o = await transitionRun(tx, runId, "CANCELLED", { tenantId, extra: { completedAt: new Date() }, legacyUnchecked: true });
+  if (!o.ok && o.reason === "illegal_transition") return;
+  assertTransitioned(o, { status: 409, message: "Run cannot be cancelled from its current state" });
+}
+
 const decideSchema = z.object({
   decision: z.enum(["APPROVED", "REJECTED"]),
   // CLI/operator rationale is audit-only. Keep it separate from an INPUT
@@ -151,7 +229,7 @@ approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (
 
       if (claim.count !== 1) {
         // Lost the race — another admin decided this approval first.
-        return { won: false as const };
+        return { won: false as const, enqueue: false, from: "NEEDS_APPROVAL" as JobState };
       }
 
       // We won — drive the run to its post-approval state.
@@ -165,21 +243,21 @@ approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (
       //   • REJECTED → the run stays FAILED (NOT CANCELLED — we're rejecting
       //     the takeover suggestion, not the run); the ledger is CANCELLED
       //     below. Manual handoff can still be re-triggered on a FAILED run.
+      const tenantId = req.auth!.tenantId;
+      let enqueue = false;
+      let from: JobState = "NEEDS_APPROVAL";
       if (approval.type === "HANDOFF") {
         if (decision === "REJECTED") {
-          await tx.run.update({
-            where: { id: approval.runId },
-            data: { status: "FAILED", completedAt: new Date() },
-          });
+          const o = await failRunAfterHandoffDecision(tx, approval.runId, tenantId);
+          if (o && !(!o.ok && o.reason === "illegal_transition")) {
+            assertTransitioned(o, { status: 409, message: "Run cannot be failed from its current state" });
+          }
         }
         // APPROVED: leave the run as-is; the post-tx claim block drives it.
+      } else if (decision === "APPROVED") {
+        ({ enqueue, from } = await driveApprovedRun(tx, approval.id, approval.runId, tenantId));
       } else {
-        await tx.run.update({
-          where: { id: approval.runId },
-          data: decision === "APPROVED"
-            ? { status: "RUNNING" }
-            : { status: "CANCELLED", completedAt: new Date() },
-        });
+        await cancelRunAfterReject(tx, approval.runId, tenantId);
       }
 
       await tx.activityLog.create({
@@ -221,7 +299,7 @@ approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (
         }
       }
 
-      return { won: true as const };
+      return { won: true as const, enqueue, from };
     });
 
     if (!result.won) {
@@ -295,29 +373,68 @@ approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (
       const { claimHandoff, HandoffClaimError } = await import("../run/handoff.service");
       const { PROVIDER_DEFAULT_MODELS } = await import("../../services/ai-client");
 
+      const tenantId = req.auth!.tenantId;
       try {
         if (!handoffId || !suggestedProvider) {
           throw new Error("handoff approval is missing handoffId/suggestedProvider metadata");
         }
-        await claimHandoff({
+        const claimed = await claimHandoff({
           handoffId,
           provider: suggestedProvider as any,
           model: suggestedModel || PROVIDER_DEFAULT_MODELS[suggestedProvider as keyof typeof PROVIDER_DEFAULT_MODELS] || suggestedProvider,
           claimedBy: req.auth!.userId,
         });
-        // Claim won — NOW drive the run and enqueue.
-        await prisma.run.update({ where: { id: approval.runId }, data: { status: "RUNNING" } });
-        await enqueueRun(approval.runId);
+        // Claim won — NOW drive the run (RESUMING then RUNNING with dual write on)
+        // and enqueue. On: a run already RUNNING/RESUMING is "already" (claimed,
+        // no second enqueue); a run that cannot start (finished meanwhile, lost
+        // CAS) gives the ledger back, with our own claim token only (02c-3).
+        let alreadyRunning = false;
+        let startedFrom: JobState = "FAILED";
+        try {
+          startedFrom = (await tenantTx((tx) =>
+            resumeToRunning(tx, approval.runId, tenantId, { rejectIfAlreadyRunning: isJobStateDualWriteEnabled() }),
+          )).from;
+        } catch (e) {
+          if (e instanceof AlreadyRunningError) {
+            alreadyRunning = true;
+          } else {
+            if (claimed?.claimedAt instanceof Date) {
+              await reopenClaimedHandoff(claimed.id, claimed.claimedAt).catch((re) =>
+                logger.warn({ handoffId, err: (re as Error).message }, "HANDOFF approve: ledger reopen failed (non-fatal)"));
+            }
+            throw e;
+          }
+        }
+        if (!alreadyRunning) {
+          try {
+            await enqueueRun(approval.runId);
+          } catch (enqueueErr) {
+            // The run is committed RUNNING and the ledger CLAIMED but no job exists:
+            // put the run back where this decision found it (only while it is still
+            // RUNNING) and, ONLY then, give the ledger back by our own claim token.
+            const reverted = await tenantTx((tx) =>
+              revertRunAfterEnqueueFailure(tx, approval.runId, tenantId, startedFrom),
+            ).catch(() => false);
+            if (reverted && claimed?.claimedAt instanceof Date) {
+              await reopenClaimedHandoff(claimed.id, claimed.claimedAt).catch((re) =>
+                logger.warn({ handoffId, err: (re as Error).message }, "HANDOFF approve: ledger reopen after enqueue failure failed"));
+            }
+            throw new EnqueueFailedError((enqueueErr as Error).message);
+          }
+        }
       } catch (err) {
         const reason = err instanceof HandoffClaimError ? err.message : (err as Error).message;
         logger.warn(
           { runId: approval.runId, handoffId, err: reason },
           "HANDOFF approve: claim failed — run stays FAILED, ledger stays OPEN, no enqueue (B4b)",
         );
-        // Run stays FAILED (it was never flipped to RUNNING for HANDOFF).
-        await prisma.run
-          .update({ where: { id: approval.runId }, data: { status: "FAILED", completedAt: new Date() } })
-          .catch(() => { /* already FAILED */ });
+        // Run stays FAILED (it was never flipped to RUNNING for HANDOFF). With
+        // dual write on, a working run is never failed here (02c-3).
+        // (An enqueue failure was already compensated above; never fail the run again.)
+        if (!(err instanceof EnqueueFailedError)) {
+          await failRunAfterHandoffDecision(prisma, approval.runId, tenantId)
+            .catch(() => { /* already FAILED */ });
+        }
         // Note the failure on the approval for the operator.
         const prevMeta = { ...meta };
         await prisma.approval
@@ -334,7 +451,7 @@ approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (
     // current runner replays from step group 0; per-step idempotency keys
     // keep most external side effects safe. (REJECTED leaves the run as
     // CANCELLED — no enqueue needed.) HANDOFF handled its own enqueue above.
-    if (decision === "APPROVED") {
+    if (decision === "APPROVED" && result.enqueue) {
       try {
         await enqueueRun(approval.runId);
       } catch (err) {
@@ -342,9 +459,15 @@ approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (
         // operators can manually re-enqueue via /runs/:id/resume. Surface
         // the error to logs so PagerDuty can pick it up.
         const { logger } = await import("../../lib/logger");
+        // 02c-3: a RUNNING run without a job cannot be resumed (/resume is a 400 on
+        // RUNNING) — put it back where this decision found it, only while it is still
+        // RUNNING (a /stop, completion or failure in the meantime is never undone).
+        const reverted = await tenantTx((tx) =>
+          revertRunAfterEnqueueFailure(tx, approval.runId, req.auth!.tenantId, result.from),
+        ).catch(() => false);
         logger.error(
-          { runId: approval.runId, err: err instanceof Error ? err.message : String(err) },
-          "Failed to re-enqueue run after approval — manual resume required",
+          { runId: approval.runId, reverted, err: err instanceof Error ? err.message : String(err) },
+          "Failed to re-enqueue run after approval — run put back, manual /resume required",
         );
       }
     }
