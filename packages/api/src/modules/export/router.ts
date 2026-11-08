@@ -13,6 +13,7 @@
 import { Router } from "express";
 import { authMiddleware } from "../../middleware/auth";
 import { prisma } from "../../lib/db";
+import { redactCompanyConfig } from "../company/redact";
 import { logger } from "../../lib/logger";
 
 export const exportRouter = Router();
@@ -124,7 +125,7 @@ exportRouter.get("/:companyId/bundle", async (req, res, next) => {
         slug: company.slug,
         description: company.description,
         primitives: company.primitives,
-        config: company.config,
+        config: redactCompanyConfig(company.config),
       },
       claudeMd: generateClaudeMd(company),
       skills: generateSkills(company),
@@ -155,7 +156,7 @@ exportRouter.get("/:companyId/bundle", async (req, res, next) => {
 function generateClaudeMd(company: any): string {
   const agents = company.agents || [];
   const pipelines = company.pipelines || [];
-  const config = (company.config as Record<string, any>) || {};
+  const config = redactCompanyConfig(company.config) as Record<string, any>;
 
   return `# CLAUDE.md — ${company.name}
 
