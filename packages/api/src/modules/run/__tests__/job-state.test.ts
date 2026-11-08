@@ -316,3 +316,33 @@ describe("BRA-P0-02c-2 edges: /pause has never checked status", () => {
     for (const s of ["COMPLETED", "CANCELLED", "FAILED"] as const) expect(applyTransition(s, "PAUSED").ok).toBe(false);
   });
 });
+
+describe("BRA-P0-02c-4: deriveResultStatus survives stored-JSON garbage (ADR-0001 (d))", () => {
+  it("ref null / missing / non-string never throws and is never real evidence", () => {
+    const bad: unknown[] = [
+      [{ kind: "diff", ref: null }],
+      [{ kind: "diff" }],
+      [{ kind: "diff", ref: 42 }],
+      [null, "x", 7, { kind: "nope", ref: "r" }],
+    ];
+    for (const ev of bad) expect(deriveResultStatus("COMPLETED", [], ev)).toBe("UNVERIFIED");
+  });
+  it("non-array evidence / requiredKinds fall back to empty (UNVERIFIED, no throw)", () => {
+    expect(deriveResultStatus("COMPLETED", null, null)).toBe("UNVERIFIED");
+    expect(deriveResultStatus("COMPLETED", "diff", { kind: "diff", ref: "r" })).toBe("UNVERIFIED");
+    expect(deriveResultStatus("COMPLETED", undefined, undefined)).toBe("UNVERIFIED");
+  });
+  it("a malformed test item (no ref, no ok) still vetoes; a valid sibling does not rescue it", () => {
+    expect(deriveResultStatus("COMPLETED", [], [{ kind: "diff", ref: "abc" }, { kind: "test" }])).toBe("UNVERIFIED");
+  });
+  it("evidence kind is case-insensitive: a failing \"Test\" item still vetoes", () => {
+    expect(deriveResultStatus("COMPLETED", [], [{ kind: "diff", ref: "abc" }, { kind: "Test", ref: "t", ok: false }])).toBe("UNVERIFIED");
+    expect(deriveResultStatus("COMPLETED", ["diff"], [{ kind: "DIFF", ref: "abc" }])).toBe("VERIFIED");
+  });
+  it("well-formed evidence still verifies", () => {
+    expect(deriveResultStatus("COMPLETED", ["diff"], [{ kind: "diff", ref: "abc" }])).toBe("VERIFIED");
+  });
+  it("non-COMPLETED stays null whatever the input", () => {
+    expect(deriveResultStatus("RUNNING", null, null)).toBeNull();
+  });
+});
