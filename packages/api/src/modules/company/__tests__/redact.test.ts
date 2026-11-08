@@ -2,7 +2,7 @@
  * BRA-SEC-01 — behaviour contract of the Company.config response filter.
  */
 import { describe, it, expect } from "vitest";
-import { redactCompanyConfig, toPublicCompany, REDACTED, PUBLIC_CONFIG_KEYS } from "../redact";
+import { redactCompanyConfig, toPublicCompany, isSecretKeyName, REDACTED, PUBLIC_CONFIG_KEYS } from "../redact";
 
 const SECRET = "test-secret-value";
 
@@ -87,5 +87,38 @@ describe("toPublicCompany", () => {
   it("passes null / undefined through", () => {
     expect(toPublicCompany(null)).toBeNull();
     expect(toPublicCompany(undefined)).toBeUndefined();
+  });
+});
+
+describe("isSecretKeyName", () => {
+  it.each([
+    "webhookSecret", "secret", "client_secret", "CLIENT_SECRET", "accessToken", "access_token", "refreshTokens", "token",
+    "password", "passwd", "pwd", "db_password", "credentials", "credential",
+    "auth", "oauth", "Authorization", "authorization", "bearer", "bearerToken", "cookie", "Cookies", "session_id", "sessionId",
+    "sessionToken", "dsn", "SENTRY_DSN", "jwt", "apiKey", "api_key", "APIKey", "API_KEY", "x-api-key", "X-Api-Key", "apikey",
+    "privateKey", "private_key", "signingKey", "signing-key", "accessKey", "access_key", "secretKey", "stripeSecretKey",
+    "encryptionKey", "key", "keys", "apiKeys", "webhook_key", "my token",
+  ])("flags %s", (name) => {
+    expect(isSecretKeyName(name)).toBe(true);
+  });
+
+  it.each([
+    "keywords", "keyMessages", "key_messages", "keyword", "monkey", "tokenizer_model", "tokenizerModel", "author", "authority",
+    "niche", "targetAudience", "brand_voice", "monthly", "channels", "sessions_per_day", "keyboard", "description",
+  ])("does not flag harmless %s", (name) => {
+    expect(isSecretKeyName(name)).toBe(false);
+  });
+
+  it("empty name is not flagged", () => {
+    expect(isSecretKeyName("")).toBe(false);
+  });
+
+  it("nested redaction uses the same classifier (harmless siblings survive)", () => {
+    const out = redactCompanyConfig({
+      icp: { keywords: ["a"], keyMessages: "m", tokenizer_model: "t", Authorization: SECRET, "x-api-key": SECRET, cookie: SECRET },
+    });
+    expect(out).toEqual({
+      icp: { keywords: ["a"], keyMessages: "m", tokenizer_model: "t", Authorization: REDACTED, "x-api-key": REDACTED, cookie: REDACTED },
+    });
   });
 });

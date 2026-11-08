@@ -19,9 +19,16 @@ const companyFindFirst = vi.hoisted(() => vi.fn());
 const companyCreate = vi.hoisted(() => vi.fn());
 const runFindUnique = vi.hoisted(() => vi.fn());
 const pipelineFindUnique = vi.hoisted(() => vi.fn());
+const approvalFindMany = vi.hoisted(() => vi.fn());
+const runFindMany = vi.hoisted(() => vi.fn());
+const draftFindFirst = vi.hoisted(() => vi.fn());
+const agentCreate = vi.hoisted(() => vi.fn());
+const pipelineCreate = vi.hoisted(() => vi.fn());
 vi.mock("../../../lib/db", () => {
   const tx = {
     $queryRaw: vi.fn().mockResolvedValue([]),
+    agent: { create: (...a: unknown[]) => agentCreate(...a) },
+    pipeline: { create: (...a: unknown[]) => pipelineCreate(...a) },
     company: { create: (...a: unknown[]) => companyCreate(...a), count: vi.fn().mockResolvedValue(0), findFirst: vi.fn() },
     activityLog: { create: vi.fn() },
     entitlementEvent: { findMany: vi.fn().mockResolvedValue([]) },
@@ -32,7 +39,9 @@ vi.mock("../../../lib/db", () => {
         findMany: (...a: unknown[]) => companyFindMany(...a),
         findFirst: (...a: unknown[]) => companyFindFirst(...a),
       },
-      run: { findUnique: (...a: unknown[]) => runFindUnique(...a) },
+      run: { findUnique: (...a: unknown[]) => runFindUnique(...a), findMany: (...a: unknown[]) => runFindMany(...a) },
+      approval: { findMany: (...a: unknown[]) => approvalFindMany(...a) },
+      draft: { findFirst: (...a: unknown[]) => draftFindFirst(...a) },
       pipeline: { findUnique: (...a: unknown[]) => pipelineFindUnique(...a) },
       activityLog: { create: vi.fn() },
       tenant: { findUnique: vi.fn() },
@@ -40,6 +49,7 @@ vi.mock("../../../lib/db", () => {
     tenantTx: (fn: (c: typeof tx) => unknown) => fn(tx),
   };
 });
+vi.mock("../../external/control", () => ({ runControlAction: vi.fn() }));
 vi.mock("../company-capacity", () => ({ assertCompanyCapacity: vi.fn() }));
 vi.mock("../../../middleware/auth", () => ({
   authMiddleware: (_req: unknown, _res: unknown, next: () => void) => next(),
@@ -83,6 +93,8 @@ import { companyRouter } from "../router";
 import { runRouter } from "../../run/router";
 import { pipelineRouter } from "../../pipeline/router";
 import { exportRouter } from "../../export/router";
+import { approvalRouter } from "../../approval/router";
+import { onboardingRouter } from "../../onboarding/router";
 
 function getHandler(router: Router, method: string, path: string) {
   const layer = (router as any).stack.find(
@@ -200,5 +212,35 @@ describe("Company.config secrets never reach a response", () => {
     companyFindFirst.mockResolvedValue(leakyCompany({ agents: [], pipelines: [] }));
     const res = await invoke(exportRouter, "get", path, { params: { companyId: "c1" } });
     expectClean(res.body);
+  });
+
+  it("GET /approvals (run.pipeline.company)", async () => {
+    approvalFindMany.mockResolvedValue([
+      { id: "a1", runId: "r1", metadata: { input: { subject: "s", body: "b" } },
+        run: { id: "r1", pipeline: { id: "p1", company: leakyCompany() } } },
+    ]);
+    runFindMany.mockResolvedValue([]);
+    const res = await invoke(approvalRouter, "get", "/");
+    expectClean(res.body);
+    expect(res.body[0].run.pipeline.company.name).toBe("Acme");
+    expect(res.body[0].run.pipeline.company.config.webhookSecretSet).toBe(true);
+    // the query still scopes to the caller's tenant
+    expect(approvalFindMany.mock.calls[0]![0].where.run.pipeline.company.tenantId).toBe("tenant-1");
+  });
+
+  it("GET /approvals with no nested run/pipeline keeps working", async () => {
+    approvalFindMany.mockResolvedValue([{ id: "a1", runId: "r1", metadata: { input: { subject: "s", body: "b" } }, run: null }]);
+    const res = await invoke(approvalRouter, "get", "/");
+    expect(res.body[0].run).toBeNull();
+  });
+
+  it("POST /onboarding/hero-company", async () => {
+    companyCreate.mockResolvedValue(leakyCompany());
+    agentCreate.mockResolvedValue({ id: "ag1" });
+    pipelineCreate.mockResolvedValue({ id: "p1" });
+    const res = await invoke(onboardingRouter, "post", "/hero-company", { body: { companyName: "Acme" } });
+    expect(res.statusCode).toBe(201);
+    expectClean(res.body);
+    expect(res.body.company.config.webhookSecretSet).toBe(true);
   });
 });
