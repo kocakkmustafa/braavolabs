@@ -46,7 +46,7 @@ negative_tests:
   - "COMPLETED/CANCELLED'dan geçiş yok; FAILED yalnız RESUMING ile çıkar"
   - "DRAFT doğrudan RUNNING olamaz; READY doğrudan COMPLETED olamaz"
   - "Yeniden deneme tavanında FAILED(retries_exhausted); sonsuz döngü yok; bozuk sayaç (negatif/kesirli/sonsuz) hak vermez"
-  - "Düz /resume bekleyen onayı atlayamaz; FAILED yalnız retry niyetiyle (açık devir) başlar"
+  - "Düz /resume bekleyen onayı atlayamaz; FAILED yalnız retry niyetiyle (açık devir) başlar; manuel devir akışı (RUNNING → /handoff → PAUSED → /continue) kırılmaz"
   - "Kanıt yok, kanıt eksik, test kırık ya da test ok bilgisi yok → VERIFIED değil (fail-closed)"
   - "Bilinmeyen yeni enum değeri eski istemciye sızmaz (status her zaman 7 değerden biri)"
 telemetry:
@@ -60,5 +60,5 @@ evidence_required:
   - CI (Lint&Type, Test, Build, DB Migration Check, E2E)
   - "yerel test çıktısı: dosya ve test sayısı"
   - bağımsız denetçi raporu
-status: IMPLEMENTING   # 02a kodlandı; 02b BACKLOG
+status: IN_REVIEW   # 02a PR #108 denetimde; 02b BACKLOG
 ```

@@ -69,7 +69,7 @@ describe("transition table", () => {
     expect(out).toEqual(["RESUMING"]);
   });
 
-  it("no dead ends: every state can reach a terminal or FAILED state", () => {
+  it("no dead ends: every state can reach a terminal state", () => {
     const reaches = (start: JobState): boolean => {
       const seen = new Set<JobState>([start]);
       const queue: JobState[] = [start];
@@ -128,7 +128,7 @@ describe("duplicate approve / resume (decision only; the CAS race is 02b)", () =
 
   it("the intent decides, not just the state: a plain un-pause cannot skip a pending approval", () => {
     expect(decideResume("NEEDS_APPROVAL", "unpause")).toBe("reject");
-    expect(decideResume("NEEDS_APPROVAL", "retry")).toBe("reject");
+    expect(decideResume("NEEDS_APPROVAL", "approve")).toBe("start");
   });
 
   it("FAILED restarts only with an explicit retry intent (open handoff), never a plain resume/approve", () => {
@@ -137,13 +137,22 @@ describe("duplicate approve / resume (decision only; the CAS race is 02b)", () =
     expect(decideResume("FAILED", "approve")).toBe("reject");
   });
 
-  it("PAUSED restarts only by un-pausing", () => {
+  it("PAUSED restarts by un-pausing, or by a handoff-backed retry; never by an approval", () => {
     expect(decideResume("PAUSED", "unpause")).toBe("start");
+    expect(decideResume("PAUSED", "retry")).toBe("start");
     expect(decideResume("PAUSED", "approve")).toBe("reject");
-    expect(decideResume("PAUSED", "retry")).toBe("reject");
   });
 
-  it("finished or never-started jobs cannot be resumed by any intent", () => {
+  it("manual hand-over flow still works: RUNNING → /handoff parks it PAUSED → /continue (retry) restarts it", () => {
+    // run/router.ts: /handoff on a RUNNING run sets PAUSED; /continue then sets RUNNING.
+    expect(applyTransition("RUNNING", "PAUSED").ok).toBe(true);
+    expect(decideResume("PAUSED", "retry")).toBe("start");
+    expect(applyTransition("PAUSED", "RESUMING").ok).toBe(true);
+    // /handoff on WAITING_APPROVAL leaves the state alone; /continue then starts it.
+    expect(decideResume("NEEDS_APPROVAL", "retry")).toBe("start");
+  });
+
+  it("finished or never-started jobs cannot be resumed by any intent (also not by a stale open handoff)", () => {
     for (const s of ["COMPLETED", "CANCELLED", "DRAFT", "PLANNED", "READY"] as const) {
       for (const intent of ["approve", "unpause", "retry"] as const) expect(decideResume(s, intent)).toBe("reject");
     }
@@ -154,6 +163,8 @@ describe("duplicate approve / resume (decision only; the CAS race is 02b)", () =
       ["NEEDS_APPROVAL", "approve"],
       ["PAUSED", "unpause"],
       ["FAILED", "retry"],
+      ["PAUSED", "retry"],
+      ["NEEDS_APPROVAL", "retry"],
     ];
     for (const [s, intent] of cases) {
       expect(decideResume(s, intent)).toBe("start");
@@ -271,8 +282,16 @@ describe("result status (no evidence → no verified success)", () => {
     ).toBe("UNVERIFIED");
   });
 
-  it("an empty evidence ref does not count", () => {
+  it("an empty or blank evidence ref does not count", () => {
     expect(deriveResultStatus("COMPLETED", ["pr"], [{ kind: "pr", ref: "" }])).toBe("UNVERIFIED");
+    expect(deriveResultStatus("COMPLETED", ["pr"], [{ kind: "pr", ref: "   " }])).toBe("UNVERIFIED");
+  });
+
+  it("a failing or unconfirmed test vetoes even when its ref is blank", () => {
+    const base = [{ kind: "diff" as const, ref: "d1" }];
+    expect(deriveResultStatus("COMPLETED", ["diff"], [...base, { kind: "test", ref: "", ok: false }])).toBe("UNVERIFIED");
+    expect(deriveResultStatus("COMPLETED", ["diff"], [...base, { kind: "test", ref: "  " }])).toBe("UNVERIFIED");
+    expect(deriveResultStatus("COMPLETED", ["diff"], base)).toBe("VERIFIED");
   });
 
   it("fail-closed: no evidence is UNVERIFIED even when no kind is required", () => {

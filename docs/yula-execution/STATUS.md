@@ -16,7 +16,7 @@ Durum kodları: talimat §12.4 (`BACKLOG … IMPLEMENTING, IN_REVIEW, …`). `IM
 ## Bu PR'ın değişiklikleri (02a)
 - `docs/yula-execution/{STATUS,DECISIONS,BRA-P0-02}.md` (yeni).
 - `packages/api/src/modules/run/job-state.ts` — saf durum makinesi; **hiçbir yazara/okuyucuya bağlı değil**, davranış değişmez.
-- `packages/api/src/modules/run/__tests__/job-state.test.ts` — 36 test.
+- `packages/api/src/modules/run/__tests__/job-state.test.ts` — 38 test.
 - Şema, migration, API yüzeyi, UI: **değişmedi**.
 
 ## Test kanıtı (yerel, 2026-11-08)
@@ -24,9 +24,9 @@ Ortam: macOS, Node v26.9.0, pnpm 9.15.4, `origin/main` `e93cbdc` üzerine bu dal
 
 | Komut | Sonuç |
 |---|---|
-| `npx vitest run src/modules/run/__tests__/job-state.test.ts` (packages/api) | 1 dosya, **36/36 geçti** |
+| `npx vitest run src/modules/run/__tests__/job-state.test.ts` (packages/api) | 1 dosya, **38/38 geçti** |
 | `npx tsc --noEmit` (packages/api; core/memory/integrations/connector-sdk derlendikten sonra) | **0 hata** |
-| `npx vitest run` (packages/api, CI env) | **164 dosya geçti, 1 atlandı; 2644 test geçti, 48 atlandı**, 0 başarısız |
+| `npx vitest run` (packages/api, CI env) | **164 dosya geçti, 1 atlandı; 2646 test geçti, 48 atlandı**, 0 başarısız |
 
 `NOT_TESTED`: DB'li entegrasyon (çökmüş koşu devamı, 3× approve yan etki sayısı) 02b kapsamında, burada yok; E2E Playwright ve Docker/Boot Smoke yerelde koşulmadı (CI'da). `pnpm -w lint` api paketinde lint betiği olmadığından uygulanmadı.
 
@@ -56,4 +56,16 @@ Denetçi: `reviewer` alt ajanı (yazan oturumdan ayrı, salt-okur; test koşturm
 | 11 | ADR olgu hataları (`expiry-cron.ts:94` yazarı, `planResume` satırı 130, `EXPIRED` vs `REJECTED`) (düşük) | Düzeltildi |
 | 10, 12, 13 | Projeksiyon ADR ile birebir; 20+ yazım sayısı doğru; "hiçbir yere bağlı değil" doğru; istemcileri kıracak adım yok (olumlu) | — |
 
-**Tur 2:** düzeltilmiş PR için bekliyor (aşağıya işlenir).
+**Tur 2 (2026-11-08, PR #108 `b0ddc8f`): DEĞİŞİKLİK GEREKLİ.** Tur 1 bulgularının 1-9 ve 11'i kapandı; yeni bulgular:
+
+| # | Bulgu (önem) | Karşılık |
+|---|---|---|
+| 1 | `retry` yalnız FAILED'dan başlıyordu; bugünkü `/continue` durum denetlemez, `/handoff` RUNNING→PAUSED park eder, yani manuel devir akışı (`run/router.ts:336,374-376,427-465`) kırılırdı; test bunu sabitliyordu; ADR "değişmez" diyordu (yüksek) | `retry` FAILED/PAUSED/NEEDS_APPROVAL'dan başlar; akış testi eklendi; ADR + tablo düzeltildi; terminal koşuda stale kayıt reddi ADR'ye yazıldı |
+| 2 | `ref`i boş başarısız test veto edemiyordu (fail-open) (orta) | Test vetosu tüm kanıt üzerinden; `trim()`; testler |
+| 3 | `RESUMING` koşunun heartbeat'i bayat, zamanlayıcı yanlışlıkla retry yakabilir (orta, olası) | ADR karar 6 notu: 02b'de RESUMING için bekleme süresi şart |
+| 4 | ADR `resultStatus` tarifi koddan geri (düşük) | ADR karar 4 güncellendi |
+| 5 | Test başlığı "terminal or FAILED", gövde yalnız terminal (düşük) | Başlık düzeltildi |
+| 6 | Bilet `IMPLEMENTING`, STATUS `IN_REVIEW` (düşük) | Bilet `IN_REVIEW` |
+| 7 | `PAUSED→COMPLETED/NEEDS_APPROVAL` kenarı yok; adım ortasında duraklatma final yazımı CAS'te reddedilebilir (düşük, olası) | ADR "02b'de ele alınacak" notu |
+
+**Tur 3:** düzeltmeler için bekliyor (aşağıya işlenir).

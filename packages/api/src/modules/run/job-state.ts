@@ -121,10 +121,14 @@ export type IntentDecision = "start" | "already" | "reject";
  *            that may leave NEEDS_APPROVAL, so a plain /resume can no longer
  *            skip a PENDING approval (BRA-P0-05 builds on this);
  *   unpause  an operator un-pausing (`/resume`) — PAUSED only;
- *   retry    an explicit retry backed by an OPEN handoff record (`/continue`,
- *            HANDOFF approval) — the only intent that may leave FAILED, so a
- *            governance hard-stop or loop-guard failure is never restarted by
- *            an ordinary resume.
+ *   retry    a takeover backed by an OPEN handoff record (`/continue`,
+ *            HANDOFF approval). `/handoff` is allowed from RUNNING, PAUSED,
+ *            WAITING_APPROVAL and FAILED and parks a RUNNING run in PAUSED, so
+ *            `retry` may start from PAUSED, NEEDS_APPROVAL or FAILED — the
+ *            manual hand-over flow keeps working. It is also the only intent
+ *            that may leave FAILED, so a governance hard-stop or loop-guard
+ *            failure is never restarted by an ordinary resume. The caller must
+ *            verify the OPEN handoff record; this function only checks state.
  */
 export type ResumeIntent = "approve" | "unpause" | "retry";
 
@@ -133,7 +137,7 @@ export function decideResume(current: JobState, intent: ResumeIntent): IntentDec
   if (current === "RESUMING" || current === "RUNNING") return "already";
   if (intent === "approve" && current === "NEEDS_APPROVAL") return "start";
   if (intent === "unpause" && current === "PAUSED") return "start";
-  if (intent === "retry" && current === "FAILED") return "start";
+  if (intent === "retry" && (current === "FAILED" || current === "PAUSED" || current === "NEEDS_APPROVAL")) return "start";
   return "reject";
 }
 
@@ -188,8 +192,8 @@ export interface ReceiptEvidence {
 
 /**
  * `VERIFIED` only for a COMPLETED job whose receipt carries at least one real
- * evidence item (non-empty `ref`), every required evidence kind, and whose
- * `test` items all passed explicitly (`ok === true`). Everything else that
+ * evidence item (non-blank `ref`), every required evidence kind, and whose
+ * `test` items ALL passed explicitly (`ok === true`, blank ref or not). Everything else that
  * finished is `UNVERIFIED` (talimat §6.4 #7: no diff/test/PR → no verified
  * success). Fail-closed: no evidence, or a `test` item without an explicit
  * `ok`, never counts as verified — even when `requiredKinds` is empty.
@@ -200,10 +204,12 @@ export function deriveResultStatus(
   evidence: readonly ReceiptEvidence[],
 ): ResultStatus | null {
   if (state !== "COMPLETED") return null;
-  const real = evidence.filter((e) => e.ref.length > 0);
+  const real = evidence.filter((e) => e.ref.trim().length > 0);
   if (real.length === 0) return "UNVERIFIED";
   const have = new Set(real.map((e) => e.kind));
   const allPresent = requiredKinds.every((k) => have.has(k));
-  const testsPassed = real.every((e) => e.kind !== "test" || e.ok === true);
+  // The test veto looks at ALL evidence, not only items with a ref: a failing
+  // or unconfirmed test never disappears just because its ref is blank.
+  const testsPassed = evidence.every((e) => e.kind !== "test" || e.ok === true);
   return allPresent && testsPassed ? "VERIFIED" : "UNVERIFIED";
 }
