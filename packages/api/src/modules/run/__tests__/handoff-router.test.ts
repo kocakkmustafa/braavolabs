@@ -32,6 +32,7 @@ const handoffFindFirst = vi.hoisted(() => vi.fn());
 const handoffFindMany = vi.hoisted(() => vi.fn());
 const activityLogCreate = vi.hoisted(() => vi.fn());
 const approvalFindFirst = vi.hoisted(() => vi.fn());
+const runUpdateMany = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../lib/db", () => ({
   prisma: {
@@ -50,6 +51,13 @@ vi.mock("../../../lib/db", () => ({
     },
     activityLog: { create: (...a: unknown[]) => activityLogCreate(...a) },
   },
+  // 02c-2: lifecycle writes go through transitionRun inside tenantTx (flag off →
+  // select {status} + scalar CAS updateMany). The tx reports the run as RUNNING.
+  tenantTx: (fn: (tx: unknown) => unknown) =>
+    fn({
+      run: { findFirst: async () => ({ status: "RUNNING" }), updateMany: (...a: unknown[]) => runUpdateMany(...a) },
+      activityLog: { create: (...a: unknown[]) => activityLogCreate(...a) },
+    }),
 }));
 
 // authMiddleware / rateLimit — pass-through (no JWT, no Redis). We inject
@@ -144,6 +152,7 @@ beforeEach(() => {
   envMock.OFFLINE_MODE = false;
   runFindFirst.mockResolvedValue({ id: "run-1", status: "RUNNING" });
   runUpdate.mockResolvedValue({});
+  runUpdateMany.mockResolvedValue({ count: 1 });
   activityLogCreate.mockResolvedValue({});
   approvalFindFirst.mockResolvedValue(null); // BRA-P0-05: no undecided approval by default
   enqueueRunMock.mockResolvedValue(undefined);
@@ -173,13 +182,13 @@ describe("POST /runs/:id/handoff", () => {
     // live loop owns the checkpoint (createHandoff sees a RUNNING run).
     const order: string[] = [];
     createHandoffMock.mockImplementation(async () => { order.push("createHandoff"); return { id: "hl-1", checkpoint: null }; });
-    runUpdate.mockImplementation(async () => { order.push("pause"); return {}; });
+    runUpdateMany.mockImplementation(async () => { order.push("pause"); return { count: 1 }; });
 
     const { res, nextErr } = await invoke(handler, { params: { id: "run-1" }, body: { reason: "switch model" } });
 
     expect(nextErr).toBeUndefined();
     expect(order).toEqual(["createHandoff", "pause"]); // ledger opened before PAUSE
-    expect(runUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "PAUSED" } }));
+    expect(runUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "PAUSED" } }));
     // createHandoff called with freezeFromTranscript=false (live loop owns it).
     expect(createHandoffMock.mock.calls[0][0]).toMatchObject({ runId: "run-1", reason: "MANUAL", freezeFromTranscript: false });
     expect(res.statusCode).toBe(201);
@@ -193,7 +202,7 @@ describe("POST /runs/:id/handoff", () => {
 
     expect(nextErr).toBeUndefined();
     expect(createHandoffMock.mock.calls[0][0]).toMatchObject({ freezeFromTranscript: true });
-    expect(runUpdate).not.toHaveBeenCalled(); // no PAUSE for a non-RUNNING run
+    expect(runUpdateMany).not.toHaveBeenCalled(); // no PAUSE for a non-RUNNING run
     expect(res.body).toMatchObject({ success: true, status: "FAILED", checkpointPending: false });
   });
 
@@ -223,7 +232,7 @@ describe("POST /runs/:id/continue", () => {
     expect(approvalFindFirst).toHaveBeenCalledWith({ where: { runId: "run-1", status: "PENDING", type: { not: "HANDOFF" } }, select: { id: true } });
     expect(handoffFindFirst).not.toHaveBeenCalled();
     expect(claimHandoffMock).not.toHaveBeenCalled();
-    expect(runUpdate).not.toHaveBeenCalled();
+    expect(runUpdateMany).not.toHaveBeenCalled();
     expect(enqueueRunMock).not.toHaveBeenCalled();
   });
 
@@ -259,7 +268,7 @@ describe("POST /runs/:id/continue", () => {
 
     expect(nextErr).toBeUndefined();
     expect(claimHandoffMock).toHaveBeenCalledWith(expect.objectContaining({ handoffId: "hl-1", provider: "OLLAMA", model: "gemma3:4b", baseUrl: "http://x:11434/v1" }));
-    expect(runUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "RUNNING" } }));
+    expect(runUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "RUNNING" } }));
     expect(enqueueRunMock).toHaveBeenCalledWith("run-1");
     expect(res.body).toMatchObject({ success: true, status: "RUNNING", toProvider: "OLLAMA" });
   });

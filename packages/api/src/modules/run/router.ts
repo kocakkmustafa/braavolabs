@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../../middleware/auth";
-import { prisma } from "../../lib/db";
+import { prisma, tenantTx } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { rateLimit } from "../../middleware/rateLimit";
 import { logger } from "../../lib/logger";
@@ -16,10 +16,55 @@ import { chatCompletion, getTenantAIConfig, LOCAL_PROVIDERS, type AIProviderType
 // plain getTenantAIConfig import.
 import { listTenantProviderLinks, resolveTenantCompletionLink, commitTrialCompletion, refundTrialCompletion } from "../../services/provider-chain";
 import { assertKeylessLocalBaseUrl } from "../../services/takeover-config";
-import { createHandoff, claimHandoff, HandoffClaimError, cancelOpenHandoffForRun } from "./handoff.service";
+import { createHandoff, claimHandoff, HandoffClaimError, cancelOpenHandoffForRun, reopenClaimedHandoff } from "./handoff.service";
 import { hasOpenApproval } from "../approval/exact-action";
+import { transitionRun, isJobStateDualWriteEnabled, currentJobState, type TransitionOutcome } from "./transition";
+import { decideResume, type JobState } from "./job-state";
 import { env } from "../../config/env";
 import type { RunEvent } from "@ai-company-os/core";
+
+/**
+ * BRA-P0-02c-2: turn a failed `transitionRun` outcome into the route's error.
+ * Thrown INSIDE the `tenantTx` callback so the transaction rolls back and no
+ * side effect (activity row, ledger, queue job) follows a lost race.
+ * `illegal_transition` is a conflict (409) unless the route names its own code.
+ */
+function assertTransitioned(o: TransitionOutcome, illegal: { status: number; message: string }): void {
+  if (o.ok) return;
+  if (o.reason === "not_found") throw new AppError(404, "Run not found");
+  if (o.reason === "illegal_transition") throw new AppError(illegal.status, illegal.message);
+  throw new AppError(409, "Run state changed concurrently; retry");
+}
+
+/**
+ * →RESUMING, then (dual write on) →RUNNING in the same transaction: RESUMING
+ * projects onto status RUNNING, and the runner does not yet advance
+ * RESUMING→RUNNING itself (ADR-0001 (e), 02c-4), so the writer does it here.
+ * Off, the single write is the legacy `status = RUNNING`.
+ */
+/** Thrown inside the tx (so it rolls back) when the FRESH in-tx read shows RUNNING/RESUMING: someone else already resumed. */
+class AlreadyRunningError extends Error {}
+
+async function resumeToRunning(
+  tx: Parameters<Parameters<typeof tenantTx>[0]>[0],
+  runId: string,
+  tenantId: string,
+  opts: { rejectIfAlreadyRunning: boolean },
+): Promise<void> {
+  const illegal = { status: 409, message: "Run cannot be resumed from its current state" };
+  const first = await transitionRun(tx, runId, "RESUMING", { tenantId, legacyUnchecked: true });
+  assertTransitioned(first, illegal);
+  // RUNNING→RESUMING is a legal edge (crash recovery), so the CAS above can WIN
+  // against a request that already resumed the run. The decision must come from
+  // this fresh in-tx read, not from the stale read outside the tx: roll back and
+  // let the caller answer "already" (no second enqueue).
+  if (opts.rejectIfAlreadyRunning && first.ok && (first.from === "RUNNING" || first.from === "RESUMING")) {
+    throw new AlreadyRunningError();
+  }
+  if (isJobStateDualWriteEnabled()) {
+    assertTransitioned(await transitionRun(tx, runId, "RUNNING", { tenantId }), illegal);
+  }
+}
 
 export const runRouter = Router();
 runRouter.use(authMiddleware);
@@ -227,23 +272,32 @@ runRouter.post("/:id/stop", async (req, res, next) => {
     if (!run || run.pipeline.company.tenantId !== req.auth!.tenantId) {
       throw new AppError(404, "Run not found");
     }
-    if (run.status !== "RUNNING" && run.status !== "PAUSED" && run.status !== "WAITING_APPROVAL") {
+    // ADR-0001 table: with JOB_STATE_DUAL_WRITE on, a not-yet-started (PENDING)
+    // run can be cancelled too; off, PENDING is still a 400 as before.
+    const stoppable =
+      run.status === "RUNNING" || run.status === "PAUSED" || run.status === "WAITING_APPROVAL" ||
+      (run.status === "PENDING" && isJobStateDualWriteEnabled());
+    if (!stoppable) {
       throw new AppError(400, "Run is not in a stoppable state");
     }
 
-    await prisma.run.update({
-      where: { id: run.id },
-      data: { status: "CANCELLED", completedAt: new Date() },
-    });
-
-    await prisma.activityLog.create({
-      data: {
+    await tenantTx(async (tx) => {
+      const o = await transitionRun(tx, run.id, "CANCELLED", {
         tenantId: req.auth!.tenantId,
-        actor: req.auth!.userId,
-        action: "run.stop",
-        resource: "run",
-        resourceId: run.id,
-      },
+        extra: { completedAt: new Date() },
+        legacyUnchecked: true,
+      });
+      assertTransitioned(o, { status: 400, message: "Run is not in a stoppable state" });
+      if (o.ok && o.noop) return;
+      await tx.activityLog.create({
+        data: {
+          tenantId: req.auth!.tenantId,
+          actor: req.auth!.userId,
+          action: "run.stop",
+          resource: "run",
+          resourceId: run.id,
+        },
+      });
     });
 
     res.json({ success: true, status: "CANCELLED" });
@@ -261,9 +315,11 @@ runRouter.post("/:id/pause", async (req, res, next) => {
       throw new AppError(404, "Run not found");
     }
 
-    await prisma.run.update({
-      where: { id: run.id },
-      data: { status: "PAUSED" },
+    // Off: unconditional status write as before. On: a finished run
+    // (COMPLETED/FAILED/CANCELLED) is refused with 409 (ADR-0001 table).
+    await tenantTx(async (tx) => {
+      const o = await transitionRun(tx, run.id, "PAUSED", { tenantId: req.auth!.tenantId, legacyUnchecked: true });
+      assertTransitioned(o, { status: 409, message: "Run is finished and cannot be paused" });
     });
 
     res.json({ success: true, status: "PAUSED" });
@@ -299,22 +355,28 @@ runRouter.post("/:id/resume", async (req, res, next) => {
       throw new AppError(409, "Run has an undecided approval; decide it via /approvals/:id/decide");
     }
 
-    await prisma.run.update({
-      where: { id: run.id },
-      data: { status: "RUNNING" },
-    });
+    try {
+      await tenantTx(async (tx) => {
+        await resumeToRunning(tx, run.id, req.auth!.tenantId, { rejectIfAlreadyRunning: true });
+        await tx.activityLog.create({
+          data: {
+            tenantId: req.auth!.tenantId,
+            actor: req.auth!.userId,
+            action: "run.resume",
+            resource: "run",
+            resourceId: run.id,
+          },
+        });
+      });
+    } catch (err) {
+      // Duplicate resume that lost to a concurrent one: same answer as the
+      // up-front status check gives a duplicate today (400), nothing written/enqueued.
+      if (err instanceof AlreadyRunningError) throw new AppError(400, "Run is not paused or waiting on approval");
+      throw err;
+    }
 
+    // Only after the CAS won (a lost race threw above): exactly one enqueue.
     await enqueueRun(run.id);
-
-    await prisma.activityLog.create({
-      data: {
-        tenantId: req.auth!.tenantId,
-        actor: req.auth!.userId,
-        action: "run.resume",
-        resource: "run",
-        resourceId: run.id,
-      },
-    });
 
     res.json({ success: true, status: "RUNNING" });
   } catch (err) { next(err); }
@@ -379,7 +441,17 @@ runRouter.post("/:id/handoff", handoffLimiter, async (req, res, next) => {
     });
 
     if (wasRunning) {
-      await prisma.run.update({ where: { id: run.id }, data: { status: "PAUSED" } });
+      try {
+        await tenantTx(async (tx) => {
+          const o = await transitionRun(tx, run.id, "PAUSED", { tenantId: req.auth!.tenantId, legacyUnchecked: true });
+          assertTransitioned(o, { status: 409, message: "Run is no longer running; handoff not started" });
+        });
+      } catch (err) {
+        // The run moved under us (finished / paused by someone else): the OPEN
+        // ledger just created must not outlive a handoff that did not start.
+        await cancelOpenHandoffForRun(run.id, "pause lost race", req.auth!.userId).catch(() => { /* best-effort */ });
+        throw err;
+      }
     }
 
     await prisma.activityLog.create({
@@ -455,6 +527,18 @@ runRouter.post("/:id/continue", handoffLimiter, async (req, res, next) => {
     const { PROVIDER_DEFAULT_MODELS } = await import("../../services/ai-client");
     const resolvedModel = model || PROVIDER_DEFAULT_MODELS[provider];
 
+    // JOB_STATE_DUAL_WRITE on: decide from the state machine BEFORE claiming, so a
+    // finished run is refused (409) with the ledger untouched, and a run that is
+    // already RUNNING/RESUMING is "already": claimed as before but NOT enqueued a
+    // second time (ADR-0001 table). Off: no state check, legacy behaviour.
+    // This up-front read is only a cheap early refusal and may be stale: the
+    // binding decision ("already" / illegal) is taken from the in-tx fresh read.
+    const dual = isJobStateDualWriteEnabled();
+    if (dual) {
+      const cur: JobState = currentJobState(run.status, run.state);
+      if (decideResume(cur, "retry") === "reject") throw new AppError(409, "Run cannot be continued from its current state");
+    }
+
     // Claim — 409 CHECKPOINT_PENDING while the live loop hasn't frozen the
     // checkpoint (client retries). We persist baseUrl for the takeover leg (T6)
     // by writing it into the ledger's checkpoint-adjacent claim fields via the
@@ -470,14 +554,29 @@ runRouter.post("/:id/continue", handoffLimiter, async (req, res, next) => {
         claimedBy: req.auth!.userId,
       });
     } catch (err) {
-      if (err instanceof HandoffClaimError && err.code === "CHECKPOINT_PENDING") {
+      if (err instanceof HandoffClaimError && (err.code === "CHECKPOINT_PENDING" || err.code === "NOT_OPEN")) {
+        // CHECKPOINT_PENDING: client retries. NOT_OPEN: a concurrent /continue
+        // claimed it first (the up-front OPEN lookup passed, the atomic claim lost).
         throw new AppError(409, err.message);
       }
       throw err;
     }
 
-    await prisma.run.update({ where: { id: run.id }, data: { status: "RUNNING" } });
-    await enqueueRun(run.id);
+    let alreadyRunning = false;
+    try {
+      await tenantTx((tx) => resumeToRunning(tx, run.id, req.auth!.tenantId, { rejectIfAlreadyRunning: dual }));
+    } catch (err) {
+      if (err instanceof AlreadyRunningError) {
+        alreadyRunning = true; // dual write on only: claimed as before, no second enqueue
+      } else {
+        // The run did not start (lost CAS / finished meanwhile): give the ledger
+        // back so the operator can retry /continue instead of "No open handoff".
+        await reopenClaimedHandoff(claimed.id, claimed.claimedAt as Date).catch((e) =>
+          logger.warn({ runId: run.id, handoffId: claimed.id, err: (e as Error).message }, "handoff reopen after lost /continue failed"));
+        throw err;
+      }
+    }
+    if (!alreadyRunning) await enqueueRun(run.id);
 
     res.json({
       success: true,

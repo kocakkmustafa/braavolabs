@@ -343,3 +343,33 @@ describe("compare-and-set race (duplicate approve / webhook)", () => {
     expect(row.status).toBe("CANCELLED");
   });
 });
+
+describe("legacyUnchecked (02c-2 operator-route parity while the flag is OFF)", () => {
+  it("off + legacyUnchecked: skips the graph (COMPLETED→PAUSED writes), never selects/writes state, same-status is a real write", async () => {
+    const { client, row, log } = fakeClient(mk("COMPLETED"));
+    const r = await transitionRun(client, "run_1", "PAUSED", { ...off, legacyUnchecked: true });
+    expect(r).toMatchObject({ ok: true, noop: false });
+    expect(row.status).toBe("PAUSED");
+    expect(log.selects).toEqual([{ status: true }]);
+    expect(Object.keys(log.datas[0])).toEqual(["status"]);
+    const again = await transitionRun(client, "run_1", "PAUSED", { ...off, legacyUnchecked: true });
+    expect(again).toMatchObject({ ok: true, noop: false });
+  });
+
+  it("off + legacyUnchecked still compare-and-sets on status: a stale read loses the race", async () => {
+    const { client, row } = fakeClient(mk("PAUSED"), {
+      barrier: async () => { row.status = "CANCELLED"; },
+    });
+    const r = await transitionRun(client, "run_1", "RUNNING", { ...off, legacyUnchecked: true });
+    expect(r).toMatchObject({ ok: false, reason: "lost_race" });
+    expect(row.status).toBe("CANCELLED");
+  });
+
+  it("ON ignores legacyUnchecked: the graph is enforced", async () => {
+    const { client, row, log } = fakeClient(mk("COMPLETED", "COMPLETED"));
+    const r = await transitionRun(client, "run_1", "PAUSED", { ...on, legacyUnchecked: true });
+    expect(r).toMatchObject({ ok: false, reason: "illegal_transition" });
+    expect(row.status).toBe("COMPLETED");
+    expect(log.datas).toHaveLength(0);
+  });
+});

@@ -85,6 +85,15 @@ export interface TransitionOptions {
   resultStatus?: ResultStatus | null;
   /** Override the env flag (tests, callers that already resolved it). */
   dualWrite?: boolean;
+  /**
+   * BRA-P0-02c-2: legacy-writer parity while the flag is OFF. Operator routes
+   * (/pause, /continue …) wrote `status` unconditionally before 02c, whatever
+   * the current status. With this set AND dual write off, the state graph is
+   * skipped (no `illegal_transition`, same-status is not a no-op) and only the
+   * status compare-and-set protects the write. IGNORED when dual write is on:
+   * the graph is always enforced there.
+   */
+  legacyUnchecked?: boolean;
 }
 
 export type TransitionOutcome =
@@ -122,9 +131,11 @@ export async function transitionRun(
   if (!row) return { ok: false, reason: "not_found" };
 
   const from = currentJobState(row.status, dual ? row.state : null);
-  const decision = applyTransition(from, to);
-  if (!decision.ok) return { ok: false, reason: "illegal_transition", from, to };
-  if (decision.noop) return { ok: true, noop: true, from, to };
+  if (!(opts.legacyUnchecked && !dual)) {
+    const decision = applyTransition(from, to);
+    if (!decision.ok) return { ok: false, reason: "illegal_transition", from, to };
+    if (decision.noop) return { ok: true, noop: true, from, to };
+  }
 
   // Scalar-only CAS (see header): tenant was verified by the read above.
   const where: Prisma.RunWhereInput = { id: runId, status: row.status };

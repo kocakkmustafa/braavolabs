@@ -20,6 +20,8 @@ const runUpdate = vi.hoisted(() => vi.fn());
 const approvalFindFirst = vi.hoisted(() => vi.fn());
 const activityLogCreate = vi.hoisted(() => vi.fn());
 const handoffFindFirst = vi.hoisted(() => vi.fn());
+const runUpdateMany = vi.hoisted(() => vi.fn());
+const txRunStatus = vi.hoisted(() => ({ v: "WAITING_APPROVAL" }));
 
 vi.mock("../../../lib/db", () => ({
   prisma: {
@@ -32,6 +34,13 @@ vi.mock("../../../lib/db", () => ({
     activityLog: { create: (...a: unknown[]) => activityLogCreate(...a) },
     handoffLedger: { findFirst: (...a: unknown[]) => handoffFindFirst(...a) },
   },
+  // 02c-2: lifecycle writes go through transitionRun inside tenantTx (flag off →
+  // select {status} + scalar CAS updateMany, no `state`).
+  tenantTx: (fn: (tx: unknown) => unknown) =>
+    fn({
+      run: { findFirst: async () => ({ status: txRunStatus.v }), updateMany: (...a: unknown[]) => runUpdateMany(...a) },
+      activityLog: { create: (...a: unknown[]) => activityLogCreate(...a) },
+    }),
 }));
 vi.mock("../../../middleware/auth", () => ({ authMiddleware: (_q: unknown, _s: unknown, next: () => void) => next() }));
 vi.mock("../../../middleware/rateLimit", () => ({ rateLimit: () => (_q: unknown, _s: unknown, next: () => void) => next() }));
@@ -78,6 +87,8 @@ const tenantRun = (status: string) => ({ id: "run-1", status, pipeline: { compan
 beforeEach(() => {
   vi.clearAllMocks();
   runUpdate.mockResolvedValue({});
+  runUpdateMany.mockResolvedValue({ count: 1 });
+  txRunStatus.v = "WAITING_APPROVAL";
   activityLogCreate.mockResolvedValue({});
   enqueueRunMock.mockResolvedValue(undefined);
   approvalFindFirst.mockResolvedValue(null);
@@ -98,7 +109,7 @@ describe("POST /runs/:id/resume — BRA-P0-05 bypass guard", () => {
       expect(nextErr?.statusCode).toBe(409);
       expect(res.body).toBeUndefined();
       expect(approvalFindFirst).toHaveBeenCalledWith({ where: { runId: "run-1", status: "PENDING", type: { not: "HANDOFF" } }, select: { id: true } });
-      expect(runUpdate).not.toHaveBeenCalled();
+      expect(runUpdateMany).not.toHaveBeenCalled();
       expect(enqueueRunMock).not.toHaveBeenCalled();
       expect(activityLogCreate).not.toHaveBeenCalled();
     },
@@ -109,7 +120,7 @@ describe("POST /runs/:id/resume — BRA-P0-05 bypass guard", () => {
     const { nextErr, res } = await invoke(resume, { params: { id: "run-1" } });
     expect(nextErr).toBeUndefined();
     expect(res.body).toEqual({ success: true, status: "RUNNING" });
-    expect(runUpdate).toHaveBeenCalledWith({ where: { id: "run-1" }, data: { status: "RUNNING" } });
+    expect(runUpdateMany).toHaveBeenCalledWith({ where: { id: "run-1", status: "WAITING_APPROVAL" }, data: { status: "RUNNING" } });
     expect(enqueueRunMock).toHaveBeenCalledWith("run-1");
   });
 
@@ -125,7 +136,7 @@ describe("POST /runs/:id/resume — BRA-P0-05 bypass guard", () => {
     approvalFindFirst.mockRejectedValue(new Error("db down"));
     const { nextErr } = await invoke(resume, { params: { id: "run-1" } });
     expect(nextErr).toBeInstanceOf(Error);
-    expect(runUpdate).not.toHaveBeenCalled();
+    expect(runUpdateMany).not.toHaveBeenCalled();
     expect(enqueueRunMock).not.toHaveBeenCalled();
   });
 });
@@ -145,7 +156,7 @@ describe("/handoff → /continue — BRA-P0-05 bypass guard", () => {
     const c = await invoke(cont, { params: { id: "run-1" }, body: { provider: "OPENAI" } });
     expect(c.nextErr?.statusCode).toBe(409);
     expect(claimHandoffMock).not.toHaveBeenCalled();
-    expect(runUpdate).not.toHaveBeenCalledWith({ where: { id: "run-1" }, data: { status: "RUNNING" } });
+    expect(runUpdateMany).not.toHaveBeenCalled();
     expect(enqueueRunMock).not.toHaveBeenCalled();
   });
 
@@ -155,7 +166,7 @@ describe("/handoff → /continue — BRA-P0-05 bypass guard", () => {
     const c = await invoke(cont, { params: { id: "run-1" }, body: { provider: "OPENAI" } });
     expect(c.nextErr).toBeUndefined();
     expect(claimHandoffMock).toHaveBeenCalled();
-    expect(runUpdate).toHaveBeenCalledWith({ where: { id: "run-1" }, data: { status: "RUNNING" } });
+    expect(runUpdateMany).toHaveBeenCalledWith({ where: { id: "run-1", status: "WAITING_APPROVAL" }, data: { status: "RUNNING" } });
     expect(enqueueRunMock).toHaveBeenCalledWith("run-1");
   });
 });

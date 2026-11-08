@@ -308,3 +308,11 @@ describe("result status (no evidence → no verified success)", () => {
     expect(deriveResultStatus("COMPLETED", [], [{ kind: "artifact", ref: "a1" }])).toBe("VERIFIED");
   });
 });
+
+describe("BRA-P0-02c-2 edges: /pause has never checked status", () => {
+  it("READY→PAUSED and NEEDS_APPROVAL→PAUSED exist; finished states still cannot be paused", () => {
+    expect(applyTransition("READY", "PAUSED").ok).toBe(true);
+    expect(applyTransition("NEEDS_APPROVAL", "PAUSED").ok).toBe(true);
+    for (const s of ["COMPLETED", "CANCELLED", "FAILED"] as const) expect(applyTransition(s, "PAUSED").ok).toBe(false);
+  });
+});
