@@ -133,7 +133,12 @@ describe("processScheduledTick — happy path", () => {
       pipelineId: "pipe-1",
       trigger: "scheduled",
       status: "PENDING",
+      // BRA-P0-02c-1: owner comes from the already-loaded Pipeline → Company.
+      tenantId: "tenant-1",
+      workspaceId: "co-1",
     });
+    // Scheduled ticks carry no body → no job budget key at all (NULL column).
+    expect(prismaMock.run.create.mock.calls[0]![0].data).not.toHaveProperty("jobBudget");
     // enqueueRun → runQueue.add fired for run-1
     expect(runQueueMock.add).toHaveBeenCalledTimes(1);
     // lastRunAt stamped

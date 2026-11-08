@@ -769,6 +769,9 @@ export async function processScheduledTick(job: Job<ScheduledTickData>): Promise
       trigger: "scheduled",
       status: "PENDING",
       input: {},
+      // Owner from the already-loaded Pipeline → Company (no extra query).
+      tenantId: pipeline.company.tenantId,
+      workspaceId: pipeline.companyId,
     },
   });
   await enqueueRun(run.id);

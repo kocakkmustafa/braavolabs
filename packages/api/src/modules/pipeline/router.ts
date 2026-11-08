@@ -8,6 +8,8 @@ import { enqueueRun, registerSchedule, removeSchedule } from "./runner";
 import { scheduleQueue } from "../../lib/queue";
 import * as cron from "node-cron";
 import { claimQuota } from "../billing/metering";
+import { parseJobBudget } from "../run/job-budget";
+import type { Prisma } from "@prisma/client";
 import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
 import { getTenantAIConfig, chatCompletion, type AIProviderType, type ChatMessage } from "../../services/ai-client";
@@ -438,6 +440,14 @@ pipelineRouter.post("/:id/run", runTriggerLimiter, async (req, res, next) => {
       );
     }
 
+    // ── Optional job budget (BRA-P0-02c-1, ADR-0002) ─────────────────────
+    // Validated BEFORE the quota claim: a malformed budget must not consume a
+    // quota unit (the claim is not refunded). Absent/null → NULL (no limit).
+    const parsedBudget = parseJobBudget(req.body?.budget);
+    if (!parsedBudget.ok) {
+      throw new AppError(400, `Invalid budget: ${parsedBudget.error}`);
+    }
+
     // ── Atomic quota claim (ISS-010) ────────────────────────────────────
     // Single SQL statement claims one run from the meter or refuses if over
     // limit. Closes the read-then-write TOCTOU window that previously let
@@ -456,6 +466,10 @@ pipelineRouter.post("/:id/run", runTriggerLimiter, async (req, res, next) => {
         status: "PENDING",
         trigger: "manual",
         input: req.body.input ?? {},
+        // Owner is the already-resolved Pipeline → Company (no extra query).
+        tenantId: pipeline.company.tenantId,
+        workspaceId: pipeline.companyId,
+        ...(parsedBudget.budget ? { jobBudget: parsedBudget.budget as Prisma.InputJsonValue } : {}),
       },
     });
 

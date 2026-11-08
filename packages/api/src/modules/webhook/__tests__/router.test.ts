@@ -316,6 +316,36 @@ describe("POST /hooks/:companySlug/:event", () => {
     expect(claimQuotaMock).toHaveBeenCalledTimes(2);
   });
 
+  it("BRA-P0-02c-1: run.create writes tenantId + workspaceId of the verified company (no idempotencyKey / jobBudget)", async () => {
+    pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+    runCreate.mockResolvedValue({ id: "run-1" });
+
+    await invoke(handler, validReq());
+
+    expect(runCreate).toHaveBeenCalledTimes(1);
+    const data = runCreate.mock.calls[0]![0].data;
+    expect(data).toMatchObject({ pipelineId: "pipe-1", tenantId: "tenant-1", workspaceId: "company-1" });
+    // The only replay guard is a Redis signature marker, not a delivery id:
+    // nothing is promoted to runs.idempotency_key. Payload never feeds a budget.
+    expect(data).not.toHaveProperty("idempotencyKey");
+    expect(data).not.toHaveProperty("jobBudget");
+  });
+
+  it("BRA-P0-02c-1: slug shared by two tenants — the run is owned by the tenant whose secret verified, never the other", async () => {
+    const other = { id: "company-2", tenantId: "tenant-2", slug: "acme", status: "ACTIVE", config: { webhookSecret: "whsec_other" } };
+    companyFindMany.mockResolvedValue([other, COMPANY]);
+    pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+
+    await invoke(handler, validReq());
+
+    expect(pipelineFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ companyId: "company-1" }) }),
+    );
+    const data = runCreate.mock.calls[0]![0].data;
+    expect(data.tenantId).toBe("tenant-1");
+    expect(data.workspaceId).toBe("company-1");
+  });
+
   it("empty body (no Content-Type) is normalized to an empty buffer and still verified", async () => {
     const timestamp = String(Date.now());
     const signature = sign(timestamp, Buffer.from(""));
