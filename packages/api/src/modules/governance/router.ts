@@ -7,7 +7,8 @@
 import { Router } from "express";
 import { requirePermission } from "../../middleware/require-permission";
 import { authMiddleware } from "../../middleware/auth";
-import { prisma } from "../../lib/db";
+import { prisma, tenantTx } from "../../lib/db";
+import { transitionRun } from "../run/transition";
 import { AppError } from "../../middleware/error";
 import { getGovernanceConfig, getRiskSummary } from "./engine";
 import { DEFAULT_GOVERNANCE_CONFIG, RISK_STOP_DESCRIPTIONS } from "@ai-company-os/core";
@@ -67,26 +68,32 @@ governanceRouter.post("/hard-stop/:runId", requirePermission("governance:hard-st
       throw new AppError(400, "Run is not in a stoppable state");
     }
 
-    // Create hard stop activity log
-    await prisma.activityLog.create({
-      data: {
+    // transitionRun first (compare-and-set); the audit row is written in the
+    // same transaction only when the CAS won, so a lost race leaves no log.
+    await tenantTx(async (tx) => {
+      const o = await transitionRun(tx, run.id, "FAILED", {
         tenantId: req.auth!.tenantId,
-        actor: req.auth!.userId,
-        action: "governance.hard_stop",
-        resource: "run",
-        resourceId: run.id,
-        details: { reason: req.body.reason ?? "Manual hard stop" },
-      },
-    });
-
-    // Update run status
-    await prisma.run.update({
-      where: { id: run.id },
-      data: {
-        status: "FAILED",
-        error: `Hard stop: ${req.body.reason ?? "Manually stopped by governance policy"}`,
-        completedAt: new Date(),
-      },
+        extra: {
+          error: `Hard stop: ${req.body.reason ?? "Manually stopped by governance policy"}`,
+          completedAt: new Date(),
+        },
+        legacyUnchecked: true,
+      });
+      if (!o.ok) {
+        if (o.reason === "not_found") throw new AppError(404, "Run not found");
+        if (o.reason === "illegal_transition") throw new AppError(400, "Run is not in a stoppable state");
+        throw new AppError(409, "Run state changed concurrently; retry");
+      }
+      await tx.activityLog.create({
+        data: {
+          tenantId: req.auth!.tenantId,
+          actor: req.auth!.userId,
+          action: "governance.hard_stop",
+          resource: "run",
+          resourceId: run.id,
+          details: { reason: req.body.reason ?? "Manual hard stop" },
+        },
+      });
     });
 
     res.json({ success: true, status: "FAILED", stopType: "hard_stop" });

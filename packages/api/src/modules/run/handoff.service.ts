@@ -480,3 +480,18 @@ export async function cancelOpenHandoffForRun(
   }
   return true;
 }
+
+/**
+ * Undo a claim whose run transition then lost (BRA-P0-02c-2): CLAIMED → OPEN and
+ * the claim fields cleared, so `/continue` can be retried. Guarded on
+ * `status = CLAIMED AND claimedBy = actor` so it never reopens someone else's
+ * claim. The `claimBaseUrl` annotation on the checkpoint is left in place (the
+ * next claim overwrites it). Returns whether a row was reopened.
+ */
+export async function reopenClaimedHandoff(handoffId: string, claimedBy: string): Promise<boolean> {
+  const res = await prisma.handoffLedger.updateMany({
+    where: { id: handoffId, status: "CLAIMED", claimedBy },
+    data: { status: "OPEN", toProvider: null, toModel: null, claimedBy: null, claimedAt: null },
+  });
+  return res.count === 1;
+}

@@ -84,9 +84,9 @@ export const fromLegacyStatus = (s: LegacyRunStatus): JobState => FROM_LEGACY[s]
 const TRANSITIONS: Record<JobState, readonly JobState[]> = {
   DRAFT: ["PLANNED", "CANCELLED"],
   PLANNED: ["READY", "DRAFT", "CANCELLED"], // PLANNED→DRAFT = re-plan (plan_version++)
-  READY: ["RUNNING", "CANCELLED"],
+  READY: ["RUNNING", "PAUSED", "CANCELLED"], // READY→PAUSED: /pause has never checked status (02c-2)
   RUNNING: ["NEEDS_APPROVAL", "PAUSED", "RESUMING", "COMPLETED", "FAILED", "CANCELLED"],
-  NEEDS_APPROVAL: ["RESUMING", "CANCELLED", "FAILED"],
+  NEEDS_APPROVAL: ["RESUMING", "PAUSED", "CANCELLED", "FAILED"], // →PAUSED: /pause on WAITING_APPROVAL (02c-2)
   RESUMING: ["RUNNING", "PAUSED", "FAILED", "CANCELLED"],
   PAUSED: ["RESUMING", "CANCELLED", "FAILED"],
   FAILED: ["RESUMING"],
