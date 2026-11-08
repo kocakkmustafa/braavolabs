@@ -565,7 +565,34 @@ model Run {
   approvals Approval[]
   steeringMessages SteeringMessage[]
   handoffs  HandoffLedger[]
+  receipts  JobReceipt[]
 
+  // ── Job lifecycle (BRA-P0-02b, ADR-0001) ─────────────────────────────
+  // ADDITIVE and nullable: `status` above stays the frozen 7-value
+  // compatibility projection that shipped clients read; `state` is the new
+  // 10-value lifecycle. While JOB_STATE_DUAL_WRITE is off these stay NULL /
+  // defaults and nothing reads them. Invariant once on:
+  //   status == toLegacyStatus(state)   (modules/run/job-state.ts)
+  state          JobState?     @map("state")
+  // Denormalised owner (Pipeline → Company → Tenant) so isolation does not
+  // depend on a join. workspaceId = Pipeline.companyId. No FK yet: ADR-0001
+  // "daraltma" step adds NOT NULL / FK in a separate, approved migration.
+  tenantId       String?       @map("tenant_id")
+  workspaceId    String?       @map("workspace_id")
+  // Caller-supplied dedupe key, unique per tenant (NULLs never collide).
+  idempotencyKey String?       @map("idempotency_key")
+  planVersion    Int           @default(1) @map("plan_version")
+  // Only meaningful once COMPLETED; NULL = unfinished or pre-migration row.
+  resultStatus   ResultStatus? @map("result_status")
+  deadline       DateTime?
+  evidenceRef    String?       @map("evidence_ref")
+  // Crash-recovery counters (decideCrashRecovery): retries consumed and the
+  // last worker heartbeat.
+  retryCount     Int           @default(0) @map("retry_count")
+  heartbeatAt    DateTime?     @map("heartbeat_at")
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, state])
   @@index([pipelineId])
   @@index([status])
   @@map("runs")
@@ -1733,6 +1760,48 @@ enum RunStatus {
   COMPLETED
   FAILED
   CANCELLED
+}
+
+// Job lifecycle (BRA-P0-02b, ADR-0001). Mirrors JOB_STATES in
+// packages/api/src/modules/run/job-state.ts — keep both in sync.
+enum JobState {
+  DRAFT
+  PLANNED
+  READY
+  RUNNING
+  NEEDS_APPROVAL
+  RESUMING
+  PAUSED
+  FAILED
+  CANCELLED
+  COMPLETED
+}
+
+enum ResultStatus {
+  VERIFIED
+  UNVERIFIED
+}
+
+// Append-only job receipt (BRA-P0-02b, ADR-0001 karar 9). Corrections are new
+// rows, never UPDATE/DELETE (enforced in code; rows go away only with the run).
+model JobReceipt {
+  id           String        @id @default(cuid())
+  runId        String        @map("run_id")
+  tenantId     String        @map("tenant_id")
+  outcome      JobState
+  resultStatus ResultStatus? @map("result_status")
+  costUsd      Decimal?      @map("cost_usd") @db.Decimal(10, 6)
+  // [{ kind: "diff"|"test"|"pr"|"artifact"|"log", ref: string, ok?: boolean }]
+  evidence     Json          @default("[]")
+  approvalIds  String[]      @map("approval_ids")
+  contentHash  String        @map("content_hash")
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  run Run @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+  @@index([tenantId, createdAt])
+  @@map("job_receipts")
 }
 
 enum RunStepStatus {

@@ -10,7 +10,8 @@ Durum kodları: talimat §12.4 (`BACKLOG … IMPLEMENTING, IN_REVIEW, …`). `IM
 |---|---|---|---|
 | BRA-P0-01 uçtan uca yetenek tablosu | IN_REVIEW | AUDIT-01 notu, 4 klonda `git fetch` sonrası güncel main (platform `e93cbdc`, desktop `ad6867a`, cli `ed3692e`, mobile `5e60a75`); kod koşulmadı | Orchestration doğrulaması |
 | BRA-P0-02a ADR + durum makinesi (bu PR) | IN_REVIEW | Aşağıdaki test kanıtı; `job-state.ts` + `job-state.test.ts`; ADR-0001 | PR denetimi, sonra 02b |
-| BRA-P0-02b migration + `transitionRun` + çift yazım | BACKLOG | — | 02a kabulünden sonra |
+| BRA-P0-02b migration + `transitionRun` + `JOB_STATE_DUAL_WRITE` (varsayılan kapalı) | IN_REVIEW (bu yığılı PR) | Aşağıdaki "02b" bölümü | PR denetimi |
+| BRA-P0-02c yazıcıları `transitionRun`a taşı, yaratıcılar `tenantId`/`workspaceId` ayarlasın, sözleşme testleri | BACKLOG | — | 02b kabulünden sonra, küçük PR'lar |
 | BRA-P0-05, 08 (nonce, bütçe) | BACKLOG | — | 02b'ye bağlı (şema sütunları) |
 
 ## Bu PR'ın değişiklikleri (02a)
@@ -30,6 +31,46 @@ Ortam: macOS, Node v26.9.0, pnpm 9.15.4, `origin/main` `e93cbdc` üzerine bu dal
 
 `NOT_TESTED`: DB'li entegrasyon (çökmüş koşu devamı, 3× approve yan etki sayısı) 02b kapsamında, burada yok; E2E Playwright ve Docker/Boot Smoke yerelde koşulmadı (CI'da). `pnpm -w lint` api paketinde lint betiği olmadığından uygulanmadı.
 
+## 02b — migration + `transitionRun` + bayrak (yığılı PR, taban: `feat/BRA-P0-02-job-schema-adr`)
+
+Kapsam (PR tek amaçlı): `packages/db/prisma/schema.prisma` (+70 satır: `JobState`, `ResultStatus`, `JobReceipt`, `Run` sütunları), `migrations/20261108000000_job_lifecycle/migration.sql` (yalnız ekleyen; **hiçbir ortama uygulanmadı**), `modules/run/transition.ts` (`transitionRun`, `isJobStateDualWriteEnabled`, `currentJobState`), `modules/run/__tests__/transition.test.ts` (25 test). `opts.tenantId` zorunlu; okuma tenant ilişkisiyle kapsanır, yazma skaler CAS'tır. `transitionRun` hiçbir mevcut yazıcıya bağlı değil (taşıma 02c); `JOB_STATE_DUAL_WRITE` varsayılan kapalı.
+
+Test kanıtı (yerel, 2026-11-08, aynı ortam): `transition.test.ts` **25/25**; `tsc --noEmit` **0 hata** (Prisma istemcisi yeni şemayla üretildi); `vitest run` (packages/api, CI env) **165 dosya geçti, 1 atlandı; 2671 test geçti, 48 atlandı**, 0 başarısız. Şema `prisma validate` geçti; migration SQL `prisma migrate diff` çıktısıdır (eski → yeni şema), üzerine yalnız RLS politikası ve tenant geri dolgusu eklendi.
+
+`NOT_TESTED`: migration'ın gerçek Postgres'te uygulanması (CI "DB Migration Check" yalnız uygulanabildiğini gösterir; yerelde hiçbir veritabanına uygulanmadı), gerçek Postgres'te CAS yarışı ve satır kilidi (testler `updateMany` anlamını taklit eden bellek içi depoyla karar mantığını kanıtlar; gerçek yarış için veritabanlı entegrasyon testi 02c'de), RLS politikasının davranışı.
+
+Maliyet 0 USD, yeni sır yok. Geri alma: migration eklemelidir, bayrak kapalıyken hiçbir kod yeni sütuna dokunmaz; dal revert + (uygulandıysa) sütunlar yok sayılır.
+
+### 02b bağımsız denetim (`reviewer` alt ajanı, PR #109 `ea61abc`)
+**Tur 1: DEĞİŞİKLİK GEREKLİ (engel yok).** Migration SQL ↔ şema birebir ve yalnız ekleyen, RLS deseni tutarlı, CAS/`state: null` doğru, `transitionRun` hiçbir yazıcıya bağlı değil: doğrulandı. Bulgular ve karşılığı:
+
+| # | Bulgu (önem) | Karşılık |
+|---|---|---|
+| 1 | Bayrak kapalıyken `extra` ile yaşam döngüsü sütunları yazılabilir; "dokunmaz" garantisi çağırana kalmış (orta) | `extra` tipi `Omit<…, ReservedRunColumn>`; çalışma anında reddedilir (TypeError); testler her ayrılmış sütun için, bayrak kapalı ve açık |
+| 2 | Okuma/yazma yalnız `id` ile; tenant izolasyonu çağırana ve fail-open RLS'e kalmış, kural #10 ile çelişir (orta) | `opts.tenantId` zorunlu; okuma `pipeline → company → tenantId` ilişki filtresiyle kapsanır (yeni sütundan bağımsız), yazma ise skaler CAS'tır (tur 2 #2: ilişki filtreli `updateMany` atomik olmayabilir); başlık yorumu `tenantTx` şartını yazar; çapraz kiracı testi |
+| 3 | ADR'nin "02b'de ele alınacak" ve "bayrak açıkken davranış değişiklikleri" maddeleri 02b'de yok (orta) | 02c / BRA-P0-05 olarak yeniden etiketlendi, "02b hiçbirini kapatmaz" yazıldı |
+| 4 | "Migration uygulanmamışsa bile güvenli" yalnız `transitionRun` için doğru; yeni istemci + migration'sız DB her `runs` sorgusunu `P2022` ile kırar (orta) | Cümle daraltıldı, dağıtım sırası (migration imajdan önce; deploy betiği zaten böyle) ADR ve STATUS'a yazıldı |
+| 5 | Eksik testler: env'den varsayılan KAPALI, kapalıyken `extra.state`; test başlığı yarışı CI migration kontrolüne atfediyordu (düşük) | 7 test eklendi (25 toplam); başlık düzeltildi |
+| 6 | `RESUMING→COMPLETED/NEEDS_APPROVAL` kenarı yok, 02c sıralama riski; `state` NULL + aynı-durum no-op iddiası; `job_receipts` append-only yalnız kodda, tenant FK yok; `CREATE INDEX`/`UPDATE` kilidi; ADR imza farkı (düşük) | ADR madde (e), karar 3 ve 5 sözleri, STATUS bilinen açıklar |
+
+**Tur 2 (`8b2c705`): DEĞİŞİKLİK GEREKLİ (engel yok).** Tur 1 #1 doğrulandı (`RESERVED_RUN_COLUMNS` tüm yeni sütunları kapsıyor; `extra` yalnız `data`ya gider, `where`i ezemez). Yeni bulgular ve karşılığı:
+
+| # | Bulgu (önem) | Karşılık |
+|---|---|---|
+| 1 | İlişki filtreli `updateMany` Prisma'da select-id-sonra-update çalışabilir; `status`/`state` koşulu UPDATE'te yeniden değerlendirilmezse CAS atomik olmaz; bellek içi fake bunu kanıtlayamaz (orta, olası) | Yazma skaler CAS'a indirildi (`id + status (+ state)`), kiracı doğrulaması aynı işlemdeki okumada; test (`where` ilişki filtresi içermez); gerçek-Postgres CAS yarışı `NOT_TESTED` olarak kalır |
+| 2 | Eski "02b" etiketleri (karar 6 notu, madde (c)/(d)), karar 3'ün "geri dolgu" cümlesi karar 2 ile çelişiyor (orta/düşük) | Etiketler 02c yapıldı; karar 3 "eşleme, toplu geri dolgu yok" olarak düzeltildi |
+| 3 | `id`/`pipelineId` ayrılmış listede yok, tipsiz çağıran koşuyu başka pipeline'a taşıyabilir (düşük) | İkisi listeye eklendi |
+| 4 | Test okuma kapsamını doğrudan denetlemiyor; başlık/yorum fazla iddialı; şema-liste tamlık testi yok (düşük) | Okuma `where`i ayrıca kaydedilip denetleniyor, başlık ve yorum düzeltildi; şema-liste tamlık testi **yapılmadı** (liste elle doğrulandı, 02c'ye açık madde) |
+
+**Tur 3:** yapılmadı; kalan düzeltmeler yalnız belge ve küçük kod sıkılaştırması, 25 test ve tsc yeniden koşuldu.
+
+### Bilinen açıklar ve etkiler (kasıtlı olarak açık yazıldı)
+- **Onay atlama (BRA-P0-05'e kadar açık):** bugünkü `/handoff` + `/continue` yolu PENDING onay varken koşuyu RUNNING yapar ve iki rotada `approval:decide` izni aranmaz; model (`decideResume`) bunu `retry` niyeti olarak bilinçli taşır, **02b bunu kapatmaz ve test etmez**. Kapatma: BRA-P0-05'te `/continue` ya `approval:decide` ister ya da bekleyen onayı CANCELLED yapar (ADR madde (c)). Bu yazıcılar `transitionRun`a taşınmadıkça davranış değişmez.
+- **Yanıt yüzeyi:** `GET /api/v1/runs/:id` ham `Run` satırını döndürür (`run/router.ts:91`); migration uygulanınca yeni alanlar (`state`, `tenantId`, `workspaceId`, `idempotencyKey`, `planVersion`, `resultStatus`, `deadline`, `evidenceRef`, `retryCount`, `heartbeatAt`) bayrak kapalıyken bile yanıta eklenir. Eklemelidir ve çağıranın kendi kiracısının verisidir; mobil/desktop kaynağında `.strict()` şema bulunmadı (CLI'daki tek `.strict()` ayrı bir test şemasında). 02c bir yanıt-anahtarı sözleşme testi ekler.
+- **Dağıtım sırası ve kilit:** migration yeni uygulama imajından ÖNCE uygulanmalı (yeni Prisma istemcisi her `runs` sorgusunda yeni sütunları adlandırır; tersi sıra `P2022`); deploy betiği bu sırayı zaten uyguluyor. `CREATE INDEX` ve `runs` satırlarını yeniden yazan geri dolgu `UPDATE`'i çalışırken yazmaları kilitler; prod `runs` boyutu bilinmiyor, büyükse kümeli betik gerekir.
+- **`job_receipts`:** "yalnız-ekle" şimdilik yalnız kodla sağlanır (RLS politikası UPDATE/DELETE'e izin verir) ve `tenant_id` için `tenants` FK'si ile run'ın tenant'ıyla tutarlılık denetimi yok; daraltma adımında ele alınır.
+- **Geri dolgu:** `state` bilerek doldurulmadı; `tenant_id`/`workspace_id` tek `UPDATE` ile (prod boyutu bilinmiyor); migration sonrası yaratılan koşularda NULL. Ayrıntı ADR karar 2.
+
 ## Maliyet, veri, izin
 - Yeni ücretli kaynak: **0 USD**. Yeni veri akışı: yok. Yeni izin/sır: yok.
 - Deploy/migration: **yok** (platform `v*` etiketi = prod deploy = kurucu onayı).
@@ -48,7 +89,7 @@ Denetçi: `reviewer` alt ajanı (yazan oturumdan ayrı, salt-okur; test koşturm
 | 2 | `decideResume(FAILED)` düz resume ile FAILED'ı başlatıyordu; bugün yalnız devir kaydıyla olur (yüksek) | `decideResume(state, intent)`: `approve`/`unpause`/`retry` niyet ayrımı; FAILED yalnız `retry` |
 | 3 | "Mevcut davranışı bozmaz" iddiası yanlıştı (`/pause` terminalde, `/stop` PENDING, `/resume` RUNNING, runner koşulsuz yazım, RESUMING→PAUSED yok) (orta) | ADR'ye "Bilinçli davranış değişiklikleri" tablosu; RESUMING→PAUSED eklendi; HTTP kodu 400 korunur |
 | 4 | Yorum yanlış: "expiry→FAILED" (süresi dolan HANDOFF-dışı onay koşuyu CANCELLED yapar) (orta) | Tablo yorumu ve ADR düzeltildi; kenar kaynakları listelendi |
-| 5 | Düz `/resume` bekleyen onayı atlayabilir (mevcut açık) (orta) | Niyet ayrımıyla yalnız düz `/resume` yolu kapandı; `/handoff`+`/continue` yolu (PENDING onay açıkken RUNNING) bugünkü gibi açık, BRA-P0-05'e/02b'ye kaldı (tur 3 #1); uygulama BRA-P0-05 ile birlikte (ADR'de yazılı) |
+| 5 | Düz `/resume` bekleyen onayı atlayabilir (mevcut açık) (orta) | Niyet ayrımıyla yalnız düz `/resume` yolu kapandı; `/handoff`+`/continue` yolu (PENDING onay açıkken RUNNING) bugünkü gibi açık, BRA-P0-05'e/02c'ye kaldı (tur 3 #1); uygulama BRA-P0-05 ile birlikte (ADR'de yazılı) |
 | 6 | `retries`/`heartbeat` kaynağı yok; `resumeCursor` kullanılmıyor, ADR yanlış söylüyordu (orta) | ADR'ye `retryCount`, `heartbeatAt` sütunları; devam noktası `RunStep`/`planResume` olarak düzeltildi |
 | 7 | `deriveResultStatus` boş kanıtta VERIFIED, `ok` eksik testte geçmiş sayıyordu (fail-open) (orta) | Fail-closed: kanıt yok ⇒ UNVERIFIED; test için `ok === true` şart; testler |
 | 8 | Sınır girdileri (negatif/kesirli/∞ sayaç) (düşük) | Bozuk sayaç işi bitirir; testler |

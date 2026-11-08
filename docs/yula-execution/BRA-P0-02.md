@@ -28,10 +28,11 @@ scope_in:
   - "ADR-0001 (yaşam döngüsü, projeksiyon, geçiş planı, geri alma)"
   - "Saf durum makinesi modülü job-state.ts + birim testleri (DB yok, hiçbir yazara bağlı değil)"
   - "docs/yula-execution/ STATUS + DECISIONS + bu bilet"
-  # 02b — sonraki PR (BACKLOG)
-  - "Yalnız-ekleyen migration (runs/approvals sütunları, job_receipts), idempotent geri dolgu"
-  - "transitionRun tek yazar + 20+ yazım noktasının taşınması (küçük PR'lara bölünür)"
-  - "JOB_STATE_DUAL_WRITE bayrağı (varsayılan kapalı), API yanıtına state/resultStatus (üst küme)"
+  # 02b — yığılı PR (IN_REVIEW)
+  - "Yalnız-ekleyen migration (runs sütunları, JobState/ResultStatus enumları, job_receipts + RLS, tenant geri dolgusu); approvals sütunları BRA-P0-05'in migration'ında"
+  - "transitionRun tek yazar (karşılaştır-ve-yaz) + JOB_STATE_DUAL_WRITE bayrağı (varsayılan kapalı; kapalıyken yeni sütunlara dokunmaz)"
+  # 02c — BACKLOG (küçük PR'lar)
+  - "20+ yazım noktasının transitionRun'a taşınması; koşu yaratıcıları tenantId/workspaceId ayarlar; yanıt-anahtarı sözleşme testi; API yanıtına state/resultStatus (üst küme)"
 scope_out:
   - "RunStatus enum'una değer eklemek, tablo yeniden adlandırma, yeniden yazım"
   - "Approval nonce/actionHash mantığı (BRA-P0-05), bütçe alanları (BRA-P0-08), UI (BRA-P0-03/04)"
@@ -60,5 +61,5 @@ evidence_required:
   - CI (Lint&Type, Test, Build, DB Migration Check, E2E)
   - "yerel test çıktısı: dosya ve test sayısı"
   - bağımsız denetçi raporu
-status: IN_REVIEW   # 02a PR #108 denetimde; 02b BACKLOG
+status: IN_REVIEW   # 02a PR #108 ve 02b yığılı PR denetimde; 02c BACKLOG
 ```
