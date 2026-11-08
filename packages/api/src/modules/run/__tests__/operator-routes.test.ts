@@ -346,6 +346,17 @@ describe("POST /runs/:id/resume", () => {
     if (on) expect(store.row.state).toBe("PAUSED");
   });
 
+  it.each([false, true])("flag %s: enqueue fails and a concurrent /stop / completion / failure moved the run on → NOT revived or paused", async (on) => {
+    for (const other of ["CANCELLED", "COMPLETED", "FAILED"]) {
+      flag(on);
+      setRun("PAUSED", on ? "PAUSED" : null);
+      enqueueRunMock.mockImplementationOnce(async () => { store.row.status = other; if (on) store.row.state = other; throw new Error("timeout"); });
+      const { nextErr } = await invoke(resume, {});
+      expect(nextErr?.message).toBe("timeout");
+      expect(store.row.status).toBe(other);
+    }
+  });
+
   it.each(["PAUSED", "WAITING_APPROVAL"])("flag ON: %s → RESUMING → RUNNING; final state RUNNING agrees with status (ADR (e))", async (st) => {
     flag(true);
     setRun(st);
@@ -619,6 +630,29 @@ describe("POST /runs/:id/continue", () => {
     expect(res.body).toBeUndefined();
     expect(store.row.status).toBe("PAUSED");
     expect(store.ledger).toEqual({ status: "OPEN", claimedBy: null, claimedAt: null });
+  });
+
+  it.each([false, true])("flag %s: enqueue fails and a concurrent /stop, completion or failure moved the run on → the run is NOT revived/paused, ledger stays CLAIMED", async (on) => {
+    for (const other of ["CANCELLED", "COMPLETED", "FAILED"]) {
+      flag(on);
+      store.ledger.status = "OPEN"; store.ledger.claimedBy = null; store.ledger.claimedAt = null;
+      setRun("PAUSED", on ? "PAUSED" : null);
+      enqueueRunMock.mockImplementationOnce(async () => { store.row.status = other; if (on) store.row.state = other; throw new Error("timeout"); });
+      const { nextErr } = await invoke(cont, { body });
+      expect(nextErr?.message).toBe("timeout");
+      expect(store.row.status).toBe(other);
+      expect(store.ledger.status).toBe("CLAIMED");
+    }
+  });
+
+  it("flag OFF: /continue on a run that was ALREADY RUNNING — its enqueue failure must not pause the live run (nothing of ours to undo)", async () => {
+    flag(false);
+    setRun("RUNNING");
+    enqueueRunMock.mockRejectedValueOnce(new Error("timeout"));
+    const { nextErr } = await invoke(cont, { body });
+    expect(nextErr?.message).toBe("timeout");
+    expect(store.row.status).toBe("RUNNING");
+    expect(store.ledger.status).toBe("CLAIMED");
   });
 
   it("a claim by ANOTHER request is never reopened (token mismatch): reopenClaimedHandoff with a stale token is a no-op", async () => {

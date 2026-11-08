@@ -19,7 +19,7 @@ import { assertKeylessLocalBaseUrl } from "../../services/takeover-config";
 import { createHandoff, claimHandoff, HandoffClaimError, cancelOpenHandoffForRun, reopenClaimedHandoff } from "./handoff.service";
 import { hasOpenApproval } from "../approval/exact-action";
 import { transitionRun, isJobStateDualWriteEnabled, currentJobState } from "./transition";
-import { assertTransitioned, resumeToRunning, AlreadyRunningError, revertRunAfterEnqueueFailure, priorJobState } from "./resume";
+import { assertTransitioned, resumeToRunning, AlreadyRunningError, revertRunAfterEnqueueFailure } from "./resume";
 import { decideResume, type JobState } from "./job-state";
 import { env } from "../../config/env";
 import { toPublicCompany } from "../company/redact";
@@ -315,9 +315,10 @@ runRouter.post("/:id/resume", async (req, res, next) => {
       throw new AppError(409, "Run has an undecided approval; decide it via /approvals/:id/decide");
     }
 
+    let startedFrom: JobState = "PAUSED";
     try {
       await tenantTx(async (tx) => {
-        await resumeToRunning(tx, run.id, req.auth!.tenantId, { rejectIfAlreadyRunning: true });
+        startedFrom = (await resumeToRunning(tx, run.id, req.auth!.tenantId, { rejectIfAlreadyRunning: true })).from;
         await tx.activityLog.create({
           data: {
             tenantId: req.auth!.tenantId,
@@ -337,11 +338,12 @@ runRouter.post("/:id/resume", async (req, res, next) => {
 
     // Only after the CAS won (a lost race threw above): exactly one enqueue. If
     // it fails the run is already committed RUNNING with no job (and /resume would
-    // answer 400): put it back to PAUSED so the operator can retry (02c-3).
+    // answer 400): put it back where this request found it, but only while the run
+    // is still RUNNING (never revives a run /stop, completion or failure moved on).
     try {
       await enqueueRun(run.id);
     } catch (err) {
-      await tenantTx((tx) => revertRunAfterEnqueueFailure(tx, run.id, req.auth!.tenantId, "PAUSED")).catch(() => undefined);
+      await tenantTx((tx) => revertRunAfterEnqueueFailure(tx, run.id, req.auth!.tenantId, startedFrom)).catch(() => undefined);
       throw err;
     }
 
@@ -530,8 +532,9 @@ runRouter.post("/:id/continue", handoffLimiter, async (req, res, next) => {
     }
 
     let alreadyRunning = false;
+    let startedFrom: JobState = "PAUSED";
     try {
-      await tenantTx((tx) => resumeToRunning(tx, run.id, req.auth!.tenantId, { rejectIfAlreadyRunning: dual }));
+      startedFrom = (await tenantTx((tx) => resumeToRunning(tx, run.id, req.auth!.tenantId, { rejectIfAlreadyRunning: dual }))).from;
     } catch (err) {
       if (err instanceof AlreadyRunningError) {
         alreadyRunning = true; // dual write on only: claimed as before, no second enqueue
@@ -581,11 +584,15 @@ runRouter.post("/:id/continue", handoffLimiter, async (req, res, next) => {
         await enqueueRun(run.id);
       } catch (err) {
         // 02c-3: the run was committed RUNNING and the ledger CLAIMED; without a job
-        // neither can be recovered by /resume or /continue. Put both back (the run
-        // to where it was, the ledger by our own claim token) and surface the error.
-        await tenantTx((tx) => revertRunAfterEnqueueFailure(tx, run.id, req.auth!.tenantId, priorJobState(run.status))).catch(() => undefined);
-        await reopenClaimedHandoff(claimed.id, claimed.claimedAt as Date).catch((e) =>
-          logger.warn({ runId: run.id, handoffId: claimed.id, err: (e as Error).message }, "handoff reopen after enqueue failure failed"));
+        // neither can be recovered by /resume or /continue. Put the run back to where
+        // THIS request found it (only while it is still RUNNING and only if our own
+        // transition started it) and, ONLY if that happened, give the ledger back by
+        // our own claim token. A run that was already RUNNING / moved on is left alone.
+        const reverted = await tenantTx((tx) => revertRunAfterEnqueueFailure(tx, run.id, req.auth!.tenantId, startedFrom)).catch(() => false);
+        if (reverted) {
+          await reopenClaimedHandoff(claimed.id, claimed.claimedAt as Date).catch((e) =>
+            logger.warn({ runId: run.id, handoffId: claimed.id, err: (e as Error).message }, "handoff reopen after enqueue failure failed"));
+        }
         throw err;
       }
     }

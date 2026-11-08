@@ -65,4 +65,4 @@ Bilerek dokunulmayanlar: `POST /webhooks/templates/:id/install` yanıtındaki `w
 - `company-config-secrets.test.ts` ayrıca GET /approvals ve POST /onboarding/hero-company'yi kapsar; `redact.test.ts` kapsanan/kapsanmayan anahtar adı listelerini kilitler
 
 ## Açık soru (kurucu)
-Bu değişiklik yalnız ifşayı keser. Zaten ifşa olmuş mevcut `webhookSecret` değerleri döndürülmedi (rotate prod işi). Sorular: mevcut gizliler rotate edilsin mi, ve gizli ileride config yerine şifreli ayrı alana taşınsın mı?
+Bu değişiklik yalnız ifşayı keser. Zaten ifşa olmuş mevcut `webhookSecret` değerleri döndürülmedi. **Karar (kurucu, 2026-11-08, Project orchestration oturumunda kendi sözü): "Yenileme gerekmez"** — rotate yapılmayacak, soru kapandı. Açık kalan (kararsız) soru: gizli ileride config yerine şifreli ayrı alana taşınsın mı?

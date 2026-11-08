@@ -3,7 +3,7 @@
  * 02c-3 so the approval `decide` route uses the exact same pattern, not a copy).
  */
 import { AppError } from "../../middleware/error";
-import { transitionRun, isJobStateDualWriteEnabled, type RunTransitionClient, type TransitionOutcome } from "./transition";
+import { transitionRun, isJobStateDualWriteEnabled, type RunTransitionClient, type TransitionOptions, type TransitionOutcome } from "./transition";
 import type { JobState } from "./job-state";
 
 /**
@@ -33,7 +33,7 @@ export async function resumeToRunning(
   runId: string,
   tenantId: string,
   opts: { rejectIfAlreadyRunning: boolean },
-): Promise<void> {
+): Promise<{ from: JobState }> {
   const illegal = { status: 409, message: "Run cannot be resumed from its current state" };
   const first = await transitionRun(tx, runId, "RESUMING", { tenantId, legacyUnchecked: true });
   assertTransitioned(first, illegal);
@@ -47,26 +47,38 @@ export async function resumeToRunning(
   if (isJobStateDualWriteEnabled()) {
     assertTransitioned(await transitionRun(tx, runId, "RUNNING", { tenantId }), illegal);
   }
+  return { from: first.ok ? first.from : "PAUSED" };
 }
 
-/** The lifecycle state a run had before a resume (for undoing it when the queue job cannot be created). */
-export function priorJobState(legacyStatus: string): JobState {
-  if (legacyStatus === "FAILED") return "FAILED";
-  if (legacyStatus === "WAITING_APPROVAL") return "NEEDS_APPROVAL";
-  return "PAUSED";
+/** Where an undo should put a run that THIS request moved from `from` to RUNNING (never called for RUNNING/RESUMING). */
+export function revertTarget(from: JobState): JobState {
+  return from === "FAILED" || from === "NEEDS_APPROVAL" ? from : "PAUSED";
 }
 
 /**
  * BRA-P0-02c-3: `enqueueRun` threw AFTER the resume committed RUNNING. A RUNNING
  * run without a job can never be resumed again (/resume on RUNNING is a 400), so
- * move it back (RUNNING→PAUSED/FAILED/NEEDS_APPROVAL are all legal edges).
- * Best-effort and CAS-guarded: if the run already moved on, it is left alone.
+ * move it back to where THIS request found it. Safe by construction: the write
+ * lands only while the fresh in-tx read still shows RUNNING/RESUMING (our own
+ * write) and is CAS-pinned to that status — a run that was cancelled, finished,
+ * failed or re-paused in the meantime is never touched (both flag modes).
+ * `from` is the state this request's own transition started from; if the run was
+ * already RUNNING/RESUMING then, nothing of ours is undone. Returns whether the
+ * run was actually put back (callers reopen the ledger only then).
  */
 export async function revertRunAfterEnqueueFailure(
   client: RunTransitionClient,
   runId: string,
   tenantId: string,
-  to: JobState,
-): Promise<void> {
-  await transitionRun(client, runId, to, { tenantId, legacyUnchecked: true }).catch(() => undefined);
+  from: JobState,
+  extra?: TransitionOptions["extra"],
+): Promise<boolean> {
+  if (from === "RUNNING" || from === "RESUMING") return false;
+  const o = await transitionRun(client, runId, revertTarget(from), {
+    tenantId,
+    legacyUnchecked: true,
+    onlyIfStatus: ["RUNNING"],
+    ...(extra ? { extra } : {}),
+  }).catch(() => null);
+  return !!o && o.ok && !o.noop;
 }
