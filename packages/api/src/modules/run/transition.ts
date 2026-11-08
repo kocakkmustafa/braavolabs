@@ -9,11 +9,15 @@
  * row loses the race instead of firing a second side effect. Callers run side
  * effects only when `ok && !noop`.
  *
- * Tenant scope (CLAUDE.md rule #10): `tenantId` is REQUIRED and scopes both the
- *   read and the write through `pipeline → company → tenantId` (a relation
- *   filter, so it works before AND after the migration — it does not use the
- *   new `runs.tenant_id` column). Call inside `tenantTx` so RLS is bound too;
- *   RLS is fail-open and is defence in depth, not the primary guarantee.
+ * Tenant scope (CLAUDE.md rule #10): `tenantId` is REQUIRED. The READ is scoped
+ *   through `pipeline → company → tenantId` (a relation filter, so it works
+ *   before AND after the migration — it does not use the new `runs.tenant_id`
+ *   column). The WRITE is a scalar-only compare-and-set on `id + status
+ *   (+ state)`: relation filters in `updateMany` may be executed by Prisma as
+ *   select-ids-then-update, which would not make the CAS atomic, so the tenant
+ *   check lives in the read of the SAME transaction and the write can only hit
+ *   the row that read just verified. Call inside `tenantTx` so RLS is bound
+ *   too; RLS is fail-open and is defence in depth, not the primary guarantee.
  *
  * JOB_STATE_DUAL_WRITE (default OFF, literal "true" only, read at call time —
  * same convention as `lib/outbound-gates.ts`):
@@ -54,8 +58,10 @@ export function isJobStateDualWriteEnabled(env: NodeJS.ProcessEnv = process.env)
 /** The slice of a Prisma (transaction) client this function needs — also what tests fake. */
 export type RunTransitionClient = Pick<Prisma.TransactionClient, "run">;
 
-/** Columns only `transitionRun` may write (status/state projection and the job-lifecycle columns). */
+/** Columns only `transitionRun` may write (identity, status/state projection and the job-lifecycle columns). */
 export const RESERVED_RUN_COLUMNS = [
+  "id",
+  "pipelineId",
   "status",
   "state",
   "resultStatus",
@@ -120,7 +126,8 @@ export async function transitionRun(
   if (!decision.ok) return { ok: false, reason: "illegal_transition", from, to };
   if (decision.noop) return { ok: true, noop: true, from, to };
 
-  const where: Prisma.RunWhereInput = { id: runId, status: row.status, ...tenantScope };
+  // Scalar-only CAS (see header): tenant was verified by the read above.
+  const where: Prisma.RunWhereInput = { id: runId, status: row.status };
   if (dual) where.state = row.state ?? null;
 
   const data: Prisma.RunUpdateManyMutationInput = {

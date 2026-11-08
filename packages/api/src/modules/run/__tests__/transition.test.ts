@@ -2,9 +2,9 @@
  * BRA-P0-02b — transitionRun (single lifecycle writer) and JOB_STATE_DUAL_WRITE.
  *
  * No DB: a tiny in-memory run store implements the compare-and-set semantics of
- * Prisma's `updateMany({ where })` (id + status + state, including `state: null`,
- * plus the tenant relation filter) and records every `select`, `where` and
- * `data` it receives, so the tests can prove
+ * Prisma's `updateMany({ where })` (id + status + state, including `state: null`)
+ * and the tenant relation filter of `findFirst`, and records every `select`,
+ * `where` and `data` it receives, so the tests can prove
  *   • flag off never names the new `state` column (select, where or data),
  *   • flag on writes state + status together and they always agree,
  *   • a lost race performs no write and reports `lost_race`,
@@ -54,11 +54,17 @@ const tenantOf = (w: Where) => w.pipeline?.company?.tenantId;
 /** In-memory fake with real CAS `updateMany`, tenant relation filter and an optional read barrier. */
 function fakeClient(initial: Row, opts: { barrier?: () => Promise<void> } = {}) {
   const row = { ...initial };
-  const log = { selects: [] as unknown[], wheres: [] as Where[], datas: [] as Array<Record<string, unknown>> };
+  const log = {
+    selects: [] as unknown[],
+    readWheres: [] as Where[],
+    wheres: [] as Where[],
+    datas: [] as Array<Record<string, unknown>>,
+  };
   const client = {
     run: {
       findFirst: async (args: { where: Where; select: Record<string, boolean> }) => {
         log.selects.push(args.select);
+        log.readWheres.push(args.where);
         if (args.where.id !== row.id || tenantOf(args.where) !== row.tenant) return null;
         const snapshot: Record<string, unknown> = {};
         for (const k of Object.keys(args.select)) snapshot[k] = (row as unknown as Record<string, unknown>)[k];
@@ -71,7 +77,6 @@ function fakeClient(initial: Row, opts: { barrier?: () => Promise<void> } = {}) 
         const w = args.where;
         const matches =
           w.id === row.id &&
-          tenantOf(w) === row.tenant &&
           (w.status === undefined || w.status === row.status) &&
           (!("state" in w) || w.state === row.state);
         if (!matches) return { count: 0 };
@@ -167,10 +172,12 @@ describe("guards", () => {
     expect(row.status).toBe("WAITING_APPROVAL");
   });
 
-  it("both the read and the write are scoped to the tenant", async () => {
+  it("the read is tenant-scoped; the write is a scalar-only CAS (no relation filter, so it stays atomic)", async () => {
     const { client, log } = fakeClient(mk("RUNNING", "RUNNING"));
     await transitionRun(client, "run_1", "PAUSED", on);
-    expect(log.wheres[0].pipeline).toEqual({ company: { tenantId: T } });
+    expect(log.readWheres[0].pipeline).toEqual({ company: { tenantId: T } });
+    expect(log.wheres[0]).toEqual({ id: "run_1", status: "RUNNING", state: "RUNNING" });
+    expect(log.wheres[0].pipeline).toBeUndefined();
   });
 });
 
@@ -180,7 +187,7 @@ describe("flag OFF — legacy column only", () => {
     const r = await transitionRun(client, "run_1", "NEEDS_APPROVAL", off);
     expect(r).toEqual({ ok: true, noop: false, from: "RUNNING", to: "NEEDS_APPROVAL" });
     expect(log.selects).toEqual([{ status: true }]);
-    expect(Object.keys(log.wheres[0]).sort()).toEqual(["id", "pipeline", "status"]);
+    expect(Object.keys(log.wheres[0]).sort()).toEqual(["id", "status"]);
     expect(Object.keys(log.datas[0]).sort()).toEqual(["status"]);
     expect(row.status).toBe("WAITING_APPROVAL");
     expect(row.state).toBeNull();
