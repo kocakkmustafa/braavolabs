@@ -302,6 +302,27 @@ jobs:
           DATABASE_URL: postgresql://aicos:aicos_ci@localhost:5432/aicos_ci?schema=public
         run: pnpm --filter @ai-company-os/db exec prisma validate
 
+      # BRA-P0-02c-6: real-Postgres tests (CAS races, RLS, A/B write-skew) against the
+      # SAME throwaway database the migrations were just applied to.
+      - name: Generate Prisma Client
+        run: pnpm --filter @ai-company-os/db exec prisma generate
+      - name: Build deps for DB tests
+        run: |
+          pnpm --filter @ai-company-os/core build
+          pnpm --filter @ai-company-os/memory build
+          pnpm --filter @ai-company-os/integrations build
+          pnpm --filter @ai-company-os/connector-sdk build
+      - name: DB-backed tests (CAS race, consumeGrant race, RLS, A/B write-skew)
+        env:
+          TEST_DATABASE_URL: postgresql://aicos:aicos_ci@localhost:5432/aicos_ci?schema=public
+          REQUIRE_DB_TESTS: "1"
+          DATABASE_URL: postgresql://aicos:aicos_ci@localhost:5432/aicos_ci?schema=public
+          REDIS_URL: "redis://localhost:6379"
+          JWT_SECRET: "ci-test-jwt-secret-must-be-at-least-32-characters-long-xx"
+          ENCRYPTION_KEY: "ci-test-encryption-key-32-chars-minimum-aabbccddeeff00"
+          NODE_ENV: "test"
+        run: pnpm --filter @ai-company-os/api test:db
+
   e2e:
     name: E2E (Playwright)
     runs-on: ubuntu-latest

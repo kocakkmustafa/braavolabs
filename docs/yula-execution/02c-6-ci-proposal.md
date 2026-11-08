@@ -1,6 +1,6 @@
-# BRA-P0-02c-6 — CI önerisi (UYGULANMADI, onay bekliyor)
+# BRA-P0-02c-6 — CI önerisi (UYGULANDI: Project orchestration onayı 2026-11-08, "a, ekle")
 
-`.github/workflows/ci.yml` bu PR'da DEĞİŞTİRİLMEDİ. Durum:
+Onay: Project orchestration (teknik karar; yeni servis/ücretli kaynak yok, mevcut `db-migration-check` job'una adım). Koşul: `ci.yml` değişikliği bu PR'ın içinde; DB testleri CI'da gerçekten koşmadan (atlanmış hâlde) merge edilmez, kanıt = CI log'unda DB test adımının test sayısı. Aşağıdaki fark `.github/workflows/ci.yml`'e uygulandı. Durum (öneri zamanı):
 
 - `test` job'u servis kabı taşımıyor (yalnız yer tutucu env); `pnpm -r --if-present test` DB'li testleri
   `TEST_DATABASE_URL` yokken ATLAR (yeşil, "skipped"). Yani bu PR tek başına CI'da DB testlerini koşturmaz.
