@@ -15,6 +15,7 @@ Durum kodları: talimat §12.4 (`BACKLOG … IMPLEMENTING, IN_REVIEW, …`). `IM
 | BRA-P0-02a/02b | MERGED (2026-11-08) | #108 `32bfb05`, #109 `0318e4c` (CI tamamen yeşil, E2E dahil) | — |
 | BRA-P0-05 exact-action onay + onay atlama kapatma | IMPLEMENTING → bu PR | Aşağıdaki "05 + 08" bölümü; ADR-0002 | PR denetimi, CI |
 | BRA-P0-08 job bütçesi (`runs.job_budget`, governance denetimi) | IMPLEMENTING → bu PR | Aşağıdaki "05 + 08" bölümü; ADR-0002 | PR denetimi, CI; bütçeyi yazan yaratıcı 02c/03 |
+| BRA-P0-03d adım-düzeyi onay kapısı (`STEP_APPROVAL_GATE`, varsayılan kapalı) | IMPLEMENTED (dal `feat/BRA-P0-03d-step-approval-gate`, push/PR yok) | `pipeline/step-approval.ts` + `executeStep` çekirdeği; ADR-0003 "03d notu"; `step-approval.test.ts` 14 + `start.test.ts` +3 | PR denetimi; bayrak açma kurucu onayı |
 
 ## Bu PR'ın değişiklikleri (02a)
 - `docs/yula-execution/{STATUS,DECISIONS,BRA-P0-02}.md` (yeni).

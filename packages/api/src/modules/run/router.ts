@@ -18,6 +18,7 @@ import { listTenantProviderLinks, resolveTenantCompletionLink, commitTrialComple
 import { assertKeylessLocalBaseUrl } from "../../services/takeover-config";
 import { createHandoff, claimHandoff, HandoffClaimError, cancelOpenHandoffForRun, reopenClaimedHandoff } from "./handoff.service";
 import { hasOpenApproval } from "../approval/exact-action";
+import { isStepApprovalGateEnabled, resolveStepByIdentity } from "../pipeline/step-approval";
 import { transitionRun, isJobStateDualWriteEnabled, currentJobState } from "./transition";
 import { assertTransitioned, resumeToRunning, AlreadyRunningError, revertRunAfterEnqueueFailure } from "./resume";
 import { decideResume, toLegacyStatus, type JobState } from "./job-state";
@@ -1090,17 +1091,6 @@ runRouter.post("/steps/:id/rerun", async (req, res, next) => {
       await cancelOpenHandoffForRun(step.runId, "rerun", req.auth!.userId);
     }
 
-    // Reset step status to RUNNING
-    await prisma.runStep.update({
-      where: { id: step.id },
-      data: {
-        status: "RUNNING",
-        error: null,
-        startedAt: new Date(),
-        completedAt: null,
-      },
-    });
-
     // Import and execute the step
     const { executeStep } = await import("../pipeline/executor");
     const stepDef: { name: string; agentRole: string; order: number; config?: Record<string, unknown> } = {
@@ -1112,12 +1102,34 @@ runRouter.post("/steps/:id/rerun", async (req, res, next) => {
     // Get the pipeline step definition for agentRole
     const pipeline = step.run.pipeline;
     const pipelineSteps = pipeline.steps as Array<{ name: string; agentRole: string; order: number; config?: Record<string, unknown> }>;
-    const matchingStep = pipelineSteps.find((s) => s.name === step.name || s.order === step.stepIndex);
+    let matchingStep: (typeof pipelineSteps)[number] | undefined;
+    if (isStepApprovalGateEnabled()) {
+      // BRA-P0-03d fail-closed: kapı açıkken adım KESİN kimlikle (runner'ın global indeksi + ad) bulunmalı;
+      // gevşek ad/sıra eşleşmesi başka adımın config'iyle kapıyı atlatabilir. Bulunamazsa rerun reddedilir.
+      const id = resolveStepByIdentity<(typeof pipelineSteps)[number]>(pipelineSteps, step.stepIndex, step.name);
+      if (!id.ok) {
+        throw new AppError(409, "Step cannot be matched to its pipeline definition; rerun refused (step_identity_unresolved)");
+      }
+      matchingStep = id.step;
+    } else {
+      matchingStep = pipelineSteps.find((s) => s.name === step.name || s.order === step.stepIndex);
+    }
     if (matchingStep) {
       stepDef.agentRole = matchingStep.agentRole;
       // BRA-P0-03d: config taşınmazsa yeniden çalıştırma adım-düzeyi onay kapısını atlardı.
       if (matchingStep.config) stepDef.config = matchingStep.config;
     }
+
+    // Reset step status to RUNNING
+    await prisma.runStep.update({
+      where: { id: step.id },
+      data: {
+        status: "RUNNING",
+        error: null,
+        startedAt: new Date(),
+        completedAt: null,
+      },
+    });
 
     const result = await executeStep(
       step.runId,
@@ -1127,7 +1139,7 @@ runRouter.post("/steps/:id/rerun", async (req, res, next) => {
     );
 
     // BRA-P0-03d: kapı adımı çalıştırmadı (onay bekliyor): satır RUNNING'te takılı kalmasın.
-    if (result.status === "INTERRUPTED") {
+    if (result.stepId === "") {
       await prisma.runStep.update({ where: { id: step.id }, data: { status: step.status, completedAt: step.completedAt } });
     }
 

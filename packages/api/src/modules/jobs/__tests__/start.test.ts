@@ -1,7 +1,7 @@
 /**
  * BRA-P0-03b — plan kartı onayıyla iş başlatma. Sıfır ağ: prisma, kuyruk, kota mock'lanır.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { Router } from "express";
 
 vi.mock("../../../lib/logger", () => ({ logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
@@ -365,5 +365,46 @@ describe("POST /jobs/start", () => {
     m.activityCreate.mockImplementation(async (a: any) => { if (a.data.action === "job.started") order.push("log"); return {}; });
     await call("/start", { message: MSG, planHash, idempotencyKey: KEY });
     expect(order).toEqual(["enqueue", "log"]);
+  });
+});
+
+describe("POST /jobs/start — STEP_APPROVAL_GATE (BRA-P0-03d)", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("kapı kapalı (varsayılan): yüksek riskli kart 422 high_risk_start_unsupported", async () => {
+    const { res: p } = await call("/plan", { message: RISKY });
+    const { res } = await call("/start", { message: RISKY, planHash: p.body.planHash, idempotencyKey: KEY });
+    expect(res.statusCode).toBe(422);
+    expect(res.body.error).toBe("high_risk_start_unsupported");
+    expect(m.runCreate).not.toHaveBeenCalled();
+  });
+
+  it("kapı açık: yüksek riskli kart kabul edilir; adımlar needsApproval/risk ile yazılır, onay satırını yürütücü açar", async () => {
+    vi.stubEnv("STEP_APPROVAL_GATE", "true");
+    for (const text of Object.values(FAMILIES)) {
+      vi.clearAllMocks();
+      m.companyFindFirst.mockResolvedValue({ id: "ws-1", status: "ACTIVE" });
+      m.companyFindMany.mockResolvedValue([{ id: "ws-1", status: "ACTIVE" }]);
+      m.agentFindFirst.mockResolvedValue({ role: "operator" });
+      m.runFindFirst.mockResolvedValue(null);
+      m.pipelineCreate.mockResolvedValue({ id: "pl-1" });
+      m.runCreate.mockResolvedValue({ id: "run-1", status: "PENDING" });
+      m.claimQuota.mockResolvedValue({ claimed: true, value: 1, limit: 10 });
+      m.enqueueRun.mockResolvedValue("job-1");
+      m.activityCreate.mockResolvedValue({});
+      const { res: p } = await call("/plan", { message: text });
+      const { res } = await call("/start", { message: text, planHash: p.body.planHash, idempotencyKey: KEY });
+      expect(res.statusCode).toBe(201);
+      const steps = m.pipelineCreate.mock.calls[0]![0].data.steps as Array<{ config: Record<string, unknown> }>;
+      expect(steps.some((s) => s.config.needsApproval === true && s.config.risk === "high")).toBe(true);
+      expect(m.approvalCreate).not.toHaveBeenCalled();
+      expect(m.enqueueRun).toHaveBeenCalledWith("run-1");
+    }
+  });
+
+  it("kapı açık: yanlış hash yine 409 (planHash/idempotency mantığı değişmez)", async () => {
+    vi.stubEnv("STEP_APPROVAL_GATE", "true");
+    const { res } = await call("/start", { message: RISKY, planHash: "v1:yanlis", idempotencyKey: KEY });
+    expect(res.statusCode).toBe(409);
   });
 });

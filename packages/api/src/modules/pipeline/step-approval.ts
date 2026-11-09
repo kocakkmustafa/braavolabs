@@ -180,3 +180,25 @@ export function pipelineHasGatedSteps(steps: unknown): boolean {
   if (!Array.isArray(steps)) return false;
   return steps.some((s) => s && typeof s === "object" && stepRequiresApproval((s as { config?: Record<string, unknown> }).config));
 }
+
+export type StepIdentity<T extends { name: string; order?: number }> =
+  | { ok: true; step: T & { order: number } }
+  | { ok: false; reason: "no_match" };
+
+/**
+ * Bir RunStep'in pipeline adımını KESİN kimlikle bulur: runner'ın `allSteps` dizisiyle
+ * (eksik `order` → dizi indeksi, `order`a göre kararlı sıralama) AYNI yoldan `stepIndex`
+ * konumundaki adım, ve adı RunStep adıyla birebir eşleşmeli. Gevşek ad-veya-sıra
+ * eşleşmesi kapıyı başka adımın config'iyle atlatabildiği için rerun bunu kullanır.
+ */
+export function resolveStepByIdentity<T extends { name: string; order?: number }>(
+  steps: unknown,
+  stepIndex: number,
+  stepName: string,
+): StepIdentity<T> {
+  if (!Array.isArray(steps)) return { ok: false, reason: "no_match" };
+  const all = (steps as T[]).map((s, idx) => ({ ...s, order: s.order ?? idx })).sort((a, b) => a.order - b.order);
+  const cand = all[stepIndex];
+  if (!cand || cand.name !== stepName) return { ok: false, reason: "no_match" };
+  return { ok: true, step: cand };
+}
