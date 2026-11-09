@@ -2,6 +2,7 @@ import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { transitionRun, isJobStateDualWriteEnabled } from "./transition";
 import type { JobState } from "./job-state";
+import { beatRun, forgetBeat } from "./heartbeat";
 
 /**
  * BRA-P0-02c-4/-5: the graph and hierarchical runners' lifecycle writer. Shared (02c-5). Every RUNNING/FAILED/
@@ -28,6 +29,9 @@ export async function writeLifecycle(
   for (let attempt = 0; attempt < (dual ? 2 : 1); attempt++) {
     const o = await transitionRun(prisma, runId, to, { tenantId, extra, legacyUnchecked: true });
     if (o.ok) {
+      // BRA-P0-04d: alımda taze kalp atışı (kısıtsız); terminal/duraklatmada hafızayı boşalt.
+      if (to === "RUNNING") await beatRun(runId, tenantId, { force: true });
+      else forgetBeat(runId);
       // RUNNING→RUNNING is a same-state noop in graph mode and is fine (re-pickup).
       // A noop FAILED/COMPLETED means someone else already finished it: no side effects.
       return !o.noop || to === "RUNNING";
