@@ -197,3 +197,19 @@ Bayrağı kapat (`EXACT_ACTION_APPROVAL` ayarlama) → kapı eski davranış; `r
 
 Limit tek kaynak: `retryLimit()` (`jobBudget.maxRetries` ?? 3); sayaç artışı CAS'tan sonra koşullu, yanıt/log/iade artırılmış güncel değeri tx içinden okur.
 - **Geri alma:** bayrak kapalı (heartbeat ve retry etkisiz) + commit revert.
+
+---
+
+## ADR-0004 — Web arayüzü yönü: Niyet Çubuğu + İş Gelen Kutusu omurgası (BRA-UX-03)
+
+- **Durum:** Accepted (tasarım kararı; ayrıntı `design/04-design.md`). Kod/rota/bayrak/migration içermez.
+- **Bağlam:** Kurucunun ikinci ana talimatı (2026-11-09): dört ürün için yeni nesil arayüz; renk/marka korunur, glass işlevsel, Job/Run/Approval sözleşmeleri korunur. `design/03-concepts.md` üç konsept ve matris verdi (K1 Niyet Çubuğu 20/30, K2 Dönüşen Tuval 18/30, K3 İş/Gelen Kutusu 23/30). Seçim UX-03'ündür (03 §5).
+- **Karar:** Birleşik yön. (1) **Omurga K3:** ana yüzey İşler (ADR-0003 kovaları, `/runs`, `/approvals`, Receipt); onay en üst sabit kova. (2) **Giriş K1:** tek niyet çubuğu (tarif satırı + sınıflayıcı önizlemesi; varsayılan sohbet, düşük güvende iş açılmaz). (3) **K2'den yalnız kip morfu:** iş sayfası Özet/Çıktı/Kaput aynı `Run` kaydının yoğunluklarıdır; ileride kod kipi. Glass yalnız odak katmanında (çekmece, onay, açık çubuk), liste düz yüzey; azaltılmış hareket/saydamlıkta opak yedek. Sade/Tam yalnız sunum yoğunluğudur, aynı iş verisi.
+- **Alternatifler / reddedilenler:**
+  - *Yalnız K1:* uzman keşfi menüsüz, "sohbet kutusuna hapsetme" riski (§4.3), çok sınıflı sınıflayıcı bağımlılığı; A ve test 1-2'yi en iyi çözdüğü için yalnız giriş olarak alındı.
+  - *Yalnız/tam K2:* çalışma kaydı varlığı + sohbet + kod kipi = 3 L + 4 M, şema + migration kurucu onayı gerektirir (`design/03-concepts.md:198`), mevcut ürüne en uzak (18/30; mühendislik maliyeti 1/5); ortak veri modeli dört yüzeyde yok. Reddedildi; kip morfu parçası alındı.
+  - *Yalnız K3:* A/B alanları (başlangıç, birleşik alan) zayıf kalır; K1 girişiyle tamamlandı.
+- **Sonuçlar:** (+) mevcut API/ADR'ler yeniden kullanılır, migration yok, mobil için doğal (gelen kutusu ana ekran). (−) Önkoşullar: sohbet ucu (L), niyet sınıflayıcı (M), model başına maliyet API (M), mobil `Approval` alan eşleme (M), iş satırı alanları (risk/ilerleme/öngörülen maliyet). §4.4 test 1 sohbet ucu olmadan, test 8 maliyet API'si olmadan tam ölçülemez (belgede açık). Heartbeat bayrağı kapalıyken "takıldı" eksiktir; arayüz bunu söyler. **Yeni API kalemleri (bilet adayı):** (a) onay ayrıntısı: yetki kapsamı, aktarılan veri, geri alma yolu (liste ucu `metadata`'yı yalnız `toolName`'e indirir: `packages/api/src/modules/approval/list-select.ts:9-11,42-51`; `BRA-UX-API-01`); (b) model + yönlendirme + yetki dökümü, Kaput ilk sürümü yalnız adım+araç+maliyet (`BRA-UX-API-02`); (c) kod iş türü diff/test çıktısı.
+- **Bağımlılıklar ve riskler:** 03b(b) düşük-risk yan etki açığı (`DECISIONS.md:177`) yüzünden "düşük risk toplu onay" kapalı kalır; `STEP_APPROVAL_GATE` (03d) kapalıyken yüksek riskli plan 422 verir, arayüz açık gösterir, onaylı iş akışı bayrak açıkken doğrulanır (açmak kurucu kararı); mobil konumlama çelişkisi (`mobile/CLAUDE.md` "Read + approve, don't build" ↔ talimat §4.2-J, `03-concepts.md:19`): mobilde iş BAŞLATMA ayrı kurucu kararına bağlı, UX-05j varsayımı oku+onayla+duraklat+yönlendir.
+- **Performans/A11Y istisnası:** niyet sınıflayıcısı gecikme bütçesi ölçülmeden yazılmadı; UX-04 prototipi ölçer (04-design §10).
+- **Geri alma:** belge revert; uygulama UX-04 bayrağı (`NEXT_PUBLIC_UX_LAB`, varsayılan kapalı) kapatılarak.
