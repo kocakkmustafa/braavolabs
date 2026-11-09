@@ -189,14 +189,38 @@ export async function transitionRun(
   return { ok: true, noop: false, from, to };
 }
 
+/**
+ * Makbuz + `Run.resultStatus` yazımı. Çağıranın interaktif tx'i içindeyse bir SQL
+ * hatası tx'i abort eder (geçişi de götürür); bu yüzden yazım SAVEPOINT ile sarılır:
+ * hata → ROLLBACK TO SAVEPOINT, geçiş ve sonraki sorgular etkilenmez. Gerekçe: tx
+ * dışı ayrı çağrı, geçişle atomikliği ve RLS bağlamını (tenantTx) bozardı.
+ * Savepoint yalnız interaktif tx istemcisinde kullanılır (`$transaction` YOK, ham SQL
+ * VAR); düz `prisma`'da (havuz, farklı bağlantılar) ya da sahte/legacy istemcide
+ * mevcut davranışa düşülür: orada hata zaten tx'i abort etmez.
+ */
 async function tryWriteReceipt(
   tx: RunTransitionClient,
   runId: string,
   outcome: Parameters<typeof writeReceipt>[2],
   tenantId: string,
 ): Promise<void> {
+  const raw = (tx as unknown as { $executeRawUnsafe?: (sql: string) => PromiseLike<unknown> }).$executeRawUnsafe;
+  const useSavepoint = typeof raw === "function" && typeof (tx as unknown as { $transaction?: unknown }).$transaction !== "function";
+  const exec = (sql: string) => (raw as (sql: string) => PromiseLike<unknown>).call(tx, sql);
   try {
-    await writeReceipt(tx as unknown as ReceiptClient, runId, outcome, tenantId);
+    if (useSavepoint) await exec("SAVEPOINT receipt_write");
+    try {
+      const r = await writeReceipt(tx as unknown as ReceiptClient, runId, outcome, tenantId);
+      // Doğruluk kaynağı: makbuz VERIFIED/UNVERIFIED diyorsa Run.resultStatus aynısını taşır
+      // (deriveResultStatus kararı; çağıranın `resultStatus` seçeneğini ezer).
+      if (r.written && r.resultStatus) {
+        await tx.run.updateMany({ where: { id: runId, state: outcome }, data: { resultStatus: r.resultStatus } });
+      }
+    } catch (err) {
+      if (useSavepoint) await exec("ROLLBACK TO SAVEPOINT receipt_write");
+      throw err;
+    }
+    if (useSavepoint) await exec("RELEASE SAVEPOINT receipt_write");
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.warn({ runId, outcome, err: message }, "Job receipt write failed — run transition kept");

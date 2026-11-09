@@ -14,9 +14,14 @@
  * ham çıktı makbuza ASLA girmez; çıktı yalnız "test geçti mi" ve "PR URL'si
  * var mı" sorularını yanıtlamak için okunur ve atılır.
  *
- * `writeReceipt` idempotenttir: aynı (koşu, sonuç durumu) için ikinci satır
- * yazılmaz. Tablo append-only'dir (UPDATE/DELETE yok), bu yüzden sonradan
- * düzeltme değil, yeni sonuç (FAILED → yeniden dene → COMPLETED) yeni satır olur.
+ * İdempotency: TEK GARANTİ "yalnız geçişi (CAS) kazanan çağrı yazar" — aynı kenarı
+ * iki çağrı kazanamaz (transition.ts). `writeReceipt`'teki önce-oku yalnız ikinci
+ * emniyettir: aynı (koşu, kiracı, sonuç, contentHash) varsa yazmaz. `contentHash`
+ * `attempt`'i (`retry_count`) ve maliyeti/kanıtı içerir; FAILED → yeniden dene →
+ * FAILED ikinci makbuzu üretir (retry çalıştırması maliyet ya da kanıt değiştirir;
+ * hiçbiri değişmediyse ve retry_count artmadıysa ikinci satır atlanır, kabul edilmiş
+ * sınır). GET en son satırı (createdAt desc) verir. "Append-only" yalnız KURALDIR:
+ * tabloda UPDATE/DELETE'i engelleyen DB zorlaması yok.
  */
 import { createHash } from "node:crypto";
 import type { JobReceipt, JobReceiptEvidence, JobReceiptEvidenceKind } from "@ai-company-os/core";
@@ -47,6 +52,8 @@ export interface ReceiptRunInput {
   /** Sonuç durumu (COMPLETED | FAILED | CANCELLED). */
   outcome: ReceiptOutcome;
   costUsd?: unknown;
+  /** Yeniden deneme sayacı (attempt ayrımcısı; `runs.retry_count`). */
+  retryCount?: number | null;
   /** Koşu girdisi: yalnız "kod işi mi" boolean'ı için okunur, makbuza girmez. */
   input?: unknown;
   steps: ReadonlyArray<{ toolCalls?: ReadonlyArray<ReceiptToolCall> }>;
@@ -64,90 +71,139 @@ export interface ReceiptDraft {
   contentHash: string;
 }
 
-// ── Kanıt türü sınıflandırma (araç adından) ───────────────────────────────
-const RE_PR = /pull_?request|create_?pr|open_?pr|merge_?request/;
-const RE_TEST = /(^|[^a-z])tests?([^a-z]|$)|pytest|jest|vitest|unittest/;
-const RE_DIFF = /diff|patch|commit|push_?files|create_or_update_file|edit_?file|write_?file|str_?replace/;
-const RE_ARTIFACT = /artifact|upload|export_?file/;
+// ── Kanıt türü: SABİT İZİN LİSTESİ (tam eşleşme, küçük harf) ───────────────
+// Alt dize/regex eşleşmesi yok: `create_product`, `send_test_email`, `open_project`
+// gibi adlar kanıt üretmez. Kod tabanındaki gerçek araç kaydında (agent/registry.ts)
+// yalnız `get_github_pr_status` (PR URL'si döner, salt-okur) kod kanıtıyla ilgilidir;
+// diff/test/PR-oluşturma araçları harici (MCP/bağlı sağlayıcı) araçlardır ve burada
+// bilinen adlarıyla listelenir. Yeni araç = bu listeye bilinçli ekleme.
+export const EVIDENCE_TOOLS: Readonly<Record<string, JobReceiptEvidenceKind>> = {
+  get_github_pr_status: "pr",
+  create_pull_request: "pr",
+  git_commit: "diff",
+  git_diff: "diff",
+  apply_patch: "diff",
+  push_files: "diff",
+  create_or_update_file: "diff",
+  write_file: "diff",
+  edit_file: "diff",
+  run_tests: "test",
+  run_test_suite: "test",
+  pytest: "test",
+};
+/** Veritabanında yalnız bu araçların çıktısı okunur (ağır `output` taraması dar tutulur). */
+export const EVIDENCE_TOOL_NAMES: readonly string[] = Object.keys(EVIDENCE_TOOLS);
 
 function classifyTool(toolName: string): JobReceiptEvidenceKind | null {
-  const n = toolName.toLowerCase();
-  if (RE_PR.test(n)) return "pr";
-  if (RE_TEST.test(n)) return "test";
-  if (RE_DIFF.test(n)) return "diff";
-  if (RE_ARTIFACT.test(n)) return "artifact";
-  return null;
+  const n = String(toolName ?? "").toLowerCase();
+  return Object.prototype.hasOwnProperty.call(EVIDENCE_TOOLS, n) ? EVIDENCE_TOOLS[n]! : null;
 }
 
 const asRecord = (v: unknown): Record<string, unknown> | null =>
   typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 
-/** Test aracı çıktısı AÇIKÇA geçtiğini söylüyorsa true; belirsizse false (fail-closed). */
+/** Test aracı çıktısı AÇIKÇA geçtiğini söylüyorsa true; belirsizse/başarısızsa false (veto). */
 function testPassed(output: unknown): boolean {
   const o = asRecord(output);
   if (!o) return false;
+  const noFailures = !(Number(o.failed) > 0) && !(Number(o.failures) > 0);
   const exit = o.exitCode ?? o.exit_code;
-  if (typeof exit === "number") return exit === 0 && !(Number(o.failed) > 0) && !(Number(o.failures) > 0);
-  if (o.passed === true || o.success === true) return !(Number(o.failed) > 0) && !(Number(o.failures) > 0);
+  if (typeof exit === "number") return exit === 0 && noFailures;
+  if (o.passed === true) return noFailures;
   return false;
 }
 
-/** PR URL'si: yalnız https, sorgu/parça atılır (token sızdırmasın), kısa. */
-function prUrl(output: unknown): string | null {
+const PR_PATH: Record<string, RegExp> = {
+  "github.com": /^\/[^/]+\/[^/]+\/pull\/\d+$/,
+  "gitlab.com": /^\/.+\/merge_requests\/\d+$/,
+  "bitbucket.org": /^\/[^/]+\/[^/]+\/pull-requests\/\d+$/,
+};
+
+/** Kanonik PR URL'si (https, bilinen host, PR yol biçimi, sorgu/parça yok) ya da null. */
+export function canonicalPrUrl(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  try {
+    const u = new URL(v);
+    if (u.protocol !== "https:" || u.username || u.password || u.port) return null;
+    const re = PR_PATH[u.hostname.toLowerCase()];
+    if (!re || !re.test(u.pathname)) return null;
+    const clean = `${u.origin}${u.pathname}`;
+    return clean.length <= MAX_REF ? clean : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Araç ÇIKTISINDAN PR URL'si; kullanıcı girdisinde aynen geçen URL kanıt sayılmaz. */
+function prUrl(output: unknown, inputText: string): string | null {
   const o = asRecord(output);
   if (!o) return null;
-  for (const key of ["html_url", "url", "pr_url", "pull_request_url"]) {
-    const v = o[key];
-    if (typeof v !== "string") continue;
-    try {
-      const u = new URL(v);
-      if (u.protocol !== "https:" || u.username || u.password) continue;
-      const clean = `${u.origin}${u.pathname}`;
-      if (clean.length <= MAX_REF) return clean;
-    } catch {
-      /* bozuk URL: kanıt sayılmaz */
-    }
+  const nested = asRecord(o.pr);
+  const candidates = [o.html_url, o.url, o.web_url, o.pr_url, o.pull_request_url, nested?.html_url, nested?.url, nested?.web_url];
+  for (const c of candidates) {
+    const clean = canonicalPrUrl(c);
+    if (clean && !inputText.includes(clean.toLowerCase())) return clean;
   }
   return null;
 }
 
-/** Girdi metninde kod/PR işi izi var mı? (yalnız boolean; metin saklanmaz) */
-const RE_CODE_JOB = /düzelt|\bbug\b|\bfix\b|refactor|pull request|\bpr\b|\brepo\b|\bcommit\b/i;
-function looksLikeCodeJob(input: unknown, evidenceAttempted: boolean): boolean {
-  if (evidenceAttempted) return true;
-  let text = "";
+/** Kod işi anahtar kelimeleri: geniş, fail-closed (yanlış pozitif = daha sıkı kural). */
+const RE_CODE_JOB = /düzelt|\bbug|\bfix|hata|çöz|implement|refactor|\brepo|commit|\bpr\b|patch|\bkod/i;
+function inputToText(input: unknown): string {
   try {
-    text = JSON.stringify(input ?? "").slice(0, 4000);
+    return JSON.stringify(input ?? "") ?? "";
   } catch {
-    return false;
+    return "";
   }
-  return RE_CODE_JOB.test(text);
+}
+function looksLikeCodeJob(inputText: string, codeToolUsed: boolean): boolean {
+  return codeToolUsed || RE_CODE_JOB.test(inputText);
 }
 
-export function deriveEvidence(steps: ReceiptRunInput["steps"]): { evidence: JobReceiptEvidence[]; codeToolUsed: boolean } {
-  const evidence: JobReceiptEvidence[] = [];
+const KIND_PRIORITY: Record<string, number> = { test: 0, pr: 1, diff: 2 };
+
+/**
+ * TÜM tool_call'lar taranır (veto kaçmasın); yalnız SAKLANAN öğe sayısı sınırlıdır.
+ * `all` karar için, `stored` makbuza yazılan (başarısız testler ve her türün ilk
+ * örneği önde) listedir.
+ */
+export function deriveEvidence(
+  steps: ReceiptRunInput["steps"],
+  inputText = "",
+): { all: JobReceiptEvidence[]; stored: JobReceiptEvidence[]; codeToolUsed: boolean } {
+  const all: JobReceiptEvidence[] = [];
   let codeToolUsed = false;
   for (const step of steps) {
     for (const tc of step.toolCalls ?? []) {
-      const kind = classifyTool(tc.toolName ?? "");
+      const kind = classifyTool(tc.toolName);
       if (!kind) continue;
-      if (kind !== "artifact") codeToolUsed = true;
+      codeToolUsed = true; // izinli kod aracı çağrıldı → kod işi (fail-closed)
       const completed = tc.status === "COMPLETED";
       if (kind === "test") {
-        // Başarısız/çalışmayan test de listelenir: ok:false, VERIFIED'ı veto eder.
-        evidence.push({ kind, ref: `tool_call:${tc.id}`, ok: completed && testPassed(tc.output) });
+        all.push({ kind, ref: `tool_call:${tc.id}`, ok: completed && testPassed(tc.output) });
       } else if (!completed) {
         continue;
       } else if (kind === "pr") {
-        const url = prUrl(tc.output);
-        if (url) evidence.push({ kind, ref: url });
+        const url = prUrl(tc.output, inputText);
+        if (url) all.push({ kind, ref: url });
       } else {
-        evidence.push({ kind, ref: `tool_call:${tc.id}` });
+        all.push({ kind, ref: `tool_call:${tc.id}` });
       }
-      if (evidence.length >= MAX_EVIDENCE) return { evidence, codeToolUsed };
     }
   }
-  return { evidence, codeToolUsed };
+  const seen = new Set<string>();
+  const rank = (e: JobReceiptEvidence): number => {
+    if (e.kind === "test" && e.ok === false) return 0;
+    if (!seen.has(e.kind)) {
+      seen.add(e.kind);
+      return 1 + (KIND_PRIORITY[e.kind] ?? 3);
+    }
+    return 10;
+  };
+  const ranked = all.map((e, i) => ({ e, i, r: rank(e) }));
+  ranked.sort((x, y) => x.r - y.r || x.i - y.i);
+  const stored = ranked.slice(0, MAX_EVIDENCE).sort((x, y) => x.i - y.i).map((x) => x.e);
+  return { all, stored, codeToolUsed };
 }
 
 function stableHash(payload: unknown): string {
@@ -155,10 +211,12 @@ function stableHash(payload: unknown): string {
 }
 
 export function buildReceipt(run: ReceiptRunInput): ReceiptDraft {
-  const { evidence, codeToolUsed } = deriveEvidence(run.steps);
-  const requiredKinds = looksLikeCodeJob(run.input, codeToolUsed) ? CODE_JOB_REQUIRED_KINDS : [];
-  // deriveResultStatus: COMPLETED dışında null; kanıt yoksa UNVERIFIED (fail-closed).
-  const resultStatus = deriveResultStatus(run.outcome, requiredKinds, evidence);
+  const inputText = inputToText(run.input);
+  const { all, stored: evidence, codeToolUsed } = deriveEvidence(run.steps, inputText.toLowerCase());
+  const requiredKinds = looksLikeCodeJob(inputText, codeToolUsed) ? CODE_JOB_REQUIRED_KINDS : [];
+  // deriveResultStatus ana kabul: COMPLETED dışında null; kanıt yoksa UNVERIFIED (fail-closed).
+  // Karar TÜM kanıttan verilir (50. sonrası başarısız test de veto eder).
+  const resultStatus = deriveResultStatus(run.outcome, requiredKinds, all);
   const cost = run.costUsd === null || run.costUsd === undefined ? NaN : Number(run.costUsd);
   const costUsd = Number.isFinite(cost) ? cost : null;
   const approvalIds = (run.approvals ?? []).map((a) => a.id).sort();
@@ -170,6 +228,7 @@ export function buildReceipt(run: ReceiptRunInput): ReceiptDraft {
     costUsd,
     evidence,
     approvalIds,
+    attempt: run.retryCount ?? 0,
   });
   return { runId: run.id, tenantId: run.tenantId, outcome: run.outcome, resultStatus, costUsd, evidence, approvalIds, contentHash };
 }
@@ -204,16 +263,22 @@ export async function writeReceipt(
 ): Promise<WriteReceiptResult> {
   const store = client.jobReceipt;
   if (!store) return { written: false, reason: "no_client" };
-  const existing = await store.findFirst({ where: { runId, tenantId, outcome }, select: { id: true } });
-  if (existing) return { written: false, reason: "exists" };
-
   const run = await client.run.findFirst({
     where: { id: runId, pipeline: { company: { tenantId } } },
     select: {
       costUsd: true,
       input: true,
+      retryCount: true,
       approvals: { select: { id: true } },
-      steps: { select: { toolCalls: { select: { id: true, toolName: true, status: true, output: true } } } },
+      // Yalnız izinli kanıt araçlarının satırları (ağır `output` taraması dar tutulur).
+      steps: {
+        select: {
+          toolCalls: {
+            where: { toolName: { in: EVIDENCE_TOOL_NAMES } },
+            select: { id: true, toolName: true, status: true, output: true },
+          },
+        },
+      },
     },
   });
   if (!run) return { written: false, reason: "run_not_found" };
@@ -223,10 +288,16 @@ export async function writeReceipt(
     tenantId,
     outcome,
     costUsd: run.costUsd,
+    retryCount: run.retryCount,
     input: run.input,
     steps: run.steps ?? [],
     approvals: run.approvals ?? [],
   });
+  const existing = await store.findFirst({
+    where: { runId, tenantId, outcome, contentHash: draft.contentHash },
+    select: { id: true },
+  });
+  if (existing) return { written: false, reason: "exists" };
   const row = await store.create({
     data: {
       runId,

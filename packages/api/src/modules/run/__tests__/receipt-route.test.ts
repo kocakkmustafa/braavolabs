@@ -52,6 +52,7 @@ describe("GET /runs/:id/receipt", () => {
     expect(res.statusCode).toBe(404);
     expect(res.body).toEqual({ error: "receipt_not_found" });
     expect(receiptFindFirst.mock.calls[0][0].where).toEqual({ runId: "run-1", tenantId: "t1" });
+    expect(receiptFindFirst.mock.calls[0][0].orderBy).toEqual({ createdAt: "desc" }); // en son makbuz (retry sonrası)
   });
   it("yanıt anahtar seti kilitli, Decimal sayıya, tarih ISO'ya", async () => {
     runFindFirst.mockResolvedValue({ id: "run-1" });
