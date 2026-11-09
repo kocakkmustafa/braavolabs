@@ -274,7 +274,7 @@ describe("yanıt anahtar seti sözleşmesi", () => {
   });
   it("job: {intent, card}; card anahtarları sabit", async () => {
     const { res } = await post({ message: "Rapor hazırla ve özetle" });
-    expect(Object.keys(res.body).sort()).toEqual(["card", "intent"]);
+    expect(Object.keys(res.body).sort()).toEqual(["card", "intent", "planHash"]);
     expect(Object.keys(res.body.card).sort()).toEqual(BAND_KEYS);
     expect(Object.keys(res.body.card.estimate).sort()).toEqual(["basis", "costUsd", "durationSec", "isEstimate", "priced"]);
     for (const s of res.body.card.steps) {

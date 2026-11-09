@@ -382,9 +382,9 @@ export function buildDeterministicCard(message: string, cost: CostBasis): PlanCa
   if (cost.unknownModel) warnings.push("Seçili modelin fiyatı bilinmiyor; maliyet aralığı gösterilemiyor.");
   if (!cost.configured) warnings.push("AI sağlayıcı tanımlı değil; çalıştırmadan önce Ayarlar'dan eklemelisin.");
   if (approvals.length > 0 && isQuestionShaped(message)) {
-    warnings.push("Mesaj soru biçiminde ama eylem içeriyor; eylem adımları açık onay bekler, otomatik yürütülmez.");
+    warnings.push("Mesaj soru biçiminde ama eylem içeriyor; otomatik başlatma şimdilik kapalı.");
   }
-  if (approvals.length > 0) warnings.push("Bu plan geri alınamaz eylemler içeriyor; her biri senin açık onayını bekler.");
+  if (approvals.length > 0) warnings.push("Yüksek riskli: otomatik başlatma şimdilik kapalı.");
 
   return PlanCardSchema.parse({
     title: snippet,
