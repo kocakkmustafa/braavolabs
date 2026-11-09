@@ -155,3 +155,22 @@ Bayrağı kapat (`EXACT_ACTION_APPROVAL` ayarlama) → kapı eski davranış; `r
 
 
 - **02c-6 notu (2026-11-08, veritabanlı testler):** gerçek Postgres'te (yalnız TEST_DATABASE_URL ile; yerelde atlanır) `transitionRun` CAS yarışı (iki-sekiz eşzamanlı bağlantı: tek kazanan, kaybeden `lost_race`), `consumeGrant` yarışı (tek hak tek harcama), RLS (runs/approvals/job_receipts: süper olmayan rol + işlem-yerel app.tenant_id ile yanlış kiracı okuyamaz/yazamaz; bağlamsız FAIL-OPEN ve süper kullanıcı bypass kontrolleri) ve `RESERVED_RUN_COLUMNS` şema-liste tamlığı (DB'siz) kanıtlandı. **Açık (g) KAPANDI:** A/B eşzamanlı onay write-skew gerçek Postgres'te GÖSTERİLDİ (iki işlem claim sonrası barrier'da buluşunca ikisi de diğerinin PENDING'ini görüp enqueue etmedi; koşu WAITING_APPROVAL'da açık onaysız kaldı). Düzeltme: `driveApprovedRun` bayrak AÇIK dalında `otherGate`ten önce koşu satırında `SELECT … FOR UPDATE`; ikinci karar ilk işlemin commit'ini bekler ve yeni ifadesiyle onu görür. Bayrak kapalı yol değişmedi. 02c-2'deki "claim işlem dışı, denetim geri alınmaz" notuna dokunulmadı. **Sınır:** yarış HTTP yoluyla değil, `decide`ın işlem içi sırasını (claim, sonra `driveApprovedRun`) birebir izleyen iki işlemle deterministik kuruldu; gerçek rota-uçtan-uca yarış testi yok. CI'da bu grubun koşması iş akışı değişikliği ister (docs/yula-execution/02c-6-ci-proposal.md, kurucu/orchestration onayı).
+
+---
+
+## ADR-0003 — İşler gelen kutusu kovaları (BRA-P0-04a)
+
+- **Karar:** Tek doğruluk kaynağı `packages/core/src/types/job.ts`: `JobState`, `ResultStatus`, `JobReceipt`, `InboxBucket` ve saf `jobBucket({state, status, resultStatus, heartbeatAt, now, staleAfterMs})`. `run/job-state.ts` yalnız `JobState` tipini buradan alır (davranış değişmez). API (04b), web, mobil ve desktop aynı fonksiyonu/tabloyu kullanır.
+- **Eşleme:**
+
+| Kova | `state` (öncelikli) | `state` NULL ise eski `status` |
+|---|---|---|
+| `working` | READY, PLANNED, RUNNING, RESUMING | PENDING, RUNNING |
+| `needs_approval` | NEEDS_APPROVAL | WAITING_APPROVAL |
+| `done` | COMPLETED, CANCELLED | COMPLETED, CANCELLED |
+| `stuck` | FAILED, PAUSED, bayat heartbeat'li RUNNING | FAILED, PAUSED, bayat heartbeat'li RUNNING |
+| `null` (görünmez) | DRAFT | (eski satırda DRAFT yok) |
+
+- **Varsayımlar:** (1) `runs.state` yalnız `JOB_STATE_DUAL_WRITE=true` iken dolar; bayrak kapalıyken/eski satırlarda NULL olduğundan kova eski `status`tan hesaplanır (PENDING = READY: eski koşular doğrudan kuyruğa alınırdı, ADR-0001). (2) `state` doluysa **state kazanır**, `status` yok sayılır (ör. COMPLETED+RUNNING → `done`). (3) **Fail-closed:** bilinmeyen/bozuk `state`, `status` ya da `resultStatus` → `stuck`; kovasız iş gizlenmez. Yalnız DRAFT bilinçli olarak görünmez. (4) Bayatlık yalnız RUNNING için: `now - heartbeatAt > staleAfterMs`. `heartbeatAt` NULL ise (eski satırlar) yargı yok → `working`. Okunamayan heartbeat/saat/eşik → `stuck`. RESUMING bayat sayılmaz (kuyrukta bekler, ADR-0001 not 02c). `staleAfterMs` değeri çağıranındır (04b/04d); bu ADR sabit seçmez. (5) PAUSED `stuck`: operatör duraklatması da gelen kutusunda dikkat ister; CANCELLED `done`. (6) `resultStatus` kovayı değiştirmez, yalnız bozuk değer `stuck` yapar.
+- **Kapsam dışı:** rota, UI, migration, Prisma enum ve yazıcı değişikliği yok. Kova etiketi saklanmaz, her okumada hesaplanır.
+- **Geri alma:** commit revert.

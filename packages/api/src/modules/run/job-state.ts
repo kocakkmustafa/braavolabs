@@ -11,6 +11,9 @@
  * Invariant the migration must enforce: `Run.status === toLegacyStatus(Run.state)`.
  */
 
+import type { JobState } from "@ai-company-os/core";
+
+/** Tip tek kaynağı: core/types/job.ts (BRA-P0-04a). Değerler burada kalır, davranış değişmez. */
 export const JOB_STATES = [
   "DRAFT",
   "PLANNED",
@@ -22,8 +25,8 @@ export const JOB_STATES = [
   "FAILED",
   "CANCELLED",
   "COMPLETED",
-] as const;
-export type JobState = (typeof JOB_STATES)[number];
+] as const satisfies readonly JobState[];
+export type { JobState };
 
 /** The seven values of the Prisma `RunStatus` enum today — frozen, never extended. */
 export const LEGACY_RUN_STATUSES = [
