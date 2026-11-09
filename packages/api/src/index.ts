@@ -24,6 +24,7 @@ import { requestId } from "./middleware/requestId";
 import { companyRouter } from "./modules/company/router";
 import { pipelineRouter } from "./modules/pipeline/router";
 import { runRouter } from "./modules/run/router";
+import { jobsRouter } from "./modules/jobs/router";
 import { handoffRouter } from "./modules/run/handoff.router";
 import { approvalRouter } from "./modules/approval/router";
 import { memoryRouter } from "./modules/memory/router";
@@ -290,6 +291,7 @@ api.use("/devices", deviceRouter);
 api.use("/companies", companyRouter);
 api.use("/pipelines", pipelineRouter);
 api.use("/runs", runRouter);
+api.use("/jobs", jobsRouter);
 // Tenant-wide handoff ledger list (E3/T5) — the per-run history lives under
 // /runs/:id/handoffs on runRouter; this is the cross-run "what's waiting for a
 // takeover" surface for the CLI/panel.
