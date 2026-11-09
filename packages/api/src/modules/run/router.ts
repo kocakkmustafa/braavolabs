@@ -1103,7 +1103,7 @@ runRouter.post("/steps/:id/rerun", async (req, res, next) => {
 
     // Import and execute the step
     const { executeStep } = await import("../pipeline/executor");
-    const stepDef = {
+    const stepDef: { name: string; agentRole: string; order: number; config?: Record<string, unknown> } = {
       name: step.name,
       agentRole: step.name, // Will be resolved from pipeline steps
       order: step.stepIndex,
@@ -1111,10 +1111,12 @@ runRouter.post("/steps/:id/rerun", async (req, res, next) => {
 
     // Get the pipeline step definition for agentRole
     const pipeline = step.run.pipeline;
-    const pipelineSteps = pipeline.steps as Array<{ name: string; agentRole: string; order: number }>;
+    const pipelineSteps = pipeline.steps as Array<{ name: string; agentRole: string; order: number; config?: Record<string, unknown> }>;
     const matchingStep = pipelineSteps.find((s) => s.name === step.name || s.order === step.stepIndex);
     if (matchingStep) {
       stepDef.agentRole = matchingStep.agentRole;
+      // BRA-P0-03d: config taşınmazsa yeniden çalıştırma adım-düzeyi onay kapısını atlardı.
+      if (matchingStep.config) stepDef.config = matchingStep.config;
     }
 
     const result = await executeStep(
@@ -1123,6 +1125,11 @@ runRouter.post("/steps/:id/rerun", async (req, res, next) => {
       step.stepIndex,
       step.input,
     );
+
+    // BRA-P0-03d: kapı adımı çalıştırmadı (onay bekliyor): satır RUNNING'te takılı kalmasın.
+    if (result.status === "INTERRUPTED") {
+      await prisma.runStep.update({ where: { id: step.id }, data: { status: step.status, completedAt: step.completedAt } });
+    }
 
     await prisma.activityLog.create({
       data: {

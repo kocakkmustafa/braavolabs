@@ -12,7 +12,7 @@ import { resolveTenantCompletionLink } from "../../services/provider-chain";
 import { claimQuota, releaseQuota } from "../billing/metering";
 import { enqueueRun } from "../pipeline/runner";
 import { computePlanHash, planHashMatches } from "./plan-hash";
-import { createPlannedRun, isHighRiskCard, isUniqueViolation, resolveStartBudget } from "./start";
+import { canStartCard, createPlannedRun, isUniqueViolation, resolveStartBudget } from "./start";
 import { INTENT_SYSTEM_PROMPT, classifyIntentRule, planFromMessage, sanitizeSnippet, type CostBasis } from "./plan";
 
 // BRA-P0-03a — plan kartı üretimi. Kalıcı kayıt yok, çalıştırma yok.
@@ -117,7 +117,7 @@ const startBodySchema = z
 // POST /api/v1/jobs/start — onaylanan plan kartından koşu başlatır (LLM yolu yok).
 // "İptal" = istemcinin hiçbir şey göndermemesi; taslak sunucuda tutulmaz.
 // Yüksek riskli kartlar (risk:"high" / needsApproval adımı) 422 ile reddedilir: config.needsApproval
-// yürütücüde zorlanmaz (BRA-P0-03d: adım-düzeyi onay kapısı). Burada hiçbir onay/yetki üretilmez.
+// yürütücüde yalnız STEP_APPROVAL_GATE=true iken zorlanır (BRA-P0-03d). Burada hiçbir onay/yetki üretilmez.
 jobsRouter.post("/start", startLimiter, async (req, res, next) => {
   try {
     const { message, workspaceId, planHash, idempotencyKey } = startBodySchema.parse(req.body);
@@ -144,8 +144,9 @@ jobsRouter.post("/start", startLimiter, async (req, res, next) => {
       return;
     }
 
-    // Yürütücüde adım-düzeyi onay kapısı yok → yüksek riskli plan başlatılamaz (koşu/pipeline/kota yok).
-    if (isHighRiskCard(result.card)) {
+    // Yüksek riskli plan yalnız adım-düzeyi onay kapısı (STEP_APPROVAL_GATE) açıkken başlatılır;
+    // kapalıyken 422 (koşu/pipeline/kota yok).
+    if (!canStartCard(result.card)) {
       res.status(422).json({
         error: "high_risk_start_unsupported",
         message: "Yüksek riskli planlar henüz otomatik başlatılamaz; adımlar yürütücüde adım-düzeyi onay kapısına bağlanana kadar kapalı",

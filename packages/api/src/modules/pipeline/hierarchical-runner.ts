@@ -19,6 +19,7 @@ import { logger } from "../../lib/logger";
 import { writeLifecycle } from "../run/write-lifecycle";
 import { beatRun } from "../run/heartbeat";
 import { runAgentLoop } from "../agent/claude";
+import { isStepApprovalGateEnabled, pipelineHasGatedSteps } from "./step-approval";
 import { registerTool, getTool } from "../agent/registry";
 import {
   buildManagerContext,
@@ -196,6 +197,17 @@ export async function processHierarchicalRun(opts: {
     logger.error({ runId, pipelineId: pipeline.id }, "Hierarchical pipeline missing managerAgentId");
     await writeLifecycle(runId, tenantId, "FAILED", {
       error: "Hierarchical pipeline is missing its manager agent.",
+      completedAt: new Date(),
+    });
+    return;
+  }
+
+  // BRA-P0-03d: hiyerarşik yürütücü adım yapılandırmasını (config.needsApproval) zorlayamaz
+  // (yönetici serbest delegasyon yapar). Kapı açıkken gated adımlı pipeline sessizce
+  // atlanmasın diye fail-closed: koşu çalışmadan FAILED.
+  if (isStepApprovalGateEnabled() && pipelineHasGatedSteps(pipeline.steps)) {
+    await writeLifecycle(runId, tenantId, "FAILED", {
+      error: "Step approval gate cannot be enforced in hierarchical pipelines; run refused.",
       completedAt: new Date(),
     });
     return;
