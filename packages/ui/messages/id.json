@@ -86,7 +86,13 @@
         "message": "Draf pesan",
         "content": "Konten yang dihasilkan"
       },
-      "artifactAiLabel": "Dibuat oleh AI"
+      "artifactAiLabel": "Dibuat oleh AI",
+      "loading": "Memuat persetujuan…",
+      "loadErrorTitle": "Persetujuan tidak dapat dimuat",
+      "loadErrorBody": "Server tidak merespons dengan benar, jadi mungkin ada persetujuan yang menunggu. Ini bukan daftar kosong. Coba lagi.",
+      "refreshErrorTitle": "Persetujuan tidak dapat diperbarui",
+      "refreshErrorBody": "Daftar di bawah mungkin sudah usang. Coba lagi.",
+      "retryLoad": "Coba lagi"
     },
     "companies": {
       "title": "Ruang kerja",

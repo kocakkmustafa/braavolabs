@@ -86,7 +86,13 @@
         "message": "Brouillon de message",
         "content": "Contenu généré"
       },
-      "artifactAiLabel": "Généré par IA"
+      "artifactAiLabel": "Généré par IA",
+      "loading": "Chargement des approbations…",
+      "loadErrorTitle": "Impossible de charger les approbations",
+      "loadErrorBody": "Le serveur n'a pas répondu correctement, des approbations sont peut-être en attente. Ce n'est pas une liste vide. Réessayez.",
+      "refreshErrorTitle": "Impossible d'actualiser les approbations",
+      "refreshErrorBody": "La liste ci-dessous est peut-être obsolète. Réessayez.",
+      "retryLoad": "Réessayer"
     },
     "companies": {
       "title": "Espaces de travail",

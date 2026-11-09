@@ -21,7 +21,7 @@ export function screenHarness(file: string, surface: "web" | "mobile", screen: "
       return [h.states[i], (next: any) => { h.calls.push(["state", i]); h.states[i] = typeof next === "function" ? next(h.states[i]) : next; }];
     },
     useRef(initial: any) { const i = refCursor++; return h.refs[i] ??= { current: initial }; },
-    useCallback(fn: any) { return fn; },
+    useCallback(fn: any, deps: any[]) { return hooks.useMemo(() => fn, deps ?? [fn]); },
     useMemo(fn: any, deps: any[]) { const i = memoCursor++; if (!h.memos[i] || !same(h.memos[i].deps, deps)) h.memos[i] = { deps, value: fn() }; return h.memos[i].value; },
     useEffect(fn: any, deps: any[]) {
       const i = effectCursor++;
@@ -36,7 +36,13 @@ export function screenHarness(file: string, surface: "web" | "mobile", screen: "
   const store = Object.assign((selector: any) => selector(state()), { getState: state });
   const api: any = {
     decideApproval: async (...args: any[]) => { h.calls.push(["post", ...args]); if (h.reject) throw h.reject; return await (h.pending ?? h.response); },
-    listApprovals: async () => [h.row], health: async () => ({}), usage: async () => ({}), finance: async () => ({}),
+    listApprovals: () => {
+      h.listCalls = (h.listCalls ?? 0) + 1;
+      const queued = h.listQueue?.shift();
+      if (queued) return queued();
+      if (h.listError) return Promise.reject(h.listError);
+      return Promise.resolve("listBody" in h ? h.listBody : [h.row]);
+    }, health: async () => ({}), usage: async () => ({}), finance: async () => ({}),
     listCompanies: async () => [], activityLog: async () => ({ logs: [] }), me: async () => ({ tenant: { plan: "TRIAL" } }), listRuns: async () => ({ runs: [] }),
   };
   const placeholder = new Proxy({ default: () => null }, { get: (obj: any, key: any) => key in obj ? obj[key] : () => null });
@@ -65,7 +71,8 @@ export function screenHarness(file: string, surface: "web" | "mobile", screen: "
       if (name.endsWith("/format")) return new Proxy({ currency: () => "$0" }, { get: (obj: any, key: any) => key in obj ? obj[key] : () => "U" });
       if (name.endsWith("/theme")) return { radii: {} };
       // These are production decision modules, deliberately NOT mocked.
-      if (/\/(approvalDecision|useApprovalDecision)$/.test(name)) {
+      if (/\/components\/approvals\/ApprovalsStatus$/.test(name)) return load(resolve(dirname(path), name + ".tsx"));
+      if (/\/(approvalDecision|useApprovalDecision|approvalsState)$/.test(name)) {
         const absolute = resolve(dirname(path), name + ".ts");
         if (!existsSync(absolute)) throw new Error("Missing production helper: " + absolute);
         return load(absolute);
@@ -106,7 +113,7 @@ export function screenHarness(file: string, surface: "web" | "mobile", screen: "
     return dialog[2].find((b: any) => b.onPress && b.style !== "cancel").onPress();
   };
   h.postCount = () => h.calls.filter((c: any[]) => c[0] === "post").length;
-  h.rows = () => h.states.filter(Array.isArray).flat().filter((r: any) => r?.id === h.row.id);
+  h.rows = () => h.states.flatMap((s: any) => Array.isArray(s) ? s : Array.isArray(s?.data) ? s.data : []).filter((r: any) => r?.id === h.row.id);
   h.text = () => JSON.stringify([h.states.filter((s: any) => typeof s === "string"), h.alerts]);
   h.unmount = () => { h.mounted = false; for (const effect of h.effects) effect?.cleanup?.(); };
   return h;

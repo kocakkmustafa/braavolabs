@@ -9,13 +9,15 @@ import { formatDateTime as formatDisplayDateTime, currentTimeZone as displayTime
 import { useTranslations as useLegacyTranslations } from "next-intl";
 
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { useApprovalDecision } from "../../lib/useApprovalDecision";
 import { captureAuthSession, isAuthSessionCurrent, useAppStore } from "../../lib/store";
 import { sounds } from "../../lib/sounds";
+import { ApprovalsEmpty, ApprovalsLoadError, ApprovalsLoading } from "../../components/approvals/ApprovalsStatus";
+import { approvalsAlert, approvalsFailed, approvalsLoaded, approvalsRemove, approvalsView, initialApprovalsLoad, startApprovalsLoad, type ApprovalsLoad } from "../../lib/approvalsState";
 import BrandMotion from "../../components/BrandMotion";
 import { approvalMotion } from "../../lib/brandMotion";
 
@@ -27,14 +29,25 @@ export default function ApprovalsPage() {
   const t = useTranslations();
   const { token, hydrated } = useAuthGuard();
   const sessionRevision = useAppStore((s) => s.sessionRevision);
-  const [approvals, setApprovals] = useState<any[]>([]);
+  const [load, setLoad] = useState<ApprovalsLoad<any>>(initialApprovalsLoad());
+  const approvals: any[] = load.status === "ready" ? load.data : [];
+  const view = approvalsView(load);
+  const alertInfo = approvalsAlert(load);
+  const loadFailed = alertInfo.show;
+  const requestSeq = useRef(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadApprovals = useCallback(() => {
     if (!hydrated || !token) return;
-    api.listApprovals(token).then(setApprovals).catch(() => {});
+    const seq = ++requestSeq.current;
+    setLoad(startApprovalsLoad);
+    api.listApprovals(token)
+      .then((rows) => { if (seq === requestSeq.current) setLoad((prev) => approvalsLoaded<any>(rows, prev)); })
+      .catch(() => { if (seq === requestSeq.current) setLoad(approvalsFailed); });
   }, [token, hydrated]);
+
+  useEffect(() => { loadApprovals(); }, [loadApprovals]);
 
   const decide = useApprovalDecision({
     scopeKey: sessionRevision,
@@ -42,7 +55,7 @@ export default function ApprovalsPage() {
     isSessionCurrent: (session) => !!session.token && isAuthSessionCurrent(session),
     request: async (id, decision) => ({ ran: true, result: await api.decideApproval(token!, id, decision) }),
     onBusy: (_id, busy) => { setLoading(busy); if (busy) setError(null); },
-    onCommit: (id) => setApprovals((prev) => prev.filter((a) => a.id !== id)),
+    onCommit: (id) => setLoad((prev) => approvalsRemove(prev, id)),
     onSuccess: (decision) => decision === "APPROVED" ? sounds.success() : sounds.click(),
     onBlocked: (reason) => {
       setError(t("app.approvals.handoffIncomplete", { reason: reason ?? t("app.approvals.handoffNeedsAttention") }));
@@ -73,7 +86,7 @@ export default function ApprovalsPage() {
           <p className="bv-caption mt-1">{t("app.approvals.subtitle")}</p>
         </div>
         <div className="flex items-center gap-3">
-          <BrandMotion state={approvalMotion(approvals.length, error)} size={48} />
+          <BrandMotion state={approvalMotion(approvals.length, error ?? (loadFailed ? "load" : null))} size={48} active={!loadFailed} />
           {approvals.length > 0 && (
             <div
               className="bv-pill bv-pill-amber"
@@ -91,6 +104,7 @@ export default function ApprovalsPage() {
       {/* Error banner */}
       {error && (
         <div
+          role="alert"
           className="mb-5 flex items-center gap-3 px-4 py-3 rounded-xl text-sm"
           style={{
             background: "rgba(255,77,77,0.08)",
@@ -105,26 +119,11 @@ export default function ApprovalsPage() {
         </div>
       )}
 
-      {/* Empty state */}
-      {approvals.length === 0 ? (
-        <div className="bv-glass rounded-2xl py-16 px-6 text-center bv-rise">
-          <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
-            style={{
-              background: "rgba(59,130,246,0.08)",
-              border: "1px solid rgba(59,130,246,0.18)",
-            }}
-          >
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: 26, color: "var(--color-primary)" }}
-            >
-              check_circle
-            </span>
-          </div>
-          <p className="bv-title mb-1">{t("app.approvals.emptyTitle")}</p>
-          <p className="bv-caption">{t("app.approvals.emptyBody")}</p>
-        </div>
+      {view === "loading" && <ApprovalsLoading t={t} />}
+      {alertInfo.show && <ApprovalsLoadError t={t} inline={alertInfo.inline} busy={alertInfo.busy} onRetry={loadApprovals} />}
+
+      {view === "loading" || view === "error" ? null : view === "empty" ? (
+        <ApprovalsEmpty t={t} />
       ) : (
         /* Approval queue */
         <div className="bv-stagger" style={{ display: "flex", flexDirection: "column", gap: 14 }}>

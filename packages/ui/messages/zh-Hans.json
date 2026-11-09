@@ -86,7 +86,13 @@
         "message": "消息草稿",
         "content": "生成的内容"
       },
-      "artifactAiLabel": "AI 生成"
+      "artifactAiLabel": "AI 生成",
+      "loading": "正在加载审批…",
+      "loadErrorTitle": "无法加载审批",
+      "loadErrorBody": "服务器未正确响应，可能有待处理的审批。这不是空列表。请重试。",
+      "refreshErrorTitle": "无法刷新审批",
+      "refreshErrorBody": "下方列表可能已过期。请重试。",
+      "retryLoad": "重试"
     },
     "companies": {
       "title": "工作区",

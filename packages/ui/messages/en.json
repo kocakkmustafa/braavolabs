@@ -86,7 +86,13 @@
         "message": "Draft message",
         "content": "Generated content"
       },
-      "artifactAiLabel": "AI-generated"
+      "artifactAiLabel": "AI-generated",
+      "loading": "Loading approvals…",
+      "loadErrorTitle": "Could not load approvals",
+      "loadErrorBody": "The server did not answer correctly, so approvals may be waiting. This is not an empty list. Try again.",
+      "refreshErrorTitle": "Could not refresh approvals",
+      "refreshErrorBody": "The list below may be out of date. Try again.",
+      "retryLoad": "Try again"
     },
     "companies": {
       "title": "Workspaces",

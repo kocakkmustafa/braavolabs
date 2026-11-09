@@ -86,7 +86,13 @@
         "message": "Szkic wiadomości",
         "content": "Wygenerowana treść"
       },
-      "artifactAiLabel": "Wygenerowane przez AI"
+      "artifactAiLabel": "Wygenerowane przez AI",
+      "loading": "Ładowanie zatwierdzeń…",
+      "loadErrorTitle": "Nie udało się wczytać zatwierdzeń",
+      "loadErrorBody": "Serwer nie odpowiedział poprawnie, więc mogą czekać zatwierdzenia. To nie jest pusta lista. Spróbuj ponownie.",
+      "refreshErrorTitle": "Nie udało się odświeżyć zatwierdzeń",
+      "refreshErrorBody": "Poniższa lista może być nieaktualna. Spróbuj ponownie.",
+      "retryLoad": "Spróbuj ponownie"
     },
     "companies": {
       "title": "Obszary robocze",

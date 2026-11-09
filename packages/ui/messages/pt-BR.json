@@ -86,7 +86,13 @@
         "message": "Rascunho de mensagem",
         "content": "Conteúdo gerado"
       },
-      "artifactAiLabel": "Gerado por IA"
+      "artifactAiLabel": "Gerado por IA",
+      "loading": "Carregando aprovações…",
+      "loadErrorTitle": "Não foi possível carregar as aprovações",
+      "loadErrorBody": "O servidor não respondeu corretamente, então pode haver aprovações pendentes. Isto não é uma lista vazia. Tente novamente.",
+      "refreshErrorTitle": "Não foi possível atualizar as aprovações",
+      "refreshErrorBody": "A lista abaixo pode estar desatualizada. Tente novamente.",
+      "retryLoad": "Tentar novamente"
     },
     "companies": {
       "title": "Espaços de trabalho",

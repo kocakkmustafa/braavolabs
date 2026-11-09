@@ -86,7 +86,13 @@
         "message": "Nachrichtenentwurf",
         "content": "Generierter Inhalt"
       },
-      "artifactAiLabel": "KI-generiert"
+      "artifactAiLabel": "KI-generiert",
+      "loading": "Freigaben werden geladen…",
+      "loadErrorTitle": "Freigaben konnten nicht geladen werden",
+      "loadErrorBody": "Der Server hat nicht richtig geantwortet, es könnten Freigaben warten. Das ist keine leere Liste. Versuche es erneut.",
+      "refreshErrorTitle": "Freigaben konnten nicht aktualisiert werden",
+      "refreshErrorBody": "Die Liste unten ist möglicherweise veraltet. Versuche es erneut.",
+      "retryLoad": "Erneut versuchen"
     },
     "companies": {
       "title": "Arbeitsbereiche",
