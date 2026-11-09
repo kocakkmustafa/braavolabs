@@ -1275,7 +1275,7 @@
         "error": "Nie udało się wczytać potwierdzenia.",
         "verified": "ZWERYFIKOWANO",
         "unverified": "NIEZWERYFIKOWANO",
-        "verifiedHint": "Dowody potwierdzają wynik.",
+        "verifiedHint": "Wymagane rodzaje dowodów zostały zweryfikowane.",
         "unverifiedHint": "Niepotwierdzone: brakuje dowodów lub są niepełne.",
         "noStatus": "Brak statusu wyniku",
         "outcome": "Wynik: {value}",
@@ -1288,7 +1288,14 @@
         "COMPLETED": "Ukończone",
         "FAILED": "Nieudane",
         "CANCELLED": "Anulowane"
-      }
+      },
+      "artifactLabel": "Treść do zatwierdzenia",
+      "expires": "Wygasa {value}",
+      "answerLabel": "Twoja odpowiedź dla agenta (wymagana)",
+      "claimFailed": "Twoje zatwierdzenie dla {run} zostało zapisane, ale zadania nie udało się wznowić i może pozostać nieudane. Sprawdź w Zablokowane i ponów.",
+      "dismiss": "Zamknij",
+      "approvalForbidden": "Nie masz uprawnień do rozstrzygania zatwierdzeń.",
+      "actionRejected": "Zadanie nie jest w stanie, który pozwala na tę akcję."
     }
   },
   "static": {

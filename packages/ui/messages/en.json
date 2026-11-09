@@ -1275,7 +1275,7 @@
         "error": "Could not load the receipt.",
         "verified": "VERIFIED",
         "unverified": "UNVERIFIED",
-        "verifiedHint": "The evidence confirms the result.",
+        "verifiedHint": "The required evidence types were verified.",
         "unverifiedHint": "Not confirmed: evidence is missing or incomplete.",
         "noStatus": "No result status",
         "outcome": "Outcome: {value}",
@@ -1288,7 +1288,14 @@
         "COMPLETED": "Completed",
         "FAILED": "Failed",
         "CANCELLED": "Cancelled"
-      }
+      },
+      "artifactLabel": "Content to approve",
+      "expires": "Expires {value}",
+      "answerLabel": "Your answer to the agent (required)",
+      "claimFailed": "Your approval for {run} was saved, but the job could not be resumed and may stay failed. Check it in the Stuck tab and retry.",
+      "dismiss": "Dismiss",
+      "approvalForbidden": "You do not have permission to decide approvals.",
+      "actionRejected": "The job is not in a state that allows this action."
     }
   },
   "static": {

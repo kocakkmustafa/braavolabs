@@ -34,7 +34,12 @@ export interface InboxApproval {
   amountUsd?: number | string | null;
   createdAt: string;
   metadata?: { toolName?: string };
+  /** ISO; süresi geçen onay sunucuda reddedilir (BRA-P0-05). */
+  expiresAt?: string | null;
+  /** Onaylanacak içerik (e-posta/gönderi). Düz metin gösterilir; HTML/autolink YOK. */
+  artifact?: InboxArtifact | null;
 }
+export interface InboxArtifact { kind: "email" | "social_post" | "message" | "content"; title?: string; body: string }
 export interface InboxApprovalGroup { runId: string; runTitle: string | null; approvals: InboxApproval[] }
 export interface InboxApprovalGroupsPage { groups: InboxApprovalGroup[]; nextCursor: string | null }
 
@@ -106,6 +111,8 @@ export function effectiveState(run: Pick<InboxRun, "state" | "status">): JobStat
  * (bucket=stuck) önce durdurulur (retry run_still_running döner).
  */
 export function allowedActions(run: Pick<InboxRun, "state" | "status" | "bucket">): RunAction[] {
+  // state NULL = JOB_STATE_DUAL_WRITE kapalı: sunucu PENDING stop'u 400 döndürür (run/router.ts), gizle.
+  if (!run.state && run.status === "PENDING") return ["steer"];
   const st = effectiveState(run);
   switch (st) {
     case "PLANNED": case "READY": case "RESUMING": return ["steer", "stop"];
@@ -130,6 +137,7 @@ export function actionErrorKey(err: unknown): string {
     if (typeof e.code === "string" && (CONFLICT_CODES as readonly string[]).includes(e.code)) return `app.inbox.conflict.${e.code}`;
     return "app.inbox.conflict.generic";
   }
+  if (e && typeof e === "object" && e.status === 400) return "app.inbox.actionRejected";
   if (e && typeof e === "object" && e.status === 403) return "app.inbox.actionForbidden";
   return "app.inbox.actionFailed";
 }

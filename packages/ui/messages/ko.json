@@ -1275,7 +1275,7 @@
         "error": "영수증을 불러오지 못했습니다.",
         "verified": "검증됨",
         "unverified": "검증되지 않음",
-        "verifiedHint": "증거가 결과를 뒷받침합니다.",
+        "verifiedHint": "필요한 증거 유형이 검증되었습니다.",
         "unverifiedHint": "확인되지 않음: 증거가 없거나 불완전합니다.",
         "noStatus": "결과 상태 없음",
         "outcome": "결과: {value}",
@@ -1288,7 +1288,14 @@
         "COMPLETED": "완료됨",
         "FAILED": "실패함",
         "CANCELLED": "취소됨"
-      }
+      },
+      "artifactLabel": "승인할 내용",
+      "expires": "만료 {value}",
+      "answerLabel": "에이전트에 대한 답변(필수)",
+      "claimFailed": "{run}에 대한 승인은 저장되었지만 작업을 재개하지 못해 실패 상태로 남을 수 있습니다. 멈춤 탭에서 확인하고 재시도하세요.",
+      "dismiss": "닫기",
+      "approvalForbidden": "승인을 결정할 권한이 없습니다.",
+      "actionRejected": "작업이 이 동작을 허용하는 상태가 아닙니다."
     }
   },
   "static": {

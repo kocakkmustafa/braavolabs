@@ -1275,7 +1275,7 @@
         "error": "Impossible de charger le reçu.",
         "verified": "VÉRIFIÉ",
         "unverified": "NON VÉRIFIÉ",
-        "verifiedHint": "Les preuves confirment le résultat.",
+        "verifiedHint": "Les types de preuves requis ont été vérifiés.",
         "unverifiedHint": "Non confirmé : preuves manquantes ou incomplètes.",
         "noStatus": "Aucun statut de résultat",
         "outcome": "Résultat : {value}",
@@ -1288,7 +1288,14 @@
         "COMPLETED": "Terminée",
         "FAILED": "Échouée",
         "CANCELLED": "Annulée"
-      }
+      },
+      "artifactLabel": "Contenu à approuver",
+      "expires": "Expire {value}",
+      "answerLabel": "Votre réponse à l’agent (obligatoire)",
+      "claimFailed": "Votre approbation pour {run} a été enregistrée, mais la tâche n’a pas pu reprendre et peut rester en échec. Vérifiez dans Bloquées puis réessayez.",
+      "dismiss": "Fermer",
+      "approvalForbidden": "Vous n’avez pas l’autorisation de décider des approbations.",
+      "actionRejected": "La tâche n’est pas dans un état qui permet cette action."
     }
   },
   "static": {

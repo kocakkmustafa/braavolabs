@@ -1275,7 +1275,7 @@
         "error": "Makbuz yüklenemedi.",
         "verified": "DOĞRULANDI",
         "unverified": "DOĞRULANMADI",
-        "verifiedHint": "Kanıtlar sonucu doğruluyor.",
+        "verifiedHint": "Gerekli kanıt türleri doğrulandı.",
         "unverifiedHint": "Doğrulanmadı: kanıt eksik ya da yetersiz.",
         "noStatus": "Sonuç durumu yok",
         "outcome": "Sonuç: {value}",
@@ -1288,7 +1288,14 @@
         "COMPLETED": "Tamamlandı",
         "FAILED": "Başarısız",
         "CANCELLED": "İptal edildi"
-      }
+      },
+      "artifactLabel": "Onaylanacak içerik",
+      "expires": "Son geçerlilik {value}",
+      "answerLabel": "Ajana yanıtınız (zorunlu)",
+      "claimFailed": "{run} için onayınız kaydedildi, ancak iş devam ettirilemedi ve başarısız kalabilir. Takıldı sekmesinden kontrol edip yeniden deneyin.",
+      "dismiss": "Kapat",
+      "approvalForbidden": "Onay kararı vermek için yetkiniz yok.",
+      "actionRejected": "İş bu eyleme izin veren bir durumda değil."
     }
   },
   "static": {

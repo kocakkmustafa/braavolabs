@@ -1275,7 +1275,7 @@
         "error": "レシートを読み込めませんでした。",
         "verified": "検証済み",
         "unverified": "未検証",
-        "verifiedHint": "証拠が結果を裏付けています。",
+        "verifiedHint": "必要な種類の証拠が検証されました。",
         "unverifiedHint": "未確認: 証拠が不足または不完全です。",
         "noStatus": "結果ステータスなし",
         "outcome": "結果: {value}",
@@ -1288,7 +1288,14 @@
         "COMPLETED": "完了",
         "FAILED": "失敗",
         "CANCELLED": "キャンセル"
-      }
+      },
+      "artifactLabel": "承認する内容",
+      "expires": "有効期限 {value}",
+      "answerLabel": "エージェントへの回答（必須）",
+      "claimFailed": "{run} の承認は保存されましたが、ジョブを再開できず失敗のままになる可能性があります。「停止中」タブで確認し、再試行してください。",
+      "dismiss": "閉じる",
+      "approvalForbidden": "承認を決定する権限がありません。",
+      "actionRejected": "ジョブはこの操作を許可する状態ではありません。"
     }
   },
   "static": {

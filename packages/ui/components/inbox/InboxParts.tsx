@@ -82,9 +82,59 @@ export function EmptyBox({ text }: { text: string }) {
   return <div style={{ ...card, textAlign: "center", padding: 32 }}><p style={muted}>{text}</p></div>;
 }
 
-export function ApprovalGroups({ groups, busyId, errorByApproval, onDecide, t, locale }: {
-  groups: InboxApprovalGroup[]; busyId: string | null; errorByApproval: Record<string, string>;
-  onDecide: (a: InboxApproval, d: "APPROVED" | "REJECTED") => void; t: T; locale: string;
+export function ArtifactView({ artifact, t }: { artifact: NonNullable<InboxApproval["artifact"]>; t: T }) {
+  // Düz metin: React metin düğümü olarak basar (HTML yorumlanmaz, otomatik bağlantı yok).
+  return (
+    <div style={{ margin: "10px 0", borderRadius: 10, border: "1px solid var(--color-surface-container-highest)", overflow: "hidden" }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "8px 12px", background: "var(--color-surface-container-low)", fontSize: 12 }}>
+        <strong style={{ color: "var(--color-primary)" }}>{t(`app.approvals.artifactKind.${artifact.kind}`)}</strong>
+        <span style={{ marginInlineStart: "auto", color: "var(--color-on-surface-variant)" }}>{t("app.approvals.artifactAiLabel")}</span>
+      </div>
+      {artifact.title && <div style={{ padding: "10px 12px 0", fontWeight: 600, color: "var(--color-on-surface)", overflowWrap: "anywhere" }}>{artifact.title}</div>}
+      <pre tabIndex={0} aria-label={t("app.inbox.artifactLabel")} style={{ margin: 0, padding: "10px 12px", fontSize: 12.5, lineHeight: 1.55, whiteSpace: "pre-wrap", overflowWrap: "anywhere", maxHeight: 260, overflowY: "auto", color: "var(--color-on-surface-variant)" }}>{artifact.body}</pre>
+    </div>
+  );
+}
+
+function ApprovalCard({ a, busy, error, onDecide, t, locale }: {
+  a: InboxApproval; busy: boolean; error?: string;
+  onDecide: (a: InboxApproval, d: "APPROVED" | "REJECTED", note?: string) => void; t: T; locale: string;
+}) {
+  const [note, setNote] = useState("");
+  const amount = money(a.amountUsd, locale);
+  // INPUT (ask_user): onay = ajana yanıt; not yanıt olarak gider (API decideSchema.note) → not zorunlu.
+  const isInput = a.type === "INPUT";
+  const expires = when(a.expiresAt, locale);
+  return (
+    <li style={{ borderTop: "1px solid var(--color-surface-container-high)", paddingTop: 10 }}>
+      <p style={{ color: "var(--color-on-surface)", overflowWrap: "anywhere" }}>
+        {a.description || a.metadata?.toolName || a.type || t("app.inbox.approvalUntitled")}
+      </p>
+      <p style={muted}>
+        {[a.metadata?.toolName, amount ? t("app.inbox.amount", { value: amount }) : null, when(a.createdAt, locale), expires ? t("app.inbox.expires", { value: expires }) : null].filter(Boolean).join(" · ")}
+      </p>
+      {a.artifact && <ArtifactView artifact={a.artifact} t={t} />}
+      {isInput && (
+        <div style={{ marginTop: 8 }}>
+          <label htmlFor={`answer-${a.id}`} style={{ ...muted, display: "block", marginBottom: 4 }}>{t("app.inbox.answerLabel")}</label>
+          <textarea id={`answer-${a.id}`} value={note} onChange={(e) => setNote(e.target.value)} maxLength={4000} rows={2}
+            style={{ width: "100%", padding: "6px 10px", borderRadius: 10, fontSize: 16, background: "var(--color-surface)", color: "var(--color-on-surface)", border: "1px solid var(--color-surface-container-highest)" }} />
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+        <button type="button" style={btnPrimary} disabled={busy || (isInput && !note.trim())} onClick={() => onDecide(a, "APPROVED", isInput ? note.trim() : undefined)}>
+          {busy ? t("app.inbox.deciding") : t("app.inbox.approve")}
+        </button>
+        <button type="button" style={btn} disabled={busy} onClick={() => onDecide(a, "REJECTED")}>{t("app.inbox.reject")}</button>
+      </div>
+      {error && <p role="alert" style={{ ...muted, color: "var(--color-error)", marginTop: 6 }}>{error}</p>}
+    </li>
+  );
+}
+
+export function ApprovalGroups({ groups, busyIds, errorByApproval, onDecide, t, locale }: {
+  groups: InboxApprovalGroup[]; busyIds: ReadonlySet<string>; errorByApproval: Record<string, string>;
+  onDecide: (a: InboxApproval, d: "APPROVED" | "REJECTED", note?: string) => void; t: T; locale: string;
 }) {
   return (
     <ul style={{ display: "grid", gap: 12, listStyle: "none", margin: 0, padding: 0 }}>
@@ -97,27 +147,9 @@ export function ApprovalGroups({ groups, busyId, errorByApproval, onDecide, t, l
             </Link>
           </div>
           <ul style={{ display: "grid", gap: 10, listStyle: "none", margin: 0, padding: 0 }}>
-            {g.approvals.map((a) => {
-              const amount = money(a.amountUsd, locale);
-              const busy = busyId === a.id;
-              return (
-                <li key={a.id} style={{ borderTop: "1px solid var(--color-surface-container-high)", paddingTop: 10 }}>
-                  <p style={{ color: "var(--color-on-surface)", overflowWrap: "anywhere" }}>
-                    {a.description || a.metadata?.toolName || a.type || t("app.inbox.approvalUntitled")}
-                  </p>
-                  <p style={muted}>
-                    {[a.metadata?.toolName, amount ? t("app.inbox.amount", { value: amount }) : null, when(a.createdAt, locale)].filter(Boolean).join(" · ")}
-                  </p>
-                  <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-                    <button type="button" style={btnPrimary} disabled={busy} onClick={() => onDecide(a, "APPROVED")}>
-                      {busy ? t("app.inbox.deciding") : t("app.inbox.approve")}
-                    </button>
-                    <button type="button" style={btn} disabled={busy} onClick={() => onDecide(a, "REJECTED")}>{t("app.inbox.reject")}</button>
-                  </div>
-                  {errorByApproval[a.id] && <p role="alert" style={{ ...muted, color: "var(--color-error)", marginTop: 6 }}>{errorByApproval[a.id]}</p>}
-                </li>
-              );
-            })}
+            {g.approvals.map((a) => (
+              <ApprovalCard key={a.id} a={a} busy={busyIds.has(a.id)} error={errorByApproval[a.id]} onDecide={onDecide} t={t} locale={locale} />
+            ))}
           </ul>
         </li>
       ))}
@@ -164,7 +196,7 @@ export function RunRow({ run, t, locale, busy, message, receipt, steerOpen, onAc
   run: InboxRun; t: T; locale: string; busy: boolean; message: { kind: "ok" | "error"; text: string } | null;
   receipt: ReceiptState | null; steerOpen: boolean;
   onAction: (a: Exclude<RunAction, "steer">) => void; onSteerToggle: () => void;
-  onSteerSend: (text: string) => void; onReceiptToggle: () => void;
+  onSteerSend: (text: string) => Promise<boolean>; onReceiptToggle: () => void;
 }) {
   const [steerText, setSteerText] = useState("");
   const actions = allowedActions(run);
@@ -192,7 +224,7 @@ export function RunRow({ run, t, locale, busy, message, receipt, steerOpen, onAc
       </div>
       {steerOpen && (
         <form style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}
-          onSubmit={(e) => { e.preventDefault(); const v = steerText.trim(); if (v) { onSteerSend(v); setSteerText(""); } }}>
+          onSubmit={(e) => { e.preventDefault(); const v = steerText.trim(); if (v) void onSteerSend(v).then((ok) => { if (ok) setSteerText(""); }); }}>
           <label htmlFor={`steer-${run.id}`} style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>{t("app.inbox.steerLabel")}</label>
           <input id={`steer-${run.id}`} value={steerText} onChange={(e) => setSteerText(e.target.value)} maxLength={500}
             placeholder={t("app.inbox.steerPlaceholder")}

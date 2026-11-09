@@ -1275,7 +1275,7 @@
         "error": "No se pudo cargar el recibo.",
         "verified": "VERIFICADO",
         "unverified": "NO VERIFICADO",
-        "verifiedHint": "Las evidencias confirman el resultado.",
+        "verifiedHint": "Se verificaron los tipos de evidencia requeridos.",
         "unverifiedHint": "Sin confirmar: faltan evidencias o están incompletas.",
         "noStatus": "Sin estado de resultado",
         "outcome": "Resultado: {value}",
@@ -1288,7 +1288,14 @@
         "COMPLETED": "Completado",
         "FAILED": "Fallido",
         "CANCELLED": "Cancelado"
-      }
+      },
+      "artifactLabel": "Contenido a aprobar",
+      "expires": "Vence {value}",
+      "answerLabel": "Tu respuesta al agente (obligatoria)",
+      "claimFailed": "Tu aprobación de {run} se guardó, pero el trabajo no pudo reanudarse y puede quedar fallido. Revísalo en Atascados y reintenta.",
+      "dismiss": "Cerrar",
+      "approvalForbidden": "No tienes permiso para decidir aprobaciones.",
+      "actionRejected": "El trabajo no está en un estado que permita esta acción."
     }
   },
   "static": {

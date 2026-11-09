@@ -1275,7 +1275,7 @@
         "error": "Impossibile caricare la ricevuta.",
         "verified": "VERIFICATO",
         "unverified": "NON VERIFICATO",
-        "verifiedHint": "Le prove confermano il risultato.",
+        "verifiedHint": "I tipi di prova richiesti sono stati verificati.",
         "unverifiedHint": "Non confermato: prove mancanti o incomplete.",
         "noStatus": "Nessuno stato del risultato",
         "outcome": "Esito: {value}",
@@ -1288,7 +1288,14 @@
         "COMPLETED": "Completato",
         "FAILED": "Fallito",
         "CANCELLED": "Annullato"
-      }
+      },
+      "artifactLabel": "Contenuto da approvare",
+      "expires": "Scade {value}",
+      "answerLabel": "La tua risposta all’agente (obbligatoria)",
+      "claimFailed": "La tua approvazione per {run} è stata salvata, ma il lavoro non è potuto riprendere e potrebbe restare fallito. Controlla in Bloccati e riprova.",
+      "dismiss": "Chiudi",
+      "approvalForbidden": "Non hai il permesso di decidere le approvazioni.",
+      "actionRejected": "Il lavoro non è in uno stato che consenta questa azione."
     }
   },
   "static": {

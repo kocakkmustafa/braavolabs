@@ -18,7 +18,7 @@ describe("inbox markup", () => {
     expect(html.match(/tabindex="-1"/g)).toHaveLength(3);
   });
   it("duraklatılmış koşuda yalnız izinli eylemler görünür", () => {
-    const html = renderToStaticMarkup(<RunRow run={run} t={t} locale="en" busy={false} message={null} receipt={null} steerOpen={false} onAction={noop} onSteerToggle={noop} onSteerSend={noop} onReceiptToggle={noop} />);
+    const html = renderToStaticMarkup(<RunRow run={run} t={t} locale="en" busy={false} message={null} receipt={null} steerOpen={false} onAction={noop} onSteerToggle={noop} onSteerSend={async () => true} onReceiptToggle={noop} />);
     for (const a of ["resume", "retry", "steer", "stop", "receipt"]) expect(html).toContain(`app.inbox.action.${a}`);
     expect(html).not.toContain("app.inbox.action.pause");
   });
@@ -40,7 +40,7 @@ describe("inbox markup", () => {
   });
   it("onay ayrıntısı (açıklama, tutar, koşu bağlantısı) gizlenmez", () => {
     const g = [{ runId: "r1", runTitle: "Weekly report", approvals: [{ id: "a1", runId: "r1", status: "PENDING", description: "Spend on ads", amountUsd: 42, createdAt: "2026-11-01T10:00:00Z" }] }];
-    const html = renderToStaticMarkup(<ApprovalGroups groups={g} busyId={null} errorByApproval={{}} onDecide={noop} t={t} locale="en" />);
+    const html = renderToStaticMarkup(<ApprovalGroups groups={g} busyIds={new Set()} errorByApproval={{}} onDecide={noop} t={t} locale="en" />);
     expect(html).toContain("Spend on ads");
     expect(html).toContain("$42");
     expect(html).toContain('href="/runs/r1"');

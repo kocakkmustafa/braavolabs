@@ -1275,7 +1275,7 @@
         "error": "Tanda terima tidak dapat dimuat.",
         "verified": "TERVERIFIKASI",
         "unverified": "BELUM TERVERIFIKASI",
-        "verifiedHint": "Bukti mengonfirmasi hasilnya.",
+        "verifiedHint": "Jenis bukti yang diperlukan telah diverifikasi.",
         "unverifiedHint": "Belum terkonfirmasi: bukti hilang atau tidak lengkap.",
         "noStatus": "Tanpa status hasil",
         "outcome": "Hasil: {value}",
@@ -1288,7 +1288,14 @@
         "COMPLETED": "Selesai",
         "FAILED": "Gagal",
         "CANCELLED": "Dibatalkan"
-      }
+      },
+      "artifactLabel": "Konten yang disetujui",
+      "expires": "Kedaluwarsa {value}",
+      "answerLabel": "Jawaban Anda untuk agen (wajib)",
+      "claimFailed": "Persetujuan Anda untuk {run} tersimpan, tetapi pekerjaan tidak dapat dilanjutkan dan mungkin tetap gagal. Periksa di tab Tersendat lalu coba lagi.",
+      "dismiss": "Tutup",
+      "approvalForbidden": "Anda tidak memiliki izin untuk memutuskan persetujuan.",
+      "actionRejected": "Pekerjaan tidak berada dalam keadaan yang mengizinkan tindakan ini."
     }
   },
   "static": {

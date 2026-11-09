@@ -1275,7 +1275,7 @@
         "error": "无法加载回执。",
         "verified": "已验证",
         "unverified": "未验证",
-        "verifiedHint": "证据证实了结果。",
+        "verifiedHint": "所需的证据类型已验证。",
         "unverifiedHint": "未确认：证据缺失或不完整。",
         "noStatus": "无结果状态",
         "outcome": "结果：{value}",
@@ -1288,7 +1288,14 @@
         "COMPLETED": "已完成",
         "FAILED": "已失败",
         "CANCELLED": "已取消"
-      }
+      },
+      "artifactLabel": "待批准的内容",
+      "expires": "到期 {value}",
+      "answerLabel": "你对智能体的回答（必填）",
+      "claimFailed": "你对 {run} 的批准已保存，但任务无法继续，可能仍处于失败状态。请在“已卡住”标签中查看并重试。",
+      "dismiss": "关闭",
+      "approvalForbidden": "你没有处理审批的权限。",
+      "actionRejected": "任务当前状态不允许此操作。"
     }
   },
   "static": {

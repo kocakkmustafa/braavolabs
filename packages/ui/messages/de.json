@@ -1275,7 +1275,7 @@
         "error": "Beleg konnte nicht geladen werden.",
         "verified": "VERIFIZIERT",
         "unverified": "NICHT VERIFIZIERT",
-        "verifiedHint": "Die Nachweise bestätigen das Ergebnis.",
+        "verifiedHint": "Die erforderlichen Nachweisarten wurden verifiziert.",
         "unverifiedHint": "Nicht bestätigt: Nachweise fehlen oder sind unvollständig.",
         "noStatus": "Kein Ergebnisstatus",
         "outcome": "Ergebnis: {value}",
@@ -1288,7 +1288,14 @@
         "COMPLETED": "Abgeschlossen",
         "FAILED": "Fehlgeschlagen",
         "CANCELLED": "Abgebrochen"
-      }
+      },
+      "artifactLabel": "Zu genehmigender Inhalt",
+      "expires": "Läuft ab {value}",
+      "answerLabel": "Ihre Antwort an den Agenten (erforderlich)",
+      "claimFailed": "Ihre Freigabe für {run} wurde gespeichert, aber der Auftrag konnte nicht fortgesetzt werden und bleibt möglicherweise fehlgeschlagen. Unter Hängt prüfen und wiederholen.",
+      "dismiss": "Schließen",
+      "approvalForbidden": "Sie haben keine Berechtigung, Freigaben zu entscheiden.",
+      "actionRejected": "Der Auftrag befindet sich in keinem Zustand, der diese Aktion erlaubt."
     }
   },
   "static": {
