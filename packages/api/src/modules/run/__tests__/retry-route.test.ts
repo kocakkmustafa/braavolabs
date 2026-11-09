@@ -12,6 +12,7 @@ vi.mock("../../../lib/logger", () => ({ logger: { debug: vi.fn(), info: vi.fn(),
 const store = vi.hoisted(() => ({
   row: {} as Record<string, any>,
   tenant: "tenant-1",
+  pipelineType: "SEQUENTIAL",
   steps: [] as any[],
   beforeWrite: null as null | (() => void),
   writes: [] as Array<{ where: Record<string, any>; data: Record<string, any> }>,
@@ -45,7 +46,7 @@ vi.mock("../../../lib/db", () => {
       const w = args.where;
       if (w.status !== undefined && w.status !== store.row.status) return { count: 0 };
       if ("state" in w && w.state !== store.row.state) return { count: 0 };
-      if (w.retryCount?.gt !== undefined && !(store.row.retryCount > w.retryCount.gt)) return { count: 0 };
+      if (typeof w.retryCount === "number" && w.retryCount !== store.row.retryCount) return { count: 0 };
       const prev: Record<string, any> = {};
       for (const k of Object.keys(args.data)) prev[k] = store.row[k];
       store.undo.push({ prev, wrote: { ...args.data } });
@@ -59,7 +60,7 @@ vi.mock("../../../lib/db", () => {
         findUnique: async () => ({
           ...store.row,
           steps: store.steps,
-          pipeline: { company: { tenantId: store.tenant === "none" ? "other" : "tenant-1" } },
+          pipeline: { pipelineType: store.pipelineType, company: { tenantId: store.tenant === "none" ? "other" : "tenant-1" } },
         }),
       },
       approval: { findFirst: (...a: unknown[]) => approvalFindFirst(...a) },
@@ -117,6 +118,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv("JOB_STATE_DUAL_WRITE", "true");
   store.tenant = "tenant-1";
+  store.pipelineType = "SEQUENTIAL";
   store.steps = [];
   store.beforeWrite = null;
   store.writes.length = 0;
@@ -250,5 +252,43 @@ describe("POST /runs/:id/retry", () => {
     expect(nextErr?.message).toBe("retry_disabled");
     expect(store.writes).toHaveLength(0);
     expect(enqueueRunMock).not.toHaveBeenCalled();
+  });
+
+  it("hierarchical pipeline → 409 run_not_retryable (hierarchical_not_supported); no transition, enqueue or retryCount change; sequential still works", async () => {
+    store.pipelineType = "HIERARCHICAL";
+    for (const st of ["FAILED", "PAUSED"]) {
+      setRun(st, st, { retryCount: 1 });
+      const { nextErr } = await invoke(retry);
+      expect(nextErr?.statusCode).toBe(409);
+      expect(nextErr?.message).toBe("run_not_retryable");
+      expect(nextErr?.details).toEqual({ reason: "hierarchical_not_supported" });
+      expect(store.row).toMatchObject({ status: st, state: st, retryCount: 1 });
+    }
+    expect(store.writes).toHaveLength(0);
+    expect(enqueueRunMock).not.toHaveBeenCalled();
+    expect(activityLogCreate).not.toHaveBeenCalled();
+    store.pipelineType = "SEQUENTIAL";
+    setRun("FAILED", "FAILED");
+    expect((await invoke(retry)).nextErr).toBeUndefined();
+    expect(enqueueRunMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("refund is CAS on retryCount in the SAME tx as the revert: never negative, never double, skipped if retryCount moved", async () => {
+    // normal: 2 -> 3 -> refund back to 2, exactly once
+    setRun("FAILED", "FAILED", { retryCount: 2 });
+    enqueueRunMock.mockRejectedValueOnce(new Error("redis down"));
+    await invoke(retry);
+    expect(store.row).toMatchObject({ status: "FAILED", retryCount: 2 });
+    // retryCount moved by someone else (e.g. crash recovery) while still RUNNING: run reverted, refund NOT applied
+    setRun("FAILED", "FAILED", { retryCount: 0 });
+    enqueueRunMock.mockImplementationOnce(async () => { store.row.retryCount = 5; throw new Error("timeout"); });
+    await invoke(retry);
+    expect(store.row).toMatchObject({ status: "FAILED", retryCount: 5 });
+    // run already moved on (not RUNNING): nothing reverted, nothing refunded, never below zero
+    setRun("FAILED", "FAILED", { retryCount: 0 });
+    enqueueRunMock.mockImplementationOnce(async () => { store.row.status = "COMPLETED"; store.row.state = "COMPLETED"; throw new Error("x"); });
+    await invoke(retry);
+    expect(store.row.retryCount).toBe(1);
+    expect(store.row.retryCount).toBeGreaterThanOrEqual(0);
   });
 });

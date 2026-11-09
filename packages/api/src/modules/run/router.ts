@@ -21,7 +21,7 @@ import { hasOpenApproval } from "../approval/exact-action";
 import { transitionRun, isJobStateDualWriteEnabled, currentJobState } from "./transition";
 import { assertTransitioned, resumeToRunning, AlreadyRunningError, revertRunAfterEnqueueFailure } from "./resume";
 import { decideResume, toLegacyStatus, type JobState } from "./job-state";
-import { evaluateRetryBudget } from "./retry";
+import { evaluateRetryBudget, isHierarchicalPipeline } from "./retry";
 import { toJobReceiptDto } from "./receipt";
 import { env } from "../../config/env";
 import { toPublicCompany } from "../company/redact";
@@ -439,6 +439,11 @@ runRouter.post("/:id/retry", async (req, res, next) => {
     });
     if (!run || run.pipeline.company.tenantId !== tenantId) throw new AppError(404, "Run not found");
     if (!isJobStateDualWriteEnabled()) throw retryCodes(409, "retry_disabled");
+    // Hiyerarşik koşu retry'ı KAPALI (BRA-P0-04j): tamamlanmış delegasyonlar atlanmaz,
+    // maliyet tohumlanmaz. CAS'tan ÖNCE: durum/enqueue/retryCount değişmez.
+    if (isHierarchicalPipeline(run.pipeline)) {
+      throw retryCodes(409, "run_not_retryable", { reason: "hierarchical_not_supported" });
+    }
 
     const cur = currentJobState(run.status, run.state);
     const bucket = jobBucket({
@@ -500,12 +505,12 @@ runRouter.post("/:id/retry", async (req, res, next) => {
     try {
       await enqueueRun(run.id);
     } catch (err) {
-      const reverted = await tenantTx((tx) => revertRunAfterEnqueueFailure(tx, run.id, tenantId, cur)).catch(() => false);
-      if (reverted) {
-        await tenantTx((tx) =>
-          tx.run.updateMany({ where: { id: run.id, status: toLegacyStatus(cur), retryCount: { gt: 0 } }, data: { retryCount: { decrement: 1 } } }),
-        ).catch(() => undefined);
-      }
+      // Geri alma + iade TEK tx'te; iade yalnız retryCount hâlâ bizim artırdığımız değerdeyse (CAS).
+      await tenantTx(async (tx) => {
+        const reverted = await revertRunAfterEnqueueFailure(tx, run.id, tenantId, cur);
+        if (!reverted) return;
+        await tx.run.updateMany({ where: { id: run.id, status: toLegacyStatus(cur), retryCount }, data: { retryCount: { decrement: 1 } } });
+      }).catch(() => undefined);
       throw err;
     }
 

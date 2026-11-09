@@ -70,4 +70,24 @@ describe("beatRun", () => {
   it("interval stays well under the single-source stale threshold", () => {
     expect(HEARTBEAT_MIN_INTERVAL_MS * 10).toBeLessThan(jobStaleAfterMs());
   });
+
+  it("a failed write does not set the throttle mark (next call retries); a successful one does", async () => {
+    vi.stubEnv("JOB_STATE_DUAL_WRITE", "true");
+    updateMany.mockRejectedValueOnce(new Error("db down"));
+    expect(await beatRun("r1", "t1", { now: 0 })).toBe(false);
+    expect(await beatRun("r1", "t1", { now: 1 })).toBe(true);
+    expect(await beatRun("r1", "t1", { now: 2 })).toBe(false); // throttled now
+    expect(updateMany).toHaveBeenCalledTimes(2);
+  });
+
+  it("an already-tracked run is never evicted when the map is full (existing entry keeps its throttle)", async () => {
+    vi.stubEnv("JOB_STATE_DUAL_WRITE", "true");
+    await beatRun("keep", "t1", { now: 0 });
+    for (let i = 0; i < 5_000; i++) await beatRun(`r${i}`, "t1", { now: 0 });
+    // "keep" was the oldest and got evicted only when NEW runs arrived; re-beat then refresh must not evict others needlessly
+    updateMany.mockClear();
+    await beatRun("r4999", "t1", { now: 40_000 }); // existing entry: write, no eviction
+    expect(await beatRun("r4999", "t1", { now: 40_001 })).toBe(false);
+    expect(await beatRun("r4998", "t1", { now: 1 })).toBe(false); // still tracked and throttled
+  });
 });

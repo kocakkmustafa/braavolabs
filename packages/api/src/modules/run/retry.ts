@@ -41,3 +41,12 @@ export function evaluateRetryBudget(run: RetryBudgetInput): RetryBudgetDecision 
   if (verdict.action !== "stop") return { allowed: true };
   return { allowed: false, reason: verdict.reason ?? "Job budget exhausted", stopped: verdict.stopped };
 }
+
+/**
+ * Yürütücünün hiyerarşik yola girdiği KOŞUL (pipeline/runner.ts) ve retry
+ * rotasının reddettiği koşul tek yerde: ayrışmasın. Hiyerarşik retry (prior
+ * COMPLETED delegasyon + maliyet tohumlama) BRA-P0-04j bileti.
+ */
+export function isHierarchicalPipeline(pipeline: { pipelineType?: string | null } | null | undefined): boolean {
+  return pipeline?.pipelineType === "HIERARCHICAL";
+}

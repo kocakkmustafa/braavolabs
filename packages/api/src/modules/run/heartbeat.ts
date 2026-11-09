@@ -24,6 +24,8 @@ export const HEARTBEAT_MIN_INTERVAL_MS = 30_000;
 /** Süreç içi son-yazım zamanı (ms). Sınır aşılırsa en eski girdiler atılır. */
 const lastBeat = new Map<string, number>();
 const MAX_TRACKED_RUNS = 5_000;
+/** Yazımı süren koşular (aynı süreç içi yinelenen eşzamanlı yazımı önler). */
+const inflight = new Set<string>();
 
 /** Koşu bittiğinde/terk edildiğinde hafızayı boşalt. */
 export function forgetBeat(runId: string): void {
@@ -33,6 +35,7 @@ export function forgetBeat(runId: string): void {
 /** Yalnız testler için. */
 export function resetHeartbeatState(): void {
   lastBeat.clear();
+  inflight.clear();
 }
 
 export interface BeatOptions {
@@ -53,21 +56,25 @@ export async function beatRun(runId: string, tenantId: string, opts: BeatOptions
     const now = opts.now ?? Date.now();
     const last = lastBeat.get(runId);
     if (!opts.force && last !== undefined && now - last < HEARTBEAT_MIN_INTERVAL_MS) return false;
-
-    // Yazımdan ÖNCE işaretle: paralel adımlar aynı pencerede ikinci yazımı yapmasın.
-    if (lastBeat.size >= MAX_TRACKED_RUNS) {
-      const oldest = lastBeat.keys().next().value;
-      if (oldest !== undefined) lastBeat.delete(oldest);
+    // Paralel adımlar aynı pencerede ikinci yazımı yapmasın (işaret yazım BAŞARISINDAN sonra konur).
+    if (inflight.has(runId) && !opts.force) return false;
+    inflight.add(runId);
+    try {
+      const client = opts.client ?? prisma;
+      const res = await client.run.updateMany({
+        where: { id: runId, status: "RUNNING", pipeline: { company: { tenantId } } },
+        data: { heartbeatAt: new Date(now) },
+      });
+      // Mevcut girdi güncellenir; yalnız YENİ girdi için sınır dolunca en eski atılır.
+      if (!lastBeat.has(runId) && lastBeat.size >= MAX_TRACKED_RUNS) {
+        const oldest = lastBeat.keys().next().value;
+        if (oldest !== undefined) lastBeat.delete(oldest);
+      }
+      lastBeat.set(runId, now);
+      return res.count === 1;
+    } finally {
+      inflight.delete(runId);
     }
-    lastBeat.delete(runId); // Map sırasını tazele (en yeni sonda)
-    lastBeat.set(runId, now);
-
-    const client = opts.client ?? prisma;
-    const res = await client.run.updateMany({
-      where: { id: runId, status: "RUNNING", pipeline: { company: { tenantId } } },
-      data: { heartbeatAt: new Date(now) },
-    });
-    return res.count === 1;
   } catch (err) {
     logger.debug({ runId, err: err instanceof Error ? err.message : String(err) }, "Run heartbeat write failed — ignored");
     return false;
