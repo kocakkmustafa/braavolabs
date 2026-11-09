@@ -12,6 +12,7 @@ import { reopenClaimedHandoff } from "../run/handoff.service";
 import { z } from "zod";
 import { afterCursorWhere, decodeCursor, encodeCursor, LIST_ORDER, parseLimit } from "../run/list-cursor";
 import { toPublicCompany } from "../company/redact";
+import { APPROVAL_LIST_SELECT, projectApprovalRow } from "./list-select";
 import {
   type ApprovalArtifact,
   extractArtifactFromInput,
@@ -103,9 +104,7 @@ approvalRouter.get("/", async (req, res, next) => {
         status: status as (typeof APPROVAL_STATUSES)[number],
         ...(cursor ? { AND: [afterCursorWhere(cursor)] } : {}),
       },
-      include: {
-        run: { include: { pipeline: { include: { company: true } } } },
-      },
+      select: APPROVAL_LIST_SELECT,
       orderBy: LIST_ORDER,
       ...(paged ? { take: limit + 1 } : {}),
     });
@@ -119,7 +118,8 @@ approvalRouter.get("/", async (req, res, next) => {
         pipeline: ap.run.pipeline && { ...ap.run.pipeline, company: toPublicCompany(ap.run.pipeline.company) },
       },
     }));
-    const withArtifacts = await attachArtifacts(safe);
+    // artifact ham metadata'dan çıkarılır, sonra metadata yalnız toolName'e indirilir (BRA-P0-04h).
+    const withArtifacts = (await attachArtifacts(safe)).map(projectApprovalRow);
 
     if (groupBy === "run") {
       const groups = new Map<string, { runId: string; runTitle: string | null; approvals: unknown[] }>();
