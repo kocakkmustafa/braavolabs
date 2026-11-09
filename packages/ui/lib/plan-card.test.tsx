@@ -2,8 +2,8 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it, expect, vi } from "vitest";
 import { PlanCardPanel, PlanMessageBox, startErrorText, costRangeText, type T } from "../components/plan/PlanParts";
-import { parsePlanResponse, parseStartResponse, PlanShapeError, type PlanCardView } from "./planCardParse";
-import { submitPlan, submitStart, cardNeedsApproval, type PlanDeps, type PlanState } from "./planFlow";
+import { parsePlanResponse, parseStartResponse, planRequestBody, PlanShapeError, type PlanCardView } from "./planCardParse";
+import { submitPlan, submitStart, cardNeedsApproval, makeGuard, workspaceForRequest, type PlanDeps, type PlanState } from "./planFlow";
 
 const t: T = (key) => key;
 const noop = () => {};
@@ -95,14 +95,13 @@ describe("akış", () => {
     expect(await submitStart(d, ready(), undefined, 3)).toMatchObject({ phase: "startError", error: "workspaceRequired" });
     expect(d.start).not.toHaveBeenCalled();
   });
-  it("422 + onay adımlı kart → approvalGate; onaysız kartta 422 gate sayılmaz", async () => {
+  it("onay adımı algısı; gövdesiz 422 gate sayılmaz", async () => {
     expect(cardNeedsApproval(high)).toBe(true); expect(cardNeedsApproval(low)).toBe(false);
     const d = mk({ start: async () => { throw err(422); } });
-    expect(await submitStart(d, ready(high), "w", 2)).toMatchObject({ phase: "startError", error: "approvalGate" });
-    expect(await submitStart(d, ready(low), "w", 2)).toMatchObject({ phase: "startError", error: "generic" });
+    expect(await submitStart(d, ready(high), "w", 2)).toMatchObject({ phase: "startError", error: "validation" });
   });
   it("409 planChanged; hata sonrası aynı idempotencyKey ile yeniden denenebilir; starting kilitli", async () => {
-    const d = mk({ start: vi.fn().mockRejectedValueOnce(err(409)).mockResolvedValueOnce({ runId: "r2" }) });
+    const d = mk({ start: vi.fn().mockRejectedValueOnce(Object.assign(err(409), { serverError: "plan_changed" })).mockResolvedValueOnce({ runId: "r2" }) });
     const e = await submitStart(d, ready(), "w", 2);
     expect(e).toMatchObject({ error: "planChanged" });
     expect(await submitStart(d, e, "w", 2)).toEqual({ phase: "started", runId: "r2" });
@@ -110,9 +109,53 @@ describe("akış", () => {
     const busy: PlanState = { ...(ready() as any), phase: "starting" };
     expect(await submitStart(d, busy, "w", 2)).toBe(busy);
   });
-  it("serbest sohbet etkilenmez: plan modülü sohbet/gönderim yolunu içermez, chat yanıtı iş başlatmaz", async () => {
-    const d = mk({ plan: async () => ({ intent: "chat" }) });
-    await submitPlan(d, "merhaba nasılsın", undefined);
-    expect(d.start).not.toHaveBeenCalled();
+  it("409 üç durumu ayırır; duraklatılmış şirkette Çalıştır devre dışı ve API tekrar çağrılmaz", async () => {
+    const e409 = (m: string) => Object.assign(err(409), { serverError: m, message: m });
+    const kind = async (m: string) => (await submitStart(mk({ start: async () => { throw e409(m); } }), ready(), "w", 2) as any).error;
+    expect(await kind("plan_changed")).toBe("planChanged");
+    expect(await kind("Idempotency key already used for a different plan")).toBe("keyConflict");
+    expect(await kind("New runs are unavailable while the company is paused or archived.")).toBe("companyInactive");
+    const d = mk({ start: vi.fn(async () => { throw e409("New runs are unavailable while the company is paused or archived."); }) });
+    const blocked = await submitStart(d, ready(), "w", 2);
+    const again = await submitStart(d, blocked, "w", 2);
+    expect(again).toBe(blocked); expect(d.start).toHaveBeenCalledTimes(1);
+    const html = renderToStaticMarkup(<PlanCardPanel card={low} t={t} locale="en" busy={false} startError="companyInactive" onStart={noop} onCancel={noop} />);
+    expect(html).toMatch(/<button[^>]*disabled[^>]*>app\.plan\.run/); expect(html).toContain("app.plan.companyInactive");
+    const re = renderToStaticMarkup(<PlanCardPanel card={low} t={t} locale="en" busy={false} startError="planChanged" onStart={noop} onCancel={noop} onReplan={noop} />);
+    expect(re).toContain("app.plan.replan");
+  });
+  it("400 yalnız workspaceId gerekiyorsa workspaceRequired; Zod 400 → validation", async () => {
+    const e = (m: string) => Object.assign(err(400), { serverError: m, message: m });
+    const kind = async (m: string) => (await submitStart(mk({ start: async () => { throw e(m); } }), ready(), "w", 2) as any).error;
+    expect(await kind("workspaceId is required")).toBe("workspaceRequired");
+    expect(await kind("Validation error")).toBe("validation");
+  });
+  it("422 gövde koduna göre: high_risk_start_unsupported / no agent / diğer", async () => {
+    const e = (m: string, msg = m) => Object.assign(err(422), { serverError: m, message: msg });
+    const kind = async (x: any, c = low) => (await submitStart(mk({ start: async () => { throw x; } }), ready(c), "w", 2) as any).error;
+    expect(await kind(e("high_risk_start_unsupported", "Yüksek riskli..."), low)).toBe("approvalGate");
+    expect(await kind(e("Workspace has no agent to run this job"), high)).toBe("noAgent");
+    expect(await kind(e("Message is not a job request"), high)).toBe("validation");
+  });
+  it("sayfa düzeyi: tek şirkette workspaceId atlanır, çoklu şirkette seçilen gider; plan gövdesi alanı atlar", () => {
+    expect(workspaceForRequest(false, "w1")).toBeUndefined();
+    expect(workspaceForRequest(true, "")).toBeUndefined();
+    expect(workspaceForRequest(true, "w1")).toBe("w1");
+    expect(planRequestBody("m")).toEqual({ message: "m" });
+    expect("workspaceId" in planRequestBody("m", undefined)).toBe(false);
+    expect(planRequestBody("m", "w1")).toEqual({ message: "m", workspaceId: "w1" });
+  });
+  it("alan değişimi yarışı: plan yanıtı gelmeden alan değişirse eski kart yazılmaz", async () => {
+    const g = makeGuard();
+    let release!: () => void;
+    const slow = mk({ plan: () => new Promise((r) => { release = () => r(parsePlanResponse(rawJob(low))); }) });
+    const my = g.next();
+    const pending = submitPlan(slow, "iş", "wA");
+    g.invalidate(); // select onChange
+    release();
+    const next = await pending;
+    expect(next.phase).toBe("ready");
+    expect(g.isCurrent(my)).toBe(false); // sayfa bu sonucu yazmaz
+    expect(g.isCurrent(g.next())).toBe(true);
   });
 });

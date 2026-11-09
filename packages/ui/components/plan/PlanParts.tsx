@@ -4,7 +4,7 @@
  * `dangerouslySetInnerHTML` yok, markdown yok, autolink yok (sahte bağlantı/XSS önlemi).
  */
 import type { PlanCardView } from "../../lib/planCardParse";
-import type { StartErrorKind } from "../../lib/planFlow";
+import { START_BLOCKED, type StartErrorKind } from "../../lib/planFlow";
 
 export type T = (key: string, values?: Record<string, string | number>) => string;
 
@@ -39,13 +39,14 @@ export function PlanMessageBox({ t, kind, body, onRetry }: { t: T; kind: "alert"
 }
 
 export function startErrorText(t: T, kind: StartErrorKind): string {
-  return kind === "approvalGate" || kind === "planChanged" || kind === "workspaceRequired" ? t(`app.plan.${kind}`) : t(`surface.error.${kind}`);
+  return ["approvalGate","planChanged","workspaceRequired","keyConflict","companyInactive","noAgent","validation"].includes(kind) ? t(`app.plan.${kind}`) : t(`surface.error.${kind}`);
 }
 
-export function PlanCardPanel({ card: c, t, locale, busy, startError, onStart, onCancel }: {
+export function PlanCardPanel({ card: c, t, locale, busy, startError, onStart, onCancel, onReplan }: {
   card: PlanCardView; t: T; locale: string; busy: boolean; startError?: StartErrorKind | null;
-  onStart: () => void; onCancel: () => void;
+  onStart: () => void; onCancel: () => void; onReplan?: () => void;
 }) {
+  const blocked = !!startError && START_BLOCKED.includes(startError);
   const tools = Array.from(new Set(c.steps.map((s) => s.tool).filter((x): x is string => !!x)));
   const cost = costRangeText(c.estimate, locale);
   return (
@@ -65,7 +66,8 @@ export function PlanCardPanel({ card: c, t, locale, busy, startError, onStart, o
       <div style={muted}><strong>{t("app.plan.cost")}:</strong> <span>{cost ?? t("app.plan.costUnknown")}</span></div>
       {startError && <div role="alert" style={{ color: "var(--color-error)", fontWeight: 600 }}>{startErrorText(t, startError)}</div>}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button type="button" style={btnPrimary} disabled={busy} aria-busy={busy} onClick={onStart}>{busy ? t("app.plan.starting") : t("app.plan.run")}</button>
+        <button type="button" style={btnPrimary} disabled={busy || blocked} aria-busy={busy} onClick={onStart}>{busy ? t("app.plan.starting") : t("app.plan.run")}</button>
+        {startError === "planChanged" && onReplan && <button type="button" style={btn} disabled={busy} onClick={onReplan}>{t("app.plan.replan")}</button>}
         <button type="button" style={btn} disabled={busy} onClick={onCancel}>{t("app.plan.cancel")}</button>
       </div>
     </article>

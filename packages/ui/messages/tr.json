@@ -1312,7 +1312,7 @@
       "messagePlaceholder": "Örn. haftalık satış raporunu hazırla",
       "suggest": "Plan öner",
       "planning": "Plan hazırlanıyor…",
-      "empty": "Bu mesaj bir iş tarifi gibi görünmüyor; plan önerilmedi.",
+      "empty": "Bu mesaj bir iş talebi gibi görünmüyor; plan önerilmedi.",
       "retry": "Yeniden dene",
       "steps": "Adımlar",
       "tools": "Araçlar",
@@ -1328,9 +1328,16 @@
       "run": "Çalıştır",
       "cancel": "Vazgeç",
       "starting": "Başlatılıyor…",
-      "approvalGate": "Bu iş onay gerektirir; şu an kapalı.",
+      "approvalGate": "Bu iş onay gerektirir; adım onay kapısı şu an kapalı.",
       "planChanged": "Plan değişti. Lütfen yeniden plan öner.",
-      "workspaceRequired": "Önce bir çalışma alanı seç."
+      "workspaceRequired": "Önce bir çalışma alanı seç.",
+      "replan": "Planı yeniden öner",
+      "noCompany": "Önce bir şirket oluştur.",
+      "createCompany": "Şirket oluştur",
+      "keyConflict": "Bu istek anahtarı başka bir planla kullanılmış. Planı yeniden öner.",
+      "companyInactive": "Şirket duraklatılmış veya arşivlenmiş; yeni iş başlatılamaz.",
+      "noAgent": "Bu çalışma alanında işi yürütecek ajan yok.",
+      "validation": "İstek doğrulanamadı. Mesajı kontrol edip yeniden dene."
     }
   },
   "static": {

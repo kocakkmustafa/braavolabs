@@ -1330,7 +1330,14 @@
       "starting": "開始中…",
       "approvalGate": "このジョブには承認が必要ですが、現在オフになっています。",
       "planChanged": "プランが変更されました。もう一度プランを提案してください。",
-      "workspaceRequired": "先にワークスペースを選択してください。"
+      "workspaceRequired": "先にワークスペースを選択してください。",
+      "replan": "Suggest the plan again",
+      "noCompany": "Create a company first.",
+      "createCompany": "Create a company",
+      "keyConflict": "This request key was used for a different plan. Suggest the plan again.",
+      "companyInactive": "The company is paused or archived; new jobs cannot start.",
+      "noAgent": "This workspace has no agent to run the job.",
+      "validation": "The request could not be validated. Check the message and retry."
     }
   },
   "static": {

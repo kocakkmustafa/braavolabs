@@ -1330,7 +1330,14 @@
       "starting": "Avvio…",
       "approvalGate": "Questo lavoro richiede approvazione; al momento è disattivata.",
       "planChanged": "Il piano è cambiato. Proponi di nuovo un piano.",
-      "workspaceRequired": "Scegli prima uno spazio di lavoro."
+      "workspaceRequired": "Scegli prima uno spazio di lavoro.",
+      "replan": "Suggest the plan again",
+      "noCompany": "Create a company first.",
+      "createCompany": "Create a company",
+      "keyConflict": "This request key was used for a different plan. Suggest the plan again.",
+      "companyInactive": "The company is paused or archived; new jobs cannot start.",
+      "noAgent": "This workspace has no agent to run the job.",
+      "validation": "The request could not be validated. Check the message and retry."
     }
   },
   "static": {

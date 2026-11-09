@@ -1330,7 +1330,14 @@
       "starting": "正在启动…",
       "approvalGate": "此任务需要审批，但目前已关闭。",
       "planChanged": "方案已变化，请重新建议方案。",
-      "workspaceRequired": "请先选择工作区。"
+      "workspaceRequired": "请先选择工作区。",
+      "replan": "Suggest the plan again",
+      "noCompany": "Create a company first.",
+      "createCompany": "Create a company",
+      "keyConflict": "This request key was used for a different plan. Suggest the plan again.",
+      "companyInactive": "The company is paused or archived; new jobs cannot start.",
+      "noAgent": "This workspace has no agent to run the job.",
+      "validation": "The request could not be validated. Check the message and retry."
     }
   },
   "static": {

@@ -52,3 +52,7 @@ export function parseStartResponse(raw: unknown): StartResponse {
   if (!isObj(raw) || typeof raw.runId !== "string" || !raw.runId) throw new PlanShapeError("start");
   return { runId: raw.runId, pipelineId: typeof raw.pipelineId === "string" ? raw.pipelineId : undefined, state: typeof raw.state === "string" ? raw.state : undefined };
 }
+
+/** POST /jobs/plan gövdesi: workspaceId yoksa alan HİÇ gönderilmez. */
+export const planRequestBody = (message: string, workspaceId?: string): { message: string; workspaceId?: string } =>
+  ({ message, ...(workspaceId ? { workspaceId } : {}) });

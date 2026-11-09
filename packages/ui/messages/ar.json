@@ -1330,7 +1330,14 @@
       "starting": "جارٍ البدء…",
       "approvalGate": "تتطلب هذه المهمة موافقة، وهي معطّلة حاليًا.",
       "planChanged": "تغيّرت الخطة. اقترح خطة مرة أخرى.",
-      "workspaceRequired": "اختر مساحة عمل أولًا."
+      "workspaceRequired": "اختر مساحة عمل أولًا.",
+      "replan": "Suggest the plan again",
+      "noCompany": "Create a company first.",
+      "createCompany": "Create a company",
+      "keyConflict": "This request key was used for a different plan. Suggest the plan again.",
+      "companyInactive": "The company is paused or archived; new jobs cannot start.",
+      "noAgent": "This workspace has no agent to run the job.",
+      "validation": "The request could not be validated. Check the message and retry."
     }
   },
   "static": {

@@ -1330,7 +1330,14 @@
       "starting": "시작 중…",
       "approvalGate": "이 작업은 승인이 필요하지만 현재 꺼져 있습니다.",
       "planChanged": "계획이 변경되었습니다. 계획을 다시 제안하세요.",
-      "workspaceRequired": "먼저 워크스페이스를 선택하세요."
+      "workspaceRequired": "먼저 워크스페이스를 선택하세요.",
+      "replan": "Suggest the plan again",
+      "noCompany": "Create a company first.",
+      "createCompany": "Create a company",
+      "keyConflict": "This request key was used for a different plan. Suggest the plan again.",
+      "companyInactive": "The company is paused or archived; new jobs cannot start.",
+      "noAgent": "This workspace has no agent to run the job.",
+      "validation": "The request could not be validated. Check the message and retry."
     }
   },
   "static": {

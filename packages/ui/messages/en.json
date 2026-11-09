@@ -1328,9 +1328,16 @@
       "run": "Run",
       "cancel": "Cancel",
       "starting": "Starting…",
-      "approvalGate": "This job requires approval; that is currently turned off.",
+      "approvalGate": "This job requires approval; the step approval gate is currently turned off.",
       "planChanged": "The plan changed. Please suggest a plan again.",
-      "workspaceRequired": "Choose a workspace first."
+      "workspaceRequired": "Choose a workspace first.",
+      "replan": "Suggest the plan again",
+      "noCompany": "Create a company first.",
+      "createCompany": "Create a company",
+      "keyConflict": "This request key was used for a different plan. Suggest the plan again.",
+      "companyInactive": "The company is paused or archived; new jobs cannot start.",
+      "noAgent": "This workspace has no agent to run the job.",
+      "validation": "The request could not be validated. Check the message and retry."
     }
   },
   "static": {

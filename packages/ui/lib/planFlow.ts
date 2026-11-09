@@ -5,7 +5,11 @@
 import { classifyFailure, type FailureKind } from "./localized-error";
 import type { PlanCardView, PlanResponse, StartResponse } from "./planCardParse";
 
-export type StartErrorKind = FailureKind | "approvalGate" | "planChanged" | "workspaceRequired";
+export type StartErrorKind =
+  | FailureKind | "approvalGate" | "planChanged" | "workspaceRequired" | "keyConflict" | "companyInactive" | "noAgent" | "validation";
+
+/** Başlatma bu durumlarda kalıcı olarak engelli: Çalıştır devre dışı (yeniden denemek anlamsız). */
+export const START_BLOCKED: readonly StartErrorKind[] = ["companyInactive", "noAgent", "approvalGate"];
 
 export type PlanState =
   | { phase: "idle" }
@@ -40,17 +44,30 @@ export async function submitPlan(deps: PlanDeps, rawMessage: string, workspaceId
   }
 }
 
+/** Gövdedeki `error` alanı (ApiRequestError.serverError) ayrımı belirler; HTTP durumu tek başına yetmez. */
 export function startErrorKind(error: unknown, card: PlanCardView): StartErrorKind {
-  const status = (error as { status?: unknown } | null)?.status;
-  if (status === 422 && cardNeedsApproval(card)) return "approvalGate";
-  if (status === 409) return "planChanged";
-  if (status === 400) return "workspaceRequired";
+  const e = error as { status?: unknown; serverError?: unknown; message?: unknown } | null;
+  const status = e?.status;
+  const code = typeof e?.serverError === "string" ? e.serverError : typeof e?.message === "string" ? e.message : "";
+  if (status === 422) {
+    if (code === "high_risk_start_unsupported") return "approvalGate";
+    if (/no agent/i.test(code)) return "noAgent";
+    return cardNeedsApproval(card) && code === "" ? "approvalGate" : "validation";
+  }
+  if (status === 409) {
+    if (code === "plan_changed") return "planChanged";
+    if (/idempotency key/i.test(code)) return "keyConflict";
+    if (/paused or archived/i.test(code)) return "companyInactive";
+    return "generic";
+  }
+  if (status === 400) return /workspaceId is required/i.test(code) ? "workspaceRequired" : "validation";
   return classifyFailure(error);
 }
 
 /** `ready`/`startError` dışında çalışmaz (çift tıklama kilidi: `starting` durumu yeni başlatmayı yok sayar). */
 export async function submitStart(deps: PlanDeps, state: PlanState, workspaceId: string | undefined, companyCount: number): Promise<PlanState> {
   if (state.phase !== "ready" && state.phase !== "startError") return state;
+  if (state.phase === "startError" && state.error && START_BLOCKED.includes(state.error)) return state;
   if (needsWorkspaceChoice(companyCount) && !workspaceId) return { ...state, phase: "startError", error: "workspaceRequired" };
   try {
     const res = await deps.start({ message: state.message, workspaceId, planHash: state.planHash, idempotencyKey: state.idempotencyKey });
@@ -59,3 +76,12 @@ export async function submitStart(deps: PlanDeps, state: PlanState, workspaceId:
     return { ...state, phase: "startError", error: startErrorKind(error, state.card) };
   }
 }
+
+/** Sayfa düzeyi yarış koruması: alan değişimi/vazgeç/yeni istek eski yanıtı geçersiz kılar. */
+export function makeGuard() {
+  let n = 0;
+  return { next: () => ++n, invalidate: () => { n++; }, isCurrent: (id: number) => id === n };
+}
+
+/** Tek şirkette (ya da seçimsiz) workspaceId gönderilmez; çoklu şirkette seçilen gönderilir. */
+export const workspaceForRequest = (multi: boolean, chosen: string): string | undefined => (multi ? chosen || undefined : undefined);

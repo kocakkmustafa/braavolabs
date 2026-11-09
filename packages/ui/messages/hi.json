@@ -1330,7 +1330,14 @@
       "starting": "शुरू हो रहा है…",
       "approvalGate": "इस काम के लिए अनुमोदन चाहिए; वह अभी बंद है।",
       "planChanged": "योजना बदल गई। कृपया फिर से योजना सुझाएँ।",
-      "workspaceRequired": "पहले वर्कस्पेस चुनें।"
+      "workspaceRequired": "पहले वर्कस्पेस चुनें।",
+      "replan": "Suggest the plan again",
+      "noCompany": "Create a company first.",
+      "createCompany": "Create a company",
+      "keyConflict": "This request key was used for a different plan. Suggest the plan again.",
+      "companyInactive": "The company is paused or archived; new jobs cannot start.",
+      "noAgent": "This workspace has no agent to run the job.",
+      "validation": "The request could not be validated. Check the message and retry."
     }
   },
   "static": {
