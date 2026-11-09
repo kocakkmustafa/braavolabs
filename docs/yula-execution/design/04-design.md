@@ -90,7 +90,7 @@ Mobil birincil amaçlar (talimat §4.2-J, `:347`): iş başlat, durum, onay/red,
 | Kısa yönlendirme | "Yönlendir" tek satır (`run/router.ts:817`, `mobile/lib/api.ts:1243`) | aynı | var |
 | Model/şirket değiştir | Üst şirket seçici; model Yönet'te | Çubuk + Yönet | kısmi |
 
-Kırılma noktaları: ≤640 px tek sütun + alt gezinme (Başla · İşler · Şirketler · Yönet); 641–1023 px liste + tam ekran çekmece; ≥1024 px liste + yan çekmece. Derin kod düzenleme mobilde sunulmaz; mobilde yalnız **değişikliği incele ve kabul et** (diff özeti, test sonucu, Kabul/Reddet) tasarlanır; düzenleme masaüstü/CLI'de kalır. **Masaüstü (Tauri) ve CLI rolü:** masaüstü uygulaması yerel çalıştırma ve kod geliştirme yüzeyidir (`desktop/src/pty.ts`, yerel onay ledger'ı `desktop/src/governance.ts`, 01 §3) ve bu faz web tasarımına dokunmaz; aynı kova/kart dilini benimsemesi ileride ayrı biletle istenir. Masaüstü platform Job/Run/Approval sözleşmesini bugün kullanmaz (01 §3); bu belge ona yeni uç dayatmaz. CLI niyet çubuğunun metin karşılığıdır: `braavo runs`, `approve`, `pause`, `steer`, `stop` kova/iş komutlarıdır (`cli/src/braavo.ts:1325`, `:2518`, `:2544`), `--json` otomasyon içindir (`cli/src/forge/output.ts:56`); `braavo runs --bucket` yeni istemci işidir (API hazır). Derin kod ve uzun otomasyon CLI/masaüstünde, onay ve izleme her yüzeyde yapılır.
+Kırılma noktaları: ≤640 px tek sütun + alt gezinme (Başla · İşler · Şirketler · Yönet); 641–1023 px liste + tam ekran çekmece; ≥1024 px liste + yan çekmece. Derin kod düzenleme mobilde sunulmaz; mobilde yalnız **değişikliği incele ve kabul et** (diff özeti, test sonucu, Kabul/Reddet) tasarlanır; düzenleme masaüstü/CLI'de kalır. **Masaüstü (Tauri) ve CLI rolü:** masaüstü uygulaması yerel çalıştırma ve kod geliştirme yüzeyidir (`desktop/src/pty.ts`, yerel onay ledger'ı `desktop/src/governance.ts`, 01 §3) ve bu faz web tasarımına dokunmaz; aynı kova/kart dilini benimsemesi ileride ayrı biletle istenir. Masaüstü platform Job/Run/Approval sözleşmesini bugün kullanmaz (01 §3); bu belge ona yeni uç dayatmaz. CLI niyet çubuğunun metin karşılığıdır: `braavo runs`, `approve`, `pause`, `steer`, `stop` kova/iş komutlarıdır (`cli/src/braavo.ts:1325`, `:2518`, `:2544`), `--json` otomasyon içindir (`cli/src/forge/output.ts:56`); `braavo runs --bucket` yeni istemci işidir (API hazır). Derin kod ve uzun otomasyon CLI/masaüstünde, onay ve izleme her yüzeyde yapılır. (CLI atıfları `:1325`, `:2518`, `:2544` 03-concepts/01-audit'ten devralındı; CLI main'inde doğrulanmalı.)
 
 **Mobil konumlama uyarısı:** `mobile/CLAUDE.md` mobili "Read + approve, don't build" diye konumlar; talimat §4.2-J ise iş başlatmayı birincil amaç sayar (`03-concepts.md:19`). Bu belge mobilde iş BAŞLATMAYI **kurucu kararına bağlı** sayar; UX-05j varsayımı: mobil yalnız oku + onayla + duraklat + yönlendir. Dokunma hedefi ≥44 px; alt çubuk güvenli alanı (`env(safe-area-inset-bottom)`) kullanır.
 
@@ -123,9 +123,10 @@ Birinci örnek **onaysız (düşük risk, geri alınabilir)** iştir; `STEP_APPR
 ┌ ▓ "Müşteri e-postalarını özetle ve ▓┐
 │ ▓  taslak olarak kaydet"      [Planla]▓│
 ├──────────────────────────────────────┤
-│ ░ PLAN (2 adım)         risk: düşük  ░│
-│ ░ 1 E-postaları oku    araç: gmail   ░│
-│ ░ 2 Özetle, taslağa yaz araç: drafts ░│
+│ ░ PLAN (3 adım, örnek)  risk: düşük  ░│
+│ ░ 1 Talebi netleştir, kaynak topla  araç: read      ░│
+│ ░ 2 Taslak çıktıyı hazırla          araç: draft     ░│
+│ ░ 3 Sonucu özetle ve sun            araç: summarize ░│
 │ ░ Tahmini maliyet: 0,02–0,06 $ (örnek aralık)│  ← estimate.costUsd aralığı
 │ ░ [Düzenle]  [Çalıştır ▸]            ░│
 └──────────────────────────────────────┘
@@ -145,7 +146,7 @@ Bayrak KAPALIYKEN bu kart `/jobs/start`'ta 422 `high_risk_start_unsupported` dö
 ┌ İşler        [Onay 2] Çalışıyor 3  Takıldı 1  Bitti ┐
 │ ░ Bu hafta harcama: 3,10$ (örnek; haftalık toplam alanı yok)│
 │ ▲ Onayını bekliyor (yüksek katman, sabit)           │
-│ ░ Slack'e gönder · Atölye · ⚠ orta risk    [İncele] │
+│ ░ Slack'e gönder · Atölye · ⚠ orta (örnek; API ister: risk alanı) [İncele] │
 │ ● Çalışıyor                                         │
 │ ░ Rapor taslağı · adım 2/3 · 0,42$ · 14 sn önce     │
 │   ┌─ çekmece ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓┐        │
@@ -160,7 +161,7 @@ Kovalar `GET /runs?bucket=` ve `GET /approvals?groupBy=run` (`packages/ui/lib/ap
 ### 5.4 Onay anlama (E8) — test 4.4-4, §4.2-I
 
 ```
-┌ ▓ ONAY: Slack'e mesaj gönder  ⚠ orta ▓┐
+┌ ▓ ONAY: Slack'e mesaj gönder ⚠ orta (API ister: risk alanı) ▓┐
 │ ▓ Ne yapacak: #genel kanalına 1 mesaj ▓│
 │ ▓ Araç: slack.post                     ▓│
 │ ▓ Yetki: yazma (API ister)             ▓│
@@ -242,7 +243,7 @@ Aynı `Run` kaydı: araç çağrıları `runs/[id]/page.tsx:671`, `:730`, maliye
 ```
 ┌ İşler          Atölye ▾  ┐
 │ [Onay 2] Çalışıyor 3 …   │
-│ ▓ Slack'e gönder  ⚠orta ▓│
+│ ▓ Slack'e gönder ⚠ (API ister: risk alanı) ▓│
 │   [Reddet]  [Onayla]     │
 │ ░ Rapor taslağı 0,42$    │
 │   adım 2/3   [⏸] [↦]     │
@@ -360,7 +361,7 @@ Yalnız `transform`/`opacity` animasyonu; `width/height/top` yok. `prefers-reduc
 | İzin reddi 403 | "Bu işlem için yetkin yok: `approval:decide`" + kimden isteneceği | — | `approval/router.ts:247` (`requirePermission`) |
 | Onay bekliyor | iş satırı üstte, yüksek katman, rozet | İncele | ADR-0003 `needs_approval` |
 | Onay reddedildi | satır "reddedildi · iptal" | Yeniden tarifle | `DECISIONS.md:178` (red koşuyu iptal eder) |
-| Onay süresi doldu | `EXPIRED` ayrı etiket | Yeniden iste | `approval/router.ts:80`, `:91` |
+| Onay süresi doldu | `EXPIRED` ayrı etiket | Yeniden iste | `approval/router.ts:80`, `:91` (durum listesi); gerçek süre dolumu `:264-265` (409 "Approval expired") |
 | Yarış/409 | `retry_*` kodları insan metnine eşlenir | — | ADR-0003 04d tablosu |
 | 429 | "Çok hızlı; N sn sonra" | otomatik geri sayım | `planLimiter` `jobs/router.ts:53` |
 | Takıldı | kova + heartbeat yaşı | Yeniden dene / Durdur | `run/router.ts:432` (`/retry`), `:289` |
