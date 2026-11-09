@@ -9,10 +9,10 @@ import { logger } from "../../lib/logger";
 import { estimatePipelineCostUsd } from "../../lib/modelPricing";
 import { getTenantAIConfig, chatCompletion, type AIProviderType } from "../../services/ai-client";
 import { resolveTenantCompletionLink } from "../../services/provider-chain";
-import { claimQuota } from "../billing/metering";
+import { claimQuota, releaseQuota } from "../billing/metering";
 import { enqueueRun } from "../pipeline/runner";
 import { computePlanHash, planHashMatches } from "./plan-hash";
-import { createPlannedRun, isUniqueViolation, resolveStartBudget } from "./start";
+import { createPlannedRun, isHighRiskCard, isUniqueViolation, resolveStartBudget } from "./start";
 import { INTENT_SYSTEM_PROMPT, classifyIntentRule, planFromMessage, sanitizeSnippet, type CostBasis } from "./plan";
 
 // BRA-P0-03a — plan kartı üretimi. Kalıcı kayıt yok, çalıştırma yok.
@@ -116,7 +116,8 @@ const startBodySchema = z
 
 // POST /api/v1/jobs/start — onaylanan plan kartından koşu başlatır (LLM yolu yok).
 // "İptal" = istemcinin hiçbir şey göndermemesi; taslak sunucuda tutulmaz.
-// Yüksek riskli adımlar için burada yetki/onay üretilmez; mevcut onay motoru kapılar.
+// Yüksek riskli kartlar (risk:"high" / needsApproval adımı) 422 ile reddedilir: config.needsApproval
+// yürütücüde zorlanmaz (BRA-P0-03d: adım-düzeyi onay kapısı). Burada hiçbir onay/yetki üretilmez.
 jobsRouter.post("/start", startLimiter, async (req, res, next) => {
   try {
     const { message, workspaceId, planHash, idempotencyKey } = startBodySchema.parse(req.body);
@@ -143,6 +144,15 @@ jobsRouter.post("/start", startLimiter, async (req, res, next) => {
       return;
     }
 
+    // Yürütücüde adım-düzeyi onay kapısı yok → yüksek riskli plan başlatılamaz (koşu/pipeline/kota yok).
+    if (isHighRiskCard(result.card)) {
+      res.status(422).json({
+        error: "high_risk_start_unsupported",
+        message: "Yüksek riskli planlar henüz otomatik başlatılamaz; adımlar yürütücüde adım-düzeyi onay kapısına bağlanana kadar kapalı",
+      });
+      return;
+    }
+
     // Aynı anahtar → aynı koşu (kiracı kapsamlı). Farklı plan ile çakışırsa 409.
     const replay = async () => {
       const existing = await prisma.run.findFirst({
@@ -166,6 +176,7 @@ jobsRouter.post("/start", startLimiter, async (req, res, next) => {
     const agent = await prisma.agent.findFirst({ where: { companyId: company.id }, orderBy: { createdAt: "asc" }, select: { role: true } });
     if (!agent) throw new AppError(422, "Workspace has no agent to run this job");
 
+    // Kota talebi replay kontrolünden SONRA, yaratımdan hemen önce; başarısızlıkta iade edilir.
     const claim = await claimQuota(tenantId, "runs");
     if (!claim.claimed) {
       throw new AppError(429, `Monthly run limit reached (${claim.value}/${claim.limit}). Upgrade your plan for more runs.`);
@@ -183,6 +194,7 @@ jobsRouter.post("/start", startLimiter, async (req, res, next) => {
         budget: resolveStartBudget(result.card),
       });
     } catch (err) {
+      await releaseQuota(tenantId, "runs");
       if (isUniqueViolation(err)) {
         const raced = await replay(); // eşzamanlı aynı anahtar: kazananın koşusunu döndür
         if (raced) {
@@ -208,6 +220,7 @@ jobsRouter.post("/start", startLimiter, async (req, res, next) => {
       await enqueueRun(started.runId);
     } catch (err) {
       await prisma.run.update({ where: { id: started.runId }, data: { status: "FAILED", error: "enqueue_failed" } }).catch(() => undefined);
+      await releaseQuota(tenantId, "runs");
       throw err;
     }
 

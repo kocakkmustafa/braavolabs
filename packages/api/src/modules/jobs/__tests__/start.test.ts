@@ -11,7 +11,7 @@ const m = vi.hoisted(() => ({
   companyFindMany: vi.fn(),
   agentFindFirst: vi.fn(),
   pipelineCreate: vi.fn(),
-  pipelineDelete: vi.fn(),
+  releaseQuota: vi.fn(),
   runFindFirst: vi.fn(),
   runCreate: vi.fn(),
   runUpdate: vi.fn(),
@@ -24,15 +24,12 @@ vi.mock("../../../lib/db", () => ({
   prisma: {
     company: { findFirst: (...a: unknown[]) => m.companyFindFirst(...a), findMany: (...a: unknown[]) => m.companyFindMany(...a) },
     agent: { findFirst: (...a: unknown[]) => m.agentFindFirst(...a) },
-    pipeline: { create: (...a: unknown[]) => m.pipelineCreate(...a), delete: (...a: unknown[]) => m.pipelineDelete(...a) },
-    run: {
-      findFirst: (...a: unknown[]) => m.runFindFirst(...a),
-      create: (...a: unknown[]) => m.runCreate(...a),
-      update: (...a: unknown[]) => m.runUpdate(...a),
-    },
+    run: { findFirst: (...a: unknown[]) => m.runFindFirst(...a), update: (...a: unknown[]) => m.runUpdate(...a) },
     approval: { create: (...a: unknown[]) => m.approvalCreate(...a) },
     activityLog: { create: (...a: unknown[]) => m.activityCreate(...a) },
   },
+  tenantTx: (fn: (tx: unknown) => unknown) =>
+    fn({ pipeline: { create: (...a: unknown[]) => m.pipelineCreate(...a) }, run: { create: (...a: unknown[]) => m.runCreate(...a) } }),
 }));
 vi.mock("../../../middleware/rateLimit", () => ({
   rateLimit: (opts: unknown) => {
@@ -45,7 +42,10 @@ vi.mock("../../../config/env", () => ({ env: { CLAUDE_MODEL: "claude-sonnet-4-5"
 const cfg = vi.hoisted(() => vi.fn());
 vi.mock("../../../services/ai-client", () => ({ getTenantAIConfig: (...a: unknown[]) => cfg(...a), chatCompletion: vi.fn() }));
 vi.mock("../../../services/provider-chain", () => ({ resolveTenantCompletionLink: vi.fn() }));
-vi.mock("../../billing/metering", () => ({ claimQuota: (...a: unknown[]) => m.claimQuota(...a) }));
+vi.mock("../../billing/metering", () => ({
+  claimQuota: (...a: unknown[]) => m.claimQuota(...a),
+  releaseQuota: (...a: unknown[]) => m.releaseQuota(...a),
+}));
 vi.mock("../../pipeline/runner", () => ({ enqueueRun: (...a: unknown[]) => m.enqueueRun(...a) }));
 vi.mock("../../../lib/modelPricing", () => ({
   estimatePipelineCostUsd: (n: number, provider: string, model: string) => ({
@@ -58,7 +58,8 @@ vi.mock("../../../lib/modelPricing", () => ({
 
 import { jobsRouter } from "../router";
 import { computePlanHash } from "../plan-hash";
-import { DEFAULT_MAX_USD } from "../start";
+import { DEFAULT_MAX_TOKENS, DEFAULT_MAX_USD } from "../start";
+import { detectHighRisk } from "../plan";
 
 function handler(path: string) {
   const layer = (jobsRouter as Router as any).stack.find((l: any) => l.route?.path === path && l.route.methods.post);
@@ -84,6 +85,15 @@ async function planHashFor(message: string, tenantId = "tenant-1", workspaceId?:
 
 const MSG = "Müşteri raporunu hazırla";
 const RISKY = "Müşterilere kampanya e-postası gönder";
+const FAMILIES: Record<string, string> = {
+  send: "Müşterilere kampanya e-postası gönder",
+  publish: "Blog yazısını yayınla",
+  delete: "Eski müşteri kayıtlarını sil",
+  pay: "Tedarikçi faturasını öde",
+  deploy: "Uygulamayı production'a deploy et",
+  merge: "Pull request'i merge et",
+  grant: "Stajyere panel erişim ver",
+};
 const KEY = "idem-key-0001";
 
 beforeEach(() => {
@@ -98,7 +108,7 @@ beforeEach(() => {
   m.claimQuota.mockResolvedValue({ claimed: true, value: 1, limit: 10 });
   m.enqueueRun.mockResolvedValue("job-1");
   m.activityCreate.mockResolvedValue({});
-  m.pipelineDelete.mockResolvedValue({});
+  m.releaseQuota.mockResolvedValue(undefined);
   m.runUpdate.mockResolvedValue({});
 });
 
@@ -165,13 +175,13 @@ describe("POST /jobs/start", () => {
     expect(m.claimQuota).not.toHaveBeenCalled();
   });
 
-  it("idempotency yarışı (P2002): pipeline geri alınır, kazananın runId'si döner", async () => {
+  it("idempotency yarışı (P2002): kota iade edilir, kazananın runId'si döner", async () => {
     const planHash = await planHashFor(MSG);
     m.runFindFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "run-9", pipelineId: "pl-9", status: "PENDING", input: { planHash } });
     m.runCreate.mockRejectedValue(Object.assign(new Error("dup"), { code: "P2002" }));
     const { res } = await call("/start", { message: MSG, planHash, idempotencyKey: KEY });
     expect(res.body).toEqual({ runId: "run-9", pipelineId: "pl-9", state: "PENDING" });
-    expect(m.pipelineDelete).toHaveBeenCalledWith({ where: { id: "pl-1" } });
+    expect(m.releaseQuota).toHaveBeenCalledWith("tenant-1", "runs");
     expect(m.enqueueRun).not.toHaveBeenCalled();
   });
 
@@ -182,15 +192,28 @@ describe("POST /jobs/start", () => {
     expect(nextErr.statusCode).toBe(409);
   });
 
-  it("yüksek riskli kart: onay/yetki kaydı üretilmez, adımlar needsApproval taşır, koşu PENDING", async () => {
-    const { res: planRes } = await call("/plan", { message: RISKY });
-    expect(planRes.body.card.risk).toBe("high");
-    const { res } = await call("/start", { message: RISKY, planHash: planRes.body.planHash, idempotencyKey: KEY });
-    expect(res.statusCode).toBe(201);
+  it("yüksek riskli kart (her fiil ailesi): 422, kota/pipeline/run/onay oluşmaz", async () => {
+    expect(new Set(Object.values(FAMILIES).flatMap((t) => detectHighRisk(t).map((x) => x.id)))).toEqual(
+      new Set(["send", "publish", "delete", "pay", "deploy", "merge", "grant"]),
+    );
+    for (const text of Object.values(FAMILIES)) {
+      const { res: planRes } = await call("/plan", { message: text });
+      expect(planRes.body.card.risk).toBe("high");
+      expect(planRes.body.card.warnings.some((w: string) => w.includes("otomatik başlatma şimdilik kapalı"))).toBe(true);
+      const { res } = await call("/start", { message: text, planHash: planRes.body.planHash, idempotencyKey: KEY });
+      expect(res.statusCode).toBe(422);
+      expect(res.body.error).toBe("high_risk_start_unsupported");
+    }
+    expect(m.claimQuota).not.toHaveBeenCalled();
+    expect(m.pipelineCreate).not.toHaveBeenCalled();
+    expect(m.runCreate).not.toHaveBeenCalled();
     expect(m.approvalCreate).not.toHaveBeenCalled();
-    const steps = m.pipelineCreate.mock.calls[0]![0].data.steps;
-    expect(steps.some((s: any) => s.config.needsApproval === true && s.config.risk === "high")).toBe(true);
-    expect(m.runCreate.mock.calls[0]![0].data.status).toBe("PENDING");
+    expect(m.enqueueRun).not.toHaveBeenCalled();
+  });
+
+  it("yüksek riskli kartta yanlış hash önce 409 (422 hash doğrulamasından sonra)", async () => {
+    const { res } = await call("/start", { message: RISKY, planHash: "v1:yanlis", idempotencyKey: KEY });
+    expect(res.statusCode).toBe(409);
   });
 
   it("fiyatsız modelde güvenli USD tavanı zorunlu", async () => {
@@ -198,7 +221,11 @@ describe("POST /jobs/start", () => {
     const { res: p } = await call("/plan", { message: MSG });
     expect(p.body.card.budget.maxUsd).toBeUndefined();
     await call("/start", { message: MSG, planHash: p.body.planHash, idempotencyKey: KEY });
-    expect(m.runCreate.mock.calls[0]![0].data.jobBudget.maxUsd).toBe(DEFAULT_MAX_USD);
+    const jb = m.runCreate.mock.calls[0]![0].data.jobBudget;
+    expect(jb.maxUsd).toBe(DEFAULT_MAX_USD);
+    expect(jb.maxTokens).toBe(DEFAULT_MAX_TOKENS);
+    expect(jb.maxSteps).toBeGreaterThan(0);
+    expect(jb.timeoutMs).toBeGreaterThan(0);
   });
 
   it("fiyatlı modelde kart tavanı korunur", async () => {
@@ -246,5 +273,74 @@ describe("POST /jobs/start", () => {
     const { nextErr } = await call("/start", { message: MSG, planHash, idempotencyKey: KEY });
     expect(nextErr).toBeInstanceOf(Error);
     expect(m.runUpdate).toHaveBeenCalledWith({ where: { id: "run-1" }, data: { status: "FAILED", error: "enqueue_failed" } });
+    expect(m.releaseQuota).toHaveBeenCalledWith("tenant-1", "runs");
+  });
+
+  it("workspace PAUSED/ARCHIVED: 409, kota yok", async () => {
+    const planHash = await planHashFor(MSG, "tenant-1", "ws-1");
+    for (const status of ["PAUSED", "ARCHIVED"]) {
+      m.companyFindFirst.mockResolvedValue({ id: "ws-1", status });
+      const { nextErr } = await call("/start", { message: MSG, workspaceId: "ws-1", planHash, idempotencyKey: KEY });
+      expect(nextErr.statusCode).toBe(409);
+    }
+    expect(m.claimQuota).not.toHaveBeenCalled();
+  });
+
+  it("ajansız workspace: 422, kota yok", async () => {
+    const planHash = await planHashFor(MSG);
+    m.agentFindFirst.mockResolvedValue(null);
+    const { nextErr } = await call("/start", { message: MSG, planHash, idempotencyKey: KEY });
+    expect(nextErr.statusCode).toBe(422);
+    expect(m.claimQuota).not.toHaveBeenCalled();
+  });
+
+  it("iş olmayan mesaj: 422", async () => {
+    const { nextErr } = await call("/start", { message: "Merhaba nasılsın?", planHash: "v1:x", idempotencyKey: KEY });
+    expect(nextErr.statusCode).toBe(422);
+  });
+
+  it("claimQuota tenantId ile çağrılır; pipeline/run verisi tenant'a bağlı", async () => {
+    const planHash = await planHashFor(MSG);
+    await call("/start", { message: MSG, planHash, idempotencyKey: KEY });
+    expect(m.claimQuota).toHaveBeenCalledWith("tenant-1", "runs");
+    expect(m.pipelineCreate.mock.calls[0]![0].data.companyId).toBe("ws-1");
+    expect(m.runCreate.mock.calls[0]![0].data.tenantId).toBe("tenant-1");
+    expect(m.agentFindFirst.mock.calls[0]![0].where).toEqual({ companyId: "ws-1" });
+  });
+
+  it("title/warnings değişince hash aynı kalır; goal/steps değişince değişir", async () => {
+    const { res } = await call("/plan", { message: MSG });
+    const base = { tenantId: "tenant-1", workspaceId: null, message: MSG };
+    const h = computePlanHash({ ...base, card: res.body.card });
+    expect(computePlanHash({ ...base, card: { ...res.body.card, title: "Başka başlık", warnings: ["x"] } })).toBe(h);
+    expect(computePlanHash({ ...base, card: { ...res.body.card, goal: "Başka amaç" } })).not.toBe(h);
+    expect(computePlanHash({ ...base, card: { ...res.body.card, steps: res.body.card.steps.slice(1) } })).not.toBe(h);
+  });
+
+  it("kısa/uzun planHash istisna fırlatmaz: 409 plan_changed; 200+ karakter 400", async () => {
+    for (const planHash of ["v1:a", "v1:" + "a".repeat(150)]) {
+      const { res, nextErr } = await call("/start", { message: MSG, planHash, idempotencyKey: KEY });
+      expect(nextErr).toBeUndefined();
+      expect(res.statusCode).toBe(409);
+    }
+    const { nextErr } = await call("/start", { message: MSG, planHash: "a".repeat(201), idempotencyKey: KEY });
+    expect(nextErr?.name).toBe("ZodError");
+  });
+
+  it("createPlannedRun hatası: kota iade edilir, kuyruk yok", async () => {
+    const planHash = await planHashFor(MSG);
+    m.runCreate.mockRejectedValue(new Error("db"));
+    const { nextErr } = await call("/start", { message: MSG, planHash, idempotencyKey: KEY });
+    expect(nextErr).toBeInstanceOf(Error);
+    expect(m.releaseQuota).toHaveBeenCalledWith("tenant-1", "runs");
+    expect(m.enqueueRun).not.toHaveBeenCalled();
+  });
+
+  it("FAILED koşu replay'i: 200 ve state FAILED açıkça yansır, yeniden kuyruk yok", async () => {
+    const planHash = await planHashFor(MSG);
+    m.runFindFirst.mockResolvedValue({ id: "run-1", pipelineId: "pl-1", status: "FAILED", input: { planHash } });
+    const { res } = await call("/start", { message: MSG, planHash, idempotencyKey: KEY });
+    expect(res.body).toEqual({ runId: "run-1", pipelineId: "pl-1", state: "FAILED" });
+    expect(m.enqueueRun).not.toHaveBeenCalled();
   });
 });
