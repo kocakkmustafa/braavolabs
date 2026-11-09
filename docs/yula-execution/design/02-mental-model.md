@@ -4,7 +4,7 @@ Tarih: 2026-11-09. Yalnız durum tespiti ve kullanıcı modeli; tasarım/konsept
 
 Personalar: **P1 teknik olmayan birey** (iş tarif eder, sonucu ister), **P2 profesyonel/geliştirici** (model, araç, kod ve maliyet denetimi ister), **P3 şirket yöneticisi** (birden çok şirket, onay, harcama, risk).
 
-Temel UX kararına (talimat §4.1) bağ: karmaşıklık başta gösterilmez, uzmandan hiçbir yetenek saklanmaz; bugün karmaşıklık "başta gösterilir" biçimindedir (14 öğeli menü `packages/ui/components/Sidebar.tsx:14-28`), ama sohbet/ajan/model gibi yetenekler hiç yoktur (01 §1.1).
+Temel UX kararına (talimat §4.1) bağ: karmaşıklık başta gösterilmez, uzmandan hiçbir yetenek saklanmaz; bugün karmaşıklık "başta gösterilir" biçimindedir (girişli kullanıcıya 13 öğeli menü `packages/ui/components/Sidebar.tsx:15-28`); sohbet ve model yönetim ekranı yoktur, ajan yalnız şirket detayında doğal dille kurulur (`packages/ui/app/companies/[id]/page.tsx:195-227`; 01 §1.1-1.2).
 
 ## 1. Kullanıcı burada hangi sonuca ulaşmak istiyor?
 - P1: bir işin yapılması (yazı, araştırma, otomasyon) ve sonucun teslimi. P2: kod/otomasyonun doğru ve denetlenebilir çıkması. P3: şirketin işlerinin ilerlediğini ve harcamanın sınırda kaldığını bilmek.
@@ -12,7 +12,7 @@ Temel UX kararına (talimat §4.1) bağ: karmaşıklık başta gösterilmez, uzm
 
 ## 2. Uygulamayı neden açıyor?
 - (a) Bir iş başlatmak, (b) bir onay beklediği için, (c) bir işin durumuna bakmak.
-- Web'de onay açmak için tek sinyal yan menü `/approvals` ve bildirim; liste `GET /approvals` düz dizidir (`packages/api/src/modules/approval/router.ts:87`). İş başlatma ise şirket kurma sihirbazı (`packages/ui/app/companies/new/page.tsx:361`) ya da pipeline çalıştırmadır (`packages/ui/app/pipelines/[id]/page.tsx:183`). Genel "iş tarif et" girişi API'de yalnız `POST /jobs/plan` (`packages/api/src/modules/jobs/router.ts:30`), UI'da yok (03c READY: backlog `:139`).
+- Web'de onay açmak için tek sinyal yan menü `/approvals` ve bildirim; liste `GET /approvals` düz dizidir (`packages/api/src/modules/approval/router.ts:87`). İş başlatma ise şirket kurma sihirbazı (`packages/ui/app/companies/new/page.tsx:361`) ya da pipeline çalıştırmadır (`packages/ui/app/pipelines/[id]/page.tsx:183`). Genel "iş tarif et" girişi API'de yalnız `POST /jobs/plan` (`packages/api/src/modules/jobs/router.ts:30`), UI'da yok (03c READY: backlog `:140`).
 
 ## 3. İlk 5 saniyede ne anlamalı?
 - Girişten sonra ilk ekran `dashboard`: 4 KPI kartı (`packages/ui/app/dashboard/page.tsx:215-240`) ve son 12 koşu (`:117`). "Ne yapabilirim" cevabı verilmez; sohbet kutusu yok (01 §1.1).
@@ -31,7 +31,7 @@ Temel UX kararına (talimat §4.1) bağ: karmaşıklık başta gösterilmez, uzm
 - Konuşma: belirsiz/serbest talep (API `intent:"chat"` dalı `jobs/router.ts:42-45`); UI'da sohbet yok. Dokunma: onay/ret, duraklat/sürdür (tek dokunuşluk işlemler: `approvals/page.tsx:205`). Ayrıntı: adım, araç çağrısı, maliyet (`runs/[id]/page.tsx:645`, `:730`), handoff (`:411-416`). Bugün üç kip ayrışmamıştır: her şey sayfa+form (01 §1.2).
 
 ## 8. Hangi karmaşıklık gizlenebilir?
-- 4 koşu kovası altındaki 10 `JobState` + 7 `RunStatus` ikilisi (`job.ts:10`, `schema.prisma:1771`, `:1783`): kullanıcıya kova yeter. Sağlayıcı/BYOK ve 14 sağlayıcı (`schema.prisma:1962`) başlangıçta gizlenebilir; onboarding BYOK'u zorunlu kapı yapıyor (`packages/ui/app/onboarding/page.tsx:157`, `:340`) — yani bugün tersine, P1'e gösteriliyor. Webhook/pipeline/A-B testi menüde ilk seviyede (`Sidebar.tsx:25-26`).
+- 4 koşu kovası altındaki 10 `JobState` + 7 `RunStatus` ikilisi (`job.ts:10`, `schema.prisma:1771`, `:1783`): kullanıcıya kova yeter. Sağlayıcı/BYOK ve 14 sağlayıcı (`schema.prisma:1962`) başlangıçta gizlenebilir; onboarding tamamlanma adımında anahtar yoksa uyarı bandı ve "anahtar ekle" düğmesi gösteriyor (`packages/ui/app/onboarding/page.tsx:335-370`); Dashboard bağlantısı serbest (`:373`), yani BYOK engel değil ama P1'e öne çıkarılıyor. Webhook/pipeline/A-B testi menüde ilk seviyede (`Sidebar.tsx:25-26`).
 
 ## 9. Hangi kritik bilgiler asla gizlenmemeli?
 Açık liste:
@@ -53,7 +53,7 @@ Anahtar: var / kısmi / yok. Desktop/CLI/mobil hücreleri 01 §2-4'teki statik o
 | D Kaputu aç | kısmi (adım/araç listesi) | kısmi (inspector `desktop/src/ui.ts:967`) | kısmi (`--json` `cli/src/forge/output.ts:56`) | kısmi (`mobile/app/runs/[id].tsx`; adım ayrıntısı doğrulanamadı) | `runs/[id]/page.tsx:671` |
 | E Kod geliştirme | yok | kısmi (`desktop/src/pty.ts`, `computer-pane.ts`) | doğrulanamadı | yok | 01 §1.1 |
 | F Şirketler/ekip | var (liste+detay+sekmeler) | kısmi (`desktop/src/client.ts:491`) | kısmi (`company` komutları `cli/src/braavo.ts:1880`) | var (`mobile/app/(tabs)/companies.tsx`) | `companies/[id]/page.tsx:26` |
-| G AI ajanları | kısmi (sekme, model, özerklik; oluşturma UI'sı yok) | doğrulanamadı | doğrulanamadı | doğrulanamadı (ekran yok: `mobile/app` listesi) | `companies/[id]/page.tsx:132`, `:164`; `lib/api.ts:617` |
+| G AI ajanları | kısmi (doğal dille kurma `companies/[id]/page.tsx:195-227`, model, özerklik; klasik oluşturma/silme/rollback/NL düzenleme UI'sı yok) | doğrulanamadı | kısmi (`agent` yalnız listeler, `cli/src/forge/help.ts:50`) | yok (`mobile/lib/api.ts`'te agent oluşturma ucu yok) | `companies/[id]/page.tsx:132`, `:164`, `:203`; `lib/api.ts:623` |
 | H Model/bağlantı | kısmi (tenant model, BYOK, compare) | kısmi (anahtarlar `desktop/src/ui.ts:2503`, compare `client.ts:336`) | kısmi (`--models`, Ollama `cli/src/forge/local.ts:4-8`) | kısmi (`mobile/app/settings/`) | `settings/page.tsx:408`; `ComparePanel.tsx:58` |
 | I Onay/güvenlik merkezi | kısmi (tek adım, ayrıntı eksik) | kısmi (çift onay `desktop/src-tauri/src/lib.rs:1445`) | kısmi (`cli/src/braavo.ts:2524`) | kısmi (alan uyumsuz `mobile/lib/api.ts:997-1008`) | `approvals/page.tsx:166-220`; 01 §6 |
 | J Mobil | — | — | — | kısmi (onay+steer+companion var; iş başlatma ekranı doğrulanamadı) | `mobile/lib/api.ts:1243` |
@@ -63,8 +63,8 @@ Anahtar: var / kısmi / yok. Desktop/CLI/mobil hücreleri 01 §2-4'teki statik o
 1. Çok KPI'lı SaaS dashboard: **var** — 4 KPI kartı + sparkline (`packages/ui/app/dashboard/page.tsx:215-240`).
 2. Her şeyi sohbet kutusuna hapsetmek: **yok** (web'de sohbet de yok).
 3. Ajan/şirket/görev/proje karışması: **kısmi var** — Company/Workspace/Pipeline ortak adlandırma ve "workspaces" menü etiketi `Sidebar.tsx:17`; `workspaceId = companyId` (ADR-0001 `docs/yula-execution/DECISIONS.md:37`).
-4. API/workflow ayarlarını P1'e zorunlu göstermek: **var** — BYOK kapısı (`onboarding/page.tsx:157`), menüde webhooks/pipelines (`Sidebar.tsx:18`, `:26`).
-5. Uzman yeteneğini gizlemek: **var** — ajan oluşturma/silme/rollback API'de, UI'da yok (`packages/ui/lib/api.ts:617-622`, `:751-757`); bozuk `/agents` bağlantısı (`pipelines/[id]/page.tsx:422`).
+4. API/workflow ayarlarını P1'e zorunlu göstermek: **var** — BYOK uyarısı onboarding sonunda öne çıkar (`onboarding/page.tsx:335-370`, atlanabilir `:373`), menüde webhooks/pipelines (`Sidebar.tsx:18`, `:26`).
+5. Uzman yeteneğini gizlemek: **kısmi var** — doğal dille ajan kurma UI'da var (`packages/ui/app/companies/[id]/page.tsx:195-227`), ama `createAgent`/`deleteAgent`/`rollbackAgent`/`nlEdit` API'de var, UI'da çağrısı yok (`packages/ui/lib/api.ts:617-622`, `:751-757`); bozuk `/agents` bağlantısı (`pipelines/[id]/page.tsx:422`).
 6. Görsel iş akışını gerçek motordan koparmak: doğrulanamadı (`PipelineCanvas.tsx` ile çalıştırıcı ilişkisi okunmadı).
 7. Onay ayrıntısını gizlemek: **var** — araç/risk/veri aktarımı yok (`approvals/page.tsx:161-197`); mobil `reason/costUsd/payload` API'de yok (01 §6).
 8. Çalışma durumunu olduğundan güvenilir göstermek: **kısmi** — `RunStatus` `COMPLETED` ile `UNVERIFIED` sonuç aynı görünür; web `resultStatus` kullanmaz (`job.ts:24`, `runs/page.tsx:188`); takılı iş bayat heartbeat'le `stuck` hesaplanır ama web göstermez.
@@ -77,7 +77,7 @@ Anahtar: var / kısmi / yok. Desktop/CLI/mobil hücreleri 01 §2-4'teki statik o
 | 2 | İş tarif edip çalıştırma | kısmi (sihirbaz; `jobs/start` #123 açık) | doğrulanamadı | doğrulanamadı | doğrulanamadı | `companies/new/page.tsx:361`; 01 §5.1 |
 | 3 | Devam eden işi bulma | kısmi (`/runs` menüde yok) | doğrulanamadı | var (`runs` `cli/src/braavo.ts:1325`) | var (`mobile/lib/api.ts:1139`) | `Sidebar.tsx:14-28`; `dashboard/page.tsx:434` |
 | 4 | Onay isteyen işlemi anlama | kısmi (ayrıntı eksik) | kısmi | kısmi | kısmi | `approvals/page.tsx:161-197` |
-| 5 | AI ajanı oluşturma | GEÇMEZ (UI yok) | doğrulanamadı | doğrulanamadı | doğrulanamadı | `lib/api.ts:617` |
+| 5 | AI ajanı oluşturma | geçer (kısmi): doğal dil kutusu + oluştur, `companies/[id]/page.tsx:746-791`; klasik oluşturma/silme/rollback UI'sı yok | doğrulanamadı | `agent` komutu yalnız listeler (`cli/src/forge/help.ts:50`); oluşturma doğrulanamadı | doğrulanamadı (`mobile/lib/api.ts`'te composeAgent/createAgent yok) | `companies/[id]/page.tsx:195-227`; `lib/api.ts:623` |
 | 6 | Şirket durumunu inceleme | geçer (kısmi) | kısmi | doğrulanamadı | kısmi | `companies/[id]/page.tsx:260` |
 | 7 | Gelişmiş görünümden teknik ayrıntı | kısmi (adım/araç) | kısmi | `--json` `cli/src/forge/output.ts:56` | yok (adım ayrıntısı doğrulanamadı) | `runs/[id]/page.tsx:671` |
-| 8 | Model maliyeti ve erişim yetkisi | kısmi (maliyet var; model fiyatı/yetki yok) | doğrulanamadı | doğrulanamadı | doğrulanamadı | `runs/[id]/page.tsx:471`; `settings/page.tsx:1069` |
+| 8 | Model maliyeti ve erişim yetkisi | kısmi (koşu maliyeti var `runs/[id]/page.tsx:471`; model başına fiyat gösterimi bulunamadı: `settings/page.tsx` fiyat referansları yalnız plan fiyatı `:688`; erişim yetkisi: ajan özerkliği `companies/[id]/page.tsx:164`) | doğrulanamadı | doğrulanamadı | doğrulanamadı | `runs/[id]/page.tsx:471`; `settings/page.tsx:688` |

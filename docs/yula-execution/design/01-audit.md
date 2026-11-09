@@ -21,7 +21,7 @@ Yöntem: `git fetch` + `git rev-parse`; üç salt-okur depo çalışma ağacına
 
 Sayı iddiaları ve komutları:
 - `find packages/ui/app -name page.tsx | wc -l` → 52 sayfa (ipucundaki "~90" yanlıştı).
-- `grep -rlE "backdrop-filter|backdropFilter|backdrop-blur" app components | wc -l` → 28 dosya (ipucu 61).
+- `grep -rlE "backdrop-filter|backdropFilter|backdrop-blur" app components | wc -l` → 28 dosya (27 `.tsx` + `globals.css`; yalnız `--include='*.tsx'` ile 27; ipucu 61).
 - `grep -c "text-\[[0-9]*px\]"` toplamı → 62 (ipucu 85).
 - `grep -c "^model " packages/db/prisma/schema.prisma` → 58.
 - `sed -n 238,251p packages/api/src/services/ai-client.ts | grep -o '"[^"]*"' | wc -l` → 55 model kimliği.
@@ -32,7 +32,7 @@ Sayı iddiaları ve komutları:
 
 ### 1.1 Ekranlar ve navigasyon
 - 52 `page.tsx`: ürün içi (giriş sonrası): `dashboard`, `companies`, `companies/new`, `companies/[id]`, `companies/[id]/export`, `companies/[id]/runs/[runId]`, `pipelines`, `pipelines/[id]`, `runs`, `runs/[id]`, `approvals`, `drafts`, `analytics`, `risks`, `integrations`, `integrations/import`, `connections`, `ab-tests`, `ab-tests/[id]`, `webhooks`, `billing`, `settings`, `settings/identity`, `onboarding`, `status`, `errors`; kalanı pazarlama/yasal/giriş (`/bench`, `/compare` public pazarlama sayfaları: `packages/ui/app/compare/page.tsx:1-20`, `packages/ui/app/bench/page.tsx:1-12`).
-- Yan menü sabit 14 öğe: `packages/ui/components/Sidebar.tsx:14-28`. `/runs` yan menüde YOK; yalnız `packages/ui/app/dashboard/page.tsx:434` ve `packages/ui/app/pipelines/[id]/page.tsx:421` bağlantılarıyla erişilir.
+- Yan menü `NAV_ITEMS` 14 girdi, biri `/` (`publicOnly`); girişli kullanıcıya 13 öğe: `packages/ui/components/Sidebar.tsx:15-28`. `/runs` yan menüde YOK; yalnız `packages/ui/app/dashboard/page.tsx:434` ve `packages/ui/app/pipelines/[id]/page.tsx:421` bağlantılarıyla erişilir.
 - Mobil çekmece: `packages/ui/app/AuthLayout.tsx:65-83`. Yetkisiz kullanıcı `/login`e yönlenir: `packages/ui/lib/useAuthGuard.ts:24-25`.
 - Sohbet, model listesi, ajan listesi ve kod/IDE ekranı yok (52 sayfanın hiçbiri; `find` ile doğrulandı). Ajanlar yalnız şirket detayında bir sekme: `packages/ui/app/companies/[id]/page.tsx:26`, `:63`, `:376`.
 - Bozuk bağlantı: `packages/ui/app/pipelines/[id]/page.tsx:422` `/agents`e gider; `/agents` rotası yok. (`packages/ui/components/PresenceBar.tsx:32` de `/agents/:id` yolunu varsayar.)
@@ -42,7 +42,7 @@ Sayı iddiaları ve komutları:
 - Koşu listesi `/dashboard/runs`ten gelir ve yalnız `status` ile süzer (all/running/completed/pending/failed): `packages/ui/lib/api.ts:509-510`, `packages/ui/app/runs/page.tsx:56`, `:62`, `:69`, `:188`. `GET /runs?bucket=` (04b) web tarafından çağrılmaz (`grep -n "bucket" packages/ui/lib/api.ts` boş).
 - Koşu detayı: adımlar ve araç çağrıları `packages/ui/app/runs/[id]/page.tsx:54`, `:671`, `:730`; maliyet `:471`, `:645`; onay listesi (salt okunur) `:419-428`; devir paneli `:411-416`; yönlendirme (steer) yalnız RUNNING iken `:516-518`.
 - Onaylar: `packages/ui/app/approvals/page.tsx`: liste `:36` (hata `.catch(() => {})` ile yutulur), tutar `:166-175`, koşu bağlantısı `:179`, taslak içeriği `:197`, Onayla `:205`, Reddet `:220`. Araç adı, risk, yetki kapsamı veya veri aktarımı gösterilmez (ekranda yok).
-- Ajan yönetimi: şirket detayında model `packages/ui/app/companies/[id]/page.tsx:132-145` ve özerklik (SUPERVISED/BALANCED/AUTONOMOUS) `:164-176`. `createAgent`, `deleteAgent`, `rollbackAgent`, `nlEditPreview` API'de tanımlı (`packages/ui/lib/api.ts:617-622`, `:751-757`) ama ekranda kullanım doğrulanamadı.
+- Ajan yönetimi: şirket detayında model `packages/ui/app/companies/[id]/page.tsx:132-145` ve özerklik (SUPERVISED/BALANCED/AUTONOMOUS) `:164-176`. Doğal dille ajan kurma yüzeyi VAR: `handleCompose` `packages/ui/app/companies/[id]/page.tsx:195-227` → `api.composeAgent` (`:203`, tanım `packages/ui/lib/api.ts:623-631`, uç `POST /companies/:id/agents/compose`); metin kutusu `:746-750`, "oluştur" düğmesi `:791` (en az 10 karakter `:792`); sonuç (ad, düşürülen araçlar, sağlayıcı, model) gösterilir ve ajan doğrudan eklenir (önizleme/onay adımı yok: `:205-213`). Buna karşılık `createAgent`, `deleteAgent`, `rollbackAgent`, `createAgentVersion`, `nlEditPreview/Apply` API'de tanımlı (`packages/ui/lib/api.ts:617-622`, `:745-757`) ama `packages/ui/app` ve `components` altında hiçbir çağrısı yok (`grep -rn "api\.createAgent\|api\.deleteAgent\|api\.rollbackAgent\|api\.nlEdit\|api\.createAgentVersion" app components | wc -l` → 0). UI'da var olan = `composeAgent` + model/özerklik güncelleme; yok olan = klasik oluşturma, silme, sürüm/rollback, NL düzenleme.
 - Çoklu model karşılaştırma yalnız şirket detayı "compare" sekmesinde: `packages/ui/components/ComparePanel.tsx:58`, `:128`; sekme `packages/ui/app/companies/[id]/page.tsx:374`.
 - Model/BYOK: Ayarlar `ai_provider` bölümü `packages/ui/app/settings/page.tsx:58`, kayıt `:408` (`PUT /settings/ai-config`), sağlayıcı listesi `:235`, bağlantı testi `:444`; onboarding BYOK kapısı `packages/ui/app/onboarding/page.tsx:157`, `:340`.
 - Dashboard: 4 KPI kartı `packages/ui/app/dashboard/page.tsx:215-240` (`KpiCard` `:341`).
@@ -51,7 +51,7 @@ Sayı iddiaları ve komutları:
 - Tokenlar `packages/ui/app/globals.css:4-71` (Tailwind `@theme`). Koyu (varsayılan): background `#06070A`, surface `#0B0D12`, on-surface `#E8EBF0`, on-surface-variant `#9AA3B2`, primary `#60A5FA`, primary-container `#3B82F6`, secondary `#7DD3FC`, error `#FF8A8A`, success `#6EE7B7`, warning `#FBBF24`, outline `#8C96A5` (`:8-56`). Açık tema `html.light` `:74-117`: background `#f5f7fa`, surface `#ffffff`, on-surface `#1a1c20`, primary `#006880`, error `#ba1a1a`.
 - Durum tokenları (koşu durumu renkleri) `:813-817`: running `#FF7A1A`, completed `#3B82F6`, paused `#3A4150`, failed `#FF4D4D`, cancelled `#5B6473`; açık temada running `#9A3412` (`:851`). Marka kobalt `:782-784` (`#3B82F6`, `#2563EB`, `#1E3A8A`).
 - Tipografi: Space Grotesk (başlık), Inter (gövde), JetBrains Mono (mono): `:67-70`, `:822-824`; sınıflar `.bv-display` 30px, `.bv-headline` 24px, `.bv-title` 16px `:998-1000`. Fontlar `packages/ui/app/layout.tsx:17-19` (JetBrains Mono için `@fontsource` kaydı doğrulanamadı; yalnız CSS yığınında adı geçer). 62 adet `text-[Npx]` rastgele boyut (bölüm 0 komutu).
-- Bileşenler: `.bv-btn` `:1014`, `.bv-btn-primary` `:1040`, `.bv-fpill`, `.bv-glass` `:873`; 22 bileşen dosyası `packages/ui/components/` (Sidebar, CommandPalette, PipelineCanvas, ComparePanel, Toast, NotificationBell, …).
+- Bileşenler: `.bv-btn` `:1014`, `.bv-btn-primary` `:1040`, `.bv-fpill`, `.bv-glass` `:873`; 21 `.tsx` + 1 `.module.css` dosyası `packages/ui/components/` (`ls components/*.tsx | wc -l` → 21) (Sidebar, CommandPalette, PipelineCanvas, ComparePanel, Toast, NotificationBell, …).
 - Glass kullanımı: `.glass-panel` `:224`, `.glass-card` `:235`, `.card-glass` `:576`, `.bv-glass` `:875`, tokenlar `--bv-glass-bg` `rgba(15,18,25,0.6)` `:793`, açıkta `rgba(255,255,255,0.72)` `:839`; çekmece örtüsü `blur(4px)` `packages/ui/app/AuthLayout.tsx:76-77`; toplam 28 dosyada backdrop-filter.
 - Koyu tema varsayılan: `packages/ui/app/layout.tsx:260` (`className="dark"`).
 
@@ -65,7 +65,7 @@ Bkz. 1.2. Onay tek adımlı: Onayla/Reddet (`approvals/page.tsx:205`, `:220`). M
 ### 1.7 Erişilebilirlik
 - Odak halkası `globals.css:716-722`; `.bv-btn:focus-visible` `:1039`; azaltılmış hareket `@media` `:1375`, `:1421`, `:1451`.
 - `aria-` geçen 52 / 110 tsx dosyası (`grep -rl "aria-" app components --include='*.tsx' | wc -l`).
-- SkipLink `packages/ui/components/SkipLink.tsx:7` hedefi `#main-content`; hedef yalnız 4 yasal sayfada var (`privacy`, `terms`, `kvkk`, `cookies` `page.tsx`); ürün sayfalarında hedef yok (`grep -rln 'id="main-content"'`).
+- SkipLink `packages/ui/components/SkipLink.tsx:7` hedefi `#main-content`; hedef `packages/ui/app/AuthLayout.tsx:50` ve `:104`'te `<main id="main-content">` olarak basılır (`/terms` hariç: `:104` `pathname === "/terms" ? undefined`), ayrıca `privacy`, `terms`, `kvkk`, `cookies` sayfalarında kendi hedefleri var; yani ürün sayfalarında hedef VAR (yalnız AuthLayout dışında kalan genel/pazarlama düzenlerinde doğrulanamadı) (`grep -rln 'main-content' app components` → `AuthLayout.tsx`, `privacy`, `terms`, `kvkk`, `cookies`, `SkipLink.tsx`).
 - Kontrast: ölçülmedi, doğrulanamadı (ipucundaki 3.68 hesaplanmış, yeniden hesaplanmadı).
 
 ### 1.8 i18n
@@ -74,6 +74,16 @@ Bkz. 1.2. Onay tek adımlı: Onayla/Reddet (`approvals/page.tsx:205`, `:220`). M
 
 ### 1.9 Testler
 - ui: 17 test dosyası; vitest yalnız `lib/**` ve `i18n/**` kapsar: `packages/ui/vitest.config.mjs:9`. `app/` ve `components/` birim testsiz. Playwright e2e 11 spec (`e2e/*.spec.ts`: approval, billing, onboarding-first-run, smoke …). axe/Lighthouse kurulumu bulunamadı (`grep -rn "axe\|lighthouse" package.json e2e` boş).
+
+## 1b. Ürün kararları (talimat Aşama 1, madde 7)
+
+Kaynak: `docs/yula-execution/DECISIONS.md`, `STATUS.md`; yalnız repo içi belge, kodla çelişen bir satır aranmadı.
+- ADR-0001 (`DECISIONS.md:7`): `Run.status` 7 değerli donmuş projeksiyon, yeni gerçek kaynak `Run.state` (10 değer), "Job" yalnız söz dağarcığı (`:20-21`), durum `Proposed` (`:9`); geçiş sırası şema → sunucu → sözleşme testi → desktop/web → mobil (`:45`); `status` hiçbir zaman kaldırılmaz (`:52`).
+- ADR-0002 (`DECISIONS.md:95`): onay "hak" = kiracı+koşu+eylem hash'i+nonce+süre; bayrak varsayılan kapalı (`:111`, `:117`); `/resume` ve `/continue` bekleyen kapı onayıyla 409 (bayraktan bağımsız); bütçe sözleşmesi `JobBudget`, CLI ile aynı `warnRatio` 0.8 (`:112`).
+- ADR-0003 (`DECISIONS.md:161`): kova eşleme (`working | needs_approval | done | stuck`) tek kaynak `core/types/job.ts`; web/mobil/desktop aynı fonksiyonu kullanmalı (`:163`). Ek not 04d (`:178-198`): heartbeat yazıcısı ve idempotent retry yalnız `JOB_STATE_DUAL_WRITE` açıkken; hiyerarşik retry kapalı (`:182`); 409 kod tablosu (`:189-198`).
+- 03b/03d: 03b notu (`/jobs/start`) bu SHA'daki `DECISIONS.md`'de yok (PR #123 açık); 03d bileti vault backlog `10 Holding/📋 YULA İcra Backlog.md:141`'de READY.
+- Güncel karar/denetim notları: STATUS 02c özeti (`STATUS.md:185`) "kalıcı merge kuralıyla" yedi alt PR; webhook sırları için kurucu kararı "Yenileme gerekmez" (`STATUS.md:203`); deploy ve migration kurucu onayı ister, merge onayı sayılmaz (`STATUS.md:205`, `:134`); `v*` etiketi = prod deploy (`:134`).
+- Yayın/onay kuralları (repo `CLAUDE.md`, kökteki ortak kurallar): merge/deploy/mağaza/fiyat/Supabase prod işleri kurucu onayı gerektirir; vault `CLAUDE.md`'ye atıf: ortak kural dosyası bu çalışma ağacında yoktur, bu satır vault/oturum talimatına dayanır (satır atfı yok: doğrulanamadı).
 
 ## 2. Desktop (Tauri v2, origin/main `ad6867a`, sürüm 1.1.0)
 
@@ -105,9 +115,9 @@ Kaynak: `git archive origin/main`; satır numaraları bu arşivdendir (ipucu dos
 
 - Ekranlar: 31 `.tsx` (`find app -name '*.tsx' | wc -l`); sekmeler `mobile/app/(tabs)/`: `index`, `workflows`, `approvals`, `companies`, `more`; yığın: `companies/[id]`, `workflows/[id]`, `drafts`, `risks`, `analytics`, `companion/*`, `runs/[id]`, `chat/index`, `settings` (`mobile/app/_layout.tsx:259-300`). Mobilde sohbet ekranı vardır (`mobile/app/chat/index.tsx`).
 - Uçlar: `mobile/lib/api.ts`: `GET /dashboard/runs` `:1139`, `GET /approvals?status=` `:1276`, `POST /approvals/:id/decide` `:1286`, `POST /runs/:id/steer` `:1243`; `bucket` ve `/receipt` kullanılmaz (`grep -n "bucket\|/receipt" mobile/lib/api.ts` boş). 04a–04d tipleri kullanılmaz.
-- Veri sözleşmesi uyumsuzluğu: mobil `Approval` tipi `companyId`, `pipelineRunId`, `reason`, `costUsd`, `payload` bekler (`mobile/lib/api.ts:997-1008`) ve ekran `approval.reason` / `costUsd` okur (`mobile/app/(tabs)/approvals.tsx:124`, `:247`); platform `Approval` modeli `runId`, `description`, `amountUsd`, `metadata` taşır (`packages/db/prisma/schema.prisma`, `model Approval`, sütunlar `description`, `amount_usd`, `metadata`). Alan adları eşleşmez; bu uyumsuzluğun canlı yanıtta etkisi çalıştırılarak doğrulanamadı (statik okuma).
+- Veri sözleşmesi uyumsuzluğu: mobil `Approval` tipi `companyId`, `pipelineRunId`, `reason`, `costUsd`, `payload` bekler (`mobile/lib/api.ts:997-1008`) ve ekran `approval.reason` / `costUsd` okur (`mobile/app/(tabs)/approvals.tsx:124`, `:247`); platform `Approval` modeli `runId`, `description`, `amountUsd`, `metadata` taşır (`packages/db/prisma/schema.prisma`, `model Approval`, sütunlar `description`, `amount_usd`, `metadata`). Ek: mobil `status` tipi `"PENDING" | "APPROVED" | "REJECTED"` (`mobile/lib/api.ts:1004`), API `APPROVAL_STATUSES` 4 değerli (`PENDING/APPROVED/REJECTED/EXPIRED`: `packages/api/src/modules/approval/router.ts:79`, `:91`) ve şema `ApprovalStatus` `EXPIRED` içerir (`schema.prisma:1862`); mobil `EXPIRED`ı tanımaz. Alan adları eşleşmez; bu uyumsuzluğun canlı yanıtta etkisi çalıştırılarak doğrulanamadı (statik okuma).
 - Onay akışı: `mobile/app/(tabs)/approvals.tsx`; ret/onay + steer + kill mock'ta test edilemiyor yorumu `mobile/lib/api.ts:492`; çevrimdışı yönlendirme `:1357-1363`.
-- Dikte: `expo-speech-recognition` hem main hem release/1.1.1 `package.json:47`'de; kod `mobile/lib/voice.ts:77`; yani dikte main'dedir (ipucundaki "doğrulanamadı" kapandı); mağazada yalnız Android Alpha 1.1.1 vault panosuna göre.
+- Dikte: `git -C mobile show origin/main:package.json` satır 47 `"expo-speech-recognition": "3.1.3"`, `git -C mobile show origin/main:lib/voice.ts` satır 5 ve 77 (`require("expo-speech-recognition")`); commit `5e60a75` `git cat-file -t` → commit. Yani dikte `origin/main@5e60a75`'te vardır (release/1.1.1'de `package.json:47` de aynı). Mağazada dikteli sürüm yalnız Android Alpha 1.1.1 (vault panosu `:16`).
 - Tasarım (kayıt): `mobile/lib/palette-primitives.json` açık: canvas `#faf9f6`, surface `#fffefa`, ink `#262724`, accent `#4e6793`, warm `#8f5a3b` (`:3-10`); koyu: canvas `#232420`, surface `#2a2b27`, ink `#edeee6`, muted `#a6a79d` (`:17-22`). `BlurView`/`expo-blur` kullanımı yok (`grep -rln "BlurView\|expo-blur"` boş): glass bulanıklık yok.
 - Erişilebilirlik: `accessibilityLabel/Role` 41 dosya; `useReducedMotion`/`reduceMotionEnabled` 23 dosya (`grep -rl … | wc -l`); `allowFontScaling` bulunamadı (doğrulanamadı).
 - i18n: 14 dil `mobile/lib/localeRegistry.ts:2`.
@@ -121,7 +131,7 @@ Kaynak: `git archive origin/main`; satır numaraları bu arşivdendir (ipucu dos
 - Koşu rotaları `packages/api/src/modules/run/router.ts`: `GET /` `:86` (`?bucket`, `?limit`, `?cursor`; dar `select` `:107-121`; yanıt `{runs, nextCursor}` `:137`), `GET /:id` `:142` (ham koşu + adımlar + onaylar `:146-153`), stop `:288`, pause `:330`, resume `:361`, retry `:431`, handoff `:540`, continue `:632`, handoffs `:789`, steer `:816`, stream `:867`, adım rollback `:1033`, rerun `:1064`, receipt `:1145`.
 - Onaylar `packages/api/src/modules/approval/router.ts`: `GET /` `:87` (parametresiz düz dizi, `limit/cursor/groupBy=run` ile sayfalı `:82-86`; satır `run→pipeline→company` içerir `:106-108`), `POST /:id/decide` `:247` (`approval:decide` izni).
 - Plan kartı `POST /jobs/plan` `packages/api/src/modules/jobs/router.ts:30`: sohbet ise `{intent:"chat"}` `:42-45`; plan adımlarında `needsApproval`/`risk` `packages/api/src/modules/jobs/plan.ts:29`, `:302-310`.
-- `POST /jobs/start` (03b) bu SHA'da yok: açık PR #123, başı `01fe1ea7ae71012e10bf29b3aa176107df33b1b1`, `gh pr view 123` durumu OPEN (2026-11-09); `grep -rn "jobs/start" packages` boş. Vault backlog bilet adı `POST /jobs/plan/:id/start` (`10 Holding/📋 YULA İcra Backlog.md:138`).
+- `POST /jobs/start` (03b) bu SHA'da yok: açık PR #123, başı `01fe1ea7ae71012e10bf29b3aa176107df33b1b1`, `gh pr view 123` durumu OPEN (2026-11-09); `grep -rn "jobs/start" packages` boş. (Dipnot: PR #123 merge olunca bu not güncellenir.) Vault backlog bilet adı `POST /jobs/plan/:id/start` (`10 Holding/📋 YULA İcra Backlog.md:138`).
 
 ### 5.2 Sözleşme tipleri
 - `packages/core/src/types/job.ts`: `JOB_STATES` `:10`, `RESULT_STATUSES` `:24`, `JobReceipt` `:48`, `INBOX_BUCKETS` `:62`, `STATE_BUCKET` `:76`, `jobBucket()` `:129` (state kazanır, bilinmeyen → stuck `:135-139`, bayat heartbeat → stuck `:153`). ADR-0003: `docs/yula-execution/DECISIONS.md:161-176`. Veritabanı enumları: `RunStatus` `packages/db/prisma/schema.prisma:1771` (7 değer, donmuş, ADR-0001), `JobState` `:1783`, `ApprovalStatus` `:1862`.
@@ -159,7 +169,7 @@ Kaynak: `git archive origin/main`; satır numaraları bu arşivdendir (ipucu dos
 | 6 | Desktop "sekiz dil" (README) | desktop README (okunmadı) | 14 dil | `desktop/src/i18n-extra.ts:40` (README satırı doğrulanamadı) |
 | 7 | CLI "zod tek runtime bağımlılığı" | cli README (okunmadı) | `@anthropic-ai/sdk` da var | `cli/package.json:22-25` |
 | 8 | CLI sürüm 0.2.0 | yerel dal `cli/package.json:3` | origin/main 1.1.0 | `git show origin/main:package.json` |
-| 9 | Mobilde dikte yok / yalnız izin | ipucu | `expo-speech-recognition` main'de | `mobile/package.json:47`, `mobile/lib/voice.ts:77` |
+| 9 | Mobilde dikte yok / yalnız izin | ipucu | `expo-speech-recognition` main'de | `origin/main@5e60a75:package.json:47`, `origin/main@5e60a75:lib/voice.ts:77` |
 
 ## 9. Gerçek yayın durumu
 
