@@ -140,8 +140,6 @@ export function jobBucket(input: JobBucketInput): InboxBucket | null {
     bucket = LEGACY_BUCKET[status];
     running = status === "RUNNING";
   }
-  if (bucket === null) return null;
-
   if (
     resultStatus !== null &&
     resultStatus !== undefined &&
@@ -149,6 +147,8 @@ export function jobBucket(input: JobBucketInput): InboxBucket | null {
   ) {
     return "stuck";
   }
+
+  if (bucket === null) return null;
 
   if (running && isStale(heartbeatAt, now, staleAfterMs)) return "stuck";
   return bucket;

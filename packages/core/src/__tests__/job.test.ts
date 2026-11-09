@@ -52,7 +52,9 @@ describe("jobBucket", () => {
     expect(jobBucket({ ...base, status: status ?? undefined })).toBe(bucket);
   });
 
-  it("DRAFT is hidden (null) whatever status says", () => {
+  it("DRAFT is hidden (null) whatever status says; corrupt resultStatus on DRAFT -> stuck", () => {
+    expect(jobBucket({ ...base, state: "DRAFT", resultStatus: "MAYBE" })).toBe("stuck");
+    expect(jobBucket({ ...base, state: "DRAFT", resultStatus: "VERIFIED" })).toBeNull();
     for (const status of ["PENDING", "RUNNING", "FAILED", "BOGUS", null]) {
       expect(jobBucket({ ...base, state: "DRAFT", status })).toBeNull();
     }
@@ -119,5 +121,48 @@ describe("jobBucket", () => {
     it("state=COMPLETED + status=RUNNING with stale heartbeat stays done", () => {
       expect(jobBucket({ ...base, state: "COMPLETED", status: "RUNNING", heartbeatAt: old })).toBe("done");
     });
+  });
+});
+
+describe("jobBucket edge cases (review follow-up)", () => {
+  const run = { state: "RUNNING", heartbeatAt: new Date(NOW - 1000), now: NOW };
+
+  it("negative and Infinity staleAfterMs -> RUNNING stuck (fail-closed)", () => {
+    expect(jobBucket({ ...run, staleAfterMs: -1 })).toBe("stuck");
+    expect(jobBucket({ ...run, staleAfterMs: -Infinity })).toBe("stuck");
+    expect(jobBucket({ ...run, staleAfterMs: Infinity })).toBe("stuck");
+  });
+
+  it("invalid Date object heartbeat -> stuck", () => {
+    expect(jobBucket({ ...run, heartbeatAt: new Date("x"), staleAfterMs: STALE })).toBe("stuck");
+  });
+
+  it("future heartbeat is not stale (clock skew) -> working", () => {
+    expect(jobBucket({ ...run, heartbeatAt: new Date(NOW + 60_000), staleAfterMs: STALE })).toBe("working");
+  });
+
+  it("now as ISO string and as Date", () => {
+    const iso = new Date(NOW).toISOString();
+    expect(jobBucket({ state: "RUNNING", heartbeatAt: old, now: iso, staleAfterMs: STALE })).toBe("stuck");
+    expect(jobBucket({ state: "RUNNING", heartbeatAt: fresh, now: iso, staleAfterMs: STALE })).toBe("working");
+    expect(jobBucket({ state: "RUNNING", heartbeatAt: fresh, now: new Date(NOW), staleAfterMs: STALE })).toBe("working");
+    expect(jobBucket({ state: "RUNNING", heartbeatAt: fresh, now: "garbage", staleAfterMs: STALE })).toBe("stuck");
+  });
+
+  it("corrupt resultStatus on the legacy path (state NULL) -> stuck", () => {
+    expect(jobBucket({ ...base, state: null, status: "COMPLETED", resultStatus: "MAYBE" })).toBe("stuck");
+    expect(jobBucket({ ...base, status: "PENDING", resultStatus: "nope" })).toBe("stuck");
+    expect(jobBucket({ ...base, status: "COMPLETED", resultStatus: "VERIFIED" })).toBe("done");
+  });
+
+  it("state wins over every legacy status (10 states x 7 statuses)", () => {
+    const statuses = ["PENDING", "RUNNING", "PAUSED", "WAITING_APPROVAL", "COMPLETED", "FAILED", "CANCELLED"];
+    for (const state of JOB_STATES) {
+      for (const status of statuses) {
+        expect(jobBucket({ ...base, state, status, heartbeatAt: fresh }), `${state}/${status}`).toBe(
+          STATE_EXPECT[state],
+        );
+      }
+    }
   });
 });
