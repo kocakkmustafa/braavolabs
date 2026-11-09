@@ -49,10 +49,10 @@ async function rerun() {
 const SAFE = { name: "Gönder", agentRole: "operator", order: 0, config: { planned: true, risk: "low", needsApproval: false } };
 const RISKY = { name: "Gönder", agentRole: "operator", order: 1, config: { planned: true, risk: "high", needsApproval: true } };
 
-function seed(stepName: string, stepIndex: number, steps: unknown[]) {
+function seed(stepName: string, stepIndex: number, steps: unknown[], runStatus = "RUNNING") {
   m.stepFindUnique.mockResolvedValue({
     id: "rs-1", runId: "run-1", name: stepName, stepIndex, status: "FAILED", input: {}, completedAt: new Date(),
-    run: { pipeline: { steps, company: { tenantId: "t-1" } } },
+    run: { status: runStatus, pipeline: { steps, company: { tenantId: "t-1" } } },
   });
 }
 
@@ -102,10 +102,31 @@ describe("rerun × STEP_APPROVAL_GATE", () => {
     expect(m.stepUpdate).toHaveBeenLastCalledWith({ where: { id: "rs-1" }, data: expect.objectContaining({ status: "FAILED" }) });
   });
 
-  it("kapı kapalı: eski gevşek eşleşme değişmez (ad VEYA sıra, ilk eşleşme)", async () => {
+  it("kapı kapalı: eski gevşek eşleşme değişir DEĞİL ve executeStep'e config VERİLMEZ (prompt birebir eski)", async () => {
     seed("Gönder", 1, [SAFE, RISKY]);
     const { err } = await rerun();
     expect(err).toBeUndefined();
-    expect(m.executeStep.mock.calls[0][1].config).toEqual(SAFE.config);
+    expect(m.executeStep.mock.calls[0][1]).toEqual({ name: "Gönder", agentRole: "operator", order: 1 });
+    expect(m.executeStep.mock.calls[0][1].config).toBeUndefined();
+  });
+
+  it("kapı açık + gated adım + bitmiş koşu (FAILED/CANCELLED/COMPLETED): 409 step_gate_requires_retry, hiçbir yazım yok", async () => {
+    vi.stubEnv("STEP_APPROVAL_GATE", "true");
+    for (const st of ["FAILED", "CANCELLED", "COMPLETED"]) {
+      seed("Gönder", 1, [SAFE, RISKY], st);
+      const { err } = await rerun();
+      expect(err?.statusCode ?? err?.status).toBe(409);
+      expect(err.message).toMatch(/step_gate_requires_retry/);
+    }
+    expect(m.executeStep).not.toHaveBeenCalled();
+    expect(m.stepUpdate).not.toHaveBeenCalled();
+  });
+
+  it("kapı açık + gated OLMAYAN adım + FAILED koşu: eski rerun kuralı bozulmaz", async () => {
+    vi.stubEnv("STEP_APPROVAL_GATE", "true");
+    seed("Gönder", 0, [SAFE, RISKY], "FAILED");
+    const { err } = await rerun();
+    expect(err).toBeUndefined();
+    expect(m.executeStep).toHaveBeenCalledTimes(1);
   });
 });

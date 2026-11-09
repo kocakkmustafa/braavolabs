@@ -18,12 +18,14 @@
  * Tek çekirdek nokta: `executeStep` (sıralı + paralel runner, /resume ve /continue
  * ile yeniden kuyruğa alma, retry, /steps/:id/rerun hepsi buradan geçer).
  */
+import { createHash } from "node:crypto";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { notifyTenantUsers } from "../../services/push";
 import { transitionRun } from "../run/transition";
 import {
   buildApprovalStamp,
+  canonicalize,
   computeActionHash,
   consumeGrant,
   type ExactAction,
@@ -34,10 +36,32 @@ export function isStepApprovalGateEnabled(env: NodeJS.ProcessEnv = process.env):
   return env.STEP_APPROVAL_GATE === "true";
 }
 
-/** Adım yüksek riskli mi? (`needsApproval: true` ya da plan'ın `risk: "high"` işareti.) */
-export function stepRequiresApproval(config: Record<string, unknown> | undefined | null): boolean {
-  if (!config) return false;
-  return config.needsApproval === true || config.risk === "high";
+/** Açıkça "hayır" sayılan değerler; bunun dışındaki her şey (belirsiz tip dahil) fail-closed gated. */
+function isExplicitlyOff(v: unknown): boolean {
+  if (v === undefined || v === null || v === false || v === 0) return true;
+  if (typeof v === "string") {
+    const t = v.trim().toLowerCase();
+    return t === "" || t === "false";
+  }
+  return false;
+}
+
+/**
+ * Adım yüksek riskli mi? FAIL-CLOSED: pipeline şeması `config`i `unknown` kabul eder, bu yüzden
+ * `needsApproval` için true/1/"true"/"TRUE"/"1"/"yes" gibi truthy-benzeri ya da yorumlanamayan
+ * her değer gated sayılır (yalnız undefined/null/false/0/""/"false" gated değildir). `risk`
+ * büyük/küçük harf ve boşluk duyarsız "high" ya da string olmayan belirsiz değerse gated.
+ * config nesne değilse (null/undefined hariç) gated.
+ */
+export function stepRequiresApproval(config: unknown): boolean {
+  if (config === undefined || config === null) return false;
+  if (typeof config !== "object" || Array.isArray(config)) return true;
+  const c = config as Record<string, unknown>;
+  if (!isExplicitlyOff(c.needsApproval)) return true;
+  const r = c.risk;
+  if (r === undefined || r === null) return false;
+  if (typeof r !== "string") return true;
+  return r.trim().toLowerCase() === "high";
 }
 
 export interface StepGateInput {
@@ -56,6 +80,11 @@ export type StepGateResult =
   /** Kapı güvenle kurulamadı (koşu artık aktif değil / eylem bağlanamadı): adım ÇALIŞMAZ. */
   | { proceed: false; reason: "gate_unavailable"; message: string };
 
+/** Adımın normalize (sıralı anahtar) config özeti: sha256, sır içermez. Düzenleme (TOCTOU) onayı geçersiz kılar. */
+function configDigest(config: unknown): string {
+  return createHash("sha256").update(canonicalize(config === undefined ? null : config)).digest("hex");
+}
+
 function buildAction(i: StepGateInput): ExactAction {
   const c = (i.config ?? {}) as Record<string, unknown>;
   return {
@@ -64,7 +93,16 @@ function buildAction(i: StepGateInput): ExactAction {
     type: "STEP",
     toolName: `step:${i.stepIndex}:${i.stepName}`,
     // previousOutput bilerek hash'e girmez: yeniden denemede değişir ve onayı geçersiz kılardı.
-    input: { gate: "step", stepIndex: i.stepIndex, name: i.stepName, tool: typeof c.tool === "string" ? c.tool : null, risk: typeof c.risk === "string" ? c.risk : null },
+    // agentRole + config özeti girer: onaydan sonra adım düzenlenirse onay geçmez.
+    input: {
+      gate: "step",
+      stepIndex: i.stepIndex,
+      name: i.stepName,
+      agentRole: i.agentRole,
+      tool: typeof c.tool === "string" ? c.tool : null,
+      risk: typeof c.risk === "string" ? c.risk : null,
+      configDigest: configDigest(i.config ?? null),
+    },
     amountUsd: null,
   };
 }
@@ -129,7 +167,7 @@ export async function requireStepApproval(input: StepGateInput): Promise<StepGat
           agentRole: input.agentRole,
           tool: typeof c.tool === "string" ? c.tool : null,
           risk: typeof c.risk === "string" ? c.risk : null,
-          needsApproval: c.needsApproval === true,
+          needsApproval: !isExplicitlyOff(c.needsApproval),
         } as never,
         status: "PENDING",
         ...buildApprovalStamp(action),
@@ -138,7 +176,12 @@ export async function requireStepApproval(input: StepGateInput): Promise<StepGat
     approvalId = approval.id;
   }
 
-  const o = await transitionRun(prisma, input.runId, "NEEDS_APPROVAL", { tenantId: input.tenantId, legacyUnchecked: true });
+  const o = await transitionRun(prisma, input.runId, "NEEDS_APPROVAL", {
+    tenantId: input.tenantId,
+    legacyUnchecked: true,
+    // Yarış koruması: /stop /pause ile kapı arasında CANCELLED/PAUSED, WAITING_APPROVAL ile ezilmesin.
+    onlyIfStatus: ["RUNNING"],
+  });
   let waiting = o.ok;
   if (!waiting) {
     // Kardeş (paralel) adım koşuyu zaten WAITING_APPROVAL'a almış olabilir.

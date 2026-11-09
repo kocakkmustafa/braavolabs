@@ -18,7 +18,7 @@ import { listTenantProviderLinks, resolveTenantCompletionLink, commitTrialComple
 import { assertKeylessLocalBaseUrl } from "../../services/takeover-config";
 import { createHandoff, claimHandoff, HandoffClaimError, cancelOpenHandoffForRun, reopenClaimedHandoff } from "./handoff.service";
 import { hasOpenApproval } from "../approval/exact-action";
-import { isStepApprovalGateEnabled, resolveStepByIdentity } from "../pipeline/step-approval";
+import { isStepApprovalGateEnabled, resolveStepByIdentity, stepRequiresApproval } from "../pipeline/step-approval";
 import { transitionRun, isJobStateDualWriteEnabled, currentJobState } from "./transition";
 import { assertTransitioned, resumeToRunning, AlreadyRunningError, revertRunAfterEnqueueFailure } from "./resume";
 import { decideResume, toLegacyStatus, type JobState } from "./job-state";
@@ -1116,8 +1116,18 @@ runRouter.post("/steps/:id/rerun", async (req, res, next) => {
     }
     if (matchingStep) {
       stepDef.agentRole = matchingStep.agentRole;
-      // BRA-P0-03d: config taşınmazsa yeniden çalıştırma adım-düzeyi onay kapısını atlardı.
-      if (matchingStep.config) stepDef.config = matchingStep.config;
+      // BRA-P0-03d: config YALNIZ kapı açıkken taşınır (kapalıyken rerun prompt'u eskisiyle birebir aynı:
+      // executeStep config'i "Step configuration" olarak prompt'a yazar). Taşınmazsa kapı atlanırdı.
+      if (isStepApprovalGateEnabled() && matchingStep.config) stepDef.config = matchingStep.config;
+    }
+    // Kapı açık + gated adım: bitmiş koşuya rerun onay kapısına giremez (FAILED/CANCELLED/COMPLETED →
+    // WAITING_APPROVAL geçişi yok); okunur 409. Yolu: /runs/:id/retry (koşuyu kapıyla baştan yürütür).
+    if (
+      isStepApprovalGateEnabled() &&
+      stepRequiresApproval(stepDef.config) &&
+      ["COMPLETED", "CANCELLED", "FAILED"].includes(step.run.status)
+    ) {
+      throw new AppError(409, "Step requires approval and its run is finished; use /runs/:id/retry (step_gate_requires_retry)");
     }
 
     // Reset step status to RUNNING

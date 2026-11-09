@@ -204,13 +204,62 @@ describe("STEP_APPROVAL_GATE açık", () => {
     expect(h.runAgentLoop).not.toHaveBeenCalled();
   });
 
-  it("config.needsApproval/risk olmadan yalnız risk:high de kapıya girer; boş config girmez", () => {
-    expect(stepRequiresApproval({ risk: "high" })).toBe(true);
-    expect(stepRequiresApproval({ needsApproval: true })).toBe(true);
-    expect(stepRequiresApproval({ needsApproval: "true" })).toBe(false);
+  it("fail-closed ayrıştırma: truthy-benzeri / belirsiz tipler gated; yalnız açık 'hayır' gated değil", () => {
+    for (const v of [true, 1, "true", "TRUE", " True ", "1", "yes", "YES", 2, {}, [], "evet"]) {
+      expect(stepRequiresApproval({ needsApproval: v }), String(JSON.stringify(v))).toBe(true);
+    }
+    for (const v of [undefined, null, false, 0, "false", "FALSE", ""]) {
+      expect(stepRequiresApproval({ needsApproval: v }), String(JSON.stringify(v))).toBe(false);
+    }
+    for (const r of ["high", "HIGH", "High", " high ", 3, true, {}]) {
+      expect(stepRequiresApproval({ risk: r }), String(JSON.stringify(r))).toBe(true);
+    }
+    for (const r of ["low", "medium", undefined, null]) expect(stepRequiresApproval({ risk: r })).toBe(false);
     expect(stepRequiresApproval(undefined)).toBe(false);
+    expect(stepRequiresApproval({})).toBe(false);
+    expect(stepRequiresApproval("garip")).toBe(true);
+    expect(stepRequiresApproval([1])).toBe(true);
     expect(pipelineHasGatedSteps([PLAIN, GATED])).toBe(true);
     expect(pipelineHasGatedSteps([PLAIN])).toBe(false);
+    expect(pipelineHasGatedSteps([{ config: { needsApproval: "TRUE" } }])).toBe(true);
+  });
+
+  it("'TRUE' / 'High' yazımlı adım kapıdan geçemez (çalışmaz)", async () => {
+    const r1 = await executeStep("run-1", { ...PLAIN, config: { needsApproval: "TRUE" } }, 0, {});
+    const r2 = await executeStep("run-1", { ...PLAIN, name: "b", config: { risk: "High" } }, 1, {});
+    expect([r1.status, r2.status]).toEqual(["INTERRUPTED", "INTERRUPTED"]);
+    expect(h.runAgentLoop).not.toHaveBeenCalled();
+  });
+
+  it("TOCTOU: onaydan sonra config ya da agentRole değişirse onay geçmez", async () => {
+    await executeStep("run-1", GATED, 1, {});
+    approveLatest();
+    h.runStatus = "RUNNING";
+    const edited = await executeStep("run-1", { ...GATED, config: { ...GATED.config, extra: "yeni" } }, 1, {});
+    expect(edited.status).toBe("INTERRUPTED");
+    expect(h.runAgentLoop).not.toHaveBeenCalled();
+    h.runStatus = "RUNNING";
+    h.approvals.forEach((r) => { if (r.status === "PENDING") r.status = "REJECTED"; });
+    const other = await executeStep("run-1", { ...GATED, agentRole: "operator2" }, 1, {});
+    expect(other.status === "INTERRUPTED" || other.status === "FAILED").toBe(true);
+    expect(h.runAgentLoop).not.toHaveBeenCalled();
+    // değişmemiş adım hâlâ orijinal onayla geçer
+    h.runStatus = "RUNNING";
+    expect((await executeStep("run-1", GATED, 1, {})).status).toBe("COMPLETED");
+  });
+
+  it("anahtar sırası farkı config özetini değiştirmez (normalize)", async () => {
+    const a = { ...GATED, config: { planned: true, tool: "send", risk: "high", needsApproval: true } };
+    const b = { ...GATED, config: { needsApproval: true, risk: "high", tool: "send", planned: true } };
+    await executeStep("run-1", a, 1, {});
+    approveLatest();
+    h.runStatus = "RUNNING";
+    expect((await executeStep("run-1", b, 1, {})).status).toBe("COMPLETED");
+  });
+
+  it("kapıya geçiş yalnız RUNNING koşudan (onlyIfStatus) — /stop,/pause ezilmez", async () => {
+    await executeStep("run-1", GATED, 1, {});
+    expect(h.transition.mock.calls[0][3]).toMatchObject({ onlyIfStatus: ["RUNNING"], tenantId: "t-1" });
   });
 
   it("requireStepApproval doğrudan: kapalı adım proceed", async () => {

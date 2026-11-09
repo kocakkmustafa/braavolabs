@@ -397,6 +397,8 @@ describe("POST /jobs/start — STEP_APPROVAL_GATE (BRA-P0-03d)", () => {
       expect(res.statusCode).toBe(201);
       const steps = m.pipelineCreate.mock.calls[0]![0].data.steps as Array<{ config: Record<string, unknown> }>;
       expect(steps.some((s) => s.config.needsApproval === true && s.config.risk === "high")).toBe(true);
+      // Kalıcı işaret: bayrak sonradan kapansa bile yüksek riskli her adım config'inde needsApproval:true taşır.
+      expect(steps.filter((s) => s.config.risk === "high").every((s) => s.config.needsApproval === true)).toBe(true);
       expect(m.approvalCreate).not.toHaveBeenCalled();
       expect(m.enqueueRun).toHaveBeenCalledWith("run-1");
     }
