@@ -85,7 +85,13 @@
         "message": "メッセージの下書き",
         "content": "生成コンテンツ"
       },
-      "artifactAiLabel": "AI生成"
+      "artifactAiLabel": "AI生成",
+      "loading": "承認を読み込み中…",
+      "loadErrorTitle": "承認を読み込めませんでした",
+      "loadErrorBody": "サーバーが正しく応答しなかったため、承認待ちがある可能性があります。これは空のリストではありません。もう一度お試しください。",
+      "refreshErrorTitle": "承認を更新できませんでした",
+      "refreshErrorBody": "下のリストは最新でない可能性があります。もう一度お試しください。",
+      "retryLoad": "再試行"
     },
     "companies": {
       "title": "ワークスペース",

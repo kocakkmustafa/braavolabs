@@ -85,7 +85,13 @@
         "message": "Bozza di messaggio",
         "content": "Contenuto generato"
       },
-      "artifactAiLabel": "Generato dall’IA"
+      "artifactAiLabel": "Generato dall’IA",
+      "loading": "Caricamento delle approvazioni…",
+      "loadErrorTitle": "Impossibile caricare le approvazioni",
+      "loadErrorBody": "Il server non ha risposto correttamente, quindi potrebbero esserci approvazioni in attesa. Non è un elenco vuoto. Riprova.",
+      "refreshErrorTitle": "Impossibile aggiornare le approvazioni",
+      "refreshErrorBody": "L'elenco qui sotto potrebbe non essere aggiornato. Riprova.",
+      "retryLoad": "Riprova"
     },
     "companies": {
       "title": "Spazi di lavoro",

@@ -85,7 +85,13 @@
         "message": "Borrador de mensaje",
         "content": "Contenido generado"
       },
-      "artifactAiLabel": "Generado por IA"
+      "artifactAiLabel": "Generado por IA",
+      "loading": "Cargando aprobaciones…",
+      "loadErrorTitle": "No se pudieron cargar las aprobaciones",
+      "loadErrorBody": "El servidor no respondió correctamente, así que puede haber aprobaciones pendientes. No es una lista vacía. Inténtalo de nuevo.",
+      "refreshErrorTitle": "No se pudieron actualizar las aprobaciones",
+      "refreshErrorBody": "La lista de abajo puede estar desactualizada. Inténtalo de nuevo.",
+      "retryLoad": "Reintentar"
     },
     "companies": {
       "title": "Espacios de trabajo",

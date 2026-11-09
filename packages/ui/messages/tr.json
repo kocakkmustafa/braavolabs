@@ -85,7 +85,13 @@
         "message": "Taslak mesaj",
         "content": "Üretilen içerik"
       },
-      "artifactAiLabel": "Yapay zekâ üretimi"
+      "artifactAiLabel": "Yapay zekâ üretimi",
+      "loading": "Onaylar yükleniyor…",
+      "loadErrorTitle": "Onaylar yüklenemedi",
+      "loadErrorBody": "Sunucu doğru yanıt vermedi; bekleyen onaylar olabilir. Bu boş bir liste değildir. Yeniden dene.",
+      "refreshErrorTitle": "Onaylar yenilenemedi",
+      "refreshErrorBody": "Aşağıdaki liste güncel olmayabilir. Yeniden dene.",
+      "retryLoad": "Yeniden dene"
     },
     "companies": {
       "title": "Çalışma Alanları",

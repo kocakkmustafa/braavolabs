@@ -65,7 +65,7 @@ export function screenHarness(file: string, surface: "web" | "mobile", screen: "
       if (name.endsWith("/format")) return new Proxy({ currency: () => "$0" }, { get: (obj: any, key: any) => key in obj ? obj[key] : () => "U" });
       if (name.endsWith("/theme")) return { radii: {} };
       // These are production decision modules, deliberately NOT mocked.
-      if (/\/(approvalDecision|useApprovalDecision)$/.test(name)) {
+      if (/\/(approvalDecision|useApprovalDecision|approvalsState)$/.test(name)) {
         const absolute = resolve(dirname(path), name + ".ts");
         if (!existsSync(absolute)) throw new Error("Missing production helper: " + absolute);
         return load(absolute);
@@ -106,7 +106,7 @@ export function screenHarness(file: string, surface: "web" | "mobile", screen: "
     return dialog[2].find((b: any) => b.onPress && b.style !== "cancel").onPress();
   };
   h.postCount = () => h.calls.filter((c: any[]) => c[0] === "post").length;
-  h.rows = () => h.states.filter(Array.isArray).flat().filter((r: any) => r?.id === h.row.id);
+  h.rows = () => h.states.flatMap((s: any) => Array.isArray(s) ? s : Array.isArray(s?.data) ? s.data : []).filter((r: any) => r?.id === h.row.id);
   h.text = () => JSON.stringify([h.states.filter((s: any) => typeof s === "string"), h.alerts]);
   h.unmount = () => { h.mounted = false; for (const effect of h.effects) effect?.cleanup?.(); };
   return h;
