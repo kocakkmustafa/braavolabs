@@ -1,6 +1,6 @@
 # 04 — Braavolabs web arayüzü tasarımı (BRA-UX-03, Aşama 4–5)
 
-Durum: taslak, PR incelemesinde. Karar: ADR-0004 (`docs/yula-execution/DECISIONS.md`). Girdiler: `01-audit.md`, `02-mental-model.md`, `03-concepts.md` (§5 "UX-03'e girdi" ve matris). Talimat: vault `40 Referanslar/📑 Dört Ürün Arayüz ve Deneyim Talimatı (2026-11-09).md` §4.2 (A–J, `:228`), §4.3 (`:361`), §4.4 (`:372`), Aşama 5 (14 teslimat).
+Durum: Kabul edildi (ADR-0004), PR #131. Karar: ADR-0004 (`docs/yula-execution/DECISIONS.md`). Girdiler: `01-audit.md`, `02-mental-model.md`, `03-concepts.md` (§5 "UX-03'e girdi" ve matris). Talimat: vault `40 Referanslar/📑 Dört Ürün Arayüz ve Deneyim Talimatı (2026-11-09).md` §4.2 (A–J, `:228`), §4.3 (`:361`), §4.4 (`:372`), Aşama 5 (14 teslimat).
 
 Kapsam: yalnız belge ve karar. Kod, rota, bayrak, migration yok. Kullanıcıya dönük marka: "YULA Lab" / "Braavolabs". Renk ve marka kimliği korunur; yeni renk önerilmez (token adları mevcut `globals.css` ve Tailwind kimliğinden gelir). Çalıştırılmadı; atıflar statik okumadır (bkz. §0).
 
@@ -14,7 +14,7 @@ Atıf biçimi `yol:satır`; yol repo köküne göredir. `packages/ui`, `packages
 
 1. **Önce niyet.** Açılışta tek bir "Ne yapmak istiyorsun?" satırı ve yanında "benden beklenen" (onay/takıldı sayısı) durur. Kullanıcı sohbet mi, iş mi, ajan mı istediğini bilmek zorunda değildir; sınıflama ürünün işidir, kullanıcıya iki satırlık "şunu anladım" önizlemesiyle gösterilir ve düzeltilebilir.
 2. **Yüzey işe göre belirir.** Sohbet = tek sütun konuşma; iş = plan kartı → ilerleme; onay = ayrıntılı karar katmanı; ajan = yarım sayfa taslak (bkz. §5). Aynı dashboard şablonu her işe uygulanmaz (talimat §2.2, `:39`).
-3. **Tek iş verisi, iki yoğunluk.** Sade ve profesyonel görünüm aynı `Run`/`Job`/`Approval` kaydını okur; fark yalnız yoğunluk ve sunumdur (§2.4, §6.5). İki ayrı sistem yok (talimat §4.2-D, `:253`).
+3. **Tek iş verisi, iki yoğunluk.** Sade ve profesyonel görünüm aynı `Run`/`Job`/`Approval` kaydını okur; fark yalnız yoğunluk ve sunumdur (§2.4, §6.5). İki ayrı sistem yok (talimat §4.2-D, `:267`; aynı-veri cümlesi `:283`).
 4. **Gizleme yok, derinleştirme var.** Risk, yetki kapsamı, maliyet ve doğrulama durumu hiçbir yoğunlukta saklanmaz (`02-mental-model.md` §9 madde 3); yalnız vurgu değişir.
 5. **Dürüst güvenilirlik.** `VERIFIED/UNVERIFIED` (`packages/core/src/types/job.ts:24`) ve eksik veri ("henüz yok") olduğu gibi gösterilir; heartbeat yazıcısı kapalıyken "takıldı" kovası eksik görünür ve arayüz bunu söyler (`DECISIONS.md:178-198`).
 6. **Glass işlevseldir.** Cam yalnız odak katmanında (çekmece, onay katmanı, niyet çubuğu açılımı); liste satırları düz yüzeydir (§6).
@@ -24,15 +24,15 @@ Atıf biçimi `yol:satır`; yol repo köküne göredir. `packages/ui`, `packages
 
 ### 2.1 Bugün ve hedef
 
-Bugünkü yan menü 13+ doğrudan öğe (`packages/ui/components/Sidebar.tsx:15-29`), komut paleti `Cmd/Ctrl+K` (`packages/ui/components/CommandPalette.tsx:72`). Hedef: 4 ana hedef + Yönet çekmecesi; eski rotalar silinmez, çekmece ve palette altında kalır (uzman bulunabilirliği, §4.3 "uzman yeteneği gizleme" kuralı).
+Bugünkü yan menü 13+ doğrudan öğe (`packages/ui/components/Sidebar.tsx:15-29`), komut paleti `Cmd/Ctrl+K` (`packages/ui/components/CommandPalette.tsx:72`). Hedef: 4 ana hedef (Başla · İşler · Şirketler · Yönet çekmecesi; Kaput ayrı hedef değil, iş sayfasının en derin kipidir); eski rotalar silinmez, çekmece ve palette altında kalır (uzman bulunabilirliği, §4.3 "uzman yeteneği gizleme" kuralı).
 
 | Kat | Öğe | İçerik | Kaynak yüzey |
 |---|---|---|---|
 | Ana | **Başla** (`/`, girişliyken) | Niyet çubuğu + "benden beklenen" + son işler | yeni; `StarterPicker.tsx`, `OnboardingChecklist.tsx` yeniden kullanılır |
 | Ana | **İşler** (`/inbox`) | 4 kova: Onayını bekliyor · Çalışıyor · Takıldı · Bitti; iş çekmecesi | `packages/ui/app/inbox/page.tsx`, `components/inbox/InboxParts.tsx` |
 | Ana | **Şirketler** (`/companies`) | Şirket durumu, ekip, ajanlar, harcama, entegrasyonlar | `app/companies/**`, `app/dashboard` |
-| Ana | **Kaput** (iş sayfasından, `/runs/[id]`) | Adımlar, araç çağrıları, model, yetki, maliyet, günlük | `packages/ui/app/runs/[id]/page.tsx` |
-| Çekmece | **Yönet** | Ajanlar, Modeller ve bağlantılar, Entegrasyonlar, Webhook, Faturalama, Ayarlar, Riskler, A/B, Analitik | mevcut rotalar |
+| Kip | **Kaput** (iş sayfasının derin kipi, `/runs/[id]`; ana gezinme öğesi değil) | Adımlar, araç çağrıları, model, yetki, maliyet, günlük | `packages/ui/app/runs/[id]/page.tsx` |
+| Ana (4.) | **Yönet** (çekmece) | Ajanlar, Modeller ve bağlantılar, Entegrasyonlar, Webhook, Faturalama, Ayarlar, Riskler, A/B, Analitik | mevcut rotalar |
 | Ses | **Niyet çubuğu** | her sayfanın üstünde (`Cmd/Ctrl+K` ile odak) | `CommandPalette.tsx` genişletilir |
 
 ### 2.2 Kavram ayrımı (§4.3 "kavramları karıştırma")
@@ -78,11 +78,11 @@ Tek anahtar "Ayrıntı: Sade · Tam" (kullanıcı tercihi, `localStorage` + hesa
 
 ## 4. Mobil / masaüstü stratejisi
 
-Mobil birincil amaçlar (talimat §4.2-J, `:340`): iş başlat, durum, onay/red, çıktı incele, ajan duraklat, kısa yönlendirme, model/şirket değiştir. Web (bu belge) **mobil tarayıcıda da bu yedi amacı karşılar**; yerel mobil uygulama (`mobile/`) aynı kova/kart sözleşmesini paylaşır.
+Mobil birincil amaçlar (talimat §4.2-J, `:347`): iş başlat, durum, onay/red, çıktı incele, ajan duraklat, kısa yönlendirme, model/şirket değiştir. Web (bu belge) **mobil tarayıcıda da bu yedi amacı karşılar**; yerel mobil uygulama (`mobile/`) aynı kova/kart sözleşmesini paylaşır.
 
 | Amaç | Mobil web / uygulama | Masaüstü | Durum (kanıt) |
 |---|---|---|---|
-| İş başlat | Alt sabit niyet çubuğu; ses (`mobile/lib/voice.ts`, bkz. `03-concepts.md` §3.c) | Üst çubuk + `Cmd+K` | web: API hazır; uygulamada `/jobs` çağrısı yok (`mobile/lib/api.ts`) |
+| İş başlat (**kurucu kararına bağlı**; varsayılan: mobilde kapalı) | Alt sabit niyet çubuğu; ses (`mobile/lib/voice.ts`, bkz. `03-concepts.md` §3.c) | Üst çubuk + `Cmd+K` | web: API hazır; uygulamada `/jobs` çağrısı yok (`mobile/lib/api.ts`) |
 | Durum | İşler = ana ekran, kova sekmeleri | Kova + çekmece yan yana | var (kova) |
 | Onay/red | Alt sheet, büyük düğmeler, tehlikeli işte ikinci adım | Onay katmanı | var (`mobile/lib/api.ts:1286`; alan uyumsuzluğu `:997-1008`) |
 | Çıktı incele | Çekmece tam ekran | Çekmece sağ | web var (Receipt), mobil UI yok |
@@ -90,11 +90,13 @@ Mobil birincil amaçlar (talimat §4.2-J, `:340`): iş başlat, durum, onay/red,
 | Kısa yönlendirme | "Yönlendir" tek satır (`run/router.ts:817`, `mobile/lib/api.ts:1243`) | aynı | var |
 | Model/şirket değiştir | Üst şirket seçici; model Yönet'te | Çubuk + Yönet | kısmi |
 
-Kırılma noktaları: ≤640 px tek sütun + alt gezinme (Başla · İşler · Şirketler · Yönet); 641–1023 px liste + tam ekran çekmece; ≥1024 px liste + yan çekmece. Derin kod düzenleme mobilde sunulmaz; mobilde yalnız **değişikliği incele ve kabul et** (diff özeti, test sonucu, Kabul/Reddet) tasarlanır; düzenleme masaüstü/CLI'de kalır. Dokunma hedefi ≥44 px; alt çubuk güvenli alanı (`env(safe-area-inset-bottom)`) kullanır.
+Kırılma noktaları: ≤640 px tek sütun + alt gezinme (Başla · İşler · Şirketler · Yönet); 641–1023 px liste + tam ekran çekmece; ≥1024 px liste + yan çekmece. Derin kod düzenleme mobilde sunulmaz; mobilde yalnız **değişikliği incele ve kabul et** (diff özeti, test sonucu, Kabul/Reddet) tasarlanır; düzenleme masaüstü/CLI'de kalır. **Masaüstü (Tauri) ve CLI rolü:** masaüstü uygulaması yerel çalıştırma ve kod geliştirme yüzeyidir (`desktop/src/pty.ts`, yerel onay ledger'ı `desktop/src/governance.ts`, 01 §3) ve bu faz web tasarımına dokunmaz; aynı kova/kart dilini benimsemesi ileride ayrı biletle istenir. Masaüstü platform Job/Run/Approval sözleşmesini bugün kullanmaz (01 §3); bu belge ona yeni uç dayatmaz. CLI niyet çubuğunun metin karşılığıdır: `braavo runs`, `approve`, `pause`, `steer`, `stop` kova/iş komutlarıdır (`cli/src/braavo.ts:1325`, `:2518`, `:2544`), `--json` otomasyon içindir (`cli/src/forge/output.ts:56`); `braavo runs --bucket` yeni istemci işidir (API hazır). Derin kod ve uzun otomasyon CLI/masaüstünde, onay ve izleme her yüzeyde yapılır.
+
+**Mobil konumlama uyarısı:** `mobile/CLAUDE.md` mobili "Read + approve, don't build" diye konumlar; talimat §4.2-J ise iş başlatmayı birincil amaç sayar (`03-concepts.md:19`). Bu belge mobilde iş BAŞLATMAYI **kurucu kararına bağlı** sayar; UX-05j varsayımı: mobil yalnız oku + onayla + duraklat + yönlendir. Dokunma hedefi ≥44 px; alt çubuk güvenli alanı (`env(safe-area-inset-bottom)`) kullanır.
 
 ## 5. Wireframe'ler (ASCII)
 
-Gösterim: Sade kip. Köşeli `[ ]` düğme, `( )` seçili, `▓` cam katman, `░` düz yüzey. Tüm veriler gerçek alanlardır; örnek sayılar gösterim içindir.
+Gösterim: Sade kip. Köşeli `[ ]` düğme, `( )` seçili, `▓` cam katman, `░` düz yüzey. Örnek sayılar gösterimdir. Alan kaynağı: **(API ister)** = bugün yok, yeni API kalemi (§14 önkoşullar); **(örnek)** = kaynak alanı doğrulanmamış gösterim metni; etiketsiz alan API'de hazırdır.
 
 ### 5.1 Niyet / sohbet başlat (E1, E2) — test 4.4-1
 
@@ -115,25 +117,33 @@ Gösterim: Sade kip. Köşeli `[ ]` düğme, `( )` seçili, `▓` cam katman, `�
 
 ### 5.2 İş tarif et → plan kartı → çalıştır (E3, E4) — test 4.4-2
 
+Birinci örnek **onaysız (düşük risk, geri alınabilir)** iştir; `STEP_APPROVAL_GATE` kapalıyken de başlatılır:
+
 ```
 ┌ ▓ "Müşteri e-postalarını özetle ve ▓┐
-│ ▓  Slack'e gönder"            [Planla]▓│
+│ ▓  taslak olarak kaydet"      [Planla]▓│
 ├──────────────────────────────────────┤
-│ ░ PLAN (3 adım)           risk: orta ░│
+│ ░ PLAN (2 adım)         risk: düşük  ░│
 │ ░ 1 E-postaları oku    araç: gmail   ░│
-│ ░ 2 Özetle             model: oto    ░│
-│ ░ 3 Slack'e gönder  ⚠ onay isteyecek ░│
-│ ░ Tahmini maliyet: henüz yok         ░│
+│ ░ 2 Özetle, taslağa yaz araç: drafts ░│
+│ ░ Tahmini maliyet: 0,02–0,06 $ (örnek aralık)│  ← estimate.costUsd aralığı
 │ ░ [Düzenle]  [Çalıştır ▸]            ░│
 └──────────────────────────────────────┘
 ```
-Plan kartı `POST /jobs/plan`'ın döndüğü adım, araç ve risk alanlarını gösterir (`jobs/router.ts:53`); "Çalıştır" `POST /jobs/start` çağırır (`:121`). Yüksek riskli kart, `STEP_APPROVAL_GATE` kapalıyken API 422 `high_risk_start_unsupported` döner (`DECISIONS.md:178`); arayüz bunu "Bu iş şu an otomatik başlatılamaz; sebep: …" diye açıkça gösterir, düğmeyi gizlemez ve sessiz düşmez. Tahmini maliyet API'de yoksa "henüz yok" yazılır (uydurulmaz).
+Plan kartı `POST /jobs/plan`'ın döndüğü adım, araç, risk ve `estimate.costUsd` aralığını gösterir (`packages/api/src/modules/jobs/router.ts:36-48`, `:53`; `packages/api/src/modules/jobs/plan.ts:29`); "Çalıştır" `POST /jobs/start` çağırır (`jobs/router.ts:121`). Adım başına model satırı bu sürümde YOK (API ister).
+
+**Bayrak açıkken (`STEP_APPROVAL_GATE=true`) onaylı iş** (T2'de değil; ayrı doğrulama): plan, onay gerektiren adımı `risk:"high"`, `needsApproval:true` ile işaretler (`plan.ts:308`):
+
+```
+│ ░ 3 Slack'e gönder (onay gerekli)  ⚠ yüksek risk ░│
+```
+Bayrak KAPALIYKEN bu kart `/jobs/start`'ta 422 `high_risk_start_unsupported` döner (`DECISIONS.md:178`); arayüz bunu "Bu iş şu an otomatik başlatılamaz; sebep: …" diye açık gösterir, düğmeyi gizlemez, sessiz düşmez. Bayrağı açmak kurucu kararıdır (OPERASYON KURALI, `DECISIONS.md:178`). Bu yüzden UX test T2 onaysız örnekle yapılır.
 
 ### 5.3 Devam eden iş (E5, E6) — test 4.4-3
 
 ```
 ┌ İşler        [Onay 2] Çalışıyor 3  Takıldı 1  Bitti ┐
-│ ░ Bu hafta harcama: 3,10$                           │
+│ ░ Bu hafta harcama: 3,10$ (örnek; haftalık toplam alanı yok)│
 │ ▲ Onayını bekliyor (yüksek katman, sabit)           │
 │ ░ Slack'e gönder · Atölye · ⚠ orta risk    [İncele] │
 │ ● Çalışıyor                                         │
@@ -152,16 +162,18 @@ Kovalar `GET /runs?bucket=` ve `GET /approvals?groupBy=run` (`packages/ui/lib/ap
 ```
 ┌ ▓ ONAY: Slack'e mesaj gönder  ⚠ orta ▓┐
 │ ▓ Ne yapacak: #genel kanalına 1 mesaj ▓│
-│ ▓ Araç: slack.post  Yetki: yazma       ▓│
-│ ▓ Aktarılan veri: özet metni (412 krk) ▓│
-│ ▓ Tutar: —   Geri alma: mesaj silinebilir▓│
+│ ▓ Araç: slack.post                     ▓│
+│ ▓ Yetki: yazma (API ister)             ▓│
+│ ▓ Aktarılan veri: … (API ister)        ▓│
+│ ▓ Tutar: —                             ▓│
+│ ▓ Geri alma: … (API ister)             ▓│
 │ ▓ Taslak:  "Bu hafta 14 e-posta…"      ▓│
 │ ▓ [Reddet]            [Onayla]         ▓│
 └────────────────────────────────────────┘
 tehlikeli (geri alınamaz/para): ikinci adım
  "Gönderimi onaylıyorum" yazın + sebep alanı
 ```
-Alanlar: `description`, `amountUsd`, `metadata`, exact-action damgası (ADR-0002, `DECISIONS.md:95`), karar `POST /approvals/:id/decide` (`packages/api/src/modules/approval/router.ts:247`). Bugünkü ekran araç/risk/yetki göstermez (`01-audit.md:44`); bu alanlar `metadata`'dan okunur, yoksa "bilgi yok" yazılır, uydurulmaz. Düşük risk geri alınabilir onaylar aynı şirket+eylem türüyle **toplu** önizleme sunar ama her biri tek tek karar kaydıdır (ADR-0002 exact-action hakkı korunur; yeni uç yok, istemci döngüsü).
+Hazır alanlar: `description`, `amountUsd`, `metadata.toolName`, tür, süre (`packages/ui/components/inbox/InboxParts.tsx:111-114` bugün araç adı ve tutarı gösterir), exact-action damgası (ADR-0002, `DECISIONS.md:95`); karar `POST /approvals/:id/decide` (`packages/api/src/modules/approval/router.ts:247`). **API ister:** liste ucu `metadata`'yı yalnız `toolName`'e indirir (`packages/api/src/modules/approval/list-select.ts:9-11`, `:42-51`; `approval/router.ts:121`); "yetki kapsamı", "aktarılan veri", "geri alma yolu" alanları API'de YOK (`03-concepts.md:65`, `:344`). Wireframe'deki bu üç satır **(API ister)** etiketlidir; veri gelmezse "bilgi yok" yazılır, uydurulmaz. **Uyarı (toplu onay):** "düşük risk, geri alınabilir toplu onay" yalnız risk/geri alma alanı gerçekten dolu olduğunda önerilebilir; 03b(b) notu gereği işaretsiz adımdaki yan etkili araç yalnız araç meta'sı + autonomy'ye kalır (`DECISIONS.md:177`), yani "düşük risk" etiketi bugün tam güvenilir değildir. Bu alan API'ye gelene kadar toplu onay **kapalıdır**; her onay tek tek kararlanır (ADR-0002 exact-action hakkı korunur).
 
 ### 5.5 Ajan oluştur (E9) — test 4.4-5
 
@@ -173,7 +185,8 @@ Alanlar: `description`, `amountUsd`, `metadata`, exact-action damgası (ADR-0002
 │ ░ Ad: Satış Özetçisi  Rol: analist    ░│
 │ ░ Araçlar: gmail ✓  slack ✓           ░│
 │ ░ Çıkarılan araç: (bağlı değil) 1     ░│
-│ ░ Yetki: onay iste ▾   Bütçe: 5$/gün  ░│
+│ ░ Yetki: onay iste ▾ (örnek; kaynak alan doğrulanmadı)│
+│ ░ Bütçe: 5$/gün (örnek; kaynak alan doğrulanmadı)│
 │ ░ ▸ Gelişmiş (model, kurallar, akış)  ░│
 │ ░ [Oluştur]                           ░│
 └──────────────────────────────────────┘
@@ -184,7 +197,7 @@ Alanlar: `description`, `amountUsd`, `metadata`, exact-action damgası (ADR-0002
 
 ```
 ┌ Atölye ▾          1 onay · 0 takıldı ┐
-│ ░ Çalışan 2 · Bitti (7g) 11 · 3,10$   ░│  ← tek satır özet, KPI kartı yığını yok
+│ ░ Çalışan 2 · Bitti (7g) 11 · 3,10$ (örnek)░│  ← tek satır özet, KPI kartı yığını yok
 │ ░ Ajanlar   Satış Özetçisi ● boşta    ░│
 │ ░ Ekip      3 kişi · 1 yönetici       ░│
 │ ░ Risk      1 açık (orta)             ░│
@@ -199,15 +212,15 @@ Tek ekran, tek satır özet; bölümler açılır. KPI kart yığını yoktur (�
 ```
 ┌ Rapor taslağı · Atölye · ✔ doğrulandı │
 │ [Özet] [Çıktı] (Kaput)    Ayrıntı:Tam │
-│ ░ Model: oto → claude-… · Yetki: gmail:oku
+│ ░ Model/yönlendirme/yetki dökümü: API ister (sonraki sürüm)
 │ ░ Adımlar (3)   ▸ 1 oku  ▸ 2 özetle  ▸ 3 gönder
 │ ░ Araç çağrıları  gmail.list 120ms ✓ …
-│ ░ Maliyet: 0,42$ (adım dağılımı)
+│ ░ Maliyet: 0,42$ (toplam)
 │ ░ El değiştirme (handoff) · Günlük · Hatalar
 │ ░ [Yeniden çalıştır] [Adımı yeniden çalıştır]
 └────────────────────────────────────────┘
 ```
-Aynı `Run` kaydı: araç çağrıları `runs/[id]/page.tsx:671`, `:730`, maliyet `:471`, handoff `:411-416`. Yeniden çalıştırma ve adım rollback API'de (`run/router.ts:432`, ADR-0003 04d notu). Kaput, üç kipin en derinidir; Receipt `GET /runs/:id/receipt` (`run/router.ts:1178`).
+Aynı `Run` kaydı: araç çağrıları `runs/[id]/page.tsx:671`, `:730`, maliyet `:471`, handoff `:411-416`. İlk sürüm = adım + araç + maliyet + handoff; model, yönlendirme kararı ve yetki dökümü yeni API ister (`03-concepts.md:71`). Adım yeniden çalıştırma `run/router.ts:1065` (`/steps/:id/rerun`), adım rollback `:1034`, tüm koşu yeniden denemesi `:432` (`/retry`, ADR-0003 04d notu). Kaput, üç kipin en derinidir; Receipt `GET /runs/:id/receipt` (`run/router.ts:1178`).
 
 ### 5.8 Model maliyeti ve erişim yetkisi (E11) — test 4.4-8, §4.2-H
 
@@ -222,7 +235,7 @@ Aynı `Run` kaydı: araç çağrıları `runs/[id]/page.tsx:671`, `:730`, maliye
 │ ░ Karşılaştır ▸ (ComparePanel)        ░│
 └────────────────────────────────────────┘
 ```
-**Bilinen boşluk:** model başına maliyet toplamı için API yok (`03-concepts.md` §3.f H; `02-mental-model.md` §4.4 #8). Bu yüzden test 8 ancak bu API (M) eklenince tam geçer; o zamana kadar iş başına model + maliyet Kaput'ta gösterilir (`runs/[id]/page.tsx:471`) ve model ekranı "veri yok" der.
+**Bilinen boşluk:** model başına maliyet toplamı için API yok (`03-concepts.md` §3.f H; `02-mental-model.md` §4.4 #8). Bu yüzden test 8 ancak bu API (M) eklenince tam geçer; o zamana kadar iş başına yalnız toplam maliyet Kaput'ta gösterilir (`runs/[id]/page.tsx:471`; orada model alanı yoktur) ve model ekranı "veri yok" der. Model adı, yönlendirme kararı ve yetki dökümü de **API ister**.
 
 ### 5.9 Gelen kutusu — mobil (E5, E8) — §4.2-J
 
@@ -237,6 +250,54 @@ Aynı `Run` kaydı: araç çağrıları `runs/[id]/page.tsx:671`, `:730`, maliye
 │ ▓ Ne yapmak istiyorsun? ▓│  ← alt sabit çubuk
 │ Başla İşler Şirket Yönet │
 └──────────────────────────┘
+```
+
+### 5.10 Yönet çekmecesi (E12)
+
+```
+┌ Yönet                       ✕ ┐
+│ ░ Ajanlar          ›          ░│
+│ ░ Modeller ve bağlantılar ›   ░│
+│ ░ Entegrasyonlar   ›          ░│
+│ ░ Webhook · Faturalama ›      ░│
+│ ░ Riskler · Analitik · A/B ›  ░│
+│ ░ Ayarlar          ›          ░│
+│ ░ Ara… (Cmd+K ile her sayfa)  ░│
+└────────────────────────────────┘
+```
+Eski rotalar (`Sidebar.tsx:15-29`) korunur; çekmece yalnız gruplar.
+
+### 5.11 Bildirim zili (E13)
+
+```
+┌ 🔔 2 ▾ ┐
+│ ▓ Onay: Slack'e gönder   2 dk ▓│
+│ ▓ Takıldı: Rapor taslağı 9 dk ▓│
+│ ▓ [Tümü → İşler]              ▓│
+└────────────────────────────────┘
+```
+Kaynak `packages/ui/components/NotificationBell.tsx`; öğe tıklanınca ilgili iş çekmecesi açılır. Masaüstünde "Çıkış" ile çakışma (01 §10) düzeltilir.
+
+### 5.12 Kod değişikliğini incele ve kabul et (E14, yalnız inceleme)
+
+```
+┌ Değişiklik: login hatası düzeltmesi    ┐
+│ ░ Dosyalar (3)  ▸ auth.ts +12 −4       ░│
+│ ░ Testler: 41 geçti · 0 kaldı          ░│
+│ ░ [Reddet]            [Kabul et]       ░│
+└─────────────────────────────────────────┘
+```
+Düzenleme yok. Kod iş türü ve diff/test çıktı alanı **API ister** (bugün yok); satırlar gösterimdir. Mobilde aynı kart.
+
+### 5.13 Durum çizimleri (§9)
+
+```
+Yükleme:    ░░░░░░░░░░ (sabit iskelet) "İşler yükleniyor…"
+Hata:       ┌ İşler yüklenemedi: sunucu yanıt vermedi ┐  [Yeniden dene]
+Çevrimdışı: ═ Çevrimdışısın · son bilinen durum 14:02 ═  (Onayla/Reddet kapalı)
+403:        ┌ Bu işlem için yetkin yok (approval:decide). Yönetici: … ┐
+Boş:        "Henüz iş yok. Tarif et: …" [Niyet çubuğuna git]
+Onay bekliyor: ▲ üst kova, rozet 2
 ```
 
 ## 6. Glass bileşen ve davranış kuralları
@@ -282,7 +343,7 @@ Yalnız `transform`/`opacity` animasyonu; `width/height/top` yok. `prefers-reduc
 
 ## 8. Boş durum ve gerçek veri kuralları
 
-1. **Uydurma sayı yok.** Veri gelmediyse "henüz yok", sıfır değil. Mock yalnız `?preview` bayrağıyla ve her sayfada görünür "ÖRNEK VERİ" şeridi (`01-audit.md:188` sahte yanıtlı çekim kuralı).
+1. **Uydurma sayı yok.** Veri gelmediyse "henüz yok", sıfır değil. Mock yalnız `?preview` bayrağıyla ve her sayfada görünür "ÖRNEK VERİ" şeridi (yeni kural; 01 §10 yalnız denetim çekimlerinin `-mock` adlandırmasını tarif eder).
 2. **Boş ≠ hata.** `/approvals` 500'de "Her şey temiz!" gösterilmez; hata durumu ayrı bileşendir (`ApprovalsLoadError` `packages/ui/components/approvals/ApprovalsStatus.tsx:7`, boş `:30`; `/approvals` hata yutma düzeltmesi #128).
 3. **Boş durum eylem önerir:** İşler boşsa "Tarif et: …" örnek niyet (gerçek şirket araçlarından türetilir; araç yoksa "Önce bir entegrasyon bağla").
 4. **Yeni kullanıcı:** Şirket yoksa Başla, şirket sihirbazını önerir (`packages/ui/app/companies/new/page.tsx:361`).
@@ -299,10 +360,10 @@ Yalnız `transform`/`opacity` animasyonu; `width/height/top` yok. `prefers-reduc
 | İzin reddi 403 | "Bu işlem için yetkin yok: `approval:decide`" + kimden isteneceği | — | `approval/router.ts:247` (`requirePermission`) |
 | Onay bekliyor | iş satırı üstte, yüksek katman, rozet | İncele | ADR-0003 `needs_approval` |
 | Onay reddedildi | satır "reddedildi · iptal" | Yeniden tarifle | `DECISIONS.md:178` (red koşuyu iptal eder) |
-| Onay süresi doldu | `EXPIRED` ayrı etiket | Yeniden iste | `approval/router.ts:79`, `:91` |
+| Onay süresi doldu | `EXPIRED` ayrı etiket | Yeniden iste | `approval/router.ts:80`, `:91` |
 | Yarış/409 | `retry_*` kodları insan metnine eşlenir | — | ADR-0003 04d tablosu |
 | 429 | "Çok hızlı; N sn sonra" | otomatik geri sayım | `planLimiter` `jobs/router.ts:53` |
-| Takıldı | kova + heartbeat yaşı | Yeniden dene / Durdur | `run/router.ts:432`, `:289` |
+| Takıldı | kova + heartbeat yaşı | Yeniden dene / Durdur | `run/router.ts:432` (`/retry`), `:289` |
 
 Her hata metni iki parçadır: ne oldu, kullanıcı ne yapabilir; teknik kod yalnız Tam kipte/Kaput'ta görünür.
 
@@ -351,7 +412,7 @@ Yeni bileşenler: `IntentBar`, `PlanCard`, `JobDrawer`, `ApprovalSheet`, `Densit
 | 05f Şirketler/ekip | tek satır özet, şirket süzgeci | 05c |
 | 05g Ajanlar | `AgentDraft`, güvenilirlik | 05f |
 | 05h Model/bağlantı | `ModelCostRow`; **model başına maliyet API (M)** önkoşul | API işi |
-| 05i Onay ve güvenlik merkezi | `ApprovalSheet`, toplu önizleme, tehlikeli ikinci adım; mobil alan uyumu | 05c |
+| 05i Onay ve güvenlik merkezi | `ApprovalSheet`, tehlikeli ikinci adım; toplu önizleme yalnız risk/geri alma alanı API'den gelince; mobil alan uyumu | 05c, onay ayrıntı API'si |
 | 05j Mobil | alt gezinme, alt sheet, ses | 05c, 05i, mobil `Approval` eşleme |
 
 3. **Eski ekranlar:** UX-05 sonunda eski rota yönlendirir, silinmez; geri alma bayrak kapatma.
@@ -364,19 +425,29 @@ Katılımcı: rehbersiz yeni kullanıcı (en az 5) + 2 profesyonel. Başarı: g�
 | ID | Senaryo (talimat §4.4) | Başarı ölçütü |
 |---|---|---|
 | T1 | Normal sohbet başlat | ≤30 sn, ≤2 tıklama; sohbet seçilmeden "İş" planına düşmez |
-| T2 | İş tarif et, planı oku, çalıştır | ≤90 sn; plan kartındaki onay uyarısını sözle söyler |
+| T2 | İş tarif et (onaysız, düşük riskli örnek), planı oku, çalıştır | ≤90 sn; risk ve tahmini maliyet aralığını sözle söyler. Onaylı örnek ayrı, `STEP_APPROVAL_GATE` açıkken |
 | T3 | Devam eden işi bul | ≤20 sn; doğru kova |
-| T4 | Onay isteyen işlemi anla | "ne yapacak/neye erişecek/hangi veri" sorularına 3/3 doğru |
+| T4 | Onay isteyen işlemi anla | "ne yapacak/hangi araç/tutar" 3/3 doğru (hazır alanlar); yetki/veri/geri alma soruları alanlar API'ye gelince eklenir |
 | T5 | Ajan oluştur | ≤3 dk; `droppedTools` uyarısını fark eder |
 | T6 | Şirket durumunu incele | tek ekranda onay/takıldı/harcama sayılarını söyler |
-| T7 | Gelişmiş görünümü aç | Kaput'a ≤2 tıkta; model, araç çağrısı, maliyet, yetki bulur; Sade/Tam aynı değerler |
+| T7 | Gelişmiş görünümü aç | Kaput'a ≤2 tıkta; adım, araç çağrısı ve maliyeti bulur; Sade/Tam aynı değerler (model/yetki dökümü API gelince eklenir) |
 | T8 | Modelin maliyeti ve erişim yetkisi | maliyet verisi yoksa "veri yok" der; yetkiyi doğru okur |
 | T9 | Profesyonel: kod incele, model seç, otomasyon yönet | Yönet çekmecesi/palette ile ≤3 tık |
 | T10 | Erişilebilirlik: yalnız klavye + ekran okuyucu + `ar` + reduced-motion | 8 görevin hepsi tamamlanır, odak kaybı yok |
 
+## 13b. Bağımlılıklar ve riskler
+
+| Konu | Durum | Etki |
+|---|---|---|
+| 03b(b) düşük-risk yan etki açığı | `config.needsApproval` yürütücüde zorlanmaz; işaretsiz adımdaki yan etkili araç yalnız araç meta'sı + autonomy'ye kalır (`DECISIONS.md:177`) | "Düşük risk" etiketi tam güvence değildir; toplu onay kapalı (§5.4) |
+| 03d `STEP_APPROVAL_GATE` | varsayılan KAPALI; açmak kurucu kararı (`DECISIONS.md:178`) | Onaylı iş örneği bayrak açıkken; kapalıyken 422 açıkça gösterilir (§5.2) |
+| Mobil konumlama | `mobile/CLAUDE.md` "Read + approve, don't build" ↔ talimat §4.2-J iş başlatma (`03-concepts.md:19`) | Mobilde iş BAŞLATMA kurucu kararı gerektirir; UX-05j varsayımı: oku + onayla + duraklat + yönlendir |
+| Heartbeat bayrağı | kapalıyken "takıldı" eksik (`DECISIONS.md:178-198`) | arayüz söyler |
+| Yeni API kalemleri | bkz. §14 önkoşullar | ölçülemeyen testler işaretli (§14.3) |
+
 ## 14. Backlog ve kabul ölçütleri
 
-Backlog = §12 tablosu (05a–05j) + önkoşullar: (a) sohbet ucu (L), (b) niyet sınıflayıcı (M), (c) model başına maliyet API (M), (d) mobil `Approval` alan eşleme (M, `mobile/lib/api.ts:997-1008`), (e) satır alanları risk/ilerleme/öngörülen maliyet (`run/router.ts:107-121`'de yok).
+Backlog = §12 tablosu (05a–05j) + önkoşullar: (a) sohbet ucu (L), (b) niyet sınıflayıcı (M), (c) model başına maliyet API (M), (d) mobil `Approval` alan eşleme (M, `mobile/lib/api.ts:997-1008`), (e) satır alanları risk/ilerleme/öngörülen maliyet (`run/router.ts:107-121`'de yok); (f) **onay ayrıntı API'si**: yetki kapsamı, aktarılan veri, geri alma yolu (liste ucu `metadata`'yı `toolName`'e indirir: `approval/list-select.ts:9-11,42-51`); bilet adayı `BRA-UX-API-01`; (g) **model + yönlendirme + yetki dökümü API'si** (Kaput sonraki sürüm); bilet adayı `BRA-UX-API-02`; (h) kod iş türü diff/test çıktı alanı (E14); (i) mobilde iş başlatma için kurucu kararı (§13b).
 
 **Genel kabul (her alt bilet):** (1) mevcut işlev kaybolmaz (rota listesi regresyon testi); (2) Job/Run/Approval sözleşmesi değişmez (sözleşme testleri yeşil); (3) QA-UX-01 §5'in ilgili A11Y/PERF maddeleri kanıtla işaretli ya da ADR-0004'te istisna; (4) çalıştırılmış ekran görüntüsü (masaüstü 1440×900, mobil 390×844, koyu/açık) ve CI 3/3; (5) sahte veri yok.
 
@@ -415,10 +486,10 @@ Backlog = §12 tablosu (05a–05j) + önkoşullar: (a) sohbet ucu (L), (b) niyet
 | 1 | Normal sohbet | rehbersiz gözlemli test (T1), görev süresi/tık | ≥4/5 başarılı, ≤30 sn | sohbet ucu (L) yoksa **ölçülemez** |
 | 2 | İş tarif et ve çalıştır | T2, plan kartı anlama sorusu | ≥4/5 başarılı, ≤90 sn | `/jobs/*` hazır |
 | 3 | Devam eden iş | T3 | ≥4/5, ≤20 sn | kova hazır |
-| 4 | Onay anlama | T4, 3 soru | ≥90% doğru | araç/yetki alanı `metadata`'ya bağlı |
+| 4 | Onay anlama | T4, 3 soru | ≥90% doğru | yetki/veri/geri alma alanları API'de yok (API ister) |
 | 5 | Ajan oluştur | T5 | ≥4/5, ≤3 dk | `composeAgent` hazır |
 | 6 | Şirket durumu | T6 | ≥4/5, tek ekran | — |
-| 7 | Gelişmiş görünüm | T7, Sade/Tam eşitlik betiği (alan karşılaştırma testi) | ≥4/5; alan eşitliği %100 | — |
+| 7 | Gelişmiş görünüm | T7, Sade/Tam eşitlik betiği (alan karşılaştırma testi) | ≥4/5; alan eşitliği %100 | model/yönlendirme/yetki dökümü API'si yok; ilk sürüm adım+araç+maliyet |
 | 8 | Model maliyeti/yetkisi | T8 | ≥4/5 | model başına maliyet API (M) **yok** |
 
 Atıf doğrulama: `sed -n` ile açılan örnekler `packages/ui/lib/api.ts:393-408`, `packages/ui/components/inbox/InboxParts.tsx:38-195`, `packages/ui/app/globals.css:222-236`, `packages/api/src/modules/jobs/router.ts:53,121`, `packages/api/src/modules/approval/router.ts:247`, `packages/api/src/modules/run/router.ts:289,331,432,817,1178`, `packages/core/src/types/job.ts:24,129`; hepsi `6f90242` ağacında mevcut.
