@@ -10,6 +10,7 @@ import { decideResume, type JobState } from "../run/job-state";
 import { assertTransitioned, resumeToRunning, AlreadyRunningError, revertRunAfterEnqueueFailure } from "../run/resume";
 import { reopenClaimedHandoff } from "../run/handoff.service";
 import { z } from "zod";
+import { afterCursorWhere, decodeCursor, encodeCursor, LIST_ORDER, parseLimit } from "../run/list-cursor";
 import { toPublicCompany } from "../company/redact";
 import {
   type ApprovalArtifact,
@@ -75,29 +76,67 @@ async function attachArtifacts<T extends { id: string; runId: string; metadata: 
   return out.map((o) => ({ ...o.approval, artifact: o.artifact }));
 }
 
-// GET /api/v1/approvals — list pending approvals for tenant
+const APPROVAL_STATUSES = ["PENDING", "APPROVED", "REJECTED", "EXPIRED"] as const;
+
+// GET /api/v1/approvals — list approvals for tenant.
+// Geriye uyumlu: parametresiz çağrı eskisi gibi DÜZ DİZİ döner (sayfalama yok).
+// BRA-P0-04b: ?limit (1..100) verilirse sayfalanır, sonraki imleç X-Next-Cursor
+// başlığında (gövde yine dizi); ?cursor devam eder. ?groupBy=run açıkça istenirse
+// gövde { groups: [{ runId, runTitle, approvals }], nextCursor } olur (sayfa
+// sınırı bir koşunun grubunu bölebilir; sayfalama onay satırları üzerindedir).
 approvalRouter.get("/", async (req, res, next) => {
   try {
-    const { status = "PENDING" } = req.query;
+    const { status = "PENDING", groupBy, cursor: cursorQ } = req.query;
+    if (typeof status !== "string" || !(APPROVAL_STATUSES as readonly string[]).includes(status)) {
+      throw new AppError(400, "Invalid status. Use PENDING, APPROVED, REJECTED or EXPIRED.");
+    }
+    if (groupBy !== undefined && groupBy !== "run") throw new AppError(400, "Invalid groupBy. Use run.");
+    const paged = req.query.limit !== undefined || cursorQ !== undefined || groupBy === "run";
+    const limit = parseLimit(req.query.limit, 25);
+    if (limit === null) throw new AppError(400, "Invalid limit. Use an integer between 1 and 100.");
+    const cursor = cursorQ === undefined ? undefined : decodeCursor(cursorQ);
+    if (cursor === null) throw new AppError(400, "Invalid cursor.");
+
     const approvals = await prisma.approval.findMany({
       where: {
         run: { pipeline: { company: { tenantId: req.auth!.tenantId } } },
-        status: status as any,
+        status: status as (typeof APPROVAL_STATUSES)[number],
+        ...(cursor ? { AND: [afterCursorWhere(cursor)] } : {}),
       },
       include: {
         run: { include: { pipeline: { include: { company: true } } } },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: LIST_ORDER,
+      ...(paged ? { take: limit + 1 } : {}),
     });
+    const page = paged ? approvals.slice(0, limit) : approvals;
+    const nextCursor = paged && approvals.length > limit ? encodeCursor(page[page.length - 1]) : null;
     // BRA-SEC-01: strip Company.config secrets (webhookSecret etc.) from the nested company.
-    const safe = approvals.map((ap) => ({
+    const safe = page.map((ap) => ({
       ...ap,
       run: ap.run && {
         ...ap.run,
         pipeline: ap.run.pipeline && { ...ap.run.pipeline, company: toPublicCompany(ap.run.pipeline.company) },
       },
     }));
-    res.json(await attachArtifacts(safe));
+    const withArtifacts = await attachArtifacts(safe);
+
+    if (groupBy === "run") {
+      const groups = new Map<string, { runId: string; runTitle: string | null; approvals: unknown[] }>();
+      for (const ap of withArtifacts) {
+        const { run, ...rest } = ap;
+        let g = groups.get(ap.runId);
+        if (!g) {
+          g = { runId: ap.runId, runTitle: run?.pipeline?.name ?? null, approvals: [] };
+          groups.set(ap.runId, g);
+        }
+        g.approvals.push(rest);
+      }
+      res.json({ groups: [...groups.values()], nextCursor });
+      return;
+    }
+    if (nextCursor) res.setHeader("X-Next-Cursor", nextCursor);
+    res.json(withArtifacts);
   } catch (err) { next(err); }
 });
 

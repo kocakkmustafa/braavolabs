@@ -23,7 +23,9 @@ import { assertTransitioned, resumeToRunning, AlreadyRunningError, revertRunAfte
 import { decideResume, type JobState } from "./job-state";
 import { env } from "../../config/env";
 import { toPublicCompany } from "../company/redact";
-import type { RunEvent } from "@ai-company-os/core";
+import { jobBucket, type InboxBucket, type RunEvent } from "@ai-company-os/core";
+import { bucketWhere, isInboxBucket, jobStaleAfterMs } from "./job-bucket-query";
+import { afterCursorWhere, decodeCursor, encodeCursor, LIST_ORDER, parseLimit } from "./list-cursor";
 
 export const runRouter = Router();
 runRouter.use(authMiddleware);
@@ -75,6 +77,64 @@ async function assertValidTakeoverTarget(
     );
   }
 }
+
+// GET /api/v1/runs — işler gelen kutusu listesi (BRA-P0-04b).
+// ?bucket=working|needs_approval|done|stuck (yoksa hepsi, DRAFT hariç) · ?limit=1..100 (25) · ?cursor=opak.
+// Dar select: ham Run satırı / Company.config DÖNMEZ (BRA-SEC-01).
+runRouter.get("/", async (req, res, next) => {
+  try {
+    const { bucket: bucketQ, cursor: cursorQ } = req.query;
+    if (bucketQ !== undefined && !isInboxBucket(bucketQ)) {
+      throw new AppError(400, "Invalid bucket. Use working, needs_approval, done or stuck.");
+    }
+    const limit = parseLimit(req.query.limit, 25);
+    if (limit === null) throw new AppError(400, "Invalid limit. Use an integer between 1 and 100.");
+    const cursor = cursorQ === undefined ? undefined : decodeCursor(cursorQ);
+    if (cursor === null) throw new AppError(400, "Invalid cursor.");
+
+    const now = new Date();
+    const staleAfterMs = jobStaleAfterMs();
+    const rows = await prisma.run.findMany({
+      where: {
+        AND: [
+          { pipeline: { company: { tenantId: req.auth!.tenantId } } },
+          bucketWhere(bucketQ as InboxBucket | undefined, now, staleAfterMs),
+          ...(cursor ? [afterCursorWhere(cursor)] : []),
+        ],
+      },
+      select: {
+        id: true,
+        pipelineId: true,
+        status: true,
+        state: true,
+        resultStatus: true,
+        trigger: true,
+        costUsd: true,
+        startedAt: true,
+        completedAt: true,
+        heartbeatAt: true,
+        createdAt: true,
+        updatedAt: true,
+        pipeline: { select: { id: true, name: true, company: { select: { id: true, name: true } } } },
+      },
+      orderBy: LIST_ORDER,
+      take: limit + 1,
+    });
+    const page = rows.slice(0, limit);
+    const runs = page.map((r) => ({
+      ...r,
+      bucket: jobBucket({
+        state: r.state,
+        status: r.status,
+        resultStatus: r.resultStatus,
+        heartbeatAt: r.heartbeatAt,
+        now,
+        staleAfterMs,
+      }),
+    }));
+    res.json({ runs, nextCursor: rows.length > limit ? encodeCursor(page[page.length - 1]) : null });
+  } catch (err) { next(err); }
+});
 
 // GET /api/v1/runs/:id — run detail with steps and tool calls
 runRouter.get("/:id", async (req, res, next) => {
