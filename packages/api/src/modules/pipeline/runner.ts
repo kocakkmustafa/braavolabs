@@ -9,6 +9,8 @@ import { executeStep, checkGovernance, planResume, type StepDef, type StepExecut
 import { publishRunEvent } from "../../lib/runEvents";
 import { isJobStateDualWriteEnabled } from "../run/transition";
 import { writeLifecycle } from "../run/write-lifecycle";
+import { beatRun, forgetBeat } from "../run/heartbeat";
+import { isHierarchicalPipeline } from "../run/retry";
 import { recoverCrashedRun } from "../run/crash-recovery";
 import { parseJobBudget } from "../run/job-budget";
 import { incrementMeter, checkQuota, claimQuota } from "../billing/metering";
@@ -58,6 +60,15 @@ const MAX_STEPS_PER_RUN = 50;
  * 4. Handle approval gates for spend actions
  * 5. Update run status throughout
  */
+/** BRA-P0-04d: her çıkışta (pause/cancel/interrupt/crash dahil) kalp atışı throttle girdisini bırak. */
+async function processRunTracked(job: Job<RunJobData>): Promise<void> {
+  try {
+    await processRun(job);
+  } finally {
+    forgetBeat(job.data.runId);
+  }
+}
+
 async function processRun(job: Job<RunJobData>): Promise<void> {
   const { runId, tenantId: enqueuedTenantId } = job.data;
   const runStartTime = Date.now();
@@ -171,7 +182,7 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
   // off to the hierarchical executor and bail out here. The
   // sequential path below is unchanged for SEQUENTIAL pipelines so
   // every existing customer keeps the exact same behaviour.
-  if (run.pipeline.pipelineType === "HIERARCHICAL") {
+  if (isHierarchicalPipeline(run.pipeline)) {
     const { processHierarchicalRun } = await import("./hierarchical-runner");
     await processHierarchicalRun({
       runId,
@@ -362,6 +373,9 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
       return;
     }
 
+    // BRA-P0-04d: adım grubu başı kalp atışı (bayrak kapalıysa no-op, 30 sn kısıtlı).
+    await beatRun(runId, tenantId);
+
     const isParallel = stepsAtOrder.length > 1;
 
     if (isParallel) {
@@ -450,6 +464,7 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
       }
 
       await prisma.run.update({ where: { id: runId }, data: { costUsd: totalCost } });
+      await beatRun(runId, tenantId); // BRA-P0-04d: adım sonu
 
       // E3/T2 (§2.3a-2): exit exactly like the order-group boundary check —
       // WITHOUT the finalize block below, which would overwrite the paused
@@ -496,6 +511,7 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
       totalCost += result.costUsd;
 
       await prisma.run.update({ where: { id: runId }, data: { costUsd: totalCost } });
+      await beatRun(runId, tenantId); // BRA-P0-04d: adım sonu
 
       // E3/T2 (§2.3a-2): turn-boundary interrupt — the step is back at
       // PENDING, the run stays PAUSED/CANCELLED. Exit like the order-group
@@ -656,7 +672,7 @@ export async function enqueueRun(runId: string): Promise<string> {
  * (double-billing the tenant + duplicate side effects).
  */
 export function initPipelineRunner(): void {
-  createWorker<RunJobData>("pipeline-runs", processRun);
+  createWorker<RunJobData>("pipeline-runs", processRunTracked);
   logger.info("Pipeline runner worker initialized");
 }
 

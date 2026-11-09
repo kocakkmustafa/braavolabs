@@ -174,3 +174,24 @@ Bayrağı kapat (`EXACT_ACTION_APPROVAL` ayarlama) → kapı eski davranış; `r
 - **Varsayımlar:** (1) `runs.state` yalnız `JOB_STATE_DUAL_WRITE=true` iken dolar; bayrak kapalıyken/eski satırlarda NULL olduğundan kova eski `status`tan hesaplanır (PENDING = READY: eski koşular doğrudan kuyruğa alınırdı, ADR-0001). (2) `state` doluysa **state kazanır**, `status` yok sayılır (ör. COMPLETED+RUNNING → `done`). (3) **Fail-closed:** bilinmeyen/bozuk `state`, `status` ya da `resultStatus` → `stuck`; kovasız iş gizlenmez. Yalnız DRAFT bilinçli olarak görünmez. (4) Bayatlık yalnız RUNNING için: `now - heartbeatAt > staleAfterMs`. `heartbeatAt` NULL ise (eski satırlar) yargı yok → `working`. Okunamayan heartbeat/saat/eşik → `stuck`. RESUMING bayat sayılmaz (kuyrukta bekler, ADR-0001 not 02c). `staleAfterMs` değeri çağıranındır (04b/04d); bu ADR sabit seçmez. (5) PAUSED `stuck`: operatör duraklatması da gelen kutusunda dikkat ister; CANCELLED `done`. (6) `resultStatus` kovayı değiştirmez, yalnız bozuk değer `stuck` yapar; bu **DRAFT dahil her durumda** geçerlidir (fail-closed: bozuk veri gizlenmez, DRAFT yalnız geçerli/boş `resultStatus` ile `null`). (7) `staleAfterMs` negatif, `Infinity`/`NaN` ise ve heartbeat varsa RUNNING `stuck` olur (eşik okunamıyor = fail-closed); gelecekteki heartbeat (saat kayması) bayat sayılmaz; `now` Date, ISO string ya da ms olabilir, ayrıştırılamazsa `stuck`.
 - **Kapsam dışı:** rota, UI, migration, Prisma enum ve yazıcı değişikliği yok. Kova etiketi saklanmaz, her okumada hesaplanır.
 - **Geri alma:** commit revert.
+
+### ADR-0003 ek notu — kalp atışı yazıcısı ve retry kotası (BRA-P0-04d)
+
+- **Heartbeat:** `run/heartbeat.ts` `beatRun` yazar; yalnız `JOB_STATE_DUAL_WRITE=true` iken (kapalıyken sıfır sorgu), koşu başına en çok **30 sn'de bir** (hafıza içi son-yazım; `HEARTBEAT_MIN_INTERVAL_MS`), yalnız `status=RUNNING` + kiracı kapsamlı satıra, hata yutulur. Noktalar: koşu alımı (`writeLifecycle` RUNNING, kısıtsız), sıralı/paralel adım grubu başı ve sonu (`pipeline/runner.ts`), hiyerarşik delegasyon başı/sonu. Bayatlık eşiği tek kaynak `jobStaleAfterMs()` (15 dk): 30 sn, eşiğin 30'da biri. Bilinen sınır: tek adım/delegasyon eşikten uzun sürerse içinde kalp atışı yazılmaz (ajan turu içi atış sonraki iş).
+- **Retry:** `POST /runs/:id/retry` yalnız FAILED ve onaysız PAUSED; `run_still_running` (bayat RUNNING), `already_retrying`, `retry_budget_exhausted`, `approval_pending`, `run_not_retryable`, bayrak kapalıyken `retry_disabled` (hepsi 409). Kota: `jobBudget.maxRetries`, yoksa varsayılan **3** (`DEFAULT_MAX_RETRIES`); `retryCount + 1` `evaluateJobBudget` ile ölçülür, usd/token/adım bütçesi tükenmiş koşu da başlamaz. İdempotensi: FAILED/PAUSED→RESUMING CAS'ı tek kazanan; kaybeden 409, kuyruğa tek iş. Enqueue hatasında `onlyIfStatus` geri alma + retry iadesi.
+- **Hiyerarşik retry kapalı:** hiyerarşik pipeline (`pipelineType=HIERARCHICAL`, runner'ın hiyerarşik yola girdiği aynı koşul, `isHierarchicalPipeline`) için retry 409 `run_not_retryable` + `reason:"hierarchical_not_supported"`; CAS'tan önce, durum/enqueue/retryCount değişmez. Gerekçe: hiyerarşik runner tamamlanmış delegasyonları atlamaz (priorCompleted restore yalnız sıralı runner'da) ve `ctx.totalCost` 0'dan başlayıp `run.costUsd`'yi bu bacağın maliyetiyle ezer. Hiyerarşik retry: **BRA-P0-04j** bileti (prior COMPLETED delegasyon + maliyet tohumlama). **Bilinen açık (02c-5'ten beri, bu PR'da çözülmedi):** hiyerarşik runner `run.costUsd`'yi bacak maliyetiyle ezer; maxUsd bu yüzden resume'larda sıfırlanabilir.
+- **Bilinen risk:** FAILED adım retry'da baştan koşar (yinelenen RunStep); onaysız yan etkili araçlar tekrarlanabilir (araç düzeyi idempotency yok); onaylı araçlar tüketilmiş onayla yeni onay ister. Yanıta uyarı alanı eklenmedi (anahtar seti sözleşmesi).
+- **Bilinen sınır:** CAS commit'inden sonra, enqueue öncesi süreç ölürse koşu işsiz RUNNING kalır (`/resume` ile aynı kalıp); 04e `stop` ile çözülür (bayat heartbeat → `stuck`).
+- **Retry 409 sözleşmesi** (gövde `{error: <kod>, code: <kod>, details?}`; başka kiracı 404):
+
+| Kod | Ne zaman |
+|---|---|
+| `retry_disabled` | `JOB_STATE_DUAL_WRITE` kapalı |
+| `run_not_retryable` | NEEDS_APPROVAL/WAITING_APPROVAL, bitmiş koşu, PENDING; hiyerarşik pipeline'da `details.reason:"hierarchical_not_supported"` |
+| `run_still_running` | RUNNING ve bayat heartbeat (önce stop, 04e) |
+| `already_retrying` | RESUMING/taze RUNNING ya da CAS yarışı kaybedildi |
+| `approval_pending` | açık onay var (atlama yok) |
+| `retry_budget_exhausted` | `evaluateRetryBudget` reddetti ya da tx içi koşullu sayaç artışı (`retryCount < limit`) limiti dolu buldu (yarış; tx rollback) |
+
+Limit tek kaynak: `retryLimit()` (`jobBudget.maxRetries` ?? 3); sayaç artışı CAS'tan sonra koşullu, yanıt/log/iade artırılmış güncel değeri tx içinden okur.
+- **Geri alma:** bayrak kapalı (heartbeat ve retry etkisiz) + commit revert.
