@@ -11,7 +11,7 @@ Durum kodları: talimat §12.4 (`BACKLOG … IMPLEMENTING, IN_REVIEW, …`). `IM
 | BRA-P0-01 uçtan uca yetenek tablosu | IN_REVIEW | AUDIT-01 notu, 4 klonda `git fetch` sonrası güncel main (platform `e93cbdc`, desktop `ad6867a`, cli `ed3692e`, mobile `5e60a75`); kod koşulmadı | Orchestration doğrulaması |
 | BRA-P0-02a ADR + durum makinesi (bu PR) | IN_REVIEW | Aşağıdaki test kanıtı; `job-state.ts` + `job-state.test.ts`; ADR-0001 | PR denetimi, sonra 02b |
 | BRA-P0-02b migration + `transitionRun` + `JOB_STATE_DUAL_WRITE` (varsayılan kapalı) | IN_REVIEW (bu yığılı PR) | Aşağıdaki "02b" bölümü | PR denetimi |
-| BRA-P0-02c yazıcıları `transitionRun`a taşı, yaratıcılar `tenantId`/`workspaceId` ayarlasın, sözleşme testleri | BACKLOG | — | 02b kabulünden sonra, küçük PR'lar |
+| BRA-P0-02c yazıcıları `transitionRun`a taşı, yaratıcılar `tenantId`/`workspaceId` ayarlasın, sözleşme testleri | MERGED (2026-11-09) | #111 `d421368` · #112 `dca2270` · #113 `9e87675` (BRA-SEC-01) · #114 `dc80f93` · #115 `952bc52` · #116 `be74810` · #117 `7211231`; ayrıntı "02c özeti" bölümü | Migration ve `v*` etiketi kurucu onayı |
 | BRA-P0-02a/02b | MERGED (2026-11-08) | #108 `32bfb05`, #109 `0318e4c` (CI tamamen yeşil, E2E dahil) | — |
 | BRA-P0-05 exact-action onay + onay atlama kapatma | IMPLEMENTING → bu PR | Aşağıdaki "05 + 08" bölümü; ADR-0002 | PR denetimi, CI |
 | BRA-P0-08 job bütçesi (`runs.job_budget`, governance denetimi) | IMPLEMENTING → bu PR | Aşağıdaki "05 + 08" bölümü; ADR-0002 | PR denetimi, CI; bütçeyi yazan yaratıcı 02c/03 |
@@ -179,3 +179,27 @@ Denetçi: `reviewer` alt ajanı (yazan oturumdan ayrı, salt-okur; test koşturm
 
 Kod değişmedi (yalnız yorum); bu yüzden dördüncü tur yapılmadı, 38 test ve tsc yeniden koşuldu (aşağıdaki tablo).
 
+
+## 02c özeti — yazıcıların `transitionRun`a taşınması (BRA-P0-02 kapanışı, 2026-11-09)
+
+Kullanıcı kazancı: iş durumu tek yazardan (karşılaştır-ve-yaz) geçer; çift tık, tekrar gelen webhook/`resume` ve A/B eşzamanlı onay iki kez yürütmeye yol açamaz. Hepsi `main`'de; her PR'da CI tamamen yeşildi (Lint, Release contracts, Test, Build, DB Migration Check, E2E, SBOM, Boot Smoke), kalıcı merge kuralıyla birleştirildi.
+
+| Alt bilet | PR · merge SHA | Ne değişti |
+|---|---|---|
+| 02c-1 | #111 `d421368` | 3 koşu yaratıcısı `tenantId`/`workspaceId` (+ isteğe bağlı `budget`→`runs.job_budget`) yazar; `GET /runs/:id` yanıt-anahtarı sözleşme testi |
+| 02c-2 | #112 `dca2270` | Operatör rotaları (stop/pause/resume/handoff/continue, governance hard-stop; 6 yazıcı) `transitionRun`a; claim atomik |
+| SEC-01 | #113 `9e87675` | `Company.config` sırları 9 rota/yanıttan temizlendi; negatif + sözleşme testi |
+| 02c-3 | #114 `dc80f93` | Onay-güdümlü yazıcılar (7), RESUMING→RUNNING, `/continue` bekleyen HANDOFF onayını kapatır |
+| 02c-4 | #115 `952bc52` | Sıralı runner yazıcıları, `retryCount` yazarı, `deriveResultStatus` doğrulama |
+| 02c-5 | #116 `be74810` | Hiyerarşik runner yazıcıları (5), bütçe FAILED yolu tekilleştirme (tek bildirim) |
+| 02c-6 | #117 `7211231` | Gerçek Postgres testleri + `ci.yml` `test:db` adımı; A/B write-skew kırmızı→yeşil (`SELECT … FOR UPDATE`) |
+
+Test kanıtı: yerel `tsc` 0 hata; #117 dalı 180 dosya geçti + 4 atlandı, ~3060 test geçti. **CI `DB Migration Check` job'u (run 42527180855, 2026-11-08)**: `pnpm --filter @ai-company-os/api test:db` gerçekten koştu, 4 dosya / **24 test geçti**, atlanan yok (CAS, `consumeGrant`, RLS, A/B write-skew).
+
+`NOT_TESTED`: gerçek BullMQ/Redis yürütmesi, rota-uçtan-uca yarış, HTTP/JWT zinciri, gerçek LLM.
+
+Bayrak/migration durumu: `JOB_STATE_DUAL_WRITE` kapalı (varsayılan); migration `20261108000000_job_lifecycle` ve `20261108010000_approval_exact_action` **hiçbir ortama uygulanmadı**. Geri alma: bayrak kapalı kalır, yeni sütunlar yok sayılır; commit revert yeterli. Bayraktan bağımsız tek bilinçli davranış değişikliği: CAS kaybı bayrak kapalıyken de 409 (ADR-0001 notu; istemci denetimi: çökme/sonsuz yeniden deneme yok).
+
+Maliyet/veri/izin: yeni ücretli kaynak **0 USD**, yeni veri akışı yok, yeni sır yok. Bilinen açıklar ADR-0002'de. Webhook sırları: kurucu kararı (2026-11-08, Project orchestration oturumunda): "Yenileme gerekmez" — rotate yapılmayacak, açık soru kapandı.
+
+Dağıtım (kurucu onayı gerekir, merge onayı değildir): migration'lar yeni imajdan ÖNCE uygulanır; ardından `v*` etiketi.
