@@ -22,7 +22,8 @@
     "settings": "Pengaturan",
     "newWorkspace": "Ruang kerja baru",
     "quickStart": "Mulai cepat",
-    "inbox": "Kotak masuk"
+    "inbox": "Kotak masuk",
+    "start": "Pekerjaan baru"
   },
   "features": {
     "badge": "KEMAMPUAN PLATFORM",
@@ -1302,6 +1303,34 @@
       "dismiss": "Tutup",
       "approvalForbidden": "Anda tidak memiliki izin untuk memutuskan persetujuan.",
       "actionRejected": "Pekerjaan tidak berada dalam keadaan yang mengizinkan tindakan ini."
+    },
+    "plan": {
+      "title": "Jelaskan pekerjaan",
+      "workspace": "Ruang kerja",
+      "workspaceChoose": "Pilih ruang kerja",
+      "messageLabel": "Apa yang perlu dikerjakan?",
+      "messagePlaceholder": "Mis. siapkan laporan penjualan mingguan",
+      "suggest": "Usulkan rencana",
+      "planning": "Menyiapkan rencana…",
+      "empty": "Pesan ini tidak tampak seperti pekerjaan; tidak ada rencana yang diusulkan.",
+      "retry": "Coba lagi",
+      "steps": "Langkah",
+      "tools": "Alat",
+      "risk": {
+        "label": "Risiko",
+        "low": "Rendah",
+        "medium": "Sedang",
+        "high": "Tinggi"
+      },
+      "cost": "Perkiraan biaya (bukan jaminan)",
+      "costUnknown": "Harga model ini tidak diketahui; rentang biaya tidak tersedia",
+      "approvalStep": "perlu persetujuan",
+      "run": "Jalankan",
+      "cancel": "Batal",
+      "starting": "Memulai…",
+      "approvalGate": "Pekerjaan ini memerlukan persetujuan; saat ini dinonaktifkan.",
+      "planChanged": "Rencana berubah. Usulkan rencana lagi.",
+      "workspaceRequired": "Pilih ruang kerja terlebih dahulu."
     }
   },
   "static": {

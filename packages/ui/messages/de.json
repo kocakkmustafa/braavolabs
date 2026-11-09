@@ -22,7 +22,8 @@
     "settings": "Einstellungen",
     "newWorkspace": "Neuer Arbeitsbereich",
     "quickStart": "Schnellstart",
-    "inbox": "Posteingang"
+    "inbox": "Posteingang",
+    "start": "Neuer Auftrag"
   },
   "features": {
     "badge": "PLATTFORM-FUNKTIONEN",
@@ -1302,6 +1303,34 @@
       "dismiss": "Schließen",
       "approvalForbidden": "Sie haben keine Berechtigung, Freigaben zu entscheiden.",
       "actionRejected": "Der Auftrag befindet sich in keinem Zustand, der diese Aktion erlaubt."
+    },
+    "plan": {
+      "title": "Auftrag beschreiben",
+      "workspace": "Arbeitsbereich",
+      "workspaceChoose": "Arbeitsbereich wählen",
+      "messageLabel": "Was soll erledigt werden?",
+      "messagePlaceholder": "Z. B. den wöchentlichen Verkaufsbericht erstellen",
+      "suggest": "Plan vorschlagen",
+      "planning": "Plan wird erstellt …",
+      "empty": "Diese Nachricht sieht nicht nach einem Auftrag aus; es wurde kein Plan vorgeschlagen.",
+      "retry": "Erneut versuchen",
+      "steps": "Schritte",
+      "tools": "Werkzeuge",
+      "risk": {
+        "label": "Risiko",
+        "low": "Niedrig",
+        "medium": "Mittel",
+        "high": "Hoch"
+      },
+      "cost": "Geschätzte Kosten (keine Garantie)",
+      "costUnknown": "Preis für dieses Modell unbekannt; keine Kostenspanne verfügbar",
+      "approvalStep": "Freigabe nötig",
+      "run": "Ausführen",
+      "cancel": "Abbrechen",
+      "starting": "Wird gestartet …",
+      "approvalGate": "Dieser Auftrag braucht eine Freigabe; sie ist derzeit ausgeschaltet.",
+      "planChanged": "Der Plan hat sich geändert. Bitte erneut einen Plan vorschlagen.",
+      "workspaceRequired": "Bitte zuerst einen Arbeitsbereich wählen."
     }
   },
   "static": {

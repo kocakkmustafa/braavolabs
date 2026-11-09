@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", labelKey: "nav.commandCenter", icon: "dashboard", authOnly: true },
   { href: "/companies", labelKey: "nav.workspaces", icon: "business", authOnly: true },
   { href: "/pipelines", labelKey: "nav.workflows", icon: "account_tree", authOnly: true },
+  { href: "/start", labelKey: "nav.start", icon: "add_task", authOnly: true },
   { href: "/inbox", labelKey: "nav.inbox", icon: "inbox", authOnly: true },
   { href: "/approvals", labelKey: "nav.approvals", icon: "task_alt", authOnly: true },
   { href: "/drafts", labelKey: "nav.drafts", icon: "edit_note", authOnly: true },

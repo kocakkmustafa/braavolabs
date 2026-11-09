@@ -22,7 +22,8 @@
     "settings": "Ajustes",
     "newWorkspace": "Nuevo espacio de trabajo",
     "quickStart": "Inicio rápido",
-    "inbox": "Bandeja"
+    "inbox": "Bandeja",
+    "start": "Nuevo trabajo"
   },
   "features": {
     "badge": "CAPACIDADES DE LA PLATAFORMA",
@@ -1302,6 +1303,34 @@
       "dismiss": "Cerrar",
       "approvalForbidden": "No tienes permiso para decidir aprobaciones.",
       "actionRejected": "El trabajo no está en un estado que permita esta acción."
+    },
+    "plan": {
+      "title": "Describe un trabajo",
+      "workspace": "Espacio de trabajo",
+      "workspaceChoose": "Elige un espacio de trabajo",
+      "messageLabel": "¿Qué se debe hacer?",
+      "messagePlaceholder": "Ej.: preparar el reporte semanal de ventas",
+      "suggest": "Proponer un plan",
+      "planning": "Preparando el plan…",
+      "empty": "Este mensaje no parece un trabajo; no se propuso ningún plan.",
+      "retry": "Reintentar",
+      "steps": "Pasos",
+      "tools": "Herramientas",
+      "risk": {
+        "label": "Riesgo",
+        "low": "Bajo",
+        "medium": "Medio",
+        "high": "Alto"
+      },
+      "cost": "Costo estimado (no garantizado)",
+      "costUnknown": "Precio desconocido para este modelo; no hay rango de costo",
+      "approvalStep": "requiere aprobación",
+      "run": "Ejecutar",
+      "cancel": "Cancelar",
+      "starting": "Iniciando…",
+      "approvalGate": "Este trabajo requiere aprobación; ahora está desactivada.",
+      "planChanged": "El plan cambió. Propón un plan de nuevo.",
+      "workspaceRequired": "Elige primero un espacio de trabajo."
     }
   },
   "static": {

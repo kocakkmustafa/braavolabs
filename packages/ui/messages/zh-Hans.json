@@ -22,7 +22,8 @@
     "settings": "设置",
     "newWorkspace": "新建工作区",
     "quickStart": "快速入门",
-    "inbox": "收件箱"
+    "inbox": "收件箱",
+    "start": "新任务"
   },
   "features": {
     "badge": "平台能力",
@@ -1302,6 +1303,34 @@
       "dismiss": "关闭",
       "approvalForbidden": "你没有处理审批的权限。",
       "actionRejected": "任务当前状态不允许此操作。"
+    },
+    "plan": {
+      "title": "描述任务",
+      "workspace": "工作区",
+      "workspaceChoose": "选择工作区",
+      "messageLabel": "需要做什么？",
+      "messagePlaceholder": "例如：准备每周销售报告",
+      "suggest": "建议方案",
+      "planning": "正在准备方案…",
+      "empty": "此消息不像任务请求，未建议方案。",
+      "retry": "重试",
+      "steps": "步骤",
+      "tools": "工具",
+      "risk": {
+        "label": "风险",
+        "low": "低",
+        "medium": "中",
+        "high": "高"
+      },
+      "cost": "预估成本（不作保证）",
+      "costUnknown": "该模型价格未知，无法给出成本范围",
+      "approvalStep": "需要审批",
+      "run": "运行",
+      "cancel": "取消",
+      "starting": "正在启动…",
+      "approvalGate": "此任务需要审批，但目前已关闭。",
+      "planChanged": "方案已变化，请重新建议方案。",
+      "workspaceRequired": "请先选择工作区。"
     }
   },
   "static": {

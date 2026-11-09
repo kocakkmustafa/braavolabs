@@ -22,7 +22,8 @@
     "settings": "設定",
     "newWorkspace": "新規ワークスペース",
     "quickStart": "クイックスタート",
-    "inbox": "受信トレイ"
+    "inbox": "受信トレイ",
+    "start": "新しいジョブ"
   },
   "features": {
     "badge": "プラットフォームの機能",
@@ -1302,6 +1303,34 @@
       "dismiss": "閉じる",
       "approvalForbidden": "承認を決定する権限がありません。",
       "actionRejected": "ジョブはこの操作を許可する状態ではありません。"
+    },
+    "plan": {
+      "title": "ジョブを説明",
+      "workspace": "ワークスペース",
+      "workspaceChoose": "ワークスペースを選択",
+      "messageLabel": "何をしますか？",
+      "messagePlaceholder": "例：週次の売上レポートを作成",
+      "suggest": "プランを提案",
+      "planning": "プランを作成中…",
+      "empty": "このメッセージはジョブの依頼ではないようです。プランは提案されませんでした。",
+      "retry": "再試行",
+      "steps": "ステップ",
+      "tools": "ツール",
+      "risk": {
+        "label": "リスク",
+        "low": "低",
+        "medium": "中",
+        "high": "高"
+      },
+      "cost": "推定コスト（保証ではありません）",
+      "costUnknown": "このモデルの価格が不明なため、コスト範囲を表示できません",
+      "approvalStep": "承認が必要",
+      "run": "実行",
+      "cancel": "キャンセル",
+      "starting": "開始中…",
+      "approvalGate": "このジョブには承認が必要ですが、現在オフになっています。",
+      "planChanged": "プランが変更されました。もう一度プランを提案してください。",
+      "workspaceRequired": "先にワークスペースを選択してください。"
     }
   },
   "static": {
