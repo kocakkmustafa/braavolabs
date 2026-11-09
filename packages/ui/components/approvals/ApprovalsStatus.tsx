@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 type T = (key: string) => string;
 
 /** Yükleme hatası: role="alert" + «Yeniden dene». `inline` = liste korunurken üstte uyarı. */
-export function ApprovalsLoadError({ t, inline, onRetry }: { t: T; inline?: boolean; onRetry: () => void }) {
+export function ApprovalsLoadError({ t, inline, busy, onRetry }: { t: T; inline?: boolean; busy?: boolean; onRetry: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   // Hata ilk göründüğünde odak uyarıya gider (ekran okuyucu + klavye).
   useEffect(() => { ref.current?.focus(); }, []);
@@ -21,7 +21,8 @@ export function ApprovalsLoadError({ t, inline, onRetry }: { t: T; inline?: bool
         <p style={{ fontWeight: 700, margin: 0 }}>{t(inline ? "app.approvals.refreshErrorTitle" : "app.approvals.loadErrorTitle")}</p>
         <p style={{ margin: 0 }}>{t(inline ? "app.approvals.refreshErrorBody" : "app.approvals.loadErrorBody")}</p>
       </div>
-      <button type="button" className="bv-btn bv-btn-primary bv-btn-sm" onClick={onRetry}>{t("app.approvals.retryLoad")}</button>
+      {/* aria-disabled (disabled değil): yeniden yüklerken odak düğmede kalır. */}
+      <button type="button" className="bv-btn bv-btn-primary bv-btn-sm" aria-disabled={busy ? true : undefined} aria-busy={busy ? true : undefined} style={busy ? { opacity: 0.6 } : undefined} onClick={() => { if (!busy) onRetry(); }}>{t(busy ? "app.approvals.loading" : "app.approvals.retryLoad")}</button>
     </div>
   );
 }

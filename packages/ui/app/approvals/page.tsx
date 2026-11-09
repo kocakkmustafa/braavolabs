@@ -17,7 +17,7 @@ import { useApprovalDecision } from "../../lib/useApprovalDecision";
 import { captureAuthSession, isAuthSessionCurrent, useAppStore } from "../../lib/store";
 import { sounds } from "../../lib/sounds";
 import { ApprovalsEmpty, ApprovalsLoadError, ApprovalsLoading } from "../../components/approvals/ApprovalsStatus";
-import { approvalsFailed, approvalsLoaded, approvalsRemove, approvalsView, initialApprovalsLoad, startApprovalsLoad, type ApprovalsLoad } from "../../lib/approvalsState";
+import { approvalsAlert, approvalsFailed, approvalsLoaded, approvalsRemove, approvalsView, initialApprovalsLoad, startApprovalsLoad, type ApprovalsLoad } from "../../lib/approvalsState";
 import BrandMotion from "../../components/BrandMotion";
 import { approvalMotion } from "../../lib/brandMotion";
 
@@ -32,6 +32,8 @@ export default function ApprovalsPage() {
   const [load, setLoad] = useState<ApprovalsLoad<any>>(initialApprovalsLoad());
   const approvals: any[] = load.status === "ready" ? load.data : [];
   const view = approvalsView(load);
+  const alertInfo = approvalsAlert(load);
+  const loadFailed = alertInfo.show;
   const requestSeq = useRef(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +43,7 @@ export default function ApprovalsPage() {
     const seq = ++requestSeq.current;
     setLoad(startApprovalsLoad);
     api.listApprovals(token)
-      .then((rows) => { if (seq === requestSeq.current) setLoad(approvalsLoaded(rows)); })
+      .then((rows) => { if (seq === requestSeq.current) setLoad((prev) => approvalsLoaded<any>(rows, prev)); })
       .catch(() => { if (seq === requestSeq.current) setLoad(approvalsFailed); });
   }, [token, hydrated]);
 
@@ -84,7 +86,7 @@ export default function ApprovalsPage() {
           <p className="bv-caption mt-1">{t("app.approvals.subtitle")}</p>
         </div>
         <div className="flex items-center gap-3">
-          <BrandMotion state={approvalMotion(approvals.length, error)} size={48} />
+          <BrandMotion state={approvalMotion(approvals.length, error ?? (loadFailed ? "load" : null))} size={48} active={!loadFailed} />
           {approvals.length > 0 && (
             <div
               className="bv-pill bv-pill-amber"
@@ -118,8 +120,7 @@ export default function ApprovalsPage() {
       )}
 
       {view === "loading" && <ApprovalsLoading t={t} />}
-      {view === "error" && <ApprovalsLoadError t={t} onRetry={loadApprovals} />}
-      {load.status === "ready" && load.refreshFailed && <ApprovalsLoadError t={t} inline onRetry={loadApprovals} />}
+      {alertInfo.show && <ApprovalsLoadError t={t} inline={alertInfo.inline} busy={alertInfo.busy} onRetry={loadApprovals} />}
 
       {view === "loading" || view === "error" ? null : view === "empty" ? (
         <ApprovalsEmpty t={t} />
