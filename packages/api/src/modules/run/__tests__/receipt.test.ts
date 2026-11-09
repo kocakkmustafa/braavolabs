@@ -68,9 +68,35 @@ describe("buildReceipt — sahte kanıt ve veto", () => {
     const r = buildReceipt(run("COMPLETED", [DIFF, TEST_OK, tc("c3", "create_pull_request", "COMPLETED", { url })]));
     expect(r.resultStatus).toBe("VERIFIED");
   });
-  it("get_github_pr_status çıktısındaki pr.url PR kanıtıdır", () => {
-    const r = buildReceipt(run("COMPLETED", [DIFF, TEST_OK, tc("c3", "get_github_pr_status", "COMPLETED", { status: "COMPLETED", pr: { url: "https://github.com/o/r/pull/9" } })]));
+  it("get_github_pr_status salt-okur durum sorgusu: PR kanıtı DEĞİL → kod işi UNVERIFIED", () => {
+    const st = tc("c3", "get_github_pr_status", "COMPLETED", { status: "COMPLETED", pr: { url: "https://github.com/o/r/pull/9" } });
+    const r = buildReceipt(run("COMPLETED", [DIFF, TEST_OK, st]));
+    expect(r.evidence.some((e) => e.kind === "pr")).toBe(false);
+    expect(r.resultStatus).toBe("UNVERIFIED");
+    expect(buildReceipt(run("COMPLETED", [st], { goal: "fix bug" })).resultStatus).toBe("UNVERIFIED");
+  });
+  it("create_pull_request çıktısındaki PR URL'si kanıttır", () => {
+    const r = buildReceipt(run("COMPLETED", [DIFF, TEST_OK, tc("c3", "create_pull_request", "COMPLETED", { pr: { url: "https://github.com/o/r/pull/9" } })]));
     expect(r.resultStatus).toBe("VERIFIED");
+  });
+  it.each([
+    ["exitCode 0 + passed:false", { exitCode: 0, passed: false }],
+    ["exitCode 0 + failed>0", { exitCode: 0, failed: 2 }],
+  ])("test %s geçmemiş sayılır", (_n, out) => {
+    const r = buildReceipt(run("COMPLETED", [DIFF, tc("c2", "run_tests", "COMPLETED", out), PR]));
+    expect(r.resultStatus).toBe("UNVERIFIED");
+  });
+  it("büyük harfli araç adı (Run_Tests) başarısızsa veto eder", () => {
+    const r = buildReceipt(run("COMPLETED", [DIFF, TEST_OK, tc("c9", "Run_Tests", "COMPLETED", { exitCode: 1 }), PR]));
+    expect(r.resultStatus).toBe("UNVERIFIED");
+  });
+  it("DB sorgusu araç adını küçük/büyük harf duyarsız eşler", async () => {
+    const findFirst = vi.fn().mockResolvedValue(null);
+    const { writeReceipt } = await import("../receipt");
+    await writeReceipt({ run: { findFirst }, jobReceipt: { findFirst: vi.fn(), create: vi.fn() } }, "r", "COMPLETED", "t1");
+    const where = findFirst.mock.calls[0][0].select.steps.select.toolCalls.where;
+    expect(where.OR).toContainEqual({ toolName: { equals: "run_tests", mode: "insensitive" } });
+    expect(JSON.stringify(where)).not.toContain("get_github_pr_status");
   });
   it("retry_count contentHash'e girer", () => {
     const a = buildReceipt({ ...run("FAILED", [DIFF]), retryCount: 0 });

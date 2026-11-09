@@ -74,11 +74,13 @@ export interface ReceiptDraft {
 // ── Kanıt türü: SABİT İZİN LİSTESİ (tam eşleşme, küçük harf) ───────────────
 // Alt dize/regex eşleşmesi yok: `create_product`, `send_test_email`, `open_project`
 // gibi adlar kanıt üretmez. Kod tabanındaki gerçek araç kaydında (agent/registry.ts)
-// yalnız `get_github_pr_status` (PR URL'si döner, salt-okur) kod kanıtıyla ilgilidir;
-// diff/test/PR-oluşturma araçları harici (MCP/bağlı sağlayıcı) araçlardır ve burada
-// bilinen adlarıyla listelenir. Yeni araç = bu listeye bilinçli ekleme.
+// `get_github_pr_status` (salt-okur durum sorgusu) KANIT DEĞİLDİR: eski/kapalı/başkasının
+// bir PR URL'sini döndürebilir. PR kanıtı yalnız PR OLUŞTURAN araçtan gelir. Diff/test/
+// PR-oluşturma araçları harici (MCP/bağlı sağlayıcı) araçlardır ve burada bilinen
+// adlarıyla listelenir. Yeni araç = bu listeye bilinçli ekleme; listede olmayan
+// başarısız test aracı VERIFIED'ı engellemez. (Repo-tutarlılık denetimi yok: diff
+// kanıtı repo taşımıyor.)
 export const EVIDENCE_TOOLS: Readonly<Record<string, JobReceiptEvidenceKind>> = {
-  get_github_pr_status: "pr",
   create_pull_request: "pr",
   git_commit: "diff",
   git_diff: "diff",
@@ -108,6 +110,7 @@ function testPassed(output: unknown): boolean {
   if (!o) return false;
   const noFailures = !(Number(o.failed) > 0) && !(Number(o.failures) > 0);
   const exit = o.exitCode ?? o.exit_code;
+  if (o.passed === false) return false; // exitCode 0 ile birlikte bile geçmemiş
   if (typeof exit === "number") return exit === 0 && noFailures;
   if (o.passed === true) return noFailures;
   return false;
@@ -274,7 +277,8 @@ export async function writeReceipt(
       steps: {
         select: {
           toolCalls: {
-            where: { toolName: { in: EVIDENCE_TOOL_NAMES } },
+            // Büyük/küçük harf duyarsız: `Run_Tests` kanıttan/vetodan düşmesin.
+            where: { OR: EVIDENCE_TOOL_NAMES.map((n) => ({ toolName: { equals: n, mode: "insensitive" } })) },
             select: { id: true, toolName: true, status: true, output: true },
           },
         },
