@@ -49,6 +49,8 @@ import {
   type LegacyRunStatus,
   type ResultStatus,
 } from "./job-state";
+import { isReceiptOutcome, writeReceipt, type ReceiptClient } from "./receipt";
+import { logger } from "../../lib/logger";
 
 /** Only the literal string "true" enables dual write; anything else (or unset) is off. */
 export function isJobStateDualWriteEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -68,6 +70,12 @@ export interface RunTransitionClient {
     findFirst(args: any): PromiseLike<any>;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     updateMany(args: any): PromiseLike<{ count: number }>;
+  };
+  /** BRA-P0-04c: opsiyonel; yoksa (eski sahteler) makbuz yazımı atlanır. */
+  jobReceipt?: ReceiptClient["jobReceipt"];
+  activityLog?: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    create(args: any): PromiseLike<any>;
   };
 }
 
@@ -174,5 +182,61 @@ export async function transitionRun(
 
   const res = await tx.run.updateMany({ where, data });
   if (res.count !== 1) return { ok: false, reason: "lost_race", from, to };
+
+  // BRA-P0-04c: makbuz YALNIZ bayrak açıkken, geçişi kazanan çağrıda ve terminal
+  // sonuçta yazılır. Hata geçişi geri almaz (yutulur + uyarı); aşağıya bakın.
+  if (dual && isReceiptOutcome(to)) await tryWriteReceipt(tx, runId, to, opts.tenantId);
   return { ok: true, noop: false, from, to };
+}
+
+/**
+ * Makbuz + `Run.resultStatus` yazımı. Çağıranın interaktif tx'i içindeyse bir SQL
+ * hatası tx'i abort eder (geçişi de götürür); bu yüzden yazım SAVEPOINT ile sarılır:
+ * hata → ROLLBACK TO SAVEPOINT, geçiş ve sonraki sorgular etkilenmez. Gerekçe: tx
+ * dışı ayrı çağrı, geçişle atomikliği ve RLS bağlamını (tenantTx) bozardı.
+ * Savepoint yalnız interaktif tx istemcisinde kullanılır (`$transaction` YOK, ham SQL
+ * VAR); düz `prisma`'da (havuz, farklı bağlantılar) ya da sahte/legacy istemcide
+ * mevcut davranışa düşülür: orada hata zaten tx'i abort etmez.
+ */
+async function tryWriteReceipt(
+  tx: RunTransitionClient,
+  runId: string,
+  outcome: Parameters<typeof writeReceipt>[2],
+  tenantId: string,
+): Promise<void> {
+  const raw = (tx as unknown as { $executeRawUnsafe?: (sql: string) => PromiseLike<unknown> }).$executeRawUnsafe;
+  const useSavepoint = typeof raw === "function" && typeof (tx as unknown as { $transaction?: unknown }).$transaction !== "function";
+  const exec = (sql: string) => (raw as (sql: string) => PromiseLike<unknown>).call(tx, sql);
+  try {
+    if (useSavepoint) await exec("SAVEPOINT receipt_write");
+    try {
+      const r = await writeReceipt(tx as unknown as ReceiptClient, runId, outcome, tenantId);
+      // Doğruluk kaynağı: makbuz VERIFIED/UNVERIFIED diyorsa Run.resultStatus aynısını taşır
+      // (deriveResultStatus kararı; çağıranın `resultStatus` seçeneğini ezer).
+      if (r.written && r.resultStatus) {
+        await tx.run.updateMany({ where: { id: runId, state: outcome }, data: { resultStatus: r.resultStatus } });
+      }
+    } catch (err) {
+      if (useSavepoint) await exec("ROLLBACK TO SAVEPOINT receipt_write");
+      throw err;
+    }
+    if (useSavepoint) await exec("RELEASE SAVEPOINT receipt_write");
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.warn({ runId, outcome, err: message }, "Job receipt write failed — run transition kept");
+    try {
+      await tx.activityLog?.create({
+        data: {
+          tenantId,
+          actor: "system",
+          action: "run.receipt_failed",
+          resource: "run",
+          resourceId: runId,
+          details: { outcome, error: message.slice(0, 200) },
+        },
+      });
+    } catch {
+      /* uyarı da yazılamadı: geçişi yine bozma */
+    }
+  }
 }
