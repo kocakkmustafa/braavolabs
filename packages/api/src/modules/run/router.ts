@@ -20,7 +20,8 @@ import { createHandoff, claimHandoff, HandoffClaimError, cancelOpenHandoffForRun
 import { hasOpenApproval } from "../approval/exact-action";
 import { transitionRun, isJobStateDualWriteEnabled, currentJobState } from "./transition";
 import { assertTransitioned, resumeToRunning, AlreadyRunningError, revertRunAfterEnqueueFailure } from "./resume";
-import { decideResume, type JobState } from "./job-state";
+import { decideResume, toLegacyStatus, type JobState } from "./job-state";
+import { evaluateRetryBudget } from "./retry";
 import { toJobReceiptDto } from "./receipt";
 import { env } from "../../config/env";
 import { toPublicCompany } from "../company/redact";
@@ -409,6 +410,106 @@ runRouter.post("/:id/resume", async (req, res, next) => {
     }
 
     res.json({ success: true, status: "RUNNING" });
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/runs/:id/retry — BRA-P0-04d (ADR-0003).
+//
+// Restart a run that is stuck (FAILED, or PAUSED with no open approval) under a
+// retry QUOTA: `retryCount + 1` is measured against `jobBudget.maxRetries`
+// (default 3) with the other budget dimensions, so there is no endless retry.
+// Idempotent: the FAILED/PAUSED → RESUMING compare-and-set has exactly one
+// winner; a second/concurrent request gets 409 already_retrying and nothing is
+// enqueued. A RUNNING run with a stale heartbeat is NOT retried here (409
+// run_still_running; stop it first — 04e). An undecided approval is never
+// skipped. Dark with JOB_STATE_DUAL_WRITE off (409 retry_disabled): the
+// heartbeat and `retry_count` are only maintained with the flag on.
+const retryCodes = (status: number, code: string, details?: unknown) => new AppError(status, code, details, code);
+class RetryConflict extends Error {}
+
+runRouter.post("/:id/retry", async (req, res, next) => {
+  try {
+    const tenantId = req.auth!.tenantId;
+    const run = await prisma.run.findUnique({
+      where: { id: req.params.id },
+      include: {
+        pipeline: { include: { company: true } },
+        steps: { select: { status: true, promptTokens: true, completionTokens: true } },
+      },
+    });
+    if (!run || run.pipeline.company.tenantId !== tenantId) throw new AppError(404, "Run not found");
+    if (!isJobStateDualWriteEnabled()) throw retryCodes(409, "retry_disabled");
+
+    const cur = currentJobState(run.status, run.state);
+    const bucket = jobBucket({
+      state: cur,
+      status: run.status,
+      resultStatus: run.resultStatus,
+      heartbeatAt: run.heartbeatAt,
+      now: new Date(),
+      staleAfterMs: jobStaleAfterMs(),
+    });
+    if (cur === "RUNNING" && bucket === "stuck") throw retryCodes(409, "run_still_running");
+    if (decideResume(cur, "retry") === "already") throw retryCodes(409, "already_retrying");
+    if (cur !== "FAILED" && cur !== "PAUSED") throw retryCodes(409, "run_not_retryable");
+
+    // BRA-P0-05: a retry must never stand in for the decision on an approval.
+    if (await hasOpenApproval(prisma, run.id)) {
+      throw retryCodes(409, "approval_pending", "Run has an undecided approval; decide it via /approvals/:id/decide");
+    }
+
+    const budget = evaluateRetryBudget({ jobBudget: run.jobBudget, retryCount: run.retryCount, costUsd: run.costUsd, steps: run.steps });
+    if (!budget.allowed) throw retryCodes(409, "retry_budget_exhausted", { reason: budget.reason, stopped: budget.stopped });
+
+    const retryCount = (run.retryCount ?? 0) + 1;
+    try {
+      await tenantTx(async (tx) => {
+        const first = await transitionRun(tx, run.id, "RESUMING", { tenantId, dualWrite: true, onlyIfStatus: ["FAILED", "PAUSED"] });
+        if (!first.ok) {
+          if (first.reason === "not_found") throw new AppError(404, "Run not found");
+          throw new RetryConflict(); // fresh read no longer FAILED/PAUSED, or lost race: someone else won
+        }
+        assertTransitioned(await transitionRun(tx, run.id, "RUNNING", { tenantId, dualWrite: true }), {
+          status: 409,
+          message: "Run cannot be resumed from its current state",
+        });
+        // Retry accounting + a fresh heartbeat (the old one is stale) in the winner's tx.
+        const acct = await tx.run.updateMany({
+          where: { id: run.id, status: "RUNNING" },
+          data: { retryCount: { increment: 1 }, heartbeatAt: new Date() },
+        });
+        if (acct.count !== 1) throw new RetryConflict();
+        await tx.activityLog.create({
+          data: {
+            tenantId,
+            actor: req.auth!.userId,
+            action: "run.retry",
+            resource: "run",
+            resourceId: run.id,
+            details: { from: first.from, retryCount },
+          },
+        });
+      });
+    } catch (err) {
+      if (err instanceof RetryConflict) throw retryCodes(409, "already_retrying");
+      throw err;
+    }
+
+    // Only the CAS winner reaches here: exactly one enqueue. A failed enqueue puts
+    // the run back (only while it is still RUNNING) and refunds the retry.
+    try {
+      await enqueueRun(run.id);
+    } catch (err) {
+      const reverted = await tenantTx((tx) => revertRunAfterEnqueueFailure(tx, run.id, tenantId, cur)).catch(() => false);
+      if (reverted) {
+        await tenantTx((tx) =>
+          tx.run.updateMany({ where: { id: run.id, status: toLegacyStatus(cur), retryCount: { gt: 0 } }, data: { retryCount: { decrement: 1 } } }),
+        ).catch(() => undefined);
+      }
+      throw err;
+    }
+
+    res.json({ success: true, status: "RUNNING", retryCount });
   } catch (err) { next(err); }
 });
 

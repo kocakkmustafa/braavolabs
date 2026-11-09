@@ -17,6 +17,7 @@ import type { Pipeline } from "@prisma/client";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { writeLifecycle } from "../run/write-lifecycle";
+import { beatRun } from "../run/heartbeat";
 import { runAgentLoop } from "../agent/claude";
 import { registerTool, getTool } from "../agent/registry";
 import {
@@ -105,6 +106,7 @@ function ensureDelegateToolRegistered(): void {
       ctx.budgetGate.tail = mine.catch(() => undefined);
       const refusal = await mine;
       if (refusal !== null) return { error: `Delegation refused: ${refusal}` };
+      await beatRun(ctx.runId, ctx.tenantId); // BRA-P0-04d: delegasyon başı
       const stepIndex = ++ctx.stepCounter.value;
       const startedAt = new Date();
       await prisma.runStep.create({
@@ -169,6 +171,7 @@ function ensureDelegateToolRegistered(): void {
         },
       });
 
+      await beatRun(ctx.runId, ctx.tenantId); // BRA-P0-04d: delegasyon sonu
       return {
         agent: worker.name,
         output: workerResult.finalContent,

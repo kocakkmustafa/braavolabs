@@ -9,6 +9,7 @@ import { executeStep, checkGovernance, planResume, type StepDef, type StepExecut
 import { publishRunEvent } from "../../lib/runEvents";
 import { isJobStateDualWriteEnabled } from "../run/transition";
 import { writeLifecycle } from "../run/write-lifecycle";
+import { beatRun } from "../run/heartbeat";
 import { recoverCrashedRun } from "../run/crash-recovery";
 import { parseJobBudget } from "../run/job-budget";
 import { incrementMeter, checkQuota, claimQuota } from "../billing/metering";
@@ -362,6 +363,9 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
       return;
     }
 
+    // BRA-P0-04d: adım grubu başı kalp atışı (bayrak kapalıysa no-op, 30 sn kısıtlı).
+    await beatRun(runId, tenantId);
+
     const isParallel = stepsAtOrder.length > 1;
 
     if (isParallel) {
@@ -450,6 +454,7 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
       }
 
       await prisma.run.update({ where: { id: runId }, data: { costUsd: totalCost } });
+      await beatRun(runId, tenantId); // BRA-P0-04d: adım sonu
 
       // E3/T2 (§2.3a-2): exit exactly like the order-group boundary check —
       // WITHOUT the finalize block below, which would overwrite the paused
@@ -496,6 +501,7 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
       totalCost += result.costUsd;
 
       await prisma.run.update({ where: { id: runId }, data: { costUsd: totalCost } });
+      await beatRun(runId, tenantId); // BRA-P0-04d: adım sonu
 
       // E3/T2 (§2.3a-2): turn-boundary interrupt — the step is back at
       // PENDING, the run stays PAUSED/CANCELLED. Exit like the order-group
