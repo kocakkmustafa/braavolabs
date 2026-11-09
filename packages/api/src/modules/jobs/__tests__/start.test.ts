@@ -180,6 +180,10 @@ describe("POST /jobs/start", () => {
     m.runFindFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "run-9", pipelineId: "pl-9", status: "PENDING", input: { planHash } });
     m.runCreate.mockRejectedValue(Object.assign(new Error("dup"), { code: "P2002" }));
     const { res } = await call("/start", { message: MSG, planHash, idempotencyKey: KEY });
+    // tx callback fırlatınca hata tenantTx dışına çıkar; iç yakalama yok, tx içinde ek sorgu yok.
+    expect(m.runCreate).toHaveBeenCalledTimes(1);
+    expect(m.pipelineCreate).toHaveBeenCalledTimes(1);
+    expect(m.runFindFirst).toHaveBeenCalledTimes(2); // replay kontrolü + dış catch (tx dışı)
     expect(res.body).toEqual({ runId: "run-9", pipelineId: "pl-9", state: "PENDING" });
     expect(m.releaseQuota).toHaveBeenCalledWith("tenant-1", "runs");
     expect(m.enqueueRun).not.toHaveBeenCalled();
@@ -342,5 +346,24 @@ describe("POST /jobs/start", () => {
     const { res } = await call("/start", { message: MSG, planHash, idempotencyKey: KEY });
     expect(res.body).toEqual({ runId: "run-1", pipelineId: "pl-1", state: "FAILED" });
     expect(m.enqueueRun).not.toHaveBeenCalled();
+  });
+
+  it("activityLog fırlatsa bile koşu kuyruğa alınır ve 201 döner", async () => {
+    const planHash = await planHashFor(MSG);
+    m.activityCreate.mockRejectedValue(new Error("log db"));
+    const { res, nextErr } = await call("/start", { message: MSG, planHash, idempotencyKey: KEY });
+    expect(nextErr).toBeUndefined();
+    expect(res.statusCode).toBe(201);
+    expect(m.enqueueRun).toHaveBeenCalledWith("run-1");
+    expect(m.releaseQuota).not.toHaveBeenCalled();
+  });
+
+  it("enqueue activityLog'dan ÖNCE çağrılır", async () => {
+    const planHash = await planHashFor(MSG);
+    const order: string[] = [];
+    m.enqueueRun.mockImplementation(async () => { order.push("enqueue"); return "j"; });
+    m.activityCreate.mockImplementation(async (a: any) => { if (a.data.action === "job.started") order.push("log"); return {}; });
+    await call("/start", { message: MSG, planHash, idempotencyKey: KEY });
+    expect(order).toEqual(["enqueue", "log"]);
   });
 });

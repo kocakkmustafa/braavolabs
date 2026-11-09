@@ -205,23 +205,28 @@ jobsRouter.post("/start", startLimiter, async (req, res, next) => {
       throw err;
     }
 
-    await prisma.activityLog.create({
-      data: {
-        tenantId,
-        actor: req.auth!.userId,
-        action: "job.started",
-        resource: "run",
-        resourceId: started.runId,
-        details: { pipelineId: started.pipelineId, risk: result.card.risk, approvalCount: result.card.approvals.length },
-      },
-    });
-
     try {
       await enqueueRun(started.runId);
     } catch (err) {
       await prisma.run.update({ where: { id: started.runId }, data: { status: "FAILED", error: "enqueue_failed" } }).catch(() => undefined);
       await releaseQuota(tenantId, "runs");
       throw err;
+    }
+
+    // Kuyruğa alma kritik yol; audit logu ondan SONRA ve best-effort (hata isteği bozmaz).
+    try {
+      await prisma.activityLog.create({
+        data: {
+          tenantId,
+          actor: req.auth!.userId,
+          action: "job.started",
+          resource: "run",
+          resourceId: started.runId,
+          details: { pipelineId: started.pipelineId, risk: result.card.risk, approvalCount: result.card.approvals.length },
+        },
+      });
+    } catch (logErr) {
+      logger.warn({ err: logErr, runId: started.runId }, "job.started activity log failed");
     }
 
     res.status(201).json(started);
