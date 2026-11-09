@@ -114,3 +114,18 @@ describe("production CORS options used by the API", () => {
     });
   });
 });
+
+describe("createCorsOptions exposedHeaders (BRA-P0-04b)", () => {
+  it("X-Next-Cursor açığa çıkar; origin/methods/allowedHeaders değişmedi", async () => {
+    const opts = createCorsOptions("production", APEX, APP);
+    expect(opts.exposedHeaders).toEqual(["X-Next-Cursor"]);
+    expect(opts.origin).toEqual([APEX, APP]);
+    expect(opts.methods).toEqual(["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]);
+    expect(opts.allowedHeaders).toEqual(["Content-Type", "Authorization", "X-Requested-With"]);
+    await withServer(PRODUCTION, async (url) => {
+      const response = await fetch(url, { headers: { Origin: APEX } });
+      expect(response.headers.get("access-control-expose-headers")).toBe("X-Next-Cursor");
+      await response.arrayBuffer();
+    });
+  });
+});
