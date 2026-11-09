@@ -50,7 +50,7 @@ vi.mock("../../../lib/modelPricing", () => ({
 }));
 
 import { jobsRouter } from "../router";
-import { classifyIntentRule, sanitizeSnippet, detectHighRisk, normalizeVariants, PlanCardSchema } from "../plan";
+import { ACTION_VERB_LIST, classifyIntentRule, sanitizeSnippet, detectHighRisk, normalizeVariants, PlanCardSchema } from "../plan";
 
 function routeHandler(router: Router, path: string) {
   const layer = (router as any).stack.find((l: any) => l.route?.path === path && l.route.methods.post);
@@ -359,6 +359,7 @@ describe("yüksek riskli fiil kaçakları (ek toleransı + normalleştirme)", ()
     resolveLinkMock.mockResolvedValue({ config: {}, source: "byok-default" });
     chatCompletionMock.mockResolvedValue({ content: '{"intent":"chat"}', provider: "x", model: "y" });
     const { res } = await post({ message: "ekibe iletir misin" });
+    expect(chatCompletionMock).not.toHaveBeenCalled();
     expect(res.body.intent).toBe("job");
     expect(res.body.card.risk).toBe("high");
   });
@@ -411,4 +412,69 @@ describe("limiter bağlantısı ve fiyatsız model", () => {
     expect(res.body.intent).toBe("job");
     expect(companyFindFirst.mock.calls[0][0].where).toEqual({ id: "co-1", tenantId: "tenant-1" });
   });
+});
+describe("tur 2: ek-serbest kökler, tutarlılık, yanlış-pozitif sınırı", () => {
+  it.each([
+    "Dosyaları silebilir misin?", "Kayıtlar silinsin", "Dosyayı silmek istiyorum", "Raporu müdüre iletebilir misin?",
+    "Rapor ekibe iletsin", "Mesajı gönderebilir misin", "Yazı yayınlanabilir mi", "Fatura ödenebilir", "Dalları birleştirilebilir yap",
+    "Eski kayıtlar kaldırılsın", "Klasörü paylaşabilir misin", "Sürüm yayın yap", "Stajyere yetki verilsin", "Ona erişim verilebilir",
+  ])("yüksek risk + needsApproval: %s", async (m) => {
+    expect(detectHighRisk(m).length).toBeGreaterThan(0);
+    const { res } = await post({ message: m });
+    expect(res.body.intent).toBe("job");
+    expect(res.body.card.risk).toBe("high");
+    expect(res.body.card.approvals.length).toBeGreaterThan(0);
+    expect(res.body.card.steps.filter((s: any) => s.risk === "high").every((s: any) => s.needsApproval)).toBe(true);
+  });
+
+  it.each(["silah", "silgi", "iletişim", "ileti", "iletken", "ödev", "silikon", "silindir", "iletim"])(
+    "alakasız sözcük yüksek risk DEĞİL: %s",
+    (w) => {
+      expect(detectHighRisk(`${w} hakkında bilgi`)).toEqual([]);
+      expect(detectHighRisk(`${w}`)).toEqual([]);
+    },
+  );
+
+  it("tutarlılık: ACTION_VERB_LIST'teki her kök ya yüksek riskte eşleşir ya da açıkça güvenli listededir", () => {
+    const SAFE = new Set([
+      "hazırla", "oluştur", "yaz", "yazdır", "çıkar", "özetle", "raporla", "analiz et", "araştır", "karşılaştır", "topla", "derle",
+      "planla", "düzenle", "güncelle", "çevir", "tara", "kontrol et", "incele", "listele", "ekle", "kur", "başlat", "çalıştır",
+      "tetikle", "zamanla", "indir", "yükle", "create", "write", "draft", "summari[sz]e", "research", "analy[sz]e", "compare",
+      "collect", "schedule", "update", "build", "generate", "run", "prepare", "extract", "translate", "scan", "review", "list",
+    ]);
+    for (const verb of ACTION_VERB_LIST) {
+      if (SAFE.has(verb)) continue;
+      expect(detectHighRisk(verb).length, `risky root without HIGH_RISK match: ${verb}`).toBeGreaterThan(0);
+    }
+  });
+
+  it("bilinen, güvenli yönde yanlış-pozitifler (kabul edilmiş): dağıtım/paylaşım/kaldıraç → high", () => {
+    for (const w of ["dağıtım raporu", "paylaşım", "kaldıraç"]) {
+      expect(detectHighRisk(w).length).toBeGreaterThan(0);
+    }
+  });
+
+  it("ReDoS: uzun/tekrarlı girdiler hızlı sınıflanır", () => {
+    for (const m of ["a".repeat(4000), "sil ".repeat(1000), "gizli ".repeat(600), "bana ".repeat(800) + "x", "ab ".repeat(1300)]) {
+      const t = performance.now();
+      classifyIntentRule(m);
+      detectHighRisk(m);
+      expect(performance.now() - t).toBeLessThan(300);
+    }
+  });
+
+  it("kontrol karakteri sözcüğü bölmez: s\u0001il → sil; satır sonu boşluk olur", () => {
+    expect(normalizeVariants("s\u0001il")).toContain("sil");
+    expect(detectHighRisk("s\u0001il bunu").length).toBeGreaterThan(0);
+    expect(normalizeVariants("a\nb")).toContain("a b");
+  });
+
+  it.each(["javascript:alert(1)", "data:text/html;base64,AAA", "ftp://x.y/z", "www.evil.com/x", "HTTPS://a.b", "vbscript:x"])(
+    "bağlantı etkisizleştirilir: %s",
+    (u) => {
+      const out = sanitizeSnippet(`rapor ${u} hazırla`, 100);
+      expect(out).toContain("[bağlantı]");
+      expect(out).not.toMatch(/javascript:|data:|ftp:|www\.|vbscript:|https?:/i);
+    },
+  );
 });

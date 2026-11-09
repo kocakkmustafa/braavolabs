@@ -93,7 +93,8 @@ export function sanitizeSnippet(input: string, max: number): string {
     .replace(/[\u0000-\u001f\u007f​-‏‪-‮⁦-⁩]/g, " ")
     .replace(/<[^>]*>/g, " ")
     .replace(/[`*_#<>\[\]{}|\\]/g, " ")
-    .replace(/https?:\/\/\S+/gi, "[bağlantı]")
+    .replace(/\b(?:https?|ftp|file|data|javascript|vbscript|mailto):\S*/gi, "[bağlantı]")
+    .replace(/(?<![\p{L}\d])www\.\S+/giu, "[bağlantı]")
     .replace(/\s+/g, " ")
     .trim();
   if (cleaned.length <= max) return cleaned;
@@ -118,7 +119,8 @@ export function normalizeVariants(message: string): string[] {
   const base = message
     .normalize("NFKC")
     .replace(/[\p{Cf}]/gu, "")
-    .replace(/[\p{Cc}]/gu, " ");
+    .replace(/[\n\r\t\v\f\u0085]/g, " ") // gerçek boşluklar
+    .replace(/\p{Cc}/gu, ""); // diğer kontrol karakterleri sözcüğü bölmesin ("s\u0001il" → "sil")
   const out = new Set<string>();
   for (const lowered of [base.toLocaleLowerCase("tr"), base.toLowerCase()]) {
     out.add(lowered.normalize("NFKC").replace(/\p{M}/gu, "").replace(/\s+/g, " ").trim());
@@ -155,25 +157,23 @@ const INFO_QUESTION = new RegExp(
 );
 // Emir kipi / "yapar mısın" kalıbı: soru işareti olsa bile iştir.
 const REQUEST_FORM = new RegExp(
-  `(\\p{L}+(?:ır|ir|ur|ür|ar|er)\\s+m[ıiuü]s[ıiuü]n(?:ız)?|can you|could you|please|lütfen|bana .+ (yap|hazırla|gönder|çıkar|yaz))`,
+  `(${W}${L}{1,40}(?:ır|ir|ur|ür|ar|er)\\s+m[ıiuü]s[ıiuü]n(?:ız)?|can you|could you|please|lütfen|bana .+ (yap|hazırla|gönder|çıkar|yaz))`,
   "iu",
 );
 
-const ACTION_VERBS = new RegExp(
-  `${W}(` +
-    [
+export const ACTION_VERB_LIST = [
       "hazırla", "oluştur", "yaz", "yazdır", "çıkar", "özetle", "raporla", "analiz et", "araştır", "karşılaştır",
       "topla", "derle", "planla", "düzenle", "güncelle", "çevir", "tara", "kontrol et", "incele", "listele",
-      "gönder", "yolla", "paylaş", "yayınla", "yayımla", "yayına al", "canlıya", "sil", "kaldır", "temizle", "öde", "satın al",
+      "gönder", "yolla", "paylaş", "yayınla", "yayımla", "yayına al", "canlıya", "kaldır", "temizle", "öde", "satın al",
       "birleştir", "yetki ver", "erişim ver", "ekle", "kur", "başlat", "çalıştır", "tetikle", "zamanla", "indir", "yükle",
-      "dağıt", "ilet",
+      "dağıt",
       "create", "write", "draft", "summari[sz]e", "research", "analy[sz]e", "compare", "collect", "schedule", "update",
       "send", "publish", "delete", "remove", "pay", "buy", "deploy", "merge", "grant", "build", "generate", "run", "email",
       "prepare", "extract", "translate", "scan", "review", "list",
-    ].join("|") +
-    `)`,
-  "iu",
-);
+];
+// "sil" ve "ilet" bilerek listede YOK: yanlış-pozitifleri (silah, iletişim) ayıran kapsamlı
+// kalıplar HIGH_RISK_ACTIONS içinde; classifyIntentRule yüksek riski ZATEN önce yakalar.
+const ACTION_VERBS = new RegExp(`${W}(` + ACTION_VERB_LIST.join("|") + `)`, "iu");
 
 export interface HighRiskAction {
   id: "send" | "publish" | "delete" | "pay" | "deploy" | "merge" | "grant";
@@ -189,7 +189,7 @@ export const HIGH_RISK_ACTIONS: HighRiskAction[] = [
   {
     id: "send",
     re: new RegExp(
-      `${W}(gönder${L}*|yolla${L}*|ilet(?:ir${L}*|in|iniz|elim|ip|sin|mek|me${L}*|ildi|ecek${L}*)?${E}|` +
+      `${W}(gönder${L}*|yolla${L}*|ilet(?!işim|ken|im|i(?![${L}])|iyi|ide)${L}*|` +
         `(?:mail|e-?posta|mesaj|dm)${L}*\\s+at${L}*|send${L}*|e-?mail${E}|forward${L}*)`,
       "iu",
     ),
@@ -199,7 +199,7 @@ export const HIGH_RISK_ACTIONS: HighRiskAction[] = [
   },
   {
     id: "publish",
-    re: new RegExp(`${W}(yayınla${L}*|yayımla${L}*|paylaş${L}*|publish${L}*|post et${L}*|tweet${L}*)`, "iu"),
+    re: new RegExp(`${W}(yayınla${L}*|yayımla${L}*|paylaş${L}*|publish${L}*|yayın\\s+yap${L}*|post et${L}*|tweet${L}*)`, "iu"),
     title: "Herkese açık içerik yayını",
     tool: "publish",
     reason: "Herkese açık içerik değişir. Açık onay ister.",
@@ -207,7 +207,7 @@ export const HIGH_RISK_ACTIONS: HighRiskAction[] = [
   {
     id: "delete",
     re: new RegExp(
-      `${W}(sil(?:ip|elim|in|iniz|sin|sene|mek|me${L}*|di|diniz|er${L}*|dir${L}*|ecek${L}*|meli${L}*|ik)?${E}|` +
+      `${W}(sil(?!ah|gi|ik|indir|le)${L}*|` +
         `kaldır${L}*|temizle${L}*|yok et${L}*|delete${L}*|remove${L}*|drop(?:s|ped|ping)?${E}|wipe${L}*|purge${L}*)`,
       "iu",
     ),
