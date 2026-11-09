@@ -47,7 +47,9 @@ export function rateLimit(options: RateLimitOptions) {
         keyPrefix.startsWith("rl:auth") ||
         keyPrefix === "rl:iap" || keyPrefix.startsWith("rl:iap:") ||
         keyPrefix === "rl:register" ||
-        keyPrefix === "rl:refresh"
+        keyPrefix === "rl:refresh" ||
+        // BRA-P0-03a: plan ucu LLM tetikleyebilir; Redis çökünce sınırsız maliyet açılmasın.
+        keyPrefix === "rl:jobs:plan"
       ) {
         res.status(503).json({ error: "Service temporarily unavailable" });
         return;

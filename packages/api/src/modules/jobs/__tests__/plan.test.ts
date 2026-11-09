@@ -18,7 +18,11 @@ vi.mock("../../../lib/db", () => ({
   },
 }));
 vi.mock("../../../middleware/rateLimit", () => ({
-  rateLimit: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+  rateLimit: (opts: unknown) => {
+    const f: any = (_req: unknown, _res: unknown, next: () => void) => next();
+    f.__rl = opts;
+    return f;
+  },
 }));
 vi.mock("../../../config/env", () => ({ env: { CLAUDE_MODEL: "claude-sonnet-4-5", JWT_SECRET: "x".repeat(40) } }));
 
@@ -37,16 +41,16 @@ vi.mock("../../../lib/modelPricing", () => ({
     stepCount: n,
     provider,
     model,
-    lowUsd: 0.01 * n,
-    highUsd: 0.05 * n,
+    lowUsd: model === "mystery" ? 0 : 0.01 * n,
+    highUsd: model === "mystery" ? 0 : 0.05 * n,
     perStepUsd: 0.03,
-    unknownModel: false,
+    unknownModel: model === "mystery",
     isFree: false,
   }),
 }));
 
 import { jobsRouter } from "../router";
-import { classifyIntentRule, sanitizeSnippet, PlanCardSchema } from "../plan";
+import { classifyIntentRule, sanitizeSnippet, detectHighRisk, normalizeVariants, PlanCardSchema } from "../plan";
 
 function routeHandler(router: Router, path: string) {
   const layer = (router as any).stack.find((l: any) => l.route?.path === path && l.route.methods.post);
@@ -81,7 +85,7 @@ beforeEach(() => {
 });
 
 describe("niyet sınıflandırma", () => {
-  it.each(["Merhaba", "Python nedir?", "E-posta nasıl gönderilir?", "Bugün hava nasıl?", "Teşekkürler!", "what is a pipeline?"])(
+  it.each(["Merhaba", "Python nedir?", "Bugün hava nasıl?", "Teşekkürler!", "what is a pipeline?"])(
     "basit soru/sohbet → chat: %s",
     async (m) => {
       expect(classifyIntentRule(m)).toBe("chat");
@@ -272,9 +276,139 @@ describe("yanıt anahtar seti sözleşmesi", () => {
     const { res } = await post({ message: "Rapor hazırla ve özetle" });
     expect(Object.keys(res.body).sort()).toEqual(["card", "intent"]);
     expect(Object.keys(res.body.card).sort()).toEqual(BAND_KEYS);
-    expect(Object.keys(res.body.card.estimate).sort()).toEqual(["basis", "costUsd", "durationSec", "isEstimate"]);
+    expect(Object.keys(res.body.card.estimate).sort()).toEqual(["basis", "costUsd", "durationSec", "isEstimate", "priced"]);
     for (const s of res.body.card.steps) {
       expect(Object.keys(s).every((k) => ["title", "tool", "needsApproval", "risk"].includes(k))).toBe(true);
     }
+  });
+});
+
+describe("yüksek riskli fiil kaçakları (ek toleransı + normalleştirme)", () => {
+  const HIGH = [
+    "Eski dosyaları silip yedeği de kaldır",
+    "Hepsini silelim",
+    "Hesapları silin",
+    "Tedarikçiye ödeyin",
+    "Faturayı öder misin",
+    "Yeni sürümü dağıt",
+    "Raporu müdüre ilet",
+    "Stajyere izin ver",
+    "Sürümü CANLIYA al",
+    "Bunu SATIN AL",
+    "BLOG YAYINLA",
+    "PR'LARI BİRLEŞTİR",
+    "Müşteriye mail at",
+    "Please transfer the funds",
+    "DEPLOY to production",
+    "grant admin access",
+    "Merge the branch",
+    "publish the post",
+    "Send the invoice",
+    "DELETE all rows",
+    "go\u0308nder bunu",
+    "s\u200bil bunu",
+    "s\u200dil bunu",
+    "yay\u0131nla",
+  ];
+  it.each(HIGH)("%j → job + risk high + needsApproval", async (m) => {
+    expect(classifyIntentRule(m)).toBe("job");
+    expect(detectHighRisk(m).length).toBeGreaterThan(0);
+    const { res } = await post({ message: m });
+    expect(res.body.intent).toBe("job");
+    expect(res.body.card.risk).toBe("high");
+    expect(res.body.card.steps.filter((s: any) => s.risk === "high").every((s: any) => s.needsApproval)).toBe(true);
+    expect(res.body.card.approvals.length).toBeGreaterThan(0);
+  });
+
+  it("normalizeVariants: İ/ı iki varyant, NFD birleşir, sıfır genişlik atılır", () => {
+    expect(normalizeVariants("YAYINLA")).toContain("yayınla");
+    expect(normalizeVariants("BİRLEŞTİR")).toContain("birleştir");
+    expect(normalizeVariants("TITLE")).toContain("title");
+    expect(normalizeVariants("go\u0308nder")).toContain("gönder");
+    expect(normalizeVariants("s\u200bil")).toContain("sil");
+  });
+
+  it("silah / ödev gibi alakasız sözcükler yüksek risk sayılmaz", () => {
+    expect(detectHighRisk("silah nedir")).toEqual([]);
+    expect(detectHighRisk("ödev nedir")).toEqual([]);
+  });
+
+  it.each([
+    "Faturaları sil, nedenini sorma",
+    "Bunu bana mail atabilir misin?",
+    "Ekibe iletir misin?",
+    "Neden dosyayı silmedin, sil artık?",
+    "Why not deploy it?",
+  ])("soru biçimi yüksek riskli eylemi ezmez: %s", async (m) => {
+    const { res } = await post({ message: m });
+    expect(res.body.intent).toBe("job");
+    expect(res.body.card.risk).toBe("high");
+    expect(res.body.card.warnings.join(" ")).toContain("soru biçiminde ama eylem içeriyor");
+  });
+
+  it.each(["Nasıl yedek alınır?", "Kaç adım gerekir?", "Neden gökyüzü mavi?"])("saf bilgi sorusu chat kalır: %s", async (m) => {
+    const { res } = await post({ message: m });
+    expect(res.body).toEqual({ intent: "chat" });
+  });
+
+  it("'kaçırdım' gibi önek eşleşmesi info sayılmaz", () => {
+    expect(classifyIntentRule("Toplantıyı kaçırdım yeni plan çıkar")).toBe("job");
+  });
+
+  it("LLM 'chat' dese bile yüksek riskli fiil varsa job (LLM'e hiç gidilmez)", async () => {
+    resolveLinkMock.mockResolvedValue({ config: {}, source: "byok-default" });
+    chatCompletionMock.mockResolvedValue({ content: '{"intent":"chat"}', provider: "x", model: "y" });
+    const { res } = await post({ message: "ekibe iletir misin" });
+    expect(res.body.intent).toBe("job");
+    expect(res.body.card.risk).toBe("high");
+  });
+});
+
+describe("sanitize", () => {
+  it("kapanmayan etiket: tüm < ve > atılır", () => {
+    const out = sanitizeSnippet("rapor <img src=x onerror=alert(1)", 100);
+    expect(out).not.toMatch(/[<>]/);
+  });
+  it("kart başlığında kapanmayan etiket kalmaz", async () => {
+    const { res } = await post({ message: "Rapor hazırla <img src=x onerror=alert(1)" });
+    expect(res.body.card.title + res.body.card.goal).not.toMatch(/[<>]/);
+  });
+});
+
+describe("limiter bağlantısı ve fiyatsız model", () => {
+  it("auth katmanı route'tan önce; route zincirinde rl:jobs:plan limiter handler'dan önce", () => {
+    const stack = (jobsRouter as any).stack;
+    const authIdx = stack.findIndex((l: any) => !l.route);
+    const routeIdx = stack.findIndex((l: any) => l.route?.path === "/plan");
+    expect(authIdx).toBeGreaterThanOrEqual(0);
+    expect(authIdx).toBeLessThan(routeIdx);
+    const rs = stack[routeIdx].route.stack;
+    expect(rs.length).toBe(2);
+    expect(rs[0].handle.__rl).toMatchObject({ keyPrefix: "rl:jobs:plan" });
+    expect(rs[0].handle.__rl.maxRequests).toBeGreaterThan(0);
+  });
+
+  it("fiyatı bilinmeyen model: costUsd null, priced:false, uyarı, maxUsd önerilmez", async () => {
+    getTenantAIConfigMock.mockResolvedValue({ provider: "OPENROUTER", model: "mystery" });
+    const { res } = await post({ message: "Haftalık raporu hazırla" });
+    const { estimate, warnings, budget } = res.body.card;
+    expect(estimate.costUsd).toEqual({ low: null, high: null });
+    expect(estimate.priced).toBe(false);
+    expect(estimate.isEstimate).toBe(true);
+    expect(warnings.join(" ")).toContain("fiyatı bilinmiyor");
+    expect(budget.maxUsd).toBeUndefined();
+  });
+
+  it("fiyatlı modelde priced:true", async () => {
+    const { res } = await post({ message: "Haftalık raporu hazırla" });
+    expect(res.body.card.estimate.priced).toBe(true);
+  });
+
+  it("başarılı workspaceId yolu: kendi tenant'ının company'si ile kart döner", async () => {
+    companyFindFirst.mockResolvedValue({ id: "co-1" });
+    const { res, nextErr } = await post({ message: "Haftalık raporu hazırla", workspaceId: "co-1" });
+    expect(nextErr).toBeUndefined();
+    expect(res.body.intent).toBe("job");
+    expect(companyFindFirst.mock.calls[0][0].where).toEqual({ id: "co-1", tenantId: "tenant-1" });
   });
 });

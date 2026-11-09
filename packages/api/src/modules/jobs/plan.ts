@@ -36,6 +36,13 @@ const RangeSchema = z
   .strict()
   .refine((r) => r.low <= r.high, { message: "low must be <= high" });
 
+const NullableRangeSchema = z
+  .object({ low: z.number().finite().nonnegative().nullable(), high: z.number().finite().nonnegative().nullable() })
+  .strict()
+  .refine((r) => (r.low === null) === (r.high === null) && (r.low === null || r.low <= (r.high as number)), {
+    message: "both null or low <= high",
+  });
+
 export const PlanCardSchema = z
   .object({
     title: z.string().min(1).max(80),
@@ -44,7 +51,9 @@ export const PlanCardSchema = z
     steps: z.array(StepSchema).min(1).max(8),
     estimate: z
       .object({
-        costUsd: RangeSchema,
+        // Fiyatı bilinmeyen modelde null (0 "ücretsiz" gibi okunmasın); priced:false.
+        costUsd: NullableRangeSchema,
+        priced: z.boolean(),
         durationSec: RangeSchema,
         isEstimate: z.literal(true),
         basis: z.string().min(1).max(400),
@@ -83,7 +92,7 @@ export function sanitizeSnippet(input: string, max: number): string {
     // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u001f\u007f​-‏‪-‮⁦-⁩]/g, " ")
     .replace(/<[^>]*>/g, " ")
-    .replace(/[`*_#>\[\]{}|\\]/g, " ")
+    .replace(/[`*_#<>\[\]{}|\\]/g, " ")
     .replace(/https?:\/\/\S+/gi, "[bağlantı]")
     .replace(/\s+/g, " ")
     .trim();
@@ -96,6 +105,30 @@ export function sanitizeSnippet(input: string, max: number): string {
 const L = "\\p{L}";
 // Sözcük başı sınırı: harf olmayan bir şeyden sonra başlamalı (önek eşleşmesine izin verir).
 const W = `(?<![${L}])`;
+// Sözcük sonu sınırı (açık ek listesinden sonra): "silah" gibi başka sözcükleri yakalamasın.
+const E = `(?![${L}])`;
+
+/**
+ * Sınıflandırma öncesi normalleştirme: NFKC (NFD "gönder" birleşir), biçim/kontrol
+ * karakterleri (sıfır genişlikli, yön) atılır, küçük harfe İKİ varyantla çevrilir
+ * (tr: YAYINLA→yayınla, BİRLEŞTİR→birleştir; en: TITLE bozulmaz), artık birleştirici
+ * işaretler atılır ("İ".toLowerCase() = "i̇"). Eşleşme varyantlardan biriyle yeter.
+ */
+export function normalizeVariants(message: string): string[] {
+  const base = message
+    .normalize("NFKC")
+    .replace(/[\p{Cf}]/gu, "")
+    .replace(/[\p{Cc}]/gu, " ");
+  const out = new Set<string>();
+  for (const lowered of [base.toLocaleLowerCase("tr"), base.toLowerCase()]) {
+    out.add(lowered.normalize("NFKC").replace(/\p{M}/gu, "").replace(/\s+/g, " ").trim());
+  }
+  return [...out];
+}
+
+function matchAny(re: RegExp, message: string): boolean {
+  return normalizeVariants(message).some((v) => re.test(v));
+}
 
 const INJECTION_PATTERNS: RegExp[] = [
   new RegExp(`${W}(önceki|yukarıdaki|tüm)\\s+(talimat|komut|kural)`, "iu"),
@@ -107,7 +140,7 @@ const INJECTION_PATTERNS: RegExp[] = [
 ];
 
 export function looksLikeInjection(message: string): boolean {
-  return INJECTION_PATTERNS.some((re) => re.test(message));
+  return INJECTION_PATTERNS.some((re) => matchAny(re, message));
 }
 
 const GREETING = new RegExp(
@@ -115,9 +148,9 @@ const GREETING = new RegExp(
   "iu",
 );
 
-// Bilgi sorusu: "nedir / nasıl / neden …" — iş fiili geçse bile açıklama isteğidir.
+// Bilgi sorusu: "nedir / nasıl / neden …" — YALNIZ yüksek riskli eylem yoksa chat sayılır.
 const INFO_QUESTION = new RegExp(
-  `${W}(nedir|nasıl|neden|niçin|niye|ne demek|kimdir|hangisi|kaç|what is|what's|what are|how (do|does|can|to)|why|who is|explain)`,
+  `${W}(nedir|nasıl|neden|niçin|niye|ne demek|kimdir|hangisi|kaç|what is|what's|what are|how (do|does|can|to)|why|who is|explain)${E}`,
   "iu",
 );
 // Emir kipi / "yapar mısın" kalıbı: soru işareti olsa bile iştir.
@@ -131,8 +164,9 @@ const ACTION_VERBS = new RegExp(
     [
       "hazırla", "oluştur", "yaz", "yazdır", "çıkar", "özetle", "raporla", "analiz et", "araştır", "karşılaştır",
       "topla", "derle", "planla", "düzenle", "güncelle", "çevir", "tara", "kontrol et", "incele", "listele",
-      "gönder", "yolla", "paylaş", "yayınla", "yayına al", "canlıya", "sil", "kaldır", "temizle", "öde", "satın al",
+      "gönder", "yolla", "paylaş", "yayınla", "yayımla", "yayına al", "canlıya", "sil", "kaldır", "temizle", "öde", "satın al",
       "birleştir", "yetki ver", "erişim ver", "ekle", "kur", "başlat", "çalıştır", "tetikle", "zamanla", "indir", "yükle",
+      "dağıt", "ilet",
       "create", "write", "draft", "summari[sz]e", "research", "analy[sz]e", "compare", "collect", "schedule", "update",
       "send", "publish", "delete", "remove", "pay", "buy", "deploy", "merge", "grant", "build", "generate", "run", "email",
       "prepare", "extract", "translate", "scan", "review", "list",
@@ -149,53 +183,66 @@ export interface HighRiskAction {
   reason: string;
 }
 
+// Ek-toleranslı kökler (Türkçe + İngilizce). Normalleştirilmiş (küçük harf, İ/ı iki varyant) metne uygulanır.
 // §6.2-C: e-posta send açık onay; delete/pay/prod deploy/merge release/grant access yüksek risk.
 export const HIGH_RISK_ACTIONS: HighRiskAction[] = [
   {
     id: "send",
-    re: new RegExp(`${W}(gönder|yolla|mail at|e-?posta at|send|email|forward|ilet\\b)`, "iu"),
+    re: new RegExp(
+      `${W}(gönder${L}*|yolla${L}*|ilet(?:ir${L}*|in|iniz|elim|ip|sin|mek|me${L}*|ildi|ecek${L}*)?${E}|` +
+        `(?:mail|e-?posta|mesaj|dm)${L}*\\s+at${L}*|send${L}*|e-?mail${E}|forward${L}*)`,
+      "iu",
+    ),
     title: "Mesaj / e-posta gönderimi",
     tool: "send",
     reason: "Dışarıya iletişim gider; geri alınamaz. Gönderim açık onay ister.",
   },
   {
     id: "publish",
-    re: new RegExp(`${W}(yayınla|yayımla|paylaş|publish|post et|tweetle)`, "iu"),
+    re: new RegExp(`${W}(yayınla${L}*|yayımla${L}*|paylaş${L}*|publish${L}*|post et${L}*|tweet${L}*)`, "iu"),
     title: "Herkese açık içerik yayını",
     tool: "publish",
     reason: "Herkese açık içerik değişir. Açık onay ister.",
   },
   {
     id: "delete",
-    re: new RegExp(`${W}(sil(?![${L}])|silin|silme|sildir|kaldır|temizle|delete|remove|drop|wipe|purge)`, "iu"),
+    re: new RegExp(
+      `${W}(sil(?:ip|elim|in|iniz|sin|sene|mek|me${L}*|di|diniz|er${L}*|dir${L}*|ecek${L}*|meli${L}*|ik)?${E}|` +
+        `kaldır${L}*|temizle${L}*|yok et${L}*|delete${L}*|remove${L}*|drop(?:s|ped|ping)?${E}|wipe${L}*|purge${L}*)`,
+      "iu",
+    ),
     title: "Veri silme",
     tool: "delete",
     reason: "Veri kalıcı silinebilir. Açık onay ister.",
   },
   {
     id: "pay",
-    re: new RegExp(`${W}(öde(?![${L}])|ödeme|satın al|fatura öde|havale|pay(?![${L}])|purchase|buy|transfer)`, "iu"),
+    re: new RegExp(
+      `${W}(öde(?:y${L}*|r${L}*|m${L}*|n${L}*|d${L}*|s${L}*)?${E}|ödeme${L}*|satın al${L}*|havale${L}*|` +
+        `pay(?:s|ing|ment${L}*|ed)?${E}|purchase${L}*|buy${L}*|transfer${L}*)`,
+      "iu",
+    ),
     title: "Ödeme / satın alma",
     tool: "pay",
     reason: "Para hareketi içerir. Açık onay ister.",
   },
   {
     id: "deploy",
-    re: new RegExp(`${W}(deploy|canlıya|yayına al|prod(?:uction)?(?![${L}])|release et)`, "iu"),
+    re: new RegExp(`${W}(deploy${L}*|dağıt${L}*|canlıya${L}*|yayına al${L}*|prod(?:uction)?${E}|release et${L}*)`, "iu"),
     title: "Canlı ortama dağıtım",
     tool: "deploy",
     reason: "Canlı sistem etkilenir. Açık onay ister.",
   },
   {
     id: "merge",
-    re: new RegExp(`${W}(merge|birleştir)`, "iu"),
+    re: new RegExp(`${W}(merge${L}*|birleştir${L}*)`, "iu"),
     title: "Kod birleştirme (merge)",
     tool: "merge",
     reason: "Ana dal değişir. Açık onay ister.",
   },
   {
     id: "grant",
-    re: new RegExp(`${W}(yetki ver|erişim ver|izin ver|grant|davet et|invite)`, "iu"),
+    re: new RegExp(`${W}(yetki\\s+ver${L}*|erişim\\s+ver${L}*|izin\\s+ver${L}*|grant${L}*|davet\\s+et${L}*|invite${L}*)`, "iu"),
     title: "Erişim / yetki verme",
     tool: "grant",
     reason: "Başkalarına erişim açılır. Açık onay ister.",
@@ -203,7 +250,15 @@ export const HIGH_RISK_ACTIONS: HighRiskAction[] = [
 ];
 
 export function detectHighRisk(message: string): HighRiskAction[] {
-  return HIGH_RISK_ACTIONS.filter((a) => a.re.test(message));
+  return HIGH_RISK_ACTIONS.filter((a) => matchAny(a.re, message));
+}
+
+// Yalnız UYARI için gevşek eşleşme ("nedenini sorma" da soru biçimi izlenimi verir).
+const INFO_LOOSE = new RegExp(`${W}(nedir|nasıl|neden|niçin|niye|kaç|what|how|why|who|explain)`, "iu");
+
+/** Soru/bilgi biçiminde yazılmış mı (uyarı için). */
+export function isQuestionShaped(message: string): boolean {
+  return /\?\s*$/.test(message.trim()) || matchAny(INFO_LOOSE, message) || matchAny(REQUEST_FORM, message);
 }
 
 export type IntentVerdict = "chat" | "job" | "ambiguous";
@@ -211,17 +266,20 @@ export type IntentVerdict = "chat" | "job" | "ambiguous";
 /**
  * Önce deterministik kural. `ambiguous` yalnız LLM yolu varsa ikinci bir görüş
  * için kullanılır; LLM yoksa çağıran "job" sayar (kural tabanlı yedek).
+ * Yüksek riskli eylem cümlenin HERHANGİ bir yerinde geçiyorsa sonuç asla chat değildir.
  */
 export function classifyIntentRule(message: string): IntentVerdict {
-  const text = message.trim();
-  if (GREETING.test(text)) return "chat";
-  const hasAction = ACTION_VERBS.test(text);
-  const isInfo = INFO_QUESTION.test(text);
+  const variants = normalizeVariants(message);
+  if (variants.some((v) => GREETING.test(v))) return "chat";
+  if (detectHighRisk(message).length > 0) return "job";
+  const text = variants[0];
+  const hasAction = variants.some((v) => ACTION_VERBS.test(v));
+  const isInfo = variants.some((v) => INFO_QUESTION.test(v));
   const isQuestion = /\?\s*$/.test(text);
   const words = text.split(/\s+/).filter(Boolean).length;
-  const polite = REQUEST_FORM.test(text);
+  const polite = variants.some((v) => REQUEST_FORM.test(v));
 
-  if (isInfo && !polite) return "chat"; // "X nedir?", "E-posta nasıl gönderilir?"
+  if (isInfo && !polite) return "chat"; // "X nedir?", "Nasıl yedek alınır?"
   if (hasAction) return "job";
   if (isQuestion) return "chat";
   if (words <= 3) return "chat";
@@ -255,7 +313,7 @@ export function buildSteps(message: string): PlanStep[] {
 
 export function buildSources(message: string): PlanCard["sources"] {
   const out: PlanCard["sources"] = [{ kind: "user_message", label: "Senin mesajın" }];
-  for (const r of SOURCE_RULES) if (r.re.test(message)) out.push({ kind: r.kind, label: r.label });
+  for (const r of SOURCE_RULES) if (matchAny(r.re, message)) out.push({ kind: r.kind, label: r.label });
   return out;
 }
 
@@ -272,13 +330,14 @@ export function buildEstimate(stepCount: number, cost: CostBasis, approvalCount:
   const priced = !cost.unknownModel;
   const basis =
     `Tahmin: ${n} adım × sabit token varsayımı, ${cost.provider}/${cost.model} fiyatından aralık olarak hesaplandı` +
-    (priced ? "" : " (bu modelin fiyatı bilinmiyor; maliyet 0 görünüyorsa ücretsiz anlamına gelmez)") +
+    (priced ? "" : " (bu modelin fiyatı bilinmiyor; maliyet aralığı verilemedi, ücretsiz anlamına gelmez)") +
     (cost.configured ? "" : " (AI sağlayıcın henüz tanımlı değil; varsayılan model kullanıldı)") +
     `. Süre adım başına 10–60 sn varsayar` +
     (approvalCount > 0 ? `, ${approvalCount} onay bekleme süresi dahil değildir` : "") +
     ". Gerçek değerler farklı olabilir; garanti değildir.";
   return {
-    costUsd: { low: roundUsd(low), high: roundUsd(high) },
+    costUsd: priced ? { low: roundUsd(low), high: roundUsd(high) } : { low: null, high: null },
+    priced,
     durationSec,
     isEstimate: true,
     basis: basis.slice(0, 400),
@@ -292,7 +351,7 @@ export function buildBudgetProposal(estimate: PlanCard["estimate"], stepCount: n
     maxRetries: 2,
   };
   // Fiyat bilinmiyorsa (0..0) USD tavanı uydurma; yalnız fiyatlı tahminden türet.
-  if (estimate.costUsd.high > 0) proposal.maxUsd = Math.max(0.01, Math.ceil(estimate.costUsd.high * 2 * 100) / 100);
+  if (estimate.costUsd.high !== null && estimate.costUsd.high > 0) proposal.maxUsd = Math.max(0.01, Math.ceil(estimate.costUsd.high * 2 * 100) / 100);
   return JobBudgetSchema.parse(proposal);
 }
 
@@ -322,6 +381,9 @@ export function buildDeterministicCard(message: string, cost: CostBasis): PlanCa
   }
   if (cost.unknownModel) warnings.push("Seçili modelin fiyatı bilinmiyor; maliyet aralığı gösterilemiyor.");
   if (!cost.configured) warnings.push("AI sağlayıcı tanımlı değil; çalıştırmadan önce Ayarlar'dan eklemelisin.");
+  if (approvals.length > 0 && isQuestionShaped(message)) {
+    warnings.push("Mesaj soru biçiminde ama eylem içeriyor; eylem adımları açık onay bekler, otomatik yürütülmez.");
+  }
   if (approvals.length > 0) warnings.push("Bu plan geri alınamaz eylemler içeriyor; her biri senin açık onayını bekler.");
 
   return PlanCardSchema.parse({
