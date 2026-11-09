@@ -9,7 +9,7 @@ import type { Router } from "express";
 vi.mock("../../../lib/logger", () => ({ logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
 const m = vi.hoisted(() => ({
-  stepFindUnique: vi.fn(), stepUpdate: vi.fn(), handoffFindFirst: vi.fn(), activityCreate: vi.fn(), executeStep: vi.fn(),
+  stepFindUnique: vi.fn(), cancelHandoff: vi.fn(), stepUpdate: vi.fn(), handoffFindFirst: vi.fn(), activityCreate: vi.fn(), executeStep: vi.fn(),
 }));
 vi.mock("../../../lib/db", () => ({
   prisma: {
@@ -30,6 +30,10 @@ vi.mock("../../../services/ai-client", async (importOriginal) => {
 vi.mock("../../../services/provider-chain", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../services/provider-chain")>();
   return { ...actual, listTenantProviderLinks: vi.fn().mockResolvedValue([{ provider: "OPENAI" }]) };
+});
+vi.mock("../handoff.service", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../handoff.service")>();
+  return { ...actual, cancelOpenHandoffForRun: (...a: unknown[]) => m.cancelHandoff(...a) };
 });
 vi.mock("../../../config/env", () => ({ env: { NODE_ENV: "development", OFFLINE_MODE: false } }));
 
@@ -128,5 +132,29 @@ describe("rerun × STEP_APPROVAL_GATE", () => {
     const { err } = await rerun();
     expect(err).toBeUndefined();
     expect(m.executeStep).toHaveBeenCalledTimes(1);
+  });
+
+  it("kapı açık: config false/0/'' (falsy) adım rerun'a taşınır → executeStep gated görür", async () => {
+    vi.stubEnv("STEP_APPROVAL_GATE", "true");
+    for (const cfg of [false, 0, ""]) {
+      m.executeStep.mockClear();
+      seed("Gönder", 0, [{ name: "Gönder", agentRole: "operator", order: 0, config: cfg }]);
+      await rerun();
+      if (m.executeStep.mock.calls[0]) expect(m.executeStep.mock.calls[0][1].config).toBe(cfg);
+      else expect(m.executeStep).toHaveBeenCalledTimes(0); // finished-run 409 yolu da kabul
+    }
+  });
+
+  it("reddedilen rerun açık handoff'u İPTAL ETMEZ; kabul edilen eder (sıra: kimlik/kapı → iptal → yazım)", async () => {
+    m.handoffFindFirst.mockResolvedValue({ id: "h1", status: "OPEN" });
+    vi.stubEnv("STEP_APPROVAL_GATE", "true");
+    seed("Başka", 1, [SAFE, RISKY]); // kimlik reddi
+    expect((await rerun()).err?.message).toMatch(/step_identity_unresolved/);
+    seed("Gönder", 1, [SAFE, RISKY], "FAILED"); // kapı reddi (gated + bitmiş koşu)
+    expect((await rerun()).err?.message).toMatch(/step_gate_requires_retry/);
+    expect(m.cancelHandoff).not.toHaveBeenCalled();
+    seed("Gönder", 1, [SAFE, RISKY], "RUNNING");
+    expect((await rerun()).err).toBeUndefined();
+    expect(m.cancelHandoff).toHaveBeenCalledTimes(1);
   });
 });
