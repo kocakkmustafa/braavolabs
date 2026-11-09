@@ -52,12 +52,62 @@ describe("deriveApprovalDetails", () => {
     const json = JSON.stringify(d);
     for (const bad of ["apiKey", "access_token", "password", "Authorization", "client_secret"]) expect(json).not.toContain(bad);
     expect(d.dataTransfer).toEqual(["send_email ← girdi alanları: to"]);
-    // gizli görünen tool adı da düşer
-    expect(deriveApprovalDetails("SPEND", { toolName: "get_secret_token" }).permissions).toBeNull();
+  });
+
+  it("araç adı: güvenli biçimli ad geçer (yanlış pozitif yok); biçim dışı / sk- biçimli düşer", () => {
+    for (const t of ["keyword_research", "get_token_price", "send_email"]) {
+      expect(deriveApprovalDetails("SPEND", { toolName: t }).permissions).toEqual([t]);
+    }
+    for (const t of ["sk-live-abcdef", "https://u:p@h", "a b", "ghp_abc123", "eyJhbGciOi"]) {
+      expect(deriveApprovalDetails("SPEND", { toolName: t }).permissions).toBeNull();
+    }
+  });
+
+  it("anahtar adı sızıntıları: x-api-key, pwd/auth/jwt/session/otp/pin/private, sk-… adı, biçim dışı ad", () => {
+    const input = {
+      "x-api-key": 1, pwd: 1, auth: 1, jwt: 1, session_id: 1, otp: 1, pin: 1, private_key: 1,
+      "sk-abcdef0123456789": 1, "has space": 1, "9starts": 1, ["a".repeat(60)]: 1, to: 1, subject: 1,
+    };
+    const d = deriveApprovalDetails("SPEND", { toolName: "send_email", input });
+    expect(d.dataTransfer).toEqual(["send_email ← girdi alanları: to, subject"]);
+    const json = JSON.stringify(d);
+    for (const bad of ["x-api-key", "pwd", "jwt", "session", "otp", "pin", "private", "sk-abc", "has space"]) {
+      expect(json).not.toContain(bad);
+    }
+  });
+
+  it("iç içe nesne: yalnız üst düzey alan adı; iç değer/anahtar sızmaz", () => {
+    const d = deriveApprovalDetails("SPEND", {
+      toolName: "post",
+      input: { payload: { password: "P4SS", "sk-nested0123456789": "V" }, to: "x" },
+    });
+    expect(d.dataTransfer).toEqual(["post ← girdi alanları: payload, to"]);
+    expect(JSON.stringify(d)).not.toMatch(/P4SS|sk-nested|password/);
+  });
+
+  it("EXTERNAL_CONTROL targetId/connectionId: URL kimlik bilgisi ve sk-… ham olarak çıkmaz", () => {
+    const bads = ["https://u:p@host/x", "https://h/?a=sk-live-abc", "sk-live-abcdef", "id with space", "a".repeat(65), "x?y=1"];
+    for (const bad of bads) {
+      const onTarget = deriveApprovalDetails("EXTERNAL_CONTROL", { toolName: "external_control", connectionId: "c1", action: "PAUSE", targetId: bad });
+      expect(onTarget.dataTransfer).toEqual(["PAUSE → bağlantı c1"]);
+      const onConn = deriveApprovalDetails("EXTERNAL_CONTROL", { toolName: "external_control", connectionId: bad, action: "PAUSE", targetId: "t1" });
+      expect(onConn.dataTransfer).toBeNull();
+      for (const d of [onTarget, onConn]) expect(JSON.stringify(d)).not.toMatch(/u:p@|sk-live|\?a=|with space/);
+    }
+    // cuid içinde "key" geçmesi yanlış pozitif olmaz
+    expect(deriveApprovalDetails("EXTERNAL_CONTROL", { toolName: "external_control", connectionId: "ckeyabc123", action: "TRIGGER", targetId: "t" }).dataTransfer)
+      .toEqual(["TRIGGER → bağlantı ckeyabc123, hedef t"]);
+  });
+
+  it("çok anahtarlı girdi: yalnız ilk 50 anahtar incelenir", () => {
+    const input: Record<string, number> = {};
+    for (let i = 0; i < 50; i++) input[`password${i}`] = i;
+    input.visible_after_50 = 1;
+    expect(deriveApprovalDetails("SPEND", { toolName: "t", input }).dataTransfer).toBeNull();
   });
 
   it("kırpma: uzun string <= 200, dizi <= 10 öğe", () => {
-    const long = "a".repeat(500);
+    const long = "a".repeat(60);
     const d = deriveApprovalDetails("SPEND", { toolName: long, input: Object.fromEntries(Array.from({ length: 50 }, (_, i) => [`f${i}`, i])) });
     expect(d.permissions![0].length).toBeLessThanOrEqual(MAX_DETAIL_STRING);
     expect(d.dataTransfer![0].length).toBeLessThanOrEqual(MAX_DETAIL_STRING);
