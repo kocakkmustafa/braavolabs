@@ -1,3 +1,5 @@
+import type { InboxBucket, JobReceipt } from "@ai-company-os/core";
+import { parseRunsPage, parseApprovalGroupsPage } from "./inbox";
 import { parseCompareOptions, parseCompareSession, type CompareRequest } from "./compare";
 import { parseApprovalDecision } from "./approvalDecision";
 import { requestDeadline } from "./request-deadline";
@@ -30,7 +32,7 @@ interface FetchOptions extends RequestInit {
 }
 
 export class ApiRequestError extends Error {
-  constructor(public readonly status: number, message: string) {
+  constructor(public readonly status: number, message: string, public readonly code?: string) {
     super(message);
     this.name = "ApiRequestError";
   }
@@ -143,10 +145,15 @@ async function throwApiError(res: Response, session: AuthSessionSnapshot, deadli
     body?.issues?.[0]?.message ||
     body?.error ||
     `API error: ${res.status}`;
-  throw new ApiRequestError(res.status, detail);
+  throw new ApiRequestError(res.status, detail, typeof body?.code === "string" ? body.code : undefined);
 }
 
 export async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
+  return (await apiFetchWithHeaders<T>(path, options)).data;
+}
+
+/** Same request pipeline as apiFetch, but also returns the response headers (e.g. X-Next-Cursor). */
+export async function apiFetchWithHeaders<T>(path: string, options: FetchOptions = {}): Promise<{ data: T; headers: Headers }> {
   const { token, headers, signal, timeoutMs = 180_000, ...rest } = options;
   const session = captureAuthSession();
   const requestLocale = activeRequestLocale();
@@ -209,10 +216,10 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
     await throwApiError(res, session, deadline);
   }
 
-  if (res.status === 204) return undefined as T;
+  if (res.status === 204) return { data: undefined as T, headers: res.headers };
   const data = await deadline.wait(res.json());
   assertSession(session);
-  return data;
+  return { data, headers: res.headers };
   } finally { deadline.dispose(); }
 }
 
@@ -389,6 +396,16 @@ export const api = {
   decideApproval: (token: string, id: string, decision: "APPROVED" | "REJECTED", note?: string) =>
     apiFetch<unknown>(`/approvals/${id}/decide`, { method: "POST", body: JSON.stringify({ decision, note }), token })
       .then((result) => parseApprovalDecision(result, decision)),
+
+  // Inbox (BRA-P0-04e) — runs by bucket, approvals grouped by run, run actions, receipt
+  inboxRuns: (token: string, bucket: InboxBucket, cursor?: string | null, signal?: AbortSignal) =>
+    apiFetch<unknown>(`/runs?bucket=${bucket}&limit=25${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, { token, signal }).then(parseRunsPage),
+  inboxApprovalGroups: (token: string, cursor?: string | null, signal?: AbortSignal) =>
+    apiFetch<unknown>(`/approvals?status=PENDING&groupBy=run&limit=25${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, { token, signal }).then(parseApprovalGroupsPage),
+  runAction: (token: string, runId: string, action: "resume" | "retry" | "pause" | "stop") =>
+    apiFetch<unknown>(`/runs/${encodeURIComponent(runId)}/${action}`, { method: "POST", body: JSON.stringify({}), token }),
+  runReceipt: (token: string, runId: string, signal?: AbortSignal) =>
+    apiFetch<JobReceipt>(`/runs/${encodeURIComponent(runId)}/receipt`, { token, signal }),
 
   // Drafts
   listDrafts: (token: string, companyId: string) =>

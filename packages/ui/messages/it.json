@@ -21,7 +21,8 @@
     "billing": "Fatturazione",
     "settings": "Impostazioni",
     "newWorkspace": "Nuovo spazio di lavoro",
-    "quickStart": "Avvio rapido"
+    "quickStart": "Avvio rapido",
+    "inbox": "Posta in arrivo"
   },
   "features": {
     "badge": "FUNZIONALITÀ DELLA PIATTAFORMA",
@@ -1206,6 +1207,88 @@
     },
     "register": {
       "freePlan": "Piano gratuito"
+    },
+    "inbox": {
+      "title": "Posta in arrivo",
+      "subtitle": "Tutti i lavori in un unico posto: in corso, in attesa di te, completati e bloccati.",
+      "tabsLabel": "Gruppi di lavori",
+      "bucket": {
+        "working": "In corso",
+        "needs_approval": "Richiede approvazione",
+        "done": "Completati",
+        "stuck": "Bloccati"
+      },
+      "loading": "Caricamento…",
+      "emptyWorking": "Al momento nulla è in esecuzione.",
+      "emptyNeedsApproval": "Nessun lavoro in attesa di approvazione.",
+      "emptyDone": "Nessun lavoro completato per ora.",
+      "emptyStuck": "Nulla è bloccato.",
+      "errorTitle": "Impossibile caricare i lavori",
+      "errorBody": "Il server non ha risposto correttamente, quindi questo elenco potrebbe non essere davvero vuoto. Riprova.",
+      "approvalsErrorTitle": "Impossibile caricare le approvazioni in sospeso",
+      "retryLoad": "Riprova",
+      "loadMore": "Carica altro",
+      "loadingMore": "Caricamento…",
+      "loadMoreError": "Impossibile caricare altro. Riprova.",
+      "approvalsTitle": "Approvazioni in sospeso",
+      "jobsTitle": "Lavori",
+      "approvalsEmpty": "Nessuna approvazione in sospeso.",
+      "approve": "Approva",
+      "reject": "Rifiuta",
+      "deciding": "Invio…",
+      "amount": "Importo: {value}",
+      "openRun": "Apri esecuzione",
+      "approvalUntitled": "Richiesta di approvazione",
+      "approvalFailed": "La decisione non è stata salvata. Riprova.",
+      "approvalConflict": "Questa approvazione è già stata decisa o modificata. Aggiorna l’elenco.",
+      "jobUntitled": "Lavoro senza titolo",
+      "cost": "Costo {value}",
+      "updated": "Aggiornato {value}",
+      "action": {
+        "resume": "Riprendi",
+        "pause": "Metti in pausa",
+        "stop": "Ferma",
+        "retry": "Riprova",
+        "steer": "Indirizza",
+        "receipt": "Ricevuta"
+      },
+      "steerLabel": "Messaggio per l’agente",
+      "steerPlaceholder": "Istruzione breve…",
+      "steerSend": "Invia",
+      "steerSent": "Messaggio inviato.",
+      "actionOk": "Azione inviata.",
+      "actionFailed": "L’azione non è riuscita. Riprova.",
+      "actionForbidden": "Non hai il permesso per questa azione.",
+      "conflict": {
+        "retry_disabled": "Il nuovo tentativo non è ancora abilitato per questo spazio di lavoro.",
+        "run_still_running": "Questo lavoro è ancora in esecuzione. Fermalo prima, poi riprova.",
+        "already_retrying": "Un nuovo tentativo è già in corso.",
+        "approval_pending": "Un’approvazione è in attesa. Decidila prima.",
+        "retry_budget_exhausted": "Il limite o il budget dei nuovi tentativi di questo lavoro è esaurito.",
+        "run_not_retryable": "Questo lavoro non può essere ripetuto nel suo stato attuale.",
+        "generic": "Lo stato del lavoro è cambiato o un’approvazione è in attesa. Aggiorna e riprova."
+      },
+      "receipt": {
+        "title": "Ricevuta",
+        "loading": "Caricamento ricevuta…",
+        "none": "Ancora nessuna ricevuta. Viene creata al termine del lavoro.",
+        "error": "Impossibile caricare la ricevuta.",
+        "verified": "VERIFICATO",
+        "unverified": "NON VERIFICATO",
+        "verifiedHint": "Le prove confermano il risultato.",
+        "unverifiedHint": "Non confermato: prove mancanti o incomplete.",
+        "noStatus": "Nessuno stato del risultato",
+        "outcome": "Esito: {value}",
+        "noEvidence": "Nessuna prova allegata.",
+        "passed": "superato",
+        "failed": "fallito",
+        "hide": "Nascondi ricevuta"
+      },
+      "state": {
+        "COMPLETED": "Completato",
+        "FAILED": "Fallito",
+        "CANCELLED": "Annullato"
+      }
     }
   },
   "static": {

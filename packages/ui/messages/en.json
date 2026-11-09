@@ -21,7 +21,8 @@
     "billing": "Billing",
     "settings": "Settings",
     "newWorkspace": "New Workspace",
-    "quickStart": "Quick Start"
+    "quickStart": "Quick Start",
+    "inbox": "Inbox"
   },
   "features": {
     "badge": "PLATFORM CAPABILITIES",
@@ -1206,6 +1207,88 @@
     },
     "register": {
       "freePlan": "Free plan"
+    },
+    "inbox": {
+      "title": "Inbox",
+      "subtitle": "Every job in one place: what is running, what needs you, what is done, what is stuck.",
+      "tabsLabel": "Job buckets",
+      "bucket": {
+        "working": "Working",
+        "needs_approval": "Needs approval",
+        "done": "Done",
+        "stuck": "Stuck"
+      },
+      "loading": "Loading…",
+      "emptyWorking": "Nothing is running right now.",
+      "emptyNeedsApproval": "No job is waiting for approval.",
+      "emptyDone": "No finished jobs yet.",
+      "emptyStuck": "Nothing is stuck.",
+      "errorTitle": "Could not load jobs",
+      "errorBody": "The server did not answer correctly, so this list may not really be empty. Try again.",
+      "approvalsErrorTitle": "Could not load pending approvals",
+      "retryLoad": "Try again",
+      "loadMore": "Load more",
+      "loadingMore": "Loading…",
+      "loadMoreError": "Could not load more. Try again.",
+      "approvalsTitle": "Pending approvals",
+      "jobsTitle": "Jobs",
+      "approvalsEmpty": "No pending approvals.",
+      "approve": "Approve",
+      "reject": "Reject",
+      "deciding": "Sending…",
+      "amount": "Amount: {value}",
+      "openRun": "Open run",
+      "approvalUntitled": "Approval request",
+      "approvalFailed": "The decision was not saved. Try again.",
+      "approvalConflict": "This approval was already decided or changed. Refresh the list.",
+      "jobUntitled": "Untitled job",
+      "cost": "Cost {value}",
+      "updated": "Updated {value}",
+      "action": {
+        "resume": "Resume",
+        "pause": "Pause",
+        "stop": "Stop",
+        "retry": "Retry",
+        "steer": "Steer",
+        "receipt": "Receipt"
+      },
+      "steerLabel": "Message for the agent",
+      "steerPlaceholder": "Short instruction…",
+      "steerSend": "Send",
+      "steerSent": "Message sent.",
+      "actionOk": "Action sent.",
+      "actionFailed": "The action failed. Try again.",
+      "actionForbidden": "You do not have permission for this action.",
+      "conflict": {
+        "retry_disabled": "Retry is not enabled for this workspace yet.",
+        "run_still_running": "This job is still running. Stop it first, then retry.",
+        "already_retrying": "A retry is already in progress.",
+        "approval_pending": "An approval is waiting. Decide it first.",
+        "retry_budget_exhausted": "The retry limit or budget for this job is used up.",
+        "run_not_retryable": "This job cannot be retried in its current state.",
+        "generic": "The job changed state or an approval is waiting. Refresh and try again."
+      },
+      "receipt": {
+        "title": "Receipt",
+        "loading": "Loading receipt…",
+        "none": "No receipt yet. One is written when the job finishes.",
+        "error": "Could not load the receipt.",
+        "verified": "VERIFIED",
+        "unverified": "UNVERIFIED",
+        "verifiedHint": "The evidence confirms the result.",
+        "unverifiedHint": "Not confirmed: evidence is missing or incomplete.",
+        "noStatus": "No result status",
+        "outcome": "Outcome: {value}",
+        "noEvidence": "No evidence attached.",
+        "passed": "passed",
+        "failed": "failed",
+        "hide": "Hide receipt"
+      },
+      "state": {
+        "COMPLETED": "Completed",
+        "FAILED": "Failed",
+        "CANCELLED": "Cancelled"
+      }
     }
   },
   "static": {

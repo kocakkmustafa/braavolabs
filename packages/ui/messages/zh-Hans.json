@@ -21,7 +21,8 @@
     "billing": "账单",
     "settings": "设置",
     "newWorkspace": "新建工作区",
-    "quickStart": "快速入门"
+    "quickStart": "快速入门",
+    "inbox": "收件箱"
   },
   "features": {
     "badge": "平台能力",
@@ -1206,6 +1207,88 @@
     },
     "register": {
       "freePlan": "免费方案"
+    },
+    "inbox": {
+      "title": "收件箱",
+      "subtitle": "所有任务集中在一处：进行中、等你处理、已完成、已卡住。",
+      "tabsLabel": "任务分组",
+      "bucket": {
+        "working": "进行中",
+        "needs_approval": "待审批",
+        "done": "已完成",
+        "stuck": "已卡住"
+      },
+      "loading": "加载中…",
+      "emptyWorking": "目前没有正在运行的任务。",
+      "emptyNeedsApproval": "没有等待审批的任务。",
+      "emptyDone": "还没有已完成的任务。",
+      "emptyStuck": "没有卡住的任务。",
+      "errorTitle": "无法加载任务",
+      "errorBody": "服务器未正确响应，因此此列表可能并非真的为空。请重试。",
+      "approvalsErrorTitle": "无法加载待审批项",
+      "retryLoad": "重试",
+      "loadMore": "加载更多",
+      "loadingMore": "加载中…",
+      "loadMoreError": "无法加载更多。请重试。",
+      "approvalsTitle": "待审批",
+      "jobsTitle": "任务",
+      "approvalsEmpty": "没有待审批项。",
+      "approve": "批准",
+      "reject": "拒绝",
+      "deciding": "发送中…",
+      "amount": "金额：{value}",
+      "openRun": "打开运行",
+      "approvalUntitled": "审批请求",
+      "approvalFailed": "决定未保存。请重试。",
+      "approvalConflict": "此审批已被处理或已变更。请刷新列表。",
+      "jobUntitled": "未命名任务",
+      "cost": "费用 {value}",
+      "updated": "更新于 {value}",
+      "action": {
+        "resume": "继续",
+        "pause": "暂停",
+        "stop": "停止",
+        "retry": "重试",
+        "steer": "引导",
+        "receipt": "回执"
+      },
+      "steerLabel": "给智能体的消息",
+      "steerPlaceholder": "简短指令…",
+      "steerSend": "发送",
+      "steerSent": "消息已发送。",
+      "actionOk": "操作已发送。",
+      "actionFailed": "操作失败。请重试。",
+      "actionForbidden": "你没有执行此操作的权限。",
+      "conflict": {
+        "retry_disabled": "此工作区尚未启用重试。",
+        "run_still_running": "该任务仍在运行。请先停止，再重试。",
+        "already_retrying": "重试已在进行中。",
+        "approval_pending": "有一项审批在等待。请先处理。",
+        "retry_budget_exhausted": "该任务的重试次数或预算已用完。",
+        "run_not_retryable": "该任务在当前状态下无法重试。",
+        "generic": "任务状态已变化或有审批在等待。请刷新后重试。"
+      },
+      "receipt": {
+        "title": "回执",
+        "loading": "正在加载回执…",
+        "none": "暂无回执。任务结束时会生成。",
+        "error": "无法加载回执。",
+        "verified": "已验证",
+        "unverified": "未验证",
+        "verifiedHint": "证据证实了结果。",
+        "unverifiedHint": "未确认：证据缺失或不完整。",
+        "noStatus": "无结果状态",
+        "outcome": "结果：{value}",
+        "noEvidence": "未附带证据。",
+        "passed": "通过",
+        "failed": "失败",
+        "hide": "隐藏回执"
+      },
+      "state": {
+        "COMPLETED": "已完成",
+        "FAILED": "已失败",
+        "CANCELLED": "已取消"
+      }
     }
   },
   "static": {

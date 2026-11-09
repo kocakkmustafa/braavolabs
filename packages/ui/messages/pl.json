@@ -21,7 +21,8 @@
     "billing": "Rozliczenia",
     "settings": "Ustawienia",
     "newWorkspace": "Nowy obszar roboczy",
-    "quickStart": "Szybki start"
+    "quickStart": "Szybki start",
+    "inbox": "Skrzynka zadań"
   },
   "features": {
     "badge": "MOŻLIWOŚCI PLATFORMY",
@@ -1206,6 +1207,88 @@
     },
     "register": {
       "freePlan": "Plan bezpłatny"
+    },
+    "inbox": {
+      "title": "Skrzynka zadań",
+      "subtitle": "Wszystkie zadania w jednym miejscu: w toku, czekające na Ciebie, zakończone i zablokowane.",
+      "tabsLabel": "Grupy zadań",
+      "bucket": {
+        "working": "W toku",
+        "needs_approval": "Wymaga zatwierdzenia",
+        "done": "Zakończone",
+        "stuck": "Zablokowane"
+      },
+      "loading": "Ładowanie…",
+      "emptyWorking": "Nic nie jest teraz w toku.",
+      "emptyNeedsApproval": "Żadne zadanie nie czeka na zatwierdzenie.",
+      "emptyDone": "Brak zakończonych zadań.",
+      "emptyStuck": "Nic nie jest zablokowane.",
+      "errorTitle": "Nie udało się wczytać zadań",
+      "errorBody": "Serwer odpowiedział niepoprawnie, więc ta lista może wcale nie być pusta. Spróbuj ponownie.",
+      "approvalsErrorTitle": "Nie udało się wczytać oczekujących zatwierdzeń",
+      "retryLoad": "Spróbuj ponownie",
+      "loadMore": "Wczytaj więcej",
+      "loadingMore": "Ładowanie…",
+      "loadMoreError": "Nie udało się wczytać więcej. Spróbuj ponownie.",
+      "approvalsTitle": "Oczekujące zatwierdzenia",
+      "jobsTitle": "Zadania",
+      "approvalsEmpty": "Brak oczekujących zatwierdzeń.",
+      "approve": "Zatwierdź",
+      "reject": "Odrzuć",
+      "deciding": "Wysyłanie…",
+      "amount": "Kwota: {value}",
+      "openRun": "Otwórz przebieg",
+      "approvalUntitled": "Prośba o zatwierdzenie",
+      "approvalFailed": "Decyzja nie została zapisana. Spróbuj ponownie.",
+      "approvalConflict": "To zatwierdzenie zostało już rozstrzygnięte lub zmienione. Odśwież listę.",
+      "jobUntitled": "Zadanie bez nazwy",
+      "cost": "Koszt {value}",
+      "updated": "Zaktualizowano {value}",
+      "action": {
+        "resume": "Wznów",
+        "pause": "Wstrzymaj",
+        "stop": "Zatrzymaj",
+        "retry": "Ponów",
+        "steer": "Pokieruj",
+        "receipt": "Potwierdzenie"
+      },
+      "steerLabel": "Wiadomość do agenta",
+      "steerPlaceholder": "Krótkie polecenie…",
+      "steerSend": "Wyślij",
+      "steerSent": "Wiadomość wysłana.",
+      "actionOk": "Akcja wysłana.",
+      "actionFailed": "Akcja nie powiodła się. Spróbuj ponownie.",
+      "actionForbidden": "Nie masz uprawnień do tej akcji.",
+      "conflict": {
+        "retry_disabled": "Ponawianie nie jest jeszcze włączone w tej przestrzeni roboczej.",
+        "run_still_running": "To zadanie nadal trwa. Najpierw je zatrzymaj, potem ponów.",
+        "already_retrying": "Ponowienie jest już w toku.",
+        "approval_pending": "Czeka zatwierdzenie. Najpierw je rozstrzygnij.",
+        "retry_budget_exhausted": "Limit lub budżet ponowień tego zadania został wyczerpany.",
+        "run_not_retryable": "Tego zadania nie można ponowić w obecnym stanie.",
+        "generic": "Stan zadania się zmienił lub czeka zatwierdzenie. Odśwież i spróbuj ponownie."
+      },
+      "receipt": {
+        "title": "Potwierdzenie",
+        "loading": "Wczytywanie potwierdzenia…",
+        "none": "Brak potwierdzenia. Powstaje po zakończeniu zadania.",
+        "error": "Nie udało się wczytać potwierdzenia.",
+        "verified": "ZWERYFIKOWANO",
+        "unverified": "NIEZWERYFIKOWANO",
+        "verifiedHint": "Dowody potwierdzają wynik.",
+        "unverifiedHint": "Niepotwierdzone: brakuje dowodów lub są niepełne.",
+        "noStatus": "Brak statusu wyniku",
+        "outcome": "Wynik: {value}",
+        "noEvidence": "Brak załączonych dowodów.",
+        "passed": "zaliczono",
+        "failed": "niezaliczono",
+        "hide": "Ukryj potwierdzenie"
+      },
+      "state": {
+        "COMPLETED": "Ukończone",
+        "FAILED": "Nieudane",
+        "CANCELLED": "Anulowane"
+      }
     }
   },
   "static": {

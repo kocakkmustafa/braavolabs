@@ -21,7 +21,8 @@
     "billing": "Facturación",
     "settings": "Ajustes",
     "newWorkspace": "Nuevo espacio de trabajo",
-    "quickStart": "Inicio rápido"
+    "quickStart": "Inicio rápido",
+    "inbox": "Bandeja"
   },
   "features": {
     "badge": "CAPACIDADES DE LA PLATAFORMA",
@@ -1206,6 +1207,88 @@
     },
     "register": {
       "freePlan": "Plan gratuito"
+    },
+    "inbox": {
+      "title": "Bandeja de trabajos",
+      "subtitle": "Todos los trabajos en un lugar: en curso, los que te esperan, terminados y atascados.",
+      "tabsLabel": "Grupos de trabajos",
+      "bucket": {
+        "working": "En curso",
+        "needs_approval": "Requiere aprobación",
+        "done": "Terminados",
+        "stuck": "Atascados"
+      },
+      "loading": "Cargando…",
+      "emptyWorking": "No hay nada en ejecución ahora.",
+      "emptyNeedsApproval": "Ningún trabajo espera aprobación.",
+      "emptyDone": "Aún no hay trabajos terminados.",
+      "emptyStuck": "No hay nada atascado.",
+      "errorTitle": "No se pudieron cargar los trabajos",
+      "errorBody": "El servidor no respondió bien, así que esta lista podría no estar vacía en realidad. Inténtalo de nuevo.",
+      "approvalsErrorTitle": "No se pudieron cargar las aprobaciones pendientes",
+      "retryLoad": "Reintentar",
+      "loadMore": "Cargar más",
+      "loadingMore": "Cargando…",
+      "loadMoreError": "No se pudo cargar más. Inténtalo de nuevo.",
+      "approvalsTitle": "Aprobaciones pendientes",
+      "jobsTitle": "Trabajos",
+      "approvalsEmpty": "No hay aprobaciones pendientes.",
+      "approve": "Aprobar",
+      "reject": "Rechazar",
+      "deciding": "Enviando…",
+      "amount": "Monto: {value}",
+      "openRun": "Abrir ejecución",
+      "approvalUntitled": "Solicitud de aprobación",
+      "approvalFailed": "La decisión no se guardó. Inténtalo de nuevo.",
+      "approvalConflict": "Esta aprobación ya fue decidida o cambió. Actualiza la lista.",
+      "jobUntitled": "Trabajo sin título",
+      "cost": "Costo {value}",
+      "updated": "Actualizado {value}",
+      "action": {
+        "resume": "Reanudar",
+        "pause": "Pausar",
+        "stop": "Detener",
+        "retry": "Reintentar",
+        "steer": "Orientar",
+        "receipt": "Recibo"
+      },
+      "steerLabel": "Mensaje para el agente",
+      "steerPlaceholder": "Instrucción breve…",
+      "steerSend": "Enviar",
+      "steerSent": "Mensaje enviado.",
+      "actionOk": "Acción enviada.",
+      "actionFailed": "La acción falló. Inténtalo de nuevo.",
+      "actionForbidden": "No tienes permiso para esta acción.",
+      "conflict": {
+        "retry_disabled": "El reintento aún no está habilitado en este espacio de trabajo.",
+        "run_still_running": "Este trabajo sigue en ejecución. Deténlo primero y luego reintenta.",
+        "already_retrying": "Ya hay un reintento en curso.",
+        "approval_pending": "Hay una aprobación pendiente. Decídela primero.",
+        "retry_budget_exhausted": "Se agotó el límite o el presupuesto de reintentos de este trabajo.",
+        "run_not_retryable": "Este trabajo no se puede reintentar en su estado actual.",
+        "generic": "El trabajo cambió de estado o hay una aprobación pendiente. Actualiza e inténtalo de nuevo."
+      },
+      "receipt": {
+        "title": "Recibo",
+        "loading": "Cargando recibo…",
+        "none": "Aún no hay recibo. Se escribe cuando termina el trabajo.",
+        "error": "No se pudo cargar el recibo.",
+        "verified": "VERIFICADO",
+        "unverified": "NO VERIFICADO",
+        "verifiedHint": "Las evidencias confirman el resultado.",
+        "unverifiedHint": "Sin confirmar: faltan evidencias o están incompletas.",
+        "noStatus": "Sin estado de resultado",
+        "outcome": "Resultado: {value}",
+        "noEvidence": "Sin evidencias adjuntas.",
+        "passed": "aprobó",
+        "failed": "falló",
+        "hide": "Ocultar recibo"
+      },
+      "state": {
+        "COMPLETED": "Completado",
+        "FAILED": "Fallido",
+        "CANCELLED": "Cancelado"
+      }
     }
   },
   "static": {
