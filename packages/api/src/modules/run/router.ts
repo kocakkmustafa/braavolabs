@@ -18,6 +18,7 @@ import { listTenantProviderLinks, resolveTenantCompletionLink, commitTrialComple
 import { assertKeylessLocalBaseUrl } from "../../services/takeover-config";
 import { createHandoff, claimHandoff, HandoffClaimError, cancelOpenHandoffForRun, reopenClaimedHandoff } from "./handoff.service";
 import { hasOpenApproval } from "../approval/exact-action";
+import { isStepApprovalGateEnabled, resolveStepByIdentity, stepRequiresApproval } from "../pipeline/step-approval";
 import { transitionRun, isJobStateDualWriteEnabled, currentJobState } from "./transition";
 import { assertTransitioned, resumeToRunning, AlreadyRunningError, revertRunAfterEnqueueFailure } from "./resume";
 import { decideResume, toLegacyStatus, type JobState } from "./job-state";
@@ -1086,6 +1087,49 @@ runRouter.post("/steps/:id/rerun", async (req, res, next) => {
     if (relatedHandoff?.status === "CLAIMED") {
       throw new AppError(409, "A handoff is already resuming this run — cancel or complete it before rerunning the step.");
     }
+
+    // Import and execute the step
+    const { executeStep } = await import("../pipeline/executor");
+    const stepDef: { name: string; agentRole: string; order: number; config?: Record<string, unknown> } = {
+      name: step.name,
+      agentRole: step.name, // Will be resolved from pipeline steps
+      order: step.stepIndex,
+    };
+
+    // Get the pipeline step definition for agentRole
+    const pipeline = step.run.pipeline;
+    const pipelineSteps = pipeline.steps as Array<{ name: string; agentRole: string; order: number; config?: Record<string, unknown> }>;
+    let matchingStep: (typeof pipelineSteps)[number] | undefined;
+    if (isStepApprovalGateEnabled()) {
+      // BRA-P0-03d fail-closed: kapı açıkken adım KESİN kimlikle (runner'ın global indeksi + ad) bulunmalı;
+      // gevşek ad/sıra eşleşmesi başka adımın config'iyle kapıyı atlatabilir. Bulunamazsa rerun reddedilir.
+      const id = resolveStepByIdentity<(typeof pipelineSteps)[number]>(pipelineSteps, step.stepIndex, step.name);
+      if (!id.ok) {
+        throw new AppError(409, "Step cannot be matched to its pipeline definition; rerun refused (step_identity_unresolved)");
+      }
+      matchingStep = id.step;
+    } else {
+      matchingStep = pipelineSteps.find((s) => s.name === step.name || s.order === step.stepIndex);
+    }
+    if (matchingStep) {
+      stepDef.agentRole = matchingStep.agentRole;
+      // BRA-P0-03d: config YALNIZ kapı açıkken taşınır (kapalıyken rerun prompt'u eskisiyle birebir aynı:
+      // executeStep config'i "Step configuration" olarak prompt'a yazar). Taşınmazsa kapı atlanırdı.
+      if (isStepApprovalGateEnabled() && matchingStep.config !== undefined && matchingStep.config !== null) {
+        stepDef.config = matchingStep.config; // false/0/"" dahil: stepRequiresApproval fail-closed gated sayar
+      }
+    }
+    // Kapı açık + gated adım: bitmiş koşuya rerun onay kapısına giremez (FAILED/CANCELLED/COMPLETED →
+    // WAITING_APPROVAL geçişi yok); okunur 409. Yolu: /runs/:id/retry (koşuyu kapıyla baştan yürütür).
+    if (
+      isStepApprovalGateEnabled() &&
+      stepRequiresApproval(stepDef.config) &&
+      ["COMPLETED", "CANCELLED", "FAILED"].includes(step.run.status)
+    ) {
+      throw new AppError(409, "Step requires approval and its run is finished; use /runs/:id/retry (step_gate_requires_retry)");
+    }
+
+    // Stale açık handoff yalnız rerun KABUL edildikten sonra iptal edilir (kimlik/kapı 409'ları durum yazmaz).
     if (relatedHandoff?.status === "OPEN") {
       await cancelOpenHandoffForRun(step.runId, "rerun", req.auth!.userId);
     }
@@ -1101,28 +1145,17 @@ runRouter.post("/steps/:id/rerun", async (req, res, next) => {
       },
     });
 
-    // Import and execute the step
-    const { executeStep } = await import("../pipeline/executor");
-    const stepDef = {
-      name: step.name,
-      agentRole: step.name, // Will be resolved from pipeline steps
-      order: step.stepIndex,
-    };
-
-    // Get the pipeline step definition for agentRole
-    const pipeline = step.run.pipeline;
-    const pipelineSteps = pipeline.steps as Array<{ name: string; agentRole: string; order: number }>;
-    const matchingStep = pipelineSteps.find((s) => s.name === step.name || s.order === step.stepIndex);
-    if (matchingStep) {
-      stepDef.agentRole = matchingStep.agentRole;
-    }
-
     const result = await executeStep(
       step.runId,
       stepDef,
       step.stepIndex,
       step.input,
     );
+
+    // BRA-P0-03d: kapı adımı çalıştırmadı (onay bekliyor): satır RUNNING'te takılı kalmasın.
+    if (result.stepId === "") {
+      await prisma.runStep.update({ where: { id: step.id }, data: { status: step.status, completedAt: step.completedAt } });
+    }
 
     await prisma.activityLog.create({
       data: {

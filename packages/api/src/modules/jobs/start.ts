@@ -5,16 +5,18 @@
  * Prisma alanlarıyla yeniden yazıldı: Pipeline (MANUAL, SEQUENTIAL) + Run
  * (tenantId/workspaceId/jobBudget/idempotencyKey), tek tenantTx içinde.
  *
- * ÖNEMLİ: `config.needsApproval` yürütücüde ZORLANMAZ; yalnız LLM istemine
- * giden bilgi metnidir. Gerçek onay kapısı araç meta'sı/ajan autonomy'sidir.
- * Bu yüzden `risk:"high"` ya da `needsApproval` adımı olan kartlar router'da
- * 422 ile reddedilir (BRA-P0-03d: adım-düzeyi onay kapısı bağlanana kadar).
- * Burada hiçbir onay/yetki kaydı üretilmez.
+ * ÖNEMLİ: `config.needsApproval` yürütücüde YALNIZ `STEP_APPROVAL_GATE=true`
+ * iken zorlanır (BRA-P0-03d, pipeline/step-approval.ts); kapalıyken yalnız LLM
+ * istemine giden bilgi metnidir. Bu yüzden `risk:"high"` ya da `needsApproval`
+ * adımı olan kartlar kapı kapalıyken router'da 422 ile reddedilir
+ * (`canStartCard`). Burada hiçbir onay/yetki kaydı üretilmez: kapı açıkken
+ * koşu normal kuyruğa girer, onay satırını yürütücü ilgili adımdan ÖNCE açar.
  */
 import type { Prisma } from "@prisma/client";
 import { tenantTx } from "../../lib/db";
 import { JobBudgetSchema, type JobBudget } from "../run/job-budget";
 import type { PlanCard } from "./plan";
+import { isStepApprovalGateEnabled, stepRequiresApproval } from "../pipeline/step-approval";
 
 /** Karttan gelmeyen boyutlar için güvenli varsayılan tavanlar. */
 export const DEFAULT_MAX_USD = 1;
@@ -41,6 +43,17 @@ export function resolveStartBudget(card: PlanCard): JobBudget {
 /** Yüksek riskli kart (başlatma kapalı): risk high ya da onay isteyen adım var. */
 export function isHighRiskCard(card: PlanCard): boolean {
   return card.risk === "high" || card.steps.some((s) => s.needsApproval);
+}
+
+/**
+ * Kart başlatılabilir mi? Yüksek riskli olmayan kart her zaman; yüksek riskli kart
+ * yalnız adım-düzeyi onay kapısı AÇIKKEN ve kartta kapıyı tetikleyecek en az bir
+ * işaretli adım varken (aksi halde risk işareti yürütücüde karşılıksız kalırdı).
+ */
+export function canStartCard(card: PlanCard, env: NodeJS.ProcessEnv = process.env): boolean {
+  if (!isHighRiskCard(card)) return true;
+  if (!isStepApprovalGateEnabled(env)) return false;
+  return card.steps.some((s) => stepRequiresApproval({ needsApproval: s.needsApproval, risk: s.risk }));
 }
 
 export interface StartRunInput {
@@ -71,7 +84,7 @@ export async function createPlannedRun(input: StartRunInput): Promise<StartedRun
     name: s.title,
     agentRole: input.agentRole,
     order: i,
-    // Yalnız bilgi: yürütücü bunu zorlamaz.
+    // STEP_APPROVAL_GATE açıkken yürütücü bunu zorlar (step-approval.ts); kapalıyken yalnız bilgi.
     config: { planned: true, tool: s.tool ?? null, risk: s.risk, needsApproval: s.needsApproval },
   }));
   return tenantTx(async (tx) => {

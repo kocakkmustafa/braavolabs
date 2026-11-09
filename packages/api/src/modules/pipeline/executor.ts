@@ -16,6 +16,7 @@ import { AppError } from "../../middleware/error";
 import { withSpan, toolCallCounter, stepDurationHistogram } from "../../lib/telemetry";
 import { listConnectorToolsForTenant } from "../marketplace/dynamic-tools";
 import type { ToolDefinition } from "../agent/registry";
+import { requireStepApproval } from "./step-approval";
 
 /**
  * E3/T6 takeover plan (§2.5): a CLAIMED handoff for THIS run+stepIndex means the
@@ -206,6 +207,26 @@ export async function executeStep(
         ? `Step "${stepLabel}" needs an agent matching "${agentRole}", but this workspace has: ${available}. Edit the step or rename an agent to match.`
         : `Step "${stepLabel}" needs an agent matching "${agentRole}", but this workspace has no agents yet. Add agents to the workspace, then re-run.`,
     );
+  }
+
+  // BRA-P0-03d: adım-düzeyi onay kapısı (STEP_APPROVAL_GATE, varsayılan KAPALI).
+  // Tüm yürütme yolları (sıralı/paralel runner, /resume, /continue, retry,
+  // /steps/:id/rerun) buradan geçer: onay olmadan adım çalışmaz, RunStep satırı bile açılmaz.
+  // autonomy / araç meta'sından bağımsızdır. Kapalıyken no-op.
+  const gate = await requireStepApproval({
+    tenantId: run.pipeline.company.tenantId,
+    runId,
+    stepIndex,
+    stepName: stepLabel,
+    agentRole,
+    config: stepDef.config,
+  });
+  if (!gate.proceed) {
+    if (gate.reason === "awaiting_approval") {
+      // Koşu WAITING_APPROVAL'da; runner INTERRUPTED'ı finalize etmeden çıkış olarak ele alır.
+      return { stepId: "", status: "INTERRUPTED", reasoning: "Step is waiting for approval", output: null, costUsd: 0, toolCallIds: [] };
+    }
+    return { stepId: "", status: "FAILED", reasoning: gate.message, output: null, costUsd: 0, toolCallIds: [] };
   }
 
   // E3/T6 takeover (§2.5): is there a CLAIMED handoff for THIS run+stepIndex? If
