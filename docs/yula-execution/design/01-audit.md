@@ -44,7 +44,7 @@ Sayı iddiaları ve komutları:
 - Onaylar: `packages/ui/app/approvals/page.tsx`: liste `:36` (hata `.catch(() => {})` ile yutulur), tutar `:166-175`, koşu bağlantısı `:179`, taslak içeriği `:197`, Onayla `:205`, Reddet `:220`. Araç adı, risk, yetki kapsamı veya veri aktarımı gösterilmez (ekranda yok).
 - Ajan yönetimi: şirket detayında model `packages/ui/app/companies/[id]/page.tsx:132-145` ve özerklik (SUPERVISED/BALANCED/AUTONOMOUS) `:164-176`. Doğal dille ajan kurma yüzeyi VAR: `handleCompose` `packages/ui/app/companies/[id]/page.tsx:195-227` → `api.composeAgent` (`:203`, tanım `packages/ui/lib/api.ts:623-631`, uç `POST /companies/:id/agents/compose`); metin kutusu `:746-750`, "oluştur" düğmesi `:791` (en az 10 karakter `:792`); sonuç (ad, düşürülen araçlar, sağlayıcı, model) gösterilir ve ajan doğrudan eklenir (önizleme/onay adımı yok: `:205-213`). Buna karşılık `createAgent`, `deleteAgent`, `rollbackAgent`, `createAgentVersion`, `nlEditPreview/Apply` API'de tanımlı (`packages/ui/lib/api.ts:617-622`, `:745-757`) ama `packages/ui/app` ve `components` altında hiçbir çağrısı yok (`grep -rn "api\.createAgent\|api\.deleteAgent\|api\.rollbackAgent\|api\.nlEdit\|api\.createAgentVersion" app components | wc -l` → 0). UI'da var olan = `composeAgent` + model/özerklik güncelleme; yok olan = klasik oluşturma, silme, sürüm/rollback, NL düzenleme.
 - Çoklu model karşılaştırma yalnız şirket detayı "compare" sekmesinde: `packages/ui/components/ComparePanel.tsx:58`, `:128`; sekme `packages/ui/app/companies/[id]/page.tsx:374`.
-- Model/BYOK: Ayarlar `ai_provider` bölümü `packages/ui/app/settings/page.tsx:58`, kayıt `:408` (`PUT /settings/ai-config`), sağlayıcı listesi `:235`, bağlantı testi `:444`; onboarding BYOK kapısı `packages/ui/app/onboarding/page.tsx:157`, `:340`.
+- Model/BYOK: Ayarlar `ai_provider` bölümü `packages/ui/app/settings/page.tsx:58`, kayıt `:408` (`PUT /settings/ai-config`), sağlayıcı listesi `:235`, bağlantı testi `:444`; onboarding BYOK adımı `packages/ui/app/onboarding/page.tsx:157`; tamamlanma adımında BYOK eksikse yalnız uyarı bandı, Dashboard bağlantısı serbest (`:340`, `:373`): zorunlu kapı değil.
 - Dashboard: 4 KPI kartı `packages/ui/app/dashboard/page.tsx:215-240` (`KpiCard` `:341`).
 
 ### 1.3 Tasarım sistemi (kayıt; değişiklik önerisi yok)
@@ -79,7 +79,7 @@ Bkz. 1.2. Onay tek adımlı: Onayla/Reddet (`approvals/page.tsx:205`, `:220`). M
 
 Kaynak: `docs/yula-execution/DECISIONS.md`, `STATUS.md`; yalnız repo içi belge, kodla çelişen bir satır aranmadı.
 - ADR-0001 (`DECISIONS.md:7`): `Run.status` 7 değerli donmuş projeksiyon, yeni gerçek kaynak `Run.state` (10 değer), "Job" yalnız söz dağarcığı (`:20-21`), durum `Proposed` (`:9`); geçiş sırası şema → sunucu → sözleşme testi → desktop/web → mobil (`:45`); `status` hiçbir zaman kaldırılmaz (`:52`).
-- ADR-0002 (`DECISIONS.md:95`): onay "hak" = kiracı+koşu+eylem hash'i+nonce+süre; bayrak varsayılan kapalı (`:111`, `:117`); `/resume` ve `/continue` bekleyen kapı onayıyla 409 (bayraktan bağımsız); bütçe sözleşmesi `JobBudget`, CLI ile aynı `warnRatio` 0.8 (`:112`).
+- ADR-0002 (`DECISIONS.md:95`): onay "hak" = kiracı+koşu+eylem hash'i+nonce+süre; bayrak varsayılan kapalı (karar 3, `:108`); `/resume` ve `/continue` bekleyen kapı onayıyla 409 (bayraktan bağımsız); bütçe sözleşmesi `JobBudget`, CLI ile aynı `warnRatio` 0.8 (`:112`).
 - ADR-0003 (`DECISIONS.md:161`): kova eşleme (`working | needs_approval | done | stuck`) tek kaynak `core/types/job.ts`; web/mobil/desktop aynı fonksiyonu kullanmalı (`:163`). Ek not 04d (`:178-198`): heartbeat yazıcısı ve idempotent retry yalnız `JOB_STATE_DUAL_WRITE` açıkken; hiyerarşik retry kapalı (`:182`); 409 kod tablosu (`:189-198`).
 - 03b/03d: 03b notu (`/jobs/start`) bu SHA'daki `DECISIONS.md`'de yok (PR #123 açık); 03d bileti vault backlog `10 Holding/📋 YULA İcra Backlog.md:141`'de READY.
 - Güncel karar/denetim notları: STATUS 02c özeti (`STATUS.md:185`) "kalıcı merge kuralıyla" yedi alt PR; webhook sırları için kurucu kararı "Yenileme gerekmez" (`STATUS.md:203`); deploy ve migration kurucu onayı ister, merge onayı sayılmaz (`STATUS.md:205`, `:134`); `v*` etiketi = prod deploy (`:134`).
@@ -183,7 +183,10 @@ Kaynak: `git archive origin/main`; satır numaraları bu arşivdendir (ipucu dos
 
 ## 10. Ekran görüntüleri
 
-Web: BURAYA EKLENECEK
-Desktop: BURAYA EKLENECEK
-CLI: BURAYA EKLENECEK
-Mobil: BURAYA EKLENECEK
+Görüntüler repo dışında tutulur (ikili dosya; depoya konmaz): `scratch/2026-11-09-bra-ux-01/screens/` (YULAlab-AI kökü), dizin `INDEX.md` (dosya · yüzey · sayfa · görünüm · veri türü · ne gösteriyor · gözlenen sorun). Toplam 40 PNG: web 38, CLI 2.
+
+- **Web (38 PNG):** Kaynak `wt-bra-ux-01` `packages/ui`, `next dev` :3100, Chrome headless. Herkese açık sayfalar GERÇEK (API'siz): `/`, `/pricing`, `/login`, `/register`, `/features`; her biri masaüstü 1440×900 ve mobil 390×844, koyu ve açık (20 PNG). Girişli sayfalar SAHTE API yanıtlarıyla çizildi (Playwright route-interception; gerçek veri yok; dosya adı `-mock`): `/dashboard`, `/approvals` (dolu, boş, API hatası), `/runs` (dolu, boş), `/companies`, `/settings` (18 PNG).
+- **CLI (2 PNG):** `braavo --help` ve `setup`/`skills`/`ask` (gerçek çıktı, ağsız komutlar, boş yapılandırma). Kaynak `cli` `origin/main` `ed3692e` (v1.1.0), scratch kopyasında derlendi; `FORCE_COLOR=1` ile bile ANSI renk üretmedi, düz metin terminal çerçevesine dökülmüştür.
+- **Desktop ve Mobil: ALINMADI.** Tauri derlemesi ve Expo web/simülatör derlemesi zaman kutusu nedeniyle denenmedi; bu iki yüzeyin envanteri yalnız koda dayanır (§2, §4). Sonraki bilette (UX-04 prototipi) denenebilir.
+- **Gözlemler (ayrıntı INDEX.md'de; çözüm önerisi değil, durum tespiti):** (1) `/approvals` API 500 döndüğünde "Her şey temiz!" boş durumu görünüyor, hata mesajı ve yeniden deneme yok (`packages/ui/app/approvals/page.tsx:36` hatayı yutar, bkz. §1); (2) `/settings` masaüstünde bildirim zili "Çıkış" düğmesinin üstüne biniyor; (3) çerez bandı genel sayfalarda ilk ekranın bir bölümünü kapatıyor; (4) CLI `--help` 40+ komutu gruplamadan tek düz liste olarak veriyor.
+- **Sınır:** Girişli web ekranlarındaki "Bilinmeyen Çalışma Alanı", "—" yer tutucuları ve plan "FREE" gibi öğeler kısmen sahte veriden kaynaklanır; gerçek veriyle doğrulanmamıştır.
