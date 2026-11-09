@@ -182,4 +182,16 @@ Bayrağı kapat (`EXACT_ACTION_APPROVAL` ayarlama) → kapı eski davranış; `r
 - **Hiyerarşik retry kapalı:** hiyerarşik pipeline (`pipelineType=HIERARCHICAL`, runner'ın hiyerarşik yola girdiği aynı koşul, `isHierarchicalPipeline`) için retry 409 `run_not_retryable` + `reason:"hierarchical_not_supported"`; CAS'tan önce, durum/enqueue/retryCount değişmez. Gerekçe: hiyerarşik runner tamamlanmış delegasyonları atlamaz (priorCompleted restore yalnız sıralı runner'da) ve `ctx.totalCost` 0'dan başlayıp `run.costUsd`'yi bu bacağın maliyetiyle ezer. Hiyerarşik retry: **BRA-P0-04j** bileti (prior COMPLETED delegasyon + maliyet tohumlama). **Bilinen açık (02c-5'ten beri, bu PR'da çözülmedi):** hiyerarşik runner `run.costUsd`'yi bacak maliyetiyle ezer; maxUsd bu yüzden resume'larda sıfırlanabilir.
 - **Bilinen risk:** FAILED adım retry'da baştan koşar (yinelenen RunStep); onaysız yan etkili araçlar tekrarlanabilir (araç düzeyi idempotency yok); onaylı araçlar tüketilmiş onayla yeni onay ister. Yanıta uyarı alanı eklenmedi (anahtar seti sözleşmesi).
 - **Bilinen sınır:** CAS commit'inden sonra, enqueue öncesi süreç ölürse koşu işsiz RUNNING kalır (`/resume` ile aynı kalıp); 04e `stop` ile çözülür (bayat heartbeat → `stuck`).
+- **Retry 409 sözleşmesi** (gövde `{error: <kod>, code: <kod>, details?}`; başka kiracı 404):
+
+| Kod | Ne zaman |
+|---|---|
+| `retry_disabled` | `JOB_STATE_DUAL_WRITE` kapalı |
+| `run_not_retryable` | NEEDS_APPROVAL/WAITING_APPROVAL, bitmiş koşu, PENDING; hiyerarşik pipeline'da `details.reason:"hierarchical_not_supported"` |
+| `run_still_running` | RUNNING ve bayat heartbeat (önce stop, 04e) |
+| `already_retrying` | RESUMING/taze RUNNING ya da CAS yarışı kaybedildi |
+| `approval_pending` | açık onay var (atlama yok) |
+| `retry_budget_exhausted` | `evaluateRetryBudget` reddetti ya da tx içi koşullu sayaç artışı (`retryCount < limit`) limiti dolu buldu (yarış; tx rollback) |
+
+Limit tek kaynak: `retryLimit()` (`jobBudget.maxRetries` ?? 3); sayaç artışı CAS'tan sonra koşullu, yanıt/log/iade artırılmış güncel değeri tx içinden okur.
 - **Geri alma:** bayrak kapalı (heartbeat ve retry etkisiz) + commit revert.

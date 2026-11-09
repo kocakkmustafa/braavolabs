@@ -21,7 +21,7 @@ import { hasOpenApproval } from "../approval/exact-action";
 import { transitionRun, isJobStateDualWriteEnabled, currentJobState } from "./transition";
 import { assertTransitioned, resumeToRunning, AlreadyRunningError, revertRunAfterEnqueueFailure } from "./resume";
 import { decideResume, toLegacyStatus, type JobState } from "./job-state";
-import { evaluateRetryBudget, isHierarchicalPipeline } from "./retry";
+import { evaluateRetryBudget, isHierarchicalPipeline, retryLimit } from "./retry";
 import { toJobReceiptDto } from "./receipt";
 import { env } from "../../config/env";
 import { toPublicCompany } from "../company/redact";
@@ -426,6 +426,7 @@ runRouter.post("/:id/resume", async (req, res, next) => {
 // heartbeat and `retry_count` are only maintained with the flag on.
 const retryCodes = (status: number, code: string, details?: unknown) => new AppError(status, code, details, code);
 class RetryConflict extends Error {}
+class RetryBudgetRace extends Error {}
 
 runRouter.post("/:id/retry", async (req, res, next) => {
   try {
@@ -466,7 +467,9 @@ runRouter.post("/:id/retry", async (req, res, next) => {
     const budget = evaluateRetryBudget({ jobBudget: run.jobBudget, retryCount: run.retryCount, costUsd: run.costUsd, steps: run.steps });
     if (!budget.allowed) throw retryCodes(409, "retry_budget_exhausted", { reason: budget.reason, stopped: budget.stopped });
 
-    const retryCount = (run.retryCount ?? 0) + 1;
+    const limit = retryLimit(run.jobBudget);
+    const tenantScope = { pipeline: { company: { tenantId } } };
+    let retryCount = (run.retryCount ?? 0) + 1; // tx içinde GÜNCEL değerle değiştirilir
     try {
       await tenantTx(async (tx) => {
         const first = await transitionRun(tx, run.id, "RESUMING", { tenantId, dualWrite: true, onlyIfStatus: ["FAILED", "PAUSED"] });
@@ -479,11 +482,16 @@ runRouter.post("/:id/retry", async (req, res, next) => {
           message: "Run cannot be resumed from its current state",
         });
         // Retry accounting + a fresh heartbeat (the old one is stale) in the winner's tx.
+        // Koşullu artış: kota kararı CAS öncesi okumaya dayanır; araya başka retry girdiyse
+        // sayaç limitin altında kalmazsa artmaz → tx rollback, limit asla aşılmaz.
         const acct = await tx.run.updateMany({
-          where: { id: run.id, status: "RUNNING" },
+          where: { id: run.id, status: "RUNNING", retryCount: { lt: limit }, ...tenantScope },
           data: { retryCount: { increment: 1 }, heartbeatAt: new Date() },
         });
-        if (acct.count !== 1) throw new RetryConflict();
+        if (acct.count !== 1) throw new RetryBudgetRace();
+        // Yanıt/log/iade koşulu için artırılmış GÜNCEL değer (bayat okuma değil).
+        const fresh = (await tx.run.findFirst({ where: { id: run.id, ...tenantScope }, select: { retryCount: true } })) as { retryCount: number | null } | null;
+        retryCount = fresh?.retryCount ?? retryCount;
         await tx.activityLog.create({
           data: {
             tenantId,
@@ -497,6 +505,7 @@ runRouter.post("/:id/retry", async (req, res, next) => {
       });
     } catch (err) {
       if (err instanceof RetryConflict) throw retryCodes(409, "already_retrying");
+      if (err instanceof RetryBudgetRace) throw retryCodes(409, "retry_budget_exhausted", { reason: "retry limit reached concurrently", stopped: ["retries"] });
       throw err;
     }
 
@@ -509,7 +518,7 @@ runRouter.post("/:id/retry", async (req, res, next) => {
       await tenantTx(async (tx) => {
         const reverted = await revertRunAfterEnqueueFailure(tx, run.id, tenantId, cur);
         if (!reverted) return;
-        await tx.run.updateMany({ where: { id: run.id, status: toLegacyStatus(cur), retryCount }, data: { retryCount: { decrement: 1 } } });
+        await tx.run.updateMany({ where: { id: run.id, status: toLegacyStatus(cur), retryCount, ...tenantScope }, data: { retryCount: { decrement: 1 } } });
       }).catch(() => undefined);
       throw err;
     }

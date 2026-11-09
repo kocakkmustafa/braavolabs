@@ -23,6 +23,12 @@ export type RetryBudgetDecision =
   | { allowed: true }
   | { allowed: false; reason: string; stopped: string[] };
 
+/** Retry sınırı: `evaluateRetryBudget` ile retry rotasının koşullu sayaç artışı AYNI limiti kullanır. */
+export function retryLimit(jobBudget: unknown): number {
+  const parsed = parseJobBudget(jobBudget);
+  return (parsed.ok ? parsed.budget?.maxRetries : undefined) ?? DEFAULT_MAX_RETRIES;
+}
+
 export function evaluateRetryBudget(run: RetryBudgetInput): RetryBudgetDecision {
   const parsed = parseJobBudget(run.jobBudget);
   if (!parsed.ok) return { allowed: false, reason: "Job budget is invalid; run not restarted (fail-closed)", stopped: ["budget"] };

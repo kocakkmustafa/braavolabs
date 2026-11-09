@@ -15,6 +15,7 @@ const store = vi.hoisted(() => ({
   pipelineType: "SEQUENTIAL",
   steps: [] as any[],
   beforeWrite: null as null | (() => void),
+  beforeAcct: null as null | (() => void),
   writes: [] as Array<{ where: Record<string, any>; data: Record<string, any> }>,
   undo: [] as Array<{ prev: Record<string, any>; wrote: Record<string, any> }>,
 }));
@@ -40,12 +41,18 @@ vi.mock("../../../lib/db", () => {
     },
     updateMany: async (args: { where: Record<string, any>; data: Record<string, any> }) => {
       store.writes.push(args);
+      if ("retryCount" in args.data && !("decrement" in (args.data.retryCount ?? {}))) {
+        const h = store.beforeAcct;
+        store.beforeAcct = null;
+        h?.();
+      }
       const hook = store.beforeWrite;
       store.beforeWrite = null;
       hook?.();
       const w = args.where;
       if (w.status !== undefined && w.status !== store.row.status) return { count: 0 };
       if ("state" in w && w.state !== store.row.state) return { count: 0 };
+      if (w.retryCount?.lt !== undefined && !(store.row.retryCount < w.retryCount.lt)) return { count: 0 };
       if (typeof w.retryCount === "number" && w.retryCount !== store.row.retryCount) return { count: 0 };
       const prev: Record<string, any> = {};
       for (const k of Object.keys(args.data)) prev[k] = store.row[k];
@@ -121,6 +128,7 @@ beforeEach(() => {
   store.pipelineType = "SEQUENTIAL";
   store.steps = [];
   store.beforeWrite = null;
+  store.beforeAcct = null;
   store.writes.length = 0;
   approvalFindFirst.mockResolvedValue(null);
   enqueueRunMock.mockResolvedValue(undefined);
@@ -290,5 +298,42 @@ describe("POST /runs/:id/retry", () => {
     await invoke(retry);
     expect(store.row.retryCount).toBe(1);
     expect(store.row.retryCount).toBeGreaterThanOrEqual(0);
+  });
+
+  it("race: another retry bumps retryCount to the limit between read and accounting → 409 retry_budget_exhausted, tx rolled back, limit never exceeded", async () => {
+    setRun("FAILED", "FAILED", { retryCount: 2 });
+    store.beforeAcct = () => { store.row.retryCount = 3; };
+    const { nextErr } = await invoke(retry);
+    expect(nextErr?.statusCode).toBe(409);
+    expect(nextErr?.message).toBe("retry_budget_exhausted");
+    expect(store.row).toMatchObject({ status: "FAILED", state: "FAILED", retryCount: 3 });
+    expect(enqueueRunMock).not.toHaveBeenCalled();
+    expect(activityLogCreate).not.toHaveBeenCalled();
+  });
+
+  it("response, audit and refund use the CURRENT incremented value, not the stale read", async () => {
+    setRun("FAILED", "FAILED", { retryCount: 1 });
+    store.beforeAcct = () => { store.row.retryCount = 2; };
+    const { res } = await invoke(retry);
+    expect(res.body).toMatchObject({ retryCount: 3 });
+    expect(activityLogCreate.mock.calls[0][0].data.details.retryCount).toBe(3);
+    // refund matches the current value (3 → 2)
+    setRun("FAILED", "FAILED", { retryCount: 1 });
+    store.beforeAcct = () => { store.row.retryCount = 2; };
+    enqueueRunMock.mockRejectedValueOnce(new Error("redis down"));
+    await invoke(retry);
+    expect(store.row).toMatchObject({ status: "FAILED", retryCount: 2 });
+  });
+
+  it("accounting and refund updates are tenant-scoped (rule #10) and limit-conditioned", async () => {
+    setRun("FAILED", "FAILED", { jobBudget: { maxRetries: 5 } });
+    enqueueRunMock.mockRejectedValueOnce(new Error("redis down"));
+    await invoke(retry);
+    const scope = { company: { tenantId: "tenant-1" } };
+    const acct = store.writes.find((w) => "heartbeatAt" in w.data)!;
+    expect(acct.where.pipeline).toEqual(scope);
+    expect(acct.where.retryCount).toEqual({ lt: 5 });
+    const refund = store.writes.find((w) => w.data.retryCount && "decrement" in w.data.retryCount)!;
+    expect(refund.where.pipeline).toEqual(scope);
   });
 });
