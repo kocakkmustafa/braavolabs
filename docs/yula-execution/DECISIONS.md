@@ -198,6 +198,8 @@ Bayrağı kapat (`EXACT_ACTION_APPROVAL` ayarlama) → kapı eski davranış; `r
 Limit tek kaynak: `retryLimit()` (`jobBudget.maxRetries` ?? 3); sayaç artışı CAS'tan sonra koşullu, yanıt/log/iade artırılmış güncel değeri tx içinden okur.
 - **Geri alma:** bayrak kapalı (heartbeat ve retry etkisiz) + commit revert.
 
+- **BRA-UX-API-01 notu (2026-11-10, onay ayrıntı alanları):** `GET /approvals` (düz liste ve `?groupBy=run`) her onay satırına EK `details` nesnesi koyar (`approval/details.ts`, saf; `packages/core` `ApprovalDetails`, opsiyonel). Mevcut `description/amountUsd/metadata.toolName` ve imleç şekilleri (`X-Next-Cursor` başlığı / `{groups,nextCursor}`) DEĞİŞMEZ; migration yok; web/mobil/desktop tüketimi bu PR'da DEĞİŞMEZ. Ham `metadata` yanıta çıkmaz (yanıt düzeyinde allowlist: yalnız dört alan); gizli görünen anahtarlar (token/secret/key/passw/authorization/credential/cookie/bearer/signature) ve değerler düşer; string ≤200, dizi ≤10. **Kaynaklar:** `risk` = yalnız adım kapısında `metadata.risk` (low|medium|high), diğer tipler `null` (araç `riskLevel`i metadata'ya yazılmıyor: kaynak yok); `permissions` = `metadata.tool` (adım kapısı) / `metadata.toolName` (araç kapısı) / `toolName:ACTION` (EXTERNAL_CONTROL), INPUT ve HANDOFF `null`; `dataTransfer` = araç kapısında `toolName ← girdi alanları: a, b` (yalnız alan ADLARI), EXTERNAL_CONTROL bağlantı/hedef kimliği, HANDOFF sağlayıcı/model; adım kapısı ve INPUT `null`; `reversible` = **her zaman `null`** (hiçbir yerde kayıtlı değil). Daha dolu değer için onay oluşturan yerlerin metadata'ya (şemasız JSON) araç riskLevel/geri-alma bilgisi yazması gerekir; ayrı iş.
+
 ---
 
 ## ADR-0004 — Web arayüzü yönü: Niyet Çubuğu + İş Gelen Kutusu omurgası (BRA-UX-03)

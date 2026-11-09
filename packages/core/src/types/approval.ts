@@ -15,3 +15,23 @@ export interface DecideApprovalInput {
   decision: "APPROVED" | "REJECTED";
   decidedBy: string;
 }
+
+/**
+ * BRA-UX-API-01 — GET /approvals yanıtındaki OPSİYONEL ek alan (eski istemciler kırılmaz).
+ * Kapalı şema; kaynak olmayan alan null döner (bkz. DECISIONS.md ADR-0003 BRA-UX-API-01 notu).
+ */
+export type ApprovalRisk = "low" | "medium" | "high";
+
+export interface ApprovalDetails {
+  risk: ApprovalRisk | null;
+  /** İstenen yetki/araç kapsamı. */
+  permissions: string[] | null;
+  /** Hangi veri nereye (alan adları; değer yok). */
+  dataTransfer: string[] | null;
+  /** Geri alınabilirlik; bugün hiçbir kaynakta kayıtlı değil → her zaman null. */
+  reversible: boolean | null;
+}
+
+export interface ApprovalListItemExtras {
+  details?: ApprovalDetails;
+}
