@@ -22,7 +22,8 @@
     "settings": "Impostazioni",
     "newWorkspace": "Nuovo spazio di lavoro",
     "quickStart": "Avvio rapido",
-    "inbox": "Posta in arrivo"
+    "inbox": "Posta in arrivo",
+    "start": "Nuovo lavoro"
   },
   "features": {
     "badge": "FUNZIONALITÀ DELLA PIATTAFORMA",
@@ -1302,6 +1303,41 @@
       "dismiss": "Chiudi",
       "approvalForbidden": "Non hai il permesso di decidere le approvazioni.",
       "actionRejected": "Il lavoro non è in uno stato che consenta questa azione."
+    },
+    "plan": {
+      "title": "Descrivi un lavoro",
+      "workspace": "Spazio di lavoro",
+      "workspaceChoose": "Scegli uno spazio di lavoro",
+      "messageLabel": "Cosa va fatto?",
+      "messagePlaceholder": "Es.: preparare il report settimanale delle vendite",
+      "suggest": "Proponi un piano",
+      "planning": "Preparazione del piano…",
+      "empty": "Questo messaggio non sembra un lavoro; nessun piano proposto.",
+      "retry": "Riprova",
+      "steps": "Passaggi",
+      "tools": "Strumenti",
+      "risk": {
+        "label": "Rischio",
+        "low": "Basso",
+        "medium": "Medio",
+        "high": "Alto"
+      },
+      "cost": "Costo stimato (non garantito)",
+      "costUnknown": "Prezzo sconosciuto per questo modello; nessun intervallo di costo",
+      "approvalStep": "richiede approvazione",
+      "run": "Esegui",
+      "cancel": "Annulla",
+      "starting": "Avvio…",
+      "approvalGate": "Questo lavoro richiede approvazione; al momento è disattivata.",
+      "planChanged": "Il piano è cambiato. Proponi di nuovo un piano.",
+      "workspaceRequired": "Scegli prima uno spazio di lavoro.",
+      "replan": "Suggest the plan again",
+      "noCompany": "Create a company first.",
+      "createCompany": "Create a company",
+      "keyConflict": "This request key was used for a different plan. Suggest the plan again.",
+      "companyInactive": "The company is paused or archived; new jobs cannot start.",
+      "noAgent": "This workspace has no agent to run the job.",
+      "validation": "The request could not be validated. Check the message and retry."
     }
   },
   "static": {

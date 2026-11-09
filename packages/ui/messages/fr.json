@@ -22,7 +22,8 @@
     "settings": "Paramètres",
     "newWorkspace": "Nouvel espace de travail",
     "quickStart": "Démarrage rapide",
-    "inbox": "Boîte de réception"
+    "inbox": "Boîte de réception",
+    "start": "Nouvelle tâche"
   },
   "features": {
     "badge": "CAPACITÉS DE LA PLATEFORME",
@@ -1302,6 +1303,41 @@
       "dismiss": "Fermer",
       "approvalForbidden": "Vous n’avez pas l’autorisation de décider des approbations.",
       "actionRejected": "La tâche n’est pas dans un état qui permet cette action."
+    },
+    "plan": {
+      "title": "Décrire une tâche",
+      "workspace": "Espace de travail",
+      "workspaceChoose": "Choisir un espace de travail",
+      "messageLabel": "Que faut-il faire ?",
+      "messagePlaceholder": "Ex. : préparer le rapport de ventes hebdomadaire",
+      "suggest": "Proposer un plan",
+      "planning": "Préparation du plan…",
+      "empty": "Ce message ne ressemble pas à une tâche ; aucun plan proposé.",
+      "retry": "Réessayer",
+      "steps": "Étapes",
+      "tools": "Outils",
+      "risk": {
+        "label": "Risque",
+        "low": "Faible",
+        "medium": "Moyen",
+        "high": "Élevé"
+      },
+      "cost": "Coût estimé (non garanti)",
+      "costUnknown": "Prix inconnu pour ce modèle ; aucune fourchette de coût",
+      "approvalStep": "approbation requise",
+      "run": "Lancer",
+      "cancel": "Annuler",
+      "starting": "Démarrage…",
+      "approvalGate": "Cette tâche requiert une approbation ; elle est actuellement désactivée.",
+      "planChanged": "Le plan a changé. Proposez à nouveau un plan.",
+      "workspaceRequired": "Choisissez d'abord un espace de travail.",
+      "replan": "Suggest the plan again",
+      "noCompany": "Create a company first.",
+      "createCompany": "Create a company",
+      "keyConflict": "This request key was used for a different plan. Suggest the plan again.",
+      "companyInactive": "The company is paused or archived; new jobs cannot start.",
+      "noAgent": "This workspace has no agent to run the job.",
+      "validation": "The request could not be validated. Check the message and retry."
     }
   },
   "static": {

@@ -22,7 +22,8 @@
     "settings": "Ustawienia",
     "newWorkspace": "Nowy obszar roboczy",
     "quickStart": "Szybki start",
-    "inbox": "Skrzynka zadań"
+    "inbox": "Skrzynka zadań",
+    "start": "Nowe zadanie"
   },
   "features": {
     "badge": "MOŻLIWOŚCI PLATFORMY",
@@ -1302,6 +1303,41 @@
       "dismiss": "Zamknij",
       "approvalForbidden": "Nie masz uprawnień do rozstrzygania zatwierdzeń.",
       "actionRejected": "Zadanie nie jest w stanie, który pozwala na tę akcję."
+    },
+    "plan": {
+      "title": "Opisz zadanie",
+      "workspace": "Przestrzeń robocza",
+      "workspaceChoose": "Wybierz przestrzeń roboczą",
+      "messageLabel": "Co należy zrobić?",
+      "messagePlaceholder": "Np. przygotuj tygodniowy raport sprzedaży",
+      "suggest": "Zaproponuj plan",
+      "planning": "Przygotowywanie planu…",
+      "empty": "Ta wiadomość nie wygląda na zadanie; nie zaproponowano planu.",
+      "retry": "Spróbuj ponownie",
+      "steps": "Kroki",
+      "tools": "Narzędzia",
+      "risk": {
+        "label": "Ryzyko",
+        "low": "Niskie",
+        "medium": "Średnie",
+        "high": "Wysokie"
+      },
+      "cost": "Szacowany koszt (bez gwarancji)",
+      "costUnknown": "Cena tego modelu jest nieznana; brak przedziału kosztu",
+      "approvalStep": "wymaga zatwierdzenia",
+      "run": "Uruchom",
+      "cancel": "Anuluj",
+      "starting": "Uruchamianie…",
+      "approvalGate": "To zadanie wymaga zatwierdzenia; jest ono teraz wyłączone.",
+      "planChanged": "Plan się zmienił. Zaproponuj plan ponownie.",
+      "workspaceRequired": "Najpierw wybierz przestrzeń roboczą.",
+      "replan": "Suggest the plan again",
+      "noCompany": "Create a company first.",
+      "createCompany": "Create a company",
+      "keyConflict": "This request key was used for a different plan. Suggest the plan again.",
+      "companyInactive": "The company is paused or archived; new jobs cannot start.",
+      "noAgent": "This workspace has no agent to run the job.",
+      "validation": "The request could not be validated. Check the message and retry."
     }
   },
   "static": {

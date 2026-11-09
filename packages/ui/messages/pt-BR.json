@@ -22,7 +22,8 @@
     "settings": "Configurações",
     "newWorkspace": "Novo espaço de trabalho",
     "quickStart": "Início rápido",
-    "inbox": "Caixa de entrada"
+    "inbox": "Caixa de entrada",
+    "start": "Novo trabalho"
   },
   "features": {
     "badge": "RECURSOS DA PLATAFORMA",
@@ -1302,6 +1303,41 @@
       "dismiss": "Dispensar",
       "approvalForbidden": "Você não tem permissão para decidir aprovações.",
       "actionRejected": "O trabalho não está em um estado que permita esta ação."
+    },
+    "plan": {
+      "title": "Descreva um trabalho",
+      "workspace": "Espaço de trabalho",
+      "workspaceChoose": "Escolha um espaço de trabalho",
+      "messageLabel": "O que deve ser feito?",
+      "messagePlaceholder": "Ex.: preparar o relatório semanal de vendas",
+      "suggest": "Sugerir um plano",
+      "planning": "Preparando o plano…",
+      "empty": "Esta mensagem não parece um trabalho; nenhum plano foi sugerido.",
+      "retry": "Tentar novamente",
+      "steps": "Etapas",
+      "tools": "Ferramentas",
+      "risk": {
+        "label": "Risco",
+        "low": "Baixo",
+        "medium": "Médio",
+        "high": "Alto"
+      },
+      "cost": "Custo estimado (sem garantia)",
+      "costUnknown": "Preço desconhecido para este modelo; sem faixa de custo",
+      "approvalStep": "requer aprovação",
+      "run": "Executar",
+      "cancel": "Cancelar",
+      "starting": "Iniciando…",
+      "approvalGate": "Este trabalho exige aprovação; no momento está desativada.",
+      "planChanged": "O plano mudou. Sugira um plano novamente.",
+      "workspaceRequired": "Escolha primeiro um espaço de trabalho.",
+      "replan": "Suggest the plan again",
+      "noCompany": "Create a company first.",
+      "createCompany": "Create a company",
+      "keyConflict": "This request key was used for a different plan. Suggest the plan again.",
+      "companyInactive": "The company is paused or archived; new jobs cannot start.",
+      "noAgent": "This workspace has no agent to run the job.",
+      "validation": "The request could not be validated. Check the message and retry."
     }
   },
   "static": {

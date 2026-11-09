@@ -2,6 +2,7 @@ import type { InboxBucket, JobReceipt } from "@ai-company-os/core";
 import { parseRunsPage, parseApprovalGroupsPage } from "./inboxParse";
 import { parseCompareOptions, parseCompareSession, type CompareRequest } from "./compare";
 import { parseApprovalDecision } from "./approvalDecision";
+import { parsePlanResponse, parseStartResponse, planRequestBody } from "./planCardParse";
 import { requestDeadline } from "./request-deadline";
 import { defaultLocale, localeFromCookieHeader } from "../i18n/locales";
 import {
@@ -32,7 +33,7 @@ interface FetchOptions extends RequestInit {
 }
 
 export class ApiRequestError extends Error {
-  constructor(public readonly status: number, message: string, public readonly code?: string) {
+  constructor(public readonly status: number, message: string, public readonly code?: string, public readonly serverError?: string) {
     super(message);
     this.name = "ApiRequestError";
   }
@@ -145,7 +146,7 @@ async function throwApiError(res: Response, session: AuthSessionSnapshot, deadli
     body?.issues?.[0]?.message ||
     body?.error ||
     `API error: ${res.status}`;
-  throw new ApiRequestError(res.status, detail, typeof body?.code === "string" ? body.code : undefined);
+  throw new ApiRequestError(res.status, detail, typeof body?.code === "string" ? body.code : undefined, typeof body?.error === "string" ? body.error : undefined);
 }
 
 export async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
@@ -406,6 +407,12 @@ export const api = {
     apiFetch<unknown>(`/runs/${encodeURIComponent(runId)}/${action}`, { method: "POST", body: JSON.stringify({}), token }),
   runReceipt: (token: string, runId: string, signal?: AbortSignal) =>
     apiFetch<JobReceipt>(`/runs/${encodeURIComponent(runId)}/receipt`, { token, signal }),
+
+  // Plan kartı (BRA-P0-03c) — POST /jobs/plan (LLM'siz kart) ve POST /jobs/start (onaylı kart → koşu)
+  jobPlan: (token: string, message: string, workspaceId?: string, signal?: AbortSignal) =>
+    apiFetch<unknown>("/jobs/plan", { method: "POST", body: JSON.stringify(planRequestBody(message, workspaceId)), token, signal, timeoutMs: 60_000 }).then(parsePlanResponse),
+  jobStart: (token: string, body: { message: string; workspaceId?: string; planHash: string; idempotencyKey: string }, signal?: AbortSignal) =>
+    apiFetch<unknown>("/jobs/start", { method: "POST", body: JSON.stringify(body), token, signal, timeoutMs: 60_000 }).then(parseStartResponse),
 
   // Drafts
   listDrafts: (token: string, companyId: string) =>

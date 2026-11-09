@@ -22,7 +22,8 @@
     "settings": "Settings",
     "newWorkspace": "New Workspace",
     "quickStart": "Quick Start",
-    "inbox": "Inbox"
+    "inbox": "Inbox",
+    "start": "New job"
   },
   "features": {
     "badge": "PLATFORM CAPABILITIES",
@@ -1302,6 +1303,41 @@
       "dismiss": "Dismiss",
       "approvalForbidden": "You do not have permission to decide approvals.",
       "actionRejected": "The job is not in a state that allows this action."
+    },
+    "plan": {
+      "title": "Describe a job",
+      "workspace": "Workspace",
+      "workspaceChoose": "Choose a workspace",
+      "messageLabel": "What should be done?",
+      "messagePlaceholder": "E.g. prepare the weekly sales report",
+      "suggest": "Suggest a plan",
+      "planning": "Preparing the plan…",
+      "empty": "This message does not look like a job request; no plan was suggested.",
+      "retry": "Retry",
+      "steps": "Steps",
+      "tools": "Tools",
+      "risk": {
+        "label": "Risk",
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      },
+      "cost": "Estimated cost (not a guarantee)",
+      "costUnknown": "Price unknown for this model; no cost range available",
+      "approvalStep": "approval required",
+      "run": "Run",
+      "cancel": "Cancel",
+      "starting": "Starting…",
+      "approvalGate": "This job requires approval; the step approval gate is currently turned off.",
+      "planChanged": "The plan changed. Please suggest a plan again.",
+      "workspaceRequired": "Choose a workspace first.",
+      "replan": "Suggest the plan again",
+      "noCompany": "Create a company first.",
+      "createCompany": "Create a company",
+      "keyConflict": "This request key was used for a different plan. Suggest the plan again.",
+      "companyInactive": "The company is paused or archived; new jobs cannot start.",
+      "noAgent": "This workspace has no agent to run the job.",
+      "validation": "The request could not be validated. Check the message and retry."
     }
   },
   "static": {

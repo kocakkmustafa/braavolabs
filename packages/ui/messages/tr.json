@@ -22,7 +22,8 @@
     "settings": "Ayarlar",
     "newWorkspace": "Yeni Çalışma Alanı",
     "quickStart": "Hızlı Başlangıç",
-    "inbox": "Gelen kutusu"
+    "inbox": "Gelen kutusu",
+    "start": "Yeni iş"
   },
   "features": {
     "badge": "PLATFORM YETKİNLİKLERİ",
@@ -1302,6 +1303,41 @@
       "dismiss": "Kapat",
       "approvalForbidden": "Onay kararı vermek için yetkiniz yok.",
       "actionRejected": "İş bu eyleme izin veren bir durumda değil."
+    },
+    "plan": {
+      "title": "Bir iş tarif et",
+      "workspace": "Çalışma alanı",
+      "workspaceChoose": "Çalışma alanı seç",
+      "messageLabel": "Ne yapılmasını istiyorsun?",
+      "messagePlaceholder": "Örn. haftalık satış raporunu hazırla",
+      "suggest": "Plan öner",
+      "planning": "Plan hazırlanıyor…",
+      "empty": "Bu mesaj bir iş talebi gibi görünmüyor; plan önerilmedi.",
+      "retry": "Yeniden dene",
+      "steps": "Adımlar",
+      "tools": "Araçlar",
+      "risk": {
+        "label": "Risk",
+        "low": "Düşük",
+        "medium": "Orta",
+        "high": "Yüksek"
+      },
+      "cost": "Tahmini maliyet (garanti değil)",
+      "costUnknown": "Bu model için fiyat bilinmiyor; maliyet aralığı verilemedi",
+      "approvalStep": "onay gerekli",
+      "run": "Çalıştır",
+      "cancel": "Vazgeç",
+      "starting": "Başlatılıyor…",
+      "approvalGate": "Bu iş onay gerektirir; adım onay kapısı şu an kapalı.",
+      "planChanged": "Plan değişti. Lütfen yeniden plan öner.",
+      "workspaceRequired": "Önce bir çalışma alanı seç.",
+      "replan": "Planı yeniden öner",
+      "noCompany": "Önce bir şirket oluştur.",
+      "createCompany": "Şirket oluştur",
+      "keyConflict": "Bu istek anahtarı başka bir planla kullanılmış. Planı yeniden öner.",
+      "companyInactive": "Şirket duraklatılmış veya arşivlenmiş; yeni iş başlatılamaz.",
+      "noAgent": "Bu çalışma alanında işi yürütecek ajan yok.",
+      "validation": "İstek doğrulanamadı. Mesajı kontrol edip yeniden dene."
     }
   },
   "static": {
