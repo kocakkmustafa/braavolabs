@@ -21,7 +21,8 @@
     "billing": "Penagihan",
     "settings": "Pengaturan",
     "newWorkspace": "Ruang kerja baru",
-    "quickStart": "Mulai cepat"
+    "quickStart": "Mulai cepat",
+    "inbox": "Kotak masuk"
   },
   "features": {
     "badge": "KEMAMPUAN PLATFORM",
@@ -1206,6 +1207,95 @@
     },
     "register": {
       "freePlan": "Paket gratis"
+    },
+    "inbox": {
+      "title": "Kotak masuk",
+      "subtitle": "Semua pekerjaan di satu tempat: berjalan, menunggu Anda, selesai, dan tersendat.",
+      "tabsLabel": "Kelompok pekerjaan",
+      "bucket": {
+        "working": "Berjalan",
+        "needs_approval": "Perlu persetujuan",
+        "done": "Selesai",
+        "stuck": "Tersendat"
+      },
+      "loading": "Memuat…",
+      "emptyWorking": "Tidak ada yang berjalan saat ini.",
+      "emptyNeedsApproval": "Tidak ada pekerjaan yang menunggu persetujuan.",
+      "emptyDone": "Belum ada pekerjaan yang selesai.",
+      "emptyStuck": "Tidak ada yang tersendat.",
+      "errorTitle": "Pekerjaan tidak dapat dimuat",
+      "errorBody": "Server tidak merespons dengan benar, jadi daftar ini mungkin sebenarnya tidak kosong. Coba lagi.",
+      "approvalsErrorTitle": "Persetujuan tertunda tidak dapat dimuat",
+      "retryLoad": "Coba lagi",
+      "loadMore": "Muat lebih banyak",
+      "loadingMore": "Memuat…",
+      "loadMoreError": "Tidak dapat memuat lebih banyak. Coba lagi.",
+      "approvalsTitle": "Persetujuan tertunda",
+      "jobsTitle": "Pekerjaan",
+      "approvalsEmpty": "Tidak ada persetujuan tertunda.",
+      "approve": "Setujui",
+      "reject": "Tolak",
+      "deciding": "Mengirim…",
+      "amount": "Jumlah: {value}",
+      "openRun": "Buka eksekusi",
+      "approvalUntitled": "Permintaan persetujuan",
+      "approvalFailed": "Keputusan tidak tersimpan. Coba lagi.",
+      "approvalConflict": "Persetujuan ini sudah diputuskan atau berubah. Segarkan daftar.",
+      "jobUntitled": "Pekerjaan tanpa judul",
+      "cost": "Biaya {value}",
+      "updated": "Diperbarui {value}",
+      "action": {
+        "resume": "Lanjutkan",
+        "pause": "Jeda",
+        "stop": "Hentikan",
+        "retry": "Coba lagi",
+        "steer": "Arahkan",
+        "receipt": "Tanda terima"
+      },
+      "steerLabel": "Pesan untuk agen",
+      "steerPlaceholder": "Instruksi singkat…",
+      "steerSend": "Kirim",
+      "steerSent": "Pesan terkirim.",
+      "actionOk": "Tindakan terkirim.",
+      "actionFailed": "Tindakan gagal. Coba lagi.",
+      "actionForbidden": "Anda tidak memiliki izin untuk tindakan ini.",
+      "conflict": {
+        "retry_disabled": "Percobaan ulang belum diaktifkan untuk ruang kerja ini.",
+        "run_still_running": "Pekerjaan ini masih berjalan. Hentikan dulu, lalu coba lagi.",
+        "already_retrying": "Percobaan ulang sudah berlangsung.",
+        "approval_pending": "Ada persetujuan yang menunggu. Putuskan dulu.",
+        "retry_budget_exhausted": "Batas atau anggaran percobaan ulang pekerjaan ini sudah habis.",
+        "run_not_retryable": "Pekerjaan ini tidak dapat diulang dalam keadaan saat ini.",
+        "generic": "Status pekerjaan berubah atau ada persetujuan yang menunggu. Segarkan dan coba lagi."
+      },
+      "receipt": {
+        "title": "Tanda terima",
+        "loading": "Memuat tanda terima…",
+        "none": "Belum ada tanda terima. Dibuat saat pekerjaan selesai.",
+        "error": "Tanda terima tidak dapat dimuat.",
+        "verified": "TERVERIFIKASI",
+        "unverified": "BELUM TERVERIFIKASI",
+        "verifiedHint": "Jenis bukti yang diperlukan telah diverifikasi.",
+        "unverifiedHint": "Belum terkonfirmasi: bukti hilang atau tidak lengkap.",
+        "noStatus": "Tanpa status hasil",
+        "outcome": "Hasil: {value}",
+        "noEvidence": "Tidak ada bukti terlampir.",
+        "passed": "lulus",
+        "failed": "gagal",
+        "hide": "Sembunyikan tanda terima"
+      },
+      "state": {
+        "COMPLETED": "Selesai",
+        "FAILED": "Gagal",
+        "CANCELLED": "Dibatalkan"
+      },
+      "artifactLabel": "Konten yang disetujui",
+      "expires": "Kedaluwarsa {value}",
+      "answerLabel": "Jawaban Anda untuk agen (wajib)",
+      "claimFailed": "Persetujuan Anda untuk {run} tersimpan, tetapi pekerjaan tidak dapat dilanjutkan dan mungkin tetap gagal. Periksa di tab Tersendat lalu coba lagi.",
+      "dismiss": "Tutup",
+      "approvalForbidden": "Anda tidak memiliki izin untuk memutuskan persetujuan.",
+      "actionRejected": "Pekerjaan tidak berada dalam keadaan yang mengizinkan tindakan ini."
     }
   },
   "static": {

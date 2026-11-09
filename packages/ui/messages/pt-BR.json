@@ -21,7 +21,8 @@
     "billing": "Cobrança",
     "settings": "Configurações",
     "newWorkspace": "Novo espaço de trabalho",
-    "quickStart": "Início rápido"
+    "quickStart": "Início rápido",
+    "inbox": "Caixa de entrada"
   },
   "features": {
     "badge": "RECURSOS DA PLATAFORMA",
@@ -1206,6 +1207,95 @@
     },
     "register": {
       "freePlan": "Plano gratuito"
+    },
+    "inbox": {
+      "title": "Caixa de entrada",
+      "subtitle": "Todos os trabalhos em um só lugar: em andamento, os que precisam de você, concluídos e travados.",
+      "tabsLabel": "Grupos de trabalhos",
+      "bucket": {
+        "working": "Em andamento",
+        "needs_approval": "Aguardando aprovação",
+        "done": "Concluídos",
+        "stuck": "Travados"
+      },
+      "loading": "Carregando…",
+      "emptyWorking": "Nada em execução agora.",
+      "emptyNeedsApproval": "Nenhum trabalho aguarda aprovação.",
+      "emptyDone": "Ainda não há trabalhos concluídos.",
+      "emptyStuck": "Nada travado.",
+      "errorTitle": "Não foi possível carregar os trabalhos",
+      "errorBody": "O servidor não respondeu corretamente, então esta lista pode não estar realmente vazia. Tente novamente.",
+      "approvalsErrorTitle": "Não foi possível carregar as aprovações pendentes",
+      "retryLoad": "Tentar novamente",
+      "loadMore": "Carregar mais",
+      "loadingMore": "Carregando…",
+      "loadMoreError": "Não foi possível carregar mais. Tente novamente.",
+      "approvalsTitle": "Aprovações pendentes",
+      "jobsTitle": "Trabalhos",
+      "approvalsEmpty": "Nenhuma aprovação pendente.",
+      "approve": "Aprovar",
+      "reject": "Rejeitar",
+      "deciding": "Enviando…",
+      "amount": "Valor: {value}",
+      "openRun": "Abrir execução",
+      "approvalUntitled": "Solicitação de aprovação",
+      "approvalFailed": "A decisão não foi salva. Tente novamente.",
+      "approvalConflict": "Esta aprovação já foi decidida ou mudou. Atualize a lista.",
+      "jobUntitled": "Trabalho sem título",
+      "cost": "Custo {value}",
+      "updated": "Atualizado {value}",
+      "action": {
+        "resume": "Retomar",
+        "pause": "Pausar",
+        "stop": "Parar",
+        "retry": "Tentar novamente",
+        "steer": "Orientar",
+        "receipt": "Recibo"
+      },
+      "steerLabel": "Mensagem para o agente",
+      "steerPlaceholder": "Instrução curta…",
+      "steerSend": "Enviar",
+      "steerSent": "Mensagem enviada.",
+      "actionOk": "Ação enviada.",
+      "actionFailed": "A ação falhou. Tente novamente.",
+      "actionForbidden": "Você não tem permissão para esta ação.",
+      "conflict": {
+        "retry_disabled": "A nova tentativa ainda não está habilitada neste espaço de trabalho.",
+        "run_still_running": "Este trabalho ainda está em execução. Pare-o primeiro e depois tente novamente.",
+        "already_retrying": "Uma nova tentativa já está em andamento.",
+        "approval_pending": "Há uma aprovação pendente. Decida-a primeiro.",
+        "retry_budget_exhausted": "O limite ou orçamento de novas tentativas deste trabalho acabou.",
+        "run_not_retryable": "Este trabalho não pode ser repetido no estado atual.",
+        "generic": "O trabalho mudou de estado ou há uma aprovação pendente. Atualize e tente novamente."
+      },
+      "receipt": {
+        "title": "Recibo",
+        "loading": "Carregando recibo…",
+        "none": "Ainda não há recibo. Ele é gerado quando o trabalho termina.",
+        "error": "Não foi possível carregar o recibo.",
+        "verified": "VERIFICADO",
+        "unverified": "NÃO VERIFICADO",
+        "verifiedHint": "Os tipos de evidência exigidos foram verificados.",
+        "unverifiedHint": "Não confirmado: evidências ausentes ou incompletas.",
+        "noStatus": "Sem status de resultado",
+        "outcome": "Resultado: {value}",
+        "noEvidence": "Nenhuma evidência anexada.",
+        "passed": "passou",
+        "failed": "falhou",
+        "hide": "Ocultar recibo"
+      },
+      "state": {
+        "COMPLETED": "Concluído",
+        "FAILED": "Falhou",
+        "CANCELLED": "Cancelado"
+      },
+      "artifactLabel": "Conteúdo a aprovar",
+      "expires": "Expira {value}",
+      "answerLabel": "Sua resposta ao agente (obrigatória)",
+      "claimFailed": "Sua aprovação de {run} foi salva, mas o trabalho não pôde ser retomado e pode continuar com falha. Verifique em Travados e tente novamente.",
+      "dismiss": "Dispensar",
+      "approvalForbidden": "Você não tem permissão para decidir aprovações.",
+      "actionRejected": "O trabalho não está em um estado que permita esta ação."
     }
   },
   "static": {

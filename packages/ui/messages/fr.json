@@ -21,7 +21,8 @@
     "billing": "Facturation",
     "settings": "Paramètres",
     "newWorkspace": "Nouvel espace de travail",
-    "quickStart": "Démarrage rapide"
+    "quickStart": "Démarrage rapide",
+    "inbox": "Boîte de réception"
   },
   "features": {
     "badge": "CAPACITÉS DE LA PLATEFORME",
@@ -1206,6 +1207,95 @@
     },
     "register": {
       "freePlan": "Offre gratuite"
+    },
+    "inbox": {
+      "title": "Boîte de réception",
+      "subtitle": "Toutes les tâches au même endroit : en cours, en attente de vous, terminées et bloquées.",
+      "tabsLabel": "Groupes de tâches",
+      "bucket": {
+        "working": "En cours",
+        "needs_approval": "Approbation requise",
+        "done": "Terminées",
+        "stuck": "Bloquées"
+      },
+      "loading": "Chargement…",
+      "emptyWorking": "Rien n’est en cours pour le moment.",
+      "emptyNeedsApproval": "Aucune tâche n’attend d’approbation.",
+      "emptyDone": "Aucune tâche terminée pour l’instant.",
+      "emptyStuck": "Rien n’est bloqué.",
+      "errorTitle": "Impossible de charger les tâches",
+      "errorBody": "Le serveur n’a pas répondu correctement ; cette liste n’est peut-être pas vraiment vide. Réessayez.",
+      "approvalsErrorTitle": "Impossible de charger les approbations en attente",
+      "retryLoad": "Réessayer",
+      "loadMore": "Charger plus",
+      "loadingMore": "Chargement…",
+      "loadMoreError": "Impossible de charger la suite. Réessayez.",
+      "approvalsTitle": "Approbations en attente",
+      "jobsTitle": "Tâches",
+      "approvalsEmpty": "Aucune approbation en attente.",
+      "approve": "Approuver",
+      "reject": "Refuser",
+      "deciding": "Envoi…",
+      "amount": "Montant : {value}",
+      "openRun": "Ouvrir l’exécution",
+      "approvalUntitled": "Demande d’approbation",
+      "approvalFailed": "La décision n’a pas été enregistrée. Réessayez.",
+      "approvalConflict": "Cette approbation a déjà été traitée ou modifiée. Actualisez la liste.",
+      "jobUntitled": "Tâche sans titre",
+      "cost": "Coût {value}",
+      "updated": "Mis à jour {value}",
+      "action": {
+        "resume": "Reprendre",
+        "pause": "Mettre en pause",
+        "stop": "Arrêter",
+        "retry": "Réessayer",
+        "steer": "Guider",
+        "receipt": "Reçu"
+      },
+      "steerLabel": "Message pour l’agent",
+      "steerPlaceholder": "Consigne courte…",
+      "steerSend": "Envoyer",
+      "steerSent": "Message envoyé.",
+      "actionOk": "Action envoyée.",
+      "actionFailed": "L’action a échoué. Réessayez.",
+      "actionForbidden": "Vous n’avez pas l’autorisation pour cette action.",
+      "conflict": {
+        "retry_disabled": "La nouvelle tentative n’est pas encore activée pour cet espace de travail.",
+        "run_still_running": "Cette tâche est encore en cours. Arrêtez-la d’abord, puis réessayez.",
+        "already_retrying": "Une nouvelle tentative est déjà en cours.",
+        "approval_pending": "Une approbation est en attente. Traitez-la d’abord.",
+        "retry_budget_exhausted": "La limite ou le budget de nouvelles tentatives de cette tâche est épuisé.",
+        "run_not_retryable": "Cette tâche ne peut pas être relancée dans son état actuel.",
+        "generic": "L’état de la tâche a changé ou une approbation est en attente. Actualisez et réessayez."
+      },
+      "receipt": {
+        "title": "Reçu",
+        "loading": "Chargement du reçu…",
+        "none": "Pas encore de reçu. Il est créé à la fin de la tâche.",
+        "error": "Impossible de charger le reçu.",
+        "verified": "VÉRIFIÉ",
+        "unverified": "NON VÉRIFIÉ",
+        "verifiedHint": "Les types de preuves requis ont été vérifiés.",
+        "unverifiedHint": "Non confirmé : preuves manquantes ou incomplètes.",
+        "noStatus": "Aucun statut de résultat",
+        "outcome": "Résultat : {value}",
+        "noEvidence": "Aucune preuve jointe.",
+        "passed": "réussi",
+        "failed": "échoué",
+        "hide": "Masquer le reçu"
+      },
+      "state": {
+        "COMPLETED": "Terminée",
+        "FAILED": "Échouée",
+        "CANCELLED": "Annulée"
+      },
+      "artifactLabel": "Contenu à approuver",
+      "expires": "Expire {value}",
+      "answerLabel": "Votre réponse à l’agent (obligatoire)",
+      "claimFailed": "Votre approbation pour {run} a été enregistrée, mais la tâche n’a pas pu reprendre et peut rester en échec. Vérifiez dans Bloquées puis réessayez.",
+      "dismiss": "Fermer",
+      "approvalForbidden": "Vous n’avez pas l’autorisation de décider des approbations.",
+      "actionRejected": "La tâche n’est pas dans un état qui permet cette action."
     }
   },
   "static": {

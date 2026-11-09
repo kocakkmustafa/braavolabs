@@ -21,7 +21,8 @@
     "billing": "お支払い",
     "settings": "設定",
     "newWorkspace": "新規ワークスペース",
-    "quickStart": "クイックスタート"
+    "quickStart": "クイックスタート",
+    "inbox": "受信トレイ"
   },
   "features": {
     "badge": "プラットフォームの機能",
@@ -1206,6 +1207,95 @@
     },
     "register": {
       "freePlan": "無料プラン"
+    },
+    "inbox": {
+      "title": "受信トレイ",
+      "subtitle": "すべてのジョブを一か所で。実行中、対応待ち、完了、停止中を確認できます。",
+      "tabsLabel": "ジョブの分類",
+      "bucket": {
+        "working": "実行中",
+        "needs_approval": "承認待ち",
+        "done": "完了",
+        "stuck": "停止中"
+      },
+      "loading": "読み込み中…",
+      "emptyWorking": "現在実行中のジョブはありません。",
+      "emptyNeedsApproval": "承認待ちのジョブはありません。",
+      "emptyDone": "完了したジョブはまだありません。",
+      "emptyStuck": "停止中のジョブはありません。",
+      "errorTitle": "ジョブを読み込めませんでした",
+      "errorBody": "サーバーが正しく応答しなかったため、この一覧は実際には空ではない可能性があります。もう一度お試しください。",
+      "approvalsErrorTitle": "保留中の承認を読み込めませんでした",
+      "retryLoad": "再試行",
+      "loadMore": "さらに読み込む",
+      "loadingMore": "読み込み中…",
+      "loadMoreError": "続きを読み込めませんでした。もう一度お試しください。",
+      "approvalsTitle": "保留中の承認",
+      "jobsTitle": "ジョブ",
+      "approvalsEmpty": "保留中の承認はありません。",
+      "approve": "承認",
+      "reject": "却下",
+      "deciding": "送信中…",
+      "amount": "金額: {value}",
+      "openRun": "実行を開く",
+      "approvalUntitled": "承認リクエスト",
+      "approvalFailed": "決定が保存されませんでした。もう一度お試しください。",
+      "approvalConflict": "この承認はすでに決定済みか、変更されています。一覧を更新してください。",
+      "jobUntitled": "無題のジョブ",
+      "cost": "コスト {value}",
+      "updated": "更新 {value}",
+      "action": {
+        "resume": "再開",
+        "pause": "一時停止",
+        "stop": "停止",
+        "retry": "再試行",
+        "steer": "指示",
+        "receipt": "レシート"
+      },
+      "steerLabel": "エージェントへのメッセージ",
+      "steerPlaceholder": "短い指示…",
+      "steerSend": "送信",
+      "steerSent": "メッセージを送信しました。",
+      "actionOk": "操作を送信しました。",
+      "actionFailed": "操作に失敗しました。もう一度お試しください。",
+      "actionForbidden": "この操作の権限がありません。",
+      "conflict": {
+        "retry_disabled": "このワークスペースでは再試行はまだ有効ではありません。",
+        "run_still_running": "このジョブはまだ実行中です。先に停止してから再試行してください。",
+        "already_retrying": "再試行はすでに進行中です。",
+        "approval_pending": "承認が待機中です。先に承認を決定してください。",
+        "retry_budget_exhausted": "このジョブの再試行回数または予算の上限に達しました。",
+        "run_not_retryable": "このジョブは現在の状態では再試行できません。",
+        "generic": "ジョブの状態が変わったか、承認が待機中です。更新してもう一度お試しください。"
+      },
+      "receipt": {
+        "title": "レシート",
+        "loading": "レシートを読み込み中…",
+        "none": "レシートはまだありません。ジョブ完了時に作成されます。",
+        "error": "レシートを読み込めませんでした。",
+        "verified": "検証済み",
+        "unverified": "未検証",
+        "verifiedHint": "必要な種類の証拠が検証されました。",
+        "unverifiedHint": "未確認: 証拠が不足または不完全です。",
+        "noStatus": "結果ステータスなし",
+        "outcome": "結果: {value}",
+        "noEvidence": "添付された証拠はありません。",
+        "passed": "合格",
+        "failed": "不合格",
+        "hide": "レシートを隠す"
+      },
+      "state": {
+        "COMPLETED": "完了",
+        "FAILED": "失敗",
+        "CANCELLED": "キャンセル"
+      },
+      "artifactLabel": "承認する内容",
+      "expires": "有効期限 {value}",
+      "answerLabel": "エージェントへの回答（必須）",
+      "claimFailed": "{run} の承認は保存されましたが、ジョブを再開できず失敗のままになる可能性があります。「停止中」タブで確認し、再試行してください。",
+      "dismiss": "閉じる",
+      "approvalForbidden": "承認を決定する権限がありません。",
+      "actionRejected": "ジョブはこの操作を許可する状態ではありません。"
     }
   },
   "static": {

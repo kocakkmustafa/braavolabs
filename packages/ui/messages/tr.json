@@ -21,7 +21,8 @@
     "billing": "Faturalandırma",
     "settings": "Ayarlar",
     "newWorkspace": "Yeni Çalışma Alanı",
-    "quickStart": "Hızlı Başlangıç"
+    "quickStart": "Hızlı Başlangıç",
+    "inbox": "Gelen kutusu"
   },
   "features": {
     "badge": "PLATFORM YETKİNLİKLERİ",
@@ -1206,6 +1207,95 @@
     },
     "register": {
       "freePlan": "Ücretsiz plan"
+    },
+    "inbox": {
+      "title": "Gelen kutusu",
+      "subtitle": "Tüm işler tek yerde: çalışanlar, sizi bekleyenler, biten ve takılanlar.",
+      "tabsLabel": "İş kovaları",
+      "bucket": {
+        "working": "Çalışıyor",
+        "needs_approval": "Onay bekliyor",
+        "done": "Bitti",
+        "stuck": "Takıldı"
+      },
+      "loading": "Yükleniyor…",
+      "emptyWorking": "Şu an çalışan bir iş yok.",
+      "emptyNeedsApproval": "Onay bekleyen iş yok.",
+      "emptyDone": "Henüz biten iş yok.",
+      "emptyStuck": "Takılan bir iş yok.",
+      "errorTitle": "İşler yüklenemedi",
+      "errorBody": "Sunucu doğru yanıt vermedi; bu liste gerçekten boş olmayabilir. Yeniden deneyin.",
+      "approvalsErrorTitle": "Bekleyen onaylar yüklenemedi",
+      "retryLoad": "Yeniden dene",
+      "loadMore": "Daha fazla yükle",
+      "loadingMore": "Yükleniyor…",
+      "loadMoreError": "Daha fazlası yüklenemedi. Yeniden deneyin.",
+      "approvalsTitle": "Bekleyen onaylar",
+      "jobsTitle": "İşler",
+      "approvalsEmpty": "Bekleyen onay yok.",
+      "approve": "Onayla",
+      "reject": "Reddet",
+      "deciding": "Gönderiliyor…",
+      "amount": "Tutar: {value}",
+      "openRun": "Koşuyu aç",
+      "approvalUntitled": "Onay isteği",
+      "approvalFailed": "Karar kaydedilmedi. Yeniden deneyin.",
+      "approvalConflict": "Bu onay zaten karara bağlanmış ya da değişmiş. Listeyi yenileyin.",
+      "jobUntitled": "Adsız iş",
+      "cost": "Maliyet {value}",
+      "updated": "Güncellendi {value}",
+      "action": {
+        "resume": "Devam et",
+        "pause": "Duraklat",
+        "stop": "Durdur",
+        "retry": "Yeniden dene",
+        "steer": "Yönlendir",
+        "receipt": "Makbuz"
+      },
+      "steerLabel": "Ajana mesaj",
+      "steerPlaceholder": "Kısa talimat…",
+      "steerSend": "Gönder",
+      "steerSent": "Mesaj gönderildi.",
+      "actionOk": "Eylem gönderildi.",
+      "actionFailed": "Eylem başarısız oldu. Yeniden deneyin.",
+      "actionForbidden": "Bu eylem için yetkiniz yok.",
+      "conflict": {
+        "retry_disabled": "Yeniden deneme bu çalışma alanında henüz açık değil.",
+        "run_still_running": "Bu iş hâlâ çalışıyor. Önce durdurun, sonra yeniden deneyin.",
+        "already_retrying": "Yeniden deneme zaten sürüyor.",
+        "approval_pending": "Bir onay bekliyor. Önce onu karara bağlayın.",
+        "retry_budget_exhausted": "Bu işin yeniden deneme sınırı ya da bütçesi doldu.",
+        "run_not_retryable": "Bu iş mevcut durumunda yeniden denenemez.",
+        "generic": "İşin durumu değişti ya da bir onay bekliyor. Yenileyip tekrar deneyin."
+      },
+      "receipt": {
+        "title": "Makbuz",
+        "loading": "Makbuz yükleniyor…",
+        "none": "Henüz makbuz yok. İş bitince yazılır.",
+        "error": "Makbuz yüklenemedi.",
+        "verified": "DOĞRULANDI",
+        "unverified": "DOĞRULANMADI",
+        "verifiedHint": "Gerekli kanıt türleri doğrulandı.",
+        "unverifiedHint": "Doğrulanmadı: kanıt eksik ya da yetersiz.",
+        "noStatus": "Sonuç durumu yok",
+        "outcome": "Sonuç: {value}",
+        "noEvidence": "Kanıt eklenmemiş.",
+        "passed": "geçti",
+        "failed": "kaldı",
+        "hide": "Makbuzu gizle"
+      },
+      "state": {
+        "COMPLETED": "Tamamlandı",
+        "FAILED": "Başarısız",
+        "CANCELLED": "İptal edildi"
+      },
+      "artifactLabel": "Onaylanacak içerik",
+      "expires": "Son geçerlilik {value}",
+      "answerLabel": "Ajana yanıtınız (zorunlu)",
+      "claimFailed": "{run} için onayınız kaydedildi, ancak iş devam ettirilemedi ve başarısız kalabilir. Takıldı sekmesinden kontrol edip yeniden deneyin.",
+      "dismiss": "Kapat",
+      "approvalForbidden": "Onay kararı vermek için yetkiniz yok.",
+      "actionRejected": "İş bu eyleme izin veren bir durumda değil."
     }
   },
   "static": {

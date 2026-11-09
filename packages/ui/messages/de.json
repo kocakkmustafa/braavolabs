@@ -21,7 +21,8 @@
     "billing": "Abrechnung",
     "settings": "Einstellungen",
     "newWorkspace": "Neuer Arbeitsbereich",
-    "quickStart": "Schnellstart"
+    "quickStart": "Schnellstart",
+    "inbox": "Posteingang"
   },
   "features": {
     "badge": "PLATTFORM-FUNKTIONEN",
@@ -1206,6 +1207,95 @@
     },
     "register": {
       "freePlan": "Kostenloser Tarif"
+    },
+    "inbox": {
+      "title": "Posteingang",
+      "subtitle": "Alle Aufträge an einem Ort: laufend, wartend auf Sie, erledigt und hängend.",
+      "tabsLabel": "Auftragsgruppen",
+      "bucket": {
+        "working": "Läuft",
+        "needs_approval": "Freigabe nötig",
+        "done": "Erledigt",
+        "stuck": "Hängt"
+      },
+      "loading": "Wird geladen…",
+      "emptyWorking": "Aktuell läuft nichts.",
+      "emptyNeedsApproval": "Kein Auftrag wartet auf Freigabe.",
+      "emptyDone": "Noch keine erledigten Aufträge.",
+      "emptyStuck": "Nichts hängt.",
+      "errorTitle": "Aufträge konnten nicht geladen werden",
+      "errorBody": "Der Server hat nicht korrekt geantwortet, die Liste ist also möglicherweise gar nicht leer. Bitte erneut versuchen.",
+      "approvalsErrorTitle": "Offene Freigaben konnten nicht geladen werden",
+      "retryLoad": "Erneut versuchen",
+      "loadMore": "Mehr laden",
+      "loadingMore": "Wird geladen…",
+      "loadMoreError": "Weitere Einträge konnten nicht geladen werden. Bitte erneut versuchen.",
+      "approvalsTitle": "Offene Freigaben",
+      "jobsTitle": "Aufträge",
+      "approvalsEmpty": "Keine offenen Freigaben.",
+      "approve": "Freigeben",
+      "reject": "Ablehnen",
+      "deciding": "Wird gesendet…",
+      "amount": "Betrag: {value}",
+      "openRun": "Lauf öffnen",
+      "approvalUntitled": "Freigabeanfrage",
+      "approvalFailed": "Die Entscheidung wurde nicht gespeichert. Bitte erneut versuchen.",
+      "approvalConflict": "Diese Freigabe wurde bereits entschieden oder geändert. Liste aktualisieren.",
+      "jobUntitled": "Unbenannter Auftrag",
+      "cost": "Kosten {value}",
+      "updated": "Aktualisiert {value}",
+      "action": {
+        "resume": "Fortsetzen",
+        "pause": "Pausieren",
+        "stop": "Stoppen",
+        "retry": "Wiederholen",
+        "steer": "Steuern",
+        "receipt": "Beleg"
+      },
+      "steerLabel": "Nachricht an den Agenten",
+      "steerPlaceholder": "Kurze Anweisung…",
+      "steerSend": "Senden",
+      "steerSent": "Nachricht gesendet.",
+      "actionOk": "Aktion gesendet.",
+      "actionFailed": "Die Aktion ist fehlgeschlagen. Bitte erneut versuchen.",
+      "actionForbidden": "Für diese Aktion fehlt die Berechtigung.",
+      "conflict": {
+        "retry_disabled": "Wiederholen ist für diesen Arbeitsbereich noch nicht aktiviert.",
+        "run_still_running": "Dieser Auftrag läuft noch. Zuerst stoppen, dann wiederholen.",
+        "already_retrying": "Eine Wiederholung läuft bereits.",
+        "approval_pending": "Eine Freigabe wartet. Bitte zuerst entscheiden.",
+        "retry_budget_exhausted": "Das Wiederholungslimit oder -budget dieses Auftrags ist aufgebraucht.",
+        "run_not_retryable": "Dieser Auftrag kann im aktuellen Zustand nicht wiederholt werden.",
+        "generic": "Der Auftragsstatus hat sich geändert oder eine Freigabe wartet. Aktualisieren und erneut versuchen."
+      },
+      "receipt": {
+        "title": "Beleg",
+        "loading": "Beleg wird geladen…",
+        "none": "Noch kein Beleg. Er wird beim Abschluss des Auftrags erstellt.",
+        "error": "Beleg konnte nicht geladen werden.",
+        "verified": "VERIFIZIERT",
+        "unverified": "NICHT VERIFIZIERT",
+        "verifiedHint": "Die erforderlichen Nachweisarten wurden verifiziert.",
+        "unverifiedHint": "Nicht bestätigt: Nachweise fehlen oder sind unvollständig.",
+        "noStatus": "Kein Ergebnisstatus",
+        "outcome": "Ergebnis: {value}",
+        "noEvidence": "Keine Nachweise angehängt.",
+        "passed": "bestanden",
+        "failed": "fehlgeschlagen",
+        "hide": "Beleg ausblenden"
+      },
+      "state": {
+        "COMPLETED": "Abgeschlossen",
+        "FAILED": "Fehlgeschlagen",
+        "CANCELLED": "Abgebrochen"
+      },
+      "artifactLabel": "Zu genehmigender Inhalt",
+      "expires": "Läuft ab {value}",
+      "answerLabel": "Ihre Antwort an den Agenten (erforderlich)",
+      "claimFailed": "Ihre Freigabe für {run} wurde gespeichert, aber der Auftrag konnte nicht fortgesetzt werden und bleibt möglicherweise fehlgeschlagen. Unter Hängt prüfen und wiederholen.",
+      "dismiss": "Schließen",
+      "approvalForbidden": "Sie haben keine Berechtigung, Freigaben zu entscheiden.",
+      "actionRejected": "Der Auftrag befindet sich in keinem Zustand, der diese Aktion erlaubt."
     }
   },
   "static": {
