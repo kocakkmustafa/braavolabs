@@ -1,5 +1,5 @@
 import type { InboxBucket, JobReceipt } from "@ai-company-os/core";
-import { parseRunsPage, parseApprovalGroupsPage } from "./inbox";
+import { parseRunsPage, parseApprovalGroupsPage } from "./inboxParse";
 import { parseCompareOptions, parseCompareSession, type CompareRequest } from "./compare";
 import { parseApprovalDecision } from "./approvalDecision";
 import { requestDeadline } from "./request-deadline";
