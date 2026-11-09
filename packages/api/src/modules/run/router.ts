@@ -21,6 +21,7 @@ import { hasOpenApproval } from "../approval/exact-action";
 import { transitionRun, isJobStateDualWriteEnabled, currentJobState } from "./transition";
 import { assertTransitioned, resumeToRunning, AlreadyRunningError, revertRunAfterEnqueueFailure } from "./resume";
 import { decideResume, type JobState } from "./job-state";
+import { toJobReceiptDto } from "./receipt";
 import { env } from "../../config/env";
 import { toPublicCompany } from "../company/redact";
 import type { RunEvent } from "@ai-company-os/core";
@@ -960,5 +961,28 @@ runRouter.post("/steps/:id/rerun", async (req, res, next) => {
     });
 
     res.json(result);
+  } catch (err) { next(err); }
+});
+
+// ── BRA-P0-04c: iş makbuzu okuma ucu (dosyanın en sonu; 04b liste rotasıyla çakışmasın) ──
+// GET /api/v1/runs/:id/receipt — kiracı kapsamlı; en son makbuz (FAILED → yeniden dene → COMPLETED
+// durumunda yeni satır eskisinin önüne geçer). Ham koşu satırı / Company.config dönmez.
+runRouter.get("/:id/receipt", async (req, res, next) => {
+  try {
+    const tenantId = req.auth!.tenantId;
+    const run = await prisma.run.findFirst({
+      where: { id: req.params.id, pipeline: { company: { tenantId } } },
+      select: { id: true },
+    });
+    if (!run) throw new AppError(404, "Run not found");
+    const receipt = await prisma.jobReceipt.findFirst({
+      where: { runId: run.id, tenantId },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!receipt) {
+      res.status(404).json({ error: "receipt_not_found" });
+      return;
+    }
+    res.json(toJobReceiptDto(receipt));
   } catch (err) { next(err); }
 });

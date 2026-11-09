@@ -49,6 +49,8 @@ import {
   type LegacyRunStatus,
   type ResultStatus,
 } from "./job-state";
+import { isReceiptOutcome, writeReceipt, type ReceiptClient } from "./receipt";
+import { logger } from "../../lib/logger";
 
 /** Only the literal string "true" enables dual write; anything else (or unset) is off. */
 export function isJobStateDualWriteEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -68,6 +70,12 @@ export interface RunTransitionClient {
     findFirst(args: any): PromiseLike<any>;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     updateMany(args: any): PromiseLike<{ count: number }>;
+  };
+  /** BRA-P0-04c: opsiyonel; yoksa (eski sahteler) makbuz yazımı atlanır. */
+  jobReceipt?: ReceiptClient["jobReceipt"];
+  activityLog?: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    create(args: any): PromiseLike<any>;
   };
 }
 
@@ -174,5 +182,37 @@ export async function transitionRun(
 
   const res = await tx.run.updateMany({ where, data });
   if (res.count !== 1) return { ok: false, reason: "lost_race", from, to };
+
+  // BRA-P0-04c: makbuz YALNIZ bayrak açıkken, geçişi kazanan çağrıda ve terminal
+  // sonuçta yazılır. Hata geçişi geri almaz (yutulur + uyarı); aşağıya bakın.
+  if (dual && isReceiptOutcome(to)) await tryWriteReceipt(tx, runId, to, opts.tenantId);
   return { ok: true, noop: false, from, to };
+}
+
+async function tryWriteReceipt(
+  tx: RunTransitionClient,
+  runId: string,
+  outcome: Parameters<typeof writeReceipt>[2],
+  tenantId: string,
+): Promise<void> {
+  try {
+    await writeReceipt(tx as unknown as ReceiptClient, runId, outcome, tenantId);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.warn({ runId, outcome, err: message }, "Job receipt write failed — run transition kept");
+    try {
+      await tx.activityLog?.create({
+        data: {
+          tenantId,
+          actor: "system",
+          action: "run.receipt_failed",
+          resource: "run",
+          resourceId: runId,
+          details: { outcome, error: message.slice(0, 200) },
+        },
+      });
+    } catch {
+      /* uyarı da yazılamadı: geçişi yine bozma */
+    }
+  }
 }
