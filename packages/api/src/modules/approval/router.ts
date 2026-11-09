@@ -146,7 +146,7 @@ async function failRunAfterHandoffDecision(
  *        is not started — the approval stays decided and the operator resumes a
  *        PAUSED run with /resume (no open approval is left to block it).
  */
-async function driveApprovedRun(
+export async function driveApprovedRun(
   tx: DecideTx,
   approvalId: string,
   runId: string,
@@ -155,6 +155,16 @@ async function driveApprovedRun(
   if (!isJobStateDualWriteEnabled()) {
     const r = await resumeToRunning(tx, runId, tenantId, { rejectIfAlreadyRunning: false });
     return { enqueue: true, from: r.from };
+  }
+  // ADR-0002 (g), BRA-P0-02c-6: serialise concurrent decides on the same run.
+  // Under READ COMMITTED, A's and B's transactions each claim their own approval
+  // and neither claim is visible to the other until commit, so both would see the
+  // other PENDING and leave the run in WAITING_APPROVAL with no open approval.
+  // Taking the run's row lock BEFORE the otherGate read makes the second decide
+  // wait for the first commit; its (new-statement) read then sees it. Flag-on
+  // path only; `$queryRaw` guard keeps statement-level test fakes working.
+  if (typeof (tx as { $queryRaw?: unknown }).$queryRaw === "function") {
+    await tx.$queryRaw`SELECT id FROM runs WHERE id = ${runId} FOR UPDATE`;
   }
   const otherGate = await tx.approval.findFirst({
     where: { runId, id: { not: approvalId }, status: "PENDING", type: { not: "HANDOFF" } },
