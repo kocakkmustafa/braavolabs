@@ -66,6 +66,7 @@ import { initPipelineRunner, initScheduledPipelines, initScheduledTickWorker, st
 import { initOutreachWorker } from "./modules/outreach/sequence-runner";
 import { initConsolidationCron, stopConsolidationCron } from "./modules/memory/consolidation-cron";
 import { initApprovalExpiryCron, stopApprovalExpiryCron } from "./modules/approval/expiry-cron";
+import { initPendingSweeper, stopPendingSweeper } from "./modules/run/pending-sweeper";
 
 // Import tool registry to trigger tool registration on startup
 import "./modules/agent/registry";
@@ -380,6 +381,10 @@ app.listen(env.API_PORT, env.API_HOST, () => {
   // a slot in the tenant's monthly quota)
   initApprovalExpiryCron();
 
+  // BRA-P0-03e: PENDING koşu süpürücüsü (5 dk) — enqueue öncesi süreç ölümünde kuyruksuz kalan
+  // PENDING koşuyu yeniden kuyruğa alır (≤24 sa) ya da FAILED yapar (>24 sa).
+  initPendingSweeper();
+
   // Initialize the external-automation poller (30s tick) — mirrors connected
   // n8n/Make/Zapier executions into ExternalRun for the unified dashboard.
   initExternalPoller();
@@ -423,6 +428,7 @@ process.on("SIGTERM", async () => {
   stopScheduledPipelines();
   stopConsolidationCron();
   stopApprovalExpiryCron();
+  stopPendingSweeper();
   stopExternalPoller();
 
   // Close Redis

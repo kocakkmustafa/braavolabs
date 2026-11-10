@@ -632,7 +632,7 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
  * happens). Set removeOnFail.count high enough that operators have
  * something to inspect when investigating real failures.
  */
-export async function enqueueRun(runId: string): Promise<string> {
+export async function enqueueRun(runId: string, opts: { jobId?: string } = {}): Promise<string> {
   // Capture tenantId at enqueue time so the worker can assert it back
   // out of the job payload before doing any DB work — defence-in-depth
   // against a leaked Redis connection or a future code path that
@@ -651,6 +651,10 @@ export async function enqueueRun(runId: string): Promise<string> {
     "execute-run",
     { runId, tenantId },
     {
+      // BRA-P0-03e: yalnız PENDING süpürücüsü sabit jobId verir (aynı koşu için ikinci ekleme
+      // BullMQ'da mevcut işi döndürür, yinelenen iş yaratmaz). Diğer çağıranlar otomatik id
+      // kullanmaya devam eder: retry/onay sonrası yeniden kuyruğa alma engellenmesin.
+      ...(opts.jobId ? { jobId: opts.jobId } : {}),
       attempts: 2,
       backoff: { type: "exponential", delay: 30_000 },
       removeOnComplete: { count: 100 },
