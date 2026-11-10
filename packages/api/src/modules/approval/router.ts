@@ -13,6 +13,7 @@ import { z } from "zod";
 import { afterCursorWhere, decodeCursor, encodeCursor, LIST_ORDER, parseLimit } from "../run/list-cursor";
 import { toPublicCompany } from "../company/redact";
 import { APPROVAL_LIST_SELECT, projectApprovalRow } from "./list-select";
+import { withApprovalDetails } from "./details";
 import {
   type ApprovalArtifact,
   extractArtifactFromInput,
@@ -119,7 +120,7 @@ approvalRouter.get("/", async (req, res, next) => {
       },
     }));
     // artifact ham metadata'dan çıkarılır, sonra metadata yalnız toolName'e indirilir (BRA-P0-04h).
-    const withArtifacts = (await attachArtifacts(safe)).map(projectApprovalRow);
+    const withArtifacts = (await attachArtifacts(safe)).map(withApprovalDetails).map(projectApprovalRow);
 
     if (groupBy === "run") {
       const groups = new Map<string, { runId: string; runTitle: string | null; approvals: unknown[] }>();

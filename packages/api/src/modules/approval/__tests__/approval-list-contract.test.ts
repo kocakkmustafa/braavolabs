@@ -52,7 +52,7 @@ async function invoke(query: Record<string, unknown> = {}, tenantId = "tenant-1"
 
 
 const APPROVAL_KEYS = [
-  "amountUsd", "artifact", "createdAt", "decidedAt", "decidedBy", "description", "expiresAt",
+  "amountUsd", "artifact", "createdAt", "decidedAt", "decidedBy", "description", "details", "expiresAt",
   "id", "metadata", "run", "runId", "status", "type",
 ];
 const RUN_KEYS = ["id", "pipeline"];
@@ -130,5 +130,49 @@ describe("GET /approvals yanıt-anahtar sözleşmesi", () => {
     expect(Object.keys(g.approvals[0]).sort()).toEqual(APPROVAL_KEYS.filter((k) => k !== "run"));
     expect(g.approvals[0].metadata).toEqual({ toolName: "send_email" });
     expect(JSON.stringify(res.body)).not.toContain("SECRET");
+  });
+
+  it("BRA-UX-API-01: details kapalı şema; ham metadata sızmaz; eski alanlar aynen; groupBy'da da", async () => {
+    const r = row(1, "run-A");
+    r.metadata = { toolName: "send_email", input: { to: "SECRET-INPUT", apiKey: "K" }, note: "SECRET-NOTE" } as any;
+    approvalFindMany.mockResolvedValue([r]);
+    const flat = await invoke();
+    const a = flat.res.body[0];
+    expect(a.details).toEqual({
+      risk: null,
+      permissions: ["send_email"],
+      dataTransfer: ["send_email ← girdi alanları: to"],
+      reversible: null,
+    });
+    // mevcut sözleşme birebir
+    expect(a.metadata).toEqual({ toolName: "send_email" });
+    expect(a.description).toBe("d");
+    expect(a.amountUsd).toBeNull();
+    for (const bad of ["SECRET-INPUT", "SECRET-NOTE", "apiKey"]) expect(JSON.stringify(flat.res.body)).not.toContain(bad);
+
+    approvalFindMany.mockResolvedValue([r]);
+    const grouped = await invoke({ groupBy: "run" });
+    expect(Object.keys(grouped.res.body).sort()).toEqual(["groups", "nextCursor"]);
+    expect(grouped.res.body.groups[0].approvals[0].details).toEqual(a.details);
+    expect(grouped.res.body.groups[0].approvals[0].metadata).toEqual({ toolName: "send_email" });
+  });
+
+  it("BRA-UX-API-01: imleç şekilleri değişmez (düz: X-Next-Cursor başlığı, gövde dizi)", async () => {
+    approvalFindMany.mockResolvedValue([row(1), row(2), row(3)]);
+    const { res, headers } = await invoke({ limit: "2" });
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body).toHaveLength(2);
+    expect(typeof headers["X-Next-Cursor"]).toBe("string");
+    expect(res.body.every((x: any) => "details" in x)).toBe(true);
+  });
+
+  it("BRA-UX-API-01: bozuk metadata -> details null alanlarla, istek düşmez", async () => {
+    const r = row(1);
+    r.metadata = "bozuk" as any;
+    approvalFindMany.mockResolvedValue([r]);
+    const { res, nextErr } = await invoke();
+    expect(nextErr).toBeUndefined();
+    expect(res.body[0].details).toEqual({ risk: null, permissions: null, dataTransfer: null, reversible: null });
+    expect(res.body[0].metadata).toEqual({});
   });
 });
