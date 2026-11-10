@@ -29,6 +29,7 @@ import {
   trackDelegation,
   clearDelegationCounter,
 } from "./hierarchical";
+import { loadDelegationResumePlan, takeReusable, type DelegationResumePlan } from "./hierarchical-resume";
 
 // Register the `delegate` tool exactly once on module load. The
 // underlying implementation is keyed on a per-run AsyncLocalStorage
@@ -48,6 +49,8 @@ interface DelegationContext {
   budgetStop: { reason: string | null };
   /** Tail of the serialized budget-check chain (02c-5: parallel delegate calls must not race). */
   budgetGate: { tail: Promise<unknown> };
+  /** BRA-P0-04j: önceki denemenin COMPLETED delegasyonları (retry'da atlanır); ilk koşuda boş. */
+  resume: DelegationResumePlan;
 }
 
 const DELEGATION_CTX = new AsyncLocalStorage<DelegationContext>();
@@ -85,6 +88,24 @@ function ensureDelegateToolRegistered(): void {
       if (worker.id === ctx.managerAgentId) {
         return { error: "Cannot delegate back to the manager agent." };
       }
+      // BRA-P0-04j: aynı koşunun önceki denemesinde bu (worker, task) zaten COMPLETED ise
+      // yeniden çalıştırma: kayıtlı çıktıyı yönetici'ye ver. Yeni satır yok, maliyet yok
+      // (maliyeti tohumda; çift sayma yok), bütçe kontrolü gereksiz (harcama yok).
+      const reused = takeReusable(ctx.resume, worker.id, args.task);
+      if (reused) {
+        logger.info(
+          { runId: ctx.runId, reusedStepId: reused.id, reusedStepIndex: reused.stepIndex, agentId: worker.id },
+          "Retry: delegation already COMPLETED in a previous attempt — skipped, output reused",
+        );
+        const prev = (reused.output ?? {}) as { text?: unknown; toolCalls?: unknown };
+        return {
+          agent: worker.name,
+          output: typeof prev.text === "string" ? prev.text : (reused.output ?? null),
+          toolCalls: typeof prev.toolCalls === "number" ? prev.toolCalls : 0,
+          costUsd: 0,
+          reused: true,
+        };
+      }
       // BRA-P0-08: a delegation is the unit of spend here, so the job budget
       // (and its tenant/workspace gate) is checked before each one. Refused
       // delegations return an error to the manager; the final check below
@@ -110,7 +131,7 @@ function ensureDelegateToolRegistered(): void {
       await beatRun(ctx.runId, ctx.tenantId); // BRA-P0-04d: delegasyon başı
       const stepIndex = ++ctx.stepCounter.value;
       const startedAt = new Date();
-      await prisma.runStep.create({
+      const created = await prisma.runStep.create({
         data: {
           runId: ctx.runId,
           agentId: worker.id,
@@ -150,9 +171,11 @@ function ensureDelegateToolRegistered(): void {
           ?.toolCalls.find((tc) => tc.error)?.error;
       await prisma.runStep.update({
         where: {
-          id: (await prisma.runStep.findFirst({
+          // 04j: önceki denemelerin satırlarıyla aynı stepIndex çakışmasın diye kimlik satır id'si.
+          id: created?.id ?? (await prisma.runStep.findFirst({
             where: { runId: ctx.runId, stepIndex },
             select: { id: true },
+            orderBy: { createdAt: "desc" },
           }))!.id,
         },
         data: {
@@ -231,16 +254,27 @@ export async function processHierarchicalRun(opts: {
     reasoning: dispatchReasoning,
   });
 
+  // BRA-P0-04j: önceki denemeden COMPLETED delegasyonlar + maliyet tohumu. İlk koşuda satır
+  // yoktur → sayaç 0, eski davranış. Bayraktan bağımsız (yalnız mevcut satırları okur).
+  const resume = await loadDelegationResumePlan(runId, tenantId);
+  if (resume.completedCount > 0) {
+    logger.info(
+      { runId, restoredDelegations: resume.completedCount, seededCost: resume.seededCost, startStepIndex: resume.maxStepIndex },
+      "Retry: seeding hierarchical run from previous COMPLETED delegations (no re-execution, cost carried)",
+    );
+  }
+
   const ctx: DelegationContext = {
     runId,
     tenantId,
     pipelineCompanyId: pipeline.companyId,
     managerAgentId: manager.id,
     maxDepth: pipeline.maxDelegationDepth,
-    stepCounter: { value: 0 },
-    totalCost: { value: 0 },
+    stepCounter: { value: resume.maxStepIndex },
+    totalCost: { value: resume.seededCost },
     budgetStop: { reason: null },
     budgetGate: { tail: Promise.resolve() },
+    resume,
   };
 
   let finalOutput: string;

@@ -22,7 +22,7 @@ import { isStepApprovalGateEnabled, resolveStepByIdentity, stepRequiresApproval 
 import { transitionRun, isJobStateDualWriteEnabled, currentJobState } from "./transition";
 import { assertTransitioned, resumeToRunning, AlreadyRunningError, revertRunAfterEnqueueFailure } from "./resume";
 import { decideResume, toLegacyStatus, type JobState } from "./job-state";
-import { evaluateRetryBudget, isHierarchicalPipeline, retryLimit } from "./retry";
+import { evaluateRetryBudget, retryLimit } from "./retry";
 import { toJobReceiptDto } from "./receipt";
 import { env } from "../../config/env";
 import { toPublicCompany } from "../company/redact";
@@ -441,11 +441,8 @@ runRouter.post("/:id/retry", async (req, res, next) => {
     });
     if (!run || run.pipeline.company.tenantId !== tenantId) throw new AppError(404, "Run not found");
     if (!isJobStateDualWriteEnabled()) throw retryCodes(409, "retry_disabled");
-    // Hiyerarşik koşu retry'ı KAPALI (BRA-P0-04j): tamamlanmış delegasyonlar atlanmaz,
-    // maliyet tohumlanmaz. CAS'tan ÖNCE: durum/enqueue/retryCount değişmez.
-    if (isHierarchicalPipeline(run.pipeline)) {
-      throw retryCodes(409, "run_not_retryable", { reason: "hierarchical_not_supported" });
-    }
+    // Hiyerarşik koşu retry'ı AÇIK (BRA-P0-04j): hiyerarşik yürütücü aynı koşunun önceki COMPLETED
+    // delegasyonlarını atlar ve maliyeti onlardan tohumlar (pipeline/hierarchical-resume.ts).
 
     const cur = currentJobState(run.status, run.state);
     const bucket = jobBucket({

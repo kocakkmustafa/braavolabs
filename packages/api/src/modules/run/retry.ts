@@ -50,8 +50,8 @@ export function evaluateRetryBudget(run: RetryBudgetInput): RetryBudgetDecision 
 
 /**
  * Yürütücünün hiyerarşik yola girdiği KOŞUL (pipeline/runner.ts) ve retry
- * rotasının reddettiği koşul tek yerde: ayrışmasın. Hiyerarşik retry (prior
- * COMPLETED delegasyon + maliyet tohumlama) BRA-P0-04j bileti.
+ * rotasının ayırt ettiği koşul tek yerde: ayrışmasın. Hiyerarşik retry (prior
+ * COMPLETED delegasyon + maliyet tohumlama) BRA-P0-04j'de yürütücüde çözüldü.
  */
 export function isHierarchicalPipeline(pipeline: { pipelineType?: string | null } | null | undefined): boolean {
   return pipeline?.pipelineType === "HIERARCHICAL";

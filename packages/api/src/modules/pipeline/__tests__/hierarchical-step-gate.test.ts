@@ -11,7 +11,7 @@ vi.mock("../../../lib/db", () => ({
   prisma: {
     agent: { findUnique: (...a: unknown[]) => m.agentFindUnique(...a) },
     run: { update: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn(), updateMany: vi.fn() },
-    runStep: { create: vi.fn(), update: vi.fn(), findFirst: vi.fn() },
+    runStep: { create: vi.fn(), update: vi.fn(), findFirst: vi.fn(), findMany: vi.fn().mockResolvedValue([]) },
     activityLog: { create: vi.fn() },
   },
 }));
