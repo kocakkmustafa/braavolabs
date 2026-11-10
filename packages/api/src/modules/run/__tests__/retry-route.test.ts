@@ -262,23 +262,15 @@ describe("POST /runs/:id/retry", () => {
     expect(enqueueRunMock).not.toHaveBeenCalled();
   });
 
-  it("hierarchical pipeline → 409 run_not_retryable (hierarchical_not_supported); no transition, enqueue or retryCount change; sequential still works", async () => {
+  it("hierarchical pipeline → retry now ACCEPTED like sequential (BRA-P0-04j): CAS, retryCount+1, one enqueue", async () => {
     store.pipelineType = "HIERARCHICAL";
-    for (const st of ["FAILED", "PAUSED"]) {
-      setRun(st, st, { retryCount: 1 });
-      const { nextErr } = await invoke(retry);
-      expect(nextErr?.statusCode).toBe(409);
-      expect(nextErr?.message).toBe("run_not_retryable");
-      expect(nextErr?.details).toEqual({ reason: "hierarchical_not_supported" });
-      expect(store.row).toMatchObject({ status: st, state: st, retryCount: 1 });
-    }
-    expect(store.writes).toHaveLength(0);
-    expect(enqueueRunMock).not.toHaveBeenCalled();
-    expect(activityLogCreate).not.toHaveBeenCalled();
-    store.pipelineType = "SEQUENTIAL";
-    setRun("FAILED", "FAILED");
-    expect((await invoke(retry)).nextErr).toBeUndefined();
+    setRun("FAILED", "FAILED", { retryCount: 1 });
+    const { nextErr } = await invoke(retry);
+    expect(nextErr).toBeUndefined();
+    expect(store.row).toMatchObject({ status: "RUNNING", retryCount: 2 });
     expect(enqueueRunMock).toHaveBeenCalledTimes(1);
+    expect(activityLogCreate).toHaveBeenCalledTimes(1);
+    store.pipelineType = "SEQUENTIAL";
   });
 
   it("refund is CAS on retryCount in the SAME tx as the revert: never negative, never double, skipped if retryCount moved", async () => {

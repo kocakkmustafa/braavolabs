@@ -19,7 +19,7 @@ vi.mock("../../../lib/logger", () => ({
 const prismaMock = vi.hoisted(() => ({
   agent: { findUnique: vi.fn() },
   run: { update: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn(), updateMany: vi.fn() },
-  runStep: { create: vi.fn(), update: vi.fn(), findFirst: vi.fn() },
+  runStep: { create: vi.fn(), update: vi.fn(), findFirst: vi.fn(), findMany: vi.fn() },
   activityLog: { create: vi.fn() },
 }));
 vi.mock("../../../lib/db", () => ({ prisma: prismaMock }));
@@ -71,6 +71,7 @@ beforeEach(() => {
     pipeline: { company: { id: "co-1", tenantId: "tenant-1" } },
   });
   prismaMock.runStep.create.mockResolvedValue({});
+  prismaMock.runStep.findMany.mockResolvedValue([]);
   prismaMock.runStep.update.mockResolvedValue({});
   prismaMock.runStep.findFirst.mockResolvedValue({ id: "rs-worker" });
   prismaMock.activityLog.create.mockResolvedValue({});
