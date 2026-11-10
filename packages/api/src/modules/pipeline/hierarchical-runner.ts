@@ -29,7 +29,7 @@ import {
   trackDelegation,
   clearDelegationCounter,
 } from "./hierarchical";
-import { loadDelegationResumePlan, takeReusable, type DelegationResumePlan } from "./hierarchical-resume";
+import { loadDelegationResumePlan, startingCost, takeReusable, type DelegationResumePlan } from "./hierarchical-resume";
 
 // Register the `delegate` tool exactly once on module load. The
 // underlying implementation is keyed on a per-run AsyncLocalStorage
@@ -259,7 +259,7 @@ export async function processHierarchicalRun(opts: {
   const resume = await loadDelegationResumePlan(runId, tenantId);
   if (resume.completedCount > 0) {
     logger.info(
-      { runId, restoredDelegations: resume.completedCount, seededCost: resume.seededCost, startStepIndex: resume.maxStepIndex },
+      { runId, restoredDelegations: resume.completedCount, seededCost: resume.seededCost, priorRunCost: resume.priorRunCost, startingCost: startingCost(resume), startStepIndex: resume.maxStepIndex },
       "Retry: seeding hierarchical run from previous COMPLETED delegations (no re-execution, cost carried)",
     );
   }
@@ -271,7 +271,8 @@ export async function processHierarchicalRun(opts: {
     managerAgentId: manager.id,
     maxDepth: pipeline.maxDelegationDepth,
     stepCounter: { value: resume.maxStepIndex },
-    totalCost: { value: resume.seededCost },
+    // Taban max(run.costUsd, tohum): sayaç yalnız artar, run.costUsd hiçbir yazımda düşmez.
+    totalCost: { value: startingCost(resume) },
     budgetStop: { reason: null },
     budgetGate: { tail: Promise.resolve() },
     resume,

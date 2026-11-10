@@ -24,6 +24,12 @@ export interface DelegationResumePlan {
   reusable: Map<string, PriorDelegation[]>;
   /** Önceki denemelerde tamamlanan TÜM delegasyonların maliyet toplamı. */
   seededCost: number;
+  /**
+   * Koşunun kayıtlı `run.costUsd` değeri (önceki denemelerin yönetici + FAILED/INTERRUPTED worker
+   * harcaması dahil; COMPLETED delegasyon toplamından büyük olabilir). Retry maliyet sayacının TABANI:
+   * `max(priorRunCost, seededCost)` (bkz. `startingCost`). İlk koşuda 0.
+   */
+  priorRunCost: number;
   /** Önceki delegasyon satırlarının (her durum) en büyük stepIndex'i; yeni satırlar bunun ardından. */
   maxStepIndex: number;
   completedCount: number;
@@ -60,7 +66,18 @@ export function planDelegationResume(
     q.push({ id: r.id, stepIndex: r.stepIndex, agentId: r.agentId, task: inp.task, output: r.output, costUsd: cost });
     reusable.set(key, q);
   }
-  return { reusable, seededCost, maxStepIndex, completedCount };
+  return { reusable, seededCost, priorRunCost: 0, maxStepIndex, completedCount };
+}
+
+/**
+ * Retry'da kümülatif maliyet sayacının başlangıcı. Asla `run.costUsd`'nin altına düşmez:
+ * yalnız COMPLETED delegasyonları tohumlamak, önceki denemenin yönetici/başarısız worker
+ * harcamasını atlayıp `run.costUsd`'yi düşüğe yazdırır ve job bütçesini aşılabilir kılar.
+ * Sonlu olmayan/negatif değerler 0 sayılır.
+ */
+export function startingCost(plan: Pick<DelegationResumePlan, "seededCost" | "priorRunCost">): number {
+  const ok = (n: number) => (Number.isFinite(n) && n > 0 ? n : 0);
+  return Math.max(ok(plan.priorRunCost), ok(plan.seededCost));
 }
 
 /** Anahtara uyan ilk (en düşük stepIndex) kullanılmamış satırı tüketip döndürür; yoksa null. */
@@ -72,15 +89,24 @@ export function takeReusable(plan: DelegationResumePlan, agentId: string, task: 
 
 /** Aynı koşu + kiracı kapsamlı önceki delegasyon satırlarını yükler (başka koşu/kiracı asla). */
 export async function loadDelegationResumePlan(runId: string, tenantId: string): Promise<DelegationResumePlan> {
-  const rows = await prisma.runStep.findMany({
-    where: {
-      runId,
-      stepIndex: { gt: 0 },
-      name: { startsWith: "delegate:" },
-      run: { pipeline: { company: { tenantId } } },
-    },
-    select: { id: true, stepIndex: true, status: true, agentId: true, input: true, output: true, costUsd: true },
-    orderBy: { stepIndex: "asc" },
-  });
-  return planDelegationResume(rows as never);
+  const [rows, run] = await Promise.all([
+    prisma.runStep.findMany({
+      where: {
+        runId,
+        stepIndex: { gt: 0 },
+        name: { startsWith: "delegate:" },
+        run: { pipeline: { company: { tenantId } } },
+      },
+      select: { id: true, stepIndex: true, status: true, agentId: true, input: true, output: true, costUsd: true },
+      orderBy: { stepIndex: "asc" },
+    }),
+    // Kiracı kapsamlı (rule #10): yalnız bu kiracının koşusunun kayıtlı maliyeti.
+    prisma.run.findFirst({
+      where: { id: runId, pipeline: { company: { tenantId } } },
+      select: { costUsd: true },
+    }),
+  ]);
+  const plan = planDelegationResume(rows as never);
+  plan.priorRunCost = Number((run as { costUsd?: unknown } | null)?.costUsd ?? 0) || 0;
+  return plan;
 }

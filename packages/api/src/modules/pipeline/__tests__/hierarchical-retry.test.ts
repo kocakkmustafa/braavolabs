@@ -15,7 +15,7 @@ type Row = {
   id: string; runId: string; tenantId: string; stepIndex: number; name: string; status: string;
   agentId: string | null; input: unknown; output: unknown; costUsd: number | null;
 };
-const store = vi.hoisted(() => ({ rows: [] as any[], seq: 0 }));
+const store = vi.hoisted(() => ({ rows: [] as any[], seq: 0, runCost: null as number | null }));
 
 const prismaMock = vi.hoisted(() => ({
   agent: { findUnique: vi.fn() },
@@ -35,6 +35,7 @@ vi.mock("../hierarchical", () => ({
 }));
 
 import { processHierarchicalRun } from "../hierarchical-runner";
+import { startingCost } from "../hierarchical-resume";
 import { getTool } from "../../agent/registry";
 
 const pipeline = (extra: Record<string, unknown> = {}) =>
@@ -76,9 +77,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   store.rows = [];
   store.seq = 0;
+  store.runCost = null;
   prismaMock.agent.findUnique.mockResolvedValue({ id: "mgr-1", companyId: "co-1", systemPrompt: "m", tools: [], model: "x" });
   prismaMock.run.update.mockResolvedValue({});
-  prismaMock.run.findFirst.mockResolvedValue({ status: "RUNNING", state: null });
+  // `select: { costUsd }` (retry maliyet tabanı, kiracı kapsamlı) ayrı; diğer okumalar eski gibi.
+  prismaMock.run.findFirst.mockImplementation(async (args: any) =>
+    args?.select?.costUsd ? { costUsd: store.runCost } : { status: "RUNNING", state: null },
+  );
   prismaMock.run.updateMany.mockResolvedValue({ count: 1 });
   prismaMock.run.findUnique.mockResolvedValue({
     id: "run-1", jobBudget: null, tenantId: null, workspaceId: null, retryCount: 1, startedAt: null, steps: [],
@@ -208,5 +213,74 @@ describe("hiyerarşik retry — COMPLETED delegasyon atla + maliyet tohumla (BRA
     await runManager([{ agentId: "w-a", task: "A" }], { workerCost: 0.3, managerCost: 0.1 });
     expect(prismaMock.runStep.create.mock.calls[0][0].data.stepIndex).toBe(1);
     expect(lastRunUpdate().costUsd).toBeCloseTo(0.4, 10);
+  });
+});
+
+/** Yazılan tüm run.costUsd değerleri (updateMany data.costUsd). */
+const writtenCosts = () =>
+  prismaMock.run.updateMany.mock.calls
+    .map((c) => (c[0] as any).data.costUsd)
+    .filter((v) => typeof v === "number") as number[];
+
+describe("hiyerarşik retry — run.costUsd hiçbir yolda düşmez, bütçe kümülatif (BRA-P0-04j reviewer bulgusu)", () => {
+  it("(h) regresyon: önceki deneme yönetici + FAILED worker harcadı (run.costUsd 1.5 > COMPLETED tohumu 0.4) → retry sonrası maliyet düşmez", async () => {
+    store.runCost = 1.5; // önceki denemeler: COMPLETED 0.4 + FAILED worker 0.9 + yönetici 0.2
+    seedRow({ stepIndex: 1, status: "COMPLETED", costUsd: 0.4 });
+    seedRow({ stepIndex: 2, status: "FAILED", agentId: "w-b", input: { agentId: "w-b", task: "B" }, output: null, costUsd: 0.9 });
+    await runManager([{ agentId: "w-a", task: "A" }, { agentId: "w-b", task: "B" }], { workerCost: 0.3, managerCost: 0.1 });
+    // Eski hata: 0.4 + 0.3 + 0.1 = 0.8 (< 1.5) yazılırdı. Şimdi taban 1.5: 1.5 + 0.3 + 0.1.
+    expect(lastRunUpdate()).toMatchObject({ status: "COMPLETED" });
+    expect(lastRunUpdate().costUsd).toBeCloseTo(1.9, 10);
+    expect(Math.min(...writtenCosts())).toBeGreaterThanOrEqual(1.5);
+  });
+
+  it("(h2) regresyon: bütçe aşımı engellenir — run.costUsd zaten maxUsd'yi aştıysa yeni delegasyon çalışmaz, FAILED yazılan maliyet düşmez", async () => {
+    store.runCost = 1.2; // maxUsd 1.0'ı aştı; COMPLETED tohumu yalnız 0.4 (eski kod: 0.4 < 1.0 → delegasyona izin verirdi)
+    seedRow({ stepIndex: 1, status: "COMPLETED", costUsd: 0.4 });
+    prismaMock.run.findUnique.mockResolvedValue({
+      id: "run-1", jobBudget: { maxUsd: 1.0 }, tenantId: null, workspaceId: null, retryCount: 1, startedAt: null, steps: [],
+      pipeline: { company: { id: "co-1", tenantId: "tenant-1" } },
+    });
+    const res = await runManager([{ agentId: "w-b", task: "B" }]);
+    expect(workerLoops()).toBe(0);
+    expect(res[0]).toMatchObject({ error: expect.stringMatching(/^Delegation refused/) });
+    expect(lastRunUpdate()).toMatchObject({ status: "FAILED" });
+    expect(Math.min(...writtenCosts())).toBeGreaterThanOrEqual(1.2);
+  });
+
+  it("(h3) COMPLETED tohumu run.costUsd'den büyükse taban tohumdur (max); kayıtlı değer bayatsa da maliyet düşmez", async () => {
+    store.runCost = 0.1;
+    seedRow({ stepIndex: 1, status: "COMPLETED", costUsd: 0.4 });
+    await runManager([{ agentId: "w-a", task: "A" }], { managerCost: 0.1 });
+    expect(lastRunUpdate().costUsd).toBeCloseTo(0.5, 10); // 0.4 (tohum) + 0 (atlanan) + 0.1 (yönetici)
+  });
+
+  it("(i) düz koşu (retry'sız): run.costUsd 0/null, önceki satır yok → maliyet birebir eski (worker + yönetici)", async () => {
+    for (const rc of [null, 0]) {
+      vi.clearAllMocks();
+      store.rows = [];
+      store.runCost = rc;
+      prismaMock.run.updateMany.mockResolvedValue({ count: 1 });
+      await runManager([{ agentId: "w-a", task: "A" }], { workerCost: 0.3, managerCost: 0.1 });
+      expect(lastRunUpdate().costUsd).toBeCloseTo(0.4, 10);
+      expect(workerLoops()).toBe(1);
+    }
+  });
+
+  it("(j) kiracı izolasyonu: run.costUsd okuması kiracı kapsamlı; başka kiracının run'ı (null) → taban 0, tohum yalnız kendi COMPLETED satırlarından", async () => {
+    store.runCost = null;
+    prismaMock.run.findFirst.mockImplementation(async (args: any) => (args?.select?.costUsd ? null : { status: "RUNNING", state: null }));
+    seedRow({ stepIndex: 1, status: "COMPLETED", costUsd: 0.4 });
+    await runManager([{ agentId: "w-a", task: "A" }], { managerCost: 0.1 });
+    const call = prismaMock.run.findFirst.mock.calls.map((c) => c[0] as any).find((a) => a?.select?.costUsd);
+    expect(call.where).toMatchObject({ id: "run-1", pipeline: { company: { tenantId: "tenant-1" } } });
+    expect(lastRunUpdate().costUsd).toBeCloseTo(0.5, 10); // 0.4 tohum + 0.1 yönetici; başka kiracı değeri sızmadı
+  });
+
+  it("startingCost: max(run.costUsd, tohum); NaN/negatif/Infinity 0 sayılır", () => {
+    expect(startingCost({ priorRunCost: 1.5, seededCost: 0.4 })).toBe(1.5);
+    expect(startingCost({ priorRunCost: 0.1, seededCost: 0.4 })).toBe(0.4);
+    expect(startingCost({ priorRunCost: Number.NaN, seededCost: -2 })).toBe(0);
+    expect(startingCost({ priorRunCost: Number.POSITIVE_INFINITY, seededCost: 0.3 })).toBe(0.3);
   });
 });
