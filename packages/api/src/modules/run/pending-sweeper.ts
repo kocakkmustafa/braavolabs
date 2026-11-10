@@ -8,7 +8,10 @@
  *
  *   yaş ∈ [GRACE, MAX_AGE]  → yeniden kuyruğa al (`enqueueRun`, sabit jobId `run-<id>`)
  *   yaş > MAX_AGE           → FAILED (`pending_orphaned`): günler sonra habersiz başlayan,
- *                             kullanıcının terk ettiği bir iş sürpriz harcama yaratmasın
+ *                             kullanıcının terk ettiği bir iş sürpriz harcama yaratmasın.
+ *                             Durum grafiğine bağlı değil (READY→FAILED kenarı yok): kiracı kapsamlı
+ *                             okuma + `status=PENDING` skaler CAS; bayrak açıkken `state` de FAILED.
+ *                             Kota iadesi YAPILMAZ (approval/expiry-cron ile aynı; ticket kapsamı dışı).
  *   yaş < GRACE             → dokunma (normal yaratım→kuyruk penceresi)
  *
  * Güvenceler:
@@ -20,7 +23,10 @@
  *  - Kiracı kapsamı: aday sorgusu `pipeline.company.tenantId` üzerinden; `tenantId` verilirse yalnız
  *    o kiracı. Kuyruk yükü ve FAILED yazımı koşunun KENDİ kiracısıyla yapılır (`enqueueRun`
  *    kiracıyı DB'den türetir; `transitionRun` kiracı kapsamlı).
- *  - Durum yarışı: FAILED yazımı `onlyIfStatus: ["PENDING"]` + CAS; arada başlayan koşu ezilmez.
+ *  - Durum yarışı: her yazımdan önce kiracı kapsamlı taze okuma (PENDING değilse dokunulmaz), FAILED
+ *    yazımı `status=PENDING` CAS'lı; kuyruk taraması dolarsa (≥5000) yeniden kuyruğa alma yapılmaz.
+ *  - Bilinen sınır: `processRun` PENDING dışı koşuyu kendisi reddetmez; çift yürütmeye karşı koruma
+ *    bu dosyadaki canlı-iş taraması + jobId dedupe + taze durum okumasıdır (BRA-P0-03e reviewer D1).
  *  - Bayrak (`JOB_STATE_DUAL_WRITE`) KAPALIYKEN `state` kolonu adlandırılmaz (migration öncesi
  *    şema güvenli); AÇIKKEN yalnız `state` null/READY (DRAFT/PLANNED PENDING'ler başlatılmayı
  *    beklemez, dokunulmaz).
@@ -31,7 +37,8 @@ import { logger } from "../../lib/logger";
 import { runQueue } from "../../lib/queue";
 import { runWithoutTenant } from "../../lib/tenant-context";
 import { enqueueRun } from "../pipeline/runner";
-import { isJobStateDualWriteEnabled, transitionRun } from "./transition";
+import type { JobState } from "./job-state";
+import { isJobStateDualWriteEnabled } from "./transition";
 
 /** Yaratım→kuyruk normal penceresi: bundan genç PENDING'e dokunulmaz. */
 export const PENDING_GRACE_MS = 10 * 60_000;
@@ -50,6 +57,10 @@ export interface PendingSweepResult {
   requeued: number;
   failed: number;
   skippedQueued: number;
+  /** Aday listelendikten sonra PENDING olmaktan çıkan (işçi aldı/iptal) ya da CAS'ı kaybeden koşular. */
+  skippedChanged: number;
+  /** Kuyruk taraması doldu (≥ LIVE_SCAN_LIMIT): canlı iş yokluğu KANITLANAMADI, yeniden kuyruğa alma yapılmadı. */
+  skippedUnverified: number;
   errors: number;
 }
 
@@ -61,10 +72,19 @@ export interface PendingSweepOptions {
   dualWrite?: boolean;
 }
 
-/** Kuyrukta bu koşu için canlı (henüz bitmemiş) bir iş var mı. */
-async function hasLiveJob(runId: string): Promise<boolean> {
+/**
+ * Kuyrukta canlı (henüz bitmemiş) işi olan koşu kimlikleri; sweep başına BİR kez taranır.
+ * `complete=false`: tarama sınıra dayandı, daha eski canlı iş görünmemiş olabilir → çağıran
+ * yeniden kuyruğa almaz (çift enqueue'dan kaçınmak için güvenli taraf).
+ */
+async function scanLiveRunIds(): Promise<{ ids: Set<string>; complete: boolean }> {
   const jobs = await runQueue.getJobs(["waiting", "active", "delayed", "prioritized"], 0, LIVE_SCAN_LIMIT - 1);
-  return jobs.some((j) => (j?.data as { runId?: string } | undefined)?.runId === runId);
+  const ids = new Set<string>();
+  for (const j of jobs) {
+    const id = (j?.data as { runId?: string } | undefined)?.runId;
+    if (id) ids.add(id);
+  }
+  return { ids, complete: jobs.length < LIVE_SCAN_LIMIT };
 }
 
 /** Süpürücünün önceki, BİTMİŞ aynı-id'li işini kaldırır (koşu hâlâ PENDING: iş onu yürütmedi). */
@@ -78,7 +98,7 @@ async function clearFinishedSweepJob(runId: string): Promise<void> {
 export async function sweepPendingRuns(opts: PendingSweepOptions = {}): Promise<PendingSweepResult> {
   const now = opts.now ?? Date.now();
   const dual = opts.dualWrite ?? isJobStateDualWriteEnabled();
-  const result: PendingSweepResult = { scanned: 0, requeued: 0, failed: 0, skippedQueued: 0, errors: 0 };
+  const result: PendingSweepResult = { scanned: 0, requeued: 0, failed: 0, skippedQueued: 0, skippedChanged: 0, skippedUnverified: 0, errors: 0 };
 
   const candidates = await prisma.run.findMany({
     where: {
@@ -94,6 +114,10 @@ export async function sweepPendingRuns(opts: PendingSweepOptions = {}): Promise<
   });
   result.scanned = candidates.length;
 
+  // Kuyruk taraması tembel ve sweep başına tek: yalnız yeniden kuyruğa alınacak aday varsa yapılır.
+  let live: { ids: Set<string>; complete: boolean } | null = null;
+  const tenantScope = (id: string, t: string) => ({ id, pipeline: { company: { tenantId: t } } });
+
   for (const run of candidates) {
     const tenantId = run.pipeline?.company?.tenantId;
     if (!tenantId) {
@@ -103,27 +127,47 @@ export async function sweepPendingRuns(opts: PendingSweepOptions = {}): Promise<
     }
     try {
       const age = now - run.createdAt.getTime();
-      if (age > PENDING_MAX_AGE_MS) {
-        const o = await transitionRun(prisma, run.id, "FAILED", {
-          tenantId,
-          legacyUnchecked: true,
-          onlyIfStatus: ["PENDING"],
-          extra: { error: "pending_orphaned", completedAt: new Date() },
-        });
-        if (o.ok && !o.noop) {
-          result.failed++;
-          await prisma.activityLog.create({
-            data: { tenantId, actor: "system", action: "run.pending_orphaned", resource: "run", resourceId: run.id, details: { ageMs: age } },
-          });
-        }
+      // Her yazımdan önce kiracı kapsamlı TAZE okuma: aday listelendikten sonra işçi koşuyu aldıysa
+      // (RUNNING/COMPLETED…) ya da iptal edildiyse dokunulmaz (bayat aday yarışı).
+      const fresh = (await prisma.run.findFirst({
+        where: tenantScope(run.id, tenantId),
+        select: dual ? { status: true, state: true } : { status: true },
+      })) as { status: string; state?: JobState | null } | null;
+      if (!fresh || fresh.status !== "PENDING") {
+        result.skippedChanged++;
         continue;
       }
-      if (await hasLiveJob(run.id)) {
+
+      if (age > PENDING_MAX_AGE_MS) {
+        // Durum grafiğine (READY→FAILED kenarı yok) bağlı DEĞİL: hiç başlamamış koşunun terk edilmesi.
+        // Skaler CAS (kiracı yukarıdaki okumada doğrulandı); bayrak açıkken `state` de FAILED olur.
+        const res = await prisma.run.updateMany({
+          where: { id: run.id, status: "PENDING", ...(dual ? { state: fresh.state ?? null } : {}) },
+          data: { status: "FAILED", ...(dual ? { state: "FAILED" } : {}), error: "pending_orphaned", completedAt: new Date() },
+        });
+        if (res.count !== 1) {
+          result.skippedChanged++;
+          continue;
+        }
+        result.failed++;
+        await prisma.activityLog.create({
+          data: { tenantId, actor: "system", action: "run.pending_orphaned", resource: "run", resourceId: run.id, details: { ageMs: age } },
+        });
+        continue;
+      }
+
+      live ??= await scanLiveRunIds();
+      if (live.ids.has(run.id)) {
         result.skippedQueued++;
+        continue;
+      }
+      if (!live.complete) {
+        result.skippedUnverified++;
         continue;
       }
       await clearFinishedSweepJob(run.id);
       await enqueueRun(run.id, { jobId: sweepJobId(run.id) });
+      live.ids.add(run.id);
       result.requeued++;
       await prisma.activityLog.create({
         data: { tenantId, actor: "system", action: "run.pending_requeued", resource: "run", resourceId: run.id, details: { ageMs: age } },
@@ -133,7 +177,7 @@ export async function sweepPendingRuns(opts: PendingSweepOptions = {}): Promise<
       logger.error({ err, runId: run.id }, "PENDING sweeper: run failed — continuing with the rest");
     }
   }
-  if (result.requeued || result.failed || result.errors) logger.info(result, "PENDING sweeper tick");
+  if (result.requeued || result.failed || result.errors || result.skippedUnverified) logger.info(result, "PENDING sweeper tick");
   return result;
 }
 

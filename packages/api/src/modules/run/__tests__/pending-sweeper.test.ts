@@ -75,7 +75,9 @@ beforeEach(() => {
     return r ? { status: r.status, state: r.state } : null;
   });
   prismaMock.run.updateMany.mockImplementation(async ({ where, data }: any) => {
-    const r = h.runs.find((x: RunRow) => x.id === where.id && x.status === where.status);
+    const r = h.runs.find(
+      (x: RunRow) => x.id === where.id && x.status === where.status && (where.state === undefined ? true : x.state === where.state),
+    );
     if (!r) return { count: 0 };
     Object.assign(r, data);
     return { count: 1 };
@@ -206,6 +208,59 @@ describe("PENDING süpürücü — ölü PENDING koşu yeniden kuyruğa alınır
     expect(res.failed).toBe(0);
     expect(h.runs[0].status).toBe("RUNNING");
     expect(prismaMock.activityLog.create).not.toHaveBeenCalled();
+  });
+
+  it("(5c) CAS kaybı: okuma ile yazma arasında durum değişirse (updateMany count 0) FAILED sayılmaz, denetim satırı yok", async () => {
+    addRun({ id: "run-old", createdAt: new Date(NOW - PENDING_MAX_AGE_MS - MIN) });
+    prismaMock.run.updateMany.mockResolvedValueOnce({ count: 0 });
+    const res = await sweep();
+    expect(res).toMatchObject({ failed: 0, skippedChanged: 1, errors: 0 });
+    expect(prismaMock.activityLog.create).not.toHaveBeenCalled();
+  });
+
+  it("(E1) bayrak AÇIK + >24 sa: READY→FAILED grafik kenarı olmadan da kapanır (state null ve READY), state FAILED yazılır; parti aç kalmaz", async () => {
+    const old = new Date(NOW - PENDING_MAX_AGE_MS - MIN);
+    addRun({ id: "run-null", state: null, createdAt: old });
+    addRun({ id: "run-ready", state: "READY", createdAt: old });
+    const res = await sweep({ dualWrite: true });
+    expect(res).toMatchObject({ scanned: 2, failed: 2, errors: 0 });
+    for (const r of h.runs) expect(r).toMatchObject({ status: "FAILED", state: "FAILED", error: "pending_orphaned" });
+    // CAS state'e de bağlı (null ya da READY okunan değer)
+    const wheres = prismaMock.run.updateMany.mock.calls.map((c) => (c[0] as any).where);
+    expect(wheres).toEqual(
+      expect.arrayContaining([
+        { id: "run-null", status: "PENDING", state: null },
+        { id: "run-ready", status: "PENDING", state: "READY" },
+      ]),
+    );
+    // Kapanan koşular sonraki süpürmede aday değil → parti başka koşulara kalır
+    expect((await sweep({ dualWrite: true })).scanned).toBe(0);
+  });
+
+  it("(D2) bayat aday: listelendikten sonra işçi koşuyu aldı/bitirdi → yeniden kuyruğa ALINMAZ (taze okuma)", async () => {
+    addRun({ id: "run-raced" });
+    prismaMock.run.findFirst.mockImplementationOnce(async () => {
+      h.runs[0].status = "COMPLETED"; // işçi saniyeler içinde bitirdi
+      return { status: "COMPLETED", state: null };
+    });
+    const res = await sweep();
+    expect(res).toMatchObject({ requeued: 0, skippedChanged: 1 });
+    expect(enqueueRunMock).not.toHaveBeenCalled();
+  });
+
+  it("kuyruk taraması sweep başına BİR kez (50 aday × getJobs değil)", async () => {
+    for (let i = 0; i < 5; i++) addRun({ id: `run-${i}`, createdAt: new Date(NOW - (40 + i) * MIN) });
+    await sweep();
+    expect(queueMock.getJobs).toHaveBeenCalledTimes(1);
+    expect(enqueueRunMock).toHaveBeenCalledTimes(5);
+  });
+
+  it("tarama doldu (≥5000 canlı iş): canlı iş yokluğu kanıtlanamaz → yeniden kuyruğa alınmaz, skippedUnverified", async () => {
+    addRun({ id: "run-dead" });
+    queueMock.getJobs.mockResolvedValue(Array.from({ length: 5000 }, (_, i) => ({ id: String(i), data: { runId: `other-${i}`, tenantId: "t" } })));
+    const res = await sweep();
+    expect(res).toMatchObject({ requeued: 0, skippedUnverified: 1 });
+    expect(enqueueRunMock).not.toHaveBeenCalled();
   });
 
   it("(6) bayrak KAPALI: sorgu `state` kolonunu adlandırmaz (migration öncesi şema güvenli)", async () => {
