@@ -35,8 +35,31 @@ const SECRET_NAME =
 const SECRET_VALUE = /^(sk|pk|rk)[-_]|^gh[pousr]_|^xox|^AKIA|^eyJ/i;
 /** LLM girdisinden gelen alan adı biçimi. */
 const FIELD_NAME = /^[A-Za-z_][\w.-]{0,40}$/;
-/** Kimlik biçimi (connectionId/targetId). */
-const ID_SAFE = /^[\w.:-]{1,64}$/;
+/**
+ * Kimlik biçimi (connectionId/targetId). BRA-UX-API-01b: `:` YOK (`user:pass`, `acct:…`
+ * biçimleri bu alandan geçemez); gerçek kimlikler (cuid/uuid/slug) iki nokta içermez.
+ */
+const ID_SAFE = /^[\w.-]{1,64}$/;
+/**
+ * Kimlikte HER KONUMDA aranan gizli önekler (başta olması gerekmez): Stripe/Anthropic tipi
+ * `sk|pk|rk` + `-`/`_` + canlı/test/ant/proj önekleri, `ghp_`-ailesi, `xox*`, `AKIA…`, JWT (`eyJ`),
+ * `whsec_`, `acct[-_]`. Genel `sk-`/`pk_`/`rk-` yalnız kelime başında (ör. "risk-1" yanlış pozitif olmaz).
+ */
+const ID_SECRET_ANYWHERE =
+  /(sk|pk|rk)[-_](live|test|ant|proj)|gh[pousr]_|xox[abprs]?-|AKIA[0-9A-Z]{8,}|eyJ|whsec_|acct[-_]/i;
+const ID_SECRET_WORD_START = /(^|[^a-z0-9])(sk|pk|rk)[-_]/i;
+/** Uzun hex (≥32 hane, her konumda) ve ≥40 karakterlik blok: anahtar/özet/token gibi görünür. */
+const ID_LONG_HEX = /[0-9a-f]{32,}/i;
+const ID_LONG_BLOCK = /[A-Za-z0-9_-]{40,}/;
+
+/** `ID_SAFE` + sızıntı süzgeçleri; uymazsa null (ham değer yanıta girmez). */
+function safeId(v: unknown): string | null {
+  const id = matching(v, ID_SAFE);
+  if (id === null) return null;
+  if (ID_SECRET_ANYWHERE.test(id) || ID_SECRET_WORD_START.test(id)) return null;
+  if (ID_LONG_HEX.test(id) || ID_LONG_BLOCK.test(id)) return null;
+  return id;
+}
 /** Araç adı biçimi (registry adı / pipeline config tool). */
 const TOOL_NAME = /^[A-Za-z][\w.:-]{0,63}$/;
 /** Sağlayıcı/model adı biçimi (gpt-4o, claude-3.5, vendor/model). */
@@ -104,8 +127,8 @@ export function deriveApprovalDetails(type: unknown, metadata: unknown): Approva
     if (type === "EXTERNAL_CONTROL") {
       const tool = matching(m.toolName, TOOL_NAME);
       const action = typeof m.action === "string" && /^[A-Z_]{1,20}$/.test(m.action) ? m.action : null;
-      const conn = matching(m.connectionId, ID_SAFE);
-      const target = matching(m.targetId, ID_SAFE);
+      const conn = safeId(m.connectionId);
+      const target = safeId(m.targetId);
       return {
         risk: null,
         permissions: tool && action ? list([`${tool}:${action}`]) : list([tool]),

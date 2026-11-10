@@ -99,6 +99,41 @@ describe("deriveApprovalDetails", () => {
       .toEqual(["TRIGGER → bağlantı ckeyabc123, hedef t"]);
   });
 
+  // BRA-UX-API-01b — ID_SAFE sertleştirme: her desen için ≥1 sızıntı testi (targetId ve connectionId).
+  const LEAKS: Array<[string, string]> = [
+    ["iki nokta: user:pass", "user:pass"],
+    ["iki nokta: acct:…", "acct:1Abc23"],
+    ["acct_ öneki her konumda", "id-acct_1Abc23"],
+    ["32 hane hex (küçük)", "0123456789abcdef0123456789abcdef"],
+    ["32 hane hex (büyük harf)", "0123456789ABCDEF0123456789ABCDEF"],
+    ["hex gömülü (öne/arkaya ek)", "pre-0123456789abcdef0123456789abcdef-post"],
+    ["≥40 karakter blok", "abcXYZ_".repeat(6)],
+    ["sk-live her konumda", "my.sk-live-abc123"],
+    ["sk_test her konumda", "idsk_test_abc123"],
+    ["kelime başı sk-", "x_sk-abc123"],
+    ["pk_live her konumda", "z.pk_live_abc123"],
+    ["rk_live her konumda", "z.rk_live_abc123"],
+    ["ghp_ öneki her konumda", "id-ghp_abcd1234"],
+    ["xox* token her konumda", "t-xoxb-123456"],
+    ["AKIA anahtar kimliği her konumda", "idAKIAIOSFODNN7EXAMPLE"],
+    ["JWT (eyJ) her konumda", "ref.eyJhbGciOiJIUzI1"],
+    ["whsec_ her konumda", "wh-whsec_abc123"],
+  ];
+  it.each(LEAKS)("ID sızıntısı engellenir — %s", (_name, bad) => {
+    const onTarget = deriveApprovalDetails("EXTERNAL_CONTROL", { toolName: "external_control", connectionId: "c1", action: "PAUSE", targetId: bad });
+    expect(onTarget.dataTransfer).toEqual(["PAUSE → bağlantı c1"]);
+    const onConn = deriveApprovalDetails("EXTERNAL_CONTROL", { toolName: "external_control", connectionId: bad, action: "PAUSE", targetId: "t1" });
+    expect(onConn.dataTransfer).toBeNull();
+    for (const d of [onTarget, onConn]) expect(JSON.stringify(d)).not.toContain(bad);
+  });
+
+  it("ID yanlış pozitifleri yok: cuid, uuid (tireli), slug, 'risk-1'/'desk-1' geçer", () => {
+    for (const ok of ["ckeyabc123", "cjld2cjxh0000qzrmn831i7rn", "123e4567-e89b-12d3-a456-426614174000", "conn.prod-1", "risk-1", "desk-1", "t_42"]) {
+      const d = deriveApprovalDetails("EXTERNAL_CONTROL", { toolName: "external_control", connectionId: ok, action: "PAUSE", targetId: ok });
+      expect(d.dataTransfer).toEqual([`PAUSE → bağlantı ${ok}, hedef ${ok}`]);
+    }
+  });
+
   it("çok anahtarlı girdi: yalnız ilk 50 anahtar incelenir", () => {
     const input: Record<string, number> = {};
     for (let i = 0; i < 50; i++) input[`password${i}`] = i;
