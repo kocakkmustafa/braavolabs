@@ -1304,6 +1304,61 @@
       "approvalForbidden": "Non hai il permesso di decidere le approvazioni.",
       "actionRejected": "Il lavoro non è in uno stato che consenta questa azione."
     },
+    "jobs": {
+      "title": "Attività",
+      "drawerLabel": "Attività: {title}",
+      "close": "Chiudi",
+      "viewLabel": "Vista dell'attività",
+      "tab": {
+        "summary": "Riepilogo",
+        "output": "Risultato",
+        "kaput": "Sotto il cofano"
+      },
+      "detail": {
+        "label": "Dettaglio",
+        "simple": "Semplice",
+        "full": "Completo"
+      },
+      "state": {
+        "DRAFT": "bozza",
+        "PLANNED": "pianificata",
+        "READY": "pronta",
+        "RUNNING": "in corso",
+        "NEEDS_APPROVAL": "richiede approvazione",
+        "RESUMING": "ripresa",
+        "PAUSED": "in pausa",
+        "FAILED": "fallita",
+        "CANCELLED": "annullata",
+        "COMPLETED": "completata",
+        "unknown": "sconosciuto"
+      },
+      "risk": {
+        "low": "basso",
+        "medium": "medio",
+        "high": "alto"
+      },
+      "riskLabel": "Rischio: {value}",
+      "verified": "✔ Verificato",
+      "unverified": "Non verificato",
+      "noVerification": "Nessuna informazione di verifica",
+      "field": {
+        "status": "Stato",
+        "cost": "Costo",
+        "company": "Azienda"
+      },
+      "fullInfo": "ID: {id} · stato: {state} · aggiornato: {updated}",
+      "kaput": {
+        "loading": "Caricamento del cofano…",
+        "error": "Impossibile leggere il cofano.",
+        "summary": "Passaggi ({steps}) · Chiamate agli strumenti: {tools} · Costo: {cost} · Passaggi di consegna: {handoffs}",
+        "noSteps": "Questa attività non ha ancora registri dei passaggi.",
+        "unknown": "n/d",
+        "later": "Dettagli su modello, instradamento e permessi arriveranno in una versione successiva."
+      },
+      "stuckNote": "Alcune attività bloccate non sono ancora visibili mentre il monitoraggio heartbeat è disattivato.",
+      "openJob": "Apri l'attività {title}",
+      "openFull": "Apri la pagina completa dell'esecuzione"
+    },
     "plan": {
       "title": "Descrivi un lavoro",
       "workspace": "Spazio di lavoro",

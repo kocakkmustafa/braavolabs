@@ -1304,6 +1304,61 @@
       "approvalForbidden": "你没有处理审批的权限。",
       "actionRejected": "任务当前状态不允许此操作。"
     },
+    "jobs": {
+      "title": "任务",
+      "drawerLabel": "任务：{title}",
+      "close": "关闭",
+      "viewLabel": "任务视图",
+      "tab": {
+        "summary": "摘要",
+        "output": "输出",
+        "kaput": "底层详情"
+      },
+      "detail": {
+        "label": "详细程度",
+        "simple": "简洁",
+        "full": "完整"
+      },
+      "state": {
+        "DRAFT": "草稿",
+        "PLANNED": "已规划",
+        "READY": "就绪",
+        "RUNNING": "运行中",
+        "NEEDS_APPROVAL": "等待审批",
+        "RESUMING": "恢复中",
+        "PAUSED": "已暂停",
+        "FAILED": "失败",
+        "CANCELLED": "已取消",
+        "COMPLETED": "已完成",
+        "unknown": "未知"
+      },
+      "risk": {
+        "low": "低",
+        "medium": "中",
+        "high": "高"
+      },
+      "riskLabel": "风险：{value}",
+      "verified": "✔ 已验证",
+      "unverified": "未验证",
+      "noVerification": "无验证信息",
+      "field": {
+        "status": "状态",
+        "cost": "成本",
+        "company": "公司"
+      },
+      "fullInfo": "ID：{id} · 状态：{state} · 更新：{updated}",
+      "kaput": {
+        "loading": "正在加载底层详情…",
+        "error": "无法读取底层详情。",
+        "summary": "步骤（{steps}）· 工具调用：{tools} · 成本：{cost} · 交接：{handoffs}",
+        "noSteps": "此任务暂无步骤记录。",
+        "unknown": "暂无",
+        "later": "模型、路由和权限详情将在后续版本提供。"
+      },
+      "stuckNote": "心跳追踪关闭时，部分卡住的任务暂时不可见。",
+      "openJob": "打开任务 {title}",
+      "openFull": "打开完整运行页面"
+    },
     "plan": {
       "title": "描述任务",
       "workspace": "工作区",

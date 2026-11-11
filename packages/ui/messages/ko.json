@@ -1304,6 +1304,61 @@
       "approvalForbidden": "승인을 결정할 권한이 없습니다.",
       "actionRejected": "작업이 이 동작을 허용하는 상태가 아닙니다."
     },
+    "jobs": {
+      "title": "작업",
+      "drawerLabel": "작업: {title}",
+      "close": "닫기",
+      "viewLabel": "작업 보기",
+      "tab": {
+        "summary": "요약",
+        "output": "결과물",
+        "kaput": "내부 동작"
+      },
+      "detail": {
+        "label": "상세 수준",
+        "simple": "간단히",
+        "full": "전체"
+      },
+      "state": {
+        "DRAFT": "초안",
+        "PLANNED": "계획됨",
+        "READY": "준비됨",
+        "RUNNING": "실행 중",
+        "NEEDS_APPROVAL": "승인 대기",
+        "RESUMING": "재개 중",
+        "PAUSED": "일시 중지",
+        "FAILED": "실패",
+        "CANCELLED": "취소됨",
+        "COMPLETED": "완료",
+        "unknown": "알 수 없음"
+      },
+      "risk": {
+        "low": "낮음",
+        "medium": "중간",
+        "high": "높음"
+      },
+      "riskLabel": "위험: {value}",
+      "verified": "✔ 검증됨",
+      "unverified": "검증 안 됨",
+      "noVerification": "검증 정보 없음",
+      "field": {
+        "status": "상태",
+        "cost": "비용",
+        "company": "회사"
+      },
+      "fullInfo": "ID: {id} · 상태: {state} · 업데이트: {updated}",
+      "kaput": {
+        "loading": "내부 동작을 불러오는 중…",
+        "error": "내부 동작을 읽지 못했습니다.",
+        "summary": "단계 ({steps}) · 도구 호출: {tools} · 비용: {cost} · 인계: {handoffs}",
+        "noSteps": "이 작업에는 아직 단계 기록이 없습니다.",
+        "unknown": "정보 없음",
+        "later": "모델, 라우팅, 권한 상세는 이후 버전에서 제공됩니다."
+      },
+      "stuckNote": "하트비트 추적이 꺼져 있는 동안 일부 멈춘 작업은 아직 보이지 않습니다.",
+      "openJob": "작업 {title} 열기",
+      "openFull": "실행 전체 페이지 열기"
+    },
     "plan": {
       "title": "작업 설명",
       "workspace": "워크스페이스",

@@ -1304,6 +1304,61 @@
       "approvalForbidden": "Vous n’avez pas l’autorisation de décider des approbations.",
       "actionRejected": "La tâche n’est pas dans un état qui permet cette action."
     },
+    "jobs": {
+      "title": "Tâches",
+      "drawerLabel": "Tâche : {title}",
+      "close": "Fermer",
+      "viewLabel": "Vue de la tâche",
+      "tab": {
+        "summary": "Résumé",
+        "output": "Résultat",
+        "kaput": "Sous le capot"
+      },
+      "detail": {
+        "label": "Détail",
+        "simple": "Simple",
+        "full": "Complet"
+      },
+      "state": {
+        "DRAFT": "brouillon",
+        "PLANNED": "planifiée",
+        "READY": "prête",
+        "RUNNING": "en cours",
+        "NEEDS_APPROVAL": "en attente d'approbation",
+        "RESUMING": "reprise",
+        "PAUSED": "en pause",
+        "FAILED": "échouée",
+        "CANCELLED": "annulée",
+        "COMPLETED": "terminée",
+        "unknown": "inconnu"
+      },
+      "risk": {
+        "low": "faible",
+        "medium": "moyen",
+        "high": "élevé"
+      },
+      "riskLabel": "Risque : {value}",
+      "verified": "✔ Vérifié",
+      "unverified": "Non vérifié",
+      "noVerification": "Aucune information de vérification",
+      "field": {
+        "status": "Statut",
+        "cost": "Coût",
+        "company": "Entreprise"
+      },
+      "fullInfo": "ID : {id} · état : {state} · mis à jour : {updated}",
+      "kaput": {
+        "loading": "Chargement du capot…",
+        "error": "Impossible de lire le capot.",
+        "summary": "Étapes ({steps}) · Appels d'outils : {tools} · Coût : {cost} · Transferts : {handoffs}",
+        "noSteps": "Cette tâche n'a pas encore d'étapes enregistrées.",
+        "unknown": "n/d",
+        "later": "Le détail du modèle, du routage et des autorisations arrivera dans une version ultérieure."
+      },
+      "stuckNote": "Certaines tâches bloquées ne sont pas encore visibles tant que le suivi du signal de vie est désactivé.",
+      "openJob": "Ouvrir la tâche {title}",
+      "openFull": "Ouvrir la page complète de l'exécution"
+    },
     "plan": {
       "title": "Décrire une tâche",
       "workspace": "Espace de travail",

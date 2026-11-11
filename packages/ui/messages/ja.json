@@ -1304,6 +1304,61 @@
       "approvalForbidden": "承認を決定する権限がありません。",
       "actionRejected": "ジョブはこの操作を許可する状態ではありません。"
     },
+    "jobs": {
+      "title": "ジョブ",
+      "drawerLabel": "ジョブ: {title}",
+      "close": "閉じる",
+      "viewLabel": "ジョブ表示",
+      "tab": {
+        "summary": "概要",
+        "output": "出力",
+        "kaput": "内部の動き"
+      },
+      "detail": {
+        "label": "詳細度",
+        "simple": "シンプル",
+        "full": "フル"
+      },
+      "state": {
+        "DRAFT": "下書き",
+        "PLANNED": "計画済み",
+        "READY": "準備完了",
+        "RUNNING": "実行中",
+        "NEEDS_APPROVAL": "承認待ち",
+        "RESUMING": "再開中",
+        "PAUSED": "一時停止",
+        "FAILED": "失敗",
+        "CANCELLED": "キャンセル",
+        "COMPLETED": "完了",
+        "unknown": "不明"
+      },
+      "risk": {
+        "low": "低",
+        "medium": "中",
+        "high": "高"
+      },
+      "riskLabel": "リスク: {value}",
+      "verified": "✔ 検証済み",
+      "unverified": "未検証",
+      "noVerification": "検証情報なし",
+      "field": {
+        "status": "状態",
+        "cost": "コスト",
+        "company": "会社"
+      },
+      "fullInfo": "ID: {id} · 状態: {state} · 更新: {updated}",
+      "kaput": {
+        "loading": "内部の動きを読み込み中…",
+        "error": "内部の動きを読み取れませんでした。",
+        "summary": "ステップ ({steps}) · ツール呼び出し: {tools} · コスト: {cost} · 引き継ぎ: {handoffs}",
+        "noSteps": "このジョブにはまだステップ記録がありません。",
+        "unknown": "情報なし",
+        "later": "モデル、ルーティング、権限の詳細は次のリリースで追加されます。"
+      },
+      "stuckNote": "ハートビート監視がオフの間、停止中のジョブの一部はまだ表示されません。",
+      "openJob": "ジョブ {title} を開く",
+      "openFull": "実行の詳細ページを開く"
+    },
     "plan": {
       "title": "ジョブを説明",
       "workspace": "ワークスペース",

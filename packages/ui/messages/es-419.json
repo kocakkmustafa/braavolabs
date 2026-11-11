@@ -1304,6 +1304,61 @@
       "approvalForbidden": "No tienes permiso para decidir aprobaciones.",
       "actionRejected": "El trabajo no está en un estado que permita esta acción."
     },
+    "jobs": {
+      "title": "Trabajos",
+      "drawerLabel": "Trabajo: {title}",
+      "close": "Cerrar",
+      "viewLabel": "Vista del trabajo",
+      "tab": {
+        "summary": "Resumen",
+        "output": "Resultado",
+        "kaput": "Bajo el capó"
+      },
+      "detail": {
+        "label": "Detalle",
+        "simple": "Simple",
+        "full": "Completo"
+      },
+      "state": {
+        "DRAFT": "borrador",
+        "PLANNED": "planificado",
+        "READY": "listo",
+        "RUNNING": "en curso",
+        "NEEDS_APPROVAL": "necesita aprobación",
+        "RESUMING": "reanudando",
+        "PAUSED": "en pausa",
+        "FAILED": "fallido",
+        "CANCELLED": "cancelado",
+        "COMPLETED": "terminado",
+        "unknown": "desconocido"
+      },
+      "risk": {
+        "low": "bajo",
+        "medium": "medio",
+        "high": "alto"
+      },
+      "riskLabel": "Riesgo: {value}",
+      "verified": "✔ Verificado",
+      "unverified": "No verificado",
+      "noVerification": "Sin información de verificación",
+      "field": {
+        "status": "Estado",
+        "cost": "Costo",
+        "company": "Empresa"
+      },
+      "fullInfo": "ID: {id} · estado: {state} · actualizado: {updated}",
+      "kaput": {
+        "loading": "Cargando el capó…",
+        "error": "No se pudo leer el capó.",
+        "summary": "Pasos ({steps}) · Llamadas a herramientas: {tools} · Costo: {cost} · Traspasos: {handoffs}",
+        "noSteps": "Este trabajo todavía no tiene registros de pasos.",
+        "unknown": "n/d",
+        "later": "El detalle de modelo, enrutamiento y permisos llegará en una versión posterior."
+      },
+      "stuckNote": "Algunos trabajos atascados todavía no se ven mientras el seguimiento de latido está desactivado.",
+      "openJob": "Abrir el trabajo {title}",
+      "openFull": "Abrir la página completa de la ejecución"
+    },
     "plan": {
       "title": "Describe un trabajo",
       "workspace": "Espacio de trabajo",

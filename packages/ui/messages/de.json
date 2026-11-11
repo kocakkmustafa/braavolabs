@@ -1304,6 +1304,61 @@
       "approvalForbidden": "Sie haben keine Berechtigung, Freigaben zu entscheiden.",
       "actionRejected": "Der Auftrag befindet sich in keinem Zustand, der diese Aktion erlaubt."
     },
+    "jobs": {
+      "title": "Aufgaben",
+      "drawerLabel": "Aufgabe: {title}",
+      "close": "Schließen",
+      "viewLabel": "Aufgabenansicht",
+      "tab": {
+        "summary": "Zusammenfassung",
+        "output": "Ergebnis",
+        "kaput": "Unter der Haube"
+      },
+      "detail": {
+        "label": "Detailgrad",
+        "simple": "Einfach",
+        "full": "Vollständig"
+      },
+      "state": {
+        "DRAFT": "Entwurf",
+        "PLANNED": "geplant",
+        "READY": "bereit",
+        "RUNNING": "läuft",
+        "NEEDS_APPROVAL": "wartet auf Freigabe",
+        "RESUMING": "wird fortgesetzt",
+        "PAUSED": "pausiert",
+        "FAILED": "fehlgeschlagen",
+        "CANCELLED": "abgebrochen",
+        "COMPLETED": "erledigt",
+        "unknown": "unbekannt"
+      },
+      "risk": {
+        "low": "niedrig",
+        "medium": "mittel",
+        "high": "hoch"
+      },
+      "riskLabel": "Risiko: {value}",
+      "verified": "✔ Verifiziert",
+      "unverified": "Nicht verifiziert",
+      "noVerification": "Keine Verifizierungsinfo",
+      "field": {
+        "status": "Status",
+        "cost": "Kosten",
+        "company": "Unternehmen"
+      },
+      "fullInfo": "ID: {id} · Zustand: {state} · aktualisiert: {updated}",
+      "kaput": {
+        "loading": "Haube wird geladen…",
+        "error": "Haube konnte nicht gelesen werden.",
+        "summary": "Schritte ({steps}) · Tool-Aufrufe: {tools} · Kosten: {cost} · Übergaben: {handoffs}",
+        "noSteps": "Diese Aufgabe hat noch keine Schrittprotokolle.",
+        "unknown": "k. A.",
+        "later": "Modell-, Routing- und Berechtigungsdetails folgen in einer späteren Version."
+      },
+      "stuckNote": "Einige hängende Aufgaben sind noch nicht sichtbar, solange die Heartbeat-Überwachung aus ist.",
+      "openJob": "Aufgabe {title} öffnen",
+      "openFull": "Vollständige Lauf-Seite öffnen"
+    },
     "plan": {
       "title": "Auftrag beschreiben",
       "workspace": "Arbeitsbereich",
