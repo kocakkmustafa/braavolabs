@@ -1359,6 +1359,15 @@
       "openJob": "{title} işini aç",
       "openFull": "Tüm ayrıntı sayfasını aç"
     },
+    "workspace": {
+      "back": "İşlere dön",
+      "classic": "Klasik ayrıntı görünümü",
+      "loading": "İş yükleniyor…",
+      "errorTitle": "İş açılamadı",
+      "errorBody": "Bağlantını kontrol edip yeniden dene.",
+      "notFound": "Bu iş bulunamadı ya da erişimin yok.",
+      "label": "İş çalışma alanı: {title}"
+    },
     "plan": {
       "title": "Bir iş tarif et",
       "workspace": "Çalışma alanı",

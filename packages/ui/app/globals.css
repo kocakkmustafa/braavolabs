@@ -1456,3 +1456,9 @@ h1, h2, h3, p, label { overflow-wrap: anywhere; }
   }
   .bv-rise, .reveal { opacity: 1 !important; transform: none !important; }
 }
+
+/* BRA-UX-05b: iş kipleri (Özet/Çıktı/Kaput) çapraz solma, 180 ms; hareket azaltma tercihinde kesme (animasyon yok). */
+@keyframes job-mode-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: no-preference) {
+  .job-mode-in { animation: job-mode-in 180ms ease-out; }
+}

@@ -1359,6 +1359,15 @@
       "openJob": "Buka tugas {title}",
       "openFull": "Buka halaman lengkap eksekusi"
     },
+    "workspace": {
+      "back": "Kembali ke pekerjaan",
+      "classic": "Tampilan detail klasik",
+      "loading": "Memuat pekerjaan…",
+      "errorTitle": "Pekerjaan tidak dapat dibuka",
+      "errorBody": "Periksa koneksi Anda lalu coba lagi.",
+      "notFound": "Pekerjaan ini tidak ditemukan atau Anda tidak punya akses.",
+      "label": "Ruang kerja pekerjaan: {title}"
+    },
     "plan": {
       "title": "Jelaskan pekerjaan",
       "workspace": "Ruang kerja",

@@ -1359,6 +1359,15 @@
       "openJob": "Apri l'attività {title}",
       "openFull": "Apri la pagina completa dell'esecuzione"
     },
+    "workspace": {
+      "back": "Torna ai lavori",
+      "classic": "Vista dettagliata classica",
+      "loading": "Caricamento del lavoro…",
+      "errorTitle": "Impossibile aprire questo lavoro",
+      "errorBody": "Controlla la connessione e riprova.",
+      "notFound": "Questo lavoro non è stato trovato oppure non hai accesso.",
+      "label": "Area di lavoro: {title}"
+    },
     "plan": {
       "title": "Descrivi un lavoro",
       "workspace": "Spazio di lavoro",
