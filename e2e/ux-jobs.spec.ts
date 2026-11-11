@@ -187,6 +187,9 @@ for (const { vp, size, scheme } of COMBOS) {
 
       await drawer(page).getByLabel("Ayrıntı").selectOption("full");
       await expect(drawer(page).getByTestId("job-kaput")).toContainText("read");
+      await drawer(page).getByLabel("Ayrıntı").focus();
+      await page.keyboard.press("ArrowLeft"); // seçicideki ok tuşu sekme değiştirmez (tablist yalnız sekmeleri kapsar)
+      await expect(drawer(page).getByRole("tab", { name: "Kaput" })).toHaveAttribute("aria-selected", "true");
       await shot("04-cekmece-kaput-tam");
 
       await drawer(page).getByRole("tab", { name: "Çıktı" }).click();

@@ -43,6 +43,8 @@ export default function JobsInbox() {
   const [message, setMessage] = useState<{ runId: string; kind: "ok" | "error"; text: string } | null>(null);
   const [approvalErrors, setApprovalErrors] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState<string | null>(null);
+  const tabRef = useRef<InboxBucket>(tab);
+  tabRef.current = tab; // eylem sürerken sekme değişirse yenileme güncel kovaya gitsin (bayat kapanış yok)
   const runsSeq = useRef(0);
   const groupsSeq = useRef(0);
   const runLock = useRef(createRowLock());
@@ -101,7 +103,7 @@ export default function JobsInbox() {
     if (r.ok) {
       // İş kova değiştirir: çekmece bayat durumla eylem sunmasın; sonuç sayfa düzeyinde duyurulur.
       setMessage({ runId: run.id, kind: "ok", text: t("app.inbox.actionOk") });
-      void loadRuns(tab, null, true, run.id);
+      void loadRuns(tabRef.current, null, true, run.id);
       close(run.id);
     } else setMessage({ runId: run.id, kind: "error", text: t(actionErrorKey(r.err)) });
     lockRun(run.id, false);
@@ -127,7 +129,7 @@ export default function JobsInbox() {
     }
     const key = decisionMessageKey(res.kind);
     if (key) setApprovalErrors((m) => ({ ...m, [a.id]: t(key) }));
-    if (refreshesLists(res.kind)) { void loadGroups(null, true, a.id); void loadRuns(tab, null, true); }
+    if (refreshesLists(res.kind)) { void loadGroups(null, true, a.id); void loadRuns(tabRef.current, null, true); }
     approvalLock.current.release(a.id);
     setBusyApprovals(approvalLock.current.snapshot());
   };
@@ -191,11 +193,11 @@ export default function JobsInbox() {
                     const selected = drawerRun?.id === run.id;
                     return (
                       <li key={run.id} data-testid="job-row" style={{ ...card, ...(selected ? { borderColor: "var(--color-primary)" } : {}) }}>
-                        <button type="button" id={`job-open-${run.id}`} aria-label={t("app.jobs.openJob", { title })} aria-expanded={selected}
+                        <button type="button" id={`job-open-${run.id}`} aria-label={t("app.jobs.openJob", { title })} aria-describedby={`job-meta-${run.id}`} aria-expanded={selected}
                           onClick={() => { setMessage(null); setOpen(selected ? null : run); }}
                           style={{ all: "unset", cursor: "pointer", display: "block", width: "100%", boxSizing: "border-box" }}>
                           <strong style={{ color: "var(--color-on-surface)", overflowWrap: "anywhere" }}>{title}</strong>
-                          <span style={{ ...muted, display: "block", marginTop: 2 }}>{meta}</span>
+                          <span id={`job-meta-${run.id}`} style={{ ...muted, display: "block", marginTop: 2 }}>{meta}</span>
                         </button>
                       </li>
                     );
@@ -207,7 +209,7 @@ export default function JobsInbox() {
           </section>
         </div>
         {drawerRun && (
-          <JobDrawer run={drawerRun} token={token} t={t} locale={locale} rtl={rtl} busy={busyRuns.has(drawerRun.id)}
+          <JobDrawer key={drawerRun.id} run={drawerRun} token={token} t={t} locale={locale} rtl={rtl} busy={busyRuns.has(drawerRun.id)}
             message={message && message.runId === drawerRun.id ? message : null}
             onAction={(a) => void runAction(drawerRun, a)} onSteer={(text) => steer(drawerRun, text)} onClose={() => close(drawerRun.id)} />
         )}

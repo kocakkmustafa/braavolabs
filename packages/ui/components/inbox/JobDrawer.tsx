@@ -39,7 +39,8 @@ export default function JobDrawer({ run, token, t, locale, rtl, busy, message, o
 
   useEffect(() => { heading.current?.focus(); }, [run.id]);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    // Yazı alanında/seçicide Esc çekmeceyi kapatmaz (yazılan yönlendirme kaybolmasın; seçici kendi açılırını kapatır).
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !(e.target instanceof HTMLElement && e.target.closest("input, textarea, select"))) onClose(); };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
@@ -81,11 +82,13 @@ export default function JobDrawer({ run, token, t, locale, rtl, busy, message, o
         <h2 ref={heading} tabIndex={-1} style={{ margin: 0, fontSize: 17, fontWeight: 700, overflowWrap: "anywhere", color: "var(--color-on-surface)" }}>{title}</h2>
         <button type="button" style={btn} onClick={onClose} aria-label={t("app.jobs.close")}>✕</button>
       </div>
-      <div role="tablist" aria-label={t("app.jobs.viewLabel")} onKeyDown={onTabKey} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-        {TABS.map((id) => (
-          <button key={id} type="button" role="tab" id={`job-tab-${id}`} aria-selected={tab === id} aria-controls="job-tabpanel" tabIndex={tab === id ? 0 : -1} onClick={() => setTab(id)}
-            style={{ ...btn, ...(tab === id ? { background: "var(--color-primary)", color: "var(--color-on-primary)", borderColor: "transparent" } : {}) }}>{t(`app.jobs.tab.${id}`)}</button>
-        ))}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+        <div role="tablist" aria-label={t("app.jobs.viewLabel")} onKeyDown={onTabKey} style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {TABS.map((id) => (
+            <button key={id} type="button" role="tab" id={`job-tab-${id}`} aria-selected={tab === id} aria-controls="job-tabpanel" tabIndex={tab === id ? 0 : -1} onClick={() => setTab(id)}
+              style={{ ...btn, ...(tab === id ? { background: "var(--color-primary)", color: "var(--color-on-primary)", borderColor: "transparent" } : {}) }}>{t(`app.jobs.tab.${id}`)}</button>
+          ))}
+        </div>
         <label style={{ ...muted, marginInlineStart: "auto", display: "flex", gap: 6, alignItems: "center" }}>
           {t("app.jobs.detail.label")}
           <select value={full ? "full" : "simple"} onChange={(e) => setFull(e.target.value === "full")} style={{ minHeight: 44, padding: "0 8px" }}>
