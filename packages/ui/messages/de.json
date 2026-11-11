@@ -1338,6 +1338,46 @@
       "companyInactive": "The company is paused or archived; new jobs cannot start.",
       "noAgent": "This workspace has no agent to run the job.",
       "validation": "The request could not be validated. Check the message and retry."
+    },
+    "intent": {
+      "title": "Start",
+      "label": "Was möchtest du tun?",
+      "placeholder": "Beschreibe eine Aufgabe, stelle eine Frage oder fordere einen Agenten an…",
+      "barLabel": "Absichtsleiste",
+      "understood": "Ich habe verstanden:",
+      "kind": {
+        "chat": "Chat",
+        "job": "Aufgabe",
+        "agent": "Agent"
+      },
+      "submit": {
+        "chat": "Chat starten",
+        "job": "Planen",
+        "agent": "Agent anfordern"
+      },
+      "lowConfidence": "Ich bin unsicher: es wird als Chat behandelt; wähle „Aufgabe“, um es als Aufgabe zu planen.",
+      "previewNote": "„Ich habe verstanden“ ist ein lokaler Hinweis; im Planschritt entscheidet der Server selbst.",
+      "chat": {
+        "unavailable": "Chat ist noch nicht verfügbar: diese Version plant nur Aufgaben und erstellt Agenten. Deine Nachricht hat keinen Aufgabeneintrag erzeugt; es fielen keine Kosten an.",
+        "asJob": "Als Aufgabe planen"
+      },
+      "plan": {
+        "tool": "Werkzeug: {tool}",
+        "approvalStep": "Freigabe nötig, {risk} Risiko",
+        "modelRow": "Modellzeile pro Schritt: noch nicht verfügbar (API folgt)."
+      },
+      "agent": {
+        "title": "Neuer Agent",
+        "immediate": "Dieser Schritt speichert den Agenten sofort: ein Entwurf vor dem Erstellen ist noch nicht möglich.",
+        "create": "Agent jetzt erstellen",
+        "working": "Agent wird erstellt…",
+        "role": "Rolle: {role}",
+        "toolsLabel": "Werkzeuge",
+        "noTools": "keine",
+        "dropped": "Entferntes Werkzeug ({count}): {tools} ist nicht verbunden; der Agent wurde ohne es erstellt.",
+        "saved": "Agent gespeichert.",
+        "close": "Schließen"
+      }
     }
   },
   "static": {

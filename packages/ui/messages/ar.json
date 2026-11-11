@@ -1338,6 +1338,46 @@
       "companyInactive": "The company is paused or archived; new jobs cannot start.",
       "noAgent": "This workspace has no agent to run the job.",
       "validation": "The request could not be validated. Check the message and retry."
+    },
+    "intent": {
+      "title": "ابدأ",
+      "label": "ماذا تريد أن تفعل؟",
+      "placeholder": "صِف مهمة، أو اطرح سؤالاً، أو اطلب وكيلاً…",
+      "barLabel": "شريط النية",
+      "understood": "ما فهمته:",
+      "kind": {
+        "chat": "محادثة",
+        "job": "مهمة",
+        "agent": "وكيل"
+      },
+      "submit": {
+        "chat": "ابدأ المحادثة",
+        "job": "خطّط",
+        "agent": "اطلب وكيلاً"
+      },
+      "lowConfidence": "لست متأكداً: سيُعامَل كمحادثة؛ اختر «مهمة» لتخطيطه كمهمة.",
+      "previewNote": "«ما فهمته» تلميح محلي؛ في خطوة الخطة يقرر الخادم بنفسه.",
+      "chat": {
+        "unavailable": "المحادثة غير متاحة بعد: هذا الإصدار يخطّط المهام وينشئ الوكلاء فقط. رسالتك لم تُنشئ سجل مهمة ولم يُنفَق شيء.",
+        "asJob": "خطّط كمهمة"
+      },
+      "plan": {
+        "tool": "الأداة: {tool}",
+        "approvalStep": "يتطلب موافقة، مخاطرة {risk}",
+        "modelRow": "سطر النموذج لكل خطوة: غير متاح بعد (بانتظار واجهة API)."
+      },
+      "agent": {
+        "title": "وكيل جديد",
+        "immediate": "هذه الخطوة تحفظ الوكيل فوراً: معاينة مسودة قبل الإنشاء غير متاحة بعد.",
+        "create": "أنشئ الوكيل الآن",
+        "working": "جارٍ إنشاء الوكيل…",
+        "role": "الدور: {role}",
+        "toolsLabel": "الأدوات",
+        "noTools": "لا شيء",
+        "dropped": "أداة مُستبعَدة ({count}): {tools} غير متصلة؛ أُنشئ الوكيل بدونها.",
+        "saved": "تم حفظ الوكيل.",
+        "close": "إغلاق"
+      }
     }
   },
   "static": {

@@ -1338,6 +1338,46 @@
       "companyInactive": "The company is paused or archived; new jobs cannot start.",
       "noAgent": "This workspace has no agent to run the job.",
       "validation": "The request could not be validated. Check the message and retry."
+    },
+    "intent": {
+      "title": "Empezar",
+      "label": "¿Qué quieres hacer?",
+      "placeholder": "Describe un trabajo, haz una pregunta o pide un agente…",
+      "barLabel": "Barra de intención",
+      "understood": "Lo que entendí:",
+      "kind": {
+        "chat": "Chat",
+        "job": "Trabajo",
+        "agent": "Agente"
+      },
+      "submit": {
+        "chat": "Iniciar chat",
+        "job": "Planificar",
+        "agent": "Pedir agente"
+      },
+      "lowConfidence": "No estoy seguro: se trata como chat; elige “Trabajo” para planificarlo como trabajo.",
+      "previewNote": "“Lo que entendí” es una pista local; en el paso del plan el servidor decide por su cuenta.",
+      "chat": {
+        "unavailable": "El chat aún no está disponible: esta versión solo planifica trabajos y crea agentes. Tu mensaje no creó ningún registro de trabajo; no hubo gasto.",
+        "asJob": "Planificar como trabajo"
+      },
+      "plan": {
+        "tool": "herramienta: {tool}",
+        "approvalStep": "requiere aprobación, riesgo {risk}",
+        "modelRow": "Línea de modelo por paso: aún no disponible (falta la API)."
+      },
+      "agent": {
+        "title": "Agente nuevo",
+        "immediate": "Este paso guarda el agente de inmediato: aún no se puede ver un borrador antes de crearlo.",
+        "create": "Crear agente ahora",
+        "working": "Creando agente…",
+        "role": "rol: {role}",
+        "toolsLabel": "Herramientas",
+        "noTools": "ninguna",
+        "dropped": "Herramienta quitada ({count}): {tools} no está conectada; el agente se creó sin ella.",
+        "saved": "Agente guardado.",
+        "close": "Cerrar"
+      }
     }
   },
   "static": {

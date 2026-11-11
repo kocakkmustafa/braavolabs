@@ -1338,6 +1338,46 @@
       "companyInactive": "The company is paused or archived; new jobs cannot start.",
       "noAgent": "This workspace has no agent to run the job.",
       "validation": "The request could not be validated. Check the message and retry."
+    },
+    "intent": {
+      "title": "スタート",
+      "label": "何をしますか？",
+      "placeholder": "作業を説明する、質問する、またはエージェントを依頼してください…",
+      "barLabel": "意図バー",
+      "understood": "理解した内容：",
+      "kind": {
+        "chat": "チャット",
+        "job": "ジョブ",
+        "agent": "エージェント"
+      },
+      "submit": {
+        "chat": "チャットを開始",
+        "job": "計画する",
+        "agent": "エージェントを依頼"
+      },
+      "lowConfidence": "確信がありません。チャットとして扱います。ジョブとして計画するには「ジョブ」を選んでください。",
+      "previewNote": "「理解した内容」はローカルのヒントです。計画の段階ではサーバーが独自に判断します。",
+      "chat": {
+        "unavailable": "チャットはまだ利用できません。このバージョンではジョブの計画とエージェントの作成のみ可能です。メッセージからジョブ記録は作成されず、費用も発生していません。",
+        "asJob": "ジョブとして計画"
+      },
+      "plan": {
+        "tool": "ツール: {tool}",
+        "approvalStep": "承認が必要、リスク{risk}",
+        "modelRow": "ステップごとのモデル行: まだありません（API待ち）。"
+      },
+      "agent": {
+        "title": "新しいエージェント",
+        "immediate": "この手順はエージェントをすぐに保存します。作成前に下書きを確認することはまだできません。",
+        "create": "今すぐエージェントを作成",
+        "working": "エージェントを作成中…",
+        "role": "役割: {role}",
+        "toolsLabel": "ツール",
+        "noTools": "なし",
+        "dropped": "除外したツール（{count}件）: {tools} は未接続のため、エージェントはそれらなしで作成されました。",
+        "saved": "エージェントを保存しました。",
+        "close": "閉じる"
+      }
     }
   },
   "static": {

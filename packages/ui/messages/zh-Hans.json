@@ -1338,6 +1338,46 @@
       "companyInactive": "The company is paused or archived; new jobs cannot start.",
       "noAgent": "This workspace has no agent to run the job.",
       "validation": "The request could not be validated. Check the message and retry."
+    },
+    "intent": {
+      "title": "开始",
+      "label": "你想做什么？",
+      "placeholder": "描述一项工作、提出问题或请求一个智能体…",
+      "barLabel": "意图栏",
+      "understood": "我的理解：",
+      "kind": {
+        "chat": "聊天",
+        "job": "工作",
+        "agent": "智能体"
+      },
+      "submit": {
+        "chat": "开始聊天",
+        "job": "制定计划",
+        "agent": "请求智能体"
+      },
+      "lowConfidence": "我不太确定：将按聊天处理；若要作为工作来规划，请选择“工作”。",
+      "previewNote": "“我的理解”只是本地提示；在计划步骤中由服务器自行决定。",
+      "chat": {
+        "unavailable": "聊天暂不可用：此版本只能规划工作和创建智能体。你的消息没有创建工作记录，也没有产生费用。",
+        "asJob": "作为工作来规划"
+      },
+      "plan": {
+        "tool": "工具：{tool}",
+        "approvalStep": "需要批准，{risk}风险",
+        "modelRow": "每步模型行：暂不可用（等待 API）。"
+      },
+      "agent": {
+        "title": "新智能体",
+        "immediate": "此步骤会立即保存智能体：创建前预览草稿暂不支持。",
+        "create": "立即创建智能体",
+        "working": "正在创建智能体…",
+        "role": "角色：{role}",
+        "toolsLabel": "工具",
+        "noTools": "无",
+        "dropped": "已移除的工具（{count}）：{tools} 未连接；智能体已在没有这些工具的情况下创建。",
+        "saved": "智能体已保存。",
+        "close": "关闭"
+      }
     }
   },
   "static": {

@@ -1338,6 +1338,46 @@
       "companyInactive": "The company is paused or archived; new jobs cannot start.",
       "noAgent": "This workspace has no agent to run the job.",
       "validation": "The request could not be validated. Check the message and retry."
+    },
+    "intent": {
+      "title": "Mulai",
+      "label": "Apa yang ingin kamu lakukan?",
+      "placeholder": "Jelaskan pekerjaan, ajukan pertanyaan, atau minta agen…",
+      "barLabel": "Bilah niat",
+      "understood": "Yang saya pahami:",
+      "kind": {
+        "chat": "Obrolan",
+        "job": "Pekerjaan",
+        "agent": "Agen"
+      },
+      "submit": {
+        "chat": "Mulai obrolan",
+        "job": "Rencanakan",
+        "agent": "Minta agen"
+      },
+      "lowConfidence": "Saya kurang yakin: ini diperlakukan sebagai obrolan; pilih “Pekerjaan” untuk merencanakannya sebagai pekerjaan.",
+      "previewNote": "“Yang saya pahami” hanyalah petunjuk lokal; pada langkah rencana, server menentukan sendiri.",
+      "chat": {
+        "unavailable": "Obrolan belum tersedia: versi ini hanya merencanakan pekerjaan dan membuat agen. Pesanmu tidak membuat catatan pekerjaan; tidak ada biaya.",
+        "asJob": "Rencanakan sebagai pekerjaan"
+      },
+      "plan": {
+        "tool": "alat: {tool}",
+        "approvalStep": "perlu persetujuan, risiko {risk}",
+        "modelRow": "Baris model per langkah: belum tersedia (menunggu API)."
+      },
+      "agent": {
+        "title": "Agen baru",
+        "immediate": "Langkah ini langsung menyimpan agen: melihat draf sebelum membuat belum tersedia.",
+        "create": "Buat agen sekarang",
+        "working": "Membuat agen…",
+        "role": "peran: {role}",
+        "toolsLabel": "Alat",
+        "noTools": "tidak ada",
+        "dropped": "Alat dihapus ({count}): {tools} belum terhubung; agen dibuat tanpa alat tersebut.",
+        "saved": "Agen tersimpan.",
+        "close": "Tutup"
+      }
     }
   },
   "static": {

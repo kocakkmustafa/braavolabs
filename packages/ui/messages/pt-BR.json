@@ -1338,6 +1338,46 @@
       "companyInactive": "The company is paused or archived; new jobs cannot start.",
       "noAgent": "This workspace has no agent to run the job.",
       "validation": "The request could not be validated. Check the message and retry."
+    },
+    "intent": {
+      "title": "Começar",
+      "label": "O que você quer fazer?",
+      "placeholder": "Descreva uma tarefa, faça uma pergunta ou peça um agente…",
+      "barLabel": "Barra de intenção",
+      "understood": "O que entendi:",
+      "kind": {
+        "chat": "Conversa",
+        "job": "Tarefa",
+        "agent": "Agente"
+      },
+      "submit": {
+        "chat": "Iniciar conversa",
+        "job": "Planejar",
+        "agent": "Pedir agente"
+      },
+      "lowConfidence": "Não tenho certeza: será tratado como conversa; escolha “Tarefa” para planejar como tarefa.",
+      "previewNote": "“O que entendi” é uma dica local; na etapa do plano o servidor decide por conta própria.",
+      "chat": {
+        "unavailable": "A conversa ainda não está disponível: esta versão só planeja tarefas e cria agentes. Sua mensagem não criou nenhum registro de tarefa; nada foi gasto.",
+        "asJob": "Planejar como tarefa"
+      },
+      "plan": {
+        "tool": "ferramenta: {tool}",
+        "approvalStep": "requer aprovação, risco {risk}",
+        "modelRow": "Linha de modelo por etapa: ainda não disponível (falta a API)."
+      },
+      "agent": {
+        "title": "Novo agente",
+        "immediate": "Esta etapa salva o agente imediatamente: ainda não é possível ver um rascunho antes de criar.",
+        "create": "Criar agente agora",
+        "working": "Criando agente…",
+        "role": "função: {role}",
+        "toolsLabel": "Ferramentas",
+        "noTools": "nenhuma",
+        "dropped": "Ferramenta removida ({count}): {tools} não está conectada; o agente foi criado sem ela.",
+        "saved": "Agente salvo.",
+        "close": "Fechar"
+      }
     }
   },
   "static": {
