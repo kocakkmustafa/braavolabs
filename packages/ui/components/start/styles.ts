@@ -5,6 +5,8 @@ export const glass: CSSProperties = {
   background: "var(--bv-glass-bg, var(--color-surface-container))", border: "1px solid var(--bv-glass-border, var(--color-outline-variant))",
   backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 16, padding: 16,
 };
+/** Hata çerçevesi: `border` kısayolu TAM yazılır (kısayolu `borderColor` ile karıştırmak React'te rengi sıfırlar). */
+export const glassError: CSSProperties = { ...glass, border: "1px solid var(--color-error)" };
 export const flat: CSSProperties = { background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)", borderRadius: 12, padding: 12 };
 export const muted: CSSProperties = { color: "var(--color-on-surface-variant)", fontSize: 13 };
 export const btn: CSSProperties = {

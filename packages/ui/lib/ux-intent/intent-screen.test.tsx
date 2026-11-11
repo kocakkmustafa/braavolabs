@@ -135,6 +135,20 @@ describe("AgentPanel — compose ajanı HEMEN kaydeder", () => {
     expect(html).toContain("Çıkarılan araç (2): slack.post, crm");
     expect(html).toContain("Ajan kaydedildi.");
   });
+  it("10 karakterden kısa tarifte oluştur devre dışı ve neden yazılı; 10 ve üstünde açık", () => {
+    const short = renderToStaticMarkup(<AgentPanel state={{ phase: "confirm", description: "satış" }} t={tr} onCreate={noop} onCancel={noop} />);
+    expect(short).toContain("en az 10 karakter");
+    expect(short).toMatch(/<button type="button"[^>]* disabled=""[^>]*>Ajanı hemen oluştur</);
+    const ok = renderToStaticMarkup(<AgentPanel state={{ phase: "confirm", description: "0123456789" }} t={tr} onCreate={noop} onCancel={noop} />);
+    expect(ok).not.toContain("en az 10 karakter");
+    expect(ok).not.toMatch(/<button type="button"[^>]* disabled=""[^>]*>Ajanı hemen oluştur</);
+  });
+  it("ağ/zaman aşımı hatasında çift kayıt uyarısı; diğer hatalarda yok", () => {
+    for (const kind of ["network", "timeout"] as const) {
+      expect(renderToStaticMarkup(<AgentPanel state={{ phase: "error", description: "d", kind }} t={tr} onCreate={noop} onCancel={noop} />)).toContain("zaten kaydedilmiş olabilir");
+    }
+    expect(renderToStaticMarkup(<AgentPanel state={{ phase: "error", description: "d", kind: "forbidden" }} t={tr} onCreate={noop} onCancel={noop} />)).not.toContain("zaten kaydedilmiş olabilir");
+  });
   it("hata türüne göre yerelleştirilmiş mesaj ve yeniden dene", () => {
     const html = renderToStaticMarkup(<AgentPanel state={{ phase: "error", description: "d", kind: "network" }} t={tr} onCreate={noop} onCancel={noop} />);
     expect(html).toContain("Sunucuya ulaşılamadı");

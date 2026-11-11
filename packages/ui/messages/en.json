@@ -1376,7 +1376,9 @@
         "noTools": "none",
         "dropped": "Removed tool ({count}): {tools} not connected; the agent was created without them.",
         "saved": "Agent saved.",
-        "close": "Close"
+        "close": "Close",
+        "tooShort": "Describe the agent in at least 10 characters: say a bit more about what it should do.",
+        "maybeSaved": "If the connection dropped, the agent may already be saved: check the agent list before retrying."
       }
     }
   },

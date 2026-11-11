@@ -1376,7 +1376,9 @@
         "noTools": "brak",
         "dropped": "Pominięte narzędzie ({count}): {tools} nie jest połączone; agent został utworzony bez niego.",
         "saved": "Agent zapisany.",
-        "close": "Zamknij"
+        "close": "Zamknij",
+        "tooShort": "Opis agenta musi mieć co najmniej 10 znaków: napisz nieco więcej o tym, co ma robić.",
+        "maybeSaved": "Jeśli połączenie zostało przerwane, agent mógł już zostać zapisany: sprawdź listę agentów przed ponowną próbą."
       }
     }
   },

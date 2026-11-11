@@ -1376,7 +1376,9 @@
         "noTools": "aucun",
         "dropped": "Outil retiré ({count}) : {tools} n'est pas connecté ; l'agent a été créé sans lui.",
         "saved": "Agent enregistré.",
-        "close": "Fermer"
+        "close": "Fermer",
+        "tooShort": "La description de l'agent doit faire au moins 10 caractères : précise un peu ce qu'il doit faire.",
+        "maybeSaved": "Si la connexion a coupé, l'agent est peut-être déjà enregistré : vérifie la liste des agents avant de réessayer."
       }
     }
   },

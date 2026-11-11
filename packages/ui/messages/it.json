@@ -1376,7 +1376,9 @@
         "noTools": "nessuno",
         "dropped": "Strumento rimosso ({count}): {tools} non è collegato; l'agente è stato creato senza.",
         "saved": "Agente salvato.",
-        "close": "Chiudi"
+        "close": "Chiudi",
+        "tooShort": "La descrizione dell'agente deve avere almeno 10 caratteri: spiega un po' meglio cosa deve fare.",
+        "maybeSaved": "Se la connessione è caduta, l'agente potrebbe essere già salvato: controlla l'elenco degli agenti prima di riprovare."
       }
     }
   },

@@ -21,7 +21,9 @@ export function IntentBar({ t, busy, onSubmit }: { t: T; busy: boolean; onSubmit
   const submit = () => { if (!empty && !busy) { onSubmit(flowForIntent(kind), value.trim()); setOverride(null); } };
   /** Roving tabindex + ok tuşları (radiogroup): odak seçili seçeneğe, oklar seçimi taşır. */
   const move = (e: KeyboardEvent, from: IntentKind) => {
-    const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+    const rtl = getComputedStyle(e.currentTarget).direction === "rtl"; // RTL'de (ar) yatay oklar yön değiştirir
+    const fwd = rtl ? "ArrowLeft" : "ArrowRight", back = rtl ? "ArrowRight" : "ArrowLeft";
+    const step = e.key === fwd || e.key === "ArrowDown" ? 1 : e.key === back || e.key === "ArrowUp" ? -1 : 0;
     if (!step) return;
     e.preventDefault();
     const next = INTENT_KINDS[(INTENT_KINDS.indexOf(from) + step + INTENT_KINDS.length) % INTENT_KINDS.length];
@@ -33,7 +35,7 @@ export function IntentBar({ t, busy, onSubmit }: { t: T; busy: boolean; onSubmit
       <label htmlFor="intent-text" style={{ fontWeight: 700 }}>{t("app.intent.label")}</label>
       <textarea id="intent-text" rows={2} maxLength={4000} value={value} placeholder={t("app.intent.placeholder")}
         onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); } }}
+        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && e.keyCode !== 229) { /* 229: Safari IME onayı */ e.preventDefault(); submit(); } }}
         style={{ resize: "vertical", minHeight: 56, padding: 10, borderRadius: 10, border: "1px solid var(--color-outline-variant)", background: "var(--color-surface-container-low, transparent)", color: "var(--color-on-surface)" }} />
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <span id="intent-understood" style={muted}>{t("app.intent.understood")}</span>

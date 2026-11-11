@@ -1376,7 +1376,9 @@
         "noTools": "yok",
         "dropped": "Çıkarılan araç ({count}): {tools} bağlı değil; ajan bunlar olmadan oluşturuldu.",
         "saved": "Ajan kaydedildi.",
-        "close": "Kapat"
+        "close": "Kapat",
+        "tooShort": "Ajan tarifi en az 10 karakter olmalı: ne yapacağını biraz daha anlat.",
+        "maybeSaved": "Bağlantı koptuysa ajan zaten kaydedilmiş olabilir: yeniden denemeden önce ajan listesine bak."
       }
     }
   },

@@ -1376,7 +1376,9 @@
         "noTools": "nenhuma",
         "dropped": "Ferramenta removida ({count}): {tools} não está conectada; o agente foi criado sem ela.",
         "saved": "Agente salvo.",
-        "close": "Fechar"
+        "close": "Fechar",
+        "tooShort": "A descrição do agente precisa ter pelo menos 10 caracteres: conte um pouco mais do que ele deve fazer.",
+        "maybeSaved": "Se a conexão caiu, o agente pode já ter sido salvo: confira a lista de agentes antes de tentar de novo."
       }
     }
   },

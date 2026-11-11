@@ -1376,7 +1376,9 @@
         "noTools": "ninguna",
         "dropped": "Herramienta quitada ({count}): {tools} no está conectada; el agente se creó sin ella.",
         "saved": "Agente guardado.",
-        "close": "Cerrar"
+        "close": "Cerrar",
+        "tooShort": "La descripción del agente debe tener al menos 10 caracteres: cuenta un poco más de lo que debe hacer.",
+        "maybeSaved": "Si se cortó la conexión, el agente puede haberse guardado ya: revisa la lista de agentes antes de reintentar."
       }
     }
   },

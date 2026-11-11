@@ -1376,7 +1376,9 @@
         "noTools": "keine",
         "dropped": "Entferntes Werkzeug ({count}): {tools} ist nicht verbunden; der Agent wurde ohne es erstellt.",
         "saved": "Agent gespeichert.",
-        "close": "Schließen"
+        "close": "Schließen",
+        "tooShort": "Die Agentenbeschreibung braucht mindestens 10 Zeichen: sag etwas mehr dazu, was er tun soll.",
+        "maybeSaved": "Wenn die Verbindung abbrach, ist der Agent eventuell schon gespeichert: prüfe die Agentenliste, bevor du es erneut versuchst."
       }
     }
   },

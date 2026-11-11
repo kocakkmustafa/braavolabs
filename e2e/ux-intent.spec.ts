@@ -43,7 +43,7 @@ const PLAN_HIGH = {
 };
 
 type Calls = { method: string; path: string; body: unknown }[];
-interface MockOpts { companies?: { id: string; name: string }[]; plan?: unknown; startStatus?: number; startBody?: unknown }
+interface MockOpts { companies?: { id: string; name: string }[]; plan?: unknown; startStatus?: number; startBody?: unknown; composeAbort?: boolean }
 
 /** Tarayıcıdaki API çağrılarını yakalar: bilinmeyen uçlara boş yanıt (ekranın yan istekleri için). */
 async function mockApi(page: Page, opts: MockOpts = {}): Promise<Calls> {
@@ -62,6 +62,7 @@ async function mockApi(page: Page, opts: MockOpts = {}): Promise<Calls> {
     if (path === "/companies" && req.method() === "GET") return json(200, companies);
     if (path === "/jobs/plan") return json(200, opts.plan ?? PLAN_LOW);
     if (path === "/jobs/start") return json(opts.startStatus ?? 200, opts.startBody ?? { runId: "run-1", state: "RUNNING" });
+    if (/^\/companies\/[^/]+\/agents\/compose$/.test(path) && opts.composeAbort) return route.abort("connectionreset");
     if (/^\/companies\/[^/]+\/agents\/compose$/.test(path)) {
       return json(200, { agent: { id: "a1", name: "Satış ajanı", role: "sales", systemPrompt: "x", tools: ["read"] }, droppedTools: ["slack.post"], provider: "p", model: "m", tokens: { input: 1, output: 1 } });
     }
@@ -206,7 +207,7 @@ for (const { vp, size, scheme } of COMBOS) {
       await page.goto(`${UI_LAB}/start`);
       await page.getByLabel("Ne yapmak istiyorsun?").fill(AGENT_TEXT);
       await expect(bar(page).getByRole("radio", { name: "Ajan" })).toHaveAttribute("aria-checked", "true");
-      await bar(page).getByRole("button", { name: "Ajan iste" }).click();
+      await page.getByLabel("Ne yapmak istiyorsun?").press("Enter"); // Enter yolu da ajanı KAYDETMEZ, yalnız onay kartını açar
       const confirm = page.getByTestId("intent-agent-confirm");
       await expect(confirm).toContainText("ajanı hemen kaydeder");
       expect(calls.filter((c) => c.path.includes("/agents/compose")), "çubuk tek başına ajan kaydetmemeli").toHaveLength(0);
@@ -253,6 +254,39 @@ test.describe("bayrak AÇIK: kenar durumlar", () => {
     await bar(page).getByRole("button", { name: "Planla" }).click();
     await expect(page.getByTestId("intent-plan-card")).toBeVisible();
     expect(calls.find((c) => c.path === "/jobs/plan")?.body).toEqual({ message: JOB_TEXT, workspaceId: "c2" });
+  });
+
+  test("ajan: 10 karakterden kısa tarif oluşturmayı kapatır (sunucu min 10); şirketsizken kart açılmaz", async ({ page }) => {
+    await prepare(page, "dark");
+    const calls = await mockApi(page);
+    await page.goto(`${UI_LAB}/start`);
+    await page.getByLabel("Ne yapmak istiyorsun?").fill("satış");
+    await bar(page).getByRole("radio", { name: "Ajan" }).click();
+    await bar(page).getByRole("button", { name: "Ajan iste" }).click();
+    const confirm = page.getByTestId("intent-agent-confirm");
+    await expect(page.getByTestId("intent-agent-too-short")).toContainText("en az 10 karakter");
+    await expect(confirm.getByRole("button", { name: "Ajanı hemen oluştur" })).toBeDisabled();
+    expect(calls.filter((c) => c.path.includes("/agents/compose"))).toHaveLength(0);
+
+    const page2 = await page.context().newPage();
+    await prepare(page2, "dark");
+    await mockApi(page2, { companies: [] });
+    await page2.goto(`${UI_LAB}/start`);
+    await expect(page2.getByText("Önce bir şirket oluştur.").first()).toBeVisible();
+    await page2.getByLabel("Ne yapmak istiyorsun?").fill(AGENT_TEXT);
+    await page2.getByLabel("Ne yapmak istiyorsun?").press("Enter");
+    await expect(page2.getByRole("alert").filter({ hasText: "Önce bir şirket oluştur" })).toBeVisible();
+    await expect(page2.getByTestId("intent-agent-confirm")).toHaveCount(0);
+  });
+
+  test("ajan: bağlantı kopunca 'zaten kaydedilmiş olabilir' uyarısı (çift kayıt riski)", async ({ page }) => {
+    await prepare(page, "dark");
+    await mockApi(page, { composeAbort: true });
+    await page.goto(`${UI_LAB}/start`);
+    await page.getByLabel("Ne yapmak istiyorsun?").fill(AGENT_TEXT);
+    await page.getByLabel("Ne yapmak istiyorsun?").press("Enter");
+    await page.getByTestId("intent-agent-confirm").getByRole("button", { name: "Ajanı hemen oluştur" }).click();
+    await expect(page.getByTestId("intent-agent-maybe-saved")).toContainText("zaten kaydedilmiş olabilir");
   });
 
   test("klavye: radiogroup ok tuşlarıyla gezilir, roving tabindex", async ({ page }) => {

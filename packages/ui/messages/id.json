@@ -1376,7 +1376,9 @@
         "noTools": "tidak ada",
         "dropped": "Alat dihapus ({count}): {tools} belum terhubung; agen dibuat tanpa alat tersebut.",
         "saved": "Agen tersimpan.",
-        "close": "Tutup"
+        "close": "Tutup",
+        "tooShort": "Deskripsi agen minimal 10 karakter: jelaskan sedikit lebih banyak apa yang harus dilakukannya.",
+        "maybeSaved": "Jika koneksi terputus, agen mungkin sudah tersimpan: periksa daftar agen sebelum mencoba lagi."
       }
     }
   },

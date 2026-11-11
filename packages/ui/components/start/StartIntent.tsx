@@ -92,6 +92,7 @@ export default function StartIntent() {
     setLastText(text);
     if (flow === "chat") { setActive("chat"); return; }
     if (flow === "plan") { setActive("plan"); void suggest(text); return; }
+    if (count === 0) { setNotice("noCompany"); return; } // şirketsiz ajan akışı açılmaz (compose şirket ister)
     setActive("agent"); setAgent({ phase: "confirm", description: text });
   };
 
