@@ -1359,6 +1359,15 @@
       "openJob": "Aufgabe {title} öffnen",
       "openFull": "Vollständige Lauf-Seite öffnen"
     },
+    "workspace": {
+      "back": "Zurück zu den Aufgaben",
+      "classic": "Klassische Detailansicht",
+      "loading": "Aufgabe wird geladen …",
+      "errorTitle": "Aufgabe konnte nicht geöffnet werden",
+      "errorBody": "Prüfe deine Verbindung und versuche es erneut.",
+      "notFound": "Diese Aufgabe wurde nicht gefunden oder du hast keinen Zugriff.",
+      "label": "Aufgaben-Arbeitsbereich: {title}"
+    },
     "plan": {
       "title": "Auftrag beschreiben",
       "workspace": "Arbeitsbereich",

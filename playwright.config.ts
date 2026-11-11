@@ -120,6 +120,7 @@ export default defineConfig({
     // both "flag off = no difference" (UI_PORT) and the prototype journeys (UI_LAB_PORT).
     // BRA-UX-05a: aynı örnek `/start` Niyet Çubuğu bayrağı da AÇIK (istek anında okunur); UI_PORT'ta eski ekran birebir sunulur.
     // BRA-UX-05c: aynı örnek `/inbox` İşler bayrağı da AÇIK; UI_PORT'ta eski gelen kutusu birebir sunulur.
-    uiServer(UI_LAB_PORT, { NEXT_PUBLIC_UX_LAB: "1", NEXT_PUBLIC_UX_INTENT: "1", NEXT_PUBLIC_UX_JOBS: "1" }),
+    // BRA-UX-05b: aynı örnek `/runs/[id]` birleşik çalışma alanı bayrağı da AÇIK; UI_PORT'ta eski ayrıntı sayfası birebir sunulur.
+    uiServer(UI_LAB_PORT, { NEXT_PUBLIC_UX_LAB: "1", NEXT_PUBLIC_UX_INTENT: "1", NEXT_PUBLIC_UX_JOBS: "1", NEXT_PUBLIC_UX_WORKSPACE: "1" }),
   ],
 });

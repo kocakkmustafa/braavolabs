@@ -1359,6 +1359,15 @@
       "openJob": "Open job {title}",
       "openFull": "Open full run page"
     },
+    "workspace": {
+      "back": "Back to jobs",
+      "classic": "Classic detail view",
+      "loading": "Loading job…",
+      "errorTitle": "Couldn't open this job",
+      "errorBody": "Check your connection and try again.",
+      "notFound": "This job wasn't found or you don't have access.",
+      "label": "Job workspace: {title}"
+    },
     "plan": {
       "title": "Describe a job",
       "workspace": "Workspace",

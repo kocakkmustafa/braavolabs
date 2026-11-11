@@ -1359,6 +1359,15 @@
       "openJob": "Otwórz zadanie {title}",
       "openFull": "Otwórz pełną stronę uruchomienia"
     },
+    "workspace": {
+      "back": "Wróć do zadań",
+      "classic": "Klasyczny widok szczegółów",
+      "loading": "Wczytywanie zadania…",
+      "errorTitle": "Nie udało się otworzyć zadania",
+      "errorBody": "Sprawdź połączenie i spróbuj ponownie.",
+      "notFound": "Nie znaleziono tego zadania lub nie masz do niego dostępu.",
+      "label": "Przestrzeń robocza zadania: {title}"
+    },
     "plan": {
       "title": "Opisz zadanie",
       "workspace": "Przestrzeń robocza",

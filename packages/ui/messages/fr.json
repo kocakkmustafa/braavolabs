@@ -1359,6 +1359,15 @@
       "openJob": "Ouvrir la tâche {title}",
       "openFull": "Ouvrir la page complète de l'exécution"
     },
+    "workspace": {
+      "back": "Retour aux tâches",
+      "classic": "Vue détaillée classique",
+      "loading": "Chargement de la tâche…",
+      "errorTitle": "Impossible d'ouvrir cette tâche",
+      "errorBody": "Vérifie ta connexion et réessaie.",
+      "notFound": "Cette tâche est introuvable ou tu n'y as pas accès.",
+      "label": "Espace de travail : {title}"
+    },
     "plan": {
       "title": "Décrire une tâche",
       "workspace": "Espace de travail",

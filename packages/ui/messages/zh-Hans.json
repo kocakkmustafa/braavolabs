@@ -1359,6 +1359,15 @@
       "openJob": "打开任务 {title}",
       "openFull": "打开完整运行页面"
     },
+    "workspace": {
+      "back": "返回任务",
+      "classic": "经典详情视图",
+      "loading": "正在加载任务…",
+      "errorTitle": "无法打开此任务",
+      "errorBody": "请检查网络连接后重试。",
+      "notFound": "未找到此任务，或你没有访问权限。",
+      "label": "任务工作区：{title}"
+    },
     "plan": {
       "title": "描述任务",
       "workspace": "工作区",

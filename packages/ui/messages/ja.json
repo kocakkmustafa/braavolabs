@@ -1359,6 +1359,15 @@
       "openJob": "ジョブ {title} を開く",
       "openFull": "実行の詳細ページを開く"
     },
+    "workspace": {
+      "back": "ジョブ一覧に戻る",
+      "classic": "従来の詳細ビュー",
+      "loading": "ジョブを読み込み中…",
+      "errorTitle": "このジョブを開けませんでした",
+      "errorBody": "接続を確認して、もう一度お試しください。",
+      "notFound": "このジョブが見つからないか、アクセス権がありません。",
+      "label": "ジョブの作業スペース: {title}"
+    },
     "plan": {
       "title": "ジョブを説明",
       "workspace": "ワークスペース",
