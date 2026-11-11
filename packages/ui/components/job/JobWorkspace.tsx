@@ -11,7 +11,7 @@ import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
-import { actionErrorKey, type InboxRun } from "../../lib/inbox";
+import { actionErrorKey, effectiveState, type InboxRun } from "../../lib/inbox";
 import { trySend } from "../../lib/inboxActions";
 import { toJobRun } from "../../lib/ux-workspace/run";
 import { stateKey } from "../../lib/ux-jobs/rows";
@@ -19,6 +19,7 @@ import type { T } from "../inbox/InboxParts";
 import JobModes, { type JobAct } from "./JobModes";
 
 type Load = { status: "loading" } | { status: "error" } | { status: "notFound" } | { status: "ready"; run: InboxRun };
+const POLL_MS = 10_000;
 const muted = { color: "var(--color-on-surface-variant)", fontSize: 13 } as const;
 const btn = {
   minHeight: 44, padding: "6px 14px", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer",
@@ -37,6 +38,7 @@ export default function JobWorkspace() {
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const seq = useRef(0);
   const lock = useRef(false);
+  const readyFor = useRef<string | null>(null); // hazır iş kimliği: token yenilenince sayfa sökülmez (sekme/yazılan metin kalır)
 
   const fetchRun = useCallback(async (silent = false) => {
     if (!token || !runId) return;
@@ -45,17 +47,32 @@ export default function JobWorkspace() {
     try {
       const run = toJobRun(await api.getRun(token, runId));
       if (my !== seq.current) return;
-      if (run) setLoad({ status: "ready", run });
+      if (run) { readyFor.current = run.id; setLoad({ status: "ready", run }); }
       else if (!silent) setLoad({ status: "notFound" });
     } catch (e) {
       if (my !== seq.current) return;
       const code = (e as { status?: number } | null)?.status;
       if (code === 404 || code === 403) setLoad({ status: "notFound" });
       else if (!silent) setLoad({ status: "error" });
+      else setLoad((p) => (p.status === "ready" ? p : { status: "error" })); // hazır sayfa bayat kalır; yükleniyorda takılmaz
     }
   }, [token, runId]);
 
-  useEffect(() => { if (hydrated && token) { setMessage(null); void fetchRun(); } }, [hydrated, token, runId, fetchRun]);
+  useEffect(() => {
+    if (!hydrated || !token) return;
+    const same = readyFor.current === runId;
+    if (!same) { readyFor.current = null; setMessage(null); }
+    void fetchRun(same);
+  }, [hydrated, token, runId, fetchRun]);
+
+  // Canlı güncelleme: eski sayfadaki akışın yerine var olan GET /runs/:id yoklaması; yalnız etkin durumda, sekme görünürken, eylem sürmüyorken.
+  const liveState = load.status === "ready" ? effectiveState(load.run) : null;
+  const polling = liveState === "RUNNING" || liveState === "RESUMING" || liveState === "NEEDS_APPROVAL" || liveState === "PLANNED" || liveState === "READY";
+  useEffect(() => {
+    if (!polling) return;
+    const id = setInterval(() => { if (!lock.current && document.visibilityState === "visible") void fetchRun(true); }, POLL_MS);
+    return () => clearInterval(id);
+  }, [polling, fetchRun]);
 
   const act = async (a: JobAct) => {
     if (!token || !runId || lock.current) return;
@@ -84,6 +101,7 @@ export default function JobWorkspace() {
       <nav aria-label={t("app.jobs.title")}>
         <Link href="/inbox" style={{ ...muted, textDecoration: "underline" }}>{t("app.workspace.back")}</Link>
       </nav>
+      {!run && <h1 className="sr-only">{t("app.jobs.title")}</h1>}
       {load.status === "loading" && <p role="status" aria-busy="true" style={muted}>{t("app.workspace.loading")}</p>}
       {load.status === "notFound" && <p role="alert" style={{ color: "var(--color-on-surface)" }}>{t("app.workspace.notFound")}</p>}
       {load.status === "error" && (

@@ -224,6 +224,28 @@ test.describe("bayrak AÇIK: kenar durumları", () => {
     await expect(ws(page).getByRole("heading", { name: "Rapor taslağı", level: 1 })).toBeVisible();
   });
 
+  test("çalışan iş 10 sn'de bir sessizce tazelenir (bitince durum ve doğrulama satırı güncellenir)", async ({ page }) => {
+    await prepare(page, "dark");
+    await page.clock.install({ time: new Date("2026-11-11T12:00:00.000Z") });
+    const calls = await mockApi(page);
+    await page.goto(`${UI_LAB}/runs/r1`);
+    await expect(ws(page)).toContainText("Atölye · çalışıyor");
+    // ikinci yanıt: bitti + doğrulandı
+    await page.route(isApi, async (route) => {
+      const u = new URL(route.request().url());
+      if (/\/runs\/r1$/.test(u.pathname) && route.request().method() === "GET") {
+        return route.fulfill({ status: 200, headers: { "access-control-allow-origin": route.request().headers().origin ?? UI_LAB, "access-control-allow-credentials": "true", "content-type": "application/json" }, body: JSON.stringify({ ...RUN, status: "COMPLETED", state: "COMPLETED", resultStatus: "VERIFIED" }) });
+      }
+      return route.fallback();
+    });
+    const before = calls.filter((c) => c.method === "GET" && c.path === "/runs/r1").length;
+    await page.clock.fastForward(10_500);
+    await expect(ws(page)).toContainText("Atölye · bitti");
+    await expect(ws(page).locator("#job-tabpanel")).toContainText("✔ Doğrulandı"); // bucket 'done' türetilir → Özet'te doğrulama satırı
+    expect(before).toBeGreaterThan(0);
+    await expect(ws(page).getByRole("button", { name: "Duraklat" })).toHaveCount(0);
+  });
+
   test("bulunamayan iş (404) nazik mesaj verir", async ({ page }) => {
     await prepare(page, "dark");
     await mockApi(page);

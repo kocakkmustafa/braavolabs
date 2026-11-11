@@ -4,7 +4,7 @@
  * (kova yalnız liste ucundadır; bu yüzden bayat kalp atışlı koşu için "yalnız durdur" ayrımı burada yapılamaz, sunucu yine doğrular).
  */
 import { JOB_STATES } from "@ai-company-os/core";
-import type { InboxRun } from "../inbox";
+import { effectiveState, type InboxRun } from "../inbox";
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const str = (v: unknown): string | null => (typeof v === "string" && v.length > 0 ? v : null);
@@ -19,14 +19,19 @@ export function toJobRun(raw: unknown): InboxRun | null {
   const p = isObj(raw.pipeline) ? raw.pipeline : null;
   const c = p && isObj(p.company) ? p.company : null;
   const created = str(raw.createdAt) ?? str(raw.startedAt) ?? "";
-  return {
+  const run: InboxRun = {
     id, status, state, resultStatus,
     pipelineId: str(raw.pipelineId) ?? str(p?.id) ?? "",
     trigger: str(raw.trigger),
     costUsd: typeof raw.costUsd === "number" || typeof raw.costUsd === "string" ? raw.costUsd : null,
     startedAt: str(raw.startedAt), completedAt: str(raw.completedAt), heartbeatAt: str(raw.heartbeatAt),
     createdAt: created, updatedAt: str(raw.updatedAt) ?? created,
-    bucket: null,
+    bucket: null as InboxRun["bucket"],
     pipeline: p ? { id: str(p.id) ?? "", name: str(p.name) ?? "", company: c && str(c.id) && str(c.name) ? { id: str(c.id)!, name: str(c.name)! } : null } : null,
   };
+  // Detay ucu `bucket` vermez; yalnız bitmiş durumlar için "done" türetilir (Özet'te doğrulama satırı çekmeceyle aynı olsun).
+  // "stuck"/"working" ayrımı kalp atışı eşiği ister (sunucuda): türetilmez.
+  const eff = effectiveState(run);
+  if (eff === "COMPLETED" || eff === "FAILED" || eff === "CANCELLED") run.bucket = "done";
+  return run;
 }

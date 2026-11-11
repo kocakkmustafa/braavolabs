@@ -40,7 +40,7 @@ describe("bayrak (NEXT_PUBLIC_UX_WORKSPACE)", () => {
 });
 
 describe("toJobRun (GET /runs/:id → InboxRun)", () => {
-  it("var olan alanları eşler; bucket her zaman null (detay ucu kova vermez)", () => {
+  it("var olan alanları eşler; bekleyen/çalışan işte bucket null (detay ucu kova vermez)", () => {
     const r = toJobRun({
       id: "r1", status: "WAITING_APPROVAL", state: "NEEDS_APPROVAL", resultStatus: "VERIFIED", costUsd: "1.25", pipelineId: "p1",
       createdAt: "2026-11-11T09:00:00Z", updatedAt: "2026-11-11T09:05:00Z", pipeline: { id: "p1", name: "Rapor", company: { id: "c1", name: "Atölye" } },
@@ -48,6 +48,13 @@ describe("toJobRun (GET /runs/:id → InboxRun)", () => {
     expect(r).toMatchObject({ id: "r1", status: "WAITING_APPROVAL", state: "NEEDS_APPROVAL", resultStatus: "VERIFIED", costUsd: "1.25", bucket: null, pipelineId: "p1" });
     expect(r?.pipeline?.company).toEqual({ id: "c1", name: "Atölye" });
     expect(r?.updatedAt).toBe("2026-11-11T09:05:00Z");
+  });
+  it("bitmiş durumlarda (COMPLETED/FAILED/CANCELLED; eski status dahil) bucket 'done' türetilir, çalışanda türetilmez", () => {
+    expect(toJobRun({ id: "a", status: "COMPLETED", state: "COMPLETED" })?.bucket).toBe("done");
+    expect(toJobRun({ id: "b", status: "FAILED" })?.bucket).toBe("done"); // state yok: eski status'tan
+    expect(toJobRun({ id: "c", status: "CANCELLED", state: "CANCELLED" })?.bucket).toBe("done");
+    expect(toJobRun({ id: "d", status: "RUNNING", state: "RUNNING", heartbeatAt: "2026-11-11T00:00:00Z" })?.bucket).toBeNull(); // stuck türetilmez
+    expect(toJobRun({ id: "e", status: "PAUSED", state: "PAUSED" })?.bucket).toBeNull();
   });
   it("eksik/bilinmeyen alan uydurulmaz: state null, resultStatus null, şirket null, updatedAt createdAt'e düşer", () => {
     const r = toJobRun({ id: "r2", status: "RUNNING", state: "BOGUS", resultStatus: "MAYBE", startedAt: "2026-11-11T08:00:00Z", pipeline: { name: "X" } });
@@ -78,6 +85,11 @@ describe("JobModes (çekmece ve iş sayfası ortak gövdesi)", () => {
     expect(html.match(/role="tab"/g)).toHaveLength(3);
     expect(html).toContain('href="/runs/r1"');
     expect(html).toContain("app.jobs.openFull");
+  });
+  it("bitmiş işte Özet kipi doğrulama satırını gösterir (iş sayfası bucket'ı türetir)", () => {
+    const done = toJobRun({ id: "r9", status: "COMPLETED", state: "COMPLETED", resultStatus: "VERIFIED", pipeline: { name: "X" } })!;
+    expect(modes(done)).toContain("app.jobs.verified");
+    expect(modes(run())).not.toContain("app.jobs.verified");
   });
   it("bilinmeyen durumda eylem uydurulmaz: FAILED yalnız yeniden dene", () => {
     const html = modes(run({ status: "FAILED", state: "FAILED" }));
