@@ -1338,6 +1338,48 @@
       "companyInactive": "The company is paused or archived; new jobs cannot start.",
       "noAgent": "This workspace has no agent to run the job.",
       "validation": "The request could not be validated. Check the message and retry."
+    },
+    "intent": {
+      "title": "Start",
+      "label": "What do you want to do?",
+      "placeholder": "Describe a job, ask a question, or request an agent…",
+      "barLabel": "Intent bar",
+      "understood": "What I understood:",
+      "kind": {
+        "chat": "Chat",
+        "job": "Job",
+        "agent": "Agent"
+      },
+      "submit": {
+        "chat": "Start chat",
+        "job": "Plan",
+        "agent": "Request agent"
+      },
+      "lowConfidence": "I'm not sure: this is handled as chat; pick “Job” to plan it as a job.",
+      "previewNote": "“What I understood” is a local hint; the server makes its own decision at the plan step.",
+      "chat": {
+        "unavailable": "Chat is not available yet: this version only plans jobs and creates agents. Your message did not create a job record; nothing was spent.",
+        "asJob": "Plan as a job"
+      },
+      "plan": {
+        "tool": "tool: {tool}",
+        "approvalStep": "approval required, {risk} risk",
+        "modelRow": "Per-step model line: not available yet (API pending)."
+      },
+      "agent": {
+        "title": "New agent",
+        "immediate": "This step saves the agent immediately: previewing a draft before creating is not available yet.",
+        "create": "Create agent now",
+        "working": "Creating agent…",
+        "role": "role: {role}",
+        "toolsLabel": "Tools",
+        "noTools": "none",
+        "dropped": "Removed tool ({count}): {tools} not connected; the agent was created without them.",
+        "saved": "Agent saved.",
+        "close": "Close",
+        "tooShort": "Describe the agent in at least 10 characters: say a bit more about what it should do.",
+        "maybeSaved": "If the connection dropped, the agent may already be saved: check the agent list before retrying."
+      }
     }
   },
   "static": {

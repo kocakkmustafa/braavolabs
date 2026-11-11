@@ -1338,6 +1338,48 @@
       "companyInactive": "The company is paused or archived; new jobs cannot start.",
       "noAgent": "This workspace has no agent to run the job.",
       "validation": "The request could not be validated. Check the message and retry."
+    },
+    "intent": {
+      "title": "시작",
+      "label": "무엇을 하고 싶으세요?",
+      "placeholder": "작업을 설명하거나 질문하거나 에이전트를 요청하세요…",
+      "barLabel": "의도 입력줄",
+      "understood": "이해한 내용:",
+      "kind": {
+        "chat": "채팅",
+        "job": "작업",
+        "agent": "에이전트"
+      },
+      "submit": {
+        "chat": "채팅 시작",
+        "job": "계획하기",
+        "agent": "에이전트 요청"
+      },
+      "lowConfidence": "확실하지 않아 채팅으로 처리합니다. 작업으로 계획하려면 ‘작업’을 선택하세요.",
+      "previewNote": "‘이해한 내용’은 로컬 힌트입니다. 계획 단계에서는 서버가 자체적으로 판단합니다.",
+      "chat": {
+        "unavailable": "채팅은 아직 사용할 수 없습니다. 이 버전은 작업 계획과 에이전트 생성만 지원합니다. 메시지로 작업 기록이 만들어지지 않았고 비용도 발생하지 않았습니다.",
+        "asJob": "작업으로 계획"
+      },
+      "plan": {
+        "tool": "도구: {tool}",
+        "approvalStep": "승인 필요, 위험 {risk}",
+        "modelRow": "단계별 모델 행: 아직 없음(API 대기 중)."
+      },
+      "agent": {
+        "title": "새 에이전트",
+        "immediate": "이 단계는 에이전트를 즉시 저장합니다. 만들기 전에 초안을 미리 보는 기능은 아직 없습니다.",
+        "create": "지금 에이전트 만들기",
+        "working": "에이전트 만드는 중…",
+        "role": "역할: {role}",
+        "toolsLabel": "도구",
+        "noTools": "없음",
+        "dropped": "제외된 도구({count}개): {tools} 은(는) 연결되지 않아 해당 도구 없이 에이전트가 만들어졌습니다.",
+        "saved": "에이전트를 저장했습니다.",
+        "close": "닫기",
+        "tooShort": "에이전트 설명은 10자 이상이어야 합니다. 무엇을 해야 하는지 조금 더 알려 주세요.",
+        "maybeSaved": "연결이 끊겼다면 에이전트가 이미 저장되었을 수 있습니다. 다시 시도하기 전에 에이전트 목록을 확인하세요."
+      }
     }
   },
   "static": {

@@ -1338,6 +1338,48 @@
       "companyInactive": "The company is paused or archived; new jobs cannot start.",
       "noAgent": "This workspace has no agent to run the job.",
       "validation": "The request could not be validated. Check the message and retry."
+    },
+    "intent": {
+      "title": "Start",
+      "label": "Co chcesz zrobić?",
+      "placeholder": "Opisz zadanie, zadaj pytanie lub poproś o agenta…",
+      "barLabel": "Pasek intencji",
+      "understood": "Zrozumiałem:",
+      "kind": {
+        "chat": "Czat",
+        "job": "Zadanie",
+        "agent": "Agent"
+      },
+      "submit": {
+        "chat": "Rozpocznij czat",
+        "job": "Zaplanuj",
+        "agent": "Poproś o agenta"
+      },
+      "lowConfidence": "Nie jestem pewien: traktuję to jako czat; wybierz „Zadanie”, aby zaplanować je jako zadanie.",
+      "previewNote": "„Zrozumiałem” to lokalna wskazówka; na etapie planu serwer decyduje sam.",
+      "chat": {
+        "unavailable": "Czat jeszcze nie jest dostępny: ta wersja tylko planuje zadania i tworzy agentów. Twoja wiadomość nie utworzyła wpisu zadania; nic nie wydano.",
+        "asJob": "Zaplanuj jako zadanie"
+      },
+      "plan": {
+        "tool": "narzędzie: {tool}",
+        "approvalStep": "wymaga zatwierdzenia, ryzyko {risk}",
+        "modelRow": "Wiersz modelu na krok: jeszcze niedostępny (czeka na API)."
+      },
+      "agent": {
+        "title": "Nowy agent",
+        "immediate": "Ten krok zapisuje agenta od razu: podgląd wersji roboczej przed utworzeniem nie jest jeszcze dostępny.",
+        "create": "Utwórz agenta teraz",
+        "working": "Tworzenie agenta…",
+        "role": "rola: {role}",
+        "toolsLabel": "Narzędzia",
+        "noTools": "brak",
+        "dropped": "Pominięte narzędzie ({count}): {tools} nie jest połączone; agent został utworzony bez niego.",
+        "saved": "Agent zapisany.",
+        "close": "Zamknij",
+        "tooShort": "Opis agenta musi mieć co najmniej 10 znaków: napisz nieco więcej o tym, co ma robić.",
+        "maybeSaved": "Jeśli połączenie zostało przerwane, agent mógł już zostać zapisany: sprawdź listę agentów przed ponowną próbą."
+      }
     }
   },
   "static": {

@@ -1338,6 +1338,48 @@
       "companyInactive": "The company is paused or archived; new jobs cannot start.",
       "noAgent": "This workspace has no agent to run the job.",
       "validation": "The request could not be validated. Check the message and retry."
+    },
+    "intent": {
+      "title": "Démarrer",
+      "label": "Que veux-tu faire ?",
+      "placeholder": "Décris une tâche, pose une question ou demande un agent…",
+      "barLabel": "Barre d'intention",
+      "understood": "Ce que j'ai compris :",
+      "kind": {
+        "chat": "Discussion",
+        "job": "Tâche",
+        "agent": "Agent"
+      },
+      "submit": {
+        "chat": "Lancer la discussion",
+        "job": "Planifier",
+        "agent": "Demander un agent"
+      },
+      "lowConfidence": "Je ne suis pas sûr : c'est traité comme une discussion ; choisis « Tâche » pour la planifier comme tâche.",
+      "previewNote": "« Ce que j'ai compris » est un indice local ; à l'étape du plan, le serveur décide lui-même.",
+      "chat": {
+        "unavailable": "La discussion n'est pas encore disponible : cette version planifie seulement des tâches et crée des agents. Ton message n'a créé aucun enregistrement de tâche ; rien n'a été dépensé.",
+        "asJob": "Planifier comme tâche"
+      },
+      "plan": {
+        "tool": "outil : {tool}",
+        "approvalStep": "approbation requise, risque {risk}",
+        "modelRow": "Ligne de modèle par étape : pas encore disponible (API en attente)."
+      },
+      "agent": {
+        "title": "Nouvel agent",
+        "immediate": "Cette étape enregistre l'agent immédiatement : voir un brouillon avant de créer n'est pas encore possible.",
+        "create": "Créer l'agent maintenant",
+        "working": "Création de l'agent…",
+        "role": "rôle : {role}",
+        "toolsLabel": "Outils",
+        "noTools": "aucun",
+        "dropped": "Outil retiré ({count}) : {tools} n'est pas connecté ; l'agent a été créé sans lui.",
+        "saved": "Agent enregistré.",
+        "close": "Fermer",
+        "tooShort": "La description de l'agent doit faire au moins 10 caractères : précise un peu ce qu'il doit faire.",
+        "maybeSaved": "Si la connexion a coupé, l'agent est peut-être déjà enregistré : vérifie la liste des agents avant de réessayer."
+      }
     }
   },
   "static": {

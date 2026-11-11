@@ -1338,6 +1338,48 @@
       "companyInactive": "Şirket duraklatılmış veya arşivlenmiş; yeni iş başlatılamaz.",
       "noAgent": "Bu çalışma alanında işi yürütecek ajan yok.",
       "validation": "İstek doğrulanamadı. Mesajı kontrol edip yeniden dene."
+    },
+    "intent": {
+      "title": "Başla",
+      "label": "Ne yapmak istiyorsun?",
+      "placeholder": "Bir iş tarif et, soru sor ya da bir ajan iste…",
+      "barLabel": "Niyet çubuğu",
+      "understood": "Anladığım:",
+      "kind": {
+        "chat": "Sohbet",
+        "job": "İş",
+        "agent": "Ajan"
+      },
+      "submit": {
+        "chat": "Sohbet başlat",
+        "job": "Planla",
+        "agent": "Ajan iste"
+      },
+      "lowConfidence": "Emin değilim: sohbet olarak ele alınır; iş için “İş”i seç.",
+      "previewNote": "“Anladığım” yerel bir ipucudur; plan adımında sunucu kendi kararını verir.",
+      "chat": {
+        "unavailable": "Sohbet henüz yok: bu sürümde yalnız iş planlama ve ajan oluşturma çalışır. Mesajın iş kaydı oluşturmadı; harcama yok.",
+        "asJob": "İş olarak planla"
+      },
+      "plan": {
+        "tool": "araç: {tool}",
+        "approvalStep": "onay gerekli, {risk} risk",
+        "modelRow": "Adım başına model satırı: henüz yok (API bekleniyor)."
+      },
+      "agent": {
+        "title": "Yeni ajan",
+        "immediate": "Bu adım ajanı hemen kaydeder: önce taslak görüp sonra oluşturma henüz yok.",
+        "create": "Ajanı hemen oluştur",
+        "working": "Ajan oluşturuluyor…",
+        "role": "rol: {role}",
+        "toolsLabel": "Araçlar",
+        "noTools": "yok",
+        "dropped": "Çıkarılan araç ({count}): {tools} bağlı değil; ajan bunlar olmadan oluşturuldu.",
+        "saved": "Ajan kaydedildi.",
+        "close": "Kapat",
+        "tooShort": "Ajan tarifi en az 10 karakter olmalı: ne yapacağını biraz daha anlat.",
+        "maybeSaved": "Bağlantı koptuysa ajan zaten kaydedilmiş olabilir: yeniden denemeden önce ajan listesine bak."
+      }
     }
   },
   "static": {
