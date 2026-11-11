@@ -16,7 +16,7 @@ export function IntentBar({ busy, onSubmit }: { busy: boolean; onSubmit: (flow: 
   const [override, setOverride] = useState<IntentKind | null>(null);
   const guess = classifyIntent(value);
   const kind = effectiveIntent(guess, override);
-  const submit = () => { if (value.trim() && !busy) onSubmit(flowForIntent(kind), value.trim()); };
+  const submit = () => { if (value.trim() && !busy) { onSubmit(flowForIntent(kind), value.trim()); setOverride(null); } };
   return (
     <form style={{ ...glass, display: "grid", gap: 10 }} onSubmit={(e) => { e.preventDefault(); submit(); }} aria-label="Niyet çubuğu">
       <label htmlFor="uxl-intent" style={{ fontWeight: 700 }}>Ne yapmak istiyorsun?</label>

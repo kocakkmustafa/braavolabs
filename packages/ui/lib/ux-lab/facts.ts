@@ -67,6 +67,12 @@ export function expectedFromYou(groups: readonly LabApprovalGroup[], runs: reado
   return { approvals: groups.reduce((n, g) => n + g.approvals.length, 0), stuck: runs.filter((r) => r.bucket === "stuck").length };
 }
 
+/** Onay grupları koşu kimliğine bağlıdır: seçili şirketin koşularına ait olanlar (çok şirketli canlı kip). */
+export function groupsForRuns(groups: readonly LabApprovalGroup[], runs: readonly InboxRun[]): LabApprovalGroup[] {
+  const ids = new Set(runs.map((r) => r.id));
+  return groups.filter((g) => ids.has(g.runId));
+}
+
 /** Listelenen işlerin maliyet toplamı. NOT: haftalık toplam alanı YOK (§5.3): etiket "listelenen işler" der. */
 export function listedCostUsd(runs: readonly InboxRun[]): number {
   return runs.reduce((n, r) => n + (toNumber(r.costUsd) ?? 0), 0);

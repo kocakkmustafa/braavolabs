@@ -2,7 +2,7 @@
 /** BRA-UX-04 — Şirket durumu (E10, tek satır özet), Yönet çekmecesi (E12) ve Modeller/erişim (E11). */
 import { useState } from "react";
 import type { InboxRun } from "../../lib/inbox";
-import { companyLine, usd, type LabApprovalGroup } from "../../lib/ux-lab/facts";
+import { companyLine, groupsForRuns, usd, type LabApprovalGroup } from "../../lib/ux-lab/facts";
 import type { LabCompany } from "../../lib/ux-lab/source";
 import { Missing, NeedsApi, btn, flat, glass, muted } from "./ui";
 
@@ -16,8 +16,9 @@ export function CompanyView({ companies, runs, groups }: { companies: LabCompany
   const company = companies.find((c) => c.id === id) ?? companies[0];
   if (!company) return <div role="status" style={flat}>Henüz şirket yok. <a href="/companies/new" style={{ textDecoration: "underline" }}>Şirket oluştur</a></div>;
   const myRuns = runs.filter((r) => !r.pipeline?.company?.id || r.pipeline.company.id === company.id);
-  const line = companyLine(groups, myRuns);
-  const risks = groups.flatMap((g) => g.approvals).map((a) => a.details?.risk).filter((r): r is NonNullable<typeof r> => !!r);
+  const myGroups = groupsForRuns(groups, myRuns);
+  const line = companyLine(myGroups, myRuns);
+  const risks = myGroups.flatMap((g) => g.approvals).map((a) => a.details?.risk).filter((r): r is NonNullable<typeof r> => !!r);
   const topRisk = RISK_DESC.find((r) => risks.includes(r));
   return (
     <div style={{ display: "grid", gap: 12 }} data-testid="uxl-company">

@@ -51,12 +51,14 @@ function Lab({ source }: { source: LabSource }) {
     return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
   }, []);
 
+  const refreshSeq = useRef(0);
   const refresh = useCallback(async (silent = false) => {
+    const my = ++refreshSeq.current; // yalnız EN SON istek yazar: eski yanıt (örn. onaylanmış onay) geri gelmez
     if (!silent) setData({ status: "loading" });
     try {
       const [companies, runs, groups] = await Promise.all([source.companies(), source.runs(), source.approvalGroups()]);
-      setData({ status: "ready", companies, runs, groups });
-    } catch { setData((d) => (silent && d.status === "ready" ? d : { status: "error" })); }
+      if (my === refreshSeq.current) setData({ status: "ready", companies, runs, groups });
+    } catch { if (my === refreshSeq.current) setData((d) => (silent && d.status === "ready" ? d : { status: "error" })); }
   }, [source]);
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -64,6 +66,11 @@ function Lab({ source }: { source: LabSource }) {
   const companies = ready?.companies ?? [];
   const multi = needsWorkspaceChoice(companies.length);
   const ws = workspaceForRequest(multi, workspaceId);
+  /** Plan hash'i şirkete bağlıdır: şirket değişince plan düşer (eski hash yeni şirketle gönderilmez). */
+  const changeWorkspace = (id: string) => {
+    seq.current.invalidate(); setWorkspaceId(id);
+    if (planState.phase !== "idle") { setPlanState({ phase: "idle" }); setActive(null); setNotice("Şirket değişti; planı yeniden oluştur."); }
+  };
   const deps: PlanDeps = useMemo(() => ({ plan: (m, w) => source.plan(m, w), start: (b) => source.start(b), newKey }), [source]);
 
   const runCompose = async (description: string) => {
@@ -145,14 +152,14 @@ function Lab({ source }: { source: LabSource }) {
         <div style={{ display: "grid", gap: 16 }}>
           {multi && (
             <label style={{ display: "grid", gap: 4 }}><span style={muted}>Şirket</span>
-              <select value={workspaceId} onChange={(e) => { seq.current.invalidate(); setWorkspaceId(e.target.value); setPlanState({ phase: "idle" }); }} style={{ minHeight: 44 }}>
+              <select value={workspaceId} onChange={(e) => changeWorkspace(e.target.value)} style={{ minHeight: 44 }}>
                 <option value="">Seç…</option>{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select></label>
           )}
           <IntentBar busy={planState.phase === "planning" || planState.phase === "starting" || agentState.phase === "working"} onSubmit={submit} />
           {active?.kind === "chat" && <ChatPanel text={active.text} />}
           {active?.kind === "plan" && (
-            <PlanPanel state={planState} companies={companies} workspaceId={workspaceId} onWorkspace={setWorkspaceId} onStart={() => void start()}
+            <PlanPanel state={planState} companies={companies} workspaceId={workspaceId} onWorkspace={changeWorkspace} onStart={() => void start()}
               onCancel={() => { seq.current.invalidate(); setPlanState({ phase: "idle" }); setActive(null); }}
               onReplan={() => { if ("message" in planState) void runPlan(planState.message); }} />
           )}
@@ -179,8 +186,8 @@ function Lab({ source }: { source: LabSource }) {
       {ready && view === "company" && <CompanyView companies={ready.companies} runs={ready.runs} groups={ready.groups} />}
       {view === "manage" && <ManageView />}
 
-      {openRun && !reviewing && <JobDrawer run={openRun} source={source} offline={!online} onClose={() => setOpenRunId(null)} onChanged={() => void refresh(true)} />}
-      {reviewing && <ApprovalSheet approval={reviewing.approval} title={reviewing.title} offline={!online} onDecide={decide} onClose={() => setReviewing(null)} />}
+      {openRun && !reviewing && <JobDrawer key={openRun.id} run={openRun} source={source} offline={!online} onClose={() => setOpenRunId(null)} onChanged={() => void refresh(true)} />}
+      {reviewing && <ApprovalSheet key={reviewing.approval.id} approval={reviewing.approval} title={reviewing.title} offline={!online} onDecide={decide} onClose={() => setReviewing(null)} />}
     </main>
   );
 }

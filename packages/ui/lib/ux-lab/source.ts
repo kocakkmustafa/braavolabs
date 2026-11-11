@@ -113,7 +113,7 @@ export function sampleSource(): LabSource {
         : action === "resume" ? { ...r, status: "RUNNING", state: "RUNNING" as const, bucket: "working" as const, heartbeatAt: null }
         : { ...r, status: "CANCELLED", state: "CANCELLED" as const, bucket: "done" as const }));
     },
-    kaput: (runId) => delay({ ...parseKaput(SAMPLE_KAPUT[runId] ?? { steps: [], costUsd: runs.find((r) => r.id === runId)?.costUsd ?? null }), handoffCount: 0 }),
+    kaput: (runId) => delay({ ...parseKaput(SAMPLE_KAPUT[runId] ?? { steps: [], costUsd: runs.find((r) => r.id === runId)?.costUsd ?? null }), handoffCount: null }),
     composeAgent: () => delay({ name: SAMPLE_AGENT.name, role: SAMPLE_AGENT.role, tools: [...SAMPLE_AGENT.tools], droppedTools: [...SAMPLE_AGENT.droppedTools] }),
   };
 }

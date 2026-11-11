@@ -162,6 +162,14 @@ describe("arayüz işaretlemesi", () => {
     expect(html).toContain("Toplu onay kapalı");
     expect(renderToStaticMarkup(<JobsView runs={[]} groups={[]} onOpenRun={noop} onReview={noop} onGoIntent={noop} />)).toContain("Henüz iş yok");
   });
+  it("sayfalama: 25 kayıt sınırına ulaşan liste 'ilk 25' notunu gösterir, altındayken göstermez", () => {
+    const many = Array.from({ length: 25 }, (_, i) => ({ ...sampleRuns()[0], id: `w${i}` }));
+    expect(renderToStaticMarkup(<JobsView runs={many} groups={[]} onOpenRun={noop} onReview={noop} onGoIntent={noop} />)).toContain("ilk 25 kayıtla sınırlı");
+    expect(renderToStaticMarkup(<JobsView runs={sampleRuns()} groups={sampleApprovalGroups()} onOpenRun={noop} onReview={noop} onGoIntent={noop} />)).not.toContain("ilk 25 kayıtla sınırlı");
+  });
+  it("örnek Kaput'ta el değiştirme sayısı uydurulmaz (null)", async () => {
+    expect((await sampleSource().kaput("r1")).handoffCount).toBeNull();
+  });
   it("T4: onay sayfası ne yapacak/araç/yetki/veri/tutar alanlarını gösterir, eksikleri 'bilgi yok' der; tehlikeli olan ikinci adım ister", () => {
     const [g1, g2] = sampleApprovalGroups();
     const medium = renderToStaticMarkup(<ApprovalSheet approval={g1.approvals[0]} title={g1.runTitle} offline={false} onDecide={async () => ({ kind: "ok" })} onClose={noop} />);

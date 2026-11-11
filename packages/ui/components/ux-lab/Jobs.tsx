@@ -17,6 +17,7 @@ const STATE_LABEL: Record<string, string> = {
 const RISK_LABEL: Record<string, string> = { low: "düşük", medium: "orta", high: "yüksek" };
 const stateText = (r: InboxRun) => STATE_LABEL[effectiveState(r) ?? ""] ?? "bilinmiyor";
 const cost = (v: unknown) => { const n = typeof v === "number" ? v : Number(v); return Number.isFinite(n) ? usd(n) : "—"; };
+const PAGE = 25; // API sayfa boyu (`limit=25`): sonraki sayfa prototipte okunmaz
 const runTitle = (r: InboxRun) => r.pipeline?.name ?? r.id;
 
 export function JobsView({ runs, groups, onOpenRun, onReview, onGoIntent }: {
@@ -44,6 +45,7 @@ export function JobsView({ runs, groups, onOpenRun, onReview, onGoIntent }: {
   return (
     <div style={{ display: "grid", gap: 20 }}>
       <div style={muted} data-testid="uxl-counts">Onay {pending} · Çalışıyor {m.working.length} · Takıldı {m.stuck.length} · Bitti {m.done.length}</div>
+      {(pending >= PAGE || [m.working, m.stuck, m.done].some((l) => l.length >= PAGE)) && <div role="note" style={muted} data-testid="uxl-truncated">Liste ilk {PAGE} kayıtla sınırlı; sayılar tam toplam olmayabilir (sayfalama prototipte yok).</div>}
       <Section title={`▲ Onayını bekliyor (${pending})`} aside={<span style={muted}>Toplu onay kapalı: {BATCH_APPROVE_ENABLED ? "açık" : "her onay tek tek"}</span>}>
         {pending === 0 ? <span style={muted}>Bekleyen onay yok.</span> : (
           <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>

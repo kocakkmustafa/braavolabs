@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { uxLabEnabled } from "./flag";
 import { classifyIntent, effectiveIntent, flowForIntent } from "./intent";
 import {
-  BATCH_APPROVE_ENABLED, CONFIRM_PHRASE, approvalFacts, approvalIsDangerous, companyLine, confirmOk, expectedFromYou, groupRuns, listedCostUsd, parseKaput,
+  BATCH_APPROVE_ENABLED, CONFIRM_PHRASE, approvalFacts, approvalIsDangerous, companyLine, confirmOk, expectedFromYou, groupRuns, groupsForRuns, listedCostUsd, parseKaput,
   type LabApproval,
 } from "./facts";
 import { sampleApprovalGroups, sampleRuns } from "./fixtures";
@@ -96,6 +96,17 @@ describe("devam eden iş + şirket durumu — T3/T6", () => {
     expect(companyLine(groups, runs)).toMatchObject({ running: 2, approvals: 2, stuck: 1, done: 2 });
     expect(listedCostUsd(runs)).toBeCloseTo(0.42 + 0.18 + 0.05 + 1.2 + 0.31 + 0.07, 6);
     expect(companyLine([], [])).toEqual({ running: 0, approvals: 0, stuck: 0, done: 0, listedCostUsd: 0 });
+  });
+});
+
+describe("şirket süzgeci (reviewer ENGEL 3)", () => {
+  it("onay grupları yalnız seçili şirketin koşularına göre sayılır", () => {
+    const runs = sampleRuns(); const groups = sampleApprovalGroups();
+    const mine = runs.filter((r) => r.id !== "r3"); // r3 başka şirketin
+    const g = groupsForRuns(groups, mine);
+    expect(g.map((x) => x.runId)).toEqual(["r4"]);
+    expect(companyLine(g, mine).approvals).toBe(1);
+    expect(groupsForRuns(groups, [])).toEqual([]);
   });
 });
 
