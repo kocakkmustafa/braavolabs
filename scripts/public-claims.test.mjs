@@ -439,7 +439,11 @@ test("next config delegates canonical routing to fail-closed middleware", () => 
   // next-start fallback handles relocated pnpm stores without weakening Host
   // validation or replacing the real built application with a mock server.
   // The fallback binds loopback only, like the standalone HOSTNAME below.
-  assert.match(playwright, /command: process\.env\.E2E_UI_STANDALONE\s*\? `node packages\/ui\/\.next\/standalone\/packages\/ui\/server\.js`\s*:\s*`pnpm --filter @ai-company-os\/ui exec next start --hostname 127\.0\.0\.1 --port \$\{UI_PORT\}`/);
+  // BRA-UX-04: UI sunucusu `uiServer(port, env)` fabrikasından gelir (aynı komut, port parametreli); varsayılan UI bayrak KAPALI,
+  // ikinci örnek (UI_LAB_PORT) aynı derlemeyi NEXT_PUBLIC_UX_LAB=1 ile sunar.
+  assert.match(playwright, /command: process\.env\.E2E_UI_STANDALONE\s*\? `node packages\/ui\/\.next\/standalone\/packages\/ui\/server\.js`\s*:\s*`pnpm --filter @ai-company-os\/ui exec next start --hostname 127\.0\.0\.1 --port \$\{port\}`/);
+  assert.match(playwright, /uiServer\(UI_PORT, \{\}\)/);
+  assert.match(playwright, /uiServer\(UI_LAB_PORT, \{ NEXT_PUBLIC_UX_LAB: "1" \}\)/);
   const ci = read(".github/workflows/ci.yml");
   const e2e = ci.match(/^  e2e:\n([\s\S]*?)(?=^  [\w-]+:)/m)?.[1];
   assert.ok(e2e, "CI must have its real E2E job");
