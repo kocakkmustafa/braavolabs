@@ -209,7 +209,7 @@ Limit tek kaynak: `retryLimit()` (`jobBudget.maxRetries` ?? 3); sayaç artışı
   - **Sonraki iş:** daha dolu değer için onay oluşturan yerlerin metadata'ya (şemasız JSON) araç riskLevel/geri-alma bilgisi yazması gerekir; ayrı iş. → BRA-UX-API-01c ile yapıldı.
 - **BRA-UX-API-01c notu (2026-11-12):** `tool-executor.ts` onay oluştururken `metadata.riskLevel` (registry `ToolMeta.riskLevel`) ve `metadata.reversible` yazar; `details.ts` bunları okur. Migration yok, şema değişmez.
   - **`risk`:** SPEND araç kapısı ve EXTERNAL_CONTROL: `metadata.riskLevel` (low|medium|high, harf duyarsız). Adım kapısı: `metadata.risk` (değişmedi). INPUT/HANDOFF: `null`. Eski onaylarda alan yok → `null`.
-  - **`reversible`:** yalnız gerçek boolean okunur. Yazılan değerler: para harcayan araç çağrısı `false` (platformda geri alma yolu yok); `external_control` TRIGGER `false`, PAUSE/RESUME `true` (birbirinin tersi). Para dışı araç, adım kapısı, INPUT, HANDOFF ve eski onaylar `null` (kaynak yok, uydurma yok).
+  - **`reversible`:** yalnız gerçek boolean okunur. Yazılan değerler: para harcayan araç çağrısı `false` (platformda geri alma yolu yok); `external_control` TRIGGER `false`, PAUSE/RESUME `true` (karşıt eylemle döndürülebilir; RESUME bekleyen işi tetikleyebilir, arayüz "geri alınabilir" değil "karşıt eylemle döndürülebilir" demeli). `reversible:false` para harcayan çağrıda `isMoneyTouching` (`moneyTouching ?? requiresApproval`) üzerinden yazılır; iadesi mümkün ücretli araç eklenirse yeniden değerlendirilmeli. Para dışı araç, adım kapısı, INPUT, HANDOFF ve eski onaylar `null` (kaynak yok, uydurma yok).
   - **Sızıntı:** yeni iki alan boolean/üçlü enum; ham metadata yine yanıta çıkmaz.
 
 ---
