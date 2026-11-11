@@ -1304,6 +1304,61 @@
       "approvalForbidden": "Nie masz uprawnień do rozstrzygania zatwierdzeń.",
       "actionRejected": "Zadanie nie jest w stanie, który pozwala na tę akcję."
     },
+    "jobs": {
+      "title": "Zadania",
+      "drawerLabel": "Zadanie: {title}",
+      "close": "Zamknij",
+      "viewLabel": "Widok zadania",
+      "tab": {
+        "summary": "Podsumowanie",
+        "output": "Wynik",
+        "kaput": "Pod maską"
+      },
+      "detail": {
+        "label": "Szczegóły",
+        "simple": "Prosto",
+        "full": "Pełne"
+      },
+      "state": {
+        "DRAFT": "szkic",
+        "PLANNED": "zaplanowane",
+        "READY": "gotowe",
+        "RUNNING": "w toku",
+        "NEEDS_APPROVAL": "czeka na zatwierdzenie",
+        "RESUMING": "wznawianie",
+        "PAUSED": "wstrzymane",
+        "FAILED": "nieudane",
+        "CANCELLED": "anulowane",
+        "COMPLETED": "zakończone",
+        "unknown": "nieznane"
+      },
+      "risk": {
+        "low": "niskie",
+        "medium": "średnie",
+        "high": "wysokie"
+      },
+      "riskLabel": "Ryzyko: {value}",
+      "verified": "✔ Zweryfikowano",
+      "unverified": "Niezweryfikowano",
+      "noVerification": "Brak informacji o weryfikacji",
+      "field": {
+        "status": "Stan",
+        "cost": "Koszt",
+        "company": "Firma"
+      },
+      "fullInfo": "ID: {id} · stan: {state} · zaktualizowano: {updated}",
+      "kaput": {
+        "loading": "Wczytywanie maski…",
+        "error": "Nie udało się odczytać maski.",
+        "summary": "Kroki ({steps}) · Wywołania narzędzi: {tools} · Koszt: {cost} · Przekazania: {handoffs}",
+        "noSteps": "To zadanie nie ma jeszcze zapisów kroków.",
+        "unknown": "brak danych",
+        "later": "Szczegóły modelu, routingu i uprawnień pojawią się w późniejszej wersji."
+      },
+      "stuckNote": "Niektóre zawieszone zadania nie są jeszcze widoczne, gdy śledzenie heartbeat jest wyłączone.",
+      "openJob": "Otwórz zadanie {title}",
+      "openFull": "Otwórz pełną stronę uruchomienia"
+    },
     "plan": {
       "title": "Opisz zadanie",
       "workspace": "Przestrzeń robocza",

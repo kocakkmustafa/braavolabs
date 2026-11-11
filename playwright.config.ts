@@ -119,6 +119,7 @@ export default defineConfig({
     // BRA-UX-04: the SAME build served with the prototype flag ON (read at request time, not baked in), so one run proves
     // both "flag off = no difference" (UI_PORT) and the prototype journeys (UI_LAB_PORT).
     // BRA-UX-05a: aynı örnek `/start` Niyet Çubuğu bayrağı da AÇIK (istek anında okunur); UI_PORT'ta eski ekran birebir sunulur.
-    uiServer(UI_LAB_PORT, { NEXT_PUBLIC_UX_LAB: "1", NEXT_PUBLIC_UX_INTENT: "1" }),
+    // BRA-UX-05c: aynı örnek `/inbox` İşler bayrağı da AÇIK; UI_PORT'ta eski gelen kutusu birebir sunulur.
+    uiServer(UI_LAB_PORT, { NEXT_PUBLIC_UX_LAB: "1", NEXT_PUBLIC_UX_INTENT: "1", NEXT_PUBLIC_UX_JOBS: "1" }),
   ],
 });

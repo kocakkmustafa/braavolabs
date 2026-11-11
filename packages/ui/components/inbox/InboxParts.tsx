@@ -96,8 +96,8 @@ export function ArtifactView({ artifact, t }: { artifact: NonNullable<InboxAppro
   );
 }
 
-function ApprovalCard({ a, busy, error, onDecide, t, locale }: {
-  a: InboxApproval; busy: boolean; error?: string;
+function ApprovalCard({ a, busy, error, onDecide, t, locale, risk = null }: {
+  a: InboxApproval; busy: boolean; error?: string; risk?: string | null;
   onDecide: (a: InboxApproval, d: "APPROVED" | "REJECTED", note?: string) => void; t: T; locale: string;
 }) {
   const [note, setNote] = useState("");
@@ -113,6 +113,7 @@ function ApprovalCard({ a, busy, error, onDecide, t, locale }: {
       <p style={muted}>
         {[a.metadata?.toolName, amount ? t("app.inbox.amount", { value: amount }) : null, when(a.createdAt, locale), expires ? t("app.inbox.expires", { value: expires }) : null].filter(Boolean).join(" · ")}
       </p>
+      {risk && <p data-testid="job-risk" style={{ ...muted, fontWeight: 600 }}>{risk}</p>}
       {a.artifact && <ArtifactView artifact={a.artifact} t={t} />}
       {isInput && (
         <div style={{ marginTop: 8 }}>
@@ -132,9 +133,11 @@ function ApprovalCard({ a, busy, error, onDecide, t, locale }: {
   );
 }
 
-export function ApprovalGroups({ groups, busyIds, errorByApproval, onDecide, t, locale }: {
+export function ApprovalGroups({ groups, busyIds, errorByApproval, onDecide, t, locale, riskLabel }: {
   groups: InboxApprovalGroup[]; busyIds: ReadonlySet<string>; errorByApproval: Record<string, string>;
   onDecide: (a: InboxApproval, d: "APPROVED" | "REJECTED", note?: string) => void; t: T; locale: string;
+  /** BRA-UX-05c: verilirse onay satırına risk alanı eklenir (varsayılan yok → eski ekran birebir). */
+  riskLabel?: (a: InboxApproval) => string | null;
 }) {
   return (
     <ul style={{ display: "grid", gap: 12, listStyle: "none", margin: 0, padding: 0 }}>
@@ -148,7 +151,7 @@ export function ApprovalGroups({ groups, busyIds, errorByApproval, onDecide, t, 
           </div>
           <ul style={{ display: "grid", gap: 10, listStyle: "none", margin: 0, padding: 0 }}>
             {g.approvals.map((a) => (
-              <ApprovalCard key={a.id} a={a} busy={busyIds.has(a.id)} error={errorByApproval[a.id]} onDecide={onDecide} t={t} locale={locale} />
+              <ApprovalCard key={a.id} a={a} busy={busyIds.has(a.id)} error={errorByApproval[a.id]} onDecide={onDecide} t={t} locale={locale} risk={riskLabel ? riskLabel(a) : null} />
             ))}
           </ul>
         </li>

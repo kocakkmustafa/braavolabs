@@ -1304,6 +1304,61 @@
       "approvalForbidden": "Onay kararı vermek için yetkiniz yok.",
       "actionRejected": "İş bu eyleme izin veren bir durumda değil."
     },
+    "jobs": {
+      "title": "İşler",
+      "drawerLabel": "İş: {title}",
+      "close": "Kapat",
+      "viewLabel": "İş kipi",
+      "tab": {
+        "summary": "Özet",
+        "output": "Çıktı",
+        "kaput": "Kaput"
+      },
+      "detail": {
+        "label": "Ayrıntı",
+        "simple": "Sade",
+        "full": "Tam"
+      },
+      "state": {
+        "DRAFT": "taslak",
+        "PLANNED": "planlandı",
+        "READY": "hazır",
+        "RUNNING": "çalışıyor",
+        "NEEDS_APPROVAL": "onay bekliyor",
+        "RESUMING": "sürdürülüyor",
+        "PAUSED": "duraklatıldı",
+        "FAILED": "başarısız",
+        "CANCELLED": "iptal edildi",
+        "COMPLETED": "bitti",
+        "unknown": "bilinmiyor"
+      },
+      "risk": {
+        "low": "düşük",
+        "medium": "orta",
+        "high": "yüksek"
+      },
+      "riskLabel": "Risk: {value}",
+      "verified": "✔ Doğrulandı",
+      "unverified": "Doğrulanmadı",
+      "noVerification": "Doğrulama bilgisi yok",
+      "field": {
+        "status": "Durum",
+        "cost": "Maliyet",
+        "company": "Şirket"
+      },
+      "fullInfo": "Kimlik: {id} · durum: {state} · güncellendi: {updated}",
+      "kaput": {
+        "loading": "Kaput yükleniyor…",
+        "error": "Kaput okunamadı.",
+        "summary": "Adımlar ({steps}) · Araç çağrısı: {tools} · Maliyet: {cost} · El değiştirme: {handoffs}",
+        "noSteps": "Bu işte henüz adım kaydı yok.",
+        "unknown": "bilgi yok",
+        "later": "Model, yönlendirme ve yetki dökümü sonraki sürümde gelecek."
+      },
+      "stuckNote": "Kalp atışı izleme kapalıyken bazı takılmalar henüz görünmüyor.",
+      "openJob": "{title} işini aç",
+      "openFull": "Tüm ayrıntı sayfasını aç"
+    },
     "plan": {
       "title": "Bir iş tarif et",
       "workspace": "Çalışma alanı",

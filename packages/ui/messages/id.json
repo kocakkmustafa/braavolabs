@@ -1304,6 +1304,61 @@
       "approvalForbidden": "Anda tidak memiliki izin untuk memutuskan persetujuan.",
       "actionRejected": "Pekerjaan tidak berada dalam keadaan yang mengizinkan tindakan ini."
     },
+    "jobs": {
+      "title": "Tugas",
+      "drawerLabel": "Tugas: {title}",
+      "close": "Tutup",
+      "viewLabel": "Tampilan tugas",
+      "tab": {
+        "summary": "Ringkasan",
+        "output": "Hasil",
+        "kaput": "Di balik layar"
+      },
+      "detail": {
+        "label": "Detail",
+        "simple": "Sederhana",
+        "full": "Lengkap"
+      },
+      "state": {
+        "DRAFT": "draf",
+        "PLANNED": "direncanakan",
+        "READY": "siap",
+        "RUNNING": "berjalan",
+        "NEEDS_APPROVAL": "menunggu persetujuan",
+        "RESUMING": "dilanjutkan",
+        "PAUSED": "dijeda",
+        "FAILED": "gagal",
+        "CANCELLED": "dibatalkan",
+        "COMPLETED": "selesai",
+        "unknown": "tidak diketahui"
+      },
+      "risk": {
+        "low": "rendah",
+        "medium": "sedang",
+        "high": "tinggi"
+      },
+      "riskLabel": "Risiko: {value}",
+      "verified": "✔ Terverifikasi",
+      "unverified": "Belum terverifikasi",
+      "noVerification": "Tidak ada info verifikasi",
+      "field": {
+        "status": "Status",
+        "cost": "Biaya",
+        "company": "Perusahaan"
+      },
+      "fullInfo": "ID: {id} · status: {state} · diperbarui: {updated}",
+      "kaput": {
+        "loading": "Memuat di balik layar…",
+        "error": "Tidak dapat membaca di balik layar.",
+        "summary": "Langkah ({steps}) · Panggilan alat: {tools} · Biaya: {cost} · Serah terima: {handoffs}",
+        "noSteps": "Tugas ini belum memiliki catatan langkah.",
+        "unknown": "tidak tersedia",
+        "later": "Detail model, perutean, dan izin hadir di rilis berikutnya."
+      },
+      "stuckNote": "Beberapa tugas macet belum terlihat selama pemantauan heartbeat dimatikan.",
+      "openJob": "Buka tugas {title}",
+      "openFull": "Buka halaman lengkap eksekusi"
+    },
     "plan": {
       "title": "Jelaskan pekerjaan",
       "workspace": "Ruang kerja",

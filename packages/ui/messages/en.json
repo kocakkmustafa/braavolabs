@@ -1304,6 +1304,61 @@
       "approvalForbidden": "You do not have permission to decide approvals.",
       "actionRejected": "The job is not in a state that allows this action."
     },
+    "jobs": {
+      "title": "Jobs",
+      "drawerLabel": "Job: {title}",
+      "close": "Close",
+      "viewLabel": "Job view",
+      "tab": {
+        "summary": "Summary",
+        "output": "Output",
+        "kaput": "Under the hood"
+      },
+      "detail": {
+        "label": "Detail",
+        "simple": "Simple",
+        "full": "Full"
+      },
+      "state": {
+        "DRAFT": "draft",
+        "PLANNED": "planned",
+        "READY": "ready",
+        "RUNNING": "running",
+        "NEEDS_APPROVAL": "needs approval",
+        "RESUMING": "resuming",
+        "PAUSED": "paused",
+        "FAILED": "failed",
+        "CANCELLED": "cancelled",
+        "COMPLETED": "done",
+        "unknown": "unknown"
+      },
+      "risk": {
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "riskLabel": "Risk: {value}",
+      "verified": "✔ Verified",
+      "unverified": "Not verified",
+      "noVerification": "No verification info",
+      "field": {
+        "status": "Status",
+        "cost": "Cost",
+        "company": "Company"
+      },
+      "fullInfo": "ID: {id} · state: {state} · updated: {updated}",
+      "kaput": {
+        "loading": "Loading the hood…",
+        "error": "Could not read the hood.",
+        "summary": "Steps ({steps}) · Tool calls: {tools} · Cost: {cost} · Handoffs: {handoffs}",
+        "noSteps": "This job has no step records yet.",
+        "unknown": "n/a",
+        "later": "Model, routing and permission details arrive in a later release."
+      },
+      "stuckNote": "Some stuck jobs are not visible yet while heartbeat tracking is off.",
+      "openJob": "Open job {title}",
+      "openFull": "Open full run page"
+    },
     "plan": {
       "title": "Describe a job",
       "workspace": "Workspace",
