@@ -205,8 +205,12 @@ Limit tek kaynak: `retryLimit()` (`jobBudget.maxRetries` ?? 3); sayaç artışı
   - **`risk`:** yalnız adım kapısında `metadata.risk` (low|medium|high); diğer tipler `null` (araç `riskLevel`i metadata'ya yazılmıyor: kaynak yok).
   - **`permissions`:** `metadata.tool` (adım kapısı) / `metadata.toolName` (araç kapısı) / `toolName:ACTION` (EXTERNAL_CONTROL); INPUT ve HANDOFF `null`.
   - **`dataTransfer`:** araç kapısında `toolName ← girdi alanları: a, b` (yalnız alan ADLARI); EXTERNAL_CONTROL bağlantı/hedef kimliği; HANDOFF sağlayıcı/model; adım kapısı ve INPUT `null`.
-  - **`reversible`:** her zaman `null` (hiçbir yerde kayıtlı değil).
-  - **Sonraki iş:** daha dolu değer için onay oluşturan yerlerin metadata'ya (şemasız JSON) araç riskLevel/geri-alma bilgisi yazması gerekir; ayrı iş.
+  - **`reversible`:** her zaman `null` (hiçbir yerde kayıtlı değil). *(BRA-UX-API-01c ile güncellendi: aşağıya bak.)*
+  - **Sonraki iş:** daha dolu değer için onay oluşturan yerlerin metadata'ya (şemasız JSON) araç riskLevel/geri-alma bilgisi yazması gerekir; ayrı iş. → BRA-UX-API-01c ile yapıldı.
+- **BRA-UX-API-01c notu (2026-11-12):** `tool-executor.ts` onay oluştururken `metadata.riskLevel` (registry `ToolMeta.riskLevel`) ve `metadata.reversible` yazar; `details.ts` bunları okur. Migration yok, şema değişmez.
+  - **`risk`:** SPEND araç kapısı ve EXTERNAL_CONTROL: `metadata.riskLevel` (low|medium|high, harf duyarsız). Adım kapısı: `metadata.risk` (değişmedi). INPUT/HANDOFF: `null`. Eski onaylarda alan yok → `null`.
+  - **`reversible`:** yalnız gerçek boolean okunur. Yazılan değerler: para harcayan araç çağrısı `false` (platformda geri alma yolu yok); `external_control` TRIGGER `false`, PAUSE/RESUME `true` (birbirinin tersi). Para dışı araç, adım kapısı, INPUT, HANDOFF ve eski onaylar `null` (kaynak yok, uydurma yok).
+  - **Sızıntı:** yeni iki alan boolean/üçlü enum; ham metadata yine yanıta çıkmaz.
 
 ---
 

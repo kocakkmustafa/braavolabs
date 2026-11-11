@@ -10,13 +10,17 @@
  *
  * Kaynak tablosu (docs/yula-execution/DECISIONS.md, ADR-0003 "BRA-UX-API-01 notu"):
  *   risk         step kapısı: metadata.risk (low|medium|high; büyük/küçük harf duyarsız).
- *                Diğer tipler: kaynak yok → null (araç riskLevel'i metadata'ya yazılmıyor).
+ *                Araç kapısı (SPEND) ve EXTERNAL_CONTROL: metadata.riskLevel (BRA-UX-API-01c,
+ *                tool-executor onay oluştururken registry meta'sından yazar). Eski onaylarda
+ *                alan yok → null. INPUT/HANDOFF: kaynak yok → null.
  *   permissions  metadata.tool (step kapısı) / metadata.toolName (araç kapısı);
  *                EXTERNAL_CONTROL: "toolName:ACTION". INPUT/HANDOFF: yetki istemez → null.
  *   dataTransfer SPEND araç kapısı: "toolName ← girdi alanları: a, b" (yalnız güvenli alan
  *                ADLARI, değer yok); EXTERNAL_CONTROL: bağlantı/hedef kimliği (kimlik
  *                allowlist'i); HANDOFF: sağlayıcı/model. Step kapısı ve INPUT: null.
- *   reversible   Hiçbir yerde kayıtlı değil → HER ZAMAN null.
+ *   reversible   metadata.reversible YALNIZ boolean ise (BRA-UX-API-01c): para harcayan araç
+ *                çağrısı false, external_control TRIGGER false / PAUSE-RESUME true. Kayıt yoksa
+ *                (eski onaylar, adım kapısı, INPUT, HANDOFF, para dışı araçlar) null.
  */
 
 import type { ApprovalDetails, ApprovalRisk } from "@ai-company-os/core";
@@ -94,6 +98,11 @@ function asRisk(v: unknown): ApprovalRisk | null {
   return r === "low" || r === "medium" || r === "high" ? r : null;
 }
 
+/** Yalnız gerçek boolean; "true"/1 gibi şekiller null (uydurma yok). */
+function asBool(v: unknown): boolean | null {
+  return typeof v === "boolean" ? v : null;
+}
+
 function inputFieldNames(input: unknown): string[] {
   if (!input || typeof input !== "object" || Array.isArray(input)) return [];
   return Object.keys(input as Record<string, unknown>)
@@ -118,10 +127,10 @@ export function deriveApprovalDetails(type: unknown, metadata: unknown): Approva
       const tool = matching(m.toolName, TOOL_NAME);
       const fields = inputFieldNames(m.input);
       return {
-        risk: null,
+        risk: asRisk(m.riskLevel),
         permissions: list([tool]),
         dataTransfer: tool && fields.length ? list([clamp(`${tool} ← girdi alanları: ${fields.join(", ")}`)]) : null,
-        reversible: null,
+        reversible: asBool(m.reversible),
       };
     }
     if (type === "EXTERNAL_CONTROL") {
@@ -130,12 +139,12 @@ export function deriveApprovalDetails(type: unknown, metadata: unknown): Approva
       const conn = safeId(m.connectionId);
       const target = safeId(m.targetId);
       return {
-        risk: null,
+        risk: asRisk(m.riskLevel),
         permissions: tool && action ? list([`${tool}:${action}`]) : list([tool]),
         dataTransfer: conn
           ? list([clamp(`${action ?? "eylem"} → bağlantı ${conn}${target ? `, hedef ${target}` : ""}`)])
           : null,
-        reversible: null,
+        reversible: asBool(m.reversible),
       };
     }
     if (type === "HANDOFF") {
