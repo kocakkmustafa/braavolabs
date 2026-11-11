@@ -152,7 +152,7 @@ function Lab({ source }: { source: LabSource }) {
         <div style={{ display: "grid", gap: 16 }}>
           {multi && (
             <label style={{ display: "grid", gap: 4 }}><span style={muted}>Şirket</span>
-              <select value={workspaceId} onChange={(e) => changeWorkspace(e.target.value)} style={{ minHeight: 44 }}>
+              <select value={workspaceId} disabled={planState.phase === "starting"} onChange={(e) => changeWorkspace(e.target.value)} style={{ minHeight: 44 }}>
                 <option value="">Seç…</option>{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select></label>
           )}

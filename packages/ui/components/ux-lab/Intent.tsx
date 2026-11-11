@@ -98,7 +98,7 @@ export function PlanPanel({ state, companies, workspaceId, onWorkspace, onStart,
       <div style={muted}>Adım başına model satırı: <NeedsApi what="model" /></div>
       {companies.length > 1 && (
         <label style={{ display: "grid", gap: 4 }}><span>Şirket</span>
-          <select value={workspaceId} onChange={(e) => onWorkspace(e.target.value)} style={{ minHeight: 44 }}>
+          <select value={workspaceId} disabled={starting} onChange={(e) => onWorkspace(e.target.value)} style={{ minHeight: 44 }}>
             <option value="">Seç…</option>{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </label>
