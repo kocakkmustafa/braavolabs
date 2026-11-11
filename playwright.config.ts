@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { API_PORT, UI_PORT, UI } from "./e2e/ports";
+import { API_PORT, UI_PORT, UI, UI_LAB_PORT } from "./e2e/ports";
 
 /**
  * E2E configuration (BR-P0-005).
@@ -23,6 +23,47 @@ const SECRETS = {
   ENCRYPTION_KEY: "e2e-encryption-key-at-least-32-chars",
   NODE_ENV: "test",
 };
+
+/**
+ * UI web server factory. Production serves the UI through Next's `output: "standalone"` bundle
+ * (ENV/Dockerfile.ui). Locally we deliberately do NOT use it by default.
+ *
+ * On this workspace the standalone server is unusable: `.npmrc` relocates
+ * pnpm's virtual store outside iCloud (a required workaround — files
+ * under ~/Documents get evicted mid-build), and Next bakes the traced
+ * module paths into the bundle at build time. The result resolves
+ * node_modules to a .cache path that does not exist and dies with
+ * MODULE_NOT_FOUND before serving a byte. That is an artifact of this
+ * machine's setup, not of the application.
+ *
+ * `next start` warns that it "does not work with output: standalone" and
+ * then serves the real built app anyway. The application code under test
+ * is identical either way — only the server wrapper differs — so this is
+ * a faithful harness for journeys. Set E2E_UI_STANDALONE=1 to use the
+ * standalone entry instead (correct in CI, which has no relocated store).
+ */
+function uiServer(port: number, extraEnv: Record<string, string>) {
+  return {
+    command: process.env.E2E_UI_STANDALONE
+      ? `node packages/ui/.next/standalone/packages/ui/server.js`
+      : `pnpm --filter @ai-company-os/ui exec next start --hostname 127.0.0.1 --port ${port}`,
+    port,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+    env: {
+      ...process.env,
+      ...SECRETS,
+      // Exercise the explicit self-hosted boundary with a public operator
+      // hostname. Local/private hosts remain rejected by middleware, just as
+      // they are in production.
+      SELF_HOSTED_SURFACE_HOSTS: "operator.example",
+      NEXT_PUBLIC_API_URL: "https://api.operator.example/api/v1",
+      HOSTNAME: "127.0.0.1",
+      PORT: String(port),
+      ...extraEnv,
+    },
+  };
+}
 
 const chromeExecutable = process.env.PLAYWRIGHT_CHROME_EXECUTABLE_PATH;
 
@@ -74,40 +115,9 @@ export default defineConfig({
         API_HOST: "127.0.0.1",
       },
     },
-    {
-      // Production serves the UI through Next's `output: "standalone"` bundle
-      // (ENV/Dockerfile.ui). We deliberately do NOT use it here.
-      //
-      // On this workspace the standalone server is unusable: `.npmrc` relocates
-      // pnpm's virtual store outside iCloud (a required workaround — files
-      // under ~/Documents get evicted mid-build), and Next bakes the traced
-      // module paths into the bundle at build time. The result resolves
-      // node_modules to a .cache path that does not exist and dies with
-      // MODULE_NOT_FOUND before serving a byte. That is an artifact of this
-      // machine's setup, not of the application.
-      //
-      // `next start` warns that it "does not work with output: standalone" and
-      // then serves the real built app anyway. The application code under test
-      // is identical either way — only the server wrapper differs — so this is
-      // a faithful harness for journeys. Set E2E_UI_STANDALONE=1 to use the
-      // standalone entry instead (correct in CI, which has no relocated store).
-      command: process.env.E2E_UI_STANDALONE
-        ? `node packages/ui/.next/standalone/packages/ui/server.js`
-        : `pnpm --filter @ai-company-os/ui exec next start --hostname 127.0.0.1 --port ${UI_PORT}`,
-      port: UI_PORT,
-      reuseExistingServer: !process.env.CI,
-      timeout: 120_000,
-      env: {
-        ...process.env,
-        ...SECRETS,
-        // Exercise the explicit self-hosted boundary with a public operator
-        // hostname. Local/private hosts remain rejected by middleware, just as
-        // they are in production.
-        SELF_HOSTED_SURFACE_HOSTS: "operator.example",
-        NEXT_PUBLIC_API_URL: "https://api.operator.example/api/v1",
-        HOSTNAME: "127.0.0.1",
-        PORT: String(UI_PORT),
-      },
-    },
+    uiServer(UI_PORT, {}),
+    // BRA-UX-04: the SAME build served with the prototype flag ON (read at request time, not baked in), so one run proves
+    // both "flag off = no difference" (UI_PORT) and the prototype journeys (UI_LAB_PORT).
+    uiServer(UI_LAB_PORT, { NEXT_PUBLIC_UX_LAB: "1" }),
   ],
 });
