@@ -95,7 +95,7 @@ async function prepare(page: Page, scheme: "light" | "dark") {
 const normalize = (html: string) => html
   .replace(/(:r[0-9a-z]+:|_r_[0-9a-z]+_|«r[0-9a-z]+»)/g, "ID")
   // BrandMotion sprite karesi zamanla değişir (animasyon karesi, içerik değil): kare konumu normalize edilir.
-  .replace(/background-position: [0-9.]+% 0%/g, "background-position: FRAME")
+  .replace(/background-position: [0-9.]+% [0-9.]+%/g, "background-position: FRAME")
   .replace(/\s+/g, " ").trim();
 
 test.use({ locale: "tr-TR", timezoneId: "UTC" });
