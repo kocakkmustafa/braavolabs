@@ -10,12 +10,11 @@ import { allowedActions, nextTabIndex, type InboxRun } from "../../lib/inbox";
 import { receiptFailureKind, trySend } from "../../lib/inboxActions";
 import { loadKaput } from "../../lib/ux-jobs/kaput";
 import { stateKey, verificationKey } from "../../lib/ux-jobs/rows";
-import type { Kaput } from "../../lib/ux-lab/facts";
+import KaputPanel, { type KaputLoad } from "./KaputPanel";
 import { ReceiptPanel, money, type ReceiptState, type T } from "../inbox/InboxParts";
 
 type Tab = "summary" | "output" | "kaput";
 const TABS: readonly Tab[] = ["summary", "output", "kaput"];
-type KaputLoad = { status: "idle" } | { status: "loading" } | { status: "error" } | { status: "ready"; kaput: Kaput };
 
 const btn: React.CSSProperties = {
   minHeight: 44, padding: "6px 14px", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer",
@@ -121,39 +120,5 @@ export default function JobModes({ run, token, t, locale, rtl, busy, message, on
         </form>
       )}
     </>
-  );
-}
-
-function KaputPanel({ load, full, t, locale, onRetry }: { load: KaputLoad; full: boolean; t: T; locale: string; onRetry: () => void }) {
-  if (load.status === "loading" || load.status === "idle") return <div role="status" aria-busy="true" style={muted}>{t("app.jobs.kaput.loading")}</div>;
-  if (load.status === "error") {
-    return (
-      <div role="alert" style={{ ...muted, color: "var(--color-error)" }}>
-        {t("app.jobs.kaput.error")} <button type="button" style={btn} onClick={onRetry}>{t("app.inbox.retryLoad")}</button>
-      </div>
-    );
-  }
-  const k = load.kaput;
-  const unknown = t("app.jobs.kaput.unknown");
-  return (
-    <div style={{ display: "grid", gap: 8 }} data-testid="job-kaput">
-      <div>{t("app.jobs.kaput.summary", {
-        steps: k.steps.length, tools: k.toolCallCount, cost: k.totalCostUsd === null ? "—" : (money(k.totalCostUsd, locale) ?? "—"), handoffs: k.handoffCount === null ? unknown : k.handoffCount,
-      })}</div>
-      {k.steps.length === 0 ? <span style={muted}>{t("app.jobs.kaput.noSteps")}</span> : (
-        <ol style={{ margin: 0, paddingInlineStart: 20, display: "grid", gap: 6 }}>
-          {k.steps.map((s) => (
-            <li key={s.id}>{s.name} <span style={muted}>· {s.status}{full && s.costUsd !== null ? ` · ${money(s.costUsd, locale) ?? ""}` : ""}</span>
-              {full && s.toolCalls.length > 0 && (
-                <ul style={{ margin: "4px 0 0", paddingInlineStart: 16 }}>
-                  {s.toolCalls.map((c) => <li key={c.id} style={muted}>{c.toolName} · {c.status}{c.durationMs !== null ? ` · ${c.durationMs} ms` : ""}{c.error ? ` · ${c.error}` : ""}</li>)}
-                </ul>
-              )}
-            </li>
-          ))}
-        </ol>
-      )}
-      <p style={muted}>{t("app.jobs.kaput.later")}</p>
-    </div>
   );
 }

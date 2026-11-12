@@ -86,12 +86,14 @@ export function companyLine(groups: readonly LabApprovalGroup[], runs: readonly 
 
 /* ── Kaputu Aç: `GET /runs/:id` gövdesinin savunmacı okuması (adım + araç çağrısı + maliyet; model/yetki dökümü API ister) ── */
 export interface KaputToolCall { id: string; toolName: string; status: string; durationMs: number | null; error: string | null }
-export interface KaputStep { id: string; index: number; name: string; agentRole: string | null; status: string; costUsd: number | null; durationMs: number | null; reasoning: string | null; toolCalls: KaputToolCall[] }
+export interface KaputStep { id: string; index: number; name: string; agentRole: string | null; status: string; costUsd: number | null; durationMs: number | null; reasoning: string | null; toolCalls: KaputToolCall[]; error?: string | null }
 /** `handoffCount` null = okunamadı/yok (uydurulmaz). */
-export interface Kaput { steps: KaputStep[]; totalCostUsd: number | null; toolCallCount: number; handoffCount: number | null }
+export interface Kaput { steps: KaputStep[]; totalCostUsd: number | null; toolCallCount: number; handoffCount: number | null; runError?: string | null; budgetUsd?: number | null }
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v : null);
+
+const positive = (n: number | null): number | null => (n !== null && n > 0 ? n : null);
 
 export function parseKaput(raw: unknown): Kaput {
   if (!isObj(raw)) return { steps: [], totalCostUsd: null, toolCallCount: 0, handoffCount: null };
@@ -104,6 +106,7 @@ export function parseKaput(raw: unknown): Kaput {
     costUsd: toNumber(s.costUsd),
     durationMs: toNumber(s.durationMs),
     reasoning: str(s.reasoning),
+    error: str(s.error),
     toolCalls: (Array.isArray(s.toolCalls) ? s.toolCalls : []).filter(isObj).map((c, j) => ({
       id: str(c.id) ?? `call-${i}-${j}`,
       toolName: str(c.toolName) ?? "?",
@@ -112,5 +115,5 @@ export function parseKaput(raw: unknown): Kaput {
       error: str(c.error),
     })),
   }));
-  return { steps, totalCostUsd: toNumber(raw.costUsd), toolCallCount: steps.reduce((n, s) => n + s.toolCalls.length, 0), handoffCount: null };
+  return { steps, totalCostUsd: toNumber(raw.costUsd), toolCallCount: steps.reduce((n, s) => n + s.toolCalls.length, 0), handoffCount: null, runError: str(raw.error), budgetUsd: positive(toNumber(raw.budgetUsd)) };
 }
