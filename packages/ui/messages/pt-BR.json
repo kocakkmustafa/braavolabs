@@ -1368,6 +1368,55 @@
       "notFound": "Este trabalho não foi encontrado ou você não tem acesso.",
       "label": "Espaço de trabalho: {title}"
     },
+    "approvalCenter": {
+      "title": "Central de aprovações e segurança",
+      "subtitle": "Veja exatamente o que cada ação fará antes de decidir.",
+      "classic": "Visão clássica de aprovações",
+      "count": "{count} aguardando",
+      "live": "{count} aprovações aguardando",
+      "approvedNotice": "Aprovado.",
+      "rejectedNotice": "Recusado.",
+      "type": {
+        "SPEND": "Gasto",
+        "INPUT": "Pergunta",
+        "HANDOFF": "Repasse",
+        "EXTERNAL_CONTROL": "Controle externo",
+        "other": "Aprovação"
+      },
+      "open": "Revisar aprovação: {title}",
+      "sheetLabel": "Detalhes da aprovação: {title}",
+      "close": "Fechar",
+      "field": {
+        "what": "O que fará",
+        "tool": "Ferramenta",
+        "permissions": "Escopo de permissões",
+        "data": "Dados transferidos",
+        "risk": "Risco",
+        "amount": "Valor",
+        "reversible": "Desfazer",
+        "draft": "Rascunho",
+        "requested": "Solicitado"
+      },
+      "riskLevel": {
+        "low": "Baixo",
+        "medium": "Médio",
+        "high": "Alto"
+      },
+      "reversibleYes": "Pode ser revertido por uma ação contrária",
+      "reversibleNo": "Não pode ser desfeito",
+      "unknown": "Sem informação",
+      "danger": {
+        "tag": "Exige confirmação",
+        "title": "Esta ação exige uma segunda etapa",
+        "body": "Gasta dinheiro, é de alto risco ou não pode ser desfeita.",
+        "phraseLabel": "Digite “{phrase}” para ativar Aprovar",
+        "phrase": "Aprovo o envio",
+        "reasonLabel": "Motivo (salvo com a sua decisão)"
+      },
+      "oneByOne": "Cada aprovação é decidida uma a uma.",
+      "alreadyDecided": "Esta aprovação já foi decidida. A lista foi atualizada.",
+      "forbidden": "Você não tem permissão para decidir esta aprovação. A lista foi atualizada."
+    },
     "plan": {
       "title": "Descreva um trabalho",
       "workspace": "Espaço de trabalho",

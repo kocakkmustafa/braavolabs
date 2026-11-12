@@ -71,7 +71,7 @@ export function screenHarness(file: string, surface: "web" | "mobile", screen: "
       if (name.endsWith("/format")) return new Proxy({ currency: () => "$0" }, { get: (obj: any, key: any) => key in obj ? obj[key] : () => "U" });
       if (name.endsWith("/theme")) return { radii: {} };
       // These are production decision modules, deliberately NOT mocked.
-      if (/\/components\/approvals\/ApprovalsStatus$/.test(name)) return load(resolve(dirname(path), name + ".tsx"));
+      if (/(^\.\/|\/components\/approvals\/)ApprovalsStatus$/.test(name)) return load(resolve(dirname(path), name + ".tsx"));
       if (/\/(approvalDecision|useApprovalDecision|approvalsState)$/.test(name)) {
         const absolute = resolve(dirname(path), name + ".ts");
         if (!existsSync(absolute)) throw new Error("Missing production helper: " + absolute);

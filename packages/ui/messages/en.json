@@ -1368,6 +1368,55 @@
       "notFound": "This job wasn't found or you don't have access.",
       "label": "Job workspace: {title}"
     },
+    "approvalCenter": {
+      "title": "Approval and safety center",
+      "subtitle": "See exactly what each action will do before you decide.",
+      "classic": "Classic approvals view",
+      "count": "{count} waiting",
+      "live": "{count} approvals waiting",
+      "approvedNotice": "Approved.",
+      "rejectedNotice": "Rejected.",
+      "type": {
+        "SPEND": "Spend",
+        "INPUT": "Question",
+        "HANDOFF": "Handoff",
+        "EXTERNAL_CONTROL": "External control",
+        "other": "Approval"
+      },
+      "open": "Review approval: {title}",
+      "sheetLabel": "Approval details: {title}",
+      "close": "Close",
+      "field": {
+        "what": "What it will do",
+        "tool": "Tool",
+        "permissions": "Permission scope",
+        "data": "Data transferred",
+        "risk": "Risk",
+        "amount": "Amount",
+        "reversible": "Undo",
+        "draft": "Draft",
+        "requested": "Requested"
+      },
+      "riskLevel": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      },
+      "reversibleYes": "Can be reversed by an opposite action",
+      "reversibleNo": "Cannot be undone",
+      "unknown": "No information",
+      "danger": {
+        "tag": "Needs confirmation",
+        "title": "This action needs a second step",
+        "body": "It spends money, is high risk or cannot be undone.",
+        "phraseLabel": "Type “{phrase}” to enable Approve",
+        "phrase": "I approve sending",
+        "reasonLabel": "Reason (saved with your decision)"
+      },
+      "oneByOne": "Each approval is decided one by one.",
+      "alreadyDecided": "This approval was already decided. The list was refreshed.",
+      "forbidden": "You don't have permission to decide this approval. The list was refreshed."
+    },
     "plan": {
       "title": "Describe a job",
       "workspace": "Workspace",

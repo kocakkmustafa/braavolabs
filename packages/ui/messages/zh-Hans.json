@@ -1368,6 +1368,55 @@
       "notFound": "未找到此任务，或你没有访问权限。",
       "label": "任务工作区：{title}"
     },
+    "approvalCenter": {
+      "title": "审批与安全中心",
+      "subtitle": "在做决定之前，清楚看到每个操作具体会做什么。",
+      "classic": "经典审批视图",
+      "count": "{count} 项待处理",
+      "live": "{count} 项审批待处理",
+      "approvedNotice": "已批准。",
+      "rejectedNotice": "已拒绝。",
+      "type": {
+        "SPEND": "支出",
+        "INPUT": "提问",
+        "HANDOFF": "交接",
+        "EXTERNAL_CONTROL": "外部控制",
+        "other": "审批"
+      },
+      "open": "查看审批：{title}",
+      "sheetLabel": "审批详情：{title}",
+      "close": "关闭",
+      "field": {
+        "what": "将执行的操作",
+        "tool": "工具",
+        "permissions": "权限范围",
+        "data": "传输的数据",
+        "risk": "风险",
+        "amount": "金额",
+        "reversible": "撤销",
+        "draft": "草稿",
+        "requested": "请求时间"
+      },
+      "riskLevel": {
+        "low": "低",
+        "medium": "中",
+        "high": "高"
+      },
+      "reversibleYes": "可通过相反操作撤回",
+      "reversibleNo": "无法撤销",
+      "unknown": "暂无信息",
+      "danger": {
+        "tag": "需要确认",
+        "title": "此操作需要第二步确认",
+        "body": "它会花钱、风险高或无法撤销。",
+        "phraseLabel": "输入“{phrase}”以启用批准",
+        "phrase": "我批准发送",
+        "reasonLabel": "原因（随你的决定一起保存）"
+      },
+      "oneByOne": "每项审批都需逐一决定。",
+      "alreadyDecided": "此审批已被处理。列表已刷新。",
+      "forbidden": "你无权处理此审批。列表已刷新。"
+    },
     "plan": {
       "title": "描述任务",
       "workspace": "工作区",

@@ -1368,6 +1368,55 @@
       "notFound": "このジョブが見つからないか、アクセス権がありません。",
       "label": "ジョブの作業スペース: {title}"
     },
+    "approvalCenter": {
+      "title": "承認とセキュリティのセンター",
+      "subtitle": "決める前に、各操作が何をするのかを正確に確認できます。",
+      "classic": "従来の承認表示",
+      "count": "{count} 件待機中",
+      "live": "{count} 件の承認が待機中",
+      "approvedNotice": "承認しました。",
+      "rejectedNotice": "却下しました。",
+      "type": {
+        "SPEND": "支出",
+        "INPUT": "質問",
+        "HANDOFF": "引き継ぎ",
+        "EXTERNAL_CONTROL": "外部制御",
+        "other": "承認"
+      },
+      "open": "承認を確認: {title}",
+      "sheetLabel": "承認の詳細: {title}",
+      "close": "閉じる",
+      "field": {
+        "what": "実行内容",
+        "tool": "ツール",
+        "permissions": "権限の範囲",
+        "data": "送信されるデータ",
+        "risk": "リスク",
+        "amount": "金額",
+        "reversible": "取り消し",
+        "draft": "下書き",
+        "requested": "依頼時刻"
+      },
+      "riskLevel": {
+        "low": "低",
+        "medium": "中",
+        "high": "高"
+      },
+      "reversibleYes": "逆の操作で元に戻せます",
+      "reversibleNo": "取り消せません",
+      "unknown": "情報なし",
+      "danger": {
+        "tag": "確認が必要",
+        "title": "この操作には2つ目の手順が必要です",
+        "body": "費用が発生する、リスクが高い、または取り消せない操作です。",
+        "phraseLabel": "「{phrase}」と入力すると承認できます",
+        "phrase": "送信を承認します",
+        "reasonLabel": "理由（決定と一緒に保存されます）"
+      },
+      "oneByOne": "承認は1件ずつ判断します。",
+      "alreadyDecided": "この承認はすでに判断済みです。一覧を更新しました。",
+      "forbidden": "この承認を判断する権限がありません。一覧を更新しました。"
+    },
     "plan": {
       "title": "ジョブを説明",
       "workspace": "ワークスペース",

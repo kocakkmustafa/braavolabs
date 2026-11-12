@@ -443,7 +443,7 @@ test("next config delegates canonical routing to fail-closed middleware", () => 
   // ikinci örnek (UI_LAB_PORT) aynı derlemeyi NEXT_PUBLIC_UX_LAB=1 ile sunar.
   assert.match(playwright, /command: process\.env\.E2E_UI_STANDALONE\s*\? `node packages\/ui\/\.next\/standalone\/packages\/ui\/server\.js`\s*:\s*`pnpm --filter @ai-company-os\/ui exec next start --hostname 127\.0\.0\.1 --port \$\{port\}`/);
   assert.match(playwright, /uiServer\(UI_PORT, \{\}\)/);
-  assert.match(playwright, /uiServer\(UI_LAB_PORT, \{ NEXT_PUBLIC_UX_LAB: "1", NEXT_PUBLIC_UX_INTENT: "1", NEXT_PUBLIC_UX_JOBS: "1", NEXT_PUBLIC_UX_WORKSPACE: "1" \}\)/); // BRA-UX-05a: + Niyet Çubuğu; 05c: + İşler bayrağı; 05b: + iş sayfası bayrağı
+  assert.match(playwright, /uiServer\(UI_LAB_PORT, \{ NEXT_PUBLIC_UX_LAB: "1", NEXT_PUBLIC_UX_INTENT: "1", NEXT_PUBLIC_UX_JOBS: "1", NEXT_PUBLIC_UX_WORKSPACE: "1", NEXT_PUBLIC_UX_APPROVALS: "1" \}\)/); // BRA-UX-05a: + Niyet Çubuğu; 05c: + İşler bayrağı; 05b: + iş sayfası bayrağı; 05i: + onay merkezi bayrağı
   const ci = read(".github/workflows/ci.yml");
   const e2e = ci.match(/^  e2e:\n([\s\S]*?)(?=^  [\w-]+:)/m)?.[1];
   assert.ok(e2e, "CI must have its real E2E job");

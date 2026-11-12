@@ -59,7 +59,7 @@ describe("approvalsState (saf durum fonksiyonları)", () => {
 // Sayfanın GERÇEK kaynağı (harness), listApprovals davranışı sahte.
 const settle = () => new Promise<void>((r) => setTimeout(r, 0));
 const mountPage = async (setup: (h: any) => void) => {
-  const h: any = screenHarness(resolve(process.cwd(), "app/approvals/page.tsx"), "web", "queue");
+  const h: any = screenHarness(resolve(process.cwd(), "components/approvals/ApprovalsLegacy.tsx"), "web", "queue");
   setup(h); await h.mount(); await settle(); h.render();
   return h;
 };
