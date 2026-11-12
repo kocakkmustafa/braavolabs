@@ -381,7 +381,8 @@ export async function executeTool(
         runId: context.runId,
         type: "EXTERNAL_CONTROL",
         description: description.slice(0, 2000),
-        metadata: { toolName, connectionId, action, targetId } as any,
+        // BRA-UX-API-01c: riskLevel registry meta'sından; TRIGGER geri alınamaz, PAUSE/RESUME birbirinin tersi.
+        metadata: { toolName, connectionId, action, targetId, riskLevel: meta.riskLevel, reversible: action !== "TRIGGER" } as any,
         status: "PENDING",
       },
     });
@@ -522,7 +523,17 @@ export async function executeTool(
           type: "SPEND",
           description,
           amountUsd: amountUsd as any,
-          metadata: { toolName, input: scopedInput, costField, moneyTouching: money, autonomy } as any,
+          // BRA-UX-API-01c: riskLevel registry meta'sından; para harcayan çağrı geri alınamaz (geri alma yolu yok),
+          // diğer araçlar için kaynak yok → alan yazılmaz (details.reversible null).
+          metadata: {
+            toolName,
+            input: scopedInput,
+            costField,
+            moneyTouching: money,
+            autonomy,
+            riskLevel: meta?.riskLevel,
+            ...(money ? { reversible: false } : {}),
+          } as any,
           status: "PENDING",
           ...(exactStamp ?? {}),
         },
