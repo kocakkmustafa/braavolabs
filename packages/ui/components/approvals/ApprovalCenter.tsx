@@ -52,6 +52,8 @@ export default function ApprovalCenter() {
   const noteRef = useRef<string | undefined>(undefined);
   const selectedRef = useRef<string | null>(null);
   const lastCommit = useRef<string | null>(null);
+  // Karara bağlanmış kimlikler: gecikmiş bir yenileme yanıtı onları listeye geri getirmesin (hook'un `settled` kümesiyle tutarlı).
+  const committed = useRef<Set<string>>(new Set());
   const cn = (k: string, v?: Record<string, string | number>) => t(`app.approvalCenter.${k}`, v);
 
   const loadApprovals = useCallback(() => {
@@ -59,10 +61,14 @@ export default function ApprovalCenter() {
     const seq = ++requestSeq.current;
     setLoad(startApprovalsLoad);
     api.listApprovals(token)
-      .then((rows) => { if (seq === requestSeq.current) setLoad((prev) => approvalsLoaded<CenterApproval>(rows, prev)); })
+      .then((rows) => { if (seq === requestSeq.current) setLoad((prev) => approvalsLoaded<CenterApproval>(Array.isArray(rows) ? rows.filter((r) => !committed.current.has(r?.id)) : rows, prev)); })
       .catch(() => { if (seq === requestSeq.current) setLoad(approvalsFailed); });
   }, [token, hydrated]);
   useEffect(() => { loadApprovals(); }, [loadApprovals]);
+
+  // Satır listeden kalktıysa (409 sonrası yenileme) bayat seçim temizlenir; odak tetikleyiciye/başlığa döner.
+  const rowGone = selectedId !== null && load.status === "ready" && !load.data.some((a) => a.id === selectedId);
+  useEffect(() => { if (rowGone) { restoreFocus.current = true; setSelectedId(null); } }, [rowGone]);
 
   const closeSheet = useCallback(() => { restoreFocus.current = true; setSelectedId(null); }, []);
   // Kapanınca odak tetikleyiciye döner; satır gitmişse (karar verildi) başlığa.
@@ -96,8 +102,9 @@ export default function ApprovalCenter() {
       if (b) setError((e) => (e && e.id === id ? null : e));
     },
     // Önceki onayın gecikmiş sonucu, o sırada açılan YENİ sheet'i kapatmaz.
-    onCommit: (id) => { lastCommit.current = id; setLoad((prev) => approvalsRemove(prev, id)); if (selectedRef.current === id) closeSheet(); },
+    onCommit: (id) => { lastCommit.current = id; committed.current.add(id); setLoad((prev) => approvalsRemove(prev, id)); if (selectedRef.current === id) closeSheet(); },
     onSuccess: (decision) => {
+      setError(null);
       setNotice(cn(decision === "APPROVED" ? "approvedNotice" : "rejectedNotice"));
       if (decision === "APPROVED") sounds.success(); else sounds.click();
     },
@@ -160,7 +167,7 @@ export default function ApprovalCenter() {
               <li key={a.id}>
                 <button
                   type="button" data-testid={`approval-row-${a.id}`} aria-label={cn("open", { title: a.description })} aria-haspopup="dialog"
-                  onClick={(e) => { trigger.current = e.currentTarget; setSelectedId(a.id); }}
+                  onClick={(e) => { trigger.current = e.currentTarget; setError((x) => (x && x.id !== a.id ? null : x)); setSelectedId(a.id); }}
                   style={{
                     display: "grid", gap: 6, width: "100%", textAlign: "start", cursor: "pointer", padding: 16, borderRadius: 14, minHeight: 44,
                     background: "var(--color-surface-container)", color: "var(--color-on-surface)",

@@ -44,6 +44,7 @@ const A_AMOUNT_ONLY = { ...base3, id: "t1", runId: "run-x", description: "Yalnı
 const A_RISK_ONLY = { ...base3, id: "t2", runId: "run-x", description: "Yalnız risk", amountUsd: null, metadata: { toolName: "risky" }, details: { risk: "high", permissions: ["risky"], dataTransfer: ["x"], reversible: true } };
 const A_IRREV_ONLY = { ...base3, id: "t3", runId: "run-x", description: "Yalnız geri alınamaz", amountUsd: "0.00", metadata: { toolName: "irrev" }, details: { risk: "low", permissions: ["irrev"], dataTransfer: ["x"], reversible: false } };
 const A_ZERO_TEXT = { ...base3, id: "t4", runId: "run-x", description: "Sıfır tutar metni", amountUsd: "0.00", metadata: { toolName: "free" }, details: { risk: "low", permissions: ["free"], dataTransfer: ["x"], reversible: true } };
+const A_BAD_AMOUNT = { ...base3, id: "t5", runId: "run-x", description: "Okunamayan tutar", amountUsd: "12,50", metadata: { toolName: "pay" }, details: { risk: "low", permissions: ["pay"], dataTransfer: ["x"], reversible: true } };
 const A_NODETAILS = { ...A_OLD, id: "a4", description: "Çok eski onay", details: null, metadata: {} };
 
 type Calls = { method: string; path: string; body: unknown }[];
@@ -342,6 +343,16 @@ test.describe("bayrak AÇIK: karar akışı ve erişilebilirlik", () => {
     await page.getByTestId("approval-row-t4").click(); // "0.00": tutar yok sayılır, başka tetikleyici de yok
     await expect(page.getByTestId("approval-danger")).toHaveCount(0);
     await expect(page.getByTestId("approval-approve")).toBeEnabled();
+  });
+
+  test("okunamayan tutar ('12,50') fail-closed: kilit çıkar, ham değer gösterilmez", async ({ page }) => {
+    await prepare(page, "dark");
+    await mockApi(page, { list: [A_BAD_AMOUNT] });
+    await page.goto(`${UI_LAB}/approvals`);
+    await page.getByTestId("approval-row-t5").click();
+    await expect(page.getByTestId("approval-danger")).toBeVisible();
+    await expect(page.getByTestId("approval-approve")).toBeDisabled();
+    await expect(page.getByTestId("approval-fields")).not.toContainText("12,50");
   });
 
   test("metin tutar ('12.50') listede ve sheet'te görünür, tehlikeli kilit çıkar", async ({ page }) => {

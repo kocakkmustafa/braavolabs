@@ -46,18 +46,21 @@ export function toolName(a: Pick<CenterApproval, "metadata">): string | null {
   return typeof n === "string" && n.trim() ? n.trim() : null;
 }
 
-/** Tutar: sonlu ≥0 sayı ya da sonlu sayıya çevrilebilen boş olmayan metin ("12.50"); diğer her şey null (uydurma yok). */
+/** Tutar: sonlu ≥0 sayı ya da yalnız rakam[.rakam] metni ("12.50"); diğer her şey null (uydurma yok). */
 export function parseAmount(v: unknown): number | null {
   if (typeof v === "number") return Number.isFinite(v) && v >= 0 ? v : null;
-  if (typeof v !== "string" || v.trim() === "") return null;
-  const n = Number(v);
-  return Number.isFinite(n) && n >= 0 ? n : null;
+  if (typeof v !== "string" || !/^\s*\d+(\.\d+)?\s*$/.test(v)) return null; // "0x10", "1e3", "-1", "12,50", "" → null
+  const n = Number(v.trim());
+  return Number.isFinite(n) ? n : null;
 }
 
 /** Tehlikeli = para (`amountUsd > 0`) VEYA yüksek risk VEYA geri alınamaz (`reversible === false`). null "tehlikesiz" demek DEĞİL ama uydurma da yok. */
 export function isDangerous(a: Pick<CenterApproval, "amountUsd" | "details">): boolean {
   const d = readDetails(a);
-  return ((parseAmount(a.amountUsd) ?? 0) > 0) || d.risk === "high" || d.reversible === false;
+  // Fail-closed: tutar VAR (null/undefined değil) ama okunamıyorsa ("12,50", nesne, "abc") bilinmeyen para riski → tehlikeli.
+  const present = a.amountUsd !== null && a.amountUsd !== undefined;
+  const amount = parseAmount(a.amountUsd);
+  return (present && amount === null) || (amount ?? 0) > 0 || d.risk === "high" || d.reversible === false;
 }
 
 /** Onay cümlesi eşleşmesi: büyük/küçük harf ve baştaki/sondaki boşluk duyarsız (iç boşluklar tek boşluğa indirilir). */

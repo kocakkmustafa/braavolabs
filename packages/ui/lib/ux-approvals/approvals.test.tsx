@@ -46,7 +46,12 @@ describe("tehlikeli karar tablosu", () => {
     ["bozuk risk değeri yok sayılır", { details: { risk: "HIGH" as any } }, false],
     ["metin tutar \"12.50\" (Prisma Decimal) tehlikeli", { amountUsd: "12.50", details: null }, true],
     ["metin tutar \"0.00\" / \"0\" tehlikeli değil", { amountUsd: "0.00", details: null }, false],
-    ["metin tutar \"abc\" / negatif tehlikeli değil", { amountUsd: "abc", details: null }, false],
+    ["okunamayan tutar \"abc\" fail-closed TEHLİKELİ", { amountUsd: "abc" as any, details: null }, true],
+    ["\"12,50\" TEHLİKELİ", { amountUsd: "12,50" as any, details: null }, true],
+    ["negatif metin \"-1\" TEHLİKELİ (okunamaz)", { amountUsd: "-1" as any, details: null }, true],
+    ["nesne tutar TEHLİKELİ", { amountUsd: {} as any, details: null }, true],
+    ["dizi tutar TEHLİKELİ", { amountUsd: [] as any, details: null }, true],
+    ["undefined tutar tehlikeli değil", { amountUsd: undefined, details: null }, false],
   ];
   for (const [name, over, want] of cases) it(name, () => expect(isDangerous(base({ amountUsd: null, details: null, ...over }))).toBe(want));
 });
@@ -58,7 +63,13 @@ describe("parseAmount", () => {
     expect(parseAmount("12.50")).toBe(12.5);
     expect(parseAmount(" 3 ")).toBe(3);
     expect(parseAmount("0.00")).toBe(0);
-    for (const v of ["abc", "", "  ", "Infinity", "-1", NaN, Infinity, -0.5, null, undefined, {}, [], true]) expect(parseAmount(v)).toBeNull();
+    for (const v of ["abc", "", "  ", "Infinity", "-1", "-0.5", "0x10", "1e3", "12,50", "1.", ".5", NaN, Infinity, -0.5, null, undefined, {}, [], true]) expect(parseAmount(v)).toBeNull();
+  });
+  it("sheet: okunamayan tutar ham değer GÖSTERMEZ ('Bilgi yok') ama kilit çıkar", () => {
+    const html = sheet(base({ amountUsd: "12,50" as any }));
+    expect(html).not.toContain("12,50");
+    expect(html).toContain('data-testid="approval-confirm-input"');
+    expect(html).toMatch(/data-testid="approval-approve"[^>]*disabled/);
   });
   it("sheet: metin tutar gösterilir (Bilgi yok DEĞİL) ve tehlikeli kilit çıkar", () => {
     const html = sheet(base({ amountUsd: "12.50" }));
