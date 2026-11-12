@@ -1368,6 +1368,53 @@
       "notFound": "Questo lavoro non è stato trovato oppure non hai accesso.",
       "label": "Area di lavoro: {title}"
     },
+    "approvalCenter": {
+      "title": "Centro approvazioni e sicurezza",
+      "subtitle": "Vedi esattamente cosa farà ogni azione prima di decidere.",
+      "classic": "Vista classica delle approvazioni",
+      "count": "{count} in attesa",
+      "live": "{count} approvazioni in attesa",
+      "approvedNotice": "Approvato.",
+      "rejectedNotice": "Rifiutato.",
+      "type": {
+        "SPEND": "Spesa",
+        "INPUT": "Domanda",
+        "HANDOFF": "Passaggio",
+        "EXTERNAL_CONTROL": "Controllo esterno",
+        "other": "Approvazione"
+      },
+      "open": "Esamina l'approvazione: {title}",
+      "sheetLabel": "Dettagli dell'approvazione: {title}",
+      "close": "Chiudi",
+      "field": {
+        "what": "Cosa farà",
+        "tool": "Strumento",
+        "permissions": "Ambito dei permessi",
+        "data": "Dati trasferiti",
+        "risk": "Rischio",
+        "amount": "Importo",
+        "reversible": "Annullamento",
+        "draft": "Bozza",
+        "requested": "Richiesto"
+      },
+      "riskLevel": {
+        "low": "Basso",
+        "medium": "Medio",
+        "high": "Alto"
+      },
+      "reversibleYes": "Può essere annullato con un'azione contraria",
+      "reversibleNo": "Non si può annullare",
+      "unknown": "Nessuna informazione",
+      "danger": {
+        "tag": "Serve conferma",
+        "title": "Questa azione richiede un secondo passaggio",
+        "body": "Spende denaro, è ad alto rischio o non si può annullare.",
+        "phraseLabel": "Scrivi «{phrase}» per attivare Approva",
+        "phrase": "Approvo l'invio",
+        "reasonLabel": "Motivo (salvato con la tua decisione)"
+      },
+      "oneByOne": "Ogni approvazione si decide una per una."
+    },
     "plan": {
       "title": "Descrivi un lavoro",
       "workspace": "Spazio di lavoro",

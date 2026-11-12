@@ -1462,3 +1462,14 @@ h1, h2, h3, p, label { overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: no-preference) {
   .job-mode-in { animation: job-mode-in 180ms ease-out; }
 }
+
+/* BRA-UX-05i: onay sheet'i. Mobilde alt sheet, masaüstünde yan panel; açılış hareketi hareket azaltma tercihinde yok. */
+.ac-sheet { max-height: 92dvh; border-radius: 16px 16px 0 0; }
+@media (min-width: 1024px) { .ac-sheet { max-height: none; border-radius: 16px 0 0 16px; } }
+@keyframes ac-sheet-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes ac-sheet-in-side { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  .ac-sheet { animation: ac-sheet-in 180ms ease-out; }
+  @media (min-width: 1024px) { .ac-sheet { animation: ac-sheet-in-side 180ms ease-out; } }
+  [dir="rtl"] .ac-sheet { animation-name: ac-sheet-in; }
+}

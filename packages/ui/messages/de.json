@@ -1368,6 +1368,53 @@
       "notFound": "Diese Aufgabe wurde nicht gefunden oder du hast keinen Zugriff.",
       "label": "Aufgaben-Arbeitsbereich: {title}"
     },
+    "approvalCenter": {
+      "title": "Freigabe- und Sicherheitszentrale",
+      "subtitle": "Sieh genau, was jede Aktion tut, bevor du entscheidest.",
+      "classic": "Klassische Freigabeansicht",
+      "count": "{count} wartend",
+      "live": "{count} Freigaben warten",
+      "approvedNotice": "Freigegeben.",
+      "rejectedNotice": "Abgelehnt.",
+      "type": {
+        "SPEND": "Ausgabe",
+        "INPUT": "Frage",
+        "HANDOFF": "Übergabe",
+        "EXTERNAL_CONTROL": "Externe Steuerung",
+        "other": "Freigabe"
+      },
+      "open": "Freigabe prüfen: {title}",
+      "sheetLabel": "Freigabedetails: {title}",
+      "close": "Schließen",
+      "field": {
+        "what": "Was passiert",
+        "tool": "Werkzeug",
+        "permissions": "Berechtigungsumfang",
+        "data": "Übertragene Daten",
+        "risk": "Risiko",
+        "amount": "Betrag",
+        "reversible": "Rückgängig",
+        "draft": "Entwurf",
+        "requested": "Angefragt"
+      },
+      "riskLevel": {
+        "low": "Niedrig",
+        "medium": "Mittel",
+        "high": "Hoch"
+      },
+      "reversibleYes": "Durch eine Gegenaktion umkehrbar",
+      "reversibleNo": "Nicht rückgängig zu machen",
+      "unknown": "Keine Angabe",
+      "danger": {
+        "tag": "Bestätigung nötig",
+        "title": "Diese Aktion braucht einen zweiten Schritt",
+        "body": "Sie gibt Geld aus, ist hochriskant oder nicht rückgängig zu machen.",
+        "phraseLabel": "Tippe „{phrase}“, um Freigeben zu aktivieren",
+        "phrase": "Ich genehmige das Senden",
+        "reasonLabel": "Grund (wird mit deiner Entscheidung gespeichert)"
+      },
+      "oneByOne": "Jede Freigabe wird einzeln entschieden."
+    },
     "plan": {
       "title": "Auftrag beschreiben",
       "workspace": "Arbeitsbereich",

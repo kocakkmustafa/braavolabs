@@ -1368,6 +1368,53 @@
       "notFound": "Bu iş bulunamadı ya da erişimin yok.",
       "label": "İş çalışma alanı: {title}"
     },
+    "approvalCenter": {
+      "title": "Onay ve güvenlik merkezi",
+      "subtitle": "Karar vermeden önce her eylemin tam olarak ne yapacağını gör.",
+      "classic": "Klasik onay görünümü",
+      "count": "{count} bekliyor",
+      "live": "{count} onay bekliyor",
+      "approvedNotice": "Onaylandı.",
+      "rejectedNotice": "Reddedildi.",
+      "type": {
+        "SPEND": "Harcama",
+        "INPUT": "Soru",
+        "HANDOFF": "El değiştirme",
+        "EXTERNAL_CONTROL": "Dış kontrol",
+        "other": "Onay"
+      },
+      "open": "Onayı incele: {title}",
+      "sheetLabel": "Onay ayrıntıları: {title}",
+      "close": "Kapat",
+      "field": {
+        "what": "Ne yapacak",
+        "tool": "Araç",
+        "permissions": "Yetki kapsamı",
+        "data": "Aktarılan veri",
+        "risk": "Risk",
+        "amount": "Tutar",
+        "reversible": "Geri alma",
+        "draft": "Taslak",
+        "requested": "İstenme zamanı"
+      },
+      "riskLevel": {
+        "low": "Düşük",
+        "medium": "Orta",
+        "high": "Yüksek"
+      },
+      "reversibleYes": "Karşıt eylemle döndürülebilir",
+      "reversibleNo": "Geri alınamaz",
+      "unknown": "Bilgi yok",
+      "danger": {
+        "tag": "Doğrulama gerekir",
+        "title": "Bu eylem ikinci bir adım ister",
+        "body": "Para harcıyor, yüksek riskli ya da geri alınamaz.",
+        "phraseLabel": "Onayla'yı açmak için “{phrase}” yaz",
+        "phrase": "Gönderimi onaylıyorum",
+        "reasonLabel": "Sebep (kararınla birlikte kaydedilir)"
+      },
+      "oneByOne": "Her onay tek tek karara bağlanır."
+    },
     "plan": {
       "title": "Bir iş tarif et",
       "workspace": "Çalışma alanı",

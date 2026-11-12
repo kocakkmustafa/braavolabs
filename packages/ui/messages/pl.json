@@ -1368,6 +1368,53 @@
       "notFound": "Nie znaleziono tego zadania lub nie masz do niego dostępu.",
       "label": "Przestrzeń robocza zadania: {title}"
     },
+    "approvalCenter": {
+      "title": "Centrum zatwierdzeń i bezpieczeństwa",
+      "subtitle": "Zobacz dokładnie, co zrobi każde działanie, zanim zdecydujesz.",
+      "classic": "Klasyczny widok zatwierdzeń",
+      "count": "Oczekuje: {count}",
+      "live": "Oczekujące zatwierdzenia: {count}",
+      "approvedNotice": "Zatwierdzono.",
+      "rejectedNotice": "Odrzucono.",
+      "type": {
+        "SPEND": "Wydatek",
+        "INPUT": "Pytanie",
+        "HANDOFF": "Przekazanie",
+        "EXTERNAL_CONTROL": "Sterowanie zewnętrzne",
+        "other": "Zatwierdzenie"
+      },
+      "open": "Przejrzyj zatwierdzenie: {title}",
+      "sheetLabel": "Szczegóły zatwierdzenia: {title}",
+      "close": "Zamknij",
+      "field": {
+        "what": "Co zrobi",
+        "tool": "Narzędzie",
+        "permissions": "Zakres uprawnień",
+        "data": "Przesyłane dane",
+        "risk": "Ryzyko",
+        "amount": "Kwota",
+        "reversible": "Cofnięcie",
+        "draft": "Szkic",
+        "requested": "Zgłoszono"
+      },
+      "riskLevel": {
+        "low": "Niskie",
+        "medium": "Średnie",
+        "high": "Wysokie"
+      },
+      "reversibleYes": "Można odwrócić przeciwnym działaniem",
+      "reversibleNo": "Nie można cofnąć",
+      "unknown": "Brak informacji",
+      "danger": {
+        "tag": "Wymaga potwierdzenia",
+        "title": "To działanie wymaga drugiego kroku",
+        "body": "Wydaje pieniądze, jest wysokiego ryzyka lub nie można go cofnąć.",
+        "phraseLabel": "Wpisz „{phrase}”, aby włączyć Zatwierdź",
+        "phrase": "Zatwierdzam wysłanie",
+        "reasonLabel": "Powód (zapisany wraz z decyzją)"
+      },
+      "oneByOne": "Każde zatwierdzenie rozstrzyga się osobno."
+    },
     "plan": {
       "title": "Opisz zadanie",
       "workspace": "Przestrzeń robocza",

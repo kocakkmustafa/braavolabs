@@ -1368,6 +1368,53 @@
       "notFound": "Cette tâche est introuvable ou tu n'y as pas accès.",
       "label": "Espace de travail : {title}"
     },
+    "approvalCenter": {
+      "title": "Centre d'approbation et de sécurité",
+      "subtitle": "Voyez exactement ce que fera chaque action avant de décider.",
+      "classic": "Vue classique des approbations",
+      "count": "{count} en attente",
+      "live": "{count} approbations en attente",
+      "approvedNotice": "Approuvé.",
+      "rejectedNotice": "Refusé.",
+      "type": {
+        "SPEND": "Dépense",
+        "INPUT": "Question",
+        "HANDOFF": "Transfert",
+        "EXTERNAL_CONTROL": "Contrôle externe",
+        "other": "Approbation"
+      },
+      "open": "Examiner l'approbation : {title}",
+      "sheetLabel": "Détails de l'approbation : {title}",
+      "close": "Fermer",
+      "field": {
+        "what": "Ce que ça fera",
+        "tool": "Outil",
+        "permissions": "Portée des autorisations",
+        "data": "Données transférées",
+        "risk": "Risque",
+        "amount": "Montant",
+        "reversible": "Annulation",
+        "draft": "Brouillon",
+        "requested": "Demandé"
+      },
+      "riskLevel": {
+        "low": "Faible",
+        "medium": "Moyen",
+        "high": "Élevé"
+      },
+      "reversibleYes": "Peut être inversé par une action contraire",
+      "reversibleNo": "Irréversible",
+      "unknown": "Aucune information",
+      "danger": {
+        "tag": "Confirmation requise",
+        "title": "Cette action demande une seconde étape",
+        "body": "Elle dépense de l'argent, est à haut risque ou est irréversible.",
+        "phraseLabel": "Saisissez « {phrase} » pour activer Approuver",
+        "phrase": "J'approuve l'envoi",
+        "reasonLabel": "Motif (enregistré avec votre décision)"
+      },
+      "oneByOne": "Chaque approbation est décidée une par une."
+    },
     "plan": {
       "title": "Décrire une tâche",
       "workspace": "Espace de travail",

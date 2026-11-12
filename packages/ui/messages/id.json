@@ -1368,6 +1368,53 @@
       "notFound": "Pekerjaan ini tidak ditemukan atau Anda tidak punya akses.",
       "label": "Ruang kerja pekerjaan: {title}"
     },
+    "approvalCenter": {
+      "title": "Pusat persetujuan dan keamanan",
+      "subtitle": "Lihat persis apa yang akan dilakukan setiap tindakan sebelum memutuskan.",
+      "classic": "Tampilan persetujuan klasik",
+      "count": "{count} menunggu",
+      "live": "{count} persetujuan menunggu",
+      "approvedNotice": "Disetujui.",
+      "rejectedNotice": "Ditolak.",
+      "type": {
+        "SPEND": "Pengeluaran",
+        "INPUT": "Pertanyaan",
+        "HANDOFF": "Serah terima",
+        "EXTERNAL_CONTROL": "Kontrol eksternal",
+        "other": "Persetujuan"
+      },
+      "open": "Tinjau persetujuan: {title}",
+      "sheetLabel": "Detail persetujuan: {title}",
+      "close": "Tutup",
+      "field": {
+        "what": "Yang akan dilakukan",
+        "tool": "Alat",
+        "permissions": "Cakupan izin",
+        "data": "Data yang dikirim",
+        "risk": "Risiko",
+        "amount": "Jumlah",
+        "reversible": "Pembatalan",
+        "draft": "Draf",
+        "requested": "Diminta"
+      },
+      "riskLevel": {
+        "low": "Rendah",
+        "medium": "Sedang",
+        "high": "Tinggi"
+      },
+      "reversibleYes": "Dapat dibalik dengan tindakan lawan",
+      "reversibleNo": "Tidak dapat dibatalkan",
+      "unknown": "Tidak ada informasi",
+      "danger": {
+        "tag": "Perlu konfirmasi",
+        "title": "Tindakan ini memerlukan langkah kedua",
+        "body": "Menghabiskan uang, berisiko tinggi, atau tidak dapat dibatalkan.",
+        "phraseLabel": "Ketik “{phrase}” untuk mengaktifkan Setujui",
+        "phrase": "Saya menyetujui pengiriman",
+        "reasonLabel": "Alasan (disimpan bersama keputusanmu)"
+      },
+      "oneByOne": "Setiap persetujuan diputuskan satu per satu."
+    },
     "plan": {
       "title": "Jelaskan pekerjaan",
       "workspace": "Ruang kerja",
