@@ -162,9 +162,10 @@ for (const { vp, size, scheme } of COMBOS) {
       await expect(ws(page).getByTestId("job-kaput")).toContainText("Kaynakları topla");
       await expect(ws(page).getByTestId("job-kaput")).toContainText("Taslağı yaz");
       await expect(ws(page).getByTestId("job-kaput")).toContainText("El değiştirme: 1");
-      await expect(ws(page).getByTestId("job-kaput")).not.toContainText("read ·");
+      await expect(ws(page).getByTestId("job-kaput")).not.toContainText("read");
       await ws(page).getByLabel("Ayrıntı").selectOption("full");
-      await expect(ws(page).getByTestId("job-kaput")).toContainText("read · completed");
+      await expect(ws(page).getByTestId("job-kaput")).toContainText("read");
+      await expect(ws(page).getByTestId("job-kaput")).toContainText("Tamamlandı");
       await shot("03-kaput-tam");
       await ws(page).getByLabel("Ayrıntı").selectOption("simple");
 
@@ -190,6 +191,78 @@ for (const { vp, size, scheme } of COMBOS) {
       await expect(ws(page).getByRole("status")).toContainText("Mesaj gönderildi.");
       expect(calls.find((c) => c.path === "/runs/r1/steer")?.body).toMatchObject({ content: "Önce özet yaz" });
       await shot("04-eylem");
+    });
+  });
+}
+
+const LONG_TOOL = Array.from({ length: 4 }, () => "a".repeat(19)).join("."); // 79 karakter, boşluksuz, maskelenmez (koşular <32)
+const LONG_STEP = "Çok uzun adım adı " + "uzunluk-".repeat(25) + "SONEK"; // ~200 karakter, tireli: maskelenmez, 120'de kırpılır
+/** BRA-UX-05d — Kaputu Aç: zengin fixture (başarısız adım + araç hatası + koşu hatası + bütçe). */
+const RICH = {
+  state: "FAILED", status: "FAILED", bucket: "done", costUsd: 0.42, budgetUsd: 5,
+  error: "Connection reset by peer while posting to the channel (ECONNRESET)",
+  steps: [
+    { id: "s1", stepIndex: 0, name: "Kaynakları topla", agentRole: "researcher", status: "COMPLETED", costUsd: 0.1, durationMs: 900, reasoning: "Önce kaynakları topla", toolCalls: [{ id: "t1", toolName: "read", status: "COMPLETED", durationMs: 120 }] },
+    { id: "s2", stepIndex: 1, name: "Taslağı yaz", agentRole: "writer", status: "FAILED", costUsd: 0.32, durationMs: 1234, reasoning: "Özeti kanala gönder", toolCalls: [{ id: "t2", toolName: "slack.post", status: "FAILED", durationMs: 80, error: "channel_not_found" }, { id: "t3", toolName: LONG_TOOL, status: "COMPLETED", durationMs: 5 }] },
+    { id: "s3", stepIndex: 2, name: LONG_STEP, agentRole: "reviewer", status: "PENDING", costUsd: null, toolCalls: [] },
+  ],
+};
+/** Taşma denetimi varsayılan koşuda da çalışır: masaüstü + 390 px koyu her zaman; açık temalar yalnız ekran kaydında. */
+const KCOMBOS = [
+  { vp: "masaustu-1440", size: { width: 1440, height: 900 }, scheme: "dark" as const },
+  { vp: "mobil-390", size: { width: 390, height: 844 }, scheme: "dark" as const },
+  ...(SHOTS ? [
+    { vp: "masaustu-1440", size: { width: 1440, height: 900 }, scheme: "light" as const },
+    { vp: "mobil-390", size: { width: 390, height: 844 }, scheme: "light" as const },
+  ] : []),
+];
+for (const { vp, size, scheme } of KCOMBOS) {
+  test.describe(`bayrak AÇIK: Kaputu Aç (${vp}, ${scheme})`, () => {
+    test.use({ viewport: size });
+    test("Sade'de hata görünür, Tam'da ajan rolü/süre/araç listesi; klavye; yatay kaydırma yok", async ({ page }) => {
+      if (SHOTS) mkdirSync(SHOTS, { recursive: true });
+      const shot = async (name: string) => { if (SHOTS) await snap(page, join(SHOTS, `kaput-${name}-${vp}-${scheme}.png`)); };
+      await prepare(page, scheme);
+      await mockApi(page, { run: RICH });
+      await page.goto(`${UI_LAB}/runs/r1`);
+      await expect(ws(page)).toBeVisible();
+      const kaputTab = ws(page).getByRole("tab", { name: "Kaput" });
+      await kaputTab.focus();
+      await page.keyboard.press("Enter");
+      const k = ws(page).getByTestId("job-kaput");
+      await expect(kaputTab).toHaveAttribute("aria-selected", "true");
+      await expect(k).toContainText("Adımlar (3)");
+      await expect(k).toContainText("Araç çağrısı: 3");
+      await expect(k).toContainText("El değiştirme: 1");
+      await expect(k).toContainText("Bu iş bir hatayla durdu");
+      await expect(k).not.toContainText("ECONNRESET");
+      await expect(k).toContainText("channel_not_found");
+      await expect(k).toContainText("Başarısız");
+      await expect(k).toContainText("Hata: channel_not_found"); // Sade'de de etiketli
+      await expect(k).toContainText("Kullanılan bütçe: $0,42 / $5,00");
+      await expect(k.getByTestId("job-kaput-error")).toHaveAttribute("role", "status");
+      await shot("sade");
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+      await ws(page).getByLabel("Ayrıntı").selectOption("full");
+      await expect(k).toContainText("ECONNRESET");
+      await expect(k.getByTestId("job-kaput-step")).toHaveCount(3);
+      await expect(k).toContainText("Hata: channel_not_found");
+      await expect(k).toContainText("researcher");
+      await expect(k).toContainText("1,2 sn");
+      await expect(k).toContainText("slack.post");
+      await expect(k).toContainText(LONG_TOOL);
+      await expect(k).toContainText(LONG_STEP.slice(0, 100)); // kırpılmış ad görünür (maskelenmedi)
+      await expect(k).not.toContainText("SONEK");
+      await expect(k).not.toContainText("[gizlendi]");
+      await expect(k).toContainText("Kaynakları topla");
+      await shot("tam");
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+      // klavye: sekmeler arası ok tuşları
+      await kaputTab.focus();
+      await page.keyboard.press("ArrowLeft");
+      await expect(ws(page).getByRole("tab", { name: "Çıktı", selected: true })).toBeFocused();
     });
   });
 }
