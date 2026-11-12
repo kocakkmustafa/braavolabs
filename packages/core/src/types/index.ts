@@ -4,6 +4,7 @@ export * from "./events";
 export * from "./agent";
 export * from "./memory";
 export * from "./approval";
+export * from "./models-overview";
 export * from "./outreach";
 export * from "./billing";
 export * from "./governance";

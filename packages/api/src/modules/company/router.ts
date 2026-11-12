@@ -19,6 +19,7 @@ import { composeAgent } from "../agent/composer";
 import { assertCompanyCapacity } from "./company-capacity";
 import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 import { toPublicCompany } from "./redact";
+import { buildModelsOverview } from "./models-overview";
 
 export const companyRouter = Router();
 companyRouter.use(authMiddleware);
@@ -392,6 +393,18 @@ companyRouter.get("/:id/agents", async (req, res, next) => {
       orderBy: { createdAt: "desc" },
     });
     res.json(agents);
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/companies/:id/models — salt-okur model + yetki dökümü (BRA-UX-API-02)
+companyRouter.get("/:id/models", async (req, res, next) => {
+  try {
+    const company = await prisma.company.findFirst({
+      where: { id: req.params.id, tenantId: req.auth!.tenantId },
+      select: { id: true },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+    res.json(await buildModelsOverview(req.auth!.tenantId, company.id));
   } catch (err) { next(err); }
 });
 
