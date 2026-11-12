@@ -14,7 +14,8 @@ export interface CenterApproval {
   runId?: string;
   type?: string | null;
   description: string;
-  amountUsd?: number | null;
+  /** Prisma Decimal(10,2) JSON'da METİN ("12.50") gelebilir; her kullanım `parseAmount` ile okunur. */
+  amountUsd?: number | string | null;
   createdAt?: string;
   metadata?: { toolName?: unknown } | null;
   details?: Partial<CenterDetails> | null;
@@ -45,15 +46,23 @@ export function toolName(a: Pick<CenterApproval, "metadata">): string | null {
   return typeof n === "string" && n.trim() ? n.trim() : null;
 }
 
+/** Tutar: sonlu ≥0 sayı ya da sonlu sayıya çevrilebilen boş olmayan metin ("12.50"); diğer her şey null (uydurma yok). */
+export function parseAmount(v: unknown): number | null {
+  if (typeof v === "number") return Number.isFinite(v) && v >= 0 ? v : null;
+  if (typeof v !== "string" || v.trim() === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 /** Tehlikeli = para (`amountUsd > 0`) VEYA yüksek risk VEYA geri alınamaz (`reversible === false`). null "tehlikesiz" demek DEĞİL ama uydurma da yok. */
 export function isDangerous(a: Pick<CenterApproval, "amountUsd" | "details">): boolean {
   const d = readDetails(a);
-  return (typeof a.amountUsd === "number" && a.amountUsd > 0) || d.risk === "high" || d.reversible === false;
+  return ((parseAmount(a.amountUsd) ?? 0) > 0) || d.risk === "high" || d.reversible === false;
 }
 
 /** Onay cümlesi eşleşmesi: büyük/küçük harf ve baştaki/sondaki boşluk duyarsız (iç boşluklar tek boşluğa indirilir). */
 export function phraseMatches(input: string, phrase: string, locale?: string): boolean {
-  const norm = (s: string) => s.trim().replace(/\s+/g, " ").toLocaleLowerCase(locale);
+  const norm = (s: string) => s.normalize("NFC").trim().replace(/\s+/g, " ").toLocaleLowerCase(locale).normalize("NFC");
   const want = norm(phrase);
   return want !== "" && norm(input) === want;
 }

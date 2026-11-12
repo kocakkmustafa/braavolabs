@@ -1413,7 +1413,9 @@
         "phrase": "Zatwierdzam wysłanie",
         "reasonLabel": "Powód (zapisany wraz z decyzją)"
       },
-      "oneByOne": "Każde zatwierdzenie rozstrzyga się osobno."
+      "oneByOne": "Każde zatwierdzenie rozstrzyga się osobno.",
+      "alreadyDecided": "To zatwierdzenie zostało już rozstrzygnięte. Odświeżono listę.",
+      "forbidden": "Nie masz uprawnień do rozstrzygnięcia tego zatwierdzenia. Odświeżono listę."
     },
     "plan": {
       "title": "Opisz zadanie",

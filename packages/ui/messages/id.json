@@ -1413,7 +1413,9 @@
         "phrase": "Saya menyetujui pengiriman",
         "reasonLabel": "Alasan (disimpan bersama keputusanmu)"
       },
-      "oneByOne": "Setiap persetujuan diputuskan satu per satu."
+      "oneByOne": "Setiap persetujuan diputuskan satu per satu.",
+      "alreadyDecided": "Persetujuan ini sudah diputuskan. Daftar telah dimuat ulang.",
+      "forbidden": "Kamu tidak punya izin untuk memutuskan persetujuan ini. Daftar telah dimuat ulang."
     },
     "plan": {
       "title": "Jelaskan pekerjaan",

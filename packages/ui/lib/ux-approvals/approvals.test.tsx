@@ -7,7 +7,7 @@ vi.mock("next/link", () => ({ default: ({ href, children, ...p }: any) => <a hre
 import ApprovalSheet from "../../components/approvals/ApprovalSheet";
 import { showApprovalCenter, uxApprovalsEnabled } from "./flag";
 import {
-  canApprove, decisionNote, isDangerous, phraseMatches, readDetails, reversibleKey, textOrUnknown, toolName,
+  canApprove, decisionNote, isDangerous, parseAmount, phraseMatches, readDetails, reversibleKey, textOrUnknown, toolName,
   type CenterApproval,
 } from "./approval";
 
@@ -44,12 +44,37 @@ describe("tehlikeli karar tablosu", () => {
     ["geri alınamaz", { details: { risk: "low", reversible: false } }, true],
     ["geri alma bilinmiyor (null) tek başına tehlikeli değil", { details: { risk: "low", reversible: null } }, false],
     ["bozuk risk değeri yok sayılır", { details: { risk: "HIGH" as any } }, false],
-    ["tutar sayı değil (metin)", { amountUsd: "5" as any, details: null }, false],
+    ["metin tutar \"12.50\" (Prisma Decimal) tehlikeli", { amountUsd: "12.50", details: null }, true],
+    ["metin tutar \"0.00\" / \"0\" tehlikeli değil", { amountUsd: "0.00", details: null }, false],
+    ["metin tutar \"abc\" / negatif tehlikeli değil", { amountUsd: "abc", details: null }, false],
   ];
   for (const [name, over, want] of cases) it(name, () => expect(isDangerous(base({ amountUsd: null, details: null, ...over }))).toBe(want));
 });
 
+describe("parseAmount", () => {
+  it("sayı ve sayıya çevrilebilen metin kabul; diğerleri null", () => {
+    expect(parseAmount(12.5)).toBe(12.5);
+    expect(parseAmount(0)).toBe(0);
+    expect(parseAmount("12.50")).toBe(12.5);
+    expect(parseAmount(" 3 ")).toBe(3);
+    expect(parseAmount("0.00")).toBe(0);
+    for (const v of ["abc", "", "  ", "Infinity", "-1", NaN, Infinity, -0.5, null, undefined, {}, [], true]) expect(parseAmount(v)).toBeNull();
+  });
+  it("sheet: metin tutar gösterilir (Bilgi yok DEĞİL) ve tehlikeli kilit çıkar", () => {
+    const html = sheet(base({ amountUsd: "12.50" }));
+    expect(html).toContain("$12.5");
+    expect(html).toContain('data-testid="approval-confirm-input"');
+  });
+});
+
 describe("onay cümlesi", () => {
+  it("Unicode NFC: ayrışık (NFD) ve birleşik (NFC) yazım aynı sayılır", () => {
+    const nfd = "Go\u0308nderimi onaylıyorum"; // o + birleşen çift nokta
+    const nfc = "Gönderimi onaylıyorum".normalize("NFC");
+    expect(nfd).not.toBe(nfc);
+    expect(phraseMatches(nfd, nfc, "tr")).toBe(true);
+    expect(phraseMatches(nfc, nfd, "tr")).toBe(true);
+  });
   const phrase = "Gönderimi onaylıyorum";
   it("büyük/küçük harf ve baştaki/sondaki boşluk duyarsız", () => {
     for (const s of ["gönderimi onaylıyorum", "  GÖNDERİMİ ONAYLIYORUM\n", "Gönderimi   onaylıyorum"]) expect(phraseMatches(s, phrase, "tr")).toBe(true);

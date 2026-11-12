@@ -1413,7 +1413,9 @@
         "phrase": "Ich genehmige das Senden",
         "reasonLabel": "Grund (wird mit deiner Entscheidung gespeichert)"
       },
-      "oneByOne": "Jede Freigabe wird einzeln entschieden."
+      "oneByOne": "Jede Freigabe wird einzeln entschieden.",
+      "alreadyDecided": "Diese Freigabe wurde bereits entschieden. Die Liste wurde aktualisiert.",
+      "forbidden": "Du hast keine Berechtigung, diese Freigabe zu entscheiden. Die Liste wurde aktualisiert."
     },
     "plan": {
       "title": "Auftrag beschreiben",

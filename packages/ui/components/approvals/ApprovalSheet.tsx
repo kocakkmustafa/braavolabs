@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArtifactCard } from "./ApprovalsLegacy";
 import {
-  canApprove, decisionNote, isDangerous, readDetails, reversibleKey, toolName,
+  canApprove, decisionNote, isDangerous, parseAmount, readDetails, reversibleKey, toolName,
   type CenterApproval,
 } from "../../lib/ux-approvals/approval";
 
@@ -45,6 +45,7 @@ export default function ApprovalSheet({ approval, t, legacyT, locale, usd, when,
   const phrase = t("app.approvalCenter.danger.phrase");
   const ok = canApprove(dangerous, typed, phrase, locale);
   const tool = toolName(approval);
+  const amount = parseAmount(approval.amountUsd);
   const cn = (k: string, v?: Record<string, string | number>) => t(`app.approvalCenter.${k}`, v);
   const unknown = cn("unknown");
 
@@ -83,7 +84,7 @@ export default function ApprovalSheet({ approval, t, legacyT, locale, usd, when,
     [cn("field.risk"), details.risk
       ? <span data-risk={details.risk} style={{ color: RISK_COLOR[details.risk], fontWeight: 700 }}>{cn(`riskLevel.${details.risk}`)}</span>
       : unknown],
-    [cn("field.amount"), typeof approval.amountUsd === "number" ? usd(approval.amountUsd) : unknown],
+    [cn("field.amount"), amount !== null ? usd(amount) : unknown],
     [cn("field.reversible"), cn(reversibleKey(details.reversible))],
   ];
 

@@ -1413,7 +1413,9 @@
         "phrase": "我批准发送",
         "reasonLabel": "原因（随你的决定一起保存）"
       },
-      "oneByOne": "每项审批都需逐一决定。"
+      "oneByOne": "每项审批都需逐一决定。",
+      "alreadyDecided": "此审批已被处理。列表已刷新。",
+      "forbidden": "你无权处理此审批。列表已刷新。"
     },
     "plan": {
       "title": "描述任务",

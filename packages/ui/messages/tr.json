@@ -1413,7 +1413,9 @@
         "phrase": "Gönderimi onaylıyorum",
         "reasonLabel": "Sebep (kararınla birlikte kaydedilir)"
       },
-      "oneByOne": "Her onay tek tek karara bağlanır."
+      "oneByOne": "Her onay tek tek karara bağlanır.",
+      "alreadyDecided": "Bu onay zaten karara bağlanmış. Liste yenilendi.",
+      "forbidden": "Bu onayı karara bağlama yetkin yok. Liste yenilendi."
     },
     "plan": {
       "title": "Bir iş tarif et",

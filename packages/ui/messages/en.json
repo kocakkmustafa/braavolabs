@@ -1413,7 +1413,9 @@
         "phrase": "I approve sending",
         "reasonLabel": "Reason (saved with your decision)"
       },
-      "oneByOne": "Each approval is decided one by one."
+      "oneByOne": "Each approval is decided one by one.",
+      "alreadyDecided": "This approval was already decided. The list was refreshed.",
+      "forbidden": "You don't have permission to decide this approval. The list was refreshed."
     },
     "plan": {
       "title": "Describe a job",

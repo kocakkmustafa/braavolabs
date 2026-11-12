@@ -1413,7 +1413,9 @@
         "phrase": "Apruebo el envío",
         "reasonLabel": "Motivo (se guarda con tu decisión)"
       },
-      "oneByOne": "Cada aprobación se decide una por una."
+      "oneByOne": "Cada aprobación se decide una por una.",
+      "alreadyDecided": "Esta aprobación ya se decidió. Se actualizó la lista.",
+      "forbidden": "No tienes permiso para decidir esta aprobación. Se actualizó la lista."
     },
     "plan": {
       "title": "Describe un trabajo",

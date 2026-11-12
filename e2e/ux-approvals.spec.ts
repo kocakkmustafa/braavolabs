@@ -28,7 +28,7 @@ const A_LOW = {
   details: { risk: "low", permissions: ["slack.post:POST"], dataTransfer: ["POST → bağlantı slack-main, hedef genel"], reversible: true },
 };
 const A_DANGER = {
-  id: "a2", runId: "run-bbbbbbbb", type: "SPEND", status: "PENDING", description: "Müşteriye e-posta gönder", amountUsd: 12.5,
+  id: "a2", runId: "run-bbbbbbbb", type: "SPEND", status: "PENDING", description: "Müşteriye e-posta gönder", amountUsd: "12.50", // Prisma Decimal JSON'da METİN gelir
   createdAt: T0, expiresAt: null, metadata: { toolName: "send_email" }, run: run("run-bbbbbbbb"),
   artifact: { kind: "email", title: "Haftalık özet", body: "Merhaba,\nBu hafta 14 e-posta yanıtlandı.", source: "draft" },
   details: { risk: "high", permissions: ["send_email"], dataTransfer: ["send_email ← girdi alanları: to, subject, body"], reversible: false },
@@ -38,10 +38,16 @@ const A_OLD = {
   createdAt: T0, expiresAt: null, metadata: { toolName: "legacy_tool" }, artifact: null, run: run("run-cccccccc"),
   details: { risk: null, permissions: null, dataTransfer: null, reversible: null },
 };
+const base3 = { type: "SPEND", status: "PENDING", createdAt: T0, expiresAt: null, artifact: null, run: run("run-x") };
+/** Üç tetikleyici AYRI AYRI: yalnız tutar, yalnız yüksek risk, yalnız geri alınamaz. */
+const A_AMOUNT_ONLY = { ...base3, id: "t1", runId: "run-x", description: "Yalnız tutar", amountUsd: "0.01", metadata: { toolName: "pay" }, details: { risk: "low", permissions: ["pay"], dataTransfer: ["x"], reversible: true } };
+const A_RISK_ONLY = { ...base3, id: "t2", runId: "run-x", description: "Yalnız risk", amountUsd: null, metadata: { toolName: "risky" }, details: { risk: "high", permissions: ["risky"], dataTransfer: ["x"], reversible: true } };
+const A_IRREV_ONLY = { ...base3, id: "t3", runId: "run-x", description: "Yalnız geri alınamaz", amountUsd: "0.00", metadata: { toolName: "irrev" }, details: { risk: "low", permissions: ["irrev"], dataTransfer: ["x"], reversible: false } };
+const A_ZERO_TEXT = { ...base3, id: "t4", runId: "run-x", description: "Sıfır tutar metni", amountUsd: "0.00", metadata: { toolName: "free" }, details: { risk: "low", permissions: ["free"], dataTransfer: ["x"], reversible: true } };
 const A_NODETAILS = { ...A_OLD, id: "a4", description: "Çok eski onay", details: null, metadata: {} };
 
 type Calls = { method: string; path: string; body: unknown }[];
-interface MockOpts { list?: unknown[]; decideStatus?: number }
+interface MockOpts { list?: unknown[]; decideStatus?: number; decideDelayMs?: number }
 
 async function mockApi(page: Page, opts: MockOpts = {}): Promise<Calls> {
   const calls: Calls = [];
@@ -59,7 +65,11 @@ async function mockApi(page: Page, opts: MockOpts = {}): Promise<Calls> {
     const json = (status: number, data: unknown) => route.fulfill({ status, headers: { ...cors, "content-type": "application/json" }, body: JSON.stringify(data) });
     const decide = path.match(/^\/approvals\/([^/]+)\/decide$/);
     if (decide && req.method() === "POST") {
-      if (opts.decideStatus && opts.decideStatus >= 400) return json(opts.decideStatus, { error: "no" });
+      if (opts.decideDelayMs) await new Promise((r) => setTimeout(r, opts.decideDelayMs));
+      if (opts.decideStatus && opts.decideStatus >= 400) {
+        if (opts.decideStatus === 409) rows = rows.filter((r) => (r as { id: string }).id !== decide[1]); // başkası karara bağlamış: liste yenilenince satır yok
+        return json(opts.decideStatus, { error: "no" });
+      }
       rows = rows.filter((r) => (r as { id: string }).id !== decide[1]);
       return json(200, { success: true, decision: (body as { decision: string }).decision });
     }
@@ -190,7 +200,7 @@ for (const { vp, size, scheme } of COMBOS) {
       // Bilgi yok (eski onay)
       await page.getByTestId("approval-row-a3").click();
       await expect(fields).toContainText("legacy_tool");
-      expect(await fields.getByText("Bilgi yok").count()).toBeGreaterThanOrEqual(5); // yetki, veri, risk, tutar, geri alma, taslak
+      expect(await fields.getByText("Bilgi yok").count()).toBe(6); // yetki, veri, risk, tutar, geri alma, taslak
       await expect(fields).not.toContainText("Karşıt eylemle");
       await expect(fields).not.toContainText("Geri alınamaz");
       await shot("05-sheet-bilgi-yok");
@@ -314,6 +324,79 @@ test.describe("bayrak AÇIK: karar akışı ve erişilebilirlik", () => {
     await page.getByTestId("approval-row-a1").click();
     await expect(sheet(page)).toBeVisible();
     expect(await sheet(page).evaluate((el) => getComputedStyle(el).animationName)).toBe("none");
+  });
+
+  test("üç tetikleyici ayrı ayrı ikinci adımı kilitler; metin tutar '0.00' tek başına tehlikeli değildir", async ({ page }) => {
+    await prepare(page, "dark");
+    await mockApi(page, { list: [A_AMOUNT_ONLY, A_RISK_ONLY, A_IRREV_ONLY, A_ZERO_TEXT] });
+    await page.goto(`${UI_LAB}/approvals`);
+    for (const id of ["t1", "t2", "t3"]) {
+      await page.getByTestId(`approval-row-${id}`).click();
+      await expect(page.getByTestId("approval-danger")).toBeVisible();
+      await expect(page.getByTestId("approval-approve")).toBeDisabled();
+      await page.keyboard.press("Escape");
+    }
+    await page.getByTestId("approval-row-t1").click();
+    await expect(page.getByTestId("approval-fields")).toContainText("$0,01"); // metin tutar "Bilgi yok" DEĞİL, gösterilir
+    await page.keyboard.press("Escape");
+    await page.getByTestId("approval-row-t4").click(); // "0.00": tutar yok sayılır, başka tetikleyici de yok
+    await expect(page.getByTestId("approval-danger")).toHaveCount(0);
+    await expect(page.getByTestId("approval-approve")).toBeEnabled();
+  });
+
+  test("metin tutar ('12.50') listede ve sheet'te görünür, tehlikeli kilit çıkar", async ({ page }) => {
+    await prepare(page, "dark");
+    await mockApi(page, { list: [A_DANGER] });
+    await page.goto(`${UI_LAB}/approvals`);
+    await expect(page.getByTestId("approval-row-a2")).toContainText("$12,50");
+    await page.getByTestId("approval-row-a2").click();
+    await expect(page.getByTestId("approval-fields")).toContainText("$12,50");
+    await expect(page.getByTestId("approval-approve")).toBeDisabled();
+  });
+
+  test("cümle yazınca Onayla açılır; sheet yeniden açılınca cümle ve sebep sıfırlanır", async ({ page }) => {
+    await prepare(page, "dark");
+    await mockApi(page);
+    await page.goto(`${UI_LAB}/approvals`);
+    await page.getByTestId("approval-row-a2").click();
+    await page.getByTestId("approval-confirm-input").fill("gönderimi onaylıyorum");
+    await page.getByTestId("approval-reason").fill("sebep");
+    await expect(page.getByTestId("approval-approve")).toBeEnabled();
+    await page.keyboard.press("Escape");
+    await expect(sheet(page)).toHaveCount(0);
+    await page.getByTestId("approval-row-a2").click();
+    await expect(page.getByTestId("approval-confirm-input")).toHaveValue("");
+    await expect(page.getByTestId("approval-reason")).toHaveValue("");
+    await expect(page.getByTestId("approval-approve")).toBeDisabled();
+  });
+
+  test("409 (zaten karara bağlanmış): dürüst mesaj, liste yeniden yüklenir, bayat satır kalmaz", async ({ page }) => {
+    await prepare(page, "dark");
+    const calls = await mockApi(page, { decideStatus: 409 });
+    await page.goto(`${UI_LAB}/approvals`);
+    const lists = () => calls.filter((c) => c.method === "GET" && c.path.startsWith("/approvals")).length;
+    const before = lists();
+    await page.getByTestId("approval-row-a1").click();
+    await page.getByTestId("approval-approve").click();
+    await expect(page.getByRole("alert").filter({ hasText: "zaten karara bağlanmış" })).toBeVisible();
+    await expect.poll(lists).toBeGreaterThan(before);
+    await expect(page.getByTestId("approval-row-a1")).toHaveCount(0);
+  });
+
+  test("karar sürerken başka onay açılırsa önceki onayın sonucu yeni sheet'i kapatmaz ve devre dışılığı taşımaz", async ({ page }) => {
+    await prepare(page, "dark");
+    const calls = await mockApi(page, { decideDelayMs: 1200 });
+    await page.goto(`${UI_LAB}/approvals`);
+    await page.getByTestId("approval-row-a1").click();
+    await page.getByTestId("approval-approve").click();
+    await expect(page.getByTestId("approval-approve")).toBeDisabled(); // a1 sürüyor
+    await page.keyboard.press("Escape");
+    await page.getByTestId("approval-row-a3").click();
+    await expect(page.getByTestId("approval-approve")).toBeEnabled(); // a3'ün sheet'i a1'in meşgul durumunu taşımaz
+    await expect.poll(() => decides(calls).length).toBe(1);
+    await expect(page.getByTestId("approval-row-a1")).toHaveCount(0, { timeout: 5000 }); // a1 işlendi
+    await expect(sheet(page)).toBeVisible(); // a3 sheet'i açık kaldı
+    await expect(sheet(page).getByRole("heading", { name: "Eski onay" })).toBeVisible();
   });
 
   test("Klasik görünüm bağlantısı bayrak açıkken eski sayfayı verir", async ({ page }) => {

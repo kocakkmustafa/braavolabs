@@ -1413,7 +1413,9 @@
         "phrase": "J'approuve l'envoi",
         "reasonLabel": "Motif (enregistré avec votre décision)"
       },
-      "oneByOne": "Chaque approbation est décidée une par une."
+      "oneByOne": "Chaque approbation est décidée une par une.",
+      "alreadyDecided": "Cette approbation a déjà été décidée. La liste a été actualisée.",
+      "forbidden": "Vous n'avez pas l'autorisation de décider cette approbation. La liste a été actualisée."
     },
     "plan": {
       "title": "Décrire une tâche",

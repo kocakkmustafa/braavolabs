@@ -1413,7 +1413,9 @@
         "phrase": "Aprovo o envio",
         "reasonLabel": "Motivo (salvo com a sua decisão)"
       },
-      "oneByOne": "Cada aprovação é decidida uma a uma."
+      "oneByOne": "Cada aprovação é decidida uma a uma.",
+      "alreadyDecided": "Esta aprovação já foi decidida. A lista foi atualizada.",
+      "forbidden": "Você não tem permissão para decidir esta aprovação. A lista foi atualizada."
     },
     "plan": {
       "title": "Descreva um trabalho",
