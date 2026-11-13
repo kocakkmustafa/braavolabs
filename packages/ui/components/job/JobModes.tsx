@@ -83,6 +83,13 @@ export default function JobModes({ run, token, t, locale, rtl, busy, message, on
       else setCode({ status: "error" });
     });
   };
+  /** Yeniden dene: eski veri varken (bayat) SESSİZ çekim — yine düşerse veri kaybolmaz; imza güncel imzaya alınır (gereksiz ikinci çekim yok). */
+  const retryCode = () => {
+    const prev = cSig.current;
+    const silent = code?.status === "ready";
+    cSig.current = codeSig(run);
+    fetchCode(silent, prev);
+  };
   useEffect(() => {
     if (tab === "kaput" && kaput.status === "idle") fetchKaput();
     if (tab === "output" && receipt === null) void fetchReceipt();
@@ -139,7 +146,7 @@ export default function JobModes({ run, token, t, locale, rtl, busy, message, on
           <>
             <div>{t(`app.jobs.${verificationKey(run)}`)}</div>
             {receipt && <ReceiptPanel state={receipt} t={t} locale={locale} />}
-            {codeChange && <CodeChangeCard state={code} title={run.pipeline?.name ?? t("app.codeChange.titleGeneric")} awaitingApproval={run.bucket === "needs_approval" || isAwaitingApproval(run)} headingLevel={codeHeadingLevel} t={t} locale={locale} rtl={rtl} onRetry={() => fetchCode()} />}
+            {codeChange && <CodeChangeCard state={code} title={run.pipeline?.name ?? t("app.codeChange.titleGeneric")} awaitingApproval={run.bucket === "needs_approval" || isAwaitingApproval(run)} headingLevel={codeHeadingLevel} t={t} locale={locale} rtl={rtl} onRetry={retryCode} />}
           </>
         )}
         {tab === "kaput" && <KaputPanel load={kaput} full={full} t={t} locale={locale} onRetry={fetchKaput} />}

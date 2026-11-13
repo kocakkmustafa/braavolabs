@@ -257,6 +257,13 @@ test.describe("sessiz yenileme", () => {
     await expect(card.getByRole("alert")).toHaveCount(0);
     // BRA-UX-05e ORTA-1: eski veri işaretsiz kalmaz — "güncellenemedi" notu + Yeniden dene; imza geri alındığı için sonraki yoklama/tıklama yeniden dener.
     await expect(card.getByTestId("code-stale")).toBeVisible();
+    // Yeniden dene de başarısız olursa eski veri ve not kalır (hata kartına düşmez).
+    const before = calls.filter((c) => c.path.includes("code-summary")).length;
+    await card.getByTestId("code-stale").getByRole("button").click();
+    await expect.poll(() => calls.filter((c) => c.path.includes("code-summary")).length).toBe(before + 1);
+    await expect(card.getByTestId("code-tests")).toContainText("41 geçti");
+    await expect(card.getByTestId("code-stale")).toBeVisible();
+    await expect(card.getByRole("alert")).toHaveCount(0);
     opts.summary = { status: 200, body: { ...FULL, tests: { ...FULL.tests, passed: 43, total: 43 } } };
     await card.getByTestId("code-stale").getByRole("button").click();
     await expect(card.getByTestId("code-tests")).toContainText("43 geçti");
