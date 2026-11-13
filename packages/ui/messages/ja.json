@@ -1626,6 +1626,35 @@
           "body": "詳細、作成ツール、設定。"
         }
       }
+    },
+    "codeChange": {
+      "title": "変更: {title}",
+      "titleGeneric": "コードの変更",
+      "loading": "コードの変更を読み込み中…",
+      "error": "コードの変更を読み込めませんでした。もう一度お試しください。",
+      "retry": "再試行",
+      "none": "このジョブにはコード変更の記録がありません。",
+      "filesTitle": "ファイル ({count})",
+      "filesNone": "一覧にファイルがありません",
+      "filesUnknown": "ファイル: 不明",
+      "moreFiles": "ほか {count, number} ファイル",
+      "unknown": "不明",
+      "totals": "合計: {added} {removed}",
+      "totalsAtLeast": "少なくとも: {added} {removed}",
+      "partialNote": "行数のないファイルがあるか一覧が省略されているため、合計は下限値です。",
+      "testsTitle": "テスト",
+      "testsPassed": "{count} 件成功",
+      "testsFailed": "{count} 件失敗",
+      "testsSkipped": "{count} 件スキップ",
+      "testsPassedUnknown": "成功: 不明",
+      "testsFailedUnknown": "失敗: 不明",
+      "testsSkippedUnknown": "スキップ: 不明",
+      "testsTotal": "合計 {count} 件",
+      "testsVerified": "検証済み",
+      "testsNotVerified": "未検証",
+      "testsRuns": "テスト実行 {count, number} 回",
+      "approvalLink": "承認センターで判断する",
+      "srSummary": "{title}。ファイル: {files}。テスト: {tests}。"
     }
   },
   "static": {

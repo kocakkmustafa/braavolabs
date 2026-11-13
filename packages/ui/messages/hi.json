@@ -1626,6 +1626,35 @@
           "body": "पूरा विवरण, कंपोज़र और सेटिंग्स।"
         }
       }
+    },
+    "codeChange": {
+      "title": "बदलाव: {title}",
+      "titleGeneric": "कोड बदलाव",
+      "loading": "कोड बदलाव लोड हो रहा है…",
+      "error": "कोड बदलाव लोड नहीं हो सका। फिर कोशिश करें।",
+      "retry": "फिर कोशिश करें",
+      "none": "इस काम में कोड बदलाव का कोई रिकॉर्ड नहीं है।",
+      "filesTitle": "फ़ाइलें ({count})",
+      "filesNone": "कोई फ़ाइल सूचीबद्ध नहीं",
+      "filesUnknown": "फ़ाइलें: अज्ञात",
+      "moreFiles": "+{count, number} और फ़ाइलें",
+      "unknown": "अज्ञात",
+      "totals": "कुल: {added} {removed}",
+      "totalsAtLeast": "कम से कम: {added} {removed}",
+      "partialNote": "कुछ फ़ाइलों में पंक्ति संख्या नहीं है या सूची छोटी की गई है, इसलिए कुल संख्या न्यूनतम है।",
+      "testsTitle": "टेस्ट",
+      "testsPassed": "{count} पास",
+      "testsFailed": "{count} फ़ेल",
+      "testsSkipped": "{count} छोड़े गए",
+      "testsPassedUnknown": "पास: अज्ञात",
+      "testsFailedUnknown": "फ़ेल: अज्ञात",
+      "testsSkippedUnknown": "छोड़े गए: अज्ञात",
+      "testsTotal": "कुल {count}",
+      "testsVerified": "सत्यापित",
+      "testsNotVerified": "सत्यापित नहीं",
+      "testsRuns": "{count, number} टेस्ट रन",
+      "approvalLink": "अनुमोदन केंद्र में फ़ैसला करें",
+      "srSummary": "{title}। फ़ाइलें: {files}। टेस्ट: {tests}।"
     }
   },
   "static": {

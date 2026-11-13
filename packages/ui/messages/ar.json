@@ -1626,6 +1626,35 @@
           "body": "كل التفاصيل والمُنشئ والإعدادات."
         }
       }
+    },
+    "codeChange": {
+      "title": "التغيير: {title}",
+      "titleGeneric": "تغيير في الكود",
+      "loading": "جارٍ تحميل تغيير الكود…",
+      "error": "تعذّر تحميل تغيير الكود. حاول مرة أخرى.",
+      "retry": "إعادة المحاولة",
+      "none": "لا يوجد سجل لتغيير الكود في هذه المهمة.",
+      "filesTitle": "الملفات ({count})",
+      "filesNone": "لا توجد ملفات مدرجة",
+      "filesUnknown": "الملفات: غير معروف",
+      "moreFiles": "+{count, number} ملفات أخرى",
+      "unknown": "غير معروف",
+      "totals": "الإجمالي: {added} {removed}",
+      "totalsAtLeast": "على الأقل: {added} {removed}",
+      "partialNote": "بعض الملفات بلا عدد أسطر أو أن القائمة مقتطعة، لذا الإجماليات حدّ أدنى.",
+      "testsTitle": "الاختبارات",
+      "testsPassed": "نجح {count}",
+      "testsFailed": "فشل {count}",
+      "testsSkipped": "تم تخطي {count}",
+      "testsPassedUnknown": "الناجحة: غير معروف",
+      "testsFailedUnknown": "الفاشلة: غير معروف",
+      "testsSkippedUnknown": "المتخطاة: غير معروف",
+      "testsTotal": "الإجمالي {count}",
+      "testsVerified": "تم التحقق",
+      "testsNotVerified": "لم يتم التحقق",
+      "testsRuns": "عدد مرات تشغيل الاختبارات: {count, number}",
+      "approvalLink": "قرّر في مركز الموافقات",
+      "srSummary": "{title}. الملفات: {files}. الاختبارات: {tests}."
     }
   },
   "static": {

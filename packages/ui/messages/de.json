@@ -1626,6 +1626,35 @@
           "body": "Alle Details, Agenten-Composer und Einstellungen."
         }
       }
+    },
+    "codeChange": {
+      "title": "Änderung: {title}",
+      "titleGeneric": "Codeänderung",
+      "loading": "Codeänderung wird geladen…",
+      "error": "Die Codeänderung konnte nicht geladen werden. Versuche es erneut.",
+      "retry": "Erneut versuchen",
+      "none": "Für diesen Auftrag gibt es keinen Codeänderungs-Eintrag.",
+      "filesTitle": "Dateien ({count})",
+      "filesNone": "Keine Dateien aufgelistet",
+      "filesUnknown": "Dateien: Unbekannt",
+      "moreFiles": "{count, plural, one {+# weitere Datei} other {+# weitere Dateien}}",
+      "unknown": "Unbekannt",
+      "totals": "Gesamt: {added} {removed}",
+      "totalsAtLeast": "Mindestens: {added} {removed}",
+      "partialNote": "Bei manchen Dateien fehlen Zeilenzahlen oder die Liste ist gekürzt, daher sind die Summen eine Untergrenze.",
+      "testsTitle": "Tests",
+      "testsPassed": "{count} bestanden",
+      "testsFailed": "{count} fehlgeschlagen",
+      "testsSkipped": "{count} übersprungen",
+      "testsPassedUnknown": "bestanden: Unbekannt",
+      "testsFailedUnknown": "fehlgeschlagen: Unbekannt",
+      "testsSkippedUnknown": "übersprungen: Unbekannt",
+      "testsTotal": "{count} insgesamt",
+      "testsVerified": "Verifiziert",
+      "testsNotVerified": "Nicht verifiziert",
+      "testsRuns": "{count, plural, one {# Testlauf} other {# Testläufe}}",
+      "approvalLink": "Im Genehmigungscenter entscheiden",
+      "srSummary": "{title}. Dateien: {files}. Tests: {tests}."
     }
   },
   "static": {

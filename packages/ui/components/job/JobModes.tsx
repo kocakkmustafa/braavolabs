@@ -10,6 +10,9 @@ import { allowedActions, nextTabIndex, type InboxRun } from "../../lib/inbox";
 import { receiptFailureKind, trySend } from "../../lib/inboxActions";
 import { loadKaput } from "../../lib/ux-jobs/kaput";
 import { stateKey, verificationKey } from "../../lib/ux-jobs/rows";
+import { codeSig, isAwaitingApproval, planCodeFetch, type CodeSig } from "../../lib/ux-code/refresh";
+import { parseCodeSummary } from "../../lib/ux-code/summary";
+import CodeChangeCard, { type CodeState } from "./CodeChangeCard";
 import KaputPanel, { type KaputLoad } from "./KaputPanel";
 import { ReceiptPanel, money, type ReceiptState, type T } from "../inbox/InboxParts";
 
@@ -25,21 +28,28 @@ const muted: React.CSSProperties = { color: "var(--color-on-surface-variant)", f
 
 export type JobAct = "resume" | "retry" | "pause" | "stop";
 
-export default function JobModes({ run, token, t, locale, rtl, busy, message, onAction, onSteer, extraLinks }: {
+export default function JobModes({ run, token, t, locale, rtl, busy, message, onAction, onSteer, extraLinks, codeChange = false, codeHeadingLevel = 3 }: {
   run: InboxRun; token: string; t: T; locale: string; rtl: boolean; busy: boolean; message: { kind: "ok" | "error"; text: string } | null;
   onAction: (a: JobAct) => void; onSteer: (text: string) => Promise<boolean>; extraLinks?: React.ReactNode;
+  /** BRA-UX-05e — `NEXT_PUBLIC_UX_CODE` (sunucu sarmalayıcıdan); kapalıyken kart yok ve `/code-summary` istenmez. */
+  codeChange?: boolean;
+  /** Kart başlık seviyesi: çekmecede h3 (h2 çekmece başlığı), iş sayfasında h2 (h1 iş başlığı). */
+  codeHeadingLevel?: 2 | 3;
 }) {
   const [tab, setTab] = useState<Tab>("summary");
   const [full, setFull] = useState(false);
   const [kaput, setKaput] = useState<KaputLoad>({ status: "idle" });
   const [receipt, setReceipt] = useState<ReceiptState | null>(null);
+  const [code, setCode] = useState<CodeState | null>(null);
   const [steerOpen, setSteerOpen] = useState(false);
   const [steerText, setSteerText] = useState("");
   const kSeq = useRef(0);
   const rSeq = useRef(0);
+  const cSeq = useRef(0);
+  const cSig = useRef<CodeSig | null>(null);
 
   // Başka işe geçilince önceki işin verisi sızmasın (`seq` gecikmiş yanıtı da eler).
-  useEffect(() => { kSeq.current++; rSeq.current++; setTab("summary"); setKaput({ status: "idle" }); setReceipt(null); setSteerOpen(false); setSteerText(""); }, [run.id]);
+  useEffect(() => { kSeq.current++; rSeq.current++; cSeq.current++; cSig.current = null; setTab("summary"); setKaput({ status: "idle" }); setReceipt(null); setCode(null); setSteerOpen(false); setSteerText(""); }, [run.id]);
 
   const fetchKaput = () => {
     const my = ++kSeq.current;
@@ -52,11 +62,31 @@ export default function JobModes({ run, token, t, locale, rtl, busy, message, on
     const r = await trySend(async () => { const rc = await api.runReceipt(token, run.id); if (my === rSeq.current) setReceipt({ status: "ready", receipt: rc }); });
     if (!r.ok && my === rSeq.current) setReceipt({ status: receiptFailureKind(r.err) });
   };
+  /** `silent`: yenilemede önceki veri yerinde kalır (yükleniyor yok); hata/ayrıştırma sorununda eski veri korunur. */
+  const fetchCode = (silent = false) => {
+    const my = ++cSeq.current;
+    if (!silent) setCode({ status: "loading" });
+    api.runCodeSummary(token, run.id).then((raw) => {
+      if (my !== cSeq.current) return;
+      const view = parseCodeSummary(raw);
+      setCode((c) => view ? { status: "ready", view } : silent && c?.status === "ready" ? c : { status: "error" });
+    }, () => { if (my === cSeq.current) setCode((c) => silent && c?.status === "ready" ? c : { status: "error" }); });
+  };
   useEffect(() => {
     if (tab === "kaput" && kaput.status === "idle") fetchKaput();
     if (tab === "output" && receipt === null) void fetchReceipt();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, run.id]);
+
+  // Kod özeti: Çıktı sekmesi açıkken ilk çekim; iş durumu/updatedAt değişince (yoklama) sessiz yenileme.
+  const sig = codeSig(run);
+  useEffect(() => {
+    if (!codeChange || tab !== "output") return;
+    const plan = planCodeFetch(cSig.current, sig, code === null ? "none" : code.status);
+    cSig.current = sig;
+    if (plan !== "none") fetchCode(plan === "silent");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [codeChange, tab, sig[0], sig[1], sig[2]]);
 
   const actions = allowedActions(run);
   const cost = money(run.costUsd, locale);
@@ -97,6 +127,7 @@ export default function JobModes({ run, token, t, locale, rtl, busy, message, on
           <>
             <div>{t(`app.jobs.${verificationKey(run)}`)}</div>
             {receipt && <ReceiptPanel state={receipt} t={t} locale={locale} />}
+            {codeChange && <CodeChangeCard state={code} title={run.pipeline?.name ?? t("app.codeChange.titleGeneric")} awaitingApproval={run.bucket === "needs_approval" || isAwaitingApproval(run)} headingLevel={codeHeadingLevel} t={t} locale={locale} rtl={rtl} onRetry={() => fetchCode()} />}
           </>
         )}
         {tab === "kaput" && <KaputPanel load={kaput} full={full} t={t} locale={locale} onRetry={fetchKaput} />}

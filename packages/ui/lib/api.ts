@@ -1,4 +1,4 @@
-import type { InboxBucket, JobReceipt, ModelsOverview } from "@ai-company-os/core";
+import type { InboxBucket, JobCodeSummary, JobReceipt, ModelsOverview } from "@ai-company-os/core";
 import { parseRunsPage, parseApprovalGroupsPage } from "./inboxParse";
 import { parseCompareOptions, parseCompareSession, type CompareRequest } from "./compare";
 import { parseApprovalDecision } from "./approvalDecision";
@@ -411,6 +411,9 @@ export const api = {
     apiFetch<unknown>(`/runs/${encodeURIComponent(runId)}/${action}`, { method: "POST", body: JSON.stringify({}), token }),
   runReceipt: (token: string, runId: string, signal?: AbortSignal) =>
     apiFetch<JobReceipt>(`/runs/${encodeURIComponent(runId)}/receipt`, { token, signal }),
+  /** BRA-UX-05e — koşunun kod değişikliği özeti (salt-okur); yanıt `lib/ux-code/summary.ts` ile savunmacı ayrıştırılır. */
+  runCodeSummary: (token: string, runId: string, signal?: AbortSignal) =>
+    apiFetch<JobCodeSummary>(`/runs/${encodeURIComponent(runId)}/code-summary`, { token, signal }),
 
   // Plan kartı (BRA-P0-03c) — POST /jobs/plan (LLM'siz kart) ve POST /jobs/start (onaylı kart → koşu)
   jobPlan: (token: string, message: string, workspaceId?: string, signal?: AbortSignal) =>

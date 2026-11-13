@@ -1626,6 +1626,35 @@
           "body": "Semua detail, pembuat agen, dan pengaturan."
         }
       }
+    },
+    "codeChange": {
+      "title": "Perubahan: {title}",
+      "titleGeneric": "Perubahan kode",
+      "loading": "Memuat perubahan kode…",
+      "error": "Perubahan kode tidak dapat dimuat. Coba lagi.",
+      "retry": "Coba lagi",
+      "none": "Pekerjaan ini tidak memiliki catatan perubahan kode.",
+      "filesTitle": "File ({count})",
+      "filesNone": "Tidak ada file yang tercantum",
+      "filesUnknown": "File: Tidak diketahui",
+      "moreFiles": "+{count, number} file lagi",
+      "unknown": "Tidak diketahui",
+      "totals": "Total: {added} {removed}",
+      "totalsAtLeast": "Setidaknya: {added} {removed}",
+      "partialNote": "Beberapa file tidak memiliki jumlah baris atau daftarnya dipangkas, jadi total adalah batas bawah.",
+      "testsTitle": "Tes",
+      "testsPassed": "{count} lulus",
+      "testsFailed": "{count} gagal",
+      "testsSkipped": "{count} dilewati",
+      "testsPassedUnknown": "lulus: Tidak diketahui",
+      "testsFailedUnknown": "gagal: Tidak diketahui",
+      "testsSkippedUnknown": "dilewati: Tidak diketahui",
+      "testsTotal": "{count} total",
+      "testsVerified": "Terverifikasi",
+      "testsNotVerified": "Belum terverifikasi",
+      "testsRuns": "{count, number} kali menjalankan tes",
+      "approvalLink": "Putuskan di pusat persetujuan",
+      "srSummary": "{title}. File: {files}. Tes: {tests}."
     }
   },
   "static": {

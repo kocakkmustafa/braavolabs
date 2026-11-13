@@ -1626,6 +1626,35 @@
           "body": "Full details, composer and settings."
         }
       }
+    },
+    "codeChange": {
+      "title": "Change: {title}",
+      "titleGeneric": "Code change",
+      "loading": "Loading the code change…",
+      "error": "Couldn't load the code change. Try again.",
+      "retry": "Try again",
+      "none": "This job has no code change record.",
+      "filesTitle": "Files ({count})",
+      "filesNone": "No files listed",
+      "filesUnknown": "Files: Unknown",
+      "moreFiles": "{count, plural, one {+# more file} other {+# more files}}",
+      "unknown": "Unknown",
+      "totals": "Total: {added} {removed}",
+      "totalsAtLeast": "At least: {added} {removed}",
+      "partialNote": "Some files have no line counts or the list is trimmed, so totals are a lower bound.",
+      "testsTitle": "Tests",
+      "testsPassed": "{count} passed",
+      "testsFailed": "{count} failed",
+      "testsSkipped": "{count} skipped",
+      "testsPassedUnknown": "passed: Unknown",
+      "testsFailedUnknown": "failed: Unknown",
+      "testsSkippedUnknown": "skipped: Unknown",
+      "testsTotal": "{count} in total",
+      "testsVerified": "Verified",
+      "testsNotVerified": "Not verified",
+      "testsRuns": "{count, plural, one {# test run} other {# test runs}}",
+      "approvalLink": "Decide in the approval center",
+      "srSummary": "{title}. Files: {files}. Tests: {tests}."
     }
   },
   "static": {

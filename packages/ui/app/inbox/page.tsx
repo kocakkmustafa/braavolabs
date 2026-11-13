@@ -1,5 +1,6 @@
 import InboxLegacy from "../../components/inbox/InboxLegacy";
 import JobsInbox from "../../components/inbox/JobsInbox";
+import { uxCodeEnabled } from "../../lib/ux-code/flag";
 import { uxJobsEnabled } from "../../lib/ux-jobs/flag";
 
 /**
@@ -9,5 +10,5 @@ import { uxJobsEnabled } from "../../lib/ux-jobs/flag";
 export const dynamic = "force-dynamic";
 
 export default function InboxPage() {
-  return uxJobsEnabled() ? <JobsInbox /> : <InboxLegacy />;
+  return uxJobsEnabled() ? <JobsInbox codeChange={uxCodeEnabled()} /> : <InboxLegacy />;
 }

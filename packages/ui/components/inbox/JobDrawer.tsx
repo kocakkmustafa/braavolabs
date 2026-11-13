@@ -12,9 +12,9 @@ const btn: React.CSSProperties = {
 };
 const muted: React.CSSProperties = { color: "var(--color-on-surface-variant)", fontSize: 13 };
 
-export default function JobDrawer({ run, token, t, locale, rtl, busy, message, onAction, onSteer, onClose }: {
+export default function JobDrawer({ run, token, t, locale, rtl, busy, message, onAction, onSteer, onClose, codeChange = false }: {
   run: InboxRun; token: string; t: T; locale: string; rtl: boolean; busy: boolean; message: { kind: "ok" | "error"; text: string } | null;
-  onAction: (a: JobAct) => void; onSteer: (text: string) => Promise<boolean>; onClose: () => void;
+  onAction: (a: JobAct) => void; onSteer: (text: string) => Promise<boolean>; onClose: () => void; codeChange?: boolean;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const title = run.pipeline?.name ?? t("app.inbox.jobUntitled");
@@ -35,7 +35,7 @@ export default function JobDrawer({ run, token, t, locale, rtl, busy, message, o
         <h2 ref={heading} tabIndex={-1} style={{ margin: 0, fontSize: 17, fontWeight: 700, overflowWrap: "anywhere", color: "var(--color-on-surface)" }}>{title}</h2>
         <button type="button" style={btn} onClick={onClose} aria-label={t("app.jobs.close")}>✕</button>
       </div>
-      <JobModes run={run} token={token} t={t} locale={locale} rtl={rtl} busy={busy} message={message} onAction={onAction} onSteer={onSteer}
+      <JobModes codeChange={codeChange} run={run} token={token} t={t} locale={locale} rtl={rtl} busy={busy} message={message} onAction={onAction} onSteer={onSteer}
         extraLinks={<Link href={`/runs/${encodeURIComponent(run.id)}`} style={{ ...muted, alignSelf: "center", textDecoration: "underline" }}>{t("app.jobs.openFull")}</Link>} />
     </aside>
   );

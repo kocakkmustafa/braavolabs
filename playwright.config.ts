@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { API_PORT, UI_PORT, UI, UI_LAB_PORT } from "./e2e/ports";
+import { API_PORT, UI_PORT, UI, UI_LAB_PORT, UI_WS_PORT } from "./e2e/ports";
 
 /**
  * E2E configuration (BR-P0-005).
@@ -124,6 +124,8 @@ export default defineConfig({
     // BRA-UX-05i: aynı örnek `/approvals` onay merkezi bayrağı da AÇIK; UI_PORT'ta eski onay sayfası birebir sunulur.
     // BRA-UX-05h: aynı örnek `/settings/models` bayrağı da AÇIK; UI_PORT'ta rota 404'tür (yeni rota, eski sayfa yok).
     // BRA-UX-05f: aynı örnek `/companies/[id]/status` şirket durumu bayrağı da AÇIK; UI_PORT'ta rota 404'tür (yeni rota).
-    uiServer(UI_LAB_PORT, { NEXT_PUBLIC_UX_LAB: "1", NEXT_PUBLIC_UX_INTENT: "1", NEXT_PUBLIC_UX_JOBS: "1", NEXT_PUBLIC_UX_WORKSPACE: "1", NEXT_PUBLIC_UX_APPROVALS: "1", NEXT_PUBLIC_UX_MODELS: "1", NEXT_PUBLIC_UX_COMPANY: "1" }),
+    uiServer(UI_LAB_PORT, { NEXT_PUBLIC_UX_LAB: "1", NEXT_PUBLIC_UX_INTENT: "1", NEXT_PUBLIC_UX_JOBS: "1", NEXT_PUBLIC_UX_WORKSPACE: "1", NEXT_PUBLIC_UX_APPROVALS: "1", NEXT_PUBLIC_UX_MODELS: "1", NEXT_PUBLIC_UX_COMPANY: "1", NEXT_PUBLIC_UX_CODE: "1" }),
+    // BRA-UX-05e: İşler + iş sayfası AÇIK ama kod değişikliği kartı bayrağı KAPALI örnek (kart yok, `/code-summary` isteği yok kanıtı).
+    uiServer(UI_WS_PORT, { NEXT_PUBLIC_UX_JOBS: "1", NEXT_PUBLIC_UX_WORKSPACE: "1" }),
   ],
 });

@@ -1626,6 +1626,35 @@
           "body": "Tüm ayrıntılar, ajan oluşturucu ve ayarlar."
         }
       }
+    },
+    "codeChange": {
+      "title": "Değişiklik: {title}",
+      "titleGeneric": "Kod değişikliği",
+      "loading": "Kod değişikliği yükleniyor…",
+      "error": "Kod değişikliği yüklenemedi. Yeniden dene.",
+      "retry": "Yeniden dene",
+      "none": "Bu işte kod değişikliği kaydı yok.",
+      "filesTitle": "Dosyalar ({count})",
+      "filesNone": "Listelenen dosya yok",
+      "filesUnknown": "Dosyalar: Bilinmiyor",
+      "moreFiles": "+{count, number} dosya daha",
+      "unknown": "Bilinmiyor",
+      "totals": "Toplam: {added} {removed}",
+      "totalsAtLeast": "En az: {added} {removed}",
+      "partialNote": "Bazı dosyalarda satır sayısı yok ya da liste kısaltıldı; toplamlar alt sınırdır.",
+      "testsTitle": "Testler",
+      "testsPassed": "{count} geçti",
+      "testsFailed": "{count} kaldı",
+      "testsSkipped": "{count} atlandı",
+      "testsPassedUnknown": "geçen: Bilinmiyor",
+      "testsFailedUnknown": "kalan: Bilinmiyor",
+      "testsSkippedUnknown": "atlanan: Bilinmiyor",
+      "testsTotal": "toplam {count}",
+      "testsVerified": "Doğrulandı",
+      "testsNotVerified": "Doğrulanmadı",
+      "testsRuns": "{count, number} test koşusu",
+      "approvalLink": "Onay merkezinde karar ver",
+      "srSummary": "{title}. Dosyalar: {files}. Testler: {tests}."
     }
   },
   "static": {

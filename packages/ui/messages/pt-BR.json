@@ -1626,6 +1626,35 @@
           "body": "Todos os detalhes, o compositor e as configurações."
         }
       }
+    },
+    "codeChange": {
+      "title": "Alteração: {title}",
+      "titleGeneric": "Alteração de código",
+      "loading": "Carregando a alteração de código…",
+      "error": "Não foi possível carregar a alteração de código. Tente de novo.",
+      "retry": "Tentar de novo",
+      "none": "Este trabalho não tem registro de alteração de código.",
+      "filesTitle": "Arquivos ({count})",
+      "filesNone": "Nenhum arquivo listado",
+      "filesUnknown": "Arquivos: Desconhecido",
+      "moreFiles": "{count, plural, one {+# arquivo a mais} other {+# arquivos a mais}}",
+      "unknown": "Desconhecido",
+      "totals": "Total: {added} {removed}",
+      "totalsAtLeast": "No mínimo: {added} {removed}",
+      "partialNote": "Alguns arquivos não têm contagem de linhas ou a lista foi reduzida, então os totais são um mínimo.",
+      "testsTitle": "Testes",
+      "testsPassed": "{count} passaram",
+      "testsFailed": "{count} falharam",
+      "testsSkipped": "{count} ignorados",
+      "testsPassedUnknown": "passaram: Desconhecido",
+      "testsFailedUnknown": "falharam: Desconhecido",
+      "testsSkippedUnknown": "ignorados: Desconhecido",
+      "testsTotal": "{count} no total",
+      "testsVerified": "Verificado",
+      "testsNotVerified": "Não verificado",
+      "testsRuns": "{count, plural, one {# execução de testes} other {# execuções de testes}}",
+      "approvalLink": "Decidir na central de aprovações",
+      "srSummary": "{title}. Arquivos: {files}. Testes: {tests}."
     }
   },
   "static": {

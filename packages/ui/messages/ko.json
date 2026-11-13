@@ -1626,6 +1626,35 @@
           "body": "전체 세부 정보, 작성기, 설정."
         }
       }
+    },
+    "codeChange": {
+      "title": "변경: {title}",
+      "titleGeneric": "코드 변경",
+      "loading": "코드 변경을 불러오는 중…",
+      "error": "코드 변경을 불러오지 못했습니다. 다시 시도하세요.",
+      "retry": "다시 시도",
+      "none": "이 작업에는 코드 변경 기록이 없습니다.",
+      "filesTitle": "파일 ({count})",
+      "filesNone": "나열된 파일 없음",
+      "filesUnknown": "파일: 알 수 없음",
+      "moreFiles": "파일 {count, number}개 더",
+      "unknown": "알 수 없음",
+      "totals": "합계: {added} {removed}",
+      "totalsAtLeast": "최소: {added} {removed}",
+      "partialNote": "일부 파일에 줄 수가 없거나 목록이 줄어들어 합계는 최솟값입니다.",
+      "testsTitle": "테스트",
+      "testsPassed": "{count}개 통과",
+      "testsFailed": "{count}개 실패",
+      "testsSkipped": "{count}개 건너뜀",
+      "testsPassedUnknown": "통과: 알 수 없음",
+      "testsFailedUnknown": "실패: 알 수 없음",
+      "testsSkippedUnknown": "건너뜀: 알 수 없음",
+      "testsTotal": "총 {count}개",
+      "testsVerified": "검증됨",
+      "testsNotVerified": "검증되지 않음",
+      "testsRuns": "테스트 실행 {count, number}회",
+      "approvalLink": "승인 센터에서 결정",
+      "srSummary": "{title}. 파일: {files}. 테스트: {tests}."
     }
   },
   "static": {
