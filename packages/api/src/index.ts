@@ -51,6 +51,7 @@ import { researchRouter } from "./modules/research/research.router";
 import { marketplaceRouter } from "./modules/marketplace/marketplace.router";
 import { templatesRouter } from "./modules/templates/templates.router";
 import { benchRouter } from "./modules/bench/bench.router";
+import { opsRouter } from "./modules/ops/router";
 import { seedBenchSuites } from "./modules/bench/bench.service";
 import { userRouter } from "./modules/user/user.router";
 import { deviceRouter } from "./modules/device/router";
@@ -288,6 +289,8 @@ api.use("/marketplace/templates", templatesRouter);
 api.use("/marketplace", marketplaceRouter);
 // Public Braavolabs Bench leaderboard.
 api.use("/bench", benchRouter);
+// BRA-OPS-02: platform-admin-only, read-only server flag state.
+api.use("/ops", opsRouter);
 api.use("/users", userRouter);
 api.use("/devices", deviceRouter);
 api.use("/companies", companyRouter);
