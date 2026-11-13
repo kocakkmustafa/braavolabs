@@ -131,8 +131,15 @@ After the second CI gate and production authorization:
    plain indexes, a `UNIQUE` index on the new nullable `approvals.nonce`, and
    two `UPDATE` backfills of the new NULL tenant columns only. No `DROP`,
    `ALTER ... TYPE`, `DELETE` or `TRUNCATE`. Rollback is the previous image
-   digest; the DB migration is not rolled back (the old API tolerates the extra
-   columns/tables). Any change to either file or the tree needs a new review.
+   digest; the DB migration is not rolled back (the previous API is expected,
+   not proven, to tolerate the additive columns/tables: Prisma selects explicit
+   columns and every new column is nullable or has a constant default).
+   `job_lifecycle` takes an `ACCESS EXCLUSIVE` lock on `runs` for the whole
+   migration transaction (two plain indexes + one backfill `UPDATE`); check the
+   `runs` row count and run it with the backup verified. If the migration fails
+   midway, `_prisma_migrations` keeps a failed row and the next
+   `migrate deploy` stops with P3009 until it is resolved by hand. Any change to
+   either file or the tree needs a new review.
 3. The script recreates API/UI from the digest override without rebuilding on
    the host, ensures the backup service is running, and verifies health and
    running-image identity.
