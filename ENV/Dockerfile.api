@@ -127,6 +127,10 @@ RUN chmod -R a+rX /app
 
 # Run as non-root user
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 aicos
+# Declared after every COPY/RUN layer so a new commit SHA only invalidates the
+# metadata layer, never the node_modules/dist copies above. Surfaced by /health.
+ARG RELEASE_COMMIT=unknown
+ENV RELEASE_COMMIT=$RELEASE_COMMIT
 USER aicos
 
 EXPOSE 8080
