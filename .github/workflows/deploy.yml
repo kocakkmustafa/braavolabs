@@ -101,6 +101,8 @@ jobs:
             ${{ env.REGISTRY }}/${{ steps.tag.outputs.prefix }}/api:latest
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
+          build-args: |
+            RELEASE_COMMIT=${{ github.sha }}
 
       - name: Build and push ui image
         if: matrix.service == 'ui'

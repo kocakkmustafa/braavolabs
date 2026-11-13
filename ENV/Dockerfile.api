@@ -93,7 +93,11 @@ RUN find /app/packages/*/dist -name "*.map" -delete
 
 # Production
 FROM base AS runner
+# Declared in the final stage (after every cached build layer) so a new
+# commit SHA never invalidates the install/build cache. Surfaced by /health.
+ARG RELEASE_COMMIT=unknown
 ENV NODE_ENV=production
+ENV RELEASE_COMMIT=$RELEASE_COMMIT
 COPY --from=build /app/packages/api/dist ./packages/api/dist
 COPY --from=build /app/packages/core/dist ./packages/core/dist
 COPY --from=build /app/packages/memory/dist ./packages/memory/dist

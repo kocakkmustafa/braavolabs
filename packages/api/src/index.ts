@@ -18,6 +18,7 @@ import { createCorsOptions } from "./lib/cors";
 import { logger } from "./lib/logger";
 import { prisma } from "./lib/db";
 import { redis } from "./lib/redis";
+import { getReleaseInfo } from "./lib/release-info";
 import { errorHandler } from "./middleware/error";
 import { securityHeaders } from "./middleware/security";
 import { requestId } from "./middleware/requestId";
@@ -255,7 +256,7 @@ async function healthHandler(req: express.Request, res: express.Response) {
     status: healthy ? "ok" : "degraded",
     ...(trusted ? { checks } : {}),
     timestamp: new Date().toISOString(),
-    version: "0.1.0",
+    ...getReleaseInfo(),
   });
 }
 
