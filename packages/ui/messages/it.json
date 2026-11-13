@@ -1626,6 +1626,35 @@
           "body": "Tutti i dettagli, il compositore e le impostazioni."
         }
       }
+    },
+    "codeChange": {
+      "title": "Modifica: {title}",
+      "titleGeneric": "Modifica del codice",
+      "loading": "Caricamento della modifica del codice…",
+      "error": "Impossibile caricare la modifica del codice. Riprova.",
+      "retry": "Riprova",
+      "none": "Questo lavoro non ha registrazioni di modifiche al codice.",
+      "filesTitle": "File ({count})",
+      "filesNone": "Nessun file elencato",
+      "filesUnknown": "File: Sconosciuto",
+      "moreFiles": "{count, plural, one {+# file in più} other {+# file in più}}",
+      "unknown": "Sconosciuto",
+      "totals": "Totale: {added} {removed}",
+      "totalsAtLeast": "Almeno: {added} {removed}",
+      "partialNote": "Alcuni file non hanno il conteggio delle righe o l'elenco è ridotto, quindi i totali sono un minimo.",
+      "testsTitle": "Test",
+      "testsPassed": "{count} superati",
+      "testsFailed": "{count} falliti",
+      "testsSkipped": "{count} saltati",
+      "testsPassedUnknown": "superati: Sconosciuto",
+      "testsFailedUnknown": "falliti: Sconosciuto",
+      "testsSkippedUnknown": "saltati: Sconosciuto",
+      "testsTotal": "{count} in totale",
+      "testsVerified": "Verificato",
+      "testsNotVerified": "Non verificato",
+      "testsRuns": "{count, plural, one {# esecuzione di test} other {# esecuzioni di test}}",
+      "approvalLink": "Decidi nel centro approvazioni",
+      "srSummary": "{title}. File: {files}. Test: {tests}."
     }
   },
   "static": {

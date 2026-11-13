@@ -29,7 +29,7 @@ const btn = {
   background: "var(--color-surface-container-high)", color: "var(--color-on-surface)", border: "1px solid var(--color-surface-container-highest)",
 } as const;
 
-export default function JobsInbox() {
+export default function JobsInbox({ codeChange = false }: { codeChange?: boolean } = {}) {
   const t = useTranslations() as unknown as T;
   const locale = useLocale();
   const rtl = locale === "ar";
@@ -209,7 +209,7 @@ export default function JobsInbox() {
           </section>
         </div>
         {drawerRun && (
-          <JobDrawer key={drawerRun.id} run={drawerRun} token={token} t={t} locale={locale} rtl={rtl} busy={busyRuns.has(drawerRun.id)}
+          <JobDrawer codeChange={codeChange} key={drawerRun.id} run={drawerRun} token={token} t={t} locale={locale} rtl={rtl} busy={busyRuns.has(drawerRun.id)}
             message={message && message.runId === drawerRun.id ? message : null}
             onAction={(a) => void runAction(drawerRun, a)} onSteer={(text) => steer(drawerRun, text)} onClose={() => close(drawerRun.id)} />
         )}

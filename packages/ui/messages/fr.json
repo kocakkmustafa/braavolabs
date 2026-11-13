@@ -1626,6 +1626,35 @@
           "body": "Tous les détails, le compositeur et les réglages."
         }
       }
+    },
+    "codeChange": {
+      "title": "Modification : {title}",
+      "titleGeneric": "Modification de code",
+      "loading": "Chargement de la modification de code…",
+      "error": "Impossible de charger la modification de code. Réessayez.",
+      "retry": "Réessayer",
+      "none": "Cette tâche n'a aucun enregistrement de modification de code.",
+      "filesTitle": "Fichiers ({count})",
+      "filesNone": "Aucun fichier listé",
+      "filesUnknown": "Fichiers : Inconnu",
+      "moreFiles": "{count, plural, one {+# fichier de plus} other {+# fichiers de plus}}",
+      "unknown": "Inconnu",
+      "totals": "Total : {added} {removed}",
+      "totalsAtLeast": "Au moins : {added} {removed}",
+      "partialNote": "Certains fichiers n'ont pas de nombre de lignes ou la liste est tronquée ; les totaux sont donc un minimum.",
+      "testsTitle": "Tests",
+      "testsPassed": "{count} réussis",
+      "testsFailed": "{count} échoués",
+      "testsSkipped": "{count} ignorés",
+      "testsPassedUnknown": "réussis : Inconnu",
+      "testsFailedUnknown": "échoués : Inconnu",
+      "testsSkippedUnknown": "ignorés : Inconnu",
+      "testsTotal": "{count} au total",
+      "testsVerified": "Vérifié",
+      "testsNotVerified": "Non vérifié",
+      "testsRuns": "{count, plural, one {# exécution de tests} other {# exécutions de tests}}",
+      "approvalLink": "Décider dans le centre d'approbation",
+      "srSummary": "{title}. Fichiers : {files}. Tests : {tests}."
     }
   },
   "static": {

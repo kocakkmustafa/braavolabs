@@ -1626,6 +1626,35 @@
           "body": "Wszystkie szczegóły, kreator agentów i ustawienia."
         }
       }
+    },
+    "codeChange": {
+      "title": "Zmiana: {title}",
+      "titleGeneric": "Zmiana w kodzie",
+      "loading": "Wczytywanie zmiany w kodzie…",
+      "error": "Nie udało się wczytać zmiany w kodzie. Spróbuj ponownie.",
+      "retry": "Spróbuj ponownie",
+      "none": "To zadanie nie ma zapisu zmiany w kodzie.",
+      "filesTitle": "Pliki ({count})",
+      "filesNone": "Brak wymienionych plików",
+      "filesUnknown": "Pliki: Nieznane",
+      "moreFiles": "jeszcze plików: {count}",
+      "unknown": "Nieznane",
+      "totals": "Razem: {added} {removed}",
+      "totalsAtLeast": "Co najmniej: {added} {removed}",
+      "partialNote": "Niektóre pliki nie mają liczby wierszy lub lista jest skrócona, więc sumy to dolna granica.",
+      "testsTitle": "Testy",
+      "testsPassed": "zaliczone: {count}",
+      "testsFailed": "niezaliczone: {count}",
+      "testsSkipped": "pominięte: {count}",
+      "testsPassedUnknown": "zaliczone: Nieznane",
+      "testsFailedUnknown": "niezaliczone: Nieznane",
+      "testsSkippedUnknown": "pominięte: Nieznane",
+      "testsTotal": "łącznie: {count}",
+      "testsVerified": "Zweryfikowano",
+      "testsNotVerified": "Niezweryfikowano",
+      "testsRuns": "uruchomień testów: {count}",
+      "approvalLink": "Zdecyduj w centrum zatwierdzeń",
+      "srSummary": "{title}. Pliki: {files}. Testy: {tests}."
     }
   },
   "static": {

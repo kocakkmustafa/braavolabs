@@ -1626,6 +1626,35 @@
           "body": "Todos los detalles, el compositor y los ajustes."
         }
       }
+    },
+    "codeChange": {
+      "title": "Cambio: {title}",
+      "titleGeneric": "Cambio de código",
+      "loading": "Cargando el cambio de código…",
+      "error": "No se pudo cargar el cambio de código. Inténtalo de nuevo.",
+      "retry": "Reintentar",
+      "none": "Este trabajo no tiene registro de cambio de código.",
+      "filesTitle": "Archivos ({count})",
+      "filesNone": "No hay archivos listados",
+      "filesUnknown": "Archivos: Desconocido",
+      "moreFiles": "{count, plural, one {+# archivo más} other {+# archivos más}}",
+      "unknown": "Desconocido",
+      "totals": "Total: {added} {removed}",
+      "totalsAtLeast": "Al menos: {added} {removed}",
+      "partialNote": "Algunos archivos no tienen recuento de líneas o la lista está recortada, así que los totales son un mínimo.",
+      "testsTitle": "Pruebas",
+      "testsPassed": "{count} superadas",
+      "testsFailed": "{count} fallidas",
+      "testsSkipped": "{count} omitidas",
+      "testsPassedUnknown": "superadas: Desconocido",
+      "testsFailedUnknown": "fallidas: Desconocido",
+      "testsSkippedUnknown": "omitidas: Desconocido",
+      "testsTotal": "{count} en total",
+      "testsVerified": "Verificado",
+      "testsNotVerified": "No verificado",
+      "testsRuns": "{count, plural, one {# ejecución de pruebas} other {# ejecuciones de pruebas}}",
+      "approvalLink": "Decidir en el centro de aprobaciones",
+      "srSummary": "{title}. Archivos: {files}. Pruebas: {tests}."
     }
   },
   "static": {

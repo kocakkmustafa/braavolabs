@@ -1626,6 +1626,35 @@
           "body": "完整详情、创建器和设置。"
         }
       }
+    },
+    "codeChange": {
+      "title": "变更：{title}",
+      "titleGeneric": "代码变更",
+      "loading": "正在加载代码变更…",
+      "error": "无法加载代码变更。请重试。",
+      "retry": "重试",
+      "none": "此任务没有代码变更记录。",
+      "filesTitle": "文件（{count}）",
+      "filesNone": "未列出文件",
+      "filesUnknown": "文件：未知",
+      "moreFiles": "另有 {count} 个文件",
+      "unknown": "未知",
+      "totals": "合计：{added} {removed}",
+      "totalsAtLeast": "至少：{added} {removed}",
+      "partialNote": "部分文件没有行数，或列表已被截断，因此合计为下限。",
+      "testsTitle": "测试",
+      "testsPassed": "{count} 个通过",
+      "testsFailed": "{count} 个失败",
+      "testsSkipped": "{count} 个跳过",
+      "testsPassedUnknown": "通过：未知",
+      "testsFailedUnknown": "失败：未知",
+      "testsSkippedUnknown": "跳过：未知",
+      "testsTotal": "共 {count} 个",
+      "testsVerified": "已验证",
+      "testsNotVerified": "未验证",
+      "testsRuns": "{count} 次测试运行",
+      "approvalLink": "在审批中心决定",
+      "srSummary": "{title}。文件：{files}。测试：{tests}。"
     }
   },
   "static": {
