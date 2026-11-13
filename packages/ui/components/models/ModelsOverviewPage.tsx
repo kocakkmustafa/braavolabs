@@ -12,7 +12,7 @@ import { useAuthGuard } from "../../lib/useAuthGuard";
 import { useAppStore } from "../../lib/store";
 import { useDisplayFormats } from "../../lib/useDisplayFormats";
 import { formatDateTime, currentTimeZone } from "../../i18n/locales";
-import { toOverviewView, type OverviewView } from "../../lib/ux-models/models";
+import { COST_DISPLAY_FLOOR, isBelowCostPrecision, toOverviewView, type OverviewView } from "../../lib/ux-models/models";
 
 type Company = { id: string; name: string };
 type Load = { status: "idle" | "loading" | "ready" | "error"; view: OverviewView | null };
@@ -39,19 +39,22 @@ export default function ModelsOverviewPage() {
   const [companyId, setCompanyId] = useState<string>("");
   const [load, setLoad] = useState<Load>({ status: "idle", view: null });
   const seq = useRef(0);
+  const companiesSeq = useRef(0);
 
   const loadCompanies = useCallback(() => {
     if (!hydrated || !token) return;
     setCompaniesFailed(false);
+    const mine = ++companiesSeq.current;
     api.listCompanies(token)
       .then((rows) => {
+        if (mine !== companiesSeq.current) return; // eski oturumun geç yanıtı yeni listeyi ezmez
         const list: Company[] = (Array.isArray(rows) ? rows : [])
           .filter((c) => c && typeof c.id === "string")
           .map((c) => ({ id: c.id, name: typeof c.name === "string" && c.name ? c.name : c.id }));
         setCompanies(list);
         setCompanyId((cur) => (cur && list.some((c) => c.id === cur) ? cur : list[0]?.id ?? ""));
       })
-      .catch(() => setCompaniesFailed(true));
+      .catch(() => { if (mine === companiesSeq.current) setCompaniesFailed(true); });
   }, [token, hydrated, sessionRevision]);
   useEffect(() => { loadCompanies(); }, [loadCompanies]);
 
@@ -88,11 +91,11 @@ export default function ModelsOverviewPage() {
       </header>
 
       {companies && companies.length > 0 && (
-        <label style={{ display: "grid", gap: 4, marginBottom: 20, maxWidth: 360 }}>
+        <label style={{ display: "grid", gap: 4, marginBottom: 20, maxWidth: 360, minWidth: 0 }}>
           <span style={muted}>{mt("company")}</span>
           <select
-            data-testid="models-company" value={companyId} onChange={(e) => setCompanyId(e.target.value)}
-            style={{ minHeight: 44, padding: "0 12px", borderRadius: 10, background: "var(--color-surface-container)", color: "var(--color-on-surface)", border: "1px solid var(--color-surface-container-high)" }}
+            data-testid="models-company" value={companyId} onChange={(e) => { setLoad({ status: "idle", view: null }); setCompanyId(e.target.value); }}
+            style={{ width: "100%", minWidth: 0, minHeight: 44, padding: "0 12px", borderRadius: 10, background: "var(--color-surface-container)", color: "var(--color-on-surface)", border: "1px solid var(--color-surface-container-high)" }}
           >
             {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
@@ -149,7 +152,7 @@ export default function ModelsOverviewPage() {
                     <span data-testid={`model-cost-${r.id}`}>
                       {mt("cost")}:{" "}
                       <span className={r.cost === null ? undefined : "bv-numeric"} style={r.cost === null ? undefined : { fontSize: 18, color: "var(--bv-status-running)" }}>
-                        {r.cost === null ? unknown : displayFormat.usd(r.cost)}
+                        {r.cost === null ? unknown : isBelowCostPrecision(r.cost) ? `< ${displayFormat.usd(COST_DISPLAY_FLOOR)}` : displayFormat.usd(r.cost)}
                       </span>
                     </span>
                     <span data-testid={`model-runs-${r.id}`}>{r.runCount === null ? `${mt("runs")}: ${unknown}` : mt("runCount", { count: r.runCount })}</span>

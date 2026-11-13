@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 import type { ModelsOverview } from "@ai-company-os/core";
 import { uxModelsEnabled } from "./flag";
-import { parseCostUsd, toModelRow, toOverviewView } from "./models";
+import { COST_DISPLAY_FLOOR, isBelowCostPrecision, parseCostUsd, toModelRow, toOverviewView } from "./models";
 
 const overview = (over: Partial<ModelsOverview> = {}): ModelsOverview => ({
   autoSelection: { enabled: null },
@@ -29,6 +29,16 @@ describe("parseCostUsd (Decimal METİN)", () => {
     for (const v of ["", " ", "abc", "-1", "1e3", "12,50", ".5", "1.", "0x10", "Infinity", "NaN", null, undefined, {}, [], true, NaN, Infinity, -0.5]) expect(parseCostUsd(v)).toBeNull();
     expect(parseCostUsd(0)).toBe(0);
     expect(parseCostUsd(2.5)).toBe(2.5);
+  });
+});
+
+describe("isBelowCostPrecision: sıfırdan büyük ama 4 ondalığın altı '$0.00' görünmez", () => {
+  it("sınırlar", () => {
+    expect(COST_DISPLAY_FLOOR).toBe(0.0001);
+    expect(isBelowCostPrecision(0)).toBe(false);
+    expect(isBelowCostPrecision(parseCostUsd("0.000012") as number)).toBe(true);
+    expect(isBelowCostPrecision(0.0001)).toBe(false);
+    expect(isBelowCostPrecision(1.2345)).toBe(false);
   });
 });
 

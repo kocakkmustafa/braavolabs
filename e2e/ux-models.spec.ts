@@ -14,13 +14,14 @@ const SHOTS = process.env.UX_MODELS_SCREEN_DIR;
 /** `NEXT_PUBLIC_API_URL` derleme anında gömülür (yerelde localhost:8080, CI'da operator adresi): ikisi de yakalanır. */
 const isApi = (url: URL) => url.pathname.startsWith("/api/v1/") && (url.hostname === "api.operator.example" || url.host === "localhost:8080");
 
-const COMPANIES = [{ id: "c1", name: "Atölye" }, { id: "c2", name: "Ofis" }, { id: "c3", name: "Ev" }];
+const COMPANIES = [{ id: "c1", name: "Atölye" }, { id: "c2", name: "Ofis" }, { id: "c3", name: "Çok uzun bir şirket adı: Kuzey Yakası Dış Ticaret ve Lojistik Hizmetleri Anonim Şirketi İstanbul Şubesi" }];
 const WINDOW = { from: "2026-11-01T00:00:00.000Z", to: "2026-11-13T10:00:00.000Z" };
 const overview = (models: unknown[], auto: boolean | null = null) => ({ autoSelection: { enabled: auto }, models, generatedAt: "2026-11-13T10:00:00.000Z", costWindow: WINDOW });
 const M_BYOK = { id: "claude-sonnet-5", provider: "anthropic", source: "byok", access: { scope: "company", mode: null }, costThisMonthUsd: "1.234500", runCountThisMonth: 7 };
 const M_UNKNOWN = { id: "yerel-llama", provider: null, source: null, access: { scope: null, mode: null }, costThisMonthUsd: null, runCountThisMonth: null };
 const M_ZERO = { id: "gpt-zero", provider: "openai", source: "platform", access: { scope: "workspace", mode: "read_write" }, costThisMonthUsd: "0.000000", runCountThisMonth: 0 };
-const BY_COMPANY: Record<string, unknown> = { c1: overview([M_BYOK, M_UNKNOWN, M_ZERO]), c2: overview([], true), c3: overview([M_UNKNOWN]) };
+const M_TINY = { id: "mini-model", provider: "mistral", source: "local", access: { scope: "agent", mode: "read" }, costThisMonthUsd: "0.000012", runCountThisMonth: 1 };
+const BY_COMPANY: Record<string, unknown> = { c1: overview([M_BYOK, M_UNKNOWN, M_ZERO]), c2: overview([], true), c3: overview([M_UNKNOWN, M_TINY]) };
 
 type Calls = { method: string; path: string }[];
 interface MockOpts { companies?: unknown[]; modelsStatus?: Record<string, number>; modelsDelayMs?: Record<string, number> }
@@ -149,6 +150,14 @@ for (const { vp, size, scheme } of COMBOS) {
       await expect(page.getByTestId("model-row-claude-sonnet-5")).toHaveCount(0);
       await expect(page.getByTestId("models-auto")).toContainText("Açık");
       await shot("02-bos");
+
+      // Çok uzun şirket adı seçiciyi taşırmaz; sıfırdan büyük ama 4 ondalığın altındaki maliyet "$0,00" görünmez.
+      await page.getByTestId("models-company").selectOption("c3");
+      await expect(page.getByTestId("model-row-mini-model")).toBeVisible();
+      await expect(page.getByTestId("model-cost-mini-model")).toContainText("< ");
+      await expect(page.getByTestId("model-cost-mini-model")).not.toHaveText(/^Bu ay maliyet: \$?0[.,]00\s*\$?$/);
+      await expect(page.getByTestId("model-access-mini-model")).toHaveText("Erişim: tek ajan · okuma");
+      await shot("03-uzun-ad-kucuk-maliyet");
       expect(calls.filter((c) => c.path === "/companies/c1/models").length).toBeGreaterThan(0);
       expect(calls.filter((c) => c.path === "/companies/c2/models").length).toBeGreaterThan(0);
 

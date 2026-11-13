@@ -79,3 +79,9 @@ export function toOverviewView(o: ModelsOverview | null | undefined): OverviewVi
     costFrom: str(o?.costWindow?.from),
   };
 }
+
+/** `useDisplayFormats().usd` en çok 4 ondalık gösterir: 0'dan büyük ama bu hassasiyetin altındaki maliyet "$0.00" görünüp sıfırdan ayırt edilemez olmasın. */
+export const COST_DISPLAY_FLOOR = 0.0001;
+export function isBelowCostPrecision(cost: number): boolean {
+  return cost > 0 && cost < COST_DISPLAY_FLOOR;
+}
