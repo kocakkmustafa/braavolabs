@@ -1581,6 +1581,51 @@
           "body": "Slack, GitHub 등 도구."
         }
       }
+    },
+    "companyStatus": {
+      "title": "회사 상태",
+      "subtitle": "실행 중, 멈춤, 승인 대기, 비용을 한 줄로 보여 줍니다.",
+      "live": "승인 대기 {approvals}건, 멈춤 {stuck}건",
+      "loading": "회사 상태를 불러오는 중…",
+      "errorTitle": "회사를 불러오지 못했습니다",
+      "errorBody": "회사 상태를 읽지 못했습니다. 다시 시도하세요.",
+      "retry": "다시 시도",
+      "summaryLabel": "회사 요약",
+      "working": "실행 중",
+      "stuck": "멈춤",
+      "approvals": "승인 대기",
+      "done": "완료",
+      "cost": "비용",
+      "unknown": "알 수 없음",
+      "atLeast": "{count}건 이상",
+      "note": "숫자는 작업 목록의 각 상태 첫 페이지(상태당 25건)에서 가져옵니다. '이상'은 더 있다는 뜻입니다. 비용은 해당 작업만 합산합니다.",
+      "costUnknownRuns": "비용을 읽을 수 없는 작업 {count}건은 합계에서 제외되었습니다.",
+      "agents": "에이전트",
+      "agentsEmpty": "이 회사에는 아직 에이전트가 없습니다.",
+      "role": "역할",
+      "linksTitle": "링크",
+      "links": {
+        "jobs": {
+          "title": "작업",
+          "body": "실행 중, 멈춤, 완료된 모든 것."
+        },
+        "approvals": {
+          "title": "승인",
+          "body": "나를 기다리는 항목을 검토합니다."
+        },
+        "risks": {
+          "title": "위험",
+          "body": "열려 있는 위험 중지."
+        },
+        "integrations": {
+          "title": "통합",
+          "body": "연결된 도구."
+        },
+        "classic": {
+          "title": "기존 회사 페이지",
+          "body": "전체 세부 정보, 작성기, 설정."
+        }
+      }
     }
   },
   "static": {

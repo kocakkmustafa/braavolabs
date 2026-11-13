@@ -1581,6 +1581,51 @@
           "body": "Slack, GitHub and other tools."
         }
       }
+    },
+    "companyStatus": {
+      "title": "Company status",
+      "subtitle": "One line on what is running, stuck, waiting for approval and what it cost.",
+      "live": "{approvals} waiting for approval, {stuck} stuck",
+      "loading": "Loading company status…",
+      "errorTitle": "Could not load the company",
+      "errorBody": "The company status could not be read. Try again.",
+      "retry": "Try again",
+      "summaryLabel": "Company summary",
+      "working": "Running",
+      "stuck": "Stuck",
+      "approvals": "Awaiting approval",
+      "done": "Done",
+      "cost": "Cost",
+      "unknown": "Unknown",
+      "atLeast": "at least {count}",
+      "note": "Counts come from the first page of each status in your job list (25 jobs per status); “at least” means more exist. Cost adds up only those jobs.",
+      "costUnknownRuns": "{count} job(s) have no readable cost and are not included.",
+      "agents": "Agents",
+      "agentsEmpty": "No agents in this company yet.",
+      "role": "Role",
+      "linksTitle": "Links",
+      "links": {
+        "jobs": {
+          "title": "Jobs",
+          "body": "Everything running, stuck or done."
+        },
+        "approvals": {
+          "title": "Approvals",
+          "body": "Review what is waiting for you."
+        },
+        "risks": {
+          "title": "Risks",
+          "body": "Open risk stops."
+        },
+        "integrations": {
+          "title": "Integrations",
+          "body": "Connected tools."
+        },
+        "classic": {
+          "title": "Classic company page",
+          "body": "Full details, composer and settings."
+        }
+      }
     }
   },
   "static": {

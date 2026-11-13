@@ -1581,6 +1581,51 @@
           "body": "Slack、GitHub などのツール。"
         }
       }
+    },
+    "companyStatus": {
+      "title": "会社の状況",
+      "subtitle": "実行中・停滞・承認待ち・費用を1行で表示します。",
+      "live": "承認待ち {approvals} 件、停滞 {stuck} 件",
+      "loading": "会社の状況を読み込み中…",
+      "errorTitle": "会社を読み込めませんでした",
+      "errorBody": "会社の状況を読み取れませんでした。もう一度お試しください。",
+      "retry": "再試行",
+      "summaryLabel": "会社の概要",
+      "working": "実行中",
+      "stuck": "停滞",
+      "approvals": "承認待ち",
+      "done": "完了",
+      "cost": "費用",
+      "unknown": "不明",
+      "atLeast": "{count} 件以上",
+      "note": "件数は、ジョブ一覧の各ステータスの最初のページ(ステータスごとに25件)から取得しています。「以上」はさらに多くあることを示します。費用はそれらのジョブのみの合計です。",
+      "costUnknownRuns": "費用を読み取れないジョブが {count} 件あり、合計に含まれていません。",
+      "agents": "エージェント",
+      "agentsEmpty": "この会社にはまだエージェントがありません。",
+      "role": "役割",
+      "linksTitle": "リンク",
+      "links": {
+        "jobs": {
+          "title": "ジョブ",
+          "body": "実行中・停滞・完了のすべて。"
+        },
+        "approvals": {
+          "title": "承認",
+          "body": "あなたを待っている項目を確認します。"
+        },
+        "risks": {
+          "title": "リスク",
+          "body": "未解決のリスク停止。"
+        },
+        "integrations": {
+          "title": "連携",
+          "body": "接続済みのツール。"
+        },
+        "classic": {
+          "title": "従来の会社ページ",
+          "body": "詳細、作成ツール、設定。"
+        }
+      }
     }
   },
   "static": {

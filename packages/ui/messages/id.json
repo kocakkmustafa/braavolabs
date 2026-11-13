@@ -1581,6 +1581,51 @@
           "body": "Slack, GitHub, dan alat lain."
         }
       }
+    },
+    "companyStatus": {
+      "title": "Status perusahaan",
+      "subtitle": "Satu baris: apa yang berjalan, macet, menunggu persetujuan, dan biayanya.",
+      "live": "{approvals} menunggu persetujuan, {stuck} macet",
+      "loading": "Memuat status perusahaan…",
+      "errorTitle": "Perusahaan tidak dapat dimuat",
+      "errorBody": "Status perusahaan tidak dapat dibaca. Coba lagi.",
+      "retry": "Coba lagi",
+      "summaryLabel": "Ringkasan perusahaan",
+      "working": "Berjalan",
+      "stuck": "Macet",
+      "approvals": "Menunggu persetujuan",
+      "done": "Selesai",
+      "cost": "Biaya",
+      "unknown": "Tidak diketahui",
+      "atLeast": "minimal {count}",
+      "note": "Angka berasal dari halaman pertama tiap status di daftar pekerjaan Anda (25 pekerjaan per status); “minimal” berarti masih ada lagi. Biaya hanya menjumlahkan pekerjaan tersebut.",
+      "costUnknownRuns": "{count} pekerjaan tanpa biaya yang terbaca tidak disertakan.",
+      "agents": "Agen",
+      "agentsEmpty": "Belum ada agen di perusahaan ini.",
+      "role": "Peran",
+      "linksTitle": "Tautan",
+      "links": {
+        "jobs": {
+          "title": "Pekerjaan",
+          "body": "Semua yang berjalan, macet, atau selesai."
+        },
+        "approvals": {
+          "title": "Persetujuan",
+          "body": "Tinjau yang menunggu Anda."
+        },
+        "risks": {
+          "title": "Risiko",
+          "body": "Penghentian risiko yang terbuka."
+        },
+        "integrations": {
+          "title": "Integrasi",
+          "body": "Alat yang terhubung."
+        },
+        "classic": {
+          "title": "Halaman perusahaan klasik",
+          "body": "Semua detail, pembuat agen, dan pengaturan."
+        }
+      }
     }
   },
   "static": {

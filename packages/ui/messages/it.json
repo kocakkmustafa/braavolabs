@@ -1581,6 +1581,51 @@
           "body": "Slack, GitHub e altri strumenti."
         }
       }
+    },
+    "companyStatus": {
+      "title": "Stato dell'azienda",
+      "subtitle": "In una riga: cosa è in corso, bloccato, in attesa di approvazione e quanto è costato.",
+      "live": "{approvals} in attesa di approvazione, {stuck} bloccati",
+      "loading": "Caricamento dello stato dell'azienda…",
+      "errorTitle": "Impossibile caricare l'azienda",
+      "errorBody": "Non è stato possibile leggere lo stato dell'azienda. Riprova.",
+      "retry": "Riprova",
+      "summaryLabel": "Riepilogo dell'azienda",
+      "working": "In corso",
+      "stuck": "Bloccati",
+      "approvals": "In attesa di approvazione",
+      "done": "Completati",
+      "cost": "Costo",
+      "unknown": "Sconosciuto",
+      "atLeast": "almeno {count}",
+      "note": "I numeri provengono dalla prima pagina di ogni stato nel tuo elenco di lavori (25 per stato); «almeno» indica che ce ne sono altri. Il costo somma solo questi lavori.",
+      "costUnknownRuns": "{count} lavoro/i senza costo leggibile non inclusi.",
+      "agents": "Agenti",
+      "agentsEmpty": "Nessun agente in questa azienda per ora.",
+      "role": "Ruolo",
+      "linksTitle": "Link",
+      "links": {
+        "jobs": {
+          "title": "Lavori",
+          "body": "Tutto ciò che è in corso, bloccato o completato."
+        },
+        "approvals": {
+          "title": "Approvazioni",
+          "body": "Controlla cosa ti aspetta."
+        },
+        "risks": {
+          "title": "Rischi",
+          "body": "Arresti di rischio aperti."
+        },
+        "integrations": {
+          "title": "Integrazioni",
+          "body": "Strumenti collegati."
+        },
+        "classic": {
+          "title": "Pagina azienda classica",
+          "body": "Tutti i dettagli, il compositore e le impostazioni."
+        }
+      }
     }
   },
   "static": {
