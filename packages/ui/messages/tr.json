@@ -1654,7 +1654,8 @@
       "testsNotVerified": "Doğrulanmadı",
       "testsRuns": "{count, number} test koşusu",
       "approvalLink": "Onay merkezinde karar ver",
-      "srSummary": "{title}. Dosyalar: {files}. Testler: {tests}."
+      "srSummary": "{title}. Dosyalar: {files}. Testler: {tests}.",
+      "stale": "Yenilenemedi; son bilinen veri gösteriliyor."
     }
   },
   "static": {

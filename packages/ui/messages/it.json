@@ -1654,7 +1654,8 @@
       "testsNotVerified": "Non verificato",
       "testsRuns": "{count, plural, one {# esecuzione di test} other {# esecuzioni di test}}",
       "approvalLink": "Decidi nel centro approvazioni",
-      "srSummary": "{title}. File: {files}. Test: {tests}."
+      "srSummary": "{title}. File: {files}. Test: {tests}.",
+      "stale": "Aggiornamento non riuscito; vengono mostrati gli ultimi dati noti."
     }
   },
   "static": {

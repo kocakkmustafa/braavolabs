@@ -1654,7 +1654,8 @@
       "testsNotVerified": "未検証",
       "testsRuns": "テスト実行 {count, number} 回",
       "approvalLink": "承認センターで判断する",
-      "srSummary": "{title}。ファイル: {files}。テスト: {tests}。"
+      "srSummary": "{title}。ファイル: {files}。テスト: {tests}。",
+      "stale": "更新できませんでした。最後に取得したデータを表示しています。"
     }
   },
   "static": {

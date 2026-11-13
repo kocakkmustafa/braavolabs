@@ -1654,7 +1654,8 @@
       "testsNotVerified": "未验证",
       "testsRuns": "{count, number} 次测试运行",
       "approvalLink": "在审批中心决定",
-      "srSummary": "{title}。文件：{files}。测试：{tests}。"
+      "srSummary": "{title}。文件：{files}。测试：{tests}。",
+      "stale": "刷新失败；正在显示最近一次的数据。"
     }
   },
   "static": {

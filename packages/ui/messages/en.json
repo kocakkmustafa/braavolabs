@@ -1654,7 +1654,8 @@
       "testsNotVerified": "Not verified",
       "testsRuns": "{count, plural, one {# test run} other {# test runs}}",
       "approvalLink": "Decide in the approval center",
-      "srSummary": "{title}. Files: {files}. Tests: {tests}."
+      "srSummary": "{title}. Files: {files}. Tests: {tests}.",
+      "stale": "Couldn't refresh; showing the last known data."
     }
   },
   "static": {

@@ -1654,7 +1654,8 @@
       "testsNotVerified": "검증되지 않음",
       "testsRuns": "테스트 실행 {count, number}회",
       "approvalLink": "승인 센터에서 결정",
-      "srSummary": "{title}. 파일: {files}. 테스트: {tests}."
+      "srSummary": "{title}. 파일: {files}. 테스트: {tests}.",
+      "stale": "새로 고치지 못했습니다. 마지막으로 확인된 데이터를 표시합니다."
     }
   },
   "static": {

@@ -1654,7 +1654,8 @@
       "testsNotVerified": "Belum terverifikasi",
       "testsRuns": "{count, number} kali menjalankan tes",
       "approvalLink": "Putuskan di pusat persetujuan",
-      "srSummary": "{title}. File: {files}. Tes: {tests}."
+      "srSummary": "{title}. File: {files}. Tes: {tests}.",
+      "stale": "Gagal memperbarui; menampilkan data terakhir yang diketahui."
     }
   },
   "static": {

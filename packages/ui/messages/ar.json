@@ -1654,7 +1654,8 @@
       "testsNotVerified": "لم يتم التحقق",
       "testsRuns": "عدد مرات تشغيل الاختبارات: {count, number}",
       "approvalLink": "قرّر في مركز الموافقات",
-      "srSummary": "{title}. الملفات: {files}. الاختبارات: {tests}."
+      "srSummary": "{title}. الملفات: {files}. الاختبارات: {tests}.",
+      "stale": "تعذّر التحديث؛ تُعرض آخر بيانات معروفة."
     }
   },
   "static": {
