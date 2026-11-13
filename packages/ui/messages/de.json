@@ -1516,6 +1516,71 @@
         "tooShort": "Die Agentenbeschreibung braucht mindestens 10 Zeichen: sag etwas mehr dazu, was er tun soll.",
         "maybeSaved": "Wenn die Verbindung abbrach, ist der Agent eventuell schon gespeichert: prüfe die Agentenliste, bevor du es erneut versuchst."
       }
+    },
+    "models": {
+      "title": "Modelle und Verbindungen",
+      "subtitle": "Welche Modelle Ihr Unternehmen nutzt, wer darauf zugreifen kann und was sie diesen Monat kosten. Nur Lesen.",
+      "company": "Unternehmen",
+      "live": "{count} Modelle aufgelistet",
+      "errorTitle": "Modelle konnten nicht geladen werden",
+      "errorBody": "Die Modellliste konnte nicht gelesen werden. Versuchen Sie es erneut.",
+      "retry": "Erneut versuchen",
+      "noCompanyTitle": "Noch kein Unternehmen",
+      "noCompanyBody": "Erstellen Sie ein Unternehmen, um seine Modelle hier zu sehen.",
+      "loading": "Modelle werden geladen …",
+      "autoLabel": "Automatische Modellauswahl",
+      "autoOn": "An",
+      "autoOff": "Aus",
+      "unknown": "Unbekannt",
+      "emptyTitle": "Noch keine Modelle in Nutzung",
+      "emptyBody": "Modelle erscheinen hier, sobald ein Agent dieses Unternehmens eines hat.",
+      "provider": "Anbieter",
+      "access": "Zugriff",
+      "cost": "Kosten diesen Monat",
+      "runs": "Läufe diesen Monat",
+      "runCount": "Läufe diesen Monat: {count}",
+      "costNote": "Die Kosten werden dem aktuellen Modell jedes Agenten zugeordnet; Läufe vor einem Modellwechsel zählen daher zum neuen Modell. Der Monat beginnt am 1. um 00:00 UTC.",
+      "costSince": "Seit {from}.",
+      "updatedAt": "Aktualisiert: {time}.",
+      "linksTitle": "Verwalten",
+      "source": {
+        "label": "Quelle",
+        "byok": "Eigener API-Schlüssel",
+        "local": "Lokales Modell",
+        "platform": "Plattform",
+        "unknown": "Unbekannt"
+      },
+      "scope": {
+        "company": "dieses Unternehmen",
+        "workspace": "dieser Arbeitsbereich",
+        "agent": "ein Agent"
+      },
+      "mode": {
+        "read": "lesen",
+        "read_write": "lesen und schreiben"
+      },
+      "links": {
+        "own": {
+          "title": "Eigener API-Schlüssel",
+          "body": "Schlüssel unter Einstellungen → KI-Anbieter hinzufügen oder ändern."
+        },
+        "local": {
+          "title": "Lokales Modell",
+          "body": "Einen selbst gehosteten Endpunkt unter Einstellungen → KI-Anbieter verbinden."
+        },
+        "compare": {
+          "title": "Modelle vergleichen",
+          "body": "Dieselbe Aufgabe nebeneinander auf mehreren Modellen ausführen."
+        },
+        "connections": {
+          "title": "Automatisierungsverbindungen",
+          "body": "Läufe aus n8n, Make und Zapier."
+        },
+        "integrations": {
+          "title": "Integrationen",
+          "body": "Slack, GitHub und weitere Werkzeuge."
+        }
+      }
     }
   },
   "static": {

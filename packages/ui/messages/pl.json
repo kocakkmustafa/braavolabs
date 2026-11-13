@@ -1516,6 +1516,71 @@
         "tooShort": "Opis agenta musi mieć co najmniej 10 znaków: napisz nieco więcej o tym, co ma robić.",
         "maybeSaved": "Jeśli połączenie zostało przerwane, agent mógł już zostać zapisany: sprawdź listę agentów przed ponowną próbą."
       }
+    },
+    "models": {
+      "title": "Modele i połączenia",
+      "subtitle": "Jakich modeli używa Twoja firma, kto ma do nich dostęp i ile kosztują w tym miesiącu. Tylko do odczytu.",
+      "company": "Firma",
+      "live": "Liczba modeli na liście: {count}",
+      "errorTitle": "Nie udało się wczytać modeli",
+      "errorBody": "Nie udało się odczytać listy modeli. Spróbuj ponownie.",
+      "retry": "Spróbuj ponownie",
+      "noCompanyTitle": "Jeszcze nie ma firmy",
+      "noCompanyBody": "Utwórz firmę, aby zobaczyć tu jej modele.",
+      "loading": "Wczytywanie modeli…",
+      "autoLabel": "Automatyczny wybór modelu",
+      "autoOn": "Włączony",
+      "autoOff": "Wyłączony",
+      "unknown": "Nieznane",
+      "emptyTitle": "Brak używanych modeli",
+      "emptyBody": "Modele pojawią się tu, gdy agent tej firmy będzie jakiś miał.",
+      "provider": "Dostawca",
+      "access": "Dostęp",
+      "cost": "Koszt w tym miesiącu",
+      "runs": "Uruchomienia w tym miesiącu",
+      "runCount": "Uruchomienia w tym miesiącu: {count}",
+      "costNote": "Koszt jest przypisywany do bieżącego modelu każdego agenta, więc uruchomienia sprzed zmiany modelu liczą się do nowego. Miesiąc zaczyna się 1. o 00:00 UTC.",
+      "costSince": "Od {from}.",
+      "updatedAt": "Zaktualizowano: {time}.",
+      "linksTitle": "Zarządzaj",
+      "source": {
+        "label": "Źródło",
+        "byok": "Własny klucz API",
+        "local": "Model lokalny",
+        "platform": "Platforma",
+        "unknown": "Nieznane"
+      },
+      "scope": {
+        "company": "ta firma",
+        "workspace": "ta przestrzeń robocza",
+        "agent": "jeden agent"
+      },
+      "mode": {
+        "read": "odczyt",
+        "read_write": "odczyt i zapis"
+      },
+      "links": {
+        "own": {
+          "title": "Własny klucz API",
+          "body": "Dodaj lub zmień klucze w Ustawienia → Dostawca AI."
+        },
+        "local": {
+          "title": "Model lokalny",
+          "body": "Połącz własny punkt końcowy w Ustawienia → Dostawca AI."
+        },
+        "compare": {
+          "title": "Porównaj modele",
+          "body": "Uruchom to samo zadanie na kilku modelach obok siebie."
+        },
+        "connections": {
+          "title": "Połączenia automatyzacji",
+          "body": "Uruchomienia n8n, Make i Zapier."
+        },
+        "integrations": {
+          "title": "Integracje",
+          "body": "Slack, GitHub i inne narzędzia."
+        }
+      }
     }
   },
   "static": {

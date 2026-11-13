@@ -1516,6 +1516,71 @@
         "tooShort": "エージェントの説明は10文字以上で入力してください。何をさせたいかもう少し詳しく書いてください。",
         "maybeSaved": "接続が切れた場合、エージェントはすでに保存されている可能性があります。再試行する前にエージェント一覧を確認してください。"
       }
+    },
+    "models": {
+      "title": "モデルと接続",
+      "subtitle": "会社が使っているモデル、アクセスできる範囲、今月の費用を表示します。読み取り専用です。",
+      "company": "会社",
+      "live": "{count} 件のモデルを表示",
+      "errorTitle": "モデルを読み込めませんでした",
+      "errorBody": "モデル一覧を読み取れませんでした。もう一度お試しください。",
+      "retry": "再試行",
+      "noCompanyTitle": "会社がまだありません",
+      "noCompanyBody": "会社を作成すると、そのモデルがここに表示されます。",
+      "loading": "モデルを読み込み中…",
+      "autoLabel": "モデルの自動選択",
+      "autoOn": "オン",
+      "autoOff": "オフ",
+      "unknown": "不明",
+      "emptyTitle": "使用中のモデルはまだありません",
+      "emptyBody": "この会社のエージェントにモデルが設定されると、ここに表示されます。",
+      "provider": "プロバイダー",
+      "access": "アクセス",
+      "cost": "今月の費用",
+      "runs": "今月の実行数",
+      "runCount": "今月の実行数: {count}",
+      "costNote": "費用は各エージェントの現在のモデルに割り当てられます。モデル変更前の実行も新しいモデルに計上されます。月は毎月1日 00:00 UTC に始まります。",
+      "costSince": "{from} 以降。",
+      "updatedAt": "更新: {time}。",
+      "linksTitle": "管理",
+      "source": {
+        "label": "ソース",
+        "byok": "自分の API キー",
+        "local": "ローカルモデル",
+        "platform": "プラットフォーム",
+        "unknown": "不明"
+      },
+      "scope": {
+        "company": "この会社",
+        "workspace": "このワークスペース",
+        "agent": "エージェント単位"
+      },
+      "mode": {
+        "read": "読み取り",
+        "read_write": "読み取りと書き込み"
+      },
+      "links": {
+        "own": {
+          "title": "自分の API キー",
+          "body": "キーの追加・変更は 設定 → AI プロバイダー で行います。"
+        },
+        "local": {
+          "title": "ローカルモデル",
+          "body": "自前のエンドポイントは 設定 → AI プロバイダー で接続します。"
+        },
+        "compare": {
+          "title": "モデルを比較",
+          "body": "同じタスクを複数のモデルで並べて実行します。"
+        },
+        "connections": {
+          "title": "自動化の接続",
+          "body": "n8n、Make、Zapier の実行。"
+        },
+        "integrations": {
+          "title": "連携",
+          "body": "Slack、GitHub などのツール。"
+        }
+      }
     }
   },
   "static": {

@@ -1516,6 +1516,71 @@
         "tooShort": "Ajan tarifi en az 10 karakter olmalı: ne yapacağını biraz daha anlat.",
         "maybeSaved": "Bağlantı koptuysa ajan zaten kaydedilmiş olabilir: yeniden denemeden önce ajan listesine bak."
       }
+    },
+    "models": {
+      "title": "Modeller ve bağlantılar",
+      "subtitle": "Şirketinizin hangi modelleri kullandığı, kimin erişebildiği ve bu ay ne kadar tuttuğu. Salt okunur.",
+      "company": "Şirket",
+      "live": "{count} model listelendi",
+      "errorTitle": "Modeller yüklenemedi",
+      "errorBody": "Model listesi okunamadı. Yeniden deneyin.",
+      "retry": "Yeniden dene",
+      "noCompanyTitle": "Henüz şirket yok",
+      "noCompanyBody": "Modellerini burada görmek için bir şirket oluşturun.",
+      "loading": "Modeller yükleniyor…",
+      "autoLabel": "Otomatik model seçimi",
+      "autoOn": "Açık",
+      "autoOff": "Kapalı",
+      "unknown": "Bilinmiyor",
+      "emptyTitle": "Kullanılan model yok",
+      "emptyBody": "Bu şirketteki bir ajanın modeli olunca burada görünür.",
+      "provider": "Sağlayıcı",
+      "access": "Erişim",
+      "cost": "Bu ay maliyet",
+      "runs": "Bu ay koşu",
+      "runCount": "Bu ay koşu: {count}",
+      "costNote": "Maliyet her ajanın şu anki modeline atfedilir; model değiştirildiyse önceki koşular yeni modele yazılır. Ay, 1'inde UTC gece yarısı başlar.",
+      "costSince": "{from} tarihinden beri.",
+      "updatedAt": "Güncellendi: {time}.",
+      "linksTitle": "Yönet",
+      "source": {
+        "label": "Kaynak",
+        "byok": "Kendi API anahtarın",
+        "local": "Yerel model",
+        "platform": "Platform",
+        "unknown": "Bilinmiyor"
+      },
+      "scope": {
+        "company": "bu şirket",
+        "workspace": "bu çalışma alanı",
+        "agent": "tek ajan"
+      },
+      "mode": {
+        "read": "okuma",
+        "read_write": "okuma ve yazma"
+      },
+      "links": {
+        "own": {
+          "title": "Kendi API anahtarım",
+          "body": "Anahtarları Ayarlar → Yapay zekâ sağlayıcısı bölümünden ekleyin ya da değiştirin."
+        },
+        "local": {
+          "title": "Yerel model",
+          "body": "Kendi barındırdığınız bir uç noktayı Ayarlar → Yapay zekâ sağlayıcısı bölümünden bağlayın."
+        },
+        "compare": {
+          "title": "Modelleri karşılaştır",
+          "body": "Aynı işi birkaç modelde yan yana çalıştırın."
+        },
+        "connections": {
+          "title": "Otomasyon bağlantıları",
+          "body": "n8n, Make ve Zapier koşuları."
+        },
+        "integrations": {
+          "title": "Entegrasyonlar",
+          "body": "Slack, GitHub ve diğer araçlar."
+        }
+      }
     }
   },
   "static": {

@@ -1516,6 +1516,71 @@
         "tooShort": "La descrizione dell'agente deve avere almeno 10 caratteri: spiega un po' meglio cosa deve fare.",
         "maybeSaved": "Se la connessione è caduta, l'agente potrebbe essere già salvato: controlla l'elenco degli agenti prima di riprovare."
       }
+    },
+    "models": {
+      "title": "Modelli e connessioni",
+      "subtitle": "Quali modelli usa la tua azienda, chi può accedervi e quanto costano questo mese. Sola lettura.",
+      "company": "Azienda",
+      "live": "{count} modelli elencati",
+      "errorTitle": "Impossibile caricare i modelli",
+      "errorBody": "Non è stato possibile leggere l'elenco dei modelli. Riprova.",
+      "retry": "Riprova",
+      "noCompanyTitle": "Nessuna azienda per ora",
+      "noCompanyBody": "Crea un'azienda per vederne qui i modelli.",
+      "loading": "Caricamento dei modelli…",
+      "autoLabel": "Selezione automatica del modello",
+      "autoOn": "Attiva",
+      "autoOff": "Disattivata",
+      "unknown": "Sconosciuto",
+      "emptyTitle": "Nessun modello in uso",
+      "emptyBody": "I modelli compaiono qui quando un agente di questa azienda ne ha uno.",
+      "provider": "Fornitore",
+      "access": "Accesso",
+      "cost": "Costo questo mese",
+      "runs": "Esecuzioni questo mese",
+      "runCount": "Esecuzioni questo mese: {count}",
+      "costNote": "Il costo è attribuito al modello attuale di ogni agente; le esecuzioni precedenti a un cambio di modello contano per il nuovo. Il mese inizia il 1° alle 00:00 UTC.",
+      "costSince": "Dal {from}.",
+      "updatedAt": "Aggiornato {time}.",
+      "linksTitle": "Gestisci",
+      "source": {
+        "label": "Origine",
+        "byok": "La tua chiave API",
+        "local": "Modello locale",
+        "platform": "Piattaforma",
+        "unknown": "Sconosciuta"
+      },
+      "scope": {
+        "company": "questa azienda",
+        "workspace": "questo spazio di lavoro",
+        "agent": "un solo agente"
+      },
+      "mode": {
+        "read": "lettura",
+        "read_write": "lettura e scrittura"
+      },
+      "links": {
+        "own": {
+          "title": "La tua chiave API",
+          "body": "Aggiungi o cambia le chiavi in Impostazioni → Fornitore IA."
+        },
+        "local": {
+          "title": "Modello locale",
+          "body": "Collega un endpoint self-hosted in Impostazioni → Fornitore IA."
+        },
+        "compare": {
+          "title": "Confronta i modelli",
+          "body": "Esegui lo stesso compito su più modelli affiancati."
+        },
+        "connections": {
+          "title": "Connessioni di automazione",
+          "body": "Esecuzioni di n8n, Make e Zapier."
+        },
+        "integrations": {
+          "title": "Integrazioni",
+          "body": "Slack, GitHub e altri strumenti."
+        }
+      }
     }
   },
   "static": {
