@@ -10,7 +10,7 @@ import { hasCodeChange } from "../../lib/ux-code/summary";
 import type { T } from "../inbox/InboxParts";
 
 export type CodeHeading = 2 | 3;
-export type CodeState = { status: "loading" } | { status: "error" } | { status: "ready"; view: CodeView };
+export type CodeState = { status: "loading" } | { status: "error" } | { status: "ready"; view: CodeView; /** Sessiz yenileme başarısız: eski veri yerinde, "güncellenemedi" notu + yeniden dene. */ stale?: boolean };
 
 const muted: React.CSSProperties = { color: "var(--color-on-surface-variant)", fontSize: 13 };
 const srOnly: React.CSSProperties = { position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" };
@@ -107,6 +107,12 @@ export default function CodeChangeCard({ state, title, awaitingApproval, t, loca
       <Heading style={{ margin: 0, fontSize: 15, fontWeight: 700, overflowWrap: "anywhere" }}>{heading}</Heading>
       <span role="status" aria-live="polite" data-testid="code-live" style={srOnly}>{live}</span>
       {body}
+      {state.status === "ready" && state.stale && (
+        <div data-testid="code-stale" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <p role="status" style={{ ...muted, margin: 0 }}>{t("app.codeChange.stale")}</p>
+          <button type="button" style={btn} onClick={onRetry}>{t("app.codeChange.retry")}</button>
+        </div>
+      )}
       {awaitingApproval && state.status === "ready" && (
         <Link href="/approvals" data-testid="code-approvals-link" style={{ minHeight: 44, display: "inline-flex", alignItems: "center", textDecoration: "underline", color: "var(--color-primary)", fontSize: 14 }}>{t("app.codeChange.approvalLink")}</Link>
       )}

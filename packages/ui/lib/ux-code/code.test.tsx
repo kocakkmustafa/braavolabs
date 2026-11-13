@@ -132,6 +132,19 @@ describe("CodeChangeCard işaretlemesi", () => {
     expect(n).toContain("This job has no code change record.");
     expect(n).not.toContain("code-files");
   });
+  it("bayat (sessiz yenileme başarısız): eski veri yerinde + 'güncellenemedi' notu (alert değil) + Yeniden dene; taze veride yok", () => {
+    const s = html({ ...(ready(FULL) as Extract<CodeState, { status: "ready" }>), stale: true });
+    expect(s).toContain("src/auth.ts");
+    expect(s).toContain("41 passed");
+    expect(s).toContain('data-testid="code-stale"');
+    expect(s).toContain("Couldn&#x27;t refresh; showing the last known data.");
+    expect(s).toContain("Try again");
+    expect(s).not.toContain('role="alert"');
+    const fresh = html(ready(FULL));
+    expect(fresh).not.toContain("code-stale");
+    expect(fresh).not.toContain("<button");
+    expect(html({ ...(ready(FULL) as Extract<CodeState, { status: "ready" }>), stale: true }, { locale: "tr" })).toContain("Yenilenemedi; son bilinen veri gösteriliyor.");
+  });
   it("hazır: başlık, dosya satırı +12 −4, testler, doğrulandı; Kabul/Reddet düğmesi yok", () => {
     const h = html(ready(FULL));
     expect(h).toContain("Change: Fix login");

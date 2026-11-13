@@ -1654,7 +1654,8 @@
       "testsNotVerified": "Niezweryfikowano",
       "testsRuns": "uruchomień testów: {count, number}",
       "approvalLink": "Zdecyduj w centrum zatwierdzeń",
-      "srSummary": "{title}. Pliki: {files}. Testy: {tests}."
+      "srSummary": "{title}. Pliki: {files}. Testy: {tests}.",
+      "stale": "Nie udało się odświeżyć; wyświetlane są ostatnie znane dane."
     }
   },
   "static": {

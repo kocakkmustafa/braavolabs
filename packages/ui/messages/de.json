@@ -1654,7 +1654,8 @@
       "testsNotVerified": "Nicht verifiziert",
       "testsRuns": "{count, plural, one {# Testlauf} other {# Testläufe}}",
       "approvalLink": "Im Genehmigungscenter entscheiden",
-      "srSummary": "{title}. Dateien: {files}. Tests: {tests}."
+      "srSummary": "{title}. Dateien: {files}. Tests: {tests}.",
+      "stale": "Aktualisierung fehlgeschlagen; zuletzt bekannte Daten werden angezeigt."
     }
   },
   "static": {

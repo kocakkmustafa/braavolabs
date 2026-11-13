@@ -63,14 +63,25 @@ export default function JobModes({ run, token, t, locale, rtl, busy, message, on
     if (!r.ok && my === rSeq.current) setReceipt({ status: receiptFailureKind(r.err) });
   };
   /** `silent`: yenilemede önceki veri yerinde kalır (yükleniyor yok); hata/ayrıştırma sorununda eski veri korunur. */
-  const fetchCode = (silent = false) => {
+  const fetchCode = (silent = false, prevSig: CodeSig | null = null) => {
     const my = ++cSeq.current;
     if (!silent) setCode({ status: "loading" });
+    // Sessiz yenileme başarısız: eski veri "güncellenemedi" notuyla kalır ve imza geri alınır — sonraki yoklama değişimi yeniden dener.
+    const failSilently = () => {
+      cSig.current = prevSig;
+      setCode((c) => c?.status === "ready" ? { ...c, stale: true } : { status: "error" });
+    };
     api.runCodeSummary(token, run.id).then((raw) => {
       if (my !== cSeq.current) return;
       const view = parseCodeSummary(raw);
-      setCode((c) => view ? { status: "ready", view } : silent && c?.status === "ready" ? c : { status: "error" });
-    }, () => { if (my === cSeq.current) setCode((c) => silent && c?.status === "ready" ? c : { status: "error" }); });
+      if (view) setCode({ status: "ready", view });
+      else if (silent) failSilently();
+      else setCode({ status: "error" });
+    }, () => {
+      if (my !== cSeq.current) return;
+      if (silent) failSilently();
+      else setCode({ status: "error" });
+    });
   };
   useEffect(() => {
     if (tab === "kaput" && kaput.status === "idle") fetchKaput();
@@ -83,8 +94,9 @@ export default function JobModes({ run, token, t, locale, rtl, busy, message, on
   useEffect(() => {
     if (!codeChange || tab !== "output") return;
     const plan = planCodeFetch(cSig.current, sig, code === null ? "none" : code.status);
+    const prev = cSig.current;
     cSig.current = sig;
-    if (plan !== "none") fetchCode(plan === "silent");
+    if (plan !== "none") fetchCode(plan === "silent", prev);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [codeChange, tab, sig[0], sig[1], sig[2]]);
 
