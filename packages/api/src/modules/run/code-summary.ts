@@ -110,6 +110,7 @@ function parseUnifiedDiff(text: string): JobCodeSummaryFile[] {
   const lines = text.split(LINE_SPLIT);
   let cur = null as JobCodeSummaryFile | null;
   let inHunk = false;
+  let gitMode = false;
   // Sayı ilk `@@` görülünce bilinir; ikili/yeniden adlandırma dosyası `null` kalır (0 uydurulmaz).
   const open = (p: string | null): void => {
     cur = p ? { path: p, additions: null, deletions: null } : null;
@@ -120,11 +121,14 @@ function parseUnifiedDiff(text: string): JobCodeSummaryFile[] {
     const line = lines[i]!;
     if (line.startsWith("diff --git ")) {
       const m = line.length <= MAX_HEADER_LINE ? /^diff --git a\/(.+?) b\/(.+)$/.exec(line) : null;
-      open(m ? cleanPath(m[2], true) : null);
+      // Regex `b/` önekini zaten yakalamadan atar (`a/b/foo` → `b/foo`): ikinci kez soyulmaz.
+      gitMode = true;
+      open(m ? cleanPath(m[2]) : null);
     } else if (line.startsWith("--- ") && (lines[i + 1] ?? "").startsWith("+++ ") && (lines[i + 2] ?? "").startsWith("@@")) {
-      // Üstbilgi çifti: `--- a/x` `+++ b/y` `@@`. git kipinde dosya `diff --git` ile açıldı; git'siz diff'te `+++` açar.
+      // Üstbilgi çifti: `--- a/x` `+++ b/y` `@@`. git kipinde dosya `diff --git` ile açıldı (çift yeni dosya AÇMAZ:
+      // hunk içinde `-- x` / `++ y` / `@@` üçlüsü hayalet dosya doğurmasın); git'siz diff'te `+++` açar.
       const plus = cleanPath((lines[i + 1] ?? "").slice(4).split("\t")[0], true);
-      if (!cur || inHunk) open(plus ?? cleanPath(line.slice(4).split("\t")[0], true));
+      if (!gitMode && (!cur || inHunk)) open(plus ?? cleanPath(line.slice(4).split("\t")[0], true));
       i += 1;
       inHunk = false;
     } else if (!inHunk && line.startsWith("--- ")) {
@@ -232,8 +236,8 @@ export function summarizeDiff(calls: readonly CodeSummaryToolCall[], callsTrunca
     sawDiffTool = true;
     if (oversized(c.output)) partial = true; // metin kırpılarak okunur: sayılar eksik olabilir
     for (const f of parseDiffCall(c.output, c.input)) {
-      const prev = byPath.get(f.path);
-      if (prev && prev.additions !== null && f.additions === null && f.deletions === null) continue;
+      // Son çağrı kazanır: sayılı eski kayıt sonradan gelen sayısız çağrıyla (ör. `edit_file`) ezilir ⇒ sayı
+      // artık bayat olabilir, `null` (bilinmiyor) ve `complete:false`.
       byPath.delete(f.path); // sona taşı: son çağrı sırası
       byPath.set(f.path, f);
     }
@@ -324,16 +328,22 @@ export function parseTestCounts(output: unknown): Pick<JobCodeSummaryTests, "pas
   return { passed, failed, skipped, total };
 }
 
-/** Son test çağrısı esas alınır (nihai durum); `runs` toplam çağrı sayısıdır. */
+/**
+ * Sayılar SON test çağrısındandır (nihai durum); `ok` makbuzla aynı fail-closed kuraldır: TÜM test çağrıları
+ * açıkça geçmeli (önce kaldı, sonra geçti ⇒ `ok:false`; makbuz da böyle veto eder). `runs` çağrı sayısıdır
+ * (sorgu sınırı aşıldıysa "en az").
+ */
 export function summarizeTests(calls: readonly CodeSummaryToolCall[]): JobCodeSummaryTests | null {
   const testCalls = calls.filter((c) => EVIDENCE_TOOLS[String(c.toolName ?? "").toLowerCase()] === "test");
   if (testCalls.length === 0) return null;
   const last = testCalls[testCalls.length - 1]!;
   const counts = parseTestCounts(last.status === "COMPLETED" ? last.output : null);
-  // `ok` makbuzdaki kuraldır; sayılar başarısızlık gösteriyorsa (ör. `failures: [..]`, metinde `3 failed`) ok olamaz.
-  const ok = last.status === "COMPLETED" && testPassed(last.output) && !((counts.failed ?? 0) > 0);
+  // Sayılar başarısızlık gösteriyorsa (ör. `failures: [..]`, metinde `3 failed`) çağrı geçmiş sayılmaz.
+  const passes = (c: CodeSummaryToolCall): boolean =>
+    c.status === "COMPLETED" && testPassed(c.output) && !((parseTestCounts(c.output).failed ?? 0) > 0);
+  const ok = testCalls.every(passes);
   // Açıkça geçti (çıkış 0, başarısız yok) ve geçen sayısı biliniyorsa başarısız = 0 (veto yok).
-  if (ok && counts.failed === null && counts.passed !== null) counts.failed = 0;
+  if (passes(last) && counts.failed === null && counts.passed !== null) counts.failed = 0;
   if (counts.total === null && counts.passed !== null && counts.failed !== null) {
     counts.total = counts.passed + counts.failed + (counts.skipped ?? 0);
   }

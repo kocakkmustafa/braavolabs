@@ -63,7 +63,7 @@ describe("GET /runs/:id/code-summary", () => {
     expect(q.where.OR[0].toolName.mode).toBe("insensitive");
     expect(CODE_SUMMARY_TOOL_NAMES.length).toBeLessThan(EVIDENCE_TOOL_NAMES.length);
     // en yeni çağrılar (desc), sınır + 1 satır (kesilme tespiti)
-    expect(q.orderBy).toEqual([{ runStep: { stepIndex: "desc" } }, { createdAt: "desc" }]);
+    expect(q.orderBy).toEqual([{ runStep: { stepIndex: "desc" } }, { createdAt: "desc" }, { id: "desc" }]);
     expect(q.take).toBe(MAX_SUMMARY_CALLS + 1);
     expect(Object.keys(q.select).sort()).toEqual(["input", "output", "status", "toolName"]);
   });
@@ -82,7 +82,8 @@ describe("GET /runs/:id/code-summary", () => {
       { toolName: "run_tests", status: "COMPLETED", input: {}, output: { passed: 1, failed: 3, exitCode: 1 } }, // eski
     ]);
     const { res } = await call();
-    expect(res.body.tests).toMatchObject({ passed: 9, failed: 0, ok: true, runs: 2 });
+    // sayılar SON çağrıdan; `ok` makbuz gibi fail-closed: eski kaldı çağrısı da veto eder
+    expect(res.body.tests).toMatchObject({ passed: 9, failed: 0, ok: false, runs: 2 });
   });
   it("sınır aşılırsa (MAX+1 satır) en eski atılır ve diff complete=false", async () => {
     runFindFirst.mockResolvedValue({ id: "run-1" });

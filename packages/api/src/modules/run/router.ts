@@ -1211,7 +1211,7 @@ runRouter.get("/:id/code-summary", async (req, res, next) => {
         runStep: { runId: run.id, run: { pipeline: { company: { tenantId } } } },
         OR: CODE_SUMMARY_TOOL_NAMES.map((n) => ({ toolName: { equals: n, mode: "insensitive" as const } })),
       },
-      orderBy: [{ runStep: { stepIndex: "desc" } }, { createdAt: "desc" }],
+      orderBy: [{ runStep: { stepIndex: "desc" } }, { createdAt: "desc" }, { id: "desc" }], // `id`: aynı createdAt'te belirleyici sıra
       take: MAX_SUMMARY_CALLS + 1,
       select: { toolName: true, status: true, input: true, output: true },
     });

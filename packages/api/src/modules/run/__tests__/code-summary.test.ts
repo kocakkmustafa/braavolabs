@@ -156,7 +156,7 @@ describe("summarizeDiff", () => {
     const none = summarizeDiff([tc("write_file", { path: "a.ts" })])!;
     expect(none).toMatchObject({ additions: null, deletions: null, complete: false, fileCount: 1 });
   });
-  it("aynı yol: son çağrı kazanır (toplanmaz); sayılı kayıt sayısızla ezilmez", () => {
+  it("aynı yol: son çağrı kazanır (toplanmaz); sonradan gelen sayısız çağrı eski sayıyı bayat sayar (null, complete=false)", () => {
     const d = summarizeDiff([
       tc("git_diff", { files: [{ path: "a.ts", additions: 5, deletions: 5 }] }),
       tc("edit_file", { path: "a.ts" }),
@@ -164,10 +164,35 @@ describe("summarizeDiff", () => {
       tc("git_diff", { files: [{ path: "b.ts", additions: 2, deletions: 1 }] }),
     ])!;
     expect(d.files).toEqual([
-      { path: "a.ts", additions: 5, deletions: 5 },
+      { path: "a.ts", additions: null, deletions: null },
       { path: "b.ts", additions: 2, deletions: 1 },
     ]);
-    expect(d).toMatchObject({ additions: 7, deletions: 6, complete: true });
+    expect(d).toMatchObject({ additions: 2, deletions: 1, complete: false });
+  });
+  it("tersi: önce sayısız düzenleme, sonra sayılı git_diff ⇒ sayılı kayıt kazanır", () => {
+    const d = summarizeDiff([tc("edit_file", { path: "a.ts" }), tc("git_diff", { files: [{ path: "a.ts", additions: 3, deletions: 1 }] })])!;
+    expect(d.files).toEqual([{ path: "a.ts", additions: 3, deletions: 1 }]);
+    expect(d.complete).toBe(true);
+  });
+  it("`diff --git a/b/foo b/b/foo`: `b/` dizini korunur (önek iki kez soyulmaz)", () => {
+    const text = ["diff --git a/b/foo.ts b/b/foo.ts", "--- a/b/foo.ts", "+++ b/b/foo.ts", "@@ -1 +1 @@", "-x", "+y"].join("\n");
+    expect(parseDiffCall({ diff: text }, {})).toEqual([{ path: "b/foo.ts", additions: 1, deletions: 1 }]);
+  });
+  it("git kipinde hunk içindeki `-- x` / `++ y` / `@@` üçlüsü hayalet dosya açmaz", () => {
+    const text = [
+      "diff --git a/q.sql b/q.sql",
+      "--- a/q.sql",
+      "+++ b/q.sql",
+      "@@ -1,3 +1,3 @@",
+      "--- eski yorum", // silinen `-- eski yorum` satırı
+      "+++ yeni yorum", // eklenen `++ yeni yorum` satırı
+      "@@ -9 +9 @@",
+      "-z",
+      "+w",
+    ].join("\n");
+    const out = parseDiffCall({ diff: text }, {});
+    expect(out).toHaveLength(1);
+    expect(out[0]!.path).toBe("q.sql");
   });
   it("dosya listesi kırpılır: fileCount gerçek, files üst sınırda, complete=false", () => {
     const files = Array.from({ length: MAX_SUMMARY_FILES + 5 }, (_, i) => ({ path: `f${i}.ts`, additions: 1, deletions: 0 }));
@@ -223,13 +248,14 @@ describe("parseTestCounts / summarizeTests", () => {
     expect(summarizeTests([tc("run_tests", { exitCode: 0, passed: 3, failures: ["a", "b"] })])).toMatchObject({ ok: false, failed: 2 });
     expect(summarizeTests([tc("run_tests", { exitCode: 0, stdout: "5 passed, 3 failed" })])).toMatchObject({ ok: false, failed: 3, passed: 5 });
   });
-  it("test çağrısı yok → null; son çağrı esas, runs sayılır", () => {
+  it("test çağrısı yok → null; sayılar son çağrıdan, runs sayılır", () => {
     expect(summarizeTests([tc("git_diff", {})])).toBeNull();
-    const t = summarizeTests([
-      tc("run_tests", { passed: 3, failed: 2, exitCode: 1 }),
-      tc("run_tests", { passed: 5, exitCode: 0 }),
-    ])!;
-    expect(t).toEqual({ passed: 5, failed: 0, skipped: null, total: 5, ok: true, runs: 2 });
+    const t = summarizeTests([tc("run_tests", { passed: 5, exitCode: 0 }), tc("run_tests", { passed: 6, exitCode: 0 })])!;
+    expect(t).toEqual({ passed: 6, failed: 0, skipped: null, total: 6, ok: true, runs: 2 });
+  });
+  it("makbuzla aynı fail-closed: önce kaldı sonra geçti ⇒ ok=false (sayılar son çağrıdan)", () => {
+    const t = summarizeTests([tc("run_tests", { passed: 3, failed: 2, exitCode: 1 }), tc("run_tests", { passed: 5, exitCode: 0 })])!;
+    expect(t).toEqual({ passed: 5, failed: 0, skipped: null, total: 5, ok: false, runs: 2 });
   });
   it("başarısız son çağrı: ok=false, sayılar okunmaz", () => {
     const t = summarizeTests([tc("pytest", { passed: 9, exitCode: 0 }, { status: "FAILED" })])!;
